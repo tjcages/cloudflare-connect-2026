@@ -35,6 +35,7 @@ const cellIsInRange = (row: number, column: number, range: SelectionRange | null
 
 export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
   const [selection, setSelection] = useState<SelectionRange | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
   const maskRef = useRef(mask);
   const selectionRef = useRef<SelectionRange | null>(null);
   const rows = mask.length;
@@ -74,17 +75,59 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
     setActiveSelection(null);
   }, [onChange, setActiveSelection]);
 
+  const getPointFromPointer = useCallback((event: PointerEvent): SelectionPoint | null => {
+    const grid = gridRef.current;
+
+    if (!grid || rows === 0 || columns === 0) {
+      return null;
+    }
+
+    const rect = grid.getBoundingClientRect();
+    const cellWidth = rect.width / columns;
+    const cellHeight = rect.height / rows;
+
+    if (cellWidth === 0 || cellHeight === 0) {
+      return null;
+    }
+
+    return {
+      row: Math.min(rows - 1, Math.max(0, Math.floor((event.clientY - rect.top) / cellHeight))),
+      column: Math.min(columns - 1, Math.max(0, Math.floor((event.clientX - rect.left) / cellWidth))),
+    };
+  }, [columns, rows]);
+
+  const updateSelectionFromPointer = useCallback((event: PointerEvent) => {
+    const activeSelection = selectionRef.current;
+
+    if (!activeSelection) {
+      return;
+    }
+
+    const end = getPointFromPointer(event);
+
+    if (!end || (activeSelection.end.row === end.row && activeSelection.end.column === end.column)) {
+      return;
+    }
+
+    setActiveSelection({
+      ...activeSelection,
+      end,
+    });
+  }, [getPointFromPointer, setActiveSelection]);
+
   useEffect(() => {
     const cancelSelection = () => setActiveSelection(null);
 
+    window.addEventListener("pointermove", updateSelectionFromPointer);
     window.addEventListener("pointerup", commitSelection);
     window.addEventListener("pointercancel", cancelSelection);
 
     return () => {
+      window.removeEventListener("pointermove", updateSelectionFromPointer);
       window.removeEventListener("pointerup", commitSelection);
       window.removeEventListener("pointercancel", cancelSelection);
     };
-  }, [commitSelection, setActiveSelection]);
+  }, [commitSelection, setActiveSelection, updateSelectionFromPointer]);
 
   return (
     <div className="gap-editor">
@@ -93,6 +136,7 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
         <small>{columns} x {rows}</small>
       </div>
       <div
+        ref={gridRef}
         className="gap-grid"
         style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
       >
@@ -114,14 +158,6 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
                     start: { row, column },
                     end: { row, column },
                   });
-                }}
-                onPointerEnter={() => {
-                  if (selectionRef.current) {
-                    setActiveSelection({
-                      ...selectionRef.current,
-                      end: { row, column },
-                    });
-                  }
                 }}
                 type="button"
                 aria-label={`${blocked ? "Unblock" : "Block"} gap cell ${row + 1}, ${column + 1}`}
