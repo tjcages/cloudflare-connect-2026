@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { GridCanvas } from "../components/GridCanvas";
 import { Sidebar } from "../components/Sidebar";
 import { DEFAULT_CONFIG, updateLargeRatio, updateSmallRatio } from "../grid/config";
 import { writeSvgToClipboard } from "../grid/clipboard";
-import { generateGrid } from "../grid/generator";
 import { gridToSvg } from "../grid/renderer";
+import { useGeneratedGrid } from "../grid/useGeneratedGrid";
 import type { GridConfig } from "../grid/types";
 
 const createSeed = () => {
@@ -18,7 +18,7 @@ const createSeed = () => {
 export const App = () => {
   const [config, setConfig] = useState<GridConfig>(DEFAULT_CONFIG);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
-  const grid = useMemo(() => generateGrid(config), [config]);
+  const { grid, isGenerating } = useGeneratedGrid(config);
 
   const copySvg = async () => {
     try {
@@ -37,11 +37,6 @@ export const App = () => {
         config={{
           ...config,
           gapMask: grid.config.gapMask,
-          width: grid.config.logicalWidth,
-          height: grid.config.logicalHeight,
-          density: grid.config.density,
-          smallCellRatio: grid.config.smallCellRatio,
-          largeCellRatio: grid.config.largeCellRatio,
         }}
         cellCount={grid.cells.length}
         logicalSize={{
@@ -64,6 +59,7 @@ export const App = () => {
       <section className="canvas-panel">
         <GridCanvas grid={grid} />
       </section>
+      {isGenerating ? <div className="generation-spinner" role="status" aria-label="Generating grid" /> : null}
     </main>
   );
 };

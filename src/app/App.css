@@ -261,6 +261,31 @@ input {
   background: #ffffff;
 }
 
+.generation-spinner {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #eeeeee;
+  border-top-color: #b8b8b8;
+  border-radius: 999px;
+  animation: generation-spinner-spin 900ms linear infinite;
+}
+
+@keyframes generation-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generation-spinner {
+    animation: none;
+  }
+}
+
 .grid-canvas {
   display: block;
   background: #ffffff;
