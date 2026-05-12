@@ -23,6 +23,7 @@ export type GridConfig = {
   density: number;
   smallCellRatio: number;
   largeCellRatio: number;
+  strokeColor: string;
   gapMask: GapMask;
 };
 

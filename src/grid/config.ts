@@ -1,4 +1,4 @@
-import { BASE_UNIT, type GridConfig, type NormalizedGridConfig } from "./types";
+import { BASE_UNIT, STROKE_COLOR, type GridConfig, type NormalizedGridConfig } from "./types";
 import { resizeGapMask } from "./mask";
 
 export const DEFAULT_CONFIG: GridConfig = {
@@ -8,6 +8,7 @@ export const DEFAULT_CONFIG: GridConfig = {
   density: 0.36,
   smallCellRatio: 0.2,
   largeCellRatio: 0.8,
+  strokeColor: STROKE_COLOR,
   gapMask: [],
 };
 
@@ -75,6 +76,7 @@ export const normalizeConfig = (config: GridConfig): NormalizedGridConfig => {
     height: logicalHeight,
     density,
     seed: config.seed.trim() || DEFAULT_CONFIG.seed,
+    strokeColor: config.strokeColor?.trim() || DEFAULT_CONFIG.strokeColor,
     logicalWidth,
     logicalHeight,
     renderWidth: logicalWidth + 1,

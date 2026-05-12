@@ -1,0 +1,90 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_CONFIG } from "../grid/config";
+import { Sidebar } from "./Sidebar";
+
+const renderSidebar = (overrides: Partial<ComponentProps<typeof Sidebar>> = {}) => {
+  const props = {
+    config: DEFAULT_CONFIG,
+    cellCount: 0,
+    logicalSize: {
+      width: DEFAULT_CONFIG.width,
+      height: DEFAULT_CONFIG.height,
+    },
+    renderSize: {
+      width: DEFAULT_CONFIG.width + 1,
+      height: DEFAULT_CONFIG.height + 1,
+    },
+    onConfigChange: vi.fn(),
+    onSmallRatioChange: vi.fn(),
+    onLargeRatioChange: vi.fn(),
+    onStrokeColorChange: vi.fn(),
+    onGenerate: vi.fn(),
+    onGapMaskChange: vi.fn(),
+    onCopySvg: vi.fn(),
+    copyState: "idle" as const,
+    ...overrides,
+  };
+
+  render(<Sidebar {...props} />);
+
+  return props;
+};
+
+describe("Sidebar dimension fields", () => {
+  it("commits oversized width changes immediately", () => {
+    const { onConfigChange } = renderSidebar();
+    const widthInput = screen.getByLabelText("Width");
+
+    fireEvent.change(widthInput, { target: { value: "8000" } });
+
+    expect(onConfigChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        width: 8000,
+        height: DEFAULT_CONFIG.height,
+      }),
+    );
+  });
+
+  it("commits zero width changes immediately for config normalization", () => {
+    const { onConfigChange } = renderSidebar();
+    const widthInput = screen.getByLabelText("Width");
+
+    fireEvent.change(widthInput, { target: { value: "0" } });
+
+    expect(onConfigChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        width: 0,
+        height: DEFAULT_CONFIG.height,
+      }),
+    );
+  });
+});
+
+describe("Sidebar stroke color field", () => {
+  it("updates the configured stroke color", () => {
+    const { onStrokeColorChange } = renderSidebar();
+    const strokeColorInput = screen.getByLabelText("Stroke color");
+
+    fireEvent.change(strokeColorInput, { target: { value: "#123456" } });
+
+    expect(onStrokeColorChange).toHaveBeenCalledWith("#123456");
+  });
+
+  it("renders a filled 2px stroke color preview", () => {
+    renderSidebar({
+      config: {
+        ...DEFAULT_CONFIG,
+        strokeColor: "#123456",
+      },
+    });
+
+    const preview = screen.getByTestId("stroke-color-preview");
+
+    expect(preview).toHaveStyle({
+      backgroundColor: "#123456",
+      height: "2px",
+    });
+  });
+});

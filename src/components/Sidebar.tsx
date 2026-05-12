@@ -16,6 +16,7 @@ type SidebarProps = {
   onConfigChange: (config: GridConfig) => void;
   onSmallRatioChange: (value: number) => void;
   onLargeRatioChange: (value: number) => void;
+  onStrokeColorChange: (color: string) => void;
   onGenerate: () => void;
   onGapMaskChange: (mask: GapMask) => void;
   onCopySvg: () => void;
@@ -30,6 +31,7 @@ export const Sidebar = ({
   onConfigChange,
   onSmallRatioChange,
   onLargeRatioChange,
+  onStrokeColorChange,
   onGenerate,
   onGapMaskChange,
   onCopySvg,
@@ -75,6 +77,24 @@ export const Sidebar = ({
     />
     <RatioControl label="40x40 cell ratio" value={config.smallCellRatio} onChange={onSmallRatioChange} />
     <RatioControl label="80x80 cell ratio" value={config.largeCellRatio} onChange={onLargeRatioChange} />
+
+    <label className="field color-field">
+      <span>Stroke color</span>
+      <span className="color-control">
+        <span
+          aria-hidden="true"
+          className="color-preview"
+          data-testid="stroke-color-preview"
+          style={{ backgroundColor: config.strokeColor, height: "2px" }}
+        />
+        <input
+          className="color-input"
+          type="color"
+          value={config.strokeColor}
+          onChange={(event) => onStrokeColorChange(event.target.value)}
+        />
+      </span>
+    </label>
 
     <button className="generate-button" type="button" onClick={onGenerate}>
       Generate

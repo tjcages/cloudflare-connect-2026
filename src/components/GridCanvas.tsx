@@ -17,7 +17,7 @@ export const GridCanvas = ({ grid }: GridCanvasProps) => (
     >
       <rect width="100%" height="100%" fill="#FFFFFF" />
       {grid.cells.map((cell) => (
-        <rect key={cell.id} {...getRenderedCellProps(cell)} />
+        <rect key={cell.id} {...getRenderedCellProps(cell, grid.config.strokeColor)} />
       ))}
     </svg>
   </div>
