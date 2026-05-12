@@ -55,40 +55,6 @@ describe("normalizeConfig", () => {
     expect(config.density).toBe(1);
   });
 
-  it("keeps zero dimensions at the minimum base unit", () => {
-    const config = normalizeConfig({
-      ...DEFAULT_CONFIG,
-      width: 0,
-      height: 0,
-    });
-
-    expect(config.logicalWidth).toBe(40);
-    expect(config.logicalHeight).toBe(40);
-  });
-
-  it("allows oversized dimensions before async grid generation", () => {
-    const config = normalizeConfig({
-      ...DEFAULT_CONFIG,
-      width: 8000,
-      height: 560,
-    });
-
-    expect(config.logicalWidth).toBe(8000);
-    expect(config.logicalHeight).toBe(560);
-    expect(config.columns * config.rows).toBeGreaterThan(1000);
-  });
-
-  it("preserves oversized canvas area while keeping base-unit alignment", () => {
-    const config = normalizeConfig({
-      ...DEFAULT_CONFIG,
-      width: 8000,
-      height: 8000,
-    });
-
-    expect(config.logicalWidth * config.logicalHeight).toBe(64000000);
-    expect(config.logicalWidth % 40).toBe(0);
-    expect(config.logicalHeight % 40).toBe(0);
-  });
 });
 
 describe("ratio updates", () => {

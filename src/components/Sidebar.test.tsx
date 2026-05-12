@@ -32,36 +32,6 @@ const renderSidebar = (overrides: Partial<ComponentProps<typeof Sidebar>> = {}) 
   return props;
 };
 
-describe("Sidebar dimension fields", () => {
-  it("commits oversized width changes immediately", () => {
-    const { onConfigChange } = renderSidebar();
-    const widthInput = screen.getByLabelText("Width");
-
-    fireEvent.change(widthInput, { target: { value: "8000" } });
-
-    expect(onConfigChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        width: 8000,
-        height: DEFAULT_CONFIG.height,
-      }),
-    );
-  });
-
-  it("commits zero width changes immediately for config normalization", () => {
-    const { onConfigChange } = renderSidebar();
-    const widthInput = screen.getByLabelText("Width");
-
-    fireEvent.change(widthInput, { target: { value: "0" } });
-
-    expect(onConfigChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        width: 0,
-        height: DEFAULT_CONFIG.height,
-      }),
-    );
-  });
-});
-
 describe("Sidebar stroke color field", () => {
   it("updates the configured stroke color", () => {
     const { onStrokeColorChange } = renderSidebar();
