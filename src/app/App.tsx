@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { GridCanvas } from "../components/GridCanvas";
 import { Sidebar } from "../components/Sidebar";
 import { DEFAULT_CONFIG, updateLargeRatio, updateSmallRatio } from "../grid/config";
+import { writeSvgToClipboard } from "../grid/clipboard";
 import { generateGrid } from "../grid/generator";
 import { gridToSvg } from "../grid/renderer";
 import type { GeneratedGrid, GridConfig } from "../grid/types";
@@ -89,7 +90,7 @@ export const App = () => {
 
   const copySvg = async () => {
     try {
-      await navigator.clipboard.writeText(gridToSvg(renderedGrid));
+      await writeSvgToClipboard(gridToSvg(renderedGrid));
       setCopyState("copied");
       window.setTimeout(() => setCopyState("idle"), 1200);
     } catch {
