@@ -1,3 +1,14 @@
+/* Icon-box canvas title: CSS family name matches `ICON_BOX_TITLE_FONT_FAMILY`. Replace
+ * `public/fonts/BerkeleyMono-Trial.woff2` with Berkeley Mono Trial from FX-050 when licensed.
+ * Until then this path ships JetBrains Mono Latin 400 (SIL OFL 1.1) so builds render locally/CI. */
+@font-face {
+  font-family: "Berkeley Mono Trial";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/BerkeleyMono-Trial.woff2") format("woff2");
+}
+
 :root {
   --button-bg: #ffffff;
   --button-border: #f3f3f3;
@@ -187,6 +198,44 @@ select {
 .icon-picker-button:hover,
 .icon-picker-button-active {
   background: #f7f7f7;
+}
+
+.palette-theme-picker {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.palette-theme-swatch {
+  padding: 4px;
+  border: 1px solid #f3f3f3;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+}
+
+.palette-theme-swatch:focus-visible {
+  outline: 2px solid #9fc8ff;
+  outline-offset: 2px;
+}
+
+.palette-theme-swatch-fill {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--palette-fill-fallback, #cccccc);
+}
+
+@supports (background: color(display-p3 1 1 1)) {
+  .palette-theme-swatch-fill {
+    background: var(--palette-fill-p3);
+  }
 }
 
 .field input[type="number"] {

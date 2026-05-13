@@ -7,8 +7,9 @@ describe("componentRegistry", () => {
     expect(COMPONENT_REGISTRY["icon-box"].label).toBe("icon-box");
     expect(COMPONENT_REGISTRY["icon-box"].defaultProps).toEqual({
       cornerColor: "#F3F3F3",
-      iconColor: "#903EFC",
+      theme: "purple",
       iconId: DEFAULT_ICON_ID,
+      titleText: "Workers",
     });
   });
 
@@ -21,8 +22,9 @@ describe("componentRegistry", () => {
       y: 80,
       props: {
         cornerColor: "#F3F3F3",
-        iconColor: "#903EFC",
+        theme: "purple",
         iconId: DEFAULT_ICON_ID,
+        titleText: "Workers",
       },
     });
   });
@@ -30,7 +32,7 @@ describe("componentRegistry", () => {
   it("keeps snapped positions inside the logical canvas", () => {
     expect(snapComponentPosition(799, 559, 800, 560, "icon-box")).toEqual({
       x: 720,
-      y: 480,
+      y: 452,
     });
   });
 });

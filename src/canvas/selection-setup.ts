@@ -1,5 +1,6 @@
 import { Graphics } from "pixi.js";
 import type { Ticker } from "../components/pixi";
+import { getComponentDefinition } from "../components/componentRegistry";
 import { useAppStore } from "../store";
 
 export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
@@ -19,7 +20,8 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       return;
     }
 
-    graphics.rect(inst.x + 0.5, inst.y + 0.5, 79, 79).stroke({ width: 1, color: 0x9fc8ff });
+    const { width, height } = getComponentDefinition(inst.type);
+    graphics.rect(inst.x + 0.5, inst.y + 0.5, width - 1, height - 1).stroke({ width: 1, color: 0x9fc8ff });
   };
 
   sync();

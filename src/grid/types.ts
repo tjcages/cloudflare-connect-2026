@@ -45,10 +45,13 @@ export type ComponentType = "icon-box";
 
 export type IconId = "section-mark";
 
+import type { PaletteThemeId } from "../theme/palette";
+
 export type IconBoxProps = {
   cornerColor: string;
-  iconColor: string;
+  theme: PaletteThemeId;
   iconId: IconId;
+  titleText: string;
 };
 
 export type ComponentInstance = {

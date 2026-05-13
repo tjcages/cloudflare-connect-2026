@@ -5,6 +5,7 @@ import { ComponentListItem } from "./ComponentListItem";
 import { ICON_OPTIONS } from "./iconRegistry";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
 import type { ComponentInstance, ComponentType, IconBoxProps, IconId } from "../grid/types";
+import { PALETTE_THEMES, paletteBrush } from "../theme/palette";
 
 type ComponentSidebarProps = {
   instances: ComponentInstance[];
@@ -18,7 +19,9 @@ type ComponentSidebarProps = {
 
 const componentTypes = Object.values(COMPONENT_REGISTRY);
 const getInstanceDisplayName = (instance: ComponentInstance) => getComponentDefinition(instance.type).label;
-const renderIcon = (props: IconBoxProps) => <ComponentIcon iconId={props.iconId} color={props.iconColor} size={16} />;
+const renderIcon = (props: IconBoxProps) => (
+  <ComponentIcon iconId={props.iconId} color={paletteBrush(props.theme).iconFillHex} size={16} />
+);
 
 export const ComponentSidebar = ({
   instances,
@@ -31,6 +34,7 @@ export const ComponentSidebar = ({
 }: ComponentSidebarProps) => {
   if (selectedInstance) {
     const displayName = getInstanceDisplayName(selectedInstance);
+    const palette = paletteBrush(selectedInstance.props.theme);
 
     return (
       <div className="component-config-panel">
@@ -45,6 +49,37 @@ export const ComponentSidebar = ({
           title={displayName}
           meta={`x: ${selectedInstance.x}, y: ${selectedInstance.y}`}
         />
+        <div className="field">
+          <span>Theme</span>
+          <div className="palette-theme-picker" role="radiogroup" aria-label="Theme">
+            {PALETTE_THEMES.map((theme) => {
+              const selected = selectedInstance.props.theme === theme.id;
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  aria-label={theme.label}
+                  className="palette-theme-swatch"
+                  style={{
+                    borderColor: selected ? theme.fillHex : "#f3f3f3",
+                    ["--palette-fill-fallback" as string]: theme.fillHex,
+                    ["--palette-fill-p3" as string]: theme.fillDisplayP3,
+                  }}
+                  onClick={() =>
+                    onUpdateInstanceProps(selectedInstance.id, {
+                      ...selectedInstance.props,
+                      theme: theme.id,
+                    })
+                  }
+                >
+                  <span className="palette-theme-swatch-fill" aria-hidden="true" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="field">
           <span>Icon</span>
           <div className="icon-picker" role="radiogroup" aria-label="Icon">
@@ -67,34 +102,11 @@ export const ComponentSidebar = ({
                   })
                 }
               >
-                <ComponentIcon iconId={icon.id as IconId} color={selectedInstance.props.iconColor} size={16} />
+                <ComponentIcon iconId={icon.id as IconId} color={palette.iconFillHex} size={16} />
               </button>
             ))}
           </div>
         </div>
-        <label className="field color-field">
-          <span>Icon color</span>
-          <span className="color-control">
-            <span
-              aria-hidden="true"
-              className="color-preview"
-              data-testid="icon-color-preview"
-              style={{ backgroundColor: selectedInstance.props.iconColor, height: "12px" }}
-            />
-            <input
-              className="color-input"
-              type="color"
-              value={selectedInstance.props.iconColor}
-              onChange={(event) =>
-                onUpdateInstanceProps(selectedInstance.id, {
-                  ...selectedInstance.props,
-                  iconColor: event.target.value,
-                })
-              }
-              aria-label="Icon color"
-            />
-          </span>
-        </label>
         <label className="field color-field">
           <span>Corner color</span>
           <span className="color-control">
@@ -117,6 +129,20 @@ export const ComponentSidebar = ({
               aria-label="Corner color"
             />
           </span>
+        </label>
+        <label className="field">
+          <span>Title</span>
+          <input
+            type="text"
+            value={selectedInstance.props.titleText}
+            onChange={(event) =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                titleText: event.target.value,
+              })
+            }
+            aria-label="Title"
+          />
         </label>
       </div>
     );

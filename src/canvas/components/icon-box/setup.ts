@@ -1,18 +1,27 @@
 import { BoxShadowFilter, type BoxShadowOptions } from "pixi-box-shadow";
-import { Container, Graphics, GraphicsPath } from "pixi.js";
+import { Container, Graphics, GraphicsPath, Text } from "pixi.js";
 import type { Ticker } from "../../../components/pixi";
+import { ICON_BOX_TITLE_FONT_FAMILY } from "../../../fonts/iconBoxTitle";
 import { getIconDefinition } from "../../../components/iconRegistry";
 import type { ComponentInstance } from "../../../grid/types";
+import { paletteBrush } from "../../../theme/palette";
 import { parseHexColor } from "../../color";
 import { useAppStore } from "../../../store";
 import {
   ICON_BOX_INNER_OFFSET,
   ICON_BOX_INNER_SIZE,
+  ICON_BOX_INNER_TOP,
   ICON_BOX_RADIUS,
-  ICON_ORIGIN_OFFSET,
+  ICON_HOLD_OFFSET_X,
+  ICON_HOLD_OFFSET_Y_INNER,
   MARKER_INSET,
   MARKER_SIZE,
-} from "./definition";
+  TITLE_BAR_HEIGHT,
+  TITLE_BAR_WIDTH,
+  TITLE_FONT_SIZE_PX,
+  TITLE_TEXT_INNER_MAX_WIDTH,
+  TITLE_TEXT_PADDING_X,
+} from "../../../components/iconBoxLayout";
 
 const CARD_SHADOW_CSS =
   "0 12px 24px rgba(0, 0, 0, 0.04), 0 6px 12px rgba(0, 0, 0, 0.02), 0 3px 6px rgba(0, 0, 0, 0.01)";
@@ -50,6 +59,37 @@ const buildIconBox = (instance: ComponentInstance) => {
   const root = new Container();
   root.position.set(instance.x, instance.y);
 
+  const brush = paletteBrush(instance.props.theme);
+  const titleLabel = new Text({
+    text: instance.props.titleText.toUpperCase(),
+    style: {
+      fontFamily: ICON_BOX_TITLE_FONT_FAMILY,
+      fontSize: TITLE_FONT_SIZE_PX,
+      fontWeight: "400",
+      fill: brush.fillTextHex,
+      align: "center",
+      wordWrap: false,
+    },
+  });
+  titleLabel.anchor.set(0.5);
+
+  const rawTextWidth = titleLabel.width;
+  const maxInner = TITLE_TEXT_INNER_MAX_WIDTH;
+  /** Scale down single-line titles instead of masking — Graphics masks often hide Canvas Text incorrectly in Pixi v8. */
+  const scale = rawTextWidth > maxInner ? maxInner / rawTextWidth : 1;
+  titleLabel.scale.set(scale);
+
+  const fittedInnerWidth = rawTextWidth * scale;
+  const rectWidth = Math.min(Math.ceil(fittedInnerWidth + TITLE_TEXT_PADDING_X * 2), TITLE_BAR_WIDTH);
+  const barLeft = (TITLE_BAR_WIDTH - rectWidth) / 2;
+
+  const titleBg = new Graphics();
+  titleBg.rect(barLeft, 0, rectWidth, TITLE_BAR_HEIGHT).fill({ color: brush.fill });
+  root.addChild(titleBg);
+
+  titleLabel.position.set(barLeft + rectWidth / 2, TITLE_BAR_HEIGHT / 2);
+  root.addChild(titleLabel);
+
   const shadowFilter = new BoxShadowFilter({
     boxShadow: CARD_SHADOW_CSS,
     borderRadius: ICON_BOX_RADIUS,
@@ -57,27 +97,28 @@ const buildIconBox = (instance: ComponentInstance) => {
 
   const cardFill = new Graphics();
   cardFill
-    .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_SIZE, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
+    .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, ICON_BOX_INNER_SIZE, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
     .fill({ color: 0xffffff });
   cardFill.filters = [shadowFilter];
 
   const cardStroke = new Graphics();
   cardStroke
-    .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_SIZE, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
+    .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, ICON_BOX_INNER_SIZE, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
     .stroke({ width: 1, color: 0x000000, alpha: 0.04 });
 
   root.addChild(cardFill);
   root.addChild(cardStroke);
 
   const markers = new Graphics();
-  const rectOrigin = ICON_BOX_INNER_OFFSET;
+  const rectOriginX = ICON_BOX_INNER_OFFSET;
+  const rectOriginY = ICON_BOX_INNER_TOP;
   const rectSize = ICON_BOX_INNER_SIZE;
   const markerMax = rectSize - MARKER_INSET - MARKER_SIZE;
   const corners: [number, number][] = [
-    [rectOrigin + MARKER_INSET, rectOrigin + MARKER_INSET],
-    [rectOrigin + markerMax, rectOrigin + MARKER_INSET],
-    [rectOrigin + MARKER_INSET, rectOrigin + markerMax],
-    [rectOrigin + markerMax, rectOrigin + markerMax],
+    [rectOriginX + MARKER_INSET, rectOriginY + MARKER_INSET],
+    [rectOriginX + markerMax, rectOriginY + MARKER_INSET],
+    [rectOriginX + MARKER_INSET, rectOriginY + markerMax],
+    [rectOriginX + markerMax, rectOriginY + markerMax],
   ];
 
   const cornerColor = parseHexColor(instance.props.cornerColor);
@@ -91,11 +132,11 @@ const buildIconBox = (instance: ComponentInstance) => {
   for (const d of iconPaths) {
     iconGfx.path(new GraphicsPath(d));
   }
-  const iconRgb = parseHexColor(instance.props.iconColor);
+  const iconRgb = brush.iconFill;
   iconGfx.fill({ color: iconRgb });
 
   const iconHold = new Container();
-  iconHold.position.set(ICON_ORIGIN_OFFSET, ICON_ORIGIN_OFFSET);
+  iconHold.position.set(ICON_HOLD_OFFSET_X, ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER);
   iconHold.filters = [buildIconShadowFilter(iconRgb)];
   iconHold.addChild(iconGfx);
 

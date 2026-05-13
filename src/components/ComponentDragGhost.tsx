@@ -1,6 +1,7 @@
 import { ComponentIcon } from "./ComponentIcon";
 import { getComponentDefinition } from "./componentRegistry";
 import { ComponentListItem } from "./ComponentListItem";
+import { paletteBrush } from "../theme/palette";
 import type { ComponentType } from "../grid/types";
 
 type ComponentDragGhostProps = {
@@ -12,7 +13,11 @@ type ComponentDragGhostProps = {
 export const ComponentDragGhost = ({ componentType, clientX, clientY }: ComponentDragGhostProps) => {
   const definition = getComponentDefinition(componentType);
   const preview = (
-    <ComponentIcon iconId={definition.defaultProps.iconId} color={definition.defaultProps.iconColor} size={16} />
+    <ComponentIcon
+      iconId={definition.defaultProps.iconId}
+      color={paletteBrush(definition.defaultProps.theme).iconFillHex}
+      size={16}
+    />
   );
 
   return (

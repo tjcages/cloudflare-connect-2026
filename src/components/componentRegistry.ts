@@ -1,3 +1,4 @@
+import { ICON_BOX_OUTER_HEIGHT } from "./iconBoxLayout";
 import { BASE_UNIT, type ComponentInstance, type ComponentType, type IconBoxProps } from "../grid/types";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 
@@ -14,11 +15,12 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     type: "icon-box",
     label: "icon-box",
     width: 80,
-    height: 80,
+    height: ICON_BOX_OUTER_HEIGHT,
     defaultProps: {
       cornerColor: "#F3F3F3",
-      iconColor: "#903EFC",
+      theme: "purple",
       iconId: DEFAULT_ICON_ID,
+      titleText: "Workers",
     },
   },
 };
