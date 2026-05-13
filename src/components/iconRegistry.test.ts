@@ -10,4 +10,13 @@ describe("iconRegistry", () => {
     expect(icon.paths).toHaveLength(3);
     expect(ICON_REGISTRY[0]).toBe(icon);
   });
+
+  it("includes stroke-based icons for the icon picker", () => {
+    const hex = getIconDefinition("isometric-hex");
+    const user = getIconDefinition("user-outline");
+
+    expect(hex.renderMode).toBe("stroke");
+    expect(user.renderMode).toBe("stroke");
+    expect(ICON_REGISTRY).toHaveLength(3);
+  });
 });

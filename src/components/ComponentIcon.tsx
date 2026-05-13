@@ -19,6 +19,8 @@ export const ComponentIcon = ({
   const icon = getIconDefinition(iconId);
   const titleId = title ? `${icon.id}-title` : undefined;
 
+  const strokeW = icon.strokeWidth ?? 1.25;
+
   return (
     <svg
       className={className}
@@ -33,9 +35,11 @@ export const ComponentIcon = ({
       style={{ color }}
     >
       {title ? <title id={titleId}>{title}</title> : null}
-      {icon.paths.map((path) => (
-        <path key={path} d={path} fill={color} />
-      ))}
+      {icon.renderMode === "stroke"
+        ? icon.paths.map((d, i) => (
+            <path key={`${icon.id}-${i}`} d={d} fill="none" stroke="currentColor" strokeWidth={strokeW} />
+          ))
+        : icon.paths.map((d, i) => <path key={`${icon.id}-${i}`} d={d} fill={color} />)}
     </svg>
   );
 };

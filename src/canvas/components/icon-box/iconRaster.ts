@@ -32,10 +32,20 @@ export const rasterizeIcon = (
 
   ctx.scale(scale, scale);
   ctx.translate(minX === 0 ? 0 : -minX, minY === 0 ? 0 : -minY);
-  ctx.fillStyle = fillStyle;
 
-  for (const d of icon.paths) {
-    ctx.fill(new Path2D(d));
+  if (icon.renderMode === "stroke") {
+    ctx.strokeStyle = fillStyle;
+    ctx.lineWidth = icon.strokeWidth ?? 1.25;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    for (const d of icon.paths) {
+      ctx.stroke(new Path2D(d));
+    }
+  } else {
+    ctx.fillStyle = fillStyle;
+    for (const d of icon.paths) {
+      ctx.fill(new Path2D(d));
+    }
   }
 
   return canvas;

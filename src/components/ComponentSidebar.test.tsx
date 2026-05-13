@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComponentSidebar } from "./ComponentSidebar";
-import { DEFAULT_ICON_ID } from "./iconRegistry";
+import { DEFAULT_ICON_ID, ICON_OPTIONS } from "./iconRegistry";
 import type { ComponentInstance } from "../grid/types";
 
 const instance: ComponentInstance = {
@@ -263,7 +263,7 @@ describe("ComponentSidebar", () => {
       within(header.querySelector(".component-list-item-text") as HTMLElement).getByText("Icon Box"),
     ).toBeInTheDocument();
     expect(container.querySelectorAll("canvas.component-preview-canvas")).toHaveLength(0);
-    expect(container.querySelectorAll("svg.component-icon")).toHaveLength(2);
+    expect(container.querySelectorAll("svg.component-icon")).toHaveLength(ICON_OPTIONS.length + 1);
     const iconPicker = screen.getByRole("radiogroup", { name: "Icon" });
     const iconOption = within(iconPicker).getByRole("radio", { name: "Section mark" });
 

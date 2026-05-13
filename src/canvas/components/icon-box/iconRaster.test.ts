@@ -16,11 +16,17 @@ describe("rasterizeIcon", () => {
     const scale = vi.fn();
     const translate = vi.fn();
     const fill = vi.fn();
+    const stroke = vi.fn();
     const ctx = {
       scale,
       translate,
       fill,
+      stroke,
       fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 0,
+      lineJoin: "",
+      lineCap: "",
     };
     const canvas = {
       width: 0,
@@ -48,5 +54,50 @@ describe("rasterizeIcon", () => {
     expect(ctx.fillStyle).toBe("#9C37FF");
     expect(pathCtor).toHaveBeenCalledTimes(icon.paths.length);
     expect(fill).toHaveBeenCalledTimes(icon.paths.length);
+    expect(stroke).not.toHaveBeenCalled();
+  });
+
+  it("strokes path data when icon uses stroke render mode", () => {
+    const scale = vi.fn();
+    const translate = vi.fn();
+    const fill = vi.fn();
+    const stroke = vi.fn();
+    const ctx = {
+      scale,
+      translate,
+      fill,
+      stroke,
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 0,
+      lineJoin: "",
+      lineCap: "",
+    };
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => ctx),
+    };
+    const pathCtor = vi.fn();
+    class MockPath2D {
+      constructor(public readonly d: string) {
+        pathCtor(d);
+      }
+    }
+
+    document.createElement = vi.fn(() => canvas as unknown as HTMLCanvasElement) as typeof document.createElement;
+    globalThis.Path2D = MockPath2D as unknown as typeof Path2D;
+
+    const icon = getIconDefinition("user-outline");
+    const result = rasterizeIcon(icon, "#B3B3B3");
+
+    expect(result).toBe(canvas);
+    expect(ctx.strokeStyle).toBe("#B3B3B3");
+    expect(ctx.lineWidth).toBe(1.25);
+    expect(ctx.lineJoin).toBe("round");
+    expect(ctx.lineCap).toBe("round");
+    expect(pathCtor).toHaveBeenCalledTimes(icon.paths.length);
+    expect(stroke).toHaveBeenCalledTimes(icon.paths.length);
+    expect(fill).not.toHaveBeenCalled();
   });
 });

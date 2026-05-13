@@ -18,4 +18,16 @@ describe("ComponentIcon", () => {
       expect(path).toHaveAttribute("fill", "#123456");
     });
   });
+
+  it("renders stroke-based registry icons with currentColor stroke", () => {
+    render(<ComponentIcon iconId="user-outline" color="#B3B3B3" title="User icon" />);
+
+    const icon = screen.getByRole("img", { name: "User icon" });
+    const paths = icon.querySelectorAll("path");
+
+    expect(paths).toHaveLength(1);
+    expect(paths[0]).toHaveAttribute("fill", "none");
+    expect(paths[0]).toHaveAttribute("stroke", "currentColor");
+    expect(paths[0]).toHaveAttribute("stroke-width", "1.25");
+  });
 });

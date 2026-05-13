@@ -43,7 +43,7 @@ export type GeneratedGrid = {
 
 export type ComponentType = "icon-box";
 
-export type IconId = "section-mark";
+export type IconId = "section-mark" | "isometric-hex" | "user-outline";
 
 import type { PaletteThemeId } from "../theme/palette";
 
