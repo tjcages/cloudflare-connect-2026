@@ -30,19 +30,22 @@ export const ICON_BOX_ACCENT_SHADOW_PAD = 20;
 export const ICON_BOX_BOTTOM_MARGIN = ICON_BOX_ACCENT_BAR_GAP + ICON_BOX_ACCENT_BAR_HEIGHT + ICON_BOX_ACCENT_SHADOW_PAD;
 export const ICON_BOX_OUTER_HEIGHT = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_BOTTOM_MARGIN;
 
-/** Logical padding around the shadowed inner card for selection outline and pointer hits. */
+/** Logical padding around the shadowed inner card for selection outline, outer frame, and pointer hits. */
 export const ICON_BOX_SELECTION_PADDING = 8;
 
+/** Outer stroke rect around the shadow card: inner size + padding on both sides (= 80×80). */
+export const ICON_BOX_CARD_FRAME_SIZE = ICON_BOX_INNER_SIZE + ICON_BOX_SELECTION_PADDING * 2;
+
+export const ICON_BOX_CARD_FRAME_ORIGIN_X = ICON_BOX_INNER_OFFSET - ICON_BOX_SELECTION_PADDING;
+export const ICON_BOX_CARD_FRAME_ORIGIN_Y = ICON_BOX_INNER_TOP - ICON_BOX_SELECTION_PADDING;
+
 /** Instance-root rect: inner (shadowed) card ± padding — excludes title strip and bottom accent/glow. */
-export const getIconBoxShadowCardBoundsInRootSpace = (): { x: number; y: number; width: number; height: number } => {
-  const p = ICON_BOX_SELECTION_PADDING;
-  return {
-    x: ICON_BOX_INNER_OFFSET - p,
-    y: ICON_BOX_INNER_TOP - p,
-    width: ICON_BOX_INNER_SIZE + p * 2,
-    height: ICON_BOX_INNER_SIZE + p * 2,
-  };
-};
+export const getIconBoxShadowCardBoundsInRootSpace = (): { x: number; y: number; width: number; height: number } => ({
+  x: ICON_BOX_CARD_FRAME_ORIGIN_X,
+  y: ICON_BOX_CARD_FRAME_ORIGIN_Y,
+  width: ICON_BOX_CARD_FRAME_SIZE,
+  height: ICON_BOX_CARD_FRAME_SIZE,
+});
 
 /** Instance-root snap point: center of the shadow-card interaction rect (matches `ICON_BOX_INNER_CENTER_X` / `Y` with current padding). */
 const _iconBoxSnapAnchorInRoot = (() => {

@@ -4,6 +4,7 @@ import type { Ticker } from "../../../components/pixi";
 import { ICON_BOX_TITLE_FONT_FAMILY } from "../../../fonts/iconBoxTitle";
 import { getIconDefinition } from "../../../components/iconRegistry";
 import type { ComponentInstance } from "../../../grid/types";
+import { parseHexColor } from "../../color";
 import { paletteBrush } from "../../../theme/palette";
 import { useAppStore } from "../../../store";
 import { rasterizeIcon } from "./iconRaster";
@@ -11,6 +12,9 @@ import {
   ICON_BOX_ACCENT_BAR_GAP,
   ICON_BOX_ACCENT_BAR_HEIGHT,
   ICON_BOX_ACCENT_BAR_WIDTH,
+  ICON_BOX_CARD_FRAME_ORIGIN_X,
+  ICON_BOX_CARD_FRAME_ORIGIN_Y,
+  ICON_BOX_CARD_FRAME_SIZE,
   ICON_BOX_INNER_OFFSET,
   ICON_BOX_INNER_SIZE,
   ICON_BOX_INNER_TOP,
@@ -79,7 +83,7 @@ const buildIconShadowFilter = (iconColorHex: number) =>
     ] satisfies BoxShadowOptions[],
   });
 
-const buildIconBox = (instance: ComponentInstance) => {
+const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
   const root = new Container();
   root.position.set(instance.x, instance.y);
 
@@ -129,8 +133,20 @@ const buildIconBox = (instance: ComponentInstance) => {
     .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, ICON_BOX_INNER_SIZE, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
     .stroke({ width: 1, color: 0x000000, alpha: 0.04 });
 
+  /** Sharp rect aligned like grid cells (`paintGrid` in grid/setup.ts). */
+  const cardFrame = new Graphics();
+  cardFrame
+    .rect(
+      ICON_BOX_CARD_FRAME_ORIGIN_X + 0.5,
+      ICON_BOX_CARD_FRAME_ORIGIN_Y + 0.5,
+      ICON_BOX_CARD_FRAME_SIZE,
+      ICON_BOX_CARD_FRAME_SIZE,
+    )
+    .stroke({ width: 1, color: gridStrokeColor });
+
   root.addChild(cardFill);
   root.addChild(cardStroke);
+  root.addChild(cardFrame);
 
   const markers = new Graphics();
   const rectOriginX = ICON_BOX_INNER_OFFSET;
@@ -187,12 +203,13 @@ export const setupIconBoxLayer: Ticker = ({ app, cleanup }) => {
       child.destroy({ children: true });
     }
 
-    const { instances, dragState } = useAppStore.getState();
+    const { instances, dragState, grid } = useAppStore.getState();
+    const gridStrokeColor = parseHexColor(grid.config.strokeColor);
     const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
     const toDraw = previewInstance === null ? instances : [...instances, previewInstance];
 
     for (const instance of toDraw) {
-      layer.addChild(buildIconBox(instance));
+      layer.addChild(buildIconBox(instance, gridStrokeColor));
     }
 
     app.render();
@@ -201,7 +218,7 @@ export const setupIconBoxLayer: Ticker = ({ app, cleanup }) => {
   rebuild();
 
   const unsub = useAppStore.subscribe((state, prev) => {
-    if (state.instances !== prev.instances || state.dragState !== prev.dragState) {
+    if (state.instances !== prev.instances || state.dragState !== prev.dragState || state.grid !== prev.grid) {
       rebuild();
     }
   });
