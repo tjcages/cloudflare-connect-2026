@@ -1,12 +1,14 @@
 /** Logical layout for icon-box instances (registry + Pixi agree on these numbers). */
 
+import { ICON_BOX_TITLE_FONT_FAMILY } from "../fonts/iconBoxTitle";
+
 export const ICON_BOX_INNER_OFFSET = 8;
 export const ICON_BOX_INNER_SIZE = 64;
 export const ICON_BOX_RADIUS = 10;
 
 export const TITLE_BAR_HEIGHT = 16;
 export const TITLE_TO_INNER_GAP = 20;
-/** Full logical width of the icon-box instance (matches registry width). */
+/** Reference width for centering the title strip; the strip may extend wider than this. */
 export const TITLE_BAR_WIDTH = 80;
 export const TITLE_TEXT_PADDING_X = 6;
 export const TITLE_FONT_SIZE_PX = 10;
@@ -27,8 +29,50 @@ export const ICON_BOX_ACCENT_SHADOW_PAD = 20;
 export const ICON_BOX_BOTTOM_MARGIN = ICON_BOX_ACCENT_BAR_GAP + ICON_BOX_ACCENT_BAR_HEIGHT + ICON_BOX_ACCENT_SHADOW_PAD;
 export const ICON_BOX_OUTER_HEIGHT = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_BOTTOM_MARGIN;
 
-/** Max inner width for title text before clipping (shrink-wrap is capped to full instance width). */
-export const TITLE_TEXT_INNER_MAX_WIDTH = TITLE_BAR_WIDTH - TITLE_TEXT_PADDING_X * 2;
+/** Logical padding around the shadowed inner card for selection outline and pointer hits. */
+export const ICON_BOX_SELECTION_PADDING = 8;
+
+/** Instance-root rect: inner (shadowed) card ± padding — excludes title strip and bottom accent/glow. */
+export const getIconBoxShadowCardBoundsInRootSpace = (): { x: number; y: number; width: number; height: number } => {
+  const p = ICON_BOX_SELECTION_PADDING;
+  return {
+    x: ICON_BOX_INNER_OFFSET - p,
+    y: ICON_BOX_INNER_TOP - p,
+    width: ICON_BOX_INNER_SIZE + p * 2,
+    height: ICON_BOX_INNER_SIZE + p * 2,
+  };
+};
+
+let measureCanvas: HTMLCanvasElement | null = null;
+
+const getTitleMeasureContext = (): CanvasRenderingContext2D | null => {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  if (!measureCanvas) {
+    measureCanvas = document.createElement("canvas");
+  }
+  return measureCanvas.getContext("2d");
+};
+
+/** Pixel width of the uppercased title in the icon-box title font (kept in sync with Pixi `Text` style). */
+export const measureIconBoxTitleTextWidthPx = (title: string): number => {
+  const ctx = getTitleMeasureContext();
+  if (!ctx) {
+    return 0;
+  }
+  ctx.font = `400 ${TITLE_FONT_SIZE_PX}px "${ICON_BOX_TITLE_FONT_FAMILY}"`;
+  return ctx.measureText(title.toUpperCase()).width;
+};
+
+export type IconBoxTitleBarLayout = { rectWidth: number; barLeft: number };
+
+export const getIconBoxTitleBarLayout = (title: string): IconBoxTitleBarLayout => {
+  const rawTextWidth = measureIconBoxTitleTextWidthPx(title);
+  const rectWidth = Math.ceil(rawTextWidth + TITLE_TEXT_PADDING_X * 2);
+  const barLeft = (TITLE_BAR_WIDTH - rectWidth) / 2;
+  return { rectWidth, barLeft };
+};
 
 export const MARKER_SIZE = 2;
 export const MARKER_INSET = 8;

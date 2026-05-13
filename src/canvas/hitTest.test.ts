@@ -21,7 +21,8 @@ describe("hitTestComponentInstances", () => {
   it("returns the topmost instance under the pointer", () => {
     const instances = [createInstance("back", 40, 40), createInstance("front", 40, 40)];
 
-    expect(hitTestComponentInstances(instances, 60, 60)?.id).toBe("front");
+    /** Icon-box hit target is the shadow card + padding (see `getIconBoxShadowCardBoundsInRootSpace`), not the title strip. */
+    expect(hitTestComponentInstances(instances, 80, 108)?.id).toBe("front");
   });
 
   it("returns undefined when no instance contains the pointer", () => {

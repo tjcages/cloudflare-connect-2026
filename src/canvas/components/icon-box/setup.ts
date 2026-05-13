@@ -22,8 +22,8 @@ import {
   TITLE_BAR_HEIGHT,
   TITLE_BAR_WIDTH,
   TITLE_FONT_SIZE_PX,
-  TITLE_TEXT_INNER_MAX_WIDTH,
   TITLE_TEXT_PADDING_X,
+  getIconBoxTitleBarLayout,
 } from "../../../components/iconBoxLayout";
 
 const CARD_SHADOW_CSS =
@@ -84,6 +84,8 @@ const buildIconBox = (instance: ComponentInstance) => {
   root.position.set(instance.x, instance.y);
 
   const brush = paletteBrush(instance.props.theme);
+  let { rectWidth, barLeft } = getIconBoxTitleBarLayout(instance.props.title);
+
   const titleLabel = new Text({
     text: instance.props.title.toUpperCase(),
     style: {
@@ -97,15 +99,12 @@ const buildIconBox = (instance: ComponentInstance) => {
   });
   titleLabel.anchor.set(0.5);
 
-  const rawTextWidth = titleLabel.width;
-  const maxInner = TITLE_TEXT_INNER_MAX_WIDTH;
-  /** Scale down single-line titles instead of masking — Graphics masks often hide Canvas Text incorrectly in Pixi v8. */
-  const scale = rawTextWidth > maxInner ? maxInner / rawTextWidth : 1;
-  titleLabel.scale.set(scale);
-
-  const fittedInnerWidth = rawTextWidth * scale;
-  const rectWidth = Math.min(Math.ceil(fittedInnerWidth + TITLE_TEXT_PADDING_X * 2), TITLE_BAR_WIDTH);
-  const barLeft = (TITLE_BAR_WIDTH - rectWidth) / 2;
+  /** Prefer live Pixi metrics when they exceed canvas `measureText` (e.g. font substitutions). */
+  const pixiInner = titleLabel.width;
+  if (pixiInner + TITLE_TEXT_PADDING_X * 2 > rectWidth) {
+    rectWidth = Math.ceil(pixiInner + TITLE_TEXT_PADDING_X * 2);
+    barLeft = (TITLE_BAR_WIDTH - rectWidth) / 2;
+  }
 
   const titleBg = new Graphics();
   titleBg.rect(barLeft, 0, rectWidth, TITLE_BAR_HEIGHT).fill({ color: brush.fill });
