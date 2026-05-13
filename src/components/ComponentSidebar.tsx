@@ -145,7 +145,7 @@ export const ComponentSidebar = ({
           />
         </label>
         <div className="field field-toggle-row">
-          <span id={`corner-match-label-${selectedInstance.id}`}>Match Corners With Theme</span>
+          <span id={`corner-match-label-${selectedInstance.id}`}>Match corners with theme</span>
           <button
             type="button"
             role="switch"

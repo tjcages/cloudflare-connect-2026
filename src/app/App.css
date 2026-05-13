@@ -176,13 +176,9 @@ select {
   height: 20px;
   border-radius: 999px;
   border: 1px solid #f3f3f3;
-  background: #f3f3f3;
+  background: transparent;
   cursor: pointer;
   padding: 0;
-}
-
-.field-toggle-switch[aria-checked="true"] {
-  background: #e3e3e3;
 }
 
 .field-toggle-switch::after {
@@ -193,14 +189,16 @@ select {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
-  border: 1px solid #e8e8e8;
+  background: #efefef;
   box-sizing: border-box;
-  transition: transform 120ms ease;
+  transition:
+    transform 120ms ease,
+    background 120ms ease;
 }
 
 .field-toggle-switch[aria-checked="true"]::after {
   transform: translateX(16px);
+  background: #dbdbdb;
 }
 
 .field-toggle-switch:focus-visible {

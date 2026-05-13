@@ -256,7 +256,7 @@ describe("ComponentSidebar", () => {
     expect(screen.getByLabelText("Title")).toHaveValue("Workers");
     const themeGroup = screen.getByRole("radiogroup", { name: "Theme" });
     expect(within(themeGroup).getByRole("radio", { name: "Purple" })).toHaveAttribute("aria-checked", "true");
-    const matchCornersToggle = screen.getByRole("switch", { name: /Match Corners With Theme/i });
+    const matchCornersToggle = screen.getByRole("switch", { name: /Match corners with theme/i });
     expect(matchCornersToggle).toHaveAttribute("aria-checked", "false");
 
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "KV" } });
