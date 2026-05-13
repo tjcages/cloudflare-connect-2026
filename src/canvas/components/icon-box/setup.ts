@@ -83,8 +83,34 @@ const buildIconShadowFilter = (iconColorHex: number) =>
     ] satisfies BoxShadowOptions[],
   });
 
+/** 22×22 focus reticle at local (0,0); matches reference SVG (Graphics fills, not SVG). */
+const CONTAINER_RETICLE_PX = 22;
+const CONTAINER_RETICLE_HALF = CONTAINER_RETICLE_PX / 2;
+/** Offset from each selection-frame corner to reticle center along X/Y toward the frame interior. */
+const CONTAINER_RETICLE_CORNER_INSET = 0;
+const CONTAINER_RETICLE_ORANGE = 0xeb5729;
+
+/** Align reticle art with grid strokes (sub-pixel shift for all four corners). */
+const CONTAINER_RETICLE_POSITION_NUDGE = 0.5;
+
+/** Above outer grid frame stroke, below white shadow card (see `buildIconBox` zIndex tiers). */
+const CONTAINER_RETICLE_Z_INDEX = 18;
+
+/** 22×22 reticle; tick arms on the x=11 / y=11 centerlines (half-pixel for 1px-thick stems). */
+const buildContainerCornerReticle = (tickColor: number): Graphics => {
+  const g = new Graphics();
+  g.roundRect(0, 0, CONTAINER_RETICLE_PX, CONTAINER_RETICLE_PX, 11).fill({ color: 0xffffff });
+  g.rect(10.5, 4, 1, 2).fill({ color: tickColor });
+  g.rect(10.5, 16, 1, 2).fill({ color: tickColor });
+  g.rect(4, 10.5, 2, 1).fill({ color: tickColor });
+  g.rect(16, 10.5, 2, 1).fill({ color: tickColor });
+  g.roundRect(10, 10, 2, 2, 1).fill({ color: CONTAINER_RETICLE_ORANGE });
+  return g;
+};
+
 const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
   const root = new Container();
+  root.sortableChildren = true;
   root.position.set(instance.x, instance.y);
 
   const brush = paletteBrush(instance.props.theme);
@@ -111,9 +137,11 @@ const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
   }
 
   const titleBg = new Graphics();
+  titleBg.zIndex = 30;
   titleBg.rect(barLeft, 0, rectWidth, TITLE_BAR_HEIGHT).fill({ color: brush.fill });
   root.addChild(titleBg);
 
+  titleLabel.zIndex = 31;
   titleLabel.position.set(barLeft + rectWidth / 2, TITLE_BAR_HEIGHT / 2);
   root.addChild(titleLabel);
 
@@ -123,18 +151,21 @@ const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
   });
 
   const cardFill = new Graphics();
+  cardFill.zIndex = 25;
   cardFill
     .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, ICON_BOX_INNER_SIZE, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
     .fill({ color: 0xffffff });
   cardFill.filters = [shadowFilter];
 
   const cardStroke = new Graphics();
+  cardStroke.zIndex = 26;
   cardStroke
     .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, ICON_BOX_INNER_SIZE, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
     .stroke({ width: 1, color: 0x000000, alpha: 0.04 });
 
-  /** Sharp rect aligned like grid cells (`paintGrid` in grid/setup.ts). */
+  /** Selection-frame stroke uses the same color as the logical grid (`grid.config.strokeColor`). */
   const cardFrame = new Graphics();
+  cardFrame.zIndex = 15;
   cardFrame
     .rect(
       ICON_BOX_CARD_FRAME_ORIGIN_X + 0.5,
@@ -149,6 +180,7 @@ const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
   root.addChild(cardFrame);
 
   const markers = new Graphics();
+  markers.zIndex = 40;
   const rectOriginX = ICON_BOX_INNER_OFFSET;
   const rectOriginY = ICON_BOX_INNER_TOP;
   const rectSize = ICON_BOX_INNER_SIZE;
@@ -173,6 +205,7 @@ const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
   iconSprite.height = 24;
 
   const iconHold = new Container();
+  iconHold.zIndex = 50;
   iconHold.position.set(ICON_HOLD_OFFSET_X, ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER);
   iconHold.filters = [buildIconShadowFilter(iconRgb)];
   iconHold.addChild(iconSprite);
@@ -184,11 +217,34 @@ const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
     const accentTop = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_ACCENT_BAR_GAP;
     const accentFillRgb = brush.fill;
     const accentBar = new Graphics();
+    accentBar.zIndex = 60;
     accentBar
       .rect(accentLeft, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
       .fill({ color: accentFillRgb, alpha: 1 });
     accentBar.filters = [buildAccentBarShadowFilter(accentFillRgb)];
     root.addChild(accentBar);
+  }
+
+  if (instance.props.containerHighlighted) {
+    const ox = ICON_BOX_CARD_FRAME_ORIGIN_X;
+    const oy = ICON_BOX_CARD_FRAME_ORIGIN_Y;
+    const sz = ICON_BOX_CARD_FRAME_SIZE;
+    const inset = CONTAINER_RETICLE_CORNER_INSET;
+    const cornerCenters: [number, number][] = [
+      [ox + inset, oy + inset],
+      [ox + sz - inset, oy + inset],
+      [ox + inset, oy + sz - inset],
+      [ox + sz - inset, oy + sz - inset],
+    ];
+    for (const [cx, cy] of cornerCenters) {
+      const reticle = buildContainerCornerReticle(gridStrokeColor);
+      reticle.zIndex = CONTAINER_RETICLE_Z_INDEX;
+      reticle.position.set(
+        cx - CONTAINER_RETICLE_HALF + CONTAINER_RETICLE_POSITION_NUDGE,
+        cy - CONTAINER_RETICLE_HALF + CONTAINER_RETICLE_POSITION_NUDGE,
+      );
+      root.addChild(reticle);
+    }
   }
 
   return root;

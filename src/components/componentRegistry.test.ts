@@ -16,6 +16,7 @@ describe("componentRegistry", () => {
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
+      containerHighlighted: false,
     });
   });
 
@@ -31,6 +32,7 @@ describe("componentRegistry", () => {
         theme: "purple",
         iconId: DEFAULT_ICON_ID,
         title: "Workers",
+        containerHighlighted: false,
       },
     });
   });

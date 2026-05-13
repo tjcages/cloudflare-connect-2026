@@ -162,6 +162,22 @@ export const ComponentSidebar = ({
             />
           </div>
         ) : null}
+        <div className="field field-toggle-row">
+          <span id={`container-highlighted-label-${selectedInstance.id}`}>Container highlighted</span>
+          <button
+            type="button"
+            role="switch"
+            className="field-toggle-switch"
+            aria-labelledby={`container-highlighted-label-${selectedInstance.id}`}
+            aria-checked={selectedInstance.props.containerHighlighted}
+            onClick={() =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                containerHighlighted: !selectedInstance.props.containerHighlighted,
+              })
+            }
+          />
+        </div>
       </div>
     );
   }

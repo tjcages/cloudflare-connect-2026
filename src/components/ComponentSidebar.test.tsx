@@ -15,6 +15,7 @@ const instance: ComponentInstance = {
     theme: "purple",
     iconId: DEFAULT_ICON_ID,
     title: "Workers",
+    containerHighlighted: false,
   },
 };
 
@@ -276,6 +277,18 @@ describe("ComponentSidebar", () => {
     expect(within(themeGroup).getByRole("radio", { name: "Purple" })).toHaveAttribute("aria-checked", "true");
     const matchCornersToggle = screen.getByRole("switch", { name: /Match corners with theme/i });
     expect(matchCornersToggle).toHaveAttribute("aria-checked", "false");
+    const containerHighlightedToggle = screen.getByRole("switch", { name: /Container highlighted/i });
+    expect(containerHighlightedToggle).toHaveAttribute("aria-checked", "false");
+
+    fireEvent.click(containerHighlightedToggle);
+
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("icon-box-1", {
+      matchCornersWithTheme: false,
+      theme: "purple",
+      iconId: DEFAULT_ICON_ID,
+      title: "Workers",
+      containerHighlighted: true,
+    });
 
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "KV" } });
 
@@ -284,6 +297,7 @@ describe("ComponentSidebar", () => {
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
       title: "KV",
+      containerHighlighted: false,
     });
 
     fireEvent.click(matchCornersToggle);
@@ -293,6 +307,7 @@ describe("ComponentSidebar", () => {
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
+      containerHighlighted: false,
     });
   });
 
@@ -318,6 +333,7 @@ describe("ComponentSidebar", () => {
       theme: "orange",
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
+      containerHighlighted: false,
     });
   });
 });

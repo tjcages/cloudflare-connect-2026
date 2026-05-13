@@ -64,4 +64,21 @@ describe("mergePersistedDocument", () => {
 
     expect(merged.selectedInstanceId).toBeNull();
   });
+
+  it("defaults containerHighlighted when missing from persisted icon-box props", () => {
+    const current = minimalStoreForMerge();
+    const inst = getDefaultDocumentSlice().instances[0];
+    const { containerHighlighted: _drop, ...propsWithoutHighlight } = inst.props;
+    const merged = mergePersistedDocument(
+      {
+        gridConfig: DEFAULT_CONFIG,
+        instances: [{ ...inst, props: propsWithoutHighlight }],
+        nextInstanceIndex: 2,
+        selectedInstanceId: null,
+      },
+      current,
+    );
+
+    expect(merged.instances[0].props.containerHighlighted).toBe(false);
+  });
 });

@@ -14,6 +14,7 @@ const createInstance = (id: string, x: number, y: number): ComponentInstance => 
     theme: "purple",
     iconId: DEFAULT_ICON_ID,
     title: "Workers",
+    containerHighlighted: false,
   },
 });
 

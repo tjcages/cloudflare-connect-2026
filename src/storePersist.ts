@@ -37,6 +37,10 @@ const isIconBoxProps = (value: unknown): value is IconBoxProps => {
     return false;
   }
 
+  if ("containerHighlighted" in value && typeof value.containerHighlighted !== "boolean") {
+    return false;
+  }
+
   return true;
 };
 

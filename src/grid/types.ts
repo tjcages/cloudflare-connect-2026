@@ -53,6 +53,8 @@ export type IconBoxProps = {
   theme: PaletteThemeId;
   iconId: IconId;
   title: string;
+  /** When true, draw focus reticles at the four corners of the selection frame. */
+  containerHighlighted: boolean;
 };
 
 export type ComponentInstance = {

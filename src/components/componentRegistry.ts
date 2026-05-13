@@ -34,6 +34,7 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
+      containerHighlighted: false,
     },
     dynamicTitle: (config) => {
       const t = config.title.trim();
