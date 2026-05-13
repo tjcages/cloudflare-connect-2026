@@ -9,6 +9,9 @@ import { parseHexColor } from "../../color";
 import { useAppStore } from "../../../store";
 import { rasterizeIcon } from "./iconRaster";
 import {
+  ICON_BOX_ACCENT_BAR_GAP,
+  ICON_BOX_ACCENT_BAR_HEIGHT,
+  ICON_BOX_ACCENT_BAR_WIDTH,
   ICON_BOX_INNER_OFFSET,
   ICON_BOX_INNER_SIZE,
   ICON_BOX_INNER_TOP,
@@ -26,6 +29,27 @@ import {
 
 const CARD_SHADOW_CSS =
   "0 12px 24px rgba(0, 0, 0, 0.04), 0 6px 12px rgba(0, 0, 0, 0.02), 0 3px 6px rgba(0, 0, 0, 0.01)";
+
+/** Accent underline glow: layers and alphas match design rgba(); RGB follows palette accent (`fillRgb`). */
+const buildAccentBarShadowFilter = (fillRgb: number) =>
+  new BoxShadowFilter({
+    shapeMode: "box",
+    borderRadius: 0,
+    shadows: [
+      { offsetX: 0, offsetY: 4, blur: 12, spread: 0, color: fillRgb, alpha: 0.32, inset: false },
+      { offsetX: 0, offsetY: 2, blur: 4, spread: 0, color: fillRgb, alpha: 0.12, inset: false },
+      { offsetX: 0, offsetY: 1, blur: 1, spread: 0, color: fillRgb, alpha: 0.16, inset: false },
+      {
+        offsetX: 0,
+        offsetY: 0.5,
+        blur: 1,
+        spread: 0,
+        color: fillRgb,
+        alpha: 0.12,
+        inset: false,
+      },
+    ] satisfies BoxShadowOptions[],
+  });
 
 /** CSS `drop-shadow(0 oy blur …)` analogue; blur uses box-shadow semantics (sigma = blur/2).
  * pixi-box-shadow texture mode skips the Gaussian pass when blur < 1 (sigma < 0.5), so the
@@ -140,6 +164,18 @@ const buildIconBox = (instance: ComponentInstance) => {
   iconHold.addChild(iconSprite);
 
   root.addChild(iconHold);
+
+  if (instance.props.theme !== "neutral") {
+    const accentLeft = ICON_BOX_INNER_OFFSET + (ICON_BOX_INNER_SIZE - ICON_BOX_ACCENT_BAR_WIDTH) / 2;
+    const accentTop = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_ACCENT_BAR_GAP;
+    const accentFillRgb = brush.fill;
+    const accentBar = new Graphics();
+    accentBar
+      .rect(accentLeft, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
+      .fill({ color: accentFillRgb, alpha: 1 });
+    accentBar.filters = [buildAccentBarShadowFilter(accentFillRgb)];
+    root.addChild(accentBar);
+  }
 
   return root;
 };

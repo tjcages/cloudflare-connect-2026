@@ -17,7 +17,14 @@ export const ICON_BOX_INNER_TOP = TITLE_BAR_HEIGHT + TITLE_TO_INNER_GAP;
 export const ICON_BOX_INNER_CENTER_X = ICON_BOX_INNER_OFFSET + ICON_BOX_INNER_SIZE / 2;
 export const ICON_BOX_INNER_CENTER_Y = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE / 2;
 
-export const ICON_BOX_BOTTOM_MARGIN = 8;
+/** Gap between inner card bottom edge and bottom accent bar (logical px). */
+export const ICON_BOX_ACCENT_BAR_GAP = 8;
+export const ICON_BOX_ACCENT_BAR_WIDTH = 33;
+export const ICON_BOX_ACCENT_BAR_HEIGHT = 2;
+/** Space below accent bar so warm glow isn’t clipped by bounds / PNG extract. */
+export const ICON_BOX_ACCENT_SHADOW_PAD = 20;
+
+export const ICON_BOX_BOTTOM_MARGIN = ICON_BOX_ACCENT_BAR_GAP + ICON_BOX_ACCENT_BAR_HEIGHT + ICON_BOX_ACCENT_SHADOW_PAD;
 export const ICON_BOX_OUTER_HEIGHT = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_BOTTOM_MARGIN;
 
 /** Max inner width for title text before clipping (shrink-wrap is capped to full instance width). */

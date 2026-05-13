@@ -47,7 +47,7 @@ describe("componentRegistry", () => {
   it("keeps snapped positions inside the logical canvas", () => {
     expect(snapComponentPosition(799, 559, 800, 560, "icon-box")).toEqual({
       x: 720,
-      y: 452,
+      y: 412,
     });
   });
 });
