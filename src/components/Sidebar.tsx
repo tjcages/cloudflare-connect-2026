@@ -89,15 +89,18 @@ export const Sidebar = ({
       <div className="field color-field">
         <div className="field-label-row">
           <label htmlFor="stroke-color-input">Stroke color</label>
-          <button
-            type="button"
-            className="field-reset-button"
-            disabled={strokeIsDefault}
-            aria-label="Reset stroke color to default"
-            onClick={() => onStrokeColorChange(DEFAULT_CONFIG.strokeColor)}
-          >
-            <Undo2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
-          </button>
+          <div className="field-reset-slot">
+            {!strokeIsDefault ? (
+              <button
+                type="button"
+                className="field-reset-button"
+                aria-label="Reset stroke color to default"
+                onClick={() => onStrokeColorChange(DEFAULT_CONFIG.strokeColor)}
+              >
+                <Undo2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+              </button>
+            ) : null}
+          </div>
         </div>
         <span className="color-control">
           <span

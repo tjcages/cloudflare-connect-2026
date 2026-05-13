@@ -163,6 +163,8 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  --field-label-line-box: calc(4em / 3);
+  line-height: var(--field-label-line-box);
 }
 
 .field-label-row label {
@@ -171,22 +173,36 @@ select {
   font-weight: inherit;
 }
 
+.field-label-row .field-reset-slot {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: var(--field-label-line-box);
+  height: var(--field-label-line-box);
+}
+
 .field-reset-button {
   display: grid;
   place-items: center;
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: 3px;
   background: transparent;
   padding: 0;
   cursor: pointer;
+  color: inherit;
   transition:
     opacity 140ms ease,
-    visibility 140ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
+    visibility 140ms ease;
+}
+
+.field-reset-button svg {
+  width: 1em;
+  height: 1em;
 }
 
 /* Stroke field: reset stays hidden until the whole row is hovered or contains focus */
@@ -203,32 +219,29 @@ select {
   pointer-events: auto;
 }
 
-.field.color-field:hover .field-reset-button:not(:disabled),
-.field.color-field:focus-within .field-reset-button:not(:disabled) {
-  color: #ebebeb;
-}
-
-.field.color-field:hover .field-reset-button:hover:not(:disabled),
-.field.color-field:focus-within .field-reset-button:hover:not(:disabled) {
+.field.color-field:hover .field-reset-button:hover,
+.field.color-field:focus-within .field-reset-button:hover {
+  transition:
+    opacity 140ms ease,
+    visibility 140ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
   background: var(--button-hover-bg);
   color: var(--button-hover-color);
 }
 
-.field.color-field:hover .field-reset-button:active:not(:disabled),
-.field.color-field:focus-within .field-reset-button:active:not(:disabled) {
+.field.color-field:hover .field-reset-button:active,
+.field.color-field:focus-within .field-reset-button:active {
+  transition:
+    opacity 140ms ease,
+    visibility 140ms ease,
+    background-color 120ms ease;
   background: var(--button-active-bg);
 }
 
 .field-reset-button:focus-visible {
   outline: 2px solid #9fc8ff;
   outline-offset: 2px;
-}
-
-.field.color-field:hover .field-reset-button:disabled,
-.field.color-field:focus-within .field-reset-button:disabled {
-  opacity: 0.45;
-  color: #efefef;
-  cursor: default;
 }
 
 .field input,
