@@ -9,6 +9,24 @@ type GridCanvasProps = {
   selectedInstanceId: string | null;
   onSelectInstance: (id: string | null) => void;
   onCreateInstance: (type: ComponentType, x: number, y: number) => void;
+  dragState:
+    | {
+        mode: "create";
+        type: ComponentType;
+        preview: ComponentInstance | null;
+      }
+    | {
+        mode: "move";
+        id: string;
+        offsetX: number;
+        offsetY: number;
+      }
+    | null;
+  dragPreviewInstance: ComponentInstance | null;
+  onUpdateComponentDragPreview: (type: ComponentType, x: number, y: number) => void;
+  onStartInstanceDrag: (id: string, offsetX: number, offsetY: number) => void;
+  onMoveInstance: (id: string, x: number, y: number) => void;
+  onEndCanvasDrag: () => void;
 };
 
 const getCanvasPoint = (canvas: HTMLCanvasElement, clientX: number, clientY: number, grid: GeneratedGrid) => {
@@ -28,6 +46,12 @@ export const GridCanvas = ({
   selectedInstanceId,
   onSelectInstance,
   onCreateInstance,
+  dragState,
+  dragPreviewInstance,
+  onUpdateComponentDragPreview,
+  onStartInstanceDrag,
+  onMoveInstance,
+  onEndCanvasDrag,
 }: GridCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -49,11 +73,16 @@ export const GridCanvas = ({
         return;
       }
 
-      drawDocument(context, { grid, instances, selectedInstanceId, scale: pixelRatio });
+      drawDocument(context, {
+        grid,
+        instances: dragPreviewInstance ? [...instances, dragPreviewInstance] : instances,
+        selectedInstanceId,
+        scale: pixelRatio,
+      });
     } catch {
       // jsdom does not implement canvas; production browsers do.
     }
-  }, [grid, instances, selectedInstanceId]);
+  }, [grid, instances, selectedInstanceId, dragPreviewInstance]);
 
   return (
     <div className="canvas-shell">
@@ -62,24 +91,62 @@ export const GridCanvas = ({
         className="grid-canvas"
         role="img"
         aria-label="Component builder canvas"
-        onClick={(event) => {
+        onPointerDown={(event) => {
           const canvas = canvasRef.current;
           if (!canvas) {
             return;
           }
           const point = getCanvasPoint(canvas, event.clientX, event.clientY, grid);
-          onSelectInstance(hitTestComponentInstances(instances, point.x, point.y)?.id ?? null);
-        }}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
+          const hitInstance = hitTestComponentInstances(instances, point.x, point.y);
+
+          if (!hitInstance) {
+            onSelectInstance(null);
+            return;
+          }
+
           event.preventDefault();
+          canvas.setPointerCapture?.(event.pointerId);
+          onSelectInstance(hitInstance.id);
+          onStartInstanceDrag(hitInstance.id, point.x - hitInstance.x, point.y - hitInstance.y);
+        }}
+        onPointerMove={(event) => {
           const canvas = canvasRef.current;
-          const type = event.dataTransfer.getData("application/x-component-type") || event.dataTransfer.getData("text/plain");
-          if (!canvas || type !== "icon-box") {
+          if (!canvas || !dragState) {
+            return;
+          }
+
+          const point = getCanvasPoint(canvas, event.clientX, event.clientY, grid);
+          if (dragState.mode === "create") {
+            onUpdateComponentDragPreview(dragState.type, point.x, point.y);
+            return;
+          }
+
+          onMoveInstance(dragState.id, point.x - dragState.offsetX, point.y - dragState.offsetY);
+        }}
+        onPointerUp={(event) => {
+          const canvas = canvasRef.current;
+          if (!canvas || !dragState) {
+            return;
+          }
+
+          const point = getCanvasPoint(canvas, event.clientX, event.clientY, grid);
+          if (dragState.mode === "create") {
+            onCreateInstance(dragState.type, point.x, point.y);
+          } else {
+            canvas.releasePointerCapture?.(event.pointerId);
+          }
+          onEndCanvasDrag();
+        }}
+        onClick={(event) => {
+          const canvas = canvasRef.current;
+          if (dragState) {
+            return;
+          }
+          if (!canvas) {
             return;
           }
           const point = getCanvasPoint(canvas, event.clientX, event.clientY, grid);
-          onCreateInstance(type, point.x, point.y);
+          onSelectInstance(hitTestComponentInstances(instances, point.x, point.y)?.id ?? null);
         }}
       />
     </div>

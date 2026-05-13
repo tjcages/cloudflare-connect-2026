@@ -112,7 +112,7 @@ export const drawSelectionOutline = (context: CanvasRenderingContext2D, instance
   resetShadow(context);
   context.strokeStyle = "#9FC8FF";
   context.lineWidth = 1;
-  strokeRoundedRect(context, instance.x + 0.5, instance.y + 0.5, 79, 79, 12);
+  context.strokeRect(instance.x + 0.5, instance.y + 0.5, 79, 79);
 };
 
 export const drawDocument = (

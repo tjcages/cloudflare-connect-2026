@@ -1,4 +1,4 @@
-import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { copyDocumentPng } from "../canvas/pngExport";
 import { generateGrid } from "../grid/generator";
@@ -84,7 +84,7 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
-  it("copies the composed canvas as PNG", async () => {
+  it("copies the composed canvas as 2x PNG from the single export button", async () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Copy PNG" }));
@@ -92,34 +92,49 @@ describe("App", () => {
     await waitFor(() => {
       expect(copyDocumentPng).toHaveBeenCalledWith(
         expect.objectContaining({
-          scale: 1,
+          scale: 2,
           instances: expect.arrayContaining([expect.objectContaining({ type: "icon-box" })]),
         }),
       );
     });
-  });
-
-  it("copies the composed canvas as a 2x retina PNG", async () => {
-    render(<App />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Copy 2x Retina PNG" }));
-
-    await waitFor(() => {
-      expect(copyDocumentPng).toHaveBeenCalledWith(expect.objectContaining({ scale: 2 }));
-    });
+    expect(screen.queryByRole("button", { name: "Copy 2x Retina PNG" })).not.toBeInTheDocument();
   });
 
   it("switches sidebar tabs without unmounting the canvas", () => {
     render(<App />);
 
     expect(screen.getByRole("img", { name: "Component builder canvas" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "components" }));
+    expect(screen.getByRole("tab", { name: "Grid" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Components" }));
 
     expect(screen.getByText("Current instances")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Component builder canvas" })).toBeInTheDocument();
   });
 
-  it("drops an icon-box onto the canvas at a snapped position", () => {
+  it("adds an icon-box from the sidebar with pointer drag at a snapped position", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("tab", { name: "Components" }));
+    const canvas = screen.getByRole("img", { name: "Component builder canvas" }) as HTMLCanvasElement;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      bottom: 560,
+      height: 560,
+      left: 0,
+      right: 800,
+      top: 0,
+      width: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "icon-box" }), { clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(canvas, { clientX: 43, clientY: 79 });
+    fireEvent.pointerUp(canvas, { clientX: 43, clientY: 79 });
+
+    expect(screen.getByText("x: 40, y: 80")).toBeInTheDocument();
+  });
+
+  it("clears the selected instance when clicking empty canvas", () => {
     render(<App />);
     const canvas = screen.getByRole("img", { name: "Component builder canvas" }) as HTMLCanvasElement;
     vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
@@ -134,18 +149,36 @@ describe("App", () => {
       toJSON: () => ({}),
     });
 
-    const dropEvent = createEvent.drop(canvas);
-    Object.defineProperty(dropEvent, "clientX", { value: 43 });
-    Object.defineProperty(dropEvent, "clientY", { value: 79 });
-    Object.defineProperty(dropEvent, "dataTransfer", {
-      value: {
-        getData: (type: string) => (type === "application/x-component-type" ? "icon-box" : ""),
-      },
-    });
-    fireEvent(canvas, dropEvent);
+    fireEvent.click(canvas, { clientX: 10, clientY: 10 });
+    expect(screen.getByLabelText("Corner color")).toBeInTheDocument();
 
-    expect(screen.getByText("icon-box 2")).toBeInTheDocument();
-    expect(screen.getByText("x: 40, y: 80")).toBeInTheDocument();
+    fireEvent.click(canvas, { clientX: 240, clientY: 240 });
+
+    expect(screen.queryByLabelText("Corner color")).not.toBeInTheDocument();
+    expect(screen.getByText("Current instances")).toBeInTheDocument();
+  });
+
+  it("moves an existing instance with pointer drag at a snapped position", () => {
+    render(<App />);
+    const canvas = screen.getByRole("img", { name: "Component builder canvas" }) as HTMLCanvasElement;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      bottom: 560,
+      height: 560,
+      left: 0,
+      right: 800,
+      top: 0,
+      width: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(canvas, { clientX: 130, clientY: 90 });
+    fireEvent.pointerUp(canvas, { clientX: 130, clientY: 90 });
+
+    expect(screen.getByLabelText("Corner color")).toBeInTheDocument();
+    expect(screen.getByText("x: 120, y: 80")).toBeInTheDocument();
   });
 
   it("selects, configures, backs out, and removes an icon-box instance", () => {
@@ -168,9 +201,9 @@ describe("App", () => {
 
     expect(screen.getByTestId("corner-color-preview")).toHaveStyle({ backgroundColor: "#abcdef" });
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete icon-box 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete icon-box" }));
 
-    expect(screen.queryByText("icon-box 1")).not.toBeInTheDocument();
+    expect(screen.getByText("No components on canvas.")).toBeInTheDocument();
   });
 
   it("does not regenerate the grid on the main thread while editing dimensions", () => {

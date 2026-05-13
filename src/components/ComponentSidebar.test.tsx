@@ -24,11 +24,13 @@ describe("ComponentSidebar", () => {
         onBack={vi.fn()}
         onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={vi.fn()}
       />,
     );
 
     expect(screen.getByText("Current instances")).toBeInTheDocument();
-    expect(screen.getByText("icon-box 1")).toBeInTheDocument();
+    expect(screen.getAllByText("icon-box")).toHaveLength(2);
+    expect(screen.queryByText("Drag to canvas")).not.toBeInTheDocument();
     expect(screen.getByText("x: 40, y: 80")).toBeInTheDocument();
     expect(screen.getByText("Components")).toBeInTheDocument();
   });
@@ -45,14 +47,35 @@ describe("ComponentSidebar", () => {
         onBack={vi.fn()}
         onDeleteInstance={onDeleteInstance}
         onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={vi.fn()}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit icon-box 1" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete icon-box 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit icon-box" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete icon-box" }));
 
     expect(onSelectInstance).toHaveBeenCalledWith("icon-box-1");
     expect(onDeleteInstance).toHaveBeenCalledWith("icon-box-1");
+  });
+
+  it("starts component drag from available component cards", () => {
+    const onStartComponentDrag = vi.fn();
+
+    render(
+      <ComponentSidebar
+        instances={[instance]}
+        selectedInstance={null}
+        onSelectInstance={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={onStartComponentDrag}
+      />,
+    );
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "icon-box" }), { clientX: 12, clientY: 24 });
+
+    expect(onStartComponentDrag).toHaveBeenCalledWith("icon-box");
   });
 
   it("shows selected component config and updates corner color", () => {
@@ -66,6 +89,7 @@ describe("ComponentSidebar", () => {
         onBack={vi.fn()}
         onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={onUpdateInstanceProps}
+        onStartComponentDrag={vi.fn()}
       />,
     );
 

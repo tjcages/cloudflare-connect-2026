@@ -112,4 +112,13 @@ describe("documentRenderer", () => {
       ]),
     );
   });
+
+  it("draws selected instances with a square outline", () => {
+    const context = createContext();
+
+    drawDocument(context, { grid, instances: [iconBox], selectedInstanceId: iconBox.id });
+
+    expect(context.calls).toContain("strokeRect:40.5:40.5:79:79:#9FC8FF");
+    expect(context.calls).not.toContain("roundRect:40.5:40.5:79:79:12");
+  });
 });

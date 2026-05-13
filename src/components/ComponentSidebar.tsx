@@ -1,4 +1,4 @@
-import { COMPONENT_REGISTRY } from "./componentRegistry";
+import { COMPONENT_REGISTRY, getComponentDefinition } from "./componentRegistry";
 import { IconBoxPreview } from "./IconBoxPreview";
 import type { ComponentInstance, ComponentType, IconBoxProps } from "../grid/types";
 
@@ -9,9 +9,11 @@ type ComponentSidebarProps = {
   onBack: () => void;
   onDeleteInstance: (id: string) => void;
   onUpdateInstanceProps: (id: string, props: IconBoxProps) => void;
+  onStartComponentDrag: (type: ComponentType) => void;
 };
 
 const componentTypes = Object.values(COMPONENT_REGISTRY);
+const getInstanceDisplayName = (instance: ComponentInstance) => getComponentDefinition(instance.type).label;
 
 export const ComponentSidebar = ({
   instances,
@@ -20,15 +22,18 @@ export const ComponentSidebar = ({
   onBack,
   onDeleteInstance,
   onUpdateInstanceProps,
+  onStartComponentDrag,
 }: ComponentSidebarProps) => {
   if (selectedInstance) {
+    const displayName = getInstanceDisplayName(selectedInstance);
+
     return (
       <div className="component-config-panel">
         <button className="back-button" type="button" onClick={onBack}>
           Back
         </button>
         <div className="section-heading">
-          <span>{selectedInstance.name}</span>
+          <span>{displayName}</span>
           <small>
             x: {selectedInstance.x}, y: {selectedInstance.y}
           </small>
@@ -70,21 +75,27 @@ export const ComponentSidebar = ({
         </div>
         <div className="component-scroll-region">
           {instances.length ? (
-            instances.map((instance) => (
-              <div className="component-row" key={instance.id}>
-                <IconBoxPreview cornerColor={instance.props.cornerColor} size="small" />
-                <span className="component-name">{instance.name}</span>
-                <span className="component-position">
-                  x: {instance.x}, y: {instance.y}
-                </span>
-                <button type="button" onClick={() => onSelectInstance(instance.id)} aria-label={`Edit ${instance.name}`}>
-                  Edit
-                </button>
-                <button type="button" onClick={() => onDeleteInstance(instance.id)} aria-label={`Delete ${instance.name}`}>
-                  Trash
-                </button>
-              </div>
-            ))
+            instances.map((instance) => {
+              const displayName = getInstanceDisplayName(instance);
+
+              return (
+                <div className="component-row" key={instance.id}>
+                  <IconBoxPreview cornerColor={instance.props.cornerColor} size="small" />
+                  <span className="component-name">{displayName}</span>
+                  <span className="component-position">
+                    x: {instance.x}, y: {instance.y}
+                  </span>
+                  <div className="component-row-actions">
+                    <button type="button" onClick={() => onSelectInstance(instance.id)} aria-label={`Edit ${displayName}`}>
+                      Edit
+                    </button>
+                    <button type="button" onClick={() => onDeleteInstance(instance.id)} aria-label={`Delete ${displayName}`}>
+                      Trash
+                    </button>
+                  </div>
+                </div>
+              );
+            })
           ) : (
             <p className="empty-state">No components on canvas.</p>
           )}
@@ -101,15 +112,13 @@ export const ComponentSidebar = ({
               key={definition.type}
               className="component-card"
               type="button"
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData("application/x-component-type", definition.type satisfies ComponentType);
-                event.dataTransfer.setData("text/plain", definition.type);
+              onPointerDown={(event) => {
+                event.preventDefault();
+                onStartComponentDrag(definition.type satisfies ComponentType);
               }}
             >
               <IconBoxPreview cornerColor={definition.defaultProps.cornerColor} />
               <span>{definition.label}</span>
-              <small>Drag to canvas</small>
             </button>
           ))}
         </div>

@@ -23,7 +23,6 @@ const renderSidebar = (overrides: Partial<ComponentProps<typeof Sidebar>> = {}) 
     onGenerate: vi.fn(),
     onGapMaskChange: vi.fn(),
     onCopyPng: vi.fn(),
-    onCopyRetinaPng: vi.fn(),
     copyState: "idle" as const,
     ...overrides,
   };

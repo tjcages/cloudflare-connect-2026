@@ -20,7 +20,6 @@ type SidebarProps = {
   onGenerate: () => void;
   onGapMaskChange: (mask: GapMask) => void;
   onCopyPng: () => void;
-  onCopyRetinaPng: () => void;
   copyState: "idle" | "copied" | "failed";
 };
 
@@ -36,7 +35,6 @@ export const Sidebar = ({
   onGenerate,
   onGapMaskChange,
   onCopyPng,
-  onCopyRetinaPng,
   copyState,
 }: SidebarProps) => (
   <div className="grid-sidebar">
@@ -106,9 +104,6 @@ export const Sidebar = ({
 
     <button className="export-button" type="button" onClick={onCopyPng}>
       {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy PNG"}
-    </button>
-    <button className="export-button" type="button" onClick={onCopyRetinaPng}>
-      Copy 2x Retina PNG
     </button>
 
     <dl className="stats">
