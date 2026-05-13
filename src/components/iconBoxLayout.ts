@@ -47,6 +47,25 @@ export const getIconBoxShadowCardBoundsInRootSpace = (): { x: number; y: number;
   height: ICON_BOX_CARD_FRAME_SIZE,
 });
 
+/**
+ * Outline rect for selection UI: title strip plus full nominal body (`TITLE_BAR_WIDTH` × `ICON_BOX_OUTER_HEIGHT`),
+ * widening when long titles overflow the nominal width (matches Pixi barLeft/rectWidth).
+ * Pointer bounds and snapping still use shadow-card/`COMPONENT_REGISTRY`; this is visuals only.
+ */
+export const getIconBoxFullHighlightBoundsInRootSpace = (
+  title: string,
+): { x: number; y: number; width: number; height: number } => {
+  const { rectWidth, barLeft } = getIconBoxTitleBarLayout(title);
+  const minX = Math.min(0, barLeft);
+  const maxX = Math.max(TITLE_BAR_WIDTH, barLeft + rectWidth);
+  return {
+    x: minX,
+    y: 0,
+    width: maxX - minX,
+    height: ICON_BOX_OUTER_HEIGHT,
+  };
+};
+
 /** Instance-root snap point: center of the shadow-card interaction rect (matches `ICON_BOX_INNER_CENTER_X` / `Y` with current padding). */
 const _iconBoxSnapAnchorInRoot = (() => {
   const r = getIconBoxShadowCardBoundsInRootSpace();

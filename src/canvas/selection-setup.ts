@@ -1,6 +1,6 @@
 import { Graphics } from "pixi.js";
 import type { Ticker } from "../components/pixi";
-import { getInstanceCanvasBounds } from "../components/componentRegistry";
+import { getInstanceHighlightBounds } from "../components/componentRegistry";
 import { useAppStore } from "../store";
 
 export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
@@ -20,7 +20,7 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       return;
     }
 
-    const b = getInstanceCanvasBounds(inst);
+    const b = getInstanceHighlightBounds(inst);
     let w = b.width;
     let h = b.height;
     /** Icon-box: selection stroke +1px wider/taller; origin unchanged from bounds. */

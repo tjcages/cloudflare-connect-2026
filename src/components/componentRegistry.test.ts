@@ -2,10 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   COMPONENT_REGISTRY,
   createComponentInstance,
+  getInstanceCanvasBounds,
+  getInstanceHighlightBounds,
   getInstanceLayerSubtitle,
   snapComponentPosition,
 } from "./componentRegistry";
-import { ICON_BOX_SNAP_ANCHOR_X, ICON_BOX_SNAP_ANCHOR_Y } from "./iconBoxLayout";
+import {
+  ICON_BOX_CARD_FRAME_ORIGIN_Y,
+  ICON_BOX_OUTER_HEIGHT,
+  ICON_BOX_SNAP_ANCHOR_X,
+  ICON_BOX_SNAP_ANCHOR_Y,
+} from "./iconBoxLayout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 
 describe("componentRegistry", () => {
@@ -78,5 +85,16 @@ describe("componentRegistry", () => {
       x: 720,
       y: 412,
     });
+  });
+
+  it("getInstanceHighlightBounds covers title and footprint while hit bounds stay on shadow card only", () => {
+    const inst = createComponentInstance("icon-box", 100, 200, 1, 800, 560);
+    const hit = getInstanceCanvasBounds(inst);
+    const hilite = getInstanceHighlightBounds(inst);
+
+    expect(hilite.y).toBe(inst.y);
+    expect(hilite.height).toBe(ICON_BOX_OUTER_HEIGHT);
+    expect(hit.y).toBe(inst.y + ICON_BOX_CARD_FRAME_ORIGIN_Y);
+    expect(hilite.height).toBeGreaterThan(hit.height);
   });
 });

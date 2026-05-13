@@ -3,6 +3,7 @@ import {
   ICON_BOX_OUTER_HEIGHT,
   ICON_BOX_SNAP_ANCHOR_X,
   ICON_BOX_SNAP_ANCHOR_Y,
+  getIconBoxFullHighlightBoundsInRootSpace,
   getIconBoxShadowCardBoundsInRootSpace,
 } from "./iconBoxLayout";
 import { BASE_UNIT, type ComponentInstance, type ComponentType, type IconBoxProps } from "../grid/types";
@@ -92,8 +93,8 @@ export const snapComponentPosition = (
 };
 
 /**
- * Pointer and selection bounds in logical canvas space.
- * Icon-box: shadowed inner card plus `ICON_BOX_SELECTION_PADDING` (iconBoxLayout); excludes title and bottom accent.
+ * Pointer hit bounds in logical canvas space.
+ * Icon-box: shadowed inner card plus `ICON_BOX_SELECTION_PADDING` (iconBoxLayout); excludes title strip (see hitTest tests).
  */
 export const getInstanceCanvasBounds = (
   instance: ComponentInstance,
@@ -114,6 +115,22 @@ export const getInstanceCanvasBounds = (
     width: definition.width,
     height: definition.height,
   };
+};
+
+/** Selection outline bounds; icon-box includes title strip and bottom margin (full visual footprint). */
+export const getInstanceHighlightBounds = (
+  instance: ComponentInstance,
+): { x: number; y: number; width: number; height: number } => {
+  if (instance.type === "icon-box") {
+    const r = getIconBoxFullHighlightBoundsInRootSpace(instance.props.title);
+    return {
+      x: instance.x + r.x,
+      y: instance.y + r.y,
+      width: r.width,
+      height: r.height,
+    };
+  }
+  return getInstanceCanvasBounds(instance);
 };
 
 export const createComponentInstance = (
