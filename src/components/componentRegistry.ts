@@ -24,7 +24,7 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     snapAnchorX: ICON_BOX_INNER_CENTER_X,
     snapAnchorY: ICON_BOX_INNER_CENTER_Y,
     defaultProps: {
-      cornerTheme: "neutral",
+      matchCornersWithTheme: false,
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
       title: "Workers",

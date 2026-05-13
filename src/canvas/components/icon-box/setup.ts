@@ -145,7 +145,7 @@ const buildIconBox = (instance: ComponentInstance) => {
     [rectOriginX + markerMax, rectOriginY + markerMax],
   ];
 
-  const cornerBrush = paletteBrush(instance.props.cornerTheme);
+  const cornerBrush = instance.props.matchCornersWithTheme ? brush : paletteBrush("neutral");
   for (const [mx, my] of corners) {
     markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerBrush.fill });
   }

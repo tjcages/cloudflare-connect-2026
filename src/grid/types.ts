@@ -48,7 +48,8 @@ export type IconId = "section-mark";
 import type { PaletteThemeId } from "../theme/palette";
 
 export type IconBoxProps = {
-  cornerTheme: PaletteThemeId;
+  /** When true, corner squares use accent theme fill; when false, neutral gray. */
+  matchCornersWithTheme: boolean;
   theme: PaletteThemeId;
   iconId: IconId;
   title: string;

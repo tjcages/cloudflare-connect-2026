@@ -49,7 +49,7 @@ describe("App", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Components" }));
-    fireEvent.pointerDown(screen.getByRole("button", { name: "icon-box" }), { clientX: 160, clientY: 220 });
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Icon Box" }), { clientX: 160, clientY: 220 });
 
     const ghost = screen.getByTestId("component-drag-ghost");
     expect(ghost).toBeInTheDocument();

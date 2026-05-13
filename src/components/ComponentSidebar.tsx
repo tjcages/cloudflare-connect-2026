@@ -130,19 +130,6 @@ export const ComponentSidebar = ({
             ))}
           </div>
         </div>
-        <div className="field">
-          <span>Corner</span>
-          <PaletteThemePicker
-            ariaLabel="Corner theme"
-            value={selectedInstance.props.cornerTheme}
-            onChange={(cornerTheme) =>
-              onUpdateInstanceProps(selectedInstance.id, {
-                ...selectedInstance.props,
-                cornerTheme,
-              })
-            }
-          />
-        </div>
         <label className="field">
           <span>Title</span>
           <input
@@ -157,6 +144,22 @@ export const ComponentSidebar = ({
             aria-label="Title"
           />
         </label>
+        <div className="field field-toggle-row">
+          <span id={`corner-match-label-${selectedInstance.id}`}>Match Corners With Theme</span>
+          <button
+            type="button"
+            role="switch"
+            className="field-toggle-switch"
+            aria-labelledby={`corner-match-label-${selectedInstance.id}`}
+            aria-checked={selectedInstance.props.matchCornersWithTheme}
+            onClick={() =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                matchCornersWithTheme: !selectedInstance.props.matchCornersWithTheme,
+              })
+            }
+          />
+        </div>
       </div>
     );
   }

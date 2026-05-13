@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { COMPONENT_REGISTRY, createComponentInstance, snapComponentPosition } from "./componentRegistry";
+import {
+  COMPONENT_REGISTRY,
+  createComponentInstance,
+  getInstanceLayerSubtitle,
+  snapComponentPosition,
+} from "./componentRegistry";
 import { ICON_BOX_INNER_CENTER_X, ICON_BOX_INNER_CENTER_Y } from "./iconBoxLayout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 
 describe("componentRegistry", () => {
-  it("registers icon-box with default corner theme neutral", () => {
-    expect(COMPONENT_REGISTRY["icon-box"].label).toBe("icon-box");
+  it("registers icon-box with corners not matched to theme by default", () => {
+    expect(COMPONENT_REGISTRY["icon-box"].label).toBe("Icon Box");
     expect(COMPONENT_REGISTRY["icon-box"].defaultProps).toEqual({
-      cornerTheme: "neutral",
+      matchCornersWithTheme: false,
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
-      titleText: "Workers",
+      title: "Workers",
     });
   });
 
@@ -18,16 +23,38 @@ describe("componentRegistry", () => {
     expect(createComponentInstance("icon-box", 43, 79, 2, 800, 560)).toMatchObject({
       id: "icon-box-2",
       type: "icon-box",
-      name: "icon-box 2",
+      name: "Icon Box 2",
       x: 40,
       y: 92,
       props: {
-        cornerTheme: "neutral",
+        matchCornersWithTheme: false,
         theme: "purple",
         iconId: DEFAULT_ICON_ID,
-        titleText: "Workers",
+        title: "Workers",
       },
     });
+  });
+
+  it("getInstanceLayerSubtitle returns undefined for blank title", () => {
+    const inst = createComponentInstance("icon-box", 0, 0, 1, 800, 560);
+    expect(
+      getInstanceLayerSubtitle({
+        ...inst,
+        props: { ...inst.props, title: "" },
+      }),
+    ).toBeUndefined();
+    expect(
+      getInstanceLayerSubtitle({
+        ...inst,
+        props: { ...inst.props, title: "   " },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("getInstanceLayerSubtitle returns trimmed title when non-empty", () => {
+    const inst = createComponentInstance("icon-box", 0, 0, 1, 800, 560);
+    expect(getInstanceLayerSubtitle({ ...inst, props: { ...inst.props, title: "KV" } })).toBe("KV");
+    expect(getInstanceLayerSubtitle({ ...inst, props: { ...inst.props, title: "  hi  " } })).toBe("hi");
   });
 
   it("snaps icon-box by the inner card center (includes side padding)", () => {
