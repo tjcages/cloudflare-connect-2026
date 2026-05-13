@@ -1,7 +1,8 @@
 import {
-  ICON_BOX_INNER_CENTER_X,
-  ICON_BOX_INNER_CENTER_Y,
+  ICON_BOX_MIN_ROOT_Y,
   ICON_BOX_OUTER_HEIGHT,
+  ICON_BOX_SNAP_ANCHOR_X,
+  ICON_BOX_SNAP_ANCHOR_Y,
   getIconBoxShadowCardBoundsInRootSpace,
 } from "./iconBoxLayout";
 import { BASE_UNIT, type ComponentInstance, type ComponentType, type IconBoxProps } from "../grid/types";
@@ -12,7 +13,7 @@ export type ComponentDefinition = {
   label: string;
   width: number;
   height: number;
-  /** Offset from instance root (x, y) to the logical snap point (e.g. inner card center for icon-box). */
+  /** Offset from instance root (x, y) to the grid snap point (icon-box: center of shadow-card ± selection padding). */
   snapAnchorX: number;
   snapAnchorY: number;
   defaultProps: IconBoxProps;
@@ -26,8 +27,8 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     label: "Icon Box",
     width: 80,
     height: ICON_BOX_OUTER_HEIGHT,
-    snapAnchorX: ICON_BOX_INNER_CENTER_X,
-    snapAnchorY: ICON_BOX_INNER_CENTER_Y,
+    snapAnchorX: ICON_BOX_SNAP_ANCHOR_X,
+    snapAnchorY: ICON_BOX_SNAP_ANCHOR_Y,
     defaultProps: {
       matchCornersWithTheme: false,
       theme: "purple",
@@ -56,14 +57,14 @@ export const getInstanceLayerSubtitle = (instance: ComponentInstance): string | 
   return trimmed.length ? trimmed : undefined;
 };
 
-/** Snap one axis so anchor (root + offset) lies on BASE_UNIT and root stays in [0, maxRoot]. */
-const snapRootAxis = (root: number, anchorOffset: number, maxRoot: number): number => {
+/** Snap one axis so anchor (root + anchorOffset) lies on BASE_UNIT and root stays in [minRoot, maxRoot]. */
+const snapRootAxis = (root: number, anchorOffset: number, maxRoot: number, minRoot = 0): number => {
   const anchor = root + anchorOffset;
   const kIdeal = Math.round(anchor / BASE_UNIT);
-  const kMin = Math.ceil(anchorOffset / BASE_UNIT);
+  const kMin = Math.ceil((minRoot + anchorOffset) / BASE_UNIT);
   const kMax = Math.floor((maxRoot + anchorOffset) / BASE_UNIT);
   if (kMin > kMax) {
-    return Math.min(maxRoot, Math.max(0, root));
+    return Math.min(maxRoot, Math.max(minRoot, root));
   }
   const k = Math.min(kMax, Math.max(kMin, kIdeal));
   return k * BASE_UNIT - anchorOffset;
@@ -82,7 +83,10 @@ export const snapComponentPosition = (
 
   return {
     x: snapRootAxis(x, definition.snapAnchorX, maxX),
-    y: snapRootAxis(y, definition.snapAnchorY, maxY),
+    y:
+      type === "icon-box"
+        ? snapRootAxis(y, definition.snapAnchorY, maxY, ICON_BOX_MIN_ROOT_Y)
+        : snapRootAxis(y, definition.snapAnchorY, maxY),
   };
 };
 

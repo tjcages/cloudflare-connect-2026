@@ -5,7 +5,7 @@ import {
   getInstanceLayerSubtitle,
   snapComponentPosition,
 } from "./componentRegistry";
-import { ICON_BOX_INNER_CENTER_X, ICON_BOX_INNER_CENTER_Y } from "./iconBoxLayout";
+import { ICON_BOX_SNAP_ANCHOR_X, ICON_BOX_SNAP_ANCHOR_Y } from "./iconBoxLayout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 
 describe("componentRegistry", () => {
@@ -57,18 +57,18 @@ describe("componentRegistry", () => {
     expect(getInstanceLayerSubtitle({ ...inst, props: { ...inst.props, title: "  hi  " } })).toBe("hi");
   });
 
-  it("snaps icon-box by the inner card center (includes side padding)", () => {
+  it("snaps icon-box by the shadow-card snap anchor (center of interaction rect)", () => {
     const snapped = snapComponentPosition(50, 50, 800, 560, "icon-box");
-    expect(snapped.x + ICON_BOX_INNER_CENTER_X).toBe(80);
-    expect(snapped.y + ICON_BOX_INNER_CENTER_Y).toBe(120);
+    expect(snapped.x + ICON_BOX_SNAP_ANCHOR_X).toBe(80);
+    expect(snapped.y + ICON_BOX_SNAP_ANCHOR_Y).toBe(120);
   });
 
   it("when dragging past the top/left, snaps to the nearest valid grid anchor inside bounds", () => {
     const p = snapComponentPosition(-200, -200, 800, 560, "icon-box");
     expect(p.x).toBe(0);
-    expect(p.y).toBe(12);
-    expect(p.x + ICON_BOX_INNER_CENTER_X).toBe(40);
-    expect(p.y + ICON_BOX_INNER_CENTER_Y).toBe(80);
+    expect(p.y).toBe(-28);
+    expect(p.x + ICON_BOX_SNAP_ANCHOR_X).toBe(40);
+    expect(p.y + ICON_BOX_SNAP_ANCHOR_Y).toBe(40);
   });
 
   it("keeps snapped positions inside the logical canvas", () => {

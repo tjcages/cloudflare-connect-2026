@@ -1,5 +1,6 @@
 /** Logical layout for icon-box instances (registry + Pixi agree on these numbers). */
 
+import { BASE_UNIT } from "../grid/types";
 import { ICON_BOX_TITLE_FONT_FAMILY } from "../fonts/iconBoxTitle";
 
 export const ICON_BOX_INNER_OFFSET = 8;
@@ -42,6 +43,20 @@ export const getIconBoxShadowCardBoundsInRootSpace = (): { x: number; y: number;
     height: ICON_BOX_INNER_SIZE + p * 2,
   };
 };
+
+/** Instance-root snap point: center of the shadow-card interaction rect (matches `ICON_BOX_INNER_CENTER_X` / `Y` with current padding). */
+const _iconBoxSnapAnchorInRoot = (() => {
+  const r = getIconBoxShadowCardBoundsInRootSpace();
+  return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+})();
+export const ICON_BOX_SNAP_ANCHOR_X = _iconBoxSnapAnchorInRoot.x;
+export const ICON_BOX_SNAP_ANCHOR_Y = _iconBoxSnapAnchorInRoot.y;
+
+/**
+ * Lowest snapped `instance.y`: one grid step above the legacy `y >= 0` floor so the title can extend past the
+ * canvas top while `ICON_BOX_SNAP_ANCHOR_Y` stays on the BASE_UNIT grid (`k === 1` vs `k === 2`).
+ */
+export const ICON_BOX_MIN_ROOT_Y = BASE_UNIT - ICON_BOX_SNAP_ANCHOR_Y;
 
 let measureCanvas: HTMLCanvasElement | null = null;
 
