@@ -18,4 +18,15 @@ describe("paletteBrush", () => {
     expect(b.iconFillHex).toBe("#B3B3B3");
     expect(b.iconFill).not.toBe(b.fill);
   });
+
+  it("syncs neutral fill to grid stroke hex when provided", () => {
+    const b = paletteBrush("neutral", { neutralFillSyncHex: "#aabbcc" });
+    expect(b.fillHex).toBe("#aabbcc");
+    expect(b.iconFillHex).toBe("#B3B3B3");
+  });
+
+  it("does not apply neutral fill sync to accent themes", () => {
+    const b = paletteBrush("orange", { neutralFillSyncHex: "#aabbcc" });
+    expect(b.fillHex).toBe("#FF4802");
+  });
 });

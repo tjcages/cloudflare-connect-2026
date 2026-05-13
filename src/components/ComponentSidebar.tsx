@@ -1,4 +1,6 @@
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { Reorder, useDragControls } from "motion/react";
+import type { PointerEventHandler, ReactNode } from "react";
 import { ComponentIcon } from "./ComponentIcon";
 import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } from "./componentRegistry";
 import { ComponentListItem } from "./ComponentListItem";
@@ -11,12 +13,16 @@ type PaletteThemePickerProps = {
   ariaLabel: string;
   value: PaletteThemeId;
   onChange: (id: PaletteThemeId) => void;
+  gridStrokeColor?: string;
 };
 
-const PaletteThemePicker = ({ ariaLabel, value, onChange }: PaletteThemePickerProps) => (
+const PaletteThemePicker = ({ ariaLabel, value, onChange, gridStrokeColor }: PaletteThemePickerProps) => (
   <div className="palette-theme-picker" role="radiogroup" aria-label={ariaLabel}>
     {PALETTE_THEMES.map((theme) => {
       const selected = value === theme.id;
+      const strokeTrim = gridStrokeColor?.trim() ?? "";
+      const neutralSyncedFill = theme.id === "neutral" && strokeTrim.length > 0 ? strokeTrim : theme.fillHex;
+      const neutralSyncedP3 = theme.id === "neutral" && strokeTrim.length > 0 ? strokeTrim : theme.fillDisplayP3;
       return (
         <button
           key={theme.id}
@@ -26,9 +32,9 @@ const PaletteThemePicker = ({ ariaLabel, value, onChange }: PaletteThemePickerPr
           aria-label={theme.label}
           className="palette-theme-swatch"
           style={{
-            borderColor: selected ? theme.fillHex : "#f3f3f3",
-            ["--palette-fill-fallback" as string]: theme.fillHex,
-            ["--palette-fill-p3" as string]: theme.fillDisplayP3,
+            borderColor: selected ? neutralSyncedFill : "#f3f3f3",
+            ["--palette-fill-fallback" as string]: neutralSyncedFill,
+            ["--palette-fill-p3" as string]: neutralSyncedP3,
           }}
           onClick={() => onChange(theme.id)}
         >
@@ -47,16 +53,81 @@ type ComponentSidebarProps = {
   onDeleteInstance: (id: string) => void;
   onUpdateInstanceProps: (id: string, props: IconBoxProps) => void;
   onStartComponentDrag: (type: ComponentType, pointer?: { clientX: number; clientY: number }) => void;
+  /** When set, neutral theme fills track this hex (same source as grid stroke). */
+  gridStrokeColor?: string;
+  /** When omitted, layers are not persisted to the store via reorder (defaults to no-op). */
+  onReorderInstances?: (orderedIds: string[]) => void;
 };
 
 const componentTypes = Object.values(COMPONENT_REGISTRY);
 const getInstanceDisplayName = (instance: ComponentInstance) => getComponentDefinition(instance.type).label;
-const renderIcon = (props: IconBoxProps) => (
-  <ComponentIcon iconId={props.iconId} color={paletteBrush(props.theme).iconFillHex} size={16} />
-);
 
 const getLayerActionLabel = (verb: string, displayName: string, subtitle: string | undefined) =>
   subtitle ? `${verb} ${displayName}, ${subtitle}` : `${verb} ${displayName}`;
+
+const layerDragDistanceThresholdPx = 10;
+
+type LayerReorderRowProps = {
+  instance: ComponentInstance;
+  preview: ReactNode;
+  onSelectInstance: (id: string) => void;
+  onDeleteInstance: (id: string) => void;
+};
+
+const LayerReorderRow = ({ instance, preview, onSelectInstance, onDeleteInstance }: LayerReorderRowProps) => {
+  const dragControls = useDragControls();
+  const displayName = getInstanceDisplayName(instance);
+  const layerSubtitle = getInstanceLayerSubtitle(instance);
+
+  const onGrabPointerDown: PointerEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target;
+    if (target instanceof Element && (target.closest("button") || target.closest(".component-list-item-actions"))) {
+      return;
+    }
+    dragControls.start(event, { distanceThreshold: layerDragDistanceThresholdPx });
+  };
+
+  return (
+    <Reorder.Item
+      value={instance.id}
+      as="div"
+      layout
+      className="layers-reorder-item"
+      dragListener={false}
+      dragControls={dragControls}
+      style={{ position: "relative", width: "100%" }}
+    >
+      <div className="layers-reorder-item-surface" onPointerDown={onGrabPointerDown}>
+        <ComponentListItem
+          testId={`layer-item-${instance.id}`}
+          preview={preview}
+          title={displayName}
+          meta={layerSubtitle}
+          actions={
+            <>
+              <button
+                className="component-row-icon-button"
+                type="button"
+                onClick={() => onSelectInstance(instance.id)}
+                aria-label={getLayerActionLabel("Edit", displayName, layerSubtitle)}
+              >
+                <Pencil size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+              </button>
+              <button
+                className="component-row-icon-button"
+                type="button"
+                onClick={() => onDeleteInstance(instance.id)}
+                aria-label={getLayerActionLabel("Delete", displayName, layerSubtitle)}
+              >
+                <Trash2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+              </button>
+            </>
+          }
+        />
+      </div>
+    </Reorder.Item>
+  );
+};
 
 export const ComponentSidebar = ({
   instances,
@@ -66,10 +137,18 @@ export const ComponentSidebar = ({
   onDeleteInstance,
   onUpdateInstanceProps,
   onStartComponentDrag,
+  gridStrokeColor,
+  onReorderInstances = () => {},
 }: ComponentSidebarProps) => {
+  const neutralOpts = gridStrokeColor !== undefined ? { neutralFillSyncHex: gridStrokeColor } : undefined;
+  const brushFor = (theme: PaletteThemeId) => paletteBrush(theme, neutralOpts);
+  const renderIcon = (props: IconBoxProps) => (
+    <ComponentIcon iconId={props.iconId} color={brushFor(props.theme).iconFillHex} size={16} />
+  );
+
   if (selectedInstance) {
     const displayName = getInstanceDisplayName(selectedInstance);
-    const palette = paletteBrush(selectedInstance.props.theme);
+    const palette = brushFor(selectedInstance.props.theme);
 
     return (
       <div className="component-config-panel">
@@ -95,6 +174,7 @@ export const ComponentSidebar = ({
           <PaletteThemePicker
             ariaLabel="Theme"
             value={selectedInstance.props.theme}
+            gridStrokeColor={gridStrokeColor}
             onChange={(theme) =>
               onUpdateInstanceProps(selectedInstance.id, {
                 ...selectedInstance.props,
@@ -213,50 +293,23 @@ export const ComponentSidebar = ({
         </div>
         <div className="component-scroll-region">
           {instances.length ? (
-            instances.map((instance) => {
-              const displayName = getInstanceDisplayName(instance);
-              const layerSubtitle = getInstanceLayerSubtitle(instance);
-
-              return (
-                <ComponentListItem
+            <Reorder.Group
+              axis="y"
+              as="div"
+              className="layers-reorder-group"
+              values={instances.map((inst) => inst.id)}
+              onReorder={onReorderInstances}
+            >
+              {instances.map((instance) => (
+                <LayerReorderRow
                   key={instance.id}
-                  testId={`layer-item-${instance.id}`}
+                  instance={instance}
                   preview={renderIcon(instance.props)}
-                  title={displayName}
-                  meta={layerSubtitle}
-                  actions={
-                    <>
-                      <button
-                        className="component-row-icon-button"
-                        type="button"
-                        onClick={() => onSelectInstance(instance.id)}
-                        aria-label={getLayerActionLabel("Edit", displayName, layerSubtitle)}
-                      >
-                        <Pencil
-                          size={ACTION_ICON_SIZE}
-                          strokeWidth={ICON_STROKE_WIDTH}
-                          aria-hidden="true"
-                          focusable="false"
-                        />
-                      </button>
-                      <button
-                        className="component-row-icon-button"
-                        type="button"
-                        onClick={() => onDeleteInstance(instance.id)}
-                        aria-label={getLayerActionLabel("Delete", displayName, layerSubtitle)}
-                      >
-                        <Trash2
-                          size={ACTION_ICON_SIZE}
-                          strokeWidth={ICON_STROKE_WIDTH}
-                          aria-hidden="true"
-                          focusable="false"
-                        />
-                      </button>
-                    </>
-                  }
+                  onSelectInstance={onSelectInstance}
+                  onDeleteInstance={onDeleteInstance}
                 />
-              );
-            })
+              ))}
+            </Reorder.Group>
           ) : (
             <p className="empty-state">No components on canvas.</p>
           )}

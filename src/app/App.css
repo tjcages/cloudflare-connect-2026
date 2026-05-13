@@ -152,6 +152,80 @@ select {
   font-weight: 400;
 }
 
+.field-label-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.field-label-row label {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.field-reset-button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition:
+    opacity 140ms ease,
+    visibility 140ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+/* Stroke field: reset stays hidden until the whole row is hovered or contains focus */
+.field.color-field .field-reset-button {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.field.color-field:hover .field-reset-button,
+.field.color-field:focus-within .field-reset-button {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.field.color-field:hover .field-reset-button:not(:disabled),
+.field.color-field:focus-within .field-reset-button:not(:disabled) {
+  color: #ebebeb;
+}
+
+.field.color-field:hover .field-reset-button:hover:not(:disabled),
+.field.color-field:focus-within .field-reset-button:hover:not(:disabled) {
+  background: var(--button-hover-bg);
+  color: var(--button-hover-color);
+}
+
+.field.color-field:hover .field-reset-button:active:not(:disabled),
+.field.color-field:focus-within .field-reset-button:active:not(:disabled) {
+  background: var(--button-active-bg);
+}
+
+.field-reset-button:focus-visible {
+  outline: 2px solid #9fc8ff;
+  outline-offset: 2px;
+}
+
+.field.color-field:hover .field-reset-button:disabled,
+.field.color-field:focus-within .field-reset-button:disabled {
+  opacity: 0.45;
+  color: #efefef;
+  cursor: default;
+}
+
 .field input,
 .field select {
   width: 100%;
@@ -433,6 +507,24 @@ select {
   gap: 0;
   min-height: 0;
   overflow: auto;
+}
+
+.layers-reorder-group {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.layers-reorder-item {
+  width: 100%;
+  min-width: 0;
+}
+
+.layers-reorder-item-surface {
+  width: 100%;
+  min-width: 0;
 }
 
 .component-drag-ghost-root {

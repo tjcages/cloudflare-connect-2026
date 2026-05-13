@@ -57,4 +57,42 @@ describe("Sidebar stroke color field", () => {
       height: "2px",
     });
   });
+
+  it("disables stroke reset when color matches default", () => {
+    renderSidebar();
+    expect(screen.getByRole("button", { name: /reset stroke color to default/i })).toBeDisabled();
+  });
+
+  it("enables stroke reset when color differs from default", () => {
+    renderSidebar({
+      config: {
+        ...DEFAULT_CONFIG,
+        strokeColor: "#123456",
+      },
+    });
+    expect(screen.getByRole("button", { name: /reset stroke color to default/i })).not.toBeDisabled();
+  });
+
+  it("resets stroke color to default via undo control", () => {
+    const { onStrokeColorChange } = renderSidebar({
+      config: {
+        ...DEFAULT_CONFIG,
+        strokeColor: "#123456",
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /reset stroke color to default/i }));
+
+    expect(onStrokeColorChange).toHaveBeenCalledWith(DEFAULT_CONFIG.strokeColor);
+  });
+
+  it("treats stroke default case-insensitively for disabling reset", () => {
+    renderSidebar({
+      config: {
+        ...DEFAULT_CONFIG,
+        strokeColor: "#f3f3f3",
+      },
+    });
+    expect(screen.getByRole("button", { name: /reset stroke color to default/i })).toBeDisabled();
+  });
 });

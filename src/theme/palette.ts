@@ -47,16 +47,23 @@ export type PaletteBrush = {
 
 const FALLBACK_ID: PaletteThemeId = "purple";
 
-export function paletteBrush(themeId: PaletteThemeId): PaletteBrush {
+export type PaletteBrushOptions = {
+  /** For the neutral theme only: use this hex for fills (title strip, corners) so they track grid stroke color. */
+  neutralFillSyncHex?: string;
+};
+
+export function paletteBrush(themeId: PaletteThemeId, options?: PaletteBrushOptions): PaletteBrush {
   const entry = PALETTE_THEMES.find((t) => t.id === themeId) ?? PALETTE_THEMES.find((t) => t.id === FALLBACK_ID)!;
+  const syncedNeutralFill = entry.id === "neutral" ? options?.neutralFillSyncHex?.trim() : "";
+  const fillHex = syncedNeutralFill || entry.fillHex;
   const iconFillHex = "iconFill" in entry && typeof entry.iconFill === "string" ? entry.iconFill : entry.fillHex;
 
   return {
     id: entry.id,
-    fill: parseHexColor(entry.fillHex),
+    fill: parseHexColor(fillHex),
     fillText: parseHexColor(entry.fillTextHex),
     iconFill: parseHexColor(iconFillHex),
-    fillHex: entry.fillHex,
+    fillHex,
     fillTextHex: entry.fillTextHex,
     iconFillHex,
   };

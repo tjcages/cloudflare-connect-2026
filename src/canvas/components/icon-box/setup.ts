@@ -107,12 +107,13 @@ const buildContainerCornerReticle = (tickColor: number, centerDotColor: number):
   return g;
 };
 
-const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
+const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number, gridStrokeHex: string) => {
   const root = new Container();
   root.sortableChildren = true;
   root.position.set(instance.x, instance.y);
 
-  const brush = paletteBrush(instance.props.theme);
+  const neutralSync = { neutralFillSyncHex: gridStrokeHex };
+  const brush = paletteBrush(instance.props.theme, neutralSync);
   let { rectWidth, barLeft } = getIconBoxTitleBarLayout(instance.props.title);
 
   const titleLabel = new Text({
@@ -191,7 +192,7 @@ const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
     [rectOriginX + markerMax, rectOriginY + markerMax],
   ];
 
-  const cornerBrush = instance.props.matchCornersWithTheme ? brush : paletteBrush("neutral");
+  const cornerBrush = instance.props.matchCornersWithTheme ? brush : paletteBrush("neutral", neutralSync);
   for (const [mx, my] of corners) {
     markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerBrush.fill });
   }
@@ -251,6 +252,7 @@ const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
 
 export const setupIconBoxLayer: Ticker = ({ app, cleanup }) => {
   const layer = new Container();
+  layer.sortableChildren = true;
   app.stage.addChild(layer);
 
   const rebuild = () => {
@@ -259,12 +261,17 @@ export const setupIconBoxLayer: Ticker = ({ app, cleanup }) => {
     }
 
     const { instances, dragState, grid } = useAppStore.getState();
-    const gridStrokeColor = parseHexColor(grid.config.strokeColor);
+    const gridStrokeHex = grid.config.strokeColor;
+    const gridStrokeColor = parseHexColor(gridStrokeHex);
     const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
     const toDraw = previewInstance === null ? instances : [...instances, previewInstance];
+    const count = toDraw.length;
 
-    for (const instance of toDraw) {
-      layer.addChild(buildIconBox(instance, gridStrokeColor));
+    for (let index = 0; index < toDraw.length; index += 1) {
+      const instance = toDraw[index];
+      const root = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+      root.zIndex = count - index;
+      layer.addChild(root);
     }
 
     app.render();

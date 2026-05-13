@@ -58,6 +58,7 @@ export const App = () => {
   const setLargeRatio = useAppStore((s) => s.setLargeRatio);
   const selectInstance = useAppStore((s) => s.selectInstance);
   const deleteInstance = useAppStore((s) => s.deleteInstance);
+  const reorderInstances = useAppStore((s) => s.reorderInstances);
   const updateInstanceProps = useAppStore((s) => s.updateInstanceProps);
   const startCreateDrag = useAppStore((s) => s.startCreateDrag);
   const revertCreatePreviewToGhost = useAppStore((s) => s.revertCreatePreviewToGhost);
@@ -204,6 +205,8 @@ export const App = () => {
             onDeleteInstance={deleteInstance}
             onUpdateInstanceProps={updateInstanceProps}
             onStartComponentDrag={startCreateDrag}
+            onReorderInstances={reorderInstances}
+            gridStrokeColor={gridConfig.strokeColor}
           />
         )}
       </aside>
