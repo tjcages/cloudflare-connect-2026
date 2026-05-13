@@ -11,7 +11,7 @@ const instance: ComponentInstance = {
   x: 40,
   y: 80,
   props: {
-    cornerColor: "#123456",
+    cornerTheme: "orange",
     theme: "purple",
     iconId: DEFAULT_ICON_ID,
     titleText: "Workers",
@@ -199,7 +199,7 @@ describe("ComponentSidebar", () => {
     expect(onStartComponentDrag).toHaveBeenCalledWith("icon-box", { clientX: 12, clientY: 24 });
   });
 
-  it("shows selected component config header like a layer row and updates theme, title, and corner config", () => {
+  it("shows selected component config header like a layer row and updates theme, title, and corner theme", () => {
     const onUpdateInstanceProps = vi.fn();
 
     const { container } = render(
@@ -235,20 +235,22 @@ describe("ComponentSidebar", () => {
     expect(screen.getByLabelText("Title")).toHaveValue("Workers");
     const themeGroup = screen.getByRole("radiogroup", { name: "Theme" });
     expect(within(themeGroup).getByRole("radio", { name: "Purple" })).toHaveAttribute("aria-checked", "true");
+    const cornerThemeGroup = screen.getByRole("radiogroup", { name: "Corner theme" });
+    expect(within(cornerThemeGroup).getByRole("radio", { name: "Orange" })).toHaveAttribute("aria-checked", "true");
 
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "KV" } });
 
     expect(onUpdateInstanceProps).toHaveBeenCalledWith("icon-box-1", {
-      cornerColor: "#123456",
+      cornerTheme: "orange",
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
       titleText: "KV",
     });
 
-    fireEvent.change(screen.getByLabelText("Corner color"), { target: { value: "#abcdef" } });
+    fireEvent.click(within(cornerThemeGroup).getByRole("radio", { name: "Purple" }));
 
     expect(onUpdateInstanceProps).toHaveBeenCalledWith("icon-box-1", {
-      cornerColor: "#abcdef",
+      cornerTheme: "purple",
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
       titleText: "Workers",
@@ -273,7 +275,7 @@ describe("ComponentSidebar", () => {
     fireEvent.click(within(themeGroup).getByRole("radio", { name: "Orange" }));
 
     expect(onUpdateInstanceProps).toHaveBeenCalledWith("icon-box-1", {
-      cornerColor: "#123456",
+      cornerTheme: "orange",
       theme: "orange",
       iconId: DEFAULT_ICON_ID,
       titleText: "Workers",

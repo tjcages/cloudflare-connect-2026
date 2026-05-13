@@ -10,7 +10,7 @@ const createInstance = (id: string, x: number, y: number): ComponentInstance => 
   x,
   y,
   props: {
-    cornerColor: "#F3F3F3",
+    cornerTheme: "neutral",
     theme: "purple",
     iconId: DEFAULT_ICON_ID,
     titleText: "Workers",

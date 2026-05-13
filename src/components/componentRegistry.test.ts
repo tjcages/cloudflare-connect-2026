@@ -4,10 +4,10 @@ import { ICON_BOX_INNER_CENTER_X, ICON_BOX_INNER_CENTER_Y } from "./iconBoxLayou
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 
 describe("componentRegistry", () => {
-  it("registers icon-box with default corner color", () => {
+  it("registers icon-box with default corner theme neutral", () => {
     expect(COMPONENT_REGISTRY["icon-box"].label).toBe("icon-box");
     expect(COMPONENT_REGISTRY["icon-box"].defaultProps).toEqual({
-      cornerColor: "#F3F3F3",
+      cornerTheme: "neutral",
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
       titleText: "Workers",
@@ -22,7 +22,7 @@ describe("componentRegistry", () => {
       x: 40,
       y: 92,
       props: {
-        cornerColor: "#F3F3F3",
+        cornerTheme: "neutral",
         theme: "purple",
         iconId: DEFAULT_ICON_ID,
         titleText: "Workers",

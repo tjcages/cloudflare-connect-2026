@@ -1,11 +1,43 @@
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { ComponentIcon } from "./ComponentIcon";
-import { COMPONENT_REGISTRY, getComponentDefinition } from "./componentRegistry";
+import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } from "./componentRegistry";
 import { ComponentListItem } from "./ComponentListItem";
 import { ICON_OPTIONS } from "./iconRegistry";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
 import type { ComponentInstance, ComponentType, IconBoxProps, IconId } from "../grid/types";
-import { PALETTE_THEMES, paletteBrush } from "../theme/palette";
+import { PALETTE_THEMES, type PaletteThemeId, paletteBrush } from "../theme/palette";
+
+type PaletteThemePickerProps = {
+  ariaLabel: string;
+  value: PaletteThemeId;
+  onChange: (id: PaletteThemeId) => void;
+};
+
+const PaletteThemePicker = ({ ariaLabel, value, onChange }: PaletteThemePickerProps) => (
+  <div className="palette-theme-picker" role="radiogroup" aria-label={ariaLabel}>
+    {PALETTE_THEMES.map((theme) => {
+      const selected = value === theme.id;
+      return (
+        <button
+          key={theme.id}
+          type="button"
+          role="radio"
+          aria-checked={selected}
+          aria-label={theme.label}
+          className="palette-theme-swatch"
+          style={{
+            borderColor: selected ? theme.fillHex : "#f3f3f3",
+            ["--palette-fill-fallback" as string]: theme.fillHex,
+            ["--palette-fill-p3" as string]: theme.fillDisplayP3,
+          }}
+          onClick={() => onChange(theme.id)}
+        >
+          <span className="palette-theme-swatch-fill" aria-hidden="true" />
+        </button>
+      );
+    })}
+  </div>
+);
 
 type ComponentSidebarProps = {
   instances: ComponentInstance[];
@@ -23,6 +55,9 @@ const renderIcon = (props: IconBoxProps) => (
   <ComponentIcon iconId={props.iconId} color={paletteBrush(props.theme).iconFillHex} size={16} />
 );
 
+const getLayerActionLabel = (verb: string, displayName: string, subtitle: string | undefined) =>
+  subtitle ? `${verb} ${displayName}, ${subtitle}` : `${verb} ${displayName}`;
+
 export const ComponentSidebar = ({
   instances,
   selectedInstance,
@@ -38,47 +73,35 @@ export const ComponentSidebar = ({
 
     return (
       <div className="component-config-panel">
-        <button className="back-button" type="button" onClick={onBack}>
-          <ArrowLeft size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
-          Back
-        </button>
+        <div className="component-config-top-bar">
+          <button className="back-button" type="button" onClick={onBack}>
+            <ArrowLeft size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+            Back
+          </button>
+          <span
+            className="component-position"
+            role="status"
+            aria-label={`Position x ${selectedInstance.x}, y ${selectedInstance.y}`}
+          >{`x: ${selectedInstance.x}, y: ${selectedInstance.y}`}</span>
+        </div>
         <ComponentListItem
           className="component-config-header"
           testId="component-config-header"
           preview={renderIcon(selectedInstance.props)}
           title={displayName}
-          meta={`x: ${selectedInstance.x}, y: ${selectedInstance.y}`}
         />
         <div className="field">
           <span>Theme</span>
-          <div className="palette-theme-picker" role="radiogroup" aria-label="Theme">
-            {PALETTE_THEMES.map((theme) => {
-              const selected = selectedInstance.props.theme === theme.id;
-              return (
-                <button
-                  key={theme.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-label={theme.label}
-                  className="palette-theme-swatch"
-                  style={{
-                    borderColor: selected ? theme.fillHex : "#f3f3f3",
-                    ["--palette-fill-fallback" as string]: theme.fillHex,
-                    ["--palette-fill-p3" as string]: theme.fillDisplayP3,
-                  }}
-                  onClick={() =>
-                    onUpdateInstanceProps(selectedInstance.id, {
-                      ...selectedInstance.props,
-                      theme: theme.id,
-                    })
-                  }
-                >
-                  <span className="palette-theme-swatch-fill" aria-hidden="true" />
-                </button>
-              );
-            })}
-          </div>
+          <PaletteThemePicker
+            ariaLabel="Theme"
+            value={selectedInstance.props.theme}
+            onChange={(theme) =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                theme,
+              })
+            }
+          />
         </div>
         <div className="field">
           <span>Icon</span>
@@ -107,38 +130,28 @@ export const ComponentSidebar = ({
             ))}
           </div>
         </div>
-        <label className="field color-field">
-          <span>Corner color</span>
-          <span className="color-control">
-            <span
-              aria-hidden="true"
-              className="color-preview"
-              data-testid="corner-color-preview"
-              style={{ backgroundColor: selectedInstance.props.cornerColor, height: "12px" }}
-            />
-            <input
-              className="color-input"
-              type="color"
-              value={selectedInstance.props.cornerColor}
-              onChange={(event) =>
-                onUpdateInstanceProps(selectedInstance.id, {
-                  ...selectedInstance.props,
-                  cornerColor: event.target.value,
-                })
-              }
-              aria-label="Corner color"
-            />
-          </span>
-        </label>
+        <div className="field">
+          <span>Corner</span>
+          <PaletteThemePicker
+            ariaLabel="Corner theme"
+            value={selectedInstance.props.cornerTheme}
+            onChange={(cornerTheme) =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                cornerTheme,
+              })
+            }
+          />
+        </div>
         <label className="field">
           <span>Title</span>
           <input
             type="text"
-            value={selectedInstance.props.titleText}
+            value={selectedInstance.props.title}
             onChange={(event) =>
               onUpdateInstanceProps(selectedInstance.id, {
                 ...selectedInstance.props,
-                titleText: event.target.value,
+                title: event.target.value,
               })
             }
             aria-label="Title"
@@ -181,6 +194,7 @@ export const ComponentSidebar = ({
           {instances.length ? (
             instances.map((instance) => {
               const displayName = getInstanceDisplayName(instance);
+              const layerSubtitle = getInstanceLayerSubtitle(instance);
 
               return (
                 <ComponentListItem
@@ -188,14 +202,14 @@ export const ComponentSidebar = ({
                   testId={`layer-item-${instance.id}`}
                   preview={renderIcon(instance.props)}
                   title={displayName}
-                  meta={`x: ${instance.x}, y: ${instance.y}`}
+                  meta={layerSubtitle}
                   actions={
                     <>
                       <button
                         className="component-row-icon-button"
                         type="button"
                         onClick={() => onSelectInstance(instance.id)}
-                        aria-label={`Edit ${displayName}`}
+                        aria-label={getLayerActionLabel("Edit", displayName, layerSubtitle)}
                       >
                         <Pencil
                           size={ACTION_ICON_SIZE}
@@ -208,7 +222,7 @@ export const ComponentSidebar = ({
                         className="component-row-icon-button"
                         type="button"
                         onClick={() => onDeleteInstance(instance.id)}
-                        aria-label={`Delete ${displayName}`}
+                        aria-label={getLayerActionLabel("Delete", displayName, layerSubtitle)}
                       >
                         <Trash2
                           size={ACTION_ICON_SIZE}

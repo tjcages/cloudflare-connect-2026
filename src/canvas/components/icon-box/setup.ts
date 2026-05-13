@@ -5,7 +5,6 @@ import { ICON_BOX_TITLE_FONT_FAMILY } from "../../../fonts/iconBoxTitle";
 import { getIconDefinition } from "../../../components/iconRegistry";
 import type { ComponentInstance } from "../../../grid/types";
 import { paletteBrush } from "../../../theme/palette";
-import { parseHexColor } from "../../color";
 import { useAppStore } from "../../../store";
 import { rasterizeIcon } from "./iconRaster";
 import {
@@ -86,7 +85,7 @@ const buildIconBox = (instance: ComponentInstance) => {
 
   const brush = paletteBrush(instance.props.theme);
   const titleLabel = new Text({
-    text: instance.props.titleText.toUpperCase(),
+    text: instance.props.title.toUpperCase(),
     style: {
       fontFamily: ICON_BOX_TITLE_FONT_FAMILY,
       fontSize: TITLE_FONT_SIZE_PX,
@@ -146,9 +145,9 @@ const buildIconBox = (instance: ComponentInstance) => {
     [rectOriginX + markerMax, rectOriginY + markerMax],
   ];
 
-  const cornerColor = parseHexColor(instance.props.cornerColor);
+  const cornerBrush = paletteBrush(instance.props.cornerTheme);
   for (const [mx, my] of corners) {
-    markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerColor });
+    markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerBrush.fill });
   }
   root.addChild(markers);
 

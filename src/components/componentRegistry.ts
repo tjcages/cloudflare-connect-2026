@@ -11,26 +11,45 @@ export type ComponentDefinition = {
   snapAnchorX: number;
   snapAnchorY: number;
   defaultProps: IconBoxProps;
+  /** Layers list subtitle from current props; empty after trim → no second line. */
+  dynamicTitle?: (config: IconBoxProps) => string | undefined;
 };
 
 export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
   "icon-box": {
     type: "icon-box",
-    label: "icon-box",
+    label: "Icon Box",
     width: 80,
     height: ICON_BOX_OUTER_HEIGHT,
     snapAnchorX: ICON_BOX_INNER_CENTER_X,
     snapAnchorY: ICON_BOX_INNER_CENTER_Y,
     defaultProps: {
-      cornerColor: "#F3F3F3",
+      cornerTheme: "neutral",
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
-      titleText: "Workers",
+      title: "Workers",
+    },
+    dynamicTitle: (config) => {
+      const t = config.title.trim();
+      return t.length ? t : undefined;
     },
   },
 };
 
 export const getComponentDefinition = (type: ComponentType) => COMPONENT_REGISTRY[type];
+
+export const getInstanceLayerSubtitle = (instance: ComponentInstance): string | undefined => {
+  const definition = getComponentDefinition(instance.type);
+  if (!definition.dynamicTitle) {
+    return undefined;
+  }
+  const raw = definition.dynamicTitle(instance.props);
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  return trimmed.length ? trimmed : undefined;
+};
 
 /** Snap one axis so anchor (root + offset) lies on BASE_UNIT and root stays in [0, maxRoot]. */
 const snapRootAxis = (root: number, anchorOffset: number, maxRoot: number): number => {
