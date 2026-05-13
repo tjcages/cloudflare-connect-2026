@@ -1,5 +1,6 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { copyDocumentPng } from "../canvas/pngExport";
 import { generateGrid } from "../grid/generator";
 import { App } from "./App";
 
@@ -11,6 +12,10 @@ vi.mock("../grid/generator", async (importOriginal) => {
     generateGrid: vi.fn(actual.generateGrid),
   };
 });
+
+vi.mock("../canvas/pngExport", () => ({
+  copyDocumentPng: vi.fn().mockResolvedValue(undefined),
+}));
 
 type TestWorker = Worker & {
   postMessage: ReturnType<typeof vi.fn>;
@@ -55,34 +60,117 @@ const resolveLatestWorker = () => {
 describe("App", () => {
   beforeEach(() => {
     vi.mocked(generateGrid).mockClear();
+    vi.mocked(copyDocumentPng).mockClear();
     workerInstances.length = 0;
     vi.stubGlobal("Worker", vi.fn(function WorkerMock() {
       return createTestWorker();
     }));
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      save: vi.fn(),
+      restore: vi.fn(),
+      scale: vi.fn(),
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      strokeRect: vi.fn(),
+      beginPath: vi.fn(),
+      roundRect: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  it("copies SVG with the configured stroke color", async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal("navigator", {
-      clipboard: {
-        writeText,
-      },
-    });
+  it("copies the composed canvas as PNG", async () => {
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText("Stroke color"), { target: { value: "#123456" } });
-    await act(async () => {
-      resolveLatestWorker();
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Copy as SVG" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy PNG" }));
 
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('stroke="#123456"'));
+      expect(copyDocumentPng).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scale: 1,
+          instances: expect.arrayContaining([expect.objectContaining({ type: "icon-box" })]),
+        }),
+      );
     });
+  });
+
+  it("copies the composed canvas as a 2x retina PNG", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy 2x Retina PNG" }));
+
+    await waitFor(() => {
+      expect(copyDocumentPng).toHaveBeenCalledWith(expect.objectContaining({ scale: 2 }));
+    });
+  });
+
+  it("switches sidebar tabs without unmounting the canvas", () => {
+    render(<App />);
+
+    expect(screen.getByRole("img", { name: "Component builder canvas" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "components" }));
+
+    expect(screen.getByText("Current instances")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Component builder canvas" })).toBeInTheDocument();
+  });
+
+  it("drops an icon-box onto the canvas at a snapped position", () => {
+    render(<App />);
+    const canvas = screen.getByRole("img", { name: "Component builder canvas" }) as HTMLCanvasElement;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      bottom: 560,
+      height: 560,
+      left: 0,
+      right: 800,
+      top: 0,
+      width: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const dropEvent = createEvent.drop(canvas);
+    Object.defineProperty(dropEvent, "clientX", { value: 43 });
+    Object.defineProperty(dropEvent, "clientY", { value: 79 });
+    Object.defineProperty(dropEvent, "dataTransfer", {
+      value: {
+        getData: (type: string) => (type === "application/x-component-type" ? "icon-box" : ""),
+      },
+    });
+    fireEvent(canvas, dropEvent);
+
+    expect(screen.getByText("icon-box 2")).toBeInTheDocument();
+    expect(screen.getByText("x: 40, y: 80")).toBeInTheDocument();
+  });
+
+  it("selects, configures, backs out, and removes an icon-box instance", () => {
+    render(<App />);
+    const canvas = screen.getByRole("img", { name: "Component builder canvas" }) as HTMLCanvasElement;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      bottom: 560,
+      height: 560,
+      left: 0,
+      right: 800,
+      top: 0,
+      width: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.click(canvas, { clientX: 10, clientY: 10 });
+    fireEvent.change(screen.getByLabelText("Corner color"), { target: { value: "#abcdef" } });
+
+    expect(screen.getByTestId("corner-color-preview")).toHaveStyle({ backgroundColor: "#abcdef" });
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete icon-box 1" }));
+
+    expect(screen.queryByText("icon-box 1")).not.toBeInTheDocument();
   });
 
   it("does not regenerate the grid on the main thread while editing dimensions", () => {

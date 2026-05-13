@@ -19,7 +19,8 @@ type SidebarProps = {
   onStrokeColorChange: (color: string) => void;
   onGenerate: () => void;
   onGapMaskChange: (mask: GapMask) => void;
-  onCopySvg: () => void;
+  onCopyPng: () => void;
+  onCopyRetinaPng: () => void;
   copyState: "idle" | "copied" | "failed";
 };
 
@@ -34,10 +35,11 @@ export const Sidebar = ({
   onStrokeColorChange,
   onGenerate,
   onGapMaskChange,
-  onCopySvg,
+  onCopyPng,
+  onCopyRetinaPng,
   copyState,
 }: SidebarProps) => (
-  <aside className="sidebar">
+  <div className="grid-sidebar">
     <label className="field">
       <span>Seed</span>
       <input
@@ -102,8 +104,11 @@ export const Sidebar = ({
 
     <GapMaskEditor mask={config.gapMask} onChange={onGapMaskChange} />
 
-    <button className="export-button" type="button" onClick={onCopySvg}>
-      {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy as SVG"}
+    <button className="export-button" type="button" onClick={onCopyPng}>
+      {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy PNG"}
+    </button>
+    <button className="export-button" type="button" onClick={onCopyRetinaPng}>
+      Copy 2x Retina PNG
     </button>
 
     <dl className="stats">
@@ -124,5 +129,5 @@ export const Sidebar = ({
         <dd>{cellCount}</dd>
       </div>
     </dl>
-  </aside>
+  </div>
 );

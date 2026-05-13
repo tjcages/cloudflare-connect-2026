@@ -41,6 +41,21 @@ export type GeneratedGrid = {
   cells: GridCell[];
 };
 
+export type ComponentType = "icon-box";
+
+export type IconBoxProps = {
+  cornerColor: string;
+};
+
+export type ComponentInstance = {
+  id: string;
+  type: ComponentType;
+  name: string;
+  x: number;
+  y: number;
+  props: IconBoxProps;
+};
+
 export type CandidateCell = {
   kind: GridCellKind;
   x: number;
