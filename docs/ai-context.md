@@ -15,9 +15,9 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 | App orchestration   | Top-level state, tab selection, drag state, instance updates, copy action         | `src/app/App.tsx`                                                                     |
 | App styles          | Global layout, sidebar rail, grid controls, component list styling                | `src/app/App.css`                                                                     |
 | Grid core           | Pure config normalization, masks, PRNG, generation, validation, shared grid types | `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, `types.ts` |
-| Grid integration    | React hook, worker bridge, and legacy clipboard helper around grid output         | `src/grid/useGeneratedGrid.ts`, `generatorWorker.ts`, `clipboard.ts`                  |
-| Canvas domain       | Draw document, hit testing, PNG export                                            | `src/canvas/`                                                                         |
-| Canvas React bridge | Owns the `<canvas>` element, pointer conversion, canvas lifecycle                 | `src/components/GridCanvas.tsx`                                                       |
+| Grid integration    | Legacy clipboard helper around grid serialization                                 | `clipboard.ts`                                                                        |
+| Canvas domain       | Pixi render setup, hit testing, PNG extract                                       | `src/canvas/`                                                                         |
+| Canvas React bridge | `src/canvas/index.tsx` + `src/components/pixi/` + global `src/store.ts`           | —                                                                                     |
 | Grid sidebar        | Seed, size, ratios, stroke, gap mask, PNG copy                                    | `src/components/Sidebar.tsx`                                                          |
 | Component sidebar   | Components list, layers list, selected layer config                               | `src/components/ComponentSidebar.tsx`                                                 |
 | Component registry  | Component labels, dimensions, defaults, snapping helpers                          | `src/components/componentRegistry.ts`                                                 |
@@ -28,7 +28,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 
 - Grid generation is deterministic. Do not use `Math.random()` in generation.
 - Grid geometry stays logical and serializable. Rendering offsets belong in renderer code.
-- `drawDocument` is the shared drawing path for editor canvas and PNG export.
+- **`src/store.ts`** exposes shared builder document state (grid config/output, instances, drag, Pixi `Application`). Canvas setup modules subscribe; keep snapshots serializable.
 - Component instances must remain serializable so future persistence/export is straightforward.
 - Registry dimensions are authoritative for snapping, hit testing, and component bounds.
 - UI style should remain minimal: white base, `#f3f3f3` borders, soft hover/active states, subdued grays.
@@ -47,7 +47,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 
 1. Extend component types/props in `src/grid/types.ts`.
 2. Add dimensions and default props in `src/components/componentRegistry.ts`.
-3. Add drawing logic in `src/canvas/documentRenderer.ts`.
+3. Add Pixi rendering in `src/canvas/components/<type>/setup.ts` (and `definition.ts` for layout constants aligned with registry).
 4. Ensure `src/canvas/hitTest.ts` uses registry bounds, not duplicated numbers.
 5. Add sidebar configuration in `src/components/ComponentSidebar.tsx` if needed.
 6. Add tests for registry defaults, drawing, hit testing, and UI behavior.
@@ -62,11 +62,11 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 
 ### Add Canvas Rendering Behavior
 
-1. Add pure drawing helpers in `src/canvas/documentRenderer.ts` or an adjacent canvas module.
-2. Keep all inputs explicit. Do not read React state or DOM state inside pure drawing helpers.
-3. Preserve high-DPI scaling via the caller.
-4. Keep editor and PNG export visually aligned through `drawDocument`.
-5. Add tests around draw calls or pure geometry when pixel tests are not practical.
+1. Add or extend Pixi setup modules under `src/canvas/` (e.g. `grid/setup.ts`, `components/<type>/setup.ts`) and subscribe to `src/store.ts`.
+2. Keep grid generation deterministic in `src/grid/*`; rendering reads `GeneratedGrid` and instances from the store only.
+3. Preserve high-DPI sizing via Pixi renderer `resolution` and resize hooks in `src/components/pixi/index.tsx` / shell layout (`src/canvas/index.tsx`).
+4. Keep PNG export aligned with the on-screen scene via `renderer.extract.image` at resolution `2` after clearing selection.
+5. Prefer real-WebGL/browser tests for GPU paths; omit hollow Canvas2D mocks.
 
 ### Change Sidebar Style
 

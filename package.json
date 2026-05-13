@@ -16,8 +16,11 @@
   },
   "dependencies": {
     "lucide-react": "^1.14.0",
+    "pixi-box-shadow": "^1.2.0",
+    "pixi.js": "^8.18.1",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

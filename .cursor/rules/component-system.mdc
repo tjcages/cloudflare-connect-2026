@@ -1,6 +1,6 @@
 ---
 description: Registry-backed component and SVG icon extension patterns
-globs: src/components/componentRegistry.ts, src/components/iconRegistry.ts, src/components/ComponentSidebar.tsx, src/components/ComponentIcon.tsx, src/components/ComponentListItem.tsx, src/grid/types.ts, src/canvas/documentRenderer.ts, src/canvas/hitTest.ts
+globs: src/components/componentRegistry.ts, src/components/iconRegistry.ts, src/components/ComponentSidebar.tsx, src/components/ComponentIcon.tsx, src/components/ComponentListItem.tsx, src/grid/types.ts, src/canvas/**, src/store.ts
 alwaysApply: false
 ---
 

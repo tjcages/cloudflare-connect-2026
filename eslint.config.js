@@ -56,7 +56,7 @@ export default tseslint.config(
   },
   {
     files: ["src/grid/**/*.ts"],
-    ignores: ["src/grid/useGeneratedGrid.ts", "src/grid/clipboard.ts"],
+    ignores: ["src/grid/clipboard.ts"],
     rules: {
       "no-restricted-properties": [
         "error",

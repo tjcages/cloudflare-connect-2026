@@ -9,8 +9,8 @@ Read `docs/ai-context.md` before broad architecture work.
 ## Architecture Boundaries
 
 - Pure grid core: `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, and `types.ts`. No React, DOM, Canvas, or browser APIs.
-- Grid integration exceptions: `src/grid/useGeneratedGrid.ts` and `src/grid/clipboard.ts`.
-- `src/canvas/`: Canvas rendering, hit testing, and PNG export. Keep editor and export drawing aligned through `drawDocument`.
+- Grid integration exception: `src/grid/clipboard.ts` (legacy clipboard helper around grid serialization).
+- `src/canvas/`: Pixi rendering modules, hit testing, PNG extract. `src/store.ts` holds shared builder state wired from tickers/setup functions.
 - `src/components/`: reusable React UI, component registries, icon registries, and shared controls.
 - `src/app/App.tsx`: app orchestration and state wiring only.
 

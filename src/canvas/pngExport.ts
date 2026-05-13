@@ -1,25 +1,49 @@
-import { drawDocument } from "./documentRenderer";
-import type { ComponentInstance, GeneratedGrid } from "../grid/types";
+import { useAppStore } from "../store";
 
-type ExportDocumentPngOptions = {
-  grid: GeneratedGrid;
-  instances: ComponentInstance[];
-  scale: 1 | 2;
+const downloadBlob = (blob: Blob) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "component-builder@2x.png";
+  link.click();
+  URL.revokeObjectURL(url);
 };
 
-export const createDocumentPngBlob = ({ grid, instances, scale }: ExportDocumentPngOptions): Promise<Blob> =>
-  new Promise((resolve, reject) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = grid.config.logicalWidth * scale;
-    canvas.height = grid.config.logicalHeight * scale;
+export const createDocumentPngBlob = async (): Promise<Blob> => {
+  useAppStore.getState().selectInstance(null);
 
-    const context = canvas.getContext("2d");
-    if (!context) {
+  const app = useAppStore.getState().pixiApp;
+  if (!app || !app.renderer) {
+    throw new Error("Pixi application is unavailable.");
+  }
+
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+
+  app.renderer.render(app.stage);
+
+  const image = await app.renderer.extract.image({
+    target: app.stage,
+    format: "png",
+    resolution: 2,
+    antialias: true,
+    clearColor: "#00000000",
+  });
+
+  return new Promise<Blob>((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
       reject(new Error("Canvas 2D context is unavailable."));
       return;
     }
 
-    drawDocument(context, { grid, instances, scale });
+    ctx.drawImage(image as CanvasImageSource, 0, 0);
+
     canvas.toBlob((blob) => {
       if (blob) {
         resolve(blob);
@@ -28,18 +52,11 @@ export const createDocumentPngBlob = ({ grid, instances, scale }: ExportDocument
       }
     }, "image/png");
   });
-
-const downloadBlob = (blob: Blob, scale: 1 | 2) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = scale === 2 ? "component-builder@2x.png" : "component-builder.png";
-  link.click();
-  URL.revokeObjectURL(url);
 };
 
-export const copyDocumentPng = async (options: ExportDocumentPngOptions) => {
-  const blob = await createDocumentPngBlob(options);
+export const copyDocumentPng = async (): Promise<void> => {
+  const blob = await createDocumentPngBlob();
+
   const ClipboardItemConstructor = window.ClipboardItem;
 
   if (navigator.clipboard?.write && ClipboardItemConstructor) {
@@ -48,8 +65,9 @@ export const copyDocumentPng = async (options: ExportDocumentPngOptions) => {
         "image/png": blob,
       }),
     ]);
+
     return;
   }
 
-  downloadBlob(blob, options.scale);
+  downloadBlob(blob);
 };

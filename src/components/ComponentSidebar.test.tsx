@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ComponentSidebar } from "./ComponentSidebar";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 import type { ComponentInstance } from "../grid/types";
@@ -18,25 +18,6 @@ const instance: ComponentInstance = {
 };
 
 describe("ComponentSidebar", () => {
-  beforeEach(() => {
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
-      clearRect: vi.fn(),
-      save: vi.fn(),
-      restore: vi.fn(),
-      scale: vi.fn(),
-      fillRect: vi.fn(),
-      strokeRect: vi.fn(),
-      beginPath: vi.fn(),
-      roundRect: vi.fn(),
-      fill: vi.fn(),
-      stroke: vi.fn(),
-    } as unknown as CanvasRenderingContext2D);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("renders layers and available components with registry svg icons", () => {
     const { container } = render(
       <ComponentSidebar
