@@ -44,4 +44,16 @@ describe("App", () => {
     expect(screen.queryByText("Current instances")).not.toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Component builder canvas" })).toBeInTheDocument();
   });
+
+  it("shows a pointer-following ghost while placing a component before the canvas preview starts", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Components" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "icon-box" }), { clientX: 160, clientY: 220 });
+
+    const ghost = screen.getByTestId("component-drag-ghost");
+    expect(ghost).toBeInTheDocument();
+    expect(ghost.style.left).toBe("160px");
+    expect(ghost.style.top).toBe("220px");
+  });
 });

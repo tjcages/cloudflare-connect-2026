@@ -195,7 +195,7 @@ describe("ComponentSidebar", () => {
 
     fireEvent.pointerDown(componentButton, { clientX: 12, clientY: 24 });
 
-    expect(onStartComponentDrag).toHaveBeenCalledWith("icon-box");
+    expect(onStartComponentDrag).toHaveBeenCalledWith("icon-box", { clientX: 12, clientY: 24 });
   });
 
   it("shows selected component config header like a layer row and updates icon and corner config", () => {

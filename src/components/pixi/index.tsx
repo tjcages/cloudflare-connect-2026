@@ -1,6 +1,17 @@
 import { Application, type ApplicationOptions } from "pixi.js";
-import { type HTMLAttributes, useEffect, useRef } from "react";
+import { type HTMLAttributes, type Ref, useCallback, useEffect, useRef } from "react";
 import { isDestroyed } from "./utils";
+
+function assignRef<T>(ref: Ref<T | null> | undefined, value: T | null) {
+  if (ref === undefined) {
+    return;
+  }
+  if (typeof ref === "function") {
+    ref(value);
+  } else if (ref !== null) {
+    ref.current = value;
+  }
+}
 
 export type Ticker<T = Record<string, unknown>> = (
   props: {
@@ -11,6 +22,7 @@ export type Ticker<T = Record<string, unknown>> = (
 
 export interface PixiProps {
   canvasAttrs?: HTMLAttributes<HTMLCanvasElement>;
+  canvasRef?: Ref<HTMLCanvasElement | null>;
   initOptions?: Partial<ApplicationOptions>;
   layoutWidth: number;
   layoutHeight: number;
@@ -28,12 +40,21 @@ export default function Pixi({
   onInitialized,
   onDisposed,
   canvasAttrs,
+  canvasRef: forwardedCanvasRef,
   initOptions,
   layoutWidth,
   layoutHeight,
 }: PixiProps) {
   const { className: attrClassName, ...canvasRest } = canvasAttrs ?? {};
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mergeCanvasRef = useCallback(
+    (node: HTMLCanvasElement | null) => {
+      canvasRef.current = node;
+      assignRef(forwardedCanvasRef, node);
+    },
+    [forwardedCanvasRef],
+  );
+
   const appRef = useRef<Application | null>(null);
 
   /* Pixi application and tickers are intentionally mounted once; layout resizes handled below. */
@@ -128,5 +149,5 @@ export default function Pixi({
     app.render();
   }, [layoutWidth, layoutHeight]);
 
-  return <canvas {...canvasRest} className={joinClassNames(attrClassName)} ref={canvasRef} />;
+  return <canvas {...canvasRest} className={joinClassNames(attrClassName)} ref={mergeCanvasRef} />;
 }

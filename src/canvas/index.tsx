@@ -1,4 +1,6 @@
+import type { Ref } from "react";
 import Pixi from "../components/pixi";
+import { getCanvasPoint } from "./coords";
 import { hitTestComponentInstances } from "./hitTest";
 import { setupIconBoxLayer } from "./components/icon-box/setup";
 import { setupGridLayer } from "./grid/setup";
@@ -7,34 +9,15 @@ import { useAppStore } from "../store";
 
 const tickers = [setupGridLayer, setupIconBoxLayer, setupSelectionLayer];
 
-const getCanvasPoint = (
-  canvas: HTMLCanvasElement,
-  clientX: number,
-  clientY: number,
-  logicalWidth: number,
-  logicalHeight: number,
-) => {
-  const bounds = canvas.getBoundingClientRect();
-  const scaleX = logicalWidth / bounds.width;
-  const scaleY = logicalHeight / bounds.height;
-
-  return {
-    x: (clientX - bounds.left) * scaleX,
-    y: (clientY - bounds.top) * scaleY,
-  };
-};
-
 type BuilderCanvasProps = {
+  canvasRef?: Ref<HTMLCanvasElement | null>;
   onUserSelectedInstance?: (id: string | null) => void;
-  onPlacedNewInstance?: () => void;
 };
 
-export const GridCanvas = ({ onUserSelectedInstance, onPlacedNewInstance }: BuilderCanvasProps) => {
+export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasProps) => {
   const grid = useAppStore((s) => s.grid);
 
   const selectInstance = useAppStore((s) => s.selectInstance);
-  const finalizeCreateAt = useAppStore((s) => s.finalizeCreateAt);
-  const updateCreatePreview = useAppStore((s) => s.updateCreatePreview);
   const startMoveDrag = useAppStore((s) => s.startMoveDrag);
   const moveInstanceTo = useAppStore((s) => s.moveInstanceTo);
   const endCanvasDrag = useAppStore((s) => s.endCanvasDrag);
@@ -45,6 +28,7 @@ export const GridCanvas = ({ onUserSelectedInstance, onPlacedNewInstance }: Buil
   return (
     <div className="canvas-shell">
       <Pixi
+        canvasRef={canvasRef}
         canvasAttrs={{
           className: "grid-canvas",
           role: "img",
@@ -70,35 +54,22 @@ export const GridCanvas = ({ onUserSelectedInstance, onPlacedNewInstance }: Buil
           onPointerMove: (event) => {
             const canvas = event.currentTarget;
             const dragState = useAppStore.getState().dragState;
-            if (dragState === null) {
+            if (dragState === null || dragState.mode === "create") {
               return;
             }
 
             const point = getCanvasPoint(canvas, event.clientX, event.clientY, lw, lh);
-
-            if (dragState.mode === "create") {
-              updateCreatePreview(dragState.type, point.x, point.y);
-              return;
-            }
-
             moveInstanceTo(dragState.id, point.x - dragState.offsetX, point.y - dragState.offsetY);
           },
           onPointerUp: (event) => {
             const canvas = event.currentTarget;
             const dragState = useAppStore.getState().dragState;
-            if (dragState === null) {
+            if (dragState === null || dragState.mode === "create") {
               return;
             }
 
-            const point = getCanvasPoint(canvas, event.clientX, event.clientY, lw, lh);
-
-            if (dragState.mode === "create") {
-              finalizeCreateAt(dragState.type, point.x, point.y);
-              onPlacedNewInstance?.();
-            } else {
-              canvas.releasePointerCapture(event.pointerId);
-              endCanvasDrag();
-            }
+            canvas.releasePointerCapture(event.pointerId);
+            endCanvasDrag();
           },
           onClick: (event) => {
             if (useAppStore.getState().dragState !== null) {

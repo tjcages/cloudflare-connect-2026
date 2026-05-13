@@ -13,7 +13,7 @@ type ComponentSidebarProps = {
   onBack: () => void;
   onDeleteInstance: (id: string) => void;
   onUpdateInstanceProps: (id: string, props: IconBoxProps) => void;
-  onStartComponentDrag: (type: ComponentType) => void;
+  onStartComponentDrag: (type: ComponentType, pointer?: { clientX: number; clientY: number }) => void;
 };
 
 const componentTypes = Object.values(COMPONENT_REGISTRY);
@@ -135,7 +135,10 @@ export const ComponentSidebar = ({
               as="button"
               onPointerDown={(event) => {
                 event.preventDefault();
-                onStartComponentDrag(definition.type satisfies ComponentType);
+                onStartComponentDrag(definition.type satisfies ComponentType, {
+                  clientX: event.clientX,
+                  clientY: event.clientY,
+                });
               }}
               preview={renderIcon(definition.defaultProps)}
               title={definition.label}

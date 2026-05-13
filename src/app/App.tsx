@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Layers2 } from "lucide-react";
+import { getCanvasPoint, isPointerOverCanvas } from "../canvas/coords";
 import { copyDocumentPng } from "../canvas/pngExport";
 import { GridCanvas } from "../canvas";
+import { ComponentDragGhost } from "../components/ComponentDragGhost";
 import { ComponentSidebar } from "../components/ComponentSidebar";
 import { Sidebar } from "../components/Sidebar";
 import { ICON_STROKE_WIDTH, RAIL_ICON_SIZE } from "../components/iconTokens";
@@ -37,11 +39,14 @@ const GridDividerIcon = ({
 export const App = () => {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [activeTab, setActiveTab] = useState<"grid" | "components">("grid");
+  const builderCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const grid = useAppStore((s) => s.grid);
   const gridConfig = useAppStore((s) => s.gridConfig);
   const instances = useAppStore((s) => s.instances);
   const dragState = useAppStore((s) => s.dragState);
+  const isCreatePlacementDrag = useAppStore((s) => s.dragState?.mode === "create");
+  const hasActiveDrag = useAppStore((s) => s.dragState !== null);
   const selectedInstance = useAppStore(
     (state) => state.instances.find((instance) => instance.id === state.selectedInstanceId) ?? null,
   );
@@ -55,21 +60,80 @@ export const App = () => {
   const deleteInstance = useAppStore((s) => s.deleteInstance);
   const updateInstanceProps = useAppStore((s) => s.updateInstanceProps);
   const startCreateDrag = useAppStore((s) => s.startCreateDrag);
+  const revertCreatePreviewToGhost = useAppStore((s) => s.revertCreatePreviewToGhost);
+  const updateCreatePreview = useAppStore((s) => s.updateCreatePreview);
+  const finalizeCreateAt = useAppStore((s) => s.finalizeCreateAt);
   const endCanvasDrag = useAppStore((s) => s.endCanvasDrag);
 
   useEffect(() => {
-    if (dragState === null) {
-      return;
+    if (!hasActiveDrag) {
+      return undefined;
     }
 
-    const clearDrag = () => {
+    const onPointerUp = (event: PointerEvent) => {
+      const d = useAppStore.getState().dragState;
+      if (d === null) {
+        return;
+      }
+
+      if (d.mode === "create") {
+        const canvasEl = builderCanvasRef.current;
+        const { grid: placementGrid } = useAppStore.getState();
+        if (canvasEl && isPointerOverCanvas(canvasEl, event.clientX, event.clientY)) {
+          const logical = getCanvasPoint(
+            canvasEl,
+            event.clientX,
+            event.clientY,
+            placementGrid.config.logicalWidth,
+            placementGrid.config.logicalHeight,
+          );
+          finalizeCreateAt(d.type, logical.x, logical.y);
+          setActiveTab("components");
+        } else {
+          endCanvasDrag();
+        }
+
+        return;
+      }
+
       endCanvasDrag();
     };
 
-    window.addEventListener("pointerup", clearDrag);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => window.removeEventListener("pointerup", onPointerUp);
+  }, [hasActiveDrag, endCanvasDrag, finalizeCreateAt]);
 
-    return () => window.removeEventListener("pointerup", clearDrag);
-  }, [dragState, endCanvasDrag]);
+  useEffect(() => {
+    if (!isCreatePlacementDrag) {
+      return undefined;
+    }
+
+    const onPointerMove = (event: PointerEvent) => {
+      const d = useAppStore.getState().dragState;
+      if (d?.mode !== "create") {
+        return;
+      }
+
+      const canvasEl = builderCanvasRef.current;
+      const { grid: placementGrid } = useAppStore.getState();
+
+      if (canvasEl && isPointerOverCanvas(canvasEl, event.clientX, event.clientY)) {
+        const logical = getCanvasPoint(
+          canvasEl,
+          event.clientX,
+          event.clientY,
+          placementGrid.config.logicalWidth,
+          placementGrid.config.logicalHeight,
+        );
+        updateCreatePreview(d.type, logical.x, logical.y);
+      } else {
+        revertCreatePreviewToGhost(event.clientX, event.clientY);
+      }
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    return () => window.removeEventListener("pointermove", onPointerMove);
+  }, [isCreatePlacementDrag, revertCreatePreviewToGhost, updateCreatePreview]);
 
   const copyPng = async () => {
     try {
@@ -145,14 +209,21 @@ export const App = () => {
       </aside>
       <section className="canvas-panel">
         <GridCanvas
+          canvasRef={builderCanvasRef}
           onUserSelectedInstance={(id) => {
             if (id !== null && id !== undefined) {
               setActiveTab("components");
             }
           }}
-          onPlacedNewInstance={() => setActiveTab("components")}
         />
       </section>
+      {dragState?.mode === "create" && dragState.preview === null && dragState.ghostClient !== null ? (
+        <ComponentDragGhost
+          componentType={dragState.type}
+          clientX={dragState.ghostClient.x}
+          clientY={dragState.ghostClient.y}
+        />
+      ) : null}
     </main>
   );
 };

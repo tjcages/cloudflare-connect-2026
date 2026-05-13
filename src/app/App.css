@@ -330,6 +330,22 @@ select {
   overflow: auto;
 }
 
+.component-drag-ghost-root {
+  position: fixed;
+  z-index: 9999;
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+.component-drag-ghost-row.component-list-item {
+  width: 260px;
+  border-radius: 6px;
+  background: var(--button-bg);
+  box-shadow:
+    0 0 0 1px var(--button-border),
+    0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
 .component-list-item {
   --component-list-preview-size: 28px;
   display: grid;

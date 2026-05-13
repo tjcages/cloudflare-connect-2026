@@ -24,7 +24,9 @@ export type AppStoreState = {
 
   selectInstance: (id: string | null) => void;
 
-  startCreateDrag: (type: ComponentType) => void;
+  startCreateDrag: (type: ComponentType, initialPointer?: { clientX: number; clientY: number }) => void;
+  /** Clear Pixi placement preview and attach the sidebar-style ghost at screen coords (off canvas). */
+  revertCreatePreviewToGhost: (clientX: number, clientY: number) => void;
   updateCreatePreview: (type: ComponentType, x: number, y: number) => void;
   finalizeCreateAt: (type: ComponentType, x: number, y: number) => void;
 
@@ -94,9 +96,25 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
   selectInstance: (id) => set({ selectedInstanceId: id }),
 
-  startCreateDrag: (type) =>
+  startCreateDrag: (type, initialPointer) =>
     set({
-      dragState: { mode: "create", type, preview: null },
+      dragState: {
+        mode: "create",
+        type,
+        preview: null,
+        ghostClient: initialPointer ? { x: initialPointer.clientX, y: initialPointer.clientY } : null,
+      },
+    }),
+
+  revertCreatePreviewToGhost: (clientX, clientY) =>
+    set((s) => {
+      const d = s.dragState;
+      if (d?.mode !== "create") {
+        return {};
+      }
+      return {
+        dragState: { ...d, preview: null, ghostClient: { x: clientX, y: clientY } },
+      };
     }),
 
   updateCreatePreview: (type, x, y) => {
@@ -112,7 +130,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     };
 
     set({
-      dragState: { mode: "create", type, preview },
+      dragState: { mode: "create", type, preview, ghostClient: null },
     });
   },
 
