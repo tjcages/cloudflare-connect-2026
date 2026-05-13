@@ -137,7 +137,7 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
 
   return (
     <div className="gap-editor">
-      <div className="section-heading">
+      <div className="gap-heading">
         <span>Gaps</span>
         <small>
           {columns} x {rows}

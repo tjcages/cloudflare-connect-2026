@@ -119,6 +119,10 @@ select {
   min-height: 0;
 }
 
+.grid-sidebar {
+  flex: 1;
+}
+
 .sidebar-components .component-sidebar {
   gap: 0;
   height: 100vh;
@@ -497,6 +501,10 @@ select {
   background: var(--button-active-bg);
 }
 
+.grid-sidebar .export-button {
+  margin-top: auto;
+}
+
 .component-section {
   display: flex;
   flex-direction: column;
@@ -734,13 +742,22 @@ button.component-list-item:hover {
   padding: 0 14px;
 }
 
-.section-heading span {
+.gap-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.section-heading span,
+.gap-heading span {
   color: #a7a7a7;
   font-size: 12px;
   font-weight: 400;
 }
 
-.section-heading small {
+.section-heading small,
+.gap-heading small {
   color: #c8c8c8;
   font-size: 10px;
 }
@@ -774,7 +791,7 @@ button.component-list-item:hover {
 .stats {
   display: grid;
   gap: 8px;
-  margin: auto 0 0;
+  margin: 0;
 }
 
 .stats div {
@@ -782,6 +799,11 @@ button.component-list-item:hover {
   justify-content: space-between;
   border-top: 1px solid #f3f3f3;
   padding-top: 8px;
+}
+
+.stats div:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .stats dt {
