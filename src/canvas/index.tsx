@@ -2,12 +2,12 @@ import type { Ref } from "react";
 import Pixi from "../components/pixi";
 import { getCanvasPoint } from "./coords";
 import { hitTestComponentInstances } from "./hitTest";
-import { setupIconBoxLayer } from "./components/icon-box/setup";
+import { setupComponentLayer } from "./components/icon-box/setup";
 import { setupGridLayer } from "./grid/setup";
 import { setupSelectionLayer } from "./selection-setup";
 import { useAppStore } from "../store";
 
-const tickers = [setupGridLayer, setupIconBoxLayer, setupSelectionLayer];
+const tickers = [setupGridLayer, setupComponentLayer, setupSelectionLayer];
 
 type BuilderCanvasProps = {
   canvasRef?: Ref<HTMLCanvasElement | null>;
@@ -21,6 +21,10 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
   const startMoveDrag = useAppStore((s) => s.startMoveDrag);
   const moveInstanceTo = useAppStore((s) => s.moveInstanceTo);
   const endCanvasDrag = useAppStore((s) => s.endCanvasDrag);
+  const setConnectorEndpointCell = useAppStore((s) => s.setConnectorEndpointCell);
+  const setConnectorEndpointHoverCell = useAppStore((s) => s.setConnectorEndpointHoverCell);
+  const clearConnectorEndpointHoverCell = useAppStore((s) => s.clearConnectorEndpointHoverCell);
+  const isPickingConnectorEndpoint = useAppStore((s) => s.connectorEndpointPick !== null);
 
   const logicalWidth = grid.config.logicalWidth;
   const logicalHeight = grid.config.logicalHeight;
@@ -32,7 +36,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
       <Pixi
         canvasRef={canvasRef}
         canvasAttrs={{
-          className: "grid-canvas",
+          className: isPickingConnectorEndpoint ? "grid-canvas grid-canvas-picking" : "grid-canvas",
           role: "img",
           "aria-label": "Component builder canvas",
           onPointerDown: (event) => {
@@ -40,7 +44,16 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
 
             const instances = useAppStore.getState().instances;
             const point = getCanvasPoint(canvas, event.clientX, event.clientY, logicalWidth, logicalHeight);
-            const hitInstance = hitTestComponentInstances(instances, point.x, point.y);
+            if (useAppStore.getState().connectorEndpointPick !== null) {
+              event.preventDefault();
+              setConnectorEndpointCell(point.x, point.y);
+              return;
+            }
+
+            const hitInstance = hitTestComponentInstances(instances, point.x, point.y, {
+              width: logicalWidth,
+              height: logicalHeight,
+            });
 
             if (!hitInstance) {
               selectInstance(null);
@@ -48,13 +61,23 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             }
 
             event.preventDefault();
-            canvas.setPointerCapture(event.pointerId);
             selectInstance(hitInstance.id);
             onUserSelectedInstance?.(hitInstance.id);
+            if (hitInstance.type === "connector-line") {
+              return;
+            }
+
+            canvas.setPointerCapture(event.pointerId);
             startMoveDrag(hitInstance.id, point.x - hitInstance.x, point.y - hitInstance.y);
           },
           onPointerMove: (event) => {
             const canvas = event.currentTarget;
+            if (useAppStore.getState().connectorEndpointPick !== null) {
+              const point = getCanvasPoint(canvas, event.clientX, event.clientY, logicalWidth, logicalHeight);
+              setConnectorEndpointHoverCell(point.x, point.y);
+              return;
+            }
+
             const dragState = useAppStore.getState().dragState;
             if (dragState === null || dragState.mode === "create") {
               return;
@@ -73,6 +96,9 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             canvas.releasePointerCapture(event.pointerId);
             endCanvasDrag();
           },
+          onPointerLeave: () => {
+            clearConnectorEndpointHoverCell();
+          },
           onClick: (event) => {
             if (useAppStore.getState().dragState !== null) {
               return;
@@ -81,7 +107,11 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             const canvas = event.currentTarget as HTMLCanvasElement;
             const instances = useAppStore.getState().instances;
             const point = getCanvasPoint(canvas, event.clientX, event.clientY, logicalWidth, logicalHeight);
-            const hitId = hitTestComponentInstances(instances, point.x, point.y)?.id ?? null;
+            const hitId =
+              hitTestComponentInstances(instances, point.x, point.y, {
+                width: logicalWidth,
+                height: logicalHeight,
+              })?.id ?? null;
             selectInstance(hitId);
             if (hitId) {
               onUserSelectedInstance?.(hitId);

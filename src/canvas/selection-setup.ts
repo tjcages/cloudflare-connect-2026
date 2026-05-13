@@ -1,7 +1,30 @@
 import { Graphics } from "pixi.js";
 import type { Ticker } from "../components/pixi";
 import { getInstanceHighlightBounds } from "../components/componentRegistry";
+import { LARGE_CELL_SIZE } from "../grid/types";
+import type { ComponentInstance } from "../grid/types";
 import { useAppStore } from "../store";
+import type { ConnectorEndpointPickState } from "../types/document";
+import { CONNECTOR_HIGHLIGHT_COLOR } from "./components/connector-line/setup";
+
+const drawCellHighlight = (graphics: Graphics, point: { x: number; y: number }) => {
+  graphics
+    .rect(point.x - LARGE_CELL_SIZE / 2 + 0.5, point.y - LARGE_CELL_SIZE / 2 + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE)
+    .stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR });
+};
+
+export const getConnectorSelectionCellPoints = (
+  _selectedInstanceId: string | null,
+  _instances: ComponentInstance[],
+  connectorEndpointPick: ConnectorEndpointPickState | null,
+): { x: number; y: number }[] => {
+  const points: { x: number; y: number }[] = [];
+  if (connectorEndpointPick?.hoverCell) {
+    points.push(connectorEndpointPick.hoverCell);
+  }
+
+  return points;
+};
 
 export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
   const graphics = new Graphics();
@@ -10,13 +33,26 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
   const sync = () => {
     graphics.clear();
 
-    const { selectedInstanceId, instances } = useAppStore.getState();
+    const { selectedInstanceId, instances, connectorEndpointPick } = useAppStore.getState();
+    const connectorSelectionCells = getConnectorSelectionCellPoints(
+      selectedInstanceId,
+      instances,
+      connectorEndpointPick,
+    );
+    for (const point of connectorSelectionCells) {
+      drawCellHighlight(graphics, point);
+    }
+
     if (selectedInstanceId === null) {
       return;
     }
 
     const inst = instances.find((i) => i.id === selectedInstanceId);
     if (!inst) {
+      return;
+    }
+
+    if (inst.type === "connector-line") {
       return;
     }
 
@@ -34,7 +70,11 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
   sync();
 
   const unsub = useAppStore.subscribe((state, prev) => {
-    if (state.selectedInstanceId !== prev.selectedInstanceId || state.instances !== prev.instances) {
+    if (
+      state.selectedInstanceId !== prev.selectedInstanceId ||
+      state.instances !== prev.instances ||
+      state.connectorEndpointPick !== prev.connectorEndpointPick
+    ) {
       sync();
       app.render();
     }

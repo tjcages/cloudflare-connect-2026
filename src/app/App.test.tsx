@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { copyDocumentPng } from "../canvas/pngExport";
+import type { ComponentInstance } from "../grid/types";
+import { resetAppStoreDocumentToDefault, useAppStore } from "../store";
 import { App } from "./App";
 
 vi.mock("../canvas/pngExport", () => ({
@@ -12,6 +14,10 @@ vi.mock("../canvas", () => ({
 }));
 
 describe("App", () => {
+  beforeEach(() => {
+    resetAppStoreDocumentToDefault();
+  });
+
   it("copies the composed canvas as 2x PNG from the single export button", () => {
     render(<App />);
 
@@ -55,5 +61,35 @@ describe("App", () => {
     expect(ghost).toBeInTheDocument();
     expect(ghost.style.left).toBe("160px");
     expect(ghost.style.top).toBe("220px");
+  });
+
+  it("starts and cancels connector endpoint picking from the component sidebar", () => {
+    const connector: ComponentInstance = {
+      id: "connector-line-1",
+      type: "connector-line",
+      name: "Connector Line 1",
+      x: 40,
+      y: 40,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 40, y: 40 },
+        target: { kind: "cell", x: 200, y: 40 },
+      },
+    };
+    useAppStore.setState({ instances: [connector], selectedInstanceId: connector.id });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Components" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pick source cell on canvas" }));
+
+    expect(useAppStore.getState().connectorEndpointPick).toEqual({
+      connectorId: connector.id,
+      endpoint: "source",
+      hoverCell: null,
+    });
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(useAppStore.getState().connectorEndpointPick).toBeNull();
   });
 });

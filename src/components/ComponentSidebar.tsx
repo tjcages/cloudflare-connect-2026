@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Crosshair, Pencil, Trash2 } from "lucide-react";
 import { Reorder, useDragControls } from "motion/react";
 import type { PointerEventHandler, ReactNode } from "react";
 import { ComponentIcon } from "./ComponentIcon";
@@ -6,7 +6,15 @@ import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } 
 import { ComponentListItem } from "./ComponentListItem";
 import { ICON_OPTIONS } from "./iconRegistry";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
-import type { ComponentInstance, ComponentType, IconBoxProps, IconId } from "../grid/types";
+import type {
+  ComponentInstance,
+  ComponentProps,
+  ComponentType,
+  ConnectorEndpoint,
+  ConnectorLineProps,
+  IconBoxProps,
+  IconId,
+} from "../grid/types";
 import { PALETTE_THEMES, type PaletteThemeId, paletteBrush } from "../theme/palette";
 
 type PaletteThemePickerProps = {
@@ -51,8 +59,9 @@ type ComponentSidebarProps = {
   onSelectInstance: (id: string) => void;
   onBack: () => void;
   onDeleteInstance: (id: string) => void;
-  onUpdateInstanceProps: (id: string, props: IconBoxProps) => void;
+  onUpdateInstanceProps: (id: string, props: ComponentProps) => void;
   onStartComponentDrag: (type: ComponentType, pointer?: { clientX: number; clientY: number }) => void;
+  onStartEndpointPick?: (id: string, endpoint: "source" | "target") => void;
   /** When set, neutral theme fills track this hex (same source as grid stroke). */
   gridStrokeColor?: string;
   /** When omitted, layers are not persisted to the store via reorder (defaults to no-op). */
@@ -61,11 +70,112 @@ type ComponentSidebarProps = {
 
 const componentTypes = Object.values(COMPONENT_REGISTRY);
 const getInstanceDisplayName = (instance: ComponentInstance) => getComponentDefinition(instance.type).label;
+const CONNECTOR_LINE_ICON_COLOR = paletteBrush("neutral").iconFillHex;
 
 const getLayerActionLabel = (verb: string, displayName: string, subtitle: string | undefined) =>
   subtitle ? `${verb} ${displayName}, ${subtitle}` : `${verb} ${displayName}`;
 
 const layerDragDistanceThresholdPx = 10;
+
+const ConnectorLineIcon = ({ size = 16 }: { size?: number }) => (
+  <svg
+    className="component-icon"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth={1.7}
+    style={{ color: CONNECTOR_LINE_ICON_COLOR }}
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d="M5 9h6v6h8" />
+    <path d="M5 9h0.01" />
+    <path d="M19 15h0.01" />
+  </svg>
+);
+
+const endpointSelectValue = (endpoint: ConnectorEndpoint) =>
+  endpoint.kind === "layer" ? `layer:${endpoint.instanceId}` : "cell";
+
+const endpointMeta = (endpoint: ConnectorEndpoint, instances: ComponentInstance[]) => {
+  if (endpoint.kind === "cell") {
+    return `x: ${endpoint.x}, y: ${endpoint.y}`;
+  }
+  const layer = instances.find((instance) => instance.id === endpoint.instanceId);
+  return layer
+    ? getLayerActionLabel("Layer", getInstanceDisplayName(layer), getInstanceLayerSubtitle(layer))
+    : "Missing layer";
+};
+
+type ConnectorEndpointFieldProps = {
+  label: "Source" | "Target";
+  endpoint: ConnectorEndpoint;
+  instances: ComponentInstance[];
+  connector: Extract<ComponentInstance, { type: "connector-line" }>;
+  onUpdate: (props: ConnectorLineProps) => void;
+  onStartEndpointPick: (id: string, endpoint: "source" | "target") => void;
+};
+
+const ConnectorEndpointField = ({
+  label,
+  endpoint,
+  instances,
+  connector,
+  onUpdate,
+  onStartEndpointPick,
+}: ConnectorEndpointFieldProps) => {
+  const key = label.toLowerCase() as "source" | "target";
+  const selectableLayers = instances.filter((instance) => instance.type !== "connector-line");
+  const updateEndpoint = (next: ConnectorEndpoint) => {
+    onUpdate({
+      ...connector.props,
+      [key]: next,
+    });
+  };
+
+  return (
+    <div className="field connector-endpoint-field">
+      <span>{label}</span>
+      <div className="connector-endpoint-row">
+        <select
+          aria-label={`${label} endpoint`}
+          value={endpointSelectValue(endpoint)}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (value === "cell") {
+              const fallback =
+                endpoint.kind === "cell" ? endpoint : { kind: "cell" as const, x: connector.x, y: connector.y };
+              updateEndpoint(fallback);
+              return;
+            }
+            updateEndpoint({ kind: "layer", instanceId: value.replace(/^layer:/, "") });
+          }}
+        >
+          <option value="cell">Static cell</option>
+          {selectableLayers.map((instance) => (
+            <option key={instance.id} value={`layer:${instance.id}`}>
+              {getInstanceDisplayName(instance)}
+              {getInstanceLayerSubtitle(instance) ? `, ${getInstanceLayerSubtitle(instance)}` : ""}
+            </option>
+          ))}
+        </select>
+        <button
+          className="component-row-icon-button"
+          type="button"
+          aria-label={`Pick ${key} cell on canvas`}
+          onClick={() => onStartEndpointPick(connector.id, key)}
+        >
+          <Crosshair size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+        </button>
+      </div>
+      <small className="connector-endpoint-meta">{endpointMeta(endpoint, instances)}</small>
+    </div>
+  );
+};
 
 type LayerReorderRowProps = {
   instance: ComponentInstance;
@@ -138,6 +248,7 @@ export const ComponentSidebar = ({
   onDeleteInstance,
   onUpdateInstanceProps,
   onStartComponentDrag,
+  onStartEndpointPick = () => {},
   gridStrokeColor,
   onReorderInstances = () => {},
 }: ComponentSidebarProps) => {
@@ -146,9 +257,69 @@ export const ComponentSidebar = ({
   const renderIcon = (props: IconBoxProps) => (
     <ComponentIcon iconId={props.iconId} color={brushFor(props.theme).iconFillHex} size={16} />
   );
+  const renderPreview = (instance: ComponentInstance) =>
+    instance.type === "connector-line" ? <ConnectorLineIcon /> : renderIcon(instance.props);
+  const renderDefinitionPreview = (definition: (typeof componentTypes)[number]) =>
+    definition.type === "connector-line" ? <ConnectorLineIcon /> : renderIcon(definition.defaultProps as IconBoxProps);
 
   if (selectedInstance) {
     const displayName = getInstanceDisplayName(selectedInstance);
+    if (selectedInstance.type === "connector-line") {
+      return (
+        <div className="component-config-panel">
+          <div className="component-config-top-bar">
+            <button className="back-button" type="button" onClick={onBack}>
+              <ArrowLeft size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+              Back
+            </button>
+            <span
+              className="component-position"
+              role="status"
+              aria-label={`Position x ${selectedInstance.x}, y ${selectedInstance.y}`}
+            >{`x: ${selectedInstance.x}, y: ${selectedInstance.y}`}</span>
+          </div>
+          <ComponentListItem
+            className="component-config-header"
+            testId="component-config-header"
+            preview={renderPreview(selectedInstance)}
+            title={displayName}
+          />
+          <label className="field">
+            <span>Preferred connection</span>
+            <select
+              aria-label="Preferred connection"
+              value={selectedInstance.props.preferredConnection}
+              onChange={(event) =>
+                onUpdateInstanceProps(selectedInstance.id, {
+                  ...selectedInstance.props,
+                  preferredConnection: event.target.value === "vertical" ? "vertical" : "horizontal",
+                })
+              }
+            >
+              <option value="horizontal">Horizontal</option>
+              <option value="vertical">Vertical</option>
+            </select>
+          </label>
+          <ConnectorEndpointField
+            label="Source"
+            endpoint={selectedInstance.props.source}
+            instances={instances}
+            connector={selectedInstance}
+            onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
+            onStartEndpointPick={onStartEndpointPick}
+          />
+          <ConnectorEndpointField
+            label="Target"
+            endpoint={selectedInstance.props.target}
+            instances={instances}
+            connector={selectedInstance}
+            onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
+            onStartEndpointPick={onStartEndpointPick}
+          />
+        </div>
+      );
+    }
+
     const palette = brushFor(selectedInstance.props.theme);
 
     return (
@@ -167,7 +338,7 @@ export const ComponentSidebar = ({
         <ComponentListItem
           className="component-config-header"
           testId="component-config-header"
-          preview={renderIcon(selectedInstance.props)}
+          preview={renderPreview(selectedInstance)}
           title={displayName}
         />
         <div className="field">
@@ -281,7 +452,7 @@ export const ComponentSidebar = ({
                   clientY: event.clientY,
                 });
               }}
-              preview={renderIcon(definition.defaultProps)}
+              preview={renderDefinitionPreview(definition)}
               title={definition.label}
             />
           ))}
@@ -305,7 +476,7 @@ export const ComponentSidebar = ({
                 <LayerReorderRow
                   key={instance.id}
                   instance={instance}
-                  preview={renderIcon(instance.props)}
+                  preview={renderPreview(instance)}
                   onSelectInstance={onSelectInstance}
                   onDeleteInstance={onDeleteInstance}
                 />

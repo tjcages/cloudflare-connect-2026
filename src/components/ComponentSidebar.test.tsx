@@ -19,6 +19,19 @@ const instance: ComponentInstance = {
   },
 };
 
+const connectorInstance: ComponentInstance = {
+  id: "connector-line-2",
+  type: "connector-line",
+  name: "Connector Line 2",
+  x: 40,
+  y: 40,
+  props: {
+    preferredConnection: "horizontal",
+    source: { kind: "cell", x: 40, y: 40 },
+    target: { kind: "layer", instanceId: "icon-box-1" },
+  },
+};
+
 describe("ComponentSidebar", () => {
   it("renders layers and available components with registry svg icons", () => {
     const { container } = render(
@@ -42,7 +55,7 @@ describe("ComponentSidebar", () => {
     expect(screen.queryByText("x: 40, y: 80")).not.toBeInTheDocument();
     expect(screen.getByText("Components")).toBeInTheDocument();
     expect(container.querySelectorAll("canvas.component-preview-canvas")).toHaveLength(0);
-    expect(container.querySelectorAll("svg.component-icon")).toHaveLength(2);
+    expect(container.querySelectorAll("svg.component-icon")).toHaveLength(3);
   });
 
   it("uses the shared square preview sizing for layers and component rows", () => {
@@ -61,12 +74,13 @@ describe("ComponentSidebar", () => {
     const previewWrappers = Array.from(container.querySelectorAll(".component-list-item-preview"));
     const previewIcons = Array.from(container.querySelectorAll<SVGSVGElement>("svg.component-icon"));
 
-    expect(previewWrappers).toHaveLength(2);
-    expect(previewIcons).toHaveLength(2);
+    expect(previewWrappers).toHaveLength(3);
+    expect(previewIcons).toHaveLength(3);
     expect(previewIcons.every((icon) => icon.parentElement?.classList.contains("component-list-item-preview"))).toBe(
       true,
     );
     expect(previewIcons.map((icon) => [icon.getAttribute("width"), icon.getAttribute("height")])).toEqual([
+      ["16", "16"],
       ["16", "16"],
       ["16", "16"],
     ]);
@@ -219,6 +233,88 @@ describe("ComponentSidebar", () => {
     fireEvent.pointerDown(componentButton, { clientX: 12, clientY: 24 });
 
     expect(onStartComponentDrag).toHaveBeenCalledWith("icon-box", { clientX: 12, clientY: 24 });
+  });
+
+  it("starts component drag from the connector-line component row", () => {
+    const onStartComponentDrag = vi.fn();
+
+    const { container } = render(
+      <ComponentSidebar
+        instances={[instance]}
+        selectedInstance={null}
+        onSelectInstance={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={onStartComponentDrag}
+      />,
+    );
+
+    const connectorButton = screen.getByRole("button", { name: "Connector Line" });
+    const connectorIcon = connectorButton.querySelector("svg.component-icon");
+    expect(connectorIcon).toHaveStyle({ color: "#B3B3B3" });
+    expect(container.querySelector("svg.component-icon path[d='M5 9h6v6h8']")).toBeInTheDocument();
+
+    fireEvent.pointerDown(connectorButton, { clientX: 20, clientY: 30 });
+
+    expect(onStartComponentDrag).toHaveBeenCalledWith("connector-line", { clientX: 20, clientY: 30 });
+  });
+
+  it("configures connector-line preference and endpoints", () => {
+    const onUpdateInstanceProps = vi.fn();
+    const onStartEndpointPick = vi.fn();
+
+    render(
+      <ComponentSidebar
+        instances={[connectorInstance, instance]}
+        selectedInstance={connectorInstance}
+        onSelectInstance={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteInstance={vi.fn()}
+        onUpdateInstanceProps={onUpdateInstanceProps}
+        onStartComponentDrag={vi.fn()}
+        onStartEndpointPick={onStartEndpointPick}
+      />,
+    );
+
+    expect(screen.getByTestId("component-config-header")).toHaveTextContent("Connector Line");
+    fireEvent.change(screen.getByLabelText("Preferred connection"), { target: { value: "vertical" } });
+
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("connector-line-2", {
+      preferredConnection: "vertical",
+      source: { kind: "cell", x: 40, y: 40 },
+      target: { kind: "layer", instanceId: "icon-box-1" },
+    });
+
+    fireEvent.change(screen.getByLabelText("Source endpoint"), { target: { value: "layer:icon-box-1" } });
+
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("connector-line-2", {
+      preferredConnection: "horizontal",
+      source: { kind: "layer", instanceId: "icon-box-1" },
+      target: { kind: "layer", instanceId: "icon-box-1" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Pick source cell on canvas" }));
+
+    expect(onStartEndpointPick).toHaveBeenCalledWith("connector-line-2", "source");
+  });
+
+  it("uses shared icon button styling for static endpoint target buttons", () => {
+    render(
+      <ComponentSidebar
+        instances={[connectorInstance, instance]}
+        selectedInstance={connectorInstance}
+        onSelectInstance={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={vi.fn()}
+        onStartEndpointPick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Pick source cell on canvas" })).toHaveClass("component-row-icon-button");
+    expect(screen.getByRole("button", { name: "Pick target cell on canvas" })).toHaveClass("component-row-icon-button");
   });
 
   it("omits match corners toggle when accent theme is neutral", () => {

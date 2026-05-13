@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   COMPONENT_REGISTRY,
   createComponentInstance,
+  getInstanceAnchorPoint,
   getInstanceCanvasBounds,
   getInstanceHighlightBounds,
   getInstanceLayerSubtitle,
   snapComponentPosition,
 } from "./componentRegistry";
 import {
+  ICON_BOX_CARD_FRAME_SIZE,
   ICON_BOX_CARD_FRAME_ORIGIN_Y,
   ICON_BOX_HIGHLIGHT_HEIGHT,
   ICON_BOX_OUTER_HEIGHT,
@@ -15,6 +17,7 @@ import {
   ICON_BOX_SNAP_ANCHOR_Y,
 } from "./iconBoxLayout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
+import type { ComponentInstance } from "../grid/types";
 
 describe("componentRegistry", () => {
   it("registers icon-box with corners not matched to theme by default", () => {
@@ -28,13 +31,22 @@ describe("componentRegistry", () => {
     });
   });
 
+  it("registers connector-line with static cell endpoints and horizontal preference by default", () => {
+    expect(COMPONENT_REGISTRY["connector-line"].label).toBe("Connector Line");
+    expect(COMPONENT_REGISTRY["connector-line"].defaultProps).toEqual({
+      preferredConnection: "horizontal",
+      source: { kind: "cell", x: 40, y: 40 },
+      target: { kind: "cell", x: 200, y: 40 },
+    });
+  });
+
   it("creates named icon-box instances with snapped coordinates", () => {
     expect(createComponentInstance("icon-box", 43, 79, 2, 800, 560)).toMatchObject({
       id: "icon-box-2",
       type: "icon-box",
       name: "Icon Box 2",
-      x: 40,
-      y: 92,
+      x: 80,
+      y: 52,
       props: {
         matchCornersWithTheme: false,
         theme: "purple",
@@ -45,8 +57,35 @@ describe("componentRegistry", () => {
     });
   });
 
+  it("creates connector-line instances with endpoints snapped to the 80px connector lattice", () => {
+    expect(createComponentInstance("connector-line", 82, 119, 3, 800, 560)).toMatchObject({
+      id: "connector-line-3",
+      type: "connector-line",
+      name: "Connector Line 3",
+      x: 120,
+      y: 120,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 120, y: 120 },
+        target: { kind: "cell", x: 280, y: 120 },
+      },
+    });
+  });
+
+  it("creates connector-line targets to the left when placed near the right canvas edge", () => {
+    expect(createComponentInstance("connector-line", 790, 119, 4, 800, 560)).toMatchObject({
+      props: {
+        source: { kind: "cell", x: 760, y: 120 },
+        target: { kind: "cell", x: 600, y: 120 },
+      },
+    });
+  });
+
   it("getInstanceLayerSubtitle returns undefined for blank title", () => {
-    const inst = createComponentInstance("icon-box", 0, 0, 1, 800, 560);
+    const inst = createComponentInstance("icon-box", 0, 0, 1, 800, 560) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
     expect(
       getInstanceLayerSubtitle({
         ...inst,
@@ -62,15 +101,23 @@ describe("componentRegistry", () => {
   });
 
   it("getInstanceLayerSubtitle returns trimmed title when non-empty", () => {
-    const inst = createComponentInstance("icon-box", 0, 0, 1, 800, 560);
+    const inst = createComponentInstance("icon-box", 0, 0, 1, 800, 560) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
     expect(getInstanceLayerSubtitle({ ...inst, props: { ...inst.props, title: "KV" } })).toBe("KV");
     expect(getInstanceLayerSubtitle({ ...inst, props: { ...inst.props, title: "  hi  " } })).toBe("hi");
   });
 
-  it("snaps icon-box by the shadow-card snap anchor (center of interaction rect)", () => {
+  it("snaps icon-box by the shadow-card snap anchor to the 80px cell-center lattice", () => {
     const snapped = snapComponentPosition(50, 50, 800, 560, "icon-box");
-    expect(snapped.x + ICON_BOX_SNAP_ANCHOR_X).toBe(80);
+    expect(snapped.x + ICON_BOX_SNAP_ANCHOR_X).toBe(120);
     expect(snapped.y + ICON_BOX_SNAP_ANCHOR_Y).toBe(120);
+  });
+
+  it("resolves icon-box anchors through the shared registry snap anchor", () => {
+    const inst = createComponentInstance("icon-box", 43, 79, 2, 800, 560);
+    expect(getInstanceAnchorPoint(inst)).toEqual({ x: 120, y: 120 });
   });
 
   it("when dragging past the top/left, snaps to the nearest valid grid anchor inside bounds", () => {
@@ -81,11 +128,14 @@ describe("componentRegistry", () => {
     expect(p.y + ICON_BOX_SNAP_ANCHOR_Y).toBe(40);
   });
 
-  it("keeps snapped positions inside the logical canvas", () => {
-    expect(snapComponentPosition(799, 559, 800, 560, "icon-box")).toEqual({
+  it("lets the icon-box card frame reach the bottom edge of the logical canvas", () => {
+    const snapped = snapComponentPosition(799, 559, 800, 560, "icon-box");
+
+    expect(snapped).toEqual({
       x: 720,
-      y: 412,
+      y: 452,
     });
+    expect(snapped.y + ICON_BOX_CARD_FRAME_ORIGIN_Y + ICON_BOX_CARD_FRAME_SIZE).toBe(560);
   });
 
   it("getInstanceHighlightBounds covers title and footprint while hit bounds stay on shadow card only", () => {

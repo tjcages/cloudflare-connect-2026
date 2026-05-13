@@ -41,7 +41,7 @@ export type GeneratedGrid = {
   cells: GridCell[];
 };
 
-export type ComponentType = "icon-box";
+export type ComponentType = "icon-box" | "connector-line";
 
 export type IconId = "section-mark" | "isometric-hex" | "user-outline";
 
@@ -57,14 +57,48 @@ export type IconBoxProps = {
   containerHighlighted: boolean;
 };
 
-export type ComponentInstance = {
+export type ConnectorConnectionPreference = "horizontal" | "vertical";
+
+export type ConnectorEndpoint =
+  | {
+      kind: "cell";
+      /** Center point on the 80px connector lattice. */
+      x: number;
+      y: number;
+    }
+  | {
+      kind: "layer";
+      instanceId: string;
+    };
+
+export type ConnectorLineProps = {
+  preferredConnection: ConnectorConnectionPreference;
+  source: ConnectorEndpoint;
+  target: ConnectorEndpoint;
+};
+
+export type ComponentProps = IconBoxProps | ConnectorLineProps;
+
+export type IconBoxInstance = {
   id: string;
-  type: ComponentType;
+  type: "icon-box";
   name: string;
   x: number;
   y: number;
   props: IconBoxProps;
 };
+
+export type ConnectorLineInstance = {
+  id: string;
+  type: "connector-line";
+  name: string;
+  /** Convenience source center for generic selection/position displays. */
+  x: number;
+  y: number;
+  props: ConnectorLineProps;
+};
+
+export type ComponentInstance = IconBoxInstance | ConnectorLineInstance;
 
 export type CandidateCell = {
   kind: GridCellKind;

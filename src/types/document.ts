@@ -14,3 +14,9 @@ export type CanvasDragState =
       offsetX: number;
       offsetY: number;
     };
+
+export type ConnectorEndpointPickState = {
+  connectorId: string;
+  endpoint: "source" | "target";
+  hoverCell: { x: number; y: number } | null;
+};

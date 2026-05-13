@@ -7,6 +7,7 @@ import type { ComponentInstance } from "../../../grid/types";
 import { parseHexColor } from "../../color";
 import { paletteBrush } from "../../../theme/palette";
 import { useAppStore } from "../../../store";
+import { buildConnectorLine } from "../connector-line/setup";
 import { rasterizeIcon } from "./iconRaster";
 import {
   ICON_BOX_ACCENT_BAR_GAP,
@@ -107,7 +108,11 @@ const buildContainerCornerReticle = (tickColor: number, centerDotColor: number):
   return g;
 };
 
-const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number, gridStrokeHex: string) => {
+const buildIconBox = (
+  instance: Extract<ComponentInstance, { type: "icon-box" }>,
+  gridStrokeColor: number,
+  gridStrokeHex: string,
+) => {
   const root = new Container();
   root.sortableChildren = true;
   root.position.set(instance.x, instance.y);
@@ -250,7 +255,7 @@ const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number, grid
   return root;
 };
 
-export const setupIconBoxLayer: Ticker = ({ app, cleanup }) => {
+export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   const layer = new Container();
   layer.sortableChildren = true;
   app.stage.addChild(layer);
@@ -260,7 +265,7 @@ export const setupIconBoxLayer: Ticker = ({ app, cleanup }) => {
       child.destroy({ children: true });
     }
 
-    const { instances, dragState, grid } = useAppStore.getState();
+    const { instances, dragState, grid, selectedInstanceId } = useAppStore.getState();
     const gridStrokeHex = grid.config.strokeColor;
     const gridStrokeColor = parseHexColor(gridStrokeHex);
     const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
@@ -269,7 +274,22 @@ export const setupIconBoxLayer: Ticker = ({ app, cleanup }) => {
 
     for (let index = 0; index < toDraw.length; index += 1) {
       const instance = toDraw[index];
-      const root = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+      const root =
+        instance.type === "connector-line"
+          ? buildConnectorLine(
+              instance,
+              toDraw,
+              gridStrokeColor,
+              {
+                width: grid.config.logicalWidth,
+                height: grid.config.logicalHeight,
+              },
+              instance.id === selectedInstanceId,
+            )
+          : buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+      if (!root) {
+        continue;
+      }
       root.zIndex = count - index;
       layer.addChild(root);
     }
@@ -280,7 +300,12 @@ export const setupIconBoxLayer: Ticker = ({ app, cleanup }) => {
   rebuild();
 
   const unsub = useAppStore.subscribe((state, prev) => {
-    if (state.instances !== prev.instances || state.dragState !== prev.dragState || state.grid !== prev.grid) {
+    if (
+      state.instances !== prev.instances ||
+      state.dragState !== prev.dragState ||
+      state.grid !== prev.grid ||
+      state.selectedInstanceId !== prev.selectedInstanceId
+    ) {
       rebuild();
     }
   });

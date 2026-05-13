@@ -698,7 +698,7 @@ button.component-list-item:hover {
   white-space: nowrap;
 }
 
-.component-list-item-actions .component-row-icon-button {
+.component-row-icon-button {
   display: grid;
   place-items: center;
   width: 22px;
@@ -713,12 +713,12 @@ button.component-list-item:hover {
     color 120ms ease;
 }
 
-.component-list-item-actions .component-row-icon-button:hover {
+.component-row-icon-button:hover {
   background: var(--button-hover-bg);
   color: var(--button-hover-color);
 }
 
-.component-list-item-actions .component-row-icon-button:active {
+.component-row-icon-button:active {
   background: var(--button-active-bg);
 }
 
@@ -863,4 +863,10 @@ button.component-list-item:hover {
   display: block;
   background: #ffffff;
   touch-action: none;
+}
+
+.grid-canvas-picking {
+  cursor: crosshair;
+  outline: 2px solid #9fc8ff;
+  outline-offset: 0;
 }

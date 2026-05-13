@@ -1,12 +1,25 @@
 import type { Application } from "pixi.js";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { createComponentInstance, getComponentDefinition, snapComponentPosition } from "./components/componentRegistry";
+import {
+  createComponentInstance,
+  getComponentDefinition,
+  snapComponentPosition,
+  snapConnectorCellCenter,
+} from "./components/componentRegistry";
 import { updateLargeRatio, updateSmallRatio } from "./grid/config";
 import { generateGrid } from "./grid/generator";
-import type { ComponentInstance, ComponentType, GeneratedGrid, GridConfig, IconBoxProps } from "./grid/types";
+import type {
+  ComponentInstance,
+  ComponentProps,
+  ComponentType,
+  ConnectorLineProps,
+  GeneratedGrid,
+  GridConfig,
+  IconBoxProps,
+} from "./grid/types";
 import { getDefaultDocumentSlice, mergePersistedDocument } from "./storePersist";
-import type { CanvasDragState } from "./types/document";
+import type { CanvasDragState, ConnectorEndpointPickState } from "./types/document";
 
 export function reorderInstancesByIds(previous: ComponentInstance[], orderedIds: string[]): ComponentInstance[] {
   if (orderedIds.length !== previous.length) {
@@ -43,6 +56,7 @@ export type AppStoreState = {
   instances: ComponentInstance[];
   selectedInstanceId: string | null;
   dragState: CanvasDragState | null;
+  connectorEndpointPick: ConnectorEndpointPickState | null;
   nextInstanceIndex: number;
   setPixiApp: (app: Application | null) => void;
 
@@ -66,8 +80,13 @@ export type AppStoreState = {
   endCanvasDrag: () => void;
 
   deleteInstance: (id: string) => void;
-  updateInstanceProps: (id: string, props: IconBoxProps) => void;
+  updateInstanceProps: (id: string, props: ComponentProps) => void;
   reorderInstances: (orderedIds: string[]) => void;
+  startConnectorEndpointPick: (connectorId: string, endpoint: "source" | "target") => void;
+  cancelConnectorEndpointPick: () => void;
+  setConnectorEndpointHoverCell: (x: number, y: number) => void;
+  clearConnectorEndpointHoverCell: () => void;
+  setConnectorEndpointCell: (x: number, y: number) => void;
 };
 
 const createSeed = () => {
@@ -86,6 +105,7 @@ export const useAppStore = create<AppStoreState>()(
       pixiApp: null,
       ...defaultDocument,
       dragState: null,
+      connectorEndpointPick: null,
 
       setPixiApp: (app) => set({ pixiApp: app }),
 
@@ -145,14 +165,8 @@ export const useAppStore = create<AppStoreState>()(
       updateCreatePreview: (type, x, y) => {
         const { grid } = get();
         const definition = getComponentDefinition(type);
-        const position = snapComponentPosition(x, y, grid.config.logicalWidth, grid.config.logicalHeight, type);
-        const preview: ComponentInstance = {
-          id: `${type}-preview`,
-          type,
-          name: definition.label,
-          ...position,
-          props: { ...definition.defaultProps },
-        };
+        const created = createComponentInstance(type, x, y, 0, grid.config.logicalWidth, grid.config.logicalHeight);
+        const preview: ComponentInstance = { ...created, id: `${type}-preview`, name: definition.label };
 
         set({
           dragState: { mode: "create", type, preview, ghostClient: null },
@@ -190,6 +204,9 @@ export const useAppStore = create<AppStoreState>()(
             if (instance.id !== id) {
               return instance;
             }
+            if (instance.type === "connector-line") {
+              return instance;
+            }
 
             return {
               ...instance,
@@ -211,7 +228,18 @@ export const useAppStore = create<AppStoreState>()(
 
       updateInstanceProps: (id, props) =>
         set((s) => ({
-          instances: s.instances.map((instance) => (instance.id === id ? { ...instance, props } : instance)),
+          instances: s.instances.map((instance) => {
+            if (instance.id !== id) {
+              return instance;
+            }
+            if (instance.type === "icon-box" && "iconId" in props) {
+              return { ...instance, props: props as IconBoxProps };
+            }
+            if (instance.type === "connector-line" && "preferredConnection" in props) {
+              return { ...instance, props: props as ConnectorLineProps };
+            }
+            return instance;
+          }),
         })),
 
       reorderInstances: (orderedIds) =>
@@ -221,6 +249,64 @@ export const useAppStore = create<AppStoreState>()(
             return {};
           }
           return { instances: next };
+        }),
+
+      startConnectorEndpointPick: (connectorId, endpoint) =>
+        set((s) => {
+          const connector = s.instances.find(
+            (instance) => instance.id === connectorId && instance.type === "connector-line",
+          );
+          if (!connector) {
+            return {};
+          }
+          return { connectorEndpointPick: { connectorId, endpoint, hoverCell: null } };
+        }),
+
+      cancelConnectorEndpointPick: () => set({ connectorEndpointPick: null }),
+
+      setConnectorEndpointHoverCell: (x, y) =>
+        set((s) => {
+          const pick = s.connectorEndpointPick;
+          if (!pick) {
+            return {};
+          }
+          const hoverCell = snapConnectorCellCenter(x, y, s.grid.config.logicalWidth, s.grid.config.logicalHeight);
+          return { connectorEndpointPick: { ...pick, hoverCell } };
+        }),
+
+      clearConnectorEndpointHoverCell: () =>
+        set((s) => {
+          const pick = s.connectorEndpointPick;
+          if (!pick || pick.hoverCell === null) {
+            return {};
+          }
+          return { connectorEndpointPick: { ...pick, hoverCell: null } };
+        }),
+
+      setConnectorEndpointCell: (x, y) =>
+        set((s) => {
+          const pick = s.connectorEndpointPick;
+          if (!pick) {
+            return {};
+          }
+          const cell = snapConnectorCellCenter(x, y, s.grid.config.logicalWidth, s.grid.config.logicalHeight);
+          return {
+            connectorEndpointPick: null,
+            instances: s.instances.map((instance) => {
+              if (instance.id !== pick.connectorId || instance.type !== "connector-line") {
+                return instance;
+              }
+              return {
+                ...instance,
+                x: pick.endpoint === "source" ? cell.x : instance.x,
+                y: pick.endpoint === "source" ? cell.y : instance.y,
+                props: {
+                  ...instance.props,
+                  [pick.endpoint]: { kind: "cell", ...cell },
+                },
+              };
+            }),
+          };
         }),
     }),
     {
@@ -246,5 +332,6 @@ export const resetAppStoreDocumentToDefault = () => {
     ...fresh,
     pixiApp: s.pixiApp,
     dragState: null,
+    connectorEndpointPick: null,
   }));
 };

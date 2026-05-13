@@ -6,7 +6,15 @@ import {
   getIconBoxFullHighlightBoundsInRootSpace,
   getIconBoxShadowCardBoundsInRootSpace,
 } from "./iconBoxLayout";
-import { BASE_UNIT, type ComponentInstance, type ComponentType, type IconBoxProps } from "../grid/types";
+import {
+  BASE_UNIT,
+  LARGE_CELL_SIZE,
+  type ComponentInstance,
+  type ComponentProps,
+  type ComponentType,
+  type ConnectorLineProps,
+  type IconBoxProps,
+} from "../grid/types";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 
 export type ComponentDefinition = {
@@ -17,9 +25,9 @@ export type ComponentDefinition = {
   /** Offset from instance root (x, y) to the grid snap point (icon-box: center of shadow-card ± selection padding). */
   snapAnchorX: number;
   snapAnchorY: number;
-  defaultProps: IconBoxProps;
+  defaultProps: ComponentProps;
   /** Layers list subtitle from current props; empty after trim → no second line. */
-  dynamicTitle?: (config: IconBoxProps) => string | undefined;
+  dynamicTitle?: (config: ComponentProps) => string | undefined;
 };
 
 export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
@@ -38,8 +46,30 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
       containerHighlighted: false,
     },
     dynamicTitle: (config) => {
+      if (!("title" in config)) {
+        return undefined;
+      }
       const t = config.title.trim();
       return t.length ? t : undefined;
+    },
+  },
+  "connector-line": {
+    type: "connector-line",
+    label: "Connector Line",
+    width: 0,
+    height: 0,
+    snapAnchorX: 0,
+    snapAnchorY: 0,
+    defaultProps: {
+      preferredConnection: "horizontal",
+      source: { kind: "cell", x: LARGE_CELL_SIZE / 2, y: LARGE_CELL_SIZE / 2 },
+      target: { kind: "cell", x: LARGE_CELL_SIZE * 2 + LARGE_CELL_SIZE / 2, y: LARGE_CELL_SIZE / 2 },
+    },
+    dynamicTitle: (config) => {
+      if (!("preferredConnection" in config)) {
+        return undefined;
+      }
+      return config.preferredConnection === "vertical" ? "Vertical" : "Horizontal";
     },
   },
 };
@@ -59,18 +89,45 @@ export const getInstanceLayerSubtitle = (instance: ComponentInstance): string | 
   return trimmed.length ? trimmed : undefined;
 };
 
-/** Snap one axis so anchor (root + anchorOffset) lies on BASE_UNIT and root stays in [minRoot, maxRoot]. */
-const snapRootAxis = (root: number, anchorOffset: number, maxRoot: number, minRoot = 0): number => {
+/** Snap one axis so anchor (root + anchorOffset) lies on the target lattice and root stays in [minRoot, maxRoot]. */
+const snapRootAxis = (
+  root: number,
+  anchorOffset: number,
+  maxRoot: number,
+  minRoot = 0,
+  step = BASE_UNIT,
+  latticeOffset = 0,
+): number => {
   const anchor = root + anchorOffset;
-  const kIdeal = Math.round(anchor / BASE_UNIT);
-  const kMin = Math.ceil((minRoot + anchorOffset) / BASE_UNIT);
-  const kMax = Math.floor((maxRoot + anchorOffset) / BASE_UNIT);
+  const kIdeal = Math.round((anchor - latticeOffset) / step);
+  const kMin = Math.ceil((minRoot + anchorOffset - latticeOffset) / step);
+  const kMax = Math.floor((maxRoot + anchorOffset - latticeOffset) / step);
   if (kMin > kMax) {
     return Math.min(maxRoot, Math.max(minRoot, root));
   }
   const k = Math.min(kMax, Math.max(kMin, kIdeal));
-  return k * BASE_UNIT - anchorOffset;
+  return latticeOffset + k * step - anchorOffset;
 };
+
+const CONNECTOR_LATTICE_OFFSET = LARGE_CELL_SIZE / 2;
+
+const snapConnectorAxis = (value: number, canvasSize: number): number => {
+  const min = CONNECTOR_LATTICE_OFFSET;
+  const max = Math.max(min, canvasSize - CONNECTOR_LATTICE_OFFSET);
+  const snapped =
+    CONNECTOR_LATTICE_OFFSET + Math.round((value - CONNECTOR_LATTICE_OFFSET) / LARGE_CELL_SIZE) * LARGE_CELL_SIZE;
+  return Math.min(max, Math.max(min, snapped));
+};
+
+export const snapConnectorCellCenter = (
+  x: number,
+  y: number,
+  canvasWidth: number,
+  canvasHeight: number,
+): { x: number; y: number } => ({
+  x: snapConnectorAxis(x, canvasWidth),
+  y: snapConnectorAxis(y, canvasHeight),
+});
 
 export const snapComponentPosition = (
   x: number,
@@ -79,16 +136,32 @@ export const snapComponentPosition = (
   canvasHeight: number,
   type: ComponentType,
 ) => {
+  if (type === "connector-line") {
+    return snapConnectorCellCenter(x, y, canvasWidth, canvasHeight);
+  }
+
   const definition = getComponentDefinition(type);
+  const iconBoxBounds = type === "icon-box" ? getIconBoxShadowCardBoundsInRootSpace() : null;
   const maxX = Math.max(0, canvasWidth - definition.width);
-  const maxY = Math.max(0, canvasHeight - definition.height);
+  const maxY = Math.max(0, canvasHeight - (iconBoxBounds ? iconBoxBounds.y + iconBoxBounds.height : definition.height));
 
   return {
-    x: snapRootAxis(x, definition.snapAnchorX, maxX),
+    x:
+      type === "icon-box"
+        ? snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET)
+        : snapRootAxis(x, definition.snapAnchorX, maxX),
     y:
       type === "icon-box"
-        ? snapRootAxis(y, definition.snapAnchorY, maxY, ICON_BOX_MIN_ROOT_Y)
+        ? snapRootAxis(y, definition.snapAnchorY, maxY, ICON_BOX_MIN_ROOT_Y, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET)
         : snapRootAxis(y, definition.snapAnchorY, maxY),
+  };
+};
+
+export const getInstanceAnchorPoint = (instance: ComponentInstance): { x: number; y: number } => {
+  const definition = getComponentDefinition(instance.type);
+  return {
+    x: instance.x + definition.snapAnchorX,
+    y: instance.y + definition.snapAnchorY,
   };
 };
 
@@ -108,6 +181,19 @@ export const getInstanceCanvasBounds = (
       width: r.width,
       height: r.height,
     };
+  }
+  if (instance.type === "connector-line") {
+    const { source, target } = instance.props;
+    if (source.kind === "cell" && target.kind === "cell") {
+      const minX = Math.min(source.x, target.x);
+      const minY = Math.min(source.y, target.y);
+      return {
+        x: minX - LARGE_CELL_SIZE / 2,
+        y: minY - LARGE_CELL_SIZE / 2,
+        width: Math.abs(target.x - source.x) + LARGE_CELL_SIZE,
+        height: Math.abs(target.y - source.y) + LARGE_CELL_SIZE,
+      };
+    }
   }
   return {
     x: instance.x,
@@ -144,6 +230,28 @@ export const createComponentInstance = (
   const definition = getComponentDefinition(type);
   const position = snapComponentPosition(x, y, canvasWidth, canvasHeight, type);
 
+  if (type === "connector-line") {
+    const source = snapConnectorCellCenter(x, y, canvasWidth, canvasHeight);
+    let target = snapConnectorCellCenter(source.x + LARGE_CELL_SIZE * 2, source.y, canvasWidth, canvasHeight);
+    if (target.x === source.x && target.y === source.y) {
+      target = snapConnectorCellCenter(source.x - LARGE_CELL_SIZE * 2, source.y, canvasWidth, canvasHeight);
+    }
+    const props: ConnectorLineProps = {
+      ...(definition.defaultProps as ConnectorLineProps),
+      source: { kind: "cell", ...source },
+      target: { kind: "cell", ...target },
+    };
+
+    return {
+      id: `${type}-${index}`,
+      type,
+      name: `${definition.label} ${index}`,
+      x: source.x,
+      y: source.y,
+      props,
+    };
+  }
+
   return {
     id: `${type}-${index}`,
     type,
@@ -151,7 +259,7 @@ export const createComponentInstance = (
     x: position.x,
     y: position.y,
     props: {
-      ...definition.defaultProps,
+      ...(definition.defaultProps as IconBoxProps),
     },
   };
 };

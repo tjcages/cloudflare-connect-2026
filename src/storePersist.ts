@@ -1,7 +1,20 @@
-import { createComponentInstance, getComponentDefinition, snapComponentPosition } from "./components/componentRegistry";
+import {
+  createComponentInstance,
+  getComponentDefinition,
+  snapComponentPosition,
+  snapConnectorCellCenter,
+} from "./components/componentRegistry";
 import { DEFAULT_CONFIG } from "./grid/config";
 import { generateGrid } from "./grid/generator";
-import type { ComponentInstance, ComponentType, GeneratedGrid, GridConfig, IconBoxProps } from "./grid/types";
+import type {
+  ComponentInstance,
+  ComponentType,
+  ConnectorEndpoint,
+  ConnectorLineProps,
+  GeneratedGrid,
+  GridConfig,
+  IconBoxProps,
+} from "./grid/types";
 
 export type PersistedDocumentSlice = {
   gridConfig: GridConfig;
@@ -14,7 +27,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
-const isComponentType = (value: unknown): value is ComponentType => value === "icon-box";
+const isComponentType = (value: unknown): value is ComponentType => value === "icon-box" || value === "connector-line";
 
 const isIconBoxProps = (value: unknown): value is IconBoxProps => {
   if (!isRecord(value)) {
@@ -42,6 +55,30 @@ const isIconBoxProps = (value: unknown): value is IconBoxProps => {
   }
 
   return true;
+};
+
+const isConnectorEndpoint = (value: unknown): value is ConnectorEndpoint => {
+  if (!isRecord(value) || typeof value.kind !== "string") {
+    return false;
+  }
+  if (value.kind === "cell") {
+    return isFiniteNumber(value.x) && isFiniteNumber(value.y);
+  }
+  if (value.kind === "layer") {
+    return typeof value.instanceId === "string" && value.instanceId.length > 0;
+  }
+  return false;
+};
+
+const isConnectorLineProps = (value: unknown): value is ConnectorLineProps => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    (value.preferredConnection === "horizontal" || value.preferredConnection === "vertical") &&
+    isConnectorEndpoint(value.source) &&
+    isConnectorEndpoint(value.target)
+  );
 };
 
 const isGridConfigLike = (value: unknown): value is GridConfig => {
@@ -84,9 +121,35 @@ const normalizeInstanceForGrid = (
 
   const definition = getComponentDefinition(raw.type);
   const name = typeof raw.name === "string" && raw.name.trim() ? raw.name : definition.label;
+  if (raw.type === "connector-line") {
+    const defaultProps = definition.defaultProps as ConnectorLineProps;
+    const rawProps = isConnectorLineProps(raw.props) ? raw.props : defaultProps;
+    const normalizeEndpoint = (endpoint: ConnectorEndpoint): ConnectorEndpoint => {
+      if (endpoint.kind === "layer") {
+        return endpoint;
+      }
+      return { kind: "cell", ...snapConnectorCellCenter(endpoint.x, endpoint.y, gridLogicalWidth, gridLogicalHeight) };
+    };
+    const snapped = snapConnectorCellCenter(raw.x, raw.y, gridLogicalWidth, gridLogicalHeight);
+
+    return {
+      id: raw.id,
+      type: raw.type,
+      name,
+      x: snapped.x,
+      y: snapped.y,
+      props: {
+        ...defaultProps,
+        ...rawProps,
+        source: normalizeEndpoint(rawProps.source),
+        target: normalizeEndpoint(rawProps.target),
+      },
+    };
+  }
+
   const props: IconBoxProps = isIconBoxProps(raw.props)
-    ? { ...definition.defaultProps, ...raw.props }
-    : { ...definition.defaultProps };
+    ? { ...(definition.defaultProps as IconBoxProps), ...raw.props }
+    : { ...(definition.defaultProps as IconBoxProps) };
 
   const snapped = snapComponentPosition(raw.x, raw.y, gridLogicalWidth, gridLogicalHeight, raw.type);
 
@@ -123,7 +186,7 @@ const sanitizeInstances = (raw: unknown, gridLogicalWidth: number, gridLogicalHe
 const maxInstanceOrdinal = (instances: ComponentInstance[]): number => {
   let max = 0;
   for (const inst of instances) {
-    const m = /^icon-box-(\d+)$/.exec(inst.id);
+    const m = /^(?:icon-box|connector-line)-(\d+)$/.exec(inst.id);
     if (m) {
       max = Math.max(max, Number(m[1]));
     }

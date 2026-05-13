@@ -65,6 +65,9 @@ export const App = () => {
   const updateCreatePreview = useAppStore((s) => s.updateCreatePreview);
   const finalizeCreateAt = useAppStore((s) => s.finalizeCreateAt);
   const endCanvasDrag = useAppStore((s) => s.endCanvasDrag);
+  const startConnectorEndpointPick = useAppStore((s) => s.startConnectorEndpointPick);
+  const cancelConnectorEndpointPick = useAppStore((s) => s.cancelConnectorEndpointPick);
+  const hasConnectorEndpointPick = useAppStore((s) => s.connectorEndpointPick !== null);
 
   useEffect(() => {
     if (!hasActiveDrag) {
@@ -136,6 +139,21 @@ export const App = () => {
     return () => window.removeEventListener("pointermove", onPointerMove);
   }, [isCreatePlacementDrag, revertCreatePreviewToGhost, updateCreatePreview]);
 
+  useEffect(() => {
+    if (!hasConnectorEndpointPick) {
+      return undefined;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        cancelConnectorEndpointPick();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [cancelConnectorEndpointPick, hasConnectorEndpointPick]);
+
   const copyPng = async () => {
     try {
       await copyDocumentPng();
@@ -205,6 +223,7 @@ export const App = () => {
             onDeleteInstance={deleteInstance}
             onUpdateInstanceProps={updateInstanceProps}
             onStartComponentDrag={startCreateDrag}
+            onStartEndpointPick={startConnectorEndpointPick}
             onReorderInstances={reorderInstances}
             gridStrokeColor={gridConfig.strokeColor}
           />

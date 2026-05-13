@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "./grid/config";
+import type { ComponentInstance } from "./grid/types";
 import { getDefaultDocumentSlice, mergePersistedDocument } from "./storePersist";
 import type { AppStoreState } from "./store";
 
@@ -67,7 +68,7 @@ describe("mergePersistedDocument", () => {
 
   it("defaults containerHighlighted when missing from persisted icon-box props", () => {
     const current = minimalStoreForMerge();
-    const inst = getDefaultDocumentSlice().instances[0];
+    const inst = getDefaultDocumentSlice().instances[0] as Extract<ComponentInstance, { type: "icon-box" }>;
     const { containerHighlighted: _drop, ...propsWithoutHighlight } = inst.props;
     const merged = mergePersistedDocument(
       {
@@ -79,6 +80,38 @@ describe("mergePersistedDocument", () => {
       current,
     );
 
-    expect(merged.instances[0].props.containerHighlighted).toBe(false);
+    expect((merged.instances[0] as Extract<ComponentInstance, { type: "icon-box" }>).props.containerHighlighted).toBe(
+      false,
+    );
+  });
+
+  it("preserves persisted connector-line props and selected id", () => {
+    const current = minimalStoreForMerge();
+    const connector = {
+      id: "connector-line-7",
+      type: "connector-line",
+      name: "Connector Line 7",
+      x: 120,
+      y: 120,
+      props: {
+        preferredConnection: "vertical",
+        source: { kind: "cell", x: 120, y: 120 },
+        target: { kind: "layer", instanceId: "icon-box-1" },
+      },
+    };
+
+    const merged = mergePersistedDocument(
+      {
+        gridConfig: DEFAULT_CONFIG,
+        instances: [connector],
+        nextInstanceIndex: 8,
+        selectedInstanceId: "connector-line-7",
+      },
+      current,
+    );
+
+    expect(merged.instances).toEqual([connector]);
+    expect(merged.selectedInstanceId).toBe("connector-line-7");
+    expect(merged.nextInstanceIndex).toBe(8);
   });
 });
