@@ -551,6 +551,13 @@ button.component-list-item:hover {
   line-height: 1.1;
 }
 
+.component-list-item .component-position {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .component-list-item-actions .component-row-icon-button {
   display: grid;
   place-items: center;
