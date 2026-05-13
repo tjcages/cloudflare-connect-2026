@@ -1,9 +1,11 @@
 import type { Application } from "pixi.js";
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { createComponentInstance, getComponentDefinition, snapComponentPosition } from "./components/componentRegistry";
-import { DEFAULT_CONFIG, updateLargeRatio, updateSmallRatio } from "./grid/config";
+import { updateLargeRatio, updateSmallRatio } from "./grid/config";
 import { generateGrid } from "./grid/generator";
 import type { ComponentInstance, ComponentType, GeneratedGrid, GridConfig, IconBoxProps } from "./grid/types";
+import { getDefaultDocumentSlice, mergePersistedDocument } from "./storePersist";
 import type { CanvasDragState } from "./types/document";
 
 export type AppStoreState = {
@@ -47,145 +49,163 @@ const createSeed = () => {
   return `seed-${Date.now()}`;
 };
 
-const initialGrid = generateGrid(DEFAULT_CONFIG);
+const defaultDocument = getDefaultDocumentSlice();
 
-const initialInstances: ComponentInstance[] = [
-  createComponentInstance("icon-box", 0, 0, 1, initialGrid.config.logicalWidth, initialGrid.config.logicalHeight),
-];
-
-export const useAppStore = create<AppStoreState>((set, get) => ({
-  pixiApp: null,
-  gridConfig: DEFAULT_CONFIG,
-  grid: initialGrid,
-  instances: initialInstances,
-  selectedInstanceId: null,
-  dragState: null,
-  nextInstanceIndex: 2,
-
-  setPixiApp: (app) => set({ pixiApp: app }),
-
-  updateGridConfig: (patch) =>
-    set((s) => {
-      const gridConfig = { ...s.gridConfig, ...patch };
-      return { gridConfig, grid: generateGrid(gridConfig) };
-    }),
-
-  replaceGridConfig: (gridConfig) =>
-    set(() => ({
-      gridConfig,
-      grid: generateGrid(gridConfig),
-    })),
-
-  setSmallRatio: (value) =>
-    set((s) => {
-      const gridConfig = { ...s.gridConfig, ...updateSmallRatio(value) };
-      return { gridConfig, grid: generateGrid(gridConfig) };
-    }),
-
-  setLargeRatio: (value) =>
-    set((s) => {
-      const gridConfig = { ...s.gridConfig, ...updateLargeRatio(value) };
-      return { gridConfig, grid: generateGrid(gridConfig) };
-    }),
-
-  regenerateSeed: () =>
-    set((s) => {
-      const gridConfig = { ...s.gridConfig, seed: createSeed() };
-      return { gridConfig, grid: generateGrid(gridConfig) };
-    }),
-
-  selectInstance: (id) => set({ selectedInstanceId: id }),
-
-  startCreateDrag: (type, initialPointer) =>
-    set({
-      dragState: {
-        mode: "create",
-        type,
-        preview: null,
-        ghostClient: initialPointer ? { x: initialPointer.clientX, y: initialPointer.clientY } : null,
-      },
-    }),
-
-  revertCreatePreviewToGhost: (clientX, clientY) =>
-    set((s) => {
-      const d = s.dragState;
-      if (d?.mode !== "create") {
-        return {};
-      }
-      return {
-        dragState: { ...d, preview: null, ghostClient: { x: clientX, y: clientY } },
-      };
-    }),
-
-  updateCreatePreview: (type, x, y) => {
-    const { grid } = get();
-    const definition = getComponentDefinition(type);
-    const position = snapComponentPosition(x, y, grid.config.logicalWidth, grid.config.logicalHeight, type);
-    const preview: ComponentInstance = {
-      id: `${type}-preview`,
-      type,
-      name: definition.label,
-      ...position,
-      props: { ...definition.defaultProps },
-    };
-
-    set({
-      dragState: { mode: "create", type, preview, ghostClient: null },
-    });
-  },
-
-  finalizeCreateAt: (type, x, y) => {
-    const { grid, nextInstanceIndex, instances } = get();
-    const instance = createComponentInstance(
-      type,
-      x,
-      y,
-      nextInstanceIndex,
-      grid.config.logicalWidth,
-      grid.config.logicalHeight,
-    );
-    set({
-      instances: [...instances, instance],
-      selectedInstanceId: instance.id,
-      nextInstanceIndex: nextInstanceIndex + 1,
+export const useAppStore = create<AppStoreState>()(
+  persist(
+    (set, get) => ({
+      pixiApp: null,
+      ...defaultDocument,
       dragState: null,
-    });
-  },
 
-  startMoveDrag: (id, offsetX, offsetY) => {
-    set({
-      dragState: { mode: "move", id, offsetX, offsetY },
-    });
-  },
+      setPixiApp: (app) => set({ pixiApp: app }),
 
-  moveInstanceTo: (id, x, y) => {
-    const { grid } = get();
-    set((s) => ({
-      instances: s.instances.map((instance) => {
-        if (instance.id !== id) {
-          return instance;
-        }
+      updateGridConfig: (patch) =>
+        set((s) => {
+          const gridConfig = { ...s.gridConfig, ...patch };
+          return { gridConfig, grid: generateGrid(gridConfig) };
+        }),
 
-        return {
-          ...instance,
-          ...snapComponentPosition(x, y, grid.config.logicalWidth, grid.config.logicalHeight, instance.type),
+      replaceGridConfig: (gridConfig) =>
+        set(() => ({
+          gridConfig,
+          grid: generateGrid(gridConfig),
+        })),
+
+      setSmallRatio: (value) =>
+        set((s) => {
+          const gridConfig = { ...s.gridConfig, ...updateSmallRatio(value) };
+          return { gridConfig, grid: generateGrid(gridConfig) };
+        }),
+
+      setLargeRatio: (value) =>
+        set((s) => {
+          const gridConfig = { ...s.gridConfig, ...updateLargeRatio(value) };
+          return { gridConfig, grid: generateGrid(gridConfig) };
+        }),
+
+      regenerateSeed: () =>
+        set((s) => {
+          const gridConfig = { ...s.gridConfig, seed: createSeed() };
+          return { gridConfig, grid: generateGrid(gridConfig) };
+        }),
+
+      selectInstance: (id) => set({ selectedInstanceId: id }),
+
+      startCreateDrag: (type, initialPointer) =>
+        set({
+          dragState: {
+            mode: "create",
+            type,
+            preview: null,
+            ghostClient: initialPointer ? { x: initialPointer.clientX, y: initialPointer.clientY } : null,
+          },
+        }),
+
+      revertCreatePreviewToGhost: (clientX, clientY) =>
+        set((s) => {
+          const d = s.dragState;
+          if (d?.mode !== "create") {
+            return {};
+          }
+          return {
+            dragState: { ...d, preview: null, ghostClient: { x: clientX, y: clientY } },
+          };
+        }),
+
+      updateCreatePreview: (type, x, y) => {
+        const { grid } = get();
+        const definition = getComponentDefinition(type);
+        const position = snapComponentPosition(x, y, grid.config.logicalWidth, grid.config.logicalHeight, type);
+        const preview: ComponentInstance = {
+          id: `${type}-preview`,
+          type,
+          name: definition.label,
+          ...position,
+          props: { ...definition.defaultProps },
         };
+
+        set({
+          dragState: { mode: "create", type, preview, ghostClient: null },
+        });
+      },
+
+      finalizeCreateAt: (type, x, y) => {
+        const { grid, nextInstanceIndex, instances } = get();
+        const instance = createComponentInstance(
+          type,
+          x,
+          y,
+          nextInstanceIndex,
+          grid.config.logicalWidth,
+          grid.config.logicalHeight,
+        );
+        set({
+          instances: [...instances, instance],
+          selectedInstanceId: instance.id,
+          nextInstanceIndex: nextInstanceIndex + 1,
+          dragState: null,
+        });
+      },
+
+      startMoveDrag: (id, offsetX, offsetY) => {
+        set({
+          dragState: { mode: "move", id, offsetX, offsetY },
+        });
+      },
+
+      moveInstanceTo: (id, x, y) => {
+        const { grid } = get();
+        set((s) => ({
+          instances: s.instances.map((instance) => {
+            if (instance.id !== id) {
+              return instance;
+            }
+
+            return {
+              ...instance,
+              ...snapComponentPosition(x, y, grid.config.logicalWidth, grid.config.logicalHeight, instance.type),
+            };
+          }),
+        }));
+      },
+
+      endCanvasDrag: () => {
+        set({ dragState: null });
+      },
+
+      deleteInstance: (id) =>
+        set((s) => ({
+          instances: s.instances.filter((i) => i.id !== id),
+          selectedInstanceId: s.selectedInstanceId === id ? null : s.selectedInstanceId,
+        })),
+
+      updateInstanceProps: (id, props) =>
+        set((s) => ({
+          instances: s.instances.map((instance) => (instance.id === id ? { ...instance, props } : instance)),
+        })),
+    }),
+    {
+      name: "section-grid-builder",
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        gridConfig: state.gridConfig,
+        instances: state.instances,
+        nextInstanceIndex: state.nextInstanceIndex,
+        selectedInstanceId: state.selectedInstanceId,
       }),
-    }));
-  },
+      merge: (persisted, current) => mergePersistedDocument(persisted, current),
+    },
+  ),
+);
 
-  endCanvasDrag: () => {
-    set({ dragState: null });
-  },
-
-  deleteInstance: (id) =>
-    set((s) => ({
-      instances: s.instances.filter((i) => i.id !== id),
-      selectedInstanceId: s.selectedInstanceId === id ? null : s.selectedInstanceId,
-    })),
-
-  updateInstanceProps: (id, props) =>
-    set((s) => ({
-      instances: s.instances.map((instance) => (instance.id === id ? { ...instance, props } : instance)),
-    })),
-}));
+/** Restore the canvas document to defaults (keeps the Pixi app handle if already set). Intended for tests. */
+export const resetAppStoreDocumentToDefault = () => {
+  const fresh = getDefaultDocumentSlice();
+  useAppStore.setState((s) => ({
+    ...fresh,
+    pixiApp: s.pixiApp,
+    dragState: null,
+  }));
+};
