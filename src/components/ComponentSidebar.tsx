@@ -144,22 +144,24 @@ export const ComponentSidebar = ({
             aria-label="Title"
           />
         </label>
-        <div className="field field-toggle-row">
-          <span id={`corner-match-label-${selectedInstance.id}`}>Match corners with theme</span>
-          <button
-            type="button"
-            role="switch"
-            className="field-toggle-switch"
-            aria-labelledby={`corner-match-label-${selectedInstance.id}`}
-            aria-checked={selectedInstance.props.matchCornersWithTheme}
-            onClick={() =>
-              onUpdateInstanceProps(selectedInstance.id, {
-                ...selectedInstance.props,
-                matchCornersWithTheme: !selectedInstance.props.matchCornersWithTheme,
-              })
-            }
-          />
-        </div>
+        {selectedInstance.props.theme !== "neutral" ? (
+          <div className="field field-toggle-row">
+            <span id={`corner-match-label-${selectedInstance.id}`}>Match corners with theme</span>
+            <button
+              type="button"
+              role="switch"
+              className="field-toggle-switch"
+              aria-labelledby={`corner-match-label-${selectedInstance.id}`}
+              aria-checked={selectedInstance.props.matchCornersWithTheme}
+              onClick={() =>
+                onUpdateInstanceProps(selectedInstance.id, {
+                  ...selectedInstance.props,
+                  matchCornersWithTheme: !selectedInstance.props.matchCornersWithTheme,
+                })
+              }
+            />
+          </div>
+        ) : null}
       </div>
     );
   }

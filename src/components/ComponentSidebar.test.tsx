@@ -220,6 +220,24 @@ describe("ComponentSidebar", () => {
     expect(onStartComponentDrag).toHaveBeenCalledWith("icon-box", { clientX: 12, clientY: 24 });
   });
 
+  it("omits match corners toggle when accent theme is neutral", () => {
+    const neutralThemeInstance: ComponentInstance = { ...instance, props: { ...instance.props, theme: "neutral" } };
+
+    render(
+      <ComponentSidebar
+        instances={[neutralThemeInstance]}
+        selectedInstance={neutralThemeInstance}
+        onSelectInstance={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("switch", { name: /Match corners with theme/i })).not.toBeInTheDocument();
+  });
+
   it("shows selected component config header like a layer row and updates theme, title, and match corners toggle", () => {
     const onUpdateInstanceProps = vi.fn();
 
