@@ -21,7 +21,14 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
     }
 
     const b = getInstanceCanvasBounds(inst);
-    graphics.rect(b.x + 0.5, b.y + 0.5, b.width - 1, b.height - 1).stroke({ width: 1, color: 0x9fc8ff });
+    let w = b.width;
+    let h = b.height;
+    /** Icon-box: selection stroke +1px wider/taller; origin unchanged from bounds. */
+    if (inst.type === "icon-box") {
+      w += 1;
+      h += 1;
+    }
+    graphics.rect(b.x + 0.5, b.y + 0.5, w - 1, h - 1).stroke({ width: 1, color: 0x9fc8ff });
   };
 
   sync();
