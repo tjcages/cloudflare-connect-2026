@@ -10,19 +10,19 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 
 ## Architecture Map
 
-| Area | Responsibility | Key Files |
-| --- | --- | --- |
-| App orchestration | Top-level state, tab selection, drag state, instance updates, copy action | `src/app/App.tsx` |
-| App styles | Global layout, sidebar rail, grid controls, component list styling | `src/app/App.css` |
-| Grid domain | Config normalization, masks, PRNG, generation, validation | `src/grid/` |
-| Grid worker | Runs generation off the main thread with fallback behavior | `src/grid/useGeneratedGrid.ts`, `src/grid/generatorWorker.ts` |
-| Canvas domain | Draw document, hit testing, PNG export | `src/canvas/` |
-| Canvas React bridge | Owns the `<canvas>` element, pointer conversion, canvas lifecycle | `src/components/GridCanvas.tsx` |
-| Grid sidebar | Seed, size, ratios, stroke, gap mask, PNG copy | `src/components/Sidebar.tsx` |
-| Component sidebar | Components list, layers list, selected layer config | `src/components/ComponentSidebar.tsx` |
-| Component registry | Component labels, dimensions, defaults, snapping helpers | `src/components/componentRegistry.ts` |
-| Icon registry | SVG icon definitions and options | `src/components/iconRegistry.ts`, `src/components/ComponentIcon.tsx` |
-| Shared UI | Shared layer/component row shell and icon tokens | `src/components/ComponentListItem.tsx`, `src/components/iconTokens.ts` |
+| Area                | Responsibility                                                                    | Key Files                                                                             |
+| ------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| App orchestration   | Top-level state, tab selection, drag state, instance updates, copy action         | `src/app/App.tsx`                                                                     |
+| App styles          | Global layout, sidebar rail, grid controls, component list styling                | `src/app/App.css`                                                                     |
+| Grid core           | Pure config normalization, masks, PRNG, generation, validation, shared grid types | `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, `types.ts` |
+| Grid integration    | React hook, worker bridge, and legacy clipboard helper around grid output         | `src/grid/useGeneratedGrid.ts`, `generatorWorker.ts`, `clipboard.ts`                  |
+| Canvas domain       | Draw document, hit testing, PNG export                                            | `src/canvas/`                                                                         |
+| Canvas React bridge | Owns the `<canvas>` element, pointer conversion, canvas lifecycle                 | `src/components/GridCanvas.tsx`                                                       |
+| Grid sidebar        | Seed, size, ratios, stroke, gap mask, PNG copy                                    | `src/components/Sidebar.tsx`                                                          |
+| Component sidebar   | Components list, layers list, selected layer config                               | `src/components/ComponentSidebar.tsx`                                                 |
+| Component registry  | Component labels, dimensions, defaults, snapping helpers                          | `src/components/componentRegistry.ts`                                                 |
+| Icon registry       | SVG icon definitions and options                                                  | `src/components/iconRegistry.ts`, `src/components/ComponentIcon.tsx`                  |
+| Shared UI           | Shared layer/component row shell and icon tokens                                  | `src/components/ComponentListItem.tsx`, `src/components/iconTokens.ts`                |
 
 ## Core Invariants
 
@@ -87,9 +87,10 @@ Testing Library tests should prefer roles, labels, and visible text. Canvas test
 ## Verification Commands
 
 ```bash
-npm test
-npm run build
+npm run verify
 ```
+
+`verify` runs linting, format checks, tests, type checking, and production build.
 
 For docs/rules-only changes, a frontmatter/path/stale-reference review is enough unless source files changed.
 

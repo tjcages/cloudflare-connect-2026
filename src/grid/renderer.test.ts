@@ -122,9 +122,7 @@ describe("gridToSvg", () => {
       ]),
     );
 
-    expect(svg).toContain(
-      '<path d="M0 40h80v80h-80Z" fill="none" stroke="#F3F3F3" stroke-width="1" />',
-    );
+    expect(svg).toContain('<path d="M0 40h80v80h-80Z" fill="none" stroke="#F3F3F3" stroke-width="1" />');
     expect(svg).not.toContain("0.5");
   });
 

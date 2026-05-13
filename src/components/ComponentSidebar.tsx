@@ -52,7 +52,9 @@ export const ComponentSidebar = ({
               <button
                 key={icon.id}
                 className={
-                  selectedInstance.props.iconId === icon.id ? "icon-picker-button icon-picker-button-active" : "icon-picker-button"
+                  selectedInstance.props.iconId === icon.id
+                    ? "icon-picker-button icon-picker-button-active"
+                    : "icon-picker-button"
                 }
                 type="button"
                 role="radio"

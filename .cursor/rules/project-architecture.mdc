@@ -7,7 +7,8 @@ alwaysApply: true
 
 Read `docs/ai-context.md` and nearby source before broad changes.
 
-- `src/grid/` is the pure deterministic grid domain. It owns config normalization, masks, seeded PRNG, generation, and validation. Do not import React here.
+- The pure grid domain is `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, and `types.ts`. Keep those files free of React, DOM, Canvas, and browser APIs.
+- `src/grid/useGeneratedGrid.ts` and `src/grid/clipboard.ts` are current integration exceptions; do not copy browser APIs into the pure grid core.
 - `src/canvas/` owns Canvas rendering, hit testing, and PNG export. Keep editor rendering and export rendering aligned through `drawDocument`.
 - `src/components/` owns reusable React UI, component registries, icon registries, and shared controls.
 - `src/app/App.tsx` is orchestration: app state, wiring, drag flow, and top-level layout. Move reusable logic out when it grows.

@@ -8,7 +8,8 @@ Read `docs/ai-context.md` before broad architecture work.
 
 ## Architecture Boundaries
 
-- `src/grid/`: pure deterministic grid domain. No React, DOM, or Canvas dependencies.
+- Pure grid core: `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, and `types.ts`. No React, DOM, Canvas, or browser APIs.
+- Grid integration exceptions: `src/grid/useGeneratedGrid.ts` and `src/grid/clipboard.ts`.
 - `src/canvas/`: Canvas rendering, hit testing, and PNG export. Keep editor and export drawing aligned through `drawDocument`.
 - `src/components/`: reusable React UI, component registries, icon registries, and shared controls.
 - `src/app/App.tsx`: app orchestration and state wiring only.
@@ -23,7 +24,7 @@ Read `docs/ai-context.md` before broad architecture work.
 
 ## Verification
 
-- Source changes: run `npm test` and `npm run build`.
+- Source changes: run `npm run verify`.
 - Docs/rules-only changes: verify frontmatter, links, paths, and stale references.
 - Do not claim completion without fresh verification evidence.
 

@@ -36,12 +36,7 @@ const collides = (candidate: CandidateCell, occupied: Set<string>) =>
 
 const neighborKeys = (key: string, includeDiagonals = false) => {
   const [row, column] = key.split(":").map(Number);
-  const neighbors = [
-    `${row - 1}:${column}`,
-    `${row + 1}:${column}`,
-    `${row}:${column - 1}`,
-    `${row}:${column + 1}`,
-  ];
+  const neighbors = [`${row - 1}:${column}`, `${row + 1}:${column}`, `${row}:${column - 1}`, `${row}:${column + 1}`];
 
   if (includeDiagonals) {
     neighbors.push(
@@ -111,17 +106,12 @@ const rangesOverlap = (startA: number, endA: number, startB: number, endB: numbe
   Math.max(startA, startB) < Math.min(endA, endB);
 
 const isVerticalEdgeConnector = (candidate: CandidateCell, config: NormalizedGridConfig) =>
-  candidate.kind === "large" &&
-  (candidate.y === 0 || candidate.y + candidate.height === config.logicalHeight);
+  candidate.kind === "large" && (candidate.y === 0 || candidate.y + candidate.height === config.logicalHeight);
 
 const getCandidateColumns = (candidate: CandidateCell) => {
   const columns: number[] = [];
 
-  for (
-    let column = candidate.x / BASE_UNIT;
-    column < (candidate.x + candidate.width) / BASE_UNIT;
-    column += 1
-  ) {
+  for (let column = candidate.x / BASE_UNIT; column < (candidate.x + candidate.width) / BASE_UNIT; column += 1) {
     columns.push(column);
   }
 
@@ -151,9 +141,7 @@ const verticalEdgeConnectorScore = (candidate: CandidateCell, config: Normalized
   if (isVerticalEdgeConnector(candidate, config)) {
     const blockedColumnPressure = getBlockedColumnPressure(candidate, config);
     const openRightBias =
-      blockedColumnPressure === 0 && candidate.x + candidate.width > config.logicalWidth * 0.62
-        ? 1.4
-        : 0;
+      blockedColumnPressure === 0 && candidate.x + candidate.width > config.logicalWidth * 0.62 ? 1.4 : 0;
 
     return 1.6 + blockedColumnPressure + openRightBias;
   }
@@ -209,9 +197,7 @@ const hasSmallEdgeNeighbor = (candidate: CandidateCell, cells: GridCell[]) => {
 
 const getSmallDiagonalChainLength = (cells: Array<GridCell | CandidateCell>) => {
   const smallSlots = new Set(
-    cells
-      .filter((cell) => cell.kind === "small")
-      .map((cell) => `${cell.y / BASE_UNIT}:${cell.x / BASE_UNIT}`),
+    cells.filter((cell) => cell.kind === "small").map((cell) => `${cell.y / BASE_UNIT}:${cell.x / BASE_UNIT}`),
   );
   let maxChain = 0;
 
@@ -245,21 +231,12 @@ const getSmallDiagonalChainLength = (cells: Array<GridCell | CandidateCell>) => 
 
 const shouldCapSmallDiagonalChains = (config: NormalizedGridConfig) => config.largeCellRatio > 0;
 
-const wouldExceedSmallDiagonalChain = (
-  candidate: CandidateCell,
-  cells: GridCell[],
-  config: NormalizedGridConfig,
-) =>
+const wouldExceedSmallDiagonalChain = (candidate: CandidateCell, cells: GridCell[], config: NormalizedGridConfig) =>
   shouldCapSmallDiagonalChains(config) &&
   candidate.kind === "small" &&
   getSmallDiagonalChainLength([...cells, candidate]) > 3;
 
-const commitCandidate = (
-  candidate: CandidateCell,
-  occupied: Set<string>,
-  cells: GridCell[],
-  index: number,
-) => {
+const commitCandidate = (candidate: CandidateCell, occupied: Set<string>, cells: GridCell[], index: number) => {
   for (const key of footprintKeys(candidate)) {
     occupied.add(key);
   }
@@ -307,11 +284,7 @@ const startCandidateScore = (candidate: CandidateCell, config: NormalizedGridCon
   return prng.next() - distanceFromCenter * 0.35 + verticalEdgeConnectorScore(candidate, config);
 };
 
-const prioritizeCandidates = (
-  candidates: CandidateCell[],
-  config: NormalizedGridConfig,
-  prng: Prng,
-) =>
+const prioritizeCandidates = (candidates: CandidateCell[], config: NormalizedGridConfig, prng: Prng) =>
   shuffleWithPrng(candidates, prng).sort(
     (left, right) => startCandidateScore(right, config, prng) - startCandidateScore(left, config, prng),
   );
@@ -417,8 +390,7 @@ const pickValidCandidate = (
   return null;
 };
 
-const getCandidateSlots = (candidate: CandidateCell) =>
-  (candidate.width / BASE_UNIT) * (candidate.height / BASE_UNIT);
+const getCandidateSlots = (candidate: CandidateCell) => (candidate.width / BASE_UNIT) * (candidate.height / BASE_UNIT);
 
 const getCellBounds = (cells: GridCell[]) => {
   if (cells.length === 0) {
@@ -464,9 +436,7 @@ const getCoverageState = (cells: GridCell[], config: NormalizedGridConfig) => {
   const midpointY = config.logicalHeight / 2;
 
   return {
-    hasTopRight: cells.some(
-      (cell) => cell.x + cell.width > midpointX && cell.y < midpointY,
-    ),
+    hasTopRight: cells.some((cell) => cell.x + cell.width > midpointX && cell.y < midpointY),
     hasTopLeft: cells.some((cell) => cell.x < midpointX && cell.y < midpointY),
     hasRight: cells.some((cell) => cell.x + cell.width > config.logicalWidth * 0.72),
     hasTop: cells.some((cell) => cell.y < config.logicalHeight * 0.28),
@@ -731,22 +701,22 @@ const pickOverlayCompanion = (
 
 export const generateGrid = (config: GridConfig): GeneratedGrid => {
   const normalizedConfig = normalizeConfig(config);
-  const prng = createPrng(JSON.stringify({
-    seed: normalizedConfig.seed,
-    width: normalizedConfig.logicalWidth,
-    height: normalizedConfig.logicalHeight,
-    density: normalizedConfig.density,
-    small: normalizedConfig.smallCellRatio,
-    large: normalizedConfig.largeCellRatio,
-    gapMask: normalizedConfig.gapMask,
-  }));
+  const prng = createPrng(
+    JSON.stringify({
+      seed: normalizedConfig.seed,
+      width: normalizedConfig.logicalWidth,
+      height: normalizedConfig.logicalHeight,
+      density: normalizedConfig.density,
+      small: normalizedConfig.smallCellRatio,
+      large: normalizedConfig.largeCellRatio,
+      gapMask: normalizedConfig.gapMask,
+    }),
+  );
   const totalSlots = normalizedConfig.columns * normalizedConfig.rows;
   const targetOccupiedSlots = Math.floor(totalSlots * normalizedConfig.density);
   const targetLargeSlots = Math.floor(targetOccupiedSlots * normalizedConfig.largeCellRatio);
   const targetSmallVisuals = Math.floor(targetOccupiedSlots * normalizedConfig.smallCellRatio);
-  const targetBaseSmallSlots = Math.floor(
-    targetSmallVisuals * (normalizedConfig.density >= 0.95 ? 1 : 0.55),
-  );
+  const targetBaseSmallSlots = Math.floor(targetSmallVisuals * (normalizedConfig.density >= 0.95 ? 1 : 0.55));
   const occupied = new Set<string>();
   const cells: GridCell[] = [];
 
@@ -758,24 +728,19 @@ export const generateGrid = (config: GridConfig): GeneratedGrid => {
     return grid;
   }
 
-  const largeCandidates =
-    normalizedConfig.largeCellRatio > 0 ? buildCandidates(normalizedConfig, LARGE_CELL_SIZE) : [];
-  const smallCandidates =
-    normalizedConfig.smallCellRatio > 0 ? buildCandidates(normalizedConfig, SMALL_CELL_SIZE) : [];
+  const largeCandidates = normalizedConfig.largeCellRatio > 0 ? buildCandidates(normalizedConfig, LARGE_CELL_SIZE) : [];
+  const smallCandidates = normalizedConfig.smallCellRatio > 0 ? buildCandidates(normalizedConfig, SMALL_CELL_SIZE) : [];
   const edgeConnectorCandidates = largeCandidates.filter((candidate) =>
     isVerticalEdgeConnector(candidate, normalizedConfig),
   );
   const canStartLarge = largeCandidates.length > 0 && targetLargeSlots > 0;
   const canStartSmall = smallCandidates.length > 0 && targetBaseSmallSlots > 0;
-  const preferredStartPool = canStartLarge && (!canStartSmall || prng.chance(normalizedConfig.largeCellRatio))
-    ? largeCandidates
-    : smallCandidates;
+  const preferredStartPool =
+    canStartLarge && (!canStartSmall || prng.chance(normalizedConfig.largeCellRatio))
+      ? largeCandidates
+      : smallCandidates;
   const fallbackStartPool =
-    preferredStartPool === largeCandidates
-      ? smallCandidates
-      : canStartLarge
-        ? largeCandidates
-        : [];
+    preferredStartPool === largeCandidates ? smallCandidates : canStartLarge ? largeCandidates : [];
   const startCandidate =
     (canStartLarge && edgeConnectorCandidates.length > 0 && prng.chance(0.82)
       ? prioritizeCandidates(edgeConnectorCandidates, normalizedConfig, prng)[0]
@@ -809,11 +774,7 @@ export const generateGrid = (config: GridConfig): GeneratedGrid => {
     const shouldTryLarge = canPlaceLarge && (!canPlaceSmall || prng.chance(0.72));
     const primaryPool = shouldTryLarge ? largeCandidates : smallCandidates;
     const secondaryPool =
-      shouldTryLarge && canPlaceSmall
-        ? smallCandidates
-        : !shouldTryLarge && canPlaceLarge
-          ? largeCandidates
-          : [];
+      shouldTryLarge && canPlaceSmall ? smallCandidates : !shouldTryLarge && canPlaceLarge ? largeCandidates : [];
     const candidate =
       pickValidCandidate(primaryPool, normalizedConfig, occupied, cells, prng, true) ??
       pickValidCandidate(secondaryPool, normalizedConfig, occupied, cells, prng, true);

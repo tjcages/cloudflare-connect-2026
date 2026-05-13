@@ -79,7 +79,9 @@ describe("ComponentSidebar", () => {
 
     expect(previewWrappers).toHaveLength(2);
     expect(previewIcons).toHaveLength(2);
-    expect(previewIcons.every((icon) => icon.parentElement?.classList.contains("component-list-item-preview"))).toBe(true);
+    expect(previewIcons.every((icon) => icon.parentElement?.classList.contains("component-list-item-preview"))).toBe(
+      true,
+    );
     expect(previewIcons.map((icon) => [icon.getAttribute("width"), icon.getAttribute("height")])).toEqual([
       ["16", "16"],
       ["16", "16"],

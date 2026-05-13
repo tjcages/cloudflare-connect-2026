@@ -4,7 +4,11 @@ import { copyDocumentPng } from "../canvas/pngExport";
 import { ComponentSidebar } from "../components/ComponentSidebar";
 import { GridCanvas } from "../components/GridCanvas";
 import { Sidebar } from "../components/Sidebar";
-import { createComponentInstance, getComponentDefinition, snapComponentPosition } from "../components/componentRegistry";
+import {
+  createComponentInstance,
+  getComponentDefinition,
+  snapComponentPosition,
+} from "../components/componentRegistry";
 import { ICON_STROKE_WIDTH, RAIL_ICON_SIZE } from "../components/iconTokens";
 import { DEFAULT_CONFIG, updateLargeRatio, updateSmallRatio } from "../grid/config";
 import { useGeneratedGrid } from "../grid/useGeneratedGrid";

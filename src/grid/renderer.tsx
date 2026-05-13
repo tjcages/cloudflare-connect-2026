@@ -19,9 +19,7 @@ export const gridToSvg = (grid: GeneratedGrid): string => {
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${logicalWidth}" height="${logicalHeight}" viewBox="0 0 ${logicalWidth} ${logicalHeight}" overflow="visible">`,
-    pathData
-      ? `  <path d="${pathData}" fill="none" stroke="${strokeColor}" stroke-width="1" />`
-      : "",
+    pathData ? `  <path d="${pathData}" fill="none" stroke="${strokeColor}" stroke-width="1" />` : "",
     `</svg>`,
   ]
     .filter(Boolean)

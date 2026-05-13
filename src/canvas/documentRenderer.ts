@@ -73,10 +73,7 @@ const fillIconPaths = (context: CanvasRenderingContext2D, paths: string[]) => {
 };
 
 const fillIconShadowFallback = (context: CanvasRenderingContext2D, paths: string[], shadowColor: string) => {
-  [
-    { offsetY: 0.5 },
-    { offsetY: 1 },
-  ].forEach((shadow) => {
+  [{ offsetY: 0.5 }, { offsetY: 1 }].forEach((shadow) => {
     context.save();
     context.translate(0, shadow.offsetY);
     context.fillStyle = shadowColor;

@@ -26,12 +26,7 @@ export const getCellFootprint = (cell: GridCell): string[] => {
 
 const getNeighborKeys = (key: string, includeDiagonals = false) => {
   const [row, column] = key.split(":").map(Number);
-  const neighbors = [
-    `${row - 1}:${column}`,
-    `${row + 1}:${column}`,
-    `${row}:${column - 1}`,
-    `${row}:${column + 1}`,
-  ];
+  const neighbors = [`${row - 1}:${column}`, `${row + 1}:${column}`, `${row}:${column - 1}`, `${row}:${column + 1}`];
 
   if (includeDiagonals) {
     neighbors.push(
@@ -107,9 +102,7 @@ const isOverlayInsideLargeCell = (overlay: GridCell, cells: GridCell[]) =>
 
 const getSmallDiagonalChainLength = (cells: GridCell[]) => {
   const smallSlots = new Set(
-    cells
-      .filter((cell) => cell.kind === "small")
-      .map((cell) => `${cell.y / BASE_UNIT}:${cell.x / BASE_UNIT}`),
+    cells.filter((cell) => cell.kind === "small").map((cell) => `${cell.y / BASE_UNIT}:${cell.x / BASE_UNIT}`),
   );
   let maxChain = 0;
 
@@ -182,10 +175,7 @@ export const validateGeneratedGrid = (grid: GeneratedGrid): ValidationResult => 
       errors.push(`${cell.id} starts outside the canvas.`);
     }
 
-    if (
-      cell.x + cell.width > grid.config.logicalWidth ||
-      cell.y + cell.height > grid.config.logicalHeight
-    ) {
+    if (cell.x + cell.width > grid.config.logicalWidth || cell.y + cell.height > grid.config.logicalHeight) {
       errors.push(`${cell.id} extends outside the logical canvas.`);
     }
 

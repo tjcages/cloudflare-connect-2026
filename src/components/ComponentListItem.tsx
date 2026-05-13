@@ -50,12 +50,7 @@ export const ComponentListItem = ({
   }
 
   return (
-    <div
-      className={classes}
-      data-testid={testId}
-      onClick={onClick as MouseEventHandler<HTMLDivElement> | undefined}
-      onPointerDown={onPointerDown as PointerEventHandler<HTMLDivElement> | undefined}
-    >
+    <div className={classes} data-testid={testId}>
       {content}
     </div>
   );

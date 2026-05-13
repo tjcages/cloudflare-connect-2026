@@ -9,7 +9,13 @@ type ComponentIconProps = {
   className?: string;
 };
 
-export const ComponentIcon = ({ iconId, color, size = 24, title, className = "component-icon" }: ComponentIconProps) => {
+export const ComponentIcon = ({
+  iconId,
+  color,
+  size = 24,
+  title,
+  className = "component-icon",
+}: ComponentIconProps) => {
   const icon = getIconDefinition(iconId);
   const titleId = title ? `${icon.id}-title` : undefined;
 

@@ -54,7 +54,6 @@ describe("normalizeConfig", () => {
 
     expect(config.density).toBe(1);
   });
-
 });
 
 describe("ratio updates", () => {

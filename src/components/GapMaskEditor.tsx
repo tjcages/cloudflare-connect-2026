@@ -75,45 +75,51 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
     setActiveSelection(null);
   }, [onChange, setActiveSelection]);
 
-  const getPointFromPointer = useCallback((event: PointerEvent): SelectionPoint | null => {
-    const grid = gridRef.current;
+  const getPointFromPointer = useCallback(
+    (event: PointerEvent): SelectionPoint | null => {
+      const grid = gridRef.current;
 
-    if (!grid || rows === 0 || columns === 0) {
-      return null;
-    }
+      if (!grid || rows === 0 || columns === 0) {
+        return null;
+      }
 
-    const rect = grid.getBoundingClientRect();
-    const cellWidth = rect.width / columns;
-    const cellHeight = rect.height / rows;
+      const rect = grid.getBoundingClientRect();
+      const cellWidth = rect.width / columns;
+      const cellHeight = rect.height / rows;
 
-    if (cellWidth === 0 || cellHeight === 0) {
-      return null;
-    }
+      if (cellWidth === 0 || cellHeight === 0) {
+        return null;
+      }
 
-    return {
-      row: Math.min(rows - 1, Math.max(0, Math.floor((event.clientY - rect.top) / cellHeight))),
-      column: Math.min(columns - 1, Math.max(0, Math.floor((event.clientX - rect.left) / cellWidth))),
-    };
-  }, [columns, rows]);
+      return {
+        row: Math.min(rows - 1, Math.max(0, Math.floor((event.clientY - rect.top) / cellHeight))),
+        column: Math.min(columns - 1, Math.max(0, Math.floor((event.clientX - rect.left) / cellWidth))),
+      };
+    },
+    [columns, rows],
+  );
 
-  const updateSelectionFromPointer = useCallback((event: PointerEvent) => {
-    const activeSelection = selectionRef.current;
+  const updateSelectionFromPointer = useCallback(
+    (event: PointerEvent) => {
+      const activeSelection = selectionRef.current;
 
-    if (!activeSelection) {
-      return;
-    }
+      if (!activeSelection) {
+        return;
+      }
 
-    const end = getPointFromPointer(event);
+      const end = getPointFromPointer(event);
 
-    if (!end || (activeSelection.end.row === end.row && activeSelection.end.column === end.column)) {
-      return;
-    }
+      if (!end || (activeSelection.end.row === end.row && activeSelection.end.column === end.column)) {
+        return;
+      }
 
-    setActiveSelection({
-      ...activeSelection,
-      end,
-    });
-  }, [getPointFromPointer, setActiveSelection]);
+      setActiveSelection({
+        ...activeSelection,
+        end,
+      });
+    },
+    [getPointFromPointer, setActiveSelection],
+  );
 
   useEffect(() => {
     const cancelSelection = () => setActiveSelection(null);
@@ -133,24 +139,20 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
     <div className="gap-editor">
       <div className="section-heading">
         <span>Gaps</span>
-        <small>{columns} x {rows}</small>
+        <small>
+          {columns} x {rows}
+        </small>
       </div>
-      <div
-        ref={gridRef}
-        className="gap-grid"
-        style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
-      >
+      <div ref={gridRef} className="gap-grid" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
         {mask.map((maskRow, row) =>
           maskRow.map((blocked, column) => {
             const isSelected = cellIsInRange(row, column, selection);
 
             return (
               <button
-                className={[
-                  "gap-cell",
-                  blocked ? "gap-cell-blocked" : "",
-                  isSelected ? "gap-cell-selected" : "",
-                ].join(" ")}
+                className={["gap-cell", blocked ? "gap-cell-blocked" : "", isSelected ? "gap-cell-selected" : ""].join(
+                  " ",
+                )}
                 key={`${row}:${column}`}
                 onPointerDown={(event) => {
                   event.preventDefault();

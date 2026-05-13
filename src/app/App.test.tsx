@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { copyDocumentPng } from "../canvas/pngExport";
 import { generateGrid } from "../grid/generator";
@@ -41,30 +41,17 @@ const createTestWorker = () => {
   return worker;
 };
 
-const resolveLatestWorker = () => {
-  const worker = workerInstances.at(-1);
-  const latestRequest = worker?.postMessage.mock.calls.at(-1)?.[0];
-  const generator = vi.mocked(generateGrid).getMockImplementation();
-
-  if (!worker || !latestRequest || !generator) {
-    return;
-  }
-
-  worker.onmessage?.({
-    data: {
-      grid: generator(latestRequest.config),
-    },
-  } as MessageEvent);
-};
-
 describe("App", () => {
   beforeEach(() => {
     vi.mocked(generateGrid).mockClear();
     vi.mocked(copyDocumentPng).mockClear();
     workerInstances.length = 0;
-    vi.stubGlobal("Worker", vi.fn(function WorkerMock() {
-      return createTestWorker();
-    }));
+    vi.stubGlobal(
+      "Worker",
+      vi.fn(function WorkerMock() {
+        return createTestWorker();
+      }),
+    );
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
       save: vi.fn(),
       restore: vi.fn(),
@@ -84,19 +71,17 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
-  it("copies the composed canvas as 2x PNG from the single export button", async () => {
+  it("copies the composed canvas as 2x PNG from the single export button", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Copy PNG" }));
 
-    await waitFor(() => {
-      expect(copyDocumentPng).toHaveBeenCalledWith(
-        expect.objectContaining({
-          scale: 2,
-          instances: expect.arrayContaining([expect.objectContaining({ type: "icon-box" })]),
-        }),
-      );
-    });
+    expect(copyDocumentPng).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scale: 2,
+        instances: expect.arrayContaining([expect.objectContaining({ type: "icon-box" })]),
+      }),
+    );
     expect(screen.queryByRole("button", { name: "Copy 2x Retina PNG" })).not.toBeInTheDocument();
   });
 

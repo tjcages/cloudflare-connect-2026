@@ -32,11 +32,7 @@ describe("writeSvgToClipboard", () => {
 
     expect(clipboard.write).toHaveBeenCalledWith([MockClipboardItem.instances[0]]);
     expect(clipboard.writeText).not.toHaveBeenCalled();
-    expect(Object.keys(MockClipboardItem.instances[0].items)).toEqual([
-      "image/svg+xml",
-      "text/html",
-      "text/plain",
-    ]);
+    expect(Object.keys(MockClipboardItem.instances[0].items)).toEqual(["image/svg+xml", "text/html", "text/plain"]);
     await expect(MockClipboardItem.instances[0].items["image/svg+xml"].text()).resolves.toBe(svg);
     await expect(MockClipboardItem.instances[0].items["text/html"].text()).resolves.toBe(svg);
     await expect(MockClipboardItem.instances[0].items["text/plain"].text()).resolves.toBe(svg);

@@ -72,16 +72,12 @@ const smallCellsShareEdge = (cells: ReturnType<typeof generateGrid>["cells"]) =>
 
 const hasVerticalEdgeConnector = (grid: ReturnType<typeof generateGrid>) =>
   grid.cells.some(
-    (cell) =>
-      cell.kind === "large" &&
-      (cell.y === 0 || cell.y + cell.height === grid.config.logicalHeight),
+    (cell) => cell.kind === "large" && (cell.y === 0 || cell.y + cell.height === grid.config.logicalHeight),
   );
 
 const hasTopRightCoverage = (grid: ReturnType<typeof generateGrid>) =>
   grid.cells.some(
-    (cell) =>
-      cell.x + cell.width > grid.config.logicalWidth * 0.62 &&
-      cell.y < grid.config.logicalHeight * 0.36,
+    (cell) => cell.x + cell.width > grid.config.logicalWidth * 0.62 && cell.y < grid.config.logicalHeight * 0.36,
   );
 
 const isOverlayInsideLargeCell = (
@@ -99,9 +95,7 @@ const isOverlayInsideLargeCell = (
 
 const getSmallDiagonalChainLength = (cells: ReturnType<typeof generateGrid>["cells"]) => {
   const smallSlots = new Set(
-    cells
-      .filter((cell) => cell.kind === "small")
-      .map((cell) => `${cell.y / BASE_UNIT}:${cell.x / BASE_UNIT}`),
+    cells.filter((cell) => cell.kind === "small").map((cell) => `${cell.y / BASE_UNIT}:${cell.x / BASE_UNIT}`),
   );
   let maxChain = 0;
 
@@ -185,7 +179,9 @@ describe("generateGrid", () => {
     const grid = generateGrid({ ...DEFAULT_CONFIG, largeCellRatio: 0.8, smallCellRatio: 0.2 });
 
     expect(grid.cells.some((cell) => cell.kind === "large")).toBe(true);
-    expect(grid.cells.filter((cell) => cell.kind === "large").every((cell) => cell.width === LARGE_CELL_SIZE)).toBe(true);
+    expect(grid.cells.filter((cell) => cell.kind === "large").every((cell) => cell.width === LARGE_CELL_SIZE)).toBe(
+      true,
+    );
     expect(LARGE_CELL_SIZE).toBe(80);
   });
 
@@ -364,9 +360,7 @@ describe("generateGrid", () => {
     });
 
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain(
-      "Small cells must not share a full edge because they can read as 80x40 or 40x80.",
-    );
+    expect(result.errors).toContain("Small cells must not share a full edge because they can read as 80x40 or 40x80.");
   });
 
   it("does not reproduce the 80x40 visual block for seed 0caae61a", () => {
@@ -396,9 +390,7 @@ describe("generateGrid", () => {
     });
 
     expect(validateGeneratedGrid(grid).valid).toBe(true);
-    expect(
-      grid.cells.some((cell) => cell.x < 80 && cell.y < 80),
-    ).toBe(false);
+    expect(grid.cells.some((cell) => cell.x < 80 && cell.y < 80)).toBe(false);
   });
 
   it("still grows edge connectors near open columns when bottom-left is reserved", () => {
@@ -417,9 +409,7 @@ describe("generateGrid", () => {
     });
 
     expect(validateGeneratedGrid(grid).valid).toBe(true);
-    expect(
-      grid.cells.some((cell) => cell.kind === "large" && cell.y === 0 && cell.x <= 160),
-    ).toBe(true);
+    expect(grid.cells.some((cell) => cell.kind === "large" && cell.y === 0 && cell.x <= 160)).toBe(true);
   });
 
   it("does not leave the top-right area empty for seed 860591a4", () => {

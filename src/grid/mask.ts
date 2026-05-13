@@ -8,20 +8,12 @@ export const resizeGapMask = (mask: GapMask, rows: number, columns: number): Gap
     Array.from({ length: columns }, (_, column) => mask[row]?.[column] ?? false),
   );
 
-export const setMaskCell = (
-  mask: GapMask,
-  row: number,
-  column: number,
-  blocked: boolean,
-): GapMask =>
+export const setMaskCell = (mask: GapMask, row: number, column: number, blocked: boolean): GapMask =>
   mask.map((maskRow, rowIndex) =>
-    maskRow.map((cell, columnIndex) =>
-      rowIndex === row && columnIndex === column ? blocked : cell,
-    ),
+    maskRow.map((cell, columnIndex) => (rowIndex === row && columnIndex === column ? blocked : cell)),
   );
 
-export const isMaskCellBlocked = (mask: GapMask, row: number, column: number): boolean =>
-  mask[row]?.[column] ?? false;
+export const isMaskCellBlocked = (mask: GapMask, row: number, column: number): boolean => mask[row]?.[column] ?? false;
 
 export const candidateTouchesGap = (mask: GapMask, candidate: CandidateCell): boolean => {
   const startColumn = candidate.x / BASE_UNIT;
@@ -53,18 +45,12 @@ export const applyPreviewCellToMask = (
   const rowStart = Math.floor((previewRow / previewRows) * rows);
   const rowEnd = Math.max(rowStart + 1, Math.ceil(((previewRow + 1) / previewRows) * rows));
   const columnStart = Math.floor((previewColumn / previewColumns) * columns);
-  const columnEnd = Math.max(
-    columnStart + 1,
-    Math.ceil(((previewColumn + 1) / previewColumns) * columns),
-  );
+  const columnEnd = Math.max(columnStart + 1, Math.ceil(((previewColumn + 1) / previewColumns) * columns));
 
   return mask.map((maskRow, rowIndex) =>
     maskRow.map((cell, columnIndex) => {
       const isInPreviewCell =
-        rowIndex >= rowStart &&
-        rowIndex < rowEnd &&
-        columnIndex >= columnStart &&
-        columnIndex < columnEnd;
+        rowIndex >= rowStart && rowIndex < rowEnd && columnIndex >= columnStart && columnIndex < columnEnd;
 
       return isInPreviewCell ? blocked : cell;
     }),
@@ -83,10 +69,7 @@ export const isPreviewCellBlocked = (
   const rowStart = Math.floor((previewRow / previewRows) * rows);
   const rowEnd = Math.max(rowStart + 1, Math.ceil(((previewRow + 1) / previewRows) * rows));
   const columnStart = Math.floor((previewColumn / previewColumns) * columns);
-  const columnEnd = Math.max(
-    columnStart + 1,
-    Math.ceil(((previewColumn + 1) / previewColumns) * columns),
-  );
+  const columnEnd = Math.max(columnStart + 1, Math.ceil(((previewColumn + 1) / previewColumns) * columns));
 
   for (let row = rowStart; row < rowEnd; row += 1) {
     for (let column = columnStart; column < columnEnd; column += 1) {
