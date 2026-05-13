@@ -9,6 +9,7 @@ import {
 } from "./componentRegistry";
 import {
   ICON_BOX_CARD_FRAME_ORIGIN_Y,
+  ICON_BOX_HIGHLIGHT_HEIGHT,
   ICON_BOX_OUTER_HEIGHT,
   ICON_BOX_SNAP_ANCHOR_X,
   ICON_BOX_SNAP_ANCHOR_Y,
@@ -93,7 +94,8 @@ describe("componentRegistry", () => {
     const hilite = getInstanceHighlightBounds(inst);
 
     expect(hilite.y).toBe(inst.y);
-    expect(hilite.height).toBe(ICON_BOX_OUTER_HEIGHT);
+    expect(hilite.height).toBe(ICON_BOX_HIGHLIGHT_HEIGHT);
+    expect(hilite.height).toBeLessThan(ICON_BOX_OUTER_HEIGHT);
     expect(hit.y).toBe(inst.y + ICON_BOX_CARD_FRAME_ORIGIN_Y);
     expect(hilite.height).toBeGreaterThan(hit.height);
   });

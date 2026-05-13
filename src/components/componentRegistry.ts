@@ -117,7 +117,7 @@ export const getInstanceCanvasBounds = (
   };
 };
 
-/** Selection outline bounds; icon-box includes title strip and bottom margin (full visual footprint). */
+/** Selection outline bounds; icon-box wraps title bar + chrome through accent bar (excludes glow/filter pad below accent). */
 export const getInstanceHighlightBounds = (
   instance: ComponentInstance,
 ): { x: number; y: number; width: number; height: number } => {

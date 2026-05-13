@@ -30,6 +30,13 @@ export const ICON_BOX_ACCENT_SHADOW_PAD = 20;
 export const ICON_BOX_BOTTOM_MARGIN = ICON_BOX_ACCENT_BAR_GAP + ICON_BOX_ACCENT_BAR_HEIGHT + ICON_BOX_ACCENT_SHADOW_PAD;
 export const ICON_BOX_OUTER_HEIGHT = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_BOTTOM_MARGIN;
 
+/**
+ * Selection outline bottom: through accent bar geometry only.
+ * Omit `ICON_BOX_ACCENT_SHADOW_PAD` so the stroke does not encompass glow/filter bleed reserved for PNG export.
+ */
+export const ICON_BOX_HIGHLIGHT_HEIGHT =
+  ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_ACCENT_BAR_GAP + ICON_BOX_ACCENT_BAR_HEIGHT;
+
 /** Logical padding around the shadowed inner card for selection outline, outer frame, and pointer hits. */
 export const ICON_BOX_SELECTION_PADDING = 8;
 
@@ -48,8 +55,8 @@ export const getIconBoxShadowCardBoundsInRootSpace = (): { x: number; y: number;
 });
 
 /**
- * Outline rect for selection UI: title strip plus full nominal body (`TITLE_BAR_WIDTH` × `ICON_BOX_OUTER_HEIGHT`),
- * widening when long titles overflow the nominal width (matches Pixi barLeft/rectWidth).
+ * Outline rect for selection UI: title strip plus nominal body width, height through accent bar only (no accent glow pad).
+ * Widens horizontally when titles overflow (`TITLE_BAR_WIDTH`), matching Pixi barLeft/rectWidth.
  * Pointer bounds and snapping still use shadow-card/`COMPONENT_REGISTRY`; this is visuals only.
  */
 export const getIconBoxFullHighlightBoundsInRootSpace = (
@@ -62,7 +69,7 @@ export const getIconBoxFullHighlightBoundsInRootSpace = (
     x: minX,
     y: 0,
     width: maxX - minX,
-    height: ICON_BOX_OUTER_HEIGHT,
+    height: ICON_BOX_HIGHLIGHT_HEIGHT,
   };
 };
 
