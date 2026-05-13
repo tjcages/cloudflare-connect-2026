@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { drawDocument, drawIconBox } from "./documentRenderer";
+import { drawDocument, drawIconBox, hexToRgba } from "./documentRenderer";
+import { DEFAULT_ICON_ID } from "../components/iconRegistry";
 import { STROKE_COLOR, type ComponentInstance, type GeneratedGrid } from "../grid/types";
 
 const createContext = () => {
@@ -13,6 +14,7 @@ const createContext = () => {
     shadowColor: "",
     shadowOffsetX: 0,
     shadowOffsetY: 0,
+    filter: "none",
     save: () => calls.push("save"),
     restore: () => calls.push("restore"),
     scale: (x: number, y: number) => calls.push(`scale:${x}:${y}`),
@@ -27,8 +29,9 @@ const createContext = () => {
       calls.push(`roundRect:${x}:${y}:${width}:${height}:${radius}`),
     fill: () =>
       calls.push(
-        `fill:${context.fillStyle}:${context.shadowOffsetY}:${context.shadowBlur}:${context.shadowColor}`,
+        `fill:${context.fillStyle}:${context.shadowOffsetY}:${context.shadowBlur}:${context.shadowColor}:${context.filter}`,
       ),
+    translate: (x: number, y: number) => calls.push(`translate:${x}:${y}`),
     stroke: () => calls.push(`stroke:${context.strokeStyle}:${context.lineWidth}`),
   };
 
@@ -72,6 +75,8 @@ const iconBox: ComponentInstance = {
   y: 40,
   props: {
     cornerColor: "#123456",
+    iconColor: "#903EFC",
+    iconId: DEFAULT_ICON_ID,
   },
 };
 
@@ -104,13 +109,19 @@ describe("documentRenderer", () => {
 
     expect(context.calls).toEqual(
       expect.arrayContaining([
-        "fill:#FFFFFF:12:24:rgba(0, 0, 0, 0.04)",
-        "fill:#FFFFFF:6:12:rgba(0, 0, 0, 0.02)",
-        "fill:#FFFFFF:3:6:rgba(0, 0, 0, 0.01)",
+        "fill:#FFFFFF:12:24:rgba(0, 0, 0, 0.04):none",
+        "fill:#FFFFFF:6:12:rgba(0, 0, 0, 0.02):none",
+        "fill:#FFFFFF:3:6:rgba(0, 0, 0, 0.01):none",
         "stroke:rgba(0, 0, 0, 0.04):1",
-        "fill:#123456:0:0:transparent",
+        "fill:#123456:0:0:transparent:none",
+        "translate:68:68",
+        "fill:#903EFC:0:0:transparent:drop-shadow(0 0.5px 0.5px rgba(144, 62, 252, 0.12)) drop-shadow(0 1px 1px rgba(144, 62, 252, 0.12))",
       ]),
     );
+  });
+
+  it("converts hex colors into alpha shadows for icon rendering", () => {
+    expect(hexToRgba("#903EFC", 0.12)).toBe("rgba(144, 62, 252, 0.12)");
   });
 
   it("draws selected instances with a square outline", () => {

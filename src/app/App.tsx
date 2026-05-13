@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { Layers2 } from "lucide-react";
 import { copyDocumentPng } from "../canvas/pngExport";
 import { ComponentSidebar } from "../components/ComponentSidebar";
 import { GridCanvas } from "../components/GridCanvas";
 import { Sidebar } from "../components/Sidebar";
 import { createComponentInstance, getComponentDefinition, snapComponentPosition } from "../components/componentRegistry";
+import { ICON_STROKE_WIDTH, RAIL_ICON_SIZE } from "../components/iconTokens";
 import { DEFAULT_CONFIG, updateLargeRatio, updateSmallRatio } from "../grid/config";
 import { useGeneratedGrid } from "../grid/useGeneratedGrid";
 import type { ComponentInstance, ComponentType, GridConfig, IconBoxProps } from "../grid/types";
@@ -28,6 +30,33 @@ type CanvasDragState =
       offsetX: number;
       offsetY: number;
     };
+
+const GridDividerIcon = ({
+  size = RAIL_ICON_SIZE,
+  strokeWidth = ICON_STROKE_WIDTH,
+}: {
+  size?: number;
+  strokeWidth?: number;
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth={strokeWidth}
+    aria-hidden="true"
+    focusable="false"
+    data-testid="grid-divider-icon"
+  >
+    <path d="M8 4v16" />
+    <path d="M16 4v16" />
+    <path d="M4 8h16" />
+    <path d="M4 16h16" />
+  </svg>
+);
 
 export const App = () => {
   const [config, setConfig] = useState<GridConfig>(DEFAULT_CONFIG);
@@ -137,27 +166,29 @@ export const App = () => {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-tabs" role="tablist" aria-label="Builder tools">
-          <button
-            className={activeTab === "grid" ? "sidebar-tab sidebar-tab-active" : "sidebar-tab"}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "grid"}
-            onClick={() => setActiveTab("grid")}
-          >
-            Grid
-          </button>
-          <button
-            className={activeTab === "components" ? "sidebar-tab sidebar-tab-active" : "sidebar-tab"}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "components"}
-            onClick={() => setActiveTab("components")}
-          >
-            Components
-          </button>
-        </div>
+      <aside className="sidebar-rail" aria-label="Builder tools">
+        <button
+          className={activeTab === "grid" ? "sidebar-rail-button sidebar-rail-button-active" : "sidebar-rail-button"}
+          type="button"
+          aria-label="Grid"
+          aria-pressed={activeTab === "grid"}
+          onClick={() => setActiveTab("grid")}
+        >
+          <GridDividerIcon />
+        </button>
+        <button
+          className={
+            activeTab === "components" ? "sidebar-rail-button sidebar-rail-button-active" : "sidebar-rail-button"
+          }
+          type="button"
+          aria-label="Components"
+          aria-pressed={activeTab === "components"}
+          onClick={() => setActiveTab("components")}
+        >
+          <Layers2 size={RAIL_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+        </button>
+      </aside>
+      <aside className={activeTab === "components" ? "sidebar sidebar-components" : "sidebar"}>
         {activeTab === "grid" ? (
           <Sidebar
             config={{

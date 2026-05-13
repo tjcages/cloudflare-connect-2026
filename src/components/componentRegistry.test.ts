@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { COMPONENT_REGISTRY, createComponentInstance, snapComponentPosition } from "./componentRegistry";
+import { DEFAULT_ICON_ID } from "./iconRegistry";
 
 describe("componentRegistry", () => {
   it("registers icon-box with default corner color", () => {
     expect(COMPONENT_REGISTRY["icon-box"].label).toBe("icon-box");
     expect(COMPONENT_REGISTRY["icon-box"].defaultProps).toEqual({
       cornerColor: "#F3F3F3",
+      iconColor: "#903EFC",
+      iconId: DEFAULT_ICON_ID,
     });
   });
 
@@ -18,6 +21,8 @@ describe("componentRegistry", () => {
       y: 80,
       props: {
         cornerColor: "#F3F3F3",
+        iconColor: "#903EFC",
+        iconId: DEFAULT_ICON_ID,
       },
     });
   });

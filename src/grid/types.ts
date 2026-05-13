@@ -43,8 +43,12 @@ export type GeneratedGrid = {
 
 export type ComponentType = "icon-box";
 
+export type IconId = "section-mark";
+
 export type IconBoxProps = {
   cornerColor: string;
+  iconColor: string;
+  iconId: IconId;
 };
 
 export type ComponentInstance = {

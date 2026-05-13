@@ -1,6 +1,10 @@
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ComponentIcon } from "./ComponentIcon";
 import { COMPONENT_REGISTRY, getComponentDefinition } from "./componentRegistry";
-import { IconBoxPreview } from "./IconBoxPreview";
-import type { ComponentInstance, ComponentType, IconBoxProps } from "../grid/types";
+import { ComponentListItem } from "./ComponentListItem";
+import { ICON_OPTIONS } from "./iconRegistry";
+import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
+import type { ComponentInstance, ComponentType, IconBoxProps, IconId } from "../grid/types";
 
 type ComponentSidebarProps = {
   instances: ComponentInstance[];
@@ -14,6 +18,7 @@ type ComponentSidebarProps = {
 
 const componentTypes = Object.values(COMPONENT_REGISTRY);
 const getInstanceDisplayName = (instance: ComponentInstance) => getComponentDefinition(instance.type).label;
+const renderIcon = (props: IconBoxProps) => <ComponentIcon iconId={props.iconId} color={props.iconColor} size={16} />;
 
 export const ComponentSidebar = ({
   instances,
@@ -30,15 +35,64 @@ export const ComponentSidebar = ({
     return (
       <div className="component-config-panel">
         <button className="back-button" type="button" onClick={onBack}>
+          <ArrowLeft size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
           Back
         </button>
-        <div className="section-heading">
-          <span>{displayName}</span>
-          <small>
-            x: {selectedInstance.x}, y: {selectedInstance.y}
-          </small>
+        <ComponentListItem
+          className="component-config-header"
+          testId="component-config-header"
+          preview={renderIcon(selectedInstance.props)}
+          title={displayName}
+          meta={`x: ${selectedInstance.x}, y: ${selectedInstance.y}`}
+        />
+        <div className="field">
+          <span>Icon</span>
+          <div className="icon-picker" role="radiogroup" aria-label="Icon">
+            {ICON_OPTIONS.map((icon) => (
+              <button
+                key={icon.id}
+                className={
+                  selectedInstance.props.iconId === icon.id ? "icon-picker-button icon-picker-button-active" : "icon-picker-button"
+                }
+                type="button"
+                role="radio"
+                aria-checked={selectedInstance.props.iconId === icon.id}
+                aria-label={icon.label}
+                onClick={() =>
+                  onUpdateInstanceProps(selectedInstance.id, {
+                    ...selectedInstance.props,
+                    iconId: icon.id as IconId,
+                  })
+                }
+              >
+                <ComponentIcon iconId={icon.id as IconId} color={selectedInstance.props.iconColor} size={16} />
+              </button>
+            ))}
+          </div>
         </div>
-        <IconBoxPreview cornerColor={selectedInstance.props.cornerColor} />
+        <label className="field color-field">
+          <span>Icon color</span>
+          <span className="color-control">
+            <span
+              aria-hidden="true"
+              className="color-preview"
+              data-testid="icon-color-preview"
+              style={{ backgroundColor: selectedInstance.props.iconColor, height: "12px" }}
+            />
+            <input
+              className="color-input"
+              type="color"
+              value={selectedInstance.props.iconColor}
+              onChange={(event) =>
+                onUpdateInstanceProps(selectedInstance.id, {
+                  ...selectedInstance.props,
+                  iconColor: event.target.value,
+                })
+              }
+              aria-label="Icon color"
+            />
+          </span>
+        </label>
         <label className="field color-field">
           <span>Corner color</span>
           <span className="color-control">
@@ -70,8 +124,27 @@ export const ComponentSidebar = ({
     <div className="component-sidebar">
       <section className="component-section">
         <div className="section-heading">
-          <span>Current instances</span>
-          <small>{instances.length}</small>
+          <span>Components</span>
+        </div>
+        <div className="component-scroll-region">
+          {componentTypes.map((definition) => (
+            <ComponentListItem
+              key={definition.type}
+              as="button"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                onStartComponentDrag(definition.type satisfies ComponentType);
+              }}
+              preview={renderIcon(definition.defaultProps)}
+              title={definition.label}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="component-section">
+        <div className="section-heading">
+          <span>Layers</span>
         </div>
         <div className="component-scroll-region">
           {instances.length ? (
@@ -79,48 +152,48 @@ export const ComponentSidebar = ({
               const displayName = getInstanceDisplayName(instance);
 
               return (
-                <div className="component-row" key={instance.id}>
-                  <IconBoxPreview cornerColor={instance.props.cornerColor} size="small" />
-                  <span className="component-name">{displayName}</span>
-                  <span className="component-position">
-                    x: {instance.x}, y: {instance.y}
-                  </span>
-                  <div className="component-row-actions">
-                    <button type="button" onClick={() => onSelectInstance(instance.id)} aria-label={`Edit ${displayName}`}>
-                      Edit
-                    </button>
-                    <button type="button" onClick={() => onDeleteInstance(instance.id)} aria-label={`Delete ${displayName}`}>
-                      Trash
-                    </button>
-                  </div>
-                </div>
+                <ComponentListItem
+                  key={instance.id}
+                  testId={`layer-item-${instance.id}`}
+                  preview={renderIcon(instance.props)}
+                  title={displayName}
+                  meta={`x: ${instance.x}, y: ${instance.y}`}
+                  actions={
+                    <>
+                      <button
+                        className="component-row-icon-button"
+                        type="button"
+                        onClick={() => onSelectInstance(instance.id)}
+                        aria-label={`Edit ${displayName}`}
+                      >
+                        <Pencil
+                          size={ACTION_ICON_SIZE}
+                          strokeWidth={ICON_STROKE_WIDTH}
+                          aria-hidden="true"
+                          focusable="false"
+                        />
+                      </button>
+                      <button
+                        className="component-row-icon-button"
+                        type="button"
+                        onClick={() => onDeleteInstance(instance.id)}
+                        aria-label={`Delete ${displayName}`}
+                      >
+                        <Trash2
+                          size={ACTION_ICON_SIZE}
+                          strokeWidth={ICON_STROKE_WIDTH}
+                          aria-hidden="true"
+                          focusable="false"
+                        />
+                      </button>
+                    </>
+                  }
+                />
               );
             })
           ) : (
             <p className="empty-state">No components on canvas.</p>
           )}
-        </div>
-      </section>
-
-      <section className="component-section">
-        <div className="section-heading">
-          <span>Components</span>
-        </div>
-        <div className="component-scroll-region">
-          {componentTypes.map((definition) => (
-            <button
-              key={definition.type}
-              className="component-card"
-              type="button"
-              onPointerDown={(event) => {
-                event.preventDefault();
-                onStartComponentDrag(definition.type satisfies ComponentType);
-              }}
-            >
-              <IconBoxPreview cornerColor={definition.defaultProps.cornerColor} />
-              <span>{definition.label}</span>
-            </button>
-          ))}
         </div>
       </section>
     </div>

@@ -1,4 +1,5 @@
 import { BASE_UNIT, type ComponentInstance, type ComponentType, type IconBoxProps } from "../grid/types";
+import { DEFAULT_ICON_ID } from "./iconRegistry";
 
 export type ComponentDefinition = {
   type: ComponentType;
@@ -16,6 +17,8 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     height: 80,
     defaultProps: {
       cornerColor: "#F3F3F3",
+      iconColor: "#903EFC",
+      iconId: DEFAULT_ICON_ID,
     },
   },
 };

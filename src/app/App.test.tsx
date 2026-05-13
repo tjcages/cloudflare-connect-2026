@@ -100,20 +100,33 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Copy 2x Retina PNG" })).not.toBeInTheDocument();
   });
 
-  it("switches sidebar tabs without unmounting the canvas", () => {
+  it("switches sidebar panels from the icon rail without unmounting the canvas", () => {
     render(<App />);
 
     expect(screen.getByRole("img", { name: "Component builder canvas" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Grid" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "Components" }));
+    const gridButton = screen.getByRole("button", { name: "Grid" });
+    const componentsButton = screen.getByRole("button", { name: "Components" });
 
-    expect(screen.getByText("Current instances")).toBeInTheDocument();
+    expect(gridButton).toHaveClass("sidebar-rail-button-active");
+    expect(gridButton).toHaveAttribute("aria-pressed", "true");
+    expect(gridButton.querySelector("[data-testid='grid-divider-icon']")).toBeInTheDocument();
+    expect(gridButton.querySelectorAll("path")).toHaveLength(4);
+    expect(componentsButton.querySelector(".lucide-layers-2")).toBeInTheDocument();
+    expect(componentsButton).toHaveTextContent("");
+    expect(screen.queryByRole("tab", { name: "Grid" })).not.toBeInTheDocument();
+
+    fireEvent.click(componentsButton);
+
+    expect(screen.getByText("Layers")).toBeInTheDocument();
+    expect(componentsButton).toHaveAttribute("aria-pressed", "true");
+    expect(gridButton).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByText("Current instances")).not.toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Component builder canvas" })).toBeInTheDocument();
   });
 
   it("adds an icon-box from the sidebar with pointer drag at a snapped position", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("tab", { name: "Components" }));
+    fireEvent.click(screen.getByRole("button", { name: "Components" }));
     const canvas = screen.getByRole("img", { name: "Component builder canvas" }) as HTMLCanvasElement;
     vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
       bottom: 560,
@@ -155,7 +168,7 @@ describe("App", () => {
     fireEvent.click(canvas, { clientX: 240, clientY: 240 });
 
     expect(screen.queryByLabelText("Corner color")).not.toBeInTheDocument();
-    expect(screen.getByText("Current instances")).toBeInTheDocument();
+    expect(screen.getByText("Layers")).toBeInTheDocument();
   });
 
   it("moves an existing instance with pointer drag at a snapped position", () => {
@@ -200,6 +213,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Corner color"), { target: { value: "#abcdef" } });
 
     expect(screen.getByTestId("corner-color-preview")).toHaveStyle({ backgroundColor: "#abcdef" });
+    expect(screen.getByRole("button", { name: "Back" }).querySelector(".lucide-arrow-left")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete icon-box" }));
 

@@ -1,3 +1,4 @@
+import { getIconDefinition } from "../components/iconRegistry";
 import type { ComponentInstance, GeneratedGrid, GridCell } from "../grid/types";
 
 export type DocumentRenderInput = {
@@ -12,6 +13,16 @@ const resetShadow = (context: CanvasRenderingContext2D) => {
   context.shadowBlur = 0;
   context.shadowOffsetX = 0;
   context.shadowOffsetY = 0;
+};
+
+export const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.replace("#", "");
+  const value = normalized.length === 3 ? normalized.replace(/(.)/g, "$1$1") : normalized;
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 };
 
 const drawRoundedRect = (
@@ -48,6 +59,51 @@ const strokeRoundedRect = (
 ) => {
   drawRoundedRect(context, x, y, width, height, radius);
   context.stroke();
+};
+
+const fillIconPaths = (context: CanvasRenderingContext2D, paths: string[]) => {
+  paths.forEach((path) => {
+    if ("Path2D" in globalThis) {
+      context.fill(new Path2D(path));
+      return;
+    }
+
+    context.fill();
+  });
+};
+
+const fillIconShadowFallback = (context: CanvasRenderingContext2D, paths: string[], shadowColor: string) => {
+  [
+    { offsetY: 0.5 },
+    { offsetY: 1 },
+  ].forEach((shadow) => {
+    context.save();
+    context.translate(0, shadow.offsetY);
+    context.fillStyle = shadowColor;
+    fillIconPaths(context, paths);
+    context.restore();
+  });
+};
+
+const drawIcon = (context: CanvasRenderingContext2D, instance: ComponentInstance) => {
+  const icon = getIconDefinition(instance.props.iconId);
+  const shadowColor = hexToRgba(instance.props.iconColor, 0.12);
+
+  context.save();
+  context.translate(instance.x + 28, instance.y + 28);
+
+  if ("filter" in context) {
+    context.filter = `drop-shadow(0 0.5px 0.5px ${shadowColor}) drop-shadow(0 1px 1px ${shadowColor})`;
+    context.fillStyle = instance.props.iconColor;
+    fillIconPaths(context, icon.paths);
+    context.filter = "none";
+  } else {
+    fillIconShadowFallback(context, icon.paths, shadowColor);
+  }
+
+  context.fillStyle = instance.props.iconColor;
+  fillIconPaths(context, icon.paths);
+  context.restore();
 };
 
 export const drawGridLayer = (context: CanvasRenderingContext2D, grid: GeneratedGrid) => {
@@ -100,6 +156,8 @@ export const drawIconBox = (context: CanvasRenderingContext2D, instance: Compone
   markerPoints.forEach(([x, y]) => {
     fillRoundedRect(context, x, y, markerSize, markerSize, 1);
   });
+
+  drawIcon(context, instance);
 };
 
 export const drawComponentInstance = (context: CanvasRenderingContext2D, instance: ComponentInstance) => {
