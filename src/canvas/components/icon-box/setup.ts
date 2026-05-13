@@ -1,5 +1,5 @@
 import { BoxShadowFilter, type BoxShadowOptions } from "pixi-box-shadow";
-import { Container, Graphics, GraphicsPath, Text } from "pixi.js";
+import { Container, Graphics, Sprite, Text } from "pixi.js";
 import type { Ticker } from "../../../components/pixi";
 import { ICON_BOX_TITLE_FONT_FAMILY } from "../../../fonts/iconBoxTitle";
 import { getIconDefinition } from "../../../components/iconRegistry";
@@ -7,6 +7,7 @@ import type { ComponentInstance } from "../../../grid/types";
 import { paletteBrush } from "../../../theme/palette";
 import { parseHexColor } from "../../color";
 import { useAppStore } from "../../../store";
+import { rasterizeIcon } from "./iconRaster";
 import {
   ICON_BOX_INNER_OFFSET,
   ICON_BOX_INNER_SIZE,
@@ -127,20 +128,16 @@ const buildIconBox = (instance: ComponentInstance) => {
   }
   root.addChild(markers);
 
-  const iconPaths = getIconDefinition(instance.props.iconId).paths;
-  const iconGfx = new Graphics();
-  for (const d of iconPaths) {
-    iconGfx.path(new GraphicsPath(d));
-  }
+  const icon = getIconDefinition(instance.props.iconId);
   const iconRgb = brush.iconFill;
-  iconGfx.fill({ color: iconRgb });
+  const iconSprite = Sprite.from(rasterizeIcon(icon, brush.iconFillHex), true);
+  iconSprite.width = 24;
+  iconSprite.height = 24;
 
   const iconHold = new Container();
   iconHold.position.set(ICON_HOLD_OFFSET_X, ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER);
   iconHold.filters = [buildIconShadowFilter(iconRgb)];
-  iconHold.addChild(iconGfx);
-
-  iconHold.cacheAsTexture({ resolution: 2, antialias: true });
+  iconHold.addChild(iconSprite);
 
   root.addChild(iconHold);
 
