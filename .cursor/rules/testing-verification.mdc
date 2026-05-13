@@ -1,0 +1,14 @@
+---
+description: Testing style and verification expectations for source changes
+globs: src/**/*.test.{ts,tsx}, src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Testing And Verification
+
+- Unit-test pure grid, canvas, registry, and geometry helpers directly.
+- React tests should follow Testing Library principles: prefer role, label, and visible text queries over implementation details.
+- Canvas tests may assert drawing calls when pixels are not practical, but keep behavior-level tests for pointer/selection flows in `App.test.tsx`.
+- Do not test third-party libraries. Test how this app wires and responds to them.
+- After source changes, run `npm test` and `npm run build` before claiming completion.
+- For docs/rules-only changes, verify rule frontmatter, globs, paths, and stale references instead of running unrelated tests.

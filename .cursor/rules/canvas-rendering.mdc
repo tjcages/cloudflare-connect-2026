@@ -1,0 +1,15 @@
+---
+description: Canvas rendering, hit testing, coordinate spaces, and PNG export
+globs: src/canvas/**/*.ts, src/components/GridCanvas.tsx
+alwaysApply: false
+---
+
+# Canvas Rendering Rules
+
+- `drawDocument` in `src/canvas/documentRenderer.ts` is the visual source of truth for the editor canvas and PNG export.
+- Keep drawing deterministic from explicit inputs: generated grid, component instances, selection, and scale.
+- Name coordinate spaces clearly: logical/model coordinates, CSS pixels, and backing-store pixels are different.
+- Preserve high-DPI handling with `window.devicePixelRatio`; pointer math must convert from CSS pixels back to logical coordinates.
+- Hit testing should use registry bounds and topmost ordering. Do not duplicate component dimensions in pointer code.
+- Avoid scattering raw `CanvasRenderingContext2D` drawing across React components. React owns lifecycle; canvas helpers own drawing.
+- If rendering gets heavy, consider MDN-style optimizations: cache repeated primitives, reduce state changes, and split static/dynamic layers only when profiling justifies it.

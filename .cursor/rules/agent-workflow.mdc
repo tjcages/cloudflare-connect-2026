@@ -1,0 +1,15 @@
+---
+description: Agent workflow, safety, and verification expectations
+alwaysApply: true
+---
+
+# Agent Workflow
+
+- Check relevant project rules, docs, and nearby code before acting.
+- For creative feature work, clarify intent and outline the approach before editing. If requirements are ambiguous, ask.
+- Use TDD for behavior changes where practical: write or update the focused test first, watch it fail for the expected reason, then implement.
+- For bugs, reproduce the symptom before fixing. Do not guess through repeated attempts.
+- If two attempts do not make progress, stop and explain what you observed plus the best options.
+- Preserve user changes. Never run destructive git commands or overwrite unrelated edits unless explicitly approved.
+- Before claiming source work is complete, run fresh `npm test` and `npm run build`. For docs/rules-only work, verify frontmatter, paths, and stale references instead.
+- Report what was verified and any residual risk. Do not claim success from partial evidence.

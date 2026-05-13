@@ -1,0 +1,15 @@
+---
+description: Core architecture boundaries for the Canvas component builder
+alwaysApply: true
+---
+
+# Project Architecture
+
+Read `docs/ai-context.md` and nearby source before broad changes.
+
+- `src/grid/` is the pure deterministic grid domain. It owns config normalization, masks, seeded PRNG, generation, and validation. Do not import React here.
+- `src/canvas/` owns Canvas rendering, hit testing, and PNG export. Keep editor rendering and export rendering aligned through `drawDocument`.
+- `src/components/` owns reusable React UI, component registries, icon registries, and shared controls.
+- `src/app/App.tsx` is orchestration: app state, wiring, drag flow, and top-level layout. Move reusable logic out when it grows.
+- Prefer registry-backed extensions over duplicated switch logic. Add new component and icon behavior through `componentRegistry.ts`, `iconRegistry.ts`, canvas drawing, and tests.
+- Do not edit `.cursor/plans` unless the user explicitly asks.

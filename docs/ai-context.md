@@ -1,0 +1,98 @@
+# AI Context
+
+This document is the high-level map for future AI agents working in this repo.
+
+## Current Product
+
+The app is a Canvas component builder with a deterministic seeded grid background. Users can configure the grid, add component layers, move/select instances on the canvas, configure icon-box properties, and copy the composed canvas as a 2x PNG.
+
+The repo started as a seeded grid tool. Some older docs still describe an SVG-first implementation. Treat source code plus this file as the current architecture. `docs/grid-rulebook.md` remains authoritative for grid generation semantics.
+
+## Architecture Map
+
+| Area | Responsibility | Key Files |
+| --- | --- | --- |
+| App orchestration | Top-level state, tab selection, drag state, instance updates, copy action | `src/app/App.tsx` |
+| App styles | Global layout, sidebar rail, grid controls, component list styling | `src/app/App.css` |
+| Grid domain | Config normalization, masks, PRNG, generation, validation | `src/grid/` |
+| Grid worker | Runs generation off the main thread with fallback behavior | `src/grid/useGeneratedGrid.ts`, `src/grid/generatorWorker.ts` |
+| Canvas domain | Draw document, hit testing, PNG export | `src/canvas/` |
+| Canvas React bridge | Owns the `<canvas>` element, pointer conversion, canvas lifecycle | `src/components/GridCanvas.tsx` |
+| Grid sidebar | Seed, size, ratios, stroke, gap mask, PNG copy | `src/components/Sidebar.tsx` |
+| Component sidebar | Components list, layers list, selected layer config | `src/components/ComponentSidebar.tsx` |
+| Component registry | Component labels, dimensions, defaults, snapping helpers | `src/components/componentRegistry.ts` |
+| Icon registry | SVG icon definitions and options | `src/components/iconRegistry.ts`, `src/components/ComponentIcon.tsx` |
+| Shared UI | Shared layer/component row shell and icon tokens | `src/components/ComponentListItem.tsx`, `src/components/iconTokens.ts` |
+
+## Core Invariants
+
+- Grid generation is deterministic. Do not use `Math.random()` in generation.
+- Grid geometry stays logical and serializable. Rendering offsets belong in renderer code.
+- `drawDocument` is the shared drawing path for editor canvas and PNG export.
+- Component instances must remain serializable so future persistence/export is straightforward.
+- Registry dimensions are authoritative for snapping, hit testing, and component bounds.
+- UI style should remain minimal: white base, `#f3f3f3` borders, soft hover/active states, subdued grays.
+
+## Extension Recipes
+
+### Add A Grid Rule
+
+1. Update `docs/grid-rulebook.md` with the rule and classify it as invariant, heuristic, visual style, UI behavior, or validation.
+2. Add validation if it is a hard invariant.
+3. Update `src/grid/generator.ts` or related helpers.
+4. Add focused tests in `src/grid/*.test.ts`.
+5. Run `npm test` and `npm run build`.
+
+### Add A Component Type
+
+1. Extend component types/props in `src/grid/types.ts`.
+2. Add dimensions and default props in `src/components/componentRegistry.ts`.
+3. Add drawing logic in `src/canvas/documentRenderer.ts`.
+4. Ensure `src/canvas/hitTest.ts` uses registry bounds, not duplicated numbers.
+5. Add sidebar configuration in `src/components/ComponentSidebar.tsx` if needed.
+6. Add tests for registry defaults, drawing, hit testing, and UI behavior.
+
+### Add An SVG Icon
+
+1. Add the icon data to `src/components/iconRegistry.ts`.
+2. Keep paths data-driven and render with `ComponentIcon`.
+3. Avoid hardcoded SVGs in row/sidebar components.
+4. If the icon should be selectable, ensure the config UI reads from `ICON_OPTIONS`.
+5. Add or update tests in `iconRegistry.test.ts` and affected UI tests.
+
+### Add Canvas Rendering Behavior
+
+1. Add pure drawing helpers in `src/canvas/documentRenderer.ts` or an adjacent canvas module.
+2. Keep all inputs explicit. Do not read React state or DOM state inside pure drawing helpers.
+3. Preserve high-DPI scaling via the caller.
+4. Keep editor and PNG export visually aligned through `drawDocument`.
+5. Add tests around draw calls or pure geometry when pixel tests are not practical.
+
+### Change Sidebar Style
+
+1. Reuse existing CSS variables, button styles, `ComponentListItem`, and `iconTokens` first.
+2. Keep icon-only buttons accessible with `aria-label`.
+3. Prefer changing shared classes over one-off row/card styles.
+4. Inspect the app in a browser when possible; spacing and hover states are hard to judge from CSS alone.
+
+## Testing Map
+
+- `src/grid/*.test.ts`: deterministic generation, config normalization, masks, renderer helpers, clipboard helpers.
+- `src/canvas/*.test.ts`: drawing, hit testing, PNG export helpers.
+- `src/components/*.test.tsx`: reusable component UI and interaction.
+- `src/app/App.test.tsx`: integrated flows such as tabs, drag/move, selection, config, export.
+
+Testing Library tests should prefer roles, labels, and visible text. Canvas tests may assert drawing calls when user-visible pixel assertions are impractical.
+
+## Verification Commands
+
+```bash
+npm test
+npm run build
+```
+
+For docs/rules-only changes, a frontmatter/path/stale-reference review is enough unless source files changed.
+
+## Historical Docs Note
+
+`docs/implementation-plan.md` describes the original first build and still mentions an SVG-first renderer. It is historical context, not the current source of truth for the Canvas component builder. Update or archive it only when explicitly asked.
