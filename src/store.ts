@@ -8,6 +8,34 @@ import type { ComponentInstance, ComponentType, GeneratedGrid, GridConfig, IconB
 import { getDefaultDocumentSlice, mergePersistedDocument } from "./storePersist";
 import type { CanvasDragState } from "./types/document";
 
+export function reorderInstancesByIds(previous: ComponentInstance[], orderedIds: string[]): ComponentInstance[] {
+  if (orderedIds.length !== previous.length) {
+    return previous;
+  }
+
+  const prevSorted = [...previous.map((i) => i.id)].sort();
+  const nextSorted = [...orderedIds].sort();
+  if (prevSorted.length !== nextSorted.length || prevSorted.some((id, i) => id !== nextSorted[i])) {
+    return previous;
+  }
+
+  const byId = new Map(previous.map((i) => [i.id, i]));
+  return orderedIds.map((id) => byId.get(id)!);
+}
+
+export function migratePersistedPartializeForLayerOrder(fromVersion: number, persistedState: unknown): unknown {
+  if (!persistedState || typeof persistedState !== "object") {
+    return persistedState;
+  }
+
+  if (fromVersion >= 2 || !Array.isArray((persistedState as { instances?: unknown }).instances)) {
+    return persistedState;
+  }
+
+  const snapshot = persistedState as { instances: ComponentInstance[] };
+  return { ...snapshot, instances: [...snapshot.instances].reverse() };
+}
+
 export type AppStoreState = {
   pixiApp: Application | null;
   gridConfig: GridConfig;
@@ -39,6 +67,7 @@ export type AppStoreState = {
 
   deleteInstance: (id: string) => void;
   updateInstanceProps: (id: string, props: IconBoxProps) => void;
+  reorderInstances: (orderedIds: string[]) => void;
 };
 
 const createSeed = () => {
@@ -141,7 +170,7 @@ export const useAppStore = create<AppStoreState>()(
           grid.config.logicalHeight,
         );
         set({
-          instances: [...instances, instance],
+          instances: [instance, ...instances],
           selectedInstanceId: instance.id,
           nextInstanceIndex: nextInstanceIndex + 1,
           dragState: null,
@@ -184,10 +213,19 @@ export const useAppStore = create<AppStoreState>()(
         set((s) => ({
           instances: s.instances.map((instance) => (instance.id === id ? { ...instance, props } : instance)),
         })),
+
+      reorderInstances: (orderedIds) =>
+        set((s) => {
+          const next = reorderInstancesByIds(s.instances, orderedIds);
+          if (next === s.instances) {
+            return {};
+          }
+          return { instances: next };
+        }),
     }),
     {
       name: "section-grid-builder",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         gridConfig: state.gridConfig,
@@ -195,6 +233,7 @@ export const useAppStore = create<AppStoreState>()(
         nextInstanceIndex: state.nextInstanceIndex,
         selectedInstanceId: state.selectedInstanceId,
       }),
+      migrate: (persistedState, fromVersion) => migratePersistedPartializeForLayerOrder(fromVersion, persistedState),
       merge: (persisted, current) => mergePersistedDocument(persisted, current),
     },
   ),

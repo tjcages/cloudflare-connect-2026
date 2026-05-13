@@ -20,7 +20,7 @@ const createInstance = (id: string, x: number, y: number): ComponentInstance => 
 
 describe("hitTestComponentInstances", () => {
   it("returns the topmost instance under the pointer", () => {
-    const instances = [createInstance("back", 40, 40), createInstance("front", 40, 40)];
+    const instances = [createInstance("front", 40, 40), createInstance("back", 40, 40)];
 
     /** Icon-box hit target is the shadow card + padding (see `getIconBoxShadowCardBoundsInRootSpace`), not the title strip. */
     expect(hitTestComponentInstances(instances, 80, 108)?.id).toBe("front");

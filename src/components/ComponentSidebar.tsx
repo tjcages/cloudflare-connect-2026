@@ -96,6 +96,7 @@ const LayerReorderRow = ({ instance, preview, onSelectInstance, onDeleteInstance
       dragListener={false}
       dragControls={dragControls}
       style={{ position: "relative", width: "100%" }}
+      whileDrag={{ zIndex: 100 }}
     >
       <div className="layers-reorder-item-surface" onPointerDown={onGrabPointerDown}>
         <ComponentListItem

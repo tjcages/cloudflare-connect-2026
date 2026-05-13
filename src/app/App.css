@@ -515,16 +515,38 @@ select {
   gap: 0;
   width: 100%;
   min-width: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  isolation: isolate;
 }
 
 .layers-reorder-item {
   width: 100%;
   min-width: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 0;
 }
 
 .layers-reorder-item-surface {
   width: 100%;
   min-width: 0;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 120ms ease;
+}
+
+.layers-reorder-item-surface:hover {
+  background: #fcfcfc;
+}
+
+.layers-reorder-item-surface:active {
+  cursor: grabbing;
+}
+
+.layers-reorder-item-surface button {
+  cursor: pointer;
 }
 
 .component-drag-ghost-root {
