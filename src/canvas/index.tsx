@@ -22,8 +22,10 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
   const moveInstanceTo = useAppStore((s) => s.moveInstanceTo);
   const endCanvasDrag = useAppStore((s) => s.endCanvasDrag);
 
-  const lw = grid.config.logicalWidth;
-  const lh = grid.config.logicalHeight;
+  const logicalWidth = grid.config.logicalWidth;
+  const logicalHeight = grid.config.logicalHeight;
+  const renderWidth = grid.config.renderWidth;
+  const renderHeight = grid.config.renderHeight;
 
   return (
     <div className="canvas-shell">
@@ -37,7 +39,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             const canvas = event.currentTarget;
 
             const instances = useAppStore.getState().instances;
-            const point = getCanvasPoint(canvas, event.clientX, event.clientY, lw, lh);
+            const point = getCanvasPoint(canvas, event.clientX, event.clientY, logicalWidth, logicalHeight);
             const hitInstance = hitTestComponentInstances(instances, point.x, point.y);
 
             if (!hitInstance) {
@@ -58,7 +60,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
               return;
             }
 
-            const point = getCanvasPoint(canvas, event.clientX, event.clientY, lw, lh);
+            const point = getCanvasPoint(canvas, event.clientX, event.clientY, logicalWidth, logicalHeight);
             moveInstanceTo(dragState.id, point.x - dragState.offsetX, point.y - dragState.offsetY);
           },
           onPointerUp: (event) => {
@@ -78,7 +80,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
 
             const canvas = event.currentTarget as HTMLCanvasElement;
             const instances = useAppStore.getState().instances;
-            const point = getCanvasPoint(canvas, event.clientX, event.clientY, lw, lh);
+            const point = getCanvasPoint(canvas, event.clientX, event.clientY, logicalWidth, logicalHeight);
             const hitId = hitTestComponentInstances(instances, point.x, point.y)?.id ?? null;
             selectInstance(hitId);
             if (hitId) {
@@ -86,8 +88,8 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             }
           },
         }}
-        layoutWidth={lw}
-        layoutHeight={lh}
+        layoutWidth={renderWidth}
+        layoutHeight={renderHeight}
         onInitialized={(app) => {
           useAppStore.getState().setPixiApp(app);
         }}
