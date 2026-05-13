@@ -88,7 +88,6 @@ const CONTAINER_RETICLE_PX = 22;
 const CONTAINER_RETICLE_HALF = CONTAINER_RETICLE_PX / 2;
 /** Offset from each selection-frame corner to reticle center along X/Y toward the frame interior. */
 const CONTAINER_RETICLE_CORNER_INSET = 0;
-const CONTAINER_RETICLE_ORANGE = 0xeb5729;
 
 /** Align reticle art with grid strokes (sub-pixel shift for all four corners). */
 const CONTAINER_RETICLE_POSITION_NUDGE = 0.5;
@@ -96,15 +95,15 @@ const CONTAINER_RETICLE_POSITION_NUDGE = 0.5;
 /** Above outer grid frame stroke, below white shadow card (see `buildIconBox` zIndex tiers). */
 const CONTAINER_RETICLE_Z_INDEX = 18;
 
-/** 22×22 reticle; tick arms on the x=11 / y=11 centerlines (half-pixel for 1px-thick stems). */
-const buildContainerCornerReticle = (tickColor: number): Graphics => {
+/** 22×22 reticle; white disk; center dot uses theme fill; ticks use grid stroke. */
+const buildContainerCornerReticle = (tickColor: number, centerDotColor: number): Graphics => {
   const g = new Graphics();
   g.roundRect(0, 0, CONTAINER_RETICLE_PX, CONTAINER_RETICLE_PX, 11).fill({ color: 0xffffff });
   g.rect(10.5, 4, 1, 2).fill({ color: tickColor });
   g.rect(10.5, 16, 1, 2).fill({ color: tickColor });
   g.rect(4, 10.5, 2, 1).fill({ color: tickColor });
   g.rect(16, 10.5, 2, 1).fill({ color: tickColor });
-  g.roundRect(10, 10, 2, 2, 1).fill({ color: CONTAINER_RETICLE_ORANGE });
+  g.roundRect(10, 10, 2, 2, 1).fill({ color: centerDotColor });
   return g;
 };
 
@@ -237,7 +236,7 @@ const buildIconBox = (instance: ComponentInstance, gridStrokeColor: number) => {
       [ox + sz - inset, oy + sz - inset],
     ];
     for (const [cx, cy] of cornerCenters) {
-      const reticle = buildContainerCornerReticle(gridStrokeColor);
+      const reticle = buildContainerCornerReticle(gridStrokeColor, brush.fill);
       reticle.zIndex = CONTAINER_RETICLE_Z_INDEX;
       reticle.position.set(
         cx - CONTAINER_RETICLE_HALF + CONTAINER_RETICLE_POSITION_NUDGE,
