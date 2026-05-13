@@ -1,4 +1,4 @@
-import { ICON_BOX_OUTER_HEIGHT } from "./iconBoxLayout";
+import { ICON_BOX_INNER_CENTER_X, ICON_BOX_INNER_CENTER_Y, ICON_BOX_OUTER_HEIGHT } from "./iconBoxLayout";
 import { BASE_UNIT, type ComponentInstance, type ComponentType, type IconBoxProps } from "../grid/types";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 
@@ -7,6 +7,9 @@ export type ComponentDefinition = {
   label: string;
   width: number;
   height: number;
+  /** Offset from instance root (x, y) to the logical snap point (e.g. inner card center for icon-box). */
+  snapAnchorX: number;
+  snapAnchorY: number;
   defaultProps: IconBoxProps;
 };
 
@@ -16,6 +19,8 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     label: "icon-box",
     width: 80,
     height: ICON_BOX_OUTER_HEIGHT,
+    snapAnchorX: ICON_BOX_INNER_CENTER_X,
+    snapAnchorY: ICON_BOX_INNER_CENTER_Y,
     defaultProps: {
       cornerColor: "#F3F3F3",
       theme: "purple",
@@ -27,6 +32,19 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
 
 export const getComponentDefinition = (type: ComponentType) => COMPONENT_REGISTRY[type];
 
+/** Snap one axis so anchor (root + offset) lies on BASE_UNIT and root stays in [0, maxRoot]. */
+const snapRootAxis = (root: number, anchorOffset: number, maxRoot: number): number => {
+  const anchor = root + anchorOffset;
+  const kIdeal = Math.round(anchor / BASE_UNIT);
+  const kMin = Math.ceil(anchorOffset / BASE_UNIT);
+  const kMax = Math.floor((maxRoot + anchorOffset) / BASE_UNIT);
+  if (kMin > kMax) {
+    return Math.min(maxRoot, Math.max(0, root));
+  }
+  const k = Math.min(kMax, Math.max(kMin, kIdeal));
+  return k * BASE_UNIT - anchorOffset;
+};
+
 export const snapComponentPosition = (
   x: number,
   y: number,
@@ -37,12 +55,10 @@ export const snapComponentPosition = (
   const definition = getComponentDefinition(type);
   const maxX = Math.max(0, canvasWidth - definition.width);
   const maxY = Math.max(0, canvasHeight - definition.height);
-  const snappedX = Math.round(x / BASE_UNIT) * BASE_UNIT;
-  const snappedY = Math.round(y / BASE_UNIT) * BASE_UNIT;
 
   return {
-    x: Math.min(maxX, Math.max(0, snappedX)),
-    y: Math.min(maxY, Math.max(0, snappedY)),
+    x: snapRootAxis(x, definition.snapAnchorX, maxX),
+    y: snapRootAxis(y, definition.snapAnchorY, maxY),
   };
 };
 

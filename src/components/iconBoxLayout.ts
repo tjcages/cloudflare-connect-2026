@@ -13,6 +13,10 @@ export const TITLE_FONT_SIZE_PX = 10;
 
 export const ICON_BOX_INNER_TOP = TITLE_BAR_HEIGHT + TITLE_TO_INNER_GAP;
 
+/** Center of the padded inner card (shadowed roundRect); grid snap aligns this point to BASE_UNIT. */
+export const ICON_BOX_INNER_CENTER_X = ICON_BOX_INNER_OFFSET + ICON_BOX_INNER_SIZE / 2;
+export const ICON_BOX_INNER_CENTER_Y = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE / 2;
+
 export const ICON_BOX_BOTTOM_MARGIN = 8;
 export const ICON_BOX_OUTER_HEIGHT = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_BOTTOM_MARGIN;
 
