@@ -264,7 +264,7 @@ describe("ComponentSidebar", () => {
     const onUpdateInstanceProps = vi.fn();
     const onStartEndpointPick = vi.fn();
 
-    render(
+    const { container } = render(
       <ComponentSidebar
         instances={[connectorInstance, instance]}
         selectedInstance={connectorInstance}
@@ -286,7 +286,21 @@ describe("ComponentSidebar", () => {
       target: { kind: "layer", instanceId: "icon-box-1" },
     });
 
-    fireEvent.change(screen.getByLabelText("Source endpoint"), { target: { value: "layer:icon-box-1" } });
+    expect(container.querySelector(".connector-endpoint-meta")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Source endpoint" })).not.toBeInTheDocument();
+
+    const sourceEndpointButton = screen.getByRole("button", { name: "Source endpoint" });
+    expect(within(sourceEndpointButton).getByText("Static cell")).toBeInTheDocument();
+    expect(within(sourceEndpointButton).getByText("x: 40, y: 40")).toBeInTheDocument();
+
+    fireEvent.click(sourceEndpointButton);
+
+    const layerOption = screen.getByRole("option", { name: /Icon Box\s*Workers/ });
+    expect(layerOption).toHaveClass("component-list-item");
+    expect(layerOption.querySelector("svg.component-icon")).toBeInTheDocument();
+    expect(within(layerOption).getByText("Workers")).toBeInTheDocument();
+
+    fireEvent.click(layerOption);
 
     expect(onUpdateInstanceProps).toHaveBeenCalledWith("connector-line-2", {
       preferredConnection: "horizontal",

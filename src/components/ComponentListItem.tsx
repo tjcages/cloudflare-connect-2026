@@ -1,4 +1,4 @@
-import type { MouseEventHandler, PointerEventHandler, ReactNode } from "react";
+import type { AriaRole, MouseEventHandler, PointerEventHandler, ReactNode } from "react";
 
 type ComponentListItemProps = {
   preview: ReactNode;
@@ -7,6 +7,11 @@ type ComponentListItemProps = {
   actions?: ReactNode;
   className?: string;
   testId?: string;
+  role?: AriaRole;
+  ariaExpanded?: boolean;
+  ariaHasPopup?: "menu" | "listbox" | "tree" | "grid" | "dialog";
+  ariaLabel?: string;
+  ariaSelected?: boolean;
   onClick?: MouseEventHandler<HTMLElement>;
   onPointerDown?: PointerEventHandler<HTMLElement>;
   as?: "div" | "button";
@@ -19,6 +24,11 @@ export const ComponentListItem = ({
   actions,
   className,
   testId,
+  role,
+  ariaExpanded,
+  ariaHasPopup,
+  ariaLabel,
+  ariaSelected,
   onClick,
   onPointerDown,
   as = "div",
@@ -41,6 +51,11 @@ export const ComponentListItem = ({
         className={classes}
         data-testid={testId}
         type="button"
+        role={role}
+        aria-expanded={ariaExpanded}
+        aria-haspopup={ariaHasPopup}
+        aria-label={ariaLabel}
+        aria-selected={ariaSelected}
         onClick={onClick as MouseEventHandler<HTMLButtonElement> | undefined}
         onPointerDown={onPointerDown as PointerEventHandler<HTMLButtonElement> | undefined}
       >
@@ -50,7 +65,15 @@ export const ComponentListItem = ({
   }
 
   return (
-    <div className={classes} data-testid={testId}>
+    <div
+      className={classes}
+      data-testid={testId}
+      role={role}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
+      aria-label={ariaLabel}
+      aria-selected={ariaSelected}
+    >
       {content}
     </div>
   );

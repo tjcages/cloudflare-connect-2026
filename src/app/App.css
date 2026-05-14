@@ -258,6 +258,53 @@ select {
   padding: 7px 8px;
 }
 
+.connector-endpoint-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px;
+}
+
+.connector-endpoint-select {
+  position: relative;
+  min-width: 0;
+}
+
+.connector-endpoint-select-trigger.component-list-item {
+  min-height: 34px;
+  border: 1px solid #f3f3f3;
+  border-radius: 6px;
+  padding: 6px 12px 6px 6px;
+}
+
+.connector-endpoint-select-trigger .component-list-item-actions {
+  opacity: 1;
+}
+
+.connector-endpoint-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #f3f3f3;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  padding: 4px 0;
+}
+
+.connector-endpoint-option.component-list-item {
+  padding: 6px;
+}
+
+.connector-endpoint-option.component-list-item:hover,
+.connector-endpoint-option.component-list-item[aria-selected="true"] {
+  background: #fcfcfc;
+}
+
 .field-toggle-row {
   flex-direction: row;
   align-items: center;

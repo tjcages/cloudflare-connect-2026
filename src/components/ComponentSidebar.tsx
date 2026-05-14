@@ -1,6 +1,7 @@
-import { ArrowLeft, Crosshair, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Crosshair, Pencil, Trash2 } from "lucide-react";
 import { Reorder, useDragControls } from "motion/react";
-import type { PointerEventHandler, ReactNode } from "react";
+import { useState } from "react";
+import type { FocusEventHandler, PointerEventHandler, ReactNode } from "react";
 import { ComponentIcon } from "./ComponentIcon";
 import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } from "./componentRegistry";
 import { ComponentListItem } from "./ComponentListItem";
@@ -98,17 +99,103 @@ const ConnectorLineIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-const endpointSelectValue = (endpoint: ConnectorEndpoint) =>
-  endpoint.kind === "layer" ? `layer:${endpoint.instanceId}` : "cell";
-
-const endpointMeta = (endpoint: ConnectorEndpoint, instances: ComponentInstance[]) => {
-  if (endpoint.kind === "cell") {
-    return `x: ${endpoint.x}, y: ${endpoint.y}`;
+const getEndpointSelectedLayer = (endpoint: ConnectorEndpoint, instances: ComponentInstance[]) => {
+  if (endpoint.kind !== "layer") {
+    return null;
   }
-  const layer = instances.find((instance) => instance.id === endpoint.instanceId);
-  return layer
-    ? getLayerActionLabel("Layer", getInstanceDisplayName(layer), getInstanceLayerSubtitle(layer))
-    : "Missing layer";
+  return instances.find((instance) => instance.id === endpoint.instanceId) ?? null;
+};
+
+const getEndpointCellMeta = (endpoint: ConnectorEndpoint) =>
+  endpoint.kind === "cell" ? `x: ${endpoint.x}, y: ${endpoint.y}` : undefined;
+
+const StaticCellIcon = ({ size = 16 }: { size?: number }) => (
+  <Crosshair
+    className="component-icon"
+    size={size}
+    strokeWidth={ICON_STROKE_WIDTH}
+    aria-hidden="true"
+    focusable="false"
+  />
+);
+
+type EndpointSelectProps = {
+  label: "Source" | "Target";
+  endpoint: ConnectorEndpoint;
+  instances: ComponentInstance[];
+  renderPreview: (instance: ComponentInstance) => ReactNode;
+  onSelect: (endpoint: ConnectorEndpoint) => void;
+  fallbackCell: ConnectorEndpoint;
+};
+
+const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, fallbackCell }: EndpointSelectProps) => {
+  const [open, setOpen] = useState(false);
+  const selectableLayers = instances.filter((instance) => instance.type !== "connector-line");
+  const selectedLayer = getEndpointSelectedLayer(endpoint, selectableLayers);
+  const selectedTitle = selectedLayer ? getInstanceDisplayName(selectedLayer) : "Static cell";
+  const selectedMeta = selectedLayer ? getInstanceLayerSubtitle(selectedLayer) : getEndpointCellMeta(endpoint);
+  const selectedPreview = selectedLayer ? renderPreview(selectedLayer) : <StaticCellIcon />;
+  const listboxId = `${label.toLowerCase()}-endpoint-options`;
+
+  const onBlur: FocusEventHandler<HTMLDivElement> = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setOpen(false);
+    }
+  };
+
+  const selectEndpoint = (next: ConnectorEndpoint) => {
+    onSelect(next);
+    setOpen(false);
+  };
+
+  return (
+    <div className="connector-endpoint-select" onBlur={onBlur}>
+      <ComponentListItem
+        as="button"
+        className="connector-endpoint-select-trigger"
+        ariaLabel={`${label} endpoint`}
+        ariaExpanded={open}
+        ariaHasPopup="listbox"
+        preview={selectedPreview}
+        title={selectedTitle}
+        meta={selectedMeta}
+        actions={
+          <ChevronDown size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+        }
+        onClick={() => setOpen((current) => !current)}
+      />
+      {open ? (
+        <div id={listboxId} className="connector-endpoint-options" role="listbox" aria-label={`${label} endpoint`}>
+          <ComponentListItem
+            as="button"
+            role="option"
+            className="connector-endpoint-option"
+            ariaSelected={endpoint.kind === "cell"}
+            preview={<StaticCellIcon />}
+            title="Static cell"
+            meta={getEndpointCellMeta(endpoint.kind === "cell" ? endpoint : fallbackCell)}
+            onClick={() => selectEndpoint(endpoint.kind === "cell" ? endpoint : fallbackCell)}
+          />
+          {selectableLayers.map((instance) => {
+            const layerSubtitle = getInstanceLayerSubtitle(instance);
+            return (
+              <ComponentListItem
+                key={instance.id}
+                as="button"
+                role="option"
+                className="connector-endpoint-option"
+                ariaSelected={endpoint.kind === "layer" && endpoint.instanceId === instance.id}
+                preview={renderPreview(instance)}
+                title={getInstanceDisplayName(instance)}
+                meta={layerSubtitle}
+                onClick={() => selectEndpoint({ kind: "layer", instanceId: instance.id })}
+              />
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
 };
 
 type ConnectorEndpointFieldProps = {
@@ -116,6 +203,7 @@ type ConnectorEndpointFieldProps = {
   endpoint: ConnectorEndpoint;
   instances: ComponentInstance[];
   connector: Extract<ComponentInstance, { type: "connector-line" }>;
+  renderPreview: (instance: ComponentInstance) => ReactNode;
   onUpdate: (props: ConnectorLineProps) => void;
   onStartEndpointPick: (id: string, endpoint: "source" | "target") => void;
 };
@@ -125,11 +213,11 @@ const ConnectorEndpointField = ({
   endpoint,
   instances,
   connector,
+  renderPreview,
   onUpdate,
   onStartEndpointPick,
 }: ConnectorEndpointFieldProps) => {
   const key = label.toLowerCase() as "source" | "target";
-  const selectableLayers = instances.filter((instance) => instance.type !== "connector-line");
   const updateEndpoint = (next: ConnectorEndpoint) => {
     onUpdate({
       ...connector.props,
@@ -141,28 +229,14 @@ const ConnectorEndpointField = ({
     <div className="field connector-endpoint-field">
       <span>{label}</span>
       <div className="connector-endpoint-row">
-        <select
-          aria-label={`${label} endpoint`}
-          value={endpointSelectValue(endpoint)}
-          onChange={(event) => {
-            const value = event.target.value;
-            if (value === "cell") {
-              const fallback =
-                endpoint.kind === "cell" ? endpoint : { kind: "cell" as const, x: connector.x, y: connector.y };
-              updateEndpoint(fallback);
-              return;
-            }
-            updateEndpoint({ kind: "layer", instanceId: value.replace(/^layer:/, "") });
-          }}
-        >
-          <option value="cell">Static cell</option>
-          {selectableLayers.map((instance) => (
-            <option key={instance.id} value={`layer:${instance.id}`}>
-              {getInstanceDisplayName(instance)}
-              {getInstanceLayerSubtitle(instance) ? `, ${getInstanceLayerSubtitle(instance)}` : ""}
-            </option>
-          ))}
-        </select>
+        <EndpointSelect
+          label={label}
+          endpoint={endpoint}
+          instances={instances}
+          renderPreview={renderPreview}
+          fallbackCell={{ kind: "cell", x: connector.x, y: connector.y }}
+          onSelect={updateEndpoint}
+        />
         <button
           className="component-row-icon-button"
           type="button"
@@ -172,7 +246,6 @@ const ConnectorEndpointField = ({
           <Crosshair size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
         </button>
       </div>
-      <small className="connector-endpoint-meta">{endpointMeta(endpoint, instances)}</small>
     </div>
   );
 };
@@ -305,6 +378,7 @@ export const ComponentSidebar = ({
             endpoint={selectedInstance.props.source}
             instances={instances}
             connector={selectedInstance}
+            renderPreview={renderPreview}
             onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
             onStartEndpointPick={onStartEndpointPick}
           />
@@ -313,6 +387,7 @@ export const ComponentSidebar = ({
             endpoint={selectedInstance.props.target}
             instances={instances}
             connector={selectedInstance}
+            renderPreview={renderPreview}
             onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
             onStartEndpointPick={onStartEndpointPick}
           />
