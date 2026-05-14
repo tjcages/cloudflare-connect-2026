@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getCanvasPoint, isPointerOverCanvas } from "../canvas/coords";
+import { getInstanceCanvasBounds } from "../lib/componentRegistry";
 import { copyDocumentPng } from "../canvas/pngExport";
 import { GridCanvas } from "../canvas";
 import { ComponentDragGhost } from "../components/ComponentDragGhost";
@@ -13,6 +14,7 @@ export const App = () => {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [activeTab, setActiveTab] = useState<"grid" | "components">("grid");
   const builderCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasPanelRef = useRef<HTMLElement | null>(null);
 
   const grid = useAppStore((s) => s.grid);
   const gridConfig = useAppStore((s) => s.gridConfig);
@@ -153,6 +155,82 @@ export const App = () => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [deleteInstance]);
 
+  useLayoutEffect(() => {
+    const id = selectedInstance?.id;
+    if (id == null) {
+      return undefined;
+    }
+
+    const scrollCanvasToSelected = () => {
+      const canvas = builderCanvasRef.current;
+      const panel = canvasPanelRef.current;
+      if (!canvas || !panel) {
+        return;
+      }
+
+      const instance = useAppStore.getState().instances.find((i) => i.id === id);
+      if (!instance) {
+        return;
+      }
+
+      const { logicalWidth, logicalHeight } = useAppStore.getState().grid.config;
+      const bounds = getInstanceCanvasBounds(instance);
+
+      const cw = canvas.clientWidth;
+      const ch = canvas.clientHeight;
+      if (cw < 2 || ch < 2) {
+        return;
+      }
+
+      const scaleX = cw / logicalWidth;
+      const scaleY = ch / logicalHeight;
+
+      const canvasRect = canvas.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+
+      const instLeft = canvasRect.left + bounds.x * scaleX;
+      const instTop = canvasRect.top + bounds.y * scaleY;
+      const instW = bounds.width * scaleX;
+      const instH = bounds.height * scaleY;
+      const instRight = instLeft + instW;
+      const instBottom = instTop + instH;
+
+      const pad = 6;
+      if (
+        instLeft >= panelRect.left + pad &&
+        instRight <= panelRect.right - pad &&
+        instTop >= panelRect.top + pad &&
+        instBottom <= panelRect.bottom - pad
+      ) {
+        return;
+      }
+
+      const cx = instLeft + instW / 2;
+      const cy = instTop + instH / 2;
+      const pcx = panelRect.left + panelRect.width / 2;
+      const pcy = panelRect.top + panelRect.height / 2;
+
+      const dx = cx - pcx;
+      const dy = cy - pcy;
+      if (typeof panel.scrollBy === "function") {
+        panel.scrollBy({
+          left: dx,
+          top: dy,
+          behavior: "instant",
+        });
+      } else {
+        panel.scrollLeft += dx;
+        panel.scrollTop += dy;
+      }
+    };
+
+    scrollCanvasToSelected();
+    const outerRaf = requestAnimationFrame(() => {
+      requestAnimationFrame(scrollCanvasToSelected);
+    });
+    return () => cancelAnimationFrame(outerRaf);
+  }, [selectedInstance?.id, grid.config.logicalWidth, grid.config.logicalHeight]);
+
   const copyPng = async () => {
     try {
       await copyDocumentPng();
@@ -229,7 +307,7 @@ export const App = () => {
           />
         )}
       </aside>
-      <section className="canvas-panel">
+      <section ref={canvasPanelRef} className="canvas-panel" aria-label="Canvas viewport">
         <GridCanvas
           canvasRef={builderCanvasRef}
           onUserSelectedInstance={(id) => {

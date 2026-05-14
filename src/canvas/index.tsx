@@ -16,7 +16,11 @@ type BuilderCanvasProps = {
 };
 
 export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasProps) => {
-  /** After a connector endpoint is placed on `pointerdown`, the same gesture still fires `click`, which would clear selection on empty hits. */
+  /**
+   * `pointerdown` already applies selection; the same gesture still fires `click`.
+   * Re-hit-testing on `click` can disagree (drag snap moved the layer, edge pixels, tolerance),
+   * which would call `selectInstance(null)` and flash-close the config panel.
+   */
   const skipNextClickSelectionSyncRef = useRef(false);
 
   const grid = useAppStore((s) => s.grid);
@@ -64,6 +68,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
 
             if (!hitInstance) {
               selectInstance(null);
+              skipNextClickSelectionSyncRef.current = true;
               return;
             }
 
@@ -71,11 +76,13 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             selectInstance(hitInstance.id);
             onUserSelectedInstance?.(hitInstance.id);
             if (hitInstance.type === "connector-line") {
+              skipNextClickSelectionSyncRef.current = true;
               return;
             }
 
             canvas.setPointerCapture(event.pointerId);
             startMoveDrag(hitInstance.id, point.x - hitInstance.x, point.y - hitInstance.y);
+            skipNextClickSelectionSyncRef.current = true;
           },
           onPointerMove: (event) => {
             const canvas = event.currentTarget;

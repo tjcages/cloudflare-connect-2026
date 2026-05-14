@@ -1,6 +1,6 @@
 import { ChevronDown, Crosshair, Trash2 } from "lucide-react";
 import { Reorder, useDragControls } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { FocusEventHandler, PointerEventHandler, ReactNode } from "react";
 import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
 import { ICON_OPTIONS } from "../lib/iconRegistry";
@@ -341,6 +341,7 @@ const LayerReorderRow = ({
           onSelectInstance(instance.id);
         }}
         data-selected={isSelected ? "true" : undefined}
+        data-layer-id={instance.id}
       >
         <ComponentListItem
           ariaLabel={layerSelectLabel}
@@ -385,13 +386,56 @@ export const ComponentBrowseSidebar = ({
 
   const layersScrollRegionRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const id = selectedInstance?.id;
-    if (!id) {
-      return;
+    if (id == null) {
+      return undefined;
     }
-    const row = layersScrollRegionRef.current?.querySelector<HTMLElement>(`[data-testid="layer-item-${id}"]`);
-    row?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+
+    const scrollLayerRowIntoList = () => {
+      const container = layersScrollRegionRef.current;
+      if (!container) {
+        return;
+      }
+      const row = container.querySelector<HTMLElement>(`[data-layer-id="${CSS.escape(id)}"]`);
+      if (!row) {
+        return;
+      }
+
+      const cr = container.getBoundingClientRect();
+      const rr = row.getBoundingClientRect();
+      let nextTop = container.scrollTop;
+      let nextLeft = container.scrollLeft;
+
+      if (rr.top < cr.top) {
+        nextTop += rr.top - cr.top;
+      } else if (rr.bottom > cr.bottom) {
+        nextTop += rr.bottom - cr.bottom;
+      }
+
+      if (rr.left < cr.left) {
+        nextLeft += rr.left - cr.left;
+      } else if (rr.right > cr.right) {
+        nextLeft += rr.right - cr.right;
+      }
+
+      if (typeof container.scrollTo === "function") {
+        container.scrollTo({
+          top: nextTop,
+          left: nextLeft,
+          behavior: "instant",
+        });
+      } else {
+        container.scrollTop = nextTop;
+        container.scrollLeft = nextLeft;
+      }
+    };
+
+    scrollLayerRowIntoList();
+    const outerRaf = requestAnimationFrame(() => {
+      requestAnimationFrame(scrollLayerRowIntoList);
+    });
+    return () => cancelAnimationFrame(outerRaf);
   }, [selectedInstance?.id]);
 
   return (

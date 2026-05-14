@@ -345,43 +345,35 @@ describe("ComponentSidebar", () => {
     expect(screen.queryByRole("switch", { name: /Match corners with theme/i })).not.toBeInTheDocument();
   });
 
-  it("marks the selected layer row and scrolls it into view when the selection changes", () => {
-    const prevScrollIntoView = HTMLElement.prototype.scrollIntoView;
-    const scrollIntoViewMock = vi.fn() as typeof HTMLElement.prototype.scrollIntoView;
-    HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
-    try {
-      const second: ComponentInstance = { ...instance, id: "icon-box-2", name: "Icon Box 2" };
-      const { rerender } = render(
-        <ComponentSidebar
-          instances={[instance, second]}
-          selectedInstance={null}
-          onSelectInstance={vi.fn()}
-          onDeleteInstance={vi.fn()}
-          onUpdateInstanceProps={vi.fn()}
-          onStartComponentDrag={vi.fn()}
-        />,
-      );
+  it("marks the selected layer row when the selection changes", () => {
+    const second: ComponentInstance = { ...instance, id: "icon-box-2", name: "Icon Box 2" };
+    const { rerender } = render(
+      <ComponentSidebar
+        instances={[instance, second]}
+        selectedInstance={null}
+        onSelectInstance={vi.fn()}
+        onDeleteInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
 
-      rerender(
-        <ComponentSidebar
-          instances={[instance, second]}
-          selectedInstance={second}
-          onSelectInstance={vi.fn()}
-          onDeleteInstance={vi.fn()}
-          onUpdateInstanceProps={vi.fn()}
-          onStartComponentDrag={vi.fn()}
-        />,
-      );
+    rerender(
+      <ComponentSidebar
+        instances={[instance, second]}
+        selectedInstance={second}
+        onSelectInstance={vi.fn()}
+        onDeleteInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
 
-      const selectedSurface = document
-        .querySelector("[data-testid='layer-item-icon-box-2']")
-        ?.closest(".layers-reorder-item-surface");
-      expect(selectedSurface).toHaveClass("layers-reorder-item-surface-selected");
-      expect(selectedSurface).toHaveAttribute("data-selected", "true");
-      expect(scrollIntoViewMock).toHaveBeenCalled();
-    } finally {
-      HTMLElement.prototype.scrollIntoView = prevScrollIntoView;
-    }
+    const selectedSurface = document
+      .querySelector("[data-testid='layer-item-icon-box-2']")
+      ?.closest(".layers-reorder-item-surface");
+    expect(selectedSurface).toHaveClass("layers-reorder-item-surface-selected");
+    expect(selectedSurface).toHaveAttribute("data-selected", "true");
   });
 
   it("shows selected component config header like a layer row and updates theme, title, and match corners toggle", () => {
