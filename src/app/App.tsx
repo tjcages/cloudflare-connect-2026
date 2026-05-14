@@ -5,7 +5,7 @@ import { GridCanvas } from "../canvas";
 import { ComponentDragGhost } from "../components/ComponentDragGhost";
 import { RAIL_TAB_ICON_PX } from "../components/iconTokens";
 import { ComponentIcon } from "../components/ComponentIcon";
-import { ComponentSidebar } from "../components/ComponentSidebar";
+import { ComponentBrowseSidebar, ComponentConfigSidebar } from "../components/ComponentSidebar";
 import { Sidebar } from "../components/Sidebar";
 import { useAppStore } from "../store";
 
@@ -127,6 +127,32 @@ export const App = () => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [cancelConnectorEndpointPick, hasConnectorEndpointPick]);
 
+  useEffect(() => {
+    const isEditableEventTarget = (target: EventTarget | null) =>
+      target instanceof Element && target.closest("input, textarea, select, [contenteditable='true']") !== null;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") {
+        return;
+      }
+      if (isEditableEventTarget(event.target)) {
+        return;
+      }
+      if (useAppStore.getState().dragState !== null) {
+        return;
+      }
+      const id = useAppStore.getState().selectedInstanceId;
+      if (id === null) {
+        return;
+      }
+      event.preventDefault();
+      deleteInstance(id);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [deleteInstance]);
+
   const copyPng = async () => {
     try {
       await copyDocumentPng();
@@ -139,7 +165,7 @@ export const App = () => {
   };
 
   return (
-    <main className="app-shell">
+    <main className={selectedInstance !== null ? "app-shell app-shell-layer-config-open" : "app-shell"}>
       <aside className="sidebar-rail" aria-label="Builder tools">
         <button
           className={activeTab === "grid" ? "sidebar-rail-button sidebar-rail-button-active" : "sidebar-rail-button"}
@@ -192,15 +218,12 @@ export const App = () => {
             copyState={copyState}
           />
         ) : (
-          <ComponentSidebar
+          <ComponentBrowseSidebar
             instances={instances}
             selectedInstance={selectedInstance}
             onSelectInstance={(id) => selectInstance(id)}
-            onBack={() => selectInstance(null)}
             onDeleteInstance={deleteInstance}
-            onUpdateInstanceProps={updateInstanceProps}
             onStartComponentDrag={startCreateDrag}
-            onStartEndpointPick={startConnectorEndpointPick}
             onReorderInstances={reorderInstances}
             gridStrokeColor={gridConfig.strokeColor}
           />
@@ -216,6 +239,18 @@ export const App = () => {
           }}
         />
       </section>
+      {selectedInstance ? (
+        <aside className="sidebar sidebar-components sidebar-components-config" aria-label="Layer configuration">
+          <ComponentConfigSidebar
+            instances={instances}
+            selectedInstance={selectedInstance}
+            onDeleteInstance={deleteInstance}
+            onUpdateInstanceProps={updateInstanceProps}
+            onStartEndpointPick={startConnectorEndpointPick}
+            gridStrokeColor={gridConfig.strokeColor}
+          />
+        </aside>
+      ) : null}
       {dragState?.mode === "create" && dragState.preview === null && dragState.ghostClient !== null ? (
         <ComponentDragGhost
           componentType={dragState.type}

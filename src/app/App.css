@@ -56,6 +56,10 @@ select {
   overflow: hidden;
 }
 
+.app-shell-layer-config-open {
+  grid-template-columns: 44px 260px 1fr 260px;
+}
+
 .sidebar-rail {
   display: flex;
   flex-direction: column;
@@ -123,54 +127,31 @@ select {
   flex: 1;
 }
 
-.component-sidebar-shell {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-}
-
-.sidebar-components .component-sidebar-shell {
-  height: 100vh;
-}
-
-.sidebar-components .component-sidebar-shell .component-sidebar {
-  flex: 1 1 0;
-  min-width: 0;
+.sidebar-components .component-sidebar {
   gap: 0;
-  height: 100%;
+  height: 100vh;
   overflow: hidden;
 }
 
-.component-sidebar-shell:has(.component-config-panel) .component-sidebar {
-  border-right: 1px solid #f3f3f3;
+.sidebar-components-config {
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border-right: none;
+  border-left: 1px solid #f3f3f3;
 }
 
-.sidebar-components .component-sidebar-shell .component-config-panel {
-  flex: 1 1 0;
-  min-width: 0;
+.sidebar-components-config .component-config-panel {
+  box-sizing: border-box;
+  flex: 1;
   min-height: 0;
+  height: 100%;
   overflow: auto;
-  padding: 14px;
-}
-
-.component-config-top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 8px;
-}
-
-.component-config-top-bar .back-button {
-  align-self: center;
+  padding: 0 14px 14px;
 }
 
 .component-list-item.component-config-header {
-  padding-left: 0;
-  padding-right: 0;
+  padding: 14px 0 0;
 }
 
 .component-list-item.component-config-header .component-list-item-actions {
@@ -639,18 +620,18 @@ select {
 .layers-reorder-item-surface {
   width: 100%;
   min-width: 0;
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
   transition: background-color 120ms ease;
 }
 
-.layers-reorder-item-surface:hover {
-  background: #fcfcfc;
+.layers-reorder-item-surface-dragging {
+  cursor: grabbing;
 }
 
-.layers-reorder-item-surface:active {
-  cursor: grabbing;
+.layers-reorder-item-surface:hover {
+  background: #fcfcfc;
 }
 
 .layers-reorder-item-surface-selected {

@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, Crosshair, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Crosshair, Trash2 } from "lucide-react";
 import { Reorder, useDragControls } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { FocusEventHandler, PointerEventHandler, ReactNode } from "react";
@@ -54,19 +54,31 @@ const PaletteThemePicker = ({ ariaLabel, value, onChange, gridStrokeColor }: Pal
   </div>
 );
 
-type ComponentSidebarProps = {
+export type ComponentBrowseSidebarProps = {
   instances: ComponentInstance[];
   selectedInstance: ComponentInstance | null;
   onSelectInstance: (id: string) => void;
-  onBack: () => void;
   onDeleteInstance: (id: string) => void;
-  onUpdateInstanceProps: (id: string, props: ComponentProps) => void;
   onStartComponentDrag: (type: ComponentType, pointer?: { clientX: number; clientY: number }) => void;
-  onStartEndpointPick?: (id: string, endpoint: "source" | "target") => void;
   /** When set, neutral theme fills track this hex (same source as grid stroke). */
   gridStrokeColor?: string;
   /** When omitted, layers are not persisted to the store via reorder (defaults to no-op). */
   onReorderInstances?: (orderedIds: string[]) => void;
+};
+
+export type ComponentConfigSidebarProps = {
+  instances: ComponentInstance[];
+  selectedInstance: ComponentInstance;
+  onDeleteInstance: (id: string) => void;
+  onUpdateInstanceProps: (id: string, props: ComponentProps) => void;
+  onStartEndpointPick?: (id: string, endpoint: "source" | "target") => void;
+  /** When set, neutral theme fills track this hex (same source as grid stroke). */
+  gridStrokeColor?: string;
+};
+
+export type ComponentSidebarProps = ComponentBrowseSidebarProps & {
+  onUpdateInstanceProps: (id: string, props: ComponentProps) => void;
+  onStartEndpointPick?: (id: string, endpoint: "source" | "target") => void;
 };
 
 const componentTypes = Object.values(COMPONENT_REGISTRY);
@@ -268,16 +280,22 @@ const LayerReorderRow = ({
   isSelected,
 }: LayerReorderRowProps) => {
   const dragControls = useDragControls();
+  const [isDragging, setIsDragging] = useState(false);
   const displayName = getInstanceDisplayName(instance);
   const layerSubtitle = getInstanceLayerSubtitle(instance, instances);
+  /** Set when this row's drag passes Motion's threshold; prevents treating a reorder as a select on click. */
+  const dragCommittedRef = useRef(false);
 
   const onGrabPointerDown: PointerEventHandler<HTMLDivElement> = (event) => {
     const target = event.target;
     if (target instanceof Element && (target.closest("button") || target.closest(".component-list-item-actions"))) {
       return;
     }
+    dragCommittedRef.current = false;
     dragControls.start(event, { distanceThreshold: layerDragDistanceThresholdPx });
   };
+
+  const layerSelectLabel = getLayerActionLabel("Select", displayName, layerSubtitle);
 
   return (
     <Reorder.Item
@@ -289,38 +307,56 @@ const LayerReorderRow = ({
       dragControls={dragControls}
       style={{ position: "relative", width: "100%" }}
       whileDrag={{ zIndex: 100 }}
+      onDragStart={() => {
+        dragCommittedRef.current = true;
+        setIsDragging(true);
+      }}
+      onDragEnd={() => {
+        setIsDragging(false);
+      }}
     >
+      {/* Row surface: Motion drag + click; nested delete prevents role="button" on wrapper. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
-        className={["layers-reorder-item-surface", isSelected ? "layers-reorder-item-surface-selected" : ""]
+        className={[
+          "layers-reorder-item-surface",
+          isSelected ? "layers-reorder-item-surface-selected" : "",
+          isDragging ? "layers-reorder-item-surface-dragging" : "",
+        ]
           .filter(Boolean)
           .join(" ")}
         onPointerDown={onGrabPointerDown}
+        onClick={(event) => {
+          const target = event.target;
+          if (
+            target instanceof Element &&
+            (target.closest("button") || target.closest(".component-list-item-actions"))
+          ) {
+            return;
+          }
+          if (dragCommittedRef.current) {
+            dragCommittedRef.current = false;
+            return;
+          }
+          onSelectInstance(instance.id);
+        }}
         data-selected={isSelected ? "true" : undefined}
       >
         <ComponentListItem
+          ariaLabel={layerSelectLabel}
           testId={`layer-item-${instance.id}`}
           preview={preview}
           title={displayName}
           meta={layerSubtitle}
           actions={
-            <>
-              <button
-                className="component-row-icon-button"
-                type="button"
-                onClick={() => onSelectInstance(instance.id)}
-                aria-label={getLayerActionLabel("Edit", displayName, layerSubtitle)}
-              >
-                <Pencil size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
-              </button>
-              <button
-                className="component-row-icon-button"
-                type="button"
-                onClick={() => onDeleteInstance(instance.id)}
-                aria-label={getLayerActionLabel("Delete", displayName, layerSubtitle)}
-              >
-                <Trash2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
-              </button>
-            </>
+            <button
+              className="component-row-icon-button"
+              type="button"
+              onClick={() => onDeleteInstance(instance.id)}
+              aria-label={getLayerActionLabel("Delete", displayName, layerSubtitle)}
+            >
+              <Trash2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+            </button>
           }
         />
       </div>
@@ -328,18 +364,15 @@ const LayerReorderRow = ({
   );
 };
 
-export const ComponentSidebar = ({
+export const ComponentBrowseSidebar = ({
   instances,
   selectedInstance,
   onSelectInstance,
-  onBack,
   onDeleteInstance,
-  onUpdateInstanceProps,
   onStartComponentDrag,
-  onStartEndpointPick = () => {},
   gridStrokeColor,
   onReorderInstances = () => {},
-}: ComponentSidebarProps) => {
+}: ComponentBrowseSidebarProps) => {
   const neutralOpts = gridStrokeColor !== undefined ? { neutralFillSyncHex: gridStrokeColor } : undefined;
   const brushFor = (theme: PaletteThemeId) => paletteBrush(theme, neutralOpts);
   const renderIcon = (props: IconBoxProps) => (
@@ -361,297 +394,280 @@ export const ComponentSidebar = ({
     row?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   }, [selectedInstance?.id]);
 
-  const selectedConfigAside =
-    selectedInstance === null ? null : selectedInstance.type === "connector-line" ? (
-      <aside className="component-config-panel" aria-label="Selected layer">
-        {(() => {
-          const displayName = getInstanceDisplayName(selectedInstance);
-          return (
-            <>
-              <div className="component-config-top-bar">
-                <button className="back-button" type="button" onClick={onBack}>
-                  <ArrowLeft
-                    size={ACTION_ICON_SIZE}
-                    strokeWidth={ICON_STROKE_WIDTH}
-                    aria-hidden="true"
-                    focusable="false"
-                  />
-                  Back
-                </button>
-                <span
-                  className="component-position"
-                  role="status"
-                  aria-label={`Position x ${selectedInstance.x}, y ${selectedInstance.y}`}
-                >{`x: ${selectedInstance.x}, y: ${selectedInstance.y}`}</span>
-              </div>
-              <ComponentListItem
-                className="component-config-header"
-                testId="component-config-header"
-                preview={renderPreview(selectedInstance)}
-                title={displayName}
-                actions={
-                  <button
-                    className="component-row-icon-button"
-                    type="button"
-                    onClick={() => onDeleteInstance(selectedInstance.id)}
-                    aria-label={getLayerActionLabel(
-                      "Delete",
-                      displayName,
-                      getInstanceLayerSubtitle(selectedInstance, instances),
-                    )}
-                  >
-                    <Trash2
-                      size={ACTION_ICON_SIZE}
-                      strokeWidth={ICON_STROKE_WIDTH}
-                      aria-hidden="true"
-                      focusable="false"
-                    />
-                  </button>
-                }
-              />
-              <label className="field">
-                <span>Preferred connection</span>
-                <select
-                  aria-label="Preferred connection"
-                  value={selectedInstance.props.preferredConnection}
-                  onChange={(event) =>
-                    onUpdateInstanceProps(selectedInstance.id, {
-                      ...selectedInstance.props,
-                      preferredConnection: event.target.value === "vertical" ? "vertical" : "horizontal",
-                    })
-                  }
-                >
-                  <option value="horizontal">Horizontal</option>
-                  <option value="vertical">Vertical</option>
-                </select>
-              </label>
-              <ConnectorEndpointField
-                label="Source"
-                endpoint={selectedInstance.props.source}
-                instances={instances}
-                connector={selectedInstance}
-                renderPreview={renderPreview}
-                onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
-                onStartEndpointPick={onStartEndpointPick}
-              />
-              <ConnectorEndpointField
-                label="Target"
-                endpoint={selectedInstance.props.target}
-                instances={instances}
-                connector={selectedInstance}
-                renderPreview={renderPreview}
-                onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
-                onStartEndpointPick={onStartEndpointPick}
-              />
-            </>
-          );
-        })()}
-      </aside>
-    ) : (
-      <aside className="component-config-panel" aria-label="Selected layer">
-        {(() => {
-          const displayName = getInstanceDisplayName(selectedInstance);
-          const palette = brushFor(selectedInstance.props.theme);
-          return (
-            <>
-              <div className="component-config-top-bar">
-                <button className="back-button" type="button" onClick={onBack}>
-                  <ArrowLeft
-                    size={ACTION_ICON_SIZE}
-                    strokeWidth={ICON_STROKE_WIDTH}
-                    aria-hidden="true"
-                    focusable="false"
-                  />
-                  Back
-                </button>
-                <span
-                  className="component-position"
-                  role="status"
-                  aria-label={`Position x ${selectedInstance.x}, y ${selectedInstance.y}`}
-                >{`x: ${selectedInstance.x}, y: ${selectedInstance.y}`}</span>
-              </div>
-              <ComponentListItem
-                className="component-config-header"
-                testId="component-config-header"
-                preview={renderPreview(selectedInstance)}
-                title={displayName}
-                actions={
-                  <button
-                    className="component-row-icon-button"
-                    type="button"
-                    onClick={() => onDeleteInstance(selectedInstance.id)}
-                    aria-label={getLayerActionLabel(
-                      "Delete",
-                      displayName,
-                      getInstanceLayerSubtitle(selectedInstance, instances),
-                    )}
-                  >
-                    <Trash2
-                      size={ACTION_ICON_SIZE}
-                      strokeWidth={ICON_STROKE_WIDTH}
-                      aria-hidden="true"
-                      focusable="false"
-                    />
-                  </button>
-                }
-              />
-              <div className="field">
-                <span>Theme</span>
-                <PaletteThemePicker
-                  ariaLabel="Theme"
-                  value={selectedInstance.props.theme}
-                  gridStrokeColor={gridStrokeColor}
-                  onChange={(theme) =>
-                    onUpdateInstanceProps(selectedInstance.id, {
-                      ...selectedInstance.props,
-                      theme,
-                    })
-                  }
-                />
-              </div>
-              <div className="field">
-                <span>Icon</span>
-                <div className="icon-picker" role="radiogroup" aria-label="Icon">
-                  {ICON_OPTIONS.map((icon) => (
-                    <button
-                      key={icon.id}
-                      className={
-                        selectedInstance.props.iconId === icon.id
-                          ? "icon-picker-button icon-picker-button-active"
-                          : "icon-picker-button"
-                      }
-                      type="button"
-                      role="radio"
-                      aria-checked={selectedInstance.props.iconId === icon.id}
-                      aria-label={icon.label}
-                      onClick={() =>
-                        onUpdateInstanceProps(selectedInstance.id, {
-                          ...selectedInstance.props,
-                          iconId: icon.id as IconId,
-                        })
-                      }
-                    >
-                      <ComponentIcon
-                        iconId={icon.id as IconId}
-                        color={palette.iconFillHex}
-                        size={SIDEBAR_LIST_ICON_PX}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <label className="field">
-                <span>Title</span>
-                <input
-                  type="text"
-                  value={selectedInstance.props.title}
-                  onChange={(event) =>
-                    onUpdateInstanceProps(selectedInstance.id, {
-                      ...selectedInstance.props,
-                      title: event.target.value,
-                    })
-                  }
-                  aria-label="Title"
-                />
-              </label>
-              {selectedInstance.props.theme !== "neutral" ? (
-                <div className="field field-toggle-row">
-                  <span id={`corner-match-label-${selectedInstance.id}`}>Match corners with theme</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    className="field-toggle-switch"
-                    aria-labelledby={`corner-match-label-${selectedInstance.id}`}
-                    aria-checked={selectedInstance.props.matchCornersWithTheme}
-                    onClick={() =>
-                      onUpdateInstanceProps(selectedInstance.id, {
-                        ...selectedInstance.props,
-                        matchCornersWithTheme: !selectedInstance.props.matchCornersWithTheme,
-                      })
-                    }
-                  />
-                </div>
-              ) : null}
-              <div className="field field-toggle-row">
-                <span id={`container-highlighted-label-${selectedInstance.id}`}>Container highlighted</span>
-                <button
-                  type="button"
-                  role="switch"
-                  className="field-toggle-switch"
-                  aria-labelledby={`container-highlighted-label-${selectedInstance.id}`}
-                  aria-checked={selectedInstance.props.containerHighlighted}
-                  onClick={() =>
-                    onUpdateInstanceProps(selectedInstance.id, {
-                      ...selectedInstance.props,
-                      containerHighlighted: !selectedInstance.props.containerHighlighted,
-                    })
-                  }
-                />
-              </div>
-            </>
-          );
-        })()}
-      </aside>
-    );
-
   return (
-    <div className="component-sidebar-shell">
-      <div className="component-sidebar">
-        <section className="component-section">
-          <div className="section-heading">
-            <span>Components</span>
-          </div>
-          <div className="component-scroll-region">
-            {componentTypes.map((definition) => (
-              <ComponentListItem
-                key={definition.type}
-                as="button"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  onStartComponentDrag(definition.type satisfies ComponentType, {
-                    clientX: event.clientX,
-                    clientY: event.clientY,
-                  });
-                }}
-                preview={renderDefinitionPreview(definition)}
-                title={definition.label}
-              />
-            ))}
-          </div>
-        </section>
+    <div className="component-sidebar">
+      <section className="component-section">
+        <div className="section-heading">
+          <span>Components</span>
+        </div>
+        <div className="component-scroll-region">
+          {componentTypes.map((definition) => (
+            <ComponentListItem
+              key={definition.type}
+              as="button"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                onStartComponentDrag(definition.type satisfies ComponentType, {
+                  clientX: event.clientX,
+                  clientY: event.clientY,
+                });
+              }}
+              preview={renderDefinitionPreview(definition)}
+              title={definition.label}
+            />
+          ))}
+        </div>
+      </section>
 
-        <section className="component-section">
-          <div className="section-heading">
-            <span>Layers</span>
-          </div>
-          <div className="component-scroll-region" ref={layersScrollRegionRef}>
-            {instances.length ? (
-              <Reorder.Group
-                axis="y"
-                as="div"
-                className="layers-reorder-group"
-                values={instances.map((inst) => inst.id)}
-                onReorder={onReorderInstances}
-              >
-                {instances.map((instance) => (
-                  <LayerReorderRow
-                    key={instance.id}
-                    instance={instance}
-                    instances={instances}
-                    preview={renderPreview(instance)}
-                    onSelectInstance={onSelectInstance}
-                    onDeleteInstance={onDeleteInstance}
-                    isSelected={selectedInstance?.id === instance.id}
-                  />
-                ))}
-              </Reorder.Group>
-            ) : (
-              <p className="empty-state">No components on canvas.</p>
-            )}
-          </div>
-        </section>
-      </div>
-      {selectedConfigAside}
+      <section className="component-section">
+        <div className="section-heading">
+          <span>Layers</span>
+        </div>
+        <div className="component-scroll-region" ref={layersScrollRegionRef}>
+          {instances.length ? (
+            <Reorder.Group
+              axis="y"
+              as="div"
+              className="layers-reorder-group"
+              values={instances.map((inst) => inst.id)}
+              onReorder={onReorderInstances}
+            >
+              {instances.map((instance) => (
+                <LayerReorderRow
+                  key={instance.id}
+                  instance={instance}
+                  instances={instances}
+                  preview={renderPreview(instance)}
+                  onSelectInstance={onSelectInstance}
+                  onDeleteInstance={onDeleteInstance}
+                  isSelected={selectedInstance?.id === instance.id}
+                />
+              ))}
+            </Reorder.Group>
+          ) : (
+            <p className="empty-state">No components on canvas.</p>
+          )}
+        </div>
+      </section>
     </div>
   );
 };
+
+export const ComponentConfigSidebar = ({
+  instances,
+  selectedInstance,
+  onDeleteInstance,
+  onUpdateInstanceProps,
+  onStartEndpointPick = () => {},
+  gridStrokeColor,
+}: ComponentConfigSidebarProps) => {
+  const neutralOpts = gridStrokeColor !== undefined ? { neutralFillSyncHex: gridStrokeColor } : undefined;
+  const brushFor = (theme: PaletteThemeId) => paletteBrush(theme, neutralOpts);
+  const renderIcon = (props: IconBoxProps) => (
+    <ComponentIcon iconId={props.iconId} color={brushFor(props.theme).iconFillHex} size={SIDEBAR_LIST_ICON_PX} />
+  );
+  const renderPreview = (instance: ComponentInstance) =>
+    instance.type === "connector-line" ? <ConnectorLineIcon /> : renderIcon(instance.props);
+
+  if (selectedInstance.type === "connector-line") {
+    const displayName = getInstanceDisplayName(selectedInstance);
+    return (
+      <div className="component-config-panel">
+        <ComponentListItem
+          className="component-config-header"
+          testId="component-config-header"
+          preview={renderPreview(selectedInstance)}
+          title={displayName}
+          actions={
+            <button
+              className="component-row-icon-button"
+              type="button"
+              onClick={() => onDeleteInstance(selectedInstance.id)}
+              aria-label={getLayerActionLabel(
+                "Delete",
+                displayName,
+                getInstanceLayerSubtitle(selectedInstance, instances),
+              )}
+            >
+              <Trash2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+            </button>
+          }
+        />
+        <label className="field">
+          <span>Preferred connection</span>
+          <select
+            aria-label="Preferred connection"
+            value={selectedInstance.props.preferredConnection}
+            onChange={(event) =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                preferredConnection: event.target.value === "vertical" ? "vertical" : "horizontal",
+              })
+            }
+          >
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+          </select>
+        </label>
+        <ConnectorEndpointField
+          label="Source"
+          endpoint={selectedInstance.props.source}
+          instances={instances}
+          connector={selectedInstance}
+          renderPreview={renderPreview}
+          onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
+          onStartEndpointPick={onStartEndpointPick}
+        />
+        <ConnectorEndpointField
+          label="Target"
+          endpoint={selectedInstance.props.target}
+          instances={instances}
+          connector={selectedInstance}
+          renderPreview={renderPreview}
+          onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
+          onStartEndpointPick={onStartEndpointPick}
+        />
+      </div>
+    );
+  }
+
+  const displayName = getInstanceDisplayName(selectedInstance);
+  const palette = brushFor(selectedInstance.props.theme);
+  return (
+    <div className="component-config-panel">
+      <ComponentListItem
+        className="component-config-header"
+        testId="component-config-header"
+        preview={renderPreview(selectedInstance)}
+        title={displayName}
+        actions={
+          <button
+            className="component-row-icon-button"
+            type="button"
+            onClick={() => onDeleteInstance(selectedInstance.id)}
+            aria-label={getLayerActionLabel(
+              "Delete",
+              displayName,
+              getInstanceLayerSubtitle(selectedInstance, instances),
+            )}
+          >
+            <Trash2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+          </button>
+        }
+      />
+      <div className="field">
+        <span>Theme</span>
+        <PaletteThemePicker
+          ariaLabel="Theme"
+          value={selectedInstance.props.theme}
+          gridStrokeColor={gridStrokeColor}
+          onChange={(theme) =>
+            onUpdateInstanceProps(selectedInstance.id, {
+              ...selectedInstance.props,
+              theme,
+            })
+          }
+        />
+      </div>
+      <div className="field">
+        <span>Icon</span>
+        <div className="icon-picker" role="radiogroup" aria-label="Icon">
+          {ICON_OPTIONS.map((icon) => (
+            <button
+              key={icon.id}
+              className={
+                selectedInstance.props.iconId === icon.id
+                  ? "icon-picker-button icon-picker-button-active"
+                  : "icon-picker-button"
+              }
+              type="button"
+              role="radio"
+              aria-checked={selectedInstance.props.iconId === icon.id}
+              aria-label={icon.label}
+              onClick={() =>
+                onUpdateInstanceProps(selectedInstance.id, {
+                  ...selectedInstance.props,
+                  iconId: icon.id as IconId,
+                })
+              }
+            >
+              <ComponentIcon iconId={icon.id as IconId} color={palette.iconFillHex} size={SIDEBAR_LIST_ICON_PX} />
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="field">
+        <span>Title</span>
+        <input
+          type="text"
+          value={selectedInstance.props.title}
+          onChange={(event) =>
+            onUpdateInstanceProps(selectedInstance.id, {
+              ...selectedInstance.props,
+              title: event.target.value,
+            })
+          }
+          aria-label="Title"
+        />
+      </label>
+      {selectedInstance.props.theme !== "neutral" ? (
+        <div className="field field-toggle-row">
+          <span id={`corner-match-label-${selectedInstance.id}`}>Match corners with theme</span>
+          <button
+            type="button"
+            role="switch"
+            className="field-toggle-switch"
+            aria-labelledby={`corner-match-label-${selectedInstance.id}`}
+            aria-checked={selectedInstance.props.matchCornersWithTheme}
+            onClick={() =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                matchCornersWithTheme: !selectedInstance.props.matchCornersWithTheme,
+              })
+            }
+          />
+        </div>
+      ) : null}
+      <div className="field field-toggle-row">
+        <span id={`container-highlighted-label-${selectedInstance.id}`}>Container highlighted</span>
+        <button
+          type="button"
+          role="switch"
+          className="field-toggle-switch"
+          aria-labelledby={`container-highlighted-label-${selectedInstance.id}`}
+          aria-checked={selectedInstance.props.containerHighlighted}
+          onClick={() =>
+            onUpdateInstanceProps(selectedInstance.id, {
+              ...selectedInstance.props,
+              containerHighlighted: !selectedInstance.props.containerHighlighted,
+            })
+          }
+        />
+      </div>
+    </div>
+  );
+};
+
+export const ComponentSidebar = (props: ComponentSidebarProps) => (
+  <>
+    <ComponentBrowseSidebar
+      instances={props.instances}
+      selectedInstance={props.selectedInstance}
+      onSelectInstance={props.onSelectInstance}
+      onDeleteInstance={props.onDeleteInstance}
+      onStartComponentDrag={props.onStartComponentDrag}
+      onReorderInstances={props.onReorderInstances}
+      gridStrokeColor={props.gridStrokeColor}
+    />
+    {props.selectedInstance ? (
+      <ComponentConfigSidebar
+        instances={props.instances}
+        selectedInstance={props.selectedInstance}
+        onDeleteInstance={props.onDeleteInstance}
+        onUpdateInstanceProps={props.onUpdateInstanceProps}
+        onStartEndpointPick={props.onStartEndpointPick}
+        gridStrokeColor={props.gridStrokeColor}
+      />
+    ) : null}
+  </>
+);

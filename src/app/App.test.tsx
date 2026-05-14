@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { copyDocumentPng } from "../canvas/pngExport";
 import type { ComponentInstance } from "../grid/types";
+import { DEFAULT_ICON_ID } from "../lib/iconRegistry";
 import { resetAppStoreDocumentToDefault, useAppStore } from "../store";
 import { App } from "./App";
 
@@ -92,5 +93,55 @@ describe("App", { timeout: 15_000 }, () => {
     fireEvent.keyDown(window, { key: "Escape" });
 
     expect(useAppStore.getState().connectorEndpointPick).toBeNull();
+  });
+
+  it("deletes the selected instance when pressing Delete or Backspace outside form fields", () => {
+    const inst: ComponentInstance = {
+      id: "icon-box-del-1",
+      type: "icon-box",
+      name: "Icon Box",
+      x: 0,
+      y: 0,
+      props: {
+        matchCornersWithTheme: false,
+        theme: "purple",
+        iconId: DEFAULT_ICON_ID,
+        title: "T",
+        containerHighlighted: false,
+      },
+    };
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(useAppStore.getState().instances).toHaveLength(0);
+    expect(useAppStore.getState().selectedInstanceId).toBeNull();
+
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
+    fireEvent.keyDown(window, { key: "Backspace" });
+    expect(useAppStore.getState().instances).toHaveLength(0);
+    expect(useAppStore.getState().selectedInstanceId).toBeNull();
+  });
+
+  it("does not delete the selected instance when Backspace originates from a text field", () => {
+    const inst: ComponentInstance = {
+      id: "icon-box-del-2",
+      type: "icon-box",
+      name: "Icon Box",
+      x: 0,
+      y: 0,
+      props: {
+        matchCornersWithTheme: false,
+        theme: "purple",
+        iconId: DEFAULT_ICON_ID,
+        title: "Hi",
+        containerHighlighted: false,
+      },
+    };
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
+    render(<App />);
+    const title = screen.getByLabelText("Title");
+    fireEvent.keyDown(title, { key: "Backspace", bubbles: true });
+    expect(useAppStore.getState().instances).toHaveLength(1);
   });
 });
