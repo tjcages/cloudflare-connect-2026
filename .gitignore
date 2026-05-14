@@ -3,4 +3,5 @@ dist
 .DS_Store
 *.tsbuildinfo
 .vercel
+.wrangler
 .worktrees/
