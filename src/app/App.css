@@ -1,12 +1,10 @@
-/* Icon-box canvas title: CSS family name matches `ICON_BOX_TITLE_FONT_FAMILY`. Replace
- * `public/fonts/BerkeleyMono-Trial.woff2` with Berkeley Mono Trial from FX-050 when licensed.
- * Until then this path ships JetBrains Mono Latin 400 (SIL OFL 1.1) so builds render locally/CI. */
+/* Icon-box canvas title: CSS family name matches `ICON_BOX_TITLE_FONT_FAMILY` in `src/fonts/iconBoxTitle.ts`. */
 @font-face {
   font-family: "Berkeley Mono Trial";
   font-weight: 400;
   font-style: normal;
-  font-display: swap;
-  src: url("/fonts/BerkeleyMono-Trial.woff2") format("woff2");
+  font-display: block;
+  src: url("/fonts/BerkeleyMonoTrial-Regular.otf") format("opentype");
 }
 
 :root {

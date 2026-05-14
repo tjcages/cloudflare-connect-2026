@@ -5,6 +5,7 @@ import { hitTestComponentInstances } from "./hitTest";
 import { setupComponentLayer } from "./components/componentLayer";
 import { setupGridLayer } from "./grid/setup";
 import { setupSelectionLayer } from "./selection-setup";
+import { preloadIconBoxTitleFont } from "../fonts/iconBoxTitle";
 import { useAppStore } from "../store";
 
 const tickers = [setupGridLayer, setupComponentLayer, setupSelectionLayer];
@@ -131,6 +132,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
         }}
         layoutWidth={renderWidth}
         layoutHeight={renderHeight}
+        onPreload={preloadIconBoxTitleFont}
         onInitialized={(app) => {
           useAppStore.getState().setPixiApp(app);
         }}
