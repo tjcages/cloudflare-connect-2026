@@ -10,5 +10,6 @@ alwaysApply: false
 - Add component types through the full chain: type union, `src/lib/componentRegistry.ts` dimensions/default props, canvas drawing, hit testing, sidebar UI, and tests.
 - Add SVG icons through `src/lib/iconRegistry.ts` and render them with `ComponentIcon`. Do not hardcode one-off SVG paths in sidebar rows.
 - Sidebar rows should reuse `ComponentListItem` for consistent layout, spacing, actions, and accessibility.
+- Sidebar list glyphs use `SIDEBAR_LIST_ICON_PX` (`iconTokens.ts`); keep it aligned with `--component-list-preview-size` in `App.css`. The narrow left rail tabs use `RAIL_TAB_ICON_PX` separately.
 - Component dimensions in registry are authoritative for snapping, hit testing, and canvas drawing.
 - Keep registry entries small and data-driven so future components can be added without rewriting sidebar logic.

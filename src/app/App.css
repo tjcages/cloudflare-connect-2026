@@ -632,6 +632,18 @@ select {
   cursor: pointer;
 }
 
+.layers-reorder-group .component-list-item {
+  align-items: start;
+}
+
+.layers-reorder-group .component-list-item-text {
+  justify-content: flex-start;
+}
+
+.layers-reorder-group .component-name {
+  line-height: 16px;
+}
+
 .component-drag-ghost-root {
   position: fixed;
   z-index: 9999;
@@ -649,7 +661,7 @@ select {
 }
 
 .component-list-item {
-  --component-list-preview-size: 28px;
+  --component-list-preview-size: 16px;
   display: grid;
   grid-template-columns: var(--component-list-preview-size) minmax(0, 1fr) auto;
   align-items: center;
@@ -659,7 +671,7 @@ select {
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 6px 10px;
+  padding: 8px 10px;
 }
 
 .component-list-item:hover .component-list-item-actions {
@@ -787,8 +799,6 @@ button.component-list-item:hover {
 
 .component-icon {
   display: block;
-  filter: drop-shadow(0 0.5px 0.5px color-mix(in srgb, currentColor 12%, transparent))
-    drop-shadow(0 1px 1px color-mix(in srgb, currentColor 12%, transparent));
 }
 
 .section-heading {

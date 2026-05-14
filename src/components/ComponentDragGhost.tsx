@@ -2,6 +2,7 @@ import { ComponentIcon } from "./ComponentIcon";
 import { ComponentListItem } from "./ComponentListItem";
 import type { ComponentType, IconBoxProps } from "../grid/types";
 import { getComponentDefinition } from "../lib/componentRegistry";
+import { SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 import { paletteBrush } from "../theme/palette";
 
 type ComponentDragGhostProps = {
@@ -17,8 +18,8 @@ export const ComponentDragGhost = ({ componentType, clientX, clientY }: Componen
     componentType === "connector-line" ? (
       <svg
         className="component-icon"
-        width={16}
-        height={16}
+        width={SIDEBAR_LIST_ICON_PX}
+        height={SIDEBAR_LIST_ICON_PX}
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -33,7 +34,11 @@ export const ComponentDragGhost = ({ componentType, clientX, clientY }: Componen
         <path d="M19 13h0.01" />
       </svg>
     ) : (
-      <ComponentIcon iconId={iconBoxProps.iconId} color={paletteBrush(iconBoxProps.theme).iconFillHex} size={16} />
+      <ComponentIcon
+        iconId={iconBoxProps.iconId}
+        color={paletteBrush(iconBoxProps.theme).iconFillHex}
+        size={SIDEBAR_LIST_ICON_PX}
+      />
     );
 
   return (

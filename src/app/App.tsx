@@ -3,12 +3,11 @@ import { getCanvasPoint, isPointerOverCanvas } from "../canvas/coords";
 import { copyDocumentPng } from "../canvas/pngExport";
 import { GridCanvas } from "../canvas";
 import { ComponentDragGhost } from "../components/ComponentDragGhost";
+import { RAIL_TAB_ICON_PX } from "../components/iconTokens";
 import { ComponentIcon } from "../components/ComponentIcon";
 import { ComponentSidebar } from "../components/ComponentSidebar";
 import { Sidebar } from "../components/Sidebar";
 import { useAppStore } from "../store";
-
-const RAIL_GLYPH_SIZE = 16;
 
 export const App = () => {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -150,7 +149,7 @@ export const App = () => {
           onClick={() => setActiveTab("grid")}
         >
           <span data-testid="grid-divider-icon">
-            <ComponentIcon iconId="builder-grid" color="currentColor" size={RAIL_GLYPH_SIZE} />
+            <ComponentIcon iconId="builder-grid" color="currentColor" size={RAIL_TAB_ICON_PX} />
           </span>
         </button>
         <button
@@ -163,7 +162,7 @@ export const App = () => {
           onClick={() => setActiveTab("components")}
         >
           <span data-testid="components-rail-icon">
-            <ComponentIcon iconId="builder-layers" color="currentColor" size={RAIL_GLYPH_SIZE} />
+            <ComponentIcon iconId="builder-layers" color="currentColor" size={RAIL_TAB_ICON_PX} />
           </span>
         </button>
       </aside>

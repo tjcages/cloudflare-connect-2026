@@ -6,7 +6,7 @@ import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } 
 import { ICON_OPTIONS } from "../lib/iconRegistry";
 import { ComponentIcon } from "./ComponentIcon";
 import { ComponentListItem } from "./ComponentListItem";
-import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
+import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH, SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 import type {
   ComponentInstance,
   ComponentProps,
@@ -78,7 +78,7 @@ const getLayerActionLabel = (verb: string, displayName: string, subtitle: string
 
 const layerDragDistanceThresholdPx = 10;
 
-const ConnectorLineIcon = ({ size = 16 }: { size?: number }) => (
+const ConnectorLineIcon = ({ size = SIDEBAR_LIST_ICON_PX }: { size?: number }) => (
   <svg
     className="component-icon"
     width={size}
@@ -109,7 +109,7 @@ const getEndpointSelectedLayer = (endpoint: ConnectorEndpoint, instances: Compon
 const getEndpointCellMeta = (endpoint: ConnectorEndpoint) =>
   endpoint.kind === "cell" ? `x: ${endpoint.x}, y: ${endpoint.y}` : undefined;
 
-const StaticCellIcon = ({ size = 16 }: { size?: number }) => (
+const StaticCellIcon = ({ size = SIDEBAR_LIST_ICON_PX }: { size?: number }) => (
   <Crosshair
     className="component-icon"
     size={size}
@@ -335,7 +335,7 @@ export const ComponentSidebar = ({
   const neutralOpts = gridStrokeColor !== undefined ? { neutralFillSyncHex: gridStrokeColor } : undefined;
   const brushFor = (theme: PaletteThemeId) => paletteBrush(theme, neutralOpts);
   const renderIcon = (props: IconBoxProps) => (
-    <ComponentIcon iconId={props.iconId} color={brushFor(props.theme).iconFillHex} size={16} />
+    <ComponentIcon iconId={props.iconId} color={brushFor(props.theme).iconFillHex} size={SIDEBAR_LIST_ICON_PX} />
   );
   const renderPreview = (instance: ComponentInstance) =>
     instance.type === "connector-line" ? <ConnectorLineIcon /> : renderIcon(instance.props);
@@ -459,7 +459,7 @@ export const ComponentSidebar = ({
                   })
                 }
               >
-                <ComponentIcon iconId={icon.id as IconId} color={palette.iconFillHex} size={16} />
+                <ComponentIcon iconId={icon.id as IconId} color={palette.iconFillHex} size={SIDEBAR_LIST_ICON_PX} />
               </button>
             ))}
           </div>
