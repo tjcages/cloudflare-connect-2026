@@ -1,11 +1,11 @@
 import { Graphics } from "pixi.js";
 import type { Ticker } from "../components/pixi";
-import { getInstanceHighlightBounds } from "../components/componentRegistry";
 import { LARGE_CELL_SIZE } from "../grid/types";
 import type { ComponentInstance } from "../grid/types";
+import { getInstanceHighlightBounds } from "../lib/componentRegistry";
 import { useAppStore } from "../store";
 import type { ConnectorEndpointPickState } from "../types/document";
-import { CONNECTOR_HIGHLIGHT_COLOR } from "./components/connector-line/setup";
+import { CONNECTOR_HIGHLIGHT_COLOR } from "./components/constants";
 
 const drawCellHighlight = (graphics: Graphics, point: { x: number; y: number }) => {
   graphics
@@ -64,7 +64,7 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       w += 1;
       h += 1;
     }
-    graphics.rect(b.x + 0.5, b.y + 0.5, w - 1, h - 1).stroke({ width: 1, color: 0x9fc8ff });
+    graphics.rect(b.x + 0.5, b.y + 0.5, w - 1, h - 1).stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR });
   };
 
   sync();

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CONNECTOR_HIGHLIGHT_COLOR, getConnectorCornerCapRect, getConnectorRenderSpec } from "./setup";
+import { CONNECTOR_HIGHLIGHT_COLOR } from "../constants";
+import { getConnectorCornerCapRect, getConnectorRenderSpec } from "./setup";
 
 describe("connector line render spec", () => {
   it("places segment and endpoint frames in the structural plane below connector chrome", () => {

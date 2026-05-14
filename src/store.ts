@@ -6,7 +6,7 @@ import {
   getComponentDefinition,
   snapComponentPosition,
   snapConnectorCellCenter,
-} from "./components/componentRegistry";
+} from "./lib/componentRegistry";
 import { updateLargeRatio, updateSmallRatio } from "./grid/config";
 import { generateGrid } from "./grid/generator";
 import type {

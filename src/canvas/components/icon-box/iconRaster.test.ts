@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_ICON_ID, getIconDefinition } from "../../../components/iconRegistry";
+import { DEFAULT_ICON_ID, getIconDefinition } from "../../../lib/iconRegistry";
 import { ICON_RASTER_SCALE, rasterizeIcon } from "./iconRaster";
 
 describe("rasterizeIcon", () => {

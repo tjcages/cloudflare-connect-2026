@@ -1,4 +1,4 @@
-import { getInstanceCanvasBounds } from "../components/componentRegistry";
+import { getInstanceCanvasBounds } from "../lib/componentRegistry";
 import type { ComponentInstance } from "../grid/types";
 import {
   resolveConnectorEndpoint,

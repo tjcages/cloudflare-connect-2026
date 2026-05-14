@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ComponentInstance } from "../grid/types";
 import {
   COMPONENT_REGISTRY,
   createComponentInstance,
@@ -9,15 +10,14 @@ import {
   snapComponentPosition,
 } from "./componentRegistry";
 import {
-  ICON_BOX_CARD_FRAME_SIZE,
   ICON_BOX_CARD_FRAME_ORIGIN_Y,
+  ICON_BOX_CARD_FRAME_SIZE,
   ICON_BOX_HIGHLIGHT_HEIGHT,
   ICON_BOX_OUTER_HEIGHT,
   ICON_BOX_SNAP_ANCHOR_X,
   ICON_BOX_SNAP_ANCHOR_Y,
-} from "./iconBoxLayout";
+} from "./icon-box/layout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
-import type { ComponentInstance } from "../grid/types";
 
 describe("componentRegistry", () => {
   it("registers icon-box with corners not matched to theme by default", () => {

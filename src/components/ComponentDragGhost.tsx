@@ -1,8 +1,8 @@
 import { ComponentIcon } from "./ComponentIcon";
-import { getComponentDefinition } from "./componentRegistry";
 import { ComponentListItem } from "./ComponentListItem";
-import { paletteBrush } from "../theme/palette";
 import type { ComponentType, IconBoxProps } from "../grid/types";
+import { getComponentDefinition } from "../lib/componentRegistry";
+import { paletteBrush } from "../theme/palette";
 
 type ComponentDragGhostProps = {
   componentType: ComponentType;

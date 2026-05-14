@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createComponentInstance } from "../../../components/componentRegistry";
+import { createComponentInstance } from "../../../lib/componentRegistry";
 import {
   resolveConnectorEndpoint,
   routeConnectorPath,

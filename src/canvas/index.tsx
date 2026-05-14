@@ -2,7 +2,7 @@ import { useRef, type Ref } from "react";
 import Pixi from "../components/pixi";
 import { getCanvasPoint } from "./coords";
 import { hitTestComponentInstances } from "./hitTest";
-import { setupComponentLayer } from "./components/icon-box/setup";
+import { setupComponentLayer } from "./components/componentLayer";
 import { setupGridLayer } from "./grid/setup";
 import { setupSelectionLayer } from "./selection-setup";
 import { useAppStore } from "../store";

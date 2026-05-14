@@ -3,7 +3,7 @@ import {
   getComponentDefinition,
   snapComponentPosition,
   snapConnectorCellCenter,
-} from "./components/componentRegistry";
+} from "./lib/componentRegistry";
 import { DEFAULT_CONFIG } from "./grid/config";
 import { generateGrid } from "./grid/generator";
 import type {

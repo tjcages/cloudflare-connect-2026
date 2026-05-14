@@ -1,4 +1,4 @@
-import type { IconDefinition } from "../../../components/iconRegistry";
+import type { IconDefinition } from "../../../lib/iconRegistry";
 
 export const ICON_RASTER_SCALE = 4;
 

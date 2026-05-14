@@ -2,10 +2,10 @@ import { ArrowLeft, ChevronDown, Crosshair, Pencil, Trash2 } from "lucide-react"
 import { Reorder, useDragControls } from "motion/react";
 import { useState } from "react";
 import type { FocusEventHandler, PointerEventHandler, ReactNode } from "react";
+import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
+import { ICON_OPTIONS } from "../lib/iconRegistry";
 import { ComponentIcon } from "./ComponentIcon";
-import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } from "./componentRegistry";
 import { ComponentListItem } from "./ComponentListItem";
-import { ICON_OPTIONS } from "./iconRegistry";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
 import type {
   ComponentInstance,

@@ -1,4 +1,4 @@
-import { getIconDefinition } from "./iconRegistry";
+import { getIconDefinition } from "../lib/iconRegistry";
 import type { IconId } from "../grid/types";
 
 type ComponentIconProps = {

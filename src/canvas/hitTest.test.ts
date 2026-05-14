@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hitTestComponentInstances } from "./hitTest";
-import { DEFAULT_ICON_ID } from "../components/iconRegistry";
+import { DEFAULT_ICON_ID } from "../lib/iconRegistry";
 import type { ComponentInstance } from "../grid/types";
 
 const createInstance = (id: string, x: number, y: number): ComponentInstance => ({

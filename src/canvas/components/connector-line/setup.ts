@@ -1,5 +1,6 @@
 import { Container, Graphics } from "pixi.js";
 import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
+import { CONNECTOR_HIGHLIGHT_COLOR } from "../constants";
 import {
   getConnectorCornerPoints,
   getConnectorSegmentCells,
@@ -11,7 +12,6 @@ const CONNECTOR_UNDER_STROKE_WIDTH = 9;
 const CONNECTOR_STROKE_WIDTH = 1;
 const CONNECTOR_CORNER_SIZE = 6;
 const CONNECTOR_CORNER_RADIUS = 1;
-export const CONNECTOR_HIGHLIGHT_COLOR = 0x9fc8ff;
 
 export type ConnectorRenderSpec = {
   segmentFrameColor: number;

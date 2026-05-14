@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_ICON_ID } from "./components/iconRegistry";
+import { DEFAULT_ICON_ID } from "./lib/iconRegistry";
 import type { ComponentInstance } from "./grid/types";
 import { migratePersistedPartializeForLayerOrder, reorderInstancesByIds } from "./store";
 

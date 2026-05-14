@@ -1,7 +1,7 @@
 /** Logical layout for icon-box instances (registry + Pixi agree on these numbers). */
 
-import { BASE_UNIT } from "../grid/types";
-import { ICON_BOX_TITLE_FONT_FAMILY } from "../fonts/iconBoxTitle";
+import { ICON_BOX_TITLE_FONT_FAMILY } from "../../fonts/iconBoxTitle";
+import { BASE_UNIT } from "../../grid/types";
 
 export const ICON_BOX_INNER_OFFSET = 8;
 export const ICON_BOX_INNER_SIZE = 64;

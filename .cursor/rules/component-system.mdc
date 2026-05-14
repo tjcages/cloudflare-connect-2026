@@ -1,14 +1,14 @@
 ---
 description: Registry-backed component and SVG icon extension patterns
-globs: src/components/componentRegistry.ts, src/components/iconRegistry.ts, src/components/ComponentSidebar.tsx, src/components/ComponentIcon.tsx, src/components/ComponentListItem.tsx, src/grid/types.ts, src/canvas/**, src/store.ts
+globs: src/lib/componentRegistry.ts, src/lib/iconRegistry.ts, src/lib/icon-box/layout.ts, src/components/ComponentSidebar.tsx, src/components/ComponentIcon.tsx, src/components/ComponentListItem.tsx, src/grid/types.ts, src/canvas/**, src/store.ts
 alwaysApply: false
 ---
 
 # Component System Rules
 
 - Component layer state must stay serializable. Put shared props and discriminated unions in `src/grid/types.ts` or focused adjacent type modules.
-- Add component types through the full chain: type union, `componentRegistry.ts` dimensions/default props, canvas drawing, hit testing, sidebar UI, and tests.
-- Add SVG icons through `iconRegistry.ts` and render them with `ComponentIcon`. Do not hardcode one-off SVG paths in sidebar rows.
+- Add component types through the full chain: type union, `src/lib/componentRegistry.ts` dimensions/default props, canvas drawing, hit testing, sidebar UI, and tests.
+- Add SVG icons through `src/lib/iconRegistry.ts` and render them with `ComponentIcon`. Do not hardcode one-off SVG paths in sidebar rows.
 - Sidebar rows should reuse `ComponentListItem` for consistent layout, spacing, actions, and accessibility.
 - Component dimensions in registry are authoritative for snapping, hit testing, and canvas drawing.
 - Keep registry entries small and data-driven so future components can be added without rewriting sidebar logic.

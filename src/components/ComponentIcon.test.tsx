@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ComponentIcon } from "./ComponentIcon";
-import { DEFAULT_ICON_ID } from "./iconRegistry";
+import { DEFAULT_ICON_ID } from "../lib/iconRegistry";
 
 describe("ComponentIcon", () => {
   it("renders a registry-backed 24x24 svg with configurable color", () => {

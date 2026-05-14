@@ -5,7 +5,8 @@ import {
   ICON_BOX_SNAP_ANCHOR_Y,
   getIconBoxFullHighlightBoundsInRootSpace,
   getIconBoxShadowCardBoundsInRootSpace,
-} from "./iconBoxLayout";
+} from "./icon-box/layout";
+import { DEFAULT_ICON_ID } from "./iconRegistry";
 import {
   BASE_UNIT,
   LARGE_CELL_SIZE,
@@ -16,7 +17,6 @@ import {
   type ConnectorLineProps,
   type IconBoxProps,
 } from "../grid/types";
-import { DEFAULT_ICON_ID } from "./iconRegistry";
 
 export type ComponentDefinition = {
   type: ComponentType;
@@ -190,7 +190,7 @@ export const getInstanceAnchorPoint = (instance: ComponentInstance): { x: number
 
 /**
  * Pointer hit bounds in logical canvas space.
- * Icon-box: shadowed inner card plus `ICON_BOX_SELECTION_PADDING` (iconBoxLayout); excludes title strip (see hitTest tests).
+ * Icon-box: shadowed inner card plus `ICON_BOX_SELECTION_PADDING` (icon-box layout); excludes title strip (see hitTest tests).
  */
 export const getInstanceCanvasBounds = (
   instance: ComponentInstance,

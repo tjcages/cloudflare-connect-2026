@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Canvas Rendering Rules
 
-- **PixiJS v8** plus `pixi-box-shadow` own the visual output. Grid and component layers live under `src/canvas/` (`grid/setup.ts`, `components/.../setup.ts`, `selection-setup.ts`) and subscribe to **`src/store.ts`**.
+- **PixiJS v8** plus `pixi-box-shadow` own the visual output. Grid and component layers live under `src/canvas/` (`grid/setup.ts`, `components/componentLayer.ts`, type builders under `components/<type>/`, `selection-setup.ts`) and subscribe to **`src/store.ts`**.
 - **`src/canvas/index.tsx`** composes `<Pixi>` (from `src/components/pixi/`) and DOM pointer handlers; **`src/components/pixi/index.tsx`** runs `Application` init once and resizes on logical size changes.
 - Keep drawing deterministic from store state: **`grid`**, **`instances`**, **`selectedInstanceId`**, drag preview on **`dragState`**.
 - Name coordinate spaces clearly: logical/model coordinates, CSS pixels, and backing-store pixels (`devicePixelRatio`) are different.

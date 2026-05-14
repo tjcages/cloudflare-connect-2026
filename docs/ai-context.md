@@ -20,8 +20,8 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 | Canvas React bridge | `src/canvas/index.tsx` + `src/components/pixi/` + global `src/store.ts`           | —                                                                                     |
 | Grid sidebar        | Seed, size, ratios, stroke, gap mask, PNG copy                                    | `src/components/Sidebar.tsx`                                                          |
 | Component sidebar   | Components list, layers list, selected layer config                               | `src/components/ComponentSidebar.tsx`                                                 |
-| Component registry  | Component labels, dimensions, defaults, snapping helpers                          | `src/components/componentRegistry.ts`                                                 |
-| Icon registry       | SVG icon definitions and options                                                  | `src/components/iconRegistry.ts`, `src/components/ComponentIcon.tsx`                  |
+| Component domain    | Component labels, dimensions, defaults, snapping helpers, icon-box layout         | `src/lib/componentRegistry.ts`, `src/lib/icon-box/layout.ts`                          |
+| Icon registry       | SVG icon definitions and options                                                  | `src/lib/iconRegistry.ts`, `src/components/ComponentIcon.tsx`                         |
 | Shared UI           | Shared layer/component row shell and icon tokens                                  | `src/components/ComponentListItem.tsx`, `src/components/iconTokens.ts`                |
 
 ## Core Invariants
@@ -46,15 +46,15 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 ### Add A Component Type
 
 1. Extend component types/props in `src/grid/types.ts`.
-2. Add dimensions and default props in `src/components/componentRegistry.ts`.
-3. Add Pixi rendering in `src/canvas/components/<type>/setup.ts` (and `definition.ts` for layout constants aligned with registry).
+2. Add dimensions and default props in `src/lib/componentRegistry.ts`.
+3. Add type-specific Pixi rendering under `src/canvas/components/<type>/` and dispatch from `src/canvas/components/componentLayer.ts`.
 4. Ensure `src/canvas/hitTest.ts` uses registry bounds, not duplicated numbers.
 5. Add sidebar configuration in `src/components/ComponentSidebar.tsx` if needed.
 6. Add tests for registry defaults, drawing, hit testing, and UI behavior.
 
 ### Add An SVG Icon
 
-1. Add the icon data to `src/components/iconRegistry.ts`.
+1. Add the icon data to `src/lib/iconRegistry.ts`.
 2. Keep paths data-driven and render with `ComponentIcon`.
 3. Avoid hardcoded SVGs in row/sidebar components.
 4. If the icon should be selectable, ensure the config UI reads from `ICON_OPTIONS`.
@@ -62,7 +62,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 
 ### Add Canvas Rendering Behavior
 
-1. Add or extend Pixi setup modules under `src/canvas/` (e.g. `grid/setup.ts`, `components/<type>/setup.ts`) and subscribe to `src/store.ts`.
+1. Add or extend Pixi setup modules under `src/canvas/` (e.g. `grid/setup.ts`, `components/componentLayer.ts`, type builders under `components/<type>/`) and subscribe to `src/store.ts`.
 2. Keep grid generation deterministic in `src/grid/*`; rendering reads `GeneratedGrid` and instances from the store only.
 3. Preserve high-DPI sizing via Pixi renderer `resolution` and resize hooks in `src/components/pixi/index.tsx` / shell layout (`src/canvas/index.tsx`).
 4. Keep PNG export aligned with the on-screen scene via `renderer.extract.image` at resolution `2` after clearing selection.
@@ -78,6 +78,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 ## Testing Map
 
 - `src/grid/*.test.ts`: deterministic generation, config normalization, masks, renderer helpers, clipboard helpers.
+- `src/lib/*.test.ts`: shared component registries, icon metadata, and layout-derived bounds.
 - `src/canvas/*.test.ts`: drawing, hit testing, PNG export helpers.
 - `src/components/*.test.tsx`: reusable component UI and interaction.
 - `src/app/App.test.tsx`: integrated flows such as tabs, drag/move, selection, config, export.

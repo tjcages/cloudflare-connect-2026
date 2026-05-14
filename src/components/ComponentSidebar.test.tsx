@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComponentSidebar } from "./ComponentSidebar";
-import { DEFAULT_ICON_ID, ICON_OPTIONS } from "./iconRegistry";
 import type { ComponentInstance } from "../grid/types";
+import { DEFAULT_ICON_ID, ICON_OPTIONS } from "../lib/iconRegistry";
 
 const instance: ComponentInstance = {
   id: "icon-box-1",

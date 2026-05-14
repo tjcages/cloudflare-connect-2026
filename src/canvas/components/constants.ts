@@ -1,0 +1,1 @@
+export const CONNECTOR_HIGHLIGHT_COLOR = 0x9fc8ff;

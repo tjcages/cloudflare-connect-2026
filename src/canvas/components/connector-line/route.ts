@@ -1,4 +1,4 @@
-import { getInstanceAnchorPoint } from "../../../components/componentRegistry";
+import { getInstanceAnchorPoint } from "../../../lib/componentRegistry";
 import {
   LARGE_CELL_SIZE,
   type ComponentInstance,
