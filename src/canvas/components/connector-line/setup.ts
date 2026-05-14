@@ -18,7 +18,10 @@ export type ConnectorRenderSpec = {
   endpointFrameColor: number;
   lineColor: number;
   cornerStrokeColor: number;
-  drawOrder: ["segmentFrames", "endpointFrames", "lineUnderlay", "line", "corners"];
+  /** Large-cell strokes; same visual plane as grid lines (structure sublayer above grid). */
+  structuralDrawOrder: ["segmentFrames", "endpointFrames"];
+  /** White underlay + line sit above structural strokes so they mask grid + segment/endpoint frames + icon-box outer frame. */
+  chromeDrawOrder: ["lineUnderlay", "line", "corners"];
 };
 
 export const getConnectorRenderSpec = (selected: boolean, gridStrokeColor: number): ConnectorRenderSpec => {
@@ -28,8 +31,14 @@ export const getConnectorRenderSpec = (selected: boolean, gridStrokeColor: numbe
     endpointFrameColor: highlightColor,
     lineColor: highlightColor,
     cornerStrokeColor: highlightColor,
-    drawOrder: ["segmentFrames", "endpointFrames", "lineUnderlay", "line", "corners"],
+    structuralDrawOrder: ["segmentFrames", "endpointFrames"],
+    chromeDrawOrder: ["lineUnderlay", "line", "corners"],
   };
+};
+
+export type ConnectorDisplayParts = {
+  structureRoot: Container;
+  chromeRoot: Container;
 };
 
 export const getConnectorCornerCapRect = (point: { x: number; y: number }) => ({
@@ -53,7 +62,7 @@ export const buildConnectorLine = (
   gridStrokeColor: number,
   bounds?: { width: number; height: number },
   selected = false,
-): Container | null => {
+): ConnectorDisplayParts | null => {
   const source = resolveConnectorEndpoint(instance.props.source, instances);
   const target = resolveConnectorEndpoint(instance.props.target, instances);
   if (!source || !target) {
@@ -62,7 +71,8 @@ export const buildConnectorLine = (
 
   const points = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
   const renderSpec = getConnectorRenderSpec(selected, gridStrokeColor);
-  const root = new Container();
+  const structureRoot = new Container();
+  const chromeRoot = new Container();
 
   const segmentFrames = new Graphics();
   for (const cell of getConnectorSegmentCells(points)) {
@@ -71,7 +81,7 @@ export const buildConnectorLine = (
       color: renderSpec.segmentFrameColor,
     });
   }
-  root.addChild(segmentFrames);
+  structureRoot.addChild(segmentFrames);
 
   if (selected) {
     const endpointFrames = new Graphics();
@@ -88,18 +98,18 @@ export const buildConnectorLine = (
           color: renderSpec.endpointFrameColor,
         });
     }
-    root.addChild(endpointFrames);
+    structureRoot.addChild(endpointFrames);
   }
 
   const lineUnderlay = new Graphics();
   drawPolyline(lineUnderlay, points);
   lineUnderlay.stroke({ width: CONNECTOR_UNDER_STROKE_WIDTH, color: 0xffffff });
-  root.addChild(lineUnderlay);
+  chromeRoot.addChild(lineUnderlay);
 
   const line = new Graphics();
   drawPolyline(line, points);
   line.stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.lineColor });
-  root.addChild(line);
+  chromeRoot.addChild(line);
 
   const corners = new Graphics();
   for (const point of getConnectorCornerPoints(points)) {
@@ -109,7 +119,7 @@ export const buildConnectorLine = (
       .fill({ color: 0xffffff })
       .stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.cornerStrokeColor });
   }
-  root.addChild(corners);
+  chromeRoot.addChild(corners);
 
-  return root;
+  return { structureRoot, chromeRoot };
 };

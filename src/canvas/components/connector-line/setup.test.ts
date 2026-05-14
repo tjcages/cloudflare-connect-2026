@@ -2,14 +2,9 @@ import { describe, expect, it } from "vitest";
 import { CONNECTOR_HIGHLIGHT_COLOR, getConnectorCornerCapRect, getConnectorRenderSpec } from "./setup";
 
 describe("connector line render spec", () => {
-  it("draws segment and endpoint frames below the white under-stroke, line, and corner caps", () => {
-    expect(getConnectorRenderSpec(false, 0xf3f3f3).drawOrder).toEqual([
-      "segmentFrames",
-      "endpointFrames",
-      "lineUnderlay",
-      "line",
-      "corners",
-    ]);
+  it("places segment and endpoint frames in the structural plane below connector chrome", () => {
+    expect(getConnectorRenderSpec(false, 0xf3f3f3).structuralDrawOrder).toEqual(["segmentFrames", "endpointFrames"]);
+    expect(getConnectorRenderSpec(false, 0xf3f3f3).chromeDrawOrder).toEqual(["lineUnderlay", "line", "corners"]);
   });
 
   it("uses blue line and corner strokes when the connector is selected", () => {

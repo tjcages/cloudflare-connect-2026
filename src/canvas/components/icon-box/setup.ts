@@ -93,7 +93,7 @@ const CONTAINER_RETICLE_CORNER_INSET = 0;
 /** Align reticle art with grid strokes (sub-pixel shift for all four corners). */
 const CONTAINER_RETICLE_POSITION_NUDGE = 0.5;
 
-/** Above outer grid frame stroke, below white shadow card (see `buildIconBox` zIndex tiers). */
+/** In chrome layer: above structural `cardFrame` (separate layer), below white shadow card. */
 const CONTAINER_RETICLE_Z_INDEX = 18;
 
 /** 22×22 reticle; white disk; center dot uses theme fill; ticks use grid stroke. */
@@ -108,14 +108,22 @@ const buildContainerCornerReticle = (tickColor: number, centerDotColor: number):
   return g;
 };
 
+type IconBoxDisplayParts = {
+  structureRoot: Container;
+  chromeRoot: Container;
+};
+
 const buildIconBox = (
   instance: Extract<ComponentInstance, { type: "icon-box" }>,
   gridStrokeColor: number,
   gridStrokeHex: string,
-) => {
-  const root = new Container();
-  root.sortableChildren = true;
-  root.position.set(instance.x, instance.y);
+): IconBoxDisplayParts => {
+  const structureRoot = new Container();
+  structureRoot.position.set(instance.x, instance.y);
+
+  const chromeRoot = new Container();
+  chromeRoot.sortableChildren = true;
+  chromeRoot.position.set(instance.x, instance.y);
 
   const neutralSync = { neutralFillSyncHex: gridStrokeHex };
   const brush = paletteBrush(instance.props.theme, neutralSync);
@@ -144,11 +152,11 @@ const buildIconBox = (
   const titleBg = new Graphics();
   titleBg.zIndex = 30;
   titleBg.rect(barLeft, 0, rectWidth, TITLE_BAR_HEIGHT).fill({ color: brush.fill });
-  root.addChild(titleBg);
+  chromeRoot.addChild(titleBg);
 
   titleLabel.zIndex = 31;
   titleLabel.position.set(barLeft + rectWidth / 2, TITLE_BAR_HEIGHT / 2);
-  root.addChild(titleLabel);
+  chromeRoot.addChild(titleLabel);
 
   const shadowFilter = new BoxShadowFilter({
     boxShadow: CARD_SHADOW_CSS,
@@ -170,7 +178,6 @@ const buildIconBox = (
 
   /** Selection-frame stroke uses the same color as the logical grid (`grid.config.strokeColor`). */
   const cardFrame = new Graphics();
-  cardFrame.zIndex = 15;
   cardFrame
     .rect(
       ICON_BOX_CARD_FRAME_ORIGIN_X + 0.5,
@@ -179,10 +186,10 @@ const buildIconBox = (
       ICON_BOX_CARD_FRAME_SIZE,
     )
     .stroke({ width: 1, color: gridStrokeColor });
+  structureRoot.addChild(cardFrame);
 
-  root.addChild(cardFill);
-  root.addChild(cardStroke);
-  root.addChild(cardFrame);
+  chromeRoot.addChild(cardFill);
+  chromeRoot.addChild(cardStroke);
 
   const markers = new Graphics();
   markers.zIndex = 40;
@@ -201,7 +208,7 @@ const buildIconBox = (
   for (const [mx, my] of corners) {
     markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerBrush.fill });
   }
-  root.addChild(markers);
+  chromeRoot.addChild(markers);
 
   const icon = getIconDefinition(instance.props.iconId);
   const iconRgb = brush.iconFill;
@@ -215,7 +222,7 @@ const buildIconBox = (
   iconHold.filters = [buildIconShadowFilter(iconRgb)];
   iconHold.addChild(iconSprite);
 
-  root.addChild(iconHold);
+  chromeRoot.addChild(iconHold);
 
   if (instance.props.theme !== "neutral") {
     const accentLeft = ICON_BOX_INNER_OFFSET + (ICON_BOX_INNER_SIZE - ICON_BOX_ACCENT_BAR_WIDTH) / 2;
@@ -227,7 +234,7 @@ const buildIconBox = (
       .rect(accentLeft, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
       .fill({ color: accentFillRgb, alpha: 1 });
     accentBar.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-    root.addChild(accentBar);
+    chromeRoot.addChild(accentBar);
   }
 
   if (instance.props.containerHighlighted) {
@@ -248,20 +255,29 @@ const buildIconBox = (
         cx - CONTAINER_RETICLE_HALF + CONTAINER_RETICLE_POSITION_NUDGE,
         cy - CONTAINER_RETICLE_HALF + CONTAINER_RETICLE_POSITION_NUDGE,
       );
-      root.addChild(reticle);
+      chromeRoot.addChild(reticle);
     }
   }
 
-  return root;
+  return { structureRoot, chromeRoot };
 };
 
 export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   const layer = new Container();
-  layer.sortableChildren = true;
   app.stage.addChild(layer);
 
+  const structureLayer = new Container();
+  structureLayer.sortableChildren = true;
+  const chromeLayer = new Container();
+  chromeLayer.sortableChildren = true;
+  layer.addChild(structureLayer);
+  layer.addChild(chromeLayer);
+
   const rebuild = () => {
-    for (const child of [...layer.children]) {
+    for (const child of [...structureLayer.children]) {
+      child.destroy({ children: true });
+    }
+    for (const child of [...chromeLayer.children]) {
       child.destroy({ children: true });
     }
 
@@ -274,24 +290,32 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
 
     for (let index = 0; index < toDraw.length; index += 1) {
       const instance = toDraw[index];
-      const root =
-        instance.type === "connector-line"
-          ? buildConnectorLine(
-              instance,
-              toDraw,
-              gridStrokeColor,
-              {
-                width: grid.config.logicalWidth,
-                height: grid.config.logicalHeight,
-              },
-              instance.id === selectedInstanceId,
-            )
-          : buildIconBox(instance, gridStrokeColor, gridStrokeHex);
-      if (!root) {
-        continue;
+      const z = count - index;
+      if (instance.type === "connector-line") {
+        const parts = buildConnectorLine(
+          instance,
+          toDraw,
+          gridStrokeColor,
+          {
+            width: grid.config.logicalWidth,
+            height: grid.config.logicalHeight,
+          },
+          instance.id === selectedInstanceId,
+        );
+        if (!parts) {
+          continue;
+        }
+        parts.structureRoot.zIndex = z;
+        parts.chromeRoot.zIndex = z;
+        structureLayer.addChild(parts.structureRoot);
+        chromeLayer.addChild(parts.chromeRoot);
+      } else {
+        const { structureRoot, chromeRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+        structureRoot.zIndex = z;
+        chromeRoot.zIndex = z;
+        structureLayer.addChild(structureRoot);
+        chromeLayer.addChild(chromeRoot);
       }
-      root.zIndex = count - index;
-      layer.addChild(root);
     }
 
     app.render();
