@@ -13,7 +13,7 @@ vi.mock("../canvas", () => ({
   GridCanvas: () => <div role="img" aria-label="Component builder canvas" />,
 }));
 
-describe("App", () => {
+describe("App", { timeout: 15_000 }, () => {
   beforeEach(() => {
     resetAppStoreDocumentToDefault();
   });

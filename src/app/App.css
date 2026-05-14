@@ -123,14 +123,35 @@ select {
   flex: 1;
 }
 
-.sidebar-components .component-sidebar {
-  gap: 0;
+.component-sidebar-shell {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.sidebar-components .component-sidebar-shell {
   height: 100vh;
+}
+
+.sidebar-components .component-sidebar-shell .component-sidebar {
+  flex: 1 1 0;
+  min-width: 0;
+  gap: 0;
+  height: 100%;
   overflow: hidden;
 }
 
-.sidebar-components .component-config-panel {
-  height: 100vh;
+.component-sidebar-shell:has(.component-config-panel) .component-sidebar {
+  border-right: 1px solid #f3f3f3;
+}
+
+.sidebar-components .component-sidebar-shell .component-config-panel {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
   padding: 14px;
 }
@@ -150,6 +171,10 @@ select {
 .component-list-item.component-config-header {
   padding-left: 0;
   padding-right: 0;
+}
+
+.component-list-item.component-config-header .component-list-item-actions {
+  opacity: 1;
 }
 
 .field {
@@ -626,6 +651,14 @@ select {
 
 .layers-reorder-item-surface:active {
   cursor: grabbing;
+}
+
+.layers-reorder-item-surface-selected {
+  background: #f4f4f4;
+}
+
+.layers-reorder-item-surface-selected:hover {
+  background: #efefef;
 }
 
 .layers-reorder-item-surface button {

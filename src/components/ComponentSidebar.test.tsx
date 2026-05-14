@@ -355,6 +355,47 @@ describe("ComponentSidebar", () => {
     expect(screen.queryByRole("switch", { name: /Match corners with theme/i })).not.toBeInTheDocument();
   });
 
+  it("marks the selected layer row and scrolls it into view when the selection changes", () => {
+    const prevScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    const scrollIntoViewMock = vi.fn() as typeof HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+    try {
+      const second: ComponentInstance = { ...instance, id: "icon-box-2", name: "Icon Box 2" };
+      const { rerender } = render(
+        <ComponentSidebar
+          instances={[instance, second]}
+          selectedInstance={null}
+          onSelectInstance={vi.fn()}
+          onBack={vi.fn()}
+          onDeleteInstance={vi.fn()}
+          onUpdateInstanceProps={vi.fn()}
+          onStartComponentDrag={vi.fn()}
+        />,
+      );
+
+      rerender(
+        <ComponentSidebar
+          instances={[instance, second]}
+          selectedInstance={second}
+          onSelectInstance={vi.fn()}
+          onBack={vi.fn()}
+          onDeleteInstance={vi.fn()}
+          onUpdateInstanceProps={vi.fn()}
+          onStartComponentDrag={vi.fn()}
+        />,
+      );
+
+      const selectedSurface = document
+        .querySelector("[data-testid='layer-item-icon-box-2']")
+        ?.closest(".layers-reorder-item-surface");
+      expect(selectedSurface).toHaveClass("layers-reorder-item-surface-selected");
+      expect(selectedSurface).toHaveAttribute("data-selected", "true");
+      expect(scrollIntoViewMock).toHaveBeenCalled();
+    } finally {
+      HTMLElement.prototype.scrollIntoView = prevScrollIntoView;
+    }
+  });
+
   it("shows selected component config header like a layer row and updates theme, title, and match corners toggle", () => {
     const onUpdateInstanceProps = vi.fn();
 
@@ -372,6 +413,9 @@ describe("ComponentSidebar", () => {
 
     const header = screen.getByTestId("component-config-header");
     expect(header).toHaveTextContent("Icon Box");
+    expect(window.getComputedStyle(header.querySelector(".component-list-item-actions") as HTMLElement).opacity).toBe(
+      "1",
+    );
     expect(header.querySelector(".component-position")).not.toBeInTheDocument();
 
     expect(container.querySelector(".component-config-top-bar")).toHaveTextContent("Back");
@@ -379,8 +423,9 @@ describe("ComponentSidebar", () => {
     expect(
       within(header.querySelector(".component-list-item-text") as HTMLElement).getByText("Icon Box"),
     ).toBeInTheDocument();
+    expect(screen.getByText("Layers")).toBeInTheDocument();
     expect(container.querySelectorAll("canvas.component-preview-canvas")).toHaveLength(0);
-    expect(container.querySelectorAll("svg.component-icon")).toHaveLength(ICON_OPTIONS.length + 1);
+    expect(container.querySelectorAll("svg.component-icon")).toHaveLength(ICON_OPTIONS.length + 4);
     const iconPicker = screen.getByRole("radiogroup", { name: "Icon" });
     const iconOption = within(iconPicker).getByRole("radio", { name: "Section mark" });
 
@@ -425,6 +470,27 @@ describe("ComponentSidebar", () => {
       title: "Workers",
       containerHighlighted: false,
     });
+  });
+
+  it("deletes selected instance from config header trash", () => {
+    const onDeleteInstance = vi.fn();
+
+    render(
+      <ComponentSidebar
+        instances={[instance]}
+        selectedInstance={instance}
+        onSelectInstance={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteInstance={onDeleteInstance}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+
+    const header = screen.getByTestId("component-config-header");
+    fireEvent.click(within(header).getByRole("button", { name: "Delete Icon Box, Workers" }));
+
+    expect(onDeleteInstance).toHaveBeenCalledWith("icon-box-1");
   });
 
   it("updates accent theme from palette swatches", () => {
