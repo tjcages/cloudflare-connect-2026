@@ -275,14 +275,25 @@ select {
   min-width: 0;
 }
 
+.connector-endpoint-select-trigger.component-list-item,
+.connector-endpoint-option.component-list-item {
+  align-items: start;
+  padding: 8px 10px;
+}
+
 .connector-endpoint-select-trigger.component-list-item {
   min-height: var(--connector-endpoint-control-size);
   border: 1px solid #f3f3f3;
   border-radius: 6px;
-  padding: 6px 12px 6px 6px;
+}
+
+.connector-endpoint-select-trigger .component-list-item-text,
+.connector-endpoint-option .component-list-item-text {
+  justify-content: flex-start;
 }
 
 .connector-endpoint-select-trigger .component-list-item-actions {
+  align-self: center;
   opacity: 1;
 }
 
@@ -308,10 +319,6 @@ select {
   background: #ffffff;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
   padding: 4px 0;
-}
-
-.connector-endpoint-option.component-list-item {
-  padding: 6px;
 }
 
 .connector-endpoint-option.component-list-item:hover,
