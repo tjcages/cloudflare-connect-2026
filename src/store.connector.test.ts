@@ -51,3 +51,20 @@ describe("connector endpoint picking", () => {
     expect(useAppStore.getState().connectorEndpointPick).toBeNull();
   });
 });
+
+describe("connector layer order", () => {
+  it("appends new connector lines behind other layers", () => {
+    resetAppStoreDocumentToDefault();
+    useAppStore.setState({ instances: [], nextInstanceIndex: 1 });
+
+    useAppStore.getState().finalizeCreateAt("icon-box", 40, 40);
+    useAppStore.getState().finalizeCreateAt("connector-line", 120, 40);
+    useAppStore.getState().finalizeCreateAt("icon-box", 200, 40);
+
+    expect(useAppStore.getState().instances.map((instance) => instance.id)).toEqual([
+      "icon-box-3",
+      "icon-box-1",
+      "connector-line-2",
+    ]);
+  });
+});

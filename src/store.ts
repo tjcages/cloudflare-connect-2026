@@ -184,7 +184,7 @@ export const useAppStore = create<AppStoreState>()(
           grid.config.logicalHeight,
         );
         set({
-          instances: [instance, ...instances],
+          instances: type === "connector-line" ? [...instances, instance] : [instance, ...instances],
           selectedInstanceId: instance.id,
           nextInstanceIndex: nextInstanceIndex + 1,
           dragState: null,
