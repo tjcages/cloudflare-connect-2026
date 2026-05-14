@@ -62,12 +62,27 @@ EOF
 )"
 ```
 
-## 6. Push
+## 6. Finish The Branch
+
+First check whether the current checkout is a secondary worktree with `git worktree list --porcelain`.
+
+If this is a normal checkout:
 
 - Check whether the branch tracks a remote.
 - If it has an upstream, run `git push`.
 - If it has no upstream, run `git push -u origin HEAD`.
-- Never force-push unless the user explicitly asks in this invocation.
+
+If this is a secondary worktree:
+
+- Record the current worktree path and branch name.
+- Ensure the worktree is clean after the task commit.
+- Move to the primary repository checkout and ensure `main` is clean.
+- Update `main` with `git pull --ff-only`.
+- Merge the worktree branch into `main`.
+- Push `main`.
+- Remove the secondary worktree with `git worktree remove <path>` after the merge and push succeed.
+
+Never force-push or force-remove a worktree unless the user explicitly asks in this invocation.
 
 ## 7. Final Summary
 
@@ -76,4 +91,4 @@ Tell the user:
 - What was cleaned up.
 - What docs or rules were updated, if any.
 - What verification passed.
-- The commit hash and push result.
+- The commit hash, merge result when applicable, push result, and whether the worktree was removed.
