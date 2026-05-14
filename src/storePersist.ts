@@ -172,15 +172,9 @@ const sanitizeInstances = (raw: unknown, gridLogicalWidth: number, gridLogicalHe
     return defaultInstancesForGrid(gridLogicalWidth, gridLogicalHeight);
   }
 
-  const normalized = raw
+  return raw
     .map((item) => normalizeInstanceForGrid(item, gridLogicalWidth, gridLogicalHeight))
     .filter((x): x is ComponentInstance => x !== null);
-
-  if (normalized.length === 0) {
-    return defaultInstancesForGrid(gridLogicalWidth, gridLogicalHeight);
-  }
-
-  return normalized;
 };
 
 const maxInstanceOrdinal = (instances: ComponentInstance[]): number => {

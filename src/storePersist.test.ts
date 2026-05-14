@@ -46,7 +46,7 @@ describe("mergePersistedDocument", () => {
 
     expect(merged.gridConfig.seed).toBe(seedOverride);
     expect(merged.grid.config.seed).toBe(seedOverride);
-    expect(merged.instances.length).toBeGreaterThan(0);
+    expect(merged.instances).toEqual([]);
     expect(merged.nextInstanceIndex).toBeGreaterThanOrEqual(2);
     expect(merged.dummyAction).toBeDefined();
   });
