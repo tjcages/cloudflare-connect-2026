@@ -7,7 +7,7 @@ import type { ComponentInstance } from "../../../grid/types";
 import { parseHexColor } from "../../color";
 import { paletteBrush } from "../../../theme/palette";
 import { useAppStore } from "../../../store";
-import { buildConnectorLine } from "../connector-line/setup";
+import { buildConnectorLine, getConnectorRenderFingerprint } from "../connector-line/setup";
 import { rasterizeIcon } from "./iconRaster";
 import {
   ICON_BOX_ACCENT_BAR_GAP,
@@ -262,6 +262,146 @@ const buildIconBox = (
   return { structureRoot, chromeRoot };
 };
 
+type LayerCacheEntry =
+  | {
+      kind: "icon-box";
+      structureRoot: Container;
+      chromeRoot: Container;
+      propsJson: string;
+      gridStrokeHex: string;
+    }
+  | {
+      kind: "connector-line";
+      structureRoot: Container;
+      chromeRoot: Container;
+      fingerprint: string;
+    };
+
+const destroyLayerEntry = (entry: LayerCacheEntry) => {
+  entry.structureRoot.destroy({ children: true });
+  entry.chromeRoot.destroy({ children: true });
+};
+
+const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Map<string, LayerCacheEntry>) => {
+  const { instances, dragState, grid, selectedInstanceId } = useAppStore.getState();
+  const gridStrokeHex = grid.config.strokeColor;
+  const gridStrokeColor = parseHexColor(gridStrokeHex);
+  const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
+  const toDraw = previewInstance === null ? instances : [...instances, previewInstance];
+  const bounds = { width: grid.config.logicalWidth, height: grid.config.logicalHeight };
+
+  const desiredIds = new Set(toDraw.map((i) => i.id));
+  for (const id of [...cache.keys()]) {
+    if (!desiredIds.has(id)) {
+      destroyLayerEntry(cache.get(id)!);
+      cache.delete(id);
+    }
+  }
+
+  const count = toDraw.length;
+
+  for (let index = 0; index < toDraw.length; index += 1) {
+    const instance = toDraw[index];
+    const z = count - index;
+
+    if (instance.type === "connector-line") {
+      const fingerprint = getConnectorRenderFingerprint(
+        instance,
+        toDraw,
+        gridStrokeColor,
+        bounds,
+        instance.id === selectedInstanceId,
+      );
+
+      if (fingerprint === null) {
+        const prior = cache.get(instance.id);
+        if (prior) {
+          destroyLayerEntry(prior);
+          cache.delete(instance.id);
+        }
+        continue;
+      }
+
+      const prior = cache.get(instance.id);
+
+      if (!prior || prior.kind !== "connector-line" || prior.fingerprint !== fingerprint) {
+        if (prior) {
+          destroyLayerEntry(prior);
+          cache.delete(instance.id);
+        }
+
+        const parts = buildConnectorLine(instance, toDraw, gridStrokeColor, bounds, instance.id === selectedInstanceId);
+        if (!parts) {
+          continue;
+        }
+
+        parts.structureRoot.zIndex = z;
+        parts.chromeRoot.zIndex = z;
+        structureLayer.addChild(parts.structureRoot);
+        chromeLayer.addChild(parts.chromeRoot);
+
+        cache.set(instance.id, {
+          kind: "connector-line",
+          structureRoot: parts.structureRoot,
+          chromeRoot: parts.chromeRoot,
+          fingerprint,
+        });
+      } else {
+        prior.structureRoot.zIndex = z;
+        prior.chromeRoot.zIndex = z;
+      }
+
+      continue;
+    }
+
+    const propsJson = JSON.stringify(instance.props);
+    const prior = cache.get(instance.id);
+
+    if (!prior || prior.kind !== "icon-box") {
+      if (prior) {
+        destroyLayerEntry(prior);
+        cache.delete(instance.id);
+      }
+
+      const { structureRoot, chromeRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+      structureRoot.zIndex = z;
+      chromeRoot.zIndex = z;
+      structureLayer.addChild(structureRoot);
+      chromeLayer.addChild(chromeRoot);
+
+      cache.set(instance.id, {
+        kind: "icon-box",
+        structureRoot,
+        chromeRoot,
+        propsJson,
+        gridStrokeHex,
+      });
+    } else if (prior.propsJson !== propsJson || prior.gridStrokeHex !== gridStrokeHex) {
+      destroyLayerEntry(prior);
+      cache.delete(instance.id);
+
+      const { structureRoot, chromeRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+      structureRoot.zIndex = z;
+      chromeRoot.zIndex = z;
+      structureLayer.addChild(structureRoot);
+      chromeLayer.addChild(chromeRoot);
+
+      cache.set(instance.id, {
+        kind: "icon-box",
+        structureRoot,
+        chromeRoot,
+        propsJson,
+        gridStrokeHex,
+      });
+    } else {
+      prior.structureRoot.position.set(instance.x, instance.y);
+      prior.chromeRoot.position.set(instance.x, instance.y);
+      prior.structureRoot.zIndex = z;
+      prior.chromeRoot.zIndex = z;
+    }
+  }
+};
+
 export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   const layer = new Container();
   app.stage.addChild(layer);
@@ -273,55 +413,9 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   layer.addChild(structureLayer);
   layer.addChild(chromeLayer);
 
-  const rebuild = () => {
-    for (const child of [...structureLayer.children]) {
-      child.destroy({ children: true });
-    }
-    for (const child of [...chromeLayer.children]) {
-      child.destroy({ children: true });
-    }
+  const cache = new Map<string, LayerCacheEntry>();
 
-    const { instances, dragState, grid, selectedInstanceId } = useAppStore.getState();
-    const gridStrokeHex = grid.config.strokeColor;
-    const gridStrokeColor = parseHexColor(gridStrokeHex);
-    const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
-    const toDraw = previewInstance === null ? instances : [...instances, previewInstance];
-    const count = toDraw.length;
-
-    for (let index = 0; index < toDraw.length; index += 1) {
-      const instance = toDraw[index];
-      const z = count - index;
-      if (instance.type === "connector-line") {
-        const parts = buildConnectorLine(
-          instance,
-          toDraw,
-          gridStrokeColor,
-          {
-            width: grid.config.logicalWidth,
-            height: grid.config.logicalHeight,
-          },
-          instance.id === selectedInstanceId,
-        );
-        if (!parts) {
-          continue;
-        }
-        parts.structureRoot.zIndex = z;
-        parts.chromeRoot.zIndex = z;
-        structureLayer.addChild(parts.structureRoot);
-        chromeLayer.addChild(parts.chromeRoot);
-      } else {
-        const { structureRoot, chromeRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
-        structureRoot.zIndex = z;
-        chromeRoot.zIndex = z;
-        structureLayer.addChild(structureRoot);
-        chromeLayer.addChild(chromeRoot);
-      }
-    }
-
-    app.render();
-  };
-
-  rebuild();
+  syncLayers(structureLayer, chromeLayer, cache);
 
   const unsub = useAppStore.subscribe((state, prev) => {
     if (
@@ -330,12 +424,16 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
       state.grid !== prev.grid ||
       state.selectedInstanceId !== prev.selectedInstanceId
     ) {
-      rebuild();
+      syncLayers(structureLayer, chromeLayer, cache);
     }
   });
 
   cleanup(() => {
     unsub();
+    for (const entry of cache.values()) {
+      destroyLayerEntry(entry);
+    }
+    cache.clear();
     layer.destroy(true);
   });
 };

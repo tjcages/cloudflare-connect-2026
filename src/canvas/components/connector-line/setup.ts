@@ -56,6 +56,34 @@ const drawPolyline = (graphics: Graphics, points: { x: number; y: number }[]) =>
   }
 };
 
+/** Stable key for incremental connector redraws; changes when routing inputs change. */
+export const getConnectorRenderFingerprint = (
+  instance: Extract<ComponentInstance, { type: "connector-line" }>,
+  instances: ComponentInstance[],
+  gridStrokeColor: number,
+  bounds: { width: number; height: number },
+  selected: boolean,
+): string | null => {
+  const source = resolveConnectorEndpoint(instance.props.source, instances);
+  const target = resolveConnectorEndpoint(instance.props.target, instances);
+  if (!source || !target) {
+    return null;
+  }
+
+  return JSON.stringify({
+    preferredConnection: instance.props.preferredConnection,
+    source: instance.props.source,
+    target: instance.props.target,
+    sx: source.x,
+    sy: source.y,
+    tx: target.x,
+    ty: target.y,
+    gridStrokeColor,
+    bounds,
+    selected,
+  });
+};
+
 export const buildConnectorLine = (
   instance: Extract<ComponentInstance, { type: "connector-line" }>,
   instances: ComponentInstance[],

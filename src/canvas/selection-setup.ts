@@ -76,7 +76,6 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       state.connectorEndpointPick !== prev.connectorEndpointPick
     ) {
       sync();
-      app.render();
     }
   });
 

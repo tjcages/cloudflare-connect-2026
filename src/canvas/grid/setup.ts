@@ -25,7 +25,6 @@ export const setupGridLayer: Ticker = ({ app, cleanup }) => {
   const unsub = useAppStore.subscribe((state, prev) => {
     if (state.grid !== prev.grid) {
       paintGrid(graphics, state.grid);
-      app.render();
     }
   });
 
