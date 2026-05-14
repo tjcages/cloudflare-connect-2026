@@ -7,6 +7,14 @@ description: Clean up the current task, capture reusable lessons, then commit an
 
 Use this when the user says the task is done and wants the current agent to clean up, document durable lessons, commit, and push.
 
+## 0. Model Routing
+
+Always run this command's cleanup, verification, commit, push, and worktree-finish workflow with Composer 2 Fast, regardless of the current chat model.
+
+- If the current model is not Composer 2 Fast, immediately launch a subagent with `model: composer-2-fast` and delegate this entire command to it.
+- The current model should only relay the final result from that Composer 2 Fast subagent, unless delegation fails.
+- If delegation fails, stop and tell the user that Cursor command frontmatter does not currently provide a documented way to force a model for a slash command.
+
 ## 1. Establish Ownership
 
 - Inspect the working tree with `git status --short`, `git diff`, `git diff --cached`, and recent commits.

@@ -1,40 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Layers2 } from "lucide-react";
 import { getCanvasPoint, isPointerOverCanvas } from "../canvas/coords";
 import { copyDocumentPng } from "../canvas/pngExport";
 import { GridCanvas } from "../canvas";
 import { ComponentDragGhost } from "../components/ComponentDragGhost";
+import { ComponentIcon } from "../components/ComponentIcon";
 import { ComponentSidebar } from "../components/ComponentSidebar";
 import { Sidebar } from "../components/Sidebar";
-import { ICON_STROKE_WIDTH, RAIL_ICON_SIZE } from "../components/iconTokens";
 import { useAppStore } from "../store";
 
-const GridDividerIcon = ({
-  size = RAIL_ICON_SIZE,
-  strokeWidth = ICON_STROKE_WIDTH,
-}: {
-  size?: number;
-  strokeWidth?: number;
-}) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth={strokeWidth}
-    aria-hidden="true"
-    focusable="false"
-    data-testid="grid-divider-icon"
-  >
-    <path d="M8 4v16" />
-    <path d="M16 4v16" />
-    <path d="M4 8h16" />
-    <path d="M4 16h16" />
-  </svg>
-);
+const RAIL_GLYPH_SIZE = 16;
 
 export const App = () => {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -175,7 +149,9 @@ export const App = () => {
           aria-pressed={activeTab === "grid"}
           onClick={() => setActiveTab("grid")}
         >
-          <GridDividerIcon />
+          <span data-testid="grid-divider-icon">
+            <ComponentIcon iconId="builder-grid" color="currentColor" size={RAIL_GLYPH_SIZE} />
+          </span>
         </button>
         <button
           className={
@@ -186,7 +162,9 @@ export const App = () => {
           aria-pressed={activeTab === "components"}
           onClick={() => setActiveTab("components")}
         >
-          <Layers2 size={RAIL_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+          <span data-testid="components-rail-icon">
+            <ComponentIcon iconId="builder-layers" color="currentColor" size={RAIL_GLYPH_SIZE} />
+          </span>
         </button>
       </aside>
       <aside className={activeTab === "components" ? "sidebar sidebar-components" : "sidebar"}>

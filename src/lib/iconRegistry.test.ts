@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_ICON_ID, ICON_REGISTRY, getIconDefinition } from "./iconRegistry";
+import { DEFAULT_ICON_ID, ICON_OPTIONS, ICON_REGISTRY, getIconDefinition } from "./iconRegistry";
 
 describe("iconRegistry", () => {
   it("registers the default icon-box icon from path data", () => {
@@ -17,6 +17,9 @@ describe("iconRegistry", () => {
 
     expect(hex.renderMode).toBe("stroke");
     expect(user.renderMode).toBe("stroke");
-    expect(ICON_REGISTRY).toHaveLength(3);
+    expect(ICON_REGISTRY).toHaveLength(5);
+    expect(ICON_OPTIONS).toHaveLength(3);
+    expect(getIconDefinition("builder-grid").pickable).toBe(false);
+    expect(getIconDefinition("builder-layers").pickable).toBe(false);
   });
 });

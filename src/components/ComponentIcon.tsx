@@ -37,7 +37,15 @@ export const ComponentIcon = ({
       {title ? <title id={titleId}>{title}</title> : null}
       {icon.renderMode === "stroke"
         ? icon.paths.map((d, i) => (
-            <path key={`${icon.id}-${i}`} d={d} fill="none" stroke="currentColor" strokeWidth={strokeW} />
+            <path
+              key={`${icon.id}-${i}`}
+              d={d}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={strokeW}
+              strokeLinecap={icon.strokeLinecap}
+              strokeLinejoin={icon.strokeLinejoin}
+            />
           ))
         : icon.paths.map((d, i) => <path key={`${icon.id}-${i}`} d={d} fill={color} />)}
     </svg>

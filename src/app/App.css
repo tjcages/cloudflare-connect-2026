@@ -670,7 +670,7 @@ select {
   display: grid;
   width: var(--component-list-preview-size);
   height: var(--component-list-preview-size);
-  border: 1px solid var(--button-border);
+  border: 0;
   border-radius: 999px;
   background: transparent;
   place-items: center;

@@ -8,6 +8,10 @@ export type IconDefinition = {
   /** When `"stroke"`, paths are drawn with `stroke` only (source SVGs with fill none). */
   renderMode?: "fill" | "stroke";
   strokeWidth?: number;
+  strokeLinecap?: "butt" | "round" | "square";
+  strokeLinejoin?: "miter" | "round" | "bevel";
+  /** When false, excluded from the instance icon picker (UI-only glyphs). Defaults to true. */
+  pickable?: boolean;
 };
 
 export const DEFAULT_ICON_ID: IconId = "section-mark";
@@ -43,9 +47,37 @@ export const ICON_REGISTRY: IconDefinition[] = [
       "M4.75 20.5V19.75C4.75 15.7459 7.99594 12.5 12 12.5M12 12.5C16.0041 12.5 19.25 15.7459 19.25 19.75V20.5M12 12.5C14.4853 12.5 16.5 10.4853 16.5 8C16.5 5.51472 14.4853 3.5 12 3.5C9.51472 3.5 7.5 5.51472 7.5 8C7.5 10.4853 9.51472 12.5 12 12.5Z",
     ],
   },
+  {
+    id: "builder-grid",
+    label: "Grid builder",
+    viewBox: "0 0 24 24",
+    renderMode: "stroke",
+    strokeWidth: 1.25,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    pickable: false,
+    paths: ["M8 4v16", "M16 4v16", "M4 8h16", "M4 16h16"],
+  },
+  {
+    id: "builder-layers",
+    label: "Components builder",
+    viewBox: "0 0 24 24",
+    renderMode: "stroke",
+    strokeWidth: 1.25,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    pickable: false,
+    paths: [
+      "M13 13.74a2 2 0 0 1-2 0L2.5 8.87a1 1 0 0 1 0-1.74L11 2.26a2 2 0 0 1 2 0l8.5 4.87a1 1 0 0 1 0 1.74z",
+      "m20 14.285 1.5.845a1 1 0 0 1 0 1.74L13 21.74a2 2 0 0 1-2 0l-8.5-4.87a1 1 0 0 1 0-1.74l1.5-.845",
+    ],
+  },
 ];
 
-export const ICON_OPTIONS = ICON_REGISTRY.map(({ id, label }) => ({ id, label }));
+export const ICON_OPTIONS = ICON_REGISTRY.filter((icon) => icon.pickable !== false).map(({ id, label }) => ({
+  id,
+  label,
+}));
 
 export const getIconDefinition = (iconId: IconId) =>
   ICON_REGISTRY.find((icon) => icon.id === iconId) ?? ICON_REGISTRY[0];

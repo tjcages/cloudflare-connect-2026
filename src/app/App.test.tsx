@@ -38,7 +38,8 @@ describe("App", () => {
     expect(gridButton).toHaveAttribute("aria-pressed", "true");
     expect(gridButton.querySelector("[data-testid='grid-divider-icon']")).toBeInTheDocument();
     expect(gridButton.querySelectorAll("path")).toHaveLength(4);
-    expect(componentsButton.querySelector(".lucide-layers-2")).toBeInTheDocument();
+    expect(componentsButton.querySelector("[data-testid='components-rail-icon']")).toBeInTheDocument();
+    expect(componentsButton.querySelectorAll("path")).toHaveLength(2);
     expect(componentsButton).toHaveTextContent("");
     expect(screen.queryByRole("tab", { name: "Grid" })).not.toBeInTheDocument();
 
