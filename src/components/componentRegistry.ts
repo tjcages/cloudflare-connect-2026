@@ -12,6 +12,7 @@ import {
   type ComponentInstance,
   type ComponentProps,
   type ComponentType,
+  type ConnectorEndpoint,
   type ConnectorLineProps,
   type IconBoxProps,
 } from "../grid/types";
@@ -65,18 +66,40 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
       source: { kind: "cell", x: LARGE_CELL_SIZE / 2, y: LARGE_CELL_SIZE / 2 },
       target: { kind: "cell", x: LARGE_CELL_SIZE * 2 + LARGE_CELL_SIZE / 2, y: LARGE_CELL_SIZE / 2 },
     },
-    dynamicTitle: (config) => {
-      if (!("preferredConnection" in config)) {
-        return undefined;
-      }
-      return config.preferredConnection === "vertical" ? "Vertical" : "Horizontal";
-    },
   },
 };
 
 export const getComponentDefinition = (type: ComponentType) => COMPONENT_REGISTRY[type];
 
-export const getInstanceLayerSubtitle = (instance: ComponentInstance): string | undefined => {
+const formatConnectorEndpointSubtitle = (endpoint: ConnectorEndpoint, instances: ComponentInstance[]): string => {
+  if (endpoint.kind === "cell") {
+    return `x: ${endpoint.x} y: ${endpoint.y}`;
+  }
+
+  const layer = instances.find((inst) => inst.id === endpoint.instanceId);
+  if (!layer || layer.type === "connector-line") {
+    return "Unknown layer";
+  }
+
+  const def = getComponentDefinition(layer.type);
+  if (layer.type === "icon-box") {
+    const t = layer.props.title.trim();
+    return t.length ? `${def.label} / ${t}` : def.label;
+  }
+
+  return def.label;
+};
+
+export const getInstanceLayerSubtitle = (
+  instance: ComponentInstance,
+  instances: ComponentInstance[] = [],
+): string | undefined => {
+  if (instance.type === "connector-line") {
+    const left = formatConnectorEndpointSubtitle(instance.props.source, instances);
+    const right = formatConnectorEndpointSubtitle(instance.props.target, instances);
+    return `${left} → ${right}`;
+  }
+
   const definition = getComponentDefinition(instance.type);
   if (!definition.dynamicTitle) {
     return undefined;

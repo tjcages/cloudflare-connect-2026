@@ -1,4 +1,4 @@
-import type { Ref } from "react";
+import { useRef, type Ref } from "react";
 import Pixi from "../components/pixi";
 import { getCanvasPoint } from "./coords";
 import { hitTestComponentInstances } from "./hitTest";
@@ -15,6 +15,9 @@ type BuilderCanvasProps = {
 };
 
 export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasProps) => {
+  /** After a connector endpoint is placed on `pointerdown`, the same gesture still fires `click`, which would clear selection on empty hits. */
+  const skipNextClickSelectionSyncRef = useRef(false);
+
   const grid = useAppStore((s) => s.grid);
 
   const selectInstance = useAppStore((s) => s.selectInstance);
@@ -46,9 +49,12 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             const point = getCanvasPoint(canvas, event.clientX, event.clientY, logicalWidth, logicalHeight);
             if (useAppStore.getState().connectorEndpointPick !== null) {
               event.preventDefault();
+              skipNextClickSelectionSyncRef.current = true;
               setConnectorEndpointCell(point.x, point.y);
               return;
             }
+
+            skipNextClickSelectionSyncRef.current = false;
 
             const hitInstance = hitTestComponentInstances(instances, point.x, point.y, {
               width: logicalWidth,
@@ -101,6 +107,11 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
           },
           onClick: (event) => {
             if (useAppStore.getState().dragState !== null) {
+              return;
+            }
+
+            if (skipNextClickSelectionSyncRef.current) {
+              skipNextClickSelectionSyncRef.current = false;
               return;
             }
 

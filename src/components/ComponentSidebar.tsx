@@ -177,7 +177,7 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
             onClick={() => selectEndpoint(endpoint.kind === "cell" ? endpoint : fallbackCell)}
           />
           {selectableLayers.map((instance) => {
-            const layerSubtitle = getInstanceLayerSubtitle(instance);
+            const layerSubtitle = getInstanceLayerSubtitle(instance, instances);
             return (
               <ComponentListItem
                 key={instance.id}
@@ -238,7 +238,7 @@ const ConnectorEndpointField = ({
           onSelect={updateEndpoint}
         />
         <button
-          className="component-row-icon-button"
+          className="component-row-icon-button connector-endpoint-pick-button"
           type="button"
           aria-label={`Pick ${key} cell on canvas`}
           onClick={() => onStartEndpointPick(connector.id, key)}
@@ -252,15 +252,22 @@ const ConnectorEndpointField = ({
 
 type LayerReorderRowProps = {
   instance: ComponentInstance;
+  instances: ComponentInstance[];
   preview: ReactNode;
   onSelectInstance: (id: string) => void;
   onDeleteInstance: (id: string) => void;
 };
 
-const LayerReorderRow = ({ instance, preview, onSelectInstance, onDeleteInstance }: LayerReorderRowProps) => {
+const LayerReorderRow = ({
+  instance,
+  instances,
+  preview,
+  onSelectInstance,
+  onDeleteInstance,
+}: LayerReorderRowProps) => {
   const dragControls = useDragControls();
   const displayName = getInstanceDisplayName(instance);
-  const layerSubtitle = getInstanceLayerSubtitle(instance);
+  const layerSubtitle = getInstanceLayerSubtitle(instance, instances);
 
   const onGrabPointerDown: PointerEventHandler<HTMLDivElement> = (event) => {
     const target = event.target;
@@ -551,6 +558,7 @@ export const ComponentSidebar = ({
                 <LayerReorderRow
                   key={instance.id}
                   instance={instance}
+                  instances={instances}
                   preview={renderPreview(instance)}
                   onSelectInstance={onSelectInstance}
                   onDeleteInstance={onDeleteInstance}

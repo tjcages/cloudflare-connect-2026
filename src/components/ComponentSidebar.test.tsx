@@ -327,8 +327,14 @@ describe("ComponentSidebar", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Pick source cell on canvas" })).toHaveClass("component-row-icon-button");
-    expect(screen.getByRole("button", { name: "Pick target cell on canvas" })).toHaveClass("component-row-icon-button");
+    expect(screen.getByRole("button", { name: "Pick source cell on canvas" })).toHaveClass(
+      "component-row-icon-button",
+      "connector-endpoint-pick-button",
+    );
+    expect(screen.getByRole("button", { name: "Pick target cell on canvas" })).toHaveClass(
+      "component-row-icon-button",
+      "connector-endpoint-pick-button",
+    );
   });
 
   it("omits match corners toggle when accent theme is neutral", () => {

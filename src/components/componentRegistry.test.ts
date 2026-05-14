@@ -81,6 +81,90 @@ describe("componentRegistry", () => {
     });
   });
 
+  it("getInstanceLayerSubtitle formats connector-line with icon layer titles joined by arrow", () => {
+    const ib1 = createComponentInstance("icon-box", 43, 79, 1, 800, 560);
+    const ib2 = createComponentInstance("icon-box", 200, 200, 2, 800, 560) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
+    const durable: ComponentInstance = {
+      ...ib2,
+      props: { ...ib2.props, title: "Durable Objects" },
+    };
+    const connector: ComponentInstance = {
+      id: "connector-line-1",
+      type: "connector-line",
+      name: "Connector Line 1",
+      x: 40,
+      y: 40,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "layer", instanceId: ib1.id },
+        target: { kind: "layer", instanceId: durable.id },
+      },
+    };
+    const instances = [ib1, durable, connector];
+    expect(getInstanceLayerSubtitle(connector, instances)).toBe("Icon Box / Workers → Icon Box / Durable Objects");
+  });
+
+  it("getInstanceLayerSubtitle formats connector-line static cells with spaces", () => {
+    const connector: ComponentInstance = {
+      id: "connector-line-1",
+      type: "connector-line",
+      name: "Connector Line 1",
+      x: 40,
+      y: 40,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 200, y: 120 },
+        target: { kind: "cell", x: 360, y: 240 },
+      },
+    };
+    expect(getInstanceLayerSubtitle(connector, [])).toBe("x: 200 y: 120 → x: 360 y: 240");
+  });
+
+  it("getInstanceLayerSubtitle uses Icon Box label alone when layer title is blank", () => {
+    const iconBlank = createComponentInstance("icon-box", 43, 79, 1, 800, 560) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
+    const titled = createComponentInstance("icon-box", 200, 200, 2, 800, 560);
+    const iconNoTitle: ComponentInstance = {
+      ...iconBlank,
+      props: { ...iconBlank.props, title: "" },
+    };
+    const connector: ComponentInstance = {
+      id: "connector-line-1",
+      type: "connector-line",
+      name: "Connector Line 1",
+      x: 40,
+      y: 40,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "layer", instanceId: iconNoTitle.id },
+        target: { kind: "layer", instanceId: titled.id },
+      },
+    };
+    expect(getInstanceLayerSubtitle(connector, [iconNoTitle, titled, connector])).toBe("Icon Box → Icon Box / Workers");
+  });
+
+  it("getInstanceLayerSubtitle combines cell and icon-box on connector-line", () => {
+    const ib = createComponentInstance("icon-box", 43, 79, 1, 800, 560);
+    const connector: ComponentInstance = {
+      id: "connector-line-1",
+      type: "connector-line",
+      name: "Connector Line 1",
+      x: 40,
+      y: 40,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 40, y: 40 },
+        target: { kind: "layer", instanceId: ib.id },
+      },
+    };
+    expect(getInstanceLayerSubtitle(connector, [ib, connector])).toBe("x: 40 y: 40 → Icon Box / Workers");
+  });
+
   it("getInstanceLayerSubtitle returns undefined for blank title", () => {
     const inst = createComponentInstance("icon-box", 0, 0, 1, 800, 560) as Extract<
       ComponentInstance,

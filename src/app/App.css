@@ -259,6 +259,7 @@ select {
 }
 
 .connector-endpoint-row {
+  --connector-endpoint-control-size: 42px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
@@ -271,7 +272,7 @@ select {
 }
 
 .connector-endpoint-select-trigger.component-list-item {
-  min-height: 34px;
+  min-height: var(--connector-endpoint-control-size);
   border: 1px solid #f3f3f3;
   border-radius: 6px;
   padding: 6px 12px 6px 6px;
@@ -279,6 +280,15 @@ select {
 
 .connector-endpoint-select-trigger .component-list-item-actions {
   opacity: 1;
+}
+
+.connector-endpoint-pick-button.component-row-icon-button {
+  width: var(--connector-endpoint-control-size);
+  height: var(--connector-endpoint-control-size);
+  border: 1px solid var(--button-border);
+  border-radius: 6px;
+  background: var(--button-bg);
+  cursor: pointer;
 }
 
 .connector-endpoint-options {
