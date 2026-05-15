@@ -1,7 +1,8 @@
-import { Minus, Plus, RotateCcw } from "lucide-react";
+import { Minus, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import { CANVAS_ZOOM_MAX, CANVAS_ZOOM_MIN, clampCanvasZoom, zoomAroundCanvasPoint } from "../canvas/viewZoom";
-import { useAppStore } from "../store";
+import { resetAppStoreDocumentToDefault, useAppStore } from "../store";
+import { Button } from "./Button";
 
 const ZOOM_BUTTON_STEP = 1.12;
 
@@ -11,7 +12,6 @@ type CanvasViewportToolbarProps = {
 
 export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps) => {
   const canvasZoom = useAppStore((s) => s.canvasZoom);
-  const canvasPan = useAppStore((s) => s.canvasPan);
   const resetCanvasZoom = useAppStore((s) => s.resetCanvasZoom);
   const pixiApp = useAppStore((s) => s.pixiApp);
   const [fps, setFps] = useState(0);
@@ -68,48 +68,67 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
 
   const zoomOutDisabled = canvasZoom <= CANVAS_ZOOM_MIN + 1e-4;
   const zoomInDisabled = canvasZoom >= CANVAS_ZOOM_MAX - 1e-4;
-  const resetDisabled = Math.abs(canvasZoom - 1) < 1e-4 && Math.abs(canvasPan.x) < 1e-4 && Math.abs(canvasPan.y) < 1e-4;
+
+  const clearCanvasToDefaults = () => {
+    const ok = window.confirm(
+      "Clear all layers and reset the grid to the built-in default document? This cannot be undone.",
+    );
+    if (!ok) {
+      return;
+    }
+    resetAppStoreDocumentToDefault();
+  };
 
   return (
-    <div className="canvas-panel-viewport-toolbar" role="toolbar" aria-label="Canvas zoom">
+    <div className="canvas-panel-viewport-toolbar" role="toolbar" aria-label="Canvas viewport">
       <div className="canvas-toolbar-zoom-group">
-        <button
-          type="button"
-          className="canvas-toolbar-button"
+        <Button
+          variant="ghost"
+          padding="square"
           aria-label="Zoom out"
           title="Zoom out"
           disabled={zoomOutDisabled}
           onClick={() => bumpZoom(-1)}
         >
           <Minus size={12} strokeWidth={2} aria-hidden />
-        </button>
+        </Button>
         <span className="canvas-toolbar-zoom-readout">{Math.round(canvasZoom * 100)}%</span>
-        <button
-          type="button"
-          className="canvas-toolbar-button"
+        <Button
+          variant="ghost"
+          padding="square"
           aria-label="Zoom in"
           title="Zoom in"
           disabled={zoomInDisabled}
           onClick={() => bumpZoom(1)}
         >
           <Plus size={12} strokeWidth={2} aria-hidden />
-        </button>
+        </Button>
       </div>
       <span className="canvas-toolbar-vsep" aria-hidden />
-      <button
-        type="button"
-        className="canvas-toolbar-button"
-        aria-label="Reset view to 100% zoom and center canvas"
-        title="Reset view — 100% zoom, centered (⌘= / ⌘0)"
-        disabled={resetDisabled}
+      <Button
+        variant="ghost"
+        padding="inline"
+        title="100% zoom, canvas centered (⌘= / ⌘0)"
         onClick={() => resetCanvasZoom()}
       >
         <RotateCcw size={12} strokeWidth={2} aria-hidden />
-      </button>
+        <span>Reset view</span>
+      </Button>
       <div className="canvas-toolbar-spacer" aria-hidden />
       <span className="canvas-toolbar-fps" aria-label="Render frames per second">
         FPS {(pixiApp ? fps : 0).toFixed(2)}
       </span>
+      <span className="canvas-toolbar-vsep" aria-hidden />
+      <Button
+        variant="ghost"
+        padding="inline"
+        data-testid="canvas-toolbar-clear-defaults"
+        title="Remove all layers and restore the baked-in starter document"
+        onClick={clearCanvasToDefaults}
+      >
+        <Trash2 size={12} strokeWidth={2} aria-hidden />
+        <span>Clear</span>
+      </Button>
     </div>
   );
 };

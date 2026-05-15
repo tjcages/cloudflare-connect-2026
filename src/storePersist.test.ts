@@ -32,8 +32,8 @@ describe("mergePersistedDocument", () => {
       largeCellRatio: 0.8,
       strokeColor: "#f3f3f3",
     });
-    expect(fresh.instances).toHaveLength(6);
-    expect(fresh.nextInstanceIndex).toBe(7);
+    expect(fresh.instances).toHaveLength(15);
+    expect(fresh.nextInstanceIndex).toBe(17);
   });
 
   it("returns current state when persisted payload is not an object", () => {

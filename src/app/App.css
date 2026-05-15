@@ -14,6 +14,8 @@
   --button-hover-bg: #fafafa;
   --button-hover-color: #747474;
   --button-active-bg: #f7f7f7;
+  --builder-button-font-size: 12px;
+  --builder-button-font-weight: 400;
   color: #161616;
   background: #ffffff;
   font-family:
@@ -576,52 +578,55 @@ select {
   align-items: center;
 }
 
-.generate-button {
-  border: 1px solid var(--button-border);
+.builder-button {
   border-radius: 6px;
-  background: var(--button-bg);
   color: var(--button-color);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 400;
+  font-size: var(--builder-button-font-size);
+  font-weight: var(--builder-button-font-weight);
+  line-height: 1;
+  flex-shrink: 0;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.builder-button--solid {
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+}
+
+.builder-button--ghost {
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.builder-button:hover:not(:disabled) {
+  background: var(--button-hover-bg);
+  color: var(--button-hover-color);
+}
+
+.builder-button:active:not(:disabled) {
+  background: var(--button-active-bg);
+}
+
+.builder-button:focus-visible {
+  outline: 1px solid #d8d8d8;
+  outline-offset: 1px;
+}
+
+.builder-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.builder-button--pad-square {
   padding: 6px;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
 }
 
-.generate-button:hover {
-  background: var(--button-hover-bg);
-  color: var(--button-hover-color);
-}
-
-.generate-button:active {
-  background: var(--button-active-bg);
-}
-
-.export-button {
-  border: 1px solid var(--button-border);
-  border-radius: 6px;
-  background: var(--button-bg);
-  color: var(--button-color);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 400;
+.builder-button--pad-inline {
   padding: 6px 10px;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
-}
-
-.export-button:hover {
-  background: var(--button-hover-bg);
-  color: var(--button-hover-color);
-}
-
-.export-button:active {
-  background: var(--button-active-bg);
 }
 
 .grid-sidebar .export-button {
@@ -1030,41 +1035,16 @@ button.component-list-item:hover {
   min-width: 0;
 }
 
-.canvas-toolbar-button {
+.canvas-panel-viewport-toolbar .builder-button.builder-button--pad-square {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: #9b9b9b;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
 }
 
-.canvas-toolbar-button:hover:not(:disabled) {
-  background: var(--button-hover-bg);
-  color: var(--button-hover-color);
-}
-
-.canvas-toolbar-button:active:not(:disabled) {
-  background: var(--button-active-bg);
-}
-
-.canvas-toolbar-button:focus-visible {
-  outline: 1px solid #d8d8d8;
-  outline-offset: 1px;
-}
-
-.canvas-toolbar-button:disabled {
-  opacity: 0.45;
-  cursor: default;
+.canvas-panel-viewport-toolbar .builder-button.builder-button--pad-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .canvas-toolbar-zoom-readout {
@@ -1081,9 +1061,17 @@ button.component-list-item:hover {
 }
 
 .canvas-toolbar-fps {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
   color: #b8b8b8;
-  font-size: 12px;
-  font-weight: 400;
+  font-size: var(--builder-button-font-size);
+  font-weight: var(--builder-button-font-weight);
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   font-feature-settings:
     "tnum" 1,

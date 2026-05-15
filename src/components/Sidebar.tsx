@@ -4,6 +4,7 @@ import { BASE_UNIT, type GapMask, type GridConfig } from "../grid/types";
 import { ConfigSeparator } from "./ConfigSeparator";
 import { GapMaskEditor } from "./GapMaskEditor";
 import { RatioControl } from "./RatioControl";
+import { Button } from "./Button";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
 
 type SidebarProps = {
@@ -123,13 +124,13 @@ export const Sidebar = ({
 
       <ConfigSeparator />
 
-      <button className="generate-button" type="button" onClick={onGenerate}>
+      <Button variant="default" padding="square" className="generate-button" onClick={onGenerate}>
         Generate
-      </button>
+      </Button>
 
-      <button className="export-button" type="button" onClick={onCopyPng}>
+      <Button variant="default" padding="inline" className="export-button" onClick={onCopyPng}>
         {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy PNG"}
-      </button>
+      </Button>
 
       <dl className="stats">
         <div>
