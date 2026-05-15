@@ -190,6 +190,38 @@ describe("mergePersistedDocument", () => {
     expect(merged.selectedInstanceId).toBe("plus-marker-6");
   });
 
+  it("snap-adjusts persisted rect-marker coordinates during merge", () => {
+    const current = minimalStoreForMerge();
+    const merged = mergePersistedDocument(
+      {
+        gridConfig: DEFAULT_CONFIG,
+        instances: [
+          {
+            id: "rect-marker-6",
+            type: "rect-marker",
+            name: "Rect Marker 6",
+            x: 43,
+            y: 79,
+            props: { theme: "purple" },
+          },
+        ],
+        nextInstanceIndex: 7,
+        selectedInstanceId: "rect-marker-6",
+      },
+      current,
+    );
+
+    const rm = merged.instances[0] as Extract<ComponentInstance, { type: "rect-marker" }>;
+    const logicalWidth = merged.grid.config.logicalWidth;
+    const logicalHeight = merged.grid.config.logicalHeight;
+    const expected = createComponentInstance("rect-marker", 43, 79, 6, logicalWidth, logicalHeight);
+
+    expect(rm.x).toBe(expected.x);
+    expect(rm.y).toBe(expected.y);
+    expect(rm.props).toEqual({ theme: "purple" });
+    expect(merged.selectedInstanceId).toBe("rect-marker-6");
+  });
+
   it("snap-adjusts persisted connector-line anchors and cell endpoints during merge", () => {
     const current = minimalStoreForMerge();
     const merged = mergePersistedDocument(

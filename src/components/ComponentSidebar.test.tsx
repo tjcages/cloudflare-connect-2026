@@ -43,6 +43,15 @@ const plusMarkerInstance: ComponentInstance = {
   props: { theme: "orange" },
 };
 
+const rectMarkerInstance: ComponentInstance = {
+  id: "rect-marker-4",
+  type: "rect-marker",
+  name: "Rect Marker 4",
+  x: 80,
+  y: 80,
+  props: { theme: "orange" },
+};
+
 describe("ComponentSidebar", () => {
   it("lists layers and draggable components without legacy copy", () => {
     render(
@@ -193,6 +202,24 @@ describe("ComponentSidebar", () => {
     expect(onStartComponentDrag).toHaveBeenCalledWith("plus-marker", { clientX: 9, clientY: 18 });
   });
 
+  it("starts component drag from the rect-marker component row", () => {
+    const onStartComponentDrag = vi.fn();
+
+    render(
+      <ComponentSidebar
+        instances={[instance]}
+        selectedInstance={null}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={onStartComponentDrag}
+      />,
+    );
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Rect Marker" }), { clientX: 11, clientY: 22 });
+
+    expect(onStartComponentDrag).toHaveBeenCalledWith("rect-marker", { clientX: 11, clientY: 22 });
+  });
+
   it("configures plus-marker theme only", () => {
     const onUpdateInstanceProps = vi.fn();
 
@@ -209,6 +236,24 @@ describe("ComponentSidebar", () => {
     expect(screen.queryByTestId("icon-picker")).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId("palette-theme-swatch-purple"));
     expect(onUpdateInstanceProps).toHaveBeenCalledWith("plus-marker-3", { theme: "purple" });
+  });
+
+  it("configures rect-marker theme only", () => {
+    const onUpdateInstanceProps = vi.fn();
+
+    render(
+      <ComponentSidebar
+        instances={[rectMarkerInstance]}
+        selectedInstance={rectMarkerInstance}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={onUpdateInstanceProps}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("icon-picker")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("palette-theme-swatch-purple"));
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("rect-marker-4", { theme: "purple" });
   });
 
   it("configures connector-line preference and endpoints", () => {

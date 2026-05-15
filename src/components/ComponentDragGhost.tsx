@@ -1,7 +1,8 @@
 import { ComponentIcon } from "./ComponentIcon";
 import { ComponentListItem } from "./ComponentListItem";
 import { PlusMarkerGlyph } from "./PlusMarkerGlyph";
-import type { ComponentType, IconBoxProps, PlusMarkerProps } from "../grid/types";
+import { RectMarkerGlyph } from "./RectMarkerGlyph";
+import type { ComponentType, IconBoxProps, PlusMarkerProps, RectMarkerProps } from "../grid/types";
 import { getComponentDefinition } from "../lib/componentRegistry";
 import { SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 import { paletteBrush } from "../theme/palette";
@@ -33,6 +34,8 @@ export const ComponentDragGhost = ({ componentType, clientX, clientY }: Componen
       </svg>
     ) : componentType === "plus-marker" ? (
       <PlusMarkerGlyph theme={(definition.defaultProps as PlusMarkerProps).theme} />
+    ) : componentType === "rect-marker" ? (
+      <RectMarkerGlyph theme={(definition.defaultProps as RectMarkerProps).theme} size={SIDEBAR_LIST_ICON_PX} />
     ) : (
       <ComponentIcon
         iconId={(definition.defaultProps as IconBoxProps).iconId}

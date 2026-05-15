@@ -10,13 +10,13 @@ export const getConnectorEndpointThemeSignature = (
     return "cell";
   }
   const layer = instances.find((i) => i.id === endpoint.instanceId);
-  if (layer?.type === "icon-box" || layer?.type === "plus-marker") {
+  if (layer?.type === "icon-box" || layer?.type === "plus-marker" || layer?.type === "rect-marker") {
     return `${layer.id}:${layer.props.theme}`;
   }
   return "unknown";
 };
 
-/** Theme **fill** (`paletteBrush().fill`) for icon-box / plus-marker endpoints; else neutral synced to grid stroke. */
+/** Theme **fill** (`paletteBrush().fill`) for icon-box / themed markers; else neutral synced to grid stroke. */
 export const resolveConnectorEndpointThemeFill = (
   endpoint: ConnectorEndpoint,
   instances: ComponentInstance[],
@@ -24,7 +24,7 @@ export const resolveConnectorEndpointThemeFill = (
 ): number => {
   if (endpoint.kind === "layer") {
     const layer = instances.find((i) => i.id === endpoint.instanceId);
-    if (layer?.type === "icon-box" || layer?.type === "plus-marker") {
+    if (layer?.type === "icon-box" || layer?.type === "plus-marker" || layer?.type === "rect-marker") {
       return paletteBrush(layer.props.theme, { neutralFillSyncHex: gridStrokeHex }).fill;
     }
   }

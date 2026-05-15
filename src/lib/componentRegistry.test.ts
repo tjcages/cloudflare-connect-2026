@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ComponentInstance } from "../grid/types";
 import {
   COMPONENT_REGISTRY,
+  RECT_MARKER_RENDER_OFFSET,
   createComponentInstance,
   getInstanceAnchorPoint,
   getInstanceCanvasBounds,
@@ -71,6 +72,42 @@ describe("componentRegistry", () => {
   it("uses registry footprint for plus-marker canvas bounds", () => {
     const inst = createComponentInstance("plus-marker", 43, 79, 2, 800, 560);
     expect(getInstanceCanvasBounds(inst)).toEqual({ x: inst.x, y: inst.y, width: 40, height: 40 });
+  });
+
+  it("registers rect-marker as 4×4px with orange theme by default", () => {
+    expect(COMPONENT_REGISTRY["rect-marker"].label).toBe("Rect Marker");
+    expect(COMPONENT_REGISTRY["rect-marker"]).toMatchObject({
+      width: 4,
+      height: 4,
+      snapAnchorX: 2,
+      snapAnchorY: 2,
+      defaultProps: { theme: "orange" },
+    });
+  });
+
+  it("creates rect-marker instances snapped to the 40px base grid", () => {
+    expect(createComponentInstance("rect-marker", 43, 79, 2, 800, 560)).toMatchObject({
+      id: "rect-marker-2",
+      type: "rect-marker",
+      name: "Rect Marker 2",
+      x: 38,
+      y: 78,
+      props: { theme: "orange" },
+    });
+  });
+
+  it("snaps rect-marker center (via anchor) to the 40px lattice", () => {
+    expect(snapComponentPosition(55, 55, 800, 560, "rect-marker")).toEqual({ x: 38, y: 38 });
+  });
+
+  it("uses footprint plus render offset for rect-marker canvas bounds", () => {
+    const inst = createComponentInstance("rect-marker", 43, 79, 2, 800, 560);
+    expect(getInstanceCanvasBounds(inst)).toEqual({
+      x: inst.x + RECT_MARKER_RENDER_OFFSET,
+      y: inst.y + RECT_MARKER_RENDER_OFFSET,
+      width: 4,
+      height: 4,
+    });
   });
 
   it("creates named icon-box instances with snapped coordinates", () => {

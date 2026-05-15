@@ -82,4 +82,20 @@ describe("hitTestComponentInstances", () => {
     expect(hitTestComponentInstances([pm], 110, 110)?.id).toBe("plus-marker-1");
     expect(hitTestComponentInstances([pm], 99, 110)).toBeUndefined();
   });
+
+  it("hit tests rect-marker against its 4×4 registry bounds", () => {
+    const rm: ComponentInstance = {
+      id: "rect-marker-1",
+      type: "rect-marker",
+      name: "Rect Marker 1",
+      x: 98,
+      y: 98,
+      props: { theme: "orange" },
+    };
+
+    expect(hitTestComponentInstances([rm], 100, 100)?.id).toBe("rect-marker-1");
+    expect(hitTestComponentInstances([rm], 97, 100)).toBeUndefined();
+    expect(hitTestComponentInstances([rm], 101, 101)?.id).toBe("rect-marker-1");
+    expect(hitTestComponentInstances([rm], 103, 101)).toBeUndefined();
+  });
 });

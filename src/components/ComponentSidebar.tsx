@@ -7,6 +7,7 @@ import { ICON_OPTIONS } from "../lib/iconRegistry";
 import { ComponentIcon } from "./ComponentIcon";
 import { ComponentListItem } from "./ComponentListItem";
 import { PlusMarkerGlyph } from "./PlusMarkerGlyph";
+import { RectMarkerGlyph } from "./RectMarkerGlyph";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH, SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 import type {
   ComponentInstance,
@@ -17,6 +18,7 @@ import type {
   IconBoxProps,
   IconId,
   PlusMarkerProps,
+  RectMarkerProps,
 } from "../grid/types";
 import { PALETTE_THEMES, type PaletteThemeId, paletteBrush } from "../theme/palette";
 
@@ -350,6 +352,8 @@ export const ComponentBrowseSidebar = ({
       <ConnectorLineIcon />
     ) : instance.type === "plus-marker" ? (
       <PlusMarkerGlyph theme={instance.props.theme} gridStrokeColor={gridStrokeColor} />
+    ) : instance.type === "rect-marker" ? (
+      <RectMarkerGlyph theme={instance.props.theme} gridStrokeColor={gridStrokeColor} />
     ) : (
       renderIcon(instance.props)
     );
@@ -358,6 +362,8 @@ export const ComponentBrowseSidebar = ({
       <ConnectorLineIcon />
     ) : definition.type === "plus-marker" ? (
       <PlusMarkerGlyph theme={(definition.defaultProps as PlusMarkerProps).theme} gridStrokeColor={gridStrokeColor} />
+    ) : definition.type === "rect-marker" ? (
+      <RectMarkerGlyph theme={(definition.defaultProps as RectMarkerProps).theme} gridStrokeColor={gridStrokeColor} />
     ) : (
       renderIcon(definition.defaultProps as IconBoxProps)
     );
@@ -441,6 +447,8 @@ export const ComponentConfigSidebar = ({
       <ConnectorLineIcon />
     ) : instance.type === "plus-marker" ? (
       <PlusMarkerGlyph theme={instance.props.theme} gridStrokeColor={gridStrokeColor} />
+    ) : instance.type === "rect-marker" ? (
+      <RectMarkerGlyph theme={instance.props.theme} gridStrokeColor={gridStrokeColor} />
     ) : (
       renderIcon(instance.props)
     );
@@ -526,7 +534,7 @@ export const ComponentConfigSidebar = ({
     );
   }
 
-  if (selectedInstance.type === "plus-marker") {
+  if (selectedInstance.type === "plus-marker" || selectedInstance.type === "rect-marker") {
     const displayName = getInstanceDisplayName(selectedInstance);
     return (
       <div className="component-config-panel">

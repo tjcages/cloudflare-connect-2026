@@ -30,7 +30,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
 const isComponentType = (value: unknown): value is ComponentType =>
-  value === "icon-box" || value === "plus-marker" || value === "connector-line";
+  value === "icon-box" || value === "plus-marker" || value === "rect-marker" || value === "connector-line";
 
 const isPlusMarkerProps = (value: unknown): value is PlusMarkerProps => {
   if (!isRecord(value) || !("theme" in value) || typeof value.theme !== "string") {
@@ -181,7 +181,7 @@ const normalizeInstanceForGrid = (
     };
   }
 
-  if (raw.type === "plus-marker") {
+  if (raw.type === "plus-marker" || raw.type === "rect-marker") {
     const defaultProps = definition.defaultProps as PlusMarkerProps;
     const props = isPlusMarkerProps(raw.props) ? { ...defaultProps, ...raw.props } : defaultProps;
     const snapped = snapComponentPosition(raw.x, raw.y, gridLogicalWidth, gridLogicalHeight, raw.type);
@@ -229,7 +229,7 @@ const sanitizeInstances = (raw: unknown, gridLogicalWidth: number, gridLogicalHe
 const maxInstanceOrdinal = (instances: ComponentInstance[]): number => {
   let max = 0;
   for (const inst of instances) {
-    const m = /^(?:icon-box|plus-marker|connector-line)-(\d+)$/.exec(inst.id);
+    const m = /^(?:icon-box|plus-marker|rect-marker|connector-line)-(\d+)$/.exec(inst.id);
     if (m) {
       max = Math.max(max, Number(m[1]));
     }

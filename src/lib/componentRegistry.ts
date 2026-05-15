@@ -17,6 +17,7 @@ import {
   type ConnectorLineProps,
   type IconBoxProps,
   type PlusMarkerProps,
+  type RectMarkerProps,
 } from "../grid/types";
 
 export type ComponentDefinition = {
@@ -31,6 +32,9 @@ export type ComponentDefinition = {
   /** Layers list subtitle from current props; empty after trim → no second line. */
   dynamicTitle?: (config: ComponentProps) => string | undefined;
 };
+
+/** Added to rect-marker instance `x`/`y` when positioning the Pixi layer and for hit bounds (grid stroke alignment). */
+export const RECT_MARKER_RENDER_OFFSET = 0.5;
 
 export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
   "icon-box": {
@@ -62,6 +66,17 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     height: 40,
     snapAnchorX: 0,
     snapAnchorY: 0,
+    defaultProps: {
+      theme: "orange",
+    },
+  },
+  "rect-marker": {
+    type: "rect-marker",
+    label: "Rect Marker",
+    width: 4,
+    height: 4,
+    snapAnchorX: 2,
+    snapAnchorY: 2,
     defaultProps: {
       theme: "orange",
     },
@@ -232,6 +247,15 @@ export const getInstanceCanvasBounds = (
       };
     }
   }
+  if (instance.type === "rect-marker") {
+    const o = RECT_MARKER_RENDER_OFFSET;
+    return {
+      x: instance.x + o,
+      y: instance.y + o,
+      width: definition.width,
+      height: definition.height,
+    };
+  }
   return {
     x: instance.x,
     y: instance.y,
@@ -297,6 +321,17 @@ export const createComponentInstance = (
       x: position.x,
       y: position.y,
       props: { ...(definition.defaultProps as IconBoxProps) },
+    };
+  }
+
+  if (type === "rect-marker") {
+    return {
+      id: `${type}-${index}`,
+      type,
+      name: `${definition.label} ${index}`,
+      x: position.x,
+      y: position.y,
+      props: { ...(definition.defaultProps as RectMarkerProps) },
     };
   }
 

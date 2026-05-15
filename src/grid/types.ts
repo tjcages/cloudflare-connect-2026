@@ -43,7 +43,7 @@ export type GeneratedGrid = {
   cells: GridCell[];
 };
 
-export type ComponentType = "icon-box" | "plus-marker" | "connector-line";
+export type ComponentType = "icon-box" | "plus-marker" | "rect-marker" | "connector-line";
 
 export type IconId = "section-mark" | "isometric-hex" | "user-outline" | "builder-grid" | "builder-layers";
 
@@ -61,6 +61,11 @@ export type IconBoxProps = {
 
 /** 40×40 canvas marker: centered 6×6 plus with 1px stroke; stroke color follows palette theme. */
 export type PlusMarkerProps = {
+  theme: PaletteThemeId;
+};
+
+/** 4×4px filled rect; center snaps to the 40px grid; drawn at instance position + 0.5px for stroke alignment. */
+export type RectMarkerProps = {
   theme: PaletteThemeId;
 };
 
@@ -88,7 +93,7 @@ export type ConnectorLineProps = {
   animated: boolean;
 };
 
-export type ComponentProps = IconBoxProps | PlusMarkerProps | ConnectorLineProps;
+export type ComponentProps = IconBoxProps | PlusMarkerProps | RectMarkerProps | ConnectorLineProps;
 
 export type IconBoxInstance = {
   id: string;
@@ -108,6 +113,15 @@ export type PlusMarkerInstance = {
   props: PlusMarkerProps;
 };
 
+export type RectMarkerInstance = {
+  id: string;
+  type: "rect-marker";
+  name: string;
+  x: number;
+  y: number;
+  props: RectMarkerProps;
+};
+
 export type ConnectorLineInstance = {
   id: string;
   type: "connector-line";
@@ -118,7 +132,7 @@ export type ConnectorLineInstance = {
   props: ConnectorLineProps;
 };
 
-export type ComponentInstance = IconBoxInstance | PlusMarkerInstance | ConnectorLineInstance;
+export type ComponentInstance = IconBoxInstance | PlusMarkerInstance | RectMarkerInstance | ConnectorLineInstance;
 
 export type CandidateCell = {
   kind: GridCellKind;

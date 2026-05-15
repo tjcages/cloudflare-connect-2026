@@ -19,6 +19,7 @@ import type {
   GridConfig,
   IconBoxProps,
   PlusMarkerProps,
+  RectMarkerProps,
 } from "./grid/types";
 import { getDefaultDocumentSlice, mergePersistedDocument } from "./storePersist";
 import type { PersistedDocumentSlice } from "./storePersist";
@@ -343,6 +344,9 @@ export const useAppStore = create<AppStoreState>()(
               }
               if (instance.type === "plus-marker") {
                 return { ...instance, props: { ...instance.props, ...props } as PlusMarkerProps };
+              }
+              if (instance.type === "rect-marker") {
+                return { ...instance, props: { ...instance.props, ...props } as RectMarkerProps };
               }
               if (instance.type === "connector-line") {
                 return { ...instance, props: { ...instance.props, ...props } as ConnectorLineProps };

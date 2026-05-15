@@ -3,9 +3,11 @@ import type { Ticker } from "../../components/pixi";
 import type { ComponentInstance } from "../../grid/types";
 import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
+import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
 import { buildConnectorLine, getConnectorRenderFingerprint } from "./connector-line/setup";
 import { buildIconBox } from "./icon-box/build";
 import { buildPlusMarker } from "./plus-marker/build";
+import { buildRectMarker } from "./rect-marker/build";
 
 type LayerCacheEntry =
   | {
@@ -17,6 +19,13 @@ type LayerCacheEntry =
     }
   | {
       kind: "plus-marker";
+      structureRoot: Container;
+      chromeRoot: Container;
+      propsJson: string;
+      gridStrokeHex: string;
+    }
+  | {
+      kind: "rect-marker";
       structureRoot: Container;
       chromeRoot: Container;
       propsJson: string;
@@ -80,6 +89,11 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
 
     if (instance.type === "plus-marker") {
       syncPlusMarker(instance, structureLayer, chromeLayer, cache, z, gridStrokeHex);
+      continue;
+    }
+
+    if (instance.type === "rect-marker") {
+      syncRectMarker(instance, structureLayer, chromeLayer, cache, z, gridStrokeHex);
       continue;
     }
 
@@ -211,6 +225,67 @@ const syncPlusMarker = (
   } else {
     prior.structureRoot.position.set(instance.x, instance.y);
     prior.chromeRoot.position.set(instance.x, instance.y);
+    prior.structureRoot.zIndex = z;
+    prior.chromeRoot.zIndex = z;
+  }
+};
+
+const syncRectMarker = (
+  instance: Extract<ComponentInstance, { type: "rect-marker" }>,
+  structureLayer: Container,
+  chromeLayer: Container,
+  cache: Map<string, LayerCacheEntry>,
+  z: number,
+  gridStrokeHex: string,
+) => {
+  const propsJson = JSON.stringify(instance.props);
+  const prior = cache.get(instance.id);
+  const rx = instance.x + RECT_MARKER_RENDER_OFFSET;
+  const ry = instance.y + RECT_MARKER_RENDER_OFFSET;
+
+  if (!prior || prior.kind !== "rect-marker") {
+    if (prior) {
+      destroyLayerEntry(prior);
+      cache.delete(instance.id);
+    }
+
+    const { structureRoot, chromeRoot } = buildRectMarker(instance, gridStrokeHex);
+    structureRoot.position.set(rx, ry);
+    chromeRoot.position.set(rx, ry);
+    structureRoot.zIndex = z;
+    chromeRoot.zIndex = z;
+    structureLayer.addChild(structureRoot);
+    chromeLayer.addChild(chromeRoot);
+
+    cache.set(instance.id, {
+      kind: "rect-marker",
+      structureRoot,
+      chromeRoot,
+      propsJson,
+      gridStrokeHex,
+    });
+  } else if (prior.propsJson !== propsJson || prior.gridStrokeHex !== gridStrokeHex) {
+    destroyLayerEntry(prior);
+    cache.delete(instance.id);
+
+    const { structureRoot, chromeRoot } = buildRectMarker(instance, gridStrokeHex);
+    structureRoot.position.set(rx, ry);
+    chromeRoot.position.set(rx, ry);
+    structureRoot.zIndex = z;
+    chromeRoot.zIndex = z;
+    structureLayer.addChild(structureRoot);
+    chromeLayer.addChild(chromeRoot);
+
+    cache.set(instance.id, {
+      kind: "rect-marker",
+      structureRoot,
+      chromeRoot,
+      propsJson,
+      gridStrokeHex,
+    });
+  } else {
+    prior.structureRoot.position.set(rx, ry);
+    prior.chromeRoot.position.set(rx, ry);
     prior.structureRoot.zIndex = z;
     prior.chromeRoot.zIndex = z;
   }
