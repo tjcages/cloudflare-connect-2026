@@ -18,9 +18,9 @@ export type ConnectorRenderSpec = {
   endpointFrameColor: number;
   lineColor: number;
   cornerStrokeColor: number;
-  /** Large-cell strokes; same visual plane as grid lines (structure sublayer above grid). */
+  /** Large-cell white fills + strokes; same visual plane as grid lines (structure sublayer above grid). */
   structuralDrawOrder: ["segmentFrames", "endpointFrames"];
-  /** White underlay + line sit above structural strokes so they mask grid + segment/endpoint frames + icon-box outer frame. */
+  /** White underlay + line sit above structural layer so they mask grid + segment/endpoint strokes + icon-box outer frame. */
   chromeDrawOrder: ["lineUnderlay", "line", "corners"];
 };
 
@@ -104,10 +104,13 @@ export const buildConnectorLine = (
 
   const segmentFrames = new Graphics();
   for (const cell of getConnectorSegmentCells(points)) {
-    segmentFrames.rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE).stroke({
-      width: CONNECTOR_STROKE_WIDTH,
-      color: renderSpec.segmentFrameColor,
-    });
+    segmentFrames
+      .rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE)
+      .fill({ color: 0xffffff })
+      .stroke({
+        width: CONNECTOR_STROKE_WIDTH,
+        color: renderSpec.segmentFrameColor,
+      });
   }
   structureRoot.addChild(segmentFrames);
 
@@ -121,6 +124,7 @@ export const buildConnectorLine = (
           LARGE_CELL_SIZE,
           LARGE_CELL_SIZE,
         )
+        .fill({ color: 0xffffff })
         .stroke({
           width: CONNECTOR_STROKE_WIDTH,
           color: renderSpec.endpointFrameColor,
