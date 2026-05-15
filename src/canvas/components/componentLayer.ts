@@ -1,15 +1,30 @@
-import { Container } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
 import type { Ticker } from "../../components/pixi";
 import type { ComponentInstance } from "../../grid/types";
 import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
 import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
-import { buildConnectorLine, getConnectorRenderFingerprint } from "./connector-line/setup";
+import {
+  buildConnectorLine,
+  getConnectorCornerCapRect,
+  getConnectorJointPoints,
+  getConnectorRenderFingerprint,
+} from "./connector-line/setup";
 import { buildIconBox, type IconBoxRenderableInstance } from "./icon-box/build";
 import { buildPlusMarker } from "./plus-marker/build";
 import { buildRectMarker } from "./rect-marker/build";
 
-const COMPONENT_LAYER_BASE_Z = 10;
+export const COMPONENT_LAYER_BASE_Z = 10;
+
+export const getComponentLayerZ = (layerCount: number, layerIndex: number) =>
+  COMPONENT_LAYER_BASE_Z + layerCount - layerIndex;
+
+export const getConnectorLineZ = () => ({
+  structure: COMPONENT_LAYER_BASE_Z - 2,
+  tracksChrome: COMPONENT_LAYER_BASE_Z - 1,
+  jointsChrome: COMPONENT_LAYER_BASE_Z,
+  chromePulse: COMPONENT_LAYER_BASE_Z,
+});
 
 type LayerCacheEntry =
   | {
@@ -37,7 +52,6 @@ type LayerCacheEntry =
       kind: "connector-line";
       structureRoot: Container;
       tracksChromeRoot: Container;
-      jointsChromeRoot: Container;
       chromePulseRoot: Container;
       fingerprint: string;
       disposeConnectorAnimation?: () => void;
@@ -47,7 +61,6 @@ const destroyLayerEntry = (entry: LayerCacheEntry) => {
   if (entry.kind === "connector-line") {
     entry.disposeConnectorAnimation?.();
     entry.tracksChromeRoot.destroy({ children: true });
-    entry.jointsChromeRoot.destroy({ children: true });
     entry.chromePulseRoot.destroy({ children: true });
     entry.structureRoot.destroy({ children: true });
     return;
@@ -57,7 +70,28 @@ const destroyLayerEntry = (entry: LayerCacheEntry) => {
   entry.chromeRoot.destroy({ children: true });
 };
 
-const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Map<string, LayerCacheEntry>) => {
+const syncSharedConnectorJoints = (
+  jointsChromeRoot: Graphics,
+  instances: ComponentInstance[],
+  bounds: { width: number; height: number },
+  gridStrokeColor: number,
+) => {
+  jointsChromeRoot.clear();
+  for (const point of getConnectorJointPoints(instances, bounds)) {
+    const rect = getConnectorCornerCapRect(point);
+    jointsChromeRoot
+      .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
+      .fill({ color: 0xffffff })
+      .stroke({ width: 1, color: gridStrokeColor });
+  }
+};
+
+const syncLayers = (
+  structureLayer: Container,
+  chromeLayer: Container,
+  jointsChromeRoot: Graphics,
+  cache: Map<string, LayerCacheEntry>,
+) => {
   const { instances, dragState, grid, selectedInstanceId } = useAppStore.getState();
   const gridStrokeHex = grid.config.strokeColor;
   const gridStrokeColor = parseHexColor(gridStrokeHex);
@@ -74,10 +108,14 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
   }
 
   const count = toDraw.length;
+  const connectorZ = getConnectorLineZ();
+
+  jointsChromeRoot.zIndex = connectorZ.jointsChrome;
+  syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeColor);
 
   for (let index = 0; index < toDraw.length; index += 1) {
     const instance = toDraw[index];
-    const z = COMPONENT_LAYER_BASE_Z + count - index;
+    const z = getComponentLayerZ(count, index);
 
     if (instance.type === "connector-line") {
       syncConnectorLine(
@@ -86,7 +124,6 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
         structureLayer,
         chromeLayer,
         cache,
-        z,
         gridStrokeColor,
         gridStrokeHex,
         bounds,
@@ -118,12 +155,12 @@ const syncConnectorLine = (
   structureLayer: Container,
   chromeLayer: Container,
   cache: Map<string, LayerCacheEntry>,
-  z: number,
   gridStrokeColor: number,
   gridStrokeHex: string,
   bounds: { width: number; height: number },
   selectedInstanceId: string | null,
 ) => {
+  const connectorZ = getConnectorLineZ();
   const fingerprint = getConnectorRenderFingerprint(
     instance,
     toDraw,
@@ -161,29 +198,25 @@ const syncConnectorLine = (
       return;
     }
 
-    parts.structureRoot.zIndex = z;
-    parts.tracksChromeRoot.zIndex = z;
-    parts.jointsChromeRoot.zIndex = z + 1;
-    parts.chromePulseRoot.zIndex = z + 2;
+    parts.structureRoot.zIndex = connectorZ.structure;
+    parts.tracksChromeRoot.zIndex = connectorZ.tracksChrome;
+    parts.chromePulseRoot.zIndex = connectorZ.chromePulse;
     structureLayer.addChild(parts.structureRoot);
     chromeLayer.addChild(parts.tracksChromeRoot);
-    chromeLayer.addChild(parts.jointsChromeRoot);
     chromeLayer.addChild(parts.chromePulseRoot);
 
     cache.set(instance.id, {
       kind: "connector-line",
       structureRoot: parts.structureRoot,
       tracksChromeRoot: parts.tracksChromeRoot,
-      jointsChromeRoot: parts.jointsChromeRoot,
       chromePulseRoot: parts.chromePulseRoot,
       fingerprint,
       disposeConnectorAnimation: parts.disposeConnectorAnimation,
     });
   } else {
-    prior.structureRoot.zIndex = z;
-    prior.tracksChromeRoot.zIndex = z;
-    prior.jointsChromeRoot.zIndex = z + 1;
-    prior.chromePulseRoot.zIndex = z + 2;
+    prior.structureRoot.zIndex = connectorZ.structure;
+    prior.tracksChromeRoot.zIndex = connectorZ.tracksChrome;
+    prior.chromePulseRoot.zIndex = connectorZ.chromePulse;
   }
 };
 
@@ -371,12 +404,14 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   structureLayer.sortableChildren = true;
   const chromeLayer = new Container();
   chromeLayer.sortableChildren = true;
+  const jointsChromeRoot = new Graphics();
   layer.addChild(structureLayer);
   layer.addChild(chromeLayer);
+  chromeLayer.addChild(jointsChromeRoot);
 
   const cache = new Map<string, LayerCacheEntry>();
 
-  syncLayers(structureLayer, chromeLayer, cache);
+  syncLayers(structureLayer, chromeLayer, jointsChromeRoot, cache);
 
   const unsub = useAppStore.subscribe((state, prev) => {
     if (
@@ -385,7 +420,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
       state.grid !== prev.grid ||
       state.selectedInstanceId !== prev.selectedInstanceId
     ) {
-      syncLayers(structureLayer, chromeLayer, cache);
+      syncLayers(structureLayer, chromeLayer, jointsChromeRoot, cache);
     }
   });
 

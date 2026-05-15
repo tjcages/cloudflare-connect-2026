@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CONNECTOR_HIGHLIGHT_COLOR } from "../constants";
-import { getConnectorCornerCapRect, getConnectorRenderSpec } from "./setup";
+import { getConnectorCornerCapRect, getConnectorJointPoints, getConnectorRenderSpec } from "./setup";
+import type { ComponentInstance } from "../../../grid/types";
 
 describe("connector line render spec", () => {
   it("places segment and endpoint frames in the structural plane below connector chrome", () => {
@@ -33,5 +34,48 @@ describe("connector line render spec", () => {
     });
     expect(rect.x + rect.size / 2).toBe(120);
     expect(rect.y + rect.size / 2).toBe(120);
+  });
+
+  it("deduplicates shared joint points across connector lines", () => {
+    const connectors: ComponentInstance[] = [
+      {
+        id: "connector-line-1",
+        type: "connector-line",
+        name: "Connector Line 1",
+        x: 40,
+        y: 40,
+        props: {
+          preferredConnection: "horizontal",
+          source: { kind: "cell", x: 40, y: 40 },
+          target: { kind: "cell", x: 120, y: 120 },
+          overlayGrid: true,
+          animated: true,
+        },
+      },
+      {
+        id: "connector-line-2",
+        type: "connector-line",
+        name: "Connector Line 2",
+        x: 40,
+        y: 120,
+        props: {
+          preferredConnection: "vertical",
+          source: { kind: "cell", x: 40, y: 120 },
+          target: { kind: "cell", x: 120, y: 40 },
+          overlayGrid: true,
+          animated: true,
+        },
+      },
+    ];
+
+    const jointPoints = getConnectorJointPoints(connectors, { width: 800, height: 560 });
+
+    expect(jointPoints).toEqual([
+      { x: 120, y: 40 },
+      { x: 120, y: 120 },
+      { x: 200, y: 40 },
+      { x: 200, y: 120 },
+    ]);
+    expect(jointPoints.filter((point) => point.x === 120 && point.y === 120)).toHaveLength(1);
   });
 });

@@ -62,8 +62,6 @@ export type ConnectorDisplayParts = {
   structureRoot: Container;
   /** Gray/purple strokes and white hull underlays; layer z-order base. */
   tracksChromeRoot: Container;
-  /** Joint corner squares; renders at tracks z-index + 1 so overlaps stay visible. */
-  jointsChromeRoot: Container;
   chromePulseRoot: Container;
   /** Stop Motion `animate` + motion value listeners when the layer is torn down. */
   disposeConnectorAnimation?: () => void;
@@ -75,6 +73,35 @@ export const getConnectorCornerCapRect = (point: { x: number; y: number }) => ({
   size: CONNECTOR_CORNER_SIZE,
   radius: CONNECTOR_CORNER_RADIUS,
 });
+
+export const getConnectorJointPoints = (
+  instances: ComponentInstance[],
+  bounds?: { width: number; height: number },
+): Array<{ x: number; y: number }> => {
+  const pointsByKey = new Map<string, { x: number; y: number }>();
+
+  for (const instance of instances) {
+    if (instance.type !== "connector-line") {
+      continue;
+    }
+
+    const source = resolveConnectorEndpoint(instance.props.source, instances);
+    const target = resolveConnectorEndpoint(instance.props.target, instances);
+    if (!source || !target) {
+      continue;
+    }
+
+    const route = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
+    const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, route, instances, bounds);
+    const jointPoints = [...getConnectorCornerPoints(route), ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints)];
+
+    for (const point of jointPoints) {
+      pointsByKey.set(`${point.x},${point.y}`, point);
+    }
+  }
+
+  return [...pointsByKey.values()].sort((a, b) => a.x - b.x || a.y - b.y);
+};
 
 const drawPolyline = (graphics: Graphics, points: { x: number; y: number }[]) => {
   const [first, ...rest] = points;
@@ -135,30 +162,8 @@ export const buildConnectorLine = (
   const segmentOverlay = instance.props.overlayGrid;
 
   const metrics = getPolylineMetrics(points);
-  const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, points, instances, bounds);
-  const bridgedCorners = getForeignCornerOverlapPoints(points, elsewhereJunctionHints);
-  const nativeCornerPoints = getConnectorCornerPoints(points);
-  type JointWithArc = { point: (typeof points)[number]; arc: number };
-  const jointsWithArc: JointWithArc[] = [];
-  for (const joint of nativeCornerPoints) {
-    const arc = arcDistanceToPointOnPolyline(points, metrics, joint);
-    if (arc !== null) {
-      jointsWithArc.push({ point: joint, arc });
-    }
-  }
-  for (const joint of bridgedCorners) {
-    const arc = arcDistanceToPointOnPolyline(points, metrics, joint);
-    if (arc !== null) {
-      jointsWithArc.push({ point: joint, arc });
-    }
-  }
-  jointsWithArc.sort((a, b) => a.arc - b.arc);
-  const jointPoints = jointsWithArc.map((j) => j.point);
-  const jointArcDistances = jointsWithArc.map((j) => j.arc);
-
   const structureRoot = new Container();
   const tracksChromeRoot = new Container();
-  const jointsChromeRoot = new Container();
   const chromePulseRoot = new Container();
 
   const segmentFrames = new Graphics();
@@ -223,20 +228,9 @@ export const buildConnectorLine = (
   line.stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.lineColor });
   tracksChromeRoot.addChild(line);
 
-  const corners = new Graphics();
   const litCorners = new Graphics();
   let disposeConnectorAnimation: (() => void) | undefined;
-
-  const drawStaticCornerCaps = () => {
-    corners.clear();
-    for (const point of jointPoints) {
-      const rect = getConnectorCornerCapRect(point);
-      corners
-        .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
-        .fill({ color: 0xffffff })
-        .stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.cornerStrokeColor });
-    }
-  };
+  const sharedJointPoints = getConnectorJointPoints(instances, bounds);
 
   if (instance.props.animated && metrics.totalLength > 0) {
     const maskShape = new Graphics();
@@ -251,18 +245,15 @@ export const buildConnectorLine = (
     waveHolder.addChild(waveStroke);
 
     const drawAnimatedCornerCaps = (centerDist: number, waveFill: number) => {
-      corners.clear();
       litCorners.clear();
-      for (let i = 0; i < jointPoints.length; i += 1) {
-        const point = jointPoints[i]!;
-        const arc = jointArcDistances[i]!;
+      for (const point of sharedJointPoints) {
+        const arc = arcDistanceToPointOnPolyline(points, metrics, point);
+        if (arc === null) {
+          continue;
+        }
         const lit = arc >= centerDist - CONNECTOR_ANIM_HALF_PX && arc <= centerDist + CONNECTOR_ANIM_HALF_PX;
-        const rect = getConnectorCornerCapRect(point);
-        corners
-          .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
-          .fill({ color: 0xffffff })
-          .stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.cornerStrokeColor });
         if (lit) {
+          const rect = getConnectorCornerCapRect(point);
           litCorners
             .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
             .fill({ color: 0xffffff })
@@ -359,12 +350,9 @@ export const buildConnectorLine = (
       activeControls?.stop();
       unsub();
     };
-  } else {
-    drawStaticCornerCaps();
   }
 
-  jointsChromeRoot.addChild(corners);
   chromePulseRoot.addChild(litCorners);
 
-  return { structureRoot, tracksChromeRoot, jointsChromeRoot, chromePulseRoot, disposeConnectorAnimation };
+  return { structureRoot, tracksChromeRoot, chromePulseRoot, disposeConnectorAnimation };
 };
