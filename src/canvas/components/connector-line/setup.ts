@@ -17,13 +17,15 @@ const CONNECTOR_STROKE_WIDTH = 1;
 const CONNECTOR_CORNER_SIZE = 6;
 const CONNECTOR_CORNER_RADIUS = 1;
 
-const CONNECTOR_ANIM_SEGMENT_PX = 60;
+const CONNECTOR_ANIM_SEGMENT_PX = 40;
 const CONNECTOR_ANIM_HALF_PX = CONNECTOR_ANIM_SEGMENT_PX / 2;
 const CONNECTOR_ANIM_STROKE_WIDTH = 1;
 /** One timing "slice": 100px of path length (see `CONNECTOR_ANIM_SEC_PER_SLICE`). */
 const CONNECTOR_ANIM_SLICE_PX = 100;
 /** Duration multiplier: one-way leg duration = `0.2s × (pathLength / slicePx)`. */
 const CONNECTOR_ANIM_SEC_PER_SLICE = 0.2;
+/** Pause at source (backward complete) and target (forward complete) before reversing. */
+const CONNECTOR_ANIM_ENDPOINT_PAUSE_SEC = 0.4;
 /** Only guards sub-frame / zero durations; leg time scales with path length so arc-length speed stays ~constant. */
 const CONNECTOR_ANIM_MIN_LEG_SEC = 1 / 60;
 
@@ -270,6 +272,19 @@ export const buildConnectorLine = (
     let cancelled = false;
     let activeControls: ReturnType<typeof animate> | null = null;
 
+    const pauseAtEndpoint = async () => {
+      const msTotal = CONNECTOR_ANIM_ENDPOINT_PAUSE_SEC * 1000;
+      const stepMs = 50;
+      let remaining = msTotal;
+      while (!cancelled && remaining > 0) {
+        const step = Math.min(stepMs, remaining);
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, step);
+        });
+        remaining -= step;
+      }
+    };
+
     const runLoop = async () => {
       while (!cancelled) {
         legPhase = "forward";
@@ -283,6 +298,10 @@ export const buildConnectorLine = (
         if (cancelled) {
           break;
         }
+        await pauseAtEndpoint();
+        if (cancelled) {
+          break;
+        }
         legPhase = "backward";
         activeControls = animate(progressAlongPath, 0, {
           duration: legDurationSec,
@@ -290,6 +309,10 @@ export const buildConnectorLine = (
         });
         await activeControls.finished;
         activeControls = null;
+        if (cancelled) {
+          break;
+        }
+        await pauseAtEndpoint();
       }
     };
 
