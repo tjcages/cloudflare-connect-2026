@@ -11,9 +11,22 @@ import { Sidebar } from "../components/Sidebar";
 import { useAppStore } from "../store";
 import { useAppShortcuts } from "./useAppShortcuts";
 
+type SidebarTab = "grid" | "components";
+
+const ACTIVE_TAB_STORAGE_KEY = "section-grid-generator.active-tab";
+
+const readPersistedActiveTab = (): SidebarTab => {
+  try {
+    const value = window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    return value === "components" || value === "grid" ? value : "grid";
+  } catch {
+    return "grid";
+  }
+};
+
 export const App = () => {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
-  const [activeTab, setActiveTab] = useState<"grid" | "components">("grid");
+  const [activeTab, setActiveTab] = useState<SidebarTab>(readPersistedActiveTab);
   const builderCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const grid = useAppStore((s) => s.grid);
@@ -43,6 +56,14 @@ export const App = () => {
   const startConnectorEndpointPick = useAppStore((s) => s.startConnectorEndpointPick);
 
   useAppShortcuts();
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+    } catch {
+      // Keep the UI usable if storage is unavailable.
+    }
+  }, [activeTab]);
 
   const onCanvasPanelBackgroundPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) {

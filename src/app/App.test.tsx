@@ -47,6 +47,7 @@ const iconBoxInstance = (id: string, title: string): ComponentInstance => ({
 describe("App", { timeout: 15_000 }, () => {
   beforeEach(() => {
     resetAppStoreDocumentToDefault();
+    window.localStorage.clear();
   });
 
   it("copies the composed canvas as 2x PNG from the single export button", () => {
@@ -76,6 +77,20 @@ describe("App", { timeout: 15_000 }, () => {
     expect(gridButton).not.toHaveClass("sidebar-rail-button-active");
     expect(screen.queryByText("Current instances")).not.toBeInTheDocument();
     expect(screen.getByTestId("builder-canvas")).toBeInTheDocument();
+  });
+
+  it("restores the last selected sidebar tab from local storage", () => {
+    const { unmount } = render(<App />);
+
+    fireEvent.click(screen.getByTestId("rail-tab-components"));
+    expect(window.localStorage.getItem("section-grid-generator.active-tab")).toBe("components");
+    unmount();
+
+    render(<App />);
+
+    expect(screen.getByText("Layers")).toBeInTheDocument();
+    expect(screen.getByTestId("rail-tab-components")).toHaveClass("sidebar-rail-button-active");
+    expect(screen.getByTestId("rail-tab-grid")).not.toHaveClass("sidebar-rail-button-active");
   });
 
   it("shows a pointer-following ghost while placing a component before the canvas preview starts", () => {
