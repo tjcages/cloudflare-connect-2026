@@ -18,6 +18,29 @@ describe("connector line routing", () => {
     expect(resolveConnectorEndpoint(layerEndpoint, [iconBox])).toEqual({ x: 120, y: 120 });
   });
 
+  it("uses a horizontal first leg when horizontal preference connects collinear vertical anchor points", () => {
+    const points = routeConnectorPath({ x: 120, y: 40 }, { x: 120, y: 200 }, "horizontal", {
+      width: 800,
+      height: 560,
+    });
+
+    expect(points[0]).toEqual({ x: 120, y: 40 });
+    expect(points[1]).toEqual({ x: 200, y: 40 });
+    expect(points.at(-1)).toEqual({ x: 120, y: 200 });
+    expect(points[1]!.y).toBe(points[0]!.y);
+    expect(points[2]!.x).toBe(points[1]!.x);
+    expect(points[2]!.y).not.toBe(points[1]!.y);
+  });
+
+  it("when Δx is one cell, horizontal path still starts with a horizontal jog (never vertical-first)", () => {
+    const points = routeConnectorPath({ x: 200, y: 100 }, { x: 280, y: 300 }, "horizontal", {
+      width: 800,
+      height: 560,
+    });
+    expect(points[1]!.y).toBe(points[0]!.y);
+    expect(points[1]!.x).not.toBe(points[0]!.x);
+  });
+
   it("routes horizontal preference with 80px segments and no longer than Manhattan distance", () => {
     const points = routeConnectorPath({ x: 40, y: 40 }, { x: 200, y: 200 }, "horizontal");
 

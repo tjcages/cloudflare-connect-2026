@@ -8,12 +8,13 @@ import { getDefaultDocumentSlice, mergePersistedDocument } from "./storePersist"
 
 const minimalStoreForMerge = (): Pick<
   AppStoreState,
-  "gridConfig" | "grid" | "instances" | "nextInstanceIndex" | "selectedInstanceId"
+  "gridConfig" | "grid" | "instances" | "nextInstanceIndex" | "selectedInstanceId" | "canvasPan"
 > &
   Record<string, unknown> => {
   const fresh = getDefaultDocumentSlice();
   return {
     ...fresh,
+    canvasPan: { x: 0, y: 0 },
     dummyAction: () => {},
   };
 };
@@ -297,5 +298,40 @@ describe("mergePersistedDocument", () => {
     ]);
     expect(merged.selectedInstanceId).toBe("connector-line-7");
     expect(merged.nextInstanceIndex).toBe(8);
+  });
+
+  it("restores canvasPan from persisted builder viewport", () => {
+    const current = minimalStoreForMerge();
+
+    const merged = mergePersistedDocument(
+      {
+        gridConfig: DEFAULT_CONFIG,
+        instances: [],
+        nextInstanceIndex: 2,
+        selectedInstanceId: null,
+        canvasPan: { x: 42, y: -17 },
+      },
+      current,
+    );
+
+    expect(merged.canvasPan).toEqual({ x: 42, y: -17 });
+  });
+
+  it("sanitizes invalid persisted canvasPan using current pan", () => {
+    const current = minimalStoreForMerge();
+    current.canvasPan = { x: 3, y: 4 };
+
+    const merged = mergePersistedDocument(
+      {
+        gridConfig: DEFAULT_CONFIG,
+        instances: [],
+        nextInstanceIndex: 2,
+        selectedInstanceId: null,
+        canvasPan: { x: Number.NaN, y: "nope" },
+      },
+      current,
+    );
+
+    expect(merged.canvasPan).toEqual({ x: 3, y: 4 });
   });
 });

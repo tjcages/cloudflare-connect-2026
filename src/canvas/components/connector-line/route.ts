@@ -67,10 +67,77 @@ const moveAlongAxis = (points: ConnectorPoint[], from: ConnectorPoint, axis: "x"
   return current;
 };
 
+/** East/west offset for leaving the target column with room to finish on a horizontal leg. */
+const pickHorizontalJogSign = (at: ConnectorPoint, bounds?: ConnectorRouteBounds): -1 | 1 | null => {
+  const canJogRight = !bounds || at.x + LARGE_CELL_SIZE <= bounds.width;
+  const canJogLeft = !bounds || at.x - LARGE_CELL_SIZE >= 0;
+  if (canJogRight && canJogLeft) {
+    return 1;
+  }
+  if (canJogRight) {
+    return 1;
+  }
+  if (canJogLeft) {
+    return -1;
+  }
+  return null;
+};
+
+/**
+ * Horizontal connection path must not start the Δy sweep from the target column (same-x / one-step-from-target-x),
+ * or the first major leg reads as vertical from the anchor.
+ */
+const applyHorizontalLeadBeforeVerticalSweep = (
+  points: ConnectorPoint[],
+  current: ConnectorPoint,
+  target: ConnectorPoint,
+  bounds?: ConnectorRouteBounds,
+): ConnectorPoint => {
+  if (current.y === target.y) {
+    return current;
+  }
+  const dx = target.x - current.x;
+  if (dx === 0) {
+    const j = pickHorizontalJogSign(current, bounds);
+    if (j === null) {
+      return current;
+    }
+    const next = { x: current.x + j * LARGE_CELL_SIZE, y: current.y };
+    pushPoint(points, next);
+    return next;
+  }
+  const towardStep = sign(dx) * LARGE_CELL_SIZE;
+  if (towardStep !== dx) {
+    return current;
+  }
+  const awaySign = -sign(dx) as -1 | 1;
+  const canAwayEast = !bounds || current.x + LARGE_CELL_SIZE <= bounds.width;
+  const canAwayWest = !bounds || current.x - LARGE_CELL_SIZE >= 0;
+  let jog: -1 | 1 | null = awaySign === 1 && canAwayEast ? 1 : awaySign === -1 && canAwayWest ? -1 : null;
+  if (jog === null) {
+    jog = awaySign === 1 && canAwayWest ? -1 : awaySign === -1 && canAwayEast ? 1 : null;
+  }
+  if (jog === null) {
+    jog = pickHorizontalJogSign(current, bounds);
+  }
+  if (jog === null) {
+    return current;
+  }
+  const next = { x: current.x + jog * LARGE_CELL_SIZE, y: current.y };
+  pushPoint(points, next);
+  return next;
+};
+
 const routeBothAxes = (
   source: ConnectorPoint,
   target: ConnectorPoint,
   preferredConnection: ConnectorConnectionPreference,
+  bounds?: ConnectorRouteBounds,
+  /**
+   * When true, `source` is already one horizontal cell off the shared column (collinear jog).
+   * Skip the extra “away” jog when |Δx| to the target is exactly one cell so the path does not overshoot.
+   */
+  afterCollinearHorizontalJog = false,
 ): ConnectorPoint[] => {
   const points = [source];
   let current = source;
@@ -78,12 +145,22 @@ const routeBothAxes = (
   const secondaryAxis = primaryAxis === "x" ? "y" : "x";
 
   const primaryDelta = Math.abs(target[primaryAxis] - source[primaryAxis]);
+  let primaryLeadFromLongAxis = false;
   if (primaryDelta > LARGE_CELL_SIZE) {
+    primaryLeadFromLongAxis = true;
     current = {
       ...current,
       [primaryAxis]: current[primaryAxis] + sign(target[primaryAxis] - current[primaryAxis]) * LARGE_CELL_SIZE,
     };
     pushPoint(points, current);
+  }
+
+  if (preferredConnection === "horizontal" && !primaryLeadFromLongAxis) {
+    const absDx = Math.abs(target.x - current.x);
+    const skipSecondAwayJog = afterCollinearHorizontalJog && absDx === LARGE_CELL_SIZE && current.x !== target.x;
+    if (!skipSecondAwayJog) {
+      current = applyHorizontalLeadBeforeVerticalSweep(points, current, target, bounds);
+    }
   }
 
   current = moveAlongAxis(points, current, secondaryAxis, target[secondaryAxis]);
@@ -142,17 +219,63 @@ const routeStraightWithDogleg = (
   return [source, { x: source.x, y: y1 }, { x, y: y1 }, { x, y: y2 }, { x: target.x, y: y2 }, target];
 };
 
+/** Same-x endpoints: vertical span. Horizontal path leaves on an east/west jog first, then finishes horizontal-first. */
+const routeCollinearVerticalWithHorizontalLead = (
+  source: ConnectorPoint,
+  target: ConnectorPoint,
+  bounds?: ConnectorRouteBounds,
+): ConnectorPoint[] => {
+  const jogSign = pickHorizontalJogSign(source, bounds);
+  if (jogSign === null) {
+    return routeStraightWithDogleg(source, target, "horizontal", bounds);
+  }
+  const jog = { x: source.x + jogSign * LARGE_CELL_SIZE, y: source.y };
+  return [source, ...routeBothAxes(jog, target, "horizontal", bounds, true)];
+};
+
+const ensureHorizontalFinalLegIntoTarget = (
+  points: ConnectorPoint[],
+  target: ConnectorPoint,
+  bounds?: ConnectorRouteBounds,
+): ConnectorPoint[] => {
+  if (points.length < 2) {
+    return points;
+  }
+  const penultimate = points[points.length - 2]!;
+  const end = points[points.length - 1]!;
+  if (end.x !== target.x || end.y !== target.y) {
+    return points;
+  }
+  if (penultimate.x !== end.x || penultimate.y === end.y) {
+    return points;
+  }
+  const jogSign = pickHorizontalJogSign(penultimate, bounds);
+  if (jogSign === null) {
+    return points;
+  }
+  const p1 = { x: penultimate.x + jogSign * LARGE_CELL_SIZE, y: penultimate.y };
+  const p2 = { x: p1.x, y: target.y };
+  return [...points.slice(0, -1), p1, p2, target];
+};
+
 export const routeConnectorPath = (
   source: ConnectorPoint,
   target: ConnectorPoint,
   preferredConnection: ConnectorConnectionPreference,
   bounds?: ConnectorRouteBounds,
 ): ConnectorPoint[] => {
-  if (source.x === target.x || source.y === target.y) {
-    return routeStraightWithDogleg(source, target, preferredConnection, bounds);
+  let points: ConnectorPoint[];
+  if (preferredConnection === "horizontal" && source.x === target.x && source.y !== target.y) {
+    points = routeCollinearVerticalWithHorizontalLead(source, target, bounds);
+  } else if (source.x === target.x || source.y === target.y) {
+    points = routeStraightWithDogleg(source, target, preferredConnection, bounds);
+  } else {
+    points = routeBothAxes(source, target, preferredConnection, bounds);
   }
-
-  return routeBothAxes(source, target, preferredConnection);
+  if (preferredConnection === "horizontal") {
+    points = ensureHorizontalFinalLegIntoTarget(points, target, bounds);
+  }
+  return points;
 };
 
 export const getConnectorCornerPoints = (points: ConnectorPoint[]): ConnectorPoint[] => {

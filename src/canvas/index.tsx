@@ -12,6 +12,11 @@ import { useAppStore } from "../store";
 
 const tickers = [setupGridLayer, setupComponentLayer, setupSelectionLayer];
 
+const CANVAS_ZOOM_MIN = 0.25;
+const CANVAS_ZOOM_MAX = 4;
+
+const clampCanvasZoom = (z: number) => Math.min(CANVAS_ZOOM_MAX, Math.max(CANVAS_ZOOM_MIN, z));
+
 /** Minimum pointer movement (CSS px) before empty-canvas drag counts as viewport pan. */
 const VIEWPORT_PAN_DRAG_THRESHOLD_PX = 5;
 
@@ -30,6 +35,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
 
   const grid = useAppStore((s) => s.grid);
   const canvasPan = useAppStore((s) => s.canvasPan);
+  const canvasZoom = useAppStore((s) => s.canvasZoom);
 
   const selectInstance = useAppStore((s) => s.selectInstance);
   const startMoveDrag = useAppStore((s) => s.startMoveDrag);
@@ -37,6 +43,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
   const endCanvasDrag = useAppStore((s) => s.endCanvasDrag);
   const translateCanvasPan = useAppStore((s) => s.translateCanvasPan);
   const resetCanvasPan = useAppStore((s) => s.resetCanvasPan);
+  const resetCanvasZoom = useAppStore((s) => s.resetCanvasZoom);
   const setConnectorEndpointCell = useAppStore((s) => s.setConnectorEndpointCell);
   const setConnectorEndpointHoverCell = useAppStore((s) => s.setConnectorEndpointHoverCell);
   const clearConnectorEndpointHoverCell = useAppStore((s) => s.clearConnectorEndpointHoverCell);
@@ -64,7 +71,8 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
 
   useEffect(() => {
     resetCanvasPan();
-  }, [renderWidth, renderHeight, resetCanvasPan]);
+    resetCanvasZoom();
+  }, [renderWidth, renderHeight, resetCanvasPan, resetCanvasZoom]);
 
   useEffect(() => {
     runMoveDragEdgeScrollTickRef.current = () => {
@@ -146,7 +154,44 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
     <div
       className={isViewportPanning ? "canvas-shell canvas-shell-panning" : "canvas-shell"}
       style={{
-        transform: `translate(${canvasPan.x}px, ${canvasPan.y}px)`,
+        transform: `translate(${canvasPan.x}px, ${canvasPan.y}px) scale(${canvasZoom})`,
+        transformOrigin: "0 0",
+      }}
+      onWheel={(event) => {
+        if (!event.metaKey && !event.ctrlKey) {
+          return;
+        }
+        const target = event.target;
+        if (!(target instanceof HTMLCanvasElement)) {
+          return;
+        }
+
+        event.preventDefault();
+
+        let dy = event.deltaY;
+        if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+          dy *= 16;
+        } else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+          dy *= 800;
+        }
+
+        const factor = Math.exp(-dy * 0.0015);
+        const { canvasZoom: z0, canvasPan: pan } = useAppStore.getState();
+        const z1 = clampCanvasZoom(z0 * factor);
+        if (z1 === z0) {
+          return;
+        }
+
+        const rect = target.getBoundingClientRect();
+        const mx = event.clientX;
+        const my = event.clientY;
+        useAppStore.setState({
+          canvasZoom: z1,
+          canvasPan: {
+            x: mx - rect.left + pan.x - (z1 * (mx - rect.left)) / z0,
+            y: my - rect.top + pan.y - (z1 * (my - rect.top)) / z0,
+          },
+        });
       }}
     >
       <Pixi

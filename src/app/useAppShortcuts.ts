@@ -24,6 +24,7 @@ export const useAppShortcuts = () => {
   const undoDocument = useAppStore((s) => s.undoDocument);
   const redoDocument = useAppStore((s) => s.redoDocument);
   const cancelConnectorEndpointPick = useAppStore((s) => s.cancelConnectorEndpointPick);
+  const resetCanvasZoom = useAppStore((s) => s.resetCanvasZoom);
 
   useHotkeys(
     "delete,backspace",
@@ -97,5 +98,19 @@ export const useAppShortcuts = () => {
       enabled: () => useAppStore.getState().connectorEndpointPick !== null,
     },
     [cancelConnectorEndpointPick],
+  );
+
+  useHotkeys(
+    "meta+equal,ctrl+equal",
+    () => {
+      resetCanvasZoom();
+    },
+    {
+      enableOnContentEditable: false,
+      enableOnFormTags: false,
+      enabled: canUseDocumentShortcut,
+      preventDefault: canUseDocumentShortcut,
+    },
+    [resetCanvasZoom],
   );
 };

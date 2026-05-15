@@ -251,6 +251,19 @@ const sanitizeSelectedId = (raw: unknown, instances: ComponentInstance[]): strin
   return instances.some((i) => i.id === raw) ? raw : null;
 };
 
+const sanitizeCanvasPan = (
+  raw: unknown,
+  fallback: { x: number; y: number },
+): { x: number; y: number } => {
+  if (!isRecord(raw)) {
+    return fallback;
+  }
+
+  const x = isFiniteNumber(raw.x) ? raw.x : fallback.x;
+  const y = isFiniteNumber(raw.y) ? raw.y : fallback.y;
+  return { x, y };
+};
+
 /** Initial document slice used by the store and test resets. */
 export const getDefaultDocumentSlice = (): PersistedDocumentSlice & { grid: GeneratedGrid } => {
   const gridConfig = DEFAULT_CONFIG;
@@ -296,6 +309,10 @@ export const mergePersistedDocument = <T extends DocumentMergeFields & Record<st
   const instances = sanitizeInstances(persistedState.instances, grid.config.logicalWidth, grid.config.logicalHeight);
   const nextInstanceIndex = sanitizeNextInstanceIndex(persistedState.nextInstanceIndex, instances);
   const selectedInstanceId = sanitizeSelectedId(persistedState.selectedInstanceId, instances);
+  const canvasPan = sanitizeCanvasPan(
+    "canvasPan" in persistedState ? persistedState.canvasPan : undefined,
+    sanitizeCanvasPan("canvasPan" in currentState ? currentState.canvasPan : undefined, { x: 0, y: 0 }),
+  );
 
   return {
     ...currentState,
@@ -304,5 +321,6 @@ export const mergePersistedDocument = <T extends DocumentMergeFields & Record<st
     instances,
     nextInstanceIndex,
     selectedInstanceId,
+    canvasPan,
   };
 };

@@ -58,8 +58,10 @@ export type AppStoreState = {
   grid: GeneratedGrid;
   instances: ComponentInstance[];
   selectedInstanceId: string | null;
-  /** Builder-only CSS-pixel pan applied to the canvas shell (not persisted; PNG export ignores). */
+  /** Builder-only CSS-pixel pan applied to the canvas shell (persisted; PNG export ignores). */
   canvasPan: { x: number; y: number };
+  /** Builder-only zoom for the canvas shell (session-only; resets on full reload). */
+  canvasZoom: number;
   dragState: CanvasDragState | null;
   connectorEndpointPick: ConnectorEndpointPickState | null;
   nextInstanceIndex: number;
@@ -67,6 +69,7 @@ export type AppStoreState = {
 
   translateCanvasPan: (dx: number, dy: number) => void;
   resetCanvasPan: () => void;
+  resetCanvasZoom: () => void;
 
   updateGridConfig: (patch: Partial<GridConfig>) => void;
   replaceGridConfig: (gridConfig: GridConfig) => void;
@@ -177,6 +180,7 @@ export const useAppStore = create<AppStoreState>()(
         pixiApp: null,
         ...defaultDocument,
         canvasPan: { x: 0, y: 0 },
+        canvasZoom: 1,
         dragState: null,
         connectorEndpointPick: null,
 
@@ -187,6 +191,7 @@ export const useAppStore = create<AppStoreState>()(
             canvasPan: { x: s.canvasPan.x + dx, y: s.canvasPan.y + dy },
           })),
         resetCanvasPan: () => set({ canvasPan: { x: 0, y: 0 } }),
+        resetCanvasZoom: () => set({ canvasZoom: 1 }),
 
         updateGridConfig: (patch) =>
           set((s) => {
@@ -436,6 +441,7 @@ export const useAppStore = create<AppStoreState>()(
         instances: state.instances,
         nextInstanceIndex: state.nextInstanceIndex,
         selectedInstanceId: state.selectedInstanceId,
+        canvasPan: state.canvasPan,
       }),
       migrate: (persistedState, fromVersion) => migratePersistedPartializeForLayerOrder(fromVersion, persistedState),
       merge: (persisted, current) => mergePersistedDocument(persisted, current),
@@ -452,6 +458,7 @@ export const resetAppStoreDocumentToDefault = () => {
     ...fresh,
     pixiApp: s.pixiApp,
     canvasPan: { x: 0, y: 0 },
+    canvasZoom: 1,
     dragState: null,
     connectorEndpointPick: null,
   }));
