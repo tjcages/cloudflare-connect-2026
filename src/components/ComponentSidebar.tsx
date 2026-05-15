@@ -1,6 +1,6 @@
 import { ChevronDown, Crosshair } from "lucide-react";
 import { Reorder, useDragControls } from "motion/react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { FocusEventHandler, PointerEventHandler, ReactNode } from "react";
 import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
 import { ICON_OPTIONS } from "../lib/iconRegistry";
@@ -363,60 +363,6 @@ export const ComponentBrowseSidebar = ({
   const renderDefinitionPreview = (definition: (typeof componentTypes)[number]) =>
     definition.type === "connector-line" ? <ConnectorLineIcon /> : renderIcon(definition.defaultProps as IconBoxProps);
 
-  const layersScrollRegionRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const id = selectedInstance?.id;
-    if (id == null) {
-      return undefined;
-    }
-
-    const scrollLayerRowIntoList = () => {
-      const container = layersScrollRegionRef.current;
-      if (!container) {
-        return;
-      }
-      const row = container.querySelector<HTMLElement>(`[data-layer-id="${CSS.escape(id)}"]`);
-      if (!row) {
-        return;
-      }
-
-      const cr = container.getBoundingClientRect();
-      const rr = row.getBoundingClientRect();
-      let nextTop = container.scrollTop;
-      let nextLeft = container.scrollLeft;
-
-      if (rr.top < cr.top) {
-        nextTop += rr.top - cr.top;
-      } else if (rr.bottom > cr.bottom) {
-        nextTop += rr.bottom - cr.bottom;
-      }
-
-      if (rr.left < cr.left) {
-        nextLeft += rr.left - cr.left;
-      } else if (rr.right > cr.right) {
-        nextLeft += rr.right - cr.right;
-      }
-
-      if (typeof container.scrollTo === "function") {
-        container.scrollTo({
-          top: nextTop,
-          left: nextLeft,
-          behavior: "instant",
-        });
-      } else {
-        container.scrollTop = nextTop;
-        container.scrollLeft = nextLeft;
-      }
-    };
-
-    scrollLayerRowIntoList();
-    const outerRaf = requestAnimationFrame(() => {
-      requestAnimationFrame(scrollLayerRowIntoList);
-    });
-    return () => cancelAnimationFrame(outerRaf);
-  }, [selectedInstance?.id]);
-
   return (
     <div className="component-sidebar">
       <section className="component-section">
@@ -446,7 +392,7 @@ export const ComponentBrowseSidebar = ({
         <div className="section-heading">
           <span>Layers</span>
         </div>
-        <div className="component-scroll-region" ref={layersScrollRegionRef}>
+        <div className="component-scroll-region">
           {instances.length ? (
             <Reorder.Group
               axis="y"
