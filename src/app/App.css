@@ -136,7 +136,11 @@ select {
   min-height: 0;
 }
 
-.canvas-shell-panning .grid-canvas {
+.canvas-shell-space-pan .grid-canvas:not(.grid-canvas-picking) {
+  cursor: grab;
+}
+
+.canvas-shell.canvas-shell-panning .grid-canvas {
   cursor: grabbing;
 }
 
@@ -942,6 +946,14 @@ button.component-list-item:hover {
   padding: 32px;
 }
 
+.canvas-panel-scroll:has(.canvas-shell-space-pan:not(.canvas-shell-panning)) {
+  cursor: grab;
+}
+
+.canvas-panel-scroll:has(.canvas-shell.canvas-shell-panning) {
+  cursor: grabbing;
+}
+
 .canvas-panel-viewport-toolbar {
   flex-shrink: 0;
   display: flex;
@@ -1040,7 +1052,7 @@ button.component-list-item:hover {
   display: block;
   background: #ffffff;
   touch-action: none;
-  cursor: grab;
+  cursor: default;
 }
 
 .grid-canvas-picking {

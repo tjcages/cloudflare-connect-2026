@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type Ref } from "react";
 import { animate as motionAnimate } from "motion";
 import Pixi from "../components/pixi";
 import { getCanvasPoint } from "./coords";
@@ -32,9 +32,9 @@ const normalizeWheelDeltaPixels = (event: Pick<WheelEvent, "deltaX" | "deltaY" |
 /** Minimum pointer movement (CSS px) before empty-canvas drag counts as viewport pan. */
 const VIEWPORT_PAN_DRAG_THRESHOLD_PX = 5;
 
-/** Mouse viewport pan requires ⌘ or Ctrl; touch/pen keep drag-to-pan without a modifier. */
-const isViewportPanModifierHeld = (event: { pointerType: string; metaKey: boolean; ctrlKey: boolean }) =>
-  event.pointerType !== "mouse" || event.metaKey || event.ctrlKey;
+/** Mouse empty-canvas drag-pan requires Space held; touch/pen keep drag-to-pan without a modifier. */
+const isViewportPanChordHeld = (event: { pointerType: string }, spaceHeld: boolean) =>
+  event.pointerType !== "mouse" || spaceHeld;
 
 type BuilderCanvasProps = {
   canvasRef?: Ref<HTMLCanvasElement | null>;
@@ -65,13 +65,16 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
   const clearConnectorEndpointHoverCell = useAppStore((s) => s.clearConnectorEndpointHoverCell);
   const isPickingConnectorEndpoint = useAppStore((s) => s.connectorEndpointPick !== null);
 
-  /** Primary-button drag on empty canvas with ⌘/Ctrl (mouse): pan viewport until pointer up. */
+  /** Primary-button drag on empty canvas with Space held (mouse): pan viewport until pointer up / Space released. */
   const viewportPanSessionRef = useRef(false);
   const viewportPanDraggingRef = useRef(false);
   const viewportPanPointerIdRef = useRef<number | null>(null);
+  const viewportPanCanvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const spaceBarViewportPanRef = useRef(false);
   const viewportPanOriginClientRef = useRef({ x: 0, y: 0 });
   const panLastClientRef = useRef({ x: 0, y: 0 });
   const [isViewportPanning, setIsViewportPanning] = useState(false);
+  const [isSpaceViewportPanHeld, setIsSpaceViewportPanHeld] = useState(false);
 
   /** Auto-pan the canvas viewport while dragging a layer near `.canvas-panel-scroll` edges. */
   const moveDragEdgeScrollRafRef = useRef<number | null>(null);
@@ -147,6 +150,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
     viewportPanSessionRef.current = false;
     viewportPanDraggingRef.current = false;
     viewportPanPointerIdRef.current = null;
+    viewportPanCanvasElRef.current = null;
     setIsViewportPanning(false);
   };
 
@@ -162,9 +166,82 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
     }
   };
 
+  const finishViewportPanPointerRef = useRef(finishViewportPanPointer);
+  useLayoutEffect(() => {
+    finishViewportPanPointerRef.current = finishViewportPanPointer;
+  });
+
+  useEffect(() => {
+    const isEditableKeyboardTarget = (target: EventTarget | null) =>
+      target instanceof Element && target.closest("input, textarea, select, [contenteditable='true']") !== null;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== " " && event.code !== "Space") {
+        return;
+      }
+      if (event.repeat || isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+      spaceBarViewportPanRef.current = true;
+      setIsSpaceViewportPanHeld(true);
+    };
+
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key !== " " && event.code !== "Space") {
+        return;
+      }
+      spaceBarViewportPanRef.current = false;
+      setIsSpaceViewportPanHeld(false);
+
+      const ptrId = viewportPanPointerIdRef.current;
+      const canvasEl = viewportPanCanvasElRef.current;
+      if (viewportPanSessionRef.current && ptrId !== null && canvasEl) {
+        finishViewportPanPointerRef.current(canvasEl, ptrId);
+      }
+    };
+
+    const clearSpaceHeld = () => {
+      spaceBarViewportPanRef.current = false;
+      setIsSpaceViewportPanHeld(false);
+      const ptrId = viewportPanPointerIdRef.current;
+      const canvasEl = viewportPanCanvasElRef.current;
+      if (viewportPanSessionRef.current && ptrId !== null && canvasEl) {
+        finishViewportPanPointerRef.current(canvasEl, ptrId);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    window.addEventListener("blur", clearSpaceHeld);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+      window.removeEventListener("blur", clearSpaceHeld);
+      spaceBarViewportPanRef.current = false;
+      setIsSpaceViewportPanHeld(false);
+    };
+  }, []);
+
+  const canvasShellClass = [
+    "canvas-shell",
+    isViewportPanning ? "canvas-shell-panning" : "",
+    isSpaceViewportPanHeld ? "canvas-shell-space-pan" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  /** Inline cursor so it wins over any other stylesheet rules on the canvas. */
+  const canvasCursorStyle =
+    !isPickingConnectorEndpoint && isViewportPanning
+      ? ({ cursor: "grabbing" } as const)
+      : !isPickingConnectorEndpoint && isSpaceViewportPanHeld
+        ? ({ cursor: "grab" } as const)
+        : null;
+
   return (
     <div
-      className={isViewportPanning ? "canvas-shell canvas-shell-panning" : "canvas-shell"}
+      className={canvasShellClass}
       style={{
         transform: `translate(${canvasPan.x}px, ${canvasPan.y}px) scale(${canvasZoom})`,
         transformOrigin: "0 0",
@@ -175,6 +252,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
         canvasAttrs={{
           className: isPickingConnectorEndpoint ? "grid-canvas grid-canvas-picking" : "grid-canvas",
           "data-testid": "builder-canvas",
+          style: canvasCursorStyle ?? undefined,
           onWheel: (event) => {
             event.preventDefault();
 
@@ -232,7 +310,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
                 return;
               }
 
-              if (!isViewportPanModifierHeld(event)) {
+              if (!isViewportPanChordHeld(event, spaceBarViewportPanRef.current)) {
                 skipNextClickSelectionSyncRef.current = false;
                 return;
               }
@@ -242,6 +320,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
               viewportPanSessionRef.current = true;
               viewportPanDraggingRef.current = false;
               viewportPanPointerIdRef.current = event.pointerId;
+              viewportPanCanvasElRef.current = canvas;
               viewportPanOriginClientRef.current = { x: event.clientX, y: event.clientY };
               panLastClientRef.current = { x: event.clientX, y: event.clientY };
               canvas.setPointerCapture?.(event.pointerId);
@@ -268,7 +347,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
               viewportPanPointerIdRef.current === event.pointerId &&
               useAppStore.getState().connectorEndpointPick === null
             ) {
-              if (!isViewportPanModifierHeld(event)) {
+              if (!isViewportPanChordHeld(event, spaceBarViewportPanRef.current)) {
                 finishViewportPanPointer(canvas, event.pointerId);
                 return;
               }

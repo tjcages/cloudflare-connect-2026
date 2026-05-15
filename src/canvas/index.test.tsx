@@ -127,7 +127,7 @@ describe("GridCanvas", () => {
     hitSpy.mockRestore();
   });
 
-  it("pans the viewport when ⌘/Ctrl+primary-dragging empty canvas space past a small threshold", () => {
+  it("pans the viewport when Space+primary-dragging empty canvas space past a small threshold", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
       x: 0,
       y: 0,
@@ -145,11 +145,12 @@ describe("GridCanvas", () => {
     render(<GridCanvas />);
     const canvas = screen.getByTestId("builder-canvas");
 
+    fireEvent.keyDown(window, { key: " ", code: "Space" });
+
     fireEvent.pointerDown(canvas, {
       pointerId: 9,
       pointerType: "mouse",
       button: 0,
-      metaKey: true,
       clientX: 100,
       clientY: 100,
     });
@@ -158,7 +159,6 @@ describe("GridCanvas", () => {
       pointerId: 9,
       pointerType: "mouse",
       buttons: 1,
-      metaKey: true,
       clientX: 106,
       clientY: 100,
     });
@@ -167,7 +167,6 @@ describe("GridCanvas", () => {
       pointerId: 9,
       pointerType: "mouse",
       buttons: 1,
-      metaKey: true,
       clientX: 136,
       clientY: 130,
     });
@@ -178,13 +177,14 @@ describe("GridCanvas", () => {
       pointerId: 9,
       pointerType: "mouse",
       button: 0,
-      metaKey: true,
     });
 
     expect(useAppStore.getState().canvasPan).toEqual({ x: 30, y: 30 });
+
+    fireEvent.keyUp(window, { key: " ", code: "Space" });
   });
 
-  it("does not pan the viewport when primary-dragging empty canvas without ⌘/Ctrl", () => {
+  it("does not pan the viewport when primary-dragging empty canvas without Space", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
       x: 0,
       y: 0,
@@ -259,11 +259,12 @@ describe("GridCanvas", () => {
     render(<GridCanvas />);
     const canvas = screen.getByTestId("builder-canvas");
 
+    fireEvent.keyDown(window, { key: " ", code: "Space" });
+
     fireEvent.pointerDown(canvas, {
       pointerId: 2,
       pointerType: "mouse",
       button: 0,
-      metaKey: true,
       clientX: 400,
       clientY: 400,
     });
@@ -272,7 +273,6 @@ describe("GridCanvas", () => {
       pointerId: 2,
       pointerType: "mouse",
       buttons: 1,
-      metaKey: true,
       clientX: 406,
       clientY: 400,
     });
@@ -281,7 +281,6 @@ describe("GridCanvas", () => {
       pointerId: 2,
       pointerType: "mouse",
       buttons: 1,
-      metaKey: true,
       clientX: 430,
       clientY: 410,
     });
@@ -290,11 +289,11 @@ describe("GridCanvas", () => {
       pointerId: 2,
       pointerType: "mouse",
       button: 0,
-      metaKey: true,
     });
 
     expect(useAppStore.getState().selectedInstanceId).toBe(placed.id);
 
+    fireEvent.keyUp(window, { key: " ", code: "Space" });
     fireEvent.pointerDown(canvas, {
       pointerId: 3,
       pointerType: "mouse",
