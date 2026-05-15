@@ -24,6 +24,8 @@ export type GridConfig = {
   smallCellRatio: number;
   largeCellRatio: number;
   strokeColor: string;
+  /** When false, connector path pulses stay off regardless of each connector's `animated` prop. */
+  connectorAnimationEnabled: boolean;
   gapMask: GapMask;
 };
 

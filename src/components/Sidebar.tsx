@@ -122,6 +122,19 @@ export const Sidebar = ({
         Generate
       </button>
 
+      <div className="field field-toggle-row">
+        <span>Animation</span>
+        <button
+          type="button"
+          data-testid="toggle-grid-animation"
+          className={["field-toggle-switch", config.connectorAnimationEnabled ? "field-toggle-switch-on" : ""]
+            .filter(Boolean)
+            .join(" ")}
+          aria-pressed={config.connectorAnimationEnabled}
+          onClick={() => onConfigChange({ ...config, connectorAnimationEnabled: !config.connectorAnimationEnabled })}
+        />
+      </div>
+
       <GapMaskEditor mask={config.gapMask} onChange={onGapMaskChange} />
 
       <button className="export-button" type="button" onClick={onCopyPng}>

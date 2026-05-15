@@ -286,6 +286,10 @@ export const mergePersistedDocument = <T extends DocumentMergeFields & Record<st
   const gridConfig: GridConfig = {
     ...DEFAULT_CONFIG,
     ...restPersistedGrid,
+    connectorAnimationEnabled:
+      typeof restPersistedGrid.connectorAnimationEnabled === "boolean"
+        ? restPersistedGrid.connectorAnimationEnabled
+        : DEFAULT_CONFIG.connectorAnimationEnabled,
   };
 
   const grid = generateGrid(gridConfig);

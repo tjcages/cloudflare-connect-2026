@@ -36,6 +36,19 @@ describe("normalizeConfig", () => {
     expect(config.renderHeight).toBe(161);
   });
 
+  it("defaults connector animation enabled to true", () => {
+    expect(DEFAULT_CONFIG.connectorAnimationEnabled).toBe(true);
+  });
+
+  it("preserves disabling connector animations in the normalized config", () => {
+    expect(
+      normalizeConfig({
+        ...DEFAULT_CONFIG,
+        connectorAnimationEnabled: false,
+      }).connectorAnimationEnabled,
+    ).toBe(false);
+  });
+
   it("normalizes ratios so they sum to 1", () => {
     const config = normalizeConfig({
       ...DEFAULT_CONFIG,
