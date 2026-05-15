@@ -33,7 +33,7 @@ describe("GridCanvas", () => {
   it("sizes the Pixi canvas with the render stroke buffer", () => {
     render(<GridCanvas />);
 
-    const canvas = screen.getByRole("img", { name: "Component builder canvas" });
+    const canvas = screen.getByTestId("builder-canvas");
 
     expect(canvas).toHaveAttribute("data-layout-width", "801");
     expect(canvas).toHaveAttribute("data-layout-height", "561");
@@ -69,7 +69,7 @@ describe("GridCanvas", () => {
     } as DOMRect);
 
     render(<GridCanvas />);
-    const canvas = screen.getByRole("img", { name: "Component builder canvas" });
+    const canvas = screen.getByTestId("builder-canvas");
 
     fireEvent.pointerDown(canvas, { clientX: 10, clientY: 400, pointerId: 1 });
     fireEvent.click(canvas, { clientX: 10, clientY: 400 });
@@ -111,7 +111,7 @@ describe("GridCanvas", () => {
       .mockReturnValueOnce(undefined);
 
     render(<GridCanvas />);
-    const canvas = screen.getByRole("img", { name: "Component builder canvas" });
+    const canvas = screen.getByTestId("builder-canvas");
 
     fireEvent.pointerDown(canvas, { clientX: 100, clientY: 10, pointerId: 1 });
     fireEvent.click(canvas, { clientX: 100, clientY: 10 });
@@ -121,5 +121,138 @@ describe("GridCanvas", () => {
     expect(hitSpy).toHaveBeenCalledTimes(1);
 
     hitSpy.mockRestore();
+  });
+
+  it("pans the viewport when primary-dragging empty canvas space past a small threshold", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 800,
+      height: 560,
+      top: 0,
+      left: 0,
+      right: 800,
+      bottom: 560,
+      toJSON: () => "",
+    } as DOMRect);
+
+    useAppStore.setState({ instances: [], selectedInstanceId: null });
+
+    render(<GridCanvas />);
+    const canvas = screen.getByTestId("builder-canvas");
+
+    fireEvent.pointerDown(canvas, {
+      pointerId: 9,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    });
+
+    fireEvent.pointerMove(canvas, {
+      pointerId: 9,
+      pointerType: "mouse",
+      buttons: 1,
+      clientX: 106,
+      clientY: 100,
+    });
+
+    fireEvent.pointerMove(canvas, {
+      pointerId: 9,
+      pointerType: "mouse",
+      buttons: 1,
+      clientX: 136,
+      clientY: 130,
+    });
+
+    expect(useAppStore.getState().canvasPan).toEqual({ x: 30, y: 30 });
+
+    fireEvent.pointerUp(canvas, {
+      pointerId: 9,
+      pointerType: "mouse",
+      button: 0,
+    });
+
+    expect(useAppStore.getState().canvasPan).toEqual({ x: 30, y: 30 });
+  });
+
+  it("keeps layer selection while viewport-panning empty canvas; tap empty clears", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 800,
+      height: 560,
+      top: 0,
+      left: 0,
+      right: 800,
+      bottom: 560,
+      toJSON: () => "",
+    } as DOMRect);
+
+    const placed: ComponentInstance = {
+      id: "icon-box-pan-1",
+      type: "icon-box",
+      name: "Icon Box",
+      x: 40,
+      y: 40,
+      props: {
+        matchCornersWithTheme: false,
+        theme: "purple",
+        iconId: "section-mark",
+        title: "T",
+        containerHighlighted: false,
+      },
+    };
+    useAppStore.setState({ instances: [placed], selectedInstanceId: placed.id });
+
+    render(<GridCanvas />);
+    const canvas = screen.getByTestId("builder-canvas");
+
+    fireEvent.pointerDown(canvas, {
+      pointerId: 2,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 400,
+      clientY: 400,
+    });
+
+    fireEvent.pointerMove(canvas, {
+      pointerId: 2,
+      pointerType: "mouse",
+      buttons: 1,
+      clientX: 406,
+      clientY: 400,
+    });
+
+    fireEvent.pointerMove(canvas, {
+      pointerId: 2,
+      pointerType: "mouse",
+      buttons: 1,
+      clientX: 430,
+      clientY: 410,
+    });
+
+    fireEvent.pointerUp(canvas, {
+      pointerId: 2,
+      pointerType: "mouse",
+      button: 0,
+    });
+
+    expect(useAppStore.getState().selectedInstanceId).toBe(placed.id);
+
+    fireEvent.pointerDown(canvas, {
+      pointerId: 3,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 400,
+      clientY: 400,
+    });
+    fireEvent.pointerUp(canvas, {
+      pointerId: 3,
+      pointerType: "mouse",
+      button: 0,
+    });
+
+    expect(useAppStore.getState().selectedInstanceId).toBeNull();
   });
 });

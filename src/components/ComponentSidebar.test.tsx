@@ -48,12 +48,13 @@ describe("ComponentSidebar", () => {
     expect(screen.queryByText("Current instances")).not.toBeInTheDocument();
     expect(screen.queryByText("1")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Icon Box" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Select Icon Box, Workers")).toBeInTheDocument();
+    expect(screen.getByTestId("layer-item-icon-box-1")).toBeInTheDocument();
     expect(screen.queryByText("Drag to canvas")).not.toBeInTheDocument();
     expect(screen.getByText("Workers")).toBeInTheDocument();
     expect(screen.queryByText("x: 40, y: 80")).not.toBeInTheDocument();
     expect(screen.getByText("Components")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Connector Line" })).toBeInTheDocument();
+    expect(screen.getByTestId("layer-config-empty")).toBeInTheDocument();
   });
 
   it("keeps layer title and dynamic subtitle stacked in the same text block", () => {
@@ -78,7 +79,7 @@ describe("ComponentSidebar", () => {
     expect(layerItem?.querySelector(".component-position")).toBeInTheDocument();
     expect(layerItem?.querySelector(".component-list-item-actions")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Icon Box, Workers" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Select Icon Box, Workers")).toBeInTheDocument();
+    expect(screen.getByTestId("layer-item-icon-box-1")).toBeInTheDocument();
   });
 
   it("omits layer subtitle when title is blank", () => {
@@ -95,7 +96,7 @@ describe("ComponentSidebar", () => {
 
     const layerItem = container.querySelector("[data-testid='layer-item-icon-box-1']");
     expect(layerItem?.querySelector(".component-position")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Select Icon Box")).toBeInTheDocument();
+    expect(screen.getByTestId("layer-item-icon-box-1")).toBeInTheDocument();
   });
 
   it("selects a layer from the row pointer tap without row action controls", () => {
@@ -190,13 +191,13 @@ describe("ComponentSidebar", () => {
     expect(container.querySelector(".connector-endpoint-meta")).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Source endpoint" })).not.toBeInTheDocument();
 
-    const sourceEndpointButton = screen.getByRole("button", { name: "Source endpoint" });
+    const sourceEndpointButton = screen.getByTestId("connector-endpoint-trigger-source");
     expect(within(sourceEndpointButton).getByText("Static cell")).toBeInTheDocument();
     expect(within(sourceEndpointButton).getByText("x: 40, y: 40")).toBeInTheDocument();
 
     fireEvent.click(sourceEndpointButton);
 
-    const layerOption = screen.getByRole("option", { name: /Icon Box\s*Workers/ });
+    const layerOption = screen.getByTestId("connector-endpoint-option-layer-icon-box-1");
     expect(layerOption).toHaveClass("component-list-item");
     expect(layerOption.querySelector("svg.component-icon")).toBeInTheDocument();
     expect(within(layerOption).getByText("Workers")).toBeInTheDocument();
@@ -209,7 +210,7 @@ describe("ComponentSidebar", () => {
       target: { kind: "layer", instanceId: "icon-box-1" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Pick source cell on canvas" }));
+    fireEvent.click(screen.getByTestId("connector-pick-source-cell"));
 
     expect(onStartEndpointPick).toHaveBeenCalledWith("connector-line-2", "source");
   });
@@ -227,7 +228,7 @@ describe("ComponentSidebar", () => {
       />,
     );
 
-    expect(screen.queryByRole("switch", { name: /Match corners with theme/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`toggle-match-corners-${neutralThemeInstance.id}`)).not.toBeInTheDocument();
   });
 
   it("marks the selected layer row when the selection changes", () => {
@@ -282,19 +283,19 @@ describe("ComponentSidebar", () => {
       within(header.querySelector(".component-list-item-text") as HTMLElement).getByText("Icon Box"),
     ).toBeInTheDocument();
     expect(screen.getByText("Layers")).toBeInTheDocument();
-    const iconPicker = screen.getByRole("radiogroup", { name: "Icon" });
-    const iconOption = within(iconPicker).getByRole("radio", { name: "Section mark" });
+    const iconPicker = screen.getByTestId("icon-picker");
+    const iconOption = within(iconPicker).getByTestId(`icon-picker-${DEFAULT_ICON_ID}`);
 
-    expect(iconOption).toHaveAttribute("aria-checked", "true");
+    expect(iconOption).toHaveAttribute("data-selected", "true");
     expect(screen.queryByRole("combobox", { name: "Icon" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Icon color")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Title")).toHaveValue("Workers");
-    const themeGroup = screen.getByRole("radiogroup", { name: "Theme" });
-    expect(within(themeGroup).getByRole("radio", { name: "Purple" })).toHaveAttribute("aria-checked", "true");
-    const matchCornersToggle = screen.getByRole("switch", { name: /Match corners with theme/i });
-    expect(matchCornersToggle).toHaveAttribute("aria-checked", "false");
-    const containerHighlightedToggle = screen.getByRole("switch", { name: /Container highlighted/i });
-    expect(containerHighlightedToggle).toHaveAttribute("aria-checked", "false");
+    const themeGroup = screen.getByTestId("palette-theme-picker");
+    expect(within(themeGroup).getByTestId("palette-theme-swatch-purple")).toHaveAttribute("data-selected", "true");
+    const matchCornersToggle = screen.getByTestId(`toggle-match-corners-${instance.id}`);
+    expect(matchCornersToggle).not.toHaveClass("field-toggle-switch-on");
+    const containerHighlightedToggle = screen.getByTestId(`toggle-container-highlighted-${instance.id}`);
+    expect(containerHighlightedToggle).not.toHaveClass("field-toggle-switch-on");
 
     fireEvent.click(containerHighlightedToggle);
 
@@ -355,8 +356,8 @@ describe("ComponentSidebar", () => {
       />,
     );
 
-    const themeGroup = screen.getByRole("radiogroup", { name: "Theme" });
-    fireEvent.click(within(themeGroup).getByRole("radio", { name: "Orange" }));
+    const themeGroup = screen.getByTestId("palette-theme-picker");
+    fireEvent.click(within(themeGroup).getByTestId("palette-theme-swatch-orange"));
 
     expect(onUpdateInstanceProps).toHaveBeenCalledWith("icon-box-1", {
       matchCornersWithTheme: false,

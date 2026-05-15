@@ -57,10 +57,15 @@ export type AppStoreState = {
   grid: GeneratedGrid;
   instances: ComponentInstance[];
   selectedInstanceId: string | null;
+  /** Builder-only CSS-pixel pan applied to the canvas shell (not persisted; PNG export ignores). */
+  canvasPan: { x: number; y: number };
   dragState: CanvasDragState | null;
   connectorEndpointPick: ConnectorEndpointPickState | null;
   nextInstanceIndex: number;
   setPixiApp: (app: Application | null) => void;
+
+  translateCanvasPan: (dx: number, dy: number) => void;
+  resetCanvasPan: () => void;
 
   updateGridConfig: (patch: Partial<GridConfig>) => void;
   replaceGridConfig: (gridConfig: GridConfig) => void;
@@ -160,10 +165,17 @@ export const useAppStore = create<AppStoreState>()(
       (set, get) => ({
         pixiApp: null,
         ...defaultDocument,
+        canvasPan: { x: 0, y: 0 },
         dragState: null,
         connectorEndpointPick: null,
 
         setPixiApp: (app) => set({ pixiApp: app }),
+
+        translateCanvasPan: (dx, dy) =>
+          set((s) => ({
+            canvasPan: { x: s.canvasPan.x + dx, y: s.canvasPan.y + dy },
+          })),
+        resetCanvasPan: () => set({ canvasPan: { x: 0, y: 0 } }),
 
         updateGridConfig: (patch) =>
           set((s) => {
@@ -425,6 +437,7 @@ export const resetAppStoreDocumentToDefault = () => {
   useAppStore.setState((s) => ({
     ...fresh,
     pixiApp: s.pixiApp,
+    canvasPan: { x: 0, y: 0 },
     dragState: null,
     connectorEndpointPick: null,
   }));

@@ -94,17 +94,16 @@ export const Sidebar = ({
               <button
                 type="button"
                 className="field-reset-button"
-                aria-label="Reset stroke color to default"
+                data-testid="stroke-color-reset"
                 onClick={() => onStrokeColorChange(DEFAULT_CONFIG.strokeColor)}
               >
-                <Undo2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+                <Undo2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} />
               </button>
             ) : null}
           </div>
         </div>
         <span className="color-control">
           <span
-            aria-hidden="true"
             className="color-preview"
             data-testid="stroke-color-preview"
             style={{ backgroundColor: config.strokeColor, height: "2px" }}

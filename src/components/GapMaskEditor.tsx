@@ -162,7 +162,7 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
                   });
                 }}
                 type="button"
-                aria-label={`${blocked ? "Unblock" : "Block"} gap cell ${row + 1}, ${column + 1}`}
+                data-testid={`gap-mask-cell-${row}-${column}`}
               />
             );
           }),

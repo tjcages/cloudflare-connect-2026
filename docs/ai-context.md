@@ -71,7 +71,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 ### Change Sidebar Style
 
 1. Reuse existing CSS variables, button styles, `ComponentListItem`, and `iconTokens` first.
-2. Keep icon-only buttons accessible with `aria-label`.
+2. Prefer `data-testid` for icon-only targets (rail tabs, canvas, gap cells). Otherwise use visible text and native `<label htmlFor>` associations where practical.
 3. Prefer changing shared classes over one-off row/card styles.
 4. Inspect the app in a browser when possible; spacing and hover states are hard to judge from CSS alone.
 
@@ -83,7 +83,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 - `src/components/*.test.tsx`: reusable component UI and interaction.
 - `src/app/App.test.tsx`: integrated flows such as tabs, drag/move, selection, config, export.
 
-Testing Library tests should prefer roles, labels, and visible text. Canvas tests may assert drawing calls when user-visible pixel assertions are impractical.
+Testing Library tests should prefer visible text and stable `data-testid` hooks for icon-only targets; use native labels for form fields. Canvas tests may assert drawing calls when user-visible pixel assertions are impractical.
 
 ## Verification Commands
 

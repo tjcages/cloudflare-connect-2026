@@ -124,13 +124,12 @@ export const App = () => {
   };
 
   return (
-    <main className={selectedInstance !== null ? "app-shell app-shell-layer-config-open" : "app-shell"}>
-      <aside className="sidebar-rail" aria-label="Builder tools">
+    <main className="app-shell">
+      <aside className="sidebar-rail">
         <button
           className={activeTab === "grid" ? "sidebar-rail-button sidebar-rail-button-active" : "sidebar-rail-button"}
           type="button"
-          aria-label="Grid"
-          aria-pressed={activeTab === "grid"}
+          data-testid="rail-tab-grid"
           onClick={() => setActiveTab("grid")}
         >
           <span data-testid="grid-divider-icon">
@@ -142,8 +141,7 @@ export const App = () => {
             activeTab === "components" ? "sidebar-rail-button sidebar-rail-button-active" : "sidebar-rail-button"
           }
           type="button"
-          aria-label="Components"
-          aria-pressed={activeTab === "components"}
+          data-testid="rail-tab-components"
           onClick={() => setActiveTab("components")}
         >
           <span data-testid="components-rail-icon">
@@ -187,7 +185,7 @@ export const App = () => {
           />
         )}
       </aside>
-      <section className="canvas-panel" aria-label="Canvas viewport">
+      <section className="canvas-panel">
         <GridCanvas
           canvasRef={builderCanvasRef}
           onUserSelectedInstance={(id) => {
@@ -197,17 +195,15 @@ export const App = () => {
           }}
         />
       </section>
-      {selectedInstance ? (
-        <aside className="sidebar sidebar-components sidebar-components-config" aria-label="Layer configuration">
-          <ComponentConfigSidebar
-            instances={instances}
-            selectedInstance={selectedInstance}
-            onUpdateInstanceProps={updateInstanceProps}
-            onStartEndpointPick={startConnectorEndpointPick}
-            gridStrokeColor={gridConfig.strokeColor}
-          />
-        </aside>
-      ) : null}
+      <aside className="sidebar sidebar-components sidebar-components-config">
+        <ComponentConfigSidebar
+          instances={instances}
+          selectedInstance={selectedInstance}
+          onUpdateInstanceProps={updateInstanceProps}
+          onStartEndpointPick={startConnectorEndpointPick}
+          gridStrokeColor={gridConfig.strokeColor}
+        />
+      </aside>
       {dragState?.mode === "create" && dragState.preview === null && dragState.ghostClient !== null ? (
         <ComponentDragGhost
           componentType={dragState.type}

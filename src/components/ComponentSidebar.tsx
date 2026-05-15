@@ -19,14 +19,13 @@ import type {
 import { PALETTE_THEMES, type PaletteThemeId, paletteBrush } from "../theme/palette";
 
 type PaletteThemePickerProps = {
-  ariaLabel: string;
   value: PaletteThemeId;
   onChange: (id: PaletteThemeId) => void;
   gridStrokeColor?: string;
 };
 
-const PaletteThemePicker = ({ ariaLabel, value, onChange, gridStrokeColor }: PaletteThemePickerProps) => (
-  <div className="palette-theme-picker" role="radiogroup" aria-label={ariaLabel}>
+const PaletteThemePicker = ({ value, onChange, gridStrokeColor }: PaletteThemePickerProps) => (
+  <div className="palette-theme-picker" data-testid="palette-theme-picker">
     {PALETTE_THEMES.map((theme) => {
       const selected = value === theme.id;
       const strokeTrim = gridStrokeColor?.trim() ?? "";
@@ -36,9 +35,8 @@ const PaletteThemePicker = ({ ariaLabel, value, onChange, gridStrokeColor }: Pal
         <button
           key={theme.id}
           type="button"
-          role="radio"
-          aria-checked={selected}
-          aria-label={theme.label}
+          data-testid={`palette-theme-swatch-${theme.id}`}
+          data-selected={selected ? "true" : undefined}
           className="palette-theme-swatch"
           style={{
             borderColor: selected ? neutralSyncedFill : "#f3f3f3",
@@ -47,7 +45,7 @@ const PaletteThemePicker = ({ ariaLabel, value, onChange, gridStrokeColor }: Pal
           }}
           onClick={() => onChange(theme.id)}
         >
-          <span className="palette-theme-swatch-fill" aria-hidden="true" />
+          <span className="palette-theme-swatch-fill" />
         </button>
       );
     })}
@@ -67,7 +65,7 @@ export type ComponentBrowseSidebarProps = {
 
 export type ComponentConfigSidebarProps = {
   instances: ComponentInstance[];
-  selectedInstance: ComponentInstance;
+  selectedInstance: ComponentInstance | null;
   onUpdateInstanceProps: (id: string, props: ComponentProps) => void;
   onStartEndpointPick?: (id: string, endpoint: "source" | "target") => void;
   /** When set, neutral theme fills track this hex (same source as grid stroke). */
@@ -83,9 +81,6 @@ const componentTypes = Object.values(COMPONENT_REGISTRY);
 const getInstanceDisplayName = (instance: ComponentInstance) => getComponentDefinition(instance.type).label;
 const CONNECTOR_LINE_ICON_COLOR = paletteBrush("neutral").iconFillHex;
 
-const getLayerActionLabel = (verb: string, displayName: string, subtitle: string | undefined) =>
-  subtitle ? `${verb} ${displayName}, ${subtitle}` : `${verb} ${displayName}`;
-
 const layerDragDistanceThresholdPx = 10;
 
 const ConnectorLineIcon = ({ size = SIDEBAR_LIST_ICON_PX }: { size?: number }) => (
@@ -100,8 +95,6 @@ const ConnectorLineIcon = ({ size = SIDEBAR_LIST_ICON_PX }: { size?: number }) =
     strokeLinejoin="round"
     strokeWidth={1.7}
     style={{ color: CONNECTOR_LINE_ICON_COLOR }}
-    aria-hidden="true"
-    focusable="false"
   >
     <path d="M5 9h6v6h8" />
     <path d="M5 9h0.01" />
@@ -120,13 +113,7 @@ const getEndpointCellMeta = (endpoint: ConnectorEndpoint) =>
   endpoint.kind === "cell" ? `x: ${endpoint.x}, y: ${endpoint.y}` : undefined;
 
 const StaticCellIcon = ({ size = SIDEBAR_LIST_ICON_PX }: { size?: number }) => (
-  <Crosshair
-    className="component-icon"
-    size={size}
-    strokeWidth={ICON_STROKE_WIDTH}
-    aria-hidden="true"
-    focusable="false"
-  />
+  <Crosshair className="component-icon" size={size} strokeWidth={ICON_STROKE_WIDTH} />
 );
 
 type EndpointSelectProps = {
@@ -145,7 +132,6 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
   const selectedTitle = selectedLayer ? getInstanceDisplayName(selectedLayer) : "Static cell";
   const selectedMeta = selectedLayer ? getInstanceLayerSubtitle(selectedLayer) : getEndpointCellMeta(endpoint);
   const selectedPreview = selectedLayer ? renderPreview(selectedLayer) : <StaticCellIcon />;
-  const listboxId = `${label.toLowerCase()}-endpoint-options`;
 
   const onBlur: FocusEventHandler<HTMLDivElement> = (event) => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -162,25 +148,25 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
     <div className="connector-endpoint-select" onBlur={onBlur}>
       <ComponentListItem
         as="button"
+        testId={`connector-endpoint-trigger-${label.toLowerCase()}`}
         className="connector-endpoint-select-trigger"
-        ariaLabel={`${label} endpoint`}
-        ariaExpanded={open}
-        ariaHasPopup="listbox"
         preview={selectedPreview}
         title={selectedTitle}
         meta={selectedMeta}
-        actions={
-          <ChevronDown size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
-        }
+        actions={<ChevronDown size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} />}
         onClick={() => setOpen((current) => !current)}
       />
       {open ? (
-        <div id={listboxId} className="connector-endpoint-options" role="listbox" aria-label={`${label} endpoint`}>
+        <div className="connector-endpoint-options">
           <ComponentListItem
             as="button"
-            role="option"
-            className="connector-endpoint-option"
-            ariaSelected={endpoint.kind === "cell"}
+            testId="connector-endpoint-option-static-cell"
+            className={[
+              "connector-endpoint-option",
+              endpoint.kind === "cell" ? "connector-endpoint-option-selected" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             preview={<StaticCellIcon />}
             title="Static cell"
             meta={getEndpointCellMeta(endpoint.kind === "cell" ? endpoint : fallbackCell)}
@@ -188,13 +174,15 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
           />
           {selectableLayers.map((instance) => {
             const layerSubtitle = getInstanceLayerSubtitle(instance, instances);
+            const layerSelected = endpoint.kind === "layer" && endpoint.instanceId === instance.id;
             return (
               <ComponentListItem
                 key={instance.id}
                 as="button"
-                role="option"
-                className="connector-endpoint-option"
-                ariaSelected={endpoint.kind === "layer" && endpoint.instanceId === instance.id}
+                testId={`connector-endpoint-option-layer-${instance.id}`}
+                className={["connector-endpoint-option", layerSelected ? "connector-endpoint-option-selected" : ""]
+                  .filter(Boolean)
+                  .join(" ")}
                 preview={renderPreview(instance)}
                 title={getInstanceDisplayName(instance)}
                 meta={layerSubtitle}
@@ -250,10 +238,10 @@ const ConnectorEndpointField = ({
         <button
           className="component-row-icon-button connector-endpoint-pick-button"
           type="button"
-          aria-label={`Pick ${key} cell on canvas`}
+          data-testid={`connector-pick-${key}-cell`}
           onClick={() => onStartEndpointPick(connector.id, key)}
         >
-          <Crosshair size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
+          <Crosshair size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} />
         </button>
       </div>
     </div>
@@ -284,8 +272,6 @@ const LayerReorderRow = ({ instance, instances, preview, onSelectInstance, isSel
     dragCommittedRef.current = false;
     dragControls.start(event, { distanceThreshold: layerDragDistanceThresholdPx });
   };
-
-  const layerSelectLabel = getLayerActionLabel("Select", displayName, layerSubtitle);
 
   return (
     <Reorder.Item
@@ -334,7 +320,6 @@ const LayerReorderRow = ({ instance, instances, preview, onSelectInstance, isSel
         data-layer-id={instance.id}
       >
         <ComponentListItem
-          ariaLabel={layerSelectLabel}
           testId={`layer-item-${instance.id}`}
           preview={preview}
           title={displayName}
@@ -428,6 +413,10 @@ export const ComponentConfigSidebar = ({
   onStartEndpointPick = () => {},
   gridStrokeColor,
 }: ComponentConfigSidebarProps) => {
+  if (selectedInstance === null) {
+    return <div className="component-config-panel component-config-panel-empty" data-testid="layer-config-empty" />;
+  }
+
   const neutralOpts = gridStrokeColor !== undefined ? { neutralFillSyncHex: gridStrokeColor } : undefined;
   const brushFor = (theme: PaletteThemeId) => paletteBrush(theme, neutralOpts);
   const renderIcon = (props: IconBoxProps) => (
@@ -446,10 +435,10 @@ export const ComponentConfigSidebar = ({
           preview={renderPreview(selectedInstance)}
           title={displayName}
         />
-        <label className="field">
+        <label className="field" htmlFor={`connector-preferred-${selectedInstance.id}`}>
           <span>Preferred connection</span>
           <select
-            aria-label="Preferred connection"
+            id={`connector-preferred-${selectedInstance.id}`}
             value={selectedInstance.props.preferredConnection}
             onChange={(event) =>
               onUpdateInstanceProps(selectedInstance.id, {
@@ -497,7 +486,6 @@ export const ComponentConfigSidebar = ({
       <div className="field">
         <span>Theme</span>
         <PaletteThemePicker
-          ariaLabel="Theme"
           value={selectedInstance.props.theme}
           gridStrokeColor={gridStrokeColor}
           onChange={(theme) =>
@@ -510,34 +498,33 @@ export const ComponentConfigSidebar = ({
       </div>
       <div className="field">
         <span>Icon</span>
-        <div className="icon-picker" role="radiogroup" aria-label="Icon">
-          {ICON_OPTIONS.map((icon) => (
-            <button
-              key={icon.id}
-              className={
-                selectedInstance.props.iconId === icon.id
-                  ? "icon-picker-button icon-picker-button-active"
-                  : "icon-picker-button"
-              }
-              type="button"
-              role="radio"
-              aria-checked={selectedInstance.props.iconId === icon.id}
-              aria-label={icon.label}
-              onClick={() =>
-                onUpdateInstanceProps(selectedInstance.id, {
-                  ...selectedInstance.props,
-                  iconId: icon.id as IconId,
-                })
-              }
-            >
-              <ComponentIcon iconId={icon.id as IconId} color={palette.iconFillHex} size={SIDEBAR_LIST_ICON_PX} />
-            </button>
-          ))}
+        <div className="icon-picker" data-testid="icon-picker">
+          {ICON_OPTIONS.map((icon) => {
+            const selected = selectedInstance.props.iconId === icon.id;
+            return (
+              <button
+                key={icon.id}
+                className={selected ? "icon-picker-button icon-picker-button-active" : "icon-picker-button"}
+                type="button"
+                data-testid={`icon-picker-${icon.id}`}
+                data-selected={selected ? "true" : undefined}
+                onClick={() =>
+                  onUpdateInstanceProps(selectedInstance.id, {
+                    ...selectedInstance.props,
+                    iconId: icon.id as IconId,
+                  })
+                }
+              >
+                <ComponentIcon iconId={icon.id as IconId} color={palette.iconFillHex} size={SIDEBAR_LIST_ICON_PX} />
+              </button>
+            );
+          })}
         </div>
       </div>
-      <label className="field">
+      <label className="field" htmlFor={`layer-title-${selectedInstance.id}`}>
         <span>Title</span>
         <input
+          id={`layer-title-${selectedInstance.id}`}
           type="text"
           value={selectedInstance.props.title}
           onChange={(event) =>
@@ -546,18 +533,20 @@ export const ComponentConfigSidebar = ({
               title: event.target.value,
             })
           }
-          aria-label="Title"
         />
       </label>
       {selectedInstance.props.theme !== "neutral" ? (
         <div className="field field-toggle-row">
-          <span id={`corner-match-label-${selectedInstance.id}`}>Match corners with theme</span>
+          <span>Match corners with theme</span>
           <button
             type="button"
-            role="switch"
-            className="field-toggle-switch"
-            aria-labelledby={`corner-match-label-${selectedInstance.id}`}
-            aria-checked={selectedInstance.props.matchCornersWithTheme}
+            data-testid={`toggle-match-corners-${selectedInstance.id}`}
+            className={[
+              "field-toggle-switch",
+              selectedInstance.props.matchCornersWithTheme ? "field-toggle-switch-on" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             onClick={() =>
               onUpdateInstanceProps(selectedInstance.id, {
                 ...selectedInstance.props,
@@ -568,13 +557,16 @@ export const ComponentConfigSidebar = ({
         </div>
       ) : null}
       <div className="field field-toggle-row">
-        <span id={`container-highlighted-label-${selectedInstance.id}`}>Container highlighted</span>
+        <span>Container highlighted</span>
         <button
           type="button"
-          role="switch"
-          className="field-toggle-switch"
-          aria-labelledby={`container-highlighted-label-${selectedInstance.id}`}
-          aria-checked={selectedInstance.props.containerHighlighted}
+          data-testid={`toggle-container-highlighted-${selectedInstance.id}`}
+          className={[
+            "field-toggle-switch",
+            selectedInstance.props.containerHighlighted ? "field-toggle-switch-on" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           onClick={() =>
             onUpdateInstanceProps(selectedInstance.id, {
               ...selectedInstance.props,
@@ -597,14 +589,12 @@ export const ComponentSidebar = (props: ComponentSidebarProps) => (
       onReorderInstances={props.onReorderInstances}
       gridStrokeColor={props.gridStrokeColor}
     />
-    {props.selectedInstance ? (
-      <ComponentConfigSidebar
-        instances={props.instances}
-        selectedInstance={props.selectedInstance}
-        onUpdateInstanceProps={props.onUpdateInstanceProps}
-        onStartEndpointPick={props.onStartEndpointPick}
-        gridStrokeColor={props.gridStrokeColor}
-      />
-    ) : null}
+    <ComponentConfigSidebar
+      instances={props.instances}
+      selectedInstance={props.selectedInstance}
+      onUpdateInstanceProps={props.onUpdateInstanceProps}
+      onStartEndpointPick={props.onStartEndpointPick}
+      gridStrokeColor={props.gridStrokeColor}
+    />
   </>
 );

@@ -26,8 +26,6 @@ export const ComponentDragGhost = ({ componentType, clientX, clientY }: Componen
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={1.7}
-        aria-hidden="true"
-        focusable="false"
       >
         <path d="M5 7h6v6h8" />
         <path d="M5 7h0.01" />
@@ -43,8 +41,6 @@ export const ComponentDragGhost = ({ componentType, clientX, clientY }: Componen
 
   return (
     <div
-      role="presentation"
-      aria-hidden
       data-testid="component-drag-ghost"
       className="component-drag-ghost-root"
       style={{ left: clientX, top: clientY }}

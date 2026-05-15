@@ -14,8 +14,7 @@ vi.mock("../canvas/pngExport", () => ({
 vi.mock("../canvas", () => ({
   GridCanvas: ({ canvasRef }: { canvasRef?: Ref<HTMLCanvasElement | null> }) => (
     <div
-      role="img"
-      aria-label="Component builder canvas"
+      data-testid="builder-canvas"
       ref={(node) => {
         if (!canvasRef) {
           return;
@@ -62,27 +61,27 @@ describe("App", { timeout: 15_000 }, () => {
   it("switches sidebar panels from the icon rail without unmounting the canvas", () => {
     render(<App />);
 
-    expect(screen.getByRole("img", { name: "Component builder canvas" })).toBeInTheDocument();
-    const gridButton = screen.getByRole("button", { name: "Grid" });
-    const componentsButton = screen.getByRole("button", { name: "Components" });
+    expect(screen.getByTestId("builder-canvas")).toBeInTheDocument();
+    const gridButton = screen.getByTestId("rail-tab-grid");
+    const componentsButton = screen.getByTestId("rail-tab-components");
 
-    expect(gridButton).toHaveAttribute("aria-pressed", "true");
-    expect(componentsButton).toHaveAttribute("aria-pressed", "false");
+    expect(gridButton).toHaveClass("sidebar-rail-button-active");
+    expect(componentsButton).not.toHaveClass("sidebar-rail-button-active");
     expect(screen.queryByRole("tab", { name: "Grid" })).not.toBeInTheDocument();
 
     fireEvent.click(componentsButton);
 
     expect(screen.getByText("Layers")).toBeInTheDocument();
-    expect(componentsButton).toHaveAttribute("aria-pressed", "true");
-    expect(gridButton).toHaveAttribute("aria-pressed", "false");
+    expect(componentsButton).toHaveClass("sidebar-rail-button-active");
+    expect(gridButton).not.toHaveClass("sidebar-rail-button-active");
     expect(screen.queryByText("Current instances")).not.toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Component builder canvas" })).toBeInTheDocument();
+    expect(screen.getByTestId("builder-canvas")).toBeInTheDocument();
   });
 
   it("shows a pointer-following ghost while placing a component before the canvas preview starts", () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Components" }));
+    fireEvent.click(screen.getByTestId("rail-tab-components"));
     fireEvent.pointerDown(screen.getByRole("button", { name: "Icon Box" }), { clientX: 160, clientY: 220 });
 
     const ghost = screen.getByTestId("component-drag-ghost");
@@ -93,10 +92,10 @@ describe("App", { timeout: 15_000 }, () => {
   it("finalizes icon-box placement when releasing the pointer over the canvas", () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Components" }));
+    fireEvent.click(screen.getByTestId("rail-tab-components"));
     fireEvent.pointerDown(screen.getByRole("button", { name: "Icon Box" }), { clientX: 160, clientY: 220 });
 
-    const canvas = screen.getByRole("img", { name: "Component builder canvas" });
+    const canvas = screen.getByTestId("builder-canvas");
     vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -135,8 +134,8 @@ describe("App", { timeout: 15_000 }, () => {
     useAppStore.setState({ instances: [connector], selectedInstanceId: connector.id });
 
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Components" }));
-    fireEvent.click(screen.getByRole("button", { name: "Pick source cell on canvas" }));
+    fireEvent.click(screen.getByTestId("rail-tab-components"));
+    fireEvent.click(screen.getByTestId("connector-pick-source-cell"));
 
     expect(useAppStore.getState().connectorEndpointPick).toEqual({
       connectorId: connector.id,

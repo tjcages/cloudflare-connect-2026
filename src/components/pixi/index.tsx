@@ -21,7 +21,7 @@ export type Ticker<T = Record<string, unknown>> = (
 ) => void | Promise<void>;
 
 export interface PixiProps {
-  canvasAttrs?: HTMLAttributes<HTMLCanvasElement>;
+  canvasAttrs?: HTMLAttributes<HTMLCanvasElement> & { "data-testid"?: string };
   canvasRef?: Ref<HTMLCanvasElement | null>;
   initOptions?: Partial<ApplicationOptions>;
   layoutWidth: number;

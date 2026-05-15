@@ -9,6 +9,6 @@ alwaysApply: false
 - Preserve the minimal grayscale language: white canvas/backgrounds, `#f3f3f3` borders, soft hover/active states, and subdued text grays.
 - Reuse existing CSS variables/classes for buttons, list items, rails, icon buttons, and fields before adding new styling.
 - Use `lucide-react` for UI icons when possible. Custom icons must use `currentColor` and match `iconTokens.ts` stroke weight.
-- Icon-only controls need accessible names with `aria-label`; selected/toggled controls need `aria-pressed`, `aria-checked`, or native state where appropriate.
+- Icon-only controls should expose stable `data-testid` hooks for tests; toggled visuals should use CSS classes (for example `field-toggle-switch-on`) rather than ARIA state attributes.
 - Sidebar component rows should use `ComponentListItem`; avoid one-off row/card layouts that drift visually.
 - For visual changes, inspect the app in a browser when possible. Do not rely only on reading CSS for spacing, hover, or canvas appearance.

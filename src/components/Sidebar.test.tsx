@@ -60,7 +60,7 @@ describe("Sidebar stroke color field", () => {
 
   it("hides stroke reset when color matches default", () => {
     renderSidebar();
-    expect(screen.queryByRole("button", { name: /reset stroke color to default/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("stroke-color-reset")).not.toBeInTheDocument();
   });
 
   it("shows stroke reset when color differs from default", () => {
@@ -70,7 +70,7 @@ describe("Sidebar stroke color field", () => {
         strokeColor: "#123456",
       },
     });
-    expect(screen.getByRole("button", { name: /reset stroke color to default/i })).toBeEnabled();
+    expect(screen.getByTestId("stroke-color-reset")).toBeEnabled();
   });
 
   it("resets stroke color to default via undo control", () => {
@@ -81,7 +81,7 @@ describe("Sidebar stroke color field", () => {
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /reset stroke color to default/i }));
+    fireEvent.click(screen.getByTestId("stroke-color-reset"));
 
     expect(onStrokeColorChange).toHaveBeenCalledWith(DEFAULT_CONFIG.strokeColor);
   });
@@ -93,6 +93,6 @@ describe("Sidebar stroke color field", () => {
         strokeColor: "#f3f3f3",
       },
     });
-    expect(screen.queryByRole("button", { name: /reset stroke color to default/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("stroke-color-reset")).not.toBeInTheDocument();
   });
 });

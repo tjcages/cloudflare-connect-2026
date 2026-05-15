@@ -48,14 +48,10 @@ select {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 44px 260px 1fr;
+  grid-template-columns: 44px 260px minmax(0, 1fr) 260px;
   height: 100vh;
   min-height: 100vh;
   overflow: hidden;
-}
-
-.app-shell-layer-config-open {
-  grid-template-columns: 44px 260px 1fr 260px;
 }
 
 .sidebar-rail {
@@ -137,6 +133,11 @@ select {
   padding: 0;
   border-right: none;
   border-left: 1px solid #f3f3f3;
+  min-height: 0;
+}
+
+.canvas-shell-panning .grid-canvas {
+  cursor: grabbing;
 }
 
 .sidebar-components-config .component-config-panel {
@@ -146,6 +147,11 @@ select {
   height: 100%;
   overflow: auto;
   padding: 0 14px 14px;
+}
+
+.sidebar-components-config .component-config-panel.component-config-panel-empty {
+  overflow: hidden;
+  padding: 14px;
 }
 
 .component-list-item.component-config-header {
@@ -322,7 +328,7 @@ select {
 }
 
 .connector-endpoint-option.component-list-item:hover,
-.connector-endpoint-option.component-list-item[aria-selected="true"] {
+.connector-endpoint-option.connector-endpoint-option-selected {
   background: #fcfcfc;
 }
 
@@ -360,7 +366,7 @@ select {
     background 120ms ease;
 }
 
-.field-toggle-switch[aria-checked="true"]::after {
+.field-toggle-switch.field-toggle-switch-on::after {
   transform: translateX(16px);
   background: #dbdbdb;
 }
@@ -987,6 +993,7 @@ button.component-list-item:hover {
   display: block;
   background: #ffffff;
   touch-action: none;
+  cursor: grab;
 }
 
 .grid-canvas-picking {

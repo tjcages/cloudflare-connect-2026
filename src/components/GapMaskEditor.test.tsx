@@ -16,7 +16,7 @@ describe("GapMaskEditor", () => {
       />,
     );
 
-    const firstCell = screen.getByLabelText("Block gap cell 1, 1");
+    const firstCell = screen.getByTestId("gap-mask-cell-0-0");
     const grid = firstCell.parentElement;
 
     expect(grid).not.toBeNull();

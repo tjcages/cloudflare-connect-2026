@@ -5,19 +5,11 @@ type ComponentIconProps = {
   iconId: IconId;
   color: string;
   size?: number;
-  title?: string;
   className?: string;
 };
 
-export const ComponentIcon = ({
-  iconId,
-  color,
-  size = 24,
-  title,
-  className = "component-icon",
-}: ComponentIconProps) => {
+export const ComponentIcon = ({ iconId, color, size = 24, className = "component-icon" }: ComponentIconProps) => {
   const icon = getIconDefinition(iconId);
-  const titleId = title ? `${icon.id}-title` : undefined;
 
   const strokeW = icon.strokeWidth ?? 1.25;
 
@@ -29,12 +21,8 @@ export const ComponentIcon = ({
       viewBox={icon.viewBox}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      role={title ? "img" : undefined}
-      aria-labelledby={titleId}
-      aria-hidden={title ? undefined : true}
       style={{ color }}
     >
-      {title ? <title id={titleId}>{title}</title> : null}
       {icon.renderMode === "stroke"
         ? icon.paths.map((d, i) => (
             <path
