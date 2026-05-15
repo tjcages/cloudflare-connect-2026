@@ -35,7 +35,8 @@ export type ConnectorRenderSpec = {
   lineColor: number;
   cornerStrokeColor: number;
   structuralDrawOrder: ["segmentFrames", "endpointFrames"];
-  chromeDrawOrder: ["lineUnderlay", "line", "connectorWave", "corners"];
+  chromeBaseDrawOrder: ["lineUnderlay", "line", "corners"];
+  chromePulseDrawOrder: ["connectorWave", "litCorners"];
 };
 
 export const getConnectorRenderSpec = (selected: boolean, gridStrokeColor: number): ConnectorRenderSpec => {
@@ -46,13 +47,15 @@ export const getConnectorRenderSpec = (selected: boolean, gridStrokeColor: numbe
     lineColor: highlightColor,
     cornerStrokeColor: highlightColor,
     structuralDrawOrder: ["segmentFrames", "endpointFrames"],
-    chromeDrawOrder: ["lineUnderlay", "line", "connectorWave", "corners"],
+    chromeBaseDrawOrder: ["lineUnderlay", "line", "corners"],
+    chromePulseDrawOrder: ["connectorWave", "litCorners"],
   };
 };
 
 export type ConnectorDisplayParts = {
   structureRoot: Container;
   chromeRoot: Container;
+  chromePulseRoot: Container;
   /** Stop Motion `animate` + motion value listeners when the layer is torn down. */
   disposeConnectorAnimation?: () => void;
 };
@@ -122,6 +125,7 @@ export const buildConnectorLine = (
   const segmentOverlay = instance.props.overlayGrid;
   const structureRoot = new Container();
   const chromeRoot = new Container();
+  const chromePulseRoot = new Container();
 
   const segmentFrames = new Graphics();
   for (const cell of getConnectorSegmentCells(points)) {
@@ -193,6 +197,7 @@ export const buildConnectorLine = (
   });
 
   const corners = new Graphics();
+  const litCorners = new Graphics();
   let disposeConnectorAnimation: (() => void) | undefined;
 
   const drawStaticCornerCaps = () => {
@@ -215,11 +220,12 @@ export const buildConnectorLine = (
     const waveStroke = new Graphics();
     waveHolder.mask = maskShape;
     chromeRoot.addChild(maskShape);
-    chromeRoot.addChild(waveHolder);
+    chromePulseRoot.addChild(waveHolder);
     waveHolder.addChild(waveStroke);
 
     const drawAnimatedCornerCaps = (centerDist: number, waveFill: number) => {
       corners.clear();
+      litCorners.clear();
       for (let i = 0; i < cornerPoints.length; i += 1) {
         const point = cornerPoints[i]!;
         const arc = cornerArcDistances[i]!;
@@ -228,7 +234,13 @@ export const buildConnectorLine = (
         corners
           .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
           .fill({ color: 0xffffff })
-          .stroke({ width: CONNECTOR_STROKE_WIDTH, color: lit ? waveFill : renderSpec.cornerStrokeColor });
+          .stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.cornerStrokeColor });
+        if (lit) {
+          litCorners
+            .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
+            .fill({ color: 0xffffff })
+            .stroke({ width: CONNECTOR_STROKE_WIDTH, color: waveFill });
+        }
       }
     };
 
@@ -325,6 +337,7 @@ export const buildConnectorLine = (
   }
 
   chromeRoot.addChild(corners);
+  chromePulseRoot.addChild(litCorners);
 
-  return { structureRoot, chromeRoot, disposeConnectorAnimation };
+  return { structureRoot, chromeRoot, chromePulseRoot, disposeConnectorAnimation };
 };

@@ -9,6 +9,8 @@ import { buildIconBox } from "./icon-box/build";
 import { buildPlusMarker } from "./plus-marker/build";
 import { buildRectMarker } from "./rect-marker/build";
 
+const COMPONENT_LAYER_BASE_Z = 10;
+
 type LayerCacheEntry =
   | {
       kind: "icon-box";
@@ -35,6 +37,7 @@ type LayerCacheEntry =
       kind: "connector-line";
       structureRoot: Container;
       chromeRoot: Container;
+      chromePulseRoot: Container;
       fingerprint: string;
       disposeConnectorAnimation?: () => void;
     };
@@ -45,6 +48,9 @@ const destroyLayerEntry = (entry: LayerCacheEntry) => {
   }
   entry.structureRoot.destroy({ children: true });
   entry.chromeRoot.destroy({ children: true });
+  if (entry.kind === "connector-line") {
+    entry.chromePulseRoot.destroy({ children: true });
+  }
 };
 
 const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Map<string, LayerCacheEntry>) => {
@@ -67,7 +73,7 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
 
   for (let index = 0; index < toDraw.length; index += 1) {
     const instance = toDraw[index];
-    const z = count - index;
+    const z = COMPONENT_LAYER_BASE_Z + count - index;
 
     if (instance.type === "connector-line") {
       syncConnectorLine(
@@ -149,20 +155,24 @@ const syncConnectorLine = (
     }
 
     parts.structureRoot.zIndex = z;
-    parts.chromeRoot.zIndex = z;
+    parts.chromeRoot.zIndex = COMPONENT_LAYER_BASE_Z;
+    parts.chromePulseRoot.zIndex = z;
     structureLayer.addChild(parts.structureRoot);
     chromeLayer.addChild(parts.chromeRoot);
+    chromeLayer.addChild(parts.chromePulseRoot);
 
     cache.set(instance.id, {
       kind: "connector-line",
       structureRoot: parts.structureRoot,
       chromeRoot: parts.chromeRoot,
+      chromePulseRoot: parts.chromePulseRoot,
       fingerprint,
       disposeConnectorAnimation: parts.disposeConnectorAnimation,
     });
   } else {
     prior.structureRoot.zIndex = z;
-    prior.chromeRoot.zIndex = z;
+    prior.chromeRoot.zIndex = COMPONENT_LAYER_BASE_Z;
+    prior.chromePulseRoot.zIndex = z;
   }
 };
 
