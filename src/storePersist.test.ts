@@ -20,6 +20,22 @@ const minimalStoreForMerge = (): Pick<
 };
 
 describe("mergePersistedDocument", () => {
+  it("uses the curated starter grid and component composition by default", () => {
+    const fresh = getDefaultDocumentSlice();
+
+    expect(fresh.gridConfig).toMatchObject({
+      seed: "b44ba25d",
+      width: 640,
+      height: 560,
+      density: 0.36,
+      smallCellRatio: 0.2,
+      largeCellRatio: 0.8,
+      strokeColor: "#f3f3f3",
+    });
+    expect(fresh.instances).toHaveLength(6);
+    expect(fresh.nextInstanceIndex).toBe(7);
+  });
+
   it("returns current state when persisted payload is not an object", () => {
     const current = minimalStoreForMerge();
     expect(mergePersistedDocument(null, current)).toBe(current);
@@ -90,7 +106,10 @@ describe("mergePersistedDocument", () => {
 
   it("defaults containerHighlighted when missing from persisted icon-box props", () => {
     const current = minimalStoreForMerge();
-    const inst = getDefaultDocumentSlice().instances[0] as Extract<ComponentInstance, { type: "icon-box" }>;
+    const inst = getDefaultDocumentSlice().instances.find((i) => i.type === "icon-box") as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
     const { containerHighlighted: _drop, ...propsWithoutHighlight } = inst.props;
     const merged = mergePersistedDocument(
       {

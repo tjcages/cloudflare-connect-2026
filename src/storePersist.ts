@@ -1,9 +1,4 @@
-import {
-  createComponentInstance,
-  getComponentDefinition,
-  snapComponentPosition,
-  snapConnectorCellCenter,
-} from "./lib/componentRegistry";
+import { getComponentDefinition, snapComponentPosition, snapConnectorCellCenter } from "./lib/componentRegistry";
 import { DEFAULT_CONFIG } from "./grid/config";
 import { generateGrid } from "./grid/generator";
 import type {
@@ -212,8 +207,79 @@ const normalizeInstanceForGrid = (
   };
 };
 
-const defaultInstancesForGrid = (gridLogicalWidth: number, gridLogicalHeight: number): ComponentInstance[] => [
-  createComponentInstance("icon-box", 0, 0, 1, gridLogicalWidth, gridLogicalHeight),
+const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: number): ComponentInstance[] => [
+  {
+    id: "connector-line-6",
+    type: "connector-line",
+    name: "Connector Line 6",
+    x: 440,
+    y: 200,
+    props: {
+      preferredConnection: "horizontal",
+      source: { kind: "cell", x: 440, y: 200 },
+      target: { kind: "cell", x: 520, y: 200 },
+      overlayGrid: true,
+      animated: true,
+    },
+  },
+  {
+    id: "plus-marker-5",
+    type: "plus-marker",
+    name: "Plus Marker 5",
+    x: 440,
+    y: 280,
+    props: { theme: "orange" },
+  },
+  {
+    id: "icon-box-4",
+    type: "icon-box",
+    name: "Icon Box 4",
+    x: 400,
+    y: 231,
+    props: {
+      matchCornersWithTheme: false,
+      theme: "purple",
+      iconId: "section-mark",
+      title: "Workers",
+      containerHighlighted: false,
+    },
+  },
+  {
+    id: "connector-line-3",
+    type: "connector-line",
+    name: "Connector Line 3",
+    x: 360,
+    y: 360,
+    props: {
+      preferredConnection: "horizontal",
+      source: { kind: "cell", x: 360, y: 360 },
+      target: { kind: "cell", x: 440, y: 360 },
+      overlayGrid: true,
+      animated: true,
+    },
+  },
+  {
+    id: "plus-marker-2",
+    type: "plus-marker",
+    name: "Plus Marker 2",
+    x: 280,
+    y: 360,
+    props: { theme: "orange" },
+  },
+  {
+    id: "icon-box-1",
+    type: "icon-box",
+    name: "Icon Box 1",
+    x: 320,
+    y: 311,
+    props: {
+      matchCornersWithTheme: false,
+      theme: "purple",
+      iconId: "section-mark",
+      title: "Workers",
+      containerHighlighted: false,
+    },
+  },
 ];
 
 const sanitizeInstances = (raw: unknown, gridLogicalWidth: number, gridLogicalHeight: number): ComponentInstance[] => {
@@ -270,7 +336,7 @@ export const getDefaultDocumentSlice = (): PersistedDocumentSlice & { grid: Gene
     grid,
     instances: defaultInstancesForGrid(grid.config.logicalWidth, grid.config.logicalHeight),
     selectedInstanceId: null,
-    nextInstanceIndex: 2,
+    nextInstanceIndex: 7,
   };
 };
 

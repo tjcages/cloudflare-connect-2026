@@ -35,9 +35,9 @@ describe("GridCanvas", () => {
 
     const canvas = screen.getByTestId("builder-canvas");
 
-    expect(canvas).toHaveAttribute("data-layout-width", "801");
+    expect(canvas).toHaveAttribute("data-layout-width", "641");
     expect(canvas).toHaveAttribute("data-layout-height", "561");
-    expect(pixiProps.at(-1)).toMatchObject({ layoutWidth: 801, layoutHeight: 561 });
+    expect(pixiProps.at(-1)).toMatchObject({ layoutWidth: 641, layoutHeight: 561 });
   });
 
   it("keeps the connector selected after placing a static endpoint (click does not clear selection)", () => {

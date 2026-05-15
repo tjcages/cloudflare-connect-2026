@@ -1,14 +1,14 @@
-import { BASE_UNIT, STROKE_COLOR, type GridConfig, type NormalizedGridConfig } from "./types";
+import { BASE_UNIT, type GridConfig, type NormalizedGridConfig } from "./types";
 import { resizeGapMask } from "./mask";
 
 export const DEFAULT_CONFIG: GridConfig = {
-  seed: "grid-001",
-  width: 800,
+  seed: "b44ba25d",
+  width: 640,
   height: 560,
   density: 0.36,
   smallCellRatio: 0.2,
   largeCellRatio: 0.8,
-  strokeColor: STROKE_COLOR,
+  strokeColor: "#f3f3f3",
   gapMask: [],
 };
 

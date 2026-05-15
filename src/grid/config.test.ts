@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, normalizeConfig, updateLargeRatio, updateSmallRatio } from "./config";
-import { STROKE_COLOR } from "./types";
 
 describe("normalizeConfig", () => {
   it("uses a larger default share of 80x80 cells", () => {
@@ -9,9 +8,9 @@ describe("normalizeConfig", () => {
     expect(DEFAULT_CONFIG.largeCellRatio).toBe(0.8);
   });
 
-  it("defaults the grid stroke color to the shared stroke color", () => {
-    expect(DEFAULT_CONFIG.strokeColor).toBe(STROKE_COLOR);
-    expect(normalizeConfig(DEFAULT_CONFIG).strokeColor).toBe(STROKE_COLOR);
+  it("defaults the grid stroke color to the browser starter color", () => {
+    expect(DEFAULT_CONFIG.strokeColor).toBe("#f3f3f3");
+    expect(normalizeConfig(DEFAULT_CONFIG).strokeColor).toBe("#f3f3f3");
   });
 
   it("preserves a configured grid stroke color", () => {
