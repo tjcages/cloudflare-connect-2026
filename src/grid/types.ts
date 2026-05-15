@@ -75,6 +75,8 @@ export type ConnectorLineProps = {
   preferredConnection: ConnectorConnectionPreference;
   source: ConnectorEndpoint;
   target: ConnectorEndpoint;
+  /** When true, fill large connector slice rects with white so they mask the small grid behind the stroke. */
+  overlayGrid: boolean;
 };
 
 export type ComponentProps = IconBoxProps | ConnectorLineProps;

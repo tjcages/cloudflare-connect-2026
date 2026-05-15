@@ -18,7 +18,7 @@ export type ConnectorRenderSpec = {
   endpointFrameColor: number;
   lineColor: number;
   cornerStrokeColor: number;
-  /** Large-cell white fills + strokes; same visual plane as grid lines (structure sublayer above grid). */
+  /** Large-cell strokes (optional white fill when `props.overlayGrid`). Same plane as grid lines. */
   structuralDrawOrder: ["segmentFrames", "endpointFrames"];
   /** White underlay + line sit above structural layer so they mask grid + segment/endpoint strokes + icon-box outer frame. */
   chromeDrawOrder: ["lineUnderlay", "line", "corners"];
@@ -81,6 +81,7 @@ export const getConnectorRenderFingerprint = (
     gridStrokeColor,
     bounds,
     selected,
+    overlayGrid: instance.props.overlayGrid,
   });
 };
 
@@ -99,36 +100,58 @@ export const buildConnectorLine = (
 
   const points = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
   const renderSpec = getConnectorRenderSpec(selected, gridStrokeColor);
+  const segmentOverlay = instance.props.overlayGrid;
   const structureRoot = new Container();
   const chromeRoot = new Container();
 
   const segmentFrames = new Graphics();
   for (const cell of getConnectorSegmentCells(points)) {
-    segmentFrames
-      .rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE)
-      .fill({ color: 0xffffff })
-      .stroke({
+    if (segmentOverlay) {
+      segmentFrames
+        .rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE)
+        .fill({ color: 0xffffff })
+        .stroke({
+          width: CONNECTOR_STROKE_WIDTH,
+          color: renderSpec.segmentFrameColor,
+        });
+    } else {
+      segmentFrames.rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE).stroke({
         width: CONNECTOR_STROKE_WIDTH,
         color: renderSpec.segmentFrameColor,
       });
+    }
   }
   structureRoot.addChild(segmentFrames);
 
   if (selected) {
     const endpointFrames = new Graphics();
     for (const point of [source, target]) {
-      endpointFrames
-        .rect(
-          point.x - LARGE_CELL_SIZE / 2 + 0.5,
-          point.y - LARGE_CELL_SIZE / 2 + 0.5,
-          LARGE_CELL_SIZE,
-          LARGE_CELL_SIZE,
-        )
-        .fill({ color: 0xffffff })
-        .stroke({
-          width: CONNECTOR_STROKE_WIDTH,
-          color: renderSpec.endpointFrameColor,
-        });
+      if (segmentOverlay) {
+        endpointFrames
+          .rect(
+            point.x - LARGE_CELL_SIZE / 2 + 0.5,
+            point.y - LARGE_CELL_SIZE / 2 + 0.5,
+            LARGE_CELL_SIZE,
+            LARGE_CELL_SIZE,
+          )
+          .fill({ color: 0xffffff })
+          .stroke({
+            width: CONNECTOR_STROKE_WIDTH,
+            color: renderSpec.endpointFrameColor,
+          });
+      } else {
+        endpointFrames
+          .rect(
+            point.x - LARGE_CELL_SIZE / 2 + 0.5,
+            point.y - LARGE_CELL_SIZE / 2 + 0.5,
+            LARGE_CELL_SIZE,
+            LARGE_CELL_SIZE,
+          )
+          .stroke({
+            width: CONNECTOR_STROKE_WIDTH,
+            color: renderSpec.endpointFrameColor,
+          });
+      }
     }
     structureRoot.addChild(endpointFrames);
   }

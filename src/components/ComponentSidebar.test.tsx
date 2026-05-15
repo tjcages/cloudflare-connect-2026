@@ -29,6 +29,7 @@ const connectorInstance: ComponentInstance = {
     preferredConnection: "horizontal",
     source: { kind: "cell", x: 40, y: 40 },
     target: { kind: "layer", instanceId: "icon-box-1" },
+    overlayGrid: true,
   },
 };
 
@@ -186,6 +187,7 @@ describe("ComponentSidebar", () => {
       preferredConnection: "vertical",
       source: { kind: "cell", x: 40, y: 40 },
       target: { kind: "layer", instanceId: "icon-box-1" },
+      overlayGrid: true,
     });
 
     expect(container.querySelector(".connector-endpoint-meta")).not.toBeInTheDocument();
@@ -208,11 +210,31 @@ describe("ComponentSidebar", () => {
       preferredConnection: "horizontal",
       source: { kind: "layer", instanceId: "icon-box-1" },
       target: { kind: "layer", instanceId: "icon-box-1" },
+      overlayGrid: true,
     });
 
     fireEvent.click(screen.getByTestId("connector-pick-source-cell"));
 
     expect(onStartEndpointPick).toHaveBeenCalledWith("connector-line-2", "source");
+  });
+
+  it("toggles connector overlay grid", () => {
+    const onUpdateInstanceProps = vi.fn();
+    render(
+      <ComponentSidebar
+        instances={[connectorInstance, instance]}
+        selectedInstance={connectorInstance}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={onUpdateInstanceProps}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("toggle-connector-overlay-grid-connector-line-2"));
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("connector-line-2", {
+      ...connectorInstance.props,
+      overlayGrid: false,
+    });
   });
 
   it("omits match corners toggle when accent theme is neutral", () => {

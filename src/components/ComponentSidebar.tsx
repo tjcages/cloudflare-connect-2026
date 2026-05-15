@@ -469,6 +469,22 @@ export const ComponentConfigSidebar = ({
           onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
           onStartEndpointPick={onStartEndpointPick}
         />
+        <div className="field field-toggle-row">
+          <span>Overlay grid</span>
+          <button
+            type="button"
+            data-testid={`toggle-connector-overlay-grid-${selectedInstance.id}`}
+            className={["field-toggle-switch", selectedInstance.props.overlayGrid ? "field-toggle-switch-on" : ""]
+              .filter(Boolean)
+              .join(" ")}
+            onClick={() =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                overlayGrid: !selectedInstance.props.overlayGrid,
+              })
+            }
+          />
+        </div>
       </div>
     );
   }

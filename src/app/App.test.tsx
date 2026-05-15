@@ -129,6 +129,7 @@ describe("App", { timeout: 15_000 }, () => {
         preferredConnection: "horizontal",
         source: { kind: "cell", x: 40, y: 40 },
         target: { kind: "cell", x: 200, y: 40 },
+        overlayGrid: true,
       },
     };
     useAppStore.setState({ instances: [connector], selectedInstanceId: connector.id });

@@ -324,8 +324,8 @@ export const useAppStore = create<AppStoreState>()(
               if (instance.type === "icon-box" && "iconId" in props) {
                 return { ...instance, props: props as IconBoxProps };
               }
-              if (instance.type === "connector-line" && "preferredConnection" in props) {
-                return { ...instance, props: props as ConnectorLineProps };
+              if (instance.type === "connector-line") {
+                return { ...instance, props: { ...instance.props, ...props } as ConnectorLineProps };
               }
               return instance;
             }),

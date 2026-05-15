@@ -37,6 +37,7 @@ describe("componentRegistry", () => {
       preferredConnection: "horizontal",
       source: { kind: "cell", x: 40, y: 40 },
       target: { kind: "cell", x: 200, y: 40 },
+      overlayGrid: true,
     });
   });
 
@@ -68,6 +69,7 @@ describe("componentRegistry", () => {
         preferredConnection: "horizontal",
         source: { kind: "cell", x: 120, y: 120 },
         target: { kind: "cell", x: 280, y: 120 },
+        overlayGrid: true,
       },
     });
   });
@@ -101,6 +103,7 @@ describe("componentRegistry", () => {
         preferredConnection: "horizontal",
         source: { kind: "layer", instanceId: ib1.id },
         target: { kind: "layer", instanceId: durable.id },
+        overlayGrid: true,
       },
     };
     const instances = [ib1, durable, connector];
@@ -118,6 +121,7 @@ describe("componentRegistry", () => {
         preferredConnection: "horizontal",
         source: { kind: "cell", x: 200, y: 120 },
         target: { kind: "cell", x: 360, y: 240 },
+        overlayGrid: true,
       },
     };
     expect(getInstanceLayerSubtitle(connector, [])).toBe("x: 200 y: 120 → x: 360 y: 240");
@@ -143,6 +147,7 @@ describe("componentRegistry", () => {
         preferredConnection: "horizontal",
         source: { kind: "layer", instanceId: iconNoTitle.id },
         target: { kind: "layer", instanceId: titled.id },
+        overlayGrid: true,
       },
     };
     expect(getInstanceLayerSubtitle(connector, [iconNoTitle, titled, connector])).toBe("Icon Box → Icon Box / Workers");
@@ -160,6 +165,7 @@ describe("componentRegistry", () => {
         preferredConnection: "horizontal",
         source: { kind: "cell", x: 40, y: 40 },
         target: { kind: "layer", instanceId: ib.id },
+        overlayGrid: true,
       },
     };
     expect(getInstanceLayerSubtitle(connector, [ib, connector])).toBe("x: 40 y: 40 → Icon Box / Workers");

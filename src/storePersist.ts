@@ -74,11 +74,19 @@ const isConnectorLineProps = (value: unknown): value is ConnectorLineProps => {
   if (!isRecord(value)) {
     return false;
   }
-  return (
-    (value.preferredConnection === "horizontal" || value.preferredConnection === "vertical") &&
-    isConnectorEndpoint(value.source) &&
-    isConnectorEndpoint(value.target)
-  );
+  if (
+    !(
+      (value.preferredConnection === "horizontal" || value.preferredConnection === "vertical") &&
+      isConnectorEndpoint(value.source) &&
+      isConnectorEndpoint(value.target)
+    )
+  ) {
+    return false;
+  }
+  if ("overlayGrid" in value && typeof value.overlayGrid !== "boolean") {
+    return false;
+  }
+  return true;
 };
 
 const isGridConfigLike = (value: unknown): value is GridConfig => {
@@ -123,7 +131,16 @@ const normalizeInstanceForGrid = (
   const name = typeof raw.name === "string" && raw.name.trim() ? raw.name : definition.label;
   if (raw.type === "connector-line") {
     const defaultProps = definition.defaultProps as ConnectorLineProps;
-    const rawProps = isConnectorLineProps(raw.props) ? raw.props : defaultProps;
+    let propsCandidate: unknown = raw.props;
+    if (
+      isRecord(propsCandidate) &&
+      "overlayGrid" in propsCandidate &&
+      typeof propsCandidate.overlayGrid !== "boolean"
+    ) {
+      const { overlayGrid: _drop, ...rest } = propsCandidate;
+      propsCandidate = rest;
+    }
+    const rawProps = isConnectorLineProps(propsCandidate) ? propsCandidate : defaultProps;
     const normalizeEndpoint = (endpoint: ConnectorEndpoint): ConnectorEndpoint => {
       if (endpoint.kind === "layer") {
         return endpoint;
@@ -232,9 +249,11 @@ export const mergePersistedDocument = <T extends DocumentMergeFields & Record<st
     return currentState;
   }
 
+  const persistedGrid = persistedState.gridConfig as GridConfig & { overlayGrid?: unknown };
+  const { overlayGrid: _legacyDocumentOverlay, ...restPersistedGrid } = persistedGrid;
   const gridConfig: GridConfig = {
     ...DEFAULT_CONFIG,
-    ...persistedState.gridConfig,
+    ...restPersistedGrid,
   };
 
   const grid = generateGrid(gridConfig);

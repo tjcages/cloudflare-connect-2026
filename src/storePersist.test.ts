@@ -227,7 +227,7 @@ describe("mergePersistedDocument", () => {
       current,
     );
 
-    expect(merged.instances).toEqual([connector]);
+    expect(merged.instances).toEqual([{ ...connector, props: { ...connector.props, overlayGrid: true } }]);
     expect(merged.selectedInstanceId).toBe("connector-line-7");
     expect(merged.nextInstanceIndex).toBe(8);
   });
