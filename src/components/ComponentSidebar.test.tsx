@@ -234,8 +234,8 @@ describe("ComponentSidebar", () => {
     );
 
     expect(screen.queryByTestId("icon-picker")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("palette-theme-swatch-purple"));
-    expect(onUpdateInstanceProps).toHaveBeenCalledWith("plus-marker-3", { theme: "purple" });
+    fireEvent.click(screen.getByTestId("palette-theme-swatch-blue"));
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("plus-marker-3", { theme: "blue" });
   });
 
   it("configures rect-marker theme only", () => {

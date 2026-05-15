@@ -16,6 +16,13 @@ export const PALETTE_THEMES = [
     fillDisplayP3: "color(display-p3 0.5647 0.2431 0.9882)",
   },
   {
+    id: "blue",
+    label: "Blue",
+    fillHex: "#007AFF",
+    fillTextHex: "#FFFFFF",
+    fillDisplayP3: "color(display-p3 0.0627 0.4627 0.9804)",
+  },
+  {
     id: "neutral",
     label: "Neutral",
     fillHex: "#F3F3F3",
