@@ -5,11 +5,36 @@ alwaysApply: true
 
 # Agent Orchestration
 
-- Treat `/orchestrate` as a one-task, one-chat workflow. Do not assume a permanent manager chat, central task ledger, duplicate manager, or worktree unless the user asks.
-- Before editing, choose the lightest route that fits: direct implementation for small clear tasks, short in-chat plan for standard tasks, planner skill for complex/ambiguous/risky/library-dependent tasks.
-- The current chat coordinates the task. Use the user's selected strong model for planning and decisions; use cheaper subagents such as `composer-2-fast` for bounded routine roles when spawning agents.
+Apply this orchestration to every coding task automatically. The `/orchestrate` command is optional shorthand, not required.
+
+## Task Shape
+
+- Treat each chat as one task by default. Do not assume a permanent manager chat, central task ledger, duplicate manager, merge monitor, or worktree unless the user asks.
+- Before editing, choose the lightest route that fits:
+  - small clear task: inspect relevant rules/docs and nearby code, then implement directly
+  - standard task: give a short plan in chat, then implement
+  - complex, ambiguous, risky, user-facing, performance-sensitive, or library/API-dependent task: use `planner` first
+- Ask a clarifying question only when the answer changes the implementation.
+
+## Research
+
+- Always check relevant project rules and nearby source/tests before acting.
+- Read `docs/ai-context.md` for broad source or architecture changes.
+- Use Context7 for current library/framework/API docs when external APIs matter.
+- Use web search when current product behavior, ecosystem changes, or non-code facts matter.
+- Keep research summaries short and cite what was checked.
+
+## Model And Role Routing
+
+- The current chat coordinates the task. Use the user's selected strong model for planning and decisions.
+- Use cheaper subagents such as `composer-2-fast` for bounded routine roles when spawning agents.
 - Run specialist roles only when useful: `planner`, `all-rounder`, `refactorer`, `ux-controller`, `perf-controller`, `cleaner`, `test-dev`, then `lessons-keeper`.
-- Keep role outputs short: outcome, files considered or changed, verification, risks, and next action. Avoid dumping long transcripts into the main chat.
 - Do not run UX/perf/cleanup/test passes as performative ceremony. Skip any role that does not apply to the task.
+- Keep role outputs short: outcome, files considered or changed, verification, risks, and next action. Avoid dumping long transcripts into the main chat.
+
+## Git And Completion
+
 - Preserve user changes. Do not stage, commit, push, create worktrees, or manage merges unless explicitly requested.
-- End with fresh verification evidence. For docs/rules/command-only work, verify frontmatter, paths, command names, and stale references.
+- For source changes, run fresh `npm run verify` before claiming completion.
+- For docs/rules/command-only work, verify frontmatter, paths, command names, and stale references.
+- Report what changed, what was verified, and any residual risk.

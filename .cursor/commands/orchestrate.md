@@ -5,7 +5,9 @@ description: Run one lightweight task through planning, implementation, speciali
 
 # Orchestrate
 
-Use this for one task in one chat. Keep orchestration lightweight: no central manager, no duplicate tracker, and no worktrees unless the user explicitly asks or the task clearly needs isolation.
+This command is optional shorthand. The global `agent-orchestration` rule applies the same workflow automatically to normal coding tasks.
+
+Use this when you want to explicitly remind the chat to run one task through the lightweight orchestration flow. Keep orchestration lightweight: no central manager, no duplicate tracker, and no worktrees unless the user explicitly asks or the task clearly needs isolation.
 
 ## 1. Classify The Task
 
