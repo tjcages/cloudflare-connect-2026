@@ -1,4 +1,4 @@
-import { ChevronDown, Crosshair, Trash2 } from "lucide-react";
+import { ChevronDown, Crosshair } from "lucide-react";
 import { Reorder, useDragControls } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { FocusEventHandler, PointerEventHandler, ReactNode } from "react";
@@ -58,7 +58,6 @@ export type ComponentBrowseSidebarProps = {
   instances: ComponentInstance[];
   selectedInstance: ComponentInstance | null;
   onSelectInstance: (id: string) => void;
-  onDeleteInstance: (id: string) => void;
   onStartComponentDrag: (type: ComponentType, pointer?: { clientX: number; clientY: number }) => void;
   /** When set, neutral theme fills track this hex (same source as grid stroke). */
   gridStrokeColor?: string;
@@ -69,7 +68,6 @@ export type ComponentBrowseSidebarProps = {
 export type ComponentConfigSidebarProps = {
   instances: ComponentInstance[];
   selectedInstance: ComponentInstance;
-  onDeleteInstance: (id: string) => void;
   onUpdateInstanceProps: (id: string, props: ComponentProps) => void;
   onStartEndpointPick?: (id: string, endpoint: "source" | "target") => void;
   /** When set, neutral theme fills track this hex (same source as grid stroke). */
@@ -267,18 +265,10 @@ type LayerReorderRowProps = {
   instances: ComponentInstance[];
   preview: ReactNode;
   onSelectInstance: (id: string) => void;
-  onDeleteInstance: (id: string) => void;
   isSelected: boolean;
 };
 
-const LayerReorderRow = ({
-  instance,
-  instances,
-  preview,
-  onSelectInstance,
-  onDeleteInstance,
-  isSelected,
-}: LayerReorderRowProps) => {
+const LayerReorderRow = ({ instance, instances, preview, onSelectInstance, isSelected }: LayerReorderRowProps) => {
   const dragControls = useDragControls();
   const [isDragging, setIsDragging] = useState(false);
   const displayName = getInstanceDisplayName(instance);
@@ -315,7 +305,7 @@ const LayerReorderRow = ({
         setIsDragging(false);
       }}
     >
-      {/* Row surface: Motion drag + click; nested delete prevents role="button" on wrapper. */}
+      {/* Row surface: Motion drag + click; keep the wrapper non-button to avoid nested controls. */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className={[
@@ -349,16 +339,6 @@ const LayerReorderRow = ({
           preview={preview}
           title={displayName}
           meta={layerSubtitle}
-          actions={
-            <button
-              className="component-row-icon-button"
-              type="button"
-              onClick={() => onDeleteInstance(instance.id)}
-              aria-label={getLayerActionLabel("Delete", displayName, layerSubtitle)}
-            >
-              <Trash2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
-            </button>
-          }
         />
       </div>
     </Reorder.Item>
@@ -369,7 +349,6 @@ export const ComponentBrowseSidebar = ({
   instances,
   selectedInstance,
   onSelectInstance,
-  onDeleteInstance,
   onStartComponentDrag,
   gridStrokeColor,
   onReorderInstances = () => {},
@@ -483,7 +462,6 @@ export const ComponentBrowseSidebar = ({
                   instances={instances}
                   preview={renderPreview(instance)}
                   onSelectInstance={onSelectInstance}
-                  onDeleteInstance={onDeleteInstance}
                   isSelected={selectedInstance?.id === instance.id}
                 />
               ))}
@@ -500,7 +478,6 @@ export const ComponentBrowseSidebar = ({
 export const ComponentConfigSidebar = ({
   instances,
   selectedInstance,
-  onDeleteInstance,
   onUpdateInstanceProps,
   onStartEndpointPick = () => {},
   gridStrokeColor,
@@ -522,20 +499,6 @@ export const ComponentConfigSidebar = ({
           testId="component-config-header"
           preview={renderPreview(selectedInstance)}
           title={displayName}
-          actions={
-            <button
-              className="component-row-icon-button"
-              type="button"
-              onClick={() => onDeleteInstance(selectedInstance.id)}
-              aria-label={getLayerActionLabel(
-                "Delete",
-                displayName,
-                getInstanceLayerSubtitle(selectedInstance, instances),
-              )}
-            >
-              <Trash2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
-            </button>
-          }
         />
         <label className="field">
           <span>Preferred connection</span>
@@ -584,20 +547,6 @@ export const ComponentConfigSidebar = ({
         testId="component-config-header"
         preview={renderPreview(selectedInstance)}
         title={displayName}
-        actions={
-          <button
-            className="component-row-icon-button"
-            type="button"
-            onClick={() => onDeleteInstance(selectedInstance.id)}
-            aria-label={getLayerActionLabel(
-              "Delete",
-              displayName,
-              getInstanceLayerSubtitle(selectedInstance, instances),
-            )}
-          >
-            <Trash2 size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} aria-hidden="true" focusable="false" />
-          </button>
-        }
       />
       <div className="field">
         <span>Theme</span>
@@ -698,7 +647,6 @@ export const ComponentSidebar = (props: ComponentSidebarProps) => (
       instances={props.instances}
       selectedInstance={props.selectedInstance}
       onSelectInstance={props.onSelectInstance}
-      onDeleteInstance={props.onDeleteInstance}
       onStartComponentDrag={props.onStartComponentDrag}
       onReorderInstances={props.onReorderInstances}
       gridStrokeColor={props.gridStrokeColor}
@@ -707,7 +655,6 @@ export const ComponentSidebar = (props: ComponentSidebarProps) => (
       <ComponentConfigSidebar
         instances={props.instances}
         selectedInstance={props.selectedInstance}
-        onDeleteInstance={props.onDeleteInstance}
         onUpdateInstanceProps={props.onUpdateInstanceProps}
         onStartEndpointPick={props.onStartEndpointPick}
         gridStrokeColor={props.gridStrokeColor}

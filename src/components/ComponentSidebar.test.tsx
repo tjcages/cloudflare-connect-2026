@@ -39,7 +39,6 @@ describe("ComponentSidebar", () => {
         instances={[instance]}
         selectedInstance={null}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -63,7 +62,6 @@ describe("ComponentSidebar", () => {
         instances={[instance]}
         selectedInstance={null}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -90,7 +88,6 @@ describe("ComponentSidebar", () => {
         instances={[instance]}
         selectedInstance={null}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -113,7 +110,6 @@ describe("ComponentSidebar", () => {
         instances={[instance]}
         selectedInstance={null}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -135,7 +131,6 @@ describe("ComponentSidebar", () => {
         instances={[instance]}
         selectedInstance={null}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -150,9 +145,8 @@ describe("ComponentSidebar", () => {
     expect(within(textBlock as HTMLElement).getByText("Icon Box")).toBeInTheDocument();
     expect(within(textBlock as HTMLElement).getByText("Workers")).toBeInTheDocument();
     expect(layerItem?.querySelector(".component-position")).toBeInTheDocument();
-    expect(layerItem?.querySelector(".component-list-item-actions")).toContainElement(
-      screen.getByRole("button", { name: "Delete Icon Box, Workers" }),
-    );
+    expect(layerItem?.querySelector(".component-list-item-actions")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Icon Box, Workers" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Select Icon Box, Workers")).toBeInTheDocument();
   });
 
@@ -163,7 +157,6 @@ describe("ComponentSidebar", () => {
         instances={[noTitle]}
         selectedInstance={null}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -174,16 +167,14 @@ describe("ComponentSidebar", () => {
     expect(screen.getByLabelText("Select Icon Box")).toBeInTheDocument();
   });
 
-  it("selects a layer from the row pointer tap and deletes from the trash control", () => {
+  it("selects a layer from the row pointer tap without row action controls", () => {
     const onSelectInstance = vi.fn();
-    const onDeleteInstance = vi.fn();
 
     const { container } = render(
       <ComponentSidebar
         instances={[instance]}
         selectedInstance={null}
         onSelectInstance={onSelectInstance}
-        onDeleteInstance={onDeleteInstance}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -193,18 +184,10 @@ describe("ComponentSidebar", () => {
     expect(surface).toBeInTheDocument();
     fireEvent.click(surface as HTMLElement);
 
-    const deleteButton = screen.getByRole("button", { name: "Delete Icon Box, Workers" });
-
-    expect(deleteButton).toHaveClass("component-row-icon-button");
-    expect(deleteButton.querySelector(".lucide-trash-2")).toBeInTheDocument();
-    expect(deleteButton).not.toHaveTextContent("Trash");
+    expect(screen.queryByRole("button", { name: "Delete Icon Box, Workers" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Edit Icon Box/i })).not.toBeInTheDocument();
 
     expect(onSelectInstance).toHaveBeenCalledWith("icon-box-1");
-
-    fireEvent.click(deleteButton);
-
-    expect(onDeleteInstance).toHaveBeenCalledWith("icon-box-1");
   });
 
   it("starts component drag from available component cards", () => {
@@ -215,7 +198,6 @@ describe("ComponentSidebar", () => {
         instances={[instance]}
         selectedInstance={null}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={onStartComponentDrag}
       />,
@@ -237,7 +219,6 @@ describe("ComponentSidebar", () => {
         instances={[instance]}
         selectedInstance={null}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={onStartComponentDrag}
       />,
@@ -262,7 +243,6 @@ describe("ComponentSidebar", () => {
         instances={[connectorInstance, instance]}
         selectedInstance={connectorInstance}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={onUpdateInstanceProps}
         onStartComponentDrag={vi.fn()}
         onStartEndpointPick={onStartEndpointPick}
@@ -311,7 +291,6 @@ describe("ComponentSidebar", () => {
         instances={[connectorInstance, instance]}
         selectedInstance={connectorInstance}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
         onStartEndpointPick={vi.fn()}
@@ -336,7 +315,6 @@ describe("ComponentSidebar", () => {
         instances={[neutralThemeInstance]}
         selectedInstance={neutralThemeInstance}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -352,7 +330,6 @@ describe("ComponentSidebar", () => {
         instances={[instance, second]}
         selectedInstance={null}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -363,7 +340,6 @@ describe("ComponentSidebar", () => {
         instances={[instance, second]}
         selectedInstance={second}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
@@ -384,7 +360,6 @@ describe("ComponentSidebar", () => {
         instances={[instance]}
         selectedInstance={instance}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={onUpdateInstanceProps}
         onStartComponentDrag={vi.fn()}
       />,
@@ -392,9 +367,7 @@ describe("ComponentSidebar", () => {
 
     const header = screen.getByTestId("component-config-header");
     expect(header).toHaveTextContent("Icon Box");
-    expect(window.getComputedStyle(header.querySelector(".component-list-item-actions") as HTMLElement).opacity).toBe(
-      "1",
-    );
+    expect(header.querySelector(".component-list-item-actions")).not.toBeInTheDocument();
     expect(header.querySelector(".component-position")).not.toBeInTheDocument();
 
     expect(container.querySelector(".component-config-top-bar")).not.toBeInTheDocument();
@@ -450,24 +423,20 @@ describe("ComponentSidebar", () => {
     });
   });
 
-  it("deletes selected instance from config header trash", () => {
-    const onDeleteInstance = vi.fn();
-
+  it("omits deletion controls from the selected instance config header", () => {
     render(
       <ComponentSidebar
         instances={[instance]}
         selectedInstance={instance}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={onDeleteInstance}
         onUpdateInstanceProps={vi.fn()}
         onStartComponentDrag={vi.fn()}
       />,
     );
 
     const header = screen.getByTestId("component-config-header");
-    fireEvent.click(within(header).getByRole("button", { name: "Delete Icon Box, Workers" }));
 
-    expect(onDeleteInstance).toHaveBeenCalledWith("icon-box-1");
+    expect(within(header).queryByRole("button", { name: "Delete Icon Box, Workers" })).not.toBeInTheDocument();
   });
 
   it("updates accent theme from palette swatches", () => {
@@ -477,7 +446,6 @@ describe("ComponentSidebar", () => {
         instances={[instance]}
         selectedInstance={instance}
         onSelectInstance={vi.fn()}
-        onDeleteInstance={vi.fn()}
         onUpdateInstanceProps={onUpdateInstanceProps}
         onStartComponentDrag={vi.fn()}
       />,

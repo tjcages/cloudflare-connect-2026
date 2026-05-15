@@ -9,6 +9,7 @@ import { ComponentIcon } from "../components/ComponentIcon";
 import { ComponentBrowseSidebar, ComponentConfigSidebar } from "../components/ComponentSidebar";
 import { Sidebar } from "../components/Sidebar";
 import { useAppStore } from "../store";
+import { useAppShortcuts } from "./useAppShortcuts";
 
 export const App = () => {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -32,7 +33,6 @@ export const App = () => {
   const setSmallRatio = useAppStore((s) => s.setSmallRatio);
   const setLargeRatio = useAppStore((s) => s.setLargeRatio);
   const selectInstance = useAppStore((s) => s.selectInstance);
-  const deleteInstance = useAppStore((s) => s.deleteInstance);
   const reorderInstances = useAppStore((s) => s.reorderInstances);
   const updateInstanceProps = useAppStore((s) => s.updateInstanceProps);
   const startCreateDrag = useAppStore((s) => s.startCreateDrag);
@@ -41,8 +41,8 @@ export const App = () => {
   const finalizeCreateAt = useAppStore((s) => s.finalizeCreateAt);
   const endCanvasDrag = useAppStore((s) => s.endCanvasDrag);
   const startConnectorEndpointPick = useAppStore((s) => s.startConnectorEndpointPick);
-  const cancelConnectorEndpointPick = useAppStore((s) => s.cancelConnectorEndpointPick);
-  const hasConnectorEndpointPick = useAppStore((s) => s.connectorEndpointPick !== null);
+
+  useAppShortcuts();
 
   useEffect(() => {
     if (!hasActiveDrag) {
@@ -113,47 +113,6 @@ export const App = () => {
     window.addEventListener("pointermove", onPointerMove);
     return () => window.removeEventListener("pointermove", onPointerMove);
   }, [isCreatePlacementDrag, revertCreatePreviewToGhost, updateCreatePreview]);
-
-  useEffect(() => {
-    if (!hasConnectorEndpointPick) {
-      return undefined;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        cancelConnectorEndpointPick();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelConnectorEndpointPick, hasConnectorEndpointPick]);
-
-  useEffect(() => {
-    const isEditableEventTarget = (target: EventTarget | null) =>
-      target instanceof Element && target.closest("input, textarea, select, [contenteditable='true']") !== null;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Delete" && event.key !== "Backspace") {
-        return;
-      }
-      if (isEditableEventTarget(event.target)) {
-        return;
-      }
-      if (useAppStore.getState().dragState !== null) {
-        return;
-      }
-      const id = useAppStore.getState().selectedInstanceId;
-      if (id === null) {
-        return;
-      }
-      event.preventDefault();
-      deleteInstance(id);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [deleteInstance]);
 
   useLayoutEffect(() => {
     const id = selectedInstance?.id;
@@ -300,7 +259,6 @@ export const App = () => {
             instances={instances}
             selectedInstance={selectedInstance}
             onSelectInstance={(id) => selectInstance(id)}
-            onDeleteInstance={deleteInstance}
             onStartComponentDrag={startCreateDrag}
             onReorderInstances={reorderInstances}
             gridStrokeColor={gridConfig.strokeColor}
@@ -322,7 +280,6 @@ export const App = () => {
           <ComponentConfigSidebar
             instances={instances}
             selectedInstance={selectedInstance}
-            onDeleteInstance={deleteInstance}
             onUpdateInstanceProps={updateInstanceProps}
             onStartEndpointPick={startConnectorEndpointPick}
             gridStrokeColor={gridConfig.strokeColor}

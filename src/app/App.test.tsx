@@ -14,6 +14,21 @@ vi.mock("../canvas", () => ({
   GridCanvas: () => <div role="img" aria-label="Component builder canvas" />,
 }));
 
+const iconBoxInstance = (id: string, title: string): ComponentInstance => ({
+  id,
+  type: "icon-box",
+  name: "Icon Box",
+  x: 0,
+  y: 0,
+  props: {
+    matchCornersWithTheme: false,
+    theme: "purple",
+    iconId: DEFAULT_ICON_ID,
+    title,
+    containerHighlighted: false,
+  },
+});
+
 describe("App", { timeout: 15_000 }, () => {
   beforeEach(() => {
     resetAppStoreDocumentToDefault();
@@ -90,58 +105,82 @@ describe("App", { timeout: 15_000 }, () => {
       hoverCell: null,
     });
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
 
     expect(useAppStore.getState().connectorEndpointPick).toBeNull();
   });
 
   it("deletes the selected instance when pressing Delete or Backspace outside form fields", () => {
-    const inst: ComponentInstance = {
-      id: "icon-box-del-1",
-      type: "icon-box",
-      name: "Icon Box",
-      x: 0,
-      y: 0,
-      props: {
-        matchCornersWithTheme: false,
-        theme: "purple",
-        iconId: DEFAULT_ICON_ID,
-        title: "T",
-        containerHighlighted: false,
-      },
-    };
+    const inst = iconBoxInstance("icon-box-del-1", "T");
     useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
     render(<App />);
 
-    fireEvent.keyDown(window, { key: "Delete" });
+    fireEvent.keyDown(document, { key: "Delete", code: "Delete" });
     expect(useAppStore.getState().instances).toHaveLength(0);
     expect(useAppStore.getState().selectedInstanceId).toBeNull();
 
     useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
-    fireEvent.keyDown(window, { key: "Backspace" });
+    fireEvent.keyDown(document, { key: "Backspace", code: "Backspace" });
     expect(useAppStore.getState().instances).toHaveLength(0);
     expect(useAppStore.getState().selectedInstanceId).toBeNull();
   });
 
   it("does not delete the selected instance when Backspace originates from a text field", () => {
-    const inst: ComponentInstance = {
-      id: "icon-box-del-2",
-      type: "icon-box",
-      name: "Icon Box",
-      x: 0,
-      y: 0,
-      props: {
-        matchCornersWithTheme: false,
-        theme: "purple",
-        iconId: DEFAULT_ICON_ID,
-        title: "Hi",
-        containerHighlighted: false,
-      },
-    };
+    const inst = iconBoxInstance("icon-box-del-2", "Hi");
     useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
     render(<App />);
     const title = screen.getByLabelText("Title");
     fireEvent.keyDown(title, { key: "Backspace", bubbles: true });
     expect(useAppStore.getState().instances).toHaveLength(1);
+  });
+
+  it("duplicates the selected instance with Ctrl+D and Cmd+D outside form fields", () => {
+    const inst = iconBoxInstance("icon-box-7", "Duplicate me");
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id, nextInstanceIndex: 8 });
+    render(<App />);
+
+    fireEvent.keyDown(document, { key: "d", code: "KeyD", ctrlKey: true });
+
+    expect(useAppStore.getState().instances.map((item) => item.id)).toEqual(["icon-box-8", "icon-box-7"]);
+    expect(useAppStore.getState().selectedInstanceId).toBe("icon-box-8");
+    expect(useAppStore.getState().instances[0].props).toEqual(inst.props);
+
+    fireEvent.keyDown(document, { key: "d", code: "KeyD", metaKey: true });
+
+    expect(useAppStore.getState().instances.map((item) => item.id)).toEqual(["icon-box-9", "icon-box-8", "icon-box-7"]);
+    expect(useAppStore.getState().selectedInstanceId).toBe("icon-box-9");
+  });
+
+  it("does not duplicate the selected instance when Ctrl+D originates from a text field", () => {
+    const inst = iconBoxInstance("icon-box-10", "Keep one");
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id, nextInstanceIndex: 11 });
+    render(<App />);
+
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "d", code: "KeyD", ctrlKey: true, bubbles: true });
+
+    expect(useAppStore.getState().instances).toHaveLength(1);
+    expect(useAppStore.getState().selectedInstanceId).toBe("icon-box-10");
+  });
+
+  it("undoes and redoes document changes with Ctrl/Cmd+Z shortcuts", () => {
+    const inst = iconBoxInstance("icon-box-history-1", "History");
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id, nextInstanceIndex: 2 });
+    render(<App />);
+
+    fireEvent.keyDown(document, { key: "Delete", code: "Delete" });
+    expect(useAppStore.getState().instances).toHaveLength(0);
+
+    fireEvent.keyDown(document, { key: "z", code: "KeyZ", ctrlKey: true });
+    expect(useAppStore.getState().instances).toEqual([inst]);
+    expect(useAppStore.getState().selectedInstanceId).toBe(inst.id);
+
+    fireEvent.keyDown(document, { key: "z", code: "KeyZ", ctrlKey: true, shiftKey: true });
+    expect(useAppStore.getState().instances).toHaveLength(0);
+
+    fireEvent.keyDown(document, { key: "z", code: "KeyZ", metaKey: true });
+    expect(useAppStore.getState().instances).toEqual([inst]);
+
+    fireEvent.keyDown(document, { key: "z", code: "KeyZ", metaKey: true, shiftKey: true });
+    expect(useAppStore.getState().instances).toHaveLength(0);
   });
 });

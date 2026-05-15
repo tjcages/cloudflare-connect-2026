@@ -1,6 +1,7 @@
 import type { Application } from "pixi.js";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { temporal } from "zundo";
 import {
   createComponentInstance,
   getComponentDefinition,
@@ -19,6 +20,7 @@ import type {
   IconBoxProps,
 } from "./grid/types";
 import { getDefaultDocumentSlice, mergePersistedDocument } from "./storePersist";
+import type { PersistedDocumentSlice } from "./storePersist";
 import type { CanvasDragState, ConnectorEndpointPickState } from "./types/document";
 
 export function reorderInstancesByIds(previous: ComponentInstance[], orderedIds: string[]): ComponentInstance[] {
@@ -80,8 +82,11 @@ export type AppStoreState = {
   endCanvasDrag: () => void;
 
   deleteInstance: (id: string) => void;
+  duplicateSelectedInstance: () => void;
   updateInstanceProps: (id: string, props: ComponentProps) => void;
   reorderInstances: (orderedIds: string[]) => void;
+  undoDocument: () => void;
+  redoDocument: () => void;
   startConnectorEndpointPick: (connectorId: string, endpoint: "source" | "target") => void;
   cancelConnectorEndpointPick: () => void;
   setConnectorEndpointHoverCell: (x: number, y: number) => void;
@@ -98,217 +103,304 @@ const createSeed = () => {
 };
 
 const defaultDocument = getDefaultDocumentSlice();
+const DUPLICATE_OFFSET_PX = 40;
+
+const getDocumentHistorySlice = (state: AppStoreState): PersistedDocumentSlice => ({
+  gridConfig: state.gridConfig,
+  instances: state.instances,
+  nextInstanceIndex: state.nextInstanceIndex,
+  selectedInstanceId: state.selectedInstanceId,
+});
+
+const documentSlicesAreEqual = (past: PersistedDocumentSlice, current: PersistedDocumentSlice) =>
+  JSON.stringify(past) === JSON.stringify(current);
+
+const syncGridToCurrentConfig = () => {
+  useAppStore.setState((s) => ({ grid: generateGrid(s.gridConfig) }));
+};
+
+const duplicateInstanceForGrid = (
+  instance: ComponentInstance,
+  index: number,
+  gridConfig: GeneratedGrid["config"],
+): ComponentInstance => {
+  const definition = getComponentDefinition(instance.type);
+  const id = `${instance.type}-${index}`;
+  const name = `${definition.label} ${index}`;
+
+  if (instance.type === "connector-line") {
+    return {
+      ...instance,
+      id,
+      name,
+      props: { ...instance.props },
+    };
+  }
+
+  const position = snapComponentPosition(
+    instance.x + DUPLICATE_OFFSET_PX,
+    instance.y + DUPLICATE_OFFSET_PX,
+    gridConfig.logicalWidth,
+    gridConfig.logicalHeight,
+    instance.type,
+  );
+
+  return {
+    ...instance,
+    id,
+    name,
+    ...position,
+    props: { ...instance.props },
+  };
+};
 
 export const useAppStore = create<AppStoreState>()(
   persist(
-    (set, get) => ({
-      pixiApp: null,
-      ...defaultDocument,
-      dragState: null,
-      connectorEndpointPick: null,
+    temporal(
+      (set, get) => ({
+        pixiApp: null,
+        ...defaultDocument,
+        dragState: null,
+        connectorEndpointPick: null,
 
-      setPixiApp: (app) => set({ pixiApp: app }),
+        setPixiApp: (app) => set({ pixiApp: app }),
 
-      updateGridConfig: (patch) =>
-        set((s) => {
-          const gridConfig = { ...s.gridConfig, ...patch };
-          return { gridConfig, grid: generateGrid(gridConfig) };
-        }),
+        updateGridConfig: (patch) =>
+          set((s) => {
+            const gridConfig = { ...s.gridConfig, ...patch };
+            return { gridConfig, grid: generateGrid(gridConfig) };
+          }),
 
-      replaceGridConfig: (gridConfig) =>
-        set(() => ({
-          gridConfig,
-          grid: generateGrid(gridConfig),
-        })),
+        replaceGridConfig: (gridConfig) =>
+          set(() => ({
+            gridConfig,
+            grid: generateGrid(gridConfig),
+          })),
 
-      setSmallRatio: (value) =>
-        set((s) => {
-          const gridConfig = { ...s.gridConfig, ...updateSmallRatio(value) };
-          return { gridConfig, grid: generateGrid(gridConfig) };
-        }),
+        setSmallRatio: (value) =>
+          set((s) => {
+            const gridConfig = { ...s.gridConfig, ...updateSmallRatio(value) };
+            return { gridConfig, grid: generateGrid(gridConfig) };
+          }),
 
-      setLargeRatio: (value) =>
-        set((s) => {
-          const gridConfig = { ...s.gridConfig, ...updateLargeRatio(value) };
-          return { gridConfig, grid: generateGrid(gridConfig) };
-        }),
+        setLargeRatio: (value) =>
+          set((s) => {
+            const gridConfig = { ...s.gridConfig, ...updateLargeRatio(value) };
+            return { gridConfig, grid: generateGrid(gridConfig) };
+          }),
 
-      regenerateSeed: () =>
-        set((s) => {
-          const gridConfig = { ...s.gridConfig, seed: createSeed() };
-          return { gridConfig, grid: generateGrid(gridConfig) };
-        }),
+        regenerateSeed: () =>
+          set((s) => {
+            const gridConfig = { ...s.gridConfig, seed: createSeed() };
+            return { gridConfig, grid: generateGrid(gridConfig) };
+          }),
 
-      selectInstance: (id) => set({ selectedInstanceId: id }),
+        selectInstance: (id) => set({ selectedInstanceId: id }),
 
-      startCreateDrag: (type, initialPointer) =>
-        set({
-          dragState: {
-            mode: "create",
-            type,
-            preview: null,
-            ghostClient: initialPointer ? { x: initialPointer.clientX, y: initialPointer.clientY } : null,
-          },
-        }),
+        startCreateDrag: (type, initialPointer) =>
+          set({
+            dragState: {
+              mode: "create",
+              type,
+              preview: null,
+              ghostClient: initialPointer ? { x: initialPointer.clientX, y: initialPointer.clientY } : null,
+            },
+          }),
 
-      revertCreatePreviewToGhost: (clientX, clientY) =>
-        set((s) => {
-          const d = s.dragState;
-          if (d?.mode !== "create") {
-            return {};
-          }
-          return {
-            dragState: { ...d, preview: null, ghostClient: { x: clientX, y: clientY } },
-          };
-        }),
-
-      updateCreatePreview: (type, x, y) => {
-        const { grid } = get();
-        const definition = getComponentDefinition(type);
-        const created = createComponentInstance(type, x, y, 0, grid.config.logicalWidth, grid.config.logicalHeight);
-        const preview: ComponentInstance = { ...created, id: `${type}-preview`, name: definition.label };
-
-        set({
-          dragState: { mode: "create", type, preview, ghostClient: null },
-        });
-      },
-
-      finalizeCreateAt: (type, x, y) => {
-        const { grid, nextInstanceIndex, instances } = get();
-        const instance = createComponentInstance(
-          type,
-          x,
-          y,
-          nextInstanceIndex,
-          grid.config.logicalWidth,
-          grid.config.logicalHeight,
-        );
-        set({
-          instances: type === "connector-line" ? [...instances, instance] : [instance, ...instances],
-          selectedInstanceId: instance.id,
-          nextInstanceIndex: nextInstanceIndex + 1,
-          dragState: null,
-        });
-      },
-
-      startMoveDrag: (id, offsetX, offsetY) => {
-        set({
-          dragState: { mode: "move", id, offsetX, offsetY },
-        });
-      },
-
-      moveInstanceTo: (id, x, y) => {
-        const { grid } = get();
-        set((s) => ({
-          instances: s.instances.map((instance) => {
-            if (instance.id !== id) {
-              return instance;
+        revertCreatePreviewToGhost: (clientX, clientY) =>
+          set((s) => {
+            const d = s.dragState;
+            if (d?.mode !== "create") {
+              return {};
             }
-            if (instance.type === "connector-line") {
-              return instance;
-            }
-
             return {
-              ...instance,
-              ...snapComponentPosition(x, y, grid.config.logicalWidth, grid.config.logicalHeight, instance.type),
+              dragState: { ...d, preview: null, ghostClient: { x: clientX, y: clientY } },
             };
           }),
-        }));
-      },
 
-      endCanvasDrag: () => {
-        set({ dragState: null });
-      },
+        updateCreatePreview: (type, x, y) => {
+          const { grid } = get();
+          const definition = getComponentDefinition(type);
+          const created = createComponentInstance(type, x, y, 0, grid.config.logicalWidth, grid.config.logicalHeight);
+          const preview: ComponentInstance = { ...created, id: `${type}-preview`, name: definition.label };
 
-      deleteInstance: (id) =>
-        set((s) => ({
-          instances: s.instances.filter((i) => i.id !== id),
-          selectedInstanceId: s.selectedInstanceId === id ? null : s.selectedInstanceId,
-        })),
+          set({
+            dragState: { mode: "create", type, preview, ghostClient: null },
+          });
+        },
 
-      updateInstanceProps: (id, props) =>
-        set((s) => ({
-          instances: s.instances.map((instance) => {
-            if (instance.id !== id) {
-              return instance;
-            }
-            if (instance.type === "icon-box" && "iconId" in props) {
-              return { ...instance, props: props as IconBoxProps };
-            }
-            if (instance.type === "connector-line" && "preferredConnection" in props) {
-              return { ...instance, props: props as ConnectorLineProps };
-            }
-            return instance;
-          }),
-        })),
-
-      reorderInstances: (orderedIds) =>
-        set((s) => {
-          const next = reorderInstancesByIds(s.instances, orderedIds);
-          if (next === s.instances) {
-            return {};
-          }
-          return { instances: next };
-        }),
-
-      startConnectorEndpointPick: (connectorId, endpoint) =>
-        set((s) => {
-          const connector = s.instances.find(
-            (instance) => instance.id === connectorId && instance.type === "connector-line",
+        finalizeCreateAt: (type, x, y) => {
+          const { grid, nextInstanceIndex, instances } = get();
+          const instance = createComponentInstance(
+            type,
+            x,
+            y,
+            nextInstanceIndex,
+            grid.config.logicalWidth,
+            grid.config.logicalHeight,
           );
-          if (!connector) {
-            return {};
-          }
-          return { connectorEndpointPick: { connectorId, endpoint, hoverCell: null } };
-        }),
+          set({
+            instances: type === "connector-line" ? [...instances, instance] : [instance, ...instances],
+            selectedInstanceId: instance.id,
+            nextInstanceIndex: nextInstanceIndex + 1,
+            dragState: null,
+          });
+        },
 
-      cancelConnectorEndpointPick: () => set({ connectorEndpointPick: null }),
+        startMoveDrag: (id, offsetX, offsetY) => {
+          set({
+            dragState: { mode: "move", id, offsetX, offsetY },
+          });
+        },
 
-      setConnectorEndpointHoverCell: (x, y) =>
-        set((s) => {
-          const pick = s.connectorEndpointPick;
-          if (!pick) {
-            return {};
-          }
-          const hoverCell = snapConnectorCellCenter(x, y, s.grid.config.logicalWidth, s.grid.config.logicalHeight);
-          return { connectorEndpointPick: { ...pick, hoverCell } };
-        }),
-
-      clearConnectorEndpointHoverCell: () =>
-        set((s) => {
-          const pick = s.connectorEndpointPick;
-          if (!pick || pick.hoverCell === null) {
-            return {};
-          }
-          return { connectorEndpointPick: { ...pick, hoverCell: null } };
-        }),
-
-      setConnectorEndpointCell: (x, y) =>
-        set((s) => {
-          const pick = s.connectorEndpointPick;
-          if (!pick) {
-            return {};
-          }
-          const cell = snapConnectorCellCenter(x, y, s.grid.config.logicalWidth, s.grid.config.logicalHeight);
-          return {
-            connectorEndpointPick: null,
+        moveInstanceTo: (id, x, y) => {
+          const { grid } = get();
+          set((s) => ({
             instances: s.instances.map((instance) => {
-              if (instance.id !== pick.connectorId || instance.type !== "connector-line") {
+              if (instance.id !== id) {
                 return instance;
               }
+              if (instance.type === "connector-line") {
+                return instance;
+              }
+
               return {
                 ...instance,
-                x: pick.endpoint === "source" ? cell.x : instance.x,
-                y: pick.endpoint === "source" ? cell.y : instance.y,
-                props: {
-                  ...instance.props,
-                  [pick.endpoint]: { kind: "cell", ...cell },
-                },
+                ...snapComponentPosition(x, y, grid.config.logicalWidth, grid.config.logicalHeight, instance.type),
               };
             }),
-          };
-        }),
-    }),
+          }));
+        },
+
+        endCanvasDrag: () => {
+          set({ dragState: null });
+        },
+
+        deleteInstance: (id) =>
+          set((s) => ({
+            instances: s.instances.filter((i) => i.id !== id),
+            selectedInstanceId: s.selectedInstanceId === id ? null : s.selectedInstanceId,
+          })),
+
+        duplicateSelectedInstance: () =>
+          set((s) => {
+            const selectedIndex = s.instances.findIndex((instance) => instance.id === s.selectedInstanceId);
+            if (selectedIndex === -1) {
+              return {};
+            }
+
+            const selected = s.instances[selectedIndex];
+            const duplicate = duplicateInstanceForGrid(selected, s.nextInstanceIndex, s.grid.config);
+            const instances =
+              duplicate.type === "connector-line"
+                ? [...s.instances, duplicate]
+                : [...s.instances.slice(0, selectedIndex), duplicate, ...s.instances.slice(selectedIndex)];
+
+            return {
+              instances,
+              selectedInstanceId: duplicate.id,
+              nextInstanceIndex: s.nextInstanceIndex + 1,
+            };
+          }),
+
+        updateInstanceProps: (id, props) =>
+          set((s) => ({
+            instances: s.instances.map((instance) => {
+              if (instance.id !== id) {
+                return instance;
+              }
+              if (instance.type === "icon-box" && "iconId" in props) {
+                return { ...instance, props: props as IconBoxProps };
+              }
+              if (instance.type === "connector-line" && "preferredConnection" in props) {
+                return { ...instance, props: props as ConnectorLineProps };
+              }
+              return instance;
+            }),
+          })),
+
+        reorderInstances: (orderedIds) =>
+          set((s) => {
+            const next = reorderInstancesByIds(s.instances, orderedIds);
+            if (next === s.instances) {
+              return {};
+            }
+            return { instances: next };
+          }),
+
+        undoDocument: () => {
+          useAppStore.temporal.getState().undo();
+          syncGridToCurrentConfig();
+        },
+
+        redoDocument: () => {
+          useAppStore.temporal.getState().redo();
+          syncGridToCurrentConfig();
+        },
+
+        startConnectorEndpointPick: (connectorId, endpoint) =>
+          set((s) => {
+            const connector = s.instances.find(
+              (instance) => instance.id === connectorId && instance.type === "connector-line",
+            );
+            if (!connector) {
+              return {};
+            }
+            return { connectorEndpointPick: { connectorId, endpoint, hoverCell: null } };
+          }),
+
+        cancelConnectorEndpointPick: () => set({ connectorEndpointPick: null }),
+
+        setConnectorEndpointHoverCell: (x, y) =>
+          set((s) => {
+            const pick = s.connectorEndpointPick;
+            if (!pick) {
+              return {};
+            }
+            const hoverCell = snapConnectorCellCenter(x, y, s.grid.config.logicalWidth, s.grid.config.logicalHeight);
+            return { connectorEndpointPick: { ...pick, hoverCell } };
+          }),
+
+        clearConnectorEndpointHoverCell: () =>
+          set((s) => {
+            const pick = s.connectorEndpointPick;
+            if (!pick || pick.hoverCell === null) {
+              return {};
+            }
+            return { connectorEndpointPick: { ...pick, hoverCell: null } };
+          }),
+
+        setConnectorEndpointCell: (x, y) =>
+          set((s) => {
+            const pick = s.connectorEndpointPick;
+            if (!pick) {
+              return {};
+            }
+            const cell = snapConnectorCellCenter(x, y, s.grid.config.logicalWidth, s.grid.config.logicalHeight);
+            return {
+              connectorEndpointPick: null,
+              instances: s.instances.map((instance) => {
+                if (instance.id !== pick.connectorId || instance.type !== "connector-line") {
+                  return instance;
+                }
+                return {
+                  ...instance,
+                  x: pick.endpoint === "source" ? cell.x : instance.x,
+                  y: pick.endpoint === "source" ? cell.y : instance.y,
+                  props: {
+                    ...instance.props,
+                    [pick.endpoint]: { kind: "cell", ...cell },
+                  },
+                };
+              }),
+            };
+          }),
+      }),
+      {
+        partialize: getDocumentHistorySlice,
+        equality: documentSlicesAreEqual,
+      },
+    ),
     {
       name: "section-grid-builder",
       version: 2,
@@ -328,10 +420,14 @@ export const useAppStore = create<AppStoreState>()(
 /** Restore the canvas document to defaults (keeps the Pixi app handle if already set). Intended for tests. */
 export const resetAppStoreDocumentToDefault = () => {
   const fresh = getDefaultDocumentSlice();
+  const temporalStore = useAppStore.temporal.getState();
+  temporalStore.pause();
   useAppStore.setState((s) => ({
     ...fresh,
     pixiApp: s.pixiApp,
     dragState: null,
     connectorEndpointPick: null,
   }));
+  temporalStore.clear();
+  temporalStore.resume();
 };
