@@ -16,6 +16,7 @@ import {
   type ConnectorEndpoint,
   type ConnectorLineProps,
   type IconBoxProps,
+  type PlusMarkerProps,
 } from "../grid/types";
 
 export type ComponentDefinition = {
@@ -52,6 +53,17 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
       }
       const t = config.title.trim();
       return t.length ? t : undefined;
+    },
+  },
+  "plus-marker": {
+    type: "plus-marker",
+    label: "Plus Marker",
+    width: 40,
+    height: 40,
+    snapAnchorX: 0,
+    snapAnchorY: 0,
+    defaultProps: {
+      theme: "orange",
     },
   },
   "connector-line": {
@@ -276,14 +288,23 @@ export const createComponentInstance = (
     };
   }
 
+  if (type === "icon-box") {
+    return {
+      id: `${type}-${index}`,
+      type,
+      name: `${definition.label} ${index}`,
+      x: position.x,
+      y: position.y,
+      props: { ...(definition.defaultProps as IconBoxProps) },
+    };
+  }
+
   return {
     id: `${type}-${index}`,
     type,
     name: `${definition.label} ${index}`,
     x: position.x,
     y: position.y,
-    props: {
-      ...(definition.defaultProps as IconBoxProps),
-    },
+    props: { ...(definition.defaultProps as PlusMarkerProps) },
   };
 };

@@ -18,6 +18,7 @@ import type {
   GeneratedGrid,
   GridConfig,
   IconBoxProps,
+  PlusMarkerProps,
 } from "./grid/types";
 import { getDefaultDocumentSlice, mergePersistedDocument } from "./storePersist";
 import type { PersistedDocumentSlice } from "./storePersist";
@@ -149,6 +150,16 @@ const duplicateInstanceForGrid = (
     gridConfig.logicalHeight,
     instance.type,
   );
+
+  if (instance.type === "icon-box") {
+    return {
+      ...instance,
+      id,
+      name,
+      ...position,
+      props: { ...instance.props },
+    };
+  }
 
   return {
     ...instance,
@@ -323,6 +334,9 @@ export const useAppStore = create<AppStoreState>()(
               }
               if (instance.type === "icon-box" && "iconId" in props) {
                 return { ...instance, props: props as IconBoxProps };
+              }
+              if (instance.type === "plus-marker") {
+                return { ...instance, props: { ...instance.props, ...props } as PlusMarkerProps };
               }
               if (instance.type === "connector-line") {
                 return { ...instance, props: { ...instance.props, ...props } as ConnectorLineProps };

@@ -6,6 +6,7 @@ import { COMPONENT_REGISTRY, getComponentDefinition, getInstanceLayerSubtitle } 
 import { ICON_OPTIONS } from "../lib/iconRegistry";
 import { ComponentIcon } from "./ComponentIcon";
 import { ComponentListItem } from "./ComponentListItem";
+import { PlusMarkerGlyph } from "./PlusMarkerGlyph";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH, SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 import type {
   ComponentInstance,
@@ -15,6 +16,7 @@ import type {
   ConnectorLineProps,
   IconBoxProps,
   IconId,
+  PlusMarkerProps,
 } from "../grid/types";
 import { PALETTE_THEMES, type PaletteThemeId, paletteBrush } from "../theme/palette";
 
@@ -344,9 +346,21 @@ export const ComponentBrowseSidebar = ({
     <ComponentIcon iconId={props.iconId} color={brushFor(props.theme).iconFillHex} size={SIDEBAR_LIST_ICON_PX} />
   );
   const renderPreview = (instance: ComponentInstance) =>
-    instance.type === "connector-line" ? <ConnectorLineIcon /> : renderIcon(instance.props);
+    instance.type === "connector-line" ? (
+      <ConnectorLineIcon />
+    ) : instance.type === "plus-marker" ? (
+      <PlusMarkerGlyph theme={instance.props.theme} gridStrokeColor={gridStrokeColor} />
+    ) : (
+      renderIcon(instance.props)
+    );
   const renderDefinitionPreview = (definition: (typeof componentTypes)[number]) =>
-    definition.type === "connector-line" ? <ConnectorLineIcon /> : renderIcon(definition.defaultProps as IconBoxProps);
+    definition.type === "connector-line" ? (
+      <ConnectorLineIcon />
+    ) : definition.type === "plus-marker" ? (
+      <PlusMarkerGlyph theme={(definition.defaultProps as PlusMarkerProps).theme} gridStrokeColor={gridStrokeColor} />
+    ) : (
+      renderIcon(definition.defaultProps as IconBoxProps)
+    );
 
   return (
     <div className="component-sidebar">
@@ -423,7 +437,13 @@ export const ComponentConfigSidebar = ({
     <ComponentIcon iconId={props.iconId} color={brushFor(props.theme).iconFillHex} size={SIDEBAR_LIST_ICON_PX} />
   );
   const renderPreview = (instance: ComponentInstance) =>
-    instance.type === "connector-line" ? <ConnectorLineIcon /> : renderIcon(instance.props);
+    instance.type === "connector-line" ? (
+      <ConnectorLineIcon />
+    ) : instance.type === "plus-marker" ? (
+      <PlusMarkerGlyph theme={instance.props.theme} gridStrokeColor={gridStrokeColor} />
+    ) : (
+      renderIcon(instance.props)
+    );
 
   if (selectedInstance.type === "connector-line") {
     const displayName = getInstanceDisplayName(selectedInstance);
@@ -481,6 +501,33 @@ export const ComponentConfigSidebar = ({
               onUpdateInstanceProps(selectedInstance.id, {
                 ...selectedInstance.props,
                 overlayGrid: !selectedInstance.props.overlayGrid,
+              })
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedInstance.type === "plus-marker") {
+    const displayName = getInstanceDisplayName(selectedInstance);
+    return (
+      <div className="component-config-panel">
+        <ComponentListItem
+          className="component-config-header"
+          testId="component-config-header"
+          preview={renderPreview(selectedInstance)}
+          title={displayName}
+        />
+        <div className="field">
+          <span>Theme</span>
+          <PaletteThemePicker
+            value={selectedInstance.props.theme}
+            gridStrokeColor={gridStrokeColor}
+            onChange={(theme) =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                theme,
               })
             }
           />

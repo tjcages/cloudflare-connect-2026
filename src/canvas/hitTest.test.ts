@@ -66,4 +66,18 @@ describe("hitTestComponentInstances", () => {
     expect(hitTestComponentInstances([connector], 120, 440, { width: 800, height: 560 })?.id).toBe("connector-line-1");
     expect(hitTestComponentInstances([connector], 120, 600, { width: 800, height: 560 })).toBeUndefined();
   });
+
+  it("hit tests plus-marker against its 40×40 registry bounds", () => {
+    const pm: ComponentInstance = {
+      id: "plus-marker-1",
+      type: "plus-marker",
+      name: "Plus Marker 1",
+      x: 100,
+      y: 100,
+      props: { theme: "orange" },
+    };
+
+    expect(hitTestComponentInstances([pm], 110, 110)?.id).toBe("plus-marker-1");
+    expect(hitTestComponentInstances([pm], 99, 110)).toBeUndefined();
+  });
 });

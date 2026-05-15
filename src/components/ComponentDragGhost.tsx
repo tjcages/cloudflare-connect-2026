@@ -1,6 +1,7 @@
 import { ComponentIcon } from "./ComponentIcon";
 import { ComponentListItem } from "./ComponentListItem";
-import type { ComponentType, IconBoxProps } from "../grid/types";
+import { PlusMarkerGlyph } from "./PlusMarkerGlyph";
+import type { ComponentType, IconBoxProps, PlusMarkerProps } from "../grid/types";
 import { getComponentDefinition } from "../lib/componentRegistry";
 import { SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 import { paletteBrush } from "../theme/palette";
@@ -13,7 +14,6 @@ type ComponentDragGhostProps = {
 
 export const ComponentDragGhost = ({ componentType, clientX, clientY }: ComponentDragGhostProps) => {
   const definition = getComponentDefinition(componentType);
-  const iconBoxProps = definition.defaultProps as IconBoxProps;
   const preview =
     componentType === "connector-line" ? (
       <svg
@@ -31,10 +31,12 @@ export const ComponentDragGhost = ({ componentType, clientX, clientY }: Componen
         <path d="M5 7h0.01" />
         <path d="M19 13h0.01" />
       </svg>
+    ) : componentType === "plus-marker" ? (
+      <PlusMarkerGlyph theme={(definition.defaultProps as PlusMarkerProps).theme} />
     ) : (
       <ComponentIcon
-        iconId={iconBoxProps.iconId}
-        color={paletteBrush(iconBoxProps.theme).iconFillHex}
+        iconId={(definition.defaultProps as IconBoxProps).iconId}
+        color={paletteBrush((definition.defaultProps as IconBoxProps).theme).iconFillHex}
         size={SIDEBAR_LIST_ICON_PX}
       />
     );

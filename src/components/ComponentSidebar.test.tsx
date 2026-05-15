@@ -33,6 +33,15 @@ const connectorInstance: ComponentInstance = {
   },
 };
 
+const plusMarkerInstance: ComponentInstance = {
+  id: "plus-marker-3",
+  type: "plus-marker",
+  name: "Plus Marker 3",
+  x: 120,
+  y: 40,
+  props: { theme: "orange" },
+};
+
 describe("ComponentSidebar", () => {
   it("lists layers and draggable components without legacy copy", () => {
     render(
@@ -163,6 +172,42 @@ describe("ComponentSidebar", () => {
     fireEvent.pointerDown(connectorButton, { clientX: 20, clientY: 30 });
 
     expect(onStartComponentDrag).toHaveBeenCalledWith("connector-line", { clientX: 20, clientY: 30 });
+  });
+
+  it("starts component drag from the plus-marker component row", () => {
+    const onStartComponentDrag = vi.fn();
+
+    render(
+      <ComponentSidebar
+        instances={[instance]}
+        selectedInstance={null}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={onStartComponentDrag}
+      />,
+    );
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Plus Marker" }), { clientX: 9, clientY: 18 });
+
+    expect(onStartComponentDrag).toHaveBeenCalledWith("plus-marker", { clientX: 9, clientY: 18 });
+  });
+
+  it("configures plus-marker theme only", () => {
+    const onUpdateInstanceProps = vi.fn();
+
+    render(
+      <ComponentSidebar
+        instances={[plusMarkerInstance]}
+        selectedInstance={plusMarkerInstance}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={onUpdateInstanceProps}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("icon-picker")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("palette-theme-swatch-purple"));
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("plus-marker-3", { theme: "purple" });
   });
 
   it("configures connector-line preference and endpoints", () => {

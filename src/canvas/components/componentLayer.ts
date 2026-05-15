@@ -5,10 +5,18 @@ import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
 import { buildConnectorLine, getConnectorRenderFingerprint } from "./connector-line/setup";
 import { buildIconBox } from "./icon-box/build";
+import { buildPlusMarker } from "./plus-marker/build";
 
 type LayerCacheEntry =
   | {
       kind: "icon-box";
+      structureRoot: Container;
+      chromeRoot: Container;
+      propsJson: string;
+      gridStrokeHex: string;
+    }
+  | {
+      kind: "plus-marker";
       structureRoot: Container;
       chromeRoot: Container;
       propsJson: string;
@@ -60,6 +68,11 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
         bounds,
         selectedInstanceId,
       );
+      continue;
+    }
+
+    if (instance.type === "plus-marker") {
+      syncPlusMarker(instance, structureLayer, chromeLayer, cache, z, gridStrokeHex);
       continue;
     }
 
@@ -120,6 +133,65 @@ const syncConnectorLine = (
       fingerprint,
     });
   } else {
+    prior.structureRoot.zIndex = z;
+    prior.chromeRoot.zIndex = z;
+  }
+};
+
+const syncPlusMarker = (
+  instance: Extract<ComponentInstance, { type: "plus-marker" }>,
+  structureLayer: Container,
+  chromeLayer: Container,
+  cache: Map<string, LayerCacheEntry>,
+  z: number,
+  gridStrokeHex: string,
+) => {
+  const propsJson = JSON.stringify(instance.props);
+  const prior = cache.get(instance.id);
+
+  if (!prior || prior.kind !== "plus-marker") {
+    if (prior) {
+      destroyLayerEntry(prior);
+      cache.delete(instance.id);
+    }
+
+    const { structureRoot, chromeRoot } = buildPlusMarker(instance, gridStrokeHex);
+    structureRoot.position.set(instance.x, instance.y);
+    chromeRoot.position.set(instance.x, instance.y);
+    structureRoot.zIndex = z;
+    chromeRoot.zIndex = z;
+    structureLayer.addChild(structureRoot);
+    chromeLayer.addChild(chromeRoot);
+
+    cache.set(instance.id, {
+      kind: "plus-marker",
+      structureRoot,
+      chromeRoot,
+      propsJson,
+      gridStrokeHex,
+    });
+  } else if (prior.propsJson !== propsJson || prior.gridStrokeHex !== gridStrokeHex) {
+    destroyLayerEntry(prior);
+    cache.delete(instance.id);
+
+    const { structureRoot, chromeRoot } = buildPlusMarker(instance, gridStrokeHex);
+    structureRoot.position.set(instance.x, instance.y);
+    chromeRoot.position.set(instance.x, instance.y);
+    structureRoot.zIndex = z;
+    chromeRoot.zIndex = z;
+    structureLayer.addChild(structureRoot);
+    chromeLayer.addChild(chromeRoot);
+
+    cache.set(instance.id, {
+      kind: "plus-marker",
+      structureRoot,
+      chromeRoot,
+      propsJson,
+      gridStrokeHex,
+    });
+  } else {
+    prior.structureRoot.position.set(instance.x, instance.y);
+    prior.chromeRoot.position.set(instance.x, instance.y);
     prior.structureRoot.zIndex = z;
     prior.chromeRoot.zIndex = z;
   }

@@ -59,8 +59,8 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
     const b = getInstanceHighlightBounds(inst);
     let w = b.width;
     let h = b.height;
-    /** Icon-box: selection stroke +1px wider/taller; origin unchanged from bounds. */
-    if (inst.type === "icon-box") {
+    /** Icon-box / plus-marker: selection stroke +1px wider/taller; origin unchanged from bounds. */
+    if (inst.type === "icon-box" || inst.type === "plus-marker") {
       w += 1;
       h += 1;
     }

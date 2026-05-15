@@ -41,7 +41,7 @@ export type GeneratedGrid = {
   cells: GridCell[];
 };
 
-export type ComponentType = "icon-box" | "connector-line";
+export type ComponentType = "icon-box" | "plus-marker" | "connector-line";
 
 export type IconId = "section-mark" | "isometric-hex" | "user-outline" | "builder-grid" | "builder-layers";
 
@@ -55,6 +55,11 @@ export type IconBoxProps = {
   title: string;
   /** When true, draw focus reticles at the four corners of the selection frame. */
   containerHighlighted: boolean;
+};
+
+/** 40×40 canvas marker: centered 6×6 plus with 1px stroke; stroke color follows palette theme. */
+export type PlusMarkerProps = {
+  theme: PaletteThemeId;
 };
 
 export type ConnectorConnectionPreference = "horizontal" | "vertical";
@@ -79,7 +84,7 @@ export type ConnectorLineProps = {
   overlayGrid: boolean;
 };
 
-export type ComponentProps = IconBoxProps | ConnectorLineProps;
+export type ComponentProps = IconBoxProps | PlusMarkerProps | ConnectorLineProps;
 
 export type IconBoxInstance = {
   id: string;
@@ -88,6 +93,15 @@ export type IconBoxInstance = {
   x: number;
   y: number;
   props: IconBoxProps;
+};
+
+export type PlusMarkerInstance = {
+  id: string;
+  type: "plus-marker";
+  name: string;
+  x: number;
+  y: number;
+  props: PlusMarkerProps;
 };
 
 export type ConnectorLineInstance = {
@@ -100,7 +114,7 @@ export type ConnectorLineInstance = {
   props: ConnectorLineProps;
 };
 
-export type ComponentInstance = IconBoxInstance | ConnectorLineInstance;
+export type ComponentInstance = IconBoxInstance | PlusMarkerInstance | ConnectorLineInstance;
 
 export type CandidateCell = {
   kind: GridCellKind;

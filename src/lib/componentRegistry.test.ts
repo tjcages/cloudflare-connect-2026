@@ -41,6 +41,37 @@ describe("componentRegistry", () => {
     });
   });
 
+  it("registers plus-marker as 40×40 with orange theme by default", () => {
+    expect(COMPONENT_REGISTRY["plus-marker"].label).toBe("Plus Marker");
+    expect(COMPONENT_REGISTRY["plus-marker"]).toMatchObject({
+      width: 40,
+      height: 40,
+      snapAnchorX: 0,
+      snapAnchorY: 0,
+      defaultProps: { theme: "orange" },
+    });
+  });
+
+  it("creates plus-marker instances snapped to the 40px base grid", () => {
+    expect(createComponentInstance("plus-marker", 43, 79, 2, 800, 560)).toMatchObject({
+      id: "plus-marker-2",
+      type: "plus-marker",
+      name: "Plus Marker 2",
+      x: 40,
+      y: 80,
+      props: { theme: "orange" },
+    });
+  });
+
+  it("snaps plus-marker top-left to the 40px lattice", () => {
+    expect(snapComponentPosition(55, 55, 800, 560, "plus-marker")).toEqual({ x: 40, y: 40 });
+  });
+
+  it("uses registry footprint for plus-marker canvas bounds", () => {
+    const inst = createComponentInstance("plus-marker", 43, 79, 2, 800, 560);
+    expect(getInstanceCanvasBounds(inst)).toEqual({ x: inst.x, y: inst.y, width: 40, height: 40 });
+  });
+
   it("creates named icon-box instances with snapped coordinates", () => {
     expect(createComponentInstance("icon-box", 43, 79, 2, 800, 560)).toMatchObject({
       id: "icon-box-2",

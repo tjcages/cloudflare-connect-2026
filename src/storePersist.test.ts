@@ -124,6 +124,38 @@ describe("mergePersistedDocument", () => {
     expect(merged.selectedInstanceId).toBe("icon-box-5");
   });
 
+  it("snap-adjusts persisted plus-marker coordinates during merge", () => {
+    const current = minimalStoreForMerge();
+    const merged = mergePersistedDocument(
+      {
+        gridConfig: DEFAULT_CONFIG,
+        instances: [
+          {
+            id: "plus-marker-6",
+            type: "plus-marker",
+            name: "Plus Marker 6",
+            x: 43,
+            y: 79,
+            props: { theme: "purple" },
+          },
+        ],
+        nextInstanceIndex: 7,
+        selectedInstanceId: "plus-marker-6",
+      },
+      current,
+    );
+
+    const pm = merged.instances[0] as Extract<ComponentInstance, { type: "plus-marker" }>;
+    const logicalWidth = merged.grid.config.logicalWidth;
+    const logicalHeight = merged.grid.config.logicalHeight;
+    const expected = createComponentInstance("plus-marker", 43, 79, 6, logicalWidth, logicalHeight);
+
+    expect(pm.x).toBe(expected.x);
+    expect(pm.y).toBe(expected.y);
+    expect(pm.props).toEqual({ theme: "purple" });
+    expect(merged.selectedInstanceId).toBe("plus-marker-6");
+  });
+
   it("snap-adjusts persisted connector-line anchors and cell endpoints during merge", () => {
     const current = minimalStoreForMerge();
     const merged = mergePersistedDocument(
