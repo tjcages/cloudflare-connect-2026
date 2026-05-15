@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { getCanvasPoint, isPointerOverCanvas } from "../canvas/coords";
 import { copyDocumentPng } from "../canvas/pngExport";
 import { GridCanvas } from "../canvas";
@@ -31,6 +31,7 @@ export const App = () => {
   const setSmallRatio = useAppStore((s) => s.setSmallRatio);
   const setLargeRatio = useAppStore((s) => s.setLargeRatio);
   const selectInstance = useAppStore((s) => s.selectInstance);
+  const cancelConnectorEndpointPick = useAppStore((s) => s.cancelConnectorEndpointPick);
   const reorderInstances = useAppStore((s) => s.reorderInstances);
   const updateInstanceProps = useAppStore((s) => s.updateInstanceProps);
   const startCreateDrag = useAppStore((s) => s.startCreateDrag);
@@ -41,6 +42,27 @@ export const App = () => {
   const startConnectorEndpointPick = useAppStore((s) => s.startConnectorEndpointPick);
 
   useAppShortcuts();
+
+  const onCanvasPanelBackgroundPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+    if (useAppStore.getState().dragState !== null) {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof Node)) {
+      return;
+    }
+    const panel = event.currentTarget;
+    const canvasRoot = panel.querySelector('[data-testid="builder-canvas"]');
+    if (canvasRoot instanceof Element && (canvasRoot === target || canvasRoot.contains(target))) {
+      return;
+    }
+
+    selectInstance(null);
+    cancelConnectorEndpointPick();
+  };
 
   useEffect(() => {
     if (!hasActiveDrag) {
@@ -185,7 +207,7 @@ export const App = () => {
           />
         )}
       </aside>
-      <section className="canvas-panel">
+      <section className="canvas-panel" data-testid="canvas-panel" onPointerDown={onCanvasPanelBackgroundPointerDown}>
         <GridCanvas
           canvasRef={builderCanvasRef}
           onUserSelectedInstance={(id) => {

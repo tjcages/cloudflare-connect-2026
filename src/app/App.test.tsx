@@ -149,6 +149,73 @@ describe("App", { timeout: 15_000 }, () => {
     expect(useAppStore.getState().connectorEndpointPick).toBeNull();
   });
 
+  it("clears selection when pressing the pointer on the canvas panel gutter outside the canvas", () => {
+    const inst = iconBoxInstance("icon-box-panel-gutter", "T");
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
+
+    render(<App />);
+
+    fireEvent.pointerDown(screen.getByTestId("canvas-panel"), {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 8,
+      clientY: 8,
+    });
+
+    expect(useAppStore.getState().selectedInstanceId).toBeNull();
+  });
+
+  it("does not clear selection when pressing the pointer on the builder canvas", () => {
+    const inst = iconBoxInstance("icon-box-panel-canvas", "T");
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
+
+    render(<App />);
+
+    fireEvent.pointerDown(screen.getByTestId("builder-canvas"), {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 400,
+      clientY: 280,
+    });
+
+    expect(useAppStore.getState().selectedInstanceId).toBe(inst.id);
+  });
+
+  it("cancels connector endpoint picking when pressing the pointer on the canvas panel gutter", () => {
+    const connector: ComponentInstance = {
+      id: "connector-line-panel-1",
+      type: "connector-line",
+      name: "Connector Line 1",
+      x: 40,
+      y: 40,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 40, y: 40 },
+        target: { kind: "cell", x: 200, y: 40 },
+        overlayGrid: true,
+      },
+    };
+    useAppStore.setState({
+      instances: [connector],
+      selectedInstanceId: connector.id,
+      connectorEndpointPick: { connectorId: connector.id, endpoint: "source", hoverCell: null },
+    });
+
+    render(<App />);
+
+    fireEvent.pointerDown(screen.getByTestId("canvas-panel"), {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 6,
+      clientY: 6,
+    });
+
+    expect(useAppStore.getState().connectorEndpointPick).toBeNull();
+  });
+
   it("deletes the selected instance when pressing Delete or Backspace outside form fields", () => {
     const inst = iconBoxInstance("icon-box-del-1", "T");
     useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
