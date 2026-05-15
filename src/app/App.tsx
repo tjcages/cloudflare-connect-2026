@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { getCanvasPoint, isPointerOverCanvas } from "../canvas/coords";
 import { copyDocumentPng } from "../canvas/pngExport";
 import { GridCanvas } from "../canvas";
+import { CanvasViewportToolbar } from "../components/CanvasViewportToolbar";
 import { ComponentDragGhost } from "../components/ComponentDragGhost";
 import { RAIL_TAB_ICON_PX } from "../components/iconTokens";
 import { ComponentIcon } from "../components/ComponentIcon";
@@ -52,6 +53,9 @@ export const App = () => {
     }
     const target = event.target;
     if (!(target instanceof Node)) {
+      return;
+    }
+    if (target instanceof Element && target.closest(".canvas-panel-viewport-toolbar") !== null) {
       return;
     }
     const panel = event.currentTarget;
@@ -208,14 +212,17 @@ export const App = () => {
         )}
       </aside>
       <section className="canvas-panel" data-testid="canvas-panel" onPointerDown={onCanvasPanelBackgroundPointerDown}>
-        <GridCanvas
-          canvasRef={builderCanvasRef}
-          onUserSelectedInstance={(id) => {
-            if (id !== null && id !== undefined) {
-              setActiveTab("components");
-            }
-          }}
-        />
+        <div className="canvas-panel-scroll">
+          <GridCanvas
+            canvasRef={builderCanvasRef}
+            onUserSelectedInstance={(id) => {
+              if (id !== null && id !== undefined) {
+                setActiveTab("components");
+              }
+            }}
+          />
+        </div>
+        <CanvasViewportToolbar canvasRef={builderCanvasRef} />
       </section>
       <aside className="sidebar sidebar-components sidebar-components-config">
         <ComponentConfigSidebar

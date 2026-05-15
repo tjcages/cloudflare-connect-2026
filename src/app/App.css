@@ -922,50 +922,88 @@ button.component-list-item:hover {
 }
 
 .canvas-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.canvas-panel-scroll {
+  flex: 1;
+  min-height: 0;
+  /* No native scroll — pan/zoom live on the canvas transform only (avoids fighting the viewport). */
+  overflow: hidden;
+  display: grid;
   place-items: center;
   box-sizing: border-box;
   padding: 32px;
+}
+
+.canvas-panel-viewport-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  height: 40px;
+  box-sizing: border-box;
+  border-top: 1px solid #f3f3f3;
+  padding: 6px;
   background: #ffffff;
-  /* Floating, minimal scrollbars (thumb only; track stays transparent). */
-  scrollbar-gutter: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(140, 140, 140, 0.55) transparent;
 }
 
-.canvas-panel::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-.canvas-panel::-webkit-scrollbar-track {
+.canvas-toolbar-button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
   background: transparent;
+  color: #9b9b9b;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
 }
 
-.canvas-panel::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background:
-    linear-gradient(180deg, rgba(200, 200, 200, 0.95), rgba(168, 168, 168, 0.9)) padding-box,
-    linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(240, 240, 240, 0.15)) border-box;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+.canvas-toolbar-button:hover:not(:disabled) {
+  background: var(--button-hover-bg);
+  color: var(--button-hover-color);
 }
 
-.canvas-panel::-webkit-scrollbar-thumb:hover {
-  background:
-    linear-gradient(180deg, rgba(175, 175, 175, 0.98), rgba(145, 145, 145, 0.92)) padding-box,
-    linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(230, 230, 230, 0.2)) border-box;
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+.canvas-toolbar-button:active:not(:disabled) {
+  background: var(--button-active-bg);
 }
 
-.canvas-panel::-webkit-scrollbar-corner {
-  background: transparent;
+.canvas-toolbar-button:focus-visible {
+  outline: 1px solid #d8d8d8;
+  outline-offset: 1px;
+}
+
+.canvas-toolbar-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.canvas-toolbar-zoom-readout {
+  margin: 0;
+  min-width: 38px;
+  padding: 0 2px;
+  text-align: center;
+  color: #9b9b9b;
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  flex-shrink: 0;
 }
 
 .canvas-shell {

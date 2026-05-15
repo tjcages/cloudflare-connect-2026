@@ -9,16 +9,32 @@ import { setupGridLayer } from "./grid/setup";
 import { setupSelectionLayer } from "./selection-setup";
 import { preloadIconBoxTitleFont } from "../fonts/iconBoxTitle";
 import { useAppStore } from "../store";
+import { clampCanvasZoom, zoomAroundCanvasPoint } from "./viewZoom";
 
 const tickers = [setupGridLayer, setupComponentLayer, setupSelectionLayer];
 
-const CANVAS_ZOOM_MIN = 0.25;
-const CANVAS_ZOOM_MAX = 4;
+/** Exponential ⌘/Ctrl-wheel sensitivity (trackpad pinch); higher → faster, closer to browser/map zoom. */
+const CANVAS_ZOOM_WHEEL_EXP_SENSITIVITY = 0.01;
 
-const clampCanvasZoom = (z: number) => Math.min(CANVAS_ZOOM_MAX, Math.max(CANVAS_ZOOM_MIN, z));
+const normalizeWheelDeltaPixels = (event: Pick<WheelEvent, "deltaX" | "deltaY" | "deltaMode">) => {
+  let dx = event.deltaX;
+  let dy = event.deltaY;
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    dx *= 16;
+    dy *= 16;
+  } else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    dx *= 800;
+    dy *= 800;
+  }
+  return { dx, dy };
+};
 
 /** Minimum pointer movement (CSS px) before empty-canvas drag counts as viewport pan. */
 const VIEWPORT_PAN_DRAG_THRESHOLD_PX = 5;
+
+/** Mouse viewport pan requires ⌘ or Ctrl; touch/pen keep drag-to-pan without a modifier. */
+const isViewportPanModifierHeld = (event: { pointerType: string; metaKey: boolean; ctrlKey: boolean }) =>
+  event.pointerType !== "mouse" || event.metaKey || event.ctrlKey;
 
 type BuilderCanvasProps = {
   canvasRef?: Ref<HTMLCanvasElement | null>;
@@ -49,7 +65,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
   const clearConnectorEndpointHoverCell = useAppStore((s) => s.clearConnectorEndpointHoverCell);
   const isPickingConnectorEndpoint = useAppStore((s) => s.connectorEndpointPick !== null);
 
-  /** Primary-button drag on empty canvas: pan viewport until pointer up. */
+  /** Primary-button drag on empty canvas with ⌘/Ctrl (mouse): pan viewport until pointer up. */
   const viewportPanSessionRef = useRef(false);
   const viewportPanDraggingRef = useRef(false);
   const viewportPanPointerIdRef = useRef<number | null>(null);
@@ -57,7 +73,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
   const panLastClientRef = useRef({ x: 0, y: 0 });
   const [isViewportPanning, setIsViewportPanning] = useState(false);
 
-  /** Auto-scroll `.canvas-panel` while dragging a layer near viewport edges. */
+  /** Auto-pan the canvas viewport while dragging a layer near `.canvas-panel-scroll` edges. */
   const moveDragEdgeScrollRafRef = useRef<number | null>(null);
   const lastMoveDragPointerRef = useRef<{ x: number; y: number } | null>(null);
   const moveDragCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -94,17 +110,13 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
         return;
       }
 
-      const prevLeft = panel.scrollLeft;
-      const prevTop = panel.scrollTop;
-      panel.scrollLeft += step.scrollDx;
-      panel.scrollTop += step.scrollDy;
-      const scrolled = panel.scrollLeft !== prevLeft || panel.scrollTop !== prevTop;
+      useAppStore.getState().translateCanvasPan(-step.scrollDx, -step.scrollDy);
 
       const point = getCanvasPoint(canvasEl, last.x, last.y, gridCfg.logicalWidth, gridCfg.logicalHeight);
       useAppStore.getState().moveInstanceTo(ds.id, point.x - ds.offsetX, point.y - ds.offsetY);
 
       const still = getCanvasPanelEdgeScrollStep(panel.getBoundingClientRect(), last.x, last.y);
-      if (scrolled && (still.scrollDx !== 0 || still.scrollDy !== 0)) {
+      if (still.scrollDx !== 0 || still.scrollDy !== 0) {
         moveDragEdgeScrollRafRef.current = requestAnimationFrame(() => runMoveDragEdgeScrollTickRef.current());
       }
     };
@@ -157,48 +169,43 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
         transform: `translate(${canvasPan.x}px, ${canvasPan.y}px) scale(${canvasZoom})`,
         transformOrigin: "0 0",
       }}
-      onWheel={(event) => {
-        if (!event.metaKey && !event.ctrlKey) {
-          return;
-        }
-        const target = event.target;
-        if (!(target instanceof HTMLCanvasElement)) {
-          return;
-        }
-
-        event.preventDefault();
-
-        let dy = event.deltaY;
-        if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
-          dy *= 16;
-        } else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
-          dy *= 800;
-        }
-
-        const factor = Math.exp(-dy * 0.0015);
-        const { canvasZoom: z0, canvasPan: pan } = useAppStore.getState();
-        const z1 = clampCanvasZoom(z0 * factor);
-        if (z1 === z0) {
-          return;
-        }
-
-        const rect = target.getBoundingClientRect();
-        const mx = event.clientX;
-        const my = event.clientY;
-        useAppStore.setState({
-          canvasZoom: z1,
-          canvasPan: {
-            x: mx - rect.left + pan.x - (z1 * (mx - rect.left)) / z0,
-            y: my - rect.top + pan.y - (z1 * (my - rect.top)) / z0,
-          },
-        });
-      }}
     >
       <Pixi
         canvasRef={canvasRef}
         canvasAttrs={{
           className: isPickingConnectorEndpoint ? "grid-canvas grid-canvas-picking" : "grid-canvas",
           "data-testid": "builder-canvas",
+          onWheel: (event) => {
+            event.preventDefault();
+
+            const canvas = event.currentTarget;
+
+            if (event.metaKey || event.ctrlKey) {
+              const { dy } = normalizeWheelDeltaPixels(event);
+              const factor = Math.exp(-dy * CANVAS_ZOOM_WHEEL_EXP_SENSITIVITY);
+              const { canvasZoom: z0, canvasPan: pan } = useAppStore.getState();
+              const rect = canvas.getBoundingClientRect();
+              const { zoom: z1, pan: nextPan } = zoomAroundCanvasPoint({
+                clientX: event.clientX,
+                clientY: event.clientY,
+                rect,
+                z0,
+                z1: clampCanvasZoom(z0 * factor),
+                pan,
+              });
+              if (z1 === z0) {
+                return;
+              }
+              useAppStore.setState({ canvasZoom: z1, canvasPan: nextPan });
+              return;
+            }
+
+            const { dx, dy } = normalizeWheelDeltaPixels(event);
+            if (dx === 0 && dy === 0) {
+              return;
+            }
+            translateCanvasPan(-dx, -dy);
+          },
           onPointerDown: (event) => {
             const canvas = event.currentTarget;
 
@@ -222,6 +229,11 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
               if (event.pointerType === "mouse" && event.button !== 0) {
                 selectInstance(null);
                 skipNextClickSelectionSyncRef.current = true;
+                return;
+              }
+
+              if (!isViewportPanModifierHeld(event)) {
+                skipNextClickSelectionSyncRef.current = false;
                 return;
               }
 
@@ -256,6 +268,11 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
               viewportPanPointerIdRef.current === event.pointerId &&
               useAppStore.getState().connectorEndpointPick === null
             ) {
+              if (!isViewportPanModifierHeld(event)) {
+                finishViewportPanPointer(canvas, event.pointerId);
+                return;
+              }
+
               const ox = viewportPanOriginClientRef.current.x;
               const oy = viewportPanOriginClientRef.current.y;
 
@@ -291,8 +308,8 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             if (dragState.mode === "move") {
               lastMoveDragPointerRef.current = { x: event.clientX, y: event.clientY };
               moveDragCanvasRef.current = canvas;
-              const panel = canvas.closest(".canvas-panel");
-              moveDragPanelRef.current = panel instanceof HTMLElement ? panel : null;
+              const viewport = canvas.closest(".canvas-panel-scroll");
+              moveDragPanelRef.current = viewport instanceof HTMLElement ? viewport : null;
 
               if (moveDragPanelRef.current) {
                 const step = getCanvasPanelEdgeScrollStep(
@@ -301,8 +318,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
                   event.clientY,
                 );
                 if (step.scrollDx !== 0 || step.scrollDy !== 0) {
-                  moveDragPanelRef.current.scrollLeft += step.scrollDx;
-                  moveDragPanelRef.current.scrollTop += step.scrollDy;
+                  translateCanvasPan(-step.scrollDx, -step.scrollDy);
                   scheduleMoveDragEdgeScrollLoop();
                 } else {
                   cancelMoveDragEdgeScrollLoop();

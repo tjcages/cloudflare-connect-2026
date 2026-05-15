@@ -11,4 +11,5 @@ alwaysApply: false
 - Keep drawing deterministic from store state: **`grid`**, **`instances`**, **`selectedInstanceId`**, drag preview on **`dragState`**.
 - Name coordinate spaces clearly: logical/model coordinates, CSS pixels, and backing-store pixels (`devicePixelRatio`) are different.
 - Hit testing stays in `src/canvas/hitTest.ts` (registry bounds + top-most order). Pointer code maps DOM coordinates to logical space from the `.canvas-shell` bounds.
+- **Viewport**: pan + zoom are **`canvasPan` / `canvasZoom`** on **`.canvas-shell`** only. **`.canvas-panel-scroll`** does not use native overflow scroll (avoids fighting transform). Wheel on the **`<canvas>`**: unmodified = pan; ⌘/Ctrl = zoom; layer drag edge auto-pan uses **`translateCanvasPan`**, not `scrollLeft`.
 - **PNG copy** uses **`app.renderer.extract.image`** at **resolution `2`**; clear selection before extract; **`copyDocumentPng()`** reads **`pixiApp`** from the global store.

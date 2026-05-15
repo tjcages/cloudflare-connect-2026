@@ -69,6 +69,7 @@ export type AppStoreState = {
 
   translateCanvasPan: (dx: number, dy: number) => void;
   resetCanvasPan: () => void;
+  /** Zoom → 100% and clear pan so the canvas stays visible (pan is scaled with zoom; leaving it causes off-screen layout). */
   resetCanvasZoom: () => void;
 
   updateGridConfig: (patch: Partial<GridConfig>) => void;
@@ -191,7 +192,7 @@ export const useAppStore = create<AppStoreState>()(
             canvasPan: { x: s.canvasPan.x + dx, y: s.canvasPan.y + dy },
           })),
         resetCanvasPan: () => set({ canvasPan: { x: 0, y: 0 } }),
-        resetCanvasZoom: () => set({ canvasZoom: 1 }),
+        resetCanvasZoom: () => set({ canvasZoom: 1, canvasPan: { x: 0, y: 0 } }),
 
         updateGridConfig: (patch) =>
           set((s) => {

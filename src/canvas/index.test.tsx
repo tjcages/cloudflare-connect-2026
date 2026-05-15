@@ -127,7 +127,7 @@ describe("GridCanvas", () => {
     hitSpy.mockRestore();
   });
 
-  it("pans the viewport when primary-dragging empty canvas space past a small threshold", () => {
+  it("pans the viewport when ⌘/Ctrl+primary-dragging empty canvas space past a small threshold", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
       x: 0,
       y: 0,
@@ -149,6 +149,7 @@ describe("GridCanvas", () => {
       pointerId: 9,
       pointerType: "mouse",
       button: 0,
+      metaKey: true,
       clientX: 100,
       clientY: 100,
     });
@@ -157,7 +158,55 @@ describe("GridCanvas", () => {
       pointerId: 9,
       pointerType: "mouse",
       buttons: 1,
+      metaKey: true,
       clientX: 106,
+      clientY: 100,
+    });
+
+    fireEvent.pointerMove(canvas, {
+      pointerId: 9,
+      pointerType: "mouse",
+      buttons: 1,
+      metaKey: true,
+      clientX: 136,
+      clientY: 130,
+    });
+
+    expect(useAppStore.getState().canvasPan).toEqual({ x: 30, y: 30 });
+
+    fireEvent.pointerUp(canvas, {
+      pointerId: 9,
+      pointerType: "mouse",
+      button: 0,
+      metaKey: true,
+    });
+
+    expect(useAppStore.getState().canvasPan).toEqual({ x: 30, y: 30 });
+  });
+
+  it("does not pan the viewport when primary-dragging empty canvas without ⌘/Ctrl", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 800,
+      height: 560,
+      top: 0,
+      left: 0,
+      right: 800,
+      bottom: 560,
+      toJSON: () => "",
+    } as DOMRect);
+
+    useAppStore.setState({ instances: [], selectedInstanceId: null, canvasPan: { x: 0, y: 0 } });
+
+    render(<GridCanvas />);
+    const canvas = screen.getByTestId("builder-canvas");
+
+    fireEvent.pointerDown(canvas, {
+      pointerId: 9,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 100,
       clientY: 100,
     });
 
@@ -169,15 +218,13 @@ describe("GridCanvas", () => {
       clientY: 130,
     });
 
-    expect(useAppStore.getState().canvasPan).toEqual({ x: 30, y: 30 });
-
     fireEvent.pointerUp(canvas, {
       pointerId: 9,
       pointerType: "mouse",
       button: 0,
     });
 
-    expect(useAppStore.getState().canvasPan).toEqual({ x: 30, y: 30 });
+    expect(useAppStore.getState().canvasPan).toEqual({ x: 0, y: 0 });
   });
 
   it("keeps layer selection while viewport-panning empty canvas; tap empty clears", () => {
@@ -216,6 +263,7 @@ describe("GridCanvas", () => {
       pointerId: 2,
       pointerType: "mouse",
       button: 0,
+      metaKey: true,
       clientX: 400,
       clientY: 400,
     });
@@ -224,6 +272,7 @@ describe("GridCanvas", () => {
       pointerId: 2,
       pointerType: "mouse",
       buttons: 1,
+      metaKey: true,
       clientX: 406,
       clientY: 400,
     });
@@ -232,6 +281,7 @@ describe("GridCanvas", () => {
       pointerId: 2,
       pointerType: "mouse",
       buttons: 1,
+      metaKey: true,
       clientX: 430,
       clientY: 410,
     });
@@ -240,6 +290,7 @@ describe("GridCanvas", () => {
       pointerId: 2,
       pointerType: "mouse",
       button: 0,
+      metaKey: true,
     });
 
     expect(useAppStore.getState().selectedInstanceId).toBe(placed.id);
@@ -256,6 +307,8 @@ describe("GridCanvas", () => {
       pointerType: "mouse",
       button: 0,
     });
+
+    fireEvent.click(canvas, { clientX: 400, clientY: 400 });
 
     expect(useAppStore.getState().selectedInstanceId).toBeNull();
   });
@@ -292,5 +345,41 @@ describe("GridCanvas", () => {
     });
 
     expect(useAppStore.getState().canvasZoom).toBeGreaterThan(1);
+  });
+
+  it("pans the viewport when wheeling over the canvas without a modifier (trackpad scroll → pan)", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 800,
+      height: 560,
+      top: 0,
+      left: 0,
+      right: 800,
+      bottom: 560,
+      toJSON: () => "",
+    } as DOMRect);
+
+    useAppStore.setState({
+      instances: [],
+      selectedInstanceId: null,
+      canvasZoom: 1,
+      canvasPan: { x: 0, y: 0 },
+    });
+
+    render(<GridCanvas />);
+    const canvas = screen.getByTestId("builder-canvas");
+
+    fireEvent.wheel(canvas, {
+      deltaX: 10,
+      deltaY: 20,
+      deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+      metaKey: false,
+      ctrlKey: false,
+      clientX: 100,
+      clientY: 100,
+    });
+
+    expect(useAppStore.getState().canvasPan).toEqual({ x: -10, y: -20 });
   });
 });

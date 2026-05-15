@@ -8,8 +8,8 @@ export type EdgeScrollStep = {
 };
 
 /**
- * Scroll deltas when the pointer sits inside an edge zone of the panel viewport.
- * Used during canvas layer drag so oversized canvases can scroll like typical drag-and-scroll UIs.
+ * Edge auto-pan deltas when the pointer sits inside an edge zone of the panel viewport.
+ * Used during canvas layer drag; applied via translate (not native scroll).
  */
 export function getCanvasPanelEdgeScrollStep(
   panelViewportRect: PanelViewportRect,
