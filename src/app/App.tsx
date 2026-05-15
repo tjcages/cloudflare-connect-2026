@@ -4,7 +4,7 @@ import { copyDocumentPng } from "../canvas/pngExport";
 import { GridCanvas } from "../canvas";
 import { CanvasViewportToolbar } from "../components/CanvasViewportToolbar";
 import { ComponentDragGhost } from "../components/ComponentDragGhost";
-import { RAIL_TAB_ICON_PX } from "../components/iconTokens";
+import { RAIL_TAB_ICON_PX, RAIL_TAB_ICON_STROKE_WIDTH } from "../components/iconTokens";
 import { ComponentIcon } from "../components/ComponentIcon";
 import { ComponentBrowseSidebar, ComponentConfigSidebar } from "../components/ComponentSidebar";
 import { Sidebar } from "../components/Sidebar";
@@ -159,7 +159,12 @@ export const App = () => {
           onClick={() => setActiveTab("grid")}
         >
           <span data-testid="grid-divider-icon">
-            <ComponentIcon iconId="builder-grid" color="currentColor" size={RAIL_TAB_ICON_PX} />
+            <ComponentIcon
+              iconId="builder-grid"
+              color="currentColor"
+              size={RAIL_TAB_ICON_PX}
+              strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
+            />
           </span>
         </button>
         <button
@@ -171,11 +176,16 @@ export const App = () => {
           onClick={() => setActiveTab("components")}
         >
           <span data-testid="components-rail-icon">
-            <ComponentIcon iconId="builder-layers" color="currentColor" size={RAIL_TAB_ICON_PX} />
+            <ComponentIcon
+              iconId="builder-layers"
+              color="currentColor"
+              size={RAIL_TAB_ICON_PX}
+              strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
+            />
           </span>
         </button>
       </aside>
-      <aside className={activeTab === "components" ? "sidebar sidebar-components" : "sidebar"}>
+      <aside className={activeTab === "components" ? "sidebar sidebar-components" : "sidebar ui-scroll-overlay"}>
         {activeTab === "grid" ? (
           <Sidebar
             config={{

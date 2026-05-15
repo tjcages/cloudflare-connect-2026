@@ -136,12 +136,12 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
   }, [commitSelection, setActiveSelection, updateSelectionFromPointer]);
 
   return (
-    <div className="gap-editor">
-      <div className="gap-heading">
+    <div className="field gap-mask-field">
+      <div className="field-label-row">
         <span>Gaps</span>
-        <small>
+        <span className="component-position">
           {columns} x {rows}
-        </small>
+        </span>
       </div>
       <div ref={gridRef} className="gap-grid" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
         {mask.map((maskRow, row) =>

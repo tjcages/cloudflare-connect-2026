@@ -1,6 +1,7 @@
 import { Undo2 } from "lucide-react";
 import { DEFAULT_CONFIG } from "../grid/config";
 import { BASE_UNIT, type GapMask, type GridConfig } from "../grid/types";
+import { ConfigSeparator } from "./ConfigSeparator";
 import { GapMaskEditor } from "./GapMaskEditor";
 import { RatioControl } from "./RatioControl";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
@@ -118,24 +119,13 @@ export const Sidebar = ({
         </span>
       </div>
 
+      <GapMaskEditor mask={config.gapMask} onChange={onGapMaskChange} />
+
+      <ConfigSeparator />
+
       <button className="generate-button" type="button" onClick={onGenerate}>
         Generate
       </button>
-
-      <div className="field field-toggle-row">
-        <span>Animation</span>
-        <button
-          type="button"
-          data-testid="toggle-grid-animation"
-          className={["field-toggle-switch", config.connectorAnimationEnabled ? "field-toggle-switch-on" : ""]
-            .filter(Boolean)
-            .join(" ")}
-          aria-pressed={config.connectorAnimationEnabled}
-          onClick={() => onConfigChange({ ...config, connectorAnimationEnabled: !config.connectorAnimationEnabled })}
-        />
-      </div>
-
-      <GapMaskEditor mask={config.gapMask} onChange={onGapMaskChange} />
 
       <button className="export-button" type="button" onClick={onCopyPng}>
         {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy PNG"}

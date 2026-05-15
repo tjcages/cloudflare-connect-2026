@@ -51,7 +51,6 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
   const { instances, dragState, grid, selectedInstanceId } = useAppStore.getState();
   const gridStrokeHex = grid.config.strokeColor;
   const gridStrokeColor = parseHexColor(gridStrokeHex);
-  const connectorAnimationEnabled = grid.config.connectorAnimationEnabled;
   const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
   const toDraw = previewInstance === null ? instances : [...instances, previewInstance];
   const bounds = { width: grid.config.logicalWidth, height: grid.config.logicalHeight };
@@ -82,7 +81,6 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
         gridStrokeHex,
         bounds,
         selectedInstanceId,
-        connectorAnimationEnabled,
       );
       continue;
     }
@@ -112,7 +110,6 @@ const syncConnectorLine = (
   gridStrokeHex: string,
   bounds: { width: number; height: number },
   selectedInstanceId: string | null,
-  connectorAnimationEnabled: boolean,
 ) => {
   const fingerprint = getConnectorRenderFingerprint(
     instance,
@@ -120,7 +117,6 @@ const syncConnectorLine = (
     gridStrokeColor,
     bounds,
     instance.id === selectedInstanceId,
-    connectorAnimationEnabled,
   );
 
   if (fingerprint === null) {
@@ -147,7 +143,6 @@ const syncConnectorLine = (
       gridStrokeHex,
       bounds,
       instance.id === selectedInstanceId,
-      connectorAnimationEnabled,
     );
     if (!parts) {
       return;

@@ -78,7 +78,6 @@ export const getConnectorRenderFingerprint = (
   gridStrokeColor: number,
   bounds: { width: number; height: number },
   selected: boolean,
-  connectorAnimationEnabled: boolean,
 ): string | null => {
   const source = resolveConnectorEndpoint(instance.props.source, instances);
   const target = resolveConnectorEndpoint(instance.props.target, instances);
@@ -99,7 +98,6 @@ export const getConnectorRenderFingerprint = (
     selected,
     overlayGrid: instance.props.overlayGrid,
     animated: instance.props.animated,
-    connectorAnimationEnabled,
     sourceTheme: getConnectorEndpointThemeSignature(instance.props.source, instances),
     targetTheme: getConnectorEndpointThemeSignature(instance.props.target, instances),
   });
@@ -112,7 +110,6 @@ export const buildConnectorLine = (
   gridStrokeHex: string,
   bounds?: { width: number; height: number },
   selected = false,
-  connectorAnimationEnabled = true,
 ): ConnectorDisplayParts | null => {
   const source = resolveConnectorEndpoint(instance.props.source, instances);
   const target = resolveConnectorEndpoint(instance.props.target, instances);
@@ -209,7 +206,7 @@ export const buildConnectorLine = (
     }
   };
 
-  if (connectorAnimationEnabled && instance.props.animated && metrics.totalLength > 0) {
+  if (instance.props.animated && metrics.totalLength > 0) {
     const maskShape = new Graphics();
     drawPolyline(maskShape, points);
     maskShape.stroke({ width: CONNECTOR_UNDER_STROKE_WIDTH, color: 0xffffff });

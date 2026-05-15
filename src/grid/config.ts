@@ -9,7 +9,6 @@ export const DEFAULT_CONFIG: GridConfig = {
   smallCellRatio: 0.2,
   largeCellRatio: 0.8,
   strokeColor: STROKE_COLOR,
-  connectorAnimationEnabled: true,
   gapMask: [],
 };
 
@@ -78,7 +77,6 @@ export const normalizeConfig = (config: GridConfig): NormalizedGridConfig => {
     density,
     seed: config.seed.trim() || DEFAULT_CONFIG.seed,
     strokeColor: config.strokeColor?.trim() || DEFAULT_CONFIG.strokeColor,
-    connectorAnimationEnabled: config.connectorAnimationEnabled ?? DEFAULT_CONFIG.connectorAnimationEnabled,
     logicalWidth,
     logicalHeight,
     renderWidth: logicalWidth + 1,

@@ -6,12 +6,20 @@ type ComponentIconProps = {
   color: string;
   size?: number;
   className?: string;
+  /** Overrides registry `strokeWidth` for stroked icons. */
+  strokeWidth?: number;
 };
 
-export const ComponentIcon = ({ iconId, color, size = 24, className = "component-icon" }: ComponentIconProps) => {
+export const ComponentIcon = ({
+  iconId,
+  color,
+  size = 24,
+  className = "component-icon",
+  strokeWidth: strokeWidthOverride,
+}: ComponentIconProps) => {
   const icon = getIconDefinition(iconId);
 
-  const strokeW = icon.strokeWidth ?? 1.25;
+  const strokeW = strokeWidthOverride ?? icon.strokeWidth ?? 1.25;
 
   return (
     <svg

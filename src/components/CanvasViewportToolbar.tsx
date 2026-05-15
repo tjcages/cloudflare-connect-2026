@@ -1,5 +1,5 @@
 import { Minus, Plus, RotateCcw } from "lucide-react";
-import { useCallback, type RefObject } from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 import { CANVAS_ZOOM_MAX, CANVAS_ZOOM_MIN, clampCanvasZoom, zoomAroundCanvasPoint } from "../canvas/viewZoom";
 import { useAppStore } from "../store";
 
@@ -13,6 +13,33 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
   const canvasZoom = useAppStore((s) => s.canvasZoom);
   const canvasPan = useAppStore((s) => s.canvasPan);
   const resetCanvasZoom = useAppStore((s) => s.resetCanvasZoom);
+  const pixiApp = useAppStore((s) => s.pixiApp);
+  const [fps, setFps] = useState(0);
+
+  useEffect(() => {
+    if (!pixiApp) {
+      return;
+    }
+
+    let lastSample = performance.now();
+    let frames = 0;
+
+    const onTick = () => {
+      frames += 1;
+      const now = performance.now();
+      if (now - lastSample >= 400) {
+        const nextFps = (frames * 1000) / (now - lastSample);
+        setFps(nextFps);
+        frames = 0;
+        lastSample = now;
+      }
+    };
+
+    pixiApp.ticker.add(onTick);
+    return () => {
+      pixiApp.ticker.remove(onTick);
+    };
+  }, [pixiApp]);
 
   const bumpZoom = useCallback(
     (direction: 1 | -1) => {
@@ -45,27 +72,30 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
 
   return (
     <div className="canvas-panel-viewport-toolbar" role="toolbar" aria-label="Canvas zoom">
-      <button
-        type="button"
-        className="canvas-toolbar-button"
-        aria-label="Zoom out"
-        title="Zoom out"
-        disabled={zoomOutDisabled}
-        onClick={() => bumpZoom(-1)}
-      >
-        <Minus size={15} strokeWidth={2} aria-hidden />
-      </button>
-      <span className="canvas-toolbar-zoom-readout">{Math.round(canvasZoom * 100)}%</span>
-      <button
-        type="button"
-        className="canvas-toolbar-button"
-        aria-label="Zoom in"
-        title="Zoom in"
-        disabled={zoomInDisabled}
-        onClick={() => bumpZoom(1)}
-      >
-        <Plus size={15} strokeWidth={2} aria-hidden />
-      </button>
+      <div className="canvas-toolbar-zoom-group">
+        <button
+          type="button"
+          className="canvas-toolbar-button"
+          aria-label="Zoom out"
+          title="Zoom out"
+          disabled={zoomOutDisabled}
+          onClick={() => bumpZoom(-1)}
+        >
+          <Minus size={12} strokeWidth={2} aria-hidden />
+        </button>
+        <span className="canvas-toolbar-zoom-readout">{Math.round(canvasZoom * 100)}%</span>
+        <button
+          type="button"
+          className="canvas-toolbar-button"
+          aria-label="Zoom in"
+          title="Zoom in"
+          disabled={zoomInDisabled}
+          onClick={() => bumpZoom(1)}
+        >
+          <Plus size={12} strokeWidth={2} aria-hidden />
+        </button>
+      </div>
+      <span className="canvas-toolbar-vsep" aria-hidden />
       <button
         type="button"
         className="canvas-toolbar-button"
@@ -74,8 +104,12 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
         disabled={resetDisabled}
         onClick={() => resetCanvasZoom()}
       >
-        <RotateCcw size={14} strokeWidth={2} aria-hidden />
+        <RotateCcw size={12} strokeWidth={2} aria-hidden />
       </button>
+      <div className="canvas-toolbar-spacer" aria-hidden />
+      <span className="canvas-toolbar-fps" aria-label="Render frames per second">
+        FPS {(pixiApp ? fps : 0).toFixed(2)}
+      </span>
     </div>
   );
 };

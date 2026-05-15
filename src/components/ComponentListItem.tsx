@@ -9,6 +9,7 @@ type ComponentListItemProps = {
   testId?: string;
   onClick?: MouseEventHandler<HTMLElement>;
   onPointerDown?: PointerEventHandler<HTMLElement>;
+  onPointerEnter?: PointerEventHandler<HTMLElement>;
   as?: "div" | "button";
 };
 
@@ -21,6 +22,7 @@ export const ComponentListItem = ({
   testId,
   onClick,
   onPointerDown,
+  onPointerEnter,
   as = "div",
 }: ComponentListItemProps) => {
   const content = (
@@ -43,6 +45,7 @@ export const ComponentListItem = ({
         type="button"
         onClick={onClick as MouseEventHandler<HTMLButtonElement> | undefined}
         onPointerDown={onPointerDown as PointerEventHandler<HTMLButtonElement> | undefined}
+        onPointerEnter={onPointerEnter as PointerEventHandler<HTMLButtonElement> | undefined}
       >
         {content}
       </button>
@@ -50,7 +53,11 @@ export const ComponentListItem = ({
   }
 
   return (
-    <div className={classes} data-testid={testId}>
+    <div
+      className={classes}
+      data-testid={testId}
+      onPointerEnter={onPointerEnter as PointerEventHandler<HTMLDivElement> | undefined}
+    >
       {content}
     </div>
   );

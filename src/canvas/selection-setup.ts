@@ -26,6 +26,20 @@ export const getConnectorSelectionCellPoints = (
   return points;
 };
 
+const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance) => {
+  if (inst.type === "connector-line") {
+    return;
+  }
+  const b = getInstanceHighlightBounds(inst);
+  let w = b.width;
+  let h = b.height;
+  if (inst.type === "icon-box" || inst.type === "plus-marker" || inst.type === "rect-marker") {
+    w += 1;
+    h += 1;
+  }
+  graphics.rect(b.x + 0.5, b.y + 0.5, w - 1, h - 1).stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR });
+};
+
 export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
   const graphics = new Graphics();
   app.stage.addChild(graphics);
@@ -33,7 +47,7 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
   const sync = () => {
     graphics.clear();
 
-    const { selectedInstanceId, instances, connectorEndpointPick } = useAppStore.getState();
+    const { selectedInstanceId, instances, connectorEndpointPick, sidebarHoveredLayerId } = useAppStore.getState();
     const connectorSelectionCells = getConnectorSelectionCellPoints(
       selectedInstanceId,
       instances,
@@ -41,6 +55,13 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
     );
     for (const point of connectorSelectionCells) {
       drawCellHighlight(graphics, point);
+    }
+
+    const hoveredSidebarLayer = sidebarHoveredLayerId
+      ? instances.find((i) => i.id === sidebarHoveredLayerId)
+      : undefined;
+    if (hoveredSidebarLayer && hoveredSidebarLayer.id !== selectedInstanceId) {
+      drawInstanceHighlightRect(graphics, hoveredSidebarLayer);
     }
 
     if (selectedInstanceId === null) {
@@ -52,19 +73,7 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       return;
     }
 
-    if (inst.type === "connector-line") {
-      return;
-    }
-
-    const b = getInstanceHighlightBounds(inst);
-    let w = b.width;
-    let h = b.height;
-    /** Icon-box / small markers: selection stroke +1px wider/taller; origin unchanged from bounds. */
-    if (inst.type === "icon-box" || inst.type === "plus-marker" || inst.type === "rect-marker") {
-      w += 1;
-      h += 1;
-    }
-    graphics.rect(b.x + 0.5, b.y + 0.5, w - 1, h - 1).stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR });
+    drawInstanceHighlightRect(graphics, inst);
   };
 
   sync();
@@ -73,7 +82,8 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
     if (
       state.selectedInstanceId !== prev.selectedInstanceId ||
       state.instances !== prev.instances ||
-      state.connectorEndpointPick !== prev.connectorEndpointPick
+      state.connectorEndpointPick !== prev.connectorEndpointPick ||
+      state.sidebarHoveredLayerId !== prev.sidebarHoveredLayerId
     ) {
       sync();
     }

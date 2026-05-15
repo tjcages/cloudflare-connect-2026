@@ -65,6 +65,8 @@ export type AppStoreState = {
   canvasZoom: number;
   dragState: CanvasDragState | null;
   connectorEndpointPick: ConnectorEndpointPickState | null;
+  /** Canvas highlight for a layer hovered in the sidebar (layers list or connector dropdown). */
+  sidebarHoveredLayerId: string | null;
   nextInstanceIndex: number;
   setPixiApp: (app: Application | null) => void;
 
@@ -103,6 +105,7 @@ export type AppStoreState = {
   setConnectorEndpointHoverCell: (x: number, y: number) => void;
   clearConnectorEndpointHoverCell: () => void;
   setConnectorEndpointCell: (x: number, y: number) => void;
+  setSidebarHoveredLayerId: (id: string | null) => void;
 };
 
 const createSeed = () => {
@@ -185,6 +188,7 @@ export const useAppStore = create<AppStoreState>()(
         canvasZoom: 1,
         dragState: null,
         connectorEndpointPick: null,
+        sidebarHoveredLayerId: null,
 
         setPixiApp: (app) => set({ pixiApp: app }),
 
@@ -431,6 +435,8 @@ export const useAppStore = create<AppStoreState>()(
               }),
             };
           }),
+
+        setSidebarHoveredLayerId: (id) => set({ sidebarHoveredLayerId: id }),
       }),
       {
         partialize: getDocumentHistorySlice,
@@ -466,6 +472,7 @@ export const resetAppStoreDocumentToDefault = () => {
     canvasZoom: 1,
     dragState: null,
     connectorEndpointPick: null,
+    sidebarHoveredLayerId: null,
   }));
   temporalStore.clear();
   temporalStore.resume();

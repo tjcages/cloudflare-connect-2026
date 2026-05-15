@@ -32,4 +32,11 @@ describe("ComponentIcon", () => {
     });
     expect(paths[0]).toHaveAttribute("stroke-width", "1.25");
   });
+
+  it("allows overriding stroke width for stroke icons", () => {
+    const { container } = render(<ComponentIcon iconId="user-outline" color="#111" strokeWidth={2} />);
+
+    const paths = container.querySelectorAll("path");
+    expect(paths[0]).toHaveAttribute("stroke-width", "2");
+  });
 });

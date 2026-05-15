@@ -96,34 +96,3 @@ describe("Sidebar stroke color field", () => {
     expect(screen.queryByTestId("stroke-color-reset")).not.toBeInTheDocument();
   });
 });
-
-describe("Sidebar Animation toggle", () => {
-  it("requests a grid config toggle for connector pulses", () => {
-    const { onConfigChange } = renderSidebar();
-    fireEvent.click(screen.getByTestId("toggle-grid-animation"));
-    expect(onConfigChange).toHaveBeenCalledWith({
-      ...DEFAULT_CONFIG,
-      connectorAnimationEnabled: false,
-    });
-  });
-
-  it("shows the switch off when connector animations are disabled", () => {
-    renderSidebar({
-      config: {
-        ...DEFAULT_CONFIG,
-        connectorAnimationEnabled: false,
-      },
-    });
-    expect(screen.getByTestId("toggle-grid-animation")).not.toHaveClass("field-toggle-switch-on");
-  });
-
-  it("shows the switch on when connector animations are enabled", () => {
-    renderSidebar({
-      config: {
-        ...DEFAULT_CONFIG,
-        connectorAnimationEnabled: true,
-      },
-    });
-    expect(screen.getByTestId("toggle-grid-animation")).toHaveClass("field-toggle-switch-on");
-  });
-});

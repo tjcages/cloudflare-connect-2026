@@ -54,12 +54,14 @@ describe("mergePersistedDocument", () => {
     expect(merged.dummyAction).toBeDefined();
   });
 
-  it("defaults connectorAnimationEnabled when missing from persisted gridConfig", () => {
+  it("strips legacy connectorAnimationEnabled from persisted gridConfig", () => {
     const current = minimalStoreForMerge();
-    const { connectorAnimationEnabled: _omit, ...legacyGrid } = DEFAULT_CONFIG;
     const merged = mergePersistedDocument(
       {
-        gridConfig: legacyGrid as typeof DEFAULT_CONFIG,
+        gridConfig: {
+          ...DEFAULT_CONFIG,
+          connectorAnimationEnabled: false,
+        } as unknown,
         instances: [],
         nextInstanceIndex: 2,
         selectedInstanceId: null,
@@ -67,24 +69,8 @@ describe("mergePersistedDocument", () => {
       current,
     );
 
-    expect(merged.gridConfig.connectorAnimationEnabled).toBe(true);
-    expect(merged.grid.config.connectorAnimationEnabled).toBe(true);
-  });
-
-  it("preserves disabled connectorAnimationEnabled from persisted gridConfig", () => {
-    const current = minimalStoreForMerge();
-    const merged = mergePersistedDocument(
-      {
-        gridConfig: { ...DEFAULT_CONFIG, connectorAnimationEnabled: false },
-        instances: [],
-        nextInstanceIndex: 2,
-        selectedInstanceId: null,
-      },
-      current,
-    );
-
-    expect(merged.gridConfig.connectorAnimationEnabled).toBe(false);
-    expect(merged.grid.config.connectorAnimationEnabled).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(merged.gridConfig, "connectorAnimationEnabled")).toBe(false);
+    expect(merged.gridConfig.seed).toBe(DEFAULT_CONFIG.seed);
   });
 
   it("drops selection when the id is not among instances", () => {

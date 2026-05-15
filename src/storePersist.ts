@@ -291,15 +291,18 @@ export const mergePersistedDocument = <T extends DocumentMergeFields & Record<st
     return currentState;
   }
 
-  const persistedGrid = persistedState.gridConfig as GridConfig & { overlayGrid?: unknown };
-  const { overlayGrid: _legacyDocumentOverlay, ...restPersistedGrid } = persistedGrid;
+  const persistedGrid = persistedState.gridConfig as GridConfig & {
+    overlayGrid?: unknown;
+    connectorAnimationEnabled?: unknown;
+  };
+  const {
+    overlayGrid: _legacyDocumentOverlay,
+    connectorAnimationEnabled: _legacyConnectorAnimation,
+    ...restPersistedGrid
+  } = persistedGrid;
   const gridConfig: GridConfig = {
     ...DEFAULT_CONFIG,
     ...restPersistedGrid,
-    connectorAnimationEnabled:
-      typeof restPersistedGrid.connectorAnimationEnabled === "boolean"
-        ? restPersistedGrid.connectorAnimationEnabled
-        : DEFAULT_CONFIG.connectorAnimationEnabled,
   };
 
   const grid = generateGrid(gridConfig);
