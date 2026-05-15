@@ -5,9 +5,8 @@ import { CONNECTOR_HIGHLIGHT_COLOR } from "../constants";
 import { getPolylineMetrics, slicePolylineByDistance } from "./pathMotion";
 import {
   getConnectorCornerPoints,
-  getConnectorLineEndpointHighlightCenters,
   getConnectorSegmentCells,
-  resolveConnectorLineEndpoints,
+  resolveConnectorEndpoint,
   routeConnectorPath,
 } from "./route";
 import { getConnectorEndpointThemeSignature, resolveConnectorEndpointThemeFill } from "./sourceTheme";
@@ -56,6 +55,7 @@ export const getConnectorRenderSpec = (selected: boolean, gridStrokeColor: numbe
 export type ConnectorDisplayParts = {
   structureRoot: Container;
   chromeRoot: Container;
+  chromePulseRoot: Container;
   /** Stop Motion `animate` + motion value listeners when the layer is torn down. */
   disposeConnectorAnimation?: () => void;
 };
@@ -82,15 +82,11 @@ export const getConnectorRenderFingerprint = (
   bounds: { width: number; height: number },
   selected: boolean,
 ): string | null => {
-  const resolved = resolveConnectorLineEndpoints(instance, instances);
-  if (!resolved) {
+  const source = resolveConnectorEndpoint(instance.props.source, instances);
+  const target = resolveConnectorEndpoint(instance.props.target, instances);
+  if (!source || !target) {
     return null;
   }
-  const { source, target } = resolved;
-
-  const highlightCenters = getConnectorLineEndpointHighlightCenters(instance, instances, resolved)
-    .slice()
-    .sort((a, b) => a.x - b.x || a.y - b.y);
 
   return JSON.stringify({
     preferredConnection: instance.props.preferredConnection,
@@ -100,7 +96,6 @@ export const getConnectorRenderFingerprint = (
     sy: source.y,
     tx: target.x,
     ty: target.y,
-    endpointHighlightFrames: highlightCenters,
     gridStrokeColor,
     bounds,
     selected,
@@ -119,20 +114,17 @@ export const buildConnectorLine = (
   bounds?: { width: number; height: number },
   selected = false,
 ): ConnectorDisplayParts | null => {
-  const resolved = resolveConnectorLineEndpoints(instance, instances);
-  if (!resolved) {
+  const source = resolveConnectorEndpoint(instance.props.source, instances);
+  const target = resolveConnectorEndpoint(instance.props.target, instances);
+  if (!source || !target) {
     return null;
   }
-  const { source, target } = resolved;
-
-  const endpointHighlightFrames = getConnectorLineEndpointHighlightCenters(instance, instances, resolved);
 
   const points = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
   const renderSpec = getConnectorRenderSpec(selected, gridStrokeColor);
   const segmentOverlay = instance.props.overlayGrid;
   const structureRoot = new Container();
   const chromeRoot = new Container();
-  /** Pulse subtree is parented last on `chromeRoot` so masking + layering stay deterministic vs other layers’ chrome. */
   const chromePulseRoot = new Container();
 
   const segmentFrames = new Graphics();
@@ -156,7 +148,7 @@ export const buildConnectorLine = (
 
   if (selected) {
     const endpointFrames = new Graphics();
-    for (const point of endpointHighlightFrames) {
+    for (const point of [source, target]) {
       if (segmentOverlay) {
         endpointFrames
           .rect(
@@ -346,7 +338,6 @@ export const buildConnectorLine = (
 
   chromeRoot.addChild(corners);
   chromePulseRoot.addChild(litCorners);
-  chromeRoot.addChild(chromePulseRoot);
 
-  return { structureRoot, chromeRoot, disposeConnectorAnimation };
+  return { structureRoot, chromeRoot, chromePulseRoot, disposeConnectorAnimation };
 };

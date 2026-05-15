@@ -1,7 +1,7 @@
 import { getInstanceCanvasBounds } from "../lib/componentRegistry";
 import type { ComponentInstance } from "../grid/types";
 import {
-  resolveConnectorLineEndpoints,
+  resolveConnectorEndpoint,
   routeConnectorPath,
   type ConnectorRouteBounds,
 } from "./components/connector-line/route";
@@ -15,11 +15,11 @@ const isPointNearConnectorPath = (
   y: number,
   bounds?: ConnectorRouteBounds,
 ) => {
-  const resolved = resolveConnectorLineEndpoints(instance, instances);
-  if (!resolved) {
+  const source = resolveConnectorEndpoint(instance.props.source, instances);
+  const target = resolveConnectorEndpoint(instance.props.target, instances);
+  if (!source || !target) {
     return false;
   }
-  const { source, target } = resolved;
 
   const points = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
   for (let index = 0; index < points.length - 1; index += 1) {
