@@ -5,7 +5,12 @@ import { getConnectorCornerCapRect, getConnectorRenderSpec } from "./setup";
 describe("connector line render spec", () => {
   it("places segment and endpoint frames in the structural plane below connector chrome", () => {
     expect(getConnectorRenderSpec(false, 0xf3f3f3).structuralDrawOrder).toEqual(["segmentFrames", "endpointFrames"]);
-    expect(getConnectorRenderSpec(false, 0xf3f3f3).chromeBaseDrawOrder).toEqual(["lineUnderlay", "line", "corners"]);
+    expect(getConnectorRenderSpec(false, 0xf3f3f3).chromeTracksDrawOrder).toEqual([
+      "lineUnderlay",
+      "line",
+      "routeMask",
+    ]);
+    expect(getConnectorRenderSpec(false, 0xf3f3f3).jointsChromeDrawOrder).toEqual(["cornerCaps"]);
     expect(getConnectorRenderSpec(false, 0xf3f3f3).chromePulseDrawOrder).toEqual(["connectorWave", "litCorners"]);
   });
 

@@ -163,9 +163,9 @@ describe("componentRegistry", () => {
     expect(snapped.y + ICON_BOX_SNAP_ANCHOR_Y).toBe(120);
   });
 
-  it("resolves icon-box-2x1 anchors using the horizontal west-edge anchor from the registry", () => {
+  it("resolves icon-box-2x1 connector anchors at the shadow-card center (west edge is only for position snap)", () => {
     const inst = createComponentInstance("icon-box-2x1", 43, 79, 2, 800, 560);
-    expect(getInstanceAnchorPoint(inst)).toEqual({ x: 0, y: 120 });
+    expect(getInstanceAnchorPoint(inst)).toEqual({ x: 80, y: 120 });
   });
 
   it("uses wider shadow-card hit bounds for icon-box-2x1", () => {

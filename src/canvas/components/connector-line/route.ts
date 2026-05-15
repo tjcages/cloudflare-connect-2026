@@ -7,6 +7,7 @@ import {
 } from "../../../grid/types";
 
 export type ConnectorPoint = { x: number; y: number };
+
 export type ConnectorSegmentCell = { x: number; y: number; width: number; height: number };
 export type ConnectorRouteBounds = { width: number; height: number };
 
@@ -291,6 +292,213 @@ export const getConnectorCornerPoints = (points: ConnectorPoint[]): ConnectorPoi
     }
   }
   return corners;
+};
+
+export const connectorPointKey = (p: ConnectorPoint): string => `${p.x}:${p.y}`;
+
+/** True if `q` lies on axis-aligned segment `[a,b]` (inclusive). */
+export const isPointOnOrthoSegment = (a: ConnectorPoint, b: ConnectorPoint, q: ConnectorPoint): boolean => {
+  if (a.y === b.y) {
+    const y = a.y;
+    if (q.y !== y) {
+      return false;
+    }
+    const minX = Math.min(a.x, b.x);
+    const maxX = Math.max(a.x, b.x);
+    return q.x >= minX && q.x <= maxX;
+  }
+  if (a.x === b.x) {
+    const x = a.x;
+    if (q.x !== x) {
+      return false;
+    }
+    const minY = Math.min(a.y, b.y);
+    const maxY = Math.max(a.y, b.y);
+    return q.y >= minY && q.y <= maxY;
+  }
+  return false;
+};
+
+export const isPointOnConnectorPolyline = (points: ConnectorPoint[], q: ConnectorPoint): boolean => {
+  for (let i = 0; i < points.length - 1; i += 1) {
+    if (isPointOnOrthoSegment(points[i]!, points[i + 1]!, q)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const getConnectorNativeCornerKeySet = (points: ConnectorPoint[]): Set<string> =>
+  new Set(getConnectorCornerPoints(points).map(connectorPointKey));
+
+/**
+ * Nodes from other connectors (bends + perpendicular crossings) that lie on this polyline without being a bend here —
+ * callers draw joint caps at these coordinates so crossings look consistent.
+ */
+export const getForeignCornerOverlapPoints = (
+  points: ConnectorPoint[],
+  foreignCorners: Iterable<ConnectorPoint>,
+): ConnectorPoint[] => {
+  const native = getConnectorNativeCornerKeySet(points);
+  const seen = new Set<string>();
+  const out: ConnectorPoint[] = [];
+  for (const c of foreignCorners) {
+    const k = connectorPointKey(c);
+    if (native.has(k) || seen.has(k)) {
+      continue;
+    }
+    if (!isPointOnConnectorPolyline(points, c)) {
+      continue;
+    }
+    seen.add(k);
+    out.push(c);
+  }
+  return out;
+};
+
+/** All bend vertices from other connector lines — used so routes that pass through inherit a visible joint. */
+export const collectOtherConnectorCornerPoints = (
+  selfId: string,
+  instances: ComponentInstance[],
+  bounds?: ConnectorRouteBounds,
+): ConnectorPoint[] => {
+  const all: ConnectorPoint[] = [];
+  for (const inst of instances) {
+    if (inst.type !== "connector-line" || inst.id === selfId) {
+      continue;
+    }
+    const s = resolveConnectorEndpoint(inst.props.source, instances);
+    const t = resolveConnectorEndpoint(inst.props.target, instances);
+    if (!s || !t) {
+      continue;
+    }
+    const routed = routeConnectorPath(s, t, inst.props.preferredConnection, bounds);
+    all.push(...getConnectorCornerPoints(routed));
+  }
+  return all;
+};
+
+export const crossingsBetweenOrthoPolylines = (a: ConnectorPoint[], b: ConnectorPoint[]): ConnectorPoint[] => {
+  const seen = new Set<string>();
+  const out: ConnectorPoint[] = [];
+  for (let i = 0; i < a.length - 1; i += 1) {
+    const ax = a[i]!;
+    const ay = a[i + 1]!;
+    for (let j = 0; j < b.length - 1; j += 1) {
+      const bx = b[j]!;
+      const by = b[j + 1]!;
+      const hit = orthogonalSegmentIntersection(ax, ay, bx, by);
+      if (hit === null) {
+        continue;
+      }
+      const k = connectorPointKey(hit);
+      if (seen.has(k)) {
+        continue;
+      }
+      seen.add(k);
+      out.push(hit);
+    }
+  }
+  return out;
+};
+
+/**
+ * Crossing of perpendicular axis-aligned segments. Returns null for parallel overlaps or skew (non‑orthogonal routes).
+ */
+export const orthogonalSegmentIntersection = (
+  a: ConnectorPoint,
+  b: ConnectorPoint,
+  c: ConnectorPoint,
+  d: ConnectorPoint,
+): ConnectorPoint | null => {
+  if (a.y === b.y && c.x === d.x) {
+    return meetHorizontalVertical(a, b, c, d);
+  }
+  if (a.x === b.x && c.y === d.y) {
+    return meetHorizontalVertical(c, d, a, b);
+  }
+  return null;
+};
+
+const meetHorizontalVertical = (
+  h0: ConnectorPoint,
+  h1: ConnectorPoint,
+  v0: ConnectorPoint,
+  v1: ConnectorPoint,
+): ConnectorPoint | null => {
+  const y = h0.y;
+  const x = v0.x;
+  const hx0 = Math.min(h0.x, h1.x);
+  const hx1 = Math.max(h0.x, h1.x);
+  const vy0 = Math.min(v0.y, v1.y);
+  const vy1 = Math.max(v0.y, v1.y);
+  if (x < hx0 || x > hx1 || y < vy0 || y > vy1) {
+    return null;
+  }
+  return { x, y };
+};
+
+/** Other‑connector bend points plus perpendicular crossings (shared grid nodes across routes). */
+export const collectExternalJunctionHints = (
+  selfId: string,
+  selfPoints: ConnectorPoint[],
+  instances: ComponentInstance[],
+  bounds?: ConnectorRouteBounds,
+): ConnectorPoint[] => {
+  const seen = new Set<string>();
+  const out: ConnectorPoint[] = [];
+  const pushUnique = (p: ConnectorPoint) => {
+    const k = connectorPointKey(p);
+    if (seen.has(k)) {
+      return;
+    }
+    seen.add(k);
+    out.push(p);
+  };
+
+  for (const c of collectOtherConnectorCornerPoints(selfId, instances, bounds)) {
+    pushUnique(c);
+  }
+
+  for (const inst of instances) {
+    if (inst.type !== "connector-line" || inst.id === selfId) {
+      continue;
+    }
+    const s = resolveConnectorEndpoint(inst.props.source, instances);
+    const t = resolveConnectorEndpoint(inst.props.target, instances);
+    if (!s || !t) {
+      continue;
+    }
+    const peer = routeConnectorPath(s, t, inst.props.preferredConnection, bounds);
+    for (const px of crossingsBetweenOrthoPolylines(selfPoints, peer)) {
+      pushUnique(px);
+    }
+  }
+
+  return out;
+};
+
+/** Invalidates connector Pixi caches when any route topology changes (shared junction art). */
+export const getConnectorRouteTopologySignature = (
+  instances: ComponentInstance[],
+  bounds?: ConnectorRouteBounds,
+): string => {
+  const parts: string[] = [];
+  for (const inst of instances) {
+    if (inst.type !== "connector-line") {
+      continue;
+    }
+    const s = resolveConnectorEndpoint(inst.props.source, instances);
+    const t = resolveConnectorEndpoint(inst.props.target, instances);
+    if (!s || !t) {
+      parts.push(`${inst.id}:`);
+      continue;
+    }
+    const routed = routeConnectorPath(s, t, inst.props.preferredConnection, bounds);
+    parts.push(`${inst.id}:${routed.map(connectorPointKey).join("|")}`);
+  }
+  parts.sort();
+  return parts.join(";");
 };
 
 export const getConnectorSegmentCells = (points: ConnectorPoint[]): ConnectorSegmentCell[] => {

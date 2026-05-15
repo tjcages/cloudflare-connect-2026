@@ -4,6 +4,7 @@ import {
   ICON_BOX_OUTER_HEIGHT,
   ICON_BOX_SNAP_ANCHOR_X,
   ICON_BOX_SNAP_ANCHOR_Y,
+  getIconBoxConnectorAnchorInRootSpace,
   getIconBoxFullHighlightBoundsInRootSpace,
   getIconBoxLayoutVariant,
   getIconBoxShadowCardBoundsInRootSpace,
@@ -238,6 +239,10 @@ export const snapComponentPosition = (
 };
 
 export const getInstanceAnchorPoint = (instance: ComponentInstance): { x: number; y: number } => {
+  if (isIconBoxComponentType(instance.type)) {
+    const anchor = getIconBoxConnectorAnchorInRootSpace(instance.type);
+    return { x: instance.x + anchor.x, y: instance.y + anchor.y };
+  }
   const definition = getComponentDefinition(instance.type);
   return {
     x: instance.x + definition.snapAnchorX,

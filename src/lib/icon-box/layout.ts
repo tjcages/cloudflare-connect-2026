@@ -96,14 +96,19 @@ export const getIconBoxFullHighlightBoundsInRootSpace = (
   };
 };
 
-const snapAnchorForVariant = (variant: IconBoxLayoutVariant): { x: number; y: number } => {
+/**
+ * Center of the shadow-card rect in instance root space.
+ * Used for connector layer endpoints for both variants. For 2×1, position snapping still uses
+ * {@link ICON_BOX_2X1_SNAP_ANCHOR_X} (west frame edge) so the wide box lands on the 160px lattice.
+ */
+export const getIconBoxConnectorAnchorInRootSpace = (variant: IconBoxLayoutVariant): { x: number; y: number } => {
   const r = getIconBoxShadowCardBoundsInRootSpace(variant);
   return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 };
 
 /** 1×1 instance-root snap point: center of the shadow-card interaction rect. */
-export const ICON_BOX_SNAP_ANCHOR_X = snapAnchorForVariant("icon-box").x;
-export const ICON_BOX_SNAP_ANCHOR_Y = snapAnchorForVariant("icon-box").y;
+export const ICON_BOX_SNAP_ANCHOR_X = getIconBoxConnectorAnchorInRootSpace("icon-box").x;
+export const ICON_BOX_SNAP_ANCHOR_Y = getIconBoxConnectorAnchorInRootSpace("icon-box").y;
 
 /**
  * 2×1 horizontal snap: aligns the shadow-card west edge (`instance.x` + this) to multiples of

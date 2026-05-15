@@ -36,7 +36,8 @@ type LayerCacheEntry =
   | {
       kind: "connector-line";
       structureRoot: Container;
-      chromeRoot: Container;
+      tracksChromeRoot: Container;
+      jointsChromeRoot: Container;
       chromePulseRoot: Container;
       fingerprint: string;
       disposeConnectorAnimation?: () => void;
@@ -45,12 +46,15 @@ type LayerCacheEntry =
 const destroyLayerEntry = (entry: LayerCacheEntry) => {
   if (entry.kind === "connector-line") {
     entry.disposeConnectorAnimation?.();
+    entry.tracksChromeRoot.destroy({ children: true });
+    entry.jointsChromeRoot.destroy({ children: true });
+    entry.chromePulseRoot.destroy({ children: true });
+    entry.structureRoot.destroy({ children: true });
+    return;
   }
+
   entry.structureRoot.destroy({ children: true });
   entry.chromeRoot.destroy({ children: true });
-  if (entry.kind === "connector-line") {
-    entry.chromePulseRoot.destroy({ children: true });
-  }
 };
 
 const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Map<string, LayerCacheEntry>) => {
@@ -158,24 +162,28 @@ const syncConnectorLine = (
     }
 
     parts.structureRoot.zIndex = z;
-    parts.chromeRoot.zIndex = COMPONENT_LAYER_BASE_Z;
-    parts.chromePulseRoot.zIndex = z;
+    parts.tracksChromeRoot.zIndex = z;
+    parts.jointsChromeRoot.zIndex = z + 1;
+    parts.chromePulseRoot.zIndex = z + 2;
     structureLayer.addChild(parts.structureRoot);
-    chromeLayer.addChild(parts.chromeRoot);
+    chromeLayer.addChild(parts.tracksChromeRoot);
+    chromeLayer.addChild(parts.jointsChromeRoot);
     chromeLayer.addChild(parts.chromePulseRoot);
 
     cache.set(instance.id, {
       kind: "connector-line",
       structureRoot: parts.structureRoot,
-      chromeRoot: parts.chromeRoot,
+      tracksChromeRoot: parts.tracksChromeRoot,
+      jointsChromeRoot: parts.jointsChromeRoot,
       chromePulseRoot: parts.chromePulseRoot,
       fingerprint,
       disposeConnectorAnimation: parts.disposeConnectorAnimation,
     });
   } else {
     prior.structureRoot.zIndex = z;
-    prior.chromeRoot.zIndex = COMPONENT_LAYER_BASE_Z;
-    prior.chromePulseRoot.zIndex = z;
+    prior.tracksChromeRoot.zIndex = z;
+    prior.jointsChromeRoot.zIndex = z + 1;
+    prior.chromePulseRoot.zIndex = z + 2;
   }
 };
 

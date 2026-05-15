@@ -22,6 +22,54 @@ export const getPolylineMetrics = (points: PathPoint[]): PolylineMetrics => {
   return { segmentLengths, totalLength: total, distToVertex };
 };
 
+/** Arc length from polyline start to `q`; `null` if `q` is not on the orthogonal path. */
+export const arcDistanceToPointOnPolyline = (
+  points: PathPoint[],
+  metrics: PolylineMetrics,
+  q: PathPoint,
+): number | null => {
+  if (points.length === 0) {
+    return null;
+  }
+  for (let i = 0; i < points.length; i += 1) {
+    const v = points[i]!;
+    if (v.x === q.x && v.y === q.y) {
+      return metrics.distToVertex[i]!;
+    }
+  }
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = points[i]!;
+    const b = points[i + 1]!;
+    const len = metrics.segmentLengths[i] ?? 0;
+    if (len === 0) {
+      continue;
+    }
+    if (a.y === b.y) {
+      if (q.y !== a.y) {
+        continue;
+      }
+      const lo = Math.min(a.x, b.x);
+      const hi = Math.max(a.x, b.x);
+      if (q.x <= lo || q.x >= hi) {
+        continue;
+      }
+      return metrics.distToVertex[i]! + Math.abs(q.x - a.x);
+    }
+    if (a.x === b.x) {
+      if (q.x !== a.x) {
+        continue;
+      }
+      const lo = Math.min(a.y, b.y);
+      const hi = Math.max(a.y, b.y);
+      if (q.y <= lo || q.y >= hi) {
+        continue;
+      }
+      return metrics.distToVertex[i]! + Math.abs(q.y - a.y);
+    }
+  }
+  return null;
+};
+
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export const slicePolylineByDistance = (

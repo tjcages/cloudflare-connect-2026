@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createComponentInstance } from "../../../lib/componentRegistry";
 import {
+  crossingsBetweenOrthoPolylines,
+  getConnectorCornerPoints,
+  getForeignCornerOverlapPoints,
+  getConnectorSegmentCells,
+  orthogonalSegmentIntersection,
   resolveConnectorEndpoint,
   routeConnectorPath,
-  getConnectorSegmentCells,
-  getConnectorCornerPoints,
 } from "./route";
 import type { ConnectorEndpoint } from "../../../grid/types";
 
@@ -16,6 +19,13 @@ describe("connector line routing", () => {
 
     expect(resolveConnectorEndpoint(cellEndpoint, [iconBox])).toEqual({ x: 200, y: 120 });
     expect(resolveConnectorEndpoint(layerEndpoint, [iconBox])).toEqual({ x: 120, y: 120 });
+  });
+
+  it("resolves icon-box-2x1 layer endpoints at shadow-card center on the connector lattice", () => {
+    const box2x1 = createComponentInstance("icon-box-2x1", 43, 79, 2, 800, 560);
+    const layerEndpoint: ConnectorEndpoint = { kind: "layer", instanceId: box2x1.id };
+    // Geometric center x is 80px in root space; snapping lands on the nearer 80px lattice center at 120.
+    expect(resolveConnectorEndpoint(layerEndpoint, [box2x1])).toEqual({ x: 120, y: 120 });
   });
 
   it("uses a horizontal first leg when horizontal preference connects collinear vertical anchor points", () => {
@@ -143,5 +153,34 @@ describe("connector line routing", () => {
       { x: 0, y: 80, width: 80, height: 80 },
       { x: 0, y: 160, width: 80, height: 80 },
     ]);
+  });
+
+  it("detects '+' crossings between orthogonal polylines", () => {
+    const horizontal = [
+      { x: 40, y: 120 },
+      { x: 280, y: 120 },
+    ];
+    const vertical = [
+      { x: 120, y: 40 },
+      { x: 120, y: 200 },
+    ];
+    expect(crossingsBetweenOrthoPolylines(horizontal, vertical)).toEqual([{ x: 120, y: 120 }]);
+    expect(crossingsBetweenOrthoPolylines(vertical, horizontal)).toEqual([{ x: 120, y: 120 }]);
+  });
+
+  it("bridges joints when passing through foreign bend coords on a straight polyline segment", () => {
+    const collinearSteps = [{ x: 40, y: 120 }, { x: 120, y: 120 }, { x: 280, y: 120 }];
+    expect(getConnectorCornerPoints(collinearSteps)).toEqual([]);
+    expect(getForeignCornerOverlapPoints(collinearSteps, [{ x: 120, y: 120 }])).toEqual([{ x: 120, y: 120 }]);
+  });
+
+  it("orthogonalSegmentIntersection returns the grid crossing of perpendicular spans", () => {
+    expect(orthogonalSegmentIntersection({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 40, y: -20 }, { x: 40, y: 20 })).toEqual({
+      x: 40,
+      y: 0,
+    });
+    expect(
+      orthogonalSegmentIntersection({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 10, y: -20 }, { x: 110, y: -20 }),
+    ).toBeNull();
   });
 });
