@@ -27,9 +27,13 @@ type LayerCacheEntry =
       structureRoot: Container;
       chromeRoot: Container;
       fingerprint: string;
+      disposeConnectorAnimation?: () => void;
     };
 
 const destroyLayerEntry = (entry: LayerCacheEntry) => {
+  if (entry.kind === "connector-line") {
+    entry.disposeConnectorAnimation?.();
+  }
   entry.structureRoot.destroy({ children: true });
   entry.chromeRoot.destroy({ children: true });
 };
@@ -65,6 +69,7 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
         cache,
         z,
         gridStrokeColor,
+        gridStrokeHex,
         bounds,
         selectedInstanceId,
       );
@@ -88,6 +93,7 @@ const syncConnectorLine = (
   cache: Map<string, LayerCacheEntry>,
   z: number,
   gridStrokeColor: number,
+  gridStrokeHex: string,
   bounds: { width: number; height: number },
   selectedInstanceId: string | null,
 ) => {
@@ -116,7 +122,14 @@ const syncConnectorLine = (
       cache.delete(instance.id);
     }
 
-    const parts = buildConnectorLine(instance, toDraw, gridStrokeColor, bounds, instance.id === selectedInstanceId);
+    const parts = buildConnectorLine(
+      instance,
+      toDraw,
+      gridStrokeColor,
+      gridStrokeHex,
+      bounds,
+      instance.id === selectedInstanceId,
+    );
     if (!parts) {
       return;
     }
@@ -131,6 +144,7 @@ const syncConnectorLine = (
       structureRoot: parts.structureRoot,
       chromeRoot: parts.chromeRoot,
       fingerprint,
+      disposeConnectorAnimation: parts.disposeConnectorAnimation,
     });
   } else {
     prior.structureRoot.zIndex = z;

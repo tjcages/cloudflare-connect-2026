@@ -29,6 +29,7 @@ const createConnector = (): Extract<ComponentInstance, { type: "connector-line" 
     source: { kind: "cell", x: 40, y: 40 },
     target: { kind: "cell", x: 200, y: 200 },
     overlayGrid: true,
+    animated: true,
   },
 });
 
@@ -60,6 +61,7 @@ describe("hitTestComponentInstances", () => {
         source: { kind: "cell", x: 40, y: 520 },
         target: { kind: "cell", x: 280, y: 520 },
         overlayGrid: true,
+        animated: true,
       },
     };
 

@@ -96,6 +96,9 @@ const isConnectorLineProps = (value: unknown): value is ConnectorLineProps => {
   if ("overlayGrid" in value && typeof value.overlayGrid !== "boolean") {
     return false;
   }
+  if ("animated" in value && typeof value.animated !== "boolean") {
+    return false;
+  }
   return true;
 };
 
@@ -148,6 +151,10 @@ const normalizeInstanceForGrid = (
       typeof propsCandidate.overlayGrid !== "boolean"
     ) {
       const { overlayGrid: _drop, ...rest } = propsCandidate;
+      propsCandidate = rest;
+    }
+    if (isRecord(propsCandidate) && "animated" in propsCandidate && typeof propsCandidate.animated !== "boolean") {
+      const { animated: _dropA, ...rest } = propsCandidate;
       propsCandidate = rest;
     }
     const rawProps = isConnectorLineProps(propsCandidate) ? propsCandidate : defaultProps;

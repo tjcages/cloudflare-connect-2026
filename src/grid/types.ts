@@ -82,6 +82,8 @@ export type ConnectorLineProps = {
   target: ConnectorEndpoint;
   /** When true, fill large connector slice rects with white so they mask the small grid behind the stroke. */
   overlayGrid: boolean;
+  /** When true, animate a themed pulse along the path and highlight bend corner **strokes** as the pulse passes. */
+  animated: boolean;
 };
 
 export type ComponentProps = IconBoxProps | PlusMarkerProps | ConnectorLineProps;

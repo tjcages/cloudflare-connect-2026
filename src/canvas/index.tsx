@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type Ref } from "react";
+import { animate as motionAnimate } from "motion";
 import Pixi from "../components/pixi";
 import { getCanvasPoint } from "./coords";
 import { hitTestComponentInstances } from "./hitTest";
@@ -330,6 +331,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
         layoutHeight={renderHeight}
         onPreload={preloadIconBoxTitleFont}
         onInitialized={(app) => {
+          app.animate = motionAnimate;
           useAppStore.getState().setPixiApp(app);
         }}
         onDisposed={() => {

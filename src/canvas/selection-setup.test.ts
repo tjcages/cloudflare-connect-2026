@@ -14,6 +14,7 @@ const connector: ComponentInstance = {
     source: { kind: "cell", x: 40, y: 40 },
     target: { kind: "cell", x: 200, y: 40 },
     overlayGrid: true,
+    animated: true,
   },
 };
 

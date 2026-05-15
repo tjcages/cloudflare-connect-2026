@@ -78,6 +78,7 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
       source: { kind: "cell", x: LARGE_CELL_SIZE / 2, y: LARGE_CELL_SIZE / 2 },
       target: { kind: "cell", x: LARGE_CELL_SIZE * 2 + LARGE_CELL_SIZE / 2, y: LARGE_CELL_SIZE / 2 },
       overlayGrid: true,
+      animated: true,
     },
   },
 };

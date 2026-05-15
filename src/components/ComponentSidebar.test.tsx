@@ -30,6 +30,7 @@ const connectorInstance: ComponentInstance = {
     source: { kind: "cell", x: 40, y: 40 },
     target: { kind: "layer", instanceId: "icon-box-1" },
     overlayGrid: true,
+    animated: true,
   },
 };
 
@@ -233,6 +234,7 @@ describe("ComponentSidebar", () => {
       source: { kind: "cell", x: 40, y: 40 },
       target: { kind: "layer", instanceId: "icon-box-1" },
       overlayGrid: true,
+      animated: true,
     });
 
     expect(container.querySelector(".connector-endpoint-meta")).not.toBeInTheDocument();
@@ -256,6 +258,7 @@ describe("ComponentSidebar", () => {
       source: { kind: "layer", instanceId: "icon-box-1" },
       target: { kind: "layer", instanceId: "icon-box-1" },
       overlayGrid: true,
+      animated: true,
     });
 
     fireEvent.click(screen.getByTestId("connector-pick-source-cell"));
@@ -279,6 +282,25 @@ describe("ComponentSidebar", () => {
     expect(onUpdateInstanceProps).toHaveBeenCalledWith("connector-line-2", {
       ...connectorInstance.props,
       overlayGrid: false,
+    });
+  });
+
+  it("toggles connector animation", () => {
+    const onUpdateInstanceProps = vi.fn();
+    render(
+      <ComponentSidebar
+        instances={[connectorInstance, instance]}
+        selectedInstance={connectorInstance}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={onUpdateInstanceProps}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("toggle-connector-animated-connector-line-2"));
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("connector-line-2", {
+      ...connectorInstance.props,
+      animated: false,
     });
   });
 

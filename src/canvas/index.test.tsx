@@ -52,6 +52,7 @@ describe("GridCanvas", () => {
         source: { kind: "cell", x: 40, y: 40 },
         target: { kind: "cell", x: 200, y: 40 },
         overlayGrid: true,
+        animated: true,
       },
     };
     useAppStore.setState({ instances: [connector], selectedInstanceId: connector.id });
@@ -91,6 +92,7 @@ describe("GridCanvas", () => {
         source: { kind: "cell", x: 40, y: 40 },
         target: { kind: "cell", x: 200, y: 40 },
         overlayGrid: true,
+        animated: true,
       },
     };
     useAppStore.setState({ instances: [connector], selectedInstanceId: null });

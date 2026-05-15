@@ -505,6 +505,23 @@ export const ComponentConfigSidebar = ({
             }
           />
         </div>
+        <hr className="component-config-section-separator" role="presentation" />
+        <div className="field field-toggle-row">
+          <span>Animated</span>
+          <button
+            type="button"
+            data-testid={`toggle-connector-animated-${selectedInstance.id}`}
+            className={["field-toggle-switch", selectedInstance.props.animated ? "field-toggle-switch-on" : ""]
+              .filter(Boolean)
+              .join(" ")}
+            onClick={() =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                animated: !selectedInstance.props.animated,
+              })
+            }
+          />
+        </div>
       </div>
     );
   }

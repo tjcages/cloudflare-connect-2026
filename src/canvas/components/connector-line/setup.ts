@@ -1,27 +1,39 @@
+import { animate, motionValue } from "motion";
 import { Container, Graphics } from "pixi.js";
 import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
 import { CONNECTOR_HIGHLIGHT_COLOR } from "../constants";
+import { getPolylineMetrics, slicePolylineByDistance } from "./pathMotion";
 import {
   getConnectorCornerPoints,
   getConnectorSegmentCells,
   resolveConnectorEndpoint,
   routeConnectorPath,
 } from "./route";
+import { getConnectorEndpointThemeSignature, resolveConnectorEndpointThemeFill } from "./sourceTheme";
+import { connectorLegPlateauEase } from "./legPlateauEase";
 
 const CONNECTOR_UNDER_STROKE_WIDTH = 9;
 const CONNECTOR_STROKE_WIDTH = 1;
 const CONNECTOR_CORNER_SIZE = 6;
 const CONNECTOR_CORNER_RADIUS = 1;
 
+const CONNECTOR_ANIM_SEGMENT_PX = 60;
+const CONNECTOR_ANIM_HALF_PX = CONNECTOR_ANIM_SEGMENT_PX / 2;
+const CONNECTOR_ANIM_STROKE_WIDTH = 1;
+/** One timing "slice": 100px of path length (see `CONNECTOR_ANIM_SEC_PER_SLICE`). */
+const CONNECTOR_ANIM_SLICE_PX = 100;
+/** Duration multiplier: one-way leg duration = `0.2s × (pathLength / slicePx)`. */
+const CONNECTOR_ANIM_SEC_PER_SLICE = 0.2;
+/** Only guards sub-frame / zero durations; leg time scales with path length so arc-length speed stays ~constant. */
+const CONNECTOR_ANIM_MIN_LEG_SEC = 1 / 60;
+
 export type ConnectorRenderSpec = {
   segmentFrameColor: number;
   endpointFrameColor: number;
   lineColor: number;
   cornerStrokeColor: number;
-  /** Large-cell strokes (optional white fill when `props.overlayGrid`). Same plane as grid lines. */
   structuralDrawOrder: ["segmentFrames", "endpointFrames"];
-  /** White underlay + line sit above structural layer so they mask grid + segment/endpoint strokes + icon-box outer frame. */
-  chromeDrawOrder: ["lineUnderlay", "line", "corners"];
+  chromeDrawOrder: ["lineUnderlay", "line", "connectorWave", "corners"];
 };
 
 export const getConnectorRenderSpec = (selected: boolean, gridStrokeColor: number): ConnectorRenderSpec => {
@@ -32,13 +44,15 @@ export const getConnectorRenderSpec = (selected: boolean, gridStrokeColor: numbe
     lineColor: highlightColor,
     cornerStrokeColor: highlightColor,
     structuralDrawOrder: ["segmentFrames", "endpointFrames"],
-    chromeDrawOrder: ["lineUnderlay", "line", "corners"],
+    chromeDrawOrder: ["lineUnderlay", "line", "connectorWave", "corners"],
   };
 };
 
 export type ConnectorDisplayParts = {
   structureRoot: Container;
   chromeRoot: Container;
+  /** Stop Motion `animate` + motion value listeners when the layer is torn down. */
+  disposeConnectorAnimation?: () => void;
 };
 
 export const getConnectorCornerCapRect = (point: { x: number; y: number }) => ({
@@ -56,7 +70,6 @@ const drawPolyline = (graphics: Graphics, points: { x: number; y: number }[]) =>
   }
 };
 
-/** Stable key for incremental connector redraws; changes when routing inputs change. */
 export const getConnectorRenderFingerprint = (
   instance: Extract<ComponentInstance, { type: "connector-line" }>,
   instances: ComponentInstance[],
@@ -82,6 +95,9 @@ export const getConnectorRenderFingerprint = (
     bounds,
     selected,
     overlayGrid: instance.props.overlayGrid,
+    animated: instance.props.animated,
+    sourceTheme: getConnectorEndpointThemeSignature(instance.props.source, instances),
+    targetTheme: getConnectorEndpointThemeSignature(instance.props.target, instances),
   });
 };
 
@@ -89,6 +105,7 @@ export const buildConnectorLine = (
   instance: Extract<ComponentInstance, { type: "connector-line" }>,
   instances: ComponentInstance[],
   gridStrokeColor: number,
+  gridStrokeHex: string,
   bounds?: { width: number; height: number },
   selected = false,
 ): ConnectorDisplayParts | null => {
@@ -166,15 +183,125 @@ export const buildConnectorLine = (
   line.stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.lineColor });
   chromeRoot.addChild(line);
 
+  const metrics = getPolylineMetrics(points);
+  const cornerPoints = getConnectorCornerPoints(points);
+  const cornerArcDistances = cornerPoints.map((cp) => {
+    const i = points.findIndex((p) => p.x === cp.x && p.y === cp.y);
+    return i >= 0 ? metrics.distToVertex[i]! : 0;
+  });
+
   const corners = new Graphics();
-  for (const point of getConnectorCornerPoints(points)) {
-    const rect = getConnectorCornerCapRect(point);
-    corners
-      .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
-      .fill({ color: 0xffffff })
-      .stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.cornerStrokeColor });
+  let disposeConnectorAnimation: (() => void) | undefined;
+
+  const drawStaticCornerCaps = () => {
+    corners.clear();
+    for (const point of cornerPoints) {
+      const rect = getConnectorCornerCapRect(point);
+      corners
+        .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
+        .fill({ color: 0xffffff })
+        .stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.cornerStrokeColor });
+    }
+  };
+
+  if (instance.props.animated && metrics.totalLength > 0) {
+    const maskShape = new Graphics();
+    drawPolyline(maskShape, points);
+    maskShape.stroke({ width: CONNECTOR_UNDER_STROKE_WIDTH, color: 0xffffff });
+
+    const waveHolder = new Container();
+    const waveStroke = new Graphics();
+    waveHolder.mask = maskShape;
+    chromeRoot.addChild(maskShape);
+    chromeRoot.addChild(waveHolder);
+    waveHolder.addChild(waveStroke);
+
+    const drawAnimatedCornerCaps = (centerDist: number, waveFill: number) => {
+      corners.clear();
+      for (let i = 0; i < cornerPoints.length; i += 1) {
+        const point = cornerPoints[i]!;
+        const arc = cornerArcDistances[i]!;
+        const lit = arc >= centerDist - CONNECTOR_ANIM_HALF_PX && arc <= centerDist + CONNECTOR_ANIM_HALF_PX;
+        const rect = getConnectorCornerCapRect(point);
+        corners
+          .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
+          .fill({ color: 0xffffff })
+          .stroke({ width: CONNECTOR_STROKE_WIDTH, color: lit ? waveFill : renderSpec.cornerStrokeColor });
+      }
+    };
+
+    const slice = metrics.totalLength;
+    const legDurationSec = Math.max(
+      CONNECTOR_ANIM_MIN_LEG_SEC,
+      CONNECTOR_ANIM_SEC_PER_SLICE * (slice / CONNECTOR_ANIM_SLICE_PX),
+    );
+
+    const progressAlongPath = motionValue(0);
+    type LegPhase = "forward" | "backward";
+    let legPhase: LegPhase = "forward";
+
+    const activeFill = () =>
+      legPhase === "forward"
+        ? resolveConnectorEndpointThemeFill(instance.props.source, instances, gridStrokeHex)
+        : resolveConnectorEndpointThemeFill(instance.props.target, instances, gridStrokeHex);
+
+    const renderPulse = (centerDist: number) => {
+      const waveFill = activeFill();
+      waveStroke.clear();
+      const waveSlice = slicePolylineByDistance(
+        points,
+        metrics,
+        centerDist - CONNECTOR_ANIM_HALF_PX,
+        centerDist + CONNECTOR_ANIM_HALF_PX,
+      );
+      if (waveSlice.length >= 2) {
+        drawPolyline(waveStroke, waveSlice);
+        waveStroke.stroke({ width: CONNECTOR_ANIM_STROKE_WIDTH, color: waveFill });
+      }
+      drawAnimatedCornerCaps(centerDist, waveFill);
+    };
+
+    const unsub = progressAlongPath.on("change", renderPulse);
+    renderPulse(progressAlongPath.get());
+
+    let cancelled = false;
+    let activeControls: ReturnType<typeof animate> | null = null;
+
+    const runLoop = async () => {
+      while (!cancelled) {
+        legPhase = "forward";
+        progressAlongPath.set(0);
+        activeControls = animate(progressAlongPath, slice, {
+          duration: legDurationSec,
+          ease: connectorLegPlateauEase,
+        });
+        await activeControls.finished;
+        activeControls = null;
+        if (cancelled) {
+          break;
+        }
+        legPhase = "backward";
+        activeControls = animate(progressAlongPath, 0, {
+          duration: legDurationSec,
+          ease: connectorLegPlateauEase,
+        });
+        await activeControls.finished;
+        activeControls = null;
+      }
+    };
+
+    void runLoop();
+
+    disposeConnectorAnimation = () => {
+      cancelled = true;
+      activeControls?.stop();
+      unsub();
+    };
+  } else {
+    drawStaticCornerCaps();
   }
+
   chromeRoot.addChild(corners);
 
-  return { structureRoot, chromeRoot };
+  return { structureRoot, chromeRoot, disposeConnectorAnimation };
 };
