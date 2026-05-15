@@ -251,10 +251,7 @@ const sanitizeSelectedId = (raw: unknown, instances: ComponentInstance[]): strin
   return instances.some((i) => i.id === raw) ? raw : null;
 };
 
-const sanitizeCanvasPan = (
-  raw: unknown,
-  fallback: { x: number; y: number },
-): { x: number; y: number } => {
+const sanitizeCanvasPan = (raw: unknown, fallback: { x: number; y: number }): { x: number; y: number } => {
   if (!isRecord(raw)) {
     return fallback;
   }

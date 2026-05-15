@@ -259,4 +259,38 @@ describe("GridCanvas", () => {
 
     expect(useAppStore.getState().selectedInstanceId).toBeNull();
   });
+
+  it("zooms the viewport when cmd+wheel over the canvas (pinch uses ctrlKey on some platforms)", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 800,
+      height: 560,
+      top: 0,
+      left: 0,
+      right: 800,
+      bottom: 560,
+      toJSON: () => "",
+    } as DOMRect);
+
+    useAppStore.setState({
+      instances: [],
+      selectedInstanceId: null,
+      canvasZoom: 1,
+      canvasPan: { x: 0, y: 0 },
+    });
+
+    render(<GridCanvas />);
+    const canvas = screen.getByTestId("builder-canvas");
+
+    fireEvent.wheel(canvas, {
+      deltaY: -200,
+      deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+      metaKey: true,
+      clientX: 400,
+      clientY: 280,
+    });
+
+    expect(useAppStore.getState().canvasZoom).toBeGreaterThan(1);
+  });
 });
