@@ -1,0 +1,15 @@
+---
+description: Lightweight one-chat task orchestration with specialist agents
+alwaysApply: true
+---
+
+# Agent Orchestration
+
+- Treat `/orchestrate` as a one-task, one-chat workflow. Do not assume a permanent manager chat, central task ledger, duplicate manager, or worktree unless the user asks.
+- Before editing, choose the lightest route that fits: direct implementation for small clear tasks, short in-chat plan for standard tasks, planner skill for complex/ambiguous/risky/library-dependent tasks.
+- The current chat coordinates the task. Use the user's selected strong model for planning and decisions; use cheaper subagents such as `composer-2-fast` for bounded routine roles when spawning agents.
+- Run specialist roles only when useful: `planner`, `all-rounder`, `refactorer`, `ux-controller`, `perf-controller`, `cleaner`, `test-dev`, then `lessons-keeper`.
+- Keep role outputs short: outcome, files considered or changed, verification, risks, and next action. Avoid dumping long transcripts into the main chat.
+- Do not run UX/perf/cleanup/test passes as performative ceremony. Skip any role that does not apply to the task.
+- Preserve user changes. Do not stage, commit, push, create worktrees, or manage merges unless explicitly requested.
+- End with fresh verification evidence. For docs/rules/command-only work, verify frontmatter, paths, command names, and stale references.
