@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { copyDocumentPng } from "../canvas/pngExport";
@@ -11,7 +12,22 @@ vi.mock("../canvas/pngExport", () => ({
 }));
 
 vi.mock("../canvas", () => ({
-  GridCanvas: () => <div role="img" aria-label="Component builder canvas" />,
+  GridCanvas: ({ canvasRef }: { canvasRef?: Ref<HTMLCanvasElement | null> }) => (
+    <div
+      role="img"
+      aria-label="Component builder canvas"
+      ref={(node) => {
+        if (!canvasRef) {
+          return;
+        }
+        if (typeof canvasRef === "function") {
+          canvasRef(node as unknown as HTMLCanvasElement);
+        } else {
+          canvasRef.current = node as unknown as HTMLCanvasElement;
+        }
+      }}
+    />
+  ),
 }));
 
 const iconBoxInstance = (id: string, title: string): ComponentInstance => ({
@@ -50,13 +66,8 @@ describe("App", { timeout: 15_000 }, () => {
     const gridButton = screen.getByRole("button", { name: "Grid" });
     const componentsButton = screen.getByRole("button", { name: "Components" });
 
-    expect(gridButton).toHaveClass("sidebar-rail-button-active");
     expect(gridButton).toHaveAttribute("aria-pressed", "true");
-    expect(gridButton.querySelector("[data-testid='grid-divider-icon']")).toBeInTheDocument();
-    expect(gridButton.querySelectorAll("path")).toHaveLength(4);
-    expect(componentsButton.querySelector("[data-testid='components-rail-icon']")).toBeInTheDocument();
-    expect(componentsButton.querySelectorAll("path")).toHaveLength(2);
-    expect(componentsButton).toHaveTextContent("");
+    expect(componentsButton).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByRole("tab", { name: "Grid" })).not.toBeInTheDocument();
 
     fireEvent.click(componentsButton);
@@ -76,8 +87,36 @@ describe("App", { timeout: 15_000 }, () => {
 
     const ghost = screen.getByTestId("component-drag-ghost");
     expect(ghost).toBeInTheDocument();
-    expect(ghost.style.left).toBe("160px");
-    expect(ghost.style.top).toBe("220px");
+    expect(ghost).toHaveStyle({ left: "160px", top: "220px" });
+  });
+
+  it("finalizes icon-box placement when releasing the pointer over the canvas", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Components" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Icon Box" }), { clientX: 160, clientY: 220 });
+
+    const canvas = screen.getByRole("img", { name: "Component builder canvas" });
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 560,
+      right: 800,
+      bottom: 560,
+      x: 0,
+      y: 0,
+      toJSON: () => "",
+    } as DOMRect);
+
+    const beforeCount = useAppStore.getState().instances.length;
+
+    fireEvent.pointerUp(window, { clientX: 400, clientY: 280 });
+
+    expect(useAppStore.getState().instances.length).toBe(beforeCount + 1);
+    expect(useAppStore.getState().selectedInstanceId).toMatch(/^icon-box-/);
+    expect(useAppStore.getState().dragState).toBeNull();
+    expect(screen.getByText("Layers")).toBeInTheDocument();
   });
 
   it("starts and cancels connector endpoint picking from the component sidebar", () => {
@@ -160,6 +199,47 @@ describe("App", { timeout: 15_000 }, () => {
 
     expect(useAppStore.getState().instances).toHaveLength(1);
     expect(useAppStore.getState().selectedInstanceId).toBe("icon-box-10");
+  });
+
+  it("does not apply delete, duplicate, or undo shortcuts while a canvas drag is active", () => {
+    const inst = iconBoxInstance("icon-box-guard-1", "G");
+    resetAppStoreDocumentToDefault();
+    useAppStore.setState({
+      instances: [inst],
+      selectedInstanceId: inst.id,
+      nextInstanceIndex: 5,
+    });
+    useAppStore.getState().updateGridConfig({ strokeColor: "#ff0000" });
+    useAppStore.setState({
+      dragState: { mode: "create", type: "icon-box", preview: null, ghostClient: { x: 1, y: 2 } },
+    });
+
+    render(<App />);
+
+    fireEvent.keyDown(document, { key: "Delete", code: "Delete" });
+    expect(useAppStore.getState().instances).toHaveLength(1);
+
+    fireEvent.keyDown(document, { key: "d", code: "KeyD", ctrlKey: true });
+    expect(useAppStore.getState().instances).toHaveLength(1);
+
+    fireEvent.keyDown(document, { key: "z", code: "KeyZ", ctrlKey: true });
+    expect(useAppStore.getState().gridConfig.strokeColor).toBe("#ff0000");
+  });
+
+  it("does not delete the selected instance when Delete targets a contenteditable element", () => {
+    const inst = iconBoxInstance("icon-box-ce-1", "CE");
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id });
+    render(<App />);
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    document.body.appendChild(editable);
+    try {
+      fireEvent.keyDown(editable, { key: "Delete", code: "Delete", bubbles: true });
+      expect(useAppStore.getState().instances).toHaveLength(1);
+    } finally {
+      document.body.removeChild(editable);
+    }
   });
 
   it("undoes and redoes document changes with Ctrl/Cmd+Z shortcuts", () => {

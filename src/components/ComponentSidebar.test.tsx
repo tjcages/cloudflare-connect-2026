@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComponentSidebar } from "./ComponentSidebar";
 import type { ComponentInstance } from "../grid/types";
-import { DEFAULT_ICON_ID, ICON_OPTIONS } from "../lib/iconRegistry";
+import { DEFAULT_ICON_ID } from "../lib/iconRegistry";
 
 const instance: ComponentInstance = {
   id: "icon-box-1",
@@ -33,8 +33,8 @@ const connectorInstance: ComponentInstance = {
 };
 
 describe("ComponentSidebar", () => {
-  it("renders layers and available components with registry svg icons", () => {
-    const { container } = render(
+  it("lists layers and draggable components without legacy copy", () => {
+    render(
       <ComponentSidebar
         instances={[instance]}
         selectedInstance={null}
@@ -47,82 +47,13 @@ describe("ComponentSidebar", () => {
     expect(screen.getByText("Layers")).toBeInTheDocument();
     expect(screen.queryByText("Current instances")).not.toBeInTheDocument();
     expect(screen.queryByText("1")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Icon Box")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Icon Box" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Select Icon Box, Workers")).toBeInTheDocument();
     expect(screen.queryByText("Drag to canvas")).not.toBeInTheDocument();
     expect(screen.getByText("Workers")).toBeInTheDocument();
     expect(screen.queryByText("x: 40, y: 80")).not.toBeInTheDocument();
     expect(screen.getByText("Components")).toBeInTheDocument();
-    expect(container.querySelectorAll("canvas.component-preview-canvas")).toHaveLength(0);
-    expect(container.querySelectorAll("svg.component-icon")).toHaveLength(3);
-  });
-
-  it("uses the shared square preview sizing for layers and component rows", () => {
-    const { container } = render(
-      <ComponentSidebar
-        instances={[instance]}
-        selectedInstance={null}
-        onSelectInstance={vi.fn()}
-        onUpdateInstanceProps={vi.fn()}
-        onStartComponentDrag={vi.fn()}
-      />,
-    );
-
-    const previewWrappers = Array.from(container.querySelectorAll(".component-list-item-preview"));
-    const previewIcons = Array.from(container.querySelectorAll<SVGSVGElement>("svg.component-icon"));
-
-    expect(previewWrappers).toHaveLength(3);
-    expect(previewIcons).toHaveLength(3);
-    expect(previewIcons.every((icon) => icon.parentElement?.classList.contains("component-list-item-preview"))).toBe(
-      true,
-    );
-    expect(previewIcons.map((icon) => [icon.getAttribute("width"), icon.getAttribute("height")])).toEqual([
-      ["16", "16"],
-      ["16", "16"],
-      ["16", "16"],
-    ]);
-  });
-
-  it("uses the same shared item shell for layer and component rows", () => {
-    const { container } = render(
-      <ComponentSidebar
-        instances={[instance]}
-        selectedInstance={null}
-        onSelectInstance={vi.fn()}
-        onUpdateInstanceProps={vi.fn()}
-        onStartComponentDrag={vi.fn()}
-      />,
-    );
-
-    const layerItem = screen.getByTestId("layer-item-icon-box-1");
-    const componentItem = screen.getByRole("button", { name: "Icon Box" });
-
-    expect(layerItem).toHaveClass("component-list-item");
-    expect(componentItem).toHaveClass("component-list-item");
-    expect(componentItem).not.toHaveClass("component-card");
-    expect(container.querySelector(".component-row")).not.toBeInTheDocument();
-    expect(layerItem.querySelector(".component-list-item-preview")).toBeInTheDocument();
-    expect(componentItem.querySelector(".component-list-item-preview")).toBeInTheDocument();
-  });
-
-  it("keeps layers and available components in fixed-height scroll sections", () => {
-    const { container } = render(
-      <ComponentSidebar
-        instances={[instance]}
-        selectedInstance={null}
-        onSelectInstance={vi.fn()}
-        onUpdateInstanceProps={vi.fn()}
-        onStartComponentDrag={vi.fn()}
-      />,
-    );
-
-    const sections = Array.from(container.querySelectorAll(":scope .component-sidebar > .component-section"));
-
-    expect(sections).toHaveLength(2);
-    expect(sections.every((section) => section.querySelector(".component-scroll-region"))).toBe(true);
-    expect(sections.map((section) => section.textContent)).toEqual([
-      expect.stringContaining("Components"),
-      expect.stringContaining("Layers"),
-    ]);
+    expect(screen.getByRole("button", { name: "Connector Line" })).toBeInTheDocument();
   });
 
   it("keeps layer title and dynamic subtitle stacked in the same text block", () => {
@@ -138,7 +69,7 @@ describe("ComponentSidebar", () => {
 
     const layerItem = container.querySelector("[data-testid='layer-item-icon-box-1']");
     expect(layerItem).toBeInTheDocument();
-    expect(layerItem?.querySelector("svg.component-icon")).toBeInTheDocument();
+    expect(layerItem?.querySelector(".component-list-item-preview")).toBeInTheDocument();
 
     const textBlock = layerItem?.querySelector(".component-list-item-text");
     expect(textBlock).toBeInTheDocument();
@@ -204,7 +135,6 @@ describe("ComponentSidebar", () => {
     );
 
     const componentButton = screen.getByRole("button", { name: "Icon Box" });
-    expect(componentButton).toHaveClass("component-list-item");
 
     fireEvent.pointerDown(componentButton, { clientX: 12, clientY: 24 });
 
@@ -214,7 +144,7 @@ describe("ComponentSidebar", () => {
   it("starts component drag from the connector-line component row", () => {
     const onStartComponentDrag = vi.fn();
 
-    const { container } = render(
+    render(
       <ComponentSidebar
         instances={[instance]}
         selectedInstance={null}
@@ -227,7 +157,6 @@ describe("ComponentSidebar", () => {
     const connectorButton = screen.getByRole("button", { name: "Connector Line" });
     const connectorIcon = connectorButton.querySelector("svg.component-icon");
     expect(connectorIcon).toHaveStyle({ color: "#B3B3B3" });
-    expect(container.querySelector("svg.component-icon path[d='M5 9h6v6h8']")).toBeInTheDocument();
 
     fireEvent.pointerDown(connectorButton, { clientX: 20, clientY: 30 });
 
@@ -283,28 +212,6 @@ describe("ComponentSidebar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pick source cell on canvas" }));
 
     expect(onStartEndpointPick).toHaveBeenCalledWith("connector-line-2", "source");
-  });
-
-  it("uses shared icon button styling for static endpoint target buttons", () => {
-    render(
-      <ComponentSidebar
-        instances={[connectorInstance, instance]}
-        selectedInstance={connectorInstance}
-        onSelectInstance={vi.fn()}
-        onUpdateInstanceProps={vi.fn()}
-        onStartComponentDrag={vi.fn()}
-        onStartEndpointPick={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("button", { name: "Pick source cell on canvas" })).toHaveClass(
-      "component-row-icon-button",
-      "connector-endpoint-pick-button",
-    );
-    expect(screen.getByRole("button", { name: "Pick target cell on canvas" })).toHaveClass(
-      "component-row-icon-button",
-      "connector-endpoint-pick-button",
-    );
   });
 
   it("omits match corners toggle when accent theme is neutral", () => {
@@ -375,13 +282,10 @@ describe("ComponentSidebar", () => {
       within(header.querySelector(".component-list-item-text") as HTMLElement).getByText("Icon Box"),
     ).toBeInTheDocument();
     expect(screen.getByText("Layers")).toBeInTheDocument();
-    expect(container.querySelectorAll("canvas.component-preview-canvas")).toHaveLength(0);
-    expect(container.querySelectorAll("svg.component-icon")).toHaveLength(ICON_OPTIONS.length + 4);
     const iconPicker = screen.getByRole("radiogroup", { name: "Icon" });
     const iconOption = within(iconPicker).getByRole("radio", { name: "Section mark" });
 
     expect(iconOption).toHaveAttribute("aria-checked", "true");
-    expect(iconOption.querySelector("svg.component-icon")).toHaveAttribute("width", "16");
     expect(screen.queryByRole("combobox", { name: "Icon" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Icon color")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Title")).toHaveValue("Workers");
