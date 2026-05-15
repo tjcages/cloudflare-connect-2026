@@ -6,12 +6,13 @@ A React/TypeScript Canvas component builder. It generates deterministic seeded g
 
 - `npm run dev` starts the Vite dev server.
 - `npm run typecheck` runs TypeScript project checks.
-- `npm run lint` runs ESLint.
-- `npm run format` formats the repo with Prettier.
-- `npm run format:check` checks formatting.
+- `npm run code-check` runs `oxlint` and `oxfmt --check` (used in CI on push/PR; run locally before `git push` if you want the same gate early).
+- `npm run lint` runs `oxlint` only.
+- `npm run format` / `npm run format:check` run `oxfmt`.
 - `npm test` runs the Vitest suite.
 - `npm run build` type-checks and builds the app.
-- `npm run verify` runs lint, format check, tests, and build.
+- `npm run verify` runs tests, then `tsc -b` and `vite build` in parallel (lint/format are intentionally excluded for speed).
+- Tip — quicker loops while editing: `npm run typecheck`, targeted `npx vitest run <pattern>`, then finish with full `npm run verify` (Vitest uses `pool: "threads"` + happy-dom here).
 
 ## Project Context
 

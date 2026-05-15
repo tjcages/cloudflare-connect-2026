@@ -1,4 +1,5 @@
 import { getInstanceAnchorPoint } from "../../../lib/componentRegistry";
+import { ICON_BOX_SNAP_ANCHOR_Y } from "../../../lib/icon-box/layout";
 import {
   LARGE_CELL_SIZE,
   type ComponentInstance,
@@ -31,6 +32,113 @@ export const resolveConnectorEndpoint = (
     x: snapToConnectorLattice(anchor.x),
     y: snapToConnectorLattice(anchor.y),
   };
+};
+
+const refineIconBox2x1LayerEndpoint = (
+  endpoint: ConnectorEndpoint,
+  instances: ComponentInstance[],
+  peer: ConnectorPoint,
+): ConnectorPoint | null => {
+  if (endpoint.kind !== "layer") {
+    return null;
+  }
+  const inst = instances.find((i) => i.id === endpoint.instanceId);
+  if (!inst || inst.type !== "icon-box-2x1") {
+    return null;
+  }
+  /** Snapped junctions: left-cell center → mid seam → right-cell center (stay inside the 160px footprint). */
+  const latticeXWest = snapToConnectorLattice(inst.x + LARGE_CELL_SIZE / 2);
+  const latticeXMid = snapToConnectorLattice(inst.x + LARGE_CELL_SIZE);
+  const latticeXEast = snapToConnectorLattice(inst.x + LARGE_CELL_SIZE + LARGE_CELL_SIZE / 2);
+  const yLattice = snapToConnectorLattice(inst.y + ICON_BOX_SNAP_ANCHOR_Y);
+
+  const nearestLatticeInPair = (ax: number, bx: number): ConnectorPoint => {
+    const pa = { x: ax, y: yLattice };
+    const pb = { x: bx, y: yLattice };
+    const da = (pa.x - peer.x) ** 2 + (pa.y - peer.y) ** 2;
+    const db = (pb.x - peer.x) ** 2 + (pb.y - peer.y) ** 2;
+    if (da < db) {
+      return pa;
+    }
+    if (db < da) {
+      return pb;
+    }
+    /** Tie: prefer farther-west junction for deterministic routing. */
+    return ax <= bx ? pa : pb;
+  };
+
+  const leftHalfBest = nearestLatticeInPair(latticeXWest, latticeXMid);
+  const rightHalfBest = nearestLatticeInPair(latticeXMid, latticeXEast);
+
+  const dLeft = (leftHalfBest.x - peer.x) ** 2 + (leftHalfBest.y - peer.y) ** 2;
+  const dRight = (rightHalfBest.x - peer.x) ** 2 + (rightHalfBest.y - peer.y) ** 2;
+  return dLeft <= dRight ? leftHalfBest : rightHalfBest;
+};
+
+const dedupeConnectorPoints = (points: ConnectorPoint[]): ConnectorPoint[] => {
+  const seen = new Set<string>();
+  const out: ConnectorPoint[] = [];
+  for (const p of points) {
+    const key = `${p.x},${p.y}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(p);
+    }
+  }
+  return out;
+};
+
+/**
+ * Lattice cell centers used to stroke endpoint highlight rectangles.
+ * Static cells and normal icon layers use `resolved`; `icon-box-2x1` layers highlight both occupied cells.
+ */
+export const getConnectorEndpointHighlightFrameCenters = (
+  endpoint: ConnectorEndpoint,
+  instances: ComponentInstance[],
+  resolved: ConnectorPoint,
+): ConnectorPoint[] => {
+  if (endpoint.kind !== "layer") {
+    return [resolved];
+  }
+  const layer = instances.find((i) => i.id === endpoint.instanceId);
+  if (!layer || layer.type !== "icon-box-2x1") {
+    return [resolved];
+  }
+  const yLattice = snapToConnectorLattice(layer.y + ICON_BOX_SNAP_ANCHOR_Y);
+  const xLeft = snapToConnectorLattice(layer.x + LARGE_CELL_SIZE / 2);
+  const xRight = snapToConnectorLattice(layer.x + LARGE_CELL_SIZE + LARGE_CELL_SIZE / 2);
+  if (xLeft === xRight) {
+    return [{ x: xLeft, y: yLattice }];
+  }
+  return [
+    { x: xLeft, y: yLattice },
+    { x: xRight, y: yLattice },
+  ];
+};
+
+export const getConnectorLineEndpointHighlightCenters = (
+  instance: Extract<ComponentInstance, { type: "connector-line" }>,
+  instances: ComponentInstance[],
+  resolved: { source: ConnectorPoint; target: ConnectorPoint },
+): ConnectorPoint[] =>
+  dedupeConnectorPoints([
+    ...getConnectorEndpointHighlightFrameCenters(instance.props.source, instances, resolved.source),
+    ...getConnectorEndpointHighlightFrameCenters(instance.props.target, instances, resolved.target),
+  ]);
+
+/** Resolves both endpoints; `icon-box-2x1` layers use the half (left/right center) nearest the peer endpoint. */
+export const resolveConnectorLineEndpoints = (
+  instance: Extract<ComponentInstance, { type: "connector-line" }>,
+  instances: ComponentInstance[],
+): { source: ConnectorPoint; target: ConnectorPoint } | null => {
+  const looseSource = resolveConnectorEndpoint(instance.props.source, instances);
+  const looseTarget = resolveConnectorEndpoint(instance.props.target, instances);
+  if (!looseSource || !looseTarget) {
+    return null;
+  }
+  const source = refineIconBox2x1LayerEndpoint(instance.props.source, instances, looseTarget) ?? looseSource;
+  const target = refineIconBox2x1LayerEndpoint(instance.props.target, instances, source) ?? looseTarget;
+  return { source, target };
 };
 
 const sign = (value: number): -1 | 0 | 1 => {

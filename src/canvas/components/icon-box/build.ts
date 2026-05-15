@@ -1,13 +1,13 @@
 import { BoxShadowFilter, type BoxShadowOptions } from "pixi-box-shadow";
 import { Container, Graphics, Sprite, Text } from "pixi.js";
 import { ICON_BOX_TITLE_FONT_FAMILY } from "../../../fonts/iconBoxTitle";
-import type { ComponentInstance } from "../../../grid/types";
+import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
 import { getIconDefinition } from "../../../lib/iconRegistry";
 import {
+  ICON_BOX_2X1_TITLE_REFERENCE_WIDTH,
   ICON_BOX_ACCENT_BAR_GAP,
   ICON_BOX_ACCENT_BAR_HEIGHT,
   ICON_BOX_ACCENT_BAR_WIDTH,
-  ICON_BOX_CARD_FRAME_ORIGIN_X,
   ICON_BOX_CARD_FRAME_ORIGIN_Y,
   ICON_BOX_CARD_FRAME_SIZE,
   ICON_BOX_INNER_OFFSET,
@@ -15,6 +15,7 @@ import {
   ICON_BOX_INNER_TOP,
   ICON_BOX_RADIUS,
   ICON_HOLD_OFFSET_X,
+  ICON_HOLD_OFFSET_X_SECOND,
   ICON_HOLD_OFFSET_Y_INNER,
   MARKER_INSET,
   MARKER_SIZE,
@@ -22,6 +23,8 @@ import {
   TITLE_BAR_WIDTH,
   TITLE_FONT_SIZE_PX,
   TITLE_TEXT_PADDING_X,
+  getIconBoxCardFrameWidth,
+  getIconBoxInnerWidth,
   getIconBoxTitleBarLayout,
 } from "../../../lib/icon-box/layout";
 import { paletteBrush } from "../../../theme/palette";
@@ -111,11 +114,20 @@ export type IconBoxDisplayParts = {
   chromeRoot: Container;
 };
 
+export type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }>;
+
 export const buildIconBox = (
-  instance: Extract<ComponentInstance, { type: "icon-box" }>,
+  instance: IconBoxRenderableInstance,
   gridStrokeColor: number,
   gridStrokeHex: string,
 ): IconBoxDisplayParts => {
+  const variant = instance.type;
+  const titleRefWidth = variant === "icon-box-2x1" ? ICON_BOX_2X1_TITLE_REFERENCE_WIDTH : TITLE_BAR_WIDTH;
+  const innerW = getIconBoxInnerWidth(variant);
+  const frameW = getIconBoxCardFrameWidth(variant);
+  /** Frame origin X aligns with padded outer stroke (matches 1×1: inner offset − selection padding). */
+  const frameOriginX = ICON_BOX_INNER_OFFSET - 8;
+
   const structureRoot = new Container();
   structureRoot.position.set(instance.x, instance.y);
 
@@ -125,7 +137,7 @@ export const buildIconBox = (
 
   const neutralSync = { neutralFillSyncHex: gridStrokeHex };
   const brush = paletteBrush(instance.props.theme, neutralSync);
-  let { rectWidth, barLeft } = getIconBoxTitleBarLayout(instance.props.title);
+  let { rectWidth, barLeft } = getIconBoxTitleBarLayout(instance.props.title, titleRefWidth);
 
   const titleLabel = new Text({
     text: instance.props.title.toUpperCase(),
@@ -144,7 +156,7 @@ export const buildIconBox = (
   const pixiInner = titleLabel.width;
   if (pixiInner + TITLE_TEXT_PADDING_X * 2 > rectWidth) {
     rectWidth = Math.ceil(pixiInner + TITLE_TEXT_PADDING_X * 2);
-    barLeft = (TITLE_BAR_WIDTH - rectWidth) / 2;
+    barLeft = (titleRefWidth - rectWidth) / 2;
   }
 
   const titleBg = new Graphics();
@@ -164,25 +176,20 @@ export const buildIconBox = (
   const cardFill = new Graphics();
   cardFill.zIndex = 25;
   cardFill
-    .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, ICON_BOX_INNER_SIZE, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
+    .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, innerW, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
     .fill({ color: 0xffffff });
   cardFill.filters = [shadowFilter];
 
   const cardStroke = new Graphics();
   cardStroke.zIndex = 26;
   cardStroke
-    .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, ICON_BOX_INNER_SIZE, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
+    .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, innerW, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
     .stroke({ width: 1, color: 0x000000, alpha: 0.04 });
 
   /** Selection-frame stroke uses the same color as the logical grid (`grid.config.strokeColor`). */
   const cardFrame = new Graphics();
   cardFrame
-    .rect(
-      ICON_BOX_CARD_FRAME_ORIGIN_X + 0.5,
-      ICON_BOX_CARD_FRAME_ORIGIN_Y + 0.5,
-      ICON_BOX_CARD_FRAME_SIZE,
-      ICON_BOX_CARD_FRAME_SIZE,
-    )
+    .rect(frameOriginX + 0.5, ICON_BOX_CARD_FRAME_ORIGIN_Y + 0.5, frameW, ICON_BOX_CARD_FRAME_SIZE)
     .stroke({ width: 1, color: gridStrokeColor });
   structureRoot.addChild(cardFrame);
 
@@ -193,52 +200,94 @@ export const buildIconBox = (
   markers.zIndex = 40;
   const rectOriginX = ICON_BOX_INNER_OFFSET;
   const rectOriginY = ICON_BOX_INNER_TOP;
+  const rectInnerW = innerW;
   const rectSize = ICON_BOX_INNER_SIZE;
-  const markerMax = rectSize - MARKER_INSET - MARKER_SIZE;
-  const corners: [number, number][] = [
-    [rectOriginX + MARKER_INSET, rectOriginY + MARKER_INSET],
-    [rectOriginX + markerMax, rectOriginY + MARKER_INSET],
-    [rectOriginX + MARKER_INSET, rectOriginY + markerMax],
-    [rectOriginX + markerMax, rectOriginY + markerMax],
-  ];
+
+  const fillCornerMarkers = (ox: number, oy: number, w: number, h: number) => {
+    const markerMaxX = w - MARKER_INSET - MARKER_SIZE;
+    const markerMaxY = h - MARKER_INSET - MARKER_SIZE;
+    const cellCorners: [number, number][] = [
+      [ox + MARKER_INSET, oy + MARKER_INSET],
+      [ox + markerMaxX, oy + MARKER_INSET],
+      [ox + MARKER_INSET, oy + markerMaxY],
+      [ox + markerMaxX, oy + markerMaxY],
+    ];
+    for (const [mx, my] of cellCorners) {
+      markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerBrush.fill });
+    }
+  };
 
   const cornerBrush = instance.props.matchCornersWithTheme ? brush : paletteBrush("neutral", neutralSync);
-  for (const [mx, my] of corners) {
-    markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerBrush.fill });
+  if (variant === "icon-box-2x1") {
+    const halfW = rectInnerW / 2;
+    fillCornerMarkers(rectOriginX, rectOriginY, halfW, rectSize);
+    fillCornerMarkers(rectOriginX + halfW, rectOriginY, halfW, rectSize);
+  } else {
+    fillCornerMarkers(rectOriginX, rectOriginY, rectInnerW, rectSize);
   }
   chromeRoot.addChild(markers);
 
   const icon = getIconDefinition(instance.props.iconId);
   const iconRgb = brush.iconFill;
-  const iconSprite = Sprite.from(rasterizeIcon(icon, brush.iconFillHex), true);
-  iconSprite.width = 24;
-  iconSprite.height = 24;
 
-  const iconHold = new Container();
-  iconHold.zIndex = 50;
-  iconHold.position.set(ICON_HOLD_OFFSET_X, ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER);
-  iconHold.filters = [buildIconShadowFilter(iconRgb)];
-  iconHold.addChild(iconSprite);
+  const addIconAt = (holdX: number) => {
+    const iconSprite = Sprite.from(rasterizeIcon(icon, brush.iconFillHex), true);
+    iconSprite.width = 24;
+    iconSprite.height = 24;
 
-  chromeRoot.addChild(iconHold);
+    const iconHold = new Container();
+    iconHold.zIndex = 50;
+    iconHold.position.set(holdX, ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER);
+    iconHold.filters = [buildIconShadowFilter(iconRgb)];
+    iconHold.addChild(iconSprite);
+    chromeRoot.addChild(iconHold);
+  };
+
+  if (variant === "icon-box-2x1") {
+    addIconAt(ICON_HOLD_OFFSET_X);
+    addIconAt(ICON_HOLD_OFFSET_X_SECOND);
+  } else {
+    addIconAt(ICON_HOLD_OFFSET_X);
+  }
 
   if (instance.props.theme !== "neutral") {
-    const accentLeft = ICON_BOX_INNER_OFFSET + (ICON_BOX_INNER_SIZE - ICON_BOX_ACCENT_BAR_WIDTH) / 2;
-    const accentTop = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_ACCENT_BAR_GAP;
     const accentFillRgb = brush.fill;
-    const accentBar = new Graphics();
-    accentBar.zIndex = 60;
-    accentBar
-      .rect(accentLeft, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
-      .fill({ color: accentFillRgb, alpha: 1 });
-    accentBar.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-    chromeRoot.addChild(accentBar);
+    const accentTop = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_ACCENT_BAR_GAP;
+
+    if (variant === "icon-box-2x1") {
+      const l = LARGE_CELL_SIZE / 2 - ICON_BOX_ACCENT_BAR_WIDTH / 2;
+      const r = LARGE_CELL_SIZE + LARGE_CELL_SIZE / 2 - ICON_BOX_ACCENT_BAR_WIDTH / 2;
+      const leftAccent = new Graphics();
+      leftAccent.zIndex = 60;
+      leftAccent
+        .rect(l, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
+        .fill({ color: accentFillRgb, alpha: 1 });
+      leftAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
+      chromeRoot.addChild(leftAccent);
+      const rightAccent = new Graphics();
+      rightAccent.zIndex = 60;
+      rightAccent
+        .rect(r, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
+        .fill({ color: accentFillRgb, alpha: 1 });
+      rightAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
+      chromeRoot.addChild(rightAccent);
+    } else {
+      const accentBar = new Graphics();
+      accentBar.zIndex = 60;
+      const accentLeft = ICON_BOX_INNER_OFFSET + (ICON_BOX_INNER_SIZE - ICON_BOX_ACCENT_BAR_WIDTH) / 2;
+      accentBar.rect(accentLeft, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT).fill({
+        color: accentFillRgb,
+        alpha: 1,
+      });
+      accentBar.filters = [buildAccentBarShadowFilter(accentFillRgb)];
+      chromeRoot.addChild(accentBar);
+    }
   }
 
   if (instance.props.containerHighlighted) {
-    const ox = ICON_BOX_CARD_FRAME_ORIGIN_X;
+    const ox = frameOriginX;
     const oy = ICON_BOX_CARD_FRAME_ORIGIN_Y;
-    const sz = ICON_BOX_CARD_FRAME_SIZE;
+    const sz = frameW;
     const inset = CONTAINER_RETICLE_CORNER_INSET;
     const cornerCenters: [number, number][] = [
       [ox + inset, oy + inset],

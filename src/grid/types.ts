@@ -41,7 +41,7 @@ export type GeneratedGrid = {
   cells: GridCell[];
 };
 
-export type ComponentType = "icon-box" | "plus-marker" | "rect-marker" | "connector-line";
+export type ComponentType = "icon-box" | "icon-box-2x1" | "plus-marker" | "rect-marker" | "connector-line";
 
 export type IconId = "section-mark" | "isometric-hex" | "user-outline" | "builder-grid" | "builder-layers";
 
@@ -102,6 +102,15 @@ export type IconBoxInstance = {
   props: IconBoxProps;
 };
 
+export type IconBox2x1Instance = {
+  id: string;
+  type: "icon-box-2x1";
+  name: string;
+  x: number;
+  y: number;
+  props: IconBoxProps;
+};
+
 export type PlusMarkerInstance = {
   id: string;
   type: "plus-marker";
@@ -130,7 +139,12 @@ export type ConnectorLineInstance = {
   props: ConnectorLineProps;
 };
 
-export type ComponentInstance = IconBoxInstance | PlusMarkerInstance | RectMarkerInstance | ConnectorLineInstance;
+export type ComponentInstance =
+  | IconBoxInstance
+  | IconBox2x1Instance
+  | PlusMarkerInstance
+  | RectMarkerInstance
+  | ConnectorLineInstance;
 
 export type CandidateCell = {
   kind: GridCellKind;

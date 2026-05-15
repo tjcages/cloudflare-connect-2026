@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { HTMLAttributes } from "react";
 import type { ComponentInstance } from "../grid/types";
@@ -339,6 +340,7 @@ describe("GridCanvas", () => {
       deltaY: -200,
       deltaMode: WheelEvent.DOM_DELTA_PIXEL,
       metaKey: true,
+      ctrlKey: true,
       clientX: 400,
       clientY: 280,
     });

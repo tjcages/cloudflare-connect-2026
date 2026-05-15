@@ -25,7 +25,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
 const isComponentType = (value: unknown): value is ComponentType =>
-  value === "icon-box" || value === "plus-marker" || value === "rect-marker" || value === "connector-line";
+  value === "icon-box" ||
+  value === "icon-box-2x1" ||
+  value === "plus-marker" ||
+  value === "rect-marker" ||
+  value === "connector-line";
 
 const isPlusMarkerProps = (value: unknown): value is PlusMarkerProps => {
   if (!isRecord(value) || !("theme" in value) || typeof value.theme !== "string") {
@@ -295,7 +299,7 @@ const sanitizeInstances = (raw: unknown, gridLogicalWidth: number, gridLogicalHe
 const maxInstanceOrdinal = (instances: ComponentInstance[]): number => {
   let max = 0;
   for (const inst of instances) {
-    const m = /^(?:icon-box|plus-marker|rect-marker|connector-line)-(\d+)$/.exec(inst.id);
+    const m = /^(?:icon-box-2x1|icon-box|plus-marker|rect-marker|connector-line)-(\d+)$/.exec(inst.id);
     if (m) {
       max = Math.max(max, Number(m[1]));
     }

@@ -5,7 +5,7 @@ import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
 import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
 import { buildConnectorLine, getConnectorRenderFingerprint } from "./connector-line/setup";
-import { buildIconBox } from "./icon-box/build";
+import { buildIconBox, type IconBoxRenderableInstance } from "./icon-box/build";
 import { buildPlusMarker } from "./plus-marker/build";
 import { buildRectMarker } from "./rect-marker/build";
 
@@ -37,7 +37,6 @@ type LayerCacheEntry =
       kind: "connector-line";
       structureRoot: Container;
       chromeRoot: Container;
-      chromePulseRoot: Container;
       fingerprint: string;
       disposeConnectorAnimation?: () => void;
     };
@@ -48,9 +47,6 @@ const destroyLayerEntry = (entry: LayerCacheEntry) => {
   }
   entry.structureRoot.destroy({ children: true });
   entry.chromeRoot.destroy({ children: true });
-  if (entry.kind === "connector-line") {
-    entry.chromePulseRoot.destroy({ children: true });
-  }
 };
 
 const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Map<string, LayerCacheEntry>) => {
@@ -91,6 +87,11 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
       continue;
     }
 
+    if (instance.type === "icon-box" || instance.type === "icon-box-2x1") {
+      syncIconBox(instance, structureLayer, chromeLayer, cache, z, gridStrokeColor, gridStrokeHex);
+      continue;
+    }
+
     if (instance.type === "plus-marker") {
       syncPlusMarker(instance, structureLayer, chromeLayer, cache, z, gridStrokeHex);
       continue;
@@ -100,8 +101,6 @@ const syncLayers = (structureLayer: Container, chromeLayer: Container, cache: Ma
       syncRectMarker(instance, structureLayer, chromeLayer, cache, z, gridStrokeHex);
       continue;
     }
-
-    syncIconBox(instance, structureLayer, chromeLayer, cache, z, gridStrokeColor, gridStrokeHex);
   }
 };
 
@@ -155,24 +154,20 @@ const syncConnectorLine = (
     }
 
     parts.structureRoot.zIndex = z;
-    parts.chromeRoot.zIndex = COMPONENT_LAYER_BASE_Z;
-    parts.chromePulseRoot.zIndex = z;
+    parts.chromeRoot.zIndex = z;
     structureLayer.addChild(parts.structureRoot);
     chromeLayer.addChild(parts.chromeRoot);
-    chromeLayer.addChild(parts.chromePulseRoot);
 
     cache.set(instance.id, {
       kind: "connector-line",
       structureRoot: parts.structureRoot,
       chromeRoot: parts.chromeRoot,
-      chromePulseRoot: parts.chromePulseRoot,
       fingerprint,
       disposeConnectorAnimation: parts.disposeConnectorAnimation,
     });
   } else {
     prior.structureRoot.zIndex = z;
-    prior.chromeRoot.zIndex = COMPONENT_LAYER_BASE_Z;
-    prior.chromePulseRoot.zIndex = z;
+    prior.chromeRoot.zIndex = z;
   }
 };
 
@@ -297,7 +292,7 @@ const syncRectMarker = (
 };
 
 const syncIconBox = (
-  instance: Extract<ComponentInstance, { type: "icon-box" }>,
+  instance: IconBoxRenderableInstance,
   structureLayer: Container,
   chromeLayer: Container,
   cache: Map<string, LayerCacheEntry>,
@@ -305,7 +300,7 @@ const syncIconBox = (
   gridStrokeColor: number,
   gridStrokeHex: string,
 ) => {
-  const propsJson = JSON.stringify(instance.props);
+  const propsJson = JSON.stringify({ type: instance.type, props: instance.props });
   const prior = cache.get(instance.id);
 
   if (!prior || prior.kind !== "icon-box") {

@@ -1,10 +1,13 @@
 import {
+  ICON_BOX_2X1_SNAP_ANCHOR_X,
   ICON_BOX_MIN_ROOT_Y,
   ICON_BOX_OUTER_HEIGHT,
   ICON_BOX_SNAP_ANCHOR_X,
   ICON_BOX_SNAP_ANCHOR_Y,
   getIconBoxFullHighlightBoundsInRootSpace,
+  getIconBoxLayoutVariant,
   getIconBoxShadowCardBoundsInRootSpace,
+  isIconBoxComponentType,
 } from "./icon-box/layout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 import {
@@ -25,7 +28,7 @@ export type ComponentDefinition = {
   label: string;
   width: number;
   height: number;
-  /** Offset from instance root (x, y) to the grid snap point (icon-box: center of shadow-card ± selection padding). */
+  /** Offset from instance root (x, y) to the grid snap point (icon-box: shadow-card center; icon-box-2x1: west edge of shadow-card frame). */
   snapAnchorX: number;
   snapAnchorY: number;
   defaultProps: ComponentProps;
@@ -43,6 +46,28 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     width: 80,
     height: ICON_BOX_OUTER_HEIGHT,
     snapAnchorX: ICON_BOX_SNAP_ANCHOR_X,
+    snapAnchorY: ICON_BOX_SNAP_ANCHOR_Y,
+    defaultProps: {
+      matchCornersWithTheme: false,
+      theme: "purple",
+      iconId: DEFAULT_ICON_ID,
+      title: "Workers",
+      containerHighlighted: false,
+    },
+    dynamicTitle: (config) => {
+      if (!("title" in config)) {
+        return undefined;
+      }
+      const t = config.title.trim();
+      return t.length ? t : undefined;
+    },
+  },
+  "icon-box-2x1": {
+    type: "icon-box-2x1",
+    label: "Icon Box 2x1",
+    width: 160,
+    height: ICON_BOX_OUTER_HEIGHT,
+    snapAnchorX: ICON_BOX_2X1_SNAP_ANCHOR_X,
     snapAnchorY: ICON_BOX_SNAP_ANCHOR_Y,
     defaultProps: {
       matchCornersWithTheme: false,
@@ -111,7 +136,7 @@ const formatConnectorEndpointSubtitle = (endpoint: ConnectorEndpoint, instances:
   }
 
   const def = getComponentDefinition(layer.type);
-  if (layer.type === "icon-box") {
+  if (layer.type === "icon-box" || layer.type === "icon-box-2x1") {
     const t = layer.props.title.trim();
     return t.length ? `${def.label} / ${t}` : def.label;
   }
@@ -193,17 +218,20 @@ export const snapComponentPosition = (
   }
 
   const definition = getComponentDefinition(type);
-  const iconBoxBounds = type === "icon-box" ? getIconBoxShadowCardBoundsInRootSpace() : null;
+  const variant = getIconBoxLayoutVariant(type);
+  const iconBoxBounds = variant !== null ? getIconBoxShadowCardBoundsInRootSpace(variant) : null;
   const maxX = Math.max(0, canvasWidth - definition.width);
   const maxY = Math.max(0, canvasHeight - (iconBoxBounds ? iconBoxBounds.y + iconBoxBounds.height : definition.height));
 
+  const snapIconBoxAxisX = (): number =>
+    variant === "icon-box-2x1"
+      ? snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE * 2, 0)
+      : snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET);
+
   return {
-    x:
-      type === "icon-box"
-        ? snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET)
-        : snapRootAxis(x, definition.snapAnchorX, maxX),
+    x: variant !== null ? snapIconBoxAxisX() : snapRootAxis(x, definition.snapAnchorX, maxX),
     y:
-      type === "icon-box"
+      variant !== null
         ? snapRootAxis(y, definition.snapAnchorY, maxY, ICON_BOX_MIN_ROOT_Y, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET)
         : snapRootAxis(y, definition.snapAnchorY, maxY),
   };
@@ -225,8 +253,8 @@ export const getInstanceCanvasBounds = (
   instance: ComponentInstance,
 ): { x: number; y: number; width: number; height: number } => {
   const definition = getComponentDefinition(instance.type);
-  if (instance.type === "icon-box") {
-    const r = getIconBoxShadowCardBoundsInRootSpace();
+  if (isIconBoxComponentType(instance.type)) {
+    const r = getIconBoxShadowCardBoundsInRootSpace(instance.type);
     return {
       x: instance.x + r.x,
       y: instance.y + r.y,
@@ -268,8 +296,8 @@ export const getInstanceCanvasBounds = (
 export const getInstanceHighlightBounds = (
   instance: ComponentInstance,
 ): { x: number; y: number; width: number; height: number } => {
-  if (instance.type === "icon-box") {
-    const r = getIconBoxFullHighlightBoundsInRootSpace(instance.props.title);
+  if (instance.type === "icon-box" || instance.type === "icon-box-2x1") {
+    const r = getIconBoxFullHighlightBoundsInRootSpace(instance.props.title, instance.type);
     return {
       x: instance.x + r.x,
       y: instance.y + r.y,
@@ -313,7 +341,7 @@ export const createComponentInstance = (
     };
   }
 
-  if (type === "icon-box") {
+  if (type === "icon-box" || type === "icon-box-2x1") {
     return {
       id: `${type}-${index}`,
       type,

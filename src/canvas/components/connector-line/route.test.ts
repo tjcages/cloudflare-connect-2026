@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createComponentInstance } from "../../../lib/componentRegistry";
 import {
+  getConnectorLineEndpointHighlightCenters,
   resolveConnectorEndpoint,
+  resolveConnectorLineEndpoints,
   routeConnectorPath,
   getConnectorSegmentCells,
   getConnectorCornerPoints,
 } from "./route";
-import type { ConnectorEndpoint } from "../../../grid/types";
+import type { ComponentInstance, ConnectorEndpoint } from "../../../grid/types";
 
 describe("connector line routing", () => {
   it("resolves static cell endpoints and layer endpoints on the 80px connector lattice", () => {
@@ -16,6 +18,72 @@ describe("connector line routing", () => {
 
     expect(resolveConnectorEndpoint(cellEndpoint, [iconBox])).toEqual({ x: 200, y: 120 });
     expect(resolveConnectorEndpoint(layerEndpoint, [iconBox])).toEqual({ x: 120, y: 120 });
+  });
+
+  it("resolveConnectorLineEndpoints picks left half of icon-box-2x1 when peer lies to the west", () => {
+    const wide = createComponentInstance("icon-box-2x1", 43, 79, 1, 800, 560);
+    const connector = {
+      id: "connector-line-1",
+      type: "connector-line" as const,
+      name: "Connector Line 1",
+      x: 40,
+      y: 40,
+      props: {
+        preferredConnection: "horizontal" as const,
+        source: { kind: "layer" as const, instanceId: wide.id },
+        target: { kind: "cell" as const, x: 40, y: 120 },
+        overlayGrid: true as const,
+        animated: true as const,
+      },
+    };
+    const resolved = resolveConnectorLineEndpoints(connector, [wide, connector as ComponentInstance]);
+    expect(resolved?.source).toEqual({ x: 40, y: 120 });
+    expect(resolved?.target).toEqual({ x: 40, y: 120 });
+  });
+
+  it("resolveConnectorLineEndpoints picks right half of icon-box-2x1 when peer lies to the east", () => {
+    const wide = createComponentInstance("icon-box-2x1", 43, 79, 2, 800, 560);
+    const connector = {
+      id: "connector-line-1",
+      type: "connector-line" as const,
+      name: "Connector Line 1",
+      x: 40,
+      y: 40,
+      props: {
+        preferredConnection: "horizontal" as const,
+        source: { kind: "layer" as const, instanceId: wide.id },
+        target: { kind: "cell" as const, x: 280, y: 120 },
+        overlayGrid: true as const,
+        animated: true as const,
+      },
+    };
+    const resolved = resolveConnectorLineEndpoints(connector, [wide, connector as ComponentInstance]);
+    expect(resolved?.source).toEqual({ x: 120, y: 120 });
+    expect(resolved?.target).toEqual({ x: 280, y: 120 });
+  });
+
+  it("layers icon-box-2x1 endpoints into two highlight centers plus deduped static cells", () => {
+    const wide = createComponentInstance("icon-box-2x1", 43, 79, 1, 800, 560);
+    const connector = {
+      id: "connector-line-1",
+      type: "connector-line" as const,
+      name: "Connector Line 1",
+      x: 40,
+      y: 40,
+      props: {
+        preferredConnection: "horizontal" as const,
+        source: { kind: "layer" as const, instanceId: wide.id },
+        target: { kind: "cell" as const, x: 40, y: 120 },
+        overlayGrid: true as const,
+        animated: true as const,
+      },
+    };
+    const instList = [wide, connector as ComponentInstance];
+    const resolved = resolveConnectorLineEndpoints(connector, instList)!;
+    expect(getConnectorLineEndpointHighlightCenters(connector, instList, resolved)).toEqual([
+      { x: 40, y: 120 },
+      { x: 120, y: 120 },
+    ]);
   });
 
   it("uses a horizontal first leg when horizontal preference connects collinear vertical anchor points", () => {

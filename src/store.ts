@@ -159,7 +159,7 @@ const duplicateInstanceForGrid = (
     instance.type,
   );
 
-  if (instance.type === "icon-box") {
+  if (instance.type === "icon-box" || instance.type === "icon-box-2x1") {
     return {
       ...instance,
       id,
@@ -343,7 +343,7 @@ export const useAppStore = create<AppStoreState>()(
               if (instance.id !== id) {
                 return instance;
               }
-              if (instance.type === "icon-box" && "iconId" in props) {
+              if ((instance.type === "icon-box" || instance.type === "icon-box-2x1") && "iconId" in props) {
                 return { ...instance, props: props as IconBoxProps };
               }
               if (instance.type === "plus-marker") {

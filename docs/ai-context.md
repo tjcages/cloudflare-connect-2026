@@ -91,7 +91,11 @@ Testing Library tests should prefer visible text and stable `data-testid` hooks 
 npm run verify
 ```
 
-`verify` runs linting, format checks, tests, type checking, and production build.
+`verify` runs tests, TypeScript project checks, and the production Vite build.
+
+Linting and formatting use **oxlint** + **oxfmt** via `npm run code-check`. That command is **not** part of `verify` (keeps local iteration fast); GitHub Actions runs `code-check` before `verify` on pushes and pull requests. Run `npm run code-check` locally before pushing if you want to fail early.
+
+Agents often iterate faster with `npm run typecheck` or `npx vitest run <file-or-glob>` before running full `npm run verify`; Vitest uses the `threads` pool here specifically so the suite stays fast under happy-dom.
 
 For docs/rules-only changes, a frontmatter/path/stale-reference review is enough unless source files changed.
 

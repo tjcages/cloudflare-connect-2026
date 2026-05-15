@@ -2,6 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetAppStoreDocumentToDefault, useAppStore } from "../store";
 import { copyDocumentPng, createDocumentPngBlob } from "./pngExport";
 
+function patchNavigatorClipboard(next: Clipboard | undefined): () => void {
+  const prev = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+  Object.defineProperty(navigator, "clipboard", {
+    value: next,
+    configurable: true,
+    writable: true,
+    enumerable: true,
+  });
+  return () => {
+    if (prev) {
+      Object.defineProperty(navigator, "clipboard", prev);
+    } else {
+      Reflect.deleteProperty(navigator, "clipboard");
+    }
+  };
+}
+
 describe("pngExport", () => {
   beforeEach(() => {
     resetAppStoreDocumentToDefault();
@@ -66,8 +83,7 @@ describe("pngExport", () => {
     useAppStore.setState({ pixiApp: mockApp as never });
 
     const write = vi.fn().mockResolvedValue(undefined);
-    const prevClipboard = navigator.clipboard;
-    Object.assign(navigator, { clipboard: { write } });
+    const restoreClipboard = patchNavigatorClipboard({ write } as unknown as Clipboard);
 
     class ClipboardItemStub {
       static items: ClipboardItemStub[] = [];
@@ -86,7 +102,7 @@ describe("pngExport", () => {
       const payload = write.mock.calls[0][0] as ClipboardItemStub[];
       expect(payload[0]).toBeInstanceOf(ClipboardItemStub);
     } finally {
-      Object.assign(navigator, { clipboard: prevClipboard });
+      restoreClipboard();
     }
   });
 
@@ -102,8 +118,7 @@ describe("pngExport", () => {
 
     useAppStore.setState({ pixiApp: mockApp as never });
 
-    const prevClipboard = navigator.clipboard;
-    Object.assign(navigator, { clipboard: undefined });
+    const restoreClipboard = patchNavigatorClipboard(undefined);
 
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock-url");
@@ -116,7 +131,7 @@ describe("pngExport", () => {
       expect(createObjectURL).toHaveBeenCalled();
       expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
     } finally {
-      Object.assign(navigator, { clipboard: prevClipboard });
+      restoreClipboard();
     }
   });
 });

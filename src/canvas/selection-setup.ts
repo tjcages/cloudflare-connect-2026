@@ -33,7 +33,12 @@ const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance) 
   const b = getInstanceHighlightBounds(inst);
   let w = b.width;
   let h = b.height;
-  if (inst.type === "icon-box" || inst.type === "plus-marker" || inst.type === "rect-marker") {
+  if (
+    inst.type === "icon-box" ||
+    inst.type === "icon-box-2x1" ||
+    inst.type === "plus-marker" ||
+    inst.type === "rect-marker"
+  ) {
     w += 1;
     h += 1;
   }

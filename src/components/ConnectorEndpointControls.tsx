@@ -30,7 +30,9 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
   const [open, setOpen] = useState(false);
   const setSidebarHoveredLayerId = useAppStore((s) => s.setSidebarHoveredLayerId);
   const onOptionsScroll = useScrollbarThumbFlash();
-  const selectableLayers = instances.filter((instance) => instance.type === "icon-box");
+  const selectableLayers = instances.filter(
+    (instance) => instance.type === "icon-box" || instance.type === "icon-box-2x1",
+  );
   const selectedLayer =
     endpoint.kind === "layer" ? (instances.find((instance) => instance.id === endpoint.instanceId) ?? null) : null;
   const selectedTitle = selectedLayer ? getInstanceDisplayName(selectedLayer) : "Static cell";

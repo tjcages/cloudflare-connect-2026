@@ -1,0 +1,88 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc", "react", "jsx-a11y"],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "node": true
+  },
+  "globals": {
+    "globalThis": "readonly",
+    "React": "readonly"
+  },
+  "ignorePatterns": ["dist/**", "coverage/**", "node_modules/**", ".cursor/plans/**", ".worktrees/**"],
+  "rules": {
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "jsx-a11y/control-has-associated-label": "off",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "Math",
+        "property": "random",
+        "message": "Do not use Math.random in grid generation; use the seeded PRNG helpers."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/**/*.test.{ts,tsx}", "src/test/**/*.ts"],
+      "env": {
+        "builtin": true,
+        "browser": true,
+        "node": true
+      },
+      "globals": {
+        "vi": "readonly",
+        "describe": "readonly",
+        "it": "readonly",
+        "expect": "readonly",
+        "beforeEach": "readonly",
+        "afterEach": "readonly",
+        "beforeAll": "readonly",
+        "afterAll": "readonly"
+      }
+    },
+    {
+      "files": ["src/grid/**/*.ts"],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "Math",
+            "property": "random",
+            "message": "Grid generation must use seeded PRNG helpers instead of Math.random."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/grid/clipboard.ts"],
+      "rules": {
+        "no-restricted-properties": "off"
+      }
+    },
+    {
+      "files": ["src/grid/generatorWorker.ts"],
+      "rules": {
+        "typescript/no-useless-empty-export": "off"
+      }
+    }
+  ],
+  "settings": {
+    "react": {
+      "version": "19.2"
+    }
+  }
+}

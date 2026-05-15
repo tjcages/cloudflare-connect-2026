@@ -11,6 +11,7 @@ import {
   snapComponentPosition,
 } from "./componentRegistry";
 import {
+  ICON_BOX_2X1_SNAP_ANCHOR_X,
   ICON_BOX_CARD_FRAME_ORIGIN_Y,
   ICON_BOX_CARD_FRAME_SIZE,
   ICON_BOX_HIGHLIGHT_HEIGHT,
@@ -24,6 +25,18 @@ describe("componentRegistry", () => {
   it("registers icon-box with corners not matched to theme by default", () => {
     expect(COMPONENT_REGISTRY["icon-box"].label).toBe("Icon Box");
     expect(COMPONENT_REGISTRY["icon-box"].defaultProps).toEqual({
+      matchCornersWithTheme: false,
+      theme: "purple",
+      iconId: DEFAULT_ICON_ID,
+      title: "Workers",
+      containerHighlighted: false,
+    });
+  });
+
+  it("registers icon-box-2x1 at 160px width sharing icon-box default props", () => {
+    expect(COMPONENT_REGISTRY["icon-box-2x1"].label).toBe("Icon Box 2x1");
+    expect(COMPONENT_REGISTRY["icon-box-2x1"].width).toBe(160);
+    expect(COMPONENT_REGISTRY["icon-box-2x1"].defaultProps).toEqual({
       matchCornersWithTheme: false,
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
@@ -124,6 +137,44 @@ describe("componentRegistry", () => {
         title: "Workers",
         containerHighlighted: false,
       },
+    });
+  });
+
+  it("creates named icon-box-2x1 instances with instance.x on the 160px horizontal lattice", () => {
+    expect(createComponentInstance("icon-box-2x1", 43, 79, 42, 800, 560)).toMatchObject({
+      id: "icon-box-2x1-42",
+      type: "icon-box-2x1",
+      name: "Icon Box 2x1 42",
+      x: 0,
+      y: 52,
+      props: {
+        matchCornersWithTheme: false,
+        theme: "purple",
+        iconId: DEFAULT_ICON_ID,
+        title: "Workers",
+        containerHighlighted: false,
+      },
+    });
+  });
+
+  it("snaps icon-box-2x1 west shadow-card edge horizontally on multiples of two large cells (160px)", () => {
+    const snapped = snapComponentPosition(50, 50, 800, 560, "icon-box-2x1");
+    expect(snapped.x + ICON_BOX_2X1_SNAP_ANCHOR_X).toBe(0);
+    expect(snapped.y + ICON_BOX_SNAP_ANCHOR_Y).toBe(120);
+  });
+
+  it("resolves icon-box-2x1 anchors using the horizontal west-edge anchor from the registry", () => {
+    const inst = createComponentInstance("icon-box-2x1", 43, 79, 2, 800, 560);
+    expect(getInstanceAnchorPoint(inst)).toEqual({ x: 0, y: 120 });
+  });
+
+  it("uses wider shadow-card hit bounds for icon-box-2x1", () => {
+    const inst = createComponentInstance("icon-box-2x1", 300, 200, 11, 800, 560);
+    expect(getInstanceCanvasBounds(inst)).toEqual({
+      x: inst.x,
+      y: inst.y + ICON_BOX_CARD_FRAME_ORIGIN_Y,
+      width: 160,
+      height: ICON_BOX_CARD_FRAME_SIZE,
     });
   });
 
