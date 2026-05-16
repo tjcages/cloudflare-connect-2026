@@ -47,6 +47,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # wrangler.jsonc sets assets.directory to ./dist (Vite output); build must run before deploy.
+      - name: Build
+        run: npm run build
+
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
