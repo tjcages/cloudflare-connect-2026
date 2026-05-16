@@ -15,6 +15,7 @@ import { buildPlusMarker } from "./plus-marker/build";
 import { buildRectMarker } from "./rect-marker/build";
 
 export const COMPONENT_LAYER_BASE_Z = 10;
+const ENABLED_COMPONENT_RENDER_TYPES = new Set<ComponentInstance["type"]>(["plus-marker", "rect-marker"]);
 
 export const getComponentLayerZ = (layerCount: number, layerIndex: number) =>
   COMPONENT_LAYER_BASE_Z + layerCount - layerIndex;
@@ -96,7 +97,8 @@ const syncLayers = (
   const gridStrokeHex = grid.config.strokeColor;
   const gridStrokeColor = parseHexColor(gridStrokeHex);
   const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
-  const toDraw = previewInstance === null ? instances : [...instances, previewInstance];
+  const allDrawableInstances = previewInstance === null ? instances : [...instances, previewInstance];
+  const toDraw = allDrawableInstances.filter((instance) => ENABLED_COMPONENT_RENDER_TYPES.has(instance.type));
   const bounds = { width: grid.config.logicalWidth, height: grid.config.logicalHeight };
 
   const desiredIds = new Set(toDraw.map((i) => i.id));

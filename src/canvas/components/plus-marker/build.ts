@@ -25,6 +25,8 @@ export const buildPlusMarker = (
   g.stroke({ width: 1, color: strokeColor, cap: "butt", join: "miter" });
 
   structureRoot.addChild(g);
+  structureRoot.cacheAsTexture(true);
+  chromeRoot.cacheAsTexture(true);
 
   return { structureRoot, chromeRoot };
 };

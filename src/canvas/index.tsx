@@ -11,7 +11,7 @@ import { preloadIconBoxTitleFont } from "../fonts/iconBoxTitle";
 import { useAppStore } from "../store";
 import { clampCanvasZoom, zoomAroundCanvasPoint } from "./viewZoom";
 
-const RENDER_COMPONENT_LAYERS = false;
+const RENDER_COMPONENT_LAYERS = true;
 
 const tickers = RENDER_COMPONENT_LAYERS ? [setupGridLayer, setupComponentLayer, setupSelectionLayer] : [setupGridLayer];
 
