@@ -398,6 +398,7 @@ const syncIconBox = (
 
 export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   const layer = new Container();
+  layer.visible = false;
   app.stage.addChild(layer);
 
   const structureLayer = new Container();

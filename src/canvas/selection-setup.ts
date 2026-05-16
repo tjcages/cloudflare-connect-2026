@@ -42,6 +42,7 @@ const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance) 
 
 export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
   const graphics = new Graphics();
+  graphics.visible = false;
   app.stage.addChild(graphics);
 
   const sync = () => {
