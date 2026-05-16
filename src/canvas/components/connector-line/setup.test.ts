@@ -143,7 +143,7 @@ describe("connector line render spec", () => {
       },
     ];
     const joint = getConnectorJointPoints(connectors, bounds)[0]!;
-    expect(resolveSharedJointStrokeColor(joint, connectors, bounds, gridHex, gridColor, null)).toBe(gridColor);
+    expect(resolveSharedJointStrokeColor(joint, connectors, bounds, gridColor, null)).toBe(gridColor);
   });
 
   it("uses selection highlight on joints owned by the selected connector", () => {
@@ -167,12 +167,12 @@ describe("connector line render spec", () => {
       },
     ];
     const joint = getConnectorJointPoints(connectors, bounds)[0]!;
-    expect(resolveSharedJointStrokeColor(joint, connectors, bounds, gridHex, gridColor, "connector-line-1")).toBe(
+    expect(resolveSharedJointStrokeColor(joint, connectors, bounds, gridColor, "connector-line-1")).toBe(
       CONNECTOR_HIGHLIGHT_COLOR,
     );
   });
 
-  it("uses themed endpoint fill for joint stroke when source is a themed layer", () => {
+  it("keeps joint stroke on the grid rail color when only themed endpoints exist (no selected highlight)", () => {
     const bounds = { width: 800, height: 560 };
     const gridHex = "#F3F3F3";
     const gridColor = parseHexColor(gridHex);
@@ -204,7 +204,6 @@ describe("connector line render spec", () => {
     const instances = [icon, connector];
     const joints = getConnectorJointPoints(instances, bounds);
     expect(joints.length).toBeGreaterThan(0);
-    const orange = parseHexColor("#FF4802");
-    expect(resolveSharedJointStrokeColor(joints[0]!, instances, bounds, gridHex, gridColor, null)).toBe(orange);
+    expect(resolveSharedJointStrokeColor(joints[0]!, instances, bounds, gridColor, null)).toBe(gridColor);
   });
 });

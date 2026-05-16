@@ -5,6 +5,7 @@ import {
   CONNECTOR_JOINTS_CHROME_Z,
   CONNECTOR_TRACKS_CHROME_Z,
   getComponentLayerZ,
+  getConnectorLitCornersChromeZ,
   getConnectorPulseChromeZ,
 } from "./componentLayer";
 
@@ -33,5 +34,11 @@ describe("component layer z ordering", () => {
     expect(getConnectorPulseChromeZ(0)).toBeGreaterThan(CONNECTOR_TRACKS_CHROME_Z);
     expect(getConnectorPulseChromeZ(0)).toBeLessThan(CONNECTOR_JOINTS_CHROME_Z);
     expect(getConnectorPulseChromeZ(1)).toBeLessThan(getConnectorPulseChromeZ(0));
+  });
+
+  it("draws pulse lit bend tiles above shared joint caps but below list chrome", () => {
+    expect(getConnectorLitCornersChromeZ(0)).toBeGreaterThan(CONNECTOR_JOINTS_CHROME_Z);
+    expect(getConnectorLitCornersChromeZ(0)).toBeLessThan(getComponentLayerZ(2, 1));
+    expect(getConnectorLitCornersChromeZ(1)).toBeLessThan(getConnectorLitCornersChromeZ(0));
   });
 });

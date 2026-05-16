@@ -34,10 +34,14 @@ export const CONNECTOR_TRACKS_CHROME_Z = COMPONENT_LAYER_BASE_Z - 1;
 export const CONNECTOR_JOINTS_CHROME_Z = COMPONENT_LAYER_BASE_Z;
 
 /**
- * Animated wave + lit corners: strictly between {@link CONNECTOR_TRACKS_CHROME_Z} and {@link CONNECTOR_JOINTS_CHROME_Z}
- * so the pulse never paints over shared white joint caps (list order preserved with small steps).
+ * Animated wave only: strictly between {@link CONNECTOR_TRACKS_CHROME_Z} and {@link CONNECTOR_JOINTS_CHROME_Z}
+ * so the slice never paints over shared white joint fills.
  */
 export const getConnectorPulseChromeZ = (layerIndex: number) => CONNECTOR_JOINTS_CHROME_Z - 0.01 - layerIndex * 0.001;
+
+/** Themed bend caps while the pulse passes: above shared gray joint strokes, below icon/list chrome. */
+export const getConnectorLitCornersChromeZ = (layerIndex: number) =>
+  CONNECTOR_JOINTS_CHROME_Z + 0.02 - layerIndex * 0.001;
 
 export const getComponentLayerZ = (layerCount: number, layerIndex: number) =>
   COMPONENT_LAYER_BASE_Z + layerCount - layerIndex;
@@ -69,6 +73,7 @@ type LayerCacheEntry =
       structureRoot: Container;
       tracksChromeRoot: Container;
       chromePulseRoot: Container;
+      chromeLitJointsRoot: Container;
       fingerprint: string;
       disposeConnectorAnimation?: () => void;
     };
@@ -78,6 +83,7 @@ const destroyLayerEntry = (entry: LayerCacheEntry) => {
     entry.disposeConnectorAnimation?.();
     entry.tracksChromeRoot.destroy({ children: true });
     entry.chromePulseRoot.destroy({ children: true });
+    entry.chromeLitJointsRoot.destroy({ children: true });
     entry.structureRoot.destroy({ children: true });
     return;
   }
@@ -90,21 +96,13 @@ const syncSharedConnectorJoints = (
   jointsChromeRoot: Graphics,
   instances: ComponentInstance[],
   bounds: { width: number; height: number },
-  gridStrokeHex: string,
   gridStrokeColor: number,
   selectedInstanceId: string | null,
 ) => {
   jointsChromeRoot.clear();
   for (const point of getConnectorJointPoints(instances, bounds)) {
     const rect = getConnectorCornerCapRect(point);
-    const strokeColor = resolveSharedJointStrokeColor(
-      point,
-      instances,
-      bounds,
-      gridStrokeHex,
-      gridStrokeColor,
-      selectedInstanceId,
-    );
+    const strokeColor = resolveSharedJointStrokeColor(point, instances, bounds, gridStrokeColor, selectedInstanceId);
     jointsChromeRoot
       .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
       .fill({ color: 0xffffff })
@@ -154,7 +152,7 @@ const syncLayers = (
   syncConnectorBasePlane(connectorBaseGraphics, baseFingerprintCache, toDraw, gridStrokeColor, bounds);
 
   jointsChromeRoot.zIndex = CONNECTOR_JOINTS_CHROME_Z;
-  syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeHex, gridStrokeColor, selectedInstanceId);
+  syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeColor, selectedInstanceId);
 
   const layerPassInstances = toDraw;
   const count = layerPassInstances.length;
@@ -208,8 +206,8 @@ const syncConnectorLine = (
   bounds: { width: number; height: number },
   selectedInstanceId: string | null,
   /**
-   * {@link z} applies to selection frames on `structureLayer`. Pulse uses {@link getConnectorPulseChromeZ} so animation
-   * stays under shared joint caps while preserving list stacking among pulses.
+   * {@link z} applies to selection frames on `structureLayer`. Pulse wave uses {@link getConnectorPulseChromeZ};
+   * themed bend highlights use {@link getConnectorLitCornersChromeZ} above shared joint caps.
    */
   z: number,
   layerIndex: number,
@@ -254,15 +252,18 @@ const syncConnectorLine = (
     parts.structureRoot.zIndex = z;
     parts.tracksChromeRoot.zIndex = CONNECTOR_TRACKS_CHROME_Z;
     parts.chromePulseRoot.zIndex = getConnectorPulseChromeZ(layerIndex);
+    parts.chromeLitJointsRoot.zIndex = getConnectorLitCornersChromeZ(layerIndex);
     structureLayer.addChild(parts.structureRoot);
     chromeLayer.addChild(parts.tracksChromeRoot);
     chromeLayer.addChild(parts.chromePulseRoot);
+    chromeLayer.addChild(parts.chromeLitJointsRoot);
 
     cache.set(instance.id, {
       kind: "connector-line",
       structureRoot: parts.structureRoot,
       tracksChromeRoot: parts.tracksChromeRoot,
       chromePulseRoot: parts.chromePulseRoot,
+      chromeLitJointsRoot: parts.chromeLitJointsRoot,
       fingerprint,
       disposeConnectorAnimation: parts.disposeConnectorAnimation,
     });
@@ -270,6 +271,7 @@ const syncConnectorLine = (
     prior.structureRoot.zIndex = z;
     prior.tracksChromeRoot.zIndex = CONNECTOR_TRACKS_CHROME_Z;
     prior.chromePulseRoot.zIndex = getConnectorPulseChromeZ(layerIndex);
+    prior.chromeLitJointsRoot.zIndex = getConnectorLitCornersChromeZ(layerIndex);
   }
 };
 

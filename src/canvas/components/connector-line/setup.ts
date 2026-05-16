@@ -14,7 +14,6 @@ import {
 } from "./route";
 import { getConnectorEndpointThemeSignature, resolveConnectorEndpointThemeFill } from "./sourceTheme";
 import { connectorLegPlateauEase } from "./legPlateauEase";
-import { paletteBrush } from "../../../theme/palette";
 
 const CONNECTOR_UNDER_STROKE_WIDTH = 9;
 const CONNECTOR_STROKE_WIDTH = 1;
@@ -67,7 +66,12 @@ export type ConnectorDisplayParts = {
   structureRoot: Container;
   /** Thin connector stroke, route mask (when animated); white underlay + segments are on the base plane. */
   tracksChromeRoot: Container;
+  /** Animated wave only (mask + slice), drawn under shared joint caps. */
   chromePulseRoot: Container;
+  /**
+   * Bend tiles lit by the traveling pulse (`animated` only). Above shared gray joint caps so themed strokes show.
+   */
+  chromeLitJointsRoot: Container;
   /** Stop Motion `animate` + motion value listeners when the layer is torn down. */
   disposeConnectorAnimation?: () => void;
 };
@@ -150,27 +154,11 @@ export const getConnectorInstancesOwningJoint = (
   return out;
 };
 
-const connectorIdleJointStrokeColor = (
-  instance: ConnectorLineInstance,
-  instances: ComponentInstance[],
-  gridStrokeHex: string,
-  gridStrokeColor: number,
-): number => {
-  const neutralFill = paletteBrush("neutral", { neutralFillSyncHex: gridStrokeHex }).fill;
-  const sourceFill = resolveConnectorEndpointThemeFill(instance.props.source, instances, gridStrokeHex);
-  const targetFill = resolveConnectorEndpointThemeFill(instance.props.target, instances, gridStrokeHex);
-  if (sourceFill !== neutralFill || targetFill !== neutralFill) {
-    return sourceFill !== neutralFill ? sourceFill : targetFill;
-  }
-  return gridStrokeColor;
-};
-
-/** Stroke for shared corner tiles: selection highlight, else themed endpoint fill when non-neutral, else grid stroke. */
+/** Stroke for shared corner tiles: matches static rail — grid until the owning connector is selected (highlight). */
 export const resolveSharedJointStrokeColor = (
   joint: { x: number; y: number },
   instances: ComponentInstance[],
   bounds: { width: number; height: number },
-  gridStrokeHex: string,
   gridStrokeColor: number,
   selectedInstanceId: string | null,
 ): number => {
@@ -181,17 +169,7 @@ export const resolveSharedJointStrokeColor = (
   if (selectedInstanceId !== null && owners.some((o) => o.id === selectedInstanceId)) {
     return CONNECTOR_HIGHLIGHT_COLOR;
   }
-  let primary = owners[0]!;
-  let primaryIndex = instances.indexOf(primary);
-  for (let i = 1; i < owners.length; i += 1) {
-    const o = owners[i]!;
-    const idx = instances.indexOf(o);
-    if (idx !== -1 && idx < primaryIndex) {
-      primaryIndex = idx;
-      primary = o;
-    }
-  }
-  return connectorIdleJointStrokeColor(primary, instances, gridStrokeHex, gridStrokeColor);
+  return gridStrokeColor;
 };
 
 const drawPolyline = (graphics: Graphics, points: { x: number; y: number }[]) => {
@@ -367,6 +345,9 @@ export const buildConnectorInstanceChrome = (
   const structureRoot = new Container();
   const tracksChromeRoot = new Container();
   const chromePulseRoot = new Container();
+  const chromeLitJointsRoot = new Container();
+  const litCorners = new Graphics();
+  chromeLitJointsRoot.addChild(litCorners);
 
   if (selected) {
     const endpointFrames = new Graphics();
@@ -410,7 +391,6 @@ export const buildConnectorInstanceChrome = (
   });
   tracksChromeRoot.addChild(line);
 
-  const litCorners = new Graphics();
   let disposeConnectorAnimation: (() => void) | undefined;
   const sharedJointPoints = getConnectorJointPoints(instances, bounds);
 
@@ -542,9 +522,13 @@ export const buildConnectorInstanceChrome = (
     };
   }
 
-  chromePulseRoot.addChild(litCorners);
-
-  return { structureRoot, tracksChromeRoot, chromePulseRoot, disposeConnectorAnimation };
+  return {
+    structureRoot,
+    tracksChromeRoot,
+    chromePulseRoot,
+    chromeLitJointsRoot,
+    disposeConnectorAnimation,
+  };
 };
 
 export const buildConnectorLine = buildConnectorInstanceChrome;
