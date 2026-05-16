@@ -77,10 +77,6 @@ select {
   color: #b0b0b0;
   cursor: pointer;
   padding: 0;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
 }
 
 .sidebar-rail-button:hover {
@@ -233,9 +229,6 @@ select {
   padding: 0;
   cursor: pointer;
   color: inherit;
-  transition:
-    opacity 140ms ease,
-    visibility 140ms ease;
 }
 
 .field-reset-button svg {
@@ -259,21 +252,12 @@ select {
 
 .field.color-field:hover .field-reset-button:hover,
 .field.color-field:focus-within .field-reset-button:hover {
-  transition:
-    opacity 140ms ease,
-    visibility 140ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
   background: var(--button-hover-bg);
   color: var(--button-hover-color);
 }
 
 .field.color-field:hover .field-reset-button:active,
 .field.color-field:focus-within .field-reset-button:active {
-  transition:
-    opacity 140ms ease,
-    visibility 140ms ease,
-    background-color 120ms ease;
   background: var(--button-active-bg);
 }
 
@@ -377,10 +361,6 @@ select {
   border-radius: 50%;
   background: #efefef;
   box-sizing: border-box;
-  transition:
-    transform 120ms ease,
-    background 120ms ease,
-    box-shadow 120ms ease;
 }
 
 .field-toggle-switch.field-toggle-switch-on::after {
@@ -586,10 +566,6 @@ select {
   font-weight: var(--builder-button-font-weight);
   line-height: 1;
   flex-shrink: 0;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
 }
 
 .builder-button--solid {
@@ -688,7 +664,6 @@ select {
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
-  transition: background-color 120ms ease;
 }
 
 .layers-reorder-item-surface-dragging {
@@ -791,10 +766,6 @@ select {
   cursor: pointer;
   font-size: 11px;
   padding: 5px 7px;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
 }
 
 .back-button:hover {
@@ -856,9 +827,6 @@ button.component-list-item:hover {
   background: transparent;
   color: var(--button-color);
   padding: 0;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
 }
 
 .component-row-icon-button:hover {
