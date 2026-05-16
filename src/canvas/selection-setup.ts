@@ -42,11 +42,12 @@ const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance) 
 
 export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
   const graphics = new Graphics();
-  graphics.visible = false;
   app.stage.addChild(graphics);
 
   const sync = () => {
     graphics.clear();
+
+    let hasHighlight = false;
 
     const { selectedInstanceId, instances, connectorEndpointPick, sidebarHoveredLayerId } = useAppStore.getState();
     const connectorSelectionCells = getConnectorSelectionCellPoints(
@@ -56,6 +57,7 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
     );
     for (const point of connectorSelectionCells) {
       drawCellHighlight(graphics, point);
+      hasHighlight = true;
     }
 
     const hoveredSidebarLayer = sidebarHoveredLayerId
@@ -63,18 +65,26 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       : undefined;
     if (hoveredSidebarLayer && hoveredSidebarLayer.id !== selectedInstanceId) {
       drawInstanceHighlightRect(graphics, hoveredSidebarLayer);
+      hasHighlight = true;
     }
 
     if (selectedInstanceId === null) {
+      graphics.visible = hasHighlight;
       return;
     }
 
     const inst = instances.find((i) => i.id === selectedInstanceId);
     if (!inst) {
+      graphics.visible = hasHighlight;
       return;
     }
 
-    drawInstanceHighlightRect(graphics, inst);
+    if (inst.type !== "connector-line") {
+      drawInstanceHighlightRect(graphics, inst);
+      hasHighlight = true;
+    }
+
+    graphics.visible = hasHighlight;
   };
 
   sync();
