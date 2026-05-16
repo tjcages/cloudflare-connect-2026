@@ -19,18 +19,6 @@ import {
   type CachedTextureLayoutSnapshot,
 } from "../utils/cachedTextureDirty";
 
-/**
- * Perf rollout gate: only listed kinds render on Pixi until connector pass ships.
- * Plus/rect markers use {@link classifyCachedTextureDirty} + `cacheAsTexture`; icon boxes use {@link syncIconBox}.
- */
-const COMPONENT_LAYER_LIMITED_RENDER_PASS = true;
-
-const limitedRenderPassInstance = (inst: ComponentInstance): boolean =>
-  inst.type === "plus-marker" ||
-  inst.type === "rect-marker" ||
-  inst.type === "icon-box" ||
-  inst.type === "icon-box-2x1";
-
 export const COMPONENT_LAYER_BASE_Z = 10;
 
 export const getComponentLayerZ = (layerCount: number, layerIndex: number) =>
@@ -123,27 +111,14 @@ const syncLayers = (
       cache.delete(id);
       continue;
     }
-    if (COMPONENT_LAYER_LIMITED_RENDER_PASS) {
-      const inst = toDraw.find((i) => i.id === id);
-      if (inst && !limitedRenderPassInstance(inst)) {
-        destroyLayerEntry(cache.get(id)!);
-        cache.delete(id);
-      }
-    }
   }
 
   const connectorZ = getConnectorLineZ();
 
   jointsChromeRoot.zIndex = connectorZ.jointsChrome;
-  if (COMPONENT_LAYER_LIMITED_RENDER_PASS) {
-    jointsChromeRoot.clear();
-  } else {
-    syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeColor);
-  }
+  syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeColor);
 
-  const layerPassInstances: ComponentInstance[] = COMPONENT_LAYER_LIMITED_RENDER_PASS
-    ? toDraw.filter(limitedRenderPassInstance)
-    : toDraw;
+  const layerPassInstances = toDraw;
   const count = layerPassInstances.length;
 
   for (let index = 0; index < layerPassInstances.length; index += 1) {

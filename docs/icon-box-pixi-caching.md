@@ -17,7 +17,7 @@ This note captures why icon-box chrome caches **per filtered leaf** and how tran
 
 4. **Drag-only moves:** For translation-only updates, `syncIconBox` only adjusts `structureRoot` / `chromeRoot` positions. It does **not** call `updateCacheTexture()` on cached subtrees; cached pixels remain valid while the parent moves. Rebuild or refresh caches when props / theme / grid stroke change (handled by replacing the layer entry).
 
-5. **Perf gate:** `COMPONENT_LAYER_LIMITED_RENDER_PASS` in `componentLayer.ts` filters which instance types are drawn on Pixi during rollout. Flip it to `false` to render **all** component kinds (e.g. connectors) without editing the allowlist.
+5. **Component layer:** `syncLayers` draws every instance type the store lists (markers, icon boxes, connector lines, etc.) and rebuilds shared connector joint caps each tick.
 
 ## Z-order reminder (`chromeRoot.sortableChildren`)
 
