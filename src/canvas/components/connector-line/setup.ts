@@ -29,8 +29,17 @@ const CONNECTOR_ANIM_SLICE_PX = 100;
 const CONNECTOR_ANIM_SEC_PER_SLICE = 0.2;
 /** Pause at source (backward complete) and target (forward complete) before reversing. */
 const CONNECTOR_ANIM_ENDPOINT_PAUSE_SEC = 0.4;
+/** Upper bound (seconds) for a fresh uniform [0, max) draw before each cycle’s forward leg. */
+const CONNECTOR_ANIM_CYCLE_STAGGER_MAX_SEC = 0.5;
 /** Only guards sub-frame / zero durations; leg time scales with path length so arc-length speed stays ~constant. */
 const CONNECTOR_ANIM_MIN_LEG_SEC = 1 / 60;
+
+/** u∈[0,1) from `crypto` so connector UI jitter does not use `Math.random` (reserved for non-grid policy). */
+const randomUnitInterval = (): number => {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0]! / 2 ** 32;
+};
 
 /** Right-angle paths: default miters extend past bend centers and bleed over 6×6 joint caps. */
 const CONNECTOR_PATH_STROKE_STYLE = { cap: "butt" as const, join: "bevel" as const };
@@ -469,8 +478,7 @@ export const buildConnectorInstanceChrome = (
     let cancelled = false;
     let activeControls: ReturnType<typeof animate> | null = null;
 
-    const pauseAtEndpoint = async () => {
-      const msTotal = CONNECTOR_ANIM_ENDPOINT_PAUSE_SEC * 1000;
+    const delayUnlessCancelled = async (msTotal: number) => {
       const stepMs = 50;
       let remaining = msTotal;
       while (!cancelled && remaining > 0) {
@@ -482,8 +490,18 @@ export const buildConnectorInstanceChrome = (
       }
     };
 
+    const pauseAtEndpoint = async () => {
+      await delayUnlessCancelled(CONNECTOR_ANIM_ENDPOINT_PAUSE_SEC * 1000);
+    };
+
     const runLoop = async () => {
       while (!cancelled) {
+        // New draw every cycle — not a one-shot or fixed stagger.
+        const cycleStaggerMs = randomUnitInterval() * CONNECTOR_ANIM_CYCLE_STAGGER_MAX_SEC * 1000;
+        await delayUnlessCancelled(cycleStaggerMs);
+        if (cancelled) {
+          break;
+        }
         legPhase = "forward";
         progressAlongPath.set(0);
         activeControls = animate(progressAlongPath, slice, {
