@@ -18,8 +18,6 @@ export const buildRectMarker = (
   g.rect(0, 0, width, height).fill({ color: brush.fill });
 
   structureRoot.addChild(g);
-  structureRoot.cacheAsTexture(true);
-  chromeRoot.cacheAsTexture(true);
 
   return { structureRoot, chromeRoot };
 };

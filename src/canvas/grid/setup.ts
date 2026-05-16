@@ -21,12 +21,10 @@ export const setupGridLayer: Ticker = ({ app, cleanup }) => {
   app.stage.addChildAt(graphics, 0);
 
   paintGrid(graphics, useAppStore.getState().grid);
-  graphics.cacheAsTexture(true);
 
   const unsub = useAppStore.subscribe((state, prev) => {
     if (state.grid !== prev.grid) {
       paintGrid(graphics, state.grid);
-      graphics.updateCacheTexture();
     }
   });
 
