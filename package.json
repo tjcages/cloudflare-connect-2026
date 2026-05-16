@@ -14,9 +14,19 @@
     "lint": "oxlint -c .oxlintrc.json .",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
+    "prepare": "husky",
+    "precommit": "lint-staged",
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "npm test && concurrently --kill-others-on-fail -n tsc,vite -c yellow,cyan \"npm run typecheck\" \"npm run build:client\""
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,jsonc,css,md,yml,yaml}": [
+      "oxfmt --write"
+    ],
+    "*.{js,jsx,ts,tsx}": [
+      "oxlint -c .oxlintrc.json"
+    ]
   },
   "dependencies": {
     "@cloudflare/kumo": "^2.2.1",
@@ -41,7 +51,9 @@
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^9.2.1",
     "happy-dom": "^20.9.0",
+    "husky": "^9.1.7",
     "jsdom": "^29.1.1",
+    "lint-staged": "^16.4.0",
     "oxfmt": "^0.50.0",
     "oxlint": "^1.65.0",
     "typescript": "^6.0.3",

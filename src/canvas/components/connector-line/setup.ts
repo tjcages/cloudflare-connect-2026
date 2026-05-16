@@ -93,7 +93,10 @@ export const getConnectorJointPoints = (
 
     const route = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
     const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, route, instances, bounds);
-    const jointPoints = [...getConnectorCornerPoints(route), ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints)];
+    const jointPoints = [
+      ...getConnectorCornerPoints(route),
+      ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints),
+    ];
 
     for (const point of jointPoints) {
       pointsByKey.set(`${point.x},${point.y}`, point);

@@ -169,13 +169,19 @@ describe("connector line routing", () => {
   });
 
   it("bridges joints when passing through foreign bend coords on a straight polyline segment", () => {
-    const collinearSteps = [{ x: 40, y: 120 }, { x: 120, y: 120 }, { x: 280, y: 120 }];
+    const collinearSteps = [
+      { x: 40, y: 120 },
+      { x: 120, y: 120 },
+      { x: 280, y: 120 },
+    ];
     expect(getConnectorCornerPoints(collinearSteps)).toEqual([]);
     expect(getForeignCornerOverlapPoints(collinearSteps, [{ x: 120, y: 120 }])).toEqual([{ x: 120, y: 120 }]);
   });
 
   it("orthogonalSegmentIntersection returns the grid crossing of perpendicular spans", () => {
-    expect(orthogonalSegmentIntersection({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 40, y: -20 }, { x: 40, y: 20 })).toEqual({
+    expect(
+      orthogonalSegmentIntersection({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 40, y: -20 }, { x: 40, y: 20 }),
+    ).toEqual({
       x: 40,
       y: 0,
     });

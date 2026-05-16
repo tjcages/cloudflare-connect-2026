@@ -14,7 +14,10 @@ describe("CanvasViewportToolbar", () => {
   });
 
   it("resets the document after confirming clear", () => {
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
     useAppStore.setState({
       instances: [],
       selectedInstanceId: null,
@@ -31,7 +34,10 @@ describe("CanvasViewportToolbar", () => {
   });
 
   it("does not reset when clear is cancelled", () => {
-    vi.stubGlobal("confirm", vi.fn(() => false));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => false),
+    );
     useAppStore.setState({
       instances: [],
       selectedInstanceId: null,

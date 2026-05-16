@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { arcDistanceToPointOnPolyline, bounceDistanceAlong, getPolylineMetrics, slicePolylineByDistance } from "./pathMotion";
+import {
+  arcDistanceToPointOnPolyline,
+  bounceDistanceAlong,
+  getPolylineMetrics,
+  slicePolylineByDistance,
+} from "./pathMotion";
 
 describe("pathMotion", () => {
   it("measures a simple horizontal segment", () => {
