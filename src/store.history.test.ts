@@ -63,4 +63,24 @@ describe("document history", () => {
     expect(useAppStore.getState().gridConfig).toBe(before);
     expect(useAppStore.getState().dragState).not.toBeNull();
   });
+
+  it("batches a canvas move drag into one undo step", () => {
+    resetAppStoreDocumentToDefault();
+    const inst = iconBoxInstance("icon-box-move-batch", "Batch");
+    useAppStore.setState({ instances: [inst], selectedInstanceId: inst.id, nextInstanceIndex: 2 });
+
+    const pastBefore = useAppStore.temporal.getState().pastStates.length;
+    useAppStore.getState().startMoveDrag(inst.id, 0, 0);
+    useAppStore.getState().moveInstanceTo(inst.id, 200, 200);
+    useAppStore.getState().moveInstanceTo(inst.id, 320, 240);
+    useAppStore.getState().endCanvasDrag();
+
+    expect(useAppStore.temporal.getState().pastStates.length - pastBefore).toBe(1);
+    expect(useAppStore.temporal.getState().isTracking).toBe(true);
+
+    useAppStore.getState().undoDocument();
+    const restored = useAppStore.getState().instances.find((i) => i.id === inst.id);
+    expect(restored?.x).toBe(inst.x);
+    expect(restored?.y).toBe(inst.y);
+  });
 });

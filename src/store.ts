@@ -129,6 +129,27 @@ const getDocumentHistorySlice = (state: AppStoreState): PersistedDocumentSlice =
 const documentSlicesAreEqual = (past: PersistedDocumentSlice, current: PersistedDocumentSlice) =>
   JSON.stringify(past) === JSON.stringify(current);
 
+/** Document slice at move-drag start; used with zundo `pause` so intermediate `moveInstanceTo` calls batch into one undo step. */
+let moveDragHistoryBaseline: PersistedDocumentSlice | null = null;
+
+type TemporalHandleSet = (
+  pastState: PersistedDocumentSlice,
+  replace: undefined,
+  currentState: PersistedDocumentSlice,
+  deltaState?: PersistedDocumentSlice | null,
+) => void;
+
+const flushMoveDragHistoryBatch = (baseline: PersistedDocumentSlice) => {
+  const temporal = useAppStore.temporal.getState();
+  temporal.resume();
+  const endSlice = getDocumentHistorySlice(useAppStore.getState());
+  if (documentSlicesAreEqual(baseline, endSlice)) {
+    return;
+  }
+  const handleSet = (temporal as { _handleSet?: TemporalHandleSet })._handleSet;
+  handleSet?.(baseline, undefined, endSlice, undefined);
+};
+
 const syncGridToCurrentConfig = () => {
   useAppStore.setState((s) => ({ grid: generateGrid(s.gridConfig) }));
 };
@@ -231,7 +252,11 @@ export const useAppStore = create<AppStoreState>()(
 
         selectInstance: (id) => set({ selectedInstanceId: id }),
 
-        startCreateDrag: (type, initialPointer) =>
+        startCreateDrag: (type, initialPointer) => {
+          moveDragHistoryBaseline = null;
+          if (!useAppStore.temporal.getState().isTracking) {
+            useAppStore.temporal.getState().resume();
+          }
           set({
             dragState: {
               mode: "create",
@@ -239,7 +264,8 @@ export const useAppStore = create<AppStoreState>()(
               preview: null,
               ghostClient: initialPointer ? { x: initialPointer.clientX, y: initialPointer.clientY } : null,
             },
-          }),
+          });
+        },
 
         revertCreatePreviewToGhost: (clientX, clientY) =>
           set((s) => {
@@ -282,6 +308,8 @@ export const useAppStore = create<AppStoreState>()(
         },
 
         startMoveDrag: (id, offsetX, offsetY) => {
+          moveDragHistoryBaseline = getDocumentHistorySlice(get());
+          useAppStore.temporal.getState().pause();
           set({
             dragState: { mode: "move", id, offsetX, offsetY },
           });
@@ -307,7 +335,29 @@ export const useAppStore = create<AppStoreState>()(
         },
 
         endCanvasDrag: () => {
+          const dragState = get().dragState;
+          if (dragState === null) {
+            return;
+          }
+          const wasMove = dragState.mode === "move";
           set({ dragState: null });
+
+          if (wasMove) {
+            const baseline = moveDragHistoryBaseline;
+            moveDragHistoryBaseline = null;
+            if (baseline !== null) {
+              flushMoveDragHistoryBatch(baseline);
+            } else {
+              useAppStore.temporal.getState().resume();
+            }
+            return;
+          }
+
+          moveDragHistoryBaseline = null;
+          const temporal = useAppStore.temporal.getState();
+          if (!temporal.isTracking) {
+            temporal.resume();
+          }
         },
 
         deleteInstance: (id) =>
@@ -462,6 +512,7 @@ export const useAppStore = create<AppStoreState>()(
 
 /** Restore the canvas document to defaults (keeps the Pixi app handle if already set). Intended for tests. */
 export const resetAppStoreDocumentToDefault = () => {
+  moveDragHistoryBaseline = null;
   const fresh = getDefaultDocumentSlice();
   const temporalStore = useAppStore.temporal.getState();
   temporalStore.pause();
