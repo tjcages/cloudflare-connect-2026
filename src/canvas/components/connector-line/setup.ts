@@ -14,6 +14,7 @@ import {
 } from "./route";
 import { getConnectorEndpointThemeSignature, resolveConnectorEndpointThemeFill } from "./sourceTheme";
 import { connectorLegPlateauEase } from "./legPlateauEase";
+import { paletteBrush } from "../../../theme/palette";
 
 const CONNECTOR_UNDER_STROKE_WIDTH = 9;
 const CONNECTOR_STROKE_WIDTH = 1;
@@ -31,6 +32,9 @@ const CONNECTOR_ANIM_SEC_PER_SLICE = 0.2;
 const CONNECTOR_ANIM_ENDPOINT_PAUSE_SEC = 0.4;
 /** Only guards sub-frame / zero durations; leg time scales with path length so arc-length speed stays ~constant. */
 const CONNECTOR_ANIM_MIN_LEG_SEC = 1 / 60;
+
+/** Right-angle paths: default miters extend past bend centers and bleed over 6×6 joint caps. */
+const CONNECTOR_PATH_STROKE_STYLE = { cap: "butt" as const, join: "bevel" as const };
 
 export type ConnectorRenderSpec = {
   segmentFrameColor: number;
@@ -59,8 +63,9 @@ export const getConnectorRenderSpec = (selected: boolean, gridStrokeColor: numbe
 };
 
 export type ConnectorDisplayParts = {
+  /** Selection endpoint frames only; segment frames live on the shared connector base plane. */
   structureRoot: Container;
-  /** Gray/purple strokes and white hull underlays; layer z-order base. */
+  /** Thin connector stroke, route mask (when animated); white underlay + segments are on the base plane. */
   tracksChromeRoot: Container;
   chromePulseRoot: Container;
   /** Stop Motion `animate` + motion value listeners when the layer is torn down. */
@@ -106,11 +111,204 @@ export const getConnectorJointPoints = (
   return [...pointsByKey.values()].sort((a, b) => a.x - b.x || a.y - b.y);
 };
 
+export type ConnectorLineInstance = Extract<ComponentInstance, { type: "connector-line" }>;
+
+export const connectorOwnsJointPoint = (
+  instance: ConnectorLineInstance,
+  joint: { x: number; y: number },
+  instances: ComponentInstance[],
+  bounds: { width: number; height: number },
+): boolean => {
+  const source = resolveConnectorEndpoint(instance.props.source, instances);
+  const target = resolveConnectorEndpoint(instance.props.target, instances);
+  if (!source || !target) {
+    return false;
+  }
+  const route = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
+  const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, route, instances, bounds);
+  const jointPoints = [
+    ...getConnectorCornerPoints(route),
+    ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints),
+  ];
+  return jointPoints.some((p) => p.x === joint.x && p.y === joint.y);
+};
+
+export const getConnectorInstancesOwningJoint = (
+  joint: { x: number; y: number },
+  instances: ComponentInstance[],
+  bounds: { width: number; height: number },
+): ConnectorLineInstance[] => {
+  const out: ConnectorLineInstance[] = [];
+  for (const inst of instances) {
+    if (inst.type !== "connector-line") {
+      continue;
+    }
+    if (connectorOwnsJointPoint(inst, joint, instances, bounds)) {
+      out.push(inst);
+    }
+  }
+  return out;
+};
+
+const connectorIdleJointStrokeColor = (
+  instance: ConnectorLineInstance,
+  instances: ComponentInstance[],
+  gridStrokeHex: string,
+  gridStrokeColor: number,
+): number => {
+  const neutralFill = paletteBrush("neutral", { neutralFillSyncHex: gridStrokeHex }).fill;
+  const sourceFill = resolveConnectorEndpointThemeFill(instance.props.source, instances, gridStrokeHex);
+  const targetFill = resolveConnectorEndpointThemeFill(instance.props.target, instances, gridStrokeHex);
+  if (sourceFill !== neutralFill || targetFill !== neutralFill) {
+    return sourceFill !== neutralFill ? sourceFill : targetFill;
+  }
+  return gridStrokeColor;
+};
+
+/** Stroke for shared corner tiles: selection highlight, else themed endpoint fill when non-neutral, else grid stroke. */
+export const resolveSharedJointStrokeColor = (
+  joint: { x: number; y: number },
+  instances: ComponentInstance[],
+  bounds: { width: number; height: number },
+  gridStrokeHex: string,
+  gridStrokeColor: number,
+  selectedInstanceId: string | null,
+): number => {
+  const owners = getConnectorInstancesOwningJoint(joint, instances, bounds);
+  if (owners.length === 0) {
+    return gridStrokeColor;
+  }
+  if (selectedInstanceId !== null && owners.some((o) => o.id === selectedInstanceId)) {
+    return CONNECTOR_HIGHLIGHT_COLOR;
+  }
+  let primary = owners[0]!;
+  let primaryIndex = instances.indexOf(primary);
+  for (let i = 1; i < owners.length; i += 1) {
+    const o = owners[i]!;
+    const idx = instances.indexOf(o);
+    if (idx !== -1 && idx < primaryIndex) {
+      primaryIndex = idx;
+      primary = o;
+    }
+  }
+  return connectorIdleJointStrokeColor(primary, instances, gridStrokeHex, gridStrokeColor);
+};
+
 const drawPolyline = (graphics: Graphics, points: { x: number; y: number }[]) => {
   const [first, ...rest] = points;
   graphics.moveTo(first.x, first.y);
   for (const point of rest) {
     graphics.lineTo(point.x, point.y);
+  }
+};
+
+const connectorBaseRowKey = (row: { id: string }) => row.id;
+
+export const getConnectorBaseLayerFingerprint = (
+  instances: ComponentInstance[],
+  gridStrokeColor: number,
+  bounds: { width: number; height: number },
+): string => {
+  const rows: Array<{
+    id: string;
+    preferredConnection: unknown;
+    source: unknown;
+    target: unknown;
+    overlayGrid: boolean;
+    sx: number;
+    sy: number;
+    tx: number;
+    ty: number;
+  }> = [];
+
+  for (const inst of instances) {
+    if (inst.type !== "connector-line") {
+      continue;
+    }
+    const source = resolveConnectorEndpoint(inst.props.source, instances);
+    const target = resolveConnectorEndpoint(inst.props.target, instances);
+    if (!source || !target) {
+      continue;
+    }
+    rows.push({
+      id: inst.id,
+      preferredConnection: inst.props.preferredConnection,
+      source: inst.props.source,
+      target: inst.props.target,
+      overlayGrid: inst.props.overlayGrid,
+      sx: source.x,
+      sy: source.y,
+      tx: target.x,
+      ty: target.y,
+    });
+  }
+
+  rows.sort((a, b) => connectorBaseRowKey(a).localeCompare(connectorBaseRowKey(b)));
+
+  return JSON.stringify({
+    gridStrokeColor,
+    bounds,
+    routeTopology: getConnectorRouteTopologySignature(instances, bounds),
+    connectors: rows,
+  });
+};
+
+export const paintConnectorBaseLayer = (
+  graphics: Graphics,
+  instances: ComponentInstance[],
+  gridStrokeColor: number,
+  bounds: { width: number; height: number },
+) => {
+  graphics.clear();
+  const segmentSpec = getConnectorRenderSpec(false, gridStrokeColor);
+
+  const sortedInstances = [...instances].sort((a, b) => a.id.localeCompare(b.id));
+
+  for (const inst of sortedInstances) {
+    if (inst.type !== "connector-line") {
+      continue;
+    }
+    const source = resolveConnectorEndpoint(inst.props.source, instances);
+    const target = resolveConnectorEndpoint(inst.props.target, instances);
+    if (!source || !target) {
+      continue;
+    }
+    const points = routeConnectorPath(source, target, inst.props.preferredConnection, bounds);
+    const segmentOverlay = inst.props.overlayGrid;
+    for (const cell of getConnectorSegmentCells(points)) {
+      if (segmentOverlay) {
+        graphics
+          .rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE)
+          .fill({ color: 0xffffff })
+          .stroke({
+            width: CONNECTOR_STROKE_WIDTH,
+            color: segmentSpec.segmentFrameColor,
+          });
+      } else {
+        graphics.rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE).stroke({
+          width: CONNECTOR_STROKE_WIDTH,
+          color: segmentSpec.segmentFrameColor,
+        });
+      }
+    }
+  }
+
+  for (const inst of sortedInstances) {
+    if (inst.type !== "connector-line") {
+      continue;
+    }
+    const source = resolveConnectorEndpoint(inst.props.source, instances);
+    const target = resolveConnectorEndpoint(inst.props.target, instances);
+    if (!source || !target) {
+      continue;
+    }
+    const points = routeConnectorPath(source, target, inst.props.preferredConnection, bounds);
+    drawPolyline(graphics, points);
+    graphics.stroke({
+      width: CONNECTOR_UNDER_STROKE_WIDTH,
+      color: 0xffffff,
+      ...CONNECTOR_PATH_STROKE_STYLE,
+    });
   }
 };
 
@@ -146,7 +344,8 @@ export const getConnectorRenderFingerprint = (
   });
 };
 
-export const buildConnectorLine = (
+/** Per-connector chrome: colored stroke, selection endpoint frames, animation. Segments + white underlay: {@link paintConnectorBaseLayer}. Corner caps: {@link getConnectorJointPoints} on chromeLayer. */
+export const buildConnectorInstanceChrome = (
   instance: Extract<ComponentInstance, { type: "connector-line" }>,
   instances: ComponentInstance[],
   gridStrokeColor: number,
@@ -168,25 +367,6 @@ export const buildConnectorLine = (
   const structureRoot = new Container();
   const tracksChromeRoot = new Container();
   const chromePulseRoot = new Container();
-
-  const segmentFrames = new Graphics();
-  for (const cell of getConnectorSegmentCells(points)) {
-    if (segmentOverlay) {
-      segmentFrames
-        .rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE)
-        .fill({ color: 0xffffff })
-        .stroke({
-          width: CONNECTOR_STROKE_WIDTH,
-          color: renderSpec.segmentFrameColor,
-        });
-    } else {
-      segmentFrames.rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE).stroke({
-        width: CONNECTOR_STROKE_WIDTH,
-        color: renderSpec.segmentFrameColor,
-      });
-    }
-  }
-  structureRoot.addChild(segmentFrames);
 
   if (selected) {
     const endpointFrames = new Graphics();
@@ -221,14 +401,13 @@ export const buildConnectorLine = (
     structureRoot.addChild(endpointFrames);
   }
 
-  const lineUnderlay = new Graphics();
-  drawPolyline(lineUnderlay, points);
-  lineUnderlay.stroke({ width: CONNECTOR_UNDER_STROKE_WIDTH, color: 0xffffff });
-  tracksChromeRoot.addChild(lineUnderlay);
-
   const line = new Graphics();
   drawPolyline(line, points);
-  line.stroke({ width: CONNECTOR_STROKE_WIDTH, color: renderSpec.lineColor });
+  line.stroke({
+    width: CONNECTOR_STROKE_WIDTH,
+    color: renderSpec.lineColor,
+    ...CONNECTOR_PATH_STROKE_STYLE,
+  });
   tracksChromeRoot.addChild(line);
 
   const litCorners = new Graphics();
@@ -238,7 +417,11 @@ export const buildConnectorLine = (
   if (instance.props.animated && metrics.totalLength > 0) {
     const maskShape = new Graphics();
     drawPolyline(maskShape, points);
-    maskShape.stroke({ width: CONNECTOR_UNDER_STROKE_WIDTH, color: 0xffffff });
+    maskShape.stroke({
+      width: CONNECTOR_UNDER_STROKE_WIDTH,
+      color: 0xffffff,
+      ...CONNECTOR_PATH_STROKE_STYLE,
+    });
 
     const waveHolder = new Container();
     const waveStroke = new Graphics();
@@ -291,7 +474,11 @@ export const buildConnectorLine = (
       );
       if (waveSlice.length >= 2) {
         drawPolyline(waveStroke, waveSlice);
-        waveStroke.stroke({ width: CONNECTOR_ANIM_STROKE_WIDTH, color: waveFill });
+        waveStroke.stroke({
+          width: CONNECTOR_ANIM_STROKE_WIDTH,
+          color: waveFill,
+          ...CONNECTOR_PATH_STROKE_STYLE,
+        });
       }
       drawAnimatedCornerCaps(centerDist, waveFill);
     };
@@ -359,3 +546,5 @@ export const buildConnectorLine = (
 
   return { structureRoot, tracksChromeRoot, chromePulseRoot, disposeConnectorAnimation };
 };
+
+export const buildConnectorLine = buildConnectorInstanceChrome;

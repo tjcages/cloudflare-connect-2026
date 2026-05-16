@@ -5,10 +5,13 @@ import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
 import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
 import {
-  buildConnectorLine,
+  buildConnectorInstanceChrome,
+  getConnectorBaseLayerFingerprint,
   getConnectorCornerCapRect,
   getConnectorJointPoints,
   getConnectorRenderFingerprint,
+  paintConnectorBaseLayer,
+  resolveSharedJointStrokeColor,
 } from "./connector-line/setup";
 import { buildIconBox, type IconBoxRenderableInstance } from "./icon-box/build";
 import { buildPlusMarker } from "./plus-marker/build";
@@ -21,15 +24,23 @@ import {
 
 export const COMPONENT_LAYER_BASE_Z = 10;
 
+/** Shared segment grid + white track hulls on structureLayer, below all chrome. */
+export const CONNECTOR_BASE_Z = COMPONENT_LAYER_BASE_Z - 2;
+
+/** All connector thin strokes + route masks on chromeLayer, under pulse and joint caps. */
+export const CONNECTOR_TRACKS_CHROME_Z = COMPONENT_LAYER_BASE_Z - 1;
+
+/** Shared corner caps on chromeLayer: above tracks + pulse, below component chrome (icons/markers). */
+export const CONNECTOR_JOINTS_CHROME_Z = COMPONENT_LAYER_BASE_Z;
+
+/**
+ * Animated wave + lit corners: strictly between {@link CONNECTOR_TRACKS_CHROME_Z} and {@link CONNECTOR_JOINTS_CHROME_Z}
+ * so the pulse never paints over shared white joint caps (list order preserved with small steps).
+ */
+export const getConnectorPulseChromeZ = (layerIndex: number) => CONNECTOR_JOINTS_CHROME_Z - 0.01 - layerIndex * 0.001;
+
 export const getComponentLayerZ = (layerCount: number, layerIndex: number) =>
   COMPONENT_LAYER_BASE_Z + layerCount - layerIndex;
-
-export const getConnectorLineZ = () => ({
-  structure: COMPONENT_LAYER_BASE_Z - 2,
-  tracksChrome: COMPONENT_LAYER_BASE_Z - 1,
-  jointsChrome: COMPONENT_LAYER_BASE_Z,
-  chromePulse: COMPONENT_LAYER_BASE_Z,
-});
 
 type LayerCacheEntry =
   | {
@@ -79,19 +90,46 @@ const syncSharedConnectorJoints = (
   jointsChromeRoot: Graphics,
   instances: ComponentInstance[],
   bounds: { width: number; height: number },
+  gridStrokeHex: string,
   gridStrokeColor: number,
+  selectedInstanceId: string | null,
 ) => {
   jointsChromeRoot.clear();
   for (const point of getConnectorJointPoints(instances, bounds)) {
     const rect = getConnectorCornerCapRect(point);
+    const strokeColor = resolveSharedJointStrokeColor(
+      point,
+      instances,
+      bounds,
+      gridStrokeHex,
+      gridStrokeColor,
+      selectedInstanceId,
+    );
     jointsChromeRoot
       .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
       .fill({ color: 0xffffff })
-      .stroke({ width: 1, color: gridStrokeColor });
+      .stroke({ width: 1, color: strokeColor });
   }
 };
 
+const syncConnectorBasePlane = (
+  connectorBaseGraphics: Graphics,
+  baseFingerprintCache: { value: string },
+  instances: ComponentInstance[],
+  gridStrokeColor: number,
+  bounds: { width: number; height: number },
+) => {
+  const nextFp = getConnectorBaseLayerFingerprint(instances, gridStrokeColor, bounds);
+  if (nextFp === baseFingerprintCache.value) {
+    return;
+  }
+  baseFingerprintCache.value = nextFp;
+  paintConnectorBaseLayer(connectorBaseGraphics, instances, gridStrokeColor, bounds);
+};
+
 const syncLayers = (
+  connectorBaseGraphics: Graphics,
+  baseFingerprintCache: { value: string },
   structureLayer: Container,
   chromeLayer: Container,
   jointsChromeRoot: Graphics,
@@ -113,10 +151,10 @@ const syncLayers = (
     }
   }
 
-  const connectorZ = getConnectorLineZ();
+  syncConnectorBasePlane(connectorBaseGraphics, baseFingerprintCache, toDraw, gridStrokeColor, bounds);
 
-  jointsChromeRoot.zIndex = connectorZ.jointsChrome;
-  syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeColor);
+  jointsChromeRoot.zIndex = CONNECTOR_JOINTS_CHROME_Z;
+  syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeHex, gridStrokeColor, selectedInstanceId);
 
   const layerPassInstances = toDraw;
   const count = layerPassInstances.length;
@@ -136,6 +174,8 @@ const syncLayers = (
         gridStrokeHex,
         bounds,
         selectedInstanceId,
+        z,
+        index,
       );
       continue;
     }
@@ -167,8 +207,13 @@ const syncConnectorLine = (
   gridStrokeHex: string,
   bounds: { width: number; height: number },
   selectedInstanceId: string | null,
+  /**
+   * {@link z} applies to selection frames on `structureLayer`. Pulse uses {@link getConnectorPulseChromeZ} so animation
+   * stays under shared joint caps while preserving list stacking among pulses.
+   */
+  z: number,
+  layerIndex: number,
 ) => {
-  const connectorZ = getConnectorLineZ();
   const fingerprint = getConnectorRenderFingerprint(
     instance,
     toDraw,
@@ -194,7 +239,7 @@ const syncConnectorLine = (
       cache.delete(instance.id);
     }
 
-    const parts = buildConnectorLine(
+    const parts = buildConnectorInstanceChrome(
       instance,
       toDraw,
       gridStrokeColor,
@@ -206,9 +251,9 @@ const syncConnectorLine = (
       return;
     }
 
-    parts.structureRoot.zIndex = connectorZ.structure;
-    parts.tracksChromeRoot.zIndex = connectorZ.tracksChrome;
-    parts.chromePulseRoot.zIndex = connectorZ.chromePulse;
+    parts.structureRoot.zIndex = z;
+    parts.tracksChromeRoot.zIndex = CONNECTOR_TRACKS_CHROME_Z;
+    parts.chromePulseRoot.zIndex = getConnectorPulseChromeZ(layerIndex);
     structureLayer.addChild(parts.structureRoot);
     chromeLayer.addChild(parts.tracksChromeRoot);
     chromeLayer.addChild(parts.chromePulseRoot);
@@ -222,9 +267,9 @@ const syncConnectorLine = (
       disposeConnectorAnimation: parts.disposeConnectorAnimation,
     });
   } else {
-    prior.structureRoot.zIndex = connectorZ.structure;
-    prior.tracksChromeRoot.zIndex = connectorZ.tracksChrome;
-    prior.chromePulseRoot.zIndex = connectorZ.chromePulse;
+    prior.structureRoot.zIndex = z;
+    prior.tracksChromeRoot.zIndex = CONNECTOR_TRACKS_CHROME_Z;
+    prior.chromePulseRoot.zIndex = getConnectorPulseChromeZ(layerIndex);
   }
 };
 
@@ -447,14 +492,31 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   structureLayer.sortableChildren = true;
   const chromeLayer = new Container();
   chromeLayer.sortableChildren = true;
-  const jointsChromeRoot = new Graphics();
+
+  const connectorBaseRoot = new Container();
+  connectorBaseRoot.sortableChildren = false;
+  connectorBaseRoot.zIndex = CONNECTOR_BASE_Z;
+  const connectorBaseGraphics = new Graphics();
+  connectorBaseRoot.addChild(connectorBaseGraphics);
+  structureLayer.addChild(connectorBaseRoot);
+
   layer.addChild(structureLayer);
   layer.addChild(chromeLayer);
+
+  const jointsChromeRoot = new Graphics();
   chromeLayer.addChild(jointsChromeRoot);
 
   const cache = new Map<string, LayerCacheEntry>();
+  const connectorBaseFingerprintCache = { value: "" };
 
-  syncLayers(structureLayer, chromeLayer, jointsChromeRoot, cache);
+  syncLayers(
+    connectorBaseGraphics,
+    connectorBaseFingerprintCache,
+    structureLayer,
+    chromeLayer,
+    jointsChromeRoot,
+    cache,
+  );
 
   const unsub = useAppStore.subscribe((state, prev) => {
     if (
@@ -463,7 +525,14 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
       state.grid !== prev.grid ||
       state.selectedInstanceId !== prev.selectedInstanceId
     ) {
-      syncLayers(structureLayer, chromeLayer, jointsChromeRoot, cache);
+      syncLayers(
+        connectorBaseGraphics,
+        connectorBaseFingerprintCache,
+        structureLayer,
+        chromeLayer,
+        jointsChromeRoot,
+        cache,
+      );
     }
   });
 
@@ -473,6 +542,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
       destroyLayerEntry(entry);
     }
     cache.clear();
+    connectorBaseFingerprintCache.value = "";
     layer.destroy(true);
   });
 };

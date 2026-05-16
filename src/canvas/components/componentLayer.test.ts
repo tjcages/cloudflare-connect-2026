@@ -1,21 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { COMPONENT_LAYER_BASE_Z, getComponentLayerZ, getConnectorLineZ } from "./componentLayer";
+import {
+  COMPONENT_LAYER_BASE_Z,
+  CONNECTOR_BASE_Z,
+  CONNECTOR_JOINTS_CHROME_Z,
+  CONNECTOR_TRACKS_CHROME_Z,
+  getComponentLayerZ,
+  getConnectorPulseChromeZ,
+} from "./componentLayer";
 
 describe("component layer z ordering", () => {
-  it("places regular component layers above the shared connector planes", () => {
-    const connectorZ = getConnectorLineZ();
-
+  it("places component chrome above the shared connector base plane", () => {
     expect(getComponentLayerZ(3, 0)).toBe(COMPONENT_LAYER_BASE_Z + 3);
     expect(getComponentLayerZ(3, 2)).toBe(COMPONENT_LAYER_BASE_Z + 1);
-    expect(getComponentLayerZ(3, 2)).toBeGreaterThan(connectorZ.chromePulse);
+    expect(getComponentLayerZ(3, 2)).toBeGreaterThan(CONNECTOR_BASE_Z);
   });
 
-  it("uses fixed shared planes for connector lines", () => {
-    expect(getConnectorLineZ()).toEqual({
-      structure: COMPONENT_LAYER_BASE_Z - 2,
-      tracksChrome: COMPONENT_LAYER_BASE_Z - 1,
-      jointsChrome: COMPONENT_LAYER_BASE_Z,
-      chromePulse: COMPONENT_LAYER_BASE_Z,
-    });
+  it("keeps the connector base plane below the lowest list-layer chrome z", () => {
+    expect(CONNECTOR_BASE_Z).toBe(COMPONENT_LAYER_BASE_Z - 2);
+    expect(getComponentLayerZ(5, 4)).toBe(COMPONENT_LAYER_BASE_Z + 1);
+    expect(CONNECTOR_BASE_Z).toBeLessThan(getComponentLayerZ(5, 4));
+  });
+
+  it("stacks connector tracks under joint caps under component list chrome for animation visibility", () => {
+    expect(CONNECTOR_TRACKS_CHROME_Z).toBe(COMPONENT_LAYER_BASE_Z - 1);
+    expect(CONNECTOR_JOINTS_CHROME_Z).toBe(COMPONENT_LAYER_BASE_Z);
+    expect(CONNECTOR_TRACKS_CHROME_Z).toBeLessThan(CONNECTOR_JOINTS_CHROME_Z);
+    expect(getComponentLayerZ(2, 1)).toBe(COMPONENT_LAYER_BASE_Z + 1);
+    expect(CONNECTOR_JOINTS_CHROME_Z).toBeLessThan(getComponentLayerZ(2, 1));
+  });
+
+  it("keeps connector pulse between tracks and joint caps", () => {
+    expect(getConnectorPulseChromeZ(0)).toBeGreaterThan(CONNECTOR_TRACKS_CHROME_Z);
+    expect(getConnectorPulseChromeZ(0)).toBeLessThan(CONNECTOR_JOINTS_CHROME_Z);
+    expect(getConnectorPulseChromeZ(1)).toBeLessThan(getConnectorPulseChromeZ(0));
   });
 });
