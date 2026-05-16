@@ -33,18 +33,6 @@ import { rasterizeIcon } from "./iconRaster";
 const CARD_SHADOW_CSS =
   "0 12px 24px rgba(0, 0, 0, 0.04), 0 6px 12px rgba(0, 0, 0, 0.02), 0 3px 6px rgba(0, 0, 0, 0.01)";
 
-type FilterCacheNode = {
-  cacheAsTexture?: (options?: boolean | { antialias?: boolean; resolution?: number }) => void;
-  updateCacheTexture?: () => void;
-};
-
-const enableFilterTextureCache = (node: Container | Graphics, cacheNodes: FilterCacheNode[]) => {
-  const cacheNode = node as unknown as FilterCacheNode;
-  cacheNode.cacheAsTexture?.({ antialias: true, resolution: 1 });
-  cacheNode.updateCacheTexture?.();
-  cacheNodes.push(cacheNode);
-};
-
 /** Accent underline glow: layers and alphas match design rgba(); RGB follows palette accent (`fillRgb`). */
 const buildAccentBarShadowFilter = (fillRgb: number) =>
   new BoxShadowFilter({
@@ -124,7 +112,6 @@ const buildContainerCornerReticle = (tickColor: number, centerDotColor: number):
 export type IconBoxDisplayParts = {
   structureRoot: Container;
   chromeRoot: Container;
-  refreshFilterCaches: () => void;
 };
 
 export type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }>;
@@ -147,7 +134,6 @@ export const buildIconBox = (
   const chromeRoot = new Container();
   chromeRoot.sortableChildren = true;
   chromeRoot.position.set(instance.x, instance.y);
-  const filterCacheNodes: FilterCacheNode[] = [];
 
   const neutralSync = { neutralFillSyncHex: gridStrokeHex };
   const brush = paletteBrush(instance.props.theme, neutralSync);
@@ -193,7 +179,6 @@ export const buildIconBox = (
     .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, innerW, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
     .fill({ color: 0xffffff });
   cardFill.filters = [shadowFilter];
-  enableFilterTextureCache(cardFill, filterCacheNodes);
 
   const cardStroke = new Graphics();
   cardStroke.zIndex = 26;
@@ -254,7 +239,6 @@ export const buildIconBox = (
     iconHold.zIndex = 50;
     iconHold.position.set(holdX, ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER);
     iconHold.filters = [buildIconShadowFilter(iconRgb)];
-    enableFilterTextureCache(iconHold, filterCacheNodes);
     iconHold.addChild(iconSprite);
     chromeRoot.addChild(iconHold);
   };
@@ -279,7 +263,6 @@ export const buildIconBox = (
         .rect(l, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
         .fill({ color: accentFillRgb, alpha: 1 });
       leftAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-      enableFilterTextureCache(leftAccent, filterCacheNodes);
       chromeRoot.addChild(leftAccent);
       const rightAccent = new Graphics();
       rightAccent.zIndex = 60;
@@ -287,7 +270,6 @@ export const buildIconBox = (
         .rect(r, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
         .fill({ color: accentFillRgb, alpha: 1 });
       rightAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-      enableFilterTextureCache(rightAccent, filterCacheNodes);
       chromeRoot.addChild(rightAccent);
     } else {
       const accentBar = new Graphics();
@@ -298,7 +280,6 @@ export const buildIconBox = (
         alpha: 1,
       });
       accentBar.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-      enableFilterTextureCache(accentBar, filterCacheNodes);
       chromeRoot.addChild(accentBar);
     }
   }
@@ -325,13 +306,5 @@ export const buildIconBox = (
     }
   }
 
-  return {
-    structureRoot,
-    chromeRoot,
-    refreshFilterCaches: () => {
-      for (const node of filterCacheNodes) {
-        node.updateCacheTexture?.();
-      }
-    },
-  };
+  return { structureRoot, chromeRoot };
 };

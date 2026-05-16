@@ -31,7 +31,6 @@ type LayerCacheEntry =
       kind: "icon-box";
       structureRoot: Container;
       chromeRoot: Container;
-      refreshFilterCaches: () => void;
       propsJson: string;
       gridStrokeHex: string;
     }
@@ -359,7 +358,7 @@ const syncIconBox = (
       cache.delete(instance.id);
     }
 
-    const { structureRoot, chromeRoot, refreshFilterCaches } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+    const { structureRoot, chromeRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
     structureRoot.zIndex = z;
     chromeRoot.zIndex = z;
     structureLayer.addChild(structureRoot);
@@ -369,7 +368,6 @@ const syncIconBox = (
       kind: "icon-box",
       structureRoot,
       chromeRoot,
-      refreshFilterCaches,
       propsJson,
       gridStrokeHex,
     });
@@ -377,7 +375,7 @@ const syncIconBox = (
     destroyLayerEntry(prior);
     cache.delete(instance.id);
 
-    const { structureRoot, chromeRoot, refreshFilterCaches } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+    const { structureRoot, chromeRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
     structureRoot.zIndex = z;
     chromeRoot.zIndex = z;
     structureLayer.addChild(structureRoot);
@@ -387,7 +385,6 @@ const syncIconBox = (
       kind: "icon-box",
       structureRoot,
       chromeRoot,
-      refreshFilterCaches,
       propsJson,
       gridStrokeHex,
     });
@@ -396,7 +393,6 @@ const syncIconBox = (
     prior.chromeRoot.position.set(instance.x, instance.y);
     prior.structureRoot.zIndex = z;
     prior.chromeRoot.zIndex = z;
-    prior.refreshFilterCaches();
   }
 };
 
