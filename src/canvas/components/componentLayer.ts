@@ -13,6 +13,22 @@ import {
 import { buildIconBox, type IconBoxRenderableInstance } from "./icon-box/build";
 import { buildPlusMarker } from "./plus-marker/build";
 import { buildRectMarker } from "./rect-marker/build";
+import {
+  classifyCachedTextureDirty,
+  markerVisualContentKey,
+  type CachedTextureLayoutSnapshot,
+} from "../utils/cachedTextureDirty";
+
+/**
+ * Perf rollout gate: keep icon boxes and connector lines off the Pixi stack until their passes ship.
+ * Plus/rect markers use {@link classifyCachedTextureDirty} + `cacheAsTexture` behind this flag.
+ */
+const COMPONENT_LAYER_MARKERS_ONLY = true;
+
+type MarkerInstance = Extract<ComponentInstance, { type: "plus-marker" | "rect-marker" }>;
+
+const isMarkerInstance = (inst: ComponentInstance): inst is MarkerInstance =>
+  inst.type === "plus-marker" || inst.type === "rect-marker";
 
 export const COMPONENT_LAYER_BASE_Z = 10;
 
@@ -38,15 +54,15 @@ type LayerCacheEntry =
       kind: "plus-marker";
       structureRoot: Container;
       chromeRoot: Container;
-      propsJson: string;
-      gridStrokeHex: string;
+      contentKey: string;
+      layoutSnapshot: CachedTextureLayoutSnapshot;
     }
   | {
       kind: "rect-marker";
       structureRoot: Container;
       chromeRoot: Container;
-      propsJson: string;
-      gridStrokeHex: string;
+      contentKey: string;
+      layoutSnapshot: CachedTextureLayoutSnapshot;
     }
   | {
       kind: "connector-line";
@@ -104,17 +120,33 @@ const syncLayers = (
     if (!desiredIds.has(id)) {
       destroyLayerEntry(cache.get(id)!);
       cache.delete(id);
+      continue;
+    }
+    if (COMPONENT_LAYER_MARKERS_ONLY) {
+      const inst = toDraw.find((i) => i.id === id);
+      if (inst && !isMarkerInstance(inst)) {
+        destroyLayerEntry(cache.get(id)!);
+        cache.delete(id);
+      }
     }
   }
 
-  const count = toDraw.length;
   const connectorZ = getConnectorLineZ();
 
   jointsChromeRoot.zIndex = connectorZ.jointsChrome;
-  syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeColor);
+  if (COMPONENT_LAYER_MARKERS_ONLY) {
+    jointsChromeRoot.clear();
+  } else {
+    syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeColor);
+  }
 
-  for (let index = 0; index < toDraw.length; index += 1) {
-    const instance = toDraw[index];
+  const layerPassInstances: ComponentInstance[] = COMPONENT_LAYER_MARKERS_ONLY
+    ? toDraw.filter(isMarkerInstance)
+    : toDraw;
+  const count = layerPassInstances.length;
+
+  for (let index = 0; index < layerPassInstances.length; index += 1) {
+    const instance = layerPassInstances[index];
     const z = getComponentLayerZ(count, index);
 
     if (instance.type === "connector-line") {
@@ -228,7 +260,8 @@ const syncPlusMarker = (
   z: number,
   gridStrokeHex: string,
 ) => {
-  const propsJson = JSON.stringify(instance.props);
+  const contentKey = markerVisualContentKey(instance.props, gridStrokeHex);
+  const layout: CachedTextureLayoutSnapshot = { x: instance.x, y: instance.y, zIndex: z };
   const prior = cache.get(instance.id);
 
   if (!prior || prior.kind !== "plus-marker") {
@@ -238,6 +271,7 @@ const syncPlusMarker = (
     }
 
     const { structureRoot, chromeRoot } = buildPlusMarker(instance, gridStrokeHex);
+    structureRoot.cacheAsTexture(true);
     structureRoot.position.set(instance.x, instance.y);
     chromeRoot.position.set(instance.x, instance.y);
     structureRoot.zIndex = z;
@@ -249,14 +283,25 @@ const syncPlusMarker = (
       kind: "plus-marker",
       structureRoot,
       chromeRoot,
-      propsJson,
-      gridStrokeHex,
+      contentKey,
+      layoutSnapshot: layout,
     });
-  } else if (prior.propsJson !== propsJson || prior.gridStrokeHex !== gridStrokeHex) {
+    return;
+  }
+
+  const dirty = classifyCachedTextureDirty({
+    priorLayout: prior.layoutSnapshot,
+    priorContentKey: prior.contentKey,
+    layout,
+    contentKey,
+  });
+
+  if (dirty === "content") {
     destroyLayerEntry(prior);
     cache.delete(instance.id);
 
     const { structureRoot, chromeRoot } = buildPlusMarker(instance, gridStrokeHex);
+    structureRoot.cacheAsTexture(true);
     structureRoot.position.set(instance.x, instance.y);
     chromeRoot.position.set(instance.x, instance.y);
     structureRoot.zIndex = z;
@@ -268,14 +313,18 @@ const syncPlusMarker = (
       kind: "plus-marker",
       structureRoot,
       chromeRoot,
-      propsJson,
-      gridStrokeHex,
+      contentKey,
+      layoutSnapshot: layout,
     });
-  } else {
+    return;
+  }
+
+  if (dirty === "layout") {
     prior.structureRoot.position.set(instance.x, instance.y);
     prior.chromeRoot.position.set(instance.x, instance.y);
     prior.structureRoot.zIndex = z;
     prior.chromeRoot.zIndex = z;
+    cache.set(instance.id, { ...prior, layoutSnapshot: layout });
   }
 };
 
@@ -287,10 +336,11 @@ const syncRectMarker = (
   z: number,
   gridStrokeHex: string,
 ) => {
-  const propsJson = JSON.stringify(instance.props);
-  const prior = cache.get(instance.id);
+  const contentKey = markerVisualContentKey(instance.props, gridStrokeHex);
   const rx = instance.x + RECT_MARKER_RENDER_OFFSET;
   const ry = instance.y + RECT_MARKER_RENDER_OFFSET;
+  const layout: CachedTextureLayoutSnapshot = { x: rx, y: ry, zIndex: z };
+  const prior = cache.get(instance.id);
 
   if (!prior || prior.kind !== "rect-marker") {
     if (prior) {
@@ -299,6 +349,7 @@ const syncRectMarker = (
     }
 
     const { structureRoot, chromeRoot } = buildRectMarker(instance, gridStrokeHex);
+    structureRoot.cacheAsTexture(true);
     structureRoot.position.set(rx, ry);
     chromeRoot.position.set(rx, ry);
     structureRoot.zIndex = z;
@@ -310,14 +361,25 @@ const syncRectMarker = (
       kind: "rect-marker",
       structureRoot,
       chromeRoot,
-      propsJson,
-      gridStrokeHex,
+      contentKey,
+      layoutSnapshot: layout,
     });
-  } else if (prior.propsJson !== propsJson || prior.gridStrokeHex !== gridStrokeHex) {
+    return;
+  }
+
+  const dirty = classifyCachedTextureDirty({
+    priorLayout: prior.layoutSnapshot,
+    priorContentKey: prior.contentKey,
+    layout,
+    contentKey,
+  });
+
+  if (dirty === "content") {
     destroyLayerEntry(prior);
     cache.delete(instance.id);
 
     const { structureRoot, chromeRoot } = buildRectMarker(instance, gridStrokeHex);
+    structureRoot.cacheAsTexture(true);
     structureRoot.position.set(rx, ry);
     chromeRoot.position.set(rx, ry);
     structureRoot.zIndex = z;
@@ -329,14 +391,18 @@ const syncRectMarker = (
       kind: "rect-marker",
       structureRoot,
       chromeRoot,
-      propsJson,
-      gridStrokeHex,
+      contentKey,
+      layoutSnapshot: layout,
     });
-  } else {
+    return;
+  }
+
+  if (dirty === "layout") {
     prior.structureRoot.position.set(rx, ry);
     prior.chromeRoot.position.set(rx, ry);
     prior.structureRoot.zIndex = z;
     prior.chromeRoot.zIndex = z;
+    cache.set(instance.id, { ...prior, layoutSnapshot: layout });
   }
 };
 
@@ -398,7 +464,6 @@ const syncIconBox = (
 
 export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   const layer = new Container();
-  layer.visible = false;
   app.stage.addChild(layer);
 
   const structureLayer = new Container();
