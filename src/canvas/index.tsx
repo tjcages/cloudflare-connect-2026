@@ -11,7 +11,9 @@ import { preloadIconBoxTitleFont } from "../fonts/iconBoxTitle";
 import { useAppStore } from "../store";
 import { clampCanvasZoom, zoomAroundCanvasPoint } from "./viewZoom";
 
-const tickers = [setupGridLayer, setupComponentLayer, setupSelectionLayer];
+const RENDER_COMPONENT_LAYERS = false;
+
+const tickers = RENDER_COMPONENT_LAYERS ? [setupGridLayer, setupComponentLayer, setupSelectionLayer] : [setupGridLayer];
 
 /** Exponential ⌘/Ctrl-wheel sensitivity (trackpad pinch); higher → faster, closer to browser/map zoom. */
 const CANVAS_ZOOM_WHEEL_EXP_SENSITIVITY = 0.01;
