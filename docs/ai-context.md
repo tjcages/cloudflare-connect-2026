@@ -21,6 +21,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 | Grid sidebar        | Seed, size, ratios, stroke, gap mask, PNG copy                                    | `src/components/Sidebar.tsx`                                                          |
 | Component sidebar   | Components list, layers list, selected layer config                               | `src/components/ComponentSidebar.tsx`                                                 |
 | Component domain    | Component labels, dimensions, defaults, snapping helpers, icon-box layout         | `src/lib/componentRegistry.ts`, `src/lib/icon-box/layout.ts`                          |
+| Icon-box Pixi cache | Per-leaf `cacheAsTexture` with `pixi-box-shadow`; transform rules                 | `docs/icon-box-pixi-caching.md`, `src/canvas/components/icon-box/build.ts`            |
 | Icon registry       | SVG icon definitions and options                                                  | `src/lib/iconRegistry.ts`, `src/components/ComponentIcon.tsx`                         |
 | Shared UI           | Shared layer/component row shell and icon tokens                                  | `src/components/ComponentListItem.tsx`, `src/components/iconTokens.ts`                |
 
@@ -67,6 +68,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 3. Preserve high-DPI sizing via Pixi renderer `resolution` and resize hooks in `src/components/pixi/index.tsx` / shell layout (`src/canvas/index.tsx`).
 4. Keep PNG export aligned with the on-screen scene via `renderer.extract.image` at resolution `2` after clearing selection.
 5. Prefer real-WebGL/browser tests for GPU paths; omit hollow Canvas2D mocks.
+6. Icon-box filter + cache conventions: see `docs/icon-box-pixi-caching.md`.
 
 ### Change Sidebar Style
 

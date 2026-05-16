@@ -20,15 +20,16 @@ import {
 } from "../utils/cachedTextureDirty";
 
 /**
- * Perf rollout gate: keep icon boxes and connector lines off the Pixi stack until their passes ship.
- * Plus/rect markers use {@link classifyCachedTextureDirty} + `cacheAsTexture` behind this flag.
+ * Perf rollout gate: only listed kinds render on Pixi until connector pass ships.
+ * Plus/rect markers use {@link classifyCachedTextureDirty} + `cacheAsTexture`; icon boxes use {@link syncIconBox}.
  */
-const COMPONENT_LAYER_MARKERS_ONLY = true;
+const COMPONENT_LAYER_LIMITED_RENDER_PASS = true;
 
-type MarkerInstance = Extract<ComponentInstance, { type: "plus-marker" | "rect-marker" }>;
-
-const isMarkerInstance = (inst: ComponentInstance): inst is MarkerInstance =>
-  inst.type === "plus-marker" || inst.type === "rect-marker";
+const limitedRenderPassInstance = (inst: ComponentInstance): boolean =>
+  inst.type === "plus-marker" ||
+  inst.type === "rect-marker" ||
+  inst.type === "icon-box" ||
+  inst.type === "icon-box-2x1";
 
 export const COMPONENT_LAYER_BASE_Z = 10;
 
@@ -122,9 +123,9 @@ const syncLayers = (
       cache.delete(id);
       continue;
     }
-    if (COMPONENT_LAYER_MARKERS_ONLY) {
+    if (COMPONENT_LAYER_LIMITED_RENDER_PASS) {
       const inst = toDraw.find((i) => i.id === id);
-      if (inst && !isMarkerInstance(inst)) {
+      if (inst && !limitedRenderPassInstance(inst)) {
         destroyLayerEntry(cache.get(id)!);
         cache.delete(id);
       }
@@ -134,14 +135,14 @@ const syncLayers = (
   const connectorZ = getConnectorLineZ();
 
   jointsChromeRoot.zIndex = connectorZ.jointsChrome;
-  if (COMPONENT_LAYER_MARKERS_ONLY) {
+  if (COMPONENT_LAYER_LIMITED_RENDER_PASS) {
     jointsChromeRoot.clear();
   } else {
     syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeColor);
   }
 
-  const layerPassInstances: ComponentInstance[] = COMPONENT_LAYER_MARKERS_ONLY
-    ? toDraw.filter(isMarkerInstance)
+  const layerPassInstances: ComponentInstance[] = COMPONENT_LAYER_LIMITED_RENDER_PASS
+    ? toDraw.filter(limitedRenderPassInstance)
     : toDraw;
   const count = layerPassInstances.length;
 
@@ -455,6 +456,7 @@ const syncIconBox = (
       gridStrokeHex,
     });
   } else {
+    /** Layout-only: filtered leaves cache pixels in **local** space under `chromeRoot`; translation here must stay free of double-applied shadow offsets. */
     prior.structureRoot.position.set(instance.x, instance.y);
     prior.chromeRoot.position.set(instance.x, instance.y);
     prior.structureRoot.zIndex = z;

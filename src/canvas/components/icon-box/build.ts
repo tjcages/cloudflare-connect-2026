@@ -173,6 +173,11 @@ export const buildIconBox = (
     borderRadius: ICON_BOX_RADIUS,
   });
 
+  /**
+   * Filter + cache live on the **same leaf** (`cacheAsTexture` on this node, not on `chromeRoot`).
+   * Placement uses draw coords at default `.position (0,0)`; grid translation is only `chromeRoot.position`,
+   * so filter bounds stay in **local** space — avoids stacking filter offsets with `chromeRoot` translation.
+   */
   const cardFill = new Graphics();
   cardFill.zIndex = 25;
   cardFill
@@ -235,11 +240,17 @@ export const buildIconBox = (
     iconSprite.width = 24;
     iconSprite.height = 24;
 
+    /** Grid / slot placement only — keep filters off this positioned node (see `iconFiltered`). */
     const iconHold = new Container();
     iconHold.zIndex = 50;
     iconHold.position.set(holdX, ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER);
-    iconHold.filters = [buildIconShadowFilter(iconRgb)];
-    iconHold.addChild(iconSprite);
+
+    const iconFiltered = new Container();
+    iconFiltered.filters = [buildIconShadowFilter(iconRgb)];
+    iconFiltered.addChild(iconSprite);
+    iconHold.addChild(iconFiltered);
+    iconFiltered.cacheAsTexture(true);
+
     chromeRoot.addChild(iconHold);
   };
 
@@ -264,6 +275,8 @@ export const buildIconBox = (
         .fill({ color: accentFillRgb, alpha: 1 });
       leftAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
       chromeRoot.addChild(leftAccent);
+      leftAccent.cacheAsTexture(true);
+
       const rightAccent = new Graphics();
       rightAccent.zIndex = 60;
       rightAccent
@@ -271,6 +284,7 @@ export const buildIconBox = (
         .fill({ color: accentFillRgb, alpha: 1 });
       rightAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
       chromeRoot.addChild(rightAccent);
+      rightAccent.cacheAsTexture(true);
     } else {
       const accentBar = new Graphics();
       accentBar.zIndex = 60;
@@ -281,8 +295,11 @@ export const buildIconBox = (
       });
       accentBar.filters = [buildAccentBarShadowFilter(accentFillRgb)];
       chromeRoot.addChild(accentBar);
+      accentBar.cacheAsTexture(true);
     }
   }
+
+  cardFill.cacheAsTexture(true);
 
   if (instance.props.containerHighlighted) {
     const ox = frameOriginX;

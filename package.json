@@ -34,7 +34,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "lucide-react": "^1.14.0",
     "motion": "^12.38.0",
-    "pixi-box-shadow": "^1.2.0",
+    "pixi-box-shadow": "^1.2.1",
     "pixi.js": "^8.18.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
