@@ -7,7 +7,7 @@ export type PaletteThemePickerProps = {
 };
 
 export const PaletteThemePicker = ({ value, onChange, gridStrokeColor }: PaletteThemePickerProps) => (
-  <div className="palette-theme-picker" data-testid="palette-theme-picker">
+  <div className="flex flex-row flex-wrap items-center gap-2" data-testid="palette-theme-picker">
     {PALETTE_THEMES.map((theme) => {
       const selected = value === theme.id;
       const strokeTrim = gridStrokeColor?.trim() ?? "";
@@ -19,7 +19,7 @@ export const PaletteThemePicker = ({ value, onChange, gridStrokeColor }: Palette
           type="button"
           data-testid={`palette-theme-swatch-${theme.id}`}
           data-selected={selected ? "true" : undefined}
-          className="palette-theme-swatch"
+          className="box-border grid cursor-pointer place-items-center rounded-md border p-1 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#9fc8ff] focus-visible:outline-offset-2"
           style={{
             borderColor: selected ? neutralSyncedFill : "#f3f3f3",
             ["--palette-fill-fallback" as string]: neutralSyncedFill,

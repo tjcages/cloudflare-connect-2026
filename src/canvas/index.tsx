@@ -8,6 +8,7 @@ import { setupComponentLayer } from "./components/componentLayer";
 import { setupGridLayer } from "./grid/setup";
 import { setupSelectionLayer } from "./selection-setup";
 import { preloadIconBoxTitleFont } from "../fonts/iconBoxTitle";
+import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
 import { clampCanvasZoom, zoomAroundCanvasPoint } from "./viewZoom";
 
@@ -224,13 +225,11 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
     };
   }, []);
 
-  const canvasShellClass = [
-    "canvas-shell",
-    isViewportPanning ? "canvas-shell-panning" : "",
-    isSpaceViewportPanHeld ? "canvas-shell-space-pan" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const canvasShellClass = cn(
+    "canvas-shell inline-flex bg-builder-surface",
+    isViewportPanning && "canvas-shell-panning",
+    isSpaceViewportPanHeld && "canvas-shell-space-pan",
+  );
 
   /** Inline cursor so it wins over any other stylesheet rules on the canvas. */
   const canvasCursorStyle =
@@ -251,7 +250,11 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
       <Pixi
         canvasRef={canvasRef}
         canvasAttrs={{
-          className: isPickingConnectorEndpoint ? "grid-canvas grid-canvas-picking" : "grid-canvas",
+          className: cn(
+            "grid-canvas block touch-none bg-builder-surface",
+            isPickingConnectorEndpoint &&
+              "grid-canvas-picking cursor-crosshair outline outline-2 outline-[#9fc8ff] outline-offset-0",
+          ),
           "data-testid": "builder-canvas",
           style: canvasCursorStyle ?? undefined,
           onWheel: (event) => {
@@ -402,7 +405,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             if (dragState.mode === "move") {
               lastMoveDragPointerRef.current = { x: event.clientX, y: event.clientY };
               moveDragCanvasRef.current = canvas;
-              const viewport = canvas.closest(".canvas-panel-scroll");
+              const viewport = canvas.closest("[data-canvas-scroll-panel]");
               moveDragPanelRef.current = viewport instanceof HTMLElement ? viewport : null;
 
               if (moveDragPanelRef.current) {

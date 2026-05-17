@@ -11,7 +11,7 @@ export const CONNECTOR_LINE_ICON_HEX = paletteBrush("neutral").iconFillHex;
 
 export const ConnectorLineIcon = ({ size = SIDEBAR_LIST_ICON_PX }: { size?: number }) => (
   <svg
-    className="component-icon"
+    className="block"
     width={size}
     height={size}
     viewBox="0 0 24 24"

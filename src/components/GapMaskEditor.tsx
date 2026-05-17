@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GapMask } from "../grid/types";
+import { cn } from "../lib/cn";
 
 type GapMaskEditorProps = {
   mask: GapMask;
@@ -136,22 +137,28 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
   }, [commitSelection, setActiveSelection, updateSelectionFromPointer]);
 
   return (
-    <div className="field gap-mask-field">
-      <div className="field-label-row">
+    <div data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
+      <div className="flex items-center justify-between gap-2 leading-[calc(4em/3)]">
         <span>Gaps</span>
-        <span className="component-position">
+        <span className="text-[10px] leading-[1.1] text-builder-subtle">
           {columns} x {rows}
         </span>
       </div>
-      <div ref={gridRef} className="gap-grid" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+      <div
+        ref={gridRef}
+        className="grid touch-none select-none gap-0.5"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
         {mask.map((maskRow, row) =>
           maskRow.map((blocked, column) => {
             const isSelected = cellIsInRange(row, column, selection);
 
             return (
               <button
-                className={["gap-cell", blocked ? "gap-cell-blocked" : "", isSelected ? "gap-cell-selected" : ""].join(
-                  " ",
+                className={cn(
+                  "aspect-square cursor-crosshair rounded-sm border p-0",
+                  blocked ? "border-builder-thumb-track bg-builder-thumb-track" : "border-builder-hairline bg-white",
+                  isSelected && "border-builder-accent-border bg-builder-accent-fill",
                 )}
                 key={`${row}:${column}`}
                 onPointerDown={(event) => {

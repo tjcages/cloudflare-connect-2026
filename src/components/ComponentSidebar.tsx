@@ -2,6 +2,7 @@ import { Reorder, useDragControls } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEventHandler, ReactNode } from "react";
 import { getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
+import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
 import type { ComponentInstance, ComponentProps, ComponentType, IconId } from "../grid/types";
 import { ComponentListItem } from "./ComponentListItem";
@@ -61,7 +62,7 @@ const LayerReorderRow = ({ instance, instances, preview, onSelectInstance, isSel
 
   const onGrabPointerDown: PointerEventHandler<HTMLDivElement> = (event) => {
     const target = event.target;
-    if (target instanceof Element && (target.closest("button") || target.closest(".component-list-item-actions"))) {
+    if (target instanceof Element && (target.closest("button") || target.closest('[data-slot="list-item-actions"]'))) {
       return;
     }
     dragCommittedRef.current = false;
@@ -73,7 +74,7 @@ const LayerReorderRow = ({ instance, instances, preview, onSelectInstance, isSel
       value={instance.id}
       as="div"
       layout
-      className="layers-reorder-item"
+      className="z-0 w-full min-w-0 select-none"
       dragListener={false}
       dragControls={dragControls}
       style={{ position: "relative", width: "100%" }}
@@ -88,20 +89,20 @@ const LayerReorderRow = ({ instance, instances, preview, onSelectInstance, isSel
     >
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
-        className={[
-          "layers-reorder-item-surface",
-          isSelected ? "layers-reorder-item-surface-selected" : "",
-          isDragging ? "layers-reorder-item-surface-dragging" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
+        data-layer-surface
+        className={cn(
+          "w-full min-w-0 select-none",
+          isSelected ? "bg-builder-selected-row hover:bg-builder-selected-row-hover" : "hover:bg-builder-hover-row",
+          isDragging && "cursor-grabbing",
+          !isDragging && "cursor-pointer",
+        )}
         onPointerDown={onGrabPointerDown}
         onPointerEnter={() => setSidebarHoveredLayerId(instance.id)}
         onClick={(event) => {
           const target = event.target;
           if (
             target instanceof Element &&
-            (target.closest("button") || target.closest(".component-list-item-actions"))
+            (target.closest("button") || target.closest('[data-slot="list-item-actions"]'))
           ) {
             return;
           }
@@ -116,6 +117,7 @@ const LayerReorderRow = ({ instance, instances, preview, onSelectInstance, isSel
       >
         <ComponentListItem
           testId={`layer-item-${instance.id}`}
+          textAlignTop
           preview={preview}
           title={displayName}
           meta={layerSubtitle}
@@ -145,10 +147,13 @@ export const ComponentBrowseSidebar = ({
   }, [setSidebarHoveredLayerId]);
 
   return (
-    <div className="component-sidebar">
-      <section className="component-section">
+    <div className="flex min-h-0 flex-col overflow-hidden">
+      <section className="flex min-h-[50vh] flex-col gap-0 py-3.5">
         <SectionHeading title="Components" />
-        <div className="component-scroll-region ui-scroll-overlay" onScroll={scrollThumbFlashComponents}>
+        <div
+          className="ui-scroll-overlay grid min-h-0 flex-1 auto-rows-min content-start gap-0 overflow-auto"
+          onScroll={scrollThumbFlashComponents}
+        >
           {COMPONENT_DEFINITION_LIST.map((definition) => (
             <ComponentListItem
               key={definition.type}
@@ -167,14 +172,17 @@ export const ComponentBrowseSidebar = ({
         </div>
       </section>
 
-      <section className="component-section">
+      <section className="flex min-h-[50vh] flex-col gap-0 border-t border-builder-hairline py-3.5">
         <SectionHeading title="Layers" />
-        <div className="component-scroll-region ui-scroll-overlay" onScroll={scrollThumbFlashLayers}>
+        <div
+          className="ui-scroll-overlay grid min-h-0 flex-1 auto-rows-min content-start gap-0 overflow-auto"
+          onScroll={scrollThumbFlashLayers}
+        >
           {instances.length ? (
             <Reorder.Group
               axis="y"
               as="div"
-              className="layers-reorder-group"
+              className="isolate grid w-full min-w-0 auto-rows-min content-start gap-0 select-none"
               values={instances.map((inst) => inst.id)}
               onReorder={onReorderInstances}
               onPointerLeave={(event) => {
@@ -195,7 +203,7 @@ export const ComponentBrowseSidebar = ({
               ))}
             </Reorder.Group>
           ) : (
-            <p className="empty-state">No components on canvas.</p>
+            <p className="px-3.5 text-[10px] text-builder-subtle">No components on canvas.</p>
           )}
         </div>
       </section>
@@ -214,23 +222,32 @@ export const ComponentConfigSidebar = ({
   const { renderPreview, brushFor } = createSidebarPreviewRenderers(gridStrokeColor);
 
   if (selectedInstance === null) {
-    return <div className="component-config-panel component-config-panel-empty" data-testid="layer-config-empty" />;
+    return <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3.5" data-testid="layer-config-empty" />;
   }
 
   if (selectedInstance.type === "connector-line") {
     const displayName = getInstanceDisplayName(selectedInstance);
     return (
-      <div className="component-config-panel ui-scroll-overlay" onScroll={onConfigPanelScroll}>
+      <div
+        className="ui-scroll-overlay flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-3.5 pb-3.5 pt-0"
+        onScroll={onConfigPanelScroll}
+      >
         <ComponentListItem
-          className="component-config-header"
+          className="-mx-3.5 mb-0 border-b border-builder-hairline px-3.5 py-3.5"
+          persistActionsOpacity
           testId="component-config-header"
           preview={renderPreview(selectedInstance)}
           title={displayName}
         />
-        <label className="field" htmlFor={`connector-preferred-${selectedInstance.id}`}>
+        <label
+          data-slot="builder-field"
+          className="flex flex-col gap-1.5 text-[12px] text-builder-muted"
+          htmlFor={`connector-preferred-${selectedInstance.id}`}
+        >
           <span>Preferred connection</span>
           <select
             id={`connector-preferred-${selectedInstance.id}`}
+            className="builder-field-control"
             value={selectedInstance.props.preferredConnection}
             onChange={(event) =>
               onUpdateInstanceProps(selectedInstance.id, {
@@ -291,9 +308,13 @@ export const ComponentConfigSidebar = ({
   if (selectedInstance.type === "plus-marker" || selectedInstance.type === "rect-marker") {
     const displayName = getInstanceDisplayName(selectedInstance);
     return (
-      <div className="component-config-panel ui-scroll-overlay" onScroll={onConfigPanelScroll}>
+      <div
+        className="ui-scroll-overlay flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-3.5 pb-3.5 pt-0"
+        onScroll={onConfigPanelScroll}
+      >
         <ComponentListItem
-          className="component-config-header"
+          className="-mx-3.5 mb-0 border-b border-builder-hairline px-3.5 py-3.5"
+          persistActionsOpacity
           testId="component-config-header"
           preview={renderPreview(selectedInstance)}
           title={displayName}
@@ -316,9 +337,13 @@ export const ComponentConfigSidebar = ({
   const palette = brushFor(selectedInstance.props.theme);
 
   return (
-    <div className="component-config-panel ui-scroll-overlay" onScroll={onConfigPanelScroll}>
+    <div
+      className="ui-scroll-overlay flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-3.5 pb-3.5 pt-0"
+      onScroll={onConfigPanelScroll}
+    >
       <ComponentListItem
-        className="component-config-header"
+        className="-mx-3.5 mb-0 border-b border-builder-hairline px-3.5 py-3.5"
+        persistActionsOpacity
         testId="component-config-header"
         preview={renderPreview(selectedInstance)}
         title={displayName}
@@ -343,10 +368,15 @@ export const ComponentConfigSidebar = ({
           })
         }
       />
-      <label className="field" htmlFor={`layer-title-${selectedInstance.id}`}>
+      <label
+        data-slot="builder-field"
+        className="flex flex-col gap-1.5 text-[12px] text-builder-muted"
+        htmlFor={`layer-title-${selectedInstance.id}`}
+      >
         <span>Title</span>
         <input
           id={`layer-title-${selectedInstance.id}`}
+          className="builder-field-control"
           type="text"
           value={selectedInstance.props.title}
           onChange={(event) =>

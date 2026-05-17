@@ -8,7 +8,7 @@ type ThemeFieldProps = {
 };
 
 export const ThemeField = ({ value, gridStrokeColor, onChange }: ThemeFieldProps) => (
-  <div className="field">
+  <div data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
     <span>Theme</span>
     <PaletteThemePicker value={value} gridStrokeColor={gridStrokeColor} onChange={onChange} />
   </div>

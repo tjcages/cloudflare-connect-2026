@@ -7,7 +7,7 @@ describe("ComponentIcon", () => {
   it("renders a registry-backed 24x24 svg with configurable fill paths", () => {
     const { container } = render(<ComponentIcon iconId={DEFAULT_ICON_ID} color="#123456" />);
 
-    const icon = container.querySelector("svg.component-icon");
+    const icon = container.querySelector("svg");
     const paths = icon!.querySelectorAll("path");
 
     expect(icon?.tagName.toLowerCase()).toBe("svg");
@@ -22,7 +22,7 @@ describe("ComponentIcon", () => {
   it("renders stroke-based registry icons with currentColor stroke", () => {
     const { container } = render(<ComponentIcon iconId="user-outline" color="#B3B3B3" />);
 
-    const icon = container.querySelector("svg.component-icon");
+    const icon = container.querySelector("svg");
     const paths = icon!.querySelectorAll("path");
 
     expect(paths.length).toBeGreaterThan(0);

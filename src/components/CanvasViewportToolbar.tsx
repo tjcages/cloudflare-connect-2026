@@ -80,11 +80,17 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
   };
 
   return (
-    <div className="canvas-panel-viewport-toolbar" role="toolbar" aria-label="Canvas viewport">
-      <div className="canvas-toolbar-zoom-group">
+    <div
+      className="box-border flex h-10 shrink-0 flex-row items-center justify-start gap-2 border-t border-builder-hairline bg-builder-surface px-2.5 py-1.5"
+      data-canvas-toolbar=""
+      role="toolbar"
+      aria-label="Canvas viewport"
+    >
+      <div className="inline-flex flex-row items-center gap-1">
         <Button
           variant="ghost"
           padding="square"
+          className="grid place-items-center"
           aria-label="Zoom out"
           title="Zoom out"
           disabled={zoomOutDisabled}
@@ -92,10 +98,13 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
         >
           <Minus size={12} strokeWidth={2} aria-hidden />
         </Button>
-        <span className="canvas-toolbar-zoom-readout">{Math.round(canvasZoom * 100)}%</span>
+        <p className="m-0 min-w-[38px] shrink-0 select-none px-0.5 text-center text-[12px] font-normal tabular-nums text-builder-muted">
+          {Math.round(canvasZoom * 100)}%
+        </p>
         <Button
           variant="ghost"
           padding="square"
+          className="grid place-items-center"
           aria-label="Zoom in"
           title="Zoom in"
           disabled={zoomInDisabled}
@@ -104,24 +113,30 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
           <Plus size={12} strokeWidth={2} aria-hidden />
         </Button>
       </div>
-      <span className="canvas-toolbar-vsep" aria-hidden />
+      <span className="h-1/2 min-h-2 w-px shrink-0 self-center bg-builder-hairline" aria-hidden />
       <Button
         variant="ghost"
         padding="inline"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap"
         title="100% zoom, canvas centered (⌘= / ⌘0)"
         onClick={() => resetCanvasZoom()}
       >
         <RotateCcw size={12} strokeWidth={2} aria-hidden />
         <span>Reset view</span>
       </Button>
-      <div className="canvas-toolbar-spacer" aria-hidden />
-      <span className="canvas-toolbar-fps" aria-label="Render frames per second">
+      <div className="min-w-0 flex-1" aria-hidden />
+
+      <span
+        className="inline-flex shrink-0 select-none items-center justify-center rounded-md border border-transparent bg-transparent px-2.5 py-1.5 text-[12px] font-normal tabular-nums [font-feature-settings:'tnum'_1,'lnum'_1] text-[#b8b8b8]"
+        aria-label="Render frames per second"
+      >
         FPS {(pixiApp ? fps : 0).toFixed(2)}
       </span>
-      <span className="canvas-toolbar-vsep" aria-hidden />
+      <span className="h-1/2 min-h-2 w-px shrink-0 self-center bg-builder-hairline" aria-hidden />
       <Button
         variant="ghost"
         padding="inline"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap"
         data-testid="canvas-toolbar-clear-defaults"
         title="Remove all layers and restore the baked-in starter document"
         onClick={clearCanvasToDefaults}

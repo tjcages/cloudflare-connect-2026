@@ -32,6 +32,7 @@
     "@cloudflare/kumo": "^2.2.1",
     "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/vite": "^4.3.0",
+    "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",
     "motion": "^12.38.0",
     "pixi-box-shadow": "^1.2.1",
@@ -39,6 +40,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hotkeys-hook": "^5.3.2",
+    "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.0",
     "zundo": "^2.3.0",
     "zustand": "^5.0.13"

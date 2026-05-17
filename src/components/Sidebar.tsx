@@ -47,20 +47,22 @@ export const Sidebar = ({
   const strokeIsDefault = config.strokeColor.trim().toLowerCase() === defaultStrokeHex;
 
   return (
-    <div className="grid-sidebar">
-      <label className="field">
+    <div className="flex min-h-0 flex-1 flex-col gap-3.5">
+      <label data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
         <span>Seed</span>
         <input
+          className="builder-field-control"
           type="text"
           value={config.seed}
           onChange={(event) => onConfigChange({ ...config, seed: event.target.value })}
         />
       </label>
 
-      <div className="field-grid">
-        <label className="field">
+      <div className="grid grid-cols-2 gap-3.5">
+        <label data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
           <span>Width</span>
           <input
+            className="builder-field-control"
             type="number"
             min={BASE_UNIT}
             step={BASE_UNIT}
@@ -68,9 +70,10 @@ export const Sidebar = ({
             onChange={(event) => onConfigChange({ ...config, width: Number(event.target.value) })}
           />
         </label>
-        <label className="field">
+        <label data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
           <span>Height</span>
           <input
+            className="builder-field-control"
             type="number"
             min={BASE_UNIT}
             step={BASE_UNIT}
@@ -88,14 +91,15 @@ export const Sidebar = ({
       <RatioControl label="40x40 cell ratio" value={config.smallCellRatio} onChange={onSmallRatioChange} />
       <RatioControl label="80x80 cell ratio" value={config.largeCellRatio} onChange={onLargeRatioChange} />
 
-      <div className="field color-field">
-        <div className="field-label-row">
+      <div data-slot="builder-field" data-color-field className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
+        <div className="flex items-center justify-between gap-2 leading-[calc(4em/3)]">
           <label htmlFor="stroke-color-input">Stroke color</label>
-          <div className="field-reset-slot">
+          <div className="grid size-[calc(4em/3)] shrink-0 place-items-center">
             {!strokeIsDefault ? (
               <button
                 type="button"
-                className="field-reset-button"
+                data-slot="field-reset"
+                className="grid size-full min-h-0 min-w-0 cursor-pointer place-items-center rounded border-0 bg-transparent p-0 text-inherit [&>svg]:size-[1em]"
                 data-testid="stroke-color-reset"
                 onClick={() => onStrokeColorChange(DEFAULT_CONFIG.strokeColor)}
               >
@@ -104,15 +108,15 @@ export const Sidebar = ({
             ) : null}
           </div>
         </div>
-        <span className="color-control">
+        <span className="relative flex min-h-8 w-full cursor-pointer items-center rounded-md border border-builder-hairline bg-white px-2">
           <span
-            className="color-preview"
+            className="block h-0.5 w-full"
             data-testid="stroke-color-preview"
             style={{ backgroundColor: config.strokeColor, height: "2px" }}
           />
           <input
             id="stroke-color-input"
-            className="color-input"
+            className="absolute inset-0 cursor-pointer opacity-0"
             type="color"
             value={config.strokeColor}
             onChange={(event) => onStrokeColorChange(event.target.value)}
@@ -124,30 +128,30 @@ export const Sidebar = ({
 
       <ConfigSeparator />
 
-      <Button variant="default" padding="square" className="generate-button" onClick={onGenerate}>
+      <Button variant="default" padding="square" onClick={onGenerate}>
         Generate
       </Button>
 
-      <Button variant="default" padding="inline" className="export-button" onClick={onCopyPng}>
+      <Button variant="default" padding="inline" className="mt-auto" onClick={onCopyPng}>
         {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy PNG"}
       </Button>
 
-      <dl className="stats">
-        <div>
-          <dt>Logical</dt>
-          <dd>
+      <dl className="m-0 grid gap-0">
+        <div className="flex justify-between pt-0">
+          <dt className="text-[10px] font-normal uppercase text-builder-subtle">Logical</dt>
+          <dd className="m-0 text-[11px] font-normal text-builder-control">
             {logicalSize.width} x {logicalSize.height}
           </dd>
         </div>
-        <div>
-          <dt>Rendered</dt>
-          <dd>
+        <div className="flex justify-between border-t border-builder-hairline pt-2">
+          <dt className="text-[10px] font-normal uppercase text-builder-subtle">Rendered</dt>
+          <dd className="m-0 text-[11px] font-normal text-builder-control">
             {renderSize.width} x {renderSize.height}
           </dd>
         </div>
-        <div>
-          <dt>Cells</dt>
-          <dd>{cellCount}</dd>
+        <div className="flex justify-between border-t border-builder-hairline pt-2">
+          <dt className="text-[10px] font-normal uppercase text-builder-subtle">Cells</dt>
+          <dd className="m-0 text-[11px] font-normal text-builder-control">{cellCount}</dd>
         </div>
       </dl>
     </div>

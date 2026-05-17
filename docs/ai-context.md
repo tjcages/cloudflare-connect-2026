@@ -10,21 +10,21 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 
 ## Architecture Map
 
-| Area                | Responsibility                                                                    | Key Files                                                                             |
-| ------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| App orchestration   | Top-level state, tab selection, drag state, instance updates, copy action         | `src/app/App.tsx`                                                                     |
-| App styles          | Global layout, sidebar rail, grid controls, component list styling                | `src/app/App.css`                                                                     |
-| Grid core           | Pure config normalization, masks, PRNG, generation, validation, shared grid types | `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, `types.ts` |
-| Grid integration    | Legacy clipboard helper around grid serialization                                 | `clipboard.ts`                                                                        |
-| Canvas domain       | Pixi render setup, hit testing, PNG extract                                       | `src/canvas/`                                                                         |
-| Pixi particles      | Shared `ParticleContainer` constraints (texture/tint/dynamics), connector sparks  | [`docs/pixi.md`](./pixi.md), `src/canvas/components/componentLayer.ts`                |
-| Canvas React bridge | `src/canvas/index.tsx` + `src/components/pixi/` + global `src/store.ts`           | —                                                                                     |
-| Grid sidebar        | Seed, size, ratios, stroke, gap mask, PNG copy                                    | `src/components/Sidebar.tsx`                                                          |
-| Component sidebar   | Components list, layers list, selected layer config                               | `src/components/ComponentSidebar.tsx`                                                 |
-| Component domain    | Component labels, dimensions, defaults, snapping helpers, icon-box layout         | `src/lib/componentRegistry.ts`, `src/lib/icon-box/layout.ts`                          |
-| Icon-box Pixi cache | Per-leaf `cacheAsTexture` with `pixi-box-shadow`; transform rules                 | `docs/icon-box-pixi-caching.md`, `src/canvas/components/icon-box/build.ts`            |
-| Icon registry       | SVG icon definitions and options                                                  | `src/lib/iconRegistry.ts`, `src/components/ComponentIcon.tsx`                         |
-| Shared UI           | Shared layer/component row shell and icon tokens                                  | `src/components/ComponentListItem.tsx`, `src/components/iconTokens.ts`                |
+| Area                | Responsibility                                                                                | Key Files                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| App orchestration   | Top-level state, tab selection, drag state, instance updates, copy action                     | `src/app/App.tsx`                                                                     |
+| App styles          | Tailwind utilities + global `src/styles/global.css` (font-face, scrollbar/range/toggle hooks) | `src/styles/global.css`, `src/main.tsx` import                                        |
+| Grid core           | Pure config normalization, masks, PRNG, generation, validation, shared grid types             | `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, `types.ts` |
+| Grid integration    | Legacy clipboard helper around grid serialization                                             | `clipboard.ts`                                                                        |
+| Canvas domain       | Pixi render setup, hit testing, PNG extract                                                   | `src/canvas/`                                                                         |
+| Pixi particles      | Shared `ParticleContainer` constraints (texture/tint/dynamics), connector sparks              | [`docs/pixi.md`](./pixi.md), `src/canvas/components/componentLayer.ts`                |
+| Canvas React bridge | `src/canvas/index.tsx` + `src/components/pixi/` + global `src/store.ts`                       | —                                                                                     |
+| Grid sidebar        | Seed, size, ratios, stroke, gap mask, PNG copy                                                | `src/components/Sidebar.tsx`                                                          |
+| Component sidebar   | Components list, layers list, selected layer config                                           | `src/components/ComponentSidebar.tsx`                                                 |
+| Component domain    | Component labels, dimensions, defaults, snapping helpers, icon-box layout                     | `src/lib/componentRegistry.ts`, `src/lib/icon-box/layout.ts`                          |
+| Icon-box Pixi cache | Per-leaf `cacheAsTexture` with `pixi-box-shadow`; transform rules                             | `docs/icon-box-pixi-caching.md`, `src/canvas/components/icon-box/build.ts`            |
+| Icon registry       | SVG icon definitions and options                                                              | `src/lib/iconRegistry.ts`, `src/components/ComponentIcon.tsx`                         |
+| Shared UI           | Shared layer/component row shell and icon tokens                                              | `src/components/ComponentListItem.tsx`, `src/components/iconTokens.ts`                |
 
 ## Core Invariants
 

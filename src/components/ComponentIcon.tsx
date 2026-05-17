@@ -14,7 +14,7 @@ export const ComponentIcon = ({
   iconId,
   color,
   size = 24,
-  className = "component-icon",
+  className = "block",
   strokeWidth: strokeWidthOverride,
 }: ComponentIconProps) => {
   const icon = getIconDefinition(iconId);

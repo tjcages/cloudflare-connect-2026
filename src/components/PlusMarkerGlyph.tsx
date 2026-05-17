@@ -15,7 +15,7 @@ export const PlusMarkerGlyph = ({ theme, size = SIDEBAR_LIST_ICON_PX, gridStroke
   const strokeHex = paletteBrush(theme, neutralOpts).fillHex;
   /** Plus spans 10×10 centered in the 16×16 viewBox (3…13). */
   return (
-    <svg className="component-icon" width={size} height={size} viewBox="0 0 16 16" fill="none">
+    <svg className="block" width={size} height={size} viewBox="0 0 16 16" fill="none">
       <path d="M8 3 L8 13 M3 8 L13 8" stroke={strokeHex} strokeWidth={1} strokeLinecap="butt" />
     </svg>
   );

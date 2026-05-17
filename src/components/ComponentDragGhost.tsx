@@ -6,6 +6,7 @@ import type { ComponentType, IconBoxProps, PlusMarkerProps, RectMarkerProps } fr
 import { getComponentDefinition } from "../lib/componentRegistry";
 import { SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 import { paletteBrush } from "../theme/palette";
+import { cn } from "../lib/cn";
 
 type ComponentDragGhostProps = {
   componentType: ComponentType;
@@ -18,7 +19,7 @@ export const ComponentDragGhost = ({ componentType, clientX, clientY }: Componen
   const preview =
     componentType === "connector-line" ? (
       <svg
-        className="component-icon"
+        className="block"
         width={SIDEBAR_LIST_ICON_PX}
         height={SIDEBAR_LIST_ICON_PX}
         viewBox="0 0 24 24"
@@ -47,10 +48,17 @@ export const ComponentDragGhost = ({ componentType, clientX, clientY }: Componen
   return (
     <div
       data-testid="component-drag-ghost"
-      className="component-drag-ghost-root"
+      className="pointer-events-none fixed z-[9999] -translate-x-1/2 -translate-y-1/2"
       style={{ left: clientX, top: clientY }}
     >
-      <ComponentListItem className="component-drag-ghost-row" preview={preview} title={definition.label} />
+      <ComponentListItem
+        className={cn(
+          "w-[260px] rounded-md border border-builder-hairline bg-builder-surface",
+          "shadow-[0_0_0_1px_#f3f3f3,0_8px_20px_rgb(0_0_0/0.08)]",
+        )}
+        preview={preview}
+        title={definition.label}
+      />
     </div>
   );
 };

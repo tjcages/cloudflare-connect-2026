@@ -14,7 +14,7 @@ export const RectMarkerGlyph = ({ theme, size = RECT_MARKER_LIST_GLYPH_PX, gridS
   const neutralOpts = gridStrokeColor !== undefined ? { neutralFillSyncHex: gridStrokeColor } : undefined;
   const fillHex = paletteBrush(theme, neutralOpts).fillHex;
   return (
-    <svg className="component-icon" width={size} height={size} viewBox="0 0 8 8">
+    <svg className="block" width={size} height={size} viewBox="0 0 8 8">
       <rect x="2" y="2" width="4" height="4" fill={fillHex} rx="0.55" ry="0.55" />
     </svg>
   );

@@ -9,10 +9,13 @@ export const PresetsSidebar = () => {
   const applyBuilderDocumentSnapshot = useAppStore((s) => s.applyBuilderDocumentSnapshot);
 
   return (
-    <div className="component-sidebar">
-      <section className="component-section">
+    <div className="flex min-h-0 flex-col overflow-hidden">
+      <section className="flex min-h-[50vh] flex-col gap-0 py-3.5">
         <SectionHeading title="Presets" />
-        <div className="component-scroll-region ui-scroll-overlay" onScroll={scrollThumbFlash}>
+        <div
+          className="ui-scroll-overlay grid min-h-0 flex-1 auto-rows-min content-start gap-0 overflow-auto"
+          onScroll={scrollThumbFlash}
+        >
           {BUILTIN_PRESETS.map((preset) => (
             <ComponentListItem
               key={preset.id}

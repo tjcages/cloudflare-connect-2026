@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { FocusEventHandler, ReactNode } from "react";
 import { getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
 import type { ComponentInstance, ConnectorEndpoint, ConnectorLineProps } from "../grid/types";
+import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
 import { ComponentListItem } from "./ComponentListItem";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH, SIDEBAR_LIST_ICON_PX } from "./iconTokens";
@@ -14,7 +15,7 @@ const getEndpointCellMeta = (endpoint: ConnectorEndpoint) =>
   endpoint.kind === "cell" ? `x: ${endpoint.x}, y: ${endpoint.y}` : undefined;
 
 const StaticCellIcon = ({ size = SIDEBAR_LIST_ICON_PX }: { size?: number }) => (
-  <Crosshair className="component-icon" size={size} strokeWidth={ICON_STROKE_WIDTH} />
+  <Crosshair className="block" size={size} strokeWidth={ICON_STROKE_WIDTH} />
 );
 
 type EndpointSelectProps = {
@@ -59,11 +60,12 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
   };
 
   return (
-    <div className="connector-endpoint-select" onBlur={onBlur}>
+    <div className="relative min-w-0" onBlur={onBlur}>
       <ComponentListItem
         as="button"
+        persistActionsOpacity
         testId={`connector-endpoint-trigger-${label.toLowerCase()}`}
-        className="connector-endpoint-select-trigger"
+        className="min-h-[42px] items-start rounded-md border border-builder-hairline py-2 pl-2.5 pr-2.5"
         preview={selectedPreview}
         title={selectedTitle}
         meta={selectedMeta}
@@ -72,7 +74,7 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
       />
       {open ? (
         <div
-          className="connector-endpoint-options ui-scroll-overlay"
+          className="ui-scroll-overlay absolute left-0 right-0 top-full z-20 mt-1 max-h-[180px] overflow-auto overflow-x-hidden rounded-md border border-builder-hairline bg-builder-surface py-1 shadow-[0_8px_20px_rgb(0_0_0/0.06)]"
           onScroll={onOptionsScroll}
           onPointerLeave={(event) => {
             if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -83,12 +85,7 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
           <ComponentListItem
             as="button"
             testId="connector-endpoint-option-static-cell"
-            className={[
-              "connector-endpoint-option",
-              endpoint.kind === "cell" ? "connector-endpoint-option-selected" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
+            className={cn("items-start py-2 pl-2.5 pr-2.5", endpoint.kind === "cell" && "bg-builder-hover-row")}
             preview={<StaticCellIcon />}
             title="Static cell"
             meta={getEndpointCellMeta(endpoint.kind === "cell" ? endpoint : fallbackCell)}
@@ -103,9 +100,7 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
                 key={instance.id}
                 as="button"
                 testId={`connector-endpoint-option-layer-${instance.id}`}
-                className={["connector-endpoint-option", layerSelected ? "connector-endpoint-option-selected" : ""]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={cn("items-start py-2 pl-2.5 pr-2.5", layerSelected && "bg-builder-hover-row")}
                 preview={renderPreview(instance)}
                 title={getInstanceDisplayName(instance)}
                 meta={layerSubtitle}
@@ -148,9 +143,9 @@ export const ConnectorEndpointField = ({
   };
 
   return (
-    <div className="field connector-endpoint-field">
+    <div data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
       <span>{label}</span>
-      <div className="connector-endpoint-row">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-1.5">
         <EndpointSelect
           label={label}
           endpoint={endpoint}
@@ -160,7 +155,7 @@ export const ConnectorEndpointField = ({
           onSelect={updateEndpoint}
         />
         <button
-          className="component-row-icon-button connector-endpoint-pick-button"
+          className="box-border grid aspect-square min-h-0 w-auto min-w-[42px] max-w-[42px] shrink-0 cursor-pointer place-items-center self-stretch border border-builder-hairline bg-builder-surface p-0 text-builder-control hover:bg-builder-hover-surface hover:text-builder-muted active:bg-builder-active-surface"
           type="button"
           data-testid={`connector-pick-${key}-cell`}
           onClick={() => onStartEndpointPick(connector.id, key)}

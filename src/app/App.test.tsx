@@ -66,15 +66,15 @@ describe("App", { timeout: 15_000 }, () => {
     const gridButton = screen.getByTestId("rail-tab-grid");
     const componentsButton = screen.getByTestId("rail-tab-components");
 
-    expect(gridButton).toHaveClass("sidebar-rail-button-active");
-    expect(componentsButton).not.toHaveClass("sidebar-rail-button-active");
+    expect(gridButton).toHaveAttribute("aria-pressed", "true");
+    expect(componentsButton).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByRole("tab", { name: "Grid" })).not.toBeInTheDocument();
 
     fireEvent.click(componentsButton);
 
     expect(screen.getByText("Layers")).toBeInTheDocument();
-    expect(componentsButton).toHaveClass("sidebar-rail-button-active");
-    expect(gridButton).not.toHaveClass("sidebar-rail-button-active");
+    expect(componentsButton).toHaveAttribute("aria-pressed", "true");
+    expect(gridButton).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByText("Current instances")).not.toBeInTheDocument();
     expect(screen.getByTestId("builder-canvas")).toBeInTheDocument();
   });
@@ -89,8 +89,8 @@ describe("App", { timeout: 15_000 }, () => {
     render(<App />);
 
     expect(screen.getByText("Layers")).toBeInTheDocument();
-    expect(screen.getByTestId("rail-tab-components")).toHaveClass("sidebar-rail-button-active");
-    expect(screen.getByTestId("rail-tab-grid")).not.toHaveClass("sidebar-rail-button-active");
+    expect(screen.getByTestId("rail-tab-components")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("rail-tab-grid")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("restores presets sidebar tab from local storage", () => {
@@ -98,8 +98,8 @@ describe("App", { timeout: 15_000 }, () => {
     render(<App />);
 
     expect(screen.getByText("Presets")).toBeInTheDocument();
-    expect(screen.getByTestId("rail-tab-presets")).toHaveClass("sidebar-rail-button-active");
-    expect(screen.getByTestId("rail-tab-grid")).not.toHaveClass("sidebar-rail-button-active");
+    expect(screen.getByTestId("rail-tab-presets")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("rail-tab-grid")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("applies a built-in preset when its row is clicked", () => {

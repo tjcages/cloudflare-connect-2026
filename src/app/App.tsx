@@ -9,6 +9,7 @@ import { ComponentIcon } from "../components/ComponentIcon";
 import { ComponentBrowseSidebar, ComponentConfigSidebar } from "../components/ComponentSidebar";
 import { PresetsSidebar } from "../components/PresetsSidebar";
 import { Sidebar } from "../components/Sidebar";
+import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
 import { useAppShortcuts } from "./useAppShortcuts";
 
@@ -77,7 +78,7 @@ export const App = () => {
     if (!(target instanceof Node)) {
       return;
     }
-    if (target instanceof Element && target.closest(".canvas-panel-viewport-toolbar") !== null) {
+    if (target instanceof Element && target.closest("[data-canvas-toolbar]") !== null) {
       return;
     }
     const panel = event.currentTarget;
@@ -171,13 +172,20 @@ export const App = () => {
     }
   };
 
+  const railBtn = (tab: SidebarTab) =>
+    cn(
+      "grid size-8 cursor-pointer place-items-center rounded-lg border border-transparent bg-builder-surface p-0 text-builder-rail hover:bg-builder-hover-surface hover:text-builder-rail-hover",
+      activeTab === tab && "bg-builder-active-surface text-builder-muted",
+    );
+
   return (
-    <main className="app-shell">
-      <aside className="sidebar-rail">
+    <main className="grid h-screen min-h-0 grid-cols-[44px_260px_minmax(0,1fr)_260px] overflow-hidden">
+      <aside className="flex flex-col items-center gap-1.5 border-r border-builder-hairline bg-builder-surface p-1.5">
         <button
-          className={activeTab === "grid" ? "sidebar-rail-button sidebar-rail-button-active" : "sidebar-rail-button"}
+          className={railBtn("grid")}
           type="button"
           data-testid="rail-tab-grid"
+          aria-pressed={activeTab === "grid"}
           onClick={() => setActiveTab("grid")}
         >
           <span data-testid="grid-divider-icon">
@@ -190,11 +198,10 @@ export const App = () => {
           </span>
         </button>
         <button
-          className={
-            activeTab === "components" ? "sidebar-rail-button sidebar-rail-button-active" : "sidebar-rail-button"
-          }
+          className={railBtn("components")}
           type="button"
           data-testid="rail-tab-components"
+          aria-pressed={activeTab === "components"}
           onClick={() => setActiveTab("components")}
         >
           <span data-testid="components-rail-icon">
@@ -207,9 +214,10 @@ export const App = () => {
           </span>
         </button>
         <button
-          className={activeTab === "presets" ? "sidebar-rail-button sidebar-rail-button-active" : "sidebar-rail-button"}
+          className={railBtn("presets")}
           type="button"
           data-testid="rail-tab-presets"
+          aria-pressed={activeTab === "presets"}
           onClick={() => setActiveTab("presets")}
         >
           <span data-testid="presets-rail-icon">
@@ -223,11 +231,10 @@ export const App = () => {
         </button>
       </aside>
       <aside
-        className={
-          activeTab === "components" || activeTab === "presets"
-            ? "sidebar sidebar-components"
-            : "sidebar ui-scroll-overlay"
-        }
+        className={cn(
+          "flex min-h-0 flex-col border-r border-builder-hairline bg-builder-surface",
+          activeTab === "grid" ? "gap-3.5 overflow-auto p-3.5" : "gap-0 overflow-hidden p-0",
+        )}
       >
         {activeTab === "grid" ? (
           <Sidebar
@@ -266,8 +273,15 @@ export const App = () => {
           <PresetsSidebar />
         )}
       </aside>
-      <section className="canvas-panel" data-testid="canvas-panel" onPointerDown={onCanvasPanelBackgroundPointerDown}>
-        <div className="canvas-panel-scroll">
+      <section
+        className="box-border flex min-h-0 min-w-0 flex-col overflow-hidden bg-builder-surface"
+        data-testid="canvas-panel"
+        onPointerDown={onCanvasPanelBackgroundPointerDown}
+      >
+        <div
+          className="box-border flex flex-1 min-h-0 items-center justify-center overflow-hidden p-8"
+          data-canvas-scroll-panel
+        >
           <GridCanvas
             canvasRef={builderCanvasRef}
             onUserSelectedInstance={(id) => {
@@ -279,7 +293,7 @@ export const App = () => {
         </div>
         <CanvasViewportToolbar canvasRef={builderCanvasRef} />
       </section>
-      <aside className="sidebar sidebar-components sidebar-components-config">
+      <aside className="flex min-h-0 min-w-0 flex-col gap-0 overflow-hidden border-l border-builder-hairline border-r-0 bg-builder-surface p-0">
         <ComponentConfigSidebar
           instances={instances}
           selectedInstance={selectedInstance}

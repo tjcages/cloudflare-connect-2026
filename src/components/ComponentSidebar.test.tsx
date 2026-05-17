@@ -90,14 +90,14 @@ describe("ComponentSidebar", () => {
 
     const layerItem = container.querySelector("[data-testid='layer-item-icon-box-1']");
     expect(layerItem).toBeInTheDocument();
-    expect(layerItem?.querySelector(".component-list-item-preview")).toBeInTheDocument();
+    expect(layerItem?.querySelector("[data-slot='list-item-preview']")).toBeInTheDocument();
 
-    const textBlock = layerItem?.querySelector(".component-list-item-text");
+    const textBlock = layerItem?.querySelector(".list-item-text");
     expect(textBlock).toBeInTheDocument();
     expect(within(textBlock as HTMLElement).getByText("Icon Box")).toBeInTheDocument();
     expect(within(textBlock as HTMLElement).getByText("Workers")).toBeInTheDocument();
-    expect(layerItem?.querySelector(".component-position")).toBeInTheDocument();
-    expect(layerItem?.querySelector(".component-list-item-actions")).not.toBeInTheDocument();
+    expect(layerItem?.querySelector("[data-slot='list-item-meta']")).toBeInTheDocument();
+    expect(layerItem?.querySelector("[data-slot='list-item-actions']")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Icon Box, Workers" })).not.toBeInTheDocument();
     expect(screen.getByTestId("layer-item-icon-box-1")).toBeInTheDocument();
   });
@@ -115,7 +115,7 @@ describe("ComponentSidebar", () => {
     );
 
     const layerItem = container.querySelector("[data-testid='layer-item-icon-box-1']");
-    expect(layerItem?.querySelector(".component-position")).not.toBeInTheDocument();
+    expect(layerItem?.querySelector("[data-slot='list-item-meta']")).not.toBeInTheDocument();
     expect(screen.getByTestId("layer-item-icon-box-1")).toBeInTheDocument();
   });
 
@@ -132,7 +132,7 @@ describe("ComponentSidebar", () => {
       />,
     );
 
-    const surface = container.querySelector(".layers-reorder-item-surface");
+    const surface = container.querySelector("[data-layer-surface]");
     expect(surface).toBeInTheDocument();
     fireEvent.click(surface as HTMLElement);
 
@@ -176,7 +176,7 @@ describe("ComponentSidebar", () => {
     );
 
     const connectorButton = screen.getByRole("button", { name: "Connector Line" });
-    const connectorIcon = connectorButton.querySelector("svg.component-icon");
+    const connectorIcon = connectorButton.querySelector("svg");
     expect(connectorIcon).toHaveStyle({ color: "#B3B3B3" });
 
     fireEvent.pointerDown(connectorButton, { clientX: 20, clientY: 30 });
@@ -292,8 +292,8 @@ describe("ComponentSidebar", () => {
     fireEvent.click(sourceEndpointButton);
 
     const layerOption = screen.getByTestId("connector-endpoint-option-layer-icon-box-1");
-    expect(layerOption).toHaveClass("component-list-item");
-    expect(layerOption.querySelector("svg.component-icon")).toBeInTheDocument();
+    expect(layerOption.tagName).toBe("BUTTON");
+    expect(layerOption.querySelector("svg")).toBeInTheDocument();
     expect(within(layerOption).getByText("Workers")).toBeInTheDocument();
 
     fireEvent.click(layerOption);
@@ -389,8 +389,8 @@ describe("ComponentSidebar", () => {
 
     const selectedSurface = document
       .querySelector("[data-testid='layer-item-icon-box-2']")
-      ?.closest(".layers-reorder-item-surface");
-    expect(selectedSurface).toHaveClass("layers-reorder-item-surface-selected");
+      ?.closest("[data-layer-surface]");
+    expect(selectedSurface).toHaveClass("bg-builder-selected-row");
     expect(selectedSurface).toHaveAttribute("data-selected", "true");
   });
 
@@ -409,13 +409,11 @@ describe("ComponentSidebar", () => {
 
     const header = screen.getByTestId("component-config-header");
     expect(header).toHaveTextContent("Icon Box");
-    expect(header.querySelector(".component-list-item-actions")).not.toBeInTheDocument();
-    expect(header.querySelector(".component-position")).not.toBeInTheDocument();
+    expect(header.querySelector("[data-slot='list-item-actions']")).not.toBeInTheDocument();
+    expect(header.querySelector("[data-slot='list-item-meta']")).not.toBeInTheDocument();
 
     expect(container.querySelector(".component-config-top-bar")).not.toBeInTheDocument();
-    expect(
-      within(header.querySelector(".component-list-item-text") as HTMLElement).getByText("Icon Box"),
-    ).toBeInTheDocument();
+    expect(within(header.querySelector(".list-item-text") as HTMLElement).getByText("Icon Box")).toBeInTheDocument();
     expect(screen.getByText("Layers")).toBeInTheDocument();
     const iconPicker = screen.getByTestId("icon-picker");
     const iconOption = within(iconPicker).getByTestId(`icon-picker-${DEFAULT_ICON_ID}`);
@@ -427,9 +425,9 @@ describe("ComponentSidebar", () => {
     const themeGroup = screen.getByTestId("palette-theme-picker");
     expect(within(themeGroup).getByTestId("palette-theme-swatch-purple")).toHaveAttribute("data-selected", "true");
     const matchCornersToggle = screen.getByTestId(`toggle-match-corners-${instance.id}`);
-    expect(matchCornersToggle).not.toHaveClass("field-toggle-switch-on");
+    expect(matchCornersToggle).toHaveAttribute("aria-checked", "false");
     const containerHighlightedToggle = screen.getByTestId(`toggle-container-highlighted-${instance.id}`);
-    expect(containerHighlightedToggle).not.toHaveClass("field-toggle-switch-on");
+    expect(containerHighlightedToggle).toHaveAttribute("aria-checked", "false");
 
     fireEvent.click(containerHighlightedToggle);
 

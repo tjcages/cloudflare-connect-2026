@@ -1,5 +1,6 @@
 import type { IconId } from "../grid/types";
 import { ICON_OPTIONS } from "../lib/iconRegistry";
+import { cn } from "../lib/cn";
 import { ComponentIcon } from "./ComponentIcon";
 import { SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 
@@ -10,15 +11,18 @@ type IconPickerFieldProps = {
 };
 
 export const IconPickerField = ({ iconId, iconFill, onIconIdChange }: IconPickerFieldProps) => (
-  <div className="field">
+  <div data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
     <span>Icon</span>
-    <div className="icon-picker" data-testid="icon-picker">
+    <div className="flex flex-wrap gap-1" data-testid="icon-picker">
       {ICON_OPTIONS.map((icon) => {
         const selected = iconId === icon.id;
         return (
           <button
             key={icon.id}
-            className={selected ? "icon-picker-button icon-picker-button-active" : "icon-picker-button"}
+            className={cn(
+              "grid size-6 cursor-pointer place-items-center rounded border-0 bg-builder-hover-row p-1 text-builder-control hover:bg-builder-active-surface",
+              selected && "bg-builder-active-surface",
+            )}
             type="button"
             data-testid={`icon-picker-${icon.id}`}
             data-selected={selected ? "true" : undefined}

@@ -5,10 +5,11 @@ type RatioControlProps = {
 };
 
 export const RatioControl = ({ label, value, onChange }: RatioControlProps) => (
-  <label className="field">
+  <label data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
     <span>{label}</span>
-    <div className="ratio-row">
+    <div className="grid grid-cols-[1fr_56px] items-center gap-3.5">
       <input
+        className="min-w-0"
         type="range"
         min={0}
         max={1}
@@ -17,6 +18,7 @@ export const RatioControl = ({ label, value, onChange }: RatioControlProps) => (
         onChange={(event) => onChange(Number(event.target.value))}
       />
       <input
+        className="builder-field-control"
         type="number"
         min={0}
         max={1}

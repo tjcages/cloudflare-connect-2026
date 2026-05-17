@@ -12,7 +12,8 @@ Recommended structure:
 src/
   app/
     App.tsx
-    App.css
+  styles/
+    global.css
   grid/
     config.ts
     generator.ts
