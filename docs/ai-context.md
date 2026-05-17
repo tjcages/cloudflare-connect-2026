@@ -17,6 +17,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 | Grid core           | Pure config normalization, masks, PRNG, generation, validation, shared grid types | `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, `types.ts` |
 | Grid integration    | Legacy clipboard helper around grid serialization                                 | `clipboard.ts`                                                                        |
 | Canvas domain       | Pixi render setup, hit testing, PNG extract                                       | `src/canvas/`                                                                         |
+| Pixi particles      | Shared `ParticleContainer` constraints (texture/tint/dynamics), connector sparks  | [`docs/pixi.md`](./pixi.md), `src/canvas/components/componentLayer.ts`                |
 | Canvas React bridge | `src/canvas/index.tsx` + `src/components/pixi/` + global `src/store.ts`           | —                                                                                     |
 | Grid sidebar        | Seed, size, ratios, stroke, gap mask, PNG copy                                    | `src/components/Sidebar.tsx`                                                          |
 | Component sidebar   | Components list, layers list, selected layer config                               | `src/components/ComponentSidebar.tsx`                                                 |

@@ -1,11 +1,14 @@
-import { Container, Graphics } from "pixi.js";
+import { animate, motionValue } from "motion";
+import { Container, Graphics, ParticleContainer, Rectangle, Texture } from "pixi.js";
 import type { Ticker } from "../../components/pixi";
 import type { ComponentInstance } from "../../grid/types";
 import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
 import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
+import { createConnectorHitParticleCircleTexture, spawnConnectorHitBurst } from "./connector-line/connectorHitBurst";
 import {
   buildConnectorInstanceChrome,
+  type ConnectorChromeHitEffects,
   getConnectorBaseLayerFingerprint,
   getConnectorCornerCapRect,
   getConnectorJointPoints,
@@ -46,13 +49,23 @@ export const getConnectorLitCornersChromeZ = (layerIndex: number) =>
 export const getComponentLayerZ = (layerCount: number, layerIndex: number) =>
   COMPONENT_LAYER_BASE_Z + layerCount - layerIndex;
 
+/** Z-order above stacked components so connector sparks paint over chrome but selection stays on top (later stage child). */
+export const COMPONENT_LAYER_PARTICLE_OVERLAY_Z = COMPONENT_LAYER_BASE_Z + 1000;
+
+const CONNECTOR_HIT_NUDGE_OUT_SEC = 0.09;
+const CONNECTOR_HIT_NUDGE_RETURN_SEC = 0.2;
+
 type LayerCacheEntry =
   | {
       kind: "icon-box";
       structureRoot: Container;
       chromeRoot: Container;
+      innerBodyMotionRoot: Container;
       propsJson: string;
       gridStrokeHex: string;
+      hitNudgeX: number;
+      hitNudgeY: number;
+      disposeHitNudge?: () => void;
     }
   | {
       kind: "plus-marker";
@@ -79,6 +92,10 @@ type LayerCacheEntry =
     };
 
 const destroyLayerEntry = (entry: LayerCacheEntry) => {
+  if (entry.kind === "icon-box") {
+    entry.disposeHitNudge?.();
+  }
+
   if (entry.kind === "connector-line") {
     entry.disposeConnectorAnimation?.();
     entry.tracksChromeRoot.destroy({ children: true });
@@ -131,7 +148,9 @@ const syncLayers = (
   structureLayer: Container,
   chromeLayer: Container,
   jointsChromeRoot: Graphics,
+  particlePlane: ParticleContainer,
   cache: Map<string, LayerCacheEntry>,
+  connectorHitEffects: ConnectorChromeHitEffects,
 ) => {
   const { instances, dragState, grid, selectedInstanceId } = useAppStore.getState();
   const gridStrokeHex = grid.config.strokeColor;
@@ -139,6 +158,8 @@ const syncLayers = (
   const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
   const toDraw = previewInstance === null ? instances : [...instances, previewInstance];
   const bounds = { width: grid.config.logicalWidth, height: grid.config.logicalHeight };
+
+  particlePlane.boundsArea = new Rectangle(0, 0, bounds.width, bounds.height);
 
   const desiredIds = new Set(toDraw.map((i) => i.id));
   for (const id of [...cache.keys()]) {
@@ -174,6 +195,7 @@ const syncLayers = (
         selectedInstanceId,
         z,
         index,
+        connectorHitEffects,
       );
       continue;
     }
@@ -211,6 +233,7 @@ const syncConnectorLine = (
    */
   z: number,
   layerIndex: number,
+  connectorHitEffects: ConnectorChromeHitEffects,
 ) => {
   const fingerprint = getConnectorRenderFingerprint(
     instance,
@@ -242,6 +265,7 @@ const syncConnectorLine = (
       toDraw,
       gridStrokeColor,
       gridStrokeHex,
+      connectorHitEffects,
       bounds,
       instance.id === selectedInstanceId,
     );
@@ -447,7 +471,7 @@ const syncIconBox = (
       cache.delete(instance.id);
     }
 
-    const { structureRoot, chromeRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+    const { structureRoot, chromeRoot, innerBodyMotionRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
     structureRoot.zIndex = z;
     chromeRoot.zIndex = z;
     structureLayer.addChild(structureRoot);
@@ -457,14 +481,17 @@ const syncIconBox = (
       kind: "icon-box",
       structureRoot,
       chromeRoot,
+      innerBodyMotionRoot,
       propsJson,
       gridStrokeHex,
+      hitNudgeX: 0,
+      hitNudgeY: 0,
     });
   } else if (prior.propsJson !== propsJson || prior.gridStrokeHex !== gridStrokeHex) {
     destroyLayerEntry(prior);
     cache.delete(instance.id);
 
-    const { structureRoot, chromeRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+    const { structureRoot, chromeRoot, innerBodyMotionRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
     structureRoot.zIndex = z;
     chromeRoot.zIndex = z;
     structureLayer.addChild(structureRoot);
@@ -474,13 +501,17 @@ const syncIconBox = (
       kind: "icon-box",
       structureRoot,
       chromeRoot,
+      innerBodyMotionRoot,
       propsJson,
       gridStrokeHex,
+      hitNudgeX: 0,
+      hitNudgeY: 0,
     });
   } else {
-    /** Layout-only: filtered leaves cache pixels in **local** space under `chromeRoot`; translation here must stay free of double-applied shadow offsets. */
+    /** Layout-only: filtered leaves cache pixels in **local** space under `chromeRoot`; connector hit nudge is local on `innerBodyMotionRoot`. */
     prior.structureRoot.position.set(instance.x, instance.y);
     prior.chromeRoot.position.set(instance.x, instance.y);
+    prior.innerBodyMotionRoot.position.set(prior.hitNudgeX, prior.hitNudgeY);
     prior.structureRoot.zIndex = z;
     prior.chromeRoot.zIndex = z;
   }
@@ -488,12 +519,25 @@ const syncIconBox = (
 
 export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   const layer = new Container();
+  layer.sortableChildren = true;
   app.stage.addChild(layer);
 
   const structureLayer = new Container();
   structureLayer.sortableChildren = true;
   const chromeLayer = new Container();
   chromeLayer.sortableChildren = true;
+
+  const particleDotTexture = createConnectorHitParticleCircleTexture();
+  const particlePlane = new ParticleContainer({
+    texture: particleDotTexture,
+    dynamicProperties: {
+      position: true,
+      color: true,
+    },
+    roundPixels: false,
+  });
+  particlePlane.zIndex = COMPONENT_LAYER_PARTICLE_OVERLAY_Z;
+  particlePlane.label = "connector-hit-particles";
 
   const connectorBaseRoot = new Container();
   connectorBaseRoot.sortableChildren = false;
@@ -504,6 +548,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
 
   layer.addChild(structureLayer);
   layer.addChild(chromeLayer);
+  layer.addChild(particlePlane);
 
   const jointsChromeRoot = new Graphics();
   chromeLayer.addChild(jointsChromeRoot);
@@ -511,13 +556,131 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   const cache = new Map<string, LayerCacheEntry>();
   const connectorBaseFingerprintCache = { value: "" };
 
+  const connectorHitEffects: ConnectorChromeHitEffects = {
+    particleContainer: particlePlane,
+    dotTexture: particleDotTexture,
+    scheduleIconBoxConnectorHit: (hitArgs) => {
+      spawnConnectorHitBurst(
+        app,
+        particlePlane,
+        particleDotTexture,
+        hitArgs.particleOrigin,
+        hitArgs.particleTint,
+        hitArgs.pushX,
+        hitArgs.pushY,
+      );
+
+      const entry = cache.get(hitArgs.boxId);
+      if (!entry || entry.kind !== "icon-box") {
+        return;
+      }
+
+      entry.disposeHitNudge?.();
+
+      let unsubNx: (() => void) | undefined;
+      let unsubNy: (() => void) | undefined;
+      let cancelled = false;
+      let controlsOutX: ReturnType<typeof animate> | null = null;
+      let controlsOutY: ReturnType<typeof animate> | null = null;
+      let controlsInX: ReturnType<typeof animate> | null = null;
+      let controlsInY: ReturnType<typeof animate> | null = null;
+
+      const nx = motionValue(entry.hitNudgeX);
+      const ny = motionValue(entry.hitNudgeY);
+
+      const syncRoots = () => {
+        entry.hitNudgeX = nx.get();
+        entry.hitNudgeY = ny.get();
+        const inst = useAppStore.getState().instances.find((i) => i.id === hitArgs.boxId);
+        if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+          return;
+        }
+        entry.structureRoot.position.set(inst.x, inst.y);
+        entry.chromeRoot.position.set(inst.x, inst.y);
+        entry.innerBodyMotionRoot.position.set(entry.hitNudgeX, entry.hitNudgeY);
+      };
+
+      unsubNx = nx.on("change", syncRoots);
+      unsubNy = ny.on("change", syncRoots);
+
+      const PUSH = 1;
+      const tx = hitArgs.pushX * PUSH;
+      const ty = hitArgs.pushY * PUSH;
+
+      const cleanupListeners = () => {
+        unsubNx?.();
+        unsubNy?.();
+        unsubNx = undefined;
+        unsubNy = undefined;
+        delete entry.disposeHitNudge;
+      };
+
+      const disposeHit = () => {
+        cancelled = true;
+        controlsOutX?.stop();
+        controlsOutY?.stop();
+        controlsInX?.stop();
+        controlsInY?.stop();
+        nx.set(0);
+        ny.set(0);
+        entry.hitNudgeX = 0;
+        entry.hitNudgeY = 0;
+        cleanupListeners();
+        const inst = useAppStore.getState().instances.find((i) => i.id === hitArgs.boxId);
+        if (inst && (inst.type === "icon-box" || inst.type === "icon-box-2x1")) {
+          entry.structureRoot.position.set(inst.x, inst.y);
+          entry.chromeRoot.position.set(inst.x, inst.y);
+        }
+        entry.innerBodyMotionRoot.position.set(0, 0);
+      };
+
+      entry.disposeHitNudge = disposeHit;
+
+      const run = async () => {
+        controlsOutX = animate(nx, tx, { duration: CONNECTOR_HIT_NUDGE_OUT_SEC });
+        controlsOutY = animate(ny, ty, { duration: CONNECTOR_HIT_NUDGE_OUT_SEC });
+        await Promise.all([controlsOutX.finished, controlsOutY.finished]);
+        controlsOutX = null;
+        controlsOutY = null;
+        if (cancelled) {
+          return;
+        }
+
+        controlsInX = animate(nx, 0, { duration: CONNECTOR_HIT_NUDGE_RETURN_SEC });
+        controlsInY = animate(ny, 0, { duration: CONNECTOR_HIT_NUDGE_RETURN_SEC });
+        await Promise.all([controlsInX.finished, controlsInY.finished]);
+        controlsInX = null;
+        controlsInY = null;
+        if (cancelled) {
+          return;
+        }
+
+        entry.hitNudgeX = 0;
+        entry.hitNudgeY = 0;
+        nx.set(0);
+        ny.set(0);
+        cleanupListeners();
+        const inst = useAppStore.getState().instances.find((i) => i.id === hitArgs.boxId);
+        if (inst && (inst.type === "icon-box" || inst.type === "icon-box-2x1")) {
+          entry.structureRoot.position.set(inst.x, inst.y);
+          entry.chromeRoot.position.set(inst.x, inst.y);
+        }
+        entry.innerBodyMotionRoot.position.set(0, 0);
+      };
+
+      void run();
+    },
+  };
+
   syncLayers(
     connectorBaseGraphics,
     connectorBaseFingerprintCache,
     structureLayer,
     chromeLayer,
     jointsChromeRoot,
+    particlePlane,
     cache,
+    connectorHitEffects,
   );
 
   const unsub = useAppStore.subscribe((state, prev) => {
@@ -533,7 +696,9 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
         structureLayer,
         chromeLayer,
         jointsChromeRoot,
+        particlePlane,
         cache,
+        connectorHitEffects,
       );
     }
   });
@@ -545,6 +710,9 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
     }
     cache.clear();
     connectorBaseFingerprintCache.value = "";
+    if (particleDotTexture !== Texture.WHITE) {
+      particleDotTexture.destroy(true);
+    }
     layer.destroy(true);
   });
 };

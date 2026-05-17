@@ -72,6 +72,27 @@ export const arcDistanceToPointOnPolyline = (
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+/** Point at arc length `d` along `points`, clamped to `[0, metrics.totalLength]`. */
+export const pointAlongPolyline = (points: PathPoint[], metrics: PolylineMetrics, d: number): PathPoint => {
+  if (points.length < 2 || metrics.segmentLengths.length === 0) {
+    return points[0] ?? { x: 0, y: 0 };
+  }
+
+  const dist = clamp(d, 0, metrics.totalLength);
+  let acc = 0;
+  for (let i = 0; i < metrics.segmentLengths.length; i += 1) {
+    const segLen = metrics.segmentLengths[i];
+    if (dist <= acc + segLen) {
+      const t = segLen === 0 ? 0 : (dist - acc) / segLen;
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      return { x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t };
+    }
+    acc += segLen;
+  }
+  return points[points.length - 1];
+};
+
 export const slicePolylineByDistance = (
   points: PathPoint[],
   metrics: PolylineMetrics,
@@ -94,24 +115,8 @@ export const slicePolylineByDistance = (
     return [];
   }
 
-  const pointAt = (d: number): PathPoint => {
-    const dist = clamp(d, 0, metrics.totalLength);
-    let acc = 0;
-    for (let i = 0; i < metrics.segmentLengths.length; i += 1) {
-      const segLen = metrics.segmentLengths[i];
-      if (dist <= acc + segLen) {
-        const t = segLen === 0 ? 0 : (dist - acc) / segLen;
-        const p0 = points[i];
-        const p1 = points[i + 1];
-        return { x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t };
-      }
-      acc += segLen;
-    }
-    return points[points.length - 1];
-  };
-
-  const ptLo = pointAt(a);
-  const ptHi = pointAt(b);
+  const ptLo = pointAlongPolyline(points, metrics, a);
+  const ptHi = pointAlongPolyline(points, metrics, b);
   const out: PathPoint[] = [ptLo];
 
   for (let k = 1; k < points.length - 1; k += 1) {

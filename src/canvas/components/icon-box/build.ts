@@ -112,6 +112,11 @@ const buildContainerCornerReticle = (tickColor: number, centerDotColor: number):
 export type IconBoxDisplayParts = {
   structureRoot: Container;
   chromeRoot: Container;
+  /**
+   * Moves on connector pulses: shadow card, inner corner squares, icons only —
+   * title strip, outer selection reticles (chrome), and shiny accent bars stay fixed.
+   */
+  innerBodyMotionRoot: Container;
 };
 
 export type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }>;
@@ -173,6 +178,20 @@ export const buildIconBox = (
     borderRadius: ICON_BOX_RADIUS,
   });
 
+  const innerBodyMotionRoot = new Container();
+  innerBodyMotionRoot.sortableChildren = true;
+  innerBodyMotionRoot.zIndex = 23;
+
+  /** Outer selection-frame corners: stacked under shadow card chrome, stationary on pulse hits. */
+  const outerReticlesRoot = new Container();
+  outerReticlesRoot.sortableChildren = true;
+  outerReticlesRoot.zIndex = 22;
+
+  /** Bottom accent shimmer bars: stationary under pulse tilt. Populated below when themed. */
+  const accentBarsRoot = new Container();
+  accentBarsRoot.sortableChildren = true;
+  accentBarsRoot.zIndex = 24;
+
   /**
    * Filter + cache live on the **same leaf** (`cacheAsTexture` on this node, not on `chromeRoot`).
    * Placement uses draw coords at default `.position (0,0)`; grid translation is only `chromeRoot.position`,
@@ -191,6 +210,9 @@ export const buildIconBox = (
     .roundRect(ICON_BOX_INNER_OFFSET, ICON_BOX_INNER_TOP, innerW, ICON_BOX_INNER_SIZE, ICON_BOX_RADIUS)
     .stroke({ width: 1, color: 0x000000, alpha: 0.04 });
 
+  innerBodyMotionRoot.addChild(cardFill);
+  innerBodyMotionRoot.addChild(cardStroke);
+
   /** Selection-frame stroke uses the same color as the logical grid (`grid.config.strokeColor`). */
   const cardFrame = new Graphics();
   cardFrame
@@ -198,8 +220,8 @@ export const buildIconBox = (
     .stroke({ width: 1, color: gridStrokeColor });
   structureRoot.addChild(cardFrame);
 
-  chromeRoot.addChild(cardFill);
-  chromeRoot.addChild(cardStroke);
+  chromeRoot.addChild(outerReticlesRoot);
+  chromeRoot.addChild(innerBodyMotionRoot);
 
   const markers = new Graphics();
   markers.zIndex = 40;
@@ -230,7 +252,7 @@ export const buildIconBox = (
   } else {
     fillCornerMarkers(rectOriginX, rectOriginY, rectInnerW, rectSize);
   }
-  chromeRoot.addChild(markers);
+  innerBodyMotionRoot.addChild(markers);
 
   const icon = getIconDefinition(instance.props.iconId);
   const iconRgb = brush.iconFill;
@@ -251,7 +273,7 @@ export const buildIconBox = (
     iconHold.addChild(iconFiltered);
     iconFiltered.cacheAsTexture(true);
 
-    chromeRoot.addChild(iconHold);
+    innerBodyMotionRoot.addChild(iconHold);
   };
 
   if (variant === "icon-box-2x1") {
@@ -274,7 +296,7 @@ export const buildIconBox = (
         .rect(l, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
         .fill({ color: accentFillRgb, alpha: 1 });
       leftAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-      chromeRoot.addChild(leftAccent);
+      accentBarsRoot.addChild(leftAccent);
       leftAccent.cacheAsTexture(true);
 
       const rightAccent = new Graphics();
@@ -283,7 +305,7 @@ export const buildIconBox = (
         .rect(r, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
         .fill({ color: accentFillRgb, alpha: 1 });
       rightAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-      chromeRoot.addChild(rightAccent);
+      accentBarsRoot.addChild(rightAccent);
       rightAccent.cacheAsTexture(true);
     } else {
       const accentBar = new Graphics();
@@ -294,9 +316,10 @@ export const buildIconBox = (
         alpha: 1,
       });
       accentBar.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-      chromeRoot.addChild(accentBar);
+      accentBarsRoot.addChild(accentBar);
       accentBar.cacheAsTexture(true);
     }
+    chromeRoot.addChild(accentBarsRoot);
   }
 
   cardFill.cacheAsTexture(true);
@@ -319,9 +342,9 @@ export const buildIconBox = (
         cx - CONTAINER_RETICLE_HALF + CONTAINER_RETICLE_POSITION_NUDGE,
         cy - CONTAINER_RETICLE_HALF + CONTAINER_RETICLE_POSITION_NUDGE,
       );
-      chromeRoot.addChild(reticle);
+      outerReticlesRoot.addChild(reticle);
     }
   }
 
-  return { structureRoot, chromeRoot };
+  return { structureRoot, chromeRoot, innerBodyMotionRoot };
 };

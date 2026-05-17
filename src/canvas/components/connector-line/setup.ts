@@ -1,5 +1,6 @@
 import { animate, motionValue } from "motion";
 import { Container, Graphics } from "pixi.js";
+import type { ParticleContainer, Texture } from "pixi.js";
 import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
 import { CONNECTOR_HIGHLIGHT_COLOR } from "../constants";
 import { getPolylineMetrics, arcDistanceToPointOnPolyline, slicePolylineByDistance } from "./pathMotion";
@@ -12,6 +13,7 @@ import {
   routeConnectorPath,
   getConnectorSegmentCells,
 } from "./route";
+import { collectIconBoxHitsAlongConnector } from "./polylineIconBoxHits";
 import { getConnectorEndpointThemeSignature, resolveConnectorEndpointThemeFill } from "./sourceTheme";
 import { connectorLegPlateauEase } from "./legPlateauEase";
 
@@ -122,6 +124,20 @@ export const getConnectorJointPoints = (
   }
 
   return [...pointsByKey.values()].sort((a, b) => a.x - b.x || a.y - b.y);
+};
+
+/** Dependencies for animated connector pulses hitting icon boxes (particles + sidebar-scheduled nudge). */
+export type ConnectorChromeHitEffects = {
+  particleContainer: ParticleContainer;
+  dotTexture: Texture;
+  scheduleIconBoxConnectorHit: (args: {
+    boxId: string;
+    pushX: number;
+    pushY: number;
+    particleOrigin: { x: number; y: number };
+    /** Animated wave stroke color at hit time (`activeFill`). */
+    particleTint: number;
+  }) => void;
 };
 
 export type ConnectorLineInstance = Extract<ComponentInstance, { type: "connector-line" }>;
@@ -337,6 +353,7 @@ export const buildConnectorInstanceChrome = (
   instances: ComponentInstance[],
   gridStrokeColor: number,
   gridStrokeHex: string,
+  hitEffects: ConnectorChromeHitEffects,
   bounds?: { width: number; height: number },
   selected = false,
 ): ConnectorDisplayParts | null => {
@@ -404,6 +421,8 @@ export const buildConnectorInstanceChrome = (
   const sharedJointPoints = getConnectorJointPoints(instances, bounds);
 
   if (instance.props.animated && metrics.totalLength > 0) {
+    const iconBoxHits = collectIconBoxHitsAlongConnector(points, metrics, instances);
+
     const maskShape = new Graphics();
     drawPolyline(maskShape, points);
     maskShape.stroke({
@@ -472,8 +491,62 @@ export const buildConnectorInstanceChrome = (
       drawAnimatedCornerCaps(centerDist, waveFill);
     };
 
-    const unsub = progressAlongPath.on("change", renderPulse);
-    renderPulse(progressAlongPath.get());
+    const firedForwardBoxes = new Set<string>();
+    const firedBackwardBoxes = new Set<string>();
+
+    let prevCenterDist = progressAlongPath.get();
+
+    const fireIconBoxHitsIfNeeded = (centerDist: number) => {
+      const pulseStrokeTint = activeFill();
+      /** Painted wave slice is [center−half, center+half]; triggers off the advancing tip, not midpoint. */
+      const forwardLead = centerDist + CONNECTOR_ANIM_HALF_PX;
+      const prevForwardLead = prevCenterDist + CONNECTOR_ANIM_HALF_PX;
+      const backwardLead = centerDist - CONNECTOR_ANIM_HALF_PX;
+      const prevBackwardLead = prevCenterDist - CONNECTOR_ANIM_HALF_PX;
+
+      if (legPhase === "forward") {
+        for (const hit of iconBoxHits) {
+          if (firedForwardBoxes.has(hit.boxId)) {
+            continue;
+          }
+          if (prevForwardLead < hit.forwardArc && forwardLead >= hit.forwardArc) {
+            firedForwardBoxes.add(hit.boxId);
+            hitEffects.scheduleIconBoxConnectorHit({
+              boxId: hit.boxId,
+              pushX: hit.pushForwardX,
+              pushY: hit.pushForwardY,
+              particleOrigin: hit.particleEmitForward,
+              particleTint: pulseStrokeTint,
+            });
+          }
+        }
+      } else {
+        for (const hit of iconBoxHits) {
+          if (firedBackwardBoxes.has(hit.boxId)) {
+            continue;
+          }
+          if (prevBackwardLead > hit.backwardArc && backwardLead <= hit.backwardArc) {
+            firedBackwardBoxes.add(hit.boxId);
+            hitEffects.scheduleIconBoxConnectorHit({
+              boxId: hit.boxId,
+              pushX: hit.pushBackwardX,
+              pushY: hit.pushBackwardY,
+              particleOrigin: hit.particleEmitBackward,
+              particleTint: pulseStrokeTint,
+            });
+          }
+        }
+      }
+    };
+
+    const pulseListener = (d: number) => {
+      renderPulse(d);
+      fireIconBoxHitsIfNeeded(d);
+      prevCenterDist = d;
+    };
+
+    pulseListener(progressAlongPath.get());
+    const unsub = progressAlongPath.on("change", pulseListener);
 
     let cancelled = false;
     let activeControls: ReturnType<typeof animate> | null = null;
@@ -503,6 +576,7 @@ export const buildConnectorInstanceChrome = (
           break;
         }
         legPhase = "forward";
+        firedForwardBoxes.clear();
         progressAlongPath.set(0);
         activeControls = animate(progressAlongPath, slice, {
           duration: legDurationSec,
@@ -518,6 +592,7 @@ export const buildConnectorInstanceChrome = (
           break;
         }
         legPhase = "backward";
+        firedBackwardBoxes.clear();
         activeControls = animate(progressAlongPath, 0, {
           duration: legDurationSec,
           ease: connectorLegPlateauEase,
