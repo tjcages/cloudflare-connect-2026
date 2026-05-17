@@ -29,7 +29,7 @@ export type ComponentDefinition = {
   label: string;
   width: number;
   height: number;
-  /** Offset from instance root (x, y) to the grid snap point (icon-box: shadow-card center; icon-box-2x1: west edge of shadow-card frame). */
+  /** Offset from instance root (x, y) to the grid snap point (icon-box: shadow-card center; icon-box-2x1: west edge of shadow-card frame on the LARGE_CELL_SIZE lattice). */
   snapAnchorX: number;
   snapAnchorY: number;
   defaultProps: ComponentProps;
@@ -226,7 +226,7 @@ export const snapComponentPosition = (
 
   const snapIconBoxAxisX = (): number =>
     variant === "icon-box-2x1"
-      ? snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE * 2, 0)
+      ? snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, 0)
       : snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET);
 
   return {

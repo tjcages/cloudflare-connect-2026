@@ -24,8 +24,8 @@ describe("connector line routing", () => {
   it("resolves icon-box-2x1 layer endpoints at shadow-card center on the connector lattice", () => {
     const box2x1 = createComponentInstance("icon-box-2x1", 43, 79, 2, 800, 560);
     const layerEndpoint: ConnectorEndpoint = { kind: "layer", instanceId: box2x1.id };
-    // Geometric center x is 80px in root space; snapping lands on the nearer 80px lattice center at 120.
-    expect(resolveConnectorEndpoint(layerEndpoint, [box2x1])).toEqual({ x: 120, y: 120 });
+    // Geometric shadow-card center x is 160px; snaps to the nearer 80px connector lattice center at 200.
+    expect(resolveConnectorEndpoint(layerEndpoint, [box2x1])).toEqual({ x: 200, y: 120 });
   });
 
   it("uses a horizontal first leg when horizontal preference connects collinear vertical anchor points", () => {
