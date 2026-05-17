@@ -1,6 +1,7 @@
 import type { IconId } from "../grid/types";
 import { ICON_OPTIONS } from "../lib/iconRegistry";
 import { cn } from "../lib/cn";
+import { BuilderField } from "./BuilderField";
 import { ComponentIcon } from "./ComponentIcon";
 import { SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 
@@ -11,7 +12,7 @@ type IconPickerFieldProps = {
 };
 
 export const IconPickerField = ({ iconId, iconFill, onIconIdChange }: IconPickerFieldProps) => (
-  <div data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
+  <BuilderField>
     <span>Icon</span>
     <div className="flex flex-wrap gap-1" data-testid="icon-picker">
       {ICON_OPTIONS.map((icon) => {
@@ -33,5 +34,5 @@ export const IconPickerField = ({ iconId, iconFill, onIconIdChange }: IconPicker
         );
       })}
     </div>
-  </div>
+  </BuilderField>
 );

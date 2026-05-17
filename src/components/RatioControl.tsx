@@ -1,3 +1,5 @@
+import { BuilderField } from "./BuilderField";
+
 type RatioControlProps = {
   label: string;
   value: number;
@@ -5,7 +7,7 @@ type RatioControlProps = {
 };
 
 export const RatioControl = ({ label, value, onChange }: RatioControlProps) => (
-  <label data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
+  <BuilderField as="label">
     <span>{label}</span>
     <div className="grid grid-cols-[1fr_56px] items-center gap-3.5">
       <input
@@ -27,5 +29,5 @@ export const RatioControl = ({ label, value, onChange }: RatioControlProps) => (
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </div>
-  </label>
+  </BuilderField>
 );

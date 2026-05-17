@@ -5,6 +5,8 @@ import { ConfigSeparator } from "./ConfigSeparator";
 import { GapMaskEditor } from "./GapMaskEditor";
 import { RatioControl } from "./RatioControl";
 import { Button } from "./Button";
+import { BuilderField } from "./BuilderField";
+import { BuilderFieldHeaderRow } from "./BuilderFieldHeaderRow";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
 
 type SidebarProps = {
@@ -48,20 +50,22 @@ export const Sidebar = ({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3.5">
-      <label data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
+      <BuilderField as="label" htmlFor="seed-input">
         <span>Seed</span>
         <input
+          id="seed-input"
           className="builder-field-control"
           type="text"
           value={config.seed}
           onChange={(event) => onConfigChange({ ...config, seed: event.target.value })}
         />
-      </label>
+      </BuilderField>
 
       <div className="grid grid-cols-2 gap-3.5">
-        <label data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
+        <BuilderField as="label" htmlFor="width-input">
           <span>Width</span>
           <input
+            id="width-input"
             className="builder-field-control"
             type="number"
             min={BASE_UNIT}
@@ -69,10 +73,11 @@ export const Sidebar = ({
             value={config.width}
             onChange={(event) => onConfigChange({ ...config, width: Number(event.target.value) })}
           />
-        </label>
-        <label data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
+        </BuilderField>
+        <BuilderField as="label" htmlFor="height-input">
           <span>Height</span>
           <input
+            id="height-input"
             className="builder-field-control"
             type="number"
             min={BASE_UNIT}
@@ -80,7 +85,7 @@ export const Sidebar = ({
             value={config.height}
             onChange={(event) => onConfigChange({ ...config, height: Number(event.target.value) })}
           />
-        </label>
+        </BuilderField>
       </div>
 
       <RatioControl
@@ -91,8 +96,8 @@ export const Sidebar = ({
       <RatioControl label="40x40 cell ratio" value={config.smallCellRatio} onChange={onSmallRatioChange} />
       <RatioControl label="80x80 cell ratio" value={config.largeCellRatio} onChange={onLargeRatioChange} />
 
-      <div data-slot="builder-field" data-color-field className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
-        <div className="flex items-center justify-between gap-2 leading-[calc(4em/3)]">
+      <BuilderField colorField>
+        <BuilderFieldHeaderRow>
           <label htmlFor="stroke-color-input">Stroke color</label>
           <div className="grid size-[calc(4em/3)] shrink-0 place-items-center">
             {!strokeIsDefault ? (
@@ -107,7 +112,7 @@ export const Sidebar = ({
               </button>
             ) : null}
           </div>
-        </div>
+        </BuilderFieldHeaderRow>
         <span className="relative flex min-h-8 w-full cursor-pointer items-center rounded-md border border-builder-hairline bg-white px-2">
           <span
             className="block h-0.5 w-full"
@@ -122,7 +127,7 @@ export const Sidebar = ({
             onChange={(event) => onStrokeColorChange(event.target.value)}
           />
         </span>
-      </div>
+      </BuilderField>
 
       <GapMaskEditor mask={config.gapMask} onChange={onGapMaskChange} />
 

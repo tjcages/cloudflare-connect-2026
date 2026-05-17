@@ -8,6 +8,7 @@ import { RAIL_TAB_ICON_PX, RAIL_TAB_ICON_STROKE_WIDTH } from "../components/icon
 import { ComponentIcon } from "../components/ComponentIcon";
 import { ComponentBrowseSidebar, ComponentConfigSidebar } from "../components/ComponentSidebar";
 import { PresetsSidebar } from "../components/PresetsSidebar";
+import { RailTab } from "../components/RailTab";
 import { Sidebar } from "../components/Sidebar";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
@@ -172,63 +173,51 @@ export const App = () => {
     }
   };
 
-  const railBtn = (tab: SidebarTab) =>
-    cn(
-      "grid size-8 cursor-pointer place-items-center rounded-lg border border-transparent bg-builder-surface p-0 text-builder-rail hover:bg-builder-hover-surface hover:text-builder-rail-hover",
-      activeTab === tab && "bg-builder-active-surface text-builder-muted",
-    );
-
   return (
     <main className="grid h-screen min-h-0 grid-cols-[44px_260px_minmax(0,1fr)_260px] overflow-hidden">
       <aside className="flex flex-col items-center gap-1.5 border-r border-builder-hairline bg-builder-surface p-1.5">
-        <button
-          className={railBtn("grid")}
-          type="button"
-          data-testid="rail-tab-grid"
-          aria-pressed={activeTab === "grid"}
-          onClick={() => setActiveTab("grid")}
+        <RailTab
+          tab="grid"
+          activeTab={activeTab}
+          testId="rail-tab-grid"
+          iconTestId="grid-divider-icon"
+          onSelect={(tab) => setActiveTab(tab as SidebarTab)}
         >
-          <span data-testid="grid-divider-icon">
-            <ComponentIcon
-              iconId="builder-grid"
-              color="currentColor"
-              size={RAIL_TAB_ICON_PX}
-              strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
-            />
-          </span>
-        </button>
-        <button
-          className={railBtn("components")}
-          type="button"
-          data-testid="rail-tab-components"
-          aria-pressed={activeTab === "components"}
-          onClick={() => setActiveTab("components")}
+          <ComponentIcon
+            iconId="builder-grid"
+            color="currentColor"
+            size={RAIL_TAB_ICON_PX}
+            strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
+          />
+        </RailTab>
+        <RailTab
+          tab="components"
+          activeTab={activeTab}
+          testId="rail-tab-components"
+          iconTestId="components-rail-icon"
+          onSelect={(tab) => setActiveTab(tab as SidebarTab)}
         >
-          <span data-testid="components-rail-icon">
-            <ComponentIcon
-              iconId="builder-layers"
-              color="currentColor"
-              size={RAIL_TAB_ICON_PX}
-              strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
-            />
-          </span>
-        </button>
-        <button
-          className={railBtn("presets")}
-          type="button"
-          data-testid="rail-tab-presets"
-          aria-pressed={activeTab === "presets"}
-          onClick={() => setActiveTab("presets")}
+          <ComponentIcon
+            iconId="builder-layers"
+            color="currentColor"
+            size={RAIL_TAB_ICON_PX}
+            strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
+          />
+        </RailTab>
+        <RailTab
+          tab="presets"
+          activeTab={activeTab}
+          testId="rail-tab-presets"
+          iconTestId="presets-rail-icon"
+          onSelect={(tab) => setActiveTab(tab as SidebarTab)}
         >
-          <span data-testid="presets-rail-icon">
-            <ComponentIcon
-              iconId="builder-bookmark"
-              color="currentColor"
-              size={RAIL_TAB_ICON_PX}
-              strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
-            />
-          </span>
-        </button>
+          <ComponentIcon
+            iconId="builder-bookmark"
+            color="currentColor"
+            size={RAIL_TAB_ICON_PX}
+            strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
+          />
+        </RailTab>
       </aside>
       <aside
         className={cn(

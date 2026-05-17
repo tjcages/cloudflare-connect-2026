@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GapMask } from "../grid/types";
 import { cn } from "../lib/cn";
+import { BuilderField } from "./BuilderField";
+import { BuilderFieldHeaderRow } from "./BuilderFieldHeaderRow";
 
 type GapMaskEditorProps = {
   mask: GapMask;
@@ -137,13 +139,13 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
   }, [commitSelection, setActiveSelection, updateSelectionFromPointer]);
 
   return (
-    <div data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
-      <div className="flex items-center justify-between gap-2 leading-[calc(4em/3)]">
+    <BuilderField>
+      <BuilderFieldHeaderRow>
         <span>Gaps</span>
         <span className="text-[10px] leading-[1.1] text-builder-subtle">
           {columns} x {rows}
         </span>
-      </div>
+      </BuilderFieldHeaderRow>
       <div
         ref={gridRef}
         className="grid touch-none select-none gap-0.5"
@@ -175,6 +177,6 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
           }),
         )}
       </div>
-    </div>
+    </BuilderField>
   );
 };

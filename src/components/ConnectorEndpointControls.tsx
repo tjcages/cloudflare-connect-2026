@@ -6,6 +6,7 @@ import type { ComponentInstance, ConnectorEndpoint, ConnectorLineProps } from ".
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
 import { ComponentListItem } from "./ComponentListItem";
+import { BuilderField } from "./BuilderField";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH, SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 import { useScrollbarThumbFlash } from "./useScrollbarThumbFlash";
 
@@ -143,7 +144,7 @@ export const ConnectorEndpointField = ({
   };
 
   return (
-    <div data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
+    <BuilderField>
       <span>{label}</span>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-1.5">
         <EndpointSelect
@@ -163,6 +164,6 @@ export const ConnectorEndpointField = ({
           <Crosshair size={ACTION_ICON_SIZE} strokeWidth={ICON_STROKE_WIDTH} />
         </button>
       </div>
-    </div>
+    </BuilderField>
   );
 };

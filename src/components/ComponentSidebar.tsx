@@ -2,14 +2,18 @@ import { Reorder, useDragControls } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEventHandler, ReactNode } from "react";
 import { getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
+import { isInteractiveListChromeTarget } from "../lib/isInteractiveListChromeTarget";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
 import type { ComponentInstance, ComponentProps, ComponentType, IconId } from "../grid/types";
 import { ComponentListItem } from "./ComponentListItem";
+import { BuilderSelectField } from "./BuilderSelectField";
+import { BuilderTextField } from "./BuilderTextField";
 import { ConnectorEndpointField } from "./ConnectorEndpointControls";
 import { ConfigSeparator } from "./ConfigSeparator";
 import { FieldToggle } from "./FieldToggle";
 import { IconPickerField } from "./IconPickerField";
+import { LayerConfigPanel } from "./LayerConfigPanel";
 import { SectionHeading } from "./SectionHeading";
 import { COMPONENT_DEFINITION_LIST, createSidebarPreviewRenderers } from "./sidebarPreview";
 import { ThemeField } from "./ThemeField";
@@ -62,7 +66,7 @@ const LayerReorderRow = ({ instance, instances, preview, onSelectInstance, isSel
 
   const onGrabPointerDown: PointerEventHandler<HTMLDivElement> = (event) => {
     const target = event.target;
-    if (target instanceof Element && (target.closest("button") || target.closest('[data-slot="list-item-actions"]'))) {
+    if (target instanceof Element && isInteractiveListChromeTarget(target)) {
       return;
     }
     dragCommittedRef.current = false;
@@ -100,10 +104,7 @@ const LayerReorderRow = ({ instance, instances, preview, onSelectInstance, isSel
         onPointerEnter={() => setSidebarHoveredLayerId(instance.id)}
         onClick={(event) => {
           const target = event.target;
-          if (
-            target instanceof Element &&
-            (target.closest("button") || target.closest('[data-slot="list-item-actions"]'))
-          ) {
+          if (target instanceof Element && isInteractiveListChromeTarget(target)) {
             return;
           }
           if (dragCommittedRef.current) {
@@ -228,38 +229,25 @@ export const ComponentConfigSidebar = ({
   if (selectedInstance.type === "connector-line") {
     const displayName = getInstanceDisplayName(selectedInstance);
     return (
-      <div
-        className="ui-scroll-overlay flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-3.5 pb-3.5 pt-0"
+      <LayerConfigPanel
         onScroll={onConfigPanelScroll}
+        title={displayName}
+        headerPreview={renderPreview(selectedInstance)}
       >
-        <ComponentListItem
-          className="-mx-3.5 mb-0 border-b border-builder-hairline px-3.5 py-3.5"
-          persistActionsOpacity
-          testId="component-config-header"
-          preview={renderPreview(selectedInstance)}
-          title={displayName}
-        />
-        <label
-          data-slot="builder-field"
-          className="flex flex-col gap-1.5 text-[12px] text-builder-muted"
-          htmlFor={`connector-preferred-${selectedInstance.id}`}
+        <BuilderSelectField
+          label="Preferred connection"
+          id={`connector-preferred-${selectedInstance.id}`}
+          value={selectedInstance.props.preferredConnection}
+          onChange={(event) =>
+            onUpdateInstanceProps(selectedInstance.id, {
+              ...selectedInstance.props,
+              preferredConnection: event.target.value === "vertical" ? "vertical" : "horizontal",
+            })
+          }
         >
-          <span>Preferred connection</span>
-          <select
-            id={`connector-preferred-${selectedInstance.id}`}
-            className="builder-field-control"
-            value={selectedInstance.props.preferredConnection}
-            onChange={(event) =>
-              onUpdateInstanceProps(selectedInstance.id, {
-                ...selectedInstance.props,
-                preferredConnection: event.target.value === "vertical" ? "vertical" : "horizontal",
-              })
-            }
-          >
-            <option value="horizontal">Horizontal</option>
-            <option value="vertical">Vertical</option>
-          </select>
-        </label>
+          <option value="horizontal">Horizontal</option>
+          <option value="vertical">Vertical</option>
+        </BuilderSelectField>
         <ConnectorEndpointField
           label="Source"
           endpoint={selectedInstance.props.source}
@@ -301,24 +289,18 @@ export const ComponentConfigSidebar = ({
             })
           }
         />
-      </div>
+      </LayerConfigPanel>
     );
   }
 
   if (selectedInstance.type === "plus-marker" || selectedInstance.type === "rect-marker") {
     const displayName = getInstanceDisplayName(selectedInstance);
     return (
-      <div
-        className="ui-scroll-overlay flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-3.5 pb-3.5 pt-0"
+      <LayerConfigPanel
         onScroll={onConfigPanelScroll}
+        title={displayName}
+        headerPreview={renderPreview(selectedInstance)}
       >
-        <ComponentListItem
-          className="-mx-3.5 mb-0 border-b border-builder-hairline px-3.5 py-3.5"
-          persistActionsOpacity
-          testId="component-config-header"
-          preview={renderPreview(selectedInstance)}
-          title={displayName}
-        />
         <ThemeField
           value={selectedInstance.props.theme}
           gridStrokeColor={gridStrokeColor}
@@ -329,7 +311,7 @@ export const ComponentConfigSidebar = ({
             })
           }
         />
-      </div>
+      </LayerConfigPanel>
     );
   }
 
@@ -337,17 +319,11 @@ export const ComponentConfigSidebar = ({
   const palette = brushFor(selectedInstance.props.theme);
 
   return (
-    <div
-      className="ui-scroll-overlay flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-3.5 pb-3.5 pt-0"
+    <LayerConfigPanel
       onScroll={onConfigPanelScroll}
+      title={displayName}
+      headerPreview={renderPreview(selectedInstance)}
     >
-      <ComponentListItem
-        className="-mx-3.5 mb-0 border-b border-builder-hairline px-3.5 py-3.5"
-        persistActionsOpacity
-        testId="component-config-header"
-        preview={renderPreview(selectedInstance)}
-        title={displayName}
-      />
       <ThemeField
         value={selectedInstance.props.theme}
         gridStrokeColor={gridStrokeColor}
@@ -368,25 +344,18 @@ export const ComponentConfigSidebar = ({
           })
         }
       />
-      <label
-        data-slot="builder-field"
-        className="flex flex-col gap-1.5 text-[12px] text-builder-muted"
-        htmlFor={`layer-title-${selectedInstance.id}`}
-      >
-        <span>Title</span>
-        <input
-          id={`layer-title-${selectedInstance.id}`}
-          className="builder-field-control"
-          type="text"
-          value={selectedInstance.props.title}
-          onChange={(event) =>
-            onUpdateInstanceProps(selectedInstance.id, {
-              ...selectedInstance.props,
-              title: event.target.value,
-            })
-          }
-        />
-      </label>
+      <BuilderTextField
+        label="Title"
+        id={`layer-title-${selectedInstance.id}`}
+        type="text"
+        value={selectedInstance.props.title}
+        onChange={(event) =>
+          onUpdateInstanceProps(selectedInstance.id, {
+            ...selectedInstance.props,
+            title: event.target.value,
+          })
+        }
+      />
       {selectedInstance.props.theme !== "neutral" ? (
         <FieldToggle
           label="Match corners with theme"
@@ -411,7 +380,7 @@ export const ComponentConfigSidebar = ({
           })
         }
       />
-    </div>
+    </LayerConfigPanel>
   );
 };
 

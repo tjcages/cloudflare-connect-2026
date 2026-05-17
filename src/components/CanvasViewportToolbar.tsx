@@ -6,6 +6,10 @@ import { Button } from "./Button";
 
 const ZOOM_BUTTON_STEP = 1.12;
 
+const ToolbarHairlineDivider = () => (
+  <span className="h-1/2 min-h-2 w-px shrink-0 self-center bg-builder-hairline" aria-hidden />
+);
+
 type CanvasViewportToolbarProps = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
 };
@@ -113,7 +117,7 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
           <Plus size={12} strokeWidth={2} aria-hidden />
         </Button>
       </div>
-      <span className="h-1/2 min-h-2 w-px shrink-0 self-center bg-builder-hairline" aria-hidden />
+      <ToolbarHairlineDivider />
       <Button
         variant="ghost"
         padding="inline"
@@ -132,7 +136,7 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
       >
         FPS {(pixiApp ? fps : 0).toFixed(2)}
       </span>
-      <span className="h-1/2 min-h-2 w-px shrink-0 self-center bg-builder-hairline" aria-hidden />
+      <ToolbarHairlineDivider />
       <Button
         variant="ghost"
         padding="inline"

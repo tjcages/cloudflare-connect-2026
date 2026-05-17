@@ -1,4 +1,5 @@
 import type { PaletteThemeId } from "../theme/palette";
+import { BuilderField } from "./BuilderField";
 import { PaletteThemePicker } from "./PaletteThemePicker";
 
 type ThemeFieldProps = {
@@ -8,8 +9,8 @@ type ThemeFieldProps = {
 };
 
 export const ThemeField = ({ value, gridStrokeColor, onChange }: ThemeFieldProps) => (
-  <div data-slot="builder-field" className="flex flex-col gap-1.5 text-[12px] text-builder-muted">
+  <BuilderField>
     <span>Theme</span>
     <PaletteThemePicker value={value} gridStrokeColor={gridStrokeColor} onChange={onChange} />
-  </div>
+  </BuilderField>
 );
