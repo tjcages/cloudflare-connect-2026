@@ -275,6 +275,28 @@ const collectSegmentClipsForRect = (
   return clips;
 };
 
+/** Smallest/largest arc along the polyline where the route enters/exits `rect` (when it crosses). */
+export const getIconBoxConnectorCrossingArcsForRect = (
+  points: PathPoint[],
+  metrics: PolylineMetrics,
+  rect: AxisAlignedRect,
+): { forwardArc: number; backwardArc: number } | null => {
+  const clips = collectSegmentClipsForRect(points, metrics, rect);
+  if (clips.length === 0) {
+    return null;
+  }
+  let forwardArc = Infinity;
+  let backwardArc = -Infinity;
+  for (const clip of clips) {
+    forwardArc = Math.min(forwardArc, clip.arcEnter);
+    backwardArc = Math.max(backwardArc, clip.arcExit);
+  }
+  if (!Number.isFinite(forwardArc) || !Number.isFinite(backwardArc)) {
+    return null;
+  }
+  return { forwardArc, backwardArc };
+};
+
 const pickClipForArc = (clips: SegmentClip[], arc: number): SegmentClip | null => {
   const epsilon = 1e-4;
   for (const clip of clips) {
@@ -372,4 +394,43 @@ export const collectIconBoxHitsAlongConnector = (
   }
 
   return hits;
+};
+
+/**
+ * Recompute the inner-inset spark origin for a shadow card after the box moves. Uses the same arc on the
+ * connector and current `rect` (canvas bounds), so particles stay glued to the live card geometry.
+ */
+export const resolveIconBoxParticleEmitAtArc = (
+  points: PathPoint[],
+  metrics: PolylineMetrics,
+  rect: AxisAlignedRect,
+  arc: number,
+  insetPx = ICON_BOX_HIT_PARTICLE_INNER_INSET_PX,
+): PathPoint => {
+  const raw = pointAlongPolyline(points, metrics, arc);
+  const nIn = inwardNormalAtHit(raw.x, raw.y, rect);
+  const emitter = snapHitToNearestEdge(raw, rect);
+  return {
+    x: emitter.x + nIn.nx * insetPx,
+    y: emitter.y + nIn.ny * insetPx,
+  };
+};
+
+/**
+ * Inner-inset spark origin for the current `rect`, using **fresh** enter/exit arcs along the connector.
+ * Use this while an icon box moves so arc-length under the pulse stays tied to the live crossing.
+ */
+export const resolveIconBoxLiveParticleEmit = (
+  points: PathPoint[],
+  metrics: PolylineMetrics,
+  rect: AxisAlignedRect,
+  leg: "forward" | "backward",
+  insetPx = ICON_BOX_HIT_PARTICLE_INNER_INSET_PX,
+): PathPoint | null => {
+  const crossing = getIconBoxConnectorCrossingArcsForRect(points, metrics, rect);
+  if (!crossing) {
+    return null;
+  }
+  const arc = leg === "forward" ? crossing.forwardArc : crossing.backwardArc;
+  return resolveIconBoxParticleEmitAtArc(points, metrics, rect, arc, insetPx);
 };

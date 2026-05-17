@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createComponentInstance, getInstanceCanvasBounds } from "../../../lib/componentRegistry";
 import { getPolylineMetrics, pointAlongPolyline } from "./pathMotion";
-import { ICON_BOX_HIT_PARTICLE_INNER_INSET_PX, collectIconBoxHitsAlongConnector } from "./polylineIconBoxHits";
+import {
+  ICON_BOX_HIT_PARTICLE_INNER_INSET_PX,
+  collectIconBoxHitsAlongConnector,
+  resolveIconBoxLiveParticleEmit,
+} from "./polylineIconBoxHits";
 
 describe("collectIconBoxHitsAlongConnector", () => {
   it("computes forward/backward arcs for a horizontal crossing", () => {
@@ -68,6 +72,35 @@ describe("collectIconBoxHitsAlongConnector", () => {
     expect(hit.emitterForward.y).toBeCloseTo(canvasBounds.y);
     expect(hit.particleEmitForward.x).toBeCloseTo(midX);
     expect(hit.particleEmitForward.y).toBeCloseTo(canvasBounds.y + ICON_BOX_HIT_PARTICLE_INNER_INSET_PX);
+  });
+
+  it("resolveIconBoxLiveParticleEmit tracks the box after it moves", () => {
+    const box = createComponentInstance("icon-box", 200, 220, 1, 4000, 4000);
+    let canvasBounds = getInstanceCanvasBounds(box);
+    const midY = canvasBounds.y + canvasBounds.height / 2;
+
+    const points = [
+      { x: canvasBounds.x - 80, y: midY },
+      { x: canvasBounds.x + canvasBounds.width + 120, y: midY },
+    ];
+    const metrics = getPolylineMetrics(points);
+    const hits = collectIconBoxHitsAlongConnector(points, metrics, [box]);
+    const hit = hits[0];
+    expect(hit).toBeDefined();
+
+    const shifted = { ...box, x: box.x + 55 };
+    canvasBounds = getInstanceCanvasBounds(shifted);
+    const rect = {
+      x: canvasBounds.x,
+      y: canvasBounds.y,
+      width: canvasBounds.width,
+      height: canvasBounds.height,
+    };
+
+    const live = resolveIconBoxLiveParticleEmit(points, metrics, rect, "forward");
+    expect(live).not.toBeNull();
+    expect(live!.x).toBeCloseTo(hit!.particleEmitForward.x + 55);
+    expect(live!.y).toBeCloseTo(hit!.particleEmitForward.y);
   });
 
   it("returns empty when the polyline misses the shadow card", () => {

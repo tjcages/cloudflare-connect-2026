@@ -619,7 +619,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
         app,
         particlePlane,
         particleDotTexture,
-        hitArgs.particleOrigin,
+        hitArgs.getParticleOrigin,
         hitArgs.particleTint,
         hitArgs.pushX,
         hitArgs.pushY,

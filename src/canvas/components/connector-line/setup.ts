@@ -1,7 +1,9 @@
 import { animate, motionValue } from "motion";
 import { Container, Graphics } from "pixi.js";
 import type { ParticleContainer, Texture } from "pixi.js";
+import { getInstanceCanvasBounds } from "../../../lib/componentRegistry";
 import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
+import { useAppStore } from "../../../store";
 import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "../constants";
 import { getPolylineMetrics, arcDistanceToPointOnPolyline, slicePolylineByDistance } from "./pathMotion";
 import {
@@ -13,7 +15,7 @@ import {
   routeConnectorPath,
   getConnectorSegmentCells,
 } from "./route";
-import { collectIconBoxHitsAlongConnector } from "./polylineIconBoxHits";
+import { collectIconBoxHitsAlongConnector, resolveIconBoxLiveParticleEmit } from "./polylineIconBoxHits";
 import { getConnectorEndpointThemeSignature, resolveConnectorEndpointThemeFill } from "./sourceTheme";
 import { connectorLegPlateauEase } from "./legPlateauEase";
 
@@ -134,7 +136,8 @@ export type ConnectorChromeHitEffects = {
     boxId: string;
     pushX: number;
     pushY: number;
-    particleOrigin: { x: number; y: number };
+    /** Sampled each frame so sparks track live icon-box bounds during drag/nudge. */
+    getParticleOrigin: () => { x: number; y: number };
     /** Animated wave stroke color at hit time (`activeFill`). */
     particleTint: number;
   }) => void;
@@ -506,6 +509,17 @@ export const buildConnectorInstanceChrome = (
 
     let prevCenterDist = progressAlongPath.get();
 
+    const particleOriginForHit = (boxId: string, leg: "forward" | "backward", fallback: { x: number; y: number }) => {
+      const inst = useAppStore.getState().instances.find((i) => i.id === boxId);
+      if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+        return fallback;
+      }
+      const b = getInstanceCanvasBounds(inst);
+      const rect = { x: b.x, y: b.y, width: b.width, height: b.height };
+      const live = resolveIconBoxLiveParticleEmit(points, metrics, rect, leg);
+      return live ?? fallback;
+    };
+
     const fireIconBoxHitsIfNeeded = (centerDist: number) => {
       const pulseStrokeTint = activeFill();
       /** Painted wave slice is [center−half, center+half]; triggers off the advancing tip, not midpoint. */
@@ -525,7 +539,7 @@ export const buildConnectorInstanceChrome = (
               boxId: hit.boxId,
               pushX: hit.pushForwardX,
               pushY: hit.pushForwardY,
-              particleOrigin: hit.particleEmitForward,
+              getParticleOrigin: () => particleOriginForHit(hit.boxId, "forward", hit.particleEmitForward),
               particleTint: pulseStrokeTint,
             });
           }
@@ -541,7 +555,7 @@ export const buildConnectorInstanceChrome = (
               boxId: hit.boxId,
               pushX: hit.pushBackwardX,
               pushY: hit.pushBackwardY,
-              particleOrigin: hit.particleEmitBackward,
+              getParticleOrigin: () => particleOriginForHit(hit.boxId, "backward", hit.particleEmitBackward),
               particleTint: pulseStrokeTint,
             });
           }

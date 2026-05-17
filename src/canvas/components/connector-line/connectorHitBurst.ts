@@ -74,14 +74,15 @@ const burstEase = (u: number): number => {
 };
 
 /**
- * From `origin` (inner-inset hit), sparks return toward the wire (−`push`) with spread.
+ * From the live inner-inset hit (`getParticleOrigin`), sparks return toward the wire (−`push`) with spread.
+ * Origin is sampled every frame so bursts stay aligned if the icon box moves during the effect.
  * Spawn stagger + drift + fade share the same wall-clock compression (~56% of nominal exported ms).
  */
 export const spawnConnectorHitBurst = (
   app: Application,
   particleContainer: ParticleContainer,
   dotTexture: Texture,
-  origin: { x: number; y: number },
+  getParticleOrigin: () => { x: number; y: number },
   tint: number,
   /** Unit: pulse **into** shadow at contact; sparks fly **−push** toward the external line. */
   pushIntoBoxX: number,
@@ -111,10 +112,11 @@ export const spawnConnectorHitBurst = (
     const dx = (backX * along + jx) * CONNECTOR_HIT_BURST_HORIZONTAL_SCALE;
     const dy = backY * along + jy;
 
+    const o0 = getParticleOrigin();
     const p = new Particle({
       texture: dotTexture,
-      x: origin.x,
-      y: origin.y,
+      x: o0.x,
+      y: o0.y,
       anchorX: 0.5,
       anchorY: 0.5,
       scaleX: CONNECTOR_HIT_PARTICLE_SCALE,
@@ -129,7 +131,10 @@ export const spawnConnectorHitBurst = (
 
     const tick = () => {
       const elapsed = performance.now() - started;
+      const origin = getParticleOrigin();
       if (elapsed < staggerMs) {
+        p.x = origin.x;
+        p.y = origin.y;
         return;
       }
 
