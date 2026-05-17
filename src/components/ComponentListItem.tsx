@@ -1,7 +1,7 @@
 import type { MouseEventHandler, PointerEventHandler, ReactNode } from "react";
 
 type ComponentListItemProps = {
-  preview: ReactNode;
+  preview?: ReactNode;
   title: ReactNode;
   meta?: ReactNode;
   actions?: ReactNode;
@@ -27,7 +27,7 @@ export const ComponentListItem = ({
 }: ComponentListItemProps) => {
   const content = (
     <>
-      <span className="component-list-item-preview">{preview}</span>
+      {preview !== undefined ? <span className="component-list-item-preview">{preview}</span> : null}
       <span className="component-list-item-text">
         <span className="component-name">{title}</span>
         {meta ? <span className="component-position">{meta}</span> : null}
@@ -35,7 +35,9 @@ export const ComponentListItem = ({
       {actions ? <span className="component-list-item-actions">{actions}</span> : null}
     </>
   );
-  const classes = ["component-list-item", className].filter(Boolean).join(" ");
+  const classes = ["component-list-item", preview === undefined ? "component-list-item-no-preview" : "", className]
+    .filter(Boolean)
+    .join(" ");
 
   if (as === "button") {
     return (

@@ -7,18 +7,19 @@ import { ComponentDragGhost } from "../components/ComponentDragGhost";
 import { RAIL_TAB_ICON_PX, RAIL_TAB_ICON_STROKE_WIDTH } from "../components/iconTokens";
 import { ComponentIcon } from "../components/ComponentIcon";
 import { ComponentBrowseSidebar, ComponentConfigSidebar } from "../components/ComponentSidebar";
+import { PresetsSidebar } from "../components/PresetsSidebar";
 import { Sidebar } from "../components/Sidebar";
 import { useAppStore } from "../store";
 import { useAppShortcuts } from "./useAppShortcuts";
 
-type SidebarTab = "grid" | "components";
+type SidebarTab = "grid" | "components" | "presets";
 
 const ACTIVE_TAB_STORAGE_KEY = "section-grid-generator.active-tab";
 
 const readPersistedActiveTab = (): SidebarTab => {
   try {
     const value = window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
-    return value === "components" || value === "grid" ? value : "grid";
+    return value === "components" || value === "grid" || value === "presets" ? value : "grid";
   } catch {
     return "grid";
   }
@@ -205,8 +206,29 @@ export const App = () => {
             />
           </span>
         </button>
+        <button
+          className={activeTab === "presets" ? "sidebar-rail-button sidebar-rail-button-active" : "sidebar-rail-button"}
+          type="button"
+          data-testid="rail-tab-presets"
+          onClick={() => setActiveTab("presets")}
+        >
+          <span data-testid="presets-rail-icon">
+            <ComponentIcon
+              iconId="builder-bookmark"
+              color="currentColor"
+              size={RAIL_TAB_ICON_PX}
+              strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
+            />
+          </span>
+        </button>
       </aside>
-      <aside className={activeTab === "components" ? "sidebar sidebar-components" : "sidebar ui-scroll-overlay"}>
+      <aside
+        className={
+          activeTab === "components" || activeTab === "presets"
+            ? "sidebar sidebar-components"
+            : "sidebar ui-scroll-overlay"
+        }
+      >
         {activeTab === "grid" ? (
           <Sidebar
             config={{
@@ -231,7 +253,7 @@ export const App = () => {
             onCopyPng={() => void copyPng()}
             copyState={copyState}
           />
-        ) : (
+        ) : activeTab === "components" ? (
           <ComponentBrowseSidebar
             instances={instances}
             selectedInstance={selectedInstance}
@@ -240,6 +262,8 @@ export const App = () => {
             onReorderInstances={reorderInstances}
             gridStrokeColor={gridConfig.strokeColor}
           />
+        ) : (
+          <PresetsSidebar />
         )}
       </aside>
       <section className="canvas-panel" data-testid="canvas-panel" onPointerDown={onCanvasPanelBackgroundPointerDown}>

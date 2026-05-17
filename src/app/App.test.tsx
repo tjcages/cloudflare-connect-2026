@@ -93,6 +93,26 @@ describe("App", { timeout: 15_000 }, () => {
     expect(screen.getByTestId("rail-tab-grid")).not.toHaveClass("sidebar-rail-button-active");
   });
 
+  it("restores presets sidebar tab from local storage", () => {
+    window.localStorage.setItem("section-grid-generator.active-tab", "presets");
+    render(<App />);
+
+    expect(screen.getByText("Presets")).toBeInTheDocument();
+    expect(screen.getByTestId("rail-tab-presets")).toHaveClass("sidebar-rail-button-active");
+    expect(screen.getByTestId("rail-tab-grid")).not.toHaveClass("sidebar-rail-button-active");
+  });
+
+  it("applies a built-in preset when its row is clicked", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByTestId("rail-tab-presets"));
+    fireEvent.click(screen.getByTestId("preset-item-crowded-3-colors-2x1-1x1"));
+
+    const { gridConfig, instances } = useAppStore.getState();
+    expect(gridConfig.density).toBe(0.52);
+    expect(instances).toHaveLength(3);
+  });
+
   it("shows a pointer-following ghost while placing a component before the canvas preview starts", () => {
     render(<App />);
 

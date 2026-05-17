@@ -43,7 +43,13 @@ export type GeneratedGrid = {
 
 export type ComponentType = "icon-box" | "icon-box-2x1" | "plus-marker" | "rect-marker" | "connector-line";
 
-export type IconId = "section-mark" | "isometric-hex" | "user-outline" | "builder-grid" | "builder-layers";
+export type IconId =
+  | "section-mark"
+  | "isometric-hex"
+  | "user-outline"
+  | "builder-grid"
+  | "builder-layers"
+  | "builder-bookmark";
 
 import type { PaletteThemeId } from "../theme/palette";
 

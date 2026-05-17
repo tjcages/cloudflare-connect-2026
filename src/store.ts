@@ -106,6 +106,8 @@ export type AppStoreState = {
   clearConnectorEndpointHoverCell: () => void;
   setConnectorEndpointCell: (x: number, y: number) => void;
   setSidebarHoveredLayerId: (id: string | null) => void;
+  /** Replace document from a persisted snapshot (same shape as zustand `partialize`). Clears undo history and ephemeral UI. */
+  applyBuilderDocumentSnapshot: (snapshot: unknown) => void;
 };
 
 const createSeed = () => {
@@ -487,6 +489,23 @@ export const useAppStore = create<AppStoreState>()(
           }),
 
         setSidebarHoveredLayerId: (id) => set({ sidebarHoveredLayerId: id }),
+
+        applyBuilderDocumentSnapshot: (snapshot) => {
+          moveDragHistoryBaseline = null;
+          const temporalStore = useAppStore.temporal.getState();
+          temporalStore.pause();
+          useAppStore.setState((s) => {
+            const merged = mergePersistedDocument(snapshot, s);
+            return {
+              ...merged,
+              dragState: null,
+              connectorEndpointPick: null,
+              sidebarHoveredLayerId: null,
+            };
+          });
+          temporalStore.clear();
+          temporalStore.resume();
+        },
       }),
       {
         partialize: getDocumentHistorySlice,

@@ -72,6 +72,17 @@ export const ICON_REGISTRY: IconDefinition[] = [
       "m20 14.285 1.5.845a1 1 0 0 1 0 1.74L13 21.74a2 2 0 0 1-2 0l-8.5-4.87a1 1 0 0 1 0-1.74l1.5-.845",
     ],
   },
+  {
+    id: "builder-bookmark",
+    label: "Presets builder",
+    viewBox: "0 0 24 24",
+    renderMode: "stroke",
+    strokeWidth: 1.25,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    pickable: false,
+    paths: ["m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"],
+  },
 ];
 
 export const ICON_OPTIONS = ICON_REGISTRY.filter((icon) => icon.pickable !== false).map(({ id, label }) => ({
