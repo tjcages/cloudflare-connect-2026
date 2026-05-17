@@ -128,6 +128,52 @@ describe("GridCanvas", () => {
     hitSpy.mockRestore();
   });
 
+  it("sets canvasHoveredLayerId while the pointer moves over hit-tested layers", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 800,
+      height: 560,
+      top: 0,
+      left: 0,
+      right: 800,
+      bottom: 560,
+      toJSON: () => "",
+    } as DOMRect);
+
+    const placed: ComponentInstance = {
+      id: "icon-box-hover-1",
+      type: "icon-box",
+      name: "Icon Box",
+      x: 40,
+      y: 40,
+      props: {
+        matchCornersWithTheme: false,
+        theme: "purple",
+        iconId: "section-mark",
+        title: "T",
+        containerHighlighted: false,
+      },
+    };
+    useAppStore.setState({ instances: [placed], selectedInstanceId: null, canvasHoveredLayerId: null });
+
+    const hitSpy = vi.spyOn(hitTest, "hitTestComponentInstances").mockReturnValue(placed);
+
+    render(<GridCanvas />);
+    const canvas = screen.getByTestId("builder-canvas");
+
+    fireEvent.pointerMove(canvas, { clientX: 50, clientY: 50 });
+
+    expect(useAppStore.getState().canvasHoveredLayerId).toBe(placed.id);
+
+    hitSpy.mockReturnValue(undefined);
+    fireEvent.pointerMove(canvas, { clientX: 5, clientY: 5 });
+
+    expect(useAppStore.getState().canvasHoveredLayerId).toBeNull();
+
+    hitSpy.mockRestore();
+  });
+
   it("pans the viewport when Space+primary-dragging empty canvas space past a small threshold", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
       x: 0,

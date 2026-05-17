@@ -5,6 +5,7 @@ import type { ComponentInstance } from "../../grid/types";
 import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
 import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
+import { LAYER_HIGHLIGHT_HOVER_ALPHA } from "./constants";
 import { createConnectorHitParticleCircleTexture, spawnConnectorHitBurst } from "./connector-line/connectorHitBurst";
 import {
   buildConnectorInstanceChrome,
@@ -14,7 +15,7 @@ import {
   getConnectorJointPoints,
   getConnectorRenderFingerprint,
   paintConnectorBaseLayer,
-  resolveSharedJointStrokeColor,
+  resolveSharedJointStrokeStyle,
 } from "./connector-line/setup";
 import { buildIconBox, type IconBoxRenderableInstance } from "./icon-box/build";
 import { buildPlusMarker } from "./plus-marker/build";
@@ -114,16 +115,24 @@ const syncSharedConnectorJoints = (
   instances: ComponentInstance[],
   bounds: { width: number; height: number },
   gridStrokeColor: number,
-  selectedInstanceId: string | null,
+  selectedConnectorId: string | null,
+  hoveredConnectorIds: ReadonlySet<string>,
 ) => {
   jointsChromeRoot.clear();
   for (const point of getConnectorJointPoints(instances, bounds)) {
     const rect = getConnectorCornerCapRect(point);
-    const strokeColor = resolveSharedJointStrokeColor(point, instances, bounds, gridStrokeColor, selectedInstanceId);
+    const stroke = resolveSharedJointStrokeStyle(
+      point,
+      instances,
+      bounds,
+      gridStrokeColor,
+      selectedConnectorId,
+      hoveredConnectorIds,
+    );
     jointsChromeRoot
       .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
       .fill({ color: 0xffffff })
-      .stroke({ width: 1, color: strokeColor });
+      .stroke({ width: 1, color: stroke.color, alpha: stroke.alpha });
   }
 };
 
@@ -142,6 +151,23 @@ const syncConnectorBasePlane = (
   paintConnectorBaseLayer(connectorBaseGraphics, instances, gridStrokeColor, bounds);
 };
 
+const buildHoveredConnectorIds = (
+  instances: ComponentInstance[],
+  canvasHoveredLayerId: string | null,
+  sidebarHoveredLayerId: string | null,
+): Set<string> => {
+  const hoveredConnectorIds = new Set<string>();
+  for (const id of [canvasHoveredLayerId, sidebarHoveredLayerId]) {
+    if (!id) {
+      continue;
+    }
+    if (instances.find((i) => i.id === id)?.type === "connector-line") {
+      hoveredConnectorIds.add(id);
+    }
+  }
+  return hoveredConnectorIds;
+};
+
 const syncLayers = (
   connectorBaseGraphics: Graphics,
   baseFingerprintCache: { value: string },
@@ -152,12 +178,27 @@ const syncLayers = (
   cache: Map<string, LayerCacheEntry>,
   connectorHitEffects: ConnectorChromeHitEffects,
 ) => {
-  const { instances, dragState, grid, selectedInstanceId } = useAppStore.getState();
+  const { instances, dragState, grid, selectedInstanceId, canvasHoveredLayerId, sidebarHoveredLayerId } =
+    useAppStore.getState();
   const gridStrokeHex = grid.config.strokeColor;
   const gridStrokeColor = parseHexColor(gridStrokeHex);
   const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
   const toDraw = previewInstance === null ? instances : [...instances, previewInstance];
   const bounds = { width: grid.config.logicalWidth, height: grid.config.logicalHeight };
+
+  const selectedConnectorId =
+    selectedInstanceId && toDraw.find((i) => i.id === selectedInstanceId)?.type === "connector-line"
+      ? selectedInstanceId
+      : null;
+  const hoveredConnectorIds = buildHoveredConnectorIds(toDraw, canvasHoveredLayerId, sidebarHoveredLayerId);
+
+  const connectorChromeHighlightedIds = new Set<string>();
+  if (selectedConnectorId) {
+    connectorChromeHighlightedIds.add(selectedConnectorId);
+  }
+  for (const id of hoveredConnectorIds) {
+    connectorChromeHighlightedIds.add(id);
+  }
 
   particlePlane.boundsArea = new Rectangle(0, 0, bounds.width, bounds.height);
 
@@ -173,7 +214,14 @@ const syncLayers = (
   syncConnectorBasePlane(connectorBaseGraphics, baseFingerprintCache, toDraw, gridStrokeColor, bounds);
 
   jointsChromeRoot.zIndex = CONNECTOR_JOINTS_CHROME_Z;
-  syncSharedConnectorJoints(jointsChromeRoot, toDraw, bounds, gridStrokeColor, selectedInstanceId);
+  syncSharedConnectorJoints(
+    jointsChromeRoot,
+    toDraw,
+    bounds,
+    gridStrokeColor,
+    selectedConnectorId,
+    hoveredConnectorIds,
+  );
 
   const layerPassInstances = toDraw;
   const count = layerPassInstances.length;
@@ -193,6 +241,7 @@ const syncLayers = (
         gridStrokeHex,
         bounds,
         selectedInstanceId,
+        hoveredConnectorIds,
         z,
         index,
         connectorHitEffects,
@@ -227,6 +276,7 @@ const syncConnectorLine = (
   gridStrokeHex: string,
   bounds: { width: number; height: number },
   selectedInstanceId: string | null,
+  hoveredConnectorIds: ReadonlySet<string>,
   /**
    * {@link z} applies to selection frames on `structureLayer`. Pulse wave uses {@link getConnectorPulseChromeZ};
    * themed bend highlights use {@link getConnectorLitCornersChromeZ} above shared joint caps.
@@ -235,12 +285,16 @@ const syncConnectorLine = (
   layerIndex: number,
   connectorHitEffects: ConnectorChromeHitEffects,
 ) => {
+  const selectedAsConnector = selectedInstanceId === instance.id;
+  const chromeHighlighted = selectedAsConnector || hoveredConnectorIds.has(instance.id);
+  const highlightChromeAlpha = !chromeHighlighted ? 1 : selectedAsConnector ? 1 : LAYER_HIGHLIGHT_HOVER_ALPHA;
   const fingerprint = getConnectorRenderFingerprint(
     instance,
     toDraw,
     gridStrokeColor,
     bounds,
-    instance.id === selectedInstanceId,
+    chromeHighlighted,
+    highlightChromeAlpha,
   );
 
   if (fingerprint === null) {
@@ -267,7 +321,8 @@ const syncConnectorLine = (
       gridStrokeHex,
       connectorHitEffects,
       bounds,
-      instance.id === selectedInstanceId,
+      chromeHighlighted,
+      highlightChromeAlpha,
     );
     if (!parts) {
       return;
@@ -688,7 +743,9 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
       state.instances !== prev.instances ||
       state.dragState !== prev.dragState ||
       state.grid !== prev.grid ||
-      state.selectedInstanceId !== prev.selectedInstanceId
+      state.selectedInstanceId !== prev.selectedInstanceId ||
+      state.sidebarHoveredLayerId !== prev.sidebarHoveredLayerId ||
+      state.canvasHoveredLayerId !== prev.canvasHoveredLayerId
     ) {
       syncLayers(
         connectorBaseGraphics,

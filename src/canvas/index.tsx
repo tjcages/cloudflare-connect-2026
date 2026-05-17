@@ -63,6 +63,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
   const setConnectorEndpointCell = useAppStore((s) => s.setConnectorEndpointCell);
   const setConnectorEndpointHoverCell = useAppStore((s) => s.setConnectorEndpointHoverCell);
   const clearConnectorEndpointHoverCell = useAppStore((s) => s.clearConnectorEndpointHoverCell);
+  const setCanvasHoveredLayerId = useAppStore((s) => s.setCanvasHoveredLayerId);
   const isPickingConnectorEndpoint = useAppStore((s) => s.connectorEndpointPick !== null);
 
   /** Primary-button drag on empty canvas with Space held (mouse): pan viewport until pointer up / Space released. */
@@ -317,6 +318,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
 
               skipNextClickSelectionSyncRef.current = true;
 
+              setCanvasHoveredLayerId(null);
               viewportPanSessionRef.current = true;
               viewportPanDraggingRef.current = false;
               viewportPanPointerIdRef.current = event.pointerId;
@@ -380,6 +382,19 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             }
 
             const dragState = useAppStore.getState().dragState;
+            if (dragState === null) {
+              const instances = useAppStore.getState().instances;
+              const point = getCanvasPoint(canvas, event.clientX, event.clientY, logicalWidth, logicalHeight);
+              const hit = hitTestComponentInstances(instances, point.x, point.y, {
+                width: logicalWidth,
+                height: logicalHeight,
+              });
+              const nextId = hit?.id ?? null;
+              if (nextId !== useAppStore.getState().canvasHoveredLayerId) {
+                setCanvasHoveredLayerId(nextId);
+              }
+            }
+
             if (dragState === null || dragState.mode === "create") {
               return;
             }
@@ -442,6 +457,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
           },
           onPointerLeave: () => {
             clearConnectorEndpointHoverCell();
+            setCanvasHoveredLayerId(null);
           },
           onClick: (event) => {
             if (useAppStore.getState().dragState !== null) {

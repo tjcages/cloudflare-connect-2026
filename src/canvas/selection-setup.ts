@@ -5,7 +5,7 @@ import type { ComponentInstance } from "../grid/types";
 import { getInstanceHighlightBounds } from "../lib/componentRegistry";
 import { useAppStore } from "../store";
 import type { ConnectorEndpointPickState } from "../types/document";
-import { CONNECTOR_HIGHLIGHT_COLOR } from "./components/constants";
+import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "./components/constants";
 
 const drawCellHighlight = (graphics: Graphics, point: { x: number; y: number }) => {
   graphics
@@ -26,7 +26,7 @@ export const getConnectorSelectionCellPoints = (
   return points;
 };
 
-const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance) => {
+const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance, strokeAlpha = 1) => {
   if (inst.type === "connector-line") {
     return;
   }
@@ -37,7 +37,9 @@ const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance) 
     w += 1;
     h += 1;
   }
-  graphics.rect(b.x + 0.5, b.y + 0.5, w - 1, h - 1).stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR });
+  graphics
+    .rect(b.x + 0.5, b.y + 0.5, w - 1, h - 1)
+    .stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR, alpha: strokeAlpha });
 };
 
 export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
@@ -49,7 +51,8 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
 
     let hasHighlight = false;
 
-    const { selectedInstanceId, instances, connectorEndpointPick, sidebarHoveredLayerId } = useAppStore.getState();
+    const { selectedInstanceId, instances, connectorEndpointPick, sidebarHoveredLayerId, canvasHoveredLayerId } =
+      useAppStore.getState();
     const connectorSelectionCells = getConnectorSelectionCellPoints(
       selectedInstanceId,
       instances,
@@ -60,11 +63,19 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       hasHighlight = true;
     }
 
-    const hoveredSidebarLayer = sidebarHoveredLayerId
-      ? instances.find((i) => i.id === sidebarHoveredLayerId)
-      : undefined;
-    if (hoveredSidebarLayer && hoveredSidebarLayer.id !== selectedInstanceId) {
-      drawInstanceHighlightRect(graphics, hoveredSidebarLayer);
+    const hoverHighlightIds = new Set<string>();
+    if (sidebarHoveredLayerId && sidebarHoveredLayerId !== selectedInstanceId) {
+      hoverHighlightIds.add(sidebarHoveredLayerId);
+    }
+    if (canvasHoveredLayerId && canvasHoveredLayerId !== selectedInstanceId) {
+      hoverHighlightIds.add(canvasHoveredLayerId);
+    }
+    for (const hoverId of hoverHighlightIds) {
+      const hoveredLayer = instances.find((i) => i.id === hoverId);
+      if (!hoveredLayer) {
+        continue;
+      }
+      drawInstanceHighlightRect(graphics, hoveredLayer, LAYER_HIGHLIGHT_HOVER_ALPHA);
       hasHighlight = true;
     }
 
@@ -94,7 +105,8 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       state.selectedInstanceId !== prev.selectedInstanceId ||
       state.instances !== prev.instances ||
       state.connectorEndpointPick !== prev.connectorEndpointPick ||
-      state.sidebarHoveredLayerId !== prev.sidebarHoveredLayerId
+      state.sidebarHoveredLayerId !== prev.sidebarHoveredLayerId ||
+      state.canvasHoveredLayerId !== prev.canvasHoveredLayerId
     ) {
       sync();
     }

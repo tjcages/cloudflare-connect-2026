@@ -67,6 +67,8 @@ export type AppStoreState = {
   connectorEndpointPick: ConnectorEndpointPickState | null;
   /** Canvas highlight for a layer hovered in the sidebar (layers list or connector dropdown). */
   sidebarHoveredLayerId: string | null;
+  /** Canvas highlight for the layer under the pointer on the canvas (not persisted). */
+  canvasHoveredLayerId: string | null;
   nextInstanceIndex: number;
   setPixiApp: (app: Application | null) => void;
 
@@ -106,6 +108,7 @@ export type AppStoreState = {
   clearConnectorEndpointHoverCell: () => void;
   setConnectorEndpointCell: (x: number, y: number) => void;
   setSidebarHoveredLayerId: (id: string | null) => void;
+  setCanvasHoveredLayerId: (id: string | null) => void;
   /** Replace document from a persisted snapshot (same shape as zustand `partialize`). Clears undo history and ephemeral UI. */
   applyBuilderDocumentSnapshot: (snapshot: unknown) => void;
 };
@@ -212,6 +215,7 @@ export const useAppStore = create<AppStoreState>()(
         dragState: null,
         connectorEndpointPick: null,
         sidebarHoveredLayerId: null,
+        canvasHoveredLayerId: null,
 
         setPixiApp: (app) => set({ pixiApp: app }),
 
@@ -260,6 +264,7 @@ export const useAppStore = create<AppStoreState>()(
             useAppStore.temporal.getState().resume();
           }
           set({
+            canvasHoveredLayerId: null,
             dragState: {
               mode: "create",
               type,
@@ -313,6 +318,7 @@ export const useAppStore = create<AppStoreState>()(
           moveDragHistoryBaseline = getDocumentHistorySlice(get());
           useAppStore.temporal.getState().pause();
           set({
+            canvasHoveredLayerId: null,
             dragState: { mode: "move", id, offsetX, offsetY },
           });
         },
@@ -438,7 +444,10 @@ export const useAppStore = create<AppStoreState>()(
             if (!connector) {
               return {};
             }
-            return { connectorEndpointPick: { connectorId, endpoint, hoverCell: null } };
+            return {
+              canvasHoveredLayerId: null,
+              connectorEndpointPick: { connectorId, endpoint, hoverCell: null },
+            };
           }),
 
         cancelConnectorEndpointPick: () => set({ connectorEndpointPick: null }),
@@ -489,6 +498,7 @@ export const useAppStore = create<AppStoreState>()(
           }),
 
         setSidebarHoveredLayerId: (id) => set({ sidebarHoveredLayerId: id }),
+        setCanvasHoveredLayerId: (id) => set({ canvasHoveredLayerId: id }),
 
         applyBuilderDocumentSnapshot: (snapshot) => {
           moveDragHistoryBaseline = null;
@@ -501,6 +511,7 @@ export const useAppStore = create<AppStoreState>()(
               dragState: null,
               connectorEndpointPick: null,
               sidebarHoveredLayerId: null,
+              canvasHoveredLayerId: null,
             };
           });
           temporalStore.clear();
@@ -543,6 +554,7 @@ export const resetAppStoreDocumentToDefault = () => {
     dragState: null,
     connectorEndpointPick: null,
     sidebarHoveredLayerId: null,
+    canvasHoveredLayerId: null,
   }));
   temporalStore.clear();
   temporalStore.resume();

@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { COMPONENT_REGISTRY } from "../../../lib/componentRegistry";
 import type { ComponentInstance, IconBoxProps } from "../../../grid/types";
 import { parseHexColor } from "../../color";
-import { CONNECTOR_HIGHLIGHT_COLOR } from "../constants";
+import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "../constants";
 import {
   getConnectorBaseLayerFingerprint,
   getConnectorCornerCapRect,
   getConnectorJointPoints,
   getConnectorRenderSpec,
-  resolveSharedJointStrokeColor,
+  resolveSharedJointStrokeStyle,
 } from "./setup";
 
 describe("connector line render spec", () => {
@@ -143,7 +143,10 @@ describe("connector line render spec", () => {
       },
     ];
     const joint = getConnectorJointPoints(connectors, bounds)[0]!;
-    expect(resolveSharedJointStrokeColor(joint, connectors, bounds, gridColor, null)).toBe(gridColor);
+    expect(resolveSharedJointStrokeStyle(joint, connectors, bounds, gridColor, null, new Set())).toEqual({
+      color: gridColor,
+      alpha: 1,
+    });
   });
 
   it("uses selection highlight on joints owned by the selected connector", () => {
@@ -167,9 +170,39 @@ describe("connector line render spec", () => {
       },
     ];
     const joint = getConnectorJointPoints(connectors, bounds)[0]!;
-    expect(resolveSharedJointStrokeColor(joint, connectors, bounds, gridColor, "connector-line-1")).toBe(
-      CONNECTOR_HIGHLIGHT_COLOR,
-    );
+    expect(resolveSharedJointStrokeStyle(joint, connectors, bounds, gridColor, "connector-line-1", new Set())).toEqual({
+      color: CONNECTOR_HIGHLIGHT_COLOR,
+      alpha: 1,
+    });
+  });
+
+  it("uses hover highlight alpha on joints owned by a hovered connector only", () => {
+    const bounds = { width: 800, height: 560 };
+    const gridHex = "#F3F3F3";
+    const gridColor = parseHexColor(gridHex);
+    const connectors: ComponentInstance[] = [
+      {
+        id: "connector-line-1",
+        type: "connector-line",
+        name: "Connector Line 1",
+        x: 40,
+        y: 40,
+        props: {
+          preferredConnection: "horizontal",
+          source: { kind: "cell", x: 40, y: 40 },
+          target: { kind: "cell", x: 120, y: 120 },
+          overlayGrid: true,
+          animated: true,
+        },
+      },
+    ];
+    const joint = getConnectorJointPoints(connectors, bounds)[0]!;
+    expect(
+      resolveSharedJointStrokeStyle(joint, connectors, bounds, gridColor, null, new Set(["connector-line-1"])),
+    ).toEqual({
+      color: CONNECTOR_HIGHLIGHT_COLOR,
+      alpha: LAYER_HIGHLIGHT_HOVER_ALPHA,
+    });
   });
 
   it("keeps joint stroke on the grid rail color when only themed endpoints exist (no selected highlight)", () => {
@@ -204,6 +237,9 @@ describe("connector line render spec", () => {
     const instances = [icon, connector];
     const joints = getConnectorJointPoints(instances, bounds);
     expect(joints.length).toBeGreaterThan(0);
-    expect(resolveSharedJointStrokeColor(joints[0]!, instances, bounds, gridColor, null)).toBe(gridColor);
+    expect(resolveSharedJointStrokeStyle(joints[0]!, instances, bounds, gridColor, null, new Set())).toEqual({
+      color: gridColor,
+      alpha: 1,
+    });
   });
 });

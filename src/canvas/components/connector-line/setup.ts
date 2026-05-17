@@ -2,7 +2,7 @@ import { animate, motionValue } from "motion";
 import { Container, Graphics } from "pixi.js";
 import type { ParticleContainer, Texture } from "pixi.js";
 import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
-import { CONNECTOR_HIGHLIGHT_COLOR } from "../constants";
+import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "../constants";
 import { getPolylineMetrics, arcDistanceToPointOnPolyline, slicePolylineByDistance } from "./pathMotion";
 import {
   collectExternalJunctionHints,
@@ -179,22 +179,26 @@ export const getConnectorInstancesOwningJoint = (
   return out;
 };
 
-/** Stroke for shared corner tiles: matches static rail — grid until the owning connector is selected (highlight). */
-export const resolveSharedJointStrokeColor = (
+/** Stroke style for shared joint caps: highlight when owned by selected / hovered connectors. */
+export const resolveSharedJointStrokeStyle = (
   joint: { x: number; y: number },
   instances: ComponentInstance[],
   bounds: { width: number; height: number },
   gridStrokeColor: number,
-  selectedInstanceId: string | null,
-): number => {
+  selectedConnectorId: string | null,
+  hoveredConnectorIds: ReadonlySet<string>,
+): { color: number; alpha: number } => {
   const owners = getConnectorInstancesOwningJoint(joint, instances, bounds);
   if (owners.length === 0) {
-    return gridStrokeColor;
+    return { color: gridStrokeColor, alpha: 1 };
   }
-  if (selectedInstanceId !== null && owners.some((o) => o.id === selectedInstanceId)) {
-    return CONNECTOR_HIGHLIGHT_COLOR;
+  if (selectedConnectorId !== null && owners.some((o) => o.id === selectedConnectorId)) {
+    return { color: CONNECTOR_HIGHLIGHT_COLOR, alpha: 1 };
   }
-  return gridStrokeColor;
+  if (hoveredConnectorIds.size > 0 && owners.some((o) => hoveredConnectorIds.has(o.id))) {
+    return { color: CONNECTOR_HIGHLIGHT_COLOR, alpha: LAYER_HIGHLIGHT_HOVER_ALPHA };
+  }
+  return { color: gridStrokeColor, alpha: 1 };
 };
 
 const drawPolyline = (graphics: Graphics, points: { x: number; y: number }[]) => {
@@ -320,7 +324,8 @@ export const getConnectorRenderFingerprint = (
   instances: ComponentInstance[],
   gridStrokeColor: number,
   bounds: { width: number; height: number },
-  selected: boolean,
+  chromeHighlighted: boolean,
+  highlightChromeAlpha: number,
 ): string | null => {
   const source = resolveConnectorEndpoint(instance.props.source, instances);
   const target = resolveConnectorEndpoint(instance.props.target, instances);
@@ -338,7 +343,8 @@ export const getConnectorRenderFingerprint = (
     ty: target.y,
     gridStrokeColor,
     bounds,
-    selected,
+    chromeHighlighted,
+    highlightChromeAlpha: chromeHighlighted ? highlightChromeAlpha : 1,
     overlayGrid: instance.props.overlayGrid,
     animated: instance.props.animated,
     sourceTheme: getConnectorEndpointThemeSignature(instance.props.source, instances),
@@ -355,7 +361,8 @@ export const buildConnectorInstanceChrome = (
   gridStrokeHex: string,
   hitEffects: ConnectorChromeHitEffects,
   bounds?: { width: number; height: number },
-  selected = false,
+  chromeHighlighted = false,
+  highlightChromeAlpha = 1,
 ): ConnectorDisplayParts | null => {
   const source = resolveConnectorEndpoint(instance.props.source, instances);
   const target = resolveConnectorEndpoint(instance.props.target, instances);
@@ -364,7 +371,7 @@ export const buildConnectorInstanceChrome = (
   }
 
   const points = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
-  const renderSpec = getConnectorRenderSpec(selected, gridStrokeColor);
+  const renderSpec = getConnectorRenderSpec(chromeHighlighted, gridStrokeColor);
   const segmentOverlay = instance.props.overlayGrid;
 
   const metrics = getPolylineMetrics(points);
@@ -375,7 +382,7 @@ export const buildConnectorInstanceChrome = (
   const litCorners = new Graphics();
   chromeLitJointsRoot.addChild(litCorners);
 
-  if (selected) {
+  if (chromeHighlighted) {
     const endpointFrames = new Graphics();
     for (const point of [source, target]) {
       if (segmentOverlay) {
@@ -390,6 +397,7 @@ export const buildConnectorInstanceChrome = (
           .stroke({
             width: CONNECTOR_STROKE_WIDTH,
             color: renderSpec.endpointFrameColor,
+            alpha: highlightChromeAlpha,
           });
       } else {
         endpointFrames
@@ -402,6 +410,7 @@ export const buildConnectorInstanceChrome = (
           .stroke({
             width: CONNECTOR_STROKE_WIDTH,
             color: renderSpec.endpointFrameColor,
+            alpha: highlightChromeAlpha,
           });
       }
     }
@@ -413,6 +422,7 @@ export const buildConnectorInstanceChrome = (
   line.stroke({
     width: CONNECTOR_STROKE_WIDTH,
     color: renderSpec.lineColor,
+    alpha: chromeHighlighted ? highlightChromeAlpha : 1,
     ...CONNECTOR_PATH_STROKE_STYLE,
   });
   tracksChromeRoot.addChild(line);
