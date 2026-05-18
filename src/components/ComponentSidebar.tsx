@@ -11,6 +11,7 @@ import { ComponentListItem } from "./ComponentListItem";
 import { BuilderSelectField } from "./BuilderSelectField";
 import { BuilderTextField } from "./BuilderTextField";
 import { ConnectorEndpointField } from "./ConnectorEndpointControls";
+import { ConfigDebugDisclosure } from "./ConfigDebugDisclosure";
 import { ConfigSeparator } from "./ConfigSeparator";
 import { FieldToggle } from "./FieldToggle";
 import { IconPickerField } from "./IconPickerField";
@@ -153,7 +154,7 @@ export const ComponentBrowseSidebar = ({
       <section className="flex min-h-[50vh] flex-col gap-0 py-3.5">
         <SectionHeading title="Components" />
         <div
-          className="ui-scroll-overlay grid min-h-0 flex-1 auto-rows-min content-start gap-0 overflow-auto"
+          className="ui-scroll-overlay grid min-h-0 flex-1 auto-rows-min content-start gap-0 overflow-x-hidden overflow-y-auto"
           onScroll={scrollThumbFlashComponents}
         >
           {COMPONENT_DEFINITION_LIST.map((definition) => (
@@ -177,7 +178,7 @@ export const ComponentBrowseSidebar = ({
       <section className="flex min-h-[50vh] flex-col gap-0 border-t border-builder-hairline py-3.5">
         <SectionHeading title="Layers" />
         <div
-          className="ui-scroll-overlay grid min-h-0 flex-1 auto-rows-min content-start gap-0 overflow-auto"
+          className="ui-scroll-overlay grid min-h-0 flex-1 auto-rows-min content-start gap-0 overflow-x-hidden overflow-y-auto"
           onScroll={scrollThumbFlashLayers}
         >
           {instances.length ? (
@@ -330,152 +331,146 @@ export const ComponentConfigSidebar = ({
       title={displayName}
       headerPreview={renderPreview(selectedInstance)}
     >
-      <ThemeField
-        value={selectedInstance.props.theme}
-        gridStrokeColor={gridStrokeColor}
-        onChange={(theme) =>
-          onUpdateInstanceProps(selectedInstance.id, {
-            ...selectedInstance.props,
-            theme,
-          })
-        }
-      />
-      <IconPickerField
-        iconId={selectedInstance.props.iconId}
-        iconFill={palette.iconFillHex}
-        onIconIdChange={(iconId: IconId) =>
-          onUpdateInstanceProps(selectedInstance.id, {
-            ...selectedInstance.props,
-            iconId,
-          })
-        }
-      />
-      <BuilderTextField
-        label="Title"
-        id={`layer-title-${selectedInstance.id}`}
-        type="text"
-        value={selectedInstance.props.title}
-        onChange={(event) =>
-          onUpdateInstanceProps(selectedInstance.id, {
-            ...selectedInstance.props,
-            title: event.target.value,
-          })
-        }
-      />
-      {selectedInstance.props.theme !== "neutral" ? (
-        <FieldToggle
-          label="Match corners with theme"
-          pressed={selectedInstance.props.matchCornersWithTheme}
-          testId={`toggle-match-corners-${selectedInstance.id}`}
-          onToggle={() =>
-            onUpdateInstanceProps(selectedInstance.id, {
-              ...selectedInstance.props,
-              matchCornersWithTheme: !selectedInstance.props.matchCornersWithTheme,
-            })
-          }
-        />
-      ) : null}
-      <FieldToggle
-        label="Container highlighted"
-        pressed={selectedInstance.props.containerHighlighted}
-        testId={`toggle-container-highlighted-${selectedInstance.id}`}
-        onToggle={() =>
-          onUpdateInstanceProps(selectedInstance.id, {
-            ...selectedInstance.props,
-            containerHighlighted: !selectedInstance.props.containerHighlighted,
-          })
-        }
-      />
-      {isIconBoxLayerConnectorTarget(instances, selectedInstance.id) ? (
-        <>
-          <ConfigSeparator />
-          <BuilderSelectField
-            label="Enabled by line"
-            id={`layer-enabled-by-line-${selectedInstance.id}`}
-            value={selectedInstance.props.enabledByLine}
-            onChange={(event) => {
-              const value = event.target.value;
-              const enabledByLine = value === "once" ? "once" : value === "iterated" ? "iterated" : "off";
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3.5">
+        <div className="flex shrink-0 flex-col gap-3.5">
+          <ThemeField
+            value={selectedInstance.props.theme}
+            gridStrokeColor={gridStrokeColor}
+            onChange={(theme) =>
               onUpdateInstanceProps(selectedInstance.id, {
                 ...selectedInstance.props,
-                enabledByLine,
-              });
-            }}
-          >
-            <option value="off">Off</option>
-            <option value="once">Once</option>
-            <option value="iterated">Iterated</option>
-          </BuilderSelectField>
-        </>
-      ) : null}
-      <ConfigSeparator />
-      <details
-        className="rounded border border-builder-hairline px-2 py-1.5 text-[11px] text-builder-muted-foreground"
-        data-testid="line-enable-debug-accordion"
-      >
-        <summary className="cursor-pointer select-none font-medium text-builder-foreground">Debug</summary>
-        <div className="mt-2 space-y-2">
+                theme,
+              })
+            }
+          />
+          <IconPickerField
+            iconId={selectedInstance.props.iconId}
+            iconFill={palette.iconFillHex}
+            onIconIdChange={(iconId: IconId) =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                iconId,
+              })
+            }
+          />
+          <BuilderTextField
+            label="Title"
+            id={`layer-title-${selectedInstance.id}`}
+            type="text"
+            value={selectedInstance.props.title}
+            onChange={(event) =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                title: event.target.value,
+              })
+            }
+          />
+          {selectedInstance.props.theme !== "neutral" ? (
+            <FieldToggle
+              label="Match corners with theme"
+              pressed={selectedInstance.props.matchCornersWithTheme}
+              testId={`toggle-match-corners-${selectedInstance.id}`}
+              onToggle={() =>
+                onUpdateInstanceProps(selectedInstance.id, {
+                  ...selectedInstance.props,
+                  matchCornersWithTheme: !selectedInstance.props.matchCornersWithTheme,
+                })
+              }
+            />
+          ) : null}
+          <FieldToggle
+            label="Container highlighted"
+            pressed={selectedInstance.props.containerHighlighted}
+            testId={`toggle-container-highlighted-${selectedInstance.id}`}
+            onToggle={() =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                containerHighlighted: !selectedInstance.props.containerHighlighted,
+              })
+            }
+          />
+          {isIconBoxLayerConnectorTarget(instances, selectedInstance.id) ? (
+            <>
+              <ConfigSeparator />
+              <BuilderSelectField
+                label="Enabled by line"
+                id={`layer-enabled-by-line-${selectedInstance.id}`}
+                value={selectedInstance.props.enabledByLine}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  const enabledByLine = value === "once" ? "once" : value === "iterated" ? "iterated" : "off";
+                  onUpdateInstanceProps(selectedInstance.id, {
+                    ...selectedInstance.props,
+                    enabledByLine,
+                  });
+                }}
+              >
+                <option value="off">Off</option>
+                <option value="once">Once</option>
+                <option value="iterated">Iterated</option>
+              </BuilderSelectField>
+            </>
+          ) : null}
+        </div>
+        <ConfigDebugDisclosure testId="line-enable-debug-accordion">
           {!lineEnableDebugRow ? (
             <p className="m-0 leading-snug">
               No line-enable coordinator snapshot yet. Open the canvas with this layer mounted and set{" "}
-              <span className="font-medium">Enabled by line</span> to Once or Iterated to populate counters here.
+              <span className="text-builder-foreground">Enabled by line</span> to Once or Iterated to populate counters
+              here.
             </p>
           ) : (
-            <table className="w-full border-collapse text-left">
+            <table className="w-full min-w-0 border-collapse text-left">
               <tbody>
                 <tr className="align-top">
-                  <th className="pr-2 font-normal text-builder-muted-foreground">hitCount</th>
+                  <th className="pr-2 font-normal">hitCount</th>
                   <td className="font-mono text-builder-foreground">{lineEnableDebugRow.hitCount}</td>
                 </tr>
                 <tr className="align-top">
-                  <th className="pr-2 font-normal text-builder-muted-foreground">onceLatched</th>
+                  <th className="pr-2 font-normal">onceLatched</th>
                   <td className="font-mono text-builder-foreground">
                     {lineEnableDebugRow.onceLatched ? "true" : "false"}
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <th className="pr-2 font-normal text-builder-muted-foreground">logicalEnabled</th>
+                  <th className="pr-2 font-normal">logicalEnabled</th>
                   <td className="font-mono text-builder-foreground">
                     {lineEnableDebugRow.logicalEnabled ? "true" : "false"}
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <th className="pr-2 font-normal text-builder-muted-foreground">visualEnabled</th>
+                  <th className="pr-2 font-normal">visualEnabled</th>
                   <td className="font-mono text-builder-foreground">
                     {lineEnableDebugRow.visualEnabled ? "true" : "false"}
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <th className="pr-2 font-normal text-builder-muted-foreground">colorBusy</th>
+                  <th className="pr-2 font-normal">colorBusy</th>
                   <td className="font-mono text-builder-foreground">
                     {lineEnableDebugRow.colorBusy ? "true" : "false"}
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <th className="pr-2 font-normal text-builder-muted-foreground">hasHandles</th>
+                  <th className="pr-2 font-normal">hasHandles</th>
                   <td className="font-mono text-builder-foreground">
                     {lineEnableDebugRow.hasHandles ? "true" : "false"}
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <th className="pr-2 font-normal text-builder-muted-foreground">mode</th>
-                  <td className="font-mono text-builder-foreground">{lineEnableDebugRow.mode}</td>
-                </tr>
-                <tr className="align-top">
-                  <th className="pr-2 font-normal text-builder-muted-foreground">outgoing</th>
+                  <th className="pr-2 font-normal">outgoing</th>
                   <td className="font-mono text-builder-foreground">
                     active {lineEnableDebugRow.outgoingActive} / waiting {lineEnableDebugRow.outgoingWaiting}
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <th className="pr-2 font-normal text-builder-muted-foreground">updatedAt</th>
+                  <th className="pr-2 font-normal">updatedAt</th>
                   <td className="font-mono text-builder-foreground">{lineEnableDebugRow.updatedAt}</td>
                 </tr>
               </tbody>
             </table>
           )}
-        </div>
-      </details>
+        </ConfigDebugDisclosure>
+      </div>
     </LayerConfigPanel>
   );
 };

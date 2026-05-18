@@ -13,7 +13,7 @@ export const PresetsSidebar = () => {
       <section className="flex min-h-[50vh] flex-col gap-0 py-3.5">
         <SectionHeading title="Presets" />
         <div
-          className="ui-scroll-overlay grid min-h-0 flex-1 auto-rows-min content-start gap-0 overflow-auto"
+          className="ui-scroll-overlay grid min-h-0 flex-1 auto-rows-min content-start gap-0 overflow-x-hidden overflow-y-auto"
           onScroll={scrollThumbFlash}
         >
           {BUILTIN_PRESETS.map((preset) => (

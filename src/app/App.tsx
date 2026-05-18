@@ -174,7 +174,7 @@ export const App = () => {
   };
 
   return (
-    <main className="grid h-screen min-h-0 grid-cols-[44px_260px_minmax(0,1fr)_260px] overflow-hidden">
+    <main className="grid h-screen min-h-0 w-full min-w-0 grid-cols-[44px_260px_minmax(0,1fr)_260px] overflow-hidden">
       <aside className="flex flex-col items-center gap-1.5 border-r border-builder-hairline bg-builder-surface p-1.5">
         <RailTab
           tab="grid"
@@ -263,7 +263,7 @@ export const App = () => {
         )}
       </aside>
       <section
-        className="box-border flex min-h-0 min-w-0 flex-col overflow-hidden bg-builder-surface"
+        className="box-border flex min-h-0 min-w-0 w-full flex-col overflow-hidden bg-builder-surface"
         data-testid="canvas-panel"
         onPointerDown={onCanvasPanelBackgroundPointerDown}
       >
@@ -282,14 +282,16 @@ export const App = () => {
         </div>
         <CanvasViewportToolbar canvasRef={builderCanvasRef} />
       </section>
-      <aside className="flex min-h-0 min-w-0 flex-col gap-0 overflow-hidden border-l border-builder-hairline border-r-0 bg-builder-surface p-0">
-        <ComponentConfigSidebar
-          instances={instances}
-          selectedInstance={selectedInstance}
-          onUpdateInstanceProps={updateInstanceProps}
-          onStartEndpointPick={startConnectorEndpointPick}
-          gridStrokeColor={gridConfig.strokeColor}
-        />
+      <aside className="flex min-h-0 min-w-0 w-full flex-col gap-0 overflow-hidden border-l border-builder-hairline border-r-0 bg-builder-surface p-0">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <ComponentConfigSidebar
+            instances={instances}
+            selectedInstance={selectedInstance}
+            onUpdateInstanceProps={updateInstanceProps}
+            onStartEndpointPick={startConnectorEndpointPick}
+            gridStrokeColor={gridConfig.strokeColor}
+          />
+        </div>
       </aside>
       {dragState?.mode === "create" && dragState.preview === null && dragState.ghostClient !== null ? (
         <ComponentDragGhost

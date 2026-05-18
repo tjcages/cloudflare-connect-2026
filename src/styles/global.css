@@ -58,6 +58,12 @@
     background: var(--color-builder-surface);
   }
 
+  #root {
+    min-height: 100%;
+    min-height: 100dvh;
+    width: 100%;
+  }
+
   button,
   input,
   select {
@@ -97,6 +103,11 @@
   background: #fff;
   color: var(--color-builder-muted);
   padding: 7px 8px;
+}
+
+select.builder-field-control {
+  /* Native indicator needs extra inset; ~6px clear of the right border in WebKit/Chromium. */
+  padding: 7px 22px 7px 8px;
 }
 
 .builder-field-control[type="number"] {

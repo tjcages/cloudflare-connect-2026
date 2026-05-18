@@ -1,7 +1,8 @@
 import type { UIEventHandler, ReactNode } from "react";
 import { ComponentListItem } from "./ComponentListItem";
 
-const scrollPanelClass = "ui-scroll-overlay flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-3.5 pb-3.5 pt-0";
+const scrollPanelClass =
+  "ui-scroll-overlay flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-3.5 overflow-y-auto px-3.5 pb-0 pt-0";
 
 const headerClass = "-mx-3.5 mb-0 border-b border-builder-hairline px-3.5 py-3.5";
 

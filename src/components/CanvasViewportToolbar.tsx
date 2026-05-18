@@ -85,7 +85,7 @@ export const CanvasViewportToolbar = ({ canvasRef }: CanvasViewportToolbarProps)
 
   return (
     <div
-      className="box-border flex h-10 shrink-0 flex-row items-center justify-start gap-2 border-t border-builder-hairline bg-builder-surface px-2.5 py-1.5"
+      className="box-border flex h-10 w-full min-w-0 shrink-0 flex-row items-center justify-start gap-2 border-t border-builder-hairline bg-builder-surface px-3.5 py-0"
       data-canvas-toolbar=""
       role="toolbar"
       aria-label="Canvas viewport"
