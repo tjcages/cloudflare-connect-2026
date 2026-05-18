@@ -293,6 +293,7 @@ describe("buildConnectorInstanceChrome structural highlights", () => {
       1,
     );
     expect(parts).not.toBeNull();
+    /** No 80×80 endpoint frames when both ends are layer anchors. */
     expect(parts!.structureRoot.children.length).toBe(0);
   });
 

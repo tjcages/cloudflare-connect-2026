@@ -30,16 +30,16 @@ import {
 
 export const COMPONENT_LAYER_BASE_Z = 10;
 
-/** Shared segment grid + white track hulls on structureLayer, below all chrome. */
+/** Shared segment grid on structureLayer, below all component structure; white path hull is drawn per connector on {@link ConnectorDisplayParts.tracksChromeRoot} (chromeLayer). */
 export const CONNECTOR_BASE_Z = COMPONENT_LAYER_BASE_Z - 2;
 
 /**
- * Within {@link CONNECTOR_BASE_Z}: connector lattice segment rects plus thick hull stroke (under icon overlay).
+ * Within {@link CONNECTOR_BASE_Z}: connector lattice segment rects (shared across connectors).
  */
 export const CONNECTOR_BASE_LATTICE_PLANE_Z = 0;
 
 /**
- * One step above {@link CONNECTOR_BASE_LATTICE_PLANE_Z}: white 80×80 tiles under icon-box footprints (masks rail art).
+ * One step above {@link CONNECTOR_BASE_LATTICE_PLANE_Z}: white backdrop + grid stroke for icon shadow-card footprints (masks rail art).
  */
 export const CONNECTOR_BASE_ICON_LATTICE_OVERLAY_Z = CONNECTOR_BASE_LATTICE_PLANE_Z + 1;
 

@@ -76,9 +76,9 @@ export const getConnectorRenderSpec = (selected: boolean, gridStrokeColor: numbe
 };
 
 export type ConnectorDisplayParts = {
-  /** Selection endpoint frames only; segment frames live on the shared connector base plane. */
+  /** Optional selection endpoint frames (`cell` anchors only); segment lattice stays on the shared base plane. */
   structureRoot: Container;
-  /** Thin connector stroke, route mask (when animated); white underlay + segments are on the base plane. */
+  /** White path hull + thin stroke + route mask (when animated). Hull is here so it renders on `chromeLayer` above every icon’s structure `cardFrame`. */
   tracksChromeRoot: Container;
   /** Animated wave only (mask + slice), drawn under shared joint caps. */
   chromePulseRoot: Container;
@@ -310,6 +310,7 @@ export const getConnectorBaseLayerFingerprint = (
   });
 };
 
+/** Segment rects on `latticePlaneGraphics`; icon shadow-card backdrop on `iconLatticeBackdropGraphics`. White path hull is drawn per connector on {@link ConnectorDisplayParts.tracksChromeRoot}. */
 export const paintConnectorBaseLayer = (
   latticePlaneGraphics: Graphics,
   iconLatticeBackdropGraphics: Graphics,
@@ -361,24 +362,6 @@ export const paintConnectorBaseLayer = (
         color: segmentSpec.segmentFrameColor,
       });
   }
-
-  for (const inst of sortedInstances) {
-    if (inst.type !== "connector-line") {
-      continue;
-    }
-    const source = resolveConnectorEndpoint(inst.props.source, instances);
-    const target = resolveConnectorEndpoint(inst.props.target, instances);
-    if (!source || !target) {
-      continue;
-    }
-    const points = routeConnectorPath(source, target, inst.props.preferredConnection, bounds);
-    drawPolyline(latticePlaneGraphics, points);
-    latticePlaneGraphics.stroke({
-      width: CONNECTOR_UNDER_STROKE_WIDTH,
-      color: 0xffffff,
-      ...CONNECTOR_PATH_STROKE_STYLE,
-    });
-  }
 };
 
 export const getConnectorRenderFingerprint = (
@@ -415,7 +398,7 @@ export const getConnectorRenderFingerprint = (
   });
 };
 
-/** Per-connector chrome: colored stroke, selection endpoint frames, animation. Segments + white underlay: {@link paintConnectorBaseLayer}. Corner caps: {@link getConnectorJointPoints} on chromeLayer. */
+/** Per-connector chrome: colored stroke, route mask (when animated), **white path hull** (under thin line). Hull lives on `tracksChromeRoot` so it paints on {@link chromeLayer} above all {@link structureLayer} icon card frames. Optional selection endpoint frames on `structureRoot`. Shared segment lattice: {@link paintConnectorBaseLayer}. Corner caps: {@link getConnectorJointPoints} on chromeLayer. */
 export const buildConnectorInstanceChrome = (
   instance: Extract<ComponentInstance, { type: "connector-line" }>,
   instances: ComponentInstance[],
@@ -438,15 +421,30 @@ export const buildConnectorInstanceChrome = (
 
   const metrics = getPolylineMetrics(points);
   const structureRoot = new Container();
+
   const tracksChromeRoot = new Container();
+  tracksChromeRoot.sortableChildren = true;
+
+  const pathHullUnderlay = new Graphics();
+  pathHullUnderlay.zIndex = 0;
+  drawPolyline(pathHullUnderlay, points);
+  pathHullUnderlay.stroke({
+    width: CONNECTOR_UNDER_STROKE_WIDTH,
+    color: 0xffffff,
+    ...CONNECTOR_PATH_STROKE_STYLE,
+  });
+  tracksChromeRoot.addChild(pathHullUnderlay);
+
   const chromePulseRoot = new Container();
   const chromeLitJointsRoot = new Container();
   const litCorners = new Graphics();
   chromeLitJointsRoot.addChild(litCorners);
 
   if (chromeHighlighted) {
+    structureRoot.sortableChildren = true;
     /** 80×80 lattice endpoint frames: useful for `cell` anchors; skipped for `layer` — selection layer already outlines icon/marker targets and the rect clashes with wide icon shadow cards (reads as a stray vertical/horizontal stroke). */
     const endpointFrames = new Graphics();
+    endpointFrames.zIndex = 0;
     let drewAnyEndpointFrame = false;
     for (const { point, endpoint } of [
       { point: source, endpoint: instance.props.source },
@@ -491,6 +489,7 @@ export const buildConnectorInstanceChrome = (
   }
 
   const line = new Graphics();
+  line.zIndex = 1;
   drawPolyline(line, points);
   line.stroke({
     width: CONNECTOR_STROKE_WIDTH,
@@ -509,6 +508,7 @@ export const buildConnectorInstanceChrome = (
     const layerTargetId = instance.props.target.kind === "layer" ? instance.props.target.instanceId : null;
 
     const maskShape = new Graphics();
+    maskShape.zIndex = 2;
     drawPolyline(maskShape, points);
     maskShape.stroke({
       width: CONNECTOR_UNDER_STROKE_WIDTH,
