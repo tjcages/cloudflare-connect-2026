@@ -24,8 +24,11 @@ import {
   TITLE_FONT_SIZE_PX,
   TITLE_TEXT_PADDING_X,
   getIconBoxCardFrameWidth,
+  getIconBoxContainerReticlePosition,
+  getIconBoxEdgeTickRects,
   getIconBoxInnerWidth,
   getIconBoxTitleBarLayout,
+  type IconBoxContainerReticleCorner,
 } from "../../../lib/icon-box/layout";
 import { paletteBrush } from "../../../theme/palette";
 import { rasterizeIcon } from "./iconRaster";
@@ -90,12 +93,6 @@ const buildIconShadowFilter = (iconColorHex: number) =>
 
 /** 22x22 focus reticle at local (0,0); matches reference SVG (Graphics fills, not SVG). */
 const CONTAINER_RETICLE_PX = 22;
-const CONTAINER_RETICLE_HALF = CONTAINER_RETICLE_PX / 2;
-/** Offset from each selection-frame corner to reticle center along X/Y toward the frame interior. */
-const CONTAINER_RETICLE_CORNER_INSET = 0;
-
-/** Align reticle art with grid strokes (sub-pixel shift for all four corners). */
-const CONTAINER_RETICLE_POSITION_NUDGE = 0.5;
 
 /** In chrome layer: above structural `cardFrame` (separate layer), below white shadow card. */
 const CONTAINER_RETICLE_Z_INDEX = 18;
@@ -260,6 +257,22 @@ export const buildIconBox = (
 
   const cornerBrush = instance.props.matchCornersWithTheme ? brush : paletteBrush("neutral", neutralSync);
   paintCornerMarkers(cornerBrush.fill);
+
+  const edgeTicks = new Graphics();
+  edgeTicks.zIndex = 39;
+  const paintEdgeTicksForSlot = (ox: number, oy: number, w: number, h: number) => {
+    for (const tick of getIconBoxEdgeTickRects(ox, oy, w, h)) {
+      edgeTicks.rect(tick.x, tick.y, tick.width, tick.height).fill({ color: gridStrokeColor });
+    }
+  };
+  if (variant === "icon-box-2x1") {
+    const halfW = rectInnerW / 2;
+    paintEdgeTicksForSlot(rectOriginX, rectOriginY, halfW, rectSize);
+    paintEdgeTicksForSlot(rectOriginX + halfW, rectOriginY, halfW, rectSize);
+  } else {
+    paintEdgeTicksForSlot(rectOriginX, rectOriginY, rectInnerW, rectSize);
+  }
+  innerBodyMotionRoot.addChild(edgeTicks);
   innerBodyMotionRoot.addChild(markers);
 
   const icon = getIconDefinition(instance.props.iconId);
@@ -338,23 +351,12 @@ export const buildIconBox = (
   cardFill.cacheAsTexture(true);
 
   if (instance.props.containerHighlighted) {
-    const ox = frameOriginX;
-    const oy = ICON_BOX_CARD_FRAME_ORIGIN_Y;
-    const sz = frameW;
-    const inset = CONTAINER_RETICLE_CORNER_INSET;
-    const cornerCenters: [number, number][] = [
-      [ox + inset, oy + inset],
-      [ox + sz - inset, oy + inset],
-      [ox + inset, oy + sz - inset],
-      [ox + sz - inset, oy + sz - inset],
-    ];
-    for (const [cx, cy] of cornerCenters) {
+    const corners: IconBoxContainerReticleCorner[] = ["tl", "tr", "bl", "br"];
+    for (const corner of corners) {
       const reticle = buildContainerCornerReticle(gridStrokeColor, brush.fill);
       reticle.zIndex = CONTAINER_RETICLE_Z_INDEX;
-      reticle.position.set(
-        cx - CONTAINER_RETICLE_HALF + CONTAINER_RETICLE_POSITION_NUDGE,
-        cy - CONTAINER_RETICLE_HALF + CONTAINER_RETICLE_POSITION_NUDGE,
-      );
+      const pos = getIconBoxContainerReticlePosition(corner, rectOriginX, rectOriginY, rectInnerW, rectSize);
+      reticle.position.set(pos.x, pos.y);
       outerReticlesRoot.addChild(reticle);
     }
   }

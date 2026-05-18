@@ -159,6 +159,64 @@ export const getIconBoxTitleBarLayout = (
 export const MARKER_SIZE = 2;
 export const MARKER_INSET = 8;
 
+/** Edge-center tick sizes (top/bottom vertical, left/right horizontal). */
+export const ICON_BOX_EDGE_TICK_V = { width: 1, height: 2 } as const;
+export const ICON_BOX_EDGE_TICK_H = { width: 2, height: 1 } as const;
+
+export type IconBoxEdgeTickRect = { x: number; y: number; width: number; height: number };
+
+/** Half-pixel nudge shared by edge ticks and container reticles (grid stroke alignment). */
+export const ICON_BOX_STROKE_ALIGN_NUDGE = 0.5;
+
+/**
+ * In `buildContainerCornerReticle`, edge ticks sit at 4px from the reticle origin; right/bottom at 16px.
+ * Position the 22×22 reticle so those ticks line up with {@link getIconBoxEdgeTickRects}.
+ */
+export const ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR = 4;
+export const ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR = 16;
+
+export type IconBoxContainerReticleCorner = "tl" | "tr" | "bl" | "br";
+
+/** Top-left of the 22×22 container reticle in instance-root space. */
+export const getIconBoxContainerReticlePosition = (
+  corner: IconBoxContainerReticleCorner,
+  ox: number,
+  oy: number,
+  w: number,
+  h: number,
+): { x: number; y: number } => {
+  const inset = MARKER_INSET;
+  const near = ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR;
+  const far = ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR;
+  switch (corner) {
+    case "tl":
+      return { x: ox + inset - near, y: oy + inset - near };
+    case "tr":
+      return { x: ox + w - inset - ICON_BOX_EDGE_TICK_H.width - far, y: oy + inset - near };
+    case "bl":
+      return { x: ox + inset - near, y: oy + h - inset - ICON_BOX_EDGE_TICK_V.height - far };
+    case "br":
+      return {
+        x: ox + w - inset - ICON_BOX_EDGE_TICK_H.width - far,
+        y: oy + h - inset - ICON_BOX_EDGE_TICK_V.height - far,
+      };
+  }
+};
+
+/** Four edge-center ticks per inner slot (top/bottom 1×2, left/right 2×1), 8px inset from edges. */
+export const getIconBoxEdgeTickRects = (ox: number, oy: number, w: number, h: number): IconBoxEdgeTickRect[] => {
+  const cx = ox + w / 2 - ICON_BOX_STROKE_ALIGN_NUDGE;
+  const cy = oy + h / 2 - ICON_BOX_STROKE_ALIGN_NUDGE;
+  const { width: vW, height: vH } = ICON_BOX_EDGE_TICK_V;
+  const { width: hW, height: hH } = ICON_BOX_EDGE_TICK_H;
+  return [
+    { x: cx, y: oy + MARKER_INSET, width: vW, height: vH },
+    { x: cx, y: oy + h - MARKER_INSET - vH, width: vW, height: vH },
+    { x: ox + MARKER_INSET, y: cy, width: hW, height: hH },
+    { x: ox + w - MARKER_INSET - hW, y: cy, width: hW, height: hH },
+  ];
+};
+
 /** Icon hold X inside root for first column (1×1 and 2×1 left cell). */
 export const ICON_HOLD_OFFSET_X = ICON_BOX_INNER_OFFSET + 20;
 
