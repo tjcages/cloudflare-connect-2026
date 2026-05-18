@@ -2,9 +2,10 @@ import { animate, motionValue } from "motion";
 import { Container, Graphics, ParticleContainer, Rectangle, Texture } from "pixi.js";
 import type { Ticker } from "../../components/pixi";
 import type { ComponentInstance } from "../../grid/types";
+import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
 import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
-import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
+import { buildHoveredConnectorIds } from "../connectorLinkedLayerHighlights";
 import { LAYER_HIGHLIGHT_HOVER_ALPHA } from "./constants";
 import { createConnectorHitParticleCircleTexture, spawnConnectorHitBurst } from "./connector-line/connectorHitBurst";
 import {
@@ -172,23 +173,6 @@ const syncConnectorBasePlane = (
   );
 };
 
-const buildHoveredConnectorIds = (
-  instances: ComponentInstance[],
-  canvasHoveredLayerId: string | null,
-  sidebarHoveredLayerId: string | null,
-): Set<string> => {
-  const hoveredConnectorIds = new Set<string>();
-  for (const id of [canvasHoveredLayerId, sidebarHoveredLayerId]) {
-    if (!id) {
-      continue;
-    }
-    if (instances.find((i) => i.id === id)?.type === "connector-line") {
-      hoveredConnectorIds.add(id);
-    }
-  }
-  return hoveredConnectorIds;
-};
-
 const syncLayers = (
   connectorLatticePlaneGraphics: Graphics,
   iconLatticeBackdropGraphics: Graphics,
@@ -213,13 +197,9 @@ const syncLayers = (
       ? selectedInstanceId
       : null;
   const hoveredConnectorIds = buildHoveredConnectorIds(toDraw, canvasHoveredLayerId, sidebarHoveredLayerId);
-
-  const connectorChromeHighlightedIds = new Set<string>();
+  const connectorChromeHighlightedIds = new Set<string>(hoveredConnectorIds);
   if (selectedConnectorId) {
     connectorChromeHighlightedIds.add(selectedConnectorId);
-  }
-  for (const id of hoveredConnectorIds) {
-    connectorChromeHighlightedIds.add(id);
   }
 
   particlePlane.boundsArea = new Rectangle(0, 0, bounds.width, bounds.height);

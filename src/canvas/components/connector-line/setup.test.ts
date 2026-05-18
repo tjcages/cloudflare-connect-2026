@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { COMPONENT_REGISTRY } from "../../../lib/componentRegistry";
+import { ParticleContainer, Texture } from "pixi.js";
+import { createComponentInstance, COMPONENT_REGISTRY } from "../../../lib/componentRegistry";
 import type { ComponentInstance, IconBoxProps } from "../../../grid/types";
 import { parseHexColor } from "../../color";
 import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "../constants";
 import {
+  buildConnectorInstanceChrome,
+  type ConnectorChromeHitEffects,
   getConnectorBaseLayerFingerprint,
   getConnectorCornerCapRect,
   getConnectorJointPoints,
@@ -241,5 +244,89 @@ describe("connector line render spec", () => {
       color: gridColor,
       alpha: 1,
     });
+  });
+});
+
+const stubHitEffects: ConnectorChromeHitEffects = {
+  particleContainer: new ParticleContainer(),
+  dotTexture: Texture.EMPTY,
+  scheduleIconBoxConnectorHit: () => {},
+};
+
+describe("buildConnectorInstanceChrome structural highlights", () => {
+  const bounds = { width: 800, height: 560 };
+  const gridStrokeHex = "#F3F3F3";
+  const gridStrokeColor = parseHexColor(gridStrokeHex);
+
+  it("omits per-connector 80×80 endpoint frames when both ends are layer anchors", () => {
+    const boxA = createComponentInstance("icon-box", 40, 40, 1, bounds.width, bounds.height) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
+    const boxB = createComponentInstance("icon-box", 200, 200, 2, bounds.width, bounds.height) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
+    const connector: Extract<ComponentInstance, { type: "connector-line" }> = {
+      id: "c-layer-layer",
+      type: "connector-line",
+      name: "C",
+      x: 0,
+      y: 0,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "layer", instanceId: boxA.id },
+        target: { kind: "layer", instanceId: boxB.id },
+        overlayGrid: false,
+        animated: false,
+      },
+    };
+    const instances: ComponentInstance[] = [boxA, boxB, connector];
+    const parts = buildConnectorInstanceChrome(
+      connector,
+      instances,
+      gridStrokeColor,
+      gridStrokeHex,
+      stubHitEffects,
+      bounds,
+      true,
+      1,
+    );
+    expect(parts).not.toBeNull();
+    expect(parts!.structureRoot.children.length).toBe(0);
+  });
+
+  it("draws an 80×80 endpoint frame only for the cell end on a layer↔cell connector", () => {
+    const icon = createComponentInstance("icon-box", 40, 40, 1, bounds.width, bounds.height) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
+    const connector: Extract<ComponentInstance, { type: "connector-line" }> = {
+      id: "c-layer-cell",
+      type: "connector-line",
+      name: "C",
+      x: 0,
+      y: 0,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "layer", instanceId: icon.id },
+        target: { kind: "cell", x: 280, y: 200 },
+        overlayGrid: false,
+        animated: false,
+      },
+    };
+    const instances: ComponentInstance[] = [icon, connector];
+    const parts = buildConnectorInstanceChrome(
+      connector,
+      instances,
+      gridStrokeColor,
+      gridStrokeHex,
+      stubHitEffects,
+      bounds,
+      true,
+      1,
+    );
+    expect(parts).not.toBeNull();
+    expect(parts!.structureRoot.children.length).toBe(1);
   });
 });

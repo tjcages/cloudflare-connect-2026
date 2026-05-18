@@ -5,6 +5,11 @@ import type { ComponentInstance } from "../grid/types";
 import { getInstanceHighlightBounds } from "../lib/componentRegistry";
 import { useAppStore } from "../store";
 import type { ConnectorEndpointPickState } from "../types/document";
+import {
+  buildHoveredConnectorIds,
+  collectConnectorLayerEndpointInstances,
+  collectLinkedLayersForConnectors,
+} from "./connectorLinkedLayerHighlights";
 import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "./components/constants";
 
 const drawCellHighlight = (graphics: Graphics, point: { x: number; y: number }) => {
@@ -37,8 +42,10 @@ const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance, 
     w += 1;
     h += 1;
   }
+  const sw = w - 1;
+  const sh = h - 1;
   graphics
-    .rect(b.x + 0.5, b.y + 0.5, w - 1, h - 1)
+    .rect(b.x + 0.5, b.y + 0.5, sw, sh)
     .stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR, alpha: strokeAlpha });
 };
 
@@ -53,6 +60,19 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
 
     const { selectedInstanceId, instances, connectorEndpointPick, sidebarHoveredLayerId, canvasHoveredLayerId } =
       useAppStore.getState();
+
+    const selectedInst =
+      selectedInstanceId === null ? null : (instances.find((i) => i.id === selectedInstanceId) ?? null);
+    const selectedLinkedLayers =
+      selectedInst?.type === "connector-line" ? collectConnectorLayerEndpointInstances(selectedInst, instances) : [];
+    const selectedLinkedIds = new Set(selectedLinkedLayers.map((l) => l.id));
+
+    const hoveredConnectorIds = buildHoveredConnectorIds(instances, canvasHoveredLayerId, sidebarHoveredLayerId);
+    const hoveredConnectorLinkedLayers = collectLinkedLayersForConnectors(hoveredConnectorIds, instances).filter(
+      (l) => !selectedLinkedIds.has(l.id),
+    );
+    const hoveredConnectorLinkedIds = new Set(hoveredConnectorLinkedLayers.map((l) => l.id));
+
     const connectorSelectionCells = getConnectorSelectionCellPoints(
       selectedInstanceId,
       instances,
@@ -60,6 +80,11 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
     );
     for (const point of connectorSelectionCells) {
       drawCellHighlight(graphics, point);
+      hasHighlight = true;
+    }
+
+    for (const linked of hoveredConnectorLinkedLayers) {
+      drawInstanceHighlightRect(graphics, linked, LAYER_HIGHLIGHT_HOVER_ALPHA);
       hasHighlight = true;
     }
 
@@ -71,6 +96,12 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       hoverHighlightIds.add(canvasHoveredLayerId);
     }
     for (const hoverId of hoverHighlightIds) {
+      if (selectedLinkedIds.has(hoverId)) {
+        continue;
+      }
+      if (hoveredConnectorLinkedIds.has(hoverId)) {
+        continue;
+      }
       const hoveredLayer = instances.find((i) => i.id === hoverId);
       if (!hoveredLayer) {
         continue;
@@ -93,6 +124,11 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
     if (inst.type !== "connector-line") {
       drawInstanceHighlightRect(graphics, inst);
       hasHighlight = true;
+    } else {
+      for (const linked of selectedLinkedLayers) {
+        drawInstanceHighlightRect(graphics, linked);
+        hasHighlight = true;
+      }
     }
 
     graphics.visible = hasHighlight;
