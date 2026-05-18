@@ -29,6 +29,9 @@ import {
 } from "../../../lib/icon-box/layout";
 import { paletteBrush } from "../../../theme/palette";
 import { rasterizeIcon } from "./iconRaster";
+import type { IconBoxAnimHandles } from "./iconBoxLineEnableCoordinator";
+
+const ICON_RASTER_WHITE = "#FFFFFF";
 
 const CARD_SHADOW_CSS =
   "0 12px 24px rgba(0, 0, 0, 0.04), 0 6px 12px rgba(0, 0, 0, 0.02), 0 3px 6px rgba(0, 0, 0, 0.01)";
@@ -117,6 +120,7 @@ export type IconBoxDisplayParts = {
    * title strip, outer selection reticles (chrome), and shiny accent bars stay fixed.
    */
   innerBodyMotionRoot: Container;
+  animHandles: IconBoxAnimHandles;
 };
 
 export type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }>;
@@ -230,37 +234,43 @@ export const buildIconBox = (
   const rectInnerW = innerW;
   const rectSize = ICON_BOX_INNER_SIZE;
 
-  const fillCornerMarkers = (ox: number, oy: number, w: number, h: number) => {
-    const markerMaxX = w - MARKER_INSET - MARKER_SIZE;
-    const markerMaxY = h - MARKER_INSET - MARKER_SIZE;
-    const cellCorners: [number, number][] = [
-      [ox + MARKER_INSET, oy + MARKER_INSET],
-      [ox + markerMaxX, oy + MARKER_INSET],
-      [ox + MARKER_INSET, oy + markerMaxY],
-      [ox + markerMaxX, oy + markerMaxY],
-    ];
-    for (const [mx, my] of cellCorners) {
-      markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerBrush.fill });
+  const paintCornerMarkers = (cornerPackedRgb: number) => {
+    markers.clear();
+    const fillCornerMarkers = (ox: number, oy: number, w: number, h: number) => {
+      const markerMaxX = w - MARKER_INSET - MARKER_SIZE;
+      const markerMaxY = h - MARKER_INSET - MARKER_SIZE;
+      const cellCorners: [number, number][] = [
+        [ox + MARKER_INSET, oy + MARKER_INSET],
+        [ox + markerMaxX, oy + MARKER_INSET],
+        [ox + MARKER_INSET, oy + markerMaxY],
+        [ox + markerMaxX, oy + markerMaxY],
+      ];
+      for (const [mx, my] of cellCorners) {
+        markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerPackedRgb });
+      }
+    };
+    if (variant === "icon-box-2x1") {
+      const halfW = rectInnerW / 2;
+      fillCornerMarkers(rectOriginX, rectOriginY, halfW, rectSize);
+      fillCornerMarkers(rectOriginX + halfW, rectOriginY, halfW, rectSize);
+    } else {
+      fillCornerMarkers(rectOriginX, rectOriginY, rectInnerW, rectSize);
     }
   };
 
   const cornerBrush = instance.props.matchCornersWithTheme ? brush : paletteBrush("neutral", neutralSync);
-  if (variant === "icon-box-2x1") {
-    const halfW = rectInnerW / 2;
-    fillCornerMarkers(rectOriginX, rectOriginY, halfW, rectSize);
-    fillCornerMarkers(rectOriginX + halfW, rectOriginY, halfW, rectSize);
-  } else {
-    fillCornerMarkers(rectOriginX, rectOriginY, rectInnerW, rectSize);
-  }
+  paintCornerMarkers(cornerBrush.fill);
   innerBodyMotionRoot.addChild(markers);
 
   const icon = getIconDefinition(instance.props.iconId);
   const iconRgb = brush.iconFill;
+  const iconSprites: Sprite[] = [];
 
   const addIconAt = (holdX: number) => {
-    const iconSprite = Sprite.from(rasterizeIcon(icon, brush.iconFillHex), true);
+    const iconSprite = Sprite.from(rasterizeIcon(icon, ICON_RASTER_WHITE), true);
     iconSprite.width = 24;
     iconSprite.height = 24;
+    iconSprite.tint = iconRgb;
 
     /** Grid / slot placement only — keep filters off this positioned node (see `iconFiltered`). */
     const iconHold = new Container();
@@ -271,9 +281,10 @@ export const buildIconBox = (
     iconFiltered.filters = [buildIconShadowFilter(iconRgb)];
     iconFiltered.addChild(iconSprite);
     iconHold.addChild(iconFiltered);
-    iconFiltered.cacheAsTexture(true);
+    /** No `cacheAsTexture` here — line-enable tweens `sprite.tint`; cached parent would freeze the glyph gray. */
 
     innerBodyMotionRoot.addChild(iconHold);
+    iconSprites.push(iconSprite);
   };
 
   if (variant === "icon-box-2x1") {
@@ -283,41 +294,43 @@ export const buildIconBox = (
     addIconAt(ICON_HOLD_OFFSET_X);
   }
 
+  const accentScaleRoots: IconBoxAnimHandles["accentScaleRoots"] = [];
+
   if (instance.props.theme !== "neutral") {
     const accentFillRgb = brush.fill;
     const accentTop = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_ACCENT_BAR_GAP;
 
+    const mkAccent = (centerX: number) => {
+      const scaleRoot = new Container();
+      scaleRoot.zIndex = 60;
+      scaleRoot.position.set(centerX, accentTop + ICON_BOX_ACCENT_BAR_HEIGHT / 2);
+      const gfx = new Graphics();
+      gfx
+        .rect(
+          -ICON_BOX_ACCENT_BAR_WIDTH / 2,
+          -ICON_BOX_ACCENT_BAR_HEIGHT / 2,
+          ICON_BOX_ACCENT_BAR_WIDTH,
+          ICON_BOX_ACCENT_BAR_HEIGHT,
+        )
+        .fill({
+          color: accentFillRgb,
+          alpha: 1,
+        });
+      gfx.filters = [buildAccentBarShadowFilter(accentFillRgb)];
+      scaleRoot.addChild(gfx);
+      gfx.cacheAsTexture(true);
+      accentBarsRoot.addChild(scaleRoot);
+      accentScaleRoots.push({ scaleRoot });
+    };
+
     if (variant === "icon-box-2x1") {
       const l = LARGE_CELL_SIZE / 2 - ICON_BOX_ACCENT_BAR_WIDTH / 2;
       const r = LARGE_CELL_SIZE + LARGE_CELL_SIZE / 2 - ICON_BOX_ACCENT_BAR_WIDTH / 2;
-      const leftAccent = new Graphics();
-      leftAccent.zIndex = 60;
-      leftAccent
-        .rect(l, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
-        .fill({ color: accentFillRgb, alpha: 1 });
-      leftAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-      accentBarsRoot.addChild(leftAccent);
-      leftAccent.cacheAsTexture(true);
-
-      const rightAccent = new Graphics();
-      rightAccent.zIndex = 60;
-      rightAccent
-        .rect(r, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT)
-        .fill({ color: accentFillRgb, alpha: 1 });
-      rightAccent.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-      accentBarsRoot.addChild(rightAccent);
-      rightAccent.cacheAsTexture(true);
+      mkAccent(l + ICON_BOX_ACCENT_BAR_WIDTH / 2);
+      mkAccent(r + ICON_BOX_ACCENT_BAR_WIDTH / 2);
     } else {
-      const accentBar = new Graphics();
-      accentBar.zIndex = 60;
       const accentLeft = ICON_BOX_INNER_OFFSET + (ICON_BOX_INNER_SIZE - ICON_BOX_ACCENT_BAR_WIDTH) / 2;
-      accentBar.rect(accentLeft, accentTop, ICON_BOX_ACCENT_BAR_WIDTH, ICON_BOX_ACCENT_BAR_HEIGHT).fill({
-        color: accentFillRgb,
-        alpha: 1,
-      });
-      accentBar.filters = [buildAccentBarShadowFilter(accentFillRgb)];
-      accentBarsRoot.addChild(accentBar);
-      accentBar.cacheAsTexture(true);
+      mkAccent(accentLeft + ICON_BOX_ACCENT_BAR_WIDTH / 2);
     }
     chromeRoot.addChild(accentBarsRoot);
   }
@@ -346,5 +359,15 @@ export const buildIconBox = (
     }
   }
 
-  return { structureRoot, chromeRoot, innerBodyMotionRoot };
+  const animHandles: IconBoxAnimHandles = {
+    instance,
+    titleLabel,
+    titleBg,
+    titleBarLayout: { barLeft, rectWidth },
+    iconSprites,
+    markersRedraw: paintCornerMarkers,
+    accentScaleRoots,
+  };
+
+  return { structureRoot, chromeRoot, innerBodyMotionRoot, animHandles };
 };

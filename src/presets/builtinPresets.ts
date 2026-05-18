@@ -36,6 +36,7 @@ const crowdedThreeColors2x1And1x1: BuiltinPreset["snapshot"] = {
         iconId: "section-mark",
         title: "Blue 2x1",
         containerHighlighted: false,
+        enabledByLine: "off",
       },
     },
     {
@@ -50,6 +51,7 @@ const crowdedThreeColors2x1And1x1: BuiltinPreset["snapshot"] = {
         iconId: "isometric-hex",
         title: "Orange 1x1",
         containerHighlighted: false,
+        enabledByLine: "off",
       },
     },
     {
@@ -64,6 +66,7 @@ const crowdedThreeColors2x1And1x1: BuiltinPreset["snapshot"] = {
         iconId: "user-outline",
         title: "Purple 1x1",
         containerHighlighted: false,
+        enabledByLine: "off",
       },
     },
   ],

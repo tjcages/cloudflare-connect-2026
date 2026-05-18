@@ -30,6 +30,7 @@ describe("componentRegistry", () => {
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
       containerHighlighted: false,
+      enabledByLine: "off",
     });
   });
 
@@ -42,6 +43,7 @@ describe("componentRegistry", () => {
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
       containerHighlighted: false,
+      enabledByLine: "off",
     });
   });
 

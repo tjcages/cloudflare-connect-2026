@@ -41,6 +41,7 @@ const iconBoxInstance = (id: string, title: string): ComponentInstance => ({
     iconId: DEFAULT_ICON_ID,
     title,
     containerHighlighted: false,
+    enabledByLine: "off",
   },
 });
 

@@ -15,6 +15,7 @@ const stubInstance = (id: string): ComponentInstance => ({
     iconId: DEFAULT_ICON_ID,
     title: "",
     containerHighlighted: false,
+    enabledByLine: "off",
   },
 });
 

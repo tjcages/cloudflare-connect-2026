@@ -153,6 +153,7 @@ describe("GridCanvas", () => {
         iconId: "section-mark",
         title: "T",
         containerHighlighted: false,
+        enabledByLine: "off",
       },
     };
     useAppStore.setState({ instances: [placed], selectedInstanceId: null, canvasHoveredLayerId: null });
@@ -299,6 +300,7 @@ describe("GridCanvas", () => {
         iconId: "section-mark",
         title: "T",
         containerHighlighted: false,
+        enabledByLine: "off",
       },
     };
     useAppStore.setState({ instances: [placed], selectedInstanceId: placed.id });

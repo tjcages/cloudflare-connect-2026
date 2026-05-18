@@ -15,6 +15,7 @@ const createInstance = (id: string, x: number, y: number): ComponentInstance => 
     iconId: DEFAULT_ICON_ID,
     title: "Workers",
     containerHighlighted: false,
+    enabledByLine: "off",
   },
 });
 

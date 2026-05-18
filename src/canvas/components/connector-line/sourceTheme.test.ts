@@ -16,6 +16,7 @@ const iconThemed = (id: string, theme: "orange" | "purple"): Extract<ComponentIn
     iconId: DEFAULT_ICON_ID,
     title: "Workers",
     containerHighlighted: false,
+    enabledByLine: "off",
   },
 });
 

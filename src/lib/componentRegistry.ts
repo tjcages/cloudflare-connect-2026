@@ -54,6 +54,7 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
       containerHighlighted: false,
+      enabledByLine: "off",
     },
     dynamicTitle: (config) => {
       if (!("title" in config)) {
@@ -76,6 +77,7 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
       containerHighlighted: false,
+      enabledByLine: "off",
     },
     dynamicTitle: (config) => {
       if (!("title" in config)) {

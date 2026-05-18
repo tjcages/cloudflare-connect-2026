@@ -8,6 +8,7 @@ import type {
   ConnectorLineProps,
   GeneratedGrid,
   GridConfig,
+  IconBoxEnabledByLineMode,
   IconBoxProps,
   PlusMarkerProps,
 } from "./grid/types";
@@ -38,6 +39,9 @@ const isPlusMarkerProps = (value: unknown): value is PlusMarkerProps => {
   return PALETTE_THEMES.some((theme) => theme.id === value.theme);
 };
 
+const isIconBoxEnabledByLineMode = (value: unknown): value is IconBoxEnabledByLineMode =>
+  value === "off" || value === "once" || value === "iterated";
+
 const isIconBoxProps = (value: unknown): value is IconBoxProps => {
   if (!isRecord(value)) {
     return false;
@@ -60,6 +64,10 @@ const isIconBoxProps = (value: unknown): value is IconBoxProps => {
   }
 
   if ("containerHighlighted" in value && typeof value.containerHighlighted !== "boolean") {
+    return false;
+  }
+
+  if ("enabledByLine" in value && !isIconBoxEnabledByLineMode(value.enabledByLine)) {
     return false;
   }
 
@@ -195,9 +203,12 @@ const normalizeInstanceForGrid = (
     };
   }
 
-  const props: IconBoxProps = isIconBoxProps(raw.props)
-    ? { ...(definition.defaultProps as IconBoxProps), ...raw.props }
-    : { ...(definition.defaultProps as IconBoxProps) };
+  const defaultIcon = definition.defaultProps as IconBoxProps;
+  const propsMerged: IconBoxProps = isIconBoxProps(raw.props) ? { ...defaultIcon, ...raw.props } : { ...defaultIcon };
+  const props: IconBoxProps = {
+    ...propsMerged,
+    enabledByLine: isIconBoxEnabledByLineMode(propsMerged.enabledByLine) ? propsMerged.enabledByLine : "off",
+  };
 
   const snapped = snapComponentPosition(raw.x, raw.y, gridLogicalWidth, gridLogicalHeight, raw.type);
 
@@ -224,6 +235,7 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       iconId: "section-mark",
       title: "Workers 4",
       containerHighlighted: false,
+      enabledByLine: "off",
     },
   },
   {
@@ -298,6 +310,7 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       iconId: "isometric-hex",
       title: "Durable Objects 3",
       containerHighlighted: true,
+      enabledByLine: "off",
     },
   },
   {
@@ -312,6 +325,7 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       iconId: "isometric-hex",
       title: "Durable Objects 1",
       containerHighlighted: true,
+      enabledByLine: "off",
     },
   },
   {
@@ -326,6 +340,7 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       iconId: "section-mark",
       title: "Workers 3",
       containerHighlighted: false,
+      enabledByLine: "off",
     },
   },
   {
@@ -340,6 +355,7 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       iconId: "section-mark",
       title: "Workers 2",
       containerHighlighted: false,
+      enabledByLine: "off",
     },
   },
   {
@@ -354,6 +370,7 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       iconId: "section-mark",
       title: "Workers 1",
       containerHighlighted: false,
+      enabledByLine: "off",
     },
   },
   {

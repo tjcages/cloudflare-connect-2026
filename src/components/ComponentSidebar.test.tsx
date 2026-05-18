@@ -16,6 +16,7 @@ const instance: ComponentInstance = {
     iconId: DEFAULT_ICON_ID,
     title: "Workers",
     containerHighlighted: false,
+    enabledByLine: "off",
   },
 };
 
@@ -422,6 +423,7 @@ describe("ComponentSidebar", () => {
     expect(screen.queryByRole("combobox", { name: "Icon" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Icon color")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Title")).toHaveValue("Workers");
+    expect(screen.getByTestId("line-enable-debug-accordion")).toBeInTheDocument();
     const themeGroup = screen.getByTestId("palette-theme-picker");
     expect(within(themeGroup).getByTestId("palette-theme-swatch-purple")).toHaveAttribute("data-selected", "true");
     const matchCornersToggle = screen.getByTestId(`toggle-match-corners-${instance.id}`);
@@ -437,6 +439,7 @@ describe("ComponentSidebar", () => {
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
       containerHighlighted: true,
+      enabledByLine: "off",
     });
 
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "KV" } });
@@ -447,6 +450,7 @@ describe("ComponentSidebar", () => {
       iconId: DEFAULT_ICON_ID,
       title: "KV",
       containerHighlighted: false,
+      enabledByLine: "off",
     });
 
     fireEvent.click(matchCornersToggle);
@@ -457,6 +461,7 @@ describe("ComponentSidebar", () => {
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
       containerHighlighted: false,
+      enabledByLine: "off",
     });
   });
 
@@ -497,6 +502,33 @@ describe("ComponentSidebar", () => {
       iconId: DEFAULT_ICON_ID,
       title: "Workers",
       containerHighlighted: false,
+      enabledByLine: "off",
     });
+  });
+
+  it("shows Enabled by line when this icon box is a connector layer target", () => {
+    render(
+      <ComponentSidebar
+        instances={[connectorInstance, instance]}
+        selectedInstance={instance}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Enabled by line")).toBeInTheDocument();
+  });
+
+  it("hides Enabled by line when no connector targets this icon box", () => {
+    render(
+      <ComponentSidebar
+        instances={[instance]}
+        selectedInstance={instance}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={vi.fn()}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+    expect(screen.queryByLabelText("Enabled by line")).not.toBeInTheDocument();
   });
 });

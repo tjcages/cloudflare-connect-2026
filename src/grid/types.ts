@@ -53,6 +53,9 @@ export type IconId =
 
 import type { PaletteThemeId } from "../theme/palette";
 
+/** Target-side line activation (sidebar): drives gray vs themed presentation from connector pulses. */
+export type IconBoxEnabledByLineMode = "off" | "once" | "iterated";
+
 export type IconBoxProps = {
   /** When true, corner squares use accent theme fill; when false, neutral gray. */
   matchCornersWithTheme: boolean;
@@ -61,6 +64,11 @@ export type IconBoxProps = {
   title: string;
   /** When true, draw focus reticles at the four corners of the selection frame. */
   containerHighlighted: boolean;
+  /**
+   * When not `off`, connector pulses gate presentation (target hits) and outgoing pulses (layer source).
+   * Default `off`: always themed from `theme`.
+   */
+  enabledByLine: IconBoxEnabledByLineMode;
 };
 
 /** 40×40 canvas marker: centered 6×6 plus with 1px stroke; stroke color follows palette theme. */

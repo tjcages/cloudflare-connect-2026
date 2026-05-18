@@ -17,6 +17,7 @@ import type {
   ConnectorLineProps,
   GeneratedGrid,
   GridConfig,
+  IconBoxEnabledByLineMode,
   IconBoxProps,
   PlusMarkerProps,
   RectMarkerProps,
@@ -24,6 +25,21 @@ import type {
 import { getDefaultDocumentSlice, mergePersistedDocument } from "./storePersist";
 import type { PersistedDocumentSlice } from "./storePersist";
 import type { CanvasDragState, ConnectorEndpointPickState } from "./types/document";
+
+/** Ephemeral canvas coordinator snapshot for sidebar debug (not persisted). */
+export type IconBoxLineEnableDebugRow = {
+  boxId: string;
+  hitCount: number;
+  onceLatched: boolean;
+  visualEnabled: boolean;
+  logicalEnabled: boolean;
+  colorBusy: boolean;
+  hasHandles: boolean;
+  mode: IconBoxEnabledByLineMode;
+  outgoingActive: number;
+  outgoingWaiting: number;
+  updatedAt: number;
+};
 
 export function reorderInstancesByIds(previous: ComponentInstance[], orderedIds: string[]): ComponentInstance[] {
   if (orderedIds.length !== previous.length) {
@@ -109,6 +125,10 @@ export type AppStoreState = {
   setConnectorEndpointCell: (x: number, y: number) => void;
   setSidebarHoveredLayerId: (id: string | null) => void;
   setCanvasHoveredLayerId: (id: string | null) => void;
+  /** Ephemeral: icon-box line-enable coordinator mirror for debugging (not persisted). */
+  iconBoxLineEnableDebug: Record<string, IconBoxLineEnableDebugRow>;
+  patchIconBoxLineEnableDebug: (boxId: string, row: IconBoxLineEnableDebugRow | null) => void;
+  clearIconBoxLineEnableDebug: () => void;
   /** Replace document from a persisted snapshot (same shape as zustand `partialize`). Clears undo history and ephemeral UI. */
   applyBuilderDocumentSnapshot: (snapshot: unknown) => void;
 };
@@ -216,6 +236,7 @@ export const useAppStore = create<AppStoreState>()(
         connectorEndpointPick: null,
         sidebarHoveredLayerId: null,
         canvasHoveredLayerId: null,
+        iconBoxLineEnableDebug: {},
 
         setPixiApp: (app) => set({ pixiApp: app }),
 
@@ -500,6 +521,19 @@ export const useAppStore = create<AppStoreState>()(
         setSidebarHoveredLayerId: (id) => set({ sidebarHoveredLayerId: id }),
         setCanvasHoveredLayerId: (id) => set({ canvasHoveredLayerId: id }),
 
+        patchIconBoxLineEnableDebug: (boxId, row) =>
+          set((s) => {
+            const next = { ...s.iconBoxLineEnableDebug };
+            if (row === null) {
+              delete next[boxId];
+            } else {
+              next[boxId] = row;
+            }
+            return { iconBoxLineEnableDebug: next };
+          }),
+
+        clearIconBoxLineEnableDebug: () => set({ iconBoxLineEnableDebug: {} }),
+
         applyBuilderDocumentSnapshot: (snapshot) => {
           moveDragHistoryBaseline = null;
           const temporalStore = useAppStore.temporal.getState();
@@ -512,6 +546,7 @@ export const useAppStore = create<AppStoreState>()(
               connectorEndpointPick: null,
               sidebarHoveredLayerId: null,
               canvasHoveredLayerId: null,
+              iconBoxLineEnableDebug: {},
             };
           });
           temporalStore.clear();
@@ -555,6 +590,7 @@ export const resetAppStoreDocumentToDefault = () => {
     connectorEndpointPick: null,
     sidebarHoveredLayerId: null,
     canvasHoveredLayerId: null,
+    iconBoxLineEnableDebug: {},
   }));
   temporalStore.clear();
   temporalStore.resume();

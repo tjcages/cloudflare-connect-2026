@@ -135,6 +135,8 @@ export type ConnectorChromeHitEffects = {
   particleContainer: ParticleContainer;
   dotTexture: Texture;
   scheduleIconBoxConnectorHit: (args: {
+    connectorId: string;
+    leg: "forward" | "backward";
     boxId: string;
     pushX: number;
     pushY: number;
@@ -143,6 +145,20 @@ export type ConnectorChromeHitEffects = {
     /** Animated wave stroke color at hit time (`activeFill`). */
     particleTint: number;
   }) => void;
+  /** Layer-source connectors await a slot before each full pulse cycle when outgoing is gated. */
+  waitForOutgoingPulseSlot?: (args: {
+    connectorId: string;
+    sourceLayerId: string;
+    isCancelled: () => boolean;
+  }) => Promise<void>;
+  /** After backward leg pause; releases outgoing RR slot. */
+  releaseOutgoingPulseCycleSlot?: (args: { connectorId: string; sourceLayerId: string }) => void;
+  /**
+   * When the pulse **reverses** at the target (after forward leg + pause, before the backward leg toward
+   * source). Decrements iterated `hitCount` for the layer-target icon box. Skipped when source is a layer
+   * on the same box (`releaseOutgoingPulseCycleSlot` handles that case at cycle end).
+   */
+  notifyTargetLayerPulseCycleComplete?: (args: { connectorId: string; targetLayerId: string }) => void;
 };
 
 export type ConnectorLineInstance = Extract<ComponentInstance, { type: "connector-line" }>;
@@ -521,6 +537,8 @@ export const buildConnectorInstanceChrome = (
 
   if (instance.props.animated && metrics.totalLength > 0) {
     const iconBoxHits = collectIconBoxHitsAlongConnector(points, metrics, instances);
+    const layerSourceId = instance.props.source.kind === "layer" ? instance.props.source.instanceId : null;
+    const layerTargetId = instance.props.target.kind === "layer" ? instance.props.target.instanceId : null;
 
     const maskShape = new Graphics();
     drawPolyline(maskShape, points);
@@ -622,6 +640,8 @@ export const buildConnectorInstanceChrome = (
           if (prevForwardLead < hit.forwardArc && forwardLead >= hit.forwardArc) {
             firedForwardBoxes.add(hit.boxId);
             hitEffects.scheduleIconBoxConnectorHit({
+              connectorId: instance.id,
+              leg: "forward",
               boxId: hit.boxId,
               pushX: hit.pushForwardX,
               pushY: hit.pushForwardY,
@@ -638,6 +658,8 @@ export const buildConnectorInstanceChrome = (
           if (prevBackwardLead > hit.backwardArc && backwardLead <= hit.backwardArc) {
             firedBackwardBoxes.add(hit.boxId);
             hitEffects.scheduleIconBoxConnectorHit({
+              connectorId: instance.id,
+              leg: "backward",
               boxId: hit.boxId,
               pushX: hit.pushBackwardX,
               pushY: hit.pushBackwardY,
@@ -679,11 +701,21 @@ export const buildConnectorInstanceChrome = (
 
     const runLoop = async () => {
       while (!cancelled) {
-        // New draw every cycle — not a one-shot or fixed stagger.
-        const cycleStaggerMs = randomUnitInterval() * CONNECTOR_ANIM_CYCLE_STAGGER_MAX_SEC * 1000;
+        const cycleStaggerMsRaw = randomUnitInterval() * CONNECTOR_ANIM_CYCLE_STAGGER_MAX_SEC * 1000;
+        const cycleStaggerMs = layerSourceId && hitEffects.waitForOutgoingPulseSlot ? 0 : cycleStaggerMsRaw;
         await delayUnlessCancelled(cycleStaggerMs);
         if (cancelled) {
           break;
+        }
+        if (layerSourceId && hitEffects.waitForOutgoingPulseSlot) {
+          await hitEffects.waitForOutgoingPulseSlot({
+            connectorId: instance.id,
+            sourceLayerId: layerSourceId,
+            isCancelled: () => cancelled,
+          });
+          if (cancelled) {
+            break;
+          }
         }
         legPhase = "forward";
         firedForwardBoxes.clear();
@@ -701,6 +733,16 @@ export const buildConnectorInstanceChrome = (
         if (cancelled) {
           break;
         }
+        if (layerTargetId && hitEffects.notifyTargetLayerPulseCycleComplete) {
+          const sourceIsLayerOnSameBox =
+            instance.props.source.kind === "layer" && instance.props.source.instanceId === layerTargetId;
+          if (!sourceIsLayerOnSameBox) {
+            hitEffects.notifyTargetLayerPulseCycleComplete({
+              connectorId: instance.id,
+              targetLayerId: layerTargetId,
+            });
+          }
+        }
         legPhase = "backward";
         firedBackwardBoxes.clear();
         activeControls = animate(progressAlongPath, 0, {
@@ -713,6 +755,15 @@ export const buildConnectorInstanceChrome = (
           break;
         }
         await pauseAtEndpoint();
+        if (cancelled) {
+          break;
+        }
+        if (layerSourceId && hitEffects.releaseOutgoingPulseCycleSlot) {
+          hitEffects.releaseOutgoingPulseCycleSlot({
+            connectorId: instance.id,
+            sourceLayerId: layerSourceId,
+          });
+        }
       }
     };
 

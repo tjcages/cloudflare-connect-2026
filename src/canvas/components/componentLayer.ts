@@ -18,6 +18,7 @@ import {
   resolveSharedJointStrokeStyle,
 } from "./connector-line/setup";
 import { buildIconBox, type IconBoxRenderableInstance } from "./icon-box/build";
+import { iconBoxLineEnableCoordinator } from "./icon-box/iconBoxLineEnableCoordinator";
 import { buildPlusMarker } from "./plus-marker/build";
 import { buildRectMarker } from "./rect-marker/build";
 import {
@@ -69,9 +70,11 @@ const CONNECTOR_HIT_NUDGE_RETURN_SEC = 0.2;
 type LayerCacheEntry =
   | {
       kind: "icon-box";
+      instanceId: string;
       structureRoot: Container;
       chromeRoot: Container;
       innerBodyMotionRoot: Container;
+      animHandles: import("./icon-box/iconBoxLineEnableCoordinator").IconBoxAnimHandles;
       propsJson: string;
       gridStrokeHex: string;
       hitNudgeX: number;
@@ -105,6 +108,7 @@ type LayerCacheEntry =
 const destroyLayerEntry = (entry: LayerCacheEntry) => {
   if (entry.kind === "icon-box") {
     entry.disposeHitNudge?.();
+    iconBoxLineEnableCoordinator.detachHandles(entry.instanceId);
   }
 
   if (entry.kind === "connector-line") {
@@ -223,6 +227,7 @@ const syncLayers = (
   const desiredIds = new Set(toDraw.map((i) => i.id));
   for (const id of [...cache.keys()]) {
     if (!desiredIds.has(id)) {
+      iconBoxLineEnableCoordinator.removeBox(id);
       destroyLayerEntry(cache.get(id)!);
       cache.delete(id);
       continue;
@@ -551,7 +556,11 @@ const syncIconBox = (
       cache.delete(instance.id);
     }
 
-    const { structureRoot, chromeRoot, innerBodyMotionRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+    const { structureRoot, chromeRoot, innerBodyMotionRoot, animHandles } = buildIconBox(
+      instance,
+      gridStrokeColor,
+      gridStrokeHex,
+    );
     structureRoot.zIndex = z;
     chromeRoot.zIndex = z;
     structureLayer.addChild(structureRoot);
@@ -559,19 +568,26 @@ const syncIconBox = (
 
     cache.set(instance.id, {
       kind: "icon-box",
+      instanceId: instance.id,
       structureRoot,
       chromeRoot,
       innerBodyMotionRoot,
+      animHandles,
       propsJson,
       gridStrokeHex,
       hitNudgeX: 0,
       hitNudgeY: 0,
     });
+    iconBoxLineEnableCoordinator.attachHandles(instance.id, animHandles, gridStrokeHex);
   } else if (prior.propsJson !== propsJson || prior.gridStrokeHex !== gridStrokeHex) {
     destroyLayerEntry(prior);
     cache.delete(instance.id);
 
-    const { structureRoot, chromeRoot, innerBodyMotionRoot } = buildIconBox(instance, gridStrokeColor, gridStrokeHex);
+    const { structureRoot, chromeRoot, innerBodyMotionRoot, animHandles } = buildIconBox(
+      instance,
+      gridStrokeColor,
+      gridStrokeHex,
+    );
     structureRoot.zIndex = z;
     chromeRoot.zIndex = z;
     structureLayer.addChild(structureRoot);
@@ -579,14 +595,17 @@ const syncIconBox = (
 
     cache.set(instance.id, {
       kind: "icon-box",
+      instanceId: instance.id,
       structureRoot,
       chromeRoot,
       innerBodyMotionRoot,
+      animHandles,
       propsJson,
       gridStrokeHex,
       hitNudgeX: 0,
       hitNudgeY: 0,
     });
+    iconBoxLineEnableCoordinator.attachHandles(instance.id, animHandles, gridStrokeHex);
   } else {
     /** Layout-only: filtered leaves cache pixels in **local** space under `chromeRoot`; connector hit nudge is local on `innerBodyMotionRoot`. */
     prior.structureRoot.position.set(instance.x, instance.y);
@@ -644,6 +663,12 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
     particleContainer: particlePlane,
     dotTexture: particleDotTexture,
     scheduleIconBoxConnectorHit: (hitArgs) => {
+      iconBoxLineEnableCoordinator.notifyTargetHit({
+        connectorId: hitArgs.connectorId,
+        leg: hitArgs.leg,
+        boxId: hitArgs.boxId,
+      });
+
       spawnConnectorHitBurst(
         app,
         particlePlane,
@@ -754,6 +779,10 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
 
       void run();
     },
+    waitForOutgoingPulseSlot: (args) => iconBoxLineEnableCoordinator.waitForOutgoingPulseSlot(args),
+    releaseOutgoingPulseCycleSlot: (args) => iconBoxLineEnableCoordinator.releaseOutgoingPulseCycleSlot(args),
+    notifyTargetLayerPulseCycleComplete: (args) =>
+      iconBoxLineEnableCoordinator.notifyTargetLayerPulseCycleComplete(args),
   };
 
   syncLayers(
@@ -797,6 +826,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
       destroyLayerEntry(entry);
     }
     cache.clear();
+    iconBoxLineEnableCoordinator.clearRuntime();
     connectorBaseFingerprintCache.value = "";
     if (particleDotTexture !== Texture.WHITE) {
       particleDotTexture.destroy(true);

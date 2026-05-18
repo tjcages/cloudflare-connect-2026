@@ -2,6 +2,7 @@ import { Reorder, useDragControls } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEventHandler, ReactNode } from "react";
 import { getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
+import { isIconBoxLayerConnectorTarget } from "../lib/iconBoxEnabledByLine";
 import { isInteractiveListChromeTarget } from "../lib/isInteractiveListChromeTarget";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
@@ -221,6 +222,11 @@ export const ComponentConfigSidebar = ({
 }: ComponentConfigSidebarProps) => {
   const onConfigPanelScroll = useScrollbarThumbFlash();
   const { renderPreview, brushFor } = createSidebarPreviewRenderers(gridStrokeColor);
+  const lineEnableDebugTargetId =
+    selectedInstance?.type === "icon-box" || selectedInstance?.type === "icon-box-2x1" ? selectedInstance.id : null;
+  const lineEnableDebugRow = useAppStore((s) =>
+    lineEnableDebugTargetId ? s.iconBoxLineEnableDebug[lineEnableDebugTargetId] : undefined,
+  );
 
   if (selectedInstance === null) {
     return <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3.5" data-testid="layer-config-empty" />;
@@ -380,6 +386,96 @@ export const ComponentConfigSidebar = ({
           })
         }
       />
+      {isIconBoxLayerConnectorTarget(instances, selectedInstance.id) ? (
+        <>
+          <ConfigSeparator />
+          <BuilderSelectField
+            label="Enabled by line"
+            id={`layer-enabled-by-line-${selectedInstance.id}`}
+            value={selectedInstance.props.enabledByLine}
+            onChange={(event) => {
+              const value = event.target.value;
+              const enabledByLine = value === "once" ? "once" : value === "iterated" ? "iterated" : "off";
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                enabledByLine,
+              });
+            }}
+          >
+            <option value="off">Off</option>
+            <option value="once">Once</option>
+            <option value="iterated">Iterated</option>
+          </BuilderSelectField>
+        </>
+      ) : null}
+      <ConfigSeparator />
+      <details
+        className="rounded border border-builder-hairline px-2 py-1.5 text-[11px] text-builder-muted-foreground"
+        data-testid="line-enable-debug-accordion"
+      >
+        <summary className="cursor-pointer select-none font-medium text-builder-foreground">Debug</summary>
+        <div className="mt-2 space-y-2">
+          {!lineEnableDebugRow ? (
+            <p className="m-0 leading-snug">
+              No line-enable coordinator snapshot yet. Open the canvas with this layer mounted and set{" "}
+              <span className="font-medium">Enabled by line</span> to Once or Iterated to populate counters here.
+            </p>
+          ) : (
+            <table className="w-full border-collapse text-left">
+              <tbody>
+                <tr className="align-top">
+                  <th className="pr-2 font-normal text-builder-muted-foreground">hitCount</th>
+                  <td className="font-mono text-builder-foreground">{lineEnableDebugRow.hitCount}</td>
+                </tr>
+                <tr className="align-top">
+                  <th className="pr-2 font-normal text-builder-muted-foreground">onceLatched</th>
+                  <td className="font-mono text-builder-foreground">
+                    {lineEnableDebugRow.onceLatched ? "true" : "false"}
+                  </td>
+                </tr>
+                <tr className="align-top">
+                  <th className="pr-2 font-normal text-builder-muted-foreground">logicalEnabled</th>
+                  <td className="font-mono text-builder-foreground">
+                    {lineEnableDebugRow.logicalEnabled ? "true" : "false"}
+                  </td>
+                </tr>
+                <tr className="align-top">
+                  <th className="pr-2 font-normal text-builder-muted-foreground">visualEnabled</th>
+                  <td className="font-mono text-builder-foreground">
+                    {lineEnableDebugRow.visualEnabled ? "true" : "false"}
+                  </td>
+                </tr>
+                <tr className="align-top">
+                  <th className="pr-2 font-normal text-builder-muted-foreground">colorBusy</th>
+                  <td className="font-mono text-builder-foreground">
+                    {lineEnableDebugRow.colorBusy ? "true" : "false"}
+                  </td>
+                </tr>
+                <tr className="align-top">
+                  <th className="pr-2 font-normal text-builder-muted-foreground">hasHandles</th>
+                  <td className="font-mono text-builder-foreground">
+                    {lineEnableDebugRow.hasHandles ? "true" : "false"}
+                  </td>
+                </tr>
+                <tr className="align-top">
+                  <th className="pr-2 font-normal text-builder-muted-foreground">mode</th>
+                  <td className="font-mono text-builder-foreground">{lineEnableDebugRow.mode}</td>
+                </tr>
+                <tr className="align-top">
+                  <th className="pr-2 font-normal text-builder-muted-foreground">outgoing</th>
+                  <td className="font-mono text-builder-foreground">
+                    active {lineEnableDebugRow.outgoingActive} / waiting {lineEnableDebugRow.outgoingWaiting}
+                  </td>
+                </tr>
+                <tr className="align-top">
+                  <th className="pr-2 font-normal text-builder-muted-foreground">updatedAt</th>
+                  <td className="font-mono text-builder-foreground">{lineEnableDebugRow.updatedAt}</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </div>
+      </details>
     </LayerConfigPanel>
   );
 };
