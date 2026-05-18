@@ -31,6 +31,16 @@ export const COMPONENT_LAYER_BASE_Z = 10;
 /** Shared segment grid + white track hulls on structureLayer, below all chrome. */
 export const CONNECTOR_BASE_Z = COMPONENT_LAYER_BASE_Z - 2;
 
+/**
+ * Within {@link CONNECTOR_BASE_Z}: connector lattice segment rects plus thick hull stroke (under icon overlay).
+ */
+export const CONNECTOR_BASE_LATTICE_PLANE_Z = 0;
+
+/**
+ * One step above {@link CONNECTOR_BASE_LATTICE_PLANE_Z}: white 80×80 tiles under icon-box footprints (masks rail art).
+ */
+export const CONNECTOR_BASE_ICON_LATTICE_OVERLAY_Z = CONNECTOR_BASE_LATTICE_PLANE_Z + 1;
+
 /** All connector thin strokes + route masks on chromeLayer, under pulse and joint caps. */
 export const CONNECTOR_TRACKS_CHROME_Z = COMPONENT_LAYER_BASE_Z - 1;
 
@@ -137,7 +147,8 @@ const syncSharedConnectorJoints = (
 };
 
 const syncConnectorBasePlane = (
-  connectorBaseGraphics: Graphics,
+  connectorLatticePlaneGraphics: Graphics,
+  iconLatticeBackdropGraphics: Graphics,
   baseFingerprintCache: { value: string },
   instances: ComponentInstance[],
   gridStrokeColor: number,
@@ -148,7 +159,13 @@ const syncConnectorBasePlane = (
     return;
   }
   baseFingerprintCache.value = nextFp;
-  paintConnectorBaseLayer(connectorBaseGraphics, instances, gridStrokeColor, bounds);
+  paintConnectorBaseLayer(
+    connectorLatticePlaneGraphics,
+    iconLatticeBackdropGraphics,
+    instances,
+    gridStrokeColor,
+    bounds,
+  );
 };
 
 const buildHoveredConnectorIds = (
@@ -169,7 +186,8 @@ const buildHoveredConnectorIds = (
 };
 
 const syncLayers = (
-  connectorBaseGraphics: Graphics,
+  connectorLatticePlaneGraphics: Graphics,
+  iconLatticeBackdropGraphics: Graphics,
   baseFingerprintCache: { value: string },
   structureLayer: Container,
   chromeLayer: Container,
@@ -211,7 +229,14 @@ const syncLayers = (
     }
   }
 
-  syncConnectorBasePlane(connectorBaseGraphics, baseFingerprintCache, toDraw, gridStrokeColor, bounds);
+  syncConnectorBasePlane(
+    connectorLatticePlaneGraphics,
+    iconLatticeBackdropGraphics,
+    baseFingerprintCache,
+    toDraw,
+    gridStrokeColor,
+    bounds,
+  );
 
   jointsChromeRoot.zIndex = CONNECTOR_JOINTS_CHROME_Z;
   syncSharedConnectorJoints(
@@ -595,10 +620,14 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   particlePlane.label = "connector-hit-particles";
 
   const connectorBaseRoot = new Container();
-  connectorBaseRoot.sortableChildren = false;
+  connectorBaseRoot.sortableChildren = true;
   connectorBaseRoot.zIndex = CONNECTOR_BASE_Z;
-  const connectorBaseGraphics = new Graphics();
-  connectorBaseRoot.addChild(connectorBaseGraphics);
+  const connectorLatticePlaneGraphics = new Graphics();
+  connectorLatticePlaneGraphics.zIndex = CONNECTOR_BASE_LATTICE_PLANE_Z;
+  const iconLatticeBackdropGraphics = new Graphics();
+  iconLatticeBackdropGraphics.zIndex = CONNECTOR_BASE_ICON_LATTICE_OVERLAY_Z;
+  connectorBaseRoot.addChild(connectorLatticePlaneGraphics);
+  connectorBaseRoot.addChild(iconLatticeBackdropGraphics);
   structureLayer.addChild(connectorBaseRoot);
 
   layer.addChild(structureLayer);
@@ -728,7 +757,8 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
   };
 
   syncLayers(
-    connectorBaseGraphics,
+    connectorLatticePlaneGraphics,
+    iconLatticeBackdropGraphics,
     connectorBaseFingerprintCache,
     structureLayer,
     chromeLayer,
@@ -748,7 +778,8 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
       state.canvasHoveredLayerId !== prev.canvasHoveredLayerId
     ) {
       syncLayers(
-        connectorBaseGraphics,
+        connectorLatticePlaneGraphics,
+        iconLatticeBackdropGraphics,
         connectorBaseFingerprintCache,
         structureLayer,
         chromeLayer,

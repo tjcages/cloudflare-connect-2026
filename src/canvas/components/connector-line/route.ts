@@ -519,3 +519,48 @@ export const getConnectorSegmentCells = (points: ConnectorPoint[]): ConnectorSeg
   }
   return cells;
 };
+
+/**
+ * 80×80 connector-lattice tiles overlapping `rect`, clipped first to `{0,width)×[0,height)`.
+ */
+export const getLatticeCellsIntersectingCanvasRect = (
+  rect: { x: number; y: number; width: number; height: number },
+  bounds: { width: number; height: number },
+): ConnectorSegmentCell[] => {
+  const x0 = Math.max(0, rect.x);
+  const y0 = Math.max(0, rect.y);
+  const x1 = Math.min(bounds.width, rect.x + rect.width);
+  const y1 = Math.min(bounds.height, rect.y + rect.height);
+  if (x1 <= x0 || y1 <= y0) {
+    return [];
+  }
+
+  const ix0 = Math.floor(x0 / LARGE_CELL_SIZE);
+  const iy0 = Math.floor(y0 / LARGE_CELL_SIZE);
+  const ix1 = Math.floor((x1 - 1) / LARGE_CELL_SIZE);
+  const iy1 = Math.floor((y1 - 1) / LARGE_CELL_SIZE);
+
+  const cells: ConnectorSegmentCell[] = [];
+  const seen = new Set<string>();
+
+  for (let iy = iy0; iy <= iy1; iy += 1) {
+    const cy = iy * LARGE_CELL_SIZE;
+    for (let ix = ix0; ix <= ix1; ix += 1) {
+      const cx = ix * LARGE_CELL_SIZE;
+
+      const key = `${cx}:${cy}`;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      cells.push({
+        x: cx,
+        y: cy,
+        width: LARGE_CELL_SIZE,
+        height: LARGE_CELL_SIZE,
+      });
+    }
+  }
+
+  return cells;
+};

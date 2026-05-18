@@ -1,7 +1,7 @@
 import { animate, motionValue } from "motion";
 import { Container, Graphics } from "pixi.js";
 import type { ParticleContainer, Texture } from "pixi.js";
-import { getInstanceCanvasBounds } from "../../../lib/componentRegistry";
+import { getComponentDefinition, getInstanceCanvasBounds } from "../../../lib/componentRegistry";
 import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
 import { useAppStore } from "../../../store";
 import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "../constants";
@@ -14,6 +14,8 @@ import {
   resolveConnectorEndpoint,
   routeConnectorPath,
   getConnectorSegmentCells,
+  getLatticeCellsIntersectingCanvasRect,
+  type ConnectorSegmentCell,
 } from "./route";
 import { collectIconBoxHitsAlongConnector, resolveIconBoxLiveParticleEmit } from "./polylineIconBoxHits";
 import { getConnectorEndpointThemeSignature, resolveConnectorEndpointThemeFill } from "./sourceTheme";
@@ -212,6 +214,63 @@ const drawPolyline = (graphics: Graphics, points: { x: number; y: number }[]) =>
   }
 };
 
+/** 2×1 footprint merges side-by-side 80 px lattice tiles into one stroked quad (no interior seam). */
+const paintIconBoxLatticeBackdrop = (
+  target: Graphics,
+  cells: ConnectorSegmentCell[],
+  segmentFrameStroke: number,
+  mergeAdjacentHorizontalTiles: boolean,
+) => {
+  const cellQuad = (x: number, y: number): void => {
+    target
+      .rect(x + 0.5, y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE)
+      .fill({ color: 0xffffff })
+      .stroke({
+        width: CONNECTOR_STROKE_WIDTH,
+        color: segmentFrameStroke,
+      });
+  };
+
+  if (!mergeAdjacentHorizontalTiles) {
+    for (const cell of cells) {
+      cellQuad(cell.x, cell.y);
+    }
+    return;
+  }
+
+  const byY = new Map<number, number[]>();
+  for (const cell of cells) {
+    let row = byY.get(cell.y);
+    if (!row) {
+      row = [];
+      byY.set(cell.y, row);
+    }
+    row.push(cell.x);
+  }
+
+  for (const rowY of [...byY.keys()].sort((a, b) => a - b)) {
+    const xs = byY.get(rowY)!;
+    xs.sort((a, b) => a - b);
+    for (let i = 0; i < xs.length; ) {
+      const x0 = xs[i]!;
+      const xNext = xs[i + 1];
+      if (xNext === x0 + LARGE_CELL_SIZE) {
+        target
+          .rect(x0 + 0.5, rowY + 0.5, LARGE_CELL_SIZE * 2, LARGE_CELL_SIZE)
+          .fill({ color: 0xffffff })
+          .stroke({
+            width: CONNECTOR_STROKE_WIDTH,
+            color: segmentFrameStroke,
+          });
+        i += 2;
+      } else {
+        cellQuad(x0, rowY);
+        i += 1;
+      }
+    }
+  }
+};
+
 const connectorBaseRowKey = (row: { id: string }) => row.id;
 
 export const getConnectorBaseLayerFingerprint = (
@@ -255,21 +314,32 @@ export const getConnectorBaseLayerFingerprint = (
 
   rows.sort((a, b) => connectorBaseRowKey(a).localeCompare(connectorBaseRowKey(b)));
 
+  const iconBackdrop = [...instances]
+    .filter(
+      (inst): inst is Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }> =>
+        inst.type === "icon-box" || inst.type === "icon-box-2x1",
+    )
+    .map((inst) => ({ id: inst.id, type: inst.type, x: inst.x, y: inst.y }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+
   return JSON.stringify({
     gridStrokeColor,
     bounds,
     routeTopology: getConnectorRouteTopologySignature(instances, bounds),
     connectors: rows,
+    iconLatticeBackdrop: iconBackdrop,
   });
 };
 
 export const paintConnectorBaseLayer = (
-  graphics: Graphics,
+  latticePlaneGraphics: Graphics,
+  iconLatticeBackdropGraphics: Graphics,
   instances: ComponentInstance[],
   gridStrokeColor: number,
   bounds: { width: number; height: number },
 ) => {
-  graphics.clear();
+  latticePlaneGraphics.clear();
+  iconLatticeBackdropGraphics.clear();
   const segmentSpec = getConnectorRenderSpec(false, gridStrokeColor);
 
   const sortedInstances = [...instances].sort((a, b) => a.id.localeCompare(b.id));
@@ -287,7 +357,7 @@ export const paintConnectorBaseLayer = (
     const segmentOverlay = inst.props.overlayGrid;
     for (const cell of getConnectorSegmentCells(points)) {
       if (segmentOverlay) {
-        graphics
+        latticePlaneGraphics
           .rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE)
           .fill({ color: 0xffffff })
           .stroke({
@@ -295,12 +365,28 @@ export const paintConnectorBaseLayer = (
             color: segmentSpec.segmentFrameColor,
           });
       } else {
-        graphics.rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE).stroke({
+        latticePlaneGraphics.rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE).stroke({
           width: CONNECTOR_STROKE_WIDTH,
           color: segmentSpec.segmentFrameColor,
         });
       }
     }
+  }
+
+  const iconBackdropInstances = sortedInstances.filter(
+    (inst): inst is Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }> =>
+      inst.type === "icon-box" || inst.type === "icon-box-2x1",
+  );
+  for (const inst of iconBackdropInstances) {
+    const def = getComponentDefinition(inst.type);
+    const footprint = { x: inst.x, y: inst.y, width: def.width, height: def.height };
+    const cells = getLatticeCellsIntersectingCanvasRect(footprint, bounds);
+    paintIconBoxLatticeBackdrop(
+      iconLatticeBackdropGraphics,
+      cells,
+      segmentSpec.segmentFrameColor,
+      inst.type === "icon-box-2x1",
+    );
   }
 
   for (const inst of sortedInstances) {
@@ -313,8 +399,8 @@ export const paintConnectorBaseLayer = (
       continue;
     }
     const points = routeConnectorPath(source, target, inst.props.preferredConnection, bounds);
-    drawPolyline(graphics, points);
-    graphics.stroke({
+    drawPolyline(latticePlaneGraphics, points);
+    latticePlaneGraphics.stroke({
       width: CONNECTOR_UNDER_STROKE_WIDTH,
       color: 0xffffff,
       ...CONNECTOR_PATH_STROKE_STYLE,

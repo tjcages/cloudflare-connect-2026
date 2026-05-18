@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   COMPONENT_LAYER_BASE_Z,
+  CONNECTOR_BASE_ICON_LATTICE_OVERLAY_Z,
+  CONNECTOR_BASE_LATTICE_PLANE_Z,
   CONNECTOR_BASE_Z,
   CONNECTOR_JOINTS_CHROME_Z,
   CONNECTOR_TRACKS_CHROME_Z,
@@ -10,6 +12,10 @@ import {
 } from "./componentLayer";
 
 describe("component layer z ordering", () => {
+  it("layers icon lattice backdrop strictly above lattice plane inside connector base stack", () => {
+    expect(CONNECTOR_BASE_ICON_LATTICE_OVERLAY_Z).toBe(CONNECTOR_BASE_LATTICE_PLANE_Z + 1);
+  });
+
   it("places component chrome above the shared connector base plane", () => {
     expect(getComponentLayerZ(3, 0)).toBe(COMPONENT_LAYER_BASE_Z + 3);
     expect(getComponentLayerZ(3, 2)).toBe(COMPONENT_LAYER_BASE_Z + 1);

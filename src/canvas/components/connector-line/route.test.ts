@@ -5,6 +5,7 @@ import {
   getConnectorCornerPoints,
   getForeignCornerOverlapPoints,
   getConnectorSegmentCells,
+  getLatticeCellsIntersectingCanvasRect,
   orthogonalSegmentIntersection,
   resolveConnectorEndpoint,
   routeConnectorPath,
@@ -143,6 +144,39 @@ describe("connector line routing", () => {
       { x: 120, y: 40 },
       { x: 120, y: 200 },
     ]);
+  });
+
+  it("enumerates lattice cells clipped to viewport bounds over a spanning rect", () => {
+    const bounds = { width: 240, height: 200 };
+    expect(getLatticeCellsIntersectingCanvasRect({ x: 0, y: 0, width: 240, height: 200 }, bounds)).toEqual([
+      { x: 0, y: 0, width: 80, height: 80 },
+      { x: 80, y: 0, width: 80, height: 80 },
+      { x: 160, y: 0, width: 80, height: 80 },
+      { x: 0, y: 80, width: 80, height: 80 },
+      { x: 80, y: 80, width: 80, height: 80 },
+      { x: 160, y: 80, width: 80, height: 80 },
+      { x: 0, y: 160, width: 80, height: 80 },
+      { x: 80, y: 160, width: 80, height: 80 },
+      { x: 160, y: 160, width: 80, height: 80 },
+    ]);
+  });
+
+  it("returns a single lattice cell for a partly overlapping viewport rect", () => {
+    expect(
+      getLatticeCellsIntersectingCanvasRect({ x: 100, y: 90, width: 50, height: 40 }, { width: 1000, height: 1000 }),
+    ).toEqual([{ x: 80, y: 80, width: 80, height: 80 }]);
+  });
+
+  it("clips lattice enumeration to logical canvas extents", () => {
+    expect(
+      getLatticeCellsIntersectingCanvasRect({ x: 760, y: 0, width: 100, height: 80 }, { width: 800, height: 560 }),
+    ).toEqual([{ x: 720, y: 0, width: 80, height: 80 }]);
+  });
+
+  it("returns no cells when the rect misses the clipped viewport entirely", () => {
+    expect(
+      getLatticeCellsIntersectingCanvasRect({ x: 900, y: 0, width: 80, height: 80 }, { width: 800, height: 560 }),
+    ).toEqual([]);
   });
 
   it("centers vertical segment boxes on the routed large-cell centers", () => {
