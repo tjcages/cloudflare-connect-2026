@@ -1,20 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
+  ICON_BOX_2X1_CENTER_STROKE_HEIGHT,
+  ICON_BOX_2X1_CENTER_STROKE_WIDTH,
   ICON_BOX_2X1_INNER_WIDTH,
   ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR,
   ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR,
+  ICON_BOX_ICON_SLOT_SIZE,
+  ICON_BOX_INNER_CENTER_Y,
   ICON_BOX_INNER_OFFSET,
   ICON_BOX_INNER_SIZE,
   ICON_BOX_INNER_TOP,
+  ICON_HOLD_OFFSET_X,
+  ICON_HOLD_OFFSET_X_SECOND,
+  getIconBox2x1CenterStrokeAnchor,
+  getIconBox2x1IconDecorationSlots,
   getIconBoxContainerReticlePosition,
   getIconBoxEdgeTickRects,
+  getIconBoxIconSlotOrigin,
 } from "./layout";
 
 describe("getIconBoxEdgeTickRects", () => {
   const ox = ICON_BOX_INNER_OFFSET;
   const oy = ICON_BOX_INNER_TOP;
 
-  it("places four ticks on a 1×1 inner slot with 8px inset and half-pixel centering", () => {
+  it("places four ticks on the 1×1 inner slot (64×64) with 8px inset", () => {
     const w = ICON_BOX_INNER_SIZE;
     const h = ICON_BOX_INNER_SIZE;
     expect(getIconBoxEdgeTickRects(ox, oy, w, h)).toEqual([
@@ -24,27 +33,52 @@ describe("getIconBoxEdgeTickRects", () => {
       { x: ox + w - 8 - 2, y: oy + h / 2 - 0.5, width: 2, height: 1 },
     ]);
   });
+});
 
-  it("places four ticks on each 2×1 half slot", () => {
-    const halfW = ICON_BOX_2X1_INNER_WIDTH / 2;
-    const h = ICON_BOX_INNER_SIZE;
+describe("getIconBox2x1IconDecorationSlots", () => {
+  const slotSize = ICON_BOX_ICON_SLOT_SIZE;
 
-    const left = getIconBoxEdgeTickRects(ox, oy, halfW, h);
-    expect(left).toEqual([
-      { x: ox + halfW / 2 - 0.5, y: oy + 8, width: 1, height: 2 },
-      { x: ox + halfW / 2 - 0.5, y: oy + h - 8 - 2, width: 1, height: 2 },
-      { x: ox + 8, y: oy + h / 2 - 0.5, width: 2, height: 1 },
-      { x: ox + halfW - 8 - 2, y: oy + h / 2 - 0.5, width: 2, height: 1 },
+  it("uses a 48×48 slot centered on each icon, not half the merged inner width", () => {
+    const slots = getIconBox2x1IconDecorationSlots();
+    expect(slots).toHaveLength(2);
+    expect(slots.every((s) => s.w === slotSize && s.h === slotSize)).toBe(true);
+
+    const left = getIconBoxIconSlotOrigin(ICON_HOLD_OFFSET_X);
+    const right = getIconBoxIconSlotOrigin(ICON_HOLD_OFFSET_X_SECOND);
+    expect(slots[0]).toEqual({ ox: left.ox, oy: left.oy, w: slotSize, h: slotSize });
+    expect(slots[1]).toEqual({ ox: right.ox, oy: right.oy, w: slotSize, h: slotSize });
+
+    expect(slots[0].ox).toBe(16);
+    expect(slots[1].ox).toBe(96);
+    expect(slots[0].oy).toBe(44);
+    expect(slots[1].oy).toBe(44);
+  });
+
+  it("places ticks flush on each 48×48 slot edge (no inset)", () => {
+    const [leftSlot, rightSlot] = getIconBox2x1IconDecorationSlots();
+    expect(getIconBoxEdgeTickRects(leftSlot.ox, leftSlot.oy, leftSlot.w, leftSlot.h)).toEqual([
+      { x: 39.5, y: leftSlot.oy, width: 1, height: 2 },
+      { x: 39.5, y: leftSlot.oy + leftSlot.h - 2, width: 1, height: 2 },
+      { x: leftSlot.ox, y: 67.5, width: 2, height: 1 },
+      { x: leftSlot.ox + leftSlot.w - 2, y: 67.5, width: 2, height: 1 },
     ]);
+    expect(getIconBoxEdgeTickRects(rightSlot.ox, rightSlot.oy, rightSlot.w, rightSlot.h)[0].x).toBe(119.5);
+  });
+});
 
-    const rightOx = ox + halfW;
-    const right = getIconBoxEdgeTickRects(rightOx, oy, halfW, h);
-    expect(right).toEqual([
-      { x: rightOx + halfW / 2 - 0.5, y: oy + 8, width: 1, height: 2 },
-      { x: rightOx + halfW / 2 - 0.5, y: oy + h - 8 - 2, width: 1, height: 2 },
-      { x: rightOx + 8, y: oy + h / 2 - 0.5, width: 2, height: 1 },
-      { x: rightOx + halfW - 8 - 2, y: oy + h / 2 - 0.5, width: 2, height: 1 },
-    ]);
+describe("getIconBox2x1CenterStrokeAnchor", () => {
+  it("places the pivot at the horizontal center of the merged 2×1 inner card", () => {
+    expect(getIconBox2x1CenterStrokeAnchor()).toEqual({
+      x: ICON_BOX_INNER_OFFSET + ICON_BOX_2X1_INNER_WIDTH / 2,
+      y: ICON_BOX_INNER_CENTER_Y,
+    });
+    expect(getIconBox2x1CenterStrokeAnchor()).toEqual({ x: 80, y: 68 });
+  });
+
+  it("offsets the 12×1 rect by half width/height for half-pixel centering", () => {
+    const halfW = ICON_BOX_2X1_CENTER_STROKE_WIDTH / 2;
+    const halfH = ICON_BOX_2X1_CENTER_STROKE_HEIGHT / 2;
+    expect({ x: -halfW, y: -halfH }).toEqual({ x: -6, y: -0.5 });
   });
 });
 

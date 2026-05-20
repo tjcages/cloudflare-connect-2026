@@ -81,6 +81,7 @@ type LayerCacheEntry =
       hitNudgeX: number;
       hitNudgeY: number;
       disposeHitNudge?: () => void;
+      disposeCenterStrokeAnim?: () => void;
     }
   | {
       kind: "plus-marker";
@@ -108,6 +109,7 @@ type LayerCacheEntry =
 
 const destroyLayerEntry = (entry: LayerCacheEntry) => {
   if (entry.kind === "icon-box") {
+    entry.disposeCenterStrokeAnim?.();
     entry.disposeHitNudge?.();
     iconBoxLineEnableCoordinator.detachHandles(entry.instanceId);
   }
@@ -536,7 +538,7 @@ const syncIconBox = (
       cache.delete(instance.id);
     }
 
-    const { structureRoot, chromeRoot, innerBodyMotionRoot, animHandles } = buildIconBox(
+    const { structureRoot, chromeRoot, innerBodyMotionRoot, animHandles, disposeCenterStrokeAnim } = buildIconBox(
       instance,
       gridStrokeColor,
       gridStrokeHex,
@@ -557,13 +559,14 @@ const syncIconBox = (
       gridStrokeHex,
       hitNudgeX: 0,
       hitNudgeY: 0,
+      disposeCenterStrokeAnim,
     });
     iconBoxLineEnableCoordinator.attachHandles(instance.id, animHandles, gridStrokeHex);
   } else if (prior.propsJson !== propsJson || prior.gridStrokeHex !== gridStrokeHex) {
     destroyLayerEntry(prior);
     cache.delete(instance.id);
 
-    const { structureRoot, chromeRoot, innerBodyMotionRoot, animHandles } = buildIconBox(
+    const { structureRoot, chromeRoot, innerBodyMotionRoot, animHandles, disposeCenterStrokeAnim } = buildIconBox(
       instance,
       gridStrokeColor,
       gridStrokeHex,
@@ -584,6 +587,7 @@ const syncIconBox = (
       gridStrokeHex,
       hitNudgeX: 0,
       hitNudgeY: 0,
+      disposeCenterStrokeAnim,
     });
     iconBoxLineEnableCoordinator.attachHandles(instance.id, animHandles, gridStrokeHex);
   } else {

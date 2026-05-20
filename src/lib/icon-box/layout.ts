@@ -31,6 +31,17 @@ export const ICON_BOX_INNER_TOP = TITLE_BAR_HEIGHT + TITLE_TO_INNER_GAP;
 export const ICON_BOX_INNER_CENTER_X = ICON_BOX_INNER_OFFSET + ICON_BOX_INNER_SIZE / 2;
 export const ICON_BOX_INNER_CENTER_Y = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE / 2;
 
+/** Animated center dash on 2×1 inner card (between icon columns). */
+export const ICON_BOX_2X1_CENTER_STROKE_WIDTH = 12;
+export const ICON_BOX_2X1_CENTER_STROKE_HEIGHT = 1;
+export const ICON_BOX_2X1_CENTER_STROKE_TRAVEL_PX = 12;
+
+/** Pivot for 2×1 center stroke in instance root space (horizontal center of merged inner card). */
+export const getIconBox2x1CenterStrokeAnchor = (): { x: number; y: number } => ({
+  x: ICON_BOX_INNER_OFFSET + ICON_BOX_2X1_INNER_WIDTH / 2,
+  y: ICON_BOX_INNER_CENTER_Y,
+});
+
 /** Gap between inner card bottom edge and bottom accent bar (logical px). */
 export const ICON_BOX_ACCENT_BAR_GAP = 8;
 export const ICON_BOX_ACCENT_BAR_WIDTH = 33;
@@ -203,20 +214,6 @@ export const getIconBoxContainerReticlePosition = (
   }
 };
 
-/** Four edge-center ticks per inner slot (top/bottom 1×2, left/right 2×1), 8px inset from edges. */
-export const getIconBoxEdgeTickRects = (ox: number, oy: number, w: number, h: number): IconBoxEdgeTickRect[] => {
-  const cx = ox + w / 2 - ICON_BOX_STROKE_ALIGN_NUDGE;
-  const cy = oy + h / 2 - ICON_BOX_STROKE_ALIGN_NUDGE;
-  const { width: vW, height: vH } = ICON_BOX_EDGE_TICK_V;
-  const { width: hW, height: hH } = ICON_BOX_EDGE_TICK_H;
-  return [
-    { x: cx, y: oy + MARKER_INSET, width: vW, height: vH },
-    { x: cx, y: oy + h - MARKER_INSET - vH, width: vW, height: vH },
-    { x: ox + MARKER_INSET, y: cy, width: hW, height: hH },
-    { x: ox + w - MARKER_INSET - hW, y: cy, width: hW, height: hH },
-  ];
-};
-
 /** Icon hold X inside root for first column (1×1 and 2×1 left cell). */
 export const ICON_HOLD_OFFSET_X = ICON_BOX_INNER_OFFSET + 20;
 
@@ -225,3 +222,52 @@ export const ICON_HOLD_OFFSET_X_SECOND = LARGE_CELL_SIZE + ICON_HOLD_OFFSET_X;
 
 /** Vertical offset of icon pivot from inner rect top. */
 export const ICON_HOLD_OFFSET_Y_INNER = 20;
+
+/** Canvas icon glyph size (matches Pixi `Sprite` width/height in `build.ts`). */
+export const ICON_BOX_ICON_DISPLAY_SIZE = 24;
+
+/**
+ * Per-icon decoration slot (edge ticks + corner markers) for 2×1+.
+ * 1×1 keeps the full 64×64 inner rect — 8px inset there already matches this footprint.
+ */
+export const ICON_BOX_ICON_SLOT_SIZE = 48;
+
+/** 48×48 per-icon slots: ticks/markers sit flush on the box edge. 1×1 inner uses {@link MARKER_INSET}. */
+export const getIconBoxDecorationInset = (w: number, h: number): number =>
+  w === ICON_BOX_ICON_SLOT_SIZE && h === ICON_BOX_ICON_SLOT_SIZE ? 0 : MARKER_INSET;
+
+export type IconBoxDecorationSlot = { ox: number; oy: number; w: number; h: number };
+
+export const getIconBoxIconSlotOrigin = (holdX: number): { ox: number; oy: number } => {
+  const cx = holdX + ICON_BOX_ICON_DISPLAY_SIZE / 2;
+  const cy = ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER + ICON_BOX_ICON_DISPLAY_SIZE / 2;
+  const half = ICON_BOX_ICON_SLOT_SIZE / 2;
+  return { ox: cx - half, oy: cy - half };
+};
+
+/** 48×48 slots centered on each 2×1 icon (and future multi-icon layouts). */
+export const getIconBox2x1IconDecorationSlots = (): IconBoxDecorationSlot[] =>
+  [ICON_HOLD_OFFSET_X, ICON_HOLD_OFFSET_X_SECOND].map((holdX) => {
+    const { ox, oy } = getIconBoxIconSlotOrigin(holdX);
+    return { ox, oy, w: ICON_BOX_ICON_SLOT_SIZE, h: ICON_BOX_ICON_SLOT_SIZE };
+  });
+
+/** Four edge-center ticks for a logical rect (ox, oy, w, h). */
+export const getIconBoxEdgeTickRects = (
+  ox: number,
+  oy: number,
+  w: number,
+  h: number,
+  inset: number = getIconBoxDecorationInset(w, h),
+): IconBoxEdgeTickRect[] => {
+  const cx = ox + w / 2 - ICON_BOX_STROKE_ALIGN_NUDGE;
+  const cy = oy + h / 2 - ICON_BOX_STROKE_ALIGN_NUDGE;
+  const { width: vW, height: vH } = ICON_BOX_EDGE_TICK_V;
+  const { width: hW, height: hH } = ICON_BOX_EDGE_TICK_H;
+  return [
+    { x: cx, y: oy + inset, width: vW, height: vH },
+    { x: cx, y: oy + h - inset - vH, width: vW, height: vH },
+    { x: ox + inset, y: cy, width: hW, height: hH },
+    { x: ox + w - inset - hW, y: cy, width: hW, height: hH },
+  ];
+};

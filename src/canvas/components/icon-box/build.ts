@@ -17,7 +17,6 @@ import {
   ICON_HOLD_OFFSET_X,
   ICON_HOLD_OFFSET_X_SECOND,
   ICON_HOLD_OFFSET_Y_INNER,
-  MARKER_INSET,
   MARKER_SIZE,
   TITLE_BAR_HEIGHT,
   TITLE_BAR_WIDTH,
@@ -25,12 +24,16 @@ import {
   TITLE_TEXT_PADDING_X,
   getIconBoxCardFrameWidth,
   getIconBoxContainerReticlePosition,
+  getIconBox2x1IconDecorationSlots,
+  getIconBoxDecorationInset,
   getIconBoxEdgeTickRects,
+  type IconBoxDecorationSlot,
   getIconBoxInnerWidth,
   getIconBoxTitleBarLayout,
   type IconBoxContainerReticleCorner,
 } from "../../../lib/icon-box/layout";
 import { paletteBrush } from "../../../theme/palette";
+import { buildIconBox2x1CenterStroke } from "./iconBox2x1CenterStroke";
 import { rasterizeIcon } from "./iconRaster";
 import type { IconBoxAnimHandles } from "./iconBoxLineEnableCoordinator";
 
@@ -118,6 +121,7 @@ export type IconBoxDisplayParts = {
    */
   innerBodyMotionRoot: Container;
   animHandles: IconBoxAnimHandles;
+  disposeCenterStrokeAnim?: () => void;
 };
 
 export type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }>;
@@ -231,27 +235,26 @@ export const buildIconBox = (
   const rectInnerW = innerW;
   const rectSize = ICON_BOX_INNER_SIZE;
 
+  const decorationSlots: IconBoxDecorationSlot[] =
+    variant === "icon-box-2x1"
+      ? getIconBox2x1IconDecorationSlots()
+      : [{ ox: rectOriginX, oy: rectOriginY, w: rectInnerW, h: rectSize }];
+
   const paintCornerMarkers = (cornerPackedRgb: number) => {
     markers.clear();
-    const fillCornerMarkers = (ox: number, oy: number, w: number, h: number) => {
-      const markerMaxX = w - MARKER_INSET - MARKER_SIZE;
-      const markerMaxY = h - MARKER_INSET - MARKER_SIZE;
+    for (const { ox, oy, w, h } of decorationSlots) {
+      const inset = getIconBoxDecorationInset(w, h);
+      const markerMaxX = w - inset - MARKER_SIZE;
+      const markerMaxY = h - inset - MARKER_SIZE;
       const cellCorners: [number, number][] = [
-        [ox + MARKER_INSET, oy + MARKER_INSET],
-        [ox + markerMaxX, oy + MARKER_INSET],
-        [ox + MARKER_INSET, oy + markerMaxY],
+        [ox + inset, oy + inset],
+        [ox + markerMaxX, oy + inset],
+        [ox + inset, oy + markerMaxY],
         [ox + markerMaxX, oy + markerMaxY],
       ];
       for (const [mx, my] of cellCorners) {
         markers.roundRect(mx, my, MARKER_SIZE, MARKER_SIZE, 1).fill({ color: cornerPackedRgb });
       }
-    };
-    if (variant === "icon-box-2x1") {
-      const halfW = rectInnerW / 2;
-      fillCornerMarkers(rectOriginX, rectOriginY, halfW, rectSize);
-      fillCornerMarkers(rectOriginX + halfW, rectOriginY, halfW, rectSize);
-    } else {
-      fillCornerMarkers(rectOriginX, rectOriginY, rectInnerW, rectSize);
     }
   };
 
@@ -260,20 +263,22 @@ export const buildIconBox = (
 
   const edgeTicks = new Graphics();
   edgeTicks.zIndex = 39;
-  const paintEdgeTicksForSlot = (ox: number, oy: number, w: number, h: number) => {
-    for (const tick of getIconBoxEdgeTickRects(ox, oy, w, h)) {
+  for (const { ox, oy, w, h } of decorationSlots) {
+    const inset = getIconBoxDecorationInset(w, h);
+    for (const tick of getIconBoxEdgeTickRects(ox, oy, w, h, inset)) {
       edgeTicks.rect(tick.x, tick.y, tick.width, tick.height).fill({ color: gridStrokeColor });
     }
-  };
-  if (variant === "icon-box-2x1") {
-    const halfW = rectInnerW / 2;
-    paintEdgeTicksForSlot(rectOriginX, rectOriginY, halfW, rectSize);
-    paintEdgeTicksForSlot(rectOriginX + halfW, rectOriginY, halfW, rectSize);
-  } else {
-    paintEdgeTicksForSlot(rectOriginX, rectOriginY, rectInnerW, rectSize);
   }
   innerBodyMotionRoot.addChild(edgeTicks);
   innerBodyMotionRoot.addChild(markers);
+
+  let disposeCenterStrokeAnim: (() => void) | undefined;
+  if (variant === "icon-box-2x1") {
+    const { strokeRoot, disposeCenterStrokeAnim: disposeStroke } = buildIconBox2x1CenterStroke(brush.fill);
+    /** After markers so zIndex 41 stacks above ticks (39) when sortableChildren is on. */
+    innerBodyMotionRoot.addChild(strokeRoot);
+    disposeCenterStrokeAnim = disposeStroke;
+  }
 
   const icon = getIconDefinition(instance.props.iconId);
   const iconRgb = brush.iconFill;
@@ -371,5 +376,5 @@ export const buildIconBox = (
     accentScaleRoots,
   };
 
-  return { structureRoot, chromeRoot, innerBodyMotionRoot, animHandles };
+  return { structureRoot, chromeRoot, innerBodyMotionRoot, animHandles, disposeCenterStrokeAnim };
 };
