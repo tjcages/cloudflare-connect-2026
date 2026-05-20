@@ -30,6 +30,8 @@ Ask a clarifying question only when the answer changes the implementation.
 
 The current task chat is the coordinator and may use the user's preferred strong model.
 
+When the chat model is Composer 2.5 Fast, follow the **maximum reasoning mode** section in `agent-orchestration.mdc` (deep thinking overrides lightweight defaults).
+
 When spawning subagents, default routine work to `composer-2-fast`:
 
 - implementation follow-ups with `all-rounder`

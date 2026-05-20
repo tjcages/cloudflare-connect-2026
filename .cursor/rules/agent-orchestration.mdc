@@ -27,14 +27,50 @@ Apply this orchestration to every coding task automatically. The `/orchestrate` 
 ## Model And Role Routing
 
 - The current chat coordinates the task. Use the user's selected strong model for planning and decisions.
+- When the coordinator is Composer 2.5 Fast, follow **maximum reasoning mode** below instead of default lightweight routing.
 - Use cheaper subagents such as `composer-2-fast` for bounded routine roles when spawning agents.
 - Run specialist roles only when useful: `planner`, `all-rounder`, `refactorer`, `ux-controller`, `perf-controller`, `cleaner`, `test-dev`, then `lessons-keeper`.
 - Do not run UX/perf/cleanup/test passes as performative ceremony. Skip any role that does not apply to the task.
 - Keep role outputs short: outcome, files considered or changed, verification, risks, and next action. Avoid dumping long transcripts into the main chat.
 
+## Composer 2.5 Fast: maximum reasoning mode
+
+**When you are Composer 2.5 Fast**, the guidance below overrides conflicting "lightweight" or token-saving instructions in this rule. Token usage is **not** a constraint—quality and correctness are.
+
+### Think before acting (always)
+
+- Spend substantial time in internal reasoning **before every significant tool call or edit**, even for tasks that look simple.
+- Explicitly consider: requirements, constraints, affected files, edge cases, failure modes, alternative approaches, and verification strategy.
+- Do not skip reasoning because the task "looks small"—confirm scope with code reading first.
+- If uncertain after one pass, think again with new evidence rather than guessing.
+
+### Planning depth
+
+- Replace "lightest route" with structured planning for **all non-trivial tasks** (anything beyond a one-line typo/format fix).
+- Default plan shape: context → goal → constraints → files/areas → approach → verification → risks.
+- For ambiguous, cross-cutting, or risky work: invoke `planner` (or equivalent structured plan) before implementation.
+
+### Research depth
+
+- Read relevant rules, `docs/ai-context.md`, and **adjacent source/tests**—not skim-only.
+- Prefer parallel discovery (repo search, multiple file reads, `explore` subagents at higher thoroughness) over a single shallow grep.
+- Record **what was consulted**; completeness beats artificially compressed summaries.
+
+### Specialists and verification
+
+- **Bias toward** applying specialist roles that fit the scope (`ux-controller`, `perf-controller`, `test-dev`, etc.) rather than skipping to save turns.
+- Skip a role only when it truly cannot apply—not to optimize cost or latency.
+- Run fresh `npm run verify` before claiming source work complete (unchanged, but reinforced here).
+
+### Communication
+
+- User-facing replies may stay concise when appropriate, but **never** shorten internal analysis or skip investigation to save tokens.
+- Mid-task: include detail when it affects correctness or lets the user steer.
+- Closing: always state verification evidence and residual risk; length can match task complexity.
+
 ## Chat style (token budget)
 
-- **Scope:** These brevity rules apply **only to user-facing assistant replies** (what the user reads). They do **not** limit internal reasoning, planning, debugging analysis, or thoroughness before acting—stay rigorous there.
+- **Scope:** These brevity rules apply **only to user-facing assistant replies** (what the user reads). They do **not** limit internal reasoning, planning, debugging analysis, or thoroughness before acting—stay rigorous there. Does not apply to Composer 2.5 Fast internal reasoning; see **maximum reasoning mode** above.
 - Prefer doing the work (edits, commands, tools) over long explanations mid-task. Use brief status only when it helps the user steer.
 - When the task is done, one **short** wrap-up is enough: what was decided or fixed, and any real residual risk. Do **not** dump exhaustive per-file changelogs, repeated code blocks, or full diff narratives unless the user asks for detail.
 
