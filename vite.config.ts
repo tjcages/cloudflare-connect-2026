@@ -1,9 +1,21 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(projectRoot, "index.html"),
+        playground: path.resolve(projectRoot, "playground.html"),
+      },
+    },
+  },
   test: {
     environment: "happy-dom",
     /** `forks` (Vitest default) is much slower here with many jsdom/happy-dom workers; threads pool is ~order-of-magnitude faster for this suite. */
