@@ -325,34 +325,31 @@ export type IconBoxEdgeTickRect = { x: number; y: number; width: number; height:
 /** Half-pixel nudge shared by edge ticks and container reticles (grid stroke alignment). */
 export const ICON_BOX_STROKE_ALIGN_NUDGE = 0.5;
 
-export const ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR = 4;
-export const ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR = 16;
+export const ICON_BOX_CONTAINER_RETICLE_PX = 22;
 
 export type IconBoxContainerReticleCorner = "tl" | "tr" | "bl" | "br";
 
-/** Top-left of the 22×22 container reticle in instance-root space. */
+/** Top-left of the 22×22 container reticle in instance-root space (selection-frame corners). */
 export const getIconBoxContainerReticlePosition = (
   corner: IconBoxContainerReticleCorner,
-  ox: number,
-  oy: number,
-  w: number,
-  h: number,
+  spec: IconBoxLayoutSpec,
 ): { x: number; y: number } => {
-  const inset = MARKER_INSET;
-  const near = ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR;
-  const far = ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR;
+  const { x: ox, y: oy, width: w, height: h } = getIconBoxShadowCardBoundsInRootSpace(spec);
+  const half = ICON_BOX_CONTAINER_RETICLE_PX / 2;
+  const nudge = ICON_BOX_STROKE_ALIGN_NUDGE;
+  const topLeft = (cx: number, cy: number): { x: number; y: number } => ({
+    x: cx - half + nudge,
+    y: cy - half + nudge,
+  });
   switch (corner) {
     case "tl":
-      return { x: ox + inset - near, y: oy + inset - near };
+      return topLeft(ox, oy);
     case "tr":
-      return { x: ox + w - inset - ICON_BOX_EDGE_TICK_H.width - far, y: oy + inset - near };
+      return topLeft(ox + w, oy);
     case "bl":
-      return { x: ox + inset - near, y: oy + h - inset - ICON_BOX_EDGE_TICK_V.height - far };
+      return topLeft(ox, oy + h);
     case "br":
-      return {
-        x: ox + w - inset - ICON_BOX_EDGE_TICK_H.width - far,
-        y: oy + h - inset - ICON_BOX_EDGE_TICK_V.height - far,
-      };
+      return topLeft(ox + w, oy + h);
   }
 };
 

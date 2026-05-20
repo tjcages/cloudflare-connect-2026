@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   ICON_BOX_CENTER_STROKE_LONG,
   ICON_BOX_CENTER_STROKE_SHORT,
-  ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR,
-  ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR,
+  ICON_BOX_CONTAINER_RETICLE_PX,
   ICON_BOX_ICON_SLOT_SIZE,
+  ICON_BOX_STROKE_ALIGN_NUDGE,
+  getIconBoxShadowCardBoundsInRootSpace,
   ICON_BOX_INNER_OFFSET,
   ICON_BOX_INNER_SIZE,
   ICON_BOX_INNER_TOP,
@@ -134,35 +135,40 @@ describe("getIconBoxHorizontalAccentCenterX", () => {
 });
 
 describe("getIconBoxContainerReticlePosition", () => {
-  const ox = ICON_BOX_INNER_OFFSET;
-  const oy = ICON_BOX_INNER_TOP;
-  const w = ICON_BOX_INNER_SIZE;
-  const h = ICON_BOX_INNER_SIZE;
+  const half = ICON_BOX_CONTAINER_RETICLE_PX / 2;
+  const nudge = ICON_BOX_STROKE_ALIGN_NUDGE;
 
-  const edgeBySide = (edges: ReturnType<typeof getIconBoxEdgeTickRects>) => ({
-    top: edges[0],
-    bottom: edges[1],
-    left: edges[2],
-    right: edges[3],
+  it("anchors reticle centers on the selection-frame corners for 1×1", () => {
+    const spec = resolveIconBoxLayout({ length: 1, direction: "horizontal" });
+    const frame = getIconBoxShadowCardBoundsInRootSpace(spec);
+
+    expect(getIconBoxContainerReticlePosition("tl", spec)).toEqual({
+      x: frame.x - half + nudge,
+      y: frame.y - half + nudge,
+    });
+    expect(getIconBoxContainerReticlePosition("tr", spec)).toEqual({
+      x: frame.x + frame.width - half + nudge,
+      y: frame.y - half + nudge,
+    });
+    expect(getIconBoxContainerReticlePosition("bl", spec)).toEqual({
+      x: frame.x - half + nudge,
+      y: frame.y + frame.height - half + nudge,
+    });
+    expect(getIconBoxContainerReticlePosition("br", spec)).toEqual({
+      x: frame.x + frame.width - half + nudge,
+      y: frame.y + frame.height - half + nudge,
+    });
   });
 
-  it("aligns reticle edge ticks with card edge ticks at all four corners", () => {
-    const edge = edgeBySide(getIconBoxEdgeTickRects(ox, oy, w, h));
+  it("follows extended selection-frame size for 2×1 horizontal", () => {
+    const spec = resolveIconBoxLayout({ length: 2, direction: "horizontal" });
+    const frame = getIconBoxShadowCardBoundsInRootSpace(spec);
+    const tr = getIconBoxContainerReticlePosition("tr", spec);
 
-    const tl = getIconBoxContainerReticlePosition("tl", ox, oy, w, h);
-    expect(tl.x + ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR).toBe(edge.left.x);
-    expect(tl.y + ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR).toBe(edge.top.y);
-
-    const tr = getIconBoxContainerReticlePosition("tr", ox, oy, w, h);
-    expect(tr.x + ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR).toBe(edge.right.x);
-    expect(tr.y + ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR).toBe(edge.top.y);
-
-    const bl = getIconBoxContainerReticlePosition("bl", ox, oy, w, h);
-    expect(bl.x + ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR).toBe(edge.left.x);
-    expect(bl.y + ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR).toBe(edge.bottom.y);
-
-    const br = getIconBoxContainerReticlePosition("br", ox, oy, w, h);
-    expect(br.x + ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR).toBe(edge.right.x);
-    expect(br.y + ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR).toBe(edge.bottom.y);
+    expect(tr.x + half - nudge).toBe(frame.x + frame.width);
+    expect(tr.y + half - nudge).toBe(frame.y);
+    expect(frame.width).toBeGreaterThan(
+      getIconBoxShadowCardBoundsInRootSpace({ length: 1, direction: "horizontal" }).width,
+    );
   });
 });

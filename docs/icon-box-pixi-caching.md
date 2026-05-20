@@ -21,4 +21,4 @@ This note captures why icon-box chrome caches **per filtered leaf** and how tran
 
 ## Z-order reminder (`chromeRoot.sortableChildren`)
 
-Among siblings, stacking uses `zIndex` on children — e.g. reticle below card fill, markers above stroke, accents above icons. Changing parenting for caches must preserve those indices.
+Among siblings, stacking uses `zIndex` on children — e.g. container reticles in `outerReticlesRoot` (20, lowest chrome), `innerBodyMotionRoot` (23) with card/markers/icons, accent bars (24), title strip (30+). Reticles stay fixed on connector-hit nudge; the inner body moves. Changing parenting for caches must preserve those indices.

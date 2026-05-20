@@ -71,6 +71,8 @@ const buildIconShadowFilter = (iconColorHex: number) =>
 
 const CONTAINER_RETICLE_PX = 22;
 const CONTAINER_RETICLE_Z_INDEX = 18;
+/** Lowest icon-box chrome layer (above grid only): below `innerBodyMotionRoot` (23) and title (30+). */
+const CONTAINER_RETICLE_CHROME_Z = 20;
 
 const buildContainerCornerReticle = (tickColor: number, centerDotColor: number): Graphics => {
   const g = new Graphics();
@@ -86,6 +88,7 @@ const buildContainerCornerReticle = (tickColor: number, centerDotColor: number):
 export type IconBoxDisplayParts = {
   structureRoot: Container;
   chromeRoot: Container;
+  /** Shadow card, ticks, markers, icons — nudged on connector hits; reticles stay fixed in chrome. */
   innerBodyMotionRoot: Container;
   animHandles: IconBoxAnimHandles;
   disposeCenterStrokeAnim?: () => void;
@@ -156,7 +159,7 @@ export const buildIconBox = (
 
   const outerReticlesRoot = new Container();
   outerReticlesRoot.sortableChildren = true;
-  outerReticlesRoot.zIndex = 22;
+  outerReticlesRoot.zIndex = CONTAINER_RETICLE_CHROME_Z;
 
   const accentBarsRoot = new Container();
   accentBarsRoot.sortableChildren = true;
@@ -189,10 +192,6 @@ export const buildIconBox = (
 
   const markers = new Graphics();
   markers.zIndex = 40;
-  const rectOriginX = ICON_BOX_INNER_OFFSET;
-  const rectOriginY = ICON_BOX_INNER_TOP;
-  const rectInnerW = innerW;
-  const rectInnerH = innerH;
 
   const decorationSlots = getIconBoxIconDecorationSlots(spec);
 
@@ -312,7 +311,7 @@ export const buildIconBox = (
     for (const corner of corners) {
       const reticle = buildContainerCornerReticle(gridStrokeColor, brush.fill);
       reticle.zIndex = CONTAINER_RETICLE_Z_INDEX;
-      const pos = getIconBoxContainerReticlePosition(corner, rectOriginX, rectOriginY, rectInnerW, rectInnerH);
+      const pos = getIconBoxContainerReticlePosition(corner, spec);
       reticle.position.set(pos.x, pos.y);
       outerReticlesRoot.addChild(reticle);
     }
