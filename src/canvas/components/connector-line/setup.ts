@@ -2,7 +2,11 @@ import { animate, motionValue } from "motion";
 import { Container, Graphics } from "pixi.js";
 import type { ParticleContainer, Texture } from "pixi.js";
 import { getInstanceCanvasBounds } from "../../../lib/componentRegistry";
-import { getIconBoxShadowCardBoundsInRootSpace, isIconBoxComponentType } from "../../../lib/icon-box/layout";
+import {
+  getIconBoxShadowCardBoundsInRootSpace,
+  isIconBoxInstance,
+  resolveIconBoxLayout,
+} from "../../../lib/icon-box/layout";
 import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
 import { useAppStore } from "../../../store";
 import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "../constants";
@@ -233,7 +237,7 @@ const connectorBaseRowKey = (row: { id: string }) => row.id;
 
 type IconLatticeBackdropRow = {
   id: string;
-  type: "icon-box" | "icon-box-2x1" | "icon-box-1x2";
+  type: "icon-box";
   x: number;
   y: number;
   w: number;
@@ -243,11 +247,9 @@ type IconLatticeBackdropRow = {
 /** Shadow-card rects in root space (white tiles under icon glossy), sorted by id for stable fingerprints and paint. */
 const sortedIconLatticeBackdropRows = (instances: ComponentInstance[]): IconLatticeBackdropRow[] =>
   [...instances]
-    .filter((inst): inst is Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" | "icon-box-1x2" }> =>
-      isIconBoxComponentType(inst.type),
-    )
+    .filter((inst): inst is Extract<ComponentInstance, { type: "icon-box" }> => isIconBoxInstance(inst))
     .map((inst) => {
-      const r = getIconBoxShadowCardBoundsInRootSpace(inst.type);
+      const r = getIconBoxShadowCardBoundsInRootSpace(resolveIconBoxLayout(inst.props));
       return {
         id: inst.id,
         type: inst.type,
@@ -582,7 +584,7 @@ export const buildConnectorInstanceChrome = (
 
     const particleOriginForHit = (boxId: string, leg: "forward" | "backward", fallback: { x: number; y: number }) => {
       const inst = useAppStore.getState().instances.find((i) => i.id === boxId);
-      if (!inst || !isIconBoxComponentType(inst.type)) {
+      if (!inst || !isIconBoxInstance(inst)) {
         return fallback;
       }
       const b = getInstanceCanvasBounds(inst);

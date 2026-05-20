@@ -126,6 +126,40 @@ describe("mergePersistedDocument", () => {
     );
   });
 
+  it("migrates legacy icon-box-2x1 type strings on merge", () => {
+    const current = minimalStoreForMerge();
+    const merged = mergePersistedDocument(
+      {
+        gridConfig: DEFAULT_CONFIG,
+        instances: [
+          {
+            id: "icon-box-2x1-14",
+            type: "icon-box-2x1",
+            name: "Icon Box 2x1 14",
+            x: 43,
+            y: 79,
+            props: {
+              matchCornersWithTheme: false,
+              theme: "purple",
+              iconId: DEFAULT_ICON_ID,
+              title: "Workers 4",
+              containerHighlighted: false,
+              enabledByLine: "off",
+            },
+          },
+        ],
+        nextInstanceIndex: 15,
+        selectedInstanceId: "icon-box-2x1-14",
+      },
+      current,
+    );
+
+    const ib = merged.instances[0] as Extract<ComponentInstance, { type: "icon-box" }>;
+    expect(ib.id).toBe("icon-box-2x1-14");
+    expect(ib.type).toBe("icon-box");
+    expect(ib.props).toMatchObject({ length: 2, direction: "horizontal", title: "Workers 4" });
+  });
+
   it("snap-adjusts persisted icon-box coordinates during merge", () => {
     const current = minimalStoreForMerge();
     const merged = mergePersistedDocument(

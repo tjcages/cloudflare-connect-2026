@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ComponentInstance } from "../../../grid/types";
 import { createComponentInstance } from "../../../lib/componentRegistry";
 import {
   crossingsBetweenOrthoPolylines,
@@ -22,17 +23,43 @@ describe("connector line routing", () => {
     expect(resolveConnectorEndpoint(layerEndpoint, [iconBox])).toEqual({ x: 120, y: 120 });
   });
 
-  it("resolves icon-box-2x1 layer endpoints at shadow-card center on the connector lattice", () => {
-    const box2x1 = createComponentInstance("icon-box-2x1", 43, 79, 2, 800, 560);
+  it("resolves length-2 horizontal icon-box layer endpoints at shadow-card center on the connector lattice", () => {
+    const base = createComponentInstance("icon-box", 43, 79, 2, 800, 560) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
+    const box2x1: Extract<ComponentInstance, { type: "icon-box" }> = {
+      ...base,
+      props: { ...base.props, length: 2, direction: "horizontal" },
+    };
     const layerEndpoint: ConnectorEndpoint = { kind: "layer", instanceId: box2x1.id };
-    // Geometric shadow-card center x is 160px; snaps to the nearer 80px connector lattice center at 200.
     expect(resolveConnectorEndpoint(layerEndpoint, [box2x1])).toEqual({ x: 200, y: 120 });
   });
 
-  it("resolves icon-box-1x2 layer endpoints at shadow-card center on the connector lattice", () => {
-    const box1x2 = createComponentInstance("icon-box-1x2", 43, 79, 2, 800, 560);
+  it("resolves length-2 vertical icon-box layer endpoints at shadow-card center on the connector lattice", () => {
+    const base = createComponentInstance("icon-box", 43, 79, 2, 800, 560) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
+    const box1x2: Extract<ComponentInstance, { type: "icon-box" }> = {
+      ...base,
+      props: { ...base.props, length: 2, direction: "vertical" },
+    };
     const layerEndpoint: ConnectorEndpoint = { kind: "layer", instanceId: box1x2.id };
     expect(resolveConnectorEndpoint(layerEndpoint, [box1x2])).toEqual({ x: 120, y: 200 });
+  });
+
+  it("resolves length-3 horizontal icon-box layer endpoints at shadow-card center on the connector lattice", () => {
+    const base = createComponentInstance("icon-box", 43, 79, 2, 800, 560) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
+    const box3x1: Extract<ComponentInstance, { type: "icon-box" }> = {
+      ...base,
+      props: { ...base.props, length: 3, direction: "horizontal" },
+    };
+    const layerEndpoint: ConnectorEndpoint = { kind: "layer", instanceId: box3x1.id };
+    expect(resolveConnectorEndpoint(layerEndpoint, [box3x1])).toEqual({ x: 200, y: 120 });
   });
 
   it("uses a horizontal first leg when horizontal preference connects collinear vertical anchor points", () => {

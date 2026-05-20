@@ -3,7 +3,7 @@ import { Container, Graphics, ParticleContainer, Rectangle, Texture } from "pixi
 import type { Ticker } from "../../components/pixi";
 import type { ComponentInstance } from "../../grid/types";
 import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
-import { isIconBoxComponentType } from "../../lib/icon-box/layout";
+import { isIconBoxInstance } from "../../lib/icon-box/layout";
 import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
 import { buildHoveredConnectorIds } from "../connectorLinkedLayerHighlights";
@@ -272,7 +272,7 @@ const syncLayers = (
       continue;
     }
 
-    if (isIconBoxComponentType(instance.type)) {
+    if (isIconBoxInstance(instance)) {
       syncIconBox(instance, structureLayer, chromeLayer, cache, z, gridStrokeColor, gridStrokeHex);
       continue;
     }
@@ -686,7 +686,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
         entry.hitNudgeX = nx.get();
         entry.hitNudgeY = ny.get();
         const inst = useAppStore.getState().instances.find((i) => i.id === hitArgs.boxId);
-        if (!inst || !isIconBoxComponentType(inst.type)) {
+        if (!inst || !isIconBoxInstance(inst)) {
           return;
         }
         entry.structureRoot.position.set(inst.x, inst.y);
@@ -721,7 +721,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
         entry.hitNudgeY = 0;
         cleanupListeners();
         const inst = useAppStore.getState().instances.find((i) => i.id === hitArgs.boxId);
-        if (inst && isIconBoxComponentType(inst.type)) {
+        if (inst && isIconBoxInstance(inst)) {
           entry.structureRoot.position.set(inst.x, inst.y);
           entry.chromeRoot.position.set(inst.x, inst.y);
         }
@@ -755,7 +755,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
         ny.set(0);
         cleanupListeners();
         const inst = useAppStore.getState().instances.find((i) => i.id === hitArgs.boxId);
-        if (inst && isIconBoxComponentType(inst.type)) {
+        if (inst && isIconBoxInstance(inst)) {
           entry.structureRoot.position.set(inst.x, inst.y);
           entry.chromeRoot.position.set(inst.x, inst.y);
         }

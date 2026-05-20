@@ -1,4 +1,5 @@
 import { getComponentDefinition, snapComponentPosition, snapConnectorCellCenter } from "./lib/componentRegistry";
+import { migrateLegacyIconBoxRaw, normalizeIconBoxProps } from "./lib/icon-box/layout";
 import { DEFAULT_CONFIG } from "./grid/config";
 import { generateGrid } from "./grid/generator";
 import type {
@@ -25,7 +26,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
-const isComponentType = (value: unknown): value is ComponentType =>
+const isPersistedComponentType = (value: unknown): value is ComponentType | "icon-box-2x1" | "icon-box-1x2" =>
   value === "icon-box" ||
   value === "icon-box-2x1" ||
   value === "icon-box-1x2" ||
@@ -69,6 +70,14 @@ const isIconBoxProps = (value: unknown): value is IconBoxProps => {
   }
 
   if ("enabledByLine" in value && !isIconBoxEnabledByLineMode(value.enabledByLine)) {
+    return false;
+  }
+
+  if ("length" in value && (!isFiniteNumber(value.length) || value.length < 1)) {
+    return false;
+  }
+
+  if ("direction" in value && value.direction !== "horizontal" && value.direction !== "vertical") {
     return false;
   }
 
@@ -136,7 +145,7 @@ const normalizeInstanceForGrid = (
     return null;
   }
 
-  if (!isComponentType(raw.type)) {
+  if (!isPersistedComponentType(raw.type)) {
     return null;
   }
 
@@ -148,7 +157,9 @@ const normalizeInstanceForGrid = (
     return null;
   }
 
-  const definition = getComponentDefinition(raw.type);
+  const definition = getComponentDefinition(
+    raw.type === "icon-box-2x1" || raw.type === "icon-box-1x2" ? "icon-box" : raw.type,
+  );
   const name = typeof raw.name === "string" && raw.name.trim() ? raw.name : definition.label;
   if (raw.type === "connector-line") {
     const defaultProps = definition.defaultProps as ConnectorLineProps;
@@ -204,29 +215,35 @@ const normalizeInstanceForGrid = (
     };
   }
 
-  const defaultIcon = definition.defaultProps as IconBoxProps;
-  const propsMerged: IconBoxProps = isIconBoxProps(raw.props) ? { ...defaultIcon, ...raw.props } : { ...defaultIcon };
-  const props: IconBoxProps = {
-    ...propsMerged,
-    enabledByLine: isIconBoxEnabledByLineMode(propsMerged.enabledByLine) ? propsMerged.enabledByLine : "off",
-  };
+  if (raw.type === "icon-box" || raw.type === "icon-box-2x1" || raw.type === "icon-box-1x2") {
+    const defaultIcon = getComponentDefinition("icon-box").defaultProps as IconBoxProps;
+    const propsMerged: IconBoxProps = isIconBoxProps(raw.props)
+      ? normalizeIconBoxProps(raw.props, defaultIcon)
+      : { ...defaultIcon };
+    const props: IconBoxProps = {
+      ...propsMerged,
+      enabledByLine: isIconBoxEnabledByLineMode(propsMerged.enabledByLine) ? propsMerged.enabledByLine : "off",
+    };
+    const { type, props: migratedProps } = migrateLegacyIconBoxRaw(raw.type, props);
+    const snapped = snapComponentPosition(raw.x, raw.y, gridLogicalWidth, gridLogicalHeight, "icon-box", migratedProps);
 
-  const snapped = snapComponentPosition(raw.x, raw.y, gridLogicalWidth, gridLogicalHeight, raw.type);
+    return {
+      id: raw.id,
+      type,
+      name,
+      x: snapped.x,
+      y: snapped.y,
+      props: migratedProps,
+    };
+  }
 
-  return {
-    id: raw.id,
-    type: raw.type,
-    name,
-    x: snapped.x,
-    y: snapped.y,
-    props,
-  };
+  return null;
 };
 
 const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: number): ComponentInstance[] => [
   {
     id: "icon-box-2x1-14",
-    type: "icon-box-2x1",
+    type: "icon-box",
     name: "Icon Box 2x1 14",
     x: 0,
     y: 372,
@@ -237,6 +254,8 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       title: "Workers 4",
       containerHighlighted: false,
       enabledByLine: "off",
+      length: 2,
+      direction: "horizontal",
     },
   },
   {
@@ -312,6 +331,8 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       title: "Durable Objects 3",
       containerHighlighted: true,
       enabledByLine: "off",
+      length: 1,
+      direction: "horizontal",
     },
   },
   {
@@ -327,6 +348,8 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       title: "Durable Objects 1",
       containerHighlighted: true,
       enabledByLine: "off",
+      length: 1,
+      direction: "horizontal",
     },
   },
   {
@@ -342,6 +365,8 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       title: "Workers 3",
       containerHighlighted: false,
       enabledByLine: "off",
+      length: 1,
+      direction: "horizontal",
     },
   },
   {
@@ -357,6 +382,8 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       title: "Workers 2",
       containerHighlighted: false,
       enabledByLine: "off",
+      length: 1,
+      direction: "horizontal",
     },
   },
   {
@@ -372,6 +399,8 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       title: "Workers 1",
       containerHighlighted: false,
       enabledByLine: "off",
+      length: 1,
+      direction: "horizontal",
     },
   },
   {

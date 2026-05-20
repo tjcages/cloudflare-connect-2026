@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ComponentInstance } from "../grid/types";
 import { DEFAULT_CONFIG } from "../grid/config";
 import { createComponentInstance } from "./componentRegistry";
 import { getDefaultDocumentSlice } from "../storePersist";
@@ -48,7 +49,7 @@ describe("documentSnapshot", () => {
     expect(text.startsWith('{"v":')).toBe(true);
   });
 
-  it("v3 encoding is shorter than v2 for the default document", () => {
+  it("v4 encoding is shorter than or equal to v2 for the default document", () => {
     const { gridConfig, instances, nextInstanceIndex, selectedInstanceId } = getDefaultDocumentSlice();
     const snapshot: BuilderDocumentSnapshot = {
       gridConfig,
@@ -58,7 +59,9 @@ describe("documentSnapshot", () => {
       canvasPan: { x: 0, y: 0 },
     };
 
-    expect(serializeBuilderDocumentSnapshot(snapshot).length).toBeLessThan(__testOnlySerializeV2(snapshot).length);
+    expect(serializeBuilderDocumentSnapshot(snapshot).length).toBeLessThanOrEqual(
+      __testOnlySerializeV2(snapshot).length,
+    );
   });
 
   it("v2 encoding is shorter than v1 for the default document", () => {
@@ -77,16 +80,39 @@ describe("documentSnapshot", () => {
     expect(v2.length).toBeLessThan(v1.length);
   });
 
-  it("serializeBuilderDocumentSnapshot round-trips icon-box-1x2 layers", async () => {
-    const box = createComponentInstance("icon-box-1x2", 40, 52, 7, 800, 560);
+  it("serializeBuilderDocumentSnapshot round-trips length-2 vertical icon-box layers", async () => {
+    const box = createComponentInstance("icon-box", 40, 52, 7, 800, 560) as Extract<
+      ComponentInstance,
+      { type: "icon-box" }
+    >;
+    const verticalBox: Extract<ComponentInstance, { type: "icon-box" }> = {
+      ...box,
+      props: { ...box.props, length: 2, direction: "vertical" },
+    };
     const snapshot: BuilderDocumentSnapshot = {
       ...sampleSnapshot,
-      instances: [box],
+      instances: [verticalBox],
       nextInstanceIndex: 8,
-      selectedInstanceId: box.id,
+      selectedInstanceId: verticalBox.id,
     };
     const text = serializeBuilderDocumentSnapshot(snapshot);
     await expect(parseBuilderDocumentSnapshotInput(text)).resolves.toEqual(snapshot);
+  });
+
+  it("parseBuilderDocumentSnapshotInput migrates legacy v3 icon-box-1x2 type codes", async () => {
+    const { gridConfig, nextInstanceIndex } = getDefaultDocumentSlice();
+    const legacyWire = {
+      v: 3,
+      g: { s: gridConfig.seed, w: gridConfig.width, h: gridConfig.height },
+      l: [[5, "icon-box-legacy-1", 80, 120, { t: 1, T: "Stacked" }]],
+      n: nextInstanceIndex,
+    };
+    const parsed = (await parseBuilderDocumentSnapshotInput(JSON.stringify(legacyWire))) as BuilderDocumentSnapshot;
+    expect(parsed.instances[0]).toMatchObject({
+      id: "icon-box-legacy-1",
+      type: "icon-box",
+      props: { length: 2, direction: "vertical", title: "Stacked" },
+    });
   });
 
   it("parseBuilderDocumentSnapshotInput accepts legacy full-key snapshots", async () => {

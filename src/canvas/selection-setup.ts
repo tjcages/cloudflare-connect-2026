@@ -3,7 +3,7 @@ import type { Ticker } from "../components/pixi";
 import { LARGE_CELL_SIZE } from "../grid/types";
 import type { ComponentInstance } from "../grid/types";
 import { getInstanceHighlightBounds } from "../lib/componentRegistry";
-import { isIconBoxComponentType } from "../lib/icon-box/layout";
+import { isIconBoxInstance } from "../lib/icon-box/layout";
 import { useAppStore } from "../store";
 import type { ConnectorEndpointPickState } from "../types/document";
 import {
@@ -39,7 +39,7 @@ const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance, 
   const b = getInstanceHighlightBounds(inst);
   let w = b.width;
   let h = b.height;
-  if (isIconBoxComponentType(inst.type) || inst.type === "plus-marker") {
+  if (isIconBoxInstance(inst) || inst.type === "plus-marker") {
     w += 1;
     h += 1;
   }

@@ -424,7 +424,21 @@ export const useAppStore = create<AppStoreState>()(
                 return instance;
               }
               if (isIconBoxInstance(instance) && "iconId" in props) {
-                return { ...instance, props: props as IconBoxProps };
+                const newProps = props as IconBoxProps;
+                const layoutChanged =
+                  newProps.length !== instance.props.length || newProps.direction !== instance.props.direction;
+                if (layoutChanged) {
+                  const snapped = snapComponentPosition(
+                    instance.x,
+                    instance.y,
+                    s.grid.config.logicalWidth,
+                    s.grid.config.logicalHeight,
+                    "icon-box",
+                    newProps,
+                  );
+                  return { ...instance, x: snapped.x, y: snapped.y, props: newProps };
+                }
+                return { ...instance, props: newProps };
               }
               if (instance.type === "plus-marker") {
                 return { ...instance, props: { ...instance.props, ...props } as PlusMarkerProps };

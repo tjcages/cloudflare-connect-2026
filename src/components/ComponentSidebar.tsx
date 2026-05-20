@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEventHandler, ReactNode } from "react";
 import { getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
 import { isIconBoxLayerConnectorTarget } from "../lib/iconBoxEnabledByLine";
-import { isIconBoxComponentType } from "../lib/icon-box/layout";
+import { isIconBoxInstance } from "../lib/icon-box/layout";
 import { isInteractiveListChromeTarget } from "../lib/isInteractiveListChromeTarget";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
@@ -16,6 +16,7 @@ import { ConfigDebugDisclosure } from "./ConfigDebugDisclosure";
 import { ConfigSeparator } from "./ConfigSeparator";
 import { FieldToggle } from "./FieldToggle";
 import { IconPickerField } from "./IconPickerField";
+import { IconBoxLayoutFields } from "./IconBoxLayoutFields";
 import { LayerConfigPanel } from "./LayerConfigPanel";
 import { SectionHeading } from "./SectionHeading";
 import { COMPONENT_DEFINITION_LIST, createSidebarPreviewRenderers } from "./sidebarPreview";
@@ -224,8 +225,7 @@ export const ComponentConfigSidebar = ({
 }: ComponentConfigSidebarProps) => {
   const onConfigPanelScroll = useScrollbarThumbFlash();
   const { renderPreview, brushFor } = createSidebarPreviewRenderers(gridStrokeColor);
-  const lineEnableDebugTargetId =
-    selectedInstance && isIconBoxComponentType(selectedInstance.type) ? selectedInstance.id : null;
+  const lineEnableDebugTargetId = selectedInstance && isIconBoxInstance(selectedInstance) ? selectedInstance.id : null;
   const lineEnableDebugRow = useAppStore((s) =>
     lineEnableDebugTargetId ? s.iconBoxLineEnableDebug[lineEnableDebugTargetId] : undefined,
   );
@@ -341,6 +341,23 @@ export const ComponentConfigSidebar = ({
               onUpdateInstanceProps(selectedInstance.id, {
                 ...selectedInstance.props,
                 theme,
+              })
+            }
+          />
+          <IconBoxLayoutFields
+            instanceId={selectedInstance.id}
+            length={selectedInstance.props.length}
+            direction={selectedInstance.props.direction}
+            onLengthChange={(nextLength) =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                length: nextLength,
+              })
+            }
+            onDirectionChange={(nextDirection) =>
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                direction: nextDirection,
               })
             }
           />

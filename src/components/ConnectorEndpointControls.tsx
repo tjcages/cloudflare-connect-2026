@@ -2,7 +2,7 @@ import { ChevronDown, Crosshair } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FocusEventHandler, ReactNode } from "react";
 import { getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
-import { isIconBoxComponentType } from "../lib/icon-box/layout";
+import { isIconBoxInstance } from "../lib/icon-box/layout";
 import type { ComponentInstance, ConnectorEndpoint, ConnectorLineProps } from "../grid/types";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
@@ -33,7 +33,7 @@ const EndpointSelect = ({ label, endpoint, instances, renderPreview, onSelect, f
   const [open, setOpen] = useState(false);
   const setSidebarHoveredLayerId = useAppStore((s) => s.setSidebarHoveredLayerId);
   const onOptionsScroll = useScrollbarThumbFlash();
-  const selectableLayers = instances.filter((instance) => isIconBoxComponentType(instance.type));
+  const selectableLayers = instances.filter((instance) => isIconBoxInstance(instance));
   const selectedLayer =
     endpoint.kind === "layer" ? (instances.find((instance) => instance.id === endpoint.instanceId) ?? null) : null;
   const selectedTitle = selectedLayer ? getInstanceDisplayName(selectedLayer) : "Static cell";

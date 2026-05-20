@@ -7,10 +7,12 @@ import type {
   ConnectorLineProps,
   GapMask,
   GridConfig,
+  IconBoxProps,
   IconId,
 } from "../grid/types";
 import { PALETTE_THEMES, type PaletteThemeId } from "../theme/palette";
 import { getComponentDefinition } from "./componentRegistry";
+import { layoutSpecFromLegacyType, normalizeIconBoxProps } from "./icon-box/layout";
 
 /** Inner zustand `partialize` document slice (not the `{ state, version }` envelope). */
 export type BuilderDocumentSnapshot = {
@@ -32,6 +34,7 @@ export type BuilderDocumentSnapshotSource = {
 const COMPACT_V1 = 1 as const;
 const COMPACT_V2 = 2 as const;
 const COMPACT_V3 = 3 as const;
+const COMPACT_V4 = 4 as const;
 const GZIP_PREFIX = "z:";
 
 const THEME_TO_CODE = Object.fromEntries(PALETTE_THEMES.map((theme, index) => [theme.id, index])) as Record<
@@ -40,14 +43,18 @@ const THEME_TO_CODE = Object.fromEntries(PALETTE_THEMES.map((theme, index) => [t
 >;
 const CODE_TO_THEME = PALETTE_THEMES.map((theme) => theme.id);
 
-const COMPONENT_TYPE_CODES: ComponentType[] = [
+/** Current compact type table (v4+). */
+const COMPONENT_TYPE_CODES: ComponentType[] = ["icon-box", "plus-marker", "rect-marker", "connector-line"];
+
+/** Pre-unification v2/v3 type table — kept for share import only. */
+const LEGACY_COMPONENT_TYPE_CODES = [
   "icon-box",
   "icon-box-2x1",
   "plus-marker",
   "rect-marker",
   "connector-line",
   "icon-box-1x2",
-];
+] as const;
 
 const TYPE_TO_CODE = Object.fromEntries(COMPONENT_TYPE_CODES.map((type, index) => [type, index])) as Record<
   ComponentType,
@@ -78,7 +85,7 @@ type CompactV1Wire = {
 };
 
 type CompactWire = {
-  v: typeof COMPACT_V2 | typeof COMPACT_V3;
+  v: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4;
   g: CompactGridSparse;
   l: CompactLayerRow[];
   n: number;
@@ -87,7 +94,7 @@ type CompactWire = {
 };
 
 type CompactV2Wire = CompactWire & { v: typeof COMPACT_V2 };
-type CompactV3Wire = CompactWire & { v: typeof COMPACT_V3 };
+type CompactV4Wire = CompactWire & { v: typeof COMPACT_V4 };
 
 type CompactEndpointWire = [0, number, number] | [1, number] | [1, string];
 
@@ -186,6 +193,16 @@ const compactIconBoxPropsDelta = (
       continue;
     }
 
+    if (key === "length" && typeof value === "number" && value !== 1) {
+      delta.l = value;
+      continue;
+    }
+
+    if (key === "direction" && value === "vertical") {
+      delta.d = "v";
+      continue;
+    }
+
     delta[key] = value;
   }
 
@@ -221,6 +238,14 @@ const expandIconBoxPropsDelta = (defaults: ComponentProps, delta?: Record<string
     }
     if (key === "T") {
       props.title = value;
+      continue;
+    }
+    if (key === "l" && typeof value === "number") {
+      props.length = value;
+      continue;
+    }
+    if (key === "d") {
+      props.direction = value === "v" ? "vertical" : "horizontal";
       continue;
     }
     props[key] = value;
@@ -337,7 +362,7 @@ const pickPropsDelta = (
   idToIndex?: Map<string, number>,
 ): Record<string, unknown> | undefined => {
   const defaults = getComponentDefinition(type).defaultProps;
-  if (type === "icon-box" || type === "icon-box-2x1" || type === "icon-box-1x2") {
+  if (type === "icon-box") {
     return compactIconBoxPropsDelta(defaults, props);
   }
 
@@ -368,7 +393,7 @@ const expandPropsDelta = (
   instanceIds: string[] = [],
 ): ComponentProps => {
   const defaults = getComponentDefinition(type).defaultProps;
-  if (type === "icon-box" || type === "icon-box-2x1" || type === "icon-box-1x2") {
+  if (type === "icon-box") {
     return expandIconBoxPropsDelta(defaults, delta);
   }
 
@@ -401,12 +426,38 @@ const toCompactLayerRow = (instance: ComponentInstance, idToIndex?: Map<string, 
   return [typeCode, instance.id, instance.x, instance.y];
 };
 
-const fromCompactLayerRow = (row: CompactLayerRow, instanceIds: string[] = []): ComponentInstance => {
-  const typeCode = row[0];
-  const type = COMPONENT_TYPE_CODES[typeCode];
-  if (!type) {
+const resolveCompactLayerType = (
+  typeCode: number,
+  version: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4,
+): { type: ComponentType; layoutMigration?: Pick<IconBoxProps, "length" | "direction"> } => {
+  if (version === COMPACT_V4) {
+    const type = COMPONENT_TYPE_CODES[typeCode];
+    if (!type) {
+      throw new Error(`Unknown component type code: ${typeCode}`);
+    }
+    return { type };
+  }
+
+  const legacyType = LEGACY_COMPONENT_TYPE_CODES[typeCode];
+  if (!legacyType) {
     throw new Error(`Unknown component type code: ${typeCode}`);
   }
+
+  const legacySpec = layoutSpecFromLegacyType(legacyType);
+  if (legacySpec) {
+    return { type: "icon-box", layoutMigration: legacySpec };
+  }
+
+  return { type: legacyType as ComponentType };
+};
+
+const fromCompactLayerRow = (
+  row: CompactLayerRow,
+  instanceIds: string[] = [],
+  version: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4 = COMPACT_V4,
+): ComponentInstance => {
+  const typeCode = row[0];
+  const { type, layoutMigration } = resolveCompactLayerType(typeCode, version);
 
   const id = row[1];
   const x = row[2];
@@ -431,6 +482,11 @@ const fromCompactLayerRow = (row: CompactLayerRow, instanceIds: string[] = []): 
   }
 
   const definition = getComponentDefinition(type);
+  const defaultProps = definition.defaultProps;
+  let props = expandPropsDelta(type, Object.keys(propsDelta ?? {}).length ? propsDelta : undefined, instanceIds);
+  if (type === "icon-box" && layoutMigration) {
+    props = normalizeIconBoxProps({ ...(props as IconBoxProps), ...layoutMigration }, defaultProps as IconBoxProps);
+  }
 
   return {
     id,
@@ -438,16 +494,18 @@ const fromCompactLayerRow = (row: CompactLayerRow, instanceIds: string[] = []): 
     name: customName ?? definition.label,
     x,
     y,
-    props: expandPropsDelta(type, Object.keys(propsDelta ?? {}).length ? propsDelta : undefined, instanceIds),
+    props,
   } as ComponentInstance;
 };
 
 const buildCompactWire = (
   snapshot: BuilderDocumentSnapshot,
-  version: typeof COMPACT_V2 | typeof COMPACT_V3,
+  version: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4,
 ): CompactWire => {
   const idToIndex =
-    version === COMPACT_V3 ? new Map(snapshot.instances.map((instance, index) => [instance.id, index])) : undefined;
+    version === COMPACT_V3 || version === COMPACT_V4
+      ? new Map(snapshot.instances.map((instance, index) => [instance.id, index]))
+      : undefined;
 
   const wire: CompactWire = {
     v: version,
@@ -470,8 +528,8 @@ const buildCompactWire = (
 const toCompactV2 = (snapshot: BuilderDocumentSnapshot): CompactV2Wire =>
   buildCompactWire(snapshot, COMPACT_V2) as CompactV2Wire;
 
-const toCompactV3 = (snapshot: BuilderDocumentSnapshot): CompactV3Wire =>
-  buildCompactWire(snapshot, COMPACT_V3) as CompactV3Wire;
+const toCompactV4 = (snapshot: BuilderDocumentSnapshot): CompactV4Wire =>
+  buildCompactWire(snapshot, COMPACT_V4) as CompactV4Wire;
 
 const toCompactV1 = (snapshot: BuilderDocumentSnapshot): CompactV1Wire => {
   const g = snapshot.gridConfig;
@@ -496,7 +554,7 @@ const expandCompactWire = (compact: CompactWire): BuilderDocumentSnapshot => {
   const instanceIds = compact.l.map((row) => row[1]);
   return {
     gridConfig: fromCompactGrid(compact.g),
-    instances: compact.l.map((row) => fromCompactLayerRow(row, instanceIds)),
+    instances: compact.l.map((row) => fromCompactLayerRow(row, instanceIds, compact.v)),
     nextInstanceIndex: compact.n,
     selectedInstanceId: compact.s ?? null,
     canvasPan: { x: compact.p?.[0] ?? 0, y: compact.p?.[1] ?? 0 },
@@ -506,7 +564,7 @@ const expandCompactWire = (compact: CompactWire): BuilderDocumentSnapshot => {
 export const expandCompactBuilderDocumentSnapshot = (
   snapshot: BuilderDocumentSnapshot | CompactV1Wire | CompactWire,
 ): BuilderDocumentSnapshot => {
-  if ("v" in snapshot && (snapshot.v === COMPACT_V2 || snapshot.v === COMPACT_V3)) {
+  if ("v" in snapshot && (snapshot.v === COMPACT_V2 || snapshot.v === COMPACT_V3 || snapshot.v === COMPACT_V4)) {
     return expandCompactWire(snapshot as CompactWire);
   }
 
@@ -541,15 +599,13 @@ export const expandCompactBuilderDocumentSnapshot = (
   };
 };
 
-const minifiedCompactJsonCandidates = (snapshot: BuilderDocumentSnapshot): string[] => {
-  const v3 = JSON.stringify(toCompactV3(snapshot));
-  const v2 = JSON.stringify(toCompactV2(snapshot));
-  return v3.length <= v2.length ? [v3, v2] : [v2, v3];
-};
+const minifiedCompactJsonCandidates = (snapshot: BuilderDocumentSnapshot): string[] => [
+  JSON.stringify(toCompactV4(snapshot)),
+];
 
-/** Minified compact JSON (prefers v3 when smaller; gzip may wrap further on copy). */
+/** Minified compact JSON (v4; gzip may wrap further on copy). */
 export const serializeBuilderDocumentSnapshot = (snapshot: BuilderDocumentSnapshot): string =>
-  minifiedCompactJsonCandidates(snapshot)[0];
+  JSON.stringify(toCompactV4(snapshot));
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 
@@ -583,7 +639,7 @@ const isCompactLayerRow = (value: unknown): value is CompactLayerRow => {
 };
 
 const isCompactWire = (value: unknown): value is CompactWire => {
-  if (!isRecord(value) || (value.v !== COMPACT_V2 && value.v !== COMPACT_V3)) {
+  if (!isRecord(value) || (value.v !== COMPACT_V2 && value.v !== COMPACT_V3 && value.v !== COMPACT_V4)) {
     return false;
   }
 

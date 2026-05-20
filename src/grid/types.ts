@@ -41,13 +41,7 @@ export type GeneratedGrid = {
   cells: GridCell[];
 };
 
-export type ComponentType =
-  | "icon-box"
-  | "icon-box-2x1"
-  | "icon-box-1x2"
-  | "plus-marker"
-  | "rect-marker"
-  | "connector-line";
+export type ComponentType = "icon-box" | "plus-marker" | "rect-marker" | "connector-line";
 
 export type IconId =
   | "section-mark"
@@ -63,7 +57,13 @@ import type { PaletteThemeId } from "../theme/palette";
 /** Target-side line activation (sidebar): drives gray vs themed presentation from connector pulses. */
 export type IconBoxEnabledByLineMode = "off" | "once" | "iterated";
 
+export type IconBoxDirection = "horizontal" | "vertical";
+
 export type IconBoxProps = {
+  /** Number of icon slots (≥ 1). Defaults to 1 when omitted. */
+  length?: number;
+  /** Stack direction when length > 1. Ignored for length === 1. Defaults to horizontal. */
+  direction?: IconBoxDirection;
   /** When true, corner squares use accent theme fill; when false, neutral gray. */
   matchCornersWithTheme: boolean;
   theme: PaletteThemeId;
@@ -123,24 +123,6 @@ export type IconBoxInstance = {
   props: IconBoxProps;
 };
 
-export type IconBox2x1Instance = {
-  id: string;
-  type: "icon-box-2x1";
-  name: string;
-  x: number;
-  y: number;
-  props: IconBoxProps;
-};
-
-export type IconBox1x2Instance = {
-  id: string;
-  type: "icon-box-1x2";
-  name: string;
-  x: number;
-  y: number;
-  props: IconBoxProps;
-};
-
 export type PlusMarkerInstance = {
   id: string;
   type: "plus-marker";
@@ -169,13 +151,7 @@ export type ConnectorLineInstance = {
   props: ConnectorLineProps;
 };
 
-export type ComponentInstance =
-  | IconBoxInstance
-  | IconBox2x1Instance
-  | IconBox1x2Instance
-  | PlusMarkerInstance
-  | RectMarkerInstance
-  | ConnectorLineInstance;
+export type ComponentInstance = IconBoxInstance | PlusMarkerInstance | RectMarkerInstance | ConnectorLineInstance;
 
 export type CandidateCell = {
   kind: GridCellKind;

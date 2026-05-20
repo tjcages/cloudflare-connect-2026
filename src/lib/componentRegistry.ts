@@ -1,18 +1,12 @@
 import {
-  ICON_BOX_1X2_MIN_ROOT_Y,
-  ICON_BOX_1X2_OUTER_HEIGHT,
-  ICON_BOX_1X2_SNAP_ANCHOR_Y,
-  ICON_BOX_2X1_SNAP_ANCHOR_X,
-  ICON_BOX_MIN_ROOT_Y,
+  getIconBoxConnectorAnchorInRootSpace,
+  getIconBoxFullHighlightBoundsInRootSpace,
+  getIconBoxMetrics,
   ICON_BOX_OUTER_HEIGHT,
   ICON_BOX_SNAP_ANCHOR_X,
   ICON_BOX_SNAP_ANCHOR_Y,
-  getIconBoxConnectorAnchorInRootSpace,
-  getIconBoxFullHighlightBoundsInRootSpace,
-  getIconBoxLayoutVariant,
-  getIconBoxShadowCardBoundsInRootSpace,
-  isIconBoxComponentType,
   isIconBoxInstance,
+  resolveIconBoxLayout,
 } from "./icon-box/layout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 import {
@@ -33,7 +27,7 @@ export type ComponentDefinition = {
   label: string;
   width: number;
   height: number;
-  /** Offset from instance root (x, y) to the grid snap point (icon-box: shadow-card center; icon-box-2x1: west edge; icon-box-1x2: north edge). */
+  /** Offset from instance root (x, y) to the grid snap point. Icon-box uses prop-driven metrics at runtime. */
   snapAnchorX: number;
   snapAnchorY: number;
   defaultProps: ComponentProps;
@@ -44,6 +38,8 @@ export type ComponentDefinition = {
 /** Added to rect-marker instance `x`/`y` when positioning the Pixi layer and for hit bounds (grid stroke alignment). */
 export const RECT_MARKER_RENDER_OFFSET = 0.5;
 
+export { getIconBoxMetrics } from "./icon-box/layout";
+
 export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
   "icon-box": {
     type: "icon-box",
@@ -53,52 +49,8 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     snapAnchorX: ICON_BOX_SNAP_ANCHOR_X,
     snapAnchorY: ICON_BOX_SNAP_ANCHOR_Y,
     defaultProps: {
-      matchCornersWithTheme: false,
-      theme: "purple",
-      iconId: DEFAULT_ICON_ID,
-      title: "Workers",
-      containerHighlighted: false,
-      enabledByLine: "off",
-    },
-    dynamicTitle: (config) => {
-      if (!("title" in config)) {
-        return undefined;
-      }
-      const t = config.title.trim();
-      return t.length ? t : undefined;
-    },
-  },
-  "icon-box-2x1": {
-    type: "icon-box-2x1",
-    label: "Icon Box 2x1",
-    width: 160,
-    height: ICON_BOX_OUTER_HEIGHT,
-    snapAnchorX: ICON_BOX_2X1_SNAP_ANCHOR_X,
-    snapAnchorY: ICON_BOX_SNAP_ANCHOR_Y,
-    defaultProps: {
-      matchCornersWithTheme: false,
-      theme: "purple",
-      iconId: DEFAULT_ICON_ID,
-      title: "Workers",
-      containerHighlighted: false,
-      enabledByLine: "off",
-    },
-    dynamicTitle: (config) => {
-      if (!("title" in config)) {
-        return undefined;
-      }
-      const t = config.title.trim();
-      return t.length ? t : undefined;
-    },
-  },
-  "icon-box-1x2": {
-    type: "icon-box-1x2",
-    label: "Icon Box 1x2",
-    width: 80,
-    height: ICON_BOX_1X2_OUTER_HEIGHT,
-    snapAnchorX: ICON_BOX_SNAP_ANCHOR_X,
-    snapAnchorY: ICON_BOX_1X2_SNAP_ANCHOR_Y,
-    defaultProps: {
+      length: 1,
+      direction: "horizontal",
       matchCornersWithTheme: false,
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
@@ -242,36 +194,45 @@ export const snapComponentPosition = (
   canvasWidth: number,
   canvasHeight: number,
   type: ComponentType,
+  props?: ComponentProps,
 ) => {
   if (type === "connector-line") {
     return snapConnectorCellCenter(x, y, canvasWidth, canvasHeight);
   }
 
+  if (type === "icon-box") {
+    const iconProps = (props ?? getComponentDefinition("icon-box").defaultProps) as IconBoxProps;
+    const metrics = getIconBoxMetrics(iconProps);
+    const maxX = Math.max(0, canvasWidth - metrics.width);
+    const maxY = Math.max(0, canvasHeight - (metrics.shadowCardBounds.y + metrics.shadowCardBounds.height));
+
+    const snapIconBoxAxisX = (): number =>
+      metrics.edgeSnapX
+        ? snapRootAxis(x, metrics.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, 0)
+        : snapRootAxis(x, metrics.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET);
+
+    const snapIconBoxAxisY = (): number =>
+      metrics.edgeSnapY
+        ? snapRootAxis(y, metrics.snapAnchorY, maxY, metrics.minRootY, LARGE_CELL_SIZE, 0)
+        : snapRootAxis(y, metrics.snapAnchorY, maxY, metrics.minRootY, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET);
+
+    return { x: snapIconBoxAxisX(), y: snapIconBoxAxisY() };
+  }
+
   const definition = getComponentDefinition(type);
-  const variant = getIconBoxLayoutVariant(type);
-  const iconBoxBounds = variant !== null ? getIconBoxShadowCardBoundsInRootSpace(variant) : null;
   const maxX = Math.max(0, canvasWidth - definition.width);
-  const maxY = Math.max(0, canvasHeight - (iconBoxBounds ? iconBoxBounds.y + iconBoxBounds.height : definition.height));
-
-  const snapIconBoxAxisX = (): number =>
-    variant === "icon-box-2x1"
-      ? snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, 0)
-      : snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET);
-
-  const snapIconBoxAxisY = (): number =>
-    variant === "icon-box-1x2"
-      ? snapRootAxis(y, definition.snapAnchorY, maxY, ICON_BOX_1X2_MIN_ROOT_Y, LARGE_CELL_SIZE, 0)
-      : snapRootAxis(y, definition.snapAnchorY, maxY, ICON_BOX_MIN_ROOT_Y, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET);
+  const maxY = Math.max(0, canvasHeight - definition.height);
 
   return {
-    x: variant !== null ? snapIconBoxAxisX() : snapRootAxis(x, definition.snapAnchorX, maxX),
-    y: variant !== null ? snapIconBoxAxisY() : snapRootAxis(y, definition.snapAnchorY, maxY),
+    x: snapRootAxis(x, definition.snapAnchorX, maxX),
+    y: snapRootAxis(y, definition.snapAnchorY, maxY),
   };
 };
 
 export const getInstanceAnchorPoint = (instance: ComponentInstance): { x: number; y: number } => {
-  if (isIconBoxComponentType(instance.type)) {
-    const anchor = getIconBoxConnectorAnchorInRootSpace(instance.type);
+  if (isIconBoxInstance(instance)) {
+    const spec = resolveIconBoxLayout(instance.props);
+    const anchor = getIconBoxConnectorAnchorInRootSpace(spec);
     return { x: instance.x + anchor.x, y: instance.y + anchor.y };
   }
   const definition = getComponentDefinition(instance.type);
@@ -289,8 +250,8 @@ export const getInstanceCanvasBounds = (
   instance: ComponentInstance,
 ): { x: number; y: number; width: number; height: number } => {
   const definition = getComponentDefinition(instance.type);
-  if (isIconBoxComponentType(instance.type)) {
-    const r = getIconBoxShadowCardBoundsInRootSpace(instance.type);
+  if (isIconBoxInstance(instance)) {
+    const { shadowCardBounds: r } = getIconBoxMetrics(instance.props);
     return {
       x: instance.x + r.x,
       y: instance.y + r.y,
@@ -333,7 +294,8 @@ export const getInstanceHighlightBounds = (
   instance: ComponentInstance,
 ): { x: number; y: number; width: number; height: number } => {
   if (isIconBoxInstance(instance)) {
-    const r = getIconBoxFullHighlightBoundsInRootSpace(instance.props.title, instance.type);
+    const spec = resolveIconBoxLayout(instance.props);
+    const r = getIconBoxFullHighlightBoundsInRootSpace(instance.props.title, spec);
     return {
       x: instance.x + r.x,
       y: instance.y + r.y,
@@ -353,7 +315,7 @@ export const createComponentInstance = (
   canvasHeight = Number.POSITIVE_INFINITY,
 ): ComponentInstance => {
   const definition = getComponentDefinition(type);
-  const position = snapComponentPosition(x, y, canvasWidth, canvasHeight, type);
+  const defaultProps = definition.defaultProps;
 
   if (type === "connector-line") {
     const source = snapConnectorCellCenter(x, y, canvasWidth, canvasHeight);
@@ -362,7 +324,7 @@ export const createComponentInstance = (
       target = snapConnectorCellCenter(source.x - LARGE_CELL_SIZE * 2, source.y, canvasWidth, canvasHeight);
     }
     const props: ConnectorLineProps = {
-      ...(definition.defaultProps as ConnectorLineProps),
+      ...(defaultProps as ConnectorLineProps),
       source: { kind: "cell", ...source },
       target: { kind: "cell", ...target },
     };
@@ -377,14 +339,16 @@ export const createComponentInstance = (
     };
   }
 
-  if (isIconBoxComponentType(type)) {
+  const position = snapComponentPosition(x, y, canvasWidth, canvasHeight, type, defaultProps);
+
+  if (type === "icon-box") {
     return {
       id: `${type}-${index}`,
       type,
       name: `${definition.label} ${index}`,
       x: position.x,
       y: position.y,
-      props: { ...(definition.defaultProps as IconBoxProps) },
+      props: { ...(defaultProps as IconBoxProps) },
     };
   }
 
@@ -395,7 +359,7 @@ export const createComponentInstance = (
       name: `${definition.label} ${index}`,
       x: position.x,
       y: position.y,
-      props: { ...(definition.defaultProps as RectMarkerProps) },
+      props: { ...(defaultProps as RectMarkerProps) },
     };
   }
 
@@ -405,6 +369,6 @@ export const createComponentInstance = (
     name: `${definition.label} ${index}`,
     x: position.x,
     y: position.y,
-    props: { ...(definition.defaultProps as PlusMarkerProps) },
+    props: { ...(defaultProps as PlusMarkerProps) },
   };
 };

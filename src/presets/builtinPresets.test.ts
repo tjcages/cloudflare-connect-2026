@@ -18,9 +18,10 @@ describe("builtinPresets", () => {
     expect(gridConfig.seed).toBe("preset-crowded-3c");
     expect(instances).toHaveLength(3);
 
-    expect(instances.map((i) => i.type)).toEqual(["icon-box-2x1", "icon-box", "icon-box"]);
+    expect(instances.map((i) => i.type)).toEqual(["icon-box", "icon-box", "icon-box"]);
+    expect(instances[0].props).toMatchObject({ length: 2, direction: "horizontal" });
 
-    const themes = instances.map((i) => (i.type === "icon-box" || i.type === "icon-box-2x1" ? i.props.theme : null));
+    const themes = instances.map((i) => (i.type === "icon-box" ? i.props.theme : null));
     expect(themes).toEqual(["blue", "orange", "purple"]);
   });
 });

@@ -1,31 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
-  ICON_BOX_2X1_CENTER_STROKE_HEIGHT,
-  ICON_BOX_2X1_CENTER_STROKE_WIDTH,
-  ICON_BOX_2X1_INNER_WIDTH,
+  ICON_BOX_CENTER_STROKE_LONG,
+  ICON_BOX_CENTER_STROKE_SHORT,
   ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR,
   ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR,
   ICON_BOX_ICON_SLOT_SIZE,
-  ICON_BOX_INNER_CENTER_Y,
   ICON_BOX_INNER_OFFSET,
   ICON_BOX_INNER_SIZE,
   ICON_BOX_INNER_TOP,
   ICON_HOLD_OFFSET_X,
-  ICON_HOLD_OFFSET_X_SECOND,
-  ICON_HOLD_OFFSET_Y,
-  ICON_HOLD_OFFSET_Y_SECOND,
-  ICON_BOX_1X2_CENTER_STROKE_HEIGHT,
-  ICON_BOX_1X2_CENTER_STROKE_WIDTH,
-  ICON_BOX_1X2_INNER_HEIGHT,
-  ICON_BOX_INNER_CENTER_X,
-  getIconBox1x2CenterStrokeAnchor,
-  getIconBox1x2IconDecorationSlots,
-  getIconBox2x1CenterStrokeAnchor,
-  getIconBox2x1IconDecorationSlots,
-  getIconBoxIconSlotOriginVertical,
+  getIconBoxCenterStrokeAnchors,
+  getIconBoxHorizontalAccentCenterX,
   getIconBoxContainerReticlePosition,
   getIconBoxEdgeTickRects,
-  getIconBoxIconSlotOrigin,
+  getIconBoxIconDecorationSlots,
+  getIconBoxIconHolds,
+  resolveIconBoxLayout,
 } from "./layout";
 
 describe("getIconBoxEdgeTickRects", () => {
@@ -44,27 +34,43 @@ describe("getIconBoxEdgeTickRects", () => {
   });
 });
 
-describe("getIconBox2x1IconDecorationSlots", () => {
+describe("getIconBoxIconDecorationSlots", () => {
   const slotSize = ICON_BOX_ICON_SLOT_SIZE;
 
-  it("uses a 48×48 slot centered on each icon, not half the merged inner width", () => {
-    const slots = getIconBox2x1IconDecorationSlots();
+  it("uses the full inner rect for length 1", () => {
+    const spec = resolveIconBoxLayout({ length: 1, direction: "horizontal" });
+    const slots = getIconBoxIconDecorationSlots(spec);
+    expect(slots).toEqual([{ ox: ICON_BOX_INNER_OFFSET, oy: ICON_BOX_INNER_TOP, w: 64, h: 64 }]);
+  });
+
+  it("uses a 48×48 slot centered on each icon for length 2 horizontal", () => {
+    const spec = resolveIconBoxLayout({ length: 2, direction: "horizontal" });
+    const slots = getIconBoxIconDecorationSlots(spec);
     expect(slots).toHaveLength(2);
     expect(slots.every((s) => s.w === slotSize && s.h === slotSize)).toBe(true);
+    expect(slots[0]).toEqual({ ox: 16, oy: 44, w: slotSize, h: slotSize });
+    expect(slots[1]).toEqual({ ox: 96, oy: 44, w: slotSize, h: slotSize });
+  });
 
-    const left = getIconBoxIconSlotOrigin(ICON_HOLD_OFFSET_X);
-    const right = getIconBoxIconSlotOrigin(ICON_HOLD_OFFSET_X_SECOND);
-    expect(slots[0]).toEqual({ ox: left.ox, oy: left.oy, w: slotSize, h: slotSize });
-    expect(slots[1]).toEqual({ ox: right.ox, oy: right.oy, w: slotSize, h: slotSize });
+  it("uses a 48×48 slot centered on each stacked icon for length 2 vertical", () => {
+    const spec = resolveIconBoxLayout({ length: 2, direction: "vertical" });
+    const slots = getIconBoxIconDecorationSlots(spec);
+    expect(slots).toHaveLength(2);
+    expect(slots[0]).toEqual({ ox: 16, oy: 44, w: slotSize, h: slotSize });
+    expect(slots[1]).toEqual({ ox: 16, oy: 124, w: slotSize, h: slotSize });
+  });
 
-    expect(slots[0].ox).toBe(16);
-    expect(slots[1].ox).toBe(96);
-    expect(slots[0].oy).toBe(44);
-    expect(slots[1].oy).toBe(44);
+  it("places three horizontal slots for length 3", () => {
+    const spec = resolveIconBoxLayout({ length: 3, direction: "horizontal" });
+    const holds = getIconBoxIconHolds(spec);
+    expect(holds).toHaveLength(3);
+    expect(holds.map((h) => h.holdX)).toEqual([ICON_HOLD_OFFSET_X, ICON_HOLD_OFFSET_X + 80, ICON_HOLD_OFFSET_X + 160]);
+    expect(getIconBoxIconDecorationSlots(spec)).toHaveLength(3);
   });
 
   it("places ticks flush on each 48×48 slot edge (no inset)", () => {
-    const [leftSlot, rightSlot] = getIconBox2x1IconDecorationSlots();
+    const spec = resolveIconBoxLayout({ length: 2, direction: "horizontal" });
+    const [leftSlot, rightSlot] = getIconBoxIconDecorationSlots(spec);
     expect(getIconBoxEdgeTickRects(leftSlot.ox, leftSlot.oy, leftSlot.w, leftSlot.h)).toEqual([
       { x: 39.5, y: leftSlot.oy, width: 1, height: 2 },
       { x: 39.5, y: leftSlot.oy + leftSlot.h - 2, width: 1, height: 2 },
@@ -75,55 +81,55 @@ describe("getIconBox2x1IconDecorationSlots", () => {
   });
 });
 
-describe("getIconBox1x2IconDecorationSlots", () => {
-  const slotSize = ICON_BOX_ICON_SLOT_SIZE;
-
-  it("uses a 48×48 slot centered on each stacked icon", () => {
-    const slots = getIconBox1x2IconDecorationSlots();
-    expect(slots).toHaveLength(2);
-    expect(slots.every((s) => s.w === slotSize && s.h === slotSize)).toBe(true);
-
-    const top = getIconBoxIconSlotOriginVertical(ICON_HOLD_OFFSET_Y);
-    const bottom = getIconBoxIconSlotOriginVertical(ICON_HOLD_OFFSET_Y_SECOND);
-    expect(slots[0]).toEqual({ ox: top.ox, oy: top.oy, w: slotSize, h: slotSize });
-    expect(slots[1]).toEqual({ ox: bottom.ox, oy: bottom.oy, w: slotSize, h: slotSize });
-
-    expect(slots[0].ox).toBe(16);
-    expect(slots[1].ox).toBe(16);
-    expect(slots[0].oy).toBe(44);
-    expect(slots[1].oy).toBe(124);
-  });
-});
-
-describe("getIconBox1x2CenterStrokeAnchor", () => {
-  it("places the pivot at the vertical center of the merged 1×2 inner card", () => {
-    expect(getIconBox1x2CenterStrokeAnchor()).toEqual({
-      x: ICON_BOX_INNER_CENTER_X,
-      y: ICON_BOX_INNER_TOP + ICON_BOX_1X2_INNER_HEIGHT / 2,
-    });
-    expect(getIconBox1x2CenterStrokeAnchor()).toEqual({ x: 40, y: 108 });
+describe("getIconBoxCenterStrokeAnchors", () => {
+  it("places one dash between two horizontal icons", () => {
+    const spec = resolveIconBoxLayout({ length: 2, direction: "horizontal" });
+    expect(getIconBoxCenterStrokeAnchors(spec)).toEqual([{ x: 80, y: 68 }]);
   });
 
-  it("offsets the 1×12 rect by half width/height for half-pixel centering", () => {
-    const halfW = ICON_BOX_1X2_CENTER_STROKE_WIDTH / 2;
-    const halfH = ICON_BOX_1X2_CENTER_STROKE_HEIGHT / 2;
+  it("places two dashes between three horizontal icons", () => {
+    const spec = resolveIconBoxLayout({ length: 3, direction: "horizontal" });
+    expect(getIconBoxCenterStrokeAnchors(spec)).toEqual([
+      { x: 80, y: 68 },
+      { x: 160, y: 68 },
+    ]);
+  });
+
+  it("places one dash between two vertical icons", () => {
+    const spec = resolveIconBoxLayout({ length: 2, direction: "vertical" });
+    expect(getIconBoxCenterStrokeAnchors(spec)).toEqual([{ x: 40, y: 108 }]);
+  });
+
+  it("offsets horizontal center stroke rect by half width/height for half-pixel centering", () => {
+    const halfW = ICON_BOX_CENTER_STROKE_LONG / 2;
+    const halfH = ICON_BOX_CENTER_STROKE_SHORT / 2;
+    expect({ x: -halfW, y: -halfH }).toEqual({ x: -6, y: -0.5 });
+  });
+
+  it("offsets vertical center stroke rect by half width/height for half-pixel centering", () => {
+    const halfW = ICON_BOX_CENTER_STROKE_SHORT / 2;
+    const halfH = ICON_BOX_CENTER_STROKE_LONG / 2;
     expect({ x: -halfW, y: -halfH }).toEqual({ x: -0.5, y: -6 });
   });
 });
 
-describe("getIconBox2x1CenterStrokeAnchor", () => {
-  it("places the pivot at the horizontal center of the merged 2×1 inner card", () => {
-    expect(getIconBox2x1CenterStrokeAnchor()).toEqual({
-      x: ICON_BOX_INNER_OFFSET + ICON_BOX_2X1_INNER_WIDTH / 2,
-      y: ICON_BOX_INNER_CENTER_Y,
-    });
-    expect(getIconBox2x1CenterStrokeAnchor()).toEqual({ x: 80, y: 68 });
+describe("sampleCenterStrokeLoopPhase", () => {
+  it("starts mid-cycle like a negative animation delay", async () => {
+    const { sampleCenterStrokeLoopPhase } = await import("../../canvas/components/icon-box/iconBoxCenterStroke");
+    expect(sampleCenterStrokeLoopPhase(0, 12)).toEqual({ offset: -12, nextOffset: 12, duration: 0.2 });
+    expect(sampleCenterStrokeLoopPhase(0.2, 12).offset).toBeCloseTo(12, 0);
+    expect(sampleCenterStrokeLoopPhase(0.2, 12).nextOffset).toBe(-12);
+    expect(sampleCenterStrokeLoopPhase(0.05, 12).offset).toBeGreaterThan(-12);
+    expect(sampleCenterStrokeLoopPhase(0.05, 12).offset).toBeLessThan(12);
+    expect(sampleCenterStrokeLoopPhase(0.1, 12).offset).not.toBe(sampleCenterStrokeLoopPhase(0.3, 12).offset);
   });
+});
 
-  it("offsets the 12×1 rect by half width/height for half-pixel centering", () => {
-    const halfW = ICON_BOX_2X1_CENTER_STROKE_WIDTH / 2;
-    const halfH = ICON_BOX_2X1_CENTER_STROKE_HEIGHT / 2;
-    expect({ x: -halfW, y: -halfH }).toEqual({ x: -6, y: -0.5 });
+describe("getIconBoxHorizontalAccentCenterX", () => {
+  it("centers accent bars under each icon column for multi-column layouts", () => {
+    expect(getIconBoxHorizontalAccentCenterX(0)).toBe(40);
+    expect(getIconBoxHorizontalAccentCenterX(1)).toBe(120);
+    expect(getIconBoxHorizontalAccentCenterX(2)).toBe(200);
   });
 });
 

@@ -26,7 +26,7 @@ const crowdedThreeColors2x1And1x1: BuiltinPreset["snapshot"] = {
   instances: [
     {
       id: "icon-box-2x1-1",
-      type: "icon-box-2x1",
+      type: "icon-box",
       name: "Icon Box 2x1 1",
       x: 80,
       y: 120,
@@ -37,6 +37,8 @@ const crowdedThreeColors2x1And1x1: BuiltinPreset["snapshot"] = {
         title: "Blue 2x1",
         containerHighlighted: false,
         enabledByLine: "off",
+        length: 2,
+        direction: "horizontal",
       },
     },
     {
@@ -52,6 +54,8 @@ const crowdedThreeColors2x1And1x1: BuiltinPreset["snapshot"] = {
         title: "Orange 1x1",
         containerHighlighted: false,
         enabledByLine: "off",
+        length: 1,
+        direction: "horizontal",
       },
     },
     {
@@ -67,6 +71,8 @@ const crowdedThreeColors2x1And1x1: BuiltinPreset["snapshot"] = {
         title: "Purple 1x1",
         containerHighlighted: false,
         enabledByLine: "off",
+        length: 1,
+        direction: "horizontal",
       },
     },
   ],

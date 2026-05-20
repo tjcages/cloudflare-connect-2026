@@ -21,7 +21,7 @@ import {
 } from "../../../lib/iconBoxOutgoingPulseGate";
 import { paletteBrush } from "../../../theme/palette";
 
-type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" | "icon-box-1x2" }>;
+type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" }>;
 
 export const LINE_ENABLE_COLOR_DURATION_SEC = 0.45;
 /** After presentation color motion is fully idle, wait this long before starting the next transition. */

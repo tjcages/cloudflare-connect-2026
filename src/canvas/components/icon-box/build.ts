@@ -1,10 +1,9 @@
 import { BoxShadowFilter, type BoxShadowOptions } from "pixi-box-shadow";
 import { Container, Graphics, Sprite, Text } from "pixi.js";
 import { ICON_BOX_TITLE_FONT_FAMILY } from "../../../fonts/iconBoxTitle";
-import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
+import type { ComponentInstance } from "../../../grid/types";
 import { getIconDefinition } from "../../../lib/iconRegistry";
 import {
-  ICON_BOX_2X1_TITLE_REFERENCE_WIDTH,
   ICON_BOX_ACCENT_BAR_GAP,
   ICON_BOX_ACCENT_BAR_HEIGHT,
   ICON_BOX_ACCENT_BAR_WIDTH,
@@ -13,31 +12,27 @@ import {
   ICON_BOX_INNER_SIZE,
   ICON_BOX_INNER_TOP,
   ICON_BOX_RADIUS,
-  ICON_HOLD_OFFSET_X,
-  ICON_HOLD_OFFSET_X_SECOND,
-  ICON_HOLD_OFFSET_Y,
-  ICON_HOLD_OFFSET_Y_SECOND,
   MARKER_SIZE,
   TITLE_BAR_HEIGHT,
-  TITLE_BAR_WIDTH,
   TITLE_FONT_SIZE_PX,
   TITLE_TEXT_PADDING_X,
   getIconBoxCardFrameWidth,
   getIconBoxCardFrameHeight,
   getIconBoxContainerReticlePosition,
-  getIconBox2x1IconDecorationSlots,
-  getIconBox1x2IconDecorationSlots,
+  getIconBoxHorizontalAccentCenterX,
+  getIconBoxIconDecorationSlots,
+  getIconBoxIconHolds,
   getIconBoxDecorationInset,
   getIconBoxEdgeTickRects,
-  type IconBoxDecorationSlot,
   getIconBoxInnerWidth,
   getIconBoxInnerHeight,
+  getIconBoxTitleReferenceWidth,
   getIconBoxTitleBarLayout,
+  resolveIconBoxLayout,
   type IconBoxContainerReticleCorner,
 } from "../../../lib/icon-box/layout";
 import { paletteBrush } from "../../../theme/palette";
-import { buildIconBox1x2CenterStroke } from "./iconBox1x2CenterStroke";
-import { buildIconBox2x1CenterStroke } from "./iconBox2x1CenterStroke";
+import { buildIconBoxCenterStrokes } from "./iconBoxCenterStroke";
 import { rasterizeIcon } from "./iconRaster";
 import type { IconBoxAnimHandles } from "./iconBoxLineEnableCoordinator";
 
@@ -46,7 +41,6 @@ const ICON_RASTER_WHITE = "#FFFFFF";
 const CARD_SHADOW_CSS =
   "0 12px 24px rgba(0, 0, 0, 0.04), 0 6px 12px rgba(0, 0, 0, 0.02), 0 3px 6px rgba(0, 0, 0, 0.01)";
 
-/** Accent underline glow: layers match design drop-shadow stack; RGB follows palette accent (`fillRgb`). */
 const buildAccentBarShadowFilter = (fillRgb: number) =>
   new BoxShadowFilter({
     shapeMode: "box",
@@ -67,11 +61,6 @@ const buildAccentBarShadowFilter = (fillRgb: number) =>
     ] satisfies BoxShadowOptions[],
   });
 
-/**
- * CSS `drop-shadow(0 oy blur ...)` analogue; blur uses box-shadow semantics (sigma = blur/2).
- * pixi-box-shadow texture mode skips the Gaussian pass when blur < 1 (sigma < 0.5), so the
- * sub-1px blur from design is bumped to >=1 while keeping offsets.
- */
 const buildIconShadowFilter = (iconColorHex: number) =>
   new BoxShadowFilter({
     shapeMode: "texture",
@@ -98,13 +87,9 @@ const buildIconShadowFilter = (iconColorHex: number) =>
     ] satisfies BoxShadowOptions[],
   });
 
-/** 22x22 focus reticle at local (0,0); matches reference SVG (Graphics fills, not SVG). */
 const CONTAINER_RETICLE_PX = 22;
-
-/** In chrome layer: above structural `cardFrame` (separate layer), below white shadow card. */
 const CONTAINER_RETICLE_Z_INDEX = 18;
 
-/** 22x22 reticle; white disk; center dot uses theme fill; ticks use grid stroke. */
 const buildContainerCornerReticle = (tickColor: number, centerDotColor: number): Graphics => {
   const g = new Graphics();
   g.roundRect(0, 0, CONTAINER_RETICLE_PX, CONTAINER_RETICLE_PX, 11).fill({ color: 0xffffff });
@@ -119,32 +104,24 @@ const buildContainerCornerReticle = (tickColor: number, centerDotColor: number):
 export type IconBoxDisplayParts = {
   structureRoot: Container;
   chromeRoot: Container;
-  /**
-   * Moves on connector pulses: shadow card, inner corner squares, icons only —
-   * title strip, outer selection reticles (chrome), and shiny accent bars stay fixed.
-   */
   innerBodyMotionRoot: Container;
   animHandles: IconBoxAnimHandles;
   disposeCenterStrokeAnim?: () => void;
 };
 
-export type IconBoxRenderableInstance = Extract<
-  ComponentInstance,
-  { type: "icon-box" | "icon-box-2x1" | "icon-box-1x2" }
->;
+export type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" }>;
 
 export const buildIconBox = (
   instance: IconBoxRenderableInstance,
   gridStrokeColor: number,
   gridStrokeHex: string,
 ): IconBoxDisplayParts => {
-  const variant = instance.type;
-  const titleRefWidth = variant === "icon-box-2x1" ? ICON_BOX_2X1_TITLE_REFERENCE_WIDTH : TITLE_BAR_WIDTH;
-  const innerW = getIconBoxInnerWidth(variant);
-  const innerH = getIconBoxInnerHeight(variant);
-  const frameW = getIconBoxCardFrameWidth(variant);
-  const frameH = getIconBoxCardFrameHeight(variant);
-  /** Frame origin X aligns with padded outer stroke (matches 1×1: inner offset − selection padding). */
+  const spec = resolveIconBoxLayout(instance.props);
+  const titleRefWidth = getIconBoxTitleReferenceWidth(spec);
+  const innerW = getIconBoxInnerWidth(spec);
+  const innerH = getIconBoxInnerHeight(spec);
+  const frameW = getIconBoxCardFrameWidth(spec);
+  const frameH = getIconBoxCardFrameHeight(spec);
   const frameOriginX = ICON_BOX_INNER_OFFSET - 8;
 
   const structureRoot = new Container();
@@ -171,7 +148,6 @@ export const buildIconBox = (
   });
   titleLabel.anchor.set(0.5);
 
-  /** Prefer live Pixi metrics when they exceed canvas `measureText` (e.g. font substitutions). */
   const pixiInner = titleLabel.width;
   if (pixiInner + TITLE_TEXT_PADDING_X * 2 > rectWidth) {
     rectWidth = Math.ceil(pixiInner + TITLE_TEXT_PADDING_X * 2);
@@ -196,21 +172,14 @@ export const buildIconBox = (
   innerBodyMotionRoot.sortableChildren = true;
   innerBodyMotionRoot.zIndex = 23;
 
-  /** Outer selection-frame corners: stacked under shadow card chrome, stationary on pulse hits. */
   const outerReticlesRoot = new Container();
   outerReticlesRoot.sortableChildren = true;
   outerReticlesRoot.zIndex = 22;
 
-  /** Bottom accent shimmer bars: stationary under pulse tilt. Populated below when themed. */
   const accentBarsRoot = new Container();
   accentBarsRoot.sortableChildren = true;
   accentBarsRoot.zIndex = 24;
 
-  /**
-   * Filter + cache live on the **same leaf** (`cacheAsTexture` on this node, not on `chromeRoot`).
-   * Placement uses draw coords at default `.position (0,0)`; grid translation is only `chromeRoot.position`,
-   * so filter bounds stay in **local** space — avoids stacking filter offsets with `chromeRoot` translation.
-   */
   const cardFill = new Graphics();
   cardFill.zIndex = 25;
   cardFill
@@ -227,7 +196,6 @@ export const buildIconBox = (
   innerBodyMotionRoot.addChild(cardFill);
   innerBodyMotionRoot.addChild(cardStroke);
 
-  /** Selection-frame stroke uses the same color as the logical grid (`grid.config.strokeColor`). */
   const cardFrame = new Graphics();
   cardFrame
     .rect(frameOriginX + 0.5, ICON_BOX_CARD_FRAME_ORIGIN_Y + 0.5, frameW, frameH)
@@ -244,12 +212,7 @@ export const buildIconBox = (
   const rectInnerW = innerW;
   const rectInnerH = innerH;
 
-  const decorationSlots: IconBoxDecorationSlot[] =
-    variant === "icon-box-2x1"
-      ? getIconBox2x1IconDecorationSlots()
-      : variant === "icon-box-1x2"
-        ? getIconBox1x2IconDecorationSlots()
-        : [{ ox: rectOriginX, oy: rectOriginY, w: rectInnerW, h: rectInnerH }];
+  const decorationSlots = getIconBoxIconDecorationSlots(spec);
 
   const paintCornerMarkers = (cornerPackedRgb: number) => {
     markers.clear();
@@ -284,14 +247,15 @@ export const buildIconBox = (
   innerBodyMotionRoot.addChild(markers);
 
   let disposeCenterStrokeAnim: (() => void) | undefined;
-  if (variant === "icon-box-2x1") {
-    const { strokeRoot, disposeCenterStrokeAnim: disposeStroke } = buildIconBox2x1CenterStroke(brush.fill);
-    /** After markers so zIndex 41 stacks above ticks (39) when sortableChildren is on. */
-    innerBodyMotionRoot.addChild(strokeRoot);
-    disposeCenterStrokeAnim = disposeStroke;
-  } else if (variant === "icon-box-1x2") {
-    const { strokeRoot, disposeCenterStrokeAnim: disposeStroke } = buildIconBox1x2CenterStroke(brush.fill);
-    innerBodyMotionRoot.addChild(strokeRoot);
+  if (spec.length >= 2) {
+    const { strokeRoots, disposeCenterStrokeAnim: disposeStroke } = buildIconBoxCenterStrokes(
+      spec,
+      spec.direction,
+      brush.fill,
+    );
+    for (const strokeRoot of strokeRoots) {
+      innerBodyMotionRoot.addChild(strokeRoot);
+    }
     disposeCenterStrokeAnim = disposeStroke;
   }
 
@@ -305,7 +269,6 @@ export const buildIconBox = (
     iconSprite.height = 24;
     iconSprite.tint = iconRgb;
 
-    /** Grid / slot placement only — keep filters off this positioned node (see `iconFiltered`). */
     const iconHold = new Container();
     iconHold.zIndex = 50;
     iconHold.position.set(holdX, holdY);
@@ -314,20 +277,13 @@ export const buildIconBox = (
     iconFiltered.filters = [buildIconShadowFilter(iconRgb)];
     iconFiltered.addChild(iconSprite);
     iconHold.addChild(iconFiltered);
-    /** No `cacheAsTexture` here — line-enable tweens `sprite.tint`; cached parent would freeze the glyph gray. */
 
     innerBodyMotionRoot.addChild(iconHold);
     iconSprites.push(iconSprite);
   };
 
-  if (variant === "icon-box-2x1") {
-    addIconAt(ICON_HOLD_OFFSET_X, ICON_HOLD_OFFSET_Y);
-    addIconAt(ICON_HOLD_OFFSET_X_SECOND, ICON_HOLD_OFFSET_Y);
-  } else if (variant === "icon-box-1x2") {
-    addIconAt(ICON_HOLD_OFFSET_X, ICON_HOLD_OFFSET_Y);
-    addIconAt(ICON_HOLD_OFFSET_X, ICON_HOLD_OFFSET_Y_SECOND);
-  } else {
-    addIconAt(ICON_HOLD_OFFSET_X, ICON_HOLD_OFFSET_Y);
+  for (const { holdX, holdY } of getIconBoxIconHolds(spec)) {
+    addIconAt(holdX, holdY);
   }
 
   const accentScaleRoots: IconBoxAnimHandles["accentScaleRoots"] = [];
@@ -348,10 +304,7 @@ export const buildIconBox = (
           ICON_BOX_ACCENT_BAR_WIDTH,
           ICON_BOX_ACCENT_BAR_HEIGHT,
         )
-        .fill({
-          color: accentFillRgb,
-          alpha: 1,
-        });
+        .fill({ color: accentFillRgb, alpha: 1 });
       gfx.filters = [buildAccentBarShadowFilter(accentFillRgb)];
       scaleRoot.addChild(gfx);
       gfx.cacheAsTexture(true);
@@ -359,11 +312,10 @@ export const buildIconBox = (
       accentScaleRoots.push({ scaleRoot });
     };
 
-    if (variant === "icon-box-2x1") {
-      const l = LARGE_CELL_SIZE / 2 - ICON_BOX_ACCENT_BAR_WIDTH / 2;
-      const r = LARGE_CELL_SIZE + LARGE_CELL_SIZE / 2 - ICON_BOX_ACCENT_BAR_WIDTH / 2;
-      mkAccent(l + ICON_BOX_ACCENT_BAR_WIDTH / 2);
-      mkAccent(r + ICON_BOX_ACCENT_BAR_WIDTH / 2);
+    if (spec.direction === "horizontal" && spec.length > 1) {
+      for (let i = 0; i < spec.length; i++) {
+        mkAccent(getIconBoxHorizontalAccentCenterX(i));
+      }
     } else {
       const accentLeft = ICON_BOX_INNER_OFFSET + (ICON_BOX_INNER_SIZE - ICON_BOX_ACCENT_BAR_WIDTH) / 2;
       mkAccent(accentLeft + ICON_BOX_ACCENT_BAR_WIDTH / 2);

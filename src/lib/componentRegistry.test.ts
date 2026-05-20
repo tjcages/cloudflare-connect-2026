@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ComponentInstance } from "../grid/types";
+import type { ComponentInstance, IconBoxProps } from "../grid/types";
 import {
   COMPONENT_REGISTRY,
   RECT_MARKER_RENDER_OFFSET,
@@ -11,22 +11,30 @@ import {
   snapComponentPosition,
 } from "./componentRegistry";
 import {
-  ICON_BOX_1X2_OUTER_HEIGHT,
-  ICON_BOX_1X2_SNAP_ANCHOR_Y,
-  ICON_BOX_2X1_SNAP_ANCHOR_X,
+  ICON_BOX_CARD_FRAME_ORIGIN_X,
   ICON_BOX_CARD_FRAME_ORIGIN_Y,
   ICON_BOX_CARD_FRAME_SIZE,
-  ICON_BOX_HIGHLIGHT_HEIGHT,
   ICON_BOX_OUTER_HEIGHT,
   ICON_BOX_SNAP_ANCHOR_X,
   ICON_BOX_SNAP_ANCHOR_Y,
+  getIconBoxHighlightHeight,
+  getIconBoxMetrics,
+  resolveIconBoxLayout,
 } from "./icon-box/layout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
+
+const iconBoxLayoutProps = (length: number, direction: IconBoxProps["direction"] = "horizontal"): IconBoxProps => ({
+  ...(COMPONENT_REGISTRY["icon-box"].defaultProps as IconBoxProps),
+  length,
+  direction,
+});
 
 describe("componentRegistry", () => {
   it("registers icon-box with corners not matched to theme by default", () => {
     expect(COMPONENT_REGISTRY["icon-box"].label).toBe("Icon Box");
     expect(COMPONENT_REGISTRY["icon-box"].defaultProps).toEqual({
+      length: 1,
+      direction: "horizontal",
       matchCornersWithTheme: false,
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
@@ -36,31 +44,24 @@ describe("componentRegistry", () => {
     });
   });
 
-  it("registers icon-box-2x1 at 160px width sharing icon-box default props", () => {
-    expect(COMPONENT_REGISTRY["icon-box-2x1"].label).toBe("Icon Box 2x1");
-    expect(COMPONENT_REGISTRY["icon-box-2x1"].width).toBe(160);
-    expect(COMPONENT_REGISTRY["icon-box-2x1"].defaultProps).toEqual({
-      matchCornersWithTheme: false,
-      theme: "purple",
-      iconId: DEFAULT_ICON_ID,
-      title: "Workers",
-      containerHighlighted: false,
-      enabledByLine: "off",
-    });
+  it("getIconBoxMetrics returns wider footprint for length 2 horizontal", () => {
+    const metrics = getIconBoxMetrics(iconBoxLayoutProps(2, "horizontal"));
+    expect(metrics.width).toBe(160);
+    expect(metrics.height).toBe(ICON_BOX_OUTER_HEIGHT);
+    expect(metrics.snapAnchorX).toBe(ICON_BOX_CARD_FRAME_ORIGIN_X);
   });
 
-  it("registers icon-box-1x2 at 80px width with taller outer height sharing icon-box default props", () => {
-    expect(COMPONENT_REGISTRY["icon-box-1x2"].label).toBe("Icon Box 1x2");
-    expect(COMPONENT_REGISTRY["icon-box-1x2"].width).toBe(80);
-    expect(COMPONENT_REGISTRY["icon-box-1x2"].height).toBe(ICON_BOX_1X2_OUTER_HEIGHT);
-    expect(COMPONENT_REGISTRY["icon-box-1x2"].defaultProps).toEqual({
-      matchCornersWithTheme: false,
-      theme: "purple",
-      iconId: DEFAULT_ICON_ID,
-      title: "Workers",
-      containerHighlighted: false,
-      enabledByLine: "off",
-    });
+  it("getIconBoxMetrics returns taller footprint for length 2 vertical", () => {
+    const metrics = getIconBoxMetrics(iconBoxLayoutProps(2, "vertical"));
+    expect(metrics.width).toBe(ICON_BOX_CARD_FRAME_SIZE);
+    expect(metrics.height).toBe(ICON_BOX_OUTER_HEIGHT + 80);
+    expect(metrics.snapAnchorY).toBe(ICON_BOX_CARD_FRAME_ORIGIN_Y);
+  });
+
+  it("getIconBoxMetrics supports length 3 horizontal layout", () => {
+    const metrics = getIconBoxMetrics(iconBoxLayoutProps(3, "horizontal"));
+    expect(metrics.width).toBe(240);
+    expect(metrics.spec.length).toBe(3);
   });
 
   it("registers connector-line with static cell endpoints and horizontal preference by default", () => {
@@ -149,45 +150,57 @@ describe("componentRegistry", () => {
       x: 80,
       y: 52,
       props: {
+        length: 1,
+        direction: "horizontal",
         matchCornersWithTheme: false,
         theme: "purple",
         iconId: DEFAULT_ICON_ID,
         title: "Workers",
         containerHighlighted: false,
+        enabledByLine: "off",
       },
     });
   });
 
-  it("creates named icon-box-2x1 instances with instance.x on the 80px large-cell horizontal lattice", () => {
-    expect(createComponentInstance("icon-box-2x1", 43, 79, 42, 800, 560)).toMatchObject({
-      id: "icon-box-2x1-42",
-      type: "icon-box-2x1",
-      name: "Icon Box 2x1 42",
-      x: 80,
-      y: 52,
-      props: {
-        matchCornersWithTheme: false,
-        theme: "purple",
-        iconId: DEFAULT_ICON_ID,
-        title: "Workers",
-        containerHighlighted: false,
-      },
+  it("creates named length-2 horizontal icon-box instances on the 80px large-cell lattice", () => {
+    const props = iconBoxLayoutProps(2, "horizontal");
+    const snapped = snapComponentPosition(43, 79, 800, 560, "icon-box", props);
+    expect(snapped).toEqual({ x: 80, y: 52 });
+    expect({
+      id: "icon-box-42",
+      type: "icon-box",
+      name: "Icon Box 42",
+      ...snapped,
+      props,
+    }).toMatchObject({
+      type: "icon-box",
+      props: { length: 2, direction: "horizontal" },
     });
   });
 
-  it("snaps icon-box-2x1 west shadow-card edge horizontally on the 80px large-cell lattice", () => {
-    const snapped = snapComponentPosition(50, 50, 800, 560, "icon-box-2x1");
-    expect(snapped.x + ICON_BOX_2X1_SNAP_ANCHOR_X).toBe(80);
+  it("snaps length-2 horizontal icon-box west shadow-card edge on the 80px large-cell lattice", () => {
+    const props = iconBoxLayoutProps(2, "horizontal");
+    const snapped = snapComponentPosition(50, 50, 800, 560, "icon-box", props);
+    expect(snapped.x + ICON_BOX_CARD_FRAME_ORIGIN_X).toBe(80);
     expect(snapped.y + ICON_BOX_SNAP_ANCHOR_Y).toBe(120);
   });
 
-  it("resolves icon-box-2x1 connector anchors at the shadow-card center (west edge is only for position snap)", () => {
-    const inst = createComponentInstance("icon-box-2x1", 43, 79, 2, 800, 560);
+  it("resolves length-2 horizontal connector anchors at the shadow-card center", () => {
+    const inst: Extract<ComponentInstance, { type: "icon-box" }> = {
+      ...(createComponentInstance("icon-box", 43, 79, 2, 800, 560) as Extract<ComponentInstance, { type: "icon-box" }>),
+      props: iconBoxLayoutProps(2, "horizontal"),
+    };
     expect(getInstanceAnchorPoint(inst)).toEqual({ x: 160, y: 120 });
   });
 
-  it("uses wider shadow-card hit bounds for icon-box-2x1", () => {
-    const inst = createComponentInstance("icon-box-2x1", 300, 200, 11, 800, 560);
+  it("uses wider shadow-card hit bounds for length-2 horizontal icon-box", () => {
+    const inst: Extract<ComponentInstance, { type: "icon-box" }> = {
+      ...(createComponentInstance("icon-box", 300, 200, 11, 800, 560) as Extract<
+        ComponentInstance,
+        { type: "icon-box" }
+      >),
+      props: iconBoxLayoutProps(2, "horizontal"),
+    };
     expect(getInstanceCanvasBounds(inst)).toEqual({
       x: inst.x,
       y: inst.y + ICON_BOX_CARD_FRAME_ORIGIN_Y,
@@ -196,36 +209,36 @@ describe("componentRegistry", () => {
     });
   });
 
-  it("creates named icon-box-1x2 instances with instance.x on the 80px large-cell horizontal lattice", () => {
-    expect(createComponentInstance("icon-box-1x2", 43, 79, 42, 800, 560)).toMatchObject({
-      id: "icon-box-1x2-42",
-      type: "icon-box-1x2",
-      name: "Icon Box 1x2 42",
-      x: 80,
-      y: 52,
-      props: {
-        matchCornersWithTheme: false,
-        theme: "purple",
-        iconId: DEFAULT_ICON_ID,
-        title: "Workers",
-        containerHighlighted: false,
-      },
-    });
+  it("creates named length-2 vertical icon-box instances on the 80px large-cell lattice", () => {
+    const props = iconBoxLayoutProps(2, "vertical");
+    const snapped = snapComponentPosition(43, 79, 800, 560, "icon-box", props);
+    expect(snapped).toEqual({ x: 80, y: 52 });
   });
 
-  it("snaps icon-box-1x2 north shadow-card edge vertically on the 80px large-cell lattice", () => {
-    const snapped = snapComponentPosition(50, 50, 800, 560, "icon-box-1x2");
+  it("snaps length-2 vertical icon-box north shadow-card edge on the 80px large-cell lattice", () => {
+    const props = iconBoxLayoutProps(2, "vertical");
+    const metrics = getIconBoxMetrics(props);
+    const snapped = snapComponentPosition(50, 50, 800, 560, "icon-box", props);
     expect(snapped.x + ICON_BOX_SNAP_ANCHOR_X).toBe(120);
-    expect(snapped.y + ICON_BOX_1X2_SNAP_ANCHOR_Y).toBe(80);
+    expect(snapped.y + metrics.snapAnchorY).toBe(80);
   });
 
-  it("resolves icon-box-1x2 connector anchors at the shadow-card center (north edge is only for position snap)", () => {
-    const inst = createComponentInstance("icon-box-1x2", 43, 79, 2, 800, 560);
+  it("resolves length-2 vertical connector anchors at the shadow-card center", () => {
+    const inst: Extract<ComponentInstance, { type: "icon-box" }> = {
+      ...(createComponentInstance("icon-box", 43, 79, 2, 800, 560) as Extract<ComponentInstance, { type: "icon-box" }>),
+      props: iconBoxLayoutProps(2, "vertical"),
+    };
     expect(getInstanceAnchorPoint(inst)).toEqual({ x: 120, y: 160 });
   });
 
-  it("uses taller shadow-card hit bounds for icon-box-1x2", () => {
-    const inst = createComponentInstance("icon-box-1x2", 300, 200, 11, 800, 560);
+  it("uses taller shadow-card hit bounds for length-2 vertical icon-box", () => {
+    const inst: Extract<ComponentInstance, { type: "icon-box" }> = {
+      ...(createComponentInstance("icon-box", 300, 200, 11, 800, 560) as Extract<
+        ComponentInstance,
+        { type: "icon-box" }
+      >),
+      props: iconBoxLayoutProps(2, "vertical"),
+    };
     expect(getInstanceCanvasBounds(inst)).toEqual({
       x: inst.x,
       y: inst.y + ICON_BOX_CARD_FRAME_ORIGIN_Y,
@@ -413,9 +426,9 @@ describe("componentRegistry", () => {
     const inst = createComponentInstance("icon-box", 100, 200, 1, 800, 560);
     const hit = getInstanceCanvasBounds(inst);
     const hilite = getInstanceHighlightBounds(inst);
-
+    const spec = resolveIconBoxLayout(inst.props as IconBoxProps);
     expect(hilite.y).toBe(inst.y);
-    expect(hilite.height).toBe(ICON_BOX_HIGHLIGHT_HEIGHT);
+    expect(hilite.height).toBe(getIconBoxHighlightHeight(spec));
     expect(hilite.height).toBeLessThan(ICON_BOX_OUTER_HEIGHT);
     expect(hit.y).toBe(inst.y + ICON_BOX_CARD_FRAME_ORIGIN_Y);
     expect(hilite.height).toBeGreaterThan(hit.height);

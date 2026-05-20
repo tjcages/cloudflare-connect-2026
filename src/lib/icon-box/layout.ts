@@ -1,64 +1,86 @@
 /** Logical layout for icon-box instances (registry + Pixi agree on these numbers). */
 
 import { ICON_BOX_TITLE_FONT_FAMILY } from "../../fonts/iconBoxTitle";
-import { BASE_UNIT, LARGE_CELL_SIZE, type ComponentInstance, type ComponentType } from "../../grid/types";
+import {
+  BASE_UNIT,
+  LARGE_CELL_SIZE,
+  type ComponentInstance,
+  type IconBoxDirection,
+  type IconBoxProps,
+} from "../../grid/types";
 
-export type IconBoxLayoutVariant = "icon-box" | "icon-box-2x1" | "icon-box-1x2";
+export type IconBoxLayoutSpec = { length: number; direction: IconBoxDirection };
 
-export type IconBoxInstanceUnion = Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" | "icon-box-1x2" }>;
-
-export const isIconBoxComponentType = (type: ComponentType): type is "icon-box" | "icon-box-2x1" | "icon-box-1x2" =>
-  type === "icon-box" || type === "icon-box-2x1" || type === "icon-box-1x2";
+export type IconBoxInstanceUnion = Extract<ComponentInstance, { type: "icon-box" }>;
 
 export const isIconBoxInstance = (instance: ComponentInstance): instance is IconBoxInstanceUnion =>
-  isIconBoxComponentType(instance.type);
+  instance.type === "icon-box";
 
-export const getIconBoxLayoutVariant = (type: ComponentType): IconBoxLayoutVariant | null =>
-  isIconBoxComponentType(type) ? type : null;
+export const normalizeIconBoxLength = (n: number): number => Math.max(1, Math.floor(Number.isFinite(n) ? n : 1));
+
+export const resolveIconBoxLayout = (props: Pick<IconBoxProps, "length" | "direction">): IconBoxLayoutSpec => {
+  const length = normalizeIconBoxLength(props.length ?? 1);
+  return {
+    length,
+    direction: length <= 1 ? "horizontal" : (props.direction ?? "horizontal"),
+  };
+};
+
+/** Maps legacy persisted types to layout spec (migration). */
+export const layoutSpecFromLegacyType = (type: string): IconBoxLayoutSpec | null => {
+  if (type === "icon-box-2x1") {
+    return { length: 2, direction: "horizontal" };
+  }
+  if (type === "icon-box-1x2") {
+    return { length: 2, direction: "vertical" };
+  }
+  return null;
+};
+
+export const isLegacyIconBoxType = (type: string): type is "icon-box-2x1" | "icon-box-1x2" =>
+  type === "icon-box-2x1" || type === "icon-box-1x2";
+
+export const normalizeIconBoxProps = (props: Partial<IconBoxProps>, defaults: IconBoxProps): IconBoxProps => {
+  const merged = { ...defaults, ...props };
+  const length = normalizeIconBoxLength(merged.length ?? defaults.length ?? 1);
+  const direction = merged.direction ?? defaults.direction;
+  return { ...merged, length, direction: length <= 1 ? "horizontal" : direction };
+};
+
+/** Converts legacy variant type strings to unified icon-box + layout props. */
+export const migrateLegacyIconBoxRaw = (
+  type: string,
+  props: IconBoxProps,
+): { type: "icon-box"; props: IconBoxProps } => {
+  const legacySpec = layoutSpecFromLegacyType(type);
+  if (legacySpec) {
+    return {
+      type: "icon-box",
+      props: { ...props, length: legacySpec.length, direction: legacySpec.direction },
+    };
+  }
+  return { type: "icon-box", props };
+};
 
 export const ICON_BOX_INNER_OFFSET = 8;
 export const ICON_BOX_INNER_SIZE = 64;
-/** Merged inner width for 2×1 variant (two 80px columns; frame width 160). */
-export const ICON_BOX_2X1_INNER_WIDTH = 144;
-/** Merged inner height for 1×2 variant (two 80px rows; frame height 160). */
-export const ICON_BOX_1X2_INNER_HEIGHT = 144;
 export const ICON_BOX_RADIUS = 10;
 
 export const TITLE_BAR_HEIGHT = 16;
 export const TITLE_TO_INNER_GAP = 20;
-/** Reference width for centering the title strip (1×1); 2×1 uses `ICON_BOX_2X1_TITLE_REFERENCE_WIDTH`. */
 export const TITLE_BAR_WIDTH = 80;
-export const ICON_BOX_2X1_TITLE_REFERENCE_WIDTH = LARGE_CELL_SIZE * 2;
 export const TITLE_TEXT_PADDING_X = 6;
 export const TITLE_FONT_SIZE_PX = 10;
 
 export const ICON_BOX_INNER_TOP = TITLE_BAR_HEIGHT + TITLE_TO_INNER_GAP;
 
-/** Center of the padded inner card (1×1); grid snap aligns this point to the connector lattice. */
+/** Center of the padded inner card (1×1 cross-axis reference). */
 export const ICON_BOX_INNER_CENTER_X = ICON_BOX_INNER_OFFSET + ICON_BOX_INNER_SIZE / 2;
-export const ICON_BOX_INNER_CENTER_Y = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE / 2;
 
-/** Animated center dash on 2×1 inner card (between icon columns). */
-export const ICON_BOX_2X1_CENTER_STROKE_WIDTH = 12;
-export const ICON_BOX_2X1_CENTER_STROKE_HEIGHT = 1;
-export const ICON_BOX_2X1_CENTER_STROKE_TRAVEL_PX = 12;
-
-/** Pivot for 2×1 center stroke in instance root space (horizontal center of merged inner card). */
-export const getIconBox2x1CenterStrokeAnchor = (): { x: number; y: number } => ({
-  x: ICON_BOX_INNER_OFFSET + ICON_BOX_2X1_INNER_WIDTH / 2,
-  y: ICON_BOX_INNER_CENTER_Y,
-});
-
-/** Animated center dash on 1×2 inner card (between icon rows). */
-export const ICON_BOX_1X2_CENTER_STROKE_WIDTH = 1;
-export const ICON_BOX_1X2_CENTER_STROKE_HEIGHT = 12;
-export const ICON_BOX_1X2_CENTER_STROKE_TRAVEL_PX = 12;
-
-/** Pivot for 1×2 center stroke in instance root space (vertical center of merged inner card). */
-export const getIconBox1x2CenterStrokeAnchor = (): { x: number; y: number } => ({
-  x: ICON_BOX_INNER_CENTER_X,
-  y: ICON_BOX_INNER_TOP + ICON_BOX_1X2_INNER_HEIGHT / 2,
-});
+/** Animated center dash dimensions (axis follows layout direction). */
+export const ICON_BOX_CENTER_STROKE_LONG = 12;
+export const ICON_BOX_CENTER_STROKE_SHORT = 1;
+export const ICON_BOX_CENTER_STROKE_TRAVEL_PX = 12;
 
 /** Gap between inner card bottom edge and bottom accent bar (logical px). */
 export const ICON_BOX_ACCENT_BAR_GAP = 8;
@@ -68,17 +90,8 @@ export const ICON_BOX_ACCENT_BAR_HEIGHT = 2;
 export const ICON_BOX_ACCENT_SHADOW_PAD = 20;
 
 export const ICON_BOX_BOTTOM_MARGIN = ICON_BOX_ACCENT_BAR_GAP + ICON_BOX_ACCENT_BAR_HEIGHT + ICON_BOX_ACCENT_SHADOW_PAD;
-export const ICON_BOX_OUTER_HEIGHT = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_BOTTOM_MARGIN;
-export const ICON_BOX_1X2_OUTER_HEIGHT = ICON_BOX_INNER_TOP + ICON_BOX_1X2_INNER_HEIGHT + ICON_BOX_BOTTOM_MARGIN;
 
-/**
- * Selection outline bottom: through accent bar geometry only.
- * Omit `ICON_BOX_ACCENT_SHADOW_PAD` so the stroke does not encompass glow/filter bleed reserved for PNG export.
- */
-export const ICON_BOX_HIGHLIGHT_HEIGHT =
-  ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_ACCENT_BAR_GAP + ICON_BOX_ACCENT_BAR_HEIGHT;
-export const ICON_BOX_1X2_HIGHLIGHT_HEIGHT =
-  ICON_BOX_INNER_TOP + ICON_BOX_1X2_INNER_HEIGHT + ICON_BOX_ACCENT_BAR_GAP + ICON_BOX_ACCENT_BAR_HEIGHT;
+export const ICON_BOX_OUTER_HEIGHT = ICON_BOX_INNER_TOP + ICON_BOX_INNER_SIZE + ICON_BOX_BOTTOM_MARGIN;
 
 /** Logical padding around the shadowed inner card for selection outline, outer frame, and pointer hits. */
 export const ICON_BOX_SELECTION_PADDING = 8;
@@ -86,37 +99,51 @@ export const ICON_BOX_SELECTION_PADDING = 8;
 /** Outer stroke rect around the shadow card: inner size + padding on both sides (= 80×80 for 1×1). */
 export const ICON_BOX_CARD_FRAME_SIZE = ICON_BOX_INNER_SIZE + ICON_BOX_SELECTION_PADDING * 2;
 
-/** Frame width for 2×1 (144 inner + horizontal padding). */
-export const ICON_BOX_2X1_CARD_FRAME_WIDTH = ICON_BOX_2X1_INNER_WIDTH + ICON_BOX_SELECTION_PADDING * 2;
-/** Frame height for 1×2 (144 inner + vertical padding). */
-export const ICON_BOX_1X2_CARD_FRAME_HEIGHT = ICON_BOX_1X2_INNER_HEIGHT + ICON_BOX_SELECTION_PADDING * 2;
-
 export const ICON_BOX_CARD_FRAME_ORIGIN_X = ICON_BOX_INNER_OFFSET - ICON_BOX_SELECTION_PADDING;
 export const ICON_BOX_CARD_FRAME_ORIGIN_Y = ICON_BOX_INNER_TOP - ICON_BOX_SELECTION_PADDING;
 
-export const getIconBoxInnerWidth = (variant: IconBoxLayoutVariant): number =>
-  variant === "icon-box-2x1" ? ICON_BOX_2X1_INNER_WIDTH : ICON_BOX_INNER_SIZE;
+/** 1×1 instance-root snap point: center of the shadow-card interaction rect. */
+export const ICON_BOX_SNAP_ANCHOR_X = ICON_BOX_CARD_FRAME_ORIGIN_X + ICON_BOX_CARD_FRAME_SIZE / 2;
+export const ICON_BOX_SNAP_ANCHOR_Y = ICON_BOX_CARD_FRAME_ORIGIN_Y + ICON_BOX_CARD_FRAME_SIZE / 2;
 
-export const getIconBoxInnerHeight = (variant: IconBoxLayoutVariant): number =>
-  variant === "icon-box-1x2" ? ICON_BOX_1X2_INNER_HEIGHT : ICON_BOX_INNER_SIZE;
+export const ICON_BOX_MIN_ROOT_Y = BASE_UNIT - ICON_BOX_SNAP_ANCHOR_Y;
 
-export const getIconBoxCardFrameWidth = (variant: IconBoxLayoutVariant): number =>
-  variant === "icon-box-2x1" ? ICON_BOX_2X1_CARD_FRAME_WIDTH : ICON_BOX_CARD_FRAME_SIZE;
+export const getIconBoxExtendedInnerSize = (spec: IconBoxLayoutSpec): number =>
+  ICON_BOX_INNER_SIZE + (spec.length - 1) * LARGE_CELL_SIZE;
 
-export const getIconBoxCardFrameHeight = (variant: IconBoxLayoutVariant): number =>
-  variant === "icon-box-1x2" ? ICON_BOX_1X2_CARD_FRAME_HEIGHT : ICON_BOX_CARD_FRAME_SIZE;
+export const getIconBoxInnerSize = (spec: IconBoxLayoutSpec): { width: number; height: number } => {
+  const extended = getIconBoxExtendedInnerSize(spec);
+  return spec.direction === "horizontal"
+    ? { width: extended, height: ICON_BOX_INNER_SIZE }
+    : { width: ICON_BOX_INNER_SIZE, height: extended };
+};
 
-export const getIconBoxHighlightHeight = (variant: IconBoxLayoutVariant): number =>
-  variant === "icon-box-1x2" ? ICON_BOX_1X2_HIGHLIGHT_HEIGHT : ICON_BOX_HIGHLIGHT_HEIGHT;
+export const getIconBoxInnerWidth = (spec: IconBoxLayoutSpec): number => getIconBoxInnerSize(spec).width;
+export const getIconBoxInnerHeight = (spec: IconBoxLayoutSpec): number => getIconBoxInnerSize(spec).height;
+
+export const getIconBoxCardFrameWidth = (spec: IconBoxLayoutSpec): number =>
+  getIconBoxInnerWidth(spec) + ICON_BOX_SELECTION_PADDING * 2;
+
+export const getIconBoxCardFrameHeight = (spec: IconBoxLayoutSpec): number =>
+  getIconBoxInnerHeight(spec) + ICON_BOX_SELECTION_PADDING * 2;
+
+export const getIconBoxOuterHeight = (spec: IconBoxLayoutSpec): number =>
+  ICON_BOX_INNER_TOP + getIconBoxInnerHeight(spec) + ICON_BOX_BOTTOM_MARGIN;
+
+export const getIconBoxHighlightHeight = (spec: IconBoxLayoutSpec): number =>
+  ICON_BOX_INNER_TOP + getIconBoxInnerHeight(spec) + ICON_BOX_ACCENT_BAR_GAP + ICON_BOX_ACCENT_BAR_HEIGHT;
+
+export const getIconBoxTitleReferenceWidth = (spec: IconBoxLayoutSpec): number =>
+  spec.direction === "horizontal" && spec.length > 1 ? spec.length * LARGE_CELL_SIZE : TITLE_BAR_WIDTH;
 
 /** Instance-root rect: inner (shadowed) card ± padding — excludes title strip and bottom accent/glow. */
 export const getIconBoxShadowCardBoundsInRootSpace = (
-  variant: IconBoxLayoutVariant = "icon-box",
+  spec: IconBoxLayoutSpec,
 ): { x: number; y: number; width: number; height: number } => ({
   x: ICON_BOX_CARD_FRAME_ORIGIN_X,
   y: ICON_BOX_CARD_FRAME_ORIGIN_Y,
-  width: getIconBoxCardFrameWidth(variant),
-  height: getIconBoxCardFrameHeight(variant),
+  width: getIconBoxCardFrameWidth(spec),
+  height: getIconBoxCardFrameHeight(spec),
 });
 
 /**
@@ -125,9 +152,9 @@ export const getIconBoxShadowCardBoundsInRootSpace = (
  */
 export const getIconBoxFullHighlightBoundsInRootSpace = (
   title: string,
-  variant: IconBoxLayoutVariant = "icon-box",
+  spec: IconBoxLayoutSpec,
 ): { x: number; y: number; width: number; height: number } => {
-  const refWidth = variant === "icon-box-2x1" ? ICON_BOX_2X1_TITLE_REFERENCE_WIDTH : TITLE_BAR_WIDTH;
+  const refWidth = getIconBoxTitleReferenceWidth(spec);
   const { rectWidth, barLeft } = getIconBoxTitleBarLayout(title, refWidth);
   const minX = Math.min(0, barLeft);
   const maxX = Math.max(refWidth, barLeft + rectWidth);
@@ -135,44 +162,122 @@ export const getIconBoxFullHighlightBoundsInRootSpace = (
     x: minX,
     y: 0,
     width: maxX - minX,
-    height: getIconBoxHighlightHeight(variant),
+    height: getIconBoxHighlightHeight(spec),
   };
 };
 
-/**
- * Center of the shadow-card rect in instance root space.
- * Used for connector layer endpoints for both variants. For 2×1, position snapping still uses
- * {@link ICON_BOX_2X1_SNAP_ANCHOR_X} (west frame edge) on the {@link LARGE_CELL_SIZE} lattice.
- */
-export const getIconBoxConnectorAnchorInRootSpace = (variant: IconBoxLayoutVariant): { x: number; y: number } => {
-  const r = getIconBoxShadowCardBoundsInRootSpace(variant);
+/** Center of the shadow-card rect in instance root space (connector layer endpoints). */
+export const getIconBoxConnectorAnchorInRootSpace = (spec: IconBoxLayoutSpec): { x: number; y: number } => {
+  const r = getIconBoxShadowCardBoundsInRootSpace(spec);
   return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 };
 
-/** 1×1 instance-root snap point: center of the shadow-card interaction rect. */
-export const ICON_BOX_SNAP_ANCHOR_X = getIconBoxConnectorAnchorInRootSpace("icon-box").x;
-export const ICON_BOX_SNAP_ANCHOR_Y = getIconBoxConnectorAnchorInRootSpace("icon-box").y;
+export type IconBoxSnapBehavior = {
+  snapAnchorX: number;
+  snapAnchorY: number;
+  minRootY: number;
+  edgeSnapX: boolean;
+  edgeSnapY: boolean;
+};
 
-/**
- * 2×1 horizontal snap: aligns the shadow-card west edge (`instance.x` + this) to the
- * {@link LARGE_CELL_SIZE} lattice (80px steps, large-cell column boundaries).
- */
-export const ICON_BOX_2X1_SNAP_ANCHOR_X = ICON_BOX_CARD_FRAME_ORIGIN_X;
+export const getIconBoxSnapBehavior = (spec: IconBoxLayoutSpec): IconBoxSnapBehavior => {
+  const connector = getIconBoxConnectorAnchorInRootSpace(spec);
+  if (spec.length <= 1) {
+    return {
+      snapAnchorX: connector.x,
+      snapAnchorY: connector.y,
+      minRootY: ICON_BOX_MIN_ROOT_Y,
+      edgeSnapX: false,
+      edgeSnapY: false,
+    };
+  }
+  if (spec.direction === "horizontal") {
+    return {
+      snapAnchorX: ICON_BOX_CARD_FRAME_ORIGIN_X,
+      snapAnchorY: connector.y,
+      minRootY: ICON_BOX_MIN_ROOT_Y,
+      edgeSnapX: true,
+      edgeSnapY: false,
+    };
+  }
+  const northSnapY = ICON_BOX_CARD_FRAME_ORIGIN_Y;
+  return {
+    snapAnchorX: connector.x,
+    snapAnchorY: northSnapY,
+    minRootY: BASE_UNIT - northSnapY,
+    edgeSnapX: false,
+    edgeSnapY: true,
+  };
+};
 
-/**
- * 1×2 vertical snap: aligns the shadow-card north edge (`instance.y` + this) to the
- * {@link LARGE_CELL_SIZE} lattice (80px steps, large-cell row boundaries).
- */
-export const ICON_BOX_1X2_SNAP_ANCHOR_Y = ICON_BOX_CARD_FRAME_ORIGIN_Y;
+export type IconBoxMetrics = {
+  spec: IconBoxLayoutSpec;
+  width: number;
+  height: number;
+  snapAnchorX: number;
+  snapAnchorY: number;
+  minRootY: number;
+  edgeSnapX: boolean;
+  edgeSnapY: boolean;
+  shadowCardBounds: { x: number; y: number; width: number; height: number };
+};
 
-/**
- * Lowest snapped `instance.y`: one grid step above the legacy `y >= 0` floor so the title can extend past the
- * canvas top while the snap anchor Y stays on the BASE_UNIT grid.
- */
-export const ICON_BOX_MIN_ROOT_Y = BASE_UNIT - ICON_BOX_SNAP_ANCHOR_Y;
+export const getIconBoxMetrics = (props: IconBoxProps): IconBoxMetrics => {
+  const spec = resolveIconBoxLayout(props);
+  const snap = getIconBoxSnapBehavior(spec);
+  const shadowCardBounds = getIconBoxShadowCardBoundsInRootSpace(spec);
+  return {
+    spec,
+    width: shadowCardBounds.width,
+    height: getIconBoxOuterHeight(spec),
+    snapAnchorX: snap.snapAnchorX,
+    snapAnchorY: snap.snapAnchorY,
+    minRootY: snap.minRootY,
+    edgeSnapX: snap.edgeSnapX,
+    edgeSnapY: snap.edgeSnapY,
+    shadowCardBounds,
+  };
+};
 
-/** Lowest snapped `instance.y` for 1×2 north-edge snap (mirror of {@link ICON_BOX_MIN_ROOT_Y}). */
-export const ICON_BOX_1X2_MIN_ROOT_Y = BASE_UNIT - ICON_BOX_1X2_SNAP_ANCHOR_Y;
+/** Pivot for center stroke in instance root space (center of merged inner card). @deprecated use getIconBoxCenterStrokeAnchors */
+export const getIconBoxCenterStrokeAnchor = (spec: IconBoxLayoutSpec): { x: number; y: number } => {
+  const inner = getIconBoxInnerSize(spec);
+  return {
+    x: ICON_BOX_INNER_OFFSET + inner.width / 2,
+    y: ICON_BOX_INNER_TOP + inner.height / 2,
+  };
+};
+
+/** Center X of icon glyph at a hold position. */
+export const getIconBoxIconCenterX = (holdX: number): number => holdX + ICON_BOX_ICON_DISPLAY_SIZE / 2;
+
+/** Center Y of icon glyph at a hold position. */
+export const getIconBoxIconCenterY = (holdY: number): number => holdY + ICON_BOX_ICON_DISPLAY_SIZE / 2;
+
+/** One animated dash between each adjacent pair of icons (length − 1 anchors). */
+export const getIconBoxCenterStrokeAnchors = (spec: IconBoxLayoutSpec): { x: number; y: number }[] => {
+  if (spec.length < 2) {
+    return [];
+  }
+  const holds = getIconBoxIconHolds(spec);
+  const anchors: { x: number; y: number }[] = [];
+  for (let i = 0; i < holds.length - 1; i++) {
+    const a = holds[i]!;
+    const b = holds[i + 1]!;
+    if (spec.direction === "horizontal") {
+      anchors.push({
+        x: (a.holdX + b.holdX) / 2 + ICON_BOX_ICON_DISPLAY_SIZE / 2,
+        y: getIconBoxIconCenterY(a.holdY),
+      });
+    } else {
+      anchors.push({
+        x: getIconBoxIconCenterX(a.holdX),
+        y: (a.holdY + b.holdY) / 2 + ICON_BOX_ICON_DISPLAY_SIZE / 2,
+      });
+    }
+  }
+  return anchors;
+};
 
 let measureCanvas: HTMLCanvasElement | null = null;
 
@@ -220,10 +325,6 @@ export type IconBoxEdgeTickRect = { x: number; y: number; width: number; height:
 /** Half-pixel nudge shared by edge ticks and container reticles (grid stroke alignment). */
 export const ICON_BOX_STROKE_ALIGN_NUDGE = 0.5;
 
-/**
- * In `buildContainerCornerReticle`, edge ticks sit at 4px from the reticle origin; right/bottom at 16px.
- * Position the 22×22 reticle so those ticks line up with {@link getIconBoxEdgeTickRects}.
- */
 export const ICON_BOX_CONTAINER_RETICLE_ART_TICK_NEAR = 4;
 export const ICON_BOX_CONTAINER_RETICLE_ART_TICK_FAR = 16;
 
@@ -255,63 +356,56 @@ export const getIconBoxContainerReticlePosition = (
   }
 };
 
-/** Icon hold X inside root for first column (1×1 and 2×1 left cell). */
+/** Icon hold X inside root for first column. */
 export const ICON_HOLD_OFFSET_X = ICON_BOX_INNER_OFFSET + 20;
-
-/** Horizontal offset from instance root for the second icon column (2×1). */
-export const ICON_HOLD_OFFSET_X_SECOND = LARGE_CELL_SIZE + ICON_HOLD_OFFSET_X;
 
 /** Vertical offset of icon pivot from inner rect top. */
 export const ICON_HOLD_OFFSET_Y_INNER = 20;
 
-/** Instance-root Y for first icon row (1×1 and 1×2 top cell). */
+/** Instance-root Y for first icon row. */
 export const ICON_HOLD_OFFSET_Y = ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER;
-
-/** Instance-root Y for second icon row (1×2). */
-export const ICON_HOLD_OFFSET_Y_SECOND = ICON_HOLD_OFFSET_Y + LARGE_CELL_SIZE;
 
 /** Canvas icon glyph size (matches Pixi `Sprite` width/height in `build.ts`). */
 export const ICON_BOX_ICON_DISPLAY_SIZE = 24;
 
-/**
- * Per-icon decoration slot (edge ticks + corner markers) for 2×1+.
- * 1×1 keeps the full 64×64 inner rect — 8px inset there already matches this footprint.
- */
 export const ICON_BOX_ICON_SLOT_SIZE = 48;
 
-/** 48×48 per-icon slots: ticks/markers sit flush on the box edge. 1×1 inner uses {@link MARKER_INSET}. */
 export const getIconBoxDecorationInset = (w: number, h: number): number =>
   w === ICON_BOX_ICON_SLOT_SIZE && h === ICON_BOX_ICON_SLOT_SIZE ? 0 : MARKER_INSET;
 
 export type IconBoxDecorationSlot = { ox: number; oy: number; w: number; h: number };
 
-export const getIconBoxIconSlotOrigin = (holdX: number): { ox: number; oy: number } => {
+export type IconBoxIconHold = { holdX: number; holdY: number };
+
+/** Icon hold positions for each slot in the layout. */
+export const getIconBoxIconHolds = (spec: IconBoxLayoutSpec): IconBoxIconHold[] =>
+  Array.from({ length: spec.length }, (_, i) => ({
+    holdX: spec.direction === "horizontal" ? ICON_HOLD_OFFSET_X + i * LARGE_CELL_SIZE : ICON_HOLD_OFFSET_X,
+    holdY: spec.direction === "vertical" ? ICON_HOLD_OFFSET_Y + i * LARGE_CELL_SIZE : ICON_HOLD_OFFSET_Y,
+  }));
+
+const getIconBoxIconSlotOrigin = (holdX: number, holdY: number): { ox: number; oy: number } => {
   const cx = holdX + ICON_BOX_ICON_DISPLAY_SIZE / 2;
-  const cy = ICON_BOX_INNER_TOP + ICON_HOLD_OFFSET_Y_INNER + ICON_BOX_ICON_DISPLAY_SIZE / 2;
-  const half = ICON_BOX_ICON_SLOT_SIZE / 2;
-  return { ox: cx - half, oy: cy - half };
-};
-
-/** 48×48 slots centered on each 2×1 icon (and future multi-icon layouts). */
-export const getIconBox2x1IconDecorationSlots = (): IconBoxDecorationSlot[] =>
-  [ICON_HOLD_OFFSET_X, ICON_HOLD_OFFSET_X_SECOND].map((holdX) => {
-    const { ox, oy } = getIconBoxIconSlotOrigin(holdX);
-    return { ox, oy, w: ICON_BOX_ICON_SLOT_SIZE, h: ICON_BOX_ICON_SLOT_SIZE };
-  });
-
-export const getIconBoxIconSlotOriginVertical = (holdY: number): { ox: number; oy: number } => {
-  const cx = ICON_HOLD_OFFSET_X + ICON_BOX_ICON_DISPLAY_SIZE / 2;
   const cy = holdY + ICON_BOX_ICON_DISPLAY_SIZE / 2;
   const half = ICON_BOX_ICON_SLOT_SIZE / 2;
   return { ox: cx - half, oy: cy - half };
 };
 
-/** 48×48 slots centered on each 1×2 icon. */
-export const getIconBox1x2IconDecorationSlots = (): IconBoxDecorationSlot[] =>
-  [ICON_HOLD_OFFSET_Y, ICON_HOLD_OFFSET_Y_SECOND].map((holdY) => {
-    const { ox, oy } = getIconBoxIconSlotOriginVertical(holdY);
+/** Per-icon 48×48 decoration slots; 1×1 uses the full inner rect instead (see build.ts). */
+export const getIconBoxIconDecorationSlots = (spec: IconBoxLayoutSpec): IconBoxDecorationSlot[] => {
+  if (spec.length <= 1) {
+    const inner = getIconBoxInnerSize(spec);
+    return [{ ox: ICON_BOX_INNER_OFFSET, oy: ICON_BOX_INNER_TOP, w: inner.width, h: inner.height }];
+  }
+  return getIconBoxIconHolds(spec).map(({ holdX, holdY }) => {
+    const { ox, oy } = getIconBoxIconSlotOrigin(holdX, holdY);
     return { ox, oy, w: ICON_BOX_ICON_SLOT_SIZE, h: ICON_BOX_ICON_SLOT_SIZE };
   });
+};
+
+/** Horizontal accent bar center X for column index `i` (0-based), aligned to icon center. */
+export const getIconBoxHorizontalAccentCenterX = (index: number): number =>
+  getIconBoxIconCenterX(ICON_HOLD_OFFSET_X + index * LARGE_CELL_SIZE);
 
 /** Four edge-center ticks for a logical rect (ox, oy, w, h). */
 export const getIconBoxEdgeTickRects = (
