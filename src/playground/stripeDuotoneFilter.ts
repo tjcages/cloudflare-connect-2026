@@ -63,54 +63,8 @@ bool sameStripeWidth(float a, float b) {
     return abs(a - b) < 0.001;
 }
 
-float stripeCapRadius(float stripeWidth) {
-    if (stripeWidth > 4.5) {
-        return 1.5;
-    }
-    if (stripeWidth > 2.5) {
-        return 0.75;
-    }
-    if (stripeWidth > 0.5) {
-        return 0.5;
-    }
-    return 0.0;
-}
-
-// Inigo-style round box; radii = (top-right, bottom-right, top-left, bottom-left).
-float roundBoxSdf(vec2 p, vec2 halfSize, vec4 cornerRadii) {
-    vec4 r = cornerRadii;
-    r.xy = (p.x > 0.0) ? r.xy : r.zw;
-    r.x = (p.y > 0.0) ? r.x : r.y;
-    vec2 q = abs(p) - halfSize + r.x;
-    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r.x;
-}
-
-bool stripePixelVisible(
-    float relX,
-    float localY,
-    float halfW,
-    float bandTop,
-    float bandBottom,
-    float capRadius,
-    bool roundTop,
-    bool roundBottom
-) {
-    float bandH = bandBottom - bandTop;
-    if (bandH < 0.001) {
-        return false;
-    }
-
-    float capR = min(capRadius, halfW);
-    capR = min(capR, bandH * 0.5);
-
-    float rTop = roundTop ? capR : 0.0;
-    float rBot = roundBottom ? capR : 0.0;
-    vec2 center = vec2(0.0, (bandTop + bandBottom) * 0.5);
-    vec2 p = vec2(relX, localY) - center;
-    vec2 halfSize = vec2(halfW, bandH * 0.5);
-    vec4 cornerR = vec4(rTop, rBot, rTop, rBot);
-
-    return roundBoxSdf(p, halfSize, cornerR) < 0.0;
+bool stripePixelVisible(float relX, float localY, float halfW, float bandTop, float bandBottom) {
+    return abs(relX) <= halfW + 0.001 && localY >= bandTop - 0.001 && localY <= bandBottom + 0.001;
 }
 
 float decodeStripeWidth(float encoded) {
@@ -171,8 +125,6 @@ void main(void) {
 
     float gapTop = chainBreaksAbove ? ROW_WIDTH_GAP * 0.5 : 0.0;
     float gapBottom = chainBreaksBelow ? ROW_WIDTH_GAP * 0.5 : 0.0;
-    bool roundTop = chainBreaksAbove;
-    bool roundBottom = chainBreaksBelow;
 
     float bandTop = gapTop;
     float bandBottom = CELL_SIZE - gapBottom;
@@ -184,9 +136,8 @@ void main(void) {
     }
     float halfW = stripeWidth * 0.5;
     float relX = pixelCoord.x - columnCenterPx;
-    float capRadius = stripeCapRadius(stripeWidth);
 
-    if (stripeWidth > 0.0 && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom, capRadius, roundTop, roundBottom)) {
+    if (stripeWidth > 0.0 && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom)) {
         finalColor = vec4(stripeFillColor(stripeWidth), 1.0);
     } else {
         finalColor = vec4(1.0, 1.0, 1.0, 1.0);

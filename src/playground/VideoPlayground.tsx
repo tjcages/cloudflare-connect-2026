@@ -451,14 +451,6 @@ export function VideoPlayground() {
       setExportFeedback("failed");
     }
     window.setTimeout(() => setExportFeedback("idle"), 1600);
-
-    const blob = new Blob([svg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `playground-frame-${selectedVideoId.replace(/:/g, "-")}.svg`;
-    anchor.click();
-    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -487,8 +479,7 @@ export function VideoPlayground() {
   const copyLabel = copyFeedback === "copied" ? "Copied" : copyFeedback === "failed" ? "Copy failed" : "Copy state";
   const importStatus =
     importFeedback === "imported" ? "Imported" : importFeedback === "failed" ? "Import failed" : null;
-  const exportLabel =
-    exportFeedback === "copied" ? "SVG copied" : exportFeedback === "failed" ? "Export failed" : "Export SVG";
+  const exportLabel = exportFeedback === "copied" ? "Copied" : exportFeedback === "failed" ? "Copy failed" : "Copy SVG";
 
   return (
     <div className="flex min-h-screen bg-neutral-50">

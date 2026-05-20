@@ -1,28 +1,9 @@
 import type { BlockGrid } from "./computeBlockGrid";
 import type { StripeColors } from "./stripeColors";
 import { rgb01ToHex } from "./stripeFilterOptions";
-import {
-  STRIPE_CELL_SIZE,
-  STRIPE_WIDTH_MID,
-  STRIPE_WIDTH_NARROW,
-  STRIPE_WIDTH_NONE,
-  STRIPE_WIDTH_WIDE,
-} from "./stripeGridConstants";
+import { STRIPE_CELL_SIZE, STRIPE_WIDTH_MID, STRIPE_WIDTH_NONE, STRIPE_WIDTH_WIDE } from "./stripeGridConstants";
 
 const ROW_WIDTH_GAP = 1;
-
-function stripeCapRadius(width: number): number {
-  if (width >= STRIPE_WIDTH_WIDE) {
-    return 1.5;
-  }
-  if (width >= STRIPE_WIDTH_MID) {
-    return 0.75;
-  }
-  if (width >= STRIPE_WIDTH_NARROW) {
-    return 0.5;
-  }
-  return 0;
-}
 
 function sameStripeWidth(a: number, b: number): boolean {
   if (a < 0.001 || b < 0.001) {
@@ -41,23 +22,8 @@ function stripeFillHex(width: number, colors: StripeColors): string {
   return rgb01ToHex(colors.narrow);
 }
 
-function roundedRectPath(x: number, y: number, w: number, h: number, rx: number, ry: number): string {
-  const r = Math.min(rx, ry, w / 2, h / 2);
-  if (r <= 0) {
-    return `M${x} ${y}h${w}v${h}h-${w}Z`;
-  }
-  return [
-    `M${x + r} ${y}`,
-    `h${w - 2 * r}`,
-    `a${r} ${r} 0 0 1 ${r} ${r}`,
-    `v${h - 2 * r}`,
-    `a${r} ${r} 0 0 1 ${-r} ${r}`,
-    `h${-(w - 2 * r)}`,
-    `a${r} ${r} 0 0 1 ${-r} ${-r}`,
-    `v${-(h - 2 * r)}`,
-    `a${r} ${r} 0 0 1 ${r} ${-r}`,
-    "Z",
-  ].join("");
+function rectPath(x: number, y: number, w: number, h: number): string {
+  return `M${x} ${y}h${w}v${h}h-${w}Z`;
 }
 
 export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: number, height: number): string {
@@ -89,12 +55,9 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
       const y = row * STRIPE_CELL_SIZE + bandTop;
       const rectW = stripeWidth;
       const rectH = bandBottom - bandTop;
-      const capR = Math.min(stripeCapRadius(stripeWidth), halfW, rectH * 0.5);
-      const rx = chainBreaksAbove || chainBreaksBelow ? capR : 0;
-      const ry = chainBreaksAbove || chainBreaksBelow ? capR : 0;
 
       const fill = stripeFillHex(stripeWidth, colors);
-      const segment = roundedRectPath(x, y, rectW, rectH, rx, ry);
+      const segment = rectPath(x, y, rectW, rectH);
       const list = pathsByColor.get(fill) ?? [];
       list.push(segment);
       pathsByColor.set(fill, list);
