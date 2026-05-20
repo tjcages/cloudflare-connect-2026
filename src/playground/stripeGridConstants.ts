@@ -19,3 +19,13 @@ export function encodeStripeWidth(width: number): number {
   if (width >= STRIPE_WIDTH_NARROW) return 64;
   return 0;
 }
+
+/** Chain-cap flags stored in the block-map green channel (bit0=top, bit1=bottom). */
+export const CHAIN_CAP_NONE = 0;
+export const CHAIN_CAP_TOP = 1;
+export const CHAIN_CAP_BOTTOM = 2;
+export const CHAIN_CAP_BOTH = CHAIN_CAP_TOP | CHAIN_CAP_BOTTOM;
+
+export function encodeChainCaps(flags: number): number {
+  return flags * 64;
+}

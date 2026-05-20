@@ -4,6 +4,12 @@ import { DEFAULT_CONFIG } from "../grid/config";
 import { useAppStore } from "../store";
 import { PlaygroundVideoPreview } from "./PlaygroundVideoPreview";
 import {
+  DEFAULT_PLAYGROUND_VIDEO_ID,
+  getPlaygroundVideoOption,
+  PLAYGROUND_VIDEOS,
+  type PlaygroundVideoId,
+} from "./playgroundVideos";
+import {
   createVideoShaderSceneTicker,
   getPlaygroundDisplaySize,
   PLAYGROUND_DISPLAY_SCALE,
@@ -13,8 +19,6 @@ import {
 import { buildStripeColors, type StripeColors } from "./stripeColors";
 import { DEFAULT_STRIPE_DUOTONE_OPTIONS, hexToRgb01, type StripeDuotoneOptions } from "./stripeFilterOptions";
 
-const VIDEO_URL = "/playground/545-137110823.mp4";
-
 type VideoLayout = {
   width: number;
   height: number;
@@ -23,9 +27,11 @@ type VideoLayout = {
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; layout: VideoLayout; video: HTMLVideoElement };
+  | { status: "ready"; layout: VideoLayout; video: HTMLVideoElement; videoId: PlaygroundVideoId };
 
-function loadPlaygroundVideo(): Promise<LoadState> {
+function loadPlaygroundVideo(videoId: PlaygroundVideoId): Promise<LoadState> {
+  const { url } = getPlaygroundVideoOption(videoId);
+
   return new Promise((resolve) => {
     const video = document.createElement("video");
     video.muted = true;
@@ -37,7 +43,7 @@ function loadPlaygroundVideo(): Promise<LoadState> {
     const onError = () => {
       resolve({
         status: "error",
-        message: `Failed to load ${VIDEO_URL}`,
+        message: `Failed to load ${url}`,
       });
     };
 
@@ -52,17 +58,25 @@ function loadPlaygroundVideo(): Promise<LoadState> {
         status: "ready",
         layout: { width, height },
         video,
+        videoId,
       });
     };
 
     video.addEventListener("error", onError, { once: true });
     video.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
-    video.src = VIDEO_URL;
+    video.src = url;
     video.load();
   });
 }
 
+function disposeVideoElement(video: HTMLVideoElement) {
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+}
+
 export function VideoPlayground() {
+  const [selectedVideoId, setSelectedVideoId] = useState<PlaygroundVideoId>(DEFAULT_PLAYGROUND_VIDEO_ID);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [ignoreColorHex, setIgnoreColorHex] = useState("#ffffff");
   const [ignoreTolerance, setIgnoreTolerance] = useState(DEFAULT_STRIPE_DUOTONE_OPTIONS.ignoreTolerance);
@@ -84,18 +98,19 @@ export function VideoPlayground() {
 
   useEffect(() => {
     let cancelled = false;
+    setLoadState({ status: "loading" });
 
-    void loadPlaygroundVideo().then((next) => {
+    void loadPlaygroundVideo(selectedVideoId).then((next) => {
       if (cancelled) {
         if (next.status === "ready") {
-          next.video.pause();
-          next.video.removeAttribute("src");
-          next.video.load();
+          disposeVideoElement(next.video);
         }
         return;
       }
       if (next.status === "ready") {
         videoRef.current = next.video;
+      } else {
+        videoRef.current = null;
       }
       setLoadState(next);
     });
@@ -104,13 +119,11 @@ export function VideoPlayground() {
       cancelled = true;
       const video = videoRef.current;
       if (video) {
-        video.pause();
-        video.removeAttribute("src");
-        video.load();
+        disposeVideoElement(video);
         videoRef.current = null;
       }
     };
-  }, []);
+  }, [selectedVideoId]);
 
   const tickers = useMemo(() => {
     if (loadState.status !== "ready" || !PLAYGROUND_STRIPE_FILTER_ENABLED) {
@@ -135,8 +148,9 @@ export function VideoPlayground() {
     return <p className="p-6 text-sm text-red-700">{loadState.message}</p>;
   }
 
-  const { layout, video } = loadState;
+  const { layout, video, videoId } = loadState;
   const display = getPlaygroundDisplaySize(video);
+  const sceneKey = `${videoId}-${display.width}x${display.height}`;
 
   return (
     <div className="flex min-h-screen flex-col items-center gap-4 bg-neutral-50 p-6">
@@ -147,6 +161,21 @@ export function VideoPlayground() {
           1px grid stroke, 3px solar, 5px lava.
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-sm text-neutral-800">
+          <label className="flex items-center gap-2">
+            <span className="text-neutral-600">Video</span>
+            <select
+              value={selectedVideoId}
+              onChange={(event) => setSelectedVideoId(event.target.value as PlaygroundVideoId)}
+              className="rounded border border-neutral-300 bg-white px-2 py-1.5"
+              aria-label="Playground sample video"
+            >
+              {PLAYGROUND_VIDEOS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             className="rounded border border-neutral-300 bg-white px-3 py-1.5 hover:bg-neutral-100"
@@ -183,6 +212,7 @@ export function VideoPlayground() {
       <div className="max-h-[calc(100vh-10rem)] max-w-full overflow-auto">
         {PLAYGROUND_STRIPE_FILTER_ENABLED ? (
           <Pixi
+            key={sceneKey}
             layoutWidth={display.width}
             layoutHeight={display.height}
             canvasAttrs={{

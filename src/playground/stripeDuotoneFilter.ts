@@ -52,58 +52,65 @@ uniform vec3 uColorWide;
 uniform float uDebugVideoAlpha;
 
 const float CELL_SIZE = 7.0;
-const float ROW_WIDTH_GAP = 0.5;
-const float CHAIN_CAP_RADIUS = 2.0;
-
+/** Stripe band is always at least one full cell tall (7px). */
+const float MIN_STRIPE_HEIGHT = 7.0;
+/** Total white gap between vertical chains of different stripe widths (0.5px per adjacent row). */
+const float ROW_WIDTH_GAP = 1.0;
 bool sameStripeWidth(float a, float b) {
-    return a > 0.001 && abs(a - b) < 0.001;
+    if (a < 0.001 || b < 0.001) {
+        return false;
+    }
+    return abs(a - b) < 0.001;
 }
 
-// Trim square corners so only the top/bottom of a same-width vertical run is rounded.
+float stripeCapRadius(float stripeWidth) {
+    if (stripeWidth > 4.5) {
+        return 1.5;
+    }
+    if (stripeWidth > 2.5) {
+        return 0.75;
+    }
+    if (stripeWidth > 0.5) {
+        return 0.5;
+    }
+    return 0.0;
+}
+
+// Inigo-style round box; radii = (top-right, bottom-right, top-left, bottom-left).
+float roundBoxSdf(vec2 p, vec2 halfSize, vec4 cornerRadii) {
+    vec4 r = cornerRadii;
+    r.xy = (p.x > 0.0) ? r.xy : r.zw;
+    r.x = (p.y > 0.0) ? r.x : r.y;
+    vec2 q = abs(p) - halfSize + r.x;
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r.x;
+}
+
 bool stripePixelVisible(
     float relX,
     float localY,
     float halfW,
     float bandTop,
     float bandBottom,
+    float capRadius,
     bool roundTop,
     bool roundBottom
 ) {
-    if (abs(relX) >= halfW || localY < bandTop || localY >= bandBottom) {
+    float bandH = bandBottom - bandTop;
+    if (bandH < 0.001) {
         return false;
     }
 
-    float capR = min(CHAIN_CAP_RADIUS, halfW);
+    float capR = min(capRadius, halfW);
+    capR = min(capR, bandH * 0.5);
 
-    if (roundTop && localY < bandTop + capR) {
-        if (relX <= -halfW + capR) {
-            vec2 c = vec2(-halfW + capR, bandTop + capR);
-            if (distance(vec2(relX, localY), c) > capR) {
-                return false;
-            }
-        } else if (relX >= halfW - capR) {
-            vec2 c = vec2(halfW - capR, bandTop + capR);
-            if (distance(vec2(relX, localY), c) > capR) {
-                return false;
-            }
-        }
-    }
+    float rTop = roundTop ? capR : 0.0;
+    float rBot = roundBottom ? capR : 0.0;
+    vec2 center = vec2(0.0, (bandTop + bandBottom) * 0.5);
+    vec2 p = vec2(relX, localY) - center;
+    vec2 halfSize = vec2(halfW, bandH * 0.5);
+    vec4 cornerR = vec4(rTop, rBot, rTop, rBot);
 
-    if (roundBottom && localY > bandBottom - capR) {
-        if (relX <= -halfW + capR) {
-            vec2 c = vec2(-halfW + capR, bandBottom - capR);
-            if (distance(vec2(relX, localY), c) > capR) {
-                return false;
-            }
-        } else if (relX >= halfW - capR) {
-            vec2 c = vec2(halfW - capR, bandBottom - capR);
-            if (distance(vec2(relX, localY), c) > capR) {
-                return false;
-            }
-        }
-    }
-
-    return true;
+    return roundBoxSdf(p, halfSize, cornerR) < 0.0;
 }
 
 float decodeStripeWidth(float encoded) {
@@ -119,13 +126,16 @@ float decodeStripeWidth(float encoded) {
     return 0.0;
 }
 
-float blockStripeWidth(float colIndex, float rowIndex) {
+vec2 blockGridUv(float colIndex, float rowIndex) {
     float gridRow = uGridSize.y - 1.0 - rowIndex;
-    vec2 gridUv = vec2(
+    return vec2(
         (colIndex + 0.5) / uGridSize.x,
         (gridRow + 0.5) / uGridSize.y
     );
-    return decodeStripeWidth(texture(uBlockMap, gridUv).r);
+}
+
+float blockStripeWidth(float colIndex, float rowIndex) {
+    return decodeStripeWidth(texture(uBlockMap, blockGridUv(colIndex, rowIndex)).r);
 }
 
 vec3 stripeFillColor(float stripeWidth) {
@@ -145,35 +155,38 @@ void main(void) {
     float colIndex = floor(pixelCoord.x / CELL_SIZE);
     float rowIndex = floor(pixelCoord.y / CELL_SIZE);
     float maxRowIndex = max(0.0, floor((uFrameSize.y - 1.0) / CELL_SIZE));
-
     float columnCenterPx = (colIndex + 0.5) * CELL_SIZE;
     float localY = pixelCoord.y - rowIndex * CELL_SIZE;
 
     float stripeWidth = blockStripeWidth(colIndex, rowIndex);
-
-    float widthPrev = rowIndex > 0.0
+    float widthAbove = rowIndex > 0.0
         ? blockStripeWidth(colIndex, rowIndex - 1.0)
-        : stripeWidth;
-    float widthNext = rowIndex < maxRowIndex
+        : 0.0;
+    float widthBelow = rowIndex < maxRowIndex
         ? blockStripeWidth(colIndex, rowIndex + 1.0)
-        : stripeWidth;
+        : 0.0;
 
-    float gapTop = (rowIndex > 0.0 && abs(stripeWidth - widthPrev) > 0.001)
-        ? ROW_WIDTH_GAP * 0.5
-        : 0.0;
-    float gapBottom = (rowIndex < maxRowIndex && abs(stripeWidth - widthNext) > 0.001)
-        ? ROW_WIDTH_GAP * 0.5
-        : 0.0;
+    bool chainBreaksAbove = stripeWidth > 0.001 && !sameStripeWidth(stripeWidth, widthAbove);
+    bool chainBreaksBelow = stripeWidth > 0.001 && !sameStripeWidth(stripeWidth, widthBelow);
+
+    float gapTop = chainBreaksAbove ? ROW_WIDTH_GAP * 0.5 : 0.0;
+    float gapBottom = chainBreaksBelow ? ROW_WIDTH_GAP * 0.5 : 0.0;
+    bool roundTop = chainBreaksAbove;
+    bool roundBottom = chainBreaksBelow;
 
     float bandTop = gapTop;
     float bandBottom = CELL_SIZE - gapBottom;
+
+    // Each stripe band is at least 7px tall; drop in-cell gap insets if they would shrink below that.
+    if (bandBottom - bandTop < MIN_STRIPE_HEIGHT) {
+        bandTop = 0.0;
+        bandBottom = CELL_SIZE;
+    }
     float halfW = stripeWidth * 0.5;
     float relX = pixelCoord.x - columnCenterPx;
+    float capRadius = stripeCapRadius(stripeWidth);
 
-    bool chainTop = stripeWidth > 0.001 && !sameStripeWidth(stripeWidth, widthPrev);
-    bool chainBottom = stripeWidth > 0.001 && !sameStripeWidth(stripeWidth, widthNext);
-
-    if (stripeWidth > 0.0 && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom, chainTop, chainBottom)) {
+    if (stripeWidth > 0.0 && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom, capRadius, roundTop, roundBottom)) {
         finalColor = vec4(stripeFillColor(stripeWidth), 1.0);
     } else {
         finalColor = vec4(1.0, 1.0, 1.0, 1.0);

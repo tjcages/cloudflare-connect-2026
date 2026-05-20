@@ -130,6 +130,32 @@ export function stripeWidthFromBgDistance(distance: number, isBg: boolean): numb
   return STRIPE_WIDTH_WIDE;
 }
 
+/** Marks which ends of a same-width vertical run need rounded caps. */
+export function computeChainCaps(widths: Uint8Array, cols: number, rows: number): Uint8Array {
+  const caps = new Uint8Array(widths.length);
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      const width = widths[index] ?? 0;
+      if (width === 0) {
+        continue;
+      }
+
+      const widthAbove = row > 0 ? (widths[index - cols] ?? 0) : 0;
+      const widthBelow = row < rows - 1 ? (widths[index + cols] ?? 0) : 0;
+      let flags = 0;
+      if (width !== widthAbove) {
+        flags |= 1;
+      }
+      if (width !== widthBelow) {
+        flags |= 2;
+      }
+      caps[index] = flags;
+    }
+  }
+  return caps;
+}
+
 export function computeBlockGrid(
   pixels: Uint8ClampedArray,
   imageWidth: number,

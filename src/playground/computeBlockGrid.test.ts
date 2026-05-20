@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeBlockGrid, stripeWidthFromBgDistance } from "./computeBlockGrid";
+import { computeBlockGrid, computeChainCaps, stripeWidthFromBgDistance } from "./computeBlockGrid";
 import { DEFAULT_STRIPE_DUOTONE_OPTIONS } from "./stripeFilterOptions";
 import {
+  CHAIN_CAP_BOTH,
+  CHAIN_CAP_BOTTOM,
+  CHAIN_CAP_TOP,
   STRIPE_CELL_SIZE,
   STRIPE_WIDTH_MID,
   STRIPE_WIDTH_NARROW,
@@ -46,6 +49,23 @@ describe("stripeWidthFromBgDistance", () => {
     expect(stripeWidthFromBgDistance(3, false)).toBe(STRIPE_WIDTH_MID);
     expect(stripeWidthFromBgDistance(4, false)).toBe(STRIPE_WIDTH_WIDE);
     expect(stripeWidthFromBgDistance(10, false)).toBe(STRIPE_WIDTH_WIDE);
+  });
+});
+
+describe("computeChainCaps", () => {
+  it("rounds both ends of a single-cell chain and only the matching end of multi-cell chains", () => {
+    const cols = 3;
+    const rows = 4;
+    const widths = new Uint8Array([0, 0, 0, 0, 5, 0, 0, 5, 0, 0, 0, 1]);
+    const caps = computeChainCaps(widths, cols, rows);
+
+    expect(caps[1 * cols + 1]).toBe(CHAIN_CAP_TOP);
+    expect(caps[2 * cols + 1]).toBe(CHAIN_CAP_BOTTOM);
+    expect(caps[3 * cols + 2]).toBe(CHAIN_CAP_BOTH);
+
+    const isolated = new Uint8Array([5]);
+    const isolatedCaps = computeChainCaps(isolated, 1, 1);
+    expect(isolatedCaps[0]).toBe(CHAIN_CAP_BOTH);
   });
 });
 
