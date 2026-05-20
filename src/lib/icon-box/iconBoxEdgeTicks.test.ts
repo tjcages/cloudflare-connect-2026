@@ -10,6 +10,7 @@ import {
   ICON_BOX_INNER_SIZE,
   ICON_BOX_INNER_TOP,
   ICON_HOLD_OFFSET_X,
+  getIconBoxCenterDividerTickRects,
   getIconBoxCenterStrokeAnchors,
   getIconBoxHorizontalAccentCenterX,
   getIconBoxContainerReticlePosition,
@@ -79,6 +80,46 @@ describe("getIconBoxIconDecorationSlots", () => {
       { x: leftSlot.ox + leftSlot.w - 2, y: 67.5, width: 2, height: 1 },
     ]);
     expect(getIconBoxEdgeTickRects(rightSlot.ox, rightSlot.oy, rightSlot.w, rightSlot.h)[0].x).toBe(119.5);
+  });
+});
+
+describe("getIconBoxCenterDividerTickRects", () => {
+  it("returns no ticks for single-slot layouts", () => {
+    expect(getIconBoxCenterDividerTickRects(resolveIconBoxLayout({ length: 1, direction: "horizontal" }))).toEqual([]);
+  });
+
+  it("places vertical ticks on horizontal divider columns aligned to slot top/bottom", () => {
+    const spec = resolveIconBoxLayout({ length: 2, direction: "horizontal" });
+    const [slot] = getIconBoxIconDecorationSlots(spec);
+    const [anchor] = getIconBoxCenterStrokeAnchors(spec);
+    expect(getIconBoxCenterDividerTickRects(spec)).toEqual([
+      { x: anchor.x - ICON_BOX_STROKE_ALIGN_NUDGE, y: slot.oy, width: 1, height: 2 },
+      { x: anchor.x - ICON_BOX_STROKE_ALIGN_NUDGE, y: slot.oy + slot.h - 2, width: 1, height: 2 },
+    ]);
+  });
+
+  it("places a tick pair at each horizontal divider between three icons", () => {
+    const spec = resolveIconBoxLayout({ length: 3, direction: "horizontal" });
+    const [slot] = getIconBoxIconDecorationSlots(spec);
+    const anchors = getIconBoxCenterStrokeAnchors(spec);
+    const bottomY = slot.oy + slot.h - 2;
+    expect(getIconBoxCenterDividerTickRects(spec)).toEqual([
+      { x: 79.5, y: slot.oy, width: 1, height: 2 },
+      { x: 79.5, y: bottomY, width: 1, height: 2 },
+      { x: 159.5, y: slot.oy, width: 1, height: 2 },
+      { x: 159.5, y: bottomY, width: 1, height: 2 },
+    ]);
+    expect(anchors).toHaveLength(2);
+  });
+
+  it("places vertical ticks on vertical divider rows aligned to slot left/right", () => {
+    const spec = resolveIconBoxLayout({ length: 2, direction: "vertical" });
+    const [slot] = getIconBoxIconDecorationSlots(spec);
+    const [anchor] = getIconBoxCenterStrokeAnchors(spec);
+    expect(getIconBoxCenterDividerTickRects(spec)).toEqual([
+      { x: slot.ox, y: anchor.y - ICON_BOX_STROKE_ALIGN_NUDGE, width: 1, height: 2 },
+      { x: slot.ox + slot.w - 1, y: anchor.y - ICON_BOX_STROKE_ALIGN_NUDGE, width: 1, height: 2 },
+    ]);
   });
 });
 

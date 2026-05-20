@@ -404,6 +404,40 @@ export const getIconBoxIconDecorationSlots = (spec: IconBoxLayoutSpec): IconBoxD
 export const getIconBoxHorizontalAccentCenterX = (index: number): number =>
   getIconBoxIconCenterX(ICON_HOLD_OFFSET_X + index * LARGE_CELL_SIZE);
 
+/**
+ * Static vertical ticks at each center-dash column (length ≥ 2).
+ * Horizontal layouts: one pair above/below the divider row, aligned with per-slot edge ticks.
+ * Vertical layouts: one pair left/right of the divider column, aligned with per-slot edge ticks.
+ */
+export const getIconBoxCenterDividerTickRects = (spec: IconBoxLayoutSpec): IconBoxEdgeTickRect[] => {
+  if (spec.length < 2) {
+    return [];
+  }
+  const anchors = getIconBoxCenterStrokeAnchors(spec);
+  const slots = getIconBoxIconDecorationSlots(spec);
+  const slot = slots[0]!;
+  const { width: vW, height: vH } = ICON_BOX_EDGE_TICK_V;
+  const ticks: IconBoxEdgeTickRect[] = [];
+
+  if (spec.direction === "horizontal") {
+    const topY = slot.oy;
+    const bottomY = slot.oy + slot.h - vH;
+    for (const { x: ax } of anchors) {
+      const tickX = ax - ICON_BOX_STROKE_ALIGN_NUDGE;
+      ticks.push({ x: tickX, y: topY, width: vW, height: vH }, { x: tickX, y: bottomY, width: vW, height: vH });
+    }
+  } else {
+    const leftX = slot.ox;
+    const rightX = slot.ox + slot.w - vW;
+    for (const { y: ay } of anchors) {
+      const tickY = ay - ICON_BOX_STROKE_ALIGN_NUDGE;
+      ticks.push({ x: leftX, y: tickY, width: vW, height: vH }, { x: rightX, y: tickY, width: vW, height: vH });
+    }
+  }
+
+  return ticks;
+};
+
 /** Four edge-center ticks for a logical rect (ox, oy, w, h). */
 export const getIconBoxEdgeTickRects = (
   ox: number,

@@ -23,6 +23,7 @@ import {
   getIconBoxIconDecorationSlots,
   getIconBoxIconHolds,
   getIconBoxDecorationInset,
+  getIconBoxCenterDividerTickRects,
   getIconBoxEdgeTickRects,
   getIconBoxInnerWidth,
   getIconBoxInnerHeight,
@@ -223,6 +224,9 @@ export const buildIconBox = (
     for (const tick of getIconBoxEdgeTickRects(ox, oy, w, h, inset)) {
       edgeTicks.rect(tick.x, tick.y, tick.width, tick.height).fill({ color: gridStrokeColor });
     }
+  }
+  for (const tick of getIconBoxCenterDividerTickRects(spec)) {
+    edgeTicks.rect(tick.x, tick.y, tick.width, tick.height).fill({ color: brush.fill });
   }
   innerBodyMotionRoot.addChild(edgeTicks);
   innerBodyMotionRoot.addChild(markers);
