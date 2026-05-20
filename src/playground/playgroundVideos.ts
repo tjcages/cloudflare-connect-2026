@@ -4,7 +4,7 @@ import {
   DEFAULT_STRIPE_THRESHOLD,
 } from "./stripeFilterOptions";
 
-export type PlaygroundVideoId = "example" | "example2" | "example3" | "example4";
+export type PlaygroundVideoId = "example" | "example2" | "example3" | "example4" | "example5" | "example6" | "example7";
 
 export type PlaygroundDuotoneDefaults = {
   ignoreColorHex: string;
@@ -71,15 +71,58 @@ export const PLAYGROUND_VIDEOS: readonly PlaygroundVideoOption[] = [
     displayScale: 1,
     duotone: {
       ignoreColorHex: "#000000",
-      ignoreTolerance: 0.015,
-      gamma: 4,
-      threshold: 0.05,
-      density: 1.05,
+      ignoreTolerance: 0.1,
+      gamma: 1.2,
+      threshold: 0.64,
+      density: 0.3,
+    },
+  },
+  {
+    id: "example5",
+    label: "example 5",
+    url: "/playground/example5.mp4",
+    displayScale: 1,
+    duotone: {
+      ignoreColorHex: "#000000",
+      ignoreTolerance: 0.095,
+      gamma: 1.15,
+      threshold: 0.99,
+      density: 0.6,
+    },
+  },
+  {
+    id: "example6",
+    label: "example 6",
+    url: "/playground/example6.mp4",
+    displayScale: 1,
+    duotone: {
+      ignoreColorHex: "#000000",
+      ignoreTolerance: 0.235,
+      gamma: 1,
+      threshold: 0.99,
+      density: 0.55,
+    },
+  },
+  {
+    id: "example7",
+    label: "example 7",
+    url: "/playground/example7.mp4",
+    displayScale: 1,
+    duotone: {
+      ignoreColorHex: "#000000",
+      ignoreTolerance: 0.415,
+      gamma: 1.9,
+      threshold: 0.99,
+      density: 0.65,
     },
   },
 ] as const;
 
-export const DEFAULT_PLAYGROUND_VIDEO_ID: PlaygroundVideoId = "example4";
+export const DEFAULT_PLAYGROUND_VIDEO_ID: PlaygroundVideoId = "example5";
+
+export function isUploadVideoId(id: string): id is `upload:${string}` {
+  return id.startsWith("upload:");
+}
 
 export function getPlaygroundVideoOption(id: PlaygroundVideoId): PlaygroundVideoOption {
   const option = PLAYGROUND_VIDEOS.find((entry) => entry.id === id);
