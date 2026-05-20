@@ -32,6 +32,13 @@ export const PALETTE_THEMES = [
     fillDisplayP3: "color(display-p3 0.9542 0.9542 0.9542)",
     fillTextDisplayP3: "color(display-p3 0.12 0.12 0.12)",
   },
+  {
+    id: "forest",
+    label: "Forest",
+    fillHex: "#00BA79",
+    fillTextHex: "#FFFFFF",
+    fillDisplayP3: "color(display-p3 0.1697 0.705 0.5087)",
+  },
 ] as const;
 
 export type PaletteThemeId = (typeof PALETTE_THEMES)[number]["id"];

@@ -47,6 +47,8 @@ export type IconId =
   | "section-mark"
   | "isometric-hex"
   | "user-outline"
+  | "api"
+  | "kv"
   | "builder-grid"
   | "builder-layers"
   | "builder-bookmark"

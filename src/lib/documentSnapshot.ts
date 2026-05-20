@@ -61,7 +61,7 @@ const TYPE_TO_CODE = Object.fromEntries(COMPONENT_TYPE_CODES.map((type, index) =
   number
 >;
 
-const PICKABLE_ICON_IDS: IconId[] = ["section-mark", "isometric-hex", "user-outline"];
+const PICKABLE_ICON_IDS: IconId[] = ["section-mark", "isometric-hex", "user-outline", "api", "kv"];
 const ICON_ID_TO_CODE = Object.fromEntries(PICKABLE_ICON_IDS.map((id, index) => [id, index])) as Record<IconId, number>;
 const CODE_TO_ICON_ID = PICKABLE_ICON_IDS;
 
