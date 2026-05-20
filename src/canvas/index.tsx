@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type Ref } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Ref } from "react";
 import { animate as motionAnimate } from "motion";
 import Pixi from "../components/pixi";
 import { getCanvasPoint } from "./coords";
@@ -49,6 +49,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
    * which would call `selectInstance(null)` and flash-close the config panel.
    */
   const skipNextClickSelectionSyncRef = useRef(false);
+  const shellRef = useRef<HTMLDivElement | null>(null);
 
   const grid = useAppStore((s) => s.grid);
   const canvasPan = useAppStore((s) => s.canvasPan);
@@ -225,6 +226,65 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
     };
   }, []);
 
+  const handleCanvasViewportWheel = useCallback(
+    (event: WheelEvent) => {
+      event.preventDefault();
+
+      const canvas = shellRef.current?.querySelector<HTMLCanvasElement>('[data-testid="builder-canvas"]') ?? null;
+      if (!canvas) {
+        return;
+      }
+
+      if (event.metaKey || event.ctrlKey) {
+        const { dy } = normalizeWheelDeltaPixels(event);
+        const factor = Math.exp(-dy * CANVAS_ZOOM_WHEEL_EXP_SENSITIVITY);
+        const { canvasZoom: z0, canvasPan: pan } = useAppStore.getState();
+        const rect = canvas.getBoundingClientRect();
+        const { zoom: z1, pan: nextPan } = zoomAroundCanvasPoint({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          rect,
+          z0,
+          z1: clampCanvasZoom(z0 * factor),
+          pan,
+        });
+        if (z1 === z0) {
+          return;
+        }
+        useAppStore.setState({ canvasZoom: z1, canvasPan: nextPan });
+        return;
+      }
+
+      const { dx, dy } = normalizeWheelDeltaPixels(event);
+      if (dx === 0 && dy === 0) {
+        return;
+      }
+      translateCanvasPan(-dx, -dy);
+    },
+    [translateCanvasPan],
+  );
+
+  useEffect(() => {
+    const root = shellRef.current?.closest<HTMLElement>("[data-canvas-scroll-panel]") ?? shellRef.current;
+    if (!root) {
+      return;
+    }
+
+    root.addEventListener("wheel", handleCanvasViewportWheel, { passive: false });
+
+    const preventGesture = (event: Event) => {
+      event.preventDefault();
+    };
+    root.addEventListener("gesturestart", preventGesture, { passive: false });
+    root.addEventListener("gesturechange", preventGesture, { passive: false });
+
+    return () => {
+      root.removeEventListener("wheel", handleCanvasViewportWheel);
+      root.removeEventListener("gesturestart", preventGesture);
+      root.removeEventListener("gesturechange", preventGesture);
+    };
+  }, [handleCanvasViewportWheel]);
+
   const canvasShellClass = cn(
     "canvas-shell inline-flex bg-builder-surface",
     isViewportPanning && "canvas-shell-panning",
@@ -241,6 +301,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
 
   return (
     <div
+      ref={shellRef}
       className={canvasShellClass}
       style={{
         transform: `translate(${canvasPan.x}px, ${canvasPan.y}px) scale(${canvasZoom})`,
@@ -257,37 +318,6 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
           ),
           "data-testid": "builder-canvas",
           style: canvasCursorStyle ?? undefined,
-          onWheel: (event) => {
-            event.preventDefault();
-
-            const canvas = event.currentTarget;
-
-            if (event.metaKey || event.ctrlKey) {
-              const { dy } = normalizeWheelDeltaPixels(event);
-              const factor = Math.exp(-dy * CANVAS_ZOOM_WHEEL_EXP_SENSITIVITY);
-              const { canvasZoom: z0, canvasPan: pan } = useAppStore.getState();
-              const rect = canvas.getBoundingClientRect();
-              const { zoom: z1, pan: nextPan } = zoomAroundCanvasPoint({
-                clientX: event.clientX,
-                clientY: event.clientY,
-                rect,
-                z0,
-                z1: clampCanvasZoom(z0 * factor),
-                pan,
-              });
-              if (z1 === z0) {
-                return;
-              }
-              useAppStore.setState({ canvasZoom: z1, canvasPan: nextPan });
-              return;
-            }
-
-            const { dx, dy } = normalizeWheelDeltaPixels(event);
-            if (dx === 0 && dy === 0) {
-              return;
-            }
-            translateCanvasPan(-dx, -dy);
-          },
           onPointerDown: (event) => {
             const canvas = event.currentTarget;
 

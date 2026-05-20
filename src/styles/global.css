@@ -80,6 +80,10 @@
   src: url("/fonts/BerkeleyMonoTrial-Regular.otf") format("opentype");
 }
 
+[data-canvas-scroll-panel] {
+  touch-action: none;
+}
+
 [data-canvas-scroll-panel]:has(.canvas-shell-space-pan:not(.canvas-shell-panning)) {
   cursor: grab;
 }
