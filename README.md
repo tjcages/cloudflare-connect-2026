@@ -6,7 +6,7 @@ A React/TypeScript Canvas component builder. It generates deterministic seeded g
 
 - `npm run dev` starts the Vite dev server.
 - `npm run typecheck` runs TypeScript project checks.
-- `npm run code-check` runs `oxlint` and `oxfmt --check` (used in CI on push/PR; run locally before `git push` if you want the same gate early).
+- `npm run code-check` runs `oxlint` and `oxfmt --check` (run before `git push` if you want lint/format gates early).
 - `npm run lint` runs `oxlint` only.
 - `npm run format` / `npm run format:check` run `oxfmt`.
 - `npm test` runs the Vitest suite.
@@ -20,4 +20,4 @@ A React/TypeScript Canvas component builder. It generates deterministic seeded g
 - AI/agent architecture context lives in `docs/ai-context.md`.
 - Persistent Cursor rules live in `.cursor/rules/`.
 
-Use Node `22` from `.node-version` for local and CI parity.
+Use Node `22` from `.node-version` for local development (match this in the Cloudflare dashboard build settings).
