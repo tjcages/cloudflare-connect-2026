@@ -165,10 +165,15 @@ void main(void) {
         ? ROW_WIDTH_GAP * 0.5
         : 0.0;
 
-    bool inVerticalBand = localY >= gapTop && localY < (CELL_SIZE - gapBottom);
-    bool inHorizontalStripe = stripeWidth > 0.0 && abs(pixelCoord.x - columnCenterPx) < stripeWidth * 0.5;
+    float bandTop = gapTop;
+    float bandBottom = CELL_SIZE - gapBottom;
+    float halfW = stripeWidth * 0.5;
+    float relX = pixelCoord.x - columnCenterPx;
 
-    if (inVerticalBand && inHorizontalStripe) {
+    bool chainTop = stripeWidth > 0.001 && !sameStripeWidth(stripeWidth, widthPrev);
+    bool chainBottom = stripeWidth > 0.001 && !sameStripeWidth(stripeWidth, widthNext);
+
+    if (stripeWidth > 0.0 && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom, chainTop, chainBottom)) {
         finalColor = vec4(stripeFillColor(stripeWidth), 1.0);
     } else {
         finalColor = vec4(1.0, 1.0, 1.0, 1.0);
