@@ -146,11 +146,7 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
           {columns} x {rows}
         </span>
       </BuilderFieldHeaderRow>
-      <div
-        ref={gridRef}
-        className="grid touch-none select-none gap-0.5"
-        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-      >
+      <div ref={gridRef} className="flex flex-wrap touch-none select-none gap-0">
         {mask.map((maskRow, row) =>
           maskRow.map((blocked, column) => {
             const isSelected = cellIsInRange(row, column, selection);
@@ -158,10 +154,21 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
             return (
               <button
                 className={cn(
-                  "aspect-square cursor-crosshair rounded-sm border p-0",
-                  blocked ? "border-builder-thumb-track bg-builder-thumb-track" : "border-builder-hairline bg-white",
-                  isSelected && "border-builder-accent-border bg-builder-accent-fill",
+                  "relative aspect-[1/1] cursor-crosshair border-0 p-0",
+                  "after:pointer-events-none after:absolute after:-inset-[0.5px] after:box-border after:border after:border-solid after:content-['']",
+                  blocked
+                    ? "bg-builder-thumb-track after:border-builder-thumb-track"
+                    : "bg-white after:border-builder-hairline",
+                  isSelected && "bg-builder-accent-fill after:border-builder-accent-border",
                 )}
+                style={
+                  columns > 0
+                    ? {
+                        width: `${100 / columns}%`,
+                        ...(isSelected ? { zIndex: row * columns + column + 1 } : {}),
+                      }
+                    : undefined
+                }
                 key={`${row}:${column}`}
                 onPointerDown={(event) => {
                   event.preventDefault();
