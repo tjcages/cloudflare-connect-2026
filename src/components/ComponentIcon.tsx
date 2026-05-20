@@ -1,3 +1,4 @@
+import { iconDropShadowFilterCss } from "../lib/iconDropShadow";
 import { getIconDefinition } from "../lib/iconRegistry";
 import type { IconId } from "../grid/types";
 
@@ -29,7 +30,7 @@ export const ComponentIcon = ({
       viewBox={icon.viewBox}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ color }}
+      style={{ color, filter: iconDropShadowFilterCss(color) }}
     >
       {icon.renderMode === "stroke"
         ? icon.paths.map((d, i) => (

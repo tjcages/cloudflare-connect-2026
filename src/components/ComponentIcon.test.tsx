@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { iconDropShadowFilterCss } from "../lib/iconDropShadow";
 import { ComponentIcon } from "./ComponentIcon";
 import { DEFAULT_ICON_ID } from "../lib/iconRegistry";
 
@@ -13,6 +14,7 @@ describe("ComponentIcon", () => {
     expect(icon?.tagName.toLowerCase()).toBe("svg");
     expect(icon).toHaveAttribute("width", "24");
     expect(icon).toHaveAttribute("height", "24");
+    expect(icon).toHaveStyle({ filter: iconDropShadowFilterCss("#123456") });
     expect(paths.length).toBeGreaterThan(0);
     paths.forEach((path) => {
       expect(path).toHaveAttribute("fill", "#123456");

@@ -31,6 +31,7 @@ import {
   resolveIconBoxLayout,
   type IconBoxContainerReticleCorner,
 } from "../../../lib/icon-box/layout";
+import { iconDropShadowPixiLayers } from "../../../lib/iconDropShadow";
 import { paletteBrush } from "../../../theme/palette";
 import { buildIconBoxCenterStrokes } from "./iconBoxCenterStroke";
 import { rasterizeIcon } from "./iconRaster";
@@ -65,26 +66,7 @@ const buildIconShadowFilter = (iconColorHex: number) =>
   new BoxShadowFilter({
     shapeMode: "texture",
     quality: 4,
-    shadows: [
-      {
-        offsetX: 0,
-        offsetY: 0.5,
-        blur: 1,
-        spread: 0,
-        color: iconColorHex,
-        alpha: 0.12,
-        inset: false,
-      },
-      {
-        offsetX: 0,
-        offsetY: 1,
-        blur: 2,
-        spread: 0,
-        color: iconColorHex,
-        alpha: 0.12,
-        inset: false,
-      },
-    ] satisfies BoxShadowOptions[],
+    shadows: iconDropShadowPixiLayers(iconColorHex) satisfies BoxShadowOptions[],
   });
 
 const CONTAINER_RETICLE_PX = 22;
