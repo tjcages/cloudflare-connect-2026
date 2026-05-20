@@ -670,8 +670,7 @@ export const buildConnectorInstanceChrome = (
 
     const runLoop = async () => {
       while (!cancelled) {
-        const cycleStaggerMsRaw = randomUnitInterval() * CONNECTOR_ANIM_CYCLE_STAGGER_MAX_SEC * 1000;
-        const cycleStaggerMs = layerSourceId && hitEffects.waitForOutgoingPulseSlot ? 0 : cycleStaggerMsRaw;
+        const cycleStaggerMs = randomUnitInterval() * CONNECTOR_ANIM_CYCLE_STAGGER_MAX_SEC * 1000;
         await delayUnlessCancelled(cycleStaggerMs);
         if (cancelled) {
           break;
