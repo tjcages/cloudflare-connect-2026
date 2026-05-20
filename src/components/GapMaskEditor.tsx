@@ -165,7 +165,7 @@ export const GapMaskEditor = ({ mask, onChange }: GapMaskEditorProps) => {
                   columns > 0
                     ? {
                         width: `${100 / columns}%`,
-                        ...(isSelected ? { zIndex: row * columns + column + 1 } : {}),
+                        ...(isSelected ? { zIndex: row * columns + column + 1 } : blocked ? { zIndex: 1 } : {}),
                       }
                     : undefined
                 }
