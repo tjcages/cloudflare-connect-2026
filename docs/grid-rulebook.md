@@ -85,13 +85,14 @@ The first implementation should enforce this conservatively. It is better to lea
 
 The generator should not try to fill the available canvas. Natural holes and missing corners are part of the visual language.
 
-- Target density should stay intentionally sparse by default.
-- A valid candidate may still be skipped to preserve open space.
+- Target density should stay intentionally sparse by default (below roughly `0.85`).
+- Above roughly `0.85` density, prefer filling toward the placeable-slot target over preserving decorative whitespace.
+- A valid candidate may still be skipped to preserve open space when density is low.
 - Empty space should be distributed; avoid leaving an entire quadrant, especially the upper-right, completely blank unless blocked by the gap mask.
 - Prefer corner/diagonal continuity over repeated side-by-side filling when both are possible.
 - Reject or heavily down-rank candidates that touch the existing footprint on many sides, because high-contact placements make the result read like one large grid block.
 - Avoid long runs of tightly packed `40x40` cells that read like a filled tiled sheet.
-- Diagonal chains of base `40x40` cells must not exceed 3 cells.
+- Diagonal chains of base `40x40` cells must not exceed 2 cells when `80x80` cells are enabled.
 - A diagonal small-cell chain resets when the continuity is interrupted by an `80x80` cell or empty space.
 - If four `40x40` cells form a dense `2x2` block near the composition edge, prefer removing one corner when connectivity remains valid.
 - Corner removals should be deterministic from the seed.
@@ -111,22 +112,17 @@ The generator should not try to fill the available canvas. Natural holes and mis
 - Large-cell ratio is a target tendency, not permission to create a dense large-cell cluster.
 - If a large-cell placement would create a heavy block of adjacent large cells, skip it most of the time and try a smaller or more distant candidate.
 
-## Nested And Decorative Cells
+## Chain Hierarchy (Large → Terminal Small)
 
-The reference style allows small rectangles to appear near larger rectangles and sometimes visually inside larger regions.
+Growth should read as chains of `80x80` cells with optional `40x40` tips, not mixed interior filler.
 
-- Decorative small cells are real `40x40` closed rectangles.
-- Preferred decorative positions are corners, edge-adjacent positions, sparse protrusions, and isolated accents.
-- Small cells may be rendered over `80x80` cells only as `overlaySmall` cells.
-- Overlay cells must sit fully inside a single `80x80` cell.
-- Each `80x80` cell may receive a random `0..4` overlay cells.
-- If an overlay cell is added inside an `80x80` cell, add a valid outside `40x40` companion next to it by side or diagonal contact.
-- If no valid outside companion exists, skip that overlay.
-- Overlay cells are drawn after base cells.
-- Overlay cells do not count as regular occupancy and do not weaken the no-overlap rule for base cells.
-- Decorative cells can later be controlled by a config such as `decorativeCellChance`.
-
-This keeps regular grid generation clean while still allowing the small-over-large details from the reference style.
+- Prefer `large → large` expansion; `40x40` cells are terminal tips or edge accents.
+- Do not grow the connected footprint by attaching only through an existing `40x40` cell; new cells must touch at least one occupied `80x80` slot (except the seed cell).
+- Do not place a `40x40` cell between two `80x80` neighbors.
+- Do not extend with a new `80x80` cell that connects only through a `40x40` tip that already touches another `80x80` cell (`large → small → large` sandwiches).
+- When `80x80` cells are enabled, `40x40` tips must not touch any other `40x40` cell on an edge or diagonal.
+- After large-only growth, `40x40` tips come from **replacing** selected `80x80` cells: remove the large, place one small on a corner of the freed `2x2` footprint or a diagonally adjacent exterior slot that **slot-diagonally** touches exactly one remaining large (no shared edge slots between the small and any large). The attached large must not sit on the canvas perimeter, and at most **two sides** of that large may be occupied by other large cells **or the canvas edge** (e.g. a top-row large with two large neighbors counts as three occupied sides). Very dense layouts may place fewer tips when no valid diagonal site exists.
+- `overlaySmall` decorative cells are not generated in the current build.
 
 ## Gap Mask Rule
 
@@ -142,25 +138,24 @@ The gap mask lets users reserve areas for titles, copy, or other content.
 
 ## Seeded Generation Phases
 
-1. **Normalize config:** round logical width and height to nearest multiples of `40`; derive render width and height by adding `1px`; clamp ratios so `smallCellRatio + largeCellRatio = 1`.
+1. **Normalize config:** round logical width and height to nearest multiples of `40`; derive render width and height by adding `1px`; clamp `density` and `smallCellRatio` into `0..1`.
 2. **Build candidate map:** list every valid `40x40` and `80x80` candidate footprint that is inside bounds and not blocked by the gap mask.
 3. **Choose anchor regions:** randomly choose sparse anchors across the canvas to avoid a perfectly tiled look.
-4. **Grow one connected grid:** start from a seed cell, then only accept candidates that edge-touch or corner-touch the existing footprint.
-5. **Balance cell sizes:** attempt `80x80` and `40x40` cells according to the configured ratios while preserving one connected composition.
-6. **Preserve natural gaps:** skip some valid candidates, avoid overfilled local neighborhoods, and remove corners from dense `2x2` small-cell blocks when safe.
+4. **Grow one connected grid:** start from a seed cell, then only accept candidates that edge-touch or corner-touch the existing footprint. Unless `smallCellRatio === 1`, phase 1 grows **large cells only** toward the density target.
+5. **Apply small ratio:** convert `floor(largeCellCount * smallCellRatio)` larges into terminal `40x40` tips on the freed exterior (each successful replace frees three base slots).
+6. **Preserve natural gaps:** skip some valid candidates, avoid overfilled local neighborhoods, and remove corners from dense `2x2` small-cell blocks when safe (all-small low-density mode only).
 7. **Add edge variation:** extend the silhouette unevenly and allow sparse protrusions while preserving valid cell sizes.
 8. **Validate final output:** run invariant checks before rendering.
 
 ## Ratio Behavior
 
-- `smallCellRatio` defaults to `0.2`.
-- `largeCellRatio` defaults to `0.8`.
-- Updating either ratio updates the other so their sum remains `1`.
-- Ratios guide placement probability, not an exact area guarantee.
-- A ratio of `0` is a hard exclusion for that cell kind.
-- The `smallCellRatio` must cap all visible `40x40` cells, including base small cells, overlay cells, and overlay companions.
-- Reserve part of the small-cell budget for overlays so base small cells do not consume the entire visual small-cell allowance.
-- If the gap mask or collisions prevent the requested ratio, valid output takes priority over exact ratio matching.
+- `density` controls how many base slots phase 1 fills with `80x80` footprints.
+- `smallCellRatio` defaults to `0.2` and is independent of density.
+- `smallCellRatio` sets how many large cells to convert into diagonal tips after phase 1 (`floor(largeCount * smallCellRatio)`), not an exact area guarantee.
+- `smallCellRatio: 0` keeps the grid all-large; `1` grows only `40x40` cells (no large phase).
+- Each large→small conversion places the tip inside the freed `2x2` footprint (never leaving a full large-sized void) and may run a follow-up large fill for any connected gaps.
+- Replacement prioritizes chair larges with the fewest closed sides, with extra weight toward the bottom and horizontal center.
+- If the gap mask, connectivity, or hierarchy rules prevent a conversion, valid output takes priority over exact ratio matching.
 
 ## App Config Rules
 
@@ -168,10 +163,10 @@ The gap mask lets users reserve areas for titles, copy, or other content.
 - The canvas preview lives on the right.
 - The canvas background is white.
 - Width and height inputs accept arbitrary numeric values but are normalized to the nearest multiple of `40` before generation.
-- `density` is a `0..1` ratio that controls the target share of occupied `40px` base slots.
-- The occupied slot target is derived from normalized canvas capacity: `columns * rows * density`.
-- `density: 1` should attempt to fill as much of the valid grid as possible, while still respecting gaps, collision rules, small-cell edge rules, and connectivity rules.
-- `80x80` cells count as 4 occupied slots; `40x40` cells count as 1 occupied slot; overlays do not increase base occupancy.
+- `density` is a `0..1` ratio that controls the target **large footprint** in base slots when `80x80` cells are enabled: `floor(placeableSlots * density)` where `placeableSlots = columns * rows - gapMaskBlocked`.
+- When `smallCellRatio === 1`, density targets `floor(placeableSlots * density)` total occupied base slots using only `40x40` cells.
+- `density: 1` with large cells enabled fills placeable area with large footprints first, then applies the small ratio; final occupancy is lower after replacements.
+- `80x80` cells count as 4 base slots; `40x40` cells count as 1 base slot.
 - The app has a `Generate` button that advances or refreshes the generated grid.
 - Any config update automatically triggers generation.
 - The gap-mask editor is part of the config and should trigger generation after edits.
@@ -208,7 +203,6 @@ type GridConfig = {
   height: number;
   density: number;
   smallCellRatio: number;
-  largeCellRatio: number;
   gapMask: GapMask;
 };
 
@@ -237,7 +231,8 @@ The validator should be written as a pure function and run after generation.
 - No two generated cell footprints overlap.
 - `overlaySmall` cells may overlap only the `80x80` cell that contains them.
 - No two `40x40` cells share a full edge.
-- In mixed layouts where `80x80` cells are enabled, no diagonal chain of base `40x40` cells is longer than 3 cells.
+- In mixed layouts where `80x80` cells are enabled, no `40x40` tip may touch another `40x40` cell on an edge or diagonal.
+- No base `40x40` cell sits between multiple `80x80` neighbors.
 - In pure `40x40` layouts, the diagonal-chain cap does not apply; otherwise the connected grid cannot grow beyond a few cells.
 - All generated cells form one connected grid through edge or corner contact.
 - Every cell has a stable deterministic `id`.
@@ -264,4 +259,4 @@ When extending this system:
 
 ## First-Build Scope
 
-The first build should create the intended visual family through one connected group of non-overlapping `40x40` and `80x80` base rectangles, sparse placement, edge variation, user-defined gap masks, and decorative `overlaySmall` cells drawn inside some `80x80` cells.
+The first build should create the intended visual family through one connected group of non-overlapping `40x40` and `80x80` base rectangles, density-aware placement, edge variation, user-defined gap masks, and large→terminal-small chain hierarchy.

@@ -18,7 +18,6 @@ const renderSidebar = (overrides: Partial<ComponentProps<typeof Sidebar>> = {}) 
     },
     onConfigChange: vi.fn(),
     onSmallRatioChange: vi.fn(),
-    onLargeRatioChange: vi.fn(),
     onStrokeColorChange: vi.fn(),
     onGenerate: vi.fn(),
     onGapMaskChange: vi.fn(),

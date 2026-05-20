@@ -9,8 +9,8 @@ import {
   snapConnectorCellCenter,
 } from "./lib/componentRegistry";
 import { isIconBoxInstance } from "./lib/icon-box/layout";
-import { updateLargeRatio, updateSmallRatio } from "./grid/config";
-import { generateGrid } from "./grid/generator";
+import { updateSmallRatio } from "./grid/config";
+import { scheduleGridFromConfig } from "./store/gridGeneration";
 import type {
   ComponentInstance,
   ComponentProps,
@@ -74,6 +74,8 @@ export type AppStoreState = {
   pixiApp: Application | null;
   gridConfig: GridConfig;
   grid: GeneratedGrid;
+  /** True while a debounced/worker grid regen is in flight (interactive edits only). */
+  gridGenerationPending: boolean;
   instances: ComponentInstance[];
   selectedInstanceId: string | null;
   /** Builder-only CSS-pixel pan applied to the canvas shell (persisted; PNG export ignores). */
@@ -97,7 +99,6 @@ export type AppStoreState = {
   updateGridConfig: (patch: Partial<GridConfig>) => void;
   replaceGridConfig: (gridConfig: GridConfig) => void;
   setSmallRatio: (value: number) => void;
-  setLargeRatio: (value: number) => void;
   regenerateSeed: () => void;
 
   selectInstance: (id: string | null) => void;
@@ -176,8 +177,19 @@ const flushMoveDragHistoryBatch = (baseline: PersistedDocumentSlice) => {
   handleSet?.(baseline, undefined, endSlice, undefined);
 };
 
+const gridScheduleHandlers = {
+  onPending: () => useAppStore.setState({ gridGenerationPending: true }),
+  onComplete: (grid: GeneratedGrid) => useAppStore.setState({ grid, gridGenerationPending: false }),
+  onError: () => useAppStore.setState({ gridGenerationPending: false }),
+};
+
 const syncGridToCurrentConfig = () => {
-  useAppStore.setState((s) => ({ grid: generateGrid(s.gridConfig) }));
+  scheduleGridFromConfig(useAppStore.getState().gridConfig, gridScheduleHandlers, { immediate: true });
+};
+
+const scheduleGridConfigUpdate = (gridConfig: GridConfig, immediate = false) => {
+  useAppStore.setState({ gridConfig });
+  scheduleGridFromConfig(gridConfig, gridScheduleHandlers, { immediate });
 };
 
 const duplicateInstanceForGrid = (
@@ -231,6 +243,7 @@ export const useAppStore = create<AppStoreState>()(
       (set, get) => ({
         pixiApp: null,
         ...defaultDocument,
+        gridGenerationPending: false,
         canvasPan: { x: 0, y: 0 },
         canvasZoom: 1,
         dragState: null,
@@ -248,35 +261,24 @@ export const useAppStore = create<AppStoreState>()(
         resetCanvasPan: () => set({ canvasPan: { x: 0, y: 0 } }),
         resetCanvasZoom: () => set({ canvasZoom: 1, canvasPan: { x: 0, y: 0 } }),
 
-        updateGridConfig: (patch) =>
-          set((s) => {
-            const gridConfig = { ...s.gridConfig, ...patch };
-            return { gridConfig, grid: generateGrid(gridConfig) };
-          }),
+        updateGridConfig: (patch) => {
+          const gridConfig = { ...get().gridConfig, ...patch };
+          scheduleGridConfigUpdate(gridConfig);
+        },
 
-        replaceGridConfig: (gridConfig) =>
-          set(() => ({
-            gridConfig,
-            grid: generateGrid(gridConfig),
-          })),
+        replaceGridConfig: (gridConfig) => {
+          scheduleGridConfigUpdate(gridConfig, true);
+        },
 
-        setSmallRatio: (value) =>
-          set((s) => {
-            const gridConfig = { ...s.gridConfig, ...updateSmallRatio(value) };
-            return { gridConfig, grid: generateGrid(gridConfig) };
-          }),
+        setSmallRatio: (value) => {
+          const gridConfig = { ...get().gridConfig, ...updateSmallRatio(value) };
+          scheduleGridConfigUpdate(gridConfig);
+        },
 
-        setLargeRatio: (value) =>
-          set((s) => {
-            const gridConfig = { ...s.gridConfig, ...updateLargeRatio(value) };
-            return { gridConfig, grid: generateGrid(gridConfig) };
-          }),
-
-        regenerateSeed: () =>
-          set((s) => {
-            const gridConfig = { ...s.gridConfig, seed: createSeed() };
-            return { gridConfig, grid: generateGrid(gridConfig) };
-          }),
+        regenerateSeed: () => {
+          const gridConfig = { ...get().gridConfig, seed: createSeed() };
+          scheduleGridConfigUpdate(gridConfig, true);
+        },
 
         selectInstance: (id) => set({ selectedInstanceId: id }),
 
@@ -601,6 +603,7 @@ export const resetAppStoreDocumentToDefault = () => {
     pixiApp: s.pixiApp,
     canvasPan: { x: 0, y: 0 },
     canvasZoom: 1,
+    gridGenerationPending: false,
     dragState: null,
     connectorEndpointPick: null,
     sidebarHoveredLayerId: null,

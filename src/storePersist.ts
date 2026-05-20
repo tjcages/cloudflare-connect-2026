@@ -130,7 +130,6 @@ const isGridConfigLike = (value: unknown): value is GridConfig => {
     isFiniteNumber(value.height) &&
     isFiniteNumber(value.density) &&
     isFiniteNumber(value.smallCellRatio) &&
-    isFiniteNumber(value.largeCellRatio) &&
     typeof value.strokeColor === "string" &&
     Array.isArray(value.gapMask)
   );

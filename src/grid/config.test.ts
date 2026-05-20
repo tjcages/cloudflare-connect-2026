@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG, normalizeConfig, updateLargeRatio, updateSmallRatio } from "./config";
+import {
+  DEFAULT_CONFIG,
+  getPlaceableSlotCount,
+  normalizeConfig,
+  prefersAllSmallCells,
+  updateSmallRatio,
+} from "./config";
 
 describe("normalizeConfig", () => {
-  it("uses a larger default share of 80x80 cells", () => {
+  it("uses density for large fill and an independent small-cell ratio", () => {
     expect(DEFAULT_CONFIG.density).toBe(0.36);
     expect(DEFAULT_CONFIG.smallCellRatio).toBe(0.2);
-    expect(DEFAULT_CONFIG.largeCellRatio).toBe(0.8);
+    expect(prefersAllSmallCells(DEFAULT_CONFIG.smallCellRatio)).toBe(false);
   });
 
   it("defaults the grid stroke color to the browser starter color", () => {
@@ -35,14 +41,33 @@ describe("normalizeConfig", () => {
     expect(config.renderHeight).toBe(161);
   });
 
-  it("normalizes ratios so they sum to 1", () => {
+  it("clamps the small-cell ratio into 0..1", () => {
     const config = normalizeConfig({
       ...DEFAULT_CONFIG,
       smallCellRatio: 2,
-      largeCellRatio: 1,
     });
 
-    expect(config.smallCellRatio + config.largeCellRatio).toBe(1);
+    expect(config.smallCellRatio).toBe(1);
+  });
+
+  it("counts placeable slots as total minus gap-mask blocks", () => {
+    const config = normalizeConfig({
+      ...DEFAULT_CONFIG,
+      width: 320,
+      height: 320,
+      gapMask: [
+        [true, true, false, false, false, false, false, false],
+        [true, true, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+      ],
+    });
+
+    expect(getPlaceableSlotCount(config)).toBe(60);
   });
 
   it("normalizes density to the 0..1 range", () => {
@@ -56,17 +81,9 @@ describe("normalizeConfig", () => {
 });
 
 describe("ratio updates", () => {
-  it("updates the large ratio when the small ratio changes", () => {
+  it("updates only the small-cell ratio", () => {
     expect(updateSmallRatio(0.35)).toEqual({
       smallCellRatio: 0.35,
-      largeCellRatio: 0.65,
-    });
-  });
-
-  it("updates the small ratio when the large ratio changes", () => {
-    expect(updateLargeRatio(0.15)).toEqual({
-      smallCellRatio: 0.85,
-      largeCellRatio: 0.15,
     });
   });
 });

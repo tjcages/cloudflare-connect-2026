@@ -22,7 +22,6 @@ type SidebarProps = {
   };
   onConfigChange: (config: GridConfig) => void;
   onSmallRatioChange: (value: number) => void;
-  onLargeRatioChange: (value: number) => void;
   onStrokeColorChange: (color: string) => void;
   onGenerate: () => void;
   onGapMaskChange: (mask: GapMask) => void;
@@ -39,7 +38,6 @@ export const Sidebar = ({
   renderSize,
   onConfigChange,
   onSmallRatioChange,
-  onLargeRatioChange,
   onStrokeColorChange,
   onGenerate,
   onGapMaskChange,
@@ -94,7 +92,6 @@ export const Sidebar = ({
         onChange={(density) => onConfigChange({ ...config, density })}
       />
       <RatioControl label="40x40 cell ratio" value={config.smallCellRatio} onChange={onSmallRatioChange} />
-      <RatioControl label="80x80 cell ratio" value={config.largeCellRatio} onChange={onLargeRatioChange} />
 
       <BuilderField colorField>
         <BuilderFieldHeaderRow>

@@ -29,7 +29,6 @@ describe("mergePersistedDocument", () => {
       height: 560,
       density: 0.36,
       smallCellRatio: 0.2,
-      largeCellRatio: 0.8,
       strokeColor: "#f3f3f3",
     });
     expect(fresh.instances).toHaveLength(15);

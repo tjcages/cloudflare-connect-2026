@@ -1,5 +1,8 @@
-import { BASE_UNIT, LARGE_CELL_SIZE, SMALL_CELL_SIZE, type GeneratedGrid, type GridCell } from "./types";
+import { findSoleSlotDiagonalLargeForSmall, smallSharesSlotEdgeWithLarge } from "./cellAttachment";
+import { usesMixedCellRules } from "./config";
+import { countLargeExposureSides, MAX_LARGE_EXPOSURE_SIDES } from "./largeExposure";
 import { candidateTouchesGap } from "./mask";
+import { BASE_UNIT, LARGE_CELL_SIZE, SMALL_CELL_SIZE, type GeneratedGrid, type GridCell } from "./types";
 
 type ValidationResult = {
   valid: boolean;
@@ -89,6 +92,18 @@ const smallCellsShareEdge = (left: GridCell, right: GridCell) => {
   return touchesVertically || touchesHorizontally;
 };
 
+const smallCellsTouch = (left: GridCell, right: GridCell) => {
+  if (left.kind !== "small" || right.kind !== "small") {
+    return false;
+  }
+
+  const touchesCorner =
+    (left.x + left.width === right.x || right.x + right.width === left.x) &&
+    (left.y + left.height === right.y || right.y + right.height === left.y);
+
+  return smallCellsShareEdge(left, right) || touchesCorner;
+};
+
 const isOverlayInsideLargeCell = (overlay: GridCell, cells: GridCell[]) =>
   overlay.kind === "overlaySmall" &&
   cells.some(
@@ -99,40 +114,6 @@ const isOverlayInsideLargeCell = (overlay: GridCell, cells: GridCell[]) =>
       overlay.x + overlay.width <= cell.x + cell.width &&
       overlay.y + overlay.height <= cell.y + cell.height,
   );
-
-const getSmallDiagonalChainLength = (cells: GridCell[]) => {
-  const smallSlots = new Set(
-    cells.filter((cell) => cell.kind === "small").map((cell) => `${cell.y / BASE_UNIT}:${cell.x / BASE_UNIT}`),
-  );
-  let maxChain = 0;
-
-  for (const slot of smallSlots) {
-    const visited = new Set<string>([slot]);
-    const queue = [slot];
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const [row, column] = current.split(":").map(Number);
-      const diagonalNeighbors = [
-        `${row - 1}:${column - 1}`,
-        `${row - 1}:${column + 1}`,
-        `${row + 1}:${column - 1}`,
-        `${row + 1}:${column + 1}`,
-      ];
-
-      for (const neighbor of diagonalNeighbors) {
-        if (smallSlots.has(neighbor) && !visited.has(neighbor)) {
-          visited.add(neighbor);
-          queue.push(neighbor);
-        }
-      }
-    }
-
-    maxChain = Math.max(maxChain, visited.size);
-  }
-
-  return maxChain;
-};
 
 export const validateGeneratedGrid = (grid: GeneratedGrid): ValidationResult => {
   const errors: string[] = [];
@@ -201,14 +182,76 @@ export const validateGeneratedGrid = (grid: GeneratedGrid): ValidationResult => 
 
   for (let leftIndex = 0; leftIndex < grid.cells.length; leftIndex += 1) {
     for (let rightIndex = leftIndex + 1; rightIndex < grid.cells.length; rightIndex += 1) {
-      if (smallCellsShareEdge(grid.cells[leftIndex], grid.cells[rightIndex])) {
+      const left = grid.cells[leftIndex]!;
+      const right = grid.cells[rightIndex]!;
+
+      if (usesMixedCellRules(grid.config.smallCellRatio)) {
+        if (smallCellsTouch(left, right)) {
+          errors.push("Small cells must not touch each other horizontally, vertically, or diagonally.");
+        }
+
+        continue;
+      }
+
+      if (smallCellsShareEdge(left, right)) {
         errors.push("Small cells must not share a full edge because they can read as 80x40 or 40x80.");
       }
     }
   }
 
-  if (grid.config.largeCellRatio > 0 && getSmallDiagonalChainLength(grid.cells) > 3) {
-    errors.push("Small diagonal chains must not be longer than 3 cells.");
+  const baseCells = grid.cells.filter((cell) => cell.kind !== "overlaySmall");
+
+  const hasLargeCells = baseCells.some((cell) => cell.kind === "large");
+
+  if (hasLargeCells && grid.cells.some((cell) => cell.kind === "small")) {
+    for (const cell of baseCells) {
+      if (cell.kind !== "small") {
+        continue;
+      }
+      const attachedLarge = findSoleSlotDiagonalLargeForSmall(cell, baseCells);
+
+      if (!attachedLarge) {
+        if (baseCells.some((other) => other.kind === "large" && smallSharesSlotEdgeWithLarge(cell, other))) {
+          errors.push(`${cell.id} must attach diagonally to its large cell, not on a shared edge.`);
+        } else {
+          errors.push(`${cell.id} must attach diagonally to exactly one large cell.`);
+        }
+
+        continue;
+      }
+
+      if (
+        attachedLarge.x === 0 ||
+        attachedLarge.y === 0 ||
+        attachedLarge.x + attachedLarge.width === grid.config.logicalWidth ||
+        attachedLarge.y + attachedLarge.height === grid.config.logicalHeight
+      ) {
+        errors.push(`${cell.id} must not attach to a canvas-edge large cell.`);
+      }
+
+      const slotKinds = new Map<string, GridCell["kind"]>();
+
+      for (const baseCell of baseCells) {
+        for (const key of getCellFootprint(baseCell)) {
+          slotKinds.set(key, baseCell.kind);
+        }
+      }
+
+      const occupied = new Set(slotKinds.keys());
+
+      if (countLargeExposureSides(attachedLarge, occupied, slotKinds, grid.config) > MAX_LARGE_EXPOSURE_SIDES) {
+        errors.push(`${cell.id} must attach only to an exposed large-cell tip.`);
+      }
+
+      const row = cell.y / BASE_UNIT;
+      const column = cell.x / BASE_UNIT;
+      const aboveKey = `${row - 1}:${column}`;
+      const belowKey = `${row + 1}:${column}`;
+
+      if (slotKinds.get(aboveKey) === "large" && slotKinds.get(belowKey) === "large") {
+        errors.push(`${cell.id} must not interrupt a vertical large-cell column.`);
+      }
+    }
   }
 
   return {

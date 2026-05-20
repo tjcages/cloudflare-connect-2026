@@ -1,4 +1,10 @@
-import { normalizeConfig } from "./config";
+import {
+  findSoleSlotDiagonalLargeForSmall,
+  isSlotDiagonalTipToLarge,
+  smallSharesSlotEdgeWithLarge,
+} from "./cellAttachment";
+import { getPlaceableSlotCount, normalizeConfig, prefersAllSmallCells, usesMixedCellRules } from "./config";
+import { countLargeExposureSides, MAX_LARGE_EXPOSURE_SIDES } from "./largeExposure";
 import { candidateTouchesGap } from "./mask";
 import { createPrng, shuffleWithPrng, type Prng } from "./prng";
 import {
@@ -48,6 +54,33 @@ const neighborKeys = (key: string, includeDiagonals = false) => {
   }
 
   return neighbors;
+};
+
+const rebuildOccupied = (cells: GridCell[]) => new Set(cells.flatMap(footprintKeys));
+
+const isFootprintConnected = (cells: GridCell[]) => {
+  const occupied = rebuildOccupied(cells);
+  const first = occupied.values().next().value as string | undefined;
+
+  if (!first) {
+    return true;
+  }
+
+  const visited = new Set<string>([first]);
+  const queue = [first];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+
+    for (const neighborKey of neighborKeys(current, true)) {
+      if (occupied.has(neighborKey) && !visited.has(neighborKey)) {
+        visited.add(neighborKey);
+        queue.push(neighborKey);
+      }
+    }
+  }
+
+  return visited.size === occupied.size;
 };
 
 const touchesOccupied = (candidate: CandidateCell, occupied: Set<string>, includeDiagonals: boolean) => {
@@ -179,20 +212,16 @@ const hasSmallEdgeNeighbor = (candidate: CandidateCell, cells: GridCell[]) => {
     return false;
   }
 
-  return cells.some((cell) => {
-    if (cell.kind !== "small") {
-      return false;
-    }
+  return cells.some((cell) => cell.kind === "small" && cellsShareEdge(cell, candidate));
+};
 
-    const touchesVertically =
-      (cell.x + cell.width === candidate.x || candidate.x + candidate.width === cell.x) &&
-      rangesOverlap(cell.y, cell.y + cell.height, candidate.y, candidate.y + candidate.height);
-    const touchesHorizontally =
-      (cell.y + cell.height === candidate.y || candidate.y + candidate.height === cell.y) &&
-      rangesOverlap(cell.x, cell.x + cell.width, candidate.x, candidate.x + candidate.width);
+/** Mixed layouts: small tips must not touch another small (edge or diagonal). */
+const hasAdjacentSmallNeighbor = (candidate: CandidateCell, cells: GridCell[], config: NormalizedGridConfig) => {
+  if (candidate.kind !== "small" || !usesMixedCellRules(config.smallCellRatio)) {
+    return false;
+  }
 
-    return touchesVertically || touchesHorizontally;
-  });
+  return cells.some((cell) => cell.kind === "small" && cellsTouch(cell, candidate));
 };
 
 const getSmallDiagonalChainLength = (cells: Array<GridCell | CandidateCell>) => {
@@ -229,12 +258,1173 @@ const getSmallDiagonalChainLength = (cells: Array<GridCell | CandidateCell>) => 
   return maxChain;
 };
 
-const shouldCapSmallDiagonalChains = (config: NormalizedGridConfig) => config.largeCellRatio > 0;
+const shouldCapSmallDiagonalChains = (config: NormalizedGridConfig) => usesMixedCellRules(config.smallCellRatio);
+
+const MAX_SMALL_DIAGONAL_CHAIN = 2;
+
+const wouldViolateSmallIsolation = (candidate: CandidateCell, cells: GridCell[], config: NormalizedGridConfig) =>
+  hasAdjacentSmallNeighbor(candidate, cells, config);
 
 const wouldExceedSmallDiagonalChain = (candidate: CandidateCell, cells: GridCell[], config: NormalizedGridConfig) =>
   shouldCapSmallDiagonalChains(config) &&
   candidate.kind === "small" &&
-  getSmallDiagonalChainLength([...cells, candidate]) > 3;
+  !wouldViolateSmallIsolation(candidate, cells, config) &&
+  getSmallDiagonalChainLength([...cells, candidate]) > MAX_SMALL_DIAGONAL_CHAIN;
+
+const buildSlotKindMap = (cells: GridCell[]) => {
+  const slotKinds = new Map<string, GridCell["kind"]>();
+
+  for (const cell of cells) {
+    if (cell.kind === "overlaySmall") {
+      continue;
+    }
+
+    for (const key of footprintKeys(cell)) {
+      slotKinds.set(key, cell.kind);
+    }
+  }
+
+  return slotKinds;
+};
+
+const cellsShareEdge = (
+  left: Pick<GridCell, "x" | "y" | "width" | "height">,
+  right: Pick<GridCell, "x" | "y" | "width" | "height">,
+) => {
+  const touchesVertically =
+    (left.x + left.width === right.x || right.x + right.width === left.x) &&
+    rangesOverlap(left.y, left.y + left.height, right.y, right.y + right.height);
+  const touchesHorizontally =
+    (left.y + left.height === right.y || right.y + right.height === left.y) &&
+    rangesOverlap(left.x, left.x + left.width, right.x, right.x + right.width);
+
+  return touchesVertically || touchesHorizontally;
+};
+
+const cellsTouch = (
+  left: Pick<GridCell, "x" | "y" | "width" | "height">,
+  right: Pick<GridCell, "x" | "y" | "width" | "height">,
+) => {
+  const touchesCorner =
+    (left.x + left.width === right.x || right.x + right.width === left.x) &&
+    (left.y + left.height === right.y || right.y + right.height === left.y);
+
+  return cellsShareEdge(left, right) || touchesCorner;
+};
+
+const isLargeOnCanvasPerimeter = (
+  large: Pick<GridCell, "x" | "y" | "width" | "height">,
+  config: NormalizedGridConfig,
+) =>
+  large.x === 0 ||
+  large.y === 0 ||
+  large.x + large.width === config.logicalWidth ||
+  large.y + large.height === config.logicalHeight;
+
+const findAttachedLargeForSmall = (small: CandidateCell, cells: GridCell[]) => {
+  const attached = cells.filter((cell) => cell.kind === "large" && cellsTouch(cell, small));
+
+  return attached.length === 1 ? attached[0] : null;
+};
+
+const findDiagonalAttachedLargeForSmall = (small: CandidateCell, cells: GridCell[]) =>
+  findSoleSlotDiagonalLargeForSmall(small, cells);
+
+const requiresDiagonalLargeTip = (config: NormalizedGridConfig) => usesMixedCellRules(config.smallCellRatio);
+
+const isValidDiagonalLargeTip = (small: CandidateCell, cells: GridCell[], config: NormalizedGridConfig) => {
+  if (!requiresDiagonalLargeTip(config) || small.kind !== "small") {
+    return true;
+  }
+
+  const attachedLarge = findDiagonalAttachedLargeForSmall(small, cells);
+
+  return attachedLarge !== null;
+};
+
+const isValidSmallTipPlacement = (
+  candidate: CandidateCell,
+  occupied: Set<string>,
+  cells: GridCell[],
+  config: NormalizedGridConfig,
+) => {
+  if (candidate.kind !== "small" || !usesMixedCellRules(config.smallCellRatio)) {
+    return true;
+  }
+
+  const attachedLarge = requiresDiagonalLargeTip(config)
+    ? findDiagonalAttachedLargeForSmall(candidate, cells)
+    : findAttachedLargeForSmall(candidate, cells);
+
+  if (!attachedLarge) {
+    return false;
+  }
+
+  if (isLargeOnCanvasPerimeter(attachedLarge, config)) {
+    return false;
+  }
+
+  const slotKinds = buildSlotKindMap(cells);
+
+  return countLargeExposureSides(attachedLarge, occupied, slotKinds, config) <= MAX_LARGE_EXPOSURE_SIDES;
+};
+
+const smallTipTargetScore = (
+  candidate: CandidateCell,
+  occupied: Set<string>,
+  cells: GridCell[],
+  config: NormalizedGridConfig,
+) => {
+  if (candidate.kind !== "small") {
+    return 0;
+  }
+
+  const attachedLarge = findAttachedLargeForSmall(candidate, cells);
+
+  if (!attachedLarge || isLargeOnCanvasPerimeter(attachedLarge, config)) {
+    return -6;
+  }
+
+  const slotKinds = buildSlotKindMap(cells);
+  const occupiedSides = countLargeExposureSides(attachedLarge, occupied, slotKinds, config);
+
+  if (occupiedSides > MAX_LARGE_EXPOSURE_SIDES) {
+    return -4;
+  }
+
+  const bottomBias = (candidate.y / config.logicalHeight) * 1.2;
+
+  if (occupiedSides === 2) {
+    return 5 + bottomBias;
+  }
+
+  if (occupiedSides === 1) {
+    return 3.5 + bottomBias * 0.5;
+  }
+
+  return 0;
+};
+
+const countAdjacentLargeCells = (candidate: CandidateCell, cells: GridCell[]) => {
+  const seen = new Set<string>();
+  let count = 0;
+
+  for (const cell of cells) {
+    if (cell.kind !== "large" || seen.has(cell.id)) {
+      continue;
+    }
+
+    if (cellsTouch(cell, candidate)) {
+      seen.add(cell.id);
+      count += 1;
+    }
+  }
+
+  return count;
+};
+
+const countDiagonalAdjacentLargeCells = (candidate: CandidateCell, cells: GridCell[]) => {
+  const seen = new Set<string>();
+  let count = 0;
+
+  for (const cell of cells) {
+    if (cell.kind !== "large" || seen.has(cell.id)) {
+      continue;
+    }
+
+    if (isSlotDiagonalTipToLarge(candidate, cell)) {
+      seen.add(cell.id);
+      count += 1;
+    }
+  }
+
+  return count;
+};
+
+const wouldPlaceSmallWithWrongLargeCount = (
+  candidate: CandidateCell,
+  cells: GridCell[],
+  config: NormalizedGridConfig,
+) => {
+  if (!requiresDiagonalLargeTip(config) || candidate.kind !== "small" || cells.length === 0) {
+    return false;
+  }
+
+  return countDiagonalAdjacentLargeCells(candidate, cells) !== 1;
+};
+
+const wouldAddSecondLargeNeighborToSmall = (candidate: CandidateCell, cells: GridCell[]) => {
+  if (candidate.kind !== "large") {
+    return false;
+  }
+
+  const hypothetical = [...cells, { ...candidate, id: "hypothetical-large" } as GridCell];
+
+  return cells.some((cell) => cell.kind === "small" && countAdjacentLargeCells(cell, hypothetical) > 1);
+};
+
+const touchesLargeOccupied = (candidate: CandidateCell, occupied: Set<string>, cells: GridCell[]) => {
+  const slotKinds = buildSlotKindMap(cells);
+
+  for (const key of footprintKeys(candidate)) {
+    for (const neighborKey of neighborKeys(key, true)) {
+      if (occupied.has(neighborKey) && slotKinds.get(neighborKey) === "large") {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+const wouldGrowFromSmallOnly = (
+  candidate: CandidateCell,
+  occupied: Set<string>,
+  cells: GridCell[],
+  config: NormalizedGridConfig,
+  isSeedPlacement: boolean,
+) => {
+  if (isSeedPlacement || cells.length === 0 || prefersAllSmallCells(config.smallCellRatio)) {
+    return false;
+  }
+
+  return !touchesLargeOccupied(candidate, occupied, cells);
+};
+
+const countLargeNeighborsOfSlot = (slotKey: string, cells: GridCell[]) => {
+  const [row, column] = slotKey.split(":").map(Number);
+  const offsets = [
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+    [-1, -1],
+    [-1, 1],
+    [1, -1],
+    [1, 1],
+  ];
+  const seen = new Set<string>();
+  let count = 0;
+
+  for (const cell of cells) {
+    if (cell.kind !== "large") {
+      continue;
+    }
+
+    const startRow = cell.y / BASE_UNIT;
+    const startCol = cell.x / BASE_UNIT;
+    const endRow = startRow + cell.height / BASE_UNIT;
+    const endCol = startCol + cell.width / BASE_UNIT;
+
+    for (const [dr, dc] of offsets) {
+      const nr = row + dr;
+      const nc = column + dc;
+
+      if (nr >= startRow && nr < endRow && nc >= startCol && nc < endCol && !seen.has(cell.id)) {
+        seen.add(cell.id);
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+};
+
+const wouldContinueAfterSmall = (candidate: CandidateCell, occupied: Set<string>, cells: GridCell[]) => {
+  if (candidate.kind !== "large" || cells.length === 0) {
+    return false;
+  }
+
+  if (touchesLargeOccupied(candidate, occupied, cells)) {
+    return false;
+  }
+
+  const slotKinds = buildSlotKindMap(cells);
+
+  for (const key of footprintKeys(candidate)) {
+    for (const neighborKey of neighborKeys(key, true)) {
+      if (!occupied.has(neighborKey) || slotKinds.get(neighborKey) !== "small") {
+        continue;
+      }
+
+      if (countLargeNeighborsOfSlot(neighborKey, cells) >= 1) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+type PickCandidateOptions = {
+  highDensity?: boolean;
+  allowDenseContacts?: boolean;
+  isSeedPlacement?: boolean;
+  /** Skips rejecting perimeter smalls when a large could cover the same slot (replacement tips). */
+  allowPerimeterSmallTips?: boolean;
+  /** Skips exposed-large tip checks; replacement picks sites on the removed large exterior. */
+  skipSmallTipPlacementCheck?: boolean;
+  /** Skips the decorative diagonal small-chain cap (replacement pass). */
+  skipDiagonalChainCap?: boolean;
+  /** Allows large fills in post-replacement void healing near existing smalls. */
+  allowVoidLargeFill?: boolean;
+};
+
+const isOnCanvasPerimeter = (candidate: CandidateCell, config: NormalizedGridConfig) =>
+  candidate.x === 0 ||
+  candidate.y === 0 ||
+  candidate.x + candidate.width === config.logicalWidth ||
+  candidate.y + candidate.height === config.logicalHeight;
+
+const largeCandidateCoversCell = (large: CandidateCell, row: number, column: number) => {
+  const startRow = large.y / BASE_UNIT;
+  const startColumn = large.x / BASE_UNIT;
+  const endRow = startRow + large.height / BASE_UNIT;
+  const endColumn = startColumn + large.width / BASE_UNIT;
+
+  return row >= startRow && row < endRow && column >= startColumn && column < endColumn;
+};
+
+const wouldPlaceSmallOnPerimeterWhenLargeFits = (
+  candidate: CandidateCell,
+  config: NormalizedGridConfig,
+  occupied: Set<string>,
+  cells: GridCell[],
+  largeCandidates: CandidateCell[],
+  options: PickCandidateOptions,
+) => {
+  if (
+    prefersAllSmallCells(config.smallCellRatio) ||
+    candidate.kind !== "small" ||
+    !isOnCanvasPerimeter(candidate, config)
+  ) {
+    return false;
+  }
+
+  const row = candidate.y / BASE_UNIT;
+  const column = candidate.x / BASE_UNIT;
+
+  return largeCandidates.some((large) => {
+    if (!largeCandidateCoversCell(large, row, column) || collides(large, occupied)) {
+      return false;
+    }
+
+    if (cells.length > 0 && !touchesOccupied(large, occupied, true)) {
+      return false;
+    }
+
+    return passesHierarchyRules(large, occupied, cells, config, options);
+  });
+};
+
+const wouldInterruptLargeColumn = (candidate: CandidateCell, occupied: Set<string>, cells: GridCell[]) => {
+  if (candidate.kind !== "small") {
+    return false;
+  }
+
+  const row = candidate.y / BASE_UNIT;
+  const column = candidate.x / BASE_UNIT;
+  const slotKinds = buildSlotKindMap(cells);
+  const aboveKey = `${row - 1}:${column}`;
+  const belowKey = `${row + 1}:${column}`;
+
+  return (
+    occupied.has(aboveKey) &&
+    occupied.has(belowKey) &&
+    slotKinds.get(aboveKey) === "large" &&
+    slotKinds.get(belowKey) === "large"
+  );
+};
+
+const getEmptyPlaceableSlots = (config: NormalizedGridConfig, occupied: Set<string>) => {
+  const slots: Array<{ row: number; column: number; gapPressure: number; occupiedNeighbors: number }> = [];
+
+  for (let row = 0; row < config.rows; row += 1) {
+    for (let column = 0; column < config.columns; column += 1) {
+      const key = `${row}:${column}`;
+
+      if (config.gapMask[row]?.[column] || occupied.has(key)) {
+        continue;
+      }
+
+      let gapPressure = 0;
+      let occupiedNeighbors = 0;
+
+      for (const neighborKey of neighborKeys(key, true)) {
+        const [neighborRow, neighborColumn] = neighborKey.split(":").map(Number);
+
+        if (config.gapMask[neighborRow]?.[neighborColumn]) {
+          gapPressure += 1;
+        }
+
+        if (occupied.has(neighborKey)) {
+          occupiedNeighbors += 1;
+        }
+      }
+
+      slots.push({ row, column, gapPressure, occupiedNeighbors });
+    }
+  }
+
+  return slots.sort((left, right) => {
+    if (right.gapPressure !== left.gapPressure) {
+      return right.gapPressure - left.gapPressure;
+    }
+
+    return right.occupiedNeighbors - left.occupiedNeighbors;
+  });
+};
+
+const countLargeOccupiedSlots = (cells: GridCell[]) =>
+  cells
+    .filter((cell) => cell.kind === "large")
+    .reduce((total, cell) => total + (cell.width / BASE_UNIT) * (cell.height / BASE_UNIT), 0);
+
+const canPlaceLargeCandidate = (
+  large: CandidateCell,
+  config: NormalizedGridConfig,
+  occupied: Set<string>,
+  cells: GridCell[],
+  options: PickCandidateOptions,
+  largeCandidates: CandidateCell[],
+) => {
+  if (collides(large, occupied)) {
+    return false;
+  }
+
+  if (cells.length > 0 && !touchesOccupied(large, occupied, true)) {
+    return false;
+  }
+
+  if (hasSmallEdgeNeighbor(large, cells)) {
+    return false;
+  }
+
+  if (options.allowVoidLargeFill && cells.some((cell) => cell.kind === "small" && cellsShareEdge(cell, large))) {
+    return false;
+  }
+
+  return passesHierarchyRules(large, occupied, cells, config, options, largeCandidates);
+};
+
+const fillEmptyLargeFootprints = (
+  config: NormalizedGridConfig,
+  occupied: Set<string>,
+  cells: GridCell[],
+  largeCandidates: CandidateCell[],
+  prng: Prng,
+  options: PickCandidateOptions,
+) => {
+  let progress = true;
+  let guard = 0;
+  const maxGuard = config.columns * config.rows;
+
+  const centerColumn = (config.columns - 1) / 2;
+  const holes: Array<{ row: number; column: number }> = [];
+
+  for (let row = 0; row < config.rows - 1; row += 2) {
+    for (let column = 0; column < config.columns - 1; column += 2) {
+      const keys = [`${row}:${column}`, `${row}:${column + 1}`, `${row + 1}:${column}`, `${row + 1}:${column + 1}`];
+
+      if (
+        keys.some((key) => {
+          const [slotRow, slotColumn] = key.split(":").map(Number);
+
+          return config.gapMask[slotRow]?.[slotColumn] || occupied.has(key);
+        })
+      ) {
+        continue;
+      }
+
+      const touchingOccupied = keys.some((key) =>
+        neighborKeys(key, true).some((neighborKey) => occupied.has(neighborKey)),
+      );
+
+      if (touchingOccupied) {
+        holes.push({ row, column });
+      }
+    }
+  }
+
+  holes.sort((left, right) => {
+    if (right.row !== left.row) {
+      return right.row - left.row;
+    }
+
+    const leftCenterDistance = Math.abs(left.column + 1 - centerColumn);
+    const rightCenterDistance = Math.abs(right.column + 1 - centerColumn);
+
+    return leftCenterDistance - rightCenterDistance;
+  });
+
+  while (progress && guard < maxGuard) {
+    guard += 1;
+    progress = false;
+
+    for (const hole of holes) {
+      const keys = [
+        `${hole.row}:${hole.column}`,
+        `${hole.row}:${hole.column + 1}`,
+        `${hole.row + 1}:${hole.column}`,
+        `${hole.row + 1}:${hole.column + 1}`,
+      ];
+
+      if (keys.some((key) => occupied.has(key))) {
+        continue;
+      }
+
+      const holeKeys = new Set(keys);
+      const fittingLarges = shuffleWithPrng(
+        largeCandidates.filter((large) => footprintKeys(large).every((key) => holeKeys.has(key))),
+        prng,
+      );
+
+      for (const candidate of fittingLarges) {
+        if (canPlaceLargeCandidate(candidate, config, occupied, cells, options, largeCandidates)) {
+          commitCandidate(candidate, occupied, cells, cells.length);
+          progress = true;
+          break;
+        }
+      }
+
+      if (progress) {
+        break;
+      }
+    }
+  }
+};
+
+const fillResidualPlaceableSlots = (
+  config: NormalizedGridConfig,
+  occupied: Set<string>,
+  cells: GridCell[],
+  largeCandidates: CandidateCell[],
+  prng: Prng,
+  targetLargeSlots: number,
+  options: PickCandidateOptions,
+) => {
+  const fillOptions: PickCandidateOptions = { ...options, highDensity: true, allowDenseContacts: true };
+  let guard = 0;
+  const maxGuard = config.columns * config.rows * 6;
+
+  while (countLargeOccupiedSlots(cells) < targetLargeSlots && guard < maxGuard) {
+    guard += 1;
+    const emptySlots = getEmptyPlaceableSlots(config, occupied);
+
+    if (emptySlots.length === 0) {
+      break;
+    }
+
+    let placed = false;
+
+    for (const slot of emptySlots) {
+      const coveringLarges = shuffleWithPrng(
+        largeCandidates.filter((large) => largeCandidateCoversCell(large, slot.row, slot.column)),
+        prng,
+      );
+
+      for (const large of coveringLarges) {
+        if (!canPlaceLargeCandidate(large, config, occupied, cells, fillOptions, largeCandidates)) {
+          continue;
+        }
+
+        commitCandidate(large, occupied, cells, cells.length);
+        placed = true;
+        break;
+      }
+
+      if (placed) {
+        break;
+      }
+    }
+
+    if (!placed) {
+      break;
+    }
+  }
+};
+
+const fillToTargetOccupancy = (
+  config: NormalizedGridConfig,
+  occupied: Set<string>,
+  cells: GridCell[],
+  largeCandidates: CandidateCell[],
+  prng: Prng,
+  targetOccupied: number,
+  options: PickCandidateOptions,
+) => {
+  const fillOptions: PickCandidateOptions = { ...options, highDensity: true, allowDenseContacts: true };
+  let guard = 0;
+  const maxGuard = config.columns * config.rows * 8;
+
+  while (occupied.size < targetOccupied && guard < maxGuard) {
+    guard += 1;
+    const emptySlots = getEmptyPlaceableSlots(config, occupied);
+
+    if (emptySlots.length === 0) {
+      break;
+    }
+
+    let placed = false;
+
+    for (const slot of emptySlots) {
+      const coveringLarges = shuffleWithPrng(
+        largeCandidates.filter((large) => largeCandidateCoversCell(large, slot.row, slot.column)),
+        prng,
+      );
+
+      for (const large of coveringLarges) {
+        if (!canPlaceLargeCandidate(large, config, occupied, cells, fillOptions, largeCandidates)) {
+          continue;
+        }
+
+        commitCandidate(large, occupied, cells, cells.length);
+        placed = true;
+        break;
+      }
+
+      if (placed) {
+        break;
+      }
+    }
+
+    if (!placed) {
+      break;
+    }
+  }
+};
+
+const removeCellFromGrid = (cellId: string, occupied: Set<string>, cells: GridCell[]) => {
+  const index = cells.findIndex((cell) => cell.id === cellId);
+
+  if (index < 0) {
+    return;
+  }
+
+  const cell = cells[index]!;
+
+  for (const key of footprintKeys(cell)) {
+    occupied.delete(key);
+  }
+
+  cells.splice(index, 1);
+};
+
+const buildDiagonalCornerExteriorCandidatesForLarge = (
+  large: GridCell,
+  config: NormalizedGridConfig,
+  occupied: Set<string>,
+): CandidateCell[] => {
+  const startRow = large.y / BASE_UNIT;
+  const startColumn = large.x / BASE_UNIT;
+  const endRow = startRow + large.height / BASE_UNIT;
+  const endColumn = startColumn + large.width / BASE_UNIT;
+  const cornerSlots: Array<[number, number]> = [];
+
+  if (startRow > 0 && startColumn > 0) {
+    cornerSlots.push([startRow - 1, startColumn - 1]);
+  }
+
+  if (startRow > 0 && endColumn < config.columns) {
+    cornerSlots.push([startRow - 1, endColumn]);
+  }
+
+  if (endRow < config.rows && startColumn > 0) {
+    cornerSlots.push([endRow, startColumn - 1]);
+  }
+
+  if (endRow < config.rows && endColumn < config.columns) {
+    cornerSlots.push([endRow, endColumn]);
+  }
+
+  const candidates: CandidateCell[] = [];
+
+  for (const [row, column] of cornerSlots) {
+    const key = `${row}:${column}`;
+
+    if (config.gapMask[row]?.[column] || occupied.has(key)) {
+      continue;
+    }
+
+    candidates.push({
+      kind: "small",
+      x: column * BASE_UNIT,
+      y: row * BASE_UNIT,
+      width: SMALL_CELL_SIZE,
+      height: SMALL_CELL_SIZE,
+    });
+  }
+
+  return candidates;
+};
+
+const buildInteriorCornerShrinkCandidatesForLarge = (large: GridCell): CandidateCell[] => [
+  {
+    kind: "small",
+    x: large.x,
+    y: large.y,
+    width: SMALL_CELL_SIZE,
+    height: SMALL_CELL_SIZE,
+  },
+  {
+    kind: "small",
+    x: large.x + BASE_UNIT,
+    y: large.y,
+    width: SMALL_CELL_SIZE,
+    height: SMALL_CELL_SIZE,
+  },
+  {
+    kind: "small",
+    x: large.x,
+    y: large.y + BASE_UNIT,
+    width: SMALL_CELL_SIZE,
+    height: SMALL_CELL_SIZE,
+  },
+  {
+    kind: "small",
+    x: large.x + BASE_UNIT,
+    y: large.y + BASE_UNIT,
+    width: SMALL_CELL_SIZE,
+    height: SMALL_CELL_SIZE,
+  },
+];
+
+const passesReplacementSmallValidate = (small: CandidateCell, cells: GridCell[], config: NormalizedGridConfig) => {
+  const attachedLarge = findDiagonalAttachedLargeForSmall(small, cells);
+
+  if (!attachedLarge) {
+    return false;
+  }
+
+  if (isLargeOnCanvasPerimeter(attachedLarge, config)) {
+    return false;
+  }
+
+  const slotKinds = buildSlotKindMap(cells);
+  const occupied = new Set(slotKinds.keys());
+
+  return countLargeExposureSides(attachedLarge, occupied, slotKinds, config) <= MAX_LARGE_EXPOSURE_SIDES;
+};
+
+const MAX_REPLACEMENT_EDGE_BLOCKERS = 2;
+
+const buildEdgeBlockersForReplacementSite = (site: CandidateCell, large: GridCell, cells: GridCell[]) =>
+  cells.filter((cell) => cell.kind === "large" && cell.id !== large.id && smallSharesSlotEdgeWithLarge(site, cell));
+
+const buildReplacementRemovalState = (
+  large: GridCell,
+  site: CandidateCell,
+  cells: GridCell[],
+  occupied: Set<string>,
+  removeEdgeBlockers: boolean,
+) => {
+  const edgeBlockers = buildEdgeBlockersForReplacementSite(site, large, cells);
+  const extraRemoveIds =
+    removeEdgeBlockers && edgeBlockers.length > 0 && edgeBlockers.length <= MAX_REPLACEMENT_EDGE_BLOCKERS
+      ? edgeBlockers.map((cell) => cell.id)
+      : [];
+  const removeIds = new Set([large.id, ...extraRemoveIds]);
+  const cellsAfter = cells.filter((cell) => !removeIds.has(cell.id));
+  const occupiedAfter = rebuildOccupied(cellsAfter);
+
+  return { cellsAfter, occupiedAfter, edgeBlockers, extraRemoveIds };
+};
+
+const hasReplacementDiagonalAnchor = (site: CandidateCell, large: GridCell, cells: GridCell[]) => {
+  const cellsWithoutLarge = cells.filter((cell) => cell.id !== large.id);
+
+  if (findDiagonalAttachedLargeForSmall(site, cellsWithoutLarge) !== null) {
+    return true;
+  }
+
+  const edgeBlockers = buildEdgeBlockersForReplacementSite(site, large, cells);
+
+  if (edgeBlockers.length === 0 || edgeBlockers.length > MAX_REPLACEMENT_EDGE_BLOCKERS) {
+    return false;
+  }
+
+  const cellsAfterBlockers = cellsWithoutLarge.filter(
+    (cell) => !edgeBlockers.some((blocker) => blocker.id === cell.id),
+  );
+
+  return findDiagonalAttachedLargeForSmall(site, cellsAfterBlockers) !== null;
+};
+
+const buildReplacementSmallCandidatesForLarge = (
+  large: GridCell,
+  config: NormalizedGridConfig,
+  occupied: Set<string>,
+  cells: GridCell[],
+) => {
+  const occupiedWithoutLarge = new Set(occupied);
+
+  for (const key of footprintKeys(large)) {
+    occupiedWithoutLarge.delete(key);
+  }
+
+  const seen = new Set<string>();
+  const candidates: CandidateCell[] = [];
+
+  for (const site of [
+    ...buildInteriorCornerShrinkCandidatesForLarge(large),
+    ...buildDiagonalCornerExteriorCandidatesForLarge(large, config, occupiedWithoutLarge),
+  ]) {
+    const key = footprintKeys(site).join("|");
+
+    if (seen.has(key) || collides(site, occupiedWithoutLarge)) {
+      continue;
+    }
+
+    if (!hasReplacementDiagonalAnchor(site, large, cells)) {
+      continue;
+    }
+
+    seen.add(key);
+    candidates.push(site);
+  }
+
+  return candidates;
+};
+
+const pickWeightedByScore = <T>(
+  entries: Array<{ value: T; score: number }>,
+  prng: Prng,
+  options: { topPool?: number; temperature?: number } = {},
+): T | null => {
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const topPool = options.topPool ?? 6;
+  const temperature = options.temperature ?? 1.35;
+  const pool = [...entries].sort((left, right) => right.score - left.score).slice(0, Math.min(topPool, entries.length));
+  const maxScore = pool[0]!.score;
+  let roll = prng.next();
+  let totalWeight = 0;
+  const weights = pool.map((entry) => {
+    const weight = Math.exp((entry.score - maxScore) / temperature) + 0.2;
+
+    totalWeight += weight;
+
+    return { value: entry.value, weight };
+  });
+
+  roll *= totalWeight;
+
+  for (const entry of weights) {
+    roll -= entry.weight;
+
+    if (roll <= 0) {
+      return entry.value;
+    }
+  }
+
+  return weights[weights.length - 1]!.value;
+};
+
+const replacementSmallScore = (
+  candidate: CandidateCell,
+  occupied: Set<string>,
+  cells: GridCell[],
+  config: NormalizedGridConfig,
+  prng: Prng,
+) => {
+  const attachedLarge = findDiagonalAttachedLargeForSmall(candidate, cells);
+
+  if (candidate.kind !== "small" || !attachedLarge) {
+    return -8;
+  }
+
+  const contacts = countOrthogonalContacts(candidate, occupied);
+
+  if (contacts >= 3) {
+    return -6;
+  }
+
+  const spatialJitter = prng.next() * 0.9;
+  const bottomBias = (candidate.y / config.logicalHeight) * 2.5;
+
+  return 6 + bottomBias + spatialJitter + (contacts === 1 ? 1 : 0);
+};
+
+const largeReplacementScore = (large: GridCell, contactSides: number, config: NormalizedGridConfig, prng: Prng) => {
+  const bottomBias = (large.y / config.logicalHeight) * 8;
+  const centerColumn = (config.columns - 1) / 2;
+  const largeCenterColumn = large.x / BASE_UNIT + large.width / BASE_UNIT / 2;
+  const bottomCenterBias =
+    large.y >= config.logicalHeight * 0.5 ? Math.max(0, 3 - Math.abs(largeCenterColumn - centerColumn)) * 2 : 0;
+  const exposureBonus = Math.max(0, MAX_LARGE_EXPOSURE_SIDES + 1 - contactSides) * 6;
+
+  return exposureBonus + bottomBias + bottomCenterBias + prng.next() * 0.5;
+};
+
+type ReplacementPick = {
+  site: CandidateCell;
+  extraRemoveIds: string[];
+};
+
+const pickBestReplacementSmall = (
+  large: GridCell,
+  sites: CandidateCell[],
+  config: NormalizedGridConfig,
+  occupied: Set<string>,
+  cells: GridCell[],
+  prng: Prng,
+  options: PickCandidateOptions,
+): ReplacementPick | null => {
+  const viable: Array<{ value: ReplacementPick; score: number }> = [];
+
+  for (const site of shuffleWithPrng(sites, prng)) {
+    for (const removeEdgeBlockers of [false, true]) {
+      const { cellsAfter, occupiedAfter, edgeBlockers, extraRemoveIds } = buildReplacementRemovalState(
+        large,
+        site,
+        cells,
+        occupied,
+        removeEdgeBlockers,
+      );
+
+      if (collides(site, occupiedAfter)) {
+        continue;
+      }
+
+      if (!touchesOccupied(site, occupiedAfter, true)) {
+        continue;
+      }
+
+      if (hasAdjacentSmallNeighbor(site, cellsAfter, config)) {
+        continue;
+      }
+
+      if (!passesHierarchyRules(site, occupiedAfter, cellsAfter, config, options)) {
+        continue;
+      }
+
+      if (!passesReplacementSmallValidate(site, cellsAfter, config)) {
+        continue;
+      }
+
+      const cellsWithSmall: GridCell[] = [...cellsAfter, { ...site, id: "replacement-small" } as GridCell];
+
+      if (!isFootprintConnected(cellsWithSmall)) {
+        continue;
+      }
+
+      const score = replacementSmallScore(site, occupiedAfter, cellsAfter, config, prng);
+
+      if (score < 0) {
+        continue;
+      }
+
+      if (!isValidDiagonalLargeTip(site, cellsAfter, config)) {
+        continue;
+      }
+
+      if (removeEdgeBlockers && edgeBlockers.length === 0) {
+        continue;
+      }
+
+      const blockerPenalty = extraRemoveIds.length * 5;
+
+      viable.push({
+        value: { site, extraRemoveIds },
+        score: score - blockerPenalty,
+      });
+
+      if (!removeEdgeBlockers) {
+        break;
+      }
+    }
+  }
+
+  const picked = pickWeightedByScore(viable, prng, {
+    topPool: 6,
+    temperature: 0.85,
+  });
+
+  return picked ?? null;
+};
+
+const isSoleLargeAnchorForSmall = (large: GridCell, cells: GridCell[]) =>
+  cells.some(
+    (cell) =>
+      cell.kind === "small" &&
+      isSlotDiagonalTipToLarge(cell, large) &&
+      countDiagonalAdjacentLargeCells(cell, cells) === 1,
+  );
+
+const replaceLargeCellsWithSmalls = (
+  config: NormalizedGridConfig,
+  occupied: Set<string>,
+  cells: GridCell[],
+  prng: Prng,
+  replaceCount: number,
+) => {
+  if (prefersAllSmallCells(config.smallCellRatio) || config.smallCellRatio === 0 || replaceCount <= 0) {
+    return;
+  }
+
+  const replacementOptions: PickCandidateOptions = {
+    highDensity: true,
+    allowDenseContacts: true,
+    allowPerimeterSmallTips: true,
+    skipSmallTipPlacementCheck: true,
+    skipDiagonalChainCap: true,
+  };
+
+  let remaining = replaceCount;
+
+  const rankReplaceableLargesForState = (stateCells: GridCell[], stateOccupied: Set<string>) => {
+    const slotKinds = buildSlotKindMap(stateCells);
+
+    return shuffleWithPrng(
+      stateCells.filter((cell) => cell.kind === "large" && !isSoleLargeAnchorForSmall(cell, stateCells)),
+      prng,
+    )
+      .map((large) => {
+        const contactSides = countLargeExposureSides(large, stateOccupied, slotKinds, config);
+        const sites = buildReplacementSmallCandidatesForLarge(large, config, stateOccupied, stateCells);
+        const pick = pickBestReplacementSmall(
+          large,
+          sites,
+          config,
+          stateOccupied,
+          stateCells,
+          prng,
+          replacementOptions,
+        );
+
+        return {
+          large,
+          pick,
+          score: pick ? largeReplacementScore(large, contactSides, config, prng) : -1,
+          contactSides,
+        };
+      })
+      .filter((entry) => entry.pick !== null);
+  };
+
+  const rankReplaceableLarges = () => rankReplaceableLargesForState(cells, occupied);
+
+  type ReplaceableLarge = {
+    large: GridCell;
+    pick: ReplacementPick | null;
+    score: number;
+    contactSides: number;
+  };
+
+  const pickReplacementPool = (ranked: ReplaceableLarge[]) => {
+    if (ranked.length === 0) {
+      return [];
+    }
+
+    const chairPool = ranked.filter((entry) => entry.contactSides <= MAX_LARGE_EXPOSURE_SIDES);
+
+    if (chairPool.length > 0) {
+      return chairPool;
+    }
+
+    const threeSidePool = ranked.filter((entry) => entry.contactSides === 3);
+
+    if (threeSidePool.length > 0) {
+      return threeSidePool;
+    }
+
+    return ranked;
+  };
+
+  while (remaining > 0) {
+    const ranked = rankReplaceableLarges();
+    const pool = pickReplacementPool(ranked);
+
+    if (pool.length === 0) {
+      break;
+    }
+
+    const picked = pickWeightedByScore(
+      pool.map((entry) => ({ value: entry, score: entry.score })),
+      prng,
+      { topPool: 8, temperature: 0.9 },
+    );
+
+    if (!picked?.pick) {
+      break;
+    }
+
+    const { large, pick } = picked;
+
+    removeCellFromGrid(large.id, occupied, cells);
+
+    for (const blockerId of pick.extraRemoveIds) {
+      removeCellFromGrid(blockerId, occupied, cells);
+    }
+
+    commitCandidate(pick.site, occupied, cells, cells.length);
+    remaining -= 1;
+  }
+};
+
+const passesHierarchyRules = (
+  candidate: CandidateCell,
+  occupied: Set<string>,
+  cells: GridCell[],
+  config: NormalizedGridConfig,
+  options: PickCandidateOptions,
+  largeCandidates: CandidateCell[] = [],
+) => {
+  if (wouldViolateSmallIsolation(candidate, cells, config)) {
+    return false;
+  }
+
+  if (!isValidDiagonalLargeTip(candidate, cells, config)) {
+    return false;
+  }
+
+  if (!options.skipDiagonalChainCap && wouldExceedSmallDiagonalChain(candidate, cells, config)) {
+    return false;
+  }
+
+  if (wouldGrowFromSmallOnly(candidate, occupied, cells, config, options.isSeedPlacement ?? false)) {
+    return false;
+  }
+
+  if (wouldPlaceSmallWithWrongLargeCount(candidate, cells, config)) {
+    return false;
+  }
+
+  if (
+    !options.allowVoidLargeFill &&
+    usesMixedCellRules(config.smallCellRatio) &&
+    wouldAddSecondLargeNeighborToSmall(candidate, cells)
+  ) {
+    return false;
+  }
+
+  if (wouldContinueAfterSmall(candidate, occupied, cells)) {
+    return false;
+  }
+
+  if (wouldInterruptLargeColumn(candidate, occupied, cells)) {
+    return false;
+  }
+
+  if (
+    !options.allowPerimeterSmallTips &&
+    wouldPlaceSmallOnPerimeterWhenLargeFits(candidate, config, occupied, cells, largeCandidates, options)
+  ) {
+    return false;
+  }
+
+  if (
+    candidate.kind === "small" &&
+    !options.skipSmallTipPlacementCheck &&
+    !isValidSmallTipPlacement(candidate, occupied, cells, config)
+  ) {
+    return false;
+  }
+
+  return true;
+};
 
 const commitCandidate = (candidate: CandidateCell, occupied: Set<string>, cells: GridCell[], index: number) => {
   for (const key of footprintKeys(candidate)) {
@@ -296,7 +1486,11 @@ const pickValidCandidate = (
   cells: GridCell[],
   prng: Prng,
   requireConnection: boolean,
+  options: PickCandidateOptions = {},
+  largeCandidatesForRules: CandidateCell[] = [],
 ) => {
+  const highDensity = options.highDensity ?? config.density >= 0.85;
+  const allowDenseContacts = options.allowDenseContacts ?? false;
   const bounds = getCellBounds(cells);
   const coverage = getCoverageState(cells, config);
   const shuffled = shuffleWithPrng(candidates, prng)
@@ -307,6 +1501,8 @@ const pickValidCandidate = (
         growthCoverageScore(candidate, bounds) +
         quadrantCoverageScore(candidate, coverage, config) +
         gapPerimeterScore(candidate, config) +
+        smallTipTargetScore(candidate, occupied, cells, config) +
+        (candidate.kind === "large" && highDensity && isOnCanvasPerimeter(candidate, config) ? 1.1 : 0) +
         prng.next() * 0.2,
     }))
     .sort((left, right) => right.score - left.score)
@@ -325,46 +1521,60 @@ const pickValidCandidate = (
       continue;
     }
 
-    if (wouldExceedSmallDiagonalChain(candidate, cells, config)) {
+    if (hasAdjacentSmallNeighbor(candidate, cells, config)) {
+      continue;
+    }
+
+    if (!passesHierarchyRules(candidate, occupied, cells, config, options, largeCandidatesForRules)) {
       continue;
     }
 
     const orthogonalContacts = countOrthogonalContacts(candidate, occupied);
     const diagonalContacts = countDiagonalContacts(candidate, occupied);
 
-    if (orthogonalContacts >= 4) {
+    if (!allowDenseContacts && orthogonalContacts >= 4) {
       continue;
     }
 
-    if (candidate.kind === "large" && orthogonalContacts >= 3 && prng.chance(0.55)) {
+    if (candidate.kind === "small" && orthogonalContacts >= 3) {
       continue;
     }
 
-    if (candidate.kind === "small" && orthogonalContacts >= 3 && prng.chance(0.86)) {
+    if (!highDensity) {
+      if (candidate.kind === "large" && orthogonalContacts >= 3 && prng.chance(0.55)) {
+        continue;
+      }
+
+      if (candidate.kind === "small" && orthogonalContacts >= 3 && prng.chance(0.86)) {
+        continue;
+      }
+
+      if (candidate.kind === "large" && hasLargeEdgeNeighbor(candidate, cells) && prng.chance(0.55)) {
+        continue;
+      }
+
+      if (orthogonalContacts === 0 && diagonalContacts > 0 && prng.chance(0.82)) {
+        return candidate;
+      }
+
+      if (orthogonalContacts === 0 && prng.chance(0.42)) {
+        return candidate;
+      }
+
+      if (orthogonalContacts === 1 && prng.chance(0.48)) {
+        return candidate;
+      }
+
+      if (orthogonalContacts === 2 && prng.chance(0.22)) {
+        return candidate;
+      }
+
       continue;
     }
 
-    if (candidate.kind === "large" && hasLargeEdgeNeighbor(candidate, cells) && prng.chance(0.55)) {
-      continue;
-    }
-
-    if (orthogonalContacts === 0 && diagonalContacts > 0 && prng.chance(0.82)) {
+    if (orthogonalContacts <= 4) {
       return candidate;
     }
-
-    if (orthogonalContacts === 0 && prng.chance(0.42)) {
-      return candidate;
-    }
-
-    if (orthogonalContacts === 1 && prng.chance(0.48)) {
-      return candidate;
-    }
-
-    if (orthogonalContacts === 2 && prng.chance(0.22)) {
-      return candidate;
-    }
-
-    continue;
   }
 
   for (const candidate of shuffled) {
@@ -380,7 +1590,11 @@ const pickValidCandidate = (
       continue;
     }
 
-    if (wouldExceedSmallDiagonalChain(candidate, cells, config)) {
+    if (hasAdjacentSmallNeighbor(candidate, cells, config)) {
+      continue;
+    }
+
+    if (!passesHierarchyRules(candidate, occupied, cells, config, options, largeCandidatesForRules)) {
       continue;
     }
 
@@ -492,33 +1706,6 @@ const gapPerimeterScore = (candidate: CandidateCell, config: NormalizedGridConfi
   return Math.min(0.9, adjacentGapSlots * 0.18);
 };
 
-const rebuildOccupied = (cells: GridCell[]) => new Set(cells.flatMap(footprintKeys));
-
-const isFootprintConnected = (cells: GridCell[]) => {
-  const occupied = rebuildOccupied(cells);
-  const first = occupied.values().next().value as string | undefined;
-
-  if (!first) {
-    return true;
-  }
-
-  const visited = new Set<string>([first]);
-  const queue = [first];
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-
-    for (const neighborKey of neighborKeys(current, true)) {
-      if (occupied.has(neighborKey) && !visited.has(neighborKey)) {
-        visited.add(neighborKey);
-        queue.push(neighborKey);
-      }
-    }
-  }
-
-  return visited.size === occupied.size;
-};
-
 const removeDenseSmallCorners = (cells: GridCell[], prng: Prng) => {
   const bySlot = new Map<string, GridCell>();
   const removableIds = new Set<string>();
@@ -565,140 +1752,6 @@ const removeDenseSmallCorners = (cells: GridCell[], prng: Prng) => {
   return nextCells;
 };
 
-const addSmallOverlays = (
-  cells: GridCell[],
-  config: NormalizedGridConfig,
-  prng: Prng,
-  smallVisualBudget: number,
-): GridCell[] => {
-  const baseCells = [...cells];
-  const occupied = rebuildOccupied(baseCells);
-  let usedSmallVisuals = baseCells.filter((cell) => cell.kind === "small").length;
-  const largeCells = shuffleWithPrng(
-    baseCells.filter((cell) => cell.kind === "large"),
-    prng,
-  );
-  const overlays: GridCell[] = [];
-
-  for (const largeCell of largeCells) {
-    if (usedSmallVisuals + 2 > smallVisualBudget) {
-      break;
-    }
-
-    const overlayCount = prng.integer(0, 4);
-    const corners = shuffleWithPrng([0, 1, 2, 3], prng).slice(0, overlayCount);
-
-    for (const corner of corners) {
-      if (usedSmallVisuals + 2 > smallVisualBudget) {
-        break;
-      }
-
-      const x = largeCell.x + (corner % 2) * SMALL_CELL_SIZE;
-      const y = largeCell.y + (corner > 1 ? SMALL_CELL_SIZE : 0);
-      const overlay = {
-        id: `overlay-${overlays.length}-${x}-${y}`,
-        kind: "overlaySmall",
-        x,
-        y,
-        width: SMALL_CELL_SIZE,
-        height: SMALL_CELL_SIZE,
-      } satisfies GridCell;
-
-      if (candidateTouchesGap(config.gapMask, overlay)) {
-        continue;
-      }
-
-      const companion = pickOverlayCompanion(overlay, largeCell, baseCells, occupied, config, prng);
-
-      if (!companion) {
-        continue;
-      }
-
-      overlays.push(overlay);
-      baseCells.push(companion);
-      usedSmallVisuals += 2;
-
-      for (const key of footprintKeys(companion)) {
-        occupied.add(key);
-      }
-    }
-  }
-
-  return [...baseCells, ...overlays];
-};
-
-const pickOverlayCompanion = (
-  overlay: GridCell,
-  largeCell: GridCell,
-  cells: GridCell[],
-  occupied: Set<string>,
-  config: NormalizedGridConfig,
-  prng: Prng,
-) => {
-  const offsets = shuffleWithPrng(
-    [
-      [-BASE_UNIT, -BASE_UNIT],
-      [0, -BASE_UNIT],
-      [BASE_UNIT, -BASE_UNIT],
-      [-BASE_UNIT, 0],
-      [BASE_UNIT, 0],
-      [-BASE_UNIT, BASE_UNIT],
-      [0, BASE_UNIT],
-      [BASE_UNIT, BASE_UNIT],
-    ],
-    prng,
-  );
-
-  for (const [offsetX, offsetY] of offsets) {
-    const candidate = {
-      id: `overlay-companion-${overlay.id}-${overlay.x + offsetX}-${overlay.y + offsetY}`,
-      kind: "small",
-      x: overlay.x + offsetX,
-      y: overlay.y + offsetY,
-      width: SMALL_CELL_SIZE,
-      height: SMALL_CELL_SIZE,
-    } satisfies GridCell;
-    const insideLarge =
-      candidate.x >= largeCell.x &&
-      candidate.y >= largeCell.y &&
-      candidate.x + candidate.width <= largeCell.x + largeCell.width &&
-      candidate.y + candidate.height <= largeCell.y + largeCell.height;
-
-    if (insideLarge) {
-      continue;
-    }
-
-    if (
-      candidate.x < 0 ||
-      candidate.y < 0 ||
-      candidate.x + candidate.width > config.logicalWidth ||
-      candidate.y + candidate.height > config.logicalHeight
-    ) {
-      continue;
-    }
-
-    if (candidateTouchesGap(config.gapMask, candidate)) {
-      continue;
-    }
-
-    if (collides(candidate, occupied)) {
-      continue;
-    }
-
-    if (hasSmallEdgeNeighbor(candidate, cells)) {
-      continue;
-    }
-
-    if (wouldExceedSmallDiagonalChain(candidate, cells, config)) {
-      continue;
-    }
-
-    return candidate;
-  }
-
-  return null;
-};
-
 export const generateGrid = (config: GridConfig): GeneratedGrid => {
   const normalizedConfig = normalizeConfig(config);
   const prng = createPrng(
@@ -708,19 +1761,20 @@ export const generateGrid = (config: GridConfig): GeneratedGrid => {
       height: normalizedConfig.logicalHeight,
       density: normalizedConfig.density,
       small: normalizedConfig.smallCellRatio,
-      large: normalizedConfig.largeCellRatio,
       gapMask: normalizedConfig.gapMask,
     }),
   );
-  const totalSlots = normalizedConfig.columns * normalizedConfig.rows;
-  const targetOccupiedSlots = Math.floor(totalSlots * normalizedConfig.density);
-  const targetLargeSlots = Math.floor(targetOccupiedSlots * normalizedConfig.largeCellRatio);
-  const targetSmallVisuals = Math.floor(targetOccupiedSlots * normalizedConfig.smallCellRatio);
-  const targetBaseSmallSlots = Math.floor(targetSmallVisuals * (normalizedConfig.density >= 0.95 ? 1 : 0.55));
+  const placeableSlots = getPlaceableSlotCount(normalizedConfig);
+  const largeOnlyMode = !prefersAllSmallCells(normalizedConfig.smallCellRatio);
+  const targetLargeSlots = Math.floor(placeableSlots * normalizedConfig.density);
+  const targetOccupiedSlots = largeOnlyMode ? 0 : Math.floor(placeableSlots * normalizedConfig.density);
+  const growthTargetMet = () =>
+    largeOnlyMode ? countLargeOccupiedSlots(cells) >= targetLargeSlots : occupied.size >= targetOccupiedSlots;
+  const highDensity = normalizedConfig.density >= 0.85;
   const occupied = new Set<string>();
   const cells: GridCell[] = [];
 
-  if (targetOccupiedSlots === 0) {
+  if ((largeOnlyMode && targetLargeSlots === 0) || (!largeOnlyMode && targetOccupiedSlots === 0)) {
     const grid = { config: normalizedConfig, cells };
 
     assertValidGeneratedGrid(grid);
@@ -728,17 +1782,15 @@ export const generateGrid = (config: GridConfig): GeneratedGrid => {
     return grid;
   }
 
-  const largeCandidates = normalizedConfig.largeCellRatio > 0 ? buildCandidates(normalizedConfig, LARGE_CELL_SIZE) : [];
-  const smallCandidates = normalizedConfig.smallCellRatio > 0 ? buildCandidates(normalizedConfig, SMALL_CELL_SIZE) : [];
+  const largeCandidates = largeOnlyMode ? buildCandidates(normalizedConfig, LARGE_CELL_SIZE) : [];
+  const smallCandidates = prefersAllSmallCells(normalizedConfig.smallCellRatio)
+    ? buildCandidates(normalizedConfig, SMALL_CELL_SIZE)
+    : [];
   const edgeConnectorCandidates = largeCandidates.filter((candidate) =>
     isVerticalEdgeConnector(candidate, normalizedConfig),
   );
   const canStartLarge = largeCandidates.length > 0 && targetLargeSlots > 0;
-  const canStartSmall = smallCandidates.length > 0 && targetBaseSmallSlots > 0;
-  const preferredStartPool =
-    canStartLarge && (!canStartSmall || prng.chance(normalizedConfig.largeCellRatio))
-      ? largeCandidates
-      : smallCandidates;
+  const preferredStartPool = canStartLarge ? largeCandidates : smallCandidates;
   const fallbackStartPool =
     preferredStartPool === largeCandidates ? smallCandidates : canStartLarge ? largeCandidates : [];
   const startCandidate =
@@ -753,31 +1805,34 @@ export const generateGrid = (config: GridConfig): GeneratedGrid => {
   }
 
   let attempts = 0;
-  let largeSlots = cells
-    .filter((cell) => cell.kind === "large")
-    .reduce((total, cell) => total + getCandidateSlots(cell), 0);
+  let largeSlots = countLargeOccupiedSlots(cells);
   let smallSlots = cells.filter((cell) => cell.kind === "small").length;
+  const totalSlots = normalizedConfig.columns * normalizedConfig.rows;
   const maxAttempts = Math.max(totalSlots * MAX_GROWTH_ATTEMPT_MULTIPLIER, 120);
+  const pickOptions: PickCandidateOptions = { highDensity };
 
-  while (occupied.size < targetOccupiedSlots && attempts < maxAttempts) {
+  while (!growthTargetMet() && attempts < maxAttempts) {
     attempts += 1;
+    const underLargeTarget = largeOnlyMode && largeSlots < targetLargeSlots;
+    const underOccupiedTarget = !largeOnlyMode && occupied.size < targetOccupiedSlots;
+    const prioritizeLargeFill = largeOnlyMode || (highDensity && underOccupiedTarget && underLargeTarget);
 
-    const canPlaceSmall = smallCandidates.length > 0 && smallSlots < targetBaseSmallSlots;
     const canPlaceLarge =
       largeCandidates.length > 0 &&
-      (largeSlots < targetLargeSlots || (normalizedConfig.density >= 0.95 && !canPlaceSmall));
+      (largeOnlyMode ? largeSlots < targetLargeSlots : underOccupiedTarget || largeSlots < targetLargeSlots);
+    const canPlaceSmall = !largeOnlyMode && smallCandidates.length > 0 && !prioritizeLargeFill && underOccupiedTarget;
 
     if (!canPlaceLarge && !canPlaceSmall) {
       break;
     }
 
-    const shouldTryLarge = canPlaceLarge && (!canPlaceSmall || prng.chance(0.72));
+    const shouldTryLarge = canPlaceLarge && (!canPlaceSmall || prioritizeLargeFill || prng.chance(0.72));
     const primaryPool = shouldTryLarge ? largeCandidates : smallCandidates;
     const secondaryPool =
       shouldTryLarge && canPlaceSmall ? smallCandidates : !shouldTryLarge && canPlaceLarge ? largeCandidates : [];
     const candidate =
-      pickValidCandidate(primaryPool, normalizedConfig, occupied, cells, prng, true) ??
-      pickValidCandidate(secondaryPool, normalizedConfig, occupied, cells, prng, true);
+      pickValidCandidate(primaryPool, normalizedConfig, occupied, cells, prng, true, pickOptions, largeCandidates) ??
+      pickValidCandidate(secondaryPool, normalizedConfig, occupied, cells, prng, true, pickOptions, largeCandidates);
 
     if (!candidate) {
       break;
@@ -792,10 +1847,90 @@ export const generateGrid = (config: GridConfig): GeneratedGrid => {
     }
   }
 
-  const baseCells = removeDenseSmallCorners(cells, prng);
+  if (!growthTargetMet()) {
+    const fillOptions: PickCandidateOptions = { highDensity: true, allowDenseContacts: true };
+    let fillAttempts = 0;
+    const maxFillAttempts = Math.max(placeableSlots * 12, 80);
+
+    while (!growthTargetMet() && fillAttempts < maxFillAttempts) {
+      fillAttempts += 1;
+      const underLargeTarget = largeOnlyMode && largeSlots < targetLargeSlots;
+      const underOccupiedTarget = !largeOnlyMode && occupied.size < targetOccupiedSlots;
+      const prioritizeLargeFill = largeOnlyMode || underLargeTarget;
+      const canPlaceLarge =
+        largeCandidates.length > 0 &&
+        (largeOnlyMode ? largeSlots < targetLargeSlots : underOccupiedTarget || largeSlots < targetLargeSlots);
+      const canPlaceSmall = !largeOnlyMode && smallCandidates.length > 0 && !prioritizeLargeFill && underOccupiedTarget;
+
+      if (!canPlaceLarge && !canPlaceSmall) {
+        break;
+      }
+
+      const shouldTryLarge = canPlaceLarge && (!canPlaceSmall || prioritizeLargeFill || prng.chance(0.95));
+      const primaryPool = shouldTryLarge ? largeCandidates : smallCandidates;
+      const secondaryPool =
+        shouldTryLarge && canPlaceSmall ? smallCandidates : !shouldTryLarge && canPlaceLarge ? largeCandidates : [];
+      const candidate =
+        pickValidCandidate(primaryPool, normalizedConfig, occupied, cells, prng, true, fillOptions, largeCandidates) ??
+        pickValidCandidate(secondaryPool, normalizedConfig, occupied, cells, prng, true, fillOptions, largeCandidates);
+
+      if (!candidate) {
+        break;
+      }
+
+      commitCandidate(candidate, occupied, cells, cells.length);
+
+      if (candidate.kind === "large") {
+        largeSlots += getCandidateSlots(candidate);
+      } else if (candidate.kind === "small") {
+        smallSlots += 1;
+      }
+    }
+  }
+
+  if (largeOnlyMode && largeSlots < targetLargeSlots) {
+    fillResidualPlaceableSlots(normalizedConfig, occupied, cells, largeCandidates, prng, targetLargeSlots, pickOptions);
+    largeSlots = countLargeOccupiedSlots(cells);
+    smallSlots = cells.filter((cell) => cell.kind === "small").length;
+  }
+
+  if (largeOnlyMode && normalizedConfig.smallCellRatio > 0) {
+    const replaceCount = Math.floor(
+      cells.filter((cell) => cell.kind === "large").length * normalizedConfig.smallCellRatio,
+    );
+    const refillOptions: PickCandidateOptions = {
+      ...pickOptions,
+      highDensity: true,
+      allowDenseContacts: true,
+      allowVoidLargeFill: true,
+    };
+    replaceLargeCellsWithSmalls(normalizedConfig, occupied, cells, prng, replaceCount);
+    fillEmptyLargeFootprints(normalizedConfig, occupied, cells, largeCandidates, prng, refillOptions);
+    const smallSlotCount = cells.filter((cell) => cell.kind === "small").length;
+    fillResidualPlaceableSlots(
+      normalizedConfig,
+      occupied,
+      cells,
+      largeCandidates,
+      prng,
+      Math.max(0, targetLargeSlots - smallSlotCount),
+      refillOptions,
+    );
+    fillToTargetOccupancy(
+      normalizedConfig,
+      occupied,
+      cells,
+      largeCandidates,
+      prng,
+      Math.floor(placeableSlots * normalizedConfig.density),
+      refillOptions,
+    );
+  }
+
+  const baseCells = highDensity || largeOnlyMode ? cells : removeDenseSmallCorners(cells, prng);
   const grid = {
     config: normalizedConfig,
-    cells: addSmallOverlays(baseCells, normalizedConfig, prng, targetSmallVisuals),
+    cells: baseCells,
   };
 
   assertValidGeneratedGrid(grid);

@@ -47,7 +47,6 @@ export const App = () => {
   const updateGridConfig = useAppStore((s) => s.updateGridConfig);
   const regenerateSeed = useAppStore((s) => s.regenerateSeed);
   const setSmallRatio = useAppStore((s) => s.setSmallRatio);
-  const setLargeRatio = useAppStore((s) => s.setLargeRatio);
   const selectInstance = useAppStore((s) => s.selectInstance);
   const cancelConnectorEndpointPick = useAppStore((s) => s.cancelConnectorEndpointPick);
   const reorderInstances = useAppStore((s) => s.reorderInstances);
@@ -257,7 +256,6 @@ export const App = () => {
             }}
             onConfigChange={replaceGridConfig}
             onSmallRatioChange={setSmallRatio}
-            onLargeRatioChange={setLargeRatio}
             onStrokeColorChange={(strokeColor) => updateGridConfig({ strokeColor })}
             onGenerate={regenerateSeed}
             onGapMaskChange={(gapMask) => updateGridConfig({ gapMask })}

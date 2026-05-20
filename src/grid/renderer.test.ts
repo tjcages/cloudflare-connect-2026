@@ -15,7 +15,6 @@ const createClipboardGrid = (cells: GridCell[]) => ({
     columns: 2,
     rows: 3,
     smallCellRatio: 0.2,
-    largeCellRatio: 0.8,
     strokeColor: STROKE_COLOR,
     gapMask: [],
   },

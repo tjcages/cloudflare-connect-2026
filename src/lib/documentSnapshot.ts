@@ -70,14 +70,18 @@ type CompactGridSparse = {
   w?: number;
   h?: number;
   d?: number;
-  r?: [number, number];
+  r?: number | [number, number];
   c?: string;
   m?: GapMask;
 };
 
+type CompactV1GridTuple =
+  | [string, number, number, number, number, string, GapMask]
+  | [string, number, number, number, number, number, string, GapMask];
+
 type CompactV1Wire = {
   v: typeof COMPACT_V1;
-  g: [string, number, number, number, number, number, string, GapMask];
+  g: CompactV1GridTuple;
   l: [string, string, string, number, number, ComponentProps][];
   n: number;
   s: string | null;
@@ -122,11 +126,8 @@ const toCompactGrid = (gridConfig: GridConfig): CompactGridSparse => {
   if (gridConfig.density !== DEFAULT_CONFIG.density) {
     g.d = gridConfig.density;
   }
-  if (
-    gridConfig.smallCellRatio !== DEFAULT_CONFIG.smallCellRatio ||
-    gridConfig.largeCellRatio !== DEFAULT_CONFIG.largeCellRatio
-  ) {
-    g.r = [gridConfig.smallCellRatio, gridConfig.largeCellRatio];
+  if (gridConfig.smallCellRatio !== DEFAULT_CONFIG.smallCellRatio) {
+    g.r = gridConfig.smallCellRatio;
   }
   if (gridConfig.strokeColor !== DEFAULT_CONFIG.strokeColor) {
     g.c = gridConfig.strokeColor;
@@ -142,8 +143,11 @@ const fromCompactGrid = (g: CompactGridSparse): GridConfig => ({
   width: g.w ?? DEFAULT_CONFIG.width,
   height: g.h ?? DEFAULT_CONFIG.height,
   density: g.d ?? DEFAULT_CONFIG.density,
-  smallCellRatio: g.r?.[0] ?? DEFAULT_CONFIG.smallCellRatio,
-  largeCellRatio: g.r?.[1] ?? DEFAULT_CONFIG.largeCellRatio,
+  smallCellRatio: Array.isArray(g.r)
+    ? (g.r[0] ?? DEFAULT_CONFIG.smallCellRatio)
+    : typeof g.r === "number"
+      ? g.r
+      : DEFAULT_CONFIG.smallCellRatio,
   strokeColor: g.c ?? DEFAULT_CONFIG.strokeColor,
   gapMask: g.m ?? [],
 });
@@ -535,7 +539,7 @@ const toCompactV1 = (snapshot: BuilderDocumentSnapshot): CompactV1Wire => {
   const g = snapshot.gridConfig;
   return {
     v: COMPACT_V1,
-    g: [g.seed, g.width, g.height, g.density, g.smallCellRatio, g.largeCellRatio, g.strokeColor, g.gapMask],
+    g: [g.seed, g.width, g.height, g.density, g.smallCellRatio, g.strokeColor, g.gapMask],
     l: snapshot.instances.map((instance) => [
       instance.id,
       instance.type,
@@ -569,18 +573,20 @@ export const expandCompactBuilderDocumentSnapshot = (
   }
 
   const compact = snapshot as CompactV1Wire;
-  const [seed, width, height, density, smallCellRatio, largeCellRatio, strokeColor, gapMask] = compact.g;
+  const legacyGrid = compact.g.length >= 8;
+  const strokeColor = legacyGrid ? compact.g[6] : compact.g[5];
+  const gapMask = legacyGrid ? compact.g[7] : compact.g[6];
+  const smallCellRatio = compact.g[4];
 
   return {
     gridConfig: {
-      seed,
-      width,
-      height,
-      density,
-      smallCellRatio,
-      largeCellRatio,
-      strokeColor,
-      gapMask,
+      seed: compact.g[0],
+      width: compact.g[1],
+      height: compact.g[2],
+      density: compact.g[3],
+      smallCellRatio: Number.isFinite(smallCellRatio) ? smallCellRatio : DEFAULT_CONFIG.smallCellRatio,
+      strokeColor: typeof strokeColor === "string" ? strokeColor : DEFAULT_CONFIG.strokeColor,
+      gapMask: Array.isArray(gapMask) ? gapMask : [],
     },
     instances: compact.l.map(
       ([id, type, name, x, y, props]) =>
@@ -659,7 +665,8 @@ const isCompactV1Wire = (value: unknown): value is CompactV1Wire => {
   const g = value.g;
   return (
     Array.isArray(g) &&
-    g.length === 8 &&
+    g.length >= 7 &&
+    g.length <= 8 &&
     typeof g[0] === "string" &&
     Array.isArray(value.l) &&
     typeof value.n === "number"

@@ -21,8 +21,8 @@ export type GridConfig = {
   width: number;
   height: number;
   density: number;
+  /** Share of large cells converted into diagonal 40×40 tips after density fill (0 = none, 1 = all-small). */
   smallCellRatio: number;
-  largeCellRatio: number;
   strokeColor: string;
   gapMask: GapMask;
 };

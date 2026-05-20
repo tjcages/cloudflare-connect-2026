@@ -7,7 +7,6 @@ export const DEFAULT_CONFIG: GridConfig = {
   height: 560,
   density: 0.36,
   smallCellRatio: 0.2,
-  largeCellRatio: 0.8,
   strokeColor: "#f3f3f3",
   gapMask: [],
 };
@@ -20,45 +19,20 @@ export const roundToBaseUnit = (value: number): number => {
   return Math.max(BASE_UNIT, rounded);
 };
 
-export const normalizeRatios = (
-  smallCellRatio: number,
-  largeCellRatio: number,
-): Pick<GridConfig, "smallCellRatio" | "largeCellRatio"> => {
-  const small = clamp(smallCellRatio, 0, 1);
-  const large = clamp(largeCellRatio, 0, 1);
-  const total = small + large;
+/** `1` grows only 40×40 cells; otherwise density fills with 80×80 then replaces by ratio. */
+export const prefersAllSmallCells = (smallCellRatio: number) => smallCellRatio >= 1;
 
-  if (total === 0) {
-    return {
-      smallCellRatio: DEFAULT_CONFIG.smallCellRatio,
-      largeCellRatio: DEFAULT_CONFIG.largeCellRatio,
-    };
-  }
+/** Mixed large/small layout rules (diagonal tips, small isolation). */
+export const usesMixedCellRules = (smallCellRatio: number) => smallCellRatio > 0 && smallCellRatio < 1;
 
-  const normalizedSmall = Number((small / total).toFixed(4));
+export const updateSmallRatio = (smallCellRatio: number) => ({
+  smallCellRatio: Number(clamp(smallCellRatio, 0, 1).toFixed(4)),
+});
 
-  return {
-    smallCellRatio: normalizedSmall,
-    largeCellRatio: Number((1 - normalizedSmall).toFixed(4)),
-  };
-};
-
-export const updateSmallRatio = (smallCellRatio: number) => {
-  const small = clamp(smallCellRatio, 0, 1);
-
-  return {
-    smallCellRatio: Number(small.toFixed(4)),
-    largeCellRatio: Number((1 - small).toFixed(4)),
-  };
-};
-
-export const updateLargeRatio = (largeCellRatio: number) => {
-  const large = clamp(largeCellRatio, 0, 1);
-
-  return {
-    smallCellRatio: Number((1 - large).toFixed(4)),
-    largeCellRatio: Number(large.toFixed(4)),
-  };
+/** Base-grid slots that are not blocked by the gap mask. */
+export const getPlaceableSlotCount = (config: Pick<NormalizedGridConfig, "columns" | "rows" | "gapMask">) => {
+  const blocked = config.gapMask.flat().filter(Boolean).length;
+  return config.columns * config.rows - blocked;
 };
 
 export const normalizeConfig = (config: GridConfig): NormalizedGridConfig => {
@@ -66,12 +40,12 @@ export const normalizeConfig = (config: GridConfig): NormalizedGridConfig => {
   const logicalHeight = roundToBaseUnit(config.height);
   const columns = logicalWidth / BASE_UNIT;
   const rows = logicalHeight / BASE_UNIT;
-  const ratios = normalizeRatios(config.smallCellRatio, config.largeCellRatio);
   const density = Number(clamp(config.density, 0, 1).toFixed(4));
+  const smallCellRatio = Number(clamp(config.smallCellRatio, 0, 1).toFixed(4));
 
   return {
     ...config,
-    ...ratios,
+    smallCellRatio,
     width: logicalWidth,
     height: logicalHeight,
     density,
