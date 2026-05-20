@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeBlockGrid, computeChainCaps, stripeWidthFromBgDistance } from "./computeBlockGrid";
-import { DEFAULT_STRIPE_DUOTONE_OPTIONS } from "./stripeFilterOptions";
+import { DEFAULT_STRIPE_DUOTONE_OPTIONS, hexToRgb01 } from "./stripeFilterOptions";
 import {
   CHAIN_CAP_BOTH,
   CHAIN_CAP_BOTTOM,
@@ -30,6 +30,31 @@ function fillWhiteWithBlueRect(
         data[i] = 255;
         data[i + 1] = 255;
         data[i + 2] = 255;
+      }
+      data[i + 3] = 255;
+    }
+  }
+  return data;
+}
+
+function fillBlackWithBlueRect(
+  width: number,
+  height: number,
+  rect: { x: number; y: number; w: number; h: number },
+): Uint8ClampedArray {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const inRect = x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h;
+      if (inRect) {
+        data[i] = 40;
+        data[i + 1] = 90;
+        data[i + 2] = 220;
+      } else {
+        data[i] = 0;
+        data[i + 1] = 0;
+        data[i + 2] = 0;
       }
       data[i + 3] = 255;
     }
@@ -93,5 +118,20 @@ describe("computeBlockGrid", () => {
     const blueLeftCol = Math.floor(70 / STRIPE_CELL_SIZE);
     const blueTopRow = Math.floor(40 / STRIPE_CELL_SIZE);
     expect(cellWidth(grid, blueLeftCol, blueTopRow)).toBe(STRIPE_WIDTH_NARROW);
+  });
+
+  it("assigns stripes on a blue shape over a black field", () => {
+    const width = 210;
+    const height = 140;
+    const pixels = fillBlackWithBlueRect(width, height, { x: 70, y: 40, w: 70, h: 60 });
+    const grid = computeBlockGrid(pixels, width, height, {
+      ...DEFAULT_STRIPE_DUOTONE_OPTIONS,
+      ignoreColorRgb: hexToRgb01("#000000"),
+    });
+
+    expect(cellWidth(grid, 2, 2)).toBe(STRIPE_WIDTH_NONE);
+    const centerCol = Math.floor(width / 2 / STRIPE_CELL_SIZE);
+    const centerRow = Math.floor(height / 2 / STRIPE_CELL_SIZE);
+    expect(cellWidth(grid, centerCol, centerRow)).toBe(STRIPE_WIDTH_WIDE);
   });
 });

@@ -1,5 +1,10 @@
-import { isIgnoredBgPixel, resolveReferenceWhiteness, sampleReferenceWhitenessFromFrame } from "./colorWhiteness";
-import type { StripeDuotoneOptions } from "./stripeFilterOptions";
+import {
+  constrainReferenceColor,
+  isIgnoredBgPixel,
+  resolveReferenceColor,
+  sampleReferenceColorFromFrame,
+} from "./colorWhiteness";
+import { DEFAULT_STRIPE_DENSITY, type Rgb01, type StripeDuotoneOptions } from "./stripeFilterOptions";
 import {
   STRIPE_BLOCK_SAMPLE_COUNT,
   STRIPE_BLOCK_SAMPLES,
@@ -19,17 +24,16 @@ export type BlockGrid = {
   widths: Uint8Array;
 };
 
-/** Cells that are mostly background never draw stripes. */
-const MOSTLY_BG_FRACTION = 0.72;
-
 function blockIsMostlyBg(
   pixels: Uint8ClampedArray,
   imageWidth: number,
   imageHeight: number,
   col: number,
   row: number,
-  referenceWhiteness: number,
+  reference: Rgb01,
   tolerance: number,
+  gamma: number,
+  threshold: number,
 ): boolean {
   const originX = col * STRIPE_CELL_SIZE;
   const originY = row * STRIPE_CELL_SIZE;
@@ -51,7 +55,7 @@ function blockIsMostlyBg(
       const g = pixels[idx + 1] ?? 0;
       const b = pixels[idx + 2] ?? 0;
 
-      if (isIgnoredBgPixel(r, g, b, referenceWhiteness, tolerance)) {
+      if (isIgnoredBgPixel(r, g, b, reference, tolerance, gamma)) {
         bgCount++;
       } else {
         fgCount++;
@@ -59,7 +63,7 @@ function blockIsMostlyBg(
     }
   }
 
-  return bgCount / STRIPE_BLOCK_SAMPLE_COUNT >= MOSTLY_BG_FRACTION || fgCount < 1;
+  return bgCount / STRIPE_BLOCK_SAMPLE_COUNT >= threshold || fgCount < 1;
 }
 
 /** Orthogonal distance in 7×7 cells from the nearest mostly-bg cell. */
@@ -116,15 +120,17 @@ function distanceToNearestBg(isBg: Uint8Array, cols: number, rows: number): Int3
   return distance;
 }
 
-/** 1px if < 2 cells from bg; 3px if < 4 cells; else 5px. */
-export function stripeWidthFromBgDistance(distance: number, isBg: boolean): number {
+/** 1px if < narrow band from bg; 3px if < mid band; else 5px (bands scaled by density). */
+export function stripeWidthFromBgDistance(distance: number, isBg: boolean, density = DEFAULT_STRIPE_DENSITY): number {
   if (isBg || distance < 1) {
     return STRIPE_WIDTH_NONE;
   }
-  if (distance < STRIPE_DIST_NARROW_MAX) {
+  const narrowMax = STRIPE_DIST_NARROW_MAX * density;
+  const midMax = STRIPE_DIST_MID_MAX * density;
+  if (distance < narrowMax) {
     return STRIPE_WIDTH_NARROW;
   }
-  if (distance < STRIPE_DIST_MID_MAX) {
+  if (distance < midMax) {
     return STRIPE_WIDTH_MID;
   }
   return STRIPE_WIDTH_WIDE;
@@ -162,10 +168,13 @@ export function computeBlockGrid(
   imageHeight: number,
   options: StripeDuotoneOptions,
 ): BlockGrid {
-  const referenceWhiteness = resolveReferenceWhiteness(
-    options.referenceWhiteness ?? sampleReferenceWhitenessFromFrame(pixels, imageWidth, imageHeight),
+  const gamma = options.gamma;
+  const sampled = resolveReferenceColor(
+    options.referenceColorRgb ??
+      sampleReferenceColorFromFrame(pixels, imageWidth, imageHeight, options.ignoreColorRgb, gamma),
     options.ignoreColorRgb,
   );
+  const reference = constrainReferenceColor(sampled, options.ignoreColorRgb, options.ignoreTolerance);
 
   const cols = Math.ceil(imageWidth / STRIPE_CELL_SIZE);
   const rows = Math.ceil(imageHeight / STRIPE_CELL_SIZE);
@@ -181,8 +190,10 @@ export function computeBlockGrid(
         imageHeight,
         col,
         row,
-        referenceWhiteness,
+        reference,
         options.ignoreTolerance,
+        gamma,
+        options.threshold,
       )
         ? 1
         : 0;
@@ -192,7 +203,7 @@ export function computeBlockGrid(
   const distance = distanceToNearestBg(isBg, cols, rows);
   const widths = new Uint8Array(size);
   for (let i = 0; i < size; i++) {
-    widths[i] = stripeWidthFromBgDistance(distance[i] ?? -1, isBg[i] === 1);
+    widths[i] = stripeWidthFromBgDistance(distance[i] ?? -1, isBg[i] === 1, options.density);
   }
 
   return { cols, rows, widths };

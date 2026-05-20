@@ -1,17 +1,31 @@
 export type Rgb01 = [number, number, number];
 
 export type StripeDuotoneOptions = {
-  /** UI swatch for background (typically white). */
+  /** UI swatch for background (white or black per clip). */
   ignoreColorRgb: Rgb01;
-  /** Measured min(R,G,B) whiteness from frame corners; overrides swatch when set. */
-  referenceWhiteness?: number;
-  /** Pixels at least this close to reference whiteness are treated as bg. */
+  /** Measured RGB from frame corners; overrides swatch when set. */
+  referenceColorRgb?: Rgb01;
+  /** Max per-channel distance (0–1) treated as background. */
   ignoreTolerance: number;
+  /**
+   * Gamma applied before bg matching (< 1 pulls values toward white / thinner fg on light clips).
+   */
+  gamma: number;
+  /** Share of block pixels that must match bg for the cell to count as background (0–1). */
+  threshold: number;
+  /** Scales fg distance bands for stripe width (lower → thinner / denser stripes). */
+  density: number;
 };
+
+export const DEFAULT_STRIPE_THRESHOLD = 0.72;
+export const DEFAULT_STRIPE_DENSITY = 1;
 
 export const DEFAULT_STRIPE_DUOTONE_OPTIONS: StripeDuotoneOptions = {
   ignoreColorRgb: [1, 1, 1],
   ignoreTolerance: 0.08,
+  gamma: 1,
+  threshold: DEFAULT_STRIPE_THRESHOLD,
+  density: DEFAULT_STRIPE_DENSITY,
 };
 
 export function hexToRgb01(hex: string): Rgb01 {
