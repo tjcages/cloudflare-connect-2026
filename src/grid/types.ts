@@ -49,7 +49,8 @@ export type IconId =
   | "user-outline"
   | "builder-grid"
   | "builder-layers"
-  | "builder-bookmark";
+  | "builder-bookmark"
+  | "builder-share";
 
 import type { PaletteThemeId } from "../theme/palette";
 

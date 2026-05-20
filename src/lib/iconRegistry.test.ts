@@ -17,10 +17,11 @@ describe("iconRegistry", () => {
 
     expect(hex.renderMode).toBe("stroke");
     expect(user.renderMode).toBe("stroke");
-    expect(ICON_REGISTRY).toHaveLength(6);
+    expect(ICON_REGISTRY).toHaveLength(7);
     expect(ICON_OPTIONS).toHaveLength(3);
     expect(getIconDefinition("builder-grid").pickable).toBe(false);
     expect(getIconDefinition("builder-layers").pickable).toBe(false);
     expect(getIconDefinition("builder-bookmark").pickable).toBe(false);
+    expect(getIconDefinition("builder-share").pickable).toBe(false);
   });
 });

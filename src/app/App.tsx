@@ -8,20 +8,21 @@ import { RAIL_TAB_ICON_PX, RAIL_TAB_ICON_STROKE_WIDTH } from "../components/icon
 import { ComponentIcon } from "../components/ComponentIcon";
 import { ComponentBrowseSidebar, ComponentConfigSidebar } from "../components/ComponentSidebar";
 import { PresetsSidebar } from "../components/PresetsSidebar";
+import { ShareSidebar } from "../components/ShareSidebar";
 import { RailTab } from "../components/RailTab";
 import { Sidebar } from "../components/Sidebar";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
 import { useAppShortcuts } from "./useAppShortcuts";
 
-type SidebarTab = "grid" | "components" | "presets";
+type SidebarTab = "grid" | "components" | "presets" | "share";
 
 const ACTIVE_TAB_STORAGE_KEY = "section-grid-generator.active-tab";
 
 const readPersistedActiveTab = (): SidebarTab => {
   try {
     const value = window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
-    return value === "components" || value === "grid" || value === "presets" ? value : "grid";
+    return value === "components" || value === "grid" || value === "presets" || value === "share" ? value : "grid";
   } catch {
     return "grid";
   }
@@ -218,6 +219,20 @@ export const App = () => {
             strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
           />
         </RailTab>
+        <RailTab
+          tab="share"
+          activeTab={activeTab}
+          testId="rail-tab-share"
+          iconTestId="share-rail-icon"
+          onSelect={(tab) => setActiveTab(tab as SidebarTab)}
+        >
+          <ComponentIcon
+            iconId="builder-share"
+            color="currentColor"
+            size={RAIL_TAB_ICON_PX}
+            strokeWidth={RAIL_TAB_ICON_STROKE_WIDTH}
+          />
+        </RailTab>
       </aside>
       <aside
         className={cn(
@@ -258,8 +273,10 @@ export const App = () => {
             onReorderInstances={reorderInstances}
             gridStrokeColor={gridConfig.strokeColor}
           />
-        ) : (
+        ) : activeTab === "presets" ? (
           <PresetsSidebar />
+        ) : (
+          <ShareSidebar />
         )}
       </aside>
       <section

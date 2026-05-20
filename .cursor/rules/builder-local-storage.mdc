@@ -9,7 +9,7 @@ alwaysApply: false
 ## Keys
 
 - **`section-grid-builder`** — Zustand `persist` payload for the canvas document (`persist` name in `src/store.ts`).
-- **`section-grid-generator.active-tab`** — Last rail tab (`grid` | `components` | `presets`) in `src/app/App.tsx`.
+- **`section-grid-generator.active-tab`** — Last rail tab (`grid` | `components` | `presets` | `share`) in `src/app/App.tsx`.
 
 ## Envelope vs document snapshot
 
@@ -17,6 +17,11 @@ alwaysApply: false
 - The inner **`state`** object matches `partialize`: `gridConfig`, `instances`, `nextInstanceIndex`, `selectedInstanceId`, `canvasPan`.
 - **Built-in presets** in `src/presets/builtinPresets.ts` store the **inner** snapshot only (not the envelope).
 - Apply snapshots with **`mergePersistedDocument`** / **`applyBuilderDocumentSnapshot`** (`src/storePersist.ts`, `src/store.ts`) so instances and grid are sanitized and the grid is regenerated from `gridConfig`.
+
+## Share panel copy / import
+
+- **Copy state** (Share rail tab) writes the **inner** snapshot JSON via `src/lib/documentSnapshot.ts` (pretty-printed; no `{ state, version }` envelope).
+- **Import state** accepts either the inner snapshot or a full zustand persist envelope; `parseBuilderDocumentSnapshotInput` unwraps when `state` is present.
 
 ## Dev-only programmatic read (browser)
 

@@ -83,6 +83,17 @@ export const ICON_REGISTRY: IconDefinition[] = [
     pickable: false,
     paths: ["m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"],
   },
+  {
+    id: "builder-share",
+    label: "Share builder",
+    viewBox: "0 0 24 24",
+    renderMode: "stroke",
+    strokeWidth: 1.25,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    pickable: false,
+    paths: ["M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8", "M16 6l-4-4-4 4", "M12 2v13"],
+  },
 ];
 
 export const ICON_OPTIONS = ICON_REGISTRY.filter((icon) => icon.pickable !== false).map(({ id, label }) => ({
