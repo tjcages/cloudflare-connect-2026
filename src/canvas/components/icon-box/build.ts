@@ -39,19 +39,19 @@ const ICON_RASTER_WHITE = "#FFFFFF";
 const CARD_SHADOW_CSS =
   "0 12px 24px rgba(0, 0, 0, 0.04), 0 6px 12px rgba(0, 0, 0, 0.02), 0 3px 6px rgba(0, 0, 0, 0.01)";
 
-/** Accent underline glow: layers and alphas match design rgba(); RGB follows palette accent (`fillRgb`). */
+/** Accent underline glow: layers match design drop-shadow stack; RGB follows palette accent (`fillRgb`). */
 const buildAccentBarShadowFilter = (fillRgb: number) =>
   new BoxShadowFilter({
     shapeMode: "box",
     borderRadius: 0,
     shadows: [
-      { offsetX: 0, offsetY: 4, blur: 12, spread: 0, color: fillRgb, alpha: 0.32, inset: false },
+      { offsetX: 0, offsetY: 4, blur: 12, spread: 0, color: fillRgb, alpha: 0.48, inset: false },
       { offsetX: 0, offsetY: 2, blur: 4, spread: 0, color: fillRgb, alpha: 0.12, inset: false },
       { offsetX: 0, offsetY: 1, blur: 1, spread: 0, color: fillRgb, alpha: 0.16, inset: false },
       {
         offsetX: 0,
         offsetY: 0.5,
-        blur: 1,
+        blur: 0.5,
         spread: 0,
         color: fillRgb,
         alpha: 0.12,
