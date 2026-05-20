@@ -1,20 +1,12 @@
 import { Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
 import type { Ticker } from "../components/pixi";
-import {
-  constrainReferenceColor,
-  REFERENCE_COLOR_SMOOTH_ALPHA,
-  sampleReferenceColorFromFrame,
-  smoothReferenceColor,
-} from "./colorWhiteness";
-import type { PlaygroundVideoId } from "./playgroundVideos";
-import { getPlaygroundVideoOption } from "./playgroundVideos";
 import { BlockGridTexture } from "./blockGridTexture";
-import { computeBlockGrid } from "./computeBlockGrid";
-import { smoothBlockGridWidths } from "./stabilizeBlockGrid";
+import type { BlockGrid } from "./computeBlockGrid";
+import { buildPlaygroundBlockGrid, sampleVideoFrame, type PlaygroundGridBuildState } from "./samplePlaygroundFrame";
 import { createStripeDuotoneFilter } from "./stripeDuotoneFilter";
 import type { StripeColors } from "./stripeColors";
-import type { Rgb01, StripeDuotoneOptions } from "./stripeFilterOptions";
+import type { StripeDuotoneOptions } from "./stripeFilterOptions";
 
 /** Default canvas scale for clips without an explicit per-video scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -26,6 +18,13 @@ export const PLAYGROUND_PIXI_RESOLUTION = 1;
 export const PLAYGROUND_GRID_UPDATE_INTERVAL_MS = 66;
 
 export type PlaygroundDisplaySize = { width: number; height: number };
+
+export type PlaygroundSceneExportState = {
+  grid: BlockGrid | null;
+  colors: StripeColors;
+  displayWidth: number;
+  displayHeight: number;
+};
 
 /** Scaled display size; height derived from width so aspect ratio stays exact. */
 export function getPlaygroundDisplaySize(
@@ -58,12 +57,13 @@ function syncSpriteToDisplay(sprite: Sprite, video: HTMLVideoElement, display: P
 
 export function createVideoSceneTicker(
   video: HTMLVideoElement,
-  videoId: PlaygroundVideoId,
+  displayScale: number,
   stripeOptionsRef: RefObject<StripeDuotoneOptions>,
   stripeColorsRef: RefObject<StripeColors>,
   duotoneEnabledRef: RefObject<boolean>,
+  autoplayRef: RefObject<boolean>,
+  exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
-  const displayScale = getPlaygroundVideoOption(videoId).displayScale;
   const display = getPlaygroundDisplaySize(video, displayScale);
 
   return ({ app, cleanup }) => {
@@ -80,8 +80,6 @@ export function createVideoSceneTicker(
     source.on("update", onVideoLayoutChange);
 
     const sampleCanvas = document.createElement("canvas");
-    sampleCanvas.width = display.width;
-    sampleCanvas.height = display.height;
     const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
     if (!sampleCtx) {
       throw new Error("2D canvas context unavailable for video sampling.");
@@ -104,9 +102,7 @@ export function createVideoSceneTicker(
     let lastSampledTime = -1;
     let lastOptionsKey = "";
     let lastColorsKey = "";
-    let cachedFrame: ImageData | null = null;
-    let stableReference: Rgb01 | undefined;
-    let stableWidths: Uint8Array | undefined;
+    let gridState: PlaygroundGridBuildState = {};
     let lastGridUpdateMs = 0;
 
     const renderTick = () => {
@@ -122,6 +118,14 @@ export function createVideoSceneTicker(
       }
 
       if (!duotoneActive) {
+        if (exportStateRef) {
+          exportStateRef.current = {
+            grid: null,
+            colors: stripeColorsRef.current,
+            displayWidth: display.width,
+            displayHeight: display.height,
+          };
+        }
         app.render();
         return;
       }
@@ -139,51 +143,61 @@ export function createVideoSceneTicker(
         stripeFilter.syncColors(colors);
       }
 
-      if (timeChanged && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      const frame =
+        timeChanged && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+          ? sampleVideoFrame(video, display.width, display.height, sampleCanvas, sampleCtx)
+          : null;
+
+      if (frame) {
         lastSampledTime = video.currentTime;
-        sampleCtx.drawImage(video, 0, 0, display.width, display.height);
-        cachedFrame = sampleCtx.getImageData(0, 0, display.width, display.height);
       }
 
       const shouldRebuildGrid =
-        cachedFrame &&
+        frame &&
         (optionsChanged || (timeChanged && performance.now() - lastGridUpdateMs >= PLAYGROUND_GRID_UPDATE_INTERVAL_MS));
 
-      if (shouldRebuildGrid && cachedFrame) {
-        const frame = cachedFrame;
+      if (shouldRebuildGrid && frame) {
         lastOptionsKey = optionsKey;
         lastGridUpdateMs = performance.now();
         if (optionsChanged) {
-          stableReference = undefined;
-          stableWidths = undefined;
+          gridState = {};
         }
 
-        const frameSample = sampleReferenceColorFromFrame(
-          frame.data,
-          display.width,
-          display.height,
-          options.ignoreColorRgb,
-          options.gamma,
-        );
-        const constrained = constrainReferenceColor(frameSample, options.ignoreColorRgb, options.ignoreTolerance);
-        stableReference = smoothReferenceColor(stableReference, constrained, REFERENCE_COLOR_SMOOTH_ALPHA);
-
-        const rawGrid = computeBlockGrid(frame.data, display.width, display.height, {
-          ...options,
-          referenceColorRgb: stableReference,
-        });
-        stableWidths = smoothBlockGridWidths(rawGrid.widths, stableWidths);
-        blockGridTexture.update({ cols: rawGrid.cols, rows: rawGrid.rows, widths: stableWidths });
+        const built = buildPlaygroundBlockGrid(frame, display.width, display.height, options, gridState);
+        gridState = built.state;
+        blockGridTexture.update(built.grid);
         stripeFilter.updateBlockMap(blockGridTexture.texture);
+
+        if (exportStateRef) {
+          exportStateRef.current = {
+            grid: built.grid,
+            colors,
+            displayWidth: display.width,
+            displayHeight: display.height,
+          };
+        }
+      } else if (exportStateRef && gridState.stableWidths) {
+        exportStateRef.current = {
+          grid: {
+            cols: blockGridTexture.cols,
+            rows: blockGridTexture.rows,
+            widths: gridState.stableWidths,
+          },
+          colors,
+          displayWidth: display.width,
+          displayHeight: display.height,
+        };
       }
 
       app.render();
     };
     app.ticker.add(renderTick);
 
-    void video.play().catch(() => {
-      // Autoplay may require a user gesture even when muted.
-    });
+    if (autoplayRef.current) {
+      void video.play().catch(() => {
+        // Autoplay may require a user gesture even when muted.
+      });
+    }
 
     cleanup(() => {
       if (app.ticker) {

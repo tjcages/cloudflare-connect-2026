@@ -4,7 +4,16 @@ import {
   DEFAULT_STRIPE_THRESHOLD,
 } from "./stripeFilterOptions";
 
-export type PlaygroundVideoId = "example" | "example2" | "example3" | "example4" | "example5" | "example6" | "example7";
+export type BuiltinPlaygroundVideoId =
+  | "example"
+  | "example2"
+  | "example3"
+  | "example4"
+  | "example5"
+  | "example6"
+  | "example7";
+
+export type PlaygroundVideoId = BuiltinPlaygroundVideoId | `upload:${string}`;
 
 export type PlaygroundDuotoneDefaults = {
   ignoreColorHex: string;
@@ -15,7 +24,7 @@ export type PlaygroundDuotoneDefaults = {
 };
 
 export type PlaygroundVideoOption = {
-  id: PlaygroundVideoId;
+  id: BuiltinPlaygroundVideoId;
   label: string;
   url: string;
   /** Canvas and sampling scale relative to native video dimensions. */
@@ -124,7 +133,7 @@ export function isUploadVideoId(id: string): id is `upload:${string}` {
   return id.startsWith("upload:");
 }
 
-export function getPlaygroundVideoOption(id: PlaygroundVideoId): PlaygroundVideoOption {
+export function getPlaygroundVideoOption(id: BuiltinPlaygroundVideoId): PlaygroundVideoOption {
   const option = PLAYGROUND_VIDEOS.find((entry) => entry.id === id);
   if (!option) {
     throw new Error(`Unknown playground video: ${id}`);

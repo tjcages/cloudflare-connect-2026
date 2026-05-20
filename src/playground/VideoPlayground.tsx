@@ -1,16 +1,34 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { writeSvgToClipboard } from "../grid/clipboard";
 import Pixi from "../components/pixi";
 import { DEFAULT_CONFIG } from "../grid/config";
 import { useAppStore } from "../store";
 import {
-  DEFAULT_PLAYGROUND_VIDEO_ID,
-  getPlaygroundVideoOption,
-  PLAYGROUND_VIDEOS,
-  type PlaygroundDuotoneDefaults,
-  type PlaygroundVideoId,
-} from "./playgroundVideos";
+  copyPlaygroundStateToClipboard,
+  defaultConfigForVideo,
+  hydrateUploadUrls,
+  loadPlaygroundEnvelope,
+  mergeCatalog,
+  parsePlaygroundStateInput,
+  registerUpload,
+  resolveCatalogEntry,
+  resolveInitialVideoId,
+  revokeUploadObjectUrl,
+  saveLastVideoId,
+  schedulePersistedConfig,
+  type PlaygroundCatalogEntry,
+  type PlaygroundPersistedConfig,
+} from "./playgroundPersistence";
+import type { PlaygroundVideoId } from "./playgroundVideos";
 import { PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
-import { createVideoSceneTicker, getPlaygroundDisplaySize, PLAYGROUND_PIXI_RESOLUTION } from "./setupVideoShaderScene";
+import { buildPlaygroundBlockGrid, sampleVideoFrame } from "./samplePlaygroundFrame";
+import {
+  createVideoSceneTicker,
+  getPlaygroundDisplaySize,
+  PLAYGROUND_PIXI_RESOLUTION,
+  type PlaygroundSceneExportState,
+} from "./setupVideoShaderScene";
+import { stripeGridToSvg } from "./stripeGridToSvg";
 import { buildStripeColors, type StripeColors } from "./stripeColors";
 import { DEFAULT_STRIPE_DUOTONE_OPTIONS, hexToRgb01, type StripeDuotoneOptions } from "./stripeFilterOptions";
 
@@ -24,13 +42,11 @@ type LoadState =
   | { status: "error"; message: string }
   | { status: "ready"; layout: VideoLayout; video: HTMLVideoElement; videoId: PlaygroundVideoId };
 
-function loadPlaygroundVideo(videoId: PlaygroundVideoId): Promise<LoadState> {
-  const { url } = getPlaygroundVideoOption(videoId);
-
+function loadPlaygroundVideo(url: string, videoId: PlaygroundVideoId): Promise<LoadState> {
   return new Promise((resolve) => {
     const video = document.createElement("video");
     video.muted = true;
-    video.loop = true;
+    video.loop = false;
     video.playsInline = true;
     video.preload = "auto";
     video.crossOrigin = "anonymous";
@@ -38,7 +54,7 @@ function loadPlaygroundVideo(videoId: PlaygroundVideoId): Promise<LoadState> {
     const onError = () => {
       resolve({
         status: "error",
-        message: `Failed to load ${url}`,
+        message: `Failed to load ${url || videoId}`,
       });
     };
 
@@ -70,13 +86,14 @@ function disposeVideoElement(video: HTMLVideoElement) {
   video.load();
 }
 
-function applyDuotoneDefaults(duotone: PlaygroundDuotoneDefaults) {
+function applyPersistedConfig(config: PlaygroundPersistedConfig) {
   return {
-    ignoreColorHex: duotone.ignoreColorHex,
-    ignoreTolerance: duotone.ignoreTolerance,
-    gamma: duotone.gamma,
-    threshold: duotone.threshold,
-    density: duotone.density,
+    ignoreColorHex: config.ignoreColorHex,
+    ignoreTolerance: config.ignoreTolerance,
+    gamma: config.gamma,
+    threshold: config.threshold,
+    density: config.density,
+    duotoneEnabled: config.duotoneEnabled,
   };
 }
 
@@ -99,37 +116,114 @@ function ControlField({ label, value, disabled = false, children }: ControlField
   );
 }
 
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return "0:00";
+  }
+  const whole = Math.floor(seconds);
+  const mins = Math.floor(whole / 60);
+  const secs = whole % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
 export function VideoPlayground() {
-  const defaultVideo = getPlaygroundVideoOption(DEFAULT_PLAYGROUND_VIDEO_ID);
-  const initialDuotone = applyDuotoneDefaults(defaultVideo.duotone);
-  const [selectedVideoId, setSelectedVideoId] = useState<PlaygroundVideoId>(DEFAULT_PLAYGROUND_VIDEO_ID);
+  const [hydrated, setHydrated] = useState(false);
+  const [catalog, setCatalog] = useState<PlaygroundCatalogEntry[]>(() => mergeCatalog([], new Map()));
+  const initialId = resolveInitialVideoId();
+  const initialConfig = defaultConfigForVideo(initialId);
+  const appliedInitial = applyPersistedConfig(initialConfig);
+
+  const [selectedVideoId, setSelectedVideoId] = useState<PlaygroundVideoId>(initialId);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
-  const [ignoreColorHex, setIgnoreColorHex] = useState(initialDuotone.ignoreColorHex);
-  const [ignoreTolerance, setIgnoreTolerance] = useState(initialDuotone.ignoreTolerance);
-  const [gamma, setGamma] = useState(initialDuotone.gamma);
-  const [threshold, setThreshold] = useState(initialDuotone.threshold);
-  const [density, setDensity] = useState(initialDuotone.density);
-  const [duotoneEnabled, setDuotoneEnabled] = useState(true);
+  const [ignoreColorHex, setIgnoreColorHex] = useState(appliedInitial.ignoreColorHex);
+  const [ignoreTolerance, setIgnoreTolerance] = useState(appliedInitial.ignoreTolerance);
+  const [gamma, setGamma] = useState(appliedInitial.gamma);
+  const [threshold, setThreshold] = useState(appliedInitial.threshold);
+  const [density, setDensity] = useState(appliedInitial.density);
+  const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [importText, setImportText] = useState("");
+  const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "failed">("idle");
+  const [importFeedback, setImportFeedback] = useState<"idle" | "imported" | "failed">("idle");
+  const [exportFeedback, setExportFeedback] = useState<"idle" | "copied" | "failed">("idle");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
   const gridStrokeColor = useAppStore((state) => state.gridConfig.strokeColor);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const stripeOptionsRef = useRef<StripeDuotoneOptions>(DEFAULT_STRIPE_DUOTONE_OPTIONS);
   const stripeColorsRef = useRef<StripeColors>(buildStripeColors(DEFAULT_CONFIG.strokeColor));
   const duotoneEnabledRef = useRef(duotoneEnabled);
+  const autoplayRef = useRef(true);
+  const exportStateRef = useRef<PlaygroundSceneExportState | null>(null);
+  const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const sampleCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const envelope = loadPlaygroundEnvelope();
+      const blobUrls = await hydrateUploadUrls(envelope.uploads);
+      if (cancelled) {
+        return;
+      }
+      setCatalog(mergeCatalog(envelope.uploads, blobUrls));
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     duotoneEnabledRef.current = duotoneEnabled;
   }, [duotoneEnabled]);
 
-  const onVideoSelect = useCallback((videoId: PlaygroundVideoId) => {
-    const { duotone } = getPlaygroundVideoOption(videoId);
-    const next = applyDuotoneDefaults(duotone);
-    setSelectedVideoId(videoId);
+  const persistCurrentConfig = useCallback(() => {
+    const config: PlaygroundPersistedConfig = {
+      duotoneEnabled,
+      ignoreColorHex,
+      ignoreTolerance,
+      gamma,
+      threshold,
+      density,
+    };
+    schedulePersistedConfig(selectedVideoId, config);
+  }, [selectedVideoId, duotoneEnabled, ignoreColorHex, ignoreTolerance, gamma, threshold, density]);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+    persistCurrentConfig();
+  }, [hydrated, persistCurrentConfig]);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+    saveLastVideoId(selectedVideoId);
+  }, [hydrated, selectedVideoId]);
+
+  const applyConfig = useCallback((config: PlaygroundPersistedConfig) => {
+    const next = applyPersistedConfig(config);
     setIgnoreColorHex(next.ignoreColorHex);
     setIgnoreTolerance(next.ignoreTolerance);
     setGamma(next.gamma);
     setThreshold(next.threshold);
     setDensity(next.density);
+    setDuotoneEnabled(next.duotoneEnabled);
   }, []);
+
+  const onVideoSelect = useCallback(
+    (videoId: PlaygroundVideoId) => {
+      applyConfig(defaultConfigForVideo(videoId));
+      setSelectedVideoId(videoId);
+    },
+    [applyConfig],
+  );
 
   useEffect(() => {
     stripeOptionsRef.current = {
@@ -146,10 +240,24 @@ export function VideoPlayground() {
   }, [gridStrokeColor]);
 
   useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    const entry = resolveCatalogEntry(catalog, selectedVideoId);
+    if (!entry?.url) {
+      setLoadState({
+        status: "error",
+        message: "Video not found. Upload again or pick another clip.",
+      });
+      return;
+    }
+
     let cancelled = false;
     setLoadState({ status: "loading" });
+    autoplayRef.current = true;
 
-    void loadPlaygroundVideo(selectedVideoId).then((next) => {
+    void loadPlaygroundVideo(entry.url, selectedVideoId).then((next) => {
       if (cancelled) {
         if (next.status === "ready") {
           disposeVideoElement(next.video);
@@ -158,6 +266,9 @@ export function VideoPlayground() {
       }
       if (next.status === "ready") {
         videoRef.current = next.video;
+        setDuration(next.video.duration || 0);
+        setCurrentTime(next.video.currentTime);
+        setIsPlaying(!next.video.paused);
       } else {
         videoRef.current = null;
       }
@@ -172,26 +283,195 @@ export function VideoPlayground() {
         videoRef.current = null;
       }
     };
-  }, [selectedVideoId]);
+  }, [hydrated, selectedVideoId, catalog]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    const onTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+      setDuration(video.duration || 0);
+    };
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("loadedmetadata", onTimeUpdate);
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+
+    return () => {
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("loadedmetadata", onTimeUpdate);
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+    };
+  }, [loadState]);
+
+  const catalogEntry = resolveCatalogEntry(catalog, selectedVideoId);
+  const displayScale = catalogEntry?.displayScale ?? 1;
 
   const tickers = useMemo(() => {
     if (loadState.status !== "ready") {
       return [];
     }
     return [
-      createVideoSceneTicker(loadState.video, loadState.videoId, stripeOptionsRef, stripeColorsRef, duotoneEnabledRef),
+      createVideoSceneTicker(
+        loadState.video,
+        displayScale,
+        stripeOptionsRef,
+        stripeColorsRef,
+        duotoneEnabledRef,
+        autoplayRef,
+        exportStateRef,
+      ),
     ];
-  }, [loadState]);
+  }, [loadState, displayScale]);
 
-  const onPlayClick = useCallback(() => {
+  const onUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const onUploadFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    setUploadError(null);
+    try {
+      const { videoId, meta } = await registerUpload(file);
+      const envelope = loadPlaygroundEnvelope();
+      const blobUrls = await hydrateUploadUrls(envelope.uploads);
+      setCatalog(mergeCatalog(envelope.uploads, blobUrls));
+      onVideoSelect(videoId);
+      void meta;
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Upload failed.");
+    }
+  };
+
+  const onCopyState = async () => {
+    const config: PlaygroundPersistedConfig = {
+      duotoneEnabled,
+      ignoreColorHex,
+      ignoreTolerance,
+      gamma,
+      threshold,
+      density,
+    };
+    const ok = await copyPlaygroundStateToClipboard(config);
+    setCopyFeedback(ok ? "copied" : "failed");
+    window.setTimeout(() => setCopyFeedback("idle"), ok ? 1200 : 1600);
+  };
+
+  const onImportState = () => {
+    try {
+      const config = parsePlaygroundStateInput(importText);
+      applyConfig(config);
+      schedulePersistedConfig(selectedVideoId, config);
+      setImportText("");
+      setImportFeedback("imported");
+      window.setTimeout(() => setImportFeedback("idle"), 1200);
+    } catch {
+      setImportFeedback("failed");
+      window.setTimeout(() => setImportFeedback("idle"), 1600);
+    }
+  };
+
+  const togglePlayPause = () => {
     const video = videoRef.current;
     if (!video) {
       return;
     }
-    void video.play();
-  }, []);
+    if (video.paused) {
+      autoplayRef.current = true;
+      void video.play();
+    } else {
+      video.pause();
+    }
+  };
 
-  if (loadState.status === "loading") {
+  const onScrub = (value: number) => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    video.currentTime = value;
+    setCurrentTime(value);
+  };
+
+  const onExportSvg = async () => {
+    const video = videoRef.current;
+    if (!video || !duotoneEnabled) {
+      return;
+    }
+    video.pause();
+
+    const entry = resolveCatalogEntry(catalog, selectedVideoId);
+    const scale = entry?.displayScale ?? 1;
+    const display = getPlaygroundDisplaySize(video, scale);
+    if (display.width <= 0 || display.height <= 0) {
+      setExportFeedback("failed");
+      window.setTimeout(() => setExportFeedback("idle"), 1600);
+      return;
+    }
+
+    if (!sampleCanvasRef.current) {
+      sampleCanvasRef.current = document.createElement("canvas");
+      sampleCtxRef.current = sampleCanvasRef.current.getContext("2d", { willReadFrequently: true });
+    }
+    const sampleCanvas = sampleCanvasRef.current;
+    const sampleCtx = sampleCtxRef.current;
+    if (!sampleCtx) {
+      setExportFeedback("failed");
+      window.setTimeout(() => setExportFeedback("idle"), 1600);
+      return;
+    }
+
+    const frame = sampleVideoFrame(video, display.width, display.height, sampleCanvas, sampleCtx);
+    if (!frame) {
+      setExportFeedback("failed");
+      window.setTimeout(() => setExportFeedback("idle"), 1600);
+      return;
+    }
+
+    const options = stripeOptionsRef.current;
+    const colors = stripeColorsRef.current;
+    const built = buildPlaygroundBlockGrid(frame, display.width, display.height, options, {});
+    const svg = stripeGridToSvg(built.grid, colors, display.width, display.height);
+
+    try {
+      await writeSvgToClipboard(svg);
+      setExportFeedback("copied");
+    } catch {
+      setExportFeedback("failed");
+    }
+    window.setTimeout(() => setExportFeedback("idle"), 1600);
+
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `playground-frame-${selectedVideoId.replace(/:/g, "-")}.svg`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  useEffect(() => {
+    return () => {
+      for (const entry of catalog) {
+        if (entry.isUpload) {
+          revokeUploadObjectUrl(entry.id);
+        }
+      }
+    };
+  }, [catalog]);
+
+  if (!hydrated || loadState.status === "loading") {
     return <p className="p-6 text-sm text-neutral-600">Loading video…</p>;
   }
 
@@ -200,10 +480,15 @@ export function VideoPlayground() {
   }
 
   const { video, videoId } = loadState;
-  const videoOption = getPlaygroundVideoOption(videoId);
-  const display = getPlaygroundDisplaySize(video, videoOption.displayScale);
+  const display = getPlaygroundDisplaySize(video, displayScale);
   const sceneKey = `${videoId}-${display.width}x${display.height}`;
   const duotoneControlsDisabled = !duotoneEnabled;
+
+  const copyLabel = copyFeedback === "copied" ? "Copied" : copyFeedback === "failed" ? "Copy failed" : "Copy state";
+  const importStatus =
+    importFeedback === "imported" ? "Imported" : importFeedback === "failed" ? "Import failed" : null;
+  const exportLabel =
+    exportFeedback === "copied" ? "SVG copied" : exportFeedback === "failed" ? "Export failed" : "Export SVG";
 
   return (
     <div className="flex min-h-screen bg-neutral-50">
@@ -211,7 +496,7 @@ export function VideoPlayground() {
         <div>
           <h1 className="text-base font-medium text-neutral-900">Video shader playground</h1>
           <p className="mt-1 text-xs leading-relaxed text-neutral-500">
-            {display.width}×{display.height}px canvas · {videoOption.displayScale}× source
+            {display.width}×{display.height}px canvas · {displayScale}× source
           </p>
         </div>
 
@@ -223,7 +508,7 @@ export function VideoPlayground() {
             className="rounded border border-neutral-300 bg-white px-2 py-1.5"
             aria-label="Playground sample video"
           >
-            {PLAYGROUND_VIDEOS.map((option) => (
+            {catalog.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.label}
               </option>
@@ -231,13 +516,21 @@ export function VideoPlayground() {
           </select>
         </label>
 
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={(event) => void onUploadFile(event)}
+        />
         <button
           type="button"
           className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-          onClick={onPlayClick}
+          onClick={onUploadClick}
         >
-          Play video
+          Upload video
         </button>
+        {uploadError ? <p className="m-0 text-xs text-red-700">{uploadError}</p> : null}
 
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -318,9 +611,35 @@ export function VideoPlayground() {
             />
           </ControlField>
         </div>
+
+        <div className="flex flex-col gap-3 border-t border-neutral-200 pt-4">
+          <button
+            type="button"
+            className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+            onClick={() => void onCopyState()}
+          >
+            {copyLabel}
+          </button>
+          <textarea
+            className="min-h-[72px] resize-y rounded border border-neutral-300 px-2 py-1.5 font-mono text-[11px]"
+            rows={4}
+            value={importText}
+            onChange={(event) => setImportText(event.target.value)}
+            spellCheck={false}
+            placeholder="Paste state JSON"
+          />
+          <button
+            type="button"
+            className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+            onClick={onImportState}
+          >
+            Import state
+          </button>
+          {importStatus ? <p className="m-0 text-xs text-neutral-500">{importStatus}</p> : null}
+        </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 items-start justify-center overflow-auto p-6">
+      <main className="flex min-w-0 flex-1 flex-col items-center gap-4 overflow-auto p-6">
         <Pixi
           key={sceneKey}
           layoutWidth={display.width}
@@ -337,6 +656,39 @@ export function VideoPlayground() {
           }}
           tickers={tickers}
         />
+
+        <div className="flex w-full max-w-[640px] flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+              onClick={togglePlayPause}
+            >
+              {isPlaying ? "Pause" : "Play"}
+            </button>
+            <span className="tabular-nums text-xs text-neutral-500">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+            <button
+              type="button"
+              className="ml-auto rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={() => void onExportSvg()}
+              disabled={!duotoneEnabled}
+            >
+              {exportLabel}
+            </button>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={duration || 0}
+            step={0.01}
+            value={currentTime}
+            onChange={(event) => onScrub(Number(event.target.value))}
+            className="w-full"
+            aria-label="Video timeline"
+          />
+        </div>
       </main>
     </div>
   );
