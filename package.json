@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:playground": "vite --port 5174 --strictPort --open /playground.html",
     "typecheck": "tsc -b",
     "build": "npm run typecheck && npm run build:client",
     "build:client": "vite build",

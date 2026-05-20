@@ -68,26 +68,10 @@ export default function Pixi({
     }
 
     let aborted = false;
-    const cleanupFunctions: (() => void)[] = [];
+    const resourceCleanups: (() => void)[] = [];
 
     const app = new Application();
     appRef.current = app;
-
-    cleanupFunctions.push(() => {
-      appRef.current = null;
-      onDisposed?.();
-      if (!isDestroyed(app)) {
-        app.destroy(
-          {},
-          {
-            children: true,
-            texture: true,
-            context: true,
-            style: true,
-          },
-        );
-      }
-    });
 
     (async () => {
       const resolution = window.devicePixelRatio || 1;
@@ -124,7 +108,7 @@ export default function Pixi({
         await Promise.resolve(
           ticker({
             app,
-            cleanup: (fn) => cleanupFunctions.push(fn),
+            cleanup: (fn) => resourceCleanups.push(fn),
           }),
         );
       }
@@ -136,8 +120,21 @@ export default function Pixi({
 
     return () => {
       aborted = true;
-      for (const fn of cleanupFunctions) {
+      for (const fn of resourceCleanups) {
         fn();
+      }
+      appRef.current = null;
+      onDisposed?.();
+      if (!isDestroyed(app)) {
+        app.destroy(
+          {},
+          {
+            children: true,
+            texture: true,
+            context: true,
+            style: true,
+          },
+        );
       }
     };
 
