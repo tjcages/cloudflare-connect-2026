@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEventHandler, ReactNode } from "react";
 import { getComponentDefinition, getInstanceLayerSubtitle } from "../lib/componentRegistry";
 import { isIconBoxLayerConnectorTarget } from "../lib/iconBoxEnabledByLine";
+import { isIconBoxComponentType } from "../lib/icon-box/layout";
 import { isInteractiveListChromeTarget } from "../lib/isInteractiveListChromeTarget";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
@@ -224,7 +225,7 @@ export const ComponentConfigSidebar = ({
   const onConfigPanelScroll = useScrollbarThumbFlash();
   const { renderPreview, brushFor } = createSidebarPreviewRenderers(gridStrokeColor);
   const lineEnableDebugTargetId =
-    selectedInstance?.type === "icon-box" || selectedInstance?.type === "icon-box-2x1" ? selectedInstance.id : null;
+    selectedInstance && isIconBoxComponentType(selectedInstance.type) ? selectedInstance.id : null;
   const lineEnableDebugRow = useAppStore((s) =>
     lineEnableDebugTargetId ? s.iconBoxLineEnableDebug[lineEnableDebugTargetId] : undefined,
   );

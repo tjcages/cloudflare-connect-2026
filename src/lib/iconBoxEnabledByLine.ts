@@ -1,4 +1,5 @@
 import type { ComponentInstance, IconBoxEnabledByLineMode, IconBoxProps } from "../grid/types";
+import { isIconBoxInstance } from "./icon-box/layout";
 
 export const DEFAULT_ICON_BOX_ENABLED_BY_LINE: IconBoxEnabledByLineMode = "off";
 
@@ -27,7 +28,7 @@ export const listOutgoingConnectorsFromLayerSource = (instances: ComponentInstan
 
 export const getIconBoxPropsOrUndefined = (instances: ComponentInstance[], boxId: string): IconBoxProps | undefined => {
   const inst = instances.find((i) => i.id === boxId);
-  if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+  if (!inst || !isIconBoxInstance(inst)) {
     return undefined;
   }
   return inst.props;

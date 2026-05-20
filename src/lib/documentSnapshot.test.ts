@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONFIG } from "../grid/config";
+import { createComponentInstance } from "./componentRegistry";
 import { getDefaultDocumentSlice } from "../storePersist";
 import {
   __testOnlySerializeV1,
@@ -74,6 +75,18 @@ describe("documentSnapshot", () => {
     const v2 = serializeBuilderDocumentSnapshot(snapshot);
 
     expect(v2.length).toBeLessThan(v1.length);
+  });
+
+  it("serializeBuilderDocumentSnapshot round-trips icon-box-1x2 layers", async () => {
+    const box = createComponentInstance("icon-box-1x2", 40, 52, 7, 800, 560);
+    const snapshot: BuilderDocumentSnapshot = {
+      ...sampleSnapshot,
+      instances: [box],
+      nextInstanceIndex: 8,
+      selectedInstanceId: box.id,
+    };
+    const text = serializeBuilderDocumentSnapshot(snapshot);
+    await expect(parseBuilderDocumentSnapshotInput(text)).resolves.toEqual(snapshot);
   });
 
   it("parseBuilderDocumentSnapshotInput accepts legacy full-key snapshots", async () => {

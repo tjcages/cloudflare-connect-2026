@@ -1,4 +1,7 @@
 import {
+  ICON_BOX_1X2_MIN_ROOT_Y,
+  ICON_BOX_1X2_OUTER_HEIGHT,
+  ICON_BOX_1X2_SNAP_ANCHOR_Y,
   ICON_BOX_2X1_SNAP_ANCHOR_X,
   ICON_BOX_MIN_ROOT_Y,
   ICON_BOX_OUTER_HEIGHT,
@@ -9,6 +12,7 @@ import {
   getIconBoxLayoutVariant,
   getIconBoxShadowCardBoundsInRootSpace,
   isIconBoxComponentType,
+  isIconBoxInstance,
 } from "./icon-box/layout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 import {
@@ -29,7 +33,7 @@ export type ComponentDefinition = {
   label: string;
   width: number;
   height: number;
-  /** Offset from instance root (x, y) to the grid snap point (icon-box: shadow-card center; icon-box-2x1: west edge of shadow-card frame on the LARGE_CELL_SIZE lattice). */
+  /** Offset from instance root (x, y) to the grid snap point (icon-box: shadow-card center; icon-box-2x1: west edge; icon-box-1x2: north edge). */
   snapAnchorX: number;
   snapAnchorY: number;
   defaultProps: ComponentProps;
@@ -71,6 +75,29 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     height: ICON_BOX_OUTER_HEIGHT,
     snapAnchorX: ICON_BOX_2X1_SNAP_ANCHOR_X,
     snapAnchorY: ICON_BOX_SNAP_ANCHOR_Y,
+    defaultProps: {
+      matchCornersWithTheme: false,
+      theme: "purple",
+      iconId: DEFAULT_ICON_ID,
+      title: "Workers",
+      containerHighlighted: false,
+      enabledByLine: "off",
+    },
+    dynamicTitle: (config) => {
+      if (!("title" in config)) {
+        return undefined;
+      }
+      const t = config.title.trim();
+      return t.length ? t : undefined;
+    },
+  },
+  "icon-box-1x2": {
+    type: "icon-box-1x2",
+    label: "Icon Box 1x2",
+    width: 80,
+    height: ICON_BOX_1X2_OUTER_HEIGHT,
+    snapAnchorX: ICON_BOX_SNAP_ANCHOR_X,
+    snapAnchorY: ICON_BOX_1X2_SNAP_ANCHOR_Y,
     defaultProps: {
       matchCornersWithTheme: false,
       theme: "purple",
@@ -139,7 +166,7 @@ const formatConnectorEndpointSubtitle = (endpoint: ConnectorEndpoint, instances:
   }
 
   const def = getComponentDefinition(layer.type);
-  if (layer.type === "icon-box" || layer.type === "icon-box-2x1") {
+  if (isIconBoxInstance(layer)) {
     const t = layer.props.title.trim();
     return t.length ? `${def.label} / ${t}` : def.label;
   }
@@ -231,12 +258,14 @@ export const snapComponentPosition = (
       ? snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, 0)
       : snapRootAxis(x, definition.snapAnchorX, maxX, 0, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET);
 
+  const snapIconBoxAxisY = (): number =>
+    variant === "icon-box-1x2"
+      ? snapRootAxis(y, definition.snapAnchorY, maxY, ICON_BOX_1X2_MIN_ROOT_Y, LARGE_CELL_SIZE, 0)
+      : snapRootAxis(y, definition.snapAnchorY, maxY, ICON_BOX_MIN_ROOT_Y, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET);
+
   return {
     x: variant !== null ? snapIconBoxAxisX() : snapRootAxis(x, definition.snapAnchorX, maxX),
-    y:
-      variant !== null
-        ? snapRootAxis(y, definition.snapAnchorY, maxY, ICON_BOX_MIN_ROOT_Y, LARGE_CELL_SIZE, CONNECTOR_LATTICE_OFFSET)
-        : snapRootAxis(y, definition.snapAnchorY, maxY),
+    y: variant !== null ? snapIconBoxAxisY() : snapRootAxis(y, definition.snapAnchorY, maxY),
   };
 };
 
@@ -303,7 +332,7 @@ export const getInstanceCanvasBounds = (
 export const getInstanceHighlightBounds = (
   instance: ComponentInstance,
 ): { x: number; y: number; width: number; height: number } => {
-  if (instance.type === "icon-box" || instance.type === "icon-box-2x1") {
+  if (isIconBoxInstance(instance)) {
     const r = getIconBoxFullHighlightBoundsInRootSpace(instance.props.title, instance.type);
     return {
       x: instance.x + r.x,
@@ -348,7 +377,7 @@ export const createComponentInstance = (
     };
   }
 
-  if (type === "icon-box" || type === "icon-box-2x1") {
+  if (isIconBoxComponentType(type)) {
     return {
       id: `${type}-${index}`,
       type,

@@ -46,6 +46,7 @@ const COMPONENT_TYPE_CODES: ComponentType[] = [
   "plus-marker",
   "rect-marker",
   "connector-line",
+  "icon-box-1x2",
 ];
 
 const TYPE_TO_CODE = Object.fromEntries(COMPONENT_TYPE_CODES.map((type, index) => [type, index])) as Record<
@@ -336,7 +337,7 @@ const pickPropsDelta = (
   idToIndex?: Map<string, number>,
 ): Record<string, unknown> | undefined => {
   const defaults = getComponentDefinition(type).defaultProps;
-  if (type === "icon-box" || type === "icon-box-2x1") {
+  if (type === "icon-box" || type === "icon-box-2x1" || type === "icon-box-1x2") {
     return compactIconBoxPropsDelta(defaults, props);
   }
 
@@ -367,7 +368,7 @@ const expandPropsDelta = (
   instanceIds: string[] = [],
 ): ComponentProps => {
   const defaults = getComponentDefinition(type).defaultProps;
-  if (type === "icon-box" || type === "icon-box-2x1") {
+  if (type === "icon-box" || type === "icon-box-2x1" || type === "icon-box-1x2") {
     return expandIconBoxPropsDelta(defaults, delta);
   }
 

@@ -28,6 +28,7 @@ const isFiniteNumber = (value: unknown): value is number => typeof value === "nu
 const isComponentType = (value: unknown): value is ComponentType =>
   value === "icon-box" ||
   value === "icon-box-2x1" ||
+  value === "icon-box-1x2" ||
   value === "plus-marker" ||
   value === "rect-marker" ||
   value === "connector-line";
@@ -448,7 +449,7 @@ const sanitizeInstances = (raw: unknown, gridLogicalWidth: number, gridLogicalHe
 const maxInstanceOrdinal = (instances: ComponentInstance[]): number => {
   let max = 0;
   for (const inst of instances) {
-    const m = /^(?:icon-box-2x1|icon-box|plus-marker|rect-marker|connector-line)-(\d+)$/.exec(inst.id);
+    const m = /^(?:icon-box-2x1|icon-box-1x2|icon-box|plus-marker|rect-marker|connector-line)-(\d+)$/.exec(inst.id);
     if (m) {
       max = Math.max(max, Number(m[1]));
     }

@@ -11,6 +11,8 @@ import {
   snapComponentPosition,
 } from "./componentRegistry";
 import {
+  ICON_BOX_1X2_OUTER_HEIGHT,
+  ICON_BOX_1X2_SNAP_ANCHOR_Y,
   ICON_BOX_2X1_SNAP_ANCHOR_X,
   ICON_BOX_CARD_FRAME_ORIGIN_Y,
   ICON_BOX_CARD_FRAME_SIZE,
@@ -38,6 +40,20 @@ describe("componentRegistry", () => {
     expect(COMPONENT_REGISTRY["icon-box-2x1"].label).toBe("Icon Box 2x1");
     expect(COMPONENT_REGISTRY["icon-box-2x1"].width).toBe(160);
     expect(COMPONENT_REGISTRY["icon-box-2x1"].defaultProps).toEqual({
+      matchCornersWithTheme: false,
+      theme: "purple",
+      iconId: DEFAULT_ICON_ID,
+      title: "Workers",
+      containerHighlighted: false,
+      enabledByLine: "off",
+    });
+  });
+
+  it("registers icon-box-1x2 at 80px width with taller outer height sharing icon-box default props", () => {
+    expect(COMPONENT_REGISTRY["icon-box-1x2"].label).toBe("Icon Box 1x2");
+    expect(COMPONENT_REGISTRY["icon-box-1x2"].width).toBe(80);
+    expect(COMPONENT_REGISTRY["icon-box-1x2"].height).toBe(ICON_BOX_1X2_OUTER_HEIGHT);
+    expect(COMPONENT_REGISTRY["icon-box-1x2"].defaultProps).toEqual({
       matchCornersWithTheme: false,
       theme: "purple",
       iconId: DEFAULT_ICON_ID,
@@ -177,6 +193,44 @@ describe("componentRegistry", () => {
       y: inst.y + ICON_BOX_CARD_FRAME_ORIGIN_Y,
       width: 160,
       height: ICON_BOX_CARD_FRAME_SIZE,
+    });
+  });
+
+  it("creates named icon-box-1x2 instances with instance.x on the 80px large-cell horizontal lattice", () => {
+    expect(createComponentInstance("icon-box-1x2", 43, 79, 42, 800, 560)).toMatchObject({
+      id: "icon-box-1x2-42",
+      type: "icon-box-1x2",
+      name: "Icon Box 1x2 42",
+      x: 80,
+      y: 52,
+      props: {
+        matchCornersWithTheme: false,
+        theme: "purple",
+        iconId: DEFAULT_ICON_ID,
+        title: "Workers",
+        containerHighlighted: false,
+      },
+    });
+  });
+
+  it("snaps icon-box-1x2 north shadow-card edge vertically on the 80px large-cell lattice", () => {
+    const snapped = snapComponentPosition(50, 50, 800, 560, "icon-box-1x2");
+    expect(snapped.x + ICON_BOX_SNAP_ANCHOR_X).toBe(120);
+    expect(snapped.y + ICON_BOX_1X2_SNAP_ANCHOR_Y).toBe(80);
+  });
+
+  it("resolves icon-box-1x2 connector anchors at the shadow-card center (north edge is only for position snap)", () => {
+    const inst = createComponentInstance("icon-box-1x2", 43, 79, 2, 800, 560);
+    expect(getInstanceAnchorPoint(inst)).toEqual({ x: 120, y: 160 });
+  });
+
+  it("uses taller shadow-card hit bounds for icon-box-1x2", () => {
+    const inst = createComponentInstance("icon-box-1x2", 300, 200, 11, 800, 560);
+    expect(getInstanceCanvasBounds(inst)).toEqual({
+      x: inst.x,
+      y: inst.y + ICON_BOX_CARD_FRAME_ORIGIN_Y,
+      width: ICON_BOX_CARD_FRAME_SIZE,
+      height: 160,
     });
   });
 

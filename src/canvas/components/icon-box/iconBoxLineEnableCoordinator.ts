@@ -1,8 +1,7 @@
 import { animate, cubicBezier, motionValue } from "motion";
 import type { Container, Graphics, Sprite, Text } from "pixi.js";
 import type { ComponentInstance } from "../../../grid/types";
-
-type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }>;
+import { isIconBoxInstance, TITLE_BAR_HEIGHT } from "../../../lib/icon-box/layout";
 import { useAppStore, type IconBoxLineEnableDebugRow } from "../../../store";
 import {
   applyHitToLineEnableState,
@@ -20,8 +19,9 @@ import {
   resetOutgoingPulseGate,
   tryAcquireOutgoingPulseSlot,
 } from "../../../lib/iconBoxOutgoingPulseGate";
-import { TITLE_BAR_HEIGHT } from "../../../lib/icon-box/layout";
 import { paletteBrush } from "../../../theme/palette";
+
+type IconBoxRenderableInstance = Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" | "icon-box-1x2" }>;
 
 export const LINE_ENABLE_COLOR_DURATION_SEC = 0.45;
 /** After presentation color motion is fully idle, wait this long before starting the next transition. */
@@ -147,7 +147,7 @@ const instancesSnapshot = (): ComponentInstance[] => useAppStore.getState().inst
 const syncLineEnableDebugToStore = (boxId: string) => {
   const instances = instancesSnapshot();
   const inst = instances.find((i) => i.id === boxId);
-  if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+  if (!inst || !isIconBoxInstance(inst)) {
     useAppStore.getState().patchIconBoxLineEnableDebug(boxId, null);
     return;
   }
@@ -181,7 +181,7 @@ const syncLineEnableDebugToStore = (boxId: string) => {
 const applyIteratedCycleDecrementForBox = (boxId: string) => {
   const instances = instancesSnapshot();
   const inst = instances.find((i) => i.id === boxId);
-  if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+  if (!inst || !isIconBoxInstance(inst)) {
     return;
   }
   if (inst.props.enabledByLine !== "iterated") {
@@ -302,7 +302,7 @@ export const iconBoxLineEnableCoordinator = {
   notifyTargetHit(args: { connectorId: string; leg: "forward" | "backward"; boxId: string }) {
     const instances = instancesSnapshot();
     const inst = instances.find((i) => i.id === args.boxId);
-    if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+    if (!inst || !isIconBoxInstance(inst)) {
       return;
     }
     const conn = instances.find((i) => i.id === args.connectorId);
@@ -393,7 +393,7 @@ export const iconBoxLineEnableCoordinator = {
       }
       let instances = instancesSnapshot();
       let inst = instances.find((i) => i.id === boxId);
-      if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+      if (!inst || !isIconBoxInstance(inst)) {
         return;
       }
       let mode = inst.props.enabledByLine;
@@ -418,7 +418,7 @@ export const iconBoxLineEnableCoordinator = {
       }
       instances = instancesSnapshot();
       inst = instances.find((i) => i.id === boxId);
-      if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+      if (!inst || !isIconBoxInstance(inst)) {
         return;
       }
       mode = inst.props.enabledByLine;
@@ -439,7 +439,7 @@ export const iconBoxLineEnableCoordinator = {
       }
       instances = instancesSnapshot();
       inst = instances.find((i) => i.id === boxId);
-      if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+      if (!inst || !isIconBoxInstance(inst)) {
         return;
       }
       mode = inst.props.enabledByLine;

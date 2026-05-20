@@ -3,6 +3,7 @@ import { Container, Graphics, ParticleContainer, Rectangle, Texture } from "pixi
 import type { Ticker } from "../../components/pixi";
 import type { ComponentInstance } from "../../grid/types";
 import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
+import { isIconBoxComponentType } from "../../lib/icon-box/layout";
 import { useAppStore } from "../../store";
 import { parseHexColor } from "../color";
 import { buildHoveredConnectorIds } from "../connectorLinkedLayerHighlights";
@@ -271,7 +272,7 @@ const syncLayers = (
       continue;
     }
 
-    if (instance.type === "icon-box" || instance.type === "icon-box-2x1") {
+    if (isIconBoxComponentType(instance.type)) {
       syncIconBox(instance, structureLayer, chromeLayer, cache, z, gridStrokeColor, gridStrokeHex);
       continue;
     }
@@ -685,7 +686,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
         entry.hitNudgeX = nx.get();
         entry.hitNudgeY = ny.get();
         const inst = useAppStore.getState().instances.find((i) => i.id === hitArgs.boxId);
-        if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+        if (!inst || !isIconBoxComponentType(inst.type)) {
           return;
         }
         entry.structureRoot.position.set(inst.x, inst.y);
@@ -720,7 +721,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
         entry.hitNudgeY = 0;
         cleanupListeners();
         const inst = useAppStore.getState().instances.find((i) => i.id === hitArgs.boxId);
-        if (inst && (inst.type === "icon-box" || inst.type === "icon-box-2x1")) {
+        if (inst && isIconBoxComponentType(inst.type)) {
           entry.structureRoot.position.set(inst.x, inst.y);
           entry.chromeRoot.position.set(inst.x, inst.y);
         }
@@ -754,7 +755,7 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
         ny.set(0);
         cleanupListeners();
         const inst = useAppStore.getState().instances.find((i) => i.id === hitArgs.boxId);
-        if (inst && (inst.type === "icon-box" || inst.type === "icon-box-2x1")) {
+        if (inst && isIconBoxComponentType(inst.type)) {
           entry.structureRoot.position.set(inst.x, inst.y);
           entry.chromeRoot.position.set(inst.x, inst.y);
         }

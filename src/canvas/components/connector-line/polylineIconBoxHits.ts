@@ -1,5 +1,6 @@
 import type { ComponentInstance } from "../../../grid/types";
 import { getInstanceCanvasBounds } from "../../../lib/componentRegistry";
+import { isIconBoxComponentType } from "../../../lib/icon-box/layout";
 import type { PathPoint } from "./pathMotion";
 import { pointAlongPolyline, type PolylineMetrics } from "./pathMotion";
 
@@ -327,8 +328,8 @@ export const collectIconBoxHitsAlongConnector = (
   }
 
   const iconBoxes = instances.filter(
-    (i): i is Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }> =>
-      i.type === "icon-box" || i.type === "icon-box-2x1",
+    (i): i is Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" | "icon-box-1x2" }> =>
+      isIconBoxComponentType(i.type),
   );
 
   const hits: IconBoxHitAlongConnector[] = [];

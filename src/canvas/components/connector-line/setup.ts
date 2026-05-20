@@ -2,7 +2,7 @@ import { animate, motionValue } from "motion";
 import { Container, Graphics } from "pixi.js";
 import type { ParticleContainer, Texture } from "pixi.js";
 import { getInstanceCanvasBounds } from "../../../lib/componentRegistry";
-import { getIconBoxShadowCardBoundsInRootSpace } from "../../../lib/icon-box/layout";
+import { getIconBoxShadowCardBoundsInRootSpace, isIconBoxComponentType } from "../../../lib/icon-box/layout";
 import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
 import { useAppStore } from "../../../store";
 import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "../constants";
@@ -233,7 +233,7 @@ const connectorBaseRowKey = (row: { id: string }) => row.id;
 
 type IconLatticeBackdropRow = {
   id: string;
-  type: "icon-box" | "icon-box-2x1";
+  type: "icon-box" | "icon-box-2x1" | "icon-box-1x2";
   x: number;
   y: number;
   w: number;
@@ -243,9 +243,8 @@ type IconLatticeBackdropRow = {
 /** Shadow-card rects in root space (white tiles under icon glossy), sorted by id for stable fingerprints and paint. */
 const sortedIconLatticeBackdropRows = (instances: ComponentInstance[]): IconLatticeBackdropRow[] =>
   [...instances]
-    .filter(
-      (inst): inst is Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" }> =>
-        inst.type === "icon-box" || inst.type === "icon-box-2x1",
+    .filter((inst): inst is Extract<ComponentInstance, { type: "icon-box" | "icon-box-2x1" | "icon-box-1x2" }> =>
+      isIconBoxComponentType(inst.type),
     )
     .map((inst) => {
       const r = getIconBoxShadowCardBoundsInRootSpace(inst.type);
@@ -583,7 +582,7 @@ export const buildConnectorInstanceChrome = (
 
     const particleOriginForHit = (boxId: string, leg: "forward" | "backward", fallback: { x: number; y: number }) => {
       const inst = useAppStore.getState().instances.find((i) => i.id === boxId);
-      if (!inst || (inst.type !== "icon-box" && inst.type !== "icon-box-2x1")) {
+      if (!inst || !isIconBoxComponentType(inst.type)) {
         return fallback;
       }
       const b = getInstanceCanvasBounds(inst);

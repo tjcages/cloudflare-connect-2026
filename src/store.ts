@@ -8,6 +8,7 @@ import {
   snapComponentPosition,
   snapConnectorCellCenter,
 } from "./lib/componentRegistry";
+import { isIconBoxInstance } from "./lib/icon-box/layout";
 import { updateLargeRatio, updateSmallRatio } from "./grid/config";
 import { generateGrid } from "./grid/generator";
 import type {
@@ -205,7 +206,7 @@ const duplicateInstanceForGrid = (
     instance.type,
   );
 
-  if (instance.type === "icon-box" || instance.type === "icon-box-2x1") {
+  if (isIconBoxInstance(instance)) {
     return {
       ...instance,
       id,
@@ -422,7 +423,7 @@ export const useAppStore = create<AppStoreState>()(
               if (instance.id !== id) {
                 return instance;
               }
-              if ((instance.type === "icon-box" || instance.type === "icon-box-2x1") && "iconId" in props) {
+              if (isIconBoxInstance(instance) && "iconId" in props) {
                 return { ...instance, props: props as IconBoxProps };
               }
               if (instance.type === "plus-marker") {

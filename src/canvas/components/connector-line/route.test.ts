@@ -29,6 +29,12 @@ describe("connector line routing", () => {
     expect(resolveConnectorEndpoint(layerEndpoint, [box2x1])).toEqual({ x: 200, y: 120 });
   });
 
+  it("resolves icon-box-1x2 layer endpoints at shadow-card center on the connector lattice", () => {
+    const box1x2 = createComponentInstance("icon-box-1x2", 43, 79, 2, 800, 560);
+    const layerEndpoint: ConnectorEndpoint = { kind: "layer", instanceId: box1x2.id };
+    expect(resolveConnectorEndpoint(layerEndpoint, [box1x2])).toEqual({ x: 120, y: 200 });
+  });
+
   it("uses a horizontal first leg when horizontal preference connects collinear vertical anchor points", () => {
     const points = routeConnectorPath({ x: 120, y: 40 }, { x: 120, y: 200 }, "horizontal", {
       width: 800,

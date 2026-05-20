@@ -1,5 +1,13 @@
 import type { ComponentInstance, ConnectorEndpoint } from "../../../grid/types";
+import { isIconBoxInstance } from "../../../lib/icon-box/layout";
 import { paletteBrush } from "../../../theme/palette";
+
+const isThemedConnectorLayer = (
+  layer: ComponentInstance | undefined,
+): layer is Extract<
+  ComponentInstance,
+  { type: "icon-box" | "icon-box-2x1" | "icon-box-1x2" | "plus-marker" | "rect-marker" }
+> => layer !== undefined && (isIconBoxInstance(layer) || layer.type === "plus-marker" || layer.type === "rect-marker");
 
 /** Signature for connector redraw when a bound layer’s theme (fill) changes. */
 export const getConnectorEndpointThemeSignature = (
@@ -10,12 +18,7 @@ export const getConnectorEndpointThemeSignature = (
     return "cell";
   }
   const layer = instances.find((i) => i.id === endpoint.instanceId);
-  if (
-    layer?.type === "icon-box" ||
-    layer?.type === "icon-box-2x1" ||
-    layer?.type === "plus-marker" ||
-    layer?.type === "rect-marker"
-  ) {
+  if (isThemedConnectorLayer(layer)) {
     return `${layer.id}:${layer.props.theme}`;
   }
   return "unknown";
@@ -29,12 +32,7 @@ export const resolveConnectorEndpointThemeFill = (
 ): number => {
   if (endpoint.kind === "layer") {
     const layer = instances.find((i) => i.id === endpoint.instanceId);
-    if (
-      layer?.type === "icon-box" ||
-      layer?.type === "icon-box-2x1" ||
-      layer?.type === "plus-marker" ||
-      layer?.type === "rect-marker"
-    ) {
+    if (isThemedConnectorLayer(layer)) {
       return paletteBrush(layer.props.theme, { neutralFillSyncHex: gridStrokeHex }).fill;
     }
   }
