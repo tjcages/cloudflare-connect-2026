@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONFIG } from "../grid/config";
-import { serializeBuilderDocumentSnapshot } from "../lib/documentSnapshot";
+import { parseBuilderDocumentSnapshotInput, serializeBuilderDocumentSnapshot } from "../lib/documentSnapshot";
 import { resetAppStoreDocumentToDefault, useAppStore } from "../store";
 import { ShareSidebar } from "./ShareSidebar";
 
@@ -21,12 +21,14 @@ describe("ShareSidebar", () => {
 
     const writeText = navigator.clipboard!.writeText as ReturnType<typeof vi.fn>;
     await waitFor(() => expect(writeText).toHaveBeenCalled());
-    const snapshot = JSON.parse(writeText.mock.calls[0][0] as string) as { gridConfig: { seed: string } };
+    const snapshot = (await parseBuilderDocumentSnapshotInput(writeText.mock.calls[0][0] as string)) as {
+      gridConfig: { seed: string };
+    };
     expect(snapshot.gridConfig.seed).toBe("copy-me");
     expect(screen.getByTestId("share-copy-state")).toHaveTextContent("Copied");
   });
 
-  it("imports a pasted snapshot into the store", () => {
+  it("imports a pasted snapshot into the store", async () => {
     const snapshot = {
       gridConfig: { ...DEFAULT_CONFIG, seed: "imported-seed", density: 0.99 },
       instances: [],
@@ -41,17 +43,21 @@ describe("ShareSidebar", () => {
     });
     fireEvent.click(screen.getByTestId("share-import-state"));
 
-    expect(useAppStore.getState().gridConfig.seed).toBe("imported-seed");
-    expect(useAppStore.getState().gridConfig.density).toBe(0.99);
+    await waitFor(() => {
+      expect(useAppStore.getState().gridConfig.seed).toBe("imported-seed");
+      expect(useAppStore.getState().gridConfig.density).toBe(0.99);
+    });
     expect(screen.getByTestId("share-import-textarea")).toHaveValue("");
     expect(screen.getByTestId("share-import-status")).toHaveTextContent("Imported");
   });
 
-  it("shows import failed for invalid JSON", () => {
+  it("shows import failed for invalid JSON", async () => {
     render(<ShareSidebar />);
     fireEvent.change(screen.getByTestId("share-import-textarea"), { target: { value: "not-json" } });
     fireEvent.click(screen.getByTestId("share-import-state"));
 
-    expect(screen.getByTestId("share-import-status")).toHaveTextContent("Import failed");
+    await waitFor(() => {
+      expect(screen.getByTestId("share-import-status")).toHaveTextContent("Import failed");
+    });
   });
 });

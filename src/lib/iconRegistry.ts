@@ -85,7 +85,7 @@ export const ICON_REGISTRY: IconDefinition[] = [
   },
   {
     id: "builder-share",
-    label: "Share builder",
+    label: "Export state builder",
     viewBox: "0 0 24 24",
     renderMode: "stroke",
     strokeWidth: 1.25,

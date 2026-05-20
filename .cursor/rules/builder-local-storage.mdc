@@ -18,10 +18,9 @@ alwaysApply: false
 - **Built-in presets** in `src/presets/builtinPresets.ts` store the **inner** snapshot only (not the envelope).
 - Apply snapshots with **`mergePersistedDocument`** / **`applyBuilderDocumentSnapshot`** (`src/storePersist.ts`, `src/store.ts`) so instances and grid are sanitized and the grid is regenerated from `gridConfig`.
 
-## Share panel copy / import
+## Export state panel copy / import
 
-- **Copy state** (Share rail tab) writes the **inner** snapshot JSON via `src/lib/documentSnapshot.ts` (pretty-printed; no `{ state, version }` envelope).
-- **Import state** accepts either the inner snapshot or a full zustand persist envelope; `parseBuilderDocumentSnapshotInput` unwraps when `state` is present.
+- **Copy state to clipboard** (share rail tab) picks the shortest of **compact v3/v2** minified JSON or **`z:`** gzip+base64 (`src/lib/documentSnapshot.ts`). v3 adds numeric themes, compact connector endpoints, and layer-index refs. Import accepts v3, v2, v1, legacy full keys, gzip, or zustand envelope.
 
 ## Dev-only programmatic read (browser)
 

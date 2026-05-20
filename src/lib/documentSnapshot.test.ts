@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONFIG } from "../grid/config";
+import { getDefaultDocumentSlice } from "../storePersist";
 import {
+  __testOnlySerializeV1,
+  __testOnlySerializeV2,
   copyBuilderDocumentSnapshotToClipboard,
   getBuilderDocumentSnapshot,
   parseBuilderDocumentSnapshotInput,
@@ -35,31 +38,104 @@ describe("documentSnapshot", () => {
     });
   });
 
-  it("serializeBuilderDocumentSnapshot round-trips through parse", () => {
+  it("serializeBuilderDocumentSnapshot round-trips through parse", async () => {
     const text = serializeBuilderDocumentSnapshot(sampleSnapshot);
-    const parsed = parseBuilderDocumentSnapshotInput(text);
+    const parsed = await parseBuilderDocumentSnapshotInput(text);
 
     expect(parsed).toEqual(sampleSnapshot);
+    expect(text).not.toMatch(/\n\s+/);
+    expect(text.startsWith('{"v":')).toBe(true);
   });
 
-  it("parseBuilderDocumentSnapshotInput unwraps zustand persist envelope", () => {
+  it("v3 encoding is shorter than v2 for the default document", () => {
+    const { gridConfig, instances, nextInstanceIndex, selectedInstanceId } = getDefaultDocumentSlice();
+    const snapshot: BuilderDocumentSnapshot = {
+      gridConfig,
+      instances,
+      nextInstanceIndex,
+      selectedInstanceId,
+      canvasPan: { x: 0, y: 0 },
+    };
+
+    expect(serializeBuilderDocumentSnapshot(snapshot).length).toBeLessThan(__testOnlySerializeV2(snapshot).length);
+  });
+
+  it("v2 encoding is shorter than v1 for the default document", () => {
+    const { gridConfig, instances, nextInstanceIndex, selectedInstanceId } = getDefaultDocumentSlice();
+    const snapshot: BuilderDocumentSnapshot = {
+      gridConfig,
+      instances,
+      nextInstanceIndex,
+      selectedInstanceId,
+      canvasPan: { x: 0, y: 0 },
+    };
+
+    const v1 = __testOnlySerializeV1(snapshot);
+    const v2 = serializeBuilderDocumentSnapshot(snapshot);
+
+    expect(v2.length).toBeLessThan(v1.length);
+  });
+
+  it("parseBuilderDocumentSnapshotInput accepts legacy full-key snapshots", async () => {
+    const legacy = JSON.stringify(sampleSnapshot);
+    await expect(parseBuilderDocumentSnapshotInput(legacy)).resolves.toEqual(sampleSnapshot);
+  });
+
+  it("parseBuilderDocumentSnapshotInput accepts compact v1 snapshots", async () => {
+    const v1 = __testOnlySerializeV1(sampleSnapshot);
+    await expect(parseBuilderDocumentSnapshotInput(v1)).resolves.toEqual(sampleSnapshot);
+  });
+
+  it("parseBuilderDocumentSnapshotInput unwraps zustand persist envelope", async () => {
     const inner = { ...sampleSnapshot, gridConfig: { ...DEFAULT_CONFIG, seed: "envelope" } };
     const text = JSON.stringify({ state: inner, version: 2 });
-    expect(parseBuilderDocumentSnapshotInput(text)).toEqual(inner);
+    await expect(parseBuilderDocumentSnapshotInput(text)).resolves.toEqual(inner);
   });
 
-  it("parseBuilderDocumentSnapshotInput throws on invalid JSON", () => {
-    expect(() => parseBuilderDocumentSnapshotInput("{")).toThrow();
+  it("parseBuilderDocumentSnapshotInput throws on invalid JSON", async () => {
+    await expect(parseBuilderDocumentSnapshotInput("{")).rejects.toThrow();
   });
 
-  it("copyBuilderDocumentSnapshotToClipboard writes serialized JSON", async () => {
+  it("gzip payload round-trips when CompressionStream is available", async () => {
+    if (typeof CompressionStream === "undefined") {
+      return;
+    }
+
+    const { gridConfig, instances, nextInstanceIndex, selectedInstanceId } = getDefaultDocumentSlice();
+    const snapshot: BuilderDocumentSnapshot = {
+      gridConfig,
+      instances,
+      nextInstanceIndex,
+      selectedInstanceId,
+      canvasPan: { x: 0, y: 0 },
+    };
+
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
 
+    await copyBuilderDocumentSnapshotToClipboard(snapshot);
+
+    const written = writeText.mock.calls[0][0] as string;
+    expect(written.startsWith("z:")).toBe(true);
+    await expect(parseBuilderDocumentSnapshotInput(written)).resolves.toEqual(snapshot);
+  });
+
+  it("copyBuilderDocumentSnapshotToClipboard writes serialized JSON when gzip is unavailable", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+
+    const gzipBackup = globalThis.CompressionStream;
+    // @ts-expect-error test stub
+    globalThis.CompressionStream = undefined;
+
     const ok = await copyBuilderDocumentSnapshotToClipboard(sampleSnapshot);
 
+    globalThis.CompressionStream = gzipBackup;
+
     expect(ok).toBe(true);
-    expect(writeText).toHaveBeenCalledWith(serializeBuilderDocumentSnapshot(sampleSnapshot));
+    const written = writeText.mock.calls[0][0] as string;
+    expect(written.startsWith("z:") || written.startsWith('{"v":')).toBe(true);
+    await expect(parseBuilderDocumentSnapshotInput(written)).resolves.toEqual(sampleSnapshot);
   });
 
   it("copyBuilderDocumentSnapshotToClipboard returns false when clipboard is unavailable", async () => {

@@ -107,7 +107,7 @@ describe("App", { timeout: 15_000 }, () => {
     window.localStorage.setItem("section-grid-generator.active-tab", "share");
     render(<App />);
 
-    expect(screen.getByText("Share")).toBeInTheDocument();
+    expect(screen.getByText("Import state")).toBeInTheDocument();
     expect(screen.getByTestId("share-copy-state")).toBeInTheDocument();
     expect(screen.getByTestId("rail-tab-share")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("rail-tab-grid")).toHaveAttribute("aria-pressed", "false");
