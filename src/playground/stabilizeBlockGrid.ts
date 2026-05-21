@@ -1,36 +1,29 @@
-import { STRIPE_WIDTH_MID, STRIPE_WIDTH_NARROW, STRIPE_WIDTH_NONE, STRIPE_WIDTH_WIDE } from "./stripeGridConstants";
+import { STRIPE_BAND_COUNT, STRIPE_BAND_NONE } from "./stripeGridConstants";
 
-const WIDTH_BANDS = [STRIPE_WIDTH_NONE, STRIPE_WIDTH_NARROW, STRIPE_WIDTH_MID, STRIPE_WIDTH_WIDE] as const;
+const BAND_LEVELS = [STRIPE_BAND_NONE, 1, 2, 3, 4, 5] as const;
 
-function widthBandIndex(width: number): number {
-  if (width >= STRIPE_WIDTH_WIDE) {
-    return 3;
-  }
-  if (width >= STRIPE_WIDTH_MID) {
-    return 2;
-  }
-  if (width >= STRIPE_WIDTH_NARROW) {
-    return 1;
-  }
-  return 0;
+function bandIndex(band: number): number {
+  const clamped = Math.max(STRIPE_BAND_NONE, Math.min(STRIPE_BAND_COUNT, Math.round(band)));
+  const index = BAND_LEVELS.indexOf(clamped as (typeof BAND_LEVELS)[number]);
+  return index >= 0 ? index : 0;
 }
 
-function widthFromBandIndex(index: number): number {
-  return WIDTH_BANDS[Math.max(0, Math.min(WIDTH_BANDS.length - 1, index))] ?? STRIPE_WIDTH_NONE;
+function bandFromIndex(index: number): number {
+  return BAND_LEVELS[Math.max(0, Math.min(BAND_LEVELS.length - 1, index))] ?? STRIPE_BAND_NONE;
 }
 
 /**
- * Limit stripe-width band changes to one step per update so colors do not snap frame to frame.
+ * Limit stripe-band changes to one step per update so colors do not snap frame to frame.
  */
-export function smoothBlockGridWidths(next: Uint8Array, previous: Uint8Array | undefined): Uint8Array {
+export function smoothBlockGridBands(next: Uint8Array, previous: Uint8Array | undefined): Uint8Array {
   if (!previous || previous.length !== next.length) {
     return new Uint8Array(next);
   }
 
   const out = new Uint8Array(next.length);
   for (let i = 0; i < next.length; i++) {
-    const prevBand = widthBandIndex(previous[i] ?? 0);
-    const nextBand = widthBandIndex(next[i] ?? 0);
+    const prevBand = bandIndex(previous[i] ?? 0);
+    const nextBand = bandIndex(next[i] ?? 0);
     let band = prevBand;
 
     if (nextBand > prevBand) {
@@ -39,7 +32,7 @@ export function smoothBlockGridWidths(next: Uint8Array, previous: Uint8Array | u
       band = prevBand - 1;
     }
 
-    out[i] = widthFromBandIndex(band);
+    out[i] = bandFromIndex(band);
   }
 
   return out;

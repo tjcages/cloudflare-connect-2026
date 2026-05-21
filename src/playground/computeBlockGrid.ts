@@ -4,24 +4,15 @@ import {
   resolveReferenceColor,
   sampleReferenceColorFromFrame,
 } from "./colorWhiteness";
-import { DEFAULT_STRIPE_DENSITY, type Rgb01, type StripeDuotoneOptions } from "./stripeFilterOptions";
-import {
-  STRIPE_BLOCK_SAMPLE_COUNT,
-  STRIPE_BLOCK_SAMPLES,
-  STRIPE_CELL_SIZE,
-  STRIPE_DIST_MID_MAX,
-  STRIPE_DIST_NARROW_MAX,
-  STRIPE_WIDTH_NONE,
-  STRIPE_WIDTH_MID,
-  STRIPE_WIDTH_NARROW,
-  STRIPE_WIDTH_WIDE,
-} from "./stripeGridConstants";
+import { type Rgb01, type StripeDuotoneOptions, DEFAULT_STRIPE_DUOTONE_OPTIONS } from "./stripeFilterOptions";
+import { bandFromDistance } from "./stripeBandThresholds";
+import { STRIPE_BLOCK_SAMPLE_COUNT, STRIPE_BLOCK_SAMPLES, STRIPE_CELL_SIZE } from "./stripeGridConstants";
 
 export type BlockGrid = {
   cols: number;
   rows: number;
-  /** Stripe width per cell: 0, 1, 3, or 5. */
-  widths: Uint8Array;
+  /** Stripe band per cell: 0 = none, 1…5 = foreground distance band. */
+  bands: Uint8Array;
 };
 
 function blockIsMostlyBg(
@@ -120,40 +111,32 @@ function distanceToNearestBg(isBg: Uint8Array, cols: number, rows: number): Int3
   return distance;
 }
 
-/** 1px if < narrow band from bg; 3px if < mid band; else 5px (bands scaled by density). */
-export function stripeWidthFromBgDistance(distance: number, isBg: boolean, density = DEFAULT_STRIPE_DENSITY): number {
-  if (isBg || distance < 1) {
-    return STRIPE_WIDTH_NONE;
-  }
-  const narrowMax = STRIPE_DIST_NARROW_MAX * density;
-  const midMax = STRIPE_DIST_MID_MAX * density;
-  if (distance < narrowMax) {
-    return STRIPE_WIDTH_NARROW;
-  }
-  if (distance < midMax) {
-    return STRIPE_WIDTH_MID;
-  }
-  return STRIPE_WIDTH_WIDE;
+export function stripeBandFromBgDistance(
+  distance: number,
+  isBg: boolean,
+  options: Pick<StripeDuotoneOptions, "density" | "bandBreakpoints"> = DEFAULT_STRIPE_DUOTONE_OPTIONS,
+): number {
+  return bandFromDistance(distance, isBg, options.density, options.bandBreakpoints);
 }
 
-/** Marks which ends of a same-width vertical run need rounded caps. */
-export function computeChainCaps(widths: Uint8Array, cols: number, rows: number): Uint8Array {
-  const caps = new Uint8Array(widths.length);
+/** Marks which ends of a same-band vertical run need rounded caps. */
+export function computeChainCaps(bands: Uint8Array, cols: number, rows: number): Uint8Array {
+  const caps = new Uint8Array(bands.length);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const index = row * cols + col;
-      const width = widths[index] ?? 0;
-      if (width === 0) {
+      const band = bands[index] ?? 0;
+      if (band === 0) {
         continue;
       }
 
-      const widthAbove = row > 0 ? (widths[index - cols] ?? 0) : 0;
-      const widthBelow = row < rows - 1 ? (widths[index + cols] ?? 0) : 0;
+      const bandAbove = row > 0 ? (bands[index - cols] ?? 0) : 0;
+      const bandBelow = row < rows - 1 ? (bands[index + cols] ?? 0) : 0;
       let flags = 0;
-      if (width !== widthAbove) {
+      if (band !== bandAbove) {
         flags |= 1;
       }
-      if (width !== widthBelow) {
+      if (band !== bandBelow) {
         flags |= 2;
       }
       caps[index] = flags;
@@ -201,10 +184,10 @@ export function computeBlockGrid(
   }
 
   const distance = distanceToNearestBg(isBg, cols, rows);
-  const widths = new Uint8Array(size);
+  const bands = new Uint8Array(size);
   for (let i = 0; i < size; i++) {
-    widths[i] = stripeWidthFromBgDistance(distance[i] ?? -1, isBg[i] === 1, options.density);
+    bands[i] = stripeBandFromBgDistance(distance[i] ?? -1, isBg[i] === 1, options);
   }
 
-  return { cols, rows, widths };
+  return { cols, rows, bands };
 }

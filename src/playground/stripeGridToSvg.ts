@@ -1,29 +1,15 @@
 import type { BlockGrid } from "./computeBlockGrid";
-import type { StripeColors } from "./stripeColors";
+import { isStripeBandEnabled, stripeColorForBand, type StripeColors } from "./stripeColors";
 import { rgb01ToHex } from "./stripeFilterOptions";
-import { STRIPE_CELL_SIZE, STRIPE_WIDTH_MID, STRIPE_WIDTH_NONE, STRIPE_WIDTH_WIDE } from "./stripeGridConstants";
+import { STRIPE_BAND_NONE, STRIPE_CELL_SIZE, widthPxFromBand } from "./stripeGridConstants";
 
 const ROW_WIDTH_GAP = 1;
 
-function sameStripeWidth(a: number, b: number): boolean {
-  if (a < 0.001 || b < 0.001) {
+function sameStripeBand(a: number, b: number): boolean {
+  if (a < 1 || b < 1) {
     return false;
   }
-  return Math.abs(a - b) < 0.001;
-}
-
-function stripeFillHex(width: number, colors: StripeColors): string {
-  if (width >= STRIPE_WIDTH_WIDE) {
-    return rgb01ToHex(colors.wide);
-  }
-  if (width >= STRIPE_WIDTH_MID) {
-    return rgb01ToHex(colors.mid);
-  }
-  return rgb01ToHex(colors.narrow);
-}
-
-function rectPath(x: number, y: number, w: number, h: number): string {
-  return `M${x} ${y}h${w}v${h}h-${w}Z`;
+  return a === b;
 }
 
 export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: number, height: number): string {
@@ -32,15 +18,15 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
   for (let row = 0; row < grid.rows; row++) {
     for (let col = 0; col < grid.cols; col++) {
       const index = row * grid.cols + col;
-      const stripeWidth = grid.widths[index] ?? STRIPE_WIDTH_NONE;
-      if (stripeWidth <= 0) {
+      const stripeBand = grid.bands[index] ?? STRIPE_BAND_NONE;
+      if (stripeBand <= STRIPE_BAND_NONE || !isStripeBandEnabled(colors, stripeBand)) {
         continue;
       }
 
-      const widthAbove = row > 0 ? (grid.widths[index - grid.cols] ?? 0) : 0;
-      const widthBelow = row < grid.rows - 1 ? (grid.widths[index + grid.cols] ?? 0) : 0;
-      const chainBreaksAbove = !sameStripeWidth(stripeWidth, widthAbove);
-      const chainBreaksBelow = !sameStripeWidth(stripeWidth, widthBelow);
+      const bandAbove = row > 0 ? (grid.bands[index - grid.cols] ?? 0) : 0;
+      const bandBelow = row < grid.rows - 1 ? (grid.bands[index + grid.cols] ?? 0) : 0;
+      const chainBreaksAbove = !sameStripeBand(stripeBand, bandAbove);
+      const chainBreaksBelow = !sameStripeBand(stripeBand, bandBelow);
 
       let bandTop = chainBreaksAbove ? ROW_WIDTH_GAP * 0.5 : 0;
       let bandBottom = STRIPE_CELL_SIZE - (chainBreaksBelow ? ROW_WIDTH_GAP * 0.5 : 0);
@@ -49,6 +35,7 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
         bandBottom = STRIPE_CELL_SIZE;
       }
 
+      const stripeWidth = widthPxFromBand(stripeBand);
       const halfW = stripeWidth * 0.5;
       const columnCenter = col * STRIPE_CELL_SIZE + STRIPE_CELL_SIZE * 0.5;
       const x = columnCenter - halfW;
@@ -56,8 +43,8 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
       const rectW = stripeWidth;
       const rectH = bandBottom - bandTop;
 
-      const fill = stripeFillHex(stripeWidth, colors);
-      const segment = rectPath(x, y, rectW, rectH);
+      const fill = rgb01ToHex(stripeColorForBand(colors, stripeBand));
+      const segment = `M${x} ${y}h${rectW}v${rectH}h-${rectW}Z`;
       const list = pathsByColor.get(fill) ?? [];
       list.push(segment);
       pathsByColor.set(fill, list);

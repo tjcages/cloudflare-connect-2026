@@ -2,22 +2,40 @@ export const STRIPE_CELL_SIZE = 7;
 export const STRIPE_BLOCK_SAMPLES = 7;
 export const STRIPE_BLOCK_SAMPLE_COUNT = STRIPE_BLOCK_SAMPLES * STRIPE_BLOCK_SAMPLES;
 
-export const STRIPE_WIDTH_NONE = 0;
-export const STRIPE_WIDTH_NARROW = 1;
-export const STRIPE_WIDTH_MID = 3;
-export const STRIPE_WIDTH_WIDE = 5;
+export const STRIPE_BAND_NONE = 0;
+export const STRIPE_BAND_COUNT = 5;
+export const STRIPE_MAX_WIDTH_PX = 5;
 
-/** Foreground cells fewer than this many 7×7 steps from bg → 1px stripes. */
-export const STRIPE_DIST_NARROW_MAX = 2;
-/** Foreground cells fewer than this many 7×7 steps from bg → 3px stripes (else 5px). */
-export const STRIPE_DIST_MID_MAX = 4;
+/** Equal steps on a 5px max: ceil(band × 5 / 5). */
+export function widthPxFromBand(band: number): number {
+  if (band <= STRIPE_BAND_NONE) {
+    return 0;
+  }
+  return Math.min(STRIPE_MAX_WIDTH_PX, Math.max(1, Math.ceil((band * STRIPE_MAX_WIDTH_PX) / STRIPE_BAND_COUNT)));
+}
+
+function bandDecodeThreshold(band: number): number {
+  return Math.round(((band - 0.5) / STRIPE_BAND_COUNT) * 255);
+}
 
 /** Encoded into block-map texture red channel (0–255). */
-export function encodeStripeWidth(width: number): number {
-  if (width >= STRIPE_WIDTH_WIDE) return 255;
-  if (width >= STRIPE_WIDTH_MID) return 191;
-  if (width >= STRIPE_WIDTH_NARROW) return 64;
-  return 0;
+export function encodeStripeBand(band: number): number {
+  if (band <= STRIPE_BAND_NONE) {
+    return 0;
+  }
+  return Math.round((band / STRIPE_BAND_COUNT) * 255);
+}
+
+export function decodeStripeBand(encoded: number): number {
+  if (encoded < bandDecodeThreshold(1)) {
+    return STRIPE_BAND_NONE;
+  }
+  for (let band = STRIPE_BAND_COUNT; band >= 1; band--) {
+    if (encoded >= bandDecodeThreshold(band)) {
+      return band;
+    }
+  }
+  return STRIPE_BAND_NONE;
 }
 
 /** Chain-cap flags stored in the block-map green channel (bit0=top, bit1=bottom). */

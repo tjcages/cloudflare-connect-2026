@@ -4,4 +4,5 @@ export const PLAYGROUND_CONTROL_RANGES = {
   gamma: { min: 0, max: 4, step: 0.05 },
   threshold: { min: 0.05, max: 0.99, step: 0.01 },
   density: { min: 0.25, max: 4, step: 0.05 },
+  bandBreakpoint: { min: 1, max: 16, step: 0.1 },
 } as const;

@@ -5,13 +5,29 @@ import {
   smoothReferenceColor,
 } from "./colorWhiteness";
 import { computeBlockGrid, type BlockGrid } from "./computeBlockGrid";
-import { smoothBlockGridWidths } from "./stabilizeBlockGrid";
+import { smoothBlockGridBands } from "./stabilizeBlockGrid";
 import type { Rgb01, StripeDuotoneOptions } from "./stripeFilterOptions";
 
 export type PlaygroundGridBuildState = {
   stableReference?: Rgb01;
-  stableWidths?: Uint8Array;
+  stableBands?: Uint8Array;
 };
+
+export function sampleTextureFrame(
+  source: CanvasImageSource,
+  displayWidth: number,
+  displayHeight: number,
+  sampleCanvas: HTMLCanvasElement,
+  sampleCtx: CanvasRenderingContext2D,
+): ImageData | null {
+  if (displayWidth <= 0 || displayHeight <= 0) {
+    return null;
+  }
+  sampleCanvas.width = displayWidth;
+  sampleCanvas.height = displayHeight;
+  sampleCtx.drawImage(source, 0, 0, displayWidth, displayHeight);
+  return sampleCtx.getImageData(0, 0, displayWidth, displayHeight);
+}
 
 export function sampleVideoFrame(
   video: HTMLVideoElement,
@@ -20,13 +36,10 @@ export function sampleVideoFrame(
   sampleCanvas: HTMLCanvasElement,
   sampleCtx: CanvasRenderingContext2D,
 ): ImageData | null {
-  if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || displayWidth <= 0 || displayHeight <= 0) {
+  if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
     return null;
   }
-  sampleCanvas.width = displayWidth;
-  sampleCanvas.height = displayHeight;
-  sampleCtx.drawImage(video, 0, 0, displayWidth, displayHeight);
-  return sampleCtx.getImageData(0, 0, displayWidth, displayHeight);
+  return sampleTextureFrame(video, displayWidth, displayHeight, sampleCanvas, sampleCtx);
 }
 
 export function buildPlaygroundBlockGrid(
@@ -50,10 +63,10 @@ export function buildPlaygroundBlockGrid(
     ...options,
     referenceColorRgb: stableReference,
   });
-  const stableWidths = smoothBlockGridWidths(rawGrid.widths, state.stableWidths);
+  const stableBands = smoothBlockGridBands(rawGrid.bands, state.stableBands);
 
   return {
-    grid: { cols: rawGrid.cols, rows: rawGrid.rows, widths: stableWidths },
-    state: { stableReference, stableWidths },
+    grid: { cols: rawGrid.cols, rows: rawGrid.rows, bands: stableBands },
+    state: { stableReference, stableBands },
   };
 }

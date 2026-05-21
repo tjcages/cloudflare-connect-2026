@@ -1,3 +1,5 @@
+import { DEFAULT_STRIPE_BAND_BREAKPOINTS, type StripeBandBreakpoints } from "./stripeBandThresholds";
+
 export type Rgb01 = [number, number, number];
 
 export type StripeDuotoneOptions = {
@@ -15,6 +17,8 @@ export type StripeDuotoneOptions = {
   threshold: number;
   /** Scales fg distance bands for stripe width (lower → thinner / denser stripes). */
   density: number;
+  /** Connected upper distance limits for stripe color bands 1…4 (band 5 is above the last). */
+  bandBreakpoints: StripeBandBreakpoints;
 };
 
 export const DEFAULT_STRIPE_THRESHOLD = 0.72;
@@ -26,6 +30,7 @@ export const DEFAULT_STRIPE_DUOTONE_OPTIONS: StripeDuotoneOptions = {
   gamma: 1,
   threshold: DEFAULT_STRIPE_THRESHOLD,
   density: DEFAULT_STRIPE_DENSITY,
+  bandBreakpoints: DEFAULT_STRIPE_BAND_BREAKPOINTS,
 };
 
 export function hexToRgb01(hex: string): Rgb01 {
