@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { copyBuilderShareLinkToClipboard } from "../lib/builderShareLink";
 import {
   copyBuilderDocumentSnapshotToClipboard,
   getBuilderDocumentSnapshot,
@@ -16,6 +17,7 @@ const sectionContentClass = "flex flex-col gap-3.5 px-3.5";
 export const ShareSidebar = () => {
   const [importText, setImportText] = useState("");
   const [copyFeedback, setCopyFeedback] = useState<CopyFeedback>("idle");
+  const [copyLinkFeedback, setCopyLinkFeedback] = useState<CopyFeedback>("idle");
   const [importFeedback, setImportFeedback] = useState<ImportFeedback>("idle");
   const applyBuilderDocumentSnapshot = useAppStore((s) => s.applyBuilderDocumentSnapshot);
 
@@ -24,6 +26,13 @@ export const ShareSidebar = () => {
     const ok = await copyBuilderDocumentSnapshotToClipboard(snapshot);
     setCopyFeedback(ok ? "copied" : "failed");
     window.setTimeout(() => setCopyFeedback("idle"), ok ? 1200 : 1600);
+  };
+
+  const onCopyLink = async () => {
+    const snapshot = getBuilderDocumentSnapshot(useAppStore.getState());
+    const ok = await copyBuilderShareLinkToClipboard(snapshot);
+    setCopyLinkFeedback(ok ? "copied" : "failed");
+    window.setTimeout(() => setCopyLinkFeedback("idle"), ok ? 1200 : 1600);
   };
 
   const onImportState = () => {
@@ -50,12 +59,30 @@ export const ShareSidebar = () => {
 
   const copyLabel =
     copyFeedback === "copied" ? "Copied" : copyFeedback === "failed" ? "Copy failed" : "Copy state to clipboard";
+  const copyLinkLabel =
+    copyLinkFeedback === "copied" ? "Copied" : copyLinkFeedback === "failed" ? "Copy failed" : "Copy link";
   const importStatus =
     importFeedback === "imported" ? "Imported" : importFeedback === "failed" ? "Import failed" : null;
 
   return (
     <div className="flex min-h-0 flex-col overflow-hidden">
       <section className="flex flex-col gap-0 py-3.5">
+        <SectionHeading title="Share link" />
+        <div className={sectionContentClass}>
+          <Button
+            type="button"
+            variant="default"
+            padding="square"
+            data-testid="share-copy-link"
+            onClick={() => void onCopyLink()}
+          >
+            {copyLinkLabel}
+          </Button>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-0 border-t border-builder-hairline py-3.5">
+        <SectionHeading title="Copy state" />
         <div className={sectionContentClass}>
           <Button
             type="button"

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONFIG } from "../grid/config";
 import { parseBuilderDocumentSnapshotInput, serializeBuilderDocumentSnapshot } from "../lib/documentSnapshot";
+import { BUILDER_SHARE_BASE_URL } from "../lib/builderShareLink";
 import { resetAppStoreDocumentToDefault, useAppStore } from "../store";
 import { ShareSidebar } from "./ShareSidebar";
 
@@ -26,6 +27,44 @@ describe("ShareSidebar", () => {
     };
     expect(snapshot.gridConfig.seed).toBe("copy-me");
     expect(screen.getByTestId("share-copy-state")).toHaveTextContent("Copied");
+  });
+
+  it("copies a production share link to the clipboard", async () => {
+    useAppStore.setState({ gridConfig: { ...DEFAULT_CONFIG, seed: "link-me" } });
+    render(<ShareSidebar />);
+
+    fireEvent.click(screen.getByTestId("share-copy-link"));
+
+    const writeText = navigator.clipboard!.writeText as ReturnType<typeof vi.fn>;
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    const link = writeText.mock.calls[0][0] as string;
+    expect(link.startsWith(`${BUILDER_SHARE_BASE_URL}?state=`)).toBe(true);
+    expect(link).not.toContain("localhost");
+    const snapshot = (await parseBuilderDocumentSnapshotInput(link)) as {
+      gridConfig: { seed: string };
+    };
+    expect(snapshot.gridConfig.seed).toBe("link-me");
+    expect(screen.getByTestId("share-copy-link")).toHaveTextContent("Copied");
+  });
+
+  it("imports a pasted share URL into the store", async () => {
+    const snapshot = {
+      gridConfig: { ...DEFAULT_CONFIG, seed: "url-import", density: 0.88 },
+      instances: [],
+      nextInstanceIndex: 2,
+      selectedInstanceId: null,
+      canvasPan: { x: 0, y: 0 },
+    };
+    const url = `${BUILDER_SHARE_BASE_URL}?state=${encodeURIComponent(serializeBuilderDocumentSnapshot(snapshot))}`;
+
+    render(<ShareSidebar />);
+    fireEvent.change(screen.getByTestId("share-import-textarea"), { target: { value: url } });
+    fireEvent.click(screen.getByTestId("share-import-state"));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().gridConfig.seed).toBe("url-import");
+      expect(useAppStore.getState().gridConfig.density).toBe(0.88);
+    });
   });
 
   it("imports a pasted snapshot into the store", async () => {

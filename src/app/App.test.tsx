@@ -3,7 +3,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { copyDocumentPng } from "../canvas/pngExport";
 import type { ComponentInstance } from "../grid/types";
+import { DEFAULT_CONFIG } from "../grid/config";
 import { DEFAULT_ICON_ID } from "../lib/iconRegistry";
+import { serializeBuilderDocumentSnapshot } from "../lib/documentSnapshot";
+import { BUILDER_SHARE_BASE_URL } from "../lib/builderShareLink";
 import { resetAppStoreDocumentToDefault, useAppStore } from "../store";
 import { App } from "./App";
 
@@ -108,9 +111,30 @@ describe("App", { timeout: 15_000 }, () => {
     render(<App />);
 
     expect(screen.getByText("Import state")).toBeInTheDocument();
+    expect(screen.getByTestId("share-copy-link")).toBeInTheDocument();
     expect(screen.getByTestId("share-copy-state")).toBeInTheDocument();
     expect(screen.getByTestId("rail-tab-share")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("rail-tab-grid")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("loads shared document state from a ?state= URL after hydration", async () => {
+    const snapshot = {
+      gridConfig: { ...DEFAULT_CONFIG, seed: "from-url", density: 0.77 },
+      instances: [],
+      nextInstanceIndex: 2,
+      selectedInstanceId: null,
+      canvasPan: { x: 0, y: 0 },
+    };
+    const shareUrl = `${BUILDER_SHARE_BASE_URL}?state=${encodeURIComponent(serializeBuilderDocumentSnapshot(snapshot))}`;
+    window.history.replaceState({}, "", shareUrl.replace(BUILDER_SHARE_BASE_URL, window.location.origin));
+
+    render(<App />);
+
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().gridConfig.seed).toBe("from-url");
+      expect(useAppStore.getState().gridConfig.density).toBe(0.77);
+    });
+    expect(window.location.search).not.toContain("state=");
   });
 
   it("applies a built-in preset when its row is clicked", () => {

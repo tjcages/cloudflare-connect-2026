@@ -852,7 +852,11 @@ const gunzipUtf8 = async (bytes: Uint8Array): Promise<string> => {
   return new Response(stream).text();
 };
 
-const pickShortestClipboardPayload = async (snapshot: BuilderDocumentSnapshot): Promise<string> => {
+/** Shortest compact JSON or `z:` gzip payload for share links and clipboard copy. */
+export const getBuilderDocumentSharePayload = async (snapshot: BuilderDocumentSnapshot): Promise<string> =>
+  pickShortestSharePayload(snapshot);
+
+const pickShortestSharePayload = async (snapshot: BuilderDocumentSnapshot): Promise<string> => {
   const candidates: string[] = [...minifiedCompactJsonCandidates(snapshot)];
 
   for (const json of [...candidates]) {
@@ -867,9 +871,9 @@ const pickShortestClipboardPayload = async (snapshot: BuilderDocumentSnapshot): 
   return candidates.reduce((shortest, next) => (next.length < shortest.length ? next : shortest));
 };
 
-/** Parses pasted compact/legacy JSON or gzip payload (`z:` prefix). */
+/** Parses pasted share URLs, compact/legacy JSON, or gzip payload (`z:` prefix). */
 export const parseBuilderDocumentSnapshotInput = async (text: string): Promise<unknown> => {
-  const trimmed = text.trim();
+  const trimmed = extractShareStatePayload(text);
   if (trimmed.startsWith(GZIP_PREFIX)) {
     const json = await gunzipUtf8(base64UrlToBytes(trimmed.slice(GZIP_PREFIX.length)));
     return parseJsonSnapshot(json);
@@ -878,8 +882,27 @@ export const parseBuilderDocumentSnapshotInput = async (text: string): Promise<u
   return parseJsonSnapshot(trimmed);
 };
 
+const extractShareStatePayload = (text: string): string => {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const state = url.searchParams.get("state");
+    if (state) {
+      return state;
+    }
+  } catch {
+    // Not an absolute URL — fall through to raw payload.
+  }
+
+  return trimmed;
+};
+
 export const copyBuilderDocumentSnapshotToClipboard = async (snapshot: BuilderDocumentSnapshot): Promise<boolean> => {
-  const text = await pickShortestClipboardPayload(snapshot);
+  const text = await pickShortestSharePayload(snapshot);
 
   if (!navigator.clipboard?.writeText) {
     return false;

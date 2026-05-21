@@ -125,6 +125,12 @@ describe("documentSnapshot", () => {
     await expect(parseBuilderDocumentSnapshotInput(v1)).resolves.toEqual(sampleSnapshot);
   });
 
+  it("parseBuilderDocumentSnapshotInput accepts share URLs with a state query param", async () => {
+    const payload = serializeBuilderDocumentSnapshot(sampleSnapshot);
+    const url = `https://section-grid-generator.hi-1e4.workers.dev?state=${encodeURIComponent(payload)}`;
+    await expect(parseBuilderDocumentSnapshotInput(url)).resolves.toEqual(sampleSnapshot);
+  });
+
   it("parseBuilderDocumentSnapshotInput unwraps zustand persist envelope", async () => {
     const inner = { ...sampleSnapshot, gridConfig: { ...DEFAULT_CONFIG, seed: "envelope" } };
     const text = JSON.stringify({ state: inner, version: 2 });

@@ -14,6 +14,7 @@ import { Sidebar } from "../components/Sidebar";
 import { cn } from "../lib/cn";
 import { useAppStore } from "../store";
 import { useAppShortcuts } from "./useAppShortcuts";
+import { useBuilderShareLinkBootstrap } from "./useBuilderShareLinkBootstrap";
 
 type SidebarTab = "grid" | "components" | "presets" | "share";
 
@@ -59,6 +60,7 @@ export const App = () => {
   const startConnectorEndpointPick = useAppStore((s) => s.startConnectorEndpointPick);
 
   useAppShortcuts();
+  useBuilderShareLinkBootstrap();
 
   useEffect(() => {
     try {
