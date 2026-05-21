@@ -62,6 +62,19 @@ export default function Pixi({
   );
 
   const appRef = useRef<Application | null>(null);
+  const initCompleteRef = useRef(false);
+  const layoutSizeRef = useRef({ width: layoutWidth, height: layoutHeight });
+  layoutSizeRef.current = { width: layoutWidth, height: layoutHeight };
+
+  const applyLayoutSize = useCallback((app: Application) => {
+    const resolution = window.devicePixelRatio || 1;
+    const { width, height } = layoutSizeRef.current;
+    app.renderer.resize(width, height, resolution);
+    const canvas = app.canvas as HTMLCanvasElement;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    app.render();
+  }, []);
 
   /* Pixi application and tickers are intentionally mounted once; layout resizes handled below. */
   useEffect(() => {
@@ -72,14 +85,16 @@ export default function Pixi({
 
     let aborted = false;
     const resourceCleanups: (() => void)[] = [];
+    initCompleteRef.current = false;
 
     const app = new Application();
     appRef.current = app;
 
     (async () => {
       const resolution = window.devicePixelRatio || 1;
-      canvas.style.width = `${layoutWidth}px`;
-      canvas.style.height = `${layoutHeight}px`;
+      const initialLayout = layoutSizeRef.current;
+      canvas.style.width = `${initialLayout.width}px`;
+      canvas.style.height = `${initialLayout.height}px`;
 
       await Promise.resolve(onPreload?.(canvas));
 
@@ -91,8 +106,8 @@ export default function Pixi({
 
       await app.init({
         canvas,
-        width: layoutWidth,
-        height: layoutHeight,
+        width: initialLayout.width,
+        height: initialLayout.height,
         resolution,
         antialias: true,
         hello: false,
@@ -119,13 +134,15 @@ export default function Pixi({
         );
       }
 
-      app.render();
+      initCompleteRef.current = true;
+      applyLayoutSize(app);
 
       onInitialized?.(app);
     })();
 
     return () => {
       aborted = true;
+      initCompleteRef.current = false;
       for (const fn of resourceCleanups) {
         fn();
       }
@@ -145,21 +162,16 @@ export default function Pixi({
     };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- single Application mount; tickers are static module list
-  }, []);
+  }, [applyLayoutSize]);
 
   useEffect(() => {
     const app = appRef.current;
-    if (!app || isDestroyed(app)) {
+    if (!app || isDestroyed(app) || !initCompleteRef.current) {
       return;
     }
 
-    const resolution = window.devicePixelRatio || 1;
-    app.renderer.resize(layoutWidth, layoutHeight, resolution);
-    const canvas = app.canvas as HTMLCanvasElement;
-    canvas.style.width = `${layoutWidth}px`;
-    canvas.style.height = `${layoutHeight}px`;
-    app.render();
-  }, [layoutWidth, layoutHeight]);
+    applyLayoutSize(app);
+  }, [layoutWidth, layoutHeight, applyLayoutSize]);
 
   return <canvas {...canvasRest} className={joinClassNames(attrClassName)} ref={mergeCanvasRef} />;
 }
