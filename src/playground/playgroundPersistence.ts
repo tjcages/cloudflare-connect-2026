@@ -18,7 +18,6 @@ import {
 export const PLAYGROUND_LS_KEY = "section-grid-playground";
 export const PLAYGROUND_DB_NAME = "section-grid-playground";
 export const PLAYGROUND_DB_VERSION = 1;
-export const MAX_PLAYGROUND_UPLOADS = 20;
 export const MAX_PLAYGROUND_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type PlaygroundPersistedConfig = {
@@ -330,9 +329,6 @@ export async function registerUpload(
   }
 
   const envelope = readEnvelope();
-  if (envelope.uploads.length >= MAX_PLAYGROUND_UPLOADS) {
-    throw new Error(`At most ${MAX_PLAYGROUND_UPLOADS} uploaded textures.`);
-  }
 
   const id = crypto.randomUUID();
   const textureId = `upload:${id}` as PlaygroundTextureId;
