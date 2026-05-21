@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { writeSvgToClipboard } from "../grid/clipboard";
 import Pixi from "../components/pixi";
 import {
@@ -31,11 +40,17 @@ import {
   type PlaygroundSceneExportState,
   type PlaygroundTextureSource,
 } from "./setupTextureShaderScene";
+import {
+  applyPlaygroundDrawingBufferColorSpace,
+  createPlaygroundWebGLContext,
+  playgroundPrefersDisplayP3,
+} from "./playgroundColorSpace";
 import { stripeGridToSvg } from "./stripeGridToSvg";
 import {
   buildStripeColors,
   DEFAULT_STRIPE_BAND_ENABLED,
   PLAYGROUND_STRIPE_BAND_HEX,
+  PLAYGROUND_STRIPE_BAND_SWATCH_P3,
   toggleStripeBandEnabled,
   type StripeBandEnabled,
   type StripeColors,
@@ -242,6 +257,7 @@ export function TexturePlayground() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const stripeOptionsRef = useRef<StripeDuotoneOptions>(DEFAULT_STRIPE_DUOTONE_OPTIONS);
   const stripeColorsRef = useRef<StripeColors>(buildStripeColors());
+  const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
   const autoplayRef = useRef(true);
   const exportStateRef = useRef<PlaygroundSceneExportState | null>(null);
@@ -485,6 +501,7 @@ export function TexturePlayground() {
         displaySize,
         stripeOptionsRef,
         stripeColorsRef,
+        preferP3Ref,
         duotoneEnabledRef,
         autoplayRef,
         exportStateRef,
@@ -814,6 +831,7 @@ export function TexturePlayground() {
           <div className={`flex flex-col gap-3 ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
             <span className="text-sm text-neutral-600">Stripe colors</span>
             {PLAYGROUND_STRIPE_BAND_HEX.map((hex, index) => {
+              const p3Css = PLAYGROUND_STRIPE_BAND_SWATCH_P3[index] ?? hex;
               const rangeLabel = stripeBandDistanceLabel(bandBreakpoints, index);
               const hasUpperSlider = index < PLAYGROUND_STRIPE_BAND_HEX.length - 1;
               const orderPad = STRIPE_BAND_BREAKPOINT_MIN_GAP || STRIPE_BAND_BREAKPOINT_ORDER_EPS;
@@ -843,8 +861,13 @@ export function TexturePlayground() {
                       aria-label={`Show ${hex} stripes`}
                     />
                     <span
-                      className="size-3.5 shrink-0 rounded-sm border border-neutral-200"
-                      style={{ backgroundColor: hex }}
+                      className="playground-stripe-swatch size-3.5 shrink-0 rounded-sm border border-neutral-200"
+                      style={
+                        {
+                          ["--stripe-swatch-fallback" as string]: hex,
+                          ["--stripe-swatch-p3" as string]: p3Css,
+                        } as CSSProperties
+                      }
                       aria-hidden
                     />
                     <span className="ml-auto tabular-nums text-xs text-neutral-500">{rangeLabel}</span>
@@ -908,6 +931,15 @@ export function TexturePlayground() {
             "data-testid": "playground-texture-canvas",
             className: "block shrink-0",
             style: { width: displayWidth, height: displayHeight },
+          }}
+          resolveInitOptions={(canvas) => {
+            const context = createPlaygroundWebGLContext(canvas);
+            preferP3Ref.current = playgroundPrefersDisplayP3(canvas, context);
+            if (!context) {
+              return {};
+            }
+            applyPlaygroundDrawingBufferColorSpace(context);
+            return { context: context as WebGL2RenderingContext };
           }}
           initOptions={{
             preference: "webgl",

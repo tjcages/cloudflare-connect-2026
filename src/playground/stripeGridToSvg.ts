@@ -1,9 +1,10 @@
 import type { BlockGrid } from "./computeBlockGrid";
-import { isStripeBandEnabled, stripeColorForBand, type StripeColors } from "./stripeColors";
-import { rgb01ToHex } from "./stripeFilterOptions";
+import { isStripeBandEnabled, type StripeColors } from "./stripeColors";
 import { STRIPE_BAND_NONE, STRIPE_CELL_SIZE, widthPxFromBand } from "./stripeGridConstants";
 
 const ROW_WIDTH_GAP = 1;
+
+const SVG_BAND_CLASS = ["fill-band-1", "fill-band-2", "fill-band-3", "fill-band-4", "fill-band-5"] as const;
 
 function sameStripeBand(a: number, b: number): boolean {
   if (a < 1 || b < 1) {
@@ -12,8 +13,21 @@ function sameStripeBand(a: number, b: number): boolean {
   return a === b;
 }
 
+function stripeSvgStyleBlock(colors: StripeColors): string {
+  const rules = colors.bands.flatMap((fill, index) => {
+    const className = SVG_BAND_CLASS[index];
+    return [
+      `  .${className} { fill: ${fill.hex}; }`,
+      `  @supports (fill: color(display-p3 1 1 1)) {`,
+      `    .${className} { fill: ${fill.displayP3Css}; }`,
+      `  }`,
+    ];
+  });
+  return ["<style>", ...rules, "</style>"].join("\n");
+}
+
 export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: number, height: number): string {
-  const pathsByColor = new Map<string, string[]>();
+  const pathsByClass = new Map<string, string[]>();
 
   for (let row = 0; row < grid.rows; row++) {
     for (let col = 0; col < grid.cols; col++) {
@@ -43,20 +57,21 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
       const rectW = stripeWidth;
       const rectH = bandBottom - bandTop;
 
-      const fill = rgb01ToHex(stripeColorForBand(colors, stripeBand));
+      const fillClass = SVG_BAND_CLASS[stripeBand - 1] ?? SVG_BAND_CLASS[0];
       const segment = `M${x} ${y}h${rectW}v${rectH}h-${rectW}Z`;
-      const list = pathsByColor.get(fill) ?? [];
+      const list = pathsByClass.get(fillClass) ?? [];
       list.push(segment);
-      pathsByColor.set(fill, list);
+      pathsByClass.set(fillClass, list);
     }
   }
 
-  const pathElements = [...pathsByColor.entries()]
-    .map(([stroke, segments]) => `  <path d="${segments.join(" ")}" fill="${stroke}" />`)
+  const pathElements = [...pathsByClass.entries()]
+    .map(([className, segments]) => `  <path class="${className}" d="${segments.join(" ")}" />`)
     .join("\n");
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="visible">`,
+    stripeSvgStyleBlock(colors),
     pathElements,
     `</svg>`,
   ]

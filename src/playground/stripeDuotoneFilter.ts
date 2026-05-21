@@ -1,6 +1,6 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
 import { DEFAULT_STRIPE_DUOTONE_OPTIONS, type StripeDuotoneOptions } from "./stripeFilterOptions";
-import { buildStripeColors, type StripeColors } from "./stripeColors";
+import { buildStripeColors, stripeColorsToUniformRgb, type StripeColors } from "./stripeColors";
 
 const vertex = `
 in vec2 aPosition;
@@ -193,7 +193,7 @@ void main(void) {
 
 export type StripeDuotoneFilter = Filter & {
   syncOptions: (options: StripeDuotoneOptions) => void;
-  syncColors: (colors: StripeColors) => void;
+  syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   updateBlockMap: (blockMap: Texture) => void;
 };
 
@@ -208,7 +208,8 @@ function copyRgbUniform(target: number[] | Float32Array, source: readonly [numbe
   target[2] = source[2];
 }
 
-function applyStripeColors(stripeUniforms: UniformGroup, colors: StripeColors) {
+function applyStripeColors(stripeUniforms: UniformGroup, colors: StripeColors, preferP3 = false) {
+  const rgb = stripeColorsToUniformRgb(colors, preferP3);
   const uniforms = stripeUniforms.uniforms as {
     uColorBand0: number[];
     uColorBand1: number[];
@@ -221,11 +222,11 @@ function applyStripeColors(stripeUniforms: UniformGroup, colors: StripeColors) {
     uBandEnabled3: number;
     uBandEnabled4: number;
   };
-  copyRgbUniform(uniforms.uColorBand0, colors.bands[0]);
-  copyRgbUniform(uniforms.uColorBand1, colors.bands[1]);
-  copyRgbUniform(uniforms.uColorBand2, colors.bands[2]);
-  copyRgbUniform(uniforms.uColorBand3, colors.bands[3]);
-  copyRgbUniform(uniforms.uColorBand4, colors.bands[4]);
+  copyRgbUniform(uniforms.uColorBand0, rgb[0]);
+  copyRgbUniform(uniforms.uColorBand1, rgb[1]);
+  copyRgbUniform(uniforms.uColorBand2, rgb[2]);
+  copyRgbUniform(uniforms.uColorBand3, rgb[3]);
+  copyRgbUniform(uniforms.uColorBand4, rgb[4]);
   uniforms.uBandEnabled0 = colors.enabled[0] ? 1 : 0;
   uniforms.uBandEnabled1 = colors.enabled[1] ? 1 : 0;
   uniforms.uBandEnabled2 = colors.enabled[2] ? 1 : 0;
@@ -241,7 +242,9 @@ export function createStripeDuotoneFilter(
   gridRows: number,
   colors: StripeColors = buildStripeColors(),
   _options: StripeDuotoneOptions = DEFAULT_STRIPE_DUOTONE_OPTIONS,
+  preferP3 = false,
 ): StripeDuotoneFilter {
+  const initialRgb = stripeColorsToUniformRgb(colors, preferP3);
   const stripeUniforms = new UniformGroup({
     uPixelSize: {
       value: [_canvasWidth, _canvasHeight],
@@ -256,23 +259,23 @@ export function createStripeDuotoneFilter(
       type: "vec2<f32>",
     },
     uColorBand0: {
-      value: colors.bands[0],
+      value: initialRgb[0],
       type: "vec3<f32>",
     },
     uColorBand1: {
-      value: colors.bands[1],
+      value: initialRgb[1],
       type: "vec3<f32>",
     },
     uColorBand2: {
-      value: colors.bands[2],
+      value: initialRgb[2],
       type: "vec3<f32>",
     },
     uColorBand3: {
-      value: colors.bands[3],
+      value: initialRgb[3],
       type: "vec3<f32>",
     },
     uColorBand4: {
-      value: colors.bands[4],
+      value: initialRgb[4],
       type: "vec3<f32>",
     },
     uBandEnabled0: { value: 1, type: "f32" },
@@ -301,14 +304,14 @@ export function createStripeDuotoneFilter(
 
   let currentBlockMap = blockMap;
   bindBlockMapTexture(filter, currentBlockMap);
-  applyStripeColors(stripeUniforms, colors);
+  applyStripeColors(stripeUniforms, colors, preferP3);
 
   filter.syncOptions = () => {
     // Block map carries bands; bg options affect CPU grid rebuild only.
   };
 
-  filter.syncColors = (nextColors) => {
-    applyStripeColors(stripeUniforms, nextColors);
+  filter.syncColors = (nextColors, nextPreferP3 = preferP3) => {
+    applyStripeColors(stripeUniforms, nextColors, nextPreferP3);
   };
 
   filter.updateBlockMap = (nextBlockMap) => {

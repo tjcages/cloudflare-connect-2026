@@ -27,7 +27,9 @@ export interface PixiProps {
   layoutWidth: number;
   layoutHeight: number;
   /** Runs after the canvas node exists and before `Application.init` / tickers / first render. */
-  onPreload?: () => void | Promise<void>;
+  onPreload?: (canvas: HTMLCanvasElement) => void | Promise<void>;
+  /** Merged into `init` after `onPreload` (e.g. pass a pre-created WebGL `context`). */
+  resolveInitOptions?: (canvas: HTMLCanvasElement) => Partial<ApplicationOptions>;
   onInitialized?: (app: Application) => void;
   onDisposed?: () => void;
   tickers: Ticker[];
@@ -40,6 +42,7 @@ function joinClassNames(...parts: Array<string | undefined>) {
 export default function Pixi({
   tickers,
   onPreload,
+  resolveInitOptions,
   onInitialized,
   onDisposed,
   canvasAttrs,
@@ -78,11 +81,13 @@ export default function Pixi({
       canvas.style.width = `${layoutWidth}px`;
       canvas.style.height = `${layoutHeight}px`;
 
-      await Promise.resolve(onPreload?.());
+      await Promise.resolve(onPreload?.(canvas));
 
       if (aborted) {
         return;
       }
+
+      const resolvedInit = resolveInitOptions?.(canvas) ?? {};
 
       await app.init({
         canvas,
@@ -98,6 +103,7 @@ export default function Pixi({
         preference: "webgl",
         eventMode: "passive",
         ...initOptions,
+        ...resolvedInit,
       });
 
       if (aborted) {

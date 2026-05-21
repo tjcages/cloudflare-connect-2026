@@ -264,6 +264,16 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
+.playground-stripe-swatch {
+  background: var(--stripe-swatch-fallback, #cccccc);
+}
+
+@supports (background: color(display-p3 1 1 1)) {
+  .playground-stripe-swatch {
+    background: var(--stripe-swatch-p3);
+  }
+}
+
 .generation-spinner {
   position: fixed;
   top: 14px;

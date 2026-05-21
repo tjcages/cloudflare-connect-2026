@@ -9,6 +9,14 @@ export const ACCENT_SOLAR = {
   displayP3: "color(display-p3 0.9882 0.698 0.2471)",
 } as const;
 
+export const ACCENT_AMBER = {
+  hex: "#FF7E00",
+  displayP3: "color(display-p3 0.9686 0.5255 0.1176)",
+} as const;
+
+/** Playground stripe accents in width order: 5px, 4px, 3px. */
+export const PLAYGROUND_STRIPE_ACCENTS = [ACCENT_LAVA, ACCENT_AMBER, ACCENT_SOLAR] as const;
+
 export const ACCENT_FOREST = {
   hex: "#00BA79",
   displayP3: "color(display-p3 0.1697 0.705 0.5087)",

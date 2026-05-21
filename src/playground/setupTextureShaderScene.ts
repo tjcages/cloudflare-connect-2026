@@ -114,6 +114,7 @@ function runDuotoneTick(params: {
   duotoneEnabledRef: RefObject<boolean>;
   stripeOptionsRef: RefObject<StripeDuotoneOptions>;
   stripeColorsRef: RefObject<StripeColors>;
+  preferP3Ref: RefObject<boolean>;
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
@@ -129,6 +130,7 @@ function runDuotoneTick(params: {
     duotoneEnabledRef,
     stripeOptionsRef,
     stripeColorsRef,
+    preferP3Ref,
     display,
     blockGridTexture,
     exportStateRef,
@@ -174,7 +176,7 @@ function runDuotoneTick(params: {
     const options = stripeOptionsRef.current;
     const colors = stripeColorsRef.current;
     const optionsKey = JSON.stringify(options);
-    const colorsKey = JSON.stringify(colors);
+    const colorsKey = JSON.stringify({ colors, preferP3: preferP3Ref.current });
     const optionsChanged = optionsKey !== lastOptionsKey;
     const colorsChanged = colorsKey !== lastColorsKey;
     const timeChanged = shouldSample();
@@ -182,7 +184,7 @@ function runDuotoneTick(params: {
 
     if (colorsChanged) {
       lastColorsKey = colorsKey;
-      stripeFilter.syncColors(colors);
+      stripeFilter.syncColors(colors, preferP3Ref.current);
     }
 
     const frame = needsSample ? sampleFrame() : null;
@@ -240,6 +242,7 @@ export function createTextureSceneTicker(
   display: PlaygroundDisplaySize,
   stripeOptionsRef: RefObject<StripeDuotoneOptions>,
   stripeColorsRef: RefObject<StripeColors>,
+  preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
@@ -250,6 +253,7 @@ export function createTextureSceneTicker(
       display,
       stripeOptionsRef,
       stripeColorsRef,
+      preferP3Ref,
       duotoneEnabledRef,
       exportStateRef,
     );
@@ -259,6 +263,7 @@ export function createTextureSceneTicker(
     display,
     stripeOptionsRef,
     stripeColorsRef,
+    preferP3Ref,
     duotoneEnabledRef,
     autoplayRef,
     exportStateRef,
@@ -270,6 +275,7 @@ function createImageSceneTicker(
   display: PlaygroundDisplaySize,
   stripeOptionsRef: RefObject<StripeDuotoneOptions>,
   stripeColorsRef: RefObject<StripeColors>,
+  preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
@@ -296,6 +302,7 @@ function createImageSceneTicker(
       blockGridTexture.rows,
       stripeColorsRef.current,
       stripeOptionsRef.current,
+      preferP3Ref.current,
     );
     let duotoneActive = duotoneEnabledRef.current;
     sprite.filters = duotoneActive ? [stripeFilter] : null;
@@ -308,6 +315,7 @@ function createImageSceneTicker(
       duotoneEnabledRef,
       stripeOptionsRef,
       stripeColorsRef,
+      preferP3Ref,
       display,
       blockGridTexture,
       exportStateRef,
@@ -335,6 +343,7 @@ function createVideoSceneTickerInternal(
   display: PlaygroundDisplaySize,
   stripeOptionsRef: RefObject<StripeDuotoneOptions>,
   stripeColorsRef: RefObject<StripeColors>,
+  preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
@@ -367,6 +376,7 @@ function createVideoSceneTickerInternal(
       blockGridTexture.rows,
       stripeColorsRef.current,
       stripeOptionsRef.current,
+      preferP3Ref.current,
     );
     let duotoneActive = duotoneEnabledRef.current;
     sprite.filters = duotoneActive ? [stripeFilter] : null;
@@ -381,6 +391,7 @@ function createVideoSceneTickerInternal(
       duotoneEnabledRef,
       stripeOptionsRef,
       stripeColorsRef,
+      preferP3Ref,
       display,
       blockGridTexture,
       exportStateRef,
@@ -420,6 +431,7 @@ export function createVideoSceneTicker(
   display: PlaygroundDisplaySize,
   stripeOptionsRef: RefObject<StripeDuotoneOptions>,
   stripeColorsRef: RefObject<StripeColors>,
+  preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
@@ -429,6 +441,7 @@ export function createVideoSceneTicker(
     display,
     stripeOptionsRef,
     stripeColorsRef,
+    preferP3Ref,
     duotoneEnabledRef,
     autoplayRef,
     exportStateRef,
