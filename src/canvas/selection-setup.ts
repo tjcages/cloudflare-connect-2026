@@ -2,8 +2,13 @@ import { Graphics } from "pixi.js";
 import type { Ticker } from "../components/pixi";
 import { LARGE_CELL_SIZE } from "../grid/types";
 import type { ComponentInstance } from "../grid/types";
-import { getInstanceHighlightBounds } from "../lib/componentRegistry";
-import { isIconBoxInstance } from "../lib/icon-box/layout";
+import { getIconBoxHighlightStrokeCornerInCanvasSpace, getInstanceHighlightBounds } from "../lib/componentRegistry";
+import {
+  ICON_BOX_RESIZE_HANDLE_PX,
+  isIconBoxInstance,
+  type IconBoxContainerReticleCorner,
+} from "../lib/icon-box/layout";
+import { getIconBoxResizeHandleTopLeft } from "../lib/icon-box/resize";
 import { useAppStore } from "../store";
 import type { ConnectorEndpointPickState } from "../types/document";
 import {
@@ -50,6 +55,32 @@ const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance, 
     .stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR, alpha: strokeAlpha });
 };
 
+/** Figma-style frame tip: small white square centered on the selection corner. */
+const drawIconBoxResizeHandle = (
+  graphics: Graphics,
+  inst: Extract<ComponentInstance, { type: "icon-box" }>,
+  corner: IconBoxContainerReticleCorner,
+  emphasized: boolean,
+) => {
+  const cornerCanvas = getIconBoxHighlightStrokeCornerInCanvasSpace(inst, corner);
+  const { x, y } = getIconBoxResizeHandleTopLeft(cornerCanvas, ICON_BOX_RESIZE_HANDLE_PX);
+  graphics
+    .rect(x, y, ICON_BOX_RESIZE_HANDLE_PX, ICON_BOX_RESIZE_HANDLE_PX)
+    .fill({ color: 0xffffff, alpha: emphasized ? 1 : 1 })
+    .stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR, alpha: emphasized ? 1 : 1 });
+};
+
+const drawIconBoxResizeHandles = (
+  graphics: Graphics,
+  inst: Extract<ComponentInstance, { type: "icon-box" }>,
+  activeCorner: IconBoxContainerReticleCorner | null,
+) => {
+  const corners: IconBoxContainerReticleCorner[] = ["tl", "tr", "bl", "br"];
+  for (const corner of corners) {
+    drawIconBoxResizeHandle(graphics, inst, corner, corner === activeCorner);
+  }
+};
+
 export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
   const graphics = new Graphics();
   app.stage.addChild(graphics);
@@ -59,8 +90,14 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
 
     let hasHighlight = false;
 
-    const { selectedInstanceId, instances, connectorEndpointPick, sidebarHoveredLayerId, canvasHoveredLayerId } =
-      useAppStore.getState();
+    const {
+      selectedInstanceId,
+      instances,
+      connectorEndpointPick,
+      sidebarHoveredLayerId,
+      canvasHoveredLayerId,
+      dragState,
+    } = useAppStore.getState();
 
     const selectedInst =
       selectedInstanceId === null ? null : (instances.find((i) => i.id === selectedInstanceId) ?? null);
@@ -125,6 +162,10 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
     if (inst.type !== "connector-line") {
       drawInstanceHighlightRect(graphics, inst);
       hasHighlight = true;
+      if (isIconBoxInstance(inst)) {
+        const activeCorner = dragState?.mode === "resize" && dragState.id === inst.id ? dragState.draggedCorner : null;
+        drawIconBoxResizeHandles(graphics, inst, activeCorner);
+      }
     } else {
       for (const linked of selectedLinkedLayers) {
         drawInstanceHighlightRect(graphics, linked);
@@ -143,7 +184,8 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
       state.instances !== prev.instances ||
       state.connectorEndpointPick !== prev.connectorEndpointPick ||
       state.sidebarHoveredLayerId !== prev.sidebarHoveredLayerId ||
-      state.canvasHoveredLayerId !== prev.canvasHoveredLayerId
+      state.canvasHoveredLayerId !== prev.canvasHoveredLayerId ||
+      state.dragState !== prev.dragState
     ) {
       sync();
     }

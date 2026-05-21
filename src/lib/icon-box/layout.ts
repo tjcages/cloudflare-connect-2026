@@ -16,7 +16,11 @@ export type IconBoxInstanceUnion = Extract<ComponentInstance, { type: "icon-box"
 export const isIconBoxInstance = (instance: ComponentInstance): instance is IconBoxInstanceUnion =>
   instance.type === "icon-box";
 
-export const normalizeIconBoxLength = (n: number): number => Math.max(1, Math.floor(Number.isFinite(n) ? n : 1));
+export const ICON_BOX_LENGTH_MIN = 1;
+export const ICON_BOX_LENGTH_MAX = 10;
+
+export const normalizeIconBoxLength = (n: number): number =>
+  Math.min(ICON_BOX_LENGTH_MAX, Math.max(ICON_BOX_LENGTH_MIN, Math.floor(Number.isFinite(n) ? n : 1)));
 
 export const resolveIconBoxLayout = (props: Pick<IconBoxProps, "length" | "direction">): IconBoxLayoutSpec => {
   const length = normalizeIconBoxLength(props.length ?? 1);
@@ -164,6 +168,25 @@ export const getIconBoxFullHighlightBoundsInRootSpace = (
     width: maxX - minX,
     height: getIconBoxHighlightHeight(spec),
   };
+};
+
+/** Corner of the selection highlight rect in instance-root space. */
+export const getIconBoxHighlightCornerInRootSpace = (
+  title: string,
+  corner: IconBoxContainerReticleCorner,
+  spec: IconBoxLayoutSpec,
+): { x: number; y: number } => {
+  const { x, y, width, height } = getIconBoxFullHighlightBoundsInRootSpace(title, spec);
+  switch (corner) {
+    case "tl":
+      return { x, y };
+    case "tr":
+      return { x: x + width, y };
+    case "bl":
+      return { x, y: y + height };
+    case "br":
+      return { x: x + width, y: y + height };
+  }
 };
 
 /** Center of the shadow-card rect in instance root space (connector layer endpoints). */
@@ -326,6 +349,9 @@ export type IconBoxEdgeTickRect = { x: number; y: number; width: number; height:
 export const ICON_BOX_STROKE_ALIGN_NUDGE = 0.5;
 
 export const ICON_BOX_CONTAINER_RETICLE_PX = 22;
+
+/** Figma-style resize handle: small square centered on selection-frame corners. */
+export const ICON_BOX_RESIZE_HANDLE_PX = 4;
 
 export type IconBoxContainerReticleCorner = "tl" | "tr" | "bl" | "br";
 

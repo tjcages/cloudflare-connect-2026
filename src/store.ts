@@ -5,10 +5,12 @@ import { temporal } from "zundo";
 import {
   createComponentInstance,
   getComponentDefinition,
+  getIconBoxHighlightStrokeCornerInCanvasSpace,
   snapComponentPosition,
   snapConnectorCellCenter,
 } from "./lib/componentRegistry";
-import { isIconBoxInstance } from "./lib/icon-box/layout";
+import { isIconBoxInstance, resolveIconBoxLayout, type IconBoxContainerReticleCorner } from "./lib/icon-box/layout";
+import { fixedIconBoxCornerForDrag, resolveIconBoxResizeFromPointer } from "./lib/icon-box/resize";
 import { updateSmallRatio } from "./grid/config";
 import { scheduleGridFromConfig } from "./store/gridGeneration";
 import type {
@@ -111,6 +113,13 @@ export type AppStoreState = {
 
   startMoveDrag: (id: string, offsetX: number, offsetY: number) => void;
   moveInstanceTo: (id: string, x: number, y: number) => void;
+
+  startResizeDrag: (
+    id: string,
+    draggedCorner: IconBoxContainerReticleCorner,
+    fixedCornerCanvas: { x: number; y: number },
+  ) => void;
+  resizeIconBoxTo: (id: string, pointerCanvas: { x: number; y: number }) => void;
 
   endCanvasDrag: () => void;
 
@@ -347,6 +356,65 @@ export const useAppStore = create<AppStoreState>()(
           });
         },
 
+        startResizeDrag: (id, draggedCorner, fixedCornerCanvas) => {
+          const instance = get().instances.find((i) => i.id === id);
+          if (!instance || !isIconBoxInstance(instance)) {
+            return;
+          }
+          const spec = resolveIconBoxLayout(instance.props);
+          moveDragHistoryBaseline = getDocumentHistorySlice(get());
+          useAppStore.temporal.getState().pause();
+          set({
+            canvasHoveredLayerId: null,
+            dragState: {
+              mode: "resize",
+              id,
+              draggedCorner,
+              fixedCornerCanvas,
+              startDirection: spec.direction,
+              startRootX: instance.x,
+              startRootY: instance.y,
+            },
+          });
+        },
+
+        resizeIconBoxTo: (id, pointerCanvas) => {
+          const dragState = get().dragState;
+          if (dragState?.mode !== "resize" || dragState.id !== id) {
+            return;
+          }
+
+          set((s) => ({
+            instances: s.instances.map((instance) => {
+              if (instance.id !== id || !isIconBoxInstance(instance)) {
+                return instance;
+              }
+
+              const fixedCorner = fixedIconBoxCornerForDrag(dragState.draggedCorner);
+              const resolved = resolveIconBoxResizeFromPointer({
+                title: instance.props.title,
+                fixedCornerCanvas: dragState.fixedCornerCanvas,
+                fixedCorner,
+                pointerCanvas,
+                lockedDirection: dragState.startDirection,
+                startRootX: dragState.startRootX,
+                startRootY: dragState.startRootY,
+              });
+
+              return {
+                ...instance,
+                x: resolved.rootX,
+                y: resolved.rootY,
+                props: {
+                  ...instance.props,
+                  length: resolved.length,
+                  direction: resolved.direction,
+                },
+              };
+            }),
+          }));
+        },
+
         moveInstanceTo: (id, x, y) => {
           const { grid } = get();
           set((s) => ({
@@ -372,9 +440,45 @@ export const useAppStore = create<AppStoreState>()(
             return;
           }
           const wasMove = dragState.mode === "move";
+          const wasResize = dragState.mode === "resize";
+
+          if (wasResize) {
+            const { id, draggedCorner, fixedCornerCanvas, startDirection, startRootX, startRootY } = dragState;
+            const instance = get().instances.find((i) => i.id === id);
+            if (instance && isIconBoxInstance(instance)) {
+              const { grid } = get();
+              const snapped = snapComponentPosition(
+                instance.x,
+                instance.y,
+                grid.config.logicalWidth,
+                grid.config.logicalHeight,
+                "icon-box",
+                instance.props,
+              );
+              let nudgedX = snapped.x;
+              let nudgedY = snapped.y;
+              const fixedCorner = fixedIconBoxCornerForDrag(draggedCorner);
+              const afterFixed = getIconBoxHighlightStrokeCornerInCanvasSpace(
+                { ...instance, x: snapped.x, y: snapped.y },
+                fixedCorner,
+              );
+              if (startDirection === "horizontal") {
+                nudgedX = snapped.x + (fixedCornerCanvas.x - afterFixed.x);
+                nudgedY = startRootY;
+              } else {
+                nudgedX = startRootX;
+                nudgedY = snapped.y + (fixedCornerCanvas.y - afterFixed.y);
+              }
+
+              set((s) => ({
+                instances: s.instances.map((i) => (i.id === id ? { ...i, x: nudgedX, y: nudgedY } : i)),
+              }));
+            }
+          }
+
           set({ dragState: null });
 
-          if (wasMove) {
+          if (wasMove || wasResize) {
             const baseline = moveDragHistoryBaseline;
             moveDragHistoryBaseline = null;
             if (baseline !== null) {

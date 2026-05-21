@@ -5,8 +5,10 @@ import {
   ICON_BOX_OUTER_HEIGHT,
   ICON_BOX_SNAP_ANCHOR_X,
   ICON_BOX_SNAP_ANCHOR_Y,
+  ICON_BOX_STROKE_ALIGN_NUDGE,
   isIconBoxInstance,
   resolveIconBoxLayout,
+  type IconBoxContainerReticleCorner,
 } from "./icon-box/layout";
 import { DEFAULT_ICON_ID } from "./iconRegistry";
 import {
@@ -304,6 +306,25 @@ export const getInstanceHighlightBounds = (
     };
   }
   return getInstanceCanvasBounds(instance);
+};
+
+/** Center point of the selection stroke at each highlight corner (matches selection-setup +0.5 nudge). */
+export const getIconBoxHighlightStrokeCornerInCanvasSpace = (
+  instance: Extract<ComponentInstance, { type: "icon-box" }>,
+  corner: IconBoxContainerReticleCorner,
+): { x: number; y: number } => {
+  const b = getInstanceHighlightBounds(instance);
+  const n = ICON_BOX_STROKE_ALIGN_NUDGE;
+  switch (corner) {
+    case "tl":
+      return { x: b.x + n, y: b.y + n };
+    case "tr":
+      return { x: b.x + b.width + n, y: b.y + n };
+    case "bl":
+      return { x: b.x + n, y: b.y + b.height + n };
+    case "br":
+      return { x: b.x + b.width + n, y: b.y + b.height + n };
+  }
 };
 
 export const createComponentInstance = (

@@ -1,4 +1,5 @@
-import { getInstanceCanvasBounds } from "../lib/componentRegistry";
+import { getIconBoxHighlightStrokeCornerInCanvasSpace, getInstanceCanvasBounds } from "../lib/componentRegistry";
+import { isIconBoxInstance, type IconBoxContainerReticleCorner } from "../lib/icon-box/layout";
 import type { ComponentInstance } from "../grid/types";
 import {
   resolveConnectorEndpoint,
@@ -7,6 +8,9 @@ import {
 } from "./components/connector-line/route";
 
 const CONNECTOR_HIT_TOLERANCE = 6;
+
+/** Half-width of square hit target around each resize handle center. */
+export const ICON_BOX_RESIZE_HANDLE_HIT_SLOP = 5;
 
 const isPointNearConnectorPath = (
   instance: Extract<ComponentInstance, { type: "connector-line" }>,
@@ -63,4 +67,33 @@ export const hitTestComponentInstances = (
   }
 
   return undefined;
+};
+
+export const hitTestIconBoxResizeHandle = (
+  instance: Extract<ComponentInstance, { type: "icon-box" }>,
+  x: number,
+  y: number,
+): { corner: IconBoxContainerReticleCorner } | null => {
+  const corners: IconBoxContainerReticleCorner[] = ["tl", "tr", "bl", "br"];
+  for (const corner of corners) {
+    const center = getIconBoxHighlightStrokeCornerInCanvasSpace(instance, corner);
+    if (
+      Math.abs(x - center.x) <= ICON_BOX_RESIZE_HANDLE_HIT_SLOP &&
+      Math.abs(y - center.y) <= ICON_BOX_RESIZE_HANDLE_HIT_SLOP
+    ) {
+      return { corner };
+    }
+  }
+  return null;
+};
+
+export const hitTestSelectedIconBoxResizeHandle = (
+  selectedInstance: ComponentInstance | null | undefined,
+  x: number,
+  y: number,
+): { corner: IconBoxContainerReticleCorner } | null => {
+  if (!selectedInstance || !isIconBoxInstance(selectedInstance)) {
+    return null;
+  }
+  return hitTestIconBoxResizeHandle(selectedInstance, x, y);
 };
