@@ -25,6 +25,8 @@ beforeEach(() => {
               actualBoundingBoxAscent: 10,
               actualBoundingBoxDescent: 2,
             }) as TextMetrics,
+          fillText: () => {},
+          scale: () => {},
           font: "",
           fillStyle: "",
           strokeStyle: "",

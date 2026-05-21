@@ -12,12 +12,14 @@ import {
 import { createStripeDuotoneFilter } from "./stripeDuotoneFilter";
 import type { StripeColors } from "./stripeColors";
 import type { StripeDuotoneOptions } from "./stripeFilterOptions";
+import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./stripeLetterFont";
+import { createStripeLetterLayer, type StripeLetterLayer } from "./stripeLetterLayer";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
 
-/** Pixi resolution for the playground canvas (1 keeps filter pixels aligned with CPU grid). */
-export const PLAYGROUND_PIXI_RESOLUTION = 1;
+/** Pixi resolution for the playground canvas (2× backing store for sharper stripes and letters). */
+export const PLAYGROUND_PIXI_RESOLUTION = 2;
 
 export const PLAYGROUND_DISPLAY_MAX_PX = 8192;
 
@@ -107,10 +109,22 @@ function syncSpriteToDisplay(sprite: Sprite, source: PlaygroundTextureSource, di
   sprite.scale.set(display.width / native.width, display.height / native.height);
 }
 
+function createPlaygroundLetterLayer(
+  app: Parameters<Ticker>[0]["app"],
+  duotoneEnabled: boolean,
+): { letterLayer: StripeLetterLayer; atlas: ReturnType<typeof buildStripeLetterAtlas> } {
+  const atlas = buildStripeLetterAtlas();
+  const letterLayer = createStripeLetterLayer(atlas);
+  letterLayer.setVisible(duotoneEnabled);
+  app.stage.addChild(letterLayer.container);
+  return { letterLayer, atlas };
+}
+
 function runDuotoneTick(params: {
   app: Parameters<Ticker>[0]["app"];
   sprite: Sprite;
   stripeFilter: ReturnType<typeof createStripeDuotoneFilter>;
+  letterLayer: StripeLetterLayer;
   duotoneEnabledRef: RefObject<boolean>;
   stripeOptionsRef: RefObject<StripeDuotoneOptions>;
   stripeColorsRef: RefObject<StripeColors>;
@@ -127,6 +141,7 @@ function runDuotoneTick(params: {
     app,
     sprite,
     stripeFilter,
+    letterLayer,
     duotoneEnabledRef,
     stripeOptionsRef,
     stripeColorsRef,
@@ -154,9 +169,12 @@ function runDuotoneTick(params: {
     if (duotoneEnabled !== duotoneActive) {
       duotoneActive = duotoneEnabled;
       sprite.filters = duotoneActive ? [stripeFilter] : null;
+      letterLayer.setVisible(duotoneActive);
       if (duotoneActive) {
         lastOptionsKey = "";
         hasBuiltGrid = false;
+      } else {
+        letterLayer.sync(null);
       }
     }
 
@@ -211,6 +229,7 @@ function runDuotoneTick(params: {
       gridState = built.state;
       blockGridTexture.update(built.grid);
       stripeFilter.updateBlockMap(blockGridTexture.texture);
+      letterLayer.sync(built.grid);
 
       if (exportStateRef) {
         exportStateRef.current = {
@@ -307,11 +326,13 @@ function createImageSceneTicker(
     let duotoneActive = duotoneEnabledRef.current;
     sprite.filters = duotoneActive ? [stripeFilter] : null;
     app.stage.addChild(sprite);
+    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive);
 
     const renderTick = runDuotoneTick({
       app,
       sprite,
       stripeFilter,
+      letterLayer,
       duotoneEnabledRef,
       stripeOptionsRef,
       stripeColorsRef,
@@ -332,6 +353,8 @@ function createImageSceneTicker(
       }
       image.removeEventListener("load", onLayoutChange);
       blockGridTexture.destroy();
+      letterLayer.destroy();
+      destroyStripeLetterAtlas(atlas);
       sprite.destroy({ children: true });
       texture.destroy(true);
     });
@@ -381,6 +404,7 @@ function createVideoSceneTickerInternal(
     let duotoneActive = duotoneEnabledRef.current;
     sprite.filters = duotoneActive ? [stripeFilter] : null;
     app.stage.addChild(sprite);
+    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive);
 
     let lastSampledTime = -1;
 
@@ -388,6 +412,7 @@ function createVideoSceneTickerInternal(
       app,
       sprite,
       stripeFilter,
+      letterLayer,
       duotoneEnabledRef,
       stripeOptionsRef,
       stripeColorsRef,
@@ -419,6 +444,8 @@ function createVideoSceneTickerInternal(
       videoSource.off("resize", onVideoLayoutChange);
       videoSource.off("update", onVideoLayoutChange);
       blockGridTexture.destroy();
+      letterLayer.destroy();
+      destroyStripeLetterAtlas(atlas);
       sprite.destroy({ children: true });
       texture.destroy(true);
     });

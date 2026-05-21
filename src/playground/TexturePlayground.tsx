@@ -46,6 +46,7 @@ import {
   playgroundPrefersDisplayP3,
 } from "./playgroundColorSpace";
 import { stripeGridToSvg } from "./stripeGridToSvg";
+import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
   buildStripeColors,
   DEFAULT_STRIPE_BAND_ENABLED,
@@ -927,6 +928,9 @@ export function TexturePlayground() {
           key={sceneKey}
           layoutWidth={displayWidth}
           layoutHeight={displayHeight}
+          onPreload={async () => {
+            await preloadStripeLetterFont();
+          }}
           canvasAttrs={{
             "data-testid": "playground-texture-canvas",
             className: "block shrink-0",
