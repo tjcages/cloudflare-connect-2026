@@ -32,7 +32,7 @@ import {
   resolveIconBoxLayout,
   type IconBoxContainerReticleCorner,
 } from "../../../lib/icon-box/layout";
-import { iconDropShadowPixiLayers } from "../../../lib/iconDropShadow";
+import { accentBarDropShadowPixiLayers, iconDropShadowPixiLayers } from "../../../lib/iconDropShadow";
 import { paletteBrush } from "../../../theme/palette";
 import { buildIconBoxCenterStrokes } from "./iconBoxCenterStroke";
 import { rasterizeIcon } from "./iconRaster";
@@ -47,20 +47,7 @@ const buildAccentBarShadowFilter = (fillRgb: number) =>
   new BoxShadowFilter({
     shapeMode: "box",
     borderRadius: 0,
-    shadows: [
-      { offsetX: 0, offsetY: 4, blur: 12, spread: 0, color: fillRgb, alpha: 0.48, inset: false },
-      { offsetX: 0, offsetY: 2, blur: 4, spread: 0, color: fillRgb, alpha: 0.12, inset: false },
-      { offsetX: 0, offsetY: 1, blur: 1, spread: 0, color: fillRgb, alpha: 0.16, inset: false },
-      {
-        offsetX: 0,
-        offsetY: 0.5,
-        blur: 0.5,
-        spread: 0,
-        color: fillRgb,
-        alpha: 0.12,
-        inset: false,
-      },
-    ] satisfies BoxShadowOptions[],
+    shadows: accentBarDropShadowPixiLayers(fillRgb) satisfies BoxShadowOptions[],
   });
 
 const buildIconShadowFilter = (iconColorHex: number) =>
