@@ -562,6 +562,7 @@ const syncCodeSnippet = (
     }
 
     const { structureRoot, chromeRoot } = buildCodeSnippet(instance, gridStrokeColor, gridStrokeHex);
+    structureRoot.cacheAsTexture(true);
     structureRoot.position.set(instance.x, instance.y);
     chromeRoot.position.set(instance.x, instance.y);
     structureRoot.zIndex = z;
@@ -591,6 +592,7 @@ const syncCodeSnippet = (
     cache.delete(instance.id);
 
     const { structureRoot, chromeRoot } = buildCodeSnippet(instance, gridStrokeColor, gridStrokeHex);
+    structureRoot.cacheAsTexture(true);
     structureRoot.position.set(instance.x, instance.y);
     chromeRoot.position.set(instance.x, instance.y);
     structureRoot.zIndex = z;
