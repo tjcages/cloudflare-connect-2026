@@ -5,10 +5,13 @@ import { temporal } from "zundo";
 import {
   createComponentInstance,
   getComponentDefinition,
+  getCodeSnippetHighlightStrokeCornerInCanvasSpace,
   getIconBoxHighlightStrokeCornerInCanvasSpace,
   snapComponentPosition,
   snapConnectorCellCenter,
 } from "./lib/componentRegistry";
+import { isCodeSnippetInstance } from "./lib/code-snippet/layout";
+import { fixedCodeSnippetCornerForDrag, resolveCodeSnippetResizeFromPointer } from "./lib/code-snippet/resize";
 import { isIconBoxInstance, resolveIconBoxLayout, type IconBoxContainerReticleCorner } from "./lib/icon-box/layout";
 import { fixedIconBoxCornerForDrag, resolveIconBoxResizeFromPointer } from "./lib/icon-box/resize";
 import { updateSmallRatio } from "./grid/config";
@@ -119,7 +122,7 @@ export type AppStoreState = {
     draggedCorner: IconBoxContainerReticleCorner,
     fixedCornerCanvas: { x: number; y: number },
   ) => void;
-  resizeIconBoxTo: (id: string, pointerCanvas: { x: number; y: number }) => void;
+  resizeLayerTo: (id: string, pointerCanvas: { x: number; y: number }) => void;
 
   endCanvasDrag: () => void;
 
@@ -219,15 +222,27 @@ const duplicateInstanceForGrid = (
     };
   }
 
+  const propsForSnap = instance.type === "icon-box" || instance.type === "code-snippet" ? instance.props : undefined;
   const position = snapComponentPosition(
     instance.x + DUPLICATE_OFFSET_PX,
     instance.y + DUPLICATE_OFFSET_PX,
     gridConfig.logicalWidth,
     gridConfig.logicalHeight,
     instance.type,
+    propsForSnap,
   );
 
   if (isIconBoxInstance(instance)) {
+    return {
+      ...instance,
+      id,
+      name,
+      ...position,
+      props: { ...instance.props },
+    };
+  }
+
+  if (isCodeSnippetInstance(instance)) {
     return {
       ...instance,
       id,
@@ -358,27 +373,43 @@ export const useAppStore = create<AppStoreState>()(
 
         startResizeDrag: (id, draggedCorner, fixedCornerCanvas) => {
           const instance = get().instances.find((i) => i.id === id);
-          if (!instance || !isIconBoxInstance(instance)) {
+          if (!instance) {
             return;
           }
-          const spec = resolveIconBoxLayout(instance.props);
           moveDragHistoryBaseline = getDocumentHistorySlice(get());
           useAppStore.temporal.getState().pause();
-          set({
-            canvasHoveredLayerId: null,
-            dragState: {
-              mode: "resize",
-              id,
-              draggedCorner,
-              fixedCornerCanvas,
-              startDirection: spec.direction,
-              startRootX: instance.x,
-              startRootY: instance.y,
-            },
-          });
+          if (isIconBoxInstance(instance)) {
+            const spec = resolveIconBoxLayout(instance.props);
+            set({
+              canvasHoveredLayerId: null,
+              dragState: {
+                mode: "resize",
+                componentKind: "icon-box",
+                id,
+                draggedCorner,
+                fixedCornerCanvas,
+                startDirection: spec.direction,
+                startRootX: instance.x,
+                startRootY: instance.y,
+              },
+            });
+            return;
+          }
+          if (isCodeSnippetInstance(instance)) {
+            set({
+              canvasHoveredLayerId: null,
+              dragState: {
+                mode: "resize",
+                componentKind: "code-snippet",
+                id,
+                draggedCorner,
+                fixedCornerCanvas,
+              },
+            });
+          }
         },
 
-        resizeIconBoxTo: (id, pointerCanvas) => {
+        resizeLayerTo: (id, pointerCanvas) => {
           const dragState = get().dragState;
           if (dragState?.mode !== "resize" || dragState.id !== id) {
             return;
@@ -386,31 +417,55 @@ export const useAppStore = create<AppStoreState>()(
 
           set((s) => ({
             instances: s.instances.map((instance) => {
-              if (instance.id !== id || !isIconBoxInstance(instance)) {
+              if (instance.id !== id) {
                 return instance;
               }
 
-              const fixedCorner = fixedIconBoxCornerForDrag(dragState.draggedCorner);
-              const resolved = resolveIconBoxResizeFromPointer({
-                title: instance.props.title,
-                fixedCornerCanvas: dragState.fixedCornerCanvas,
-                fixedCorner,
-                pointerCanvas,
-                lockedDirection: dragState.startDirection,
-                startRootX: dragState.startRootX,
-                startRootY: dragState.startRootY,
-              });
+              if (dragState.componentKind === "icon-box" && isIconBoxInstance(instance)) {
+                const fixedCorner = fixedIconBoxCornerForDrag(dragState.draggedCorner);
+                const resolved = resolveIconBoxResizeFromPointer({
+                  title: instance.props.title,
+                  fixedCornerCanvas: dragState.fixedCornerCanvas,
+                  fixedCorner,
+                  pointerCanvas,
+                  lockedDirection: dragState.startDirection,
+                  startRootX: dragState.startRootX,
+                  startRootY: dragState.startRootY,
+                });
 
-              return {
-                ...instance,
-                x: resolved.rootX,
-                y: resolved.rootY,
-                props: {
-                  ...instance.props,
-                  length: resolved.length,
-                  direction: resolved.direction,
-                },
-              };
+                return {
+                  ...instance,
+                  x: resolved.rootX,
+                  y: resolved.rootY,
+                  props: {
+                    ...instance.props,
+                    length: resolved.length,
+                    direction: resolved.direction,
+                  },
+                };
+              }
+
+              if (dragState.componentKind === "code-snippet" && isCodeSnippetInstance(instance)) {
+                const fixedCorner = fixedCodeSnippetCornerForDrag(dragState.draggedCorner);
+                const resolved = resolveCodeSnippetResizeFromPointer({
+                  fixedCornerCanvas: dragState.fixedCornerCanvas,
+                  fixedCorner,
+                  pointerCanvas,
+                });
+
+                return {
+                  ...instance,
+                  x: resolved.rootX,
+                  y: resolved.rootY,
+                  props: {
+                    ...instance.props,
+                    widthCells: resolved.widthCells,
+                    heightCells: resolved.heightCells,
+                  },
+                };
+              }
+
+              return instance;
             }),
           }));
         },
@@ -426,9 +481,18 @@ export const useAppStore = create<AppStoreState>()(
                 return instance;
               }
 
+              const propsForSnap =
+                instance.type === "icon-box" || instance.type === "code-snippet" ? instance.props : undefined;
               return {
                 ...instance,
-                ...snapComponentPosition(x, y, grid.config.logicalWidth, grid.config.logicalHeight, instance.type),
+                ...snapComponentPosition(
+                  x,
+                  y,
+                  grid.config.logicalWidth,
+                  grid.config.logicalHeight,
+                  instance.type,
+                  propsForSnap,
+                ),
               };
             }),
           }));
@@ -443,9 +507,10 @@ export const useAppStore = create<AppStoreState>()(
           const wasResize = dragState.mode === "resize";
 
           if (wasResize) {
-            const { id, draggedCorner, fixedCornerCanvas, startDirection, startRootX, startRootY } = dragState;
+            const { id, draggedCorner, fixedCornerCanvas } = dragState;
             const instance = get().instances.find((i) => i.id === id);
-            if (instance && isIconBoxInstance(instance)) {
+            if (instance && dragState.componentKind === "icon-box" && isIconBoxInstance(instance)) {
+              const { startDirection, startRootX, startRootY } = dragState;
               const { grid } = get();
               const snapped = snapComponentPosition(
                 instance.x,
@@ -469,6 +534,27 @@ export const useAppStore = create<AppStoreState>()(
                 nudgedX = startRootX;
                 nudgedY = snapped.y + (fixedCornerCanvas.y - afterFixed.y);
               }
+
+              set((s) => ({
+                instances: s.instances.map((i) => (i.id === id ? { ...i, x: nudgedX, y: nudgedY } : i)),
+              }));
+            } else if (instance && dragState.componentKind === "code-snippet" && isCodeSnippetInstance(instance)) {
+              const { grid } = get();
+              const snapped = snapComponentPosition(
+                instance.x,
+                instance.y,
+                grid.config.logicalWidth,
+                grid.config.logicalHeight,
+                "code-snippet",
+                instance.props,
+              );
+              const fixedCorner = fixedCodeSnippetCornerForDrag(draggedCorner);
+              const afterFixed = getCodeSnippetHighlightStrokeCornerInCanvasSpace(
+                { ...instance, x: snapped.x, y: snapped.y },
+                fixedCorner,
+              );
+              const nudgedX = snapped.x + (fixedCornerCanvas.x - afterFixed.x);
+              const nudgedY = snapped.y + (fixedCornerCanvas.y - afterFixed.y);
 
               set((s) => ({
                 instances: s.instances.map((i) => (i.id === id ? { ...i, x: nudgedX, y: nudgedY } : i)),
@@ -554,6 +640,9 @@ export const useAppStore = create<AppStoreState>()(
               }
               if (instance.type === "connector-line") {
                 return { ...instance, props: { ...instance.props, ...props } as ConnectorLineProps };
+              }
+              if (instance.type === "code-snippet") {
+                return { ...instance, props: { ...instance.props, ...props } };
               }
               return instance;
             }),

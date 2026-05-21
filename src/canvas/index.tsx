@@ -2,16 +2,22 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Ref } f
 import { animate as motionAnimate } from "motion";
 import Pixi from "../components/pixi";
 import { getCanvasPoint } from "./coords";
-import { hitTestComponentInstances, hitTestSelectedIconBoxResizeHandle } from "./hitTest";
+import { hitTestComponentInstances, hitTestSelectedResizeHandle } from "./hitTest";
 import { getCanvasPanelEdgeScrollStep } from "./scrollAroundEdges";
 import { setupComponentLayer } from "./components/componentLayer";
 import { setupGridLayer } from "./grid/setup";
 import { setupSelectionLayer } from "./selection-setup";
+import { preloadCodeSnippetFont } from "../fonts/codeSnippet";
 import { preloadIconBoxTitleFont } from "../fonts/iconBoxTitle";
 import { cn } from "../lib/cn";
+import { isCodeSnippetInstance } from "../lib/code-snippet/layout";
+import { codeSnippetResizeCursorForCorner, fixedCodeSnippetCornerForDrag } from "../lib/code-snippet/resize";
 import { isIconBoxInstance, type IconBoxContainerReticleCorner } from "../lib/icon-box/layout";
 import { fixedIconBoxCornerForDrag, iconBoxResizeCursorForCorner } from "../lib/icon-box/resize";
-import { getIconBoxHighlightStrokeCornerInCanvasSpace } from "../lib/componentRegistry";
+import {
+  getCodeSnippetHighlightStrokeCornerInCanvasSpace,
+  getIconBoxHighlightStrokeCornerInCanvasSpace,
+} from "../lib/componentRegistry";
 import { useAppStore } from "../store";
 import { clampCanvasZoom, zoomAroundCanvasPoint } from "./viewZoom";
 
@@ -62,9 +68,13 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
   const startMoveDrag = useAppStore((s) => s.startMoveDrag);
   const startResizeDrag = useAppStore((s) => s.startResizeDrag);
   const moveInstanceTo = useAppStore((s) => s.moveInstanceTo);
-  const resizeIconBoxTo = useAppStore((s) => s.resizeIconBoxTo);
+  const resizeLayerTo = useAppStore((s) => s.resizeLayerTo);
   const endCanvasDrag = useAppStore((s) => s.endCanvasDrag);
   const dragState = useAppStore((s) => s.dragState);
+  const selectedInstanceId = useAppStore((s) => s.selectedInstanceId);
+  const selectedLayerType = useAppStore((s) =>
+    selectedInstanceId === null ? null : (s.instances.find((i) => i.id === selectedInstanceId)?.type ?? null),
+  );
   const translateCanvasPan = useAppStore((s) => s.translateCanvasPan);
   const resetCanvasPan = useAppStore((s) => s.resetCanvasPan);
   const resetCanvasZoom = useAppStore((s) => s.resetCanvasZoom);
@@ -303,7 +313,12 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
     !isPickingConnectorEndpoint && dragState?.mode === "resize"
       ? ({ cursor: "grabbing" } as const)
       : !isPickingConnectorEndpoint && hoveredResizeCorner !== null
-        ? ({ cursor: iconBoxResizeCursorForCorner(hoveredResizeCorner) } as const)
+        ? ({
+            cursor:
+              selectedLayerType === "code-snippet"
+                ? codeSnippetResizeCursorForCorner(hoveredResizeCorner)
+                : iconBoxResizeCursorForCorner(hoveredResizeCorner),
+          } as const)
         : !isPickingConnectorEndpoint && isViewportPanning
           ? ({ cursor: "grabbing" } as const)
           : !isPickingConnectorEndpoint && isSpaceViewportPanHeld
@@ -348,11 +363,19 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
               selectedInstanceId === null
                 ? null
                 : (instances.find((instance) => instance.id === selectedInstanceId) ?? null);
-            const resizeHandle = hitTestSelectedIconBoxResizeHandle(selectedInstance, point.x, point.y);
-            if (resizeHandle && selectedInstance && isIconBoxInstance(selectedInstance)) {
+            const resizeHandle = hitTestSelectedResizeHandle(selectedInstance, point.x, point.y);
+            if (
+              resizeHandle &&
+              selectedInstance &&
+              (isIconBoxInstance(selectedInstance) || isCodeSnippetInstance(selectedInstance))
+            ) {
               event.preventDefault();
-              const fixedCorner = fixedIconBoxCornerForDrag(resizeHandle.corner);
-              const fixedCornerCanvas = getIconBoxHighlightStrokeCornerInCanvasSpace(selectedInstance, fixedCorner);
+              const fixedCorner = isCodeSnippetInstance(selectedInstance)
+                ? fixedCodeSnippetCornerForDrag(resizeHandle.corner)
+                : fixedIconBoxCornerForDrag(resizeHandle.corner);
+              const fixedCornerCanvas = isCodeSnippetInstance(selectedInstance)
+                ? getCodeSnippetHighlightStrokeCornerInCanvasSpace(selectedInstance, fixedCorner)
+                : getIconBoxHighlightStrokeCornerInCanvasSpace(selectedInstance, fixedCorner);
               canvas.setPointerCapture?.(event.pointerId);
               startResizeDrag(selectedInstance.id, resizeHandle.corner, fixedCornerCanvas);
               skipNextClickSelectionSyncRef.current = true;
@@ -461,7 +484,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
                 selectedInstanceId === null
                   ? null
                   : (instances.find((instance) => instance.id === selectedInstanceId) ?? null);
-              const resizeHit = hitTestSelectedIconBoxResizeHandle(selectedInstance, point.x, point.y);
+              const resizeHit = hitTestSelectedResizeHandle(selectedInstance, point.x, point.y);
               const nextCorner = resizeHit?.corner ?? null;
               setHoveredResizeCorner((prev) => (prev === nextCorner ? prev : nextCorner));
             }
@@ -473,7 +496,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             if (dragState.mode === "resize") {
               event.preventDefault();
               const point = getCanvasPoint(canvas, event.clientX, event.clientY, logicalWidth, logicalHeight);
-              resizeIconBoxTo(dragState.id, point);
+              resizeLayerTo(dragState.id, point);
               return;
             }
 
@@ -565,7 +588,9 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
         }}
         layoutWidth={renderWidth}
         layoutHeight={renderHeight}
-        onPreload={preloadIconBoxTitleFont}
+        onPreload={async () => {
+          await Promise.all([preloadIconBoxTitleFont(), preloadCodeSnippetFont()]);
+        }}
         onInitialized={(app) => {
           app.animate = motionAnimate;
           useAppStore.getState().setPixiApp(app);

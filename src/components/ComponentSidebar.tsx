@@ -10,6 +10,7 @@ import { useAppStore } from "../store";
 import type { ComponentInstance, ComponentProps, ComponentType, IconId } from "../grid/types";
 import { ComponentListItem } from "./ComponentListItem";
 import { BuilderSelectField } from "./BuilderSelectField";
+import { CodeSnippetCodeField } from "./CodeSnippetCodeField";
 import { BuilderTextField } from "./BuilderTextField";
 import { ConnectorEndpointField } from "./ConnectorEndpointControls";
 import { ConfigDebugDisclosure } from "./ConfigDebugDisclosure";
@@ -294,6 +295,57 @@ export const ComponentConfigSidebar = ({
             onUpdateInstanceProps(selectedInstance.id, {
               ...selectedInstance.props,
               animated: !selectedInstance.props.animated,
+            })
+          }
+        />
+      </LayerConfigPanel>
+    );
+  }
+
+  if (selectedInstance.type === "code-snippet") {
+    const displayName = getInstanceDisplayName(selectedInstance);
+    return (
+      <LayerConfigPanel
+        onScroll={onConfigPanelScroll}
+        title={displayName}
+        headerPreview={renderPreview(selectedInstance)}
+      >
+        <CodeSnippetCodeField
+          id={`layer-code-${selectedInstance.id}`}
+          value={selectedInstance.props.code}
+          language={selectedInstance.props.language}
+          onChange={(code) =>
+            onUpdateInstanceProps(selectedInstance.id, {
+              ...selectedInstance.props,
+              code,
+            })
+          }
+        />
+        <BuilderSelectField
+          label="Language"
+          id={`layer-language-${selectedInstance.id}`}
+          value={selectedInstance.props.language}
+          onChange={(event) =>
+            onUpdateInstanceProps(selectedInstance.id, {
+              ...selectedInstance.props,
+              language: event.target.value as typeof selectedInstance.props.language,
+            })
+          }
+        >
+          <option value="auto">Auto</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="json">JSON</option>
+          <option value="bash">Bash</option>
+          <option value="text">Plain text</option>
+        </BuilderSelectField>
+        <ThemeField
+          value={selectedInstance.props.theme}
+          gridStrokeColor={gridStrokeColor}
+          onChange={(theme) =>
+            onUpdateInstanceProps(selectedInstance.id, {
+              ...selectedInstance.props,
+              theme,
             })
           }
         />

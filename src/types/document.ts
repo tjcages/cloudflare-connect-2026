@@ -17,6 +17,7 @@ export type CanvasDragState =
     }
   | {
       mode: "resize";
+      componentKind: "icon-box";
       id: string;
       draggedCorner: IconBoxContainerReticleCorner;
       fixedCornerCanvas: { x: number; y: number };
@@ -24,6 +25,13 @@ export type CanvasDragState =
       startDirection: IconBoxDirection;
       startRootX: number;
       startRootY: number;
+    }
+  | {
+      mode: "resize";
+      componentKind: "code-snippet";
+      id: string;
+      draggedCorner: IconBoxContainerReticleCorner;
+      fixedCornerCanvas: { x: number; y: number };
     };
 
 export type ConnectorEndpointPickState = {

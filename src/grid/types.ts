@@ -41,7 +41,7 @@ export type GeneratedGrid = {
   cells: GridCell[];
 };
 
-export type ComponentType = "icon-box" | "plus-marker" | "rect-marker" | "connector-line";
+export type ComponentType = "icon-box" | "plus-marker" | "rect-marker" | "connector-line" | "code-snippet";
 
 export type IconId =
   | "section-mark"
@@ -104,6 +104,17 @@ export type ConnectorEndpoint =
       instanceId: string;
     };
 
+export type CodeSnippetLanguage = "auto" | "javascript" | "typescript" | "json" | "bash" | "text";
+
+export type CodeSnippetProps = {
+  code: string;
+  language: CodeSnippetLanguage;
+  theme: PaletteThemeId;
+  /** Size in 40px grid units (min 2 each). */
+  widthCells: number;
+  heightCells: number;
+};
+
 export type ConnectorLineProps = {
   preferredConnection: ConnectorConnectionPreference;
   source: ConnectorEndpoint;
@@ -114,7 +125,7 @@ export type ConnectorLineProps = {
   animated: boolean;
 };
 
-export type ComponentProps = IconBoxProps | PlusMarkerProps | RectMarkerProps | ConnectorLineProps;
+export type ComponentProps = IconBoxProps | PlusMarkerProps | RectMarkerProps | ConnectorLineProps | CodeSnippetProps;
 
 export type IconBoxInstance = {
   id: string;
@@ -153,7 +164,21 @@ export type ConnectorLineInstance = {
   props: ConnectorLineProps;
 };
 
-export type ComponentInstance = IconBoxInstance | PlusMarkerInstance | RectMarkerInstance | ConnectorLineInstance;
+export type CodeSnippetInstance = {
+  id: string;
+  type: "code-snippet";
+  name: string;
+  x: number;
+  y: number;
+  props: CodeSnippetProps;
+};
+
+export type ComponentInstance =
+  | IconBoxInstance
+  | PlusMarkerInstance
+  | RectMarkerInstance
+  | ConnectorLineInstance
+  | CodeSnippetInstance;
 
 export type CandidateCell = {
   kind: GridCellKind;

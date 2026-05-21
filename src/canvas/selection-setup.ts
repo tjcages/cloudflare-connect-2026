@@ -2,7 +2,12 @@ import { Graphics } from "pixi.js";
 import type { Ticker } from "../components/pixi";
 import { LARGE_CELL_SIZE } from "../grid/types";
 import type { ComponentInstance } from "../grid/types";
-import { getIconBoxHighlightStrokeCornerInCanvasSpace, getInstanceHighlightBounds } from "../lib/componentRegistry";
+import {
+  getCodeSnippetHighlightStrokeCornerInCanvasSpace,
+  getIconBoxHighlightStrokeCornerInCanvasSpace,
+  getInstanceHighlightBounds,
+} from "../lib/componentRegistry";
+import { isCodeSnippetInstance } from "../lib/code-snippet/layout";
 import {
   ICON_BOX_RESIZE_HANDLE_PX,
   isIconBoxInstance,
@@ -44,7 +49,7 @@ const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance, 
   const b = getInstanceHighlightBounds(inst);
   let w = b.width;
   let h = b.height;
-  if (isIconBoxInstance(inst) || inst.type === "plus-marker") {
+  if (isIconBoxInstance(inst) || isCodeSnippetInstance(inst) || inst.type === "plus-marker") {
     w += 1;
     h += 1;
   }
@@ -55,14 +60,7 @@ const drawInstanceHighlightRect = (graphics: Graphics, inst: ComponentInstance, 
     .stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR, alpha: strokeAlpha });
 };
 
-/** Figma-style frame tip: small white square centered on the selection corner. */
-const drawIconBoxResizeHandle = (
-  graphics: Graphics,
-  inst: Extract<ComponentInstance, { type: "icon-box" }>,
-  corner: IconBoxContainerReticleCorner,
-  emphasized: boolean,
-) => {
-  const cornerCanvas = getIconBoxHighlightStrokeCornerInCanvasSpace(inst, corner);
+const drawResizeHandleAtCorner = (graphics: Graphics, cornerCanvas: { x: number; y: number }, emphasized: boolean) => {
   const { x, y } = getIconBoxResizeHandleTopLeft(cornerCanvas, ICON_BOX_RESIZE_HANDLE_PX);
   graphics
     .rect(x, y, ICON_BOX_RESIZE_HANDLE_PX, ICON_BOX_RESIZE_HANDLE_PX)
@@ -70,14 +68,22 @@ const drawIconBoxResizeHandle = (
     .stroke({ width: 1, color: CONNECTOR_HIGHLIGHT_COLOR, alpha: emphasized ? 1 : 1 });
 };
 
-const drawIconBoxResizeHandles = (
+const drawResizableLayerHandles = (
   graphics: Graphics,
-  inst: Extract<ComponentInstance, { type: "icon-box" }>,
+  inst: ComponentInstance,
   activeCorner: IconBoxContainerReticleCorner | null,
 ) => {
   const corners: IconBoxContainerReticleCorner[] = ["tl", "tr", "bl", "br"];
   for (const corner of corners) {
-    drawIconBoxResizeHandle(graphics, inst, corner, corner === activeCorner);
+    const cornerCanvas = isIconBoxInstance(inst)
+      ? getIconBoxHighlightStrokeCornerInCanvasSpace(inst, corner)
+      : isCodeSnippetInstance(inst)
+        ? getCodeSnippetHighlightStrokeCornerInCanvasSpace(inst, corner)
+        : null;
+    if (!cornerCanvas) {
+      continue;
+    }
+    drawResizeHandleAtCorner(graphics, cornerCanvas, corner === activeCorner);
   }
 };
 
@@ -162,9 +168,9 @@ export const setupSelectionLayer: Ticker = ({ app, cleanup }) => {
     if (inst.type !== "connector-line") {
       drawInstanceHighlightRect(graphics, inst);
       hasHighlight = true;
-      if (isIconBoxInstance(inst)) {
+      if (isIconBoxInstance(inst) || isCodeSnippetInstance(inst)) {
         const activeCorner = dragState?.mode === "resize" && dragState.id === inst.id ? dragState.draggedCorner : null;
-        drawIconBoxResizeHandles(graphics, inst, activeCorner);
+        drawResizableLayerHandles(graphics, inst, activeCorner);
       }
     } else {
       for (const linked of selectedLinkedLayers) {

@@ -1,8 +1,11 @@
 import { getComponentDefinition, snapComponentPosition, snapConnectorCellCenter } from "./lib/componentRegistry";
+import { normalizeCodeSnippetProps } from "./lib/code-snippet/layout";
 import { migrateLegacyIconBoxRaw, normalizeIconBoxProps } from "./lib/icon-box/layout";
 import { DEFAULT_CONFIG } from "./grid/config";
 import { generateGrid } from "./grid/generator";
 import type {
+  CodeSnippetLanguage,
+  CodeSnippetProps,
   ComponentInstance,
   ComponentType,
   ConnectorEndpoint,
@@ -32,7 +35,32 @@ const isPersistedComponentType = (value: unknown): value is ComponentType | "ico
   value === "icon-box-1x2" ||
   value === "plus-marker" ||
   value === "rect-marker" ||
-  value === "connector-line";
+  value === "connector-line" ||
+  value === "code-snippet";
+
+const CODE_SNIPPET_LANGUAGES: CodeSnippetLanguage[] = ["auto", "javascript", "typescript", "json", "bash", "text"];
+
+const isCodeSnippetProps = (value: unknown): value is CodeSnippetProps => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (!("code" in value) || typeof value.code !== "string") {
+    return false;
+  }
+  if (!("language" in value) || !CODE_SNIPPET_LANGUAGES.includes(value.language as CodeSnippetLanguage)) {
+    return false;
+  }
+  if (!("theme" in value) || typeof value.theme !== "string") {
+    return false;
+  }
+  if ("widthCells" in value && (!isFiniteNumber(value.widthCells) || value.widthCells < 2)) {
+    return false;
+  }
+  if ("heightCells" in value && (!isFiniteNumber(value.heightCells) || value.heightCells < 2)) {
+    return false;
+  }
+  return true;
+};
 
 const isPlusMarkerProps = (value: unknown): value is PlusMarkerProps => {
   if (!isRecord(value) || !("theme" in value) || typeof value.theme !== "string") {
@@ -207,6 +235,21 @@ const normalizeInstanceForGrid = (
     return {
       id: raw.id,
       type: raw.type,
+      name,
+      x: snapped.x,
+      y: snapped.y,
+      props,
+    };
+  }
+
+  if (raw.type === "code-snippet") {
+    const defaultSnippet = getComponentDefinition("code-snippet").defaultProps as CodeSnippetProps;
+    const props = isCodeSnippetProps(raw.props) ? normalizeCodeSnippetProps(raw.props, defaultSnippet) : defaultSnippet;
+    const snapped = snapComponentPosition(raw.x, raw.y, gridLogicalWidth, gridLogicalHeight, "code-snippet", props);
+
+    return {
+      id: raw.id,
+      type: "code-snippet",
       name,
       x: snapped.x,
       y: snapped.y,

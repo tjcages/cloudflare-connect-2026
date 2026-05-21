@@ -19,6 +19,7 @@ import {
   paintConnectorBaseLayer,
   resolveSharedJointStrokeStyle,
 } from "./connector-line/setup";
+import { buildCodeSnippet } from "./code-snippet/build";
 import { buildIconBox, type IconBoxRenderableInstance } from "./icon-box/build";
 import { iconBoxLineEnableCoordinator } from "./icon-box/iconBoxLineEnableCoordinator";
 import { buildPlusMarker } from "./plus-marker/build";
@@ -95,6 +96,13 @@ type LayerCacheEntry =
     }
   | {
       kind: "rect-marker";
+      structureRoot: Container;
+      chromeRoot: Container;
+      contentKey: string;
+      layoutSnapshot: CachedTextureLayoutSnapshot;
+    }
+  | {
+      kind: "code-snippet";
       structureRoot: Container;
       chromeRoot: Container;
       contentKey: string;
@@ -271,6 +279,11 @@ const syncLayers = (
 
     if (instance.type === "rect-marker") {
       syncRectMarker(instance, structureLayer, chromeLayer, cache, z, gridStrokeHex);
+      continue;
+    }
+
+    if (instance.type === "code-snippet") {
+      syncCodeSnippet(instance, structureLayer, chromeLayer, cache, z, gridStrokeColor, gridStrokeHex);
       continue;
     }
 
@@ -517,6 +530,87 @@ const syncRectMarker = (
   if (dirty === "layout") {
     prior.structureRoot.position.set(rx, ry);
     prior.chromeRoot.position.set(rx, ry);
+    prior.structureRoot.zIndex = z;
+    prior.chromeRoot.zIndex = z;
+    cache.set(instance.id, { ...prior, layoutSnapshot: layout });
+  }
+};
+
+const codeSnippetContentKey = (instance: Extract<ComponentInstance, { type: "code-snippet" }>, gridStrokeHex: string) =>
+  JSON.stringify({
+    props: instance.props,
+    gridStrokeHex,
+  });
+
+const syncCodeSnippet = (
+  instance: Extract<ComponentInstance, { type: "code-snippet" }>,
+  structureLayer: Container,
+  chromeLayer: Container,
+  cache: Map<string, LayerCacheEntry>,
+  z: number,
+  gridStrokeColor: number,
+  gridStrokeHex: string,
+) => {
+  const contentKey = codeSnippetContentKey(instance, gridStrokeHex);
+  const layout: CachedTextureLayoutSnapshot = { x: instance.x, y: instance.y, zIndex: z };
+  const prior = cache.get(instance.id);
+
+  if (!prior || prior.kind !== "code-snippet") {
+    if (prior) {
+      destroyLayerEntry(prior);
+      cache.delete(instance.id);
+    }
+
+    const { structureRoot, chromeRoot } = buildCodeSnippet(instance, gridStrokeColor, gridStrokeHex);
+    structureRoot.position.set(instance.x, instance.y);
+    chromeRoot.position.set(instance.x, instance.y);
+    structureRoot.zIndex = z;
+    chromeRoot.zIndex = z;
+    structureLayer.addChild(structureRoot);
+    chromeLayer.addChild(chromeRoot);
+
+    cache.set(instance.id, {
+      kind: "code-snippet",
+      structureRoot,
+      chromeRoot,
+      contentKey,
+      layoutSnapshot: layout,
+    });
+    return;
+  }
+
+  const dirty = classifyCachedTextureDirty({
+    priorLayout: prior.layoutSnapshot,
+    priorContentKey: prior.contentKey,
+    layout,
+    contentKey,
+  });
+
+  if (dirty === "content") {
+    destroyLayerEntry(prior);
+    cache.delete(instance.id);
+
+    const { structureRoot, chromeRoot } = buildCodeSnippet(instance, gridStrokeColor, gridStrokeHex);
+    structureRoot.position.set(instance.x, instance.y);
+    chromeRoot.position.set(instance.x, instance.y);
+    structureRoot.zIndex = z;
+    chromeRoot.zIndex = z;
+    structureLayer.addChild(structureRoot);
+    chromeLayer.addChild(chromeRoot);
+
+    cache.set(instance.id, {
+      kind: "code-snippet",
+      structureRoot,
+      chromeRoot,
+      contentKey,
+      layoutSnapshot: layout,
+    });
+    return;
+  }
+
+  if (dirty === "layout") {
+    prior.structureRoot.position.set(instance.x, instance.y);
+    prior.chromeRoot.position.set(instance.x, instance.y);
     prior.structureRoot.zIndex = z;
     prior.chromeRoot.zIndex = z;
     cache.set(instance.id, { ...prior, layoutSnapshot: layout });

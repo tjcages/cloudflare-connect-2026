@@ -9,6 +9,14 @@ import { SIDEBAR_LIST_ICON_PX } from "./iconTokens";
 
 export const CONNECTOR_LINE_ICON_HEX = paletteBrush("neutral").iconFillHex;
 
+export const CodeSnippetIcon = ({ size = SIDEBAR_LIST_ICON_PX }: { size?: number }) => (
+  <svg className="block font-mono" width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <text x="3" y="16" fontSize="11" fill="currentColor">
+      {"{}"}
+    </text>
+  </svg>
+);
+
 export const ConnectorLineIcon = ({ size = SIDEBAR_LIST_ICON_PX }: { size?: number }) => (
   <svg
     className="block"
@@ -46,6 +54,8 @@ export const createSidebarPreviewRenderers = (gridStrokeColor: string | undefine
   const renderPreview = (instance: ComponentInstance) =>
     instance.type === "connector-line" ? (
       <ConnectorLineIcon />
+    ) : instance.type === "code-snippet" ? (
+      <CodeSnippetIcon />
     ) : instance.type === "plus-marker" ? (
       <PlusMarkerGlyph theme={instance.props.theme} gridStrokeColor={gridStrokeColor} />
     ) : instance.type === "rect-marker" ? (
@@ -57,6 +67,8 @@ export const createSidebarPreviewRenderers = (gridStrokeColor: string | undefine
   const renderDefinitionPreview = (definition: ComponentDefinition) =>
     definition.type === "connector-line" ? (
       <ConnectorLineIcon />
+    ) : definition.type === "code-snippet" ? (
+      <CodeSnippetIcon />
     ) : definition.type === "plus-marker" ? (
       <PlusMarkerGlyph theme={(definition.defaultProps as PlusMarkerProps).theme} gridStrokeColor={gridStrokeColor} />
     ) : definition.type === "rect-marker" ? (

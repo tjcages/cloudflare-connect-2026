@@ -1,5 +1,6 @@
 import { DEFAULT_CONFIG } from "../grid/config";
 import type {
+  CodeSnippetLanguage,
   ComponentInstance,
   ComponentProps,
   ComponentType,
@@ -35,6 +36,7 @@ const COMPACT_V1 = 1 as const;
 const COMPACT_V2 = 2 as const;
 const COMPACT_V3 = 3 as const;
 const COMPACT_V4 = 4 as const;
+const COMPACT_V5 = 5 as const;
 const GZIP_PREFIX = "z:";
 
 const THEME_TO_CODE = Object.fromEntries(PALETTE_THEMES.map((theme, index) => [theme.id, index])) as Record<
@@ -43,8 +45,24 @@ const THEME_TO_CODE = Object.fromEntries(PALETTE_THEMES.map((theme, index) => [t
 >;
 const CODE_TO_THEME = PALETTE_THEMES.map((theme) => theme.id);
 
-/** Current compact type table (v4+). */
-const COMPONENT_TYPE_CODES: ComponentType[] = ["icon-box", "plus-marker", "rect-marker", "connector-line"];
+/** Current compact type table (v4). */
+const COMPONENT_TYPE_CODES_V4: ComponentType[] = ["icon-box", "plus-marker", "rect-marker", "connector-line"];
+
+/** Current compact type table (v5+). */
+const COMPONENT_TYPE_CODES: ComponentType[] = [
+  "icon-box",
+  "plus-marker",
+  "rect-marker",
+  "connector-line",
+  "code-snippet",
+];
+
+const CODE_SNIPPET_LANGUAGE_CODES: CodeSnippetLanguage[] = ["auto", "javascript", "typescript", "json", "bash", "text"];
+const LANGUAGE_TO_CODE = Object.fromEntries(CODE_SNIPPET_LANGUAGE_CODES.map((lang, index) => [lang, index])) as Record<
+  CodeSnippetLanguage,
+  number
+>;
+const CODE_TO_LANGUAGE = CODE_SNIPPET_LANGUAGE_CODES;
 
 /** Pre-unification v2/v3 type table — kept for share import only. */
 const LEGACY_COMPONENT_TYPE_CODES = [
@@ -89,7 +107,7 @@ type CompactV1Wire = {
 };
 
 type CompactWire = {
-  v: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4;
+  v: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4 | typeof COMPACT_V5;
   g: CompactGridSparse;
   l: CompactLayerRow[];
   n: number;
@@ -99,6 +117,7 @@ type CompactWire = {
 
 type CompactV2Wire = CompactWire & { v: typeof COMPACT_V2 };
 type CompactV4Wire = CompactWire & { v: typeof COMPACT_V4 };
+type CompactV5Wire = CompactWire & { v: typeof COMPACT_V5 };
 
 type CompactEndpointWire = [0, number, number] | [1, number] | [1, string];
 
@@ -293,6 +312,88 @@ const expandEndpointWire = (wire: unknown, instanceIds: string[]): ConnectorEndp
   return wire as unknown as ConnectorEndpoint;
 };
 
+const compactCodeSnippetPropsDelta = (
+  defaults: ComponentProps,
+  props: ComponentProps,
+): Record<string, unknown> | undefined => {
+  const delta: Record<string, unknown> = {};
+  const snippetDefaults = defaults as Record<string, unknown>;
+  const snippetProps = props as Record<string, unknown>;
+
+  for (const key of Object.keys(snippetProps)) {
+    const value = snippetProps[key];
+    const defaultValue = snippetDefaults[key];
+    if (JSON.stringify(value) === JSON.stringify(defaultValue)) {
+      continue;
+    }
+
+    if (key === "theme" && typeof value === "string" && value in THEME_TO_CODE) {
+      delta.t = THEME_TO_CODE[value as PaletteThemeId];
+      continue;
+    }
+
+    if (key === "language" && typeof value === "string" && value in LANGUAGE_TO_CODE) {
+      delta.L = LANGUAGE_TO_CODE[value as CodeSnippetLanguage];
+      continue;
+    }
+
+    if (key === "code") {
+      delta.C = value;
+      continue;
+    }
+
+    if (key === "widthCells" && typeof value === "number" && value !== 8) {
+      delta.W = value;
+      continue;
+    }
+
+    if (key === "heightCells" && typeof value === "number" && value !== 2) {
+      delta.H = value;
+      continue;
+    }
+
+    delta[key] = value;
+  }
+
+  return Object.keys(delta).length ? delta : undefined;
+};
+
+const expandCodeSnippetPropsDelta = (defaults: ComponentProps, delta?: Record<string, unknown>): ComponentProps => {
+  if (!delta) {
+    return defaults;
+  }
+
+  const props = { ...(defaults as Record<string, unknown>) };
+  for (const [key, value] of Object.entries(delta)) {
+    if (key === "t") {
+      props.theme = typeof value === "number" && CODE_TO_THEME[value] ? CODE_TO_THEME[value] : value;
+      continue;
+    }
+    if (key === "h") {
+      continue;
+    }
+    if (key === "L" && typeof value === "number" && CODE_TO_LANGUAGE[value]) {
+      props.language = CODE_TO_LANGUAGE[value];
+      continue;
+    }
+    if (key === "C") {
+      props.code = value;
+      continue;
+    }
+    if (key === "W" && typeof value === "number") {
+      props.widthCells = value;
+      continue;
+    }
+    if (key === "H" && typeof value === "number") {
+      props.heightCells = value;
+      continue;
+    }
+    props[key] = value;
+  }
+
+  return props as ComponentProps;
+};
+
 const compactConnectorPropsDelta = (
   defaults: ConnectorLineProps,
   props: ConnectorLineProps,
@@ -370,6 +471,10 @@ const pickPropsDelta = (
     return compactIconBoxPropsDelta(defaults, props);
   }
 
+  if (type === "code-snippet") {
+    return compactCodeSnippetPropsDelta(defaults, props);
+  }
+
   if (type === "connector-line" && idToIndex) {
     return compactConnectorPropsDelta(defaults as ConnectorLineProps, props as ConnectorLineProps, idToIndex);
   }
@@ -399,6 +504,10 @@ const expandPropsDelta = (
   const defaults = getComponentDefinition(type).defaultProps;
   if (type === "icon-box") {
     return expandIconBoxPropsDelta(defaults, delta);
+  }
+
+  if (type === "code-snippet") {
+    return expandCodeSnippetPropsDelta(defaults, delta);
   }
 
   if (type === "connector-line") {
@@ -432,10 +541,18 @@ const toCompactLayerRow = (instance: ComponentInstance, idToIndex?: Map<string, 
 
 const resolveCompactLayerType = (
   typeCode: number,
-  version: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4,
+  version: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4 | typeof COMPACT_V5,
 ): { type: ComponentType; layoutMigration?: Pick<IconBoxProps, "length" | "direction"> } => {
-  if (version === COMPACT_V4) {
+  if (version === COMPACT_V5) {
     const type = COMPONENT_TYPE_CODES[typeCode];
+    if (!type) {
+      throw new Error(`Unknown component type code: ${typeCode}`);
+    }
+    return { type };
+  }
+
+  if (version === COMPACT_V4) {
+    const type = COMPONENT_TYPE_CODES_V4[typeCode];
     if (!type) {
       throw new Error(`Unknown component type code: ${typeCode}`);
     }
@@ -458,7 +575,7 @@ const resolveCompactLayerType = (
 const fromCompactLayerRow = (
   row: CompactLayerRow,
   instanceIds: string[] = [],
-  version: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4 = COMPACT_V4,
+  version: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4 | typeof COMPACT_V5 = COMPACT_V5,
 ): ComponentInstance => {
   const typeCode = row[0];
   const { type, layoutMigration } = resolveCompactLayerType(typeCode, version);
@@ -504,10 +621,10 @@ const fromCompactLayerRow = (
 
 const buildCompactWire = (
   snapshot: BuilderDocumentSnapshot,
-  version: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4,
+  version: typeof COMPACT_V2 | typeof COMPACT_V3 | typeof COMPACT_V4 | typeof COMPACT_V5,
 ): CompactWire => {
   const idToIndex =
-    version === COMPACT_V3 || version === COMPACT_V4
+    version === COMPACT_V3 || version === COMPACT_V4 || version === COMPACT_V5
       ? new Map(snapshot.instances.map((instance, index) => [instance.id, index]))
       : undefined;
 
@@ -534,6 +651,9 @@ const toCompactV2 = (snapshot: BuilderDocumentSnapshot): CompactV2Wire =>
 
 const toCompactV4 = (snapshot: BuilderDocumentSnapshot): CompactV4Wire =>
   buildCompactWire(snapshot, COMPACT_V4) as CompactV4Wire;
+
+const toCompactV5 = (snapshot: BuilderDocumentSnapshot): CompactV5Wire =>
+  buildCompactWire(snapshot, COMPACT_V5) as CompactV5Wire;
 
 const toCompactV1 = (snapshot: BuilderDocumentSnapshot): CompactV1Wire => {
   const g = snapshot.gridConfig;
@@ -568,7 +688,10 @@ const expandCompactWire = (compact: CompactWire): BuilderDocumentSnapshot => {
 export const expandCompactBuilderDocumentSnapshot = (
   snapshot: BuilderDocumentSnapshot | CompactV1Wire | CompactWire,
 ): BuilderDocumentSnapshot => {
-  if ("v" in snapshot && (snapshot.v === COMPACT_V2 || snapshot.v === COMPACT_V3 || snapshot.v === COMPACT_V4)) {
+  if (
+    "v" in snapshot &&
+    (snapshot.v === COMPACT_V2 || snapshot.v === COMPACT_V3 || snapshot.v === COMPACT_V4 || snapshot.v === COMPACT_V5)
+  ) {
     return expandCompactWire(snapshot as CompactWire);
   }
 
@@ -606,12 +729,13 @@ export const expandCompactBuilderDocumentSnapshot = (
 };
 
 const minifiedCompactJsonCandidates = (snapshot: BuilderDocumentSnapshot): string[] => [
+  JSON.stringify(toCompactV5(snapshot)),
   JSON.stringify(toCompactV4(snapshot)),
 ];
 
-/** Minified compact JSON (v4; gzip may wrap further on copy). */
+/** Minified compact JSON (v5; gzip may wrap further on copy). */
 export const serializeBuilderDocumentSnapshot = (snapshot: BuilderDocumentSnapshot): string =>
-  JSON.stringify(toCompactV4(snapshot));
+  JSON.stringify(toCompactV5(snapshot));
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 
@@ -645,7 +769,10 @@ const isCompactLayerRow = (value: unknown): value is CompactLayerRow => {
 };
 
 const isCompactWire = (value: unknown): value is CompactWire => {
-  if (!isRecord(value) || (value.v !== COMPACT_V2 && value.v !== COMPACT_V3 && value.v !== COMPACT_V4)) {
+  if (
+    !isRecord(value) ||
+    (value.v !== COMPACT_V2 && value.v !== COMPACT_V3 && value.v !== COMPACT_V4 && value.v !== COMPACT_V5)
+  ) {
     return false;
   }
 

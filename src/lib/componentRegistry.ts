@@ -1,3 +1,5 @@
+import { getCodeSnippetMetrics, isCodeSnippetInstance } from "./code-snippet/layout";
+import { getCodeSnippetHighlightCornerInCanvasSpace } from "./code-snippet/resize";
 import {
   getIconBoxConnectorAnchorInRootSpace,
   getIconBoxFullHighlightBoundsInRootSpace,
@@ -15,6 +17,7 @@ import {
   BASE_UNIT,
   LARGE_CELL_SIZE,
   type ComponentInstance,
+  type CodeSnippetProps,
   type ComponentProps,
   type ComponentType,
   type ConnectorEndpoint,
@@ -88,6 +91,28 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
     snapAnchorY: 2,
     defaultProps: {
       theme: "orange",
+    },
+  },
+  "code-snippet": {
+    type: "code-snippet",
+    label: "Code Snippet",
+    width: 320,
+    height: 80,
+    snapAnchorX: 0,
+    snapAnchorY: 0,
+    defaultProps: {
+      code: 'import { DurableObject } from "cloudflare:workers";',
+      language: "auto",
+      theme: "orange",
+      widthCells: 8,
+      heightCells: 2,
+    },
+    dynamicTitle: (config) => {
+      if (!("code" in config)) {
+        return undefined;
+      }
+      const line = config.code.split("\n")[0]?.trim() ?? "";
+      return line.length ? line : undefined;
     },
   },
   "connector-line": {
@@ -202,6 +227,17 @@ export const snapComponentPosition = (
     return snapConnectorCellCenter(x, y, canvasWidth, canvasHeight);
   }
 
+  if (type === "code-snippet") {
+    const snippetProps = (props ?? getComponentDefinition("code-snippet").defaultProps) as CodeSnippetProps;
+    const metrics = getCodeSnippetMetrics(snippetProps);
+    const maxX = Math.max(0, canvasWidth - metrics.width);
+    const maxY = Math.max(0, canvasHeight - metrics.height);
+    return {
+      x: snapRootAxis(x, metrics.snapAnchorX, maxX),
+      y: snapRootAxis(y, metrics.snapAnchorY, maxY),
+    };
+  }
+
   if (type === "icon-box") {
     const iconProps = (props ?? getComponentDefinition("icon-box").defaultProps) as IconBoxProps;
     const metrics = getIconBoxMetrics(iconProps);
@@ -252,6 +288,15 @@ export const getInstanceCanvasBounds = (
   instance: ComponentInstance,
 ): { x: number; y: number; width: number; height: number } => {
   const definition = getComponentDefinition(instance.type);
+  if (isCodeSnippetInstance(instance)) {
+    const metrics = getCodeSnippetMetrics(instance.props);
+    return {
+      x: instance.x,
+      y: instance.y,
+      width: metrics.width,
+      height: metrics.height,
+    };
+  }
   if (isIconBoxInstance(instance)) {
     const { shadowCardBounds: r } = getIconBoxMetrics(instance.props);
     return {
@@ -306,6 +351,19 @@ export const getInstanceHighlightBounds = (
     };
   }
   return getInstanceCanvasBounds(instance);
+};
+
+export const getCodeSnippetHighlightStrokeCornerInCanvasSpace = (
+  instance: Extract<ComponentInstance, { type: "code-snippet" }>,
+  corner: IconBoxContainerReticleCorner,
+): { x: number; y: number } => {
+  const metrics = getCodeSnippetMetrics(instance.props);
+  return getCodeSnippetHighlightCornerInCanvasSpace(
+    { x: instance.x, y: instance.y },
+    metrics.width,
+    metrics.height,
+    corner,
+  );
 };
 
 /** Center point of the selection stroke at each highlight corner (matches selection-setup +0.5 nudge). */
@@ -381,6 +439,17 @@ export const createComponentInstance = (
       x: position.x,
       y: position.y,
       props: { ...(defaultProps as RectMarkerProps) },
+    };
+  }
+
+  if (type === "code-snippet") {
+    return {
+      id: `${type}-${index}`,
+      type,
+      name: `${definition.label} ${index}`,
+      x: position.x,
+      y: position.y,
+      props: { ...(defaultProps as CodeSnippetProps) },
     };
   }
 

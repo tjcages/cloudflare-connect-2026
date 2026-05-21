@@ -1,4 +1,9 @@
-import { getIconBoxHighlightStrokeCornerInCanvasSpace, getInstanceCanvasBounds } from "../lib/componentRegistry";
+import {
+  getCodeSnippetHighlightStrokeCornerInCanvasSpace,
+  getIconBoxHighlightStrokeCornerInCanvasSpace,
+  getInstanceCanvasBounds,
+} from "../lib/componentRegistry";
+import { isCodeSnippetInstance } from "../lib/code-snippet/layout";
 import { isIconBoxInstance, type IconBoxContainerReticleCorner } from "../lib/icon-box/layout";
 import type { ComponentInstance } from "../grid/types";
 import {
@@ -87,13 +92,40 @@ export const hitTestIconBoxResizeHandle = (
   return null;
 };
 
-export const hitTestSelectedIconBoxResizeHandle = (
+export const hitTestCodeSnippetResizeHandle = (
+  instance: Extract<ComponentInstance, { type: "code-snippet" }>,
+  x: number,
+  y: number,
+): { corner: IconBoxContainerReticleCorner } | null => {
+  const corners: IconBoxContainerReticleCorner[] = ["tl", "tr", "bl", "br"];
+  for (const corner of corners) {
+    const center = getCodeSnippetHighlightStrokeCornerInCanvasSpace(instance, corner);
+    if (
+      Math.abs(x - center.x) <= ICON_BOX_RESIZE_HANDLE_HIT_SLOP &&
+      Math.abs(y - center.y) <= ICON_BOX_RESIZE_HANDLE_HIT_SLOP
+    ) {
+      return { corner };
+    }
+  }
+  return null;
+};
+
+export const hitTestSelectedResizeHandle = (
   selectedInstance: ComponentInstance | null | undefined,
   x: number,
   y: number,
 ): { corner: IconBoxContainerReticleCorner } | null => {
-  if (!selectedInstance || !isIconBoxInstance(selectedInstance)) {
+  if (!selectedInstance) {
     return null;
   }
-  return hitTestIconBoxResizeHandle(selectedInstance, x, y);
+  if (isIconBoxInstance(selectedInstance)) {
+    return hitTestIconBoxResizeHandle(selectedInstance, x, y);
+  }
+  if (isCodeSnippetInstance(selectedInstance)) {
+    return hitTestCodeSnippetResizeHandle(selectedInstance, x, y);
+  }
+  return null;
 };
+
+/** @deprecated Use hitTestSelectedResizeHandle */
+export const hitTestSelectedIconBoxResizeHandle = hitTestSelectedResizeHandle;
