@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ComponentInstance } from "../../../grid/types";
+import { createGapMask } from "../../../grid/mask";
 import { createComponentInstance } from "../../../lib/componentRegistry";
 import {
   crossingsBetweenOrthoPolylines,
@@ -12,6 +13,24 @@ import {
   routeConnectorPath,
 } from "./route";
 import type { ConnectorEndpoint } from "../../../grid/types";
+
+const segmentCellTouchesGap = (
+  cell: { x: number; y: number; width: number; height: number },
+  gapMask: boolean[][],
+): boolean => {
+  const startRow = cell.y / 40;
+  const endRow = (cell.y + cell.height) / 40;
+  const startColumn = cell.x / 40;
+  const endColumn = (cell.x + cell.width) / 40;
+  for (let row = startRow; row < endRow; row += 1) {
+    for (let column = startColumn; column < endColumn; column += 1) {
+      if (gapMask[row]?.[column]) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
 
 describe("connector line routing", () => {
   it("resolves static cell endpoints and layer endpoints on the 80px connector lattice", () => {
@@ -102,6 +121,53 @@ describe("connector line routing", () => {
 
     expect(points.at(-2)?.y).toBe(200);
     expect(points.at(-2)?.x).not.toBe(200);
+  });
+
+  it("routes horizontal layer anchors out of and into component sides", () => {
+    const sourceBox = createComponentInstance("icon-box", 40, 40, 1, 800, 560);
+    const targetBox = createComponentInstance("icon-box", 240, 200, 2, 800, 560);
+    const source = resolveConnectorEndpoint({ kind: "layer", instanceId: sourceBox.id }, [sourceBox, targetBox]);
+    const target = resolveConnectorEndpoint({ kind: "layer", instanceId: targetBox.id }, [sourceBox, targetBox]);
+
+    expect(source).not.toBeNull();
+    expect(target).not.toBeNull();
+
+    const points = routeConnectorPath(source!, target!, "horizontal", { width: 800, height: 560 });
+
+    expect(points[1]!.y).toBe(points[0]!.y);
+    expect(points[1]!.x).not.toBe(points[0]!.x);
+    expect(points.at(-2)!.y).toBe(points.at(-1)!.y);
+    expect(points.at(-2)!.x).not.toBe(points.at(-1)!.x);
+  });
+
+  it("detours horizontal routes around gap-mask slots", () => {
+    const gapMask = createGapMask(6, 8);
+    gapMask[2]![2] = true;
+
+    const points = routeConnectorPath({ x: 40, y: 40 }, { x: 280, y: 200 }, "horizontal", {
+      width: 320,
+      height: 240,
+      gapMask,
+    });
+
+    expect(points).not.toContainEqual({ x: 120, y: 120 });
+    expect(points[1]!.y).toBe(points[0]!.y);
+    expect(points.at(-2)!.y).toBe(points.at(-1)!.y);
+    expect(getConnectorSegmentCells(points).some((cell) => segmentCellTouchesGap(cell, gapMask))).toBe(false);
+  });
+
+  it("checks blocked gap slots along long dogleg spans, not only at vertices", () => {
+    const gapMask = createGapMask(6, 12);
+    gapMask[2]![4] = true;
+
+    const points = routeConnectorPath({ x: 40, y: 40 }, { x: 440, y: 40 }, "horizontal", {
+      width: 480,
+      height: 240,
+      gapMask,
+    });
+
+    expect(points).not.toContainEqual({ x: 200, y: 120 });
+    expect(getConnectorSegmentCells(points).some((cell) => segmentCellTouchesGap(cell, gapMask))).toBe(false);
   });
 
   it("routes vertical preference by taking the first and last movement vertically when possible", () => {

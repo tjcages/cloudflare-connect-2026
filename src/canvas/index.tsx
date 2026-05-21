@@ -335,6 +335,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
             const hitInstance = hitTestComponentInstances(instances, point.x, point.y, {
               width: logicalWidth,
               height: logicalHeight,
+              gapMask: grid.config.gapMask,
             });
 
             if (!hitInstance) {
@@ -421,6 +422,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
               const hit = hitTestComponentInstances(instances, point.x, point.y, {
                 width: logicalWidth,
                 height: logicalHeight,
+                gapMask: grid.config.gapMask,
               });
               const nextId = hit?.id ?? null;
               if (nextId !== useAppStore.getState().canvasHoveredLayerId) {
@@ -509,6 +511,7 @@ export const GridCanvas = ({ canvasRef, onUserSelectedInstance }: BuilderCanvasP
               hitTestComponentInstances(instances, point.x, point.y, {
                 width: logicalWidth,
                 height: logicalHeight,
+                gapMask: grid.config.gapMask,
               })?.id ?? null;
             selectInstance(hitId);
             if (hitId) {

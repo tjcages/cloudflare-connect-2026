@@ -19,6 +19,7 @@ import {
   resolveConnectorEndpoint,
   routeConnectorPath,
   getConnectorSegmentCells,
+  type ConnectorRouteBounds,
 } from "./route";
 import { collectIconBoxHitsAlongConnector, resolveIconBoxLiveParticleEmit } from "./polylineIconBoxHits";
 import { getConnectorEndpointThemeSignature, resolveConnectorEndpointThemeFill } from "./sourceTheme";
@@ -103,7 +104,7 @@ export const getConnectorCornerCapRect = (point: { x: number; y: number }) => ({
 
 export const getConnectorJointPoints = (
   instances: ComponentInstance[],
-  bounds?: { width: number; height: number },
+  bounds?: ConnectorRouteBounds,
 ): Array<{ x: number; y: number }> => {
   const pointsByKey = new Map<string, { x: number; y: number }>();
 
@@ -170,7 +171,7 @@ export const connectorOwnsJointPoint = (
   instance: ConnectorLineInstance,
   joint: { x: number; y: number },
   instances: ComponentInstance[],
-  bounds: { width: number; height: number },
+  bounds: ConnectorRouteBounds,
 ): boolean => {
   const source = resolveConnectorEndpoint(instance.props.source, instances);
   const target = resolveConnectorEndpoint(instance.props.target, instances);
@@ -189,7 +190,7 @@ export const connectorOwnsJointPoint = (
 export const getConnectorInstancesOwningJoint = (
   joint: { x: number; y: number },
   instances: ComponentInstance[],
-  bounds: { width: number; height: number },
+  bounds: ConnectorRouteBounds,
 ): ConnectorLineInstance[] => {
   const out: ConnectorLineInstance[] = [];
   for (const inst of instances) {
@@ -207,7 +208,7 @@ export const getConnectorInstancesOwningJoint = (
 export const resolveSharedJointStrokeStyle = (
   joint: { x: number; y: number },
   instances: ComponentInstance[],
-  bounds: { width: number; height: number },
+  bounds: ConnectorRouteBounds,
   gridStrokeColor: number,
   selectedConnectorId: string | null,
   hoveredConnectorIds: ReadonlySet<string>,
@@ -264,7 +265,7 @@ const sortedIconLatticeBackdropRows = (instances: ComponentInstance[]): IconLatt
 export const getConnectorBaseLayerFingerprint = (
   instances: ComponentInstance[],
   gridStrokeColor: number,
-  bounds: { width: number; height: number },
+  bounds: ConnectorRouteBounds,
 ): string => {
   const rows: Array<{
     id: string;
@@ -317,7 +318,7 @@ export const paintConnectorBaseLayer = (
   iconLatticeBackdropGraphics: Graphics,
   instances: ComponentInstance[],
   gridStrokeColor: number,
-  bounds: { width: number; height: number },
+  bounds: ConnectorRouteBounds,
 ) => {
   latticePlaneGraphics.clear();
   iconLatticeBackdropGraphics.clear();
@@ -369,7 +370,7 @@ export const getConnectorRenderFingerprint = (
   instance: Extract<ComponentInstance, { type: "connector-line" }>,
   instances: ComponentInstance[],
   gridStrokeColor: number,
-  bounds: { width: number; height: number },
+  bounds: ConnectorRouteBounds,
   chromeHighlighted: boolean,
   highlightChromeAlpha: number,
 ): string | null => {
@@ -406,7 +407,7 @@ export const buildConnectorInstanceChrome = (
   gridStrokeColor: number,
   gridStrokeHex: string,
   hitEffects: ConnectorChromeHitEffects,
-  bounds?: { width: number; height: number },
+  bounds?: ConnectorRouteBounds,
   chromeHighlighted = false,
   highlightChromeAlpha = 1,
 ): ConnectorDisplayParts | null => {

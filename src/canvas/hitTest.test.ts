@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hitTestComponentInstances } from "./hitTest";
+import { createGapMask } from "../grid/mask";
 import { DEFAULT_ICON_ID } from "../lib/iconRegistry";
 import type { ComponentInstance } from "../grid/types";
 
@@ -68,6 +69,36 @@ describe("hitTestComponentInstances", () => {
 
     expect(hitTestComponentInstances([connector], 120, 440, { width: 800, height: 560 })?.id).toBe("connector-line-1");
     expect(hitTestComponentInstances([connector], 120, 600, { width: 800, height: 560 })).toBeUndefined();
+  });
+
+  it("hit tests gap-detoured connector routes used for rendering", () => {
+    const connector: ComponentInstance = {
+      ...createConnector(),
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 40, y: 40 },
+        target: { kind: "cell", x: 280, y: 200 },
+        overlayGrid: true,
+        animated: true,
+      },
+    };
+    const gapMask = createGapMask(6, 8);
+    gapMask[2]![2] = true;
+
+    expect(
+      hitTestComponentInstances([connector], 200, 120, {
+        width: 320,
+        height: 240,
+        gapMask,
+      })?.id,
+    ).toBe("connector-line-1");
+    expect(
+      hitTestComponentInstances([connector], 120, 120, {
+        width: 320,
+        height: 240,
+        gapMask,
+      }),
+    ).toBeUndefined();
   });
 
   it("hit tests plus-marker against its 40×40 registry bounds", () => {

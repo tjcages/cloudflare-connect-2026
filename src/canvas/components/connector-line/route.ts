@@ -1,15 +1,17 @@
 import { getInstanceAnchorPoint } from "../../../lib/componentRegistry";
 import {
+  BASE_UNIT,
   LARGE_CELL_SIZE,
   type ComponentInstance,
   type ConnectorConnectionPreference,
   type ConnectorEndpoint,
+  type GapMask,
 } from "../../../grid/types";
 
 export type ConnectorPoint = { x: number; y: number };
 
 export type ConnectorSegmentCell = { x: number; y: number; width: number; height: number };
-export type ConnectorRouteBounds = { width: number; height: number };
+export type ConnectorRouteBounds = { width: number; height: number; gapMask?: GapMask };
 
 const snapToConnectorLattice = (value: number): number =>
   LARGE_CELL_SIZE / 2 + Math.round((value - LARGE_CELL_SIZE / 2) / LARGE_CELL_SIZE) * LARGE_CELL_SIZE;
@@ -66,6 +68,248 @@ const moveAlongAxis = (points: ConnectorPoint[], from: ConnectorPoint, axis: "x"
     pushPoint(points, current);
   }
   return current;
+};
+
+type ConnectorDirection = "left" | "right" | "up" | "down";
+type ConnectorSearchDirection = ConnectorDirection | "start";
+
+const CONNECTOR_DIRECTIONS: ConnectorDirection[] = ["right", "left", "down", "up"];
+
+const samePoint = (a: ConnectorPoint, b: ConnectorPoint): boolean => a.x === b.x && a.y === b.y;
+
+const directionAxis = (direction: ConnectorDirection): "x" | "y" =>
+  direction === "left" || direction === "right" ? "x" : "y";
+
+const preferredAxis = (preferredConnection: ConnectorConnectionPreference): "x" | "y" =>
+  preferredConnection === "horizontal" ? "x" : "y";
+
+const getEffectiveRouteBounds = (
+  source: ConnectorPoint,
+  target: ConnectorPoint,
+  bounds?: ConnectorRouteBounds,
+): ConnectorRouteBounds => ({
+  width: bounds?.width ?? Math.max(source.x, target.x) + LARGE_CELL_SIZE * 2 + LARGE_CELL_SIZE / 2,
+  height: bounds?.height ?? Math.max(source.y, target.y) + LARGE_CELL_SIZE * 2 + LARGE_CELL_SIZE / 2,
+  gapMask: bounds?.gapMask,
+});
+
+const connectorCellTouchesGap = (point: ConnectorPoint, gapMask: GapMask): boolean => {
+  const cellX = point.x - LARGE_CELL_SIZE / 2;
+  const cellY = point.y - LARGE_CELL_SIZE / 2;
+  const startColumn = Math.floor(cellX / BASE_UNIT);
+  const endColumn = Math.ceil((cellX + LARGE_CELL_SIZE) / BASE_UNIT);
+  const startRow = Math.floor(cellY / BASE_UNIT);
+  const endRow = Math.ceil((cellY + LARGE_CELL_SIZE) / BASE_UNIT);
+
+  for (let row = startRow; row < endRow; row += 1) {
+    for (let column = startColumn; column < endColumn; column += 1) {
+      if (gapMask[row]?.[column]) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+const isConnectorPointBlocked = (point: ConnectorPoint, bounds?: ConnectorRouteBounds): boolean =>
+  bounds?.gapMask ? connectorCellTouchesGap(point, bounds.gapMask) : false;
+
+const eachPointAlongSegment = (
+  a: ConnectorPoint,
+  b: ConnectorPoint,
+  visit: (point: ConnectorPoint) => boolean,
+): boolean => {
+  let current = a;
+  while (!samePoint(current, b)) {
+    if (a.y === b.y) {
+      current = { x: stepToward(current.x, b.x), y: current.y };
+    } else if (a.x === b.x) {
+      current = { x: current.x, y: stepToward(current.y, b.y) };
+    } else {
+      current = {
+        x: stepToward(current.x, b.x),
+        y: stepToward(current.y, b.y),
+      };
+    }
+    if (visit(current)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const pathTouchesBlockedGap = (points: ConnectorPoint[], bounds?: ConnectorRouteBounds): boolean => {
+  if (points.length === 0) {
+    return false;
+  }
+  if (isConnectorPointBlocked(points[0]!, bounds)) {
+    return true;
+  }
+  for (let index = 0; index < points.length - 1; index += 1) {
+    if (eachPointAlongSegment(points[index]!, points[index + 1]!, (point) => isConnectorPointBlocked(point, bounds))) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const buildConnectorAxisValues = (size: number, extraValues: number[]): number[] => {
+  const min = LARGE_CELL_SIZE / 2;
+  const max = Math.max(min, size - LARGE_CELL_SIZE / 2);
+  const values = new Set<number>([min, max]);
+  for (let value = min; value <= max; value += LARGE_CELL_SIZE) {
+    values.add(value);
+  }
+  for (const value of extraValues) {
+    if (Number.isFinite(value) && value >= 0 && value <= size) {
+      values.add(value);
+    }
+  }
+  return [...values].sort((a, b) => a - b);
+};
+
+const orderedDirectionsTowardTarget = (
+  point: ConnectorPoint,
+  target: ConnectorPoint,
+  preferredConnection: ConnectorConnectionPreference,
+): ConnectorDirection[] => {
+  const horizontalFirst: ConnectorDirection[] = [
+    target.x >= point.x ? "right" : "left",
+    target.x >= point.x ? "left" : "right",
+    target.y >= point.y ? "down" : "up",
+    target.y >= point.y ? "up" : "down",
+  ];
+  const verticalFirst: ConnectorDirection[] = [
+    target.y >= point.y ? "down" : "up",
+    target.y >= point.y ? "up" : "down",
+    target.x >= point.x ? "right" : "left",
+    target.x >= point.x ? "left" : "right",
+  ];
+  const ordered = preferredConnection === "horizontal" ? horizontalFirst : verticalFirst;
+  return ordered.filter((direction, index) => ordered.indexOf(direction) === index);
+};
+
+const neighborInDirection = (
+  point: ConnectorPoint,
+  direction: ConnectorDirection,
+  xValues: number[],
+  yValues: number[],
+): ConnectorPoint | null => {
+  if (direction === "left" || direction === "right") {
+    const index = xValues.indexOf(point.x);
+    const nextIndex = direction === "left" ? index - 1 : index + 1;
+    const x = xValues[nextIndex];
+    return x === undefined ? null : { x, y: point.y };
+  }
+  const index = yValues.indexOf(point.y);
+  const nextIndex = direction === "up" ? index - 1 : index + 1;
+  const y = yValues[nextIndex];
+  return y === undefined ? null : { x: point.x, y };
+};
+
+const routeSearchStateKey = (point: ConnectorPoint, direction: ConnectorSearchDirection): string =>
+  `${point.x}:${point.y}:${direction}`;
+
+const pointDistanceToTarget = (point: ConnectorPoint, target: ConnectorPoint): number =>
+  Math.abs(target.x - point.x) + Math.abs(target.y - point.y);
+
+const findConnectorRoute = (
+  source: ConnectorPoint,
+  target: ConnectorPoint,
+  preferredConnection: ConnectorConnectionPreference,
+  bounds: ConnectorRouteBounds,
+  enforceFirstAxis: boolean,
+  enforceFinalAxis: boolean,
+): ConnectorPoint[] | null => {
+  if (samePoint(source, target)) {
+    return [source];
+  }
+
+  const xValues = buildConnectorAxisValues(bounds.width, [source.x, target.x]);
+  const yValues = buildConnectorAxisValues(bounds.height, [source.y, target.y]);
+  const axis = preferredAxis(preferredConnection);
+  const maxVisited = xValues.length * yValues.length * (CONNECTOR_DIRECTIONS.length + 1);
+  type SearchState = {
+    point: ConnectorPoint;
+    direction: ConnectorSearchDirection;
+    cost: number;
+    path: ConnectorPoint[];
+  };
+
+  const open: SearchState[] = [{ point: source, direction: "start", cost: 0, path: [source] }];
+  const bestCost = new Map<string, number>([[routeSearchStateKey(source, "start"), 0]]);
+  let visited = 0;
+
+  while (open.length > 0 && visited <= maxVisited) {
+    open.sort(
+      (a, b) =>
+        a.cost - b.cost ||
+        pointDistanceToTarget(a.point, target) - pointDistanceToTarget(b.point, target) ||
+        routeSearchStateKey(a.point, a.direction).localeCompare(routeSearchStateKey(b.point, b.direction)),
+    );
+    const state = open.shift()!;
+    visited += 1;
+
+    if (samePoint(state.point, target)) {
+      return state.path;
+    }
+
+    for (const direction of orderedDirectionsTowardTarget(state.point, target, preferredConnection)) {
+      if (state.direction === "start" && enforceFirstAxis && directionAxis(direction) !== axis) {
+        continue;
+      }
+
+      const neighbor = neighborInDirection(state.point, direction, xValues, yValues);
+      if (!neighbor) {
+        continue;
+      }
+
+      const reachesTarget = samePoint(neighbor, target);
+      if (reachesTarget && enforceFinalAxis && directionAxis(direction) !== axis) {
+        continue;
+      }
+
+      if (!reachesTarget && !samePoint(neighbor, source) && isConnectorPointBlocked(neighbor, bounds)) {
+        continue;
+      }
+
+      const stepCost = Math.abs(neighbor.x - state.point.x) + Math.abs(neighbor.y - state.point.y);
+      const bendCost = state.direction !== "start" && state.direction !== direction ? LARGE_CELL_SIZE / 4 : 0;
+      const axisCost = directionAxis(direction) === axis ? 0 : 1;
+      const nextCost = state.cost + stepCost + bendCost + axisCost;
+      const key = routeSearchStateKey(neighbor, direction);
+      const knownCost = bestCost.get(key);
+      if (knownCost !== undefined && knownCost <= nextCost) {
+        continue;
+      }
+
+      bestCost.set(key, nextCost);
+      open.push({
+        point: neighbor,
+        direction,
+        cost: nextCost,
+        path: [...state.path, neighbor],
+      });
+    }
+  }
+
+  return null;
+};
+
+const routeWithPathSearch = (
+  source: ConnectorPoint,
+  target: ConnectorPoint,
+  preferredConnection: ConnectorConnectionPreference,
+  bounds?: ConnectorRouteBounds,
+): ConnectorPoint[] | null => {
+  const effectiveBounds = getEffectiveRouteBounds(source, target, bounds);
+  return (
+    findConnectorRoute(source, target, preferredConnection, effectiveBounds, true, true) ??
+    findConnectorRoute(source, target, preferredConnection, effectiveBounds, false, true) ??
+    findConnectorRoute(source, target, preferredConnection, effectiveBounds, true, false) ??
+    findConnectorRoute(source, target, preferredConnection, effectiveBounds, false, false)
+  );
 };
 
 /** East/west offset for leaving the target column with room to finish on a horizontal leg. */
@@ -256,7 +500,8 @@ const ensureHorizontalFinalLegIntoTarget = (
   }
   const p1 = { x: penultimate.x + jogSign * LARGE_CELL_SIZE, y: penultimate.y };
   const p2 = { x: p1.x, y: target.y };
-  return [...points.slice(0, -1), p1, p2, target];
+  const repaired = [...points.slice(0, -1), p1, p2, target];
+  return pathTouchesBlockedGap(repaired, bounds) ? points : repaired;
 };
 
 export const routeConnectorPath = (
@@ -273,6 +518,11 @@ export const routeConnectorPath = (
   } else {
     points = routeBothAxes(source, target, preferredConnection, bounds);
   }
+
+  if (pathTouchesBlockedGap(points, bounds)) {
+    points = routeWithPathSearch(source, target, preferredConnection, bounds) ?? points;
+  }
+
   if (preferredConnection === "horizontal") {
     points = ensureHorizontalFinalLegIntoTarget(points, target, bounds);
   }

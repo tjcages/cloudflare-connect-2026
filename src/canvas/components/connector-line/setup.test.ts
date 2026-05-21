@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ParticleContainer, Texture } from "pixi.js";
+import { createGapMask } from "../../../grid/mask";
 import { createComponentInstance, COMPONENT_REGISTRY } from "../../../lib/componentRegistry";
 import type { ComponentInstance, IconBoxProps } from "../../../grid/types";
 import { parseHexColor } from "../../color";
@@ -123,6 +124,34 @@ describe("connector line render spec", () => {
     const fpLo = getConnectorBaseLayerFingerprint([a, b], 0x333333, bounds);
     const fpHi = getConnectorBaseLayerFingerprint([b, a], 0x333333, bounds);
     expect(fpLo).toBe(fpHi);
+  });
+
+  it("changes the base-layer fingerprint when gap-aware routing changes topology", () => {
+    const connector: ComponentInstance = {
+      id: "c-gap-aware",
+      type: "connector-line",
+      name: "Gap Aware",
+      x: 0,
+      y: 0,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 40, y: 40 },
+        target: { kind: "cell", x: 280, y: 200 },
+        overlayGrid: false,
+        animated: false,
+      },
+    };
+    const gapMask = createGapMask(6, 8);
+    gapMask[2]![2] = true;
+
+    const base = getConnectorBaseLayerFingerprint([connector], 0x333333, { width: 320, height: 240 });
+    const detoured = getConnectorBaseLayerFingerprint([connector], 0x333333, {
+      width: 320,
+      height: 240,
+      gapMask,
+    });
+
+    expect(detoured).not.toBe(base);
   });
 
   it("resolves joint stroke to grid color for cell endpoints", () => {

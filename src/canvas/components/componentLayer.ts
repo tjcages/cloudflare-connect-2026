@@ -1,7 +1,7 @@
 import { animate, motionValue } from "motion";
 import { Container, Graphics, ParticleContainer, Rectangle, Texture } from "pixi.js";
 import type { Ticker } from "../../components/pixi";
-import type { ComponentInstance } from "../../grid/types";
+import type { ComponentInstance, GapMask } from "../../grid/types";
 import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
 import { isIconBoxInstance } from "../../lib/icon-box/layout";
 import { useAppStore } from "../../store";
@@ -69,6 +69,8 @@ export const COMPONENT_LAYER_PARTICLE_OVERLAY_Z = COMPONENT_LAYER_BASE_Z + 1000;
 const CONNECTOR_HIT_NUDGE_OUT_SEC = 0.09;
 const CONNECTOR_HIT_NUDGE_RETURN_SEC = 0.2;
 
+type ConnectorRouteContext = { width: number; height: number; gapMask?: GapMask };
+
 type LayerCacheEntry =
   | {
       kind: "icon-box";
@@ -131,7 +133,7 @@ const destroyLayerEntry = (entry: LayerCacheEntry) => {
 const syncSharedConnectorJoints = (
   jointsChromeRoot: Graphics,
   instances: ComponentInstance[],
-  bounds: { width: number; height: number },
+  bounds: ConnectorRouteContext,
   gridStrokeColor: number,
   selectedConnectorId: string | null,
   hoveredConnectorIds: ReadonlySet<string>,
@@ -160,7 +162,7 @@ const syncConnectorBasePlane = (
   baseFingerprintCache: { value: string },
   instances: ComponentInstance[],
   gridStrokeColor: number,
-  bounds: { width: number; height: number },
+  bounds: ConnectorRouteContext,
 ) => {
   const nextFp = getConnectorBaseLayerFingerprint(instances, gridStrokeColor, bounds);
   if (nextFp === baseFingerprintCache.value) {
@@ -193,7 +195,7 @@ const syncLayers = (
   const gridStrokeColor = parseHexColor(gridStrokeHex);
   const previewInstance = dragState?.mode === "create" ? dragState.preview : null;
   const toDraw = previewInstance === null ? instances : [...instances, previewInstance];
-  const bounds = { width: grid.config.logicalWidth, height: grid.config.logicalHeight };
+  const bounds = { width: grid.config.logicalWidth, height: grid.config.logicalHeight, gapMask: grid.config.gapMask };
 
   const selectedConnectorId =
     selectedInstanceId && toDraw.find((i) => i.id === selectedInstanceId)?.type === "connector-line"
@@ -287,7 +289,7 @@ const syncConnectorLine = (
   cache: Map<string, LayerCacheEntry>,
   gridStrokeColor: number,
   gridStrokeHex: string,
-  bounds: { width: number; height: number },
+  bounds: ConnectorRouteContext,
   selectedInstanceId: string | null,
   hoveredConnectorIds: ReadonlySet<string>,
   /**
