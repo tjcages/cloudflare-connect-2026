@@ -142,16 +142,3 @@ export const appendDashedRectOutline = (
     dashOff,
   );
 };
-
-/** Append a dashed rounded-rect outline by walking four straight edges (corners stay square for tiny caps). */
-export const appendDashedRoundRectOutline = (
-  graphics: Graphics,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  dashOn: number,
-  dashOff: number,
-): void => {
-  appendDashedRectOutline(graphics, x, y, width, height, dashOn, dashOff);
-};

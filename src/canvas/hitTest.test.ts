@@ -57,7 +57,7 @@ describe("hitTestComponentInstances", () => {
   });
 
   it("hit tests the same bounded dogleg route used for rendering", () => {
-    const base = createConnector() as Extract<ComponentInstance, { type: "connector-line" }>;
+    const base = createConnector();
     const connector: ComponentInstance = {
       ...base,
       props: {

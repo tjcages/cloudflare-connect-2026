@@ -372,8 +372,9 @@ describe("connector line routing", () => {
       },
     };
 
-    expect(routeConnectorPathForInstance(connector, [connector], bounds).at(-1)).toEqual({ x: 800, y: 120 });
-    expect(routeConnectorPathForInstance(connector, [connector], bounds).at(-2)).toEqual({ x: 760, y: 120 });
+    const routed = routeConnectorPathForInstance(connector, [connector], bounds);
+    expect(routed.at(-1)).toEqual({ x: 800, y: 120 });
+    expect(routed.at(-2)).toEqual({ x: 760, y: 120 });
   });
 
   it("does not add a misaligned segment cell for static end leg edge points", () => {

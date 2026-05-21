@@ -435,7 +435,6 @@ const routeDirect = (source: ConnectorPoint, target: ConnectorPoint): ConnectorP
 const routeStraightWithDogleg = (
   source: ConnectorPoint,
   target: ConnectorPoint,
-  preferredConnection: ConnectorConnectionPreference,
   bounds?: ConnectorRouteBounds,
 ): ConnectorPoint[] => {
   const horizontal = source.y === target.y;
@@ -465,7 +464,7 @@ const routeStraightWithDogleg = (
   const y1 = source.y + sign(target.y - source.y) * LARGE_CELL_SIZE;
   const y2 = target.y - sign(target.y - source.y) * LARGE_CELL_SIZE;
   const doglegSign = canDoglegRight ? 1 : -1;
-  const x = source.x + (preferredConnection === "vertical" ? doglegSign : doglegSign) * LARGE_CELL_SIZE;
+  const x = source.x + doglegSign * LARGE_CELL_SIZE;
   return [source, { x: source.x, y: y1 }, { x, y: y1 }, { x, y: y2 }, { x: target.x, y: y2 }, target];
 };
 
@@ -477,7 +476,7 @@ const routeCollinearVerticalWithHorizontalLead = (
 ): ConnectorPoint[] => {
   const jogSign = pickHorizontalJogSign(source, bounds);
   if (jogSign === null) {
-    return routeStraightWithDogleg(source, target, "horizontal", bounds);
+    return routeStraightWithDogleg(source, target, bounds);
   }
   const jog = { x: source.x + jogSign * LARGE_CELL_SIZE, y: source.y };
   return [source, ...routeBothAxes(jog, target, "horizontal", bounds, true)];
@@ -519,7 +518,7 @@ export const routeConnectorPath = (
   if (preferredConnection === "horizontal" && source.x === target.x && source.y !== target.y) {
     points = routeCollinearVerticalWithHorizontalLead(source, target, bounds);
   } else if (source.x === target.x || source.y === target.y) {
-    points = routeStraightWithDogleg(source, target, preferredConnection, bounds);
+    points = routeStraightWithDogleg(source, target, bounds);
   } else {
     points = routeBothAxes(source, target, preferredConnection, bounds);
   }

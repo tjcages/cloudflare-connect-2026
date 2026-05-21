@@ -20,11 +20,7 @@ import {
   connectorJointShouldDash,
   resolveSharedJointStrokeStyle,
 } from "./connector-line/setup";
-import {
-  appendDashedRoundRectOutline,
-  CONNECTOR_DASH_OFF_PX,
-  CONNECTOR_DASH_ON_PX,
-} from "./connector-line/dashedStroke";
+import { appendDashedRectOutline, CONNECTOR_DASH_OFF_PX, CONNECTOR_DASH_ON_PX } from "./connector-line/dashedStroke";
 import { buildCodeSnippet } from "./code-snippet/build";
 import { buildIconBox, type IconBoxRenderableInstance } from "./icon-box/build";
 import { iconBoxLineEnableCoordinator } from "./icon-box/iconBoxLineEnableCoordinator";
@@ -166,7 +162,7 @@ const syncSharedConnectorJoints = (
     const dashed = connectorJointShouldDash(point, instances, bounds);
     jointsChromeRoot.roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius).fill({ color: 0xffffff });
     if (dashed) {
-      appendDashedRoundRectOutline(
+      appendDashedRectOutline(
         jointsChromeRoot,
         rect.x,
         rect.y,
