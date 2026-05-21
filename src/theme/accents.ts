@@ -36,3 +36,9 @@ export const BORDER_DEFAULT = {
   hex: "#F3F3F3",
   displayP3: "color(display-p3 0.9542 0.9542 0.9542)",
 } as const;
+
+/** Muted code-snippet body text (`--Text-Faint`). */
+export const TEXT_FAINT = {
+  hex: "#E0E0E0",
+  displayP3: "color(display-p3 0.8799 0.8799 0.8799)",
+} as const;

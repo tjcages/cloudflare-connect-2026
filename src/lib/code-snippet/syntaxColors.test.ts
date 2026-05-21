@@ -6,7 +6,7 @@ describe("getCodeSnippetSyntaxColors", () => {
     const orange = getCodeSnippetSyntaxColors("orange");
     expect(orange.accentHex).toBe("#FF4802");
     expect(orange.stringHex).toBe("#9C37FF");
-    expect(orange.mutedHex).toBe("#B3B3B3");
+    expect(orange.mutedHex).toBe("#E0E0E0");
   });
 
   it("swaps accent and string for purple theme", () => {

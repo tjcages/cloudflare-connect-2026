@@ -1,3 +1,4 @@
+import { TEXT_FAINT } from "../../theme/accents";
 import { paletteBrush, type PaletteBrushOptions, type PaletteThemeId } from "../../theme/palette";
 
 /** Pairs each layer theme with a second palette id for string literals. */
@@ -21,10 +22,9 @@ export function getCodeSnippetSyntaxColors(
 ): CodeSnippetSyntaxColors {
   const primary = paletteBrush(themeId, options);
   const strings = paletteBrush(STRING_THEME_PAIR[themeId], options);
-  const muted = paletteBrush("neutral", options);
   return {
     accentHex: primary.fillHex,
     stringHex: strings.fillHex,
-    mutedHex: muted.iconFillHex,
+    mutedHex: TEXT_FAINT.hex,
   };
 }
