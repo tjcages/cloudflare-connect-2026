@@ -8,7 +8,7 @@ import { isIconBoxInstance, type IconBoxContainerReticleCorner } from "../lib/ic
 import type { ComponentInstance } from "../grid/types";
 import {
   resolveConnectorEndpoint,
-  routeConnectorPath,
+  routeConnectorPathForInstance,
   type ConnectorRouteBounds,
 } from "./components/connector-line/route";
 
@@ -30,7 +30,7 @@ const isPointNearConnectorPath = (
     return false;
   }
 
-  const points = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
+  const points = routeConnectorPathForInstance(instance, instances, bounds);
   for (let index = 0; index < points.length - 1; index += 1) {
     const a = points[index];
     const b = points[index + 1];

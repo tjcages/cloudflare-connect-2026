@@ -21,6 +21,8 @@ const connectorTargeting = (targetId: string): ComponentInstance => ({
     target: { kind: "layer", instanceId: targetId },
     overlayGrid: true,
     animated: true,
+    style: "solid",
+    staticEndLeg: "unset",
   },
 });
 
@@ -36,6 +38,8 @@ const connectorFromLayerSource = (id: string, sourceId: string): ComponentInstan
     target: { kind: "cell", x: 120, y: 40 },
     overlayGrid: true,
     animated: true,
+    style: "solid",
+    staticEndLeg: "unset",
   },
 });
 

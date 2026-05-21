@@ -128,6 +128,8 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
       target: { kind: "cell", x: LARGE_CELL_SIZE * 2 + LARGE_CELL_SIZE / 2, y: LARGE_CELL_SIZE / 2 },
       overlayGrid: true,
       animated: true,
+      style: "solid",
+      staticEndLeg: "unset",
     },
   },
 };

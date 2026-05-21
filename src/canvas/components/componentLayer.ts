@@ -17,8 +17,14 @@ import {
   getConnectorJointPoints,
   getConnectorRenderFingerprint,
   paintConnectorBaseLayer,
+  connectorJointShouldDash,
   resolveSharedJointStrokeStyle,
 } from "./connector-line/setup";
+import {
+  appendDashedRoundRectOutline,
+  CONNECTOR_DASH_OFF_PX,
+  CONNECTOR_DASH_ON_PX,
+} from "./connector-line/dashedStroke";
 import { buildCodeSnippet } from "./code-snippet/build";
 import { buildIconBox, type IconBoxRenderableInstance } from "./icon-box/build";
 import { iconBoxLineEnableCoordinator } from "./icon-box/iconBoxLineEnableCoordinator";
@@ -157,10 +163,22 @@ const syncSharedConnectorJoints = (
       selectedConnectorId,
       hoveredConnectorIds,
     );
-    jointsChromeRoot
-      .roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius)
-      .fill({ color: 0xffffff })
-      .stroke({ width: 1, color: stroke.color, alpha: stroke.alpha });
+    const dashed = connectorJointShouldDash(point, instances, bounds);
+    jointsChromeRoot.roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius).fill({ color: 0xffffff });
+    if (dashed) {
+      appendDashedRoundRectOutline(
+        jointsChromeRoot,
+        rect.x,
+        rect.y,
+        rect.size,
+        rect.size,
+        CONNECTOR_DASH_ON_PX,
+        CONNECTOR_DASH_OFF_PX,
+      );
+    } else {
+      jointsChromeRoot.roundRect(rect.x, rect.y, rect.size, rect.size, rect.radius);
+    }
+    jointsChromeRoot.stroke({ width: 1, color: stroke.color, alpha: stroke.alpha });
   }
 };
 

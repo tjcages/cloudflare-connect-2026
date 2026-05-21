@@ -11,6 +11,8 @@ const defaultConnectorProps = {
   preferredConnection: "horizontal" as const,
   overlayGrid: true,
   animated: true,
+  style: "solid" as const,
+  staticEndLeg: "unset" as const,
 };
 
 describe("buildHoveredConnectorIds", () => {
@@ -27,6 +29,8 @@ describe("buildHoveredConnectorIds", () => {
         target: { kind: "cell", x: 200, y: 40 },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     const box = createComponentInstance("icon-box", 40, 40, 1, 800, 560);

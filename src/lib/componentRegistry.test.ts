@@ -72,6 +72,8 @@ describe("componentRegistry", () => {
       target: { kind: "cell", x: 200, y: 40 },
       overlayGrid: true,
       animated: true,
+      style: "solid",
+      staticEndLeg: "unset",
     });
   });
 
@@ -260,6 +262,8 @@ describe("componentRegistry", () => {
         target: { kind: "cell", x: 280, y: 120 },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     });
   });
@@ -295,6 +299,8 @@ describe("componentRegistry", () => {
         target: { kind: "layer", instanceId: durable.id },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     const instances = [ib1, durable, connector];
@@ -314,6 +320,8 @@ describe("componentRegistry", () => {
         target: { kind: "cell", x: 360, y: 240 },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     expect(getInstanceLayerSubtitle(connector, [])).toBe("x: 200 y: 120 → x: 360 y: 240");
@@ -341,6 +349,8 @@ describe("componentRegistry", () => {
         target: { kind: "layer", instanceId: titled.id },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     expect(getInstanceLayerSubtitle(connector, [iconNoTitle, titled, connector])).toBe("Icon Box → Icon Box / Workers");
@@ -360,6 +370,8 @@ describe("componentRegistry", () => {
         target: { kind: "layer", instanceId: ib.id },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     expect(getInstanceLayerSubtitle(connector, [ib, connector])).toBe("x: 40 y: 40 → Icon Box / Workers");

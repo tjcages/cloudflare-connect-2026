@@ -31,6 +31,8 @@ const connectorCellToLayer = (id: string, targetId: string): ComponentInstance =
     target: { kind: "layer", instanceId: targetId },
     overlayGrid: true,
     animated: true,
+    style: "solid",
+    staticEndLeg: "unset",
   },
 });
 
@@ -46,6 +48,8 @@ const connectorLayerToSameLayer = (id: string, boxId: string): ComponentInstance
     target: { kind: "layer", instanceId: boxId },
     overlayGrid: true,
     animated: true,
+    style: "solid",
+    staticEndLeg: "unset",
   },
 });
 

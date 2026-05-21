@@ -11,7 +11,9 @@ import {
   getConnectorBaseLayerFingerprint,
   getConnectorCornerCapRect,
   getConnectorJointPoints,
+  getConnectorRenderFingerprint,
   getConnectorRenderSpec,
+  connectorJointShouldDash,
   resolveSharedJointStrokeStyle,
 } from "./setup";
 
@@ -62,6 +64,8 @@ describe("connector line render spec", () => {
           target: { kind: "cell", x: 120, y: 120 },
           overlayGrid: true,
           animated: true,
+          style: "solid",
+          staticEndLeg: "unset",
         },
       },
       {
@@ -76,6 +80,8 @@ describe("connector line render spec", () => {
           target: { kind: "cell", x: 120, y: 40 },
           overlayGrid: true,
           animated: true,
+          style: "solid",
+          staticEndLeg: "unset",
         },
       },
     ];
@@ -105,6 +111,8 @@ describe("connector line render spec", () => {
         target: { kind: "cell", x: 120, y: 40 },
         overlayGrid: false,
         animated: false,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     const b: ComponentInstance = {
@@ -119,6 +127,8 @@ describe("connector line render spec", () => {
         target: { kind: "cell", x: 120, y: 120 },
         overlayGrid: false,
         animated: false,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     const fpLo = getConnectorBaseLayerFingerprint([a, b], 0x333333, bounds);
@@ -139,6 +149,8 @@ describe("connector line render spec", () => {
         target: { kind: "cell", x: 280, y: 200 },
         overlayGrid: false,
         animated: false,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     const gapMask = createGapMask(6, 8);
@@ -152,6 +164,131 @@ describe("connector line render spec", () => {
     });
 
     expect(detoured).not.toBe(base);
+  });
+
+  it("changes the base-layer fingerprint when connector style changes", () => {
+    const bounds = { width: 800, height: 560 };
+    const solid: ComponentInstance = {
+      id: "c-style",
+      type: "connector-line",
+      name: "Style",
+      x: 0,
+      y: 0,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 40, y: 40 },
+        target: { kind: "cell", x: 120, y: 40 },
+        overlayGrid: true,
+        animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
+      },
+    };
+    const dashed: ComponentInstance = {
+      ...solid,
+      props: { ...solid.props, style: "dashed" },
+    };
+
+    expect(getConnectorBaseLayerFingerprint([solid], 0x333333, bounds)).not.toBe(
+      getConnectorBaseLayerFingerprint([dashed], 0x333333, bounds),
+    );
+  });
+
+  it("changes the render fingerprint when connector style changes", () => {
+    const bounds = { width: 800, height: 560 };
+    const solid: Extract<ComponentInstance, { type: "connector-line" }> = {
+      id: "c-style",
+      type: "connector-line",
+      name: "Style",
+      x: 0,
+      y: 0,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 40, y: 40 },
+        target: { kind: "cell", x: 120, y: 40 },
+        overlayGrid: true,
+        animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
+      },
+    };
+    const dashed: Extract<ComponentInstance, { type: "connector-line" }> = {
+      ...solid,
+      props: { ...solid.props, style: "dashed" },
+    };
+
+    expect(getConnectorRenderFingerprint(solid, [solid], 0x333333, bounds, false, 1)).not.toBe(
+      getConnectorRenderFingerprint(dashed, [dashed], 0x333333, bounds, false, 1),
+    );
+  });
+
+  it("changes the render fingerprint when static end leg changes", () => {
+    const bounds = { width: 800, height: 560 };
+    const base: Extract<ComponentInstance, { type: "connector-line" }> = {
+      id: "c-end-leg",
+      type: "connector-line",
+      name: "End Leg",
+      x: 0,
+      y: 0,
+      props: {
+        preferredConnection: "horizontal",
+        source: { kind: "cell", x: 40, y: 40 },
+        target: { kind: "cell", x: 120, y: 40 },
+        overlayGrid: true,
+        animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
+      },
+    };
+    const withLeg: Extract<ComponentInstance, { type: "connector-line" }> = {
+      ...base,
+      props: { ...base.props, staticEndLeg: "left" },
+    };
+
+    expect(getConnectorRenderFingerprint(base, [base], 0x333333, bounds, false, 1)).not.toBe(
+      getConnectorRenderFingerprint(withLeg, [withLeg], 0x333333, bounds, false, 1),
+    );
+  });
+
+  it("dashes shared joints when any owning connector uses dashed style", () => {
+    const bounds = { width: 800, height: 560 };
+    const connectors: ComponentInstance[] = [
+      {
+        id: "connector-line-1",
+        type: "connector-line",
+        name: "Connector Line 1",
+        x: 40,
+        y: 40,
+        props: {
+          preferredConnection: "horizontal",
+          source: { kind: "cell", x: 40, y: 40 },
+          target: { kind: "cell", x: 120, y: 120 },
+          overlayGrid: true,
+          animated: true,
+          style: "solid",
+          staticEndLeg: "unset",
+        },
+      },
+      {
+        id: "connector-line-2",
+        type: "connector-line",
+        name: "Connector Line 2",
+        x: 40,
+        y: 120,
+        props: {
+          preferredConnection: "vertical",
+          source: { kind: "cell", x: 40, y: 120 },
+          target: { kind: "cell", x: 120, y: 40 },
+          overlayGrid: true,
+          animated: true,
+          style: "dashed",
+          staticEndLeg: "unset",
+        },
+      },
+    ];
+    const joint = getConnectorJointPoints(connectors, bounds).find((point) => point.x === 120 && point.y === 120)!;
+
+    expect(connectorJointShouldDash(joint, connectors, bounds)).toBe(true);
   });
 
   it("resolves joint stroke to grid color for cell endpoints", () => {
@@ -171,6 +308,8 @@ describe("connector line render spec", () => {
           target: { kind: "cell", x: 120, y: 120 },
           overlayGrid: true,
           animated: true,
+          style: "solid",
+          staticEndLeg: "unset",
         },
       },
     ];
@@ -198,6 +337,8 @@ describe("connector line render spec", () => {
           target: { kind: "cell", x: 120, y: 120 },
           overlayGrid: true,
           animated: true,
+          style: "solid",
+          staticEndLeg: "unset",
         },
       },
     ];
@@ -225,6 +366,8 @@ describe("connector line render spec", () => {
           target: { kind: "cell", x: 120, y: 120 },
           overlayGrid: true,
           animated: true,
+          style: "solid",
+          staticEndLeg: "unset",
         },
       },
     ];
@@ -264,6 +407,8 @@ describe("connector line render spec", () => {
         target: { kind: "cell", x: 280, y: 200 },
         overlayGrid: false,
         animated: false,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     const instances = [icon, connector];
@@ -308,6 +453,8 @@ describe("buildConnectorInstanceChrome structural highlights", () => {
         target: { kind: "layer", instanceId: boxB.id },
         overlayGrid: false,
         animated: false,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     const instances: ComponentInstance[] = [boxA, boxB, connector];
@@ -343,6 +490,8 @@ describe("buildConnectorInstanceChrome structural highlights", () => {
         target: { kind: "cell", x: 280, y: 200 },
         overlayGrid: false,
         animated: false,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     const instances: ComponentInstance[] = [icon, connector];

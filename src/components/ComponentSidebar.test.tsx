@@ -32,6 +32,8 @@ const connectorInstance: ComponentInstance = {
     target: { kind: "layer", instanceId: "icon-box-1" },
     overlayGrid: true,
     animated: true,
+    style: "solid",
+    staticEndLeg: "unset",
   },
 };
 
@@ -281,6 +283,8 @@ describe("ComponentSidebar", () => {
       target: { kind: "layer", instanceId: "icon-box-1" },
       overlayGrid: true,
       animated: true,
+      style: "solid",
+      staticEndLeg: "unset",
     });
 
     expect(container.querySelector(".connector-endpoint-meta")).not.toBeInTheDocument();
@@ -305,11 +309,62 @@ describe("ComponentSidebar", () => {
       target: { kind: "layer", instanceId: "icon-box-1" },
       overlayGrid: true,
       animated: true,
+      style: "solid",
+      staticEndLeg: "unset",
     });
 
     fireEvent.click(screen.getByTestId("connector-pick-source-cell"));
 
     expect(onStartEndpointPick).toHaveBeenCalledWith("connector-line-2", "source");
+  });
+
+  it("configures connector-line style", () => {
+    const onUpdateInstanceProps = vi.fn();
+
+    render(
+      <ComponentSidebar
+        instances={[connectorInstance, instance]}
+        selectedInstance={connectorInstance}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={onUpdateInstanceProps}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "dashed" } });
+
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("connector-line-2", {
+      ...connectorInstance.props,
+      style: "dashed",
+    });
+  });
+
+  it("configures static end leg when target is a static cell", () => {
+    const onUpdateInstanceProps = vi.fn();
+    const cellTargetConnector: ComponentInstance = {
+      ...connectorInstance,
+      props: {
+        ...connectorInstance.props,
+        target: { kind: "cell", x: 200, y: 40 },
+      },
+    };
+
+    render(
+      <ComponentSidebar
+        instances={[cellTargetConnector, instance]}
+        selectedInstance={cellTargetConnector}
+        onSelectInstance={vi.fn()}
+        onUpdateInstanceProps={onUpdateInstanceProps}
+        onStartComponentDrag={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Static end leg"), { target: { value: "left" } });
+
+    expect(onUpdateInstanceProps).toHaveBeenCalledWith("connector-line-2", {
+      ...cellTargetConnector.props,
+      staticEndLeg: "left",
+    });
   });
 
   it("toggles connector overlay grid", () => {
@@ -347,6 +402,8 @@ describe("ComponentSidebar", () => {
     expect(onUpdateInstanceProps).toHaveBeenCalledWith("connector-line-2", {
       ...connectorInstance.props,
       animated: false,
+      style: "solid",
+      staticEndLeg: "unset",
     });
   });
 

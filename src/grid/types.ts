@@ -115,6 +115,10 @@ export type CodeSnippetProps = {
   heightCells: number;
 };
 
+export type ConnectorLineStyle = "solid" | "dashed";
+
+export type ConnectorStaticEndLeg = "unset" | "top" | "right" | "bottom" | "left";
+
 export type ConnectorLineProps = {
   preferredConnection: ConnectorConnectionPreference;
   source: ConnectorEndpoint;
@@ -123,6 +127,10 @@ export type ConnectorLineProps = {
   overlayGrid: boolean;
   /** When true, animate a themed pulse along the path and highlight bend corner **strokes** as the pulse passes. */
   animated: boolean;
+  /** Solid (default) or dashed gray connector strokes. */
+  style: ConnectorLineStyle;
+  /** When target is a static cell, extend from cell center toward this edge inside the cell. */
+  staticEndLeg: ConnectorStaticEndLeg;
 };
 
 export type ComponentProps = IconBoxProps | PlusMarkerProps | RectMarkerProps | ConnectorLineProps | CodeSnippetProps;

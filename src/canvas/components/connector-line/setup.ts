@@ -13,17 +13,23 @@ import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "../const
 import { getPolylineMetrics, arcDistanceToPointOnPolyline, slicePolylineByDistance } from "./pathMotion";
 import {
   collectExternalJunctionHints,
-  getConnectorCornerPoints,
+  getConnectorCornerPointsForInstance,
   getConnectorRouteTopologySignature,
   getForeignCornerOverlapPoints,
   resolveConnectorEndpoint,
-  routeConnectorPath,
-  getConnectorSegmentCells,
+  routeConnectorPathForInstance,
+  getConnectorSegmentCellsForInstance,
   type ConnectorRouteBounds,
 } from "./route";
 import { collectIconBoxHitsAlongConnector, resolveIconBoxLiveParticleEmit } from "./polylineIconBoxHits";
 import { getConnectorEndpointThemeSignature, resolveConnectorEndpointThemeFill } from "./sourceTheme";
 import { connectorLegPlateauEase } from "./legPlateauEase";
+import {
+  appendDashedPolyline,
+  appendDashedRectOutline,
+  CONNECTOR_DASH_OFF_PX,
+  CONNECTOR_DASH_ON_PX,
+} from "./dashedStroke";
 
 const CONNECTOR_UNDER_STROKE_WIDTH = 9;
 const CONNECTOR_STROKE_WIDTH = 1;
@@ -41,6 +47,8 @@ const CONNECTOR_ANIM_SEC_PER_SLICE = 0.2;
 const CONNECTOR_ANIM_CYCLE_STAGGER_MAX_SEC = 0.5;
 /** Only guards sub-frame / zero durations; leg time scales with path length so arc-length speed stays ~constant. */
 const CONNECTOR_ANIM_MIN_LEG_SEC = 1 / 60;
+/** One full dash+gap cycle marches along dashed connector paths (seconds). */
+const CONNECTOR_DASH_MARCH_SEC_PER_CYCLE = 0.625;
 
 /** u∈[0,1) from `crypto` so connector UI jitter does not use `Math.random` (reserved for non-grid policy). */
 const randomUnitInterval = (): number => {
@@ -117,10 +125,10 @@ export const getConnectorJointPoints = (
       continue;
     }
 
-    const route = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
+    const route = routeConnectorPathForInstance(instance, instances, bounds);
     const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, route, instances, bounds);
     const jointPoints = [
-      ...getConnectorCornerPoints(route),
+      ...getConnectorCornerPointsForInstance(route, instance.props.target, instance.props.staticEndLeg),
       ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints),
     ];
 
@@ -174,10 +182,10 @@ export const connectorOwnsJointPoint = (
   if (!source || !target) {
     return false;
   }
-  const route = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
+  const route = routeConnectorPathForInstance(instance, instances, bounds);
   const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, route, instances, bounds);
   const jointPoints = [
-    ...getConnectorCornerPoints(route),
+    ...getConnectorCornerPointsForInstance(route, instance.props.target, instance.props.staticEndLeg),
     ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints),
   ];
   return jointPoints.some((p) => p.x === joint.x && p.y === joint.y);
@@ -222,11 +230,39 @@ export const resolveSharedJointStrokeStyle = (
   return { color: gridStrokeColor, alpha: 1 };
 };
 
+export const connectorJointShouldDash = (
+  joint: { x: number; y: number },
+  instances: ComponentInstance[],
+  bounds: ConnectorRouteBounds,
+): boolean =>
+  getConnectorInstancesOwningJoint(joint, instances, bounds).some((owner) => owner.props.style === "dashed");
+
 const drawPolyline = (graphics: Graphics, points: { x: number; y: number }[]) => {
   const [first, ...rest] = points;
   graphics.moveTo(first.x, first.y);
   for (const point of rest) {
     graphics.lineTo(point.x, point.y);
+  }
+};
+
+const drawConnectorPathStroke = (
+  graphics: Graphics,
+  points: { x: number; y: number }[],
+  dashed: boolean,
+  dashPhase = 0,
+) => {
+  if (dashed) {
+    appendDashedPolyline(graphics, points, CONNECTOR_DASH_ON_PX, CONNECTOR_DASH_OFF_PX, dashPhase);
+  } else {
+    drawPolyline(graphics, points);
+  }
+};
+
+const appendConnectorCellFrameStroke = (graphics: Graphics, x: number, y: number, size: number, dashed: boolean) => {
+  if (dashed) {
+    appendDashedRectOutline(graphics, x, y, size, size, CONNECTOR_DASH_ON_PX, CONNECTOR_DASH_OFF_PX);
+  } else {
+    graphics.rect(x, y, size, size);
   }
 };
 
@@ -269,6 +305,8 @@ export const getConnectorBaseLayerFingerprint = (
     source: unknown;
     target: unknown;
     overlayGrid: boolean;
+    style: unknown;
+    staticEndLeg: unknown;
     sx: number;
     sy: number;
     tx: number;
@@ -290,6 +328,8 @@ export const getConnectorBaseLayerFingerprint = (
       source: inst.props.source,
       target: inst.props.target,
       overlayGrid: inst.props.overlayGrid,
+      style: inst.props.style,
+      staticEndLeg: inst.props.staticEndLeg,
       sx: source.x,
       sy: source.y,
       tx: target.x,
@@ -331,23 +371,19 @@ export const paintConnectorBaseLayer = (
     if (!source || !target) {
       continue;
     }
-    const points = routeConnectorPath(source, target, inst.props.preferredConnection, bounds);
     const segmentOverlay = inst.props.overlayGrid;
-    for (const cell of getConnectorSegmentCells(points)) {
+    const dashed = inst.props.style === "dashed";
+    for (const cell of getConnectorSegmentCellsForInstance(inst, instances, bounds)) {
+      const frameX = cell.x + 0.5;
+      const frameY = cell.y + 0.5;
       if (segmentOverlay) {
-        latticePlaneGraphics
-          .rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE)
-          .fill({ color: 0xffffff })
-          .stroke({
-            width: CONNECTOR_STROKE_WIDTH,
-            color: segmentSpec.segmentFrameColor,
-          });
-      } else {
-        latticePlaneGraphics.rect(cell.x + 0.5, cell.y + 0.5, LARGE_CELL_SIZE, LARGE_CELL_SIZE).stroke({
-          width: CONNECTOR_STROKE_WIDTH,
-          color: segmentSpec.segmentFrameColor,
-        });
+        latticePlaneGraphics.rect(frameX, frameY, LARGE_CELL_SIZE, LARGE_CELL_SIZE).fill({ color: 0xffffff });
       }
+      appendConnectorCellFrameStroke(latticePlaneGraphics, frameX, frameY, LARGE_CELL_SIZE, dashed);
+      latticePlaneGraphics.stroke({
+        width: CONNECTOR_STROKE_WIDTH,
+        color: segmentSpec.segmentFrameColor,
+      });
     }
   }
 
@@ -390,6 +426,8 @@ export const getConnectorRenderFingerprint = (
     highlightChromeAlpha: chromeHighlighted ? highlightChromeAlpha : 1,
     overlayGrid: instance.props.overlayGrid,
     animated: instance.props.animated,
+    style: instance.props.style,
+    staticEndLeg: instance.props.staticEndLeg,
     sourceTheme: getConnectorEndpointThemeSignature(instance.props.source, instances),
     targetTheme: getConnectorEndpointThemeSignature(instance.props.target, instances),
     routeTopology: getConnectorRouteTopologySignature(instances, bounds),
@@ -413,9 +451,10 @@ export const buildConnectorInstanceChrome = (
     return null;
   }
 
-  const points = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
+  const points = routeConnectorPathForInstance(instance, instances, bounds);
   const renderSpec = getConnectorRenderSpec(chromeHighlighted, gridStrokeColor);
   const segmentOverlay = instance.props.overlayGrid;
+  const dashed = instance.props.style === "dashed";
 
   const metrics = getPolylineMetrics(points);
   const structureRoot = new Container();
@@ -451,35 +490,27 @@ export const buildConnectorInstanceChrome = (
       if (endpoint.kind === "layer") {
         continue;
       }
-      drewAnyEndpointFrame = true;
-      if (segmentOverlay) {
-        endpointFrames
-          .rect(
-            point.x - LARGE_CELL_SIZE / 2 + 0.5,
-            point.y - LARGE_CELL_SIZE / 2 + 0.5,
-            LARGE_CELL_SIZE,
-            LARGE_CELL_SIZE,
-          )
-          .fill({ color: 0xffffff })
-          .stroke({
-            width: CONNECTOR_STROKE_WIDTH,
-            color: renderSpec.endpointFrameColor,
-            alpha: highlightChromeAlpha,
-          });
-      } else {
-        endpointFrames
-          .rect(
-            point.x - LARGE_CELL_SIZE / 2 + 0.5,
-            point.y - LARGE_CELL_SIZE / 2 + 0.5,
-            LARGE_CELL_SIZE,
-            LARGE_CELL_SIZE,
-          )
-          .stroke({
-            width: CONNECTOR_STROKE_WIDTH,
-            color: renderSpec.endpointFrameColor,
-            alpha: highlightChromeAlpha,
-          });
+      if (
+        instance.props.staticEndLeg !== "unset" &&
+        endpoint.kind === "cell" &&
+        instance.props.target.kind === "cell" &&
+        endpoint.x === instance.props.target.x &&
+        endpoint.y === instance.props.target.y
+      ) {
+        continue;
       }
+      drewAnyEndpointFrame = true;
+      const frameX = point.x - LARGE_CELL_SIZE / 2 + 0.5;
+      const frameY = point.y - LARGE_CELL_SIZE / 2 + 0.5;
+      if (segmentOverlay) {
+        endpointFrames.rect(frameX, frameY, LARGE_CELL_SIZE, LARGE_CELL_SIZE).fill({ color: 0xffffff });
+      }
+      appendConnectorCellFrameStroke(endpointFrames, frameX, frameY, LARGE_CELL_SIZE, dashed);
+      endpointFrames.stroke({
+        width: CONNECTOR_STROKE_WIDTH,
+        color: renderSpec.endpointFrameColor,
+        alpha: highlightChromeAlpha,
+      });
     }
     if (drewAnyEndpointFrame) {
       structureRoot.addChild(endpointFrames);
@@ -488,16 +519,40 @@ export const buildConnectorInstanceChrome = (
 
   const line = new Graphics();
   line.zIndex = 1;
-  drawPolyline(line, points);
-  line.stroke({
+  const lineStroke = {
     width: CONNECTOR_STROKE_WIDTH,
     color: renderSpec.lineColor,
     alpha: chromeHighlighted ? highlightChromeAlpha : 1,
     ...CONNECTOR_PATH_STROKE_STYLE,
-  });
+  };
+  drawConnectorPathStroke(line, points, dashed);
+  line.stroke(lineStroke);
   tracksChromeRoot.addChild(line);
 
   let disposeConnectorAnimation: (() => void) | undefined;
+  const animationDisposers: Array<() => void> = [];
+
+  if (dashed && metrics.totalLength > 0) {
+    const dashCyclePx = CONNECTOR_DASH_ON_PX + CONNECTOR_DASH_OFF_PX;
+    const dashPhase = motionValue(dashCyclePx);
+    const redrawDashedLine = (phase: number) => {
+      line.clear();
+      drawConnectorPathStroke(line, points, true, phase);
+      line.stroke(lineStroke);
+    };
+    redrawDashedLine(dashCyclePx);
+    const dashControls = animate(dashPhase, 0, {
+      duration: CONNECTOR_DASH_MARCH_SEC_PER_CYCLE,
+      repeat: Infinity,
+      ease: "linear",
+    });
+    const unsubDash = dashPhase.on("change", redrawDashedLine);
+    animationDisposers.push(() => {
+      dashControls.stop();
+      unsubDash();
+    });
+  }
+
   const sharedJointPoints = getConnectorJointPoints(instances, bounds);
 
   if (instance.props.animated && metrics.totalLength > 0) {
@@ -680,10 +735,18 @@ export const buildConnectorInstanceChrome = (
 
     void runLoop();
 
-    disposeConnectorAnimation = () => {
+    animationDisposers.push(() => {
       cancelled = true;
       activeControls?.stop();
       unsub();
+    });
+  }
+
+  if (animationDisposers.length > 0) {
+    disposeConnectorAnimation = () => {
+      for (const dispose of animationDisposers) {
+        dispose();
+      }
     };
   }
 

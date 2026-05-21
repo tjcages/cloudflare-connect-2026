@@ -144,6 +144,19 @@ const isConnectorLineProps = (value: unknown): value is ConnectorLineProps => {
   if ("animated" in value && typeof value.animated !== "boolean") {
     return false;
   }
+  if ("style" in value && value.style !== "solid" && value.style !== "dashed") {
+    return false;
+  }
+  if (
+    "staticEndLeg" in value &&
+    value.staticEndLeg !== "unset" &&
+    value.staticEndLeg !== "top" &&
+    value.staticEndLeg !== "right" &&
+    value.staticEndLeg !== "bottom" &&
+    value.staticEndLeg !== "left"
+  ) {
+    return false;
+  }
   return true;
 };
 
@@ -201,6 +214,27 @@ const normalizeInstanceForGrid = (
     }
     if (isRecord(propsCandidate) && "animated" in propsCandidate && typeof propsCandidate.animated !== "boolean") {
       const { animated: _dropA, ...rest } = propsCandidate;
+      propsCandidate = rest;
+    }
+    if (
+      isRecord(propsCandidate) &&
+      "style" in propsCandidate &&
+      propsCandidate.style !== "solid" &&
+      propsCandidate.style !== "dashed"
+    ) {
+      const { style: _dropS, ...rest } = propsCandidate;
+      propsCandidate = rest;
+    }
+    if (
+      isRecord(propsCandidate) &&
+      "staticEndLeg" in propsCandidate &&
+      propsCandidate.staticEndLeg !== "unset" &&
+      propsCandidate.staticEndLeg !== "top" &&
+      propsCandidate.staticEndLeg !== "right" &&
+      propsCandidate.staticEndLeg !== "bottom" &&
+      propsCandidate.staticEndLeg !== "left"
+    ) {
+      const { staticEndLeg: _dropE, ...rest } = propsCandidate;
       propsCandidate = rest;
     }
     const rawProps = isConnectorLineProps(propsCandidate) ? propsCandidate : defaultProps;
@@ -463,6 +497,8 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       },
       overlayGrid: true,
       animated: true,
+      style: "solid",
+      staticEndLeg: "unset",
     },
   },
   {
@@ -483,6 +519,8 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       },
       overlayGrid: true,
       animated: true,
+      style: "solid",
+      staticEndLeg: "unset",
     },
   },
   {
@@ -503,6 +541,8 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       },
       overlayGrid: true,
       animated: true,
+      style: "solid",
+      staticEndLeg: "unset",
     },
   },
 ];

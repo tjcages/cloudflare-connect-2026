@@ -201,6 +201,8 @@ describe("App", { timeout: 15_000 }, () => {
         target: { kind: "cell", x: 200, y: 40 },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     useAppStore.setState({ instances: [connector], selectedInstanceId: connector.id });
@@ -267,6 +269,8 @@ describe("App", { timeout: 15_000 }, () => {
         target: { kind: "cell", x: 200, y: 40 },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     useAppStore.setState({

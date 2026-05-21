@@ -15,6 +15,8 @@ const connector: ComponentInstance = {
     target: { kind: "cell", x: 200, y: 40 },
     overlayGrid: true,
     animated: true,
+    style: "solid",
+    staticEndLeg: "unset",
   },
 };
 

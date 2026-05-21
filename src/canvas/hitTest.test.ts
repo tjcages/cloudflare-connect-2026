@@ -33,6 +33,8 @@ const createConnector = (): Extract<ComponentInstance, { type: "connector-line" 
     target: { kind: "cell", x: 200, y: 200 },
     overlayGrid: true,
     animated: true,
+    style: "solid",
+    staticEndLeg: "unset",
   },
 });
 
@@ -65,6 +67,8 @@ describe("hitTestComponentInstances", () => {
         target: { kind: "cell", x: 280, y: 520 },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
 
@@ -81,6 +85,8 @@ describe("hitTestComponentInstances", () => {
         target: { kind: "cell", x: 280, y: 200 },
         overlayGrid: true,
         animated: true,
+        style: "solid",
+        staticEndLeg: "unset",
       },
     };
     const gapMask = createGapMask(6, 8);

@@ -257,6 +257,20 @@ export const ComponentConfigSidebar = ({
           <option value="horizontal">Horizontal</option>
           <option value="vertical">Vertical</option>
         </BuilderSelectField>
+        <BuilderSelectField
+          label="Style"
+          id={`connector-style-${selectedInstance.id}`}
+          value={selectedInstance.props.style}
+          onChange={(event) =>
+            onUpdateInstanceProps(selectedInstance.id, {
+              ...selectedInstance.props,
+              style: event.target.value === "dashed" ? "dashed" : "solid",
+            })
+          }
+        >
+          <option value="solid">Solid</option>
+          <option value="dashed">Dashed</option>
+        </BuilderSelectField>
         <ConnectorEndpointField
           label="Source"
           endpoint={selectedInstance.props.source}
@@ -275,6 +289,28 @@ export const ComponentConfigSidebar = ({
           onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
           onStartEndpointPick={onStartEndpointPick}
         />
+        {selectedInstance.props.target.kind === "cell" ? (
+          <BuilderSelectField
+            label="Static end leg"
+            id={`connector-static-end-leg-${selectedInstance.id}`}
+            value={selectedInstance.props.staticEndLeg}
+            onChange={(event) => {
+              const value = event.target.value;
+              const staticEndLeg =
+                value === "top" || value === "right" || value === "bottom" || value === "left" ? value : "unset";
+              onUpdateInstanceProps(selectedInstance.id, {
+                ...selectedInstance.props,
+                staticEndLeg,
+              });
+            }}
+          >
+            <option value="unset">Unset</option>
+            <option value="top">Top</option>
+            <option value="right">Right</option>
+            <option value="bottom">Bottom</option>
+            <option value="left">Left</option>
+          </BuilderSelectField>
+        ) : null}
         <FieldToggle
           label="Overlay grid"
           pressed={selectedInstance.props.overlayGrid}
