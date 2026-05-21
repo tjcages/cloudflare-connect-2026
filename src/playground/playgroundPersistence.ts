@@ -5,6 +5,7 @@ import {
 } from "./stripeBandThresholds";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
+  DEFAULT_PLAYGROUND_UPLOAD_DUOTONE,
   detectUploadMediaKind,
   getPlaygroundTextureOption,
   isUploadTextureId,
@@ -245,13 +246,7 @@ export function mergeCatalog(
             threshold: override.threshold,
             density: override.density,
           }
-        : {
-            ignoreColorHex: "#000000",
-            ignoreTolerance: 0.1,
-            gamma: 1.2,
-            threshold: 0.64,
-            density: 0.3,
-          },
+        : { ...DEFAULT_PLAYGROUND_UPLOAD_DUOTONE },
       isUpload: true,
     };
   });
@@ -285,11 +280,7 @@ export function defaultConfigForTexture(textureId: PlaygroundTextureId): Playgro
   }
   return {
     duotoneEnabled: true,
-    ignoreColorHex: "#000000",
-    ignoreTolerance: 0.1,
-    gamma: 1.2,
-    threshold: 0.64,
-    density: 0.3,
+    ...DEFAULT_PLAYGROUND_UPLOAD_DUOTONE,
     bandBreakpoints,
   };
 }

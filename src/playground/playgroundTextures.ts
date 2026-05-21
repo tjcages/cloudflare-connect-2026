@@ -27,6 +27,15 @@ export type PlaygroundDuotoneDefaults = {
   density: number;
 };
 
+/** Duotone defaults applied to newly uploaded videos/images before any saved config exists. */
+export const DEFAULT_PLAYGROUND_UPLOAD_DUOTONE: PlaygroundDuotoneDefaults = {
+  ignoreColorHex: "#000000",
+  ignoreTolerance: 0.1,
+  gamma: 1,
+  threshold: 0.7,
+  density: 1.1,
+};
+
 export type PlaygroundTextureOption = {
   id: BuiltinPlaygroundTextureId;
   label: string;
