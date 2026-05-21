@@ -73,7 +73,6 @@ describe("componentRegistry", () => {
       overlayGrid: true,
       animated: true,
       style: "solid",
-      staticEndLeg: "unset",
     });
   });
 
@@ -263,7 +262,6 @@ describe("componentRegistry", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     });
   });
@@ -300,7 +298,6 @@ describe("componentRegistry", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const instances = [ib1, durable, connector];
@@ -321,7 +318,6 @@ describe("componentRegistry", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     expect(getInstanceLayerSubtitle(connector, [])).toBe("x: 200 y: 120 → x: 360 y: 240");
@@ -350,7 +346,6 @@ describe("componentRegistry", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     expect(getInstanceLayerSubtitle(connector, [iconNoTitle, titled, connector])).toBe("Icon Box → Icon Box / Workers");
@@ -371,7 +366,6 @@ describe("componentRegistry", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     expect(getInstanceLayerSubtitle(connector, [ib, connector])).toBe("x: 40 y: 40 → Icon Box / Workers");

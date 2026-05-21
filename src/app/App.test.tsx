@@ -202,7 +202,6 @@ describe("App", { timeout: 15_000 }, () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     useAppStore.setState({ instances: [connector], selectedInstanceId: connector.id });
@@ -270,7 +269,6 @@ describe("App", { timeout: 15_000 }, () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     useAppStore.setState({

@@ -431,17 +431,6 @@ const compactConnectorPropsDelta = (
     delta.d = props.style === "dashed" ? 1 : 0;
   }
 
-  if (props.staticEndLeg !== defaults.staticEndLeg) {
-    const legCodes: Record<ConnectorLineProps["staticEndLeg"], number> = {
-      unset: 0,
-      top: 1,
-      right: 2,
-      bottom: 3,
-      left: 4,
-    };
-    delta.e = legCodes[props.staticEndLeg];
-  }
-
   return Object.keys(delta).length ? delta : undefined;
 };
 
@@ -461,18 +450,6 @@ const expandConnectorPropsDelta = (
     overlayGrid: delta.o !== undefined ? delta.o === 1 : defaults.overlayGrid,
     animated: delta.a !== undefined ? delta.a === 1 : defaults.animated,
     style: delta.d === 1 ? "dashed" : delta.d === 0 ? "solid" : defaults.style,
-    staticEndLeg:
-      delta.e === 1
-        ? "top"
-        : delta.e === 2
-          ? "right"
-          : delta.e === 3
-            ? "bottom"
-            : delta.e === 4
-              ? "left"
-              : delta.e === 0
-                ? "unset"
-                : defaults.staticEndLeg,
   };
 };
 

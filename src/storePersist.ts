@@ -147,16 +147,6 @@ const isConnectorLineProps = (value: unknown): value is ConnectorLineProps => {
   if ("style" in value && value.style !== "solid" && value.style !== "dashed") {
     return false;
   }
-  if (
-    "staticEndLeg" in value &&
-    value.staticEndLeg !== "unset" &&
-    value.staticEndLeg !== "top" &&
-    value.staticEndLeg !== "right" &&
-    value.staticEndLeg !== "bottom" &&
-    value.staticEndLeg !== "left"
-  ) {
-    return false;
-  }
   return true;
 };
 
@@ -225,15 +215,7 @@ const normalizeInstanceForGrid = (
       const { style: _dropS, ...rest } = propsCandidate;
       propsCandidate = rest;
     }
-    if (
-      isRecord(propsCandidate) &&
-      "staticEndLeg" in propsCandidate &&
-      propsCandidate.staticEndLeg !== "unset" &&
-      propsCandidate.staticEndLeg !== "top" &&
-      propsCandidate.staticEndLeg !== "right" &&
-      propsCandidate.staticEndLeg !== "bottom" &&
-      propsCandidate.staticEndLeg !== "left"
-    ) {
+    if (isRecord(propsCandidate) && "staticEndLeg" in propsCandidate) {
       const { staticEndLeg: _dropE, ...rest } = propsCandidate;
       propsCandidate = rest;
     }
@@ -498,7 +480,6 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       overlayGrid: true,
       animated: true,
       style: "solid",
-      staticEndLeg: "unset",
     },
   },
   {
@@ -520,7 +501,6 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       overlayGrid: true,
       animated: true,
       style: "solid",
-      staticEndLeg: "unset",
     },
   },
   {
@@ -542,7 +522,6 @@ const defaultInstancesForGrid = (_gridLogicalWidth: number, _gridLogicalHeight: 
       overlayGrid: true,
       animated: true,
       style: "solid",
-      staticEndLeg: "unset",
     },
   },
 ];

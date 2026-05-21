@@ -129,7 +129,6 @@ export const COMPONENT_REGISTRY: Record<ComponentType, ComponentDefinition> = {
       overlayGrid: true,
       animated: true,
       style: "solid",
-      staticEndLeg: "unset",
     },
   },
 };

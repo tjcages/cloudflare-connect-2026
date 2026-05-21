@@ -65,7 +65,6 @@ describe("connector line render spec", () => {
           overlayGrid: true,
           animated: true,
           style: "solid",
-          staticEndLeg: "unset",
         },
       },
       {
@@ -81,7 +80,6 @@ describe("connector line render spec", () => {
           overlayGrid: true,
           animated: true,
           style: "solid",
-          staticEndLeg: "unset",
         },
       },
     ];
@@ -112,7 +110,6 @@ describe("connector line render spec", () => {
         overlayGrid: false,
         animated: false,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const b: ComponentInstance = {
@@ -128,7 +125,6 @@ describe("connector line render spec", () => {
         overlayGrid: false,
         animated: false,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const fpLo = getConnectorBaseLayerFingerprint([a, b], 0x333333, bounds);
@@ -150,7 +146,6 @@ describe("connector line render spec", () => {
         overlayGrid: false,
         animated: false,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const gapMask = createGapMask(6, 8);
@@ -181,7 +176,6 @@ describe("connector line render spec", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const dashed: ComponentInstance = {
@@ -209,7 +203,6 @@ describe("connector line render spec", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const dashed: Extract<ComponentInstance, { type: "connector-line" }> = {
@@ -222,9 +215,9 @@ describe("connector line render spec", () => {
     );
   });
 
-  it("changes the render fingerprint when static end leg changes", () => {
+  it("changes the render fingerprint when target moves to a canvas edge (auto static end leg)", () => {
     const bounds = { width: 800, height: 560 };
-    const base: Extract<ComponentInstance, { type: "connector-line" }> = {
+    const interiorTarget: Extract<ComponentInstance, { type: "connector-line" }> = {
       id: "c-end-leg",
       type: "connector-line",
       name: "End Leg",
@@ -237,16 +230,15 @@ describe("connector line render spec", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
-    const withLeg: Extract<ComponentInstance, { type: "connector-line" }> = {
-      ...base,
-      props: { ...base.props, staticEndLeg: "left" },
+    const edgeTarget: Extract<ComponentInstance, { type: "connector-line" }> = {
+      ...interiorTarget,
+      props: { ...interiorTarget.props, target: { kind: "cell", x: 40, y: 40 } },
     };
 
-    expect(getConnectorRenderFingerprint(base, [base], 0x333333, bounds, false, 1)).not.toBe(
-      getConnectorRenderFingerprint(withLeg, [withLeg], 0x333333, bounds, false, 1),
+    expect(getConnectorRenderFingerprint(interiorTarget, [interiorTarget], 0x333333, bounds, false, 1)).not.toBe(
+      getConnectorRenderFingerprint(edgeTarget, [edgeTarget], 0x333333, bounds, false, 1),
     );
   });
 
@@ -266,7 +258,6 @@ describe("connector line render spec", () => {
           overlayGrid: true,
           animated: true,
           style: "solid",
-          staticEndLeg: "unset",
         },
       },
       {
@@ -282,7 +273,6 @@ describe("connector line render spec", () => {
           overlayGrid: true,
           animated: true,
           style: "dashed",
-          staticEndLeg: "unset",
         },
       },
     ];
@@ -309,7 +299,6 @@ describe("connector line render spec", () => {
           overlayGrid: true,
           animated: true,
           style: "solid",
-          staticEndLeg: "unset",
         },
       },
     ];
@@ -338,7 +327,6 @@ describe("connector line render spec", () => {
           overlayGrid: true,
           animated: true,
           style: "solid",
-          staticEndLeg: "unset",
         },
       },
     ];
@@ -367,7 +355,6 @@ describe("connector line render spec", () => {
           overlayGrid: true,
           animated: true,
           style: "solid",
-          staticEndLeg: "unset",
         },
       },
     ];
@@ -408,7 +395,6 @@ describe("connector line render spec", () => {
         overlayGrid: false,
         animated: false,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const instances = [icon, connector];
@@ -454,7 +440,6 @@ describe("buildConnectorInstanceChrome structural highlights", () => {
         overlayGrid: false,
         animated: false,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const instances: ComponentInstance[] = [boxA, boxB, connector];
@@ -491,7 +476,6 @@ describe("buildConnectorInstanceChrome structural highlights", () => {
         overlayGrid: false,
         animated: false,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const instances: ComponentInstance[] = [icon, connector];

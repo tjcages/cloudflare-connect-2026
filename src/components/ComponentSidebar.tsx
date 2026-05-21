@@ -289,28 +289,6 @@ export const ComponentConfigSidebar = ({
           onUpdate={(props) => onUpdateInstanceProps(selectedInstance.id, props)}
           onStartEndpointPick={onStartEndpointPick}
         />
-        {selectedInstance.props.target.kind === "cell" ? (
-          <BuilderSelectField
-            label="Static end leg"
-            id={`connector-static-end-leg-${selectedInstance.id}`}
-            value={selectedInstance.props.staticEndLeg}
-            onChange={(event) => {
-              const value = event.target.value;
-              const staticEndLeg =
-                value === "top" || value === "right" || value === "bottom" || value === "left" ? value : "unset";
-              onUpdateInstanceProps(selectedInstance.id, {
-                ...selectedInstance.props,
-                staticEndLeg,
-              });
-            }}
-          >
-            <option value="unset">Unset</option>
-            <option value="top">Top</option>
-            <option value="right">Right</option>
-            <option value="bottom">Bottom</option>
-            <option value="left">Left</option>
-          </BuilderSelectField>
-        ) : null}
         <FieldToggle
           label="Overlay grid"
           pressed={selectedInstance.props.overlayGrid}

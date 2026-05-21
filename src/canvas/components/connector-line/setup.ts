@@ -16,6 +16,7 @@ import {
   getConnectorCornerPointsForInstance,
   getConnectorRouteTopologySignature,
   getForeignCornerOverlapPoints,
+  getStaticEndLegForInstance,
   resolveConnectorEndpoint,
   routeConnectorPathForInstance,
   getConnectorSegmentCellsForInstance,
@@ -128,7 +129,11 @@ export const getConnectorJointPoints = (
     const route = routeConnectorPathForInstance(instance, instances, bounds);
     const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, route, instances, bounds);
     const jointPoints = [
-      ...getConnectorCornerPointsForInstance(route, instance.props.target, instance.props.staticEndLeg),
+      ...getConnectorCornerPointsForInstance(
+        route,
+        instance.props.target,
+        getStaticEndLegForInstance(instance, bounds),
+      ),
       ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints),
     ];
 
@@ -185,7 +190,7 @@ export const connectorOwnsJointPoint = (
   const route = routeConnectorPathForInstance(instance, instances, bounds);
   const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, route, instances, bounds);
   const jointPoints = [
-    ...getConnectorCornerPointsForInstance(route, instance.props.target, instance.props.staticEndLeg),
+    ...getConnectorCornerPointsForInstance(route, instance.props.target, getStaticEndLegForInstance(instance, bounds)),
     ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints),
   ];
   return jointPoints.some((p) => p.x === joint.x && p.y === joint.y);
@@ -306,7 +311,6 @@ export const getConnectorBaseLayerFingerprint = (
     target: unknown;
     overlayGrid: boolean;
     style: unknown;
-    staticEndLeg: unknown;
     sx: number;
     sy: number;
     tx: number;
@@ -329,7 +333,6 @@ export const getConnectorBaseLayerFingerprint = (
       target: inst.props.target,
       overlayGrid: inst.props.overlayGrid,
       style: inst.props.style,
-      staticEndLeg: inst.props.staticEndLeg,
       sx: source.x,
       sy: source.y,
       tx: target.x,
@@ -427,7 +430,6 @@ export const getConnectorRenderFingerprint = (
     overlayGrid: instance.props.overlayGrid,
     animated: instance.props.animated,
     style: instance.props.style,
-    staticEndLeg: instance.props.staticEndLeg,
     sourceTheme: getConnectorEndpointThemeSignature(instance.props.source, instances),
     targetTheme: getConnectorEndpointThemeSignature(instance.props.target, instances),
     routeTopology: getConnectorRouteTopologySignature(instances, bounds),
@@ -491,7 +493,7 @@ export const buildConnectorInstanceChrome = (
         continue;
       }
       if (
-        instance.props.staticEndLeg !== "unset" &&
+        getStaticEndLegForInstance(instance, bounds) !== "unset" &&
         endpoint.kind === "cell" &&
         instance.props.target.kind === "cell" &&
         endpoint.x === instance.props.target.x &&

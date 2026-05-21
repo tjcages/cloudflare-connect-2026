@@ -16,6 +16,7 @@ import {
   getStaticEndLegPoint,
   getConnectorCornerPointsForInstance,
   getConnectorSegmentCellsForInstance,
+  resolveStaticEndLegForTarget,
 } from "./route";
 import type { ConnectorEndpoint } from "../../../grid/types";
 
@@ -328,6 +329,18 @@ describe("connector line routing", () => {
     ).toBeNull();
   });
 
+  it("resolves static end leg from canvas edge proximity for static cell targets", () => {
+    const bounds = { width: 800, height: 560 };
+    expect(resolveStaticEndLegForTarget({ kind: "cell", x: 40, y: 120 }, bounds.width, bounds.height)).toBe("left");
+    expect(resolveStaticEndLegForTarget({ kind: "cell", x: 760, y: 120 }, bounds.width, bounds.height)).toBe("right");
+    expect(resolveStaticEndLegForTarget({ kind: "cell", x: 200, y: 40 }, bounds.width, bounds.height)).toBe("top");
+    expect(resolveStaticEndLegForTarget({ kind: "cell", x: 200, y: 520 }, bounds.width, bounds.height)).toBe("bottom");
+    expect(resolveStaticEndLegForTarget({ kind: "cell", x: 200, y: 120 }, bounds.width, bounds.height)).toBe("unset");
+    expect(resolveStaticEndLegForTarget({ kind: "layer", instanceId: "icon-box-1" }, bounds.width, bounds.height)).toBe(
+      "unset",
+    );
+  });
+
   it("extends a static cell target path from center toward the chosen in-cell edge", () => {
     const cellCenter = { x: 200, y: 120 };
     expect(getStaticEndLegPoint(cellCenter, "left")).toEqual({ x: 160, y: 120 });
@@ -342,6 +355,7 @@ describe("connector line routing", () => {
   });
 
   it("routes connector instances with static end legs applied after pathfinding", () => {
+    const bounds = { width: 800, height: 560 };
     const connector: Extract<ComponentInstance, { type: "connector-line" }> = {
       id: "connector-line-1",
       type: "connector-line",
@@ -350,17 +364,16 @@ describe("connector line routing", () => {
       y: 120,
       props: {
         preferredConnection: "horizontal",
-        source: { kind: "cell", x: 40, y: 120 },
-        target: { kind: "cell", x: 200, y: 120 },
+        source: { kind: "cell", x: 120, y: 120 },
+        target: { kind: "cell", x: 760, y: 120 },
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "left",
       },
     };
 
-    expect(routeConnectorPathForInstance(connector, [connector]).at(-1)).toEqual({ x: 160, y: 120 });
-    expect(routeConnectorPathForInstance(connector, [connector]).at(-2)).toEqual({ x: 200, y: 120 });
+    expect(routeConnectorPathForInstance(connector, [connector], bounds).at(-1)).toEqual({ x: 800, y: 120 });
+    expect(routeConnectorPathForInstance(connector, [connector], bounds).at(-2)).toEqual({ x: 760, y: 120 });
   });
 
   it("does not add a misaligned segment cell for static end leg edge points", () => {
@@ -372,6 +385,7 @@ describe("connector line routing", () => {
   });
 
   it("omits the target segment lattice cell when a static end leg is active", () => {
+    const bounds = { width: 800, height: 560 };
     const connector: Extract<ComponentInstance, { type: "connector-line" }> = {
       id: "connector-line-1",
       type: "connector-line",
@@ -381,15 +395,14 @@ describe("connector line routing", () => {
       props: {
         preferredConnection: "horizontal",
         source: { kind: "cell", x: 40, y: 120 },
-        target: { kind: "cell", x: 200, y: 120 },
+        target: { kind: "cell", x: 200, y: 520 },
         overlayGrid: true,
         animated: true,
         style: "dashed",
-        staticEndLeg: "bottom",
       },
     };
 
-    const cells = getConnectorSegmentCellsForInstance(connector, [connector]);
+    const cells = getConnectorSegmentCellsForInstance(connector, [connector], bounds);
     expect(cells.some((cell) => cell.x === 160 && cell.y === 80)).toBe(false);
     expect(cells.some((cell) => cell.x === 80 && cell.y === 80)).toBe(true);
   });

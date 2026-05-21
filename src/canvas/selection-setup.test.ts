@@ -16,7 +16,6 @@ const connector: ComponentInstance = {
     overlayGrid: true,
     animated: true,
     style: "solid",
-    staticEndLeg: "unset",
   },
 };
 

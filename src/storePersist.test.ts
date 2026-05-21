@@ -366,7 +366,12 @@ describe("mergePersistedDocument", () => {
     expect(merged.instances).toEqual([
       {
         ...connector,
-        props: { ...connector.props, overlayGrid: true, animated: true, style: "solid", staticEndLeg: "unset" },
+        props: {
+          ...connector.props,
+          overlayGrid: true,
+          animated: true,
+          style: "solid",
+        },
       },
     ]);
     expect(merged.selectedInstanceId).toBe("connector-line-7");

@@ -34,7 +34,6 @@ const createConnector = (): Extract<ComponentInstance, { type: "connector-line" 
     overlayGrid: true,
     animated: true,
     style: "solid",
-    staticEndLeg: "unset",
   },
 });
 
@@ -68,7 +67,6 @@ describe("hitTestComponentInstances", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
 
@@ -86,7 +84,6 @@ describe("hitTestComponentInstances", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     const gapMask = createGapMask(6, 8);

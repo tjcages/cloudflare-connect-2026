@@ -55,7 +55,6 @@ describe("GridCanvas", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     useAppStore.setState({ instances: [connector], selectedInstanceId: connector.id });
@@ -97,7 +96,6 @@ describe("GridCanvas", () => {
         overlayGrid: true,
         animated: true,
         style: "solid",
-        staticEndLeg: "unset",
       },
     };
     useAppStore.setState({ instances: [connector], selectedInstanceId: null });
