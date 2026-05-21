@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { hitTestComponentInstances } from "./hitTest";
+import { hitTestComponentInstances, hitTestSelectedIconBoxResizeHandle } from "./hitTest";
 import { createGapMask } from "../grid/mask";
 import { DEFAULT_ICON_ID } from "../lib/iconRegistry";
+import { getIconBoxHighlightStrokeCornerInCanvasSpace } from "../lib/componentRegistry";
 import type { ComponentInstance } from "../grid/types";
 
 const createInstance = (id: string, x: number, y: number): ComponentInstance => ({
@@ -129,5 +130,34 @@ describe("hitTestComponentInstances", () => {
     expect(hitTestComponentInstances([rm], 97, 100)).toBeUndefined();
     expect(hitTestComponentInstances([rm], 101, 101)?.id).toBe("rect-marker-1");
     expect(hitTestComponentInstances([rm], 103, 101)).toBeUndefined();
+  });
+});
+
+describe("hitTestSelectedIconBoxResizeHandle", () => {
+  it("returns a corner when the pointer is near a highlight corner", () => {
+    const instance = createInstance("box", 40, 40);
+    const br = getIconBoxHighlightStrokeCornerInCanvasSpace(
+      instance as Extract<ComponentInstance, { type: "icon-box" }>,
+      "br",
+    );
+    expect(hitTestSelectedIconBoxResizeHandle(instance, br.x, br.y)?.corner).toBe("br");
+    expect(hitTestSelectedIconBoxResizeHandle(instance, br.x, br.y)).not.toBeNull();
+  });
+
+  it("returns null when the pointer is outside handle slop", () => {
+    const instance = createInstance("box", 40, 40);
+    expect(hitTestSelectedIconBoxResizeHandle(instance, 40, 40)).toBeNull();
+  });
+
+  it("returns null for non icon-box selections", () => {
+    const pm: ComponentInstance = {
+      id: "plus-marker-1",
+      type: "plus-marker",
+      name: "Plus Marker 1",
+      x: 100,
+      y: 100,
+      props: { theme: "orange" },
+    };
+    expect(hitTestSelectedIconBoxResizeHandle(pm, 120, 120)).toBeNull();
   });
 });

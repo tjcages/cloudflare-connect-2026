@@ -1,15 +1,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { FocusEventHandler, ChangeEventHandler } from "react";
 import type { IconBoxDirection } from "../grid/types";
+import { ICON_BOX_LENGTH_MAX, ICON_BOX_LENGTH_MIN } from "../lib/icon-box/layout";
+import { clampIconBoxLength } from "../lib/icon-box/resize";
 import { BuilderField } from "./BuilderField";
 import { BuilderSelectField } from "./BuilderSelectField";
 import { cn } from "../lib/cn";
 
-export const ICON_BOX_LENGTH_MIN = 1;
-export const ICON_BOX_LENGTH_MAX = 10;
-
-const clampIconBoxLength = (value: number): number =>
-  Math.min(ICON_BOX_LENGTH_MAX, Math.max(ICON_BOX_LENGTH_MIN, Math.floor(value)));
+export { ICON_BOX_LENGTH_MIN, ICON_BOX_LENGTH_MAX } from "../lib/icon-box/layout";
 
 const previewLengthFromDraft = (draft: string): number => {
   const trimmed = draft.trim();

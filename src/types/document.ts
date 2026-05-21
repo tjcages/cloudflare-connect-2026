@@ -1,4 +1,5 @@
-import type { ComponentInstance, ComponentType } from "../grid/types";
+import type { ComponentInstance, ComponentType, IconBoxDirection } from "../grid/types";
+import type { IconBoxContainerReticleCorner } from "../lib/icon-box/layout";
 
 export type CanvasDragState =
   | {
@@ -13,6 +14,16 @@ export type CanvasDragState =
       id: string;
       offsetX: number;
       offsetY: number;
+    }
+  | {
+      mode: "resize";
+      id: string;
+      draggedCorner: IconBoxContainerReticleCorner;
+      fixedCornerCanvas: { x: number; y: number };
+      /** Layout direction locked for the whole drag (prevents axis flip / layer tilt). */
+      startDirection: IconBoxDirection;
+      startRootX: number;
+      startRootY: number;
     };
 
 export type ConnectorEndpointPickState = {
