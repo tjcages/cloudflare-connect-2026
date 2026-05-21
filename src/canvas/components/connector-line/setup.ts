@@ -7,7 +7,7 @@ import {
   isIconBoxInstance,
   resolveIconBoxLayout,
 } from "../../../lib/icon-box/layout";
-import { LARGE_CELL_SIZE, type ComponentInstance } from "../../../grid/types";
+import { LARGE_CELL_SIZE, type ComponentInstance, type ConnectorLineInstance } from "../../../grid/types";
 import { useAppStore } from "../../../store";
 import { CONNECTOR_HIGHLIGHT_COLOR, LAYER_HIGHLIGHT_HOVER_ALPHA } from "../constants";
 import { getPolylineMetrics, arcDistanceToPointOnPolyline, slicePolylineByDistance } from "./pathMotion";
@@ -16,8 +16,8 @@ import {
   getConnectorCornerPointsForInstance,
   getConnectorRouteTopologySignature,
   getForeignCornerOverlapPoints,
-  getStaticEndLegForInstance,
   resolveConnectorEndpoint,
+  resolveStaticEndLegForTarget,
   routeConnectorPathForInstance,
   getConnectorSegmentCellsForInstance,
   type ConnectorRouteBounds,
@@ -120,19 +120,17 @@ export const getConnectorJointPoints = (
       continue;
     }
 
-    const source = resolveConnectorEndpoint(instance.props.source, instances);
-    const target = resolveConnectorEndpoint(instance.props.target, instances);
-    if (!source || !target) {
+    const route = routeConnectorPathForInstance(instance, instances, bounds);
+    if (route.length === 0) {
       continue;
     }
 
-    const route = routeConnectorPathForInstance(instance, instances, bounds);
     const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, route, instances, bounds);
     const jointPoints = [
       ...getConnectorCornerPointsForInstance(
         route,
         instance.props.target,
-        getStaticEndLegForInstance(instance, bounds),
+        resolveStaticEndLegForTarget(instance.props.target, bounds?.width, bounds?.height),
       ),
       ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints),
     ];
@@ -174,23 +172,23 @@ export type ConnectorChromeHitEffects = {
   notifyTargetLayerPulseCycleComplete?: (args: { connectorId: string; targetLayerId: string }) => void;
 };
 
-export type ConnectorLineInstance = Extract<ComponentInstance, { type: "connector-line" }>;
-
 export const connectorOwnsJointPoint = (
   instance: ConnectorLineInstance,
   joint: { x: number; y: number },
   instances: ComponentInstance[],
   bounds: ConnectorRouteBounds,
 ): boolean => {
-  const source = resolveConnectorEndpoint(instance.props.source, instances);
-  const target = resolveConnectorEndpoint(instance.props.target, instances);
-  if (!source || !target) {
+  const route = routeConnectorPathForInstance(instance, instances, bounds);
+  if (route.length === 0) {
     return false;
   }
-  const route = routeConnectorPathForInstance(instance, instances, bounds);
   const elsewhereJunctionHints = collectExternalJunctionHints(instance.id, route, instances, bounds);
   const jointPoints = [
-    ...getConnectorCornerPointsForInstance(route, instance.props.target, getStaticEndLegForInstance(instance, bounds)),
+    ...getConnectorCornerPointsForInstance(
+      route,
+      instance.props.target,
+      resolveStaticEndLegForTarget(instance.props.target, bounds.width, bounds.height),
+    ),
     ...getForeignCornerOverlapPoints(route, elsewhereJunctionHints),
   ];
   return jointPoints.some((p) => p.x === joint.x && p.y === joint.y);
@@ -369,11 +367,6 @@ export const paintConnectorBaseLayer = (
     if (inst.type !== "connector-line") {
       continue;
     }
-    const source = resolveConnectorEndpoint(inst.props.source, instances);
-    const target = resolveConnectorEndpoint(inst.props.target, instances);
-    if (!source || !target) {
-      continue;
-    }
     const segmentOverlay = inst.props.overlayGrid;
     const dashed = inst.props.style === "dashed";
     for (const cell of getConnectorSegmentCellsForInstance(inst, instances, bounds)) {
@@ -402,7 +395,7 @@ export const paintConnectorBaseLayer = (
 };
 
 export const getConnectorRenderFingerprint = (
-  instance: Extract<ComponentInstance, { type: "connector-line" }>,
+  instance: ConnectorLineInstance,
   instances: ComponentInstance[],
   gridStrokeColor: number,
   bounds: ConnectorRouteBounds,
@@ -438,7 +431,7 @@ export const getConnectorRenderFingerprint = (
 
 /** Per-connector chrome: colored stroke, route mask (when animated), **white path hull** (under thin line). Hull lives on `tracksChromeRoot` so it paints on {@link chromeLayer} above all {@link structureLayer} icon card frames. Optional selection endpoint frames on `structureRoot`. Shared segment lattice: {@link paintConnectorBaseLayer}. Corner caps: {@link getConnectorJointPoints} on chromeLayer. */
 export const buildConnectorInstanceChrome = (
-  instance: Extract<ComponentInstance, { type: "connector-line" }>,
+  instance: ConnectorLineInstance,
   instances: ComponentInstance[],
   gridStrokeColor: number,
   gridStrokeHex: string,
@@ -484,21 +477,17 @@ export const buildConnectorInstanceChrome = (
     /** 80×80 lattice endpoint frames: useful for `cell` anchors; skipped for `layer` — selection layer already outlines icon/marker targets and the rect clashes with wide icon shadow cards (reads as a stray vertical/horizontal stroke). */
     const endpointFrames = new Graphics();
     endpointFrames.zIndex = 0;
+    const staticEndLeg = resolveStaticEndLegForTarget(instance.props.target, bounds?.width, bounds?.height);
+    const targetEndpoint = instance.props.target;
     let drewAnyEndpointFrame = false;
     for (const { point, endpoint } of [
       { point: source, endpoint: instance.props.source },
-      { point: target, endpoint: instance.props.target },
+      { point: target, endpoint: targetEndpoint },
     ] as const) {
       if (endpoint.kind === "layer") {
         continue;
       }
-      if (
-        getStaticEndLegForInstance(instance, bounds) !== "unset" &&
-        endpoint.kind === "cell" &&
-        instance.props.target.kind === "cell" &&
-        endpoint.x === instance.props.target.x &&
-        endpoint.y === instance.props.target.y
-      ) {
+      if (staticEndLeg !== "unset" && endpoint === targetEndpoint) {
         continue;
       }
       drewAnyEndpointFrame = true;

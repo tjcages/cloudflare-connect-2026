@@ -5,12 +5,8 @@ import {
 } from "../lib/componentRegistry";
 import { isCodeSnippetInstance } from "../lib/code-snippet/layout";
 import { isIconBoxInstance, type IconBoxContainerReticleCorner } from "../lib/icon-box/layout";
-import type { ComponentInstance } from "../grid/types";
-import {
-  resolveConnectorEndpoint,
-  routeConnectorPathForInstance,
-  type ConnectorRouteBounds,
-} from "./components/connector-line/route";
+import type { ComponentInstance, ConnectorLineInstance } from "../grid/types";
+import { routeConnectorPathForInstance, type ConnectorRouteBounds } from "./components/connector-line/route";
 
 const CONNECTOR_HIT_TOLERANCE = 6;
 
@@ -18,19 +14,16 @@ const CONNECTOR_HIT_TOLERANCE = 6;
 export const ICON_BOX_RESIZE_HANDLE_HIT_SLOP = 5;
 
 const isPointNearConnectorPath = (
-  instance: Extract<ComponentInstance, { type: "connector-line" }>,
+  instance: ConnectorLineInstance,
   instances: ComponentInstance[],
   x: number,
   y: number,
   bounds?: ConnectorRouteBounds,
 ) => {
-  const source = resolveConnectorEndpoint(instance.props.source, instances);
-  const target = resolveConnectorEndpoint(instance.props.target, instances);
-  if (!source || !target) {
+  const points = routeConnectorPathForInstance(instance, instances, bounds);
+  if (points.length === 0) {
     return false;
   }
-
-  const points = routeConnectorPathForInstance(instance, instances, bounds);
   for (let index = 0; index < points.length - 1; index += 1) {
     const a = points[index];
     const b = points[index + 1];

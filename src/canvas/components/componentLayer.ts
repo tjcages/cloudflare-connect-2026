@@ -1,7 +1,7 @@
 import { animate, motionValue } from "motion";
 import { Container, Graphics, ParticleContainer, Rectangle, Texture } from "pixi.js";
 import type { Ticker } from "../../components/pixi";
-import type { ComponentInstance, GapMask } from "../../grid/types";
+import type { ComponentInstance, ConnectorLineInstance, GapMask } from "../../grid/types";
 import { RECT_MARKER_RENDER_OFFSET } from "../../lib/componentRegistry";
 import { isIconBoxInstance } from "../../lib/icon-box/layout";
 import { useAppStore } from "../../store";
@@ -313,7 +313,7 @@ const syncLayers = (
 };
 
 const syncConnectorLine = (
-  instance: Extract<ComponentInstance, { type: "connector-line" }>,
+  instance: ConnectorLineInstance,
   toDraw: ComponentInstance[],
   structureLayer: Container,
   chromeLayer: Container,

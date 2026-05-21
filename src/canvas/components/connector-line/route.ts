@@ -5,6 +5,7 @@ import {
   type ComponentInstance,
   type ConnectorConnectionPreference,
   type ConnectorEndpoint,
+  type ConnectorLineInstance,
   type ConnectorStaticEndLeg,
   type GapMask,
 } from "../../../grid/types";
@@ -14,12 +15,10 @@ export type ConnectorPoint = { x: number; y: number };
 export type ConnectorSegmentCell = { x: number; y: number; width: number; height: number };
 export type ConnectorRouteBounds = { width: number; height: number; gapMask?: GapMask };
 
-export type ConnectorLineInstance = Extract<ComponentInstance, { type: "connector-line" }>;
-
 const snapToConnectorLattice = (value: number): number =>
   LARGE_CELL_SIZE / 2 + Math.round((value - LARGE_CELL_SIZE / 2) / LARGE_CELL_SIZE) * LARGE_CELL_SIZE;
 
-export const isConnectorLatticePoint = (point: ConnectorPoint): boolean =>
+const isConnectorLatticePoint = (point: ConnectorPoint): boolean =>
   point.x === snapToConnectorLattice(point.x) && point.y === snapToConnectorLattice(point.y);
 
 export const resolveConnectorEndpoint = (
@@ -535,19 +534,16 @@ export const routeConnectorPath = (
   return points;
 };
 
-const CONNECTOR_CELL_CENTER_INSET = LARGE_CELL_SIZE / 2;
-
-/** For static cell targets on the canvas edge, pick the in-cell leg that meets that edge. */
 export const resolveStaticEndLegForTarget = (
   targetEndpoint: ConnectorEndpoint,
-  canvasWidth: number,
-  canvasHeight: number,
+  canvasWidth?: number,
+  canvasHeight?: number,
 ): ConnectorStaticEndLeg => {
-  if (targetEndpoint.kind !== "cell") {
+  if (targetEndpoint.kind !== "cell" || canvasWidth === undefined || canvasHeight === undefined) {
     return "unset";
   }
 
-  const inset = CONNECTOR_CELL_CENTER_INSET;
+  const inset = LARGE_CELL_SIZE / 2;
   const maxX = Math.max(inset, canvasWidth - inset);
   const maxY = Math.max(inset, canvasHeight - inset);
   const { x, y } = targetEndpoint;
@@ -565,16 +561,6 @@ export const resolveStaticEndLegForTarget = (
     return "bottom";
   }
   return "unset";
-};
-
-export const getStaticEndLegForInstance = (
-  instance: ConnectorLineInstance,
-  bounds?: ConnectorRouteBounds,
-): ConnectorStaticEndLeg => {
-  if (!bounds) {
-    return "unset";
-  }
-  return resolveStaticEndLegForTarget(instance.props.target, bounds.width, bounds.height);
 };
 
 export const getStaticEndLegPoint = (
@@ -600,12 +586,7 @@ export const applyStaticEndLeg = (
   targetEndpoint: ConnectorEndpoint,
   staticEndLeg: ConnectorStaticEndLeg,
 ): ConnectorPoint[] => {
-  if (
-    staticEndLeg === "unset" ||
-    targetEndpoint.kind !== "cell" ||
-    points.length === 0 ||
-    (staticEndLeg !== "top" && staticEndLeg !== "right" && staticEndLeg !== "bottom" && staticEndLeg !== "left")
-  ) {
+  if (staticEndLeg === "unset" || targetEndpoint.kind !== "cell" || points.length === 0) {
     return points;
   }
 
@@ -614,12 +595,7 @@ export const applyStaticEndLeg = (
     return points;
   }
 
-  const edge = getStaticEndLegPoint(end, staticEndLeg);
-  if (edge.x === end.x && edge.y === end.y) {
-    return points;
-  }
-
-  return [...points, edge];
+  return [...points, getStaticEndLegPoint(end, staticEndLeg)];
 };
 
 export const routeConnectorPathForInstance = (
@@ -634,7 +610,11 @@ export const routeConnectorPathForInstance = (
   }
 
   const points = routeConnectorPath(source, target, instance.props.preferredConnection, bounds);
-  return applyStaticEndLeg(points, instance.props.target, getStaticEndLegForInstance(instance, bounds));
+  return applyStaticEndLeg(
+    points,
+    instance.props.target,
+    resolveStaticEndLegForTarget(instance.props.target, bounds?.width, bounds?.height),
+  );
 };
 
 export const getConnectorCornerPoints = (points: ConnectorPoint[]): ConnectorPoint[] => {
@@ -750,14 +730,16 @@ export const collectOtherConnectorCornerPoints = (
     if (inst.type !== "connector-line" || inst.id === selfId) {
       continue;
     }
-    const s = resolveConnectorEndpoint(inst.props.source, instances);
-    const t = resolveConnectorEndpoint(inst.props.target, instances);
-    if (!s || !t) {
+    const routed = routeConnectorPathForInstance(inst, instances, bounds);
+    if (routed.length === 0) {
       continue;
     }
-    const routed = routeConnectorPathForInstance(inst, instances, bounds);
     all.push(
-      ...getConnectorCornerPointsForInstance(routed, inst.props.target, getStaticEndLegForInstance(inst, bounds)),
+      ...getConnectorCornerPointsForInstance(
+        routed,
+        inst.props.target,
+        resolveStaticEndLegForTarget(inst.props.target, bounds?.width, bounds?.height),
+      ),
     );
   }
   return all;
@@ -849,12 +831,10 @@ export const collectExternalJunctionHints = (
     if (inst.type !== "connector-line" || inst.id === selfId) {
       continue;
     }
-    const s = resolveConnectorEndpoint(inst.props.source, instances);
-    const t = resolveConnectorEndpoint(inst.props.target, instances);
-    if (!s || !t) {
+    const peer = routeConnectorPathForInstance(inst, instances, bounds);
+    if (peer.length === 0) {
       continue;
     }
-    const peer = routeConnectorPathForInstance(inst, instances, bounds);
     for (const px of crossingsBetweenOrthoPolylines(selfPoints, peer)) {
       pushUnique(px);
     }
@@ -871,12 +851,6 @@ export const getConnectorRouteTopologySignature = (
   const parts: string[] = [];
   for (const inst of instances) {
     if (inst.type !== "connector-line") {
-      continue;
-    }
-    const s = resolveConnectorEndpoint(inst.props.source, instances);
-    const t = resolveConnectorEndpoint(inst.props.target, instances);
-    if (!s || !t) {
-      parts.push(`${inst.id}:`);
       continue;
     }
     const routed = routeConnectorPathForInstance(inst, instances, bounds);
@@ -908,20 +882,6 @@ export const getConnectorSegmentCells = (points: ConnectorPoint[]): ConnectorSeg
   return cells;
 };
 
-export const getStaticEndLegTargetSegmentCell = (targetEndpoint: ConnectorEndpoint): ConnectorSegmentCell | null => {
-  if (targetEndpoint.kind !== "cell") {
-    return null;
-  }
-  return {
-    x: targetEndpoint.x - LARGE_CELL_SIZE / 2,
-    y: targetEndpoint.y - LARGE_CELL_SIZE / 2,
-    width: LARGE_CELL_SIZE,
-    height: LARGE_CELL_SIZE,
-  };
-};
-
-const segmentCellKey = (cell: ConnectorSegmentCell): string => `${cell.x}:${cell.y}`;
-
 /** Segment lattice tiles for painting; omits the target cell when a static end leg draws inside it instead. */
 export const getConnectorSegmentCellsForInstance = (
   instance: ConnectorLineInstance,
@@ -929,17 +889,16 @@ export const getConnectorSegmentCellsForInstance = (
   bounds?: ConnectorRouteBounds,
 ): ConnectorSegmentCell[] => {
   const cells = getConnectorSegmentCells(routeConnectorPathForInstance(instance, instances, bounds));
-  if (getStaticEndLegForInstance(instance, bounds) === "unset" || instance.props.target.kind !== "cell") {
+  const target = instance.props.target;
+  if (resolveStaticEndLegForTarget(target, bounds?.width, bounds?.height) === "unset") {
+    return cells;
+  }
+  if (target.kind !== "cell") {
     return cells;
   }
 
-  const targetCell = getStaticEndLegTargetSegmentCell(instance.props.target);
-  if (!targetCell) {
-    return cells;
-  }
-
-  const targetKey = segmentCellKey(targetCell);
-  return cells.filter((cell) => segmentCellKey(cell) !== targetKey);
+  const targetKey = `${target.x - LARGE_CELL_SIZE / 2}:${target.y - LARGE_CELL_SIZE / 2}`;
+  return cells.filter((cell) => `${cell.x}:${cell.y}` !== targetKey);
 };
 
 /**
