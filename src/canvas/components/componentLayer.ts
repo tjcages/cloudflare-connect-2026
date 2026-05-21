@@ -746,7 +746,6 @@ export const setupComponentLayer: Ticker = ({ app, cleanup }) => {
     scheduleIconBoxConnectorHit: (hitArgs) => {
       iconBoxLineEnableCoordinator.notifyTargetHit({
         connectorId: hitArgs.connectorId,
-        leg: hitArgs.leg,
         boxId: hitArgs.boxId,
       });
 

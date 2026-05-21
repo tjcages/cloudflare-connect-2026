@@ -299,7 +299,7 @@ export const iconBoxLineEnableCoordinator = {
     useAppStore.getState().patchIconBoxLineEnableDebug(boxId, null);
   },
 
-  notifyTargetHit(args: { connectorId: string; leg: "forward" | "backward"; boxId: string }) {
+  notifyTargetHit(args: { connectorId: string; boxId: string }) {
     const instances = instancesSnapshot();
     const inst = instances.find((i) => i.id === args.boxId);
     if (!inst || !isIconBoxInstance(inst)) {
@@ -314,10 +314,6 @@ export const iconBoxLineEnableCoordinator = {
     }
     const mode = inst.props.enabledByLine;
     if (mode === "off") {
-      return;
-    }
-
-    if (mode === "iterated" && args.leg === "backward") {
       return;
     }
 
@@ -339,7 +335,7 @@ export const iconBoxLineEnableCoordinator = {
       boxes.set(args.boxId, rt);
     }
 
-    rt.counters = applyHitToLineEnableState(mode, rt.counters, args.leg);
+    rt.counters = applyHitToLineEnableState(mode, rt.counters);
     iconBoxLineEnableCoordinator.refreshOutgoingGateForSource(args.boxId);
     iconBoxLineEnableCoordinator.scheduleDebouncedVisual(args.boxId);
     syncLineEnableDebugToStore(args.boxId);
@@ -361,14 +357,14 @@ export const iconBoxLineEnableCoordinator = {
     }, LINE_ENABLE_SCHEDULE_COALESCE_MS);
   },
 
-  /** Iterated: one full pulse cycle completed on a layer-source connector (throw back to source box). */
+  /** Iterated: one full one-way pulse cycle completed on a layer-source connector. */
   notifyOutgoingCycleComplete(sourceLayerId: string) {
     applyIteratedCycleDecrementForBox(sourceLayerId);
   },
 
   /**
-   * Iterated: pulse **reversed** off the connector's layer target (backward leg about to run). Not used when
-   * source is a layer on the same box — `notifyOutgoingCycleComplete` runs at full cycle end for that case.
+   * Iterated: forward delivery completed at the connector's layer target. Not used when source is a layer on
+   * the same box — `notifyOutgoingCycleComplete` runs at cycle end for that case.
    */
   notifyTargetLayerPulseCycleComplete(args: { connectorId: string; targetLayerId: string }) {
     const instances = instancesSnapshot();

@@ -37,8 +37,6 @@ const CONNECTOR_ANIM_STROKE_WIDTH = 1;
 const CONNECTOR_ANIM_SLICE_PX = 100;
 /** Duration multiplier: one-way leg duration = `0.2s × (pathLength / slicePx)`. */
 const CONNECTOR_ANIM_SEC_PER_SLICE = 0.2;
-/** Pause at source (backward complete) and target (forward complete) before reversing. */
-const CONNECTOR_ANIM_ENDPOINT_PAUSE_SEC = 0.4;
 /** Upper bound (seconds) for a fresh uniform [0, max) draw before each cycle’s forward leg. */
 const CONNECTOR_ANIM_CYCLE_STAGGER_MAX_SEC = 0.5;
 /** Only guards sub-frame / zero durations; leg time scales with path length so arc-length speed stays ~constant. */
@@ -140,13 +138,12 @@ export type ConnectorChromeHitEffects = {
   dotTexture: Texture;
   scheduleIconBoxConnectorHit: (args: {
     connectorId: string;
-    leg: "forward" | "backward";
     boxId: string;
     pushX: number;
     pushY: number;
     /** Sampled each frame so sparks track live icon-box bounds during drag/nudge. */
     getParticleOrigin: () => { x: number; y: number };
-    /** Animated wave stroke color at hit time (`activeFill`). */
+    /** Animated wave stroke color at hit time (source endpoint theme). */
     particleTint: number;
   }) => void;
   /** Layer-source connectors await a slot before each full pulse cycle when outgoing is gated. */
@@ -155,12 +152,11 @@ export type ConnectorChromeHitEffects = {
     sourceLayerId: string;
     isCancelled: () => boolean;
   }) => Promise<void>;
-  /** After backward leg pause; releases outgoing RR slot. */
+  /** After forward delivery completes; releases outgoing RR slot. */
   releaseOutgoingPulseCycleSlot?: (args: { connectorId: string; sourceLayerId: string }) => void;
   /**
-   * When the pulse **reverses** at the target (after forward leg + pause, before the backward leg toward
-   * source). Decrements iterated `hitCount` for the layer-target icon box. Skipped when source is a layer
-   * on the same box (`releaseOutgoingPulseCycleSlot` handles that case at cycle end).
+   * When forward delivery completes at a layer target. Decrements iterated `hitCount` for the layer-target
+   * icon box. Skipped when source is a layer on the same box (`releaseOutgoingPulseCycleSlot` handles that case).
    */
   notifyTargetLayerPulseCycleComplete?: (args: { connectorId: string; targetLayerId: string }) => void;
 };
@@ -550,16 +546,10 @@ export const buildConnectorInstanceChrome = (
     );
 
     const progressAlongPath = motionValue(0);
-    type LegPhase = "forward" | "backward";
-    let legPhase: LegPhase = "forward";
-
-    const activeFill = () =>
-      legPhase === "forward"
-        ? resolveConnectorEndpointThemeFill(instance.props.source, instances, gridStrokeHex)
-        : resolveConnectorEndpointThemeFill(instance.props.target, instances, gridStrokeHex);
+    const waveFill = () => resolveConnectorEndpointThemeFill(instance.props.source, instances, gridStrokeHex);
 
     const renderPulse = (centerDist: number) => {
-      const waveFill = activeFill();
+      const fill = waveFill();
       waveStroke.clear();
       const waveSlice = slicePolylineByDistance(
         points,
@@ -571,72 +561,48 @@ export const buildConnectorInstanceChrome = (
         drawPolyline(waveStroke, waveSlice);
         waveStroke.stroke({
           width: CONNECTOR_ANIM_STROKE_WIDTH,
-          color: waveFill,
+          color: fill,
           ...CONNECTOR_PATH_STROKE_STYLE,
         });
       }
-      drawAnimatedCornerCaps(centerDist, waveFill);
+      drawAnimatedCornerCaps(centerDist, fill);
     };
 
     const firedForwardBoxes = new Set<string>();
-    const firedBackwardBoxes = new Set<string>();
 
     let prevCenterDist = progressAlongPath.get();
 
-    const particleOriginForHit = (boxId: string, leg: "forward" | "backward", fallback: { x: number; y: number }) => {
+    const particleOriginForHit = (boxId: string, fallback: { x: number; y: number }) => {
       const inst = useAppStore.getState().instances.find((i) => i.id === boxId);
       if (!inst || !isIconBoxInstance(inst)) {
         return fallback;
       }
       const b = getInstanceCanvasBounds(inst);
       const rect = { x: b.x, y: b.y, width: b.width, height: b.height };
-      const live = resolveIconBoxLiveParticleEmit(points, metrics, rect, leg);
+      const live = resolveIconBoxLiveParticleEmit(points, metrics, rect);
       return live ?? fallback;
     };
 
     const fireIconBoxHitsIfNeeded = (centerDist: number) => {
-      const pulseStrokeTint = activeFill();
+      const pulseStrokeTint = waveFill();
       /** Painted wave slice is [center−half, center+half]; triggers off the advancing tip, not midpoint. */
       const forwardLead = centerDist + CONNECTOR_ANIM_HALF_PX;
       const prevForwardLead = prevCenterDist + CONNECTOR_ANIM_HALF_PX;
-      const backwardLead = centerDist - CONNECTOR_ANIM_HALF_PX;
-      const prevBackwardLead = prevCenterDist - CONNECTOR_ANIM_HALF_PX;
 
-      if (legPhase === "forward") {
-        for (const hit of iconBoxHits) {
-          if (firedForwardBoxes.has(hit.boxId)) {
-            continue;
-          }
-          if (prevForwardLead < hit.forwardArc && forwardLead >= hit.forwardArc) {
-            firedForwardBoxes.add(hit.boxId);
-            hitEffects.scheduleIconBoxConnectorHit({
-              connectorId: instance.id,
-              leg: "forward",
-              boxId: hit.boxId,
-              pushX: hit.pushForwardX,
-              pushY: hit.pushForwardY,
-              getParticleOrigin: () => particleOriginForHit(hit.boxId, "forward", hit.particleEmitForward),
-              particleTint: pulseStrokeTint,
-            });
-          }
+      for (const hit of iconBoxHits) {
+        if (firedForwardBoxes.has(hit.boxId)) {
+          continue;
         }
-      } else {
-        for (const hit of iconBoxHits) {
-          if (firedBackwardBoxes.has(hit.boxId)) {
-            continue;
-          }
-          if (prevBackwardLead > hit.backwardArc && backwardLead <= hit.backwardArc) {
-            firedBackwardBoxes.add(hit.boxId);
-            hitEffects.scheduleIconBoxConnectorHit({
-              connectorId: instance.id,
-              leg: "backward",
-              boxId: hit.boxId,
-              pushX: hit.pushBackwardX,
-              pushY: hit.pushBackwardY,
-              getParticleOrigin: () => particleOriginForHit(hit.boxId, "backward", hit.particleEmitBackward),
-              particleTint: pulseStrokeTint,
-            });
-          }
+        if (prevForwardLead < hit.forwardArc && forwardLead >= hit.forwardArc) {
+          firedForwardBoxes.add(hit.boxId);
+          hitEffects.scheduleIconBoxConnectorHit({
+            connectorId: instance.id,
+            boxId: hit.boxId,
+            pushX: hit.pushForwardX,
+            pushY: hit.pushForwardY,
+            getParticleOrigin: () => particleOriginForHit(hit.boxId, hit.particleEmitForward),
+            particleTint: pulseStrokeTint,
+          });
         }
       }
     };
@@ -665,10 +631,6 @@ export const buildConnectorInstanceChrome = (
       }
     };
 
-    const pauseAtEndpoint = async () => {
-      await delayUnlessCancelled(CONNECTOR_ANIM_ENDPOINT_PAUSE_SEC * 1000);
-    };
-
     const runLoop = async () => {
       while (!cancelled) {
         const cycleStaggerMs = randomUnitInterval() * CONNECTOR_ANIM_CYCLE_STAGGER_MAX_SEC * 1000;
@@ -686,7 +648,6 @@ export const buildConnectorInstanceChrome = (
             break;
           }
         }
-        legPhase = "forward";
         firedForwardBoxes.clear();
         progressAlongPath.set(0);
         activeControls = animate(progressAlongPath, slice, {
@@ -695,10 +656,6 @@ export const buildConnectorInstanceChrome = (
         });
         await activeControls.finished;
         activeControls = null;
-        if (cancelled) {
-          break;
-        }
-        await pauseAtEndpoint();
         if (cancelled) {
           break;
         }
@@ -711,21 +668,6 @@ export const buildConnectorInstanceChrome = (
               targetLayerId: layerTargetId,
             });
           }
-        }
-        legPhase = "backward";
-        firedBackwardBoxes.clear();
-        activeControls = animate(progressAlongPath, 0, {
-          duration: legDurationSec,
-          ease: connectorLegPlateauEase,
-        });
-        await activeControls.finished;
-        activeControls = null;
-        if (cancelled) {
-          break;
-        }
-        await pauseAtEndpoint();
-        if (cancelled) {
-          break;
         }
         if (layerSourceId && hitEffects.releaseOutgoingPulseCycleSlot) {
           hitEffects.releaseOutgoingPulseCycleSlot({

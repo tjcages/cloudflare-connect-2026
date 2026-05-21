@@ -55,12 +55,12 @@ describe("iconBoxLineEnableCoordinator", () => {
     iconBoxLineEnableCoordinator._resetAllForTests();
   });
 
-  it("decrements iterated hitCount when pulse reverses off the layer target (cell → layer)", () => {
+  it("decrements iterated hitCount when forward delivery completes at the layer target (cell → layer)", () => {
     const box = iconBox("b1");
     const conn = connectorCellToLayer("c1", "b1");
     useAppStore.setState({ instances: [box, conn] });
 
-    iconBoxLineEnableCoordinator.notifyTargetHit({ connectorId: "c1", leg: "forward", boxId: "b1" });
+    iconBoxLineEnableCoordinator.notifyTargetHit({ connectorId: "c1", boxId: "b1" });
     expect(iconBoxLineEnableCoordinator._getCounters("b1")?.hitCount).toBe(1);
 
     iconBoxLineEnableCoordinator.notifyTargetLayerPulseCycleComplete({
@@ -75,7 +75,7 @@ describe("iconBoxLineEnableCoordinator", () => {
     const conn = connectorLayerToSameLayer("c1", "b1");
     useAppStore.setState({ instances: [box, conn] });
 
-    iconBoxLineEnableCoordinator.notifyTargetHit({ connectorId: "c1", leg: "forward", boxId: "b1" });
+    iconBoxLineEnableCoordinator.notifyTargetHit({ connectorId: "c1", boxId: "b1" });
     expect(iconBoxLineEnableCoordinator._getCounters("b1")?.hitCount).toBe(1);
 
     iconBoxLineEnableCoordinator.notifyTargetLayerPulseCycleComplete({
@@ -93,7 +93,7 @@ describe("iconBoxLineEnableCoordinator", () => {
     const conn = connectorCellToLayer("c1", "b1");
     useAppStore.setState({ instances: [box, conn] });
 
-    iconBoxLineEnableCoordinator.notifyTargetHit({ connectorId: "c1", leg: "forward", boxId: "b1" });
+    iconBoxLineEnableCoordinator.notifyTargetHit({ connectorId: "c1", boxId: "b1" });
     expect(iconBoxLineEnableCoordinator._getCounters("b1")?.hitCount).toBe(1);
 
     iconBoxLineEnableCoordinator.notifyOutgoingCycleComplete("b1");

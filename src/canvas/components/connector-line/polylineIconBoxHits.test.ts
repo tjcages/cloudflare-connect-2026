@@ -8,7 +8,7 @@ import {
 } from "./polylineIconBoxHits";
 
 describe("collectIconBoxHitsAlongConnector", () => {
-  it("computes forward/backward arcs for a horizontal crossing", () => {
+  it("computes forward arc for a horizontal crossing", () => {
     const box = createComponentInstance("icon-box", 200, 220, 1, 4000, 4000);
     const canvasBounds = getInstanceCanvasBounds(box);
     const midY = canvasBounds.y + canvasBounds.height / 2;
@@ -25,15 +25,11 @@ describe("collectIconBoxHitsAlongConnector", () => {
     expect(hit.boxId).toBe(box.id);
 
     const enterDist = canvasBounds.x - points[0].x;
-    const exitDist = canvasBounds.x + canvasBounds.width - points[0].x;
 
     expect(hit.forwardArc).toBeCloseTo(enterDist);
-    expect(hit.backwardArc).toBeCloseTo(exitDist);
 
     expect(pointAlongPolyline(points, metrics, hit.forwardArc).x).toBeCloseTo(canvasBounds.x);
     expect(pointAlongPolyline(points, metrics, hit.forwardArc).y).toBeCloseTo(midY);
-    expect(pointAlongPolyline(points, metrics, hit.backwardArc).x).toBeCloseTo(canvasBounds.x + canvasBounds.width);
-    expect(pointAlongPolyline(points, metrics, hit.backwardArc).y).toBeCloseTo(midY);
 
     /** West face: pulse enters along +X; inner body recoils ~+X. Emitter anchored on crossed left edge. */
     expect(hit.pushForwardX).toBeCloseTo(1);
@@ -44,7 +40,7 @@ describe("collectIconBoxHitsAlongConnector", () => {
     expect(hit.particleEmitForward.y).toBeCloseTo(midY);
   });
 
-  it("computes arcs for a vertical crossing", () => {
+  it("computes forward arc for a vertical crossing", () => {
     const box = createComponentInstance("icon-box", 160, 180, 2, 4000, 4000);
     const canvasBounds = getInstanceCanvasBounds(box);
     const midX = canvasBounds.x + canvasBounds.width / 2;
@@ -60,10 +56,8 @@ describe("collectIconBoxHitsAlongConnector", () => {
     const hit = hits[0];
 
     const enterDist = canvasBounds.y - points[0].y;
-    const exitDist = canvasBounds.y + canvasBounds.height - points[0].y;
 
     expect(hit.forwardArc).toBeCloseTo(enterDist);
-    expect(hit.backwardArc).toBeCloseTo(exitDist);
 
     /** Top face: downward pulse (+Y inward); recoils ~+Y. Emitter on crossed top edge. */
     expect(hit.pushForwardX).toBeCloseTo(0);
@@ -97,7 +91,7 @@ describe("collectIconBoxHitsAlongConnector", () => {
       height: canvasBounds.height,
     };
 
-    const live = resolveIconBoxLiveParticleEmit(points, metrics, rect, "forward");
+    const live = resolveIconBoxLiveParticleEmit(points, metrics, rect);
     expect(live).not.toBeNull();
     expect(live!.x).toBeCloseTo(hit!.particleEmitForward.x + 55);
     expect(live!.y).toBeCloseTo(hit!.particleEmitForward.y);

@@ -71,24 +71,20 @@ describe("iconBoxEnabledByLine", () => {
     expect(listOutgoingConnectorsFromLayerSource(instances, "b1")).toEqual(["c2", "c3"]);
   });
 
-  it("iterated hitCount increments on forward target hit; decrement is coordinator-driven (pulse cycle end)", () => {
+  it("iterated hitCount increments on target hit; decrement is coordinator-driven (pulse cycle end)", () => {
     let s = initialIconBoxLineEnableCounters();
-    s = applyHitToLineEnableState("iterated", s, "forward");
+    s = applyHitToLineEnableState("iterated", s);
     expect(lineEnablePresentationEnabled("iterated", s)).toBe(true);
     expect(iconBoxOutgoingBudget("iterated", true, s)).toBe(1);
-    s = applyHitToLineEnableState("iterated", s, "backward");
-    expect(lineEnablePresentationEnabled("iterated", s)).toBe(true);
     s = { ...s, hitCount: Math.max(0, s.hitCount - 1) };
     expect(lineEnablePresentationEnabled("iterated", s)).toBe(false);
     expect(iconBoxOutgoingBudget("iterated", false, s)).toBe(0);
   });
 
-  it("once mode latches on forward hit only", () => {
+  it("once mode latches on target hit", () => {
     let s = initialIconBoxLineEnableCounters();
     expect(lineEnablePresentationEnabled("once", s)).toBe(false);
-    s = applyHitToLineEnableState("once", s, "forward");
-    expect(lineEnablePresentationEnabled("once", s)).toBe(true);
-    s = applyHitToLineEnableState("once", s, "backward");
+    s = applyHitToLineEnableState("once", s);
     expect(lineEnablePresentationEnabled("once", s)).toBe(true);
   });
 });

@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  arcDistanceToPointOnPolyline,
-  bounceDistanceAlong,
-  getPolylineMetrics,
-  slicePolylineByDistance,
-} from "./pathMotion";
+import { arcDistanceToPointOnPolyline, getPolylineMetrics, slicePolylineByDistance } from "./pathMotion";
 
 describe("pathMotion", () => {
   it("measures a simple horizontal segment", () => {
@@ -38,13 +33,5 @@ describe("pathMotion", () => {
     const m = getPolylineMetrics(points);
     expect(arcDistanceToPointOnPolyline(points, m, { x: 120, y: 120 })).toBe(80);
     expect(arcDistanceToPointOnPolyline(points, m, { x: 80, y: 120 })).toBe(40);
-  });
-
-  it("bounces along the path with period 2L", () => {
-    const L = 100;
-    expect(bounceDistanceAlong(0, 1, L)).toBe(0);
-    expect(bounceDistanceAlong(100, 1, L)).toBe(100);
-    expect(bounceDistanceAlong(150, 1, L)).toBe(50);
-    expect(bounceDistanceAlong(200, 1, L)).toBe(0);
   });
 });

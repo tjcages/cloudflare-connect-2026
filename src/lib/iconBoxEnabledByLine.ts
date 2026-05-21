@@ -52,22 +52,14 @@ export const lineEnablePresentationEnabled = (
 export const applyHitToLineEnableState = (
   mode: IconBoxEnabledByLineMode,
   prior: IconBoxLineEnableCounters,
-  leg: "forward" | "backward",
 ): IconBoxLineEnableCounters => {
   if (mode === "off") {
     return prior;
   }
   if (mode === "once") {
-    if (leg === "forward") {
-      return { hitCount: prior.hitCount, onceLatched: true };
-    }
-    return prior;
+    return { hitCount: prior.hitCount, onceLatched: true };
   }
-  if (leg === "forward") {
-    return { hitCount: prior.hitCount + 1, onceLatched: prior.onceLatched };
-  }
-  /** Iterated backward: no counter change here; decrement runs at pulse cycle end (outgoing release or target-layer callback). */
-  return prior;
+  return { hitCount: prior.hitCount + 1, onceLatched: prior.onceLatched };
 };
 
 export const iconBoxOutgoingBudget = (

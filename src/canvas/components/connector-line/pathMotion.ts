@@ -133,13 +133,3 @@ export const slicePolylineByDistance = (
 
   return out;
 };
-
-/** Source → target → source oscillation; returns distance along path in `[0, totalLength]`. */
-export const bounceDistanceAlong = (timeSeconds: number, speedPxPerSec: number, totalLength: number): number => {
-  if (totalLength <= 0) {
-    return 0;
-  }
-  const span = 2 * totalLength;
-  const phase = (((timeSeconds * speedPxPerSec) % span) + span) % span;
-  return phase < totalLength ? phase : span - phase;
-};

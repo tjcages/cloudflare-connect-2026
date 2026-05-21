@@ -13,22 +13,16 @@ export type IconBoxHitAlongConnector = {
   boxId: string;
   /** Source→target: pulse crosses into shadow-card bounds (outside→inside along polyline). */
   forwardArc: number;
-  /** Target→source: pulse crosses decreasing-arc boundary at shadow exit (backward leg). */
-  backwardArc: number;
   /** Border contact geometry (pulse ↔ shadow perimeter). */
   emitterForward: PathPoint;
-  emitterBackward: PathPoint;
   /** Hit sparks start inside shadow by {@link ICON_BOX_HIT_PARTICLE_INNER_INSET_PX} toward interior. */
   particleEmitForward: PathPoint;
-  particleEmitBackward: PathPoint;
   /**
    * Connector “touch” impulse on inner body (~1 px Motion): unit vector pointing **into** the shadow rect
-   * along the pulse leg (pulse momentum into interior).
+   * along the pulse direction (pulse momentum into interior).
    */
   pushForwardX: number;
   pushForwardY: number;
-  pushBackwardX: number;
-  pushBackwardY: number;
 };
 
 type SegmentClip =
@@ -103,21 +97,13 @@ const unitIntoInteriorAlongSegment = (
   return len < 1e-9 ? { x: inwardNx, y: inwardNy } : { x: pick.x / len, y: pick.y / len };
 };
 
-/**
- * Forward crest moves toward increasing arc ⇒ approach uses +`T`; backward leg ⇒ −`T`; pick whichever
- * direction matches inward momentum into shadow.
- */
-const leanDirectionFromPulse = (
+/** Pulse crest moves toward increasing arc; pick tangent direction that matches inward momentum into shadow. */
+const leanDirectionFromForwardPulse = (
   tangentX: number,
   tangentY: number,
   inwardNx: number,
   inwardNy: number,
-  leg: "forward" | "backward",
-): { x: number; y: number } => {
-  const vx = leg === "forward" ? tangentX : -tangentX;
-  const vy = leg === "forward" ? tangentY : -tangentY;
-  return unitIntoInteriorAlongSegment(vx, vy, inwardNx, inwardNy);
-};
+): { x: number; y: number } => unitIntoInteriorAlongSegment(tangentX, tangentY, inwardNx, inwardNy);
 
 const snapHitToNearestEdge = (p: PathPoint, rect: AxisAlignedRect): PathPoint => {
   const dl = Math.abs(p.x - rect.x);
@@ -276,26 +262,21 @@ const collectSegmentClipsForRect = (
   return clips;
 };
 
-/** Smallest/largest arc along the polyline where the route enters/exits `rect` (when it crosses). */
-export const getIconBoxConnectorCrossingArcsForRect = (
+/** Smallest arc along the polyline where the route enters `rect` (when it crosses). */
+export const getIconBoxConnectorCrossingArcForRect = (
   points: PathPoint[],
   metrics: PolylineMetrics,
   rect: AxisAlignedRect,
-): { forwardArc: number; backwardArc: number } | null => {
+): number | null => {
   const clips = collectSegmentClipsForRect(points, metrics, rect);
   if (clips.length === 0) {
     return null;
   }
   let forwardArc = Infinity;
-  let backwardArc = -Infinity;
   for (const clip of clips) {
     forwardArc = Math.min(forwardArc, clip.arcEnter);
-    backwardArc = Math.max(backwardArc, clip.arcExit);
   }
-  if (!Number.isFinite(forwardArc) || !Number.isFinite(backwardArc)) {
-    return null;
-  }
-  return { forwardArc, backwardArc };
+  return Number.isFinite(forwardArc) ? forwardArc : null;
 };
 
 const pickClipForArc = (clips: SegmentClip[], arc: number): SegmentClip | null => {
@@ -342,54 +323,32 @@ export const collectIconBoxHitsAlongConnector = (
     }
 
     let forwardArc = Infinity;
-    let backwardArc = -Infinity;
     for (const clip of clips) {
       forwardArc = Math.min(forwardArc, clip.arcEnter);
-      backwardArc = Math.max(backwardArc, clip.arcExit);
     }
 
-    if (!Number.isFinite(forwardArc) || !Number.isFinite(backwardArc)) {
+    if (!Number.isFinite(forwardArc)) {
       continue;
     }
 
     const fwdClip = pickClipForArc(clips, forwardArc);
-    const backClip = pickClipForArc(clips, backwardArc);
-
     const tanFwd = fwdClip ? segmentUnitTangentTowardIncreasingArc(points, fwdClip.metricIndex) : { x: 1, y: 0 };
-    const tanBack = backClip ? segmentUnitTangentTowardIncreasingArc(points, backClip.metricIndex) : tanFwd;
-
     const rawFwd = pointAlongPolyline(points, metrics, forwardArc);
-    const rawBack = pointAlongPolyline(points, metrics, backwardArc);
-
     const nInFwd = inwardNormalAtHit(rawFwd.x, rawFwd.y, rect);
-    const nInBack = inwardNormalAtHit(rawBack.x, rawBack.y, rect);
-
-    const leanFwd = leanDirectionFromPulse(tanFwd.x, tanFwd.y, nInFwd.nx, nInFwd.ny, "forward");
-    const leanBack = leanDirectionFromPulse(tanBack.x, tanBack.y, nInBack.nx, nInBack.ny, "backward");
-
+    const leanFwd = leanDirectionFromForwardPulse(tanFwd.x, tanFwd.y, nInFwd.nx, nInFwd.ny);
     const emitterFwd = snapHitToNearestEdge(rawFwd, rect);
-    const emitterBack = snapHitToNearestEdge(rawBack, rect);
-
     const inset = ICON_BOX_HIT_PARTICLE_INNER_INSET_PX;
 
     hits.push({
       boxId: box.id,
       forwardArc,
-      backwardArc,
       emitterForward: emitterFwd,
-      emitterBackward: emitterBack,
       particleEmitForward: {
         x: emitterFwd.x + nInFwd.nx * inset,
         y: emitterFwd.y + nInFwd.ny * inset,
       },
-      particleEmitBackward: {
-        x: emitterBack.x + nInBack.nx * inset,
-        y: emitterBack.y + nInBack.ny * inset,
-      },
       pushForwardX: leanFwd.x,
       pushForwardY: leanFwd.y,
-      pushBackwardX: leanBack.x,
-      pushBackwardY: leanBack.y,
     });
   }
 
@@ -417,20 +376,18 @@ export const resolveIconBoxParticleEmitAtArc = (
 };
 
 /**
- * Inner-inset spark origin for the current `rect`, using **fresh** enter/exit arcs along the connector.
+ * Inner-inset spark origin for the current `rect`, using **fresh** enter arc along the connector.
  * Use this while an icon box moves so arc-length under the pulse stays tied to the live crossing.
  */
 export const resolveIconBoxLiveParticleEmit = (
   points: PathPoint[],
   metrics: PolylineMetrics,
   rect: AxisAlignedRect,
-  leg: "forward" | "backward",
   insetPx = ICON_BOX_HIT_PARTICLE_INNER_INSET_PX,
 ): PathPoint | null => {
-  const crossing = getIconBoxConnectorCrossingArcsForRect(points, metrics, rect);
-  if (!crossing) {
+  const forwardArc = getIconBoxConnectorCrossingArcForRect(points, metrics, rect);
+  if (forwardArc === null) {
     return null;
   }
-  const arc = leg === "forward" ? crossing.forwardArc : crossing.backwardArc;
-  return resolveIconBoxParticleEmitAtArc(points, metrics, rect, arc, insetPx);
+  return resolveIconBoxParticleEmitAtArc(points, metrics, rect, forwardArc, insetPx);
 };
