@@ -49,6 +49,20 @@ export type PlaygroundTextureOption = {
 /** Sample textures served from `public/playground/`. */
 export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
   {
+    id: "example5",
+    label: "example 5",
+    url: "/playground/example5.mp4",
+    mediaKind: "video",
+    displayScale: 1,
+    duotone: {
+      ignoreColorHex: "#000000",
+      ignoreTolerance: 0.095,
+      gamma: 1.15,
+      threshold: 0.99,
+      density: 0.6,
+    },
+  },
+  {
     id: "example",
     label: "example",
     url: "/playground/example.mp4",
@@ -102,20 +116,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
       gamma: 1.2,
       threshold: 0.64,
       density: 0.3,
-    },
-  },
-  {
-    id: "example5",
-    label: "example 5",
-    url: "/playground/example5.mp4",
-    mediaKind: "video",
-    displayScale: 1,
-    duotone: {
-      ignoreColorHex: "#000000",
-      ignoreTolerance: 0.095,
-      gamma: 1.15,
-      threshold: 0.99,
-      density: 0.6,
     },
   },
   {
