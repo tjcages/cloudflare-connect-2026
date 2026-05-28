@@ -298,3 +298,11 @@ input[type="range"]::-moz-range-thumb {
     animation: none;
   }
 }
+
+.export-react-dialog {
+  margin: 0;
+  padding: 0;
+  border: none;
+  max-width: min(48rem, 100%);
+  width: 100%;
+}

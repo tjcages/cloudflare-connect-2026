@@ -64,4 +64,12 @@ describe("buildReactExport", () => {
     expect(bundle.files.some((file) => file.relativePath.endsWith("/scene.ts"))).toBe(true);
     expect(bundle.files.some((file) => file.relativePath.includes("/runtime/computeBlockGrid.ts"))).toBe(true);
   });
+
+  it("manual astro text is a plain description without code fences", () => {
+    const bundle = buildReactExport(baseSnapshot, { targetDir: "src/components" });
+    expect(bundle.astroUsage).not.toContain("```");
+    expect(bundle.astroUsage).not.toContain("## Instructions");
+    expect(bundle.astroUsage).toContain("Astro");
+    expect(bundle.astroUsage).toContain("client:load");
+  });
 });

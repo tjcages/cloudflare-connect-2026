@@ -154,20 +154,13 @@ import { defaultConfig } from "${importPath}/types";
 <AsciiVideo client:load src="/path/to/your-media.mp4" config={defaultConfig} class="w-full" style={{ height: "400px" }} />`;
 }
 
-/** Snippet for Manual tab — user reads and applies themselves. */
-function buildManualAstroInstructions(resolved: ResolvedExportPaths): string {
-  const snippet = buildAstroPageSnippet(`../${resolved.directory}`);
+/** Plain description for Manual tab — not a copyable prompt. */
+function buildManualAstroDescription(resolved: ResolvedExportPaths): string {
   return [
-    "## Instructions: If your project is Astro",
-    "",
-    "This is for **you** (the developer), not for the agent to apply during integration.",
-    "",
-    "If the target app is Astro and already has React (`@astrojs/react` or equivalent), paste `AsciiVideo` into an `.astro` page as a client island. Match `client:load` / `client:visible` to how other React components are used in the project.",
-    "",
-    "```astro",
-    snippet,
-    "```",
-  ].join("\n");
+    "If your project uses Astro with an existing React integration (@astrojs/react or equivalent), you can use AsciiVideo as a client island on any .astro page.",
+    "After unzipping the export into your repo, import AsciiVideo the same way you would in React, then add client:load or client:visible on the component — match how other React islands in your project are set up.",
+    `Adjust import paths to where you placed the files (this export resolves to ${resolved.directory}/).`,
+  ].join("\n\n");
 }
 
 function buildAiUserInstructions(astroSnippet: string): string {
@@ -345,7 +338,7 @@ export function buildReactExport(
   ].join("\n");
 
   const usageSnippet = buildUsageSnippet(resolved);
-  const astroUsage = buildManualAstroInstructions(resolved);
+  const astroUsage = buildManualAstroDescription(resolved);
 
   return {
     resolved,
