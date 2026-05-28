@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+declare module "*?raw" {
+  const content: string;
+  export default content;
+}
+
 declare global {
   interface Window {
     /** Populated in dev only — see `src/devExposeBuilderStorage.ts` and `.cursor/rules/builder-local-storage.mdc`. */

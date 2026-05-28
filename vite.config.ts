@@ -6,8 +6,24 @@ import { defineConfig } from "vitest/config";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
+function playgroundPathRedirect() {
+  return {
+    name: "playground-path-redirect",
+    configureServer(server: {
+      middlewares: { use: (fn: (req: { url?: string }, res: unknown, next: () => void) => void) => void };
+    }) {
+      server.middlewares.use((req, _res, next) => {
+        if (req.url === "/playground" || req.url === "/playground/") {
+          req.url = "/playground.html";
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [tailwindcss(), react()],
+  plugins: [playgroundPathRedirect(), tailwindcss(), react()],
   build: {
     rollupOptions: {
       input: {

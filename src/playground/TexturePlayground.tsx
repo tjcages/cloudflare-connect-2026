@@ -46,6 +46,8 @@ import {
   playgroundPrefersDisplayP3,
 } from "./playgroundColorSpace";
 import { stripeGridToSvg } from "./stripeGridToSvg";
+import { ExportReactDialog } from "./ExportReactDialog";
+import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
   buildStripeColors,
@@ -245,6 +247,7 @@ export function TexturePlayground() {
   const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "failed">("idle");
   const [importFeedback, setImportFeedback] = useState<"idle" | "imported" | "failed">("idle");
   const [exportFeedback, setExportFeedback] = useState<"idle" | "copied" | "failed">("idle");
+  const [exportReactOpen, setExportReactOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -648,6 +651,40 @@ export function TexturePlayground() {
     };
   }, [catalog]);
 
+  const reactExportSnapshot = useMemo(
+    () =>
+      buildPlaygroundExportSnapshot({
+        config: {
+          duotoneEnabled,
+          ignoreColorHex,
+          ignoreTolerance,
+          gamma,
+          threshold,
+          density,
+          displayWidth: displayWidth > 0 ? displayWidth : undefined,
+          displayHeight: displayHeight > 0 ? displayHeight : undefined,
+          bandBreakpoints,
+        },
+        bandEnabled: enabledBands,
+        displayWidth: displayWidth > 0 ? displayWidth : 640,
+        displayHeight: displayHeight > 0 ? displayHeight : 360,
+        mediaKind: loadState.status === "ready" ? loadState.kind : "video",
+      }),
+    [
+      duotoneEnabled,
+      ignoreColorHex,
+      ignoreTolerance,
+      gamma,
+      threshold,
+      density,
+      displayWidth,
+      displayHeight,
+      bandBreakpoints,
+      enabledBands,
+      loadState,
+    ],
+  );
+
   if (!hydrated || loadState.status === "loading") {
     return <p className="p-6 text-sm text-neutral-600">Loading texture…</p>;
   }
@@ -969,14 +1006,23 @@ export function TexturePlayground() {
                 </span>
               </>
             ) : null}
-            <button
-              type="button"
-              className={`rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40 ${isVideoSource ? "ml-auto" : ""}`}
-              onClick={() => void onExportSvg()}
-              disabled={!duotoneEnabled}
-            >
-              {exportLabel}
-            </button>
+            <div className={`flex flex-wrap items-center gap-2 ${isVideoSource ? "ml-auto" : ""}`}>
+              <button
+                type="button"
+                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+                onClick={() => setExportReactOpen(true)}
+              >
+                Export React
+              </button>
+              <button
+                type="button"
+                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => void onExportSvg()}
+                disabled={!duotoneEnabled}
+              >
+                {exportLabel}
+              </button>
+            </div>
           </div>
           {isVideoSource ? (
             <input
@@ -992,6 +1038,12 @@ export function TexturePlayground() {
           ) : null}
         </div>
       </main>
+
+      <ExportReactDialog
+        open={exportReactOpen}
+        onClose={() => setExportReactOpen(false)}
+        snapshot={reactExportSnapshot}
+      />
     </div>
   );
 }

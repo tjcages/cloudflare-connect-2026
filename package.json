@@ -18,6 +18,7 @@
     "prepare": "husky",
     "precommit": "lint-staged",
     "test": "vitest run",
+    "export:sync-test": "SYNC_EXPORT_TEST=1 vitest run src/lib/export/syncExportToTest.test.ts",
     "test:watch": "vitest",
     "verify": "npm test && concurrently --kill-others-on-fail -n tsc,vite -c yellow,cyan \"npm run typecheck\" \"npm run build:client\""
   },
