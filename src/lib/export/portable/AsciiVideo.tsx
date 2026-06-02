@@ -15,7 +15,7 @@ import {
   type PlaygroundDisplaySize,
   type PlaygroundTextureSource,
 } from "./scene";
-import { playgroundSparkleOptionsFromEnabled } from "./runtime/playgroundSparkle";
+import { playgroundSparkleOptionsFromRate } from "./runtime/playgroundSparkle";
 import {
   configToStripeBandColors,
   configToStripeOptions,
@@ -100,14 +100,14 @@ export function AsciiVideo({
   const stripeOptionsRef = useRef<StripeDuotoneOptions>(configToStripeOptions(config));
   const stripeColorsRef = useRef<StripeBandColors>(configToStripeBandColors(config));
   const duotoneEnabledRef = useRef(config.duotoneEnabled);
-  const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromEnabled(config.sparkleEnabled ?? false));
+  const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromRate(config.sparkleRate ?? 0));
   const autoplayRef = useRef(autoplay);
   const preferP3Ref = useRef(false);
 
   stripeOptionsRef.current = configToStripeOptions(config);
   stripeColorsRef.current = configToStripeBandColors(config);
   duotoneEnabledRef.current = config.duotoneEnabled;
-  sparkleOptionsRef.current = playgroundSparkleOptionsFromEnabled(config.sparkleEnabled ?? false);
+  sparkleOptionsRef.current = playgroundSparkleOptionsFromRate(config.sparkleRate ?? 0);
   autoplayRef.current = autoplay;
 
   useEffect(() => {

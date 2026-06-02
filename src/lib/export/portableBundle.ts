@@ -14,19 +14,16 @@ import stabilizeBlockGridSource from "./portable/runtime/stabilizeBlockGrid.ts?r
 import stripeBandThresholdsSource from "./portable/runtime/stripeBandThresholds.ts?raw";
 import stripeFilterOptionsSource from "./portable/runtime/stripeFilterOptions.ts?raw";
 import stripeGridConstantsSource from "./portable/runtime/stripeGridConstants.ts?raw";
-import playgroundLetterShuffleSource from "./portable/runtime/playgroundLetterShuffle.ts?raw";
-import playgroundSparkleSource from "./portable/runtime/playgroundSparkle.ts?raw";
 import stripeLetterFontSource from "./portable/runtime/stripeLetterFont.ts?raw";
 import stripeLetterLayerSource from "./portable/runtime/stripeLetterLayer.ts?raw";
 import stripeLetterPlacementsSource from "./portable/runtime/stripeLetterPlacements.ts?raw";
+import playgroundSparkleSource from "./portable/runtime/playgroundSparkle.ts?raw";
 
 const RUNTIME_SOURCES: Record<string, string> = {
   "blockGridTexture.ts": blockGridTextureSource,
   "colorWhiteness.ts": colorWhitenessSource,
   "computeBlockGrid.ts": computeBlockGridSource,
   "prng.ts": prngSource,
-  "playgroundLetterShuffle.ts": playgroundLetterShuffleSource,
-  "playgroundSparkle.ts": playgroundSparkleSource,
   "samplePlaygroundFrame.ts": samplePlaygroundFrameSource,
   "stabilizeBlockGrid.ts": stabilizeBlockGridSource,
   "stripeBandThresholds.ts": stripeBandThresholdsSource,
@@ -35,6 +32,7 @@ const RUNTIME_SOURCES: Record<string, string> = {
   "stripeLetterFont.ts": stripeLetterFontSource,
   "stripeLetterLayer.ts": stripeLetterLayerSource,
   "stripeLetterPlacements.ts": stripeLetterPlacementsSource,
+  "playgroundSparkle.ts": playgroundSparkleSource,
 };
 
 export type PortableExportFile = {

@@ -3,6 +3,7 @@ import {
   normalizeStripeBandBreakpoints,
   type StripeBandBreakpoints,
 } from "./stripeBandThresholds";
+import { normalizeSparkleRate } from "./playgroundSparkle";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_DUOTONE,
@@ -23,6 +24,9 @@ export const MAX_PLAYGROUND_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type PlaygroundPersistedConfig = {
   duotoneEnabled: boolean;
+  /** Sparkle blink intensity 0–1 (0 = off, 1 = max Hz). */
+  sparkleRate?: number;
+  /** @deprecated Migrated to sparkleRate (true → 1). */
   sparkleEnabled?: boolean;
   ignoreColorHex: string;
   ignoreTolerance: number;
@@ -66,6 +70,7 @@ export type PlaygroundStateWire = {
   v: 1;
   d: boolean;
   sk?: boolean;
+  sr?: number;
   c: string;
   t: number;
   g: number;
@@ -352,7 +357,9 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
     th: config.threshold,
     de: config.density,
   };
-  if (config.sparkleEnabled) {
+  if (config.sparkleRate !== undefined && config.sparkleRate > 0) {
+    wire.sr = config.sparkleRate;
+  } else if (config.sparkleEnabled) {
     wire.sk = true;
   }
   if (config.displayWidth && config.displayWidth > 0) {
@@ -365,6 +372,18 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
     wire.bp = [...config.bandBreakpoints];
   }
   return JSON.stringify(wire);
+}
+
+function parseSparkleRate(sr: unknown, sk: unknown): number | undefined {
+  if (sr !== undefined) {
+    const rate = Number(sr);
+    if (!Number.isFinite(rate)) {
+      return undefined;
+    }
+    const normalized = normalizeSparkleRate(rate);
+    return normalized > 0 ? normalized : undefined;
+  }
+  return sk === true ? 1 : undefined;
 }
 
 function parseBandBreakpoints(raw: unknown): StripeBandBreakpoints | undefined {
@@ -397,7 +416,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const h = parsed.h === undefined ? undefined : Number(parsed.h);
   return {
     duotoneEnabled: parsed.d,
-    sparkleEnabled: parsed.sk === true,
+    sparkleRate: parseSparkleRate(parsed.sr, parsed.sk),
     ignoreColorHex: parsed.c,
     ignoreTolerance: t,
     gamma: g,

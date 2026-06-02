@@ -1,8 +1,10 @@
 import { Container, Sprite } from "pixi.js";
 import type { BlockGrid } from "./computeBlockGrid";
 import {
-  scheduleInitialLetterShuffleAt,
-  scheduleNextLetterShuffleAt,
+  randomLetterCycleIterationCount,
+  scheduleInitialLetterCycleAt,
+  scheduleLetterCycleStepAt,
+  scheduleNextLetterCycleAt,
 } from "./playgroundLetterShuffle";
 import {
   isPlaygroundSparkleCellVisible,
@@ -14,6 +16,14 @@ import { STRIPE_LETTER_CHARSET, type StripeLetterAtlas } from "./stripeLetterFon
 
 const STRIPE_LETTER_TINT = 0xffffff;
 
+type LetterCyclePhase = "idle" | "cycling";
+
+type LetterCycleState = {
+  phase: LetterCyclePhase;
+  nextEventAt: number;
+  stepsRemaining: number;
+};
+
 function stripeLetterPlacementKey(placements: readonly StripeLetterPlacement[]): string {
   return placements
     .map((placement) => `${placement.col},${placement.row}`)
@@ -23,6 +33,14 @@ function stripeLetterPlacementKey(placements: readonly StripeLetterPlacement[]):
 
 function stripeLetterCellKey(placement: Pick<StripeLetterPlacement, "col" | "row">): string {
   return `${placement.col},${placement.row}`;
+}
+
+function createInitialCycleState(nowMs: number): LetterCycleState {
+  return {
+    phase: "idle",
+    nextEventAt: scheduleInitialLetterCycleAt(nowMs),
+    stepsRemaining: 0,
+  };
 }
 
 export type StripeLetterLayer = {
@@ -38,7 +56,7 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
   const container = new Container();
   const sprites: Sprite[] = [];
   let placements: StripeLetterPlacement[] = [];
-  const nextShuffleAtByCell = new Map<string, number>();
+  const cycleStateByCell = new Map<string, LetterCycleState>();
 
   const applyGlyphToSprite = (sprite: Sprite, char: string) => {
     const glyph = atlas.get(char);
@@ -51,18 +69,18 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
     return true;
   };
 
-  const syncShuffleTimers = (nowMs: number = performance.now()) => {
+  const syncCycleStates = (nowMs: number = performance.now()) => {
     const activeKeys = new Set<string>();
     for (const placement of placements) {
       const key = stripeLetterCellKey(placement);
       activeKeys.add(key);
-      if (!nextShuffleAtByCell.has(key)) {
-        nextShuffleAtByCell.set(key, scheduleInitialLetterShuffleAt(nowMs));
+      if (!cycleStateByCell.has(key)) {
+        cycleStateByCell.set(key, createInitialCycleState(nowMs));
       }
     }
-    for (const key of nextShuffleAtByCell.keys()) {
+    for (const key of cycleStateByCell.keys()) {
       if (!activeKeys.has(key)) {
-        nextShuffleAtByCell.delete(key);
+        cycleStateByCell.delete(key);
       }
     }
   };
@@ -74,7 +92,7 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
       }
       sprites.length = 0;
       placements = [];
-      nextShuffleAtByCell.clear();
+      cycleStateByCell.clear();
       container.removeChildren();
       return;
     }
@@ -118,7 +136,7 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
       container.addChild(sprite);
     }
 
-    syncShuffleTimers();
+    syncCycleStates();
   };
 
   const tickLetterShuffle = (nowMs: number = performance.now(), charset: readonly string[] = STRIPE_LETTER_CHARSET) => {
@@ -126,7 +144,7 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
       return;
     }
 
-    syncShuffleTimers(nowMs);
+    syncCycleStates(nowMs);
 
     for (let i = 0; i < sprites.length; i++) {
       const placement = placements[i];
@@ -136,16 +154,28 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
       }
 
       const key = stripeLetterCellKey(placement);
-      const nextShuffleAt = nextShuffleAtByCell.get(key);
-      if (nextShuffleAt === undefined || nowMs < nextShuffleAt) {
+      const state = cycleStateByCell.get(key);
+      if (!state || nowMs < state.nextEventAt) {
         continue;
+      }
+
+      if (state.phase === "idle") {
+        state.phase = "cycling";
+        state.stepsRemaining = randomLetterCycleIterationCount();
       }
 
       const charIndex = Math.floor(Math.random() * charset.length);
       const char = charset[charIndex] ?? charset[0] ?? "?";
       placement.char = char;
       applyGlyphToSprite(sprite, char);
-      nextShuffleAtByCell.set(key, scheduleNextLetterShuffleAt(nowMs));
+
+      state.stepsRemaining -= 1;
+      if (state.stepsRemaining <= 0) {
+        state.phase = "idle";
+        state.nextEventAt = scheduleNextLetterCycleAt(nowMs);
+      } else {
+        state.nextEventAt = scheduleLetterCycleStepAt(nowMs);
+      }
     }
   };
 
@@ -173,7 +203,7 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
     }
     sprites.length = 0;
     placements = [];
-    nextShuffleAtByCell.clear();
+    cycleStateByCell.clear();
     container.destroy({ children: true });
   };
 

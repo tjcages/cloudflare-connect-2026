@@ -9,7 +9,7 @@ export type PlaygroundSparkleOptions = {
 };
 
 export const DEFAULT_PLAYGROUND_SPARKLE_COVERAGE = 0.22;
-export const DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ = 3.5;
+export const DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ = 2;
 
 export const DEFAULT_PLAYGROUND_SPARKLE_OPTIONS: PlaygroundSparkleOptions = {
   enabled: false,
@@ -17,8 +17,43 @@ export const DEFAULT_PLAYGROUND_SPARKLE_OPTIONS: PlaygroundSparkleOptions = {
   rateHz: DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ,
 };
 
+/** Max blink rate (Hz) when the playground sparkle slider is at 1. */
+export const PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ = DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ;
+
+export function normalizeSparkleRate(rate: number): number {
+  if (!Number.isFinite(rate)) {
+    return 0;
+  }
+  return Math.min(1, Math.max(0, Math.round(rate * 100) / 100));
+}
+
+export function playgroundSparkleOptionsFromRate(rate: number): PlaygroundSparkleOptions {
+  const sparkleRate = normalizeSparkleRate(rate);
+  return {
+    ...DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
+    enabled: sparkleRate > 0,
+    rateHz: sparkleRate * PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ,
+  };
+}
+
+/** @deprecated Use {@link playgroundSparkleOptionsFromRate}. */
 export function playgroundSparkleOptionsFromEnabled(enabled: boolean): PlaygroundSparkleOptions {
-  return { ...DEFAULT_PLAYGROUND_SPARKLE_OPTIONS, enabled };
+  return playgroundSparkleOptionsFromRate(enabled ? 1 : 0);
+}
+
+export function sparkleRateHzFromSlider(rate: number): number {
+  return normalizeSparkleRate(rate) * PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ;
+}
+
+export function resolvePersistedSparkleRate(config: {
+  sparkleRate?: number;
+  /** @deprecated Use sparkleRate. */
+  sparkleEnabled?: boolean;
+}): number {
+  if (config.sparkleRate !== undefined) {
+    return normalizeSparkleRate(config.sparkleRate);
+  }
+  return config.sparkleEnabled ? 1 : 0;
 }
 
 function fract(x: number): number {

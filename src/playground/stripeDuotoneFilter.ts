@@ -55,8 +55,8 @@ function applyStripeColors(stripeUniforms: UniformGroup, colors: StripeColors, p
 }
 
 export function createStripeDuotoneFilter(
-  _canvasWidth: number,
-  _canvasHeight: number,
+  canvasWidth: number,
+  canvasHeight: number,
   blockMap: Texture,
   gridCols: number,
   gridRows: number,
@@ -67,11 +67,11 @@ export function createStripeDuotoneFilter(
   const initialRgb = stripeColorsToUniformRgb(colors, preferP3);
   const stripeUniforms = new UniformGroup({
     uPixelSize: {
-      value: [_canvasWidth, _canvasHeight],
+      value: [canvasWidth, canvasHeight],
       type: "vec2<f32>",
     },
     uFrameSize: {
-      value: [_canvasWidth, _canvasHeight],
+      value: [canvasWidth, canvasHeight],
       type: "vec2<f32>",
     },
     uGridSize: {
@@ -168,18 +168,11 @@ export function createStripeDuotoneFilter(
   const baseApply = filter.apply.bind(filter);
   filter.apply = (filterManager, input, output, clearMode) => {
     bindBlockMapTexture(filter, currentBlockMap);
-    const sourceW = input.source.width;
-    const sourceH = input.source.height;
-    const frameW = input.frame.width;
-    const frameH = input.frame.height;
-    if (sourceW > 0 && sourceH > 0) {
-      pixelSizeUniform[0] = sourceW;
-      pixelSizeUniform[1] = sourceH;
-    }
-    if (frameW > 0 && frameH > 0) {
-      frameSizeUniform[0] = frameW;
-      frameSizeUniform[1] = frameH;
-    }
+    // Block grid + sparkle use logical display pixels (not 2× backing-store size).
+    pixelSizeUniform[0] = canvasWidth;
+    pixelSizeUniform[1] = canvasHeight;
+    frameSizeUniform[0] = canvasWidth;
+    frameSizeUniform[1] = canvasHeight;
     stripeUniforms.update();
     baseApply(filterManager, input, output, clearMode);
   };

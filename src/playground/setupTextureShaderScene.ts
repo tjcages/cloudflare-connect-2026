@@ -262,10 +262,6 @@ function runDuotoneTick(params: {
     stripeFilter.syncSparkle(sparkleOptions, sparkleTimeSec);
     letterLayer.applySparkle(sparkleTimeSec, sparkleOptions);
 
-    if (hasBuiltGrid) {
-      letterLayer.tickLetterShuffle(performance.now());
-    }
-
     app.render();
   };
 }

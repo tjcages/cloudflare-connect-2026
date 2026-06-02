@@ -30,7 +30,11 @@ import {
 import type { PlaygroundMediaKind, PlaygroundTextureId } from "./playgroundTextures";
 import { PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
-import { playgroundSparkleOptionsFromEnabled } from "./playgroundSparkle";
+import {
+  playgroundSparkleOptionsFromRate,
+  resolvePersistedSparkleRate,
+  sparkleRateHzFromSlider,
+} from "./playgroundSparkle";
 import {
   clampPlaygroundDisplayDimension,
   createTextureSceneTicker,
@@ -180,7 +184,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     threshold: config.threshold,
     density: config.density,
     duotoneEnabled: config.duotoneEnabled,
-    sparkleEnabled: config.sparkleEnabled ?? false,
+    sparkleRate: resolvePersistedSparkleRate(config),
     displayWidth: config.displayWidth,
     displayHeight: config.displayHeight,
     bandBreakpoints: normalizeStripeBandBreakpoints(config.bandBreakpoints ?? DEFAULT_STRIPE_BAND_BREAKPOINTS),
@@ -242,7 +246,7 @@ export function TexturePlayground() {
   const [threshold, setThreshold] = useState(appliedInitial.threshold);
   const [density, setDensity] = useState(appliedInitial.density);
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
-  const [sparkleEnabled, setSparkleEnabled] = useState(appliedInitial.sparkleEnabled);
+  const [sparkleRate, setSparkleRate] = useState(appliedInitial.sparkleRate);
   const [enabledBands, setEnabledBands] = useState<StripeBandEnabled>(() => [...DEFAULT_STRIPE_BAND_ENABLED]);
   const [bandBreakpoints, setBandBreakpoints] = useState<StripeBandBreakpoints>(() => appliedInitial.bandBreakpoints);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -266,7 +270,7 @@ export function TexturePlayground() {
   const stripeColorsRef = useRef<StripeColors>(buildStripeColors());
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
-  const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromEnabled(sparkleEnabled));
+  const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromRate(sparkleRate));
   const autoplayRef = useRef(true);
   const exportStateRef = useRef<PlaygroundSceneExportState | null>(null);
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -293,13 +297,13 @@ export function TexturePlayground() {
   }, [duotoneEnabled]);
 
   useEffect(() => {
-    sparkleOptionsRef.current = playgroundSparkleOptionsFromEnabled(sparkleEnabled);
-  }, [sparkleEnabled]);
+    sparkleOptionsRef.current = playgroundSparkleOptionsFromRate(sparkleRate);
+  }, [sparkleRate]);
 
   const persistCurrentConfig = useCallback(() => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
-      sparkleEnabled: sparkleEnabled || undefined,
+      sparkleRate: sparkleRate > 0 ? sparkleRate : undefined,
       ignoreColorHex,
       ignoreTolerance,
       gamma,
@@ -313,7 +317,7 @@ export function TexturePlayground() {
   }, [
     selectedTextureId,
     duotoneEnabled,
-    sparkleEnabled,
+    sparkleRate,
     ignoreColorHex,
     ignoreTolerance,
     gamma,
@@ -346,7 +350,7 @@ export function TexturePlayground() {
     setThreshold(next.threshold);
     setDensity(next.density);
     setDuotoneEnabled(next.duotoneEnabled);
-    setSparkleEnabled(next.sparkleEnabled);
+    setSparkleRate(resolvePersistedSparkleRate(next));
     if (next.displayWidth && next.displayWidth > 0) {
       setDisplayWidth(next.displayWidth);
     }
@@ -551,7 +555,7 @@ export function TexturePlayground() {
   const onCopyState = async () => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
-      sparkleEnabled: sparkleEnabled || undefined,
+      sparkleRate: sparkleRate > 0 ? sparkleRate : undefined,
       ignoreColorHex,
       ignoreTolerance,
       gamma,
@@ -669,7 +673,7 @@ export function TexturePlayground() {
       buildPlaygroundExportSnapshot({
         config: {
           duotoneEnabled,
-          sparkleEnabled: sparkleEnabled || undefined,
+          sparkleRate: sparkleRate > 0 ? sparkleRate : undefined,
           ignoreColorHex,
           ignoreTolerance,
           gamma,
@@ -686,7 +690,7 @@ export function TexturePlayground() {
       }),
     [
       duotoneEnabled,
-      sparkleEnabled,
+      sparkleRate,
       ignoreColorHex,
       ignoreTolerance,
       gamma,
@@ -813,17 +817,23 @@ export function TexturePlayground() {
           <span className="text-neutral-800">Duotone</span>
         </label>
 
-        <label className={`flex items-center gap-2 text-sm ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
-          <input
-            type="checkbox"
-            checked={sparkleEnabled}
-            onChange={(event) => setSparkleEnabled(event.target.checked)}
+          <ControlField
+            label="Sparkle"
+            value={sparkleRate <= 0 ? "Off" : `${sparkleRateHzFromSlider(sparkleRate).toFixed(2)} Hz`}
             disabled={duotoneControlsDisabled}
-            className="size-4 cursor-pointer rounded border-neutral-300 disabled:cursor-not-allowed"
-            aria-label="Sparkle stripe rects"
-          />
-          <span className="text-neutral-800">Sparkle</span>
-        </label>
+          >
+            <input
+              type="range"
+              min={PLAYGROUND_CONTROL_RANGES.sparkleRate.min}
+              max={PLAYGROUND_CONTROL_RANGES.sparkleRate.max}
+              step={PLAYGROUND_CONTROL_RANGES.sparkleRate.step}
+              value={sparkleRate}
+              onChange={(event) => setSparkleRate(Number(event.target.value))}
+              disabled={duotoneControlsDisabled}
+              className="w-full disabled:cursor-not-allowed"
+              aria-label="Sparkle blink frequency"
+            />
+          </ControlField>
 
         <div className="flex flex-col gap-4 border-t border-neutral-200 pt-4">
           <ControlField label="Ignore bg" value={ignoreColorHex} disabled={duotoneControlsDisabled}>

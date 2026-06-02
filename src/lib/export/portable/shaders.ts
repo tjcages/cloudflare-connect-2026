@@ -334,18 +334,10 @@ export function createStripeDuotoneFilter(
   const baseApply = filter.apply.bind(filter);
   filter.apply = (filterManager, input, output, clearMode) => {
     bindBlockMapTexture(filter, currentBlockMap);
-    const sourceW = input.source.width;
-    const sourceH = input.source.height;
-    const frameW = input.frame.width;
-    const frameH = input.frame.height;
-    if (sourceW > 0 && sourceH > 0) {
-      pixelSizeUniform[0] = sourceW;
-      pixelSizeUniform[1] = sourceH;
-    }
-    if (frameW > 0 && frameH > 0) {
-      frameSizeUniform[0] = frameW;
-      frameSizeUniform[1] = frameH;
-    }
+    pixelSizeUniform[0] = canvasWidth;
+    pixelSizeUniform[1] = canvasHeight;
+    frameSizeUniform[0] = canvasWidth;
+    frameSizeUniform[1] = canvasHeight;
     stripeUniforms.update();
     baseApply(filterManager, input, output, clearMode);
   };
