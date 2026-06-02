@@ -1,10 +1,10 @@
 import { Container, Sprite } from "pixi.js";
 import type { BlockGrid } from "./computeBlockGrid";
 import {
+  randomLetterCycleDelayMs,
   randomLetterCycleIterationCount,
+  randomLetterCycleStepDelayMs,
   scheduleInitialLetterCycleAt,
-  scheduleLetterCycleStepAt,
-  scheduleNextLetterCycleAt,
 } from "./playgroundLetterShuffle";
 import {
   isPlaygroundSparkleCellVisible,
@@ -67,6 +67,17 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
     sprite.width = glyph.width;
     sprite.height = glyph.height;
     return true;
+  };
+
+  const applyRandomLetter = (
+    placement: StripeLetterPlacement,
+    sprite: Sprite,
+    charset: readonly string[],
+  ) => {
+    const charIndex = Math.floor(Math.random() * charset.length);
+    const char = charset[charIndex] ?? charset[0] ?? "?";
+    placement.char = char;
+    applyGlyphToSprite(sprite, char);
   };
 
   const syncCycleStates = (nowMs: number = performance.now()) => {
@@ -164,17 +175,14 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
         state.stepsRemaining = randomLetterCycleIterationCount();
       }
 
-      const charIndex = Math.floor(Math.random() * charset.length);
-      const char = charset[charIndex] ?? charset[0] ?? "?";
-      placement.char = char;
-      applyGlyphToSprite(sprite, char);
-
+      applyRandomLetter(placement, sprite, charset);
       state.stepsRemaining -= 1;
+
       if (state.stepsRemaining <= 0) {
         state.phase = "idle";
-        state.nextEventAt = scheduleNextLetterCycleAt(nowMs);
+        state.nextEventAt = nowMs + randomLetterCycleDelayMs();
       } else {
-        state.nextEventAt = scheduleLetterCycleStepAt(nowMs);
+        state.nextEventAt = nowMs + randomLetterCycleStepDelayMs();
       }
     }
   };
