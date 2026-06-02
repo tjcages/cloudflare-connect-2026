@@ -50,6 +50,10 @@ uniform float uBandEnabled2;
 uniform float uBandEnabled3;
 uniform float uBandEnabled4;
 uniform float uDebugVideoAlpha;
+uniform float uSparkleEnabled;
+uniform float uSparkleTime;
+uniform float uSparkleCoverage;
+uniform float uSparkleRateHz;
 
 const float CELL_SIZE = 7.0;
 const float STRIPE_BAND_COUNT = 5.0;
@@ -138,6 +142,27 @@ vec3 stripeFillColor(float band) {
     return uColorBand4;
 }
 
+// Keep in sync with playgroundSparkle.ts sparkleCellHash.
+float sparkleCellHash(float col, float row) {
+    vec2 p = vec2(col + 17.0, row + 31.0);
+    vec3 p3 = fract(vec3(p.x, p.y, p.x) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+bool sparkleCellVisible(float col, float row) {
+    if (uSparkleEnabled < 0.5) {
+        return true;
+    }
+    float h = sparkleCellHash(col, row);
+    if (h >= uSparkleCoverage) {
+        return true;
+    }
+    float phase = h * 17.0;
+    float slot = floor(uSparkleTime * uSparkleRateHz + phase);
+    return mod(slot, 2.0) < 1.0;
+}
+
 void main(void) {
     vec2 pixelCoord = vTextureCoord * uPixelSize;
 
@@ -172,7 +197,11 @@ void main(void) {
     float halfW = stripeWidth * 0.5;
     float relX = pixelCoord.x - columnCenterPx;
 
-    if (stripeBand > 0.5 && stripeBandEnabled(stripeBand) && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom)) {
+    bool stripeVisible = stripeBand > 0.5 && stripeBandEnabled(stripeBand) && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom);
+    if (stripeVisible && !sparkleCellVisible(colIndex, rowIndex)) {
+        stripeVisible = false;
+    }
+    if (stripeVisible) {
         finalColor = vec4(stripeFillColor(stripeBand), 1.0);
     } else {
         finalColor = vec4(1.0, 1.0, 1.0, 1.0);

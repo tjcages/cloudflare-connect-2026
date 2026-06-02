@@ -13,6 +13,7 @@ import {
 } from "./runtime/samplePlaygroundFrame";
 import type { StripeDuotoneOptions } from "./runtime/stripeFilterOptions";
 import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./runtime/stripeLetterFont";
+import type { PlaygroundSparkleOptions } from "./runtime/playgroundSparkle";
 import { createStripeLetterLayer, type StripeLetterLayer } from "./runtime/stripeLetterLayer";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
@@ -126,6 +127,7 @@ function runDuotoneTick(params: {
   stripeFilter: ReturnType<typeof createStripeDuotoneFilter>;
   letterLayer: StripeLetterLayer;
   duotoneEnabledRef: RefObject<boolean>;
+  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>;
   stripeOptionsRef: RefObject<StripeDuotoneOptions>;
   stripeColorsRef: RefObject<StripeBandColors>;
   preferP3Ref: RefObject<boolean>;
@@ -143,6 +145,7 @@ function runDuotoneTick(params: {
     stripeFilter,
     letterLayer,
     duotoneEnabledRef,
+    sparkleOptionsRef,
     stripeOptionsRef,
     stripeColorsRef,
     preferP3Ref,
@@ -230,6 +233,8 @@ function runDuotoneTick(params: {
       blockGridTexture.update(built.grid);
       stripeFilter.updateBlockMap(blockGridTexture.texture);
       letterLayer.sync(built.grid);
+      const sparkleTimeSec = performance.now() / 1000;
+      letterLayer.applySparkle(sparkleTimeSec, sparkleOptionsRef.current);
 
       if (exportStateRef) {
         exportStateRef.current = {
@@ -252,6 +257,11 @@ function runDuotoneTick(params: {
       };
     }
 
+    const sparkleTimeSec = performance.now() / 1000;
+    const sparkleOptions = sparkleOptionsRef.current;
+    stripeFilter.syncSparkle(sparkleOptions, sparkleTimeSec);
+    letterLayer.applySparkle(sparkleTimeSec, sparkleOptions);
+
     app.render();
   };
 }
@@ -263,6 +273,7 @@ export function createTextureSceneTicker(
   stripeColorsRef: RefObject<StripeBandColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
@@ -274,6 +285,7 @@ export function createTextureSceneTicker(
       stripeColorsRef,
       preferP3Ref,
       duotoneEnabledRef,
+      sparkleOptionsRef,
       exportStateRef,
     );
   }
@@ -284,6 +296,7 @@ export function createTextureSceneTicker(
     stripeColorsRef,
     preferP3Ref,
     duotoneEnabledRef,
+    sparkleOptionsRef,
     autoplayRef,
     exportStateRef,
   );
@@ -296,6 +309,7 @@ function createImageSceneTicker(
   stripeColorsRef: RefObject<StripeBandColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -333,6 +347,7 @@ function createImageSceneTicker(
       stripeFilter,
       letterLayer,
       duotoneEnabledRef,
+      sparkleOptionsRef,
       stripeOptionsRef,
       stripeColorsRef,
       preferP3Ref,
@@ -367,6 +382,7 @@ function createVideoSceneTickerInternal(
   stripeColorsRef: RefObject<StripeBandColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
@@ -412,6 +428,7 @@ function createVideoSceneTickerInternal(
       stripeFilter,
       letterLayer,
       duotoneEnabledRef,
+      sparkleOptionsRef,
       stripeOptionsRef,
       stripeColorsRef,
       preferP3Ref,
@@ -458,6 +475,7 @@ export function createVideoSceneTicker(
   stripeColorsRef: RefObject<StripeBandColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
@@ -468,6 +486,7 @@ export function createVideoSceneTicker(
     stripeColorsRef,
     preferP3Ref,
     duotoneEnabledRef,
+    sparkleOptionsRef,
     autoplayRef,
     exportStateRef,
   );

@@ -23,6 +23,7 @@ export const MAX_PLAYGROUND_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type PlaygroundPersistedConfig = {
   duotoneEnabled: boolean;
+  sparkleEnabled?: boolean;
   ignoreColorHex: string;
   ignoreTolerance: number;
   gamma: number;
@@ -64,6 +65,7 @@ export type PlaygroundCatalogEntry = {
 export type PlaygroundStateWire = {
   v: 1;
   d: boolean;
+  sk?: boolean;
   c: string;
   t: number;
   g: number;
@@ -350,6 +352,9 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
     th: config.threshold,
     de: config.density,
   };
+  if (config.sparkleEnabled) {
+    wire.sk = true;
+  }
   if (config.displayWidth && config.displayWidth > 0) {
     wire.w = config.displayWidth;
   }
@@ -392,6 +397,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const h = parsed.h === undefined ? undefined : Number(parsed.h);
   return {
     duotoneEnabled: parsed.d,
+    sparkleEnabled: parsed.sk === true,
     ignoreColorHex: parsed.c,
     ignoreTolerance: t,
     gamma: g,

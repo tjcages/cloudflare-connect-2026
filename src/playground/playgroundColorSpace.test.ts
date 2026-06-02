@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { supportsDisplayP3 } from "../theme/colorSpace";
 import { createPlaygroundWebGLContext, playgroundPrefersDisplayP3, readCanvasColorSpace } from "./playgroundColorSpace";
 
 describe("playgroundColorSpace", () => {
@@ -7,9 +8,9 @@ describe("playgroundColorSpace", () => {
     expect(readCanvasColorSpace(canvas)).toBe("srgb");
   });
 
-  it("playgroundPrefersDisplayP3 is false without a context", () => {
+  it("playgroundPrefersDisplayP3 follows supportsDisplayP3", () => {
     const canvas = document.createElement("canvas");
-    expect(playgroundPrefersDisplayP3(canvas, null)).toBe(false);
+    expect(playgroundPrefersDisplayP3(canvas, null)).toBe(supportsDisplayP3());
   });
 
   it("createPlaygroundWebGLContext returns null or a context without throwing", () => {

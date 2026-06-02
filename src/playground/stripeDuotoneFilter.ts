@@ -2,6 +2,10 @@ import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
 import { STRIPE_FILTER_FRAGMENT, STRIPE_FILTER_VERTEX } from "./stripeFilterShaders";
 import { DEFAULT_STRIPE_DUOTONE_OPTIONS, type StripeDuotoneOptions } from "./stripeFilterOptions";
 import { buildStripeColors, stripeColorsToUniformRgb, type StripeColors } from "./stripeColors";
+import {
+  DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
+  type PlaygroundSparkleOptions,
+} from "./playgroundSparkle";
 
 /** Set > 0 to composite source video for grid-alignment debugging. */
 export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
@@ -9,6 +13,7 @@ export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
 export type StripeDuotoneFilter = Filter & {
   syncOptions: (options: StripeDuotoneOptions) => void;
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
+  syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
 };
 
@@ -102,6 +107,16 @@ export function createStripeDuotoneFilter(
       value: STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA,
       type: "f32",
     },
+    uSparkleEnabled: { value: 0, type: "f32" },
+    uSparkleTime: { value: 0, type: "f32" },
+    uSparkleCoverage: {
+      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.coverage,
+      type: "f32",
+    },
+    uSparkleRateHz: {
+      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.rateHz,
+      type: "f32",
+    },
   });
 
   const filter = new Filter({
@@ -127,6 +142,19 @@ export function createStripeDuotoneFilter(
 
   filter.syncColors = (nextColors, nextPreferP3 = preferP3) => {
     applyStripeColors(stripeUniforms, nextColors, nextPreferP3);
+  };
+
+  filter.syncSparkle = (options, timeSec) => {
+    const uniforms = stripeUniforms.uniforms as {
+      uSparkleEnabled: number;
+      uSparkleTime: number;
+      uSparkleCoverage: number;
+      uSparkleRateHz: number;
+    };
+    uniforms.uSparkleEnabled = options.enabled ? 1 : 0;
+    uniforms.uSparkleTime = timeSec;
+    uniforms.uSparkleCoverage = options.coverage;
+    uniforms.uSparkleRateHz = options.rateHz;
   };
 
   filter.updateBlockMap = (nextBlockMap) => {

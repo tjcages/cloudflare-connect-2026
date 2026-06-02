@@ -15,7 +15,8 @@ export type BuiltinPlaygroundTextureId =
   | "example6"
   | "example7"
   | "example8"
-  | "example9";
+  | "example9"
+  | "example10";
 
 export type PlaygroundTextureId = BuiltinPlaygroundTextureId | `upload:${string}`;
 
@@ -48,6 +49,20 @@ export type PlaygroundTextureOption = {
 
 /** Sample textures served from `public/playground/`. */
 export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
+  {
+    id: "example10",
+    label: "example 10",
+    url: "/playground/example10.jpg",
+    mediaKind: "image",
+    displayScale: 1,
+    duotone: {
+      ignoreColorHex: "#000000",
+      ignoreTolerance: 0.095,
+      gamma: 1.15,
+      threshold: 0.99,
+      density: 0.6,
+    },
+  },
   {
     id: "example5",
     label: "example 5",
@@ -176,7 +191,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
   },
 ] as const;
 
-export const DEFAULT_PLAYGROUND_TEXTURE_ID: PlaygroundTextureId = "example5";
+export const DEFAULT_PLAYGROUND_TEXTURE_ID: PlaygroundTextureId = "example10";
 
 export function isUploadTextureId(id: string): id is `upload:${string}` {
   return id.startsWith("upload:");

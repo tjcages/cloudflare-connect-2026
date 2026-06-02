@@ -1,6 +1,10 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
 import { bandUniformRgb } from "./colorSpace";
 import type { StripeBandColors } from "./types";
+import {
+  DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
+  type PlaygroundSparkleOptions,
+} from "./runtime/playgroundSparkle";
 
 export const STRIPE_FILTER_VERTEX = `
 in vec2 aPosition;
@@ -52,6 +56,10 @@ uniform float uBandEnabled2;
 uniform float uBandEnabled3;
 uniform float uBandEnabled4;
 uniform float uDebugVideoAlpha;
+uniform float uSparkleEnabled;
+uniform float uSparkleTime;
+uniform float uSparkleCoverage;
+uniform float uSparkleRateHz;
 
 const float CELL_SIZE = 7.0;
 const float STRIPE_BAND_COUNT = 5.0;
@@ -140,6 +148,27 @@ vec3 stripeFillColor(float band) {
     return uColorBand4;
 }
 
+// Keep in sync with runtime/playgroundSparkle.ts sparkleCellHash.
+float sparkleCellHash(float col, float row) {
+    vec2 p = vec2(col + 17.0, row + 31.0);
+    vec3 p3 = fract(vec3(p.x, p.y, p.x) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+bool sparkleCellVisible(float col, float row) {
+    if (uSparkleEnabled < 0.5) {
+        return true;
+    }
+    float h = sparkleCellHash(col, row);
+    if (h >= uSparkleCoverage) {
+        return true;
+    }
+    float phase = h * 17.0;
+    float slot = floor(uSparkleTime * uSparkleRateHz + phase);
+    return mod(slot, 2.0) < 1.0;
+}
+
 void main(void) {
     vec2 pixelCoord = vTextureCoord * uPixelSize;
 
@@ -174,7 +203,11 @@ void main(void) {
     float halfW = stripeWidth * 0.5;
     float relX = pixelCoord.x - columnCenterPx;
 
-    if (stripeBand > 0.5 && stripeBandEnabled(stripeBand) && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom)) {
+    bool stripeVisible = stripeBand > 0.5 && stripeBandEnabled(stripeBand) && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom);
+    if (stripeVisible && !sparkleCellVisible(colIndex, rowIndex)) {
+        stripeVisible = false;
+    }
+    if (stripeVisible) {
         finalColor = vec4(stripeFillColor(stripeBand), 1.0);
     } else {
         finalColor = vec4(1.0, 1.0, 1.0, 1.0);
@@ -189,6 +222,7 @@ void main(void) {
 
 export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeBandColors, preferP3?: boolean) => void;
+  syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
 };
 
@@ -233,6 +267,16 @@ export function createStripeDuotoneFilter(
     uBandEnabled3: { value: colors.bandEnabled[3] ? 1 : 0, type: "f32" },
     uBandEnabled4: { value: colors.bandEnabled[4] ? 1 : 0, type: "f32" },
     uDebugVideoAlpha: { value: 0, type: "f32" },
+    uSparkleEnabled: { value: 0, type: "f32" },
+    uSparkleTime: { value: 0, type: "f32" },
+    uSparkleCoverage: {
+      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.coverage,
+      type: "f32",
+    },
+    uSparkleRateHz: {
+      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.rateHz,
+      type: "f32",
+    },
   });
 
   const filter = new Filter({
@@ -265,6 +309,19 @@ export function createStripeDuotoneFilter(
     uniforms.uBandEnabled3 = nextColors.bandEnabled[3] ? 1 : 0;
     uniforms.uBandEnabled4 = nextColors.bandEnabled[4] ? 1 : 0;
     stripeUniforms.update();
+  };
+
+  filter.syncSparkle = (options, timeSec) => {
+    const uniforms = stripeUniforms.uniforms as {
+      uSparkleEnabled: number;
+      uSparkleTime: number;
+      uSparkleCoverage: number;
+      uSparkleRateHz: number;
+    };
+    uniforms.uSparkleEnabled = options.enabled ? 1 : 0;
+    uniforms.uSparkleTime = timeSec;
+    uniforms.uSparkleCoverage = options.coverage;
+    uniforms.uSparkleRateHz = options.rateHz;
   };
 
   filter.updateBlockMap = (nextBlockMap) => {

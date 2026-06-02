@@ -30,6 +30,7 @@ import {
 import type { PlaygroundMediaKind, PlaygroundTextureId } from "./playgroundTextures";
 import { PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
+import { playgroundSparkleOptionsFromEnabled } from "./playgroundSparkle";
 import {
   clampPlaygroundDisplayDimension,
   createTextureSceneTicker,
@@ -179,6 +180,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     threshold: config.threshold,
     density: config.density,
     duotoneEnabled: config.duotoneEnabled,
+    sparkleEnabled: config.sparkleEnabled ?? false,
     displayWidth: config.displayWidth,
     displayHeight: config.displayHeight,
     bandBreakpoints: normalizeStripeBandBreakpoints(config.bandBreakpoints ?? DEFAULT_STRIPE_BAND_BREAKPOINTS),
@@ -240,6 +242,7 @@ export function TexturePlayground() {
   const [threshold, setThreshold] = useState(appliedInitial.threshold);
   const [density, setDensity] = useState(appliedInitial.density);
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
+  const [sparkleEnabled, setSparkleEnabled] = useState(appliedInitial.sparkleEnabled);
   const [enabledBands, setEnabledBands] = useState<StripeBandEnabled>(() => [...DEFAULT_STRIPE_BAND_ENABLED]);
   const [bandBreakpoints, setBandBreakpoints] = useState<StripeBandBreakpoints>(() => appliedInitial.bandBreakpoints);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -263,6 +266,7 @@ export function TexturePlayground() {
   const stripeColorsRef = useRef<StripeColors>(buildStripeColors());
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
+  const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromEnabled(sparkleEnabled));
   const autoplayRef = useRef(true);
   const exportStateRef = useRef<PlaygroundSceneExportState | null>(null);
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -288,9 +292,14 @@ export function TexturePlayground() {
     duotoneEnabledRef.current = duotoneEnabled;
   }, [duotoneEnabled]);
 
+  useEffect(() => {
+    sparkleOptionsRef.current = playgroundSparkleOptionsFromEnabled(sparkleEnabled);
+  }, [sparkleEnabled]);
+
   const persistCurrentConfig = useCallback(() => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
+      sparkleEnabled: sparkleEnabled || undefined,
       ignoreColorHex,
       ignoreTolerance,
       gamma,
@@ -304,6 +313,7 @@ export function TexturePlayground() {
   }, [
     selectedTextureId,
     duotoneEnabled,
+    sparkleEnabled,
     ignoreColorHex,
     ignoreTolerance,
     gamma,
@@ -336,6 +346,7 @@ export function TexturePlayground() {
     setThreshold(next.threshold);
     setDensity(next.density);
     setDuotoneEnabled(next.duotoneEnabled);
+    setSparkleEnabled(next.sparkleEnabled);
     if (next.displayWidth && next.displayWidth > 0) {
       setDisplayWidth(next.displayWidth);
     }
@@ -507,6 +518,7 @@ export function TexturePlayground() {
         stripeColorsRef,
         preferP3Ref,
         duotoneEnabledRef,
+        sparkleOptionsRef,
         autoplayRef,
         exportStateRef,
       ),
@@ -539,6 +551,7 @@ export function TexturePlayground() {
   const onCopyState = async () => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
+      sparkleEnabled: sparkleEnabled || undefined,
       ignoreColorHex,
       ignoreTolerance,
       gamma,
@@ -656,6 +669,7 @@ export function TexturePlayground() {
       buildPlaygroundExportSnapshot({
         config: {
           duotoneEnabled,
+          sparkleEnabled: sparkleEnabled || undefined,
           ignoreColorHex,
           ignoreTolerance,
           gamma,
@@ -672,6 +686,7 @@ export function TexturePlayground() {
       }),
     [
       duotoneEnabled,
+      sparkleEnabled,
       ignoreColorHex,
       ignoreTolerance,
       gamma,
@@ -796,6 +811,18 @@ export function TexturePlayground() {
             aria-label="Stripe duotone effect"
           />
           <span className="text-neutral-800">Duotone</span>
+        </label>
+
+        <label className={`flex items-center gap-2 text-sm ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
+          <input
+            type="checkbox"
+            checked={sparkleEnabled}
+            onChange={(event) => setSparkleEnabled(event.target.checked)}
+            disabled={duotoneControlsDisabled}
+            className="size-4 cursor-pointer rounded border-neutral-300 disabled:cursor-not-allowed"
+            aria-label="Sparkle stripe rects"
+          />
+          <span className="text-neutral-800">Sparkle</span>
         </label>
 
         <div className="flex flex-col gap-4 border-t border-neutral-200 pt-4">
