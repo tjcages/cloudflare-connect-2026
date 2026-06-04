@@ -9,6 +9,7 @@ export function buildExample5ExportSnapshot(): ReactExportSnapshot {
   return buildPlaygroundExportSnapshot({
     config: {
       duotoneEnabled: true,
+      ignoreColorHex: texture.duotone.ignoreColorHex,
       ignoreTolerance: texture.duotone.ignoreTolerance,
       gamma: texture.duotone.gamma,
       threshold: texture.duotone.threshold,

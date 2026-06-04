@@ -80,7 +80,7 @@ import {
   stripeBandDistanceLabel,
   type StripeBandBreakpoints,
 } from "./stripeBandThresholds";
-import { DEFAULT_STRIPE_DUOTONE_OPTIONS, type StripeDuotoneOptions } from "./stripeFilterOptions";
+import { DEFAULT_STRIPE_DUOTONE_OPTIONS, hexToRgb01, type StripeDuotoneOptions } from "./stripeFilterOptions";
 
 type TextureLayout = {
   width: number;
@@ -186,6 +186,7 @@ function disposeImageElement(image: HTMLImageElement) {
 
 function applyPersistedConfig(config: PlaygroundPersistedConfig) {
   return {
+    ignoreColorHex: config.ignoreColorHex,
     ignoreTolerance: config.ignoreTolerance,
     gamma: config.gamma,
     threshold: config.threshold,
@@ -249,15 +250,14 @@ export function TexturePlayground() {
 
   const [selectedTextureId, setSelectedTextureId] = useState<PlaygroundTextureId>(initialId);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const [ignoreColorHex, setIgnoreColorHex] = useState(appliedInitial.ignoreColorHex);
   const [ignoreTolerance, setIgnoreTolerance] = useState(appliedInitial.ignoreTolerance);
   const [gamma, setGamma] = useState(appliedInitial.gamma);
   const [threshold, setThreshold] = useState(appliedInitial.threshold);
   const [density, setDensity] = useState(appliedInitial.density);
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
   const [sparkleRate, setSparkleRate] = useState(appliedInitial.sparkleRate);
-  const [sparkleWidthActivePercent, setSparkleWidthActivePercent] = useState(
-    appliedInitial.sparkleWidthActivePercent,
-  );
+  const [sparkleWidthActivePercent, setSparkleWidthActivePercent] = useState(appliedInitial.sparkleWidthActivePercent);
   const [sparkleWidthSpeed, setSparkleWidthSpeed] = useState(appliedInitial.sparkleWidthSpeed);
   const [enabledBands, setEnabledBands] = useState<StripeBandEnabled>(() => [...DEFAULT_STRIPE_BAND_ENABLED]);
   const [bandBreakpoints, setBandBreakpoints] = useState<StripeBandBreakpoints>(() => appliedInitial.bandBreakpoints);
@@ -332,6 +332,7 @@ export function TexturePlayground() {
           : undefined,
       sparkleWidthSpeed:
         sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
+      ignoreColorHex,
       ignoreTolerance,
       gamma,
       threshold,
@@ -347,6 +348,7 @@ export function TexturePlayground() {
     sparkleRate,
     sparkleWidthActivePercent,
     sparkleWidthSpeed,
+    ignoreColorHex,
     ignoreTolerance,
     gamma,
     threshold,
@@ -372,6 +374,7 @@ export function TexturePlayground() {
 
   const applyConfig = useCallback((config: PlaygroundPersistedConfig) => {
     const next = applyPersistedConfig(config);
+    setIgnoreColorHex(next.ignoreColorHex);
     setIgnoreTolerance(next.ignoreTolerance);
     setGamma(next.gamma);
     setThreshold(next.threshold);
@@ -418,13 +421,14 @@ export function TexturePlayground() {
 
   useEffect(() => {
     stripeOptionsRef.current = {
+      ignoreColorRgb: hexToRgb01(ignoreColorHex),
       ignoreTolerance,
       gamma,
       threshold,
       density,
       bandBreakpoints,
     };
-  }, [ignoreTolerance, gamma, threshold, density, bandBreakpoints]);
+  }, [ignoreColorHex, ignoreTolerance, gamma, threshold, density, bandBreakpoints]);
 
   useEffect(() => {
     stripeColorsRef.current = buildStripeColors(enabledBands);
@@ -591,6 +595,7 @@ export function TexturePlayground() {
           : undefined,
       sparkleWidthSpeed:
         sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
+      ignoreColorHex,
       ignoreTolerance,
       gamma,
       threshold,
@@ -708,12 +713,13 @@ export function TexturePlayground() {
         config: {
           duotoneEnabled,
           sparkleRate: sparkleRate > 0 ? sparkleRate : undefined,
-      sparkleWidthActivePercent:
-        sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
-          ? sparkleWidthActivePercent
-          : undefined,
-      sparkleWidthSpeed:
-        sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
+          sparkleWidthActivePercent:
+            sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
+              ? sparkleWidthActivePercent
+              : undefined,
+          sparkleWidthSpeed:
+            sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
+          ignoreColorHex,
           ignoreTolerance,
           gamma,
           threshold,
@@ -732,6 +738,7 @@ export function TexturePlayground() {
       sparkleRate,
       sparkleWidthActivePercent,
       sparkleWidthSpeed,
+      ignoreColorHex,
       ignoreTolerance,
       gamma,
       threshold,
@@ -852,28 +859,28 @@ export function TexturePlayground() {
             checked={duotoneEnabled}
             onChange={(event) => setDuotoneEnabled(event.target.checked)}
             className="size-4 cursor-pointer rounded border-neutral-300"
-            aria-label="Shader enabled"
+            aria-label="Stripe duotone effect"
           />
-          <span className="text-neutral-800">Shader enabled</span>
+          <span className="text-neutral-800">Duotone</span>
         </label>
 
-          <ControlField
-            label="Sparkle"
-            value={sparkleRate <= 0 ? "Off" : `${sparkleRateHzFromSlider(sparkleRate).toFixed(2)} Hz`}
+        <ControlField
+          label="Sparkle"
+          value={sparkleRate <= 0 ? "Off" : `${sparkleRateHzFromSlider(sparkleRate).toFixed(2)} Hz`}
+          disabled={duotoneControlsDisabled}
+        >
+          <input
+            type="range"
+            min={PLAYGROUND_CONTROL_RANGES.sparkleRate.min}
+            max={PLAYGROUND_CONTROL_RANGES.sparkleRate.max}
+            step={PLAYGROUND_CONTROL_RANGES.sparkleRate.step}
+            value={sparkleRate}
+            onChange={(event) => setSparkleRate(Number(event.target.value))}
             disabled={duotoneControlsDisabled}
-          >
-            <input
-              type="range"
-              min={PLAYGROUND_CONTROL_RANGES.sparkleRate.min}
-              max={PLAYGROUND_CONTROL_RANGES.sparkleRate.max}
-              step={PLAYGROUND_CONTROL_RANGES.sparkleRate.step}
-              value={sparkleRate}
-              onChange={(event) => setSparkleRate(Number(event.target.value))}
-              disabled={duotoneControlsDisabled}
-              className="w-full disabled:cursor-not-allowed"
-              aria-label="Sparkle blink frequency"
-            />
-          </ControlField>
+            className="w-full disabled:cursor-not-allowed"
+            aria-label="Sparkle blink frequency"
+          />
+        </ControlField>
 
         <div className="flex flex-col gap-3 border-t border-neutral-200 pt-4">
           <span className="text-sm text-neutral-600">Sparkle width</span>
@@ -896,11 +903,7 @@ export function TexturePlayground() {
           </ControlField>
           <ControlField
             label="Speed"
-            value={
-              sparkleWidthActivePercent <= 0
-                ? "Off"
-                : sparkleWidthSpeedLabelFromSlider(sparkleWidthSpeed)
-            }
+            value={sparkleWidthActivePercent <= 0 ? "Off" : sparkleWidthSpeedLabelFromSlider(sparkleWidthSpeed)}
             disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
           >
             <input
@@ -918,7 +921,18 @@ export function TexturePlayground() {
         </div>
 
         <div className="flex flex-col gap-4 border-t border-neutral-200 pt-4">
-          <ControlField label="Darkness" value={ignoreTolerance.toFixed(3)} disabled={duotoneControlsDisabled}>
+          <ControlField label="Ignore bg" value={ignoreColorHex} disabled={duotoneControlsDisabled}>
+            <input
+              type="color"
+              value={ignoreColorHex}
+              onChange={(event) => setIgnoreColorHex(event.target.value)}
+              disabled={duotoneControlsDisabled}
+              className="h-9 w-full max-w-[4.5rem] cursor-pointer rounded border border-neutral-300 bg-white p-0.5 disabled:cursor-not-allowed"
+              aria-label="Background color to ignore"
+            />
+          </ControlField>
+
+          <ControlField label="Bg match" value={ignoreTolerance.toFixed(3)} disabled={duotoneControlsDisabled}>
             <input
               type="range"
               min={PLAYGROUND_CONTROL_RANGES.bgMatch.min}
@@ -928,7 +942,7 @@ export function TexturePlayground() {
               onChange={(event) => setIgnoreTolerance(Number(event.target.value))}
               disabled={duotoneControlsDisabled}
               className="w-full disabled:cursor-not-allowed"
-              aria-label="Maximum luminance treated as background"
+              aria-label="Background color match tolerance"
             />
           </ControlField>
 
@@ -942,7 +956,7 @@ export function TexturePlayground() {
               onChange={(event) => setGamma(Number(event.target.value))}
               disabled={duotoneControlsDisabled}
               className="w-full disabled:cursor-not-allowed"
-              aria-label="Gamma for luminance sampling"
+              aria-label="Gamma for background matching"
             />
           </ControlField>
 

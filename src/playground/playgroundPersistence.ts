@@ -3,10 +3,7 @@ import {
   normalizeStripeBandBreakpoints,
   type StripeBandBreakpoints,
 } from "./stripeBandThresholds";
-import {
-  DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER,
-  normalizeSparkleRate,
-} from "./playgroundSparkle";
+import { DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER, normalizeSparkleRate } from "./playgroundSparkle";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT,
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER,
@@ -41,6 +38,7 @@ export type PlaygroundPersistedConfig = {
   sparkleWidthActivePercent?: number;
   /** Width pulse speed slider 0–1. Default 0.5 → 1.0×. */
   sparkleWidthSpeed?: number;
+  ignoreColorHex: string;
   ignoreTolerance: number;
   gamma: number;
   threshold: number;
@@ -85,8 +83,7 @@ export type PlaygroundStateWire = {
   sr?: number;
   swa?: number;
   sws?: number;
-  /** @deprecated Ignored; background is always black. */
-  c?: string;
+  c: string;
   t: number;
   g: number;
   th: number;
@@ -262,6 +259,7 @@ export function mergeCatalog(
       displayScale: upload.displayScale,
       duotone: override
         ? {
+            ignoreColorHex: override.ignoreColorHex,
             ignoreTolerance: override.ignoreTolerance,
             gamma: override.gamma,
             threshold: override.threshold,
@@ -291,6 +289,7 @@ export function defaultConfigForTexture(textureId: PlaygroundTextureId): Playgro
     const duotone = getPlaygroundTextureOption(textureId as BuiltinPlaygroundTextureId).duotone;
     return {
       duotoneEnabled: true,
+      ignoreColorHex: duotone.ignoreColorHex,
       ignoreTolerance: duotone.ignoreTolerance,
       gamma: duotone.gamma,
       threshold: duotone.threshold,
@@ -364,6 +363,7 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const wire: PlaygroundStateWire = {
     v: 1,
     d: config.duotoneEnabled,
+    c: config.ignoreColorHex,
     t: config.ignoreTolerance,
     g: config.gamma,
     th: config.threshold,
@@ -450,7 +450,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   if (parsed.v !== 1) {
     throw new Error("Unsupported playground state version.");
   }
-  if (typeof parsed.d !== "boolean") {
+  if (typeof parsed.d !== "boolean" || typeof parsed.c !== "string") {
     throw new Error("Invalid playground state.");
   }
   const t = Number(parsed.t);
@@ -467,6 +467,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     sparkleRate: parseSparkleRate(parsed.sr, parsed.sk),
     sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa),
     sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws),
+    ignoreColorHex: parsed.c,
     ignoreTolerance: t,
     gamma: g,
     threshold: th,

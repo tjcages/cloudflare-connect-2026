@@ -24,6 +24,7 @@ describe("playgroundPersistence envelope migration", () => {
     const uploadId = "upload:test-upload" as const;
     const config = defaultConfigForTexture(uploadId);
     expect(config.duotoneEnabled).toBe(true);
+    expect(config.ignoreColorHex).toBe(DEFAULT_PLAYGROUND_UPLOAD_DUOTONE.ignoreColorHex);
     expect(config.ignoreTolerance).toBe(DEFAULT_PLAYGROUND_UPLOAD_DUOTONE.ignoreTolerance);
     expect(config.gamma).toBe(DEFAULT_PLAYGROUND_UPLOAD_DUOTONE.gamma);
     expect(config.threshold).toBe(DEFAULT_PLAYGROUND_UPLOAD_DUOTONE.threshold);

@@ -1,53 +1,25 @@
-import { DEFAULT_STRIPE_BAND_BREAKPOINTS, type StripeBandBreakpoints } from "./stripeBandThresholds";
+import type { StripeBandBreakpoints } from "../types";
 
 export type Rgb01 = [number, number, number];
 
-export const PLAYGROUND_BLACK_BG_HEX = "#000000";
-
 export type StripeDuotoneOptions = {
-  /** Max luminance (0–1, gamma-corrected) treated as background pixel. */
+  ignoreColorRgb: Rgb01;
   ignoreTolerance: number;
-  /** Gamma applied before luminance sampling (< 1 lifts darks / thicker fg on light clips). */
   gamma: number;
-  /** Share of block pixels that must match bg for the cell to count as background (0–1). */
   threshold: number;
-  /** Scales fg distance bands for stripe width (lower → thinner / denser stripes). */
   density: number;
-  /** Connected upper distance limits for stripe color bands 1…4 (band 5 is above the last). */
   bandBreakpoints: StripeBandBreakpoints;
+  referenceColorRgb?: Rgb01;
 };
 
 export const DEFAULT_STRIPE_THRESHOLD = 0.72;
 export const DEFAULT_STRIPE_DENSITY = 1;
 
 export const DEFAULT_STRIPE_DUOTONE_OPTIONS: StripeDuotoneOptions = {
+  ignoreColorRgb: [1, 1, 1],
   ignoreTolerance: 0.08,
   gamma: 1,
   threshold: DEFAULT_STRIPE_THRESHOLD,
   density: DEFAULT_STRIPE_DENSITY,
-  bandBreakpoints: DEFAULT_STRIPE_BAND_BREAKPOINTS,
+  bandBreakpoints: [1, 2, 3, 4],
 };
-
-export function hexToRgb01(hex: string): Rgb01 {
-  const normalized = hex.trim().replace(/^#/, "");
-  const expanded =
-    normalized.length === 3
-      ? normalized
-          .split("")
-          .map((ch) => ch + ch)
-          .join("")
-      : normalized;
-  const value = Number.parseInt(expanded, 16);
-  if (!Number.isFinite(value) || expanded.length !== 6) {
-    return [1, 1, 1];
-  }
-  return [(value >> 16) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
-}
-
-export function rgb01ToHex([r, g, b]: Rgb01): string {
-  const toByte = (channel: number) =>
-    Math.round(Math.min(1, Math.max(0, channel)) * 255)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${toByte(r)}${toByte(g)}${toByte(b)}`;
-}

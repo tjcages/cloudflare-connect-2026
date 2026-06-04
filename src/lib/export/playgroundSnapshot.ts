@@ -2,10 +2,7 @@ import type { StripeBandBreakpoints } from "../../playground/stripeBandThreshold
 import type { StripeBandEnabled } from "../../playground/stripeColors";
 import { PLAYGROUND_STRIPE_BAND_HEX, PLAYGROUND_STRIPE_BAND_SWATCH_P3 } from "../../playground/stripeColors";
 import type { PlaygroundPersistedConfig } from "../../playground/playgroundPersistence";
-import {
-  resolvePersistedSparkleRate,
-  sparkleRateHzFromSlider,
-} from "../../playground/playgroundSparkle";
+import { resolvePersistedSparkleRate, sparkleRateHzFromSlider } from "../../playground/playgroundSparkle";
 import type { PlaygroundMediaKind } from "../../playground/playgroundTextures";
 
 function formatSparkleRateSummary(config: PlaygroundPersistedConfig): string {
@@ -47,9 +44,9 @@ export function buildPlaygroundExportSnapshot(input: {
 export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
   const { config } = snapshot;
   return [
-    `- Shader enabled: ${config.duotoneEnabled ? "on" : "off"}`,
+    `- Duotone: ${config.duotoneEnabled ? "on" : "off"}`,
     `- Sparkle: ${formatSparkleRateSummary(config)}`,
-    `- Background: black; darkness cutoff: ${config.ignoreTolerance}`,
+    `- Ignore color: ${config.ignoreColorHex}, tolerance: ${config.ignoreTolerance}`,
     `- Gamma: ${config.gamma}, threshold: ${config.threshold}, density: ${config.density}`,
     `- Display: ${snapshot.displayWidth}×${snapshot.displayHeight}px`,
     `- Band breakpoints: ${(config.bandBreakpoints ?? []).join(", ")}`,
@@ -62,6 +59,7 @@ export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
 export type AsciiVideoConfigWire = {
   duotoneEnabled: boolean;
   sparkleRate?: number;
+  ignoreColorHex: string;
   ignoreTolerance: number;
   gamma: number;
   threshold: number;
@@ -78,6 +76,7 @@ export function snapshotToAsciiVideoConfig(snapshot: ReactExportSnapshot): Ascii
   return {
     duotoneEnabled: snapshot.config.duotoneEnabled,
     sparkleRate: resolvePersistedSparkleRate(snapshot.config) || undefined,
+    ignoreColorHex: snapshot.config.ignoreColorHex,
     ignoreTolerance: snapshot.config.ignoreTolerance,
     gamma: snapshot.config.gamma,
     threshold: snapshot.config.threshold,

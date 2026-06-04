@@ -13,7 +13,7 @@ describe("syncExportToTestProject", () => {
 
     const typesPath = join(TEST_ROOT, "src/components/ascii-video/types.ts");
     const typesSource = readFileSync(typesPath, "utf8");
-    expect(typesSource).toContain('"ignoreTolerance"');
+    expect(typesSource).toContain('"ignoreColorHex": "#000000"');
     expect(typesSource).toContain('"displayWidth": 848');
     expect(typesSource).toContain("bandDisplayP3Css");
   });
@@ -22,6 +22,7 @@ describe("syncExportToTestProject", () => {
 describe("buildExample5ExportSnapshot", () => {
   it("matches catalog duotone for example5", () => {
     const snapshot = buildExample5ExportSnapshot();
+    expect(snapshot.config.ignoreColorHex).toBe("#000000");
     expect(snapshot.config.density).toBe(0.6);
     expect(snapshot.displayWidth).toBe(848);
     expect(snapshot.bandDisplayP3Css[4]).toContain("display-p3");

@@ -2,12 +2,16 @@ import { DEFAULT_STRIPE_BAND_BREAKPOINTS, type StripeBandBreakpoints } from "./s
 
 export type Rgb01 = [number, number, number];
 
-export const PLAYGROUND_BLACK_BG_HEX = "#000000";
-
 export type StripeDuotoneOptions = {
-  /** Max luminance (0–1, gamma-corrected) treated as background pixel. */
+  /** UI swatch for background (white or black per clip). */
+  ignoreColorRgb: Rgb01;
+  /** Measured RGB from frame corners; overrides swatch when set. */
+  referenceColorRgb?: Rgb01;
+  /** Max per-channel distance (0–1) treated as background. */
   ignoreTolerance: number;
-  /** Gamma applied before luminance sampling (< 1 lifts darks / thicker fg on light clips). */
+  /**
+   * Gamma applied before bg matching (< 1 pulls values toward white / thinner fg on light clips).
+   */
   gamma: number;
   /** Share of block pixels that must match bg for the cell to count as background (0–1). */
   threshold: number;
@@ -21,6 +25,7 @@ export const DEFAULT_STRIPE_THRESHOLD = 0.72;
 export const DEFAULT_STRIPE_DENSITY = 1;
 
 export const DEFAULT_STRIPE_DUOTONE_OPTIONS: StripeDuotoneOptions = {
+  ignoreColorRgb: [1, 1, 1],
   ignoreTolerance: 0.08,
   gamma: 1,
   threshold: DEFAULT_STRIPE_THRESHOLD,

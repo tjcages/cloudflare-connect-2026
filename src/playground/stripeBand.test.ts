@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripeBandFromLuminance } from "./computeBlockGrid";
+import { stripeBandFromBgDistance } from "./computeBlockGrid";
 import { DEFAULT_STRIPE_BAND_BREAKPOINTS } from "./stripeBandThresholds";
 import {
   STRIPE_BAND_COUNT,
@@ -14,25 +14,24 @@ const defaultOptions = {
   bandBreakpoints: DEFAULT_STRIPE_BAND_BREAKPOINTS,
 };
 
-describe("stripeBandFromLuminance", () => {
-  it("returns none for background or zero luminance", () => {
-    expect(stripeBandFromLuminance(0, true, defaultOptions)).toBe(STRIPE_BAND_NONE);
-    expect(stripeBandFromLuminance(0.5, true, defaultOptions)).toBe(STRIPE_BAND_NONE);
-    expect(stripeBandFromLuminance(0, false, defaultOptions)).toBe(STRIPE_BAND_NONE);
+describe("stripeBandFromBgDistance", () => {
+  it("returns none for background or invalid distance", () => {
+    expect(stripeBandFromBgDistance(0, true, defaultOptions)).toBe(STRIPE_BAND_NONE);
+    expect(stripeBandFromBgDistance(3, true, defaultOptions)).toBe(STRIPE_BAND_NONE);
+    expect(stripeBandFromBgDistance(0, false, defaultOptions)).toBe(STRIPE_BAND_NONE);
   });
 
-  it("maps foreground luminance into equal bands", () => {
-    const band1Lum = 1 / 16;
-    expect(stripeBandFromLuminance(band1Lum, false, defaultOptions)).toBe(1);
-    expect(stripeBandFromLuminance(2 / 16, false, defaultOptions)).toBe(2);
-    expect(stripeBandFromLuminance(4 / 16, false, defaultOptions)).toBe(4);
-    expect(stripeBandFromLuminance(5 / 16, false, defaultOptions)).toBe(5);
-    expect(stripeBandFromLuminance(12 / 16, false, defaultOptions)).toBe(5);
+  it("maps foreground distances 1…5+ into equal bands", () => {
+    expect(stripeBandFromBgDistance(1, false, defaultOptions)).toBe(1);
+    expect(stripeBandFromBgDistance(2, false, defaultOptions)).toBe(2);
+    expect(stripeBandFromBgDistance(4, false, defaultOptions)).toBe(4);
+    expect(stripeBandFromBgDistance(5, false, defaultOptions)).toBe(5);
+    expect(stripeBandFromBgDistance(12, false, defaultOptions)).toBe(5);
   });
 
   it("scales bands with density", () => {
-    expect(stripeBandFromLuminance(4 / 16, false, { ...defaultOptions, density: 2 })).toBe(2);
-    expect(stripeBandFromLuminance(4 / 16, false, { ...defaultOptions, density: 0.5 })).toBe(5);
+    expect(stripeBandFromBgDistance(4, false, { ...defaultOptions, density: 2 })).toBe(2);
+    expect(stripeBandFromBgDistance(4, false, { ...defaultOptions, density: 0.5 })).toBe(5);
   });
 });
 

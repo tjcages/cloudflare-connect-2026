@@ -5,6 +5,7 @@ import { buildPlaygroundExportSnapshot } from "./playgroundSnapshot";
 const baseSnapshot = buildPlaygroundExportSnapshot({
   config: {
     duotoneEnabled: true,
+    ignoreColorHex: "#ffffff",
     ignoreTolerance: 0.08,
     gamma: 1,
     threshold: 0.72,
