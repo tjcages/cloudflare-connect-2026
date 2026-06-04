@@ -1,17 +1,12 @@
-import {
-  constrainReferenceColor,
-  isIgnoredBgPixel,
-  resolveReferenceColor,
-  sampleReferenceColorFromFrame,
-} from "./colorWhiteness";
-import { DEFAULT_STRIPE_DUOTONE_OPTIONS, type Rgb01, type StripeDuotoneOptions } from "./stripeFilterOptions";
-import { bandFromDistance } from "./stripeBandThresholds";
+import { isDarkPixelByLuminance, pixelLuminance01 } from "./colorWhiteness";
+import { DEFAULT_STRIPE_DUOTONE_OPTIONS, type StripeDuotoneOptions } from "./stripeFilterOptions";
+import { bandFromDistance, STRIPE_BAND_BREAKPOINT_LIMIT } from "./stripeBandThresholds";
 import { STRIPE_BLOCK_SAMPLE_COUNT, STRIPE_BLOCK_SAMPLES, STRIPE_CELL_SIZE } from "./stripeGridConstants";
 
 export type BlockGrid = {
   cols: number;
   rows: number;
-  /** Stripe band per cell: 0 = none, 1…5 = foreground distance band. */
+  /** Stripe band per cell: 0 = none, 1…5 = foreground luminance band. */
   bands: Uint8Array;
 };
 
@@ -21,8 +16,7 @@ function blockIsMostlyBg(
   imageHeight: number,
   col: number,
   row: number,
-  reference: Rgb01,
-  tolerance: number,
+  maxLuminance: number,
   gamma: number,
   threshold: number,
 ): boolean {
@@ -46,7 +40,7 @@ function blockIsMostlyBg(
       const g = pixels[idx + 1] ?? 0;
       const b = pixels[idx + 2] ?? 0;
 
-      if (isIgnoredBgPixel(r, g, b, reference, tolerance, gamma)) {
+      if (isDarkPixelByLuminance(r, g, b, maxLuminance, gamma)) {
         bgCount++;
       } else {
         fgCount++;
@@ -57,66 +51,61 @@ function blockIsMostlyBg(
   return bgCount / STRIPE_BLOCK_SAMPLE_COUNT >= threshold || fgCount < 1;
 }
 
-/** Orthogonal distance in 7×7 cells from the nearest mostly-bg cell. */
-function distanceToNearestBg(isBg: Uint8Array, cols: number, rows: number): Int32Array {
-  const size = cols * rows;
-  const distance = new Int32Array(size);
-  distance.fill(-1);
+function blockMeanLuminance(
+  pixels: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  col: number,
+  row: number,
+  gamma: number,
+): number {
+  const originX = col * STRIPE_CELL_SIZE;
+  const originY = row * STRIPE_CELL_SIZE;
 
-  const queue: number[] = [];
-  for (let i = 0; i < size; i++) {
-    if (isBg[i]) {
-      distance[i] = 0;
-      queue.push(i);
+  let sum = 0;
+  let count = 0;
+
+  for (let j = 0; j < STRIPE_BLOCK_SAMPLES; j++) {
+    for (let i = 0; i < STRIPE_BLOCK_SAMPLES; i++) {
+      const x = originX + i;
+      const y = originY + j;
+      if (x >= imageWidth || y >= imageHeight) {
+        continue;
+      }
+
+      const idx = (y * imageWidth + x) * 4;
+      sum += pixelLuminance01(pixels[idx] ?? 0, pixels[idx + 1] ?? 0, pixels[idx + 2] ?? 0, gamma);
+      count++;
     }
   }
 
-  let head = 0;
-  while (head < queue.length) {
-    const index = queue[head++] ?? 0;
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    const nextDist = (distance[index] ?? 0) + 1;
-
-    if (col > 0) {
-      const left = index - 1;
-      if (distance[left] === -1) {
-        distance[left] = nextDist;
-        queue.push(left);
-      }
-    }
-    if (col < cols - 1) {
-      const right = index + 1;
-      if (distance[right] === -1) {
-        distance[right] = nextDist;
-        queue.push(right);
-      }
-    }
-    if (row > 0) {
-      const up = index - cols;
-      if (distance[up] === -1) {
-        distance[up] = nextDist;
-        queue.push(up);
-      }
-    }
-    if (row < rows - 1) {
-      const down = index + cols;
-      if (distance[down] === -1) {
-        distance[down] = nextDist;
-        queue.push(down);
-      }
-    }
-  }
-
-  return distance;
+  return count > 0 ? sum / count : 0;
 }
 
-export function stripeBandFromBgDistance(
-  distance: number,
+/** Maps mean cell luminance (0–1) into stripe bands; breakpoints stay on the 1…16 distance scale. */
+export function stripeBandFromLuminance(
+  luminance01: number,
   isBg: boolean,
   options: Pick<StripeDuotoneOptions, "density" | "bandBreakpoints"> = DEFAULT_STRIPE_DUOTONE_OPTIONS,
 ): number {
-  return bandFromDistance(distance, isBg, options.density, options.bandBreakpoints);
+  if (isBg || luminance01 <= 0) {
+    return 0;
+  }
+  return bandFromDistance(
+    luminance01 * STRIPE_BAND_BREAKPOINT_LIMIT,
+    false,
+    options.density,
+    options.bandBreakpoints,
+  );
+}
+
+/** @deprecated Use {@link stripeBandFromLuminance}; kept for existing tests and export call sites. */
+export function stripeBandFromBgDistance(
+  luminanceOrLegacyDistance: number,
+  isBg: boolean,
+  options: Pick<StripeDuotoneOptions, "density" | "bandBreakpoints"> = DEFAULT_STRIPE_DUOTONE_OPTIONS,
+): number {
+  return stripeBandFromLuminance(luminanceOrLegacyDistance, isBg, options);
 }
 
 /** Marks which ends of a same-band vertical run need rounded caps. */
@@ -152,41 +141,27 @@ export function computeBlockGrid(
   options: StripeDuotoneOptions,
 ): BlockGrid {
   const gamma = options.gamma;
-  const sampled = resolveReferenceColor(
-    options.referenceColorRgb ??
-      sampleReferenceColorFromFrame(pixels, imageWidth, imageHeight, options.ignoreColorRgb, gamma),
-    options.ignoreColorRgb,
-  );
-  const reference = constrainReferenceColor(sampled, options.ignoreColorRgb, options.ignoreTolerance);
-
   const cols = Math.ceil(imageWidth / STRIPE_CELL_SIZE);
   const rows = Math.ceil(imageHeight / STRIPE_CELL_SIZE);
   const size = cols * rows;
-  const isBg = new Uint8Array(size);
+  const bands = new Uint8Array(size);
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const index = row * cols + col;
-      isBg[index] = blockIsMostlyBg(
+      const isBg = blockIsMostlyBg(
         pixels,
         imageWidth,
         imageHeight,
         col,
         row,
-        reference,
         options.ignoreTolerance,
         gamma,
         options.threshold,
-      )
-        ? 1
-        : 0;
+      );
+      const luminance = blockMeanLuminance(pixels, imageWidth, imageHeight, col, row, gamma);
+      bands[index] = stripeBandFromLuminance(luminance, isBg, options);
     }
-  }
-
-  const distance = distanceToNearestBg(isBg, cols, rows);
-  const bands = new Uint8Array(size);
-  for (let i = 0; i < size; i++) {
-    bands[i] = stripeBandFromBgDistance(distance[i] ?? -1, isBg[i] === 1, options);
   }
 
   return { cols, rows, bands };

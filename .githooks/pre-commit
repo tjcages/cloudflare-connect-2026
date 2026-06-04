@@ -1,0 +1,9 @@
+#!/bin/sh
+# Repo pre-commit hook. Invoke from your global hook, e.g.:
+#
+#   repo_hook="$(git rev-parse --show-toplevel 2>/dev/null)/.githooks/pre-commit"
+#   if [ -x "$repo_hook" ]; then
+#     "$repo_hook" || exit 1
+#   fi
+#
+npm run precommit
