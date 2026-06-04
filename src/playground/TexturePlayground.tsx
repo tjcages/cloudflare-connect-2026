@@ -60,6 +60,7 @@ import {
 } from "./playgroundColorSpace";
 import { stripeGridToSvg } from "./stripeGridToSvg";
 import { ExportReactDialog } from "./ExportReactDialog";
+import { PlaygroundControlSection } from "./PlaygroundControlSection";
 import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
@@ -767,8 +768,8 @@ export function TexturePlayground() {
 
   return (
     <div className="flex h-dvh overflow-hidden bg-neutral-50">
-      <aside className="ui-scroll-hidden flex min-h-0 w-60 shrink-0 flex-col gap-5 overflow-y-auto border-r border-neutral-200 bg-white p-4">
-        <div>
+      <aside className="flex min-h-0 w-60 shrink-0 flex-col gap-4 border-r border-neutral-200 bg-white py-4">
+        <div className="shrink-0 px-4">
           <h1 className="text-base font-medium text-neutral-900">Texture shader playground</h1>
           <p className="mt-1 text-xs leading-relaxed text-neutral-500">
             {displayWidth}×{displayHeight}px canvas
@@ -776,294 +777,303 @@ export function TexturePlayground() {
           </p>
         </div>
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-neutral-600">Texture</span>
-          <select
-            value={selectedTextureId}
-            onChange={(event) => onTextureSelect(event.target.value as PlaygroundTextureId)}
-            className="rounded border border-neutral-300 bg-white px-2 py-1.5"
-            aria-label="Playground texture source"
-          >
-            {catalog.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="ui-scroll-hidden flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="flex flex-col gap-3 px-4">
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="text-neutral-600">Texture</span>
+              <select
+                value={selectedTextureId}
+                onChange={(event) => onTextureSelect(event.target.value as PlaygroundTextureId)}
+                className="rounded border border-neutral-300 bg-white px-2 py-1.5"
+                aria-label="Playground texture source"
+              >
+                {catalog.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex flex-col gap-1 text-sm text-neutral-600">
-            <span>Width</span>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex flex-col gap-1 text-sm text-neutral-600">
+                <span>Width</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={8192}
+                  value={displayWidth > 0 ? displayWidth : ""}
+                  onChange={(event) => {
+                    const fallback = displayWidth > 0 ? displayWidth : sourceWidth || 1;
+                    setDisplayWidth(clampPlaygroundDisplayDimension(Number(event.target.value), fallback));
+                  }}
+                  className="rounded border border-neutral-300 bg-white px-2 py-1.5 tabular-nums"
+                  aria-label="Canvas width in pixels"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-neutral-600">
+                <span>Height</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={8192}
+                  value={displayHeight > 0 ? displayHeight : ""}
+                  onChange={(event) => {
+                    const fallback = displayHeight > 0 ? displayHeight : sourceHeight || 1;
+                    setDisplayHeight(clampPlaygroundDisplayDimension(Number(event.target.value), fallback));
+                  }}
+                  className="rounded border border-neutral-300 bg-white px-2 py-1.5 tabular-nums"
+                  aria-label="Canvas height in pixels"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={matchSourceDisplaySize}
+              disabled={sourceWidth <= 0 || sourceHeight <= 0}
+            >
+              Match source size
+            </button>
+
             <input
-              type="number"
-              min={1}
-              max={8192}
-              value={displayWidth > 0 ? displayWidth : ""}
-              onChange={(event) => {
-                const fallback = displayWidth > 0 ? displayWidth : sourceWidth || 1;
-                setDisplayWidth(clampPlaygroundDisplayDimension(Number(event.target.value), fallback));
-              }}
-              className="rounded border border-neutral-300 bg-white px-2 py-1.5 tabular-nums"
-              aria-label="Canvas width in pixels"
+              ref={fileInputRef}
+              type="file"
+              accept="video/*,image/*"
+              className="hidden"
+              onChange={(event) => void onUploadFile(event)}
             />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-neutral-600">
-            <span>Height</span>
-            <input
-              type="number"
-              min={1}
-              max={8192}
-              value={displayHeight > 0 ? displayHeight : ""}
-              onChange={(event) => {
-                const fallback = displayHeight > 0 ? displayHeight : sourceHeight || 1;
-                setDisplayHeight(clampPlaygroundDisplayDimension(Number(event.target.value), fallback));
-              }}
-              className="rounded border border-neutral-300 bg-white px-2 py-1.5 tabular-nums"
-              aria-label="Canvas height in pixels"
-            />
-          </label>
-        </div>
-        <button
-          type="button"
-          className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
-          onClick={matchSourceDisplaySize}
-          disabled={sourceWidth <= 0 || sourceHeight <= 0}
-        >
-          Match source size
-        </button>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/*,image/*"
-          className="hidden"
-          onChange={(event) => void onUploadFile(event)}
-        />
-        <button
-          type="button"
-          className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-          onClick={onUploadClick}
-        >
-          Upload texture
-        </button>
-        {uploadError ? <p className="m-0 text-xs text-red-700">{uploadError}</p> : null}
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={duotoneEnabled}
-            onChange={(event) => setDuotoneEnabled(event.target.checked)}
-            className="size-4 cursor-pointer rounded border-neutral-300"
-            aria-label="Stripe duotone effect"
-          />
-          <span className="text-neutral-800">Duotone</span>
-        </label>
-
-        <ControlField
-          label="Sparkle"
-          value={sparkleRate <= 0 ? "Off" : `${sparkleRateHzFromSlider(sparkleRate).toFixed(2)} Hz`}
-          disabled={duotoneControlsDisabled}
-        >
-          <input
-            type="range"
-            min={PLAYGROUND_CONTROL_RANGES.sparkleRate.min}
-            max={PLAYGROUND_CONTROL_RANGES.sparkleRate.max}
-            step={PLAYGROUND_CONTROL_RANGES.sparkleRate.step}
-            value={sparkleRate}
-            onChange={(event) => setSparkleRate(Number(event.target.value))}
-            disabled={duotoneControlsDisabled}
-            className="w-full disabled:cursor-not-allowed"
-            aria-label="Sparkle blink frequency"
-          />
-        </ControlField>
-
-        <div className="flex flex-col gap-3 border-t border-neutral-200 pt-4">
-          <span className="text-sm text-neutral-600">Sparkle width</span>
-          <ControlField
-            label="Active"
-            value={sparkleWidthActivePercent <= 0 ? "Off" : `${sparkleWidthActivePercent}%`}
-            disabled={duotoneControlsDisabled}
-          >
-            <input
-              type="range"
-              min={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.min}
-              max={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.max}
-              step={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.step}
-              value={sparkleWidthActivePercent}
-              onChange={(event) => setSparkleWidthActivePercent(Number(event.target.value))}
-              disabled={duotoneControlsDisabled}
-              className="w-full disabled:cursor-not-allowed"
-              aria-label="Sparkle width active percentage"
-            />
-          </ControlField>
-          <ControlField
-            label="Speed"
-            value={sparkleWidthActivePercent <= 0 ? "Off" : sparkleWidthSpeedLabelFromSlider(sparkleWidthSpeed)}
-            disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
-          >
-            <input
-              type="range"
-              min={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.min}
-              max={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.max}
-              step={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.step}
-              value={sparkleWidthSpeed}
-              onChange={(event) => setSparkleWidthSpeed(Number(event.target.value))}
-              disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
-              className="w-full disabled:cursor-not-allowed"
-              aria-label="Sparkle width pulse speed"
-            />
-          </ControlField>
-        </div>
-
-        <div className="flex flex-col gap-4 border-t border-neutral-200 pt-4">
-          <ControlField label="Bg match" value={ignoreTolerance.toFixed(3)} disabled={duotoneControlsDisabled}>
-            <input
-              type="range"
-              min={PLAYGROUND_CONTROL_RANGES.bgMatch.min}
-              max={PLAYGROUND_CONTROL_RANGES.bgMatch.max}
-              step={PLAYGROUND_CONTROL_RANGES.bgMatch.step}
-              value={ignoreTolerance}
-              onChange={(event) => setIgnoreTolerance(Number(event.target.value))}
-              disabled={duotoneControlsDisabled}
-              className="w-full disabled:cursor-not-allowed"
-              aria-label="Background color match tolerance"
-            />
-          </ControlField>
-
-          <ControlField label="Gamma" value={gamma.toFixed(2)} disabled={duotoneControlsDisabled}>
-            <input
-              type="range"
-              min={PLAYGROUND_CONTROL_RANGES.gamma.min}
-              max={PLAYGROUND_CONTROL_RANGES.gamma.max}
-              step={PLAYGROUND_CONTROL_RANGES.gamma.step}
-              value={gamma}
-              onChange={(event) => setGamma(Number(event.target.value))}
-              disabled={duotoneControlsDisabled}
-              className="w-full disabled:cursor-not-allowed"
-              aria-label="Gamma for background matching"
-            />
-          </ControlField>
-
-          <ControlField label="Threshold" value={threshold.toFixed(2)} disabled={duotoneControlsDisabled}>
-            <input
-              type="range"
-              min={PLAYGROUND_CONTROL_RANGES.threshold.min}
-              max={PLAYGROUND_CONTROL_RANGES.threshold.max}
-              step={PLAYGROUND_CONTROL_RANGES.threshold.step}
-              value={threshold}
-              onChange={(event) => setThreshold(Number(event.target.value))}
-              disabled={duotoneControlsDisabled}
-              className="w-full disabled:cursor-not-allowed"
-              aria-label="Block background threshold"
-            />
-          </ControlField>
-
-          <ControlField label="Density" value={density.toFixed(2)} disabled={duotoneControlsDisabled}>
-            <input
-              type="range"
-              min={PLAYGROUND_CONTROL_RANGES.density.min}
-              max={PLAYGROUND_CONTROL_RANGES.density.max}
-              step={PLAYGROUND_CONTROL_RANGES.density.step}
-              value={density}
-              onChange={(event) => setDensity(Number(event.target.value))}
-              disabled={duotoneControlsDisabled}
-              className="w-full disabled:cursor-not-allowed"
-              aria-label="Stripe density"
-            />
-          </ControlField>
-
-          <div className={`flex flex-col gap-3 ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
-            <span className="text-sm text-neutral-600">Stripe colors</span>
-            {PLAYGROUND_STRIPE_BAND_HEX.map((hex, index) => {
-              const p3Css = PLAYGROUND_STRIPE_BAND_SWATCH_P3[index] ?? hex;
-              const rangeLabel = stripeBandDistanceLabel(bandBreakpoints, index);
-              const hasUpperSlider = index < PLAYGROUND_STRIPE_BAND_HEX.length - 1;
-              const orderPad = STRIPE_BAND_BREAKPOINT_MIN_GAP || STRIPE_BAND_BREAKPOINT_ORDER_EPS;
-              const sliderStep = PLAYGROUND_CONTROL_RANGES.bandBreakpoint.step;
-              const sliderMin =
-                index === 0
-                  ? PLAYGROUND_CONTROL_RANGES.bandBreakpoint.min
-                  : bandBreakpoints[index - 1]! + STRIPE_BAND_BREAKPOINT_MIN_GAP;
-              const sliderMax = hasUpperSlider
-                ? Math.max(
-                    sliderMin + sliderStep,
-                    index < PLAYGROUND_STRIPE_BAND_HEX.length - 2
-                      ? bandBreakpoints[index + 1]! - orderPad
-                      : PLAYGROUND_CONTROL_RANGES.bandBreakpoint.max,
-                  )
-                : PLAYGROUND_CONTROL_RANGES.bandBreakpoint.max;
-
-              return (
-                <div key={hex} className="flex flex-col gap-1.5">
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={enabledBands[index]}
-                      onChange={() => toggleStripeBand(index)}
-                      disabled={duotoneControlsDisabled}
-                      className="size-4 shrink-0 cursor-pointer rounded border-neutral-300 disabled:cursor-not-allowed"
-                      aria-label={`Show ${hex} stripes`}
-                    />
-                    <span
-                      className="playground-stripe-swatch size-3.5 shrink-0 rounded-sm border border-neutral-200"
-                      style={
-                        {
-                          ["--stripe-swatch-fallback" as string]: hex,
-                          ["--stripe-swatch-p3" as string]: p3Css,
-                        } as CSSProperties
-                      }
-                      aria-hidden
-                    />
-                    <span className="ml-auto tabular-nums text-xs text-neutral-500">{rangeLabel}</span>
-                  </label>
-                  {hasUpperSlider ? (
-                    <input
-                      type="range"
-                      min={sliderMin}
-                      max={sliderMax}
-                      step={PLAYGROUND_CONTROL_RANGES.bandBreakpoint.step}
-                      value={bandBreakpoints[index]}
-                      onChange={(event) =>
-                        setBandBreakpoints((previous) =>
-                          setStripeBandBreakpoint(previous, index, Number(event.target.value)),
-                        )
-                      }
-                      disabled={duotoneControlsDisabled}
-                      className="w-full disabled:cursor-not-allowed"
-                      aria-label={`Upper distance for ${hex} (${rangeLabel})`}
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
+            <button
+              type="button"
+              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+              onClick={onUploadClick}
+            >
+              Upload texture
+            </button>
+            {uploadError ? <p className="m-0 text-xs text-red-700">{uploadError}</p> : null}
           </div>
+
+          <PlaygroundControlSection title="General" defaultOpen testId="playground-section-general" className="mt-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={duotoneEnabled}
+                onChange={(event) => setDuotoneEnabled(event.target.checked)}
+                className="size-4 cursor-pointer rounded border-neutral-300"
+                aria-label="Shader enabled"
+              />
+              <span className="text-neutral-800">Shader enabled</span>
+            </label>
+
+            <ControlField label="Bg match" value={ignoreTolerance.toFixed(3)} disabled={duotoneControlsDisabled}>
+              <input
+                type="range"
+                min={PLAYGROUND_CONTROL_RANGES.bgMatch.min}
+                max={PLAYGROUND_CONTROL_RANGES.bgMatch.max}
+                step={PLAYGROUND_CONTROL_RANGES.bgMatch.step}
+                value={ignoreTolerance}
+                onChange={(event) => setIgnoreTolerance(Number(event.target.value))}
+                disabled={duotoneControlsDisabled}
+                className="w-full disabled:cursor-not-allowed"
+                aria-label="Background color match tolerance"
+              />
+            </ControlField>
+
+            <ControlField label="Gamma" value={gamma.toFixed(2)} disabled={duotoneControlsDisabled}>
+              <input
+                type="range"
+                min={PLAYGROUND_CONTROL_RANGES.gamma.min}
+                max={PLAYGROUND_CONTROL_RANGES.gamma.max}
+                step={PLAYGROUND_CONTROL_RANGES.gamma.step}
+                value={gamma}
+                onChange={(event) => setGamma(Number(event.target.value))}
+                disabled={duotoneControlsDisabled}
+                className="w-full disabled:cursor-not-allowed"
+                aria-label="Gamma for background matching"
+              />
+            </ControlField>
+
+            <ControlField label="Threshold" value={threshold.toFixed(2)} disabled={duotoneControlsDisabled}>
+              <input
+                type="range"
+                min={PLAYGROUND_CONTROL_RANGES.threshold.min}
+                max={PLAYGROUND_CONTROL_RANGES.threshold.max}
+                step={PLAYGROUND_CONTROL_RANGES.threshold.step}
+                value={threshold}
+                onChange={(event) => setThreshold(Number(event.target.value))}
+                disabled={duotoneControlsDisabled}
+                className="w-full disabled:cursor-not-allowed"
+                aria-label="Block background threshold"
+              />
+            </ControlField>
+
+            <ControlField label="Density" value={density.toFixed(2)} disabled={duotoneControlsDisabled}>
+              <input
+                type="range"
+                min={PLAYGROUND_CONTROL_RANGES.density.min}
+                max={PLAYGROUND_CONTROL_RANGES.density.max}
+                step={PLAYGROUND_CONTROL_RANGES.density.step}
+                value={density}
+                onChange={(event) => setDensity(Number(event.target.value))}
+                disabled={duotoneControlsDisabled}
+                className="w-full disabled:cursor-not-allowed"
+                aria-label="Stripe density"
+              />
+            </ControlField>
+          </PlaygroundControlSection>
+
+          <PlaygroundControlSection title="Stripes" defaultOpen testId="playground-section-stripes">
+            <div className={`flex flex-col gap-3 ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
+              <span className="text-sm text-neutral-600">Colors</span>
+              {PLAYGROUND_STRIPE_BAND_HEX.map((hex, index) => {
+                const p3Css = PLAYGROUND_STRIPE_BAND_SWATCH_P3[index] ?? hex;
+                const rangeLabel = stripeBandDistanceLabel(bandBreakpoints, index);
+                const hasUpperSlider = index < PLAYGROUND_STRIPE_BAND_HEX.length - 1;
+                const orderPad = STRIPE_BAND_BREAKPOINT_MIN_GAP || STRIPE_BAND_BREAKPOINT_ORDER_EPS;
+                const sliderStep = PLAYGROUND_CONTROL_RANGES.bandBreakpoint.step;
+                const sliderMin =
+                  index === 0
+                    ? PLAYGROUND_CONTROL_RANGES.bandBreakpoint.min
+                    : bandBreakpoints[index - 1]! + STRIPE_BAND_BREAKPOINT_MIN_GAP;
+                const sliderMax = hasUpperSlider
+                  ? Math.max(
+                      sliderMin + sliderStep,
+                      index < PLAYGROUND_STRIPE_BAND_HEX.length - 2
+                        ? bandBreakpoints[index + 1]! - orderPad
+                        : PLAYGROUND_CONTROL_RANGES.bandBreakpoint.max,
+                    )
+                  : PLAYGROUND_CONTROL_RANGES.bandBreakpoint.max;
+
+                return (
+                  <div key={hex} className="flex flex-col gap-1.5">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={enabledBands[index]}
+                        onChange={() => toggleStripeBand(index)}
+                        disabled={duotoneControlsDisabled}
+                        className="size-4 shrink-0 cursor-pointer rounded border-neutral-300 disabled:cursor-not-allowed"
+                        aria-label={`Show ${hex} stripes`}
+                      />
+                      <span
+                        className="playground-stripe-swatch size-3.5 shrink-0 rounded-sm border border-neutral-200"
+                        style={
+                          {
+                            ["--stripe-swatch-fallback" as string]: hex,
+                            ["--stripe-swatch-p3" as string]: p3Css,
+                          } as CSSProperties
+                        }
+                        aria-hidden
+                      />
+                      <span className="ml-auto tabular-nums text-xs text-neutral-500">{rangeLabel}</span>
+                    </label>
+                    {hasUpperSlider ? (
+                      <input
+                        type="range"
+                        min={sliderMin}
+                        max={sliderMax}
+                        step={PLAYGROUND_CONTROL_RANGES.bandBreakpoint.step}
+                        value={bandBreakpoints[index]}
+                        onChange={(event) =>
+                          setBandBreakpoints((previous) =>
+                            setStripeBandBreakpoint(previous, index, Number(event.target.value)),
+                          )
+                        }
+                        disabled={duotoneControlsDisabled}
+                        className="w-full disabled:cursor-not-allowed"
+                        aria-label={`Upper distance for ${hex} (${rangeLabel})`}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </PlaygroundControlSection>
+
+          <PlaygroundControlSection title="Sparkle Gaps" defaultOpen testId="playground-section-sparkle-gaps">
+            <ControlField
+              label="Frequency"
+              value={sparkleRate <= 0 ? "Off" : `${sparkleRateHzFromSlider(sparkleRate).toFixed(2)} Hz`}
+              disabled={duotoneControlsDisabled}
+            >
+              <input
+                type="range"
+                min={PLAYGROUND_CONTROL_RANGES.sparkleRate.min}
+                max={PLAYGROUND_CONTROL_RANGES.sparkleRate.max}
+                step={PLAYGROUND_CONTROL_RANGES.sparkleRate.step}
+                value={sparkleRate}
+                onChange={(event) => setSparkleRate(Number(event.target.value))}
+                disabled={duotoneControlsDisabled}
+                className="w-full disabled:cursor-not-allowed"
+                aria-label="Sparkle gaps frequency"
+              />
+            </ControlField>
+          </PlaygroundControlSection>
+
+          <PlaygroundControlSection title="Sparkle Width" defaultOpen testId="playground-section-sparkle-width">
+            <ControlField
+              label="Active"
+              value={sparkleWidthActivePercent <= 0 ? "Off" : `${sparkleWidthActivePercent}%`}
+              disabled={duotoneControlsDisabled}
+            >
+              <input
+                type="range"
+                min={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.min}
+                max={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.max}
+                step={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.step}
+                value={sparkleWidthActivePercent}
+                onChange={(event) => setSparkleWidthActivePercent(Number(event.target.value))}
+                disabled={duotoneControlsDisabled}
+                className="w-full disabled:cursor-not-allowed"
+                aria-label="Sparkle width active percentage"
+              />
+            </ControlField>
+            <ControlField
+              label="Speed"
+              value={sparkleWidthActivePercent <= 0 ? "Off" : sparkleWidthSpeedLabelFromSlider(sparkleWidthSpeed)}
+              disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
+            >
+              <input
+                type="range"
+                min={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.min}
+                max={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.max}
+                step={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.step}
+                value={sparkleWidthSpeed}
+                onChange={(event) => setSparkleWidthSpeed(Number(event.target.value))}
+                disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
+                className="w-full disabled:cursor-not-allowed"
+                aria-label="Sparkle width pulse speed"
+              />
+            </ControlField>
+          </PlaygroundControlSection>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-neutral-200 pt-4">
-          <button
-            type="button"
-            className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-            onClick={() => void onCopyState()}
-          >
-            {copyLabel}
-          </button>
-          <textarea
-            className="min-h-[72px] resize-y rounded border border-neutral-300 px-2 py-1.5 font-mono text-[11px]"
-            rows={4}
-            value={importText}
-            onChange={(event) => setImportText(event.target.value)}
-            spellCheck={false}
-            placeholder="Paste state JSON"
-          />
-          <button
-            type="button"
-            className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-            onClick={onImportState}
-          >
-            Import state
-          </button>
-          {importStatus ? <p className="m-0 text-xs text-neutral-500">{importStatus}</p> : null}
+        <div className="shrink-0 border-t border-neutral-200">
+          <div className="flex flex-col gap-3 px-4 pt-4">
+            <button
+              type="button"
+              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+              onClick={() => void onCopyState()}
+            >
+              {copyLabel}
+            </button>
+            <textarea
+              className="min-h-[72px] resize-y rounded border border-neutral-300 px-2 py-1.5 font-mono text-[11px]"
+              rows={4}
+              value={importText}
+              onChange={(event) => setImportText(event.target.value)}
+              spellCheck={false}
+              placeholder="Paste state JSON"
+            />
+            <button
+              type="button"
+              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+              onClick={onImportState}
+            >
+              Import state
+            </button>
+            {importStatus ? <p className="m-0 text-xs text-neutral-500">{importStatus}</p> : null}
+          </div>
         </div>
       </aside>
 
