@@ -4,15 +4,17 @@ A React/TypeScript Canvas component builder. It generates deterministic seeded g
 
 ## Scripts
 
-- `npm run dev` starts the Vite dev server.
-- `npm run typecheck` runs TypeScript project checks.
-- `npm run code-check` runs `oxlint` and `oxfmt --check` (run before `git push` if you want lint/format gates early).
-- `npm run lint` runs `oxlint` only.
-- `npm run format` / `npm run format:check` run `oxfmt`.
-- `npm test` runs the Vitest suite.
-- `npm run build` type-checks and builds the app.
-- `npm run verify` runs tests, then `tsc -b` and `vite build` in parallel (lint/format are intentionally excluded for speed).
-- Tip — quicker loops while editing: `npm run typecheck`, targeted `npx vitest run <pattern>`, then finish with full `npm run verify` (Vitest uses `pool: "threads"` + happy-dom here).
+- `pnpm dev` starts the Vite dev server.
+- `pnpm typecheck` runs TypeScript project checks.
+- `pnpm code-check` runs `oxlint` and `oxfmt --check` (run before `git push` if you want lint/format gates early).
+- `pnpm lint` runs `oxlint` only.
+- `pnpm format` / `pnpm format:check` run `oxfmt`.
+- `pnpm test` runs the Vitest suite.
+- `pnpm build` type-checks and builds the app.
+- `pnpm verify` runs tests, then `tsc -b` and `vite build` in parallel (lint/format are intentionally excluded for speed).
+- Tip — quicker loops while editing: `pnpm typecheck`, targeted `pnpm exec vitest run <pattern>`, then finish with full `pnpm verify` (Vitest uses `pool: "threads"` + happy-dom here).
+
+Install dependencies with `pnpm install` (or `pi` if you use the guarded wrapper). Releases younger than 30 days are blocked via `minimumReleaseAge` in `package.json` / `.npmrc`.
 
 ## Project Context
 

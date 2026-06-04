@@ -43,7 +43,7 @@ The repo started as a seeded grid tool. Some older docs still describe an SVG-fi
 2. Add validation if it is a hard invariant.
 3. Update `src/grid/generator.ts` or related helpers.
 4. Add focused tests in `src/grid/*.test.ts`.
-5. Run `npm test` and `npm run build`.
+5. Run `pnpm test` and `pnpm build`.
 
 ### Add A Component Type
 
@@ -91,14 +91,16 @@ Testing Library tests should prefer visible text and stable `data-testid` hooks 
 ## Verification Commands
 
 ```bash
-npm run verify
+pnpm verify
 ```
 
 `verify` runs tests, TypeScript project checks, and the production Vite build.
 
-Linting and formatting use **oxlint** + **oxfmt** via `npm run code-check`. That command is **not** part of `verify` (keeps local iteration fast). Run `npm run code-check` locally before pushing if you want to fail early.
+Linting and formatting use **oxlint** + **oxfmt** via `pnpm code-check`. That command is **not** part of `verify` (keeps local iteration fast). Run `pnpm code-check` locally before pushing if you want to fail early.
 
-Agents often iterate faster with `npm run typecheck` or `npx vitest run <file-or-glob>` before running full `npm run verify`; Vitest uses the `threads` pool here specifically so the suite stays fast under happy-dom.
+Agents often iterate faster with `pnpm typecheck` or `pnpm exec vitest run <file-or-glob>` before running full `pnpm verify`; Vitest uses the `threads` pool here specifically so the suite stays fast under happy-dom.
+
+Package management is **pnpm** with `minimumReleaseAge` set to 30 days (43200 minutes) in `package.json` and `.npmrc`.
 
 For docs/rules-only changes, a frontmatter/path/stale-reference review is enough unless source files changed.
 

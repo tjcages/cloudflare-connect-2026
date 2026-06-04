@@ -10,5 +10,5 @@ alwaysApply: false
 - React tests should follow Testing Library principles: prefer role, label, and visible text queries over implementation details.
 - Canvas tests may assert drawing calls when pixels are not practical, but keep behavior-level tests for pointer/selection flows in `App.test.tsx`.
 - Do not test third-party libraries. Test how this app wires and responds to them.
-- After source changes, run `npm run verify` before claiming completion. If `verify` fails, fix the issue and rerun the failed stage plus `verify`.
+- After source changes, run `pnpm verify` before claiming completion. If `verify` fails, fix the issue and rerun the failed stage plus `verify`.
 - For docs/rules-only changes, verify rule frontmatter, globs, paths, and stale references instead of running unrelated tests.

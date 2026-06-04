@@ -25,7 +25,7 @@ Read `docs/ai-context.md` before broad architecture work.
 
 ## Verification
 
-- Source changes: run `npm run verify`.
+- Source changes: run `pnpm verify` (or `pi run verify`).
 - Docs/rules-only changes: verify frontmatter, links, paths, and stale references.
 - Do not claim completion without fresh verification evidence.
 

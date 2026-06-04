@@ -60,7 +60,7 @@ Apply this orchestration to every coding task automatically. The `/orchestrate` 
 
 - **Bias toward** applying specialist roles that fit the scope (`ux-controller`, `perf-controller`, `test-dev`, etc.) rather than skipping to save turns.
 - Skip a role only when it truly cannot apply—not to optimize cost or latency.
-- Run fresh `npm run verify` before claiming source work complete (unchanged, but reinforced here).
+- Run fresh `pnpm verify` before claiming source work complete (unchanged, but reinforced here).
 
 ### Communication
 
@@ -77,6 +77,6 @@ Apply this orchestration to every coding task automatically. The `/orchestrate` 
 ## Git And Completion
 
 - Preserve user changes. Do not stage, commit, push, create worktrees, or manage merges unless explicitly requested.
-- For source changes, run fresh `npm run verify` before claiming completion.
+- For source changes, run fresh `pnpm verify` before claiming completion.
 - For docs/rules/command-only work, verify frontmatter, paths, command names, and stale references.
 - On completion, in the **user-visible reply**, a concise summary plus verification and residual risk is enough; skip exhaustive file lists unless requested.

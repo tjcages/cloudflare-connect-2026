@@ -65,6 +65,6 @@ Do not run a role just to be thorough.
 
 ## 6. Completion
 
-- For source changes, run fresh `npm run verify` before claiming completion.
+- For source changes, run fresh `pnpm verify` before claiming completion.
 - For docs/rules/command-only changes, verify frontmatter, paths, command names, and stale references.
 - Report what changed, what was verified, and any residual risk.

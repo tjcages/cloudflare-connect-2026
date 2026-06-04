@@ -17,7 +17,7 @@ Write focused tests for the completed behavior.
    - integrated canvas/editor flows in `src/app/App.test.tsx`
 3. Prefer roles, labels, and visible text over implementation details in React tests.
 4. Do not test third-party libraries. Test this app's wiring and behavior.
-5. Run the relevant test target, then rely on final `npm run verify` before completion.
+5. Run the relevant test target, then rely on final `pnpm verify` before completion.
 
 ## Output
 

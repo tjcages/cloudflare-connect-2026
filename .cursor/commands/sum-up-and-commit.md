@@ -46,7 +46,7 @@ Do not add docs or rules for one-off implementation details.
 
 ## 4. Verify
 
-- For source changes, run fresh `npm run verify`.
+- For source changes, run fresh `pnpm verify`.
 - For docs/rules/command-only changes, verify frontmatter, paths, command names, and stale references.
 - If verification fails, fix owned issues and rerun the failed stage plus the relevant final verification.
 - Report any residual risk instead of claiming success from partial evidence.

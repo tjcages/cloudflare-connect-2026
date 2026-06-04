@@ -29,8 +29,8 @@ describe("buildAiInstructions", () => {
 
   it("does not install react", () => {
     const prompt = buildAiInstructions(baseSnapshot);
-    expect(prompt).toContain("npm install pixi.js");
-    expect(prompt).not.toContain("npm install react");
+    expect(prompt).toContain("pnpm add pixi.js");
+    expect(prompt).not.toContain("pnpm add react");
   });
 
   it("ends with user instructions for Astro, not agent optional step", () => {
@@ -49,7 +49,7 @@ describe("buildReactExport", () => {
   it("does not include react in install instructions", () => {
     const bundle = buildReactExport(baseSnapshot, { targetDir: "src/components" });
     expect(bundle.installInstructions).toContain("pixi.js");
-    expect(bundle.installInstructions).not.toMatch(/npm install pixi\.js react/);
+    expect(bundle.installInstructions).not.toMatch(/pnpm add pixi\.js react/);
   });
 
   it("generates full portable bundle without index.ts barrel", () => {

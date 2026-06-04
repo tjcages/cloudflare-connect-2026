@@ -3,14 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@10.6.3",
+  "pnpm": {
+    "minimumReleaseAge": 43200
+  },
   "scripts": {
     "dev": "vite",
     "dev:playground": "vite --port 5174 --strictPort --open /playground.html",
     "typecheck": "tsc -b",
-    "build": "npm run typecheck && npm run build:client",
+    "build": "pnpm run typecheck && pnpm run build:client",
     "build:client": "vite build",
-    "preview:worker": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy",
+    "preview:worker": "pnpm run build && wrangler dev",
+    "deploy": "pnpm run build && wrangler deploy",
     "code-check": "oxlint -c .oxlintrc.json . && oxfmt --check .",
     "lint": "oxlint -c .oxlintrc.json .",
     "format": "oxfmt --write .",
@@ -20,7 +24,7 @@
     "test": "vitest run",
     "export:sync-test": "SYNC_EXPORT_TEST=1 vitest run src/lib/export/syncExportToTest.test.ts",
     "test:watch": "vitest",
-    "verify": "npm test && concurrently --kill-others-on-fail -n tsc,vite -c yellow,cyan \"npm run typecheck\" \"npm run build:client\""
+    "verify": "pnpm test && concurrently --kill-others-on-fail -n tsc,vite -c yellow,cyan \"pnpm run typecheck\" \"pnpm run build:client\""
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,jsonc,css,md,yml,yaml}": [
@@ -55,6 +59,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/hast": "^3.0.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

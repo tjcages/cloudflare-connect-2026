@@ -3,5 +3,5 @@
   "printWidth": 120,
   "trailingComma": "all",
   "sortPackageJson": false,
-  "ignorePatterns": ["dist", "coverage", "node_modules", ".cursor/plans", ".worktrees", "package-lock.json"]
+  "ignorePatterns": ["dist", "coverage", "node_modules", ".cursor/plans", ".worktrees", "pnpm-lock.yaml"]
 }
