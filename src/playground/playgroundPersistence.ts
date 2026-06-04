@@ -1,3 +1,4 @@
+import { DEFAULT_TEXTURE_GAMMA, normalizeTextureGamma } from "./colorWhiteness";
 import { cloneDefaultStripes, normalizeStripe, type Stripe } from "./stripeColors";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
@@ -33,6 +34,8 @@ export const MAX_PLAYGROUND_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type PlaygroundPersistedConfig = {
   duotoneEnabled: boolean;
+  /** Texture luminance gamma (-5…5). Omitted when 1. */
+  textureGamma?: number;
   /** Active cell ratio 0–1. 0 = off. Default 0.22. */
   sparkleGapsActivePercent?: number;
   /** Gap pulse speed factor (1 = baseline). Default 1. */
@@ -52,6 +55,10 @@ export type PlaygroundPersistedConfig = {
   /** Ordered luminosity stripes (color + start-from + width). */
   stripes: Stripe[];
 };
+
+export function resolvePersistedTextureGamma(config: PlaygroundPersistedConfig): number {
+  return config.textureGamma !== undefined ? normalizeTextureGamma(config.textureGamma) : DEFAULT_TEXTURE_GAMMA;
+}
 
 export type PlaygroundUploadMeta = {
   id: string;
@@ -95,6 +102,8 @@ export type PlaygroundStateWire = {
   sgsp?: number;
   swa?: number;
   sws?: number;
+  /** Texture luminance gamma (-5…5). Default 1 when omitted. */
+  tgm?: number;
   w?: number;
   h?: number;
   /** v3+: ordered luminosity stripes. */
@@ -418,6 +427,10 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   if (config.displayHeight && config.displayHeight > 0) {
     wire.h = config.displayHeight;
   }
+  const textureGamma = resolvePersistedTextureGamma(config);
+  if (textureGamma !== DEFAULT_TEXTURE_GAMMA) {
+    wire.tgm = textureGamma;
+  }
   return JSON.stringify(wire);
 }
 
@@ -534,8 +547,11 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const h = parsed.h === undefined ? undefined : Number(parsed.h);
   // v1/v2 used a distance model; those configs migrate to the default stripe palette.
   const stripes = wireToStripes(parsed.st) ?? cloneDefaultStripes();
+  const textureGamma = parsed.tgm === undefined ? undefined : normalizeTextureGamma(Number(parsed.tgm));
+
   return {
     duotoneEnabled: parsed.d,
+    textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
     sparkleGapsActivePercent: parseSparkleGapsActivePercent(parsed.sgap, parsed.sr, parsed.sk, wireVersion),
     sparkleGapsSpeed: parseSparkleGapsSpeed(parsed.sgsp, parsed.sr, parsed.sk, wireVersion),
     sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa, wireVersion),

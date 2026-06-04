@@ -20,6 +20,7 @@ import {
   parsePlaygroundStateInput,
   registerUpload,
   resolveCatalogEntry,
+  resolvePersistedTextureGamma,
   resolveInitialTextureId,
   revokeUploadObjectUrl,
   saveLastTextureId,
@@ -29,6 +30,7 @@ import {
 } from "./playgroundPersistence";
 import type { PlaygroundMediaKind, PlaygroundTextureId } from "./playgroundTextures";
 import { ControlValueInput } from "./ControlValueInput";
+import { DEFAULT_TEXTURE_GAMMA } from "./colorWhiteness";
 import { PLAYGROUND_CONTROL_INPUT_BOUNDS, PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
 import {
@@ -201,6 +203,7 @@ function disposeImageElement(image: HTMLImageElement) {
 function applyPersistedConfig(config: PlaygroundPersistedConfig) {
   return {
     duotoneEnabled: config.duotoneEnabled,
+    textureGamma: resolvePersistedTextureGamma(config),
     sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(config),
     sparkleGapsSpeed: resolvePersistedSparkleGapsSpeed(config),
     sparkleWidthActivePercent: resolvePersistedSparkleWidthActivePercent(config),
@@ -296,6 +299,7 @@ export function TexturePlayground() {
   const [selectedTextureId, setSelectedTextureId] = useState<PlaygroundTextureId>(initialId);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
+  const [textureGamma, setTextureGamma] = useState(appliedInitial.textureGamma);
   const [sparkleGapsActivePercent, setSparkleGapsActivePercent] = useState(appliedInitial.sparkleGapsActivePercent);
   const [sparkleGapsSpeed, setSparkleGapsSpeed] = useState(appliedInitial.sparkleGapsSpeed);
   const [sparkleWidthActivePercent, setSparkleWidthActivePercent] = useState(appliedInitial.sparkleWidthActivePercent);
@@ -321,6 +325,7 @@ export function TexturePlayground() {
   const stripeColorsRef = useRef<StripeColors>({ stripes });
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
+  const textureGammaRef = useRef(textureGamma);
   const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromSliders(sparkleGapsActivePercent, sparkleGapsSpeed));
   const widthShuffleOptionsRef = useRef(
     playgroundWidthShuffleOptionsFromSliders(sparkleWidthActivePercent, sparkleWidthSpeed),
@@ -351,6 +356,10 @@ export function TexturePlayground() {
   }, [duotoneEnabled]);
 
   useEffect(() => {
+    textureGammaRef.current = textureGamma;
+  }, [textureGamma]);
+
+  useEffect(() => {
     sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(sparkleGapsActivePercent, sparkleGapsSpeed);
   }, [sparkleGapsActivePercent, sparkleGapsSpeed]);
 
@@ -364,6 +373,7 @@ export function TexturePlayground() {
   const persistCurrentConfig = useCallback(() => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
+      textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
       sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
       sparkleGapsSpeed:
         sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
@@ -382,6 +392,7 @@ export function TexturePlayground() {
   }, [
     selectedTextureId,
     duotoneEnabled,
+    textureGamma,
     sparkleGapsActivePercent,
     sparkleGapsSpeed,
     sparkleWidthActivePercent,
@@ -408,6 +419,7 @@ export function TexturePlayground() {
   const applyConfig = useCallback((config: PlaygroundPersistedConfig) => {
     const next = applyPersistedConfig(config);
     setDuotoneEnabled(next.duotoneEnabled);
+    setTextureGamma(next.textureGamma);
     setSparkleGapsActivePercent(resolvePersistedSparkleGapsActivePercent(config));
     setSparkleGapsSpeed(resolvePersistedSparkleGapsSpeed(config));
     setSparkleWidthActivePercent(resolvePersistedSparkleWidthActivePercent(next));
@@ -470,6 +482,7 @@ export function TexturePlayground() {
 
   const resetGeneral = useCallback(() => {
     setDuotoneEnabled(true);
+    setTextureGamma(DEFAULT_TEXTURE_GAMMA);
   }, []);
 
   const resetSparkleGaps = useCallback(() => {
@@ -482,7 +495,7 @@ export function TexturePlayground() {
     setSparkleWidthSpeed(DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED);
   }, []);
 
-  const generalModified = !duotoneEnabled;
+  const generalModified = !duotoneEnabled || textureGamma !== DEFAULT_TEXTURE_GAMMA;
   const stripesModified = !stripesMatchDefault(stripes);
   const sparkleGapsModified =
     sparkleGapsActivePercent !== 0 || sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
@@ -605,6 +618,7 @@ export function TexturePlayground() {
         stripeColorsRef,
         preferP3Ref,
         duotoneEnabledRef,
+        textureGammaRef,
         sparkleOptionsRef,
         widthShuffleOptionsRef,
         autoplayRef,
@@ -639,6 +653,7 @@ export function TexturePlayground() {
   const onCopyState = async () => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
+      textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
       sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
       sparkleGapsSpeed:
         sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
@@ -733,7 +748,7 @@ export function TexturePlayground() {
     }
 
     const colors = stripeColorsRef.current;
-    const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, {});
+    const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, {}, textureGamma);
     const svg = stripeGridToSvg(built.grid, colors, display.width, display.height);
 
     try {
@@ -760,6 +775,7 @@ export function TexturePlayground() {
       buildPlaygroundExportSnapshot({
         config: {
           duotoneEnabled,
+          textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
           sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
           sparkleGapsSpeed:
             sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
@@ -781,6 +797,7 @@ export function TexturePlayground() {
       }),
     [
       duotoneEnabled,
+      textureGamma,
       sparkleGapsActivePercent,
       sparkleGapsSpeed,
       sparkleWidthActivePercent,
@@ -915,6 +932,32 @@ export function TexturePlayground() {
               />
               <span className="text-neutral-800">Shader enabled</span>
             </label>
+            <ControlField
+              label="Gamma"
+              value={textureGamma}
+              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.textureGamma.min}
+              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.textureGamma.max}
+              commitMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.textureGamma.min}
+              commitMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.textureGamma.max}
+              onValueChange={setTextureGamma}
+              formatDisplay={(v) => String(v)}
+              formatEditValue={(v) => String(v)}
+              valueAriaLabel="Texture luminance gamma"
+            >
+              <input
+                type="range"
+                min={PLAYGROUND_CONTROL_RANGES.textureGamma.min}
+                max={PLAYGROUND_CONTROL_RANGES.textureGamma.max}
+                step={PLAYGROUND_CONTROL_RANGES.textureGamma.step}
+                value={Math.min(
+                  PLAYGROUND_CONTROL_RANGES.textureGamma.max,
+                  Math.max(PLAYGROUND_CONTROL_RANGES.textureGamma.min, textureGamma),
+                )}
+                onChange={(event) => setTextureGamma(Number(event.target.value))}
+                className="w-full accent-neutral-700"
+                aria-label="Texture luminance gamma slider"
+              />
+            </ControlField>
           </PlaygroundControlSection>
 
           <PlaygroundControlSection

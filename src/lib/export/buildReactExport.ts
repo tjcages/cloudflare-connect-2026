@@ -47,6 +47,7 @@ export type StripeColors = { stripes: Stripe[] };
 
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
+  textureGamma?: number;
   sparkleGapsActivePercent?: number;
   sparkleGapsSpeed?: number;
   sparkleWidthActivePercent?: number;

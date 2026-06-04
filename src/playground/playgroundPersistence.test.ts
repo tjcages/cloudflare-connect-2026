@@ -43,6 +43,17 @@ describe("playgroundPersistence envelope migration", () => {
     expect("bandBreakpoints" in config).toBe(false);
   });
 
+  it("round-trips texture gamma through serialize/parse", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      textureGamma: -50,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.textureGamma).toBe(-50);
+    expect(JSON.parse(text).tgm).toBe(-50);
+  });
+
   it("round-trips v3 stripes through serialize/parse", () => {
     const text = serializePlaygroundState({
       duotoneEnabled: true,

@@ -17,6 +17,8 @@ export type StripeColors = { stripes: Stripe[] };
 
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
+  /** Texture luminance gamma (-5…5). Omitted when 1. */
+  textureGamma?: number;
   /** Active cell ratio 0–1. 0 = off. */
   sparkleGapsActivePercent?: number;
   /** Gap pulse speed factor (1 = baseline). */

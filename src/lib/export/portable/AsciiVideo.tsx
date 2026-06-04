@@ -24,6 +24,7 @@ import {
   resolvePersistedSparkleWidthActivePercent,
   resolvePersistedSparkleWidthSpeed,
 } from "./runtime/playgroundWidthShuffle";
+import { DEFAULT_TEXTURE_GAMMA } from "./runtime/colorWhiteness";
 import { configToStripeColors, defaultConfig, type AsciiVideoProps, type StripeColors } from "./types";
 
 export type { AsciiVideoConfig, AsciiVideoProps } from "./types";
@@ -101,6 +102,7 @@ export function AsciiVideo({
 
   const stripeColorsRef = useRef<StripeColors>(configToStripeColors(config));
   const duotoneEnabledRef = useRef(config.duotoneEnabled);
+  const textureGammaRef = useRef(config.textureGamma ?? DEFAULT_TEXTURE_GAMMA);
   const sparkleOptionsRef = useRef(
     playgroundSparkleOptionsFromSliders(
       resolvePersistedSparkleGapsActivePercent(config),
@@ -118,6 +120,7 @@ export function AsciiVideo({
 
   stripeColorsRef.current = configToStripeColors(config);
   duotoneEnabledRef.current = config.duotoneEnabled;
+  textureGammaRef.current = config.textureGamma ?? DEFAULT_TEXTURE_GAMMA;
   sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(
     resolvePersistedSparkleGapsActivePercent(config),
     resolvePersistedSparkleGapsSpeed(config),
@@ -162,6 +165,7 @@ export function AsciiVideo({
         stripeColorsRef,
         preferP3Ref,
         duotoneEnabledRef,
+        textureGammaRef,
         sparkleOptionsRef,
         widthShuffleOptionsRef,
         autoplayRef,

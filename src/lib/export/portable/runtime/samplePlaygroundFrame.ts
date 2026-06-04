@@ -42,8 +42,9 @@ export function buildPlaygroundBlockGrid(
   displayHeight: number,
   colors: StripeColors,
   state: PlaygroundGridBuildState,
+  gamma = 1,
 ): { grid: BlockGrid; state: PlaygroundGridBuildState } {
-  const lumaGrid = computeBlockGrid(frame.data, displayWidth, displayHeight);
+  const lumaGrid = computeBlockGrid(frame.data, displayWidth, displayHeight, gamma);
   const rawIndices = resolveStripeIndices(lumaGrid.luma, colors.stripes);
   const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices);
 

@@ -131,6 +131,7 @@ function runDuotoneTick(params: {
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>;
   stripeColorsRef: RefObject<StripeColors>;
   preferP3Ref: RefObject<boolean>;
+  textureGammaRef: RefObject<number>;
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
@@ -149,6 +150,7 @@ function runDuotoneTick(params: {
     widthShuffleOptionsRef,
     stripeColorsRef,
     preferP3Ref,
+    textureGammaRef,
     display,
     blockGridTexture,
     exportStateRef,
@@ -194,7 +196,11 @@ function runDuotoneTick(params: {
     }
 
     const colors = stripeColorsRef.current;
-    const colorsKey = JSON.stringify(colors);
+    const colorsKey = JSON.stringify({
+      colors,
+      preferP3: preferP3Ref.current,
+      gamma: textureGammaRef.current,
+    });
     const colorsChanged = colorsKey !== lastColorsKey;
     const timeChanged = shouldSample();
     const needsSample = timeChanged || colorsChanged || !hasBuiltGrid;
@@ -222,7 +228,14 @@ function runDuotoneTick(params: {
         gridState = {};
       }
 
-      const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, gridState);
+      const built = buildPlaygroundBlockGrid(
+        frame,
+        display.width,
+        display.height,
+        colors,
+        gridState,
+        textureGammaRef.current,
+      );
       gridState = built.state;
       blockGridTexture.update(built.grid);
       stripeFilter.updateBlockMap(blockGridTexture.texture);
@@ -271,6 +284,7 @@ export function createTextureSceneTicker(
   stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  textureGammaRef: RefObject<number>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
@@ -283,6 +297,7 @@ export function createTextureSceneTicker(
       stripeColorsRef,
       preferP3Ref,
       duotoneEnabledRef,
+      textureGammaRef,
       sparkleOptionsRef,
       widthShuffleOptionsRef,
       exportStateRef,
@@ -294,6 +309,7 @@ export function createTextureSceneTicker(
     stripeColorsRef,
     preferP3Ref,
     duotoneEnabledRef,
+    textureGammaRef,
     sparkleOptionsRef,
     widthShuffleOptionsRef,
     autoplayRef,
@@ -307,6 +323,7 @@ function createImageSceneTicker(
   stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  textureGammaRef: RefObject<number>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
@@ -350,6 +367,7 @@ function createImageSceneTicker(
       widthShuffleOptionsRef,
       stripeColorsRef,
       preferP3Ref,
+      textureGammaRef,
       display,
       blockGridTexture,
       exportStateRef,
@@ -380,6 +398,7 @@ function createVideoSceneTickerInternal(
   stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  textureGammaRef: RefObject<number>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
@@ -431,6 +450,7 @@ function createVideoSceneTickerInternal(
       widthShuffleOptionsRef,
       stripeColorsRef,
       preferP3Ref,
+      textureGammaRef,
       display,
       blockGridTexture,
       exportStateRef,
@@ -473,6 +493,7 @@ export function createVideoSceneTicker(
   stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  textureGammaRef: RefObject<number>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
@@ -484,6 +505,7 @@ export function createVideoSceneTicker(
     stripeColorsRef,
     preferP3Ref,
     duotoneEnabledRef,
+    textureGammaRef,
     sparkleOptionsRef,
     widthShuffleOptionsRef,
     autoplayRef,

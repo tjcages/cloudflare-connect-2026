@@ -1,4 +1,4 @@
-import { pixelLuminance } from "./colorWhiteness";
+import { applyTextureLuminanceGamma, pixelLuminance } from "./colorWhiteness";
 import { STRIPE_BLOCK_SAMPLE_COUNT, STRIPE_BLOCK_SAMPLES, STRIPE_CELL_SIZE } from "./stripeGridConstants";
 
 /** Per-cell mean luminance (0–255), independent of the stripe list. */
@@ -22,6 +22,7 @@ function cellMeanLuminance(
   imageHeight: number,
   col: number,
   row: number,
+  gamma: number,
 ): number {
   const originX = col * STRIPE_CELL_SIZE;
   const originY = row * STRIPE_CELL_SIZE;
@@ -38,21 +39,26 @@ function cellMeanLuminance(
       const r = pixels[idx] ?? 0;
       const g = pixels[idx + 1] ?? 0;
       const b = pixels[idx + 2] ?? 0;
-      sum += pixelLuminance(r, g, b);
+      sum += applyTextureLuminanceGamma(pixelLuminance(r, g, b), gamma);
     }
   }
 
   return sum / STRIPE_BLOCK_SAMPLE_COUNT;
 }
 
-export function computeBlockGrid(pixels: Uint8ClampedArray, imageWidth: number, imageHeight: number): LumaGrid {
+export function computeBlockGrid(
+  pixels: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  gamma = 1,
+): LumaGrid {
   const cols = Math.ceil(imageWidth / STRIPE_CELL_SIZE);
   const rows = Math.ceil(imageHeight / STRIPE_CELL_SIZE);
   const luma = new Uint8Array(cols * rows);
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const mean = cellMeanLuminance(pixels, imageWidth, imageHeight, col, row);
+      const mean = cellMeanLuminance(pixels, imageWidth, imageHeight, col, row, gamma);
       luma[row * cols + col] = Math.round(Math.min(1, Math.max(0, mean)) * 255);
     }
   }

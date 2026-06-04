@@ -1,4 +1,6 @@
+import { DEFAULT_TEXTURE_GAMMA } from "../../playground/colorWhiteness";
 import type { PlaygroundPersistedConfig } from "../../playground/playgroundPersistence";
+import { resolvePersistedTextureGamma } from "../../playground/playgroundPersistence";
 import {
   resolvePersistedSparkleGapsActivePercent,
   resolvePersistedSparkleGapsSpeed,
@@ -56,8 +58,10 @@ export function buildPlaygroundExportSnapshot(input: {
 
 export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
   const { config } = snapshot;
+  const textureGamma = resolvePersistedTextureGamma(config);
   return [
     `- Duotone: ${config.duotoneEnabled ? "on" : "off"}`,
+    ...(textureGamma !== DEFAULT_TEXTURE_GAMMA ? [`- Gamma: ${textureGamma}`] : []),
     `- Sparkle gaps: ${formatSparkleGapsSummary(config)}`,
     `- Display: ${snapshot.displayWidth}×${snapshot.displayHeight}px`,
     `- Stripes: ${snapshot.stripes.length}`,
@@ -70,6 +74,7 @@ export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
 
 export type AsciiVideoConfigWire = {
   duotoneEnabled: boolean;
+  textureGamma?: number;
   sparkleGapsActivePercent?: number;
   sparkleGapsSpeed?: number;
   displayWidth?: number;
@@ -78,8 +83,10 @@ export type AsciiVideoConfigWire = {
 };
 
 export function snapshotToAsciiVideoConfig(snapshot: ReactExportSnapshot): AsciiVideoConfigWire {
+  const textureGamma = resolvePersistedTextureGamma(snapshot.config);
   return {
     duotoneEnabled: snapshot.config.duotoneEnabled,
+    textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
     sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(snapshot.config) || undefined,
     sparkleGapsSpeed:
       resolvePersistedSparkleGapsActivePercent(snapshot.config) > 0
