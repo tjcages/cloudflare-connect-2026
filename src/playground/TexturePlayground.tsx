@@ -1082,10 +1082,8 @@ export function TexturePlayground() {
               />
             </ControlField>
           </PlaygroundControlSection>
-        </div>
 
-        <div className="shrink-0 border-t border-neutral-200">
-          <div className="flex flex-col gap-3 px-4 pt-4">
+          <div className="mt-4 flex flex-col gap-3 border-t border-neutral-200 px-4 pt-4">
             <button
               type="button"
               className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
