@@ -304,10 +304,14 @@ void main(void) {
         bandBottom = CELL_SIZE;
     }
     float stripeWidth = resolveAnimatedStripeWidth(colIndex, rowIndex, stripeBand);
+    float defaultStripeWidth = widthPxFromBand(stripeBand);
     float halfW = stripeWidth * 0.5;
     float relX = pixelCoord.x - columnCenterPx;
+    // Soften edges only during an active pulse — not for every stripe when shuffle is on.
+    float softenEdges =
+        (uWidthShuffleEnabled > 0.5 && abs(stripeWidth - defaultStripeWidth) > 0.05) ? 1.0 : 0.0;
 
-    float hCoverage = stripeHorizontalCoverage(relX, halfW, uWidthShuffleEnabled);
+    float hCoverage = stripeHorizontalCoverage(relX, halfW, softenEdges);
     float vCoverage = stripeVerticalVisible(localY, bandTop, bandBottom) ? 1.0 : 0.0;
     float stripeCoverage = hCoverage * vCoverage;
 

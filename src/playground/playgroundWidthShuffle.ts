@@ -8,8 +8,12 @@ export const WIDTH_SHUFFLE_PERIOD_MIN_SEC = 0.21;
 export const WIDTH_SHUFFLE_PERIOD_MAX_SEC = 0.55;
 export const WIDTH_SHUFFLE_BASE_PERIOD_MIN_SEC = WIDTH_SHUFFLE_PERIOD_MIN_SEC;
 export const WIDTH_SHUFFLE_BASE_PERIOD_MAX_SEC = WIDTH_SHUFFLE_PERIOD_MAX_SEC;
-export const DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT = 30;
-export const DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER = 0.5;
+/** Active cell ratio 0–1 (0 = off). Default 0.3. */
+export const DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT = 0.3;
+/** Pulse speed factor (1 = baseline). Default 1. */
+export const DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED = 1;
+/** @deprecated Renamed to DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED. */
+export const DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER = DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED;
 export const WIDTH_SHUFFLE_MIN_WIDTH_PX = 1;
 export const WIDTH_SHUFFLE_MAX_WIDTH_PX = STRIPE_MAX_WIDTH_PX;
 export const WIDTH_SHUFFLE_MIN_SWING_PX = 1.25;
@@ -43,7 +47,7 @@ function smoothStep(t: number): number {
 
 function hashFromCoords(px: number, py: number): number {
   let p3x = fract(px * 0.1031);
-  let p3y = fract(py * 0.1030);
+  let p3y = fract(py * 0.103);
   let p3z = fract(px * 0.0973);
   const dotVal = p3x * (p3y + 33.33) + p3y * (p3z + 33.33) + p3z * (p3x + 33.33);
   p3x = fract(p3x + dotVal);
@@ -73,12 +77,7 @@ export function widthShuffleAltHash(col: number, row: number, pulseIndex: number
 }
 
 /** Continuous alternate width in px, kept far enough from default for a visible swing. */
-export function widthShuffleTargetWidth(
-  col: number,
-  row: number,
-  pulseIndex: number,
-  defaultWidth: number,
-): number {
+export function widthShuffleTargetWidth(col: number, row: number, pulseIndex: number, defaultWidth: number): number {
   const h = widthShuffleAltHash(col, row, pulseIndex);
   const span = WIDTH_SHUFFLE_MAX_WIDTH_PX - WIDTH_SHUFFLE_MIN_WIDTH_PX;
   let target = WIDTH_SHUFFLE_MIN_WIDTH_PX + h * span;
@@ -197,35 +196,43 @@ export function resolveWidthShuffleHalfWidth(
   return resolveWidthShuffleStripeWidth(col, row, band, timeSec, options) * 0.5;
 }
 
+/** Accepts 0–1 ratio or legacy 0–100 percent. */
 export function normalizeSparkleWidthActivePercent(value: number): number {
   if (!Number.isFinite(value)) {
     return DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT;
   }
-  return Math.min(100, Math.max(0, Math.round(value)));
+  const ratio = value > 1 ? value / 100 : value;
+  return Math.min(1, Math.max(0, Math.round(ratio * 1000) / 1000));
 }
 
+/** Pulse speed factor (1 = baseline). */
 export function normalizeSparkleWidthSpeed(speed: number): number {
   if (!Number.isFinite(speed)) {
-    return DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER;
+    return DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED;
   }
-  return Math.min(1, Math.max(0, Math.round(speed * 100) / 100));
+  return Math.max(0.05, Math.round(speed * 1000) / 1000);
 }
 
-/** Pulse speed multiplier: 0.5× at slider min, 1.0× at default, 1.5× at max. */
-export function sparkleWidthSpeedFactorFromSlider(speed: number): number {
-  return 0.5 + normalizeSparkleWidthSpeed(speed);
-}
-
-export function sparkleWidthSpeedLabelFromSlider(speed: number): string {
-  return `${sparkleWidthSpeedFactorFromSlider(speed).toFixed(1)}×`;
+/** v1 wire stored 0–1 speed sliders (0.5 + slider = factor). */
+export function migrateSparkleWidthSpeedFromWireV1(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED;
+  }
+  if (value > 1) {
+    return 0.5 + value;
+  }
+  if (value <= 1) {
+    return 0.5 + value;
+  }
+  return value;
 }
 
 export function playgroundWidthShuffleOptionsFromSliders(
-  activePercent: number,
-  speedSlider: number,
+  activeRatio: number,
+  speedFactor: number,
 ): PlaygroundWidthShuffleOptions {
-  const coverage = normalizeSparkleWidthActivePercent(activePercent) / 100;
-  const speed = sparkleWidthSpeedFactorFromSlider(speedSlider);
+  const coverage = normalizeSparkleWidthActivePercent(activeRatio);
+  const speed = normalizeSparkleWidthSpeed(speedFactor);
   return {
     enabled: coverage > 0,
     coverage,
@@ -234,20 +241,16 @@ export function playgroundWidthShuffleOptionsFromSliders(
   };
 }
 
-export function resolvePersistedSparkleWidthActivePercent(config: {
-  sparkleWidthActivePercent?: number;
-}): number {
+export function resolvePersistedSparkleWidthActivePercent(config: { sparkleWidthActivePercent?: number }): number {
   if (config.sparkleWidthActivePercent !== undefined) {
     return normalizeSparkleWidthActivePercent(config.sparkleWidthActivePercent);
   }
   return DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT;
 }
 
-export function resolvePersistedSparkleWidthSpeed(config: {
-  sparkleWidthSpeed?: number;
-}): number {
+export function resolvePersistedSparkleWidthSpeed(config: { sparkleWidthSpeed?: number }): number {
   if (config.sparkleWidthSpeed !== undefined) {
     return normalizeSparkleWidthSpeed(config.sparkleWidthSpeed);
   }
-  return DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER;
+  return DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED;
 }

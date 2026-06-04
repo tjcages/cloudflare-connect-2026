@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
-  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
   DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
   isPlaygroundSparkleCellVisible,
   playgroundSparkleOptionsFromSliders,
   resolveSparkleLocalPulseTime,
   sparkleCellHash,
-  sparkleGapsSpeedLabelFromSlider,
 } from "./playgroundSparkle";
 
 describe("playgroundSparkle", () => {
@@ -23,19 +22,21 @@ describe("playgroundSparkle", () => {
   });
 
   it("maps sparkle gaps sliders to options", () => {
-    expect(playgroundSparkleOptionsFromSliders(0, 0.5).enabled).toBe(false);
-    expect(playgroundSparkleOptionsFromSliders(20, 0.5).enabled).toBe(true);
-    expect(playgroundSparkleOptionsFromSliders(20, 0.5).coverage).toBeCloseTo(0.2);
-    expect(playgroundSparkleOptionsFromSliders(20, 1).periodMinSec).toBeLessThan(
-      playgroundSparkleOptionsFromSliders(20, 0).periodMinSec,
+    expect(playgroundSparkleOptionsFromSliders(0, 1).enabled).toBe(false);
+    expect(playgroundSparkleOptionsFromSliders(0.2, 1).enabled).toBe(true);
+    expect(playgroundSparkleOptionsFromSliders(0.2, 1).coverage).toBeCloseTo(0.2);
+    expect(playgroundSparkleOptionsFromSliders(0.2, 1.5).periodMinSec).toBeLessThan(
+      playgroundSparkleOptionsFromSliders(0.2, 1).periodMinSec,
     );
-    expect(sparkleGapsSpeedLabelFromSlider(0.5)).toBe("1.0×");
+    expect(playgroundSparkleOptionsFromSliders(0.2, 10).periodMinSec).toBeLessThan(
+      playgroundSparkleOptionsFromSliders(0.2, 1).periodMinSec,
+    );
   });
 
   it("hides cells during their scheduled gap pulse", () => {
     const options = playgroundSparkleOptionsFromSliders(
       DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
-      DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
+      DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
     );
 
     let pulseCol = -1;
@@ -56,7 +57,7 @@ describe("playgroundSparkle", () => {
   });
 
   it("rotates gap pulses over time for the same cell", () => {
-    const options = playgroundSparkleOptionsFromSliders(25, 0.5);
+    const options = playgroundSparkleOptionsFromSliders(0.25, 1);
     const visibilities = new Set<boolean>();
     for (let step = 0; step < 400; step++) {
       visibilities.add(isPlaygroundSparkleCellVisible(4, 6, step * 0.02, options));

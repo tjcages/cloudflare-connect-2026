@@ -10,12 +10,13 @@ export type PlaygroundSparkleOptions = {
 
 export const SPARKLE_GAPS_BASE_PERIOD_MIN_SEC = 0.21;
 export const SPARKLE_GAPS_BASE_PERIOD_MAX_SEC = 0.55;
-export const DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT = 22;
-export const DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER = 0.5;
+export const DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT = 0.22;
+export const DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED = 1;
+export const DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER = DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
 
 export const DEFAULT_PLAYGROUND_SPARKLE_OPTIONS: PlaygroundSparkleOptions = {
   enabled: false,
-  coverage: DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT / 100,
+  coverage: DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
   periodMinSec: SPARKLE_GAPS_BASE_PERIOD_MIN_SEC,
   periodMaxSec: SPARKLE_GAPS_BASE_PERIOD_MAX_SEC,
 };
@@ -47,30 +48,36 @@ export function normalizeSparkleGapsActivePercent(value: number): number {
   if (!Number.isFinite(value)) {
     return DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT;
   }
-  return Math.min(100, Math.max(0, Math.round(value)));
+  const ratio = value > 1 ? value / 100 : value;
+  return Math.min(1, Math.max(0, Math.round(ratio * 1000) / 1000));
 }
 
 export function normalizeSparkleGapsSpeed(speed: number): number {
   if (!Number.isFinite(speed)) {
-    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER;
+    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
   }
-  return Math.min(1, Math.max(0, Math.round(speed * 100) / 100));
+  return Math.max(0.05, Math.round(speed * 1000) / 1000);
 }
 
-export function sparkleGapsSpeedFactorFromSlider(speed: number): number {
-  return 0.5 + normalizeSparkleGapsSpeed(speed);
-}
-
-export function sparkleGapsSpeedLabelFromSlider(speed: number): string {
-  return `${sparkleGapsSpeedFactorFromSlider(speed).toFixed(1)}×`;
+export function migrateSparkleGapsSpeedFromWireV1(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
+  }
+  if (value > 1) {
+    return 0.5 + value;
+  }
+  if (value <= 1) {
+    return 0.5 + value;
+  }
+  return value;
 }
 
 export function playgroundSparkleOptionsFromSliders(
-  activePercent: number,
-  speedSlider: number,
+  activeRatio: number,
+  speedFactor: number,
 ): PlaygroundSparkleOptions {
-  const coverage = normalizeSparkleGapsActivePercent(activePercent) / 100;
-  const speed = sparkleGapsSpeedFactorFromSlider(speedSlider);
+  const coverage = normalizeSparkleGapsActivePercent(activeRatio);
+  const speed = normalizeSparkleGapsSpeed(speedFactor);
   return {
     enabled: coverage > 0,
     coverage,
@@ -105,12 +112,12 @@ export function resolvePersistedSparkleGapsSpeed(config: {
     return normalizeSparkleGapsSpeed(config.sparkleGapsSpeed);
   }
   if (config.sparkleRate !== undefined && config.sparkleRate > 0) {
-    return normalizeSparkleGapsSpeed(config.sparkleRate);
+    return migrateSparkleGapsSpeedFromWireV1(config.sparkleRate);
   }
   if (config.sparkleEnabled) {
-    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER;
+    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
   }
-  return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER;
+  return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
 }
 
 export function resolveSparkleLocalPulseTime(
@@ -165,13 +172,13 @@ export function playgroundSparkleOptionsFromRate(rate: number): PlaygroundSparkl
   const activePercent = rate > 0 ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT : 0;
   return playgroundSparkleOptionsFromSliders(
     activePercent,
-    rate > 0 ? rate : DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
+    rate > 0 ? migrateSparkleGapsSpeedFromWireV1(rate) : DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
   );
 }
 
 export function playgroundSparkleOptionsFromEnabled(enabled: boolean): PlaygroundSparkleOptions {
   return playgroundSparkleOptionsFromSliders(
     enabled ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT : 0,
-    DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
+    DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
   );
 }

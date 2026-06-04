@@ -5,14 +5,16 @@ import {
 } from "./stripeBandThresholds";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
-  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
+  migrateSparkleGapsSpeedFromWireV1,
   normalizeSparkleGapsActivePercent,
   normalizeSparkleGapsSpeed,
   normalizeSparkleRate,
 } from "./playgroundSparkle";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT,
-  DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER,
+  DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED,
+  migrateSparkleWidthSpeedFromWireV1,
   normalizeSparkleWidthActivePercent,
   normalizeSparkleWidthSpeed,
 } from "./playgroundWidthShuffle";
@@ -36,17 +38,17 @@ export const MAX_PLAYGROUND_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type PlaygroundPersistedConfig = {
   duotoneEnabled: boolean;
-  /** Fraction of stripe cells showing a gap at once (0–100). 0 = off. Default 22. */
+  /** Active cell ratio 0–1. 0 = off. Default 0.22. */
   sparkleGapsActivePercent?: number;
-  /** Gap pulse speed slider 0–1. Default 0.5 → 1.0×. */
+  /** Gap pulse speed factor (1 = baseline). Default 1. */
   sparkleGapsSpeed?: number;
   /** @deprecated Migrated to sparkleGapsActivePercent / sparkleGapsSpeed. */
   sparkleRate?: number;
   /** @deprecated Migrated to sparkleGapsActivePercent. */
   sparkleEnabled?: boolean;
-  /** Fraction of stripe cells animating width (0–100). 0 = off. Default 30. */
+  /** Active cell ratio 0–1. 0 = off. Default 0.3. */
   sparkleWidthActivePercent?: number;
-  /** Width pulse speed slider 0–1. Default 0.5 → 1.0×. */
+  /** Width pulse speed factor (1 = baseline). Default 1. */
   sparkleWidthSpeed?: number;
   ignoreTolerance: number;
   gamma: number;
@@ -86,7 +88,7 @@ export type PlaygroundCatalogEntry = {
 };
 
 export type PlaygroundStateWire = {
-  v: 1;
+  v: 1 | 2;
   d: boolean;
   sk?: boolean;
   sr?: number;
@@ -371,7 +373,7 @@ export async function registerUpload(
 
 export function serializePlaygroundState(config: PlaygroundPersistedConfig): string {
   const wire: PlaygroundStateWire = {
-    v: 1,
+    v: 2,
     d: config.duotoneEnabled,
     t: config.ignoreTolerance,
     g: config.gamma,
@@ -389,7 +391,7 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
     config.sparkleGapsSpeed !== undefined
       ? normalizeSparkleGapsSpeed(config.sparkleGapsSpeed)
       : legacySparkleGapsSpeed(config);
-  if (gapsActive > 0 && gapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER) {
+  if (gapsActive > 0 && gapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED) {
     wire.sgsp = gapsSpeed;
   }
   const activePercent =
@@ -402,8 +404,8 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const widthSpeed =
     config.sparkleWidthSpeed !== undefined
       ? normalizeSparkleWidthSpeed(config.sparkleWidthSpeed)
-      : DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER;
-  if (widthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER) {
+      : DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED;
+  if (widthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED) {
     wire.sws = widthSpeed;
   }
   if (config.displayWidth && config.displayWidth > 0) {
@@ -418,18 +420,21 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   return JSON.stringify(wire);
 }
 
-function parseSparkleWidthActivePercent(raw: unknown): number | undefined {
+function parseSparkleWidthActivePercent(raw: unknown, wireVersion: 1 | 2): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
   const value = Number(raw);
   if (!Number.isFinite(value)) {
     return undefined;
+  }
+  if (wireVersion === 1 && value > 1) {
+    return normalizeSparkleWidthActivePercent(value / 100);
   }
   return normalizeSparkleWidthActivePercent(value);
 }
 
-function parseSparkleWidthSpeed(raw: unknown): number | undefined {
+function parseSparkleWidthSpeed(raw: unknown, wireVersion: 1 | 2): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -437,11 +442,17 @@ function parseSparkleWidthSpeed(raw: unknown): number | undefined {
   if (!Number.isFinite(value)) {
     return undefined;
   }
-  return normalizeSparkleWidthSpeed(value);
+  const migrated = wireVersion === 1 ? migrateSparkleWidthSpeedFromWireV1(value) : value;
+  return normalizeSparkleWidthSpeed(migrated);
 }
 
-function parseSparkleGapsActivePercent(sgap: unknown, sr: unknown, sk: unknown): number | undefined {
-  const fromWire = parsePercentField(sgap);
+function parseSparkleGapsActivePercent(
+  sgap: unknown,
+  sr: unknown,
+  sk: unknown,
+  wireVersion: 1 | 2,
+): number | undefined {
+  const fromWire = parseRatioField(sgap, wireVersion);
   if (fromWire !== undefined) {
     return fromWire;
   }
@@ -455,13 +466,14 @@ function parseSparkleGapsActivePercent(sgap: unknown, sr: unknown, sk: unknown):
   return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT : undefined;
 }
 
-function parseSparkleGapsSpeed(sgsp: unknown, sr: unknown, sk: unknown): number | undefined {
+function parseSparkleGapsSpeed(sgsp: unknown, sr: unknown, sk: unknown, wireVersion: 1 | 2): number | undefined {
   if (sgsp !== undefined) {
     const value = Number(sgsp);
     if (!Number.isFinite(value)) {
       return undefined;
     }
-    return normalizeSparkleGapsSpeed(value);
+    const migrated = wireVersion === 1 ? migrateSparkleGapsSpeedFromWireV1(value) : value;
+    return normalizeSparkleGapsSpeed(migrated);
   }
   if (sr !== undefined) {
     const rate = Number(sr);
@@ -469,18 +481,21 @@ function parseSparkleGapsSpeed(sgsp: unknown, sr: unknown, sk: unknown): number 
       return undefined;
     }
     const normalized = normalizeSparkleRate(rate);
-    return normalized > 0 ? normalized : undefined;
+    return normalized > 0 ? migrateSparkleGapsSpeedFromWireV1(normalized) : undefined;
   }
-  return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER : undefined;
+  return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED : undefined;
 }
 
-function parsePercentField(raw: unknown): number | undefined {
+function parseRatioField(raw: unknown, wireVersion: 1 | 2): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
   const value = Number(raw);
   if (!Number.isFinite(value)) {
     return undefined;
+  }
+  if (wireVersion === 1 && value > 1) {
+    return normalizeSparkleGapsActivePercent(value / 100);
   }
   return normalizeSparkleGapsActivePercent(value);
 }
@@ -497,12 +512,12 @@ function legacySparkleGapsActivePercent(config: PlaygroundPersistedConfig): numb
 
 function legacySparkleGapsSpeed(config: PlaygroundPersistedConfig): number {
   if (config.sparkleRate !== undefined && config.sparkleRate > 0) {
-    return normalizeSparkleGapsSpeed(config.sparkleRate);
+    return migrateSparkleGapsSpeedFromWireV1(normalizeSparkleRate(config.sparkleRate));
   }
   if (config.sparkleEnabled) {
-    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER;
+    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
   }
-  return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER;
+  return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
 }
 
 function parseBandBreakpoints(raw: unknown): StripeBandBreakpoints | undefined {
@@ -518,9 +533,10 @@ function parseBandBreakpoints(raw: unknown): StripeBandBreakpoints | undefined {
 
 export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConfig {
   const parsed = JSON.parse(text.trim()) as Partial<PlaygroundStateWire>;
-  if (parsed.v !== 1) {
+  if (parsed.v !== 1 && parsed.v !== 2) {
     throw new Error("Unsupported playground state version.");
   }
+  const wireVersion = parsed.v === 2 ? 2 : 1;
   if (typeof parsed.d !== "boolean") {
     throw new Error("Invalid playground state.");
   }
@@ -535,10 +551,10 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const h = parsed.h === undefined ? undefined : Number(parsed.h);
   return {
     duotoneEnabled: parsed.d,
-    sparkleGapsActivePercent: parseSparkleGapsActivePercent(parsed.sgap, parsed.sr, parsed.sk),
-    sparkleGapsSpeed: parseSparkleGapsSpeed(parsed.sgsp, parsed.sr, parsed.sk),
-    sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa),
-    sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws),
+    sparkleGapsActivePercent: parseSparkleGapsActivePercent(parsed.sgap, parsed.sr, parsed.sk, wireVersion),
+    sparkleGapsSpeed: parseSparkleGapsSpeed(parsed.sgsp, parsed.sr, parsed.sk, wireVersion),
+    sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa, wireVersion),
+    sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws, wireVersion),
     ignoreTolerance: t,
     gamma: g,
     threshold: th,

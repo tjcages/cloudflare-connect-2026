@@ -9,7 +9,6 @@ import {
   resolveWidthShuffleCyclePeriod,
   resolveWidthShuffleHalfWidth,
   resolveWidthShuffleStripeWidth,
-  sparkleWidthSpeedLabelFromSlider,
   playgroundWidthShuffleOptionsFromSliders,
   WIDTH_SHUFFLE_BASE_PERIOD_MIN_SEC,
   WIDTH_SHUFFLE_BASE_PERIOD_MAX_SEC,
@@ -90,25 +89,22 @@ describe("playgroundWidthShuffle", () => {
     const phaseOffset = widthShufflePhaseHash(col, row) * cyclePeriod;
     const cycleStart = -phaseOffset;
 
-    expect(resolveWidthShuffleStripeWidth(col, row, band, cycleStart, enabledOptions)).toBeCloseTo(
+    expect(resolveWidthShuffleStripeWidth(col, row, band, cycleStart, enabledOptions)).toBeCloseTo(defaultWidth, 1);
+    expect(
+      Math.abs(
+        resolveWidthShuffleStripeWidth(col, row, band, cycleStart + period * 0.5, enabledOptions) - defaultWidth,
+      ),
+    ).toBeGreaterThan(0.5);
+    expect(resolveWidthShuffleStripeWidth(col, row, band, cycleStart + period, enabledOptions)).toBeCloseTo(
       defaultWidth,
       1,
     );
-    expect(
-      Math.abs(
-        resolveWidthShuffleStripeWidth(col, row, band, cycleStart + period * 0.5, enabledOptions) -
-          defaultWidth,
-      ),
-    ).toBeGreaterThan(0.5);
-    expect(
-      resolveWidthShuffleStripeWidth(col, row, band, cycleStart + period, enabledOptions),
-    ).toBeCloseTo(defaultWidth, 1);
     expect(resolveWidthShuffleStripeWidth(col, row, band, cycleStart + period + 0.01, enabledOptions)).toBe(
       defaultWidth,
     );
-    expect(
-      resolveWidthShuffleStripeWidth(col, row, band, cycleStart + cyclePeriod - 0.01, enabledOptions),
-    ).toBe(defaultWidth);
+    expect(resolveWidthShuffleStripeWidth(col, row, band, cycleStart + cyclePeriod - 0.01, enabledOptions)).toBe(
+      defaultWidth,
+    );
   });
 
   it("uses independent per-cell periods and phases", () => {
@@ -133,15 +129,7 @@ describe("playgroundWidthShuffle", () => {
 
     const samples: number[] = [];
     for (let step = 1; step < 20; step++) {
-      samples.push(
-        resolveWidthShuffleStripeWidth(
-          col,
-          row,
-          band,
-          cycleStart + (period * step) / 20,
-          enabledOptions,
-        ),
-      );
+      samples.push(resolveWidthShuffleStripeWidth(col, row, band, cycleStart + (period * step) / 20, enabledOptions));
     }
 
     const fractional = samples.filter((width) => Math.abs(width - Math.round(width)) > 0.01);
@@ -186,18 +174,33 @@ describe("playgroundWidthShuffle", () => {
     expect(isWidthShuffleActive(col, row, cycleStart + period + 0.01, enabledOptions)).toBe(false);
   });
 
+  it("keeps default width when enabled but outside the pulse window", () => {
+    const col = 3;
+    const row = 4;
+    const band = 3;
+    const defaultWidth = widthPxFromBand(band);
+    const period = resolveWidthShuffleCellPeriod(col, row, enabledOptions);
+    const cyclePeriod = resolveWidthShuffleCyclePeriod(period, WIDTH_SHUFFLE_COVERAGE);
+    const phaseOffset = widthShufflePhaseHash(col, row) * cyclePeriod;
+    const idleTime = -phaseOffset + period + 0.05;
+
+    expect(resolveWidthShuffleStripeWidth(col, row, band, idleTime, enabledOptions)).toBe(defaultWidth);
+  });
+
   it("maps sparkle width sliders to shuffle options", () => {
-    expect(playgroundWidthShuffleOptionsFromSliders(0, 0.5).enabled).toBe(false);
-    expect(playgroundWidthShuffleOptionsFromSliders(30, 0.5)).toEqual({
+    expect(playgroundWidthShuffleOptionsFromSliders(0, 1).enabled).toBe(false);
+    expect(playgroundWidthShuffleOptionsFromSliders(0.3, 1)).toEqual({
       enabled: true,
       coverage: 0.3,
       periodMinSec: WIDTH_SHUFFLE_BASE_PERIOD_MIN_SEC,
       periodMaxSec: WIDTH_SHUFFLE_BASE_PERIOD_MAX_SEC,
     });
-    expect(playgroundWidthShuffleOptionsFromSliders(100, 1).coverage).toBe(1);
-    expect(playgroundWidthShuffleOptionsFromSliders(30, 1).periodMinSec).toBeLessThan(
+    expect(playgroundWidthShuffleOptionsFromSliders(1, 1).coverage).toBe(1);
+    expect(playgroundWidthShuffleOptionsFromSliders(0.3, 1.5).periodMinSec).toBeLessThan(
       WIDTH_SHUFFLE_BASE_PERIOD_MIN_SEC,
     );
-    expect(sparkleWidthSpeedLabelFromSlider(0.5)).toBe("1.0×");
+    expect(playgroundWidthShuffleOptionsFromSliders(0.3, 1.5).periodMinSec).toBeLessThan(
+      playgroundWidthShuffleOptionsFromSliders(0.3, 1).periodMinSec,
+    );
   });
 });

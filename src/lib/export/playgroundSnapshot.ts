@@ -5,17 +5,16 @@ import type { PlaygroundPersistedConfig } from "../../playground/playgroundPersi
 import {
   resolvePersistedSparkleGapsActivePercent,
   resolvePersistedSparkleGapsSpeed,
-  sparkleGapsSpeedLabelFromSlider,
 } from "../../playground/playgroundSparkle";
 import type { PlaygroundMediaKind } from "../../playground/playgroundTextures";
 
 function formatSparkleGapsSummary(config: PlaygroundPersistedConfig): string {
-  const activePercent = resolvePersistedSparkleGapsActivePercent(config);
-  if (activePercent <= 0) {
+  const activeRatio = resolvePersistedSparkleGapsActivePercent(config);
+  if (activeRatio <= 0) {
     return "off";
   }
   const speed = resolvePersistedSparkleGapsSpeed(config);
-  return `${activePercent}% @ ${sparkleGapsSpeedLabelFromSlider(speed)}`;
+  return `${activeRatio} @ ${speed}`;
 }
 
 export type ReactExportSnapshot = {

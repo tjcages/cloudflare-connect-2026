@@ -28,22 +28,21 @@ import {
   type PlaygroundPersistedConfig,
 } from "./playgroundPersistence";
 import type { PlaygroundMediaKind, PlaygroundTextureId } from "./playgroundTextures";
-import { PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
+import { ControlValueInput } from "./ControlValueInput";
+import { PLAYGROUND_CONTROL_INPUT_BOUNDS, PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
 import {
-  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
   playgroundSparkleOptionsFromSliders,
   resolvePersistedSparkleGapsActivePercent,
   resolvePersistedSparkleGapsSpeed,
-  sparkleGapsSpeedLabelFromSlider,
 } from "./playgroundSparkle";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT,
-  DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER,
+  DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED,
   playgroundWidthShuffleOptionsFromSliders,
   resolvePersistedSparkleWidthActivePercent,
   resolvePersistedSparkleWidthSpeed,
-  sparkleWidthSpeedLabelFromSlider,
 } from "./playgroundWidthShuffle";
 import {
   clampPlaygroundDisplayDimension,
@@ -221,17 +220,52 @@ function syncDisplaySizeFromTexture(
 
 type ControlFieldProps = {
   label: string;
-  value: string;
+  value: number;
+  inputMin: number;
+  inputMax: number;
+  commitMin?: number;
+  commitMax?: number;
+  onValueChange: (value: number) => void;
+  formatDisplay?: (value: number) => string;
+  formatEditValue?: (value: number) => string;
+  parseEditDraft?: (draft: string) => number | null;
+  valueAriaLabel: string;
   disabled?: boolean;
   children: ReactNode;
 };
 
-function ControlField({ label, value, disabled = false, children }: ControlFieldProps) {
+function ControlField({
+  label,
+  value,
+  inputMin,
+  inputMax,
+  commitMin,
+  commitMax,
+  onValueChange,
+  formatDisplay,
+  formatEditValue,
+  parseEditDraft,
+  valueAriaLabel,
+  disabled = false,
+  children,
+}: ControlFieldProps) {
   return (
     <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
       <span className="flex items-center justify-between gap-2 text-neutral-600">
         <span>{label}</span>
-        <span className="tabular-nums text-xs text-neutral-500">{value}</span>
+        <ControlValueInput
+          value={value}
+          inputMin={inputMin}
+          inputMax={inputMax}
+          commitMin={commitMin}
+          commitMax={commitMax}
+          disabled={disabled}
+          onChange={onValueChange}
+          formatDisplay={formatDisplay}
+          formatEditValue={formatEditValue}
+          parseEditDraft={parseEditDraft}
+          ariaLabel={valueAriaLabel}
+        />
       </span>
       {children}
     </label>
@@ -334,15 +368,14 @@ export function TexturePlayground() {
       duotoneEnabled,
       sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
       sparkleGapsSpeed:
-        sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER
+        sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
           ? sparkleGapsSpeed
           : undefined,
       sparkleWidthActivePercent:
         sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
           ? sparkleWidthActivePercent
           : undefined,
-      sparkleWidthSpeed:
-        sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
+      sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
       ignoreTolerance,
       gamma,
       threshold,
@@ -600,15 +633,14 @@ export function TexturePlayground() {
       duotoneEnabled,
       sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
       sparkleGapsSpeed:
-        sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER
+        sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
           ? sparkleGapsSpeed
           : undefined,
       sparkleWidthActivePercent:
         sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
           ? sparkleWidthActivePercent
           : undefined,
-      sparkleWidthSpeed:
-        sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
+      sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
       ignoreTolerance,
       gamma,
       threshold,
@@ -727,7 +759,7 @@ export function TexturePlayground() {
           duotoneEnabled,
           sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
           sparkleGapsSpeed:
-            sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER
+            sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
               ? sparkleGapsSpeed
               : undefined,
           sparkleWidthActivePercent:
@@ -735,7 +767,7 @@ export function TexturePlayground() {
               ? sparkleWidthActivePercent
               : undefined,
           sparkleWidthSpeed:
-            sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
+            sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
           ignoreTolerance,
           gamma,
           threshold,
@@ -884,13 +916,22 @@ export function TexturePlayground() {
               <span className="text-neutral-800">Shader enabled</span>
             </label>
 
-            <ControlField label="Bg match" value={ignoreTolerance.toFixed(3)} disabled={duotoneControlsDisabled}>
+            <ControlField
+              label="Bg match"
+              value={ignoreTolerance}
+              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.bgMatch.min}
+              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.bgMatch.max}
+              onValueChange={setIgnoreTolerance}
+              formatDisplay={(v) => v.toFixed(3)}
+              valueAriaLabel="Background color match tolerance"
+              disabled={duotoneControlsDisabled}
+            >
               <input
                 type="range"
                 min={PLAYGROUND_CONTROL_RANGES.bgMatch.min}
                 max={PLAYGROUND_CONTROL_RANGES.bgMatch.max}
                 step={PLAYGROUND_CONTROL_RANGES.bgMatch.step}
-                value={ignoreTolerance}
+                value={Math.min(ignoreTolerance, PLAYGROUND_CONTROL_RANGES.bgMatch.max)}
                 onChange={(event) => setIgnoreTolerance(Number(event.target.value))}
                 disabled={duotoneControlsDisabled}
                 className="w-full disabled:cursor-not-allowed"
@@ -898,13 +939,22 @@ export function TexturePlayground() {
               />
             </ControlField>
 
-            <ControlField label="Gamma" value={gamma.toFixed(2)} disabled={duotoneControlsDisabled}>
+            <ControlField
+              label="Gamma"
+              value={gamma}
+              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.gamma.min}
+              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.gamma.max}
+              onValueChange={setGamma}
+              formatDisplay={(v) => v.toFixed(2)}
+              valueAriaLabel="Gamma for background matching"
+              disabled={duotoneControlsDisabled}
+            >
               <input
                 type="range"
                 min={PLAYGROUND_CONTROL_RANGES.gamma.min}
                 max={PLAYGROUND_CONTROL_RANGES.gamma.max}
                 step={PLAYGROUND_CONTROL_RANGES.gamma.step}
-                value={gamma}
+                value={Math.min(gamma, PLAYGROUND_CONTROL_RANGES.gamma.max)}
                 onChange={(event) => setGamma(Number(event.target.value))}
                 disabled={duotoneControlsDisabled}
                 className="w-full disabled:cursor-not-allowed"
@@ -912,13 +962,22 @@ export function TexturePlayground() {
               />
             </ControlField>
 
-            <ControlField label="Threshold" value={threshold.toFixed(2)} disabled={duotoneControlsDisabled}>
+            <ControlField
+              label="Threshold"
+              value={threshold}
+              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.threshold.min}
+              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.threshold.max}
+              onValueChange={setThreshold}
+              formatDisplay={(v) => v.toFixed(2)}
+              valueAriaLabel="Block background threshold"
+              disabled={duotoneControlsDisabled}
+            >
               <input
                 type="range"
                 min={PLAYGROUND_CONTROL_RANGES.threshold.min}
                 max={PLAYGROUND_CONTROL_RANGES.threshold.max}
                 step={PLAYGROUND_CONTROL_RANGES.threshold.step}
-                value={threshold}
+                value={Math.min(threshold, PLAYGROUND_CONTROL_RANGES.threshold.max)}
                 onChange={(event) => setThreshold(Number(event.target.value))}
                 disabled={duotoneControlsDisabled}
                 className="w-full disabled:cursor-not-allowed"
@@ -926,13 +985,22 @@ export function TexturePlayground() {
               />
             </ControlField>
 
-            <ControlField label="Density" value={density.toFixed(2)} disabled={duotoneControlsDisabled}>
+            <ControlField
+              label="Density"
+              value={density}
+              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.density.min}
+              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.density.max}
+              onValueChange={setDensity}
+              formatDisplay={(v) => v.toFixed(2)}
+              valueAriaLabel="Stripe density"
+              disabled={duotoneControlsDisabled}
+            >
               <input
                 type="range"
                 min={PLAYGROUND_CONTROL_RANGES.density.min}
                 max={PLAYGROUND_CONTROL_RANGES.density.max}
                 step={PLAYGROUND_CONTROL_RANGES.density.step}
-                value={density}
+                value={Math.min(density, PLAYGROUND_CONTROL_RANGES.density.max)}
                 onChange={(event) => setDensity(Number(event.target.value))}
                 disabled={duotoneControlsDisabled}
                 className="w-full disabled:cursor-not-allowed"
@@ -964,7 +1032,7 @@ export function TexturePlayground() {
                   : PLAYGROUND_CONTROL_RANGES.bandBreakpoint.max;
 
                 return (
-                  <div key={hex} className="flex flex-col gap-1.5">
+                  <div key={`stripe-band-${index}`} className="flex flex-col gap-1.5">
                     <label className="flex cursor-pointer items-center gap-2">
                       <input
                         type="checkbox"
@@ -1012,7 +1080,12 @@ export function TexturePlayground() {
           <PlaygroundControlSection title="Sparkle Gaps" defaultOpen testId="playground-section-sparkle-gaps">
             <ControlField
               label="Active ratio"
-              value={sparkleGapsActivePercent <= 0 ? "Off" : `${sparkleGapsActivePercent}%`}
+              value={sparkleGapsActivePercent}
+              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsActivePercent.min}
+              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsActivePercent.max}
+              onValueChange={setSparkleGapsActivePercent}
+              formatDisplay={(v) => v.toFixed(2)}
+              valueAriaLabel="Sparkle gaps active ratio"
               disabled={duotoneControlsDisabled}
             >
               <input
@@ -1029,7 +1102,14 @@ export function TexturePlayground() {
             </ControlField>
             <ControlField
               label="Speed"
-              value={sparkleGapsActivePercent <= 0 ? "Off" : sparkleGapsSpeedLabelFromSlider(sparkleGapsSpeed)}
+              value={sparkleGapsSpeed}
+              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsSpeed.min}
+              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsSpeed.max}
+              commitMin={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.min}
+              commitMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsSpeed.max}
+              onValueChange={setSparkleGapsSpeed}
+              formatDisplay={(v) => v.toFixed(2)}
+              valueAriaLabel="Sparkle gaps pulse speed"
               disabled={duotoneControlsDisabled || sparkleGapsActivePercent <= 0}
             >
               <input
@@ -1037,7 +1117,7 @@ export function TexturePlayground() {
                 min={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.min}
                 max={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.max}
                 step={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.step}
-                value={sparkleGapsSpeed}
+                value={Math.min(sparkleGapsSpeed, PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.max)}
                 onChange={(event) => setSparkleGapsSpeed(Number(event.target.value))}
                 disabled={duotoneControlsDisabled || sparkleGapsActivePercent <= 0}
                 className="w-full disabled:cursor-not-allowed"
@@ -1049,7 +1129,12 @@ export function TexturePlayground() {
           <PlaygroundControlSection title="Sparkle Width" defaultOpen testId="playground-section-sparkle-width">
             <ControlField
               label="Active ratio"
-              value={sparkleWidthActivePercent <= 0 ? "Off" : `${sparkleWidthActivePercent}%`}
+              value={sparkleWidthActivePercent}
+              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthActivePercent.min}
+              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthActivePercent.max}
+              onValueChange={setSparkleWidthActivePercent}
+              formatDisplay={(v) => v.toFixed(2)}
+              valueAriaLabel="Sparkle width active ratio"
               disabled={duotoneControlsDisabled}
             >
               <input
@@ -1066,7 +1151,14 @@ export function TexturePlayground() {
             </ControlField>
             <ControlField
               label="Speed"
-              value={sparkleWidthActivePercent <= 0 ? "Off" : sparkleWidthSpeedLabelFromSlider(sparkleWidthSpeed)}
+              value={sparkleWidthSpeed}
+              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthSpeed.min}
+              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthSpeed.max}
+              commitMin={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.min}
+              commitMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthSpeed.max}
+              onValueChange={setSparkleWidthSpeed}
+              formatDisplay={(v) => v.toFixed(2)}
+              valueAriaLabel="Sparkle width pulse speed"
               disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
             >
               <input
@@ -1074,7 +1166,7 @@ export function TexturePlayground() {
                 min={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.min}
                 max={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.max}
                 step={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.step}
-                value={sparkleWidthSpeed}
+                value={Math.min(sparkleWidthSpeed, PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.max)}
                 onChange={(event) => setSparkleWidthSpeed(Number(event.target.value))}
                 disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
                 className="w-full disabled:cursor-not-allowed"
