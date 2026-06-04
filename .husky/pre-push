@@ -1,0 +1,1 @@
+# Global pre-push checks run via ~/.config/husky/init.sh before this hook.
