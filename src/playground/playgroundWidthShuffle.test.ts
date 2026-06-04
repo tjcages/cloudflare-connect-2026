@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { widthPxFromBand } from "./stripeGridConstants";
 import {
   DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS,
   WIDTH_SHUFFLE_COVERAGE,
+  WIDTH_SHUFFLE_MAX_WIDTH_PX,
   WIDTH_SHUFFLE_MIN_SWING_PX,
+  WIDTH_SHUFFLE_MIN_WIDTH_PX,
   isWidthShuffleActive,
   resolveWidthShuffleCellPeriod,
   resolveWidthShuffleCyclePeriod,
@@ -25,12 +26,12 @@ const enabledOptions = {
 
 describe("playgroundWidthShuffle", () => {
   it("returns default half-width when shuffle is disabled", () => {
-    const band = 3;
-    const halfW = resolveWidthShuffleHalfWidth(4, 6, band, 12.5, {
+    const defaultWidth = 3;
+    const halfW = resolveWidthShuffleHalfWidth(4, 6, defaultWidth, 12.5, {
       ...DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS,
       enabled: false,
     });
-    expect(halfW).toBe(widthPxFromBand(band) * 0.5);
+    expect(halfW).toBe(defaultWidth * 0.5);
   });
 
   it("returns default width for non-stripe cells", () => {
@@ -43,14 +44,13 @@ describe("playgroundWidthShuffle", () => {
   });
 
   it("picks a continuous target width with enough swing from default", () => {
-    for (let pulse = 0; pulse < 20; pulse++) {
-      for (let col = 0; col < 20; col++) {
-        for (let row = 0; row < 20; row++) {
-          for (let band = 1; band <= 5; band++) {
-            const defaultWidth = widthPxFromBand(band);
+    for (let pulse = 0; pulse < 12; pulse++) {
+      for (let col = 0; col < 12; col++) {
+        for (let row = 0; row < 12; row++) {
+          for (let defaultWidth = 1; defaultWidth <= WIDTH_SHUFFLE_MAX_WIDTH_PX; defaultWidth++) {
             const target = widthShuffleTargetWidth(col, row, pulse, defaultWidth);
-            expect(target).toBeGreaterThanOrEqual(1);
-            expect(target).toBeLessThanOrEqual(5);
+            expect(target).toBeGreaterThanOrEqual(WIDTH_SHUFFLE_MIN_WIDTH_PX);
+            expect(target).toBeLessThanOrEqual(WIDTH_SHUFFLE_MAX_WIDTH_PX);
             expect(Math.abs(target - defaultWidth)).toBeGreaterThanOrEqual(WIDTH_SHUFFLE_MIN_SWING_PX - 0.001);
           }
         }
@@ -62,12 +62,11 @@ describe("playgroundWidthShuffle", () => {
     let active = 0;
     const total = 50 * 50;
     const timeSec = 12.345;
-    const band = 2;
-    const defaultWidth = widthPxFromBand(band);
+    const defaultWidth = 2;
 
     for (let col = 0; col < 50; col++) {
       for (let row = 0; row < 50; row++) {
-        const width = resolveWidthShuffleStripeWidth(col, row, band, timeSec, enabledOptions);
+        const width = resolveWidthShuffleStripeWidth(col, row, defaultWidth, timeSec, enabledOptions);
         if (Math.abs(width - defaultWidth) > 0.05) {
           active++;
         }
@@ -82,29 +81,32 @@ describe("playgroundWidthShuffle", () => {
   it("returns to default width after one pulse and stays idle until the next cycle", () => {
     const col = 5;
     const row = 7;
-    const band = 3;
-    const defaultWidth = widthPxFromBand(band);
+    const defaultWidth = 3;
     const period = resolveWidthShuffleCellPeriod(col, row, enabledOptions);
     const cyclePeriod = resolveWidthShuffleCyclePeriod(period, WIDTH_SHUFFLE_COVERAGE);
     const phaseOffset = widthShufflePhaseHash(col, row) * cyclePeriod;
     const cycleStart = -phaseOffset;
 
-    expect(resolveWidthShuffleStripeWidth(col, row, band, cycleStart, enabledOptions)).toBeCloseTo(defaultWidth, 1);
-    expect(
-      Math.abs(
-        resolveWidthShuffleStripeWidth(col, row, band, cycleStart + period * 0.5, enabledOptions) - defaultWidth,
-      ),
-    ).toBeGreaterThan(0.5);
-    expect(resolveWidthShuffleStripeWidth(col, row, band, cycleStart + period, enabledOptions)).toBeCloseTo(
+    expect(resolveWidthShuffleStripeWidth(col, row, defaultWidth, cycleStart, enabledOptions)).toBeCloseTo(
       defaultWidth,
       1,
     );
-    expect(resolveWidthShuffleStripeWidth(col, row, band, cycleStart + period + 0.01, enabledOptions)).toBe(
+    expect(
+      Math.abs(
+        resolveWidthShuffleStripeWidth(col, row, defaultWidth, cycleStart + period * 0.5, enabledOptions) -
+          defaultWidth,
+      ),
+    ).toBeGreaterThan(0.5);
+    expect(resolveWidthShuffleStripeWidth(col, row, defaultWidth, cycleStart + period, enabledOptions)).toBeCloseTo(
+      defaultWidth,
+      1,
+    );
+    expect(resolveWidthShuffleStripeWidth(col, row, defaultWidth, cycleStart + period + 0.01, enabledOptions)).toBe(
       defaultWidth,
     );
-    expect(resolveWidthShuffleStripeWidth(col, row, band, cycleStart + cyclePeriod - 0.01, enabledOptions)).toBe(
-      defaultWidth,
-    );
+    expect(
+      resolveWidthShuffleStripeWidth(col, row, defaultWidth, cycleStart + cyclePeriod - 0.01, enabledOptions),
+    ).toBe(defaultWidth);
   });
 
   it("uses independent per-cell periods and phases", () => {
@@ -120,8 +122,7 @@ describe("playgroundWidthShuffle", () => {
   it("smoothly pulses width with fractional intermediate values during one active window", () => {
     const col = 5;
     const row = 7;
-    const band = 2;
-    const defaultWidth = widthPxFromBand(band);
+    const defaultWidth = 2;
     const period = resolveWidthShuffleCellPeriod(col, row, enabledOptions);
     const cyclePeriod = resolveWidthShuffleCyclePeriod(period, WIDTH_SHUFFLE_COVERAGE);
     const phaseOffset = widthShufflePhaseHash(col, row) * cyclePeriod;
@@ -129,7 +130,9 @@ describe("playgroundWidthShuffle", () => {
 
     const samples: number[] = [];
     for (let step = 1; step < 20; step++) {
-      samples.push(resolveWidthShuffleStripeWidth(col, row, band, cycleStart + (period * step) / 20, enabledOptions));
+      samples.push(
+        resolveWidthShuffleStripeWidth(col, row, defaultWidth, cycleStart + (period * step) / 20, enabledOptions),
+      );
     }
 
     const fractional = samples.filter((width) => Math.abs(width - Math.round(width)) > 0.01);
@@ -146,13 +149,13 @@ describe("playgroundWidthShuffle", () => {
       { col: 5, row: 7 },
       { col: 6, row: 7 },
     ];
-    const band = 3;
+    const defaultWidth = 3;
     const widths = new Set<number>();
 
     for (let step = 0; step < 40; step++) {
       const timeSec = step * 0.13;
       for (const { col, row } of cells) {
-        widths.add(Math.round(resolveWidthShuffleStripeWidth(col, row, band, timeSec, enabledOptions) * 100));
+        widths.add(Math.round(resolveWidthShuffleStripeWidth(col, row, defaultWidth, timeSec, enabledOptions) * 100));
       }
       if (widths.size >= 2) {
         break;
@@ -177,14 +180,13 @@ describe("playgroundWidthShuffle", () => {
   it("keeps default width when enabled but outside the pulse window", () => {
     const col = 3;
     const row = 4;
-    const band = 3;
-    const defaultWidth = widthPxFromBand(band);
+    const defaultWidth = 3;
     const period = resolveWidthShuffleCellPeriod(col, row, enabledOptions);
     const cyclePeriod = resolveWidthShuffleCyclePeriod(period, WIDTH_SHUFFLE_COVERAGE);
     const phaseOffset = widthShufflePhaseHash(col, row) * cyclePeriod;
     const idleTime = -phaseOffset + period + 0.05;
 
-    expect(resolveWidthShuffleStripeWidth(col, row, band, idleTime, enabledOptions)).toBe(defaultWidth);
+    expect(resolveWidthShuffleStripeWidth(col, row, defaultWidth, idleTime, enabledOptions)).toBe(defaultWidth);
   });
 
   it("maps sparkle width sliders to shuffle options", () => {

@@ -1,8 +1,4 @@
-import {
-  DEFAULT_STRIPE_DENSITY,
-  DEFAULT_STRIPE_DUOTONE_OPTIONS,
-  DEFAULT_STRIPE_THRESHOLD,
-} from "./stripeFilterOptions";
+import { DEFAULT_STRIPES, type Stripe } from "./stripeColors";
 
 export type PlaygroundMediaKind = "video" | "image";
 
@@ -20,18 +16,8 @@ export type BuiltinPlaygroundTextureId =
 
 export type PlaygroundTextureId = BuiltinPlaygroundTextureId | `upload:${string}`;
 
-export type PlaygroundDuotoneDefaults = {
-  ignoreTolerance: number;
-  threshold: number;
-  density: number;
-};
-
-/** Duotone defaults applied to newly uploaded videos/images before any saved config exists. */
-export const DEFAULT_PLAYGROUND_UPLOAD_DUOTONE: PlaygroundDuotoneDefaults = {
-  ignoreTolerance: 0.1,
-  threshold: 0.7,
-  density: 1.1,
-};
+/** Default stripe list applied to newly uploaded videos/images before any saved config exists. */
+export const DEFAULT_PLAYGROUND_UPLOAD_STRIPES: readonly Stripe[] = DEFAULT_STRIPES;
 
 export type PlaygroundTextureOption = {
   id: BuiltinPlaygroundTextureId;
@@ -40,7 +26,7 @@ export type PlaygroundTextureOption = {
   mediaKind: PlaygroundMediaKind;
   /** Canvas and sampling scale relative to native source dimensions. */
   displayScale: number;
-  duotone: PlaygroundDuotoneDefaults;
+  stripes: readonly Stripe[];
 };
 
 /** Sample textures served from `public/playground/`. */
@@ -51,11 +37,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example10.jpg",
     mediaKind: "image",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: 0.095,
-      threshold: 0.99,
-      density: 0.6,
-    },
+    stripes: DEFAULT_STRIPES,
   },
   {
     id: "example5",
@@ -63,11 +45,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example5.mp4",
     mediaKind: "video",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: 0.095,
-      threshold: 0.99,
-      density: 0.6,
-    },
+    stripes: DEFAULT_STRIPES,
   },
   {
     id: "example",
@@ -75,11 +53,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example.mp4",
     mediaKind: "video",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: DEFAULT_STRIPE_DUOTONE_OPTIONS.ignoreTolerance,
-      threshold: DEFAULT_STRIPE_THRESHOLD,
-      density: DEFAULT_STRIPE_DENSITY,
-    },
+    stripes: DEFAULT_STRIPES,
   },
   {
     id: "example2",
@@ -87,11 +61,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example2.mp4",
     mediaKind: "video",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: 0.16,
-      threshold: DEFAULT_STRIPE_THRESHOLD,
-      density: DEFAULT_STRIPE_DENSITY,
-    },
+    stripes: DEFAULT_STRIPES,
   },
   {
     id: "example3",
@@ -99,11 +69,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example3.mp4",
     mediaKind: "video",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: 0.015,
-      threshold: 0.05,
-      density: 1.05,
-    },
+    stripes: DEFAULT_STRIPES,
   },
   {
     id: "example4",
@@ -111,11 +77,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example4.mp4",
     mediaKind: "video",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: 0.1,
-      threshold: 0.64,
-      density: 0.3,
-    },
+    stripes: DEFAULT_STRIPES,
   },
   {
     id: "example6",
@@ -123,11 +85,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example6.mp4",
     mediaKind: "video",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: 0.235,
-      threshold: 0.99,
-      density: 0.55,
-    },
+    stripes: DEFAULT_STRIPES,
   },
   {
     id: "example7",
@@ -135,11 +93,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example7.mp4",
     mediaKind: "video",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: 0.415,
-      threshold: 0.99,
-      density: 0.65,
-    },
+    stripes: DEFAULT_STRIPES,
   },
   {
     id: "example8",
@@ -147,11 +101,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example8.mp4",
     mediaKind: "video",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: DEFAULT_STRIPE_DUOTONE_OPTIONS.ignoreTolerance,
-      threshold: DEFAULT_STRIPE_THRESHOLD,
-      density: DEFAULT_STRIPE_DENSITY,
-    },
+    stripes: DEFAULT_STRIPES,
   },
   {
     id: "example9",
@@ -159,11 +109,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     url: "/playground/example9.mp4",
     mediaKind: "video",
     displayScale: 1,
-    duotone: {
-      ignoreTolerance: DEFAULT_STRIPE_DUOTONE_OPTIONS.ignoreTolerance,
-      threshold: DEFAULT_STRIPE_THRESHOLD,
-      density: DEFAULT_STRIPE_DENSITY,
-    },
+    stripes: DEFAULT_STRIPES,
   },
 ] as const;
 

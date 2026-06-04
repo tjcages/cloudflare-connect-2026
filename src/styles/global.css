@@ -120,13 +120,16 @@ select.builder-field-control {
   background-size: 12px 12px;
 }
 
-.builder-field-control[type="number"] {
+/* Hide native number spinners everywhere (Firefox + WebKit/Blink). */
+input[type="number"] {
   appearance: textfield;
+  -moz-appearance: textfield;
 }
 
-.builder-field-control[type="number"]::-webkit-inner-spin-button,
-.builder-field-control[type="number"]::-webkit-outer-spin-button {
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
   appearance: none;
+  -webkit-appearance: none;
   margin: 0;
 }
 

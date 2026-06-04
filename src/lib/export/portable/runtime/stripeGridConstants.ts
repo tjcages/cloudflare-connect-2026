@@ -2,48 +2,20 @@ export const STRIPE_CELL_SIZE = 7;
 export const STRIPE_BLOCK_SAMPLES = 7;
 export const STRIPE_BLOCK_SAMPLE_COUNT = STRIPE_BLOCK_SAMPLES * STRIPE_BLOCK_SAMPLES;
 
-export const STRIPE_BAND_NONE = 0;
-export const STRIPE_BAND_COUNT = 5;
-export const STRIPE_MAX_WIDTH_PX = 5;
+export const STRIPE_INDEX_NONE = 0;
+/** Largest stripe index that fits in the block-map red channel (1 byte). */
+export const STRIPE_INDEX_MAX = 255;
+/** Stripe thickness ceiling in px (equals the cell size). */
+export const STRIPE_MAX_WIDTH_PX = 7;
 
-/** Equal steps on a 5px max: ceil(band × 5 / 5). */
-export function widthPxFromBand(band: number): number {
-  if (band <= STRIPE_BAND_NONE) {
-    return 0;
+/** Block-map red channel stores the stripe index directly (0 = background, 1…N). */
+export function encodeStripeIndex(index: number): number {
+  if (index <= STRIPE_INDEX_NONE) {
+    return STRIPE_INDEX_NONE;
   }
-  return Math.min(STRIPE_MAX_WIDTH_PX, Math.max(1, Math.ceil((band * STRIPE_MAX_WIDTH_PX) / STRIPE_BAND_COUNT)));
+  return Math.min(STRIPE_INDEX_MAX, Math.round(index));
 }
 
-function bandDecodeThreshold(band: number): number {
-  return Math.round(((band - 0.5) / STRIPE_BAND_COUNT) * 255);
-}
-
-/** Encoded into block-map texture red channel (0–255). */
-export function encodeStripeBand(band: number): number {
-  if (band <= STRIPE_BAND_NONE) {
-    return 0;
-  }
-  return Math.round((band / STRIPE_BAND_COUNT) * 255);
-}
-
-export function decodeStripeBand(encoded: number): number {
-  if (encoded < bandDecodeThreshold(1)) {
-    return STRIPE_BAND_NONE;
-  }
-  for (let band = STRIPE_BAND_COUNT; band >= 1; band--) {
-    if (encoded >= bandDecodeThreshold(band)) {
-      return band;
-    }
-  }
-  return STRIPE_BAND_NONE;
-}
-
-/** Chain-cap flags stored in the block-map green channel (bit0=top, bit1=bottom). */
-export const CHAIN_CAP_NONE = 0;
-export const CHAIN_CAP_TOP = 1;
-export const CHAIN_CAP_BOTTOM = 2;
-export const CHAIN_CAP_BOTH = CHAIN_CAP_TOP | CHAIN_CAP_BOTTOM;
-
-export function encodeChainCaps(flags: number): number {
-  return flags * 64;
+export function decodeStripeIndex(encoded: number): number {
+  return Math.max(STRIPE_INDEX_NONE, Math.min(STRIPE_INDEX_MAX, Math.round(encoded)));
 }

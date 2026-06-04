@@ -30,29 +30,30 @@ function generateTypesSource(snapshot: ReactExportSnapshot): string {
   const config = snapshotToAsciiVideoConfig(snapshot);
   const configJson = JSON.stringify(config, null, 2);
 
-  return `export type StripeBandBreakpoints = readonly [number, number, number, number];
+  return `export type Rgb01 = [number, number, number];
 
-export type StripeBandEnabled = readonly [boolean, boolean, boolean, boolean, boolean];
-
-export type StripeBandColors = {
-  bandHex: readonly [string, string, string, string, string];
-  bandDisplayP3Css: readonly [string, string, string, string, string];
-  bandEnabled: StripeBandEnabled;
+/** One luminosity stripe: a color shown for source cells at/above \`startFrom\`. */
+export type Stripe = {
+  hex: string;
+  /** Wide-gamut CSS, e.g. "color(display-p3 r g b)". */
+  p3Css: string;
+  /** Lower luminance bound 0–1. */
+  startFrom: number;
+  /** Stripe thickness in px. */
+  width: number;
 };
+
+export type StripeColors = { stripes: Stripe[] };
 
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
   sparkleGapsActivePercent?: number;
   sparkleGapsSpeed?: number;
-  ignoreTolerance: number;
-  threshold: number;
-  density: number;
+  sparkleWidthActivePercent?: number;
+  sparkleWidthSpeed?: number;
   displayWidth?: number;
   displayHeight?: number;
-  bandBreakpoints: StripeBandBreakpoints;
-  bandEnabled: StripeBandEnabled;
-  bandHex: readonly [string, string, string, string, string];
-  bandDisplayP3Css: readonly [string, string, string, string, string];
+  stripes: Stripe[];
 };
 
 export type AsciiVideoProps = {
@@ -67,26 +68,11 @@ export type AsciiVideoProps = {
 
 export const defaultConfig: AsciiVideoConfig = ${configJson};
 
-export function configToStripeBandColors(config: AsciiVideoConfig): StripeBandColors {
-  return {
-    bandHex: config.bandHex,
-    bandDisplayP3Css: config.bandDisplayP3Css,
-    bandEnabled: config.bandEnabled,
-  };
+export function configToStripeColors(config: AsciiVideoConfig): StripeColors {
+  return { stripes: config.stripes };
 }
-
-export type Rgb01 = [number, number, number];
 
 export { hexToRgb01 } from "./colorSpace";
-
-export function configToStripeOptions(config: AsciiVideoConfig) {
-  return {
-    ignoreTolerance: config.ignoreTolerance,
-    threshold: config.threshold,
-    density: config.density,
-    bandBreakpoints: config.bandBreakpoints,
-  };
-}
 `;
 }
 
@@ -100,7 +86,7 @@ const EXPORT_PARITY_STEPS = [
   "The export matches the Section Grid Playground renderer. To get a **1:1** result:",
   "",
   "- Copy **every** file from step 6 into `ascii-video/` — including `scene.ts`, `pixi.tsx`, `pixiUtils.ts`, and the entire `runtime/` folder. Do not merge or simplify modules.",
-  "- Use exported `defaultConfig` **unchanged** (luminance threshold, threshold, density, band hex, breakpoints, `displayWidth` / `displayHeight`).",
+  "- Use exported `defaultConfig` **unchanged** (stripe colors, `startFrom` thresholds, widths, `displayWidth` / `displayHeight`).",
   "- Use the **same media file** the user exported from, at a public URL/path the app can load with CORS (`crossOrigin` is set on the element).",
   "- Match `displayWidth` × `displayHeight` from `defaultConfig` — these are the logical canvas dimensions from the playground.",
   "- Add Berkeley Mono for stripe letters (required for correct glyphs):",
@@ -120,7 +106,7 @@ const EXPORT_PARITY_STEPS = [
   "",
   "  The family name must be exactly `Berkeley Mono Trial` (see `runtime/stripeLetterFont.ts`).",
   "- Give the component wrapper an explicit height/width (or use `displayWidth` / `displayHeight` from config).",
-  "- Do **not** rewrite the renderer, swap in a simplified canvas loop, or change band/ignore settings unless the user asks.",
+  "- Do **not** rewrite the renderer, swap in a simplified canvas loop, or change stripe settings unless the user asks.",
 ].join("\n");
 
 function buildUsageSnippet(resolved: ResolvedExportPaths): string {

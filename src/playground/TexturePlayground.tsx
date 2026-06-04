@@ -65,29 +65,36 @@ import { PlaygroundControlSection } from "./PlaygroundControlSection";
 import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
-  buildStripeColors,
-  DEFAULT_STRIPE_BAND_ENABLED,
-  PLAYGROUND_STRIPE_BAND_HEX,
-  PLAYGROUND_STRIPE_BAND_SWATCH_P3,
-  toggleStripeBandEnabled,
-  type StripeBandEnabled,
+  cloneDefaultStripes,
+  DEFAULT_STRIPES,
+  hexToDisplayP3Css,
+  STRIPE_START_FROM_MAX,
+  STRIPE_START_FROM_MIN,
+  STRIPE_WIDTH_MAX,
+  STRIPE_WIDTH_MIN,
+  updateStripe,
+  type Stripe,
   type StripeColors,
 } from "./stripeColors";
-import {
-  DEFAULT_STRIPE_BAND_BREAKPOINTS,
-  normalizeStripeBandBreakpoints,
-  setStripeBandBreakpoint,
-  STRIPE_BAND_BREAKPOINT_MIN_GAP,
-  STRIPE_BAND_BREAKPOINT_ORDER_EPS,
-  stripeBandDistanceLabel,
-  type StripeBandBreakpoints,
-} from "./stripeBandThresholds";
-import {
-  DEFAULT_STRIPE_DENSITY,
-  DEFAULT_STRIPE_DUOTONE_OPTIONS,
-  DEFAULT_STRIPE_THRESHOLD,
-  type StripeDuotoneOptions,
-} from "./stripeFilterOptions";
+
+/** Bordered grid-cell styling for stripe numeric fields (commit on Enter/blur). */
+const STRIPE_FIELD_INPUT_CLASS =
+  "h-7 w-full rounded border border-neutral-300 px-1.5 text-right text-xs tabular-nums text-neutral-700 focus:border-neutral-400 focus:outline-none disabled:cursor-not-allowed";
+
+/** True when the stripe list differs from DEFAULT_STRIPES (ignoring ids). */
+function stripesMatchDefault(stripes: readonly Stripe[]): boolean {
+  if (stripes.length !== DEFAULT_STRIPES.length) {
+    return false;
+  }
+  return stripes.every((stripe, index) => {
+    const base = DEFAULT_STRIPES[index]!;
+    return (
+      stripe.hex.toLowerCase() === base.hex.toLowerCase() &&
+      stripe.startFrom === base.startFrom &&
+      stripe.width === base.width
+    );
+  });
+}
 
 type TextureLayout = {
   width: number;
@@ -193,9 +200,6 @@ function disposeImageElement(image: HTMLImageElement) {
 
 function applyPersistedConfig(config: PlaygroundPersistedConfig) {
   return {
-    ignoreTolerance: config.ignoreTolerance,
-    threshold: config.threshold,
-    density: config.density,
     duotoneEnabled: config.duotoneEnabled,
     sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(config),
     sparkleGapsSpeed: resolvePersistedSparkleGapsSpeed(config),
@@ -203,7 +207,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     sparkleWidthSpeed: resolvePersistedSparkleWidthSpeed(config),
     displayWidth: config.displayWidth,
     displayHeight: config.displayHeight,
-    bandBreakpoints: normalizeStripeBandBreakpoints(config.bandBreakpoints ?? DEFAULT_STRIPE_BAND_BREAKPOINTS),
+    stripes: config.stripes.map((stripe) => ({ ...stripe })),
   };
 }
 
@@ -291,16 +295,12 @@ export function TexturePlayground() {
 
   const [selectedTextureId, setSelectedTextureId] = useState<PlaygroundTextureId>(initialId);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
-  const [ignoreTolerance, setIgnoreTolerance] = useState(appliedInitial.ignoreTolerance);
-  const threshold = DEFAULT_STRIPE_THRESHOLD;
-  const density = DEFAULT_STRIPE_DENSITY;
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
   const [sparkleGapsActivePercent, setSparkleGapsActivePercent] = useState(appliedInitial.sparkleGapsActivePercent);
   const [sparkleGapsSpeed, setSparkleGapsSpeed] = useState(appliedInitial.sparkleGapsSpeed);
   const [sparkleWidthActivePercent, setSparkleWidthActivePercent] = useState(appliedInitial.sparkleWidthActivePercent);
   const [sparkleWidthSpeed, setSparkleWidthSpeed] = useState(appliedInitial.sparkleWidthSpeed);
-  const [enabledBands, setEnabledBands] = useState<StripeBandEnabled>(() => [...DEFAULT_STRIPE_BAND_ENABLED]);
-  const [bandBreakpoints, setBandBreakpoints] = useState<StripeBandBreakpoints>(() => appliedInitial.bandBreakpoints);
+  const [stripes, setStripes] = useState<Stripe[]>(() => appliedInitial.stripes);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
   const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "failed">("idle");
@@ -318,8 +318,7 @@ export function TexturePlayground() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const stripeOptionsRef = useRef<StripeDuotoneOptions>(DEFAULT_STRIPE_DUOTONE_OPTIONS);
-  const stripeColorsRef = useRef<StripeColors>(buildStripeColors());
+  const stripeColorsRef = useRef<StripeColors>({ stripes });
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
   const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromSliders(sparkleGapsActivePercent, sparkleGapsSpeed));
@@ -375,12 +374,9 @@ export function TexturePlayground() {
           ? sparkleWidthActivePercent
           : undefined,
       sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
-      ignoreTolerance,
-      threshold,
-      density,
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
       displayHeight: displayHeight > 0 ? displayHeight : undefined,
-      bandBreakpoints,
+      stripes,
     };
     schedulePersistedConfig(selectedTextureId, config);
   }, [
@@ -390,12 +386,9 @@ export function TexturePlayground() {
     sparkleGapsSpeed,
     sparkleWidthActivePercent,
     sparkleWidthSpeed,
-    ignoreTolerance,
-    threshold,
-    density,
     displayWidth,
     displayHeight,
-    bandBreakpoints,
+    stripes,
   ]);
 
   useEffect(() => {
@@ -414,7 +407,6 @@ export function TexturePlayground() {
 
   const applyConfig = useCallback((config: PlaygroundPersistedConfig) => {
     const next = applyPersistedConfig(config);
-    setIgnoreTolerance(next.ignoreTolerance);
     setDuotoneEnabled(next.duotoneEnabled);
     setSparkleGapsActivePercent(resolvePersistedSparkleGapsActivePercent(config));
     setSparkleGapsSpeed(resolvePersistedSparkleGapsSpeed(config));
@@ -426,7 +418,7 @@ export function TexturePlayground() {
     if (next.displayHeight && next.displayHeight > 0) {
       setDisplayHeight(next.displayHeight);
     }
-    setBandBreakpoints(next.bandBreakpoints);
+    setStripes(next.stripes);
   }, []);
 
   const matchSourceDisplaySize = useCallback(() => {
@@ -457,21 +449,46 @@ export function TexturePlayground() {
   );
 
   useEffect(() => {
-    stripeOptionsRef.current = {
-      ignoreTolerance,
-      threshold,
-      density,
-      bandBreakpoints,
-    };
-  }, [ignoreTolerance, threshold, density, bandBreakpoints]);
+    stripeColorsRef.current = { stripes };
+  }, [stripes]);
 
-  useEffect(() => {
-    stripeColorsRef.current = buildStripeColors(enabledBands);
-  }, [enabledBands]);
-
-  const toggleStripeBand = useCallback((index: number) => {
-    setEnabledBands((previous) => toggleStripeBandEnabled(previous, index));
+  const onStripeColorChange = useCallback((id: string, hex: string) => {
+    setStripes((previous) => updateStripe({ stripes: previous }, id, { hex, p3Css: hexToDisplayP3Css(hex) }).stripes);
   }, []);
+
+  const onStripeStartFromChange = useCallback((id: string, value: number) => {
+    setStripes((previous) => updateStripe({ stripes: previous }, id, { startFrom: value }).stripes);
+  }, []);
+
+  const onStripeWidthChange = useCallback((id: string, value: number) => {
+    setStripes((previous) => updateStripe({ stripes: previous }, id, { width: value }).stripes);
+  }, []);
+
+  const resetStripes = useCallback(() => {
+    setStripes(cloneDefaultStripes());
+  }, []);
+
+  const resetGeneral = useCallback(() => {
+    setDuotoneEnabled(true);
+  }, []);
+
+  const resetSparkleGaps = useCallback(() => {
+    setSparkleGapsActivePercent(0);
+    setSparkleGapsSpeed(DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED);
+  }, []);
+
+  const resetSparkleWidth = useCallback(() => {
+    setSparkleWidthActivePercent(DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT);
+    setSparkleWidthSpeed(DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED);
+  }, []);
+
+  const generalModified = !duotoneEnabled;
+  const stripesModified = !stripesMatchDefault(stripes);
+  const sparkleGapsModified =
+    sparkleGapsActivePercent !== 0 || sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
+  const sparkleWidthModified =
+    sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT ||
+    sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED;
 
   useEffect(() => {
     if (!hydrated) {
@@ -585,7 +602,6 @@ export function TexturePlayground() {
       createTextureSceneTicker(
         textureSource,
         displaySize,
-        stripeOptionsRef,
         stripeColorsRef,
         preferP3Ref,
         duotoneEnabledRef,
@@ -633,12 +649,9 @@ export function TexturePlayground() {
           ? sparkleWidthActivePercent
           : undefined,
       sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
-      ignoreTolerance,
-      threshold,
-      density,
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
       displayHeight: displayHeight > 0 ? displayHeight : undefined,
-      bandBreakpoints,
+      stripes,
     };
     const ok = await copyPlaygroundStateToClipboard(config);
     setCopyFeedback(ok ? "copied" : "failed");
@@ -719,9 +732,8 @@ export function TexturePlayground() {
       return;
     }
 
-    const options = stripeOptionsRef.current;
     const colors = stripeColorsRef.current;
-    const built = buildPlaygroundBlockGrid(frame, display.width, display.height, options, {});
+    const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, {});
     const svg = stripeGridToSvg(built.grid, colors, display.width, display.height);
 
     try {
@@ -759,14 +771,10 @@ export function TexturePlayground() {
               : undefined,
           sparkleWidthSpeed:
             sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
-          ignoreTolerance,
-          threshold,
-          density,
           displayWidth: displayWidth > 0 ? displayWidth : undefined,
           displayHeight: displayHeight > 0 ? displayHeight : undefined,
-          bandBreakpoints,
+          stripes,
         },
-        bandEnabled: enabledBands,
         displayWidth: displayWidth > 0 ? displayWidth : 640,
         displayHeight: displayHeight > 0 ? displayHeight : 360,
         mediaKind: loadState.status === "ready" ? loadState.kind : "video",
@@ -777,13 +785,9 @@ export function TexturePlayground() {
       sparkleGapsSpeed,
       sparkleWidthActivePercent,
       sparkleWidthSpeed,
-      ignoreTolerance,
-      threshold,
-      density,
       displayWidth,
       displayHeight,
-      bandBreakpoints,
-      enabledBands,
+      stripes,
       loadState,
     ],
   );
@@ -893,7 +897,14 @@ export function TexturePlayground() {
             {uploadError ? <p className="m-0 text-xs text-red-700">{uploadError}</p> : null}
           </div>
 
-          <PlaygroundControlSection title="General" defaultOpen testId="playground-section-general" className="mt-4">
+          <PlaygroundControlSection
+            title="General"
+            defaultOpen
+            testId="playground-section-general"
+            className="mt-4"
+            modified={generalModified}
+            onReset={resetGeneral}
+          >
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -904,100 +915,81 @@ export function TexturePlayground() {
               />
               <span className="text-neutral-800">Shader enabled</span>
             </label>
-
-            <ControlField
-              label="Gamma"
-              value={ignoreTolerance}
-              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.gamma.min}
-              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.gamma.max}
-              onValueChange={setIgnoreTolerance}
-              formatDisplay={(v) => v.toFixed(3)}
-              valueAriaLabel="Gamma (foreground luminance cutoff)"
-              disabled={duotoneControlsDisabled}
-            >
-              <input
-                type="range"
-                min={PLAYGROUND_CONTROL_RANGES.gamma.min}
-                max={PLAYGROUND_CONTROL_RANGES.gamma.max}
-                step={PLAYGROUND_CONTROL_RANGES.gamma.step}
-                value={Math.min(ignoreTolerance, PLAYGROUND_CONTROL_RANGES.gamma.max)}
-                onChange={(event) => setIgnoreTolerance(Number(event.target.value))}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Gamma (foreground luminance cutoff)"
-              />
-            </ControlField>
           </PlaygroundControlSection>
 
-          <PlaygroundControlSection title="Stripes" defaultOpen testId="playground-section-stripes">
-            <div className={`flex flex-col gap-3 ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
-              <span className="text-sm text-neutral-600">Colors</span>
-              {PLAYGROUND_STRIPE_BAND_HEX.map((hex, index) => {
-                const p3Css = PLAYGROUND_STRIPE_BAND_SWATCH_P3[index] ?? hex;
-                const rangeLabel = stripeBandDistanceLabel(bandBreakpoints, index);
-                const hasUpperSlider = index < PLAYGROUND_STRIPE_BAND_HEX.length - 1;
-                const orderPad = STRIPE_BAND_BREAKPOINT_MIN_GAP || STRIPE_BAND_BREAKPOINT_ORDER_EPS;
-                const sliderStep = PLAYGROUND_CONTROL_RANGES.bandBreakpoint.step;
-                const sliderMin =
-                  index === 0
-                    ? PLAYGROUND_CONTROL_RANGES.bandBreakpoint.min
-                    : bandBreakpoints[index - 1]! + STRIPE_BAND_BREAKPOINT_MIN_GAP;
-                const sliderMax = hasUpperSlider
-                  ? Math.max(
-                      sliderMin + sliderStep,
-                      index < PLAYGROUND_STRIPE_BAND_HEX.length - 2
-                        ? bandBreakpoints[index + 1]! - orderPad
-                        : PLAYGROUND_CONTROL_RANGES.bandBreakpoint.max,
-                    )
-                  : PLAYGROUND_CONTROL_RANGES.bandBreakpoint.max;
-
-                return (
-                  <div key={`stripe-band-${index}`} className="flex flex-col gap-1.5">
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={enabledBands[index]}
-                        onChange={() => toggleStripeBand(index)}
-                        disabled={duotoneControlsDisabled}
-                        className="size-4 shrink-0 cursor-pointer rounded border-neutral-300 disabled:cursor-not-allowed"
-                        aria-label={`Show ${hex} stripes`}
-                      />
-                      <span
-                        className="playground-stripe-swatch size-3.5 shrink-0 rounded-sm border border-neutral-200"
-                        style={
-                          {
-                            ["--stripe-swatch-fallback" as string]: hex,
-                            ["--stripe-swatch-p3" as string]: p3Css,
-                          } as CSSProperties
-                        }
-                        aria-hidden
-                      />
-                      <span className="ml-auto tabular-nums text-xs text-neutral-500">{rangeLabel}</span>
-                    </label>
-                    {hasUpperSlider ? (
-                      <input
-                        type="range"
-                        min={sliderMin}
-                        max={sliderMax}
-                        step={PLAYGROUND_CONTROL_RANGES.bandBreakpoint.step}
-                        value={bandBreakpoints[index]}
-                        onChange={(event) =>
-                          setBandBreakpoints((previous) =>
-                            setStripeBandBreakpoint(previous, index, Number(event.target.value)),
-                          )
-                        }
-                        disabled={duotoneControlsDisabled}
-                        className="w-full disabled:cursor-not-allowed"
-                        aria-label={`Upper distance for ${hex} (${rangeLabel})`}
-                      />
-                    ) : null}
-                  </div>
-                );
-              })}
+          <PlaygroundControlSection
+            title="Stripes"
+            defaultOpen
+            testId="playground-section-stripes"
+            modified={stripesModified}
+            onReset={resetStripes}
+          >
+            <div className={`flex flex-col gap-1.5 ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
+              {stripes.length === 0 ? (
+                <p className="m-0 text-xs text-neutral-500">No stripes.</p>
+              ) : (
+                <div className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2 text-xs text-neutral-500">
+                  <span>Color</span>
+                  <span>Threshold</span>
+                  <span>Width</span>
+                </div>
+              )}
+              {stripes.map((stripe) => (
+                <div
+                  key={stripe.id}
+                  className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2"
+                  data-testid="playground-stripe-row"
+                >
+                  <span
+                    className="playground-stripe-swatch relative block h-7 w-7 overflow-hidden rounded border border-neutral-200"
+                    style={
+                      {
+                        ["--stripe-swatch-fallback" as string]: stripe.hex,
+                        ["--stripe-swatch-p3" as string]: stripe.p3Css,
+                      } as CSSProperties
+                    }
+                  >
+                    <input
+                      type="color"
+                      value={stripe.hex}
+                      disabled={duotoneControlsDisabled}
+                      onChange={(event) => onStripeColorChange(stripe.id, event.target.value)}
+                      className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                      aria-label="Stripe color"
+                    />
+                  </span>
+                  <ControlValueInput
+                    value={stripe.startFrom}
+                    inputMin={STRIPE_START_FROM_MIN}
+                    inputMax={STRIPE_START_FROM_MAX}
+                    disabled={duotoneControlsDisabled}
+                    onChange={(value) => onStripeStartFromChange(stripe.id, value)}
+                    ariaLabel="Stripe start from luminance"
+                    title="Start from (0–1 luminance)"
+                    className={STRIPE_FIELD_INPUT_CLASS}
+                  />
+                  <ControlValueInput
+                    value={stripe.width}
+                    inputMin={STRIPE_WIDTH_MIN}
+                    inputMax={STRIPE_WIDTH_MAX}
+                    disabled={duotoneControlsDisabled}
+                    onChange={(value) => onStripeWidthChange(stripe.id, value)}
+                    ariaLabel="Stripe width in px"
+                    title="Width (px)"
+                    className={STRIPE_FIELD_INPUT_CLASS}
+                  />
+                </div>
+              ))}
             </div>
           </PlaygroundControlSection>
 
-          <PlaygroundControlSection title="Sparkle Gaps" defaultOpen testId="playground-section-sparkle-gaps">
+          <PlaygroundControlSection
+            title="Sparkle Gaps"
+            defaultOpen
+            testId="playground-section-sparkle-gaps"
+            modified={sparkleGapsModified}
+            onReset={resetSparkleGaps}
+          >
             <ControlField
               label="Active ratio"
               value={sparkleGapsActivePercent}
@@ -1046,7 +1038,13 @@ export function TexturePlayground() {
             </ControlField>
           </PlaygroundControlSection>
 
-          <PlaygroundControlSection title="Sparkle Width" defaultOpen testId="playground-section-sparkle-width">
+          <PlaygroundControlSection
+            title="Sparkle Width"
+            defaultOpen
+            testId="playground-section-sparkle-width"
+            modified={sparkleWidthModified}
+            onReset={resetSparkleWidth}
+          >
             <ControlField
               label="Active ratio"
               value={sparkleWidthActivePercent}

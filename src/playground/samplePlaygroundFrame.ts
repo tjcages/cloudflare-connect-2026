@@ -1,9 +1,9 @@
 import { computeBlockGrid, type BlockGrid } from "./computeBlockGrid";
-import { smoothBlockGridBands } from "./stabilizeBlockGrid";
-import type { StripeDuotoneOptions } from "./stripeFilterOptions";
+import { smoothBlockGridIndices } from "./stabilizeBlockGrid";
+import { resolveStripeIndices, type StripeColors } from "./stripeColors";
 
 export type PlaygroundGridBuildState = {
-  stableBands?: Uint8Array;
+  stableIndices?: Uint8Array;
 };
 
 export function sampleTextureFrame(
@@ -39,14 +39,15 @@ export function buildPlaygroundBlockGrid(
   frame: ImageData,
   displayWidth: number,
   displayHeight: number,
-  options: StripeDuotoneOptions,
+  colors: StripeColors,
   state: PlaygroundGridBuildState,
 ): { grid: BlockGrid; state: PlaygroundGridBuildState } {
-  const rawGrid = computeBlockGrid(frame.data, displayWidth, displayHeight, options);
-  const stableBands = smoothBlockGridBands(rawGrid.bands, state.stableBands);
+  const lumaGrid = computeBlockGrid(frame.data, displayWidth, displayHeight);
+  const rawIndices = resolveStripeIndices(lumaGrid.luma, colors.stripes);
+  const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices);
 
   return {
-    grid: { cols: rawGrid.cols, rows: rawGrid.rows, bands: stableBands },
-    state: { stableBands },
+    grid: { cols: lumaGrid.cols, rows: lumaGrid.rows, indices: stableIndices },
+    state: { stableIndices },
   };
 }

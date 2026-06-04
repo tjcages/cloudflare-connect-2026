@@ -2,7 +2,7 @@ import { Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
 import type { Ticker } from "./pixi";
 import { createStripeDuotoneFilter } from "./shaders";
-import type { StripeBandColors } from "./types";
+import type { StripeColors } from "./types";
 import { BlockGridTexture } from "./runtime/blockGridTexture";
 import type { BlockGrid } from "./runtime/computeBlockGrid";
 import {
@@ -11,7 +11,6 @@ import {
   sampleVideoFrame,
   type PlaygroundGridBuildState,
 } from "./runtime/samplePlaygroundFrame";
-import type { StripeDuotoneOptions } from "./runtime/stripeFilterOptions";
 import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./runtime/stripeLetterFont";
 import type { PlaygroundSparkleOptions } from "./runtime/playgroundSparkle";
 import type { PlaygroundWidthShuffleOptions } from "./runtime/playgroundWidthShuffle";
@@ -40,7 +39,7 @@ export type PlaygroundDisplaySize = { width: number; height: number };
 
 export type PlaygroundSceneExportState = {
   grid: BlockGrid | null;
-  colors: StripeBandColors;
+  colors: StripeColors;
   displayWidth: number;
   displayHeight: number;
 };
@@ -130,8 +129,7 @@ function runDuotoneTick(params: {
   duotoneEnabledRef: RefObject<boolean>;
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>;
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>;
-  stripeOptionsRef: RefObject<StripeDuotoneOptions>;
-  stripeColorsRef: RefObject<StripeBandColors>;
+  stripeColorsRef: RefObject<StripeColors>;
   preferP3Ref: RefObject<boolean>;
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
@@ -149,7 +147,6 @@ function runDuotoneTick(params: {
     duotoneEnabledRef,
     sparkleOptionsRef,
     widthShuffleOptionsRef,
-    stripeOptionsRef,
     stripeColorsRef,
     preferP3Ref,
     display,
@@ -162,7 +159,6 @@ function runDuotoneTick(params: {
   } = params;
 
   let duotoneActive = duotoneEnabledRef.current;
-  let lastOptionsKey = "";
   let lastColorsKey = "";
   let gridState: PlaygroundGridBuildState = {};
   let lastGridUpdateMs = 0;
@@ -177,7 +173,7 @@ function runDuotoneTick(params: {
       sprite.filters = duotoneActive ? [stripeFilter] : null;
       letterLayer.setVisible(duotoneActive);
       if (duotoneActive) {
-        lastOptionsKey = "";
+        lastColorsKey = "";
         hasBuiltGrid = false;
       } else {
         letterLayer.sync(null);
@@ -197,14 +193,11 @@ function runDuotoneTick(params: {
       return;
     }
 
-    const options = stripeOptionsRef.current;
     const colors = stripeColorsRef.current;
-    const optionsKey = JSON.stringify(options);
     const colorsKey = JSON.stringify(colors);
-    const optionsChanged = optionsKey !== lastOptionsKey;
     const colorsChanged = colorsKey !== lastColorsKey;
     const timeChanged = shouldSample();
-    const needsSample = timeChanged || optionsChanged || colorsChanged || !hasBuiltGrid;
+    const needsSample = timeChanged || colorsChanged || !hasBuiltGrid;
 
     if (colorsChanged) {
       lastColorsKey = colorsKey;
@@ -218,20 +211,18 @@ function runDuotoneTick(params: {
 
     const shouldRebuildGrid =
       frame &&
-      (optionsChanged ||
-        colorsChanged ||
+      (colorsChanged ||
         !hasBuiltGrid ||
         (timeChanged && performance.now() - lastGridUpdateMs >= PLAYGROUND_GRID_UPDATE_INTERVAL_MS));
 
     if (shouldRebuildGrid && frame) {
       hasBuiltGrid = true;
-      lastOptionsKey = optionsKey;
       lastGridUpdateMs = performance.now();
-      if (optionsChanged) {
+      if (colorsChanged) {
         gridState = {};
       }
 
-      const built = buildPlaygroundBlockGrid(frame, display.width, display.height, options, gridState);
+      const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, gridState);
       gridState = built.state;
       blockGridTexture.update(built.grid);
       stripeFilter.updateBlockMap(blockGridTexture.texture);
@@ -247,12 +238,12 @@ function runDuotoneTick(params: {
           displayHeight: display.height,
         };
       }
-    } else if (exportStateRef && gridState.stableBands) {
+    } else if (exportStateRef && gridState.stableIndices) {
       exportStateRef.current = {
         grid: {
           cols: blockGridTexture.cols,
           rows: blockGridTexture.rows,
-          bands: gridState.stableBands,
+          indices: gridState.stableIndices,
         },
         colors,
         displayWidth: display.width,
@@ -277,8 +268,7 @@ function runDuotoneTick(params: {
 export function createTextureSceneTicker(
   source: PlaygroundTextureSource,
   display: PlaygroundDisplaySize,
-  stripeOptionsRef: RefObject<StripeDuotoneOptions>,
-  stripeColorsRef: RefObject<StripeBandColors>,
+  stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
@@ -290,7 +280,6 @@ export function createTextureSceneTicker(
     return createImageSceneTicker(
       source.element,
       display,
-      stripeOptionsRef,
       stripeColorsRef,
       preferP3Ref,
       duotoneEnabledRef,
@@ -302,7 +291,6 @@ export function createTextureSceneTicker(
   return createVideoSceneTickerInternal(
     source.element,
     display,
-    stripeOptionsRef,
     stripeColorsRef,
     preferP3Ref,
     duotoneEnabledRef,
@@ -316,8 +304,7 @@ export function createTextureSceneTicker(
 function createImageSceneTicker(
   image: HTMLImageElement,
   display: PlaygroundDisplaySize,
-  stripeOptionsRef: RefObject<StripeDuotoneOptions>,
-  stripeColorsRef: RefObject<StripeBandColors>,
+  stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
@@ -361,7 +348,6 @@ function createImageSceneTicker(
       duotoneEnabledRef,
       sparkleOptionsRef,
       widthShuffleOptionsRef,
-      stripeOptionsRef,
       stripeColorsRef,
       preferP3Ref,
       display,
@@ -391,8 +377,7 @@ function createImageSceneTicker(
 function createVideoSceneTickerInternal(
   video: HTMLVideoElement,
   display: PlaygroundDisplaySize,
-  stripeOptionsRef: RefObject<StripeDuotoneOptions>,
-  stripeColorsRef: RefObject<StripeBandColors>,
+  stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
@@ -444,7 +429,6 @@ function createVideoSceneTickerInternal(
       duotoneEnabledRef,
       sparkleOptionsRef,
       widthShuffleOptionsRef,
-      stripeOptionsRef,
       stripeColorsRef,
       preferP3Ref,
       display,
@@ -486,8 +470,7 @@ function createVideoSceneTickerInternal(
 export function createVideoSceneTicker(
   video: HTMLVideoElement,
   display: PlaygroundDisplaySize,
-  stripeOptionsRef: RefObject<StripeDuotoneOptions>,
-  stripeColorsRef: RefObject<StripeBandColors>,
+  stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
@@ -498,7 +481,6 @@ export function createVideoSceneTicker(
   return createTextureSceneTicker(
     { kind: "video", element: video },
     display,
-    stripeOptionsRef,
     stripeColorsRef,
     preferP3Ref,
     duotoneEnabledRef,

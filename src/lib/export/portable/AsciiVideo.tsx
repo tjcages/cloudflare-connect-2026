@@ -6,7 +6,6 @@ import {
   playgroundPrefersDisplayP3,
 } from "./playgroundColorSpace";
 import { preloadStripeLetterFont } from "./runtime/stripeLetterFont";
-import type { StripeDuotoneOptions } from "./runtime/stripeFilterOptions";
 import {
   createTextureSceneTicker,
   getPlaygroundTextureNativeSize,
@@ -25,13 +24,7 @@ import {
   resolvePersistedSparkleWidthActivePercent,
   resolvePersistedSparkleWidthSpeed,
 } from "./runtime/playgroundWidthShuffle";
-import {
-  configToStripeBandColors,
-  configToStripeOptions,
-  defaultConfig,
-  type AsciiVideoProps,
-  type StripeBandColors,
-} from "./types";
+import { configToStripeColors, defaultConfig, type AsciiVideoProps, type StripeColors } from "./types";
 
 export type { AsciiVideoConfig, AsciiVideoProps } from "./types";
 export { defaultConfig } from "./types";
@@ -106,8 +99,7 @@ export function AsciiVideo({
   const configRef = useRef(config);
   configRef.current = config;
 
-  const stripeOptionsRef = useRef<StripeDuotoneOptions>(configToStripeOptions(config));
-  const stripeColorsRef = useRef<StripeBandColors>(configToStripeBandColors(config));
+  const stripeColorsRef = useRef<StripeColors>(configToStripeColors(config));
   const duotoneEnabledRef = useRef(config.duotoneEnabled);
   const sparkleOptionsRef = useRef(
     playgroundSparkleOptionsFromSliders(
@@ -124,8 +116,7 @@ export function AsciiVideo({
   const autoplayRef = useRef(autoplay);
   const preferP3Ref = useRef(false);
 
-  stripeOptionsRef.current = configToStripeOptions(config);
-  stripeColorsRef.current = configToStripeBandColors(config);
+  stripeColorsRef.current = configToStripeColors(config);
   duotoneEnabledRef.current = config.duotoneEnabled;
   sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(
     resolvePersistedSparkleGapsActivePercent(config),
@@ -168,7 +159,6 @@ export function AsciiVideo({
       createTextureSceneTicker(
         loadState.source,
         displaySize,
-        stripeOptionsRef,
         stripeColorsRef,
         preferP3Ref,
         duotoneEnabledRef,

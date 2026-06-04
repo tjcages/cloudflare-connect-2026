@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { widthPxFromBand } from "./stripeGridConstants";
+import { decodeStripeIndex, encodeStripeIndex, STRIPE_INDEX_MAX } from "./stripeGridConstants";
 
-describe("widthPxFromBand", () => {
-  it("maps bands 1–5 to 1–5px stripe widths", () => {
-    expect(widthPxFromBand(1)).toBe(1);
-    expect(widthPxFromBand(2)).toBe(2);
-    expect(widthPxFromBand(3)).toBe(3);
-    expect(widthPxFromBand(4)).toBe(4);
-    expect(widthPxFromBand(5)).toBe(5);
+describe("stripe index encoding", () => {
+  it("stores the stripe index directly in the byte range", () => {
+    expect(encodeStripeIndex(0)).toBe(0);
+    expect(encodeStripeIndex(1)).toBe(1);
+    expect(encodeStripeIndex(6)).toBe(6);
+    expect(encodeStripeIndex(STRIPE_INDEX_MAX + 10)).toBe(STRIPE_INDEX_MAX);
+  });
+
+  it("round-trips through decode", () => {
+    for (const index of [0, 1, 5, 42, 255]) {
+      expect(decodeStripeIndex(encodeStripeIndex(index))).toBe(index);
+    }
+  });
+
+  it("treats negative input as background", () => {
+    expect(encodeStripeIndex(-3)).toBe(0);
   });
 });

@@ -1,16 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { cloneDefaultStripes } from "../../playground/stripeColors";
 import { buildAiInstructions, buildReactExport } from "./buildReactExport";
 import { buildPlaygroundExportSnapshot } from "./playgroundSnapshot";
 
 const baseSnapshot = buildPlaygroundExportSnapshot({
   config: {
     duotoneEnabled: true,
-    ignoreTolerance: 0.08,
-    threshold: 0.72,
-    density: 1,
-    bandBreakpoints: [1, 2, 3, 4],
+    stripes: cloneDefaultStripes(),
   },
-  bandEnabled: [true, true, true, true, true],
   displayWidth: 640,
   displayHeight: 360,
   mediaKind: "video",

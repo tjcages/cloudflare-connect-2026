@@ -1,6 +1,7 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
-import { bandUniformRgb } from "./colorSpace";
-import type { StripeBandColors } from "./types";
+import type { StripeColors } from "./types";
+import { resolveStripePalette } from "./runtime/stripes";
+import { StripePaletteTexture } from "./runtime/stripePaletteTexture";
 import { DEFAULT_PLAYGROUND_SPARKLE_OPTIONS, type PlaygroundSparkleOptions } from "./runtime/playgroundSparkle";
 import {
   DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS,
@@ -43,19 +44,11 @@ out vec4 finalColor;
 
 uniform sampler2D uTexture;
 uniform sampler2D uBlockMap;
+uniform sampler2D uStripeData;
+uniform float uStripeCount;
 uniform vec2 uPixelSize;
 uniform vec2 uFrameSize;
 uniform vec2 uGridSize;
-uniform vec3 uColorBand0;
-uniform vec3 uColorBand1;
-uniform vec3 uColorBand2;
-uniform vec3 uColorBand3;
-uniform vec3 uColorBand4;
-uniform float uBandEnabled0;
-uniform float uBandEnabled1;
-uniform float uBandEnabled2;
-uniform float uBandEnabled3;
-uniform float uBandEnabled4;
 uniform float uDebugVideoAlpha;
 uniform float uSparkleEnabled;
 uniform float uSparkleTime;
@@ -69,8 +62,7 @@ uniform float uWidthShufflePeriodMinSec;
 uniform float uWidthShufflePeriodMaxSec;
 
 const float CELL_SIZE = 7.0;
-const float STRIPE_BAND_COUNT = 5.0;
-const float STRIPE_MAX_WIDTH = 5.0;
+const float STRIPE_MAX_WIDTH = 7.0;
 const float MIN_STRIPE_HEIGHT = 7.0;
 const float ROW_WIDTH_GAP = 1.0;
 
@@ -98,32 +90,6 @@ float stripeHorizontalCoverage(float relX, float halfW, float soften) {
     return 1.0 - smoothstep(0.0, 0.85, dist);
 }
 
-float decodeStripeBand(float encoded) {
-    if (encoded < 0.5 / STRIPE_BAND_COUNT) {
-        return 0.0;
-    }
-    if (encoded >= 4.5 / STRIPE_BAND_COUNT) {
-        return 5.0;
-    }
-    if (encoded >= 3.5 / STRIPE_BAND_COUNT) {
-        return 4.0;
-    }
-    if (encoded >= 2.5 / STRIPE_BAND_COUNT) {
-        return 3.0;
-    }
-    if (encoded >= 1.5 / STRIPE_BAND_COUNT) {
-        return 2.0;
-    }
-    return 1.0;
-}
-
-float widthPxFromBand(float band) {
-    if (band < 0.5) {
-        return 0.0;
-    }
-    return min(STRIPE_MAX_WIDTH, max(1.0, ceil(band * STRIPE_MAX_WIDTH / STRIPE_BAND_COUNT)));
-}
-
 vec2 blockGridUv(float colIndex, float rowIndex) {
     float gridRow = uGridSize.y - 1.0 - rowIndex;
     return vec2(
@@ -132,40 +98,25 @@ vec2 blockGridUv(float colIndex, float rowIndex) {
     );
 }
 
+// Red channel stores the stripe index directly (0 = background, 1..N).
 float blockStripeBand(float colIndex, float rowIndex) {
-    return decodeStripeBand(texture(uBlockMap, blockGridUv(colIndex, rowIndex)).r);
+    return floor(texture(uBlockMap, blockGridUv(colIndex, rowIndex)).r * 255.0 + 0.5);
 }
 
-bool stripeBandEnabled(float band) {
-    if (band < 1.5) {
-        return uBandEnabled0 > 0.5;
-    }
-    if (band < 2.5) {
-        return uBandEnabled1 > 0.5;
-    }
-    if (band < 3.5) {
-        return uBandEnabled2 > 0.5;
-    }
-    if (band < 4.5) {
-        return uBandEnabled3 > 0.5;
-    }
-    return uBandEnabled4 > 0.5;
+// Palette texture: width = stripe count, height = 2. Canvas row 0 (v=0.25) = color, row 1 (v=0.75) = width.
+float stripePaletteU(float band) {
+    return (band - 0.5) / max(uStripeCount, 1.0);
 }
 
 vec3 stripeFillColor(float band) {
-    if (band < 1.5) {
-        return uColorBand0;
+    return texture(uStripeData, vec2(stripePaletteU(band), 0.25)).rgb;
+}
+
+float stripeWidthPx(float band) {
+    if (band < 0.5) {
+        return 0.0;
     }
-    if (band < 2.5) {
-        return uColorBand1;
-    }
-    if (band < 3.5) {
-        return uColorBand2;
-    }
-    if (band < 4.5) {
-        return uColorBand3;
-    }
-    return uColorBand4;
+    return texture(uStripeData, vec2(stripePaletteU(band), 0.75)).r * STRIPE_MAX_WIDTH;
 }
 
 // Keep in sync with runtime/playgroundSparkle.ts.
@@ -223,14 +174,14 @@ float widthShuffleAltHash(float col, float row, float pulseIndex) {
 
 float widthShuffleTargetWidth(float col, float row, float pulseIndex, float defaultWidth) {
     float minW = 1.0;
-    float maxW = 5.0;
+    float maxW = STRIPE_MAX_WIDTH;
     float minSwing = 1.25;
     float span = maxW - minW;
     float h = widthShuffleAltHash(col, row, pulseIndex);
     float target = minW + h * span;
 
     if (abs(target - defaultWidth) < minSwing) {
-        if (defaultWidth <= 3.0) {
+        if (defaultWidth <= maxW * 0.5) {
             target = defaultWidth + minSwing + h * (maxW - defaultWidth - minSwing);
         } else {
             target = defaultWidth - minSwing - h * (defaultWidth - minW - minSwing);
@@ -255,7 +206,7 @@ float widthShufflePulseEnvelope(float localT) {
 }
 
 float resolveAnimatedStripeWidth(float col, float row, float band) {
-    float defaultWidth = widthPxFromBand(band);
+    float defaultWidth = stripeWidthPx(band);
     if (band < 0.5 || uWidthShuffleEnabled < 0.5) {
         return defaultWidth;
     }
@@ -311,7 +262,7 @@ void main(void) {
         bandBottom = CELL_SIZE;
     }
     float stripeWidth = resolveAnimatedStripeWidth(colIndex, rowIndex, stripeBand);
-    float defaultStripeWidth = widthPxFromBand(stripeBand);
+    float defaultStripeWidth = stripeWidthPx(stripeBand);
     float halfW = stripeWidth * 0.5;
     float relX = pixelCoord.x - columnCenterPx;
     // Soften edges only during an active pulse — not for every stripe when shuffle is on.
@@ -322,7 +273,7 @@ void main(void) {
     float vCoverage = stripeVerticalVisible(localY, bandTop, bandBottom) ? 1.0 : 0.0;
     float stripeCoverage = hCoverage * vCoverage;
 
-    if (stripeBand > 0.5 && stripeBandEnabled(stripeBand)) {
+    if (stripeBand > 0.5) {
         if (!sparkleCellVisible(colIndex, rowIndex)) {
             stripeCoverage = 0.0;
         }
@@ -340,21 +291,11 @@ void main(void) {
 `;
 
 export type StripeDuotoneFilter = Filter & {
-  syncColors: (colors: StripeBandColors, preferP3?: boolean) => void;
+  syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
 };
-
-function colorsToUniformRgb(colors: StripeBandColors, preferP3: boolean) {
-  return colors.bandHex.map((hex, index) => bandUniformRgb(hex, colors.bandDisplayP3Css[index] ?? hex, preferP3)) as [
-    [number, number, number],
-    [number, number, number],
-    [number, number, number],
-    [number, number, number],
-    [number, number, number],
-  ];
-}
 
 function bindBlockMapTexture(filter: Filter, blockMap: Texture) {
   blockMap.source.style.scaleMode = "nearest";
@@ -367,54 +308,28 @@ export function createStripeDuotoneFilter(
   blockMap: Texture,
   gridCols: number,
   gridRows: number,
-  colors: StripeBandColors,
+  colors: StripeColors,
   preferP3 = false,
 ): StripeDuotoneFilter {
-  const rgb = colorsToUniformRgb(colors, preferP3);
+  const palette = new StripePaletteTexture();
+  palette.update(resolveStripePalette(colors, preferP3));
 
   const stripeUniforms = new UniformGroup({
     uPixelSize: { value: [canvasWidth, canvasHeight], type: "vec2<f32>" },
     uFrameSize: { value: [canvasWidth, canvasHeight], type: "vec2<f32>" },
     uGridSize: { value: [gridCols, gridRows], type: "vec2<f32>" },
-    uColorBand0: { value: rgb[0], type: "vec3<f32>" },
-    uColorBand1: { value: rgb[1], type: "vec3<f32>" },
-    uColorBand2: { value: rgb[2], type: "vec3<f32>" },
-    uColorBand3: { value: rgb[3], type: "vec3<f32>" },
-    uColorBand4: { value: rgb[4], type: "vec3<f32>" },
-    uBandEnabled0: { value: colors.bandEnabled[0] ? 1 : 0, type: "f32" },
-    uBandEnabled1: { value: colors.bandEnabled[1] ? 1 : 0, type: "f32" },
-    uBandEnabled2: { value: colors.bandEnabled[2] ? 1 : 0, type: "f32" },
-    uBandEnabled3: { value: colors.bandEnabled[3] ? 1 : 0, type: "f32" },
-    uBandEnabled4: { value: colors.bandEnabled[4] ? 1 : 0, type: "f32" },
+    uStripeCount: { value: palette.count, type: "f32" },
     uDebugVideoAlpha: { value: 0, type: "f32" },
     uSparkleEnabled: { value: 0, type: "f32" },
     uSparkleTime: { value: 0, type: "f32" },
-    uSparkleCoverage: {
-      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.coverage,
-      type: "f32",
-    },
-    uSparklePeriodMinSec: {
-      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.periodMinSec,
-      type: "f32",
-    },
-    uSparklePeriodMaxSec: {
-      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.periodMaxSec,
-      type: "f32",
-    },
+    uSparkleCoverage: { value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.coverage, type: "f32" },
+    uSparklePeriodMinSec: { value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.periodMinSec, type: "f32" },
+    uSparklePeriodMaxSec: { value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.periodMaxSec, type: "f32" },
     uWidthShuffleEnabled: { value: 0, type: "f32" },
     uWidthShuffleTime: { value: 0, type: "f32" },
-    uWidthShuffleCoverage: {
-      value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.coverage,
-      type: "f32",
-    },
-    uWidthShufflePeriodMinSec: {
-      value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMinSec,
-      type: "f32",
-    },
-    uWidthShufflePeriodMaxSec: {
-      value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMaxSec,
-      type: "f32",
-    },
+    uWidthShuffleCoverage: { value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.coverage, type: "f32" },
+    uWidthShufflePeriodMinSec: { value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMinSec, type: "f32" },
+    uWidthShufflePeriodMaxSec: { value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMaxSec, type: "f32" },
   });
 
   const filter = new Filter({
@@ -427,6 +342,7 @@ export function createStripeDuotoneFilter(
     resources: {
       stripeUniforms,
       uBlockMap: blockMap.source,
+      uStripeData: palette.texture.source,
     },
   }) as StripeDuotoneFilter;
 
@@ -434,18 +350,9 @@ export function createStripeDuotoneFilter(
   bindBlockMapTexture(filter, currentBlockMap);
 
   filter.syncColors = (nextColors, nextPreferP3 = preferP3) => {
-    const nextRgb = colorsToUniformRgb(nextColors, nextPreferP3);
-    const uniforms = stripeUniforms.uniforms as Record<string, number[] | number>;
-    (uniforms.uColorBand0 as number[]).splice(0, 3, ...nextRgb[0]);
-    (uniforms.uColorBand1 as number[]).splice(0, 3, ...nextRgb[1]);
-    (uniforms.uColorBand2 as number[]).splice(0, 3, ...nextRgb[2]);
-    (uniforms.uColorBand3 as number[]).splice(0, 3, ...nextRgb[3]);
-    (uniforms.uColorBand4 as number[]).splice(0, 3, ...nextRgb[4]);
-    uniforms.uBandEnabled0 = nextColors.bandEnabled[0] ? 1 : 0;
-    uniforms.uBandEnabled1 = nextColors.bandEnabled[1] ? 1 : 0;
-    uniforms.uBandEnabled2 = nextColors.bandEnabled[2] ? 1 : 0;
-    uniforms.uBandEnabled3 = nextColors.bandEnabled[3] ? 1 : 0;
-    uniforms.uBandEnabled4 = nextColors.bandEnabled[4] ? 1 : 0;
+    palette.update(resolveStripePalette(nextColors, nextPreferP3));
+    filter.resources.uStripeData = palette.texture.source;
+    (stripeUniforms.uniforms as { uStripeCount: number }).uStripeCount = palette.count;
     stripeUniforms.update();
   };
 
@@ -490,6 +397,7 @@ export function createStripeDuotoneFilter(
   const baseApply = filter.apply.bind(filter);
   filter.apply = (filterManager, input, output, clearMode) => {
     bindBlockMapTexture(filter, currentBlockMap);
+    filter.resources.uStripeData = palette.texture.source;
     pixelSizeUniform[0] = canvasWidth;
     pixelSizeUniform[1] = canvasHeight;
     frameSizeUniform[0] = canvasWidth;

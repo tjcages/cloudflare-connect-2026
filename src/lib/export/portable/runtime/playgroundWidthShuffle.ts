@@ -1,6 +1,6 @@
 /** Width shuffle for image stripe textures. GLSL in shaders.ts must stay aligned. */
 
-import { STRIPE_MAX_WIDTH_PX, widthPxFromBand } from "./stripeGridConstants";
+import { STRIPE_MAX_WIDTH_PX } from "./stripeGridConstants";
 
 /** Fraction of stripe cells animating width at any moment (one pulse per cycle, then idle). */
 export const WIDTH_SHUFFLE_COVERAGE = 0.3;
@@ -162,12 +162,11 @@ export function widthShufflePulseEnvelope(localT: number): number {
 export function resolveWidthShuffleStripeWidth(
   col: number,
   row: number,
-  band: number,
+  defaultWidth: number,
   timeSec: number,
   options: PlaygroundWidthShuffleOptions = DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS,
 ): number {
-  const defaultWidth = widthPxFromBand(band);
-  if (!options.enabled || band <= 0) {
+  if (!options.enabled || defaultWidth <= 0) {
     return defaultWidth;
   }
 
@@ -186,11 +185,11 @@ export function resolveWidthShuffleStripeWidth(
 export function resolveWidthShuffleHalfWidth(
   col: number,
   row: number,
-  band: number,
+  defaultWidth: number,
   timeSec: number,
   options: PlaygroundWidthShuffleOptions = DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS,
 ): number {
-  return resolveWidthShuffleStripeWidth(col, row, band, timeSec, options) * 0.5;
+  return resolveWidthShuffleStripeWidth(col, row, defaultWidth, timeSec, options) * 0.5;
 }
 
 export function normalizeSparkleWidthActivePercent(value: number): number {

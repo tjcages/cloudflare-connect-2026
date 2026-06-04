@@ -1,7 +1,5 @@
 /** UI slider bounds for playground duotone tuning. */
 export const PLAYGROUND_CONTROL_RANGES = {
-  gamma: { min: 0.01, max: 0.99, step: 0.01 },
-  bandBreakpoint: { min: 1, max: 16, step: 0.1 },
   /** Active cell ratio 0–1 (0 = off). Default 0.22. */
   sparkleGapsActivePercent: { min: 0, max: 1, step: 0.01 },
   /** Pulse speed factor. Default 1. Slider 0.5–1.5. */
@@ -13,7 +11,6 @@ export const PLAYGROUND_CONTROL_RANGES = {
 
 /** Wider bounds for typed values (sliders stay on PLAYGROUND_CONTROL_RANGES). */
 export const PLAYGROUND_CONTROL_INPUT_BOUNDS = {
-  gamma: { min: 0.001, max: 1 },
   sparkleGapsActivePercent: { min: 0, max: 1 },
   sparkleGapsSpeed: { min: 0.05, max: 100 },
   sparkleWidthActivePercent: { min: 0, max: 1 },

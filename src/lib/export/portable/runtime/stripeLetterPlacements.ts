@@ -3,9 +3,20 @@ import { createPrng } from "./prng";
 import { STRIPE_LETTER_CHARSET } from "./stripeLetterFont";
 
 export const STRIPE_LETTER_COVERAGE = 0.1;
-export const STRIPE_LETTER_BAND = 5;
 
 export type StripeLetterPlacement = { col: number; row: number; char: string };
+
+/** Highest stripe index present in the grid (the brightest stripe), or 0 if empty. */
+function highestStripeIndex(grid: BlockGrid): number {
+  let max = 0;
+  for (let i = 0; i < grid.indices.length; i++) {
+    const value = grid.indices[i] ?? 0;
+    if (value > max) {
+      max = value;
+    }
+  }
+  return max;
+}
 
 export function computeStripeLetterPlacements(
   grid: BlockGrid,
@@ -15,13 +26,18 @@ export function computeStripeLetterPlacements(
     return [];
   }
 
+  const letterIndex = highestStripeIndex(grid);
+  if (letterIndex < 1) {
+    return [];
+  }
+
   const placements: StripeLetterPlacement[] = [];
 
   for (let row = 0; row < grid.rows; row++) {
     for (let col = 0; col < grid.cols; col++) {
       const index = row * grid.cols + col;
-      const band = grid.bands[index] ?? 0;
-      if (band !== STRIPE_LETTER_BAND) {
+      const band = grid.indices[index] ?? 0;
+      if (band !== letterIndex) {
         continue;
       }
 

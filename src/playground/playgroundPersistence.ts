@@ -1,8 +1,4 @@
-import {
-  DEFAULT_STRIPE_BAND_BREAKPOINTS,
-  normalizeStripeBandBreakpoints,
-  type StripeBandBreakpoints,
-} from "./stripeBandThresholds";
+import { cloneDefaultStripes, normalizeStripe, type Stripe } from "./stripeColors";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
@@ -20,13 +16,12 @@ import {
 } from "./playgroundWidthShuffle";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
-  DEFAULT_PLAYGROUND_UPLOAD_DUOTONE,
+  DEFAULT_PLAYGROUND_UPLOAD_STRIPES,
   detectUploadMediaKind,
   getPlaygroundTextureOption,
   isUploadTextureId,
   PLAYGROUND_TEXTURES,
   type BuiltinPlaygroundTextureId,
-  type PlaygroundDuotoneDefaults,
   type PlaygroundMediaKind,
   type PlaygroundTextureId,
 } from "./playgroundTextures";
@@ -50,15 +45,12 @@ export type PlaygroundPersistedConfig = {
   sparkleWidthActivePercent?: number;
   /** Width pulse speed factor (1 = baseline). Default 1. */
   sparkleWidthSpeed?: number;
-  ignoreTolerance: number;
-  threshold: number;
-  density: number;
   /** Canvas width in px; omitted = match native source width on load. */
   displayWidth?: number;
   /** Canvas height in px; omitted = match native source height on load. */
   displayHeight?: number;
-  /** Connected distance upper limits for stripe color bands 1…4. */
-  bandBreakpoints?: StripeBandBreakpoints;
+  /** Ordered luminosity stripes (color + start-from + width). */
+  stripes: Stripe[];
 };
 
 export type PlaygroundUploadMeta = {
@@ -82,12 +74,20 @@ export type PlaygroundCatalogEntry = {
   url: string;
   mediaKind: PlaygroundMediaKind;
   displayScale: number;
-  duotone: PlaygroundDuotoneDefaults;
+  stripes: readonly Stripe[];
   isUpload: boolean;
 };
 
+/** Compact per-stripe wire entry (id is regenerated on parse). */
+export type StripeWire = {
+  hex: string;
+  p3?: string;
+  s: number;
+  w: number;
+};
+
 export type PlaygroundStateWire = {
-  v: 1 | 2;
+  v: 1 | 2 | 3;
   d: boolean;
   sk?: boolean;
   sr?: number;
@@ -95,17 +95,37 @@ export type PlaygroundStateWire = {
   sgsp?: number;
   swa?: number;
   sws?: number;
-  /** @deprecated Ignored; playground always uses black background ignore. */
-  c?: string;
-  t: number;
-  /** @deprecated Ignored; gamma removed (luminance threshold only). */
-  g?: number;
-  th: number;
-  de: number;
   w?: number;
   h?: number;
+  /** v3+: ordered luminosity stripes. */
+  st?: StripeWire[];
+  /** @deprecated v1/v2 distance-model fields, migrated to default stripes. */
+  c?: string;
+  t?: number;
+  g?: number;
+  th?: number;
+  de?: number;
   bp?: number[];
 };
+
+function stripesToWire(stripes: readonly Stripe[]): StripeWire[] {
+  return stripes.map((stripe) => ({ hex: stripe.hex, p3: stripe.p3Css, s: stripe.startFrom, w: stripe.width }));
+}
+
+function wireToStripes(raw: unknown): Stripe[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const stripes = raw
+    .filter(
+      (entry): entry is StripeWire =>
+        !!entry && typeof entry === "object" && typeof (entry as StripeWire).hex === "string",
+    )
+    .map((entry) =>
+      normalizeStripe({ hex: entry.hex, p3Css: entry.p3, startFrom: Number(entry.s), width: Number(entry.w) }),
+    );
+  return stripes.length > 0 ? stripes : undefined;
+}
 
 const objectUrls = new Map<string, string>();
 
@@ -251,7 +271,7 @@ export function builtinCatalogEntries(): PlaygroundCatalogEntry[] {
     url: entry.url,
     mediaKind: entry.mediaKind,
     displayScale: entry.displayScale,
-    duotone: { ...entry.duotone },
+    stripes: entry.stripes,
     isUpload: false,
   }));
 }
@@ -271,13 +291,7 @@ export function mergeCatalog(
       url,
       mediaKind: uploadMediaKind(upload),
       displayScale: upload.displayScale,
-      duotone: override
-        ? {
-            ignoreTolerance: override.ignoreTolerance,
-            threshold: override.threshold,
-            density: override.density,
-          }
-        : { ...DEFAULT_PLAYGROUND_UPLOAD_DUOTONE },
+      stripes: override?.stripes ?? DEFAULT_PLAYGROUND_UPLOAD_STRIPES,
       isUpload: true,
     };
   });
@@ -293,24 +307,19 @@ export function resolveCatalogEntry(
 
 export function defaultConfigForTexture(textureId: PlaygroundTextureId): PlaygroundPersistedConfig {
   const persisted = getPersistedConfig(textureId);
-  const bandBreakpoints = normalizeStripeBandBreakpoints(persisted?.bandBreakpoints ?? DEFAULT_STRIPE_BAND_BREAKPOINTS);
   if (persisted) {
-    return { ...persisted, bandBreakpoints };
+    return { ...persisted, stripes: persisted.stripes.map((stripe) => ({ ...stripe })) };
   }
   if (!isUploadTextureId(textureId)) {
-    const duotone = getPlaygroundTextureOption(textureId as BuiltinPlaygroundTextureId).duotone;
+    const option = getPlaygroundTextureOption(textureId as BuiltinPlaygroundTextureId);
     return {
       duotoneEnabled: true,
-      ignoreTolerance: duotone.ignoreTolerance,
-      threshold: duotone.threshold,
-      density: duotone.density,
-      bandBreakpoints,
+      stripes: option.stripes.map((stripe) => ({ ...stripe })),
     };
   }
   return {
     duotoneEnabled: true,
-    ...DEFAULT_PLAYGROUND_UPLOAD_DUOTONE,
-    bandBreakpoints,
+    stripes: cloneDefaultStripes(),
   };
 }
 
@@ -371,11 +380,9 @@ export async function registerUpload(
 
 export function serializePlaygroundState(config: PlaygroundPersistedConfig): string {
   const wire: PlaygroundStateWire = {
-    v: 2,
+    v: 3,
     d: config.duotoneEnabled,
-    t: config.ignoreTolerance,
-    th: config.threshold,
-    de: config.density,
+    st: stripesToWire(config.stripes),
   };
   const gapsActive =
     config.sparkleGapsActivePercent !== undefined
@@ -411,13 +418,10 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   if (config.displayHeight && config.displayHeight > 0) {
     wire.h = config.displayHeight;
   }
-  if (config.bandBreakpoints) {
-    wire.bp = [...config.bandBreakpoints];
-  }
   return JSON.stringify(wire);
 }
 
-function parseSparkleWidthActivePercent(raw: unknown, wireVersion: 1 | 2): number | undefined {
+function parseSparkleWidthActivePercent(raw: unknown, wireVersion: 1 | 2 | 3): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -431,7 +435,7 @@ function parseSparkleWidthActivePercent(raw: unknown, wireVersion: 1 | 2): numbe
   return normalizeSparkleWidthActivePercent(value);
 }
 
-function parseSparkleWidthSpeed(raw: unknown, wireVersion: 1 | 2): number | undefined {
+function parseSparkleWidthSpeed(raw: unknown, wireVersion: 1 | 2 | 3): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -447,7 +451,7 @@ function parseSparkleGapsActivePercent(
   sgap: unknown,
   sr: unknown,
   sk: unknown,
-  wireVersion: 1 | 2,
+  wireVersion: 1 | 2 | 3,
 ): number | undefined {
   const fromWire = parseRatioField(sgap, wireVersion);
   if (fromWire !== undefined) {
@@ -463,7 +467,7 @@ function parseSparkleGapsActivePercent(
   return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT : undefined;
 }
 
-function parseSparkleGapsSpeed(sgsp: unknown, sr: unknown, sk: unknown, wireVersion: 1 | 2): number | undefined {
+function parseSparkleGapsSpeed(sgsp: unknown, sr: unknown, sk: unknown, wireVersion: 1 | 2 | 3): number | undefined {
   if (sgsp !== undefined) {
     const value = Number(sgsp);
     if (!Number.isFinite(value)) {
@@ -483,7 +487,7 @@ function parseSparkleGapsSpeed(sgsp: unknown, sr: unknown, sk: unknown, wireVers
   return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED : undefined;
 }
 
-function parseRatioField(raw: unknown, wireVersion: 1 | 2): number | undefined {
+function parseRatioField(raw: unknown, wireVersion: 1 | 2 | 3): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -517,46 +521,28 @@ function legacySparkleGapsSpeed(config: PlaygroundPersistedConfig): number {
   return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
 }
 
-function parseBandBreakpoints(raw: unknown): StripeBandBreakpoints | undefined {
-  if (!Array.isArray(raw) || raw.length !== 4) {
-    return undefined;
-  }
-  const values = raw.map((entry) => Number(entry));
-  if (!values.every(Number.isFinite)) {
-    return undefined;
-  }
-  return normalizeStripeBandBreakpoints(values);
-}
-
 export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConfig {
   const parsed = JSON.parse(text.trim()) as Partial<PlaygroundStateWire>;
-  if (parsed.v !== 1 && parsed.v !== 2) {
+  if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3) {
     throw new Error("Unsupported playground state version.");
   }
-  const wireVersion = parsed.v === 2 ? 2 : 1;
+  const wireVersion = parsed.v;
   if (typeof parsed.d !== "boolean") {
     throw new Error("Invalid playground state.");
   }
-  const t = Number(parsed.t);
-  const th = Number(parsed.th);
-  const de = Number(parsed.de);
-  if (![t, th, de].every(Number.isFinite)) {
-    throw new Error("Invalid playground state numbers.");
-  }
   const w = parsed.w === undefined ? undefined : Number(parsed.w);
   const h = parsed.h === undefined ? undefined : Number(parsed.h);
+  // v1/v2 used a distance model; those configs migrate to the default stripe palette.
+  const stripes = wireToStripes(parsed.st) ?? cloneDefaultStripes();
   return {
     duotoneEnabled: parsed.d,
     sparkleGapsActivePercent: parseSparkleGapsActivePercent(parsed.sgap, parsed.sr, parsed.sk, wireVersion),
     sparkleGapsSpeed: parseSparkleGapsSpeed(parsed.sgsp, parsed.sr, parsed.sk, wireVersion),
     sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa, wireVersion),
     sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws, wireVersion),
-    ignoreTolerance: t,
-    threshold: th,
-    density: de,
+    stripes,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     displayHeight: h && Number.isFinite(h) && h > 0 ? Math.round(h) : undefined,
-    bandBreakpoints: parseBandBreakpoints(parsed.bp) ?? DEFAULT_STRIPE_BAND_BREAKPOINTS,
   };
 }
 

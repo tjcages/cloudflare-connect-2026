@@ -1,15 +1,19 @@
 /** Placeholder types file — replaced during export with playground snapshot values. */
 
-export type StripeBandBreakpoints = readonly [number, number, number, number];
+export type Rgb01 = [number, number, number];
 
-export type StripeBandEnabled = readonly [boolean, boolean, boolean, boolean, boolean];
-
-export type StripeBandColors = {
-  bandHex: readonly [string, string, string, string, string];
-  /** Wide-gamut CSS per band — used when Display P3 is available (matches playground). */
-  bandDisplayP3Css: readonly [string, string, string, string, string];
-  bandEnabled: StripeBandEnabled;
+/** One luminosity stripe: a color shown for source cells at/above `startFrom`. */
+export type Stripe = {
+  hex: string;
+  /** Wide-gamut CSS, e.g. "color(display-p3 r g b)". */
+  p3Css: string;
+  /** Lower luminance bound 0–1. */
+  startFrom: number;
+  /** Stripe thickness in px. */
+  width: number;
 };
+
+export type StripeColors = { stripes: Stripe[] };
 
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
@@ -21,15 +25,9 @@ export type AsciiVideoConfig = {
   sparkleWidthActivePercent?: number;
   /** Width pulse speed factor (1 = baseline). */
   sparkleWidthSpeed?: number;
-  ignoreTolerance: number;
-  threshold: number;
-  density: number;
   displayWidth?: number;
   displayHeight?: number;
-  bandBreakpoints: StripeBandBreakpoints;
-  bandEnabled: StripeBandEnabled;
-  bandHex: readonly [string, string, string, string, string];
-  bandDisplayP3Css: readonly [string, string, string, string, string];
+  stripes: Stripe[];
 };
 
 export type AsciiVideoProps = {
@@ -44,38 +42,18 @@ export type AsciiVideoProps = {
 
 export const defaultConfig: AsciiVideoConfig = {
   duotoneEnabled: true,
-  ignoreTolerance: 0.08,
-  threshold: 0.72,
-  density: 1,
-  bandBreakpoints: [1, 2, 3, 4],
-  bandEnabled: [true, true, true, true, true],
-  bandHex: ["#F3F3F3", "#F3F3F3", "#FF6B00", "#FFB800", "#FF3B30"],
-  bandDisplayP3Css: [
-    "#F3F3F3",
-    "#F3F3F3",
-    "color(display-p3 0.9882 0.698 0.2471)",
-    "color(display-p3 0.9686 0.5255 0.1176)",
-    "color(display-p3 0.9216 0.3412 0.1608)",
+  stripes: [
+    { hex: "#F3F3F3", p3Css: "color(display-p3 0.9529 0.9529 0.9529)", startFrom: 0.12, width: 2 },
+    { hex: "#FADA98", p3Css: "color(display-p3 0.9804 0.8549 0.5961)", startFrom: 0.28, width: 3 },
+    { hex: "#F8BD70", p3Css: "color(display-p3 0.9725 0.7412 0.4392)", startFrom: 0.44, width: 4 },
+    { hex: "#F69E4D", p3Css: "color(display-p3 0.9647 0.6196 0.302)", startFrom: 0.6, width: 5 },
+    { hex: "#F27C33", p3Css: "color(display-p3 0.949 0.4863 0.2)", startFrom: 0.76, width: 6 },
+    { hex: "#EB5729", p3Css: "color(display-p3 0.9216 0.3412 0.1608)", startFrom: 0.9, width: 7 },
   ],
 };
 
-export function configToStripeBandColors(config: AsciiVideoConfig): StripeBandColors {
-  return {
-    bandHex: config.bandHex,
-    bandDisplayP3Css: config.bandDisplayP3Css,
-    bandEnabled: config.bandEnabled,
-  };
+export function configToStripeColors(config: AsciiVideoConfig): StripeColors {
+  return { stripes: config.stripes };
 }
-
-export type Rgb01 = [number, number, number];
 
 export { hexToRgb01 } from "./colorSpace";
-
-export function configToStripeOptions(config: AsciiVideoConfig) {
-  return {
-    ignoreTolerance: config.ignoreTolerance,
-    threshold: config.threshold,
-    density: config.density,
-    bandBreakpoints: config.bandBreakpoints,
-  };
-}

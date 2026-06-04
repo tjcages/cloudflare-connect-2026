@@ -11,8 +11,8 @@ import computeBlockGridSource from "./portable/runtime/computeBlockGrid.ts?raw";
 import prngSource from "./portable/runtime/prng.ts?raw";
 import samplePlaygroundFrameSource from "./portable/runtime/samplePlaygroundFrame.ts?raw";
 import stabilizeBlockGridSource from "./portable/runtime/stabilizeBlockGrid.ts?raw";
-import stripeBandThresholdsSource from "./portable/runtime/stripeBandThresholds.ts?raw";
-import stripeFilterOptionsSource from "./portable/runtime/stripeFilterOptions.ts?raw";
+import stripesSource from "./portable/runtime/stripes.ts?raw";
+import stripePaletteTextureSource from "./portable/runtime/stripePaletteTexture.ts?raw";
 import stripeGridConstantsSource from "./portable/runtime/stripeGridConstants.ts?raw";
 import stripeLetterFontSource from "./portable/runtime/stripeLetterFont.ts?raw";
 import stripeLetterLayerSource from "./portable/runtime/stripeLetterLayer.ts?raw";
@@ -26,8 +26,8 @@ const RUNTIME_SOURCES: Record<string, string> = {
   "prng.ts": prngSource,
   "samplePlaygroundFrame.ts": samplePlaygroundFrameSource,
   "stabilizeBlockGrid.ts": stabilizeBlockGridSource,
-  "stripeBandThresholds.ts": stripeBandThresholdsSource,
-  "stripeFilterOptions.ts": stripeFilterOptionsSource,
+  "stripes.ts": stripesSource,
+  "stripePaletteTexture.ts": stripePaletteTextureSource,
   "stripeGridConstants.ts": stripeGridConstantsSource,
   "stripeLetterFont.ts": stripeLetterFontSource,
   "stripeLetterLayer.ts": stripeLetterLayerSource,

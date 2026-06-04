@@ -1,27 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { STRIPE_LETTER_BAND, STRIPE_LETTER_COVERAGE, computeStripeLetterPlacements } from "./stripeLetterPlacements";
+import { STRIPE_LETTER_COVERAGE, computeStripeLetterPlacements } from "./stripeLetterPlacements";
 import { STRIPE_LETTER_CHARSET } from "./stripeLetterFont";
 
 describe("computeStripeLetterPlacements", () => {
-  it("only places letters on band-5 cells", () => {
+  it("only places letters on the highest stripe-index cells", () => {
     const grid = {
       cols: 3,
       rows: 2,
-      bands: new Uint8Array([5, 4, 3, 2, 1, 5]),
+      indices: new Uint8Array([5, 4, 3, 2, 1, 5]),
     };
 
     const placements = computeStripeLetterPlacements(grid);
     for (const placement of placements) {
       const index = placement.row * grid.cols + placement.col;
-      expect(grid.bands[index]).toBe(STRIPE_LETTER_BAND);
+      expect(grid.indices[index]).toBe(5);
     }
+  });
+
+  it("returns no placements for a background-only grid", () => {
+    const grid = { cols: 4, rows: 4, indices: new Uint8Array(16) };
+    expect(computeStripeLetterPlacements(grid)).toEqual([]);
   });
 
   it("returns identical placements for the same grid", () => {
     const grid = {
       cols: 8,
       rows: 6,
-      bands: new Uint8Array(8 * 6).fill(STRIPE_LETTER_BAND),
+      indices: new Uint8Array(8 * 6).fill(6),
     };
 
     const first = computeStripeLetterPlacements(grid);
@@ -33,7 +38,7 @@ describe("computeStripeLetterPlacements", () => {
     const grid = {
       cols: 12,
       rows: 10,
-      bands: new Uint8Array(12 * 10).fill(STRIPE_LETTER_BAND),
+      indices: new Uint8Array(12 * 10).fill(6),
     };
 
     const placements = computeStripeLetterPlacements(grid);
@@ -42,18 +47,17 @@ describe("computeStripeLetterPlacements", () => {
     }
   });
 
-  it("covers roughly 10% of band-5 cells on a large synthetic grid", () => {
+  it("covers roughly 10% of top-stripe cells on a large synthetic grid", () => {
     const cols = 40;
     const rows = 30;
     const grid = {
       cols,
       rows,
-      bands: new Uint8Array(cols * rows).fill(STRIPE_LETTER_BAND),
+      indices: new Uint8Array(cols * rows).fill(6),
     };
 
     const placements = computeStripeLetterPlacements(grid);
-    const bandFiveCount = cols * rows;
-    const ratio = placements.length / bandFiveCount;
+    const ratio = placements.length / (cols * rows);
     expect(ratio).toBeGreaterThan(STRIPE_LETTER_COVERAGE - 0.04);
     expect(ratio).toBeLessThan(STRIPE_LETTER_COVERAGE + 0.04);
   });

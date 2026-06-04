@@ -1,12 +1,14 @@
 import type { BlockGrid } from "./computeBlockGrid";
-import { isStripeBandEnabled, type StripeColors } from "./stripeColors";
-import { STRIPE_BAND_NONE, STRIPE_CELL_SIZE, widthPxFromBand } from "./stripeGridConstants";
+import { stripeAtIndex, type StripeColors } from "./stripeColors";
+import { STRIPE_CELL_SIZE, STRIPE_INDEX_NONE } from "./stripeGridConstants";
 import { computeStripeLetterPlacements } from "./stripeLetterPlacements";
 import { buildStripeLetterSvgGlyphs, type StripeLetterSvgGlyph } from "./stripeLetterFont";
 
 const ROW_WIDTH_GAP = 1;
 
-const SVG_BAND_CLASS = ["fill-band-1", "fill-band-2", "fill-band-3", "fill-band-4", "fill-band-5"] as const;
+function svgStripeClass(index: number): string {
+  return `fill-stripe-${index}`;
+}
 
 function sameStripeBand(a: number, b: number): boolean {
   if (a < 1 || b < 1) {
@@ -15,13 +17,17 @@ function sameStripeBand(a: number, b: number): boolean {
   return a === b;
 }
 
-function stripeSvgStyleBlock(colors: StripeColors): string {
-  const rules = colors.bands.flatMap((fill, index) => {
-    const className = SVG_BAND_CLASS[index];
+function stripeSvgStyleBlock(colors: StripeColors, usedIndices: readonly number[]): string {
+  const rules = usedIndices.flatMap((index) => {
+    const stripe = stripeAtIndex(colors, index);
+    if (!stripe) {
+      return [];
+    }
+    const className = svgStripeClass(index);
     return [
-      `  .${className} { fill: ${fill.hex}; }`,
+      `  .${className} { fill: ${stripe.hex}; }`,
       `  @supports (fill: color(display-p3 1 1 1)) {`,
-      `    .${className} { fill: ${fill.displayP3Css}; }`,
+      `    .${className} { fill: ${stripe.p3Css}; }`,
       `  }`,
     ];
   });
@@ -70,18 +76,19 @@ function stripeSvgLetterElements(grid: BlockGrid, glyphs: Map<string, StripeLett
 }
 
 export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: number, height: number): string {
-  const pathsByClass = new Map<string, string[]>();
+  const pathsByIndex = new Map<number, string[]>();
 
   for (let row = 0; row < grid.rows; row++) {
     for (let col = 0; col < grid.cols; col++) {
       const index = row * grid.cols + col;
-      const stripeBand = grid.bands[index] ?? STRIPE_BAND_NONE;
-      if (stripeBand <= STRIPE_BAND_NONE || !isStripeBandEnabled(colors, stripeBand)) {
+      const stripeBand = grid.indices[index] ?? STRIPE_INDEX_NONE;
+      const stripe = stripeAtIndex(colors, stripeBand);
+      if (stripeBand <= STRIPE_INDEX_NONE || !stripe) {
         continue;
       }
 
-      const bandAbove = row > 0 ? (grid.bands[index - grid.cols] ?? 0) : 0;
-      const bandBelow = row < grid.rows - 1 ? (grid.bands[index + grid.cols] ?? 0) : 0;
+      const bandAbove = row > 0 ? (grid.indices[index - grid.cols] ?? 0) : 0;
+      const bandBelow = row < grid.rows - 1 ? (grid.indices[index + grid.cols] ?? 0) : 0;
       const chainBreaksAbove = !sameStripeBand(stripeBand, bandAbove);
       const chainBreaksBelow = !sameStripeBand(stripeBand, bandBelow);
 
@@ -92,7 +99,7 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
         bandBottom = STRIPE_CELL_SIZE;
       }
 
-      const stripeWidth = widthPxFromBand(stripeBand);
+      const stripeWidth = stripe.width;
       const halfW = stripeWidth * 0.5;
       const columnCenter = col * STRIPE_CELL_SIZE + STRIPE_CELL_SIZE * 0.5;
       const x = columnCenter - halfW;
@@ -100,16 +107,16 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
       const rectW = stripeWidth;
       const rectH = bandBottom - bandTop;
 
-      const fillClass = SVG_BAND_CLASS[stripeBand - 1] ?? SVG_BAND_CLASS[0];
       const segment = `M${x} ${y}h${rectW}v${rectH}h-${rectW}Z`;
-      const list = pathsByClass.get(fillClass) ?? [];
+      const list = pathsByIndex.get(stripeBand) ?? [];
       list.push(segment);
-      pathsByClass.set(fillClass, list);
+      pathsByIndex.set(stripeBand, list);
     }
   }
 
-  const pathElements = [...pathsByClass.entries()]
-    .map(([className, segments]) => `  <path class="${className}" d="${segments.join(" ")}" />`)
+  const usedIndices = [...pathsByIndex.keys()].sort((a, b) => a - b);
+  const pathElements = usedIndices
+    .map((index) => `  <path class="${svgStripeClass(index)}" d="${(pathsByIndex.get(index) ?? []).join(" ")}" />`)
     .join("\n");
 
   const svgGlyphs = buildStripeLetterSvgGlyphs();
@@ -118,7 +125,7 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="visible">`,
-    stripeSvgStyleBlock(colors),
+    stripeSvgStyleBlock(colors, usedIndices),
     letterDefs,
     pathElements,
     letterElements,

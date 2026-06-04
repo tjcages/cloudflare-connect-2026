@@ -24,7 +24,13 @@ export type ControlValueInputProps = {
   /** Parses focused draft to stored value on commit. */
   parseEditDraft?: (draft: string) => number | null;
   ariaLabel: string;
+  /** Overrides the default styling (e.g. for bordered grid cells). */
+  className?: string;
+  title?: string;
 };
+
+const DEFAULT_CONTROL_VALUE_INPUT_CLASS =
+  "w-[4.5rem] shrink-0 rounded border border-transparent bg-transparent px-1 py-0 text-right text-xs tabular-nums text-neutral-500 hover:border-neutral-200 focus:border-neutral-300 focus:bg-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-100";
 
 export function ControlValueInput({
   value: committed,
@@ -38,6 +44,8 @@ export function ControlValueInput({
   formatEditValue,
   parseEditDraft,
   ariaLabel,
+  className = DEFAULT_CONTROL_VALUE_INPUT_CLASS,
+  title,
 }: ControlValueInputProps) {
   const [draft, setDraft] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,7 +105,8 @@ export function ControlValueInput({
       autoComplete="off"
       disabled={disabled}
       aria-label={ariaLabel}
-      className="w-[4.5rem] shrink-0 rounded border border-transparent bg-transparent px-1 py-0 text-right text-xs tabular-nums text-neutral-500 hover:border-neutral-200 focus:border-neutral-300 focus:bg-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-100"
+      title={title}
+      className={className}
       value={focused ? draft : display}
       onFocus={onFocus}
       onChange={onChangeDraft}

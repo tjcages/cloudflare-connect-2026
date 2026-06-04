@@ -5,7 +5,6 @@ export {
   isUploadTextureId as isUploadVideoId,
   PLAYGROUND_TEXTURES as PLAYGROUND_VIDEOS,
   type BuiltinPlaygroundTextureId as BuiltinPlaygroundVideoId,
-  type PlaygroundDuotoneDefaults,
   type PlaygroundTextureId as PlaygroundVideoId,
   type PlaygroundTextureOption as PlaygroundVideoOption,
 } from "./playgroundTextures";

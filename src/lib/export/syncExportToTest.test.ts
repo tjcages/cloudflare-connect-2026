@@ -13,19 +13,22 @@ describe("syncExportToTestProject", () => {
 
     const typesPath = join(TEST_ROOT, "src/components/ascii-video/types.ts");
     const typesSource = readFileSync(typesPath, "utf8");
-    expect(typesSource).not.toContain("PLAYGROUND_IGNORE_BG_RGB");
-    expect(typesSource).not.toContain("ignoreColorHex");
+    expect(typesSource).not.toContain("bandDisplayP3Css");
+    expect(typesSource).not.toContain("ignoreTolerance");
     expect(typesSource).toContain('"displayWidth": 848');
-    expect(typesSource).toContain("bandDisplayP3Css");
+    expect(typesSource).toContain("stripes");
+    expect(typesSource).toContain("configToStripeColors");
   });
 });
 
 describe("buildExample5ExportSnapshot", () => {
-  it("matches catalog duotone for example5", () => {
+  it("uses the default stripe palette at 848×480", () => {
     const snapshot = buildExample5ExportSnapshot();
-    expect(snapshot.config.density).toBe(0.6);
-    expect("ignoreColorHex" in snapshot.config).toBe(false);
     expect(snapshot.displayWidth).toBe(848);
-    expect(snapshot.bandDisplayP3Css[4]).toContain("display-p3");
+    expect(snapshot.stripes).toHaveLength(6);
+    expect(snapshot.stripes[0]!.hex).toBe("#F3F3F3");
+    expect(snapshot.stripes[5]!.hex).toBe("#EB5729");
+    expect(snapshot.stripes[5]!.p3Css).toContain("display-p3");
+    expect("density" in snapshot.config).toBe(false);
   });
 });
