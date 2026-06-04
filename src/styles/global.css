@@ -217,6 +217,21 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.14);
 }
 
+html.playground-app,
+html.playground-app body,
+html.playground-app #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.ui-scroll-hidden {
+  scrollbar-width: none;
+}
+
+.ui-scroll-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 .ui-scroll-overlay {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;

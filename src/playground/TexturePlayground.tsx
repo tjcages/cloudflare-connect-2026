@@ -80,7 +80,11 @@ import {
   stripeBandDistanceLabel,
   type StripeBandBreakpoints,
 } from "./stripeBandThresholds";
-import { DEFAULT_STRIPE_DUOTONE_OPTIONS, hexToRgb01, type StripeDuotoneOptions } from "./stripeFilterOptions";
+import {
+  DEFAULT_STRIPE_DUOTONE_OPTIONS,
+  PLAYGROUND_IGNORE_BG_RGB,
+  type StripeDuotoneOptions,
+} from "./stripeFilterOptions";
 
 type TextureLayout = {
   width: number;
@@ -186,7 +190,6 @@ function disposeImageElement(image: HTMLImageElement) {
 
 function applyPersistedConfig(config: PlaygroundPersistedConfig) {
   return {
-    ignoreColorHex: config.ignoreColorHex,
     ignoreTolerance: config.ignoreTolerance,
     gamma: config.gamma,
     threshold: config.threshold,
@@ -250,7 +253,6 @@ export function TexturePlayground() {
 
   const [selectedTextureId, setSelectedTextureId] = useState<PlaygroundTextureId>(initialId);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
-  const [ignoreColorHex, setIgnoreColorHex] = useState(appliedInitial.ignoreColorHex);
   const [ignoreTolerance, setIgnoreTolerance] = useState(appliedInitial.ignoreTolerance);
   const [gamma, setGamma] = useState(appliedInitial.gamma);
   const [threshold, setThreshold] = useState(appliedInitial.threshold);
@@ -332,7 +334,6 @@ export function TexturePlayground() {
           : undefined,
       sparkleWidthSpeed:
         sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
-      ignoreColorHex,
       ignoreTolerance,
       gamma,
       threshold,
@@ -348,7 +349,6 @@ export function TexturePlayground() {
     sparkleRate,
     sparkleWidthActivePercent,
     sparkleWidthSpeed,
-    ignoreColorHex,
     ignoreTolerance,
     gamma,
     threshold,
@@ -374,7 +374,6 @@ export function TexturePlayground() {
 
   const applyConfig = useCallback((config: PlaygroundPersistedConfig) => {
     const next = applyPersistedConfig(config);
-    setIgnoreColorHex(next.ignoreColorHex);
     setIgnoreTolerance(next.ignoreTolerance);
     setGamma(next.gamma);
     setThreshold(next.threshold);
@@ -421,14 +420,14 @@ export function TexturePlayground() {
 
   useEffect(() => {
     stripeOptionsRef.current = {
-      ignoreColorRgb: hexToRgb01(ignoreColorHex),
+      ignoreColorRgb: PLAYGROUND_IGNORE_BG_RGB,
       ignoreTolerance,
       gamma,
       threshold,
       density,
       bandBreakpoints,
     };
-  }, [ignoreColorHex, ignoreTolerance, gamma, threshold, density, bandBreakpoints]);
+  }, [ignoreTolerance, gamma, threshold, density, bandBreakpoints]);
 
   useEffect(() => {
     stripeColorsRef.current = buildStripeColors(enabledBands);
@@ -595,7 +594,6 @@ export function TexturePlayground() {
           : undefined,
       sparkleWidthSpeed:
         sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
-      ignoreColorHex,
       ignoreTolerance,
       gamma,
       threshold,
@@ -719,7 +717,6 @@ export function TexturePlayground() {
               : undefined,
           sparkleWidthSpeed:
             sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER ? sparkleWidthSpeed : undefined,
-          ignoreColorHex,
           ignoreTolerance,
           gamma,
           threshold,
@@ -738,7 +735,6 @@ export function TexturePlayground() {
       sparkleRate,
       sparkleWidthActivePercent,
       sparkleWidthSpeed,
-      ignoreColorHex,
       ignoreTolerance,
       gamma,
       threshold,
@@ -770,8 +766,8 @@ export function TexturePlayground() {
   const exportLabel = exportFeedback === "copied" ? "Copied" : exportFeedback === "failed" ? "Copy failed" : "Copy SVG";
 
   return (
-    <div className="flex min-h-screen bg-neutral-50">
-      <aside className="flex w-60 shrink-0 flex-col gap-5 border-r border-neutral-200 bg-white p-4">
+    <div className="flex h-dvh overflow-hidden bg-neutral-50">
+      <aside className="ui-scroll-hidden flex min-h-0 w-60 shrink-0 flex-col gap-5 overflow-y-auto border-r border-neutral-200 bg-white p-4">
         <div>
           <h1 className="text-base font-medium text-neutral-900">Texture shader playground</h1>
           <p className="mt-1 text-xs leading-relaxed text-neutral-500">
@@ -921,17 +917,6 @@ export function TexturePlayground() {
         </div>
 
         <div className="flex flex-col gap-4 border-t border-neutral-200 pt-4">
-          <ControlField label="Ignore bg" value={ignoreColorHex} disabled={duotoneControlsDisabled}>
-            <input
-              type="color"
-              value={ignoreColorHex}
-              onChange={(event) => setIgnoreColorHex(event.target.value)}
-              disabled={duotoneControlsDisabled}
-              className="h-9 w-full max-w-[4.5rem] cursor-pointer rounded border border-neutral-300 bg-white p-0.5 disabled:cursor-not-allowed"
-              aria-label="Background color to ignore"
-            />
-          </ControlField>
-
           <ControlField label="Bg match" value={ignoreTolerance.toFixed(3)} disabled={duotoneControlsDisabled}>
             <input
               type="range"
@@ -1082,7 +1067,7 @@ export function TexturePlayground() {
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col items-center gap-4 overflow-auto p-6">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center gap-4 overflow-hidden p-6">
         <Pixi
           key={sceneKey}
           layoutWidth={displayWidth}

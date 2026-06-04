@@ -2,8 +2,11 @@ import { DEFAULT_STRIPE_BAND_BREAKPOINTS, type StripeBandBreakpoints } from "./s
 
 export type Rgb01 = [number, number, number];
 
+/** Playground always treats background ignore as black (not user-configurable). */
+export const PLAYGROUND_IGNORE_BG_RGB: Rgb01 = [0, 0, 0];
+
 export type StripeDuotoneOptions = {
-  /** UI swatch for background (white or black per clip). */
+  /** Background swatch hint for corner sampling and reference clamping. */
   ignoreColorRgb: Rgb01;
   /** Measured RGB from frame corners; overrides swatch when set. */
   referenceColorRgb?: Rgb01;
@@ -25,7 +28,7 @@ export const DEFAULT_STRIPE_THRESHOLD = 0.72;
 export const DEFAULT_STRIPE_DENSITY = 1;
 
 export const DEFAULT_STRIPE_DUOTONE_OPTIONS: StripeDuotoneOptions = {
-  ignoreColorRgb: [1, 1, 1],
+  ignoreColorRgb: PLAYGROUND_IGNORE_BG_RGB,
   ignoreTolerance: 0.08,
   gamma: 1,
   threshold: DEFAULT_STRIPE_THRESHOLD,

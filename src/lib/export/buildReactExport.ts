@@ -43,7 +43,6 @@ export type StripeBandColors = {
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
   sparkleRate?: number;
-  ignoreColorHex: string;
   ignoreTolerance: number;
   gamma: number;
   threshold: number;
@@ -78,13 +77,13 @@ export function configToStripeBandColors(config: AsciiVideoConfig): StripeBandCo
 
 export type Rgb01 = [number, number, number];
 
-export { hexToRgb01 } from "./colorSpace";
+export const PLAYGROUND_IGNORE_BG_RGB: Rgb01 = [0, 0, 0];
 
-import { hexToRgb01 } from "./colorSpace";
+export { hexToRgb01 } from "./colorSpace";
 
 export function configToStripeOptions(config: AsciiVideoConfig) {
   return {
-    ignoreColorRgb: hexToRgb01(config.ignoreColorHex),
+    ignoreColorRgb: PLAYGROUND_IGNORE_BG_RGB,
     ignoreTolerance: config.ignoreTolerance,
     gamma: config.gamma,
     threshold: config.threshold,

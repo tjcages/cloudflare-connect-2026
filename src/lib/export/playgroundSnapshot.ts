@@ -46,7 +46,7 @@ export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
   return [
     `- Duotone: ${config.duotoneEnabled ? "on" : "off"}`,
     `- Sparkle: ${formatSparkleRateSummary(config)}`,
-    `- Ignore color: ${config.ignoreColorHex}, tolerance: ${config.ignoreTolerance}`,
+    `- Bg match tolerance: ${config.ignoreTolerance}`,
     `- Gamma: ${config.gamma}, threshold: ${config.threshold}, density: ${config.density}`,
     `- Display: ${snapshot.displayWidth}×${snapshot.displayHeight}px`,
     `- Band breakpoints: ${(config.bandBreakpoints ?? []).join(", ")}`,
@@ -59,7 +59,6 @@ export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
 export type AsciiVideoConfigWire = {
   duotoneEnabled: boolean;
   sparkleRate?: number;
-  ignoreColorHex: string;
   ignoreTolerance: number;
   gamma: number;
   threshold: number;
@@ -76,7 +75,6 @@ export function snapshotToAsciiVideoConfig(snapshot: ReactExportSnapshot): Ascii
   return {
     duotoneEnabled: snapshot.config.duotoneEnabled,
     sparkleRate: resolvePersistedSparkleRate(snapshot.config) || undefined,
-    ignoreColorHex: snapshot.config.ignoreColorHex,
     ignoreTolerance: snapshot.config.ignoreTolerance,
     gamma: snapshot.config.gamma,
     threshold: snapshot.config.threshold,
