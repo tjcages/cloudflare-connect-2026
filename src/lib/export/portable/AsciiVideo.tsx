@@ -17,6 +17,11 @@ import {
 } from "./scene";
 import { playgroundSparkleOptionsFromRate } from "./runtime/playgroundSparkle";
 import {
+  playgroundWidthShuffleOptionsFromSliders,
+  resolvePersistedSparkleWidthActivePercent,
+  resolvePersistedSparkleWidthSpeed,
+} from "./runtime/playgroundWidthShuffle";
+import {
   configToStripeBandColors,
   configToStripeOptions,
   defaultConfig,
@@ -101,6 +106,12 @@ export function AsciiVideo({
   const stripeColorsRef = useRef<StripeBandColors>(configToStripeBandColors(config));
   const duotoneEnabledRef = useRef(config.duotoneEnabled);
   const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromRate(config.sparkleRate ?? 0));
+  const widthShuffleOptionsRef = useRef(
+    playgroundWidthShuffleOptionsFromSliders(
+      resolvePersistedSparkleWidthActivePercent(config),
+      resolvePersistedSparkleWidthSpeed(config),
+    ),
+  );
   const autoplayRef = useRef(autoplay);
   const preferP3Ref = useRef(false);
 
@@ -108,6 +119,10 @@ export function AsciiVideo({
   stripeColorsRef.current = configToStripeBandColors(config);
   duotoneEnabledRef.current = config.duotoneEnabled;
   sparkleOptionsRef.current = playgroundSparkleOptionsFromRate(config.sparkleRate ?? 0);
+  widthShuffleOptionsRef.current = playgroundWidthShuffleOptionsFromSliders(
+    resolvePersistedSparkleWidthActivePercent(config),
+    resolvePersistedSparkleWidthSpeed(config),
+  );
   autoplayRef.current = autoplay;
 
   useEffect(() => {
@@ -146,6 +161,7 @@ export function AsciiVideo({
         preferP3Ref,
         duotoneEnabledRef,
         sparkleOptionsRef,
+        widthShuffleOptionsRef,
         autoplayRef,
       ),
     ];

@@ -6,6 +6,10 @@ import {
   DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
   type PlaygroundSparkleOptions,
 } from "./playgroundSparkle";
+import {
+  DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS,
+  type PlaygroundWidthShuffleOptions,
+} from "./playgroundWidthShuffle";
 
 /** Set > 0 to composite source video for grid-alignment debugging. */
 export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
@@ -14,6 +18,7 @@ export type StripeDuotoneFilter = Filter & {
   syncOptions: (options: StripeDuotoneOptions) => void;
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
+  syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
 };
 
@@ -117,6 +122,20 @@ export function createStripeDuotoneFilter(
       value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.rateHz,
       type: "f32",
     },
+    uWidthShuffleEnabled: { value: 0, type: "f32" },
+    uWidthShuffleTime: { value: 0, type: "f32" },
+    uWidthShuffleCoverage: {
+      value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.coverage,
+      type: "f32",
+    },
+    uWidthShufflePeriodMinSec: {
+      value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMinSec,
+      type: "f32",
+    },
+    uWidthShufflePeriodMaxSec: {
+      value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMaxSec,
+      type: "f32",
+    },
   });
 
   const filter = new Filter({
@@ -155,6 +174,22 @@ export function createStripeDuotoneFilter(
     uniforms.uSparkleTime = timeSec;
     uniforms.uSparkleCoverage = options.coverage;
     uniforms.uSparkleRateHz = options.rateHz;
+  };
+
+  filter.syncWidthShuffle = (options, timeSec) => {
+    const uniforms = stripeUniforms.uniforms as {
+      uWidthShuffleEnabled: number;
+      uWidthShuffleTime: number;
+      uWidthShuffleCoverage: number;
+      uWidthShufflePeriodMinSec: number;
+      uWidthShufflePeriodMaxSec: number;
+    };
+    uniforms.uWidthShuffleEnabled = options.enabled ? 1 : 0;
+    uniforms.uWidthShuffleTime = timeSec;
+    uniforms.uWidthShuffleCoverage = options.coverage;
+    uniforms.uWidthShufflePeriodMinSec = options.periodMinSec;
+    uniforms.uWidthShufflePeriodMaxSec = options.periodMaxSec;
+    stripeUniforms.update();
   };
 
   filter.updateBlockMap = (nextBlockMap) => {

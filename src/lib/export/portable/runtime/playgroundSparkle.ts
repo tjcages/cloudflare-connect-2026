@@ -10,14 +10,14 @@ export type PlaygroundSparkleOptions = {
 
 export const DEFAULT_PLAYGROUND_SPARKLE_COVERAGE = 0.22;
 export const DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ = 2;
+export const PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ = 4;
+export const DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER = DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ / PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ;
 
 export const DEFAULT_PLAYGROUND_SPARKLE_OPTIONS: PlaygroundSparkleOptions = {
   enabled: false,
   coverage: DEFAULT_PLAYGROUND_SPARKLE_COVERAGE,
   rateHz: DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ,
 };
-
-export const PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ = DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ;
 
 export function normalizeSparkleRate(rate: number): number {
   if (!Number.isFinite(rate)) {
@@ -36,7 +36,7 @@ export function playgroundSparkleOptionsFromRate(rate: number): PlaygroundSparkl
 }
 
 export function playgroundSparkleOptionsFromEnabled(enabled: boolean): PlaygroundSparkleOptions {
-  return playgroundSparkleOptionsFromRate(enabled ? 1 : 0);
+  return playgroundSparkleOptionsFromRate(enabled ? DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER : 0);
 }
 
 function fract(x: number): number {

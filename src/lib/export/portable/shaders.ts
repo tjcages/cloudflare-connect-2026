@@ -5,6 +5,10 @@ import {
   DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
   type PlaygroundSparkleOptions,
 } from "./runtime/playgroundSparkle";
+import {
+  DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS,
+  type PlaygroundWidthShuffleOptions,
+} from "./runtime/playgroundWidthShuffle";
 
 export const STRIPE_FILTER_VERTEX = `
 in vec2 aPosition;
@@ -60,6 +64,11 @@ uniform float uSparkleEnabled;
 uniform float uSparkleTime;
 uniform float uSparkleCoverage;
 uniform float uSparkleRateHz;
+uniform float uWidthShuffleEnabled;
+uniform float uWidthShuffleTime;
+uniform float uWidthShuffleCoverage;
+uniform float uWidthShufflePeriodMinSec;
+uniform float uWidthShufflePeriodMaxSec;
 
 const float CELL_SIZE = 7.0;
 const float STRIPE_BAND_COUNT = 5.0;
@@ -76,6 +85,19 @@ bool sameStripeBand(float a, float b) {
 
 bool stripePixelVisible(float relX, float localY, float halfW, float bandTop, float bandBottom) {
     return abs(relX) <= halfW + 0.001 && localY >= bandTop - 0.001 && localY <= bandBottom + 0.001;
+}
+
+bool stripeVerticalVisible(float localY, float bandTop, float bandBottom) {
+    return localY >= bandTop - 0.001 && localY <= bandBottom + 0.001;
+}
+
+// Soft horizontal edge when width shuffle is active (fade outward from stripe boundary).
+float stripeHorizontalCoverage(float relX, float halfW, float soften) {
+    if (soften < 0.5) {
+        return step(abs(relX), halfW + 0.001);
+    }
+    float dist = max(abs(relX) - halfW, 0.0);
+    return 1.0 - smoothstep(0.0, 0.85, dist);
 }
 
 float decodeStripeBand(float encoded) {
@@ -169,6 +191,88 @@ bool sparkleCellVisible(float col, float row) {
     return mod(slot, 2.0) < 1.0;
 }
 
+// Keep in sync with runtime/playgroundWidthShuffle.ts.
+float widthShuffleHashFromCoords(vec2 p) {
+    vec3 p3 = fract(vec3(p.x, p.y, p.x) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float widthShuffleCellSeed(float col, float row) {
+    return widthShuffleHashFromCoords(vec2(col + 17.0, row + 31.0));
+}
+
+float widthShufflePhaseHash(float col, float row) {
+    return widthShuffleHashFromCoords(vec2(col + 53.0, row + 71.0));
+}
+
+float widthShufflePeriodHash(float col, float row) {
+    return widthShuffleHashFromCoords(vec2(col + 89.0, row + 113.0));
+}
+
+float widthShuffleAltHash(float col, float row, float pulseIndex) {
+    return widthShuffleHashFromCoords(vec2(col + 53.0 + pulseIndex * 61.0, row + 71.0 + pulseIndex * 101.0));
+}
+
+float widthShuffleTargetWidth(float col, float row, float pulseIndex, float defaultWidth) {
+    float minW = 1.0;
+    float maxW = 5.0;
+    float minSwing = 1.25;
+    float span = maxW - minW;
+    float h = widthShuffleAltHash(col, row, pulseIndex);
+    float target = minW + h * span;
+
+    if (abs(target - defaultWidth) < minSwing) {
+        if (defaultWidth <= 3.0) {
+            target = defaultWidth + minSwing + h * (maxW - defaultWidth - minSwing);
+        } else {
+            target = defaultWidth - minSwing - h * (defaultWidth - minW - minSwing);
+        }
+        target = clamp(target, minW, maxW);
+    }
+
+    return target;
+}
+
+float widthShuffleSmoothStep(float t) {
+    float c = clamp(t, 0.0, 1.0);
+    return c * c * (3.0 - 2.0 * c);
+}
+
+float widthShufflePulseEnvelope(float localT) {
+    if (localT < 0.0 || localT > 1.0) {
+        return 0.0;
+    }
+    float cosine = 0.5 - 0.5 * cos(6.28318530718 * localT);
+    return widthShuffleSmoothStep(cosine);
+}
+
+float resolveAnimatedStripeWidth(float col, float row, float band) {
+    float defaultWidth = widthPxFromBand(band);
+    if (band < 0.5 || uWidthShuffleEnabled < 0.5) {
+        return defaultWidth;
+    }
+
+    float periodSpan = uWidthShufflePeriodMaxSec - uWidthShufflePeriodMinSec;
+    float period = uWidthShufflePeriodMinSec + widthShufflePeriodHash(col, row) * periodSpan;
+    float coverage = max(uWidthShuffleCoverage, 0.001);
+    float cyclePeriod = period / coverage;
+    float phaseOffset = widthShufflePhaseHash(col, row) * cyclePeriod;
+    float scheduledTime = uWidthShuffleTime + phaseOffset;
+    float cycleIndex = floor(scheduledTime / cyclePeriod);
+    float localTime = scheduledTime - cycleIndex * cyclePeriod;
+
+    if (localTime >= period) {
+        return defaultWidth;
+    }
+
+    float localT = localTime / period;
+    float targetWidth = widthShuffleTargetWidth(col, row, cycleIndex, defaultWidth);
+    float envelope = widthShufflePulseEnvelope(localT);
+
+    return mix(defaultWidth, targetWidth, envelope);
+}
+
 void main(void) {
     vec2 pixelCoord = vTextureCoord * uPixelSize;
 
@@ -199,16 +303,20 @@ void main(void) {
         bandTop = 0.0;
         bandBottom = CELL_SIZE;
     }
-    float stripeWidth = widthPxFromBand(stripeBand);
+    float stripeWidth = resolveAnimatedStripeWidth(colIndex, rowIndex, stripeBand);
     float halfW = stripeWidth * 0.5;
     float relX = pixelCoord.x - columnCenterPx;
 
-    bool stripeVisible = stripeBand > 0.5 && stripeBandEnabled(stripeBand) && stripePixelVisible(relX, localY, halfW, bandTop, bandBottom);
-    if (stripeVisible && !sparkleCellVisible(colIndex, rowIndex)) {
-        stripeVisible = false;
-    }
-    if (stripeVisible) {
-        finalColor = vec4(stripeFillColor(stripeBand), 1.0);
+    float hCoverage = stripeHorizontalCoverage(relX, halfW, uWidthShuffleEnabled);
+    float vCoverage = stripeVerticalVisible(localY, bandTop, bandBottom) ? 1.0 : 0.0;
+    float stripeCoverage = hCoverage * vCoverage;
+
+    if (stripeBand > 0.5 && stripeBandEnabled(stripeBand)) {
+        if (!sparkleCellVisible(colIndex, rowIndex)) {
+            stripeCoverage = 0.0;
+        }
+        vec3 stripeColor = stripeFillColor(stripeBand);
+        finalColor = vec4(mix(vec3(1.0), stripeColor, stripeCoverage), 1.0);
     } else {
         finalColor = vec4(1.0, 1.0, 1.0, 1.0);
     }
@@ -223,6 +331,7 @@ void main(void) {
 export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeBandColors, preferP3?: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
+  syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
 };
 
@@ -277,6 +386,20 @@ export function createStripeDuotoneFilter(
       value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.rateHz,
       type: "f32",
     },
+    uWidthShuffleEnabled: { value: 0, type: "f32" },
+    uWidthShuffleTime: { value: 0, type: "f32" },
+    uWidthShuffleCoverage: {
+      value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.coverage,
+      type: "f32",
+    },
+    uWidthShufflePeriodMinSec: {
+      value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMinSec,
+      type: "f32",
+    },
+    uWidthShufflePeriodMaxSec: {
+      value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMaxSec,
+      type: "f32",
+    },
   });
 
   const filter = new Filter({
@@ -322,6 +445,22 @@ export function createStripeDuotoneFilter(
     uniforms.uSparkleTime = timeSec;
     uniforms.uSparkleCoverage = options.coverage;
     uniforms.uSparkleRateHz = options.rateHz;
+  };
+
+  filter.syncWidthShuffle = (options, timeSec) => {
+    const uniforms = stripeUniforms.uniforms as {
+      uWidthShuffleEnabled: number;
+      uWidthShuffleTime: number;
+      uWidthShuffleCoverage: number;
+      uWidthShufflePeriodMinSec: number;
+      uWidthShufflePeriodMaxSec: number;
+    };
+    uniforms.uWidthShuffleEnabled = options.enabled ? 1 : 0;
+    uniforms.uWidthShuffleTime = timeSec;
+    uniforms.uWidthShuffleCoverage = options.coverage;
+    uniforms.uWidthShufflePeriodMinSec = options.periodMinSec;
+    uniforms.uWidthShufflePeriodMaxSec = options.periodMaxSec;
+    stripeUniforms.update();
   };
 
   filter.updateBlockMap = (nextBlockMap) => {

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
   DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ,
+  DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER,
+  PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ,
   isPlaygroundSparkleCellVisible,
   playgroundSparkleOptionsFromRate,
   sparkleCellHash,
@@ -19,16 +21,18 @@ describe("playgroundSparkle", () => {
     expect(sparkleCellHash(2, 4)).not.toBe(sparkleCellHash(2, 5));
   });
 
-  it("maps slider rate 0 to disabled and 1 to max Hz", () => {
+  it("maps slider rate 0 to disabled, default to 2 Hz, and 1 to 4 Hz max", () => {
     expect(playgroundSparkleOptionsFromRate(0).enabled).toBe(false);
     expect(playgroundSparkleOptionsFromRate(0).rateHz).toBe(0);
     expect(playgroundSparkleOptionsFromRate(1).enabled).toBe(true);
-    expect(playgroundSparkleOptionsFromRate(1).rateHz).toBe(DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ);
-    expect(playgroundSparkleOptionsFromRate(0.5).rateHz).toBeCloseTo(DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ * 0.5);
+    expect(playgroundSparkleOptionsFromRate(1).rateHz).toBe(PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ);
+    expect(playgroundSparkleOptionsFromRate(DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER).rateHz).toBe(
+      DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ,
+    );
   });
 
   it("blinks participating cells over time", () => {
-    const options = playgroundSparkleOptionsFromRate(1);
+    const options = playgroundSparkleOptionsFromRate(DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER);
     let participantCol = -1;
     let participantRow = -1;
 
@@ -58,7 +62,7 @@ describe("playgroundSparkle", () => {
   });
 
   it("leaves non-participating cells always visible", () => {
-    const options = playgroundSparkleOptionsFromRate(1);
+    const options = playgroundSparkleOptionsFromRate(DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER);
     for (let col = 0; col < 30; col++) {
       for (let row = 0; row < 30; row++) {
         if (sparkleCellHash(col, row) < options.coverage) {

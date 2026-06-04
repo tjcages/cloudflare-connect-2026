@@ -14,6 +14,7 @@ import {
 import type { StripeDuotoneOptions } from "./runtime/stripeFilterOptions";
 import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./runtime/stripeLetterFont";
 import type { PlaygroundSparkleOptions } from "./runtime/playgroundSparkle";
+import type { PlaygroundWidthShuffleOptions } from "./runtime/playgroundWidthShuffle";
 import { createStripeLetterLayer, type StripeLetterLayer } from "./runtime/stripeLetterLayer";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
@@ -128,6 +129,7 @@ function runDuotoneTick(params: {
   letterLayer: StripeLetterLayer;
   duotoneEnabledRef: RefObject<boolean>;
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>;
+  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>;
   stripeOptionsRef: RefObject<StripeDuotoneOptions>;
   stripeColorsRef: RefObject<StripeBandColors>;
   preferP3Ref: RefObject<boolean>;
@@ -146,6 +148,7 @@ function runDuotoneTick(params: {
     letterLayer,
     duotoneEnabledRef,
     sparkleOptionsRef,
+    widthShuffleOptionsRef,
     stripeOptionsRef,
     stripeColorsRef,
     preferP3Ref,
@@ -260,6 +263,7 @@ function runDuotoneTick(params: {
     const sparkleTimeSec = performance.now() / 1000;
     const sparkleOptions = sparkleOptionsRef.current;
     stripeFilter.syncSparkle(sparkleOptions, sparkleTimeSec);
+    stripeFilter.syncWidthShuffle(widthShuffleOptionsRef.current, sparkleTimeSec);
     letterLayer.applySparkle(sparkleTimeSec, sparkleOptions);
 
     if (hasBuiltGrid) {
@@ -278,6 +282,7 @@ export function createTextureSceneTicker(
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
+  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
@@ -290,6 +295,7 @@ export function createTextureSceneTicker(
       preferP3Ref,
       duotoneEnabledRef,
       sparkleOptionsRef,
+      widthShuffleOptionsRef,
       exportStateRef,
     );
   }
@@ -301,6 +307,7 @@ export function createTextureSceneTicker(
     preferP3Ref,
     duotoneEnabledRef,
     sparkleOptionsRef,
+    widthShuffleOptionsRef,
     autoplayRef,
     exportStateRef,
   );
@@ -314,6 +321,7 @@ function createImageSceneTicker(
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
+  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -352,6 +360,7 @@ function createImageSceneTicker(
       letterLayer,
       duotoneEnabledRef,
       sparkleOptionsRef,
+      widthShuffleOptionsRef,
       stripeOptionsRef,
       stripeColorsRef,
       preferP3Ref,
@@ -387,6 +396,7 @@ function createVideoSceneTickerInternal(
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
+  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
@@ -433,6 +443,7 @@ function createVideoSceneTickerInternal(
       letterLayer,
       duotoneEnabledRef,
       sparkleOptionsRef,
+      widthShuffleOptionsRef,
       stripeOptionsRef,
       stripeColorsRef,
       preferP3Ref,
@@ -480,6 +491,7 @@ export function createVideoSceneTicker(
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
+  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
@@ -491,6 +503,7 @@ export function createVideoSceneTicker(
     preferP3Ref,
     duotoneEnabledRef,
     sparkleOptionsRef,
+    widthShuffleOptionsRef,
     autoplayRef,
     exportStateRef,
   );

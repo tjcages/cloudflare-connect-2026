@@ -3,7 +3,16 @@ import {
   normalizeStripeBandBreakpoints,
   type StripeBandBreakpoints,
 } from "./stripeBandThresholds";
-import { normalizeSparkleRate } from "./playgroundSparkle";
+import {
+  DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER,
+  normalizeSparkleRate,
+} from "./playgroundSparkle";
+import {
+  DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT,
+  DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER,
+  normalizeSparkleWidthActivePercent,
+  normalizeSparkleWidthSpeed,
+} from "./playgroundWidthShuffle";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_DUOTONE,
@@ -26,8 +35,12 @@ export type PlaygroundPersistedConfig = {
   duotoneEnabled: boolean;
   /** Sparkle blink intensity 0–1 (0 = off, 1 = max Hz). */
   sparkleRate?: number;
-  /** @deprecated Migrated to sparkleRate (true → 1). */
+  /** @deprecated Migrated to sparkleRate (true → default 2 Hz). */
   sparkleEnabled?: boolean;
+  /** Fraction of stripe cells animating width (0–100). 0 = off. Default 30. */
+  sparkleWidthActivePercent?: number;
+  /** Width pulse speed slider 0–1. Default 0.5 → 1.0×. */
+  sparkleWidthSpeed?: number;
   ignoreColorHex: string;
   ignoreTolerance: number;
   gamma: number;
@@ -71,6 +84,8 @@ export type PlaygroundStateWire = {
   d: boolean;
   sk?: boolean;
   sr?: number;
+  swa?: number;
+  sws?: number;
   c: string;
   t: number;
   g: number;
@@ -362,6 +377,20 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   } else if (config.sparkleEnabled) {
     wire.sk = true;
   }
+  const activePercent =
+    config.sparkleWidthActivePercent !== undefined
+      ? normalizeSparkleWidthActivePercent(config.sparkleWidthActivePercent)
+      : DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT;
+  if (activePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT) {
+    wire.swa = activePercent;
+  }
+  const widthSpeed =
+    config.sparkleWidthSpeed !== undefined
+      ? normalizeSparkleWidthSpeed(config.sparkleWidthSpeed)
+      : DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER;
+  if (widthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER) {
+    wire.sws = widthSpeed;
+  }
   if (config.displayWidth && config.displayWidth > 0) {
     wire.w = config.displayWidth;
   }
@@ -374,6 +403,28 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   return JSON.stringify(wire);
 }
 
+function parseSparkleWidthActivePercent(raw: unknown): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+  return normalizeSparkleWidthActivePercent(value);
+}
+
+function parseSparkleWidthSpeed(raw: unknown): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+  return normalizeSparkleWidthSpeed(value);
+}
+
 function parseSparkleRate(sr: unknown, sk: unknown): number | undefined {
   if (sr !== undefined) {
     const rate = Number(sr);
@@ -383,7 +434,7 @@ function parseSparkleRate(sr: unknown, sk: unknown): number | undefined {
     const normalized = normalizeSparkleRate(rate);
     return normalized > 0 ? normalized : undefined;
   }
-  return sk === true ? 1 : undefined;
+  return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER : undefined;
 }
 
 function parseBandBreakpoints(raw: unknown): StripeBandBreakpoints | undefined {
@@ -417,6 +468,8 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   return {
     duotoneEnabled: parsed.d,
     sparkleRate: parseSparkleRate(parsed.sr, parsed.sk),
+    sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa),
+    sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws),
     ignoreColorHex: parsed.c,
     ignoreTolerance: t,
     gamma: g,
