@@ -6,7 +6,6 @@ const baseSnapshot = buildPlaygroundExportSnapshot({
   config: {
     duotoneEnabled: true,
     ignoreTolerance: 0.08,
-    gamma: 1,
     threshold: 0.72,
     density: 1,
     bandBreakpoints: [1, 2, 3, 4],

@@ -83,8 +83,9 @@ import {
   type StripeBandBreakpoints,
 } from "./stripeBandThresholds";
 import {
+  DEFAULT_STRIPE_DENSITY,
   DEFAULT_STRIPE_DUOTONE_OPTIONS,
-  PLAYGROUND_IGNORE_BG_RGB,
+  DEFAULT_STRIPE_THRESHOLD,
   type StripeDuotoneOptions,
 } from "./stripeFilterOptions";
 
@@ -193,7 +194,6 @@ function disposeImageElement(image: HTMLImageElement) {
 function applyPersistedConfig(config: PlaygroundPersistedConfig) {
   return {
     ignoreTolerance: config.ignoreTolerance,
-    gamma: config.gamma,
     threshold: config.threshold,
     density: config.density,
     duotoneEnabled: config.duotoneEnabled,
@@ -292,9 +292,8 @@ export function TexturePlayground() {
   const [selectedTextureId, setSelectedTextureId] = useState<PlaygroundTextureId>(initialId);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [ignoreTolerance, setIgnoreTolerance] = useState(appliedInitial.ignoreTolerance);
-  const [gamma, setGamma] = useState(appliedInitial.gamma);
-  const [threshold, setThreshold] = useState(appliedInitial.threshold);
-  const [density, setDensity] = useState(appliedInitial.density);
+  const threshold = DEFAULT_STRIPE_THRESHOLD;
+  const density = DEFAULT_STRIPE_DENSITY;
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
   const [sparkleGapsActivePercent, setSparkleGapsActivePercent] = useState(appliedInitial.sparkleGapsActivePercent);
   const [sparkleGapsSpeed, setSparkleGapsSpeed] = useState(appliedInitial.sparkleGapsSpeed);
@@ -377,7 +376,6 @@ export function TexturePlayground() {
           : undefined,
       sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
       ignoreTolerance,
-      gamma,
       threshold,
       density,
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
@@ -393,7 +391,6 @@ export function TexturePlayground() {
     sparkleWidthActivePercent,
     sparkleWidthSpeed,
     ignoreTolerance,
-    gamma,
     threshold,
     density,
     displayWidth,
@@ -418,9 +415,6 @@ export function TexturePlayground() {
   const applyConfig = useCallback((config: PlaygroundPersistedConfig) => {
     const next = applyPersistedConfig(config);
     setIgnoreTolerance(next.ignoreTolerance);
-    setGamma(next.gamma);
-    setThreshold(next.threshold);
-    setDensity(next.density);
     setDuotoneEnabled(next.duotoneEnabled);
     setSparkleGapsActivePercent(resolvePersistedSparkleGapsActivePercent(config));
     setSparkleGapsSpeed(resolvePersistedSparkleGapsSpeed(config));
@@ -464,14 +458,12 @@ export function TexturePlayground() {
 
   useEffect(() => {
     stripeOptionsRef.current = {
-      ignoreColorRgb: PLAYGROUND_IGNORE_BG_RGB,
       ignoreTolerance,
-      gamma,
       threshold,
       density,
       bandBreakpoints,
     };
-  }, [ignoreTolerance, gamma, threshold, density, bandBreakpoints]);
+  }, [ignoreTolerance, threshold, density, bandBreakpoints]);
 
   useEffect(() => {
     stripeColorsRef.current = buildStripeColors(enabledBands);
@@ -642,7 +634,6 @@ export function TexturePlayground() {
           : undefined,
       sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
       ignoreTolerance,
-      gamma,
       threshold,
       density,
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
@@ -769,7 +760,6 @@ export function TexturePlayground() {
           sparkleWidthSpeed:
             sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
           ignoreTolerance,
-          gamma,
           threshold,
           density,
           displayWidth: displayWidth > 0 ? displayWidth : undefined,
@@ -788,7 +778,6 @@ export function TexturePlayground() {
       sparkleWidthActivePercent,
       sparkleWidthSpeed,
       ignoreTolerance,
-      gamma,
       threshold,
       density,
       displayWidth,
@@ -917,36 +906,13 @@ export function TexturePlayground() {
             </label>
 
             <ControlField
-              label="Bg match"
-              value={ignoreTolerance}
-              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.bgMatch.min}
-              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.bgMatch.max}
-              onValueChange={setIgnoreTolerance}
-              formatDisplay={(v) => v.toFixed(3)}
-              valueAriaLabel="Background color match tolerance"
-              disabled={duotoneControlsDisabled}
-            >
-              <input
-                type="range"
-                min={PLAYGROUND_CONTROL_RANGES.bgMatch.min}
-                max={PLAYGROUND_CONTROL_RANGES.bgMatch.max}
-                step={PLAYGROUND_CONTROL_RANGES.bgMatch.step}
-                value={Math.min(ignoreTolerance, PLAYGROUND_CONTROL_RANGES.bgMatch.max)}
-                onChange={(event) => setIgnoreTolerance(Number(event.target.value))}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Background color match tolerance"
-              />
-            </ControlField>
-
-            <ControlField
               label="Gamma"
-              value={gamma}
+              value={ignoreTolerance}
               inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.gamma.min}
               inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.gamma.max}
-              onValueChange={setGamma}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Gamma for background matching"
+              onValueChange={setIgnoreTolerance}
+              formatDisplay={(v) => v.toFixed(3)}
+              valueAriaLabel="Gamma (foreground luminance cutoff)"
               disabled={duotoneControlsDisabled}
             >
               <input
@@ -954,57 +920,11 @@ export function TexturePlayground() {
                 min={PLAYGROUND_CONTROL_RANGES.gamma.min}
                 max={PLAYGROUND_CONTROL_RANGES.gamma.max}
                 step={PLAYGROUND_CONTROL_RANGES.gamma.step}
-                value={Math.min(gamma, PLAYGROUND_CONTROL_RANGES.gamma.max)}
-                onChange={(event) => setGamma(Number(event.target.value))}
+                value={Math.min(ignoreTolerance, PLAYGROUND_CONTROL_RANGES.gamma.max)}
+                onChange={(event) => setIgnoreTolerance(Number(event.target.value))}
                 disabled={duotoneControlsDisabled}
                 className="w-full disabled:cursor-not-allowed"
-                aria-label="Gamma for background matching"
-              />
-            </ControlField>
-
-            <ControlField
-              label="Threshold"
-              value={threshold}
-              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.threshold.min}
-              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.threshold.max}
-              onValueChange={setThreshold}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Block background threshold"
-              disabled={duotoneControlsDisabled}
-            >
-              <input
-                type="range"
-                min={PLAYGROUND_CONTROL_RANGES.threshold.min}
-                max={PLAYGROUND_CONTROL_RANGES.threshold.max}
-                step={PLAYGROUND_CONTROL_RANGES.threshold.step}
-                value={Math.min(threshold, PLAYGROUND_CONTROL_RANGES.threshold.max)}
-                onChange={(event) => setThreshold(Number(event.target.value))}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Block background threshold"
-              />
-            </ControlField>
-
-            <ControlField
-              label="Density"
-              value={density}
-              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.density.min}
-              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.density.max}
-              onValueChange={setDensity}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Stripe density"
-              disabled={duotoneControlsDisabled}
-            >
-              <input
-                type="range"
-                min={PLAYGROUND_CONTROL_RANGES.density.min}
-                max={PLAYGROUND_CONTROL_RANGES.density.max}
-                step={PLAYGROUND_CONTROL_RANGES.density.step}
-                value={Math.min(density, PLAYGROUND_CONTROL_RANGES.density.max)}
-                onChange={(event) => setDensity(Number(event.target.value))}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Stripe density"
+                aria-label="Gamma (foreground luminance cutoff)"
               />
             </ControlField>
           </PlaygroundControlSection>

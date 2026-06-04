@@ -13,7 +13,7 @@ describe("syncExportToTestProject", () => {
 
     const typesPath = join(TEST_ROOT, "src/components/ascii-video/types.ts");
     const typesSource = readFileSync(typesPath, "utf8");
-    expect(typesSource).toContain("PLAYGROUND_IGNORE_BG_RGB");
+    expect(typesSource).not.toContain("PLAYGROUND_IGNORE_BG_RGB");
     expect(typesSource).not.toContain("ignoreColorHex");
     expect(typesSource).toContain('"displayWidth": 848');
     expect(typesSource).toContain("bandDisplayP3Css");

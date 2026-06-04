@@ -1,15 +1,8 @@
-import {
-  constrainReferenceColor,
-  REFERENCE_COLOR_SMOOTH_ALPHA,
-  sampleReferenceColorFromFrame,
-  smoothReferenceColor,
-} from "./colorWhiteness";
 import { computeBlockGrid, type BlockGrid } from "./computeBlockGrid";
 import { smoothBlockGridBands } from "./stabilizeBlockGrid";
-import type { Rgb01, StripeDuotoneOptions } from "./stripeFilterOptions";
+import type { StripeDuotoneOptions } from "./stripeFilterOptions";
 
 export type PlaygroundGridBuildState = {
-  stableReference?: Rgb01;
   stableBands?: Uint8Array;
 };
 
@@ -49,24 +42,11 @@ export function buildPlaygroundBlockGrid(
   options: StripeDuotoneOptions,
   state: PlaygroundGridBuildState,
 ): { grid: BlockGrid; state: PlaygroundGridBuildState } {
-  const frameSample = sampleReferenceColorFromFrame(
-    frame.data,
-    displayWidth,
-    displayHeight,
-    options.ignoreColorRgb,
-    options.gamma,
-  );
-  const constrained = constrainReferenceColor(frameSample, options.ignoreColorRgb, options.ignoreTolerance);
-  const stableReference = smoothReferenceColor(state.stableReference, constrained, REFERENCE_COLOR_SMOOTH_ALPHA);
-
-  const rawGrid = computeBlockGrid(frame.data, displayWidth, displayHeight, {
-    ...options,
-    referenceColorRgb: stableReference,
-  });
+  const rawGrid = computeBlockGrid(frame.data, displayWidth, displayHeight, options);
   const stableBands = smoothBlockGridBands(rawGrid.bands, state.stableBands);
 
   return {
     grid: { cols: rawGrid.cols, rows: rawGrid.rows, bands: stableBands },
-    state: { stableReference, stableBands },
+    state: { stableBands },
   };
 }

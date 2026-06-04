@@ -51,7 +51,6 @@ export type PlaygroundPersistedConfig = {
   /** Width pulse speed factor (1 = baseline). Default 1. */
   sparkleWidthSpeed?: number;
   ignoreTolerance: number;
-  gamma: number;
   threshold: number;
   density: number;
   /** Canvas width in px; omitted = match native source width on load. */
@@ -99,7 +98,8 @@ export type PlaygroundStateWire = {
   /** @deprecated Ignored; playground always uses black background ignore. */
   c?: string;
   t: number;
-  g: number;
+  /** @deprecated Ignored; gamma removed (luminance threshold only). */
+  g?: number;
   th: number;
   de: number;
   w?: number;
@@ -274,7 +274,6 @@ export function mergeCatalog(
       duotone: override
         ? {
             ignoreTolerance: override.ignoreTolerance,
-            gamma: override.gamma,
             threshold: override.threshold,
             density: override.density,
           }
@@ -303,7 +302,6 @@ export function defaultConfigForTexture(textureId: PlaygroundTextureId): Playgro
     return {
       duotoneEnabled: true,
       ignoreTolerance: duotone.ignoreTolerance,
-      gamma: duotone.gamma,
       threshold: duotone.threshold,
       density: duotone.density,
       bandBreakpoints,
@@ -376,7 +374,6 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
     v: 2,
     d: config.duotoneEnabled,
     t: config.ignoreTolerance,
-    g: config.gamma,
     th: config.threshold,
     de: config.density,
   };
@@ -541,10 +538,9 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     throw new Error("Invalid playground state.");
   }
   const t = Number(parsed.t);
-  const g = Number(parsed.g);
   const th = Number(parsed.th);
   const de = Number(parsed.de);
-  if (![t, g, th, de].every(Number.isFinite)) {
+  if (![t, th, de].every(Number.isFinite)) {
     throw new Error("Invalid playground state numbers.");
   }
   const w = parsed.w === undefined ? undefined : Number(parsed.w);
@@ -556,7 +552,6 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa, wireVersion),
     sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws, wireVersion),
     ignoreTolerance: t,
-    gamma: g,
     threshold: th,
     density: de,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,

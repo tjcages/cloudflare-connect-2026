@@ -45,7 +45,6 @@ export type AsciiVideoConfig = {
   sparkleGapsActivePercent?: number;
   sparkleGapsSpeed?: number;
   ignoreTolerance: number;
-  gamma: number;
   threshold: number;
   density: number;
   displayWidth?: number;
@@ -78,15 +77,11 @@ export function configToStripeBandColors(config: AsciiVideoConfig): StripeBandCo
 
 export type Rgb01 = [number, number, number];
 
-export const PLAYGROUND_IGNORE_BG_RGB: Rgb01 = [0, 0, 0];
-
 export { hexToRgb01 } from "./colorSpace";
 
 export function configToStripeOptions(config: AsciiVideoConfig) {
   return {
-    ignoreColorRgb: PLAYGROUND_IGNORE_BG_RGB,
     ignoreTolerance: config.ignoreTolerance,
-    gamma: config.gamma,
     threshold: config.threshold,
     density: config.density,
     bandBreakpoints: config.bandBreakpoints,
@@ -105,7 +100,7 @@ const EXPORT_PARITY_STEPS = [
   "The export matches the Section Grid Playground renderer. To get a **1:1** result:",
   "",
   "- Copy **every** file from step 6 into `ascii-video/` — including `scene.ts`, `pixi.tsx`, `pixiUtils.ts`, and the entire `runtime/` folder. Do not merge or simplify modules.",
-  "- Use exported `defaultConfig` **unchanged** (ignore color, gamma, threshold, density, band hex, breakpoints, `displayWidth` / `displayHeight`).",
+  "- Use exported `defaultConfig` **unchanged** (luminance threshold, threshold, density, band hex, breakpoints, `displayWidth` / `displayHeight`).",
   "- Use the **same media file** the user exported from, at a public URL/path the app can load with CORS (`crossOrigin` is set on the element).",
   "- Match `displayWidth` × `displayHeight` from `defaultConfig` — these are the logical canvas dimensions from the playground.",
   "- Add Berkeley Mono for stripe letters (required for correct glyphs):",

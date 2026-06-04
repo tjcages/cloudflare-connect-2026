@@ -10,7 +10,6 @@ export function buildExample5ExportSnapshot(): ReactExportSnapshot {
     config: {
       duotoneEnabled: true,
       ignoreTolerance: texture.duotone.ignoreTolerance,
-      gamma: texture.duotone.gamma,
       threshold: texture.duotone.threshold,
       density: texture.duotone.density,
       displayWidth: 848,

@@ -1,7 +1,5 @@
 /** Placeholder types file — replaced during export with playground snapshot values. */
 
-import { PLAYGROUND_IGNORE_BG_RGB } from "./runtime/stripeFilterOptions";
-
 export type StripeBandBreakpoints = readonly [number, number, number, number];
 
 export type StripeBandEnabled = readonly [boolean, boolean, boolean, boolean, boolean];
@@ -24,7 +22,6 @@ export type AsciiVideoConfig = {
   /** Width pulse speed factor (1 = baseline). */
   sparkleWidthSpeed?: number;
   ignoreTolerance: number;
-  gamma: number;
   threshold: number;
   density: number;
   displayWidth?: number;
@@ -48,7 +45,6 @@ export type AsciiVideoProps = {
 export const defaultConfig: AsciiVideoConfig = {
   duotoneEnabled: true,
   ignoreTolerance: 0.08,
-  gamma: 1,
   threshold: 0.72,
   density: 1,
   bandBreakpoints: [1, 2, 3, 4],
@@ -77,9 +73,7 @@ export { hexToRgb01 } from "./colorSpace";
 
 export function configToStripeOptions(config: AsciiVideoConfig) {
   return {
-    ignoreColorRgb: PLAYGROUND_IGNORE_BG_RGB,
     ignoreTolerance: config.ignoreTolerance,
-    gamma: config.gamma,
     threshold: config.threshold,
     density: config.density,
     bandBreakpoints: config.bandBreakpoints,

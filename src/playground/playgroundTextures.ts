@@ -22,7 +22,6 @@ export type PlaygroundTextureId = BuiltinPlaygroundTextureId | `upload:${string}
 
 export type PlaygroundDuotoneDefaults = {
   ignoreTolerance: number;
-  gamma: number;
   threshold: number;
   density: number;
 };
@@ -30,7 +29,6 @@ export type PlaygroundDuotoneDefaults = {
 /** Duotone defaults applied to newly uploaded videos/images before any saved config exists. */
 export const DEFAULT_PLAYGROUND_UPLOAD_DUOTONE: PlaygroundDuotoneDefaults = {
   ignoreTolerance: 0.1,
-  gamma: 1,
   threshold: 0.7,
   density: 1.1,
 };
@@ -55,7 +53,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: 0.095,
-      gamma: 1.15,
       threshold: 0.99,
       density: 0.6,
     },
@@ -68,7 +65,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: 0.095,
-      gamma: 1.15,
       threshold: 0.99,
       density: 0.6,
     },
@@ -81,7 +77,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: DEFAULT_STRIPE_DUOTONE_OPTIONS.ignoreTolerance,
-      gamma: 1,
       threshold: DEFAULT_STRIPE_THRESHOLD,
       density: DEFAULT_STRIPE_DENSITY,
     },
@@ -94,7 +89,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: 0.16,
-      gamma: 0.3,
       threshold: DEFAULT_STRIPE_THRESHOLD,
       density: DEFAULT_STRIPE_DENSITY,
     },
@@ -107,7 +101,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: 0.015,
-      gamma: 4,
       threshold: 0.05,
       density: 1.05,
     },
@@ -120,7 +113,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: 0.1,
-      gamma: 1.2,
       threshold: 0.64,
       density: 0.3,
     },
@@ -133,7 +125,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: 0.235,
-      gamma: 1,
       threshold: 0.99,
       density: 0.55,
     },
@@ -146,7 +137,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: 0.415,
-      gamma: 1.9,
       threshold: 0.99,
       density: 0.65,
     },
@@ -159,7 +149,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: DEFAULT_STRIPE_DUOTONE_OPTIONS.ignoreTolerance,
-      gamma: 1,
       threshold: DEFAULT_STRIPE_THRESHOLD,
       density: DEFAULT_STRIPE_DENSITY,
     },
@@ -172,7 +161,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     displayScale: 1,
     duotone: {
       ignoreTolerance: DEFAULT_STRIPE_DUOTONE_OPTIONS.ignoreTolerance,
-      gamma: 1,
       threshold: DEFAULT_STRIPE_THRESHOLD,
       density: DEFAULT_STRIPE_DENSITY,
     },

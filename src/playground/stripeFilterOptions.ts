@@ -2,20 +2,9 @@ import { DEFAULT_STRIPE_BAND_BREAKPOINTS, type StripeBandBreakpoints } from "./s
 
 export type Rgb01 = [number, number, number];
 
-/** Playground always treats background ignore as black (not user-configurable). */
-export const PLAYGROUND_IGNORE_BG_RGB: Rgb01 = [0, 0, 0];
-
 export type StripeDuotoneOptions = {
-  /** Background swatch hint for corner sampling and reference clamping. */
-  ignoreColorRgb: Rgb01;
-  /** Measured RGB from frame corners; overrides swatch when set. */
-  referenceColorRgb?: Rgb01;
-  /** Max per-channel distance (0–1) treated as background. */
+  /** Max foreground luminance (0–1) still treated as background. */
   ignoreTolerance: number;
-  /**
-   * Gamma applied before bg matching (< 1 pulls values toward white / thinner fg on light clips).
-   */
-  gamma: number;
   /** Share of block pixels that must match bg for the cell to count as background (0–1). */
   threshold: number;
   /** Scales fg distance bands for stripe width (lower → thinner / denser stripes). */
@@ -24,13 +13,11 @@ export type StripeDuotoneOptions = {
   bandBreakpoints: StripeBandBreakpoints;
 };
 
-export const DEFAULT_STRIPE_THRESHOLD = 0.72;
+export const DEFAULT_STRIPE_THRESHOLD = 0.95;
 export const DEFAULT_STRIPE_DENSITY = 1;
 
 export const DEFAULT_STRIPE_DUOTONE_OPTIONS: StripeDuotoneOptions = {
-  ignoreColorRgb: PLAYGROUND_IGNORE_BG_RGB,
   ignoreTolerance: 0.08,
-  gamma: 1,
   threshold: DEFAULT_STRIPE_THRESHOLD,
   density: DEFAULT_STRIPE_DENSITY,
   bandBreakpoints: DEFAULT_STRIPE_BAND_BREAKPOINTS,

@@ -1,10 +1,5 @@
-import {
-  constrainReferenceColor,
-  isIgnoredBgPixel,
-  resolveReferenceColor,
-  sampleReferenceColorFromFrame,
-} from "./colorWhiteness";
-import { DEFAULT_STRIPE_DUOTONE_OPTIONS, type Rgb01, type StripeDuotoneOptions } from "./stripeFilterOptions";
+import { pixelLuminance } from "./colorWhiteness";
+import { DEFAULT_STRIPE_DUOTONE_OPTIONS, type StripeDuotoneOptions } from "./stripeFilterOptions";
 import { bandFromDistance } from "./stripeBandThresholds";
 import { STRIPE_BLOCK_SAMPLE_COUNT, STRIPE_BLOCK_SAMPLES, STRIPE_CELL_SIZE } from "./stripeGridConstants";
 
@@ -21,9 +16,7 @@ function blockIsMostlyBg(
   imageHeight: number,
   col: number,
   row: number,
-  reference: Rgb01,
-  tolerance: number,
-  gamma: number,
+  luminanceCutoff: number,
   threshold: number,
 ): boolean {
   const originX = col * STRIPE_CELL_SIZE;
@@ -46,7 +39,7 @@ function blockIsMostlyBg(
       const g = pixels[idx + 1] ?? 0;
       const b = pixels[idx + 2] ?? 0;
 
-      if (isIgnoredBgPixel(r, g, b, reference, tolerance, gamma)) {
+      if (pixelLuminance(r, g, b) <= luminanceCutoff) {
         bgCount++;
       } else {
         fgCount++;
@@ -151,14 +144,6 @@ export function computeBlockGrid(
   imageHeight: number,
   options: StripeDuotoneOptions,
 ): BlockGrid {
-  const gamma = options.gamma;
-  const sampled = resolveReferenceColor(
-    options.referenceColorRgb ??
-      sampleReferenceColorFromFrame(pixels, imageWidth, imageHeight, options.ignoreColorRgb, gamma),
-    options.ignoreColorRgb,
-  );
-  const reference = constrainReferenceColor(sampled, options.ignoreColorRgb, options.ignoreTolerance);
-
   const cols = Math.ceil(imageWidth / STRIPE_CELL_SIZE);
   const rows = Math.ceil(imageHeight / STRIPE_CELL_SIZE);
   const size = cols * rows;
@@ -173,9 +158,7 @@ export function computeBlockGrid(
         imageHeight,
         col,
         row,
-        reference,
         options.ignoreTolerance,
-        gamma,
         options.threshold,
       )
         ? 1

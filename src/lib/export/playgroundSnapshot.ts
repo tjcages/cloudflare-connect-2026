@@ -50,8 +50,8 @@ export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
   return [
     `- Duotone: ${config.duotoneEnabled ? "on" : "off"}`,
     `- Sparkle gaps: ${formatSparkleGapsSummary(config)}`,
-    `- Bg match tolerance: ${config.ignoreTolerance}`,
-    `- Gamma: ${config.gamma}, threshold: ${config.threshold}, density: ${config.density}`,
+    `- Luminance threshold: ${config.ignoreTolerance}`,
+    `- Threshold: ${config.threshold}, density: ${config.density}`,
     `- Display: ${snapshot.displayWidth}×${snapshot.displayHeight}px`,
     `- Band breakpoints: ${(config.bandBreakpoints ?? []).join(", ")}`,
     `- Bands enabled: ${snapshot.bandEnabled.map((on, i) => `${i + 1}:${on ? "yes" : "no"}`).join(", ")}`,
@@ -65,7 +65,6 @@ export type AsciiVideoConfigWire = {
   sparkleGapsActivePercent?: number;
   sparkleGapsSpeed?: number;
   ignoreTolerance: number;
-  gamma: number;
   threshold: number;
   density: number;
   displayWidth?: number;
@@ -85,7 +84,6 @@ export function snapshotToAsciiVideoConfig(snapshot: ReactExportSnapshot): Ascii
         ? resolvePersistedSparkleGapsSpeed(snapshot.config)
         : undefined,
     ignoreTolerance: snapshot.config.ignoreTolerance,
-    gamma: snapshot.config.gamma,
     threshold: snapshot.config.threshold,
     density: snapshot.config.density,
     displayWidth: snapshot.config.displayWidth ?? snapshot.displayWidth,
