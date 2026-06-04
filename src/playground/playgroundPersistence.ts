@@ -3,7 +3,13 @@ import {
   normalizeStripeBandBreakpoints,
   type StripeBandBreakpoints,
 } from "./stripeBandThresholds";
-import { DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER, normalizeSparkleRate } from "./playgroundSparkle";
+import {
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
+  normalizeSparkleGapsActivePercent,
+  normalizeSparkleGapsSpeed,
+  normalizeSparkleRate,
+} from "./playgroundSparkle";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT,
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED_SLIDER,
@@ -30,9 +36,13 @@ export const MAX_PLAYGROUND_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type PlaygroundPersistedConfig = {
   duotoneEnabled: boolean;
-  /** Sparkle blink intensity 0–1 (0 = off, 1 = max Hz). */
+  /** Fraction of stripe cells showing a gap at once (0–100). 0 = off. Default 22. */
+  sparkleGapsActivePercent?: number;
+  /** Gap pulse speed slider 0–1. Default 0.5 → 1.0×. */
+  sparkleGapsSpeed?: number;
+  /** @deprecated Migrated to sparkleGapsActivePercent / sparkleGapsSpeed. */
   sparkleRate?: number;
-  /** @deprecated Migrated to sparkleRate (true → default 2 Hz). */
+  /** @deprecated Migrated to sparkleGapsActivePercent. */
   sparkleEnabled?: boolean;
   /** Fraction of stripe cells animating width (0–100). 0 = off. Default 30. */
   sparkleWidthActivePercent?: number;
@@ -80,6 +90,8 @@ export type PlaygroundStateWire = {
   d: boolean;
   sk?: boolean;
   sr?: number;
+  sgap?: number;
+  sgsp?: number;
   swa?: number;
   sws?: number;
   /** @deprecated Ignored; playground always uses black background ignore. */
@@ -366,10 +378,19 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
     th: config.threshold,
     de: config.density,
   };
-  if (config.sparkleRate !== undefined && config.sparkleRate > 0) {
-    wire.sr = config.sparkleRate;
-  } else if (config.sparkleEnabled) {
-    wire.sk = true;
+  const gapsActive =
+    config.sparkleGapsActivePercent !== undefined
+      ? normalizeSparkleGapsActivePercent(config.sparkleGapsActivePercent)
+      : legacySparkleGapsActivePercent(config);
+  if (gapsActive > 0) {
+    wire.sgap = gapsActive;
+  }
+  const gapsSpeed =
+    config.sparkleGapsSpeed !== undefined
+      ? normalizeSparkleGapsSpeed(config.sparkleGapsSpeed)
+      : legacySparkleGapsSpeed(config);
+  if (gapsActive > 0 && gapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER) {
+    wire.sgsp = gapsSpeed;
   }
   const activePercent =
     config.sparkleWidthActivePercent !== undefined
@@ -419,7 +440,29 @@ function parseSparkleWidthSpeed(raw: unknown): number | undefined {
   return normalizeSparkleWidthSpeed(value);
 }
 
-function parseSparkleRate(sr: unknown, sk: unknown): number | undefined {
+function parseSparkleGapsActivePercent(sgap: unknown, sr: unknown, sk: unknown): number | undefined {
+  const fromWire = parsePercentField(sgap);
+  if (fromWire !== undefined) {
+    return fromWire;
+  }
+  if (sr !== undefined) {
+    const rate = Number(sr);
+    if (Number.isFinite(rate) && normalizeSparkleRate(rate) > 0) {
+      return DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT;
+    }
+    return undefined;
+  }
+  return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT : undefined;
+}
+
+function parseSparkleGapsSpeed(sgsp: unknown, sr: unknown, sk: unknown): number | undefined {
+  if (sgsp !== undefined) {
+    const value = Number(sgsp);
+    if (!Number.isFinite(value)) {
+      return undefined;
+    }
+    return normalizeSparkleGapsSpeed(value);
+  }
   if (sr !== undefined) {
     const rate = Number(sr);
     if (!Number.isFinite(rate)) {
@@ -428,7 +471,38 @@ function parseSparkleRate(sr: unknown, sk: unknown): number | undefined {
     const normalized = normalizeSparkleRate(rate);
     return normalized > 0 ? normalized : undefined;
   }
-  return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER : undefined;
+  return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER : undefined;
+}
+
+function parsePercentField(raw: unknown): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+  return normalizeSparkleGapsActivePercent(value);
+}
+
+function legacySparkleGapsActivePercent(config: PlaygroundPersistedConfig): number {
+  if (config.sparkleRate !== undefined && config.sparkleRate > 0) {
+    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT;
+  }
+  if (config.sparkleEnabled) {
+    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT;
+  }
+  return 0;
+}
+
+function legacySparkleGapsSpeed(config: PlaygroundPersistedConfig): number {
+  if (config.sparkleRate !== undefined && config.sparkleRate > 0) {
+    return normalizeSparkleGapsSpeed(config.sparkleRate);
+  }
+  if (config.sparkleEnabled) {
+    return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER;
+  }
+  return DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER;
 }
 
 function parseBandBreakpoints(raw: unknown): StripeBandBreakpoints | undefined {
@@ -461,7 +535,8 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const h = parsed.h === undefined ? undefined : Number(parsed.h);
   return {
     duotoneEnabled: parsed.d,
-    sparkleRate: parseSparkleRate(parsed.sr, parsed.sk),
+    sparkleGapsActivePercent: parseSparkleGapsActivePercent(parsed.sgap, parsed.sr, parsed.sk),
+    sparkleGapsSpeed: parseSparkleGapsSpeed(parsed.sgsp, parsed.sr, parsed.sk),
     sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa),
     sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws),
     ignoreTolerance: t,

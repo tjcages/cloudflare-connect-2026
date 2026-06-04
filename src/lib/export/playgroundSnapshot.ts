@@ -2,15 +2,20 @@ import type { StripeBandBreakpoints } from "../../playground/stripeBandThreshold
 import type { StripeBandEnabled } from "../../playground/stripeColors";
 import { PLAYGROUND_STRIPE_BAND_HEX, PLAYGROUND_STRIPE_BAND_SWATCH_P3 } from "../../playground/stripeColors";
 import type { PlaygroundPersistedConfig } from "../../playground/playgroundPersistence";
-import { resolvePersistedSparkleRate, sparkleRateHzFromSlider } from "../../playground/playgroundSparkle";
+import {
+  resolvePersistedSparkleGapsActivePercent,
+  resolvePersistedSparkleGapsSpeed,
+  sparkleGapsSpeedLabelFromSlider,
+} from "../../playground/playgroundSparkle";
 import type { PlaygroundMediaKind } from "../../playground/playgroundTextures";
 
-function formatSparkleRateSummary(config: PlaygroundPersistedConfig): string {
-  const rate = resolvePersistedSparkleRate(config);
-  if (rate <= 0) {
+function formatSparkleGapsSummary(config: PlaygroundPersistedConfig): string {
+  const activePercent = resolvePersistedSparkleGapsActivePercent(config);
+  if (activePercent <= 0) {
     return "off";
   }
-  return `${sparkleRateHzFromSlider(rate).toFixed(2)} Hz`;
+  const speed = resolvePersistedSparkleGapsSpeed(config);
+  return `${activePercent}% @ ${sparkleGapsSpeedLabelFromSlider(speed)}`;
 }
 
 export type ReactExportSnapshot = {
@@ -45,7 +50,7 @@ export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
   const { config } = snapshot;
   return [
     `- Duotone: ${config.duotoneEnabled ? "on" : "off"}`,
-    `- Sparkle: ${formatSparkleRateSummary(config)}`,
+    `- Sparkle gaps: ${formatSparkleGapsSummary(config)}`,
     `- Bg match tolerance: ${config.ignoreTolerance}`,
     `- Gamma: ${config.gamma}, threshold: ${config.threshold}, density: ${config.density}`,
     `- Display: ${snapshot.displayWidth}×${snapshot.displayHeight}px`,
@@ -58,7 +63,8 @@ export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
 
 export type AsciiVideoConfigWire = {
   duotoneEnabled: boolean;
-  sparkleRate?: number;
+  sparkleGapsActivePercent?: number;
+  sparkleGapsSpeed?: number;
   ignoreTolerance: number;
   gamma: number;
   threshold: number;
@@ -74,7 +80,11 @@ export type AsciiVideoConfigWire = {
 export function snapshotToAsciiVideoConfig(snapshot: ReactExportSnapshot): AsciiVideoConfigWire {
   return {
     duotoneEnabled: snapshot.config.duotoneEnabled,
-    sparkleRate: resolvePersistedSparkleRate(snapshot.config) || undefined,
+    sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(snapshot.config) || undefined,
+    sparkleGapsSpeed:
+      resolvePersistedSparkleGapsActivePercent(snapshot.config) > 0
+        ? resolvePersistedSparkleGapsSpeed(snapshot.config)
+        : undefined,
     ignoreTolerance: snapshot.config.ignoreTolerance,
     gamma: snapshot.config.gamma,
     threshold: snapshot.config.threshold,

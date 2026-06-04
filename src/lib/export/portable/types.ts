@@ -15,8 +15,10 @@ export type StripeBandColors = {
 
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
-  /** Sparkle blink intensity 0–1 (0 = off). */
-  sparkleRate?: number;
+  /** Fraction of stripe cells showing a gap at once (0–100). 0 = off. */
+  sparkleGapsActivePercent?: number;
+  /** Gap pulse speed slider 0–1. Default 0.5 → 1.0×. */
+  sparkleGapsSpeed?: number;
   /** Fraction of stripe cells animating width (0–100). 0 = off. Default 30. */
   sparkleWidthActivePercent?: number;
   /** Width pulse speed slider 0–1. Default 0.5 → 1.0×. */

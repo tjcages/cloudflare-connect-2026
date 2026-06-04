@@ -42,7 +42,8 @@ export type StripeBandColors = {
 
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
-  sparkleRate?: number;
+  sparkleGapsActivePercent?: number;
+  sparkleGapsSpeed?: number;
   ignoreTolerance: number;
   gamma: number;
   threshold: number;

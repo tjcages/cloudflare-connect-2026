@@ -2,14 +2,8 @@ import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
 import { STRIPE_FILTER_FRAGMENT, STRIPE_FILTER_VERTEX } from "./stripeFilterShaders";
 import { DEFAULT_STRIPE_DUOTONE_OPTIONS, type StripeDuotoneOptions } from "./stripeFilterOptions";
 import { buildStripeColors, stripeColorsToUniformRgb, type StripeColors } from "./stripeColors";
-import {
-  DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
-  type PlaygroundSparkleOptions,
-} from "./playgroundSparkle";
-import {
-  DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS,
-  type PlaygroundWidthShuffleOptions,
-} from "./playgroundWidthShuffle";
+import { DEFAULT_PLAYGROUND_SPARKLE_OPTIONS, type PlaygroundSparkleOptions } from "./playgroundSparkle";
+import { DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS, type PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
 
 /** Set > 0 to composite source video for grid-alignment debugging. */
 export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
@@ -118,8 +112,12 @@ export function createStripeDuotoneFilter(
       value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.coverage,
       type: "f32",
     },
-    uSparkleRateHz: {
-      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.rateHz,
+    uSparklePeriodMinSec: {
+      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.periodMinSec,
+      type: "f32",
+    },
+    uSparklePeriodMaxSec: {
+      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.periodMaxSec,
       type: "f32",
     },
     uWidthShuffleEnabled: { value: 0, type: "f32" },
@@ -168,12 +166,14 @@ export function createStripeDuotoneFilter(
       uSparkleEnabled: number;
       uSparkleTime: number;
       uSparkleCoverage: number;
-      uSparkleRateHz: number;
+      uSparklePeriodMinSec: number;
+      uSparklePeriodMaxSec: number;
     };
     uniforms.uSparkleEnabled = options.enabled ? 1 : 0;
     uniforms.uSparkleTime = timeSec;
     uniforms.uSparkleCoverage = options.coverage;
-    uniforms.uSparkleRateHz = options.rateHz;
+    uniforms.uSparklePeriodMinSec = options.periodMinSec;
+    uniforms.uSparklePeriodMaxSec = options.periodMaxSec;
   };
 
   filter.syncWidthShuffle = (options, timeSec) => {

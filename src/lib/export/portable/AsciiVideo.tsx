@@ -15,7 +15,11 @@ import {
   type PlaygroundDisplaySize,
   type PlaygroundTextureSource,
 } from "./scene";
-import { playgroundSparkleOptionsFromRate } from "./runtime/playgroundSparkle";
+import {
+  playgroundSparkleOptionsFromSliders,
+  resolvePersistedSparkleGapsActivePercent,
+  resolvePersistedSparkleGapsSpeed,
+} from "./runtime/playgroundSparkle";
 import {
   playgroundWidthShuffleOptionsFromSliders,
   resolvePersistedSparkleWidthActivePercent,
@@ -105,7 +109,12 @@ export function AsciiVideo({
   const stripeOptionsRef = useRef<StripeDuotoneOptions>(configToStripeOptions(config));
   const stripeColorsRef = useRef<StripeBandColors>(configToStripeBandColors(config));
   const duotoneEnabledRef = useRef(config.duotoneEnabled);
-  const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromRate(config.sparkleRate ?? 0));
+  const sparkleOptionsRef = useRef(
+    playgroundSparkleOptionsFromSliders(
+      resolvePersistedSparkleGapsActivePercent(config),
+      resolvePersistedSparkleGapsSpeed(config),
+    ),
+  );
   const widthShuffleOptionsRef = useRef(
     playgroundWidthShuffleOptionsFromSliders(
       resolvePersistedSparkleWidthActivePercent(config),
@@ -118,7 +127,10 @@ export function AsciiVideo({
   stripeOptionsRef.current = configToStripeOptions(config);
   stripeColorsRef.current = configToStripeBandColors(config);
   duotoneEnabledRef.current = config.duotoneEnabled;
-  sparkleOptionsRef.current = playgroundSparkleOptionsFromRate(config.sparkleRate ?? 0);
+  sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(
+    resolvePersistedSparkleGapsActivePercent(config),
+    resolvePersistedSparkleGapsSpeed(config),
+  );
   widthShuffleOptionsRef.current = playgroundWidthShuffleOptionsFromSliders(
     resolvePersistedSparkleWidthActivePercent(config),
     resolvePersistedSparkleWidthSpeed(config),

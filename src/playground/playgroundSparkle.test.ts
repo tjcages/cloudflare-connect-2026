@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
   DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
-  DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ,
-  DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER,
-  PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ,
   isPlaygroundSparkleCellVisible,
-  playgroundSparkleOptionsFromRate,
+  playgroundSparkleOptionsFromSliders,
+  resolveSparkleLocalPulseTime,
   sparkleCellHash,
+  sparkleGapsSpeedLabelFromSlider,
 } from "./playgroundSparkle";
 
 describe("playgroundSparkle", () => {
@@ -21,56 +22,48 @@ describe("playgroundSparkle", () => {
     expect(sparkleCellHash(2, 4)).not.toBe(sparkleCellHash(2, 5));
   });
 
-  it("maps slider rate 0 to disabled, default to 2 Hz, and 1 to 4 Hz max", () => {
-    expect(playgroundSparkleOptionsFromRate(0).enabled).toBe(false);
-    expect(playgroundSparkleOptionsFromRate(0).rateHz).toBe(0);
-    expect(playgroundSparkleOptionsFromRate(1).enabled).toBe(true);
-    expect(playgroundSparkleOptionsFromRate(1).rateHz).toBe(PLAYGROUND_SPARKLE_RATE_SLIDER_MAX_HZ);
-    expect(playgroundSparkleOptionsFromRate(DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER).rateHz).toBe(
-      DEFAULT_PLAYGROUND_SPARKLE_RATE_HZ,
+  it("maps sparkle gaps sliders to options", () => {
+    expect(playgroundSparkleOptionsFromSliders(0, 0.5).enabled).toBe(false);
+    expect(playgroundSparkleOptionsFromSliders(20, 0.5).enabled).toBe(true);
+    expect(playgroundSparkleOptionsFromSliders(20, 0.5).coverage).toBeCloseTo(0.2);
+    expect(playgroundSparkleOptionsFromSliders(20, 1).periodMinSec).toBeLessThan(
+      playgroundSparkleOptionsFromSliders(20, 0).periodMinSec,
     );
+    expect(sparkleGapsSpeedLabelFromSlider(0.5)).toBe("1.0×");
   });
 
-  it("blinks participating cells over time", () => {
-    const options = playgroundSparkleOptionsFromRate(DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER);
-    let participantCol = -1;
-    let participantRow = -1;
+  it("hides cells during their scheduled gap pulse", () => {
+    const options = playgroundSparkleOptionsFromSliders(
+      DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
+      DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
+    );
 
+    let pulseCol = -1;
+    let pulseRow = -1;
     outer: for (let col = 0; col < 50; col++) {
       for (let row = 0; row < 50; row++) {
-        if (sparkleCellHash(col, row) < options.coverage) {
-          participantCol = col;
-          participantRow = row;
+        if (resolveSparkleLocalPulseTime(col, row, 0.12, options) !== null) {
+          pulseCol = col;
+          pulseRow = row;
           break outer;
         }
       }
     }
 
-    expect(participantCol).toBeGreaterThanOrEqual(0);
+    expect(pulseCol).toBeGreaterThanOrEqual(0);
+    expect(isPlaygroundSparkleCellVisible(pulseCol, pulseRow, 0.12, options)).toBe(false);
+    expect(isPlaygroundSparkleCellVisible(pulseCol, pulseRow, 5, options)).toBe(true);
+  });
 
+  it("rotates gap pulses over time for the same cell", () => {
+    const options = playgroundSparkleOptionsFromSliders(25, 0.5);
     const visibilities = new Set<boolean>();
-    for (let step = 0; step < 200; step++) {
-      visibilities.add(
-        isPlaygroundSparkleCellVisible(participantCol, participantRow, step * 0.01, options),
-      );
+    for (let step = 0; step < 400; step++) {
+      visibilities.add(isPlaygroundSparkleCellVisible(4, 6, step * 0.02, options));
       if (visibilities.size === 2) {
         break;
       }
     }
-
     expect(visibilities.size).toBe(2);
-  });
-
-  it("leaves non-participating cells always visible", () => {
-    const options = playgroundSparkleOptionsFromRate(DEFAULT_PLAYGROUND_SPARKLE_RATE_SLIDER);
-    for (let col = 0; col < 30; col++) {
-      for (let row = 0; row < 30; row++) {
-        if (sparkleCellHash(col, row) < options.coverage) {
-          continue;
-        }
-        expect(isPlaygroundSparkleCellVisible(col, row, 0, options)).toBe(true);
-        expect(isPlaygroundSparkleCellVisible(col, row, 99, options)).toBe(true);
-      }
-    }
   });
 });

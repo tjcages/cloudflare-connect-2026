@@ -31,9 +31,11 @@ import type { PlaygroundMediaKind, PlaygroundTextureId } from "./playgroundTextu
 import { PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
 import {
-  playgroundSparkleOptionsFromRate,
-  resolvePersistedSparkleRate,
-  sparkleRateHzFromSlider,
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER,
+  playgroundSparkleOptionsFromSliders,
+  resolvePersistedSparkleGapsActivePercent,
+  resolvePersistedSparkleGapsSpeed,
+  sparkleGapsSpeedLabelFromSlider,
 } from "./playgroundSparkle";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT,
@@ -196,7 +198,8 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     threshold: config.threshold,
     density: config.density,
     duotoneEnabled: config.duotoneEnabled,
-    sparkleRate: resolvePersistedSparkleRate(config),
+    sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(config),
+    sparkleGapsSpeed: resolvePersistedSparkleGapsSpeed(config),
     sparkleWidthActivePercent: resolvePersistedSparkleWidthActivePercent(config),
     sparkleWidthSpeed: resolvePersistedSparkleWidthSpeed(config),
     displayWidth: config.displayWidth,
@@ -259,7 +262,8 @@ export function TexturePlayground() {
   const [threshold, setThreshold] = useState(appliedInitial.threshold);
   const [density, setDensity] = useState(appliedInitial.density);
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
-  const [sparkleRate, setSparkleRate] = useState(appliedInitial.sparkleRate);
+  const [sparkleGapsActivePercent, setSparkleGapsActivePercent] = useState(appliedInitial.sparkleGapsActivePercent);
+  const [sparkleGapsSpeed, setSparkleGapsSpeed] = useState(appliedInitial.sparkleGapsSpeed);
   const [sparkleWidthActivePercent, setSparkleWidthActivePercent] = useState(appliedInitial.sparkleWidthActivePercent);
   const [sparkleWidthSpeed, setSparkleWidthSpeed] = useState(appliedInitial.sparkleWidthSpeed);
   const [enabledBands, setEnabledBands] = useState<StripeBandEnabled>(() => [...DEFAULT_STRIPE_BAND_ENABLED]);
@@ -285,7 +289,7 @@ export function TexturePlayground() {
   const stripeColorsRef = useRef<StripeColors>(buildStripeColors());
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
-  const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromRate(sparkleRate));
+  const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromSliders(sparkleGapsActivePercent, sparkleGapsSpeed));
   const widthShuffleOptionsRef = useRef(
     playgroundWidthShuffleOptionsFromSliders(sparkleWidthActivePercent, sparkleWidthSpeed),
   );
@@ -315,8 +319,8 @@ export function TexturePlayground() {
   }, [duotoneEnabled]);
 
   useEffect(() => {
-    sparkleOptionsRef.current = playgroundSparkleOptionsFromRate(sparkleRate);
-  }, [sparkleRate]);
+    sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(sparkleGapsActivePercent, sparkleGapsSpeed);
+  }, [sparkleGapsActivePercent, sparkleGapsSpeed]);
 
   useEffect(() => {
     widthShuffleOptionsRef.current = playgroundWidthShuffleOptionsFromSliders(
@@ -328,7 +332,11 @@ export function TexturePlayground() {
   const persistCurrentConfig = useCallback(() => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
-      sparkleRate: sparkleRate > 0 ? sparkleRate : undefined,
+      sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
+      sparkleGapsSpeed:
+        sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER
+          ? sparkleGapsSpeed
+          : undefined,
       sparkleWidthActivePercent:
         sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
           ? sparkleWidthActivePercent
@@ -347,7 +355,8 @@ export function TexturePlayground() {
   }, [
     selectedTextureId,
     duotoneEnabled,
-    sparkleRate,
+    sparkleGapsActivePercent,
+    sparkleGapsSpeed,
     sparkleWidthActivePercent,
     sparkleWidthSpeed,
     ignoreTolerance,
@@ -380,7 +389,8 @@ export function TexturePlayground() {
     setThreshold(next.threshold);
     setDensity(next.density);
     setDuotoneEnabled(next.duotoneEnabled);
-    setSparkleRate(resolvePersistedSparkleRate(next));
+    setSparkleGapsActivePercent(resolvePersistedSparkleGapsActivePercent(config));
+    setSparkleGapsSpeed(resolvePersistedSparkleGapsSpeed(config));
     setSparkleWidthActivePercent(resolvePersistedSparkleWidthActivePercent(next));
     setSparkleWidthSpeed(resolvePersistedSparkleWidthSpeed(next));
     if (next.displayWidth && next.displayWidth > 0) {
@@ -588,7 +598,11 @@ export function TexturePlayground() {
   const onCopyState = async () => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
-      sparkleRate: sparkleRate > 0 ? sparkleRate : undefined,
+      sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
+      sparkleGapsSpeed:
+        sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER
+          ? sparkleGapsSpeed
+          : undefined,
       sparkleWidthActivePercent:
         sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
           ? sparkleWidthActivePercent
@@ -711,7 +725,11 @@ export function TexturePlayground() {
       buildPlaygroundExportSnapshot({
         config: {
           duotoneEnabled,
-          sparkleRate: sparkleRate > 0 ? sparkleRate : undefined,
+          sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
+          sparkleGapsSpeed:
+            sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED_SLIDER
+              ? sparkleGapsSpeed
+              : undefined,
           sparkleWidthActivePercent:
             sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
               ? sparkleWidthActivePercent
@@ -733,7 +751,8 @@ export function TexturePlayground() {
       }),
     [
       duotoneEnabled,
-      sparkleRate,
+      sparkleGapsActivePercent,
+      sparkleGapsSpeed,
       sparkleWidthActivePercent,
       sparkleWidthSpeed,
       ignoreTolerance,
@@ -992,27 +1011,44 @@ export function TexturePlayground() {
 
           <PlaygroundControlSection title="Sparkle Gaps" defaultOpen testId="playground-section-sparkle-gaps">
             <ControlField
-              label="Frequency"
-              value={sparkleRate <= 0 ? "Off" : `${sparkleRateHzFromSlider(sparkleRate).toFixed(2)} Hz`}
+              label="Active ratio"
+              value={sparkleGapsActivePercent <= 0 ? "Off" : `${sparkleGapsActivePercent}%`}
               disabled={duotoneControlsDisabled}
             >
               <input
                 type="range"
-                min={PLAYGROUND_CONTROL_RANGES.sparkleRate.min}
-                max={PLAYGROUND_CONTROL_RANGES.sparkleRate.max}
-                step={PLAYGROUND_CONTROL_RANGES.sparkleRate.step}
-                value={sparkleRate}
-                onChange={(event) => setSparkleRate(Number(event.target.value))}
+                min={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.min}
+                max={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.max}
+                step={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.step}
+                value={sparkleGapsActivePercent}
+                onChange={(event) => setSparkleGapsActivePercent(Number(event.target.value))}
                 disabled={duotoneControlsDisabled}
                 className="w-full disabled:cursor-not-allowed"
-                aria-label="Sparkle gaps frequency"
+                aria-label="Sparkle gaps active ratio"
+              />
+            </ControlField>
+            <ControlField
+              label="Speed"
+              value={sparkleGapsActivePercent <= 0 ? "Off" : sparkleGapsSpeedLabelFromSlider(sparkleGapsSpeed)}
+              disabled={duotoneControlsDisabled || sparkleGapsActivePercent <= 0}
+            >
+              <input
+                type="range"
+                min={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.min}
+                max={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.max}
+                step={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.step}
+                value={sparkleGapsSpeed}
+                onChange={(event) => setSparkleGapsSpeed(Number(event.target.value))}
+                disabled={duotoneControlsDisabled || sparkleGapsActivePercent <= 0}
+                className="w-full disabled:cursor-not-allowed"
+                aria-label="Sparkle gaps pulse speed"
               />
             </ControlField>
           </PlaygroundControlSection>
 
           <PlaygroundControlSection title="Sparkle Width" defaultOpen testId="playground-section-sparkle-width">
             <ControlField
-              label="Active"
+              label="Active ratio"
               value={sparkleWidthActivePercent <= 0 ? "Off" : `${sparkleWidthActivePercent}%`}
               disabled={duotoneControlsDisabled}
             >
@@ -1025,7 +1061,7 @@ export function TexturePlayground() {
                 onChange={(event) => setSparkleWidthActivePercent(Number(event.target.value))}
                 disabled={duotoneControlsDisabled}
                 className="w-full disabled:cursor-not-allowed"
-                aria-label="Sparkle width active percentage"
+                aria-label="Sparkle width active ratio"
               />
             </ControlField>
             <ControlField

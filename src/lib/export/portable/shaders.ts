@@ -1,10 +1,7 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
 import { bandUniformRgb } from "./colorSpace";
 import type { StripeBandColors } from "./types";
-import {
-  DEFAULT_PLAYGROUND_SPARKLE_OPTIONS,
-  type PlaygroundSparkleOptions,
-} from "./runtime/playgroundSparkle";
+import { DEFAULT_PLAYGROUND_SPARKLE_OPTIONS, type PlaygroundSparkleOptions } from "./runtime/playgroundSparkle";
 import {
   DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS,
   type PlaygroundWidthShuffleOptions,
@@ -63,7 +60,8 @@ uniform float uDebugVideoAlpha;
 uniform float uSparkleEnabled;
 uniform float uSparkleTime;
 uniform float uSparkleCoverage;
-uniform float uSparkleRateHz;
+uniform float uSparklePeriodMinSec;
+uniform float uSparklePeriodMaxSec;
 uniform float uWidthShuffleEnabled;
 uniform float uWidthShuffleTime;
 uniform float uWidthShuffleCoverage;
@@ -170,25 +168,34 @@ vec3 stripeFillColor(float band) {
     return uColorBand4;
 }
 
-// Keep in sync with runtime/playgroundSparkle.ts sparkleCellHash.
-float sparkleCellHash(float col, float row) {
-    vec2 p = vec2(col + 17.0, row + 31.0);
+// Keep in sync with runtime/playgroundSparkle.ts.
+float sparkleHashFromCoords(vec2 p) {
     vec3 p3 = fract(vec3(p.x, p.y, p.x) * vec3(0.1031, 0.1030, 0.0973));
     p3 += dot(p3, p3.yzx + 33.33);
     return fract((p3.x + p3.y) * p3.z);
+}
+
+float sparklePhaseHash(float col, float row) {
+    return sparkleHashFromCoords(vec2(col + 53.0, row + 71.0));
+}
+
+float sparklePeriodHash(float col, float row) {
+    return sparkleHashFromCoords(vec2(col + 89.0, row + 113.0));
 }
 
 bool sparkleCellVisible(float col, float row) {
     if (uSparkleEnabled < 0.5) {
         return true;
     }
-    float h = sparkleCellHash(col, row);
-    if (h >= uSparkleCoverage) {
-        return true;
-    }
-    float phase = h * 17.0;
-    float slot = floor(uSparkleTime * uSparkleRateHz + phase);
-    return mod(slot, 2.0) < 1.0;
+    float periodSpan = uSparklePeriodMaxSec - uSparklePeriodMinSec;
+    float period = uSparklePeriodMinSec + sparklePeriodHash(col, row) * periodSpan;
+    float coverage = max(uSparkleCoverage, 0.001);
+    float cyclePeriod = period / coverage;
+    float phaseOffset = sparklePhaseHash(col, row) * cyclePeriod;
+    float scheduledTime = uSparkleTime + phaseOffset;
+    float cycleIndex = floor(scheduledTime / cyclePeriod);
+    float localTime = scheduledTime - cycleIndex * cyclePeriod;
+    return localTime >= period;
 }
 
 // Keep in sync with runtime/playgroundWidthShuffle.ts.
@@ -382,8 +389,12 @@ export function createStripeDuotoneFilter(
       value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.coverage,
       type: "f32",
     },
-    uSparkleRateHz: {
-      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.rateHz,
+    uSparklePeriodMinSec: {
+      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.periodMinSec,
+      type: "f32",
+    },
+    uSparklePeriodMaxSec: {
+      value: DEFAULT_PLAYGROUND_SPARKLE_OPTIONS.periodMaxSec,
       type: "f32",
     },
     uWidthShuffleEnabled: { value: 0, type: "f32" },
@@ -439,12 +450,14 @@ export function createStripeDuotoneFilter(
       uSparkleEnabled: number;
       uSparkleTime: number;
       uSparkleCoverage: number;
-      uSparkleRateHz: number;
+      uSparklePeriodMinSec: number;
+      uSparklePeriodMaxSec: number;
     };
     uniforms.uSparkleEnabled = options.enabled ? 1 : 0;
     uniforms.uSparkleTime = timeSec;
     uniforms.uSparkleCoverage = options.coverage;
-    uniforms.uSparkleRateHz = options.rateHz;
+    uniforms.uSparklePeriodMinSec = options.periodMinSec;
+    uniforms.uSparklePeriodMaxSec = options.periodMaxSec;
   };
 
   filter.syncWidthShuffle = (options, timeSec) => {
