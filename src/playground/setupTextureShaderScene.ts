@@ -153,12 +153,13 @@ function runDuotoneTick(params: {
   gridConfigRef: RefObject<PlaygroundGridConfig>;
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
+  atlas: ReturnType<typeof buildStripeLetterAtlas>;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
   syncVisual: () => void;
   shouldSample: () => boolean;
   sampleFrame: () => ImageData | null;
   onSampled?: () => void;
-}): () => void {
+}): { tick: () => void; dispose: () => void } {
   const {
     app,
     sprite,
@@ -172,7 +173,6 @@ function runDuotoneTick(params: {
     textureGammaRef,
     gridConfigRef,
     display,
-    blockGridTexture,
     exportStateRef,
     syncVisual,
     shouldSample,
@@ -180,17 +180,72 @@ function runDuotoneTick(params: {
     onSampled,
   } = params;
 
+  // These GPU resources are reallocated in place when the cell/gap or letters change, so a
+  // config tweak updates the live scene instead of remounting the whole Pixi app.
+  let blockGridTexture = params.blockGridTexture;
+  let atlas = params.atlas;
+
   let duotoneActive = duotoneEnabledRef.current;
   let lastColorsKey = "";
   let gridState: PlaygroundGridBuildState = {};
   let lastGridUpdateMs = 0;
   let hasBuiltGrid = false;
 
-  return () => {
+  const initialCell = effectivePlaygroundCellSize(gridConfigRef.current);
+  let lastEffWidth = initialCell.width;
+  let lastEffHeight = initialCell.height;
+  let lastLetterSize = gridConfigRef.current.letterSize;
+  let lastLetterCharset = gridConfigRef.current.letterCharset;
+  let lastLetterRatio = gridConfigRef.current.letterRatio;
+
+  const applyStructuralChanges = (gridConfig: PlaygroundGridConfig) => {
+    const eff = effectivePlaygroundCellSize(gridConfig);
+    if (eff.width !== lastEffWidth || eff.height !== lastEffHeight) {
+      const next = new BlockGridTexture(display.width, display.height, eff.width, eff.height);
+      blockGridTexture.destroy();
+      blockGridTexture = next;
+      stripeFilter.updateBlockMap(next.texture);
+      stripeFilter.resizeGrid(next.cols, next.rows, eff.width, eff.height);
+      letterLayer.setCellSize(eff.width, eff.height);
+      lastEffWidth = eff.width;
+      lastEffHeight = eff.height;
+      // Grid dimensions changed; resample and rebuild from scratch.
+      gridState = {};
+      hasBuiltGrid = false;
+      lastColorsKey = "";
+    }
+
+    if (gridConfig.letterSize !== lastLetterSize || gridConfig.letterCharset !== lastLetterCharset) {
+      const charset = [...gridConfig.letterCharset];
+      const nextAtlas = buildStripeLetterAtlas(charset, gridConfig.letterSize);
+      destroyStripeLetterAtlas(atlas);
+      atlas = nextAtlas;
+      letterLayer.setAtlas(nextAtlas);
+      letterLayer.setCharset(charset);
+      lastLetterSize = gridConfig.letterSize;
+      lastLetterCharset = gridConfig.letterCharset;
+      hasBuiltGrid = false;
+    }
+
+    if (gridConfig.letterRatio !== lastLetterRatio) {
+      letterLayer.setRatio(gridConfig.letterRatio);
+      lastLetterRatio = gridConfig.letterRatio;
+      hasBuiltGrid = false;
+    }
+  };
+
+  const dispose = () => {
+    blockGridTexture.destroy();
+    letterLayer.destroy();
+    destroyStripeLetterAtlas(atlas);
+  };
+
+  const tick = () => {
     syncVisual();
     stripeFilter.syncGrid(gridConfigRef.current);
     letterLayer.setTint(gridConfigRef.current.letterColor);
     letterLayer.setShuffleSpeed(gridConfigRef.current.letterShuffleSpeed);
+    applyStructuralChanges(gridConfigRef.current);
 
     const duotoneEnabled = duotoneEnabledRef.current;
     if (duotoneEnabled !== duotoneActive) {
@@ -307,6 +362,8 @@ function runDuotoneTick(params: {
 
     app.render();
   };
+
+  return { tick, dispose };
 }
 
 export function createTextureSceneTicker(
@@ -395,12 +452,12 @@ function createImageSceneTicker(
       preferP3Ref.current,
       grid,
     );
-    let duotoneActive = duotoneEnabledRef.current;
+    const duotoneActive = duotoneEnabledRef.current;
     sprite.filters = duotoneActive ? [stripeFilter] : null;
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive, grid);
 
-    const renderTick = runDuotoneTick({
+    const { tick: renderTick, dispose } = runDuotoneTick({
       app,
       sprite,
       stripeFilter,
@@ -414,6 +471,7 @@ function createImageSceneTicker(
       gridConfigRef,
       display,
       blockGridTexture,
+      atlas,
       exportStateRef,
       syncVisual: () => syncSpriteToDisplay(sprite, { kind: "image", element: image }, display),
       shouldSample: () => false,
@@ -427,9 +485,7 @@ function createImageSceneTicker(
         app.ticker.remove(renderTick);
       }
       image.removeEventListener("load", onLayoutChange);
-      blockGridTexture.destroy();
-      letterLayer.destroy();
-      destroyStripeLetterAtlas(atlas);
+      dispose();
       sprite.destroy({ children: true });
       texture.destroy(true);
     });
@@ -486,14 +542,14 @@ function createVideoSceneTickerInternal(
       preferP3Ref.current,
       grid,
     );
-    let duotoneActive = duotoneEnabledRef.current;
+    const duotoneActive = duotoneEnabledRef.current;
     sprite.filters = duotoneActive ? [stripeFilter] : null;
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive, grid);
 
     let lastSampledTime = -1;
 
-    const renderTick = runDuotoneTick({
+    const { tick: renderTick, dispose } = runDuotoneTick({
       app,
       sprite,
       stripeFilter,
@@ -507,6 +563,7 @@ function createVideoSceneTickerInternal(
       gridConfigRef,
       display,
       blockGridTexture,
+      atlas,
       exportStateRef,
       syncVisual: () => syncSpriteToDisplay(sprite, { kind: "video", element: video }, display),
       shouldSample: () => video.currentTime !== lastSampledTime,
@@ -531,9 +588,7 @@ function createVideoSceneTickerInternal(
       video.removeEventListener("loadedmetadata", onVideoLayoutChange);
       videoSource.off("resize", onVideoLayoutChange);
       videoSource.off("update", onVideoLayoutChange);
-      blockGridTexture.destroy();
-      letterLayer.destroy();
-      destroyStripeLetterAtlas(atlas);
+      dispose();
       sprite.destroy({ children: true });
       texture.destroy(true);
     });

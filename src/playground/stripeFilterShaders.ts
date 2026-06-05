@@ -43,8 +43,6 @@ uniform vec2 uFrameSize;
 uniform vec2 uGridSize;
 uniform vec2 uCellSize;
 uniform vec2 uGap;
-uniform float uChainBreakGap;
-uniform float uMinStripeHeight;
 uniform float uCornerRadius;
 uniform float uStripeMaxWidth;
 uniform float uWidthShuffleSwing;
@@ -60,13 +58,6 @@ uniform float uWidthShuffleTime;
 uniform float uWidthShuffleCoverage;
 uniform float uWidthShufflePeriodMinSec;
 uniform float uWidthShufflePeriodMaxSec;
-
-bool sameStripeBand(float a, float b) {
-    if (a < 0.5 || b < 0.5) {
-        return false;
-    }
-    return abs(a - b) < 0.001;
-}
 
 // Signed distance to a rounded rectangle centered at the origin (half-extents b, radius r).
 float roundedBoxSdf(vec2 p, vec2 b, float r) {
@@ -220,8 +211,6 @@ void main(void) {
     float ch = max(uCellSize.y, 1.0);
     float colIndex = floor(pixelCoord.x / cw);
     float rowIndex = floor(pixelCoord.y / ch);
-    float maxColIndex = max(0.0, floor((uFrameSize.x - 1.0) / cw));
-    float maxRowIndex = max(0.0, floor((uFrameSize.y - 1.0) / ch));
     float localX = pixelCoord.x - colIndex * cw;
     float localY = pixelCoord.y - rowIndex * ch;
 
@@ -235,32 +224,12 @@ void main(void) {
     float alongGap = horizontal ? uGap.x : uGap.y;
 
     float stripeBand = blockStripeBand(colIndex, rowIndex);
-    // Neighbors along the run direction, for the extra chain-break gap between different bands.
-    float bandAlongPrev = horizontal
-        ? (colIndex > 0.0 ? blockStripeBand(colIndex - 1.0, rowIndex) : 0.0)
-        : (rowIndex > 0.0 ? blockStripeBand(colIndex, rowIndex - 1.0) : 0.0);
-    float bandAlongNext = horizontal
-        ? (colIndex < maxColIndex ? blockStripeBand(colIndex + 1.0, rowIndex) : 0.0)
-        : (rowIndex < maxRowIndex ? blockStripeBand(colIndex, rowIndex + 1.0) : 0.0);
-
-    bool chainBreaksStart = stripeBand > 0.5 && !sameStripeBand(stripeBand, bandAlongPrev);
-    bool chainBreaksEnd = stripeBand > 0.5 && !sameStripeBand(stripeBand, bandAlongNext);
 
     // The cell size fed in already includes the gap (effective cell = bar size + gap), so the
     // bar keeps its full configured size and the gap is real spacing carved uniformly between
     // every cell — not padding subtracted from the bar.
-    float baseTop = alongGap * 0.5;
-    float baseBottom = alongCell - alongGap * 0.5;
-    // Extra chain-break gap between different-band runs, kept only when the band stays tall enough.
-    float chainTop = baseTop + (chainBreaksStart ? uChainBreakGap * 0.5 : 0.0);
-    float chainBottom = baseBottom - (chainBreaksEnd ? uChainBreakGap * 0.5 : 0.0);
-
-    float bandTop = baseTop;
-    float bandBottom = baseBottom;
-    if ((chainBottom - chainTop) >= uMinStripeHeight) {
-        bandTop = chainTop;
-        bandBottom = chainBottom;
-    }
+    float bandTop = alongGap * 0.5;
+    float bandBottom = alongCell - alongGap * 0.5;
 
     // Stripe thickness is exactly the configured width in px, centered in the gap-expanded cell.
     float stripeWidth = resolveAnimatedStripeWidth(colIndex, rowIndex, stripeBand, acrossCell);

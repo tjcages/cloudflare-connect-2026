@@ -18,8 +18,10 @@ export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
-  /** Push live-updatable grid params (gap, chain gap, min height, softness, swing, orientation). */
+  /** Push live-updatable grid params (gap, corner radius, swing, orientation). */
   syncGrid: (grid: PlaygroundGridConfig) => void;
+  /** Update grid dimensions + effective cell size when the cell/gap changes (no scene remount). */
+  resizeGrid: (cols: number, rows: number, effWidth: number, effHeight: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
 };
 
@@ -49,8 +51,6 @@ export function createStripeDuotoneFilter(
     uGridSize: { value: [gridCols, gridRows], type: "vec2<f32>" },
     uCellSize: { value: [effectiveCell.width, effectiveCell.height], type: "vec2<f32>" },
     uGap: { value: [grid.gapX, grid.gapY], type: "vec2<f32>" },
-    uChainBreakGap: { value: grid.chainBreakGap, type: "f32" },
-    uMinStripeHeight: { value: grid.minStripeHeight, type: "f32" },
     uCornerRadius: { value: grid.cornerRadius, type: "f32" },
     uStripeMaxWidth: { value: STRIPE_WIDTH_ENCODE_MAX, type: "f32" },
     uWidthShuffleSwing: { value: grid.widthShuffleSwing, type: "f32" },
@@ -127,19 +127,24 @@ export function createStripeDuotoneFilter(
   filter.syncGrid = (nextGrid) => {
     const uniforms = stripeUniforms.uniforms as {
       uGap: number[];
-      uChainBreakGap: number;
-      uMinStripeHeight: number;
       uCornerRadius: number;
       uWidthShuffleSwing: number;
       uOrientation: number;
     };
     uniforms.uGap[0] = nextGrid.gapX;
     uniforms.uGap[1] = nextGrid.gapY;
-    uniforms.uChainBreakGap = nextGrid.chainBreakGap;
-    uniforms.uMinStripeHeight = nextGrid.minStripeHeight;
     uniforms.uCornerRadius = nextGrid.cornerRadius;
     uniforms.uWidthShuffleSwing = nextGrid.widthShuffleSwing;
     uniforms.uOrientation = nextGrid.orientation === "horizontal" ? 1 : 0;
+    stripeUniforms.update();
+  };
+
+  filter.resizeGrid = (cols, rows, effWidth, effHeight) => {
+    const uniforms = stripeUniforms.uniforms as { uGridSize: number[]; uCellSize: number[] };
+    uniforms.uGridSize[0] = cols;
+    uniforms.uGridSize[1] = rows;
+    uniforms.uCellSize[0] = effWidth;
+    uniforms.uCellSize[1] = effHeight;
     stripeUniforms.update();
   };
 

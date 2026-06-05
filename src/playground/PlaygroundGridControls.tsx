@@ -162,32 +162,6 @@ export function PlaygroundGridControls({
           formatDisplay={(v) => v.toFixed(1)}
         />
         <NumberField
-          label="Chain gap"
-          value={config.chainBreakGap}
-          inputMin={0}
-          inputMax={acrossMax}
-          sliderMin={0}
-          sliderMax={acrossMax}
-          step={0.5}
-          ariaLabel="Gap between stacked color runs in px"
-          disabled={disabled}
-          onChange={(value) => onChange({ chainBreakGap: value })}
-          formatDisplay={(v) => v.toFixed(1)}
-        />
-        <NumberField
-          label="Min stripe"
-          value={config.minStripeHeight}
-          inputMin={0}
-          inputMax={acrossMax}
-          sliderMin={0}
-          sliderMax={acrossMax}
-          step={0.5}
-          ariaLabel="Minimum stripe length before chain gap collapses"
-          disabled={disabled}
-          onChange={(value) => onChange({ minStripeHeight: value })}
-          formatDisplay={(v) => v.toFixed(1)}
-        />
-        <NumberField
           label="Corner radius"
           value={config.cornerRadius}
           inputMin={0}

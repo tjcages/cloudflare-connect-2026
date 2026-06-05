@@ -14,7 +14,7 @@ A React/TypeScript Canvas component builder. It generates deterministic seeded g
 - `pnpm verify` runs tests, then `tsc -b` and `vite build` in parallel (lint/format are intentionally excluded for speed).
 - Tip — quicker loops while editing: `pnpm typecheck`, targeted `pnpm exec vitest run <pattern>`, then finish with full `pnpm verify` (Vitest uses `pool: "threads"` + happy-dom here).
 
-Install dependencies with `pnpm install` (or `pi` if you use the guarded wrapper). Releases younger than 30 days are blocked via `minimumReleaseAge` in `package.json` / `.npmrc`.
+Install dependencies with `pnpm install`.
 
 ## Project Context
 

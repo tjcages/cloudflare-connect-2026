@@ -524,8 +524,6 @@ export function TexturePlayground() {
       cellHeight: DEFAULT_PLAYGROUND_GRID_CONFIG.cellHeight,
       gapX: DEFAULT_PLAYGROUND_GRID_CONFIG.gapX,
       gapY: DEFAULT_PLAYGROUND_GRID_CONFIG.gapY,
-      chainBreakGap: DEFAULT_PLAYGROUND_GRID_CONFIG.chainBreakGap,
-      minStripeHeight: DEFAULT_PLAYGROUND_GRID_CONFIG.minStripeHeight,
       cornerRadius: DEFAULT_PLAYGROUND_GRID_CONFIG.cornerRadius,
       orientation: DEFAULT_PLAYGROUND_GRID_CONFIG.orientation,
     }));
@@ -584,8 +582,6 @@ export function TexturePlayground() {
     gridConfig.cellHeight !== base.cellHeight ||
     gridConfig.gapX !== base.gapX ||
     gridConfig.gapY !== base.gapY ||
-    gridConfig.chainBreakGap !== base.chainBreakGap ||
-    gridConfig.minStripeHeight !== base.minStripeHeight ||
     gridConfig.cornerRadius !== base.cornerRadius ||
     gridConfig.orientation !== base.orientation;
   const lettersSectionModified =
@@ -920,17 +916,9 @@ export function TexturePlayground() {
   }
 
   const { textureId } = loadState;
-  const gridSceneKey = [
-    gridConfig.cellWidth,
-    gridConfig.cellHeight,
-    gridConfig.gapX,
-    gridConfig.gapY,
-    gridConfig.orientation,
-    gridConfig.letterSize,
-    gridConfig.letterRatio,
-    gridConfig.letterCharset,
-  ].join("|");
-  const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}-${gridSceneKey}`;
+  // Grid/letter config changes are applied live by the ticker (no remount); only the texture,
+  // media kind, and canvas size require a fresh scene.
+  const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}`;
   const isVideoSource = loadState.kind === "video";
   const duotoneControlsDisabled = !duotoneEnabled;
 

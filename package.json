@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@10.6.3",
   "pnpm": {
-    "minimumReleaseAge": 43200
+    "minimumReleaseAge": 10080
   },
   "scripts": {
     "dev": "vite",
@@ -35,24 +35,24 @@
     ]
   },
   "dependencies": {
-    "@chenglou/pretext": "^0.0.7",
-    "@cloudflare/kumo": "^2.2.1",
+    "@chenglou/pretext": "^0.0.6",
+    "@cloudflare/kumo": "^2.0.5",
     "@phosphor-icons/react": "^2.1.10",
-    "@tailwindcss/vite": "^4.3.0",
+    "@tailwindcss/vite": "^4.2.4",
     "clsx": "^2.1.1",
-    "fflate": "^0.8.3",
+    "fflate": "^0.8.2",
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
     "lucide-react": "^1.14.0",
     "motion": "^12.38.0",
-    "pixi-box-shadow": "^1.2.1",
+    "pixi-box-shadow": "^1.2.0",
     "pixi.js": "^8.18.1",
     "prettier": "^3.8.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "react": "^19.0.5",
+    "react-dom": "^19.0.5",
     "react-hotkeys-hook": "^5.3.2",
-    "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.4",
     "zundo": "^2.3.0",
     "zustand": "^5.0.13"
   },
@@ -68,11 +68,11 @@
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
     "lint-staged": "^16.4.0",
-    "oxfmt": "^0.50.0",
-    "oxlint": "^1.65.0",
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.63.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.12",
-    "vitest": "^4.1.6",
-    "wrangler": "^4.91.0"
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5",
+    "wrangler": "^4.88.0"
   }
 }

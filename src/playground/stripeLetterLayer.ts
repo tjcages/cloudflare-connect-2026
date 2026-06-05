@@ -69,6 +69,14 @@ export type StripeLetterLayer = {
   setVisible: (visible: boolean) => void;
   setTint: (tint: number) => void;
   setShuffleSpeed: (speed: number) => void;
+  /** Reposition existing letters for a new cell pitch (no rebuild). */
+  setCellSize: (cellWidth: number, cellHeight: number) => void;
+  /** Change letter density; forces a placement resync on the next grid update. */
+  setRatio: (ratio: number) => void;
+  /** Change the glyph pool; forces a placement resync on the next grid update. */
+  setCharset: (charset: readonly string[]) => void;
+  /** Swap the baked glyph atlas (e.g. on letter-size change) and reapply to live sprites. */
+  setAtlas: (atlas: StripeLetterAtlas) => void;
   destroy: () => void;
 };
 
@@ -81,15 +89,18 @@ export function createStripeLetterLayer(
   let placements: StripeLetterPlacement[] = [];
   const cycleStateByCell = new Map<string, LetterCycleState>();
 
-  const cellWidth = options.cellWidth ?? STRIPE_CELL_SIZE;
-  const cellHeight = options.cellHeight ?? STRIPE_CELL_SIZE;
-  const ratio = options.ratio ?? STRIPE_LETTER_COVERAGE;
-  const layerCharset = options.charset && options.charset.length > 0 ? options.charset : STRIPE_LETTER_CHARSET;
+  let currentAtlas = atlas;
+  let cellWidth = options.cellWidth ?? STRIPE_CELL_SIZE;
+  let cellHeight = options.cellHeight ?? STRIPE_CELL_SIZE;
+  let ratio = options.ratio ?? STRIPE_LETTER_COVERAGE;
+  let layerCharset = options.charset && options.charset.length > 0 ? options.charset : STRIPE_LETTER_CHARSET;
   let tint = options.tint ?? STRIPE_LETTER_TINT;
   let shuffleSpeed = options.shuffleSpeed && options.shuffleSpeed > 0 ? options.shuffleSpeed : 1;
+  // Forces sync() to rebuild even when placement cells are unchanged (ratio/charset/atlas swaps).
+  let dirty = false;
 
   const applyGlyphToSprite = (sprite: Sprite, char: string) => {
-    const glyph = atlas.get(char);
+    const glyph = currentAtlas.get(char);
     if (!glyph) {
       return false;
     }
@@ -136,9 +147,10 @@ export function createStripeLetterLayer(
 
     const nextPlacements = computeStripeLetterPlacements(grid, layerCharset, ratio);
     const nextKey = stripeLetterPlacementKey(nextPlacements);
-    if (nextKey === stripeLetterPlacementKey(placements) && sprites.length > 0) {
+    if (!dirty && nextKey === stripeLetterPlacementKey(placements) && sprites.length > 0) {
       return;
     }
+    dirty = false;
 
     const previousChars = new Map(
       placements.map((placement) => [stripeLetterCellKey(placement), placement.char] as const),
@@ -243,6 +255,52 @@ export function createStripeLetterLayer(
     shuffleSpeed = speed > 0 ? speed : 1;
   };
 
+  const setCellSize = (nextCellWidth: number, nextCellHeight: number) => {
+    if (nextCellWidth === cellWidth && nextCellHeight === cellHeight) {
+      return;
+    }
+    cellWidth = nextCellWidth;
+    cellHeight = nextCellHeight;
+    for (let i = 0; i < sprites.length; i++) {
+      const placement = placements[i];
+      const sprite = sprites[i];
+      if (!placement || !sprite) {
+        continue;
+      }
+      sprite.position.set(placement.col * cellWidth + cellWidth * 0.5, placement.row * cellHeight + cellHeight * 0.5);
+    }
+  };
+
+  const setRatio = (nextRatio: number) => {
+    if (nextRatio === ratio) {
+      return;
+    }
+    ratio = nextRatio;
+    dirty = true;
+  };
+
+  const setCharset = (nextCharset: readonly string[]) => {
+    const resolved = nextCharset.length > 0 ? nextCharset : STRIPE_LETTER_CHARSET;
+    if (resolved === layerCharset) {
+      return;
+    }
+    layerCharset = resolved;
+    dirty = true;
+  };
+
+  const setAtlas = (nextAtlas: StripeLetterAtlas) => {
+    currentAtlas = nextAtlas;
+    for (let i = 0; i < sprites.length; i++) {
+      const placement = placements[i];
+      const sprite = sprites[i];
+      if (placement && sprite) {
+        applyGlyphToSprite(sprite, placement.char);
+      }
+    }
+    // New glyph metrics may shift placement eligibility on the next grid update.
+    dirty = true;
+  };
+
   const destroy = () => {
     for (const sprite of sprites) {
       sprite.destroy();
@@ -253,5 +311,18 @@ export function createStripeLetterLayer(
     container.destroy({ children: true });
   };
 
-  return { container, sync, tickLetterShuffle, applySparkle, setVisible, setTint, setShuffleSpeed, destroy };
+  return {
+    container,
+    sync,
+    tickLetterShuffle,
+    applySparkle,
+    setVisible,
+    setTint,
+    setShuffleSpeed,
+    setCellSize,
+    setRatio,
+    setCharset,
+    setAtlas,
+    destroy,
+  };
 }

@@ -100,7 +100,7 @@ Linting and formatting use **oxlint** + **oxfmt** via `pnpm code-check`. That co
 
 Agents often iterate faster with `pnpm typecheck` or `pnpm exec vitest run <file-or-glob>` before running full `pnpm verify`; Vitest uses the `threads` pool here specifically so the suite stays fast under happy-dom.
 
-Package management is **pnpm** with `minimumReleaseAge` set to 30 days (43200 minutes) in `package.json` and `.npmrc`.
+Package management is **pnpm**.
 
 For docs/rules-only changes, a frontmatter/path/stale-reference review is enough unless source files changed.
 

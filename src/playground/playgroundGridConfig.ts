@@ -19,10 +19,6 @@ export type PlaygroundGridConfig = {
   /** Uniform inset between adjacent columns / rows in px. */
   gapX: number;
   gapY: number;
-  /** Gap carved between stacked same-axis runs of different bands (px). */
-  chainBreakGap: number;
-  /** Band collapses to the full cell when it would shrink below this height (px). */
-  minStripeHeight: number;
   /** Rounded-corner radius applied to stripe rectangles in px (0 = square). */
   cornerRadius: number;
   /** Stripe direction: vertical bars (default) or horizontal bars. */
@@ -62,8 +58,6 @@ export const DEFAULT_PLAYGROUND_GRID_CONFIG: PlaygroundGridConfig = {
   cellHeight: STRIPE_CELL_SIZE,
   gapX: 0,
   gapY: 0,
-  chainBreakGap: 1,
-  minStripeHeight: STRIPE_CELL_SIZE,
   cornerRadius: 0,
   orientation: "vertical",
   letterSize: STRIPE_LETTER_FONT_SIZE_PX,
@@ -122,13 +116,6 @@ export function normalizePlaygroundGridConfig(input: Partial<PlaygroundGridConfi
     cellHeight,
     gapX: clampNumber(input.gapX ?? base.gapX, 0, cellWidth, base.gapX),
     gapY: clampNumber(input.gapY ?? base.gapY, 0, cellHeight, base.gapY),
-    chainBreakGap: clampNumber(
-      input.chainBreakGap ?? base.chainBreakGap,
-      0,
-      Math.max(cellWidth, cellHeight),
-      base.chainBreakGap,
-    ),
-    minStripeHeight: clampNumber(input.minStripeHeight ?? cellHeight, 0, Math.max(cellWidth, cellHeight), cellHeight),
     cornerRadius: clampNumber(
       input.cornerRadius ?? base.cornerRadius,
       0,
@@ -209,8 +196,6 @@ export function isDefaultPlaygroundGridConfig(config: PlaygroundGridConfig): boo
     config.cellHeight === base.cellHeight &&
     config.gapX === base.gapX &&
     config.gapY === base.gapY &&
-    config.chainBreakGap === base.chainBreakGap &&
-    config.minStripeHeight === base.minStripeHeight &&
     config.cornerRadius === base.cornerRadius &&
     config.orientation === base.orientation &&
     config.letterSize === base.letterSize &&
