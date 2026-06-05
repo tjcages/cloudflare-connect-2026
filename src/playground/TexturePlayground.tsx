@@ -1474,7 +1474,6 @@ export function TexturePlayground() {
 
           <PlaygroundControlSection
             title="General"
-            defaultOpen
             testId="playground-section-general"
             className="mt-4"
             modified={generalModified}
@@ -1512,7 +1511,6 @@ export function TexturePlayground() {
 
           <PlaygroundControlSection
             title="Background"
-            defaultOpen
             testId="playground-section-background"
             modified={backgroundModified}
             onReset={resetBackground}
@@ -1576,7 +1574,6 @@ export function TexturePlayground() {
 
           <PlaygroundControlSection
             title="Stripes"
-            defaultOpen
             testId="playground-section-stripes"
             modified={stripesModified}
             onReset={resetStripes}
@@ -1678,7 +1675,6 @@ export function TexturePlayground() {
 
           <PlaygroundControlSection
             title="Sparkle Gaps"
-            defaultOpen
             testId="playground-section-sparkle-gaps"
             modified={sparkleGapsModified}
             onReset={resetSparkleGaps}
@@ -1749,7 +1745,6 @@ export function TexturePlayground() {
 
           <PlaygroundControlSection
             title="Sparkle Width"
-            defaultOpen
             testId="playground-section-sparkle-width"
             modified={sparkleWidthModified}
             onReset={resetSparkleWidth}

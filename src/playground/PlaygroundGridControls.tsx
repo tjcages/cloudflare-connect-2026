@@ -50,7 +50,6 @@ export function PlaygroundGridControls({
     <>
       <PlaygroundControlSection
         title="Grid"
-        defaultOpen
         testId="playground-section-grid"
         modified={gridModified}
         onReset={onResetGrid}

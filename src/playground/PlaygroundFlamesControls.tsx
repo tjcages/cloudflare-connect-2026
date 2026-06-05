@@ -29,7 +29,6 @@ export function PlaygroundFlamesControls({
   return (
     <PlaygroundControlSection
       title="Background Flames"
-      defaultOpen
       testId="playground-section-flames"
       modified={modified}
       onReset={onReset}
