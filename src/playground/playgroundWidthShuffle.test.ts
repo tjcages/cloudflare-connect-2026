@@ -43,15 +43,21 @@ describe("playgroundWidthShuffle", () => {
     expect(widthShuffleCellSeed(2, 4)).not.toBe(widthShuffleCellSeed(2, 5));
   });
 
-  it("picks a continuous target width with enough swing from default", () => {
+  it("keeps the target within a bounded +/- swing of the default width", () => {
+    const swing = WIDTH_SHUFFLE_MIN_SWING_PX;
     for (let pulse = 0; pulse < 12; pulse++) {
       for (let col = 0; col < 12; col++) {
         for (let row = 0; row < 12; row++) {
           for (let defaultWidth = 1; defaultWidth <= WIDTH_SHUFFLE_MAX_WIDTH_PX; defaultWidth++) {
-            const target = widthShuffleTargetWidth(col, row, pulse, defaultWidth);
+            const target = widthShuffleTargetWidth(col, row, pulse, defaultWidth, swing);
             expect(target).toBeGreaterThanOrEqual(WIDTH_SHUFFLE_MIN_WIDTH_PX);
             expect(target).toBeLessThanOrEqual(WIDTH_SHUFFLE_MAX_WIDTH_PX);
-            expect(Math.abs(target - defaultWidth)).toBeGreaterThanOrEqual(WIDTH_SHUFFLE_MIN_SWING_PX - 0.001);
+            // Swing never pushes the width beyond +/- swing px from the configured default
+            // (after clamping into the renderable range).
+            const lowerBound = Math.max(WIDTH_SHUFFLE_MIN_WIDTH_PX, defaultWidth - swing) - 0.001;
+            const upperBound = Math.min(WIDTH_SHUFFLE_MAX_WIDTH_PX, defaultWidth + swing) + 0.001;
+            expect(target).toBeGreaterThanOrEqual(lowerBound);
+            expect(target).toBeLessThanOrEqual(upperBound);
           }
         }
       }
@@ -62,12 +68,12 @@ describe("playgroundWidthShuffle", () => {
     let active = 0;
     const total = 50 * 50;
     const timeSec = 12.345;
-    const defaultWidth = 2;
 
     for (let col = 0; col < 50; col++) {
       for (let row = 0; row < 50; row++) {
-        const width = resolveWidthShuffleStripeWidth(col, row, defaultWidth, timeSec, enabledOptions);
-        if (Math.abs(width - defaultWidth) > 0.05) {
+        // Count cells in an active pulse window — width deviation can be ~0 for a cell whose
+        // swing hash lands near the midpoint, so use the pulse state directly.
+        if (isWidthShuffleActive(col, row, timeSec, enabledOptions)) {
           active++;
         }
       }
@@ -137,7 +143,8 @@ describe("playgroundWidthShuffle", () => {
 
     const fractional = samples.filter((width) => Math.abs(width - Math.round(width)) > 0.01);
     expect(fractional.length).toBeGreaterThan(10);
-    expect(Math.max(...samples)).toBeGreaterThan(defaultWidth + 0.5);
+    // The pulse deviates the width meaningfully from the default (in either direction).
+    expect(Math.max(...samples.map((width) => Math.abs(width - defaultWidth)))).toBeGreaterThan(0.5);
     expect(widthShufflePulseEnvelope(0)).toBeCloseTo(0, 5);
     expect(widthShufflePulseEnvelope(0.5)).toBeCloseTo(1, 5);
     expect(widthShufflePulseEnvelope(1)).toBeCloseTo(0, 5);

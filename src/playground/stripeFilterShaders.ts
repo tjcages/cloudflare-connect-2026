@@ -41,6 +41,14 @@ uniform float uStripeCount;
 uniform vec2 uPixelSize;
 uniform vec2 uFrameSize;
 uniform vec2 uGridSize;
+uniform vec2 uCellSize;
+uniform vec2 uGap;
+uniform float uChainBreakGap;
+uniform float uMinStripeHeight;
+uniform float uCornerRadius;
+uniform float uStripeMaxWidth;
+uniform float uWidthShuffleSwing;
+uniform float uOrientation;
 uniform float uDebugVideoAlpha;
 uniform float uSparkleEnabled;
 uniform float uSparkleTime;
@@ -53,11 +61,6 @@ uniform float uWidthShuffleCoverage;
 uniform float uWidthShufflePeriodMinSec;
 uniform float uWidthShufflePeriodMaxSec;
 
-const float CELL_SIZE = 7.0;
-const float STRIPE_MAX_WIDTH = 7.0;
-const float MIN_STRIPE_HEIGHT = 7.0;
-const float ROW_WIDTH_GAP = 1.0;
-
 bool sameStripeBand(float a, float b) {
     if (a < 0.5 || b < 0.5) {
         return false;
@@ -65,21 +68,20 @@ bool sameStripeBand(float a, float b) {
     return abs(a - b) < 0.001;
 }
 
-bool stripePixelVisible(float relX, float localY, float halfW, float bandTop, float bandBottom) {
-    return abs(relX) <= halfW + 0.001 && localY >= bandTop - 0.001 && localY <= bandBottom + 0.001;
+// Signed distance to a rounded rectangle centered at the origin (half-extents b, radius r).
+float roundedBoxSdf(vec2 p, vec2 b, float r) {
+    vec2 q = abs(p) - b + vec2(r);
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
-bool stripeVerticalVisible(float localY, float bandTop, float bandBottom) {
-    return localY >= bandTop - 0.001 && localY <= bandBottom + 0.001;
-}
-
-// Soft horizontal edge when width shuffle is active (fade outward from stripe boundary).
-float stripeHorizontalCoverage(float relX, float halfW, float soften) {
-    if (soften < 0.5) {
-        return step(abs(relX), halfW + 0.001);
+// Coverage 1 inside the (optionally rounded) stripe rectangle, fading to 0 over a ~1px edge.
+float stripeRectCoverage(vec2 p, vec2 halfExtents, float radius) {
+    if (halfExtents.x <= 0.0 || halfExtents.y <= 0.0) {
+        return 0.0;
     }
-    float dist = max(abs(relX) - halfW, 0.0);
-    return 1.0 - smoothstep(0.0, 0.85, dist);
+    float r = clamp(radius, 0.0, min(halfExtents.x, halfExtents.y));
+    float dist = roundedBoxSdf(p, halfExtents, r);
+    return 1.0 - smoothstep(0.0, 0.75, dist);
 }
 
 vec2 blockGridUv(float colIndex, float rowIndex) {
@@ -108,7 +110,7 @@ float stripeWidthPx(float band) {
     if (band < 0.5) {
         return 0.0;
     }
-    return texture(uStripeData, vec2(stripePaletteU(band), 0.75)).r * STRIPE_MAX_WIDTH;
+    return texture(uStripeData, vec2(stripePaletteU(band), 0.75)).r * uStripeMaxWidth;
 }
 
 // Keep in sync with playgroundSparkle.ts.
@@ -164,24 +166,12 @@ float widthShuffleAltHash(float col, float row, float pulseIndex) {
     return widthShuffleHashFromCoords(vec2(col + 53.0 + pulseIndex * 61.0, row + 71.0 + pulseIndex * 101.0));
 }
 
-float widthShuffleTargetWidth(float col, float row, float pulseIndex, float defaultWidth) {
-    float minW = 1.0;
-    float maxW = STRIPE_MAX_WIDTH;
-    float minSwing = 1.25;
-    float span = maxW - minW;
+float widthShuffleTargetWidth(float col, float row, float pulseIndex, float defaultWidth, float maxW) {
+    // Swing is a bounded +/- delta in px around the configured width, independent of cell size.
+    float swing = max(uWidthShuffleSwing, 0.0);
     float h = widthShuffleAltHash(col, row, pulseIndex);
-    float target = minW + h * span;
-
-    if (abs(target - defaultWidth) < minSwing) {
-        if (defaultWidth <= maxW * 0.5) {
-            target = defaultWidth + minSwing + h * (maxW - defaultWidth - minSwing);
-        } else {
-            target = defaultWidth - minSwing - h * (defaultWidth - minW - minSwing);
-        }
-        target = clamp(target, minW, maxW);
-    }
-
-    return target;
+    float target = defaultWidth + (h * 2.0 - 1.0) * swing;
+    return clamp(target, 1.0, maxW);
 }
 
 float widthShuffleSmoothStep(float t) {
@@ -197,7 +187,7 @@ float widthShufflePulseEnvelope(float localT) {
     return widthShuffleSmoothStep(cosine);
 }
 
-float resolveAnimatedStripeWidth(float col, float row, float band) {
+float resolveAnimatedStripeWidth(float col, float row, float band, float maxW) {
     float defaultWidth = stripeWidthPx(band);
     if (band < 0.5 || uWidthShuffleEnabled < 0.5) {
         return defaultWidth;
@@ -217,7 +207,7 @@ float resolveAnimatedStripeWidth(float col, float row, float band) {
     }
 
     float localT = localTime / period;
-    float targetWidth = widthShuffleTargetWidth(col, row, cycleIndex, defaultWidth);
+    float targetWidth = widthShuffleTargetWidth(col, row, cycleIndex, defaultWidth, maxW);
     float envelope = widthShufflePulseEnvelope(localT);
 
     return mix(defaultWidth, targetWidth, envelope);
@@ -226,44 +216,62 @@ float resolveAnimatedStripeWidth(float col, float row, float band) {
 void main(void) {
     vec2 pixelCoord = vTextureCoord * uPixelSize;
 
-    float colIndex = floor(pixelCoord.x / CELL_SIZE);
-    float rowIndex = floor(pixelCoord.y / CELL_SIZE);
-    float maxRowIndex = max(0.0, floor((uFrameSize.y - 1.0) / CELL_SIZE));
-    float columnCenterPx = (colIndex + 0.5) * CELL_SIZE;
-    float localY = pixelCoord.y - rowIndex * CELL_SIZE;
+    float cw = max(uCellSize.x, 1.0);
+    float ch = max(uCellSize.y, 1.0);
+    float colIndex = floor(pixelCoord.x / cw);
+    float rowIndex = floor(pixelCoord.y / ch);
+    float maxColIndex = max(0.0, floor((uFrameSize.x - 1.0) / cw));
+    float maxRowIndex = max(0.0, floor((uFrameSize.y - 1.0) / ch));
+    float localX = pixelCoord.x - colIndex * cw;
+    float localY = pixelCoord.y - rowIndex * ch;
+
+    bool horizontal = uOrientation > 0.5;
+
+    // "along" = the band-run direction; "across" = the stripe thickness direction.
+    float alongLocal = horizontal ? localX : localY;
+    float acrossLocal = horizontal ? localY : localX;
+    float alongCell = horizontal ? cw : ch;
+    float acrossCell = horizontal ? ch : cw;
+    float alongGap = horizontal ? uGap.x : uGap.y;
 
     float stripeBand = blockStripeBand(colIndex, rowIndex);
-    float bandAbove = rowIndex > 0.0
-        ? blockStripeBand(colIndex, rowIndex - 1.0)
-        : 0.0;
-    float bandBelow = rowIndex < maxRowIndex
-        ? blockStripeBand(colIndex, rowIndex + 1.0)
-        : 0.0;
+    // Neighbors along the run direction, for the extra chain-break gap between different bands.
+    float bandAlongPrev = horizontal
+        ? (colIndex > 0.0 ? blockStripeBand(colIndex - 1.0, rowIndex) : 0.0)
+        : (rowIndex > 0.0 ? blockStripeBand(colIndex, rowIndex - 1.0) : 0.0);
+    float bandAlongNext = horizontal
+        ? (colIndex < maxColIndex ? blockStripeBand(colIndex + 1.0, rowIndex) : 0.0)
+        : (rowIndex < maxRowIndex ? blockStripeBand(colIndex, rowIndex + 1.0) : 0.0);
 
-    bool chainBreaksAbove = stripeBand > 0.5 && !sameStripeBand(stripeBand, bandAbove);
-    bool chainBreaksBelow = stripeBand > 0.5 && !sameStripeBand(stripeBand, bandBelow);
+    bool chainBreaksStart = stripeBand > 0.5 && !sameStripeBand(stripeBand, bandAlongPrev);
+    bool chainBreaksEnd = stripeBand > 0.5 && !sameStripeBand(stripeBand, bandAlongNext);
 
-    float gapTop = chainBreaksAbove ? ROW_WIDTH_GAP * 0.5 : 0.0;
-    float gapBottom = chainBreaksBelow ? ROW_WIDTH_GAP * 0.5 : 0.0;
+    // The cell size fed in already includes the gap (effective cell = bar size + gap), so the
+    // bar keeps its full configured size and the gap is real spacing carved uniformly between
+    // every cell — not padding subtracted from the bar.
+    float baseTop = alongGap * 0.5;
+    float baseBottom = alongCell - alongGap * 0.5;
+    // Extra chain-break gap between different-band runs, kept only when the band stays tall enough.
+    float chainTop = baseTop + (chainBreaksStart ? uChainBreakGap * 0.5 : 0.0);
+    float chainBottom = baseBottom - (chainBreaksEnd ? uChainBreakGap * 0.5 : 0.0);
 
-    float bandTop = gapTop;
-    float bandBottom = CELL_SIZE - gapBottom;
-
-    if (bandBottom - bandTop < MIN_STRIPE_HEIGHT) {
-        bandTop = 0.0;
-        bandBottom = CELL_SIZE;
+    float bandTop = baseTop;
+    float bandBottom = baseBottom;
+    if ((chainBottom - chainTop) >= uMinStripeHeight) {
+        bandTop = chainTop;
+        bandBottom = chainBottom;
     }
-    float stripeWidth = resolveAnimatedStripeWidth(colIndex, rowIndex, stripeBand);
-    float defaultStripeWidth = stripeWidthPx(stripeBand);
-    float halfW = stripeWidth * 0.5;
-    float relX = pixelCoord.x - columnCenterPx;
-    // Soften edges only during an active pulse — not for every stripe when shuffle is on.
-    float softenEdges =
-        (uWidthShuffleEnabled > 0.5 && abs(stripeWidth - defaultStripeWidth) > 0.05) ? 1.0 : 0.0;
 
-    float hCoverage = stripeHorizontalCoverage(relX, halfW, softenEdges);
-    float vCoverage = stripeVerticalVisible(localY, bandTop, bandBottom) ? 1.0 : 0.0;
-    float stripeCoverage = hCoverage * vCoverage;
+    // Stripe thickness is exactly the configured width in px, centered in the gap-expanded cell.
+    float stripeWidth = resolveAnimatedStripeWidth(colIndex, rowIndex, stripeBand, acrossCell);
+    float halfW = stripeWidth * 0.5;
+    float acrossCenter = acrossCell * 0.5;
+
+    float bandCenter = (bandTop + bandBottom) * 0.5;
+    float bandHalf = (bandBottom - bandTop) * 0.5;
+    vec2 stripePoint = vec2(acrossLocal - acrossCenter, alongLocal - bandCenter);
+    vec2 stripeHalf = vec2(halfW, bandHalf);
+    float stripeCoverage = stripeRectCoverage(stripePoint, stripeHalf, uCornerRadius);
 
     if (stripeBand > 0.5) {
         if (!sparkleCellVisible(colIndex, rowIndex)) {

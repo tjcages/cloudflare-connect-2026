@@ -1,5 +1,5 @@
 import { displayP3ToSrgb, hexToRgb01, parseDisplayP3Css, rgb01ToHex, type Rgb01 } from "../theme/colorSpace";
-import { STRIPE_MAX_WIDTH_PX } from "./stripeGridConstants";
+import { STRIPE_MAX_WIDTH_PX, STRIPE_WIDTH_ENCODE_MAX } from "./stripeGridConstants";
 
 export type { Rgb01 };
 
@@ -20,7 +20,10 @@ export type Stripe = {
 export type StripeColors = { stripes: Stripe[] };
 
 export const STRIPE_WIDTH_MIN = 1;
+/** Default stripe thickness ceiling for the default cell; UI widens this with the cell size. */
 export const STRIPE_WIDTH_MAX = STRIPE_MAX_WIDTH_PX;
+/** Absolute storage ceiling so wide cells can carry thick stripes without re-clamping. */
+export const STRIPE_WIDTH_STORAGE_MAX = STRIPE_WIDTH_ENCODE_MAX;
 export const STRIPE_START_FROM_MIN = 0;
 export const STRIPE_START_FROM_MAX = 1;
 
@@ -46,11 +49,11 @@ export function clampStripeStartFrom(value: number): number {
   return Math.min(STRIPE_START_FROM_MAX, Math.max(STRIPE_START_FROM_MIN, value));
 }
 
-export function clampStripeWidth(value: number): number {
+export function clampStripeWidth(value: number, maxWidth: number = STRIPE_WIDTH_STORAGE_MAX): number {
   if (!Number.isFinite(value)) {
     return STRIPE_WIDTH_MIN;
   }
-  return Math.min(STRIPE_WIDTH_MAX, Math.max(STRIPE_WIDTH_MIN, value));
+  return Math.min(maxWidth, Math.max(STRIPE_WIDTH_MIN, value));
 }
 
 let stripeIdCounter = 0;
@@ -82,12 +85,12 @@ function stripe(id: string, hex: string, startFrom: number, width: number): Stri
 
 /** Default playground palette: neutral gray at the darkest threshold ramping up to the loud orange at the brightest. */
 export const DEFAULT_STRIPES: readonly Stripe[] = [
-  stripe("gray", "#F3F3F3", 0.12, 2),
-  stripe("faint", "#FADA98", 0.28, 3),
-  stripe("subtle", "#F8BD70", 0.44, 4),
-  stripe("muted", "#F69E4D", 0.6, 5),
-  stripe("default", "#F27C33", 0.76, 6),
-  stripe("loud", "#EB5729", 0.9, 7),
+  stripe("gray", "#F3F3F3", 0.12, 1),
+  stripe("faint", "#FADA98", 0.28, 1),
+  stripe("subtle", "#F8BD70", 0.44, 2),
+  stripe("muted", "#F69E4D", 0.6, 3),
+  stripe("default", "#F27C33", 0.76, 4),
+  stripe("loud", "#EB5729", 0.9, 5),
 ] as const;
 
 export function buildStripeColors(stripes: readonly Stripe[] = DEFAULT_STRIPES): StripeColors {

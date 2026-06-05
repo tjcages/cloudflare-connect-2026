@@ -11,9 +11,14 @@ export class BlockGridTexture {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly imageData: ImageData;
 
-  constructor(displayWidth: number, displayHeight: number) {
-    this.cols = Math.ceil(displayWidth / STRIPE_CELL_SIZE);
-    this.rows = Math.ceil(displayHeight / STRIPE_CELL_SIZE);
+  constructor(
+    displayWidth: number,
+    displayHeight: number,
+    cellWidth: number = STRIPE_CELL_SIZE,
+    cellHeight: number = STRIPE_CELL_SIZE,
+  ) {
+    this.cols = Math.ceil(displayWidth / Math.max(1, cellWidth));
+    this.rows = Math.ceil(displayHeight / Math.max(1, cellHeight));
     this.canvas = document.createElement("canvas");
     this.canvas.width = this.cols;
     this.canvas.height = this.rows;

@@ -4,6 +4,12 @@ import { buildStripeColors, resolveStripePalette, type StripeColors } from "./st
 import { StripePaletteTexture } from "./stripePaletteTexture";
 import { DEFAULT_PLAYGROUND_SPARKLE_OPTIONS, type PlaygroundSparkleOptions } from "./playgroundSparkle";
 import { DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS, type PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
+import {
+  DEFAULT_PLAYGROUND_GRID_CONFIG,
+  effectivePlaygroundCellSize,
+  type PlaygroundGridConfig,
+} from "./playgroundGridConfig";
+import { STRIPE_WIDTH_ENCODE_MAX } from "./stripeGridConstants";
 
 /** Set > 0 to composite source video for grid-alignment debugging. */
 export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
@@ -12,6 +18,8 @@ export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
+  /** Push live-updatable grid params (gap, chain gap, min height, softness, swing, orientation). */
+  syncGrid: (grid: PlaygroundGridConfig) => void;
   updateBlockMap: (blockMap: Texture) => void;
 };
 
@@ -28,14 +36,25 @@ export function createStripeDuotoneFilter(
   gridRows: number,
   colors: StripeColors = buildStripeColors(),
   preferP3 = false,
+  grid: PlaygroundGridConfig = DEFAULT_PLAYGROUND_GRID_CONFIG,
 ): StripeDuotoneFilter {
   const palette = new StripePaletteTexture();
   palette.update(resolveStripePalette(colors, preferP3));
+
+  const effectiveCell = effectivePlaygroundCellSize(grid);
 
   const stripeUniforms = new UniformGroup({
     uPixelSize: { value: [canvasWidth, canvasHeight], type: "vec2<f32>" },
     uFrameSize: { value: [canvasWidth, canvasHeight], type: "vec2<f32>" },
     uGridSize: { value: [gridCols, gridRows], type: "vec2<f32>" },
+    uCellSize: { value: [effectiveCell.width, effectiveCell.height], type: "vec2<f32>" },
+    uGap: { value: [grid.gapX, grid.gapY], type: "vec2<f32>" },
+    uChainBreakGap: { value: grid.chainBreakGap, type: "f32" },
+    uMinStripeHeight: { value: grid.minStripeHeight, type: "f32" },
+    uCornerRadius: { value: grid.cornerRadius, type: "f32" },
+    uStripeMaxWidth: { value: STRIPE_WIDTH_ENCODE_MAX, type: "f32" },
+    uWidthShuffleSwing: { value: grid.widthShuffleSwing, type: "f32" },
+    uOrientation: { value: grid.orientation === "horizontal" ? 1 : 0, type: "f32" },
     uStripeCount: { value: palette.count, type: "f32" },
     uDebugVideoAlpha: { value: STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA, type: "f32" },
     uSparkleEnabled: { value: 0, type: "f32" },
@@ -102,6 +121,25 @@ export function createStripeDuotoneFilter(
     uniforms.uWidthShuffleCoverage = options.coverage;
     uniforms.uWidthShufflePeriodMinSec = options.periodMinSec;
     uniforms.uWidthShufflePeriodMaxSec = options.periodMaxSec;
+    stripeUniforms.update();
+  };
+
+  filter.syncGrid = (nextGrid) => {
+    const uniforms = stripeUniforms.uniforms as {
+      uGap: number[];
+      uChainBreakGap: number;
+      uMinStripeHeight: number;
+      uCornerRadius: number;
+      uWidthShuffleSwing: number;
+      uOrientation: number;
+    };
+    uniforms.uGap[0] = nextGrid.gapX;
+    uniforms.uGap[1] = nextGrid.gapY;
+    uniforms.uChainBreakGap = nextGrid.chainBreakGap;
+    uniforms.uMinStripeHeight = nextGrid.minStripeHeight;
+    uniforms.uCornerRadius = nextGrid.cornerRadius;
+    uniforms.uWidthShuffleSwing = nextGrid.widthShuffleSwing;
+    uniforms.uOrientation = nextGrid.orientation === "horizontal" ? 1 : 0;
     stripeUniforms.update();
   };
 

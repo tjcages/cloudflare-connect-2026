@@ -35,6 +35,13 @@ export function sampleVideoFrame(
   return sampleTextureFrame(video, displayWidth, displayHeight, sampleCanvas, sampleCtx);
 }
 
+export type PlaygroundGridBuildOptions = {
+  cellWidth?: number;
+  cellHeight?: number;
+  /** Max stripe-index change per update (0 = snap instantly). */
+  smoothingMaxStep?: number;
+};
+
 export function buildPlaygroundBlockGrid(
   frame: ImageData,
   displayWidth: number,
@@ -42,10 +49,18 @@ export function buildPlaygroundBlockGrid(
   colors: StripeColors,
   state: PlaygroundGridBuildState,
   gamma = 1,
+  options: PlaygroundGridBuildOptions = {},
 ): { grid: BlockGrid; state: PlaygroundGridBuildState } {
-  const lumaGrid = computeBlockGrid(frame.data, displayWidth, displayHeight, gamma);
+  const lumaGrid = computeBlockGrid(
+    frame.data,
+    displayWidth,
+    displayHeight,
+    gamma,
+    options.cellWidth,
+    options.cellHeight,
+  );
   const rawIndices = resolveStripeIndices(lumaGrid.luma, colors.stripes);
-  const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices);
+  const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices, options.smoothingMaxStep);
 
   return {
     grid: { cols: lumaGrid.cols, rows: lumaGrid.rows, indices: stableIndices },

@@ -8,6 +8,7 @@ import {
   hexToDisplayP3Css,
   removeStripe,
   resolveStripeIndices,
+  STRIPE_WIDTH_STORAGE_MAX,
   stripeIndexForLuminance,
   updateStripe,
 } from "./stripeColors";
@@ -95,6 +96,8 @@ describe("stripe list editing", () => {
     const id = base.stripes[0]!.id;
     const clamped = updateStripe(base, id, { startFrom: 5, width: 99 });
     expect(clamped.stripes[0]!.startFrom).toBe(1);
-    expect(clamped.stripes[0]!.width).toBe(7);
+    // Width stores up to the encode ceiling so wide cells can carry thick stripes;
+    // the shader clamps the drawn thickness to the actual cell size.
+    expect(clamped.stripes[0]!.width).toBe(STRIPE_WIDTH_STORAGE_MAX);
   });
 });

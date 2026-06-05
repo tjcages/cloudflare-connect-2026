@@ -1,21 +1,17 @@
 import { Texture } from "pixi.js";
 import { CODE_SNIPPET_FONT_FAMILY } from "../fonts/codeSnippet";
+import { STRIPE_LETTER_CHARSET, STRIPE_LETTER_FONT_SIZE_PX, STRIPE_LETTER_RASTER_SCALE } from "./stripeLetterConstants";
+
+export { STRIPE_LETTER_CHARSET, STRIPE_LETTER_FONT_SIZE_PX, STRIPE_LETTER_RASTER_SCALE };
 
 export const STRIPE_LETTER_FONT_FAMILY = CODE_SNIPPET_FONT_FAMILY;
-export const STRIPE_LETTER_FONT_SIZE_PX = 6;
-/** High-res bake; sprites display at logical {@link STRIPE_LETTER_FONT_SIZE_PX} via width/height. */
-export const STRIPE_LETTER_RASTER_SCALE = 8;
 
-/** Printable ASCII except space: A–Z, a–z, 0–9, and symbols. */
-export const STRIPE_LETTER_CHARSET: readonly string[] = [
-  ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-  ..."abcdefghijklmnopqrstuvwxyz",
-  ..."0123456789",
-  ..."!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
-];
+export function stripeLetterCanvasFont(fontSizePx: number = STRIPE_LETTER_FONT_SIZE_PX): string {
+  return `400 ${fontSizePx}px "${STRIPE_LETTER_FONT_FAMILY}"`;
+}
 
-export const STRIPE_LETTER_CANVAS_FONT = `400 ${STRIPE_LETTER_FONT_SIZE_PX}px "${STRIPE_LETTER_FONT_FAMILY}"`;
-export const STRIPE_LETTER_FONT_LOAD_SPEC = `400 ${STRIPE_LETTER_FONT_SIZE_PX}px "${STRIPE_LETTER_FONT_FAMILY}"`;
+export const STRIPE_LETTER_CANVAS_FONT = stripeLetterCanvasFont();
+export const STRIPE_LETTER_FONT_LOAD_SPEC = stripeLetterCanvasFont();
 
 export type StripeLetterRasterGlyph = {
   canvas: HTMLCanvasElement;
@@ -54,7 +50,12 @@ export function stripeLetterSvgGlyphId(char: string): string {
   return `stripe-letter-glyph-${char.charCodeAt(0)}`;
 }
 
-export function rasterizeStripeLetterGlyph(char: string, scale = STRIPE_LETTER_RASTER_SCALE): StripeLetterRasterGlyph {
+export function rasterizeStripeLetterGlyph(
+  char: string,
+  scale = STRIPE_LETTER_RASTER_SCALE,
+  fontSizePx: number = STRIPE_LETTER_FONT_SIZE_PX,
+): StripeLetterRasterGlyph {
+  const font = stripeLetterCanvasFont(fontSizePx);
   const measureCanvas = document.createElement("canvas");
   const measureCtx = measureCanvas.getContext("2d");
   if (!measureCtx) {
@@ -64,10 +65,10 @@ export function rasterizeStripeLetterGlyph(char: string, scale = STRIPE_LETTER_R
     return { canvas: fallback, width: 1, height: 1 };
   }
 
-  measureCtx.font = STRIPE_LETTER_CANVAS_FONT;
+  measureCtx.font = font;
   const metrics = measureCtx.measureText(char);
   const logicalWidth = Math.max(1, Math.ceil(metrics.width));
-  const logicalHeight = STRIPE_LETTER_FONT_SIZE_PX;
+  const logicalHeight = Math.max(1, Math.ceil(fontSizePx));
 
   const canvas = document.createElement("canvas");
   canvas.width = logicalWidth * scale;
@@ -79,7 +80,7 @@ export function rasterizeStripeLetterGlyph(char: string, scale = STRIPE_LETTER_R
   }
 
   ctx.scale(scale, scale);
-  ctx.font = STRIPE_LETTER_CANVAS_FONT;
+  ctx.font = font;
   ctx.fillStyle = "#ffffff";
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
@@ -90,10 +91,11 @@ export function rasterizeStripeLetterGlyph(char: string, scale = STRIPE_LETTER_R
 
 export function buildStripeLetterSvgGlyphs(
   charset: readonly string[] = STRIPE_LETTER_CHARSET,
+  fontSizePx: number = STRIPE_LETTER_FONT_SIZE_PX,
 ): Map<string, StripeLetterSvgGlyph> {
   const glyphs = new Map<string, StripeLetterSvgGlyph>();
   for (const char of charset) {
-    const raster = rasterizeStripeLetterGlyph(char);
+    const raster = rasterizeStripeLetterGlyph(char, STRIPE_LETTER_RASTER_SCALE, fontSizePx);
     glyphs.set(char, {
       id: stripeLetterSvgGlyphId(char),
       dataUrl: raster.canvas.toDataURL("image/png"),
@@ -104,8 +106,12 @@ export function buildStripeLetterSvgGlyphs(
   return glyphs;
 }
 
-function rasterizeStripeLetterTexture(char: string, scale = STRIPE_LETTER_RASTER_SCALE): StripeLetterGlyph {
-  const raster = rasterizeStripeLetterGlyph(char, scale);
+function rasterizeStripeLetterTexture(
+  char: string,
+  scale = STRIPE_LETTER_RASTER_SCALE,
+  fontSizePx: number = STRIPE_LETTER_FONT_SIZE_PX,
+): StripeLetterGlyph {
+  const raster = rasterizeStripeLetterGlyph(char, scale, fontSizePx);
   const texture = Texture.from(raster.canvas);
   texture.source.scaleMode = "linear";
   return {
@@ -115,10 +121,13 @@ function rasterizeStripeLetterTexture(char: string, scale = STRIPE_LETTER_RASTER
   };
 }
 
-export function buildStripeLetterAtlas(charset: readonly string[] = STRIPE_LETTER_CHARSET): StripeLetterAtlas {
+export function buildStripeLetterAtlas(
+  charset: readonly string[] = STRIPE_LETTER_CHARSET,
+  fontSizePx: number = STRIPE_LETTER_FONT_SIZE_PX,
+): StripeLetterAtlas {
   const atlas: StripeLetterAtlas = new Map();
   for (const char of charset) {
-    atlas.set(char, rasterizeStripeLetterTexture(char));
+    atlas.set(char, rasterizeStripeLetterTexture(char, STRIPE_LETTER_RASTER_SCALE, fontSizePx));
   }
   return atlas;
 }

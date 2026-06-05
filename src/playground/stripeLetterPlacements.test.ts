@@ -61,4 +61,33 @@ describe("computeStripeLetterPlacements", () => {
     expect(ratio).toBeGreaterThan(STRIPE_LETTER_COVERAGE - 0.04);
     expect(ratio).toBeLessThan(STRIPE_LETTER_COVERAGE + 0.04);
   });
+
+  it("places a letter on every eligible cell at ratio 1", () => {
+    const cols = 12;
+    const rows = 10;
+    const grid = {
+      cols,
+      rows,
+      indices: new Uint8Array(cols * rows).fill(6),
+    };
+
+    const placements = computeStripeLetterPlacements(grid, STRIPE_LETTER_CHARSET, 1);
+    expect(placements).toHaveLength(cols * rows);
+  });
+
+  it("places no letters at ratio 0", () => {
+    const grid = { cols: 8, rows: 6, indices: new Uint8Array(8 * 6).fill(6) };
+    expect(computeStripeLetterPlacements(grid, STRIPE_LETTER_CHARSET, 0)).toEqual([]);
+  });
+
+  it("scales density with the ratio on a large synthetic grid", () => {
+    const cols = 40;
+    const rows = 30;
+    const grid = { cols, rows, indices: new Uint8Array(cols * rows).fill(6) };
+
+    const placements = computeStripeLetterPlacements(grid, STRIPE_LETTER_CHARSET, 0.5);
+    const ratio = placements.length / (cols * rows);
+    expect(ratio).toBeGreaterThan(0.42);
+    expect(ratio).toBeLessThan(0.58);
+  });
 });

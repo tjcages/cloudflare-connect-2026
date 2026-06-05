@@ -21,8 +21,9 @@ function highestStripeIndex(grid: BlockGrid): number {
 export function computeStripeLetterPlacements(
   grid: BlockGrid,
   charset: readonly string[] = STRIPE_LETTER_CHARSET,
+  ratio: number = STRIPE_LETTER_COVERAGE,
 ): StripeLetterPlacement[] {
-  if (charset.length === 0) {
+  if (charset.length === 0 || ratio <= 0) {
     return [];
   }
 
@@ -42,7 +43,7 @@ export function computeStripeLetterPlacements(
       }
 
       const prng = createPrng(`${col},${row}`);
-      if (!prng.chance(STRIPE_LETTER_COVERAGE)) {
+      if (ratio < 1 && !prng.chance(ratio)) {
         continue;
       }
 

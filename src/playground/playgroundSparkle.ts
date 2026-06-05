@@ -91,14 +91,22 @@ export function migrateSparkleGapsSpeedFromWireV1(value: number): number {
 export function playgroundSparkleOptionsFromSliders(
   activeRatio: number,
   speedFactor: number,
+  basePeriodMinSec: number = SPARKLE_GAPS_BASE_PERIOD_MIN_SEC,
+  basePeriodMaxSec: number = SPARKLE_GAPS_BASE_PERIOD_MAX_SEC,
 ): PlaygroundSparkleOptions {
   const coverage = normalizeSparkleGapsActivePercent(activeRatio);
   const speed = normalizeSparkleGapsSpeed(speedFactor);
+  const minSec =
+    Number.isFinite(basePeriodMinSec) && basePeriodMinSec > 0 ? basePeriodMinSec : SPARKLE_GAPS_BASE_PERIOD_MIN_SEC;
+  const maxSec = Math.max(
+    minSec,
+    Number.isFinite(basePeriodMaxSec) ? basePeriodMaxSec : SPARKLE_GAPS_BASE_PERIOD_MAX_SEC,
+  );
   return {
     enabled: coverage > 0,
     coverage,
-    periodMinSec: SPARKLE_GAPS_BASE_PERIOD_MIN_SEC / speed,
-    periodMaxSec: SPARKLE_GAPS_BASE_PERIOD_MAX_SEC / speed,
+    periodMinSec: minSec / speed,
+    periodMaxSec: maxSec / speed,
   };
 }
 

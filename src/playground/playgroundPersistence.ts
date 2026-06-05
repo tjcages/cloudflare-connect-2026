@@ -1,4 +1,9 @@
 import { DEFAULT_TEXTURE_GAMMA, normalizeTextureGamma } from "./colorWhiteness";
+import {
+  isDefaultPlaygroundGridConfig,
+  normalizePlaygroundGridConfig,
+  type PlaygroundGridConfig,
+} from "./playgroundGridConfig";
 import { cloneDefaultStripes, normalizeStripe, type Stripe } from "./stripeColors";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
@@ -52,9 +57,15 @@ export type PlaygroundPersistedConfig = {
   displayWidth?: number;
   /** Canvas height in px; omitted = match native source height on load. */
   displayHeight?: number;
+  /** Designer-tunable grid geometry / letter / animation config. Omitted = defaults. */
+  grid?: PlaygroundGridConfig;
   /** Ordered luminosity stripes (color + start-from + width). */
   stripes: Stripe[];
 };
+
+export function resolvePersistedGridConfig(config: PlaygroundPersistedConfig): PlaygroundGridConfig {
+  return normalizePlaygroundGridConfig(config.grid);
+}
 
 export function resolvePersistedTextureGamma(config: PlaygroundPersistedConfig): number {
   return config.textureGamma !== undefined ? normalizeTextureGamma(config.textureGamma) : DEFAULT_TEXTURE_GAMMA;
@@ -94,7 +105,7 @@ export type StripeWire = {
 };
 
 export type PlaygroundStateWire = {
-  v: 1 | 2 | 3;
+  v: 1 | 2 | 3 | 4;
   d: boolean;
   sk?: boolean;
   sr?: number;
@@ -106,6 +117,8 @@ export type PlaygroundStateWire = {
   tgm?: number;
   w?: number;
   h?: number;
+  /** v4+: designer grid/letter/animation config (omitted = defaults). */
+  gc?: Partial<PlaygroundGridConfig>;
   /** v3+: ordered luminosity stripes. */
   st?: StripeWire[];
   /** @deprecated v1/v2 distance-model fields, migrated to default stripes. */
@@ -388,11 +401,16 @@ export async function registerUpload(
 }
 
 export function serializePlaygroundState(config: PlaygroundPersistedConfig): string {
+  const grid = normalizePlaygroundGridConfig(config.grid);
+  const includeGrid = !isDefaultPlaygroundGridConfig(grid);
   const wire: PlaygroundStateWire = {
-    v: 3,
+    v: includeGrid ? 4 : 3,
     d: config.duotoneEnabled,
     st: stripesToWire(config.stripes),
   };
+  if (includeGrid) {
+    wire.gc = grid;
+  }
   const gapsActive =
     config.sparkleGapsActivePercent !== undefined
       ? normalizeSparkleGapsActivePercent(config.sparkleGapsActivePercent)
@@ -434,7 +452,7 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   return JSON.stringify(wire);
 }
 
-function parseSparkleWidthActivePercent(raw: unknown, wireVersion: 1 | 2 | 3): number | undefined {
+function parseSparkleWidthActivePercent(raw: unknown, wireVersion: 1 | 2 | 3 | 4): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -448,7 +466,7 @@ function parseSparkleWidthActivePercent(raw: unknown, wireVersion: 1 | 2 | 3): n
   return normalizeSparkleWidthActivePercent(value);
 }
 
-function parseSparkleWidthSpeed(raw: unknown, wireVersion: 1 | 2 | 3): number | undefined {
+function parseSparkleWidthSpeed(raw: unknown, wireVersion: 1 | 2 | 3 | 4): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -464,7 +482,7 @@ function parseSparkleGapsActivePercent(
   sgap: unknown,
   sr: unknown,
   sk: unknown,
-  wireVersion: 1 | 2 | 3,
+  wireVersion: 1 | 2 | 3 | 4,
 ): number | undefined {
   const fromWire = parseRatioField(sgap, wireVersion);
   if (fromWire !== undefined) {
@@ -480,7 +498,12 @@ function parseSparkleGapsActivePercent(
   return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT : undefined;
 }
 
-function parseSparkleGapsSpeed(sgsp: unknown, sr: unknown, sk: unknown, wireVersion: 1 | 2 | 3): number | undefined {
+function parseSparkleGapsSpeed(
+  sgsp: unknown,
+  sr: unknown,
+  sk: unknown,
+  wireVersion: 1 | 2 | 3 | 4,
+): number | undefined {
   if (sgsp !== undefined) {
     const value = Number(sgsp);
     if (!Number.isFinite(value)) {
@@ -500,7 +523,7 @@ function parseSparkleGapsSpeed(sgsp: unknown, sr: unknown, sk: unknown, wireVers
   return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED : undefined;
 }
 
-function parseRatioField(raw: unknown, wireVersion: 1 | 2 | 3): number | undefined {
+function parseRatioField(raw: unknown, wireVersion: 1 | 2 | 3 | 4): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -536,7 +559,7 @@ function legacySparkleGapsSpeed(config: PlaygroundPersistedConfig): number {
 
 export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConfig {
   const parsed = JSON.parse(text.trim()) as Partial<PlaygroundStateWire>;
-  if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3) {
+  if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3 && parsed.v !== 4) {
     throw new Error("Unsupported playground state version.");
   }
   const wireVersion = parsed.v;
@@ -548,6 +571,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   // v1/v2 used a distance model; those configs migrate to the default stripe palette.
   const stripes = wireToStripes(parsed.st) ?? cloneDefaultStripes();
   const textureGamma = parsed.tgm === undefined ? undefined : normalizeTextureGamma(Number(parsed.tgm));
+  const grid = parsed.gc ? normalizePlaygroundGridConfig(parsed.gc) : undefined;
 
   return {
     duotoneEnabled: parsed.d,
@@ -556,6 +580,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     sparkleGapsSpeed: parseSparkleGapsSpeed(parsed.sgsp, parsed.sr, parsed.sk, wireVersion),
     sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa, wireVersion),
     sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws, wireVersion),
+    grid: grid && !isDefaultPlaygroundGridConfig(grid) ? grid : undefined,
     stripes,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     displayHeight: h && Number.isFinite(h) && h > 0 ? Math.round(h) : undefined,

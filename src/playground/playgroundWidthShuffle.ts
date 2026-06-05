@@ -76,28 +76,21 @@ export function widthShuffleAltHash(col: number, row: number, pulseIndex: number
   return hashFromCoords(col + 53 + pulseIndex * 61, row + 71 + pulseIndex * 101);
 }
 
-/** Continuous alternate width in px, kept far enough from default for a visible swing. */
-export function widthShuffleTargetWidth(col: number, row: number, pulseIndex: number, defaultWidth: number): number {
+/**
+ * Alternate width in px during a pulse: a bounded +/- `swing` delta around the configured
+ * width, independent of cell size. Keep aligned with widthShuffleTargetWidth in stripeFilterShaders.
+ */
+export function widthShuffleTargetWidth(
+  col: number,
+  row: number,
+  pulseIndex: number,
+  defaultWidth: number,
+  swing: number = WIDTH_SHUFFLE_MIN_SWING_PX,
+  maxWidth: number = WIDTH_SHUFFLE_MAX_WIDTH_PX,
+): number {
   const h = widthShuffleAltHash(col, row, pulseIndex);
-  const span = WIDTH_SHUFFLE_MAX_WIDTH_PX - WIDTH_SHUFFLE_MIN_WIDTH_PX;
-  let target = WIDTH_SHUFFLE_MIN_WIDTH_PX + h * span;
-
-  if (Math.abs(target - defaultWidth) < WIDTH_SHUFFLE_MIN_SWING_PX) {
-    if (defaultWidth <= (WIDTH_SHUFFLE_MIN_WIDTH_PX + WIDTH_SHUFFLE_MAX_WIDTH_PX) * 0.5) {
-      target =
-        defaultWidth +
-        WIDTH_SHUFFLE_MIN_SWING_PX +
-        h * (WIDTH_SHUFFLE_MAX_WIDTH_PX - defaultWidth - WIDTH_SHUFFLE_MIN_SWING_PX);
-    } else {
-      target =
-        defaultWidth -
-        WIDTH_SHUFFLE_MIN_SWING_PX -
-        h * (defaultWidth - WIDTH_SHUFFLE_MIN_WIDTH_PX - WIDTH_SHUFFLE_MIN_SWING_PX);
-    }
-    target = clamp(target, WIDTH_SHUFFLE_MIN_WIDTH_PX, WIDTH_SHUFFLE_MAX_WIDTH_PX);
-  }
-
-  return target;
+  const target = defaultWidth + (h * 2 - 1) * Math.max(swing, 0);
+  return clamp(target, WIDTH_SHUFFLE_MIN_WIDTH_PX, maxWidth);
 }
 
 export function isWidthShuffleParticipant(
@@ -229,14 +222,22 @@ export function migrateSparkleWidthSpeedFromWireV1(value: number): number {
 export function playgroundWidthShuffleOptionsFromSliders(
   activeRatio: number,
   speedFactor: number,
+  basePeriodMinSec: number = WIDTH_SHUFFLE_BASE_PERIOD_MIN_SEC,
+  basePeriodMaxSec: number = WIDTH_SHUFFLE_BASE_PERIOD_MAX_SEC,
 ): PlaygroundWidthShuffleOptions {
   const coverage = normalizeSparkleWidthActivePercent(activeRatio);
   const speed = normalizeSparkleWidthSpeed(speedFactor);
+  const minSec =
+    Number.isFinite(basePeriodMinSec) && basePeriodMinSec > 0 ? basePeriodMinSec : WIDTH_SHUFFLE_BASE_PERIOD_MIN_SEC;
+  const maxSec = Math.max(
+    minSec,
+    Number.isFinite(basePeriodMaxSec) ? basePeriodMaxSec : WIDTH_SHUFFLE_BASE_PERIOD_MAX_SEC,
+  );
   return {
     enabled: coverage > 0,
     coverage,
-    periodMinSec: WIDTH_SHUFFLE_BASE_PERIOD_MIN_SEC / speed,
-    periodMaxSec: WIDTH_SHUFFLE_BASE_PERIOD_MAX_SEC / speed,
+    periodMinSec: minSec / speed,
+    periodMaxSec: maxSec / speed,
   };
 }
 

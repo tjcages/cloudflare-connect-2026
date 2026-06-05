@@ -1,6 +1,6 @@
 import { Texture } from "pixi.js";
 import type { StripePaletteEntry } from "./stripeColors";
-import { STRIPE_MAX_WIDTH_PX } from "./stripeGridConstants";
+import { STRIPE_WIDTH_ENCODE_MAX } from "./stripeGridConstants";
 
 const PALETTE_HEIGHT = 2;
 
@@ -11,7 +11,7 @@ function toByte(value: number): number {
 /**
  * Small data texture feeding the stripe shader: width = stripe count, height = 2.
  * Canvas row 0 = color (RGB, alpha forced to 255 to avoid premultiply corruption),
- * row 1 = width (R = width / STRIPE_MAX_WIDTH_PX).
+ * row 1 = width (R = width / STRIPE_WIDTH_ENCODE_MAX).
  */
 export class StripePaletteTexture {
   private canvas: HTMLCanvasElement;
@@ -54,7 +54,7 @@ export class StripePaletteTexture {
         data[colorOffset] = toByte(entry.rgb[0]);
         data[colorOffset + 1] = toByte(entry.rgb[1]);
         data[colorOffset + 2] = toByte(entry.rgb[2]);
-        data[widthOffset] = toByte(entry.width / STRIPE_MAX_WIDTH_PX);
+        data[widthOffset] = toByte(entry.width / STRIPE_WIDTH_ENCODE_MAX);
       }
       data[colorOffset + 3] = 255;
       data[widthOffset + 3] = 255;

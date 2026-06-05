@@ -7,6 +7,7 @@ import {
   serializePlaygroundState,
 } from "./playgroundPersistence";
 import { DEFAULT_STRIPES } from "./stripeColors";
+import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 
 describe("playgroundPersistence envelope migration", () => {
   afterEach(() => {
@@ -52,6 +53,55 @@ describe("playgroundPersistence envelope migration", () => {
     const parsed = parsePlaygroundStateInput(text);
     expect(parsed.textureGamma).toBe(-50);
     expect(JSON.parse(text).tgm).toBe(-50);
+  });
+
+  it("omits grid config and stays v3 when grid is default", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      grid: { ...DEFAULT_PLAYGROUND_GRID_CONFIG },
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+    expect(wire.v).toBe(3);
+    expect(wire.gc).toBeUndefined();
+    expect(parsePlaygroundStateInput(text).grid).toBeUndefined();
+  });
+
+  it("round-trips a non-default grid config as wire v4", () => {
+    const grid = {
+      ...DEFAULT_PLAYGROUND_GRID_CONFIG,
+      cellWidth: 5,
+      cellHeight: 9,
+      gapX: 1,
+      gapY: 2,
+      orientation: "horizontal" as const,
+      letterSize: 10,
+      letterRatio: 0.5,
+      cornerRadius: 2,
+    };
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      grid,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    expect(JSON.parse(text).v).toBe(4);
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.grid?.cellWidth).toBe(5);
+    expect(parsed.grid?.cellHeight).toBe(9);
+    expect(parsed.grid?.gapX).toBe(1);
+    expect(parsed.grid?.gapY).toBe(2);
+    expect(parsed.grid?.orientation).toBe("horizontal");
+    expect(parsed.grid?.letterSize).toBe(10);
+    expect(parsed.grid?.letterRatio).toBe(0.5);
+    expect(parsed.grid?.cornerRadius).toBe(2);
+  });
+
+  it("leaves grid undefined for legacy v3 states without grid config", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    expect(parsePlaygroundStateInput(text).grid).toBeUndefined();
   });
 
   it("round-trips v3 stripes through serialize/parse", () => {

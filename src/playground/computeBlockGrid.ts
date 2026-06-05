@@ -1,5 +1,5 @@
 import { applyTextureLuminanceGamma, pixelLuminance } from "./colorWhiteness";
-import { STRIPE_BLOCK_SAMPLE_COUNT, STRIPE_BLOCK_SAMPLES, STRIPE_CELL_SIZE } from "./stripeGridConstants";
+import { STRIPE_CELL_SIZE } from "./stripeGridConstants";
 
 /** Per-cell mean luminance (0–255), independent of the stripe list. */
 export type LumaGrid = {
@@ -15,7 +15,7 @@ export type BlockGrid = {
   indices: Uint8Array;
 };
 
-/** Mean Rec.709 luminance (0–1) of a 7×7 cell; out-of-bounds pixels count as black. */
+/** Mean Rec.709 luminance (0–1) of a cell; out-of-bounds pixels count as black. */
 function cellMeanLuminance(
   pixels: Uint8ClampedArray,
   imageWidth: number,
@@ -23,13 +23,15 @@ function cellMeanLuminance(
   col: number,
   row: number,
   gamma: number,
+  cellWidth: number,
+  cellHeight: number,
 ): number {
-  const originX = col * STRIPE_CELL_SIZE;
-  const originY = row * STRIPE_CELL_SIZE;
+  const originX = col * cellWidth;
+  const originY = row * cellHeight;
 
   let sum = 0;
-  for (let j = 0; j < STRIPE_BLOCK_SAMPLES; j++) {
-    for (let i = 0; i < STRIPE_BLOCK_SAMPLES; i++) {
+  for (let j = 0; j < cellHeight; j++) {
+    for (let i = 0; i < cellWidth; i++) {
       const x = originX + i;
       const y = originY + j;
       if (x >= imageWidth || y >= imageHeight) {
@@ -43,7 +45,7 @@ function cellMeanLuminance(
     }
   }
 
-  return sum / STRIPE_BLOCK_SAMPLE_COUNT;
+  return sum / Math.max(1, cellWidth * cellHeight);
 }
 
 export function computeBlockGrid(
@@ -51,14 +53,18 @@ export function computeBlockGrid(
   imageWidth: number,
   imageHeight: number,
   gamma = 1,
+  cellWidth: number = STRIPE_CELL_SIZE,
+  cellHeight: number = STRIPE_CELL_SIZE,
 ): LumaGrid {
-  const cols = Math.ceil(imageWidth / STRIPE_CELL_SIZE);
-  const rows = Math.ceil(imageHeight / STRIPE_CELL_SIZE);
+  const safeCellWidth = Math.max(1, Math.round(cellWidth));
+  const safeCellHeight = Math.max(1, Math.round(cellHeight));
+  const cols = Math.ceil(imageWidth / safeCellWidth);
+  const rows = Math.ceil(imageHeight / safeCellHeight);
   const luma = new Uint8Array(cols * rows);
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const mean = cellMeanLuminance(pixels, imageWidth, imageHeight, col, row, gamma);
+      const mean = cellMeanLuminance(pixels, imageWidth, imageHeight, col, row, gamma, safeCellWidth, safeCellHeight);
       luma[row * cols + col] = Math.round(Math.min(1, Math.max(0, mean)) * 255);
     }
   }

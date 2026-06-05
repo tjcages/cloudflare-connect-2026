@@ -15,6 +15,11 @@ import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./stripeLetter
 import type { PlaygroundSparkleOptions } from "./playgroundSparkle";
 import type { PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
 import { createStripeLetterLayer, type StripeLetterLayer } from "./stripeLetterLayer";
+import {
+  DEFAULT_PLAYGROUND_GRID_CONFIG,
+  effectivePlaygroundCellSize,
+  type PlaygroundGridConfig,
+} from "./playgroundGridConfig";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -34,6 +39,9 @@ export function clampPlaygroundDisplayDimension(value: number, fallback: number)
 
 /** Minimum ms between block-grid rebuilds (reduces temporal shimmer on noisy clips). */
 export const PLAYGROUND_GRID_UPDATE_INTERVAL_MS = 66;
+
+/** Static ref used when a caller does not provide a live grid-config ref. */
+const DEFAULT_GRID_CONFIG_REF: RefObject<PlaygroundGridConfig> = { current: DEFAULT_PLAYGROUND_GRID_CONFIG };
 
 export type PlaygroundDisplaySize = { width: number; height: number };
 
@@ -113,9 +121,19 @@ function syncSpriteToDisplay(sprite: Sprite, source: PlaygroundTextureSource, di
 function createPlaygroundLetterLayer(
   app: Parameters<Ticker>[0]["app"],
   duotoneEnabled: boolean,
+  grid: PlaygroundGridConfig,
 ): { letterLayer: StripeLetterLayer; atlas: ReturnType<typeof buildStripeLetterAtlas> } {
-  const atlas = buildStripeLetterAtlas();
-  const letterLayer = createStripeLetterLayer(atlas);
+  const charset = [...grid.letterCharset];
+  const effectiveCell = effectivePlaygroundCellSize(grid);
+  const atlas = buildStripeLetterAtlas(charset, grid.letterSize);
+  const letterLayer = createStripeLetterLayer(atlas, {
+    cellWidth: effectiveCell.width,
+    cellHeight: effectiveCell.height,
+    orientation: grid.orientation,
+    tint: grid.letterColor,
+    ratio: grid.letterRatio,
+    charset,
+  });
   letterLayer.setVisible(duotoneEnabled);
   app.stage.addChild(letterLayer.container);
   return { letterLayer, atlas };
@@ -132,6 +150,7 @@ function runDuotoneTick(params: {
   stripeColorsRef: RefObject<StripeColors>;
   preferP3Ref: RefObject<boolean>;
   textureGammaRef: RefObject<number>;
+  gridConfigRef: RefObject<PlaygroundGridConfig>;
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
@@ -151,6 +170,7 @@ function runDuotoneTick(params: {
     stripeColorsRef,
     preferP3Ref,
     textureGammaRef,
+    gridConfigRef,
     display,
     blockGridTexture,
     exportStateRef,
@@ -168,6 +188,9 @@ function runDuotoneTick(params: {
 
   return () => {
     syncVisual();
+    stripeFilter.syncGrid(gridConfigRef.current);
+    letterLayer.setTint(gridConfigRef.current.letterColor);
+    letterLayer.setShuffleSpeed(gridConfigRef.current.letterShuffleSpeed);
 
     const duotoneEnabled = duotoneEnabledRef.current;
     if (duotoneEnabled !== duotoneActive) {
@@ -215,11 +238,12 @@ function runDuotoneTick(params: {
       onSampled?.();
     }
 
+    const gridConfig = gridConfigRef.current;
     const shouldRebuildGrid =
       frame &&
       (colorsChanged ||
         !hasBuiltGrid ||
-        (timeChanged && performance.now() - lastGridUpdateMs >= PLAYGROUND_GRID_UPDATE_INTERVAL_MS));
+        (timeChanged && performance.now() - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
 
     if (shouldRebuildGrid && frame) {
       hasBuiltGrid = true;
@@ -229,6 +253,7 @@ function runDuotoneTick(params: {
         gridState = {};
       }
 
+      const effectiveCell = effectivePlaygroundCellSize(gridConfig);
       const built = buildPlaygroundBlockGrid(
         frame,
         display.width,
@@ -236,6 +261,11 @@ function runDuotoneTick(params: {
         colors,
         gridState,
         textureGammaRef.current,
+        {
+          cellWidth: effectiveCell.width,
+          cellHeight: effectiveCell.height,
+          smoothingMaxStep: gridConfig.smoothingMaxStep,
+        },
       );
       gridState = built.state;
       blockGridTexture.update(built.grid);
@@ -290,6 +320,7 @@ export function createTextureSceneTicker(
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
+  gridConfigRef: RefObject<PlaygroundGridConfig> = DEFAULT_GRID_CONFIG_REF,
 ): Ticker {
   if (source.kind === "image") {
     return createImageSceneTicker(
@@ -301,6 +332,7 @@ export function createTextureSceneTicker(
       textureGammaRef,
       sparkleOptionsRef,
       widthShuffleOptionsRef,
+      gridConfigRef,
       exportStateRef,
     );
   }
@@ -314,6 +346,7 @@ export function createTextureSceneTicker(
     sparkleOptionsRef,
     widthShuffleOptionsRef,
     autoplayRef,
+    gridConfigRef,
     exportStateRef,
   );
 }
@@ -327,9 +360,12 @@ function createImageSceneTicker(
   textureGammaRef: RefObject<number>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
+  gridConfigRef: RefObject<PlaygroundGridConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
+    const grid = gridConfigRef.current;
+    const effectiveCell = effectivePlaygroundCellSize(grid);
     const texture = Texture.from(image);
     const sprite = new Sprite(texture);
     syncSpriteToDisplay(sprite, { kind: "image", element: image }, display);
@@ -343,7 +379,12 @@ function createImageSceneTicker(
       throw new Error("2D canvas context unavailable for texture sampling.");
     }
 
-    const blockGridTexture = new BlockGridTexture(display.width, display.height);
+    const blockGridTexture = new BlockGridTexture(
+      display.width,
+      display.height,
+      effectiveCell.width,
+      effectiveCell.height,
+    );
     const stripeFilter = createStripeDuotoneFilter(
       display.width,
       display.height,
@@ -352,11 +393,12 @@ function createImageSceneTicker(
       blockGridTexture.rows,
       stripeColorsRef.current,
       preferP3Ref.current,
+      grid,
     );
     let duotoneActive = duotoneEnabledRef.current;
     sprite.filters = duotoneActive ? [stripeFilter] : null;
     app.stage.addChild(sprite);
-    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive);
+    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive, grid);
 
     const renderTick = runDuotoneTick({
       app,
@@ -369,6 +411,7 @@ function createImageSceneTicker(
       stripeColorsRef,
       preferP3Ref,
       textureGammaRef,
+      gridConfigRef,
       display,
       blockGridTexture,
       exportStateRef,
@@ -403,9 +446,12 @@ function createVideoSceneTickerInternal(
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
+  gridConfigRef: RefObject<PlaygroundGridConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
+    const grid = gridConfigRef.current;
+    const effectiveCell = effectivePlaygroundCellSize(grid);
     const videoSource = new VideoSource({
       resource: video,
     });
@@ -424,7 +470,12 @@ function createVideoSceneTickerInternal(
       throw new Error("2D canvas context unavailable for texture sampling.");
     }
 
-    const blockGridTexture = new BlockGridTexture(display.width, display.height);
+    const blockGridTexture = new BlockGridTexture(
+      display.width,
+      display.height,
+      effectiveCell.width,
+      effectiveCell.height,
+    );
     const stripeFilter = createStripeDuotoneFilter(
       display.width,
       display.height,
@@ -433,11 +484,12 @@ function createVideoSceneTickerInternal(
       blockGridTexture.rows,
       stripeColorsRef.current,
       preferP3Ref.current,
+      grid,
     );
     let duotoneActive = duotoneEnabledRef.current;
     sprite.filters = duotoneActive ? [stripeFilter] : null;
     app.stage.addChild(sprite);
-    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive);
+    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive, grid);
 
     let lastSampledTime = -1;
 
@@ -452,6 +504,7 @@ function createVideoSceneTickerInternal(
       stripeColorsRef,
       preferP3Ref,
       textureGammaRef,
+      gridConfigRef,
       display,
       blockGridTexture,
       exportStateRef,

@@ -6,15 +6,33 @@ import {
   randomLetterCycleStepDelayMs,
   scheduleInitialLetterCycleAt,
 } from "./playgroundLetterShuffle";
-import {
-  isPlaygroundSparkleCellVisible,
-  type PlaygroundSparkleOptions,
-} from "./playgroundSparkle";
+import { isPlaygroundSparkleCellVisible, type PlaygroundSparkleOptions } from "./playgroundSparkle";
 import { STRIPE_CELL_SIZE } from "./stripeGridConstants";
-import { computeStripeLetterPlacements, type StripeLetterPlacement } from "./stripeLetterPlacements";
+import {
+  computeStripeLetterPlacements,
+  STRIPE_LETTER_COVERAGE,
+  type StripeLetterPlacement,
+} from "./stripeLetterPlacements";
 import { STRIPE_LETTER_CHARSET, type StripeLetterAtlas } from "./stripeLetterFont";
 
 const STRIPE_LETTER_TINT = 0xffffff;
+
+/** u∈[0,1) from `crypto` so letter cycling does not use `Math.random` (reserved for non-grid policy). */
+function randomUnitInterval(): number {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0]! / 2 ** 32;
+}
+
+export type StripeLetterLayerOptions = {
+  cellWidth?: number;
+  cellHeight?: number;
+  orientation?: "vertical" | "horizontal";
+  tint?: number;
+  ratio?: number;
+  charset?: readonly string[];
+  shuffleSpeed?: number;
+};
 
 type LetterCyclePhase = "idle" | "cycling";
 
@@ -49,14 +67,26 @@ export type StripeLetterLayer = {
   tickLetterShuffle: (nowMs?: number, charset?: readonly string[]) => void;
   applySparkle: (timeSec: number, options: PlaygroundSparkleOptions) => void;
   setVisible: (visible: boolean) => void;
+  setTint: (tint: number) => void;
+  setShuffleSpeed: (speed: number) => void;
   destroy: () => void;
 };
 
-export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterLayer {
+export function createStripeLetterLayer(
+  atlas: StripeLetterAtlas,
+  options: StripeLetterLayerOptions = {},
+): StripeLetterLayer {
   const container = new Container();
   const sprites: Sprite[] = [];
   let placements: StripeLetterPlacement[] = [];
   const cycleStateByCell = new Map<string, LetterCycleState>();
+
+  const cellWidth = options.cellWidth ?? STRIPE_CELL_SIZE;
+  const cellHeight = options.cellHeight ?? STRIPE_CELL_SIZE;
+  const ratio = options.ratio ?? STRIPE_LETTER_COVERAGE;
+  const layerCharset = options.charset && options.charset.length > 0 ? options.charset : STRIPE_LETTER_CHARSET;
+  let tint = options.tint ?? STRIPE_LETTER_TINT;
+  let shuffleSpeed = options.shuffleSpeed && options.shuffleSpeed > 0 ? options.shuffleSpeed : 1;
 
   const applyGlyphToSprite = (sprite: Sprite, char: string) => {
     const glyph = atlas.get(char);
@@ -69,12 +99,8 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
     return true;
   };
 
-  const applyRandomLetter = (
-    placement: StripeLetterPlacement,
-    sprite: Sprite,
-    charset: readonly string[],
-  ) => {
-    const charIndex = Math.floor(Math.random() * charset.length);
+  const applyRandomLetter = (placement: StripeLetterPlacement, sprite: Sprite, charset: readonly string[]) => {
+    const charIndex = Math.floor(randomUnitInterval() * charset.length);
     const char = charset[charIndex] ?? charset[0] ?? "?";
     placement.char = char;
     applyGlyphToSprite(sprite, char);
@@ -108,7 +134,7 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
       return;
     }
 
-    const nextPlacements = computeStripeLetterPlacements(grid);
+    const nextPlacements = computeStripeLetterPlacements(grid, layerCharset, ratio);
     const nextKey = stripeLetterPlacementKey(nextPlacements);
     if (nextKey === stripeLetterPlacementKey(placements) && sprites.length > 0) {
       return;
@@ -138,11 +164,8 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
 
       sprite.anchor.set(0.5);
       sprite.roundPixels = true;
-      sprite.tint = STRIPE_LETTER_TINT;
-      sprite.position.set(
-        placement.col * STRIPE_CELL_SIZE + STRIPE_CELL_SIZE * 0.5,
-        placement.row * STRIPE_CELL_SIZE + STRIPE_CELL_SIZE * 0.5,
-      );
+      sprite.tint = tint;
+      sprite.position.set(placement.col * cellWidth + cellWidth * 0.5, placement.row * cellHeight + cellHeight * 0.5);
       sprites.push(sprite);
       container.addChild(sprite);
     }
@@ -150,7 +173,7 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
     syncCycleStates();
   };
 
-  const tickLetterShuffle = (nowMs: number = performance.now(), charset: readonly string[] = STRIPE_LETTER_CHARSET) => {
+  const tickLetterShuffle = (nowMs: number = performance.now(), charset: readonly string[] = layerCharset) => {
     if (charset.length === 0 || sprites.length !== placements.length) {
       return;
     }
@@ -178,11 +201,12 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
       applyRandomLetter(placement, sprite, charset);
       state.stepsRemaining -= 1;
 
+      const speed = shuffleSpeed > 0 ? shuffleSpeed : 1;
       if (state.stepsRemaining <= 0) {
         state.phase = "idle";
-        state.nextEventAt = nowMs + randomLetterCycleDelayMs();
+        state.nextEventAt = nowMs + randomLetterCycleDelayMs() / speed;
       } else {
-        state.nextEventAt = nowMs + randomLetterCycleStepDelayMs();
+        state.nextEventAt = nowMs + randomLetterCycleStepDelayMs() / speed;
       }
     }
   };
@@ -205,6 +229,20 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
     container.visible = visible;
   };
 
+  const setTint = (nextTint: number) => {
+    if (nextTint === tint) {
+      return;
+    }
+    tint = nextTint;
+    for (const sprite of sprites) {
+      sprite.tint = tint;
+    }
+  };
+
+  const setShuffleSpeed = (speed: number) => {
+    shuffleSpeed = speed > 0 ? speed : 1;
+  };
+
   const destroy = () => {
     for (const sprite of sprites) {
       sprite.destroy();
@@ -215,5 +253,5 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
     container.destroy({ children: true });
   };
 
-  return { container, sync, tickLetterShuffle, applySparkle, setVisible, destroy };
+  return { container, sync, tickLetterShuffle, applySparkle, setVisible, setTint, setShuffleSpeed, destroy };
 }

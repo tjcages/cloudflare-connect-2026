@@ -20,6 +20,7 @@ import {
   parsePlaygroundStateInput,
   registerUpload,
   resolveCatalogEntry,
+  resolvePersistedGridConfig,
   resolvePersistedTextureGamma,
   resolveInitialTextureId,
   revokeUploadObjectUrl,
@@ -65,6 +66,13 @@ import { stripeGridToSvg } from "./stripeGridToSvg";
 import { ExportReactDialog } from "./ExportReactDialog";
 import { PlaygroundControlSection } from "./PlaygroundControlSection";
 import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
+import { PlaygroundGridControls } from "./PlaygroundGridControls";
+import {
+  DEFAULT_PLAYGROUND_GRID_CONFIG,
+  isDefaultPlaygroundGridConfig,
+  normalizePlaygroundGridConfig,
+  type PlaygroundGridConfig,
+} from "./playgroundGridConfig";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
   cloneDefaultStripes,
@@ -72,8 +80,8 @@ import {
   hexToDisplayP3Css,
   STRIPE_START_FROM_MAX,
   STRIPE_START_FROM_MIN,
-  STRIPE_WIDTH_MAX,
   STRIPE_WIDTH_MIN,
+  STRIPE_WIDTH_STORAGE_MAX,
   updateStripe,
   type Stripe,
   type StripeColors,
@@ -210,6 +218,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     sparkleWidthSpeed: resolvePersistedSparkleWidthSpeed(config),
     displayWidth: config.displayWidth,
     displayHeight: config.displayHeight,
+    grid: resolvePersistedGridConfig(config),
     stripes: config.stripes.map((stripe) => ({ ...stripe })),
   };
 }
@@ -305,6 +314,7 @@ export function TexturePlayground() {
   const [sparkleWidthActivePercent, setSparkleWidthActivePercent] = useState(appliedInitial.sparkleWidthActivePercent);
   const [sparkleWidthSpeed, setSparkleWidthSpeed] = useState(appliedInitial.sparkleWidthSpeed);
   const [stripes, setStripes] = useState<Stripe[]>(() => appliedInitial.stripes);
+  const [gridConfig, setGridConfig] = useState<PlaygroundGridConfig>(appliedInitial.grid);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
   const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "failed">("idle");
@@ -323,6 +333,9 @@ export function TexturePlayground() {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const stripeColorsRef = useRef<StripeColors>({ stripes });
+  const gridConfigRef = useRef<PlaygroundGridConfig>(gridConfig);
+  // Set during render so a scene rebuild (sceneKey change) reads fresh structural values.
+  gridConfigRef.current = gridConfig;
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
   const textureGammaRef = useRef(textureGamma);
@@ -360,15 +373,32 @@ export function TexturePlayground() {
   }, [textureGamma]);
 
   useEffect(() => {
-    sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(sparkleGapsActivePercent, sparkleGapsSpeed);
-  }, [sparkleGapsActivePercent, sparkleGapsSpeed]);
+    sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(
+      sparkleGapsActivePercent,
+      sparkleGapsSpeed,
+      gridConfig.sparkleGapsPeriodMinSec,
+      gridConfig.sparkleGapsPeriodMaxSec,
+    );
+  }, [
+    sparkleGapsActivePercent,
+    sparkleGapsSpeed,
+    gridConfig.sparkleGapsPeriodMinSec,
+    gridConfig.sparkleGapsPeriodMaxSec,
+  ]);
 
   useEffect(() => {
     widthShuffleOptionsRef.current = playgroundWidthShuffleOptionsFromSliders(
       sparkleWidthActivePercent,
       sparkleWidthSpeed,
+      gridConfig.sparkleWidthPeriodMinSec,
+      gridConfig.sparkleWidthPeriodMaxSec,
     );
-  }, [sparkleWidthActivePercent, sparkleWidthSpeed]);
+  }, [
+    sparkleWidthActivePercent,
+    sparkleWidthSpeed,
+    gridConfig.sparkleWidthPeriodMinSec,
+    gridConfig.sparkleWidthPeriodMaxSec,
+  ]);
 
   const persistCurrentConfig = useCallback(() => {
     const config: PlaygroundPersistedConfig = {
@@ -386,6 +416,7 @@ export function TexturePlayground() {
       sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
       displayHeight: displayHeight > 0 ? displayHeight : undefined,
+      grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       stripes,
     };
     schedulePersistedConfig(selectedTextureId, config);
@@ -399,6 +430,7 @@ export function TexturePlayground() {
     sparkleWidthSpeed,
     displayWidth,
     displayHeight,
+    gridConfig,
     stripes,
   ]);
 
@@ -430,6 +462,7 @@ export function TexturePlayground() {
     if (next.displayHeight && next.displayHeight > 0) {
       setDisplayHeight(next.displayHeight);
     }
+    setGridConfig(next.grid);
     setStripes(next.stripes);
   }, []);
 
@@ -480,6 +513,48 @@ export function TexturePlayground() {
     setStripes(cloneDefaultStripes());
   }, []);
 
+  const updateGrid = useCallback((patch: Partial<PlaygroundGridConfig>) => {
+    setGridConfig((previous) => normalizePlaygroundGridConfig({ ...previous, ...patch }));
+  }, []);
+
+  const resetGridSection = useCallback(() => {
+    setGridConfig((previous) => ({
+      ...previous,
+      cellWidth: DEFAULT_PLAYGROUND_GRID_CONFIG.cellWidth,
+      cellHeight: DEFAULT_PLAYGROUND_GRID_CONFIG.cellHeight,
+      gapX: DEFAULT_PLAYGROUND_GRID_CONFIG.gapX,
+      gapY: DEFAULT_PLAYGROUND_GRID_CONFIG.gapY,
+      chainBreakGap: DEFAULT_PLAYGROUND_GRID_CONFIG.chainBreakGap,
+      minStripeHeight: DEFAULT_PLAYGROUND_GRID_CONFIG.minStripeHeight,
+      cornerRadius: DEFAULT_PLAYGROUND_GRID_CONFIG.cornerRadius,
+      orientation: DEFAULT_PLAYGROUND_GRID_CONFIG.orientation,
+    }));
+  }, []);
+
+  const resetLettersSection = useCallback(() => {
+    setGridConfig((previous) => ({
+      ...previous,
+      letterSize: DEFAULT_PLAYGROUND_GRID_CONFIG.letterSize,
+      letterRatio: DEFAULT_PLAYGROUND_GRID_CONFIG.letterRatio,
+      letterCharset: DEFAULT_PLAYGROUND_GRID_CONFIG.letterCharset,
+      letterColor: DEFAULT_PLAYGROUND_GRID_CONFIG.letterColor,
+      letterShuffleSpeed: DEFAULT_PLAYGROUND_GRID_CONFIG.letterShuffleSpeed,
+    }));
+  }, []);
+
+  const resetAnimationSection = useCallback(() => {
+    setGridConfig((previous) => ({
+      ...previous,
+      sparkleGapsPeriodMinSec: DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleGapsPeriodMinSec,
+      sparkleGapsPeriodMaxSec: DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleGapsPeriodMaxSec,
+      sparkleWidthPeriodMinSec: DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleWidthPeriodMinSec,
+      sparkleWidthPeriodMaxSec: DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleWidthPeriodMaxSec,
+      widthShuffleSwing: DEFAULT_PLAYGROUND_GRID_CONFIG.widthShuffleSwing,
+      smoothingMaxStep: DEFAULT_PLAYGROUND_GRID_CONFIG.smoothingMaxStep,
+      gridUpdateIntervalMs: DEFAULT_PLAYGROUND_GRID_CONFIG.gridUpdateIntervalMs,
+    }));
+  }, []);
+
   const resetGeneral = useCallback(() => {
     setDuotoneEnabled(true);
     setTextureGamma(DEFAULT_TEXTURE_GAMMA);
@@ -502,6 +577,31 @@ export function TexturePlayground() {
   const sparkleWidthModified =
     sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT ||
     sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED;
+
+  const base = DEFAULT_PLAYGROUND_GRID_CONFIG;
+  const gridSectionModified =
+    gridConfig.cellWidth !== base.cellWidth ||
+    gridConfig.cellHeight !== base.cellHeight ||
+    gridConfig.gapX !== base.gapX ||
+    gridConfig.gapY !== base.gapY ||
+    gridConfig.chainBreakGap !== base.chainBreakGap ||
+    gridConfig.minStripeHeight !== base.minStripeHeight ||
+    gridConfig.cornerRadius !== base.cornerRadius ||
+    gridConfig.orientation !== base.orientation;
+  const lettersSectionModified =
+    gridConfig.letterSize !== base.letterSize ||
+    gridConfig.letterRatio !== base.letterRatio ||
+    gridConfig.letterCharset !== base.letterCharset ||
+    gridConfig.letterColor !== base.letterColor ||
+    gridConfig.letterShuffleSpeed !== base.letterShuffleSpeed;
+  const animationSectionModified =
+    gridConfig.sparkleGapsPeriodMinSec !== base.sparkleGapsPeriodMinSec ||
+    gridConfig.sparkleGapsPeriodMaxSec !== base.sparkleGapsPeriodMaxSec ||
+    gridConfig.sparkleWidthPeriodMinSec !== base.sparkleWidthPeriodMinSec ||
+    gridConfig.sparkleWidthPeriodMaxSec !== base.sparkleWidthPeriodMaxSec ||
+    gridConfig.widthShuffleSwing !== base.widthShuffleSwing ||
+    gridConfig.smoothingMaxStep !== base.smoothingMaxStep ||
+    gridConfig.gridUpdateIntervalMs !== base.gridUpdateIntervalMs;
 
   useEffect(() => {
     if (!hydrated) {
@@ -623,6 +723,7 @@ export function TexturePlayground() {
         widthShuffleOptionsRef,
         autoplayRef,
         exportStateRef,
+        gridConfigRef,
       ),
     ];
   }, [loadState, displayWidth, displayHeight, displaySize]);
@@ -666,6 +767,7 @@ export function TexturePlayground() {
       sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
       displayHeight: displayHeight > 0 ? displayHeight : undefined,
+      grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       stripes,
     };
     const ok = await copyPlaygroundStateToClipboard(config);
@@ -818,7 +920,17 @@ export function TexturePlayground() {
   }
 
   const { textureId } = loadState;
-  const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}`;
+  const gridSceneKey = [
+    gridConfig.cellWidth,
+    gridConfig.cellHeight,
+    gridConfig.gapX,
+    gridConfig.gapY,
+    gridConfig.orientation,
+    gridConfig.letterSize,
+    gridConfig.letterRatio,
+    gridConfig.letterCharset,
+  ].join("|");
+  const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}-${gridSceneKey}`;
   const isVideoSource = loadState.kind === "video";
   const duotoneControlsDisabled = !duotoneEnabled;
 
@@ -960,6 +1072,18 @@ export function TexturePlayground() {
             </ControlField>
           </PlaygroundControlSection>
 
+          <PlaygroundGridControls
+            config={gridConfig}
+            onChange={updateGrid}
+            onResetGrid={resetGridSection}
+            onResetLetters={resetLettersSection}
+            onResetAnimation={resetAnimationSection}
+            gridModified={gridSectionModified}
+            lettersModified={lettersSectionModified}
+            animationModified={animationSectionModified}
+            disabled={duotoneControlsDisabled}
+          />
+
           <PlaygroundControlSection
             title="Stripes"
             defaultOpen
@@ -1014,7 +1138,9 @@ export function TexturePlayground() {
                   <ControlValueInput
                     value={stripe.width}
                     inputMin={STRIPE_WIDTH_MIN}
-                    inputMax={STRIPE_WIDTH_MAX}
+                    inputMax={STRIPE_WIDTH_STORAGE_MAX}
+                    commitMin={STRIPE_WIDTH_MIN}
+                    commitMax={STRIPE_WIDTH_STORAGE_MAX}
                     disabled={duotoneControlsDisabled}
                     onChange={(value) => onStripeWidthChange(stripe.id, value)}
                     ariaLabel="Stripe width in px"
