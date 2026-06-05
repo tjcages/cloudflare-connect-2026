@@ -46,6 +46,5 @@ export const PLAYGROUND_FIELD_HELP = {
   widthPeriodMin: "Set the shortest width shuffle duration.",
   widthPeriodMax: "Set the longest width shuffle duration.",
   widthSwing: "Set how far stripe widths can shift.",
-  colorSmoothing: "Limit how quickly stripe colors can change.",
   updateInterval: "Set how often the grid animation updates.",
 } as const;

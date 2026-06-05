@@ -373,7 +373,6 @@ function runDuotoneTick(params: {
         {
           cellWidth: effectiveCell.width,
           cellHeight: effectiveCell.height,
-          smoothingMaxStep: gridConfig.smoothingMaxStep,
           textureAdjustments: {
             ...textureAdjustmentsRef.current,
             gamma: textureGammaRef.current,

@@ -24,10 +24,10 @@ describe("PlaygroundGridControls", () => {
     expect(screen.queryByRole("button", { name: "About Cell width" })).not.toBeInTheDocument();
     expect(screen.getByText("Cell width")).toBeInTheDocument();
     expect(screen.getByText("Orientation")).toBeInTheDocument();
-    expect(screen.getByText("Color smoothing")).toBeInTheDocument();
+    expect(screen.queryByText("Color smoothing")).not.toBeInTheDocument();
   });
 
-  it("splits animation ranges from animation settings", () => {
+  it("keeps only global timing in grid animation settings", () => {
     render(
       <PlaygroundGridControls
         config={DEFAULT_PLAYGROUND_GRID_CONFIG}
@@ -42,14 +42,10 @@ describe("PlaygroundGridControls", () => {
       />,
     );
 
-    const ranges = within(screen.getByTestId("playground-section-animation-ranges"));
-    expect(ranges.getByText("Gap period min")).toBeInTheDocument();
-    expect(ranges.getByText("Width period max")).toBeInTheDocument();
-    expect(ranges.queryByText("Width swing")).not.toBeInTheDocument();
-
     const settings = within(screen.getByTestId("playground-section-animation-settings"));
-    expect(settings.getByText("Width swing")).toBeInTheDocument();
-    expect(settings.getByText("Color smoothing")).toBeInTheDocument();
     expect(settings.getByText("Update interval")).toBeInTheDocument();
+    expect(settings.queryByText("Gap period min")).not.toBeInTheDocument();
+    expect(settings.queryByText("Width swing")).not.toBeInTheDocument();
+    expect(screen.queryByText("Color smoothing")).not.toBeInTheDocument();
   });
 });

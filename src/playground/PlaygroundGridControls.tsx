@@ -109,15 +109,6 @@ export function PlaygroundGridControls({
   disabled,
 }: GridControlsProps) {
   const acrossMax = Math.max(config.cellWidth, config.cellHeight);
-  const animationRangesModified =
-    config.sparkleGapsPeriodMinSec !== DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleGapsPeriodMinSec ||
-    config.sparkleGapsPeriodMaxSec !== DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleGapsPeriodMaxSec ||
-    config.sparkleWidthPeriodMinSec !== DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleWidthPeriodMinSec ||
-    config.sparkleWidthPeriodMaxSec !== DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleWidthPeriodMaxSec;
-  const animationSettingsModified =
-    config.widthShuffleSwing !== DEFAULT_PLAYGROUND_GRID_CONFIG.widthShuffleSwing ||
-    config.smoothingMaxStep !== DEFAULT_PLAYGROUND_GRID_CONFIG.smoothingMaxStep ||
-    config.gridUpdateIntervalMs !== DEFAULT_PLAYGROUND_GRID_CONFIG.gridUpdateIntervalMs;
   return (
     <>
       <PlaygroundControlSection
@@ -290,102 +281,11 @@ export function PlaygroundGridControls({
       </PlaygroundControlSection>
 
       <PlaygroundControlSection
-        title="Animation ranges"
-        testId="playground-section-animation-ranges"
-        modified={animationModified && animationRangesModified}
-        onReset={onResetAnimation}
-      >
-        <NumberField
-          label="Gap period min"
-          value={config.sparkleGapsPeriodMinSec}
-          inputMin={0.01}
-          inputMax={10}
-          sliderMin={0.05}
-          sliderMax={2}
-          step={0.01}
-          ariaLabel="Sparkle gap period minimum seconds"
-          disabled={disabled}
-          onChange={(value) => onChange({ sparkleGapsPeriodMinSec: value })}
-          formatDisplay={(v) => v.toFixed(2)}
-          description={PLAYGROUND_FIELD_HELP.gapPeriodMin}
-        />
-        <NumberField
-          label="Gap period max"
-          value={config.sparkleGapsPeriodMaxSec}
-          inputMin={0.01}
-          inputMax={10}
-          sliderMin={0.05}
-          sliderMax={2}
-          step={0.01}
-          ariaLabel="Sparkle gap period maximum seconds"
-          disabled={disabled}
-          onChange={(value) => onChange({ sparkleGapsPeriodMaxSec: value })}
-          formatDisplay={(v) => v.toFixed(2)}
-          description={PLAYGROUND_FIELD_HELP.gapPeriodMax}
-        />
-        <NumberField
-          label="Width period min"
-          value={config.sparkleWidthPeriodMinSec}
-          inputMin={0.01}
-          inputMax={10}
-          sliderMin={0.05}
-          sliderMax={2}
-          step={0.01}
-          ariaLabel="Width shuffle period minimum seconds"
-          disabled={disabled}
-          onChange={(value) => onChange({ sparkleWidthPeriodMinSec: value })}
-          formatDisplay={(v) => v.toFixed(2)}
-          description={PLAYGROUND_FIELD_HELP.widthPeriodMin}
-        />
-        <NumberField
-          label="Width period max"
-          value={config.sparkleWidthPeriodMaxSec}
-          inputMin={0.01}
-          inputMax={10}
-          sliderMin={0.05}
-          sliderMax={2}
-          step={0.01}
-          ariaLabel="Width shuffle period maximum seconds"
-          disabled={disabled}
-          onChange={(value) => onChange({ sparkleWidthPeriodMaxSec: value })}
-          formatDisplay={(v) => v.toFixed(2)}
-          description={PLAYGROUND_FIELD_HELP.widthPeriodMax}
-        />
-      </PlaygroundControlSection>
-
-      <PlaygroundControlSection
         title="Animation settings"
         testId="playground-section-animation-settings"
-        modified={animationModified && animationSettingsModified}
+        modified={animationModified}
         onReset={onResetAnimation}
       >
-        <NumberField
-          label="Width swing"
-          value={config.widthShuffleSwing}
-          inputMin={0}
-          inputMax={32}
-          sliderMin={0}
-          sliderMax={8}
-          step={0.05}
-          ariaLabel="Width shuffle swing in px"
-          disabled={disabled}
-          onChange={(value) => onChange({ widthShuffleSwing: value })}
-          formatDisplay={(v) => v.toFixed(2)}
-          description={PLAYGROUND_FIELD_HELP.widthSwing}
-        />
-        <NumberField
-          label="Color smoothing"
-          value={config.smoothingMaxStep}
-          inputMin={0}
-          inputMax={255}
-          sliderMin={0}
-          sliderMax={8}
-          step={1}
-          ariaLabel="Max stripe-index step per update (0 snaps)"
-          disabled={disabled}
-          onChange={(value) => onChange({ smoothingMaxStep: value })}
-          description={PLAYGROUND_FIELD_HELP.colorSmoothing}
-        />
         <NumberField
           label="Update interval"
           value={config.gridUpdateIntervalMs}

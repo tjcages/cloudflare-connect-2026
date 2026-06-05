@@ -41,8 +41,6 @@ export type PlaygroundGridConfig = {
   sparkleWidthPeriodMaxSec: number;
   /** Width-shuffle swing in px: the max +/- change applied to a stripe's width during a pulse. */
   widthShuffleSwing: number;
-  /** Max stripe-index change per grid update (0 = snap instantly). */
-  smoothingMaxStep: number;
   /** Minimum ms between block-grid rebuilds. */
   gridUpdateIntervalMs: number;
 };
@@ -51,7 +49,6 @@ export const DEFAULT_LETTER_CHARSET = STRIPE_LETTER_CHARSET.join("");
 export const DEFAULT_LETTER_COLOR = 0xffffff;
 export const DEFAULT_LETTER_RATIO = 0.1;
 export const DEFAULT_LETTER_SHUFFLE_SPEED = 1;
-export const DEFAULT_SMOOTHING_MAX_STEP = 1;
 
 export const DEFAULT_PLAYGROUND_GRID_CONFIG: PlaygroundGridConfig = {
   cellWidth: STRIPE_CELL_SIZE,
@@ -70,7 +67,6 @@ export const DEFAULT_PLAYGROUND_GRID_CONFIG: PlaygroundGridConfig = {
   sparkleWidthPeriodMinSec: WIDTH_SHUFFLE_BASE_PERIOD_MIN_SEC,
   sparkleWidthPeriodMaxSec: WIDTH_SHUFFLE_BASE_PERIOD_MAX_SEC,
   widthShuffleSwing: WIDTH_SHUFFLE_MIN_SWING_PX,
-  smoothingMaxStep: DEFAULT_SMOOTHING_MAX_STEP,
   gridUpdateIntervalMs: STRIPE_GRID_UPDATE_INTERVAL_MS,
 };
 
@@ -166,7 +162,6 @@ export function normalizePlaygroundGridConfig(input: Partial<PlaygroundGridConfi
       base.sparkleWidthPeriodMaxSec,
     ),
     widthShuffleSwing: clampNumber(input.widthShuffleSwing ?? base.widthShuffleSwing, 0, 32, base.widthShuffleSwing),
-    smoothingMaxStep: clampInt(input.smoothingMaxStep ?? base.smoothingMaxStep, 0, 255, base.smoothingMaxStep),
     gridUpdateIntervalMs: clampNumber(
       input.gridUpdateIntervalMs ?? base.gridUpdateIntervalMs,
       0,
@@ -208,7 +203,6 @@ export function isDefaultPlaygroundGridConfig(config: PlaygroundGridConfig): boo
     config.sparkleWidthPeriodMinSec === base.sparkleWidthPeriodMinSec &&
     config.sparkleWidthPeriodMaxSec === base.sparkleWidthPeriodMaxSec &&
     config.widthShuffleSwing === base.widthShuffleSwing &&
-    config.smoothingMaxStep === base.smoothingMaxStep &&
     config.gridUpdateIntervalMs === base.gridUpdateIntervalMs
   );
 }
