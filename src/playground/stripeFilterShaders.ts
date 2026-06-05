@@ -247,9 +247,9 @@ void main(void) {
             stripeCoverage = 0.0;
         }
         vec3 stripeColor = stripeFillColor(stripeBand);
-        finalColor = vec4(mix(vec3(1.0), stripeColor, stripeCoverage), 1.0);
+        finalColor = vec4(stripeColor * stripeCoverage, stripeCoverage);
     } else {
-        finalColor = vec4(1.0, 1.0, 1.0, 1.0);
+        finalColor = vec4(0.0, 0.0, 0.0, 0.0);
     }
 
     if (uDebugVideoAlpha > 0.0) {

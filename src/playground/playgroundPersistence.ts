@@ -39,6 +39,8 @@ export const MAX_PLAYGROUND_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type PlaygroundPersistedConfig = {
   duotoneEnabled: boolean;
+  /** Raw CSS declarations applied to the playground canvas element. */
+  backgroundCss?: string;
   /** Texture luminance gamma (-5…5). Omitted when 1. */
   textureGamma?: number;
   /** Active cell ratio 0–1. 0 = off. Default 0.22. */
@@ -105,8 +107,10 @@ export type StripeWire = {
 };
 
 export type PlaygroundStateWire = {
-  v: 1 | 2 | 3 | 4;
+  v: 1 | 2 | 3 | 4 | 5;
   d: boolean;
+  /** v5+: raw CSS declarations applied to the playground canvas element. */
+  bg?: string;
   sk?: boolean;
   sr?: number;
   sgap?: number;
@@ -147,6 +151,14 @@ function wireToStripes(raw: unknown): Stripe[] | undefined {
       normalizeStripe({ hex: entry.hex, p3Css: entry.p3, startFrom: Number(entry.s), width: Number(entry.w) }),
     );
   return stripes.length > 0 ? stripes : undefined;
+}
+
+export function normalizePlaygroundBackgroundCss(raw: unknown): string | undefined {
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 const objectUrls = new Map<string, string>();
@@ -403,13 +415,17 @@ export async function registerUpload(
 export function serializePlaygroundState(config: PlaygroundPersistedConfig): string {
   const grid = normalizePlaygroundGridConfig(config.grid);
   const includeGrid = !isDefaultPlaygroundGridConfig(grid);
+  const backgroundCss = normalizePlaygroundBackgroundCss(config.backgroundCss);
   const wire: PlaygroundStateWire = {
-    v: includeGrid ? 4 : 3,
+    v: backgroundCss ? 5 : includeGrid ? 4 : 3,
     d: config.duotoneEnabled,
     st: stripesToWire(config.stripes),
   };
   if (includeGrid) {
     wire.gc = grid;
+  }
+  if (backgroundCss) {
+    wire.bg = backgroundCss;
   }
   const gapsActive =
     config.sparkleGapsActivePercent !== undefined
@@ -452,7 +468,7 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   return JSON.stringify(wire);
 }
 
-function parseSparkleWidthActivePercent(raw: unknown, wireVersion: 1 | 2 | 3 | 4): number | undefined {
+function parseSparkleWidthActivePercent(raw: unknown, wireVersion: PlaygroundStateWire["v"]): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -466,7 +482,7 @@ function parseSparkleWidthActivePercent(raw: unknown, wireVersion: 1 | 2 | 3 | 4
   return normalizeSparkleWidthActivePercent(value);
 }
 
-function parseSparkleWidthSpeed(raw: unknown, wireVersion: 1 | 2 | 3 | 4): number | undefined {
+function parseSparkleWidthSpeed(raw: unknown, wireVersion: PlaygroundStateWire["v"]): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -482,7 +498,7 @@ function parseSparkleGapsActivePercent(
   sgap: unknown,
   sr: unknown,
   sk: unknown,
-  wireVersion: 1 | 2 | 3 | 4,
+  wireVersion: PlaygroundStateWire["v"],
 ): number | undefined {
   const fromWire = parseRatioField(sgap, wireVersion);
   if (fromWire !== undefined) {
@@ -502,7 +518,7 @@ function parseSparkleGapsSpeed(
   sgsp: unknown,
   sr: unknown,
   sk: unknown,
-  wireVersion: 1 | 2 | 3 | 4,
+  wireVersion: PlaygroundStateWire["v"],
 ): number | undefined {
   if (sgsp !== undefined) {
     const value = Number(sgsp);
@@ -523,7 +539,7 @@ function parseSparkleGapsSpeed(
   return sk === true ? DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED : undefined;
 }
 
-function parseRatioField(raw: unknown, wireVersion: 1 | 2 | 3 | 4): number | undefined {
+function parseRatioField(raw: unknown, wireVersion: PlaygroundStateWire["v"]): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -559,7 +575,7 @@ function legacySparkleGapsSpeed(config: PlaygroundPersistedConfig): number {
 
 export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConfig {
   const parsed = JSON.parse(text.trim()) as Partial<PlaygroundStateWire>;
-  if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3 && parsed.v !== 4) {
+  if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3 && parsed.v !== 4 && parsed.v !== 5) {
     throw new Error("Unsupported playground state version.");
   }
   const wireVersion = parsed.v;
@@ -580,6 +596,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     sparkleGapsSpeed: parseSparkleGapsSpeed(parsed.sgsp, parsed.sr, parsed.sk, wireVersion),
     sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa, wireVersion),
     sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws, wireVersion),
+    backgroundCss: normalizePlaygroundBackgroundCss(parsed.bg),
     grid: grid && !isDefaultPlaygroundGridConfig(grid) ? grid : undefined,
     stripes,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,

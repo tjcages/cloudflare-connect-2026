@@ -96,6 +96,37 @@ describe("playgroundPersistence envelope migration", () => {
     expect(parsed.grid?.cornerRadius).toBe(2);
   });
 
+  it("round-trips background CSS as wire v5", () => {
+    const backgroundCss = [
+      "background: #D9D9D9;",
+      "background: color(display-p3 0.851 0.851 0.851);",
+      "background-image: linear-gradient(90deg, red, blue);",
+    ].join("\n");
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      backgroundCss,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(5);
+    expect(wire.bg).toBe(backgroundCss);
+    expect(parsePlaygroundStateInput(text).backgroundCss).toBe(backgroundCss);
+  });
+
+  it("omits blank background CSS from copied state", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      backgroundCss: "  \n\t  ",
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(3);
+    expect(wire.bg).toBeUndefined();
+    expect(parsePlaygroundStateInput(text).backgroundCss).toBeUndefined();
+  });
+
   it("leaves grid undefined for legacy v3 states without grid config", () => {
     const text = serializePlaygroundState({
       duotoneEnabled: true,
