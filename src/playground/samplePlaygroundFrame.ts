@@ -10,6 +10,8 @@ import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
+import { drawPlaygroundFlames, type PlaygroundFlamesState } from "./playgroundFlames";
+import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 
 export type PlaygroundGridBuildState = {
   stableIndices?: Uint8Array;
@@ -22,6 +24,8 @@ export function sampleTextureFrame(
   sampleCanvas: HTMLCanvasElement,
   sampleCtx: CanvasRenderingContext2D,
   sourceTransform: PlaygroundSourceTransform = DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  flamesState: PlaygroundFlamesState | null = null,
+  flamesConfig: PlaygroundFlamesConfig | null = null,
 ): ImageData | null {
   if (displayWidth <= 0 || displayHeight <= 0) {
     return null;
@@ -46,6 +50,9 @@ export function sampleTextureFrame(
     destination.dw,
     destination.dh,
   );
+  if (flamesState && flamesConfig?.enabled) {
+    drawPlaygroundFlames(sampleCtx, flamesState, flamesConfig, displayWidth, displayHeight);
+  }
   return sampleCtx.getImageData(0, 0, displayWidth, displayHeight);
 }
 
@@ -67,11 +74,22 @@ export function sampleVideoFrame(
   sampleCanvas: HTMLCanvasElement,
   sampleCtx: CanvasRenderingContext2D,
   sourceTransform: PlaygroundSourceTransform = DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  flamesState: PlaygroundFlamesState | null = null,
+  flamesConfig: PlaygroundFlamesConfig | null = null,
 ): ImageData | null {
   if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
     return null;
   }
-  return sampleTextureFrame(video, displayWidth, displayHeight, sampleCanvas, sampleCtx, sourceTransform);
+  return sampleTextureFrame(
+    video,
+    displayWidth,
+    displayHeight,
+    sampleCanvas,
+    sampleCtx,
+    sourceTransform,
+    flamesState,
+    flamesConfig,
+  );
 }
 
 export type PlaygroundGridBuildOptions = {

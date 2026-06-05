@@ -35,6 +35,12 @@ import {
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
 import {
+  DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+  isDefaultPlaygroundFlamesConfig,
+  normalizePlaygroundFlamesConfig,
+  type PlaygroundFlamesConfig,
+} from "./playgroundFlamesConfig";
+import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_STRIPES,
   detectUploadMediaKind,
@@ -84,6 +90,8 @@ export type PlaygroundPersistedConfig = {
   displayHeight?: number;
   /** Designer-tunable grid geometry / letter / animation config. Omitted = defaults. */
   grid?: PlaygroundGridConfig;
+  /** Background flame streak settings. Omitted = defaults. */
+  flames?: PlaygroundFlamesConfig;
   /** Ordered luminosity stripes (color + start-from + width). */
   stripes: Stripe[];
 };
@@ -105,6 +113,10 @@ export function resolvePersistedTextureAdjustments(config: PlaygroundPersistedCo
 
 export function resolvePersistedSourceTransform(config: PlaygroundPersistedConfig): PlaygroundSourceTransform {
   return normalizePlaygroundSourceTransform(config.sourceTransform);
+}
+
+export function resolvePersistedFlamesConfig(config: PlaygroundPersistedConfig): PlaygroundFlamesConfig {
+  return normalizePlaygroundFlamesConfig(config.flames);
 }
 
 export type PlaygroundUploadMeta = {
@@ -166,6 +178,8 @@ export type PlaygroundStateWire = {
   gc?: Partial<PlaygroundGridConfig>;
   /** v3+: ordered luminosity stripes. */
   st?: StripeWire[];
+  /** v6+: background flame settings. */
+  fl?: FlamesWire;
   /** @deprecated v1/v2 distance-model fields, migrated to default stripes. */
   c?: string;
   t?: number;
@@ -195,6 +209,20 @@ type SourceTransformWire = {
   z?: number;
   x?: number;
   y?: number;
+};
+
+type FlamesWire = {
+  en?: boolean;
+  wmn?: number;
+  wmx?: number;
+  hmn?: number;
+  hmx?: number;
+  spd?: number;
+  svr?: number;
+  si?: number;
+  sj?: number;
+  ma?: number;
+  es?: number;
 };
 
 function stripesToWire(stripes: readonly Stripe[]): StripeWire[] {
@@ -284,6 +312,47 @@ function wireToSourceTransform(raw: unknown): PlaygroundSourceTransform | undefi
     zoom: wire.z,
     panX: wire.x,
     panY: wire.y,
+  });
+}
+
+function flamesToWire(config: PlaygroundFlamesConfig): FlamesWire | undefined {
+  const normalized = normalizePlaygroundFlamesConfig(config);
+  if (isDefaultPlaygroundFlamesConfig(normalized)) {
+    return undefined;
+  }
+  const base = DEFAULT_PLAYGROUND_FLAMES_CONFIG;
+  const wire: FlamesWire = {};
+  if (normalized.enabled !== base.enabled) wire.en = normalized.enabled;
+  if (normalized.minWidthRatio !== base.minWidthRatio) wire.wmn = normalized.minWidthRatio;
+  if (normalized.maxWidthRatio !== base.maxWidthRatio) wire.wmx = normalized.maxWidthRatio;
+  if (normalized.minHeightRatio !== base.minHeightRatio) wire.hmn = normalized.minHeightRatio;
+  if (normalized.maxHeightRatio !== base.maxHeightRatio) wire.hmx = normalized.maxHeightRatio;
+  if (normalized.baseSpeedPxPerSec !== base.baseSpeedPxPerSec) wire.spd = normalized.baseSpeedPxPerSec;
+  if (normalized.speedVariation !== base.speedVariation) wire.svr = normalized.speedVariation;
+  if (normalized.spawnIntervalMs !== base.spawnIntervalMs) wire.si = normalized.spawnIntervalMs;
+  if (normalized.spawnJitterMs !== base.spawnJitterMs) wire.sj = normalized.spawnJitterMs;
+  if (normalized.maxActive !== base.maxActive) wire.ma = normalized.maxActive;
+  if (normalized.edgeSharpness !== base.edgeSharpness) wire.es = normalized.edgeSharpness;
+  return wire;
+}
+
+function wireToFlames(raw: unknown): PlaygroundFlamesConfig | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const wire = raw as FlamesWire;
+  return normalizePlaygroundFlamesConfig({
+    enabled: wire.en,
+    minWidthRatio: wire.wmn,
+    maxWidthRatio: wire.wmx,
+    minHeightRatio: wire.hmn,
+    maxHeightRatio: wire.hmx,
+    baseSpeedPxPerSec: wire.spd,
+    speedVariation: wire.svr,
+    spawnIntervalMs: wire.si,
+    spawnJitterMs: wire.sj,
+    maxActive: wire.ma,
+    edgeSharpness: wire.es,
   });
 }
 
@@ -591,9 +660,17 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const textureAdjustmentsWire = textureAdjustmentsToWire(textureAdjustments);
   const sourceTransform = resolvePersistedSourceTransform(config);
   const sourceTransformWire = sourceTransformToWire(sourceTransform);
+  const flames = resolvePersistedFlamesConfig(config);
+  const flamesWire = flamesToWire(flames);
   const wire: PlaygroundStateWire = {
     v:
-      textureAdjustmentsWire || sourceTransformWire ? 6 : backgroundCss || backgroundColorHex ? 5 : includeGrid ? 4 : 3,
+      textureAdjustmentsWire || sourceTransformWire || flamesWire
+        ? 6
+        : backgroundCss || backgroundColorHex
+          ? 5
+          : includeGrid
+            ? 4
+            : 3,
     d: config.duotoneEnabled,
     st: stripesToWire(config.stripes),
   };
@@ -615,6 +692,10 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   }
   if (sourceTransformWire) {
     wire.xf = sourceTransformWire;
+  }
+  if (flamesWire) {
+    wire.fl = flamesWire;
+    wire.v = 6;
   }
   const gapsActive =
     config.sparkleGapsActivePercent !== undefined
@@ -779,6 +860,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const grid = parsed.gc ? normalizePlaygroundGridConfig(parsed.gc) : undefined;
   const textureAdjustments = wireToTextureAdjustments(parsed.ta, textureGamma);
   const sourceTransform = wireToSourceTransform(parsed.xf);
+  const flames = wireToFlames(parsed.fl);
 
   return {
     duotoneEnabled: parsed.d,
@@ -801,6 +883,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
             return color !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? color : undefined;
           })(),
     grid: grid && !isDefaultPlaygroundGridConfig(grid) ? grid : undefined,
+    flames: flames && !isDefaultPlaygroundFlamesConfig(flames) ? flames : undefined,
     stripes,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     displayHeight: h && Number.isFinite(h) && h > 0 ? Math.round(h) : undefined,

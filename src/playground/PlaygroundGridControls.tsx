@@ -19,10 +19,8 @@ type GridControlsProps = {
   onLiveChange?: (patch: Partial<PlaygroundGridConfig>) => void;
   onResetGrid: () => void;
   onResetLetters: () => void;
-  onResetAnimation: () => void;
   gridModified: boolean;
   lettersModified: boolean;
-  animationModified: boolean;
   disabled: boolean;
 };
 
@@ -41,10 +39,8 @@ export function PlaygroundGridControls({
   onLiveChange,
   onResetGrid,
   onResetLetters,
-  onResetAnimation,
   gridModified,
   lettersModified,
-  animationModified,
   disabled,
 }: GridControlsProps) {
   const acrossMax = Math.max(config.cellWidth, config.cellHeight);
@@ -226,28 +222,6 @@ export function PlaygroundGridControls({
           onLiveChange={live ? (value) => live({ letterShuffleSpeed: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.letterShuffleSpeed}
-        />
-      </PlaygroundControlSection>
-
-      <PlaygroundControlSection
-        title="Animation settings"
-        testId="playground-section-animation-settings"
-        modified={animationModified}
-        onReset={onResetAnimation}
-      >
-        <PlaygroundNumberField
-          label="Update interval"
-          value={config.gridUpdateIntervalMs}
-          inputMin={0}
-          inputMax={1000}
-          sliderMin={0}
-          sliderMax={300}
-          step={1}
-          ariaLabel="Grid update interval in milliseconds"
-          disabled={disabled}
-          onChange={(value) => onChange({ gridUpdateIntervalMs: value })}
-          onLiveChange={live ? (value) => live({ gridUpdateIntervalMs: value }) : undefined}
-          description={PLAYGROUND_FIELD_HELP.updateInterval}
         />
       </PlaygroundControlSection>
     </>

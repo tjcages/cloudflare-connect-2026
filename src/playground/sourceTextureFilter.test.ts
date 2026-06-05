@@ -10,4 +10,11 @@ describe("SOURCE_TEXTURE_FILTER_FRAGMENT", () => {
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("floor(value * steps + 0.5)");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).not.toContain("round(");
   });
+
+  it("composites flames over the preview with per-channel lighten", () => {
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uniform sampler2D uFlames");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("vec3 applyFlames(vec3 color)");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("return max(color, flame);");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("applyFlames(applyFluidTrail(");
+  });
 });

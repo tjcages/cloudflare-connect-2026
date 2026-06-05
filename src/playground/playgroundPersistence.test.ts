@@ -12,6 +12,7 @@ import {
 import { DEFAULT_STRIPES } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
+import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
 
 describe("playgroundPersistence envelope migration", () => {
   afterEach(() => {
@@ -189,6 +190,42 @@ describe("playgroundPersistence envelope migration", () => {
     expect(wire.v).toBe(6);
     expect(wire.se).toBe(false);
     expect(parsePlaygroundStateInput(text).stripesEnabled).toBe(false);
+  });
+
+  it("round-trips non-default flames config as wire v6", () => {
+    const flames = {
+      ...DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+      enabled: false,
+      baseSpeedPxPerSec: 90,
+      maxActive: 24,
+      edgeSharpness: 0.5,
+    };
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      flames,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(6);
+    expect(wire.fl).toEqual({ en: false, spd: 90, ma: 24, es: 0.5 });
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.flames?.enabled).toBe(false);
+    expect(parsed.flames?.baseSpeedPxPerSec).toBe(90);
+    expect(parsed.flames?.maxActive).toBe(24);
+    expect(parsed.flames?.edgeSharpness).toBe(0.5);
+  });
+
+  it("omits default flames config from copied state", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      flames: { ...DEFAULT_PLAYGROUND_FLAMES_CONFIG },
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.fl).toBeUndefined();
+    expect(parsePlaygroundStateInput(text).flames).toBeUndefined();
   });
 
   it("omits blank background CSS from copied state", () => {
