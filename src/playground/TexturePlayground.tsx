@@ -11,8 +11,10 @@ import {
 import { writeSvgToClipboard } from "../grid/clipboard";
 import Pixi from "../components/pixi";
 import {
+  catalogEntriesForLoadAttempt,
   copyPlaygroundStateToClipboard,
   defaultConfigForTexture,
+  firstCatalogEntryWithUrl,
   getPersistedConfig,
   hydrateUploadUrls,
   loadPlaygroundEnvelope,
@@ -20,7 +22,6 @@ import {
   parsePlaygroundStateInput,
   registerUpload,
   normalizePlaygroundBackgroundCss,
-  resolveCatalogEntry,
   resolvePersistedGridConfig,
   resolvePersistedSourceTransform,
   resolvePersistedTextureAdjustments,
@@ -721,12 +722,18 @@ export function TexturePlayground() {
       return;
     }
 
-    const entry = resolveCatalogEntry(catalog, selectedTextureId);
-    if (!entry?.url) {
+    const candidates = catalogEntriesForLoadAttempt(catalog, selectedTextureId);
+    const entry = candidates[0];
+    if (!entry) {
       setLoadState({
         status: "error",
-        message: "Texture not found. Upload again or pick another source.",
+        message: "No textures available. Upload an image or video to continue.",
       });
+      return;
+    }
+
+    if (entry.id !== selectedTextureId) {
+      onTextureSelect(entry.id);
       return;
     }
 
@@ -734,7 +741,7 @@ export function TexturePlayground() {
     setLoadState({ status: "loading" });
     autoplayRef.current = entry.mediaKind === "video";
 
-    void loadPlaygroundSource(entry.url, selectedTextureId, entry.mediaKind).then((next) => {
+    void loadPlaygroundSource(entry.url, entry.id, entry.mediaKind).then((next) => {
       if (cancelled) {
         if (next.status === "ready") {
           if (next.kind === "video") {
@@ -745,28 +752,42 @@ export function TexturePlayground() {
         }
         return;
       }
+      if (next.status === "error") {
+        const fallback = candidates[1];
+        if (fallback) {
+          onTextureSelect(fallback.id);
+          return;
+        }
+        setLoadState({
+          status: "error",
+          message: "Could not load the selected texture. Choose another source below.",
+        });
+        return;
+      }
+      if (next.status !== "ready") {
+        return;
+      }
+
       videoRef.current = null;
       imageRef.current = null;
-      if (next.status === "ready") {
-        const textureSource: PlaygroundTextureSource =
-          next.kind === "video" ? { kind: "video", element: next.video } : { kind: "image", element: next.image };
-        if (next.kind === "video") {
-          videoRef.current = next.video;
-          setDuration(next.video.duration || 0);
-          setCurrentTime(next.video.currentTime);
-          setIsPlaying(!next.video.paused);
-        } else {
-          imageRef.current = next.image;
-          setDuration(0);
-          setCurrentTime(0);
-          setIsPlaying(false);
-        }
-        const { display, source } = syncDisplaySizeFromTexture(textureSource, selectedTextureId);
-        setSourceWidth(source.width);
-        setSourceHeight(source.height);
-        setDisplayWidth(display.width);
-        setDisplayHeight(display.height);
+      const textureSource: PlaygroundTextureSource =
+        next.kind === "video" ? { kind: "video", element: next.video } : { kind: "image", element: next.image };
+      if (next.kind === "video") {
+        videoRef.current = next.video;
+        setDuration(next.video.duration || 0);
+        setCurrentTime(next.video.currentTime);
+        setIsPlaying(!next.video.paused);
+      } else {
+        imageRef.current = next.image;
+        setDuration(0);
+        setCurrentTime(0);
+        setIsPlaying(false);
       }
+      const { display, source } = syncDisplaySizeFromTexture(textureSource, entry.id);
+      setSourceWidth(source.width);
+      setSourceHeight(source.height);
+      setDisplayWidth(display.width);
+      setDisplayHeight(display.height);
       setLoadState(next);
     });
 
@@ -783,7 +804,7 @@ export function TexturePlayground() {
         imageRef.current = null;
       }
     };
-  }, [hydrated, selectedTextureId, catalog]);
+  }, [hydrated, selectedTextureId, catalog, onTextureSelect]);
 
   useEffect(() => {
     if (loadState.status !== "ready" || loadState.kind !== "video") {
@@ -1064,7 +1085,57 @@ export function TexturePlayground() {
   }
 
   if (loadState.status === "error") {
-    return <p className="p-6 text-sm text-red-700">{loadState.message}</p>;
+    const fallbackEntry = firstCatalogEntryWithUrl(catalog);
+    return (
+      <div className="flex h-dvh overflow-hidden bg-neutral-50">
+        <aside className="flex w-60 shrink-0 flex-col gap-4 border-r border-neutral-200 bg-white p-4">
+          <h1 className="text-base font-medium text-neutral-900">Texture shader playground</h1>
+          <p className="m-0 text-sm text-red-700">{loadState.message}</p>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="text-neutral-600">Texture</span>
+            <select
+              value={selectedTextureId}
+              onChange={(event) => onTextureSelect(event.target.value as PlaygroundTextureId)}
+              className="rounded border border-neutral-300 bg-white px-2 py-1.5"
+              aria-label="Playground texture source"
+            >
+              {catalog.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {fallbackEntry ? (
+            <button
+              type="button"
+              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+              onClick={() => onTextureSelect(fallbackEntry.id)}
+            >
+              Load {fallbackEntry.label}
+            </button>
+          ) : null}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*,image/*"
+            className="hidden"
+            onChange={(event) => void onUploadFile(event)}
+          />
+          <button
+            type="button"
+            className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+            onClick={onUploadClick}
+          >
+            Upload texture
+          </button>
+          {uploadError ? <p className="m-0 text-xs text-red-700">{uploadError}</p> : null}
+        </aside>
+        <main className="flex flex-1 items-center justify-center p-6">
+          <p className="m-0 text-sm text-neutral-600">Select a texture from the sidebar to continue.</p>
+        </main>
+      </div>
+    );
   }
 
   const { textureId } = loadState;

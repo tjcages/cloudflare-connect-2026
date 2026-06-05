@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  catalogEntriesForLoadAttempt,
   defaultConfigForTexture,
+  firstCatalogEntryWithUrl,
   parsePlaygroundStateInput,
   PLAYGROUND_LS_KEY,
   resolveInitialTextureId,
   serializePlaygroundState,
+  type PlaygroundCatalogEntry,
 } from "./playgroundPersistence";
 import { DEFAULT_STRIPES } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
@@ -195,5 +198,52 @@ describe("playgroundPersistence envelope migration", () => {
     expect(parsed.stripes[0]!.hex).toBe("#112233");
     expect(parsed.stripes[0]!.startFrom).toBe(0.2);
     expect(parsed.stripes[1]!.width).toBe(6);
+  });
+});
+
+describe("playground catalog load helpers", () => {
+  const catalog: PlaygroundCatalogEntry[] = [
+    {
+      id: "example10",
+      label: "example 10",
+      url: "/playground/example10.jpg",
+      mediaKind: "image",
+      displayScale: 1,
+      stripes: [],
+      isUpload: false,
+    },
+    {
+      id: "example5",
+      label: "example 5",
+      url: "/playground/example5.mp4",
+      mediaKind: "video",
+      displayScale: 1,
+      stripes: [],
+      isUpload: false,
+    },
+    {
+      id: "upload:missing",
+      label: "missing upload",
+      url: "",
+      mediaKind: "image",
+      displayScale: 1,
+      stripes: [],
+      isUpload: true,
+    },
+  ];
+
+  it("prefers the selected texture when it has a URL", () => {
+    expect(catalogEntriesForLoadAttempt(catalog, "example5").map((entry) => entry.id)).toEqual([
+      "example5",
+      "example10",
+    ]);
+  });
+
+  it("falls back to the first loadable texture when the selection is missing or empty", () => {
+    expect(catalogEntriesForLoadAttempt(catalog, "upload:missing").map((entry) => entry.id)).toEqual([
+      "example10",
+      "example5",
+    ]);
+    expect(firstCatalogEntryWithUrl(catalog)?.id).toBe("example10");
   });
 });

@@ -468,6 +468,24 @@ export function resolveCatalogEntry(
   return catalog.find((entry) => entry.id === textureId);
 }
 
+/** First catalog entry with a non-empty source URL. */
+export function firstCatalogEntryWithUrl(catalog: PlaygroundCatalogEntry[]): PlaygroundCatalogEntry | undefined {
+  return catalog.find((entry) => entry.url.length > 0);
+}
+
+/** Catalog entries that can be loaded, with `preferredId` first when it has a URL. */
+export function catalogEntriesForLoadAttempt(
+  catalog: PlaygroundCatalogEntry[],
+  preferredId: PlaygroundTextureId,
+): PlaygroundCatalogEntry[] {
+  const withUrl = catalog.filter((entry) => entry.url.length > 0);
+  const preferredIndex = withUrl.findIndex((entry) => entry.id === preferredId);
+  if (preferredIndex <= 0) {
+    return withUrl;
+  }
+  return [...withUrl.slice(preferredIndex), ...withUrl.slice(0, preferredIndex)];
+}
+
 export function defaultConfigForTexture(textureId: PlaygroundTextureId): PlaygroundPersistedConfig {
   const persisted = getPersistedConfig(textureId);
   if (persisted) {

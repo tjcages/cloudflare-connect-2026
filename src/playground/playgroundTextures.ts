@@ -10,8 +10,6 @@ export type BuiltinPlaygroundTextureId =
   | "example5"
   | "example6"
   | "example7"
-  | "example8"
-  | "example9"
   | "example10";
 
 export type PlaygroundTextureId = BuiltinPlaygroundTextureId | `upload:${string}`;
@@ -91,22 +89,6 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
     id: "example7",
     label: "example 7",
     url: "/playground/example7.mp4",
-    mediaKind: "video",
-    displayScale: 1,
-    stripes: DEFAULT_STRIPES,
-  },
-  {
-    id: "example8",
-    label: "example 8",
-    url: "/playground/example8.mp4",
-    mediaKind: "video",
-    displayScale: 1,
-    stripes: DEFAULT_STRIPES,
-  },
-  {
-    id: "example9",
-    label: "example 9",
-    url: "/playground/example9.mp4",
     mediaKind: "video",
     displayScale: 1,
     stripes: DEFAULT_STRIPES,
