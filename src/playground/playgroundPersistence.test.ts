@@ -118,6 +118,33 @@ describe("playgroundPersistence envelope migration", () => {
     expect(parsePlaygroundStateInput(text).backgroundCss).toBe(backgroundCss);
   });
 
+  it("round-trips a non-default background color as wire v5", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      backgroundColor: 0xd9d9d9,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(5);
+    expect(wire.bgh).toBe("#d9d9d9");
+    expect(wire.bg).toBeUndefined();
+    expect(parsePlaygroundStateInput(text).backgroundColor).toBe(0xd9d9d9);
+  });
+
+  it("omits default white background color from copied state", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      backgroundColor: 0xffffff,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(3);
+    expect(wire.bgh).toBeUndefined();
+    expect(parsePlaygroundStateInput(text).backgroundColor).toBeUndefined();
+  });
+
   it("round-trips texture adjustments and source transform as wire v6", () => {
     const text = serializePlaygroundState({
       duotoneEnabled: true,

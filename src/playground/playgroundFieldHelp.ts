@@ -3,6 +3,7 @@ export const PLAYGROUND_FIELD_HELP = {
   canvasWidth: "Set the output canvas width in pixels.",
   canvasHeight: "Set the output canvas height in pixels.",
   shaderEnabled: "Turn the stripe shader on or off.",
+  backgroundColor: "Set the canvas background color. Ignored while canvas CSS is filled in.",
   canvasCss: "Add CSS background declarations behind the canvas.",
   stripesEnabled: "Show or hide the stripe overlay.",
   stripeColor: "Set the stripe color.",

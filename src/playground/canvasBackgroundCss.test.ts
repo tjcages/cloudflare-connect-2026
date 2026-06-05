@@ -29,8 +29,16 @@ describe("applyCanvasBackgroundCss", () => {
 
     applyCanvasBackgroundCss(canvas, "   ", { width: 320, height: 180 });
 
-    expect(canvas.style.background).toBe("");
+    expect(canvas.style.background).toBe("#ffffff");
     expect(canvas.style.width).toBe("320px");
     expect(canvas.style.height).toBe("180px");
+  });
+
+  it("applies a fallback hex color when CSS is empty", () => {
+    const canvas = document.createElement("canvas");
+
+    applyCanvasBackgroundCss(canvas, undefined, { width: 100, height: 50 }, 0xd9d9d9);
+
+    expect(canvas.style.background).toBe("#d9d9d9");
   });
 });

@@ -22,6 +22,7 @@ import {
   parsePlaygroundStateInput,
   registerUpload,
   normalizePlaygroundBackgroundCss,
+  normalizePlaygroundBackgroundColor,
   resolvePersistedGridConfig,
   resolvePersistedSourceTransform,
   resolvePersistedTextureAdjustments,
@@ -104,7 +105,11 @@ import {
   type Stripe,
   type StripeColors,
 } from "./stripeColors";
-import { applyCanvasBackgroundCss } from "./canvasBackgroundCss";
+import {
+  applyCanvasBackgroundCss,
+  DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
+  playgroundBackgroundColorToHex,
+} from "./canvasBackgroundCss";
 import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
 
 /** Bordered grid-cell styling for stripe numeric fields (commit on Enter/blur). */
@@ -233,6 +238,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     duotoneEnabled: config.duotoneEnabled,
     stripesEnabled: config.stripesEnabled !== false,
     backgroundCss: normalizePlaygroundBackgroundCss(config.backgroundCss),
+    backgroundColor: normalizePlaygroundBackgroundColor(config.backgroundColor),
     textureAdjustments: resolvePersistedTextureAdjustments(config),
     sourceTransform: resolvePersistedSourceTransform(config),
     sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(config),
@@ -337,6 +343,7 @@ export function TexturePlayground() {
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
   const [stripesEnabled, setStripesEnabled] = useState(appliedInitial.stripesEnabled);
   const [backgroundCss, setBackgroundCss] = useState(appliedInitial.backgroundCss ?? "");
+  const [backgroundColor, setBackgroundColor] = useState(appliedInitial.backgroundColor);
   const [textureAdjustments, setTextureAdjustments] = useState<PlaygroundTextureAdjustments>(
     appliedInitial.textureAdjustments,
   );
@@ -474,6 +481,7 @@ export function TexturePlayground() {
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
       displayHeight: displayHeight > 0 ? displayHeight : undefined,
       backgroundCss: normalizePlaygroundBackgroundCss(backgroundCss),
+      backgroundColor: backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? backgroundColor : undefined,
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       stripes,
     };
@@ -491,6 +499,7 @@ export function TexturePlayground() {
     displayWidth,
     displayHeight,
     backgroundCss,
+    backgroundColor,
     gridConfig,
     stripes,
   ]);
@@ -514,6 +523,7 @@ export function TexturePlayground() {
     setDuotoneEnabled(next.duotoneEnabled);
     setStripesEnabled(next.stripesEnabled);
     setBackgroundCss(next.backgroundCss ?? "");
+    setBackgroundColor(next.backgroundColor);
     setTextureAdjustments(next.textureAdjustments);
     setSourceTransform(next.sourceTransform);
     setSparkleGapsActivePercent(resolvePersistedSparkleGapsActivePercent(config));
@@ -618,6 +628,7 @@ export function TexturePlayground() {
 
   const resetBackground = useCallback(() => {
     setBackgroundCss("");
+    setBackgroundColor(DEFAULT_PLAYGROUND_BACKGROUND_COLOR);
   }, []);
 
   const updateTextureAdjustments = useCallback((patch: Partial<PlaygroundTextureAdjustments>) => {
@@ -682,7 +693,8 @@ export function TexturePlayground() {
   }, []);
 
   const generalModified = !duotoneEnabled;
-  const backgroundModified = normalizePlaygroundBackgroundCss(backgroundCss) !== undefined;
+  const backgroundCssActive = normalizePlaygroundBackgroundCss(backgroundCss) !== undefined;
+  const backgroundModified = backgroundCssActive || backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR;
   const textureToneModified =
     textureAdjustments.brightness !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.brightness ||
     textureAdjustments.exposure !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.exposure ||
@@ -852,8 +864,8 @@ export function TexturePlayground() {
     if (!canvasElement) {
       return;
     }
-    applyCanvasBackgroundCss(canvasElement, backgroundCss, displaySize);
-  }, [backgroundCss, canvasElement, displaySize]);
+    applyCanvasBackgroundCss(canvasElement, backgroundCss, displaySize, backgroundColor);
+  }, [backgroundCss, backgroundColor, canvasElement, displaySize]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -938,6 +950,7 @@ export function TexturePlayground() {
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
       displayHeight: displayHeight > 0 ? displayHeight : undefined,
       backgroundCss: normalizePlaygroundBackgroundCss(backgroundCss),
+      backgroundColor: backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? backgroundColor : undefined,
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       stripes,
     };
@@ -1298,6 +1311,27 @@ export function TexturePlayground() {
             modified={backgroundModified}
             onReset={resetBackground}
           >
+            <div
+              className={`flex items-center justify-between gap-2 text-sm ${backgroundCssActive ? "opacity-40" : ""}`}
+            >
+              <span className="flex items-center gap-1.5 text-neutral-600">
+                <FieldHelp label="Color" description={PLAYGROUND_FIELD_HELP.backgroundColor} />
+              </span>
+              <HexColorPopover
+                color={playgroundBackgroundColorToHex(backgroundColor)}
+                disabled={backgroundCssActive}
+                onChange={(hex) => {
+                  const parsed = Number.parseInt(hex.replace(/^#/, ""), 16);
+                  if (Number.isFinite(parsed)) {
+                    setBackgroundColor(parsed & 0xffffff);
+                  }
+                }}
+                ariaLabel="Canvas background color"
+                align="right"
+                triggerClassName="h-7 w-12 rounded border border-neutral-300"
+                triggerStyle={{ backgroundColor: playgroundBackgroundColorToHex(backgroundColor) }}
+              />
+            </div>
             <label className="flex flex-col gap-1.5 text-xs font-medium text-neutral-700">
               <span className="flex items-center gap-1.5">
                 <FieldHelp label="Canvas CSS" description={PLAYGROUND_FIELD_HELP.canvasCss} />
@@ -1317,7 +1351,9 @@ export function TexturePlayground() {
               />
             </label>
             <p className="m-0 text-[11px] leading-4 text-neutral-500">
-              Paste CSS declarations here. They are applied directly to the canvas style.
+              {backgroundCssActive
+                ? "Canvas CSS overrides the color picker."
+                : "Color applies when canvas CSS is empty. Paste CSS declarations to replace it."}
             </p>
           </PlaygroundControlSection>
 

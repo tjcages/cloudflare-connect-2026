@@ -1,4 +1,5 @@
 import { DEFAULT_TEXTURE_GAMMA, normalizeTextureGamma } from "./colorWhiteness";
+import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import {
   isDefaultPlaygroundGridConfig,
   normalizePlaygroundGridConfig,
@@ -56,6 +57,8 @@ export type PlaygroundPersistedConfig = {
   stripesEnabled?: boolean;
   /** Raw CSS declarations applied to the playground canvas element. */
   backgroundCss?: string;
+  /** Canvas background color as 0xRRGGBB when CSS is empty. Omitted when white. */
+  backgroundColor?: number;
   /** Positive texture luminance gamma. Omitted when 1. */
   /** @deprecated Use textureAdjustments.gamma. */
   textureGamma?: number;
@@ -143,6 +146,8 @@ export type PlaygroundStateWire = {
   se?: boolean;
   /** v5+: raw CSS declarations applied to the playground canvas element. */
   bg?: string;
+  /** v5+: canvas background hex when CSS is omitted. */
+  bgh?: string;
   sk?: boolean;
   sr?: number;
   sgap?: number;
@@ -288,6 +293,20 @@ export function normalizePlaygroundBackgroundCss(raw: unknown): string | undefin
   }
   const trimmed = raw.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+export function normalizePlaygroundBackgroundColor(raw: unknown): number {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return raw & 0xffffff;
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed.length > 0) {
+      const parsed = Number.parseInt(trimmed.replace(/^#/, ""), 16);
+      return Number.isFinite(parsed) ? parsed & 0xffffff : DEFAULT_PLAYGROUND_BACKGROUND_COLOR;
+    }
+  }
+  return DEFAULT_PLAYGROUND_BACKGROUND_COLOR;
 }
 
 const objectUrls = new Map<string, string>();
@@ -563,12 +582,18 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const grid = normalizePlaygroundGridConfig(config.grid);
   const includeGrid = !isDefaultPlaygroundGridConfig(grid);
   const backgroundCss = normalizePlaygroundBackgroundCss(config.backgroundCss);
+  const backgroundColor = normalizePlaygroundBackgroundColor(config.backgroundColor);
+  const backgroundColorHex =
+    backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR
+      ? `#${(backgroundColor & 0xffffff).toString(16).padStart(6, "0")}`
+      : undefined;
   const textureAdjustments = resolvePersistedTextureAdjustments(config);
   const textureAdjustmentsWire = textureAdjustmentsToWire(textureAdjustments);
   const sourceTransform = resolvePersistedSourceTransform(config);
   const sourceTransformWire = sourceTransformToWire(sourceTransform);
   const wire: PlaygroundStateWire = {
-    v: textureAdjustmentsWire || sourceTransformWire ? 6 : backgroundCss ? 5 : includeGrid ? 4 : 3,
+    v:
+      textureAdjustmentsWire || sourceTransformWire ? 6 : backgroundCss || backgroundColorHex ? 5 : includeGrid ? 4 : 3,
     d: config.duotoneEnabled,
     st: stripesToWire(config.stripes),
   };
@@ -581,6 +606,9 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   }
   if (backgroundCss) {
     wire.bg = backgroundCss;
+  }
+  if (backgroundColorHex) {
+    wire.bgh = backgroundColorHex;
   }
   if (textureAdjustmentsWire) {
     wire.ta = textureAdjustmentsWire;
@@ -765,6 +793,13 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa, wireVersion),
     sparkleWidthSpeed: parseSparkleWidthSpeed(parsed.sws, wireVersion),
     backgroundCss: normalizePlaygroundBackgroundCss(parsed.bg),
+    backgroundColor:
+      parsed.bgh === undefined
+        ? undefined
+        : (() => {
+            const color = normalizePlaygroundBackgroundColor(parsed.bgh);
+            return color !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? color : undefined;
+          })(),
     grid: grid && !isDefaultPlaygroundGridConfig(grid) ? grid : undefined,
     stripes,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
