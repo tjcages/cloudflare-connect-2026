@@ -26,6 +26,11 @@ import {
 } from "./runtime/playgroundWidthShuffle";
 import { DEFAULT_TEXTURE_GAMMA } from "./runtime/colorWhiteness";
 import { configToStripeColors, defaultConfig, type AsciiVideoProps, type StripeColors } from "./types";
+import { normalizePlaygroundTextureAdjustments } from "./runtime/playgroundTextureAdjustments";
+import {
+  DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  normalizePlaygroundSourceTransform,
+} from "./runtime/playgroundSourceTransform";
 
 export type { AsciiVideoConfig, AsciiVideoProps } from "./types";
 export { defaultConfig } from "./types";
@@ -102,7 +107,15 @@ export function AsciiVideo({
 
   const stripeColorsRef = useRef<StripeColors>(configToStripeColors(config));
   const duotoneEnabledRef = useRef(config.duotoneEnabled);
-  const textureGammaRef = useRef(config.textureGamma ?? DEFAULT_TEXTURE_GAMMA);
+  const stripesEnabledRef = useRef(config.stripesEnabled !== false);
+  const textureAdjustmentsRef = useRef(
+    normalizePlaygroundTextureAdjustments({
+      ...config.textureAdjustments,
+      gamma: config.textureAdjustments?.gamma ?? config.textureGamma ?? DEFAULT_TEXTURE_GAMMA,
+    }),
+  );
+  const sourceTransformRef = useRef(normalizePlaygroundSourceTransform(config.sourceTransform));
+  const textureGammaRef = useRef(textureAdjustmentsRef.current.gamma);
   const sparkleOptionsRef = useRef(
     playgroundSparkleOptionsFromSliders(
       resolvePersistedSparkleGapsActivePercent(config),
@@ -120,7 +133,15 @@ export function AsciiVideo({
 
   stripeColorsRef.current = configToStripeColors(config);
   duotoneEnabledRef.current = config.duotoneEnabled;
-  textureGammaRef.current = config.textureGamma ?? DEFAULT_TEXTURE_GAMMA;
+  stripesEnabledRef.current = config.stripesEnabled !== false;
+  textureAdjustmentsRef.current = normalizePlaygroundTextureAdjustments({
+    ...config.textureAdjustments,
+    gamma: config.textureAdjustments?.gamma ?? config.textureGamma ?? DEFAULT_TEXTURE_GAMMA,
+  });
+  sourceTransformRef.current = normalizePlaygroundSourceTransform(
+    config.sourceTransform ?? DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  );
+  textureGammaRef.current = textureAdjustmentsRef.current.gamma;
   sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(
     resolvePersistedSparkleGapsActivePercent(config),
     resolvePersistedSparkleGapsSpeed(config),
@@ -165,10 +186,14 @@ export function AsciiVideo({
         stripeColorsRef,
         preferP3Ref,
         duotoneEnabledRef,
+        stripesEnabledRef,
         textureGammaRef,
         sparkleOptionsRef,
         widthShuffleOptionsRef,
         autoplayRef,
+        undefined,
+        textureAdjustmentsRef,
+        sourceTransformRef,
       ),
     ];
   }, [loadState, displaySize]);

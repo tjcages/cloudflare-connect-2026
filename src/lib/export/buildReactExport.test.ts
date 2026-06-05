@@ -58,6 +58,46 @@ describe("buildReactExport", () => {
     expect(bundle.files.some((file) => file.relativePath.endsWith("index.ts"))).toBe(false);
     expect(bundle.files.some((file) => file.relativePath.endsWith("/scene.ts"))).toBe(true);
     expect(bundle.files.some((file) => file.relativePath.includes("/runtime/computeBlockGrid.ts"))).toBe(true);
+    expect(bundle.files.some((file) => file.relativePath.includes("/runtime/playgroundTextureAdjustments.ts"))).toBe(
+      true,
+    );
+    expect(bundle.files.some((file) => file.relativePath.includes("/runtime/playgroundSourceTransform.ts"))).toBe(true);
+  });
+
+  it("includes non-default texture controls in generated defaultConfig", () => {
+    const snapshot = buildPlaygroundExportSnapshot({
+      config: {
+        duotoneEnabled: true,
+        stripesEnabled: false,
+        textureAdjustments: {
+          brightness: 0.1,
+          exposure: 0.2,
+          contrast: 1.5,
+          blackPoint: 0.1,
+          whitePoint: 0.9,
+          gamma: 0.8,
+          invert: true,
+          posterizeLevels: 4,
+          thresholdBias: 0.05,
+          noiseAmount: 0.1,
+          blurRadius: 1,
+          sharpenAmount: 0.5,
+        },
+        sourceTransform: { fit: "cover", zoom: 1.25, panX: 0.2, panY: -0.2 },
+        stripes: cloneDefaultStripes(),
+      },
+      displayWidth: 640,
+      displayHeight: 360,
+      mediaKind: "image",
+    });
+    const bundle = buildReactExport(snapshot, { targetDir: "components" });
+    const typesSource = bundle.files.find((file) => file.relativePath.endsWith("/types.ts"))?.content ?? "";
+
+    expect(typesSource).toContain("textureAdjustments");
+    expect(typesSource).toContain('"stripesEnabled": false');
+    expect(typesSource).toContain('"contrast": 1.5');
+    expect(typesSource).toContain("sourceTransform");
+    expect(typesSource).toContain('"fit": "cover"');
   });
 
   it("manual astro text is a plain description without code fences", () => {

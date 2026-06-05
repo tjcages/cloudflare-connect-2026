@@ -8,6 +8,7 @@ import {
 } from "./playgroundPersistence";
 import { DEFAULT_STRIPES } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
+import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
 
 describe("playgroundPersistence envelope migration", () => {
   afterEach(() => {
@@ -44,15 +45,15 @@ describe("playgroundPersistence envelope migration", () => {
     expect("bandBreakpoints" in config).toBe(false);
   });
 
-  it("round-trips texture gamma through serialize/parse", () => {
+  it("clamps legacy negative texture gamma through serialize/parse", () => {
     const text = serializePlaygroundState({
       duotoneEnabled: true,
       textureGamma: -50,
       stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
     });
     const parsed = parsePlaygroundStateInput(text);
-    expect(parsed.textureGamma).toBe(-50);
-    expect(JSON.parse(text).tgm).toBe(-50);
+    expect(parsed.textureGamma).toBe(0.05);
+    expect(JSON.parse(text).tgm).toBe(0.05);
   });
 
   it("omits grid config and stays v3 when grid is default", () => {
@@ -112,6 +113,52 @@ describe("playgroundPersistence envelope migration", () => {
     expect(wire.v).toBe(5);
     expect(wire.bg).toBe(backgroundCss);
     expect(parsePlaygroundStateInput(text).backgroundCss).toBe(backgroundCss);
+  });
+
+  it("round-trips texture adjustments and source transform as wire v6", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      textureAdjustments: {
+        ...DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+        exposure: 0.5,
+        contrast: 1.4,
+        gamma: 0.8,
+        invert: true,
+        blurRadius: 1,
+      },
+      sourceTransform: {
+        fit: "cover",
+        zoom: 1.5,
+        panX: 0.25,
+        panY: -0.25,
+      },
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(6);
+    expect(wire.ta).toMatchObject({ ex: 0.5, co: 1.4, gm: 0.8, iv: true, bl: 1 });
+    expect(wire.xf).toEqual({ f: "cover", z: 1.5, x: 0.25, y: -0.25 });
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.textureAdjustments?.exposure).toBe(0.5);
+    expect(parsed.textureAdjustments?.contrast).toBe(1.4);
+    expect(parsed.textureAdjustments?.gamma).toBe(0.8);
+    expect(parsed.textureAdjustments?.invert).toBe(true);
+    expect(parsed.textureAdjustments?.blurRadius).toBe(1);
+    expect(parsed.sourceTransform).toEqual({ fit: "cover", zoom: 1.5, panX: 0.25, panY: -0.25 });
+  });
+
+  it("round-trips disabled stripe overlay as wire v6", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      stripesEnabled: false,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(6);
+    expect(wire.se).toBe(false);
+    expect(parsePlaygroundStateInput(text).stripesEnabled).toBe(false);
   });
 
   it("omits blank background CSS from copied state", () => {

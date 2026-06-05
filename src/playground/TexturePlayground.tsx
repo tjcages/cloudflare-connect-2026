@@ -22,7 +22,8 @@ import {
   normalizePlaygroundBackgroundCss,
   resolveCatalogEntry,
   resolvePersistedGridConfig,
-  resolvePersistedTextureGamma,
+  resolvePersistedSourceTransform,
+  resolvePersistedTextureAdjustments,
   resolveInitialTextureId,
   revokeUploadObjectUrl,
   saveLastTextureId,
@@ -33,7 +34,6 @@ import {
 import type { PlaygroundMediaKind, PlaygroundTextureId } from "./playgroundTextures";
 import { HexColorPopover } from "../components/HexColorPopover";
 import { ControlValueInput } from "./ControlValueInput";
-import { DEFAULT_TEXTURE_GAMMA } from "./colorWhiteness";
 import { PLAYGROUND_CONTROL_INPUT_BOUNDS, PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
 import {
@@ -69,12 +69,25 @@ import { ExportReactDialog } from "./ExportReactDialog";
 import { PlaygroundControlSection } from "./PlaygroundControlSection";
 import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
 import { PlaygroundGridControls } from "./PlaygroundGridControls";
+import { PlaygroundTextureControls } from "./PlaygroundTextureControls";
 import {
   DEFAULT_PLAYGROUND_GRID_CONFIG,
   isDefaultPlaygroundGridConfig,
   normalizePlaygroundGridConfig,
   type PlaygroundGridConfig,
 } from "./playgroundGridConfig";
+import {
+  DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  isDefaultPlaygroundSourceTransform,
+  normalizePlaygroundSourceTransform,
+  type PlaygroundSourceTransform,
+} from "./playgroundSourceTransform";
+import {
+  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  isDefaultPlaygroundTextureAdjustments,
+  normalizePlaygroundTextureAdjustments,
+  type PlaygroundTextureAdjustments,
+} from "./playgroundTextureAdjustments";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
   cloneDefaultStripes,
@@ -89,6 +102,7 @@ import {
   type StripeColors,
 } from "./stripeColors";
 import { applyCanvasBackgroundCss } from "./canvasBackgroundCss";
+import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
 
 /** Bordered grid-cell styling for stripe numeric fields (commit on Enter/blur). */
 const STRIPE_FIELD_INPUT_CLASS =
@@ -214,8 +228,10 @@ function disposeImageElement(image: HTMLImageElement) {
 function applyPersistedConfig(config: PlaygroundPersistedConfig) {
   return {
     duotoneEnabled: config.duotoneEnabled,
+    stripesEnabled: config.stripesEnabled !== false,
     backgroundCss: normalizePlaygroundBackgroundCss(config.backgroundCss),
-    textureGamma: resolvePersistedTextureGamma(config),
+    textureAdjustments: resolvePersistedTextureAdjustments(config),
+    sourceTransform: resolvePersistedSourceTransform(config),
     sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(config),
     sparkleGapsSpeed: resolvePersistedSparkleGapsSpeed(config),
     sparkleWidthActivePercent: resolvePersistedSparkleWidthActivePercent(config),
@@ -312,8 +328,12 @@ export function TexturePlayground() {
   const [selectedTextureId, setSelectedTextureId] = useState<PlaygroundTextureId>(initialId);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
+  const [stripesEnabled, setStripesEnabled] = useState(appliedInitial.stripesEnabled);
   const [backgroundCss, setBackgroundCss] = useState(appliedInitial.backgroundCss ?? "");
-  const [textureGamma, setTextureGamma] = useState(appliedInitial.textureGamma);
+  const [textureAdjustments, setTextureAdjustments] = useState<PlaygroundTextureAdjustments>(
+    appliedInitial.textureAdjustments,
+  );
+  const [sourceTransform, setSourceTransform] = useState<PlaygroundSourceTransform>(appliedInitial.sourceTransform);
   const [sparkleGapsActivePercent, setSparkleGapsActivePercent] = useState(appliedInitial.sparkleGapsActivePercent);
   const [sparkleGapsSpeed, setSparkleGapsSpeed] = useState(appliedInitial.sparkleGapsSpeed);
   const [sparkleWidthActivePercent, setSparkleWidthActivePercent] = useState(appliedInitial.sparkleWidthActivePercent);
@@ -334,6 +354,7 @@ export function TexturePlayground() {
   const [sourceWidth, setSourceWidth] = useState(0);
   const [sourceHeight, setSourceHeight] = useState(0);
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
+  const textureGamma = textureAdjustments.gamma;
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -345,7 +366,10 @@ export function TexturePlayground() {
   gridConfigRef.current = gridConfig;
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
+  const stripesEnabledRef = useRef(stripesEnabled);
   const textureGammaRef = useRef(textureGamma);
+  const textureAdjustmentsRef = useRef(textureAdjustments);
+  const sourceTransformRef = useRef(sourceTransform);
   const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromSliders(sparkleGapsActivePercent, sparkleGapsSpeed));
   const widthShuffleOptionsRef = useRef(
     playgroundWidthShuffleOptionsFromSliders(sparkleWidthActivePercent, sparkleWidthSpeed),
@@ -381,8 +405,20 @@ export function TexturePlayground() {
   }, [duotoneEnabled]);
 
   useEffect(() => {
+    stripesEnabledRef.current = stripesEnabled;
+  }, [stripesEnabled]);
+
+  useEffect(() => {
     textureGammaRef.current = textureGamma;
   }, [textureGamma]);
+
+  useEffect(() => {
+    textureAdjustmentsRef.current = textureAdjustments;
+  }, [textureAdjustments]);
+
+  useEffect(() => {
+    sourceTransformRef.current = sourceTransform;
+  }, [sourceTransform]);
 
   useEffect(() => {
     sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(
@@ -415,7 +451,9 @@ export function TexturePlayground() {
   const persistCurrentConfig = useCallback(() => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
-      textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
+      stripesEnabled: stripesEnabled ? undefined : false,
+      textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? undefined : textureAdjustments,
+      sourceTransform: isDefaultPlaygroundSourceTransform(sourceTransform) ? undefined : sourceTransform,
       sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
       sparkleGapsSpeed:
         sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
@@ -436,7 +474,9 @@ export function TexturePlayground() {
   }, [
     selectedTextureId,
     duotoneEnabled,
-    textureGamma,
+    stripesEnabled,
+    textureAdjustments,
+    sourceTransform,
     sparkleGapsActivePercent,
     sparkleGapsSpeed,
     sparkleWidthActivePercent,
@@ -465,8 +505,10 @@ export function TexturePlayground() {
   const applyConfig = useCallback((config: PlaygroundPersistedConfig) => {
     const next = applyPersistedConfig(config);
     setDuotoneEnabled(next.duotoneEnabled);
+    setStripesEnabled(next.stripesEnabled);
     setBackgroundCss(next.backgroundCss ?? "");
-    setTextureGamma(next.textureGamma);
+    setTextureAdjustments(next.textureAdjustments);
+    setSourceTransform(next.sourceTransform);
     setSparkleGapsActivePercent(resolvePersistedSparkleGapsActivePercent(config));
     setSparkleGapsSpeed(resolvePersistedSparkleGapsSpeed(config));
     setSparkleWidthActivePercent(resolvePersistedSparkleWidthActivePercent(next));
@@ -525,6 +567,7 @@ export function TexturePlayground() {
   }, []);
 
   const resetStripes = useCallback(() => {
+    setStripesEnabled(true);
     setStripes(cloneDefaultStripes());
   }, []);
 
@@ -570,11 +613,50 @@ export function TexturePlayground() {
 
   const resetGeneral = useCallback(() => {
     setDuotoneEnabled(true);
-    setTextureGamma(DEFAULT_TEXTURE_GAMMA);
   }, []);
 
   const resetBackground = useCallback(() => {
     setBackgroundCss("");
+  }, []);
+
+  const updateTextureAdjustments = useCallback((patch: Partial<PlaygroundTextureAdjustments>) => {
+    setTextureAdjustments((previous) => normalizePlaygroundTextureAdjustments({ ...previous, ...patch }));
+  }, []);
+
+  const updateSourceTransform = useCallback((patch: Partial<PlaygroundSourceTransform>) => {
+    setSourceTransform((previous) => normalizePlaygroundSourceTransform({ ...previous, ...patch }));
+  }, []);
+
+  const resetTextureTone = useCallback(() => {
+    setTextureAdjustments((previous) =>
+      normalizePlaygroundTextureAdjustments({
+        ...previous,
+        brightness: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.brightness,
+        exposure: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.exposure,
+        contrast: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.contrast,
+        gamma: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.gamma,
+        invert: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.invert,
+      }),
+    );
+  }, []);
+
+  const resetTextureEffects = useCallback(() => {
+    setTextureAdjustments((previous) =>
+      normalizePlaygroundTextureAdjustments({
+        ...previous,
+        blackPoint: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.blackPoint,
+        whitePoint: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.whitePoint,
+        thresholdBias: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.thresholdBias,
+        posterizeLevels: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.posterizeLevels,
+        noiseAmount: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.noiseAmount,
+        blurRadius: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.blurRadius,
+        sharpenAmount: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.sharpenAmount,
+      }),
+    );
+  }, []);
+
+  const resetSourceTransform = useCallback(() => {
+    setSourceTransform(DEFAULT_PLAYGROUND_SOURCE_TRANSFORM);
   }, []);
 
   const resetSparkleGaps = useCallback(() => {
@@ -587,9 +669,24 @@ export function TexturePlayground() {
     setSparkleWidthSpeed(DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED);
   }, []);
 
-  const generalModified = !duotoneEnabled || textureGamma !== DEFAULT_TEXTURE_GAMMA;
+  const generalModified = !duotoneEnabled;
   const backgroundModified = normalizePlaygroundBackgroundCss(backgroundCss) !== undefined;
-  const stripesModified = !stripesMatchDefault(stripes);
+  const textureToneModified =
+    textureAdjustments.brightness !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.brightness ||
+    textureAdjustments.exposure !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.exposure ||
+    textureAdjustments.contrast !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.contrast ||
+    textureAdjustments.gamma !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.gamma ||
+    textureAdjustments.invert !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.invert;
+  const textureEffectsModified =
+    textureAdjustments.blackPoint !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.blackPoint ||
+    textureAdjustments.whitePoint !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.whitePoint ||
+    textureAdjustments.thresholdBias !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.thresholdBias ||
+    textureAdjustments.posterizeLevels !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.posterizeLevels ||
+    textureAdjustments.noiseAmount !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.noiseAmount ||
+    textureAdjustments.blurRadius !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.blurRadius ||
+    textureAdjustments.sharpenAmount !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.sharpenAmount;
+  const sourceTransformModified = !isDefaultPlaygroundSourceTransform(sourceTransform);
+  const stripesModified = !stripesEnabled || !stripesMatchDefault(stripes);
   const sparkleGapsModified =
     sparkleGapsActivePercent !== 0 || sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
   const sparkleWidthModified =
@@ -718,6 +815,7 @@ export function TexturePlayground() {
     (): PlaygroundDisplaySize => ({ width: displayWidth, height: displayHeight }),
     [displayWidth, displayHeight],
   );
+  const duotoneControlsDisabled = !duotoneEnabled;
 
   useEffect(() => {
     if (!canvasElement) {
@@ -725,6 +823,19 @@ export function TexturePlayground() {
     }
     applyCanvasBackgroundCss(canvasElement, backgroundCss, displaySize);
   }, [backgroundCss, canvasElement, displaySize]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (duotoneControlsDisabled || !shouldToggleStripesFromShortcut(event)) {
+        return;
+      }
+      event.preventDefault();
+      setStripesEnabled((current) => !current);
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [duotoneControlsDisabled]);
 
   const tickers = useMemo(() => {
     if (loadState.status !== "ready" || displayWidth <= 0 || displayHeight <= 0) {
@@ -741,12 +852,15 @@ export function TexturePlayground() {
         stripeColorsRef,
         preferP3Ref,
         duotoneEnabledRef,
+        stripesEnabledRef,
         textureGammaRef,
         sparkleOptionsRef,
         widthShuffleOptionsRef,
         autoplayRef,
         exportStateRef,
         gridConfigRef,
+        textureAdjustmentsRef,
+        sourceTransformRef,
       ),
     ];
   }, [loadState, displayWidth, displayHeight, displaySize]);
@@ -777,7 +891,9 @@ export function TexturePlayground() {
   const onCopyState = async () => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
-      textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
+      stripesEnabled: stripesEnabled ? undefined : false,
+      textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? undefined : textureAdjustments,
+      sourceTransform: isDefaultPlaygroundSourceTransform(sourceTransform) ? undefined : sourceTransform,
       sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
       sparkleGapsSpeed:
         sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
@@ -836,7 +952,7 @@ export function TexturePlayground() {
   };
 
   const onExportSvg = async () => {
-    if (!duotoneEnabled || loadState.status !== "ready") {
+    if (!duotoneEnabled || !stripesEnabled || loadState.status !== "ready") {
       return;
     }
 
@@ -865,8 +981,8 @@ export function TexturePlayground() {
 
     const frame =
       loadState.kind === "video"
-        ? sampleVideoFrame(loadState.video, display.width, display.height, sampleCanvas, sampleCtx)
-        : sampleTextureFrame(loadState.image, display.width, display.height, sampleCanvas, sampleCtx);
+        ? sampleVideoFrame(loadState.video, display.width, display.height, sampleCanvas, sampleCtx, sourceTransform)
+        : sampleTextureFrame(loadState.image, display.width, display.height, sampleCanvas, sampleCtx, sourceTransform);
     if (!frame) {
       setExportFeedback("failed");
       window.setTimeout(() => setExportFeedback("idle"), 1600);
@@ -874,7 +990,9 @@ export function TexturePlayground() {
     }
 
     const colors = stripeColorsRef.current;
-    const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, {}, textureGamma);
+    const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, {}, textureGamma, {
+      textureAdjustments,
+    });
     const svg = stripeGridToSvg(built.grid, colors, display.width, display.height);
 
     try {
@@ -901,7 +1019,11 @@ export function TexturePlayground() {
       buildPlaygroundExportSnapshot({
         config: {
           duotoneEnabled,
-          textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
+          stripesEnabled: stripesEnabled ? undefined : false,
+          textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments)
+            ? undefined
+            : textureAdjustments,
+          sourceTransform: isDefaultPlaygroundSourceTransform(sourceTransform) ? undefined : sourceTransform,
           sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
           sparkleGapsSpeed:
             sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
@@ -923,7 +1045,9 @@ export function TexturePlayground() {
       }),
     [
       duotoneEnabled,
-      textureGamma,
+      stripesEnabled,
+      textureAdjustments,
+      sourceTransform,
       sparkleGapsActivePercent,
       sparkleGapsSpeed,
       sparkleWidthActivePercent,
@@ -948,7 +1072,7 @@ export function TexturePlayground() {
   // media kind, and canvas size require a fresh scene.
   const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}`;
   const isVideoSource = loadState.kind === "video";
-  const duotoneControlsDisabled = !duotoneEnabled;
+  const stripeControlsDisabled = duotoneControlsDisabled || !stripesEnabled;
 
   const copyLabel = copyFeedback === "copied" ? "Copied" : copyFeedback === "failed" ? "Copy failed" : "Copy state";
   const importStatus =
@@ -1060,33 +1184,21 @@ export function TexturePlayground() {
               />
               <span className="text-neutral-800">Shader enabled</span>
             </label>
-            <ControlField
-              label="Gamma"
-              value={textureGamma}
-              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.textureGamma.min}
-              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.textureGamma.max}
-              commitMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.textureGamma.min}
-              commitMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.textureGamma.max}
-              onValueChange={setTextureGamma}
-              formatDisplay={(v) => String(v)}
-              formatEditValue={(v) => String(v)}
-              valueAriaLabel="Texture luminance gamma"
-            >
-              <input
-                type="range"
-                min={PLAYGROUND_CONTROL_RANGES.textureGamma.min}
-                max={PLAYGROUND_CONTROL_RANGES.textureGamma.max}
-                step={PLAYGROUND_CONTROL_RANGES.textureGamma.step}
-                value={Math.min(
-                  PLAYGROUND_CONTROL_RANGES.textureGamma.max,
-                  Math.max(PLAYGROUND_CONTROL_RANGES.textureGamma.min, textureGamma),
-                )}
-                onChange={(event) => setTextureGamma(Number(event.target.value))}
-                className="w-full accent-neutral-700"
-                aria-label="Texture luminance gamma slider"
-              />
-            </ControlField>
           </PlaygroundControlSection>
+
+          <PlaygroundTextureControls
+            adjustments={textureAdjustments}
+            sourceTransform={sourceTransform}
+            onAdjustmentsChange={updateTextureAdjustments}
+            onSourceTransformChange={updateSourceTransform}
+            onResetTone={resetTextureTone}
+            onResetSource={resetSourceTransform}
+            onResetEffects={resetTextureEffects}
+            toneModified={textureToneModified}
+            sourceModified={sourceTransformModified}
+            effectsModified={textureEffectsModified}
+            disabled={duotoneControlsDisabled}
+          />
 
           <PlaygroundControlSection
             title="Background"
@@ -1135,7 +1247,24 @@ export function TexturePlayground() {
             modified={stripesModified}
             onReset={resetStripes}
           >
-            <div className={`flex flex-col gap-1.5 ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
+            <label className={`flex items-center gap-2 text-sm ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
+              <input
+                type="checkbox"
+                checked={stripesEnabled}
+                disabled={duotoneControlsDisabled}
+                onChange={(event) => setStripesEnabled(event.target.checked)}
+                className="size-4 cursor-pointer rounded border-neutral-300 disabled:cursor-not-allowed"
+                aria-label="Stripes enabled"
+                aria-keyshortcuts="Shift+S"
+              />
+              <span className="flex flex-1 items-center justify-between gap-2 text-neutral-800">
+                <span>Stripes enabled</span>
+                <kbd className="rounded border border-neutral-300 bg-neutral-50 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-neutral-500">
+                  Shift S
+                </kbd>
+              </span>
+            </label>
+            <div className={`flex flex-col gap-1.5 ${stripeControlsDisabled ? "opacity-40" : ""}`}>
               {stripes.length === 0 ? (
                 <p className="m-0 text-xs text-neutral-500">No stripes.</p>
               ) : (
@@ -1153,7 +1282,7 @@ export function TexturePlayground() {
                 >
                   <HexColorPopover
                     color={stripe.hex}
-                    disabled={duotoneControlsDisabled}
+                    disabled={stripeControlsDisabled}
                     onChange={(hex) => onStripeColorChange(stripe.id, hex)}
                     ariaLabel="Stripe color"
                     triggerClassName="playground-stripe-swatch block h-7 w-7 overflow-hidden rounded border border-neutral-200"
@@ -1168,7 +1297,7 @@ export function TexturePlayground() {
                     value={stripe.startFrom}
                     inputMin={STRIPE_START_FROM_MIN}
                     inputMax={STRIPE_START_FROM_MAX}
-                    disabled={duotoneControlsDisabled}
+                    disabled={stripeControlsDisabled}
                     onChange={(value) => onStripeStartFromChange(stripe.id, value)}
                     ariaLabel="Stripe start from luminance"
                     title="Start from (0–1 luminance)"
@@ -1180,7 +1309,7 @@ export function TexturePlayground() {
                     inputMax={STRIPE_WIDTH_STORAGE_MAX}
                     commitMin={STRIPE_WIDTH_MIN}
                     commitMax={STRIPE_WIDTH_STORAGE_MAX}
-                    disabled={duotoneControlsDisabled}
+                    disabled={stripeControlsDisabled}
                     onChange={(value) => onStripeWidthChange(stripe.id, value)}
                     ariaLabel="Stripe width in px"
                     title="Width (px)"
@@ -1388,7 +1517,7 @@ export function TexturePlayground() {
                 type="button"
                 className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => void onExportSvg()}
-                disabled={!duotoneEnabled}
+                disabled={!duotoneEnabled || !stripesEnabled}
               >
                 {exportLabel}
               </button>

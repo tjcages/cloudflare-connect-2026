@@ -18,6 +18,8 @@ import stripeLetterFontSource from "./portable/runtime/stripeLetterFont.ts?raw";
 import stripeLetterLayerSource from "./portable/runtime/stripeLetterLayer.ts?raw";
 import stripeLetterPlacementsSource from "./portable/runtime/stripeLetterPlacements.ts?raw";
 import playgroundSparkleSource from "./portable/runtime/playgroundSparkle.ts?raw";
+import playgroundSourceTransformSource from "./portable/runtime/playgroundSourceTransform.ts?raw";
+import playgroundTextureAdjustmentsSource from "./portable/runtime/playgroundTextureAdjustments.ts?raw";
 
 const RUNTIME_SOURCES: Record<string, string> = {
   "blockGridTexture.ts": blockGridTextureSource,
@@ -33,6 +35,8 @@ const RUNTIME_SOURCES: Record<string, string> = {
   "stripeLetterLayer.ts": stripeLetterLayerSource,
   "stripeLetterPlacements.ts": stripeLetterPlacementsSource,
   "playgroundSparkle.ts": playgroundSparkleSource,
+  "playgroundSourceTransform.ts": playgroundSourceTransformSource,
+  "playgroundTextureAdjustments.ts": playgroundTextureAdjustmentsSource,
 };
 
 export type PortableExportFile = {

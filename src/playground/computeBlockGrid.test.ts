@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeBlockGrid } from "./computeBlockGrid";
+import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
 
 /** Build an RGBA buffer where a left/right split is white/black. */
 function splitImage(width: number, height: number, whiteCols: number): Uint8ClampedArray {
@@ -48,5 +49,25 @@ describe("computeBlockGrid cell sizing", () => {
     expect(coarse.cols).toBe(1);
     expect(fine.cols).toBe(4);
     expect(fine.rows).toBe(4);
+  });
+
+  it("applies texture adjustments before luma values are stored", () => {
+    const data = splitImage(1, 1, 1);
+    const grid = computeBlockGrid(data, 1, 1, 1, 1, 1, {
+      ...DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      invert: true,
+    });
+
+    expect(grid.luma[0]).toBe(0);
+  });
+
+  it("applies grid-level blur to luma cells", () => {
+    const data = splitImage(3, 1, 1);
+    const grid = computeBlockGrid(data, 3, 1, 1, 1, 1, {
+      ...DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      blurRadius: 1,
+    });
+
+    expect(Array.from(grid.luma)).toEqual([128, 85, 0]);
   });
 });

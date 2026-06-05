@@ -1,7 +1,7 @@
 import { Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
 import type { Ticker } from "./pixi";
-import { createStripeDuotoneFilter } from "./shaders";
+import { createSourceTextureFilter, createStripeDuotoneFilter } from "./shaders";
 import type { StripeColors } from "./types";
 import { BlockGridTexture } from "./runtime/blockGridTexture";
 import type { BlockGrid } from "./runtime/computeBlockGrid";
@@ -15,6 +15,15 @@ import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./runtime/stri
 import type { PlaygroundSparkleOptions } from "./runtime/playgroundSparkle";
 import type { PlaygroundWidthShuffleOptions } from "./runtime/playgroundWidthShuffle";
 import { createStripeLetterLayer, type StripeLetterLayer } from "./runtime/stripeLetterLayer";
+import {
+  DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  resolvePlaygroundDrawRects,
+  type PlaygroundSourceTransform,
+} from "./runtime/playgroundSourceTransform";
+import {
+  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  type PlaygroundTextureAdjustments,
+} from "./runtime/playgroundTextureAdjustments";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -47,6 +56,15 @@ export type PlaygroundSceneExportState = {
 export type PlaygroundTextureSource =
   | { kind: "video"; element: HTMLVideoElement }
   | { kind: "image"; element: HTMLImageElement };
+
+type TextureFilterMode = "off" | "preview" | "stripes";
+
+function resolveTextureFilterMode(duotoneEnabled: boolean, stripesEnabled: boolean): TextureFilterMode {
+  if (!duotoneEnabled) {
+    return "off";
+  }
+  return stripesEnabled ? "stripes" : "preview";
+}
 
 /** Native pixel dimensions from the loaded texture source. */
 export function getPlaygroundTextureNativeSize(source: PlaygroundTextureSource): PlaygroundDisplaySize {
@@ -99,15 +117,24 @@ export function getPlaygroundDisplaySize(
   return { width, height };
 }
 
-function syncSpriteToDisplay(sprite: Sprite, source: PlaygroundTextureSource, display: PlaygroundDisplaySize) {
+function syncSpriteToDisplay(
+  sprite: Sprite,
+  source: PlaygroundTextureSource,
+  display: PlaygroundDisplaySize,
+  sourceTransform: PlaygroundSourceTransform,
+) {
   const native = getPlaygroundTextureNativeSize(source);
   if (native.width <= 0 || native.height <= 0 || display.width <= 0 || display.height <= 0) {
     return;
   }
 
+  const { source: sourceRect, destination } = resolvePlaygroundDrawRects(native, display, sourceTransform);
   sprite.anchor.set(0, 0);
-  sprite.position.set(0, 0);
-  sprite.scale.set(display.width / native.width, display.height / native.height);
+  sprite.position.set(
+    destination.dx - sourceRect.sx * (destination.dw / sourceRect.sw),
+    destination.dy - sourceRect.sy * (destination.dh / sourceRect.sh),
+  );
+  sprite.scale.set(destination.dw / sourceRect.sw, destination.dh / sourceRect.sh);
 }
 
 function createPlaygroundLetterLayer(
@@ -125,13 +152,17 @@ function runDuotoneTick(params: {
   app: Parameters<Ticker>[0]["app"];
   sprite: Sprite;
   stripeFilter: ReturnType<typeof createStripeDuotoneFilter>;
+  sourceTextureFilter: ReturnType<typeof createSourceTextureFilter>;
   letterLayer: StripeLetterLayer;
   duotoneEnabledRef: RefObject<boolean>;
+  stripesEnabledRef: RefObject<boolean>;
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>;
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>;
   stripeColorsRef: RefObject<StripeColors>;
   preferP3Ref: RefObject<boolean>;
   textureGammaRef: RefObject<number>;
+  textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>;
+  sourceTransformRef: RefObject<PlaygroundSourceTransform>;
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
@@ -144,13 +175,17 @@ function runDuotoneTick(params: {
     app,
     sprite,
     stripeFilter,
+    sourceTextureFilter,
     letterLayer,
     duotoneEnabledRef,
+    stripesEnabledRef,
     sparkleOptionsRef,
     widthShuffleOptionsRef,
     stripeColorsRef,
     preferP3Ref,
     textureGammaRef,
+    textureAdjustmentsRef,
+    sourceTransformRef,
     display,
     blockGridTexture,
     exportStateRef,
@@ -160,7 +195,7 @@ function runDuotoneTick(params: {
     onSampled,
   } = params;
 
-  let duotoneActive = duotoneEnabledRef.current;
+  let textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
   let lastColorsKey = "";
   let gridState: PlaygroundGridBuildState = {};
   let lastGridUpdateMs = 0;
@@ -168,13 +203,22 @@ function runDuotoneTick(params: {
 
   return () => {
     syncVisual();
+    sourceTextureFilter.syncAdjustments({
+      ...textureAdjustmentsRef.current,
+      gamma: textureGammaRef.current,
+    });
 
-    const duotoneEnabled = duotoneEnabledRef.current;
-    if (duotoneEnabled !== duotoneActive) {
-      duotoneActive = duotoneEnabled;
-      sprite.filters = duotoneActive ? [stripeFilter] : null;
-      letterLayer.setVisible(duotoneActive);
-      if (duotoneActive) {
+    const nextTextureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
+    if (nextTextureFilterMode !== textureFilterMode) {
+      textureFilterMode = nextTextureFilterMode;
+      sprite.filters =
+        textureFilterMode === "stripes"
+          ? [stripeFilter]
+          : textureFilterMode === "preview"
+            ? [sourceTextureFilter]
+            : null;
+      letterLayer.setVisible(textureFilterMode === "stripes");
+      if (textureFilterMode === "stripes") {
         lastColorsKey = "";
         hasBuiltGrid = false;
       } else {
@@ -182,7 +226,7 @@ function runDuotoneTick(params: {
       }
     }
 
-    if (!duotoneActive) {
+    if (textureFilterMode !== "stripes") {
       if (exportStateRef) {
         exportStateRef.current = {
           grid: null,
@@ -200,6 +244,8 @@ function runDuotoneTick(params: {
       colors,
       preferP3: preferP3Ref.current,
       gamma: textureGammaRef.current,
+      textureAdjustments: textureAdjustmentsRef.current,
+      sourceTransform: sourceTransformRef.current,
     });
     const colorsChanged = colorsKey !== lastColorsKey;
     const timeChanged = shouldSample();
@@ -235,6 +281,12 @@ function runDuotoneTick(params: {
         colors,
         gridState,
         textureGammaRef.current,
+        {
+          textureAdjustments: {
+            ...textureAdjustmentsRef.current,
+            gamma: textureGammaRef.current,
+          },
+        },
       );
       gridState = built.state;
       blockGridTexture.update(built.grid);
@@ -284,11 +336,14 @@ export function createTextureSceneTicker(
   stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  stripesEnabledRef: RefObject<boolean>,
   textureGammaRef: RefObject<number>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
+  textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = { current: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS },
+  sourceTransformRef: RefObject<PlaygroundSourceTransform> = { current: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM },
 ): Ticker {
   if (source.kind === "image") {
     return createImageSceneTicker(
@@ -297,9 +352,12 @@ export function createTextureSceneTicker(
       stripeColorsRef,
       preferP3Ref,
       duotoneEnabledRef,
+      stripesEnabledRef,
       textureGammaRef,
       sparkleOptionsRef,
       widthShuffleOptionsRef,
+      textureAdjustmentsRef,
+      sourceTransformRef,
       exportStateRef,
     );
   }
@@ -309,10 +367,13 @@ export function createTextureSceneTicker(
     stripeColorsRef,
     preferP3Ref,
     duotoneEnabledRef,
+    stripesEnabledRef,
     textureGammaRef,
     sparkleOptionsRef,
     widthShuffleOptionsRef,
     autoplayRef,
+    textureAdjustmentsRef,
+    sourceTransformRef,
     exportStateRef,
   );
 }
@@ -323,17 +384,21 @@ function createImageSceneTicker(
   stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  stripesEnabledRef: RefObject<boolean>,
   textureGammaRef: RefObject<number>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
+  textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
+  sourceTransformRef: RefObject<PlaygroundSourceTransform>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
     const texture = Texture.from(image);
     const sprite = new Sprite(texture);
-    syncSpriteToDisplay(sprite, { kind: "image", element: image }, display);
+    syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current);
 
-    const onLayoutChange = () => syncSpriteToDisplay(sprite, { kind: "image", element: image }, display);
+    const onLayoutChange = () =>
+      syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current);
     image.addEventListener("load", onLayoutChange);
 
     const sampleCanvas = document.createElement("canvas");
@@ -352,28 +417,39 @@ function createImageSceneTicker(
       stripeColorsRef.current,
       preferP3Ref.current,
     );
-    let duotoneActive = duotoneEnabledRef.current;
-    sprite.filters = duotoneActive ? [stripeFilter] : null;
+    const sourceTextureFilter = createSourceTextureFilter({
+      ...textureAdjustmentsRef.current,
+      gamma: textureGammaRef.current,
+    });
+    const textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
+    sprite.filters =
+      textureFilterMode === "stripes" ? [stripeFilter] : textureFilterMode === "preview" ? [sourceTextureFilter] : null;
     app.stage.addChild(sprite);
-    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive);
+    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes");
 
     const renderTick = runDuotoneTick({
       app,
       sprite,
       stripeFilter,
+      sourceTextureFilter,
       letterLayer,
       duotoneEnabledRef,
+      stripesEnabledRef,
       sparkleOptionsRef,
       widthShuffleOptionsRef,
       stripeColorsRef,
       preferP3Ref,
       textureGammaRef,
+      textureAdjustmentsRef,
+      sourceTransformRef,
       display,
       blockGridTexture,
       exportStateRef,
-      syncVisual: () => syncSpriteToDisplay(sprite, { kind: "image", element: image }, display),
+      syncVisual: () =>
+        syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current),
       shouldSample: () => false,
-      sampleFrame: () => sampleTextureFrame(image, display.width, display.height, sampleCanvas, sampleCtx),
+      sampleFrame: () =>
+        sampleTextureFrame(image, display.width, display.height, sampleCanvas, sampleCtx, sourceTransformRef.current),
     });
 
     app.ticker.add(renderTick);
@@ -398,10 +474,13 @@ function createVideoSceneTickerInternal(
   stripeColorsRef: RefObject<StripeColors>,
   preferP3Ref: RefObject<boolean>,
   duotoneEnabledRef: RefObject<boolean>,
+  stripesEnabledRef: RefObject<boolean>,
   textureGammaRef: RefObject<number>,
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
+  textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
+  sourceTransformRef: RefObject<PlaygroundSourceTransform>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -410,9 +489,10 @@ function createVideoSceneTickerInternal(
     });
     const texture = new Texture({ source: videoSource });
     const sprite = new Sprite(texture);
-    syncSpriteToDisplay(sprite, { kind: "video", element: video }, display);
+    syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current);
 
-    const onVideoLayoutChange = () => syncSpriteToDisplay(sprite, { kind: "video", element: video }, display);
+    const onVideoLayoutChange = () =>
+      syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current);
     video.addEventListener("loadedmetadata", onVideoLayoutChange);
     videoSource.on("resize", onVideoLayoutChange);
     videoSource.on("update", onVideoLayoutChange);
@@ -433,10 +513,15 @@ function createVideoSceneTickerInternal(
       stripeColorsRef.current,
       preferP3Ref.current,
     );
-    let duotoneActive = duotoneEnabledRef.current;
-    sprite.filters = duotoneActive ? [stripeFilter] : null;
+    const sourceTextureFilter = createSourceTextureFilter({
+      ...textureAdjustmentsRef.current,
+      gamma: textureGammaRef.current,
+    });
+    const textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
+    sprite.filters =
+      textureFilterMode === "stripes" ? [stripeFilter] : textureFilterMode === "preview" ? [sourceTextureFilter] : null;
     app.stage.addChild(sprite);
-    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, duotoneActive);
+    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes");
 
     let lastSampledTime = -1;
 
@@ -444,19 +529,25 @@ function createVideoSceneTickerInternal(
       app,
       sprite,
       stripeFilter,
+      sourceTextureFilter,
       letterLayer,
       duotoneEnabledRef,
+      stripesEnabledRef,
       sparkleOptionsRef,
       widthShuffleOptionsRef,
       stripeColorsRef,
       preferP3Ref,
       textureGammaRef,
+      textureAdjustmentsRef,
+      sourceTransformRef,
       display,
       blockGridTexture,
       exportStateRef,
-      syncVisual: () => syncSpriteToDisplay(sprite, { kind: "video", element: video }, display),
+      syncVisual: () =>
+        syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current),
       shouldSample: () => video.currentTime !== lastSampledTime,
-      sampleFrame: () => sampleVideoFrame(video, display.width, display.height, sampleCanvas, sampleCtx),
+      sampleFrame: () =>
+        sampleVideoFrame(video, display.width, display.height, sampleCanvas, sampleCtx, sourceTransformRef.current),
       onSampled: () => {
         lastSampledTime = video.currentTime;
       },
@@ -505,6 +596,7 @@ export function createVideoSceneTicker(
     stripeColorsRef,
     preferP3Ref,
     duotoneEnabledRef,
+    { current: true },
     textureGammaRef,
     sparkleOptionsRef,
     widthShuffleOptionsRef,

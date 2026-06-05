@@ -18,27 +18,27 @@ describe("applyTextureLuminanceGamma", () => {
     expect(applyTextureLuminanceGamma(0.5, 2)).toBeCloseTo(0.25);
   });
 
-  it("inverts at gamma -1", () => {
-    expect(applyTextureLuminanceGamma(0, -1)).toBe(1);
-    expect(applyTextureLuminanceGamma(1, -1)).toBe(0);
-    expect(applyTextureLuminanceGamma(0.25, -1)).toBeCloseTo(0.75);
+  it("clamps negative gamma to the positive minimum", () => {
+    expect(applyTextureLuminanceGamma(0, -1)).toBe(0);
+    expect(applyTextureLuminanceGamma(1, -1)).toBe(1);
+    expect(applyTextureLuminanceGamma(0.25, -1)).toBeCloseTo(Math.pow(0.25, TEXTURE_GAMMA_MIN));
   });
 
-  it("applies inverted power curve for gamma below -1", () => {
-    expect(applyTextureLuminanceGamma(0.5, -2)).toBeCloseTo(0.25);
+  it("uses invert luminance instead of negative gamma for inversion", () => {
+    expect(applyTextureLuminanceGamma(0.5, -2)).toBeCloseTo(Math.pow(0.5, TEXTURE_GAMMA_MIN));
   });
 
   it("clamps input luminance", () => {
     expect(applyTextureLuminanceGamma(-1, 2)).toBe(0);
-    expect(applyTextureLuminanceGamma(2, -1)).toBe(0);
+    expect(applyTextureLuminanceGamma(2, -1)).toBe(1);
   });
 });
 
 describe("normalizeTextureGamma", () => {
-  it("preserves finite values outside the slider range", () => {
-    expect(normalizeTextureGamma(TEXTURE_GAMMA_MIN)).toBe(-5);
+  it("clamps finite values to positive gamma bounds", () => {
+    expect(normalizeTextureGamma(TEXTURE_GAMMA_MIN)).toBe(TEXTURE_GAMMA_MIN);
     expect(normalizeTextureGamma(TEXTURE_GAMMA_MAX)).toBe(5);
-    expect(normalizeTextureGamma(-50)).toBe(-50);
+    expect(normalizeTextureGamma(-50)).toBe(TEXTURE_GAMMA_MIN);
     expect(normalizeTextureGamma(30)).toBe(30);
   });
 

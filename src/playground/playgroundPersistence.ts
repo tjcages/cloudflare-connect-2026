@@ -21,6 +21,19 @@ import {
   normalizeSparkleWidthSpeed,
 } from "./playgroundWidthShuffle";
 import {
+  DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  isDefaultPlaygroundSourceTransform,
+  normalizePlaygroundSourceTransform,
+  type PlaygroundSourceFit,
+  type PlaygroundSourceTransform,
+} from "./playgroundSourceTransform";
+import {
+  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  isDefaultPlaygroundTextureAdjustments,
+  normalizePlaygroundTextureAdjustments,
+  type PlaygroundTextureAdjustments,
+} from "./playgroundTextureAdjustments";
+import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_STRIPES,
   detectUploadMediaKind,
@@ -39,10 +52,17 @@ export const MAX_PLAYGROUND_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type PlaygroundPersistedConfig = {
   duotoneEnabled: boolean;
+  /** Stripe overlay visibility. False keeps the source texture visible without stripe bucketing. */
+  stripesEnabled?: boolean;
   /** Raw CSS declarations applied to the playground canvas element. */
   backgroundCss?: string;
-  /** Texture luminance gamma (-5…5). Omitted when 1. */
+  /** Positive texture luminance gamma. Omitted when 1. */
+  /** @deprecated Use textureAdjustments.gamma. */
   textureGamma?: number;
+  /** Designer texture/tone adjustments. Omitted = defaults. */
+  textureAdjustments?: PlaygroundTextureAdjustments;
+  /** Source fit/crop transform. Omitted = stretch/full source. */
+  sourceTransform?: PlaygroundSourceTransform;
   /** Active cell ratio 0–1. 0 = off. Default 0.22. */
   sparkleGapsActivePercent?: number;
   /** Gap pulse speed factor (1 = baseline). Default 1. */
@@ -70,7 +90,18 @@ export function resolvePersistedGridConfig(config: PlaygroundPersistedConfig): P
 }
 
 export function resolvePersistedTextureGamma(config: PlaygroundPersistedConfig): number {
-  return config.textureGamma !== undefined ? normalizeTextureGamma(config.textureGamma) : DEFAULT_TEXTURE_GAMMA;
+  return resolvePersistedTextureAdjustments(config).gamma;
+}
+
+export function resolvePersistedTextureAdjustments(config: PlaygroundPersistedConfig): PlaygroundTextureAdjustments {
+  return normalizePlaygroundTextureAdjustments({
+    ...config.textureAdjustments,
+    gamma: config.textureAdjustments?.gamma ?? config.textureGamma ?? DEFAULT_TEXTURE_GAMMA,
+  });
+}
+
+export function resolvePersistedSourceTransform(config: PlaygroundPersistedConfig): PlaygroundSourceTransform {
+  return normalizePlaygroundSourceTransform(config.sourceTransform);
 }
 
 export type PlaygroundUploadMeta = {
@@ -107,8 +138,9 @@ export type StripeWire = {
 };
 
 export type PlaygroundStateWire = {
-  v: 1 | 2 | 3 | 4 | 5;
+  v: 1 | 2 | 3 | 4 | 5 | 6;
   d: boolean;
+  se?: boolean;
   /** v5+: raw CSS declarations applied to the playground canvas element. */
   bg?: string;
   sk?: boolean;
@@ -117,8 +149,12 @@ export type PlaygroundStateWire = {
   sgsp?: number;
   swa?: number;
   sws?: number;
-  /** Texture luminance gamma (-5…5). Default 1 when omitted. */
+  /** Positive texture luminance gamma. Default 1 when omitted. */
   tgm?: number;
+  /** v6+: texture/tone adjustments. */
+  ta?: TextureAdjustmentsWire;
+  /** v6+: source fit/crop transform. */
+  xf?: SourceTransformWire;
   w?: number;
   h?: number;
   /** v4+: designer grid/letter/animation config (omitted = defaults). */
@@ -132,6 +168,28 @@ export type PlaygroundStateWire = {
   th?: number;
   de?: number;
   bp?: number[];
+};
+
+type TextureAdjustmentsWire = {
+  br?: number;
+  ex?: number;
+  co?: number;
+  bp?: number;
+  wp?: number;
+  gm?: number;
+  iv?: boolean;
+  po?: number;
+  tb?: number;
+  no?: number;
+  bl?: number;
+  sh?: number;
+};
+
+type SourceTransformWire = {
+  f?: PlaygroundSourceFit;
+  z?: number;
+  x?: number;
+  y?: number;
 };
 
 function stripesToWire(stripes: readonly Stripe[]): StripeWire[] {
@@ -151,6 +209,77 @@ function wireToStripes(raw: unknown): Stripe[] | undefined {
       normalizeStripe({ hex: entry.hex, p3Css: entry.p3, startFrom: Number(entry.s), width: Number(entry.w) }),
     );
   return stripes.length > 0 ? stripes : undefined;
+}
+
+function textureAdjustmentsToWire(adjustments: PlaygroundTextureAdjustments): TextureAdjustmentsWire | undefined {
+  if (isDefaultPlaygroundTextureAdjustments(adjustments)) {
+    return undefined;
+  }
+  const base = DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS;
+  const wire: TextureAdjustmentsWire = {};
+  if (adjustments.brightness !== base.brightness) wire.br = adjustments.brightness;
+  if (adjustments.exposure !== base.exposure) wire.ex = adjustments.exposure;
+  if (adjustments.contrast !== base.contrast) wire.co = adjustments.contrast;
+  if (adjustments.blackPoint !== base.blackPoint) wire.bp = adjustments.blackPoint;
+  if (adjustments.whitePoint !== base.whitePoint) wire.wp = adjustments.whitePoint;
+  if (adjustments.gamma !== base.gamma) wire.gm = adjustments.gamma;
+  if (adjustments.invert !== base.invert) wire.iv = adjustments.invert;
+  if (adjustments.posterizeLevels !== base.posterizeLevels) wire.po = adjustments.posterizeLevels;
+  if (adjustments.thresholdBias !== base.thresholdBias) wire.tb = adjustments.thresholdBias;
+  if (adjustments.noiseAmount !== base.noiseAmount) wire.no = adjustments.noiseAmount;
+  if (adjustments.blurRadius !== base.blurRadius) wire.bl = adjustments.blurRadius;
+  if (adjustments.sharpenAmount !== base.sharpenAmount) wire.sh = adjustments.sharpenAmount;
+  return wire;
+}
+
+function wireToTextureAdjustments(
+  raw: unknown,
+  legacyGamma: number | undefined,
+): PlaygroundTextureAdjustments | undefined {
+  if (!raw || typeof raw !== "object") {
+    return legacyGamma !== undefined ? normalizePlaygroundTextureAdjustments({ gamma: legacyGamma }) : undefined;
+  }
+  const wire = raw as TextureAdjustmentsWire;
+  return normalizePlaygroundTextureAdjustments({
+    brightness: wire.br,
+    exposure: wire.ex,
+    contrast: wire.co,
+    blackPoint: wire.bp,
+    whitePoint: wire.wp,
+    gamma: wire.gm ?? legacyGamma,
+    invert: wire.iv,
+    posterizeLevels: wire.po,
+    thresholdBias: wire.tb,
+    noiseAmount: wire.no,
+    blurRadius: wire.bl,
+    sharpenAmount: wire.sh,
+  });
+}
+
+function sourceTransformToWire(transform: PlaygroundSourceTransform): SourceTransformWire | undefined {
+  if (isDefaultPlaygroundSourceTransform(transform)) {
+    return undefined;
+  }
+  const base = DEFAULT_PLAYGROUND_SOURCE_TRANSFORM;
+  const wire: SourceTransformWire = {};
+  if (transform.fit !== base.fit) wire.f = transform.fit;
+  if (transform.zoom !== base.zoom) wire.z = transform.zoom;
+  if (transform.panX !== base.panX) wire.x = transform.panX;
+  if (transform.panY !== base.panY) wire.y = transform.panY;
+  return wire;
+}
+
+function wireToSourceTransform(raw: unknown): PlaygroundSourceTransform | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const wire = raw as SourceTransformWire;
+  return normalizePlaygroundSourceTransform({
+    fit: wire.f,
+    zoom: wire.z,
+    panX: wire.x,
+    panY: wire.y,
+  });
 }
 
 export function normalizePlaygroundBackgroundCss(raw: unknown): string | undefined {
@@ -416,16 +545,30 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const grid = normalizePlaygroundGridConfig(config.grid);
   const includeGrid = !isDefaultPlaygroundGridConfig(grid);
   const backgroundCss = normalizePlaygroundBackgroundCss(config.backgroundCss);
+  const textureAdjustments = resolvePersistedTextureAdjustments(config);
+  const textureAdjustmentsWire = textureAdjustmentsToWire(textureAdjustments);
+  const sourceTransform = resolvePersistedSourceTransform(config);
+  const sourceTransformWire = sourceTransformToWire(sourceTransform);
   const wire: PlaygroundStateWire = {
-    v: backgroundCss ? 5 : includeGrid ? 4 : 3,
+    v: textureAdjustmentsWire || sourceTransformWire ? 6 : backgroundCss ? 5 : includeGrid ? 4 : 3,
     d: config.duotoneEnabled,
     st: stripesToWire(config.stripes),
   };
+  if (config.stripesEnabled === false) {
+    wire.se = false;
+    wire.v = 6;
+  }
   if (includeGrid) {
     wire.gc = grid;
   }
   if (backgroundCss) {
     wire.bg = backgroundCss;
+  }
+  if (textureAdjustmentsWire) {
+    wire.ta = textureAdjustmentsWire;
+  }
+  if (sourceTransformWire) {
+    wire.xf = sourceTransformWire;
   }
   const gapsActive =
     config.sparkleGapsActivePercent !== undefined
@@ -461,7 +604,7 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   if (config.displayHeight && config.displayHeight > 0) {
     wire.h = config.displayHeight;
   }
-  const textureGamma = resolvePersistedTextureGamma(config);
+  const textureGamma = textureAdjustments.gamma;
   if (textureGamma !== DEFAULT_TEXTURE_GAMMA) {
     wire.tgm = textureGamma;
   }
@@ -575,7 +718,7 @@ function legacySparkleGapsSpeed(config: PlaygroundPersistedConfig): number {
 
 export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConfig {
   const parsed = JSON.parse(text.trim()) as Partial<PlaygroundStateWire>;
-  if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3 && parsed.v !== 4 && parsed.v !== 5) {
+  if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3 && parsed.v !== 4 && parsed.v !== 5 && parsed.v !== 6) {
     throw new Error("Unsupported playground state version.");
   }
   const wireVersion = parsed.v;
@@ -588,10 +731,17 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const stripes = wireToStripes(parsed.st) ?? cloneDefaultStripes();
   const textureGamma = parsed.tgm === undefined ? undefined : normalizeTextureGamma(Number(parsed.tgm));
   const grid = parsed.gc ? normalizePlaygroundGridConfig(parsed.gc) : undefined;
+  const textureAdjustments = wireToTextureAdjustments(parsed.ta, textureGamma);
+  const sourceTransform = wireToSourceTransform(parsed.xf);
 
   return {
     duotoneEnabled: parsed.d,
-    textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
+    stripesEnabled: parsed.se === false ? false : undefined,
+    textureGamma: textureGamma !== undefined && textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
+    textureAdjustments:
+      textureAdjustments && !isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? textureAdjustments : undefined,
+    sourceTransform:
+      sourceTransform && !isDefaultPlaygroundSourceTransform(sourceTransform) ? sourceTransform : undefined,
     sparkleGapsActivePercent: parseSparkleGapsActivePercent(parsed.sgap, parsed.sr, parsed.sk, wireVersion),
     sparkleGapsSpeed: parseSparkleGapsSpeed(parsed.sgsp, parsed.sr, parsed.sk, wireVersion),
     sparkleWidthActivePercent: parseSparkleWidthActivePercent(parsed.swa, wireVersion),

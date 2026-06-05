@@ -15,10 +15,37 @@ export type Stripe = {
 
 export type StripeColors = { stripes: Stripe[] };
 
+export type PlaygroundSourceFit = "stretch" | "contain" | "cover";
+
+export type PlaygroundTextureAdjustments = {
+  brightness: number;
+  exposure: number;
+  contrast: number;
+  blackPoint: number;
+  whitePoint: number;
+  gamma: number;
+  invert: boolean;
+  posterizeLevels: number;
+  thresholdBias: number;
+  noiseAmount: number;
+  blurRadius: number;
+  sharpenAmount: number;
+};
+
+export type PlaygroundSourceTransform = {
+  fit: PlaygroundSourceFit;
+  zoom: number;
+  panX: number;
+  panY: number;
+};
+
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
-  /** Texture luminance gamma (-5…5). Omitted when 1. */
+  stripesEnabled?: boolean;
+  /** Positive texture luminance gamma. Omitted when 1. */
   textureGamma?: number;
+  textureAdjustments?: PlaygroundTextureAdjustments;
+  sourceTransform?: PlaygroundSourceTransform;
   /** Active cell ratio 0–1. 0 = off. */
   sparkleGapsActivePercent?: number;
   /** Gap pulse speed factor (1 = baseline). */
