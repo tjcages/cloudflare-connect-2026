@@ -7,6 +7,7 @@ import { RatioControl } from "./RatioControl";
 import { Button } from "./Button";
 import { BuilderField } from "./BuilderField";
 import { BuilderFieldHeaderRow } from "./BuilderFieldHeaderRow";
+import { HexColorPopover } from "./HexColorPopover";
 import { ACTION_ICON_SIZE, ICON_STROKE_WIDTH } from "./iconTokens";
 
 type SidebarProps = {
@@ -95,7 +96,7 @@ export const Sidebar = ({
 
       <BuilderField colorField>
         <BuilderFieldHeaderRow>
-          <label htmlFor="stroke-color-input">Stroke color</label>
+          <span>Stroke color</span>
           <div className="grid size-[calc(4em/3)] shrink-0 place-items-center">
             {!strokeIsDefault ? (
               <button
@@ -110,20 +111,19 @@ export const Sidebar = ({
             ) : null}
           </div>
         </BuilderFieldHeaderRow>
-        <span className="relative flex min-h-8 w-full cursor-pointer items-center rounded-md border border-builder-hairline bg-white px-2">
+        <HexColorPopover
+          color={config.strokeColor}
+          onChange={onStrokeColorChange}
+          ariaLabel="Stroke color"
+          containerClassName="w-full"
+          triggerClassName="flex min-h-8 w-full items-center rounded-md border border-builder-hairline bg-white px-2"
+        >
           <span
             className="block h-0.5 w-full"
             data-testid="stroke-color-preview"
             style={{ backgroundColor: config.strokeColor, height: "2px" }}
           />
-          <input
-            id="stroke-color-input"
-            className="absolute inset-0 cursor-pointer opacity-0"
-            type="color"
-            value={config.strokeColor}
-            onChange={(event) => onStrokeColorChange(event.target.value)}
-          />
-        </span>
+        </HexColorPopover>
       </BuilderField>
 
       <GapMaskEditor mask={config.gapMask} onChange={onGapMaskChange} />

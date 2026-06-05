@@ -19,6 +19,7 @@ import {
   mergeCatalog,
   parsePlaygroundStateInput,
   registerUpload,
+  normalizePlaygroundBackgroundCss,
   resolveCatalogEntry,
   resolvePersistedGridConfig,
   resolvePersistedTextureGamma,
@@ -30,6 +31,7 @@ import {
   type PlaygroundPersistedConfig,
 } from "./playgroundPersistence";
 import type { PlaygroundMediaKind, PlaygroundTextureId } from "./playgroundTextures";
+import { HexColorPopover } from "../components/HexColorPopover";
 import { ControlValueInput } from "./ControlValueInput";
 import { DEFAULT_TEXTURE_GAMMA } from "./colorWhiteness";
 import { PLAYGROUND_CONTROL_INPUT_BOUNDS, PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
@@ -86,6 +88,7 @@ import {
   type Stripe,
   type StripeColors,
 } from "./stripeColors";
+import { applyCanvasBackgroundCss } from "./canvasBackgroundCss";
 
 /** Bordered grid-cell styling for stripe numeric fields (commit on Enter/blur). */
 const STRIPE_FIELD_INPUT_CLASS =
@@ -211,6 +214,7 @@ function disposeImageElement(image: HTMLImageElement) {
 function applyPersistedConfig(config: PlaygroundPersistedConfig) {
   return {
     duotoneEnabled: config.duotoneEnabled,
+    backgroundCss: normalizePlaygroundBackgroundCss(config.backgroundCss),
     textureGamma: resolvePersistedTextureGamma(config),
     sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(config),
     sparkleGapsSpeed: resolvePersistedSparkleGapsSpeed(config),
@@ -308,6 +312,7 @@ export function TexturePlayground() {
   const [selectedTextureId, setSelectedTextureId] = useState<PlaygroundTextureId>(initialId);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
+  const [backgroundCss, setBackgroundCss] = useState(appliedInitial.backgroundCss ?? "");
   const [textureGamma, setTextureGamma] = useState(appliedInitial.textureGamma);
   const [sparkleGapsActivePercent, setSparkleGapsActivePercent] = useState(appliedInitial.sparkleGapsActivePercent);
   const [sparkleGapsSpeed, setSparkleGapsSpeed] = useState(appliedInitial.sparkleGapsSpeed);
@@ -328,9 +333,11 @@ export function TexturePlayground() {
   const [displayHeight, setDisplayHeight] = useState(0);
   const [sourceWidth, setSourceWidth] = useState(0);
   const [sourceHeight, setSourceHeight] = useState(0);
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const stripeColorsRef = useRef<StripeColors>({ stripes });
   const gridConfigRef = useRef<PlaygroundGridConfig>(gridConfig);
@@ -347,6 +354,11 @@ export function TexturePlayground() {
   const exportStateRef = useRef<PlaygroundSceneExportState | null>(null);
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sampleCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  const setCanvasNode = useCallback((node: HTMLCanvasElement | null) => {
+    canvasRef.current = node;
+    setCanvasElement(node);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -416,6 +428,7 @@ export function TexturePlayground() {
       sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
       displayHeight: displayHeight > 0 ? displayHeight : undefined,
+      backgroundCss: normalizePlaygroundBackgroundCss(backgroundCss),
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       stripes,
     };
@@ -430,6 +443,7 @@ export function TexturePlayground() {
     sparkleWidthSpeed,
     displayWidth,
     displayHeight,
+    backgroundCss,
     gridConfig,
     stripes,
   ]);
@@ -451,6 +465,7 @@ export function TexturePlayground() {
   const applyConfig = useCallback((config: PlaygroundPersistedConfig) => {
     const next = applyPersistedConfig(config);
     setDuotoneEnabled(next.duotoneEnabled);
+    setBackgroundCss(next.backgroundCss ?? "");
     setTextureGamma(next.textureGamma);
     setSparkleGapsActivePercent(resolvePersistedSparkleGapsActivePercent(config));
     setSparkleGapsSpeed(resolvePersistedSparkleGapsSpeed(config));
@@ -558,6 +573,10 @@ export function TexturePlayground() {
     setTextureGamma(DEFAULT_TEXTURE_GAMMA);
   }, []);
 
+  const resetBackground = useCallback(() => {
+    setBackgroundCss("");
+  }, []);
+
   const resetSparkleGaps = useCallback(() => {
     setSparkleGapsActivePercent(0);
     setSparkleGapsSpeed(DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED);
@@ -569,6 +588,7 @@ export function TexturePlayground() {
   }, []);
 
   const generalModified = !duotoneEnabled || textureGamma !== DEFAULT_TEXTURE_GAMMA;
+  const backgroundModified = normalizePlaygroundBackgroundCss(backgroundCss) !== undefined;
   const stripesModified = !stripesMatchDefault(stripes);
   const sparkleGapsModified =
     sparkleGapsActivePercent !== 0 || sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED;
@@ -699,6 +719,13 @@ export function TexturePlayground() {
     [displayWidth, displayHeight],
   );
 
+  useEffect(() => {
+    if (!canvasElement) {
+      return;
+    }
+    applyCanvasBackgroundCss(canvasElement, backgroundCss, displaySize);
+  }, [backgroundCss, canvasElement, displaySize]);
+
   const tickers = useMemo(() => {
     if (loadState.status !== "ready" || displayWidth <= 0 || displayHeight <= 0) {
       return [];
@@ -763,6 +790,7 @@ export function TexturePlayground() {
       sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
       displayHeight: displayHeight > 0 ? displayHeight : undefined,
+      backgroundCss: normalizePlaygroundBackgroundCss(backgroundCss),
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       stripes,
     };
@@ -1060,6 +1088,34 @@ export function TexturePlayground() {
             </ControlField>
           </PlaygroundControlSection>
 
+          <PlaygroundControlSection
+            title="Background"
+            defaultOpen
+            testId="playground-section-background"
+            modified={backgroundModified}
+            onReset={resetBackground}
+          >
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-neutral-700">
+              Canvas CSS
+              <textarea
+                className="min-h-[96px] resize-y rounded border border-neutral-300 px-2 py-1.5 font-mono text-[11px] font-normal text-neutral-700 focus:border-neutral-400 focus:outline-none"
+                rows={5}
+                value={backgroundCss}
+                onChange={(event) => setBackgroundCss(event.target.value)}
+                spellCheck={false}
+                placeholder={[
+                  "background: #D9D9D9;",
+                  "background: color(display-p3 0.851 0.851 0.851);",
+                  "background-image: linear-gradient(...);",
+                ].join("\n")}
+                aria-label="Canvas background CSS"
+              />
+            </label>
+            <p className="m-0 text-[11px] leading-4 text-neutral-500">
+              Paste CSS declarations here. They are applied directly to the canvas style.
+            </p>
+          </PlaygroundControlSection>
+
           <PlaygroundGridControls
             config={gridConfig}
             onChange={updateGrid}
@@ -1095,24 +1151,19 @@ export function TexturePlayground() {
                   className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2"
                   data-testid="playground-stripe-row"
                 >
-                  <span
-                    className="playground-stripe-swatch relative block h-7 w-7 overflow-hidden rounded border border-neutral-200"
-                    style={
+                  <HexColorPopover
+                    color={stripe.hex}
+                    disabled={duotoneControlsDisabled}
+                    onChange={(hex) => onStripeColorChange(stripe.id, hex)}
+                    ariaLabel="Stripe color"
+                    triggerClassName="playground-stripe-swatch block h-7 w-7 overflow-hidden rounded border border-neutral-200"
+                    triggerStyle={
                       {
                         ["--stripe-swatch-fallback" as string]: stripe.hex,
                         ["--stripe-swatch-p3" as string]: stripe.p3Css,
                       } as CSSProperties
                     }
-                  >
-                    <input
-                      type="color"
-                      value={stripe.hex}
-                      disabled={duotoneControlsDisabled}
-                      onChange={(event) => onStripeColorChange(stripe.id, event.target.value)}
-                      className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                      aria-label="Stripe color"
-                    />
-                  </span>
+                  />
                   <ControlValueInput
                     value={stripe.startFrom}
                     inputMin={STRIPE_START_FROM_MIN}
@@ -1291,6 +1342,7 @@ export function TexturePlayground() {
             className: "block shrink-0",
             style: { width: displayWidth, height: displayHeight },
           }}
+          canvasRef={setCanvasNode}
           resolveInitOptions={(canvas) => {
             const context = createPlaygroundWebGLContext(canvas);
             preferP3Ref.current = playgroundPrefersDisplayP3(canvas, context);

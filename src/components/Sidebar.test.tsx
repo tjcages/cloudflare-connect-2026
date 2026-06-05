@@ -34,9 +34,10 @@ const renderSidebar = (overrides: Partial<ComponentProps<typeof Sidebar>> = {}) 
 describe("Sidebar stroke color field", () => {
   it("updates the configured stroke color", () => {
     const { onStrokeColorChange } = renderSidebar();
-    const strokeColorInput = screen.getByLabelText("Stroke color");
 
-    fireEvent.change(strokeColorInput, { target: { value: "#123456" } });
+    fireEvent.click(screen.getByLabelText("Stroke color"));
+    const hexInput = screen.getByLabelText("Stroke color hex value");
+    fireEvent.change(hexInput, { target: { value: "123456" } });
 
     expect(onStrokeColorChange).toHaveBeenCalledWith("#123456");
   });

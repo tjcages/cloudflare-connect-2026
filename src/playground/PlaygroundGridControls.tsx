@@ -1,3 +1,4 @@
+import { HexColorPopover } from "../components/HexColorPopover";
 import { ControlValueInput } from "./ControlValueInput";
 import { PlaygroundControlSection } from "./PlaygroundControlSection";
 import {
@@ -232,17 +233,18 @@ export function PlaygroundGridControls({
             aria-label="Letter charset"
           />
         </label>
-        <label className={`flex items-center justify-between gap-2 text-sm ${disabled ? "opacity-40" : ""}`}>
+        <div className={`flex items-center justify-between gap-2 text-sm ${disabled ? "opacity-40" : ""}`}>
           <span className="text-neutral-600">Color</span>
-          <input
-            type="color"
-            value={intToHex(config.letterColor)}
+          <HexColorPopover
+            color={intToHex(config.letterColor)}
             disabled={disabled}
-            onChange={(event) => onChange({ letterColor: hexToInt(event.target.value) })}
-            className="h-7 w-12 cursor-pointer rounded border border-neutral-300 disabled:cursor-not-allowed"
-            aria-label="Letter color"
+            onChange={(hex) => onChange({ letterColor: hexToInt(hex) })}
+            ariaLabel="Letter color"
+            align="right"
+            triggerClassName="h-7 w-12 rounded border border-neutral-300"
+            triggerStyle={{ backgroundColor: intToHex(config.letterColor) }}
           />
-        </label>
+        </div>
         <NumberField
           label="Shuffle speed"
           value={config.letterShuffleSpeed}
