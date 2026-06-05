@@ -3,6 +3,7 @@
 export const STRIPE_FILTER_VERTEX = `
 in vec2 aPosition;
 out vec2 vTextureCoord;
+out vec2 vDisplayCoord;
 
 uniform vec4 uInputSize;
 uniform vec4 uOutputFrame;
@@ -27,11 +28,13 @@ void main(void)
 {
     gl_Position = filterVertexPosition();
     vTextureCoord = filterTextureCoord();
+    vDisplayCoord = aPosition;
 }
 `;
 
 export const STRIPE_FILTER_FRAGMENT = `
 in vec2 vTextureCoord;
+in vec2 vDisplayCoord;
 out vec4 finalColor;
 
 uniform sampler2D uTexture;
@@ -205,7 +208,9 @@ float resolveAnimatedStripeWidth(float col, float row, float band, float maxW) {
 }
 
 void main(void) {
-    vec2 pixelCoord = vTextureCoord * uPixelSize;
+    // Grid indices use filter-quad position (0–1), not texture UVs — video sources can
+    // expose a larger GPU source than the visible frame, which skews vTextureCoord.
+    vec2 pixelCoord = vDisplayCoord * uPixelSize;
 
     float cw = max(uCellSize.x, 1.0);
     float ch = max(uCellSize.y, 1.0);

@@ -7,6 +7,7 @@ import { STRIPE_FILTER_VERTEX } from "./stripeFilterShaders";
 
 export const SOURCE_TEXTURE_FILTER_FRAGMENT = `
 in vec2 vTextureCoord;
+in vec2 vDisplayCoord;
 out vec4 finalColor;
 
 uniform sampler2D uTexture;
