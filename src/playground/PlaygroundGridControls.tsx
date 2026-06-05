@@ -1,6 +1,8 @@
 import { HexColorPopover } from "../components/HexColorPopover";
 import { ControlValueInput } from "./ControlValueInput";
+import { FieldHelp } from "./FieldHelp";
 import { PlaygroundControlSection } from "./PlaygroundControlSection";
+import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import {
   DEFAULT_PLAYGROUND_GRID_CONFIG,
   PLAYGROUND_CELL_SIZE_MAX,
@@ -35,6 +37,7 @@ type NumberFieldProps = {
   disabled: boolean;
   onChange: (value: number) => void;
   formatDisplay?: (value: number) => string;
+  description: string;
 };
 
 function NumberField({
@@ -49,12 +52,15 @@ function NumberField({
   disabled,
   onChange,
   formatDisplay,
+  description,
 }: NumberFieldProps) {
   const sliderValue = Math.min(sliderMax, Math.max(sliderMin, value));
   return (
     <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
       <span className="flex items-center justify-between gap-2 text-neutral-600">
-        <span>{label}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <FieldHelp label={label} description={description} />
+        </span>
         <ControlValueInput
           value={value}
           inputMin={inputMin}
@@ -103,6 +109,15 @@ export function PlaygroundGridControls({
   disabled,
 }: GridControlsProps) {
   const acrossMax = Math.max(config.cellWidth, config.cellHeight);
+  const animationRangesModified =
+    config.sparkleGapsPeriodMinSec !== DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleGapsPeriodMinSec ||
+    config.sparkleGapsPeriodMaxSec !== DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleGapsPeriodMaxSec ||
+    config.sparkleWidthPeriodMinSec !== DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleWidthPeriodMinSec ||
+    config.sparkleWidthPeriodMaxSec !== DEFAULT_PLAYGROUND_GRID_CONFIG.sparkleWidthPeriodMaxSec;
+  const animationSettingsModified =
+    config.widthShuffleSwing !== DEFAULT_PLAYGROUND_GRID_CONFIG.widthShuffleSwing ||
+    config.smoothingMaxStep !== DEFAULT_PLAYGROUND_GRID_CONFIG.smoothingMaxStep ||
+    config.gridUpdateIntervalMs !== DEFAULT_PLAYGROUND_GRID_CONFIG.gridUpdateIntervalMs;
   return (
     <>
       <PlaygroundControlSection
@@ -123,6 +138,7 @@ export function PlaygroundGridControls({
           ariaLabel="Cell width in px"
           disabled={disabled}
           onChange={(value) => onChange({ cellWidth: value })}
+          description={PLAYGROUND_FIELD_HELP.cellWidth}
         />
         <NumberField
           label="Cell height"
@@ -135,6 +151,7 @@ export function PlaygroundGridControls({
           ariaLabel="Cell height in px"
           disabled={disabled}
           onChange={(value) => onChange({ cellHeight: value })}
+          description={PLAYGROUND_FIELD_HELP.cellHeight}
         />
         <NumberField
           label="Gap X"
@@ -148,6 +165,7 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ gapX: value })}
           formatDisplay={(v) => v.toFixed(1)}
+          description={PLAYGROUND_FIELD_HELP.gapX}
         />
         <NumberField
           label="Gap Y"
@@ -161,6 +179,7 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ gapY: value })}
           formatDisplay={(v) => v.toFixed(1)}
+          description={PLAYGROUND_FIELD_HELP.gapY}
         />
         <NumberField
           label="Corner radius"
@@ -174,9 +193,12 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ cornerRadius: value })}
           formatDisplay={(v) => v.toFixed(1)}
+          description={PLAYGROUND_FIELD_HELP.cornerRadius}
         />
         <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
-          <span className="text-neutral-600">Orientation</span>
+          <span className="flex items-center gap-1.5 text-neutral-600">
+            <FieldHelp label="Orientation" description={PLAYGROUND_FIELD_HELP.orientation} />
+          </span>
           <select
             value={config.orientation}
             disabled={disabled}
@@ -207,6 +229,7 @@ export function PlaygroundGridControls({
           ariaLabel="Letter font size in px"
           disabled={disabled}
           onChange={(value) => onChange({ letterSize: value })}
+          description={PLAYGROUND_FIELD_HELP.letterSize}
         />
         <NumberField
           label="Ratio"
@@ -220,9 +243,12 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ letterRatio: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.letterRatio}
         />
         <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
-          <span className="text-neutral-600">Charset</span>
+          <span className="flex items-center gap-1.5 text-neutral-600">
+            <FieldHelp label="Charset" description={PLAYGROUND_FIELD_HELP.letterCharset} />
+          </span>
           <input
             type="text"
             value={config.letterCharset}
@@ -234,7 +260,9 @@ export function PlaygroundGridControls({
           />
         </label>
         <div className={`flex items-center justify-between gap-2 text-sm ${disabled ? "opacity-40" : ""}`}>
-          <span className="text-neutral-600">Color</span>
+          <span className="flex items-center gap-1.5 text-neutral-600">
+            <FieldHelp label="Color" description={PLAYGROUND_FIELD_HELP.letterColor} />
+          </span>
           <HexColorPopover
             color={intToHex(config.letterColor)}
             disabled={disabled}
@@ -257,13 +285,14 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ letterShuffleSpeed: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.letterShuffleSpeed}
         />
       </PlaygroundControlSection>
 
       <PlaygroundControlSection
         title="Animation ranges"
         testId="playground-section-animation-ranges"
-        modified={animationModified}
+        modified={animationModified && animationRangesModified}
         onReset={onResetAnimation}
       >
         <NumberField
@@ -278,6 +307,7 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ sparkleGapsPeriodMinSec: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.gapPeriodMin}
         />
         <NumberField
           label="Gap period max"
@@ -291,6 +321,7 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ sparkleGapsPeriodMaxSec: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.gapPeriodMax}
         />
         <NumberField
           label="Width period min"
@@ -304,6 +335,7 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ sparkleWidthPeriodMinSec: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.widthPeriodMin}
         />
         <NumberField
           label="Width period max"
@@ -317,7 +349,16 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ sparkleWidthPeriodMaxSec: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.widthPeriodMax}
         />
+      </PlaygroundControlSection>
+
+      <PlaygroundControlSection
+        title="Animation settings"
+        testId="playground-section-animation-settings"
+        modified={animationModified && animationSettingsModified}
+        onReset={onResetAnimation}
+      >
         <NumberField
           label="Width swing"
           value={config.widthShuffleSwing}
@@ -330,6 +371,7 @@ export function PlaygroundGridControls({
           disabled={disabled}
           onChange={(value) => onChange({ widthShuffleSwing: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.widthSwing}
         />
         <NumberField
           label="Color smoothing"
@@ -342,6 +384,7 @@ export function PlaygroundGridControls({
           ariaLabel="Max stripe-index step per update (0 snaps)"
           disabled={disabled}
           onChange={(value) => onChange({ smoothingMaxStep: value })}
+          description={PLAYGROUND_FIELD_HELP.colorSmoothing}
         />
         <NumberField
           label="Update interval"
@@ -354,6 +397,7 @@ export function PlaygroundGridControls({
           ariaLabel="Grid update interval in milliseconds"
           disabled={disabled}
           onChange={(value) => onChange({ gridUpdateIntervalMs: value })}
+          description={PLAYGROUND_FIELD_HELP.updateInterval}
         />
       </PlaygroundControlSection>
     </>

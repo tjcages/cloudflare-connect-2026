@@ -67,7 +67,9 @@ import {
 } from "./playgroundColorSpace";
 import { stripeGridToSvg } from "./stripeGridToSvg";
 import { ExportReactDialog } from "./ExportReactDialog";
+import { FieldHelp } from "./FieldHelp";
 import { PlaygroundControlSection } from "./PlaygroundControlSection";
+import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
 import { PlaygroundGridControls } from "./PlaygroundGridControls";
 import { PlaygroundTextureControls } from "./PlaygroundTextureControls";
@@ -268,6 +270,7 @@ type ControlFieldProps = {
   parseEditDraft?: (draft: string) => number | null;
   valueAriaLabel: string;
   disabled?: boolean;
+  description: string;
   children: ReactNode;
 };
 
@@ -284,12 +287,15 @@ function ControlField({
   parseEditDraft,
   valueAriaLabel,
   disabled = false,
+  description,
   children,
 }: ControlFieldProps) {
   return (
     <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
       <span className="flex items-center justify-between gap-2 text-neutral-600">
-        <span>{label}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <FieldHelp label={label} description={description} />
+        </span>
         <ControlValueInput
           value={value}
           inputMin={inputMin}
@@ -1092,7 +1098,9 @@ export function TexturePlayground() {
           <h1 className="text-base font-medium text-neutral-900">Texture shader playground</h1>
           <p className="m-0 text-sm text-red-700">{loadState.message}</p>
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="text-neutral-600">Texture</span>
+            <span className="flex items-center gap-1.5 text-neutral-600">
+              <FieldHelp label="Texture" description={PLAYGROUND_FIELD_HELP.texture} />
+            </span>
             <select
               value={selectedTextureId}
               onChange={(event) => onTextureSelect(event.target.value as PlaygroundTextureId)}
@@ -1164,7 +1172,9 @@ export function TexturePlayground() {
         <div className="ui-scroll-hidden flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="flex flex-col gap-3 px-4">
             <label className="flex flex-col gap-1.5 text-sm">
-              <span className="text-neutral-600">Texture</span>
+              <span className="flex items-center gap-1.5 text-neutral-600">
+                <FieldHelp label="Texture" description={PLAYGROUND_FIELD_HELP.texture} />
+              </span>
               <select
                 value={selectedTextureId}
                 onChange={(event) => onTextureSelect(event.target.value as PlaygroundTextureId)}
@@ -1181,7 +1191,9 @@ export function TexturePlayground() {
 
             <div className="grid grid-cols-2 gap-2">
               <label className="flex flex-col gap-1 text-sm text-neutral-600">
-                <span>Width</span>
+                <span className="flex items-center gap-1.5">
+                  <FieldHelp label="Width" description={PLAYGROUND_FIELD_HELP.canvasWidth} />
+                </span>
                 <input
                   type="number"
                   min={1}
@@ -1196,7 +1208,9 @@ export function TexturePlayground() {
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-neutral-600">
-                <span>Height</span>
+                <span className="flex items-center gap-1.5">
+                  <FieldHelp label="Height" description={PLAYGROUND_FIELD_HELP.canvasHeight} />
+                </span>
                 <input
                   type="number"
                   min={1}
@@ -1253,7 +1267,9 @@ export function TexturePlayground() {
                 className="size-4 cursor-pointer rounded border-neutral-300"
                 aria-label="Shader enabled"
               />
-              <span className="text-neutral-800">Shader enabled</span>
+              <span className="flex items-center gap-1.5 text-neutral-800">
+                <FieldHelp label="Shader enabled" description={PLAYGROUND_FIELD_HELP.shaderEnabled} />
+              </span>
             </label>
           </PlaygroundControlSection>
 
@@ -1279,7 +1295,9 @@ export function TexturePlayground() {
             onReset={resetBackground}
           >
             <label className="flex flex-col gap-1.5 text-xs font-medium text-neutral-700">
-              Canvas CSS
+              <span className="flex items-center gap-1.5">
+                <FieldHelp label="Canvas CSS" description={PLAYGROUND_FIELD_HELP.canvasCss} />
+              </span>
               <textarea
                 className="min-h-[96px] resize-y rounded border border-neutral-300 px-2 py-1.5 font-mono text-[11px] font-normal text-neutral-700 focus:border-neutral-400 focus:outline-none"
                 rows={5}
@@ -1329,7 +1347,9 @@ export function TexturePlayground() {
                 aria-keyshortcuts="Shift+S"
               />
               <span className="flex flex-1 items-center justify-between gap-2 text-neutral-800">
-                <span>Stripes enabled</span>
+                <span className="flex items-center gap-1.5">
+                  <FieldHelp label="Stripes enabled" description={PLAYGROUND_FIELD_HELP.stripesEnabled} />
+                </span>
                 <kbd className="rounded border border-neutral-300 bg-neutral-50 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-neutral-500">
                   Shift S
                 </kbd>
@@ -1340,9 +1360,15 @@ export function TexturePlayground() {
                 <p className="m-0 text-xs text-neutral-500">No stripes.</p>
               ) : (
                 <div className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2 text-xs text-neutral-500">
-                  <span>Color</span>
-                  <span>Threshold</span>
-                  <span>Width</span>
+                  <span className="flex items-center gap-1">
+                    <FieldHelp label="Stripe color" description={PLAYGROUND_FIELD_HELP.stripeColor} />
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <FieldHelp label="Threshold" description={PLAYGROUND_FIELD_HELP.stripeThreshold} />
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <FieldHelp label="Stripe width" description={PLAYGROUND_FIELD_HELP.stripeWidth} />
+                  </span>
                 </div>
               )}
               {stripes.map((stripe) => (
@@ -1407,6 +1433,7 @@ export function TexturePlayground() {
               formatDisplay={(v) => v.toFixed(2)}
               valueAriaLabel="Sparkle gaps active ratio"
               disabled={duotoneControlsDisabled}
+              description={PLAYGROUND_FIELD_HELP.sparkleGapsActiveRatio}
             >
               <input
                 type="range"
@@ -1431,6 +1458,7 @@ export function TexturePlayground() {
               formatDisplay={(v) => v.toFixed(2)}
               valueAriaLabel="Sparkle gaps pulse speed"
               disabled={duotoneControlsDisabled || sparkleGapsActivePercent <= 0}
+              description={PLAYGROUND_FIELD_HELP.sparkleGapsSpeed}
             >
               <input
                 type="range"
@@ -1462,6 +1490,7 @@ export function TexturePlayground() {
               formatDisplay={(v) => v.toFixed(2)}
               valueAriaLabel="Sparkle width active ratio"
               disabled={duotoneControlsDisabled}
+              description={PLAYGROUND_FIELD_HELP.sparkleWidthActiveRatio}
             >
               <input
                 type="range"
@@ -1486,6 +1515,7 @@ export function TexturePlayground() {
               formatDisplay={(v) => v.toFixed(2)}
               valueAriaLabel="Sparkle width pulse speed"
               disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
+              description={PLAYGROUND_FIELD_HELP.sparkleWidthSpeed}
             >
               <input
                 type="range"

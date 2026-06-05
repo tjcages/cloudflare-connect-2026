@@ -1,5 +1,7 @@
 import { ControlValueInput } from "./ControlValueInput";
+import { FieldHelp } from "./FieldHelp";
 import { PlaygroundControlSection } from "./PlaygroundControlSection";
+import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import type { PlaygroundSourceFit, PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 
@@ -29,6 +31,7 @@ type NumberFieldProps = {
   disabled: boolean;
   onChange: (value: number) => void;
   formatDisplay?: (value: number) => string;
+  description: string;
 };
 
 function NumberField({
@@ -43,12 +46,15 @@ function NumberField({
   disabled,
   onChange,
   formatDisplay,
+  description,
 }: NumberFieldProps) {
   const sliderValue = Math.min(sliderMax, Math.max(sliderMin, value));
   return (
     <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
       <span className="flex items-center justify-between gap-2 text-neutral-600">
-        <span>{label}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <FieldHelp label={label} description={description} />
+        </span>
         <ControlValueInput
           value={value}
           inputMin={inputMin}
@@ -109,6 +115,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ exposure: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.exposure}
         />
         <NumberField
           label="Brightness"
@@ -122,6 +129,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ brightness: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.brightness}
         />
         <NumberField
           label="Contrast"
@@ -135,6 +143,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ contrast: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.contrast}
         />
         <NumberField
           label="Gamma"
@@ -148,6 +157,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ gamma: value })}
           formatDisplay={(v) => String(v)}
+          description={PLAYGROUND_FIELD_HELP.gamma}
         />
         <label className={`flex items-center gap-2 text-sm ${disabled ? "opacity-40" : ""}`}>
           <input
@@ -158,7 +168,9 @@ export function PlaygroundTextureControls({
             className="size-4 cursor-pointer rounded border-neutral-300 disabled:cursor-not-allowed"
             aria-label="Invert texture luminance"
           />
-          <span className="text-neutral-800">Invert luminance</span>
+          <span className="flex items-center gap-1.5 text-neutral-800">
+            <FieldHelp label="Invert luminance" description={PLAYGROUND_FIELD_HELP.invertLuminance} />
+          </span>
         </label>
       </PlaygroundControlSection>
 
@@ -180,6 +192,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ blackPoint: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.blackPoint}
         />
         <NumberField
           label="White point"
@@ -193,6 +206,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ whitePoint: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.whitePoint}
         />
         <NumberField
           label="Threshold bias"
@@ -206,6 +220,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ thresholdBias: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.thresholdBias}
         />
         <NumberField
           label="Posterize"
@@ -218,6 +233,7 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture posterize levels"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ posterizeLevels: value })}
+          description={PLAYGROUND_FIELD_HELP.posterize}
         />
         <NumberField
           label="Noise"
@@ -231,6 +247,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ noiseAmount: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.noise}
         />
         <NumberField
           label="Blur"
@@ -243,6 +260,7 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture luma blur"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ blurRadius: value })}
+          description={PLAYGROUND_FIELD_HELP.blur}
         />
         <NumberField
           label="Sharpen"
@@ -256,6 +274,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ sharpenAmount: value })}
           formatDisplay={(v) => v.toFixed(1)}
+          description={PLAYGROUND_FIELD_HELP.sharpen}
         />
       </PlaygroundControlSection>
 
@@ -266,7 +285,9 @@ export function PlaygroundTextureControls({
         onReset={onResetSource}
       >
         <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
-          <span className="text-neutral-600">Fit</span>
+          <span className="flex items-center gap-1.5 text-neutral-600">
+            <FieldHelp label="Fit" description={PLAYGROUND_FIELD_HELP.fit} />
+          </span>
           <select
             value={sourceTransform.fit}
             disabled={disabled}
@@ -291,6 +312,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onSourceTransformChange({ zoom: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.zoom}
         />
         <NumberField
           label="Pan X"
@@ -304,6 +326,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onSourceTransformChange({ panX: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.panX}
         />
         <NumberField
           label="Pan Y"
@@ -317,6 +340,7 @@ export function PlaygroundTextureControls({
           disabled={disabled}
           onChange={(value) => onSourceTransformChange({ panY: value })}
           formatDisplay={(v) => v.toFixed(2)}
+          description={PLAYGROUND_FIELD_HELP.panY}
         />
       </PlaygroundControlSection>
     </>
