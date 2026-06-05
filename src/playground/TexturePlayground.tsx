@@ -1,13 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { writeSvgToClipboard } from "../grid/clipboard";
 import Pixi from "../components/pixi";
 import {
@@ -73,7 +64,9 @@ import { PlaygroundControlSection } from "./PlaygroundControlSection";
 import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
 import { PlaygroundGridControls } from "./PlaygroundGridControls";
+import { PlaygroundNumberField } from "./PlaygroundNumberField";
 import { PlaygroundTextureControls } from "./PlaygroundTextureControls";
+import { PLAYGROUND_SCRUB_COMMIT_MS, useThrottledCallback } from "./playgroundLiveRefs";
 import {
   DEFAULT_PLAYGROUND_GRID_CONFIG,
   isDefaultPlaygroundGridConfig,
@@ -263,64 +256,6 @@ function syncDisplaySizeFromTexture(
   return { display, source };
 }
 
-type ControlFieldProps = {
-  label: string;
-  value: number;
-  inputMin: number;
-  inputMax: number;
-  commitMin?: number;
-  commitMax?: number;
-  onValueChange: (value: number) => void;
-  formatDisplay?: (value: number) => string;
-  formatEditValue?: (value: number) => string;
-  parseEditDraft?: (draft: string) => number | null;
-  valueAriaLabel: string;
-  disabled?: boolean;
-  description: string;
-  children: ReactNode;
-};
-
-function ControlField({
-  label,
-  value,
-  inputMin,
-  inputMax,
-  commitMin,
-  commitMax,
-  onValueChange,
-  formatDisplay,
-  formatEditValue,
-  parseEditDraft,
-  valueAriaLabel,
-  disabled = false,
-  description,
-  children,
-}: ControlFieldProps) {
-  return (
-    <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
-      <span className="flex items-center justify-between gap-2 text-neutral-600">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <FieldHelp label={label} description={description} />
-        </span>
-        <ControlValueInput
-          value={value}
-          inputMin={inputMin}
-          inputMax={inputMax}
-          commitMin={commitMin}
-          commitMax={commitMax}
-          disabled={disabled}
-          onChange={onValueChange}
-          formatDisplay={formatDisplay}
-          formatEditValue={formatEditValue}
-          parseEditDraft={parseEditDraft}
-          ariaLabel={valueAriaLabel}
-        />
-      </span>
-      {children}
-    </label>
-  );
-}
-
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) {
     return "0:00";
@@ -392,6 +327,14 @@ export function TexturePlayground() {
   const exportStateRef = useRef<PlaygroundSceneExportState | null>(null);
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sampleCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const sparkleGapsActivePercentRef = useRef(sparkleGapsActivePercent);
+  const sparkleGapsSpeedRef = useRef(sparkleGapsSpeed);
+  const sparkleWidthActivePercentRef = useRef(sparkleWidthActivePercent);
+  const sparkleWidthSpeedRef = useRef(sparkleWidthSpeed);
+  sparkleGapsActivePercentRef.current = sparkleGapsActivePercent;
+  sparkleGapsSpeedRef.current = sparkleGapsSpeed;
+  sparkleWidthActivePercentRef.current = sparkleWidthActivePercent;
+  sparkleWidthSpeedRef.current = sparkleWidthSpeed;
 
   const setCanvasNode = useCallback((node: HTMLCanvasElement | null) => {
     canvasRef.current = node;
@@ -571,26 +514,108 @@ export function TexturePlayground() {
     stripeColorsRef.current = { stripes };
   }, [stripes]);
 
-  const onStripeColorChange = useCallback((id: string, hex: string) => {
-    setStripes((previous) => updateStripe({ stripes: previous }, id, { hex, p3Css: hexToDisplayP3Css(hex) }).stripes);
+  const refreshSparkleGapsOptionsRef = useCallback((activePercent: number, speed: number) => {
+    sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(
+      activePercent,
+      speed,
+      gridConfigRef.current.sparkleGapsPeriodMinSec,
+      gridConfigRef.current.sparkleGapsPeriodMaxSec,
+    );
   }, []);
 
-  const onStripeStartFromChange = useCallback((id: string, value: number) => {
-    setStripes((previous) => updateStripe({ stripes: previous }, id, { startFrom: value }).stripes);
+  const refreshWidthShuffleOptionsRef = useCallback((activePercent: number, speed: number) => {
+    widthShuffleOptionsRef.current = playgroundWidthShuffleOptionsFromSliders(
+      activePercent,
+      speed,
+      gridConfigRef.current.sparkleWidthPeriodMinSec,
+      gridConfigRef.current.sparkleWidthPeriodMaxSec,
+    );
   }, []);
 
-  const onStripeWidthChange = useCallback((id: string, value: number) => {
-    setStripes((previous) => updateStripe({ stripes: previous }, id, { width: value }).stripes);
+  const throttledSetGridConfig = useThrottledCallback((next: PlaygroundGridConfig) => {
+    setGridConfig(next);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetTextureAdjustments = useThrottledCallback((next: PlaygroundTextureAdjustments) => {
+    setTextureAdjustments(next);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetSourceTransform = useThrottledCallback((next: PlaygroundSourceTransform) => {
+    setSourceTransform(next);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetSparkleGapsActivePercent = useThrottledCallback((value: number) => {
+    setSparkleGapsActivePercent(value);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetSparkleGapsSpeed = useThrottledCallback((value: number) => {
+    setSparkleGapsSpeed(value);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetSparkleWidthActivePercent = useThrottledCallback((value: number) => {
+    setSparkleWidthActivePercent(value);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetSparkleWidthSpeed = useThrottledCallback((value: number) => {
+    setSparkleWidthSpeed(value);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const applyStripePatch = useCallback((id: string, patch: Parameters<typeof updateStripe>[2]) => {
+    const next = updateStripe({ stripes: stripeColorsRef.current.stripes }, id, patch).stripes;
+    stripeColorsRef.current = { stripes: next };
+    return next;
   }, []);
+
+  const onStripeColorChange = useCallback(
+    (id: string, hex: string) => {
+      const next = applyStripePatch(id, { hex, p3Css: hexToDisplayP3Css(hex) });
+      setStripes(next);
+    },
+    [applyStripePatch],
+  );
+
+  const onStripeStartFromCommit = useCallback(
+    (id: string, value: number) => {
+      const next = applyStripePatch(id, { startFrom: value });
+      setStripes(next);
+    },
+    [applyStripePatch],
+  );
+
+  const onStripeWidthCommit = useCallback(
+    (id: string, value: number) => {
+      const next = applyStripePatch(id, { width: value });
+      setStripes(next);
+    },
+    [applyStripePatch],
+  );
 
   const resetStripes = useCallback(() => {
     setStripesEnabled(true);
     setStripes(cloneDefaultStripes());
   }, []);
 
-  const updateGrid = useCallback((patch: Partial<PlaygroundGridConfig>) => {
-    setGridConfig((previous) => normalizePlaygroundGridConfig({ ...previous, ...patch }));
-  }, []);
+  const updateGridLive = useCallback(
+    (patch: Partial<PlaygroundGridConfig>) => {
+      const next = normalizePlaygroundGridConfig({ ...gridConfigRef.current, ...patch });
+      gridConfigRef.current = next;
+      refreshSparkleGapsOptionsRef(sparkleGapsActivePercentRef.current, sparkleGapsSpeedRef.current);
+      refreshWidthShuffleOptionsRef(sparkleWidthActivePercentRef.current, sparkleWidthSpeedRef.current);
+      throttledSetGridConfig(next);
+    },
+    [refreshSparkleGapsOptionsRef, refreshWidthShuffleOptionsRef, throttledSetGridConfig],
+  );
+
+  const updateGrid = useCallback(
+    (patch: Partial<PlaygroundGridConfig>) => {
+      const next = normalizePlaygroundGridConfig({ ...gridConfigRef.current, ...patch });
+      gridConfigRef.current = next;
+      setGridConfig(next);
+      refreshSparkleGapsOptionsRef(sparkleGapsActivePercentRef.current, sparkleGapsSpeedRef.current);
+      refreshWidthShuffleOptionsRef(sparkleWidthActivePercentRef.current, sparkleWidthSpeedRef.current);
+    },
+    [refreshSparkleGapsOptionsRef, refreshWidthShuffleOptionsRef],
+  );
 
   const resetGridSection = useCallback(() => {
     setGridConfig((previous) => ({
@@ -631,13 +656,109 @@ export function TexturePlayground() {
     setBackgroundColor(DEFAULT_PLAYGROUND_BACKGROUND_COLOR);
   }, []);
 
+  const updateTextureAdjustmentsLive = useCallback(
+    (patch: Partial<PlaygroundTextureAdjustments>) => {
+      const next = normalizePlaygroundTextureAdjustments({ ...textureAdjustmentsRef.current, ...patch });
+      textureAdjustmentsRef.current = next;
+      textureGammaRef.current = next.gamma;
+      throttledSetTextureAdjustments(next);
+    },
+    [throttledSetTextureAdjustments],
+  );
+
   const updateTextureAdjustments = useCallback((patch: Partial<PlaygroundTextureAdjustments>) => {
-    setTextureAdjustments((previous) => normalizePlaygroundTextureAdjustments({ ...previous, ...patch }));
+    const next = normalizePlaygroundTextureAdjustments({ ...textureAdjustmentsRef.current, ...patch });
+    textureAdjustmentsRef.current = next;
+    textureGammaRef.current = next.gamma;
+    setTextureAdjustments(next);
   }, []);
 
+  const updateSourceTransformLive = useCallback(
+    (patch: Partial<PlaygroundSourceTransform>) => {
+      const next = normalizePlaygroundSourceTransform({ ...sourceTransformRef.current, ...patch });
+      sourceTransformRef.current = next;
+      throttledSetSourceTransform(next);
+    },
+    [throttledSetSourceTransform],
+  );
+
   const updateSourceTransform = useCallback((patch: Partial<PlaygroundSourceTransform>) => {
-    setSourceTransform((previous) => normalizePlaygroundSourceTransform({ ...previous, ...patch }));
+    const next = normalizePlaygroundSourceTransform({ ...sourceTransformRef.current, ...patch });
+    sourceTransformRef.current = next;
+    setSourceTransform(next);
   }, []);
+
+  const commitSparkleGapsActivePercent = useCallback(
+    (value: number) => {
+      sparkleGapsActivePercentRef.current = value;
+      refreshSparkleGapsOptionsRef(value, sparkleGapsSpeedRef.current);
+      setSparkleGapsActivePercent(value);
+    },
+    [refreshSparkleGapsOptionsRef],
+  );
+
+  const setSparkleGapsActivePercentLive = useCallback(
+    (value: number) => {
+      sparkleGapsActivePercentRef.current = value;
+      refreshSparkleGapsOptionsRef(value, sparkleGapsSpeedRef.current);
+      throttledSetSparkleGapsActivePercent(value);
+    },
+    [refreshSparkleGapsOptionsRef, throttledSetSparkleGapsActivePercent],
+  );
+
+  const commitSparkleGapsSpeed = useCallback(
+    (value: number) => {
+      sparkleGapsSpeedRef.current = value;
+      refreshSparkleGapsOptionsRef(sparkleGapsActivePercentRef.current, value);
+      setSparkleGapsSpeed(value);
+    },
+    [refreshSparkleGapsOptionsRef],
+  );
+
+  const setSparkleGapsSpeedLive = useCallback(
+    (value: number) => {
+      sparkleGapsSpeedRef.current = value;
+      refreshSparkleGapsOptionsRef(sparkleGapsActivePercentRef.current, value);
+      throttledSetSparkleGapsSpeed(value);
+    },
+    [refreshSparkleGapsOptionsRef, throttledSetSparkleGapsSpeed],
+  );
+
+  const commitSparkleWidthActivePercent = useCallback(
+    (value: number) => {
+      sparkleWidthActivePercentRef.current = value;
+      refreshWidthShuffleOptionsRef(value, sparkleWidthSpeedRef.current);
+      setSparkleWidthActivePercent(value);
+    },
+    [refreshWidthShuffleOptionsRef],
+  );
+
+  const setSparkleWidthActivePercentLive = useCallback(
+    (value: number) => {
+      sparkleWidthActivePercentRef.current = value;
+      refreshWidthShuffleOptionsRef(value, sparkleWidthSpeedRef.current);
+      throttledSetSparkleWidthActivePercent(value);
+    },
+    [refreshWidthShuffleOptionsRef, throttledSetSparkleWidthActivePercent],
+  );
+
+  const commitSparkleWidthSpeed = useCallback(
+    (value: number) => {
+      sparkleWidthSpeedRef.current = value;
+      refreshWidthShuffleOptionsRef(sparkleWidthActivePercentRef.current, value);
+      setSparkleWidthSpeed(value);
+    },
+    [refreshWidthShuffleOptionsRef],
+  );
+
+  const setSparkleWidthSpeedLive = useCallback(
+    (value: number) => {
+      sparkleWidthSpeedRef.current = value;
+      refreshWidthShuffleOptionsRef(sparkleWidthActivePercentRef.current, value);
+      throttledSetSparkleWidthSpeed(value);
+    },
+    [refreshWidthShuffleOptionsRef, throttledSetSparkleWidthSpeed],
+  );
 
   const resetTextureTone = useCallback(() => {
     setTextureAdjustments((previous) =>
@@ -1294,7 +1415,9 @@ export function TexturePlayground() {
             adjustments={textureAdjustments}
             sourceTransform={sourceTransform}
             onAdjustmentsChange={updateTextureAdjustments}
+            onLiveAdjustmentsChange={updateTextureAdjustmentsLive}
             onSourceTransformChange={updateSourceTransform}
+            onLiveSourceTransformChange={updateSourceTransformLive}
             onResetTone={resetTextureTone}
             onResetSource={resetSourceTransform}
             onResetEffects={resetTextureEffects}
@@ -1360,6 +1483,7 @@ export function TexturePlayground() {
           <PlaygroundGridControls
             config={gridConfig}
             onChange={updateGrid}
+            onLiveChange={updateGridLive}
             onResetGrid={resetGridSection}
             onResetLetters={resetLettersSection}
             onResetAnimation={resetAnimationSection}
@@ -1435,7 +1559,7 @@ export function TexturePlayground() {
                     inputMin={STRIPE_START_FROM_MIN}
                     inputMax={STRIPE_START_FROM_MAX}
                     disabled={stripeControlsDisabled}
-                    onChange={(value) => onStripeStartFromChange(stripe.id, value)}
+                    onChange={(value) => onStripeStartFromCommit(stripe.id, value)}
                     ariaLabel="Stripe start from luminance"
                     title="Start from (0–1 luminance)"
                     className={STRIPE_FIELD_INPUT_CLASS}
@@ -1447,7 +1571,7 @@ export function TexturePlayground() {
                     commitMin={STRIPE_WIDTH_MIN}
                     commitMax={STRIPE_WIDTH_STORAGE_MAX}
                     disabled={stripeControlsDisabled}
-                    onChange={(value) => onStripeWidthChange(stripe.id, value)}
+                    onChange={(value) => onStripeWidthCommit(stripe.id, value)}
                     ariaLabel="Stripe width in px"
                     title="Width (px)"
                     className={STRIPE_FIELD_INPUT_CLASS}
@@ -1464,100 +1588,68 @@ export function TexturePlayground() {
             modified={sparkleGapsModified}
             onReset={resetSparkleGaps}
           >
-            <ControlField
+            <PlaygroundNumberField
               label="Active ratio"
               value={sparkleGapsActivePercent}
               inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsActivePercent.min}
               inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsActivePercent.max}
-              onValueChange={setSparkleGapsActivePercent}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Sparkle gaps active ratio"
+              sliderMin={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.min}
+              sliderMax={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.max}
+              step={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.step}
+              ariaLabel="Sparkle gaps active ratio"
               disabled={duotoneControlsDisabled}
+              onChange={commitSparkleGapsActivePercent}
+              onLiveChange={setSparkleGapsActivePercentLive}
+              formatDisplay={(v) => v.toFixed(2)}
               description={PLAYGROUND_FIELD_HELP.sparkleGapsActiveRatio}
-            >
-              <input
-                type="range"
-                min={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.min}
-                max={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.max}
-                step={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.step}
-                value={sparkleGapsActivePercent}
-                onChange={(event) => setSparkleGapsActivePercent(Number(event.target.value))}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Sparkle gaps active ratio"
-              />
-            </ControlField>
-            <ControlField
+            />
+            <PlaygroundNumberField
               label="Speed"
               value={sparkleGapsSpeed}
               inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsSpeed.min}
               inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsSpeed.max}
+              sliderMin={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.min}
+              sliderMax={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.max}
+              step={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.step}
               commitMin={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.min}
               commitMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsSpeed.max}
-              onValueChange={setSparkleGapsSpeed}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Sparkle gaps pulse speed"
+              ariaLabel="Sparkle gaps pulse speed"
               disabled={duotoneControlsDisabled || sparkleGapsActivePercent <= 0}
+              onChange={commitSparkleGapsSpeed}
+              onLiveChange={setSparkleGapsSpeedLive}
+              formatDisplay={(v) => v.toFixed(2)}
               description={PLAYGROUND_FIELD_HELP.sparkleGapsSpeed}
-            >
-              <input
-                type="range"
-                min={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.min}
-                max={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.max}
-                step={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.step}
-                value={Math.min(sparkleGapsSpeed, PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.max)}
-                onChange={(event) => setSparkleGapsSpeed(Number(event.target.value))}
-                disabled={duotoneControlsDisabled || sparkleGapsActivePercent <= 0}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Sparkle gaps pulse speed"
-              />
-            </ControlField>
-            <ControlField
+            />
+            <PlaygroundNumberField
               label="Gap period min"
               value={gridConfig.sparkleGapsPeriodMinSec}
               inputMin={0.01}
               inputMax={10}
-              onValueChange={(value) => updateGrid({ sparkleGapsPeriodMinSec: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Sparkle gap period minimum seconds"
+              sliderMin={0.05}
+              sliderMax={2}
+              step={0.01}
+              ariaLabel="Sparkle gap period minimum seconds"
               disabled={duotoneControlsDisabled}
+              onChange={(value) => updateGrid({ sparkleGapsPeriodMinSec: value })}
+              onLiveChange={(value) => updateGridLive({ sparkleGapsPeriodMinSec: value })}
+              formatDisplay={(v) => v.toFixed(2)}
               description={PLAYGROUND_FIELD_HELP.gapPeriodMin}
-            >
-              <input
-                type="range"
-                min={0.05}
-                max={2}
-                step={0.01}
-                value={gridConfig.sparkleGapsPeriodMinSec}
-                onChange={(event) => updateGrid({ sparkleGapsPeriodMinSec: Number(event.target.value) })}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Sparkle gap period minimum seconds"
-              />
-            </ControlField>
-            <ControlField
+            />
+            <PlaygroundNumberField
               label="Gap period max"
               value={gridConfig.sparkleGapsPeriodMaxSec}
               inputMin={0.01}
               inputMax={10}
-              onValueChange={(value) => updateGrid({ sparkleGapsPeriodMaxSec: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Sparkle gap period maximum seconds"
+              sliderMin={0.05}
+              sliderMax={2}
+              step={0.01}
+              ariaLabel="Sparkle gap period maximum seconds"
               disabled={duotoneControlsDisabled}
+              onChange={(value) => updateGrid({ sparkleGapsPeriodMaxSec: value })}
+              onLiveChange={(value) => updateGridLive({ sparkleGapsPeriodMaxSec: value })}
+              formatDisplay={(v) => v.toFixed(2)}
               description={PLAYGROUND_FIELD_HELP.gapPeriodMax}
-            >
-              <input
-                type="range"
-                min={0.05}
-                max={2}
-                step={0.01}
-                value={gridConfig.sparkleGapsPeriodMaxSec}
-                onChange={(event) => updateGrid({ sparkleGapsPeriodMaxSec: Number(event.target.value) })}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Sparkle gap period maximum seconds"
-              />
-            </ControlField>
+            />
           </PlaygroundControlSection>
 
           <PlaygroundControlSection
@@ -1567,123 +1659,83 @@ export function TexturePlayground() {
             modified={sparkleWidthModified}
             onReset={resetSparkleWidth}
           >
-            <ControlField
+            <PlaygroundNumberField
               label="Active ratio"
               value={sparkleWidthActivePercent}
               inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthActivePercent.min}
               inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthActivePercent.max}
-              onValueChange={setSparkleWidthActivePercent}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Sparkle width active ratio"
+              sliderMin={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.min}
+              sliderMax={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.max}
+              step={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.step}
+              ariaLabel="Sparkle width active ratio"
               disabled={duotoneControlsDisabled}
+              onChange={commitSparkleWidthActivePercent}
+              onLiveChange={setSparkleWidthActivePercentLive}
+              formatDisplay={(v) => v.toFixed(2)}
               description={PLAYGROUND_FIELD_HELP.sparkleWidthActiveRatio}
-            >
-              <input
-                type="range"
-                min={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.min}
-                max={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.max}
-                step={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.step}
-                value={sparkleWidthActivePercent}
-                onChange={(event) => setSparkleWidthActivePercent(Number(event.target.value))}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Sparkle width active ratio"
-              />
-            </ControlField>
-            <ControlField
+            />
+            <PlaygroundNumberField
               label="Speed"
               value={sparkleWidthSpeed}
               inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthSpeed.min}
               inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthSpeed.max}
+              sliderMin={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.min}
+              sliderMax={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.max}
+              step={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.step}
               commitMin={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.min}
               commitMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthSpeed.max}
-              onValueChange={setSparkleWidthSpeed}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Sparkle width pulse speed"
+              ariaLabel="Sparkle width pulse speed"
               disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
+              onChange={commitSparkleWidthSpeed}
+              onLiveChange={setSparkleWidthSpeedLive}
+              formatDisplay={(v) => v.toFixed(2)}
               description={PLAYGROUND_FIELD_HELP.sparkleWidthSpeed}
-            >
-              <input
-                type="range"
-                min={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.min}
-                max={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.max}
-                step={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.step}
-                value={Math.min(sparkleWidthSpeed, PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.max)}
-                onChange={(event) => setSparkleWidthSpeed(Number(event.target.value))}
-                disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Sparkle width pulse speed"
-              />
-            </ControlField>
-            <ControlField
+            />
+            <PlaygroundNumberField
               label="Width swing"
               value={gridConfig.widthShuffleSwing}
               inputMin={0}
               inputMax={32}
-              onValueChange={(value) => updateGrid({ widthShuffleSwing: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Width shuffle swing in px"
+              sliderMin={0}
+              sliderMax={8}
+              step={0.05}
+              ariaLabel="Width shuffle swing in px"
               disabled={duotoneControlsDisabled}
+              onChange={(value) => updateGrid({ widthShuffleSwing: value })}
+              onLiveChange={(value) => updateGridLive({ widthShuffleSwing: value })}
+              formatDisplay={(v) => v.toFixed(2)}
               description={PLAYGROUND_FIELD_HELP.widthSwing}
-            >
-              <input
-                type="range"
-                min={0}
-                max={8}
-                step={0.05}
-                value={gridConfig.widthShuffleSwing}
-                onChange={(event) => updateGrid({ widthShuffleSwing: Number(event.target.value) })}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Width shuffle swing in px"
-              />
-            </ControlField>
-            <ControlField
+            />
+            <PlaygroundNumberField
               label="Width period min"
               value={gridConfig.sparkleWidthPeriodMinSec}
               inputMin={0.01}
               inputMax={10}
-              onValueChange={(value) => updateGrid({ sparkleWidthPeriodMinSec: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Width shuffle period minimum seconds"
+              sliderMin={0.05}
+              sliderMax={2}
+              step={0.01}
+              ariaLabel="Width shuffle period minimum seconds"
               disabled={duotoneControlsDisabled}
+              onChange={(value) => updateGrid({ sparkleWidthPeriodMinSec: value })}
+              onLiveChange={(value) => updateGridLive({ sparkleWidthPeriodMinSec: value })}
+              formatDisplay={(v) => v.toFixed(2)}
               description={PLAYGROUND_FIELD_HELP.widthPeriodMin}
-            >
-              <input
-                type="range"
-                min={0.05}
-                max={2}
-                step={0.01}
-                value={gridConfig.sparkleWidthPeriodMinSec}
-                onChange={(event) => updateGrid({ sparkleWidthPeriodMinSec: Number(event.target.value) })}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Width shuffle period minimum seconds"
-              />
-            </ControlField>
-            <ControlField
+            />
+            <PlaygroundNumberField
               label="Width period max"
               value={gridConfig.sparkleWidthPeriodMaxSec}
               inputMin={0.01}
               inputMax={10}
-              onValueChange={(value) => updateGrid({ sparkleWidthPeriodMaxSec: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              valueAriaLabel="Width shuffle period maximum seconds"
+              sliderMin={0.05}
+              sliderMax={2}
+              step={0.01}
+              ariaLabel="Width shuffle period maximum seconds"
               disabled={duotoneControlsDisabled}
+              onChange={(value) => updateGrid({ sparkleWidthPeriodMaxSec: value })}
+              onLiveChange={(value) => updateGridLive({ sparkleWidthPeriodMaxSec: value })}
+              formatDisplay={(v) => v.toFixed(2)}
               description={PLAYGROUND_FIELD_HELP.widthPeriodMax}
-            >
-              <input
-                type="range"
-                min={0.05}
-                max={2}
-                step={0.01}
-                value={gridConfig.sparkleWidthPeriodMaxSec}
-                onChange={(event) => updateGrid({ sparkleWidthPeriodMaxSec: Number(event.target.value) })}
-                disabled={duotoneControlsDisabled}
-                className="w-full disabled:cursor-not-allowed"
-                aria-label="Width shuffle period maximum seconds"
-              />
-            </ControlField>
+            />
           </PlaygroundControlSection>
 
           <div className="mt-4 flex flex-col gap-3 border-t border-neutral-200 px-4 pt-4">

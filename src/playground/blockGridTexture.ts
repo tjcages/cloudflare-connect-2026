@@ -3,13 +3,14 @@ import type { BlockGrid } from "./computeBlockGrid";
 import { encodeStripeIndex, STRIPE_CELL_SIZE } from "./stripeGridConstants";
 
 export class BlockGridTexture {
-  readonly cols: number;
-  readonly rows: number;
+  private _cols: number;
+  private _rows: number;
+
   readonly texture: Texture;
 
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly imageData: ImageData;
+  private imageData: ImageData;
 
   constructor(
     displayWidth: number,
@@ -17,24 +18,49 @@ export class BlockGridTexture {
     cellWidth: number = STRIPE_CELL_SIZE,
     cellHeight: number = STRIPE_CELL_SIZE,
   ) {
-    this.cols = Math.ceil(displayWidth / Math.max(1, cellWidth));
-    this.rows = Math.ceil(displayHeight / Math.max(1, cellHeight));
+    this._cols = Math.ceil(displayWidth / Math.max(1, cellWidth));
+    this._rows = Math.ceil(displayHeight / Math.max(1, cellHeight));
     this.canvas = document.createElement("canvas");
-    this.canvas.width = this.cols;
-    this.canvas.height = this.rows;
+    this.canvas.width = this._cols;
+    this.canvas.height = this._rows;
     const ctx = this.canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) {
       throw new Error("2D canvas context unavailable for block grid texture.");
     }
     this.ctx = ctx;
-    this.imageData = ctx.createImageData(this.cols, this.rows);
+    this.imageData = ctx.createImageData(this._cols, this._rows);
     this.texture = Texture.from(this.canvas);
     // Nearest: stop linear bleed between band cells.
     this.texture.source.scaleMode = "nearest";
   }
 
+  get cols(): number {
+    return this._cols;
+  }
+
+  get rows(): number {
+    return this._rows;
+  }
+
+  /** Returns true when grid dimensions changed. */
+  resize(displayWidth: number, displayHeight: number, cellWidth: number, cellHeight: number): boolean {
+    const nextCols = Math.ceil(displayWidth / Math.max(1, cellWidth));
+    const nextRows = Math.ceil(displayHeight / Math.max(1, cellHeight));
+    if (nextCols === this._cols && nextRows === this._rows) {
+      return false;
+    }
+
+    this._cols = nextCols;
+    this._rows = nextRows;
+    this.canvas.width = nextCols;
+    this.canvas.height = nextRows;
+    this.imageData = this.ctx.createImageData(nextCols, nextRows);
+    this.texture.source.update();
+    return true;
+  }
+
   update(grid: BlockGrid) {
-    if (grid.cols !== this.cols || grid.rows !== this.rows) {
+    if (grid.cols !== this._cols || grid.rows !== this._rows) {
       return;
     }
 

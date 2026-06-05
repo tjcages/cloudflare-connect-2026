@@ -1,6 +1,6 @@
-import { ControlValueInput } from "./ControlValueInput";
 import { FieldHelp } from "./FieldHelp";
 import { PlaygroundControlSection } from "./PlaygroundControlSection";
+import { PlaygroundNumberField } from "./PlaygroundNumberField";
 import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import type { PlaygroundSourceFit, PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
@@ -9,7 +9,9 @@ type PlaygroundTextureControlsProps = {
   adjustments: PlaygroundTextureAdjustments;
   sourceTransform: PlaygroundSourceTransform;
   onAdjustmentsChange: (patch: Partial<PlaygroundTextureAdjustments>) => void;
+  onLiveAdjustmentsChange?: (patch: Partial<PlaygroundTextureAdjustments>) => void;
   onSourceTransformChange: (patch: Partial<PlaygroundSourceTransform>) => void;
+  onLiveSourceTransformChange?: (patch: Partial<PlaygroundSourceTransform>) => void;
   onResetTone: () => void;
   onResetSource: () => void;
   onResetEffects: () => void;
@@ -19,74 +21,13 @@ type PlaygroundTextureControlsProps = {
   disabled: boolean;
 };
 
-type NumberFieldProps = {
-  label: string;
-  value: number;
-  inputMin: number;
-  inputMax: number;
-  sliderMin: number;
-  sliderMax: number;
-  step: number;
-  ariaLabel: string;
-  disabled: boolean;
-  onChange: (value: number) => void;
-  formatDisplay?: (value: number) => string;
-  description: string;
-};
-
-function NumberField({
-  label,
-  value,
-  inputMin,
-  inputMax,
-  sliderMin,
-  sliderMax,
-  step,
-  ariaLabel,
-  disabled,
-  onChange,
-  formatDisplay,
-  description,
-}: NumberFieldProps) {
-  const sliderValue = Math.min(sliderMax, Math.max(sliderMin, value));
-  return (
-    <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
-      <span className="flex items-center justify-between gap-2 text-neutral-600">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <FieldHelp label={label} description={description} />
-        </span>
-        <ControlValueInput
-          value={value}
-          inputMin={inputMin}
-          inputMax={inputMax}
-          commitMin={inputMin}
-          commitMax={inputMax}
-          disabled={disabled}
-          onChange={onChange}
-          formatDisplay={formatDisplay}
-          ariaLabel={ariaLabel}
-        />
-      </span>
-      <input
-        type="range"
-        min={sliderMin}
-        max={sliderMax}
-        step={step}
-        value={sliderValue}
-        disabled={disabled}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="w-full accent-neutral-700 disabled:cursor-not-allowed"
-        aria-label={`${ariaLabel} slider`}
-      />
-    </label>
-  );
-}
-
 export function PlaygroundTextureControls({
   adjustments,
   sourceTransform,
   onAdjustmentsChange,
+  onLiveAdjustmentsChange,
   onSourceTransformChange,
+  onLiveSourceTransformChange,
   onResetTone,
   onResetSource,
   onResetEffects,
@@ -95,6 +36,9 @@ export function PlaygroundTextureControls({
   effectsModified,
   disabled,
 }: PlaygroundTextureControlsProps) {
+  const liveAdjustments = onLiveAdjustmentsChange;
+  const liveSource = onLiveSourceTransformChange;
+
   return (
     <>
       <PlaygroundControlSection
@@ -103,7 +47,7 @@ export function PlaygroundTextureControls({
         modified={toneModified}
         onReset={onResetTone}
       >
-        <NumberField
+        <PlaygroundNumberField
           label="Exposure"
           value={adjustments.exposure}
           inputMin={-5}
@@ -114,10 +58,11 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture exposure"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ exposure: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ exposure: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.exposure}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Brightness"
           value={adjustments.brightness}
           inputMin={-1}
@@ -128,10 +73,11 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture brightness"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ brightness: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ brightness: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.brightness}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Contrast"
           value={adjustments.contrast}
           inputMin={0}
@@ -142,10 +88,11 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture contrast"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ contrast: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ contrast: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.contrast}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Gamma"
           value={adjustments.gamma}
           inputMin={0.05}
@@ -156,6 +103,7 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture luminance gamma"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ gamma: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ gamma: value }) : undefined}
           formatDisplay={(v) => String(v)}
           description={PLAYGROUND_FIELD_HELP.gamma}
         />
@@ -180,7 +128,7 @@ export function PlaygroundTextureControls({
         modified={effectsModified}
         onReset={onResetEffects}
       >
-        <NumberField
+        <PlaygroundNumberField
           label="Black point"
           value={adjustments.blackPoint}
           inputMin={0}
@@ -191,10 +139,11 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture black point"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ blackPoint: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ blackPoint: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.blackPoint}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="White point"
           value={adjustments.whitePoint}
           inputMin={0}
@@ -205,10 +154,11 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture white point"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ whitePoint: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ whitePoint: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.whitePoint}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Threshold bias"
           value={adjustments.thresholdBias}
           inputMin={-1}
@@ -219,10 +169,11 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture threshold bias"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ thresholdBias: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ thresholdBias: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.thresholdBias}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Posterize"
           value={adjustments.posterizeLevels}
           inputMin={0}
@@ -233,9 +184,10 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture posterize levels"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ posterizeLevels: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ posterizeLevels: value }) : undefined}
           description={PLAYGROUND_FIELD_HELP.posterize}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Noise"
           value={adjustments.noiseAmount}
           inputMin={0}
@@ -246,10 +198,11 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture luma noise"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ noiseAmount: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ noiseAmount: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.noise}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Blur"
           value={adjustments.blurRadius}
           inputMin={0}
@@ -260,9 +213,10 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture luma blur"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ blurRadius: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ blurRadius: value }) : undefined}
           description={PLAYGROUND_FIELD_HELP.blur}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Sharpen"
           value={adjustments.sharpenAmount}
           inputMin={0}
@@ -273,6 +227,7 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture luma sharpen"
           disabled={disabled}
           onChange={(value) => onAdjustmentsChange({ sharpenAmount: value })}
+          onLiveChange={liveAdjustments ? (value) => liveAdjustments({ sharpenAmount: value }) : undefined}
           formatDisplay={(v) => v.toFixed(1)}
           description={PLAYGROUND_FIELD_HELP.sharpen}
         />
@@ -300,7 +255,7 @@ export function PlaygroundTextureControls({
             <option value="contain">Contain</option>
           </select>
         </label>
-        <NumberField
+        <PlaygroundNumberField
           label="Zoom"
           value={sourceTransform.zoom}
           inputMin={0.1}
@@ -311,10 +266,11 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture source zoom"
           disabled={disabled}
           onChange={(value) => onSourceTransformChange({ zoom: value })}
+          onLiveChange={liveSource ? (value) => liveSource({ zoom: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.zoom}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Pan X"
           value={sourceTransform.panX}
           inputMin={-1}
@@ -325,10 +281,11 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture source pan X"
           disabled={disabled}
           onChange={(value) => onSourceTransformChange({ panX: value })}
+          onLiveChange={liveSource ? (value) => liveSource({ panX: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.panX}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Pan Y"
           value={sourceTransform.panY}
           inputMin={-1}
@@ -339,6 +296,7 @@ export function PlaygroundTextureControls({
           ariaLabel="Texture source pan Y"
           disabled={disabled}
           onChange={(value) => onSourceTransformChange({ panY: value })}
+          onLiveChange={liveSource ? (value) => liveSource({ panY: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.panY}
         />

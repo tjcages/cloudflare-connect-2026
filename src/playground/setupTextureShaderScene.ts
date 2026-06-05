@@ -2,6 +2,7 @@ import { Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
 import type { Ticker } from "../components/pixi";
 import { BlockGridTexture } from "./blockGridTexture";
+import { resampleBlockGrid } from "./resampleBlockGrid";
 import type { BlockGrid } from "./computeBlockGrid";
 import {
   buildPlaygroundBlockGrid,
@@ -49,6 +50,9 @@ export function clampPlaygroundDisplayDimension(value: number, fallback: number)
 
 /** Minimum ms between block-grid rebuilds (reduces temporal shimmer on noisy clips). */
 export const PLAYGROUND_GRID_UPDATE_INTERVAL_MS = 66;
+
+/** Minimum ms between full pixel resamples during continuous slider scrubbing. */
+export const PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS = 32;
 
 /** Static ref used when a caller does not provide a live grid-config ref. */
 const DEFAULT_GRID_CONFIG_REF: RefObject<PlaygroundGridConfig> = { current: DEFAULT_PLAYGROUND_GRID_CONFIG };
@@ -232,7 +236,10 @@ function runDuotoneTick(params: {
   let lastColorsKey = "";
   let gridState: PlaygroundGridBuildState = {};
   let lastGridUpdateMs = 0;
+  let lastFullResampleMs = 0;
   let hasBuiltGrid = false;
+  let pendingFullResample = false;
+  let pendingColorsResample = false;
 
   const initialCell = effectivePlaygroundCellSize(gridConfigRef.current);
   let lastEffWidth = initialCell.width;
@@ -244,18 +251,36 @@ function runDuotoneTick(params: {
   const applyStructuralChanges = (gridConfig: PlaygroundGridConfig) => {
     const eff = effectivePlaygroundCellSize(gridConfig);
     if (eff.width !== lastEffWidth || eff.height !== lastEffHeight) {
-      const next = new BlockGridTexture(display.width, display.height, eff.width, eff.height);
-      blockGridTexture.destroy();
-      blockGridTexture = next;
-      stripeFilter.updateBlockMap(next.texture);
-      stripeFilter.resizeGrid(next.cols, next.rows, eff.width, eff.height);
-      letterLayer.setCellSize(eff.width, eff.height);
+      const prevCols = blockGridTexture.cols;
+      const prevRows = blockGridTexture.rows;
+      const prevIndices = gridState.stableIndices;
+
+      const dimensionsChanged = blockGridTexture.resize(display.width, display.height, eff.width, eff.height);
+      if (dimensionsChanged) {
+        stripeFilter.updateBlockMap(blockGridTexture.texture);
+        stripeFilter.resizeGrid(blockGridTexture.cols, blockGridTexture.rows, eff.width, eff.height);
+        letterLayer.setCellSize(eff.width, eff.height);
+
+        if (prevIndices && prevIndices.length > 0) {
+          const resampled = resampleBlockGrid(
+            prevIndices,
+            prevCols,
+            prevRows,
+            blockGridTexture.cols,
+            blockGridTexture.rows,
+          );
+          gridState = { stableIndices: resampled.indices };
+          blockGridTexture.update(resampled);
+          letterLayer.sync(resampled);
+          hasBuiltGrid = true;
+        } else {
+          hasBuiltGrid = false;
+        }
+        pendingFullResample = true;
+      }
+
       lastEffWidth = eff.width;
       lastEffHeight = eff.height;
-      // Grid dimensions changed; resample and rebuild from scratch.
-      gridState = {};
-      hasBuiltGrid = false;
-      lastColorsKey = "";
     }
 
     if (gridConfig.letterSize !== lastLetterSize || gridConfig.letterCharset !== lastLetterCharset) {
@@ -268,12 +293,13 @@ function runDuotoneTick(params: {
       lastLetterSize = gridConfig.letterSize;
       lastLetterCharset = gridConfig.letterCharset;
       hasBuiltGrid = false;
+      pendingFullResample = true;
     }
 
     if (gridConfig.letterRatio !== lastLetterRatio) {
       letterLayer.setRatio(gridConfig.letterRatio);
       lastLetterRatio = gridConfig.letterRatio;
-      hasBuiltGrid = false;
+      pendingFullResample = true;
     }
   };
 
@@ -335,11 +361,13 @@ function runDuotoneTick(params: {
     });
     const colorsChanged = colorsKey !== lastColorsKey;
     const timeChanged = shouldSample();
-    const needsSample = timeChanged || colorsChanged || !hasBuiltGrid;
+    const needsSample = timeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
 
     if (colorsChanged) {
-      lastColorsKey = colorsKey;
       stripeFilter.syncColors(colors, preferP3Ref.current);
+      lastColorsKey = colorsKey;
+      pendingFullResample = true;
+      pendingColorsResample = true;
     }
 
     const frame = needsSample ? sampleFrame() : null;
@@ -348,18 +376,23 @@ function runDuotoneTick(params: {
     }
 
     const gridConfig = gridConfigRef.current;
+    const now = performance.now();
+    const fullResampleReady = now - lastFullResampleMs >= PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS;
     const shouldRebuildGrid =
       frame &&
-      (colorsChanged ||
-        !hasBuiltGrid ||
-        (timeChanged && performance.now() - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
+      (!hasBuiltGrid ||
+        (pendingFullResample && fullResampleReady) ||
+        (timeChanged && !pendingFullResample && now - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
 
     if (shouldRebuildGrid && frame) {
       hasBuiltGrid = true;
-      lastGridUpdateMs = performance.now();
+      pendingFullResample = false;
+      lastGridUpdateMs = now;
+      lastFullResampleMs = now;
       // Re-bucketing thresholds change the index mapping; snap rather than smear.
-      if (colorsChanged) {
+      if (pendingColorsResample) {
         gridState = {};
+        pendingColorsResample = false;
       }
 
       const effectiveCell = effectivePlaygroundCellSize(gridConfig);

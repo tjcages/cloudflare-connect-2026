@@ -1,7 +1,7 @@
 import { HexColorPopover } from "../components/HexColorPopover";
-import { ControlValueInput } from "./ControlValueInput";
 import { FieldHelp } from "./FieldHelp";
 import { PlaygroundControlSection } from "./PlaygroundControlSection";
+import { PlaygroundNumberField } from "./PlaygroundNumberField";
 import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import {
   DEFAULT_PLAYGROUND_GRID_CONFIG,
@@ -16,6 +16,7 @@ import {
 type GridControlsProps = {
   config: PlaygroundGridConfig;
   onChange: (patch: Partial<PlaygroundGridConfig>) => void;
+  onLiveChange?: (patch: Partial<PlaygroundGridConfig>) => void;
   onResetGrid: () => void;
   onResetLetters: () => void;
   onResetAnimation: () => void;
@@ -24,69 +25,6 @@ type GridControlsProps = {
   animationModified: boolean;
   disabled: boolean;
 };
-
-type NumberFieldProps = {
-  label: string;
-  value: number;
-  inputMin: number;
-  inputMax: number;
-  sliderMin: number;
-  sliderMax: number;
-  step: number;
-  ariaLabel: string;
-  disabled: boolean;
-  onChange: (value: number) => void;
-  formatDisplay?: (value: number) => string;
-  description: string;
-};
-
-function NumberField({
-  label,
-  value,
-  inputMin,
-  inputMax,
-  sliderMin,
-  sliderMax,
-  step,
-  ariaLabel,
-  disabled,
-  onChange,
-  formatDisplay,
-  description,
-}: NumberFieldProps) {
-  const sliderValue = Math.min(sliderMax, Math.max(sliderMin, value));
-  return (
-    <label className={`flex flex-col gap-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
-      <span className="flex items-center justify-between gap-2 text-neutral-600">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <FieldHelp label={label} description={description} />
-        </span>
-        <ControlValueInput
-          value={value}
-          inputMin={inputMin}
-          inputMax={inputMax}
-          commitMin={inputMin}
-          commitMax={inputMax}
-          disabled={disabled}
-          onChange={onChange}
-          formatDisplay={formatDisplay}
-          ariaLabel={ariaLabel}
-        />
-      </span>
-      <input
-        type="range"
-        min={sliderMin}
-        max={sliderMax}
-        step={step}
-        value={sliderValue}
-        disabled={disabled}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="w-full accent-neutral-700 disabled:cursor-not-allowed"
-        aria-label={`${ariaLabel} slider`}
-      />
-    </label>
-  );
-}
 
 function intToHex(value: number): string {
   return `#${(value & 0xffffff).toString(16).padStart(6, "0")}`;
@@ -100,6 +38,7 @@ function hexToInt(hex: string): number {
 export function PlaygroundGridControls({
   config,
   onChange,
+  onLiveChange,
   onResetGrid,
   onResetLetters,
   onResetAnimation,
@@ -109,6 +48,8 @@ export function PlaygroundGridControls({
   disabled,
 }: GridControlsProps) {
   const acrossMax = Math.max(config.cellWidth, config.cellHeight);
+  const live = onLiveChange;
+
   return (
     <>
       <PlaygroundControlSection
@@ -118,7 +59,7 @@ export function PlaygroundGridControls({
         modified={gridModified}
         onReset={onResetGrid}
       >
-        <NumberField
+        <PlaygroundNumberField
           label="Cell width"
           value={config.cellWidth}
           inputMin={PLAYGROUND_CELL_SIZE_MIN}
@@ -129,9 +70,10 @@ export function PlaygroundGridControls({
           ariaLabel="Cell width in px"
           disabled={disabled}
           onChange={(value) => onChange({ cellWidth: value })}
+          onLiveChange={live ? (value) => live({ cellWidth: value }) : undefined}
           description={PLAYGROUND_FIELD_HELP.cellWidth}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Cell height"
           value={config.cellHeight}
           inputMin={PLAYGROUND_CELL_SIZE_MIN}
@@ -142,9 +84,10 @@ export function PlaygroundGridControls({
           ariaLabel="Cell height in px"
           disabled={disabled}
           onChange={(value) => onChange({ cellHeight: value })}
+          onLiveChange={live ? (value) => live({ cellHeight: value }) : undefined}
           description={PLAYGROUND_FIELD_HELP.cellHeight}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Gap X"
           value={config.gapX}
           inputMin={0}
@@ -155,10 +98,11 @@ export function PlaygroundGridControls({
           ariaLabel="Horizontal gap between cells in px"
           disabled={disabled}
           onChange={(value) => onChange({ gapX: value })}
+          onLiveChange={live ? (value) => live({ gapX: value }) : undefined}
           formatDisplay={(v) => v.toFixed(1)}
           description={PLAYGROUND_FIELD_HELP.gapX}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Gap Y"
           value={config.gapY}
           inputMin={0}
@@ -169,10 +113,11 @@ export function PlaygroundGridControls({
           ariaLabel="Vertical gap between cells in px"
           disabled={disabled}
           onChange={(value) => onChange({ gapY: value })}
+          onLiveChange={live ? (value) => live({ gapY: value }) : undefined}
           formatDisplay={(v) => v.toFixed(1)}
           description={PLAYGROUND_FIELD_HELP.gapY}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Corner radius"
           value={config.cornerRadius}
           inputMin={0}
@@ -183,6 +128,7 @@ export function PlaygroundGridControls({
           ariaLabel="Stripe corner radius in px"
           disabled={disabled}
           onChange={(value) => onChange({ cornerRadius: value })}
+          onLiveChange={live ? (value) => live({ cornerRadius: value }) : undefined}
           formatDisplay={(v) => v.toFixed(1)}
           description={PLAYGROUND_FIELD_HELP.cornerRadius}
         />
@@ -209,7 +155,7 @@ export function PlaygroundGridControls({
         modified={lettersModified}
         onReset={onResetLetters}
       >
-        <NumberField
+        <PlaygroundNumberField
           label="Size"
           value={config.letterSize}
           inputMin={PLAYGROUND_LETTER_SIZE_MIN}
@@ -220,9 +166,10 @@ export function PlaygroundGridControls({
           ariaLabel="Letter font size in px"
           disabled={disabled}
           onChange={(value) => onChange({ letterSize: value })}
+          onLiveChange={live ? (value) => live({ letterSize: value }) : undefined}
           description={PLAYGROUND_FIELD_HELP.letterSize}
         />
-        <NumberField
+        <PlaygroundNumberField
           label="Ratio"
           value={config.letterRatio}
           inputMin={0}
@@ -233,6 +180,7 @@ export function PlaygroundGridControls({
           ariaLabel="Fraction of eligible cells with a letter"
           disabled={disabled}
           onChange={(value) => onChange({ letterRatio: value })}
+          onLiveChange={live ? (value) => live({ letterRatio: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.letterRatio}
         />
@@ -264,7 +212,7 @@ export function PlaygroundGridControls({
             triggerStyle={{ backgroundColor: intToHex(config.letterColor) }}
           />
         </div>
-        <NumberField
+        <PlaygroundNumberField
           label="Shuffle speed"
           value={config.letterShuffleSpeed}
           inputMin={0.05}
@@ -275,6 +223,7 @@ export function PlaygroundGridControls({
           ariaLabel="Letter shuffle speed factor"
           disabled={disabled}
           onChange={(value) => onChange({ letterShuffleSpeed: value })}
+          onLiveChange={live ? (value) => live({ letterShuffleSpeed: value }) : undefined}
           formatDisplay={(v) => v.toFixed(2)}
           description={PLAYGROUND_FIELD_HELP.letterShuffleSpeed}
         />
@@ -286,7 +235,7 @@ export function PlaygroundGridControls({
         modified={animationModified}
         onReset={onResetAnimation}
       >
-        <NumberField
+        <PlaygroundNumberField
           label="Update interval"
           value={config.gridUpdateIntervalMs}
           inputMin={0}
@@ -297,6 +246,7 @@ export function PlaygroundGridControls({
           ariaLabel="Grid update interval in milliseconds"
           disabled={disabled}
           onChange={(value) => onChange({ gridUpdateIntervalMs: value })}
+          onLiveChange={live ? (value) => live({ gridUpdateIntervalMs: value }) : undefined}
           description={PLAYGROUND_FIELD_HELP.updateInterval}
         />
       </PlaygroundControlSection>
