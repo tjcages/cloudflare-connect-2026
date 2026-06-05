@@ -9,6 +9,13 @@ export const PLAYGROUND_CONTROL_RANGES = {
   sparkleWidthSpeed: { min: 0.5, max: 1.5, step: 0.05 },
   /** Texture luminance gamma (positive only). Default 1. */
   textureGamma: { min: 0.05, max: 5, step: 0.05 },
+  flamesSizeRatio: { min: 0.001, max: 0.08, step: 0.0005 },
+  flamesSpeed: { min: 10, max: 200, step: 1 },
+  flamesSpeedVariation: { min: 0, max: 1, step: 0.01 },
+  flamesSpawnIntervalMs: { min: 50, max: 2000, step: 10 },
+  flamesSpawnJitterMs: { min: 0, max: 500, step: 5 },
+  flamesMaxActive: { min: 1, max: 120, step: 1 },
+  flamesEdgeSharpness: { min: 0, max: 1, step: 0.01 },
 } as const;
 
 /** Wider bounds for typed values (sliders stay on PLAYGROUND_CONTROL_RANGES). */
@@ -19,4 +26,11 @@ export const PLAYGROUND_CONTROL_INPUT_BOUNDS = {
   sparkleWidthSpeed: { min: 0.05, max: 100 },
   /** Typed gamma; slider stays on PLAYGROUND_CONTROL_RANGES.textureGamma. */
   textureGamma: { min: 0.05, max: 1_000 },
+  flamesSizeRatio: { min: 0.0005, max: 0.5 },
+  flamesSpeed: { min: 1, max: 500 },
+  flamesSpeedVariation: { min: 0, max: 1 },
+  flamesSpawnIntervalMs: { min: 20, max: 10_000 },
+  flamesSpawnJitterMs: { min: 0, max: 5000 },
+  flamesMaxActive: { min: 1, max: 200 },
+  flamesEdgeSharpness: { min: 0, max: 1 },
 } as const;

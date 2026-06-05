@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "dev:playground": "vite --port 5174 --strictPort --open /playground.html",
+    "dev:playground": "vite --port 5175 --strictPort --open /playground.html",
     "typecheck": "tsc -b",
     "build": "pnpm run typecheck && pnpm run build:client",
     "build:client": "vite build",

@@ -37,7 +37,7 @@ export default defineConfig({
     /** `forks` (Vitest default) is much slower here with many jsdom/happy-dom workers; threads pool is ~order-of-magnitude faster for this suite. */
     pool: "threads",
     globals: true,
-    setupFiles: "./src/test/setup.ts",
+    setupFiles: ["./src/test/setupLocalStorage.ts", "./src/test/setup.ts"],
     exclude: ["**/node_modules/**", "dist/**", ".worktrees/**"],
     // @ts-expect-error Vitest-only option valid at runtime; Vite `InlineConfig` typings omit it under `tsc -b`.
     environmentMatchGlobs: [

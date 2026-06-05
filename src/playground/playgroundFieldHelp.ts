@@ -47,5 +47,17 @@ export const PLAYGROUND_FIELD_HELP = {
   widthPeriodMin: "Set the shortest width shuffle duration.",
   widthPeriodMax: "Set the longest width shuffle duration.",
   widthSwing: "Set how far stripe widths can shift.",
-  updateInterval: "Set how often the grid animation updates.",
+  processingInterval: "Set how often stripe processing updates the grid.",
+
+  flamesEnabled: "Show or hide rising white flame streaks in preview and stripe sampling.",
+  flamesWidthMin: "Minimum flame width as a percent of canvas width.",
+  flamesWidthMax: "Maximum flame width as a percent of canvas width.",
+  flamesHeightMin: "Minimum flame height as a percent of canvas height.",
+  flamesHeightMax: "Maximum flame height as a percent of canvas height.",
+  flamesSpeed: "Base upward speed for new flames in pixels per second.",
+  flamesSpeedVariation: "How much each flame's speed varies around the base (0 = uniform).",
+  flamesSpawnInterval: "Average milliseconds between new flames spawning at the bottom.",
+  flamesSpawnJitter: "Random milliseconds added or subtracted from the spawn interval.",
+  flamesMaxActive: "Maximum number of flame rects on screen at once.",
+  flamesEdgeSharpness: "Horizontal edge falloff (0 = soft, 1 = sharp).",
 } as const;

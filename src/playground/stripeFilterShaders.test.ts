@@ -17,4 +17,10 @@ describe("STRIPE_FILTER_FRAGMENT", () => {
     expect(STRIPE_FILTER_FRAGMENT).toContain("vec2 pixelCoord = vDisplayCoord * uPixelSize");
     expect(STRIPE_FILTER_FRAGMENT).not.toContain("vec2 pixelCoord = vTextureCoord * uPixelSize");
   });
+
+  it("keeps fluid trail compositing out of the stripe shader while previewing the trail texture", () => {
+    expect(STRIPE_FILTER_FRAGMENT).not.toContain("uFluidTrail");
+    expect(STRIPE_FILTER_FRAGMENT).not.toContain("fluidTrailInfluence");
+  });
+
 });

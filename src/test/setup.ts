@@ -30,7 +30,15 @@ beforeEach(() => {
           font: "",
           fillStyle: "",
           strokeStyle: "",
+          globalCompositeOperation: "source-over",
+          createLinearGradient: () =>
+            ({
+              addColorStop: () => {},
+            }) as CanvasGradient,
           getImageData: () => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 }) as ImageData,
+          createImageData: (width: number, height: number) =>
+            ({ data: new Uint8ClampedArray(width * height * 4), width, height }) as ImageData,
+          putImageData: () => {},
         } as unknown as CanvasRenderingContext2D;
       }
       return null;
