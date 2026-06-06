@@ -49,7 +49,7 @@ export const PLAYGROUND_FIELD_HELP = {
   widthSwing: "Set how far stripe widths can shift.",
   processingInterval: "Set how often stripe processing updates the grid.",
 
-  flamesEnabled: "Show or hide white flame streaks in preview and stripe sampling.",
+  flamesEnabled: "Show or hide white flame streaks in preview, stripe sampling, and Copy SVG export.",
   flamesDirection: "Travel direction for flame streaks across the canvas.",
   flamesWidthMin: "Minimum flame width as a percent of canvas width.",
   flamesWidthMax: "Maximum flame width as a percent of canvas width.",
