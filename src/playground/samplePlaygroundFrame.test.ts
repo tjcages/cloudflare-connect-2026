@@ -49,8 +49,7 @@ describe("sampleTextureFrame", () => {
     expect(frame!.data.length).toBeGreaterThan(0);
   });
 
-  it("draws background flames into the sample when flames are enabled", () => {
-    const drawSpy = vi.spyOn(playgroundFlames, "drawPlaygroundFlames");
+  it("applies flames during block-grid luminance, not during source sampling", () => {
     const displayWidth = 28;
     const displayHeight = 28;
     const sourceCanvas = createBlackSourceCanvas();
@@ -59,35 +58,33 @@ describe("sampleTextureFrame", () => {
     expect(sampleCtx).not.toBeNull();
 
     const flamesState = createPlaygroundFlamesState();
-    flamesState.flames.push({
-      x: 10,
-      y: 0,
-      width: 8,
-      height: displayHeight,
-      speedPxPerSec: 0,
-    });
     const flamesConfig = { ...DEFAULT_PLAYGROUND_FLAMES_CONFIG, enabled: true };
+    const flameRaster = createSolidImageData(displayWidth, displayHeight, [0, 0, 0]);
+    for (let row = 0; row < displayHeight; row++) {
+      for (let col = 10; col < 18; col++) {
+        const offset = (row * displayWidth + col) * 4;
+        flameRaster.data[offset] = 255;
+        flameRaster.data[offset + 1] = 255;
+        flameRaster.data[offset + 2] = 255;
+      }
+    }
 
-    sampleTextureFrame(
-      sourceCanvas,
-      displayWidth,
-      displayHeight,
-      sampleCanvas,
-      sampleCtx!,
-      undefined,
+    const rasterSpy = vi.spyOn(playgroundFlames, "rasterizePlaygroundFlames").mockReturnValue(flameRaster);
+
+    const frame = sampleTextureFrame(sourceCanvas, displayWidth, displayHeight, sampleCanvas, sampleCtx!);
+    expect(frame).not.toBeNull();
+
+    const colors = buildStripeColors();
+    const withoutFlames = buildPlaygroundBlockGrid(frame!, displayWidth, displayHeight, colors, {});
+    const withFlames = buildPlaygroundBlockGrid(frame!, displayWidth, displayHeight, colors, {}, 1, {
       flamesState,
       flamesConfig,
-    );
-
-    expect(drawSpy).toHaveBeenCalledWith(sampleCtx, flamesState, flamesConfig, displayWidth, displayHeight, {
-      applyEdgeMask: flamesConfig.edgeMaskEnabled,
     });
 
-    drawSpy.mockClear();
-    sampleTextureFrame(sourceCanvas, displayWidth, displayHeight, sampleCanvas, sampleCtx!);
-    expect(drawSpy).not.toHaveBeenCalled();
+    expect(rasterSpy).toHaveBeenCalledWith(flamesState, flamesConfig, displayWidth, displayHeight);
+    expect([...withFlames.grid.indices]).not.toEqual([...withoutFlames.grid.indices]);
 
-    drawSpy.mockRestore();
+    rasterSpy.mockRestore();
   });
 
   it("shifts stripe indices when the sampled frame is brighter in flame-covered cells", () => {

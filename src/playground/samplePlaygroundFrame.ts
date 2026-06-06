@@ -1,4 +1,6 @@
-import { computeBlockGrid, type BlockGrid } from "./computeBlockGrid";
+import { computeBlockGrid, type BlockGrid, type FlamesLuminanceContribution } from "./computeBlockGrid";
+import { rasterizePlaygroundFlames, type PlaygroundFlamesState } from "./playgroundFlames";
+import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import { smoothBlockGridIndices } from "./stabilizeBlockGrid";
 import { resolveStripeIndices, type StripeColors } from "./stripeColors";
 import {
@@ -10,8 +12,6 @@ import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
-import { drawPlaygroundFlames, type PlaygroundFlamesState } from "./playgroundFlames";
-import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 
 export type PlaygroundGridBuildState = {
   stableIndices?: Uint8Array;
@@ -24,8 +24,6 @@ export function sampleTextureFrame(
   sampleCanvas: HTMLCanvasElement,
   sampleCtx: CanvasRenderingContext2D,
   sourceTransform: PlaygroundSourceTransform = DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
-  flamesState: PlaygroundFlamesState | null = null,
-  flamesConfig: PlaygroundFlamesConfig | null = null,
 ): ImageData | null {
   if (displayWidth <= 0 || displayHeight <= 0) {
     return null;
@@ -50,12 +48,28 @@ export function sampleTextureFrame(
     destination.dw,
     destination.dh,
   );
-  if (flamesState && flamesConfig?.enabled) {
-    drawPlaygroundFlames(sampleCtx, flamesState, flamesConfig, displayWidth, displayHeight, {
-      applyEdgeMask: flamesConfig.edgeMaskEnabled,
-    });
-  }
   return sampleCtx.getImageData(0, 0, displayWidth, displayHeight);
+}
+
+function resolveFlamesLuminanceContribution(
+  flamesState: PlaygroundFlamesState | null | undefined,
+  flamesConfig: PlaygroundFlamesConfig | null | undefined,
+  displayWidth: number,
+  displayHeight: number,
+): FlamesLuminanceContribution | undefined {
+  if (!flamesState || !flamesConfig?.enabled) {
+    return undefined;
+  }
+  const raster = rasterizePlaygroundFlames(flamesState, flamesConfig, displayWidth, displayHeight);
+  if (!raster) {
+    return undefined;
+  }
+  return {
+    pixels: raster.data,
+    imageWidth: displayWidth,
+    imageHeight: displayHeight,
+    mask: flamesConfig,
+  };
 }
 
 function getCanvasSourceSize(source: CanvasImageSource): { width: number; height: number } {
@@ -76,22 +90,11 @@ export function sampleVideoFrame(
   sampleCanvas: HTMLCanvasElement,
   sampleCtx: CanvasRenderingContext2D,
   sourceTransform: PlaygroundSourceTransform = DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
-  flamesState: PlaygroundFlamesState | null = null,
-  flamesConfig: PlaygroundFlamesConfig | null = null,
 ): ImageData | null {
   if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
     return null;
   }
-  return sampleTextureFrame(
-    video,
-    displayWidth,
-    displayHeight,
-    sampleCanvas,
-    sampleCtx,
-    sourceTransform,
-    flamesState,
-    flamesConfig,
-  );
+  return sampleTextureFrame(video, displayWidth, displayHeight, sampleCanvas, sampleCtx, sourceTransform);
 }
 
 export type PlaygroundGridBuildOptions = {
@@ -100,6 +103,8 @@ export type PlaygroundGridBuildOptions = {
   /** Max stripe-index change per update (0 = snap instantly). */
   smoothingMaxStep?: number;
   textureAdjustments?: PlaygroundTextureAdjustments;
+  flamesState?: PlaygroundFlamesState | null;
+  flamesConfig?: PlaygroundFlamesConfig | null;
 };
 
 export function buildPlaygroundBlockGrid(
@@ -111,6 +116,12 @@ export function buildPlaygroundBlockGrid(
   gamma = 1,
   options: PlaygroundGridBuildOptions = {},
 ): { grid: BlockGrid; state: PlaygroundGridBuildState } {
+  const flames = resolveFlamesLuminanceContribution(
+    options.flamesState,
+    options.flamesConfig,
+    displayWidth,
+    displayHeight,
+  );
   const lumaGrid = computeBlockGrid(
     frame.data,
     displayWidth,
@@ -119,6 +130,7 @@ export function buildPlaygroundBlockGrid(
     options.cellWidth,
     options.cellHeight,
     options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+    flames,
   );
   const rawIndices = resolveStripeIndices(lumaGrid.luma, colors.stripes);
   const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices, options.smoothingMaxStep);

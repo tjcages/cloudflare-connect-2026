@@ -1,7 +1,6 @@
 import { Texture } from "pixi.js";
 import {
   isVerticalPlaygroundFlamesDirection,
-  resolveFlamesEdgeMaskAlpha,
   resolveFlamesGradientStops,
   resolveFlamesSpeedRange,
   type PlaygroundFlamesConfig,
@@ -218,34 +217,6 @@ function isPlaygroundFlameVisible(
   }
 }
 
-function applyFlamesEdgeMaskToCanvas(
-  ctx: CanvasRenderingContext2D,
-  displayWidth: number,
-  displayHeight: number,
-  config: PlaygroundFlamesConfig,
-): void {
-  if (!config.edgeMaskEnabled || displayWidth <= 0 || displayHeight <= 0) {
-    return;
-  }
-
-  const imageData = ctx.getImageData(0, 0, displayWidth, displayHeight);
-  const { data } = imageData;
-  for (let y = 0; y < displayHeight; y++) {
-    const v = y / displayHeight;
-    for (let x = 0; x < displayWidth; x++) {
-      const mask = resolveFlamesEdgeMaskAlpha(x / displayWidth, v, config);
-      if (mask >= 0.999) {
-        continue;
-      }
-      const offset = (y * displayWidth + x) * 4;
-      data[offset]! *= mask;
-      data[offset + 1]! *= mask;
-      data[offset + 2]! *= mask;
-    }
-  }
-  ctx.putImageData(imageData, 0, 0);
-}
-
 function drawPlaygroundFlamesLayer(
   ctx: CanvasRenderingContext2D,
   state: PlaygroundFlamesState,
@@ -270,9 +241,8 @@ export function drawPlaygroundFlames(
   ctx: CanvasRenderingContext2D,
   state: PlaygroundFlamesState,
   config: PlaygroundFlamesConfig,
-  displayWidth: number,
-  displayHeight: number,
-  options: { applyEdgeMask?: boolean } = {},
+  _displayWidth: number,
+  _displayHeight: number,
 ): void {
   if (!config.enabled || state.flames.length === 0) {
     return;
@@ -280,23 +250,32 @@ export function drawPlaygroundFlames(
 
   const previousComposite = ctx.globalCompositeOperation;
   ctx.globalCompositeOperation = "lighter";
+  drawPlaygroundFlamesLayer(ctx, state, config);
+  ctx.globalCompositeOperation = previousComposite;
+}
 
-  if (options.applyEdgeMask && config.edgeMaskEnabled) {
-    const flamesCanvas = document.createElement("canvas");
-    flamesCanvas.width = displayWidth;
-    flamesCanvas.height = displayHeight;
-    const flamesCtx = flamesCanvas.getContext("2d");
-    if (!flamesCtx) {
-      throw new Error("2D canvas context unavailable for masked flames overlay.");
-    }
-    drawPlaygroundFlamesLayer(flamesCtx, state, config);
-    applyFlamesEdgeMaskToCanvas(flamesCtx, displayWidth, displayHeight, config);
-    ctx.drawImage(flamesCanvas, 0, 0);
-  } else {
-    drawPlaygroundFlamesLayer(ctx, state, config);
+/** Flame-only RGBA buffer for stripe luminance sampling (black background, no edge mask). */
+export function rasterizePlaygroundFlames(
+  state: PlaygroundFlamesState,
+  config: PlaygroundFlamesConfig,
+  displayWidth: number,
+  displayHeight: number,
+): ImageData | null {
+  if (!config.enabled || state.flames.length === 0 || displayWidth <= 0 || displayHeight <= 0) {
+    return null;
   }
 
-  ctx.globalCompositeOperation = previousComposite;
+  const canvas = document.createElement("canvas");
+  canvas.width = displayWidth;
+  canvas.height = displayHeight;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) {
+    throw new Error("2D canvas context unavailable for flames luminance raster.");
+  }
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, displayWidth, displayHeight);
+  drawPlaygroundFlames(ctx, state, config, displayWidth, displayHeight);
+  return ctx.getImageData(0, 0, displayWidth, displayHeight);
 }
 
 export class PlaygroundFlamesOverlay {

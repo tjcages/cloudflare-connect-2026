@@ -61,8 +61,10 @@ export const PLAYGROUND_FIELD_HELP = {
   flamesSpawnJitter: "Random milliseconds added or subtracted from the spawn interval.",
   flamesMaxActive: "Maximum number of flame rects on screen at once.",
   flamesEdgeSharpness: "Edge falloff across the streak thickness (0 = soft, 1 = sharp).",
-  flamesEdgeMaskEnabled: "Fade flames out near the canvas edges in preview, stripe sampling, and Copy SVG export.",
-  flamesEdgeMaskStart: "Inset from each canvas edge where flame mask alpha stays 0 (percent of width/height).",
-  flamesEdgeMaskEnd: "Inset from each canvas edge where flame mask alpha reaches 1. Must be greater than mask start.",
-  flamesEdgeMaskPower: "Curve shaping for the mask ramp (1 = linear, higher = softer mid-fade).",
+  flamesEdgeMaskEnabled:
+    "Reduce how much flames brighten luminance near canvas edges (preview texture and stripe width sampling). Stripe opacity stays unchanged.",
+  flamesEdgeMaskStart: "Inset from each canvas edge where masked flame luminance stays 0 (percent of width/height).",
+  flamesEdgeMaskEnd:
+    "Inset from each canvas edge where masked flame luminance reaches full strength. Must be greater than mask start.",
+  flamesEdgeMaskPower: "Curve shaping for the flame luminance ramp (1 = linear, higher = softer mid-fade).",
 } as const;

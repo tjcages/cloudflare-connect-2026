@@ -1298,26 +1298,8 @@ export function TexturePlayground() {
 
     const frame =
       loadState.kind === "video"
-        ? sampleVideoFrame(
-            loadState.video,
-            display.width,
-            display.height,
-            sampleCanvas,
-            sampleCtx,
-            sourceTransform,
-            flamesStateRef.current,
-            flamesConfigRef.current,
-          )
-        : sampleTextureFrame(
-            loadState.image,
-            display.width,
-            display.height,
-            sampleCanvas,
-            sampleCtx,
-            sourceTransform,
-            flamesStateRef.current,
-            flamesConfigRef.current,
-          );
+        ? sampleVideoFrame(loadState.video, display.width, display.height, sampleCanvas, sampleCtx, sourceTransform)
+        : sampleTextureFrame(loadState.image, display.width, display.height, sampleCanvas, sampleCtx, sourceTransform);
     if (!frame) {
       setExportFeedback("failed");
       window.setTimeout(() => setExportFeedback("idle"), 1600);
@@ -1327,6 +1309,8 @@ export function TexturePlayground() {
     const colors = stripeColorsRef.current;
     const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, {}, textureGamma, {
       textureAdjustments,
+      flamesState: flamesStateRef.current,
+      flamesConfig: flamesConfigRef.current,
     });
     const svg = stripeGridToSvg(built.grid, colors, display.width, display.height);
 

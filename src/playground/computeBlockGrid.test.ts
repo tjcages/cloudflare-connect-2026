@@ -70,4 +70,31 @@ describe("computeBlockGrid cell sizing", () => {
 
     expect(Array.from(grid.luma)).toEqual([128, 85, 0]);
   });
+
+  it("adds masked flame luminance without changing source pixels", () => {
+    const data = splitImage(2, 1, 0);
+    const flames = new Uint8ClampedArray(2 * 1 * 4);
+    flames[0] = 255;
+    flames[1] = 255;
+    flames[2] = 255;
+    flames[3] = 255;
+
+    const unmasked = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, {
+      pixels: flames,
+      imageWidth: 2,
+      imageHeight: 1,
+      mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
+    });
+    const masked = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, {
+      pixels: flames,
+      imageWidth: 2,
+      imageHeight: 1,
+      mask: { edgeMaskEnabled: true, edgeMaskStart: 0, edgeMaskEnd: 0.5, edgeMaskPower: 1 },
+    });
+
+    expect(unmasked.luma[0]).toBe(255);
+    expect(masked.luma[0]).toBe(0);
+    expect(unmasked.luma[1]).toBe(0);
+    expect(masked.luma[1]).toBe(0);
+  });
 });

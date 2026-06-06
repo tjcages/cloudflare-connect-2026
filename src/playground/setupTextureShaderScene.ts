@@ -434,6 +434,8 @@ function runDuotoneTick(params: {
             ...textureAdjustmentsRef.current,
             gamma: textureGammaRef.current,
           },
+          flamesState: flamesStateRef.current,
+          flamesConfig: flamesConfigRef.current,
         },
       );
       gridState = built.state;
@@ -624,16 +626,7 @@ function createImageSceneTicker(
         syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current),
       shouldSample: () => false,
       sampleFrame: () =>
-        sampleTextureFrame(
-          image,
-          display.width,
-          display.height,
-          sampleCanvas,
-          sampleCtx,
-          sourceTransformRef.current,
-          flamesStateRef.current,
-          flamesConfigRef.current,
-        ),
+        sampleTextureFrame(image, display.width, display.height, sampleCanvas, sampleCtx, sourceTransformRef.current),
     });
 
     app.ticker.add(renderTick);
@@ -744,16 +737,7 @@ function createVideoSceneTickerInternal(
         syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current),
       shouldSample: () => video.currentTime !== lastSampledTime,
       sampleFrame: () =>
-        sampleVideoFrame(
-          video,
-          display.width,
-          display.height,
-          sampleCanvas,
-          sampleCtx,
-          sourceTransformRef.current,
-          flamesStateRef.current,
-          flamesConfigRef.current,
-        ),
+        sampleVideoFrame(video, display.width, display.height, sampleCanvas, sampleCtx, sourceTransformRef.current),
       onSampled: () => {
         lastSampledTime = video.currentTime;
       },

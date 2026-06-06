@@ -1,4 +1,5 @@
 import { pixelLuminance } from "./colorWhiteness";
+import { resolveFlamesEdgeMaskAlpha, type PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   applyTextureLuminanceAdjustments,
@@ -6,6 +7,13 @@ import {
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
 import { STRIPE_CELL_SIZE } from "./stripeGridConstants";
+
+export type FlamesLuminanceContribution = {
+  pixels: Uint8ClampedArray;
+  imageWidth: number;
+  imageHeight: number;
+  mask: Pick<PlaygroundFlamesConfig, "edgeMaskEnabled" | "edgeMaskStart" | "edgeMaskEnd" | "edgeMaskPower">;
+};
 
 /** Per-cell mean luminance (0–255), independent of the stripe list. */
 export type LumaGrid = {
@@ -32,6 +40,7 @@ function cellMeanLuminance(
   cellWidth: number,
   cellHeight: number,
   adjustments: PlaygroundTextureAdjustments,
+  flames?: FlamesLuminanceContribution,
 ): number {
   const originX = col * cellWidth;
   const originY = row * cellHeight;
@@ -48,7 +57,21 @@ function cellMeanLuminance(
       const r = pixels[idx] ?? 0;
       const g = pixels[idx + 1] ?? 0;
       const b = pixels[idx + 2] ?? 0;
-      const luma = pixelLuminance(r, g, b);
+      let luma = pixelLuminance(r, g, b);
+      if (
+        flames &&
+        flames.imageWidth === imageWidth &&
+        flames.imageHeight === imageHeight &&
+        flames.pixels.length >= idx + 3
+      ) {
+        const flameLuma = pixelLuminance(
+          flames.pixels[idx] ?? 0,
+          flames.pixels[idx + 1] ?? 0,
+          flames.pixels[idx + 2] ?? 0,
+        );
+        const mask = resolveFlamesEdgeMaskAlpha(x / imageWidth, y / imageHeight, flames.mask);
+        luma = Math.max(luma, flameLuma * mask);
+      }
       sum += applyTextureLuminanceAdjustments(luma, adjustments, col, row);
     }
   }
@@ -103,6 +126,7 @@ export function computeBlockGrid(
   cellWidth: number = STRIPE_CELL_SIZE,
   cellHeight: number = STRIPE_CELL_SIZE,
   adjustmentsInput: PlaygroundTextureAdjustments = DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  flames?: FlamesLuminanceContribution,
 ): LumaGrid {
   const safeCellWidth = Math.max(1, Math.round(cellWidth));
   const safeCellHeight = Math.max(1, Math.round(cellHeight));
@@ -126,6 +150,7 @@ export function computeBlockGrid(
         safeCellWidth,
         safeCellHeight,
         adjustments,
+        flames,
       );
       luma[row * cols + col] = Math.round(Math.min(1, Math.max(0, mean)) * 255);
     }
