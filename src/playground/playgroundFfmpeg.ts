@@ -1,7 +1,28 @@
 import { FFmpeg, type ProgressEventCallback } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
-import coreURL from "@ffmpeg/core?url";
-import wasmURL from "@ffmpeg/core/wasm?url";
+
+/** Keep in sync with the `@ffmpeg/core` version in package.json. */
+export const FFMPEG_CORE_VERSION = "0.12.10";
+
+export function buildPlaygroundFfmpegCdnCoreUrls(version = FFMPEG_CORE_VERSION): { coreURL: string; wasmURL: string } {
+  const base = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${version}/dist/esm`;
+  return {
+    coreURL: `${base}/ffmpeg-core.js`,
+    wasmURL: `${base}/ffmpeg-core.wasm`,
+  };
+}
+
+async function resolvePlaygroundFfmpegCoreUrls(): Promise<{ coreURL: string; wasmURL: string }> {
+  if (import.meta.env.PROD) {
+    return buildPlaygroundFfmpegCdnCoreUrls();
+  }
+
+  const [coreModule, wasmModule] = await Promise.all([import("@ffmpeg/core?url"), import("@ffmpeg/core/wasm?url")]);
+  return {
+    coreURL: coreModule.default,
+    wasmURL: wasmModule.default,
+  };
+}
 
 let ffmpegInstance: FFmpeg | null = null;
 let loadPromise: Promise<FFmpeg> | null = null;
@@ -40,6 +61,7 @@ export async function getPlaygroundFfmpeg(): Promise<FFmpeg> {
 
   loadPromise = (async () => {
     const ffmpeg = new FFmpeg();
+    const { coreURL, wasmURL } = await resolvePlaygroundFfmpegCoreUrls();
     await ffmpeg.load({ coreURL, wasmURL });
     ffmpegInstance = ffmpeg;
     return ffmpeg;
