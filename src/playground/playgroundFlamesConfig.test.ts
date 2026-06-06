@@ -4,6 +4,7 @@ import {
   isDefaultPlaygroundFlamesConfig,
   normalizePlaygroundFlamesConfig,
   normalizePlaygroundFlamesDirection,
+  resolveFlamesEdgeMaskAlpha,
   resolveFlamesGradientStops,
   resolveFlamesSpeedRange,
 } from "./playgroundFlamesConfig";
@@ -51,5 +52,28 @@ describe("playgroundFlamesConfig", () => {
     const soft = resolveFlamesGradientStops(0);
     const sharp = resolveFlamesGradientStops(1);
     expect(sharp.outer - sharp.inner).toBeLessThan(soft.outer - soft.inner);
+  });
+
+  it("ramps edge mask alpha from start to end inset", () => {
+    const config = {
+      edgeMaskEnabled: true,
+      edgeMaskStart: 0.1,
+      edgeMaskEnd: 0.2,
+      edgeMaskPower: 1,
+    };
+    expect(resolveFlamesEdgeMaskAlpha(0.05, 0.5, config)).toBe(0);
+    expect(resolveFlamesEdgeMaskAlpha(0.15, 0.5, config)).toBeCloseTo(0.5, 5);
+    expect(resolveFlamesEdgeMaskAlpha(0.25, 0.5, config)).toBe(1);
+  });
+
+  it("returns full mask alpha when edge mask is disabled", () => {
+    expect(
+      resolveFlamesEdgeMaskAlpha(0, 0, {
+        edgeMaskEnabled: false,
+        edgeMaskStart: 0,
+        edgeMaskEnd: 0.1,
+        edgeMaskPower: 1,
+      }),
+    ).toBe(1);
   });
 });

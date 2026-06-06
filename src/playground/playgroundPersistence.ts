@@ -224,6 +224,10 @@ type FlamesWire = {
   sj?: number;
   ma?: number;
   es?: number;
+  em?: boolean;
+  ms?: number;
+  me?: number;
+  mp?: number;
 };
 
 function stripesToWire(stripes: readonly Stripe[]): StripeWire[] {
@@ -335,6 +339,10 @@ function flamesToWire(config: PlaygroundFlamesConfig): FlamesWire | undefined {
   if (normalized.spawnJitterMs !== base.spawnJitterMs) wire.sj = normalized.spawnJitterMs;
   if (normalized.maxActive !== base.maxActive) wire.ma = normalized.maxActive;
   if (normalized.edgeSharpness !== base.edgeSharpness) wire.es = normalized.edgeSharpness;
+  if (normalized.edgeMaskEnabled !== base.edgeMaskEnabled) wire.em = normalized.edgeMaskEnabled;
+  if (normalized.edgeMaskStart !== base.edgeMaskStart) wire.ms = normalized.edgeMaskStart;
+  if (normalized.edgeMaskEnd !== base.edgeMaskEnd) wire.me = normalized.edgeMaskEnd;
+  if (normalized.edgeMaskPower !== base.edgeMaskPower) wire.mp = normalized.edgeMaskPower;
   return wire;
 }
 
@@ -356,6 +364,10 @@ function wireToFlames(raw: unknown): PlaygroundFlamesConfig | undefined {
     spawnJitterMs: wire.sj,
     maxActive: wire.ma,
     edgeSharpness: wire.es,
+    edgeMaskEnabled: wire.em,
+    edgeMaskStart: wire.ms,
+    edgeMaskEnd: wire.me,
+    edgeMaskPower: wire.mp,
   });
 }
 

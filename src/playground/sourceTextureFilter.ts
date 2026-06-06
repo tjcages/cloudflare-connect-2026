@@ -1,4 +1,5 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
+import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import {
   normalizePlaygroundTextureAdjustments,
   type PlaygroundTextureAdjustments,
@@ -23,6 +24,10 @@ uniform float uPosterizeLevels;
 uniform float uThresholdBias;
 uniform float uNoiseAmount;
 uniform float uFlamesEnabled;
+uniform float uFlamesMaskEnabled;
+uniform float uFlamesMaskStart;
+uniform float uFlamesMaskEnd;
+uniform float uFlamesMaskPower;
 
 float lumaNoiseHash(vec2 p) {
     vec3 p3 = fract(vec3(p.x, p.y, p.x) * vec3(0.1031, 0.1030, 0.0973));
@@ -50,12 +55,29 @@ float adjustLuma(float luma) {
     return clamp(value, 0.0, 1.0);
 }
 
+float flamesEdgeMaskInset(float inset) {
+    if (uFlamesMaskEnabled < 0.5) {
+        return 1.0;
+    }
+    float start = uFlamesMaskStart;
+    float end = max(uFlamesMaskEnd, start + 0.0001);
+    float t = clamp((inset - start) / (end - start), 0.0, 1.0);
+    return pow(t, max(uFlamesMaskPower, 0.0001));
+}
+
+float flamesEdgeMask(vec2 coord) {
+    float insetX = min(coord.x, 1.0 - coord.x);
+    float insetY = min(coord.y, 1.0 - coord.y);
+    return flamesEdgeMaskInset(insetX) * flamesEdgeMaskInset(insetY);
+}
+
 vec3 applyFlames(vec3 color) {
     if (uFlamesEnabled < 0.5) {
         return color;
     }
     vec3 flame = texture(uFlames, vDisplayCoord).rgb;
-    return max(color, flame);
+    float mask = flamesEdgeMask(vDisplayCoord);
+    return max(color, flame * mask);
 }
 
 void main(void) {
@@ -69,7 +91,7 @@ void main(void) {
 
 export type SourceTextureFilter = Filter & {
   syncAdjustments: (adjustments: PlaygroundTextureAdjustments) => void;
-  syncFlames: (texture: Texture | null, enabled: boolean) => void;
+  syncFlames: (texture: Texture | null, config: PlaygroundFlamesConfig | null) => void;
 };
 
 export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustments): SourceTextureFilter {
@@ -86,6 +108,10 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     uThresholdBias: { value: normalized.thresholdBias, type: "f32" },
     uNoiseAmount: { value: normalized.noiseAmount, type: "f32" },
     uFlamesEnabled: { value: 0, type: "f32" },
+    uFlamesMaskEnabled: { value: 0, type: "f32" },
+    uFlamesMaskStart: { value: 0, type: "f32" },
+    uFlamesMaskEnd: { value: 0.1, type: "f32" },
+    uFlamesMaskPower: { value: 1, type: "f32" },
   });
 
   const filter = new Filter({
@@ -128,14 +154,23 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     textureUniforms.update();
   };
 
-  filter.syncFlames = (texture, enabled) => {
+  filter.syncFlames = (texture, config) => {
     const flamesTexture = texture ?? Texture.EMPTY;
     flamesTexture.source.style.scaleMode = "linear";
     filter.resources.uFlames = flamesTexture.source;
     const uniforms = textureUniforms.uniforms as {
       uFlamesEnabled: number;
+      uFlamesMaskEnabled: number;
+      uFlamesMaskStart: number;
+      uFlamesMaskEnd: number;
+      uFlamesMaskPower: number;
     };
+    const enabled = Boolean(config?.enabled);
     uniforms.uFlamesEnabled = enabled ? 1 : 0;
+    uniforms.uFlamesMaskEnabled = enabled && config?.edgeMaskEnabled !== false ? 1 : 0;
+    uniforms.uFlamesMaskStart = config?.edgeMaskStart ?? 0;
+    uniforms.uFlamesMaskEnd = config?.edgeMaskEnd ?? 0.1;
+    uniforms.uFlamesMaskPower = config?.edgeMaskPower ?? 1;
     textureUniforms.update();
   };
 

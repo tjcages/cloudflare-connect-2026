@@ -16,6 +16,8 @@ export const PLAYGROUND_CONTROL_RANGES = {
   flamesSpawnJitterMs: { min: 0, max: 500, step: 5 },
   flamesMaxActive: { min: 1, max: 120, step: 1 },
   flamesEdgeSharpness: { min: 0, max: 1, step: 0.01 },
+  flamesEdgeMaskInset: { min: 0, max: 50, step: 0.1 },
+  flamesEdgeMaskPower: { min: 0.1, max: 4, step: 0.05 },
 } as const;
 
 /** Wider bounds for typed values (sliders stay on PLAYGROUND_CONTROL_RANGES). */
@@ -33,4 +35,6 @@ export const PLAYGROUND_CONTROL_INPUT_BOUNDS = {
   flamesSpawnJitterMs: { min: 0, max: 5000 },
   flamesMaxActive: { min: 1, max: 200 },
   flamesEdgeSharpness: { min: 0, max: 1 },
+  flamesEdgeMaskInset: { min: 0, max: 50 },
+  flamesEdgeMaskPower: { min: 0.1, max: 4 },
 } as const;

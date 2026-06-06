@@ -18,6 +18,14 @@ export type PlaygroundFlamesConfig = {
   maxActive: number;
   /** 0 = soft edges, 1 = sharp edges. */
   edgeSharpness: number;
+  /** Fade flames out near the canvas edges in preview and sampling. */
+  edgeMaskEnabled: boolean;
+  /** Inset from each edge (0–1) where mask alpha stays 0. */
+  edgeMaskStart: number;
+  /** Inset from each edge (0–1) where mask alpha reaches 1. Must be > edgeMaskStart. */
+  edgeMaskEnd: number;
+  /** Curve applied to the start→end ramp (1 = linear). */
+  edgeMaskPower: number;
 };
 
 export const DEFAULT_PLAYGROUND_FLAMES_CONFIG: PlaygroundFlamesConfig = {
@@ -33,6 +41,10 @@ export const DEFAULT_PLAYGROUND_FLAMES_CONFIG: PlaygroundFlamesConfig = {
   spawnJitterMs: 80,
   maxActive: 48,
   edgeSharpness: 0.88,
+  edgeMaskEnabled: true,
+  edgeMaskStart: 0,
+  edgeMaskEnd: 0.1,
+  edgeMaskPower: 1,
 };
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
@@ -80,6 +92,13 @@ export function normalizePlaygroundFlamesConfig(
     0.5,
     Math.max(minHeightRatio, base.maxHeightRatio),
   );
+  const edgeMaskStart = clampNumber(input.edgeMaskStart ?? base.edgeMaskStart, 0, 0.5, base.edgeMaskStart);
+  const edgeMaskEnd = clampNumber(
+    input.edgeMaskEnd ?? base.edgeMaskEnd,
+    edgeMaskStart + 0.001,
+    0.5,
+    Math.max(edgeMaskStart + 0.001, input.edgeMaskEnd ?? base.edgeMaskEnd),
+  );
 
   return {
     enabled: input.enabled !== false,
@@ -94,6 +113,10 @@ export function normalizePlaygroundFlamesConfig(
     spawnJitterMs: clampInt(input.spawnJitterMs ?? base.spawnJitterMs, 0, 2000, base.spawnJitterMs),
     maxActive: clampInt(input.maxActive ?? base.maxActive, 1, 200, base.maxActive),
     edgeSharpness: clampNumber(input.edgeSharpness ?? base.edgeSharpness, 0, 1, base.edgeSharpness),
+    edgeMaskEnabled: input.edgeMaskEnabled !== false,
+    edgeMaskStart,
+    edgeMaskEnd,
+    edgeMaskPower: clampNumber(input.edgeMaskPower ?? base.edgeMaskPower, 0.1, 4, base.edgeMaskPower),
   };
 }
 
@@ -111,8 +134,31 @@ export function isDefaultPlaygroundFlamesConfig(input: PlaygroundFlamesConfig): 
     input.spawnIntervalMs === base.spawnIntervalMs &&
     input.spawnJitterMs === base.spawnJitterMs &&
     input.maxActive === base.maxActive &&
-    input.edgeSharpness === base.edgeSharpness
+    input.edgeSharpness === base.edgeSharpness &&
+    input.edgeMaskEnabled === base.edgeMaskEnabled &&
+    input.edgeMaskStart === base.edgeMaskStart &&
+    input.edgeMaskEnd === base.edgeMaskEnd &&
+    input.edgeMaskPower === base.edgeMaskPower
   );
+}
+
+export function resolveFlamesEdgeMaskAlpha(
+  u: number,
+  v: number,
+  config: Pick<PlaygroundFlamesConfig, "edgeMaskEnabled" | "edgeMaskStart" | "edgeMaskEnd" | "edgeMaskPower">,
+): number {
+  if (!config.edgeMaskEnabled) {
+    return 1;
+  }
+  const start = config.edgeMaskStart;
+  const end = Math.max(config.edgeMaskEnd, start + 0.0001);
+  const ramp = (inset: number) => {
+    const t = Math.min(1, Math.max(0, (inset - start) / (end - start)));
+    return t ** config.edgeMaskPower;
+  };
+  const insetX = Math.min(u, 1 - u);
+  const insetY = Math.min(v, 1 - v);
+  return ramp(insetX) * ramp(insetY);
 }
 
 export function resolveFlamesGradientStops(sharpness: number): { inner: number; outer: number } {

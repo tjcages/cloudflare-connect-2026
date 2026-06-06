@@ -79,7 +79,9 @@ describe("sampleTextureFrame", () => {
       flamesConfig,
     );
 
-    expect(drawSpy).toHaveBeenCalledWith(sampleCtx, flamesState, flamesConfig, displayWidth, displayHeight);
+    expect(drawSpy).toHaveBeenCalledWith(sampleCtx, flamesState, flamesConfig, displayWidth, displayHeight, {
+      applyEdgeMask: flamesConfig.edgeMaskEnabled,
+    });
 
     drawSpy.mockClear();
     sampleTextureFrame(sourceCanvas, displayWidth, displayHeight, sampleCanvas, sampleCtx!);

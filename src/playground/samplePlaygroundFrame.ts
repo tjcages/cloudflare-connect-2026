@@ -51,7 +51,9 @@ export function sampleTextureFrame(
     destination.dh,
   );
   if (flamesState && flamesConfig?.enabled) {
-    drawPlaygroundFlames(sampleCtx, flamesState, flamesConfig, displayWidth, displayHeight);
+    drawPlaygroundFlames(sampleCtx, flamesState, flamesConfig, displayWidth, displayHeight, {
+      applyEdgeMask: flamesConfig.edgeMaskEnabled,
+    });
   }
   return sampleCtx.getImageData(0, 0, displayWidth, displayHeight);
 }

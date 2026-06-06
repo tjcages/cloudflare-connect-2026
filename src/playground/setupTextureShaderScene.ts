@@ -357,9 +357,9 @@ function runDuotoneTick(params: {
       const flamesActive = Boolean(flamesState && flamesConfig.enabled);
       if (flamesOverlay && textureFilterMode === "preview" && flamesActive) {
         flamesOverlay.sync(flamesState, flamesConfig);
-        sourceTextureFilter.syncFlames(flamesOverlay.texture, true);
+        sourceTextureFilter.syncFlames(flamesOverlay.texture, flamesConfig);
       } else {
-        sourceTextureFilter.syncFlames(null, false);
+        sourceTextureFilter.syncFlames(null, null);
       }
       if (exportStateRef) {
         exportStateRef.current = {
@@ -373,7 +373,7 @@ function runDuotoneTick(params: {
       return;
     }
 
-    sourceTextureFilter.syncFlames(null, false);
+    sourceTextureFilter.syncFlames(null, null);
 
     const colors = stripeColorsRef.current;
     const colorsKey = JSON.stringify({

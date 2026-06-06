@@ -213,6 +213,64 @@ export function PlaygroundFlamesControls({
         formatDisplay={(v) => v.toFixed(2)}
         description={PLAYGROUND_FIELD_HELP.flamesEdgeSharpness}
       />
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={config.edgeMaskEnabled}
+          onChange={(event) => onChange({ edgeMaskEnabled: event.target.checked })}
+          className="size-4 cursor-pointer rounded border-neutral-300"
+          aria-label="Flame edge mask enabled"
+          disabled={fieldsDisabled}
+        />
+        <span className="flex items-center gap-1.5 text-neutral-800">
+          <FieldHelp label="Edge mask" description={PLAYGROUND_FIELD_HELP.flamesEdgeMaskEnabled} />
+        </span>
+      </label>
+      <PlaygroundNumberField
+        label="Mask start"
+        value={config.edgeMaskStart * 100}
+        inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.flamesEdgeMaskInset.min}
+        inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.flamesEdgeMaskInset.max}
+        sliderMin={PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.min}
+        sliderMax={PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.max}
+        step={PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.step}
+        ariaLabel="Flame edge mask start percent"
+        disabled={fieldsDisabled || !config.edgeMaskEnabled}
+        onChange={(value) => onChange({ edgeMaskStart: value / 100 })}
+        onLiveChange={(value) => onLiveChange({ edgeMaskStart: value / 100 })}
+        formatDisplay={(v) => `${v.toFixed(1)}%`}
+        description={PLAYGROUND_FIELD_HELP.flamesEdgeMaskStart}
+      />
+      <PlaygroundNumberField
+        label="Mask end"
+        value={config.edgeMaskEnd * 100}
+        inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.flamesEdgeMaskInset.min}
+        inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.flamesEdgeMaskInset.max}
+        sliderMin={PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.min}
+        sliderMax={PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.max}
+        step={PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.step}
+        ariaLabel="Flame edge mask end percent"
+        disabled={fieldsDisabled || !config.edgeMaskEnabled}
+        onChange={(value) => onChange({ edgeMaskEnd: value / 100 })}
+        onLiveChange={(value) => onLiveChange({ edgeMaskEnd: value / 100 })}
+        formatDisplay={(v) => `${v.toFixed(1)}%`}
+        description={PLAYGROUND_FIELD_HELP.flamesEdgeMaskEnd}
+      />
+      <PlaygroundNumberField
+        label="Mask power"
+        value={config.edgeMaskPower}
+        inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.flamesEdgeMaskPower.min}
+        inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.flamesEdgeMaskPower.max}
+        sliderMin={PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskPower.min}
+        sliderMax={PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskPower.max}
+        step={PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskPower.step}
+        ariaLabel="Flame edge mask power"
+        disabled={fieldsDisabled || !config.edgeMaskEnabled}
+        onChange={(value) => onChange({ edgeMaskPower: value })}
+        onLiveChange={(value) => onLiveChange({ edgeMaskPower: value })}
+        formatDisplay={(v) => v.toFixed(2)}
+        description={PLAYGROUND_FIELD_HELP.flamesEdgeMaskPower}
+      />
     </PlaygroundControlSection>
   );
 }

@@ -14,7 +14,13 @@ describe("SOURCE_TEXTURE_FILTER_FRAGMENT", () => {
   it("composites flames over the preview with per-channel lighten", () => {
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uniform sampler2D uFlames");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("vec3 applyFlames(vec3 color)");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("return max(color, flame);");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("return max(color, flame * mask);");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("applyFlames(clamp(adjustedColor, 0.0, 1.0))");
+  });
+
+  it("fades flames near canvas edges with configurable inset ramp", () => {
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uFlamesMaskStart");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uFlamesMaskEnd");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("flamesEdgeMask(vDisplayCoord)");
   });
 });

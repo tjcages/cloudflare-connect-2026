@@ -1,6 +1,7 @@
 import { Texture } from "pixi.js";
 import {
   isVerticalPlaygroundFlamesDirection,
+  resolveFlamesEdgeMaskAlpha,
   resolveFlamesGradientStops,
   resolveFlamesSpeedRange,
   type PlaygroundFlamesConfig,
@@ -217,20 +218,40 @@ function isPlaygroundFlameVisible(
   }
 }
 
-export function drawPlaygroundFlames(
+function applyFlamesEdgeMaskToCanvas(
   ctx: CanvasRenderingContext2D,
-  state: PlaygroundFlamesState,
+  displayWidth: number,
+  displayHeight: number,
   config: PlaygroundFlamesConfig,
-  _displayWidth: number,
-  _displayHeight: number,
 ): void {
-  if (!config.enabled || state.flames.length === 0) {
+  if (!config.edgeMaskEnabled || displayWidth <= 0 || displayHeight <= 0) {
     return;
   }
 
+  const imageData = ctx.getImageData(0, 0, displayWidth, displayHeight);
+  const { data } = imageData;
+  for (let y = 0; y < displayHeight; y++) {
+    const v = y / displayHeight;
+    for (let x = 0; x < displayWidth; x++) {
+      const mask = resolveFlamesEdgeMaskAlpha(x / displayWidth, v, config);
+      if (mask >= 0.999) {
+        continue;
+      }
+      const offset = (y * displayWidth + x) * 4;
+      data[offset]! *= mask;
+      data[offset + 1]! *= mask;
+      data[offset + 2]! *= mask;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function drawPlaygroundFlamesLayer(
+  ctx: CanvasRenderingContext2D,
+  state: PlaygroundFlamesState,
+  config: PlaygroundFlamesConfig,
+): void {
   const { inner, outer } = resolveFlamesGradientStops(config.edgeSharpness);
-  const previousComposite = ctx.globalCompositeOperation;
-  ctx.globalCompositeOperation = "lighter";
 
   for (const flame of state.flames) {
     const gradient = isVerticalPlaygroundFlamesDirection(config.direction)
@@ -242,6 +263,37 @@ export function drawPlaygroundFlames(
     gradient.addColorStop(1, PLAYGROUND_FLAMES_COLOR_TRANSPARENT);
     ctx.fillStyle = gradient;
     ctx.fillRect(flame.x, flame.y, flame.width, flame.height);
+  }
+}
+
+export function drawPlaygroundFlames(
+  ctx: CanvasRenderingContext2D,
+  state: PlaygroundFlamesState,
+  config: PlaygroundFlamesConfig,
+  displayWidth: number,
+  displayHeight: number,
+  options: { applyEdgeMask?: boolean } = {},
+): void {
+  if (!config.enabled || state.flames.length === 0) {
+    return;
+  }
+
+  const previousComposite = ctx.globalCompositeOperation;
+  ctx.globalCompositeOperation = "lighter";
+
+  if (options.applyEdgeMask && config.edgeMaskEnabled) {
+    const flamesCanvas = document.createElement("canvas");
+    flamesCanvas.width = displayWidth;
+    flamesCanvas.height = displayHeight;
+    const flamesCtx = flamesCanvas.getContext("2d");
+    if (!flamesCtx) {
+      throw new Error("2D canvas context unavailable for masked flames overlay.");
+    }
+    drawPlaygroundFlamesLayer(flamesCtx, state, config);
+    applyFlamesEdgeMaskToCanvas(flamesCtx, displayWidth, displayHeight, config);
+    ctx.drawImage(flamesCanvas, 0, 0);
+  } else {
+    drawPlaygroundFlamesLayer(ctx, state, config);
   }
 
   ctx.globalCompositeOperation = previousComposite;
