@@ -18,9 +18,9 @@ describe("STRIPE_FILTER_FRAGMENT", () => {
     expect(STRIPE_FILTER_FRAGMENT).not.toContain("vec2 pixelCoord = vTextureCoord * uPixelSize");
   });
 
-  it("keeps fluid trail compositing out of the stripe shader while previewing the trail texture", () => {
-    expect(STRIPE_FILTER_FRAGMENT).not.toContain("uFluidTrail");
-    expect(STRIPE_FILTER_FRAGMENT).not.toContain("fluidTrailInfluence");
+  it("scales stripe edge fade with renderer resolution and caps it for thin stripes", () => {
+    expect(STRIPE_FILTER_FRAGMENT).toContain("uniform float uScreenScale");
+    expect(STRIPE_FILTER_FRAGMENT).toContain("0.5 / screenScale");
+    expect(STRIPE_FILTER_FRAGMENT).not.toContain("smoothstep(0.0, 0.75, dist)");
   });
-
 });

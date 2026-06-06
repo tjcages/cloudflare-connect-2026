@@ -11,7 +11,6 @@ in vec2 vDisplayCoord;
 out vec4 finalColor;
 
 uniform sampler2D uTexture;
-uniform sampler2D uFluidTrail;
 uniform sampler2D uFlames;
 uniform float uBrightness;
 uniform float uExposure;
@@ -23,9 +22,6 @@ uniform float uInvert;
 uniform float uPosterizeLevels;
 uniform float uThresholdBias;
 uniform float uNoiseAmount;
-uniform float uFluidTrailEnabled;
-uniform float uFluidTrailMode;
-uniform float uFluidTrailStrength;
 uniform float uFlamesEnabled;
 
 float lumaNoiseHash(vec2 p) {
@@ -54,16 +50,6 @@ float adjustLuma(float luma) {
     return clamp(value, 0.0, 1.0);
 }
 
-vec3 applyFluidTrail(vec3 color) {
-    if (uFluidTrailEnabled < 0.5) {
-        return color;
-    }
-    vec3 dye = texture(uFluidTrail, vDisplayCoord).rgb;
-    float intensity = clamp(max(dye.r, dye.b) * uFluidTrailStrength, 0.0, 1.0);
-    vec3 target = uFluidTrailMode > 0.5 ? vec3(1.0) : vec3(0.0);
-    return mix(color, target, intensity);
-}
-
 vec3 applyFlames(vec3 color) {
     if (uFlamesEnabled < 0.5) {
         return color;
@@ -77,13 +63,12 @@ void main(void) {
     float luma = dot(sourceColor.rgb, vec3(0.2126, 0.7152, 0.0722));
     float adjusted = adjustLuma(luma);
     vec3 adjustedColor = luma > 0.0001 ? sourceColor.rgb * (adjusted / luma) : vec3(adjusted);
-    finalColor = vec4(applyFlames(applyFluidTrail(clamp(adjustedColor, 0.0, 1.0))), sourceColor.a);
+    finalColor = vec4(applyFlames(clamp(adjustedColor, 0.0, 1.0)), sourceColor.a);
 }
 `;
 
 export type SourceTextureFilter = Filter & {
   syncAdjustments: (adjustments: PlaygroundTextureAdjustments) => void;
-  syncFluidTrail: (texture: Texture | null, enabled: boolean, mode?: "darken" | "lighten") => void;
   syncFlames: (texture: Texture | null, enabled: boolean) => void;
 };
 
@@ -100,9 +85,6 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     uPosterizeLevels: { value: normalized.posterizeLevels, type: "f32" },
     uThresholdBias: { value: normalized.thresholdBias, type: "f32" },
     uNoiseAmount: { value: normalized.noiseAmount, type: "f32" },
-    uFluidTrailEnabled: { value: 0, type: "f32" },
-    uFluidTrailMode: { value: 1, type: "f32" },
-    uFluidTrailStrength: { value: 1.35, type: "f32" },
     uFlamesEnabled: { value: 0, type: "f32" },
   });
 
@@ -115,7 +97,6 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     padding: 0,
     resources: {
       textureUniforms,
-      uFluidTrail: Texture.EMPTY.source,
       uFlames: Texture.EMPTY.source,
     },
   }) as SourceTextureFilter;
@@ -144,19 +125,6 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     uniforms.uPosterizeLevels = next.posterizeLevels;
     uniforms.uThresholdBias = next.thresholdBias;
     uniforms.uNoiseAmount = next.noiseAmount;
-    textureUniforms.update();
-  };
-
-  filter.syncFluidTrail = (texture, enabled, mode = "lighten") => {
-    const fluidTexture = texture ?? Texture.EMPTY;
-    fluidTexture.source.style.scaleMode = "linear";
-    filter.resources.uFluidTrail = fluidTexture.source;
-    const uniforms = textureUniforms.uniforms as {
-      uFluidTrailEnabled: number;
-      uFluidTrailMode: number;
-    };
-    uniforms.uFluidTrailEnabled = enabled ? 1 : 0;
-    uniforms.uFluidTrailMode = mode === "lighten" ? 1 : 0;
     textureUniforms.update();
   };
 

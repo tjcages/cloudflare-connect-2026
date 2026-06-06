@@ -8,7 +8,7 @@ type WebGLContextWithColorSpace = WebGLContextAttributes & {
 const PLAYGROUND_GL_ATTRIBUTES: WebGLContextWithColorSpace = {
   alpha: true,
   premultipliedAlpha: true,
-  antialias: true,
+  antialias: false,
   stencil: true,
   preserveDrawingBuffer: false,
   powerPreference: "default",

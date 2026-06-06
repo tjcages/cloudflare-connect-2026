@@ -13,13 +13,8 @@ import {
 import { createStripeDuotoneFilter } from "./stripeDuotoneFilter";
 import type { StripeColors } from "./stripeColors";
 import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./stripeLetterFont";
-import type { PlaygroundFluidTrailInput } from "./playgroundFluidTrail";
-import { createPlaygroundFluidTrailSimulation } from "./playgroundFluidTrailSimulation";
 import { stepPlaygroundFlames, PlaygroundFlamesOverlay, type PlaygroundFlamesState } from "./playgroundFlames";
-import {
-  DEFAULT_PLAYGROUND_FLAMES_CONFIG,
-  type PlaygroundFlamesConfig,
-} from "./playgroundFlamesConfig";
+import { DEFAULT_PLAYGROUND_FLAMES_CONFIG, type PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import type { PlaygroundSparkleOptions } from "./playgroundSparkle";
 import type { PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
 import { createStripeLetterLayer, type StripeLetterLayer } from "./stripeLetterLayer";
@@ -70,7 +65,6 @@ const DEFAULT_TEXTURE_ADJUSTMENTS_REF: RefObject<PlaygroundTextureAdjustments> =
 const DEFAULT_SOURCE_TRANSFORM_REF: RefObject<PlaygroundSourceTransform> = {
   current: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
 };
-const DEFAULT_FLUID_TRAIL_INPUT_REF: RefObject<PlaygroundFluidTrailInput | null> = { current: null };
 const DEFAULT_FLAMES_STATE_REF: RefObject<PlaygroundFlamesState | null> = { current: null };
 const DEFAULT_FLAMES_CONFIG_REF: RefObject<PlaygroundFlamesConfig> = { current: DEFAULT_PLAYGROUND_FLAMES_CONFIG };
 export type PlaygroundDisplaySize = { width: number; height: number };
@@ -197,7 +191,6 @@ function runDuotoneTick(params: {
   stripesEnabledRef: RefObject<boolean>;
   sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>;
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>;
-  fluidTrailInputRef: RefObject<PlaygroundFluidTrailInput | null>;
   flamesStateRef: RefObject<PlaygroundFlamesState | null>;
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>;
   stripeColorsRef: RefObject<StripeColors>;
@@ -225,7 +218,6 @@ function runDuotoneTick(params: {
     stripesEnabledRef,
     sparkleOptionsRef,
     widthShuffleOptionsRef,
-    fluidTrailInputRef,
     flamesStateRef,
     flamesConfigRef,
     stripeColorsRef,
@@ -255,12 +247,7 @@ function runDuotoneTick(params: {
   let hasBuiltGrid = false;
   let pendingFullResample = false;
   let pendingColorsResample = false;
-  const fluidTrailSimulation = fluidTrailInputRef.current
-    ? createPlaygroundFluidTrailSimulation(app, display, fluidTrailInputRef.current)
-    : null;
-  const flamesOverlay = flamesStateRef.current
-    ? new PlaygroundFlamesOverlay(display.width, display.height)
-    : null;
+  const flamesOverlay = flamesStateRef.current ? new PlaygroundFlamesOverlay(display.width, display.height) : null;
 
   const initialCell = effectivePlaygroundCellSize(gridConfigRef.current);
   let lastEffWidth = initialCell.width;
@@ -326,7 +313,6 @@ function runDuotoneTick(params: {
 
   const dispose = () => {
     blockGridTexture.destroy();
-    fluidTrailSimulation?.destroy();
     flamesOverlay?.destroy();
     letterLayer.destroy();
     destroyStripeLetterAtlas(atlas);
@@ -338,9 +324,6 @@ function runDuotoneTick(params: {
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
     });
-    fluidTrailSimulation?.step();
-    sourceTextureFilter.syncFluidTrail(fluidTrailSimulation?.texture ?? null, Boolean(fluidTrailSimulation), "lighten");
-
     const flamesState = flamesStateRef.current;
     const flamesConfig = flamesConfigRef.current;
     if (flamesState && flamesConfig.enabled) {
@@ -483,6 +466,7 @@ function runDuotoneTick(params: {
 
     const sparkleTimeSec = performance.now() / 1000;
     const sparkleOptions = sparkleOptionsRef.current;
+    stripeFilter.syncScreenScale(app.renderer.resolution);
     stripeFilter.syncSparkle(sparkleOptions, sparkleTimeSec);
     stripeFilter.syncWidthShuffle(widthShuffleOptionsRef.current, sparkleTimeSec);
     letterLayer.applySparkle(sparkleTimeSec, sparkleOptions);
@@ -512,7 +496,6 @@ export function createTextureSceneTicker(
   gridConfigRef: RefObject<PlaygroundGridConfig> = DEFAULT_GRID_CONFIG_REF,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = DEFAULT_TEXTURE_ADJUSTMENTS_REF,
   sourceTransformRef: RefObject<PlaygroundSourceTransform> = DEFAULT_SOURCE_TRANSFORM_REF,
-  fluidTrailInputRef: RefObject<PlaygroundFluidTrailInput | null> = DEFAULT_FLUID_TRAIL_INPUT_REF,
   flamesStateRef: RefObject<PlaygroundFlamesState | null> = DEFAULT_FLAMES_STATE_REF,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig> = DEFAULT_FLAMES_CONFIG_REF,
 ): Ticker {
@@ -530,7 +513,6 @@ export function createTextureSceneTicker(
       gridConfigRef,
       textureAdjustmentsRef,
       sourceTransformRef,
-      fluidTrailInputRef,
       flamesStateRef,
       flamesConfigRef,
       exportStateRef,
@@ -550,7 +532,6 @@ export function createTextureSceneTicker(
     gridConfigRef,
     textureAdjustmentsRef,
     sourceTransformRef,
-    fluidTrailInputRef,
     flamesStateRef,
     flamesConfigRef,
     exportStateRef,
@@ -570,7 +551,6 @@ function createImageSceneTicker(
   gridConfigRef: RefObject<PlaygroundGridConfig>,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
-  fluidTrailInputRef: RefObject<PlaygroundFluidTrailInput | null>,
   flamesStateRef: RefObject<PlaygroundFlamesState | null>,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
@@ -628,7 +608,6 @@ function createImageSceneTicker(
       stripesEnabledRef,
       sparkleOptionsRef,
       widthShuffleOptionsRef,
-      fluidTrailInputRef,
       flamesStateRef,
       flamesConfigRef,
       stripeColorsRef,
@@ -685,7 +664,6 @@ function createVideoSceneTickerInternal(
   gridConfigRef: RefObject<PlaygroundGridConfig>,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
-  fluidTrailInputRef: RefObject<PlaygroundFluidTrailInput | null>,
   flamesStateRef: RefObject<PlaygroundFlamesState | null>,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
@@ -750,7 +728,6 @@ function createVideoSceneTickerInternal(
       stripesEnabledRef,
       sparkleOptionsRef,
       widthShuffleOptionsRef,
-      fluidTrailInputRef,
       flamesStateRef,
       flamesConfigRef,
       stripeColorsRef,

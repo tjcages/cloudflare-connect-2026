@@ -61,6 +61,7 @@ uniform float uWidthShuffleTime;
 uniform float uWidthShuffleCoverage;
 uniform float uWidthShufflePeriodMinSec;
 uniform float uWidthShufflePeriodMaxSec;
+uniform float uScreenScale;
 
 // Signed distance to a rounded rectangle centered at the origin (half-extents b, radius r).
 float roundedBoxSdf(vec2 p, vec2 b, float r) {
@@ -68,14 +69,18 @@ float roundedBoxSdf(vec2 p, vec2 b, float r) {
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
-// Coverage 1 inside the (optionally rounded) stripe rectangle, fading to 0 over a ~1px edge.
+// Coverage 1 inside the (optionally rounded) stripe rectangle. Edge fade is ~1 framebuffer px
+// (via uScreenScale) and capped for thin stripes so 1px bands do not bloom to ~2px on screen.
 float stripeRectCoverage(vec2 p, vec2 halfExtents, float radius) {
     if (halfExtents.x <= 0.0 || halfExtents.y <= 0.0) {
         return 0.0;
     }
     float r = clamp(radius, 0.0, min(halfExtents.x, halfExtents.y));
     float dist = roundedBoxSdf(p, halfExtents, r);
-    return 1.0 - smoothstep(0.0, 0.75, dist);
+    float screenScale = max(uScreenScale, 1.0);
+    float aa = 0.5 / screenScale;
+    aa = min(aa, min(halfExtents.x, halfExtents.y) * 0.5);
+    return 1.0 - smoothstep(0.0, aa, dist);
 }
 
 vec2 blockGridUv(float colIndex, float rowIndex) {

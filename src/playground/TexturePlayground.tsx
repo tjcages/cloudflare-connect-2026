@@ -1,13 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type CSSProperties,
-  type PointerEvent,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { writeSvgToClipboard } from "../grid/clipboard";
 import Pixi from "../components/pixi";
 import {
@@ -52,7 +43,6 @@ import {
   resolvePersistedSparkleWidthActivePercent,
   resolvePersistedSparkleWidthSpeed,
 } from "./playgroundWidthShuffle";
-import { createPlaygroundFluidTrailInput, pushPlaygroundFluidPointer } from "./playgroundFluidTrail";
 import { createPlaygroundFlamesState } from "./playgroundFlames";
 import {
   clampPlaygroundDisplayDimension,
@@ -127,8 +117,6 @@ import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
 /** Bordered grid-cell styling for stripe numeric fields (commit on Enter/blur). */
 const STRIPE_FIELD_INPUT_CLASS =
   "h-7 w-full rounded border border-neutral-300 px-1.5 text-right text-xs tabular-nums text-neutral-700 focus:border-neutral-400 focus:outline-none disabled:cursor-not-allowed";
-
-const PLAYGROUND_FORCE_FLUID_TRAIL_PREVIEW = false;
 
 /** True when the stripe list differs from DEFAULT_STRIPES (ignoring ids). */
 function stripesMatchDefault(stripes: readonly Stripe[]): boolean {
@@ -299,7 +287,6 @@ export function TexturePlayground() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [duotoneEnabled, setDuotoneEnabled] = useState(appliedInitial.duotoneEnabled);
   const [stripesEnabled, setStripesEnabled] = useState(appliedInitial.stripesEnabled);
-  const effectiveStripesEnabled = PLAYGROUND_FORCE_FLUID_TRAIL_PREVIEW ? false : stripesEnabled;
   const [backgroundCss, setBackgroundCss] = useState(appliedInitial.backgroundCss ?? "");
   const [backgroundColor, setBackgroundColor] = useState(appliedInitial.backgroundColor);
   const [textureAdjustments, setTextureAdjustments] = useState<PlaygroundTextureAdjustments>(
@@ -341,7 +328,7 @@ export function TexturePlayground() {
   flamesConfigRef.current = flamesConfig;
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
-  const stripesEnabledRef = useRef(effectiveStripesEnabled);
+  const stripesEnabledRef = useRef(stripesEnabled);
   const textureGammaRef = useRef(textureGamma);
   const textureAdjustmentsRef = useRef(textureAdjustments);
   const sourceTransformRef = useRef(sourceTransform);
@@ -349,7 +336,6 @@ export function TexturePlayground() {
   const widthShuffleOptionsRef = useRef(
     playgroundWidthShuffleOptionsFromSliders(sparkleWidthActivePercent, sparkleWidthSpeed),
   );
-  const fluidTrailInputRef = useRef(createPlaygroundFluidTrailInput());
   const flamesStateRef = useRef(createPlaygroundFlamesState());
   const autoplayRef = useRef(true);
   const exportStateRef = useRef<PlaygroundSceneExportState | null>(null);
@@ -367,30 +353,6 @@ export function TexturePlayground() {
   const setCanvasNode = useCallback((node: HTMLCanvasElement | null) => {
     canvasRef.current = node;
     setCanvasElement(node);
-  }, []);
-
-  const onCanvasPointerMove = useCallback(
-    (event: PointerEvent<HTMLCanvasElement>) => {
-      const canvas = canvasRef.current;
-      if (!canvas || displayWidth <= 0 || displayHeight <= 0) {
-        return;
-      }
-      const rect = canvas.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / Math.max(rect.width, 1)) * displayWidth;
-      const y = ((event.clientY - rect.top) / Math.max(rect.height, 1)) * displayHeight;
-      pushPlaygroundFluidPointer(
-        fluidTrailInputRef.current,
-        { x, y },
-        { width: displayWidth, height: displayHeight },
-        performance.now(),
-      );
-    },
-    [displayHeight, displayWidth],
-  );
-
-  const onCanvasPointerLeave = useCallback(() => {
-    fluidTrailInputRef.current.lastPoint = null;
-    fluidTrailInputRef.current.consumeSplat();
   }, []);
 
   useEffect(() => {
@@ -414,8 +376,8 @@ export function TexturePlayground() {
   }, [duotoneEnabled]);
 
   useEffect(() => {
-    stripesEnabledRef.current = effectiveStripesEnabled;
-  }, [effectiveStripesEnabled]);
+    stripesEnabledRef.current = stripesEnabled;
+  }, [stripesEnabled]);
 
   useEffect(() => {
     textureGammaRef.current = textureGamma;
@@ -1069,7 +1031,7 @@ export function TexturePlayground() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (PLAYGROUND_FORCE_FLUID_TRAIL_PREVIEW || duotoneControlsDisabled || !shouldToggleStripesFromShortcut(event)) {
+      if (duotoneControlsDisabled || !shouldToggleStripesFromShortcut(event)) {
         return;
       }
       event.preventDefault();
@@ -1104,12 +1066,11 @@ export function TexturePlayground() {
         gridConfigRef,
         textureAdjustmentsRef,
         sourceTransformRef,
-        fluidTrailInputRef,
         flamesStateRef,
         flamesConfigRef,
       ),
     ];
-  }, [loadState, displayWidth, displayHeight, displaySize, fluidTrailInputRef, flamesStateRef, flamesConfigRef]);
+  }, [loadState, displayWidth, displayHeight, displaySize, flamesStateRef, flamesConfigRef]);
 
   const onUploadClick = () => {
     fileInputRef.current?.click();
@@ -1200,7 +1161,7 @@ export function TexturePlayground() {
   };
 
   const onExportSvg = async () => {
-    if (!duotoneEnabled || !effectiveStripesEnabled || loadState.status !== "ready") {
+    if (!duotoneEnabled || !stripesEnabled || loadState.status !== "ready") {
       return;
     }
 
@@ -1372,7 +1333,7 @@ export function TexturePlayground() {
   // media kind, and canvas size require a fresh scene.
   const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}`;
   const isVideoSource = loadState.kind === "video";
-  const stripeControlsDisabled = duotoneControlsDisabled || !effectiveStripesEnabled;
+  const stripeControlsDisabled = duotoneControlsDisabled || !stripesEnabled;
 
   const copyLabel = copyFeedback === "copied" ? "Copied" : copyFeedback === "failed" ? "Copy failed" : "Copy state";
   const importStatus =
@@ -1581,8 +1542,8 @@ export function TexturePlayground() {
             <label className={`flex items-center gap-2 text-sm ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
               <input
                 type="checkbox"
-                checked={effectiveStripesEnabled}
-                disabled={PLAYGROUND_FORCE_FLUID_TRAIL_PREVIEW || duotoneControlsDisabled}
+                checked={stripesEnabled}
+                disabled={duotoneControlsDisabled}
                 onChange={(event) => setStripesEnabled(event.target.checked)}
                 className="size-4 cursor-pointer rounded border-neutral-300 disabled:cursor-not-allowed"
                 aria-label="Stripes enabled"
@@ -1877,8 +1838,6 @@ export function TexturePlayground() {
             "data-testid": "playground-texture-canvas",
             className: "block shrink-0",
             style: { width: displayWidth, height: displayHeight },
-            onPointerMove: onCanvasPointerMove,
-            onPointerLeave: onCanvasPointerLeave,
           }}
           canvasRef={setCanvasNode}
           resolveInitOptions={(canvas) => {
@@ -1893,6 +1852,7 @@ export function TexturePlayground() {
           initOptions={{
             preference: "webgl",
             background: 0x000000,
+            antialias: false,
             resolution: PLAYGROUND_PIXI_RESOLUTION,
           }}
           tickers={tickers}
@@ -1926,7 +1886,7 @@ export function TexturePlayground() {
                 type="button"
                 className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => void onExportSvg()}
-                disabled={!duotoneEnabled || !effectiveStripesEnabled}
+                disabled={!duotoneEnabled || !stripesEnabled}
               >
                 {exportLabel}
               </button>

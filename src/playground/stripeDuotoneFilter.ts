@@ -18,6 +18,8 @@ export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
+  /** Renderer resolution (devicePixelRatio) for screen-space stripe edge antialiasing. */
+  syncScreenScale: (resolution: number) => void;
   /** Push live-updatable grid params (gap, corner radius, swing, orientation). */
   syncGrid: (grid: PlaygroundGridConfig) => void;
   /** Update grid dimensions + effective cell size when the cell/gap changes (no scene remount). */
@@ -67,6 +69,7 @@ export function createStripeDuotoneFilter(
     uWidthShuffleCoverage: { value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.coverage, type: "f32" },
     uWidthShufflePeriodMinSec: { value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMinSec, type: "f32" },
     uWidthShufflePeriodMaxSec: { value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMaxSec, type: "f32" },
+    uScreenScale: { value: 1, type: "f32" },
   });
 
   const filter = new Filter({
@@ -121,6 +124,12 @@ export function createStripeDuotoneFilter(
     uniforms.uWidthShuffleCoverage = options.coverage;
     uniforms.uWidthShufflePeriodMinSec = options.periodMinSec;
     uniforms.uWidthShufflePeriodMaxSec = options.periodMaxSec;
+    stripeUniforms.update();
+  };
+
+  filter.syncScreenScale = (resolution) => {
+    const uniforms = stripeUniforms.uniforms as { uScreenScale: number };
+    uniforms.uScreenScale = Number.isFinite(resolution) && resolution > 0 ? resolution : 1;
     stripeUniforms.update();
   };
 
