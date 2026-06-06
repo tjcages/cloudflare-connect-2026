@@ -2002,9 +2002,7 @@ export function TexturePlayground() {
                   />
                   <span className="w-10 shrink-0 tabular-nums text-xs text-neutral-500">{formatTime(duration)}</span>
                 </>
-              ) : (
-                <p className="m-0 text-xs whitespace-nowrap text-neutral-500">Select a video texture for playback.</p>
-              )}
+              ) : null}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {isVideoExportBusy ? (
