@@ -6,6 +6,7 @@ import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import type {
   PlaygroundRevealConfig,
   PlaygroundRevealPreset,
+  PlaygroundRandomColumnsRevealConfig,
   PlaygroundWaveRevealConfig,
   PlaygroundWaveRevealPosition,
 } from "./playgroundRevealConfig";
@@ -30,6 +31,7 @@ export type PlaygroundRevealControlsProps = {
   onReplay: () => void;
   onChange: (patch: Partial<PlaygroundRevealConfig>) => void;
   onLiveWaveChange: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
+  onLiveRandomColumnsChange: (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => void;
 };
 
 export function PlaygroundRevealControls({
@@ -40,9 +42,13 @@ export function PlaygroundRevealControls({
   onReplay,
   onChange,
   onLiveWaveChange,
+  onLiveRandomColumnsChange,
 }: PlaygroundRevealControlsProps) {
   const updateWave = (patch: Partial<PlaygroundWaveRevealConfig>) => onChange({ wave: { ...config.wave, ...patch } });
   const liveWave = (patch: Partial<PlaygroundWaveRevealConfig>) => onLiveWaveChange(patch);
+  const updateRandomColumns = (patch: Partial<PlaygroundRandomColumnsRevealConfig>) =>
+    onChange({ randomColumns: { ...config.randomColumns, ...patch } });
+  const liveRandomColumns = (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => onLiveRandomColumnsChange(patch);
 
   return (
     <PlaygroundControlSection
@@ -64,6 +70,7 @@ export function PlaygroundRevealControls({
           aria-label="Reveal preset"
         >
           <option value="wave">Wave</option>
+          <option value="randomColumns">Random columns</option>
         </select>
       </label>
 
@@ -146,6 +153,56 @@ export function PlaygroundRevealControls({
             onLiveChange={(value) => liveWave({ noiseScale: value })}
             formatDisplay={(v) => v.toFixed(1)}
             description={PLAYGROUND_FIELD_HELP.revealNoiseScale}
+          />
+        </>
+      ) : null}
+
+      {config.preset === "randomColumns" ? (
+        <>
+          <PlaygroundNumberField
+            label="Duration"
+            value={config.randomColumns.durationMs}
+            inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.revealDurationMs.min}
+            inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.revealDurationMs.max}
+            sliderMin={PLAYGROUND_CONTROL_RANGES.revealDurationMs.min}
+            sliderMax={PLAYGROUND_CONTROL_RANGES.revealDurationMs.max}
+            step={PLAYGROUND_CONTROL_RANGES.revealDurationMs.step}
+            ariaLabel="Random columns reveal duration milliseconds"
+            disabled={disabled}
+            onChange={(value) => updateRandomColumns({ durationMs: value })}
+            onLiveChange={(value) => liveRandomColumns({ durationMs: value })}
+            formatDisplay={(v) => `${Math.round(v)} ms`}
+            description={PLAYGROUND_FIELD_HELP.revealDuration}
+          />
+          <PlaygroundNumberField
+            label="Stagger"
+            value={config.randomColumns.stagger}
+            inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.revealColumnStagger.min}
+            inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.revealColumnStagger.max}
+            sliderMin={PLAYGROUND_CONTROL_RANGES.revealColumnStagger.min}
+            sliderMax={PLAYGROUND_CONTROL_RANGES.revealColumnStagger.max}
+            step={PLAYGROUND_CONTROL_RANGES.revealColumnStagger.step}
+            ariaLabel="Random columns reveal stagger"
+            disabled={disabled}
+            onChange={(value) => updateRandomColumns({ stagger: value })}
+            onLiveChange={(value) => liveRandomColumns({ stagger: value })}
+            formatDisplay={(v) => v.toFixed(2)}
+            description={PLAYGROUND_FIELD_HELP.revealColumnStagger}
+          />
+          <PlaygroundNumberField
+            label="Y shift"
+            value={config.randomColumns.yShift}
+            inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.revealColumnYShift.min}
+            inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.revealColumnYShift.max}
+            sliderMin={PLAYGROUND_CONTROL_RANGES.revealColumnYShift.min}
+            sliderMax={PLAYGROUND_CONTROL_RANGES.revealColumnYShift.max}
+            step={PLAYGROUND_CONTROL_RANGES.revealColumnYShift.step}
+            ariaLabel="Random columns reveal y shift"
+            disabled={disabled}
+            onChange={(value) => updateRandomColumns({ yShift: value })}
+            onLiveChange={(value) => liveRandomColumns({ yShift: value })}
+            formatDisplay={(v) => `${Math.round(v * 100)}%`}
+            description={PLAYGROUND_FIELD_HELP.revealColumnYShift}
           />
         </>
       ) : null}

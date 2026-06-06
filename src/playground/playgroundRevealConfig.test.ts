@@ -27,6 +27,28 @@ describe("playground reveal config", () => {
         waviness: 0,
         noiseScale: 0.1,
       },
+      randomColumns: DEFAULT_PLAYGROUND_REVEAL_CONFIG.randomColumns,
+    });
+  });
+
+  test("normalizes random-columns config values into supported ranges", () => {
+    const config = normalizePlaygroundRevealConfig({
+      preset: "randomColumns",
+      randomColumns: {
+        durationMs: 50,
+        stagger: 2,
+        yShift: 2,
+      },
+    });
+
+    expect(config).toEqual({
+      preset: "randomColumns",
+      wave: DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave,
+      randomColumns: {
+        durationMs: 100,
+        stagger: 1,
+        yShift: 1,
+      },
     });
   });
 

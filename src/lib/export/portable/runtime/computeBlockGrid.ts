@@ -5,6 +5,11 @@ import {
   normalizePlaygroundTextureAdjustments,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
+import {
+  buildRandomColumnRevealRanks,
+  randomColumnRevealMultiplier,
+  type PlaygroundRevealOptions,
+} from "./playgroundReveal";
 import { STRIPE_BLOCK_SAMPLE_COUNT, STRIPE_BLOCK_SAMPLES, STRIPE_CELL_SIZE } from "./stripeGridConstants";
 
 /** Per-cell mean luminance (0–255), independent of the stripe list. */
@@ -21,6 +26,12 @@ export type BlockGrid = {
   indices: Uint8Array;
 };
 
+type RandomColumnsRevealSampling = Required<Pick<PlaygroundRevealOptions, "config" | "progress">> &
+  Pick<PlaygroundRevealOptions, "replayKey"> & {
+    ranks: Uint32Array;
+    cols: number;
+  };
+
 /** Mean Rec.709 luminance (0–1) of a 7×7 cell; out-of-bounds pixels count as black. */
 function cellMeanLuminance(
   pixels: Uint8ClampedArray,
@@ -29,6 +40,7 @@ function cellMeanLuminance(
   col: number,
   row: number,
   adjustments: PlaygroundTextureAdjustments,
+  reveal?: RandomColumnsRevealSampling,
 ): number {
   const originX = col * STRIPE_CELL_SIZE;
   const originY = row * STRIPE_CELL_SIZE;
@@ -45,7 +57,19 @@ function cellMeanLuminance(
       const r = pixels[idx] ?? 0;
       const g = pixels[idx + 1] ?? 0;
       const b = pixels[idx + 2] ?? 0;
-      sum += applyTextureLuminanceAdjustments(pixelLuminance(r, g, b), adjustments, col, row);
+      let luma = applyTextureLuminanceAdjustments(pixelLuminance(r, g, b), adjustments, col, row);
+      if (reveal?.config.preset === "randomColumns") {
+        luma *= randomColumnRevealMultiplier({
+          x,
+          col,
+          cols: reveal.cols,
+          cellWidth: STRIPE_CELL_SIZE,
+          progress: reveal.progress,
+          config: reveal.config.randomColumns,
+          ranks: reveal.ranks,
+        });
+      }
+      sum += luma;
     }
   }
 
@@ -94,6 +118,7 @@ export function computeBlockGrid(
   imageHeight: number,
   gamma = 1,
   adjustmentsInput: PlaygroundTextureAdjustments = DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  reveal?: PlaygroundRevealOptions,
 ): LumaGrid {
   const cols = Math.ceil(imageWidth / STRIPE_CELL_SIZE);
   const rows = Math.ceil(imageHeight / STRIPE_CELL_SIZE);
@@ -102,10 +127,20 @@ export function computeBlockGrid(
     ...adjustmentsInput,
     gamma,
   });
+  const randomColumnsReveal =
+    reveal?.config?.preset === "randomColumns" && (reveal.progress ?? 1) < 1
+      ? {
+          config: reveal.config,
+          progress: reveal.progress ?? 1,
+          replayKey: reveal.replayKey,
+          ranks: buildRandomColumnRevealRanks(cols, Math.max(0, reveal.replayKey ?? 0)),
+          cols,
+        }
+      : undefined;
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const mean = cellMeanLuminance(pixels, imageWidth, imageHeight, col, row, adjustments);
+      const mean = cellMeanLuminance(pixels, imageWidth, imageHeight, col, row, adjustments, randomColumnsReveal);
       luma[row * cols + col] = Math.round(Math.min(1, Math.max(0, mean)) * 255);
     }
   }

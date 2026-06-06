@@ -109,6 +109,7 @@ import {
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
+  type PlaygroundRandomColumnsRevealConfig,
   type PlaygroundRevealConfig,
   type PlaygroundWaveRevealConfig,
 } from "./playgroundRevealConfig";
@@ -768,6 +769,13 @@ export function TexturePlayground() {
     [updateRevealConfigLive],
   );
 
+  const updateRevealRandomColumnsLive = useCallback(
+    (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => {
+      updateRevealConfigLive({ randomColumns: { ...revealConfigRef.current.randomColumns, ...patch } });
+    },
+    [updateRevealConfigLive],
+  );
+
   const updateRevealConfig = useCallback(
     (patch: Partial<PlaygroundRevealConfig>) => {
       const next = normalizePlaygroundRevealConfig({ ...revealConfigRef.current, ...patch });
@@ -779,8 +787,13 @@ export function TexturePlayground() {
   );
 
   const resetReveal = useCallback(() => {
-    revealConfigRef.current = { preset: DEFAULT_PLAYGROUND_REVEAL_CONFIG.preset, wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave } };
-    setRevealConfig({ preset: DEFAULT_PLAYGROUND_REVEAL_CONFIG.preset, wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave } });
+    const next = {
+      preset: DEFAULT_PLAYGROUND_REVEAL_CONFIG.preset,
+      wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave },
+      randomColumns: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.randomColumns },
+    };
+    revealConfigRef.current = next;
+    setRevealConfig(next);
     replayReveal();
   }, [replayReveal]);
 
@@ -1387,6 +1400,7 @@ export function TexturePlayground() {
       reveal: {
         config: revealConfigRef.current,
         progress: revealStateRef.current.progress,
+        replayKey: revealPlaybackRef.current.replayKey,
       },
     });
     const svg = stripeGridToSvg(built.grid, colors, display.width, display.height);
@@ -1739,6 +1753,7 @@ export function TexturePlayground() {
             config={revealConfig}
             onChange={updateRevealConfig}
             onLiveWaveChange={updateRevealWaveLive}
+            onLiveRandomColumnsChange={updateRevealRandomColumnsLive}
             onReset={resetReveal}
             onReplay={replayReveal}
             modified={revealModified}

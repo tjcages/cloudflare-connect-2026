@@ -39,7 +39,7 @@ export type PlaygroundSourceTransform = {
   panY: number;
 };
 
-export type PlaygroundRevealPreset = "wave";
+export type PlaygroundRevealPreset = "wave" | "randomColumns";
 
 export type PlaygroundWaveRevealPosition =
   | "left top"
@@ -60,9 +60,16 @@ export type PlaygroundWaveRevealConfig = {
   noiseScale: number;
 };
 
+export type PlaygroundRandomColumnsRevealConfig = {
+  durationMs: number;
+  stagger: number;
+  yShift: number;
+};
+
 export type PlaygroundRevealConfig = {
   preset: PlaygroundRevealPreset;
   wave: PlaygroundWaveRevealConfig;
+  randomColumns: PlaygroundRandomColumnsRevealConfig;
 };
 
 export type AsciiVideoConfig = {

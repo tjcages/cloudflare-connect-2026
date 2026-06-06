@@ -45,6 +45,7 @@ import {
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
   type PlaygroundRevealConfig,
+  type PlaygroundRevealPreset,
   type PlaygroundWaveRevealPosition,
 } from "./playgroundRevealConfig";
 import {
@@ -246,12 +247,23 @@ type FlamesWire = {
 };
 
 type RevealWire = {
-  p?: "wave";
+  p?: PlaygroundRevealPreset | "randomColumnsShift";
   wp?: PlaygroundWaveRevealPosition;
   wd?: number;
   ws?: number;
   ww?: number;
   wn?: number;
+  cd?: number;
+  cg?: number;
+  cy?: number;
+  /** @deprecated random columns shift duration, merged into cd. */
+  csd?: number;
+  /** @deprecated random columns shift stagger, merged into cg. */
+  csg?: number;
+  /** @deprecated random columns edge softness, now fixed at 0px. */
+  ce?: number;
+  /** @deprecated random columns seed, now derived from replay key. */
+  cs?: number;
 };
 
 function stripesToWire(stripes: readonly Stripe[]): StripeWire[] {
@@ -407,6 +419,9 @@ function revealToWire(config: PlaygroundRevealConfig): RevealWire | undefined {
   if (normalized.wave.softness !== base.wave.softness) wire.ws = normalized.wave.softness;
   if (normalized.wave.waviness !== base.wave.waviness) wire.ww = normalized.wave.waviness;
   if (normalized.wave.noiseScale !== base.wave.noiseScale) wire.wn = normalized.wave.noiseScale;
+  if (normalized.randomColumns.durationMs !== base.randomColumns.durationMs) wire.cd = normalized.randomColumns.durationMs;
+  if (normalized.randomColumns.stagger !== base.randomColumns.stagger) wire.cg = normalized.randomColumns.stagger;
+  if (normalized.randomColumns.yShift !== base.randomColumns.yShift) wire.cy = normalized.randomColumns.yShift;
   return wire;
 }
 
@@ -415,14 +430,20 @@ function wireToReveal(raw: unknown): PlaygroundRevealConfig | undefined {
     return undefined;
   }
   const wire = raw as RevealWire;
+  const legacyShiftPreset = wire.p === "randomColumnsShift";
   return normalizePlaygroundRevealConfig({
-    preset: wire.p,
+    preset: legacyShiftPreset ? "randomColumns" : wire.p,
     wave: {
       position: wire.wp,
       durationMs: wire.wd,
       softness: wire.ws,
       waviness: wire.ww,
       noiseScale: wire.wn,
+    },
+    randomColumns: {
+      durationMs: wire.cd ?? (legacyShiftPreset ? wire.csd : undefined),
+      stagger: wire.cg ?? (legacyShiftPreset ? wire.csg : undefined),
+      yShift: wire.cy,
     },
   });
 }

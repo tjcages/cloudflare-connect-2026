@@ -26,6 +26,7 @@ import {
 } from "./runtime/playgroundTextureAdjustments";
 import {
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+  resolvePlaygroundRevealDurationMs,
 } from "./runtime/playgroundRevealConfig";
 import type { PlaygroundRevealState } from "./runtime/playgroundReveal";
 
@@ -265,7 +266,7 @@ function runDuotoneTick(params: {
     }
     const revealProgress = Math.min(
       1,
-      Math.max(0, (now - revealPlayback.startedAtMs) / Math.max(1, revealConfig.wave.durationMs)),
+      Math.max(0, (now - revealPlayback.startedAtMs) / Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig))),
     );
     revealStateRef.current = { progress: revealProgress };
 
@@ -321,6 +322,7 @@ function runDuotoneTick(params: {
           reveal: {
             config: revealConfig,
             progress: revealProgress,
+            replayKey: revealPlayback.replayKey,
           },
         },
       );

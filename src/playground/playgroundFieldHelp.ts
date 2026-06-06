@@ -74,4 +74,6 @@ export const PLAYGROUND_FIELD_HELP = {
   revealSoftness: "Width of the wave edge transition.",
   revealWaviness: "How uneven the circular wave edge becomes.",
   revealNoiseScale: "Size of the deterministic wave-edge ripples.",
+  revealColumnStagger: "How far column start times spread across the reveal.",
+  revealColumnYShift: "Maximum random vertical column offset as a ratio of grid height. Set to 0 for no shift.",
 } as const;

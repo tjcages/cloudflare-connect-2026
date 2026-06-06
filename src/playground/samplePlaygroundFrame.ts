@@ -133,6 +133,7 @@ export function buildPlaygroundBlockGrid(
     options.cellHeight,
     options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
     flames,
+    options.reveal,
   );
   const revealedLumaGrid = options.reveal ? applyPlaygroundRevealToLumaGrid(lumaGrid, options.reveal) : lumaGrid;
   const rawIndices = resolveStripeIndices(revealedLumaGrid.luma, colors.stripes);
