@@ -1,3 +1,4 @@
+import { Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { writeSvgToClipboard } from "../grid/clipboard";
 import Pixi from "../components/pixi";
@@ -65,6 +66,13 @@ import { FieldHelp } from "./FieldHelp";
 import { PlaygroundControlSection } from "./PlaygroundControlSection";
 import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
+import {
+  exportPlaygroundVideo,
+  formatVideoExportStatusLabel,
+  resolveExportDuration,
+  shouldConfirmLongExport,
+  type PlaygroundVideoExportPhase,
+} from "./playgroundVideoExport";
 import { PlaygroundGridControls } from "./PlaygroundGridControls";
 import { PlaygroundFlamesControls } from "./PlaygroundFlamesControls";
 import { PlaygroundNumberField } from "./PlaygroundNumberField";
@@ -306,6 +314,12 @@ export function TexturePlayground() {
   const [importFeedback, setImportFeedback] = useState<"idle" | "imported" | "failed">("idle");
   const [exportFeedback, setExportFeedback] = useState<"idle" | "copied" | "failed">("idle");
   const [exportReactOpen, setExportReactOpen] = useState(false);
+  const [videoExportPhase, setVideoExportPhase] = useState<PlaygroundVideoExportPhase>("idle");
+  const [videoExportProgress, setVideoExportProgress] = useState({ elapsedMs: 0, totalMs: 0 });
+  const [videoExportTranscodePercent, setVideoExportTranscodePercent] = useState<number | null>(null);
+  const [videoExportEtaTick, setVideoExportEtaTick] = useState(0);
+  const videoExportAbortRef = useRef<AbortController | null>(null);
+  const videoExportTranscodeStartedAtRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -1160,6 +1174,92 @@ export function TexturePlayground() {
     setCurrentTime(value);
   };
 
+  const onCancelVideoExport = () => {
+    videoExportAbortRef.current?.abort();
+  };
+
+  const handleVideoExportPhase = useCallback((phase: PlaygroundVideoExportPhase) => {
+    if (phase === "transcoding") {
+      if (videoExportTranscodeStartedAtRef.current === null) {
+        videoExportTranscodeStartedAtRef.current = performance.now();
+      }
+    } else {
+      videoExportTranscodeStartedAtRef.current = null;
+    }
+    setVideoExportPhase(phase);
+  }, []);
+
+  useEffect(() => {
+    if (videoExportPhase !== "transcoding") {
+      return;
+    }
+    const id = window.setInterval(() => setVideoExportEtaTick((tick) => tick + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [videoExportPhase]);
+
+  const onExportVideo = async () => {
+    if (loadState.status !== "ready" || displayWidth <= 0 || displayHeight <= 0) {
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      setVideoExportPhase("failed");
+      window.setTimeout(() => setVideoExportPhase("idle"), 1600);
+      return;
+    }
+
+    const sourceKind = loadState.kind;
+    const videoDuration = loadState.kind === "video" ? loadState.video.duration : 0;
+    const exportDurationSec = resolveExportDuration(sourceKind, videoDuration);
+    if (exportDurationSec <= 0) {
+      setVideoExportPhase("failed");
+      window.setTimeout(() => setVideoExportPhase("idle"), 1600);
+      return;
+    }
+
+    if (shouldConfirmLongExport(exportDurationSec)) {
+      const confirmed = window.confirm(
+        `Export will record about ${formatTime(exportDurationSec)} of video. This may take a while. Continue?`,
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    const controller = new AbortController();
+    videoExportAbortRef.current = controller;
+    setVideoExportProgress({ elapsedMs: 0, totalMs: exportDurationSec * 1000 });
+    setVideoExportTranscodePercent(null);
+    videoExportTranscodeStartedAtRef.current = null;
+    setVideoExportPhase("recording");
+
+    try {
+      await exportPlaygroundVideo({
+        canvas,
+        sourceKind,
+        video: loadState.kind === "video" ? loadState.video : undefined,
+        backgroundCss,
+        backgroundColor,
+        signal: controller.signal,
+        onPhase: handleVideoExportPhase,
+        onProgress: (elapsedMs, totalMs) => setVideoExportProgress({ elapsedMs, totalMs }),
+        onTranscodeProgress: setVideoExportTranscodePercent,
+      });
+      setVideoExportPhase("done");
+      window.setTimeout(() => setVideoExportPhase("idle"), 1600);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setVideoExportPhase("idle");
+      } else {
+        setVideoExportPhase("failed");
+        window.setTimeout(() => setVideoExportPhase("idle"), 1600);
+      }
+    } finally {
+      videoExportAbortRef.current = null;
+    }
+  };
+
   const onExportSvg = async () => {
     if (!duotoneEnabled || !stripesEnabled || loadState.status !== "ready") {
       return;
@@ -1339,7 +1439,19 @@ export function TexturePlayground() {
   const importStatus =
     importFeedback === "imported" ? "Imported" : importFeedback === "failed" ? "Import failed" : null;
   const exportLabel = exportFeedback === "copied" ? "Copied" : exportFeedback === "failed" ? "Copy failed" : "Copy SVG";
-
+  const isVideoExportBusy =
+    videoExportPhase === "recording" || videoExportPhase === "loading-encoder" || videoExportPhase === "transcoding";
+  const videoExportTranscodeElapsedMs =
+    videoExportTranscodeStartedAtRef.current === null
+      ? 0
+      : performance.now() - videoExportTranscodeStartedAtRef.current;
+  void videoExportEtaTick;
+  const videoExportLabel = formatVideoExportStatusLabel(
+    videoExportPhase,
+    videoExportProgress,
+    videoExportTranscodePercent,
+    videoExportTranscodeElapsedMs,
+  );
   return (
     <div className="flex h-dvh overflow-hidden bg-neutral-50">
       <aside className="flex min-h-0 w-60 shrink-0 flex-col gap-4 border-r border-neutral-200 bg-white py-4">
@@ -1362,6 +1474,7 @@ export function TexturePlayground() {
                 onChange={(event) => onTextureSelect(event.target.value as PlaygroundTextureId)}
                 className="rounded border border-neutral-300 bg-white px-2 py-1.5"
                 aria-label="Playground texture source"
+                disabled={isVideoExportBusy}
               >
                 {catalog.map((option) => (
                   <option key={option.id} value={option.id}>
@@ -1826,59 +1939,96 @@ export function TexturePlayground() {
         </div>
       </aside>
 
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center gap-4 overflow-hidden p-6">
-        <Pixi
-          key={sceneKey}
-          layoutWidth={displayWidth}
-          layoutHeight={displayHeight}
-          onPreload={async () => {
-            await preloadStripeLetterFont();
-          }}
-          canvasAttrs={{
-            "data-testid": "playground-texture-canvas",
-            className: "block shrink-0",
-            style: { width: displayWidth, height: displayHeight },
-          }}
-          canvasRef={setCanvasNode}
-          resolveInitOptions={(canvas) => {
-            const context = createPlaygroundWebGLContext(canvas);
-            preferP3Ref.current = playgroundPrefersDisplayP3(canvas, context);
-            if (!context) {
-              return {};
-            }
-            applyPlaygroundDrawingBufferColorSpace(context);
-            return { context: context as WebGL2RenderingContext };
-          }}
-          initOptions={{
-            preference: "webgl",
-            background: 0x000000,
-            antialias: false,
-            resolution: PLAYGROUND_PIXI_RESOLUTION,
-          }}
-          tickers={tickers}
-        />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <main className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-6">
+          <Pixi
+            key={sceneKey}
+            layoutWidth={displayWidth}
+            layoutHeight={displayHeight}
+            onPreload={async () => {
+              await preloadStripeLetterFont();
+            }}
+            canvasAttrs={{
+              "data-testid": "playground-texture-canvas",
+              className: "block shrink-0",
+              style: { width: displayWidth, height: displayHeight },
+            }}
+            canvasRef={setCanvasNode}
+            resolveInitOptions={(canvas) => {
+              const context = createPlaygroundWebGLContext(canvas);
+              preferP3Ref.current = playgroundPrefersDisplayP3(canvas, context);
+              if (!context) {
+                return {};
+              }
+              applyPlaygroundDrawingBufferColorSpace(context);
+              return { context: context as WebGL2RenderingContext };
+            }}
+            initOptions={{
+              preference: "webgl",
+              background: 0x000000,
+              antialias: false,
+              resolution: PLAYGROUND_PIXI_RESOLUTION,
+            }}
+            tickers={tickers}
+          />
+        </main>
 
-        <div className="flex w-full max-w-[640px] flex-col gap-2">
-          <div className="flex items-center gap-3">
-            {isVideoSource ? (
-              <>
+        <footer className="shrink-0 border-t border-neutral-200 bg-white px-6 py-3" data-testid="playground-bottom-bar">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+            <div aria-hidden />
+            <div className="flex min-w-0 items-center gap-2" data-testid="playground-playback-controls">
+              {isVideoSource ? (
+                <>
+                  <button
+                    type="button"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-neutral-300 bg-white hover:bg-neutral-100"
+                    onClick={togglePlayPause}
+                    aria-label={isPlaying ? "Pause" : "Play"}
+                  >
+                    {isPlaying ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
+                  </button>
+                  <span className="w-10 shrink-0 text-right tabular-nums text-xs text-neutral-500">
+                    {formatTime(currentTime)}
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={duration || 0}
+                    step={0.01}
+                    value={currentTime}
+                    onChange={(event) => onScrub(Number(event.target.value))}
+                    className="w-72 max-w-[40vw] min-w-32"
+                    aria-label="Texture timeline"
+                  />
+                  <span className="w-10 shrink-0 tabular-nums text-xs text-neutral-500">{formatTime(duration)}</span>
+                </>
+              ) : (
+                <p className="m-0 text-xs whitespace-nowrap text-neutral-500">Select a video texture for playback.</p>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {isVideoExportBusy ? (
                 <button
                   type="button"
                   className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-                  onClick={togglePlayPause}
+                  onClick={onCancelVideoExport}
                 >
-                  {isPlaying ? "Pause" : "Play"}
+                  Cancel
                 </button>
-                <span className="tabular-nums text-xs text-neutral-500">
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </span>
-              </>
-            ) : null}
-            <div className={`flex flex-wrap items-center gap-2 ${isVideoSource ? "ml-auto" : ""}`}>
+              ) : null}
               <button
                 type="button"
-                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
+                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => void onExportVideo()}
+                disabled={isVideoExportBusy || videoExportPhase === "done"}
+              >
+                {videoExportLabel}
+              </button>
+              <button
+                type="button"
+                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => setExportReactOpen(true)}
+                disabled={isVideoExportBusy}
               >
                 Export React
               </button>
@@ -1886,26 +2036,14 @@ export function TexturePlayground() {
                 type="button"
                 className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => void onExportSvg()}
-                disabled={!duotoneEnabled || !stripesEnabled}
+                disabled={!duotoneEnabled || !stripesEnabled || isVideoExportBusy}
               >
                 {exportLabel}
               </button>
             </div>
           </div>
-          {isVideoSource ? (
-            <input
-              type="range"
-              min={0}
-              max={duration || 0}
-              step={0.01}
-              value={currentTime}
-              onChange={(event) => onScrub(Number(event.target.value))}
-              className="w-full"
-              aria-label="Texture timeline"
-            />
-          ) : null}
-        </div>
-      </main>
+        </footer>
+      </div>
 
       <ExportReactDialog
         open={exportReactOpen}

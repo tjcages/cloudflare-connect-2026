@@ -95,7 +95,7 @@ export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
   },
 ] as const;
 
-export const DEFAULT_PLAYGROUND_TEXTURE_ID: PlaygroundTextureId = "example10";
+export const DEFAULT_PLAYGROUND_TEXTURE_ID: PlaygroundTextureId = "example5";
 
 export function isUploadTextureId(id: string): id is `upload:${string}` {
   return id.startsWith("upload:");
