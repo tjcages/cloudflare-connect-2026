@@ -1,5 +1,9 @@
+export type PlaygroundFlamesDirection = "up" | "down" | "left" | "right";
+
 export type PlaygroundFlamesConfig = {
   enabled: boolean;
+  /** Travel direction for flame streaks. */
+  direction: PlaygroundFlamesDirection;
   /** Fraction of canvas width. */
   minWidthRatio: number;
   maxWidthRatio: number;
@@ -18,6 +22,7 @@ export type PlaygroundFlamesConfig = {
 
 export const DEFAULT_PLAYGROUND_FLAMES_CONFIG: PlaygroundFlamesConfig = {
   enabled: false,
+  direction: "up",
   minWidthRatio: 0.00975,
   maxWidthRatio: 0.02275,
   minHeightRatio: 0.013,
@@ -40,6 +45,17 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
   return Math.round(clampNumber(value, min, max, fallback));
+}
+
+export function normalizePlaygroundFlamesDirection(value: unknown): PlaygroundFlamesDirection {
+  if (value === "down" || value === "left" || value === "right") {
+    return value;
+  }
+  return "up";
+}
+
+export function isVerticalPlaygroundFlamesDirection(direction: PlaygroundFlamesDirection): boolean {
+  return direction === "up" || direction === "down";
 }
 
 export function normalizePlaygroundFlamesConfig(
@@ -67,6 +83,7 @@ export function normalizePlaygroundFlamesConfig(
 
   return {
     enabled: input.enabled !== false,
+    direction: normalizePlaygroundFlamesDirection(input.direction ?? base.direction),
     minWidthRatio,
     maxWidthRatio,
     minHeightRatio,
@@ -84,6 +101,7 @@ export function isDefaultPlaygroundFlamesConfig(input: PlaygroundFlamesConfig): 
   const base = DEFAULT_PLAYGROUND_FLAMES_CONFIG;
   return (
     input.enabled === base.enabled &&
+    input.direction === base.direction &&
     input.minWidthRatio === base.minWidthRatio &&
     input.maxWidthRatio === base.maxWidthRatio &&
     input.minHeightRatio === base.minHeightRatio &&

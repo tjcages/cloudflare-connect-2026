@@ -196,6 +196,7 @@ describe("playgroundPersistence envelope migration", () => {
     const flames = {
       ...DEFAULT_PLAYGROUND_FLAMES_CONFIG,
       enabled: true,
+      direction: "right" as const,
       baseSpeedPxPerSec: 90,
       maxActive: 24,
       edgeSharpness: 0.5,
@@ -208,9 +209,10 @@ describe("playgroundPersistence envelope migration", () => {
     const wire = JSON.parse(text);
 
     expect(wire.v).toBe(6);
-    expect(wire.fl).toEqual({ en: true, spd: 90, ma: 24, es: 0.5 });
+    expect(wire.fl).toEqual({ en: true, dir: "right", spd: 90, ma: 24, es: 0.5 });
     const parsed = parsePlaygroundStateInput(text);
     expect(parsed.flames?.enabled).toBe(true);
+    expect(parsed.flames?.direction).toBe("right");
     expect(parsed.flames?.baseSpeedPxPerSec).toBe(90);
     expect(parsed.flames?.maxActive).toBe(24);
     expect(parsed.flames?.edgeSharpness).toBe(0.5);

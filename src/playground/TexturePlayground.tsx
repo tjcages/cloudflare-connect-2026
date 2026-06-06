@@ -690,16 +690,24 @@ export function TexturePlayground() {
 
   const updateFlamesConfigLive = useCallback(
     (patch: Partial<PlaygroundFlamesConfig>) => {
-      const next = normalizePlaygroundFlamesConfig({ ...flamesConfigRef.current, ...patch });
+      const prev = flamesConfigRef.current;
+      const next = normalizePlaygroundFlamesConfig({ ...prev, ...patch });
       flamesConfigRef.current = next;
+      if (patch.direction !== undefined && patch.direction !== prev.direction) {
+        flamesStateRef.current = createPlaygroundFlamesState();
+      }
       throttledSetFlamesConfig(next);
     },
     [throttledSetFlamesConfig],
   );
 
   const updateFlamesConfig = useCallback((patch: Partial<PlaygroundFlamesConfig>) => {
-    const next = normalizePlaygroundFlamesConfig({ ...flamesConfigRef.current, ...patch });
+    const prev = flamesConfigRef.current;
+    const next = normalizePlaygroundFlamesConfig({ ...prev, ...patch });
     flamesConfigRef.current = next;
+    if (patch.direction !== undefined && patch.direction !== prev.direction) {
+      flamesStateRef.current = createPlaygroundFlamesState();
+    }
     setFlamesConfig(next);
   }, []);
 

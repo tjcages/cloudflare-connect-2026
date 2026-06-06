@@ -67,6 +67,28 @@ describe("playgroundFlames", () => {
     expect(state.flames[0]!.y).toBeLessThan(initialY);
   });
 
+  it("moves flames right over time", () => {
+    const rightConfig = { ...config, direction: "right" as const };
+    const state = createPlaygroundFlamesState(createSeededRandom(7));
+    state.flames.push(spawnPlaygroundFlame(state, rightConfig, 400, 300));
+
+    stepPlaygroundFlames(state, rightConfig, { width: 400, height: 300 }, 1000);
+    const initialX = state.flames[0]!.x;
+
+    stepPlaygroundFlames(state, rightConfig, { width: 400, height: 300 }, 1500);
+    expect(state.flames[0]!.x).toBeGreaterThan(initialX);
+  });
+
+  it("spawns rightward flames just off the left edge", () => {
+    const rightConfig = { ...config, direction: "right" as const };
+    const state = createPlaygroundFlamesState(createSeededRandom(42));
+    const flame = spawnPlaygroundFlame(state, rightConfig, 400, 300);
+
+    expect(flame.x).toBeLessThanOrEqual(0);
+    expect(flame.y).toBeGreaterThanOrEqual(0);
+    expect(flame.y + flame.height).toBeLessThanOrEqual(300);
+  });
+
   it("removes flames once they rise above the canvas", () => {
     const state = createPlaygroundFlamesState(createSeededRandom(3));
     state.flames.push({

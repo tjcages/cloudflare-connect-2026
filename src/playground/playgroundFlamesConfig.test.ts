@@ -3,6 +3,7 @@ import {
   DEFAULT_PLAYGROUND_FLAMES_CONFIG,
   isDefaultPlaygroundFlamesConfig,
   normalizePlaygroundFlamesConfig,
+  normalizePlaygroundFlamesDirection,
   resolveFlamesGradientStops,
   resolveFlamesSpeedRange,
 } from "./playgroundFlamesConfig";
@@ -27,6 +28,13 @@ describe("playgroundFlamesConfig", () => {
     expect(isDefaultPlaygroundFlamesConfig(DEFAULT_PLAYGROUND_FLAMES_CONFIG)).toBe(true);
     expect(isDefaultPlaygroundFlamesConfig({ ...DEFAULT_PLAYGROUND_FLAMES_CONFIG, enabled: true })).toBe(false);
     expect(isDefaultPlaygroundFlamesConfig({ ...DEFAULT_PLAYGROUND_FLAMES_CONFIG, maxActive: 24 })).toBe(false);
+    expect(isDefaultPlaygroundFlamesConfig({ ...DEFAULT_PLAYGROUND_FLAMES_CONFIG, direction: "right" })).toBe(false);
+  });
+
+  it("normalizes invalid flame directions to up", () => {
+    expect(normalizePlaygroundFlamesDirection("right")).toBe("right");
+    expect(normalizePlaygroundFlamesDirection("sideways")).toBe("up");
+    expect(normalizePlaygroundFlamesConfig({ direction: "left" }).direction).toBe("left");
   });
 
   it("resolves speed range from base speed and variation", () => {

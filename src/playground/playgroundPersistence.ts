@@ -213,6 +213,7 @@ type SourceTransformWire = {
 
 type FlamesWire = {
   en?: boolean;
+  dir?: "up" | "down" | "left" | "right";
   wmn?: number;
   wmx?: number;
   hmn?: number;
@@ -323,6 +324,7 @@ function flamesToWire(config: PlaygroundFlamesConfig): FlamesWire | undefined {
   const base = DEFAULT_PLAYGROUND_FLAMES_CONFIG;
   const wire: FlamesWire = {};
   if (normalized.enabled !== base.enabled) wire.en = normalized.enabled;
+  if (normalized.direction !== base.direction) wire.dir = normalized.direction;
   if (normalized.minWidthRatio !== base.minWidthRatio) wire.wmn = normalized.minWidthRatio;
   if (normalized.maxWidthRatio !== base.maxWidthRatio) wire.wmx = normalized.maxWidthRatio;
   if (normalized.minHeightRatio !== base.minHeightRatio) wire.hmn = normalized.minHeightRatio;
@@ -343,6 +345,7 @@ function wireToFlames(raw: unknown): PlaygroundFlamesConfig | undefined {
   const wire = raw as FlamesWire;
   return normalizePlaygroundFlamesConfig({
     enabled: wire.en,
+    direction: wire.dir,
     minWidthRatio: wire.wmn,
     maxWidthRatio: wire.wmx,
     minHeightRatio: wire.hmn,

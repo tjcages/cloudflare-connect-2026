@@ -1,8 +1,10 @@
 import { Texture } from "pixi.js";
 import {
+  isVerticalPlaygroundFlamesDirection,
   resolveFlamesGradientStops,
   resolveFlamesSpeedRange,
   type PlaygroundFlamesConfig,
+  type PlaygroundFlamesDirection,
 } from "./playgroundFlamesConfig";
 
 export type PlaygroundFlame = {
@@ -31,7 +33,13 @@ function randomBetween(random: () => number, min: number, max: number): number {
   return lerp(min, max, random());
 }
 
-export function createPlaygroundFlamesState(random: () => number = Math.random): PlaygroundFlamesState {
+function randomFlamesUnitInterval(): number {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0]! / 2 ** 32;
+}
+
+export function createPlaygroundFlamesState(random: () => number = randomFlamesUnitInterval): PlaygroundFlamesState {
   return {
     flames: [],
     lastSpawnMs: 0,
@@ -40,34 +48,79 @@ export function createPlaygroundFlamesState(random: () => number = Math.random):
   };
 }
 
+function randomFlameSpan(random: () => number, displaySize: number, minRatio: number, maxRatio: number): number {
+  return randomBetween(random, displaySize * minRatio, displaySize * maxRatio);
+}
+
+function randomFlameCrossAxisPosition(random: () => number, displaySize: number, span: number): number {
+  const max = Math.max(0, displaySize - span);
+  return randomBetween(random, 0, max);
+}
+
 export function createPlaygroundFlame(
   state: PlaygroundFlamesState,
   config: PlaygroundFlamesConfig,
   displayWidth: number,
   displayHeight: number,
-  y = displayHeight,
 ): PlaygroundFlame {
-  const width = randomBetween(
-    state.random,
-    displayWidth * config.minWidthRatio,
-    displayWidth * config.maxWidthRatio,
-  );
-  const height = randomBetween(
-    state.random,
-    displayHeight * config.minHeightRatio,
-    displayHeight * config.maxHeightRatio,
-  );
-  const maxX = Math.max(0, displayWidth - width);
-  const x = randomBetween(state.random, 0, maxX);
+  const width = randomFlameSpan(state.random, displayWidth, config.minWidthRatio, config.maxWidthRatio);
+  const height = randomFlameSpan(state.random, displayHeight, config.minHeightRatio, config.maxHeightRatio);
   const speedRange = resolveFlamesSpeedRange(config);
   const speedPxPerSec = randomBetween(state.random, speedRange.minPxPerSec, speedRange.maxPxPerSec);
+
+  if (isVerticalPlaygroundFlamesDirection(config.direction)) {
+    return {
+      x: randomFlameCrossAxisPosition(state.random, displayWidth, width),
+      y: 0,
+      width,
+      height,
+      speedPxPerSec,
+    };
+  }
+
   return {
-    x,
-    y,
+    x: 0,
+    y: randomFlameCrossAxisPosition(state.random, displayHeight, height),
     width,
     height,
     speedPxPerSec,
   };
+}
+
+function placeSpawnedPlaygroundFlame(
+  flame: PlaygroundFlame,
+  direction: PlaygroundFlamesDirection,
+  displayWidth: number,
+  displayHeight: number,
+): void {
+  switch (direction) {
+    case "up":
+      flame.y = displayHeight;
+      break;
+    case "down":
+      flame.y = -flame.height;
+      break;
+    case "left":
+      flame.x = displayWidth;
+      break;
+    case "right":
+      flame.x = -flame.width;
+      break;
+  }
+}
+
+function placeSeededPlaygroundFlame(
+  flame: PlaygroundFlame,
+  direction: PlaygroundFlamesDirection,
+  displayWidth: number,
+  displayHeight: number,
+  random: () => number,
+): void {
+  if (isVerticalPlaygroundFlamesDirection(direction)) {
+    flame.y = randomBetween(random, -flame.height, displayHeight);
+    return;
+  }
+  flame.x = randomBetween(random, -flame.width, displayWidth);
 }
 
 export function spawnPlaygroundFlame(
@@ -76,7 +129,9 @@ export function spawnPlaygroundFlame(
   displayWidth: number,
   displayHeight: number,
 ): PlaygroundFlame {
-  return createPlaygroundFlame(state, config, displayWidth, displayHeight, displayHeight);
+  const flame = createPlaygroundFlame(state, config, displayWidth, displayHeight);
+  placeSpawnedPlaygroundFlame(flame, config.direction, displayWidth, displayHeight);
+  return flame;
 }
 
 function seedPlaygroundFlames(
@@ -91,7 +146,7 @@ function seedPlaygroundFlames(
 
   for (let i = 0; i < config.maxActive; i++) {
     const flame = createPlaygroundFlame(state, config, displayWidth, displayHeight);
-    flame.y = randomBetween(state.random, -flame.height, displayHeight);
+    placeSeededPlaygroundFlame(flame, config.direction, displayWidth, displayHeight, state.random);
     state.flames.push(flame);
   }
 }
@@ -117,9 +172,22 @@ export function stepPlaygroundFlames(
   state.lastStepMs = nowMs;
 
   for (const flame of state.flames) {
-    flame.y -= flame.speedPxPerSec * dtSec;
+    switch (config.direction) {
+      case "up":
+        flame.y -= flame.speedPxPerSec * dtSec;
+        break;
+      case "down":
+        flame.y += flame.speedPxPerSec * dtSec;
+        break;
+      case "left":
+        flame.x -= flame.speedPxPerSec * dtSec;
+        break;
+      case "right":
+        flame.x += flame.speedPxPerSec * dtSec;
+        break;
+    }
   }
-  state.flames = state.flames.filter((flame) => flame.y + flame.height >= 0);
+  state.flames = state.flames.filter((flame) => isPlaygroundFlameVisible(flame, config.direction, display));
   if (state.flames.length > config.maxActive) {
     state.flames.length = config.maxActive;
   }
@@ -129,6 +197,23 @@ export function stepPlaygroundFlames(
   if (state.flames.length < config.maxActive && nowMs - state.lastSpawnMs >= spawnInterval) {
     state.flames.push(spawnPlaygroundFlame(state, config, display.width, display.height));
     state.lastSpawnMs = nowMs;
+  }
+}
+
+function isPlaygroundFlameVisible(
+  flame: PlaygroundFlame,
+  direction: PlaygroundFlamesDirection,
+  display: { width: number; height: number },
+): boolean {
+  switch (direction) {
+    case "up":
+      return flame.y + flame.height >= 0;
+    case "down":
+      return flame.y <= display.height;
+    case "left":
+      return flame.x + flame.width >= 0;
+    case "right":
+      return flame.x <= display.width;
   }
 }
 
@@ -148,7 +233,9 @@ export function drawPlaygroundFlames(
   ctx.globalCompositeOperation = "lighter";
 
   for (const flame of state.flames) {
-    const gradient = ctx.createLinearGradient(flame.x, flame.y, flame.x + flame.width, flame.y);
+    const gradient = isVerticalPlaygroundFlamesDirection(config.direction)
+      ? ctx.createLinearGradient(flame.x, flame.y, flame.x + flame.width, flame.y)
+      : ctx.createLinearGradient(flame.x, flame.y, flame.x, flame.y + flame.height);
     gradient.addColorStop(0, PLAYGROUND_FLAMES_COLOR_TRANSPARENT);
     gradient.addColorStop(inner, PLAYGROUND_FLAMES_COLOR);
     gradient.addColorStop(outer, PLAYGROUND_FLAMES_COLOR);

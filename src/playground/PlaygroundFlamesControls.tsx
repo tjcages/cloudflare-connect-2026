@@ -3,7 +3,7 @@ import { PlaygroundNumberField } from "./PlaygroundNumberField";
 import { FieldHelp } from "./FieldHelp";
 import { PLAYGROUND_CONTROL_INPUT_BOUNDS, PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
-import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import type { PlaygroundFlamesConfig, PlaygroundFlamesDirection } from "./playgroundFlamesConfig";
 
 export type PlaygroundFlamesControlsProps = {
   config: PlaygroundFlamesConfig;
@@ -45,6 +45,23 @@ export function PlaygroundFlamesControls({
         <span className="flex items-center gap-1.5 text-neutral-800">
           <FieldHelp label="Enabled" description={PLAYGROUND_FIELD_HELP.flamesEnabled} />
         </span>
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="flex items-center gap-1.5 text-neutral-800">
+          <FieldHelp label="Direction" description={PLAYGROUND_FIELD_HELP.flamesDirection} />
+        </span>
+        <select
+          value={config.direction}
+          disabled={fieldsDisabled}
+          onChange={(event) => onChange({ direction: event.target.value as PlaygroundFlamesDirection })}
+          className="rounded border border-neutral-300 bg-white px-2 py-1.5 disabled:cursor-not-allowed"
+          aria-label="Flame travel direction"
+        >
+          <option value="up">Up</option>
+          <option value="down">Down</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
       </label>
       <PlaygroundNumberField
         label="Width min"
