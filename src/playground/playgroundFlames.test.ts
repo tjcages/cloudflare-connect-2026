@@ -19,7 +19,7 @@ function createSeededRandom(seed: number): () => number {
   };
 }
 
-const config: PlaygroundFlamesConfig = DEFAULT_PLAYGROUND_FLAMES_CONFIG;
+const config: PlaygroundFlamesConfig = { ...DEFAULT_PLAYGROUND_FLAMES_CONFIG, enabled: true };
 const speedRange = resolveFlamesSpeedRange(config);
 
 describe("playgroundFlames", () => {

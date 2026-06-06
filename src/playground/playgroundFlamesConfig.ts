@@ -17,7 +17,7 @@ export type PlaygroundFlamesConfig = {
 };
 
 export const DEFAULT_PLAYGROUND_FLAMES_CONFIG: PlaygroundFlamesConfig = {
-  enabled: true,
+  enabled: false,
   minWidthRatio: 0.00975,
   maxWidthRatio: 0.02275,
   minHeightRatio: 0.013,

@@ -25,7 +25,7 @@ describe("playgroundFlamesConfig", () => {
 
   it("detects non-default config", () => {
     expect(isDefaultPlaygroundFlamesConfig(DEFAULT_PLAYGROUND_FLAMES_CONFIG)).toBe(true);
-    expect(isDefaultPlaygroundFlamesConfig({ ...DEFAULT_PLAYGROUND_FLAMES_CONFIG, enabled: false })).toBe(false);
+    expect(isDefaultPlaygroundFlamesConfig({ ...DEFAULT_PLAYGROUND_FLAMES_CONFIG, enabled: true })).toBe(false);
     expect(isDefaultPlaygroundFlamesConfig({ ...DEFAULT_PLAYGROUND_FLAMES_CONFIG, maxActive: 24 })).toBe(false);
   });
 
