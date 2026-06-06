@@ -11,6 +11,7 @@ import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
+import { applyPlaygroundRevealToLumaGrid, type PlaygroundRevealOptions } from "./playgroundReveal";
 
 export type PlaygroundGridBuildState = {
   stableIndices?: Uint8Array;
@@ -77,6 +78,7 @@ export function sampleVideoFrame(
 
 export type PlaygroundGridBuildOptions = {
   textureAdjustments?: PlaygroundTextureAdjustments;
+  reveal?: PlaygroundRevealOptions;
 };
 
 export function buildPlaygroundBlockGrid(
@@ -95,7 +97,8 @@ export function buildPlaygroundBlockGrid(
     options.textureAdjustments?.gamma ?? gamma,
     options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   );
-  const rawIndices = resolveStripeIndices(lumaGrid.luma, colors.stripes);
+  const revealedLumaGrid = options.reveal ? applyPlaygroundRevealToLumaGrid(lumaGrid, options.reveal) : lumaGrid;
+  const rawIndices = resolveStripeIndices(revealedLumaGrid.luma, colors.stripes);
   const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices);
 
   return {

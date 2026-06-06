@@ -17,6 +17,7 @@ import {
   normalizePlaygroundBackgroundColor,
   resolvePersistedGridConfig,
   resolvePersistedFlamesConfig,
+  resolvePersistedRevealConfig,
   resolvePersistedSourceTransform,
   resolvePersistedTextureAdjustments,
   resolveInitialTextureId,
@@ -52,6 +53,7 @@ import {
   PLAYGROUND_PIXI_RESOLUTION,
   resolvePlaygroundDisplaySize,
   type PlaygroundDisplaySize,
+  type PlaygroundRevealPlayback,
   type PlaygroundSceneExportState,
   type PlaygroundTextureSource,
 } from "./setupTextureShaderScene";
@@ -75,6 +77,7 @@ import {
 } from "./playgroundVideoExport";
 import { PlaygroundGridControls } from "./PlaygroundGridControls";
 import { PlaygroundFlamesControls } from "./PlaygroundFlamesControls";
+import { PlaygroundRevealControls } from "./PlaygroundRevealControls";
 import { PlaygroundNumberField } from "./PlaygroundNumberField";
 import { PlaygroundTextureControls } from "./PlaygroundTextureControls";
 import { PLAYGROUND_SCRUB_COMMIT_MS, useThrottledCallback } from "./playgroundLiveRefs";
@@ -102,6 +105,14 @@ import {
   normalizePlaygroundFlamesConfig,
   type PlaygroundFlamesConfig,
 } from "./playgroundFlamesConfig";
+import {
+  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+  isDefaultPlaygroundRevealConfig,
+  normalizePlaygroundRevealConfig,
+  type PlaygroundRevealConfig,
+  type PlaygroundWaveRevealConfig,
+} from "./playgroundRevealConfig";
+import type { PlaygroundRevealState } from "./playgroundReveal";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
   cloneDefaultStripes,
@@ -259,6 +270,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     displayHeight: config.displayHeight,
     grid: resolvePersistedGridConfig(config),
     flames: resolvePersistedFlamesConfig(config),
+    reveal: resolvePersistedRevealConfig(config),
     stripes: config.stripes.map((stripe) => ({ ...stripe })),
   };
 }
@@ -308,6 +320,7 @@ export function TexturePlayground() {
   const [stripes, setStripes] = useState<Stripe[]>(() => appliedInitial.stripes);
   const [gridConfig, setGridConfig] = useState<PlaygroundGridConfig>(appliedInitial.grid);
   const [flamesConfig, setFlamesConfig] = useState<PlaygroundFlamesConfig>(appliedInitial.flames);
+  const [revealConfig, setRevealConfig] = useState<PlaygroundRevealConfig>(appliedInitial.reveal);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
   const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "failed">("idle");
@@ -337,9 +350,11 @@ export function TexturePlayground() {
   const stripeColorsRef = useRef<StripeColors>({ stripes });
   const gridConfigRef = useRef<PlaygroundGridConfig>(gridConfig);
   const flamesConfigRef = useRef<PlaygroundFlamesConfig>(flamesConfig);
+  const revealConfigRef = useRef<PlaygroundRevealConfig>(revealConfig);
   // Set during render so a scene rebuild (sceneKey change) reads fresh structural values.
   gridConfigRef.current = gridConfig;
   flamesConfigRef.current = flamesConfig;
+  revealConfigRef.current = revealConfig;
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
   const stripesEnabledRef = useRef(stripesEnabled);
@@ -351,6 +366,8 @@ export function TexturePlayground() {
     playgroundWidthShuffleOptionsFromSliders(sparkleWidthActivePercent, sparkleWidthSpeed),
   );
   const flamesStateRef = useRef(createPlaygroundFlamesState());
+  const revealStateRef = useRef<PlaygroundRevealState>({ progress: 0 });
+  const revealPlaybackRef = useRef<PlaygroundRevealPlayback>({ replayKey: 0, startedAtMs: performance.now() });
   const autoplayRef = useRef(true);
   const exportStateRef = useRef<PlaygroundSceneExportState | null>(null);
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -433,6 +450,14 @@ export function TexturePlayground() {
     gridConfig.sparkleWidthPeriodMaxSec,
   ]);
 
+  const replayReveal = useCallback(() => {
+    revealStateRef.current = { progress: 0 };
+    revealPlaybackRef.current = {
+      replayKey: revealPlaybackRef.current.replayKey + 1,
+      startedAtMs: performance.now(),
+    };
+  }, []);
+
   const persistCurrentConfig = useCallback(() => {
     const config: PlaygroundPersistedConfig = {
       duotoneEnabled,
@@ -455,6 +480,7 @@ export function TexturePlayground() {
       backgroundColor: backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? backgroundColor : undefined,
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
+      reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
       stripes,
     };
     schedulePersistedConfig(selectedTextureId, config);
@@ -474,6 +500,7 @@ export function TexturePlayground() {
     backgroundColor,
     gridConfig,
     flamesConfig,
+    revealConfig,
     stripes,
   ]);
 
@@ -511,8 +538,11 @@ export function TexturePlayground() {
     }
     setGridConfig(next.grid);
     setFlamesConfig(next.flames);
+    setRevealConfig(next.reveal);
+    revealConfigRef.current = next.reveal;
+    replayReveal();
     setStripes(next.stripes);
-  }, []);
+  }, [replayReveal]);
 
   const matchSourceDisplaySize = useCallback(() => {
     const textureSource: PlaygroundTextureSource | null = videoRef.current
@@ -593,6 +623,10 @@ export function TexturePlayground() {
 
   const throttledSetFlamesConfig = useThrottledCallback((next: PlaygroundFlamesConfig) => {
     setFlamesConfig(next);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetRevealConfig = useThrottledCallback((next: PlaygroundRevealConfig) => {
+    setRevealConfig(next);
   }, PLAYGROUND_SCRUB_COMMIT_MS);
 
   const applyStripePatch = useCallback((id: string, patch: Parameters<typeof updateStripe>[2]) => {
@@ -716,6 +750,39 @@ export function TexturePlayground() {
     flamesStateRef.current = createPlaygroundFlamesState();
     setFlamesConfig({ ...DEFAULT_PLAYGROUND_FLAMES_CONFIG });
   }, []);
+
+  const updateRevealConfigLive = useCallback(
+    (patch: Partial<PlaygroundRevealConfig>) => {
+      const next = normalizePlaygroundRevealConfig({ ...revealConfigRef.current, ...patch });
+      revealConfigRef.current = next;
+      throttledSetRevealConfig(next);
+      replayReveal();
+    },
+    [replayReveal, throttledSetRevealConfig],
+  );
+
+  const updateRevealWaveLive = useCallback(
+    (patch: Partial<PlaygroundWaveRevealConfig>) => {
+      updateRevealConfigLive({ wave: { ...revealConfigRef.current.wave, ...patch } });
+    },
+    [updateRevealConfigLive],
+  );
+
+  const updateRevealConfig = useCallback(
+    (patch: Partial<PlaygroundRevealConfig>) => {
+      const next = normalizePlaygroundRevealConfig({ ...revealConfigRef.current, ...patch });
+      revealConfigRef.current = next;
+      setRevealConfig(next);
+      replayReveal();
+    },
+    [replayReveal],
+  );
+
+  const resetReveal = useCallback(() => {
+    revealConfigRef.current = { preset: DEFAULT_PLAYGROUND_REVEAL_CONFIG.preset, wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave } };
+    setRevealConfig({ preset: DEFAULT_PLAYGROUND_REVEAL_CONFIG.preset, wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave } });
+    replayReveal();
+  }, [replayReveal]);
 
   const updateTextureAdjustmentsLive = useCallback(
     (patch: Partial<PlaygroundTextureAdjustments>) => {
@@ -878,6 +945,7 @@ export function TexturePlayground() {
   const backgroundCssActive = normalizePlaygroundBackgroundCss(backgroundCss) !== undefined;
   const backgroundModified = backgroundCssActive || backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR;
   const flamesModified = !isDefaultPlaygroundFlamesConfig(flamesConfig);
+  const revealModified = !isDefaultPlaygroundRevealConfig(revealConfig);
   const textureToneModified =
     textureAdjustments.brightness !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.brightness ||
     textureAdjustments.exposure !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.exposure ||
@@ -994,6 +1062,7 @@ export function TexturePlayground() {
       setSourceHeight(source.height);
       setDisplayWidth(display.width);
       setDisplayHeight(display.height);
+      replayReveal();
       setLoadState(next);
     });
 
@@ -1010,7 +1079,7 @@ export function TexturePlayground() {
         imageRef.current = null;
       }
     };
-  }, [hydrated, selectedTextureId, catalog, onTextureSelect]);
+  }, [hydrated, selectedTextureId, catalog, onTextureSelect, replayReveal]);
 
   useEffect(() => {
     if (loadState.status !== "ready" || loadState.kind !== "video") {
@@ -1090,6 +1159,9 @@ export function TexturePlayground() {
         sourceTransformRef,
         flamesStateRef,
         flamesConfigRef,
+        revealConfigRef,
+        revealStateRef,
+        revealPlaybackRef,
       ),
     ];
   }, [loadState, displayWidth, displayHeight, displaySize, flamesStateRef, flamesConfigRef]);
@@ -1139,6 +1211,7 @@ export function TexturePlayground() {
       backgroundColor: backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? backgroundColor : undefined,
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
+      reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
       stripes,
     };
     const ok = await copyPlaygroundStateToClipboard(config);
@@ -1311,6 +1384,10 @@ export function TexturePlayground() {
       textureAdjustments,
       flamesState: flamesStateRef.current,
       flamesConfig: flamesConfigRef.current,
+      reveal: {
+        config: revealConfigRef.current,
+        progress: revealStateRef.current.progress,
+      },
     });
     const svg = stripeGridToSvg(built.grid, colors, display.width, display.height);
 
@@ -1356,6 +1433,7 @@ export function TexturePlayground() {
             sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
           displayWidth: displayWidth > 0 ? displayWidth : undefined,
           displayHeight: displayHeight > 0 ? displayHeight : undefined,
+          reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
           stripes,
         },
         displayWidth: displayWidth > 0 ? displayWidth : 640,
@@ -1373,6 +1451,7 @@ export function TexturePlayground() {
       sparkleWidthSpeed,
       displayWidth,
       displayHeight,
+      revealConfig,
       stripes,
       loadState,
     ],
@@ -1653,6 +1732,16 @@ export function TexturePlayground() {
             onResetLetters={resetLettersSection}
             gridModified={gridSectionModified}
             lettersModified={lettersSectionModified}
+            disabled={duotoneControlsDisabled}
+          />
+
+          <PlaygroundRevealControls
+            config={revealConfig}
+            onChange={updateRevealConfig}
+            onLiveWaveChange={updateRevealWaveLive}
+            onReset={resetReveal}
+            onReplay={replayReveal}
+            modified={revealModified}
             disabled={duotoneControlsDisabled}
           />
 

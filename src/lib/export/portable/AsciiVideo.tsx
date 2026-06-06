@@ -12,6 +12,7 @@ import {
   PLAYGROUND_PIXI_RESOLUTION,
   resolvePlaygroundDisplaySize,
   type PlaygroundDisplaySize,
+  type PlaygroundRevealPlayback,
   type PlaygroundTextureSource,
 } from "./scene";
 import {
@@ -31,6 +32,8 @@ import {
   DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
   normalizePlaygroundSourceTransform,
 } from "./runtime/playgroundSourceTransform";
+import { normalizePlaygroundRevealConfig } from "./runtime/playgroundRevealConfig";
+import type { PlaygroundRevealState } from "./runtime/playgroundReveal";
 
 export type { AsciiVideoConfig, AsciiVideoProps } from "./types";
 export { defaultConfig } from "./types";
@@ -115,6 +118,9 @@ export function AsciiVideo({
     }),
   );
   const sourceTransformRef = useRef(normalizePlaygroundSourceTransform(config.sourceTransform));
+  const revealConfigRef = useRef(normalizePlaygroundRevealConfig(config.reveal));
+  const revealStateRef = useRef<PlaygroundRevealState>({ progress: 0 });
+  const revealPlaybackRef = useRef<PlaygroundRevealPlayback>({ replayKey: 0, startedAtMs: performance.now() });
   const textureGammaRef = useRef(textureAdjustmentsRef.current.gamma);
   const sparkleOptionsRef = useRef(
     playgroundSparkleOptionsFromSliders(
@@ -141,6 +147,7 @@ export function AsciiVideo({
   sourceTransformRef.current = normalizePlaygroundSourceTransform(
     config.sourceTransform ?? DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
   );
+  revealConfigRef.current = normalizePlaygroundRevealConfig(config.reveal);
   textureGammaRef.current = textureAdjustmentsRef.current.gamma;
   sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(
     resolvePersistedSparkleGapsActivePercent(config),
@@ -153,10 +160,23 @@ export function AsciiVideo({
   autoplayRef.current = autoplay;
 
   useEffect(() => {
+    revealStateRef.current = { progress: 0 };
+    revealPlaybackRef.current = {
+      replayKey: revealPlaybackRef.current.replayKey + 1,
+      startedAtMs: performance.now(),
+    };
+  }, [config.reveal]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoadState({ status: "loading" });
     void loadMedia(src, mediaKind).then((next) => {
       if (!cancelled) {
+        revealStateRef.current = { progress: 0 };
+        revealPlaybackRef.current = {
+          replayKey: revealPlaybackRef.current.replayKey + 1,
+          startedAtMs: performance.now(),
+        };
         setLoadState(next);
       }
     });
@@ -194,6 +214,9 @@ export function AsciiVideo({
         undefined,
         textureAdjustmentsRef,
         sourceTransformRef,
+        revealConfigRef,
+        revealStateRef,
+        revealPlaybackRef,
       ),
     ];
   }, [loadState, displaySize]);

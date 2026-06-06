@@ -67,4 +67,11 @@ export const PLAYGROUND_FIELD_HELP = {
   flamesEdgeMaskEnd:
     "Inset from each canvas edge where masked flame luminance reaches full strength. Must be greater than mask start.",
   flamesEdgeMaskPower: "Curve shaping for the flame luminance ramp (1 = linear, higher = softer mid-fade).",
+
+  revealPreset: "Choose the reveal animation applied before stripe thresholds are calculated.",
+  revealPosition: "Choose where the wave starts on the canvas.",
+  revealDuration: "How long the reveal takes from start to fully visible.",
+  revealSoftness: "Width of the wave edge transition.",
+  revealWaviness: "How uneven the circular wave edge becomes.",
+  revealNoiseScale: "Size of the deterministic wave-edge ripples.",
 } as const;

@@ -2,7 +2,7 @@ import { Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
 import type { Ticker } from "./pixi";
 import { createSourceTextureFilter, createStripeDuotoneFilter } from "./shaders";
-import type { StripeColors } from "./types";
+import type { PlaygroundRevealConfig, StripeColors } from "./types";
 import { BlockGridTexture } from "./runtime/blockGridTexture";
 import type { BlockGrid } from "./runtime/computeBlockGrid";
 import {
@@ -24,6 +24,10 @@ import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   type PlaygroundTextureAdjustments,
 } from "./runtime/playgroundTextureAdjustments";
+import {
+  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+} from "./runtime/playgroundRevealConfig";
+import type { PlaygroundRevealState } from "./runtime/playgroundReveal";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -58,6 +62,11 @@ export type PlaygroundTextureSource =
   | { kind: "image"; element: HTMLImageElement };
 
 type TextureFilterMode = "off" | "preview" | "stripes";
+
+export type PlaygroundRevealPlayback = {
+  replayKey: number;
+  startedAtMs: number;
+};
 
 function resolveTextureFilterMode(duotoneEnabled: boolean, stripesEnabled: boolean): TextureFilterMode {
   if (!duotoneEnabled) {
@@ -163,6 +172,9 @@ function runDuotoneTick(params: {
   textureGammaRef: RefObject<number>;
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>;
   sourceTransformRef: RefObject<PlaygroundSourceTransform>;
+  revealConfigRef: RefObject<PlaygroundRevealConfig>;
+  revealStateRef: RefObject<PlaygroundRevealState>;
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback>;
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
@@ -186,6 +198,9 @@ function runDuotoneTick(params: {
     textureGammaRef,
     textureAdjustmentsRef,
     sourceTransformRef,
+    revealConfigRef,
+    revealStateRef,
+    revealPlaybackRef,
     display,
     blockGridTexture,
     exportStateRef,
@@ -200,6 +215,7 @@ function runDuotoneTick(params: {
   let gridState: PlaygroundGridBuildState = {};
   let lastGridUpdateMs = 0;
   let hasBuiltGrid = false;
+  let lastRevealReplayKey = revealPlaybackRef.current.replayKey;
 
   return () => {
     syncVisual();
@@ -239,6 +255,20 @@ function runDuotoneTick(params: {
       return;
     }
 
+    const now = performance.now();
+    const revealConfig = revealConfigRef.current;
+    const revealPlayback = revealPlaybackRef.current;
+    if (revealPlayback.replayKey !== lastRevealReplayKey) {
+      lastRevealReplayKey = revealPlayback.replayKey;
+      gridState = {};
+      hasBuiltGrid = false;
+    }
+    const revealProgress = Math.min(
+      1,
+      Math.max(0, (now - revealPlayback.startedAtMs) / Math.max(1, revealConfig.wave.durationMs)),
+    );
+    revealStateRef.current = { progress: revealProgress };
+
     const colors = stripeColorsRef.current;
     const colorsKey = JSON.stringify({
       colors,
@@ -246,9 +276,11 @@ function runDuotoneTick(params: {
       gamma: textureGammaRef.current,
       textureAdjustments: textureAdjustmentsRef.current,
       sourceTransform: sourceTransformRef.current,
+      revealConfig,
+      revealReplayKey: revealPlayback.replayKey,
     });
     const colorsChanged = colorsKey !== lastColorsKey;
-    const timeChanged = shouldSample();
+    const timeChanged = shouldSample() || revealProgress < 1;
     const needsSample = timeChanged || colorsChanged || !hasBuiltGrid;
 
     if (colorsChanged) {
@@ -265,11 +297,11 @@ function runDuotoneTick(params: {
       frame &&
       (colorsChanged ||
         !hasBuiltGrid ||
-        (timeChanged && performance.now() - lastGridUpdateMs >= PLAYGROUND_GRID_UPDATE_INTERVAL_MS));
+        (timeChanged && now - lastGridUpdateMs >= PLAYGROUND_GRID_UPDATE_INTERVAL_MS));
 
     if (shouldRebuildGrid && frame) {
       hasBuiltGrid = true;
-      lastGridUpdateMs = performance.now();
+      lastGridUpdateMs = now;
       if (colorsChanged) {
         gridState = {};
       }
@@ -285,6 +317,10 @@ function runDuotoneTick(params: {
           textureAdjustments: {
             ...textureAdjustmentsRef.current,
             gamma: textureGammaRef.current,
+          },
+          reveal: {
+            config: revealConfig,
+            progress: revealProgress,
           },
         },
       );
@@ -344,6 +380,9 @@ export function createTextureSceneTicker(
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = { current: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS },
   sourceTransformRef: RefObject<PlaygroundSourceTransform> = { current: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM },
+  revealConfigRef: RefObject<PlaygroundRevealConfig> = { current: DEFAULT_PLAYGROUND_REVEAL_CONFIG },
+  revealStateRef: RefObject<PlaygroundRevealState> = { current: { progress: 1 } },
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = { current: { replayKey: 0, startedAtMs: 0 } },
 ): Ticker {
   if (source.kind === "image") {
     return createImageSceneTicker(
@@ -358,6 +397,9 @@ export function createTextureSceneTicker(
       widthShuffleOptionsRef,
       textureAdjustmentsRef,
       sourceTransformRef,
+      revealConfigRef,
+      revealStateRef,
+      revealPlaybackRef,
       exportStateRef,
     );
   }
@@ -374,6 +416,9 @@ export function createTextureSceneTicker(
     autoplayRef,
     textureAdjustmentsRef,
     sourceTransformRef,
+    revealConfigRef,
+    revealStateRef,
+    revealPlaybackRef,
     exportStateRef,
   );
 }
@@ -390,6 +435,9 @@ function createImageSceneTicker(
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
+  revealConfigRef: RefObject<PlaygroundRevealConfig>,
+  revealStateRef: RefObject<PlaygroundRevealState>,
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -442,6 +490,9 @@ function createImageSceneTicker(
       textureGammaRef,
       textureAdjustmentsRef,
       sourceTransformRef,
+      revealConfigRef,
+      revealStateRef,
+      revealPlaybackRef,
       display,
       blockGridTexture,
       exportStateRef,
@@ -481,6 +532,9 @@ function createVideoSceneTickerInternal(
   autoplayRef: RefObject<boolean>,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
+  revealConfigRef: RefObject<PlaygroundRevealConfig>,
+  revealStateRef: RefObject<PlaygroundRevealState>,
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -540,6 +594,9 @@ function createVideoSceneTickerInternal(
       textureGammaRef,
       textureAdjustmentsRef,
       sourceTransformRef,
+      revealConfigRef,
+      revealStateRef,
+      revealPlaybackRef,
       display,
       blockGridTexture,
       exportStateRef,

@@ -41,6 +41,13 @@ import {
   type PlaygroundFlamesConfig,
 } from "./playgroundFlamesConfig";
 import {
+  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+  isDefaultPlaygroundRevealConfig,
+  normalizePlaygroundRevealConfig,
+  type PlaygroundRevealConfig,
+  type PlaygroundWaveRevealPosition,
+} from "./playgroundRevealConfig";
+import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_STRIPES,
   detectUploadMediaKind,
@@ -92,6 +99,8 @@ export type PlaygroundPersistedConfig = {
   grid?: PlaygroundGridConfig;
   /** Background flame streak settings. Omitted = defaults. */
   flames?: PlaygroundFlamesConfig;
+  /** Reveal animation settings. Omitted = defaults. */
+  reveal?: PlaygroundRevealConfig;
   /** Ordered luminosity stripes (color + start-from + width). */
   stripes: Stripe[];
 };
@@ -117,6 +126,10 @@ export function resolvePersistedSourceTransform(config: PlaygroundPersistedConfi
 
 export function resolvePersistedFlamesConfig(config: PlaygroundPersistedConfig): PlaygroundFlamesConfig {
   return normalizePlaygroundFlamesConfig(config.flames);
+}
+
+export function resolvePersistedRevealConfig(config: PlaygroundPersistedConfig): PlaygroundRevealConfig {
+  return normalizePlaygroundRevealConfig(config.reveal);
 }
 
 export type PlaygroundUploadMeta = {
@@ -153,7 +166,7 @@ export type StripeWire = {
 };
 
 export type PlaygroundStateWire = {
-  v: 1 | 2 | 3 | 4 | 5 | 6;
+  v: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   d: boolean;
   se?: boolean;
   /** v5+: raw CSS declarations applied to the playground canvas element. */
@@ -180,6 +193,8 @@ export type PlaygroundStateWire = {
   st?: StripeWire[];
   /** v6+: background flame settings. */
   fl?: FlamesWire;
+  /** v7+: reveal animation settings. */
+  rv?: RevealWire;
   /** @deprecated v1/v2 distance-model fields, migrated to default stripes. */
   c?: string;
   t?: number;
@@ -228,6 +243,15 @@ type FlamesWire = {
   ms?: number;
   me?: number;
   mp?: number;
+};
+
+type RevealWire = {
+  p?: "wave";
+  wp?: PlaygroundWaveRevealPosition;
+  wd?: number;
+  ws?: number;
+  ww?: number;
+  wn?: number;
 };
 
 function stripesToWire(stripes: readonly Stripe[]): StripeWire[] {
@@ -368,6 +392,38 @@ function wireToFlames(raw: unknown): PlaygroundFlamesConfig | undefined {
     edgeMaskStart: wire.ms,
     edgeMaskEnd: wire.me,
     edgeMaskPower: wire.mp,
+  });
+}
+
+function revealToWire(config: PlaygroundRevealConfig): RevealWire | undefined {
+  const normalized = normalizePlaygroundRevealConfig(config);
+  if (isDefaultPlaygroundRevealConfig(normalized)) {
+    return undefined;
+  }
+  const base = DEFAULT_PLAYGROUND_REVEAL_CONFIG;
+  const wire: RevealWire = { p: normalized.preset };
+  if (normalized.wave.position !== base.wave.position) wire.wp = normalized.wave.position;
+  if (normalized.wave.durationMs !== base.wave.durationMs) wire.wd = normalized.wave.durationMs;
+  if (normalized.wave.softness !== base.wave.softness) wire.ws = normalized.wave.softness;
+  if (normalized.wave.waviness !== base.wave.waviness) wire.ww = normalized.wave.waviness;
+  if (normalized.wave.noiseScale !== base.wave.noiseScale) wire.wn = normalized.wave.noiseScale;
+  return wire;
+}
+
+function wireToReveal(raw: unknown): PlaygroundRevealConfig | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const wire = raw as RevealWire;
+  return normalizePlaygroundRevealConfig({
+    preset: wire.p,
+    wave: {
+      position: wire.wp,
+      durationMs: wire.wd,
+      softness: wire.ws,
+      waviness: wire.ww,
+      noiseScale: wire.wn,
+    },
   });
 }
 
@@ -677,15 +733,19 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const sourceTransformWire = sourceTransformToWire(sourceTransform);
   const flames = resolvePersistedFlamesConfig(config);
   const flamesWire = flamesToWire(flames);
+  const reveal = resolvePersistedRevealConfig(config);
+  const revealWire = revealToWire(reveal);
   const wire: PlaygroundStateWire = {
     v:
-      textureAdjustmentsWire || sourceTransformWire || flamesWire
-        ? 6
-        : backgroundCss || backgroundColorHex
-          ? 5
-          : includeGrid
-            ? 4
-            : 3,
+      revealWire
+        ? 7
+        : textureAdjustmentsWire || sourceTransformWire || flamesWire
+          ? 6
+          : backgroundCss || backgroundColorHex
+            ? 5
+            : includeGrid
+              ? 4
+              : 3,
     d: config.duotoneEnabled,
     st: stripesToWire(config.stripes),
   };
@@ -711,6 +771,10 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   if (flamesWire) {
     wire.fl = flamesWire;
     wire.v = 6;
+  }
+  if (revealWire) {
+    wire.rv = revealWire;
+    wire.v = 7;
   }
   const gapsActive =
     config.sparkleGapsActivePercent !== undefined
@@ -860,7 +924,15 @@ function legacySparkleGapsSpeed(config: PlaygroundPersistedConfig): number {
 
 export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConfig {
   const parsed = JSON.parse(text.trim()) as Partial<PlaygroundStateWire>;
-  if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3 && parsed.v !== 4 && parsed.v !== 5 && parsed.v !== 6) {
+  if (
+    parsed.v !== 1 &&
+    parsed.v !== 2 &&
+    parsed.v !== 3 &&
+    parsed.v !== 4 &&
+    parsed.v !== 5 &&
+    parsed.v !== 6 &&
+    parsed.v !== 7
+  ) {
     throw new Error("Unsupported playground state version.");
   }
   const wireVersion = parsed.v;
@@ -876,6 +948,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const textureAdjustments = wireToTextureAdjustments(parsed.ta, textureGamma);
   const sourceTransform = wireToSourceTransform(parsed.xf);
   const flames = wireToFlames(parsed.fl);
+  const reveal = wireToReveal(parsed.rv);
 
   return {
     duotoneEnabled: parsed.d,
@@ -899,6 +972,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
           })(),
     grid: grid && !isDefaultPlaygroundGridConfig(grid) ? grid : undefined,
     flames: flames && !isDefaultPlaygroundFlamesConfig(flames) ? flames : undefined,
+    reveal: reveal && !isDefaultPlaygroundRevealConfig(reveal) ? reveal : undefined,
     stripes,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     displayHeight: h && Number.isFinite(h) && h > 0 ? Math.round(h) : undefined,

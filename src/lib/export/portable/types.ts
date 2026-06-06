@@ -39,6 +39,32 @@ export type PlaygroundSourceTransform = {
   panY: number;
 };
 
+export type PlaygroundRevealPreset = "wave";
+
+export type PlaygroundWaveRevealPosition =
+  | "left top"
+  | "center top"
+  | "right top"
+  | "left center"
+  | "center"
+  | "right center"
+  | "left bottom"
+  | "center bottom"
+  | "right bottom";
+
+export type PlaygroundWaveRevealConfig = {
+  position: PlaygroundWaveRevealPosition;
+  durationMs: number;
+  softness: number;
+  waviness: number;
+  noiseScale: number;
+};
+
+export type PlaygroundRevealConfig = {
+  preset: PlaygroundRevealPreset;
+  wave: PlaygroundWaveRevealConfig;
+};
+
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
   stripesEnabled?: boolean;
@@ -46,6 +72,7 @@ export type AsciiVideoConfig = {
   textureGamma?: number;
   textureAdjustments?: PlaygroundTextureAdjustments;
   sourceTransform?: PlaygroundSourceTransform;
+  reveal?: PlaygroundRevealConfig;
   /** Active cell ratio 0–1. 0 = off. */
   sparkleGapsActivePercent?: number;
   /** Gap pulse speed factor (1 = baseline). */

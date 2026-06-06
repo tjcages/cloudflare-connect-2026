@@ -4,6 +4,7 @@ import {
   resolvePersistedSourceTransform,
   resolvePersistedTextureAdjustments,
   resolvePersistedTextureGamma,
+  resolvePersistedRevealConfig,
 } from "../../playground/playgroundPersistence";
 import {
   DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
@@ -17,6 +18,10 @@ import {
   resolvePersistedSparkleGapsActivePercent,
   resolvePersistedSparkleGapsSpeed,
 } from "../../playground/playgroundSparkle";
+import {
+  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+  isDefaultPlaygroundRevealConfig,
+} from "../../playground/playgroundRevealConfig";
 import type { PlaygroundMediaKind } from "../../playground/playgroundTextures";
 
 /** Export-side stripe (no UI id). */
@@ -43,6 +48,14 @@ function formatSparkleGapsSummary(config: PlaygroundPersistedConfig): string {
   }
   const speed = resolvePersistedSparkleGapsSpeed(config);
   return `${activeRatio} @ ${speed}`;
+}
+
+function formatRevealSummary(config: PlaygroundPersistedConfig): string {
+  const reveal = resolvePersistedRevealConfig(config);
+  if (isDefaultPlaygroundRevealConfig(reveal)) {
+    return "wave";
+  }
+  return `${reveal.preset} from ${reveal.wave.position} over ${reveal.wave.durationMs}ms`;
 }
 
 export type ReactExportSnapshot = {
@@ -79,6 +92,7 @@ export function formatSnapshotSummary(snapshot: ReactExportSnapshot): string {
     ...(textureGamma !== DEFAULT_TEXTURE_GAMMA ? [`- Gamma: ${textureGamma}`] : []),
     ...(!isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? ["- Texture adjustments: custom"] : []),
     ...(!isDefaultPlaygroundSourceTransform(sourceTransform) ? [`- Source transform: ${sourceTransform.fit}`] : []),
+    `- Reveal: ${formatRevealSummary(config)}`,
     `- Sparkle gaps: ${formatSparkleGapsSummary(config)}`,
     `- Display: ${snapshot.displayWidth}×${snapshot.displayHeight}px`,
     `- Stripes: ${snapshot.stripes.length}`,
@@ -95,6 +109,7 @@ export type AsciiVideoConfigWire = {
   textureGamma?: number;
   textureAdjustments?: typeof DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS;
   sourceTransform?: typeof DEFAULT_PLAYGROUND_SOURCE_TRANSFORM;
+  reveal?: typeof DEFAULT_PLAYGROUND_REVEAL_CONFIG;
   sparkleGapsActivePercent?: number;
   sparkleGapsSpeed?: number;
   displayWidth?: number;
@@ -112,6 +127,9 @@ export function snapshotToAsciiVideoConfig(snapshot: ReactExportSnapshot): Ascii
     textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
     textureAdjustments: !isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? textureAdjustments : undefined,
     sourceTransform: !isDefaultPlaygroundSourceTransform(sourceTransform) ? sourceTransform : undefined,
+    reveal: !isDefaultPlaygroundRevealConfig(resolvePersistedRevealConfig(snapshot.config))
+      ? resolvePersistedRevealConfig(snapshot.config)
+      : undefined,
     sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(snapshot.config) || undefined,
     sparkleGapsSpeed:
       resolvePersistedSparkleGapsActivePercent(snapshot.config) > 0
