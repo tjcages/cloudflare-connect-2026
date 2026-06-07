@@ -471,7 +471,6 @@ function runDuotoneTick(params: {
 
     sourceTextureFilter.syncFlames(null, null);
 
-    const now = performance.now();
     const revealConfig = revealConfigRef.current;
     const revealPlayback = revealPlaybackRef.current;
     if (revealPlayback.replayKey !== lastRevealReplayKey) {
