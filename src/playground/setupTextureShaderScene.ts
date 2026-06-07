@@ -1,4 +1,4 @@
-import { Sprite, Texture, VideoSource } from "pixi.js";
+import { Graphics, Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
 import type { Ticker } from "../components/pixi";
 import { BlockGridTexture } from "./blockGridTexture";
@@ -39,6 +39,14 @@ import {
 } from "./playgroundRevealConfig";
 import type { PlaygroundRevealState } from "./playgroundReveal";
 import { createSourceTextureFilter } from "./sourceTextureFilter";
+import {
+  applyCursorTrailToPixels,
+  buildCursorTrailVisuals,
+  createCursorTrailState,
+  setCursorTrailTarget,
+  updateCursorTrail,
+  type CursorTrailState,
+} from "./cursorTrail";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -197,6 +205,61 @@ function createPlaygroundLetterLayer(
   return { letterLayer, atlas };
 }
 
+function cursorTrailPointFromEvent(
+  event: PointerEvent,
+  canvas: HTMLCanvasElement,
+  display: PlaygroundDisplaySize,
+): { x: number; y: number } | null {
+  const bounds = canvas.getBoundingClientRect();
+  if (
+    event.clientX < bounds.left ||
+    event.clientX > bounds.right ||
+    event.clientY < bounds.top ||
+    event.clientY > bounds.bottom
+  ) {
+    return null;
+  }
+  const scaleX = bounds.width > 0 ? display.width / bounds.width : 1;
+  const scaleY = bounds.height > 0 ? display.height / bounds.height : 1;
+  return {
+    x: (event.clientX - bounds.left) * scaleX,
+    y: (event.clientY - bounds.top) * scaleY,
+  };
+}
+
+function attachCursorTrailEvents(
+  canvas: HTMLCanvasElement,
+  display: PlaygroundDisplaySize,
+  state: CursorTrailState,
+): () => void {
+  const onPointerMove = (event: PointerEvent) => {
+    setCursorTrailTarget(state, cursorTrailPointFromEvent(event, canvas, display));
+  };
+  const onPointerLeave = () => {
+    setCursorTrailTarget(state, null);
+  };
+
+  window.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerleave", onPointerLeave);
+  canvas.addEventListener("pointercancel", onPointerLeave);
+  window.addEventListener("blur", onPointerLeave);
+
+  return () => {
+    window.removeEventListener("pointermove", onPointerMove);
+    canvas.removeEventListener("pointerleave", onPointerLeave);
+    canvas.removeEventListener("pointercancel", onPointerLeave);
+    window.removeEventListener("blur", onPointerLeave);
+  };
+}
+
+function syncCursorTrailLayer(layer: Graphics, samples: ReturnType<typeof updateCursorTrail>["samples"]): void {
+  layer.clear();
+  for (const visual of buildCursorTrailVisuals(samples)) {
+    layer.circle(visual.x, visual.y, visual.radius);
+    layer.fill({ color: visual.color, alpha: visual.alpha });
+  }
+}
+
 function runDuotoneTick(params: {
   app: Parameters<Ticker>[0]["app"];
   sprite: Sprite;
@@ -221,6 +284,8 @@ function runDuotoneTick(params: {
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
   atlas: ReturnType<typeof buildStripeLetterAtlas>;
+  cursorTrailLayer: Graphics;
+  cursorTrailState: CursorTrailState;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
   syncVisual: () => void;
   shouldSample: () => boolean;
@@ -249,6 +314,8 @@ function runDuotoneTick(params: {
     sourceTransformRef,
     gridConfigRef,
     display,
+    cursorTrailLayer,
+    cursorTrailState,
     exportStateRef,
     syncVisual,
     shouldSample,
@@ -266,6 +333,7 @@ function runDuotoneTick(params: {
   let gridState: PlaygroundGridBuildState = {};
   let lastGridUpdateMs = 0;
   let lastFullResampleMs = 0;
+  let lastTrailTickMs = performance.now();
   let hasBuiltGrid = false;
   let pendingFullResample = false;
   let pendingColorsResample = false;
@@ -337,11 +405,16 @@ function runDuotoneTick(params: {
   const dispose = () => {
     blockGridTexture.destroy();
     flamesOverlay?.destroy();
+    cursorTrailLayer.destroy();
     letterLayer.destroy();
     destroyStripeLetterAtlas(atlas);
   };
 
   const tick = () => {
+    const now = performance.now();
+    const trail = updateCursorTrail(cursorTrailState, now - lastTrailTickMs);
+    lastTrailTickMs = now;
+    syncCursorTrailLayer(cursorTrailLayer, trail.samples);
     syncVisual();
     sourceTextureFilter.syncAdjustments({
       ...textureAdjustmentsRef.current,
@@ -424,7 +497,8 @@ function runDuotoneTick(params: {
     });
     const colorsChanged = colorsKey !== lastColorsKey;
     const timeChanged = shouldSample() || (flamesState != null && flamesConfig.enabled) || revealProgress < 1;
-    const needsSample = timeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
+    const trailChanged = trail.changed;
+    const needsSample = timeChanged || colorsChanged || trailChanged || !hasBuiltGrid || pendingFullResample;
 
     if (colorsChanged) {
       stripeFilter.syncColors(colors, preferP3Ref.current);
@@ -435,6 +509,8 @@ function runDuotoneTick(params: {
 
     const frame = needsSample ? sampleFrame() : null;
     if (frame) {
+      // Cursor density must be part of the sampled pixels before stripe cells are rebuilt.
+      applyCursorTrailToPixels(frame.data, display.width, display.height, trail.samples);
       onSampled?.();
     }
 
@@ -444,6 +520,7 @@ function runDuotoneTick(params: {
       frame &&
       (!hasBuiltGrid ||
         (pendingFullResample && fullResampleReady) ||
+        trailChanged ||
         (timeChanged && !pendingFullResample && now - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
 
     if (shouldRebuildGrid && frame) {
@@ -654,6 +731,12 @@ function createImageSceneTicker(
       textureFilterMode === "stripes" ? [stripeFilter] : textureFilterMode === "preview" ? [sourceTextureFilter] : null;
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
+    const cursorTrailState = createCursorTrailState();
+    const cursorTrailLayer = new Graphics();
+    cursorTrailLayer.zIndex = 1000;
+    app.stage.sortableChildren = true;
+    app.stage.addChild(cursorTrailLayer);
+    const detachCursorTrailEvents = attachCursorTrailEvents(app.canvas as HTMLCanvasElement, display, cursorTrailState);
 
     const { tick: renderTick, dispose } = runDuotoneTick({
       app,
@@ -679,6 +762,8 @@ function createImageSceneTicker(
       display,
       blockGridTexture,
       atlas,
+      cursorTrailLayer,
+      cursorTrailState,
       exportStateRef,
       syncVisual: () =>
         syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current),
@@ -694,6 +779,7 @@ function createImageSceneTicker(
         app.ticker.remove(renderTick);
       }
       image.removeEventListener("load", onLayoutChange);
+      detachCursorTrailEvents();
       dispose();
       sprite.destroy({ children: true });
       texture.destroy(true);
@@ -769,6 +855,12 @@ function createVideoSceneTickerInternal(
       textureFilterMode === "stripes" ? [stripeFilter] : textureFilterMode === "preview" ? [sourceTextureFilter] : null;
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
+    const cursorTrailState = createCursorTrailState();
+    const cursorTrailLayer = new Graphics();
+    cursorTrailLayer.zIndex = 1000;
+    app.stage.sortableChildren = true;
+    app.stage.addChild(cursorTrailLayer);
+    const detachCursorTrailEvents = attachCursorTrailEvents(app.canvas as HTMLCanvasElement, display, cursorTrailState);
 
     let lastSampledTime = -1;
 
@@ -796,6 +888,8 @@ function createVideoSceneTickerInternal(
       display,
       blockGridTexture,
       atlas,
+      cursorTrailLayer,
+      cursorTrailState,
       exportStateRef,
       syncVisual: () =>
         syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current),
@@ -822,6 +916,7 @@ function createVideoSceneTickerInternal(
       video.removeEventListener("loadedmetadata", onVideoLayoutChange);
       videoSource.off("resize", onVideoLayoutChange);
       videoSource.off("update", onVideoLayoutChange);
+      detachCursorTrailEvents();
       dispose();
       sprite.destroy({ children: true });
       texture.destroy(true);
