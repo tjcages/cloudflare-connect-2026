@@ -48,8 +48,10 @@ out vec4 finalColor;
 
 uniform sampler2D uTexture;
 uniform sampler2D uBlockMap;
+uniform sampler2D uCellColorMap;
 uniform sampler2D uStripeData;
 uniform float uStripeCount;
+uniform float uUseCellColors;
 uniform vec2 uPixelSize;
 uniform vec2 uFrameSize;
 uniform vec2 uGridSize;
@@ -114,6 +116,13 @@ float stripePaletteU(float band) {
 
 vec3 stripeFillColor(float band) {
     return texture(uStripeData, vec2(stripePaletteU(band), 0.25)).rgb;
+}
+
+vec3 cellFillColor(float colIndex, float rowIndex, float band) {
+    if (uUseCellColors > 0.5) {
+        return texture(uCellColorMap, blockGridUv(colIndex, rowIndex)).rgb;
+    }
+    return stripeFillColor(band);
 }
 
 float stripeWidthPx(float band) {
@@ -281,7 +290,7 @@ void main(void) {
         if (!sparkleCellVisible(colIndex, rowIndex)) {
             stripeCoverage = 0.0;
         }
-        vec3 stripeColor = stripeFillColor(stripeBand);
+        vec3 stripeColor = cellFillColor(colIndex, rowIndex, stripeBand);
         finalColor = vec4(mix(vec3(1.0), stripeColor, stripeCoverage), 1.0);
     } else {
         finalColor = vec4(1.0, 1.0, 1.0, 1.0);
@@ -347,9 +356,11 @@ void main(void) {
 
 export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
+  syncUseCellColors: (enabled: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
+  updateCellColorMap: (cellColorMap: Texture) => void;
 };
 
 export type SourceTextureFilter = Filter & {
@@ -359,6 +370,11 @@ export type SourceTextureFilter = Filter & {
 function bindBlockMapTexture(filter: Filter, blockMap: Texture) {
   blockMap.source.style.scaleMode = "nearest";
   filter.resources.uBlockMap = blockMap.source;
+}
+
+function bindCellColorMapTexture(filter: Filter, cellColorMap: Texture) {
+  cellColorMap.source.style.scaleMode = "nearest";
+  filter.resources.uCellColorMap = cellColorMap.source;
 }
 
 export function createStripeDuotoneFilter(
@@ -378,6 +394,7 @@ export function createStripeDuotoneFilter(
     uFrameSize: { value: [canvasWidth, canvasHeight], type: "vec2<f32>" },
     uGridSize: { value: [gridCols, gridRows], type: "vec2<f32>" },
     uStripeCount: { value: palette.count, type: "f32" },
+    uUseCellColors: { value: 0, type: "f32" },
     uDebugVideoAlpha: { value: 0, type: "f32" },
     uSparkleEnabled: { value: 0, type: "f32" },
     uSparkleTime: { value: 0, type: "f32" },
@@ -401,17 +418,26 @@ export function createStripeDuotoneFilter(
     resources: {
       stripeUniforms,
       uBlockMap: blockMap.source,
+      uCellColorMap: blockMap.source,
       uStripeData: palette.texture.source,
     },
   }) as StripeDuotoneFilter;
 
   let currentBlockMap = blockMap;
+  let currentCellColorMap = blockMap;
   bindBlockMapTexture(filter, currentBlockMap);
+  bindCellColorMapTexture(filter, currentCellColorMap);
 
   filter.syncColors = (nextColors, nextPreferP3 = preferP3) => {
     palette.update(resolveStripePalette(nextColors, nextPreferP3));
     filter.resources.uStripeData = palette.texture.source;
     (stripeUniforms.uniforms as { uStripeCount: number }).uStripeCount = palette.count;
+    stripeUniforms.update();
+  };
+
+  filter.syncUseCellColors = (enabled) => {
+    const uniforms = stripeUniforms.uniforms as { uUseCellColors: number };
+    uniforms.uUseCellColors = enabled ? 1 : 0;
     stripeUniforms.update();
   };
 
@@ -451,11 +477,17 @@ export function createStripeDuotoneFilter(
     bindBlockMapTexture(filter, nextBlockMap);
   };
 
+  filter.updateCellColorMap = (nextCellColorMap) => {
+    currentCellColorMap = nextCellColorMap;
+    bindCellColorMapTexture(filter, nextCellColorMap);
+  };
+
   const pixelSizeUniform = stripeUniforms.uniforms.uPixelSize as number[];
   const frameSizeUniform = stripeUniforms.uniforms.uFrameSize as number[];
   const baseApply = filter.apply.bind(filter);
   filter.apply = (filterManager, input, output, clearMode) => {
     bindBlockMapTexture(filter, currentBlockMap);
+    bindCellColorMapTexture(filter, currentCellColorMap);
     filter.resources.uStripeData = palette.texture.source;
     pixelSizeUniform[0] = canvasWidth;
     pixelSizeUniform[1] = canvasHeight;

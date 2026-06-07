@@ -16,6 +16,7 @@ export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
 
 export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
+  syncUseCellColors: (enabled: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
   /** Renderer resolution (devicePixelRatio) for screen-space stripe edge antialiasing. */
@@ -25,11 +26,17 @@ export type StripeDuotoneFilter = Filter & {
   /** Update grid dimensions + effective cell size when the cell/gap changes (no scene remount). */
   resizeGrid: (cols: number, rows: number, effWidth: number, effHeight: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
+  updateCellColorMap: (cellColorMap: Texture) => void;
 };
 
 function bindBlockMapTexture(filter: Filter, blockMap: Texture) {
   blockMap.source.style.scaleMode = "nearest";
   filter.resources.uBlockMap = blockMap.source;
+}
+
+function bindCellColorMapTexture(filter: Filter, cellColorMap: Texture) {
+  cellColorMap.source.style.scaleMode = "nearest";
+  filter.resources.uCellColorMap = cellColorMap.source;
 }
 
 export function createStripeDuotoneFilter(
@@ -55,6 +62,7 @@ export function createStripeDuotoneFilter(
     uGap: { value: [grid.gapX, grid.gapY], type: "vec2<f32>" },
     uCornerRadius: { value: grid.cornerRadius, type: "f32" },
     uStripeMaxWidth: { value: STRIPE_WIDTH_ENCODE_MAX, type: "f32" },
+    uUseCellColors: { value: 0, type: "f32" },
     uWidthShuffleSwing: { value: grid.widthShuffleSwing, type: "f32" },
     uOrientation: { value: grid.orientation === "horizontal" ? 1 : 0, type: "f32" },
     uStripeCount: { value: palette.count, type: "f32" },
@@ -82,17 +90,26 @@ export function createStripeDuotoneFilter(
     resources: {
       stripeUniforms,
       uBlockMap: blockMap.source,
+      uCellColorMap: blockMap.source,
       uStripeData: palette.texture.source,
     },
   }) as StripeDuotoneFilter;
 
   let currentBlockMap = blockMap;
+  let currentCellColorMap = blockMap;
   bindBlockMapTexture(filter, currentBlockMap);
+  bindCellColorMapTexture(filter, currentCellColorMap);
 
   filter.syncColors = (nextColors, nextPreferP3 = preferP3) => {
     palette.update(resolveStripePalette(nextColors, nextPreferP3));
     filter.resources.uStripeData = palette.texture.source;
     (stripeUniforms.uniforms as { uStripeCount: number }).uStripeCount = palette.count;
+    stripeUniforms.update();
+  };
+
+  filter.syncUseCellColors = (enabled) => {
+    const uniforms = stripeUniforms.uniforms as { uUseCellColors: number };
+    uniforms.uUseCellColors = enabled ? 1 : 0;
     stripeUniforms.update();
   };
 
@@ -162,12 +179,18 @@ export function createStripeDuotoneFilter(
     bindBlockMapTexture(filter, nextBlockMap);
   };
 
+  filter.updateCellColorMap = (nextCellColorMap) => {
+    currentCellColorMap = nextCellColorMap;
+    bindCellColorMapTexture(filter, nextCellColorMap);
+  };
+
   const pixelSizeUniform = stripeUniforms.uniforms.uPixelSize as number[];
   const frameSizeUniform = stripeUniforms.uniforms.uFrameSize as number[];
 
   const baseApply = filter.apply.bind(filter);
   filter.apply = (filterManager, input, output, clearMode) => {
     bindBlockMapTexture(filter, currentBlockMap);
+    bindCellColorMapTexture(filter, currentCellColorMap);
     filter.resources.uStripeData = palette.texture.source;
     // Block grid + sparkle use logical display pixels (not 2× backing-store size).
     pixelSizeUniform[0] = canvasWidth;

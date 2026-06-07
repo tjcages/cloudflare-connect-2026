@@ -38,6 +38,7 @@ import {
   type PlaygroundRevealConfig,
 } from "./playgroundRevealConfig";
 import type { PlaygroundRevealState } from "./playgroundReveal";
+import type { TextureLuminanceSettings } from "./colorWhiteness";
 import { createSourceTextureFilter } from "./sourceTextureFilter";
 import {
   applyCursorTrailToPixels,
@@ -75,6 +76,9 @@ const DEFAULT_GRID_CONFIG_REF: RefObject<PlaygroundGridConfig> = { current: DEFA
 const DEFAULT_STRIPES_ENABLED_REF: RefObject<boolean> = { current: true };
 const DEFAULT_TEXTURE_ADJUSTMENTS_REF: RefObject<PlaygroundTextureAdjustments> = {
   current: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+};
+const DEFAULT_TEXTURE_LUMINANCE_SETTINGS_REF: RefObject<TextureLuminanceSettings> = {
+  current: { mode: "luminance", backgroundColor: 0x000000 },
 };
 const DEFAULT_SOURCE_TRANSFORM_REF: RefObject<PlaygroundSourceTransform> = {
   current: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
@@ -279,6 +283,7 @@ function runDuotoneTick(params: {
   preferP3Ref: RefObject<boolean>;
   textureGammaRef: RefObject<number>;
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>;
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings>;
   sourceTransformRef: RefObject<PlaygroundSourceTransform>;
   gridConfigRef: RefObject<PlaygroundGridConfig>;
   display: PlaygroundDisplaySize;
@@ -311,6 +316,7 @@ function runDuotoneTick(params: {
     preferP3Ref,
     textureGammaRef,
     textureAdjustmentsRef,
+    textureLuminanceSettingsRef,
     sourceTransformRef,
     gridConfigRef,
     display,
@@ -357,6 +363,7 @@ function runDuotoneTick(params: {
       const dimensionsChanged = blockGridTexture.resize(display.width, display.height, eff.width, eff.height);
       if (dimensionsChanged) {
         stripeFilter.updateBlockMap(blockGridTexture.texture);
+        stripeFilter.updateCellColorMap(blockGridTexture.colorTexture);
         stripeFilter.resizeGrid(blockGridTexture.cols, blockGridTexture.rows, eff.width, eff.height);
         letterLayer.setCellSize(eff.width, eff.height);
 
@@ -420,6 +427,7 @@ function runDuotoneTick(params: {
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
     });
+    stripeFilter.syncUseCellColors(textureLuminanceSettingsRef.current.mode === "colors");
     const flamesState = flamesStateRef.current;
     const flamesConfig = flamesConfigRef.current;
     if (flamesState && flamesConfig.enabled) {
@@ -493,6 +501,7 @@ function runDuotoneTick(params: {
       sourceTransform: sourceTransformRef.current,
       revealConfig,
       revealReplayKey: revealPlayback.replayKey,
+      luminanceSettings: textureLuminanceSettingsRef.current,
     });
     const colorsChanged = colorsKey !== lastColorsKey;
     const timeChanged = shouldSample() || (flamesState != null && flamesConfig.enabled) || revealProgress < 1;
@@ -548,6 +557,7 @@ function runDuotoneTick(params: {
             ...textureAdjustmentsRef.current,
             gamma: textureGammaRef.current,
           },
+          luminanceSettings: textureLuminanceSettingsRef.current,
           flamesState: flamesStateRef.current,
           flamesConfig: flamesConfigRef.current,
           reveal: {
@@ -560,6 +570,7 @@ function runDuotoneTick(params: {
       gridState = built.state;
       blockGridTexture.update(built.grid);
       stripeFilter.updateBlockMap(blockGridTexture.texture);
+      stripeFilter.updateCellColorMap(blockGridTexture.colorTexture);
       letterLayer.sync(built.grid);
       const sparkleTimeSec = performance.now() / 1000;
       letterLayer.applySparkle(sparkleTimeSec, sparkleOptionsRef.current);
@@ -616,6 +627,7 @@ export function createTextureSceneTicker(
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
   gridConfigRef: RefObject<PlaygroundGridConfig> = DEFAULT_GRID_CONFIG_REF,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = DEFAULT_TEXTURE_ADJUSTMENTS_REF,
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings> = DEFAULT_TEXTURE_LUMINANCE_SETTINGS_REF,
   sourceTransformRef: RefObject<PlaygroundSourceTransform> = DEFAULT_SOURCE_TRANSFORM_REF,
   flamesStateRef: RefObject<PlaygroundFlamesState | null> = DEFAULT_FLAMES_STATE_REF,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig> = DEFAULT_FLAMES_CONFIG_REF,
@@ -636,6 +648,7 @@ export function createTextureSceneTicker(
       widthShuffleOptionsRef,
       gridConfigRef,
       textureAdjustmentsRef,
+      textureLuminanceSettingsRef,
       sourceTransformRef,
       flamesStateRef,
       flamesConfigRef,
@@ -658,6 +671,7 @@ export function createTextureSceneTicker(
     autoplayRef,
     gridConfigRef,
     textureAdjustmentsRef,
+    textureLuminanceSettingsRef,
     sourceTransformRef,
     flamesStateRef,
     flamesConfigRef,
@@ -680,6 +694,7 @@ function createImageSceneTicker(
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   gridConfigRef: RefObject<PlaygroundGridConfig>,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings>,
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
   flamesStateRef: RefObject<PlaygroundFlamesState | null>,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>,
@@ -756,6 +771,7 @@ function createImageSceneTicker(
       preferP3Ref,
       textureGammaRef,
       textureAdjustmentsRef,
+      textureLuminanceSettingsRef,
       sourceTransformRef,
       gridConfigRef,
       display,
@@ -799,6 +815,7 @@ function createVideoSceneTickerInternal(
   autoplayRef: RefObject<boolean>,
   gridConfigRef: RefObject<PlaygroundGridConfig>,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings>,
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
   flamesStateRef: RefObject<PlaygroundFlamesState | null>,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>,
@@ -882,6 +899,7 @@ function createVideoSceneTickerInternal(
       preferP3Ref,
       textureGammaRef,
       textureAdjustmentsRef,
+      textureLuminanceSettingsRef,
       sourceTransformRef,
       gridConfigRef,
       display,

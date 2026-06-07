@@ -1,4 +1,13 @@
-import { DEFAULT_TEXTURE_GAMMA, normalizeTextureGamma } from "./colorWhiteness";
+import {
+  DEFAULT_TEXTURE_GAMMA,
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  DEFAULT_TEXTURE_LUMINANCE_MODE,
+  normalizeTextureGamma,
+  normalizeTextureLuminanceBackgroundColor,
+  normalizeTextureLuminanceMode,
+  type TextureLuminanceMode,
+  type TextureLuminanceSettings,
+} from "./colorWhiteness";
 import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import {
   isDefaultPlaygroundGridConfig,
@@ -78,6 +87,10 @@ export type PlaygroundPersistedConfig = {
   textureGamma?: number;
   /** Designer texture/tone adjustments. Omitted = defaults. */
   textureAdjustments?: PlaygroundTextureAdjustments;
+  /** How sampled texture pixels become 0–1 stripe thresholds. Omitted = luminance. */
+  textureLuminanceMode?: TextureLuminanceMode;
+  /** Texture background color used by color-distance luminance mode. Omitted = black. */
+  textureLuminanceBackgroundColor?: number;
   /** Source fit/crop transform. Omitted = stretch/full source. */
   sourceTransform?: PlaygroundSourceTransform;
   /** Active cell ratio 0–1. 0 = off. Default 0.22. */
@@ -119,6 +132,13 @@ export function resolvePersistedTextureAdjustments(config: PlaygroundPersistedCo
     ...config.textureAdjustments,
     gamma: config.textureAdjustments?.gamma ?? config.textureGamma ?? DEFAULT_TEXTURE_GAMMA,
   });
+}
+
+export function resolvePersistedTextureLuminanceSettings(config: PlaygroundPersistedConfig): TextureLuminanceSettings {
+  return {
+    mode: normalizeTextureLuminanceMode(config.textureLuminanceMode),
+    backgroundColor: normalizeTextureLuminanceBackgroundColor(config.textureLuminanceBackgroundColor),
+  };
 }
 
 export function resolvePersistedSourceTransform(config: PlaygroundPersistedConfig): PlaygroundSourceTransform {
@@ -184,6 +204,10 @@ export type PlaygroundStateWire = {
   tgm?: number;
   /** v6+: texture/tone adjustments. */
   ta?: TextureAdjustmentsWire;
+  /** v7+: sampled texture luminance mode. */
+  tlm?: TextureLuminanceMode;
+  /** v7+: texture background hex for color-distance luminance mode. */
+  tbg?: string;
   /** v6+: source fit/crop transform. */
   xf?: SourceTransformWire;
   w?: number;
@@ -419,7 +443,8 @@ function revealToWire(config: PlaygroundRevealConfig): RevealWire | undefined {
   if (normalized.wave.softness !== base.wave.softness) wire.ws = normalized.wave.softness;
   if (normalized.wave.waviness !== base.wave.waviness) wire.ww = normalized.wave.waviness;
   if (normalized.wave.noiseScale !== base.wave.noiseScale) wire.wn = normalized.wave.noiseScale;
-  if (normalized.randomColumns.durationMs !== base.randomColumns.durationMs) wire.cd = normalized.randomColumns.durationMs;
+  if (normalized.randomColumns.durationMs !== base.randomColumns.durationMs)
+    wire.cd = normalized.randomColumns.durationMs;
   if (normalized.randomColumns.stagger !== base.randomColumns.stagger) wire.cg = normalized.randomColumns.stagger;
   if (normalized.randomColumns.yShift !== base.randomColumns.yShift) wire.cy = normalized.randomColumns.yShift;
   return wire;
@@ -750,6 +775,11 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
       : undefined;
   const textureAdjustments = resolvePersistedTextureAdjustments(config);
   const textureAdjustmentsWire = textureAdjustmentsToWire(textureAdjustments);
+  const textureLuminanceSettings = resolvePersistedTextureLuminanceSettings(config);
+  const textureLuminanceBackgroundColorHex =
+    textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
+      ? `#${(textureLuminanceSettings.backgroundColor & 0xffffff).toString(16).padStart(6, "0")}`
+      : undefined;
   const sourceTransform = resolvePersistedSourceTransform(config);
   const sourceTransformWire = sourceTransformToWire(sourceTransform);
   const flames = resolvePersistedFlamesConfig(config);
@@ -757,16 +787,15 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const reveal = resolvePersistedRevealConfig(config);
   const revealWire = revealToWire(reveal);
   const wire: PlaygroundStateWire = {
-    v:
-      revealWire
-        ? 7
-        : textureAdjustmentsWire || sourceTransformWire || flamesWire
-          ? 6
-          : backgroundCss || backgroundColorHex
-            ? 5
-            : includeGrid
-              ? 4
-              : 3,
+    v: revealWire
+      ? 7
+      : textureAdjustmentsWire || sourceTransformWire || flamesWire
+        ? 6
+        : backgroundCss || backgroundColorHex
+          ? 5
+          : includeGrid
+            ? 4
+            : 3,
     d: config.duotoneEnabled,
     st: stripesToWire(config.stripes),
   };
@@ -785,6 +814,16 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   }
   if (textureAdjustmentsWire) {
     wire.ta = textureAdjustmentsWire;
+  }
+  if (
+    textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE ||
+    textureLuminanceBackgroundColorHex !== undefined
+  ) {
+    wire.v = 7;
+    wire.tlm = textureLuminanceSettings.mode;
+    if (textureLuminanceBackgroundColorHex !== undefined) {
+      wire.tbg = textureLuminanceBackgroundColorHex;
+    }
   }
   if (sourceTransformWire) {
     wire.xf = sourceTransformWire;
@@ -967,6 +1006,8 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const textureGamma = parsed.tgm === undefined ? undefined : normalizeTextureGamma(Number(parsed.tgm));
   const grid = parsed.gc ? normalizePlaygroundGridConfig(parsed.gc) : undefined;
   const textureAdjustments = wireToTextureAdjustments(parsed.ta, textureGamma);
+  const textureLuminanceMode = normalizeTextureLuminanceMode(parsed.tlm);
+  const textureLuminanceBackgroundColor = normalizeTextureLuminanceBackgroundColor(parsed.tbg);
   const sourceTransform = wireToSourceTransform(parsed.xf);
   const flames = wireToFlames(parsed.fl);
   const reveal = wireToReveal(parsed.rv);
@@ -977,6 +1018,11 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     textureGamma: textureGamma !== undefined && textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
     textureAdjustments:
       textureAdjustments && !isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? textureAdjustments : undefined,
+    textureLuminanceMode: textureLuminanceMode !== DEFAULT_TEXTURE_LUMINANCE_MODE ? textureLuminanceMode : undefined,
+    textureLuminanceBackgroundColor:
+      textureLuminanceBackgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
+        ? textureLuminanceBackgroundColor
+        : undefined,
     sourceTransform:
       sourceTransform && !isDefaultPlaygroundSourceTransform(sourceTransform) ? sourceTransform : undefined,
     sparkleGapsActivePercent: parseSparkleGapsActivePercent(parsed.sgap, parsed.sr, parsed.sk, wireVersion),

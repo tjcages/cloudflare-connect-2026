@@ -1,4 +1,4 @@
-import { pixelLuminance } from "./colorWhiteness";
+import { pixelLuminance, pixelTextureLuminance, type TextureLuminanceSettings } from "./colorWhiteness";
 import { resolveFlamesEdgeMaskAlpha, type PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
@@ -25,6 +25,8 @@ export type LumaGrid = {
   cols: number;
   rows: number;
   luma: Uint8Array;
+  /** Per-cell mean source RGB, three bytes per cell. */
+  colors: Uint8Array;
 };
 
 /** Per-cell stripe index (0 = background, 1…N), resolved from luminance + the stripe list. */
@@ -32,6 +34,8 @@ export type BlockGrid = {
   cols: number;
   rows: number;
   indices: Uint8Array;
+  /** Per-cell mean source RGB, three bytes per cell. */
+  colors?: Uint8Array;
 };
 
 type RandomColumnsRevealSampling = Required<Pick<PlaygroundRevealOptions, "config" | "progress">> &
@@ -41,7 +45,7 @@ type RandomColumnsRevealSampling = Required<Pick<PlaygroundRevealOptions, "confi
   };
 
 /** Mean Rec.709 luminance (0–1) of a cell; out-of-bounds pixels count as black. */
-function cellMeanLuminance(
+function cellMeanSample(
   pixels: Uint8ClampedArray,
   imageWidth: number,
   imageHeight: number,
@@ -53,11 +57,16 @@ function cellMeanLuminance(
   adjustments: PlaygroundTextureAdjustments,
   flames?: FlamesLuminanceContribution,
   reveal?: RandomColumnsRevealSampling,
-): number {
+  luminanceSettings?: TextureLuminanceSettings,
+): { luma: number; r: number; g: number; b: number } {
   const originX = col * cellWidth;
   const originY = row * cellHeight;
 
-  let sum = 0;
+  let lumaSum = 0;
+  let rSum = 0;
+  let gSum = 0;
+  let bSum = 0;
+  let count = 0;
   for (let j = 0; j < cellHeight; j++) {
     for (let i = 0; i < cellWidth; i++) {
       const x = originX + i;
@@ -69,18 +78,24 @@ function cellMeanLuminance(
       const r = pixels[idx] ?? 0;
       const g = pixels[idx + 1] ?? 0;
       const b = pixels[idx + 2] ?? 0;
-      let luma = pixelLuminance(r, g, b);
+      rSum += r;
+      gSum += g;
+      bSum += b;
+      count += 1;
+      let luma = pixelTextureLuminance(r, g, b, luminanceSettings);
       if (
         flames &&
         flames.imageWidth === imageWidth &&
         flames.imageHeight === imageHeight &&
         flames.pixels.length >= idx + 3
       ) {
-        const flameLuma = pixelLuminance(
-          flames.pixels[idx] ?? 0,
-          flames.pixels[idx + 1] ?? 0,
-          flames.pixels[idx + 2] ?? 0,
-        );
+        const flameR = flames.pixels[idx] ?? 0;
+        const flameG = flames.pixels[idx + 1] ?? 0;
+        const flameB = flames.pixels[idx + 2] ?? 0;
+        const flameLuma =
+          luminanceSettings?.mode === "colors"
+            ? pixelTextureLuminance(flameR, flameG, flameB, luminanceSettings)
+            : pixelLuminance(flameR, flameG, flameB);
         const mask = resolveFlamesEdgeMaskAlpha(x / imageWidth, y / imageHeight, flames.mask);
         luma = Math.max(luma, flameLuma * mask);
       }
@@ -96,11 +111,17 @@ function cellMeanLuminance(
           ranks: reveal.ranks,
         });
       }
-      sum += luma;
+      lumaSum += luma;
     }
   }
 
-  return sum / Math.max(1, cellWidth * cellHeight);
+  const sampleCount = Math.max(1, count);
+  return {
+    luma: lumaSum / sampleCount,
+    r: rSum / sampleCount,
+    g: gSum / sampleCount,
+    b: bSum / sampleCount,
+  };
 }
 
 function applyLumaGridEffects(
@@ -152,12 +173,14 @@ export function computeBlockGrid(
   adjustmentsInput: PlaygroundTextureAdjustments = DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   flames?: FlamesLuminanceContribution,
   reveal?: PlaygroundRevealOptions,
+  luminanceSettings?: TextureLuminanceSettings,
 ): LumaGrid {
   const safeCellWidth = Math.max(1, Math.round(cellWidth));
   const safeCellHeight = Math.max(1, Math.round(cellHeight));
   const cols = Math.ceil(imageWidth / safeCellWidth);
   const rows = Math.ceil(imageHeight / safeCellHeight);
   const luma = new Uint8Array(cols * rows);
+  const colors = new Uint8Array(cols * rows * 3);
   const adjustments = normalizePlaygroundTextureAdjustments({
     ...adjustmentsInput,
     gamma,
@@ -175,7 +198,7 @@ export function computeBlockGrid(
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const mean = cellMeanLuminance(
+      const mean = cellMeanSample(
         pixels,
         imageWidth,
         imageHeight,
@@ -187,10 +210,16 @@ export function computeBlockGrid(
         adjustments,
         flames,
         randomColumnsReveal,
+        luminanceSettings,
       );
-      luma[row * cols + col] = Math.round(Math.min(1, Math.max(0, mean)) * 255);
+      const cellIndex = row * cols + col;
+      luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * 255);
+      const colorOffset = cellIndex * 3;
+      colors[colorOffset] = Math.round(Math.min(255, Math.max(0, mean.r)));
+      colors[colorOffset + 1] = Math.round(Math.min(255, Math.max(0, mean.g)));
+      colors[colorOffset + 2] = Math.round(Math.min(255, Math.max(0, mean.b)));
     }
   }
 
-  return { cols, rows, luma: applyLumaGridEffects(luma, cols, rows, adjustments) };
+  return { cols, rows, luma: applyLumaGridEffects(luma, cols, rows, adjustments), colors };
 }

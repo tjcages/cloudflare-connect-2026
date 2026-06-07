@@ -20,6 +20,7 @@ import {
   resolvePersistedRevealConfig,
   resolvePersistedSourceTransform,
   resolvePersistedTextureAdjustments,
+  resolvePersistedTextureLuminanceSettings,
   resolveInitialTextureId,
   revokeUploadObjectUrl,
   saveLastTextureId,
@@ -132,6 +133,14 @@ import {
   DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
   playgroundBackgroundColorToHex,
 } from "./canvasBackgroundCss";
+import {
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  DEFAULT_TEXTURE_LUMINANCE_MODE,
+  normalizeTextureLuminanceBackgroundColor,
+  normalizeTextureLuminanceMode,
+  type TextureLuminanceMode,
+  type TextureLuminanceSettings,
+} from "./colorWhiteness";
 import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
 
 /** Bordered grid-cell styling for stripe numeric fields (commit on Enter/blur). */
@@ -151,6 +160,10 @@ function stripesMatchDefault(stripes: readonly Stripe[]): boolean {
       stripe.width === base.width
     );
   });
+}
+
+function textureLuminanceBackgroundColorToHex(color: number): string {
+  return `#${(normalizeTextureLuminanceBackgroundColor(color) & 0xffffff).toString(16).padStart(6, "0")}`;
 }
 
 type TextureLayout = {
@@ -262,6 +275,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     backgroundCss: normalizePlaygroundBackgroundCss(config.backgroundCss),
     backgroundColor: normalizePlaygroundBackgroundColor(config.backgroundColor),
     textureAdjustments: resolvePersistedTextureAdjustments(config),
+    textureLuminanceSettings: resolvePersistedTextureLuminanceSettings(config),
     sourceTransform: resolvePersistedSourceTransform(config),
     sparkleGapsActivePercent: resolvePersistedSparkleGapsActivePercent(config),
     sparkleGapsSpeed: resolvePersistedSparkleGapsSpeed(config),
@@ -313,6 +327,9 @@ export function TexturePlayground() {
   const [textureAdjustments, setTextureAdjustments] = useState<PlaygroundTextureAdjustments>(
     appliedInitial.textureAdjustments,
   );
+  const [textureLuminanceSettings, setTextureLuminanceSettings] = useState<TextureLuminanceSettings>(
+    appliedInitial.textureLuminanceSettings,
+  );
   const [sourceTransform, setSourceTransform] = useState<PlaygroundSourceTransform>(appliedInitial.sourceTransform);
   const [sparkleGapsActivePercent, setSparkleGapsActivePercent] = useState(appliedInitial.sparkleGapsActivePercent);
   const [sparkleGapsSpeed, setSparkleGapsSpeed] = useState(appliedInitial.sparkleGapsSpeed);
@@ -361,6 +378,7 @@ export function TexturePlayground() {
   const stripesEnabledRef = useRef(stripesEnabled);
   const textureGammaRef = useRef(textureGamma);
   const textureAdjustmentsRef = useRef(textureAdjustments);
+  const textureLuminanceSettingsRef = useRef(textureLuminanceSettings);
   const sourceTransformRef = useRef(sourceTransform);
   const sparkleOptionsRef = useRef(playgroundSparkleOptionsFromSliders(sparkleGapsActivePercent, sparkleGapsSpeed));
   const widthShuffleOptionsRef = useRef(
@@ -420,6 +438,10 @@ export function TexturePlayground() {
   }, [textureAdjustments]);
 
   useEffect(() => {
+    textureLuminanceSettingsRef.current = textureLuminanceSettings;
+  }, [textureLuminanceSettings]);
+
+  useEffect(() => {
     sourceTransformRef.current = sourceTransform;
   }, [sourceTransform]);
 
@@ -464,6 +486,12 @@ export function TexturePlayground() {
       duotoneEnabled,
       stripesEnabled: stripesEnabled ? undefined : false,
       textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? undefined : textureAdjustments,
+      textureLuminanceMode:
+        textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE ? textureLuminanceSettings.mode : undefined,
+      textureLuminanceBackgroundColor:
+        textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
+          ? textureLuminanceSettings.backgroundColor
+          : undefined,
       sourceTransform: isDefaultPlaygroundSourceTransform(sourceTransform) ? undefined : sourceTransform,
       sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
       sparkleGapsSpeed:
@@ -490,6 +518,7 @@ export function TexturePlayground() {
     duotoneEnabled,
     stripesEnabled,
     textureAdjustments,
+    textureLuminanceSettings,
     sourceTransform,
     sparkleGapsActivePercent,
     sparkleGapsSpeed,
@@ -519,31 +548,35 @@ export function TexturePlayground() {
     saveLastTextureId(selectedTextureId);
   }, [hydrated, selectedTextureId]);
 
-  const applyConfig = useCallback((config: PlaygroundPersistedConfig) => {
-    const next = applyPersistedConfig(config);
-    setDuotoneEnabled(next.duotoneEnabled);
-    setStripesEnabled(next.stripesEnabled);
-    setBackgroundCss(next.backgroundCss ?? "");
-    setBackgroundColor(next.backgroundColor);
-    setTextureAdjustments(next.textureAdjustments);
-    setSourceTransform(next.sourceTransform);
-    setSparkleGapsActivePercent(resolvePersistedSparkleGapsActivePercent(config));
-    setSparkleGapsSpeed(resolvePersistedSparkleGapsSpeed(config));
-    setSparkleWidthActivePercent(resolvePersistedSparkleWidthActivePercent(next));
-    setSparkleWidthSpeed(resolvePersistedSparkleWidthSpeed(next));
-    if (next.displayWidth && next.displayWidth > 0) {
-      setDisplayWidth(next.displayWidth);
-    }
-    if (next.displayHeight && next.displayHeight > 0) {
-      setDisplayHeight(next.displayHeight);
-    }
-    setGridConfig(next.grid);
-    setFlamesConfig(next.flames);
-    setRevealConfig(next.reveal);
-    revealConfigRef.current = next.reveal;
-    replayReveal();
-    setStripes(next.stripes);
-  }, [replayReveal]);
+  const applyConfig = useCallback(
+    (config: PlaygroundPersistedConfig) => {
+      const next = applyPersistedConfig(config);
+      setDuotoneEnabled(next.duotoneEnabled);
+      setStripesEnabled(next.stripesEnabled);
+      setBackgroundCss(next.backgroundCss ?? "");
+      setBackgroundColor(next.backgroundColor);
+      setTextureAdjustments(next.textureAdjustments);
+      setTextureLuminanceSettings(next.textureLuminanceSettings);
+      setSourceTransform(next.sourceTransform);
+      setSparkleGapsActivePercent(resolvePersistedSparkleGapsActivePercent(config));
+      setSparkleGapsSpeed(resolvePersistedSparkleGapsSpeed(config));
+      setSparkleWidthActivePercent(resolvePersistedSparkleWidthActivePercent(next));
+      setSparkleWidthSpeed(resolvePersistedSparkleWidthSpeed(next));
+      if (next.displayWidth && next.displayWidth > 0) {
+        setDisplayWidth(next.displayWidth);
+      }
+      if (next.displayHeight && next.displayHeight > 0) {
+        setDisplayHeight(next.displayHeight);
+      }
+      setGridConfig(next.grid);
+      setFlamesConfig(next.flames);
+      setRevealConfig(next.reveal);
+      revealConfigRef.current = next.reveal;
+      replayReveal();
+      setStripes(next.stripes);
+    },
+    [replayReveal],
+  );
 
   const matchSourceDisplaySize = useCallback(() => {
     const textureSource: PlaygroundTextureSource | null = videoRef.current
@@ -662,6 +695,10 @@ export function TexturePlayground() {
 
   const resetStripes = useCallback(() => {
     setStripesEnabled(true);
+    setTextureLuminanceSettings({
+      mode: DEFAULT_TEXTURE_LUMINANCE_MODE,
+      backgroundColor: DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+    });
     setStripes(cloneDefaultStripes());
     setGridConfig((previous) => ({
       ...previous,
@@ -812,6 +849,17 @@ export function TexturePlayground() {
     textureAdjustmentsRef.current = next;
     textureGammaRef.current = next.gamma;
     setTextureAdjustments(next);
+  }, []);
+
+  const updateTextureLuminanceSettings = useCallback((patch: Partial<TextureLuminanceSettings>) => {
+    const next: TextureLuminanceSettings = {
+      mode: normalizeTextureLuminanceMode(patch.mode ?? textureLuminanceSettingsRef.current.mode),
+      backgroundColor: normalizeTextureLuminanceBackgroundColor(
+        patch.backgroundColor ?? textureLuminanceSettingsRef.current.backgroundColor,
+      ),
+    };
+    textureLuminanceSettingsRef.current = next;
+    setTextureLuminanceSettings(next);
   }, []);
 
   const updateSourceTransformLive = useCallback(
@@ -976,6 +1024,8 @@ export function TexturePlayground() {
   const sourceTransformModified = !isDefaultPlaygroundSourceTransform(sourceTransform);
   const stripesModified =
     !stripesEnabled ||
+    textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE ||
+    textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR ||
     !stripesMatchDefault(stripes) ||
     gridConfig.gridUpdateIntervalMs !== DEFAULT_PLAYGROUND_GRID_CONFIG.gridUpdateIntervalMs;
   const sparkleGapsModified =
@@ -1169,6 +1219,7 @@ export function TexturePlayground() {
         exportStateRef,
         gridConfigRef,
         textureAdjustmentsRef,
+        textureLuminanceSettingsRef,
         sourceTransformRef,
         flamesStateRef,
         flamesConfigRef,
@@ -1207,6 +1258,12 @@ export function TexturePlayground() {
       duotoneEnabled,
       stripesEnabled: stripesEnabled ? undefined : false,
       textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? undefined : textureAdjustments,
+      textureLuminanceMode:
+        textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE ? textureLuminanceSettings.mode : undefined,
+      textureLuminanceBackgroundColor:
+        textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
+          ? textureLuminanceSettings.backgroundColor
+          : undefined,
       sourceTransform: isDefaultPlaygroundSourceTransform(sourceTransform) ? undefined : sourceTransform,
       sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
       sparkleGapsSpeed:
@@ -1395,6 +1452,7 @@ export function TexturePlayground() {
     const colors = stripeColorsRef.current;
     const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, {}, textureGamma, {
       textureAdjustments,
+      luminanceSettings: textureLuminanceSettings,
       flamesState: flamesStateRef.current,
       flamesConfig: flamesConfigRef.current,
       reveal: {
@@ -1403,7 +1461,9 @@ export function TexturePlayground() {
         replayKey: revealPlaybackRef.current.replayKey,
       },
     });
-    const svg = stripeGridToSvg(built.grid, colors, display.width, display.height);
+    const svg = stripeGridToSvg(built.grid, colors, display.width, display.height, {
+      useCellColors: textureLuminanceSettings.mode === "colors",
+    });
 
     try {
       await writeSvgToClipboard(svg);
@@ -1433,6 +1493,14 @@ export function TexturePlayground() {
           textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments)
             ? undefined
             : textureAdjustments,
+          textureLuminanceMode:
+            textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE
+              ? textureLuminanceSettings.mode
+              : undefined,
+          textureLuminanceBackgroundColor:
+            textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
+              ? textureLuminanceSettings.backgroundColor
+              : undefined,
           sourceTransform: isDefaultPlaygroundSourceTransform(sourceTransform) ? undefined : sourceTransform,
           sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
           sparkleGapsSpeed:
@@ -1458,6 +1526,7 @@ export function TexturePlayground() {
       duotoneEnabled,
       stripesEnabled,
       textureAdjustments,
+      textureLuminanceSettings,
       sourceTransform,
       sparkleGapsActivePercent,
       sparkleGapsSpeed,
@@ -1785,66 +1854,111 @@ export function TexturePlayground() {
                 </kbd>
               </span>
             </label>
-            <div className={`flex flex-col gap-1.5 ${stripeControlsDisabled ? "opacity-40" : ""}`}>
-              {stripes.length === 0 ? (
-                <p className="m-0 text-xs text-neutral-500">No stripes.</p>
-              ) : (
-                <div className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2 text-xs text-neutral-500">
-                  <span className="flex items-center gap-1">
-                    <FieldHelp label="Stripe color" description={PLAYGROUND_FIELD_HELP.stripeColor} />
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FieldHelp label="Threshold" description={PLAYGROUND_FIELD_HELP.stripeThreshold} />
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FieldHelp label="Stripe width" description={PLAYGROUND_FIELD_HELP.stripeWidth} />
-                  </span>
-                </div>
-              )}
-              {stripes.map((stripe) => (
-                <div
-                  key={stripe.id}
-                  className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2"
-                  data-testid="playground-stripe-row"
-                >
-                  <HexColorPopover
-                    color={stripe.hex}
-                    disabled={stripeControlsDisabled}
-                    onChange={(hex) => onStripeColorChange(stripe.id, hex)}
-                    ariaLabel="Stripe color"
-                    triggerClassName="playground-stripe-swatch block h-7 w-7 overflow-hidden rounded border border-neutral-200"
-                    triggerStyle={
-                      {
-                        ["--stripe-swatch-fallback" as string]: stripe.hex,
-                        ["--stripe-swatch-p3" as string]: stripe.p3Css,
-                      } as CSSProperties
-                    }
+            <label className={`flex flex-col gap-1.5 text-sm ${stripeControlsDisabled ? "opacity-40" : ""}`}>
+              <span className="flex items-center gap-1.5 text-neutral-600">
+                <FieldHelp label="Luminance handling" description={PLAYGROUND_FIELD_HELP.textureLuminanceMode} />
+              </span>
+              <select
+                value={textureLuminanceSettings.mode}
+                disabled={stripeControlsDisabled}
+                onChange={(event) =>
+                  updateTextureLuminanceSettings({ mode: event.target.value as TextureLuminanceMode })
+                }
+                className="rounded border border-neutral-300 bg-white px-2 py-1.5 disabled:cursor-not-allowed"
+                aria-label="Texture luminance handling mode"
+              >
+                <option value="luminance">Luminance</option>
+                <option value="colors">Colors</option>
+              </select>
+            </label>
+            {textureLuminanceSettings.mode === "colors" ? (
+              <div
+                className={`flex items-center justify-between gap-2 text-sm ${stripeControlsDisabled ? "opacity-40" : ""}`}
+              >
+                <span className="flex items-center gap-1.5 text-neutral-600">
+                  <FieldHelp
+                    label="Texture background color"
+                    description={PLAYGROUND_FIELD_HELP.textureBackgroundColor}
                   />
-                  <ControlValueInput
-                    value={stripe.startFrom}
-                    inputMin={STRIPE_START_FROM_MIN}
-                    inputMax={STRIPE_START_FROM_MAX}
-                    disabled={stripeControlsDisabled}
-                    onChange={(value) => onStripeStartFromCommit(stripe.id, value)}
-                    ariaLabel="Stripe start from luminance"
-                    title="Start from (0–1 luminance)"
-                    className={STRIPE_FIELD_INPUT_CLASS}
-                  />
-                  <ControlValueInput
-                    value={stripe.width}
-                    inputMin={STRIPE_WIDTH_MIN}
-                    inputMax={STRIPE_WIDTH_STORAGE_MAX}
-                    commitMin={STRIPE_WIDTH_MIN}
-                    commitMax={STRIPE_WIDTH_STORAGE_MAX}
-                    disabled={stripeControlsDisabled}
-                    onChange={(value) => onStripeWidthCommit(stripe.id, value)}
-                    ariaLabel="Stripe width in px"
-                    title="Width (px)"
-                    className={STRIPE_FIELD_INPUT_CLASS}
-                  />
-                </div>
-              ))}
-            </div>
+                </span>
+                <HexColorPopover
+                  color={textureLuminanceBackgroundColorToHex(textureLuminanceSettings.backgroundColor)}
+                  disabled={stripeControlsDisabled}
+                  onChange={(hex) =>
+                    updateTextureLuminanceSettings({
+                      backgroundColor: normalizeTextureLuminanceBackgroundColor(hex),
+                    })
+                  }
+                  ariaLabel="Texture background color"
+                  align="right"
+                  triggerClassName="h-7 w-12 rounded border border-neutral-300"
+                  triggerStyle={{
+                    backgroundColor: textureLuminanceBackgroundColorToHex(textureLuminanceSettings.backgroundColor),
+                  }}
+                />
+              </div>
+            ) : (
+              <div className={`flex flex-col gap-1.5 ${stripeControlsDisabled ? "opacity-40" : ""}`}>
+                {stripes.length === 0 ? (
+                  <p className="m-0 text-xs text-neutral-500">No stripes.</p>
+                ) : (
+                  <div className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2 text-xs text-neutral-500">
+                    <span className="flex items-center gap-1">
+                      <FieldHelp label="Stripe color" description={PLAYGROUND_FIELD_HELP.stripeColor} />
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FieldHelp label="Threshold" description={PLAYGROUND_FIELD_HELP.stripeThreshold} />
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FieldHelp label="Stripe width" description={PLAYGROUND_FIELD_HELP.stripeWidth} />
+                    </span>
+                  </div>
+                )}
+                {stripes.map((stripe) => (
+                  <div
+                    key={stripe.id}
+                    className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2"
+                    data-testid="playground-stripe-row"
+                  >
+                    <HexColorPopover
+                      color={stripe.hex}
+                      disabled={stripeControlsDisabled}
+                      onChange={(hex) => onStripeColorChange(stripe.id, hex)}
+                      ariaLabel="Stripe color"
+                      triggerClassName="playground-stripe-swatch block h-7 w-7 overflow-hidden rounded border border-neutral-200"
+                      triggerStyle={
+                        {
+                          ["--stripe-swatch-fallback" as string]: stripe.hex,
+                          ["--stripe-swatch-p3" as string]: stripe.p3Css,
+                        } as CSSProperties
+                      }
+                    />
+                    <ControlValueInput
+                      value={stripe.startFrom}
+                      inputMin={STRIPE_START_FROM_MIN}
+                      inputMax={STRIPE_START_FROM_MAX}
+                      disabled={stripeControlsDisabled}
+                      onChange={(value) => onStripeStartFromCommit(stripe.id, value)}
+                      ariaLabel="Stripe start from luminance"
+                      title="Start from (0–1 luminance)"
+                      className={STRIPE_FIELD_INPUT_CLASS}
+                    />
+                    <ControlValueInput
+                      value={stripe.width}
+                      inputMin={STRIPE_WIDTH_MIN}
+                      inputMax={STRIPE_WIDTH_STORAGE_MAX}
+                      commitMin={STRIPE_WIDTH_MIN}
+                      commitMax={STRIPE_WIDTH_STORAGE_MAX}
+                      disabled={stripeControlsDisabled}
+                      onChange={(value) => onStripeWidthCommit(stripe.id, value)}
+                      ariaLabel="Stripe width in px"
+                      title="Width (px)"
+                      className={STRIPE_FIELD_INPUT_CLASS}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
             <PlaygroundNumberField
               label="Processing interval"
               value={gridConfig.gridUpdateIntervalMs}
