@@ -8,7 +8,7 @@ import {
 } from "./cursorTrail";
 
 describe("applyCursorTrailToPixels", () => {
-  it("blends translucent white samples into the sampled frame", () => {
+  it("applies trail density while preserving untouched pixels", () => {
     const pixels = new Uint8ClampedArray(5 * 5 * 4);
     for (let i = 0; i < pixels.length; i += 4) {
       pixels[i + 3] = 255;
@@ -19,9 +19,9 @@ describe("applyCursorTrailToPixels", () => {
     const center = (2 * 5 + 2) * 4;
     const corner = 0;
 
-    expect(pixels[center]).toBe(128);
-    expect(pixels[center + 1]).toBe(128);
-    expect(pixels[center + 2]).toBe(128);
+    expect(pixels[center]).toBe(82);
+    expect(pixels[center + 1]).toBe(82);
+    expect(pixels[center + 2]).toBe(82);
     expect(pixels[center + 3]).toBe(255);
     expect(pixels[corner]).toBe(0);
     expect(pixels[corner + 1]).toBe(0);
@@ -46,6 +46,24 @@ describe("applyCursorTrailToPixels", () => {
     expect(pixels[pushedRight + 1]).toBeLessThan(190);
     expect(pixels[pushedRight + 2]).toBeLessThan(190);
     expect(pixels[pushedRight + 3]).toBe(255);
+  });
+
+  it("adds a dark magnetic stroke that hides texture detail before stripe calculation", () => {
+    const pixels = new Uint8ClampedArray(5 * 5 * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      pixels[i] = 220;
+      pixels[i + 1] = 220;
+      pixels[i + 2] = 220;
+      pixels[i + 3] = 255;
+    }
+
+    applyCursorTrailToPixels(pixels, 5, 5, [{ x: 2, y: 2, alpha: 0.8, radius: 2 }]);
+
+    const center = (2 * 5 + 2) * 4;
+    expect(pixels[center]).toBeLessThan(120);
+    expect(pixels[center + 1]).toBeLessThan(120);
+    expect(pixels[center + 2]).toBeLessThan(120);
+    expect(pixels[center + 3]).toBe(255);
   });
 });
 

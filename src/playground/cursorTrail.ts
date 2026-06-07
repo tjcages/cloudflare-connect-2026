@@ -46,8 +46,10 @@ const PARTICLE_SPACING_PX = 3;
 const MAX_EMIT_PER_TICK = 30;
 const MAX_PARTICLES = 560;
 const MAX_DT_MS = 48;
-const MAGNETIC_RADIUS_SCALE = 1.85;
-const MAGNETIC_DISPLACEMENT_PX = 7.5;
+const MAGNETIC_RADIUS_SCALE = 2.25;
+const MAGNETIC_DISPLACEMENT_PX = 18;
+const MAGNETIC_OCCLUSION_RADIUS_SCALE = 1.35;
+const MAGNETIC_OCCLUSION_ALPHA = 0.72;
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -55,6 +57,10 @@ function clamp01(value: number): number {
 
 function blendChannel(channel: number, alpha: number): number {
   return Math.round(channel + (255 - channel) * alpha);
+}
+
+function darkenChannel(channel: number, alpha: number): number {
+  return Math.round(channel * (1 - alpha));
 }
 
 function clampInt(value: number, min: number, max: number): number {
@@ -298,6 +304,34 @@ export function applyCursorTrailToPixels(
         pixels[idx] = blendChannel(pixels[idx] ?? 0, pixelAlpha);
         pixels[idx + 1] = blendChannel(pixels[idx + 1] ?? 0, pixelAlpha);
         pixels[idx + 2] = blendChannel(pixels[idx + 2] ?? 0, pixelAlpha);
+      }
+    }
+  }
+
+  for (const sample of samples) {
+    const radius = Math.max(0, sample.radius * MAGNETIC_OCCLUSION_RADIUS_SCALE);
+    const alpha = clamp01(sample.alpha);
+    if (radius <= 0 || alpha <= 0) {
+      continue;
+    }
+
+    const minX = Math.max(0, Math.floor(sample.x - radius));
+    const maxX = Math.min(imageWidth - 1, Math.ceil(sample.x + radius));
+    const minY = Math.max(0, Math.floor(sample.y - radius));
+    const maxY = Math.min(imageHeight - 1, Math.ceil(sample.y + radius));
+
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const distance = Math.hypot(x - sample.x, y - sample.y);
+        const pixelAlpha = MAGNETIC_OCCLUSION_ALPHA * alpha * falloff(distance, radius);
+        if (pixelAlpha <= 0) {
+          continue;
+        }
+
+        const idx = (y * imageWidth + x) * 4;
+        pixels[idx] = darkenChannel(pixels[idx] ?? 0, pixelAlpha);
+        pixels[idx + 1] = darkenChannel(pixels[idx + 1] ?? 0, pixelAlpha);
+        pixels[idx + 2] = darkenChannel(pixels[idx + 2] ?? 0, pixelAlpha);
       }
     }
   }
