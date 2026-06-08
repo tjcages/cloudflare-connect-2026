@@ -13,7 +13,7 @@ export const PLAYGROUND_LEVA_LIGHT_THEME = {
     vivid1: "#a3a3a3",
     folderWidgetColor: "#bdbdbd",
     folderTextColor: "#525252",
-    toolTipBackground: "#525252",
+    toolTipBackground: "#000000",
     toolTipText: "#ffffff",
   },
   shadows: {

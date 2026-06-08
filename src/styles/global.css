@@ -530,3 +530,24 @@ html.playground-app #root {
   border-radius: 1px;
   opacity: 0.9;
 }
+
+/* Leva field hints (Radix tooltips portaled to body) */
+html.playground-app [data-radix-popper-content-wrapper] {
+  z-index: 100000 !important;
+}
+
+html.playground-app [data-radix-popper-content-wrapper] > div {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28) !important;
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+  max-width: 240px !important;
+  padding: 6px 8px !important;
+}
+
+html.playground-app [data-radix-popper-content-wrapper] svg {
+  fill: #000000 !important;
+}

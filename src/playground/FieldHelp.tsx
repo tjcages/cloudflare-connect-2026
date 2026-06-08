@@ -75,8 +75,8 @@ export function FieldHelp({ label, description }: FieldHelpProps) {
             <span
               id={tooltipId}
               role="tooltip"
-              className="fixed z-[9999] w-64 rounded-md border border-black bg-black px-2 py-1.5 text-left text-base font-normal leading-6 text-white shadow-sm"
-              style={{ left: position.left, top: position.top }}
+              className="fixed z-[100000] max-w-60 rounded px-2 py-1.5 text-left text-[11px] font-normal leading-[1.45] text-white shadow-[0_6px_20px_rgba(0,0,0,0.28)]"
+              style={{ left: position.left, top: position.top, backgroundColor: "#000000" }}
             >
               {description}
             </span>,
