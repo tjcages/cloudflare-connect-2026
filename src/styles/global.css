@@ -451,6 +451,11 @@ html.playground-app #root {
   background-color: var(--leva-surface) !important;
   box-shadow: none !important;
   border-radius: var(--leva-radius);
+  color: var(--leva-text) !important;
+}
+
+.playground-leva-panel div:has(> select) svg {
+  color: var(--leva-text-muted) !important;
 }
 
 .playground-leva-panel input:not([type="range"]):not([type="checkbox"]),
