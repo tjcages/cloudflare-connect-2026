@@ -4,6 +4,7 @@ import { PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import type { PlaygroundGridConfig } from "./playgroundGridConfig";
 import type { PlaygroundFlamesConfig, PlaygroundFlamesDirection } from "./playgroundFlamesConfig";
+import type { PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 import type { PlaygroundSourceFit, PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundTextureId } from "./playgroundTextures";
@@ -183,6 +184,7 @@ export type PlaygroundLevaSnapshot = {
   sparkleWidthSpeedDisabled: boolean;
   flamesFieldsDisabled: boolean;
   flamesMaskDisabled: boolean;
+  cursorTrailFieldsDisabled: boolean;
   textureAdjustments: PlaygroundTextureAdjustments;
   sourceTransform: PlaygroundSourceTransform;
   backgroundColor: number;
@@ -196,6 +198,7 @@ export type PlaygroundLevaSnapshot = {
   sparkleWidthActivePercent: number;
   sparkleWidthSpeed: number;
   flamesConfig: PlaygroundFlamesConfig;
+  cursorTrailConfig: PlaygroundCursorTrailConfig;
   generalModified: boolean;
   toneModified: boolean;
   effectsModified: boolean;
@@ -207,6 +210,7 @@ export type PlaygroundLevaSnapshot = {
   sparkleGapsModified: boolean;
   sparkleWidthModified: boolean;
   flamesModified: boolean;
+  cursorTrailModified: boolean;
 };
 
 export type PlaygroundLevaHandlers = {
@@ -254,6 +258,9 @@ export type PlaygroundLevaHandlers = {
   onFlamesLive: (patch: Partial<PlaygroundFlamesConfig>) => void;
   onFlamesCommit: (patch: Partial<PlaygroundFlamesConfig>) => void;
   resetFlames: () => void;
+  onCursorTrailLive: (patch: Partial<PlaygroundCursorTrailConfig>) => void;
+  onCursorTrailCommit: (patch: Partial<PlaygroundCursorTrailConfig>) => void;
+  resetCursorTrail: () => void;
 };
 
 export function buildPlaygroundLevaSchema(
@@ -270,6 +277,8 @@ export function buildPlaygroundLevaSchema(
   const source = snapshot.sourceTransform;
   const grid = snapshot.gridConfig;
   const flames = snapshot.flamesConfig;
+  const cursorTrail = snapshot.cursorTrailConfig;
+  const cursorTrailDisabled = snapshot.cursorTrailFieldsDisabled;
 
   const stripeFields: Record<string, unknown> = Object.fromEntries(
     snapshot.stripes.flatMap((stripe) => {
@@ -958,6 +967,281 @@ export function buildPlaygroundLevaSchema(
       },
       { color: folderColor(snapshot.flamesModified) },
     ),
+    "Cursor Trail": levaFolder(
+      {
+        Reset: resetButton(() => handlers.resetCursorTrail(), !snapshot.cursorTrailModified),
+        cursorTrailEnabled: boolControl(cursorTrail.enabled, {
+          label: "Enabled",
+          hint: PLAYGROUND_FIELD_HELP.cursorTrailEnabled,
+          disabled,
+          onChange: (value) => {
+            handlers.onCursorTrailLive({ enabled: value });
+            handlers.onCursorTrailCommit({ enabled: value });
+          },
+        }),
+        particleRadius: numControl(
+          cursorTrail.particleRadius,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleRadius.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleRadius.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleRadius.step,
+          {
+            label: "Radius",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailParticleRadius,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ particleRadius: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ particleRadius: value }),
+          },
+        ),
+        particleAlpha: numControl(
+          cursorTrail.particleAlpha,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleAlpha.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleAlpha.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleAlpha.step,
+          {
+            label: "Alpha",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailParticleAlpha,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ particleAlpha: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ particleAlpha: value }),
+          },
+        ),
+        particleLifeMs: numControl(
+          cursorTrail.particleLifeMs,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleLife.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleLife.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleLife.step,
+          {
+            label: "Life",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailParticleLife,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ particleLifeMs: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ particleLifeMs: value }),
+          },
+        ),
+        particleLifeJitterMs: numControl(
+          cursorTrail.particleLifeJitterMs,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleLifeJitter.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleLifeJitter.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailParticleLifeJitter.step,
+          {
+            label: "Life jitter",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailParticleLifeJitter,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ particleLifeJitterMs: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ particleLifeJitterMs: value }),
+          },
+        ),
+        particleSpacingPx: numControl(
+          cursorTrail.particleSpacingPx,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpacing.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpacing.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpacing.step,
+          {
+            label: "Spacing",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailSpacing,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ particleSpacingPx: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ particleSpacingPx: value }),
+          },
+        ),
+        maxEmitPerTick: numControl(
+          cursorTrail.maxEmitPerTick,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailMaxEmit.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailMaxEmit.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailMaxEmit.step,
+          {
+            label: "Max emit",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailMaxEmit,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ maxEmitPerTick: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ maxEmitPerTick: value }),
+          },
+        ),
+        emitterVelocitySmoothing: numControl(
+          cursorTrail.emitterVelocitySmoothing,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailVelocitySmoothing.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailVelocitySmoothing.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailVelocitySmoothing.step,
+          {
+            label: "Velocity smoothing",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailVelocitySmoothing,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ emitterVelocitySmoothing: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ emitterVelocitySmoothing: value }),
+          },
+        ),
+        particleVelocityScale: numControl(
+          cursorTrail.particleVelocityScale,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailVelocityScale.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailVelocityScale.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailVelocityScale.step,
+          {
+            label: "Velocity scale",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailVelocityScale,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ particleVelocityScale: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ particleVelocityScale: value }),
+          },
+        ),
+        particleTangentVelocity: numControl(
+          cursorTrail.particleTangentVelocity,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailTangentVelocity.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailTangentVelocity.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailTangentVelocity.step,
+          {
+            label: "Tangent velocity",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailTangentVelocity,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ particleTangentVelocity: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ particleTangentVelocity: value }),
+          },
+        ),
+        particleDamping: numControl(
+          cursorTrail.particleDamping,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailDamping.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailDamping.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailDamping.step,
+          {
+            label: "Damping",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailDamping,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ particleDamping: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ particleDamping: value }),
+          },
+        ),
+        spreadMinPx: numControl(
+          cursorTrail.spreadMinPx,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpreadMin.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpreadMin.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpreadMin.step,
+          {
+            label: "Spread min",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailSpreadMin,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ spreadMinPx: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ spreadMinPx: value }),
+          },
+        ),
+        spreadMaxPx: numControl(
+          cursorTrail.spreadMaxPx,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpreadMax.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpreadMax.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpreadMax.step,
+          {
+            label: "Spread max",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailSpreadMax,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ spreadMaxPx: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ spreadMaxPx: value }),
+          },
+        ),
+        spinStrength: numControl(
+          cursorTrail.spinStrength,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpin.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpin.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailSpin.step,
+          {
+            label: "Spin",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailSpin,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ spinStrength: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ spinStrength: value }),
+          },
+        ),
+        densityRadiusMinScale: numControl(
+          cursorTrail.densityRadiusMinScale,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailDensityRadiusMin.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailDensityRadiusMin.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailDensityRadiusMin.step,
+          {
+            label: "Density radius min",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailDensityRadiusMin,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ densityRadiusMinScale: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ densityRadiusMinScale: value }),
+          },
+        ),
+        densityRadiusLifeScale: numControl(
+          cursorTrail.densityRadiusLifeScale,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailDensityRadiusLife.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailDensityRadiusLife.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailDensityRadiusLife.step,
+          {
+            label: "Density radius life",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailDensityRadiusLife,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ densityRadiusLifeScale: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ densityRadiusLifeScale: value }),
+          },
+        ),
+        pushStrengthPx: numControl(
+          cursorTrail.pushStrengthPx,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushStrength.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushStrength.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushStrength.step,
+          {
+            label: "Push strength",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailPushStrength,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ pushStrengthPx: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ pushStrengthPx: value }),
+          },
+        ),
+        pushRadiusScale: numControl(
+          cursorTrail.pushRadiusScale,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushRadius.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushRadius.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushRadius.step,
+          {
+            label: "Push radius",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailPushRadius,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ pushRadiusScale: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ pushRadiusScale: value }),
+          },
+        ),
+        pushLagPx: numControl(
+          cursorTrail.pushLagPx,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushLag.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushLag.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushLag.step,
+          {
+            label: "Push lag",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailPushLag,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ pushLagPx: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ pushLagPx: value }),
+          },
+        ),
+        pushWobblePx: numControl(
+          cursorTrail.pushWobblePx,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushWobble.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushWobble.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailPushWobble.step,
+          {
+            label: "Push wobble",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailPushWobble,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ pushWobblePx: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ pushWobblePx: value }),
+          },
+        ),
+        trailScale: numControl(
+          cursorTrail.trailScale,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailScale.min,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailScale.max,
+          PLAYGROUND_CONTROL_RANGES.cursorTrailScale.step,
+          {
+            label: "Effect scale",
+            hint: PLAYGROUND_FIELD_HELP.cursorTrailScale,
+            disabled: cursorTrailDisabled,
+            onLive: (value) => handlers.onCursorTrailLive({ trailScale: value }),
+            onCommit: (value) => handlers.onCursorTrailCommit({ trailScale: value }),
+          },
+        ),
+      },
+      { color: folderColor(snapshot.cursorTrailModified) },
+    ),
   } as Record<string, unknown>;
 }
 
@@ -971,6 +1255,7 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
   const source = snapshot.sourceTransform;
   const grid = snapshot.gridConfig;
   const flames = snapshot.flamesConfig;
+  const cursorTrail = snapshot.cursorTrailConfig;
 
   const stripeValues = Object.fromEntries(
     snapshot.stripes.flatMap((stripe) => [
@@ -1048,5 +1333,26 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     edgeMaskStart: flames.edgeMaskStart * 100,
     edgeMaskEnd: flames.edgeMaskEnd * 100,
     edgeMaskPower: flames.edgeMaskPower,
+    cursorTrailEnabled: cursorTrail.enabled,
+    particleRadius: cursorTrail.particleRadius,
+    particleAlpha: cursorTrail.particleAlpha,
+    particleLifeMs: cursorTrail.particleLifeMs,
+    particleLifeJitterMs: cursorTrail.particleLifeJitterMs,
+    particleSpacingPx: cursorTrail.particleSpacingPx,
+    maxEmitPerTick: cursorTrail.maxEmitPerTick,
+    emitterVelocitySmoothing: cursorTrail.emitterVelocitySmoothing,
+    particleVelocityScale: cursorTrail.particleVelocityScale,
+    particleTangentVelocity: cursorTrail.particleTangentVelocity,
+    particleDamping: cursorTrail.particleDamping,
+    spreadMinPx: cursorTrail.spreadMinPx,
+    spreadMaxPx: cursorTrail.spreadMaxPx,
+    spinStrength: cursorTrail.spinStrength,
+    densityRadiusMinScale: cursorTrail.densityRadiusMinScale,
+    densityRadiusLifeScale: cursorTrail.densityRadiusLifeScale,
+    pushStrengthPx: cursorTrail.pushStrengthPx,
+    pushRadiusScale: cursorTrail.pushRadiusScale,
+    pushLagPx: cursorTrail.pushLagPx,
+    pushWobblePx: cursorTrail.pushWobblePx,
+    trailScale: cursorTrail.trailScale,
   };
 }

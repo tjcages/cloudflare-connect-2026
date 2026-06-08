@@ -5,6 +5,7 @@ import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { PlaygroundLevaControls } from "./playgroundLevaControls";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
+import { DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG } from "./playgroundCursorTrailConfig";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
@@ -112,6 +113,11 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onFlamesLiveChange={() => {}}
       onResetFlames={() => {}}
       flamesModified={false}
+      cursorTrailConfig={DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG}
+      onCursorTrailChange={() => {}}
+      onCursorTrailLiveChange={() => {}}
+      onResetCursorTrail={() => {}}
+      cursorTrailModified={false}
       onResetGeneral={() => {}}
       generalModified={false}
       {...overrides}

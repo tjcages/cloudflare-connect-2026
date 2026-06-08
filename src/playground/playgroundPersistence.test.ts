@@ -13,6 +13,10 @@ import { DEFAULT_STRIPES } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
+import {
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  type PlaygroundCursorTrailConfig,
+} from "./playgroundCursorTrailConfig";
 
 describe("playgroundPersistence envelope migration", () => {
   afterEach(() => {
@@ -281,6 +285,26 @@ describe("playgroundPersistence envelope migration", () => {
     expect(parsed.stripes[0]!.hex).toBe("#112233");
     expect(parsed.stripes[0]!.startFrom).toBe(0.2);
     expect(parsed.stripes[1]!.width).toBe(6);
+  });
+
+  it("round-trips cursor trail settings through serialize/parse", () => {
+    const cursorTrail: PlaygroundCursorTrailConfig = {
+      ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+      pushStrengthPx: 14,
+      trailScale: 0.25,
+    };
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      cursorTrail,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(7);
+    expect(wire.ct).toEqual({ pd: 14, ts: 0.25 });
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.cursorTrail?.pushStrengthPx).toBe(14);
+    expect(parsed.cursorTrail?.trailScale).toBe(0.25);
   });
 });
 
