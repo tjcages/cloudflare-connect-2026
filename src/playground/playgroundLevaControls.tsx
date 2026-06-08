@@ -3,6 +3,11 @@ import { useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import type { PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 import type { PlaygroundGridConfig } from "./playgroundGridConfig";
+import type {
+  PlaygroundRandomColumnsRevealConfig,
+  PlaygroundRevealConfig,
+  PlaygroundWaveRevealConfig,
+} from "./playgroundRevealConfig";
 import type { PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundCatalogEntry } from "./playgroundPersistence";
@@ -17,6 +22,14 @@ import {
 import { PLAYGROUND_LEVA_LIGHT_THEME } from "./playgroundLevaTheme";
 import { PLAYGROUND_LEVA_SIDEBAR_CLASS } from "./playgroundUi";
 import type { Stripe } from "./stripeColors";
+
+const LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE = `
+.playground-leva-panel [class*="hBtFDW"]:has(> [class*="toggled-true"]) {
+  height: auto !important;
+  transition: none !important;
+}
+`;
+const LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE_ID = "playground-leva-dynamic-folder-height";
 
 export type PlaygroundLevaControlsProps = {
   catalog: readonly PlaygroundCatalogEntry[];
@@ -106,6 +119,13 @@ export type PlaygroundLevaControlsProps = {
   onCursorTrailLiveChange: (patch: Partial<PlaygroundCursorTrailConfig>) => void;
   onResetCursorTrail: () => void;
   cursorTrailModified: boolean;
+  revealConfig: PlaygroundRevealConfig;
+  onRevealChange: (patch: Partial<PlaygroundRevealConfig>) => void;
+  onRevealWaveLiveChange: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
+  onRevealRandomColumnsLiveChange: (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => void;
+  onResetReveal: () => void;
+  onReplayReveal: () => void;
+  revealModified: boolean;
   onResetGeneral: () => void;
   generalModified: boolean;
 };
@@ -165,6 +185,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       sparkleWidthSpeed: current.sparkleWidthSpeed,
       flamesConfig: current.flamesConfig,
       cursorTrailConfig: current.cursorTrailConfig,
+      revealConfig: current.revealConfig,
       generalModified: current.generalModified,
       toneModified: current.toneModified,
       effectsModified: current.effectsModified,
@@ -177,6 +198,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       sparkleWidthModified: current.sparkleWidthModified,
       flamesModified: current.flamesModified,
       cursorTrailModified: current.cursorTrailModified,
+      revealModified: current.revealModified,
     };
   }, [
     textureOptions,
@@ -212,6 +234,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.sparkleWidthSpeed,
     props.flamesConfig,
     props.cursorTrailConfig,
+    props.revealConfig,
     props.generalModified,
     props.toneModified,
     props.effectsModified,
@@ -224,6 +247,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.sparkleWidthModified,
     props.flamesModified,
     props.cursorTrailModified,
+    props.revealModified,
   ]);
 
   const handlersRef = useRef<PlaygroundLevaHandlers>({
@@ -274,6 +298,17 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onCursorTrailLive: (patch) => propsRef.current.onCursorTrailLiveChange(patch),
     onCursorTrailCommit: (patch) => propsRef.current.onCursorTrailChange(patch),
     resetCursorTrail: () => propsRef.current.onResetCursorTrail(),
+    onRevealCommit: (patch) => propsRef.current.onRevealChange(patch),
+    onRevealWaveLive: (patch) => propsRef.current.onRevealWaveLiveChange(patch),
+    onRevealWaveCommit: (patch) =>
+      propsRef.current.onRevealChange({ wave: { ...propsRef.current.revealConfig.wave, ...patch } }),
+    onRevealRandomColumnsLive: (patch) => propsRef.current.onRevealRandomColumnsLiveChange(patch),
+    onRevealRandomColumnsCommit: (patch) =>
+      propsRef.current.onRevealChange({
+        randomColumns: { ...propsRef.current.revealConfig.randomColumns, ...patch },
+      }),
+    resetReveal: () => propsRef.current.onResetReveal(),
+    replayReveal: () => propsRef.current.onReplayReveal(),
   });
 
   const stripeKey = props.stripes.map((stripe) => stripe.id).join("|");
@@ -295,6 +330,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.gridConfig.cellWidth,
     props.gridConfig.cellHeight,
     props.catalog.length,
+    props.revealConfig.preset,
   ]);
 
   const syncSignature = useMemo(() => JSON.stringify(buildPlaygroundLevaSyncValues(snapshot)), [snapshot]);
@@ -302,6 +338,16 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
   useEffect(() => {
     store.set(buildPlaygroundLevaSyncValues(snapshot), false);
   }, [store, syncSignature, snapshot]);
+
+  useEffect(() => {
+    let styleElement = document.getElementById(LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE_ID) as HTMLStyleElement | null;
+    if (!styleElement) {
+      styleElement = document.createElement("style");
+      styleElement.id = LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE_ID;
+      document.head.appendChild(styleElement);
+    }
+    styleElement.textContent = LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE;
+  }, []);
 
   return (
     <aside className={PLAYGROUND_LEVA_SIDEBAR_CLASS}>

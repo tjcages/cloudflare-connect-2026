@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PlaygroundLevaControls } from "./playgroundLevaControls";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
 import { DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG } from "./playgroundCursorTrailConfig";
+import { DEFAULT_PLAYGROUND_REVEAL_CONFIG } from "./playgroundRevealConfig";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
@@ -118,6 +119,13 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onCursorTrailLiveChange={() => {}}
       onResetCursorTrail={() => {}}
       cursorTrailModified={false}
+      revealConfig={DEFAULT_PLAYGROUND_REVEAL_CONFIG}
+      onRevealChange={() => {}}
+      onRevealWaveLiveChange={() => {}}
+      onRevealRandomColumnsLiveChange={() => {}}
+      onResetReveal={() => {}}
+      onReplayReveal={() => {}}
+      revealModified={false}
       onResetGeneral={() => {}}
       generalModified={false}
       {...overrides}
@@ -138,5 +146,12 @@ describe("PlaygroundLevaControls", () => {
     const checkbox = screen.getByLabelText("Shader enabled");
     checkbox.click();
     expect(onDuotoneEnabledChange).toHaveBeenCalledWith(false);
+  });
+
+  it("renders reveal controls in the Leva panel", () => {
+    renderLevaControls();
+
+    expect(screen.getByText("Reveal")).toBeInTheDocument();
+    expect(screen.getByLabelText("Preset")).toBeInTheDocument();
   });
 });

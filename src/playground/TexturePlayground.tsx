@@ -1648,6 +1648,13 @@ export function TexturePlayground() {
     onCursorTrailLiveChange: updateCursorTrailConfigLive,
     onResetCursorTrail: resetCursorTrail,
     cursorTrailModified,
+    revealConfig,
+    onRevealChange: updateRevealConfig,
+    onRevealWaveLiveChange: updateRevealWaveLive,
+    onRevealRandomColumnsLiveChange: updateRevealRandomColumnsLive,
+    onResetReveal: resetReveal,
+    onReplayReveal: replayReveal,
+    revealModified,
     onResetGeneral: resetGeneral,
     generalModified,
   };
