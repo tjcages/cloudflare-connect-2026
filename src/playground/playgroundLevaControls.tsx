@@ -22,6 +22,14 @@ import { PLAYGROUND_LEVA_LIGHT_THEME } from "./playgroundLevaTheme";
 import { PLAYGROUND_LEVA_SIDEBAR_CLASS } from "./playgroundUi";
 import type { Stripe } from "./stripeColors";
 
+const LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE = `
+.playground-leva-panel [class*="hBtFDW"]:has(> [class*="toggled-true"]) {
+  height: auto !important;
+  transition: none !important;
+}
+`;
+const LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE_ID = "playground-leva-dynamic-folder-height";
+
 export type PlaygroundLevaControlsProps = {
   catalog: readonly PlaygroundCatalogEntry[];
   selectedTextureId: PlaygroundTextureId;
@@ -313,6 +321,16 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
   useEffect(() => {
     store.set(buildPlaygroundLevaSyncValues(snapshot), false);
   }, [store, syncSignature, snapshot]);
+
+  useEffect(() => {
+    let styleElement = document.getElementById(LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE_ID) as HTMLStyleElement | null;
+    if (!styleElement) {
+      styleElement = document.createElement("style");
+      styleElement.id = LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE_ID;
+      document.head.appendChild(styleElement);
+    }
+    styleElement.textContent = LEVA_DYNAMIC_FOLDER_HEIGHT_STYLE;
+  }, []);
 
   return (
     <aside className={PLAYGROUND_LEVA_SIDEBAR_CLASS}>
