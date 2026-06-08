@@ -6,6 +6,7 @@ import type { PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundCatalogEntry } from "./playgroundPersistence";
 import type { PlaygroundTextureId } from "./playgroundTextures";
+import type { TextureLuminanceSettings } from "./colorWhiteness";
 import {
   buildPlaygroundLevaSchema,
   buildPlaygroundLevaSyncValues,
@@ -70,7 +71,9 @@ export type PlaygroundLevaControlsProps = {
   lettersModified: boolean;
   stripes: readonly Stripe[];
   stripesEnabled: boolean;
+  textureLuminanceSettings: TextureLuminanceSettings;
   onStripesEnabledChange: (value: boolean) => void;
+  onTextureLuminanceSettingsChange: (patch: Partial<TextureLuminanceSettings>) => void;
   onStripeColorChange: (id: string, hex: string) => void;
   onStripeStartFromCommit: (id: string, value: number) => void;
   onStripeWidthCommit: (id: string, value: number) => void;
@@ -147,6 +150,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       gridConfig: current.gridConfig,
       stripes: current.stripes,
       stripesEnabled: current.stripesEnabled,
+      textureLuminanceSettings: current.textureLuminanceSettings,
       sparkleGapsActivePercent: current.sparkleGapsActivePercent,
       sparkleGapsSpeed: current.sparkleGapsSpeed,
       sparkleWidthActivePercent: current.sparkleWidthActivePercent,
@@ -191,6 +195,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.backgroundCss,
     props.gridConfig,
     props.stripes,
+    props.textureLuminanceSettings,
     props.sparkleGapsSpeed,
     props.sparkleWidthActivePercent,
     props.sparkleWidthSpeed,
@@ -235,6 +240,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     resetGrid: () => propsRef.current.onResetGrid(),
     resetLetters: () => propsRef.current.onResetLetters(),
     setStripesEnabled: (value) => propsRef.current.onStripesEnabledChange(value),
+    setTextureLuminanceSettings: (patch) => propsRef.current.onTextureLuminanceSettingsChange(patch),
     onStripeColorChange: (id, hex) => propsRef.current.onStripeColorChange(id, hex),
     onStripeStartFromCommit: (id, value) => propsRef.current.onStripeStartFromCommit(id, value),
     onStripeWidthCommit: (id, value) => propsRef.current.onStripeWidthCommit(id, value),
@@ -256,26 +262,23 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
 
   const stripeKey = props.stripes.map((stripe) => stripe.id).join("|");
 
-  useControls(
-    () => buildPlaygroundLevaSchema(snapshot, handlersRef.current) as never,
-    { store },
-    [
-      snapshot.duotoneControlsDisabled,
-      snapshot.backgroundCssActive,
-      snapshot.stripeControlsDisabled,
-      snapshot.sparkleGapsSpeedDisabled,
-      snapshot.sparkleWidthSpeedDisabled,
-      snapshot.flamesFieldsDisabled,
-      snapshot.flamesMaskDisabled,
-      snapshot.workflowDisabled,
-      snapshot.loadError,
-      snapshot.selectedTextureId,
-      stripeKey,
-      props.gridConfig.cellWidth,
-      props.gridConfig.cellHeight,
-      props.catalog.length,
-    ],
-  );
+  useControls(() => buildPlaygroundLevaSchema(snapshot, handlersRef.current) as never, { store }, [
+    snapshot.duotoneControlsDisabled,
+    snapshot.backgroundCssActive,
+    snapshot.stripeControlsDisabled,
+    snapshot.sparkleGapsSpeedDisabled,
+    snapshot.sparkleWidthSpeedDisabled,
+    snapshot.flamesFieldsDisabled,
+    snapshot.flamesMaskDisabled,
+    snapshot.workflowDisabled,
+    snapshot.loadError,
+    snapshot.selectedTextureId,
+    stripeKey,
+    props.textureLuminanceSettings.mode,
+    props.gridConfig.cellWidth,
+    props.gridConfig.cellHeight,
+    props.catalog.length,
+  ]);
 
   const syncSignature = useMemo(() => JSON.stringify(buildPlaygroundLevaSyncValues(snapshot)), [snapshot]);
 
@@ -296,13 +299,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
           className="hidden"
           onChange={(event) => void props.onUploadFile(event)}
         />
-        <LevaPanel
-          store={store}
-          theme={PLAYGROUND_LEVA_LIGHT_THEME}
-          fill
-          flat
-          titleBar={false}
-        />
+        <LevaPanel store={store} theme={PLAYGROUND_LEVA_LIGHT_THEME} fill flat titleBar={false} />
       </div>
     </aside>
   );

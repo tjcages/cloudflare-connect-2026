@@ -115,10 +115,7 @@ import {
   type Stripe,
   type StripeColors,
 } from "./stripeColors";
-import {
-  applyCanvasBackgroundCss,
-  DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
-} from "./canvasBackgroundCss";
+import { applyCanvasBackgroundCss, DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import {
   DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
   DEFAULT_TEXTURE_LUMINANCE_MODE,
@@ -128,10 +125,7 @@ import {
   type TextureLuminanceSettings,
 } from "./colorWhiteness";
 import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
-import {
-  PLAYGROUND_BUTTON_ROW_CLASS,
-  PLAYGROUND_SHELL_CLASS,
-} from "./playgroundUi";
+import { PLAYGROUND_BUTTON_ROW_CLASS, PLAYGROUND_SHELL_CLASS } from "./playgroundUi";
 
 /** True when the stripe list differs from DEFAULT_STRIPES (ignoring ids). */
 function stripesMatchDefault(stripes: readonly Stripe[]): boolean {
@@ -1214,7 +1208,6 @@ export function TexturePlayground() {
     ];
   }, [loadState, displayWidth, displayHeight, displaySize, flamesStateRef, flamesConfigRef]);
 
-
   const onUploadFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -1580,7 +1573,9 @@ export function TexturePlayground() {
     lettersModified: lettersSectionModified,
     stripes,
     stripesEnabled,
+    textureLuminanceSettings,
     onStripesEnabledChange: setStripesEnabled,
+    onTextureLuminanceSettingsChange: updateTextureLuminanceSettings,
     onStripeColorChange,
     onStripeStartFromCommit,
     onStripeWidthCommit,
@@ -1629,9 +1624,7 @@ export function TexturePlayground() {
           loadError={loadState.message}
           fallbackTextureId={fallbackEntry?.id ?? null}
           fallbackTextureLabel={fallbackEntry?.label ?? null}
-          onLoadFallbackTexture={
-            fallbackEntry ? () => onTextureSelect(fallbackEntry.id) : undefined
-          }
+          onLoadFallbackTexture={fallbackEntry ? () => onTextureSelect(fallbackEntry.id) : undefined}
         />
       </div>
     );

@@ -10,6 +10,10 @@ import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
 import { cloneDefaultStripes } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
+import {
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  DEFAULT_TEXTURE_LUMINANCE_MODE,
+} from "./colorWhiteness";
 import type { PlaygroundTextureId } from "./playgroundTextures";
 
 const DEFAULT_TEXTURE_ID = "sample-video" as PlaygroundTextureId;
@@ -76,7 +80,12 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       lettersModified={false}
       stripes={cloneDefaultStripes()}
       stripesEnabled
+      textureLuminanceSettings={{
+        mode: DEFAULT_TEXTURE_LUMINANCE_MODE,
+        backgroundColor: DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+      }}
       onStripesEnabledChange={() => {}}
+      onTextureLuminanceSettingsChange={() => {}}
       onStripeColorChange={() => {}}
       onStripeStartFromCommit={() => {}}
       onStripeWidthCommit={() => {}}

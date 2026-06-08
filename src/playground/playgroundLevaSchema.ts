@@ -9,7 +9,17 @@ import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustment
 import type { PlaygroundTextureId } from "./playgroundTextures";
 import { PLAYGROUND_DISPLAY_MAX_PX } from "./setupTextureShaderScene";
 import type { Stripe } from "./stripeColors";
-import { STRIPE_START_FROM_MAX, STRIPE_START_FROM_MIN, STRIPE_WIDTH_MIN, STRIPE_WIDTH_STORAGE_MAX } from "./stripeColors";
+import {
+  STRIPE_START_FROM_MAX,
+  STRIPE_START_FROM_MIN,
+  STRIPE_WIDTH_MIN,
+  STRIPE_WIDTH_STORAGE_MAX,
+} from "./stripeColors";
+import {
+  normalizeTextureLuminanceBackgroundColor,
+  type TextureLuminanceMode,
+  type TextureLuminanceSettings,
+} from "./colorWhiteness";
 
 type LevaChangeContext = {
   initial: boolean;
@@ -180,6 +190,7 @@ export type PlaygroundLevaSnapshot = {
   gridConfig: PlaygroundGridConfig;
   stripes: readonly Stripe[];
   stripesEnabled: boolean;
+  textureLuminanceSettings: TextureLuminanceSettings;
   sparkleGapsActivePercent: number;
   sparkleGapsSpeed: number;
   sparkleWidthActivePercent: number;
@@ -225,6 +236,7 @@ export type PlaygroundLevaHandlers = {
   resetGrid: () => void;
   resetLetters: () => void;
   setStripesEnabled: (value: boolean) => void;
+  setTextureLuminanceSettings: (patch: Partial<TextureLuminanceSettings>) => void;
   onStripeColorChange: (id: string, hex: string) => void;
   onStripeStartFromCommit: (id: string, value: number) => void;
   onStripeWidthCommit: (id: string, value: number) => void;
@@ -630,7 +642,31 @@ export function buildPlaygroundLevaSchema(
           disabled,
           onChange: handlers.setStripesEnabled,
         }),
-        ...stripeFields,
+        textureLuminanceMode: selectControl<TextureLuminanceMode>(
+          snapshot.textureLuminanceSettings.mode,
+          { Luminance: "luminance", Colors: "colors" },
+          {
+            label: "Luminance handling",
+            hint: PLAYGROUND_FIELD_HELP.textureLuminanceMode,
+            disabled: stripeDisabled,
+            onChange: (mode) => handlers.setTextureLuminanceSettings({ mode }),
+          },
+        ),
+        ...(snapshot.textureLuminanceSettings.mode === "colors"
+          ? {
+              textureLuminanceBackgroundColor: {
+                value: intToHex(snapshot.textureLuminanceSettings.backgroundColor),
+                label: "Texture background color",
+                hint: PLAYGROUND_FIELD_HELP.textureBackgroundColor,
+                disabled: stripeDisabled,
+                onChange: skipInitialString((hex) =>
+                  handlers.setTextureLuminanceSettings({
+                    backgroundColor: normalizeTextureLuminanceBackgroundColor(hex),
+                  }),
+                ),
+              },
+            }
+          : stripeFields),
         gridUpdateIntervalMs: numControl(grid.gridUpdateIntervalMs, 0, 300, 1, {
           label: "Processing interval",
           hint: PLAYGROUND_FIELD_HELP.processingInterval,
@@ -983,6 +1019,8 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     letterColor: intToHexSync(grid.letterColor),
     letterShuffleSpeed: grid.letterShuffleSpeed,
     stripesEnabled: snapshot.stripesEnabled,
+    textureLuminanceMode: snapshot.textureLuminanceSettings.mode,
+    textureLuminanceBackgroundColor: intToHexSync(snapshot.textureLuminanceSettings.backgroundColor),
     ...stripeValues,
     gridUpdateIntervalMs: grid.gridUpdateIntervalMs,
     sparkleGapsActivePercent: snapshot.sparkleGapsActivePercent,
