@@ -192,6 +192,23 @@ describe("playgroundPersistence envelope migration", () => {
     expect(parsePlaygroundStateInput(text).stripesEnabled).toBe(false);
   });
 
+  it("round-trips texture luminance colors mode and background color as wire v7", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      textureLuminanceMode: "colors",
+      textureLuminanceBackgroundColor: 0x112233,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(7);
+    expect(wire.tlm).toBe("colors");
+    expect(wire.tbg).toBe("#112233");
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.textureLuminanceMode).toBe("colors");
+    expect(parsed.textureLuminanceBackgroundColor).toBe(0x112233);
+  });
+
   it("round-trips non-default flames config as wire v6", () => {
     const flames = {
       ...DEFAULT_PLAYGROUND_FLAMES_CONFIG,

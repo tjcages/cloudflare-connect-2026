@@ -32,11 +32,46 @@ export type PlaygroundTextureAdjustments = {
   sharpenAmount: number;
 };
 
+export type TextureLuminanceMode = "luminance" | "colors";
+
 export type PlaygroundSourceTransform = {
   fit: PlaygroundSourceFit;
   zoom: number;
   panX: number;
   panY: number;
+};
+
+export type PlaygroundRevealPreset = "wave" | "randomColumns";
+
+export type PlaygroundWaveRevealPosition =
+  | "left top"
+  | "center top"
+  | "right top"
+  | "left center"
+  | "center"
+  | "right center"
+  | "left bottom"
+  | "center bottom"
+  | "right bottom";
+
+export type PlaygroundWaveRevealConfig = {
+  position: PlaygroundWaveRevealPosition;
+  durationMs: number;
+  softness: number;
+  waviness: number;
+  noiseScale: number;
+};
+
+export type PlaygroundRandomColumnsRevealConfig = {
+  durationMs: number;
+  stagger: number;
+  yShift: number;
+};
+
+export type PlaygroundRevealConfig = {
+  preset: PlaygroundRevealPreset;
+  wave: PlaygroundWaveRevealConfig;
+  randomColumns: PlaygroundRandomColumnsRevealConfig;
 };
 
 export type AsciiVideoConfig = {
@@ -45,7 +80,12 @@ export type AsciiVideoConfig = {
   /** Positive texture luminance gamma. Omitted when 1. */
   textureGamma?: number;
   textureAdjustments?: PlaygroundTextureAdjustments;
+  /** How sampled texture pixels become 0–1 stripe thresholds. Omitted = luminance. */
+  textureLuminanceMode?: TextureLuminanceMode;
+  /** Texture background color used by color-distance luminance mode. Omitted = black. */
+  textureLuminanceBackgroundColor?: number;
   sourceTransform?: PlaygroundSourceTransform;
+  reveal?: PlaygroundRevealConfig;
   /** Active cell ratio 0–1. 0 = off. */
   sparkleGapsActivePercent?: number;
   /** Gap pulse speed factor (1 = baseline). */

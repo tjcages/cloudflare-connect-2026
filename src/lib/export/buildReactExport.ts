@@ -69,12 +69,46 @@ export type PlaygroundSourceTransform = {
   panY: number;
 };
 
+export type PlaygroundRevealPreset = "wave" | "randomColumns";
+
+export type PlaygroundWaveRevealPosition =
+  | "left top"
+  | "center top"
+  | "right top"
+  | "left center"
+  | "center"
+  | "right center"
+  | "left bottom"
+  | "center bottom"
+  | "right bottom";
+
+export type PlaygroundWaveRevealConfig = {
+  position: PlaygroundWaveRevealPosition;
+  durationMs: number;
+  softness: number;
+  waviness: number;
+  noiseScale: number;
+};
+
+export type PlaygroundRandomColumnsRevealConfig = {
+  durationMs: number;
+  stagger: number;
+  yShift: number;
+};
+
+export type PlaygroundRevealConfig = {
+  preset: PlaygroundRevealPreset;
+  wave: PlaygroundWaveRevealConfig;
+  randomColumns: PlaygroundRandomColumnsRevealConfig;
+};
+
 export type AsciiVideoConfig = {
   duotoneEnabled: boolean;
   stripesEnabled?: boolean;
   textureGamma?: number;
   textureAdjustments?: PlaygroundTextureAdjustments;
   sourceTransform?: PlaygroundSourceTransform;
+  reveal?: PlaygroundRevealConfig;
   sparkleGapsActivePercent?: number;
   sparkleGapsSpeed?: number;
   sparkleWidthActivePercent?: number;

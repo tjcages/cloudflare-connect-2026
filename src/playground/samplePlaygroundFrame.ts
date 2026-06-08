@@ -1,6 +1,8 @@
 import { computeBlockGrid, type BlockGrid, type FlamesLuminanceContribution } from "./computeBlockGrid";
+import type { TextureLuminanceSettings } from "./colorWhiteness";
 import { rasterizePlaygroundFlames, type PlaygroundFlamesState } from "./playgroundFlames";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import { applyPlaygroundRevealToLumaGrid, type PlaygroundRevealOptions } from "./playgroundReveal";
 import { smoothBlockGridIndices } from "./stabilizeBlockGrid";
 import { resolveStripeIndices, type StripeColors } from "./stripeColors";
 import {
@@ -103,8 +105,10 @@ export type PlaygroundGridBuildOptions = {
   /** Max stripe-index change per update (0 = snap instantly). */
   smoothingMaxStep?: number;
   textureAdjustments?: PlaygroundTextureAdjustments;
+  luminanceSettings?: TextureLuminanceSettings;
   flamesState?: PlaygroundFlamesState | null;
   flamesConfig?: PlaygroundFlamesConfig | null;
+  reveal?: PlaygroundRevealOptions;
 };
 
 export function buildPlaygroundBlockGrid(
@@ -131,12 +135,15 @@ export function buildPlaygroundBlockGrid(
     options.cellHeight,
     options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
     flames,
+    options.reveal,
+    options.luminanceSettings,
   );
-  const rawIndices = resolveStripeIndices(lumaGrid.luma, colors.stripes);
+  const revealedLumaGrid = options.reveal ? applyPlaygroundRevealToLumaGrid(lumaGrid, options.reveal) : lumaGrid;
+  const rawIndices = resolveStripeIndices(revealedLumaGrid.luma, colors.stripes);
   const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices, options.smoothingMaxStep);
 
   return {
-    grid: { cols: lumaGrid.cols, rows: lumaGrid.rows, indices: stableIndices },
+    grid: { cols: lumaGrid.cols, rows: lumaGrid.rows, indices: stableIndices, colors: lumaGrid.colors },
     state: { stableIndices },
   };
 }

@@ -9,6 +9,8 @@ export const PLAYGROUND_FIELD_HELP = {
   stripeColor: "Set the stripe color.",
   stripeThreshold: "Set where this stripe begins in luminance.",
   stripeWidth: "Set how wide this stripe band is.",
+  textureLuminanceMode: "Choose classic luminance or distance from a selected texture background color.",
+  textureBackgroundColor: "Color treated as zero luminance when Colors mode is selected.",
   sparkleGapsActiveRatio: "Control how often gap sparkle is active.",
   sparkleGapsSpeed: "Control how fast gap sparkle pulses.",
   sparkleWidthActiveRatio: "Control how often width sparkle is active.",
@@ -67,4 +69,13 @@ export const PLAYGROUND_FIELD_HELP = {
   flamesEdgeMaskEnd:
     "Inset from each canvas edge where masked flame luminance reaches full strength. Must be greater than mask start.",
   flamesEdgeMaskPower: "Curve shaping for the flame luminance ramp (1 = linear, higher = softer mid-fade).",
+
+  revealPreset: "Choose the reveal animation applied before stripe thresholds are calculated.",
+  revealPosition: "Choose where the wave starts on the canvas.",
+  revealDuration: "How long the reveal takes from start to fully visible.",
+  revealSoftness: "Width of the wave edge transition.",
+  revealWaviness: "How uneven the circular wave edge becomes.",
+  revealNoiseScale: "Size of the deterministic wave-edge ripples.",
+  revealColumnStagger: "How far column start times spread across the reveal.",
+  revealColumnYShift: "Maximum random vertical column offset as a ratio of grid height. Set to 0 for no shift.",
 } as const;

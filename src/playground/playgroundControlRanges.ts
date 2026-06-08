@@ -18,6 +18,12 @@ export const PLAYGROUND_CONTROL_RANGES = {
   flamesEdgeSharpness: { min: 0, max: 1, step: 0.01 },
   flamesEdgeMaskInset: { min: 0, max: 50, step: 0.1 },
   flamesEdgeMaskPower: { min: 0.1, max: 4, step: 0.05 },
+  revealDurationMs: { min: 100, max: 6000, step: 50 },
+  revealSoftness: { min: 0, max: 0.5, step: 0.01 },
+  revealWaviness: { min: 0, max: 0.35, step: 0.01 },
+  revealNoiseScale: { min: 0.5, max: 16, step: 0.1 },
+  revealColumnStagger: { min: 0, max: 1, step: 0.01 },
+  revealColumnYShift: { min: 0, max: 1, step: 0.01 },
 } as const;
 
 /** Wider bounds for typed values (sliders stay on PLAYGROUND_CONTROL_RANGES). */
@@ -37,4 +43,10 @@ export const PLAYGROUND_CONTROL_INPUT_BOUNDS = {
   flamesEdgeSharpness: { min: 0, max: 1 },
   flamesEdgeMaskInset: { min: 0, max: 50 },
   flamesEdgeMaskPower: { min: 0.1, max: 4 },
+  revealDurationMs: { min: 100, max: 30_000 },
+  revealSoftness: { min: 0, max: 1 },
+  revealWaviness: { min: 0, max: 1 },
+  revealNoiseScale: { min: 0.1, max: 50 },
+  revealColumnStagger: { min: 0, max: 1 },
+  revealColumnYShift: { min: 0, max: 1 },
 } as const;

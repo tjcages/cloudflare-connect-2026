@@ -39,8 +39,10 @@ out vec4 finalColor;
 
 uniform sampler2D uTexture;
 uniform sampler2D uBlockMap;
+uniform sampler2D uCellColorMap;
 uniform sampler2D uStripeData;
 uniform float uStripeCount;
+uniform float uUseCellColors;
 uniform vec2 uPixelSize;
 uniform vec2 uFrameSize;
 uniform vec2 uGridSize;
@@ -103,6 +105,13 @@ float stripePaletteU(float band) {
 
 vec3 stripeFillColor(float band) {
     return texture(uStripeData, vec2(stripePaletteU(band), 0.25)).rgb;
+}
+
+vec3 cellFillColor(float colIndex, float rowIndex, float band) {
+    if (uUseCellColors > 0.5) {
+        return texture(uCellColorMap, blockGridUv(colIndex, rowIndex)).rgb;
+    }
+    return stripeFillColor(band);
 }
 
 float stripeWidthPx(float band) {
@@ -256,7 +265,7 @@ void main(void) {
         if (!sparkleCellVisible(colIndex, rowIndex)) {
             stripeCoverage = 0.0;
         }
-        vec3 stripeColor = stripeFillColor(stripeBand);
+        vec3 stripeColor = cellFillColor(colIndex, rowIndex, stripeBand);
         finalColor = vec4(stripeColor * stripeCoverage, stripeCoverage);
     } else {
         finalColor = vec4(0.0, 0.0, 0.0, 0.0);
