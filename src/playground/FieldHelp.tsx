@@ -59,7 +59,7 @@ export function FieldHelp({ label, description }: FieldHelpProps) {
       <button
         type="button"
         ref={labelRef}
-        className="min-w-0 cursor-help rounded-sm bg-transparent p-0 text-left text-inherit focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+        className="min-w-0 cursor-help rounded-sm bg-transparent p-0 text-left text-inherit underline decoration-builder-hairline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-builder-focus-ring"
         aria-describedby={visible ? tooltipId : undefined}
         onMouseDown={stopLabelActivation}
         onClick={stopLabelActivation}
@@ -75,7 +75,7 @@ export function FieldHelp({ label, description }: FieldHelpProps) {
             <span
               id={tooltipId}
               role="tooltip"
-              className="fixed z-50 w-44 rounded border border-neutral-200 bg-white px-2 py-1.5 text-left text-[11px] font-normal leading-4 text-neutral-600 shadow-sm"
+              className="fixed z-[9999] w-64 rounded-md border border-black bg-black px-2 py-1.5 text-left text-base font-normal leading-6 text-white shadow-sm"
               style={{ left: position.left, top: position.top }}
             >
               {description}

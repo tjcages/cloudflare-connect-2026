@@ -1,6 +1,7 @@
 import { Pause, Play } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { writeSvgToClipboard } from "../grid/clipboard";
+import { Button } from "../components/Button";
 import Pixi from "../components/pixi";
 import {
   catalogEntriesForLoadAttempt,
@@ -27,10 +28,8 @@ import {
   type PlaygroundPersistedConfig,
 } from "./playgroundPersistence";
 import type { PlaygroundMediaKind, PlaygroundTextureId } from "./playgroundTextures";
-import { HexColorPopover } from "../components/HexColorPopover";
-import { ControlValueInput } from "./ControlValueInput";
-import { PLAYGROUND_CONTROL_INPUT_BOUNDS, PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
+import { PLAYGROUND_SCRUB_COMMIT_MS, useThrottledCallback } from "./playgroundLiveRefs";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
   playgroundSparkleOptionsFromSliders,
@@ -62,9 +61,7 @@ import {
 } from "./playgroundColorSpace";
 import { stripeGridToSvg } from "./stripeGridToSvg";
 import { ExportReactDialog } from "./ExportReactDialog";
-import { FieldHelp } from "./FieldHelp";
-import { PlaygroundControlSection } from "./PlaygroundControlSection";
-import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
+import { PlaygroundLevaControls, type PlaygroundLevaControlsProps } from "./playgroundLevaControls";
 import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
 import {
   exportPlaygroundVideo,
@@ -73,11 +70,6 @@ import {
   shouldConfirmLongExport,
   type PlaygroundVideoExportPhase,
 } from "./playgroundVideoExport";
-import { PlaygroundGridControls } from "./PlaygroundGridControls";
-import { PlaygroundFlamesControls } from "./PlaygroundFlamesControls";
-import { PlaygroundNumberField } from "./PlaygroundNumberField";
-import { PlaygroundTextureControls } from "./PlaygroundTextureControls";
-import { PLAYGROUND_SCRUB_COMMIT_MS, useThrottledCallback } from "./playgroundLiveRefs";
 import {
   DEFAULT_PLAYGROUND_GRID_CONFIG,
   isDefaultPlaygroundGridConfig,
@@ -107,10 +99,6 @@ import {
   cloneDefaultStripes,
   DEFAULT_STRIPES,
   hexToDisplayP3Css,
-  STRIPE_START_FROM_MAX,
-  STRIPE_START_FROM_MIN,
-  STRIPE_WIDTH_MIN,
-  STRIPE_WIDTH_STORAGE_MAX,
   updateStripe,
   type Stripe,
   type StripeColors,
@@ -118,13 +106,12 @@ import {
 import {
   applyCanvasBackgroundCss,
   DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
-  playgroundBackgroundColorToHex,
 } from "./canvasBackgroundCss";
 import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
-
-/** Bordered grid-cell styling for stripe numeric fields (commit on Enter/blur). */
-const STRIPE_FIELD_INPUT_CLASS =
-  "h-7 w-full rounded border border-neutral-300 px-1.5 text-right text-xs tabular-nums text-neutral-700 focus:border-neutral-400 focus:outline-none disabled:cursor-not-allowed";
+import {
+  PLAYGROUND_BUTTON_ROW_CLASS,
+  PLAYGROUND_SHELL_CLASS,
+} from "./playgroundUi";
 
 /** True when the stripe list differs from DEFAULT_STRIPES (ignoring ids). */
 function stripesMatchDefault(stripes: readonly Stripe[]): boolean {
@@ -310,7 +297,6 @@ export function TexturePlayground() {
   const [flamesConfig, setFlamesConfig] = useState<PlaygroundFlamesConfig>(appliedInitial.flames);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
-  const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "failed">("idle");
   const [importFeedback, setImportFeedback] = useState<"idle" | "imported" | "failed">("idle");
   const [exportFeedback, setExportFeedback] = useState<"idle" | "copied" | "failed">("idle");
   const [exportReactOpen, setExportReactOpen] = useState(false);
@@ -333,7 +319,6 @@ export function TexturePlayground() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const stripeColorsRef = useRef<StripeColors>({ stripes });
   const gridConfigRef = useRef<PlaygroundGridConfig>(gridConfig);
   const flamesConfigRef = useRef<PlaygroundFlamesConfig>(flamesConfig);
@@ -1094,9 +1079,6 @@ export function TexturePlayground() {
     ];
   }, [loadState, displayWidth, displayHeight, displaySize, flamesStateRef, flamesConfigRef]);
 
-  const onUploadClick = () => {
-    fileInputRef.current?.click();
-  };
 
   const onUploadFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1141,9 +1123,7 @@ export function TexturePlayground() {
       flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
       stripes,
     };
-    const ok = await copyPlaygroundStateToClipboard(config);
-    setCopyFeedback(ok ? "copied" : "failed");
-    window.setTimeout(() => setCopyFeedback("idle"), ok ? 1200 : 1600);
+    await copyPlaygroundStateToClipboard(config);
   };
 
   const onImportState = () => {
@@ -1378,62 +1358,120 @@ export function TexturePlayground() {
     ],
   );
 
+  const importStatusMessage =
+    importFeedback === "imported" ? "Imported" : importFeedback === "failed" ? "Import failed" : null;
+  const isVideoExportBusy =
+    videoExportPhase === "recording" || videoExportPhase === "loading-encoder" || videoExportPhase === "transcoding";
+
+  const playgroundLevaProps: PlaygroundLevaControlsProps = {
+    catalog,
+    selectedTextureId,
+    onTextureSelect,
+    displayWidth,
+    displayHeight,
+    sourceWidth,
+    sourceHeight,
+    onDisplayWidthChange: (value) => {
+      const fallback = displayWidth > 0 ? displayWidth : sourceWidth || 1;
+      setDisplayWidth(clampPlaygroundDisplayDimension(value, fallback));
+    },
+    onDisplayHeightChange: (value) => {
+      const fallback = displayHeight > 0 ? displayHeight : sourceHeight || 1;
+      setDisplayHeight(clampPlaygroundDisplayDimension(value, fallback));
+    },
+    matchSourceDisplaySize,
+    onUploadFile,
+    importText,
+    onImportTextChange: setImportText,
+    onCopyState,
+    onImportState,
+    importStatus: importStatusMessage,
+    uploadError,
+    workflowDisabled: isVideoExportBusy,
+    duotoneEnabled,
+    onDuotoneEnabledChange: setDuotoneEnabled,
+    duotoneControlsDisabled,
+    textureAdjustments,
+    onAdjustmentsChange: updateTextureAdjustments,
+    onLiveAdjustmentsChange: updateTextureAdjustmentsLive,
+    onResetTone: resetTextureTone,
+    onResetEffects: resetTextureEffects,
+    toneModified: textureToneModified,
+    effectsModified: textureEffectsModified,
+    sourceTransform,
+    onSourceTransformChange: updateSourceTransform,
+    onLiveSourceTransformChange: updateSourceTransformLive,
+    onResetSource: resetSourceTransform,
+    sourceModified: sourceTransformModified,
+    backgroundColor,
+    backgroundCss,
+    backgroundCssActive,
+    onBackgroundColorChange: setBackgroundColor,
+    onBackgroundCssChange: setBackgroundCss,
+    onResetBackground: resetBackground,
+    backgroundModified,
+    gridConfig,
+    onGridChange: updateGrid,
+    onGridLiveChange: updateGridLive,
+    onResetGrid: resetGridSection,
+    onResetLetters: resetLettersSection,
+    gridModified: gridSectionModified,
+    lettersModified: lettersSectionModified,
+    stripes,
+    stripesEnabled,
+    onStripesEnabledChange: setStripesEnabled,
+    onStripeColorChange,
+    onStripeStartFromCommit,
+    onStripeWidthCommit,
+    onResetStripes: resetStripes,
+    stripesModified,
+    sparkleGapsActivePercent,
+    sparkleGapsSpeed,
+    setSparkleGapsActivePercentLive,
+    commitSparkleGapsActivePercent,
+    setSparkleGapsSpeedLive,
+    commitSparkleGapsSpeed,
+    onResetSparkleGaps: resetSparkleGaps,
+    sparkleGapsModified,
+    sparkleWidthActivePercent,
+    sparkleWidthSpeed,
+    setSparkleWidthActivePercentLive,
+    commitSparkleWidthActivePercent,
+    setSparkleWidthSpeedLive,
+    commitSparkleWidthSpeed,
+    onResetSparkleWidth: resetSparkleWidth,
+    sparkleWidthModified,
+    flamesConfig,
+    onFlamesChange: updateFlamesConfig,
+    onFlamesLiveChange: updateFlamesConfigLive,
+    onResetFlames: resetFlames,
+    flamesModified,
+    onResetGeneral: resetGeneral,
+    generalModified,
+  };
+
   if (!hydrated || loadState.status === "loading") {
-    return <p className="p-6 text-sm text-neutral-600">Loading texture…</p>;
+    return <p className="p-6 text-[12px] text-builder-muted">Loading texture...</p>;
   }
 
   if (loadState.status === "error") {
     const fallbackEntry = firstCatalogEntryWithUrl(catalog);
     return (
-      <div className="flex h-dvh overflow-hidden bg-neutral-50">
-        <aside className="flex w-60 shrink-0 flex-col gap-4 border-r border-neutral-200 bg-white p-4">
-          <h1 className="text-base font-medium text-neutral-900">Texture shader playground</h1>
-          <p className="m-0 text-sm text-red-700">{loadState.message}</p>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="flex items-center gap-1.5 text-neutral-600">
-              <FieldHelp label="Texture" description={PLAYGROUND_FIELD_HELP.texture} />
-            </span>
-            <select
-              value={selectedTextureId}
-              onChange={(event) => onTextureSelect(event.target.value as PlaygroundTextureId)}
-              className="rounded border border-neutral-300 bg-white px-2 py-1.5"
-              aria-label="Playground texture source"
-            >
-              {catalog.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {fallbackEntry ? (
-            <button
-              type="button"
-              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-              onClick={() => onTextureSelect(fallbackEntry.id)}
-            >
-              Load {fallbackEntry.label}
-            </button>
-          ) : null}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*,image/*"
-            className="hidden"
-            onChange={(event) => void onUploadFile(event)}
-          />
-          <button
-            type="button"
-            className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-            onClick={onUploadClick}
-          >
-            Upload texture
-          </button>
-          {uploadError ? <p className="m-0 text-xs text-red-700">{uploadError}</p> : null}
-        </aside>
+      <div className={PLAYGROUND_SHELL_CLASS}>
         <main className="flex flex-1 items-center justify-center p-6">
-          <p className="m-0 text-sm text-neutral-600">Select a texture from the sidebar to continue.</p>
+          <p className="m-0 rounded-md border border-builder-hairline bg-white px-3 py-2 text-[12px] text-builder-muted">
+            Select a texture from the Leva panel to continue.
+          </p>
         </main>
+        <PlaygroundLevaControls
+          {...playgroundLevaProps}
+          loadError={loadState.message}
+          fallbackTextureId={fallbackEntry?.id ?? null}
+          fallbackTextureLabel={fallbackEntry?.label ?? null}
+          onLoadFallbackTexture={
+            fallbackEntry ? () => onTextureSelect(fallbackEntry.id) : undefined
+          }
+        />
       </div>
     );
   }
@@ -1443,14 +1481,7 @@ export function TexturePlayground() {
   // media kind, and canvas size require a fresh scene.
   const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}`;
   const isVideoSource = loadState.kind === "video";
-  const stripeControlsDisabled = duotoneControlsDisabled || !stripesEnabled;
-
-  const copyLabel = copyFeedback === "copied" ? "Copied" : copyFeedback === "failed" ? "Copy failed" : "Copy state";
-  const importStatus =
-    importFeedback === "imported" ? "Imported" : importFeedback === "failed" ? "Import failed" : null;
   const exportLabel = exportFeedback === "copied" ? "Copied" : exportFeedback === "failed" ? "Copy failed" : "Copy SVG";
-  const isVideoExportBusy =
-    videoExportPhase === "recording" || videoExportPhase === "loading-encoder" || videoExportPhase === "transcoding";
   const videoExportTranscodeElapsedMs =
     videoExportTranscodeStartedAtRef.current === null
       ? 0
@@ -1463,492 +1494,7 @@ export function TexturePlayground() {
     videoExportTranscodeElapsedMs,
   );
   return (
-    <div className="flex h-dvh overflow-hidden bg-neutral-50">
-      <aside className="flex min-h-0 w-60 shrink-0 flex-col gap-4 border-r border-neutral-200 bg-white py-4">
-        <div className="shrink-0 px-4">
-          <h1 className="text-base font-medium text-neutral-900">Texture shader playground</h1>
-          <p className="mt-1 text-xs leading-relaxed text-neutral-500">
-            {displayWidth}×{displayHeight}px canvas
-            {sourceWidth > 0 && sourceHeight > 0 ? ` · source ${sourceWidth}×${sourceHeight}` : null}
-          </p>
-        </div>
-
-        <div className="ui-scroll-hidden flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="flex flex-col gap-3 px-4">
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="flex items-center gap-1.5 text-neutral-600">
-                <FieldHelp label="Texture" description={PLAYGROUND_FIELD_HELP.texture} />
-              </span>
-              <select
-                value={selectedTextureId}
-                onChange={(event) => onTextureSelect(event.target.value as PlaygroundTextureId)}
-                className="rounded border border-neutral-300 bg-white px-2 py-1.5"
-                aria-label="Playground texture source"
-                disabled={isVideoExportBusy}
-              >
-                {catalog.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="grid grid-cols-2 gap-2">
-              <label className="flex flex-col gap-1 text-sm text-neutral-600">
-                <span className="flex items-center gap-1.5">
-                  <FieldHelp label="Width" description={PLAYGROUND_FIELD_HELP.canvasWidth} />
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  max={8192}
-                  value={displayWidth > 0 ? displayWidth : ""}
-                  onChange={(event) => {
-                    const fallback = displayWidth > 0 ? displayWidth : sourceWidth || 1;
-                    setDisplayWidth(clampPlaygroundDisplayDimension(Number(event.target.value), fallback));
-                  }}
-                  className="rounded border border-neutral-300 bg-white px-2 py-1.5 tabular-nums"
-                  aria-label="Canvas width in pixels"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm text-neutral-600">
-                <span className="flex items-center gap-1.5">
-                  <FieldHelp label="Height" description={PLAYGROUND_FIELD_HELP.canvasHeight} />
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  max={8192}
-                  value={displayHeight > 0 ? displayHeight : ""}
-                  onChange={(event) => {
-                    const fallback = displayHeight > 0 ? displayHeight : sourceHeight || 1;
-                    setDisplayHeight(clampPlaygroundDisplayDimension(Number(event.target.value), fallback));
-                  }}
-                  className="rounded border border-neutral-300 bg-white px-2 py-1.5 tabular-nums"
-                  aria-label="Canvas height in pixels"
-                />
-              </label>
-            </div>
-            <button
-              type="button"
-              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
-              onClick={matchSourceDisplaySize}
-              disabled={sourceWidth <= 0 || sourceHeight <= 0}
-            >
-              Match source size
-            </button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="video/*,image/*"
-              className="hidden"
-              onChange={(event) => void onUploadFile(event)}
-            />
-            <button
-              type="button"
-              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-              onClick={onUploadClick}
-            >
-              Upload texture
-            </button>
-            {uploadError ? <p className="m-0 text-xs text-red-700">{uploadError}</p> : null}
-          </div>
-
-          <PlaygroundControlSection
-            title="General"
-            testId="playground-section-general"
-            className="mt-4"
-            modified={generalModified}
-            onReset={resetGeneral}
-          >
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={duotoneEnabled}
-                onChange={(event) => setDuotoneEnabled(event.target.checked)}
-                className="size-4 cursor-pointer rounded border-neutral-300"
-                aria-label="Shader enabled"
-              />
-              <span className="flex items-center gap-1.5 text-neutral-800">
-                <FieldHelp label="Shader enabled" description={PLAYGROUND_FIELD_HELP.shaderEnabled} />
-              </span>
-            </label>
-          </PlaygroundControlSection>
-
-          <PlaygroundTextureControls
-            adjustments={textureAdjustments}
-            sourceTransform={sourceTransform}
-            onAdjustmentsChange={updateTextureAdjustments}
-            onLiveAdjustmentsChange={updateTextureAdjustmentsLive}
-            onSourceTransformChange={updateSourceTransform}
-            onLiveSourceTransformChange={updateSourceTransformLive}
-            onResetTone={resetTextureTone}
-            onResetSource={resetSourceTransform}
-            onResetEffects={resetTextureEffects}
-            toneModified={textureToneModified}
-            sourceModified={sourceTransformModified}
-            effectsModified={textureEffectsModified}
-            disabled={duotoneControlsDisabled}
-          />
-
-          <PlaygroundControlSection
-            title="Background"
-            testId="playground-section-background"
-            modified={backgroundModified}
-            onReset={resetBackground}
-          >
-            <div
-              className={`flex items-center justify-between gap-2 text-sm ${backgroundCssActive ? "opacity-40" : ""}`}
-            >
-              <span className="flex items-center gap-1.5 text-neutral-600">
-                <FieldHelp label="Color" description={PLAYGROUND_FIELD_HELP.backgroundColor} />
-              </span>
-              <HexColorPopover
-                color={playgroundBackgroundColorToHex(backgroundColor)}
-                disabled={backgroundCssActive}
-                onChange={(hex) => {
-                  const parsed = Number.parseInt(hex.replace(/^#/, ""), 16);
-                  if (Number.isFinite(parsed)) {
-                    setBackgroundColor(parsed & 0xffffff);
-                  }
-                }}
-                ariaLabel="Canvas background color"
-                align="right"
-                triggerClassName="h-7 w-12 rounded border border-neutral-300"
-                triggerStyle={{ backgroundColor: playgroundBackgroundColorToHex(backgroundColor) }}
-              />
-            </div>
-            <label className="flex flex-col gap-1.5 text-xs font-medium text-neutral-700">
-              <span className="flex items-center gap-1.5">
-                <FieldHelp label="Canvas CSS" description={PLAYGROUND_FIELD_HELP.canvasCss} />
-              </span>
-              <textarea
-                className="min-h-[96px] resize-y rounded border border-neutral-300 px-2 py-1.5 font-mono text-[11px] font-normal text-neutral-700 focus:border-neutral-400 focus:outline-none"
-                rows={5}
-                value={backgroundCss}
-                onChange={(event) => setBackgroundCss(event.target.value)}
-                spellCheck={false}
-                placeholder={[
-                  "background: #D9D9D9;",
-                  "background: color(display-p3 0.851 0.851 0.851);",
-                  "background-image: linear-gradient(...);",
-                ].join("\n")}
-                aria-label="Canvas background CSS"
-              />
-            </label>
-            <p className="m-0 text-[11px] leading-4 text-neutral-500">
-              {backgroundCssActive
-                ? "Canvas CSS overrides the color picker."
-                : "Color applies when canvas CSS is empty. Paste CSS declarations to replace it."}
-            </p>
-          </PlaygroundControlSection>
-
-          <PlaygroundGridControls
-            config={gridConfig}
-            onChange={updateGrid}
-            onLiveChange={updateGridLive}
-            onResetGrid={resetGridSection}
-            onResetLetters={resetLettersSection}
-            gridModified={gridSectionModified}
-            lettersModified={lettersSectionModified}
-            disabled={duotoneControlsDisabled}
-          />
-
-          <PlaygroundControlSection
-            title="Stripes"
-            testId="playground-section-stripes"
-            modified={stripesModified}
-            onReset={resetStripes}
-          >
-            <label className={`flex items-center gap-2 text-sm ${duotoneControlsDisabled ? "opacity-40" : ""}`}>
-              <input
-                type="checkbox"
-                checked={stripesEnabled}
-                disabled={duotoneControlsDisabled}
-                onChange={(event) => setStripesEnabled(event.target.checked)}
-                className="size-4 cursor-pointer rounded border-neutral-300 disabled:cursor-not-allowed"
-                aria-label="Stripes enabled"
-                aria-keyshortcuts="Shift+S"
-              />
-              <span className="flex flex-1 items-center justify-between gap-2 text-neutral-800">
-                <span className="flex items-center gap-1.5">
-                  <FieldHelp label="Stripes enabled" description={PLAYGROUND_FIELD_HELP.stripesEnabled} />
-                </span>
-                <kbd className="rounded border border-neutral-300 bg-neutral-50 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-neutral-500">
-                  Shift S
-                </kbd>
-              </span>
-            </label>
-            <div className={`flex flex-col gap-1.5 ${stripeControlsDisabled ? "opacity-40" : ""}`}>
-              {stripes.length === 0 ? (
-                <p className="m-0 text-xs text-neutral-500">No stripes.</p>
-              ) : (
-                <div className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2 text-xs text-neutral-500">
-                  <span className="flex items-center gap-1">
-                    <FieldHelp label="Stripe color" description={PLAYGROUND_FIELD_HELP.stripeColor} />
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FieldHelp label="Threshold" description={PLAYGROUND_FIELD_HELP.stripeThreshold} />
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FieldHelp label="Stripe width" description={PLAYGROUND_FIELD_HELP.stripeWidth} />
-                  </span>
-                </div>
-              )}
-              {stripes.map((stripe) => (
-                <div
-                  key={stripe.id}
-                  className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2"
-                  data-testid="playground-stripe-row"
-                >
-                  <HexColorPopover
-                    color={stripe.hex}
-                    disabled={stripeControlsDisabled}
-                    onChange={(hex) => onStripeColorChange(stripe.id, hex)}
-                    ariaLabel="Stripe color"
-                    triggerClassName="playground-stripe-swatch block h-7 w-7 overflow-hidden rounded border border-neutral-200"
-                    triggerStyle={
-                      {
-                        ["--stripe-swatch-fallback" as string]: stripe.hex,
-                        ["--stripe-swatch-p3" as string]: stripe.p3Css,
-                      } as CSSProperties
-                    }
-                  />
-                  <ControlValueInput
-                    value={stripe.startFrom}
-                    inputMin={STRIPE_START_FROM_MIN}
-                    inputMax={STRIPE_START_FROM_MAX}
-                    disabled={stripeControlsDisabled}
-                    onChange={(value) => onStripeStartFromCommit(stripe.id, value)}
-                    ariaLabel="Stripe start from luminance"
-                    title="Start from (0–1 luminance)"
-                    className={STRIPE_FIELD_INPUT_CLASS}
-                  />
-                  <ControlValueInput
-                    value={stripe.width}
-                    inputMin={STRIPE_WIDTH_MIN}
-                    inputMax={STRIPE_WIDTH_STORAGE_MAX}
-                    commitMin={STRIPE_WIDTH_MIN}
-                    commitMax={STRIPE_WIDTH_STORAGE_MAX}
-                    disabled={stripeControlsDisabled}
-                    onChange={(value) => onStripeWidthCommit(stripe.id, value)}
-                    ariaLabel="Stripe width in px"
-                    title="Width (px)"
-                    className={STRIPE_FIELD_INPUT_CLASS}
-                  />
-                </div>
-              ))}
-            </div>
-            <PlaygroundNumberField
-              label="Processing interval"
-              value={gridConfig.gridUpdateIntervalMs}
-              inputMin={0}
-              inputMax={1000}
-              sliderMin={0}
-              sliderMax={300}
-              step={1}
-              ariaLabel="Stripe processing interval in milliseconds"
-              disabled={stripeControlsDisabled}
-              onChange={(value) => updateGrid({ gridUpdateIntervalMs: value })}
-              onLiveChange={(value) => updateGridLive({ gridUpdateIntervalMs: value })}
-              description={PLAYGROUND_FIELD_HELP.processingInterval}
-            />
-          </PlaygroundControlSection>
-
-          <PlaygroundControlSection
-            title="Sparkle Gaps"
-            testId="playground-section-sparkle-gaps"
-            modified={sparkleGapsModified}
-            onReset={resetSparkleGaps}
-          >
-            <PlaygroundNumberField
-              label="Active ratio"
-              value={sparkleGapsActivePercent}
-              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsActivePercent.min}
-              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsActivePercent.max}
-              sliderMin={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.min}
-              sliderMax={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.max}
-              step={PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.step}
-              ariaLabel="Sparkle gaps active ratio"
-              disabled={duotoneControlsDisabled}
-              onChange={commitSparkleGapsActivePercent}
-              onLiveChange={setSparkleGapsActivePercentLive}
-              formatDisplay={(v) => v.toFixed(2)}
-              description={PLAYGROUND_FIELD_HELP.sparkleGapsActiveRatio}
-            />
-            <PlaygroundNumberField
-              label="Speed"
-              value={sparkleGapsSpeed}
-              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsSpeed.min}
-              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsSpeed.max}
-              sliderMin={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.min}
-              sliderMax={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.max}
-              step={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.step}
-              commitMin={PLAYGROUND_CONTROL_RANGES.sparkleGapsSpeed.min}
-              commitMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleGapsSpeed.max}
-              ariaLabel="Sparkle gaps pulse speed"
-              disabled={duotoneControlsDisabled || sparkleGapsActivePercent <= 0}
-              onChange={commitSparkleGapsSpeed}
-              onLiveChange={setSparkleGapsSpeedLive}
-              formatDisplay={(v) => v.toFixed(2)}
-              description={PLAYGROUND_FIELD_HELP.sparkleGapsSpeed}
-            />
-            <PlaygroundNumberField
-              label="Gap period min"
-              value={gridConfig.sparkleGapsPeriodMinSec}
-              inputMin={0.01}
-              inputMax={10}
-              sliderMin={0.05}
-              sliderMax={2}
-              step={0.01}
-              ariaLabel="Sparkle gap period minimum seconds"
-              disabled={duotoneControlsDisabled}
-              onChange={(value) => updateGrid({ sparkleGapsPeriodMinSec: value })}
-              onLiveChange={(value) => updateGridLive({ sparkleGapsPeriodMinSec: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              description={PLAYGROUND_FIELD_HELP.gapPeriodMin}
-            />
-            <PlaygroundNumberField
-              label="Gap period max"
-              value={gridConfig.sparkleGapsPeriodMaxSec}
-              inputMin={0.01}
-              inputMax={10}
-              sliderMin={0.05}
-              sliderMax={2}
-              step={0.01}
-              ariaLabel="Sparkle gap period maximum seconds"
-              disabled={duotoneControlsDisabled}
-              onChange={(value) => updateGrid({ sparkleGapsPeriodMaxSec: value })}
-              onLiveChange={(value) => updateGridLive({ sparkleGapsPeriodMaxSec: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              description={PLAYGROUND_FIELD_HELP.gapPeriodMax}
-            />
-          </PlaygroundControlSection>
-
-          <PlaygroundControlSection
-            title="Sparkle Width"
-            testId="playground-section-sparkle-width"
-            modified={sparkleWidthModified}
-            onReset={resetSparkleWidth}
-          >
-            <PlaygroundNumberField
-              label="Active ratio"
-              value={sparkleWidthActivePercent}
-              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthActivePercent.min}
-              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthActivePercent.max}
-              sliderMin={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.min}
-              sliderMax={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.max}
-              step={PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.step}
-              ariaLabel="Sparkle width active ratio"
-              disabled={duotoneControlsDisabled}
-              onChange={commitSparkleWidthActivePercent}
-              onLiveChange={setSparkleWidthActivePercentLive}
-              formatDisplay={(v) => v.toFixed(2)}
-              description={PLAYGROUND_FIELD_HELP.sparkleWidthActiveRatio}
-            />
-            <PlaygroundNumberField
-              label="Speed"
-              value={sparkleWidthSpeed}
-              inputMin={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthSpeed.min}
-              inputMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthSpeed.max}
-              sliderMin={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.min}
-              sliderMax={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.max}
-              step={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.step}
-              commitMin={PLAYGROUND_CONTROL_RANGES.sparkleWidthSpeed.min}
-              commitMax={PLAYGROUND_CONTROL_INPUT_BOUNDS.sparkleWidthSpeed.max}
-              ariaLabel="Sparkle width pulse speed"
-              disabled={duotoneControlsDisabled || sparkleWidthActivePercent <= 0}
-              onChange={commitSparkleWidthSpeed}
-              onLiveChange={setSparkleWidthSpeedLive}
-              formatDisplay={(v) => v.toFixed(2)}
-              description={PLAYGROUND_FIELD_HELP.sparkleWidthSpeed}
-            />
-            <PlaygroundNumberField
-              label="Width swing"
-              value={gridConfig.widthShuffleSwing}
-              inputMin={0}
-              inputMax={32}
-              sliderMin={0}
-              sliderMax={8}
-              step={0.05}
-              ariaLabel="Width shuffle swing in px"
-              disabled={duotoneControlsDisabled}
-              onChange={(value) => updateGrid({ widthShuffleSwing: value })}
-              onLiveChange={(value) => updateGridLive({ widthShuffleSwing: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              description={PLAYGROUND_FIELD_HELP.widthSwing}
-            />
-            <PlaygroundNumberField
-              label="Width period min"
-              value={gridConfig.sparkleWidthPeriodMinSec}
-              inputMin={0.01}
-              inputMax={10}
-              sliderMin={0.05}
-              sliderMax={2}
-              step={0.01}
-              ariaLabel="Width shuffle period minimum seconds"
-              disabled={duotoneControlsDisabled}
-              onChange={(value) => updateGrid({ sparkleWidthPeriodMinSec: value })}
-              onLiveChange={(value) => updateGridLive({ sparkleWidthPeriodMinSec: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              description={PLAYGROUND_FIELD_HELP.widthPeriodMin}
-            />
-            <PlaygroundNumberField
-              label="Width period max"
-              value={gridConfig.sparkleWidthPeriodMaxSec}
-              inputMin={0.01}
-              inputMax={10}
-              sliderMin={0.05}
-              sliderMax={2}
-              step={0.01}
-              ariaLabel="Width shuffle period maximum seconds"
-              disabled={duotoneControlsDisabled}
-              onChange={(value) => updateGrid({ sparkleWidthPeriodMaxSec: value })}
-              onLiveChange={(value) => updateGridLive({ sparkleWidthPeriodMaxSec: value })}
-              formatDisplay={(v) => v.toFixed(2)}
-              description={PLAYGROUND_FIELD_HELP.widthPeriodMax}
-            />
-          </PlaygroundControlSection>
-
-          <PlaygroundFlamesControls
-            config={flamesConfig}
-            onChange={updateFlamesConfig}
-            onLiveChange={updateFlamesConfigLive}
-            onReset={resetFlames}
-            modified={flamesModified}
-            disabled={duotoneControlsDisabled}
-          />
-
-          <div className="mt-4 flex flex-col gap-3 border-t border-neutral-200 px-4 pt-4">
-            <button
-              type="button"
-              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-              onClick={() => void onCopyState()}
-            >
-              {copyLabel}
-            </button>
-            <textarea
-              className="min-h-[72px] resize-y rounded border border-neutral-300 px-2 py-1.5 font-mono text-[11px]"
-              rows={4}
-              value={importText}
-              onChange={(event) => setImportText(event.target.value)}
-              spellCheck={false}
-              placeholder="Paste state JSON"
-            />
-            <button
-              type="button"
-              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-              onClick={onImportState}
-            >
-              Import state
-            </button>
-            {importStatus ? <p className="m-0 text-xs text-neutral-500">{importStatus}</p> : null}
-          </div>
-        </div>
-      </aside>
-
+    <div className={PLAYGROUND_SHELL_CLASS}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <main className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-6">
           <Pixi
@@ -1983,21 +1529,46 @@ export function TexturePlayground() {
           />
         </main>
 
-        <footer className="shrink-0 border-t border-neutral-200 bg-white px-6 py-3" data-testid="playground-bottom-bar">
+        <footer
+          className="shrink-0 border-t border-builder-hairline bg-builder-surface px-3.5 py-2.5"
+          data-testid="playground-bottom-bar"
+        >
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-            <div aria-hidden />
+            <div className={PLAYGROUND_BUTTON_ROW_CLASS}>
+              {isVideoExportBusy ? (
+                <Button padding="inline" onClick={onCancelVideoExport}>
+                  Cancel
+                </Button>
+              ) : null}
+              <Button
+                padding="inline"
+                onClick={() => void onExportVideo()}
+                disabled={isVideoExportBusy || videoExportPhase === "done"}
+              >
+                {videoExportLabel}
+              </Button>
+              <Button padding="inline" onClick={() => setExportReactOpen(true)} disabled={isVideoExportBusy}>
+                Export React
+              </Button>
+              <Button
+                padding="inline"
+                onClick={() => void onExportSvg()}
+                disabled={!duotoneEnabled || !stripesEnabled || isVideoExportBusy}
+              >
+                {exportLabel}
+              </Button>
+            </div>
             <div className="flex min-w-0 items-center gap-2" data-testid="playground-playback-controls">
               {isVideoSource ? (
                 <>
-                  <button
-                    type="button"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-neutral-300 bg-white hover:bg-neutral-100"
+                  <Button
+                    className="flex h-8 w-8 items-center justify-center p-0"
                     onClick={togglePlayPause}
                     aria-label={isPlaying ? "Pause" : "Play"}
                   >
                     {isPlaying ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
-                  </button>
-                  <span className="w-10 shrink-0 text-right tabular-nums text-xs text-neutral-500">
+                  </Button>
+                  <span className="w-10 shrink-0 text-right tabular-nums text-[11px] text-builder-control">
                     {formatTime(currentTime)}
                   </span>
                   <input
@@ -2010,48 +1581,18 @@ export function TexturePlayground() {
                     className="w-72 max-w-[40vw] min-w-32"
                     aria-label="Texture timeline"
                   />
-                  <span className="w-10 shrink-0 tabular-nums text-xs text-neutral-500">{formatTime(duration)}</span>
+                  <span className="w-10 shrink-0 tabular-nums text-[11px] text-builder-control">
+                    {formatTime(duration)}
+                  </span>
                 </>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {isVideoExportBusy ? (
-                <button
-                  type="button"
-                  className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100"
-                  onClick={onCancelVideoExport}
-                >
-                  Cancel
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={() => void onExportVideo()}
-                disabled={isVideoExportBusy || videoExportPhase === "done"}
-              >
-                {videoExportLabel}
-              </button>
-              <button
-                type="button"
-                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={() => setExportReactOpen(true)}
-                disabled={isVideoExportBusy}
-              >
-                Export React
-              </button>
-              <button
-                type="button"
-                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={() => void onExportSvg()}
-                disabled={!duotoneEnabled || !stripesEnabled || isVideoExportBusy}
-              >
-                {exportLabel}
-              </button>
-            </div>
+            <div aria-hidden />
           </div>
         </footer>
       </div>
+
+      <PlaygroundLevaControls {...playgroundLevaProps} />
 
       <ExportReactDialog
         open={exportReactOpen}
