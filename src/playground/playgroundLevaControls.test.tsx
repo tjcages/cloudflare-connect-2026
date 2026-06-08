@@ -8,6 +8,7 @@ import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
+import { DEFAULT_PLAYGROUND_REVEAL_CONFIG } from "./playgroundRevealConfig";
 import { cloneDefaultStripes } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import {
@@ -112,6 +113,13 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onFlamesLiveChange={() => {}}
       onResetFlames={() => {}}
       flamesModified={false}
+      revealConfig={DEFAULT_PLAYGROUND_REVEAL_CONFIG}
+      onRevealChange={() => {}}
+      onRevealWaveLiveChange={() => {}}
+      onRevealRandomColumnsLiveChange={() => {}}
+      onResetReveal={() => {}}
+      onReplayReveal={() => {}}
+      revealModified={false}
       onResetGeneral={() => {}}
       generalModified={false}
       {...overrides}
@@ -132,5 +140,12 @@ describe("PlaygroundLevaControls", () => {
     const checkbox = screen.getByLabelText("Shader enabled");
     checkbox.click();
     expect(onDuotoneEnabledChange).toHaveBeenCalledWith(false);
+  });
+
+  it("renders reveal controls in the Leva panel", () => {
+    renderLevaControls();
+
+    expect(screen.getByText("Reveal")).toBeInTheDocument();
+    expect(screen.getByLabelText("Preset")).toBeInTheDocument();
   });
 });

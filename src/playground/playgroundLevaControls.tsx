@@ -2,6 +2,11 @@ import { LevaPanel, useControls, useCreateStore } from "leva";
 import { useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import type { PlaygroundGridConfig } from "./playgroundGridConfig";
+import type {
+  PlaygroundRandomColumnsRevealConfig,
+  PlaygroundRevealConfig,
+  PlaygroundWaveRevealConfig,
+} from "./playgroundRevealConfig";
 import type { PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundCatalogEntry } from "./playgroundPersistence";
@@ -100,6 +105,13 @@ export type PlaygroundLevaControlsProps = {
   onFlamesLiveChange: (patch: Partial<PlaygroundFlamesConfig>) => void;
   onResetFlames: () => void;
   flamesModified: boolean;
+  revealConfig: PlaygroundRevealConfig;
+  onRevealChange: (patch: Partial<PlaygroundRevealConfig>) => void;
+  onRevealWaveLiveChange: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
+  onRevealRandomColumnsLiveChange: (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => void;
+  onResetReveal: () => void;
+  onReplayReveal: () => void;
+  revealModified: boolean;
   onResetGeneral: () => void;
   generalModified: boolean;
 };
@@ -156,6 +168,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       sparkleWidthActivePercent: current.sparkleWidthActivePercent,
       sparkleWidthSpeed: current.sparkleWidthSpeed,
       flamesConfig: current.flamesConfig,
+      revealConfig: current.revealConfig,
       generalModified: current.generalModified,
       toneModified: current.toneModified,
       effectsModified: current.effectsModified,
@@ -167,6 +180,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       sparkleGapsModified: current.sparkleGapsModified,
       sparkleWidthModified: current.sparkleWidthModified,
       flamesModified: current.flamesModified,
+      revealModified: current.revealModified,
     };
   }, [
     textureOptions,
@@ -200,6 +214,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.sparkleWidthActivePercent,
     props.sparkleWidthSpeed,
     props.flamesConfig,
+    props.revealConfig,
     props.generalModified,
     props.toneModified,
     props.effectsModified,
@@ -211,6 +226,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.sparkleGapsModified,
     props.sparkleWidthModified,
     props.flamesModified,
+    props.revealModified,
   ]);
 
   const handlersRef = useRef<PlaygroundLevaHandlers>({
@@ -258,6 +274,17 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onFlamesLive: (patch) => propsRef.current.onFlamesLiveChange(patch),
     onFlamesCommit: (patch) => propsRef.current.onFlamesChange(patch),
     resetFlames: () => propsRef.current.onResetFlames(),
+    onRevealCommit: (patch) => propsRef.current.onRevealChange(patch),
+    onRevealWaveLive: (patch) => propsRef.current.onRevealWaveLiveChange(patch),
+    onRevealWaveCommit: (patch) =>
+      propsRef.current.onRevealChange({ wave: { ...propsRef.current.revealConfig.wave, ...patch } }),
+    onRevealRandomColumnsLive: (patch) => propsRef.current.onRevealRandomColumnsLiveChange(patch),
+    onRevealRandomColumnsCommit: (patch) =>
+      propsRef.current.onRevealChange({
+        randomColumns: { ...propsRef.current.revealConfig.randomColumns, ...patch },
+      }),
+    resetReveal: () => propsRef.current.onResetReveal(),
+    replayReveal: () => propsRef.current.onReplayReveal(),
   });
 
   const stripeKey = props.stripes.map((stripe) => stripe.id).join("|");
@@ -278,6 +305,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.gridConfig.cellWidth,
     props.gridConfig.cellHeight,
     props.catalog.length,
+    props.revealConfig.preset,
   ]);
 
   const syncSignature = useMemo(() => JSON.stringify(buildPlaygroundLevaSyncValues(snapshot)), [snapshot]);

@@ -1602,6 +1602,13 @@ export function TexturePlayground() {
     onFlamesLiveChange: updateFlamesConfigLive,
     onResetFlames: resetFlames,
     flamesModified,
+    revealConfig,
+    onRevealChange: updateRevealConfig,
+    onRevealWaveLiveChange: updateRevealWaveLive,
+    onRevealRandomColumnsLiveChange: updateRevealRandomColumnsLive,
+    onResetReveal: resetReveal,
+    onReplayReveal: replayReveal,
+    revealModified,
     onResetGeneral: resetGeneral,
     generalModified,
   };
