@@ -1,134 +1,139 @@
 import { describe, expect, it } from "vitest";
 import {
-  applyCursorTrailToPixels,
-  buildCursorTrailVisuals,
+  applyCursorTrailToEffectPixels,
+  buildDisplayFrameWithCursorTrail,
   createCursorTrailState,
+  downsamplePixelsNearest,
+  resolveCursorTrailRebuildBounds,
   setCursorTrailTarget,
   updateCursorTrail,
 } from "./cursorTrail";
-
-describe("applyCursorTrailToPixels", () => {
-  it("applies trail density while preserving untouched pixels", () => {
-    const pixels = new Uint8ClampedArray(5 * 5 * 4);
-    for (let i = 0; i < pixels.length; i += 4) {
-      pixels[i + 3] = 255;
-    }
-
-    applyCursorTrailToPixels(pixels, 5, 5, [{ x: 2, y: 2, alpha: 0.5, radius: 1 }]);
-
-    const center = (2 * 5 + 2) * 4;
-    const corner = 0;
-
-    expect(pixels[center]).toBe(82);
-    expect(pixels[center + 1]).toBe(82);
-    expect(pixels[center + 2]).toBe(82);
-    expect(pixels[center + 3]).toBe(255);
-    expect(pixels[corner]).toBe(0);
-    expect(pixels[corner + 1]).toBe(0);
-    expect(pixels[corner + 2]).toBe(0);
-    expect(pixels[corner + 3]).toBe(255);
-  });
-
-  it("repels source pixels away from the trail before whitening them", () => {
-    const pixels = new Uint8ClampedArray(7 * 1 * 4);
-    for (let x = 0; x < 7; x++) {
-      const idx = x * 4;
-      pixels[idx] = x * 40;
-      pixels[idx + 1] = x * 40;
-      pixels[idx + 2] = x * 40;
-      pixels[idx + 3] = 255;
-    }
-
-    applyCursorTrailToPixels(pixels, 7, 1, [{ x: 3, y: 0, alpha: 0.2, radius: 3 }]);
-
-    const pushedRight = 5 * 4;
-    expect(pixels[pushedRight]).toBeLessThan(190);
-    expect(pixels[pushedRight + 1]).toBeLessThan(190);
-    expect(pixels[pushedRight + 2]).toBeLessThan(190);
-    expect(pixels[pushedRight + 3]).toBe(255);
-  });
-
-  it("adds a dark magnetic stroke that hides texture detail before stripe calculation", () => {
-    const pixels = new Uint8ClampedArray(5 * 5 * 4);
-    for (let i = 0; i < pixels.length; i += 4) {
-      pixels[i] = 220;
-      pixels[i + 1] = 220;
-      pixels[i + 2] = 220;
-      pixels[i + 3] = 255;
-    }
-
-    applyCursorTrailToPixels(pixels, 5, 5, [{ x: 2, y: 2, alpha: 0.8, radius: 2 }]);
-
-    const center = (2 * 5 + 2) * 4;
-    expect(pixels[center]).toBeLessThan(120);
-    expect(pixels[center + 1]).toBeLessThan(120);
-    expect(pixels[center + 2]).toBeLessThan(120);
-    expect(pixels[center + 3]).toBe(255);
-  });
-});
+import {
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  resolveCursorTrailEffectSize,
+} from "./playgroundCursorTrailConfig";
 
 describe("updateCursorTrail", () => {
-  it("tracks the pointer directly without spring lag", () => {
+  it("emits fading samples while the pointer moves", () => {
     const state = createCursorTrailState();
     setCursorTrailTarget(state, { x: 0, y: 0 });
     updateCursorTrail(state, 16);
-
-    setCursorTrailTarget(state, { x: 80, y: 0 });
-    const active = updateCursorTrail(state, 48);
-
-    expect(state.current).toEqual({ x: 80, y: 0 });
-    expect(active.changed).toBe(true);
-    expect(active.samples.length).toBeGreaterThan(1);
-  });
-
-  it("emits a dense trail and lets particles drift slowly after pointer movement", () => {
-    const state = createCursorTrailState();
-    setCursorTrailTarget(state, { x: 0, y: 0 });
-    updateCursorTrail(state, 16);
-
-    setCursorTrailTarget(state, { x: 80, y: 0 });
-    const active = updateCursorTrail(state, 48);
-    const next = updateCursorTrail(state, 48);
-
-    expect(active.changed).toBe(true);
-    expect(active.samples.length).toBeGreaterThanOrEqual(24);
-    expect(
-      next.samples.some(
-        (sample, index) => sample.x !== active.samples[index]?.x || sample.y !== active.samples[index]?.y,
-      ),
-    ).toBe(true);
-    const maxDrift = Math.max(
-      ...next.samples.map((sample, index) => {
-        const previous = active.samples[index] ?? sample;
-        return Math.hypot(sample.x - previous.x, sample.y - previous.y);
-      }),
-    );
-    expect(maxDrift).toBeLessThan(18);
-  });
-
-  it("reports clear rebuild frames after visible drops expire", () => {
-    const state = createCursorTrailState();
-    setCursorTrailTarget(state, { x: 2, y: 2 });
-
+    setCursorTrailTarget(state, { x: 40, y: 0 });
     const active = updateCursorTrail(state, 16);
-    expect(active.changed).toBe(true);
-    expect(active.samples.length).toBeGreaterThan(0);
 
+    expect(active.samples.length).toBeGreaterThan(0);
+    expect(active.changed).toBe(true);
+  });
+
+  it("keeps rebuilding briefly after the last particle expires", () => {
+    const shortLifeConfig = {
+      ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+      particleLifeMs: 20,
+      particleLifeJitterMs: 0,
+    };
+    const state = createCursorTrailState();
+    setCursorTrailTarget(state, { x: 0, y: 0 });
+    updateCursorTrail(state, 16, shortLifeConfig);
     setCursorTrailTarget(state, null);
-    let clearing = updateCursorTrail(state, 48);
-    for (let i = 0; i < 30 && clearing.samples.length > 0; i++) {
-      clearing = updateCursorTrail(state, 48);
+
+    let clearingFrames = 0;
+    for (let i = 0; i < 20; i++) {
+      const result = updateCursorTrail(state, 16, shortLifeConfig);
+      if (result.changed && result.samples.length === 0) {
+        clearingFrames++;
+      }
     }
 
-    expect(clearing.changed).toBe(true);
-    expect(clearing.samples).toEqual([]);
+    expect(clearingFrames).toBeGreaterThan(0);
   });
 });
 
-describe("buildCursorTrailVisuals", () => {
-  it("does not draw a direct overlay because stripes should visualize the trail", () => {
-    const visuals = buildCursorTrailVisuals([{ x: 2, y: 2, alpha: 0.5, radius: 10 }]);
+describe("applyCursorTrailToEffectPixels", () => {
+  it("brightens the center and pushes neighboring pixels on a low-res buffer", () => {
+    const displayWidth = 40;
+    const displayHeight = 20;
+    const effect = resolveCursorTrailEffectSize(displayWidth, displayHeight, DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG, 8, 8);
+    const pixels = new Uint8ClampedArray(effect.width * effect.height * 4);
+    for (let y = 0; y < effect.height; y++) {
+      for (let x = 0; x < effect.width; x++) {
+        const idx = (y * effect.width + x) * 4;
+        const value = 60 + x * 8 + y * 4;
+        pixels[idx] = value;
+        pixels[idx + 1] = value;
+        pixels[idx + 2] = value;
+        pixels[idx + 3] = 255;
+      }
+    }
 
-    expect(visuals).toEqual([]);
+    const bounds = applyCursorTrailToEffectPixels(
+      pixels,
+      effect.width,
+      effect.height,
+      displayWidth,
+      displayHeight,
+      [{ x: 20, y: 10, pushX: 20, pushY: 10, alpha: 1, radius: 6 }],
+      {
+        ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+        pushRadiusScale: 3,
+        pushStrengthPx: 6,
+      },
+    );
+
+    const centerX = Math.round((20 * effect.width) / displayWidth);
+    const centerY = Math.round((10 * effect.height) / displayHeight);
+    const centerIdx = (centerY * effect.width + centerX) * 4;
+    const centerValue = 60 + centerX * 8 + centerY * 4;
+    expect(bounds).not.toBeNull();
+    expect(pixels[centerIdx]).toBeGreaterThan(centerValue);
+  });
+});
+
+describe("buildDisplayFrameWithCursorTrail", () => {
+  it("upscales the composited low-res buffer to display size", () => {
+    const displayWidth = 16;
+    const displayHeight = 8;
+    const effect = { width: 4, height: 2 };
+    const base = new Uint8ClampedArray(effect.width * effect.height * 4);
+    base.fill(0);
+    for (let i = 3; i < base.length; i += 4) {
+      base[i] = 255;
+    }
+
+    const { data } = buildDisplayFrameWithCursorTrail(
+      base,
+      effect.width,
+      effect.height,
+      displayWidth,
+      displayHeight,
+      [{ x: 8, y: 4, pushX: 8, pushY: 4, alpha: 1, radius: 4 }],
+      DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+    );
+
+    expect(data.length).toBe(displayWidth * displayHeight * 4);
+    expect(data[3]).toBe(255);
+  });
+});
+
+describe("downsamplePixelsNearest", () => {
+  it("maps display pixels into a smaller effect buffer", () => {
+    const source = new Uint8ClampedArray(4 * 4 * 4);
+    source.fill(0);
+    source[(0 * 4 + 2) * 4] = 200;
+    const target = new Uint8ClampedArray(2 * 2 * 4);
+    downsamplePixelsNearest(source, 4, 4, target, 2, 2);
+    expect(target.some((value, index) => index % 4 === 0 && value === 200)).toBe(true);
+  });
+});
+
+describe("resolveCursorTrailRebuildBounds", () => {
+  it("merges current and previous bounds for dissolve cleanup", () => {
+    const current = { dirtyMinX: 10, dirtyMinY: 10, dirtyMaxX: 20, dirtyMaxY: 20 };
+    const previous = { dirtyMinX: 0, dirtyMinY: 0, dirtyMaxX: 15, dirtyMaxY: 15 };
+    expect(resolveCursorTrailRebuildBounds(current, previous)).toEqual({
+      dirtyMinX: 0,
+      dirtyMinY: 0,
+      dirtyMaxX: 20,
+      dirtyMaxY: 20,
+    });
   });
 });

@@ -58,6 +58,12 @@ import {
   type PlaygroundWaveRevealPosition,
 } from "./playgroundRevealConfig";
 import {
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  isDefaultPlaygroundCursorTrailConfig,
+  normalizePlaygroundCursorTrailConfig,
+  type PlaygroundCursorTrailConfig,
+} from "./playgroundCursorTrailConfig";
+import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_STRIPES,
   detectUploadMediaKind,
@@ -115,6 +121,8 @@ export type PlaygroundPersistedConfig = {
   flames?: PlaygroundFlamesConfig;
   /** Reveal animation settings. Omitted = defaults. */
   reveal?: PlaygroundRevealConfig;
+  /** Cursor trail settings. Omitted = defaults. */
+  cursorTrail?: PlaygroundCursorTrailConfig;
   /** Ordered luminosity stripes (color + start-from + width). */
   stripes: Stripe[];
 };
@@ -151,6 +159,10 @@ export function resolvePersistedFlamesConfig(config: PlaygroundPersistedConfig):
 
 export function resolvePersistedRevealConfig(config: PlaygroundPersistedConfig): PlaygroundRevealConfig {
   return normalizePlaygroundRevealConfig(config.reveal);
+}
+
+export function resolvePersistedCursorTrailConfig(config: PlaygroundPersistedConfig): PlaygroundCursorTrailConfig {
+  return normalizePlaygroundCursorTrailConfig(config.cursorTrail);
 }
 
 export type PlaygroundUploadMeta = {
@@ -220,6 +232,8 @@ export type PlaygroundStateWire = {
   fl?: FlamesWire;
   /** v7+: reveal animation settings. */
   rv?: RevealWire;
+  /** v7+: cursor trail settings. */
+  ct?: CursorTrailWire;
   /** @deprecated v1/v2 distance-model fields, migrated to default stripes. */
   c?: string;
   t?: number;
@@ -268,6 +282,30 @@ type FlamesWire = {
   ms?: number;
   me?: number;
   mp?: number;
+};
+
+type CursorTrailWire = {
+  en?: boolean;
+  pr?: number;
+  pa?: number;
+  life?: number;
+  lj?: number;
+  vs?: number;
+  pv?: number;
+  tv?: number;
+  damp?: number;
+  sp?: number;
+  emit?: number;
+  smn?: number;
+  smx?: number;
+  spin?: number;
+  drn?: number;
+  drl?: number;
+  or?: number;
+  pd?: number;
+  pl?: number;
+  pw?: number;
+  ts?: number;
 };
 
 type RevealWire = {
@@ -428,6 +466,68 @@ function wireToFlames(raw: unknown): PlaygroundFlamesConfig | undefined {
     edgeMaskStart: wire.ms,
     edgeMaskEnd: wire.me,
     edgeMaskPower: wire.mp,
+  });
+}
+
+function cursorTrailToWire(config: PlaygroundCursorTrailConfig): CursorTrailWire | undefined {
+  const normalized = normalizePlaygroundCursorTrailConfig(config);
+  if (isDefaultPlaygroundCursorTrailConfig(normalized)) {
+    return undefined;
+  }
+  const base = DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG;
+  const wire: CursorTrailWire = {};
+  if (normalized.enabled !== base.enabled) wire.en = normalized.enabled;
+  if (normalized.particleRadius !== base.particleRadius) wire.pr = normalized.particleRadius;
+  if (normalized.particleAlpha !== base.particleAlpha) wire.pa = normalized.particleAlpha;
+  if (normalized.particleLifeMs !== base.particleLifeMs) wire.life = normalized.particleLifeMs;
+  if (normalized.particleLifeJitterMs !== base.particleLifeJitterMs) wire.lj = normalized.particleLifeJitterMs;
+  if (normalized.emitterVelocitySmoothing !== base.emitterVelocitySmoothing)
+    wire.vs = normalized.emitterVelocitySmoothing;
+  if (normalized.particleVelocityScale !== base.particleVelocityScale) wire.pv = normalized.particleVelocityScale;
+  if (normalized.particleTangentVelocity !== base.particleTangentVelocity) wire.tv = normalized.particleTangentVelocity;
+  if (normalized.particleDamping !== base.particleDamping) wire.damp = normalized.particleDamping;
+  if (normalized.particleSpacingPx !== base.particleSpacingPx) wire.sp = normalized.particleSpacingPx;
+  if (normalized.maxEmitPerTick !== base.maxEmitPerTick) wire.emit = normalized.maxEmitPerTick;
+  if (normalized.spreadMinPx !== base.spreadMinPx) wire.smn = normalized.spreadMinPx;
+  if (normalized.spreadMaxPx !== base.spreadMaxPx) wire.smx = normalized.spreadMaxPx;
+  if (normalized.spinStrength !== base.spinStrength) wire.spin = normalized.spinStrength;
+  if (normalized.densityRadiusMinScale !== base.densityRadiusMinScale) wire.drn = normalized.densityRadiusMinScale;
+  if (normalized.densityRadiusLifeScale !== base.densityRadiusLifeScale) wire.drl = normalized.densityRadiusLifeScale;
+  if (normalized.pushRadiusScale !== base.pushRadiusScale) wire.or = normalized.pushRadiusScale;
+  if (normalized.pushStrengthPx !== base.pushStrengthPx) wire.pd = normalized.pushStrengthPx;
+  if (normalized.pushLagPx !== base.pushLagPx) wire.pl = normalized.pushLagPx;
+  if (normalized.pushWobblePx !== base.pushWobblePx) wire.pw = normalized.pushWobblePx;
+  if (normalized.trailScale !== base.trailScale) wire.ts = normalized.trailScale;
+  return wire;
+}
+
+function wireToCursorTrail(raw: unknown): PlaygroundCursorTrailConfig | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const wire = raw as CursorTrailWire;
+  return normalizePlaygroundCursorTrailConfig({
+    enabled: wire.en,
+    particleRadius: wire.pr,
+    particleAlpha: wire.pa,
+    particleLifeMs: wire.life,
+    particleLifeJitterMs: wire.lj,
+    emitterVelocitySmoothing: wire.vs,
+    particleVelocityScale: wire.pv,
+    particleTangentVelocity: wire.tv,
+    particleDamping: wire.damp,
+    particleSpacingPx: wire.sp,
+    maxEmitPerTick: wire.emit,
+    spreadMinPx: wire.smn,
+    spreadMaxPx: wire.smx,
+    spinStrength: wire.spin,
+    densityRadiusMinScale: wire.drn,
+    densityRadiusLifeScale: wire.drl,
+    pushRadiusScale: wire.or,
+    pushStrengthPx: wire.pd,
+    pushLagPx: wire.pl,
+    pushWobblePx: wire.pw,
+    trailScale: wire.ts,
   });
 }
 
@@ -786,6 +886,8 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const flamesWire = flamesToWire(flames);
   const reveal = resolvePersistedRevealConfig(config);
   const revealWire = revealToWire(reveal);
+  const cursorTrail = resolvePersistedCursorTrailConfig(config);
+  const cursorTrailWire = cursorTrailToWire(cursorTrail);
   const wire: PlaygroundStateWire = {
     v: revealWire
       ? 7
@@ -834,6 +936,10 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   }
   if (revealWire) {
     wire.rv = revealWire;
+    wire.v = 7;
+  }
+  if (cursorTrailWire) {
+    wire.ct = cursorTrailWire;
     wire.v = 7;
   }
   const gapsActive =
@@ -1011,6 +1117,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const sourceTransform = wireToSourceTransform(parsed.xf);
   const flames = wireToFlames(parsed.fl);
   const reveal = wireToReveal(parsed.rv);
+  const cursorTrail = wireToCursorTrail(parsed.ct);
 
   return {
     duotoneEnabled: parsed.d,
@@ -1040,6 +1147,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     grid: grid && !isDefaultPlaygroundGridConfig(grid) ? grid : undefined,
     flames: flames && !isDefaultPlaygroundFlamesConfig(flames) ? flames : undefined,
     reveal: reveal && !isDefaultPlaygroundRevealConfig(reveal) ? reveal : undefined,
+    cursorTrail: cursorTrail && !isDefaultPlaygroundCursorTrailConfig(cursorTrail) ? cursorTrail : undefined,
     stripes,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     displayHeight: h && Number.isFinite(h) && h > 0 ? Math.round(h) : undefined,

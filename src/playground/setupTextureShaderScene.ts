@@ -1,4 +1,4 @@
-import { Graphics, Sprite, Texture, VideoSource } from "pixi.js";
+import { Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
 import type { Ticker } from "../components/pixi";
 import { BlockGridTexture } from "./blockGridTexture";
@@ -41,11 +41,19 @@ import type { PlaygroundRevealState } from "./playgroundReveal";
 import type { TextureLuminanceSettings } from "./colorWhiteness";
 import { createSourceTextureFilter } from "./sourceTextureFilter";
 import {
-  applyCursorTrailToPixels,
-  buildCursorTrailVisuals,
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  normalizePlaygroundCursorTrailConfig,
+  resolveCursorTrailEffectSize,
+  type PlaygroundCursorTrailConfig,
+} from "./playgroundCursorTrailConfig";
+import {
+  buildDisplayFrameWithCursorTrail,
   createCursorTrailState,
+  downsamplePixelsNearest,
+  resolveCursorTrailRebuildBounds,
   setCursorTrailTarget,
   updateCursorTrail,
+  type CursorTrailPixelBounds,
   type CursorTrailState,
 } from "./cursorTrail";
 
@@ -89,6 +97,9 @@ const DEFAULT_REVEAL_CONFIG_REF: RefObject<PlaygroundRevealConfig> = { current: 
 const DEFAULT_REVEAL_STATE_REF: RefObject<PlaygroundRevealState> = { current: { progress: 1 } };
 const DEFAULT_REVEAL_PLAYBACK_REF: RefObject<PlaygroundRevealPlayback> = {
   current: { replayKey: 0, startedAtMs: 0 },
+};
+const DEFAULT_CURSOR_TRAIL_CONFIG_REF: RefObject<PlaygroundCursorTrailConfig> = {
+  current: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
 };
 export type PlaygroundDisplaySize = { width: number; height: number };
 
@@ -256,14 +267,6 @@ function attachCursorTrailEvents(
   };
 }
 
-function syncCursorTrailLayer(layer: Graphics, samples: ReturnType<typeof updateCursorTrail>["samples"]): void {
-  layer.clear();
-  for (const visual of buildCursorTrailVisuals(samples)) {
-    layer.circle(visual.x, visual.y, visual.radius);
-    layer.fill({ color: visual.color, alpha: visual.alpha });
-  }
-}
-
 function runDuotoneTick(params: {
   app: Parameters<Ticker>[0]["app"];
   sprite: Sprite;
@@ -289,7 +292,7 @@ function runDuotoneTick(params: {
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
   atlas: ReturnType<typeof buildStripeLetterAtlas>;
-  cursorTrailLayer: Graphics;
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>;
   cursorTrailState: CursorTrailState;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
   syncVisual: () => void;
@@ -320,7 +323,7 @@ function runDuotoneTick(params: {
     sourceTransformRef,
     gridConfigRef,
     display,
-    cursorTrailLayer,
+    cursorTrailConfigRef,
     cursorTrailState,
     exportStateRef,
     syncVisual,
@@ -352,6 +355,11 @@ function runDuotoneTick(params: {
   let lastLetterCharset = gridConfigRef.current.letterCharset;
   let lastLetterRatio = gridConfigRef.current.letterRatio;
   let lastRevealReplayKey = revealPlaybackRef.current.replayKey;
+  let cachedEffectBase: Uint8ClampedArray | null = null;
+  let cachedEffectBaseKey = "";
+  let workingEffectPixels: Uint8ClampedArray | null = null;
+  let displayFramePixels: Uint8ClampedArray | null = null;
+  let previousTrailPixelBounds: CursorTrailPixelBounds | null = null;
 
   const applyStructuralChanges = (gridConfig: PlaygroundGridConfig) => {
     const eff = effectivePlaygroundCellSize(gridConfig);
@@ -412,16 +420,16 @@ function runDuotoneTick(params: {
   const dispose = () => {
     blockGridTexture.destroy();
     flamesOverlay?.destroy();
-    cursorTrailLayer.destroy();
     letterLayer.destroy();
     destroyStripeLetterAtlas(atlas);
   };
 
   const tick = () => {
     const now = performance.now();
-    const trail = updateCursorTrail(cursorTrailState, now - lastTrailTickMs);
+    const cursorTrailConfig = normalizePlaygroundCursorTrailConfig(cursorTrailConfigRef.current);
+    const trailDtMs = now - lastTrailTickMs;
     lastTrailTickMs = now;
-    syncCursorTrailLayer(cursorTrailLayer, trail.samples);
+    const trail = updateCursorTrail(cursorTrailState, trailDtMs, cursorTrailConfig);
     syncVisual();
     sourceTextureFilter.syncAdjustments({
       ...textureAdjustmentsRef.current,
@@ -504,25 +512,112 @@ function runDuotoneTick(params: {
       luminanceSettings: textureLuminanceSettingsRef.current,
     });
     const colorsChanged = colorsKey !== lastColorsKey;
-    const timeChanged = shouldSample() || (flamesState != null && flamesConfig.enabled) || revealProgress < 1;
-    const trailChanged = trail.changed;
-    const needsSample = timeChanged || colorsChanged || trailChanged || !hasBuiltGrid || pendingFullResample;
+    const revealActive = revealProgress < 1;
+    const trailSamplingEnabled = cursorTrailConfig.enabled && !revealActive;
+    const trailChanged = trailSamplingEnabled && trail.changed;
+    const timeChanged = shouldSample() || (flamesState != null && flamesConfig.enabled) || revealActive;
+    const needsBaseFrame = timeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
 
     if (colorsChanged) {
       stripeFilter.syncColors(colors, preferP3Ref.current);
       lastColorsKey = colorsKey;
       pendingFullResample = true;
       pendingColorsResample = true;
-    }
-
-    const frame = needsSample ? sampleFrame() : null;
-    if (frame) {
-      // Cursor density must be part of the sampled pixels before stripe cells are rebuilt.
-      applyCursorTrailToPixels(frame.data, display.width, display.height, trail.samples);
-      onSampled?.();
+      cachedEffectBase = null;
+      cachedEffectBaseKey = "";
+      previousTrailPixelBounds = null;
     }
 
     const gridConfig = gridConfigRef.current;
+    const effectiveCell = effectivePlaygroundCellSize(gridConfig);
+    const effectSize = resolveCursorTrailEffectSize(
+      display.width,
+      display.height,
+      cursorTrailConfig,
+      effectiveCell.width,
+      effectiveCell.height,
+    );
+    const effectPixelCount = effectSize.width * effectSize.height * 4;
+    const displayPixelCount = display.width * display.height * 4;
+    const frameCacheKey = `${display.width}x${display.height}:${colorsKey}:${effectSize.width}x${effectSize.height}`;
+
+    if (needsBaseFrame) {
+      const sampled = sampleFrame();
+      if (sampled) {
+        if (!cachedEffectBase || cachedEffectBase.length !== effectPixelCount) {
+          cachedEffectBase = new Uint8ClampedArray(effectPixelCount);
+        }
+        downsamplePixelsNearest(
+          sampled.data,
+          display.width,
+          display.height,
+          cachedEffectBase,
+          effectSize.width,
+          effectSize.height,
+        );
+        cachedEffectBaseKey = frameCacheKey;
+      } else {
+        cachedEffectBase = null;
+        cachedEffectBaseKey = "";
+      }
+    }
+
+    let frame: ImageData | null = null;
+    let currentTrailBounds: CursorTrailPixelBounds | null = null;
+    const needsTrailFrame =
+      trailChanged &&
+      cachedEffectBase &&
+      cachedEffectBaseKey === frameCacheKey &&
+      (trailSamplingEnabled || trail.samples.length === 0);
+    const trailSamples = trailSamplingEnabled ? trail.samples : [];
+
+    if (needsTrailFrame && cachedEffectBase) {
+      if (!workingEffectPixels || workingEffectPixels.length !== effectPixelCount) {
+        workingEffectPixels = new Uint8ClampedArray(effectPixelCount);
+      }
+      if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
+        displayFramePixels = new Uint8ClampedArray(displayPixelCount);
+      }
+      const composited = buildDisplayFrameWithCursorTrail(
+        cachedEffectBase,
+        effectSize.width,
+        effectSize.height,
+        display.width,
+        display.height,
+        trailSamples,
+        cursorTrailConfig,
+        workingEffectPixels,
+        displayFramePixels,
+      );
+      currentTrailBounds = composited.bounds;
+      frame = new ImageData(Uint8ClampedArray.from(composited.data), display.width, display.height);
+      onSampled?.();
+    } else if (needsBaseFrame && cachedEffectBase && cachedEffectBaseKey === frameCacheKey) {
+      if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
+        displayFramePixels = new Uint8ClampedArray(displayPixelCount);
+      }
+      buildDisplayFrameWithCursorTrail(
+        cachedEffectBase,
+        effectSize.width,
+        effectSize.height,
+        display.width,
+        display.height,
+        [],
+        cursorTrailConfig,
+        workingEffectPixels ?? undefined,
+        displayFramePixels,
+      );
+      frame = new ImageData(Uint8ClampedArray.from(displayFramePixels), display.width, display.height);
+      onSampled?.();
+    } else if (needsBaseFrame) {
+      frame = sampleFrame();
+      if (frame) {
+        onSampled?.();
+      }
+    }
+
+    previousTrailPixelBounds = resolveCursorTrailRebuildBounds(currentTrailBounds, previousTrailPixelBounds);
+
     const fullResampleReady = now - lastFullResampleMs >= PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS;
     const shouldRebuildGrid =
       frame &&
@@ -536,13 +631,12 @@ function runDuotoneTick(params: {
       pendingFullResample = false;
       lastGridUpdateMs = now;
       lastFullResampleMs = now;
-      // Re-bucketing thresholds change the index mapping; snap rather than smear.
       if (pendingColorsResample) {
         gridState = {};
         pendingColorsResample = false;
+        previousTrailPixelBounds = null;
       }
 
-      const effectiveCell = effectivePlaygroundCellSize(gridConfig);
       const built = buildPlaygroundBlockGrid(
         frame,
         display.width,
@@ -634,6 +728,7 @@ export function createTextureSceneTicker(
   revealConfigRef: RefObject<PlaygroundRevealConfig> = DEFAULT_REVEAL_CONFIG_REF,
   revealStateRef: RefObject<PlaygroundRevealState> = DEFAULT_REVEAL_STATE_REF,
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = DEFAULT_REVEAL_PLAYBACK_REF,
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = DEFAULT_CURSOR_TRAIL_CONFIG_REF,
 ): Ticker {
   if (source.kind === "image") {
     return createImageSceneTicker(
@@ -655,6 +750,7 @@ export function createTextureSceneTicker(
       revealConfigRef,
       revealStateRef,
       revealPlaybackRef,
+      cursorTrailConfigRef,
       exportStateRef,
     );
   }
@@ -678,6 +774,7 @@ export function createTextureSceneTicker(
     revealConfigRef,
     revealStateRef,
     revealPlaybackRef,
+    cursorTrailConfigRef,
     exportStateRef,
   );
 }
@@ -701,6 +798,7 @@ function createImageSceneTicker(
   revealConfigRef: RefObject<PlaygroundRevealConfig>,
   revealStateRef: RefObject<PlaygroundRevealState>,
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -746,10 +844,6 @@ function createImageSceneTicker(
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
     const cursorTrailState = createCursorTrailState();
-    const cursorTrailLayer = new Graphics();
-    cursorTrailLayer.zIndex = 1000;
-    app.stage.sortableChildren = true;
-    app.stage.addChild(cursorTrailLayer);
     const detachCursorTrailEvents = attachCursorTrailEvents(app.canvas as HTMLCanvasElement, display, cursorTrailState);
 
     const { tick: renderTick, dispose } = runDuotoneTick({
@@ -777,7 +871,7 @@ function createImageSceneTicker(
       display,
       blockGridTexture,
       atlas,
-      cursorTrailLayer,
+      cursorTrailConfigRef,
       cursorTrailState,
       exportStateRef,
       syncVisual: () =>
@@ -822,6 +916,7 @@ function createVideoSceneTickerInternal(
   revealConfigRef: RefObject<PlaygroundRevealConfig>,
   revealStateRef: RefObject<PlaygroundRevealState>,
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -872,10 +967,6 @@ function createVideoSceneTickerInternal(
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
     const cursorTrailState = createCursorTrailState();
-    const cursorTrailLayer = new Graphics();
-    cursorTrailLayer.zIndex = 1000;
-    app.stage.sortableChildren = true;
-    app.stage.addChild(cursorTrailLayer);
     const detachCursorTrailEvents = attachCursorTrailEvents(app.canvas as HTMLCanvasElement, display, cursorTrailState);
 
     let lastSampledTime = -1;
@@ -905,7 +996,7 @@ function createVideoSceneTickerInternal(
       display,
       blockGridTexture,
       atlas,
-      cursorTrailLayer,
+      cursorTrailConfigRef,
       cursorTrailState,
       exportStateRef,
       syncVisual: () =>

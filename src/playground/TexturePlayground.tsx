@@ -19,6 +19,7 @@ import {
   resolvePersistedGridConfig,
   resolvePersistedFlamesConfig,
   resolvePersistedRevealConfig,
+  resolvePersistedCursorTrailConfig,
   resolvePersistedSourceTransform,
   resolvePersistedTextureAdjustments,
   resolvePersistedTextureLuminanceSettings,
@@ -105,6 +106,12 @@ import {
   type PlaygroundRevealConfig,
   type PlaygroundWaveRevealConfig,
 } from "./playgroundRevealConfig";
+import {
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  isDefaultPlaygroundCursorTrailConfig,
+  normalizePlaygroundCursorTrailConfig,
+  type PlaygroundCursorTrailConfig,
+} from "./playgroundCursorTrailConfig";
 import type { PlaygroundRevealState } from "./playgroundReveal";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
@@ -115,10 +122,7 @@ import {
   type Stripe,
   type StripeColors,
 } from "./stripeColors";
-import {
-  applyCanvasBackgroundCss,
-  DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
-} from "./canvasBackgroundCss";
+import { applyCanvasBackgroundCss, DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import {
   DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
   DEFAULT_TEXTURE_LUMINANCE_MODE,
@@ -128,10 +132,7 @@ import {
   type TextureLuminanceSettings,
 } from "./colorWhiteness";
 import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
-import {
-  PLAYGROUND_BUTTON_ROW_CLASS,
-  PLAYGROUND_SHELL_CLASS,
-} from "./playgroundUi";
+import { PLAYGROUND_BUTTON_ROW_CLASS, PLAYGROUND_SHELL_CLASS } from "./playgroundUi";
 
 /** True when the stripe list differs from DEFAULT_STRIPES (ignoring ids). */
 function stripesMatchDefault(stripes: readonly Stripe[]): boolean {
@@ -272,6 +273,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     grid: resolvePersistedGridConfig(config),
     flames: resolvePersistedFlamesConfig(config),
     reveal: resolvePersistedRevealConfig(config),
+    cursorTrail: resolvePersistedCursorTrailConfig(config),
     stripes: config.stripes.map((stripe) => ({ ...stripe })),
   };
 }
@@ -325,6 +327,7 @@ export function TexturePlayground() {
   const [gridConfig, setGridConfig] = useState<PlaygroundGridConfig>(appliedInitial.grid);
   const [flamesConfig, setFlamesConfig] = useState<PlaygroundFlamesConfig>(appliedInitial.flames);
   const [revealConfig, setRevealConfig] = useState<PlaygroundRevealConfig>(appliedInitial.reveal);
+  const [cursorTrailConfig, setCursorTrailConfig] = useState<PlaygroundCursorTrailConfig>(appliedInitial.cursorTrail);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
   const [importFeedback, setImportFeedback] = useState<"idle" | "imported" | "failed">("idle");
@@ -353,10 +356,12 @@ export function TexturePlayground() {
   const gridConfigRef = useRef<PlaygroundGridConfig>(gridConfig);
   const flamesConfigRef = useRef<PlaygroundFlamesConfig>(flamesConfig);
   const revealConfigRef = useRef<PlaygroundRevealConfig>(revealConfig);
+  const cursorTrailConfigRef = useRef<PlaygroundCursorTrailConfig>(cursorTrailConfig);
   // Set during render so a scene rebuild (sceneKey change) reads fresh structural values.
   gridConfigRef.current = gridConfig;
   flamesConfigRef.current = flamesConfig;
   revealConfigRef.current = revealConfig;
+  cursorTrailConfigRef.current = cursorTrailConfig;
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
   const stripesEnabledRef = useRef(stripesEnabled);
@@ -494,6 +499,7 @@ export function TexturePlayground() {
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
       reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
+      cursorTrail: isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig) ? undefined : cursorTrailConfig,
       stripes,
     };
     schedulePersistedConfig(selectedTextureId, config);
@@ -515,6 +521,7 @@ export function TexturePlayground() {
     gridConfig,
     flamesConfig,
     revealConfig,
+    cursorTrailConfig,
     stripes,
   ]);
 
@@ -555,7 +562,9 @@ export function TexturePlayground() {
       setGridConfig(next.grid);
       setFlamesConfig(next.flames);
       setRevealConfig(next.reveal);
+      setCursorTrailConfig(next.cursorTrail);
       revealConfigRef.current = next.reveal;
+      cursorTrailConfigRef.current = next.cursorTrail;
       replayReveal();
       setStripes(next.stripes);
     },
@@ -641,6 +650,10 @@ export function TexturePlayground() {
 
   const throttledSetFlamesConfig = useThrottledCallback((next: PlaygroundFlamesConfig) => {
     setFlamesConfig(next);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetCursorTrailConfig = useThrottledCallback((next: PlaygroundCursorTrailConfig) => {
+    setCursorTrailConfig(next);
   }, PLAYGROUND_SCRUB_COMMIT_MS);
 
   const throttledSetRevealConfig = useThrottledCallback((next: PlaygroundRevealConfig) => {
@@ -771,6 +784,26 @@ export function TexturePlayground() {
     flamesConfigRef.current = { ...DEFAULT_PLAYGROUND_FLAMES_CONFIG };
     flamesStateRef.current = createPlaygroundFlamesState();
     setFlamesConfig({ ...DEFAULT_PLAYGROUND_FLAMES_CONFIG });
+  }, []);
+
+  const updateCursorTrailConfigLive = useCallback(
+    (patch: Partial<PlaygroundCursorTrailConfig>) => {
+      const next = normalizePlaygroundCursorTrailConfig({ ...cursorTrailConfigRef.current, ...patch });
+      cursorTrailConfigRef.current = next;
+      throttledSetCursorTrailConfig(next);
+    },
+    [throttledSetCursorTrailConfig],
+  );
+
+  const updateCursorTrailConfig = useCallback((patch: Partial<PlaygroundCursorTrailConfig>) => {
+    const next = normalizePlaygroundCursorTrailConfig({ ...cursorTrailConfigRef.current, ...patch });
+    cursorTrailConfigRef.current = next;
+    setCursorTrailConfig(next);
+  }, []);
+
+  const resetCursorTrail = useCallback(() => {
+    cursorTrailConfigRef.current = { ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG };
+    setCursorTrailConfig({ ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG });
   }, []);
 
   const updateRevealConfigLive = useCallback(
@@ -990,6 +1023,7 @@ export function TexturePlayground() {
   const backgroundCssActive = normalizePlaygroundBackgroundCss(backgroundCss) !== undefined;
   const backgroundModified = backgroundCssActive || backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR;
   const flamesModified = !isDefaultPlaygroundFlamesConfig(flamesConfig);
+  const cursorTrailModified = !isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig);
   const revealModified = !isDefaultPlaygroundRevealConfig(revealConfig);
   const textureToneModified =
     textureAdjustments.brightness !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.brightness ||
@@ -1210,10 +1244,10 @@ export function TexturePlayground() {
         revealConfigRef,
         revealStateRef,
         revealPlaybackRef,
+        cursorTrailConfigRef,
       ),
     ];
-  }, [loadState, displayWidth, displayHeight, displaySize, flamesStateRef, flamesConfigRef]);
-
+  }, [loadState, displayWidth, displayHeight, displaySize, flamesStateRef, flamesConfigRef, cursorTrailConfigRef]);
 
   const onUploadFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1580,7 +1614,9 @@ export function TexturePlayground() {
     lettersModified: lettersSectionModified,
     stripes,
     stripesEnabled,
+    textureLuminanceSettings,
     onStripesEnabledChange: setStripesEnabled,
+    onTextureLuminanceSettingsChange: updateTextureLuminanceSettings,
     onStripeColorChange,
     onStripeStartFromCommit,
     onStripeWidthCommit,
@@ -1607,6 +1643,18 @@ export function TexturePlayground() {
     onFlamesLiveChange: updateFlamesConfigLive,
     onResetFlames: resetFlames,
     flamesModified,
+    cursorTrailConfig,
+    onCursorTrailChange: updateCursorTrailConfig,
+    onCursorTrailLiveChange: updateCursorTrailConfigLive,
+    onResetCursorTrail: resetCursorTrail,
+    cursorTrailModified,
+    revealConfig,
+    onRevealChange: updateRevealConfig,
+    onRevealWaveLiveChange: updateRevealWaveLive,
+    onRevealRandomColumnsLiveChange: updateRevealRandomColumnsLive,
+    onResetReveal: resetReveal,
+    onReplayReveal: replayReveal,
+    revealModified,
     onResetGeneral: resetGeneral,
     generalModified,
   };
@@ -1629,9 +1677,7 @@ export function TexturePlayground() {
           loadError={loadState.message}
           fallbackTextureId={fallbackEntry?.id ?? null}
           fallbackTextureLabel={fallbackEntry?.label ?? null}
-          onLoadFallbackTexture={
-            fallbackEntry ? () => onTextureSelect(fallbackEntry.id) : undefined
-          }
+          onLoadFallbackTexture={fallbackEntry ? () => onTextureSelect(fallbackEntry.id) : undefined}
         />
       </div>
     );

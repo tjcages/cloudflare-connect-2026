@@ -1,3 +1,9 @@
+import {
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  normalizePlaygroundCursorTrailConfig,
+  type PlaygroundCursorTrailConfig,
+} from "./playgroundCursorTrailConfig";
+
 export type CursorTrailPoint = {
   x: number;
   y: number;
@@ -6,10 +12,15 @@ export type CursorTrailPoint = {
 export type CursorTrailSample = CursorTrailPoint & {
   alpha: number;
   radius: number;
+  pushX: number;
+  pushY: number;
 };
 
-export type CursorTrailVisual = CursorTrailSample & {
-  color: number;
+export type CursorTrailPixelBounds = {
+  dirtyMinX: number;
+  dirtyMinY: number;
+  dirtyMaxX: number;
+  dirtyMaxY: number;
 };
 
 type CursorTrailDrop = CursorTrailPoint & {
@@ -34,37 +45,19 @@ export type CursorTrailState = {
   nextSeed: number;
 };
 
-const BASE_PARTICLE_RADIUS = 13;
-const BASE_PARTICLE_ALPHA = 0.42;
-const PARTICLE_LIFE_MS = 860;
 const CLEAR_REBUILD_FRAMES = 10;
-const EMITTER_VELOCITY_SMOOTHING = 0.35;
-const PARTICLE_VELOCITY_SCALE = 0.18;
-const PARTICLE_TANGENT_VELOCITY = 0.9;
-const PARTICLE_DAMPING = 0.96;
-const PARTICLE_SPACING_PX = 3;
-const MAX_EMIT_PER_TICK = 30;
-const MAX_PARTICLES = 560;
 const MAX_DT_MS = 48;
-const MAGNETIC_RADIUS_SCALE = 2.25;
-const MAGNETIC_DISPLACEMENT_PX = 18;
-const MAGNETIC_OCCLUSION_RADIUS_SCALE = 1.35;
-const MAGNETIC_OCCLUSION_ALPHA = 0.72;
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-function blendChannel(channel: number, alpha: number): number {
-  return Math.round(channel + (255 - channel) * alpha);
-}
-
-function darkenChannel(channel: number, alpha: number): number {
-  return Math.round(channel * (1 - alpha));
-}
-
 function clampInt(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+function blendChannel(channel: number, alpha: number): number {
+  return Math.round(channel + (255 - channel) * alpha);
 }
 
 function falloff(distance: number, radius: number): number {
@@ -80,28 +73,86 @@ function seededUnit(seed: number, salt: number): number {
   return x - Math.floor(x);
 }
 
+function mergeBounds(
+  bounds: CursorTrailPixelBounds,
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+): CursorTrailPixelBounds {
+  return {
+    dirtyMinX: Math.min(bounds.dirtyMinX, minX),
+    dirtyMinY: Math.min(bounds.dirtyMinY, minY),
+    dirtyMaxX: Math.max(bounds.dirtyMaxX, maxX),
+    dirtyMaxY: Math.max(bounds.dirtyMaxY, maxY),
+  };
+}
+
+export function mergeCursorTrailPixelBounds(
+  a: CursorTrailPixelBounds,
+  b: CursorTrailPixelBounds,
+): CursorTrailPixelBounds {
+  return {
+    dirtyMinX: Math.min(a.dirtyMinX, b.dirtyMinX),
+    dirtyMinY: Math.min(a.dirtyMinY, b.dirtyMinY),
+    dirtyMaxX: Math.max(a.dirtyMaxX, b.dirtyMaxX),
+    dirtyMaxY: Math.max(a.dirtyMaxY, b.dirtyMaxY),
+  };
+}
+
+export function resolveCursorTrailRebuildBounds(
+  current: CursorTrailPixelBounds | null,
+  previous: CursorTrailPixelBounds | null,
+): CursorTrailPixelBounds | null {
+  if (current && previous) {
+    return mergeCursorTrailPixelBounds(current, previous);
+  }
+  return current ?? previous;
+}
+
+function pushCenterForDrop(drop: CursorTrailDrop, config: PlaygroundCursorTrailConfig): CursorTrailPoint {
+  const speed = Math.hypot(drop.vx, drop.vy);
+  const lagX = speed > 0 ? (-drop.vx / speed) * config.pushLagPx : 0;
+  const lagY = speed > 0 ? (-drop.vy / speed) * config.pushLagPx : 0;
+  const wobbleX = Math.cos(drop.seed * 1.37 + drop.ageMs * 0.01) * config.pushWobblePx;
+  const wobbleY = Math.sin(drop.seed * 1.91 + drop.ageMs * 0.012) * config.pushWobblePx;
+  return {
+    x: drop.x + lagX + wobbleX,
+    y: drop.y + lagY + wobbleY,
+  };
+}
+
 function emitParticle(
   state: CursorTrailState,
   point: CursorTrailPoint,
   emitterVelocity: CursorTrailPoint,
   speed: number,
+  config: PlaygroundCursorTrailConfig,
 ): CursorTrailDrop {
   const seed = state.nextSeed++;
   const angle = seededUnit(seed, 1) * Math.PI * 2;
-  const spread = 1.5 + seededUnit(seed, 2) * 7;
+  const spread = config.spreadMinPx + seededUnit(seed, 2) * (config.spreadMaxPx - config.spreadMinPx);
   const tangent = speed > 0 ? { x: -emitterVelocity.y / speed, y: emitterVelocity.x / speed } : { x: 0, y: 0 };
   const side = seededUnit(seed, 3) * 2 - 1;
   return {
     x: point.x + Math.cos(angle) * spread,
     y: point.y + Math.sin(angle) * spread,
-    vx: emitterVelocity.x * PARTICLE_VELOCITY_SCALE + tangent.x * side * PARTICLE_TANGENT_VELOCITY,
-    vy: emitterVelocity.y * PARTICLE_VELOCITY_SCALE + tangent.y * side * PARTICLE_TANGENT_VELOCITY,
+    vx: emitterVelocity.x * config.particleVelocityScale + tangent.x * side * config.particleTangentVelocity,
+    vy: emitterVelocity.y * config.particleVelocityScale + tangent.y * side * config.particleTangentVelocity,
     ageMs: 0,
-    lifeMs: PARTICLE_LIFE_MS + seededUnit(seed, 4) * 260,
-    radius: BASE_PARTICLE_RADIUS * (0.75 + seededUnit(seed, 5) * 0.8),
-    spin: (seededUnit(seed, 6) * 2 - 1) * 0.024,
+    lifeMs: config.particleLifeMs + seededUnit(seed, 4) * config.particleLifeJitterMs,
+    radius: config.particleRadius * (0.75 + seededUnit(seed, 5) * 0.8),
+    spin: (seededUnit(seed, 6) * 2 - 1) * config.spinStrength,
     seed,
   };
+}
+
+function displayToEffectCoord(value: number, displaySize: number, effectSize: number): number {
+  return displaySize > 0 ? (value * effectSize) / displaySize : value;
+}
+
+function effectToDisplayCoord(value: number, effectSize: number, displaySize: number): number {
+  return effectSize > 0 ? (value * displaySize) / effectSize : value;
 }
 
 export function createCursorTrailState(): CursorTrailState {
@@ -136,10 +187,25 @@ export function setCursorTrailTarget(state: CursorTrailState, target: CursorTrai
 export function updateCursorTrail(
   state: CursorTrailState,
   dtMs: number,
+  rawConfig: PlaygroundCursorTrailConfig = DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
 ): { samples: CursorTrailSample[]; changed: boolean } {
+  const config = normalizePlaygroundCursorTrailConfig(rawConfig);
   const dt = Math.max(0, Math.min(MAX_DT_MS, dtMs || 16.67));
   const hadDrops = state.drops.length > 0;
   const dtScale = dt / 16.67;
+
+  if (!config.enabled) {
+    state.drops = [];
+    state.emitRemainder = 0;
+    if (hadDrops) {
+      state.clearFramesRemaining = CLEAR_REBUILD_FRAMES;
+    }
+    const isClearing = state.clearFramesRemaining > 0;
+    if (isClearing) {
+      state.clearFramesRemaining--;
+    }
+    return { samples: [], changed: isClearing };
+  }
 
   if (state.target) {
     const previousCurrent = state.current;
@@ -149,14 +215,17 @@ export function updateCursorTrail(
       y: (state.current.y - previousCurrent.y) / dtScale,
     };
     state.velocity = {
-      x: state.velocity.x * EMITTER_VELOCITY_SMOOTHING + rawVelocity.x * (1 - EMITTER_VELOCITY_SMOOTHING),
-      y: state.velocity.y * EMITTER_VELOCITY_SMOOTHING + rawVelocity.y * (1 - EMITTER_VELOCITY_SMOOTHING),
+      x: state.velocity.x * config.emitterVelocitySmoothing + rawVelocity.x * (1 - config.emitterVelocitySmoothing),
+      y: state.velocity.y * config.emitterVelocitySmoothing + rawVelocity.y * (1 - config.emitterVelocitySmoothing),
     };
     const speed = Math.hypot(state.velocity.x, state.velocity.y);
     const previous = state.lastEmit ?? state.current;
     const distance = Math.hypot(state.current.x - previous.x, state.current.y - previous.y);
-    const emitCount = Math.min(MAX_EMIT_PER_TICK, Math.floor(distance / PARTICLE_SPACING_PX + state.emitRemainder) + 1);
-    state.emitRemainder = (distance / PARTICLE_SPACING_PX + state.emitRemainder) % 1;
+    const emitCount = Math.min(
+      config.maxEmitPerTick,
+      Math.floor(distance / config.particleSpacingPx + state.emitRemainder) + 1,
+    );
+    state.emitRemainder = (distance / config.particleSpacingPx + state.emitRemainder) % 1;
 
     for (let i = 0; i < emitCount; i++) {
       const t = emitCount <= 1 ? 1 : i / (emitCount - 1);
@@ -164,10 +233,7 @@ export function updateCursorTrail(
         x: previous.x + (state.current.x - previous.x) * t,
         y: previous.y + (state.current.y - previous.y) * t,
       };
-      state.drops.push(emitParticle(state, point, state.velocity, speed));
-    }
-    if (state.drops.length > MAX_PARTICLES) {
-      state.drops.splice(0, state.drops.length - MAX_PARTICLES);
+      state.drops.push(emitParticle(state, point, state.velocity, speed, config));
     }
     state.lastEmit = { ...state.current };
   }
@@ -182,8 +248,8 @@ export function updateCursorTrail(
 
     const life = 1 - ageMs / drop.lifeMs;
     const curl = Math.sin(drop.x * 0.017 + drop.y * 0.013 + drop.seed) * drop.spin * dtScale;
-    const nextVx = (drop.vx - drop.vy * curl) * PARTICLE_DAMPING;
-    const nextVy = (drop.vy + drop.vx * curl) * PARTICLE_DAMPING;
+    const nextVx = (drop.vx - drop.vy * curl) * config.particleDamping;
+    const nextVy = (drop.vy + drop.vx * curl) * config.particleDamping;
     const next = {
       ...drop,
       ageMs,
@@ -192,12 +258,15 @@ export function updateCursorTrail(
       x: drop.x + nextVx * dtScale,
       y: drop.y + nextVy * dtScale,
     };
+    const pushCenter = pushCenterForDrop(next, config);
     nextDrops.push(next);
     samples.push({
       x: next.x,
       y: next.y,
-      radius: next.radius * (0.65 + life * 0.55),
-      alpha: BASE_PARTICLE_ALPHA * life * life,
+      pushX: pushCenter.x,
+      pushY: pushCenter.y,
+      radius: next.radius * (config.densityRadiusMinScale + life * config.densityRadiusLifeScale),
+      alpha: config.particleAlpha * life * life,
     });
   }
   state.drops = nextDrops;
@@ -217,90 +286,177 @@ export function updateCursorTrail(
   };
 }
 
-export function applyCursorTrailToPixels(
-  pixels: Uint8ClampedArray,
-  imageWidth: number,
-  imageHeight: number,
-  samples: readonly CursorTrailSample[],
+export function downsamplePixelsNearest(
+  source: Uint8ClampedArray,
+  sourceWidth: number,
+  sourceHeight: number,
+  target: Uint8ClampedArray,
+  targetWidth: number,
+  targetHeight: number,
 ): void {
-  if (imageWidth <= 0 || imageHeight <= 0 || samples.length === 0) {
-    return;
+  for (let y = 0; y < targetHeight; y++) {
+    const sourceY = Math.min(sourceHeight - 1, Math.floor((y * sourceHeight) / targetHeight));
+    for (let x = 0; x < targetWidth; x++) {
+      const sourceX = Math.min(sourceWidth - 1, Math.floor((x * sourceWidth) / targetWidth));
+      const sourceIdx = (sourceY * sourceWidth + sourceX) * 4;
+      const targetIdx = (y * targetWidth + x) * 4;
+      target[targetIdx] = source[sourceIdx] ?? 0;
+      target[targetIdx + 1] = source[sourceIdx + 1] ?? 0;
+      target[targetIdx + 2] = source[sourceIdx + 2] ?? 0;
+      target[targetIdx + 3] = source[sourceIdx + 3] ?? 255;
+    }
+  }
+}
+
+export function upscalePixelsNearest(
+  source: Uint8ClampedArray,
+  sourceWidth: number,
+  sourceHeight: number,
+  target: Uint8ClampedArray,
+  targetWidth: number,
+  targetHeight: number,
+): void {
+  for (let y = 0; y < targetHeight; y++) {
+    const sourceY = Math.min(sourceHeight - 1, Math.floor((y * sourceHeight) / targetHeight));
+    for (let x = 0; x < targetWidth; x++) {
+      const sourceX = Math.min(sourceWidth - 1, Math.floor((x * sourceWidth) / targetWidth));
+      const sourceIdx = (sourceY * sourceWidth + sourceX) * 4;
+      const targetIdx = (y * targetWidth + x) * 4;
+      target[targetIdx] = source[sourceIdx] ?? 0;
+      target[targetIdx + 1] = source[sourceIdx + 1] ?? 0;
+      target[targetIdx + 2] = source[sourceIdx + 2] ?? 0;
+      target[targetIdx + 3] = source[sourceIdx + 3] ?? 255;
+    }
+  }
+}
+
+export function applyCursorTrailToEffectPixels(
+  pixels: Uint8ClampedArray,
+  effectWidth: number,
+  effectHeight: number,
+  displayWidth: number,
+  displayHeight: number,
+  samples: readonly CursorTrailSample[],
+  rawConfig: PlaygroundCursorTrailConfig = DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+): CursorTrailPixelBounds | null {
+  const config = normalizePlaygroundCursorTrailConfig(rawConfig);
+  if (!config.enabled || effectWidth <= 0 || effectHeight <= 0 || samples.length === 0) {
+    return null;
   }
 
   const source = new Uint8ClampedArray(pixels);
-  const pixelCount = imageWidth * imageHeight;
+  const pixelCount = effectWidth * effectHeight;
   const offsetX = new Float32Array(pixelCount);
   const offsetY = new Float32Array(pixelCount);
 
-  for (const sample of samples) {
-    const radius = Math.max(0, sample.radius * MAGNETIC_RADIUS_SCALE);
-    const alpha = clamp01(sample.alpha);
-    if (radius <= 0 || alpha <= 0) {
-      continue;
-    }
+  let bounds: CursorTrailPixelBounds = {
+    dirtyMinX: displayWidth,
+    dirtyMinY: displayHeight,
+    dirtyMaxX: -1,
+    dirtyMaxY: -1,
+  };
 
-    const minX = Math.max(0, Math.floor(sample.x - radius));
-    const maxX = Math.min(imageWidth - 1, Math.ceil(sample.x + radius));
-    const minY = Math.max(0, Math.floor(sample.y - radius));
-    const maxY = Math.min(imageHeight - 1, Math.ceil(sample.y + radius));
+  const pushScale = config.pushStrengthPx * (effectWidth / Math.max(1, displayWidth));
 
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const dx = x - sample.x;
-        const dy = y - sample.y;
-        const distance = Math.hypot(dx, dy);
-        if (distance <= 0 || distance >= radius) {
-          continue;
+  if (config.pushStrengthPx > 0) {
+    for (const sample of samples) {
+      const alpha = clamp01(sample.alpha);
+      if (alpha <= 0) {
+        continue;
+      }
+
+      const centerX = displayToEffectCoord(sample.pushX, displayWidth, effectWidth);
+      const centerY = displayToEffectCoord(sample.pushY, displayHeight, effectHeight);
+      const pushRadius = Math.max(0, displayToEffectCoord(sample.radius * config.pushRadiusScale, displayWidth, effectWidth));
+      if (pushRadius <= 0) {
+        continue;
+      }
+
+      const minX = Math.max(0, Math.floor(centerX - pushRadius));
+      const maxX = Math.min(effectWidth - 1, Math.ceil(centerX + pushRadius));
+      const minY = Math.max(0, Math.floor(centerY - pushRadius));
+      const maxY = Math.min(effectHeight - 1, Math.ceil(centerY + pushRadius));
+
+      bounds = mergeBounds(
+        bounds,
+        effectToDisplayCoord(minX, effectWidth, displayWidth),
+        effectToDisplayCoord(maxX, effectWidth, displayWidth),
+        effectToDisplayCoord(minY, effectHeight, displayHeight),
+        effectToDisplayCoord(maxY, effectHeight, displayHeight),
+      );
+
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
+          const dx = x - centerX;
+          const dy = y - centerY;
+          const distance = Math.hypot(dx, dy);
+          if (distance <= 0 || distance >= pushRadius) {
+            continue;
+          }
+
+          const force = pushScale * alpha * falloff(distance, pushRadius);
+          const idx = y * effectWidth + x;
+          offsetX[idx] += (dx / distance) * force;
+          offsetY[idx] += (dy / distance) * force;
         }
-
-        const force = MAGNETIC_DISPLACEMENT_PX * alpha * falloff(distance, radius);
-        const idx = y * imageWidth + x;
-        offsetX[idx] += (dx / distance) * force;
-        offsetY[idx] += (dy / distance) * force;
       }
     }
-  }
 
-  for (let idx = 0; idx < pixelCount; idx++) {
-    const dx = offsetX[idx] ?? 0;
-    const dy = offsetY[idx] ?? 0;
-    if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
-      continue;
+    for (let idx = 0; idx < pixelCount; idx++) {
+      const dx = offsetX[idx] ?? 0;
+      const dy = offsetY[idx] ?? 0;
+      if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
+        continue;
+      }
+
+      const x = idx % effectWidth;
+      const y = Math.floor(idx / effectWidth);
+      const sourceX = clampInt(x - dx, 0, effectWidth - 1);
+      const sourceY = clampInt(y - dy, 0, effectHeight - 1);
+      const sourceIdx = (sourceY * effectWidth + sourceX) * 4;
+      const pixelIdx = idx * 4;
+      pixels[pixelIdx] = source[sourceIdx] ?? 0;
+      pixels[pixelIdx + 1] = source[sourceIdx + 1] ?? 0;
+      pixels[pixelIdx + 2] = source[sourceIdx + 2] ?? 0;
+      pixels[pixelIdx + 3] = source[sourceIdx + 3] ?? 255;
     }
-
-    const x = idx % imageWidth;
-    const y = Math.floor(idx / imageWidth);
-    const sourceX = clampInt(x - dx, 0, imageWidth - 1);
-    const sourceY = clampInt(y - dy, 0, imageHeight - 1);
-    const sourceIdx = (sourceY * imageWidth + sourceX) * 4;
-    const pixelIdx = idx * 4;
-    pixels[pixelIdx] = source[sourceIdx] ?? 0;
-    pixels[pixelIdx + 1] = source[sourceIdx + 1] ?? 0;
-    pixels[pixelIdx + 2] = source[sourceIdx + 2] ?? 0;
-    pixels[pixelIdx + 3] = source[sourceIdx + 3] ?? 255;
   }
 
   for (const sample of samples) {
-    const radius = Math.max(0, sample.radius);
     const alpha = clamp01(sample.alpha);
-    if (radius <= 0 || alpha <= 0) {
+    if (alpha <= 0) {
       continue;
     }
 
-    const minX = Math.max(0, Math.floor(sample.x - radius));
-    const maxX = Math.min(imageWidth - 1, Math.ceil(sample.x + radius));
-    const minY = Math.max(0, Math.floor(sample.y - radius));
-    const maxY = Math.min(imageHeight - 1, Math.ceil(sample.y + radius));
+    const centerX = displayToEffectCoord(sample.x, displayWidth, effectWidth);
+    const centerY = displayToEffectCoord(sample.y, displayHeight, effectHeight);
+    const whiteRadius = Math.max(1, displayToEffectCoord(sample.radius, displayWidth, effectWidth));
+    if (whiteRadius <= 0) {
+      continue;
+    }
+
+    const minX = Math.max(0, Math.floor(centerX - whiteRadius));
+    const maxX = Math.min(effectWidth - 1, Math.ceil(centerX + whiteRadius));
+    const minY = Math.max(0, Math.floor(centerY - whiteRadius));
+    const maxY = Math.min(effectHeight - 1, Math.ceil(centerY + whiteRadius));
+
+    bounds = mergeBounds(
+      bounds,
+      effectToDisplayCoord(minX, effectWidth, displayWidth),
+      effectToDisplayCoord(maxX, effectWidth, displayWidth),
+      effectToDisplayCoord(minY, effectHeight, displayHeight),
+      effectToDisplayCoord(maxY, effectHeight, displayHeight),
+    );
 
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
-        const distance = Math.hypot(x - sample.x, y - sample.y);
-        const pixelAlpha = alpha * falloff(distance, radius);
+        const distance = Math.hypot(x - centerX, y - centerY);
+        const pixelAlpha = alpha * falloff(distance, whiteRadius);
         if (pixelAlpha <= 0) {
           continue;
         }
 
-        const idx = (y * imageWidth + x) * 4;
+        const idx = (y * effectWidth + x) * 4;
         pixels[idx] = blendChannel(pixels[idx] ?? 0, pixelAlpha);
         pixels[idx + 1] = blendChannel(pixels[idx + 1] ?? 0, pixelAlpha);
         pixels[idx + 2] = blendChannel(pixels[idx + 2] ?? 0, pixelAlpha);
@@ -308,36 +464,39 @@ export function applyCursorTrailToPixels(
     }
   }
 
-  for (const sample of samples) {
-    const radius = Math.max(0, sample.radius * MAGNETIC_OCCLUSION_RADIUS_SCALE);
-    const alpha = clamp01(sample.alpha);
-    if (radius <= 0 || alpha <= 0) {
-      continue;
-    }
-
-    const minX = Math.max(0, Math.floor(sample.x - radius));
-    const maxX = Math.min(imageWidth - 1, Math.ceil(sample.x + radius));
-    const minY = Math.max(0, Math.floor(sample.y - radius));
-    const maxY = Math.min(imageHeight - 1, Math.ceil(sample.y + radius));
-
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const distance = Math.hypot(x - sample.x, y - sample.y);
-        const pixelAlpha = MAGNETIC_OCCLUSION_ALPHA * alpha * falloff(distance, radius);
-        if (pixelAlpha <= 0) {
-          continue;
-        }
-
-        const idx = (y * imageWidth + x) * 4;
-        pixels[idx] = darkenChannel(pixels[idx] ?? 0, pixelAlpha);
-        pixels[idx + 1] = darkenChannel(pixels[idx + 1] ?? 0, pixelAlpha);
-        pixels[idx + 2] = darkenChannel(pixels[idx + 2] ?? 0, pixelAlpha);
-      }
-    }
-  }
+  return bounds.dirtyMaxX >= 0 ? bounds : null;
 }
 
-export function buildCursorTrailVisuals(samples: readonly CursorTrailSample[]): CursorTrailVisual[] {
-  void samples;
-  return [];
+export function buildDisplayFrameWithCursorTrail(
+  cachedEffectBase: Uint8ClampedArray,
+  effectWidth: number,
+  effectHeight: number,
+  displayWidth: number,
+  displayHeight: number,
+  samples: readonly CursorTrailSample[],
+  config: PlaygroundCursorTrailConfig,
+  workingEffect?: Uint8ClampedArray,
+  displayPixels?: Uint8ClampedArray,
+): { data: Uint8ClampedArray; bounds: CursorTrailPixelBounds | null } {
+  const effect = workingEffect ?? new Uint8ClampedArray(cachedEffectBase);
+  if (effect !== cachedEffectBase) {
+    effect.set(cachedEffectBase);
+  }
+
+  const bounds =
+    samples.length > 0
+      ? applyCursorTrailToEffectPixels(
+          effect,
+          effectWidth,
+          effectHeight,
+          displayWidth,
+          displayHeight,
+          samples,
+          config,
+        )
+      : null;
+
+  const output = displayPixels ?? new Uint8ClampedArray(displayWidth * displayHeight * 4);
+  upscalePixelsNearest(effect, effectWidth, effectHeight, output, displayWidth, displayHeight);
+  return { data: output, bounds };
 }

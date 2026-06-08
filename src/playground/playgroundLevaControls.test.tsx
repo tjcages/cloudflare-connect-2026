@@ -5,11 +5,17 @@ import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { PlaygroundLevaControls } from "./playgroundLevaControls";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
+import { DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG } from "./playgroundCursorTrailConfig";
+import { DEFAULT_PLAYGROUND_REVEAL_CONFIG } from "./playgroundRevealConfig";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
 import { cloneDefaultStripes } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
+import {
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  DEFAULT_TEXTURE_LUMINANCE_MODE,
+} from "./colorWhiteness";
 import type { PlaygroundTextureId } from "./playgroundTextures";
 
 const DEFAULT_TEXTURE_ID = "sample-video" as PlaygroundTextureId;
@@ -76,7 +82,12 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       lettersModified={false}
       stripes={cloneDefaultStripes()}
       stripesEnabled
+      textureLuminanceSettings={{
+        mode: DEFAULT_TEXTURE_LUMINANCE_MODE,
+        backgroundColor: DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+      }}
       onStripesEnabledChange={() => {}}
+      onTextureLuminanceSettingsChange={() => {}}
       onStripeColorChange={() => {}}
       onStripeStartFromCommit={() => {}}
       onStripeWidthCommit={() => {}}
@@ -103,6 +114,18 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onFlamesLiveChange={() => {}}
       onResetFlames={() => {}}
       flamesModified={false}
+      cursorTrailConfig={DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG}
+      onCursorTrailChange={() => {}}
+      onCursorTrailLiveChange={() => {}}
+      onResetCursorTrail={() => {}}
+      cursorTrailModified={false}
+      revealConfig={DEFAULT_PLAYGROUND_REVEAL_CONFIG}
+      onRevealChange={() => {}}
+      onRevealWaveLiveChange={() => {}}
+      onRevealRandomColumnsLiveChange={() => {}}
+      onResetReveal={() => {}}
+      onReplayReveal={() => {}}
+      revealModified={false}
       onResetGeneral={() => {}}
       generalModified={false}
       {...overrides}
@@ -123,5 +146,12 @@ describe("PlaygroundLevaControls", () => {
     const checkbox = screen.getByLabelText("Shader enabled");
     checkbox.click();
     expect(onDuotoneEnabledChange).toHaveBeenCalledWith(false);
+  });
+
+  it("renders reveal controls in the Leva panel", () => {
+    renderLevaControls();
+
+    expect(screen.getByText("Reveal")).toBeInTheDocument();
+    expect(screen.getByLabelText("Preset")).toBeInTheDocument();
   });
 });
