@@ -32,6 +32,8 @@ export type PlaygroundTextureAdjustments = {
   sharpenAmount: number;
 };
 
+export type TextureLuminanceMode = "luminance" | "colors";
+
 export type PlaygroundSourceTransform = {
   fit: PlaygroundSourceFit;
   zoom: number;
@@ -78,6 +80,10 @@ export type AsciiVideoConfig = {
   /** Positive texture luminance gamma. Omitted when 1. */
   textureGamma?: number;
   textureAdjustments?: PlaygroundTextureAdjustments;
+  /** How sampled texture pixels become 0–1 stripe thresholds. Omitted = luminance. */
+  textureLuminanceMode?: TextureLuminanceMode;
+  /** Texture background color used by color-distance luminance mode. Omitted = black. */
+  textureLuminanceBackgroundColor?: number;
   sourceTransform?: PlaygroundSourceTransform;
   reveal?: PlaygroundRevealConfig;
   /** Active cell ratio 0–1. 0 = off. */

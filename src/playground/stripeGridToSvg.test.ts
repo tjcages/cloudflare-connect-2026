@@ -26,6 +26,20 @@ describe("stripeGridToSvg", () => {
     expect(svg).toContain("@supports");
   });
 
+  it("can fill stripes from per-cell sampled colors", () => {
+    const colors = buildStripeColors();
+    const grid: BlockGrid = {
+      cols: 1,
+      rows: 1,
+      indices: new Uint8Array([colors.stripes.length]),
+      colors: new Uint8Array([255, 0, 0]),
+    };
+    const svg = stripeGridToSvg(grid, colors, 7, 7, { useCellColors: true });
+
+    expect(svg).toContain('fill="#ff0000"');
+    expect(svg).not.toContain(`class="fill-stripe-${colors.stripes.length}"`);
+  });
+
   it("embeds rasterized Berkeley glyphs as reusable SVG symbols", () => {
     const cols = 20;
     const rows = 15;

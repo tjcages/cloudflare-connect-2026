@@ -25,7 +25,12 @@ import {
   resolvePersistedSparkleWidthActivePercent,
   resolvePersistedSparkleWidthSpeed,
 } from "./runtime/playgroundWidthShuffle";
-import { DEFAULT_TEXTURE_GAMMA } from "./runtime/colorWhiteness";
+import {
+  DEFAULT_TEXTURE_GAMMA,
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  normalizeTextureLuminanceBackgroundColor,
+  normalizeTextureLuminanceMode,
+} from "./runtime/colorWhiteness";
 import { configToStripeColors, defaultConfig, type AsciiVideoProps, type StripeColors } from "./types";
 import { normalizePlaygroundTextureAdjustments } from "./runtime/playgroundTextureAdjustments";
 import {
@@ -117,6 +122,12 @@ export function AsciiVideo({
       gamma: config.textureAdjustments?.gamma ?? config.textureGamma ?? DEFAULT_TEXTURE_GAMMA,
     }),
   );
+  const textureLuminanceSettingsRef = useRef({
+    mode: normalizeTextureLuminanceMode(config.textureLuminanceMode),
+    backgroundColor: normalizeTextureLuminanceBackgroundColor(
+      config.textureLuminanceBackgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+    ),
+  });
   const sourceTransformRef = useRef(normalizePlaygroundSourceTransform(config.sourceTransform));
   const revealConfigRef = useRef(normalizePlaygroundRevealConfig(config.reveal));
   const revealStateRef = useRef<PlaygroundRevealState>({ progress: 0 });
@@ -144,6 +155,12 @@ export function AsciiVideo({
     ...config.textureAdjustments,
     gamma: config.textureAdjustments?.gamma ?? config.textureGamma ?? DEFAULT_TEXTURE_GAMMA,
   });
+  textureLuminanceSettingsRef.current = {
+    mode: normalizeTextureLuminanceMode(config.textureLuminanceMode),
+    backgroundColor: normalizeTextureLuminanceBackgroundColor(
+      config.textureLuminanceBackgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+    ),
+  };
   sourceTransformRef.current = normalizePlaygroundSourceTransform(
     config.sourceTransform ?? DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
   );
@@ -213,6 +230,7 @@ export function AsciiVideo({
         autoplayRef,
         undefined,
         textureAdjustmentsRef,
+        textureLuminanceSettingsRef,
         sourceTransformRef,
         revealConfigRef,
         revealStateRef,

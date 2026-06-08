@@ -1,10 +1,15 @@
 import { DEFAULT_TEXTURE_GAMMA } from "../../playground/colorWhiteness";
+import {
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  DEFAULT_TEXTURE_LUMINANCE_MODE,
+} from "../../playground/colorWhiteness";
 import type { PlaygroundPersistedConfig } from "../../playground/playgroundPersistence";
 import {
   resolvePersistedSourceTransform,
   resolvePersistedTextureAdjustments,
   resolvePersistedTextureGamma,
   resolvePersistedRevealConfig,
+  resolvePersistedTextureLuminanceSettings,
 } from "../../playground/playgroundPersistence";
 import {
   DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
@@ -110,6 +115,8 @@ export type AsciiVideoConfigWire = {
   stripesEnabled?: boolean;
   textureGamma?: number;
   textureAdjustments?: typeof DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS;
+  textureLuminanceMode?: typeof DEFAULT_TEXTURE_LUMINANCE_MODE | "colors";
+  textureLuminanceBackgroundColor?: number;
   sourceTransform?: typeof DEFAULT_PLAYGROUND_SOURCE_TRANSFORM;
   reveal?: typeof DEFAULT_PLAYGROUND_REVEAL_CONFIG;
   sparkleGapsActivePercent?: number;
@@ -122,12 +129,19 @@ export type AsciiVideoConfigWire = {
 export function snapshotToAsciiVideoConfig(snapshot: ReactExportSnapshot): AsciiVideoConfigWire {
   const textureGamma = resolvePersistedTextureGamma(snapshot.config);
   const textureAdjustments = resolvePersistedTextureAdjustments(snapshot.config);
+  const textureLuminanceSettings = resolvePersistedTextureLuminanceSettings(snapshot.config);
   const sourceTransform = resolvePersistedSourceTransform(snapshot.config);
   return {
     duotoneEnabled: snapshot.config.duotoneEnabled,
     stripesEnabled: snapshot.config.stripesEnabled === false ? false : undefined,
     textureGamma: textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
     textureAdjustments: !isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? textureAdjustments : undefined,
+    textureLuminanceMode:
+      textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE ? textureLuminanceSettings.mode : undefined,
+    textureLuminanceBackgroundColor:
+      textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
+        ? textureLuminanceSettings.backgroundColor
+        : undefined,
     sourceTransform: !isDefaultPlaygroundSourceTransform(sourceTransform) ? sourceTransform : undefined,
     reveal: !isDefaultPlaygroundRevealConfig(resolvePersistedRevealConfig(snapshot.config))
       ? resolvePersistedRevealConfig(snapshot.config)

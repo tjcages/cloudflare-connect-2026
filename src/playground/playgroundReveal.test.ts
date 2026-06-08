@@ -14,6 +14,7 @@ describe("playground wave reveal", () => {
       cols: 3,
       rows: 1,
       luma: new Uint8Array([50, 150, 250]),
+      colors: new Uint8Array(9),
     };
 
     const revealed = applyPlaygroundRevealToLumaGrid(grid, {
@@ -39,6 +40,7 @@ describe("playground wave reveal", () => {
       cols: 2,
       rows: 2,
       luma: new Uint8Array([20, 80, 160, 240]),
+      colors: new Uint8Array(12),
     };
 
     const revealed = applyPlaygroundRevealToLumaGrid(grid, {
@@ -108,6 +110,7 @@ describe("playground random-columns reveal", () => {
       cols: 2,
       rows: 4,
       luma: new Uint8Array([10, 20, 30, 40, 50, 60, 70, 80]),
+      colors: new Uint8Array(24),
     };
     const config = {
       ...DEFAULT_PLAYGROUND_REVEAL_CONFIG,
@@ -138,6 +141,7 @@ describe("playground random-columns reveal", () => {
       cols: 2,
       rows: 4,
       luma: new Uint8Array([10, 20, 30, 40, 50, 60, 70, 80]),
+      colors: new Uint8Array(24),
     };
     const config = {
       ...DEFAULT_PLAYGROUND_REVEAL_CONFIG,

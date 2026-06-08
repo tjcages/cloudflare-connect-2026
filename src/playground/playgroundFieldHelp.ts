@@ -9,6 +9,8 @@ export const PLAYGROUND_FIELD_HELP = {
   stripeColor: "Set the stripe color.",
   stripeThreshold: "Set where this stripe begins in luminance.",
   stripeWidth: "Set how wide this stripe band is.",
+  textureLuminanceMode: "Choose classic luminance or distance from a selected texture background color.",
+  textureBackgroundColor: "Color treated as zero luminance when Colors mode is selected.",
   sparkleGapsActiveRatio: "Control how often gap sparkle is active.",
   sparkleGapsSpeed: "Control how fast gap sparkle pulses.",
   sparkleWidthActiveRatio: "Control how often width sparkle is active.",

@@ -326,3 +326,202 @@ html.playground-app #root {
   max-width: min(48rem, 100%);
   width: 100%;
 }
+
+/* ── Playground Leva sidebar (white panel with soft gray controls) ── */
+.playground-leva-panel {
+  --leva-panel-bg: #ffffff;
+  --leva-surface: #eeeeee;
+  --leva-surface-hover: #e6e6e6;
+  --leva-border: #f3f3f3;
+  --leva-border-subtle: #f3f3f3;
+  --leva-text: #525252;
+  --leva-text-muted: #737373;
+  --leva-text-faint: #a3a3a3;
+  --leva-accent: #8a8a8a;
+  --leva-radius: 4px;
+  color: var(--leva-text-muted);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.playground-leva-panel,
+.playground-leva-panel > div:last-child {
+  background-color: var(--leva-panel-bg);
+}
+
+.playground-leva-panel > div:last-child {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  width: 100% !important;
+  max-height: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
+}
+
+/* Folder section titles */
+.playground-leva-panel [class*="StyledTitle"],
+.playground-leva-panel div:has(> svg + span),
+.playground-leva-panel [class*="dosbYs"] {
+  color: var(--leva-text);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Row labels */
+.playground-leva-panel label[for] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  color: var(--leva-text-muted);
+}
+
+.playground-leva-panel div:has(> div > label[for]) {
+  grid-template-columns: minmax(0, 1fr) 155px !important;
+  column-gap: 8px !important;
+}
+
+/* Buttons — filled gray chips, no extra outline. */
+.playground-leva-panel button,
+.playground-leva-panel button:not(:disabled),
+.playground-leva-panel button:disabled {
+  color: var(--leva-text) !important;
+  background-color: var(--leva-surface) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--leva-radius);
+  box-shadow: none !important;
+}
+
+.playground-leva-panel button:not(:disabled) {
+  cursor: pointer;
+}
+
+.playground-leva-panel button:not(:disabled):hover {
+  color: var(--leva-text) !important;
+  background-color: var(--leva-surface-hover) !important;
+  border-color: transparent !important;
+}
+
+.playground-leva-panel button:disabled {
+  cursor: not-allowed;
+  color: var(--leva-text-faint) !important;
+  background-color: #f5f5f5 !important;
+  border-color: transparent !important;
+  opacity: 1;
+}
+
+/* Import JSON: full-width textarea without a side label. */
+.playground-leva-panel div:has(> div textarea):not(:has(textarea)) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+}
+
+.playground-leva-panel div:has(> div textarea):not(:has(textarea)) > div:first-child {
+  display: none;
+}
+
+/* Status feedback rows: value only, no side label. */
+.playground-leva-panel
+  div:has(> div:nth-child(2):not(:has(*)):not(:has(input)):not(:has(textarea)):not(:has(select))) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+}
+
+.playground-leva-panel
+  div:has(> div:nth-child(2):not(:has(*)):not(:has(input)):not(:has(textarea)):not(:has(select)))
+  > div:first-child {
+  display: none;
+}
+
+/* Inputs — filled gray surfaces, no competing outline. */
+.playground-leva-panel div:has(> input:not([type="range"]):not([type="checkbox"])),
+.playground-leva-panel div:has(> textarea),
+.playground-leva-panel div:has(> select),
+.playground-leva-panel [class*="kXfPOu"]:not([class*="textArea"]) {
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  background-color: var(--leva-surface) !important;
+  border-radius: var(--leva-radius);
+}
+
+.playground-leva-panel select + div {
+  border: 1px solid transparent !important;
+  background-color: var(--leva-surface) !important;
+  box-shadow: none !important;
+  border-radius: var(--leva-radius);
+}
+
+.playground-leva-panel input:not([type="range"]):not([type="checkbox"]),
+.playground-leva-panel textarea,
+.playground-leva-panel select {
+  border: none;
+  background-color: transparent;
+  color: var(--leva-text);
+}
+
+.playground-leva-panel input:not([type="range"]):not([type="checkbox"]) {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+.playground-leva-panel textarea {
+  padding: 8px !important;
+}
+
+/* Color swatches need their own stroke so white values remain visible. */
+.playground-leva-panel div[style^="color: rgb("] {
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6 !important;
+}
+
+/* Checkboxes */
+.playground-leva-panel div:has(> input[type="checkbox"]) {
+  width: fit-content;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+
+.playground-leva-panel input[type="checkbox"] + label {
+  box-shadow: none !important;
+  border: 1px solid var(--leva-border) !important;
+  background-color: transparent !important;
+  border-radius: var(--leva-radius);
+}
+
+.playground-leva-panel input[type="checkbox"]:checked + label {
+  background-color: var(--leva-accent) !important;
+  border-color: transparent !important;
+}
+
+.playground-leva-panel input[type="checkbox"] + label > svg {
+  stroke: #ffffff;
+}
+
+/* Section dividers between root folders */
+.playground-leva-panel > div:last-child > div > div > div > div:not(:first-of-type) {
+  border-top-color: var(--leva-border-subtle) !important;
+}
+
+/* Sliders — transparent outer area, visible inner rail. */
+.playground-leva-panel [class*="hasRange"] [class*="hwSNBG"] {
+  background-color: transparent !important;
+  border-radius: 2px;
+}
+
+.playground-leva-panel [class*="hasRange"] [class*="bbMqub"] {
+  background-color: #eeeeee !important;
+  border-radius: 2px;
+}
+
+.playground-leva-panel [class*="hasRange"] [class*="knrmXZ"] {
+  background-color: #d6d6d6 !important;
+}
+
+.playground-leva-panel [class*="hasRange"] [class*="gUBGce"] {
+  background-color: var(--leva-accent) !important;
+  border-radius: 1px;
+  opacity: 0.9;
+}
