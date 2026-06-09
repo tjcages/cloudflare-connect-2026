@@ -42,7 +42,7 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       sourceHeight={720}
       onDisplayWidthChange={() => {}}
       onDisplayHeightChange={() => {}}
-      matchSourceDisplaySize={() => {}}
+      applyDisplayScale={() => {}}
       onUploadFile={() => {}}
       importText=""
       onImportTextChange={() => {}}
@@ -174,5 +174,21 @@ describe("PlaygroundLevaControls", () => {
 
     fireEvent.change(screen.getByLabelText("Stripe 1 threshold"), { target: { value: "0.2" } });
     expect(onStripeStartFromCommit).toHaveBeenCalledWith(stripes[0]!.id, 0.2);
+  });
+
+  it("renders canvas controls, presets, and workflow above shader folders", () => {
+    renderLevaControls();
+
+    expect(screen.getByTestId("playground-canvas-leva-panel")).toBeInTheDocument();
+    expect(screen.getByLabelText("Width")).toBeInTheDocument();
+    expect(screen.getByLabelText("Height")).toBeInTheDocument();
+    expect(screen.getByTestId("playground-canvas-size-controls")).toBeInTheDocument();
+    expect(screen.getByText("Presets")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1x" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2x" })).toBeInTheDocument();
+    expect(screen.getByTestId("playground-workflow-controls")).toBeInTheDocument();
+    expect(screen.getByTestId("playground-workflow-import-panel")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload texture" })).toBeInTheDocument();
+    expect(screen.queryByText("Workflow")).not.toBeInTheDocument();
   });
 });

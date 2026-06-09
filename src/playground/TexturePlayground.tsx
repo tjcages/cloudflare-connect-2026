@@ -572,13 +572,13 @@ export function TexturePlayground() {
     [replayReveal],
   );
 
-  const matchSourceDisplaySize = useCallback(() => {
+  const applyDisplayScale = useCallback((multiplier: number) => {
     const textureSource: PlaygroundTextureSource | null = videoRef.current
       ? { kind: "video", element: videoRef.current }
       : imageRef.current
         ? { kind: "image", element: imageRef.current }
         : null;
-    if (!textureSource) {
+    if (!textureSource || multiplier <= 0 || !Number.isFinite(multiplier)) {
       return;
     }
     const source = getPlaygroundTextureNativeSize(textureSource);
@@ -587,8 +587,8 @@ export function TexturePlayground() {
     }
     setSourceWidth(source.width);
     setSourceHeight(source.height);
-    setDisplayWidth(source.width);
-    setDisplayHeight(source.height);
+    setDisplayWidth(clampPlaygroundDisplayDimension(source.width * multiplier, source.width));
+    setDisplayHeight(clampPlaygroundDisplayDimension(source.height * multiplier, source.height));
   }, []);
 
   const onTextureSelect = useCallback(
@@ -1575,7 +1575,7 @@ export function TexturePlayground() {
       const fallback = displayHeight > 0 ? displayHeight : sourceHeight || 1;
       setDisplayHeight(clampPlaygroundDisplayDimension(value, fallback));
     },
-    matchSourceDisplaySize,
+    applyDisplayScale,
     onUploadFile,
     importText,
     onImportTextChange: setImportText,
@@ -1685,8 +1685,8 @@ export function TexturePlayground() {
   }
 
   const { textureId } = loadState;
-  // Grid/letter config changes are applied live by the ticker (no remount); only the texture,
-  // media kind, and canvas size require a fresh scene.
+  // Grid/letter config changes are applied live by the ticker. Texture, media kind, and display
+  // size remount Pixi with a fresh canvas (WebGL context cannot be recreated on the same element).
   const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}`;
   const isVideoSource = loadState.kind === "video";
   const exportLabel = exportFeedback === "copied" ? "Copied" : exportFeedback === "failed" ? "Copy failed" : "Copy SVG";

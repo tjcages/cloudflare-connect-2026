@@ -134,25 +134,6 @@ function actionButton(onClick: () => void, disabled = false) {
   return button(onClick, { disabled });
 }
 
-function readOnlyString(value: string, label: string) {
-  return {
-    value,
-    label,
-    disabled: true,
-    editable: false as const,
-  };
-}
-
-function readOnlyStatusValue(value: string) {
-  return {
-    value,
-    label: " ",
-    disabled: true,
-    editable: false as const,
-    render: () => value.length > 0,
-  };
-}
-
 function folderColor(modified: boolean): string | undefined {
   return modified ? "#c45c26" : undefined;
 }
@@ -183,18 +164,93 @@ const REVEAL_PRESET_OPTIONS: Record<string, PlaygroundRevealPreset> = {
   "Random columns": "randomColumns",
 };
 
-export type PlaygroundLevaSnapshot = {
+export type PlaygroundCanvasLevaSnapshot = {
   selectedTextureId: PlaygroundTextureId;
   textureOptions: Record<string, PlaygroundTextureId>;
   displayWidth: number;
   displayHeight: number;
-  importText: string;
-  uploadError: string;
-  importStatus: string;
   workflowDisabled: boolean;
-  matchSourceDisabled: boolean;
-  loadError: string;
-  fallbackTextureAvailable: boolean;
+};
+
+export type PlaygroundCanvasLevaHandlers = {
+  onTextureSelect: (value: PlaygroundTextureId) => void;
+  setDisplayWidth: (value: number) => void;
+  setDisplayHeight: (value: number) => void;
+};
+
+export function buildPlaygroundCanvasLevaSchema(
+  snapshot: PlaygroundCanvasLevaSnapshot,
+  handlers: PlaygroundCanvasLevaHandlers,
+): Record<string, unknown> {
+  const workflowDisabled = snapshot.workflowDisabled;
+
+  return {
+    texture: selectControl(snapshot.selectedTextureId, snapshot.textureOptions, {
+      label: "Texture",
+      hint: PLAYGROUND_FIELD_HELP.texture,
+      disabled: workflowDisabled,
+      onChange: handlers.onTextureSelect,
+    }),
+    canvasWidth: numControl(Math.max(snapshot.displayWidth, 1), 1, PLAYGROUND_DISPLAY_MAX_PX, 1, {
+      label: "Width",
+      hint: PLAYGROUND_FIELD_HELP.canvasWidth,
+      disabled: workflowDisabled,
+      onLive: handlers.setDisplayWidth,
+      onCommit: handlers.setDisplayWidth,
+    }),
+    canvasHeight: numControl(Math.max(snapshot.displayHeight, 1), 1, PLAYGROUND_DISPLAY_MAX_PX, 1, {
+      label: "Height",
+      hint: PLAYGROUND_FIELD_HELP.canvasHeight,
+      disabled: workflowDisabled,
+      onLive: handlers.setDisplayHeight,
+      onCommit: handlers.setDisplayHeight,
+    }),
+  };
+}
+
+export function buildPlaygroundCanvasLevaSyncValues(
+  snapshot: PlaygroundCanvasLevaSnapshot,
+): Record<string, unknown> {
+  return {
+    texture: snapshot.selectedTextureId,
+    canvasWidth: Math.max(snapshot.displayWidth, 1),
+    canvasHeight: Math.max(snapshot.displayHeight, 1),
+  };
+}
+
+export type PlaygroundWorkflowLevaSnapshot = {
+  importText: string;
+  workflowDisabled: boolean;
+};
+
+export type PlaygroundWorkflowLevaHandlers = {
+  setImportText: (value: string) => void;
+};
+
+export function buildPlaygroundWorkflowLevaSchema(
+  snapshot: PlaygroundWorkflowLevaSnapshot,
+  handlers: PlaygroundWorkflowLevaHandlers,
+): Record<string, unknown> {
+  return {
+    importJson: {
+      value: snapshot.importText,
+      label: " ",
+      rows: 4 as const,
+      disabled: snapshot.workflowDisabled,
+      onChange: skipInitialString(handlers.setImportText),
+    },
+  };
+}
+
+export function buildPlaygroundWorkflowLevaSyncValues(
+  snapshot: PlaygroundWorkflowLevaSnapshot,
+): Record<string, unknown> {
+  return {
+    importJson: snapshot.importText,
+  };
+}
+
+export type PlaygroundLevaSnapshot = {
   duotoneEnabled: boolean;
   duotoneControlsDisabled: boolean;
   backgroundCssActive: boolean;
@@ -235,15 +291,6 @@ export type PlaygroundLevaSnapshot = {
 };
 
 export type PlaygroundLevaHandlers = {
-  onTextureSelect: (value: PlaygroundTextureId) => void;
-  setDisplayWidth: (value: number) => void;
-  setDisplayHeight: (value: number) => void;
-  matchSourceDisplaySize: () => void;
-  onUploadClick: () => void;
-  onCopyState: () => void;
-  setImportText: (value: string) => void;
-  onImportState: () => void;
-  loadFallbackTexture: () => void;
   setDuotoneEnabled: (value: boolean) => void;
   resetGeneral: () => void;
   onAdjustmentsLive: (patch: Partial<PlaygroundTextureAdjustments>) => void;
@@ -309,59 +356,7 @@ export function buildPlaygroundLevaSchema(
   const cursorTrailDisabled = snapshot.cursorTrailFieldsDisabled;
   const reveal = snapshot.revealConfig;
 
-  const workflowDisabled = snapshot.workflowDisabled;
-
   return {
-    Workflow: levaFolder(
-      {
-        ...(snapshot.loadError
-          ? {
-              loadError: readOnlyString(snapshot.loadError, "Load error"),
-              "Load fallback texture": actionButton(
-                () => handlers.loadFallbackTexture(),
-                !snapshot.fallbackTextureAvailable || workflowDisabled,
-              ),
-            }
-          : {}),
-        texture: selectControl(snapshot.selectedTextureId, snapshot.textureOptions, {
-          label: "Texture",
-          hint: PLAYGROUND_FIELD_HELP.texture,
-          disabled: workflowDisabled,
-          onChange: handlers.onTextureSelect,
-        }),
-        canvasWidth: numControl(Math.max(snapshot.displayWidth, 1), 1, PLAYGROUND_DISPLAY_MAX_PX, 1, {
-          label: "Width",
-          hint: PLAYGROUND_FIELD_HELP.canvasWidth,
-          disabled: workflowDisabled,
-          onLive: handlers.setDisplayWidth,
-          onCommit: handlers.setDisplayWidth,
-        }),
-        canvasHeight: numControl(Math.max(snapshot.displayHeight, 1), 1, PLAYGROUND_DISPLAY_MAX_PX, 1, {
-          label: "Height",
-          hint: PLAYGROUND_FIELD_HELP.canvasHeight,
-          disabled: workflowDisabled,
-          onLive: handlers.setDisplayHeight,
-          onCommit: handlers.setDisplayHeight,
-        }),
-        "Match source size": actionButton(
-          () => handlers.matchSourceDisplaySize(),
-          snapshot.matchSourceDisabled || workflowDisabled,
-        ),
-        "Upload texture": actionButton(() => handlers.onUploadClick(), workflowDisabled),
-        uploadStatus: readOnlyStatusValue(snapshot.uploadError),
-        "Copy state": actionButton(() => void handlers.onCopyState(), workflowDisabled),
-        importJson: {
-          value: snapshot.importText,
-          label: " ",
-          rows: 4 as const,
-          disabled: workflowDisabled,
-          onChange: skipInitialString(handlers.setImportText),
-        },
-        "Import state": actionButton(() => handlers.onImportState(), workflowDisabled),
-        importStatus: readOnlyStatusValue(snapshot.importStatus),
-      },
-      { order: -100 },
-    ),
     General: levaFolder(
       {
         Reset: resetButton(() => handlers.resetGeneral(), !snapshot.generalModified),
@@ -1373,13 +1368,6 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
   const reveal = snapshot.revealConfig;
 
   return {
-    texture: snapshot.selectedTextureId,
-    canvasWidth: Math.max(snapshot.displayWidth, 1),
-    canvasHeight: Math.max(snapshot.displayHeight, 1),
-    importJson: snapshot.importText,
-    uploadStatus: snapshot.uploadError,
-    importStatus: snapshot.importStatus,
-    loadError: snapshot.loadError,
     shaderEnabled: snapshot.duotoneEnabled,
     preset: reveal.preset,
     revealPosition: reveal.wave.position,

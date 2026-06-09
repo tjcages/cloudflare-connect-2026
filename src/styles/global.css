@@ -338,7 +338,9 @@ html.playground-app #root {
   --leva-text-muted: #737373;
   --leva-text-faint: #a3a3a3;
   --leva-accent: #8a8a8a;
+  --leva-checkbox-border: #d4d4d4;
   --leva-radius: 4px;
+  padding-top: 16px;
   color: var(--leva-text-muted);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -412,14 +414,169 @@ html.playground-app #root {
   opacity: 1;
 }
 
-/* Import JSON: full-width textarea without a side label. */
-.playground-leva-panel div:has(> div textarea):not(:has(textarea)) {
-  grid-template-columns: minmax(0, 1fr) !important;
-  column-gap: 0 !important;
+/* Canvas size + scale shortcuts (React, above Leva). */
+.playground-canvas-size-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 14px 8px;
+  font-size: 11px;
+  line-height: 16.5px;
 }
 
-.playground-leva-panel div:has(> div textarea):not(:has(textarea)) > div:first-child {
-  display: none;
+.playground-canvas-size-row {
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) 155px;
+  column-gap: 8px;
+  min-height: 24px;
+}
+
+.playground-canvas-size-row > div:last-child > div,
+.playground-canvas-scale-controls > div:has(> input) {
+  display: flex !important;
+  align-items: center;
+  min-height: 24px;
+  height: 24px;
+  box-sizing: border-box;
+}
+
+.playground-canvas-size-row select {
+  width: 100%;
+  height: 24px;
+}
+
+.playground-canvas-size-row input:not([type="range"]):not([type="checkbox"]),
+.playground-canvas-scale-controls input:not([type="range"]):not([type="checkbox"]) {
+  width: 100%;
+  height: 22px;
+  line-height: 16.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.playground-canvas-scale-controls input:focus,
+.playground-canvas-scale-controls input:focus-visible {
+  outline: none !important;
+  outline-offset: 0;
+  box-shadow: none !important;
+  border: none;
+}
+
+.playground-canvas-scale-input-group > div:has(> input):focus-within,
+.playground-canvas-scale-controls > div:has(> input):focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
+.playground-canvas-scale-label {
+  color: var(--leva-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playground-canvas-scale-controls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0;
+  min-height: 24px;
+  width: 100%;
+}
+
+.playground-canvas-scale-buttons {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.playground-canvas-scale-controls button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 16.5px;
+}
+
+.playground-canvas-scale-input-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.playground-canvas-scale-input-group > div {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+}
+
+.playground-canvas-scale-suffix {
+  flex: 0 0 auto;
+  color: var(--leva-text-muted);
+  font-size: 11px;
+  line-height: 16.5px;
+}
+
+/* Workflow actions (React, above Leva). */
+.playground-workflow-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 14px 8px;
+  font-size: 11px;
+  line-height: 16.5px;
+  border-bottom: 1px solid var(--leva-border);
+}
+
+.playground-workflow-controls button {
+  width: 100%;
+  height: 24px;
+  font-size: 11px;
+  line-height: 16.5px;
+}
+
+.playground-workflow-leva-panel {
+  width: 100%;
+}
+
+/* Workflow import field: align with full-width buttons (no extra Leva row inset). */
+.playground-workflow-leva-panel [class*="bDGmTT"] {
+  padding-inline: 0 !important;
+}
+
+.playground-workflow-status {
+  margin: 0;
+  color: var(--leva-text-muted);
+}
+
+/* Import JSON: full-width textarea without a side label (label is a single space). */
+.playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+  width: 100% !important;
+}
+
+.playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) > div:first-child {
+  display: none !important;
+}
+
+.playground-leva-panel
+  [class*="grzFYX"]:has(> div:first-child > label[title=" "])
+  > [class*="textArea-true"] {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) textarea {
+  width: 100% !important;
+  box-sizing: border-box;
 }
 
 /* Stripe colors table inside the Stripes Leva folder — single full-width column. */
@@ -581,7 +738,7 @@ html.playground-app #root {
 
 .playground-leva-panel input[type="checkbox"] + label {
   box-shadow: none !important;
-  border: 1px solid var(--leva-border) !important;
+  border: 1px solid var(--leva-checkbox-border) !important;
   background-color: transparent !important;
   border-radius: var(--leva-radius);
 }

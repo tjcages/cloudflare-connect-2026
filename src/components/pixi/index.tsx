@@ -63,11 +63,13 @@ export default function Pixi({
 
   const appRef = useRef<Application | null>(null);
   const initCompleteRef = useRef(false);
+  const tickersRef = useRef(tickers);
+  tickersRef.current = tickers;
   const layoutSizeRef = useRef({ width: layoutWidth, height: layoutHeight });
   layoutSizeRef.current = { width: layoutWidth, height: layoutHeight };
 
   const applyLayoutSize = useCallback((app: Application) => {
-    const resolution = window.devicePixelRatio || 1;
+    const resolution = app.renderer.resolution || window.devicePixelRatio || 1;
     const { width, height } = layoutSizeRef.current;
     app.renderer.resize(width, height, resolution);
     const canvas = app.canvas as HTMLCanvasElement;
@@ -76,7 +78,7 @@ export default function Pixi({
     app.render();
   }, []);
 
-  /* Pixi application and tickers are intentionally mounted once; layout resizes handled below. */
+  /* Pixi application and tickers mount once per canvas element; structural rebuilds use a React key. */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -125,13 +127,21 @@ export default function Pixi({
         return;
       }
 
-      for (const ticker of tickers) {
+      for (const ticker of tickersRef.current) {
+        if (aborted) {
+          break;
+        }
+
         await Promise.resolve(
           ticker({
             app,
             cleanup: (fn) => resourceCleanups.push(fn),
           }),
         );
+      }
+
+      if (aborted) {
+        return;
       }
 
       initCompleteRef.current = true;
@@ -143,11 +153,21 @@ export default function Pixi({
     return () => {
       aborted = true;
       initCompleteRef.current = false;
-      for (const fn of resourceCleanups) {
-        fn();
+
+      app.ticker?.stop?.();
+
+      for (let index = resourceCleanups.length - 1; index >= 0; index -= 1) {
+        try {
+          resourceCleanups[index]();
+        } catch {
+          // Ignore teardown errors during unmount.
+        }
       }
+      resourceCleanups.length = 0;
+
       appRef.current = null;
       onDisposed?.();
+
       if (!isDestroyed(app)) {
         app.destroy(
           {},
@@ -161,7 +181,7 @@ export default function Pixi({
       }
     };
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- single Application mount; tickers are static module list
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initOptions/onPreload are intentionally stable per mount
   }, [applyLayoutSize]);
 
   useEffect(() => {

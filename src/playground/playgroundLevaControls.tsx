@@ -14,12 +14,22 @@ import type { PlaygroundCatalogEntry } from "./playgroundPersistence";
 import type { PlaygroundTextureId } from "./playgroundTextures";
 import type { TextureLuminanceSettings } from "./colorWhiteness";
 import {
+  buildPlaygroundCanvasLevaSchema,
+  buildPlaygroundCanvasLevaSyncValues,
   buildPlaygroundLevaSchema,
   buildPlaygroundLevaSyncValues,
+  buildPlaygroundWorkflowLevaSchema,
+  buildPlaygroundWorkflowLevaSyncValues,
+  type PlaygroundCanvasLevaHandlers,
+  type PlaygroundCanvasLevaSnapshot,
   type PlaygroundLevaHandlers,
   type PlaygroundLevaSnapshot,
+  type PlaygroundWorkflowLevaHandlers,
+  type PlaygroundWorkflowLevaSnapshot,
 } from "./playgroundLevaSchema";
 import { PLAYGROUND_LEVA_LIGHT_THEME } from "./playgroundLevaTheme";
+import { PlaygroundCanvasSizeControls } from "./PlaygroundCanvasSizeControls";
+import { PlaygroundWorkflowControls } from "./PlaygroundWorkflowControls";
 import { PLAYGROUND_LEVA_SIDEBAR_CLASS } from "./playgroundUi";
 import { stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import type { Stripe } from "./stripeColors";
@@ -34,7 +44,7 @@ export type PlaygroundLevaControlsProps = {
   sourceHeight: number;
   onDisplayWidthChange: (value: number) => void;
   onDisplayHeightChange: (value: number) => void;
-  matchSourceDisplaySize: () => void;
+  applyDisplayScale: (multiplier: number) => void;
   onUploadFile: (event: ChangeEvent<HTMLInputElement>) => void;
   importText: string;
   onImportTextChange: (value: string) => void;
@@ -124,6 +134,8 @@ export type PlaygroundLevaControlsProps = {
 };
 
 export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
+  const canvasStore = useCreateStore();
+  const workflowStore = useCreateStore();
   const store = useCreateStore();
   const propsRef = useRef(props);
   propsRef.current = props;
@@ -136,6 +148,32 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     return Object.fromEntries(props.catalog.map((entry) => [entry.label, entry.id]));
   }, [props.catalog, props.selectedTextureId]);
 
+  const workflowSnapshot = useMemo((): PlaygroundWorkflowLevaSnapshot => {
+    const current = propsRef.current;
+    return {
+      importText: current.importText,
+      workflowDisabled: current.workflowDisabled,
+    };
+  }, [props.importText, props.workflowDisabled]);
+
+  const canvasSnapshot = useMemo((): PlaygroundCanvasLevaSnapshot => {
+    const current = propsRef.current;
+    return {
+      selectedTextureId: current.selectedTextureId,
+      textureOptions,
+      displayWidth: current.displayWidth,
+      displayHeight: current.displayHeight,
+      workflowDisabled: current.workflowDisabled,
+    };
+  }, [
+    textureOptions,
+    props.selectedTextureId,
+    props.displayWidth,
+    props.displayHeight,
+    props.workflowDisabled,
+    props.catalog.length,
+  ]);
+
   const snapshot = useMemo((): PlaygroundLevaSnapshot => {
     const current = propsRef.current;
     const stripeControlsDisabled = current.duotoneControlsDisabled || !current.stripesEnabled;
@@ -144,17 +182,6 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     const cursorTrailFieldsDisabled = current.duotoneControlsDisabled || !current.cursorTrailConfig.enabled;
 
     return {
-      selectedTextureId: current.selectedTextureId,
-      textureOptions,
-      displayWidth: current.displayWidth,
-      displayHeight: current.displayHeight,
-      importText: current.importText,
-      uploadError: current.uploadError ?? "",
-      importStatus: current.importStatus ?? "",
-      workflowDisabled: current.workflowDisabled,
-      matchSourceDisabled: current.sourceWidth <= 0 || current.sourceHeight <= 0,
-      loadError: current.loadError ?? "",
-      fallbackTextureAvailable: Boolean(current.fallbackTextureId),
       duotoneEnabled: current.duotoneEnabled,
       duotoneControlsDisabled: current.duotoneControlsDisabled,
       backgroundCssActive: current.backgroundCssActive,
@@ -194,18 +221,6 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       revealModified: current.revealModified,
     };
   }, [
-    textureOptions,
-    props.selectedTextureId,
-    props.displayWidth,
-    props.displayHeight,
-    props.importText,
-    props.uploadError,
-    props.importStatus,
-    props.workflowDisabled,
-    props.sourceWidth,
-    props.sourceHeight,
-    props.loadError,
-    props.fallbackTextureId,
     props.duotoneEnabled,
     props.duotoneControlsDisabled,
     props.backgroundCssActive,
@@ -243,16 +258,17 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.revealModified,
   ]);
 
-  const handlersRef = useRef<PlaygroundLevaHandlers>({
+  const canvasHandlersRef = useRef<PlaygroundCanvasLevaHandlers>({
     onTextureSelect: (value) => propsRef.current.onTextureSelect(value),
     setDisplayWidth: (value) => propsRef.current.onDisplayWidthChange(value),
     setDisplayHeight: (value) => propsRef.current.onDisplayHeightChange(value),
-    matchSourceDisplaySize: () => propsRef.current.matchSourceDisplaySize(),
-    onUploadClick: () => fileInputRef.current?.click(),
-    onCopyState: () => void propsRef.current.onCopyState(),
+  });
+
+  const workflowHandlersRef = useRef<PlaygroundWorkflowLevaHandlers>({
     setImportText: (value) => propsRef.current.onImportTextChange(value),
-    onImportState: () => propsRef.current.onImportState(),
-    loadFallbackTexture: () => propsRef.current.onLoadFallbackTexture?.(),
+  });
+
+  const handlersRef = useRef<PlaygroundLevaHandlers>({
     setDuotoneEnabled: (value) => propsRef.current.onDuotoneEnabledChange(value),
     resetGeneral: () => propsRef.current.onResetGeneral(),
     onAdjustmentsLive: (patch) => propsRef.current.onLiveAdjustmentsChange(patch),
@@ -314,6 +330,18 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onWidthChange: handlersRef.current.onStripeWidthCommit,
   };
 
+  useControls(() => buildPlaygroundCanvasLevaSchema(canvasSnapshot, canvasHandlersRef.current) as never, {
+    store: canvasStore,
+  }, [
+    canvasSnapshot.workflowDisabled,
+    canvasSnapshot.selectedTextureId,
+    props.catalog.length,
+  ]);
+
+  useControls(() => buildPlaygroundWorkflowLevaSchema(workflowSnapshot, workflowHandlersRef.current) as never, {
+    store: workflowStore,
+  }, [workflowSnapshot.workflowDisabled, workflowSnapshot.importText]);
+
   useControls(() => buildPlaygroundLevaSchema(snapshot, handlersRef.current) as never, { store }, [
     snapshot.duotoneControlsDisabled,
     snapshot.backgroundCssActive,
@@ -323,9 +351,6 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     snapshot.flamesFieldsDisabled,
     snapshot.flamesMaskDisabled,
     snapshot.cursorTrailFieldsDisabled,
-    snapshot.workflowDisabled,
-    snapshot.loadError,
-    snapshot.selectedTextureId,
     stripeKey,
     props.textureLuminanceSettings.mode,
     props.gridConfig.cellWidth,
@@ -334,7 +359,23 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.revealConfig.preset,
   ]);
 
+  const canvasSyncSignature = useMemo(
+    () => JSON.stringify(buildPlaygroundCanvasLevaSyncValues(canvasSnapshot)),
+    [canvasSnapshot],
+  );
+  const workflowSyncSignature = useMemo(
+    () => JSON.stringify(buildPlaygroundWorkflowLevaSyncValues(workflowSnapshot)),
+    [workflowSnapshot],
+  );
   const syncSignature = useMemo(() => JSON.stringify(buildPlaygroundLevaSyncValues(snapshot)), [snapshot]);
+
+  useEffect(() => {
+    canvasStore.set(buildPlaygroundCanvasLevaSyncValues(canvasSnapshot), false);
+  }, [canvasStore, canvasSyncSignature, canvasSnapshot]);
+
+  useEffect(() => {
+    workflowStore.set(buildPlaygroundWorkflowLevaSyncValues(workflowSnapshot), false);
+  }, [workflowStore, workflowSyncSignature, workflowSnapshot]);
 
   useEffect(() => {
     store.set(buildPlaygroundLevaSyncValues(snapshot), false);
@@ -352,6 +393,27 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
           accept="video/*,image/*"
           className="hidden"
           onChange={(event) => void props.onUploadFile(event)}
+        />
+        <div data-testid="playground-canvas-leva-panel" className="playground-canvas-leva-panel shrink-0">
+          <LevaPanel store={canvasStore} theme={PLAYGROUND_LEVA_LIGHT_THEME} fill flat titleBar={false} />
+        </div>
+        <PlaygroundCanvasSizeControls
+          sourceWidth={props.sourceWidth}
+          sourceHeight={props.sourceHeight}
+          applyDisplayScale={props.applyDisplayScale}
+          disabled={props.workflowDisabled}
+        />
+        <PlaygroundWorkflowControls
+          workflowStore={workflowStore}
+          onUploadClick={() => fileInputRef.current?.click()}
+          onCopyState={props.onCopyState}
+          onImportState={props.onImportState}
+          uploadError={props.uploadError}
+          importStatus={props.importStatus}
+          loadError={props.loadError}
+          fallbackTextureAvailable={Boolean(props.fallbackTextureId)}
+          onLoadFallbackTexture={props.onLoadFallbackTexture}
+          disabled={props.workflowDisabled}
         />
         <LevaPanel store={store} theme={PLAYGROUND_LEVA_LIGHT_THEME} fill flat titleBar={false} />
       </div>

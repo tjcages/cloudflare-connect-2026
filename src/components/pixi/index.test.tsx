@@ -11,8 +11,8 @@ const { initMock, resizeMock, renderMock, ApplicationMock, releaseInit } = vi.ho
 
   class ApplicationMock {
     canvas = document.createElement("canvas");
-    renderer = { resize: resizeMock };
-    ticker = {};
+    renderer = { resize: resizeMock, resolution: 1 };
+    ticker = { stop: vi.fn() };
     stage = {};
 
     init = initMock.mockImplementation(
@@ -78,5 +78,38 @@ describe("Pixi", () => {
     const canvas = document.querySelector("canvas");
     expect(canvas?.style.width).toBe("801px");
     expect(canvas?.style.height).toBe("721px");
+  });
+
+  it("remounts with a fresh canvas when the React key changes", async () => {
+    const ticker = vi.fn();
+    const { rerender } = render(
+      <Pixi key="scene-a" tickers={[ticker]} layoutWidth={640} layoutHeight={360} />,
+    );
+
+    await waitFor(() => {
+      expect(initMock).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      releaseInit();
+    });
+
+    expect(ticker).toHaveBeenCalledTimes(1);
+    const canvas = document.querySelector("canvas");
+
+    rerender(
+      <Pixi key="scene-b" tickers={[ticker]} layoutWidth={1280} layoutHeight={720} />,
+    );
+
+    await waitFor(() => {
+      expect(initMock).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      releaseInit();
+    });
+
+    expect(ticker).toHaveBeenCalledTimes(2);
+    expect(document.querySelector("canvas")).not.toBe(canvas);
   });
 });
