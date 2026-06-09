@@ -3,6 +3,7 @@ import {
   normalizePlaygroundCursorTrailConfig,
   type PlaygroundCursorTrailConfig,
 } from "./playgroundCursorTrailConfig";
+import { applyPushLeadBlackShellOnEffectPixels } from "./playgroundPointerEffectWhites";
 
 export type CursorTrailPoint = {
   x: number;
@@ -357,6 +358,41 @@ export function applyCursorTrailToEffectPixels(
   };
 
   const pushScale = config.pushStrengthPx * (effectWidth / Math.max(1, displayWidth));
+  const toDisplayX = (effectX: number) => effectToDisplayCoord(effectX, effectWidth, displayWidth);
+  const toDisplayY = (effectY: number) => effectToDisplayCoord(effectY, effectHeight, displayHeight);
+
+  if (config.pushLeadBlackAlpha > 0) {
+    for (const sample of samples) {
+      const alpha = clamp01(sample.alpha);
+      if (alpha <= 0) {
+        continue;
+      }
+
+      const centerX = displayToEffectCoord(sample.pushX, displayWidth, effectWidth);
+      const centerY = displayToEffectCoord(sample.pushY, displayHeight, effectHeight);
+      const pushRadius = Math.max(
+        0,
+        displayToEffectCoord(sample.radius * config.pushRadiusScale, displayWidth, effectWidth),
+      );
+      if (pushRadius <= 0) {
+        continue;
+      }
+
+      bounds = applyPushLeadBlackShellOnEffectPixels(
+        pixels,
+        effectWidth,
+        effectHeight,
+        centerX,
+        centerY,
+        pushRadius,
+        0.74,
+        config.pushLeadBlackAlpha * alpha,
+        bounds,
+        toDisplayX,
+        toDisplayY,
+      );
+    }
+  }
 
   if (config.pushStrengthPx > 0) {
     for (const sample of samples) {

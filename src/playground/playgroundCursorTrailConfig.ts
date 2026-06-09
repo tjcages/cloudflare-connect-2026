@@ -19,6 +19,8 @@ export type PlaygroundCursorTrailConfig = {
   pushStrengthPx: number;
   pushLagPx: number;
   pushWobblePx: number;
+  /** Thin black shell on the outer push edge, applied before displacement. */
+  pushLeadBlackAlpha: number;
   /** 0 = auto (one effect pixel per stripe cell). Otherwise fraction of display size. */
   trailScale: number;
 };
@@ -44,6 +46,7 @@ export const DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG: PlaygroundCursorTrailConfig
   pushStrengthPx: 9,
   pushLagPx: 4,
   pushWobblePx: 2,
+  pushLeadBlackAlpha: 0.36,
   trailScale: 0,
 };
 
@@ -87,6 +90,7 @@ export function normalizePlaygroundCursorTrailConfig(
     pushStrengthPx: clamp(raw?.pushStrengthPx, base.pushStrengthPx, 0, 120),
     pushLagPx: clamp(raw?.pushLagPx, base.pushLagPx, 0, 80),
     pushWobblePx: clamp(raw?.pushWobblePx, base.pushWobblePx, 0, 80),
+    pushLeadBlackAlpha: clamp(raw?.pushLeadBlackAlpha, base.pushLeadBlackAlpha, 0, 1),
     trailScale: clamp(raw?.trailScale, base.trailScale, 0, 1),
   };
 }

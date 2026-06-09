@@ -2,6 +2,7 @@ import {
   mergeCursorTrailPixelBounds,
   type CursorTrailPixelBounds,
 } from "./cursorTrail";
+import { applyThinBlackRingOnEffectPixels, smokeAngularRadiusWobble, smokeSoftRingFalloff, smokeStrengthBreakup } from "./playgroundPointerEffectWhites";
 import {
   DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
   normalizePlaygroundClickWaveConfig,
@@ -24,6 +25,8 @@ export type ClickWaveSample = ClickWavePoint & {
   whitePower: number;
   /** Life-based multiplier for interior slice whites (independent of ring white). */
   sliceWhitePower: number;
+  /** Thin leading black ring ahead of the push front. */
+  leadBlackPower: number;
   seed: number;
 };
 
@@ -72,18 +75,27 @@ function easeOutQuad(progress: number): number {
   return 1 - (1 - t) * (1 - t);
 }
 
+/** Softer than life² but still clears cleanly at the end (no afterimage tail). */
+function smokeLifeCurve(progress: number): number {
+  return Math.pow(Math.max(0, 1 - progress), 0.62);
+}
+
 /** Ring white: strong at click birth, cools as the ripple expands. */
 function computeRingWhiteFalloff(progress: number, eased: number): number {
-  const life = 1 - progress;
   const birthBoost = 1.35 - 0.35 * eased;
-  return life * life * birthBoost;
+  return smokeLifeCurve(progress) * birthBoost;
 }
 
 /** Slice white: hotter than the ring at birth, fades faster with expansion progress. */
 function computeSliceWhitePower(progress: number, eased: number): number {
-  const life = 1 - progress;
   const birthBoost = 1.9 - 0.9 * eased;
-  return life * life * birthBoost;
+  return smokeLifeCurve(progress) * birthBoost;
+}
+
+/** Leading black ring: peaks at click birth and fades as the ripple outruns it. */
+function computeLeadBlackPower(progress: number, eased: number): number {
+  const birthBoost = 2.15 - 1.05 * eased;
+  return smokeLifeCurve(progress) * birthBoost;
 }
 
 function displayToEffectCoord(value: number, displaySize: number, effectSize: number): number {
@@ -266,8 +278,15 @@ function resolveSliceCellAlpha(
   const level = (2 + Math.floor(mixed * levelCount)) / (levelCount + 2);
   const radialMin = 0.78 - 0.2 * sample.waveProgress;
   const radialFade = radius > 0 ? radialMin + (1 - radialMin) * (distance / radius) : 1;
+  const edgeDepth = radius - distance;
+  const featherWidth = radius * config.smokeSliceEdgeFeather;
+  const edgeFade = featherWidth > 0 ? clamp01(edgeDepth / featherWidth) : 1;
+  const interiorWisp = 0.58 + 0.42 * seededUnit(sample.seed, col * 7.1 + row * 13.3 + sliceIdx * 3);
 
-  return Math.min(1, sample.sliceWhitePower * config.sliceWhiteAlpha * level * radialFade);
+  return Math.min(
+    1,
+    sample.sliceWhitePower * config.sliceWhiteAlpha * level * radialFade * edgeFade * interiorWisp,
+  );
 }
 
 function applyWaveRingCellWhites(
@@ -295,15 +314,26 @@ function applyWaveRingCellWhites(
   let nextBounds = bounds;
   for (let row = 0; row < cellGrid.rows; row++) {
     for (let col = 0; col < cellGrid.cols; col++) {
-      if (!displayCellIntersectsRing(col, row, cellGrid, centerX, centerY, radius, halfStroke)) {
-        continue;
-      }
-
       const cellCenterX = (col + 0.5) * cellGrid.cellWidth;
       const cellCenterY = (row + 0.5) * cellGrid.cellHeight;
       const distance = Math.hypot(cellCenterX - centerX, cellCenterY - centerY);
-      const ringAlpha = whitePower * ringFalloff(Math.abs(distance - radius), halfStroke);
-      if (ringAlpha <= 0) {
+      if (distance > radius + config.smokeRadiusWobblePx + halfStroke * config.smokeSoftness) {
+        continue;
+      }
+
+      const angle = Math.atan2(cellCenterY - centerY, cellCenterX - centerX);
+      const wobble = smokeAngularRadiusWobble(
+        sample.seed,
+        angle,
+        sample.waveProgress,
+        config.smokeRadiusWobblePx * 0.65,
+      );
+      const softHalfStroke = halfStroke * config.smokeSoftness;
+      const ringAlpha =
+        whitePower *
+        smokeSoftRingFalloff(Math.abs(distance - radius - wobble), softHalfStroke) *
+        smokeStrengthBreakup(sample.seed, col, row, sample.waveProgress, config.smokeStrengthJitter * 0.65);
+      if (ringAlpha <= 0.02) {
         continue;
       }
 
@@ -423,8 +453,9 @@ export function updateClickWave(
       config.startStrokeWidthPx + (config.endStrokeWidthPx - config.startStrokeWidthPx) * progress;
     const life = 1 - progress;
     const pushFalloff = life * life * (3 - 2 * life);
-    const ringWhiteFalloff = computeRingWhiteFalloff(progress, eased);
     const sliceWhitePower = computeSliceWhitePower(progress, eased);
+    const whitePower = config.stripeWhiteAlpha * computeRingWhiteFalloff(progress, eased);
+    const leadBlackPower = config.pushLeadBlackAlpha * computeLeadBlackPower(progress, eased);
 
     nextWaves.push({ ...wave, ageMs });
     samples.push({
@@ -434,8 +465,9 @@ export function updateClickWave(
       strokeWidth: Math.max(config.endStrokeWidthPx, strokeWidth),
       waveProgress: progress,
       pushPower: config.pushStrengthPx * pushFalloff,
-      whitePower: config.stripeWhiteAlpha * ringWhiteFalloff,
+      whitePower,
       sliceWhitePower,
+      leadBlackPower,
       seed: wave.seed,
     });
   }
@@ -485,6 +517,53 @@ export function applyClickWavesToEffectPixels(
 
   const effectPushScale = effectWidth / Math.max(1, displayWidth);
   const cellGrid = resolveWaveCellGrid(displayWidth, displayHeight, grid, effectWidth, effectHeight);
+  const toDisplayX = (effectX: number) => effectToDisplayCoord(effectX, effectWidth, displayWidth);
+  const toDisplayY = (effectY: number) => effectToDisplayCoord(effectY, effectHeight, displayHeight);
+
+  for (const sample of samples) {
+    const leadBlackPower = sample.leadBlackPower;
+    if (leadBlackPower <= 0 || config.pushLeadBlackStrokePx <= 0) {
+      continue;
+    }
+
+    const centerX = displayToEffectCoord(sample.x, displayWidth, effectWidth);
+    const centerY = displayToEffectCoord(sample.y, displayHeight, effectHeight);
+    const radius = Math.max(0, displayToEffectCoord(sample.radius, displayWidth, effectWidth));
+    const pushHalfStroke = Math.max(
+      0.5,
+      displayToEffectCoord(sample.strokeWidth, displayWidth, effectWidth) * 0.5 * config.pushBandScale,
+    );
+    const leadOffset = displayToEffectCoord(config.pushLeadBlackOffsetPx, displayWidth, effectWidth);
+    const leadHalfStroke = Math.max(
+      0.5,
+      displayToEffectCoord(config.pushLeadBlackStrokePx, displayWidth, effectWidth) * 0.5,
+    );
+    const leadRadius = radius + pushHalfStroke + leadOffset;
+    if (leadRadius <= 0) {
+      continue;
+    }
+
+    bounds = applyThinBlackRingOnEffectPixels(
+      pixels,
+      effectWidth,
+      effectHeight,
+      centerX,
+      centerY,
+      leadRadius,
+      leadHalfStroke,
+      leadBlackPower,
+      bounds,
+      toDisplayX,
+      toDisplayY,
+      {
+        seed: sample.seed,
+        waveProgress: sample.waveProgress,
+        radiusWobbleAmplitude: displayToEffectCoord(config.smokeRadiusWobblePx, displayWidth, effectWidth),
+        strengthJitter: config.smokeStrengthJitter,
+        softness: config.smokeSoftness,
+      },
+    );
+  }
 
   for (const sample of samples) {
     const pushPower = sample.pushPower;
@@ -503,7 +582,8 @@ export function applyClickWavesToEffectPixels(
       continue;
     }
 
-    const reach = radius + halfStroke + 2;
+    const wobbleAmp = displayToEffectCoord(config.smokeRadiusWobblePx, displayWidth, effectWidth);
+    const reach = radius + halfStroke * config.smokeSoftness * 1.5 + wobbleAmp + 4;
     const minX = Math.max(0, Math.floor(centerX - reach));
     const maxX = Math.min(effectWidth - 1, Math.ceil(centerX + reach));
     const minY = Math.max(0, Math.floor(centerY - reach));
@@ -528,8 +608,38 @@ export function applyClickWavesToEffectPixels(
           continue;
         }
 
-        const ringStrength = ringFalloff(Math.abs(distance - radius), halfStroke);
-        if (ringStrength <= 0) {
+        const angle = Math.atan2(dy, dx);
+        const wobble = smokeAngularRadiusWobble(sample.seed, angle, sample.waveProgress, wobbleAmp);
+        const strokeScale =
+          config.smokeSoftness * (0.72 + 0.56 * seededUnit(sample.seed, Math.floor(angle * 6.5) * 17));
+        const softHalfStroke = halfStroke * strokeScale;
+        const breakup = smokeStrengthBreakup(
+          sample.seed,
+          x,
+          y,
+          sample.waveProgress,
+          config.smokeStrengthJitter,
+        );
+
+        const lateMain = Math.max(0, (sample.waveProgress - 0.72) / 0.28);
+        const wispCount = 3 + Math.floor(lateMain * 2);
+        let ringStrength = 0;
+        for (let wisp = 0; wisp < wispCount; wisp++) {
+          const wispAngle = angle + (wisp - 1) * (0.35 + seededUnit(sample.seed, wisp * 9 + 3) * 0.45);
+          const wispWobble = smokeAngularRadiusWobble(
+            sample.seed + wisp * 17,
+            wispAngle,
+            sample.waveProgress,
+            wobbleAmp * (wisp === 1 ? 1 : 0.72),
+          );
+          const wispRadius = radius + wobble + wispWobble * (wisp === 1 ? 1 : 0.55);
+          const wispStrength = smokeSoftRingFalloff(Math.abs(distance - wispRadius), softHalfStroke);
+          const wispWeight = wisp === 1 ? 1 : 0.38 + 0.22 * seededUnit(sample.seed, wisp * 13);
+          ringStrength += wispStrength * wispWeight;
+        }
+
+        ringStrength = Math.min(1, ringStrength) * breakup;
+        if (ringStrength <= 0.03) {
           continue;
         }
 
