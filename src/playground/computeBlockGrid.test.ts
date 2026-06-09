@@ -18,6 +18,18 @@ function splitImage(width: number, height: number, whiteCols: number): Uint8Clam
   return data;
 }
 
+function pixelRow(colors: Array<[number, number, number]>): Uint8ClampedArray {
+  const data = new Uint8ClampedArray(colors.length * 4);
+  colors.forEach(([r, g, b], index) => {
+    const offset = index * 4;
+    data[offset] = r;
+    data[offset + 1] = g;
+    data[offset + 2] = b;
+    data[offset + 3] = 255;
+  });
+  return data;
+}
+
 describe("computeBlockGrid cell sizing", () => {
   it("defaults to 7px cells", () => {
     const data = splitImage(14, 7, 14);
@@ -59,6 +71,29 @@ describe("computeBlockGrid cell sizing", () => {
     });
 
     expect(grid.luma[0]).toBe(0);
+  });
+
+  it("can derive cell luminance from distance to a texture background color", () => {
+    const data = splitImage(2, 1, 1);
+    const grid = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
+      mode: "colors",
+      backgroundColor: 0x000000,
+    });
+
+    expect(Array.from(grid.luma)).toEqual([255, 0]);
+  });
+
+  it("stores the mean source color for each sampled cell", () => {
+    const data = pixelRow([
+      [255, 0, 0],
+      [0, 0, 255],
+    ]);
+    const grid = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
+      mode: "colors",
+      backgroundColor: 0x000000,
+    });
+
+    expect(Array.from(grid.colors)).toEqual([255, 0, 0, 0, 0, 255]);
   });
 
   it("applies grid-level blur to luma cells", () => {

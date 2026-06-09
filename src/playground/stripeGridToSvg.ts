@@ -75,8 +75,23 @@ function stripeSvgLetterElements(grid: BlockGrid, glyphs: Map<string, StripeLett
   return ['  <g class="stripe-letters" aria-hidden="true">', ...useNodes, "  </g>"].join("\n");
 }
 
-export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: number, height: number): string {
+function cellColorHex(grid: BlockGrid, cellIndex: number): string {
+  const offset = cellIndex * 3;
+  const r = grid.colors?.[offset] ?? 0;
+  const g = grid.colors?.[offset + 1] ?? 0;
+  const b = grid.colors?.[offset + 2] ?? 0;
+  return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+export function stripeGridToSvg(
+  grid: BlockGrid,
+  colors: StripeColors,
+  width: number,
+  height: number,
+  options: { useCellColors?: boolean } = {},
+): string {
   const pathsByIndex = new Map<number, string[]>();
+  const cellColorPaths: string[] = [];
 
   for (let row = 0; row < grid.rows; row++) {
     for (let col = 0; col < grid.cols; col++) {
@@ -108,6 +123,10 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
       const rectH = bandBottom - bandTop;
 
       const segment = `M${x} ${y}h${rectW}v${rectH}h-${rectW}Z`;
+      if (options.useCellColors) {
+        cellColorPaths.push(`  <path fill="${cellColorHex(grid, index)}" d="${segment}" />`);
+        continue;
+      }
       const list = pathsByIndex.get(stripeBand) ?? [];
       list.push(segment);
       pathsByIndex.set(stripeBand, list);
@@ -127,7 +146,7 @@ export function stripeGridToSvg(grid: BlockGrid, colors: StripeColors, width: nu
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="visible">`,
     stripeSvgStyleBlock(colors, usedIndices),
     letterDefs,
-    pathElements,
+    options.useCellColors ? cellColorPaths.join("\n") : pathElements,
     letterElements,
     `</svg>`,
   ]

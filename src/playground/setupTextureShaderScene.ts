@@ -32,7 +32,30 @@ import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
+import {
+  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+  resolvePlaygroundRevealDurationMs,
+  type PlaygroundRevealConfig,
+} from "./playgroundRevealConfig";
+import type { PlaygroundRevealState } from "./playgroundReveal";
+import type { TextureLuminanceSettings } from "./colorWhiteness";
 import { createSourceTextureFilter } from "./sourceTextureFilter";
+import {
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  normalizePlaygroundCursorTrailConfig,
+  resolveCursorTrailEffectSize,
+  type PlaygroundCursorTrailConfig,
+} from "./playgroundCursorTrailConfig";
+import {
+  buildDisplayFrameWithCursorTrail,
+  createCursorTrailState,
+  downsamplePixelsNearest,
+  resolveCursorTrailRebuildBounds,
+  setCursorTrailTarget,
+  updateCursorTrail,
+  type CursorTrailPixelBounds,
+  type CursorTrailState,
+} from "./cursorTrail";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -62,11 +85,22 @@ const DEFAULT_STRIPES_ENABLED_REF: RefObject<boolean> = { current: true };
 const DEFAULT_TEXTURE_ADJUSTMENTS_REF: RefObject<PlaygroundTextureAdjustments> = {
   current: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
 };
+const DEFAULT_TEXTURE_LUMINANCE_SETTINGS_REF: RefObject<TextureLuminanceSettings> = {
+  current: { mode: "luminance", backgroundColor: 0x000000 },
+};
 const DEFAULT_SOURCE_TRANSFORM_REF: RefObject<PlaygroundSourceTransform> = {
   current: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
 };
 const DEFAULT_FLAMES_STATE_REF: RefObject<PlaygroundFlamesState | null> = { current: null };
 const DEFAULT_FLAMES_CONFIG_REF: RefObject<PlaygroundFlamesConfig> = { current: DEFAULT_PLAYGROUND_FLAMES_CONFIG };
+const DEFAULT_REVEAL_CONFIG_REF: RefObject<PlaygroundRevealConfig> = { current: DEFAULT_PLAYGROUND_REVEAL_CONFIG };
+const DEFAULT_REVEAL_STATE_REF: RefObject<PlaygroundRevealState> = { current: { progress: 1 } };
+const DEFAULT_REVEAL_PLAYBACK_REF: RefObject<PlaygroundRevealPlayback> = {
+  current: { replayKey: 0, startedAtMs: 0 },
+};
+const DEFAULT_CURSOR_TRAIL_CONFIG_REF: RefObject<PlaygroundCursorTrailConfig> = {
+  current: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+};
 export type PlaygroundDisplaySize = { width: number; height: number };
 
 export type PlaygroundSceneExportState = {
@@ -81,6 +115,11 @@ export type PlaygroundTextureSource =
   | { kind: "image"; element: HTMLImageElement };
 
 type TextureFilterMode = "off" | "preview" | "stripes";
+
+export type PlaygroundRevealPlayback = {
+  replayKey: number;
+  startedAtMs: number;
+};
 
 function resolveTextureFilterMode(duotoneEnabled: boolean, stripesEnabled: boolean): TextureFilterMode {
   if (!duotoneEnabled) {
@@ -181,6 +220,53 @@ function createPlaygroundLetterLayer(
   return { letterLayer, atlas };
 }
 
+function cursorTrailPointFromEvent(
+  event: PointerEvent,
+  canvas: HTMLCanvasElement,
+  display: PlaygroundDisplaySize,
+): { x: number; y: number } | null {
+  const bounds = canvas.getBoundingClientRect();
+  if (
+    event.clientX < bounds.left ||
+    event.clientX > bounds.right ||
+    event.clientY < bounds.top ||
+    event.clientY > bounds.bottom
+  ) {
+    return null;
+  }
+  const scaleX = bounds.width > 0 ? display.width / bounds.width : 1;
+  const scaleY = bounds.height > 0 ? display.height / bounds.height : 1;
+  return {
+    x: (event.clientX - bounds.left) * scaleX,
+    y: (event.clientY - bounds.top) * scaleY,
+  };
+}
+
+function attachCursorTrailEvents(
+  canvas: HTMLCanvasElement,
+  display: PlaygroundDisplaySize,
+  state: CursorTrailState,
+): () => void {
+  const onPointerMove = (event: PointerEvent) => {
+    setCursorTrailTarget(state, cursorTrailPointFromEvent(event, canvas, display));
+  };
+  const onPointerLeave = () => {
+    setCursorTrailTarget(state, null);
+  };
+
+  window.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerleave", onPointerLeave);
+  canvas.addEventListener("pointercancel", onPointerLeave);
+  window.addEventListener("blur", onPointerLeave);
+
+  return () => {
+    window.removeEventListener("pointermove", onPointerMove);
+    canvas.removeEventListener("pointerleave", onPointerLeave);
+    canvas.removeEventListener("pointercancel", onPointerLeave);
+    window.removeEventListener("blur", onPointerLeave);
+  };
+}
+
 function runDuotoneTick(params: {
   app: Parameters<Ticker>[0]["app"];
   sprite: Sprite;
@@ -193,15 +279,21 @@ function runDuotoneTick(params: {
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>;
   flamesStateRef: RefObject<PlaygroundFlamesState | null>;
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>;
+  revealConfigRef: RefObject<PlaygroundRevealConfig>;
+  revealStateRef: RefObject<PlaygroundRevealState>;
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback>;
   stripeColorsRef: RefObject<StripeColors>;
   preferP3Ref: RefObject<boolean>;
   textureGammaRef: RefObject<number>;
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>;
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings>;
   sourceTransformRef: RefObject<PlaygroundSourceTransform>;
   gridConfigRef: RefObject<PlaygroundGridConfig>;
   display: PlaygroundDisplaySize;
   blockGridTexture: BlockGridTexture;
   atlas: ReturnType<typeof buildStripeLetterAtlas>;
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>;
+  cursorTrailState: CursorTrailState;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
   syncVisual: () => void;
   shouldSample: () => boolean;
@@ -220,13 +312,19 @@ function runDuotoneTick(params: {
     widthShuffleOptionsRef,
     flamesStateRef,
     flamesConfigRef,
+    revealConfigRef,
+    revealStateRef,
+    revealPlaybackRef,
     stripeColorsRef,
     preferP3Ref,
     textureGammaRef,
     textureAdjustmentsRef,
+    textureLuminanceSettingsRef,
     sourceTransformRef,
     gridConfigRef,
     display,
+    cursorTrailConfigRef,
+    cursorTrailState,
     exportStateRef,
     syncVisual,
     shouldSample,
@@ -244,6 +342,7 @@ function runDuotoneTick(params: {
   let gridState: PlaygroundGridBuildState = {};
   let lastGridUpdateMs = 0;
   let lastFullResampleMs = 0;
+  let lastTrailTickMs = performance.now();
   let hasBuiltGrid = false;
   let pendingFullResample = false;
   let pendingColorsResample = false;
@@ -255,6 +354,12 @@ function runDuotoneTick(params: {
   let lastLetterSize = gridConfigRef.current.letterSize;
   let lastLetterCharset = gridConfigRef.current.letterCharset;
   let lastLetterRatio = gridConfigRef.current.letterRatio;
+  let lastRevealReplayKey = revealPlaybackRef.current.replayKey;
+  let cachedEffectBase: Uint8ClampedArray | null = null;
+  let cachedEffectBaseKey = "";
+  let workingEffectPixels: Uint8ClampedArray | null = null;
+  let displayFramePixels: Uint8ClampedArray | null = null;
+  let previousTrailPixelBounds: CursorTrailPixelBounds | null = null;
 
   const applyStructuralChanges = (gridConfig: PlaygroundGridConfig) => {
     const eff = effectivePlaygroundCellSize(gridConfig);
@@ -266,6 +371,7 @@ function runDuotoneTick(params: {
       const dimensionsChanged = blockGridTexture.resize(display.width, display.height, eff.width, eff.height);
       if (dimensionsChanged) {
         stripeFilter.updateBlockMap(blockGridTexture.texture);
+        stripeFilter.updateCellColorMap(blockGridTexture.colorTexture);
         stripeFilter.resizeGrid(blockGridTexture.cols, blockGridTexture.rows, eff.width, eff.height);
         letterLayer.setCellSize(eff.width, eff.height);
 
@@ -319,11 +425,17 @@ function runDuotoneTick(params: {
   };
 
   const tick = () => {
+    const now = performance.now();
+    const cursorTrailConfig = normalizePlaygroundCursorTrailConfig(cursorTrailConfigRef.current);
+    const trailDtMs = now - lastTrailTickMs;
+    lastTrailTickMs = now;
+    const trail = updateCursorTrail(cursorTrailState, trailDtMs, cursorTrailConfig);
     syncVisual();
     sourceTextureFilter.syncAdjustments({
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
     });
+    stripeFilter.syncUseCellColors(textureLuminanceSettingsRef.current.mode === "colors");
     const flamesState = flamesStateRef.current;
     const flamesConfig = flamesConfigRef.current;
     if (flamesState && flamesConfig.enabled) {
@@ -375,6 +487,19 @@ function runDuotoneTick(params: {
 
     sourceTextureFilter.syncFlames(null, null);
 
+    const revealConfig = revealConfigRef.current;
+    const revealPlayback = revealPlaybackRef.current;
+    if (revealPlayback.replayKey !== lastRevealReplayKey) {
+      lastRevealReplayKey = revealPlayback.replayKey;
+      pendingFullResample = true;
+      gridState = {};
+    }
+    const revealProgress = Math.min(
+      1,
+      Math.max(0, (now - revealPlayback.startedAtMs) / Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig))),
+    );
+    revealStateRef.current = { progress: revealProgress };
+
     const colors = stripeColorsRef.current;
     const colorsKey = JSON.stringify({
       colors,
@@ -382,30 +507,123 @@ function runDuotoneTick(params: {
       gamma: textureGammaRef.current,
       textureAdjustments: textureAdjustmentsRef.current,
       sourceTransform: sourceTransformRef.current,
+      revealConfig,
+      revealReplayKey: revealPlayback.replayKey,
+      luminanceSettings: textureLuminanceSettingsRef.current,
     });
     const colorsChanged = colorsKey !== lastColorsKey;
-    const timeChanged = shouldSample() || (flamesState != null && flamesConfig.enabled);
-    const needsSample = timeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
+    const revealActive = revealProgress < 1;
+    const trailSamplingEnabled = cursorTrailConfig.enabled && !revealActive;
+    const trailChanged = trailSamplingEnabled && trail.changed;
+    const timeChanged = shouldSample() || (flamesState != null && flamesConfig.enabled) || revealActive;
+    const needsBaseFrame = timeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
 
     if (colorsChanged) {
       stripeFilter.syncColors(colors, preferP3Ref.current);
       lastColorsKey = colorsKey;
       pendingFullResample = true;
       pendingColorsResample = true;
-    }
-
-    const frame = needsSample ? sampleFrame() : null;
-    if (frame) {
-      onSampled?.();
+      cachedEffectBase = null;
+      cachedEffectBaseKey = "";
+      previousTrailPixelBounds = null;
     }
 
     const gridConfig = gridConfigRef.current;
-    const now = performance.now();
+    const effectiveCell = effectivePlaygroundCellSize(gridConfig);
+    const effectSize = resolveCursorTrailEffectSize(
+      display.width,
+      display.height,
+      cursorTrailConfig,
+      effectiveCell.width,
+      effectiveCell.height,
+    );
+    const effectPixelCount = effectSize.width * effectSize.height * 4;
+    const displayPixelCount = display.width * display.height * 4;
+    const frameCacheKey = `${display.width}x${display.height}:${colorsKey}:${effectSize.width}x${effectSize.height}`;
+
+    if (needsBaseFrame) {
+      const sampled = sampleFrame();
+      if (sampled) {
+        if (!cachedEffectBase || cachedEffectBase.length !== effectPixelCount) {
+          cachedEffectBase = new Uint8ClampedArray(effectPixelCount);
+        }
+        downsamplePixelsNearest(
+          sampled.data,
+          display.width,
+          display.height,
+          cachedEffectBase,
+          effectSize.width,
+          effectSize.height,
+        );
+        cachedEffectBaseKey = frameCacheKey;
+      } else {
+        cachedEffectBase = null;
+        cachedEffectBaseKey = "";
+      }
+    }
+
+    let frame: ImageData | null = null;
+    let currentTrailBounds: CursorTrailPixelBounds | null = null;
+    const needsTrailFrame =
+      trailChanged &&
+      cachedEffectBase &&
+      cachedEffectBaseKey === frameCacheKey &&
+      (trailSamplingEnabled || trail.samples.length === 0);
+    const trailSamples = trailSamplingEnabled ? trail.samples : [];
+
+    if (needsTrailFrame && cachedEffectBase) {
+      if (!workingEffectPixels || workingEffectPixels.length !== effectPixelCount) {
+        workingEffectPixels = new Uint8ClampedArray(effectPixelCount);
+      }
+      if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
+        displayFramePixels = new Uint8ClampedArray(displayPixelCount);
+      }
+      const composited = buildDisplayFrameWithCursorTrail(
+        cachedEffectBase,
+        effectSize.width,
+        effectSize.height,
+        display.width,
+        display.height,
+        trailSamples,
+        cursorTrailConfig,
+        workingEffectPixels,
+        displayFramePixels,
+      );
+      currentTrailBounds = composited.bounds;
+      frame = new ImageData(Uint8ClampedArray.from(composited.data), display.width, display.height);
+      onSampled?.();
+    } else if (needsBaseFrame && cachedEffectBase && cachedEffectBaseKey === frameCacheKey) {
+      if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
+        displayFramePixels = new Uint8ClampedArray(displayPixelCount);
+      }
+      buildDisplayFrameWithCursorTrail(
+        cachedEffectBase,
+        effectSize.width,
+        effectSize.height,
+        display.width,
+        display.height,
+        [],
+        cursorTrailConfig,
+        workingEffectPixels ?? undefined,
+        displayFramePixels,
+      );
+      frame = new ImageData(Uint8ClampedArray.from(displayFramePixels), display.width, display.height);
+      onSampled?.();
+    } else if (needsBaseFrame) {
+      frame = sampleFrame();
+      if (frame) {
+        onSampled?.();
+      }
+    }
+
+    previousTrailPixelBounds = resolveCursorTrailRebuildBounds(currentTrailBounds, previousTrailPixelBounds);
+
     const fullResampleReady = now - lastFullResampleMs >= PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS;
     const shouldRebuildGrid =
       frame &&
       (!hasBuiltGrid ||
         (pendingFullResample && fullResampleReady) ||
+        trailChanged ||
         (timeChanged && !pendingFullResample && now - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
 
     if (shouldRebuildGrid && frame) {
@@ -413,13 +631,12 @@ function runDuotoneTick(params: {
       pendingFullResample = false;
       lastGridUpdateMs = now;
       lastFullResampleMs = now;
-      // Re-bucketing thresholds change the index mapping; snap rather than smear.
       if (pendingColorsResample) {
         gridState = {};
         pendingColorsResample = false;
+        previousTrailPixelBounds = null;
       }
 
-      const effectiveCell = effectivePlaygroundCellSize(gridConfig);
       const built = buildPlaygroundBlockGrid(
         frame,
         display.width,
@@ -434,13 +651,20 @@ function runDuotoneTick(params: {
             ...textureAdjustmentsRef.current,
             gamma: textureGammaRef.current,
           },
+          luminanceSettings: textureLuminanceSettingsRef.current,
           flamesState: flamesStateRef.current,
           flamesConfig: flamesConfigRef.current,
+          reveal: {
+            config: revealConfig,
+            progress: revealProgress,
+            replayKey: revealPlayback.replayKey,
+          },
         },
       );
       gridState = built.state;
       blockGridTexture.update(built.grid);
       stripeFilter.updateBlockMap(blockGridTexture.texture);
+      stripeFilter.updateCellColorMap(blockGridTexture.colorTexture);
       letterLayer.sync(built.grid);
       const sparkleTimeSec = performance.now() / 1000;
       letterLayer.applySparkle(sparkleTimeSec, sparkleOptionsRef.current);
@@ -497,9 +721,14 @@ export function createTextureSceneTicker(
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
   gridConfigRef: RefObject<PlaygroundGridConfig> = DEFAULT_GRID_CONFIG_REF,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = DEFAULT_TEXTURE_ADJUSTMENTS_REF,
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings> = DEFAULT_TEXTURE_LUMINANCE_SETTINGS_REF,
   sourceTransformRef: RefObject<PlaygroundSourceTransform> = DEFAULT_SOURCE_TRANSFORM_REF,
   flamesStateRef: RefObject<PlaygroundFlamesState | null> = DEFAULT_FLAMES_STATE_REF,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig> = DEFAULT_FLAMES_CONFIG_REF,
+  revealConfigRef: RefObject<PlaygroundRevealConfig> = DEFAULT_REVEAL_CONFIG_REF,
+  revealStateRef: RefObject<PlaygroundRevealState> = DEFAULT_REVEAL_STATE_REF,
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = DEFAULT_REVEAL_PLAYBACK_REF,
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = DEFAULT_CURSOR_TRAIL_CONFIG_REF,
 ): Ticker {
   if (source.kind === "image") {
     return createImageSceneTicker(
@@ -514,9 +743,14 @@ export function createTextureSceneTicker(
       widthShuffleOptionsRef,
       gridConfigRef,
       textureAdjustmentsRef,
+      textureLuminanceSettingsRef,
       sourceTransformRef,
       flamesStateRef,
       flamesConfigRef,
+      revealConfigRef,
+      revealStateRef,
+      revealPlaybackRef,
+      cursorTrailConfigRef,
       exportStateRef,
     );
   }
@@ -533,9 +767,14 @@ export function createTextureSceneTicker(
     autoplayRef,
     gridConfigRef,
     textureAdjustmentsRef,
+    textureLuminanceSettingsRef,
     sourceTransformRef,
     flamesStateRef,
     flamesConfigRef,
+    revealConfigRef,
+    revealStateRef,
+    revealPlaybackRef,
+    cursorTrailConfigRef,
     exportStateRef,
   );
 }
@@ -552,9 +791,14 @@ function createImageSceneTicker(
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   gridConfigRef: RefObject<PlaygroundGridConfig>,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings>,
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
   flamesStateRef: RefObject<PlaygroundFlamesState | null>,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>,
+  revealConfigRef: RefObject<PlaygroundRevealConfig>,
+  revealStateRef: RefObject<PlaygroundRevealState>,
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -599,6 +843,8 @@ function createImageSceneTicker(
       textureFilterMode === "stripes" ? [stripeFilter] : textureFilterMode === "preview" ? [sourceTextureFilter] : null;
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
+    const cursorTrailState = createCursorTrailState();
+    const detachCursorTrailEvents = attachCursorTrailEvents(app.canvas as HTMLCanvasElement, display, cursorTrailState);
 
     const { tick: renderTick, dispose } = runDuotoneTick({
       app,
@@ -612,15 +858,21 @@ function createImageSceneTicker(
       widthShuffleOptionsRef,
       flamesStateRef,
       flamesConfigRef,
+      revealConfigRef,
+      revealStateRef,
+      revealPlaybackRef,
       stripeColorsRef,
       preferP3Ref,
       textureGammaRef,
       textureAdjustmentsRef,
+      textureLuminanceSettingsRef,
       sourceTransformRef,
       gridConfigRef,
       display,
       blockGridTexture,
       atlas,
+      cursorTrailConfigRef,
+      cursorTrailState,
       exportStateRef,
       syncVisual: () =>
         syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current),
@@ -636,6 +888,7 @@ function createImageSceneTicker(
         app.ticker.remove(renderTick);
       }
       image.removeEventListener("load", onLayoutChange);
+      detachCursorTrailEvents();
       dispose();
       sprite.destroy({ children: true });
       texture.destroy(true);
@@ -656,9 +909,14 @@ function createVideoSceneTickerInternal(
   autoplayRef: RefObject<boolean>,
   gridConfigRef: RefObject<PlaygroundGridConfig>,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings>,
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
   flamesStateRef: RefObject<PlaygroundFlamesState | null>,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>,
+  revealConfigRef: RefObject<PlaygroundRevealConfig>,
+  revealStateRef: RefObject<PlaygroundRevealState>,
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -708,6 +966,8 @@ function createVideoSceneTickerInternal(
       textureFilterMode === "stripes" ? [stripeFilter] : textureFilterMode === "preview" ? [sourceTextureFilter] : null;
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
+    const cursorTrailState = createCursorTrailState();
+    const detachCursorTrailEvents = attachCursorTrailEvents(app.canvas as HTMLCanvasElement, display, cursorTrailState);
 
     let lastSampledTime = -1;
 
@@ -723,15 +983,21 @@ function createVideoSceneTickerInternal(
       widthShuffleOptionsRef,
       flamesStateRef,
       flamesConfigRef,
+      revealConfigRef,
+      revealStateRef,
+      revealPlaybackRef,
       stripeColorsRef,
       preferP3Ref,
       textureGammaRef,
       textureAdjustmentsRef,
+      textureLuminanceSettingsRef,
       sourceTransformRef,
       gridConfigRef,
       display,
       blockGridTexture,
       atlas,
+      cursorTrailConfigRef,
+      cursorTrailState,
       exportStateRef,
       syncVisual: () =>
         syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current),
@@ -758,6 +1024,7 @@ function createVideoSceneTickerInternal(
       video.removeEventListener("loadedmetadata", onVideoLayoutChange);
       videoSource.off("resize", onVideoLayoutChange);
       videoSource.off("update", onVideoLayoutChange);
+      detachCursorTrailEvents();
       dispose();
       sprite.destroy({ children: true });
       texture.destroy(true);

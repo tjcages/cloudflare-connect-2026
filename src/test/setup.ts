@@ -5,8 +5,24 @@ import { resetAppStoreDocumentToDefault } from "../store";
 const originalGetContext =
   typeof HTMLCanvasElement !== "undefined" ? HTMLCanvasElement.prototype.getContext : undefined;
 
+class TestResizeObserver implements ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 /** Silence incomplete Canvas2D in jsdom/happy-dom for tests that touch `getContext("2d")`. */
 beforeEach(() => {
+  if (typeof ResizeObserver === "undefined") {
+    globalThis.ResizeObserver = TestResizeObserver;
+  }
+
+  if (typeof HTMLElement !== "undefined" && !HTMLElement.prototype.setPointerCapture) {
+    HTMLElement.prototype.setPointerCapture = () => {};
+    HTMLElement.prototype.releasePointerCapture = () => {};
+    HTMLElement.prototype.hasPointerCapture = () => false;
+  }
+
   if (typeof HTMLCanvasElement !== "undefined" && originalGetContext) {
     const patchedGetContext = function (
       this: HTMLCanvasElement,

@@ -1,4 +1,5 @@
 import { computeBlockGrid, type BlockGrid } from "./computeBlockGrid";
+import type { TextureLuminanceSettings } from "./colorWhiteness";
 import { smoothBlockGridIndices } from "./stabilizeBlockGrid";
 import { resolveStripeIndices } from "./stripes";
 import type { StripeColors } from "../types";
@@ -11,6 +12,7 @@ import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
+import { applyPlaygroundRevealToLumaGrid, type PlaygroundRevealOptions } from "./playgroundReveal";
 
 export type PlaygroundGridBuildState = {
   stableIndices?: Uint8Array;
@@ -77,6 +79,8 @@ export function sampleVideoFrame(
 
 export type PlaygroundGridBuildOptions = {
   textureAdjustments?: PlaygroundTextureAdjustments;
+  reveal?: PlaygroundRevealOptions;
+  luminanceSettings?: TextureLuminanceSettings;
 };
 
 export function buildPlaygroundBlockGrid(
@@ -94,12 +98,15 @@ export function buildPlaygroundBlockGrid(
     displayHeight,
     options.textureAdjustments?.gamma ?? gamma,
     options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+    options.reveal,
+    options.luminanceSettings,
   );
-  const rawIndices = resolveStripeIndices(lumaGrid.luma, colors.stripes);
+  const revealedLumaGrid = options.reveal ? applyPlaygroundRevealToLumaGrid(lumaGrid, options.reveal) : lumaGrid;
+  const rawIndices = resolveStripeIndices(revealedLumaGrid.luma, colors.stripes);
   const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices);
 
   return {
-    grid: { cols: lumaGrid.cols, rows: lumaGrid.rows, indices: stableIndices },
+    grid: { cols: lumaGrid.cols, rows: lumaGrid.rows, indices: stableIndices, colors: lumaGrid.colors },
     state: { stableIndices },
   };
 }

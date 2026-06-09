@@ -1,4 +1,13 @@
-import { DEFAULT_TEXTURE_GAMMA, normalizeTextureGamma } from "./colorWhiteness";
+import {
+  DEFAULT_TEXTURE_GAMMA,
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  DEFAULT_TEXTURE_LUMINANCE_MODE,
+  normalizeTextureGamma,
+  normalizeTextureLuminanceBackgroundColor,
+  normalizeTextureLuminanceMode,
+  type TextureLuminanceMode,
+  type TextureLuminanceSettings,
+} from "./colorWhiteness";
 import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import {
   isDefaultPlaygroundGridConfig,
@@ -41,6 +50,20 @@ import {
   type PlaygroundFlamesConfig,
 } from "./playgroundFlamesConfig";
 import {
+  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+  isDefaultPlaygroundRevealConfig,
+  normalizePlaygroundRevealConfig,
+  type PlaygroundRevealConfig,
+  type PlaygroundRevealPreset,
+  type PlaygroundWaveRevealPosition,
+} from "./playgroundRevealConfig";
+import {
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  isDefaultPlaygroundCursorTrailConfig,
+  normalizePlaygroundCursorTrailConfig,
+  type PlaygroundCursorTrailConfig,
+} from "./playgroundCursorTrailConfig";
+import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_STRIPES,
   detectUploadMediaKind,
@@ -70,6 +93,10 @@ export type PlaygroundPersistedConfig = {
   textureGamma?: number;
   /** Designer texture/tone adjustments. Omitted = defaults. */
   textureAdjustments?: PlaygroundTextureAdjustments;
+  /** How sampled texture pixels become 0–1 stripe thresholds. Omitted = luminance. */
+  textureLuminanceMode?: TextureLuminanceMode;
+  /** Texture background color used by color-distance luminance mode. Omitted = black. */
+  textureLuminanceBackgroundColor?: number;
   /** Source fit/crop transform. Omitted = stretch/full source. */
   sourceTransform?: PlaygroundSourceTransform;
   /** Active cell ratio 0–1. 0 = off. Default 0.22. */
@@ -92,6 +119,10 @@ export type PlaygroundPersistedConfig = {
   grid?: PlaygroundGridConfig;
   /** Background flame streak settings. Omitted = defaults. */
   flames?: PlaygroundFlamesConfig;
+  /** Reveal animation settings. Omitted = defaults. */
+  reveal?: PlaygroundRevealConfig;
+  /** Cursor trail settings. Omitted = defaults. */
+  cursorTrail?: PlaygroundCursorTrailConfig;
   /** Ordered luminosity stripes (color + start-from + width). */
   stripes: Stripe[];
 };
@@ -111,12 +142,27 @@ export function resolvePersistedTextureAdjustments(config: PlaygroundPersistedCo
   });
 }
 
+export function resolvePersistedTextureLuminanceSettings(config: PlaygroundPersistedConfig): TextureLuminanceSettings {
+  return {
+    mode: normalizeTextureLuminanceMode(config.textureLuminanceMode),
+    backgroundColor: normalizeTextureLuminanceBackgroundColor(config.textureLuminanceBackgroundColor),
+  };
+}
+
 export function resolvePersistedSourceTransform(config: PlaygroundPersistedConfig): PlaygroundSourceTransform {
   return normalizePlaygroundSourceTransform(config.sourceTransform);
 }
 
 export function resolvePersistedFlamesConfig(config: PlaygroundPersistedConfig): PlaygroundFlamesConfig {
   return normalizePlaygroundFlamesConfig(config.flames);
+}
+
+export function resolvePersistedRevealConfig(config: PlaygroundPersistedConfig): PlaygroundRevealConfig {
+  return normalizePlaygroundRevealConfig(config.reveal);
+}
+
+export function resolvePersistedCursorTrailConfig(config: PlaygroundPersistedConfig): PlaygroundCursorTrailConfig {
+  return normalizePlaygroundCursorTrailConfig(config.cursorTrail);
 }
 
 export type PlaygroundUploadMeta = {
@@ -153,7 +199,7 @@ export type StripeWire = {
 };
 
 export type PlaygroundStateWire = {
-  v: 1 | 2 | 3 | 4 | 5 | 6;
+  v: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   d: boolean;
   se?: boolean;
   /** v5+: raw CSS declarations applied to the playground canvas element. */
@@ -170,6 +216,10 @@ export type PlaygroundStateWire = {
   tgm?: number;
   /** v6+: texture/tone adjustments. */
   ta?: TextureAdjustmentsWire;
+  /** v7+: sampled texture luminance mode. */
+  tlm?: TextureLuminanceMode;
+  /** v7+: texture background hex for color-distance luminance mode. */
+  tbg?: string;
   /** v6+: source fit/crop transform. */
   xf?: SourceTransformWire;
   w?: number;
@@ -180,6 +230,10 @@ export type PlaygroundStateWire = {
   st?: StripeWire[];
   /** v6+: background flame settings. */
   fl?: FlamesWire;
+  /** v7+: reveal animation settings. */
+  rv?: RevealWire;
+  /** v7+: cursor trail settings. */
+  ct?: CursorTrailWire;
   /** @deprecated v1/v2 distance-model fields, migrated to default stripes. */
   c?: string;
   t?: number;
@@ -228,6 +282,50 @@ type FlamesWire = {
   ms?: number;
   me?: number;
   mp?: number;
+};
+
+type CursorTrailWire = {
+  en?: boolean;
+  pr?: number;
+  pa?: number;
+  life?: number;
+  lj?: number;
+  vs?: number;
+  pv?: number;
+  tv?: number;
+  damp?: number;
+  sp?: number;
+  emit?: number;
+  smn?: number;
+  smx?: number;
+  spin?: number;
+  drn?: number;
+  drl?: number;
+  or?: number;
+  pd?: number;
+  pl?: number;
+  pw?: number;
+  ts?: number;
+};
+
+type RevealWire = {
+  p?: PlaygroundRevealPreset | "randomColumnsShift";
+  wp?: PlaygroundWaveRevealPosition;
+  wd?: number;
+  ws?: number;
+  ww?: number;
+  wn?: number;
+  cd?: number;
+  cg?: number;
+  cy?: number;
+  /** @deprecated random columns shift duration, merged into cd. */
+  csd?: number;
+  /** @deprecated random columns shift stagger, merged into cg. */
+  csg?: number;
+  /** @deprecated random columns edge softness, now fixed at 0px. */
+  ce?: number;
+  /** @deprecated random columns seed, now derived from replay key. */
+  cs?: number;
 };
 
 function stripesToWire(stripes: readonly Stripe[]): StripeWire[] {
@@ -368,6 +466,110 @@ function wireToFlames(raw: unknown): PlaygroundFlamesConfig | undefined {
     edgeMaskStart: wire.ms,
     edgeMaskEnd: wire.me,
     edgeMaskPower: wire.mp,
+  });
+}
+
+function cursorTrailToWire(config: PlaygroundCursorTrailConfig): CursorTrailWire | undefined {
+  const normalized = normalizePlaygroundCursorTrailConfig(config);
+  if (isDefaultPlaygroundCursorTrailConfig(normalized)) {
+    return undefined;
+  }
+  const base = DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG;
+  const wire: CursorTrailWire = {};
+  if (normalized.enabled !== base.enabled) wire.en = normalized.enabled;
+  if (normalized.particleRadius !== base.particleRadius) wire.pr = normalized.particleRadius;
+  if (normalized.particleAlpha !== base.particleAlpha) wire.pa = normalized.particleAlpha;
+  if (normalized.particleLifeMs !== base.particleLifeMs) wire.life = normalized.particleLifeMs;
+  if (normalized.particleLifeJitterMs !== base.particleLifeJitterMs) wire.lj = normalized.particleLifeJitterMs;
+  if (normalized.emitterVelocitySmoothing !== base.emitterVelocitySmoothing)
+    wire.vs = normalized.emitterVelocitySmoothing;
+  if (normalized.particleVelocityScale !== base.particleVelocityScale) wire.pv = normalized.particleVelocityScale;
+  if (normalized.particleTangentVelocity !== base.particleTangentVelocity) wire.tv = normalized.particleTangentVelocity;
+  if (normalized.particleDamping !== base.particleDamping) wire.damp = normalized.particleDamping;
+  if (normalized.particleSpacingPx !== base.particleSpacingPx) wire.sp = normalized.particleSpacingPx;
+  if (normalized.maxEmitPerTick !== base.maxEmitPerTick) wire.emit = normalized.maxEmitPerTick;
+  if (normalized.spreadMinPx !== base.spreadMinPx) wire.smn = normalized.spreadMinPx;
+  if (normalized.spreadMaxPx !== base.spreadMaxPx) wire.smx = normalized.spreadMaxPx;
+  if (normalized.spinStrength !== base.spinStrength) wire.spin = normalized.spinStrength;
+  if (normalized.densityRadiusMinScale !== base.densityRadiusMinScale) wire.drn = normalized.densityRadiusMinScale;
+  if (normalized.densityRadiusLifeScale !== base.densityRadiusLifeScale) wire.drl = normalized.densityRadiusLifeScale;
+  if (normalized.pushRadiusScale !== base.pushRadiusScale) wire.or = normalized.pushRadiusScale;
+  if (normalized.pushStrengthPx !== base.pushStrengthPx) wire.pd = normalized.pushStrengthPx;
+  if (normalized.pushLagPx !== base.pushLagPx) wire.pl = normalized.pushLagPx;
+  if (normalized.pushWobblePx !== base.pushWobblePx) wire.pw = normalized.pushWobblePx;
+  if (normalized.trailScale !== base.trailScale) wire.ts = normalized.trailScale;
+  return wire;
+}
+
+function wireToCursorTrail(raw: unknown): PlaygroundCursorTrailConfig | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const wire = raw as CursorTrailWire;
+  return normalizePlaygroundCursorTrailConfig({
+    enabled: wire.en,
+    particleRadius: wire.pr,
+    particleAlpha: wire.pa,
+    particleLifeMs: wire.life,
+    particleLifeJitterMs: wire.lj,
+    emitterVelocitySmoothing: wire.vs,
+    particleVelocityScale: wire.pv,
+    particleTangentVelocity: wire.tv,
+    particleDamping: wire.damp,
+    particleSpacingPx: wire.sp,
+    maxEmitPerTick: wire.emit,
+    spreadMinPx: wire.smn,
+    spreadMaxPx: wire.smx,
+    spinStrength: wire.spin,
+    densityRadiusMinScale: wire.drn,
+    densityRadiusLifeScale: wire.drl,
+    pushRadiusScale: wire.or,
+    pushStrengthPx: wire.pd,
+    pushLagPx: wire.pl,
+    pushWobblePx: wire.pw,
+    trailScale: wire.ts,
+  });
+}
+
+function revealToWire(config: PlaygroundRevealConfig): RevealWire | undefined {
+  const normalized = normalizePlaygroundRevealConfig(config);
+  if (isDefaultPlaygroundRevealConfig(normalized)) {
+    return undefined;
+  }
+  const base = DEFAULT_PLAYGROUND_REVEAL_CONFIG;
+  const wire: RevealWire = { p: normalized.preset };
+  if (normalized.wave.position !== base.wave.position) wire.wp = normalized.wave.position;
+  if (normalized.wave.durationMs !== base.wave.durationMs) wire.wd = normalized.wave.durationMs;
+  if (normalized.wave.softness !== base.wave.softness) wire.ws = normalized.wave.softness;
+  if (normalized.wave.waviness !== base.wave.waviness) wire.ww = normalized.wave.waviness;
+  if (normalized.wave.noiseScale !== base.wave.noiseScale) wire.wn = normalized.wave.noiseScale;
+  if (normalized.randomColumns.durationMs !== base.randomColumns.durationMs)
+    wire.cd = normalized.randomColumns.durationMs;
+  if (normalized.randomColumns.stagger !== base.randomColumns.stagger) wire.cg = normalized.randomColumns.stagger;
+  if (normalized.randomColumns.yShift !== base.randomColumns.yShift) wire.cy = normalized.randomColumns.yShift;
+  return wire;
+}
+
+function wireToReveal(raw: unknown): PlaygroundRevealConfig | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const wire = raw as RevealWire;
+  const legacyShiftPreset = wire.p === "randomColumnsShift";
+  return normalizePlaygroundRevealConfig({
+    preset: legacyShiftPreset ? "randomColumns" : wire.p,
+    wave: {
+      position: wire.wp,
+      durationMs: wire.wd,
+      softness: wire.ws,
+      waviness: wire.ww,
+      noiseScale: wire.wn,
+    },
+    randomColumns: {
+      durationMs: wire.cd ?? (legacyShiftPreset ? wire.csd : undefined),
+      stagger: wire.cg ?? (legacyShiftPreset ? wire.csg : undefined),
+      yShift: wire.cy,
+    },
   });
 }
 
@@ -673,13 +875,23 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
       : undefined;
   const textureAdjustments = resolvePersistedTextureAdjustments(config);
   const textureAdjustmentsWire = textureAdjustmentsToWire(textureAdjustments);
+  const textureLuminanceSettings = resolvePersistedTextureLuminanceSettings(config);
+  const textureLuminanceBackgroundColorHex =
+    textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
+      ? `#${(textureLuminanceSettings.backgroundColor & 0xffffff).toString(16).padStart(6, "0")}`
+      : undefined;
   const sourceTransform = resolvePersistedSourceTransform(config);
   const sourceTransformWire = sourceTransformToWire(sourceTransform);
   const flames = resolvePersistedFlamesConfig(config);
   const flamesWire = flamesToWire(flames);
+  const reveal = resolvePersistedRevealConfig(config);
+  const revealWire = revealToWire(reveal);
+  const cursorTrail = resolvePersistedCursorTrailConfig(config);
+  const cursorTrailWire = cursorTrailToWire(cursorTrail);
   const wire: PlaygroundStateWire = {
-    v:
-      textureAdjustmentsWire || sourceTransformWire || flamesWire
+    v: revealWire
+      ? 7
+      : textureAdjustmentsWire || sourceTransformWire || flamesWire
         ? 6
         : backgroundCss || backgroundColorHex
           ? 5
@@ -705,12 +917,30 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   if (textureAdjustmentsWire) {
     wire.ta = textureAdjustmentsWire;
   }
+  if (
+    textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE ||
+    textureLuminanceBackgroundColorHex !== undefined
+  ) {
+    wire.v = 7;
+    wire.tlm = textureLuminanceSettings.mode;
+    if (textureLuminanceBackgroundColorHex !== undefined) {
+      wire.tbg = textureLuminanceBackgroundColorHex;
+    }
+  }
   if (sourceTransformWire) {
     wire.xf = sourceTransformWire;
   }
   if (flamesWire) {
     wire.fl = flamesWire;
     wire.v = 6;
+  }
+  if (revealWire) {
+    wire.rv = revealWire;
+    wire.v = 7;
+  }
+  if (cursorTrailWire) {
+    wire.ct = cursorTrailWire;
+    wire.v = 7;
   }
   const gapsActive =
     config.sparkleGapsActivePercent !== undefined
@@ -860,7 +1090,15 @@ function legacySparkleGapsSpeed(config: PlaygroundPersistedConfig): number {
 
 export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConfig {
   const parsed = JSON.parse(text.trim()) as Partial<PlaygroundStateWire>;
-  if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3 && parsed.v !== 4 && parsed.v !== 5 && parsed.v !== 6) {
+  if (
+    parsed.v !== 1 &&
+    parsed.v !== 2 &&
+    parsed.v !== 3 &&
+    parsed.v !== 4 &&
+    parsed.v !== 5 &&
+    parsed.v !== 6 &&
+    parsed.v !== 7
+  ) {
     throw new Error("Unsupported playground state version.");
   }
   const wireVersion = parsed.v;
@@ -874,8 +1112,12 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const textureGamma = parsed.tgm === undefined ? undefined : normalizeTextureGamma(Number(parsed.tgm));
   const grid = parsed.gc ? normalizePlaygroundGridConfig(parsed.gc) : undefined;
   const textureAdjustments = wireToTextureAdjustments(parsed.ta, textureGamma);
+  const textureLuminanceMode = normalizeTextureLuminanceMode(parsed.tlm);
+  const textureLuminanceBackgroundColor = normalizeTextureLuminanceBackgroundColor(parsed.tbg);
   const sourceTransform = wireToSourceTransform(parsed.xf);
   const flames = wireToFlames(parsed.fl);
+  const reveal = wireToReveal(parsed.rv);
+  const cursorTrail = wireToCursorTrail(parsed.ct);
 
   return {
     duotoneEnabled: parsed.d,
@@ -883,6 +1125,11 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     textureGamma: textureGamma !== undefined && textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
     textureAdjustments:
       textureAdjustments && !isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? textureAdjustments : undefined,
+    textureLuminanceMode: textureLuminanceMode !== DEFAULT_TEXTURE_LUMINANCE_MODE ? textureLuminanceMode : undefined,
+    textureLuminanceBackgroundColor:
+      textureLuminanceBackgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
+        ? textureLuminanceBackgroundColor
+        : undefined,
     sourceTransform:
       sourceTransform && !isDefaultPlaygroundSourceTransform(sourceTransform) ? sourceTransform : undefined,
     sparkleGapsActivePercent: parseSparkleGapsActivePercent(parsed.sgap, parsed.sr, parsed.sk, wireVersion),
@@ -899,6 +1146,8 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
           })(),
     grid: grid && !isDefaultPlaygroundGridConfig(grid) ? grid : undefined,
     flames: flames && !isDefaultPlaygroundFlamesConfig(flames) ? flames : undefined,
+    reveal: reveal && !isDefaultPlaygroundRevealConfig(reveal) ? reveal : undefined,
+    cursorTrail: cursorTrail && !isDefaultPlaygroundCursorTrailConfig(cursorTrail) ? cursorTrail : undefined,
     stripes,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     displayHeight: h && Number.isFinite(h) && h > 0 ? Math.round(h) : undefined,
