@@ -47,17 +47,34 @@ import {
   type PlaygroundCursorTrailConfig,
 } from "./playgroundCursorTrailConfig";
 import {
-  buildDisplayFrameWithCursorTrail,
+  addClickWave,
+  applyClickWavesToEffectPixels,
+  createClickWaveState,
+  mergePointerEffectBounds,
+  updateClickWave,
+  type ClickWaveGridContext,
+  type ClickWaveSample,
+  type ClickWaveState,
+} from "./clickWave";
+import {
+  applyCursorTrailToEffectPixels,
   createCursorTrailState,
   downsamplePixelsNearest,
   resolveCursorTrailRebuildBounds,
   setCursorTrailTarget,
   updateCursorTrail,
+  upscalePixelsNearest,
   type CursorTrailPixelBounds,
+  type CursorTrailSample,
   type CursorTrailState,
 } from "./cursorTrail";
 import { extractVibrantColorsFromImageData } from "./playgroundVibrantColors";
 import { resolvePlaygroundPixiTint } from "./stripeColors";
+import {
+  DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
+  normalizePlaygroundClickWaveConfig,
+  type PlaygroundClickWaveConfig,
+} from "./playgroundClickWaveConfig";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -102,6 +119,9 @@ const DEFAULT_REVEAL_PLAYBACK_REF: RefObject<PlaygroundRevealPlayback> = {
 };
 const DEFAULT_CURSOR_TRAIL_CONFIG_REF: RefObject<PlaygroundCursorTrailConfig> = {
   current: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+};
+const DEFAULT_CLICK_WAVE_CONFIG_REF: RefObject<PlaygroundClickWaveConfig> = {
+  current: DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
 };
 export type PlaygroundDisplaySize = { width: number; height: number };
 
@@ -244,29 +264,93 @@ function cursorTrailPointFromEvent(
   };
 }
 
-function attachCursorTrailEvents(
+function attachPlaygroundPointerEvents(
   canvas: HTMLCanvasElement,
   display: PlaygroundDisplaySize,
-  state: CursorTrailState,
+  cursorTrailState: CursorTrailState,
+  clickWaveState: ClickWaveState,
+  clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
 ): () => void {
   const onPointerMove = (event: PointerEvent) => {
-    setCursorTrailTarget(state, cursorTrailPointFromEvent(event, canvas, display));
+    setCursorTrailTarget(cursorTrailState, cursorTrailPointFromEvent(event, canvas, display));
+  };
+  const onPointerDown = (event: PointerEvent) => {
+    const clickWaveConfig = normalizePlaygroundClickWaveConfig(clickWaveConfigRef.current);
+    const point = cursorTrailPointFromEvent(event, canvas, display);
+    if (!point || !clickWaveConfig.enabled) {
+      return;
+    }
+    addClickWave(clickWaveState, point, clickWaveConfig.lifeMs);
   };
   const onPointerLeave = () => {
-    setCursorTrailTarget(state, null);
+    setCursorTrailTarget(cursorTrailState, null);
   };
 
   window.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointerleave", onPointerLeave);
   canvas.addEventListener("pointercancel", onPointerLeave);
   window.addEventListener("blur", onPointerLeave);
 
   return () => {
     window.removeEventListener("pointermove", onPointerMove);
+    canvas.removeEventListener("pointerdown", onPointerDown);
     canvas.removeEventListener("pointerleave", onPointerLeave);
     canvas.removeEventListener("pointercancel", onPointerLeave);
     window.removeEventListener("blur", onPointerLeave);
   };
+}
+
+function buildDisplayFrameWithPointerEffects(
+  cachedEffectBase: Uint8ClampedArray,
+  effectWidth: number,
+  effectHeight: number,
+  displayWidth: number,
+  displayHeight: number,
+  trailSamples: readonly CursorTrailSample[],
+  cursorTrailConfig: PlaygroundCursorTrailConfig,
+  clickWaveSamples: readonly ClickWaveSample[],
+  clickWaveConfig: PlaygroundClickWaveConfig,
+  clickWaveGrid: ClickWaveGridContext,
+  workingEffect?: Uint8ClampedArray,
+  displayPixels?: Uint8ClampedArray,
+): { data: Uint8ClampedArray; bounds: CursorTrailPixelBounds | null } {
+  const effect = workingEffect ?? new Uint8ClampedArray(cachedEffectBase);
+  if (effect !== cachedEffectBase) {
+    effect.set(cachedEffectBase);
+  }
+
+  let bounds =
+    clickWaveSamples.length > 0
+      ? applyClickWavesToEffectPixels(
+          effect,
+          effectWidth,
+          effectHeight,
+          displayWidth,
+          displayHeight,
+          clickWaveSamples,
+          clickWaveConfig,
+          clickWaveGrid,
+        )
+      : null;
+  if (trailSamples.length > 0) {
+    bounds = mergePointerEffectBounds(
+      bounds,
+      applyCursorTrailToEffectPixels(
+        effect,
+        effectWidth,
+        effectHeight,
+        displayWidth,
+        displayHeight,
+        trailSamples,
+        cursorTrailConfig,
+      ),
+    );
+  }
+
+  const output = displayPixels ?? new Uint8ClampedArray(displayWidth * displayHeight * 4);
+  upscalePixelsNearest(effect, effectWidth, effectHeight, output, displayWidth, displayHeight);
+  return { data: output, bounds };
 }
 
 function runDuotoneTick(params: {
@@ -295,7 +379,9 @@ function runDuotoneTick(params: {
   blockGridTexture: BlockGridTexture;
   atlas: ReturnType<typeof buildStripeLetterAtlas>;
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>;
+  clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>;
   cursorTrailState: CursorTrailState;
+  clickWaveState: ClickWaveState;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
   syncVisual: () => void;
   shouldSample: () => boolean;
@@ -326,7 +412,9 @@ function runDuotoneTick(params: {
     gridConfigRef,
     display,
     cursorTrailConfigRef,
+    clickWaveConfigRef,
     cursorTrailState,
+    clickWaveState,
     exportStateRef,
     syncVisual,
     shouldSample,
@@ -430,9 +518,11 @@ function runDuotoneTick(params: {
   const tick = () => {
     const now = performance.now();
     const cursorTrailConfig = normalizePlaygroundCursorTrailConfig(cursorTrailConfigRef.current);
+    const clickWaveConfig = normalizePlaygroundClickWaveConfig(clickWaveConfigRef.current);
     const trailDtMs = now - lastTrailTickMs;
     lastTrailTickMs = now;
     const trail = updateCursorTrail(cursorTrailState, trailDtMs, cursorTrailConfig);
+    const clickWave = updateClickWave(clickWaveState, trailDtMs, clickWaveConfig);
     syncVisual();
     sourceTextureFilter.syncAdjustments({
       ...textureAdjustmentsRef.current,
@@ -524,7 +614,9 @@ function runDuotoneTick(params: {
     const colorsChanged = colorsKey !== lastColorsKey;
     const revealActive = revealProgress < 1;
     const trailSamplingEnabled = cursorTrailConfig.enabled && !revealActive;
-    const trailChanged = trailSamplingEnabled && trail.changed;
+    const clickWaveSamplingEnabled = clickWaveConfig.enabled && !revealActive;
+    const pointerEffectsChanged =
+      (trailSamplingEnabled && trail.changed) || (clickWaveSamplingEnabled && clickWave.changed);
     const timeChanged = shouldSample() || (flamesState != null && flamesConfig.enabled) || revealActive;
     const needsBaseFrame = timeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
 
@@ -574,21 +666,22 @@ function runDuotoneTick(params: {
 
     let frame: ImageData | null = null;
     let currentTrailBounds: CursorTrailPixelBounds | null = null;
-    const needsTrailFrame =
-      trailChanged &&
+    const needsPointerEffectsFrame =
+      pointerEffectsChanged &&
       cachedEffectBase &&
       cachedEffectBaseKey === frameCacheKey &&
-      (trailSamplingEnabled || trail.samples.length === 0);
+      (trailSamplingEnabled || clickWaveSamplingEnabled || (trail.samples.length === 0 && clickWave.samples.length === 0));
     const trailSamples = trailSamplingEnabled ? trail.samples : [];
+    const clickWaveSamples = clickWaveSamplingEnabled ? clickWave.samples : [];
 
-    if (needsTrailFrame && cachedEffectBase) {
+    if (needsPointerEffectsFrame && cachedEffectBase) {
       if (!workingEffectPixels || workingEffectPixels.length !== effectPixelCount) {
         workingEffectPixels = new Uint8ClampedArray(effectPixelCount);
       }
       if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
         displayFramePixels = new Uint8ClampedArray(displayPixelCount);
       }
-      const composited = buildDisplayFrameWithCursorTrail(
+      const composited = buildDisplayFrameWithPointerEffects(
         cachedEffectBase,
         effectSize.width,
         effectSize.height,
@@ -596,6 +689,9 @@ function runDuotoneTick(params: {
         display.height,
         trailSamples,
         cursorTrailConfig,
+        clickWaveSamples,
+        clickWaveConfig,
+        { gridCellWidth: effectiveCell.width, gridCellHeight: effectiveCell.height },
         workingEffectPixels,
         displayFramePixels,
       );
@@ -606,7 +702,7 @@ function runDuotoneTick(params: {
       if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
         displayFramePixels = new Uint8ClampedArray(displayPixelCount);
       }
-      buildDisplayFrameWithCursorTrail(
+      buildDisplayFrameWithPointerEffects(
         cachedEffectBase,
         effectSize.width,
         effectSize.height,
@@ -614,6 +710,9 @@ function runDuotoneTick(params: {
         display.height,
         [],
         cursorTrailConfig,
+        [],
+        clickWaveConfig,
+        { gridCellWidth: effectiveCell.width, gridCellHeight: effectiveCell.height },
         workingEffectPixels ?? undefined,
         displayFramePixels,
       );
@@ -633,7 +732,7 @@ function runDuotoneTick(params: {
       frame &&
       (!hasBuiltGrid ||
         (pendingFullResample && fullResampleReady) ||
-        trailChanged ||
+        pointerEffectsChanged ||
         (timeChanged && !pendingFullResample && now - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
 
     if (shouldRebuildGrid && frame) {
@@ -739,6 +838,7 @@ export function createTextureSceneTicker(
   revealStateRef: RefObject<PlaygroundRevealState> = DEFAULT_REVEAL_STATE_REF,
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = DEFAULT_REVEAL_PLAYBACK_REF,
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = DEFAULT_CURSOR_TRAIL_CONFIG_REF,
+  clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig> = DEFAULT_CLICK_WAVE_CONFIG_REF,
 ): Ticker {
   if (source.kind === "image") {
     return createImageSceneTicker(
@@ -761,6 +861,7 @@ export function createTextureSceneTicker(
       revealStateRef,
       revealPlaybackRef,
       cursorTrailConfigRef,
+      clickWaveConfigRef,
       exportStateRef,
     );
   }
@@ -785,6 +886,7 @@ export function createTextureSceneTicker(
     revealStateRef,
     revealPlaybackRef,
     cursorTrailConfigRef,
+    clickWaveConfigRef,
     exportStateRef,
   );
 }
@@ -809,6 +911,7 @@ function createImageSceneTicker(
   revealStateRef: RefObject<PlaygroundRevealState>,
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
+  clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -854,7 +957,14 @@ function createImageSceneTicker(
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
     const cursorTrailState = createCursorTrailState();
-    const detachCursorTrailEvents = attachCursorTrailEvents(app.canvas as HTMLCanvasElement, display, cursorTrailState);
+    const clickWaveState = createClickWaveState();
+    const detachPlaygroundPointerEvents = attachPlaygroundPointerEvents(
+      app.canvas as HTMLCanvasElement,
+      display,
+      cursorTrailState,
+      clickWaveState,
+      clickWaveConfigRef,
+    );
 
     const { tick: renderTick, dispose } = runDuotoneTick({
       app,
@@ -882,7 +992,9 @@ function createImageSceneTicker(
       blockGridTexture,
       atlas,
       cursorTrailConfigRef,
+      clickWaveConfigRef,
       cursorTrailState,
+      clickWaveState,
       exportStateRef,
       syncVisual: () =>
         syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current),
@@ -898,7 +1010,7 @@ function createImageSceneTicker(
         app.ticker.remove(renderTick);
       }
       image.removeEventListener("load", onLayoutChange);
-      detachCursorTrailEvents();
+      detachPlaygroundPointerEvents();
       dispose();
       sprite.destroy({ children: true });
       texture.destroy(true);
@@ -927,6 +1039,7 @@ function createVideoSceneTickerInternal(
   revealStateRef: RefObject<PlaygroundRevealState>,
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
+  clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -977,7 +1090,14 @@ function createVideoSceneTickerInternal(
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
     const cursorTrailState = createCursorTrailState();
-    const detachCursorTrailEvents = attachCursorTrailEvents(app.canvas as HTMLCanvasElement, display, cursorTrailState);
+    const clickWaveState = createClickWaveState();
+    const detachPlaygroundPointerEvents = attachPlaygroundPointerEvents(
+      app.canvas as HTMLCanvasElement,
+      display,
+      cursorTrailState,
+      clickWaveState,
+      clickWaveConfigRef,
+    );
 
     let lastSampledTime = -1;
 
@@ -1007,7 +1127,9 @@ function createVideoSceneTickerInternal(
       blockGridTexture,
       atlas,
       cursorTrailConfigRef,
+      clickWaveConfigRef,
       cursorTrailState,
+      clickWaveState,
       exportStateRef,
       syncVisual: () =>
         syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current),
@@ -1034,7 +1156,7 @@ function createVideoSceneTickerInternal(
       video.removeEventListener("loadedmetadata", onVideoLayoutChange);
       videoSource.off("resize", onVideoLayoutChange);
       videoSource.off("update", onVideoLayoutChange);
-      detachCursorTrailEvents();
+      detachPlaygroundPointerEvents();
       dispose();
       sprite.destroy({ children: true });
       texture.destroy(true);

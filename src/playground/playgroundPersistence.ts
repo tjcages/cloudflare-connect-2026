@@ -64,6 +64,12 @@ import {
   type PlaygroundCursorTrailConfig,
 } from "./playgroundCursorTrailConfig";
 import {
+  DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
+  isDefaultPlaygroundClickWaveConfig,
+  normalizePlaygroundClickWaveConfig,
+  type PlaygroundClickWaveConfig,
+} from "./playgroundClickWaveConfig";
+import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_STRIPES,
   detectUploadMediaKind,
@@ -123,6 +129,8 @@ export type PlaygroundPersistedConfig = {
   reveal?: PlaygroundRevealConfig;
   /** Cursor trail settings. Omitted = defaults. */
   cursorTrail?: PlaygroundCursorTrailConfig;
+  /** Click ripple settings. Omitted = defaults. */
+  clickWave?: PlaygroundClickWaveConfig;
   /** Ordered luminosity stripes (color + start-from + width). */
   stripes: Stripe[];
 };
@@ -163,6 +171,10 @@ export function resolvePersistedRevealConfig(config: PlaygroundPersistedConfig):
 
 export function resolvePersistedCursorTrailConfig(config: PlaygroundPersistedConfig): PlaygroundCursorTrailConfig {
   return normalizePlaygroundCursorTrailConfig(config.cursorTrail);
+}
+
+export function resolvePersistedClickWaveConfig(config: PlaygroundPersistedConfig): PlaygroundClickWaveConfig {
+  return normalizePlaygroundClickWaveConfig(config.clickWave);
 }
 
 export type PlaygroundUploadMeta = {
@@ -234,6 +246,8 @@ export type PlaygroundStateWire = {
   rv?: RevealWire;
   /** v7+: cursor trail settings. */
   ct?: CursorTrailWire;
+  /** v7+: click ripple settings. */
+  cc?: ClickWaveWire;
   /** @deprecated v1/v2 distance-model fields, migrated to default stripes. */
   c?: string;
   t?: number;
@@ -306,6 +320,26 @@ type CursorTrailWire = {
   pl?: number;
   pw?: number;
   ts?: number;
+};
+
+type ClickWaveWire = {
+  en?: boolean;
+  life?: number;
+  sr?: number;
+  mr?: number;
+  ssw?: number;
+  esw?: number;
+  mw?: number;
+  ps?: number;
+  pbs?: number;
+  rw?: number;
+  sw?: number;
+  scn?: number;
+  scx?: number;
+  skn?: number;
+  skx?: number;
+  sln?: number;
+  slx?: number;
 };
 
 type RevealWire = {
@@ -528,6 +562,59 @@ function wireToCursorTrail(raw: unknown): PlaygroundCursorTrailConfig | undefine
     pushLagPx: wire.pl,
     pushWobblePx: wire.pw,
     trailScale: wire.ts,
+  });
+}
+
+function clickWaveToWire(config: PlaygroundClickWaveConfig): ClickWaveWire | undefined {
+  const normalized = normalizePlaygroundClickWaveConfig(config);
+  if (isDefaultPlaygroundClickWaveConfig(normalized)) {
+    return undefined;
+  }
+  const base = DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG;
+  const wire: ClickWaveWire = {};
+  if (normalized.enabled !== base.enabled) wire.en = normalized.enabled;
+  if (normalized.lifeMs !== base.lifeMs) wire.life = normalized.lifeMs;
+  if (normalized.startRadiusPx !== base.startRadiusPx) wire.sr = normalized.startRadiusPx;
+  if (normalized.maxRadiusPx !== base.maxRadiusPx) wire.mr = normalized.maxRadiusPx;
+  if (normalized.startStrokeWidthPx !== base.startStrokeWidthPx) wire.ssw = normalized.startStrokeWidthPx;
+  if (normalized.endStrokeWidthPx !== base.endStrokeWidthPx) wire.esw = normalized.endStrokeWidthPx;
+  if (normalized.maxWaves !== base.maxWaves) wire.mw = normalized.maxWaves;
+  if (normalized.pushStrengthPx !== base.pushStrengthPx) wire.ps = normalized.pushStrengthPx;
+  if (normalized.pushBandScale !== base.pushBandScale) wire.pbs = normalized.pushBandScale;
+  if (normalized.stripeWhiteAlpha !== base.stripeWhiteAlpha) wire.rw = normalized.stripeWhiteAlpha;
+  if (normalized.sliceWhiteAlpha !== base.sliceWhiteAlpha) wire.sw = normalized.sliceWhiteAlpha;
+  if (normalized.sliceCountMin !== base.sliceCountMin) wire.scn = normalized.sliceCountMin;
+  if (normalized.sliceCountMax !== base.sliceCountMax) wire.scx = normalized.sliceCountMax;
+  if (normalized.sliceSkipMin !== base.sliceSkipMin) wire.skn = normalized.sliceSkipMin;
+  if (normalized.sliceSkipMax !== base.sliceSkipMax) wire.skx = normalized.sliceSkipMax;
+  if (normalized.sliceLevelMin !== base.sliceLevelMin) wire.sln = normalized.sliceLevelMin;
+  if (normalized.sliceLevelMax !== base.sliceLevelMax) wire.slx = normalized.sliceLevelMax;
+  return wire;
+}
+
+function wireToClickWave(raw: unknown): PlaygroundClickWaveConfig | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const wire = raw as ClickWaveWire;
+  return normalizePlaygroundClickWaveConfig({
+    enabled: wire.en,
+    lifeMs: wire.life,
+    startRadiusPx: wire.sr,
+    maxRadiusPx: wire.mr,
+    startStrokeWidthPx: wire.ssw,
+    endStrokeWidthPx: wire.esw,
+    maxWaves: wire.mw,
+    pushStrengthPx: wire.ps,
+    pushBandScale: wire.pbs,
+    stripeWhiteAlpha: wire.rw,
+    sliceWhiteAlpha: wire.sw,
+    sliceCountMin: wire.scn,
+    sliceCountMax: wire.scx,
+    sliceSkipMin: wire.skn,
+    sliceSkipMax: wire.skx,
+    sliceLevelMin: wire.sln,
+    sliceLevelMax: wire.slx,
   });
 }
 
@@ -888,6 +975,8 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const revealWire = revealToWire(reveal);
   const cursorTrail = resolvePersistedCursorTrailConfig(config);
   const cursorTrailWire = cursorTrailToWire(cursorTrail);
+  const clickWave = resolvePersistedClickWaveConfig(config);
+  const clickWaveWire = clickWaveToWire(clickWave);
   const wire: PlaygroundStateWire = {
     v: revealWire
       ? 7
@@ -940,6 +1029,10 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   }
   if (cursorTrailWire) {
     wire.ct = cursorTrailWire;
+    wire.v = 7;
+  }
+  if (clickWaveWire) {
+    wire.cc = clickWaveWire;
     wire.v = 7;
   }
   const gapsActive =
@@ -1118,6 +1211,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const flames = wireToFlames(parsed.fl);
   const reveal = wireToReveal(parsed.rv);
   const cursorTrail = wireToCursorTrail(parsed.ct);
+  const clickWave = wireToClickWave(parsed.cc);
 
   return {
     duotoneEnabled: parsed.d,
@@ -1148,6 +1242,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     flames: flames && !isDefaultPlaygroundFlamesConfig(flames) ? flames : undefined,
     reveal: reveal && !isDefaultPlaygroundRevealConfig(reveal) ? reveal : undefined,
     cursorTrail: cursorTrail && !isDefaultPlaygroundCursorTrailConfig(cursorTrail) ? cursorTrail : undefined,
+    clickWave: clickWave && !isDefaultPlaygroundClickWaveConfig(clickWave) ? clickWave : undefined,
     stripes,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     displayHeight: h && Number.isFinite(h) && h > 0 ? Math.round(h) : undefined,

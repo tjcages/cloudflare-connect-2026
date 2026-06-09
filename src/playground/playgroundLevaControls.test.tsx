@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PlaygroundLevaControls } from "./playgroundLevaControls";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
 import { DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG } from "./playgroundCursorTrailConfig";
+import { DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG } from "./playgroundClickWaveConfig";
 import { DEFAULT_PLAYGROUND_REVEAL_CONFIG } from "./playgroundRevealConfig";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
@@ -119,6 +120,11 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onCursorTrailLiveChange={() => {}}
       onResetCursorTrail={() => {}}
       cursorTrailModified={false}
+      clickWaveConfig={DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG}
+      onClickWaveChange={() => {}}
+      onClickWaveLiveChange={() => {}}
+      onResetClickWave={() => {}}
+      cursorClickModified={false}
       revealConfig={DEFAULT_PLAYGROUND_REVEAL_CONFIG}
       onRevealChange={() => {}}
       onRevealWaveLiveChange={() => {}}

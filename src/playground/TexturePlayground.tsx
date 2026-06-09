@@ -20,6 +20,7 @@ import {
   resolvePersistedFlamesConfig,
   resolvePersistedRevealConfig,
   resolvePersistedCursorTrailConfig,
+  resolvePersistedClickWaveConfig,
   resolvePersistedSourceTransform,
   resolvePersistedTextureAdjustments,
   resolvePersistedTextureLuminanceSettings,
@@ -113,6 +114,12 @@ import {
   normalizePlaygroundCursorTrailConfig,
   type PlaygroundCursorTrailConfig,
 } from "./playgroundCursorTrailConfig";
+import {
+  DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
+  isDefaultPlaygroundClickWaveConfig,
+  normalizePlaygroundClickWaveConfig,
+  type PlaygroundClickWaveConfig,
+} from "./playgroundClickWaveConfig";
 import type { PlaygroundRevealState } from "./playgroundReveal";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
@@ -275,6 +282,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     flames: resolvePersistedFlamesConfig(config),
     reveal: resolvePersistedRevealConfig(config),
     cursorTrail: resolvePersistedCursorTrailConfig(config),
+    clickWave: resolvePersistedClickWaveConfig(config),
     stripes: config.stripes.map((stripe) => ({ ...stripe })),
   };
 }
@@ -329,6 +337,7 @@ export function TexturePlayground() {
   const [flamesConfig, setFlamesConfig] = useState<PlaygroundFlamesConfig>(appliedInitial.flames);
   const [revealConfig, setRevealConfig] = useState<PlaygroundRevealConfig>(appliedInitial.reveal);
   const [cursorTrailConfig, setCursorTrailConfig] = useState<PlaygroundCursorTrailConfig>(appliedInitial.cursorTrail);
+  const [clickWaveConfig, setClickWaveConfig] = useState<PlaygroundClickWaveConfig>(appliedInitial.clickWave);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
   const [importFeedback, setImportFeedback] = useState<"idle" | "imported" | "failed">("idle");
@@ -358,11 +367,13 @@ export function TexturePlayground() {
   const flamesConfigRef = useRef<PlaygroundFlamesConfig>(flamesConfig);
   const revealConfigRef = useRef<PlaygroundRevealConfig>(revealConfig);
   const cursorTrailConfigRef = useRef<PlaygroundCursorTrailConfig>(cursorTrailConfig);
+  const clickWaveConfigRef = useRef<PlaygroundClickWaveConfig>(clickWaveConfig);
   // Set during render so a scene rebuild (sceneKey change) reads fresh structural values.
   gridConfigRef.current = gridConfig;
   flamesConfigRef.current = flamesConfig;
   revealConfigRef.current = revealConfig;
   cursorTrailConfigRef.current = cursorTrailConfig;
+  clickWaveConfigRef.current = clickWaveConfig;
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
   const stripesEnabledRef = useRef(stripesEnabled);
@@ -501,6 +512,7 @@ export function TexturePlayground() {
       flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
       reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
       cursorTrail: isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig) ? undefined : cursorTrailConfig,
+      clickWave: isDefaultPlaygroundClickWaveConfig(clickWaveConfig) ? undefined : clickWaveConfig,
       stripes,
     };
     schedulePersistedConfig(selectedTextureId, config);
@@ -523,6 +535,7 @@ export function TexturePlayground() {
     flamesConfig,
     revealConfig,
     cursorTrailConfig,
+    clickWaveConfig,
     stripes,
   ]);
 
@@ -564,8 +577,10 @@ export function TexturePlayground() {
       setFlamesConfig(next.flames);
       setRevealConfig(next.reveal);
       setCursorTrailConfig(next.cursorTrail);
+      setClickWaveConfig(next.clickWave);
       revealConfigRef.current = next.reveal;
       cursorTrailConfigRef.current = next.cursorTrail;
+      clickWaveConfigRef.current = next.clickWave;
       replayReveal();
       setStripes(next.stripes);
     },
@@ -655,6 +670,10 @@ export function TexturePlayground() {
 
   const throttledSetCursorTrailConfig = useThrottledCallback((next: PlaygroundCursorTrailConfig) => {
     setCursorTrailConfig(next);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetClickWaveConfig = useThrottledCallback((next: PlaygroundClickWaveConfig) => {
+    setClickWaveConfig(next);
   }, PLAYGROUND_SCRUB_COMMIT_MS);
 
   const throttledSetRevealConfig = useThrottledCallback((next: PlaygroundRevealConfig) => {
@@ -805,6 +824,26 @@ export function TexturePlayground() {
   const resetCursorTrail = useCallback(() => {
     cursorTrailConfigRef.current = { ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG };
     setCursorTrailConfig({ ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG });
+  }, []);
+
+  const updateClickWaveConfigLive = useCallback(
+    (patch: Partial<PlaygroundClickWaveConfig>) => {
+      const next = normalizePlaygroundClickWaveConfig({ ...clickWaveConfigRef.current, ...patch });
+      clickWaveConfigRef.current = next;
+      throttledSetClickWaveConfig(next);
+    },
+    [throttledSetClickWaveConfig],
+  );
+
+  const updateClickWaveConfig = useCallback((patch: Partial<PlaygroundClickWaveConfig>) => {
+    const next = normalizePlaygroundClickWaveConfig({ ...clickWaveConfigRef.current, ...patch });
+    clickWaveConfigRef.current = next;
+    setClickWaveConfig(next);
+  }, []);
+
+  const resetClickWave = useCallback(() => {
+    clickWaveConfigRef.current = { ...DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG };
+    setClickWaveConfig({ ...DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG });
   }, []);
 
   const updateRevealConfigLive = useCallback(
@@ -1025,6 +1064,7 @@ export function TexturePlayground() {
   const backgroundModified = backgroundCssActive || backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR;
   const flamesModified = !isDefaultPlaygroundFlamesConfig(flamesConfig);
   const cursorTrailModified = !isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig);
+  const cursorClickModified = !isDefaultPlaygroundClickWaveConfig(clickWaveConfig);
   const revealModified = !isDefaultPlaygroundRevealConfig(revealConfig);
   const textureToneModified =
     textureAdjustments.brightness !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.brightness ||
@@ -1246,9 +1286,10 @@ export function TexturePlayground() {
         revealStateRef,
         revealPlaybackRef,
         cursorTrailConfigRef,
+        clickWaveConfigRef,
       ),
     ];
-  }, [loadState, displayWidth, displayHeight, displaySize, flamesStateRef, flamesConfigRef, cursorTrailConfigRef]);
+  }, [loadState, displayWidth, displayHeight, displaySize, flamesStateRef, flamesConfigRef, cursorTrailConfigRef, clickWaveConfigRef]);
 
   const onUploadFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1298,6 +1339,8 @@ export function TexturePlayground() {
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
       reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
+      cursorTrail: isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig) ? undefined : cursorTrailConfig,
+      clickWave: isDefaultPlaygroundClickWaveConfig(clickWaveConfig) ? undefined : clickWaveConfig,
       stripes,
     };
     await copyPlaygroundStateToClipboard(config);
@@ -1649,6 +1692,11 @@ export function TexturePlayground() {
     onCursorTrailLiveChange: updateCursorTrailConfigLive,
     onResetCursorTrail: resetCursorTrail,
     cursorTrailModified,
+    clickWaveConfig,
+    onClickWaveChange: updateClickWaveConfig,
+    onClickWaveLiveChange: updateClickWaveConfigLive,
+    onResetClickWave: resetClickWave,
+    cursorClickModified,
     revealConfig,
     onRevealChange: updateRevealConfig,
     onRevealWaveLiveChange: updateRevealWaveLive,

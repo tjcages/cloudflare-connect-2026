@@ -2,6 +2,7 @@ import { LevaPanel, useControls, useCreateStore } from "leva";
 import { useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import type { PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
+import type { PlaygroundClickWaveConfig } from "./playgroundClickWaveConfig";
 import type { PlaygroundGridConfig } from "./playgroundGridConfig";
 import type {
   PlaygroundRandomColumnsRevealConfig,
@@ -122,6 +123,11 @@ export type PlaygroundLevaControlsProps = {
   onCursorTrailLiveChange: (patch: Partial<PlaygroundCursorTrailConfig>) => void;
   onResetCursorTrail: () => void;
   cursorTrailModified: boolean;
+  clickWaveConfig: PlaygroundClickWaveConfig;
+  onClickWaveChange: (patch: Partial<PlaygroundClickWaveConfig>) => void;
+  onClickWaveLiveChange: (patch: Partial<PlaygroundClickWaveConfig>) => void;
+  onResetClickWave: () => void;
+  cursorClickModified: boolean;
   revealConfig: PlaygroundRevealConfig;
   onRevealChange: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealWaveLiveChange: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
@@ -180,6 +186,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     const flamesFieldsDisabled = current.duotoneControlsDisabled || !current.flamesConfig.enabled;
     const flamesMaskDisabled = flamesFieldsDisabled || !current.flamesConfig.edgeMaskEnabled;
     const cursorTrailFieldsDisabled = current.duotoneControlsDisabled || !current.cursorTrailConfig.enabled;
+    const cursorClickFieldsDisabled = current.duotoneControlsDisabled || !current.clickWaveConfig.enabled;
 
     return {
       duotoneEnabled: current.duotoneEnabled,
@@ -191,6 +198,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       flamesFieldsDisabled,
       flamesMaskDisabled,
       cursorTrailFieldsDisabled,
+      cursorClickFieldsDisabled,
       textureAdjustments: current.textureAdjustments,
       sourceTransform: current.sourceTransform,
       backgroundColor: current.backgroundColor,
@@ -205,6 +213,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       sparkleWidthSpeed: current.sparkleWidthSpeed,
       flamesConfig: current.flamesConfig,
       cursorTrailConfig: current.cursorTrailConfig,
+      clickWaveConfig: current.clickWaveConfig,
       revealConfig: current.revealConfig,
       generalModified: current.generalModified,
       toneModified: current.toneModified,
@@ -218,6 +227,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       sparkleWidthModified: current.sparkleWidthModified,
       flamesModified: current.flamesModified,
       cursorTrailModified: current.cursorTrailModified,
+      cursorClickModified: current.cursorClickModified,
       revealModified: current.revealModified,
     };
   }, [
@@ -230,6 +240,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.flamesConfig.enabled,
     props.flamesConfig.edgeMaskEnabled,
     props.cursorTrailConfig.enabled,
+    props.clickWaveConfig.enabled,
     props.textureAdjustments,
     props.sourceTransform,
     props.backgroundColor,
@@ -242,6 +253,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.sparkleWidthSpeed,
     props.flamesConfig,
     props.cursorTrailConfig,
+    props.clickWaveConfig,
     props.revealConfig,
     props.generalModified,
     props.toneModified,
@@ -255,6 +267,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.sparkleWidthModified,
     props.flamesModified,
     props.cursorTrailModified,
+    props.cursorClickModified,
     props.revealModified,
   ]);
 
@@ -307,6 +320,9 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onCursorTrailLive: (patch) => propsRef.current.onCursorTrailLiveChange(patch),
     onCursorTrailCommit: (patch) => propsRef.current.onCursorTrailChange(patch),
     resetCursorTrail: () => propsRef.current.onResetCursorTrail(),
+    onClickWaveLive: (patch) => propsRef.current.onClickWaveLiveChange(patch),
+    onClickWaveCommit: (patch) => propsRef.current.onClickWaveChange(patch),
+    resetClickWave: () => propsRef.current.onResetClickWave(),
     onRevealCommit: (patch) => propsRef.current.onRevealChange(patch),
     onRevealWaveLive: (patch) => propsRef.current.onRevealWaveLiveChange(patch),
     onRevealWaveCommit: (patch) =>
@@ -351,6 +367,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     snapshot.flamesFieldsDisabled,
     snapshot.flamesMaskDisabled,
     snapshot.cursorTrailFieldsDisabled,
+    snapshot.cursorClickFieldsDisabled,
     stripeKey,
     props.textureLuminanceSettings.mode,
     props.gridConfig.cellWidth,

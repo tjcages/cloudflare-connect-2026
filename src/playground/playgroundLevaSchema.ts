@@ -5,6 +5,7 @@ import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
 import type { PlaygroundGridConfig } from "./playgroundGridConfig";
 import type { PlaygroundFlamesConfig, PlaygroundFlamesDirection } from "./playgroundFlamesConfig";
 import type { PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
+import type { PlaygroundClickWaveConfig } from "./playgroundClickWaveConfig";
 import type {
   PlaygroundRandomColumnsRevealConfig,
   PlaygroundRevealConfig,
@@ -260,6 +261,7 @@ export type PlaygroundLevaSnapshot = {
   flamesFieldsDisabled: boolean;
   flamesMaskDisabled: boolean;
   cursorTrailFieldsDisabled: boolean;
+  cursorClickFieldsDisabled: boolean;
   textureAdjustments: PlaygroundTextureAdjustments;
   sourceTransform: PlaygroundSourceTransform;
   backgroundColor: number;
@@ -274,6 +276,7 @@ export type PlaygroundLevaSnapshot = {
   sparkleWidthSpeed: number;
   flamesConfig: PlaygroundFlamesConfig;
   cursorTrailConfig: PlaygroundCursorTrailConfig;
+  clickWaveConfig: PlaygroundClickWaveConfig;
   revealConfig: PlaygroundRevealConfig;
   generalModified: boolean;
   toneModified: boolean;
@@ -287,6 +290,7 @@ export type PlaygroundLevaSnapshot = {
   sparkleWidthModified: boolean;
   flamesModified: boolean;
   cursorTrailModified: boolean;
+  cursorClickModified: boolean;
   revealModified: boolean;
 };
 
@@ -329,6 +333,9 @@ export type PlaygroundLevaHandlers = {
   onCursorTrailLive: (patch: Partial<PlaygroundCursorTrailConfig>) => void;
   onCursorTrailCommit: (patch: Partial<PlaygroundCursorTrailConfig>) => void;
   resetCursorTrail: () => void;
+  onClickWaveLive: (patch: Partial<PlaygroundClickWaveConfig>) => void;
+  onClickWaveCommit: (patch: Partial<PlaygroundClickWaveConfig>) => void;
+  resetClickWave: () => void;
   onRevealCommit: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealWaveLive: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
   onRevealWaveCommit: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
@@ -354,6 +361,8 @@ export function buildPlaygroundLevaSchema(
   const flames = snapshot.flamesConfig;
   const cursorTrail = snapshot.cursorTrailConfig;
   const cursorTrailDisabled = snapshot.cursorTrailFieldsDisabled;
+  const clickWave = snapshot.clickWaveConfig;
+  const clickWaveDisabled = snapshot.cursorClickFieldsDisabled;
   const reveal = snapshot.revealConfig;
 
   return {
@@ -1351,6 +1360,229 @@ export function buildPlaygroundLevaSchema(
       },
       { color: folderColor(snapshot.cursorTrailModified) },
     ),
+    "Cursor Click": levaFolder(
+      {
+        Reset: resetButton(() => handlers.resetClickWave(), !snapshot.cursorClickModified),
+        cursorClickEnabled: boolControl(clickWave.enabled, {
+          label: "Enabled",
+          hint: PLAYGROUND_FIELD_HELP.cursorClickEnabled,
+          disabled,
+          onChange: (value) => {
+            handlers.onClickWaveLive({ enabled: value });
+            handlers.onClickWaveCommit({ enabled: value });
+          },
+        }),
+        clickWaveLifeMs: numControl(
+          clickWave.lifeMs,
+          PLAYGROUND_CONTROL_RANGES.clickWaveLifeMs.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveLifeMs.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveLifeMs.step,
+          {
+            label: "Life",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickLife,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ lifeMs: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ lifeMs: value }),
+          },
+        ),
+        clickWaveStartRadius: numControl(
+          clickWave.startRadiusPx,
+          PLAYGROUND_CONTROL_RANGES.clickWaveStartRadius.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveStartRadius.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveStartRadius.step,
+          {
+            label: "Start radius",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickStartRadius,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ startRadiusPx: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ startRadiusPx: value }),
+          },
+        ),
+        clickWaveMaxRadius: numControl(
+          clickWave.maxRadiusPx,
+          PLAYGROUND_CONTROL_RANGES.clickWaveMaxRadius.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveMaxRadius.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveMaxRadius.step,
+          {
+            label: "Max radius",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickMaxRadius,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ maxRadiusPx: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ maxRadiusPx: value }),
+          },
+        ),
+        clickWaveStartStroke: numControl(
+          clickWave.startStrokeWidthPx,
+          PLAYGROUND_CONTROL_RANGES.clickWaveStartStroke.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveStartStroke.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveStartStroke.step,
+          {
+            label: "Start stroke",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickStartStroke,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ startStrokeWidthPx: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ startStrokeWidthPx: value }),
+          },
+        ),
+        clickWaveEndStroke: numControl(
+          clickWave.endStrokeWidthPx,
+          PLAYGROUND_CONTROL_RANGES.clickWaveEndStroke.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveEndStroke.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveEndStroke.step,
+          {
+            label: "End stroke",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickEndStroke,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ endStrokeWidthPx: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ endStrokeWidthPx: value }),
+          },
+        ),
+        clickWaveMaxWaves: numControl(
+          clickWave.maxWaves,
+          PLAYGROUND_CONTROL_RANGES.clickWaveMaxWaves.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveMaxWaves.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveMaxWaves.step,
+          {
+            label: "Max waves",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickMaxWaves,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ maxWaves: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ maxWaves: value }),
+          },
+        ),
+        clickWavePushStrength: numControl(
+          clickWave.pushStrengthPx,
+          PLAYGROUND_CONTROL_RANGES.clickWavePushStrength.min,
+          PLAYGROUND_CONTROL_RANGES.clickWavePushStrength.max,
+          PLAYGROUND_CONTROL_RANGES.clickWavePushStrength.step,
+          {
+            label: "Push strength",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickPushStrength,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ pushStrengthPx: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ pushStrengthPx: value }),
+          },
+        ),
+        clickWavePushBandScale: numControl(
+          clickWave.pushBandScale,
+          PLAYGROUND_CONTROL_RANGES.clickWavePushBandScale.min,
+          PLAYGROUND_CONTROL_RANGES.clickWavePushBandScale.max,
+          PLAYGROUND_CONTROL_RANGES.clickWavePushBandScale.step,
+          {
+            label: "Push band",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickPushBandScale,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ pushBandScale: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ pushBandScale: value }),
+          },
+        ),
+        clickWaveRingWhite: numControl(
+          clickWave.stripeWhiteAlpha,
+          PLAYGROUND_CONTROL_RANGES.clickWaveRingWhite.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveRingWhite.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveRingWhite.step,
+          {
+            label: "Ring white",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickRingWhite,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ stripeWhiteAlpha: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ stripeWhiteAlpha: value }),
+          },
+        ),
+        clickWaveSliceWhite: numControl(
+          clickWave.sliceWhiteAlpha,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceWhite.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceWhite.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceWhite.step,
+          {
+            label: "Slice white",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickSliceWhite,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ sliceWhiteAlpha: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ sliceWhiteAlpha: value }),
+          },
+        ),
+        clickWaveSliceCountMin: numControl(
+          clickWave.sliceCountMin,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceCountMin.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceCountMin.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceCountMin.step,
+          {
+            label: "Slice count min",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickSliceCountMin,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ sliceCountMin: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ sliceCountMin: value }),
+          },
+        ),
+        clickWaveSliceCountMax: numControl(
+          clickWave.sliceCountMax,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceCountMax.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceCountMax.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceCountMax.step,
+          {
+            label: "Slice count max",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickSliceCountMax,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ sliceCountMax: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ sliceCountMax: value }),
+          },
+        ),
+        clickWaveSliceSkipMin: numControl(
+          clickWave.sliceSkipMin,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceSkipMin.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceSkipMin.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceSkipMin.step,
+          {
+            label: "Slice skip min",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickSliceSkipMin,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ sliceSkipMin: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ sliceSkipMin: value }),
+          },
+        ),
+        clickWaveSliceSkipMax: numControl(
+          clickWave.sliceSkipMax,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceSkipMax.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceSkipMax.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceSkipMax.step,
+          {
+            label: "Slice skip max",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickSliceSkipMax,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ sliceSkipMax: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ sliceSkipMax: value }),
+          },
+        ),
+        clickWaveSliceLevelMin: numControl(
+          clickWave.sliceLevelMin,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceLevelMin.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceLevelMin.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceLevelMin.step,
+          {
+            label: "Slice levels min",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickSliceLevelMin,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ sliceLevelMin: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ sliceLevelMin: value }),
+          },
+        ),
+        clickWaveSliceLevelMax: numControl(
+          clickWave.sliceLevelMax,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceLevelMax.min,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceLevelMax.max,
+          PLAYGROUND_CONTROL_RANGES.clickWaveSliceLevelMax.step,
+          {
+            label: "Slice levels max",
+            hint: PLAYGROUND_FIELD_HELP.cursorClickSliceLevelMax,
+            disabled: clickWaveDisabled,
+            onLive: (value) => handlers.onClickWaveLive({ sliceLevelMax: value }),
+            onCommit: (value) => handlers.onClickWaveCommit({ sliceLevelMax: value }),
+          },
+        ),
+      },
+      { color: folderColor(snapshot.cursorClickModified) },
+    ),
   } as Record<string, unknown>;
 }
 
@@ -1365,6 +1597,7 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
   const grid = snapshot.gridConfig;
   const flames = snapshot.flamesConfig;
   const cursorTrail = snapshot.cursorTrailConfig;
+  const clickWave = snapshot.clickWaveConfig;
   const reveal = snapshot.revealConfig;
 
   return {
@@ -1458,5 +1691,22 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     pushLagPx: cursorTrail.pushLagPx,
     pushWobblePx: cursorTrail.pushWobblePx,
     trailScale: cursorTrail.trailScale,
+    cursorClickEnabled: clickWave.enabled,
+    clickWaveLifeMs: clickWave.lifeMs,
+    clickWaveStartRadius: clickWave.startRadiusPx,
+    clickWaveMaxRadius: clickWave.maxRadiusPx,
+    clickWaveStartStroke: clickWave.startStrokeWidthPx,
+    clickWaveEndStroke: clickWave.endStrokeWidthPx,
+    clickWaveMaxWaves: clickWave.maxWaves,
+    clickWavePushStrength: clickWave.pushStrengthPx,
+    clickWavePushBandScale: clickWave.pushBandScale,
+    clickWaveRingWhite: clickWave.stripeWhiteAlpha,
+    clickWaveSliceWhite: clickWave.sliceWhiteAlpha,
+    clickWaveSliceCountMin: clickWave.sliceCountMin,
+    clickWaveSliceCountMax: clickWave.sliceCountMax,
+    clickWaveSliceSkipMin: clickWave.sliceSkipMin,
+    clickWaveSliceSkipMax: clickWave.sliceSkipMax,
+    clickWaveSliceLevelMin: clickWave.sliceLevelMin,
+    clickWaveSliceLevelMax: clickWave.sliceLevelMax,
   };
 }
