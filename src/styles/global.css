@@ -531,6 +531,39 @@ html.playground-app #root {
   opacity: 0.9;
 }
 
+/* Leva folders — instant synchronized collapse/expand (no opacity-then-height two-step). */
+.playground-leva-panel :has(> [class*="toggled-false"]) {
+  height: 0 !important;
+  overflow: hidden !important;
+  transition: none !important;
+}
+
+.playground-leva-panel :has(> [class*="toggled-false"])::after {
+  opacity: 0 !important;
+}
+
+.playground-leva-panel :has(> [class*="toggled-true"]) {
+  height: auto !important;
+  overflow: visible !important;
+  transition: none !important;
+}
+
+/* Keep fields visible until the wrapper clips them; Leva fades to opacity 0 first by default. */
+.playground-leva-panel [class*="toggled-false"],
+.playground-leva-panel [class*="toggled-true"] {
+  opacity: 1 !important;
+  transition: none !important;
+  transition-delay: 0s !important;
+}
+
+/* Folder group chevrons — instant rotation (Leva Chevron uses 9×5 svg with transform transition). */
+.playground-leva-panel [class*="dosbYs"] > svg,
+.playground-leva-panel div:has(> svg + div) > svg,
+.playground-leva-panel svg[width="9"][height="5"] {
+  transition: none !important;
+  transition-property: none !important;
+}
+
 /* Leva field hints (Radix tooltips portaled to body) */
 html.playground-app [data-radix-popper-content-wrapper] {
   z-index: 100000 !important;
