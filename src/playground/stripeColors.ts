@@ -66,10 +66,39 @@ function makeStripeId(): string {
   return `stripe-${Date.now().toString(36)}-${stripeIdCounter}`;
 }
 
+/** Leva/sRGB hex picker value → stripe fields with synced display-p3 CSS. */
+export function stripeColorFromHexPicker(hex: string): Pick<Stripe, "hex" | "p3Css"> {
+  const normalized = hex.trim();
+  return { hex: normalized, p3Css: hexToDisplayP3Css(normalized) };
+}
+
+/** Pixi 0xRRGGBB tint encoded for the playground display-p3 drawing buffer. */
+export function resolvePlaygroundPixiTint(color: number, preferP3: boolean): number {
+  if (!preferP3) {
+    return color & 0xffffff;
+  }
+  const [r, g, b] = resolvePlaygroundShaderRgb(playgroundBackgroundColorToHex(color), true);
+  const byte = (channel: number) => Math.round(Math.min(1, Math.max(0, channel)) * 255);
+  return (byte(r) << 16) | (byte(g) << 8) | byte(b);
+}
+
+function playgroundBackgroundColorToHex(value: number): string {
+  return `#${(value & 0xffffff).toString(16).padStart(6, "0")}`;
+}
+
+/** Shader/filter RGB from an sRGB hex picker value. */
+export function resolvePlaygroundShaderRgb(hex: string, preferP3: boolean): Rgb01 {
+  if (!preferP3) {
+    return hexToRgb01(hex);
+  }
+  return displayP3ToSrgb(parseDisplayP3Css(hexToDisplayP3Css(hex)));
+}
+
 /** Normalizes a partial stripe into a complete, clamped stripe (deriving the missing color space). */
 export function normalizeStripe(input: Partial<Stripe> & { hex?: string; p3Css?: string }): Stripe {
+  const p3Only = input.p3Css !== undefined && input.hex === undefined;
   const hex = input.hex ?? (input.p3Css ? displayP3CssToHex(input.p3Css) : "#FFFFFF");
-  const p3Css = input.p3Css ?? hexToDisplayP3Css(hex);
+  const p3Css = p3Only ? input.p3Css! : hexToDisplayP3Css(hex);
   return {
     id: input.id ?? makeStripeId(),
     hex,
@@ -124,12 +153,9 @@ export function updateStripe(colors: StripeColors, id: string, patch: Partial<St
   };
 }
 
-/** Shader/filter RGB. Wide gamut maps p3 design tokens to sRGB that survive Pixi's sRGB targets. */
+/** Shader/filter RGB. Wide gamut always derives display-p3 from the stripe hex picker value. */
 export function resolveStripeRgb(stripe: Stripe, preferP3: boolean): Rgb01 {
-  if (!preferP3) {
-    return hexToRgb01(stripe.hex);
-  }
-  return displayP3ToSrgb(parseDisplayP3Css(stripe.p3Css));
+  return resolvePlaygroundShaderRgb(stripe.hex, preferP3);
 }
 
 export type StripePaletteEntry = { rgb: Rgb01; width: number };

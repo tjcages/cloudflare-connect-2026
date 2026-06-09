@@ -1,7 +1,13 @@
+import type { Application } from "pixi.js";
 import { supportsDisplayP3 } from "../theme/colorSpace";
 
 type WebGLContextWithColorSpace = WebGLContextAttributes & {
   colorSpace?: "srgb" | "display-p3";
+};
+
+type GlWithColorSpace = WebGLRenderingContext & {
+  drawingBufferColorSpace?: string;
+  unpackColorSpace?: string;
 };
 
 /** Match Pixi `GlContextSystem.createContext` defaults plus wide-gamut color space. */
@@ -13,6 +19,11 @@ const PLAYGROUND_GL_ATTRIBUTES: WebGLContextWithColorSpace = {
   preserveDrawingBuffer: false,
   powerPreference: "default",
   colorSpace: "display-p3",
+};
+
+export type PlaygroundGlColorSpaceStatus = {
+  drawingBufferColorSpace: string;
+  unpackColorSpace: string;
 };
 
 export function readCanvasColorSpace(canvas: HTMLCanvasElement): string {
@@ -43,13 +54,62 @@ export function playgroundPrefersDisplayP3(_canvas: HTMLCanvasElement, _gl: WebG
   return supportsDisplayP3();
 }
 
-/** Set drawing buffer to display-p3 after Pixi init (clears the buffer). */
-export function applyPlaygroundDrawingBufferColorSpace(gl: WebGLRenderingContext): boolean {
-  if (!supportsDisplayP3() || !("drawingBufferColorSpace" in gl)) {
-    return false;
+/** Configure drawing buffer and texture unpack to display-p3. */
+export function configurePlaygroundGlColorSpace(gl: WebGLRenderingContext): PlaygroundGlColorSpaceStatus | null {
+  if (!supportsDisplayP3()) {
+    return null;
   }
-  (gl as WebGLRenderingContext & { drawingBufferColorSpace: string }).drawingBufferColorSpace = "display-p3";
-  return (gl as WebGLRenderingContext & { drawingBufferColorSpace: string }).drawingBufferColorSpace === "display-p3";
+
+  const glExt = gl as GlWithColorSpace;
+
+  if ("drawingBufferColorSpace" in gl) {
+    glExt.drawingBufferColorSpace = "display-p3";
+  }
+  if ("unpackColorSpace" in gl) {
+    glExt.unpackColorSpace = "display-p3";
+  }
+
+  return {
+    drawingBufferColorSpace: glExt.drawingBufferColorSpace ?? "srgb",
+    unpackColorSpace: glExt.unpackColorSpace ?? "srgb",
+  };
+}
+
+type GlCapableRenderer = { gl?: WebGLRenderingContext };
+
+function readPixiWebGLContext(app: Application, canvas: HTMLCanvasElement): WebGLRenderingContext | null {
+  const gl = (app.renderer as GlCapableRenderer).gl;
+  if (gl) {
+    return gl;
+  }
+  return canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+}
+
+/** Re-apply display-p3 GL settings after Pixi init and expose status on the canvas element. */
+export function configurePlaygroundCanvasAfterPixiInit(
+  canvas: HTMLCanvasElement,
+  app: Application,
+): PlaygroundGlColorSpaceStatus | null {
+  const gl = readPixiWebGLContext(app, canvas);
+  if (!gl) {
+    return null;
+  }
+
+  const status = configurePlaygroundGlColorSpace(gl);
+  if (!status) {
+    return null;
+  }
+
+  canvas.dataset.canvasColorSpace = readCanvasColorSpace(canvas);
+  canvas.dataset.drawingBufferColorSpace = status.drawingBufferColorSpace;
+  canvas.dataset.unpackColorSpace = status.unpackColorSpace;
+  return status;
+}
+
+/** @deprecated Use {@link configurePlaygroundGlColorSpace}. */
+export function applyPlaygroundDrawingBufferColorSpace(gl: WebGLRenderingContext): boolean {
+  const status = configurePlaygroundGlColorSpace(gl);
+  return status?.drawingBufferColorSpace === "display-p3";
 }
 
 /** @deprecated Use {@link createPlaygroundWebGLContext} + Pixi `context` init option. */

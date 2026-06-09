@@ -6,8 +6,12 @@ import {
   DEFAULT_STRIPES,
   displayP3CssToHex,
   hexToDisplayP3Css,
+  normalizeStripe,
   removeStripe,
+  resolvePlaygroundPixiTint,
   resolveStripeIndices,
+  resolveStripeRgb,
+  stripeColorFromHexPicker,
   STRIPE_WIDTH_STORAGE_MAX,
   stripeIndexForLuminance,
   updateStripe,
@@ -72,6 +76,28 @@ describe("hex <-> display-p3", () => {
 
   it("maps a display-p3 string back to an sRGB hex (neutral grays round-trip)", () => {
     expect(displayP3CssToHex(hexToDisplayP3Css("#808080"))).toBe("#808080");
+  });
+
+  it("stripeColorFromHexPicker syncs hex and p3Css for color pickers", () => {
+    expect(stripeColorFromHexPicker("#ff0000")).toEqual({
+      hex: "#ff0000",
+      p3Css: "color(display-p3 1 0 0)",
+    });
+  });
+
+  it("normalizeStripe refreshes p3Css when hex changes without an explicit p3Css patch", () => {
+    const stale = normalizeStripe({ hex: "#000000", p3Css: "color(display-p3 0 0 0)" });
+    const next = normalizeStripe({ ...stale, hex: "#ff0000" });
+    expect(next.p3Css).toBe("color(display-p3 1 0 0)");
+  });
+
+  it("resolveStripeRgb always derives display-p3 from hex when preferP3 is true", () => {
+    const stripe = normalizeStripe({ hex: "#808080", p3Css: "color(display-p3 1 0 0)" });
+    expect(resolveStripeRgb(stripe, true)).toEqual(resolveStripeRgb({ ...stripe, p3Css: hexToDisplayP3Css("#808080") }, true));
+  });
+
+  it("resolvePlaygroundPixiTint leaves color unchanged when preferP3 is false", () => {
+    expect(resolvePlaygroundPixiTint(0xff8040, false)).toBe(0xff8040);
   });
 });
 

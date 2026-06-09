@@ -59,7 +59,8 @@ import {
   type PlaygroundTextureSource,
 } from "./setupTextureShaderScene";
 import {
-  applyPlaygroundDrawingBufferColorSpace,
+  configurePlaygroundCanvasAfterPixiInit,
+  configurePlaygroundGlColorSpace,
   createPlaygroundWebGLContext,
   playgroundPrefersDisplayP3,
 } from "./playgroundColorSpace";
@@ -117,7 +118,7 @@ import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
   cloneDefaultStripes,
   DEFAULT_STRIPES,
-  hexToDisplayP3Css,
+  stripeColorFromHexPicker,
   updateStripe,
   type Stripe,
   type StripeColors,
@@ -668,7 +669,7 @@ export function TexturePlayground() {
 
   const onStripeColorChange = useCallback(
     (id: string, hex: string) => {
-      const next = applyStripePatch(id, { hex, p3Css: hexToDisplayP3Css(hex) });
+      const next = applyStripePatch(id, stripeColorFromHexPicker(hex));
       setStripes(next);
     },
     [applyStripePatch],
@@ -1723,8 +1724,14 @@ export function TexturePlayground() {
               if (!context) {
                 return {};
               }
-              applyPlaygroundDrawingBufferColorSpace(context);
+              configurePlaygroundGlColorSpace(context);
               return { context: context as WebGL2RenderingContext };
+            }}
+            onInitialized={(app) => {
+              const canvas = canvasRef.current;
+              if (canvas) {
+                configurePlaygroundCanvasAfterPixiInit(canvas, app);
+              }
             }}
             initOptions={{
               preference: "webgl",

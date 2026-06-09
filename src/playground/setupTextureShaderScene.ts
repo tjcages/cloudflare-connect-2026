@@ -56,6 +56,7 @@ import {
   type CursorTrailPixelBounds,
   type CursorTrailState,
 } from "./cursorTrail";
+import { resolvePlaygroundPixiTint } from "./stripeColors";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -443,7 +444,7 @@ function runDuotoneTick(params: {
     }
 
     stripeFilter.syncGrid(gridConfigRef.current);
-    letterLayer.setTint(gridConfigRef.current.letterColor);
+    letterLayer.setTint(resolvePlaygroundPixiTint(gridConfigRef.current.letterColor, preferP3Ref.current));
     letterLayer.setShuffleSpeed(gridConfigRef.current.letterShuffleSpeed);
     applyStructuralChanges(gridConfigRef.current);
 
