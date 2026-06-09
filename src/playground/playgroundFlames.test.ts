@@ -36,6 +36,9 @@ describe("playgroundFlames", () => {
     expect(flame.height).toBeLessThanOrEqual(300 * config.maxHeightRatio);
     expect(flame.speedPxPerSec).toBeGreaterThanOrEqual(speedRange.minPxPerSec);
     expect(flame.speedPxPerSec).toBeLessThanOrEqual(speedRange.maxPxPerSec);
+    expect(flame.color.r).toBeGreaterThanOrEqual(0);
+    expect(flame.color.g).toBeGreaterThanOrEqual(0);
+    expect(flame.color.b).toBeGreaterThanOrEqual(0);
   });
 
   it("assigns independent random speeds to each flame", () => {
@@ -97,6 +100,7 @@ describe("playgroundFlames", () => {
       width: 80,
       height: 40,
       speedPxPerSec: 120,
+      color: { r: 255, g: 120, b: 40 },
     });
     state.lastStepMs = 1000;
     state.lastSpawnMs = 10_000;

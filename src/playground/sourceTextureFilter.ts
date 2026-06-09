@@ -1,4 +1,9 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
+import {
+  normalizeTextureLuminanceBackgroundColor,
+  normalizeTextureLuminanceMode,
+  type TextureLuminanceSettings,
+} from "./colorWhiteness";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import {
   normalizePlaygroundTextureAdjustments,
@@ -28,6 +33,25 @@ uniform float uFlamesMaskEnabled;
 uniform float uFlamesMaskStart;
 uniform float uFlamesMaskEnd;
 uniform float uFlamesMaskPower;
+uniform float uColorsMode;
+uniform vec3 uTextureBgColor;
+
+const float COLOR_DISTANCE_SCALE = 0.8660254037844386; // sqrt(3)
+
+float rec709Luma(vec3 rgb) {
+    return dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+}
+
+float colorDistanceLuma(vec3 rgb) {
+    return min(1.0, length(rgb - uTextureBgColor) / COLOR_DISTANCE_SCALE);
+}
+
+float sampleMergedLuma(vec3 rgb) {
+    if (uColorsMode > 0.5) {
+        return colorDistanceLuma(rgb);
+    }
+    return rec709Luma(rgb);
+}
 
 float lumaNoiseHash(vec2 p) {
     vec3 p3 = fract(vec3(p.x, p.y, p.x) * vec3(0.1031, 0.1030, 0.0973));
@@ -71,28 +95,52 @@ float flamesEdgeMask(vec2 coord) {
     return flamesEdgeMaskInset(insetX) * flamesEdgeMaskInset(insetY);
 }
 
-vec3 applyFlames(vec3 color) {
+vec3 readFlameSample(out float flameCover) {
+    flameCover = 0.0;
     if (uFlamesEnabled < 0.5) {
-        return color;
+        return vec3(0.0);
     }
     vec3 flame = texture(uFlames, vDisplayCoord).rgb;
     float mask = flamesEdgeMask(vDisplayCoord);
-    return max(color, flame * mask);
+    vec3 flameRgb = flame * mask;
+    flameCover = clamp(max(max(flameRgb.r, flameRgb.g), flameRgb.b), 0.0, 1.0);
+    return flameRgb;
+}
+
+vec3 mergeFlameColor(vec3 sourceRgb, vec3 flameRgb, float flameCover) {
+    if (flameCover < 0.001) {
+        return sourceRgb;
+    }
+    // max() hides flames on bright/white pixels; blend toward overlay color instead.
+    return mix(sourceRgb, flameRgb, flameCover);
+}
+
+vec3 applyFlames(vec3 color) {
+    float flameCover;
+    vec3 flameRgb = readFlameSample(flameCover);
+    return mergeFlameColor(color, flameRgb, flameCover);
 }
 
 void main(void) {
     vec4 sourceColor = texture(uTexture, vTextureCoord);
-    float luma = dot(sourceColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-    float adjusted = adjustLuma(luma);
-    vec3 adjustedColor = luma > 0.0001 ? sourceColor.rgb * (adjusted / luma) : vec3(adjusted);
-    finalColor = vec4(applyFlames(clamp(adjustedColor, 0.0, 1.0)), sourceColor.a);
+    vec3 merged = applyFlames(sourceColor.rgb);
+    float mergedLuma = sampleMergedLuma(merged);
+    float adjusted = adjustLuma(mergedLuma);
+    vec3 finalRgb = mergedLuma > 0.0001 ? merged * (adjusted / mergedLuma) : vec3(adjusted);
+    finalColor = vec4(clamp(finalRgb, 0.0, 1.0), sourceColor.a);
 }
 `;
 
 export type SourceTextureFilter = Filter & {
   syncAdjustments: (adjustments: PlaygroundTextureAdjustments) => void;
+  syncLuminanceSettings: (settings: TextureLuminanceSettings) => void;
   syncFlames: (texture: Texture | null, config: PlaygroundFlamesConfig | null) => void;
 };
+
+function textureBackgroundColorToRgb01(color: number): [number, number, number] {
+  const normalized = normalizeTextureLuminanceBackgroundColor(color);
+  return [((normalized >> 16) & 0xff) / 255, ((normalized >> 8) & 0xff) / 255, (normalized & 0xff) / 255];
+}
 
 export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustments): SourceTextureFilter {
   const normalized = normalizePlaygroundTextureAdjustments(adjustments);
@@ -112,6 +160,8 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     uFlamesMaskStart: { value: 0, type: "f32" },
     uFlamesMaskEnd: { value: 0.1, type: "f32" },
     uFlamesMaskPower: { value: 1, type: "f32" },
+    uColorsMode: { value: 0, type: "f32" },
+    uTextureBgColor: { value: [0, 0, 0], type: "vec3<f32>" },
   });
 
   const filter = new Filter({
@@ -153,6 +203,23 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     uniforms.uNoiseAmount = next.noiseAmount;
     textureUniforms.update();
   };
+
+  filter.syncLuminanceSettings = (settings) => {
+    const mode = normalizeTextureLuminanceMode(settings.mode);
+    const bg = textureBackgroundColorToRgb01(settings.backgroundColor);
+    const uniforms = textureUniforms.uniforms as {
+      uColorsMode: number;
+      uTextureBgColor: number[];
+    };
+    uniforms.uColorsMode = mode === "colors" ? 1 : 0;
+    uniforms.uTextureBgColor = bg;
+    textureUniforms.update();
+  };
+
+  filter.syncLuminanceSettings({
+    mode: "luminance",
+    backgroundColor: normalizeTextureLuminanceBackgroundColor(undefined),
+  });
 
   filter.syncFlames = (texture, config) => {
     const flamesTexture = texture ?? Texture.EMPTY;

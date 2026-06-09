@@ -6,6 +6,12 @@ import {
   type PlaygroundFlamesConfig,
   type PlaygroundFlamesDirection,
 } from "./playgroundFlamesConfig";
+import {
+  createSyntheticVibrantPalette,
+  type PlaygroundVibrantColor,
+} from "./playgroundVibrantColors";
+
+export type PlaygroundFlameColor = PlaygroundVibrantColor;
 
 export type PlaygroundFlame = {
   x: number;
@@ -13,6 +19,7 @@ export type PlaygroundFlame = {
   width: number;
   height: number;
   speedPxPerSec: number;
+  color: PlaygroundFlameColor;
 };
 
 export type PlaygroundFlamesState = {
@@ -20,10 +27,28 @@ export type PlaygroundFlamesState = {
   lastSpawnMs: number;
   lastStepMs: number;
   random: () => number;
+  vibrantPalette: readonly PlaygroundFlameColor[];
 };
 
-const PLAYGROUND_FLAMES_COLOR = "rgb(255, 255, 255)";
-const PLAYGROUND_FLAMES_COLOR_TRANSPARENT = "rgba(255, 255, 255, 0)";
+const DEFAULT_FLAME_COLOR: PlaygroundFlameColor = { r: 255, g: 255, b: 255 };
+
+function flameColorCss(color: PlaygroundFlameColor, alpha: number): string {
+  const a = Math.min(1, Math.max(0, alpha));
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${a})`;
+}
+
+export function pickFlameColor(state: PlaygroundFlamesState): PlaygroundFlameColor {
+  const palette = state.vibrantPalette.length > 0 ? state.vibrantPalette : createSyntheticVibrantPalette();
+  const index = Math.floor(state.random() * palette.length);
+  return palette[index] ?? DEFAULT_FLAME_COLOR;
+}
+
+export function updatePlaygroundFlamesPalette(
+  state: PlaygroundFlamesState,
+  palette: readonly PlaygroundFlameColor[],
+): void {
+  state.vibrantPalette = palette.length > 0 ? palette : createSyntheticVibrantPalette();
+}
 
 function lerp(min: number, max: number, t: number): number {
   return min + (max - min) * t;
@@ -45,6 +70,7 @@ export function createPlaygroundFlamesState(random: () => number = randomFlamesU
     lastSpawnMs: 0,
     lastStepMs: 0,
     random,
+    vibrantPalette: createSyntheticVibrantPalette(),
   };
 }
 
@@ -68,6 +94,8 @@ export function createPlaygroundFlame(
   const speedRange = resolveFlamesSpeedRange(config);
   const speedPxPerSec = randomBetween(state.random, speedRange.minPxPerSec, speedRange.maxPxPerSec);
 
+  const color = pickFlameColor(state);
+
   if (isVerticalPlaygroundFlamesDirection(config.direction)) {
     return {
       x: randomFlameCrossAxisPosition(state.random, displayWidth, width),
@@ -75,6 +103,7 @@ export function createPlaygroundFlame(
       width,
       height,
       speedPxPerSec,
+      color,
     };
   }
 
@@ -84,6 +113,7 @@ export function createPlaygroundFlame(
     width,
     height,
     speedPxPerSec,
+    color,
   };
 }
 
@@ -228,10 +258,10 @@ function drawPlaygroundFlamesLayer(
     const gradient = isVerticalPlaygroundFlamesDirection(config.direction)
       ? ctx.createLinearGradient(flame.x, flame.y, flame.x + flame.width, flame.y)
       : ctx.createLinearGradient(flame.x, flame.y, flame.x, flame.y + flame.height);
-    gradient.addColorStop(0, PLAYGROUND_FLAMES_COLOR_TRANSPARENT);
-    gradient.addColorStop(inner, PLAYGROUND_FLAMES_COLOR);
-    gradient.addColorStop(outer, PLAYGROUND_FLAMES_COLOR);
-    gradient.addColorStop(1, PLAYGROUND_FLAMES_COLOR_TRANSPARENT);
+    gradient.addColorStop(0, flameColorCss(flame.color, 0));
+    gradient.addColorStop(inner, flameColorCss(flame.color, 1));
+    gradient.addColorStop(outer, flameColorCss(flame.color, 1));
+    gradient.addColorStop(1, flameColorCss(flame.color, 0));
     ctx.fillStyle = gradient;
     ctx.fillRect(flame.x, flame.y, flame.width, flame.height);
   }
@@ -307,7 +337,8 @@ export class PlaygroundFlamesOverlay {
 
   sync(state: PlaygroundFlamesState | null, config: PlaygroundFlamesConfig): void {
     const { width, height } = this.canvas;
-    this.ctx.clearRect(0, 0, width, height);
+    this.ctx.fillStyle = "#000000";
+    this.ctx.fillRect(0, 0, width, height);
     if (state && config.enabled) {
       drawPlaygroundFlames(this.ctx, state, config, width, height);
     }

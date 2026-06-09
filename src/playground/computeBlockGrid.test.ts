@@ -132,4 +132,98 @@ describe("computeBlockGrid cell sizing", () => {
     expect(unmasked.luma[1]).toBe(0);
     expect(masked.luma[1]).toBe(0);
   });
+
+  it("composites flame rgb into cell colors in colors mode on background pixels", () => {
+    const data = splitImage(2, 1, 0);
+    const flames = new Uint8ClampedArray(2 * 1 * 4);
+    flames[0] = 255;
+    flames[1] = 40;
+    flames[2] = 20;
+    flames[3] = 255;
+
+    const grid = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, {
+      pixels: flames,
+      imageWidth: 2,
+      imageHeight: 1,
+      mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
+    }, undefined, {
+      mode: "colors",
+      backgroundColor: 0x000000,
+    });
+
+    expect(grid.luma[0]).toBeGreaterThan(0);
+    expect(grid.colors[0]).toBe(255);
+    expect(grid.colors[1]).toBe(40);
+    expect(grid.colors[2]).toBe(20);
+  });
+
+  it("blends flames over white background pixels in colors mode", () => {
+    const data = splitImage(1, 1, 1);
+    const flames = new Uint8ClampedArray(4);
+    flames[0] = 255;
+    flames[1] = 40;
+    flames[2] = 20;
+
+    const grid = computeBlockGrid(
+      data,
+      1,
+      1,
+      1,
+      1,
+      1,
+      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      {
+        pixels: flames,
+        imageWidth: 1,
+        imageHeight: 1,
+        mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
+      },
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0xffffff,
+      },
+    );
+
+    expect(grid.luma[0]).toBeGreaterThan(0);
+    expect(grid.colors[0]).toBe(255);
+    expect(grid.colors[1]).toBe(40);
+    expect(grid.colors[2]).toBe(20);
+  });
+
+  it("uses peak cell luma when flames touch a background cell so thin streaks stay visible", () => {
+    const size = 7;
+    const data = new Uint8ClampedArray(size * size * 4);
+    const flames = new Uint8ClampedArray(size * size * 4);
+    const centerOffset = (3 * size + 3) * 4;
+    flames[centerOffset] = 255;
+    flames[centerOffset + 1] = 40;
+    flames[centerOffset + 2] = 20;
+
+    const grid = computeBlockGrid(
+      data,
+      size,
+      size,
+      1,
+      size,
+      size,
+      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      {
+        pixels: flames,
+        imageWidth: size,
+        imageHeight: size,
+        mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
+      },
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0x000000,
+      },
+    );
+
+    expect(grid.luma[0]).toBeGreaterThan(31);
+    expect(grid.colors[0]).toBe(255);
+    expect(grid.colors[1]).toBe(40);
+    expect(grid.colors[2]).toBe(20);
+  });
 });

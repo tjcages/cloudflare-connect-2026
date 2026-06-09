@@ -8,19 +8,28 @@ describe("SOURCE_TEXTURE_FILTER_FRAGMENT", () => {
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uBlackPoint");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uPosterizeLevels");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("floor(value * steps + 0.5)");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).not.toContain("round(");
   });
 
-  it("composites flames over the preview with per-channel lighten", () => {
+  it("composites flames before tone adjustments in preview", () => {
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("vec3 merged = applyFlames(sourceColor.rgb);");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("float mergedLuma = sampleMergedLuma(merged);");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("float adjusted = adjustLuma(mergedLuma);");
+  });
+
+  it("supports colors-mode preview luminance from distance to texture background", () => {
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uniform float uColorsMode");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uniform vec3 uTextureBgColor");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("colorDistanceLuma");
+  });
+
+  it("blends flames over the preview so they stay visible on bright pixels", () => {
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uniform sampler2D uFlames");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("vec3 applyFlames(vec3 color)");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("return max(color, flame * mask);");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("applyFlames(clamp(adjustedColor, 0.0, 1.0))");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("return mix(sourceRgb, flameRgb, flameCover);");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("flamesEdgeMask(vDisplayCoord)");
   });
 
   it("fades flames near canvas edges with configurable inset ramp", () => {
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uFlamesMaskStart");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uFlamesMaskEnd");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("flamesEdgeMask(vDisplayCoord)");
   });
 });

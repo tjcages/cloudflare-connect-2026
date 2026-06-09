@@ -13,7 +13,7 @@ import {
 import { createStripeDuotoneFilter } from "./stripeDuotoneFilter";
 import type { StripeColors } from "./stripeColors";
 import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./stripeLetterFont";
-import { stepPlaygroundFlames, PlaygroundFlamesOverlay, type PlaygroundFlamesState } from "./playgroundFlames";
+import { stepPlaygroundFlames, PlaygroundFlamesOverlay, type PlaygroundFlamesState, updatePlaygroundFlamesPalette } from "./playgroundFlames";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG, type PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import type { PlaygroundSparkleOptions } from "./playgroundSparkle";
 import type { PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
@@ -56,6 +56,7 @@ import {
   type CursorTrailPixelBounds,
   type CursorTrailState,
 } from "./cursorTrail";
+import { extractVibrantColorsFromImageData } from "./playgroundVibrantColors";
 import { resolvePlaygroundPixiTint } from "./stripeColors";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
@@ -347,6 +348,7 @@ function runDuotoneTick(params: {
   let hasBuiltGrid = false;
   let pendingFullResample = false;
   let pendingColorsResample = false;
+  let lastFlamesPaletteSampleMs = 0;
   const flamesOverlay = flamesStateRef.current ? new PlaygroundFlamesOverlay(display.width, display.height) : null;
 
   const initialCell = effectivePlaygroundCellSize(gridConfigRef.current);
@@ -436,6 +438,7 @@ function runDuotoneTick(params: {
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
     });
+    sourceTextureFilter.syncLuminanceSettings(textureLuminanceSettingsRef.current);
     stripeFilter.syncUseCellColors(textureLuminanceSettingsRef.current.mode === "colors");
     const flamesState = flamesStateRef.current;
     const flamesConfig = flamesConfigRef.current;
@@ -467,8 +470,14 @@ function runDuotoneTick(params: {
     }
 
     if (textureFilterMode !== "stripes") {
-      const flamesActive = Boolean(flamesState && flamesConfig.enabled);
-      if (flamesOverlay && textureFilterMode === "preview" && flamesActive) {
+      if (flamesOverlay && textureFilterMode === "preview" && flamesState && flamesConfig.enabled) {
+        if (now - lastFlamesPaletteSampleMs >= PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS) {
+          const frame = sampleFrame();
+          if (frame) {
+            updatePlaygroundFlamesPalette(flamesState, extractVibrantColorsFromImageData(frame));
+            lastFlamesPaletteSampleMs = now;
+          }
+        }
         flamesOverlay.sync(flamesState, flamesConfig);
         sourceTextureFilter.syncFlames(flamesOverlay.texture, flamesConfig);
       } else {
