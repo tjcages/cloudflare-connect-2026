@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { PlaygroundLevaControls } from "./playgroundLevaControls";
@@ -153,5 +153,26 @@ describe("PlaygroundLevaControls", () => {
 
     expect(screen.getByText("Reveal")).toBeInTheDocument();
     expect(screen.getByLabelText("Preset")).toBeInTheDocument();
+  });
+
+  it("renders the stripe colors table inside the Leva panel instead of per-stripe labels", () => {
+    renderLevaControls();
+
+    const table = document.querySelector(".playground-leva-panel .stripe-colors-table");
+    expect(table).not.toBeNull();
+    expect(table).toHaveTextContent("Color");
+    expect(table).toHaveTextContent("Threshold");
+    expect(table).toHaveTextContent("Width");
+    expect(screen.queryByLabelText("Loud color")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Gray threshold")).not.toBeInTheDocument();
+  });
+
+  it("wires stripe threshold changes through the callback", () => {
+    const onStripeStartFromCommit = vi.fn();
+    const stripes = cloneDefaultStripes();
+    renderLevaControls({ onStripeStartFromCommit, stripes });
+
+    fireEvent.change(screen.getByLabelText("Stripe 1 threshold"), { target: { value: "0.2" } });
+    expect(onStripeStartFromCommit).toHaveBeenCalledWith(stripes[0]!.id, 0.2);
   });
 });

@@ -17,12 +17,7 @@ import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustment
 import type { PlaygroundTextureId } from "./playgroundTextures";
 import { PLAYGROUND_DISPLAY_MAX_PX } from "./setupTextureShaderScene";
 import type { Stripe } from "./stripeColors";
-import {
-  STRIPE_START_FROM_MAX,
-  STRIPE_START_FROM_MIN,
-  STRIPE_WIDTH_MIN,
-  STRIPE_WIDTH_STORAGE_MAX,
-} from "./stripeColors";
+import { stripeColorsTablePlugin, stripeSyncKey } from "./stripeColorsTablePlugin";
 import {
   normalizeTextureLuminanceBackgroundColor,
   type TextureLuminanceMode,
@@ -313,44 +308,6 @@ export function buildPlaygroundLevaSchema(
   const cursorTrail = snapshot.cursorTrailConfig;
   const cursorTrailDisabled = snapshot.cursorTrailFieldsDisabled;
   const reveal = snapshot.revealConfig;
-
-  const stripeFields: Record<string, unknown> = Object.fromEntries(
-    snapshot.stripes.flatMap((stripe) => {
-      const labelPrefix = stripe.id.charAt(0).toUpperCase() + stripe.id.slice(1);
-      return [
-        [
-          `stripe_${stripe.id}_color`,
-          {
-            value: stripe.hex,
-            label: `${labelPrefix} color`,
-            hint: PLAYGROUND_FIELD_HELP.stripeColor,
-            disabled: stripeDisabled,
-            onChange: skipInitialString((hex) => handlers.onStripeColorChange(stripe.id, hex)),
-          },
-        ],
-        [
-          `stripe_${stripe.id}_startFrom`,
-          numControl(stripe.startFrom, STRIPE_START_FROM_MIN, STRIPE_START_FROM_MAX, 0.01, {
-            label: `${labelPrefix} threshold`,
-            hint: PLAYGROUND_FIELD_HELP.stripeThreshold,
-            disabled: stripeDisabled,
-            onLive: (value) => handlers.onStripeStartFromCommit(stripe.id, value),
-            onCommit: (value) => handlers.onStripeStartFromCommit(stripe.id, value),
-          }),
-        ],
-        [
-          `stripe_${stripe.id}_width`,
-          numControl(stripe.width, STRIPE_WIDTH_MIN, STRIPE_WIDTH_STORAGE_MAX, 1, {
-            label: `${labelPrefix} width`,
-            hint: PLAYGROUND_FIELD_HELP.stripeWidth,
-            disabled: stripeDisabled,
-            onLive: (value) => handlers.onStripeWidthCommit(stripe.id, value),
-            onCommit: (value) => handlers.onStripeWidthCommit(stripe.id, value),
-          }),
-        ],
-      ];
-    }),
-  );
 
   const workflowDisabled = snapshot.workflowDisabled;
 
@@ -828,7 +785,11 @@ export function buildPlaygroundLevaSchema(
                 ),
               },
             }
-          : stripeFields),
+          : {
+              stripeColorsTable: stripeColorsTablePlugin({
+                value: stripeSyncKey(snapshot.stripes),
+              }),
+            }),
         gridUpdateIntervalMs: numControl(grid.gridUpdateIntervalMs, 0, 300, 1, {
           label: "Processing interval",
           hint: PLAYGROUND_FIELD_HELP.processingInterval,
@@ -1411,14 +1372,6 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
   const cursorTrail = snapshot.cursorTrailConfig;
   const reveal = snapshot.revealConfig;
 
-  const stripeValues = Object.fromEntries(
-    snapshot.stripes.flatMap((stripe) => [
-      [`stripe_${stripe.id}_color`, stripe.hex],
-      [`stripe_${stripe.id}_startFrom`, stripe.startFrom],
-      [`stripe_${stripe.id}_width`, stripe.width],
-    ]),
-  );
-
   return {
     texture: snapshot.selectedTextureId,
     canvasWidth: Math.max(snapshot.displayWidth, 1),
@@ -1469,7 +1422,7 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     stripesEnabled: snapshot.stripesEnabled,
     textureLuminanceMode: snapshot.textureLuminanceSettings.mode,
     textureLuminanceBackgroundColor: intToHexSync(snapshot.textureLuminanceSettings.backgroundColor),
-    ...stripeValues,
+    stripeColorsTable: stripeSyncKey(snapshot.stripes),
     gridUpdateIntervalMs: grid.gridUpdateIntervalMs,
     sparkleGapsActivePercent: snapshot.sparkleGapsActivePercent,
     sparkleGapsSpeed: snapshot.sparkleGapsSpeed,

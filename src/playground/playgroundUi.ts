@@ -1,13 +1,13 @@
 export const PLAYGROUND_SHELL_CLASS = "flex h-dvh overflow-hidden bg-builder-hover-surface text-builder-text";
 
-export const PLAYGROUND_LEVA_SIDEBAR_WIDTH_PX = 320;
+export const PLAYGROUND_LEVA_SIDEBAR_WIDTH_PX = 360;
 
 export const PLAYGROUND_SIDEBAR_CLASS =
-  "flex min-h-0 w-[320px] shrink-0 flex-col border-builder-hairline bg-builder-surface";
+  "flex min-h-0 w-[360px] shrink-0 flex-col border-builder-hairline bg-builder-surface";
 
 /** Fixed right rail for the embedded Leva controls panel. */
 export const PLAYGROUND_LEVA_SIDEBAR_CLASS =
-  "flex min-h-0 w-[320px] shrink-0 flex-col overflow-hidden border-l border-builder-hairline border-r-0 bg-white";
+  "flex min-h-0 w-[360px] shrink-0 flex-col overflow-hidden border-l border-builder-hairline border-r-0 bg-white";
 
 export const PLAYGROUND_FIELD_CLASS = "flex flex-col gap-1.5 text-base text-builder-muted";
 
@@ -31,6 +31,10 @@ export const PLAYGROUND_KBD_CLASS =
   "rounded border border-builder-hairline bg-builder-hover-surface px-1.5 py-0.5 text-base font-normal tracking-wide text-builder-control";
 
 export const PLAYGROUND_SWATCH_TRIGGER_CLASS = "h-7 w-12 rounded-md border border-builder-hairline";
+
+/** 24×24 Leva color swatch — matches native Leva picker chips in the sidebar. */
+export const PLAYGROUND_LEVA_COLOR_SWATCH_CLASS =
+  "stripe-colors-leva-swatch size-6 shrink-0 rounded border border-[#d6d6d6] p-0";
 
 export const PLAYGROUND_SLIDER_ROOT_CLASS =
   "relative flex h-5 w-full touch-none select-none items-center data-[disabled]:cursor-not-allowed";

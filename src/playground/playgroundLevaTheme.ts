@@ -37,7 +37,7 @@ export const PLAYGROUND_LEVA_LIGHT_THEME = {
     sans: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   },
   sizes: {
-    rootWidth: "320px",
+    rootWidth: "360px",
     controlWidth: "155px",
     numberInputMinWidth: "44px",
   },

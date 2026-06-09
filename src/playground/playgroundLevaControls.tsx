@@ -21,6 +21,7 @@ import {
 } from "./playgroundLevaSchema";
 import { PLAYGROUND_LEVA_LIGHT_THEME } from "./playgroundLevaTheme";
 import { PLAYGROUND_LEVA_SIDEBAR_CLASS } from "./playgroundUi";
+import { stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import type { Stripe } from "./stripeColors";
 
 export type PlaygroundLevaControlsProps = {
@@ -303,7 +304,15 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     replayReveal: () => propsRef.current.onReplayReveal(),
   });
 
-  const stripeKey = props.stripes.map((stripe) => stripe.id).join("|");
+  const stripeKey = stripeSyncKey(props.stripes);
+
+  stripeColorsTableRuntime.stripes = props.stripes;
+  stripeColorsTableRuntime.disabled = snapshot.stripeControlsDisabled;
+  stripeColorsTableRuntime.handlers = {
+    onColorChange: handlersRef.current.onStripeColorChange,
+    onThresholdChange: handlersRef.current.onStripeStartFromCommit,
+    onWidthChange: handlersRef.current.onStripeWidthCommit,
+  };
 
   useControls(() => buildPlaygroundLevaSchema(snapshot, handlersRef.current) as never, { store }, [
     snapshot.duotoneControlsDisabled,
