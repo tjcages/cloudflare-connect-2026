@@ -31,7 +31,11 @@ import {
   type PlaygroundCatalogEntry,
   type PlaygroundPersistedConfig,
 } from "./playgroundPersistence";
-import type { PlaygroundMediaKind, PlaygroundTextureId } from "./playgroundTextures";
+import {
+  formatTextureLoadErrorMessage,
+  type PlaygroundMediaKind,
+  type PlaygroundTextureId,
+} from "./playgroundTextures";
 import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
 import { PLAYGROUND_SCRUB_COMMIT_MS, useThrottledCallback } from "./playgroundLiveRefs";
 import {
@@ -137,7 +141,6 @@ import {
   DEFAULT_TEXTURE_LUMINANCE_MODE,
   normalizeTextureLuminanceBackgroundColor,
   normalizeTextureLuminanceMode,
-  type TextureLuminanceMode,
   type TextureLuminanceSettings,
 } from "./colorWhiteness";
 import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
@@ -158,10 +161,6 @@ function stripesMatchDefault(stripes: readonly Stripe[]): boolean {
   });
 }
 
-function textureLuminanceBackgroundColorToHex(color: number): string {
-  return `#${(normalizeTextureLuminanceBackgroundColor(color) & 0xffffff).toString(16).padStart(6, "0")}`;
-}
-
 type TextureLayout = {
   width: number;
   height: number;
@@ -173,7 +172,7 @@ type LoadState =
   | { status: "ready"; kind: "video"; layout: TextureLayout; video: HTMLVideoElement; textureId: PlaygroundTextureId }
   | { status: "ready"; kind: "image"; layout: TextureLayout; image: HTMLImageElement; textureId: PlaygroundTextureId };
 
-function loadPlaygroundVideo(url: string, textureId: PlaygroundTextureId): Promise<LoadState> {
+function loadPlaygroundVideo(url: string, textureId: PlaygroundTextureId, label: string): Promise<LoadState> {
   return new Promise((resolve) => {
     const video = document.createElement("video");
     video.muted = true;
@@ -182,18 +181,22 @@ function loadPlaygroundVideo(url: string, textureId: PlaygroundTextureId): Promi
     video.preload = "auto";
     video.crossOrigin = "anonymous";
 
-    const onError = () => {
+    const fail = (reason: Parameters<typeof formatTextureLoadErrorMessage>[0]["reason"]) => {
       resolve({
         status: "error",
-        message: `Failed to load ${url || textureId}`,
+        message: formatTextureLoadErrorMessage({ label, mediaKind: "video", reason }),
       });
+    };
+
+    const onError = () => {
+      fail(url.length === 0 ? "missing" : "decode");
     };
 
     const onLoadedMetadata = () => {
       const width = video.videoWidth;
       const height = video.videoHeight;
       if (width <= 0 || height <= 0) {
-        onError();
+        fail("dimensions");
         return;
       }
       resolve({
@@ -212,23 +215,27 @@ function loadPlaygroundVideo(url: string, textureId: PlaygroundTextureId): Promi
   });
 }
 
-function loadPlaygroundImage(url: string, textureId: PlaygroundTextureId): Promise<LoadState> {
+function loadPlaygroundImage(url: string, textureId: PlaygroundTextureId, label: string): Promise<LoadState> {
   return new Promise((resolve) => {
     const image = document.createElement("img");
     image.crossOrigin = "anonymous";
 
-    const onError = () => {
+    const fail = (reason: Parameters<typeof formatTextureLoadErrorMessage>[0]["reason"]) => {
       resolve({
         status: "error",
-        message: `Failed to load ${url || textureId}`,
+        message: formatTextureLoadErrorMessage({ label, mediaKind: "image", reason }),
       });
+    };
+
+    const onError = () => {
+      fail(url.length === 0 ? "missing" : "decode");
     };
 
     const onLoad = () => {
       const width = image.naturalWidth;
       const height = image.naturalHeight;
       if (width <= 0 || height <= 0) {
-        onError();
+        fail("dimensions");
         return;
       }
       resolve({
@@ -250,8 +257,11 @@ function loadPlaygroundSource(
   url: string,
   textureId: PlaygroundTextureId,
   mediaKind: PlaygroundMediaKind,
+  label: string,
 ): Promise<LoadState> {
-  return mediaKind === "image" ? loadPlaygroundImage(url, textureId) : loadPlaygroundVideo(url, textureId);
+  return mediaKind === "image"
+    ? loadPlaygroundImage(url, textureId, label)
+    : loadPlaygroundVideo(url, textureId, label);
 }
 
 function disposeVideoElement(video: HTMLVideoElement) {
@@ -921,10 +931,7 @@ export function TexturePlayground() {
     const next: TextureLuminanceSettings = {
       mode: normalizeTextureLuminanceMode(patch.mode ?? prevMode),
       backgroundColor: normalizeTextureLuminanceBackgroundColor(
-        patch.backgroundColor ??
-          (switchingToColors
-            ? 0xffffff
-            : textureLuminanceSettingsRef.current.backgroundColor),
+        patch.backgroundColor ?? (switchingToColors ? 0xffffff : textureLuminanceSettingsRef.current.backgroundColor),
       ),
     };
     textureLuminanceSettingsRef.current = next;
@@ -1141,7 +1148,11 @@ export function TexturePlayground() {
     if (!entry) {
       setLoadState({
         status: "error",
-        message: "No textures available. Upload an image or video to continue.",
+        message: formatTextureLoadErrorMessage({
+          label: "Texture",
+          mediaKind: "image",
+          reason: "unavailable",
+        }),
       });
       return;
     }
@@ -1155,7 +1166,7 @@ export function TexturePlayground() {
     setLoadState({ status: "loading" });
     autoplayRef.current = entry.mediaKind === "video";
 
-    void loadPlaygroundSource(entry.url, entry.id, entry.mediaKind).then((next) => {
+    void loadPlaygroundSource(entry.url, entry.id, entry.mediaKind, entry.label).then((next) => {
       if (cancelled) {
         if (next.status === "ready") {
           if (next.kind === "video") {
@@ -1174,7 +1185,11 @@ export function TexturePlayground() {
         }
         setLoadState({
           status: "error",
-          message: "Could not load the selected texture. Choose another source below.",
+          message: formatTextureLoadErrorMessage({
+            label: entry.label,
+            mediaKind: entry.mediaKind,
+            reason: entry.url.length === 0 ? "missing" : "decode",
+          }),
         });
         return;
       }
@@ -1328,14 +1343,13 @@ export function TexturePlayground() {
     }
     setUploadError(null);
     try {
-      const { textureId, meta } = await registerUpload(file);
+      const { textureId } = await registerUpload(file);
       const envelope = loadPlaygroundEnvelope();
       const blobUrls = await hydrateUploadUrls(envelope.uploads);
       setCatalog(mergeCatalog(envelope.uploads, blobUrls));
       onTextureSelect(textureId);
-      void meta;
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Upload failed.");
+      setUploadError(error instanceof Error ? error.message : "Upload failed. Try another image or video file.");
     }
   };
 

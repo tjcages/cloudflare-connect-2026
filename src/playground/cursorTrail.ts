@@ -1,4 +1,13 @@
 import {
+  COLOR_SATURATION_EPSILON,
+  colorPixelPresence,
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  isNonBackgroundColorPixel,
+  normalizeTextureLuminanceMode,
+  pixelSaturation,
+  type TextureLuminanceSettings,
+} from "./colorWhiteness";
+import {
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   normalizePlaygroundCursorTrailConfig,
   type PlaygroundCursorTrailConfig,
@@ -61,12 +70,134 @@ function blendChannel(channel: number, alpha: number): number {
   return Math.round(channel + (255 - channel) * alpha);
 }
 
+function blendChannelToward(channel: number, target: number, alpha: number): number {
+  return Math.round(channel + (target - channel) * alpha);
+}
+
+function brightenRgbPreservingHue(r: number, g: number, b: number): { r: number; g: number; b: number } {
+  const maxC = Math.max(r, g, b);
+  if (maxC <= 0) {
+    return { r: 255, g: 255, b: 255 };
+  }
+  const scale = 255 / maxC;
+  return {
+    r: Math.round(Math.min(255, r * scale)),
+    g: Math.round(Math.min(255, g * scale)),
+    b: Math.round(Math.min(255, b * scale)),
+  };
+}
+
+function forRingPixels(
+  originX: number,
+  originY: number,
+  ring: number,
+  width: number,
+  height: number,
+  visit: (x: number, y: number) => void,
+): void {
+  if (ring === 0) {
+    visit(originX, originY);
+    return;
+  }
+
+  for (let dy = -ring; dy <= ring; dy++) {
+    for (let dx = -ring; dx <= ring; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) {
+        continue;
+      }
+      const x = originX + dx;
+      const y = originY + dy;
+      if (x < 0 || y < 0 || x >= width || y >= height) {
+        continue;
+      }
+      visit(x, y);
+    }
+  }
+}
+
+/** Nearest saturated foreground color from a particle center; skips neutral/white picks. */
+function resolveColorsModeTrailRgb(
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+  centerX: number,
+  centerY: number,
+  backgroundColor: number,
+  maxRadius: number,
+): { r: number; g: number; b: number } | null {
+  const originX = Math.min(width - 1, Math.max(0, Math.round(centerX)));
+  const originY = Math.min(height - 1, Math.max(0, Math.round(centerY)));
+
+  for (let ring = 0; ring <= maxRadius; ring++) {
+    let bestPresence = -1;
+    let bestR = 0;
+    let bestG = 0;
+    let bestB = 0;
+    let found = false;
+
+    forRingPixels(originX, originY, ring, width, height, (x, y) => {
+      const idx = (y * width + x) * 4;
+      const r = source[idx] ?? 0;
+      const g = source[idx + 1] ?? 0;
+      const b = source[idx + 2] ?? 0;
+      if (!isNonBackgroundColorPixel(r, g, b, backgroundColor)) {
+        return;
+      }
+      if (pixelSaturation(r, g, b) <= COLOR_SATURATION_EPSILON) {
+        return;
+      }
+
+      const presence = colorPixelPresence(r, g, b, backgroundColor);
+      if (presence > bestPresence) {
+        bestPresence = presence;
+        bestR = r;
+        bestG = g;
+        bestB = b;
+        found = true;
+      }
+    });
+
+    if (found) {
+      return { r: bestR, g: bestG, b: bestB };
+    }
+  }
+
+  return null;
+}
+
 function falloff(distance: number, radius: number): number {
   if (radius <= 0 || distance >= radius) {
     return 0;
   }
   const t = 1 - distance / radius;
   return t * t * (3 - 2 * t);
+}
+
+function resolveTrailSampleRadius(
+  sample: CursorTrailSample,
+  config: PlaygroundCursorTrailConfig,
+  displayWidth: number,
+  effectWidth: number,
+): number {
+  const particleRadius = Math.max(1, displayToEffectCoord(sample.radius, displayWidth, effectWidth));
+  const pushEnabled = config.pushStrengthPx > 0 || config.pushLeadBlackAlpha > 0;
+  if (!pushEnabled) {
+    return particleRadius;
+  }
+  return Math.max(
+    particleRadius,
+    displayToEffectCoord(sample.radius * config.pushRadiusScale, displayWidth, effectWidth),
+  );
+}
+
+/** Keep displaced edge pixels from staying dark when push/black effects widen the disc. */
+function overlayAlpha(sampleAlpha: number, distance: number, radius: number, pushEnabled: boolean): number {
+  const core = sampleAlpha * falloff(distance, radius);
+  if (!pushEnabled || core <= 0) {
+    return core;
+  }
+  const rim = sampleAlpha * 0.45 * falloff(distance, radius);
+  return Math.max(core, rim);
 }
 
 function seededUnit(seed: number, salt: number): number {
@@ -339,11 +470,16 @@ export function applyCursorTrailToEffectPixels(
   displayHeight: number,
   samples: readonly CursorTrailSample[],
   rawConfig: PlaygroundCursorTrailConfig = DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  luminanceSettings?: TextureLuminanceSettings,
 ): CursorTrailPixelBounds | null {
   const config = normalizePlaygroundCursorTrailConfig(rawConfig);
   if (!config.enabled || effectWidth <= 0 || effectHeight <= 0 || samples.length === 0) {
     return null;
   }
+
+  const colorsMode = normalizeTextureLuminanceMode(luminanceSettings?.mode) === "colors";
+  const backgroundColor = luminanceSettings?.backgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR;
+  const maxSearchRadius = Math.max(effectWidth, effectHeight);
 
   const source = new Uint8ClampedArray(pixels);
   const pixelCount = effectWidth * effectHeight;
@@ -358,6 +494,7 @@ export function applyCursorTrailToEffectPixels(
   };
 
   const pushScale = config.pushStrengthPx * (effectWidth / Math.max(1, displayWidth));
+  const pushEnabled = config.pushStrengthPx > 0 || config.pushLeadBlackAlpha > 0;
   const toDisplayX = (effectX: number) => effectToDisplayCoord(effectX, effectWidth, displayWidth);
   const toDisplayY = (effectY: number) => effectToDisplayCoord(effectY, effectHeight, displayHeight);
 
@@ -368,12 +505,9 @@ export function applyCursorTrailToEffectPixels(
         continue;
       }
 
-      const centerX = displayToEffectCoord(sample.pushX, displayWidth, effectWidth);
-      const centerY = displayToEffectCoord(sample.pushY, displayHeight, effectHeight);
-      const pushRadius = Math.max(
-        0,
-        displayToEffectCoord(sample.radius * config.pushRadiusScale, displayWidth, effectWidth),
-      );
+      const centerX = displayToEffectCoord(sample.x, displayWidth, effectWidth);
+      const centerY = displayToEffectCoord(sample.y, displayHeight, effectHeight);
+      const pushRadius = resolveTrailSampleRadius(sample, config, displayWidth, effectWidth);
       if (pushRadius <= 0) {
         continue;
       }
@@ -401,9 +535,9 @@ export function applyCursorTrailToEffectPixels(
         continue;
       }
 
-      const centerX = displayToEffectCoord(sample.pushX, displayWidth, effectWidth);
-      const centerY = displayToEffectCoord(sample.pushY, displayHeight, effectHeight);
-      const pushRadius = Math.max(0, displayToEffectCoord(sample.radius * config.pushRadiusScale, displayWidth, effectWidth));
+      const centerX = displayToEffectCoord(sample.x, displayWidth, effectWidth);
+      const centerY = displayToEffectCoord(sample.y, displayHeight, effectHeight);
+      const pushRadius = resolveTrailSampleRadius(sample, config, displayWidth, effectWidth);
       if (pushRadius <= 0) {
         continue;
       }
@@ -466,15 +600,15 @@ export function applyCursorTrailToEffectPixels(
 
     const centerX = displayToEffectCoord(sample.x, displayWidth, effectWidth);
     const centerY = displayToEffectCoord(sample.y, displayHeight, effectHeight);
-    const whiteRadius = Math.max(1, displayToEffectCoord(sample.radius, displayWidth, effectWidth));
-    if (whiteRadius <= 0) {
+    const effectRadius = resolveTrailSampleRadius(sample, config, displayWidth, effectWidth);
+    if (effectRadius <= 0) {
       continue;
     }
 
-    const minX = Math.max(0, Math.floor(centerX - whiteRadius));
-    const maxX = Math.min(effectWidth - 1, Math.ceil(centerX + whiteRadius));
-    const minY = Math.max(0, Math.floor(centerY - whiteRadius));
-    const maxY = Math.min(effectHeight - 1, Math.ceil(centerY + whiteRadius));
+    const minX = Math.max(0, Math.floor(centerX - effectRadius));
+    const maxX = Math.min(effectWidth - 1, Math.ceil(centerX + effectRadius));
+    const minY = Math.max(0, Math.floor(centerY - effectRadius));
+    const maxY = Math.min(effectHeight - 1, Math.ceil(centerY + effectRadius));
 
     bounds = mergeBounds(
       bounds,
@@ -484,18 +618,32 @@ export function applyCursorTrailToEffectPixels(
       effectToDisplayCoord(maxY, effectHeight, displayHeight),
     );
 
+    const sampleColor = colorsMode
+      ? resolveColorsModeTrailRgb(source, effectWidth, effectHeight, centerX, centerY, backgroundColor, maxSearchRadius)
+      : null;
+    const brightSample = sampleColor ? brightenRgbPreservingHue(sampleColor.r, sampleColor.g, sampleColor.b) : null;
+
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
         const distance = Math.hypot(x - centerX, y - centerY);
-        const pixelAlpha = alpha * falloff(distance, whiteRadius);
+        const pixelAlpha = overlayAlpha(alpha, distance, effectRadius, pushEnabled);
         if (pixelAlpha <= 0) {
           continue;
         }
 
         const idx = (y * effectWidth + x) * 4;
-        pixels[idx] = blendChannel(pixels[idx] ?? 0, pixelAlpha);
-        pixels[idx + 1] = blendChannel(pixels[idx + 1] ?? 0, pixelAlpha);
-        pixels[idx + 2] = blendChannel(pixels[idx + 2] ?? 0, pixelAlpha);
+        if (colorsMode) {
+          if (!brightSample) {
+            continue;
+          }
+          pixels[idx] = blendChannelToward(pixels[idx] ?? 0, brightSample.r, pixelAlpha);
+          pixels[idx + 1] = blendChannelToward(pixels[idx + 1] ?? 0, brightSample.g, pixelAlpha);
+          pixels[idx + 2] = blendChannelToward(pixels[idx + 2] ?? 0, brightSample.b, pixelAlpha);
+        } else {
+          pixels[idx] = blendChannel(pixels[idx] ?? 0, pixelAlpha);
+          pixels[idx + 1] = blendChannel(pixels[idx + 1] ?? 0, pixelAlpha);
+          pixels[idx + 2] = blendChannel(pixels[idx + 2] ?? 0, pixelAlpha);
+        }
       }
     }
   }
@@ -513,6 +661,7 @@ export function buildDisplayFrameWithCursorTrail(
   config: PlaygroundCursorTrailConfig,
   workingEffect?: Uint8ClampedArray,
   displayPixels?: Uint8ClampedArray,
+  luminanceSettings?: TextureLuminanceSettings,
 ): { data: Uint8ClampedArray; bounds: CursorTrailPixelBounds | null } {
   const effect = workingEffect ?? new Uint8ClampedArray(cachedEffectBase);
   if (effect !== cachedEffectBase) {
@@ -529,6 +678,7 @@ export function buildDisplayFrameWithCursorTrail(
           displayHeight,
           samples,
           config,
+          luminanceSettings,
         )
       : null;
 

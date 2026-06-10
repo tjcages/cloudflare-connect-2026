@@ -8,10 +8,7 @@ import {
   setCursorTrailTarget,
   updateCursorTrail,
 } from "./cursorTrail";
-import {
-  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
-  resolveCursorTrailEffectSize,
-} from "./playgroundCursorTrailConfig";
+import { DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG, resolveCursorTrailEffectSize } from "./playgroundCursorTrailConfig";
 
 describe("updateCursorTrail", () => {
   it("emits fading samples while the pointer moves", () => {
@@ -52,7 +49,13 @@ describe("applyCursorTrailToEffectPixels", () => {
   it("brightens the center and pushes neighboring pixels on a low-res buffer", () => {
     const displayWidth = 40;
     const displayHeight = 20;
-    const effect = resolveCursorTrailEffectSize(displayWidth, displayHeight, DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG, 8, 8);
+    const effect = resolveCursorTrailEffectSize(
+      displayWidth,
+      displayHeight,
+      DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+      8,
+      8,
+    );
     const pixels = new Uint8ClampedArray(effect.width * effect.height * 4);
     for (let y = 0; y < effect.height; y++) {
       for (let x = 0; x < effect.width; x++) {
@@ -86,6 +89,120 @@ describe("applyCursorTrailToEffectPixels", () => {
     expect(bounds).not.toBeNull();
     expect(pixels[centerIdx]).toBeGreaterThan(centerValue);
   });
+
+  it("uses nearest non-background color in colors luminance mode", () => {
+    const size = 8;
+    const pixels = new Uint8ClampedArray(size * size * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      pixels[i] = 0;
+      pixels[i + 1] = 0;
+      pixels[i + 2] = 0;
+      pixels[i + 3] = 255;
+    }
+    const redX = 7;
+    const redY = 4;
+    const redIdx = (redY * size + redX) * 4;
+    pixels[redIdx] = 200;
+    pixels[redIdx + 1] = 20;
+    pixels[redIdx + 2] = 20;
+
+    const trailConfig = {
+      ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+      pushStrengthPx: 0,
+      pushLeadBlackAlpha: 0,
+    };
+    const centerX = 4;
+    const centerY = 4;
+
+    applyCursorTrailToEffectPixels(
+      pixels,
+      size,
+      size,
+      size,
+      size,
+      [{ x: centerX, y: centerY, pushX: centerX, pushY: centerY, alpha: 1, radius: 2 }],
+      trailConfig,
+      { mode: "colors", backgroundColor: 0x000000 },
+    );
+
+    const centerIdx = (centerY * size + centerX) * 4;
+    expect(pixels[centerIdx]).toBeGreaterThan(0);
+    expect(pixels[centerIdx]).toBeGreaterThan(pixels[centerIdx + 1] ?? 0);
+    expect(pixels[centerIdx]).toBeGreaterThan(pixels[centerIdx + 2] ?? 0);
+  });
+
+  it("skips white overlay in colors mode when no saturated foreground is nearby", () => {
+    const size = 4;
+    const pixels = new Uint8ClampedArray(size * size * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      pixels[i] = 0;
+      pixels[i + 1] = 0;
+      pixels[i + 2] = 0;
+      pixels[i + 3] = 255;
+    }
+
+    applyCursorTrailToEffectPixels(
+      pixels,
+      size,
+      size,
+      size,
+      size,
+      [{ x: 2, y: 2, pushX: 2, pushY: 2, alpha: 1, radius: 1 }],
+      {
+        ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+        pushStrengthPx: 0,
+        pushLeadBlackAlpha: 0,
+      },
+      { mode: "colors", backgroundColor: 0x000000 },
+    );
+
+    const centerIdx = (2 * size + 2) * 4;
+    expect(pixels[centerIdx]).toBe(0);
+    expect(pixels[centerIdx + 1]).toBe(0);
+    expect(pixels[centerIdx + 2]).toBe(0);
+  });
+
+  it("ignores nearby neutral foreground and uses saturated color in colors mode", () => {
+    const size = 8;
+    const pixels = new Uint8ClampedArray(size * size * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      pixels[i] = 0;
+      pixels[i + 1] = 0;
+      pixels[i + 2] = 0;
+      pixels[i + 3] = 255;
+    }
+
+    const whiteIdx = (4 * size + 5) * 4;
+    pixels[whiteIdx] = 220;
+    pixels[whiteIdx + 1] = 220;
+    pixels[whiteIdx + 2] = 220;
+
+    const redIdx = (4 * size + 7) * 4;
+    pixels[redIdx] = 200;
+    pixels[redIdx + 1] = 20;
+    pixels[redIdx + 2] = 20;
+
+    const centerX = 4;
+    const centerY = 4;
+    applyCursorTrailToEffectPixels(
+      pixels,
+      size,
+      size,
+      size,
+      size,
+      [{ x: centerX, y: centerY, pushX: centerX, pushY: centerY, alpha: 1, radius: 2 }],
+      {
+        ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+        pushStrengthPx: 0,
+        pushLeadBlackAlpha: 0,
+      },
+      { mode: "colors", backgroundColor: 0x000000 },
+    );
+
+    const centerIdx = (centerY * size + centerX) * 4;
+    expect(pixels[centerIdx]).toBeGreaterThan(pixels[centerIdx + 1] ?? 0);
+    expect(pixels[centerIdx]).toBeGreaterThan(pixels[centerIdx + 2] ?? 0);
+  });
 });
 
 describe("buildDisplayFrameWithCursorTrail", () => {
@@ -118,10 +235,11 @@ describe("downsamplePixelsNearest", () => {
   it("maps display pixels into a smaller effect buffer", () => {
     const source = new Uint8ClampedArray(4 * 4 * 4);
     source.fill(0);
-    source[(0 * 4 + 2) * 4] = 200;
+    source[2 * 4] = 200;
     const target = new Uint8ClampedArray(2 * 2 * 4);
     downsamplePixelsNearest(source, 4, 4, target, 2, 2);
-    expect(target.some((value, index) => index % 4 === 0 && value === 200)).toBe(true);
+    const redChannels = Array.from({ length: target.length / 4 }, (_, pixel) => target[pixel * 4] ?? 0);
+    expect(redChannels.some((value) => value === 200)).toBe(true);
   });
 });
 

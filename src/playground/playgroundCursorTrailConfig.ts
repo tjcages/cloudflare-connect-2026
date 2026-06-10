@@ -42,11 +42,11 @@ export const DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG: PlaygroundCursorTrailConfig
   spinStrength: 0.024,
   densityRadiusMinScale: 0.65,
   densityRadiusLifeScale: 0.55,
-  pushRadiusScale: 2.4,
-  pushStrengthPx: 9,
+  pushRadiusScale: 1,
+  pushStrengthPx: 0,
   pushLagPx: 4,
   pushWobblePx: 2,
-  pushLeadBlackAlpha: 0.36,
+  pushLeadBlackAlpha: 0,
   trailScale: 0,
 };
 

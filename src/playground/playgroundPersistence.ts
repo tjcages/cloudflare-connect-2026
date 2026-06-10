@@ -73,6 +73,7 @@ import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_STRIPES,
   detectUploadMediaKind,
+  formatUploadRejectionMessage,
   getPlaygroundTextureOption,
   isUploadTextureId,
   PLAYGROUND_TEXTURES,
@@ -84,7 +85,6 @@ import {
 export const PLAYGROUND_LS_KEY = "section-grid-playground";
 export const PLAYGROUND_DB_NAME = "section-grid-playground";
 export const PLAYGROUND_DB_VERSION = 1;
-export const MAX_PLAYGROUND_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type PlaygroundPersistedConfig = {
   duotoneEnabled: boolean;
@@ -722,7 +722,8 @@ function writeEnvelope(envelope: PlaygroundEnvelope) {
 function openTextureDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(PLAYGROUND_DB_NAME, PLAYGROUND_DB_VERSION);
-    request.onerror = () => reject(request.error ?? new Error("IndexedDB open failed"));
+    request.onerror = () =>
+      reject(request.error ?? new Error("Could not open browser storage for uploads. Try reloading the page."));
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains("videos")) {
@@ -741,7 +742,8 @@ export async function putUploadTextureBlob(uploadId: string, blob: Blob): Promis
       db.close();
       resolve();
     };
-    tx.onerror = () => reject(tx.error ?? new Error("IndexedDB write failed"));
+    tx.onerror = () =>
+      reject(tx.error ?? new Error("Could not write the upload to browser storage. Storage may be full."));
     tx.objectStore("videos").put(blob, uploadId);
   });
 }
@@ -750,13 +752,14 @@ export async function getUploadTextureBlob(uploadId: string): Promise<Blob | nul
   const db = await openTextureDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction("videos", "readonly");
-    tx.onerror = () => reject(tx.error ?? new Error("IndexedDB read failed"));
+    tx.onerror = () =>
+      reject(tx.error ?? new Error("Could not read a saved upload from browser storage. Try reloading the page."));
     const req = tx.objectStore("videos").get(uploadId);
     req.onsuccess = () => {
       db.close();
       resolve((req.result as Blob | undefined) ?? null);
     };
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB get failed"));
+    req.onerror = () => reject(req.error ?? new Error("Could not read a saved upload from browser storage."));
   });
 }
 
@@ -918,23 +921,27 @@ export function resolveInitialTextureId(): PlaygroundTextureId {
 /** @deprecated Use {@link resolveInitialTextureId}. */
 export const resolveInitialVideoId = resolveInitialTextureId;
 
+export function formatUploadStorageErrorMessage(fileName: string): string {
+  const name = fileName.trim() || "The file";
+  return `${name} could not be saved in this browser. Storage may be full or blocked — free disk space, allow site storage, then try uploading again.`;
+}
+
 export async function registerUpload(
   file: File,
 ): Promise<{ textureId: PlaygroundTextureId; meta: PlaygroundUploadMeta }> {
-  if (file.size > MAX_PLAYGROUND_UPLOAD_BYTES) {
-    throw new Error(`Texture must be under ${Math.round(MAX_PLAYGROUND_UPLOAD_BYTES / (1024 * 1024))}MB.`);
-  }
-
   const mediaKind = detectUploadMediaKind(file);
   if (!mediaKind) {
-    throw new Error("Upload a video or image file.");
+    throw new Error(formatUploadRejectionMessage(file.name));
   }
 
   const envelope = readEnvelope();
-
   const id = crypto.randomUUID();
-  const textureId = `upload:${id}` as PlaygroundTextureId;
-  await putUploadTextureBlob(id, file);
+  const textureId = `upload:${id}` as `upload:${string}`;
+  try {
+    await putUploadTextureBlob(id, file);
+  } catch {
+    throw new Error(formatUploadStorageErrorMessage(file.name));
+  }
 
   const label = file.name.replace(/\.[^.]+$/, "") || "Uploaded texture";
   const meta: PlaygroundUploadMeta = {
@@ -946,9 +953,10 @@ export async function registerUpload(
   };
   envelope.uploads.push(meta);
   writeEnvelope(envelope);
-  getUploadObjectUrl(`upload:${id}`, file);
+  getUploadObjectUrl(textureId, file);
+  saveLastTextureId(textureId as PlaygroundTextureId);
 
-  return { textureId, meta };
+  return { textureId: textureId as PlaygroundTextureId, meta };
 }
 
 export function serializePlaygroundState(config: PlaygroundPersistedConfig): string {
@@ -1266,9 +1274,13 @@ export async function hydrateUploadUrls(uploads: PlaygroundUploadMeta[]): Promis
   const map = new Map<string, string>();
   for (const upload of uploads) {
     const textureId = `upload:${upload.id}` as PlaygroundTextureId;
-    const blob = await getUploadTextureBlob(upload.id);
-    if (blob) {
-      map.set(textureId, getUploadObjectUrl(`upload:${upload.id}`, blob));
+    try {
+      const blob = await getUploadTextureBlob(upload.id);
+      if (blob) {
+        map.set(textureId, getUploadObjectUrl(`upload:${upload.id}`, blob));
+      }
+    } catch {
+      // Skip uploads whose blobs cannot be read; load errors surface when selected.
     }
   }
   return map;

@@ -88,6 +88,9 @@ export const PLAYGROUND_PIXI_RESOLUTION = 2;
 
 export const PLAYGROUND_DISPLAY_MAX_PX = 8192;
 
+/** Default canvas width when no saved size exists; height follows source aspect ratio. */
+export const PLAYGROUND_DEFAULT_DISPLAY_MAX_WIDTH = 1000;
+
 export function clampPlaygroundDisplayDimension(value: number, fallback: number): number {
   const rounded = Math.round(value);
   if (!Number.isFinite(rounded) || rounded < 1) {
@@ -202,7 +205,20 @@ export function getPlaygroundVideoNativeSize(video: HTMLVideoElement): Playgroun
   return getPlaygroundTextureNativeSize({ kind: "video", element: video });
 }
 
-/** Uses explicit canvas size when both dimensions are positive; otherwise native source size. */
+/** Scales native size down so width is at most {@link PLAYGROUND_DEFAULT_DISPLAY_MAX_WIDTH}. */
+export function resolveDefaultPlaygroundDisplaySize(native: PlaygroundDisplaySize): PlaygroundDisplaySize {
+  if (native.width <= 0 || native.height <= 0) {
+    return { width: 0, height: 0 };
+  }
+  if (native.width <= PLAYGROUND_DEFAULT_DISPLAY_MAX_WIDTH) {
+    return { width: native.width, height: native.height };
+  }
+  const width = PLAYGROUND_DEFAULT_DISPLAY_MAX_WIDTH;
+  const height = Math.round((width * native.height) / native.width);
+  return { width, height };
+}
+
+/** Uses explicit canvas size when both dimensions are positive; otherwise default scaled size. */
 export function resolvePlaygroundDisplaySize(
   native: PlaygroundDisplaySize,
   canvas?: { displayWidth?: number; displayHeight?: number },
@@ -212,7 +228,7 @@ export function resolvePlaygroundDisplaySize(
   if (width && width > 0 && height && height > 0) {
     return { width: Math.round(width), height: Math.round(height) };
   }
-  return native;
+  return resolveDefaultPlaygroundDisplaySize(native);
 }
 
 /** Scaled display size; height derived from width so aspect ratio stays exact. */
@@ -347,6 +363,7 @@ function buildDisplayFrameWithPointerEffects(
   clickWaveSamples: readonly ClickWaveSample[],
   clickWaveConfig: PlaygroundClickWaveConfig,
   clickWaveGrid: ClickWaveGridContext,
+  luminanceSettings: TextureLuminanceSettings,
   workingEffect?: Uint8ClampedArray,
   displayPixels?: Uint8ClampedArray,
 ): { data: Uint8ClampedArray; bounds: CursorTrailPixelBounds | null } {
@@ -379,6 +396,7 @@ function buildDisplayFrameWithPointerEffects(
         displayHeight,
         trailSamples,
         cursorTrailConfig,
+        luminanceSettings,
       ),
     );
   }
@@ -811,6 +829,7 @@ function runDuotoneTick(params: {
         clickWaveSamples,
         clickWaveConfig,
         { gridCellWidth: effectiveCell.width, gridCellHeight: effectiveCell.height },
+        textureLuminanceSettingsRef.current,
         workingEffectPixels,
         displayFramePixels,
       );
@@ -832,6 +851,7 @@ function runDuotoneTick(params: {
         [],
         clickWaveConfig,
         { gridCellWidth: effectiveCell.width, gridCellHeight: effectiveCell.height },
+        textureLuminanceSettingsRef.current,
         workingEffectPixels ?? undefined,
         displayFramePixels,
       );
@@ -863,6 +883,10 @@ function runDuotoneTick(params: {
         gridState = {};
         pendingColorsResample = false;
         previousTrailPixelBounds = null;
+      }
+      if (pointerEffectsChanged) {
+        // Trail/click effects move every tick; smoothing stale indices leaves ghost dark cells behind particles.
+        gridState = {};
       }
 
       let luminanceSettings = textureLuminanceSettingsRef.current;

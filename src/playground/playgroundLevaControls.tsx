@@ -12,7 +12,7 @@ import type {
 import type { PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundCatalogEntry } from "./playgroundPersistence";
-import type { PlaygroundTextureId } from "./playgroundTextures";
+import { PLAYGROUND_TEXTURE_UPLOAD_ACCEPT, type PlaygroundTextureId } from "./playgroundTextures";
 import type { TextureLuminanceSettings } from "./colorWhiteness";
 import {
   buildPlaygroundCanvasLevaSchema,
@@ -28,9 +28,9 @@ import {
   type PlaygroundWorkflowLevaHandlers,
   type PlaygroundWorkflowLevaSnapshot,
 } from "./playgroundLevaSchema";
-import { PLAYGROUND_LEVA_LIGHT_THEME } from "./playgroundLevaTheme";
 import { PlaygroundCanvasSizeControls } from "./PlaygroundCanvasSizeControls";
 import { PlaygroundWorkflowControls } from "./PlaygroundWorkflowControls";
+import { PLAYGROUND_LEVA_LIGHT_THEME } from "./playgroundLevaTheme";
 import { PLAYGROUND_LEVA_SIDEBAR_CLASS } from "./playgroundUi";
 import { stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import type { Stripe } from "./stripeColors";
@@ -346,17 +346,21 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onWidthChange: handlersRef.current.onStripeWidthCommit,
   };
 
-  useControls(() => buildPlaygroundCanvasLevaSchema(canvasSnapshot, canvasHandlersRef.current) as never, {
-    store: canvasStore,
-  }, [
-    canvasSnapshot.workflowDisabled,
-    canvasSnapshot.selectedTextureId,
-    props.catalog.length,
-  ]);
+  useControls(
+    () => buildPlaygroundCanvasLevaSchema(canvasSnapshot, canvasHandlersRef.current) as never,
+    {
+      store: canvasStore,
+    },
+    [canvasSnapshot.workflowDisabled, canvasSnapshot.selectedTextureId, props.catalog.length],
+  );
 
-  useControls(() => buildPlaygroundWorkflowLevaSchema(workflowSnapshot, workflowHandlersRef.current) as never, {
-    store: workflowStore,
-  }, [workflowSnapshot.workflowDisabled, workflowSnapshot.importText]);
+  useControls(
+    () => buildPlaygroundWorkflowLevaSchema(workflowSnapshot, workflowHandlersRef.current) as never,
+    {
+      store: workflowStore,
+    },
+    [workflowSnapshot.workflowDisabled, workflowSnapshot.importText],
+  );
 
   useControls(() => buildPlaygroundLevaSchema(snapshot, handlersRef.current) as never, { store }, [
     snapshot.duotoneControlsDisabled,
@@ -407,7 +411,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*,image/*"
+          accept={PLAYGROUND_TEXTURE_UPLOAD_ACCEPT}
           className="hidden"
           onChange={(event) => void props.onUploadFile(event)}
         />

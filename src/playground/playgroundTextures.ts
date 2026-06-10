@@ -109,6 +109,29 @@ export function getPlaygroundTextureOption(id: BuiltinPlaygroundTextureId): Play
   return option;
 }
 
+const IMAGE_EXTENSIONS = new Set([
+  "avif",
+  "bmp",
+  "gif",
+  "heic",
+  "heif",
+  "ico",
+  "jpeg",
+  "jpg",
+  "png",
+  "svg",
+  "tif",
+  "tiff",
+  "webp",
+]);
+
+const VIDEO_EXTENSIONS = new Set(["3gp", "3g2", "avi", "m4v", "mkv", "mov", "mp4", "mpeg", "mpg", "ogv", "webm"]);
+
+function fileExtension(fileName: string): string {
+  const match = /\.([^.]+)$/i.exec(fileName);
+  return match ? match[1]!.toLowerCase() : "";
+}
+
 export function detectUploadMediaKind(file: File): PlaygroundMediaKind | null {
   if (file.type.startsWith("image/")) {
     return "image";
@@ -116,5 +139,45 @@ export function detectUploadMediaKind(file: File): PlaygroundMediaKind | null {
   if (file.type.startsWith("video/")) {
     return "video";
   }
+  const extension = fileExtension(file.name);
+  if (IMAGE_EXTENSIONS.has(extension)) {
+    return "image";
+  }
+  if (VIDEO_EXTENSIONS.has(extension)) {
+    return "video";
+  }
   return null;
 }
+
+export function formatUploadRejectionMessage(fileName: string): string {
+  const name = fileName.trim() || "This file";
+  return `${name} is not recognized as an image or video. Choose a common image (JPEG, PNG, WebP, GIF, HEIC, …) or video (MP4, MOV, WebM, …). If the extension looks correct, try re-exporting the file so the browser can read it.`;
+}
+
+export type PlaygroundTextureLoadFailureReason = "decode" | "dimensions" | "missing" | "unavailable";
+
+export function formatTextureLoadErrorMessage(options: {
+  label: string;
+  mediaKind: PlaygroundMediaKind;
+  reason: PlaygroundTextureLoadFailureReason;
+}): string {
+  const name = options.label.trim() || "This texture";
+  switch (options.reason) {
+    case "dimensions":
+      return `${name} loaded but has no usable pixel size. The file may be empty or corrupt — try re-exporting it.`;
+    case "missing":
+      return `${name} is no longer in browser storage — the file data may have been cleared. Upload it again from your computer.`;
+    case "unavailable":
+      return `No textures are available to load. Pick a built-in example from the Texture menu or upload an image or video.`;
+    case "decode":
+    default:
+      if (options.mediaKind === "video") {
+        return `${name} could not be played. Your browser may not support this video codec — try exporting as H.264 in an MP4 or WebM.`;
+      }
+      return `${name} could not be decoded as an image. The file may be corrupt or use a format your browser cannot render — try JPEG, PNG, or WebP.`;
+  }
+}
+
+/** File picker hint: MIME groups plus common extensions macOS often omits from `file.type`. */
+export const PLAYGROUND_TEXTURE_UPLOAD_ACCEPT =
+  "image/*,video/*,.avif,.bmp,.gif,.heic,.heif,.ico,.jpeg,.jpg,.png,.svg,.tif,.tiff,.webp,.3gp,.3g2,.avi,.m4v,.mkv,.mov,.mp4,.mpeg,.mpg,.ogv,.webm";
