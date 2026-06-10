@@ -26,7 +26,7 @@ import {
 } from "./runtime/playgroundTextureAdjustments";
 import { DEFAULT_PLAYGROUND_REVEAL_CONFIG, resolvePlaygroundRevealDurationMs } from "./runtime/playgroundRevealConfig";
 import type { PlaygroundRevealState } from "./runtime/playgroundReveal";
-import type { TextureLuminanceSettings } from "./runtime/colorWhiteness";
+import { normalizeTextureLuminanceMode, type TextureLuminanceSettings } from "./runtime/colorWhiteness";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -217,6 +217,7 @@ function runDuotoneTick(params: {
   let lastGridUpdateMs = 0;
   let hasBuiltGrid = false;
   let lastRevealReplayKey = revealPlaybackRef.current.replayKey;
+  let lastLuminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
 
   return () => {
     syncVisual();
@@ -224,7 +225,9 @@ function runDuotoneTick(params: {
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
     });
-    stripeFilter.syncUseCellColors(textureLuminanceSettingsRef.current.mode === "colors");
+    const luminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
+    stripeFilter.syncUseCellColors(luminanceMode === "colors");
+    stripeFilter.syncTextureUnderlay(luminanceMode === "overlay");
 
     const nextTextureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
     if (nextTextureFilterMode !== textureFilterMode) {
@@ -242,7 +245,12 @@ function runDuotoneTick(params: {
       } else {
         letterLayer.sync(null);
       }
+    } else if (textureFilterMode === "stripes" && luminanceMode !== lastLuminanceMode) {
+      sprite.filters = [stripeFilter];
+      lastColorsKey = "";
+      hasBuiltGrid = false;
     }
+    lastLuminanceMode = luminanceMode;
 
     if (textureFilterMode !== "stripes") {
       if (exportStateRef) {

@@ -17,6 +17,7 @@ export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
 export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   syncUseCellColors: (enabled: boolean) => void;
+  syncTextureUnderlay: (enabled: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
   /** Renderer resolution (devicePixelRatio) for screen-space stripe edge antialiasing. */
@@ -63,6 +64,7 @@ export function createStripeDuotoneFilter(
     uCornerRadius: { value: grid.cornerRadius, type: "f32" },
     uStripeMaxWidth: { value: STRIPE_WIDTH_ENCODE_MAX, type: "f32" },
     uUseCellColors: { value: 0, type: "f32" },
+    uTextureUnderlay: { value: 0, type: "f32" },
     uWidthShuffleSwing: { value: grid.widthShuffleSwing, type: "f32" },
     uOrientation: { value: grid.orientation === "horizontal" ? 1 : 0, type: "f32" },
     uStripeCount: { value: palette.count, type: "f32" },
@@ -110,6 +112,12 @@ export function createStripeDuotoneFilter(
   filter.syncUseCellColors = (enabled) => {
     const uniforms = stripeUniforms.uniforms as { uUseCellColors: number };
     uniforms.uUseCellColors = enabled ? 1 : 0;
+    stripeUniforms.update();
+  };
+
+  filter.syncTextureUnderlay = (enabled) => {
+    const uniforms = stripeUniforms.uniforms as { uTextureUnderlay: number };
+    uniforms.uTextureUnderlay = enabled ? 1 : 0;
     stripeUniforms.update();
   };
 

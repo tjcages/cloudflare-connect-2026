@@ -133,6 +133,13 @@ export const DEFAULT_COLORS_MODE_STRIPES: readonly Stripe[] = [
   stripe("color-6", "#FFFFFF", 0.8, 5),
 ] as const;
 
+/** Overlay-mode palette: loudest three luminance bands drawn on top of the source texture. */
+export const DEFAULT_OVERLAY_STRIPES: readonly Stripe[] = [
+  stripe("overlay-muted", "#F69E4D", 0.6, 3),
+  stripe("overlay-default", "#F27C33", 0.76, 4),
+  stripe("overlay-loud", "#EB5729", 0.9, 5),
+] as const;
+
 export function buildStripeColors(stripes: readonly Stripe[] = DEFAULT_STRIPES): StripeColors {
   return { stripes: stripes.map((entry) => ({ ...entry })) };
 }
@@ -141,12 +148,29 @@ export function cloneDefaultStripes(): Stripe[] {
   return DEFAULT_STRIPES.map((entry) => ({ ...entry }));
 }
 
+export function cloneDefaultOverlayStripes(): Stripe[] {
+  return DEFAULT_OVERLAY_STRIPES.map((entry) => ({ ...entry }));
+}
+
+export function overlayStripesMatchDefault(stripes: readonly Stripe[]): boolean {
+  if (stripes.length !== DEFAULT_OVERLAY_STRIPES.length) {
+    return false;
+  }
+  return stripes.every((stripe, index) => {
+    const base = DEFAULT_OVERLAY_STRIPES[index]!;
+    return (
+      stripe.hex.toLowerCase() === base.hex.toLowerCase() &&
+      stripe.startFrom === base.startFrom &&
+      stripe.width === base.width
+    );
+  });
+}
+
 /** Applies colors-mode threshold and width defaults to an existing stripe list (preserves ids/hex). */
 export function applyColorsModeStripeDefaults(stripes: readonly Stripe[]): Stripe[] {
   return stripes.map((entry, index) => {
     const defaults =
-      DEFAULT_COLORS_MODE_STRIPES[index] ??
-      DEFAULT_COLORS_MODE_STRIPES[DEFAULT_COLORS_MODE_STRIPES.length - 1]!;
+      DEFAULT_COLORS_MODE_STRIPES[index] ?? DEFAULT_COLORS_MODE_STRIPES[DEFAULT_COLORS_MODE_STRIPES.length - 1]!;
     return normalizeStripe({
       ...entry,
       startFrom: defaults.startFrom,
@@ -156,25 +180,38 @@ export function applyColorsModeStripeDefaults(stripes: readonly Stripe[]): Strip
 }
 
 /** Stripe list used for grid bucketing and palette widths, adjusted per luminance mode. */
-export function resolveStripesForLuminanceMode(
-  colors: StripeColors,
+export function resolveStripesForLuminanceMode(colors: StripeColors, mode: TextureLuminanceMode): readonly Stripe[] {
+  switch (mode) {
+    case "colors":
+      if (colors.stripes.length === 0) {
+        return DEFAULT_COLORS_MODE_STRIPES.map((entry) => ({ ...entry }));
+      }
+      return colors.stripes.map((entry, index) => {
+        const defaults =
+          DEFAULT_COLORS_MODE_STRIPES[index] ?? DEFAULT_COLORS_MODE_STRIPES[DEFAULT_COLORS_MODE_STRIPES.length - 1]!;
+        return normalizeStripe({
+          ...entry,
+          width: entry.width ?? defaults.width,
+        });
+      });
+    case "overlay":
+      return colors.stripes;
+    case "luminance":
+      return colors.stripes;
+    default: {
+      const unexpected: never = mode;
+      throw new Error(`Unhandled texture luminance mode: ${unexpected}`);
+    }
+  }
+}
+
+/** Active stripe list for rendering, based on luminance mode. */
+export function resolveActivePlaygroundStripes(
   mode: TextureLuminanceMode,
+  stripes: readonly Stripe[],
+  overlayStripes: readonly Stripe[],
 ): readonly Stripe[] {
-  if (mode !== "colors") {
-    return colors.stripes;
-  }
-  if (colors.stripes.length === 0) {
-    return DEFAULT_COLORS_MODE_STRIPES.map((entry) => ({ ...entry }));
-  }
-  return colors.stripes.map((entry, index) => {
-    const defaults =
-      DEFAULT_COLORS_MODE_STRIPES[index] ??
-      DEFAULT_COLORS_MODE_STRIPES[DEFAULT_COLORS_MODE_STRIPES.length - 1]!;
-    return normalizeStripe({
-      ...entry,
-      width: entry.width ?? defaults.width,
-    });
-  });
+  return mode === "overlay" ? overlayStripes : stripes;
 }
 
 export function addStripe(colors: StripeColors): StripeColors {

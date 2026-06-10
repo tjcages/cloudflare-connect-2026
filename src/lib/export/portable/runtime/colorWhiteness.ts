@@ -3,7 +3,7 @@ export function pixelLuminance(r: number, g: number, b: number): number {
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }
 
-export type TextureLuminanceMode = "luminance" | "colors";
+export type TextureLuminanceMode = "luminance" | "colors" | "overlay";
 
 export type TextureLuminanceSettings = {
   mode: TextureLuminanceMode;
@@ -18,7 +18,23 @@ export const TEXTURE_GAMMA_MIN = 0.05;
 export const TEXTURE_GAMMA_MAX = 5;
 
 export function normalizeTextureLuminanceMode(value: unknown): TextureLuminanceMode {
-  return value === "colors" ? "colors" : DEFAULT_TEXTURE_LUMINANCE_MODE;
+  if (value === "colors") {
+    return "colors";
+  }
+  if (value === "overlay") {
+    return "overlay";
+  }
+  return DEFAULT_TEXTURE_LUMINANCE_MODE;
+}
+
+/** Overlay mode buckets stripes onto darker source areas (equivalent to inverting luminance for bucketing). */
+export function overlayInvertsStripeBucketing(mode: TextureLuminanceMode): boolean {
+  return normalizeTextureLuminanceMode(mode) === "overlay";
+}
+
+export function finalizeStripeBucketingLuminance(luma01: number, mode: TextureLuminanceMode): number {
+  const clamped = Math.min(1, Math.max(0, luma01));
+  return overlayInvertsStripeBucketing(mode) ? 1 - clamped : clamped;
 }
 
 export function normalizeTextureLuminanceBackgroundColor(value: unknown): number {
@@ -80,11 +96,7 @@ function rgbToHexByte(r: number, g: number, b: number): number {
 }
 
 /** Samples image edges and returns the most common RGB (typical canvas background). */
-export function detectTextureBackgroundColor(
-  pixels: Uint8ClampedArray,
-  width: number,
-  height: number,
-): number {
+export function detectTextureBackgroundColor(pixels: Uint8ClampedArray, width: number, height: number): number {
   if (width <= 0 || height <= 0 || pixels.length < width * height * 4) {
     return DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR;
   }

@@ -23,4 +23,10 @@ describe("STRIPE_FILTER_FRAGMENT", () => {
     expect(STRIPE_FILTER_FRAGMENT).toContain("0.5 / screenScale");
     expect(STRIPE_FILTER_FRAGMENT).not.toContain("smoothstep(0.0, 0.75, dist)");
   });
+
+  it("supports compositing stripes over the source texture in overlay mode", () => {
+    expect(STRIPE_FILTER_FRAGMENT).toContain("uniform float uTextureUnderlay");
+    expect(STRIPE_FILTER_FRAGMENT).toContain("mix(texturePixel.rgb, stripeColor, stripeCoverage)");
+    expect(STRIPE_FILTER_FRAGMENT).toContain("finalColor = vec4(texturePixel.rgb, texturePixel.a)");
+  });
 });

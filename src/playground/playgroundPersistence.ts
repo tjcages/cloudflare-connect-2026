@@ -14,7 +14,13 @@ import {
   normalizePlaygroundGridConfig,
   type PlaygroundGridConfig,
 } from "./playgroundGridConfig";
-import { cloneDefaultStripes, normalizeStripe, type Stripe } from "./stripeColors";
+import {
+  cloneDefaultOverlayStripes,
+  cloneDefaultStripes,
+  normalizeStripe,
+  overlayStripesMatchDefault,
+  type Stripe,
+} from "./stripeColors";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
@@ -133,6 +139,8 @@ export type PlaygroundPersistedConfig = {
   clickWave?: PlaygroundClickWaveConfig;
   /** Ordered luminosity stripes (color + start-from + width). */
   stripes: Stripe[];
+  /** Overlay-mode stripe list (loudest three bands). Omitted = defaults. */
+  overlayStripes?: Stripe[];
 };
 
 export function resolvePersistedGridConfig(config: PlaygroundPersistedConfig): PlaygroundGridConfig {
@@ -155,6 +163,14 @@ export function resolvePersistedTextureLuminanceSettings(config: PlaygroundPersi
     mode: normalizeTextureLuminanceMode(config.textureLuminanceMode),
     backgroundColor: normalizeTextureLuminanceBackgroundColor(config.textureLuminanceBackgroundColor),
   };
+}
+
+export function resolvePersistedOverlayStripes(config: PlaygroundPersistedConfig): Stripe[] {
+  const raw = config.overlayStripes;
+  if (!raw || raw.length === 0) {
+    return cloneDefaultOverlayStripes();
+  }
+  return raw.map((entry) => normalizeStripe({ ...entry }));
 }
 
 export function resolvePersistedSourceTransform(config: PlaygroundPersistedConfig): PlaygroundSourceTransform {
@@ -240,6 +256,8 @@ export type PlaygroundStateWire = {
   gc?: Partial<PlaygroundGridConfig>;
   /** v3+: ordered luminosity stripes. */
   st?: StripeWire[];
+  /** v7+: overlay-mode stripe list. */
+  os?: StripeWire[];
   /** v6+: background flame settings. */
   fl?: FlamesWire;
   /** v7+: reveal animation settings. */
@@ -971,6 +989,7 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   const textureAdjustments = resolvePersistedTextureAdjustments(config);
   const textureAdjustmentsWire = textureAdjustmentsToWire(textureAdjustments);
   const textureLuminanceSettings = resolvePersistedTextureLuminanceSettings(config);
+  const overlayStripes = resolvePersistedOverlayStripes(config);
   const textureLuminanceBackgroundColorHex =
     textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
       ? `#${(textureLuminanceSettings.backgroundColor & 0xffffff).toString(16).padStart(6, "0")}`
@@ -1023,6 +1042,10 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
     if (textureLuminanceBackgroundColorHex !== undefined) {
       wire.tbg = textureLuminanceBackgroundColorHex;
     }
+  }
+  if (!overlayStripesMatchDefault(overlayStripes)) {
+    wire.v = 7;
+    wire.os = stripesToWire(overlayStripes);
   }
   if (sourceTransformWire) {
     wire.xf = sourceTransformWire;
@@ -1210,6 +1233,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const h = parsed.h === undefined ? undefined : Number(parsed.h);
   // v1/v2 used a distance model; those configs migrate to the default stripe palette.
   const stripes = wireToStripes(parsed.st) ?? cloneDefaultStripes();
+  const overlayStripes = wireToStripes(parsed.os);
   const textureGamma = parsed.tgm === undefined ? undefined : normalizeTextureGamma(Number(parsed.tgm));
   const grid = parsed.gc ? normalizePlaygroundGridConfig(parsed.gc) : undefined;
   const textureAdjustments = wireToTextureAdjustments(parsed.ta, textureGamma);
@@ -1252,6 +1276,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     cursorTrail: cursorTrail && !isDefaultPlaygroundCursorTrailConfig(cursorTrail) ? cursorTrail : undefined,
     clickWave: clickWave && !isDefaultPlaygroundClickWaveConfig(clickWave) ? clickWave : undefined,
     stripes,
+    overlayStripes: overlayStripes && !overlayStripesMatchDefault(overlayStripes) ? overlayStripes : undefined,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     displayHeight: h && Number.isFinite(h) && h > 0 ? Math.round(h) : undefined,
   };

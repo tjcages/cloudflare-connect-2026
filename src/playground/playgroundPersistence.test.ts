@@ -9,7 +9,7 @@ import {
   serializePlaygroundState,
   type PlaygroundCatalogEntry,
 } from "./playgroundPersistence";
-import { DEFAULT_STRIPES } from "./stripeColors";
+import { cloneDefaultOverlayStripes, DEFAULT_STRIPES } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
@@ -194,6 +194,27 @@ describe("playgroundPersistence envelope migration", () => {
     expect(wire.v).toBe(6);
     expect(wire.se).toBe(false);
     expect(parsePlaygroundStateInput(text).stripesEnabled).toBe(false);
+  });
+
+  it("round-trips overlay luminance mode and overlay stripe list as wire v7", () => {
+    const overlayStripes = cloneDefaultOverlayStripes().map((stripe, index) =>
+      index === 2 ? { ...stripe, hex: "#FF0000", width: 6 } : { ...stripe },
+    );
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      textureLuminanceMode: "overlay",
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+      overlayStripes,
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(7);
+    expect(wire.tlm).toBe("overlay");
+    expect(wire.os).toHaveLength(3);
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.textureLuminanceMode).toBe("overlay");
+    expect(parsed.overlayStripes?.[2]?.hex).toBe("#FF0000");
+    expect(parsed.overlayStripes?.[2]?.width).toBe(6);
   });
 
   it("round-trips texture luminance colors mode and background color as wire v7", () => {

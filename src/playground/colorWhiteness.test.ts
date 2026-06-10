@@ -9,8 +9,10 @@ import {
   DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
   isNonBackgroundColorPixel,
   normalizeTextureGamma,
+  finalizeStripeBucketingLuminance,
   normalizeTextureLuminanceMode,
   normalizeTextureLuminanceBackgroundColor,
+  overlayInvertsStripeBucketing,
   pixelSaturation,
   pixelTextureLuminance,
   TEXTURE_GAMMA_MAX,
@@ -122,6 +124,7 @@ describe("texture luminance mode normalization", () => {
     expect(DEFAULT_TEXTURE_LUMINANCE_MODE).toBe("luminance");
     expect(normalizeTextureLuminanceMode(undefined)).toBe("luminance");
     expect(normalizeTextureLuminanceMode("colors")).toBe("colors");
+    expect(normalizeTextureLuminanceMode("overlay")).toBe("overlay");
     expect(normalizeTextureLuminanceMode("missing")).toBe("luminance");
   });
 
@@ -129,5 +132,12 @@ describe("texture luminance mode normalization", () => {
     expect(DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR).toBe(0x000000);
     expect(normalizeTextureLuminanceBackgroundColor("#ffffff")).toBe(0xffffff);
     expect(normalizeTextureLuminanceBackgroundColor("bad")).toBe(DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR);
+  });
+
+  it("inverts stripe bucketing luminance only in overlay mode", () => {
+    expect(overlayInvertsStripeBucketing("overlay")).toBe(true);
+    expect(overlayInvertsStripeBucketing("luminance")).toBe(false);
+    expect(finalizeStripeBucketingLuminance(0.2, "overlay")).toBeCloseTo(0.8);
+    expect(finalizeStripeBucketingLuminance(0.2, "luminance")).toBeCloseTo(0.2);
   });
 });

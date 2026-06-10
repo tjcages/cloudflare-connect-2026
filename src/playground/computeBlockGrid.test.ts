@@ -54,6 +54,16 @@ describe("computeBlockGrid cell sizing", () => {
     expect(grid.luma[1]).toBe(0);
   });
 
+  it("inverts per-cell luma for overlay stripe bucketing", () => {
+    const data = splitImage(4, 2, 2);
+    const grid = computeBlockGrid(data, 4, 2, 1, 2, 2, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
+      mode: "overlay",
+      backgroundColor: 0xffffff,
+    });
+    expect(grid.luma[0]).toBe(0);
+    expect(grid.luma[1]).toBe(255);
+  });
+
   it("produces a finer grid as the cell shrinks", () => {
     const data = splitImage(12, 12, 6);
     const coarse = computeBlockGrid(data, 12, 12, 1, 12, 12);
@@ -137,21 +147,10 @@ describe("computeBlockGrid cell sizing", () => {
 
   it("applies texture tone adjustments to colors-mode cell fill", () => {
     const data = pixelRow([[200, 100, 50]]);
-    const raw = computeBlockGrid(
-      data,
-      1,
-      1,
-      1,
-      1,
-      1,
-      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-      undefined,
-      undefined,
-      {
-        mode: "colors",
-        backgroundColor: 0xffffff,
-      },
-    );
+    const raw = computeBlockGrid(data, 1, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
+      mode: "colors",
+      backgroundColor: 0xffffff,
+    });
     const adjusted = computeBlockGrid(
       data,
       1,
@@ -183,21 +182,10 @@ describe("computeBlockGrid cell sizing", () => {
     sparse[1] = 0;
     sparse[2] = 0;
 
-    const grid = computeBlockGrid(
-      sparse,
-      4,
-      4,
-      1,
-      4,
-      4,
-      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-      undefined,
-      undefined,
-      {
-        mode: "colors",
-        backgroundColor: 0xffffff,
-      },
-    );
+    const grid = computeBlockGrid(sparse, 4, 4, 1, 4, 4, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
+      mode: "colors",
+      backgroundColor: 0xffffff,
+    });
 
     expect(grid.colors[0]).toBe(255);
     expect(grid.colors[1]).toBeGreaterThan(235);
@@ -281,21 +269,10 @@ describe("computeBlockGrid cell sizing", () => {
 
   it("applies pixel blur to colors-mode cell fill", () => {
     const data = splitImage(3, 1, 1);
-    const sharp = computeBlockGrid(
-      data,
-      3,
-      1,
-      1,
-      1,
-      1,
-      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-      undefined,
-      undefined,
-      {
-        mode: "colors",
-        backgroundColor: 0x000000,
-      },
-    );
+    const sharp = computeBlockGrid(data, 3, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
+      mode: "colors",
+      backgroundColor: 0x000000,
+    });
     const blurred = computeBlockGrid(
       data,
       3,
@@ -360,15 +337,26 @@ describe("computeBlockGrid cell sizing", () => {
     flames[2] = 20;
     flames[3] = 255;
 
-    const grid = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, {
-      pixels: flames,
-      imageWidth: 2,
-      imageHeight: 1,
-      mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
-    }, undefined, {
-      mode: "colors",
-      backgroundColor: 0x000000,
-    });
+    const grid = computeBlockGrid(
+      data,
+      2,
+      1,
+      1,
+      1,
+      1,
+      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      {
+        pixels: flames,
+        imageWidth: 2,
+        imageHeight: 1,
+        mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
+      },
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0x000000,
+      },
+    );
 
     expect(grid.luma[0]).toBeGreaterThan(0);
     expect(grid.colors[0]).toBe(255);

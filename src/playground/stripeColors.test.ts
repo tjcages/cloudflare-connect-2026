@@ -2,15 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   addStripe,
   buildStripeColors,
+  cloneDefaultOverlayStripes,
   cloneDefaultStripes,
+  DEFAULT_OVERLAY_STRIPES,
   DEFAULT_STRIPES,
   displayP3CssToHex,
   hexToDisplayP3Css,
   normalizeStripe,
   removeStripe,
+  resolveActivePlaygroundStripes,
   resolvePlaygroundPixiTint,
   resolveStripeIndices,
   resolveStripeRgb,
+  resolveStripesForLuminanceMode,
   stripeColorFromHexPicker,
   STRIPE_WIDTH_STORAGE_MAX,
   stripeIndexForLuminance,
@@ -93,7 +97,9 @@ describe("hex <-> display-p3", () => {
 
   it("resolveStripeRgb always derives display-p3 from hex when preferP3 is true", () => {
     const stripe = normalizeStripe({ hex: "#808080", p3Css: "color(display-p3 1 0 0)" });
-    expect(resolveStripeRgb(stripe, true)).toEqual(resolveStripeRgb({ ...stripe, p3Css: hexToDisplayP3Css("#808080") }, true));
+    expect(resolveStripeRgb(stripe, true)).toEqual(
+      resolveStripeRgb({ ...stripe, p3Css: hexToDisplayP3Css("#808080") }, true),
+    );
   });
 
   it("resolvePlaygroundPixiTint leaves color unchanged when preferP3 is false", () => {
@@ -125,5 +131,48 @@ describe("stripe list editing", () => {
     // Width stores up to the encode ceiling so wide cells can carry thick stripes;
     // the shader clamps the drawn thickness to the actual cell size.
     expect(clamped.stripes[0]!.width).toBe(STRIPE_WIDTH_STORAGE_MAX);
+  });
+});
+
+describe("DEFAULT_OVERLAY_STRIPES", () => {
+  it("contains the three loudest default colors with ascending thresholds", () => {
+    expect(DEFAULT_OVERLAY_STRIPES.map((stripe) => stripe.hex)).toEqual(["#F69E4D", "#F27C33", "#EB5729"]);
+    expect(DEFAULT_OVERLAY_STRIPES.map((stripe) => stripe.startFrom)).toEqual([0.6, 0.76, 0.9]);
+  });
+
+  it("clones into an editable list", () => {
+    const cloned = cloneDefaultOverlayStripes();
+    expect(cloned).toHaveLength(3);
+    expect(cloned[0]!.hex).toBe("#F69E4D");
+    cloned[0]!.hex = "#000000";
+    expect(DEFAULT_OVERLAY_STRIPES[0]!.hex).toBe("#F69E4D");
+  });
+});
+
+describe("resolveStripesForLuminanceMode", () => {
+  it("returns luminance stripes unchanged", () => {
+    const colors = buildStripeColors(cloneDefaultStripes());
+    expect(resolveStripesForLuminanceMode(colors, "luminance")).toEqual(colors.stripes);
+  });
+
+  it("returns overlay stripes unchanged", () => {
+    const colors = buildStripeColors(cloneDefaultOverlayStripes());
+    expect(resolveStripesForLuminanceMode(colors, "overlay")).toEqual(colors.stripes);
+  });
+
+  it("fills missing colors-mode widths from defaults", () => {
+    const colors = buildStripeColors([{ ...cloneDefaultStripes()[0]!, width: undefined as unknown as number }]);
+    const resolved = resolveStripesForLuminanceMode(colors, "colors");
+    expect(resolved[0]!.width).toBe(5);
+  });
+});
+
+describe("resolveActivePlaygroundStripes", () => {
+  it("selects overlay stripes only in overlay mode", () => {
+    const stripes = cloneDefaultStripes();
+    const overlayStripes = cloneDefaultOverlayStripes();
+    expect(resolveActivePlaygroundStripes("luminance", stripes, overlayStripes)).toBe(stripes);
+    expect(resolveActivePlaygroundStripes("colors", stripes, overlayStripes)).toBe(stripes);
+    expect(resolveActivePlaygroundStripes("overlay", stripes, overlayStripes)).toBe(overlayStripes);
   });
 });

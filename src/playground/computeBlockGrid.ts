@@ -3,6 +3,7 @@ import {
   colorPixelPresence,
   DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
   isNonBackgroundColorPixel,
+  finalizeStripeBucketingLuminance,
   normalizeTextureLuminanceMode,
   pixelTextureLuminance,
   type TextureLuminanceSettings,
@@ -77,9 +78,9 @@ function cellMeanSample(
 ): { luma: number; r: number; g: number; b: number; colorCoverage: number; hasFlameSample: boolean } {
   const originX = col * cellWidth;
   const originY = row * cellHeight;
-  const colorsMode = normalizeTextureLuminanceMode(luminanceSettings?.mode) === "colors";
-  const backgroundColor =
-    luminanceSettings?.backgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR;
+  const luminanceMode = normalizeTextureLuminanceMode(luminanceSettings?.mode);
+  const colorsMode = luminanceMode === "colors";
+  const backgroundColor = luminanceSettings?.backgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR;
 
   let lumaSum = 0;
   let lumaMax = 0;
@@ -182,7 +183,7 @@ function cellMeanSample(
     const fillRatio = coloredCount / sampleCount;
     const meanColoredPresence = coloredCount > 0 ? coloredLumaSum / coloredCount : lumaMax;
     return {
-      luma: lumaMax,
+      luma: finalizeStripeBucketingLuminance(lumaMax, luminanceMode),
       r: rMax,
       g: gMax,
       b: bMax,
@@ -192,15 +193,7 @@ function cellMeanSample(
   }
 
   if (colorsMode) {
-    const adjustedRgb = applyTextureRgbAdjustments(
-      meanR,
-      meanG,
-      meanB,
-      adjustments,
-      luminanceSettings,
-      col,
-      row,
-    );
+    const adjustedRgb = applyTextureRgbAdjustments(meanR, meanG, meanB, adjustments, luminanceSettings, col, row);
     if (coloredCount > 0 && coloredDistanceSum > 0) {
       const fillRatio = coloredCount / sampleCount;
       const meanColoredDistance = coloredDistanceSum / coloredCount;
@@ -226,7 +219,7 @@ function cellMeanSample(
   }
 
   return {
-    luma: lumaSum / sampleCount,
+    luma: finalizeStripeBucketingLuminance(lumaSum / sampleCount, luminanceMode),
     r: meanR,
     g: meanG,
     b: meanB,
@@ -271,8 +264,7 @@ export function computeBlockGrid(
         }
       : undefined;
 
-  const backgroundColor =
-    luminanceSettings?.backgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR;
+  const backgroundColor = luminanceSettings?.backgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR;
   const compositedPixels = compositeRgbaOverBackground(pixels, imageWidth, imageHeight, backgroundColor);
   const sourcePixels = blurRgbaPixels(compositedPixels, imageWidth, imageHeight, adjustments);
 

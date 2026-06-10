@@ -3,7 +3,7 @@ import * as playgroundFlames from "./playgroundFlames";
 import { createPlaygroundFlamesState } from "./playgroundFlames";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
 import { buildPlaygroundBlockGrid, sampleTextureFrame } from "./samplePlaygroundFrame";
-import { buildStripeColors } from "./stripeColors";
+import { buildStripeColors, cloneDefaultOverlayStripes } from "./stripeColors";
 
 function createBlackSourceCanvas(): HTMLCanvasElement {
   const sourceCanvas = document.createElement("canvas");
@@ -107,5 +107,33 @@ describe("sampleTextureFrame", () => {
     const brightGrid = buildPlaygroundBlockGrid(brightFrame, displayWidth, displayHeight, colors, {});
 
     expect([...brightGrid.grid.indices]).not.toEqual([...baselineGrid.grid.indices]);
+  });
+
+  it("buckets overlay mode by plain luminance without color-coverage promotion", () => {
+    const displayWidth = 14;
+    const displayHeight = 14;
+    const colors = buildStripeColors(cloneDefaultOverlayStripes());
+    const whiteOnBlack = createSolidImageData(displayWidth, displayHeight, [0, 0, 0]);
+    for (let row = 0; row < displayHeight; row++) {
+      for (let col = 7; col < 14; col++) {
+        const offset = (row * displayWidth + col) * 4;
+        whiteOnBlack.data[offset] = 255;
+        whiteOnBlack.data[offset + 1] = 255;
+        whiteOnBlack.data[offset + 2] = 255;
+      }
+    }
+
+    const built = buildPlaygroundBlockGrid(whiteOnBlack, displayWidth, displayHeight, colors, {}, 1, {
+      luminanceSettings: { mode: "overlay", backgroundColor: 0xffffff },
+    });
+
+    expect(built.grid.colorCoverage).toBeUndefined();
+
+    const cols = built.grid.cols;
+    const row = Math.floor(displayHeight / 2 / 7);
+    const blackCellIndex = built.grid.indices[row * cols + 0];
+    const whiteCellIndex = built.grid.indices[row * cols + 1];
+    expect(blackCellIndex).toBeGreaterThan(0);
+    expect(whiteCellIndex).toBe(0);
   });
 });

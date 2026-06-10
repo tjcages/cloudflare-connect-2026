@@ -52,6 +52,7 @@ uniform sampler2D uCellColorMap;
 uniform sampler2D uStripeData;
 uniform float uStripeCount;
 uniform float uUseCellColors;
+uniform float uTextureUnderlay;
 uniform vec2 uPixelSize;
 uniform vec2 uFrameSize;
 uniform vec2 uGridSize;
@@ -286,12 +287,20 @@ void main(void) {
     float vCoverage = stripeVerticalVisible(localY, bandTop, bandBottom) ? 1.0 : 0.0;
     float stripeCoverage = hCoverage * vCoverage;
 
+    vec4 texturePixel = texture(uTexture, vTextureCoord);
+
     if (stripeBand > 0.5) {
         if (!sparkleCellVisible(colIndex, rowIndex)) {
             stripeCoverage = 0.0;
         }
         vec3 stripeColor = cellFillColor(colIndex, rowIndex, stripeBand);
-        finalColor = vec4(mix(vec3(1.0), stripeColor, stripeCoverage), 1.0);
+        if (uTextureUnderlay > 0.5) {
+            finalColor = vec4(mix(texturePixel.rgb, stripeColor, stripeCoverage), 1.0);
+        } else {
+            finalColor = vec4(mix(vec3(1.0), stripeColor, stripeCoverage), 1.0);
+        }
+    } else if (uTextureUnderlay > 0.5) {
+        finalColor = vec4(texturePixel.rgb, texturePixel.a);
     } else {
         finalColor = vec4(1.0, 1.0, 1.0, 1.0);
     }
@@ -357,6 +366,7 @@ void main(void) {
 export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   syncUseCellColors: (enabled: boolean) => void;
+  syncTextureUnderlay: (enabled: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
@@ -395,6 +405,7 @@ export function createStripeDuotoneFilter(
     uGridSize: { value: [gridCols, gridRows], type: "vec2<f32>" },
     uStripeCount: { value: palette.count, type: "f32" },
     uUseCellColors: { value: 0, type: "f32" },
+    uTextureUnderlay: { value: 0, type: "f32" },
     uDebugVideoAlpha: { value: 0, type: "f32" },
     uSparkleEnabled: { value: 0, type: "f32" },
     uSparkleTime: { value: 0, type: "f32" },
@@ -438,6 +449,12 @@ export function createStripeDuotoneFilter(
   filter.syncUseCellColors = (enabled) => {
     const uniforms = stripeUniforms.uniforms as { uUseCellColors: number };
     uniforms.uUseCellColors = enabled ? 1 : 0;
+    stripeUniforms.update();
+  };
+
+  filter.syncTextureUnderlay = (enabled) => {
+    const uniforms = stripeUniforms.uniforms as { uTextureUnderlay: number };
+    uniforms.uTextureUnderlay = enabled ? 1 : 0;
     stripeUniforms.update();
   };
 

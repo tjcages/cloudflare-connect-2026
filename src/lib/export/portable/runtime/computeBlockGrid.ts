@@ -1,4 +1,9 @@
-import { pixelTextureLuminance, type TextureLuminanceSettings } from "./colorWhiteness";
+import {
+  finalizeStripeBucketingLuminance,
+  normalizeTextureLuminanceMode,
+  pixelTextureLuminance,
+  type TextureLuminanceSettings,
+} from "./colorWhiteness";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   applyTextureLuminanceAdjustments,
@@ -95,9 +100,10 @@ function cellMeanSample(
     }
   }
 
+  const luminanceMode = normalizeTextureLuminanceMode(luminanceSettings?.mode);
   const sampleCount = Math.max(1, count || STRIPE_BLOCK_SAMPLE_COUNT);
   return {
-    luma: lumaSum / sampleCount,
+    luma: finalizeStripeBucketingLuminance(lumaSum / sampleCount, luminanceMode),
     r: rSum / sampleCount,
     g: gSum / sampleCount,
     b: bSum / sampleCount,

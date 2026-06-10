@@ -757,7 +757,7 @@ export function buildPlaygroundLevaSchema(
         }),
         textureLuminanceMode: selectControl<TextureLuminanceMode>(
           snapshot.textureLuminanceSettings.mode,
-          { Luminance: "luminance", Colors: "colors" },
+          { Luminance: "luminance", Overlay: "overlay", Colors: "colors" },
           {
             label: "Luminance handling",
             hint: PLAYGROUND_FIELD_HELP.textureLuminanceMode,
@@ -765,7 +765,8 @@ export function buildPlaygroundLevaSchema(
             onChange: (mode) => handlers.setTextureLuminanceSettings({ mode }),
           },
         ),
-        ...(snapshot.textureLuminanceSettings.mode === "luminance"
+        ...(snapshot.textureLuminanceSettings.mode === "luminance" ||
+        snapshot.textureLuminanceSettings.mode === "overlay"
           ? {
               stripeColorsTable: stripeColorsTablePlugin({
                 value: stripeSyncKey(snapshot.stripes),

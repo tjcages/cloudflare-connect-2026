@@ -9,7 +9,8 @@ export const PLAYGROUND_FIELD_HELP = {
   stripeColor: "Set the stripe color.",
   stripeThreshold: "Set where this stripe begins in luminance.",
   stripeWidth: "Set how wide this stripe band is.",
-  textureLuminanceMode: "Choose classic luminance or chroma-based color halftone from the source texture.",
+  textureLuminanceMode:
+    "Luminance maps brightness to stripes. Overlay keeps the source visible and draws the loudest three stripe colors on top. Colors replaces fills with vivid source hues.",
   textureBackgroundColor: "Reference color for chroma distance in Colors mode. Pixels near this color contribute less.",
   colorsStripeThreshold: "Minimum chroma presence for this stripe band. Higher values require more vivid source color.",
   colorsStripeWidth: "Stripe thickness in pixels for this chroma band. Cell fill uses the most vivid source color.",

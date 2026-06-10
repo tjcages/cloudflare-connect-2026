@@ -1,4 +1,4 @@
-import { Sprite, Texture, VideoSource } from "pixi.js";
+import { Filter, Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
 import type { Ticker } from "../components/pixi";
 import { BlockGridTexture } from "./blockGridTexture";
@@ -10,7 +10,7 @@ import {
   sampleVideoFrame,
   type PlaygroundGridBuildState,
 } from "./samplePlaygroundFrame";
-import { createStripeDuotoneFilter } from "./stripeDuotoneFilter";
+import { createStripeDuotoneFilter, type StripeDuotoneFilter } from "./stripeDuotoneFilter";
 import type { StripeColors } from "./stripeColors";
 import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./stripeLetterFont";
 import { stepPlaygroundFlames, PlaygroundFlamesOverlay, type PlaygroundFlamesState } from "./playgroundFlames";
@@ -42,6 +42,7 @@ import type { PlaygroundRevealState } from "./playgroundReveal";
 import {
   detectTextureBackgroundColor,
   normalizeTextureLuminanceMode,
+  type TextureLuminanceMode,
   type TextureLuminanceSettings,
 } from "./colorWhiteness";
 import { createSourceTextureFilter } from "./sourceTextureFilter";
@@ -158,6 +159,26 @@ function resolveTextureFilterMode(duotoneEnabled: boolean, stripesEnabled: boole
     return "off";
   }
   return "stripes";
+}
+
+export function resolveStripeSpriteFilters(
+  textureFilterMode: TextureFilterMode,
+  stripeFilter: StripeDuotoneFilter,
+): Filter[] | null {
+  if (textureFilterMode !== "stripes") {
+    return null;
+  }
+  return [stripeFilter];
+}
+
+function syncStripeSpriteFilters(
+  sprite: Sprite,
+  textureFilterMode: TextureFilterMode,
+  luminanceMode: TextureLuminanceMode,
+  stripeFilter: StripeDuotoneFilter,
+) {
+  sprite.filters = resolveStripeSpriteFilters(textureFilterMode, stripeFilter);
+  stripeFilter.syncTextureUnderlay(normalizeTextureLuminanceMode(luminanceMode) === "overlay");
 }
 
 function maybeAutoDetectColorsBackground(
@@ -636,6 +657,8 @@ function runDuotoneTick(params: {
     });
     sourceTextureFilter.syncLuminanceSettings(textureLuminanceSettingsRef.current);
     stripeFilter.syncUseCellColors(textureLuminanceSettingsRef.current.mode === "colors");
+    const luminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
+    stripeFilter.syncTextureUnderlay(luminanceMode === "overlay");
     const flamesState = flamesStateRef.current;
     const flamesConfig = flamesConfigRef.current;
     if (flamesState && flamesConfig.enabled) {
@@ -653,7 +676,7 @@ function runDuotoneTick(params: {
         restoreOriginalSpriteTexture();
       }
       textureFilterMode = nextTextureFilterMode;
-      sprite.filters = textureFilterMode === "stripes" ? [stripeFilter] : null;
+      syncStripeSpriteFilters(sprite, textureFilterMode, luminanceMode, stripeFilter);
       letterLayer.setVisible(textureFilterMode === "stripes");
       if (textureFilterMode === "stripes") {
         lastColorsKey = "";
@@ -663,10 +686,24 @@ function runDuotoneTick(params: {
       }
     }
 
-    const luminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
     if (luminanceMode !== lastLuminanceMode) {
       if (luminanceMode === "colors") {
         colorsBackgroundAutoDetected = false;
+      }
+      if (textureFilterMode === "stripes") {
+        syncStripeSpriteFilters(sprite, textureFilterMode, luminanceMode, stripeFilter);
+        const switchedOverlay = luminanceMode === "overlay" || lastLuminanceMode === "overlay";
+        if (switchedOverlay) {
+          pendingFullResample = true;
+          lastColorsKey = "";
+          gridState = {};
+          hasBuiltGrid = false;
+          if (luminanceMode === "overlay") {
+            bakeAdjustedPreviewTexture();
+          } else {
+            restoreOriginalSpriteTexture();
+          }
+        }
       }
       lastLuminanceMode = luminanceMode;
     }
@@ -711,8 +748,13 @@ function runDuotoneTick(params: {
     }
 
     sourceTextureFilter.syncFlames(null, null);
-    restoreOriginalSpriteTexture();
-    syncVisual();
+    if (luminanceMode === "overlay") {
+      // Baked preview is already display-sized (see preview mode); native-source scaling would shrink it.
+      bakeAdjustedPreviewTexture();
+    } else {
+      restoreOriginalSpriteTexture();
+      syncVisual();
+    }
 
     const revealConfig = revealConfigRef.current;
     const revealPlayback = revealPlaybackRef.current;
@@ -1114,7 +1156,7 @@ function createImageSceneTicker(
       gamma: textureGammaRef.current,
     });
     const textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
-    sprite.filters = textureFilterMode === "stripes" ? [stripeFilter] : null;
+    syncStripeSpriteFilters(sprite, textureFilterMode, textureLuminanceSettingsRef.current.mode, stripeFilter);
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
     const cursorTrailState = createCursorTrailState();
@@ -1248,7 +1290,7 @@ function createVideoSceneTickerInternal(
       gamma: textureGammaRef.current,
     });
     const textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
-    sprite.filters = textureFilterMode === "stripes" ? [stripeFilter] : null;
+    syncStripeSpriteFilters(sprite, textureFilterMode, textureLuminanceSettingsRef.current.mode, stripeFilter);
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
     const cursorTrailState = createCursorTrailState();

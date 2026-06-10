@@ -24,6 +24,7 @@ import {
   resolvePersistedSourceTransform,
   resolvePersistedTextureAdjustments,
   resolvePersistedTextureLuminanceSettings,
+  resolvePersistedOverlayStripes,
   resolveInitialTextureId,
   revokeUploadObjectUrl,
   saveLastTextureId,
@@ -128,8 +129,11 @@ import type { PlaygroundRevealState } from "./playgroundReveal";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
   applyColorsModeStripeDefaults,
+  cloneDefaultOverlayStripes,
   cloneDefaultStripes,
   DEFAULT_STRIPES,
+  overlayStripesMatchDefault,
+  resolveActivePlaygroundStripes,
   stripeColorFromHexPicker,
   updateStripe,
   type Stripe,
@@ -295,6 +299,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     cursorTrail: resolvePersistedCursorTrailConfig(config),
     clickWave: resolvePersistedClickWaveConfig(config),
     stripes: config.stripes.map((stripe) => ({ ...stripe })),
+    overlayStripes: resolvePersistedOverlayStripes(config).map((stripe) => ({ ...stripe })),
   };
 }
 
@@ -344,6 +349,7 @@ export function TexturePlayground() {
   const [sparkleWidthActivePercent, setSparkleWidthActivePercent] = useState(appliedInitial.sparkleWidthActivePercent);
   const [sparkleWidthSpeed, setSparkleWidthSpeed] = useState(appliedInitial.sparkleWidthSpeed);
   const [stripes, setStripes] = useState<Stripe[]>(() => appliedInitial.stripes);
+  const [overlayStripes, setOverlayStripes] = useState<Stripe[]>(() => appliedInitial.overlayStripes);
   const [gridConfig, setGridConfig] = useState<PlaygroundGridConfig>(appliedInitial.grid);
   const [flamesConfig, setFlamesConfig] = useState<PlaygroundFlamesConfig>(appliedInitial.flames);
   const [revealConfig, setRevealConfig] = useState<PlaygroundRevealConfig>(appliedInitial.reveal);
@@ -369,6 +375,10 @@ export function TexturePlayground() {
   const [sourceHeight, setSourceHeight] = useState(0);
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const textureGamma = textureAdjustments.gamma;
+  const activeStripes = useMemo(
+    () => [...resolveActivePlaygroundStripes(textureLuminanceSettings.mode, stripes, overlayStripes)],
+    [textureLuminanceSettings.mode, stripes, overlayStripes],
+  );
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -525,6 +535,7 @@ export function TexturePlayground() {
       cursorTrail: isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig) ? undefined : cursorTrailConfig,
       clickWave: isDefaultPlaygroundClickWaveConfig(clickWaveConfig) ? undefined : clickWaveConfig,
       stripes,
+      overlayStripes: overlayStripesMatchDefault(overlayStripes) ? undefined : overlayStripes,
     };
     schedulePersistedConfig(selectedTextureId, config);
   }, [
@@ -548,6 +559,7 @@ export function TexturePlayground() {
     cursorTrailConfig,
     clickWaveConfig,
     stripes,
+    overlayStripes,
   ]);
 
   useEffect(() => {
@@ -594,6 +606,7 @@ export function TexturePlayground() {
       clickWaveConfigRef.current = next.clickWave;
       replayReveal();
       setStripes(next.stripes);
+      setOverlayStripes(next.overlayStripes);
     },
     [replayReveal],
   );
@@ -626,8 +639,8 @@ export function TexturePlayground() {
   );
 
   useEffect(() => {
-    stripeColorsRef.current = { stripes };
-  }, [stripes]);
+    stripeColorsRef.current = { stripes: activeStripes };
+  }, [activeStripes]);
 
   const refreshSparkleGapsOptionsRef = useCallback((activePercent: number, speed: number) => {
     sparkleOptionsRef.current = playgroundSparkleOptionsFromSliders(
@@ -694,29 +707,31 @@ export function TexturePlayground() {
   const applyStripePatch = useCallback((id: string, patch: Parameters<typeof updateStripe>[2]) => {
     const next = updateStripe({ stripes: stripeColorsRef.current.stripes }, id, patch).stripes;
     stripeColorsRef.current = { stripes: next };
+    if (normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode) === "overlay") {
+      setOverlayStripes(next);
+    } else {
+      setStripes(next);
+    }
     return next;
   }, []);
 
   const onStripeColorChange = useCallback(
     (id: string, hex: string) => {
-      const next = applyStripePatch(id, stripeColorFromHexPicker(hex));
-      setStripes(next);
+      applyStripePatch(id, stripeColorFromHexPicker(hex));
     },
     [applyStripePatch],
   );
 
   const onStripeStartFromCommit = useCallback(
     (id: string, value: number) => {
-      const next = applyStripePatch(id, { startFrom: value });
-      setStripes(next);
+      applyStripePatch(id, { startFrom: value });
     },
     [applyStripePatch],
   );
 
   const onStripeWidthCommit = useCallback(
     (id: string, value: number) => {
-      const next = applyStripePatch(id, { width: value });
-      setStripes(next);
+      applyStripePatch(id, { width: value });
     },
     [applyStripePatch],
   );
@@ -728,6 +743,7 @@ export function TexturePlayground() {
       backgroundColor: DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
     });
     setStripes(cloneDefaultStripes());
+    setOverlayStripes(cloneDefaultOverlayStripes());
     setGridConfig((previous) => ({
       ...previous,
       gridUpdateIntervalMs: DEFAULT_PLAYGROUND_GRID_CONFIG.gridUpdateIntervalMs,
@@ -1106,11 +1122,16 @@ export function TexturePlayground() {
     textureAdjustments.blurRadius !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.blurRadius ||
     textureAdjustments.sharpenAmount !== DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS.sharpenAmount;
   const sourceTransformModified = !isDefaultPlaygroundSourceTransform(sourceTransform);
+  const activeStripesModified =
+    textureLuminanceSettings.mode === "overlay"
+      ? !overlayStripesMatchDefault(overlayStripes)
+      : !stripesMatchDefault(stripes);
   const stripesModified =
     !stripesEnabled ||
     textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE ||
-    textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR ||
-    !stripesMatchDefault(stripes) ||
+    (textureLuminanceSettings.mode === "colors" &&
+      textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR) ||
+    activeStripesModified ||
     gridConfig.gridUpdateIntervalMs !== DEFAULT_PLAYGROUND_GRID_CONFIG.gridUpdateIntervalMs;
   const sparkleGapsModified =
     sparkleGapsActivePercent !== 0 ||
@@ -1385,6 +1406,7 @@ export function TexturePlayground() {
       cursorTrail: isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig) ? undefined : cursorTrailConfig,
       clickWave: isDefaultPlaygroundClickWaveConfig(clickWaveConfig) ? undefined : clickWaveConfig,
       stripes,
+      overlayStripes: overlayStripesMatchDefault(overlayStripes) ? undefined : overlayStripes,
     };
     await copyPlaygroundStateToClipboard(config);
   };
@@ -1616,7 +1638,8 @@ export function TexturePlayground() {
           displayWidth: displayWidth > 0 ? displayWidth : undefined,
           displayHeight: displayHeight > 0 ? displayHeight : undefined,
           reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
-          stripes,
+          stripes: activeStripes,
+          overlayStripes: overlayStripesMatchDefault(overlayStripes) ? undefined : overlayStripes,
         },
         displayWidth: displayWidth > 0 ? displayWidth : 640,
         displayHeight: displayHeight > 0 ? displayHeight : 360,
@@ -1635,7 +1658,8 @@ export function TexturePlayground() {
       displayWidth,
       displayHeight,
       revealConfig,
-      stripes,
+      activeStripes,
+      overlayStripes,
       loadState,
     ],
   );
@@ -1699,7 +1723,7 @@ export function TexturePlayground() {
     onResetLetters: resetLettersSection,
     gridModified: gridSectionModified,
     lettersModified: lettersSectionModified,
-    stripes,
+    stripes: activeStripes,
     stripesEnabled,
     textureLuminanceSettings,
     onStripesEnabledChange: setStripesEnabled,

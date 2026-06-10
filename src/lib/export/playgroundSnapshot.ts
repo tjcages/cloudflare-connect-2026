@@ -115,7 +115,7 @@ export type AsciiVideoConfigWire = {
   stripesEnabled?: boolean;
   textureGamma?: number;
   textureAdjustments?: typeof DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS;
-  textureLuminanceMode?: typeof DEFAULT_TEXTURE_LUMINANCE_MODE | "colors";
+  textureLuminanceMode?: typeof DEFAULT_TEXTURE_LUMINANCE_MODE | "colors" | "overlay";
   textureLuminanceBackgroundColor?: number;
   sourceTransform?: typeof DEFAULT_PLAYGROUND_SOURCE_TRANSFORM;
   reveal?: typeof DEFAULT_PLAYGROUND_REVEAL_CONFIG;
