@@ -48,6 +48,9 @@ export class BlockGridTexture {
     this.colorImageData = colorCtx.createImageData(this._cols, this._rows);
     this.colorTexture = Texture.from(this.colorCanvas);
     this.colorTexture.source.scaleMode = "nearest";
+    // Coverage lives in the block-map alpha channel; keep cell RGB alpha at 255 to avoid
+    // premultiply-on-upload darkening sampled colors (see StripePaletteTexture).
+    this.colorTexture.source.alphaMode = "no-premultiply-alpha";
   }
 
   get cols(): number {
@@ -97,7 +100,7 @@ export class BlockGridTexture {
       out[offset] = encoded;
       out[offset + 1] = encoded;
       out[offset + 2] = encoded;
-      out[offset + 3] = 255;
+      out[offset + 3] = grid.colorCoverage?.[i] ?? 255;
 
       const colorOffset = i * 3;
       colorOut[offset] = grid.colors?.[colorOffset] ?? 0;

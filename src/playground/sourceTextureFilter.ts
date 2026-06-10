@@ -28,6 +28,9 @@ uniform float uInvert;
 uniform float uPosterizeLevels;
 uniform float uThresholdBias;
 uniform float uNoiseAmount;
+uniform float uBlurRadius;
+uniform float uSharpenAmount;
+uniform vec2 uTexelSize;
 uniform float uFlamesEnabled;
 uniform float uFlamesMaskEnabled;
 uniform float uFlamesMaskStart;
@@ -46,9 +49,27 @@ float colorDistanceLuma(vec3 rgb) {
     return min(1.0, length(rgb - uTextureBgColor) / COLOR_DISTANCE_SCALE);
 }
 
+float pixelSaturation(vec3 rgb) {
+    float maxC = max(max(rgb.r, rgb.g), rgb.b);
+    float minC = min(min(rgb.r, rgb.g), rgb.b);
+    if (maxC <= 0.0) {
+        return 0.0;
+    }
+    return (maxC - minC) / maxC;
+}
+
+float colorPixelPresence(vec3 rgb) {
+    float distance = colorDistanceLuma(rgb);
+    float saturation = pixelSaturation(rgb);
+    if (saturation <= 0.02) {
+        return distance;
+    }
+    return distance * (0.2 + 0.8 * saturation);
+}
+
 float sampleMergedLuma(vec3 rgb) {
     if (uColorsMode > 0.5) {
-        return colorDistanceLuma(rgb);
+        return colorPixelPresence(rgb);
     }
     return rec709Luma(rgb);
 }
@@ -121,18 +142,74 @@ vec3 applyFlames(vec3 color) {
     return mergeFlameColor(color, flameRgb, flameCover);
 }
 
+vec3 compositeSourceRgb(vec4 source) {
+    float alpha = source.a;
+    vec3 straight = alpha > 0.0001 ? source.rgb / alpha : vec3(0.0);
+    return mix(uTextureBgColor, straight, alpha);
+}
+
+vec3 readCompositedSource(vec2 uv) {
+    return compositeSourceRgb(texture(uTexture, uv));
+}
+
+vec3 boxBlurSourceRgb(vec2 uv, float radius) {
+    vec3 sum = vec3(0.0);
+    float count = 0.0;
+    for (int y = -8; y <= 8; y++) {
+        for (int x = -8; x <= 8; x++) {
+            if (float(abs(x)) > radius || float(abs(y)) > radius) {
+                continue;
+            }
+            vec2 offset = vec2(float(x), float(y)) * uTexelSize;
+            sum += readCompositedSource(uv + offset);
+            count += 1.0;
+        }
+    }
+    return sum / max(count, 1.0);
+}
+
+vec3 sampleFilteredSourceRgb(vec2 uv) {
+    vec3 center = readCompositedSource(uv);
+    float radius = floor(uBlurRadius + 0.5);
+    if (radius < 0.5) {
+        return center;
+    }
+
+    float spread = min(radius * 2.0, 8.0);
+    vec3 blurred = boxBlurSourceRgb(uv, spread);
+    if (uSharpenAmount > 0.0) {
+        return clamp(center + (center - blurred) * uSharpenAmount, 0.0, 1.0);
+    }
+    return blurred;
+}
+
 void main(void) {
-    vec4 sourceColor = texture(uTexture, vTextureCoord);
-    vec3 merged = applyFlames(sourceColor.rgb);
+    vec3 merged = applyFlames(sampleFilteredSourceRgb(vTextureCoord));
     float mergedLuma = sampleMergedLuma(merged);
     float adjusted = adjustLuma(mergedLuma);
-    vec3 finalRgb = mergedLuma > 0.0001 ? merged * (adjusted / mergedLuma) : vec3(adjusted);
-    finalColor = vec4(clamp(finalRgb, 0.0, 1.0), sourceColor.a);
+    vec3 finalRgb;
+    if (mergedLuma > 0.0001) {
+        finalRgb = merged * (adjusted / mergedLuma);
+    } else if (uColorsMode > 0.5) {
+        float bgLuma = rec709Luma(uTextureBgColor);
+        float adjustedBg = adjustLuma(bgLuma);
+        finalRgb = bgLuma > 0.0001 ? uTextureBgColor * (adjustedBg / bgLuma) : vec3(adjustedBg);
+    } else {
+        finalRgb = vec3(adjusted);
+    }
+    finalColor = vec4(clamp(finalRgb, 0.0, 1.0), 1.0);
 }
 `;
 
+function previewBlurPadding(adjustments: PlaygroundTextureAdjustments): number {
+  const blurRadius = Math.round(adjustments.blurRadius);
+  const spread = Math.min(blurRadius * 2, 8);
+  return Math.max(0, Math.ceil(spread));
+}
+
 export type SourceTextureFilter = Filter & {
   syncAdjustments: (adjustments: PlaygroundTextureAdjustments) => void;
+  syncTexelSize: (width: number, height: number) => void;
   syncLuminanceSettings: (settings: TextureLuminanceSettings) => void;
   syncFlames: (texture: Texture | null, config: PlaygroundFlamesConfig | null) => void;
 };
@@ -155,6 +232,9 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     uPosterizeLevels: { value: normalized.posterizeLevels, type: "f32" },
     uThresholdBias: { value: normalized.thresholdBias, type: "f32" },
     uNoiseAmount: { value: normalized.noiseAmount, type: "f32" },
+    uBlurRadius: { value: normalized.blurRadius, type: "f32" },
+    uSharpenAmount: { value: normalized.sharpenAmount, type: "f32" },
+    uTexelSize: { value: [0, 0], type: "vec2<f32>" },
     uFlamesEnabled: { value: 0, type: "f32" },
     uFlamesMaskEnabled: { value: 0, type: "f32" },
     uFlamesMaskStart: { value: 0, type: "f32" },
@@ -170,7 +250,7 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
       fragment: SOURCE_TEXTURE_FILTER_FRAGMENT,
     }),
     clipToViewport: false,
-    padding: 0,
+    padding: previewBlurPadding(normalized),
     resources: {
       textureUniforms,
       uFlames: Texture.EMPTY.source,
@@ -190,6 +270,8 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
       uPosterizeLevels: number;
       uThresholdBias: number;
       uNoiseAmount: number;
+      uBlurRadius: number;
+      uSharpenAmount: number;
     };
     uniforms.uBrightness = next.brightness;
     uniforms.uExposure = next.exposure;
@@ -201,6 +283,16 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     uniforms.uPosterizeLevels = next.posterizeLevels;
     uniforms.uThresholdBias = next.thresholdBias;
     uniforms.uNoiseAmount = next.noiseAmount;
+    uniforms.uBlurRadius = next.blurRadius;
+    uniforms.uSharpenAmount = next.sharpenAmount;
+    filter.padding = previewBlurPadding(next);
+    textureUniforms.update();
+  };
+
+  filter.syncTexelSize = (width, height) => {
+    const uniforms = textureUniforms.uniforms as { uTexelSize: number[] };
+    uniforms.uTexelSize[0] = width > 0 ? 1 / width : 0;
+    uniforms.uTexelSize[1] = height > 0 ? 1 / height : 0;
     textureUniforms.update();
   };
 

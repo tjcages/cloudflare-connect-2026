@@ -1,10 +1,10 @@
 import { computeBlockGrid, type BlockGrid, type FlamesLuminanceContribution } from "./computeBlockGrid";
-import type { TextureLuminanceSettings } from "./colorWhiteness";
+import { normalizeTextureLuminanceMode, type TextureLuminanceSettings } from "./colorWhiteness";
 import { rasterizePlaygroundFlames, type PlaygroundFlamesState } from "./playgroundFlames";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import { applyPlaygroundRevealToLumaGrid, type PlaygroundRevealOptions } from "./playgroundReveal";
 import { smoothBlockGridIndices } from "./stabilizeBlockGrid";
-import { resolveStripeIndices, type StripeColors } from "./stripeColors";
+import { resolveStripeIndices, resolveStripesForLuminanceMode, type StripeColors } from "./stripeColors";
 import {
   DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
   resolvePlaygroundDrawRects,
@@ -139,11 +139,29 @@ export function buildPlaygroundBlockGrid(
     options.luminanceSettings,
   );
   const revealedLumaGrid = options.reveal ? applyPlaygroundRevealToLumaGrid(lumaGrid, options.reveal) : lumaGrid;
-  const rawIndices = resolveStripeIndices(revealedLumaGrid.luma, colors.stripes);
+  const effectiveStripes = resolveStripesForLuminanceMode(
+    colors,
+    normalizeTextureLuminanceMode(options.luminanceSettings?.mode),
+  );
+  const rawIndices = resolveStripeIndices(revealedLumaGrid.luma, effectiveStripes);
+  const colorsMode = normalizeTextureLuminanceMode(options.luminanceSettings?.mode) === "colors";
+  if (colorsMode && revealedLumaGrid.colorCoverage) {
+    for (let index = 0; index < rawIndices.length; index++) {
+      if ((rawIndices[index] ?? 0) === 0 && (revealedLumaGrid.colorCoverage[index] ?? 0) > 0) {
+        rawIndices[index] = 1;
+      }
+    }
+  }
   const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices, options.smoothingMaxStep);
 
   return {
-    grid: { cols: lumaGrid.cols, rows: lumaGrid.rows, indices: stableIndices, colors: lumaGrid.colors },
+    grid: {
+      cols: lumaGrid.cols,
+      rows: lumaGrid.rows,
+      indices: stableIndices,
+      colors: lumaGrid.colors,
+      colorCoverage: lumaGrid.colorCoverage,
+    },
     state: { stableIndices },
   };
 }

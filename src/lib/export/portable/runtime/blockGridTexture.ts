@@ -42,6 +42,7 @@ export class BlockGridTexture {
     this.colorImageData = colorCtx.createImageData(this.cols, this.rows);
     this.colorTexture = Texture.from(this.colorCanvas);
     this.colorTexture.source.scaleMode = "nearest";
+    this.colorTexture.source.alphaMode = "no-premultiply-alpha";
   }
 
   update(grid: BlockGrid) {
@@ -62,7 +63,7 @@ export class BlockGridTexture {
       out[offset] = encoded;
       out[offset + 1] = encoded;
       out[offset + 2] = encoded;
-      out[offset + 3] = 255;
+      out[offset + 3] = grid.colorCoverage?.[i] ?? 255;
 
       const colorOffset = i * 3;
       colorOut[offset] = grid.colors?.[colorOffset] ?? 0;

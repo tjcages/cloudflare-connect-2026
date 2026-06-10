@@ -1,4 +1,5 @@
 import { displayP3ToSrgb, hexToRgb01, parseDisplayP3Css, rgb01ToHex, type Rgb01 } from "../theme/colorSpace";
+import type { TextureLuminanceMode } from "./colorWhiteness";
 import { STRIPE_MAX_WIDTH_PX, STRIPE_WIDTH_ENCODE_MAX } from "./stripeGridConstants";
 
 export type { Rgb01 };
@@ -122,12 +123,58 @@ export const DEFAULT_STRIPES: readonly Stripe[] = [
   stripe("loud", "#EB5729", 0.9, 5),
 ] as const;
 
+/** Colors-mode thresholds and uniform widths (hex values are unused while cell colors drive fill). */
+export const DEFAULT_COLORS_MODE_STRIPES: readonly Stripe[] = [
+  stripe("color-1", "#FFFFFF", 0.08, 5),
+  stripe("color-2", "#FFFFFF", 0.18, 5),
+  stripe("color-3", "#FFFFFF", 0.3, 5),
+  stripe("color-4", "#FFFFFF", 0.45, 5),
+  stripe("color-5", "#FFFFFF", 0.62, 5),
+  stripe("color-6", "#FFFFFF", 0.8, 5),
+] as const;
+
 export function buildStripeColors(stripes: readonly Stripe[] = DEFAULT_STRIPES): StripeColors {
   return { stripes: stripes.map((entry) => ({ ...entry })) };
 }
 
 export function cloneDefaultStripes(): Stripe[] {
   return DEFAULT_STRIPES.map((entry) => ({ ...entry }));
+}
+
+/** Applies colors-mode threshold and width defaults to an existing stripe list (preserves ids/hex). */
+export function applyColorsModeStripeDefaults(stripes: readonly Stripe[]): Stripe[] {
+  return stripes.map((entry, index) => {
+    const defaults =
+      DEFAULT_COLORS_MODE_STRIPES[index] ??
+      DEFAULT_COLORS_MODE_STRIPES[DEFAULT_COLORS_MODE_STRIPES.length - 1]!;
+    return normalizeStripe({
+      ...entry,
+      startFrom: defaults.startFrom,
+      width: defaults.width,
+    });
+  });
+}
+
+/** Stripe list used for grid bucketing and palette widths, adjusted per luminance mode. */
+export function resolveStripesForLuminanceMode(
+  colors: StripeColors,
+  mode: TextureLuminanceMode,
+): readonly Stripe[] {
+  if (mode !== "colors") {
+    return colors.stripes;
+  }
+  if (colors.stripes.length === 0) {
+    return DEFAULT_COLORS_MODE_STRIPES.map((entry) => ({ ...entry }));
+  }
+  return colors.stripes.map((entry, index) => {
+    const defaults =
+      DEFAULT_COLORS_MODE_STRIPES[index] ??
+      DEFAULT_COLORS_MODE_STRIPES[DEFAULT_COLORS_MODE_STRIPES.length - 1]!;
+    return normalizeStripe({
+      ...entry,
+      width: entry.width ?? defaults.width,
+    });
+  });
 }
 
 export function addStripe(colors: StripeColors): StripeColors {

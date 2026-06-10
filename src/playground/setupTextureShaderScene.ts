@@ -30,6 +30,7 @@ import {
 } from "./playgroundSourceTransform";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  renderAdjustedPreviewPixels,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
 import {
@@ -38,7 +39,11 @@ import {
   type PlaygroundRevealConfig,
 } from "./playgroundRevealConfig";
 import type { PlaygroundRevealState } from "./playgroundReveal";
-import type { TextureLuminanceSettings } from "./colorWhiteness";
+import {
+  detectTextureBackgroundColor,
+  normalizeTextureLuminanceMode,
+  type TextureLuminanceSettings,
+} from "./colorWhiteness";
 import { createSourceTextureFilter } from "./sourceTextureFilter";
 import {
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
@@ -69,7 +74,7 @@ import {
   type CursorTrailState,
 } from "./cursorTrail";
 import { extractVibrantColorsFromImageData } from "./playgroundVibrantColors";
-import { resolvePlaygroundPixiTint } from "./stripeColors";
+import { resolvePlaygroundPixiTint, resolveStripesForLuminanceMode } from "./stripeColors";
 import {
   DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
   normalizePlaygroundClickWaveConfig,
@@ -144,10 +149,35 @@ export type PlaygroundRevealPlayback = {
 };
 
 function resolveTextureFilterMode(duotoneEnabled: boolean, stripesEnabled: boolean): TextureFilterMode {
+  if (!stripesEnabled) {
+    return "preview";
+  }
   if (!duotoneEnabled) {
     return "off";
   }
-  return stripesEnabled ? "stripes" : "preview";
+  return "stripes";
+}
+
+function maybeAutoDetectColorsBackground(
+  frame: ImageData,
+  display: PlaygroundDisplaySize,
+  luminanceSettings: TextureLuminanceSettings,
+  alreadyDetected: boolean,
+): { settings: TextureLuminanceSettings; detected: boolean; changed: boolean } {
+  if (alreadyDetected || normalizeTextureLuminanceMode(luminanceSettings.mode) !== "colors") {
+    return { settings: luminanceSettings, detected: alreadyDetected, changed: false };
+  }
+
+  const detectedBackground = detectTextureBackgroundColor(frame.data, display.width, display.height);
+  if (detectedBackground === luminanceSettings.backgroundColor) {
+    return { settings: luminanceSettings, detected: true, changed: false };
+  }
+
+  return {
+    settings: { ...luminanceSettings, backgroundColor: detectedBackground },
+    detected: true,
+    changed: true,
+  };
 }
 
 /** Native pixel dimensions from the loaded texture source. */
@@ -199,6 +229,12 @@ export function getPlaygroundDisplaySize(
   const width = Math.round(native.width * displayScale);
   const height = Math.round((width * native.height) / native.width);
   return { width, height };
+}
+
+function syncPreviewSpriteLayout(sprite: Sprite) {
+  sprite.anchor.set(0, 0);
+  sprite.position.set(0, 0);
+  sprite.scale.set(1, 1);
 }
 
 function syncSpriteToDisplay(
@@ -387,6 +423,7 @@ function runDuotoneTick(params: {
   shouldSample: () => boolean;
   sampleFrame: () => ImageData | null;
   onSampled?: () => void;
+  onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void;
 }): { tick: () => void; dispose: () => void } {
   const {
     app,
@@ -420,6 +457,7 @@ function runDuotoneTick(params: {
     shouldSample,
     sampleFrame,
     onSampled,
+    onTextureLuminanceSettingsDetected,
   } = params;
 
   // These GPU resources are reallocated in place when the cell/gap or letters change, so a
@@ -429,6 +467,8 @@ function runDuotoneTick(params: {
 
   let textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
   let lastColorsKey = "";
+  let colorsBackgroundAutoDetected = false;
+  let lastLuminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
   let gridState: PlaygroundGridBuildState = {};
   let lastGridUpdateMs = 0;
   let lastFullResampleMs = 0;
@@ -451,6 +491,55 @@ function runDuotoneTick(params: {
   let workingEffectPixels: Uint8ClampedArray | null = null;
   let displayFramePixels: Uint8ClampedArray | null = null;
   let previousTrailPixelBounds: CursorTrailPixelBounds | null = null;
+
+  const originalSpriteTexture = sprite.texture;
+  const previewCanvas = document.createElement("canvas");
+  previewCanvas.width = display.width;
+  previewCanvas.height = display.height;
+  const previewCtx = previewCanvas.getContext("2d", { willReadFrequently: true });
+  if (!previewCtx) {
+    throw new Error("2D canvas context unavailable for preview texture baking.");
+  }
+  let previewImageData = previewCtx.createImageData(display.width, display.height);
+  const previewTexture = Texture.from(previewCanvas);
+  previewTexture.source.alphaMode = "no-premultiply-alpha";
+  previewTexture.source.scaleMode = "linear";
+
+  const restoreOriginalSpriteTexture = () => {
+    if (sprite.texture !== originalSpriteTexture) {
+      sprite.texture = originalSpriteTexture;
+    }
+  };
+
+  const bakeAdjustedPreviewTexture = (): boolean => {
+    const frame = sampleFrame();
+    if (!frame) {
+      return false;
+    }
+    if (previewCanvas.width !== frame.width || previewCanvas.height !== frame.height) {
+      previewCanvas.width = frame.width;
+      previewCanvas.height = frame.height;
+      previewImageData = previewCtx.createImageData(frame.width, frame.height);
+    }
+    const adjusted = renderAdjustedPreviewPixels(
+      frame.data,
+      frame.width,
+      frame.height,
+      {
+        ...textureAdjustmentsRef.current,
+        gamma: textureGammaRef.current,
+      },
+      textureLuminanceSettingsRef.current,
+    );
+    previewImageData.data.set(adjusted);
+    previewCtx.putImageData(previewImageData, 0, 0);
+    previewTexture.source.update();
+    if (sprite.texture !== previewTexture) {
+      sprite.texture = previewTexture;
+    }
+    syncPreviewSpriteLayout(sprite);
+    return true;
+  };
 
   const applyStructuralChanges = (gridConfig: PlaygroundGridConfig) => {
     const eff = effectivePlaygroundCellSize(gridConfig);
@@ -509,6 +598,8 @@ function runDuotoneTick(params: {
   };
 
   const dispose = () => {
+    restoreOriginalSpriteTexture();
+    previewTexture.destroy(true);
     blockGridTexture.destroy();
     flamesOverlay?.destroy();
     letterLayer.destroy();
@@ -523,7 +614,6 @@ function runDuotoneTick(params: {
     lastTrailTickMs = now;
     const trail = updateCursorTrail(cursorTrailState, trailDtMs, cursorTrailConfig);
     const clickWave = updateClickWave(clickWaveState, trailDtMs, clickWaveConfig);
-    syncVisual();
     sourceTextureFilter.syncAdjustments({
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
@@ -543,13 +633,11 @@ function runDuotoneTick(params: {
 
     const nextTextureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
     if (nextTextureFilterMode !== textureFilterMode) {
+      if (nextTextureFilterMode === "stripes" || nextTextureFilterMode === "off") {
+        restoreOriginalSpriteTexture();
+      }
       textureFilterMode = nextTextureFilterMode;
-      sprite.filters =
-        textureFilterMode === "stripes"
-          ? [stripeFilter]
-          : textureFilterMode === "preview"
-            ? [sourceTextureFilter]
-            : null;
+      sprite.filters = textureFilterMode === "stripes" ? [stripeFilter] : null;
       letterLayer.setVisible(textureFilterMode === "stripes");
       if (textureFilterMode === "stripes") {
         lastColorsKey = "";
@@ -559,20 +647,41 @@ function runDuotoneTick(params: {
       }
     }
 
+    const luminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
+    if (luminanceMode !== lastLuminanceMode) {
+      if (luminanceMode === "colors") {
+        colorsBackgroundAutoDetected = false;
+      }
+      lastLuminanceMode = luminanceMode;
+    }
+
     if (textureFilterMode !== "stripes") {
-      if (flamesOverlay && textureFilterMode === "preview" && flamesState && flamesConfig.enabled) {
-        if (now - lastFlamesPaletteSampleMs >= PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS) {
-          const frame = sampleFrame();
-          if (frame) {
-            updatePlaygroundFlamesPalette(flamesState, extractVibrantColorsFromImageData(frame));
-            lastFlamesPaletteSampleMs = now;
+      if (textureFilterMode === "preview") {
+        bakeAdjustedPreviewTexture();
+      } else {
+        restoreOriginalSpriteTexture();
+        syncVisual();
+      }
+
+      if (luminanceMode === "colors" && !colorsBackgroundAutoDetected) {
+        const frame = sampleFrame();
+        if (frame) {
+          const autoDetect = maybeAutoDetectColorsBackground(
+            frame,
+            display,
+            textureLuminanceSettingsRef.current,
+            colorsBackgroundAutoDetected,
+          );
+          colorsBackgroundAutoDetected = autoDetect.detected;
+          if (autoDetect.changed) {
+            textureLuminanceSettingsRef.current = autoDetect.settings;
+            sourceTextureFilter.syncLuminanceSettings(autoDetect.settings);
+            onTextureLuminanceSettingsDetected?.(autoDetect.settings);
           }
         }
-        flamesOverlay.sync(flamesState, flamesConfig);
-        sourceTextureFilter.syncFlames(flamesOverlay.texture, flamesConfig);
-      } else {
-        sourceTextureFilter.syncFlames(null, null);
       }
+
+      sourceTextureFilter.syncFlames(null, null);
       if (exportStateRef) {
         exportStateRef.current = {
           grid: null,
@@ -586,6 +695,8 @@ function runDuotoneTick(params: {
     }
 
     sourceTextureFilter.syncFlames(null, null);
+    restoreOriginalSpriteTexture();
+    syncVisual();
 
     const revealConfig = revealConfigRef.current;
     const revealPlayback = revealPlaybackRef.current;
@@ -621,7 +732,10 @@ function runDuotoneTick(params: {
     const needsBaseFrame = timeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
 
     if (colorsChanged) {
-      stripeFilter.syncColors(colors, preferP3Ref.current);
+      const effectiveColors = {
+        stripes: [...resolveStripesForLuminanceMode(colors, normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode))],
+      };
+      stripeFilter.syncColors(effectiveColors, preferP3Ref.current);
       lastColorsKey = colorsKey;
       pendingFullResample = true;
       pendingColorsResample = true;
@@ -746,6 +860,21 @@ function runDuotoneTick(params: {
         previousTrailPixelBounds = null;
       }
 
+      let luminanceSettings = textureLuminanceSettingsRef.current;
+      const autoDetect = maybeAutoDetectColorsBackground(
+        frame,
+        display,
+        luminanceSettings,
+        colorsBackgroundAutoDetected,
+      );
+      colorsBackgroundAutoDetected = autoDetect.detected;
+      if (autoDetect.changed) {
+        luminanceSettings = autoDetect.settings;
+        textureLuminanceSettingsRef.current = luminanceSettings;
+        sourceTextureFilter.syncLuminanceSettings(luminanceSettings);
+        onTextureLuminanceSettingsDetected?.(luminanceSettings);
+      }
+
       const built = buildPlaygroundBlockGrid(
         frame,
         display.width,
@@ -760,7 +889,7 @@ function runDuotoneTick(params: {
             ...textureAdjustmentsRef.current,
             gamma: textureGammaRef.current,
           },
-          luminanceSettings: textureLuminanceSettingsRef.current,
+          luminanceSettings,
           flamesState: flamesStateRef.current,
           flamesConfig: flamesConfigRef.current,
           reveal: {
@@ -839,6 +968,7 @@ export function createTextureSceneTicker(
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = DEFAULT_REVEAL_PLAYBACK_REF,
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = DEFAULT_CURSOR_TRAIL_CONFIG_REF,
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig> = DEFAULT_CLICK_WAVE_CONFIG_REF,
+  onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
 ): Ticker {
   if (source.kind === "image") {
     return createImageSceneTicker(
@@ -863,6 +993,7 @@ export function createTextureSceneTicker(
       cursorTrailConfigRef,
       clickWaveConfigRef,
       exportStateRef,
+      onTextureLuminanceSettingsDetected,
     );
   }
   return createVideoSceneTickerInternal(
@@ -888,6 +1019,7 @@ export function createTextureSceneTicker(
     cursorTrailConfigRef,
     clickWaveConfigRef,
     exportStateRef,
+    onTextureLuminanceSettingsDetected,
   );
 }
 
@@ -913,6 +1045,7 @@ function createImageSceneTicker(
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
+  onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
 ): Ticker {
   return ({ app, cleanup }) => {
     const grid = gridConfigRef.current;
@@ -952,8 +1085,7 @@ function createImageSceneTicker(
       gamma: textureGammaRef.current,
     });
     const textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
-    sprite.filters =
-      textureFilterMode === "stripes" ? [stripeFilter] : textureFilterMode === "preview" ? [sourceTextureFilter] : null;
+    sprite.filters = textureFilterMode === "stripes" ? [stripeFilter] : null;
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
     const cursorTrailState = createCursorTrailState();
@@ -1001,6 +1133,7 @@ function createImageSceneTicker(
       shouldSample: () => false,
       sampleFrame: () =>
         sampleTextureFrame(image, display.width, display.height, sampleCanvas, sampleCtx, sourceTransformRef.current),
+      onTextureLuminanceSettingsDetected,
     });
 
     app.ticker.add(renderTick);
@@ -1041,6 +1174,7 @@ function createVideoSceneTickerInternal(
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
+  onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
 ): Ticker {
   return ({ app, cleanup }) => {
     const grid = gridConfigRef.current;
@@ -1085,8 +1219,7 @@ function createVideoSceneTickerInternal(
       gamma: textureGammaRef.current,
     });
     const textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
-    sprite.filters =
-      textureFilterMode === "stripes" ? [stripeFilter] : textureFilterMode === "preview" ? [sourceTextureFilter] : null;
+    sprite.filters = textureFilterMode === "stripes" ? [stripeFilter] : null;
     app.stage.addChild(sprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
     const cursorTrailState = createCursorTrailState();
@@ -1139,6 +1272,7 @@ function createVideoSceneTickerInternal(
       onSampled: () => {
         lastSampledTime = video.currentTime;
       },
+      onTextureLuminanceSettingsDetected,
     });
 
     app.ticker.add(renderTick);

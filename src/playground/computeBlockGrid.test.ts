@@ -73,17 +73,40 @@ describe("computeBlockGrid cell sizing", () => {
     expect(grid.luma[0]).toBe(0);
   });
 
-  it("can derive cell luminance from distance to a texture background color", () => {
-    const data = splitImage(2, 1, 1);
+  it("derives colors-mode cell luma from saturated pixels on the texture background", () => {
+    const data = pixelRow([
+      [0, 0, 128],
+      [255, 255, 255],
+    ]);
     const grid = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
       mode: "colors",
-      backgroundColor: 0x000000,
+      backgroundColor: 0xffffff,
     });
 
-    expect(Array.from(grid.luma)).toEqual([255, 0]);
+    expect(grid.luma[0]).toBeGreaterThan(0);
+    expect(grid.luma[1]).toBe(0);
+    expect(grid.colors[0]).toBe(0);
+    expect(grid.colors[1]).toBe(0);
+    expect(grid.colors[2]).toBe(128);
   });
 
-  it("stores the mean source color for each sampled cell", () => {
+  it("detects black foreground on a white background in colors mode", () => {
+    const data = pixelRow([
+      [0, 0, 0],
+      [255, 255, 255],
+    ]);
+    const grid = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
+      mode: "colors",
+      backgroundColor: 0xffffff,
+    });
+
+    expect(grid.luma[0]).toBeGreaterThan(0);
+    expect(grid.luma[1]).toBe(0);
+    expect(Array.from(grid.colors.slice(0, 3))).toEqual([0, 0, 0]);
+    expect(grid.colorCoverage?.[0] ?? 0).toBeGreaterThan(0);
+  });
+
+  it("stores presence-weighted non-background color for each sampled cell", () => {
     const data = pixelRow([
       [255, 0, 0],
       [0, 0, 255],
@@ -94,6 +117,202 @@ describe("computeBlockGrid cell sizing", () => {
     });
 
     expect(Array.from(grid.colors)).toEqual([255, 0, 0, 0, 0, 255]);
+  });
+
+  it("tints sparse foreground color toward the texture background", () => {
+    const data = pixelRow([
+      [255, 0, 0],
+      [0, 0, 0],
+    ]);
+    const grid = computeBlockGrid(data, 2, 1, 1, 2, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
+      mode: "colors",
+      backgroundColor: 0x000000,
+    });
+
+    expect(grid.cols).toBe(1);
+    expect(Array.from(grid.colors.slice(0, 3))).toEqual([128, 0, 0]);
+    expect(grid.colorCoverage?.[0]).toBeGreaterThan(0);
+    expect(grid.colorCoverage?.[0]).toBeLessThan(255);
+  });
+
+  it("applies texture tone adjustments to colors-mode cell fill", () => {
+    const data = pixelRow([[200, 100, 50]]);
+    const raw = computeBlockGrid(
+      data,
+      1,
+      1,
+      1,
+      1,
+      1,
+      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      undefined,
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0xffffff,
+      },
+    );
+    const adjusted = computeBlockGrid(
+      data,
+      1,
+      1,
+      1,
+      1,
+      1,
+      { ...DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, contrast: 2 },
+      undefined,
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0xffffff,
+      },
+    );
+
+    expect(Array.from(raw.colors)).not.toEqual(Array.from(adjusted.colors));
+  });
+
+  it("keeps sparse red on a white background light instead of saturated", () => {
+    const sparse = new Uint8ClampedArray(4 * 4 * 4);
+    for (let i = 0; i < sparse.length; i += 4) {
+      sparse[i] = 255;
+      sparse[i + 1] = 255;
+      sparse[i + 2] = 255;
+      sparse[i + 3] = 255;
+    }
+    sparse[0] = 255;
+    sparse[1] = 0;
+    sparse[2] = 0;
+
+    const grid = computeBlockGrid(
+      sparse,
+      4,
+      4,
+      1,
+      4,
+      4,
+      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      undefined,
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0xffffff,
+      },
+    );
+
+    expect(grid.colors[0]).toBe(255);
+    expect(grid.colors[1]).toBeGreaterThan(235);
+    expect(grid.colors[2]).toBeGreaterThan(235);
+  });
+
+  it("stores lower color coverage when only a small part of the cell has color", () => {
+    const sparse = new Uint8ClampedArray(4 * 4);
+    sparse[0] = 255;
+    sparse[3] = 255;
+    const sparseGrid = computeBlockGrid(
+      sparse,
+      4,
+      4,
+      1,
+      4,
+      4,
+      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      undefined,
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0x000000,
+      },
+    );
+
+    const dense = new Uint8ClampedArray(4);
+    dense[0] = 255;
+    dense[3] = 255;
+    const denseGrid = computeBlockGrid(
+      dense,
+      1,
+      1,
+      1,
+      1,
+      1,
+      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      undefined,
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0x000000,
+      },
+    );
+
+    expect(sparseGrid.colorCoverage?.[0] ?? 0).toBeLessThan(denseGrid.colorCoverage?.[0] ?? 0);
+  });
+
+  it("bleeds blurred color into neighboring cells in colors mode", () => {
+    const data = new Uint8ClampedArray(3 * 3 * 4);
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      data[i + 3] = 255;
+    }
+    data[(1 * 3 + 1) * 4] = 255;
+    data[(1 * 3 + 1) * 4 + 1] = 0;
+    data[(1 * 3 + 1) * 4 + 2] = 0;
+
+    const grid = computeBlockGrid(
+      data,
+      3,
+      3,
+      1,
+      1,
+      1,
+      { ...DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, blurRadius: 1 },
+      undefined,
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0xffffff,
+      },
+    );
+
+    expect(grid.colors?.[1 * 3]).toBeGreaterThan(200);
+    expect(grid.colors?.[1 * 3 + 1]).toBeLessThan(255);
+    expect(grid.colors?.[1 * 3 + 2]).toBeLessThan(255);
+  });
+
+  it("applies pixel blur to colors-mode cell fill", () => {
+    const data = splitImage(3, 1, 1);
+    const sharp = computeBlockGrid(
+      data,
+      3,
+      1,
+      1,
+      1,
+      1,
+      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      undefined,
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0x000000,
+      },
+    );
+    const blurred = computeBlockGrid(
+      data,
+      3,
+      1,
+      1,
+      1,
+      1,
+      { ...DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, blurRadius: 1 },
+      undefined,
+      undefined,
+      {
+        mode: "colors",
+        backgroundColor: 0x000000,
+      },
+    );
+
+    expect(Array.from(sharp.colors)).not.toEqual(Array.from(blurred.colors));
   });
 
   it("applies grid-level blur to luma cells", () => {

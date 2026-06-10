@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   applyTextureLuminanceGamma,
   colorDistanceLuminance,
+  colorPixelPresence,
+  detectTextureBackgroundColor,
   DEFAULT_TEXTURE_GAMMA,
   DEFAULT_TEXTURE_LUMINANCE_MODE,
   DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  isNonBackgroundColorPixel,
   normalizeTextureGamma,
   normalizeTextureLuminanceMode,
   normalizeTextureLuminanceBackgroundColor,
+  pixelSaturation,
+  pixelTextureLuminance,
   TEXTURE_GAMMA_MAX,
   TEXTURE_GAMMA_MIN,
 } from "./colorWhiteness";
@@ -63,6 +68,52 @@ describe("colorDistanceLuminance", () => {
 
   it("uses normalized RGB distance for intermediate colors", () => {
     expect(colorDistanceLuminance(255, 0, 0, 0x000000)).toBeCloseTo(1 / Math.sqrt(3));
+  });
+});
+
+describe("colorPixelPresence", () => {
+  it("returns zero for neutral pixels including background matches", () => {
+    expect(colorPixelPresence(0, 0, 0, 0x000000)).toBe(0);
+    expect(colorPixelPresence(255, 255, 255, 0xffffff)).toBe(0);
+  });
+
+  it("detects saturated and neutral foreground colors on a white background", () => {
+    expect(colorPixelPresence(0, 0, 128, 0xffffff)).toBeGreaterThan(0.35);
+    expect(colorPixelPresence(120, 40, 20, 0xffffff)).toBeGreaterThan(0.2);
+    expect(colorPixelPresence(0, 0, 0, 0xffffff)).toBe(1);
+    expect(isNonBackgroundColorPixel(0, 0, 128, 0xffffff)).toBe(true);
+    expect(isNonBackgroundColorPixel(0, 0, 0, 0xffffff)).toBe(true);
+    expect(isNonBackgroundColorPixel(200, 200, 200, 0xffffff)).toBe(true);
+    expect(isNonBackgroundColorPixel(252, 252, 252, 0xffffff)).toBe(false);
+  });
+
+  it("uses pixelTextureLuminance in colors mode", () => {
+    expect(pixelTextureLuminance(0, 0, 128, { mode: "colors", backgroundColor: 0xffffff })).toBeGreaterThan(0.2);
+    expect(pixelTextureLuminance(255, 255, 255, { mode: "colors", backgroundColor: 0xffffff })).toBe(0);
+    expect(pixelTextureLuminance(255, 255, 255, { mode: "luminance" })).toBeCloseTo(1);
+  });
+});
+
+describe("detectTextureBackgroundColor", () => {
+  it("picks the dominant edge color", () => {
+    const data = new Uint8ClampedArray(3 * 3 * 4);
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      data[i + 3] = 255;
+    }
+    data[(1 * 3 + 1) * 4] = 20;
+    data[(1 * 3 + 1) * 4 + 2] = 180;
+
+    expect(detectTextureBackgroundColor(data, 3, 3)).toBe(0xffffff);
+  });
+});
+
+describe("pixelSaturation", () => {
+  it("returns zero for grayscale and one for pure primaries", () => {
+    expect(pixelSaturation(128, 128, 128)).toBe(0);
+    expect(pixelSaturation(255, 0, 0)).toBe(1);
   });
 });
 

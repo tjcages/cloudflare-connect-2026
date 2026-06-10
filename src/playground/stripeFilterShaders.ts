@@ -114,6 +114,14 @@ vec3 cellFillColor(float colIndex, float rowIndex, float band) {
     return stripeFillColor(band);
 }
 
+float cellColorWidthScale(float colIndex, float rowIndex) {
+    if (uUseCellColors < 0.5) {
+        return 1.0;
+    }
+    // Coverage is stored in the block-map alpha channel so cell RGB alpha can stay 255.
+    return texture(uBlockMap, blockGridUv(colIndex, rowIndex)).a;
+}
+
 float stripeWidthPx(float band) {
     if (band < 0.5) {
         return 0.0;
@@ -250,8 +258,10 @@ void main(void) {
     float bandTop = alongGap * 0.5;
     float bandBottom = alongCell - alongGap * 0.5;
 
-    // Stripe thickness is exactly the configured width in px, centered in the gap-expanded cell.
+    // Stripe thickness scales with non-background color fill in colors mode (alpha channel).
     float stripeWidth = resolveAnimatedStripeWidth(colIndex, rowIndex, stripeBand, acrossCell);
+    stripeWidth *= cellColorWidthScale(colIndex, rowIndex);
+    stripeWidth = max(stripeWidth, 1.0);
     float halfW = stripeWidth * 0.5;
     float acrossCenter = acrossCell * 0.5;
 

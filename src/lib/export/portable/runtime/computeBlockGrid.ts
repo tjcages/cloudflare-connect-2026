@@ -19,6 +19,8 @@ export type LumaGrid = {
   luma: Uint8Array;
   /** Per-cell mean source RGB, three bytes per cell. */
   colors: Uint8Array;
+  /** Per-cell color fill factor 0–255 (colors mode width scaling). */
+  colorCoverage?: Uint8Array;
 };
 
 /** Per-cell stripe index (0 = background, 1…N), resolved from luminance + the stripe list. */
@@ -28,6 +30,8 @@ export type BlockGrid = {
   indices: Uint8Array;
   /** Per-cell mean source RGB, three bytes per cell. */
   colors?: Uint8Array;
+  /** Per-cell color fill factor 0–255 (colors mode width scaling). */
+  colorCoverage?: Uint8Array;
 };
 
 type RandomColumnsRevealSampling = Required<Pick<PlaygroundRevealOptions, "config" | "progress">> &

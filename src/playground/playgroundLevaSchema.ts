@@ -17,7 +17,13 @@ import type { PlaygroundSourceFit, PlaygroundSourceTransform } from "./playgroun
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundTextureId } from "./playgroundTextures";
 import { PLAYGROUND_DISPLAY_MAX_PX } from "./setupTextureShaderScene";
-import type { Stripe } from "./stripeColors";
+import {
+  STRIPE_START_FROM_MAX,
+  STRIPE_START_FROM_MIN,
+  STRIPE_WIDTH_MIN,
+  STRIPE_WIDTH_STORAGE_MAX,
+  type Stripe,
+} from "./stripeColors";
 import { stripeColorsTablePlugin, stripeSyncKey } from "./stripeColorsTablePlugin";
 import {
   normalizeTextureLuminanceBackgroundColor,
@@ -364,6 +370,40 @@ export function buildPlaygroundLevaSchema(
   const clickWave = snapshot.clickWaveConfig;
   const clickWaveDisabled = snapshot.cursorClickFieldsDisabled;
   const reveal = snapshot.revealConfig;
+
+  const stripeThresholdWidthFields = (thresholdHint: string, widthHint: string) =>
+    Object.fromEntries(
+      snapshot.stripes.flatMap((stripe) => {
+        const labelPrefix = stripe.id.charAt(0).toUpperCase() + stripe.id.slice(1);
+        return [
+          [
+            `stripe_${stripe.id}_startFrom`,
+            numControl(stripe.startFrom, STRIPE_START_FROM_MIN, STRIPE_START_FROM_MAX, 0.01, {
+              label: `${labelPrefix} threshold`,
+              hint: thresholdHint,
+              disabled: stripeDisabled,
+              onLive: (value) => handlers.onStripeStartFromCommit(stripe.id, value),
+              onCommit: (value) => handlers.onStripeStartFromCommit(stripe.id, value),
+            }),
+          ],
+          [
+            `stripe_${stripe.id}_width`,
+            numControl(stripe.width, STRIPE_WIDTH_MIN, STRIPE_WIDTH_STORAGE_MAX, 1, {
+              label: `${labelPrefix} width`,
+              hint: widthHint,
+              disabled: stripeDisabled,
+              onLive: (value) => handlers.onStripeWidthCommit(stripe.id, value),
+              onCommit: (value) => handlers.onStripeWidthCommit(stripe.id, value),
+            }),
+          ],
+        ];
+      }),
+    );
+
+  const colorsModeStripeFields = stripeThresholdWidthFields(
+    PLAYGROUND_FIELD_HELP.colorsStripeThreshold,
+    PLAYGROUND_FIELD_HELP.colorsStripeWidth,
+  );
 
   return {
     General: levaFolder(
@@ -788,6 +828,7 @@ export function buildPlaygroundLevaSchema(
                   }),
                 ),
               },
+              ...colorsModeStripeFields,
             }
           : {
               stripeColorsTable: stripeColorsTablePlugin({

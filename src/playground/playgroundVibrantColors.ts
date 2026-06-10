@@ -1,4 +1,4 @@
-import { pixelLuminance } from "./colorWhiteness";
+import { pixelLuminance, pixelSaturation } from "./colorWhiteness";
 
 export type PlaygroundVibrantColor = { r: number; g: number; b: number };
 
@@ -16,19 +16,7 @@ function clampByte(value: number): number {
   return Math.min(255, Math.max(0, Math.round(value)));
 }
 
-function pixelSaturation(r: number, g: number, b: number): number {
-  const rn = r / 255;
-  const gn = g / 255;
-  const bn = b / 255;
-  const max = Math.max(rn, gn, bn);
-  const min = Math.min(rn, gn, bn);
-  if (max <= 0) {
-    return 0;
-  }
-  return (max - min) / max;
-}
-
-function pixelVibrancyScore(r: number, g: number, b: number): number {
+export function pixelVibrancyScore(r: number, g: number, b: number): number {
   const saturation = pixelSaturation(r, g, b);
   if (saturation <= 0) {
     return 0;

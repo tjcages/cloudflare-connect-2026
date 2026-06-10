@@ -123,6 +123,7 @@ import {
 import type { PlaygroundRevealState } from "./playgroundReveal";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
+  applyColorsModeStripeDefaults,
   cloneDefaultStripes,
   DEFAULT_STRIPES,
   stripeColorFromHexPicker,
@@ -908,15 +909,32 @@ export function TexturePlayground() {
     setTextureAdjustments(next);
   }, []);
 
+  const onTextureLuminanceSettingsDetected = useCallback((settings: TextureLuminanceSettings) => {
+    textureLuminanceSettingsRef.current = settings;
+    setTextureLuminanceSettings(settings);
+  }, []);
+
   const updateTextureLuminanceSettings = useCallback((patch: Partial<TextureLuminanceSettings>) => {
+    const prevMode = textureLuminanceSettingsRef.current.mode;
+    const switchingToColors =
+      prevMode !== "colors" && normalizeTextureLuminanceMode(patch.mode ?? prevMode) === "colors";
     const next: TextureLuminanceSettings = {
-      mode: normalizeTextureLuminanceMode(patch.mode ?? textureLuminanceSettingsRef.current.mode),
+      mode: normalizeTextureLuminanceMode(patch.mode ?? prevMode),
       backgroundColor: normalizeTextureLuminanceBackgroundColor(
-        patch.backgroundColor ?? textureLuminanceSettingsRef.current.backgroundColor,
+        patch.backgroundColor ??
+          (switchingToColors
+            ? 0xffffff
+            : textureLuminanceSettingsRef.current.backgroundColor),
       ),
     };
     textureLuminanceSettingsRef.current = next;
     setTextureLuminanceSettings(next);
+
+    if (switchingToColors) {
+      const nextStripes = applyColorsModeStripeDefaults(stripeColorsRef.current.stripes);
+      stripeColorsRef.current = { stripes: nextStripes };
+      setStripes(nextStripes);
+    }
   }, []);
 
   const updateSourceTransformLive = useCallback(
@@ -1287,9 +1305,20 @@ export function TexturePlayground() {
         revealPlaybackRef,
         cursorTrailConfigRef,
         clickWaveConfigRef,
+        onTextureLuminanceSettingsDetected,
       ),
     ];
-  }, [loadState, displayWidth, displayHeight, displaySize, flamesStateRef, flamesConfigRef, cursorTrailConfigRef, clickWaveConfigRef]);
+  }, [
+    loadState,
+    displayWidth,
+    displayHeight,
+    displaySize,
+    flamesStateRef,
+    flamesConfigRef,
+    cursorTrailConfigRef,
+    clickWaveConfigRef,
+    onTextureLuminanceSettingsDetected,
+  ]);
 
   const onUploadFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

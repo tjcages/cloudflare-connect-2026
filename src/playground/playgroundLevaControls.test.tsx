@@ -11,6 +11,7 @@ import { DEFAULT_PLAYGROUND_REVEAL_CONFIG } from "./playgroundRevealConfig";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
+import { buildPlaygroundLevaSchema, type PlaygroundLevaHandlers, type PlaygroundLevaSnapshot } from "./playgroundLevaSchema";
 import { cloneDefaultStripes } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import {
@@ -196,5 +197,109 @@ describe("PlaygroundLevaControls", () => {
     expect(screen.getByTestId("playground-workflow-import-panel")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload texture" })).toBeInTheDocument();
     expect(screen.queryByText("Workflow")).not.toBeInTheDocument();
+  });
+
+  it("exposes threshold and width but hides color fields in colors mode", () => {
+    const noop = () => {};
+    const snapshot: PlaygroundLevaSnapshot = {
+      duotoneEnabled: true,
+      duotoneControlsDisabled: false,
+      backgroundCssActive: false,
+      stripeControlsDisabled: false,
+      sparkleGapsSpeedDisabled: false,
+      sparkleWidthSpeedDisabled: false,
+      flamesFieldsDisabled: false,
+      flamesMaskDisabled: false,
+      cursorTrailFieldsDisabled: false,
+      cursorClickFieldsDisabled: false,
+      textureAdjustments: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      sourceTransform: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+      backgroundColor: DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
+      backgroundCss: "",
+      gridConfig: DEFAULT_PLAYGROUND_GRID_CONFIG,
+      stripes: cloneDefaultStripes(),
+      stripesEnabled: true,
+      textureLuminanceSettings: { mode: "colors", backgroundColor: DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR },
+      sparkleGapsActivePercent: 0,
+      sparkleGapsSpeed: 1,
+      sparkleWidthActivePercent: 0.3,
+      sparkleWidthSpeed: 1,
+      flamesConfig: DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+      cursorTrailConfig: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+      clickWaveConfig: DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
+      revealConfig: DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+      generalModified: false,
+      toneModified: false,
+      effectsModified: false,
+      sourceModified: false,
+      backgroundModified: false,
+      gridModified: false,
+      lettersModified: false,
+      stripesModified: false,
+      sparkleGapsModified: false,
+      sparkleWidthModified: false,
+      flamesModified: false,
+      cursorTrailModified: false,
+      cursorClickModified: false,
+      revealModified: false,
+    };
+    const handlers: PlaygroundLevaHandlers = {
+      setDuotoneEnabled: noop,
+      resetGeneral: noop,
+      onAdjustmentsLive: noop,
+      onAdjustmentsCommit: noop,
+      resetTone: noop,
+      resetEffects: noop,
+      onSourceLive: noop,
+      onSourceCommit: noop,
+      resetSource: noop,
+      setBackgroundColor: noop,
+      setBackgroundCss: noop,
+      resetBackground: noop,
+      onGridLive: noop,
+      onGridCommit: noop,
+      resetGrid: noop,
+      resetLetters: noop,
+      setStripesEnabled: noop,
+      setTextureLuminanceSettings: noop,
+      onStripeColorChange: noop,
+      onStripeStartFromCommit: noop,
+      onStripeWidthCommit: noop,
+      resetStripes: noop,
+      setSparkleGapsActivePercentLive: noop,
+      commitSparkleGapsActivePercent: noop,
+      setSparkleGapsSpeedLive: noop,
+      commitSparkleGapsSpeed: noop,
+      resetSparkleGaps: noop,
+      setSparkleWidthActivePercentLive: noop,
+      commitSparkleWidthActivePercent: noop,
+      setSparkleWidthSpeedLive: noop,
+      commitSparkleWidthSpeed: noop,
+      resetSparkleWidth: noop,
+      onFlamesLive: noop,
+      onFlamesCommit: noop,
+      resetFlames: noop,
+      onCursorTrailLive: noop,
+      onCursorTrailCommit: noop,
+      resetCursorTrail: noop,
+      onClickWaveLive: noop,
+      onClickWaveCommit: noop,
+      resetClickWave: noop,
+      onRevealCommit: noop,
+      onRevealWaveLive: noop,
+      onRevealWaveCommit: noop,
+      onRevealRandomColumnsLive: noop,
+      onRevealRandomColumnsCommit: noop,
+      resetReveal: noop,
+      replayReveal: noop,
+    };
+    const schema = buildPlaygroundLevaSchema(snapshot, handlers);
+
+    const stripesFolder = schema.Stripes as { schema?: Record<string, unknown> };
+    const stripes = stripesFolder.schema ?? (schema.Stripes as Record<string, unknown>);
+    expect(stripes).toHaveProperty("stripe_gray_startFrom");
+    expect(stripes).toHaveProperty("stripe_gray_width");
+    expect(stripes).not.toHaveProperty("stripe_gray_color");
+    expect(stripes).toHaveProperty("textureLuminanceBackgroundColor");
   });
 });

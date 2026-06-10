@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   applyTextureLuminanceAdjustments,
+  blurRgbaPixels,
+  compositeRgbaOverBackground,
   isDefaultPlaygroundTextureAdjustments,
   normalizePlaygroundTextureAdjustments,
+  renderAdjustedPreviewPixels,
 } from "./playgroundTextureAdjustments";
 
 describe("playground texture adjustments", () => {
@@ -58,6 +61,79 @@ describe("playground texture adjustments", () => {
     });
 
     expect(adjusted).toBeCloseTo(2 / 3, 5);
+  });
+
+  it("composites transparent pixels onto a background before blur can bleed", () => {
+    const pixels = new Uint8ClampedArray(3 * 1 * 4);
+    pixels[0] = 255;
+    pixels[1] = 0;
+    pixels[2] = 0;
+    pixels[3] = 255;
+    pixels[8] = 0;
+    pixels[9] = 0;
+    pixels[10] = 0;
+    pixels[11] = 0;
+
+    const composited = compositeRgbaOverBackground(pixels, 3, 1, 0xffffff);
+    const blurred = blurRgbaPixels(composited, 3, 1, {
+      ...DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      blurRadius: 1,
+    });
+
+    expect(composited[4]).toBe(255);
+    expect(composited[5]).toBe(255);
+    expect(blurred[1]).toBeGreaterThan(0);
+    expect(blurred[5]).toBeLessThan(255);
+  });
+
+  it("blurs RGBA pixels so color bleeds into neighbors", () => {
+    const pixels = new Uint8ClampedArray(3 * 1 * 4);
+    pixels[0] = 255;
+    pixels[1] = 255;
+    pixels[2] = 255;
+    pixels[3] = 255;
+    pixels[4] = 255;
+    pixels[5] = 0;
+    pixels[6] = 0;
+    pixels[7] = 255;
+    pixels[8] = 0;
+    pixels[9] = 0;
+    pixels[10] = 0;
+    pixels[11] = 255;
+
+    const blurred = blurRgbaPixels(pixels, 3, 1, {
+      ...DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      blurRadius: 1,
+    });
+
+    expect(blurred[0]).toBeGreaterThan(200);
+    expect(blurred[1]).toBeLessThan(255);
+    expect(blurred[2]).toBeLessThan(255);
+  });
+
+  it("renders an opaque preview with blur bleed and tone mapping", () => {
+    const pixels = new Uint8ClampedArray(3 * 1 * 4);
+    pixels[0] = 255;
+    pixels[1] = 0;
+    pixels[2] = 0;
+    pixels[3] = 255;
+
+    const preview = renderAdjustedPreviewPixels(
+      pixels,
+      3,
+      1,
+      {
+        ...DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+        blurRadius: 1,
+      },
+      { mode: "colors", backgroundColor: 0xffffff },
+    );
+
+    expect(preview[3]).toBe(255);
+    expect(preview[7]).toBe(255);
+    expect(preview[11]).toBe(255);
+    expect(preview[1]).toBeGreaterThan(0);
+    expect(preview[5]).toBeLessThan(255);
   });
 
   it("can invert and add deterministic luma noise", () => {

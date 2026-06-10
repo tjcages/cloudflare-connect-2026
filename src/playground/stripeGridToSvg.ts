@@ -114,7 +114,10 @@ export function stripeGridToSvg(
         bandBottom = STRIPE_CELL_SIZE;
       }
 
-      const stripeWidth = stripe.width;
+      const coverageScale = options.useCellColors
+        ? Math.max((grid.colorCoverage?.[index] ?? 255) / 255, 1 / 255)
+        : 1;
+      const stripeWidth = Math.max(1, stripe.width * coverageScale);
       const halfW = stripeWidth * 0.5;
       const columnCenter = col * STRIPE_CELL_SIZE + STRIPE_CELL_SIZE * 0.5;
       const x = columnCenter - halfW;

@@ -28,4 +28,20 @@ describe("BlockGridTexture", () => {
     expect(texture.cols).toBe(2);
     expect(texture.rows).toBe(2);
   });
+
+  it("stores coverage in the block map alpha and keeps cell RGB alpha at 255", () => {
+    const texture = new BlockGridTexture(10, 10, 10, 10);
+    texture.update({
+      cols: 1,
+      rows: 1,
+      indices: new Uint8Array([1]),
+      colors: new Uint8Array([255, 0, 0]),
+      colorCoverage: new Uint8Array([64]),
+    });
+
+    const blockImageData = (texture as unknown as { imageData: ImageData }).imageData;
+    const colorImageData = (texture as unknown as { colorImageData: ImageData }).colorImageData;
+    expect(blockImageData.data[3]).toBe(64);
+    expect(colorImageData.data[3]).toBe(255);
+  });
 });
