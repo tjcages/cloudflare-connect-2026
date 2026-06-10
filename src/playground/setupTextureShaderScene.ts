@@ -13,7 +13,7 @@ import {
 import { createStripeDuotoneFilter } from "./stripeDuotoneFilter";
 import type { StripeColors } from "./stripeColors";
 import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./stripeLetterFont";
-import { stepPlaygroundFlames, PlaygroundFlamesOverlay, type PlaygroundFlamesState, updatePlaygroundFlamesPalette } from "./playgroundFlames";
+import { stepPlaygroundFlames, PlaygroundFlamesOverlay, type PlaygroundFlamesState } from "./playgroundFlames";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG, type PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import type { PlaygroundSparkleOptions } from "./playgroundSparkle";
 import type { PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
@@ -73,7 +73,6 @@ import {
   type CursorTrailSample,
   type CursorTrailState,
 } from "./cursorTrail";
-import { extractVibrantColorsFromImageData } from "./playgroundVibrantColors";
 import { resolvePlaygroundPixiTint, resolveStripesForLuminanceMode } from "./stripeColors";
 import {
   DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
@@ -476,7 +475,6 @@ function runDuotoneTick(params: {
   let hasBuiltGrid = false;
   let pendingFullResample = false;
   let pendingColorsResample = false;
-  let lastFlamesPaletteSampleMs = 0;
   const flamesOverlay = flamesStateRef.current ? new PlaygroundFlamesOverlay(display.width, display.height) : null;
 
   const initialCell = effectivePlaygroundCellSize(gridConfigRef.current);
@@ -724,7 +722,7 @@ function runDuotoneTick(params: {
     });
     const colorsChanged = colorsKey !== lastColorsKey;
     const revealActive = revealProgress < 1;
-    const trailSamplingEnabled = cursorTrailConfig.enabled && !revealActive;
+    const trailSamplingEnabled = cursorTrailConfig.enabled;
     const clickWaveSamplingEnabled = clickWaveConfig.enabled && !revealActive;
     const pointerEffectsChanged =
       (trailSamplingEnabled && trail.changed) || (clickWaveSamplingEnabled && clickWave.changed);
@@ -733,7 +731,12 @@ function runDuotoneTick(params: {
 
     if (colorsChanged) {
       const effectiveColors = {
-        stripes: [...resolveStripesForLuminanceMode(colors, normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode))],
+        stripes: [
+          ...resolveStripesForLuminanceMode(
+            colors,
+            normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode),
+          ),
+        ],
       };
       stripeFilter.syncColors(effectiveColors, preferP3Ref.current);
       lastColorsKey = colorsKey;
@@ -784,7 +787,9 @@ function runDuotoneTick(params: {
       pointerEffectsChanged &&
       cachedEffectBase &&
       cachedEffectBaseKey === frameCacheKey &&
-      (trailSamplingEnabled || clickWaveSamplingEnabled || (trail.samples.length === 0 && clickWave.samples.length === 0));
+      (trailSamplingEnabled ||
+        clickWaveSamplingEnabled ||
+        (trail.samples.length === 0 && clickWave.samples.length === 0));
     const trailSamples = trailSamplingEnabled ? trail.samples : [];
     const clickWaveSamples = clickWaveSamplingEnabled ? clickWave.samples : [];
 
