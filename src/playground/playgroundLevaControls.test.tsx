@@ -13,6 +13,7 @@ import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
 import {
   buildPlaygroundLevaSchema,
+  buildPlaygroundLevaSyncValues,
   type PlaygroundLevaHandlers,
   type PlaygroundLevaSnapshot,
 } from "./playgroundLevaSchema";
@@ -22,6 +23,22 @@ import { DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR, DEFAULT_TEXTURE_LUMINANCE_M
 import type { PlaygroundTextureId } from "./playgroundTextures";
 
 const DEFAULT_TEXTURE_ID = "sample-video" as PlaygroundTextureId;
+const SHADER_RESET_KEYS = [
+  ["General", "generalReset"],
+  ["Reveal", "revealReset"],
+  ["Texture Tone", "textureToneReset"],
+  ["Texture Levels", "textureLevelsReset"],
+  ["Texture Source", "textureSourceReset"],
+  ["Background", "backgroundReset"],
+  ["Grid", "gridReset"],
+  ["Letters", "lettersReset"],
+  ["Stripes", "stripesReset"],
+  ["Sparkle Gaps", "sparkleGapsReset"],
+  ["Sparkle Width", "sparkleWidthReset"],
+  ["Background Flames", "backgroundFlamesReset"],
+  ["Cursor Trail", "cursorTrailReset"],
+  ["Cursor Click", "cursorClickReset"],
+] as const;
 
 function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundLevaControls>> = {}) {
   return render(
@@ -145,6 +162,18 @@ describe("PlaygroundLevaControls", () => {
   it("renders the embedded Leva config panel", () => {
     renderLevaControls();
     expect(screen.getByTestId("playground-leva-panel")).toBeInTheDocument();
+  });
+
+  it("does not emit Leva schema or sync warnings while rendering", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    renderLevaControls();
+
+    const levaWarnings = warn.mock.calls
+      .map((call) => String(call[0]))
+      .filter((message) => message.includes("LEVA:") || message.includes("`set` for path"));
+    expect(levaWarnings).toEqual([]);
+    warn.mockRestore();
   });
 
   it("wires shader toggle changes through the callback", () => {
@@ -305,6 +334,117 @@ describe("PlaygroundLevaControls", () => {
     expect(stripes).not.toHaveProperty("textureLuminanceBackgroundColor");
     expect(stripes).toHaveProperty("gridUpdateIntervalMs");
     expect(stripes).not.toHaveProperty("stripeColorsTable");
+
+    const syncValues = buildPlaygroundLevaSyncValues(snapshot);
+    expect(syncValues).not.toHaveProperty("stripeColorsTable");
+    expect(syncValues).not.toHaveProperty("textureLuminanceBackgroundColor");
+  });
+
+  it("uses unique internal keys for reset buttons while preserving their labels", () => {
+    const noop = () => {};
+    const snapshot: PlaygroundLevaSnapshot = {
+      duotoneEnabled: true,
+      duotoneControlsDisabled: false,
+      backgroundCssActive: false,
+      stripeControlsDisabled: false,
+      sparkleGapsSpeedDisabled: false,
+      sparkleWidthSpeedDisabled: false,
+      flamesFieldsDisabled: false,
+      flamesMaskDisabled: false,
+      cursorTrailFieldsDisabled: false,
+      cursorClickFieldsDisabled: false,
+      textureAdjustments: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+      sourceTransform: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+      backgroundColor: DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
+      backgroundCss: "",
+      gridConfig: DEFAULT_PLAYGROUND_GRID_CONFIG,
+      stripes: cloneDefaultStripes(),
+      stripesEnabled: true,
+      textureLuminanceSettings: {
+        mode: DEFAULT_TEXTURE_LUMINANCE_MODE,
+        backgroundColor: DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+      },
+      sparkleGapsActivePercent: 0,
+      sparkleGapsSpeed: 1,
+      sparkleWidthActivePercent: 0.3,
+      sparkleWidthSpeed: 1,
+      flamesConfig: DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+      cursorTrailConfig: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+      clickWaveConfig: DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
+      revealConfig: DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+      generalModified: false,
+      toneModified: false,
+      effectsModified: false,
+      sourceModified: false,
+      backgroundModified: false,
+      gridModified: false,
+      lettersModified: false,
+      stripesModified: false,
+      sparkleGapsModified: false,
+      sparkleWidthModified: false,
+      flamesModified: false,
+      cursorTrailModified: false,
+      cursorClickModified: false,
+      revealModified: false,
+    };
+    const handlers: PlaygroundLevaHandlers = {
+      setDuotoneEnabled: noop,
+      resetGeneral: noop,
+      onAdjustmentsLive: noop,
+      onAdjustmentsCommit: noop,
+      resetTone: noop,
+      resetEffects: noop,
+      onSourceLive: noop,
+      onSourceCommit: noop,
+      resetSource: noop,
+      setBackgroundColor: noop,
+      setBackgroundCss: noop,
+      resetBackground: noop,
+      onGridLive: noop,
+      onGridCommit: noop,
+      resetGrid: noop,
+      resetLetters: noop,
+      setStripesEnabled: noop,
+      setTextureLuminanceSettings: noop,
+      onStripeColorChange: noop,
+      onStripeStartFromCommit: noop,
+      onStripeWidthCommit: noop,
+      resetStripes: noop,
+      setSparkleGapsActivePercentLive: noop,
+      commitSparkleGapsActivePercent: noop,
+      setSparkleGapsSpeedLive: noop,
+      commitSparkleGapsSpeed: noop,
+      resetSparkleGaps: noop,
+      setSparkleWidthActivePercentLive: noop,
+      commitSparkleWidthActivePercent: noop,
+      setSparkleWidthSpeedLive: noop,
+      commitSparkleWidthSpeed: noop,
+      resetSparkleWidth: noop,
+      onFlamesLive: noop,
+      onFlamesCommit: noop,
+      resetFlames: noop,
+      onCursorTrailLive: noop,
+      onCursorTrailCommit: noop,
+      resetCursorTrail: noop,
+      onClickWaveLive: noop,
+      onClickWaveCommit: noop,
+      resetClickWave: noop,
+      onRevealCommit: noop,
+      onRevealWaveLive: noop,
+      onRevealWaveCommit: noop,
+      onRevealRandomColumnsLive: noop,
+      onRevealRandomColumnsCommit: noop,
+      resetReveal: noop,
+      replayReveal: noop,
+    };
+    const schema = buildPlaygroundLevaSchema(snapshot, handlers);
+
+    for (const [folderName, resetKey] of SHADER_RESET_KEYS) {
+      const folder = schema[folderName] as { schema?: Record<string, { label?: string }> };
+      const controls = folder.schema ?? {};
+      expect(controls).not.toHaveProperty("Reset");
+      expect(controls[resetKey]).toMatchObject({ label: "Reset" });
+    }
   });
 
   it("shows the stripe color table in overlay mode", () => {
@@ -407,5 +547,9 @@ describe("PlaygroundLevaControls", () => {
     const stripes = stripesFolder.schema ?? (schema.Stripes as Record<string, unknown>);
     expect(stripes).toHaveProperty("stripeColorsTable");
     expect((stripes.textureLuminanceMode as { value?: string }).value).toBe("overlay");
+
+    const syncValues = buildPlaygroundLevaSyncValues(snapshot);
+    expect(syncValues).toHaveProperty("stripeColorsTable");
+    expect(syncValues).not.toHaveProperty("textureLuminanceBackgroundColor");
   });
 });

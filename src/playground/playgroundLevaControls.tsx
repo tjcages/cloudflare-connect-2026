@@ -346,39 +346,43 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onWidthChange: handlersRef.current.onStripeWidthCommit,
   };
 
-  useControls(
+  const [, setCanvasLevaValues] = useControls(
     () => buildPlaygroundCanvasLevaSchema(canvasSnapshot, canvasHandlersRef.current) as never,
     {
       store: canvasStore,
     },
     [canvasSnapshot.workflowDisabled, canvasSnapshot.selectedTextureId, props.catalog.length],
-  );
+  ) as [unknown, (values: Record<string, unknown>) => void, unknown];
 
-  useControls(
+  const [, setWorkflowLevaValues] = useControls(
     () => buildPlaygroundWorkflowLevaSchema(workflowSnapshot, workflowHandlersRef.current) as never,
     {
       store: workflowStore,
     },
     [workflowSnapshot.workflowDisabled, workflowSnapshot.importText],
-  );
+  ) as [unknown, (values: Record<string, unknown>) => void, unknown];
 
-  useControls(() => buildPlaygroundLevaSchema(snapshot, handlersRef.current) as never, { store }, [
-    snapshot.duotoneControlsDisabled,
-    snapshot.backgroundCssActive,
-    snapshot.stripeControlsDisabled,
-    snapshot.sparkleGapsSpeedDisabled,
-    snapshot.sparkleWidthSpeedDisabled,
-    snapshot.flamesFieldsDisabled,
-    snapshot.flamesMaskDisabled,
-    snapshot.cursorTrailFieldsDisabled,
-    snapshot.cursorClickFieldsDisabled,
-    stripeKey,
-    props.textureLuminanceSettings.mode,
-    props.gridConfig.cellWidth,
-    props.gridConfig.cellHeight,
-    props.catalog.length,
-    props.revealConfig.preset,
-  ]);
+  const [, setShaderLevaValues] = useControls(
+    () => buildPlaygroundLevaSchema(snapshot, handlersRef.current) as never,
+    { store },
+    [
+      snapshot.duotoneControlsDisabled,
+      snapshot.backgroundCssActive,
+      snapshot.stripeControlsDisabled,
+      snapshot.sparkleGapsSpeedDisabled,
+      snapshot.sparkleWidthSpeedDisabled,
+      snapshot.flamesFieldsDisabled,
+      snapshot.flamesMaskDisabled,
+      snapshot.cursorTrailFieldsDisabled,
+      snapshot.cursorClickFieldsDisabled,
+      stripeKey,
+      props.textureLuminanceSettings.mode,
+      props.gridConfig.cellWidth,
+      props.gridConfig.cellHeight,
+      props.catalog.length,
+      props.revealConfig.preset,
+    ],
+  ) as [unknown, (values: Record<string, unknown>) => void, unknown];
 
   const canvasSyncSignature = useMemo(
     () => JSON.stringify(buildPlaygroundCanvasLevaSyncValues(canvasSnapshot)),
@@ -391,16 +395,16 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
   const syncSignature = useMemo(() => JSON.stringify(buildPlaygroundLevaSyncValues(snapshot)), [snapshot]);
 
   useEffect(() => {
-    canvasStore.set(buildPlaygroundCanvasLevaSyncValues(canvasSnapshot), false);
-  }, [canvasStore, canvasSyncSignature, canvasSnapshot]);
+    setCanvasLevaValues(buildPlaygroundCanvasLevaSyncValues(canvasSnapshot));
+  }, [setCanvasLevaValues, canvasSyncSignature, canvasSnapshot]);
 
   useEffect(() => {
-    workflowStore.set(buildPlaygroundWorkflowLevaSyncValues(workflowSnapshot), false);
-  }, [workflowStore, workflowSyncSignature, workflowSnapshot]);
+    setWorkflowLevaValues(buildPlaygroundWorkflowLevaSyncValues(workflowSnapshot));
+  }, [setWorkflowLevaValues, workflowSyncSignature, workflowSnapshot]);
 
   useEffect(() => {
-    store.set(buildPlaygroundLevaSyncValues(snapshot), false);
-  }, [store, syncSignature, snapshot]);
+    setShaderLevaValues(buildPlaygroundLevaSyncValues(snapshot));
+  }, [setShaderLevaValues, syncSignature, snapshot]);
 
   return (
     <aside className={PLAYGROUND_LEVA_SIDEBAR_CLASS}>

@@ -124,7 +124,7 @@ function selectControl<T extends string>(
 }
 
 function resetButton(onClick: () => void, disabled: boolean) {
-  return button(onClick, { disabled });
+  return { ...button(onClick, { disabled }), label: "Reset" };
 }
 
 function actionButton(onClick: () => void, disabled = false) {
@@ -362,7 +362,7 @@ export function buildPlaygroundLevaSchema(
   return {
     General: levaFolder(
       {
-        Reset: resetButton(() => handlers.resetGeneral(), !snapshot.generalModified),
+        generalReset: resetButton(() => handlers.resetGeneral(), !snapshot.generalModified),
         shaderEnabled: boolControl(snapshot.duotoneEnabled, {
           label: "Shader enabled",
           hint: PLAYGROUND_FIELD_HELP.shaderEnabled,
@@ -373,7 +373,7 @@ export function buildPlaygroundLevaSchema(
     ),
     Reveal: levaFolder(
       {
-        Reset: resetButton(() => handlers.resetReveal(), !snapshot.revealModified),
+        revealReset: resetButton(() => handlers.resetReveal(), !snapshot.revealModified),
         Replay: actionButton(() => handlers.replayReveal(), disabled),
         preset: selectControl<PlaygroundRevealPreset>(reveal.preset, REVEAL_PRESET_OPTIONS, {
           label: "Preset",
@@ -488,7 +488,7 @@ export function buildPlaygroundLevaSchema(
     ),
     "Texture Tone": levaFolder(
       {
-        Reset: resetButton(() => handlers.resetTone(), !snapshot.toneModified),
+        textureToneReset: resetButton(() => handlers.resetTone(), !snapshot.toneModified),
         exposure: numControl(adjustments.exposure, -2, 2, 0.05, {
           label: "Exposure",
           hint: PLAYGROUND_FIELD_HELP.exposure,
@@ -531,7 +531,7 @@ export function buildPlaygroundLevaSchema(
     ),
     "Texture Levels": levaFolder(
       {
-        Reset: resetButton(() => handlers.resetEffects(), !snapshot.effectsModified),
+        textureLevelsReset: resetButton(() => handlers.resetEffects(), !snapshot.effectsModified),
         blackPoint: numControl(adjustments.blackPoint, 0, 1, 0.01, {
           label: "Black point",
           hint: PLAYGROUND_FIELD_HELP.blackPoint,
@@ -586,7 +586,7 @@ export function buildPlaygroundLevaSchema(
     ),
     "Texture Source": levaFolder(
       {
-        Reset: resetButton(() => handlers.resetSource(), !snapshot.sourceModified),
+        textureSourceReset: resetButton(() => handlers.resetSource(), !snapshot.sourceModified),
         fit: selectControl<PlaygroundSourceFit>(
           source.fit,
           { Stretch: "stretch", Cover: "cover", Contain: "contain" },
@@ -626,7 +626,7 @@ export function buildPlaygroundLevaSchema(
     ),
     Background: levaFolder(
       {
-        Reset: resetButton(() => handlers.resetBackground(), !snapshot.backgroundModified),
+        backgroundReset: resetButton(() => handlers.resetBackground(), !snapshot.backgroundModified),
         backgroundColor: {
           value: intToHex(snapshot.backgroundColor),
           label: "Color",
@@ -646,7 +646,7 @@ export function buildPlaygroundLevaSchema(
     ),
     Grid: levaFolder(
       {
-        Reset: resetButton(() => handlers.resetGrid(), !snapshot.gridModified),
+        gridReset: resetButton(() => handlers.resetGrid(), !snapshot.gridModified),
         cellWidth: numControl(grid.cellWidth, 1, 24, 1, {
           label: "Cell width",
           hint: PLAYGROUND_FIELD_HELP.cellWidth,
@@ -700,7 +700,7 @@ export function buildPlaygroundLevaSchema(
     ),
     Letters: levaFolder(
       {
-        Reset: resetButton(() => handlers.resetLetters(), !snapshot.lettersModified),
+        lettersReset: resetButton(() => handlers.resetLetters(), !snapshot.lettersModified),
         letterSize: numControl(grid.letterSize, 2, 24, 1, {
           label: "Size",
           hint: PLAYGROUND_FIELD_HELP.letterSize,
@@ -748,7 +748,7 @@ export function buildPlaygroundLevaSchema(
     ),
     Stripes: levaFolder(
       {
-        Reset: resetButton(() => handlers.resetStripes(), !snapshot.stripesModified),
+        stripesReset: resetButton(() => handlers.resetStripes(), !snapshot.stripesModified),
         stripesEnabled: boolControl(snapshot.stripesEnabled, {
           label: "Stripes enabled",
           hint: PLAYGROUND_FIELD_HELP.stripesEnabled,
@@ -785,7 +785,7 @@ export function buildPlaygroundLevaSchema(
     ),
     "Sparkle Gaps": levaFolder(
       {
-        Reset: resetButton(() => handlers.resetSparkleGaps(), !snapshot.sparkleGapsModified),
+        sparkleGapsReset: resetButton(() => handlers.resetSparkleGaps(), !snapshot.sparkleGapsModified),
         sparkleGapsActivePercent: numControl(
           snapshot.sparkleGapsActivePercent,
           PLAYGROUND_CONTROL_RANGES.sparkleGapsActivePercent.min,
@@ -831,7 +831,7 @@ export function buildPlaygroundLevaSchema(
     ),
     "Sparkle Width": levaFolder(
       {
-        Reset: resetButton(() => handlers.resetSparkleWidth(), !snapshot.sparkleWidthModified),
+        sparkleWidthReset: resetButton(() => handlers.resetSparkleWidth(), !snapshot.sparkleWidthModified),
         sparkleWidthActivePercent: numControl(
           snapshot.sparkleWidthActivePercent,
           PLAYGROUND_CONTROL_RANGES.sparkleWidthActivePercent.min,
@@ -884,7 +884,7 @@ export function buildPlaygroundLevaSchema(
     ),
     "Background Flames": levaFolder(
       {
-        Reset: resetButton(() => handlers.resetFlames(), !snapshot.flamesModified),
+        backgroundFlamesReset: resetButton(() => handlers.resetFlames(), !snapshot.flamesModified),
         flamesEnabled: boolControl(flames.enabled, {
           label: "Enabled",
           hint: PLAYGROUND_FIELD_HELP.flamesEnabled,
@@ -1066,7 +1066,7 @@ export function buildPlaygroundLevaSchema(
     ),
     "Cursor Trail": levaFolder(
       {
-        Reset: resetButton(() => handlers.resetCursorTrail(), !snapshot.cursorTrailModified),
+        cursorTrailReset: resetButton(() => handlers.resetCursorTrail(), !snapshot.cursorTrailModified),
         cursorTrailEnabled: boolControl(cursorTrail.enabled, {
           label: "Enabled",
           hint: PLAYGROUND_FIELD_HELP.cursorTrailEnabled,
@@ -1341,7 +1341,7 @@ export function buildPlaygroundLevaSchema(
     ),
     "Cursor Click": levaFolder(
       {
-        Reset: resetButton(() => handlers.resetClickWave(), !snapshot.cursorClickModified),
+        cursorClickReset: resetButton(() => handlers.resetClickWave(), !snapshot.cursorClickModified),
         cursorClickEnabled: boolControl(clickWave.enabled, {
           label: "Enabled",
           hint: PLAYGROUND_FIELD_HELP.cursorClickEnabled,
@@ -1579,17 +1579,9 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
   const clickWave = snapshot.clickWaveConfig;
   const reveal = snapshot.revealConfig;
 
-  return {
+  const values: Record<string, unknown> = {
     shaderEnabled: snapshot.duotoneEnabled,
     preset: reveal.preset,
-    revealPosition: reveal.wave.position,
-    revealWaveDuration: reveal.wave.durationMs,
-    revealSoftness: reveal.wave.softness,
-    revealWaviness: reveal.wave.waviness,
-    revealNoiseScale: reveal.wave.noiseScale,
-    revealColumnDuration: reveal.randomColumns.durationMs,
-    revealColumnStagger: reveal.randomColumns.stagger,
-    revealColumnYShift: reveal.randomColumns.yShift,
     exposure: adjustments.exposure,
     brightness: adjustments.brightness,
     contrast: adjustments.contrast,
@@ -1621,8 +1613,6 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     letterShuffleSpeed: grid.letterShuffleSpeed,
     stripesEnabled: snapshot.stripesEnabled,
     textureLuminanceMode: snapshot.textureLuminanceSettings.mode,
-    textureLuminanceBackgroundColor: intToHexSync(snapshot.textureLuminanceSettings.backgroundColor),
-    stripeColorsTable: stripeSyncKey(snapshot.stripes),
     gridUpdateIntervalMs: grid.gridUpdateIntervalMs,
     sparkleGapsActivePercent: snapshot.sparkleGapsActivePercent,
     sparkleGapsSpeed: snapshot.sparkleGapsSpeed,
@@ -1688,4 +1678,22 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     clickWaveSliceLevelMin: clickWave.sliceLevelMin,
     clickWaveSliceLevelMax: clickWave.sliceLevelMax,
   };
+
+  if (reveal.preset === "wave") {
+    values.revealPosition = reveal.wave.position;
+    values.revealWaveDuration = reveal.wave.durationMs;
+    values.revealSoftness = reveal.wave.softness;
+    values.revealWaviness = reveal.wave.waviness;
+    values.revealNoiseScale = reveal.wave.noiseScale;
+  } else {
+    values.revealColumnDuration = reveal.randomColumns.durationMs;
+    values.revealColumnStagger = reveal.randomColumns.stagger;
+    values.revealColumnYShift = reveal.randomColumns.yShift;
+  }
+
+  if (snapshot.textureLuminanceSettings.mode === "luminance" || snapshot.textureLuminanceSettings.mode === "overlay") {
+    values.stripeColorsTable = stripeSyncKey(snapshot.stripes);
+  }
+
+  return values;
 }
