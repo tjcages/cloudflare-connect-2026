@@ -11,13 +11,14 @@ import { DEFAULT_PLAYGROUND_REVEAL_CONFIG } from "./playgroundRevealConfig";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
-import { buildPlaygroundLevaSchema, type PlaygroundLevaHandlers, type PlaygroundLevaSnapshot } from "./playgroundLevaSchema";
+import {
+  buildPlaygroundLevaSchema,
+  type PlaygroundLevaHandlers,
+  type PlaygroundLevaSnapshot,
+} from "./playgroundLevaSchema";
 import { cloneDefaultStripes } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
-import {
-  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
-  DEFAULT_TEXTURE_LUMINANCE_MODE,
-} from "./colorWhiteness";
+import { DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR, DEFAULT_TEXTURE_LUMINANCE_MODE } from "./colorWhiteness";
 import type { PlaygroundTextureId } from "./playgroundTextures";
 
 const DEFAULT_TEXTURE_ID = "sample-video" as PlaygroundTextureId;
@@ -199,7 +200,7 @@ describe("PlaygroundLevaControls", () => {
     expect(screen.queryByText("Workflow")).not.toBeInTheDocument();
   });
 
-  it("exposes threshold and width but hides color fields in colors mode", () => {
+  it("hides stripe tuning controls in colors mode", () => {
     const noop = () => {};
     const snapshot: PlaygroundLevaSnapshot = {
       duotoneEnabled: true,
@@ -297,9 +298,12 @@ describe("PlaygroundLevaControls", () => {
 
     const stripesFolder = schema.Stripes as { schema?: Record<string, unknown> };
     const stripes = stripesFolder.schema ?? (schema.Stripes as Record<string, unknown>);
-    expect(stripes).toHaveProperty("stripe_gray_startFrom");
-    expect(stripes).toHaveProperty("stripe_gray_width");
+    expect(stripes).toHaveProperty("textureLuminanceMode");
+    expect(stripes).not.toHaveProperty("stripe_gray_startFrom");
+    expect(stripes).not.toHaveProperty("stripe_gray_width");
     expect(stripes).not.toHaveProperty("stripe_gray_color");
-    expect(stripes).toHaveProperty("textureLuminanceBackgroundColor");
+    expect(stripes).not.toHaveProperty("textureLuminanceBackgroundColor");
+    expect(stripes).toHaveProperty("gridUpdateIntervalMs");
+    expect(stripes).not.toHaveProperty("stripeColorsTable");
   });
 });
