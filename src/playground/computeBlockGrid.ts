@@ -55,6 +55,8 @@ export type BlockGrid = {
   colors?: Uint8Array;
   /** Per-cell color fill factor 0–255 (colors mode width scaling). */
   colorCoverage?: Uint8Array;
+  /** Per-cell bucketing-space luminance (0–255), already inverted for overlay mode. */
+  luma?: Uint8Array;
 };
 
 type RandomColumnsRevealSampling = Required<Pick<PlaygroundRevealOptions, "config" | "progress">> &

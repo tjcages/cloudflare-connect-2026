@@ -16,6 +16,9 @@ import { STRIPE_WIDTH_ENCODE_MAX } from "./stripeGridConstants";
 /** Set > 0 to composite source video for grid-alignment debugging. */
 export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
 
+/** Set > 0 to paint cursor-trail cell classification (R=displaced, G=brighten, B=shell). */
+export const STRIPE_DEBUG_CURSOR_TRAIL = 0;
+
 export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   syncUseCellColors: (enabled: boolean) => void;
@@ -32,6 +35,7 @@ export type StripeDuotoneFilter = Filter & {
   updateBlockMap: (blockMap: Texture) => void;
   updateCellColorMap: (cellColorMap: Texture) => void;
   syncFlames: (texture: Texture | null, config: PlaygroundFlamesConfig | null) => void;
+  syncCursorTrail: (trail: Texture | null, pushTexture: Texture | null, pushRange: number) => void;
 };
 
 function bindBlockMapTexture(filter: Filter, blockMap: Texture) {
@@ -92,6 +96,10 @@ export function createStripeDuotoneFilter(
     uFlamesMaskEnd: { value: 0.1, type: "f32" },
     uFlamesMaskPower: { value: 1, type: "f32" },
     uInvertStripeBucketing: { value: 0, type: "f32" },
+    uCursorTrailEnabled: { value: 0, type: "f32" },
+    uCursorTrailPushEnabled: { value: 0, type: "f32" },
+    uCursorTrailPushRange: { value: 0, type: "f32" },
+    uCursorTrailDebug: { value: STRIPE_DEBUG_CURSOR_TRAIL, type: "f32" },
   });
 
   const filter = new Filter({
@@ -108,6 +116,8 @@ export function createStripeDuotoneFilter(
       uStripeData: palette.texture.source,
       uStripeIndexLut: stripeIndexLut.texture.source,
       uFlames: Texture.EMPTY.source,
+      uCursorTrail: Texture.EMPTY.source,
+      uCursorTrailPush: Texture.EMPTY.source,
     },
   }) as StripeDuotoneFilter;
 
@@ -231,6 +241,31 @@ export function createStripeDuotoneFilter(
     uniforms.uFlamesMaskStart = config?.edgeMaskStart ?? 0;
     uniforms.uFlamesMaskEnd = config?.edgeMaskEnd ?? 0.1;
     uniforms.uFlamesMaskPower = config?.edgeMaskPower ?? 1;
+    stripeUniforms.update();
+  };
+
+  let currentCursorTrail = Texture.EMPTY;
+  let currentCursorTrailPush = Texture.EMPTY;
+
+  filter.syncCursorTrail = (trail, pushTexture, pushRange) => {
+    currentCursorTrail = trail ?? Texture.EMPTY;
+    currentCursorTrailPush = pushTexture ?? Texture.EMPTY;
+    if (trail) {
+      trail.source.style.scaleMode = "nearest";
+    }
+    if (pushTexture) {
+      pushTexture.source.style.scaleMode = "nearest";
+    }
+    filter.resources.uCursorTrail = currentCursorTrail.source;
+    filter.resources.uCursorTrailPush = currentCursorTrailPush.source;
+    const uniforms = stripeUniforms.uniforms as {
+      uCursorTrailEnabled: number;
+      uCursorTrailPushEnabled: number;
+      uCursorTrailPushRange: number;
+    };
+    uniforms.uCursorTrailEnabled = trail ? 1 : 0;
+    uniforms.uCursorTrailPushEnabled = pushTexture ? 1 : 0;
+    uniforms.uCursorTrailPushRange = pushRange;
     stripeUniforms.update();
   };
 

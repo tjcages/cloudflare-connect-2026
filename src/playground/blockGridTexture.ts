@@ -92,7 +92,7 @@ export class BlockGridTexture {
     const out = this.imageData.data;
     const colorOut = this.colorImageData.data;
     out[offset] = encoded;
-    out[offset + 1] = encoded;
+    out[offset + 1] = grid.luma?.[i] ?? 0;
     out[offset + 2] = encoded;
     out[offset + 3] = grid.colorCoverage?.[i] ?? 255;
 

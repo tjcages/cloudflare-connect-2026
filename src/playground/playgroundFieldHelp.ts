@@ -103,11 +103,13 @@ export const PLAYGROUND_FIELD_HELP = {
   cursorTrailSpin: "Curl amount applied while particles drift.",
   cursorTrailDensityRadiusMin: "Base density radius multiplier as particles fade.",
   cursorTrailDensityRadiusLife: "Extra density radius multiplier while particles are young.",
-  cursorTrailPushStrength: "How far source pixels are pushed away from the trail before stripe calculation.",
+  cursorTrailPushStrength:
+    "How far source pixels are pushed away from the trail before stripe calculation (capped at two cells).",
   cursorTrailPushRadius: "Radius multiplier for the texture displacement around the trail.",
   cursorTrailPushLag: "How far the texture push trails behind particle movement.",
   cursorTrailPushWobble: "Small offset so the texture push does not match the white trail exactly.",
-  cursorTrailScale: "Low-res effect buffer scale. 0 uses one pixel per stripe cell.",
+  cursorTrailScale:
+    "Low-res effect buffer scale for click ripples. 0 uses one pixel per stripe cell. The trail itself always renders at cell resolution.",
 
   cursorClickEnabled: "Enable click ripples in sampled pixels before stripe calculation.",
   cursorClickLife: "How long each click ripple lasts in milliseconds.",

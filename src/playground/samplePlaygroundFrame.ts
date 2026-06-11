@@ -263,6 +263,7 @@ export function buildPlaygroundBlockGrid(
       indices: stableIndices,
       colors: revealedLumaGrid.colors,
       colorCoverage: revealedLumaGrid.colorCoverage,
+      luma: revealedLumaGrid.luma,
     },
     state: { stableIndices },
     partial: Boolean(canUsePartialRegion),

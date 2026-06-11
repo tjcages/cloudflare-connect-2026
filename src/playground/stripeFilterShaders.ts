@@ -43,8 +43,14 @@ uniform sampler2D uCellColorMap;
 uniform sampler2D uStripeData;
 uniform sampler2D uFlames;
 uniform sampler2D uStripeIndexLut;
+uniform sampler2D uCursorTrail;
+uniform sampler2D uCursorTrailPush;
 uniform float uFlamesEnabled;
 uniform float uInvertStripeBucketing;
+uniform float uCursorTrailEnabled;
+uniform float uCursorTrailPushEnabled;
+uniform float uCursorTrailPushRange;
+uniform float uCursorTrailDebug;
 uniform float uFlamesMaskEnabled;
 uniform float uFlamesMaskStart;
 uniform float uFlamesMaskEnd;
@@ -110,11 +116,6 @@ vec2 flameCellUv(float colIndex, float rowIndex) {
     );
 }
 
-// Red channel stores the stripe index directly (0 = background, 1..N).
-float blockStripeBand(float colIndex, float rowIndex) {
-    return floor(texture(uBlockMap, blockGridUv(colIndex, rowIndex)).r * 255.0 + 0.5);
-}
-
 // Palette texture: width = stripe count, height = 2. Canvas row 0 (v=0.25) = color, row 1 (v=0.75) = width.
 float stripePaletteU(float band) {
     return (band - 0.5) / max(uStripeCount, 1.0);
@@ -129,14 +130,6 @@ vec3 cellFillColor(float colIndex, float rowIndex, float band) {
         return texture(uCellColorMap, blockGridUv(colIndex, rowIndex)).rgb;
     }
     return stripeFillColor(band);
-}
-
-float cellColorWidthScale(float colIndex, float rowIndex) {
-    if (uUseCellColors < 0.5) {
-        return 1.0;
-    }
-    // Coverage is stored in the block-map alpha channel so cell RGB alpha can stay 255.
-    return texture(uBlockMap, blockGridUv(colIndex, rowIndex)).a;
 }
 
 float stripeWidthPx(float band) {
@@ -256,8 +249,7 @@ float flameCoverAtCell(float colIndex, float rowIndex) {
     return clamp(max(max(flameRgb.r, flameRgb.g), flameRgb.b), 0.0, 1.0);
 }
 
-float resolveStripeBand(float colIndex, float rowIndex) {
-    float band = blockStripeBand(colIndex, rowIndex);
+float resolveStripeBand(float band, float colIndex, float rowIndex) {
     float flameCover = flameCoverAtCell(colIndex, rowIndex);
     if (flameCover > 0.001) {
         float flameBand = stripeBandForBucketLuma(bucketingLuma(flameCover));
@@ -313,7 +305,89 @@ void main(void) {
     float acrossCell = horizontal ? ch : cw;
     float alongGap = horizontal ? uGap.x : uGap.y;
 
-    float stripeBand = resolveStripeBand(colIndex, rowIndex);
+    vec4 trail = uCursorTrailEnabled > 0.5 ? texture(uCursorTrail, flameCellUv(colIndex, rowIndex)) : vec4(0.0);
+    vec3 push = uCursorTrailPushEnabled > 0.5
+        ? texture(uCursorTrailPush, flameCellUv(colIndex, rowIndex)).rgb
+        : vec3(128.0 / 255.0, 128.0 / 255.0, 0.0);
+    // Byte 128 = exactly zero offset (matches the 127-step biased encoding in CursorTrailOverlay).
+    vec2 offset = (push.xy * 255.0 - 128.0) / 127.0 * uCursorTrailPushRange;
+    float tear = push.z;
+    bool displaced = dot(offset, offset) >= 0.0001;
+    // Push happens strictly before stripe calculation: each fixed grid cell buckets the
+    // source data displaced into it (cell-quantized), then stripes render on the unchanged
+    // grid. Block map: R = stripe band, G = bucketing-space luma (already inverted for
+    // overlay mode upstream — do not re-invert), A = color coverage.
+    vec2 srcPos = vec2(colIndex, rowIndex) + 0.5 - offset;
+    float srcCol = colIndex;
+    float srcRow = rowIndex;
+    vec4 srcBlock;
+    if (displaced) {
+        // Footprint sampling: take the most content-ful cell (highest band) in the 2x2
+        // around the displaced source, so sparse single-cell stripes survive quantization
+        // when pushed instead of vanishing into the background.
+        vec2 base = floor(srcPos - 0.5);
+        vec2 maxCell = uGridSize - 1.0;
+        vec2 c00 = clamp(base, vec2(0.0), maxCell);
+        vec2 c11 = clamp(base + 1.0, vec2(0.0), maxCell);
+        srcCol = c00.x;
+        srcRow = c00.y;
+        srcBlock = texture(uBlockMap, blockGridUv(c00.x, c00.y));
+        vec4 s10 = texture(uBlockMap, blockGridUv(c11.x, c00.y));
+        if (s10.r > srcBlock.r) {
+            srcBlock = s10;
+            srcCol = c11.x;
+            srcRow = c00.y;
+        }
+        vec4 s01 = texture(uBlockMap, blockGridUv(c00.x, c11.y));
+        if (s01.r > srcBlock.r) {
+            srcBlock = s01;
+            srcCol = c00.x;
+            srcRow = c11.y;
+        }
+        vec4 s11 = texture(uBlockMap, blockGridUv(c11.x, c11.y));
+        if (s11.r > srcBlock.r) {
+            srcBlock = s11;
+            srcCol = c11.x;
+            srcRow = c11.y;
+        }
+    } else {
+        srcBlock = texture(uBlockMap, blockGridUv(colIndex, rowIndex));
+    }
+    float storedBand = floor(srcBlock.r * 255.0 + 0.5);
+    float l = srcBlock.g;
+    float srcCoverage = srcBlock.a;
+    if (uCursorTrailDebug > 0.5) {
+        finalColor = vec4(displaced ? 1.0 : 0.0, trail.a > 0.002 ? 1.0 : 0.0, tear, 1.0);
+        return;
+    }
+    bool inverted = uInvertStripeBucketing > 0.5;
+    bool torn = tear > 0.002;
+    if (displaced || torn || trail.a > 0.002) {
+        // Tear: where the push field stretches the source apart (positive divergence), the
+        // data thins toward background — pixels genuinely leave, opening a hole at the core.
+        if (inverted) {
+            l += (1.0 - l) * tear;
+        } else {
+            l *= (1.0 - tear);
+        }
+        // Brighten only lifts content that exists: empty cells stay empty (no white overlay
+        // floating over sparse areas), real stripes still flare toward white.
+        float presence = inverted ? 1.0 - l : l;
+        float trailLift = trail.a * smoothstep(0.0, 0.25, presence);
+        if (inverted) {
+            l *= (1.0 - trailLift);
+        } else {
+            l += (1.0 - l) * trailLift;
+        }
+        float trailBand = stripeBandForBucketLuma(l);
+        // Brighten-only cells stay monotonic vs the stored index (protects colors-mode
+        // promotion and non-monotonic stripe lists); displaced/torn/inverted cells replace.
+        storedBand = (displaced || torn || inverted) ? trailBand : max(storedBand, trailBand);
+        if (uUseCellColors > 0.5) {
+            srcCoverage *= (1.0 - tear);
+        }
+    }
+    float stripeBand = resolveStripeBand(storedBand, colIndex, rowIndex);
 
     // The cell size fed in already includes the gap (effective cell = bar size + gap), so the
     // bar keeps its full configured size and the gap is real spacing carved uniformly between
@@ -323,7 +397,12 @@ void main(void) {
 
     // Stripe thickness scales with non-background color fill in colors mode (alpha channel).
     float stripeWidth = resolveAnimatedStripeWidth(colIndex, rowIndex, stripeBand, acrossCell);
-    stripeWidth *= cellColorWidthScale(colIndex, rowIndex);
+    // Coverage is stored in the block-map alpha channel so cell RGB alpha can stay 255.
+    // Same content gate as the brighten: width only grows where color coverage exists.
+    float coverageScale = uUseCellColors > 0.5
+        ? srcCoverage + (1.0 - srcCoverage) * trail.a * smoothstep(0.0, 0.25, srcCoverage)
+        : 1.0;
+    stripeWidth *= coverageScale;
     stripeWidth = max(stripeWidth, 1.0);
     float halfW = stripeWidth * 0.5;
     float acrossCenter = acrossCell * 0.5;
@@ -340,7 +419,12 @@ void main(void) {
         if (!sparkleCellVisible(colIndex, rowIndex)) {
             stripeCoverage = 0.0;
         }
-        vec3 stripeColor = cellFillColor(colIndex, rowIndex, stripeBand);
+        vec3 stripeColor = cellFillColor(srcCol, srcRow, stripeBand);
+        // Trail tints stripes only in colors mode; in luminance/overlay modes it acts purely
+        // through the band (palette colors stay exact).
+        if (uUseCellColors > 0.5) {
+            stripeColor = mix(stripeColor, trail.rgb, trail.a);
+        }
         if (uTextureUnderlay > 0.5) {
             vec3 composite = mix(texturePixel.rgb, stripeColor, stripeCoverage);
             finalColor = vec4(composite, 1.0);

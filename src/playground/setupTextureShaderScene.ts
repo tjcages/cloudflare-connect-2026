@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import type { Ticker } from "../components/pixi";
 import { BlockGridTexture } from "./blockGridTexture";
 import { resampleBlockGrid } from "./resampleBlockGrid";
-import type { BlockGrid } from "./computeBlockGrid";
+import type { BlockGrid, LumaGrid } from "./computeBlockGrid";
 import {
   buildPlaygroundBlockGrid,
   sampleTextureFrame,
@@ -62,24 +62,27 @@ import {
   addClickWave,
   applyClickWavesToEffectPixels,
   createClickWaveState,
-  mergePointerEffectBounds,
   updateClickWave,
   type ClickWaveGridContext,
   type ClickWaveSample,
   type ClickWaveState,
 } from "./clickWave";
 import {
-  applyCursorTrailToEffectPixels,
   createCursorTrailState,
   downsamplePixelsNearest,
   setCursorTrailTarget,
   updateCursorTrail,
   upscalePixelsNearest,
   type CursorTrailPixelBounds,
-  type CursorTrailSample,
   type CursorTrailState,
 } from "./cursorTrail";
-import { resolvePlaygroundPixiTint, resolveStripesForLuminanceMode } from "./stripeColors";
+import {
+  applyCursorTrailCell,
+  CursorTrailOverlay,
+  rasterizeCursorTrailCellMap,
+  type CursorTrailCellMap,
+} from "./cursorTrailOverlay";
+import { buildStripeIndexLut, resolvePlaygroundPixiTint, resolveStripesForLuminanceMode } from "./stripeColors";
 import {
   DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
   normalizePlaygroundClickWaveConfig,
@@ -383,18 +386,15 @@ function attachPlaygroundPointerEvents(
   };
 }
 
-function buildDisplayFrameWithPointerEffects(
+function buildDisplayFrameWithClickWaves(
   cachedEffectBase: Uint8ClampedArray,
   effectWidth: number,
   effectHeight: number,
   displayWidth: number,
   displayHeight: number,
-  trailSamples: readonly CursorTrailSample[],
-  cursorTrailConfig: PlaygroundCursorTrailConfig,
   clickWaveSamples: readonly ClickWaveSample[],
   clickWaveConfig: PlaygroundClickWaveConfig,
   clickWaveGrid: ClickWaveGridContext,
-  luminanceSettings: TextureLuminanceSettings,
   workingEffect?: Uint8ClampedArray,
   displayPixels?: Uint8ClampedArray,
 ): { data: Uint8ClampedArray; bounds: CursorTrailPixelBounds | null } {
@@ -403,7 +403,7 @@ function buildDisplayFrameWithPointerEffects(
     effect.set(cachedEffectBase);
   }
 
-  let bounds =
+  const bounds =
     clickWaveSamples.length > 0
       ? applyClickWavesToEffectPixels(
           effect,
@@ -416,21 +416,6 @@ function buildDisplayFrameWithPointerEffects(
           clickWaveGrid,
         )
       : null;
-  if (trailSamples.length > 0) {
-    bounds = mergePointerEffectBounds(
-      bounds,
-      applyCursorTrailToEffectPixels(
-        effect,
-        effectWidth,
-        effectHeight,
-        displayWidth,
-        displayHeight,
-        trailSamples,
-        cursorTrailConfig,
-        luminanceSettings,
-      ),
-    );
-  }
 
   const output = displayPixels ?? new Uint8ClampedArray(displayWidth * displayHeight * 4);
   upscalePixelsNearest(effect, effectWidth, effectHeight, output, displayWidth, displayHeight);
@@ -534,6 +519,12 @@ function runDuotoneTick(params: {
   const flamesOverlay = flamesStateRef.current
     ? new PlaygroundFlamesOverlay(initialFlamesRaster.width, initialFlamesRaster.height)
     : null;
+  const cursorTrailOverlay = new CursorTrailOverlay(blockGridTexture.cols, blockGridTexture.rows);
+  let lastLumaGrid: LumaGrid | null = null;
+  let trailStripeLut: Uint8Array | null = null;
+  let trailMap: CursorTrailCellMap | null = null;
+  let trailLetterIndices: Uint8Array | null = null;
+  let lastTrailNonEmpty = false;
   let lastEffWidth = initialCell.width;
   let lastEffHeight = initialCell.height;
   let lastLetterSize = gridConfigRef.current.letterSize;
@@ -608,6 +599,8 @@ function runDuotoneTick(params: {
         stripeFilter.updateCellColorMap(blockGridTexture.colorTexture);
         stripeFilter.resizeGrid(blockGridTexture.cols, blockGridTexture.rows, eff.width, eff.height);
         letterLayer.setCellSize(eff.width, eff.height);
+        cursorTrailOverlay.resize(blockGridTexture.cols, blockGridTexture.rows);
+        lastLumaGrid = null;
 
         if (prevIndices && prevIndices.length > 0) {
           const resampled = resampleBlockGrid(
@@ -656,6 +649,7 @@ function runDuotoneTick(params: {
     previewTexture.destroy(true);
     blockGridTexture.destroy();
     flamesOverlay?.destroy();
+    cursorTrailOverlay.destroy();
     letterLayer.destroy();
     destroyStripeLetterAtlas(atlas);
   };
@@ -771,6 +765,7 @@ function runDuotoneTick(params: {
 
       sourceTextureFilter.syncFlames(null, null);
       stripeFilter.syncFlames(null, null);
+      stripeFilter.syncCursorTrail(null, null, 0);
       if (exportStateRef) {
         exportStateRef.current = {
           grid: null,
@@ -842,8 +837,7 @@ function runDuotoneTick(params: {
     const revealActive = revealEnabled && revealProgress < 1;
     const trailSamplingEnabled = cursorTrailConfig.enabled;
     const clickWaveSamplingEnabled = clickWaveConfig.enabled && !revealActive;
-    const pointerEffectsChanged =
-      (trailSamplingEnabled && trail.changed) || (clickWaveSamplingEnabled && clickWave.changed);
+    const pointerEffectsChanged = clickWaveSamplingEnabled && clickWave.changed;
     const sourceTimeChanged = shouldSample() || revealActive;
     const needsSourceFrame = sourceTimeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
 
@@ -857,6 +851,7 @@ function runDuotoneTick(params: {
         ],
       };
       stripeFilter.syncColors(effectiveColors, preferP3Ref.current);
+      trailStripeLut = buildStripeIndexLut(effectiveColors.stripes);
       lastColorsKey = colorsKey;
       pendingFullResample = true;
       pendingColorsResample = true;
@@ -906,13 +901,7 @@ function runDuotoneTick(params: {
 
     let frame: ImageData | null = null;
     const needsPointerEffectsFrame =
-      pointerEffectsChanged &&
-      cachedEffectBase &&
-      cachedEffectBaseKey === frameCacheKey &&
-      (trailSamplingEnabled ||
-        clickWaveSamplingEnabled ||
-        (trail.samples.length === 0 && clickWave.samples.length === 0));
-    const trailSamples = trailSamplingEnabled ? trail.samples : [];
+      pointerEffectsChanged && cachedEffectBase && cachedEffectBaseKey === frameCacheKey;
     const clickWaveSamples = clickWaveSamplingEnabled ? clickWave.samples : [];
 
     if (needsPointerEffectsFrame && cachedEffectBase) {
@@ -923,18 +912,15 @@ function runDuotoneTick(params: {
       if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
         displayFramePixels = new Uint8ClampedArray(displayPixelCount);
       }
-      const composited = buildDisplayFrameWithPointerEffects(
+      const composited = buildDisplayFrameWithClickWaves(
         cachedEffectBase,
         effectSize.width,
         effectSize.height,
         display.width,
         display.height,
-        trailSamples,
-        cursorTrailConfig,
         clickWaveSamples,
         clickWaveConfig,
         { gridCellWidth: effectiveCell.width, gridCellHeight: effectiveCell.height },
-        textureLuminanceSettingsRef.current,
         workingEffectPixels,
         displayFramePixels,
       );
@@ -947,18 +933,15 @@ function runDuotoneTick(params: {
       if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
         displayFramePixels = new Uint8ClampedArray(displayPixelCount);
       }
-      buildDisplayFrameWithPointerEffects(
+      buildDisplayFrameWithClickWaves(
         cachedEffectBase,
         effectSize.width,
         effectSize.height,
         display.width,
         display.height,
         [],
-        cursorTrailConfig,
-        [],
         clickWaveConfig,
         { gridCellWidth: effectiveCell.width, gridCellHeight: effectiveCell.height },
-        textureLuminanceSettingsRef.current,
         workingEffectPixels ?? undefined,
         displayFramePixels,
       );
@@ -1039,6 +1022,7 @@ function runDuotoneTick(params: {
         buildGridMs += buildTimer.elapsedMs();
       }
       gridState = built.state;
+      lastLumaGrid = built.lumaGrid;
 
       const textureTimer = tickTimer ? createPlaygroundPerfTimer() : null;
       blockGridTexture.update(built.grid);
@@ -1070,6 +1054,88 @@ function runDuotoneTick(params: {
         displayWidth: display.width,
         displayHeight: display.height,
       };
+    }
+
+    const trailTimer = tickTimer ? createPlaygroundPerfTimer() : null;
+    if (trailSamplingEnabled && trail.changed && hasBuiltGrid) {
+      trailMap = rasterizeCursorTrailCellMap(
+        trail.samples,
+        cursorTrailConfig,
+        display.width,
+        display.height,
+        blockGridTexture.cols,
+        blockGridTexture.rows,
+        textureLuminanceSettingsRef.current,
+        lastLumaGrid?.colors,
+        trailMap ?? undefined,
+      );
+      cursorTrailOverlay.sync(trailMap);
+    }
+    const trailActive = trailSamplingEnabled && hasBuiltGrid && trailMap?.nonEmpty === true;
+    if (trailActive && trailMap) {
+      const pushActive = cursorTrailConfig.pushStrengthPx > 0;
+      stripeFilter.syncCursorTrail(
+        cursorTrailOverlay.texture,
+        pushActive ? cursorTrailOverlay.pushTexture : null,
+        trailMap.pushRange,
+      );
+    } else {
+      stripeFilter.syncCursorTrail(null, null, 0);
+    }
+
+    if (trailActive && trailMap && gridState.stableIndices && lastLumaGrid?.luma && trailStripeLut) {
+      // Letters react to the trail: mirror the shader's per-cell band math on the CPU grid.
+      const cols = blockGridTexture.cols;
+      const rows = blockGridTexture.rows;
+      const base = gridState.stableIndices;
+      const lumaBytes = lastLumaGrid.luma;
+      const lut = trailStripeLut;
+      const inverted = overlayInvertsStripeBucketing(textureLuminanceSettingsRef.current.mode);
+      if (!trailLetterIndices || trailLetterIndices.length !== base.length) {
+        trailLetterIndices = new Uint8Array(base.length);
+      }
+      const adjusted = trailLetterIndices;
+      for (let i = 0; i < base.length; i++) {
+        const whiteAlpha = trailMap.whiteAlpha[i] ?? 0;
+        const tear = trailMap.tear[i] ?? 0;
+        if (whiteAlpha <= 0.002 && tear <= 0.002) {
+          adjusted[i] = base[i] ?? 0;
+          continue;
+        }
+        let luma = (lumaBytes[i] ?? 0) / 255;
+        luma = inverted ? luma + (1 - luma) * tear : luma * (1 - tear);
+        // Same content gate as the shader: brighten only lifts cells that hold content.
+        const presence = inverted ? 1 - luma : luma;
+        const presenceT = Math.min(1, Math.max(0, presence / 0.25));
+        const lift = whiteAlpha * presenceT * presenceT * (3 - 2 * presenceT);
+        luma = applyCursorTrailCell(luma, lift, inverted);
+        const trailBand = lut[Math.min(255, Math.floor(luma * 256))] ?? 0;
+        adjusted[i] = !inverted && tear <= 0.002 ? Math.max(base[i] ?? 0, trailBand) : trailBand;
+      }
+      letterLayer.sync({
+        cols,
+        rows,
+        indices: adjusted,
+        colors: lastLumaGrid.colors,
+        colorCoverage: lastLumaGrid.colorCoverage,
+        luma: lastLumaGrid.luma,
+      });
+      lastTrailNonEmpty = true;
+    } else if (lastTrailNonEmpty) {
+      lastTrailNonEmpty = false;
+      if (gridState.stableIndices && hasBuiltGrid) {
+        letterLayer.sync({
+          cols: blockGridTexture.cols,
+          rows: blockGridTexture.rows,
+          indices: gridState.stableIndices,
+          colors: lastLumaGrid?.colors,
+          colorCoverage: lastLumaGrid?.colorCoverage,
+          luma: lastLumaGrid?.luma,
+        });
+      }
+    }
+    if (trailTimer) {
+      pointerCompositeMs += trailTimer.elapsedMs();
     }
 
     const sparkleTimeSec = performance.now() / 1000;
