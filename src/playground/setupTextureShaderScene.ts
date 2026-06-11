@@ -809,16 +809,22 @@ function runDuotoneTick(params: {
     }
 
     const revealConfig = revealConfigRef.current;
+    const revealEnabled = revealConfig.enabled;
     const revealPlayback = revealPlaybackRef.current;
     if (revealPlayback.replayKey !== lastRevealReplayKey) {
       lastRevealReplayKey = revealPlayback.replayKey;
       pendingFullResample = true;
       gridState = {};
     }
-    const revealProgress = Math.min(
-      1,
-      Math.max(0, (now - revealPlayback.startedAtMs) / Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig))),
-    );
+    const revealProgress = revealEnabled
+      ? Math.min(
+          1,
+          Math.max(
+            0,
+            (now - revealPlayback.startedAtMs) / Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig)),
+          ),
+        )
+      : 1;
     revealStateRef.current = { progress: revealProgress };
 
     const colors = stripeColorsRef.current;
@@ -833,7 +839,7 @@ function runDuotoneTick(params: {
       luminanceSettings: textureLuminanceSettingsRef.current,
     });
     const colorsChanged = colorsKey !== lastColorsKey;
-    const revealActive = revealProgress < 1;
+    const revealActive = revealEnabled && revealProgress < 1;
     const trailSamplingEnabled = cursorTrailConfig.enabled;
     const clickWaveSamplingEnabled = clickWaveConfig.enabled && !revealActive;
     const pointerEffectsChanged =
@@ -1020,11 +1026,13 @@ function runDuotoneTick(params: {
             gamma: textureGammaRef.current,
           },
           luminanceSettings,
-          reveal: {
-            config: revealConfig,
-            progress: revealProgress,
-            replayKey: revealPlayback.replayKey,
-          },
+          reveal: revealEnabled
+            ? {
+                config: revealConfig,
+                progress: revealProgress,
+                replayKey: revealPlayback.replayKey,
+              }
+            : undefined,
         },
       );
       if (buildTimer) {

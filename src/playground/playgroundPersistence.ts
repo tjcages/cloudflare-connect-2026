@@ -363,6 +363,7 @@ type ClickWaveWire = {
 };
 
 type RevealWire = {
+  en?: boolean;
   p?: PlaygroundRevealPreset | "randomColumnsShift";
   wp?: PlaygroundWaveRevealPosition;
   wd?: number;
@@ -649,6 +650,7 @@ function revealToWire(config: PlaygroundRevealConfig): RevealWire | undefined {
   }
   const base = DEFAULT_PLAYGROUND_REVEAL_CONFIG;
   const wire: RevealWire = { p: normalized.preset };
+  if (normalized.enabled !== base.enabled) wire.en = normalized.enabled;
   if (normalized.wave.position !== base.wave.position) wire.wp = normalized.wave.position;
   if (normalized.wave.durationMs !== base.wave.durationMs) wire.wd = normalized.wave.durationMs;
   if (normalized.wave.softness !== base.wave.softness) wire.ws = normalized.wave.softness;
@@ -668,6 +670,7 @@ function wireToReveal(raw: unknown): PlaygroundRevealConfig | undefined {
   const wire = raw as RevealWire;
   const legacyShiftPreset = wire.p === "randomColumnsShift";
   return normalizePlaygroundRevealConfig({
+    enabled: wire.en ?? true,
     preset: legacyShiftPreset ? "randomColumns" : wire.p,
     wave: {
       position: wire.wp,

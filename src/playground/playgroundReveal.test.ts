@@ -19,6 +19,7 @@ describe("playground wave reveal", () => {
 
     const revealed = applyPlaygroundRevealToLumaGrid(grid, {
       config: {
+        enabled: true,
         preset: "wave",
         wave: {
           ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave,
@@ -44,11 +45,27 @@ describe("playground wave reveal", () => {
     };
 
     const revealed = applyPlaygroundRevealToLumaGrid(grid, {
-      config: DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+      config: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG, enabled: true },
       progress: 1,
     });
 
     expect([...revealed.luma]).toEqual([20, 80, 160, 240]);
+  });
+
+  test("skips reveal when disabled", () => {
+    const grid: LumaGrid = {
+      cols: 3,
+      rows: 1,
+      luma: new Uint8Array([50, 150, 250]),
+      colors: new Uint8Array(9),
+    };
+
+    const revealed = applyPlaygroundRevealToLumaGrid(grid, {
+      config: DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+      progress: 0,
+    });
+
+    expect([...revealed.luma]).toEqual([50, 150, 250]);
   });
 });
 
@@ -114,6 +131,7 @@ describe("playground random-columns reveal", () => {
     };
     const config = {
       ...DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+      enabled: true,
       preset: "randomColumns" as const,
       randomColumns: {
         ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.randomColumns,
@@ -145,6 +163,7 @@ describe("playground random-columns reveal", () => {
     };
     const config = {
       ...DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+      enabled: true,
       preset: "randomColumns" as const,
       randomColumns: {
         ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.randomColumns,

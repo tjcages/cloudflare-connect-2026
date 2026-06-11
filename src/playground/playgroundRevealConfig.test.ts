@@ -19,6 +19,7 @@ describe("playground reveal config", () => {
     });
 
     expect(config).toEqual({
+      enabled: false,
       preset: "wave",
       wave: {
         position: "right bottom",
@@ -42,6 +43,7 @@ describe("playground reveal config", () => {
     });
 
     expect(config).toEqual({
+      enabled: false,
       preset: "randomColumns",
       wave: DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave,
       randomColumns: {
@@ -54,6 +56,15 @@ describe("playground reveal config", () => {
 
   test("detects the default reveal config", () => {
     expect(isDefaultPlaygroundRevealConfig(DEFAULT_PLAYGROUND_REVEAL_CONFIG)).toBe(true);
+    expect(
+      isDefaultPlaygroundRevealConfig(
+        normalizePlaygroundRevealConfig({
+          enabled: true,
+          preset: "wave",
+          wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave },
+        }),
+      ),
+    ).toBe(false);
     expect(
       isDefaultPlaygroundRevealConfig(
         normalizePlaygroundRevealConfig({

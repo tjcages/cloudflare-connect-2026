@@ -26,12 +26,14 @@ export type PlaygroundRandomColumnsRevealConfig = {
 };
 
 export type PlaygroundRevealConfig = {
+  enabled: boolean;
   preset: PlaygroundRevealPreset;
   wave: PlaygroundWaveRevealConfig;
   randomColumns: PlaygroundRandomColumnsRevealConfig;
 };
 
 export const DEFAULT_PLAYGROUND_REVEAL_CONFIG: PlaygroundRevealConfig = {
+  enabled: false,
   preset: "wave",
   wave: {
     position: "center",
@@ -91,6 +93,7 @@ export function normalizePlaygroundRevealConfig(
   const base = DEFAULT_PLAYGROUND_REVEAL_CONFIG;
   if (!input) {
     return {
+      enabled: base.enabled,
       preset: base.preset,
       wave: { ...base.wave },
       randomColumns: { ...base.randomColumns },
@@ -99,8 +102,11 @@ export function normalizePlaygroundRevealConfig(
 
   const wave = input.wave ?? {};
   const randomColumns =
-    input.preset === "randomColumnsShift" ? { ...input.randomColumnsShift, ...input.randomColumns } : (input.randomColumns ?? {});
+    input.preset === "randomColumnsShift"
+      ? { ...input.randomColumnsShift, ...input.randomColumns }
+      : (input.randomColumns ?? {});
   return {
+    enabled: input.enabled === true,
     preset: input.preset === "randomColumns" || input.preset === "randomColumnsShift" ? "randomColumns" : "wave",
     wave: {
       position: normalizePlaygroundWaveRevealPosition(wave.position),
@@ -134,6 +140,7 @@ export function isDefaultPlaygroundRevealConfig(input: PlaygroundRevealConfig): 
   const normalized = normalizePlaygroundRevealConfig(input);
   const base = DEFAULT_PLAYGROUND_REVEAL_CONFIG;
   return (
+    normalized.enabled === base.enabled &&
     normalized.preset === base.preset &&
     normalized.wave.position === base.wave.position &&
     normalized.wave.durationMs === base.wave.durationMs &&

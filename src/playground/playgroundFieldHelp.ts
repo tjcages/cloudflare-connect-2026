@@ -77,6 +77,7 @@ export const PLAYGROUND_FIELD_HELP = {
     "Inset from each canvas edge where masked flame luminance reaches full strength. Must be greater than mask start.",
   flamesEdgeMaskPower: "Curve shaping for the flame luminance ramp (1 = linear, higher = softer mid-fade).",
 
+  revealEnabled: "Show or hide the reveal animation applied before stripe thresholds are calculated.",
   revealPreset: "Choose the reveal animation applied before stripe thresholds are calculated.",
   revealPosition: "Choose where the wave starts on the canvas.",
   revealDuration: "How long the reveal takes from start to fully visible.",

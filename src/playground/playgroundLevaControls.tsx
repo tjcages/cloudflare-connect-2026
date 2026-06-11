@@ -130,6 +130,7 @@ export type PlaygroundLevaControlsProps = {
   cursorClickModified: boolean;
   revealConfig: PlaygroundRevealConfig;
   onRevealChange: (patch: Partial<PlaygroundRevealConfig>) => void;
+  onRevealLiveChange: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealWaveLiveChange: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
   onRevealRandomColumnsLiveChange: (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => void;
   onResetReveal: () => void;
@@ -187,6 +188,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     const flamesMaskDisabled = flamesFieldsDisabled || !current.flamesConfig.edgeMaskEnabled;
     const cursorTrailFieldsDisabled = current.duotoneControlsDisabled || !current.cursorTrailConfig.enabled;
     const cursorClickFieldsDisabled = current.duotoneControlsDisabled || !current.clickWaveConfig.enabled;
+    const revealFieldsDisabled = current.duotoneControlsDisabled || !current.revealConfig.enabled;
 
     return {
       duotoneEnabled: current.duotoneEnabled,
@@ -199,6 +201,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       flamesMaskDisabled,
       cursorTrailFieldsDisabled,
       cursorClickFieldsDisabled,
+      revealFieldsDisabled,
       textureAdjustments: current.textureAdjustments,
       sourceTransform: current.sourceTransform,
       backgroundColor: current.backgroundColor,
@@ -323,6 +326,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onClickWaveLive: (patch) => propsRef.current.onClickWaveLiveChange(patch),
     onClickWaveCommit: (patch) => propsRef.current.onClickWaveChange(patch),
     resetClickWave: () => propsRef.current.onResetClickWave(),
+    onRevealLive: (patch) => propsRef.current.onRevealLiveChange(patch),
     onRevealCommit: (patch) => propsRef.current.onRevealChange(patch),
     onRevealWaveLive: (patch) => propsRef.current.onRevealWaveLiveChange(patch),
     onRevealWaveCommit: (patch) =>
@@ -375,6 +379,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       snapshot.flamesMaskDisabled,
       snapshot.cursorTrailFieldsDisabled,
       snapshot.cursorClickFieldsDisabled,
+      snapshot.revealFieldsDisabled,
       stripeKey,
       props.textureLuminanceSettings.mode,
       props.gridConfig.cellWidth,

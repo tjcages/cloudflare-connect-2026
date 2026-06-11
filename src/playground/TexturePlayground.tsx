@@ -909,6 +909,7 @@ export function TexturePlayground() {
 
   const resetReveal = useCallback(() => {
     const next = {
+      enabled: DEFAULT_PLAYGROUND_REVEAL_CONFIG.enabled,
       preset: DEFAULT_PLAYGROUND_REVEAL_CONFIG.preset,
       wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave },
       randomColumns: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.randomColumns },
@@ -1577,11 +1578,13 @@ export function TexturePlayground() {
       luminanceSettings: textureLuminanceSettings,
       flamesState: flamesStateRef.current,
       flamesConfig: flamesConfigRef.current,
-      reveal: {
-        config: revealConfigRef.current,
-        progress: revealStateRef.current.progress,
-        replayKey: revealPlaybackRef.current.replayKey,
-      },
+      reveal: revealConfigRef.current.enabled
+        ? {
+            config: revealConfigRef.current,
+            progress: revealStateRef.current.progress,
+            replayKey: revealPlaybackRef.current.replayKey,
+          }
+        : undefined,
     });
     const svg = stripeGridToSvg(built.grid, colors, display.width, display.height, {
       useCellColors: textureLuminanceSettings.mode === "colors",
@@ -1766,6 +1769,7 @@ export function TexturePlayground() {
     cursorClickModified,
     revealConfig,
     onRevealChange: updateRevealConfig,
+    onRevealLiveChange: updateRevealConfigLive,
     onRevealWaveLiveChange: updateRevealWaveLive,
     onRevealRandomColumnsLiveChange: updateRevealRandomColumnsLive,
     onResetReveal: resetReveal,

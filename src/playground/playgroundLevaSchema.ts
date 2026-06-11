@@ -256,6 +256,7 @@ export type PlaygroundLevaSnapshot = {
   flamesMaskDisabled: boolean;
   cursorTrailFieldsDisabled: boolean;
   cursorClickFieldsDisabled: boolean;
+  revealFieldsDisabled: boolean;
   textureAdjustments: PlaygroundTextureAdjustments;
   sourceTransform: PlaygroundSourceTransform;
   backgroundColor: number;
@@ -330,6 +331,7 @@ export type PlaygroundLevaHandlers = {
   onClickWaveLive: (patch: Partial<PlaygroundClickWaveConfig>) => void;
   onClickWaveCommit: (patch: Partial<PlaygroundClickWaveConfig>) => void;
   resetClickWave: () => void;
+  onRevealLive: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealCommit: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealWaveLive: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
   onRevealWaveCommit: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
@@ -358,6 +360,7 @@ export function buildPlaygroundLevaSchema(
   const clickWave = snapshot.clickWaveConfig;
   const clickWaveDisabled = snapshot.cursorClickFieldsDisabled;
   const reveal = snapshot.revealConfig;
+  const revealDisabled = snapshot.revealFieldsDisabled;
 
   return {
     General: levaFolder(
@@ -374,11 +377,20 @@ export function buildPlaygroundLevaSchema(
     Reveal: levaFolder(
       {
         revealReset: resetButton(() => handlers.resetReveal(), !snapshot.revealModified),
-        Replay: actionButton(() => handlers.replayReveal(), disabled),
+        revealEnabled: boolControl(reveal.enabled, {
+          label: "Reveal enabled",
+          hint: PLAYGROUND_FIELD_HELP.revealEnabled,
+          disabled,
+          onChange: (value) => {
+            handlers.onRevealLive({ enabled: value });
+            handlers.onRevealCommit({ enabled: value });
+          },
+        }),
+        Replay: actionButton(() => handlers.replayReveal(), revealDisabled),
         preset: selectControl<PlaygroundRevealPreset>(reveal.preset, REVEAL_PRESET_OPTIONS, {
           label: "Preset",
           hint: PLAYGROUND_FIELD_HELP.revealPreset,
-          disabled,
+          disabled: revealDisabled,
           onChange: (preset) => handlers.onRevealCommit({ preset }),
         }),
         ...(reveal.preset === "wave"
@@ -386,7 +398,7 @@ export function buildPlaygroundLevaSchema(
               revealPosition: selectControl<PlaygroundWaveRevealPosition>(reveal.wave.position, WAVE_POSITION_OPTIONS, {
                 label: "Position",
                 hint: PLAYGROUND_FIELD_HELP.revealPosition,
-                disabled,
+                disabled: revealDisabled,
                 onChange: (position) => handlers.onRevealWaveCommit({ position }),
               }),
               revealWaveDuration: numControl(
@@ -397,7 +409,7 @@ export function buildPlaygroundLevaSchema(
                 {
                   label: "Duration",
                   hint: PLAYGROUND_FIELD_HELP.revealDuration,
-                  disabled,
+                  disabled: revealDisabled,
                   onLive: (value) => handlers.onRevealWaveLive({ durationMs: value }),
                   onCommit: (value) => handlers.onRevealWaveCommit({ durationMs: value }),
                 },
@@ -410,7 +422,7 @@ export function buildPlaygroundLevaSchema(
                 {
                   label: "Softness",
                   hint: PLAYGROUND_FIELD_HELP.revealSoftness,
-                  disabled,
+                  disabled: revealDisabled,
                   onLive: (value) => handlers.onRevealWaveLive({ softness: value }),
                   onCommit: (value) => handlers.onRevealWaveCommit({ softness: value }),
                 },
@@ -423,7 +435,7 @@ export function buildPlaygroundLevaSchema(
                 {
                   label: "Waviness",
                   hint: PLAYGROUND_FIELD_HELP.revealWaviness,
-                  disabled,
+                  disabled: revealDisabled,
                   onLive: (value) => handlers.onRevealWaveLive({ waviness: value }),
                   onCommit: (value) => handlers.onRevealWaveCommit({ waviness: value }),
                 },
@@ -436,7 +448,7 @@ export function buildPlaygroundLevaSchema(
                 {
                   label: "Noise scale",
                   hint: PLAYGROUND_FIELD_HELP.revealNoiseScale,
-                  disabled,
+                  disabled: revealDisabled,
                   onLive: (value) => handlers.onRevealWaveLive({ noiseScale: value }),
                   onCommit: (value) => handlers.onRevealWaveCommit({ noiseScale: value }),
                 },
@@ -451,7 +463,7 @@ export function buildPlaygroundLevaSchema(
                 {
                   label: "Duration",
                   hint: PLAYGROUND_FIELD_HELP.revealDuration,
-                  disabled,
+                  disabled: revealDisabled,
                   onLive: (value) => handlers.onRevealRandomColumnsLive({ durationMs: value }),
                   onCommit: (value) => handlers.onRevealRandomColumnsCommit({ durationMs: value }),
                 },
@@ -464,7 +476,7 @@ export function buildPlaygroundLevaSchema(
                 {
                   label: "Stagger",
                   hint: PLAYGROUND_FIELD_HELP.revealColumnStagger,
-                  disabled,
+                  disabled: revealDisabled,
                   onLive: (value) => handlers.onRevealRandomColumnsLive({ stagger: value }),
                   onCommit: (value) => handlers.onRevealRandomColumnsCommit({ stagger: value }),
                 },
@@ -477,7 +489,7 @@ export function buildPlaygroundLevaSchema(
                 {
                   label: "Y shift",
                   hint: PLAYGROUND_FIELD_HELP.revealColumnYShift,
-                  disabled,
+                  disabled: revealDisabled,
                   onLive: (value) => handlers.onRevealRandomColumnsLive({ yShift: value }),
                   onCommit: (value) => handlers.onRevealRandomColumnsCommit({ yShift: value }),
                 },
@@ -1607,6 +1619,7 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
 
   const values: Record<string, unknown> = {
     shaderEnabled: snapshot.duotoneEnabled,
+    revealEnabled: reveal.enabled,
     preset: reveal.preset,
     exposure: adjustments.exposure,
     brightness: adjustments.brightness,

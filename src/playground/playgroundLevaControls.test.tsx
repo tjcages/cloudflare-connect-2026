@@ -146,6 +146,7 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       cursorClickModified={false}
       revealConfig={DEFAULT_PLAYGROUND_REVEAL_CONFIG}
       onRevealChange={() => {}}
+      onRevealLiveChange={() => {}}
       onRevealWaveLiveChange={() => {}}
       onRevealRandomColumnsLiveChange={() => {}}
       onResetReveal={() => {}}
@@ -189,7 +190,23 @@ describe("PlaygroundLevaControls", () => {
     renderLevaControls();
 
     expect(screen.getByText("Reveal")).toBeInTheDocument();
+    expect(screen.getByLabelText("Reveal enabled")).toBeInTheDocument();
     expect(screen.getByLabelText("Preset")).toBeInTheDocument();
+  });
+
+  it("wires reveal enabled toggle changes through the callback", () => {
+    const onRevealChange = vi.fn();
+    const onRevealLiveChange = vi.fn();
+    renderLevaControls({
+      revealConfig: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG, enabled: true },
+      onRevealChange,
+      onRevealLiveChange,
+    });
+
+    const checkbox = screen.getByLabelText("Reveal enabled");
+    checkbox.click();
+    expect(onRevealLiveChange).toHaveBeenCalledWith({ enabled: false });
+    expect(onRevealChange).toHaveBeenCalledWith({ enabled: false });
   });
 
   it("renders the stripe colors table inside the Leva panel instead of per-stripe labels", () => {
@@ -242,6 +259,7 @@ describe("PlaygroundLevaControls", () => {
       flamesMaskDisabled: false,
       cursorTrailFieldsDisabled: false,
       cursorClickFieldsDisabled: false,
+      revealFieldsDisabled: true,
       textureAdjustments: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
       sourceTransform: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
       backgroundColor: DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
@@ -315,6 +333,7 @@ describe("PlaygroundLevaControls", () => {
       onClickWaveLive: noop,
       onClickWaveCommit: noop,
       resetClickWave: noop,
+      onRevealLive: noop,
       onRevealCommit: noop,
       onRevealWaveLive: noop,
       onRevealWaveCommit: noop,
@@ -353,6 +372,7 @@ describe("PlaygroundLevaControls", () => {
       flamesMaskDisabled: false,
       cursorTrailFieldsDisabled: false,
       cursorClickFieldsDisabled: false,
+      revealFieldsDisabled: true,
       textureAdjustments: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
       sourceTransform: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
       backgroundColor: DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
@@ -429,6 +449,7 @@ describe("PlaygroundLevaControls", () => {
       onClickWaveLive: noop,
       onClickWaveCommit: noop,
       resetClickWave: noop,
+      onRevealLive: noop,
       onRevealCommit: noop,
       onRevealWaveLive: noop,
       onRevealWaveCommit: noop,
@@ -460,6 +481,7 @@ describe("PlaygroundLevaControls", () => {
       flamesMaskDisabled: false,
       cursorTrailFieldsDisabled: false,
       cursorClickFieldsDisabled: false,
+      revealFieldsDisabled: true,
       textureAdjustments: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
       sourceTransform: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
       backgroundColor: DEFAULT_PLAYGROUND_BACKGROUND_COLOR,
@@ -533,6 +555,7 @@ describe("PlaygroundLevaControls", () => {
       onClickWaveLive: noop,
       onClickWaveCommit: noop,
       resetClickWave: noop,
+      onRevealLive: noop,
       onRevealCommit: noop,
       onRevealWaveLive: noop,
       onRevealWaveCommit: noop,
