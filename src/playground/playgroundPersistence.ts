@@ -339,7 +339,6 @@ type CursorTrailWire = {
   pd?: number;
   pl?: number;
   pw?: number;
-  ts?: number;
 };
 
 type ClickWaveWire = {
@@ -353,13 +352,6 @@ type ClickWaveWire = {
   ps?: number;
   pbs?: number;
   rw?: number;
-  sw?: number;
-  scn?: number;
-  scx?: number;
-  skn?: number;
-  skx?: number;
-  sln?: number;
-  slx?: number;
 };
 
 type RevealWire = {
@@ -556,7 +548,6 @@ function cursorTrailToWire(config: PlaygroundCursorTrailConfig): CursorTrailWire
   if (normalized.pushStrengthPx !== base.pushStrengthPx) wire.pd = normalized.pushStrengthPx;
   if (normalized.pushLagPx !== base.pushLagPx) wire.pl = normalized.pushLagPx;
   if (normalized.pushWobblePx !== base.pushWobblePx) wire.pw = normalized.pushWobblePx;
-  if (normalized.trailScale !== base.trailScale) wire.ts = normalized.trailScale;
   return wire;
 }
 
@@ -586,7 +577,6 @@ function wireToCursorTrail(raw: unknown): PlaygroundCursorTrailConfig | undefine
     pushStrengthPx: wire.pd,
     pushLagPx: wire.pl,
     pushWobblePx: wire.pw,
-    trailScale: wire.ts,
   });
 }
 
@@ -607,13 +597,6 @@ function clickWaveToWire(config: PlaygroundClickWaveConfig): ClickWaveWire | und
   if (normalized.pushStrengthPx !== base.pushStrengthPx) wire.ps = normalized.pushStrengthPx;
   if (normalized.pushBandScale !== base.pushBandScale) wire.pbs = normalized.pushBandScale;
   if (normalized.stripeWhiteAlpha !== base.stripeWhiteAlpha) wire.rw = normalized.stripeWhiteAlpha;
-  if (normalized.sliceWhiteAlpha !== base.sliceWhiteAlpha) wire.sw = normalized.sliceWhiteAlpha;
-  if (normalized.sliceCountMin !== base.sliceCountMin) wire.scn = normalized.sliceCountMin;
-  if (normalized.sliceCountMax !== base.sliceCountMax) wire.scx = normalized.sliceCountMax;
-  if (normalized.sliceSkipMin !== base.sliceSkipMin) wire.skn = normalized.sliceSkipMin;
-  if (normalized.sliceSkipMax !== base.sliceSkipMax) wire.skx = normalized.sliceSkipMax;
-  if (normalized.sliceLevelMin !== base.sliceLevelMin) wire.sln = normalized.sliceLevelMin;
-  if (normalized.sliceLevelMax !== base.sliceLevelMax) wire.slx = normalized.sliceLevelMax;
   return wire;
 }
 
@@ -633,13 +616,6 @@ function wireToClickWave(raw: unknown): PlaygroundClickWaveConfig | undefined {
     pushStrengthPx: wire.ps,
     pushBandScale: wire.pbs,
     stripeWhiteAlpha: wire.rw,
-    sliceWhiteAlpha: wire.sw,
-    sliceCountMin: wire.scn,
-    sliceCountMax: wire.scx,
-    sliceSkipMin: wire.skn,
-    sliceSkipMax: wire.skx,
-    sliceLevelMin: wire.sln,
-    sliceLevelMax: wire.slx,
   });
 }
 

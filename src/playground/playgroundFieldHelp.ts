@@ -108,8 +108,6 @@ export const PLAYGROUND_FIELD_HELP = {
   cursorTrailPushRadius: "Radius multiplier for the texture displacement around the trail.",
   cursorTrailPushLag: "How far the texture push trails behind particle movement.",
   cursorTrailPushWobble: "Small offset so the texture push does not match the white trail exactly.",
-  cursorTrailScale:
-    "Low-res effect buffer scale for click ripples. 0 uses one pixel per stripe cell. The trail itself always renders at cell resolution.",
 
   cursorClickEnabled: "Enable click ripples in sampled pixels before stripe calculation.",
   cursorClickLife: "How long each click ripple lasts in milliseconds.",
@@ -118,14 +116,8 @@ export const PLAYGROUND_FIELD_HELP = {
   cursorClickStartStroke: "Starting ring stroke width. The band thins as the ripple grows.",
   cursorClickEndStroke: "Final ring stroke width at the end of the ripple life.",
   cursorClickMaxWaves: "Maximum simultaneous click ripples on screen.",
-  cursorClickPushStrength: "Peak radial pixel push at click birth. Strongest at the start, then eases out.",
+  cursorClickPushStrength:
+    "Peak radial push at click birth (capped at two cells). The tear hole opens behind the expanding front.",
   cursorClickPushBandScale: "Multiplier on stroke width for how wide the push displacement band is.",
   cursorClickRingWhite: "White brighten on the leading ring edge. Feeds lighter stripe cells.",
-  cursorClickSliceWhite: "Peak white for random interior slice fills inside the ripple disk.",
-  cursorClickSliceCountMin: "Minimum angular slice count per click. More slices = finer wedges.",
-  cursorClickSliceCountMax: "Maximum angular slice count per click.",
-  cursorClickSliceSkipMin: "Minimum random cell skip rate inside slices. Higher = sparser fills.",
-  cursorClickSliceSkipMax: "Maximum random cell skip rate inside slices.",
-  cursorClickSliceLevelMin: "Minimum number of discrete white brightness tiers per slice cell.",
-  cursorClickSliceLevelMax: "Maximum number of discrete white brightness tiers per slice cell.",
 } as const;

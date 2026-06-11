@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { applyCursorTrailCell, rasterizeCursorTrailCellMap } from "./cursorTrailOverlay";
+import {
+  accumulateClickWaveCellMap,
+  accumulateCursorTrailCellMap,
+  applyCursorTrailCell,
+  clickDissolveProgress,
+  clickRadiusWobble,
+  clickStrengthBreakup,
+  CURSOR_TRAIL_MAX_PUSH_CELLS,
+  finalizeCursorTrailCellMap,
+  rasterizeCursorTrailCellMap,
+  resetCursorTrailCellMap,
+  resolveCursorTrailPushScaleCells,
+} from "./cursorTrailOverlay";
+import { DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG } from "./playgroundClickWaveConfig";
 import { DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG } from "./playgroundCursorTrailConfig";
 import { buildStripeColors, buildStripeIndexLut, resolveStripesForLuminanceMode } from "./stripeColors";
 
@@ -37,7 +50,7 @@ describe("rasterizeCursorTrailCellMap – saturating accumulation parity", () =>
     const config = makeConfig({ pushStrengthPx: 0, pushLeadBlackAlpha: 0 });
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: sampleAlpha, radius: sampleRadius }],
+      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: sampleAlpha, radius: sampleRadius, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -70,8 +83,8 @@ describe("rasterizeCursorTrailCellMap – saturating accumulation parity", () =>
 
     const map = rasterizeCursorTrailCellMap(
       [
-        { x: 20, y: 20, pushX: 20, pushY: 20, alpha: a1, radius: sampleRadius },
-        { x: 20, y: 20, pushX: 20, pushY: 20, alpha: a2, radius: sampleRadius },
+        { x: 20, y: 20, pushX: 20, pushY: 20, alpha: a1, radius: sampleRadius, progress: 0, seed: 1 },
+        { x: 20, y: 20, pushX: 20, pushY: 20, alpha: a2, radius: sampleRadius, progress: 0, seed: 1 },
       ],
       config,
       displayWidth,
@@ -115,6 +128,8 @@ describe("rasterizeCursorTrailCellMap – saturating accumulation parity", () =>
       pushY: 20,
       alpha: a,
       radius: 40, // effectRadius = max(1, 40*4/40) = 4 cells → falloff(0, 4) = 1
+      progress: 0,
+      seed: 1,
     }));
 
     const map = rasterizeCursorTrailCellMap(
@@ -157,7 +172,7 @@ describe("rasterizeCursorTrailCellMap – falloff profile and display→cell map
     const cellColors = new Uint8Array(cols * rows * 3).fill(255);
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 80, y: 45, pushX: 80, pushY: 45, alpha: sampleAlpha, radius: sampleRadius }],
+      [{ x: 80, y: 45, pushX: 80, pushY: 45, alpha: sampleAlpha, radius: sampleRadius, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -198,7 +213,7 @@ describe("rasterizeCursorTrailCellMap – falloff profile and display→cell map
     const cellColors = new Uint8Array(cols * rows * 3).fill(255);
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 100, y: 100, pushX: 100, pushY: 100, alpha: sampleAlpha, radius: sampleRadius }],
+      [{ x: 100, y: 100, pushX: 100, pushY: 100, alpha: sampleAlpha, radius: sampleRadius, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -231,7 +246,7 @@ describe("rasterizeCursorTrailCellMap – falloff profile and display→cell map
     const cellColors = new Uint8Array(cols * rows * 3).fill(255);
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: 1, radius: sampleRadius }],
+      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: 1, radius: sampleRadius, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -272,7 +287,7 @@ describe("rasterizeCursorTrailCellMap – push accumulation and encoding", () =>
     const cellColors = new Uint8Array(cols * rows * 3).fill(255);
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: sampleAlpha, radius: sampleRadius }],
+      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: sampleAlpha, radius: sampleRadius, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -312,7 +327,7 @@ describe("rasterizeCursorTrailCellMap – push accumulation and encoding", () =>
     const cellColors = new Uint8Array(cols * rows * 3).fill(255);
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: 1, radius: 30 }],
+      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: 1, radius: 30, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -344,7 +359,7 @@ describe("rasterizeCursorTrailCellMap – push accumulation and encoding", () =>
     const sampleRadius = 60; // display px → 6 cell radii
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 100, y: 100, pushX: 100, pushY: 100, alpha: 1, radius: sampleRadius }],
+      [{ x: 100, y: 100, pushX: 100, pushY: 100, alpha: 1, radius: sampleRadius, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -388,8 +403,8 @@ describe("rasterizeCursorTrailCellMap – push accumulation and encoding", () =>
     // Two full-strength samples at the same spot would accumulate past the cap uncapped.
     const map = rasterizeCursorTrailCellMap(
       [
-        { x: 50, y: 50, pushX: 50, pushY: 50, alpha: 1, radius: 30 },
-        { x: 50, y: 50, pushX: 50, pushY: 50, alpha: 1, radius: 30 },
+        { x: 50, y: 50, pushX: 50, pushY: 50, alpha: 1, radius: 30, progress: 0, seed: 1 },
+        { x: 50, y: 50, pushX: 50, pushY: 50, alpha: 1, radius: 30, progress: 0, seed: 1 },
       ],
       config,
       displayWidth,
@@ -421,7 +436,7 @@ describe("rasterizeCursorTrailCellMap – push accumulation and encoding", () =>
     const cellColors = new Uint8Array(cols * rows * 3).fill(255);
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: 0.9, radius: 25 }],
+      [{ x: 50, y: 50, pushX: 50, pushY: 50, alpha: 0.9, radius: 25, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -473,7 +488,7 @@ describe("rasterizeCursorTrailCellMap – colors mode color borrow", () => {
     const config = makeConfig({ pushStrengthPx: 0, pushLeadBlackAlpha: 0 });
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 40, y: 40, pushX: 40, pushY: 40, alpha: 1, radius: 10 }],
+      [{ x: 40, y: 40, pushX: 40, pushY: 40, alpha: 1, radius: 10, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -513,7 +528,7 @@ describe("rasterizeCursorTrailCellMap – colors mode color borrow", () => {
     const config = makeConfig({ pushStrengthPx: 0, pushLeadBlackAlpha: 0 });
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 30, y: 30, pushX: 30, pushY: 30, alpha: 1, radius: 10 }],
+      [{ x: 30, y: 30, pushX: 30, pushY: 30, alpha: 1, radius: 10, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -551,7 +566,7 @@ describe("rasterizeCursorTrailCellMap – colors mode color borrow", () => {
     const config = makeConfig({ pushStrengthPx: 0, pushLeadBlackAlpha: 0 });
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 30, y: 30, pushX: 30, pushY: 30, alpha: 0.9, radius: 10 }],
+      [{ x: 30, y: 30, pushX: 30, pushY: 30, alpha: 0.9, radius: 10, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -584,7 +599,7 @@ describe("rasterizeCursorTrailCellMap – colors mode color borrow", () => {
     });
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 30, y: 30, pushX: 30, pushY: 30, alpha: 0.8, radius: 10 }],
+      [{ x: 30, y: 30, pushX: 30, pushY: 30, alpha: 0.8, radius: 10, progress: 0, seed: 1 }],
       config,
       displayWidth,
       displayHeight,
@@ -703,7 +718,7 @@ describe("rasterizeCursorTrailCellMap – buffer reuse and nonEmpty", () => {
     const cellColors = new Uint8Array(cols * rows * 3).fill(255);
 
     const first = rasterizeCursorTrailCellMap(
-      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 0.5, radius: 5 }],
+      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 0.5, radius: 5, progress: 0, seed: 1 }],
       config,
       40,
       40,
@@ -714,7 +729,7 @@ describe("rasterizeCursorTrailCellMap – buffer reuse and nonEmpty", () => {
     );
 
     const second = rasterizeCursorTrailCellMap(
-      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 0.5, radius: 5 }],
+      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 0.5, radius: 5, progress: 0, seed: 1 }],
       config,
       40,
       40,
@@ -736,7 +751,7 @@ describe("rasterizeCursorTrailCellMap – buffer reuse and nonEmpty", () => {
 
     // First pass: sample at cell (2,2)
     const out = rasterizeCursorTrailCellMap(
-      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 1, radius: 5 }],
+      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 1, radius: 5, progress: 0, seed: 1 }],
       config,
       40,
       40,
@@ -797,7 +812,7 @@ describe("rasterizeCursorTrailCellMap – buffer reuse and nonEmpty", () => {
     const cellColors = new Uint8Array(cols * rows * 3).fill(255);
 
     const map = rasterizeCursorTrailCellMap(
-      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 0.3, radius: 10 }],
+      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 0.3, radius: 10, progress: 0, seed: 1 }],
       config,
       40,
       40,
@@ -816,7 +831,7 @@ describe("rasterizeCursorTrailCellMap – buffer reuse and nonEmpty", () => {
     const cellColors6 = new Uint8Array(6 * 6 * 3).fill(255);
 
     const first = rasterizeCursorTrailCellMap(
-      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 0.5, radius: 5 }],
+      [{ x: 20, y: 20, pushX: 20, pushY: 20, alpha: 0.5, radius: 5, progress: 0, seed: 1 }],
       config,
       40,
       40,
@@ -827,7 +842,7 @@ describe("rasterizeCursorTrailCellMap – buffer reuse and nonEmpty", () => {
     );
 
     const second = rasterizeCursorTrailCellMap(
-      [{ x: 30, y: 30, pushX: 30, pushY: 30, alpha: 0.5, radius: 5 }],
+      [{ x: 30, y: 30, pushX: 30, pushY: 30, alpha: 0.5, radius: 5, progress: 0, seed: 1 }],
       config,
       60,
       60,
@@ -841,5 +856,251 @@ describe("rasterizeCursorTrailCellMap – buffer reuse and nonEmpty", () => {
     expect(second).not.toBe(first);
     expect(second.cols).toBe(6);
     expect(second.rows).toBe(6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. Click wave accumulation (explosion ring)
+// ---------------------------------------------------------------------------
+function makeClickConfig(overrides: Partial<typeof DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG> = {}) {
+  return { ...DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG, ...overrides };
+}
+
+function makeClickSample(
+  overrides: Partial<{
+    x: number;
+    y: number;
+    radius: number;
+    strokeWidth: number;
+    waveProgress: number;
+    pushPower: number;
+    whitePower: number;
+    seed: number;
+  }> = {},
+) {
+  return {
+    x: 100,
+    y: 100,
+    radius: 60,
+    strokeWidth: 20,
+    waveProgress: 0.3,
+    pushPower: 1,
+    whitePower: 1,
+    seed: 5,
+    ...overrides,
+  };
+}
+
+describe("accumulateClickWaveCellMap – explosion ring", () => {
+  const cols = 20;
+  const rows = 20;
+  const displayWidth = 200;
+  const displayHeight = 200;
+  // Mapping: cell = display * (20 / 200); click at (100,100) → cell centre (10,10);
+  // radius 60px → R = 6 cells; stroke 20px → halfStroke = 1 cell; wobble amplitude = 1.08 cells.
+
+  const R = 6;
+  const halfStroke = 1;
+  const wobbleAmplitude = Math.max(1, R * 0.18);
+
+  function expectedRingAlpha(sample: ReturnType<typeof makeClickSample>, whitePeak: number, x: number, y: number) {
+    const dx = x - 10;
+    const dy = y - 10;
+    const distance = Math.hypot(dx, dy);
+    const front = R + clickRadiusWobble(sample.seed, Math.atan2(dy, dx), sample.waveProgress, wobbleAmplitude);
+    const breakup = clickStrengthBreakup(sample.seed, x, y, sample.waveProgress, 0.5);
+    const fo = Math.abs(distance - front) >= halfStroke ? 0 : (() => {
+      const t = 1 - Math.abs(distance - front) / halfStroke;
+      return t * t * (3 - 2 * t);
+    })();
+    return Math.max(0, Math.min(1, whitePeak * breakup * fo));
+  }
+
+  it("brightens the wobbled, broken-up ring band and leaves core/far field dark", () => {
+    const config = makeClickConfig({ stripeWhiteAlpha: 0.5, pushStrengthPx: 0 });
+    const sample = makeClickSample();
+    const map = resetCursorTrailCellMap(null, cols, rows);
+    accumulateClickWaveCellMap(map, [sample], config, displayWidth, displayHeight, undefined, undefined);
+
+    // Every cell matches the wobble + breakup + falloff recipe exactly.
+    let nonZero = 0;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const expected = expectedRingAlpha(sample, 0.5, x, y);
+        expect(map.whiteAlpha[y * cols + x]).toBeCloseTo(expected, 5);
+        if (expected > 0) nonZero++;
+      }
+    }
+    expect(nonZero).toBeGreaterThan(0);
+    // Centre and far corner are untouched regardless of wobble.
+    expect(map.whiteAlpha[10 * cols + 10]).toBe(0);
+    expect(map.whiteAlpha[0]).toBe(0);
+    expect(map.nonEmpty).toBe(true);
+  });
+
+  it("pushes outward with a monotonic interior ramp peaking at the wobbled front", () => {
+    const config = makeClickConfig({ pushStrengthPx: 10, pushBandScale: 2, stripeWhiteAlpha: 0 });
+    const sample = makeClickSample();
+    const map = resetCursorTrailCellMap(null, cols, rows);
+    accumulateClickWaveCellMap(map, [sample], config, displayWidth, displayHeight, undefined, undefined);
+
+    // Along the +x axis (angle 0) the front sits at R + wobble(angle=0).
+    const front = Math.max(0.5, R + clickRadiusWobble(sample.seed, 0, sample.waveProgress, wobbleAmplitude));
+    const pushAt = (x: number) => map.pushX[10 * cols + x] ?? 0;
+    const smooth = (t: number) => t * t * (3 - 2 * t);
+    const pushScale = 10 * (cols / displayWidth); // 1 cell
+
+    for (const x of [12, 14, 16]) {
+      const d = x - 10;
+      const w = d <= front
+        ? smooth(d / front)
+        : (() => {
+            const band = 2;
+            if (d - front >= band) return 0;
+            const t = 1 - (d - front) / band;
+            return t * t * (3 - 2 * t);
+          })();
+      expect(pushAt(x)).toBeCloseTo(pushScale * sample.pushPower * w, 5);
+      // Outward on the +x axis → no vertical component.
+      expect(map.pushY[10 * cols + x]).toBeCloseTo(0, 5);
+    }
+    // Interior ramp is monotonic toward the front.
+    expect(pushAt(14)).toBeGreaterThan(pushAt(12));
+    // Far outside everything: zero.
+    expect(pushAt(19)).toBe(0);
+  });
+
+  it("opens a tear hole strictly inside the front after finalize, none beyond the band", () => {
+    const config = makeClickConfig({ pushStrengthPx: 10, pushBandScale: 2, stripeWhiteAlpha: 0 });
+    const map = resetCursorTrailCellMap(null, cols, rows);
+    accumulateClickWaveCellMap(map, [makeClickSample()], config, displayWidth, displayHeight, undefined, undefined);
+    finalizeCursorTrailCellMap(
+      map,
+      Math.min(resolveCursorTrailPushScaleCells(10, displayWidth, cols), CURSOR_TRAIL_MAX_PUSH_CELLS),
+    );
+
+    // Interior (between centre and front) diverges outward → tear opens.
+    expect(map.tear[10 * cols + 13]).toBeGreaterThan(0);
+    // Beyond front + wobble + push band (+1.5 for the difference stencil): nothing tears.
+    for (let x = 0; x < cols; x++) {
+      for (let y = 0; y < rows; y++) {
+        const d = Math.hypot(x - 10, y - 10);
+        if (d > R + wobbleAmplitude + 2 + 1.5) {
+          expect(map.tear[y * cols + x]).toBe(0);
+        }
+      }
+    }
+  });
+
+  it("dissolves cell by cell late in life instead of staying a solid ring", () => {
+    const config = makeClickConfig({ stripeWhiteAlpha: 0.5, pushStrengthPx: 0 });
+    const countLit = (waveProgress: number) => {
+      const map = resetCursorTrailCellMap(null, cols, rows);
+      accumulateClickWaveCellMap(
+        map,
+        [makeClickSample({ waveProgress })],
+        config,
+        displayWidth,
+        displayHeight,
+        undefined,
+        undefined,
+      );
+      let lit = 0;
+      for (let i = 0; i < cols * rows; i++) {
+        if ((map.whiteAlpha[i] ?? 0) > 0) lit++;
+      }
+      return lit;
+    };
+
+    expect(clickDissolveProgress(0.3)).toBe(0);
+    expect(clickDissolveProgress(0.95)).toBeGreaterThan(0.8);
+
+    const early = countLit(0.3);
+    const late = countLit(0.95);
+    expect(early).toBeGreaterThan(0);
+    // Most surviving ring cells have crumbled away near the end of life.
+    expect(late).toBeLessThan(early * 0.5);
+  });
+
+  it("merges trail and click contributions into one reused map with saturating whiteAlpha", () => {
+    const trailConfig = { ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG, pushStrengthPx: 0 };
+    const clickConfig = makeClickConfig({ stripeWhiteAlpha: 0.5, pushStrengthPx: 0 });
+    const sample = makeClickSample();
+    // Trail particle parked on a ring cell → display (160,100) = cell (16,10).
+    const trailSamples = [{ x: 160, y: 100, pushX: 160, pushY: 100, alpha: 0.4, radius: 10, progress: 0, seed: 1 }];
+    const cellIdx = 10 * cols + 16;
+
+    const trailOnly = resetCursorTrailCellMap(null, cols, rows);
+    accumulateCursorTrailCellMap(trailOnly, trailSamples, trailConfig, displayWidth, displayHeight, undefined, undefined);
+    const trailAlpha = trailOnly.whiteAlpha[cellIdx] ?? 0;
+    expect(trailAlpha).toBeGreaterThan(0);
+
+    const clickOnly = resetCursorTrailCellMap(null, cols, rows);
+    accumulateClickWaveCellMap(clickOnly, [sample], clickConfig, displayWidth, displayHeight, undefined, undefined);
+    const clickAlpha = clickOnly.whiteAlpha[cellIdx] ?? 0;
+
+    let merged = resetCursorTrailCellMap(null, cols, rows);
+    const reused = merged;
+    accumulateCursorTrailCellMap(merged, trailSamples, trailConfig, displayWidth, displayHeight, undefined, undefined);
+    accumulateClickWaveCellMap(merged, [sample], clickConfig, displayWidth, displayHeight, undefined, undefined);
+    merged = finalizeCursorTrailCellMap(merged, 1);
+
+    expect(merged).toBe(reused);
+    expect(merged.whiteAlpha[cellIdx]).toBeCloseTo(trailAlpha + (1 - trailAlpha) * clickAlpha, 5);
+    expect(merged.whiteAlpha[cellIdx]!).toBeLessThanOrEqual(1);
+  });
+
+  it("caps merged push magnitude via finalize", () => {
+    const clickConfig = makeClickConfig({ pushStrengthPx: 100, pushBandScale: 2, stripeWhiteAlpha: 0 });
+    const map = resetCursorTrailCellMap(null, cols, rows);
+    accumulateClickWaveCellMap(
+      map,
+      [makeClickSample(), makeClickSample({ seed: 9 })],
+      clickConfig,
+      displayWidth,
+      displayHeight,
+      undefined,
+      undefined,
+    );
+    finalizeCursorTrailCellMap(map, CURSOR_TRAIL_MAX_PUSH_CELLS);
+
+    for (let i = 0; i < cols * rows; i++) {
+      const length = Math.hypot(map.pushX[i] ?? 0, map.pushY[i] ?? 0);
+      expect(length).toBeLessThanOrEqual(CURSOR_TRAIL_MAX_PUSH_CELLS + 1e-6);
+    }
+    expect(map.pushRange).toBeLessThanOrEqual(CURSOR_TRAIL_MAX_PUSH_CELLS + 1e-6);
+  });
+
+  it("wrapper rasterizeCursorTrailCellMap ≡ reset + accumulate + finalize", () => {
+    const config = { ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG, pushStrengthPx: 6 };
+    const samples = [
+      { x: 50, y: 50, pushX: 50, pushY: 50, alpha: 0.8, radius: 25, progress: 0, seed: 1 },
+      { x: 80, y: 60, pushX: 80, pushY: 60, alpha: 0.5, radius: 15, progress: 0, seed: 1 },
+    ];
+
+    const viaWrapper = rasterizeCursorTrailCellMap(
+      samples,
+      config,
+      displayWidth,
+      displayHeight,
+      cols,
+      rows,
+      undefined,
+      undefined,
+    );
+
+    const manual = resetCursorTrailCellMap(null, cols, rows);
+    accumulateCursorTrailCellMap(manual, samples, config, displayWidth, displayHeight, undefined, undefined);
+    finalizeCursorTrailCellMap(
+      manual,
+      Math.min(resolveCursorTrailPushScaleCells(config.pushStrengthPx, displayWidth, cols), CURSOR_TRAIL_MAX_PUSH_CELLS),
+    );
+
+    expect(Array.from(viaWrapper.whiteAlpha)).toEqual(Array.from(manual.whiteAlpha));
+    expect(Array.from(viaWrapper.pushX)).toEqual(Array.from(manual.pushX));
+    expect(Array.from(viaWrapper.pushY)).toEqual(Array.from(manual.pushY));
+    expect(Array.from(viaWrapper.tear)).toEqual(Array.from(manual.tear));
+    expect(viaWrapper.pushRange).toBe(manual.pushRange);
+    expect(viaWrapper.nonEmpty).toBe(manual.nonEmpty);
   });
 });

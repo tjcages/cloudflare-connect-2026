@@ -312,7 +312,6 @@ describe("playgroundPersistence envelope migration", () => {
     const cursorTrail: PlaygroundCursorTrailConfig = {
       ...DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
       pushStrengthPx: 14,
-      trailScale: 0.25,
     };
     const text = serializePlaygroundState({
       duotoneEnabled: true,
@@ -322,10 +321,22 @@ describe("playgroundPersistence envelope migration", () => {
     const wire = JSON.parse(text);
 
     expect(wire.v).toBe(7);
-    expect(wire.ct).toEqual({ pd: 14, ts: 0.25 });
+    expect(wire.ct).toEqual({ pd: 14 });
     const parsed = parsePlaygroundStateInput(text);
     expect(parsed.cursorTrail?.pushStrengthPx).toBe(14);
-    expect(parsed.cursorTrail?.trailScale).toBe(0.25);
+  });
+
+  it("ignores legacy trail/click wire keys from payloads predating the GPU migration", () => {
+    const legacy = JSON.stringify({
+      v: 7,
+      d: true,
+      ct: { pd: 14, ts: 0.25 },
+      cc: { ps: 22, sw: 0.5, scn: 8, scx: 24, skn: 0.1, skx: 0.2, sln: 3, slx: 9 },
+    });
+    const parsed = parsePlaygroundStateInput(legacy);
+    expect(parsed.cursorTrail?.pushStrengthPx).toBe(14);
+    expect(parsed.clickWave?.pushStrengthPx).toBe(22);
+    expect(parsed.clickWave).not.toHaveProperty("sliceWhiteAlpha");
   });
 });
 

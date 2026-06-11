@@ -14,6 +14,10 @@ export type CursorTrailSample = CursorTrailPoint & {
   radius: number;
   pushX: number;
   pushY: number;
+  /** 0 at particle birth, 1 at death — drives the pixelated dissolve exit. */
+  progress: number;
+  /** Deterministic per-particle seed for the rasterizer's dissolve noise. */
+  seed: number;
 };
 
 export type CursorTrailPixelBounds = {
@@ -51,28 +55,6 @@ const MAX_DT_MS = 48;
 function seededUnit(seed: number, salt: number): number {
   const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
   return x - Math.floor(x);
-}
-
-export function mergeCursorTrailPixelBounds(
-  a: CursorTrailPixelBounds,
-  b: CursorTrailPixelBounds,
-): CursorTrailPixelBounds {
-  return {
-    dirtyMinX: Math.min(a.dirtyMinX, b.dirtyMinX),
-    dirtyMinY: Math.min(a.dirtyMinY, b.dirtyMinY),
-    dirtyMaxX: Math.max(a.dirtyMaxX, b.dirtyMaxX),
-    dirtyMaxY: Math.max(a.dirtyMaxY, b.dirtyMaxY),
-  };
-}
-
-export function resolveCursorTrailRebuildBounds(
-  current: CursorTrailPixelBounds | null,
-  previous: CursorTrailPixelBounds | null,
-): CursorTrailPixelBounds | null {
-  if (current && previous) {
-    return mergeCursorTrailPixelBounds(current, previous);
-  }
-  return current ?? previous;
 }
 
 function pushCenterForDrop(drop: CursorTrailDrop, config: PlaygroundCursorTrailConfig): CursorTrailPoint {
@@ -224,6 +206,8 @@ export function updateCursorTrail(
       pushY: pushCenter.y,
       radius: next.radius * (config.densityRadiusMinScale + life * config.densityRadiusLifeScale),
       alpha: config.particleAlpha * life * life,
+      progress: 1 - life,
+      seed: drop.seed,
     });
   }
   state.drops = nextDrops;
@@ -241,74 +225,4 @@ export function updateCursorTrail(
     samples,
     changed: samples.length > 0 || isClearing,
   };
-}
-
-export function downsamplePixelsNearest(
-  source: Uint8ClampedArray,
-  sourceWidth: number,
-  sourceHeight: number,
-  target: Uint8ClampedArray,
-  targetWidth: number,
-  targetHeight: number,
-): void {
-  for (let y = 0; y < targetHeight; y++) {
-    const sourceY = Math.min(sourceHeight - 1, Math.floor((y * sourceHeight) / targetHeight));
-    for (let x = 0; x < targetWidth; x++) {
-      const sourceX = Math.min(sourceWidth - 1, Math.floor((x * sourceWidth) / targetWidth));
-      const sourceIdx = (sourceY * sourceWidth + sourceX) * 4;
-      const targetIdx = (y * targetWidth + x) * 4;
-      target[targetIdx] = source[sourceIdx] ?? 0;
-      target[targetIdx + 1] = source[sourceIdx + 1] ?? 0;
-      target[targetIdx + 2] = source[sourceIdx + 2] ?? 0;
-      target[targetIdx + 3] = source[sourceIdx + 3] ?? 255;
-    }
-  }
-}
-
-export function upscalePixelsNearest(
-  source: Uint8ClampedArray,
-  sourceWidth: number,
-  sourceHeight: number,
-  target: Uint8ClampedArray,
-  targetWidth: number,
-  targetHeight: number,
-): void {
-  upscalePixelsNearestRegion(source, sourceWidth, sourceHeight, target, targetWidth, targetHeight, {
-    dirtyMinX: 0,
-    dirtyMinY: 0,
-    dirtyMaxX: targetWidth - 1,
-    dirtyMaxY: targetHeight - 1,
-  });
-}
-
-/** Nearest-neighbor upscale for one display rectangle (reuses the full-frame mapping). */
-export function upscalePixelsNearestRegion(
-  source: Uint8ClampedArray,
-  sourceWidth: number,
-  sourceHeight: number,
-  target: Uint8ClampedArray,
-  targetWidth: number,
-  targetHeight: number,
-  bounds: CursorTrailPixelBounds,
-): void {
-  const minX = Math.max(0, Math.floor(bounds.dirtyMinX));
-  const minY = Math.max(0, Math.floor(bounds.dirtyMinY));
-  const maxX = Math.min(targetWidth - 1, Math.ceil(bounds.dirtyMaxX));
-  const maxY = Math.min(targetHeight - 1, Math.ceil(bounds.dirtyMaxY));
-  if (maxX < minX || maxY < minY) {
-    return;
-  }
-
-  for (let y = minY; y <= maxY; y++) {
-    const sourceY = Math.min(sourceHeight - 1, Math.floor((y * sourceHeight) / targetHeight));
-    for (let x = minX; x <= maxX; x++) {
-      const sourceX = Math.min(sourceWidth - 1, Math.floor((x * sourceWidth) / targetWidth));
-      const sourceIdx = (sourceY * sourceWidth + sourceX) * 4;
-      const targetIdx = (y * targetWidth + x) * 4;
-      target[targetIdx] = source[sourceIdx] ?? 0;
-      target[targetIdx + 1] = source[sourceIdx + 1] ?? 0;
-      target[targetIdx + 2] = source[sourceIdx + 2] ?? 0;
-      target[targetIdx + 3] = source[sourceIdx + 3] ?? 255;
-    }
-  }
 }

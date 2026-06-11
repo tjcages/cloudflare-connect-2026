@@ -55,31 +55,25 @@ import { createSourceTextureFilter } from "./sourceTextureFilter";
 import {
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   normalizePlaygroundCursorTrailConfig,
-  resolveCursorTrailEffectSize,
   type PlaygroundCursorTrailConfig,
 } from "./playgroundCursorTrailConfig";
-import {
-  addClickWave,
-  applyClickWavesToEffectPixels,
-  createClickWaveState,
-  updateClickWave,
-  type ClickWaveGridContext,
-  type ClickWaveSample,
-  type ClickWaveState,
-} from "./clickWave";
+import { addClickWave, createClickWaveState, updateClickWave, type ClickWaveState } from "./clickWave";
 import {
   createCursorTrailState,
-  downsamplePixelsNearest,
   setCursorTrailTarget,
   updateCursorTrail,
-  upscalePixelsNearest,
-  type CursorTrailPixelBounds,
   type CursorTrailState,
 } from "./cursorTrail";
 import {
+  accumulateClickWaveCellMap,
+  accumulateCursorTrailCellMap,
   applyCursorTrailCell,
+  CLICK_WAVE_MAX_PUSH_CELLS,
+  CURSOR_TRAIL_MAX_PUSH_CELLS,
   CursorTrailOverlay,
-  rasterizeCursorTrailCellMap,
+  finalizeCursorTrailCellMap,
+  resetCursorTrailCellMap,
+  resolveCursorTrailPushScaleCells,
   type CursorTrailCellMap,
 } from "./cursorTrailOverlay";
 import { buildStripeIndexLut, resolvePlaygroundPixiTint, resolveStripesForLuminanceMode } from "./stripeColors";
@@ -386,42 +380,6 @@ function attachPlaygroundPointerEvents(
   };
 }
 
-function buildDisplayFrameWithClickWaves(
-  cachedEffectBase: Uint8ClampedArray,
-  effectWidth: number,
-  effectHeight: number,
-  displayWidth: number,
-  displayHeight: number,
-  clickWaveSamples: readonly ClickWaveSample[],
-  clickWaveConfig: PlaygroundClickWaveConfig,
-  clickWaveGrid: ClickWaveGridContext,
-  workingEffect?: Uint8ClampedArray,
-  displayPixels?: Uint8ClampedArray,
-): { data: Uint8ClampedArray; bounds: CursorTrailPixelBounds | null } {
-  const effect = workingEffect ?? new Uint8ClampedArray(cachedEffectBase);
-  if (effect !== cachedEffectBase) {
-    effect.set(cachedEffectBase);
-  }
-
-  const bounds =
-    clickWaveSamples.length > 0
-      ? applyClickWavesToEffectPixels(
-          effect,
-          effectWidth,
-          effectHeight,
-          displayWidth,
-          displayHeight,
-          clickWaveSamples,
-          clickWaveConfig,
-          clickWaveGrid,
-        )
-      : null;
-
-  const output = displayPixels ?? new Uint8ClampedArray(displayWidth * displayHeight * 4);
-  upscalePixelsNearest(effect, effectWidth, effectHeight, output, displayWidth, displayHeight);
-  return { data: output, bounds };
-}
-
 function runDuotoneTick(params: {
   app: Parameters<Ticker>[0]["app"];
   sprite: Sprite;
@@ -531,11 +489,6 @@ function runDuotoneTick(params: {
   let lastLetterCharset = gridConfigRef.current.letterCharset;
   let lastLetterRatio = gridConfigRef.current.letterRatio;
   let lastRevealReplayKey = revealPlaybackRef.current.replayKey;
-  let cachedEffectBase: Uint8ClampedArray | null = null;
-  let cachedEffectBaseKey = "";
-  let workingEffectPixels: Uint8ClampedArray | null = null;
-  let displayFramePixels: Uint8ClampedArray | null = null;
-  let displayFrameImageData: ImageData | null = null;
 
   const originalSpriteTexture = sprite.texture;
   const previewCanvas = document.createElement("canvas");
@@ -652,18 +605,6 @@ function runDuotoneTick(params: {
     cursorTrailOverlay.destroy();
     letterLayer.destroy();
     destroyStripeLetterAtlas(atlas);
-  };
-
-  const frameFromDisplayPixels = (pixels: Uint8ClampedArray): ImageData => {
-    if (
-      !displayFrameImageData ||
-      displayFrameImageData.width !== display.width ||
-      displayFrameImageData.height !== display.height ||
-      displayFrameImageData.data !== pixels
-    ) {
-      displayFrameImageData = new ImageData(pixels as Uint8ClampedArray<ArrayBuffer>, display.width, display.height);
-    }
-    return displayFrameImageData;
   };
 
   const tick = () => {
@@ -837,7 +778,6 @@ function runDuotoneTick(params: {
     const revealActive = revealEnabled && revealProgress < 1;
     const trailSamplingEnabled = cursorTrailConfig.enabled;
     const clickWaveSamplingEnabled = clickWaveConfig.enabled && !revealActive;
-    const pointerEffectsChanged = clickWaveSamplingEnabled && clickWave.changed;
     const sourceTimeChanged = shouldSample() || revealActive;
     const needsSourceFrame = sourceTimeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
 
@@ -855,99 +795,15 @@ function runDuotoneTick(params: {
       lastColorsKey = colorsKey;
       pendingFullResample = true;
       pendingColorsResample = true;
-      cachedEffectBase = null;
-      cachedEffectBaseKey = "";
     }
 
     const gridConfig = gridConfigRef.current;
     const effectiveCell = effectivePlaygroundCellSize(gridConfig);
-    const effectSize = resolveCursorTrailEffectSize(
-      display.width,
-      display.height,
-      cursorTrailConfig,
-      effectiveCell.width,
-      effectiveCell.height,
-    );
-    const effectPixelCount = effectSize.width * effectSize.height * 4;
-    const displayPixelCount = display.width * display.height * 4;
-    const frameCacheKey = `${display.width}x${display.height}:${colorsKey}:${effectSize.width}x${effectSize.height}`;
-
-    if (needsSourceFrame) {
-      const sampleTimer = tickTimer ? createPlaygroundPerfTimer() : null;
-      const sampled = sampleFrame();
-      if (sampleTimer) {
-        sampleFrameMs += sampleTimer.elapsedMs();
-      }
-      if (sampled) {
-        if (!cachedEffectBase || cachedEffectBase.length !== effectPixelCount) {
-          cachedEffectBase = new Uint8ClampedArray(effectPixelCount);
-        }
-        downsamplePixelsNearest(
-          sampled.data,
-          display.width,
-          display.height,
-          cachedEffectBase,
-          effectSize.width,
-          effectSize.height,
-        );
-        cachedEffectBaseKey = frameCacheKey;
-      } else {
-        cachedEffectBase = null;
-        cachedEffectBaseKey = "";
-      }
-    }
 
     const fullResampleReady = now - lastFullResampleMs >= PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS;
 
     let frame: ImageData | null = null;
-    const needsPointerEffectsFrame =
-      pointerEffectsChanged && cachedEffectBase && cachedEffectBaseKey === frameCacheKey;
-    const clickWaveSamples = clickWaveSamplingEnabled ? clickWave.samples : [];
-
-    if (needsPointerEffectsFrame && cachedEffectBase) {
-      const compositeTimer = tickTimer ? createPlaygroundPerfTimer() : null;
-      if (!workingEffectPixels || workingEffectPixels.length !== effectPixelCount) {
-        workingEffectPixels = new Uint8ClampedArray(effectPixelCount);
-      }
-      if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
-        displayFramePixels = new Uint8ClampedArray(displayPixelCount);
-      }
-      const composited = buildDisplayFrameWithClickWaves(
-        cachedEffectBase,
-        effectSize.width,
-        effectSize.height,
-        display.width,
-        display.height,
-        clickWaveSamples,
-        clickWaveConfig,
-        { gridCellWidth: effectiveCell.width, gridCellHeight: effectiveCell.height },
-        workingEffectPixels,
-        displayFramePixels,
-      );
-      frame = frameFromDisplayPixels(composited.data);
-      if (compositeTimer) {
-        pointerCompositeMs += compositeTimer.elapsedMs();
-      }
-      onSampled?.();
-    } else if (needsSourceFrame && cachedEffectBase && cachedEffectBaseKey === frameCacheKey) {
-      if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
-        displayFramePixels = new Uint8ClampedArray(displayPixelCount);
-      }
-      buildDisplayFrameWithClickWaves(
-        cachedEffectBase,
-        effectSize.width,
-        effectSize.height,
-        display.width,
-        display.height,
-        [],
-        clickWaveConfig,
-        { gridCellWidth: effectiveCell.width, gridCellHeight: effectiveCell.height },
-        workingEffectPixels ?? undefined,
-        displayFramePixels,
-      );
-      frame = frameFromDisplayPixels(displayFramePixels);
-      onSampled?.();
-    } else if (needsSourceFrame) {
+    if (needsSourceFrame) {
       const sampleTimer = tickTimer ? createPlaygroundPerfTimer() : null;
       frame = sampleFrame();
       if (sampleTimer) {
@@ -962,7 +818,6 @@ function runDuotoneTick(params: {
       frame &&
       (!hasBuiltGrid ||
         (pendingFullResample && fullResampleReady) ||
-        pointerEffectsChanged ||
         (sourceTimeChanged && !pendingFullResample && now - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
 
     if (shouldRebuildGrid && frame) {
@@ -973,9 +828,6 @@ function runDuotoneTick(params: {
       if (pendingColorsResample) {
         gridState = {};
         pendingColorsResample = false;
-      }
-      if (pointerEffectsChanged) {
-        gridState = {};
       }
 
       let luminanceSettings = textureLuminanceSettingsRef.current;
@@ -1057,23 +909,53 @@ function runDuotoneTick(params: {
     }
 
     const trailTimer = tickTimer ? createPlaygroundPerfTimer() : null;
-    if (trailSamplingEnabled && trail.changed && hasBuiltGrid) {
-      trailMap = rasterizeCursorTrailCellMap(
-        trail.samples,
-        cursorTrailConfig,
-        display.width,
-        display.height,
-        blockGridTexture.cols,
-        blockGridTexture.rows,
-        textureLuminanceSettingsRef.current,
-        lastLumaGrid?.colors,
-        trailMap ?? undefined,
+    const pointerMapChanged =
+      (trailSamplingEnabled && trail.changed) || (clickWaveSamplingEnabled && clickWave.changed);
+    if (pointerMapChanged && hasBuiltGrid) {
+      trailMap = resetCursorTrailCellMap(trailMap, blockGridTexture.cols, blockGridTexture.rows);
+      if (trailSamplingEnabled) {
+        accumulateCursorTrailCellMap(
+          trailMap,
+          trail.samples,
+          cursorTrailConfig,
+          display.width,
+          display.height,
+          textureLuminanceSettingsRef.current,
+          lastLumaGrid?.colors,
+        );
+      }
+      if (clickWaveSamplingEnabled) {
+        accumulateClickWaveCellMap(
+          trailMap,
+          clickWave.samples,
+          clickWaveConfig,
+          display.width,
+          display.height,
+          textureLuminanceSettingsRef.current,
+          lastLumaGrid?.colors,
+        );
+      }
+      const pushCap = Math.max(
+        trailSamplingEnabled
+          ? Math.min(
+              CURSOR_TRAIL_MAX_PUSH_CELLS,
+              resolveCursorTrailPushScaleCells(cursorTrailConfig.pushStrengthPx, display.width, blockGridTexture.cols),
+            )
+          : 0,
+        clickWaveSamplingEnabled
+          ? Math.min(
+              CLICK_WAVE_MAX_PUSH_CELLS,
+              resolveCursorTrailPushScaleCells(clickWaveConfig.pushStrengthPx, display.width, blockGridTexture.cols),
+            )
+          : 0,
       );
+      finalizeCursorTrailCellMap(trailMap, pushCap);
       cursorTrailOverlay.sync(trailMap);
     }
-    const trailActive = trailSamplingEnabled && hasBuiltGrid && trailMap?.nonEmpty === true;
-    if (trailActive && trailMap) {
-      const pushActive = cursorTrailConfig.pushStrengthPx > 0;
+    const pointerActive =
+      (trailSamplingEnabled || clickWaveSamplingEnabled) && hasBuiltGrid && trailMap?.nonEmpty === true;
+    if (pointerActive && trailMap) {
+      const pushActive = cursorTrailConfig.pushStrengthPx > 0 || clickWaveConfig.pushStrengthPx > 0;
       stripeFilter.syncCursorTrail(
         cursorTrailOverlay.texture,
         pushActive ? cursorTrailOverlay.pushTexture : null,
@@ -1083,7 +965,7 @@ function runDuotoneTick(params: {
       stripeFilter.syncCursorTrail(null, null, 0);
     }
 
-    if (trailActive && trailMap && gridState.stableIndices && lastLumaGrid?.luma && trailStripeLut) {
+    if (pointerActive && trailMap && gridState.stableIndices && lastLumaGrid?.luma && trailStripeLut) {
       // Letters react to the trail: mirror the shader's per-cell band math on the CPU grid.
       const cols = blockGridTexture.cols;
       const rows = blockGridTexture.rows;

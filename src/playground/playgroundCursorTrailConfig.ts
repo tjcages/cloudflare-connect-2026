@@ -21,8 +21,6 @@ export type PlaygroundCursorTrailConfig = {
   pushWobblePx: number;
   /** Thin black shell on the outer push edge, applied before displacement. */
   pushLeadBlackAlpha: number;
-  /** 0 = auto (one effect pixel per stripe cell). Otherwise fraction of display size. */
-  trailScale: number;
 };
 
 export const DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG: PlaygroundCursorTrailConfig = {
@@ -47,7 +45,6 @@ export const DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG: PlaygroundCursorTrailConfig
   pushLagPx: 4,
   pushWobblePx: 2,
   pushLeadBlackAlpha: 0,
-  trailScale: 0,
 };
 
 function finiteNumber(value: unknown, fallback: number): number {
@@ -91,7 +88,6 @@ export function normalizePlaygroundCursorTrailConfig(
     pushLagPx: clamp(raw?.pushLagPx, base.pushLagPx, 0, 80),
     pushWobblePx: clamp(raw?.pushWobblePx, base.pushWobblePx, 0, 80),
     pushLeadBlackAlpha: clamp(raw?.pushLeadBlackAlpha, base.pushLeadBlackAlpha, 0, 1),
-    trailScale: clamp(raw?.trailScale, base.trailScale, 0, 1),
   };
 }
 
@@ -99,25 +95,4 @@ export function isDefaultPlaygroundCursorTrailConfig(config: PlaygroundCursorTra
   const normalized = normalizePlaygroundCursorTrailConfig(config);
   const base = DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG;
   return (Object.keys(base) as (keyof PlaygroundCursorTrailConfig)[]).every((key) => normalized[key] === base[key]);
-}
-
-export function resolveCursorTrailEffectSize(
-  displayWidth: number,
-  displayHeight: number,
-  config: PlaygroundCursorTrailConfig,
-  cellWidth: number,
-  cellHeight: number,
-): { width: number; height: number } {
-  if (config.trailScale > 0) {
-    return {
-      width: Math.max(1, Math.round(displayWidth * config.trailScale)),
-      height: Math.max(1, Math.round(displayHeight * config.trailScale)),
-    };
-  }
-  const safeCellWidth = Math.max(1, Math.round(cellWidth));
-  const safeCellHeight = Math.max(1, Math.round(cellHeight));
-  return {
-    width: Math.max(1, Math.ceil(displayWidth / safeCellWidth)),
-    height: Math.max(1, Math.ceil(displayHeight / safeCellHeight)),
-  };
 }

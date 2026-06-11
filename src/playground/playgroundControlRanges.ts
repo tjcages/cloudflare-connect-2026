@@ -44,7 +44,6 @@ export const PLAYGROUND_CONTROL_RANGES = {
   cursorTrailPushRadius: { min: 0, max: 6, step: 0.05 },
   cursorTrailPushLag: { min: 0, max: 20, step: 0.5 },
   cursorTrailPushWobble: { min: 0, max: 12, step: 0.5 },
-  cursorTrailScale: { min: 0, max: 1, step: 0.01 },
   clickWaveLifeMs: { min: 200, max: 4000, step: 10 },
   clickWaveStartRadius: { min: 1, max: 80, step: 1 },
   clickWaveMaxRadius: { min: 20, max: 400, step: 1 },
@@ -54,13 +53,6 @@ export const PLAYGROUND_CONTROL_RANGES = {
   clickWavePushStrength: { min: 0, max: 80, step: 0.5 },
   clickWavePushBandScale: { min: 1, max: 6, step: 0.1 },
   clickWaveRingWhite: { min: 0, max: 1, step: 0.01 },
-  clickWaveSliceWhite: { min: 0, max: 1, step: 0.01 },
-  clickWaveSliceCountMin: { min: 3, max: 48, step: 1 },
-  clickWaveSliceCountMax: { min: 3, max: 64, step: 1 },
-  clickWaveSliceSkipMin: { min: 0, max: 0.9, step: 0.01 },
-  clickWaveSliceSkipMax: { min: 0, max: 0.95, step: 0.01 },
-  clickWaveSliceLevelMin: { min: 2, max: 12, step: 1 },
-  clickWaveSliceLevelMax: { min: 2, max: 16, step: 1 },
 } as const;
 
 /** Wider bounds for typed values (sliders stay on PLAYGROUND_CONTROL_RANGES). */
@@ -106,7 +98,6 @@ export const PLAYGROUND_CONTROL_INPUT_BOUNDS = {
   cursorTrailPushRadius: { min: 0, max: 8 },
   cursorTrailPushLag: { min: 0, max: 80 },
   cursorTrailPushWobble: { min: 0, max: 80 },
-  cursorTrailScale: { min: 0, max: 1 },
   clickWaveLifeMs: { min: 80, max: 10_000 },
   clickWaveStartRadius: { min: 1, max: 120 },
   clickWaveMaxRadius: { min: 4, max: 600 },
@@ -116,11 +107,4 @@ export const PLAYGROUND_CONTROL_INPUT_BOUNDS = {
   clickWavePushStrength: { min: 0, max: 200 },
   clickWavePushBandScale: { min: 1, max: 8 },
   clickWaveRingWhite: { min: 0, max: 1 },
-  clickWaveSliceWhite: { min: 0, max: 1 },
-  clickWaveSliceCountMin: { min: 3, max: 64 },
-  clickWaveSliceCountMax: { min: 3, max: 64 },
-  clickWaveSliceSkipMin: { min: 0, max: 0.95 },
-  clickWaveSliceSkipMax: { min: 0, max: 0.95 },
-  clickWaveSliceLevelMin: { min: 2, max: 16 },
-  clickWaveSliceLevelMax: { min: 2, max: 16 },
 } as const;
