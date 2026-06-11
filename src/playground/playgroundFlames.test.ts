@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createPlaygroundFlamesState,
   drawPlaygroundFlames,
+  resolvePlaygroundFlamesRasterSize,
   spawnPlaygroundFlame,
   stepPlaygroundFlames,
 } from "./playgroundFlames";
@@ -39,6 +40,8 @@ describe("playgroundFlames", () => {
     expect(flame.color.r).toBeGreaterThanOrEqual(0);
     expect(flame.color.g).toBeGreaterThanOrEqual(0);
     expect(flame.color.b).toBeGreaterThanOrEqual(0);
+    expect(flame.opacity).toBeGreaterThanOrEqual(config.opacityMin);
+    expect(flame.opacity).toBeLessThanOrEqual(config.opacityMax);
   });
 
   it("assigns independent random speeds to each flame", () => {
@@ -100,6 +103,7 @@ describe("playgroundFlames", () => {
       width: 80,
       height: 40,
       speedPxPerSec: 120,
+      opacity: 1,
       color: { r: 255, g: 120, b: 40 },
     });
     state.lastStepMs = 1000;
@@ -119,6 +123,11 @@ describe("playgroundFlames", () => {
     expect(ctx).not.toBeNull();
 
     expect(() => drawPlaygroundFlames(ctx!, state, config, 100, 80)).not.toThrow();
+  });
+
+  it("resolves a cell-aligned low-res raster size for the GPU overlay", () => {
+    expect(resolvePlaygroundFlamesRasterSize(280, 210, 7, 7)).toEqual({ width: 40, height: 30 });
+    expect(resolvePlaygroundFlamesRasterSize(2000, 1500, 7, 7)).toEqual({ width: 286, height: 215 });
   });
 
   it("does not step when flames are disabled", () => {

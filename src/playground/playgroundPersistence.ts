@@ -310,6 +310,8 @@ type FlamesWire = {
   sj?: number;
   ma?: number;
   es?: number;
+  omin?: number;
+  omax?: number;
   em?: boolean;
   ms?: number;
   me?: number;
@@ -489,6 +491,8 @@ function flamesToWire(config: PlaygroundFlamesConfig): FlamesWire | undefined {
   if (normalized.spawnJitterMs !== base.spawnJitterMs) wire.sj = normalized.spawnJitterMs;
   if (normalized.maxActive !== base.maxActive) wire.ma = normalized.maxActive;
   if (normalized.edgeSharpness !== base.edgeSharpness) wire.es = normalized.edgeSharpness;
+  if (normalized.opacityMin !== base.opacityMin) wire.omin = normalized.opacityMin;
+  if (normalized.opacityMax !== base.opacityMax) wire.omax = normalized.opacityMax;
   if (normalized.edgeMaskEnabled !== base.edgeMaskEnabled) wire.em = normalized.edgeMaskEnabled;
   if (normalized.edgeMaskStart !== base.edgeMaskStart) wire.ms = normalized.edgeMaskStart;
   if (normalized.edgeMaskEnd !== base.edgeMaskEnd) wire.me = normalized.edgeMaskEnd;
@@ -514,6 +518,8 @@ function wireToFlames(raw: unknown): PlaygroundFlamesConfig | undefined {
     spawnJitterMs: wire.sj,
     maxActive: wire.ma,
     edgeSharpness: wire.es,
+    opacityMin: wire.omin,
+    opacityMax: wire.omax,
     edgeMaskEnabled: wire.em,
     edgeMaskStart: wire.ms,
     edgeMaskEnd: wire.me,

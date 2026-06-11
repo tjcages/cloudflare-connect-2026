@@ -13,7 +13,12 @@ import {
 import { createStripeDuotoneFilter, type StripeDuotoneFilter } from "./stripeDuotoneFilter";
 import type { StripeColors } from "./stripeColors";
 import { buildStripeLetterAtlas, destroyStripeLetterAtlas } from "./stripeLetterFont";
-import { stepPlaygroundFlames, PlaygroundFlamesOverlay, type PlaygroundFlamesState } from "./playgroundFlames";
+import {
+  PlaygroundFlamesOverlay,
+  resolvePlaygroundFlamesRasterSize,
+  stepPlaygroundFlames,
+  type PlaygroundFlamesState,
+} from "./playgroundFlames";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG, type PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import type { PlaygroundSparkleOptions } from "./playgroundSparkle";
 import type { PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
@@ -41,6 +46,7 @@ import {
 import type { PlaygroundRevealState } from "./playgroundReveal";
 import {
   detectTextureBackgroundColor,
+  overlayInvertsStripeBucketing,
   normalizeTextureLuminanceMode,
   type TextureLuminanceMode,
   type TextureLuminanceSettings,
@@ -66,7 +72,6 @@ import {
   applyCursorTrailToEffectPixels,
   createCursorTrailState,
   downsamplePixelsNearest,
-  resolveCursorTrailRebuildBounds,
   setCursorTrailTarget,
   updateCursorTrail,
   upscalePixelsNearest,
@@ -80,6 +85,11 @@ import {
   normalizePlaygroundClickWaveConfig,
   type PlaygroundClickWaveConfig,
 } from "./playgroundClickWaveConfig";
+import {
+  createPlaygroundPerfTimer,
+  isPlaygroundPerfProfilingEnabled,
+  recordPlaygroundPerfSample,
+} from "./playgroundPerfProfile";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -514,9 +524,16 @@ function runDuotoneTick(params: {
   let hasBuiltGrid = false;
   let pendingFullResample = false;
   let pendingColorsResample = false;
-  const flamesOverlay = flamesStateRef.current ? new PlaygroundFlamesOverlay(display.width, display.height) : null;
-
   const initialCell = effectivePlaygroundCellSize(gridConfigRef.current);
+  const initialFlamesRaster = resolvePlaygroundFlamesRasterSize(
+    display.width,
+    display.height,
+    initialCell.width,
+    initialCell.height,
+  );
+  const flamesOverlay = flamesStateRef.current
+    ? new PlaygroundFlamesOverlay(initialFlamesRaster.width, initialFlamesRaster.height)
+    : null;
   let lastEffWidth = initialCell.width;
   let lastEffHeight = initialCell.height;
   let lastLetterSize = gridConfigRef.current.letterSize;
@@ -527,7 +544,7 @@ function runDuotoneTick(params: {
   let cachedEffectBaseKey = "";
   let workingEffectPixels: Uint8ClampedArray | null = null;
   let displayFramePixels: Uint8ClampedArray | null = null;
-  let previousTrailPixelBounds: CursorTrailPixelBounds | null = null;
+  let displayFrameImageData: ImageData | null = null;
 
   const originalSpriteTexture = sprite.texture;
   const previewCanvas = document.createElement("canvas");
@@ -643,7 +660,24 @@ function runDuotoneTick(params: {
     destroyStripeLetterAtlas(atlas);
   };
 
+  const frameFromDisplayPixels = (pixels: Uint8ClampedArray): ImageData => {
+    if (
+      !displayFrameImageData ||
+      displayFrameImageData.width !== display.width ||
+      displayFrameImageData.height !== display.height ||
+      displayFrameImageData.data !== pixels
+    ) {
+      displayFrameImageData = new ImageData(pixels as Uint8ClampedArray<ArrayBuffer>, display.width, display.height);
+    }
+    return displayFrameImageData;
+  };
+
   const tick = () => {
+    const tickTimer = isPlaygroundPerfProfilingEnabled() ? createPlaygroundPerfTimer() : null;
+    let sampleFrameMs = 0;
+    let pointerCompositeMs = 0;
+    let buildGridMs = 0;
+    let blockTextureMs = 0;
     const now = performance.now();
     const cursorTrailConfig = normalizePlaygroundCursorTrailConfig(cursorTrailConfigRef.current);
     const clickWaveConfig = normalizePlaygroundClickWaveConfig(clickWaveConfigRef.current);
@@ -657,6 +691,7 @@ function runDuotoneTick(params: {
     });
     sourceTextureFilter.syncLuminanceSettings(textureLuminanceSettingsRef.current);
     stripeFilter.syncUseCellColors(textureLuminanceSettingsRef.current.mode === "colors");
+    stripeFilter.syncInvertStripeBucketing(overlayInvertsStripeBucketing(textureLuminanceSettingsRef.current.mode));
     const luminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
     stripeFilter.syncTextureUnderlay(luminanceMode === "overlay");
     const flamesState = flamesStateRef.current;
@@ -735,6 +770,7 @@ function runDuotoneTick(params: {
       }
 
       sourceTextureFilter.syncFlames(null, null);
+      stripeFilter.syncFlames(null, null);
       if (exportStateRef) {
         exportStateRef.current = {
           grid: null,
@@ -748,6 +784,22 @@ function runDuotoneTick(params: {
     }
 
     sourceTextureFilter.syncFlames(null, null);
+    const flamesRasterCell = effectivePlaygroundCellSize(gridConfigRef.current);
+    const flamesRasterSize = resolvePlaygroundFlamesRasterSize(
+      display.width,
+      display.height,
+      flamesRasterCell.width,
+      flamesRasterCell.height,
+    );
+    if (flamesOverlay) {
+      flamesOverlay.resize(flamesRasterSize.width, flamesRasterSize.height);
+    }
+    if (flamesOverlay && flamesState && flamesConfig.enabled) {
+      flamesOverlay.sync(flamesState, flamesConfig, display.width, display.height);
+      stripeFilter.syncFlames(flamesOverlay.texture, flamesConfig);
+    } else {
+      stripeFilter.syncFlames(null, null);
+    }
     if (luminanceMode === "overlay") {
       // Baked preview is already display-sized (see preview mode); native-source scaling would shrink it.
       bakeAdjustedPreviewTexture();
@@ -786,8 +838,8 @@ function runDuotoneTick(params: {
     const clickWaveSamplingEnabled = clickWaveConfig.enabled && !revealActive;
     const pointerEffectsChanged =
       (trailSamplingEnabled && trail.changed) || (clickWaveSamplingEnabled && clickWave.changed);
-    const timeChanged = shouldSample() || (flamesState != null && flamesConfig.enabled) || revealActive;
-    const needsBaseFrame = timeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
+    const sourceTimeChanged = shouldSample() || revealActive;
+    const needsSourceFrame = sourceTimeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
 
     if (colorsChanged) {
       const effectiveColors = {
@@ -804,7 +856,6 @@ function runDuotoneTick(params: {
       pendingColorsResample = true;
       cachedEffectBase = null;
       cachedEffectBaseKey = "";
-      previousTrailPixelBounds = null;
     }
 
     const gridConfig = gridConfigRef.current;
@@ -820,8 +871,12 @@ function runDuotoneTick(params: {
     const displayPixelCount = display.width * display.height * 4;
     const frameCacheKey = `${display.width}x${display.height}:${colorsKey}:${effectSize.width}x${effectSize.height}`;
 
-    if (needsBaseFrame) {
+    if (needsSourceFrame) {
+      const sampleTimer = tickTimer ? createPlaygroundPerfTimer() : null;
       const sampled = sampleFrame();
+      if (sampleTimer) {
+        sampleFrameMs += sampleTimer.elapsedMs();
+      }
       if (sampled) {
         if (!cachedEffectBase || cachedEffectBase.length !== effectPixelCount) {
           cachedEffectBase = new Uint8ClampedArray(effectPixelCount);
@@ -841,8 +896,9 @@ function runDuotoneTick(params: {
       }
     }
 
+    const fullResampleReady = now - lastFullResampleMs >= PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS;
+
     let frame: ImageData | null = null;
-    let currentTrailBounds: CursorTrailPixelBounds | null = null;
     const needsPointerEffectsFrame =
       pointerEffectsChanged &&
       cachedEffectBase &&
@@ -854,6 +910,7 @@ function runDuotoneTick(params: {
     const clickWaveSamples = clickWaveSamplingEnabled ? clickWave.samples : [];
 
     if (needsPointerEffectsFrame && cachedEffectBase) {
+      const compositeTimer = tickTimer ? createPlaygroundPerfTimer() : null;
       if (!workingEffectPixels || workingEffectPixels.length !== effectPixelCount) {
         workingEffectPixels = new Uint8ClampedArray(effectPixelCount);
       }
@@ -875,10 +932,12 @@ function runDuotoneTick(params: {
         workingEffectPixels,
         displayFramePixels,
       );
-      currentTrailBounds = composited.bounds;
-      frame = new ImageData(Uint8ClampedArray.from(composited.data), display.width, display.height);
+      frame = frameFromDisplayPixels(composited.data);
+      if (compositeTimer) {
+        pointerCompositeMs += compositeTimer.elapsedMs();
+      }
       onSampled?.();
-    } else if (needsBaseFrame && cachedEffectBase && cachedEffectBaseKey === frameCacheKey) {
+    } else if (needsSourceFrame && cachedEffectBase && cachedEffectBaseKey === frameCacheKey) {
       if (!displayFramePixels || displayFramePixels.length !== displayPixelCount) {
         displayFramePixels = new Uint8ClampedArray(displayPixelCount);
       }
@@ -897,24 +956,25 @@ function runDuotoneTick(params: {
         workingEffectPixels ?? undefined,
         displayFramePixels,
       );
-      frame = new ImageData(Uint8ClampedArray.from(displayFramePixels), display.width, display.height);
+      frame = frameFromDisplayPixels(displayFramePixels);
       onSampled?.();
-    } else if (needsBaseFrame) {
+    } else if (needsSourceFrame) {
+      const sampleTimer = tickTimer ? createPlaygroundPerfTimer() : null;
       frame = sampleFrame();
+      if (sampleTimer) {
+        sampleFrameMs += sampleTimer.elapsedMs();
+      }
       if (frame) {
         onSampled?.();
       }
     }
 
-    previousTrailPixelBounds = resolveCursorTrailRebuildBounds(currentTrailBounds, previousTrailPixelBounds);
-
-    const fullResampleReady = now - lastFullResampleMs >= PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS;
     const shouldRebuildGrid =
       frame &&
       (!hasBuiltGrid ||
         (pendingFullResample && fullResampleReady) ||
         pointerEffectsChanged ||
-        (timeChanged && !pendingFullResample && now - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
+        (sourceTimeChanged && !pendingFullResample && now - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
 
     if (shouldRebuildGrid && frame) {
       hasBuiltGrid = true;
@@ -924,10 +984,8 @@ function runDuotoneTick(params: {
       if (pendingColorsResample) {
         gridState = {};
         pendingColorsResample = false;
-        previousTrailPixelBounds = null;
       }
       if (pointerEffectsChanged) {
-        // Trail/click effects move every tick; smoothing stale indices leaves ghost dark cells behind particles.
         gridState = {};
       }
 
@@ -946,6 +1004,7 @@ function runDuotoneTick(params: {
         onTextureLuminanceSettingsDetected?.(luminanceSettings);
       }
 
+      const buildTimer = tickTimer ? createPlaygroundPerfTimer() : null;
       const built = buildPlaygroundBlockGrid(
         frame,
         display.width,
@@ -961,8 +1020,6 @@ function runDuotoneTick(params: {
             gamma: textureGammaRef.current,
           },
           luminanceSettings,
-          flamesState: flamesStateRef.current,
-          flamesConfig: flamesConfigRef.current,
           reveal: {
             config: revealConfig,
             progress: revealProgress,
@@ -970,8 +1027,16 @@ function runDuotoneTick(params: {
           },
         },
       );
+      if (buildTimer) {
+        buildGridMs += buildTimer.elapsedMs();
+      }
       gridState = built.state;
+
+      const textureTimer = tickTimer ? createPlaygroundPerfTimer() : null;
       blockGridTexture.update(built.grid);
+      if (textureTimer) {
+        blockTextureMs += textureTimer.elapsedMs();
+      }
       stripeFilter.updateBlockMap(blockGridTexture.texture);
       stripeFilter.updateCellColorMap(blockGridTexture.colorTexture);
       letterLayer.sync(built.grid);
@@ -1010,7 +1075,19 @@ function runDuotoneTick(params: {
       letterLayer.tickLetterShuffle(performance.now());
     }
 
+    const renderTimer = tickTimer ? createPlaygroundPerfTimer() : null;
     app.render();
+    if (tickTimer) {
+      recordPlaygroundPerfSample({
+        sampleFrameMs,
+        pointerCompositeMs,
+        buildGridMs,
+        blockTextureMs,
+        renderMs: renderTimer?.elapsedMs() ?? 0,
+        tickTotalMs: tickTimer.elapsedMs(),
+        partialGrid: false,
+      });
+    }
   };
 
   return { tick, dispose };

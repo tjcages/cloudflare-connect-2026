@@ -448,9 +448,35 @@ export function upscalePixelsNearest(
   targetWidth: number,
   targetHeight: number,
 ): void {
-  for (let y = 0; y < targetHeight; y++) {
+  upscalePixelsNearestRegion(source, sourceWidth, sourceHeight, target, targetWidth, targetHeight, {
+    dirtyMinX: 0,
+    dirtyMinY: 0,
+    dirtyMaxX: targetWidth - 1,
+    dirtyMaxY: targetHeight - 1,
+  });
+}
+
+/** Nearest-neighbor upscale for one display rectangle (reuses the full-frame mapping). */
+export function upscalePixelsNearestRegion(
+  source: Uint8ClampedArray,
+  sourceWidth: number,
+  sourceHeight: number,
+  target: Uint8ClampedArray,
+  targetWidth: number,
+  targetHeight: number,
+  bounds: CursorTrailPixelBounds,
+): void {
+  const minX = Math.max(0, Math.floor(bounds.dirtyMinX));
+  const minY = Math.max(0, Math.floor(bounds.dirtyMinY));
+  const maxX = Math.min(targetWidth - 1, Math.ceil(bounds.dirtyMaxX));
+  const maxY = Math.min(targetHeight - 1, Math.ceil(bounds.dirtyMaxY));
+  if (maxX < minX || maxY < minY) {
+    return;
+  }
+
+  for (let y = minY; y <= maxY; y++) {
     const sourceY = Math.min(sourceHeight - 1, Math.floor((y * sourceHeight) / targetHeight));
-    for (let x = 0; x < targetWidth; x++) {
+    for (let x = minX; x <= maxX; x++) {
       const sourceX = Math.min(sourceWidth - 1, Math.floor((x * sourceWidth) / targetWidth));
       const sourceIdx = (sourceY * sourceWidth + sourceX) * 4;
       const targetIdx = (y * targetWidth + x) * 4;
@@ -471,6 +497,7 @@ export function applyCursorTrailToEffectPixels(
   samples: readonly CursorTrailSample[],
   rawConfig: PlaygroundCursorTrailConfig = DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   luminanceSettings?: TextureLuminanceSettings,
+  sourceScratch?: Uint8ClampedArray,
 ): CursorTrailPixelBounds | null {
   const config = normalizePlaygroundCursorTrailConfig(rawConfig);
   if (!config.enabled || effectWidth <= 0 || effectHeight <= 0 || samples.length === 0) {
@@ -481,7 +508,9 @@ export function applyCursorTrailToEffectPixels(
   const backgroundColor = luminanceSettings?.backgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR;
   const maxSearchRadius = Math.max(effectWidth, effectHeight);
 
-  const source = new Uint8ClampedArray(pixels);
+  const source =
+    sourceScratch && sourceScratch.length === pixels.length ? sourceScratch : new Uint8ClampedArray(pixels.length);
+  source.set(pixels);
   const pixelCount = effectWidth * effectHeight;
   const offsetX = new Float32Array(pixelCount);
   const offsetY = new Float32Array(pixelCount);

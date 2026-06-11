@@ -1,6 +1,8 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
+import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import { STRIPE_FILTER_FRAGMENT, STRIPE_FILTER_VERTEX } from "./stripeFilterShaders";
-import { buildStripeColors, resolveStripePalette, type StripeColors } from "./stripeColors";
+import { buildStripeIndexLut, buildStripeColors, resolveStripePalette, type StripeColors } from "./stripeColors";
+import { StripeIndexLutTexture } from "./stripeIndexLutTexture";
 import { StripePaletteTexture } from "./stripePaletteTexture";
 import { DEFAULT_PLAYGROUND_SPARKLE_OPTIONS, type PlaygroundSparkleOptions } from "./playgroundSparkle";
 import { DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS, type PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
@@ -17,6 +19,7 @@ export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
 export type StripeDuotoneFilter = Filter & {
   syncColors: (colors: StripeColors, preferP3?: boolean) => void;
   syncUseCellColors: (enabled: boolean) => void;
+  syncInvertStripeBucketing: (enabled: boolean) => void;
   syncTextureUnderlay: (enabled: boolean) => void;
   syncSparkle: (options: PlaygroundSparkleOptions, timeSec: number) => void;
   syncWidthShuffle: (options: PlaygroundWidthShuffleOptions, timeSec: number) => void;
@@ -28,6 +31,7 @@ export type StripeDuotoneFilter = Filter & {
   resizeGrid: (cols: number, rows: number, effWidth: number, effHeight: number) => void;
   updateBlockMap: (blockMap: Texture) => void;
   updateCellColorMap: (cellColorMap: Texture) => void;
+  syncFlames: (texture: Texture | null, config: PlaygroundFlamesConfig | null) => void;
 };
 
 function bindBlockMapTexture(filter: Filter, blockMap: Texture) {
@@ -51,7 +55,9 @@ export function createStripeDuotoneFilter(
   grid: PlaygroundGridConfig = DEFAULT_PLAYGROUND_GRID_CONFIG,
 ): StripeDuotoneFilter {
   const palette = new StripePaletteTexture();
+  const stripeIndexLut = new StripeIndexLutTexture();
   palette.update(resolveStripePalette(colors, preferP3));
+  stripeIndexLut.update(buildStripeIndexLut(colors.stripes));
 
   const effectiveCell = effectivePlaygroundCellSize(grid);
 
@@ -80,6 +86,12 @@ export function createStripeDuotoneFilter(
     uWidthShufflePeriodMinSec: { value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMinSec, type: "f32" },
     uWidthShufflePeriodMaxSec: { value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMaxSec, type: "f32" },
     uScreenScale: { value: 1, type: "f32" },
+    uFlamesEnabled: { value: 0, type: "f32" },
+    uFlamesMaskEnabled: { value: 0, type: "f32" },
+    uFlamesMaskStart: { value: 0, type: "f32" },
+    uFlamesMaskEnd: { value: 0.1, type: "f32" },
+    uFlamesMaskPower: { value: 1, type: "f32" },
+    uInvertStripeBucketing: { value: 0, type: "f32" },
   });
 
   const filter = new Filter({
@@ -94,6 +106,8 @@ export function createStripeDuotoneFilter(
       uBlockMap: blockMap.source,
       uCellColorMap: blockMap.source,
       uStripeData: palette.texture.source,
+      uStripeIndexLut: stripeIndexLut.texture.source,
+      uFlames: Texture.EMPTY.source,
     },
   }) as StripeDuotoneFilter;
 
@@ -104,7 +118,9 @@ export function createStripeDuotoneFilter(
 
   filter.syncColors = (nextColors, nextPreferP3 = preferP3) => {
     palette.update(resolveStripePalette(nextColors, nextPreferP3));
+    stripeIndexLut.update(buildStripeIndexLut(nextColors.stripes));
     filter.resources.uStripeData = palette.texture.source;
+    filter.resources.uStripeIndexLut = stripeIndexLut.texture.source;
     (stripeUniforms.uniforms as { uStripeCount: number }).uStripeCount = palette.count;
     stripeUniforms.update();
   };
@@ -112,6 +128,12 @@ export function createStripeDuotoneFilter(
   filter.syncUseCellColors = (enabled) => {
     const uniforms = stripeUniforms.uniforms as { uUseCellColors: number };
     uniforms.uUseCellColors = enabled ? 1 : 0;
+    stripeUniforms.update();
+  };
+
+  filter.syncInvertStripeBucketing = (enabled) => {
+    const uniforms = stripeUniforms.uniforms as { uInvertStripeBucketing: number };
+    uniforms.uInvertStripeBucketing = enabled ? 1 : 0;
     stripeUniforms.update();
   };
 
@@ -192,6 +214,26 @@ export function createStripeDuotoneFilter(
     bindCellColorMapTexture(filter, nextCellColorMap);
   };
 
+  filter.syncFlames = (texture, config) => {
+    const flamesTexture = texture ?? Texture.EMPTY;
+    flamesTexture.source.style.scaleMode = "linear";
+    filter.resources.uFlames = flamesTexture.source;
+    const uniforms = stripeUniforms.uniforms as {
+      uFlamesEnabled: number;
+      uFlamesMaskEnabled: number;
+      uFlamesMaskStart: number;
+      uFlamesMaskEnd: number;
+      uFlamesMaskPower: number;
+    };
+    const enabled = Boolean(config?.enabled);
+    uniforms.uFlamesEnabled = enabled ? 1 : 0;
+    uniforms.uFlamesMaskEnabled = enabled && config?.edgeMaskEnabled !== false ? 1 : 0;
+    uniforms.uFlamesMaskStart = config?.edgeMaskStart ?? 0;
+    uniforms.uFlamesMaskEnd = config?.edgeMaskEnd ?? 0.1;
+    uniforms.uFlamesMaskPower = config?.edgeMaskPower ?? 1;
+    stripeUniforms.update();
+  };
+
   const pixelSizeUniform = stripeUniforms.uniforms.uPixelSize as number[];
   const frameSizeUniform = stripeUniforms.uniforms.uFrameSize as number[];
 
@@ -200,6 +242,7 @@ export function createStripeDuotoneFilter(
     bindBlockMapTexture(filter, currentBlockMap);
     bindCellColorMapTexture(filter, currentCellColorMap);
     filter.resources.uStripeData = palette.texture.source;
+    filter.resources.uStripeIndexLut = stripeIndexLut.texture.source;
     // Block grid + sparkle use logical display pixels (not 2× backing-store size).
     pixelSizeUniform[0] = canvasWidth;
     pixelSizeUniform[1] = canvasHeight;

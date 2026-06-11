@@ -3,6 +3,7 @@ import * as playgroundFlames from "./playgroundFlames";
 import { createPlaygroundFlamesState } from "./playgroundFlames";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
 import { buildPlaygroundBlockGrid, sampleTextureFrame } from "./samplePlaygroundFrame";
+import { pixelBoundsToCellRegion } from "./playgroundGridDirty";
 import { buildStripeColors, cloneDefaultOverlayStripes } from "./stripeColors";
 
 function createBlackSourceCanvas(): HTMLCanvasElement {
@@ -81,7 +82,7 @@ describe("sampleTextureFrame", () => {
       flamesConfig,
     });
 
-    expect(rasterSpy).toHaveBeenCalledWith(flamesState, flamesConfig, displayWidth, displayHeight);
+    expect(rasterSpy).toHaveBeenCalledWith(flamesState, flamesConfig, displayWidth, displayHeight, undefined);
     expect([...withFlames.grid.indices]).not.toEqual([...withoutFlames.grid.indices]);
 
     rasterSpy.mockRestore();
@@ -107,6 +108,47 @@ describe("sampleTextureFrame", () => {
     const brightGrid = buildPlaygroundBlockGrid(brightFrame, displayWidth, displayHeight, colors, {});
 
     expect([...brightGrid.grid.indices]).not.toEqual([...baselineGrid.grid.indices]);
+  });
+
+  it("partial block-grid rebuild matches full rebuild inside the dirty region", () => {
+    const displayWidth = 28;
+    const displayHeight = 28;
+    const frame = createSolidImageData(displayWidth, displayHeight, [0, 0, 0]);
+    for (let row = 0; row < displayHeight; row++) {
+      for (let col = 10; col < 18; col++) {
+        const offset = (row * displayWidth + col) * 4;
+        frame.data[offset] = 255;
+        frame.data[offset + 1] = 255;
+        frame.data[offset + 2] = 255;
+      }
+    }
+
+    const colors = buildStripeColors();
+    const full = buildPlaygroundBlockGrid(frame, displayWidth, displayHeight, colors, {});
+    const region = pixelBoundsToCellRegion(
+      { dirtyMinX: 10, dirtyMinY: 0, dirtyMaxX: 17, dirtyMaxY: 27 },
+      7,
+      7,
+      displayWidth,
+      displayHeight,
+      1,
+    )!;
+
+    const partial = buildPlaygroundBlockGrid(frame, displayWidth, displayHeight, colors, full.state, 1, {
+      dirtyRegion: region,
+      previousLumaGrid: full.lumaGrid,
+      previousGrid: full.grid,
+    });
+
+    expect(partial.partial).toBe(true);
+    for (let row = region.rowMin; row <= region.rowMax; row++) {
+      for (let col = region.colMin; col <= region.colMax; col++) {
+        const index = row * full.grid.cols + col;
+        expect(partial.grid.indices[index]).toBe(full.grid.indices[index]);
+        expect(partial.grid.colors?.[index * 3]).toBe(full.grid.colors?.[index * 3]);
+      }
+    }
+    expect(partial.grid.indices[0]).toBe(full.grid.indices[0]);
   });
 
   it("buckets overlay mode by plain luminance without color-coverage promotion", () => {

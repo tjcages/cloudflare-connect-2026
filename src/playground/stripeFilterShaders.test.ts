@@ -29,4 +29,11 @@ describe("STRIPE_FILTER_FRAGMENT", () => {
     expect(STRIPE_FILTER_FRAGMENT).toContain("mix(texturePixel.rgb, stripeColor, stripeCoverage)");
     expect(STRIPE_FILTER_FRAGMENT).toContain("finalColor = vec4(texturePixel.rgb, texturePixel.a)");
   });
+
+  it("promotes stripe bands from cell-aligned flame luminance before drawing stripes", () => {
+    expect(STRIPE_FILTER_FRAGMENT).toContain("uniform sampler2D uFlames");
+    expect(STRIPE_FILTER_FRAGMENT).toContain("uniform sampler2D uStripeIndexLut");
+    expect(STRIPE_FILTER_FRAGMENT).toContain("resolveStripeBand");
+    expect(STRIPE_FILTER_FRAGMENT).not.toContain("mergeFlameColor");
+  });
 });

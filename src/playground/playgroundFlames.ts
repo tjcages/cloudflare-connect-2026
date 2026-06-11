@@ -6,10 +6,7 @@ import {
   type PlaygroundFlamesConfig,
   type PlaygroundFlamesDirection,
 } from "./playgroundFlamesConfig";
-import {
-  createSyntheticVibrantPalette,
-  type PlaygroundVibrantColor,
-} from "./playgroundVibrantColors";
+import { createSyntheticVibrantPalette, type PlaygroundVibrantColor } from "./playgroundVibrantColors";
 
 export type PlaygroundFlameColor = PlaygroundVibrantColor;
 
@@ -19,6 +16,8 @@ export type PlaygroundFlame = {
   width: number;
   height: number;
   speedPxPerSec: number;
+  /** Peak opacity for this streak's gradient (0–1). */
+  opacity: number;
   color: PlaygroundFlameColor;
 };
 
@@ -93,6 +92,7 @@ export function createPlaygroundFlame(
   const height = randomFlameSpan(state.random, displayHeight, config.minHeightRatio, config.maxHeightRatio);
   const speedRange = resolveFlamesSpeedRange(config);
   const speedPxPerSec = randomBetween(state.random, speedRange.minPxPerSec, speedRange.maxPxPerSec);
+  const opacity = randomBetween(state.random, config.opacityMin, config.opacityMax);
 
   const color = pickFlameColor(state);
 
@@ -103,6 +103,7 @@ export function createPlaygroundFlame(
       width,
       height,
       speedPxPerSec,
+      opacity,
       color,
     };
   }
@@ -113,6 +114,7 @@ export function createPlaygroundFlame(
     width,
     height,
     speedPxPerSec,
+    opacity,
     color,
   };
 }
@@ -247,6 +249,21 @@ function isPlaygroundFlameVisible(
   }
 }
 
+/** Raster size aligned to stripe cells (one texel per grid cell). */
+export function resolvePlaygroundFlamesRasterSize(
+  displayWidth: number,
+  displayHeight: number,
+  cellWidth: number,
+  cellHeight: number,
+): { width: number; height: number } {
+  const safeCellWidth = Math.max(1, Math.round(cellWidth));
+  const safeCellHeight = Math.max(1, Math.round(cellHeight));
+  return {
+    width: Math.max(1, Math.ceil(displayWidth / safeCellWidth)),
+    height: Math.max(1, Math.ceil(displayHeight / safeCellHeight)),
+  };
+}
+
 function drawPlaygroundFlamesLayer(
   ctx: CanvasRenderingContext2D,
   state: PlaygroundFlamesState,
@@ -258,9 +275,10 @@ function drawPlaygroundFlamesLayer(
     const gradient = isVerticalPlaygroundFlamesDirection(config.direction)
       ? ctx.createLinearGradient(flame.x, flame.y, flame.x + flame.width, flame.y)
       : ctx.createLinearGradient(flame.x, flame.y, flame.x, flame.y + flame.height);
+    const peakAlpha = flame.opacity;
     gradient.addColorStop(0, flameColorCss(flame.color, 0));
-    gradient.addColorStop(inner, flameColorCss(flame.color, 1));
-    gradient.addColorStop(outer, flameColorCss(flame.color, 1));
+    gradient.addColorStop(inner, flameColorCss(flame.color, peakAlpha));
+    gradient.addColorStop(outer, flameColorCss(flame.color, peakAlpha));
     gradient.addColorStop(1, flameColorCss(flame.color, 0));
     ctx.fillStyle = gradient;
     ctx.fillRect(flame.x, flame.y, flame.width, flame.height);
@@ -271,17 +289,72 @@ export function drawPlaygroundFlames(
   ctx: CanvasRenderingContext2D,
   state: PlaygroundFlamesState,
   config: PlaygroundFlamesConfig,
-  _displayWidth: number,
-  _displayHeight: number,
+  displayWidth: number,
+  displayHeight: number,
+  rasterWidth = displayWidth,
+  rasterHeight = displayHeight,
 ): void {
-  if (!config.enabled || state.flames.length === 0) {
+  if (!config.enabled || state.flames.length === 0 || displayWidth <= 0 || displayHeight <= 0) {
     return;
+  }
+
+  const scaleX = rasterWidth / displayWidth;
+  const scaleY = rasterHeight / displayHeight;
+  ctx.save();
+  if (scaleX !== 1 || scaleY !== 1) {
+    ctx.scale(scaleX, scaleY);
   }
 
   const previousComposite = ctx.globalCompositeOperation;
   ctx.globalCompositeOperation = "lighter";
   drawPlaygroundFlamesLayer(ctx, state, config);
   ctx.globalCompositeOperation = previousComposite;
+  ctx.restore();
+}
+
+/** Reusable CPU raster for flames luminance sampling (avoids per-tick canvas allocation). */
+export class PlaygroundFlamesRaster {
+  private canvas: HTMLCanvasElement | null = null;
+  private ctx: CanvasRenderingContext2D | null = null;
+  private pixels: Uint8ClampedArray | null = null;
+  private width = 0;
+  private height = 0;
+
+  rasterize(
+    state: PlaygroundFlamesState,
+    config: PlaygroundFlamesConfig,
+    displayWidth: number,
+    displayHeight: number,
+  ): ImageData | null {
+    if (!config.enabled || state.flames.length === 0 || displayWidth <= 0 || displayHeight <= 0) {
+      return null;
+    }
+
+    if (!this.canvas || this.width !== displayWidth || this.height !== displayHeight) {
+      this.canvas = document.createElement("canvas");
+      this.canvas.width = displayWidth;
+      this.canvas.height = displayHeight;
+      const ctx = this.canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) {
+        throw new Error("2D canvas context unavailable for flames luminance raster.");
+      }
+      this.ctx = ctx;
+      this.width = displayWidth;
+      this.height = displayHeight;
+      this.pixels = null;
+    }
+
+    const ctx = this.ctx!;
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, displayWidth, displayHeight);
+    drawPlaygroundFlames(ctx, state, config, displayWidth, displayHeight);
+    const imageData = ctx.getImageData(0, 0, displayWidth, displayHeight);
+    if (!this.pixels || this.pixels.length !== imageData.data.length) {
+      this.pixels = new Uint8ClampedArray(imageData.data.length);
+    }
+    this.pixels.set(imageData.data);
+    return new ImageData(this.pixels as Uint8ClampedArray<ArrayBuffer>, displayWidth, displayHeight);
+  }
 }
 
 /** Flame-only RGBA buffer for stripe luminance sampling (black background, no edge mask). */
@@ -290,7 +363,12 @@ export function rasterizePlaygroundFlames(
   config: PlaygroundFlamesConfig,
   displayWidth: number,
   displayHeight: number,
+  raster?: PlaygroundFlamesRaster,
 ): ImageData | null {
+  if (raster) {
+    return raster.rasterize(state, config, displayWidth, displayHeight);
+  }
+
   if (!config.enabled || state.flames.length === 0 || displayWidth <= 0 || displayHeight <= 0) {
     return null;
   }
@@ -313,11 +391,11 @@ export class PlaygroundFlamesOverlay {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
 
-  constructor(width: number, height: number) {
+  constructor(rasterWidth: number, rasterHeight: number) {
     this.canvas = document.createElement("canvas");
-    this.canvas.width = width;
-    this.canvas.height = height;
-    const ctx = this.canvas.getContext("2d", { willReadFrequently: true });
+    this.canvas.width = rasterWidth;
+    this.canvas.height = rasterHeight;
+    const ctx = this.canvas.getContext("2d");
     if (!ctx) {
       throw new Error("2D canvas context unavailable for flames overlay.");
     }
@@ -326,21 +404,27 @@ export class PlaygroundFlamesOverlay {
     this.texture.source.scaleMode = "linear";
   }
 
-  resize(width: number, height: number): void {
-    if (this.canvas.width === width && this.canvas.height === height) {
+  resize(rasterWidth: number, rasterHeight: number): void {
+    if (this.canvas.width === rasterWidth && this.canvas.height === rasterHeight) {
       return;
     }
-    this.canvas.width = width;
-    this.canvas.height = height;
+    this.canvas.width = rasterWidth;
+    this.canvas.height = rasterHeight;
     this.texture.source.update();
   }
 
-  sync(state: PlaygroundFlamesState | null, config: PlaygroundFlamesConfig): void {
+  sync(
+    state: PlaygroundFlamesState | null,
+    config: PlaygroundFlamesConfig,
+    displayWidth: number,
+    displayHeight: number,
+  ): void {
     const { width, height } = this.canvas;
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.fillStyle = "#000000";
     this.ctx.fillRect(0, 0, width, height);
     if (state && config.enabled) {
-      drawPlaygroundFlames(this.ctx, state, config, width, height);
+      drawPlaygroundFlames(this.ctx, state, config, displayWidth, displayHeight, width, height);
     }
     this.texture.source.update();
   }

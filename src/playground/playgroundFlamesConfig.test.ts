@@ -48,10 +48,19 @@ describe("playgroundFlamesConfig", () => {
     expect(range.maxPxPerSec).toBe(125);
   });
 
-  it("sharpens gradient stops as edge sharpness increases", () => {
-    const soft = resolveFlamesGradientStops(0);
-    const sharp = resolveFlamesGradientStops(1);
-    expect(sharp.outer - sharp.inner).toBeLessThan(soft.outer - soft.inner);
+  it("narrows the gradient plateau as edge sharpness increases", () => {
+    const widePlateau = resolveFlamesGradientStops(0);
+    const narrowPlateau = resolveFlamesGradientStops(1);
+    expect(narrowPlateau.outer - narrowPlateau.inner).toBeLessThan(widePlateau.outer - widePlateau.inner);
+  });
+
+  it("clamps opacity max to opacity min", () => {
+    const normalized = normalizePlaygroundFlamesConfig({
+      opacityMin: 0.8,
+      opacityMax: 0.2,
+    });
+    expect(normalized.opacityMin).toBe(0.8);
+    expect(normalized.opacityMax).toBe(0.8);
   });
 
   it("ramps edge mask alpha from start to end inset", () => {

@@ -1,7 +1,22 @@
-import { computeBlockGrid, type BlockGrid, type FlamesLuminanceContribution } from "./computeBlockGrid";
+import type { CursorTrailPixelBounds } from "./cursorTrail";
+import {
+  computeBlockGrid,
+  computeBlockGridRegion,
+  createGridPreprocessCache,
+  type BlockGrid,
+  type FlamesLuminanceContribution,
+  type GridPreprocessCache,
+  type LumaGrid,
+} from "./computeBlockGrid";
 import { normalizeTextureLuminanceMode, type TextureLuminanceSettings } from "./colorWhiteness";
-import { rasterizePlaygroundFlames, type PlaygroundFlamesState } from "./playgroundFlames";
+import { PlaygroundFlamesRaster, rasterizePlaygroundFlames, type PlaygroundFlamesState } from "./playgroundFlames";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import {
+  promoteColorsModeIndicesInRegion,
+  resolveStripeIndicesInRegion,
+  smoothBlockGridIndicesInRegion,
+  type GridCellRegion,
+} from "./playgroundGridDirty";
 import { applyPlaygroundRevealToLumaGrid, type PlaygroundRevealOptions } from "./playgroundReveal";
 import { smoothBlockGridIndices } from "./stabilizeBlockGrid";
 import { resolveStripeIndices, resolveStripesForLuminanceMode, type StripeColors } from "./stripeColors";
@@ -58,11 +73,12 @@ function resolveFlamesLuminanceContribution(
   flamesConfig: PlaygroundFlamesConfig | null | undefined,
   displayWidth: number,
   displayHeight: number,
+  flamesRaster?: PlaygroundFlamesRaster,
 ): FlamesLuminanceContribution | undefined {
   if (!flamesState || !flamesConfig?.enabled) {
     return undefined;
   }
-  const raster = rasterizePlaygroundFlames(flamesState, flamesConfig, displayWidth, displayHeight);
+  const raster = rasterizePlaygroundFlames(flamesState, flamesConfig, displayWidth, displayHeight, flamesRaster);
   if (!raster) {
     return undefined;
   }
@@ -72,6 +88,43 @@ function resolveFlamesLuminanceContribution(
     imageHeight: displayHeight,
     mask: flamesConfig,
   };
+}
+
+function buildIndicesFromLumaGrid(
+  lumaGrid: LumaGrid,
+  colors: StripeColors,
+  luminanceSettings: TextureLuminanceSettings | undefined,
+  state: PlaygroundGridBuildState,
+  smoothingMaxStep: number | undefined,
+  region?: GridCellRegion,
+  previousGrid?: BlockGrid,
+): Uint8Array {
+  const effectiveStripes = resolveStripesForLuminanceMode(
+    colors,
+    normalizeTextureLuminanceMode(luminanceSettings?.mode),
+  );
+  const colorsMode = normalizeTextureLuminanceMode(luminanceSettings?.mode) === "colors";
+  const rawIndices = region
+    ? new Uint8Array(previousGrid?.indices ?? state.stableIndices ?? new Uint8Array(lumaGrid.cols * lumaGrid.rows))
+    : resolveStripeIndices(lumaGrid.luma, effectiveStripes);
+
+  if (region) {
+    resolveStripeIndicesInRegion(lumaGrid.luma, effectiveStripes, region, lumaGrid.cols, rawIndices);
+    if (colorsMode && lumaGrid.colorCoverage) {
+      promoteColorsModeIndicesInRegion(rawIndices, lumaGrid.colorCoverage, region, lumaGrid.cols);
+    }
+    return smoothBlockGridIndicesInRegion(rawIndices, state.stableIndices, region, lumaGrid.cols, smoothingMaxStep);
+  }
+
+  if (colorsMode && lumaGrid.colorCoverage) {
+    for (let index = 0; index < rawIndices.length; index++) {
+      if ((rawIndices[index] ?? 0) === 0 && (lumaGrid.colorCoverage[index] ?? 0) > 0) {
+        rawIndices[index] = 1;
+      }
+    }
+  }
+
+  return smoothBlockGridIndices(rawIndices, state.stableIndices, smoothingMaxStep);
 }
 
 function getCanvasSourceSize(source: CanvasImageSource): { width: number; height: number } {
@@ -108,7 +161,14 @@ export type PlaygroundGridBuildOptions = {
   luminanceSettings?: TextureLuminanceSettings;
   flamesState?: PlaygroundFlamesState | null;
   flamesConfig?: PlaygroundFlamesConfig | null;
+  flamesRaster?: PlaygroundFlamesRaster;
   reveal?: PlaygroundRevealOptions;
+  /** When set with `previousLumaGrid`, only recompute stripe cells inside this region. */
+  dirtyRegion?: GridCellRegion;
+  previousLumaGrid?: LumaGrid;
+  previousGrid?: BlockGrid;
+  preprocessCache?: GridPreprocessCache;
+  pixelDirtyBounds?: CursorTrailPixelBounds | null;
 };
 
 export function buildPlaygroundBlockGrid(
@@ -119,49 +179,94 @@ export function buildPlaygroundBlockGrid(
   state: PlaygroundGridBuildState,
   gamma = 1,
   options: PlaygroundGridBuildOptions = {},
-): { grid: BlockGrid; state: PlaygroundGridBuildState } {
+): {
+  grid: BlockGrid;
+  state: PlaygroundGridBuildState;
+  partial: boolean;
+  lumaGrid: LumaGrid;
+  preprocessCache: GridPreprocessCache | null;
+} {
   const flames = resolveFlamesLuminanceContribution(
     options.flamesState,
     options.flamesConfig,
     displayWidth,
     displayHeight,
+    options.flamesRaster,
   );
-  const lumaGrid = computeBlockGrid(
-    frame.data,
-    displayWidth,
-    displayHeight,
-    options.textureAdjustments?.gamma ?? gamma,
-    options.cellWidth,
-    options.cellHeight,
-    options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-    flames,
-    options.reveal,
-    options.luminanceSettings,
-  );
+
+  const canUsePartialRegion =
+    options.dirtyRegion &&
+    options.previousLumaGrid &&
+    options.previousLumaGrid.cols > 0 &&
+    options.previousLumaGrid.rows > 0 &&
+    !options.reveal;
+
+  const lumaGrid = canUsePartialRegion
+    ? computeBlockGridRegion(
+        frame.data,
+        displayWidth,
+        displayHeight,
+        options.dirtyRegion!,
+        options.previousLumaGrid!,
+        options.textureAdjustments?.gamma ?? gamma,
+        options.cellWidth,
+        options.cellHeight,
+        options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+        flames,
+        options.reveal,
+        options.luminanceSettings,
+        options.preprocessCache,
+        options.pixelDirtyBounds,
+      )
+    : computeBlockGrid(
+        frame.data,
+        displayWidth,
+        displayHeight,
+        options.textureAdjustments?.gamma ?? gamma,
+        options.cellWidth,
+        options.cellHeight,
+        options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+        flames,
+        options.reveal,
+        options.luminanceSettings,
+      );
+
   const revealedLumaGrid = options.reveal ? applyPlaygroundRevealToLumaGrid(lumaGrid, options.reveal) : lumaGrid;
-  const effectiveStripes = resolveStripesForLuminanceMode(
+  const stableIndices = buildIndicesFromLumaGrid(
+    revealedLumaGrid,
     colors,
-    normalizeTextureLuminanceMode(options.luminanceSettings?.mode),
+    options.luminanceSettings,
+    state,
+    options.smoothingMaxStep,
+    canUsePartialRegion ? options.dirtyRegion : undefined,
+    options.previousGrid,
   );
-  const rawIndices = resolveStripeIndices(revealedLumaGrid.luma, effectiveStripes);
-  const colorsMode = normalizeTextureLuminanceMode(options.luminanceSettings?.mode) === "colors";
-  if (colorsMode && revealedLumaGrid.colorCoverage) {
-    for (let index = 0; index < rawIndices.length; index++) {
-      if ((rawIndices[index] ?? 0) === 0 && (revealedLumaGrid.colorCoverage[index] ?? 0) > 0) {
-        rawIndices[index] = 1;
-      }
-    }
-  }
-  const stableIndices = smoothBlockGridIndices(rawIndices, state.stableIndices, options.smoothingMaxStep);
+
+  const preprocessCache = canUsePartialRegion
+    ? (options.preprocessCache ?? null)
+    : createGridPreprocessCache(
+        frame.data,
+        displayWidth,
+        displayHeight,
+        options.textureAdjustments?.gamma ?? gamma,
+        options.cellWidth,
+        options.cellHeight,
+        options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+        options.reveal,
+        options.luminanceSettings,
+      );
 
   return {
     grid: {
       cols: lumaGrid.cols,
       rows: lumaGrid.rows,
       indices: stableIndices,
-      colors: lumaGrid.colors,
-      colorCoverage: lumaGrid.colorCoverage,
+      colors: revealedLumaGrid.colors,
+      colorCoverage: revealedLumaGrid.colorCoverage,
     },
     state: { stableIndices },
+    partial: Boolean(canUsePartialRegion),
+    lumaGrid: revealedLumaGrid,
+    preprocessCache,
   };
 }

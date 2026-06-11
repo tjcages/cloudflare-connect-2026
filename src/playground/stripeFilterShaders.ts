@@ -41,6 +41,14 @@ uniform sampler2D uTexture;
 uniform sampler2D uBlockMap;
 uniform sampler2D uCellColorMap;
 uniform sampler2D uStripeData;
+uniform sampler2D uFlames;
+uniform sampler2D uStripeIndexLut;
+uniform float uFlamesEnabled;
+uniform float uInvertStripeBucketing;
+uniform float uFlamesMaskEnabled;
+uniform float uFlamesMaskStart;
+uniform float uFlamesMaskEnd;
+uniform float uFlamesMaskPower;
 uniform float uStripeCount;
 uniform float uUseCellColors;
 uniform float uTextureUnderlay;
@@ -91,6 +99,14 @@ vec2 blockGridUv(float colIndex, float rowIndex) {
     return vec2(
         (colIndex + 0.5) / uGridSize.x,
         (gridRow + 0.5) / uGridSize.y
+    );
+}
+
+// Flame raster uses display top-left origin; block-map textures are stored bottom-up.
+vec2 flameCellUv(float colIndex, float rowIndex) {
+    return vec2(
+        (colIndex + 0.5) / uGridSize.x,
+        (rowIndex + 0.5) / uGridSize.y
     );
 }
 
@@ -204,6 +220,52 @@ float widthShufflePulseEnvelope(float localT) {
     return widthShuffleSmoothStep(cosine);
 }
 
+float flamesEdgeMaskInset(float inset) {
+    if (uFlamesMaskEnabled < 0.5) {
+        return 1.0;
+    }
+    float start = uFlamesMaskStart;
+    float end = max(uFlamesMaskEnd, start + 0.0001);
+    float t = clamp((inset - start) / (end - start), 0.0, 1.0);
+    return pow(t, max(uFlamesMaskPower, 0.0001));
+}
+
+float flamesEdgeMask(vec2 coord) {
+    float insetX = min(coord.x, 1.0 - coord.x);
+    float insetY = min(coord.y, 1.0 - coord.y);
+    return flamesEdgeMaskInset(insetX) * flamesEdgeMaskInset(insetY);
+}
+
+float bucketingLuma(float luma01) {
+    return uInvertStripeBucketing > 0.5 ? 1.0 - luma01 : luma01;
+}
+
+float stripeBandForBucketLuma(float luma01) {
+    float u = clamp(luma01, 0.0, 1.0);
+    return floor(texture(uStripeIndexLut, vec2(u, 0.5)).r * 255.0 + 0.5);
+}
+
+float flameCoverAtCell(float colIndex, float rowIndex) {
+    if (uFlamesEnabled < 0.5) {
+        return 0.0;
+    }
+    vec2 cellUv = flameCellUv(colIndex, rowIndex);
+    vec3 flame = texture(uFlames, cellUv).rgb;
+    float mask = flamesEdgeMask(cellUv);
+    vec3 flameRgb = flame * mask;
+    return clamp(max(max(flameRgb.r, flameRgb.g), flameRgb.b), 0.0, 1.0);
+}
+
+float resolveStripeBand(float colIndex, float rowIndex) {
+    float band = blockStripeBand(colIndex, rowIndex);
+    float flameCover = flameCoverAtCell(colIndex, rowIndex);
+    if (flameCover > 0.001) {
+        float flameBand = stripeBandForBucketLuma(bucketingLuma(flameCover));
+        band = max(band, flameBand);
+    }
+    return band;
+}
+
 float resolveAnimatedStripeWidth(float col, float row, float band, float maxW) {
     float defaultWidth = stripeWidthPx(band);
     if (band < 0.5 || uWidthShuffleEnabled < 0.5) {
@@ -251,7 +313,7 @@ void main(void) {
     float acrossCell = horizontal ? ch : cw;
     float alongGap = horizontal ? uGap.x : uGap.y;
 
-    float stripeBand = blockStripeBand(colIndex, rowIndex);
+    float stripeBand = resolveStripeBand(colIndex, rowIndex);
 
     // The cell size fed in already includes the gap (effective cell = bar size + gap), so the
     // bar keeps its full configured size and the gap is real spacing carved uniformly between

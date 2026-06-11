@@ -16,8 +16,11 @@ export type PlaygroundFlamesConfig = {
   spawnIntervalMs: number;
   spawnJitterMs: number;
   maxActive: number;
-  /** 0 = soft edges, 1 = sharp edges. */
+  /** Gradient plateau width (0 = wide solid core, 1 = narrow core with longer edge fades). */
   edgeSharpness: number;
+  /** Per-flame peak opacity (gradient stops scale with this). */
+  opacityMin: number;
+  opacityMax: number;
   /** Fade flames out near the canvas edges in preview and sampling. */
   edgeMaskEnabled: boolean;
   /** Inset from each edge (0–1) where mask alpha stays 0. */
@@ -40,7 +43,9 @@ export const DEFAULT_PLAYGROUND_FLAMES_CONFIG: PlaygroundFlamesConfig = {
   spawnIntervalMs: 180,
   spawnJitterMs: 80,
   maxActive: 48,
-  edgeSharpness: 0.88,
+  edgeSharpness: 1,
+  opacityMin: 0.2,
+  opacityMax: 0.6,
   edgeMaskEnabled: true,
   edgeMaskStart: 0,
   edgeMaskEnd: 0.1,
@@ -113,6 +118,16 @@ export function normalizePlaygroundFlamesConfig(
     spawnJitterMs: clampInt(input.spawnJitterMs ?? base.spawnJitterMs, 0, 2000, base.spawnJitterMs),
     maxActive: clampInt(input.maxActive ?? base.maxActive, 1, 200, base.maxActive),
     edgeSharpness: clampNumber(input.edgeSharpness ?? base.edgeSharpness, 0, 1, base.edgeSharpness),
+    opacityMin: clampNumber(input.opacityMin ?? base.opacityMin, 0, 1, base.opacityMin),
+    opacityMax: clampNumber(
+      input.opacityMax ?? base.opacityMax,
+      clampNumber(input.opacityMin ?? base.opacityMin, 0, 1, base.opacityMin),
+      1,
+      Math.max(
+        clampNumber(input.opacityMin ?? base.opacityMin, 0, 1, base.opacityMin),
+        input.opacityMax ?? base.opacityMax,
+      ),
+    ),
     edgeMaskEnabled: input.edgeMaskEnabled !== false,
     edgeMaskStart,
     edgeMaskEnd,
@@ -135,6 +150,8 @@ export function isDefaultPlaygroundFlamesConfig(input: PlaygroundFlamesConfig): 
     input.spawnJitterMs === base.spawnJitterMs &&
     input.maxActive === base.maxActive &&
     input.edgeSharpness === base.edgeSharpness &&
+    input.opacityMin === base.opacityMin &&
+    input.opacityMax === base.opacityMax &&
     input.edgeMaskEnabled === base.edgeMaskEnabled &&
     input.edgeMaskStart === base.edgeMaskStart &&
     input.edgeMaskEnd === base.edgeMaskEnd &&
@@ -162,7 +179,7 @@ export function resolveFlamesEdgeMaskAlpha(
 }
 
 export function resolveFlamesGradientStops(sharpness: number): { inner: number; outer: number } {
-  const halfBand = 0.4 + (0.06 - 0.4) * clampNumber(sharpness, 0, 1, 0.88);
+  const halfBand = 0.4 + (0.06 - 0.4) * clampNumber(sharpness, 0, 1, 1);
   return { inner: 0.5 - halfBand, outer: 0.5 + halfBand };
 }
 
