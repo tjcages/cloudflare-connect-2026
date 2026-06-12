@@ -1,5 +1,7 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import { resolveWaveRevealGeometry } from "./playgroundReveal";
+import { resolvePlaygroundRevealDurationMs, type PlaygroundRevealConfig } from "./playgroundRevealConfig";
 import { STRIPE_FILTER_FRAGMENT, STRIPE_FILTER_VERTEX } from "./stripeFilterShaders";
 import { buildStripeIndexLut, buildStripeColors, resolveStripePalette, type StripeColors } from "./stripeColors";
 import { StripeIndexLutTexture } from "./stripeIndexLutTexture";
@@ -16,7 +18,11 @@ import { STRIPE_WIDTH_ENCODE_MAX } from "./stripeGridConstants";
 /** Set > 0 to composite source video for grid-alignment debugging. */
 export const STRIPE_DEBUG_VIDEO_OVERLAY_ALPHA = 0;
 
-/** Set > 0 to paint cursor-trail cell classification (R=displaced, G=brighten, B=shell). */
+/**
+ * 1 = cursor-trail cell classification (R=displaced, G=brighten, B=tear); 2 = reveal mask
+ * field; 3 = raw reveal view — cell content as solid grayscale blocks inside the
+ * reveal-scaled column slice, stripes removed entirely.
+ */
 export const STRIPE_DEBUG_CURSOR_TRAIL = 0;
 
 export type StripeDuotoneFilter = Filter & {
@@ -36,6 +42,8 @@ export type StripeDuotoneFilter = Filter & {
   updateCellColorMap: (cellColorMap: Texture) => void;
   syncFlames: (texture: Texture | null, config: PlaygroundFlamesConfig | null) => void;
   syncCursorTrail: (trail: Texture | null, pushTexture: Texture | null, pushRange: number) => void;
+  /** GPU wave reveal mask: null disables it; progress may run past 1 for the ramp tail. */
+  syncReveal: (config: PlaygroundRevealConfig | null, progress: number) => void;
 };
 
 function bindBlockMapTexture(filter: Filter, blockMap: Texture) {
@@ -100,6 +108,14 @@ export function createStripeDuotoneFilter(
     uCursorTrailPushEnabled: { value: 0, type: "f32" },
     uCursorTrailPushRange: { value: 0, type: "f32" },
     uCursorTrailDebug: { value: STRIPE_DEBUG_CURSOR_TRAIL, type: "f32" },
+    uRevealMode: { value: 0, type: "f32" },
+    uRevealProgress: { value: 1, type: "f32" },
+    uRevealOrigin: { value: [0.5, 0.5], type: "vec2<f32>" },
+    uRevealMaxDistance: { value: 1, type: "f32" },
+    uRevealSoftness: { value: 0, type: "f32" },
+    uRevealWaviness: { value: 0, type: "f32" },
+    uRevealNoiseScale: { value: 4, type: "f32" },
+    uRevealBandRamp: { value: 0.18, type: "f32" },
   });
 
   const filter = new Filter({
@@ -266,6 +282,37 @@ export function createStripeDuotoneFilter(
     uniforms.uCursorTrailEnabled = trail ? 1 : 0;
     uniforms.uCursorTrailPushEnabled = pushTexture ? 1 : 0;
     uniforms.uCursorTrailPushRange = pushRange;
+    stripeUniforms.update();
+  };
+
+  filter.syncReveal = (config, progress) => {
+    const uniforms = stripeUniforms.uniforms as {
+      uRevealMode: number;
+      uRevealProgress: number;
+      uRevealOrigin: number[];
+      uRevealMaxDistance: number;
+      uRevealSoftness: number;
+      uRevealWaviness: number;
+      uRevealNoiseScale: number;
+      uRevealBandRamp: number;
+    };
+    if (!config) {
+      uniforms.uRevealMode = 0;
+      uniforms.uRevealProgress = 1;
+      stripeUniforms.update();
+      return;
+    }
+    uniforms.uRevealProgress = progress;
+    // Trailing band-climb window: ~5 of the old 66ms smoothing rebuilds, in progress units.
+    uniforms.uRevealBandRamp = Math.min(0.4, Math.max(0.04, 330 / Math.max(1, resolvePlaygroundRevealDurationMs(config))));
+    uniforms.uRevealMode = 1;
+    const geometry = resolveWaveRevealGeometry(config.wave.position);
+    uniforms.uRevealOrigin[0] = geometry.x;
+    uniforms.uRevealOrigin[1] = geometry.y;
+    uniforms.uRevealMaxDistance = geometry.maxDistance;
+    uniforms.uRevealSoftness = Math.max(0, config.wave.softness);
+    uniforms.uRevealWaviness = config.wave.waviness;
+    uniforms.uRevealNoiseScale = config.wave.noiseScale;
     stripeUniforms.update();
   };
 

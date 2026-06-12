@@ -19,11 +19,6 @@ import {
   normalizePlaygroundTextureAdjustments,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
-import {
-  buildRandomColumnRevealRanks,
-  randomColumnRevealMultiplier,
-  type PlaygroundRevealOptions,
-} from "./playgroundReveal";
 import type { CursorTrailPixelBounds } from "./cursorTrail";
 import { expandPixelBounds, type GridCellRegion } from "./playgroundGridDirty";
 import { STRIPE_CELL_SIZE } from "./stripeGridConstants";
@@ -59,12 +54,6 @@ export type BlockGrid = {
   luma?: Uint8Array;
 };
 
-type RandomColumnsRevealSampling = Required<Pick<PlaygroundRevealOptions, "config" | "progress">> &
-  Pick<PlaygroundRevealOptions, "replayKey"> & {
-    ranks: Uint32Array;
-    cols: number;
-  };
-
 /** Mean Rec.709 luminance (0–1) of a cell; out-of-bounds pixels count as black. */
 function cellMeanSample(
   pixels: Uint8ClampedArray,
@@ -77,7 +66,6 @@ function cellMeanSample(
   cellHeight: number,
   adjustments: PlaygroundTextureAdjustments,
   flames?: FlamesLuminanceContribution,
-  reveal?: RandomColumnsRevealSampling,
   luminanceSettings?: TextureLuminanceSettings,
 ): { luma: number; r: number; g: number; b: number; colorCoverage: number; hasFlameSample: boolean } {
   const originX = col * cellWidth;
@@ -145,34 +133,12 @@ function cellMeanSample(
       if (colorsMode && isNonBackgroundColorPixel(r, g, b, backgroundColor)) {
         coloredCount += 1;
         coloredDistanceSum += distance;
-        let adjustedPresence = applyTextureLuminanceAdjustments(rawPresence, adjustments, col, row);
-        if (reveal?.config.preset === "randomColumns") {
-          adjustedPresence *= randomColumnRevealMultiplier({
-            x,
-            col,
-            cols: reveal.cols,
-            cellWidth,
-            progress: reveal.progress,
-            config: reveal.config.randomColumns,
-            ranks: reveal.ranks,
-          });
-        }
+        const adjustedPresence = applyTextureLuminanceAdjustments(rawPresence, adjustments, col, row);
         coloredLumaSum += adjustedPresence;
       }
 
       let luma = colorsMode ? rawPresence : pixelTextureLuminance(r, g, b, luminanceSettings);
       luma = applyTextureLuminanceAdjustments(luma, adjustments, col, row);
-      if (reveal?.config.preset === "randomColumns") {
-        luma *= randomColumnRevealMultiplier({
-          x,
-          col,
-          cols: reveal.cols,
-          cellWidth,
-          progress: reveal.progress,
-          config: reveal.config.randomColumns,
-          ranks: reveal.ranks,
-        });
-      }
       lumaSum += luma;
       lumaMax = Math.max(lumaMax, luma);
     }
@@ -241,7 +207,6 @@ export function computeBlockGrid(
   cellHeight: number = STRIPE_CELL_SIZE,
   adjustmentsInput: PlaygroundTextureAdjustments = DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   flames?: FlamesLuminanceContribution,
-  reveal?: PlaygroundRevealOptions,
   luminanceSettings?: TextureLuminanceSettings,
 ): LumaGrid {
   const safeCellWidth = Math.max(1, Math.round(cellWidth));
@@ -257,17 +222,6 @@ export function computeBlockGrid(
     ...adjustmentsInput,
     gamma,
   });
-  const randomColumnsReveal =
-    reveal?.config?.preset === "randomColumns" && (reveal.progress ?? 1) < 1
-      ? {
-          config: reveal.config,
-          progress: reveal.progress ?? 1,
-          replayKey: reveal.replayKey,
-          ranks: buildRandomColumnRevealRanks(cols, Math.max(0, reveal.replayKey ?? 0)),
-          cols,
-        }
-      : undefined;
-
   const backgroundColor = luminanceSettings?.backgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR;
   const compositedPixels = compositeRgbaOverBackground(pixels, imageWidth, imageHeight, backgroundColor);
   const sourcePixels = blurRgbaPixels(compositedPixels, imageWidth, imageHeight, adjustments);
@@ -285,7 +239,6 @@ export function computeBlockGrid(
         safeCellHeight,
         adjustments,
         flames,
-        randomColumnsReveal,
         luminanceSettings,
       );
       const cellIndex = row * cols + col;
@@ -319,7 +272,6 @@ export function computeBlockGrid(
           safeCellHeight,
           adjustments,
           flames,
-          randomColumnsReveal,
           luminanceSettings,
         );
         luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * 255);
@@ -338,7 +290,6 @@ export type GridPreprocessCache = {
   adjustments: PlaygroundTextureAdjustments;
   compositedPixels: Uint8ClampedArray;
   sourcePixels: Uint8ClampedArray;
-  randomColumnsReveal: RandomColumnsRevealSampling | undefined;
 };
 
 function boxBlurSampleAt(
@@ -386,7 +337,6 @@ export function createGridPreprocessCache(
   cellWidth: number = STRIPE_CELL_SIZE,
   cellHeight: number = STRIPE_CELL_SIZE,
   adjustmentsInput: PlaygroundTextureAdjustments = DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-  reveal?: PlaygroundRevealOptions,
   luminanceSettings?: TextureLuminanceSettings,
 ): GridPreprocessCache {
   return buildGridPreprocessContext(
@@ -397,7 +347,6 @@ export function createGridPreprocessCache(
     cellWidth,
     cellHeight,
     adjustmentsInput,
-    reveal,
     luminanceSettings,
   );
 }
@@ -486,7 +435,6 @@ function buildGridPreprocessContext(
   cellWidth: number,
   cellHeight: number,
   adjustmentsInput: PlaygroundTextureAdjustments,
-  reveal?: PlaygroundRevealOptions,
   luminanceSettings?: TextureLuminanceSettings,
 ): GridPreprocessCache {
   const safeCellWidth = Math.max(1, Math.round(cellWidth));
@@ -497,17 +445,6 @@ function buildGridPreprocessContext(
     ...adjustmentsInput,
     gamma,
   });
-  const randomColumnsReveal =
-    reveal?.config?.preset === "randomColumns" && (reveal.progress ?? 1) < 1
-      ? {
-          config: reveal.config,
-          progress: reveal.progress ?? 1,
-          replayKey: reveal.replayKey,
-          ranks: buildRandomColumnRevealRanks(cols, Math.max(0, reveal.replayKey ?? 0)),
-          cols,
-        }
-      : undefined;
-
   const backgroundColor = luminanceSettings?.backgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR;
   const compositedPixels = compositeRgbaOverBackground(pixels, imageWidth, imageHeight, backgroundColor);
   const sourcePixels = blurRgbaPixels(compositedPixels, imageWidth, imageHeight, adjustments);
@@ -520,7 +457,6 @@ function buildGridPreprocessContext(
     adjustments,
     compositedPixels,
     sourcePixels,
-    randomColumnsReveal,
   };
 }
 
@@ -569,7 +505,6 @@ function sampleCellsInRegion(
         ctx.safeCellHeight,
         ctx.adjustments,
         flames,
-        ctx.randomColumnsReveal,
         luminanceSettings,
       );
       writeCellMeanToGrid(mean, row * ctx.cols + col, luma, colors, colorCoverage, flameCells);
@@ -597,7 +532,6 @@ function sampleCellsInRegion(
         ctx.safeCellHeight,
         ctx.adjustments,
         flames,
-        ctx.randomColumnsReveal,
         luminanceSettings,
       );
       luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * 255);
@@ -617,7 +551,6 @@ export function computeBlockGridRegion(
   cellHeight: number = STRIPE_CELL_SIZE,
   adjustmentsInput: PlaygroundTextureAdjustments = DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   flames?: FlamesLuminanceContribution,
-  reveal?: PlaygroundRevealOptions,
   luminanceSettings?: TextureLuminanceSettings,
   preprocessCache?: GridPreprocessCache,
   pixelDirtyBounds?: CursorTrailPixelBounds | null,
@@ -641,7 +574,6 @@ export function computeBlockGridRegion(
           cellWidth,
           cellHeight,
           adjustmentsInput,
-          reveal,
           luminanceSettings,
         );
 

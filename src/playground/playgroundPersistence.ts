@@ -60,7 +60,6 @@ import {
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
   type PlaygroundRevealConfig,
-  type PlaygroundRevealPreset,
   type PlaygroundWaveRevealPosition,
 } from "./playgroundRevealConfig";
 import {
@@ -356,22 +355,20 @@ type ClickWaveWire = {
 
 type RevealWire = {
   en?: boolean;
-  p?: PlaygroundRevealPreset | "randomColumnsShift";
+  /** @deprecated preset selector; the removed random-columns preset normalizes to wave. */
+  p?: string;
   wp?: PlaygroundWaveRevealPosition;
   wd?: number;
   ws?: number;
   ww?: number;
   wn?: number;
+  /** @deprecated random columns fields (cd/cg/cy/csd/csg/ce/cs); ignored on read. */
   cd?: number;
   cg?: number;
   cy?: number;
-  /** @deprecated random columns shift duration, merged into cd. */
   csd?: number;
-  /** @deprecated random columns shift stagger, merged into cg. */
   csg?: number;
-  /** @deprecated random columns edge softness, now fixed at 0px. */
   ce?: number;
-  /** @deprecated random columns seed, now derived from replay key. */
   cs?: number;
 };
 
@@ -625,17 +622,13 @@ function revealToWire(config: PlaygroundRevealConfig): RevealWire | undefined {
     return undefined;
   }
   const base = DEFAULT_PLAYGROUND_REVEAL_CONFIG;
-  const wire: RevealWire = { p: normalized.preset };
+  const wire: RevealWire = {};
   if (normalized.enabled !== base.enabled) wire.en = normalized.enabled;
   if (normalized.wave.position !== base.wave.position) wire.wp = normalized.wave.position;
   if (normalized.wave.durationMs !== base.wave.durationMs) wire.wd = normalized.wave.durationMs;
   if (normalized.wave.softness !== base.wave.softness) wire.ws = normalized.wave.softness;
   if (normalized.wave.waviness !== base.wave.waviness) wire.ww = normalized.wave.waviness;
   if (normalized.wave.noiseScale !== base.wave.noiseScale) wire.wn = normalized.wave.noiseScale;
-  if (normalized.randomColumns.durationMs !== base.randomColumns.durationMs)
-    wire.cd = normalized.randomColumns.durationMs;
-  if (normalized.randomColumns.stagger !== base.randomColumns.stagger) wire.cg = normalized.randomColumns.stagger;
-  if (normalized.randomColumns.yShift !== base.randomColumns.yShift) wire.cy = normalized.randomColumns.yShift;
   return wire;
 }
 
@@ -644,21 +637,14 @@ function wireToReveal(raw: unknown): PlaygroundRevealConfig | undefined {
     return undefined;
   }
   const wire = raw as RevealWire;
-  const legacyShiftPreset = wire.p === "randomColumnsShift";
   return normalizePlaygroundRevealConfig({
     enabled: wire.en ?? true,
-    preset: legacyShiftPreset ? "randomColumns" : wire.p,
     wave: {
       position: wire.wp,
       durationMs: wire.wd,
       softness: wire.ws,
       waviness: wire.ww,
       noiseScale: wire.wn,
-    },
-    randomColumns: {
-      durationMs: wire.cd ?? (legacyShiftPreset ? wire.csd : undefined),
-      stagger: wire.cg ?? (legacyShiftPreset ? wire.csg : undefined),
-      yShift: wire.cy,
     },
   });
 }

@@ -57,12 +57,7 @@ function formatSparkleGapsSummary(config: PlaygroundPersistedConfig): string {
 
 function formatRevealSummary(config: PlaygroundPersistedConfig): string {
   const reveal = resolvePersistedRevealConfig(config);
-  if (reveal.preset === "randomColumns") {
-    return `random columns over ${reveal.randomColumns.durationMs}ms, y shift ${Math.round(
-      reveal.randomColumns.yShift * 100,
-    )}%`;
-  }
-  return `${reveal.preset} from ${reveal.wave.position} over ${reveal.wave.durationMs}ms`;
+  return `wave from ${reveal.wave.position} over ${reveal.wave.durationMs}ms`;
 }
 
 export type ReactExportSnapshot = {

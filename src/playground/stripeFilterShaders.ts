@@ -51,6 +51,14 @@ uniform float uCursorTrailEnabled;
 uniform float uCursorTrailPushEnabled;
 uniform float uCursorTrailPushRange;
 uniform float uCursorTrailDebug;
+uniform float uRevealMode;
+uniform float uRevealProgress;
+uniform vec2 uRevealOrigin;
+uniform float uRevealMaxDistance;
+uniform float uRevealSoftness;
+uniform float uRevealWaviness;
+uniform float uRevealNoiseScale;
+uniform float uRevealBandRamp;
 uniform float uFlamesMaskEnabled;
 uniform float uFlamesMaskStart;
 uniform float uFlamesMaskEnd;
@@ -249,6 +257,15 @@ float flameCoverAtCell(float colIndex, float rowIndex) {
     return clamp(max(max(flameRgb.r, flameRgb.g), flameRgb.b), 0.0, 1.0);
 }
 
+// Mirrors cellNoise() in playgroundReveal.ts (same float-hash recipe as the sparkle noise).
+float revealCellNoise(float col, float row, float scale) {
+    float s = max(0.1, scale);
+    vec2 p = vec2(floor(col / s), floor(row / s));
+    vec3 p3 = fract(vec3(p.x, p.y, p.x) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
 float resolveStripeBand(float band, float colIndex, float rowIndex) {
     float flameCover = flameCoverAtCell(colIndex, rowIndex);
     if (flameCover > 0.001) {
@@ -305,6 +322,25 @@ void main(void) {
     float acrossCell = horizontal ? ch : cw;
     float alongGap = horizontal ? uGap.x : uGap.y;
 
+    // Reveal runs on the GPU as a per-cell data mask before stripe calculation: the grid
+    // is built once unmasked, and the animation only changes uniforms. Wave: feathered
+    // distance front from the origin with hash-noise waviness. The trailing band ramp
+    // recreates the concentric intermediate rings the CPU path produced via temporal
+    // index smoothing during rebuilds.
+    float revealMask = 1.0;
+    bool revealing = uRevealMode > 0.5;
+    if (revealing) {
+        vec2 cellUvPos = vec2((colIndex + 0.5) / uGridSize.x, (rowIndex + 0.5) / uGridSize.y);
+        float normalizedDistance = length(cellUvPos - uRevealOrigin) / uRevealMaxDistance;
+        float edgeNoise = (revealCellNoise(colIndex, rowIndex, uRevealNoiseScale) - 0.5) * uRevealWaviness;
+        float softness = max(uRevealSoftness, 0.0001);
+        revealMask = smoothstep(
+            normalizedDistance - softness,
+            normalizedDistance + softness + uRevealBandRamp,
+            uRevealProgress + edgeNoise
+        );
+    }
+
     vec4 trail = uCursorTrailEnabled > 0.5 ? texture(uCursorTrail, flameCellUv(colIndex, rowIndex)) : vec4(0.0);
     vec3 push = uCursorTrailPushEnabled > 0.5
         ? texture(uCursorTrailPush, flameCellUv(colIndex, rowIndex)).rgb
@@ -356,6 +392,11 @@ void main(void) {
     float storedBand = floor(srcBlock.r * 255.0 + 0.5);
     float l = srcBlock.g;
     float srcCoverage = srcBlock.a;
+    if (uCursorTrailDebug > 1.5) {
+        // Reveal debug: raw mask field in grayscale.
+        finalColor = vec4(vec3(revealMask), 1.0);
+        return;
+    }
     if (uCursorTrailDebug > 0.5) {
         finalColor = vec4(displaced ? 1.0 : 0.0, trail.a > 0.002 ? 1.0 : 0.0, tear, 1.0);
         return;
@@ -381,10 +422,18 @@ void main(void) {
         }
         float trailBand = stripeBandForBucketLuma(l);
         // Brighten-only cells stay monotonic vs the stored index (protects colors-mode
-        // promotion and non-monotonic stripe lists); displaced/torn/inverted cells replace.
+        // promotion and non-monotonic stripe lists); displaced/torn/inverted replace.
         storedBand = (displaced || torn || inverted) ? trailBand : max(storedBand, trailBand);
         if (uUseCellColors > 0.5) {
             srcCoverage *= (1.0 - tear);
+        }
+    }
+    if (revealing) {
+        // Band-space ramp across the feathered front recreates the concentric
+        // intermediate rings of the CPU path.
+        storedBand = min(storedBand, floor(storedBand * revealMask + 0.5));
+        if (uUseCellColors > 0.5 && revealMask < 1.0) {
+            srcCoverage *= revealMask;
         }
     }
     float stripeBand = resolveStripeBand(storedBand, colIndex, rowIndex);

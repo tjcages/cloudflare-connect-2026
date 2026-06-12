@@ -80,6 +80,21 @@ describe("STRIPE_FILTER_FRAGMENT", () => {
     expect(STRIPE_FILTER_FRAGMENT).toContain("if (s11.r > srcBlock.r)");
   });
 
+  it("applies the wave reveal as a pre-stripe data mask on the GPU", () => {
+    expect(STRIPE_FILTER_FRAGMENT).toContain("uniform float uRevealMode;");
+    expect(STRIPE_FILTER_FRAGMENT).toContain("uniform float uRevealProgress;");
+    // Feathered distance front with hash-noise waviness; the tick extends the animation
+    // past progress 1 so the trailing ramp finishes without a deadline snap.
+    expect(STRIPE_FILTER_FRAGMENT).toContain("uRevealProgress + edgeNoise");
+    // Band-space ramp across the feathered front.
+    expect(STRIPE_FILTER_FRAGMENT).toContain("min(storedBand, floor(storedBand * revealMask + 0.5))");
+    expect(STRIPE_FILTER_FRAGMENT).not.toContain("l *= revealMask;");
+    // The random-columns preset is gone: no column data texture, no y-shift machinery.
+    expect(STRIPE_FILTER_FRAGMENT).not.toContain("uRevealColumns");
+    expect(STRIPE_FILTER_FRAGMENT).not.toContain("revealShiftCells");
+    expect(STRIPE_FILTER_FRAGMENT).not.toContain("revealWidthScale");
+  });
+
   it("tints stripes with the trail color only in colors mode", () => {
     expect(STRIPE_FILTER_FRAGMENT).toContain("mix(stripeColor, trail.rgb, trail.a)");
     const tintIndex = STRIPE_FILTER_FRAGMENT.indexOf("mix(stripeColor, trail.rgb, trail.a)");

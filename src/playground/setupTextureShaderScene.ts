@@ -43,7 +43,7 @@ import {
   resolvePlaygroundRevealDurationMs,
   type PlaygroundRevealConfig,
 } from "./playgroundRevealConfig";
-import type { PlaygroundRevealState } from "./playgroundReveal";
+import { resolveRevealOvershoot, waveRevealAmountAtCell, type PlaygroundRevealState } from "./playgroundReveal";
 import {
   detectTextureBackgroundColor,
   overlayInvertsStripeBucketing,
@@ -488,7 +488,6 @@ function runDuotoneTick(params: {
   let lastLetterSize = gridConfigRef.current.letterSize;
   let lastLetterCharset = gridConfigRef.current.letterCharset;
   let lastLetterRatio = gridConfigRef.current.letterRatio;
-  let lastRevealReplayKey = revealPlaybackRef.current.replayKey;
 
   const originalSpriteTexture = sprite.texture;
   const previewCanvas = document.createElement("canvas");
@@ -707,6 +706,7 @@ function runDuotoneTick(params: {
       sourceTextureFilter.syncFlames(null, null);
       stripeFilter.syncFlames(null, null);
       stripeFilter.syncCursorTrail(null, null, 0);
+      stripeFilter.syncReveal(null, 1);
       if (exportStateRef) {
         exportStateRef.current = {
           grid: null,
@@ -747,21 +747,22 @@ function runDuotoneTick(params: {
     const revealConfig = revealConfigRef.current;
     const revealEnabled = revealConfig.enabled;
     const revealPlayback = revealPlaybackRef.current;
-    if (revealPlayback.replayKey !== lastRevealReplayKey) {
-      lastRevealReplayKey = revealPlayback.replayKey;
-      pendingFullResample = true;
-      gridState = {};
-    }
-    const revealProgress = revealEnabled
-      ? Math.min(
-          1,
-          Math.max(
-            0,
-            (now - revealPlayback.startedAtMs) / Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig)),
-          ),
-        )
+    const revealProgressRaw = revealEnabled
+      ? Math.max(0, (now - revealPlayback.startedAtMs) / Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig)))
       : 1;
+    const revealProgress = Math.min(1, revealProgressRaw);
     revealStateRef.current = { progress: revealProgress };
+    const revealActive = revealEnabled && revealProgress < 1;
+    // The mask stays bound past nominal progress 1 so trailing band climbs ease out on
+    // their own schedule instead of snapping at the deadline (the old CPU smoothing kept
+    // converging after the reveal ended the same way).
+    const revealDurationMs = Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig));
+    const revealBandRamp = Math.min(0.4, Math.max(0.04, 330 / revealDurationMs));
+    const revealOvershoot = resolveRevealOvershoot(revealConfig.wave, revealBandRamp);
+    const revealAnimating = revealEnabled && revealProgressRaw < 1 + revealOvershoot;
+
+    // The reveal is a GPU mask: the grid stays fully built and only uniforms animate.
+    stripeFilter.syncReveal(revealAnimating ? revealConfig : null, revealProgressRaw);
 
     const colors = stripeColorsRef.current;
     const colorsKey = JSON.stringify({
@@ -770,15 +771,12 @@ function runDuotoneTick(params: {
       gamma: textureGammaRef.current,
       textureAdjustments: textureAdjustmentsRef.current,
       sourceTransform: sourceTransformRef.current,
-      revealConfig,
-      revealReplayKey: revealPlayback.replayKey,
       luminanceSettings: textureLuminanceSettingsRef.current,
     });
     const colorsChanged = colorsKey !== lastColorsKey;
-    const revealActive = revealEnabled && revealProgress < 1;
     const trailSamplingEnabled = cursorTrailConfig.enabled;
     const clickWaveSamplingEnabled = clickWaveConfig.enabled && !revealActive;
-    const sourceTimeChanged = shouldSample() || revealActive;
+    const sourceTimeChanged = shouldSample();
     const needsSourceFrame = sourceTimeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
 
     if (colorsChanged) {
@@ -861,13 +859,6 @@ function runDuotoneTick(params: {
             gamma: textureGammaRef.current,
           },
           luminanceSettings,
-          reveal: revealEnabled
-            ? {
-                config: revealConfig,
-                progress: revealProgress,
-                replayKey: revealPlayback.replayKey,
-              }
-            : undefined,
         },
       );
       if (buildTimer) {
@@ -965,8 +956,14 @@ function runDuotoneTick(params: {
       stripeFilter.syncCursorTrail(null, null, 0);
     }
 
-    if (pointerActive && trailMap && gridState.stableIndices && lastLumaGrid?.luma && trailStripeLut) {
-      // Letters react to the trail: mirror the shader's per-cell band math on the CPU grid.
+    const lettersRevealActive = revealAnimating && hasBuiltGrid;
+    if (
+      ((pointerActive && trailMap) || lettersRevealActive) &&
+      gridState.stableIndices &&
+      lastLumaGrid?.luma &&
+      trailStripeLut
+    ) {
+      // Letters mirror the shader's per-cell band math on the CPU grid (trail + reveal).
       const cols = blockGridTexture.cols;
       const rows = blockGridTexture.rows;
       const base = gridState.stableIndices;
@@ -978,9 +975,23 @@ function runDuotoneTick(params: {
       }
       const adjusted = trailLetterIndices;
       for (let i = 0; i < base.length; i++) {
-        const whiteAlpha = trailMap.whiteAlpha[i] ?? 0;
-        const tear = trailMap.tear[i] ?? 0;
-        if (whiteAlpha <= 0.002 && tear <= 0.002) {
+        const whiteAlpha = pointerActive && trailMap ? (trailMap.whiteAlpha[i] ?? 0) : 0;
+        const tear = pointerActive && trailMap ? (trailMap.tear[i] ?? 0) : 0;
+        let revealMask = 1;
+        if (lettersRevealActive) {
+          const col = i % cols;
+          const row = (i - col) / cols;
+          revealMask = waveRevealAmountAtCell(
+            col,
+            row,
+            cols,
+            rows,
+            revealProgressRaw,
+            revealConfig.wave,
+            revealBandRamp,
+          );
+        }
+        if (revealMask >= 1 && whiteAlpha <= 0.002 && tear <= 0.002) {
           adjusted[i] = base[i] ?? 0;
           continue;
         }
@@ -992,7 +1003,12 @@ function runDuotoneTick(params: {
         const lift = whiteAlpha * presenceT * presenceT * (3 - 2 * presenceT);
         luma = applyCursorTrailCell(luma, lift, inverted);
         const trailBand = lut[Math.min(255, Math.floor(luma * 256))] ?? 0;
-        adjusted[i] = !inverted && tear <= 0.002 ? Math.max(base[i] ?? 0, trailBand) : trailBand;
+        let band = !inverted && tear <= 0.002 ? Math.max(base[i] ?? 0, trailBand) : trailBand;
+        if (revealMask < 1) {
+          // Band-space ramp across the wave's feathered front, mirroring the shader.
+          band = Math.min(band, Math.floor(band * revealMask + 0.5));
+        }
+        adjusted[i] = band;
       }
       letterLayer.sync({
         cols,

@@ -126,7 +126,6 @@ describe("computeBlockGridRegion", () => {
       DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
       undefined,
       undefined,
-      undefined,
       cache,
       { dirtyMinX: 7, dirtyMinY: 0, dirtyMaxX: 13, dirtyMaxY: 13 },
     );

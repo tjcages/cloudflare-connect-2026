@@ -1,5 +1,3 @@
-export type PlaygroundRevealPreset = "wave" | "randomColumns";
-
 export type PlaygroundWaveRevealPosition =
   | "left top"
   | "center top"
@@ -19,33 +17,19 @@ export type PlaygroundWaveRevealConfig = {
   noiseScale: number;
 };
 
-export type PlaygroundRandomColumnsRevealConfig = {
-  durationMs: number;
-  stagger: number;
-  yShift: number;
-};
-
 export type PlaygroundRevealConfig = {
   enabled: boolean;
-  preset: PlaygroundRevealPreset;
   wave: PlaygroundWaveRevealConfig;
-  randomColumns: PlaygroundRandomColumnsRevealConfig;
 };
 
 export const DEFAULT_PLAYGROUND_REVEAL_CONFIG: PlaygroundRevealConfig = {
   enabled: false,
-  preset: "wave",
   wave: {
     position: "center",
-    durationMs: 1800,
+    durationMs: 1100,
     softness: 0.08,
-    waviness: 0.08,
-    noiseScale: 4,
-  },
-  randomColumns: {
-    durationMs: 1800,
-    stagger: 0.8,
-    yShift: 0.35,
+    waviness: 0.35,
+    noiseScale: 0.5,
   },
 };
 
@@ -79,14 +63,11 @@ export function normalizePlaygroundWaveRevealPosition(value: unknown): Playgroun
     : DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave.position;
 }
 
+/** Legacy payloads may carry removed presets (random columns); only wave survives. */
 export function normalizePlaygroundRevealConfig(
   input:
-    | (Partial<Omit<PlaygroundRevealConfig, "preset" | "wave" | "randomColumns">> & {
-        preset?: PlaygroundRevealPreset | "randomColumnsShift";
+    | (Partial<Omit<PlaygroundRevealConfig, "wave">> & {
         wave?: Partial<PlaygroundWaveRevealConfig>;
-        randomColumns?: Partial<PlaygroundRandomColumnsRevealConfig>;
-        /** @deprecated merged into randomColumns.yShift. */
-        randomColumnsShift?: Partial<PlaygroundRandomColumnsRevealConfig>;
       })
     | undefined,
 ): PlaygroundRevealConfig {
@@ -94,20 +75,13 @@ export function normalizePlaygroundRevealConfig(
   if (!input) {
     return {
       enabled: base.enabled,
-      preset: base.preset,
       wave: { ...base.wave },
-      randomColumns: { ...base.randomColumns },
     };
   }
 
   const wave = input.wave ?? {};
-  const randomColumns =
-    input.preset === "randomColumnsShift"
-      ? { ...input.randomColumnsShift, ...input.randomColumns }
-      : (input.randomColumns ?? {});
   return {
     enabled: input.enabled === true,
-    preset: input.preset === "randomColumns" || input.preset === "randomColumnsShift" ? "randomColumns" : "wave",
     wave: {
       position: normalizePlaygroundWaveRevealPosition(wave.position),
       durationMs: clampInt(wave.durationMs ?? base.wave.durationMs, 100, 30_000, base.wave.durationMs),
@@ -115,25 +89,11 @@ export function normalizePlaygroundRevealConfig(
       waviness: clampNumber(wave.waviness ?? base.wave.waviness, 0, 1, base.wave.waviness),
       noiseScale: clampNumber(wave.noiseScale ?? base.wave.noiseScale, 0.1, 50, base.wave.noiseScale),
     },
-    randomColumns: {
-      durationMs: clampInt(
-        randomColumns.durationMs ?? base.randomColumns.durationMs,
-        100,
-        30_000,
-        base.randomColumns.durationMs,
-      ),
-      stagger: clampNumber(randomColumns.stagger ?? base.randomColumns.stagger, 0, 1, base.randomColumns.stagger),
-      yShift: clampNumber(randomColumns.yShift ?? base.randomColumns.yShift, 0, 1, base.randomColumns.yShift),
-    },
   };
 }
 
 export function resolvePlaygroundRevealDurationMs(config: PlaygroundRevealConfig): number {
-  const normalized = normalizePlaygroundRevealConfig(config);
-  if (normalized.preset === "randomColumns") {
-    return normalized.randomColumns.durationMs;
-  }
-  return normalized.wave.durationMs;
+  return normalizePlaygroundRevealConfig(config).wave.durationMs;
 }
 
 export function isDefaultPlaygroundRevealConfig(input: PlaygroundRevealConfig): boolean {
@@ -141,14 +101,10 @@ export function isDefaultPlaygroundRevealConfig(input: PlaygroundRevealConfig): 
   const base = DEFAULT_PLAYGROUND_REVEAL_CONFIG;
   return (
     normalized.enabled === base.enabled &&
-    normalized.preset === base.preset &&
     normalized.wave.position === base.wave.position &&
     normalized.wave.durationMs === base.wave.durationMs &&
     normalized.wave.softness === base.wave.softness &&
     normalized.wave.waviness === base.wave.waviness &&
-    normalized.wave.noiseScale === base.wave.noiseScale &&
-    normalized.randomColumns.durationMs === base.randomColumns.durationMs &&
-    normalized.randomColumns.stagger === base.randomColumns.stagger &&
-    normalized.randomColumns.yShift === base.randomColumns.yShift
+    normalized.wave.noiseScale === base.wave.noiseScale
   );
 }

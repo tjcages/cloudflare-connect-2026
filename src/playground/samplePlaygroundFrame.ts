@@ -17,7 +17,6 @@ import {
   smoothBlockGridIndicesInRegion,
   type GridCellRegion,
 } from "./playgroundGridDirty";
-import { applyPlaygroundRevealToLumaGrid, type PlaygroundRevealOptions } from "./playgroundReveal";
 import { smoothBlockGridIndices } from "./stabilizeBlockGrid";
 import { resolveStripeIndices, resolveStripesForLuminanceMode, type StripeColors } from "./stripeColors";
 import {
@@ -162,7 +161,6 @@ export type PlaygroundGridBuildOptions = {
   flamesState?: PlaygroundFlamesState | null;
   flamesConfig?: PlaygroundFlamesConfig | null;
   flamesRaster?: PlaygroundFlamesRaster;
-  reveal?: PlaygroundRevealOptions;
   /** When set with `previousLumaGrid`, only recompute stripe cells inside this region. */
   dirtyRegion?: GridCellRegion;
   previousLumaGrid?: LumaGrid;
@@ -198,8 +196,7 @@ export function buildPlaygroundBlockGrid(
     options.dirtyRegion &&
     options.previousLumaGrid &&
     options.previousLumaGrid.cols > 0 &&
-    options.previousLumaGrid.rows > 0 &&
-    !options.reveal;
+    options.previousLumaGrid.rows > 0;
 
   const lumaGrid = canUsePartialRegion
     ? computeBlockGridRegion(
@@ -213,7 +210,6 @@ export function buildPlaygroundBlockGrid(
         options.cellHeight,
         options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
         flames,
-        options.reveal,
         options.luminanceSettings,
         options.preprocessCache,
         options.pixelDirtyBounds,
@@ -227,13 +223,11 @@ export function buildPlaygroundBlockGrid(
         options.cellHeight,
         options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
         flames,
-        options.reveal,
         options.luminanceSettings,
       );
 
-  const revealedLumaGrid = options.reveal ? applyPlaygroundRevealToLumaGrid(lumaGrid, options.reveal) : lumaGrid;
   const stableIndices = buildIndicesFromLumaGrid(
-    revealedLumaGrid,
+    lumaGrid,
     colors,
     options.luminanceSettings,
     state,
@@ -252,7 +246,6 @@ export function buildPlaygroundBlockGrid(
         options.cellWidth,
         options.cellHeight,
         options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-        options.reveal,
         options.luminanceSettings,
       );
 
@@ -261,13 +254,13 @@ export function buildPlaygroundBlockGrid(
       cols: lumaGrid.cols,
       rows: lumaGrid.rows,
       indices: stableIndices,
-      colors: revealedLumaGrid.colors,
-      colorCoverage: revealedLumaGrid.colorCoverage,
-      luma: revealedLumaGrid.luma,
+      colors: lumaGrid.colors,
+      colorCoverage: lumaGrid.colorCoverage,
+      luma: lumaGrid.luma,
     },
     state: { stableIndices },
     partial: Boolean(canUsePartialRegion),
-    lumaGrid: revealedLumaGrid,
+    lumaGrid: lumaGrid,
     preprocessCache,
   };
 }

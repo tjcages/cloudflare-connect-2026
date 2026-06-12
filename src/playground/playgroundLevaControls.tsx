@@ -4,11 +4,7 @@ import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import type { PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 import type { PlaygroundClickWaveConfig } from "./playgroundClickWaveConfig";
 import type { PlaygroundGridConfig } from "./playgroundGridConfig";
-import type {
-  PlaygroundRandomColumnsRevealConfig,
-  PlaygroundRevealConfig,
-  PlaygroundWaveRevealConfig,
-} from "./playgroundRevealConfig";
+import type { PlaygroundRevealConfig, PlaygroundWaveRevealConfig } from "./playgroundRevealConfig";
 import type { PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundCatalogEntry } from "./playgroundPersistence";
@@ -132,7 +128,6 @@ export type PlaygroundLevaControlsProps = {
   onRevealChange: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealLiveChange: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealWaveLiveChange: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
-  onRevealRandomColumnsLiveChange: (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => void;
   onResetReveal: () => void;
   onReplayReveal: () => void;
   revealModified: boolean;
@@ -331,11 +326,6 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onRevealWaveLive: (patch) => propsRef.current.onRevealWaveLiveChange(patch),
     onRevealWaveCommit: (patch) =>
       propsRef.current.onRevealChange({ wave: { ...propsRef.current.revealConfig.wave, ...patch } }),
-    onRevealRandomColumnsLive: (patch) => propsRef.current.onRevealRandomColumnsLiveChange(patch),
-    onRevealRandomColumnsCommit: (patch) =>
-      propsRef.current.onRevealChange({
-        randomColumns: { ...propsRef.current.revealConfig.randomColumns, ...patch },
-      }),
     resetReveal: () => propsRef.current.onResetReveal(),
     replayReveal: () => propsRef.current.onReplayReveal(),
   });
@@ -385,7 +375,6 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       props.gridConfig.cellWidth,
       props.gridConfig.cellHeight,
       props.catalog.length,
-      props.revealConfig.preset,
     ],
   ) as [unknown, (values: Record<string, unknown>) => void, unknown];
 

@@ -109,7 +109,6 @@ import {
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
-  type PlaygroundRandomColumnsRevealConfig,
   type PlaygroundRevealConfig,
   type PlaygroundWaveRevealConfig,
 } from "./playgroundRevealConfig";
@@ -890,13 +889,6 @@ export function TexturePlayground() {
     [updateRevealConfigLive],
   );
 
-  const updateRevealRandomColumnsLive = useCallback(
-    (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => {
-      updateRevealConfigLive({ randomColumns: { ...revealConfigRef.current.randomColumns, ...patch } });
-    },
-    [updateRevealConfigLive],
-  );
-
   const updateRevealConfig = useCallback(
     (patch: Partial<PlaygroundRevealConfig>) => {
       const next = normalizePlaygroundRevealConfig({ ...revealConfigRef.current, ...patch });
@@ -910,9 +902,7 @@ export function TexturePlayground() {
   const resetReveal = useCallback(() => {
     const next = {
       enabled: DEFAULT_PLAYGROUND_REVEAL_CONFIG.enabled,
-      preset: DEFAULT_PLAYGROUND_REVEAL_CONFIG.preset,
       wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave },
-      randomColumns: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.randomColumns },
     };
     revealConfigRef.current = next;
     setRevealConfig(next);
@@ -1578,13 +1568,6 @@ export function TexturePlayground() {
       luminanceSettings: textureLuminanceSettings,
       flamesState: flamesStateRef.current,
       flamesConfig: flamesConfigRef.current,
-      reveal: revealConfigRef.current.enabled
-        ? {
-            config: revealConfigRef.current,
-            progress: revealStateRef.current.progress,
-            replayKey: revealPlaybackRef.current.replayKey,
-          }
-        : undefined,
     });
     const svg = stripeGridToSvg(built.grid, colors, display.width, display.height, {
       useCellColors: textureLuminanceSettings.mode === "colors",
@@ -1771,7 +1754,6 @@ export function TexturePlayground() {
     onRevealChange: updateRevealConfig,
     onRevealLiveChange: updateRevealConfigLive,
     onRevealWaveLiveChange: updateRevealWaveLive,
-    onRevealRandomColumnsLiveChange: updateRevealRandomColumnsLive,
     onResetReveal: resetReveal,
     onReplayReveal: replayReveal,
     revealModified,

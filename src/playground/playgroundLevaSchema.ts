@@ -7,9 +7,7 @@ import type { PlaygroundFlamesConfig, PlaygroundFlamesDirection } from "./playgr
 import type { PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 import type { PlaygroundClickWaveConfig } from "./playgroundClickWaveConfig";
 import type {
-  PlaygroundRandomColumnsRevealConfig,
   PlaygroundRevealConfig,
-  PlaygroundRevealPreset,
   PlaygroundWaveRevealConfig,
   PlaygroundWaveRevealPosition,
 } from "./playgroundRevealConfig";
@@ -154,11 +152,6 @@ const WAVE_POSITION_OPTIONS: Record<string, PlaygroundWaveRevealPosition> = {
   "Left bottom": "left bottom",
   "Center bottom": "center bottom",
   "Right bottom": "right bottom",
-};
-
-const REVEAL_PRESET_OPTIONS: Record<string, PlaygroundRevealPreset> = {
-  Wave: "wave",
-  "Random columns": "randomColumns",
 };
 
 export type PlaygroundCanvasLevaSnapshot = {
@@ -335,8 +328,6 @@ export type PlaygroundLevaHandlers = {
   onRevealCommit: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealWaveLive: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
   onRevealWaveCommit: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
-  onRevealRandomColumnsLive: (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => void;
-  onRevealRandomColumnsCommit: (patch: Partial<PlaygroundRandomColumnsRevealConfig>) => void;
   resetReveal: () => void;
   replayReveal: () => void;
 };
@@ -387,114 +378,64 @@ export function buildPlaygroundLevaSchema(
           },
         }),
         Replay: actionButton(() => handlers.replayReveal(), revealDisabled),
-        preset: selectControl<PlaygroundRevealPreset>(reveal.preset, REVEAL_PRESET_OPTIONS, {
-          label: "Preset",
-          hint: PLAYGROUND_FIELD_HELP.revealPreset,
+        revealPosition: selectControl<PlaygroundWaveRevealPosition>(reveal.wave.position, WAVE_POSITION_OPTIONS, {
+          label: "Position",
+          hint: PLAYGROUND_FIELD_HELP.revealPosition,
           disabled: revealDisabled,
-          onChange: (preset) => handlers.onRevealCommit({ preset }),
+          onChange: (position) => handlers.onRevealWaveCommit({ position }),
         }),
-        ...(reveal.preset === "wave"
-          ? {
-              revealPosition: selectControl<PlaygroundWaveRevealPosition>(reveal.wave.position, WAVE_POSITION_OPTIONS, {
-                label: "Position",
-                hint: PLAYGROUND_FIELD_HELP.revealPosition,
-                disabled: revealDisabled,
-                onChange: (position) => handlers.onRevealWaveCommit({ position }),
-              }),
-              revealWaveDuration: numControl(
-                reveal.wave.durationMs,
-                PLAYGROUND_CONTROL_RANGES.revealDurationMs.min,
-                PLAYGROUND_CONTROL_RANGES.revealDurationMs.max,
-                PLAYGROUND_CONTROL_RANGES.revealDurationMs.step,
-                {
-                  label: "Duration",
-                  hint: PLAYGROUND_FIELD_HELP.revealDuration,
-                  disabled: revealDisabled,
-                  onLive: (value) => handlers.onRevealWaveLive({ durationMs: value }),
-                  onCommit: (value) => handlers.onRevealWaveCommit({ durationMs: value }),
-                },
-              ),
-              revealSoftness: numControl(
-                reveal.wave.softness,
-                PLAYGROUND_CONTROL_RANGES.revealSoftness.min,
-                PLAYGROUND_CONTROL_RANGES.revealSoftness.max,
-                PLAYGROUND_CONTROL_RANGES.revealSoftness.step,
-                {
-                  label: "Softness",
-                  hint: PLAYGROUND_FIELD_HELP.revealSoftness,
-                  disabled: revealDisabled,
-                  onLive: (value) => handlers.onRevealWaveLive({ softness: value }),
-                  onCommit: (value) => handlers.onRevealWaveCommit({ softness: value }),
-                },
-              ),
-              revealWaviness: numControl(
-                reveal.wave.waviness,
-                PLAYGROUND_CONTROL_RANGES.revealWaviness.min,
-                PLAYGROUND_CONTROL_RANGES.revealWaviness.max,
-                PLAYGROUND_CONTROL_RANGES.revealWaviness.step,
-                {
-                  label: "Waviness",
-                  hint: PLAYGROUND_FIELD_HELP.revealWaviness,
-                  disabled: revealDisabled,
-                  onLive: (value) => handlers.onRevealWaveLive({ waviness: value }),
-                  onCommit: (value) => handlers.onRevealWaveCommit({ waviness: value }),
-                },
-              ),
-              revealNoiseScale: numControl(
-                reveal.wave.noiseScale,
-                PLAYGROUND_CONTROL_RANGES.revealNoiseScale.min,
-                PLAYGROUND_CONTROL_RANGES.revealNoiseScale.max,
-                PLAYGROUND_CONTROL_RANGES.revealNoiseScale.step,
-                {
-                  label: "Noise scale",
-                  hint: PLAYGROUND_FIELD_HELP.revealNoiseScale,
-                  disabled: revealDisabled,
-                  onLive: (value) => handlers.onRevealWaveLive({ noiseScale: value }),
-                  onCommit: (value) => handlers.onRevealWaveCommit({ noiseScale: value }),
-                },
-              ),
-            }
-          : {
-              revealColumnDuration: numControl(
-                reveal.randomColumns.durationMs,
-                PLAYGROUND_CONTROL_RANGES.revealDurationMs.min,
-                PLAYGROUND_CONTROL_RANGES.revealDurationMs.max,
-                PLAYGROUND_CONTROL_RANGES.revealDurationMs.step,
-                {
-                  label: "Duration",
-                  hint: PLAYGROUND_FIELD_HELP.revealDuration,
-                  disabled: revealDisabled,
-                  onLive: (value) => handlers.onRevealRandomColumnsLive({ durationMs: value }),
-                  onCommit: (value) => handlers.onRevealRandomColumnsCommit({ durationMs: value }),
-                },
-              ),
-              revealColumnStagger: numControl(
-                reveal.randomColumns.stagger,
-                PLAYGROUND_CONTROL_RANGES.revealColumnStagger.min,
-                PLAYGROUND_CONTROL_RANGES.revealColumnStagger.max,
-                PLAYGROUND_CONTROL_RANGES.revealColumnStagger.step,
-                {
-                  label: "Stagger",
-                  hint: PLAYGROUND_FIELD_HELP.revealColumnStagger,
-                  disabled: revealDisabled,
-                  onLive: (value) => handlers.onRevealRandomColumnsLive({ stagger: value }),
-                  onCommit: (value) => handlers.onRevealRandomColumnsCommit({ stagger: value }),
-                },
-              ),
-              revealColumnYShift: numControl(
-                reveal.randomColumns.yShift,
-                PLAYGROUND_CONTROL_RANGES.revealColumnYShift.min,
-                PLAYGROUND_CONTROL_RANGES.revealColumnYShift.max,
-                PLAYGROUND_CONTROL_RANGES.revealColumnYShift.step,
-                {
-                  label: "Y shift",
-                  hint: PLAYGROUND_FIELD_HELP.revealColumnYShift,
-                  disabled: revealDisabled,
-                  onLive: (value) => handlers.onRevealRandomColumnsLive({ yShift: value }),
-                  onCommit: (value) => handlers.onRevealRandomColumnsCommit({ yShift: value }),
-                },
-              ),
-            }),
+        revealWaveDuration: numControl(
+          reveal.wave.durationMs,
+          PLAYGROUND_CONTROL_RANGES.revealDurationMs.min,
+          PLAYGROUND_CONTROL_RANGES.revealDurationMs.max,
+          PLAYGROUND_CONTROL_RANGES.revealDurationMs.step,
+          {
+            label: "Duration",
+            hint: PLAYGROUND_FIELD_HELP.revealDuration,
+            disabled: revealDisabled,
+            onLive: (value) => handlers.onRevealWaveLive({ durationMs: value }),
+            onCommit: (value) => handlers.onRevealWaveCommit({ durationMs: value }),
+          },
+        ),
+        revealSoftness: numControl(
+          reveal.wave.softness,
+          PLAYGROUND_CONTROL_RANGES.revealSoftness.min,
+          PLAYGROUND_CONTROL_RANGES.revealSoftness.max,
+          PLAYGROUND_CONTROL_RANGES.revealSoftness.step,
+          {
+            label: "Softness",
+            hint: PLAYGROUND_FIELD_HELP.revealSoftness,
+            disabled: revealDisabled,
+            onLive: (value) => handlers.onRevealWaveLive({ softness: value }),
+            onCommit: (value) => handlers.onRevealWaveCommit({ softness: value }),
+          },
+        ),
+        revealWaviness: numControl(
+          reveal.wave.waviness,
+          PLAYGROUND_CONTROL_RANGES.revealWaviness.min,
+          PLAYGROUND_CONTROL_RANGES.revealWaviness.max,
+          PLAYGROUND_CONTROL_RANGES.revealWaviness.step,
+          {
+            label: "Waviness",
+            hint: PLAYGROUND_FIELD_HELP.revealWaviness,
+            disabled: revealDisabled,
+            onLive: (value) => handlers.onRevealWaveLive({ waviness: value }),
+            onCommit: (value) => handlers.onRevealWaveCommit({ waviness: value }),
+          },
+        ),
+        revealNoiseScale: numControl(
+          reveal.wave.noiseScale,
+          PLAYGROUND_CONTROL_RANGES.revealNoiseScale.min,
+          PLAYGROUND_CONTROL_RANGES.revealNoiseScale.max,
+          PLAYGROUND_CONTROL_RANGES.revealNoiseScale.step,
+          {
+            label: "Noise scale",
+            hint: PLAYGROUND_FIELD_HELP.revealNoiseScale,
+            disabled: revealDisabled,
+            onLive: (value) => handlers.onRevealWaveLive({ noiseScale: value }),
+            onCommit: (value) => handlers.onRevealWaveCommit({ noiseScale: value }),
+          },
+        ),
       },
       { color: folderColor(snapshot.revealModified) },
     ),
@@ -1516,7 +1457,6 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
   const values: Record<string, unknown> = {
     shaderEnabled: snapshot.duotoneEnabled,
     revealEnabled: reveal.enabled,
-    preset: reveal.preset,
     exposure: adjustments.exposure,
     brightness: adjustments.brightness,
     contrast: adjustments.contrast,
@@ -1608,17 +1548,11 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     clickWaveRingWhite: clickWave.stripeWhiteAlpha,
   };
 
-  if (reveal.preset === "wave") {
-    values.revealPosition = reveal.wave.position;
-    values.revealWaveDuration = reveal.wave.durationMs;
-    values.revealSoftness = reveal.wave.softness;
-    values.revealWaviness = reveal.wave.waviness;
-    values.revealNoiseScale = reveal.wave.noiseScale;
-  } else {
-    values.revealColumnDuration = reveal.randomColumns.durationMs;
-    values.revealColumnStagger = reveal.randomColumns.stagger;
-    values.revealColumnYShift = reveal.randomColumns.yShift;
-  }
+  values.revealPosition = reveal.wave.position;
+  values.revealWaveDuration = reveal.wave.durationMs;
+  values.revealSoftness = reveal.wave.softness;
+  values.revealWaviness = reveal.wave.waviness;
+  values.revealNoiseScale = reveal.wave.noiseScale;
 
   if (snapshot.textureLuminanceSettings.mode === "luminance" || snapshot.textureLuminanceSettings.mode === "overlay") {
     values.stripeColorsTable = stripeSyncKey(snapshot.stripes);

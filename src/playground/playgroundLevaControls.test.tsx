@@ -148,7 +148,6 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onRevealChange={() => {}}
       onRevealLiveChange={() => {}}
       onRevealWaveLiveChange={() => {}}
-      onRevealRandomColumnsLiveChange={() => {}}
       onResetReveal={() => {}}
       onReplayReveal={() => {}}
       revealModified={false}
@@ -191,7 +190,7 @@ describe("PlaygroundLevaControls", () => {
 
     expect(screen.getByText("Reveal")).toBeInTheDocument();
     expect(screen.getByLabelText("Reveal enabled")).toBeInTheDocument();
-    expect(screen.getByLabelText("Preset")).toBeInTheDocument();
+    expect(screen.getByLabelText("Position")).toBeInTheDocument();
   });
 
   it("wires reveal enabled toggle changes through the callback", () => {
@@ -337,8 +336,6 @@ describe("PlaygroundLevaControls", () => {
       onRevealCommit: noop,
       onRevealWaveLive: noop,
       onRevealWaveCommit: noop,
-      onRevealRandomColumnsLive: noop,
-      onRevealRandomColumnsCommit: noop,
       resetReveal: noop,
       replayReveal: noop,
     };
@@ -453,8 +450,6 @@ describe("PlaygroundLevaControls", () => {
       onRevealCommit: noop,
       onRevealWaveLive: noop,
       onRevealWaveCommit: noop,
-      onRevealRandomColumnsLive: noop,
-      onRevealRandomColumnsCommit: noop,
       resetReveal: noop,
       replayReveal: noop,
     };
@@ -559,8 +554,6 @@ describe("PlaygroundLevaControls", () => {
       onRevealCommit: noop,
       onRevealWaveLive: noop,
       onRevealWaveCommit: noop,
-      onRevealRandomColumnsLive: noop,
-      onRevealRandomColumnsCommit: noop,
       resetReveal: noop,
       replayReveal: noop,
     };

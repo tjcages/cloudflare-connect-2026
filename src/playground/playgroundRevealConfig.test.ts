@@ -8,7 +8,6 @@ import {
 describe("playground reveal config", () => {
   test("normalizes wave config values into supported ranges", () => {
     const config = normalizePlaygroundRevealConfig({
-      preset: "wave",
       wave: {
         position: "right bottom",
         durationMs: 50,
@@ -20,7 +19,6 @@ describe("playground reveal config", () => {
 
     expect(config).toEqual({
       enabled: false,
-      preset: "wave",
       wave: {
         position: "right bottom",
         durationMs: 100,
@@ -28,29 +26,19 @@ describe("playground reveal config", () => {
         waviness: 0,
         noiseScale: 0.1,
       },
-      randomColumns: DEFAULT_PLAYGROUND_REVEAL_CONFIG.randomColumns,
     });
   });
 
-  test("normalizes random-columns config values into supported ranges", () => {
+  test("ignores legacy random-columns payload fields", () => {
     const config = normalizePlaygroundRevealConfig({
+      enabled: true,
       preset: "randomColumns",
-      randomColumns: {
-        durationMs: 50,
-        stagger: 2,
-        yShift: 2,
-      },
-    });
+      randomColumns: { durationMs: 1800, stagger: 0.8, yShift: 0.35 },
+    } as never);
 
     expect(config).toEqual({
-      enabled: false,
-      preset: "randomColumns",
-      wave: DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave,
-      randomColumns: {
-        durationMs: 100,
-        stagger: 1,
-        yShift: 1,
-      },
+      enabled: true,
+      wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave },
     });
   });
 
@@ -60,7 +48,6 @@ describe("playground reveal config", () => {
       isDefaultPlaygroundRevealConfig(
         normalizePlaygroundRevealConfig({
           enabled: true,
-          preset: "wave",
           wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave },
         }),
       ),
@@ -68,7 +55,6 @@ describe("playground reveal config", () => {
     expect(
       isDefaultPlaygroundRevealConfig(
         normalizePlaygroundRevealConfig({
-          preset: "wave",
           wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave, position: "left top" },
         }),
       ),
