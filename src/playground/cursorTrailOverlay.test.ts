@@ -903,26 +903,37 @@ describe("accumulateClickWaveCellMap – explosion ring", () => {
   const halfStroke = 1;
   const wobbleAmplitude = Math.max(1, R * 0.18);
 
+  // Mirrors CLICK_BREAKUP_JITTER / CLICK_INTERIOR_FILL in cursorTrailOverlay.ts.
+  const breakupJitter = 0.25;
+  const interiorFill = 0.5;
+
   function expectedRingAlpha(sample: ReturnType<typeof makeClickSample>, whitePeak: number, x: number, y: number) {
     const dx = x - 10;
     const dy = y - 10;
     const distance = Math.hypot(dx, dy);
     const front = R + clickRadiusWobble(sample.seed, Math.atan2(dy, dx), sample.waveProgress, wobbleAmplitude);
-    const breakup = clickStrengthBreakup(sample.seed, x, y, sample.waveProgress, 0.5);
-    const fo = Math.abs(distance - front) >= halfStroke ? 0 : (() => {
-      const t = 1 - Math.abs(distance - front) / halfStroke;
-      return t * t * (3 - 2 * t);
-    })();
-    return Math.max(0, Math.min(1, whitePeak * breakup * fo));
+    const breakup = clickStrengthBreakup(sample.seed, x, y, sample.waveProgress, breakupJitter);
+    const fromFront = distance - front;
+    let radial: number;
+    if (fromFront > halfStroke) {
+      radial = 0;
+    } else if (fromFront > 0) {
+      const t = 1 - fromFront / halfStroke;
+      radial = t * t * (3 - 2 * t);
+    } else {
+      const interiorT = Math.max(0, Math.min(1, distance / Math.max(0.0001, front)));
+      radial = interiorFill + (1 - interiorFill) * interiorT;
+    }
+    return Math.max(0, Math.min(1, whitePeak * breakup * radial));
   }
 
-  it("brightens the wobbled, broken-up ring band and leaves core/far field dark", () => {
+  it("fills the blast interior behind the wobbled front and leaves the far field dark", () => {
     const config = makeClickConfig({ stripeWhiteAlpha: 0.5, pushStrengthPx: 0 });
     const sample = makeClickSample();
     const map = resetCursorTrailCellMap(null, cols, rows);
     accumulateClickWaveCellMap(map, [sample], config, displayWidth, displayHeight, undefined, undefined);
 
-    // Every cell matches the wobble + breakup + falloff recipe exactly.
+    // Every cell matches the wobble + breakup + filled-radial recipe exactly.
     let nonZero = 0;
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
@@ -932,8 +943,8 @@ describe("accumulateClickWaveCellMap – explosion ring", () => {
       }
     }
     expect(nonZero).toBeGreaterThan(0);
-    // Centre and far corner are untouched regardless of wobble.
-    expect(map.whiteAlpha[10 * cols + 10]).toBe(0);
+    // Interior is now filled (origin lit at the fill floor), far corner still untouched.
+    expect(map.whiteAlpha[10 * cols + 10]).toBeGreaterThan(0);
     expect(map.whiteAlpha[0]).toBe(0);
     expect(map.nonEmpty).toBe(true);
   });

@@ -411,10 +411,11 @@ void main(void) {
         } else {
             l *= (1.0 - tear);
         }
-        // Brighten only lifts content that exists: empty cells stay empty (no white overlay
-        // floating over sparse areas), real stripes still flare toward white.
-        float presence = inverted ? 1.0 - l : l;
-        float trailLift = trail.a * smoothstep(0.0, 0.25, presence);
+        // Trail/click paint white directly: every touched cell is lifted toward white
+        // (→ top stripe band) by the trail alpha, so the wake adds new stripes over the
+        // background too, not just over existing content. No content gate — this matches
+        // the applyCursorTrailCell reference model (l + (1 - l) * whiteAlpha).
+        float trailLift = trail.a;
         if (inverted) {
             l *= (1.0 - trailLift);
         } else {

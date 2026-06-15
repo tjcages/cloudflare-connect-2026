@@ -376,7 +376,14 @@ export function clickCellDissolved(seed: number, cellIdx: number, dissolve: numb
 }
 
 /** Ring band breakup strength — wispy but never fully transparent mid-life. */
-const CLICK_BREAKUP_JITTER = 0.5;
+const CLICK_BREAKUP_JITTER = 0.25;
+
+/**
+ * Interior fill of the blast behind the wavefront: 0 = hollow ring (front band only),
+ * 1 = solid to the origin. The front is always full; this is the floor brightness at the
+ * centre, ramping up to the front so the explosion reads as filled pixels, not an outline.
+ */
+const CLICK_INTERIOR_FILL = 0.5;
 
 /** Wave-front wobble amplitude as a fraction of the current ring radius. */
 const CLICK_WOBBLE_RADIUS_RATIO = 0.18;
@@ -442,7 +449,20 @@ export function accumulateClickWaveCellMap(
             const frontRadius =
               ringRadius + clickRadiusWobble(sample.seed, angle, sample.waveProgress, wobbleAmplitude);
             const breakup = clickStrengthBreakup(sample.seed, x, y, sample.waveProgress, CLICK_BREAKUP_JITTER);
-            const cellAlpha = clamp01(whitePeak * breakup * falloff(Math.abs(distance - frontRadius), halfStroke));
+            // Filled blast, not just an outline: ahead of the front feathers out over the
+            // stroke; behind the front the interior is filled, ramping from CLICK_INTERIOR_FILL
+            // at the origin up to full at the wavefront.
+            const fromFront = distance - frontRadius;
+            let radial: number;
+            if (fromFront > halfStroke) {
+              radial = 0;
+            } else if (fromFront > 0) {
+              radial = falloff(fromFront, halfStroke);
+            } else {
+              const interiorT = clamp01(distance / Math.max(0.0001, frontRadius));
+              radial = CLICK_INTERIOR_FILL + (1 - CLICK_INTERIOR_FILL) * interiorT;
+            }
+            const cellAlpha = clamp01(whitePeak * breakup * radial);
             if (cellAlpha <= 0) {
               continue;
             }

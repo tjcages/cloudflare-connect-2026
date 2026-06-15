@@ -20,11 +20,11 @@ export const DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG: PlaygroundClickWaveConfig = {
   startRadiusPx: 6,
   maxRadiusPx: 120,
   startStrokeWidthPx: 24,
-  endStrokeWidthPx: 4,
+  endStrokeWidthPx: 12,
   maxWaves: 12,
   pushStrengthPx: 38,
   pushBandScale: 3.2,
-  stripeWhiteAlpha: 0.42,
+  stripeWhiteAlpha: 0.9,
 };
 
 function finiteNumber(value: unknown, fallback: number): number {

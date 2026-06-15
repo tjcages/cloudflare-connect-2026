@@ -27,7 +27,7 @@ describe("updateClickWave", () => {
     expect(sample.radius).toBeCloseTo(10 + 100 * eased, 6);
     expect(sample.strokeWidth).toBeCloseTo(24 + (4 - 24) * progress, 6);
     expect(sample.pushPower).toBeCloseTo(life * life * (3 - 2 * life), 6);
-    expect(sample.whitePower).toBeCloseTo(Math.pow(life, 0.62) * (1.35 - 0.35 * eased), 6);
+    expect(sample.whitePower).toBeCloseTo(Math.pow(life, 0.45) * (1.35 - 0.35 * eased), 6);
   });
 
   it("trims the wave pool to maxWaves, oldest first", () => {

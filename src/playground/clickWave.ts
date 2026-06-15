@@ -47,9 +47,10 @@ function easeOutQuart(progress: number): number {
   return 1 - t * t * t * t;
 }
 
-/** Softer than life² but still clears cleanly at the end (no afterimage tail). */
+/** Softer than life² but still clears cleanly at the end (no afterimage tail).
+ *  Lower exponent keeps the ring brighter as it expands so the wake stays visible. */
 function smokeLifeCurve(progress: number): number {
-  return Math.pow(Math.max(0, 1 - progress), 0.62);
+  return Math.pow(Math.max(0, 1 - progress), 0.45);
 }
 
 /** Ring white: strong at click birth, cools as the ripple expands. */

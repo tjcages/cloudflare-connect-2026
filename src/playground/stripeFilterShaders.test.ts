@@ -55,9 +55,11 @@ describe("STRIPE_FILTER_FRAGMENT", () => {
     expect(STRIPE_FILTER_FRAGMENT).toContain("l += (1.0 - l) * trailLift;");
   });
 
-  it("gates the brighten by existing content so empty cells never turn white", () => {
-    expect(STRIPE_FILTER_FRAGMENT).toContain("float trailLift = trail.a * smoothstep(0.0, 0.25, presence);");
-    expect(STRIPE_FILTER_FRAGMENT).not.toContain("l += (1.0 - l) * trail.a;");
+  it("brightens trail cells ungated so the wake adds stripes over empty background", () => {
+    expect(STRIPE_FILTER_FRAGMENT).toContain("float trailLift = trail.a;");
+    // No content gate on the luma lift (the surviving smoothstep is the colors-mode
+    // coverage scale, keyed on srcCoverage, not the luma `presence`).
+    expect(STRIPE_FILTER_FRAGMENT).not.toContain("smoothstep(0.0, 0.25, presence)");
   });
 
   it("keeps brighten-only trail cells monotonic via the band max policy", () => {
