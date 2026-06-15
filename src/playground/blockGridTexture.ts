@@ -1,18 +1,38 @@
-import { Texture } from "pixi.js";
+import { BufferImageSource, Texture } from "pixi.js";
 import type { BlockGrid } from "./computeBlockGrid";
 import type { GridCellRegion } from "./playgroundGridDirty";
 import { encodeStripeIndex, STRIPE_CELL_SIZE } from "./stripeGridConstants";
+
+function createBlockMapTexture(buffer: Uint8Array, cols: number, rows: number): Texture {
+  return new Texture({
+    source: new BufferImageSource({
+      resource: buffer,
+      width: Math.max(1, cols),
+      height: Math.max(1, rows),
+      // Index/luma/coverage are data, not color: keep alpha straight so the index byte is
+      // never premultiplied by per-cell coverage. Nearest: stop linear bleed between cells.
+      alphaMode: "no-premultiply-alpha",
+      scaleMode: "nearest",
+    }),
+  });
+}
 
 export class BlockGridTexture {
   private _cols: number;
   private _rows: number;
 
-  readonly texture: Texture;
-  readonly colorTexture: Texture;
+  // Block map carries DATA — R = stripe index, G = bucketing-space luma, B = index,
+  // A = color coverage — not color. Canvas-element uploads pass through the browser image
+  // pipeline (the display-p3 `unpackColorSpace` conversion configured in playgroundColorSpace.ts),
+  // which mixes channels for non-grayscale texels and corrupts the index/luma bytes (this map
+  // stopped being grayscale once G started carrying luma). Upload from a raw byte buffer instead
+  // — spec-guaranteed verbatim — exactly like CursorTrailOverlay's data textures.
+  texture: Texture;
+  private indexBuffer: Uint8Array;
 
-  private readonly canvas: HTMLCanvasElement;
-  private readonly ctx: CanvasRenderingContext2D;
-  private imageData: ImageData;
+  // Cell colors ARE color: keep the canvas path so display-p3 conversion renders sampled
+  // source colors faithfully on the wide-gamut canvas.
+  readonly colorTexture: Texture;
   private readonly colorCanvas: HTMLCanvasElement;
   private readonly colorCtx: CanvasRenderingContext2D;
   private colorImageData: ImageData;
@@ -25,18 +45,9 @@ export class BlockGridTexture {
   ) {
     this._cols = Math.ceil(displayWidth / Math.max(1, cellWidth));
     this._rows = Math.ceil(displayHeight / Math.max(1, cellHeight));
-    this.canvas = document.createElement("canvas");
-    this.canvas.width = this._cols;
-    this.canvas.height = this._rows;
-    const ctx = this.canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) {
-      throw new Error("2D canvas context unavailable for block grid texture.");
-    }
-    this.ctx = ctx;
-    this.imageData = ctx.createImageData(this._cols, this._rows);
-    this.texture = Texture.from(this.canvas);
-    // Nearest: stop linear bleed between band cells.
-    this.texture.source.scaleMode = "nearest";
+
+    this.indexBuffer = new Uint8Array(this._cols * this._rows * 4);
+    this.texture = createBlockMapTexture(this.indexBuffer, this._cols, this._rows);
 
     this.colorCanvas = document.createElement("canvas");
     this.colorCanvas.width = this._cols;
@@ -72,13 +83,14 @@ export class BlockGridTexture {
 
     this._cols = nextCols;
     this._rows = nextRows;
-    this.canvas.width = nextCols;
-    this.canvas.height = nextRows;
+
+    this.indexBuffer = new Uint8Array(nextCols * nextRows * 4);
+    this.texture.destroy(true);
+    this.texture = createBlockMapTexture(this.indexBuffer, nextCols, nextRows);
+
     this.colorCanvas.width = nextCols;
     this.colorCanvas.height = nextRows;
-    this.imageData = this.ctx.createImageData(nextCols, nextRows);
     this.colorImageData = this.colorCtx.createImageData(nextCols, nextRows);
-    this.texture.source.update();
     this.colorTexture.source.update();
     return true;
   }
@@ -89,7 +101,7 @@ export class BlockGridTexture {
     const destIndex = destRow * grid.cols + col;
     const encoded = encodeStripeIndex(grid.indices[i] ?? 0);
     const offset = destIndex * 4;
-    const out = this.imageData.data;
+    const out = this.indexBuffer;
     const colorOut = this.colorImageData.data;
     out[offset] = encoded;
     out[offset + 1] = grid.luma?.[i] ?? 0;
@@ -114,9 +126,8 @@ export class BlockGridTexture {
       this.writeCell(grid, col, row);
     }
 
-    this.ctx.putImageData(this.imageData, 0, 0);
-    this.colorCtx.putImageData(this.colorImageData, 0, 0);
     this.texture.source.update();
+    this.colorCtx.putImageData(this.colorImageData, 0, 0);
     this.colorTexture.source.update();
   }
 
@@ -131,9 +142,8 @@ export class BlockGridTexture {
       }
     }
 
-    this.ctx.putImageData(this.imageData, 0, 0);
-    this.colorCtx.putImageData(this.colorImageData, 0, 0);
     this.texture.source.update();
+    this.colorCtx.putImageData(this.colorImageData, 0, 0);
     this.colorTexture.source.update();
   }
 

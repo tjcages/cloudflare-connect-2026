@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BlockGridTexture } from "./blockGridTexture";
 
 describe("BlockGridTexture", () => {
-  it("resize updates cols and rows without replacing texture instance", () => {
+  it("resize updates cols and rows and rebinds the block-map texture", () => {
     const texture = new BlockGridTexture(100, 100, 10, 10);
     const original = texture.texture;
     expect(texture.cols).toBe(10);
@@ -12,7 +12,9 @@ describe("BlockGridTexture", () => {
     expect(changed).toBe(true);
     expect(texture.cols).toBe(5);
     expect(texture.rows).toBe(5);
-    expect(texture.texture).toBe(original);
+    // The buffer-backed block map is recreated on resize (like CursorTrailOverlay); the scene
+    // re-binds blockGridTexture.texture whenever dimensions change.
+    expect(texture.texture).not.toBe(original);
 
     const unchanged = texture.resize(100, 100, 20, 20);
     expect(unchanged).toBe(false);
@@ -39,9 +41,9 @@ describe("BlockGridTexture", () => {
       colorCoverage: new Uint8Array([64]),
     });
 
-    const blockImageData = (texture as unknown as { imageData: ImageData }).imageData;
+    const indexBuffer = (texture as unknown as { indexBuffer: Uint8Array }).indexBuffer;
     const colorImageData = (texture as unknown as { colorImageData: ImageData }).colorImageData;
-    expect(blockImageData.data[3]).toBe(64);
+    expect(indexBuffer[3]).toBe(64);
     expect(colorImageData.data[3]).toBe(255);
   });
 
@@ -56,8 +58,8 @@ describe("BlockGridTexture", () => {
       luma: new Uint8Array([192]),
     });
 
-    const blockImageData = (texture as unknown as { imageData: ImageData }).imageData;
-    expect(blockImageData.data[1]).toBe(192);
+    const indexBuffer = (texture as unknown as { indexBuffer: Uint8Array }).indexBuffer;
+    expect(indexBuffer[1]).toBe(192);
   });
 
   it("falls back to 0 in the G channel when grid lacks luma", () => {
@@ -69,8 +71,8 @@ describe("BlockGridTexture", () => {
       colors: new Uint8Array([255, 0, 0]),
     });
 
-    const blockImageData = (texture as unknown as { imageData: ImageData }).imageData;
-    expect(blockImageData.data[1]).toBe(0);
+    const indexBuffer = (texture as unknown as { indexBuffer: Uint8Array }).indexBuffer;
+    expect(indexBuffer[1]).toBe(0);
   });
 
   it("applies the bottom-up row flip to luma values in the G channel", () => {
@@ -83,12 +85,12 @@ describe("BlockGridTexture", () => {
       luma: new Uint8Array([100, 200]),
     });
 
-    const blockImageData = (texture as unknown as { imageData: ImageData }).imageData;
+    const indexBuffer = (texture as unknown as { indexBuffer: Uint8Array }).indexBuffer;
     // Row 0 in source (bottom in texture due to flip) is at destIndex (grid.rows - 1 - 0) * grid.cols + 0 = 1
     const bottomRowOffset = 1 * 4;
-    expect(blockImageData.data[bottomRowOffset + 1]).toBe(100);
+    expect(indexBuffer[bottomRowOffset + 1]).toBe(100);
     // Row 1 in source (top in texture due to flip) is at destIndex (grid.rows - 1 - 1) * grid.cols + 0 = 0
     const topRowOffset = 0;
-    expect(blockImageData.data[topRowOffset + 1]).toBe(200);
+    expect(indexBuffer[topRowOffset + 1]).toBe(200);
   });
 });
