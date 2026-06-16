@@ -8,7 +8,6 @@ export {
   PLAYGROUND_DISPLAY_MAX_PX,
   PLAYGROUND_DISPLAY_SCALE,
   PLAYGROUND_GRID_UPDATE_INTERVAL_MS,
-  PLAYGROUND_PIXI_RESOLUTION,
   resolvePlaygroundDisplaySize,
   type PlaygroundDisplaySize,
   type PlaygroundSceneExportState,

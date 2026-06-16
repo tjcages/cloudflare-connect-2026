@@ -101,6 +101,19 @@ export function createStripeDuotoneFilter(
     uCursorTrailPushRange: { value: 0, type: "f32" },
     uCursorTrailDebug: { value: STRIPE_DEBUG_CURSOR_TRAIL, type: "f32" },
   });
+  let uniformsDirty = true;
+
+  const markUniformsDirty = () => {
+    uniformsDirty = true;
+  };
+
+  const updateUniformsIfDirty = () => {
+    if (!uniformsDirty) {
+      return;
+    }
+    stripeUniforms.update();
+    uniformsDirty = false;
+  };
 
   const filter = new Filter({
     glProgram: GlProgram.from({
@@ -121,36 +134,46 @@ export function createStripeDuotoneFilter(
     },
   }) as StripeDuotoneFilter;
 
-  let currentBlockMap = blockMap;
-  let currentCellColorMap = blockMap;
-  bindBlockMapTexture(filter, currentBlockMap);
-  bindCellColorMapTexture(filter, currentCellColorMap);
+  bindBlockMapTexture(filter, blockMap);
+  bindCellColorMapTexture(filter, blockMap);
 
   filter.syncColors = (nextColors, nextPreferP3 = preferP3) => {
     palette.update(resolveStripePalette(nextColors, nextPreferP3));
     stripeIndexLut.update(buildStripeIndexLut(nextColors.stripes));
     filter.resources.uStripeData = palette.texture.source;
     filter.resources.uStripeIndexLut = stripeIndexLut.texture.source;
-    (stripeUniforms.uniforms as { uStripeCount: number }).uStripeCount = palette.count;
-    stripeUniforms.update();
+    const uniforms = stripeUniforms.uniforms as { uStripeCount: number };
+    if (uniforms.uStripeCount !== palette.count) {
+      uniforms.uStripeCount = palette.count;
+      markUniformsDirty();
+    }
   };
 
   filter.syncUseCellColors = (enabled) => {
     const uniforms = stripeUniforms.uniforms as { uUseCellColors: number };
-    uniforms.uUseCellColors = enabled ? 1 : 0;
-    stripeUniforms.update();
+    const next = enabled ? 1 : 0;
+    if (uniforms.uUseCellColors !== next) {
+      uniforms.uUseCellColors = next;
+      markUniformsDirty();
+    }
   };
 
   filter.syncInvertStripeBucketing = (enabled) => {
     const uniforms = stripeUniforms.uniforms as { uInvertStripeBucketing: number };
-    uniforms.uInvertStripeBucketing = enabled ? 1 : 0;
-    stripeUniforms.update();
+    const next = enabled ? 1 : 0;
+    if (uniforms.uInvertStripeBucketing !== next) {
+      uniforms.uInvertStripeBucketing = next;
+      markUniformsDirty();
+    }
   };
 
   filter.syncTextureUnderlay = (enabled) => {
     const uniforms = stripeUniforms.uniforms as { uTextureUnderlay: number };
-    uniforms.uTextureUnderlay = enabled ? 1 : 0;
-    stripeUniforms.update();
+    const next = enabled ? 1 : 0;
+    if (uniforms.uTextureUnderlay !== next) {
+      uniforms.uTextureUnderlay = next;
+      markUniformsDirty();
+    }
   };
 
   filter.syncSparkle = (options, timeSec) => {
@@ -161,11 +184,31 @@ export function createStripeDuotoneFilter(
       uSparklePeriodMinSec: number;
       uSparklePeriodMaxSec: number;
     };
-    uniforms.uSparkleEnabled = options.enabled ? 1 : 0;
-    uniforms.uSparkleTime = timeSec;
-    uniforms.uSparkleCoverage = options.coverage;
-    uniforms.uSparklePeriodMinSec = options.periodMinSec;
-    uniforms.uSparklePeriodMaxSec = options.periodMaxSec;
+    let changed = false;
+    const nextEnabled = options.enabled ? 1 : 0;
+    if (uniforms.uSparkleEnabled !== nextEnabled) {
+      uniforms.uSparkleEnabled = nextEnabled;
+      changed = true;
+    }
+    if (uniforms.uSparkleEnabled > 0 && uniforms.uSparkleTime !== timeSec) {
+      uniforms.uSparkleTime = timeSec;
+      changed = true;
+    }
+    if (uniforms.uSparkleCoverage !== options.coverage) {
+      uniforms.uSparkleCoverage = options.coverage;
+      changed = true;
+    }
+    if (uniforms.uSparklePeriodMinSec !== options.periodMinSec) {
+      uniforms.uSparklePeriodMinSec = options.periodMinSec;
+      changed = true;
+    }
+    if (uniforms.uSparklePeriodMaxSec !== options.periodMaxSec) {
+      uniforms.uSparklePeriodMaxSec = options.periodMaxSec;
+      changed = true;
+    }
+    if (changed) {
+      markUniformsDirty();
+    }
   };
 
   filter.syncWidthShuffle = (options, timeSec) => {
@@ -176,18 +219,40 @@ export function createStripeDuotoneFilter(
       uWidthShufflePeriodMinSec: number;
       uWidthShufflePeriodMaxSec: number;
     };
-    uniforms.uWidthShuffleEnabled = options.enabled ? 1 : 0;
-    uniforms.uWidthShuffleTime = timeSec;
-    uniforms.uWidthShuffleCoverage = options.coverage;
-    uniforms.uWidthShufflePeriodMinSec = options.periodMinSec;
-    uniforms.uWidthShufflePeriodMaxSec = options.periodMaxSec;
-    stripeUniforms.update();
+    let changed = false;
+    const nextEnabled = options.enabled ? 1 : 0;
+    if (uniforms.uWidthShuffleEnabled !== nextEnabled) {
+      uniforms.uWidthShuffleEnabled = nextEnabled;
+      changed = true;
+    }
+    if (uniforms.uWidthShuffleEnabled > 0 && uniforms.uWidthShuffleTime !== timeSec) {
+      uniforms.uWidthShuffleTime = timeSec;
+      changed = true;
+    }
+    if (uniforms.uWidthShuffleCoverage !== options.coverage) {
+      uniforms.uWidthShuffleCoverage = options.coverage;
+      changed = true;
+    }
+    if (uniforms.uWidthShufflePeriodMinSec !== options.periodMinSec) {
+      uniforms.uWidthShufflePeriodMinSec = options.periodMinSec;
+      changed = true;
+    }
+    if (uniforms.uWidthShufflePeriodMaxSec !== options.periodMaxSec) {
+      uniforms.uWidthShufflePeriodMaxSec = options.periodMaxSec;
+      changed = true;
+    }
+    if (changed) {
+      markUniformsDirty();
+    }
   };
 
   filter.syncScreenScale = (resolution) => {
     const uniforms = stripeUniforms.uniforms as { uScreenScale: number };
-    uniforms.uScreenScale = Number.isFinite(resolution) && resolution > 0 ? resolution : 1;
-    stripeUniforms.update();
+    const next = Number.isFinite(resolution) && resolution > 0 ? resolution : 1;
+    if (uniforms.uScreenScale !== next) {
+      uniforms.uScreenScale = next;
+      markUniformsDirty();
+    }
   };
 
   filter.syncGrid = (nextGrid) => {
@@ -197,30 +262,62 @@ export function createStripeDuotoneFilter(
       uWidthShuffleSwing: number;
       uOrientation: number;
     };
-    uniforms.uGap[0] = nextGrid.gapX;
-    uniforms.uGap[1] = nextGrid.gapY;
-    uniforms.uCornerRadius = nextGrid.cornerRadius;
-    uniforms.uWidthShuffleSwing = nextGrid.widthShuffleSwing;
-    uniforms.uOrientation = nextGrid.orientation === "horizontal" ? 1 : 0;
-    stripeUniforms.update();
+    let changed = false;
+    if (uniforms.uGap[0] !== nextGrid.gapX) {
+      uniforms.uGap[0] = nextGrid.gapX;
+      changed = true;
+    }
+    if (uniforms.uGap[1] !== nextGrid.gapY) {
+      uniforms.uGap[1] = nextGrid.gapY;
+      changed = true;
+    }
+    if (uniforms.uCornerRadius !== nextGrid.cornerRadius) {
+      uniforms.uCornerRadius = nextGrid.cornerRadius;
+      changed = true;
+    }
+    if (uniforms.uWidthShuffleSwing !== nextGrid.widthShuffleSwing) {
+      uniforms.uWidthShuffleSwing = nextGrid.widthShuffleSwing;
+      changed = true;
+    }
+    const nextOrientation = nextGrid.orientation === "horizontal" ? 1 : 0;
+    if (uniforms.uOrientation !== nextOrientation) {
+      uniforms.uOrientation = nextOrientation;
+      changed = true;
+    }
+    if (changed) {
+      markUniformsDirty();
+    }
   };
 
   filter.resizeGrid = (cols, rows, effWidth, effHeight) => {
     const uniforms = stripeUniforms.uniforms as { uGridSize: number[]; uCellSize: number[] };
-    uniforms.uGridSize[0] = cols;
-    uniforms.uGridSize[1] = rows;
-    uniforms.uCellSize[0] = effWidth;
-    uniforms.uCellSize[1] = effHeight;
-    stripeUniforms.update();
+    let changed = false;
+    if (uniforms.uGridSize[0] !== cols) {
+      uniforms.uGridSize[0] = cols;
+      changed = true;
+    }
+    if (uniforms.uGridSize[1] !== rows) {
+      uniforms.uGridSize[1] = rows;
+      changed = true;
+    }
+    if (uniforms.uCellSize[0] !== effWidth) {
+      uniforms.uCellSize[0] = effWidth;
+      changed = true;
+    }
+    if (uniforms.uCellSize[1] !== effHeight) {
+      uniforms.uCellSize[1] = effHeight;
+      changed = true;
+    }
+    if (changed) {
+      markUniformsDirty();
+    }
   };
 
   filter.updateBlockMap = (nextBlockMap) => {
-    currentBlockMap = nextBlockMap;
     bindBlockMapTexture(filter, nextBlockMap);
   };
 
   filter.updateCellColorMap = (nextCellColorMap) => {
-    currentCellColorMap = nextCellColorMap;
     bindCellColorMapTexture(filter, nextCellColorMap);
   };
 
@@ -236,12 +333,35 @@ export function createStripeDuotoneFilter(
       uFlamesMaskPower: number;
     };
     const enabled = Boolean(config?.enabled);
-    uniforms.uFlamesEnabled = enabled ? 1 : 0;
-    uniforms.uFlamesMaskEnabled = enabled && config?.edgeMaskEnabled !== false ? 1 : 0;
-    uniforms.uFlamesMaskStart = config?.edgeMaskStart ?? 0;
-    uniforms.uFlamesMaskEnd = config?.edgeMaskEnd ?? 0.1;
-    uniforms.uFlamesMaskPower = config?.edgeMaskPower ?? 1;
-    stripeUniforms.update();
+    let changed = false;
+    const nextEnabled = enabled ? 1 : 0;
+    if (uniforms.uFlamesEnabled !== nextEnabled) {
+      uniforms.uFlamesEnabled = nextEnabled;
+      changed = true;
+    }
+    const nextMaskEnabled = enabled && config?.edgeMaskEnabled !== false ? 1 : 0;
+    if (uniforms.uFlamesMaskEnabled !== nextMaskEnabled) {
+      uniforms.uFlamesMaskEnabled = nextMaskEnabled;
+      changed = true;
+    }
+    const nextMaskStart = config?.edgeMaskStart ?? 0;
+    if (uniforms.uFlamesMaskStart !== nextMaskStart) {
+      uniforms.uFlamesMaskStart = nextMaskStart;
+      changed = true;
+    }
+    const nextMaskEnd = config?.edgeMaskEnd ?? 0.1;
+    if (uniforms.uFlamesMaskEnd !== nextMaskEnd) {
+      uniforms.uFlamesMaskEnd = nextMaskEnd;
+      changed = true;
+    }
+    const nextMaskPower = config?.edgeMaskPower ?? 1;
+    if (uniforms.uFlamesMaskPower !== nextMaskPower) {
+      uniforms.uFlamesMaskPower = nextMaskPower;
+      changed = true;
+    }
+    if (changed) {
+      markUniformsDirty();
+    }
   };
 
   let currentCursorTrail = Texture.EMPTY;
@@ -263,10 +383,24 @@ export function createStripeDuotoneFilter(
       uCursorTrailPushEnabled: number;
       uCursorTrailPushRange: number;
     };
-    uniforms.uCursorTrailEnabled = trail ? 1 : 0;
-    uniforms.uCursorTrailPushEnabled = pushTexture ? 1 : 0;
-    uniforms.uCursorTrailPushRange = pushRange;
-    stripeUniforms.update();
+    let changed = false;
+    const nextTrailEnabled = trail ? 1 : 0;
+    if (uniforms.uCursorTrailEnabled !== nextTrailEnabled) {
+      uniforms.uCursorTrailEnabled = nextTrailEnabled;
+      changed = true;
+    }
+    const nextPushEnabled = pushTexture ? 1 : 0;
+    if (uniforms.uCursorTrailPushEnabled !== nextPushEnabled) {
+      uniforms.uCursorTrailPushEnabled = nextPushEnabled;
+      changed = true;
+    }
+    if (uniforms.uCursorTrailPushRange !== pushRange) {
+      uniforms.uCursorTrailPushRange = pushRange;
+      changed = true;
+    }
+    if (changed) {
+      markUniformsDirty();
+    }
   };
 
   const pixelSizeUniform = stripeUniforms.uniforms.uPixelSize as number[];
@@ -274,16 +408,17 @@ export function createStripeDuotoneFilter(
 
   const baseApply = filter.apply.bind(filter);
   filter.apply = (filterManager, input, output, clearMode) => {
-    bindBlockMapTexture(filter, currentBlockMap);
-    bindCellColorMapTexture(filter, currentCellColorMap);
-    filter.resources.uStripeData = palette.texture.source;
-    filter.resources.uStripeIndexLut = stripeIndexLut.texture.source;
-    // Block grid + sparkle use logical display pixels (not 2× backing-store size).
-    pixelSizeUniform[0] = canvasWidth;
-    pixelSizeUniform[1] = canvasHeight;
-    frameSizeUniform[0] = canvasWidth;
-    frameSizeUniform[1] = canvasHeight;
-    stripeUniforms.update();
+    if (pixelSizeUniform[0] !== canvasWidth || pixelSizeUniform[1] !== canvasHeight) {
+      pixelSizeUniform[0] = canvasWidth;
+      pixelSizeUniform[1] = canvasHeight;
+      markUniformsDirty();
+    }
+    if (frameSizeUniform[0] !== canvasWidth || frameSizeUniform[1] !== canvasHeight) {
+      frameSizeUniform[0] = canvasWidth;
+      frameSizeUniform[1] = canvasHeight;
+      markUniformsDirty();
+    }
+    updateUniformsIfDirty();
     baseApply(filterManager, input, output, clearMode);
   };
 

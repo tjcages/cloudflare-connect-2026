@@ -1,8 +1,9 @@
 import { DEFAULT_STRIPES, type Stripe } from "./stripeColors";
 
-export type PlaygroundMediaKind = "video" | "image";
+export type PlaygroundMediaKind = "video" | "image" | "shader";
 
 export type BuiltinPlaygroundTextureId =
+  | "shader"
   | "example"
   | "example2"
   | "example3"
@@ -29,6 +30,14 @@ export type PlaygroundTextureOption = {
 
 /** Sample textures served from `public/playground/`. */
 export const PLAYGROUND_TEXTURES: readonly PlaygroundTextureOption[] = [
+  {
+    id: "shader",
+    label: "shader equation",
+    url: "",
+    mediaKind: "shader",
+    displayScale: 1,
+    stripes: DEFAULT_STRIPES,
+  },
   {
     id: "example10",
     label: "example 10",
@@ -171,6 +180,9 @@ export function formatTextureLoadErrorMessage(options: {
       return `No textures are available to load. Pick a built-in example from the Texture menu or upload an image or video.`;
     case "decode":
     default:
+      if (options.mediaKind === "shader") {
+        return `${name} shader failed to compile. Check the GLSL in the Shader equation panel.`;
+      }
       if (options.mediaKind === "video") {
         return `${name} could not be played. Your browser may not support this video codec — try exporting as H.264 in an MP4 or WebM.`;
       }

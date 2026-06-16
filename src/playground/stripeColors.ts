@@ -115,12 +115,15 @@ function stripe(id: string, hex: string, startFrom: number, width: number): Stri
 
 /** Default playground palette: neutral gray at the darkest threshold ramping up to the loud orange at the brightest. */
 export const DEFAULT_STRIPES: readonly Stripe[] = [
-  stripe("gray", "#F3F3F3", 0.12, 1),
-  stripe("faint", "#FADA98", 0.28, 1),
-  stripe("subtle", "#F8BD70", 0.44, 2),
-  stripe("muted", "#F69E4D", 0.6, 3),
-  stripe("default", "#F27C33", 0.76, 4),
-  stripe("loud", "#EB5729", 0.9, 5),
+  stripe("gray", "#F3F3F3", 0.1, 1),
+  stripe("faint", "#FADA98", 0.24, 1),
+  stripe("mint", "#B8F1C9", 0.38, 2),
+  stripe("teal", "#7FE7D8", 0.5, 2),
+  stripe("cyan", "#63CDF8", 0.62, 3),
+  stripe("blue", "#5A8BFF", 0.74, 3),
+  stripe("indigo", "#6A63F6", 0.84, 4),
+  stripe("purple", "#8E59F3", 0.91, 5),
+  stripe("violet", "#B14BFF", 0.96, 6),
 ] as const;
 
 /** Colors-mode thresholds and uniform widths (hex values are unused while cell colors drive fill). */
@@ -135,9 +138,9 @@ export const DEFAULT_COLORS_MODE_STRIPES: readonly Stripe[] = [
 
 /** Overlay-mode palette: loudest three luminance bands drawn on top of the source texture. */
 export const DEFAULT_OVERLAY_STRIPES: readonly Stripe[] = [
-  stripe("overlay-muted", "#F69E4D", 0.6, 3),
-  stripe("overlay-default", "#F27C33", 0.76, 4),
-  stripe("overlay-loud", "#EB5729", 0.9, 5),
+  stripe("overlay-blue", "#5A8BFF", 0.84, 4),
+  stripe("overlay-purple", "#8E59F3", 0.91, 5),
+  stripe("overlay-violet", "#B14BFF", 0.96, 6),
 ] as const;
 
 export function buildStripeColors(stripes: readonly Stripe[] = DEFAULT_STRIPES): StripeColors {
@@ -227,6 +230,24 @@ export function addStripe(colors: StripeColors): StripeColors {
 
 export function removeStripe(colors: StripeColors, id: string): StripeColors {
   return { stripes: colors.stripes.filter((entry) => entry.id !== id) };
+}
+
+export function moveStripe(colors: StripeColors, id: string, direction: -1 | 1): StripeColors {
+  const fromIndex = colors.stripes.findIndex((entry) => entry.id === id);
+  if (fromIndex < 0) {
+    return colors;
+  }
+  const toIndex = fromIndex + direction;
+  if (toIndex < 0 || toIndex >= colors.stripes.length) {
+    return colors;
+  }
+  const stripes = [...colors.stripes];
+  const [moved] = stripes.splice(fromIndex, 1);
+  if (!moved) {
+    return colors;
+  }
+  stripes.splice(toIndex, 0, moved);
+  return { stripes };
 }
 
 export function updateStripe(colors: StripeColors, id: string, patch: Partial<Stripe>): StripeColors {

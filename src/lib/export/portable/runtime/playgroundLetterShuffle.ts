@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-properties -- letter animation timing/glyph choice, not grid PRNG */
 /** Letter cycle timing for the playground (not grid PRNG). */
 
 /** Rest delay between spin cycles. */

@@ -91,4 +91,65 @@ describe("BlockGridTexture", () => {
     const topRowOffset = 0;
     expect(blockImageData.data[topRowOffset + 1]).toBe(200);
   });
+
+  it("can skip color texture uploads when cell colors are not needed", () => {
+    const texture = new BlockGridTexture(10, 10, 10, 10);
+    texture.update(
+      {
+        cols: 1,
+        rows: 1,
+        indices: new Uint8Array([1]),
+        colors: new Uint8Array([255, 64, 32]),
+      },
+      { includeColors: false },
+    );
+
+    const colorImageData = (texture as unknown as { colorImageData: ImageData }).colorImageData;
+    expect(colorImageData.data[0]).toBe(0);
+    expect(colorImageData.data[1]).toBe(0);
+    expect(colorImageData.data[2]).toBe(0);
+    expect(colorImageData.data[3]).toBe(0);
+  });
+
+  it("snapshotGrid round-trips indices, luma, coverage, and colors", () => {
+    const texture = new BlockGridTexture(20, 20, 10, 10);
+    const source = {
+      cols: 2,
+      rows: 2,
+      indices: new Uint8Array([0, 1, 4, 6]),
+      luma: new Uint8Array([10, 120, 180, 240]),
+      colors: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+      colorCoverage: new Uint8Array([0, 64, 128, 255]),
+    };
+    texture.update(source);
+
+    expect(texture.snapshotGrid()).toEqual(source);
+  });
+
+  it("updates only a requested region", () => {
+    const texture = new BlockGridTexture(20, 20, 10, 10);
+    texture.update({
+      cols: 2,
+      rows: 2,
+      indices: new Uint8Array([1, 1, 1, 1]),
+      luma: new Uint8Array([10, 20, 30, 40]),
+    });
+    texture.updateRegion(
+      {
+        cols: 2,
+        rows: 2,
+        indices: new Uint8Array([1, 2, 1, 1]),
+        luma: new Uint8Array([10, 220, 30, 40]),
+      },
+      { colMin: 1, colMax: 1, rowMin: 0, rowMax: 0 },
+      { includeColors: false },
+    );
+
+    const blockImageData = (texture as unknown as { imageData: ImageData }).imageData;
+    // row 0 maps to destination row 1 due to bottom-up flip.
+    const changedCellOffset = (1 * 2 + 1) * 4;
+    const untouchedCellOffset = (1 * 2 + 0) * 4;
+    expect(blockImageData.data[changedCellOffset + 1]).toBe(220);
+    expect(blockImageData.data[untouchedCellOffset + 1]).toBe(10);
+  });
 });

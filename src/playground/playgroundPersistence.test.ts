@@ -1,15 +1,23 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  addColorPreset,
+  addSavedShader,
   catalogEntriesForLoadAttempt,
   defaultConfigForTexture,
+  deleteColorPreset,
+  deleteSavedShader,
   firstCatalogEntryWithUrl,
+  loadColorPresets,
+  loadSavedShaders,
+  mergeColorPresets,
+  mergeSavedShaders,
   parsePlaygroundStateInput,
   PLAYGROUND_LS_KEY,
   resolveInitialTextureId,
   serializePlaygroundState,
   type PlaygroundCatalogEntry,
 } from "./playgroundPersistence";
-import { cloneDefaultOverlayStripes, DEFAULT_STRIPES } from "./stripeColors";
+import { cloneDefaultOverlayStripes, DEFAULT_STRIPES, normalizeStripe } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
@@ -62,6 +70,41 @@ describe("playgroundPersistence envelope migration", () => {
     const parsed = parsePlaygroundStateInput(text);
     expect(parsed.textureGamma).toBe(0.05);
     expect(JSON.parse(text).tgm).toBe(0.05);
+  });
+
+  it("round-trips a non-default render scale and omits the default", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      renderScale: 1,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    expect(JSON.parse(text).rs).toBe(1);
+    expect(parsePlaygroundStateInput(text).renderScale).toBe(1);
+
+    const defaultText = serializePlaygroundState({
+      duotoneEnabled: true,
+      renderScale: 2,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    expect(JSON.parse(defaultText).rs).toBeUndefined();
+    expect(parsePlaygroundStateInput(defaultText).renderScale).toBeUndefined();
+  });
+
+  it("clamps out-of-range render scales", () => {
+    // 9 clamps to the default (2), so the wire omits it entirely.
+    const high = serializePlaygroundState({
+      duotoneEnabled: true,
+      renderScale: 9,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    expect(JSON.parse(high).rs).toBeUndefined();
+
+    const low = serializePlaygroundState({
+      duotoneEnabled: true,
+      renderScale: 0.1,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    expect(JSON.parse(low).rs).toBe(0.5);
   });
 
   it("omits grid config and stays v3 when grid is default", () => {
@@ -337,6 +380,156 @@ describe("playgroundPersistence envelope migration", () => {
     expect(parsed.cursorTrail?.pushStrengthPx).toBe(14);
     expect(parsed.clickWave?.pushStrengthPx).toBe(22);
     expect(parsed.clickWave).not.toHaveProperty("sliceWhiteAlpha");
+  });
+
+  it("round-trips a saved shader library through serialize/parse", () => {
+    const savedShaders = [
+      { id: "one", label: "First", source: "void mainImage(){ A }", createdAt: 10 },
+      { id: "two", label: "Second", source: "void mainImage(){ B }", createdAt: 20 },
+    ];
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+      savedShaders,
+    });
+    const wire = JSON.parse(text);
+    expect(wire.v).toBe(7);
+    expect(wire.shl).toEqual([
+      { id: "one", l: "First", s: "void mainImage(){ A }", t: 10 },
+      { id: "two", l: "Second", s: "void mainImage(){ B }", t: 20 },
+    ]);
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.savedShaders).toEqual(savedShaders);
+  });
+
+  it("omits the saved shader library when empty", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+      savedShaders: [],
+    });
+    expect(JSON.parse(text)).not.toHaveProperty("shl");
+    expect(parsePlaygroundStateInput(text).savedShaders).toBeUndefined();
+  });
+
+  it("round-trips a saved shader that carries a full look snapshot", () => {
+    const savedShaders = [
+      {
+        id: "look",
+        label: "Big",
+        source: "void mainImage(){ C }",
+        createdAt: 30,
+        config: {
+          duotoneEnabled: true,
+          stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+          displayWidth: 1280,
+          displayHeight: 720,
+          // Libraries here must be stripped from the nested snapshot to avoid recursion.
+          savedShaders: [{ id: "nested", label: "Nope", source: "x", createdAt: 1 }],
+        },
+      },
+    ];
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+      savedShaders,
+    });
+    const parsed = parsePlaygroundStateInput(text);
+    const restored = parsed.savedShaders?.[0];
+    expect(restored?.source).toBe("void mainImage(){ C }");
+    expect(restored?.config?.displayWidth).toBe(1280);
+    expect(restored?.config?.displayHeight).toBe(720);
+    // Nested snapshot must not recursively embed the library.
+    expect(restored?.config?.savedShaders).toBeUndefined();
+  });
+
+  it("round-trips a color preset library through serialize/parse", () => {
+    const colorPresets = [
+      {
+        id: "sunset",
+        label: "Sunset",
+        stripes: [normalizeStripe({ hex: "#102030", startFrom: 0, width: 3 })],
+        createdAt: 11,
+      },
+    ];
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+      colorPresets,
+    });
+    const wire = JSON.parse(text);
+    expect(wire.v).toBe(7);
+    expect(wire.cp?.[0]?.l).toBe("Sunset");
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.colorPresets?.[0]?.label).toBe("Sunset");
+    expect(parsed.colorPresets?.[0]?.stripes?.[0]?.hex).toBe("#102030");
+  });
+
+  it("omits the color preset library when empty", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+      colorPresets: [],
+    });
+    expect(JSON.parse(text)).not.toHaveProperty("cp");
+    expect(parsePlaygroundStateInput(text).colorPresets).toBeUndefined();
+  });
+});
+
+describe("saved shader storage", () => {
+  afterEach(() => {
+    localStorage.removeItem(PLAYGROUND_LS_KEY);
+  });
+
+  it("adds, lists, and deletes saved shaders", () => {
+    expect(loadSavedShaders()).toEqual([]);
+    const created = addSavedShader("  My Shader ", "void mainImage(){}");
+    expect(created.label).toBe("My Shader");
+    const loaded = loadSavedShaders();
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0]?.source).toBe("void mainImage(){}");
+    const remaining = deleteSavedShader(created.id);
+    expect(remaining).toEqual([]);
+    expect(loadSavedShaders()).toEqual([]);
+  });
+
+  it("merges imported shaders without duplicating identical entries", () => {
+    const first = addSavedShader("A", "source-a");
+    const mergedSame = mergeSavedShaders([{ id: "other", label: "A", source: "source-a", createdAt: 5 }]);
+    expect(mergedSame).toHaveLength(1);
+    expect(mergedSame[0]?.id).toBe(first.id);
+    const mergedNew = mergeSavedShaders([{ id: "b", label: "B", source: "source-b", createdAt: 6 }]);
+    expect(mergedNew.map((entry) => entry.label)).toEqual(["A", "B"]);
+  });
+});
+
+describe("color preset storage", () => {
+  afterEach(() => {
+    localStorage.removeItem(PLAYGROUND_LS_KEY);
+  });
+
+  it("adds, lists, and deletes color presets", () => {
+    expect(loadColorPresets()).toEqual([]);
+    const created = addColorPreset("  Sunset ", [normalizeStripe({ hex: "#102030", startFrom: 0, width: 3 })]);
+    expect(created.label).toBe("Sunset");
+    const loaded = loadColorPresets();
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0]?.stripes[0]?.hex).toBe("#102030");
+    const remaining = deleteColorPreset(created.id);
+    expect(remaining).toEqual([]);
+    expect(loadColorPresets()).toEqual([]);
+  });
+
+  it("merges imported color presets without duplicating identical palettes", () => {
+    const stripes = [normalizeStripe({ hex: "#102030", startFrom: 0, width: 3 })];
+    const first = addColorPreset("Sunset", stripes);
+    const mergedSame = mergeColorPresets([{ id: "other", label: "Sunset", stripes, createdAt: 5 }]);
+    expect(mergedSame).toHaveLength(1);
+    expect(mergedSame[0]?.id).toBe(first.id);
+    const mergedNew = mergeColorPresets([
+      { id: "b", label: "Ocean", stripes: [normalizeStripe({ hex: "#0044ff", startFrom: 0, width: 2 })], createdAt: 6 },
+    ]);
+    expect(mergedNew.map((entry) => entry.label)).toEqual(["Sunset", "Ocean"]);
   });
 });
 

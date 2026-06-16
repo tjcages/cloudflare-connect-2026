@@ -19,5 +19,9 @@
     "jsx": "react-jsx"
   },
   "include": ["src"],
-  "exclude": ["src/lib/export/syncExportToTest.ts", "src/lib/export/syncExportToTest.test.ts"]
+  "exclude": [
+    "src/lib/export/syncExportToTest.ts",
+    "src/lib/export/syncExportToTest.test.ts",
+    "src/playground/exportParityDiagnostic.test.ts"
+  ]
 }

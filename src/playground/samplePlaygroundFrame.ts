@@ -29,6 +29,7 @@ import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
+import type { PlaygroundShaderRenderer } from "./playgroundShaderSource";
 
 export type PlaygroundGridBuildState = {
   stableIndices?: Uint8Array;
@@ -41,12 +42,18 @@ export function sampleTextureFrame(
   sampleCanvas: HTMLCanvasElement,
   sampleCtx: CanvasRenderingContext2D,
   sourceTransform: PlaygroundSourceTransform = DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  options: { highQualityDownscale?: boolean } = {},
 ): ImageData | null {
   if (displayWidth <= 0 || displayHeight <= 0) {
     return null;
   }
   sampleCanvas.width = displayWidth;
   sampleCanvas.height = displayHeight;
+  if (options.highQualityDownscale) {
+    // Heavy minification (e.g. one pixel per grid cell) shimmers with default bilinear.
+    sampleCtx.imageSmoothingEnabled = true;
+    sampleCtx.imageSmoothingQuality = "high";
+  }
   sampleCtx.clearRect(0, 0, displayWidth, displayHeight);
   const sourceSize = getCanvasSourceSize(source);
   const { source: sourceRect, destination } = resolvePlaygroundDrawRects(
@@ -66,6 +73,62 @@ export function sampleTextureFrame(
     destination.dh,
   );
   return sampleCtx.getImageData(0, 0, displayWidth, displayHeight);
+}
+
+function forceOpaqueImageDataAlpha(imageData: ImageData): ImageData {
+  for (let i = 3; i < imageData.data.length; i += 4) {
+    imageData.data[i] = 255;
+  }
+  return imageData;
+}
+
+/** Sample a procedural shader frame after a fresh GPU render at display resolution. */
+export function sampleShaderPlaygroundFrame(
+  renderer: PlaygroundShaderRenderer,
+  displayWidth: number,
+  displayHeight: number,
+  sampleCanvas: HTMLCanvasElement,
+  sampleCtx: CanvasRenderingContext2D,
+  sourceTransform: PlaygroundSourceTransform,
+  timeSeconds: number,
+  options: { renderBeforeSample?: boolean } = {},
+): ImageData | null {
+  if (displayWidth <= 0 || displayHeight <= 0) {
+    return null;
+  }
+  if (options.renderBeforeSample !== false) {
+    renderer.resize(displayWidth, displayHeight);
+    renderer.setViewTransform(sourceTransform);
+    renderer.render(timeSeconds);
+  }
+
+  const downscaling = renderer.canvas.width > displayWidth || renderer.canvas.height > displayHeight;
+
+  if (renderer.viewZoomAppliedInShader()) {
+    // Zoom is baked in the GPU render; blit 1:1 like Pixi's Texture.from(canvas).
+    // readPixels often returns alpha=0 on alpha:false framebuffers, which makes
+    // computeBlockGrid composite the frame to solid background.
+    sampleCanvas.width = displayWidth;
+    sampleCanvas.height = displayHeight;
+    if (downscaling) {
+      sampleCtx.imageSmoothingEnabled = true;
+      sampleCtx.imageSmoothingQuality = "high";
+    }
+    sampleCtx.clearRect(0, 0, displayWidth, displayHeight);
+    sampleCtx.drawImage(renderer.canvas, 0, 0, displayWidth, displayHeight);
+    return forceOpaqueImageDataAlpha(sampleCtx.getImageData(0, 0, displayWidth, displayHeight));
+  }
+
+  const frame = sampleTextureFrame(
+    renderer.canvas,
+    displayWidth,
+    displayHeight,
+    sampleCanvas,
+    sampleCtx,
+    renderer.resolveSampleSourceTransform(),
+    { highQualityDownscale: downscaling },
+  );
+  return frame ? forceOpaqueImageDataAlpha(frame) : null;
 }
 
 function resolveFlamesLuminanceContribution(
@@ -138,6 +201,25 @@ function getCanvasSourceSize(source: CanvasImageSource): { width: number; height
   return { width: Number(sized.width) || 0, height: Number(sized.height) || 0 };
 }
 
+/** Encode a sampled display frame as a PNG data URL for SVG underlay export. */
+export function playgroundFrameToPngDataUrl(
+  frame: ImageData,
+  exportCanvas: HTMLCanvasElement,
+  exportCtx: CanvasRenderingContext2D,
+): string | null {
+  if (frame.width <= 0 || frame.height <= 0) {
+    return null;
+  }
+  exportCanvas.width = frame.width;
+  exportCanvas.height = frame.height;
+  exportCtx.putImageData(frame, 0, 0);
+  try {
+    return exportCanvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
 export function sampleVideoFrame(
   video: HTMLVideoElement,
   displayWidth: number,
@@ -183,6 +265,7 @@ export function buildPlaygroundBlockGrid(
   grid: BlockGrid;
   state: PlaygroundGridBuildState;
   partial: boolean;
+  partialRegion: GridCellRegion | null;
   lumaGrid: LumaGrid;
   preprocessCache: GridPreprocessCache | null;
 } {
@@ -267,6 +350,7 @@ export function buildPlaygroundBlockGrid(
     },
     state: { stableIndices },
     partial: Boolean(canUsePartialRegion),
+    partialRegion: canUsePartialRegion ? options.dirtyRegion! : null,
     lumaGrid: revealedLumaGrid,
     preprocessCache,
   };

@@ -1,0 +1,113 @@
+{
+  "id": "26addd84-3485-4123-ac86-7baef887ae7c",
+  "label": "Sphere",
+  "source": "#define pi 3.14159\n\nfloat thc(float a, float b) {\n    return tanh(a * cos(b)) / tanh(a);\n}\n\nfloat ths(float a, float b) {\n    return tanh(a * sin(b)) / tanh(a);\n}\n\nvec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )\n{\n    return a + b*cos( 6.28318*(c*t+d) );\n}\n\nfloat h21 (vec2 a) {\n    return fract(sin(dot(a.xy, vec2(12.9898, 78.233))) * 43758.5453123);\n}\n\nconst float num = 32.;\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 uv = (fragCoord-0.5*iResolution.xy)/iResolution.y;\n\n    float r = 0.35 + 0.13 * thc(3.5, 8. * length(uv) - 1.5 * iTime);\n    //float r = 0.35 + 0.13 * thc(3.5, iTime + 10. * h21(uv));\n    vec2 p;\n    float s = 0.;\n    for (float i = 0.; i < num; i++) {\n        p = vec2(r * sin(pi * i / num) * cos(i + iTime), -r + 2. * r * i / num);\n        vec2 uv2 = uv;\n\n        float d = 4. * length(uv2 - p);\n        float R = r * sin(pi * i / num);\n        float k = 0.1 + 0. * cos(10. * i + iTime) + 0.2 * R;\n        s += smoothstep(-k, k, 0.5 * R * (1. + sin(i + iTime))-d);\n        s += step(d, 0.4 * R * (1. + sin(i + iTime))) - step(d, 0.35 * R * (1. + sin(i + iTime)));\n        s *= 0.99 * (1. - 0.22 * length(uv));\n       // s += 0.28 * max(s,smoothstep(-0.2,0.5, 0.5 * R * (1. + sin(i + iTime))-d));\n    }\n    \n    vec3 col = vec3(s);\n    col = s * pal(s, vec3(1.), vec3(1.), vec3(1.), length(uv) + 0.35 * vec3(0.,0.33,0.66));\n    col += vec3(0.025,0.,0.05);\n   // Output to screen\n    fragColor = vec4(col,1.0);\n}",
+  "createdAt": 1781559747798,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.060000000000000005,
+      "exposure": -0.30000000000000016,
+      "contrast": 0.88,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1.1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "sourceTransform": {
+      "fit": "stretch",
+      "zoom": 1,
+      "panX": 0,
+      "panY": 1
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center bottom",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      },
+      {
+        "id": "de7b3b47-3110-43bd-9743-323a7187e231",
+        "hex": "#ffffff",
+        "p3Css": "color(display-p3 1 1 1)",
+        "startFrom": 1,
+        "width": 6
+      }
+    ],
+    "shaderSource": "#define pi 3.14159\n\nfloat thc(float a, float b) {\n    return tanh(a * cos(b)) / tanh(a);\n}\n\nfloat ths(float a, float b) {\n    return tanh(a * sin(b)) / tanh(a);\n}\n\nvec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )\n{\n    return a + b*cos( 6.28318*(c*t+d) );\n}\n\nfloat h21 (vec2 a) {\n    return fract(sin(dot(a.xy, vec2(12.9898, 78.233))) * 43758.5453123);\n}\n\nconst float num = 32.;\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 uv = (fragCoord-0.5*iResolution.xy)/iResolution.y;\n\n    float r = 0.35 + 0.13 * thc(3.5, 8. * length(uv) - 1.5 * iTime);\n    //float r = 0.35 + 0.13 * thc(3.5, iTime + 10. * h21(uv));\n    vec2 p;\n    float s = 0.;\n    for (float i = 0.; i < num; i++) {\n        p = vec2(r * sin(pi * i / num) * cos(i + iTime), -r + 2. * r * i / num);\n        vec2 uv2 = uv;\n\n        float d = 4. * length(uv2 - p);\n        float R = r * sin(pi * i / num);\n        float k = 0.1 + 0. * cos(10. * i + iTime) + 0.2 * R;\n        s += smoothstep(-k, k, 0.5 * R * (1. + sin(i + iTime))-d);\n        s += step(d, 0.4 * R * (1. + sin(i + iTime))) - step(d, 0.35 * R * (1. + sin(i + iTime)));\n        s *= 0.99 * (1. - 0.22 * length(uv));\n       // s += 0.28 * max(s,smoothstep(-0.2,0.5, 0.5 * R * (1. + sin(i + iTime))-d));\n    }\n    \n    vec3 col = vec3(s);\n    col = s * pal(s, vec3(1.), vec3(1.), vec3(1.), length(uv) + 0.35 * vec3(0.,0.33,0.66));\n    col += vec3(0.025,0.,0.05);\n   // Output to screen\n    fragColor = vec4(col,1.0);\n}"
+  }
+}

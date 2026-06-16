@@ -17,7 +17,9 @@ const PLAYGROUND_GL_ATTRIBUTES: WebGLContextWithColorSpace = {
   antialias: false,
   stencil: true,
   preserveDrawingBuffer: false,
-  powerPreference: "default",
+  // Dual-GPU machines pick the low-power GPU on "default", which caps the stripe filter's
+  // fill rate well below 60fps at 2x backing resolution.
+  powerPreference: "high-performance",
   colorSpace: "display-p3",
 };
 

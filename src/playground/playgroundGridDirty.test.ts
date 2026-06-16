@@ -71,8 +71,10 @@ describe("smoothBlockGridIndicesInRegion", () => {
 
 describe("resolveStripeIndicesInRegion", () => {
   it("updates only cells inside the region", () => {
+    // Sentinel must exceed any legitimate stripe index (palette length can grow).
+    const sentinel = 255;
     const luma = Uint8Array.from([0, 64, 128, 255]);
-    const out = Uint8Array.from([9, 9, 9, 9]);
+    const out = Uint8Array.from([sentinel, sentinel, sentinel, sentinel]);
     resolveStripeIndicesInRegion(
       luma,
       buildStripeColors().stripes,
@@ -80,9 +82,9 @@ describe("resolveStripeIndicesInRegion", () => {
       2,
       out,
     );
-    expect(out[0]).toBe(9);
-    expect(out[2]).toBe(9);
-    expect(out[1]).not.toBe(9);
-    expect(out[3]).not.toBe(9);
+    expect(out[0]).toBe(sentinel);
+    expect(out[2]).toBe(sentinel);
+    expect(out[1]).not.toBe(sentinel);
+    expect(out[3]).not.toBe(sentinel);
   });
 });

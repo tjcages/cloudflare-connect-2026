@@ -1,0 +1,109 @@
+{
+  "id": "55131c53-5ad3-492a-80bb-7d73a02c5b3b",
+  "label": "Warp Speed",
+  "source": "// 'Warp Speed' by David Hoskins 2013.\n// I tried to find gaps and variation in the star cloud for a feeling of structure.\n// Inspired by Kali: https://www.shadertoy.com/view/ltl3WS\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    float time = (iTime+29.) * 60.0;\n\n    float s = 0.0, v = 0.0;\n    vec2 uv = (-iResolution.xy + 2.0 * fragCoord ) / iResolution.y;\n\tfloat t = time*0.005;\n\tuv.x += sin(t) * .3;\n\tfloat si = sin(t*1.5); // ...Squiffy rotation matrix!\n\tfloat co = cos(t);\n\tuv *= mat2(co, si, -si, co);\n\tvec3 col = vec3(0.0);\n\tvec3 init = vec3(0.25, 0.25 + sin(time * 0.001) * .1, time * 0.0008);\n\tfor (int r = 0; r < 100; r++) \n\t{\n\t\tvec3 p = init + s * vec3(uv, 0.143);\n\t\tp.z = mod(p.z, 2.0);\n\t\tfor (int i=0; i < 10; i++)\tp = abs(p * 2.04) / dot(p, p) - 0.75;\n\t\tv += length(p * p) * smoothstep(0.0, 0.5, 0.9 - s) * .002;\n\t\t// Get a purple and cyan effect by biasing the RGB in different ways...\n\t\tcol +=  vec3(v * 0.8, 1.1 - s * 0.5, .7 + v * 0.5) * v * 0.013;\n\t\ts += .01;\n\t}\n\tfragColor = vec4(col, 1.0);\n}",
+  "createdAt": 1781558068342,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.060000000000000005,
+      "exposure": -1.35,
+      "contrast": 1.47,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 0.05,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "sourceTransform": {
+      "fit": "stretch",
+      "zoom": 1,
+      "panX": 0,
+      "panY": 1
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "grid": {
+      "cellWidth": 4,
+      "cellHeight": 6,
+      "gapX": 0,
+      "gapY": 0,
+      "cornerRadius": 0,
+      "orientation": "vertical",
+      "letterSize": 6,
+      "letterRatio": 0.1,
+      "letterCharset": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
+      "letterColor": 16777215,
+      "letterShuffleSpeed": 1,
+      "sparkleGapsPeriodMinSec": 0.21,
+      "sparkleGapsPeriodMaxSec": 0.55,
+      "sparkleWidthPeriodMinSec": 0.21,
+      "sparkleWidthPeriodMaxSec": 0.55,
+      "widthShuffleSwing": 1.25,
+      "gridUpdateIntervalMs": 66
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "// 'Warp Speed' by David Hoskins 2013.\n// I tried to find gaps and variation in the star cloud for a feeling of structure.\n// Inspired by Kali: https://www.shadertoy.com/view/ltl3WS\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    float time = (iTime+29.) * 60.0;\n\n    float s = 0.0, v = 0.0;\n    vec2 uv = (-iResolution.xy + 2.0 * fragCoord ) / iResolution.y;\n\tfloat t = time*0.005;\n\tuv.x += sin(t) * .3;\n\tfloat si = sin(t*1.5); // ...Squiffy rotation matrix!\n\tfloat co = cos(t);\n\tuv *= mat2(co, si, -si, co);\n\tvec3 col = vec3(0.0);\n\tvec3 init = vec3(0.25, 0.25 + sin(time * 0.001) * .1, time * 0.0008);\n\tfor (int r = 0; r < 100; r++) \n\t{\n\t\tvec3 p = init + s * vec3(uv, 0.143);\n\t\tp.z = mod(p.z, 2.0);\n\t\tfor (int i=0; i < 10; i++)\tp = abs(p * 2.04) / dot(p, p) - 0.75;\n\t\tv += length(p * p) * smoothstep(0.0, 0.5, 0.9 - s) * .002;\n\t\t// Get a purple and cyan effect by biasing the RGB in different ways...\n\t\tcol +=  vec3(v * 0.8, 1.1 - s * 0.5, .7 + v * 0.5) * v * 0.013;\n\t\ts += .01;\n\t}\n\tfragColor = vec4(col, 1.0);\n}"
+  }
+}

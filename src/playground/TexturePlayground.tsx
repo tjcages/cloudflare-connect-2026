@@ -1,5 +1,6 @@
 import { Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import type { Application } from "pixi.js";
 import { writeSvgToClipboard } from "../grid/clipboard";
 import { Button } from "../components/Button";
 import Pixi from "../components/pixi";
@@ -25,19 +26,52 @@ import {
   resolvePersistedTextureAdjustments,
   resolvePersistedTextureLuminanceSettings,
   resolvePersistedOverlayStripes,
+  resolvePersistedRenderScale,
+  resolvePersistedShaderSource,
+  DEFAULT_PLAYGROUND_RENDER_SCALE,
+  normalizePlaygroundRenderScale,
   resolveInitialTextureId,
   revokeUploadObjectUrl,
   saveLastTextureId,
   schedulePersistedConfig,
+  loadSavedShaders,
+  addSavedShader,
+  deleteSavedShader,
+  mergeSavedShaders,
+  loadColorPresets,
+  addColorPreset,
+  deleteColorPreset,
+  mergeColorPresets,
   type PlaygroundCatalogEntry,
   type PlaygroundPersistedConfig,
 } from "./playgroundPersistence";
+import {
+  findSavedShaderBySource,
+  mergeSavedShaderLists,
+  parseSavedShaderPresetId,
+  type PlaygroundSavedShader,
+} from "./playgroundSavedShaders";
+import {
+  backupSavedShadersToFiles,
+  deleteSavedShaderFile,
+  loadFileSavedShaders,
+  writeSavedShaderFile,
+} from "./savedShaderFiles";
+import { COLOR_PRESET_CUSTOM_ID, resolveColorPresetId, type PlaygroundColorPreset } from "./playgroundColorPresets";
 import {
   formatTextureLoadErrorMessage,
   type PlaygroundMediaKind,
   type PlaygroundTextureId,
 } from "./playgroundTextures";
-import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
+import { buildPlaygroundBlockGrid, sampleTextureFrame } from "./samplePlaygroundFrame";
+import {
+  DEFAULT_PLAYGROUND_SHADER_SOURCE,
+  PLAYGROUND_SHADER_NATIVE_HEIGHT,
+  PLAYGROUND_SHADER_NATIVE_WIDTH,
+  PLAYGROUND_SHADER_PRESETS,
+  PlaygroundShaderRenderer,
+} from "./playgroundShaderSource";
+import { PlaygroundAudioInput } from "./playgroundAudioInput";
 import { PLAYGROUND_SCRUB_COMMIT_MS, useThrottledCallback } from "./playgroundLiveRefs";
 import {
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
@@ -57,9 +91,11 @@ import {
   clampPlaygroundDisplayDimension,
   createTextureSceneTicker,
   getPlaygroundTextureNativeSize,
-  PLAYGROUND_PIXI_RESOLUTION,
+  isCompletePlaygroundExportGrid,
   resolvePlaygroundDisplaySize,
   type PlaygroundDisplaySize,
+  type PlaygroundExportDisplayGridCapture,
+  type PlaygroundExportGridCapture,
   type PlaygroundRevealPlayback,
   type PlaygroundSceneExportState,
   type PlaygroundTextureSource,
@@ -70,6 +106,7 @@ import {
   createPlaygroundWebGLContext,
   playgroundPrefersDisplayP3,
 } from "./playgroundColorSpace";
+import { playgroundCanvasToExportSvg } from "./playgroundCanvasExportSvg";
 import { stripeGridToSvg } from "./stripeGridToSvg";
 import { ExportReactDialog } from "./ExportReactDialog";
 import { PlaygroundLevaControls, type PlaygroundLevaControlsProps } from "./playgroundLevaControls";
@@ -83,6 +120,7 @@ import {
 } from "./playgroundVideoExport";
 import {
   DEFAULT_PLAYGROUND_GRID_CONFIG,
+  effectivePlaygroundCellSize,
   isDefaultPlaygroundGridConfig,
   normalizePlaygroundGridConfig,
   type PlaygroundGridConfig,
@@ -128,14 +166,17 @@ import {
 import type { PlaygroundRevealState } from "./playgroundReveal";
 import { preloadStripeLetterFont } from "./stripeLetterFont";
 import {
+  addStripe,
   applyColorsModeStripeDefaults,
   cloneDefaultOverlayStripes,
   cloneDefaultStripes,
   DEFAULT_STRIPES,
+  moveStripe,
   overlayStripesMatchDefault,
   resolveActivePlaygroundStripes,
   stripeColorFromHexPicker,
   updateStripe,
+  removeStripe,
   type Stripe,
   type StripeColors,
 } from "./stripeColors";
@@ -149,6 +190,11 @@ import {
 } from "./colorWhiteness";
 import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
 import { PLAYGROUND_BUTTON_ROW_CLASS, PLAYGROUND_SHELL_CLASS } from "./playgroundUi";
+import {
+  getLastPlaygroundPerfSample,
+  isPlaygroundPerfProfilingEnabled,
+  type PlaygroundPerfSample,
+} from "./playgroundPerfProfile";
 
 /** True when the stripe list differs from DEFAULT_STRIPES (ignoring ids). */
 function stripesMatchDefault(stripes: readonly Stripe[]): boolean {
@@ -174,7 +220,8 @@ type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "ready"; kind: "video"; layout: TextureLayout; video: HTMLVideoElement; textureId: PlaygroundTextureId }
-  | { status: "ready"; kind: "image"; layout: TextureLayout; image: HTMLImageElement; textureId: PlaygroundTextureId };
+  | { status: "ready"; kind: "image"; layout: TextureLayout; image: HTMLImageElement; textureId: PlaygroundTextureId }
+  | { status: "ready"; kind: "shader"; layout: TextureLayout; textureId: PlaygroundTextureId };
 
 function loadPlaygroundVideo(url: string, textureId: PlaygroundTextureId, label: string): Promise<LoadState> {
   return new Promise((resolve) => {
@@ -293,6 +340,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     sparkleWidthSpeed: resolvePersistedSparkleWidthSpeed(config),
     displayWidth: config.displayWidth,
     displayHeight: config.displayHeight,
+    renderScale: resolvePersistedRenderScale(config),
     grid: resolvePersistedGridConfig(config),
     flames: resolvePersistedFlamesConfig(config),
     reveal: resolvePersistedRevealConfig(config),
@@ -300,6 +348,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     clickWave: resolvePersistedClickWaveConfig(config),
     stripes: config.stripes.map((stripe) => ({ ...stripe })),
     overlayStripes: resolvePersistedOverlayStripes(config).map((stripe) => ({ ...stripe })),
+    shaderSource: resolvePersistedShaderSource(config),
   };
 }
 
@@ -348,6 +397,8 @@ export function TexturePlayground() {
   const [sparkleGapsSpeed, setSparkleGapsSpeed] = useState(appliedInitial.sparkleGapsSpeed);
   const [sparkleWidthActivePercent, setSparkleWidthActivePercent] = useState(appliedInitial.sparkleWidthActivePercent);
   const [sparkleWidthSpeed, setSparkleWidthSpeed] = useState(appliedInitial.sparkleWidthSpeed);
+  const [audioInputEnabled, setAudioInputEnabled] = useState(false);
+  const [audioInputStatus, setAudioInputStatus] = useState("");
   const [stripes, setStripes] = useState<Stripe[]>(() => appliedInitial.stripes);
   const [overlayStripes, setOverlayStripes] = useState<Stripe[]>(() => appliedInitial.overlayStripes);
   const [gridConfig, setGridConfig] = useState<PlaygroundGridConfig>(appliedInitial.grid);
@@ -356,6 +407,19 @@ export function TexturePlayground() {
   const [cursorTrailConfig, setCursorTrailConfig] = useState<PlaygroundCursorTrailConfig>(appliedInitial.cursorTrail);
   const [clickWaveConfig, setClickWaveConfig] = useState<PlaygroundClickWaveConfig>(appliedInitial.clickWave);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [shaderSource, setShaderSource] = useState(appliedInitial.shaderSource);
+  // Committed library files are the shared source of truth; localStorage holds anything not yet filed.
+  // Merging keeps both so a saved shader is never lost.
+  const [savedShaders, setSavedShaders] = useState<PlaygroundSavedShader[]>(() =>
+    mergeSavedShaderLists(loadFileSavedShaders(), loadSavedShaders()),
+  );
+
+  // Back up any browser-only shaders to files on startup so the library is never lost. No-ops in a
+  // static build where the dev write endpoint is unavailable.
+  useEffect(() => {
+    void backupSavedShadersToFiles(loadSavedShaders(), { onlyMissing: true });
+  }, []);
+  const [colorPresets, setColorPresets] = useState<PlaygroundColorPreset[]>(() => loadColorPresets());
   const [importText, setImportText] = useState("");
   const [importFeedback, setImportFeedback] = useState<"idle" | "imported" | "failed">("idle");
   const [exportFeedback, setExportFeedback] = useState<"idle" | "copied" | "failed">("idle");
@@ -371,13 +435,22 @@ export function TexturePlayground() {
   const [duration, setDuration] = useState(0);
   const [displayWidth, setDisplayWidth] = useState(0);
   const [displayHeight, setDisplayHeight] = useState(0);
+  const [renderScale, setRenderScale] = useState(appliedInitial.renderScale);
   const [sourceWidth, setSourceWidth] = useState(0);
   const [sourceHeight, setSourceHeight] = useState(0);
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
+  const perfOverlayEnabled = isPlaygroundPerfProfilingEnabled();
+  const [perfSample, setPerfSample] = useState<PlaygroundPerfSample | null>(() =>
+    perfOverlayEnabled ? getLastPlaygroundPerfSample() : null,
+  );
   const textureGamma = textureAdjustments.gamma;
   const activeStripes = useMemo(
     () => [...resolveActivePlaygroundStripes(textureLuminanceSettings.mode, stripes, overlayStripes)],
     [textureLuminanceSettings.mode, stripes, overlayStripes],
+  );
+  const activeColorPresetId = useMemo(
+    () => resolveColorPresetId(colorPresets, stripes, overlayStripes),
+    [colorPresets, stripes, overlayStripes],
   );
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -410,7 +483,15 @@ export function TexturePlayground() {
   const revealStateRef = useRef<PlaygroundRevealState>({ progress: 0 });
   const revealPlaybackRef = useRef<PlaygroundRevealPlayback>({ replayKey: 0, startedAtMs: performance.now() });
   const autoplayRef = useRef(true);
+  const shaderRendererRef = useRef<PlaygroundShaderRenderer | null>(null);
+  const audioInputRef = useRef<PlaygroundAudioInput | null>(null);
+  const pixiAppRef = useRef<Application | null>(null);
+  const shaderSourceRef = useRef(shaderSource);
+  const shaderTimeRef = useRef(0);
+  const shaderPlayingRef = useRef(true);
   const exportStateRef = useRef<PlaygroundSceneExportState | null>(null);
+  const exportDisplayGridRef = useRef<PlaygroundExportDisplayGridCapture | null>(null);
+  const exportGridCaptureRef = useRef<PlaygroundExportGridCapture | null>(null);
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sampleCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const sparkleGapsActivePercentRef = useRef(sparkleGapsActivePercent);
@@ -421,6 +502,7 @@ export function TexturePlayground() {
   sparkleGapsSpeedRef.current = sparkleGapsSpeed;
   sparkleWidthActivePercentRef.current = sparkleWidthActivePercent;
   sparkleWidthSpeedRef.current = sparkleWidthSpeed;
+  shaderSourceRef.current = shaderSource;
 
   const setCanvasNode = useCallback((node: HTMLCanvasElement | null) => {
     canvasRef.current = node;
@@ -495,6 +577,21 @@ export function TexturePlayground() {
     gridConfig.sparkleWidthPeriodMaxSec,
   ]);
 
+  useEffect(() => {
+    if (!perfOverlayEnabled) {
+      setPerfSample(null);
+      return;
+    }
+    const syncPerfSample = () => {
+      setPerfSample(getLastPlaygroundPerfSample());
+    };
+    syncPerfSample();
+    const intervalId = window.setInterval(syncPerfSample, 250);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [perfOverlayEnabled]);
+
   const replayReveal = useCallback(() => {
     revealStateRef.current = { progress: 0 };
     revealPlaybackRef.current = {
@@ -503,8 +600,8 @@ export function TexturePlayground() {
     };
   }, []);
 
-  const persistCurrentConfig = useCallback(() => {
-    const config: PlaygroundPersistedConfig = {
+  const buildCurrentPersistedConfig = useCallback((): PlaygroundPersistedConfig => {
+    return {
       duotoneEnabled,
       stripesEnabled: stripesEnabled ? undefined : false,
       textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? undefined : textureAdjustments,
@@ -527,6 +624,7 @@ export function TexturePlayground() {
       sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
       displayWidth: displayWidth > 0 ? displayWidth : undefined,
       displayHeight: displayHeight > 0 ? displayHeight : undefined,
+      renderScale: renderScale !== DEFAULT_PLAYGROUND_RENDER_SCALE ? renderScale : undefined,
       backgroundCss: normalizePlaygroundBackgroundCss(backgroundCss),
       backgroundColor: backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? backgroundColor : undefined,
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
@@ -536,10 +634,14 @@ export function TexturePlayground() {
       clickWave: isDefaultPlaygroundClickWaveConfig(clickWaveConfig) ? undefined : clickWaveConfig,
       stripes,
       overlayStripes: overlayStripesMatchDefault(overlayStripes) ? undefined : overlayStripes,
+      shaderSource:
+        selectedTextureId === "shader" && shaderSource.trim() !== DEFAULT_PLAYGROUND_SHADER_SOURCE.trim()
+          ? shaderSource
+          : undefined,
     };
-    schedulePersistedConfig(selectedTextureId, config);
   }, [
     selectedTextureId,
+    shaderSource,
     duotoneEnabled,
     stripesEnabled,
     textureAdjustments,
@@ -551,6 +653,7 @@ export function TexturePlayground() {
     sparkleWidthSpeed,
     displayWidth,
     displayHeight,
+    renderScale,
     backgroundCss,
     backgroundColor,
     gridConfig,
@@ -561,6 +664,10 @@ export function TexturePlayground() {
     stripes,
     overlayStripes,
   ]);
+
+  const persistCurrentConfig = useCallback(() => {
+    schedulePersistedConfig(selectedTextureId, buildCurrentPersistedConfig());
+  }, [selectedTextureId, buildCurrentPersistedConfig]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -596,6 +703,7 @@ export function TexturePlayground() {
       if (next.displayHeight && next.displayHeight > 0) {
         setDisplayHeight(next.displayHeight);
       }
+      setRenderScale(next.renderScale);
       setGridConfig(next.grid);
       setFlamesConfig(next.flames);
       setRevealConfig(next.reveal);
@@ -607,16 +715,20 @@ export function TexturePlayground() {
       replayReveal();
       setStripes(next.stripes);
       setOverlayStripes(next.overlayStripes);
+      setShaderSource(next.shaderSource);
+      shaderSourceRef.current = next.shaderSource;
     },
     [replayReveal],
   );
 
   const applyDisplayScale = useCallback((multiplier: number) => {
-    const textureSource: PlaygroundTextureSource | null = videoRef.current
-      ? { kind: "video", element: videoRef.current }
-      : imageRef.current
-        ? { kind: "image", element: imageRef.current }
-        : null;
+    const textureSource: PlaygroundTextureSource | null = shaderRendererRef.current
+      ? { kind: "shader", renderer: shaderRendererRef.current }
+      : videoRef.current
+        ? { kind: "video", element: videoRef.current }
+        : imageRef.current
+          ? { kind: "image", element: imageRef.current }
+          : null;
     if (!textureSource || multiplier <= 0 || !Number.isFinite(multiplier)) {
       return;
     }
@@ -736,6 +848,39 @@ export function TexturePlayground() {
     [applyStripePatch],
   );
 
+  const onStripeMove = useCallback((id: string, direction: -1 | 1) => {
+    const next = moveStripe({ stripes: stripeColorsRef.current.stripes }, id, direction).stripes;
+    stripeColorsRef.current = { stripes: next };
+    if (normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode) === "overlay") {
+      setOverlayStripes(next);
+    } else {
+      setStripes(next);
+    }
+  }, []);
+
+  const onStripeAdd = useCallback(() => {
+    const next = addStripe({ stripes: stripeColorsRef.current.stripes }).stripes;
+    stripeColorsRef.current = { stripes: next };
+    if (normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode) === "overlay") {
+      setOverlayStripes(next);
+    } else {
+      setStripes(next);
+    }
+  }, []);
+
+  const onStripeRemove = useCallback((id: string) => {
+    if (stripeColorsRef.current.stripes.length <= 1) {
+      return;
+    }
+    const next = removeStripe({ stripes: stripeColorsRef.current.stripes }, id).stripes;
+    stripeColorsRef.current = { stripes: next };
+    if (normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode) === "overlay") {
+      setOverlayStripes(next);
+    } else {
+      setStripes(next);
+    }
+  }, []);
+
   const resetStripes = useCallback(() => {
     setStripesEnabled(true);
     setTextureLuminanceSettings({
@@ -749,6 +894,45 @@ export function TexturePlayground() {
       gridUpdateIntervalMs: DEFAULT_PLAYGROUND_GRID_CONFIG.gridUpdateIntervalMs,
     }));
   }, []);
+
+  const applyColorPreset = useCallback(
+    (id: string) => {
+      if (id === COLOR_PRESET_CUSTOM_ID) {
+        return;
+      }
+      const preset = colorPresets.find((entry) => entry.id === id);
+      if (!preset) {
+        return;
+      }
+      setStripes(preset.stripes.map((stripe) => ({ ...stripe })));
+      if (preset.overlayStripes && preset.overlayStripes.length > 0) {
+        setOverlayStripes(preset.overlayStripes.map((stripe) => ({ ...stripe })));
+      }
+    },
+    [colorPresets],
+  );
+
+  const saveColorPreset = useCallback(() => {
+    const active = colorPresets.find((entry) => entry.id === activeColorPresetId);
+    const suggested = active?.label ?? `Color preset ${colorPresets.length + 1}`;
+    const name = window.prompt("Name this color preset", suggested);
+    if (name === null) {
+      return;
+    }
+    addColorPreset(name, stripes, overlayStripes);
+    setColorPresets(loadColorPresets());
+  }, [activeColorPresetId, colorPresets, stripes, overlayStripes]);
+
+  const removeActiveColorPreset = useCallback(() => {
+    const active = colorPresets.find((entry) => entry.id === activeColorPresetId);
+    if (!active) {
+      return;
+    }
+    if (!window.confirm(`Delete color preset "${active.label}"?`)) {
+      return;
+    }
+    setColorPresets(deleteColorPreset(active.id));
+  }, [activeColorPresetId, colorPresets]);
 
   const updateGridLive = useCallback(
     (patch: Partial<PlaygroundGridConfig>) => {
@@ -1080,6 +1264,18 @@ export function TexturePlayground() {
     setSourceTransform(DEFAULT_PLAYGROUND_SOURCE_TRANSFORM);
   }, []);
 
+  // Compile failures keep the previous program rendering; surface the error in the console only.
+  const applyShaderSourceToRenderer = useCallback((source: string) => {
+    const renderer = shaderRendererRef.current;
+    if (!renderer) {
+      return;
+    }
+    const compile = renderer.setSource(source);
+    if (!compile.ok) {
+      console.warn("[playground] shader compile failed:", compile.error);
+    }
+  }, []);
+
   const resetSparkleGaps = useCallback(() => {
     setSparkleGapsActivePercent(0);
     setSparkleGapsSpeed(DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED);
@@ -1186,14 +1382,54 @@ export function TexturePlayground() {
 
     let cancelled = false;
     setLoadState({ status: "loading" });
-    autoplayRef.current = entry.mediaKind === "video";
+    autoplayRef.current = entry.mediaKind === "video" || entry.mediaKind === "shader";
+
+    if (entry.mediaKind === "shader") {
+      let renderer = shaderRendererRef.current;
+      if (!renderer) {
+        renderer = new PlaygroundShaderRenderer();
+        shaderRendererRef.current = renderer;
+      }
+      const persistedShaderSource = resolvePersistedShaderSource(
+        getPersistedConfig(entry.id) ?? defaultConfigForTexture(entry.id),
+      );
+      shaderSourceRef.current = persistedShaderSource;
+      setShaderSource(persistedShaderSource);
+      const compile = renderer.setSource(persistedShaderSource);
+      if (!compile.ok) {
+        console.warn("[playground] shader compile failed:", compile.error);
+      }
+      shaderTimeRef.current = 0;
+      shaderPlayingRef.current = true;
+      setDuration(0);
+      setCurrentTime(0);
+      setIsPlaying(true);
+      videoRef.current = null;
+      imageRef.current = null;
+      const textureSource: PlaygroundTextureSource = { kind: "shader", renderer };
+      const { display, source } = syncDisplaySizeFromTexture(textureSource, entry.id);
+      setSourceWidth(source.width);
+      setSourceHeight(source.height);
+      setDisplayWidth(display.width);
+      setDisplayHeight(display.height);
+      replayReveal();
+      setLoadState({
+        status: "ready",
+        kind: "shader",
+        layout: { width: PLAYGROUND_SHADER_NATIVE_WIDTH, height: PLAYGROUND_SHADER_NATIVE_HEIGHT },
+        textureId: entry.id,
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
 
     void loadPlaygroundSource(entry.url, entry.id, entry.mediaKind, entry.label).then((next) => {
       if (cancelled) {
         if (next.status === "ready") {
           if (next.kind === "video") {
             disposeVideoElement(next.video);
-          } else {
+          } else if (next.kind === "image") {
             disposeImageElement(next.image);
           }
         }
@@ -1221,6 +1457,9 @@ export function TexturePlayground() {
 
       videoRef.current = null;
       imageRef.current = null;
+      if (next.kind === "shader") {
+        return;
+      }
       const textureSource: PlaygroundTextureSource =
         next.kind === "video" ? { kind: "video", element: next.video } : { kind: "image", element: next.image };
       if (next.kind === "video") {
@@ -1314,10 +1553,18 @@ export function TexturePlayground() {
     if (loadState.status !== "ready" || displayWidth <= 0 || displayHeight <= 0) {
       return [];
     }
-    const textureSource: PlaygroundTextureSource =
-      loadState.kind === "video"
-        ? { kind: "video", element: loadState.video }
-        : { kind: "image", element: loadState.image };
+    const renderer = shaderRendererRef.current;
+    const textureSource: PlaygroundTextureSource | null =
+      loadState.kind === "shader"
+        ? renderer
+          ? { kind: "shader", renderer }
+          : null
+        : loadState.kind === "video"
+          ? { kind: "video", element: loadState.video }
+          : { kind: "image", element: loadState.image };
+    if (!textureSource) {
+      return [];
+    }
     return [
       createTextureSceneTicker(
         textureSource,
@@ -1331,6 +1578,8 @@ export function TexturePlayground() {
         widthShuffleOptionsRef,
         autoplayRef,
         exportStateRef,
+        exportDisplayGridRef,
+        exportGridCaptureRef,
         gridConfigRef,
         textureAdjustmentsRef,
         textureLuminanceSettingsRef,
@@ -1343,6 +1592,10 @@ export function TexturePlayground() {
         cursorTrailConfigRef,
         clickWaveConfigRef,
         onTextureLuminanceSettingsDetected,
+        shaderTimeRef,
+        shaderPlayingRef,
+        shaderSourceRef,
+        audioInputRef,
       ),
     ];
   }, [
@@ -1377,37 +1630,9 @@ export function TexturePlayground() {
 
   const onCopyState = async () => {
     const config: PlaygroundPersistedConfig = {
-      duotoneEnabled,
-      stripesEnabled: stripesEnabled ? undefined : false,
-      textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? undefined : textureAdjustments,
-      textureLuminanceMode:
-        textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE ? textureLuminanceSettings.mode : undefined,
-      textureLuminanceBackgroundColor:
-        textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
-          ? textureLuminanceSettings.backgroundColor
-          : undefined,
-      sourceTransform: isDefaultPlaygroundSourceTransform(sourceTransform) ? undefined : sourceTransform,
-      sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
-      sparkleGapsSpeed:
-        sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
-          ? sparkleGapsSpeed
-          : undefined,
-      sparkleWidthActivePercent:
-        sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
-          ? sparkleWidthActivePercent
-          : undefined,
-      sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
-      displayWidth: displayWidth > 0 ? displayWidth : undefined,
-      displayHeight: displayHeight > 0 ? displayHeight : undefined,
-      backgroundCss: normalizePlaygroundBackgroundCss(backgroundCss),
-      backgroundColor: backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? backgroundColor : undefined,
-      grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
-      flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
-      reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
-      cursorTrail: isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig) ? undefined : cursorTrailConfig,
-      clickWave: isDefaultPlaygroundClickWaveConfig(clickWaveConfig) ? undefined : clickWaveConfig,
-      stripes,
-      overlayStripes: overlayStripesMatchDefault(overlayStripes) ? undefined : overlayStripes,
+      ...buildCurrentPersistedConfig(),
+      savedShaders: savedShaders.length > 0 ? savedShaders : undefined,
+      colorPresets: colorPresets.length > 0 ? colorPresets : undefined,
     };
     await copyPlaygroundStateToClipboard(config);
   };
@@ -1417,6 +1642,15 @@ export function TexturePlayground() {
       const config = parsePlaygroundStateInput(importText);
       applyConfig(config);
       schedulePersistedConfig(selectedTextureId, config);
+      if (config.savedShaders && config.savedShaders.length > 0) {
+        const imported = config.savedShaders;
+        mergeSavedShaders(imported);
+        setSavedShaders((prev) => mergeSavedShaderLists(prev, imported));
+        void backupSavedShadersToFiles(imported);
+      }
+      if (config.colorPresets && config.colorPresets.length > 0) {
+        setColorPresets(mergeColorPresets(config.colorPresets));
+      }
       setImportText("");
       setImportFeedback("imported");
       window.setTimeout(() => setImportFeedback("idle"), 1200);
@@ -1427,6 +1661,13 @@ export function TexturePlayground() {
   };
 
   const togglePlayPause = () => {
+    if (loadState.status === "ready" && loadState.kind === "shader") {
+      const nextPlaying = !shaderPlayingRef.current;
+      shaderPlayingRef.current = nextPlaying;
+      autoplayRef.current = nextPlaying;
+      setIsPlaying(nextPlaying);
+      return;
+    }
     const video = videoRef.current;
     if (!video) {
       return;
@@ -1546,57 +1787,119 @@ export function TexturePlayground() {
       return;
     }
 
-    if (!sampleCanvasRef.current) {
-      sampleCanvasRef.current = document.createElement("canvas");
-      sampleCtxRef.current = sampleCanvasRef.current.getContext("2d", { willReadFrequently: true });
-    }
-    const sampleCanvas = sampleCanvasRef.current;
-    const sampleCtx = sampleCtxRef.current;
-    if (!sampleCtx) {
-      setExportFeedback("failed");
+    const finishExport = async (svg: string | null) => {
+      if (!svg) {
+        setExportFeedback("failed");
+        window.setTimeout(() => setExportFeedback("idle"), 1600);
+        return;
+      }
+      try {
+        await writeSvgToClipboard(svg);
+        setExportFeedback("copied");
+      } catch {
+        setExportFeedback("failed");
+      }
       window.setTimeout(() => setExportFeedback("idle"), 1600);
-      return;
-    }
+    };
 
-    if (loadState.kind === "video") {
-      loadState.video.pause();
-    }
-
-    const frame =
-      loadState.kind === "video"
-        ? sampleVideoFrame(loadState.video, display.width, display.height, sampleCanvas, sampleCtx, sourceTransform)
-        : sampleTextureFrame(loadState.image, display.width, display.height, sampleCanvas, sampleCtx, sourceTransform);
-    if (!frame) {
-      setExportFeedback("failed");
-      window.setTimeout(() => setExportFeedback("idle"), 1600);
+    // Video and shader are time-varying and composite the source under semi-transparent stripes.
+    // Vector reconstruction from the block grid only emits cells with stripe bands, which is
+    // sparse on video — embed the live canvas instead so Copy SVG matches what you see.
+    if (loadState.kind === "video" || loadState.kind === "shader") {
+      const canvas = canvasRef.current;
+      await finishExport(
+        canvas ? await playgroundCanvasToExportSvg(canvas, display.width, display.height, pixiAppRef.current) : null,
+      );
       return;
     }
 
     const colors = stripeColorsRef.current;
-    const built = buildPlaygroundBlockGrid(frame, display.width, display.height, colors, {}, textureGamma, {
-      textureAdjustments,
-      luminanceSettings: textureLuminanceSettings,
-      flamesState: flamesStateRef.current,
-      flamesConfig: flamesConfigRef.current,
-      reveal: revealConfigRef.current.enabled
-        ? {
-            config: revealConfigRef.current,
-            progress: revealStateRef.current.progress,
-            replayKey: revealPlaybackRef.current.replayKey,
-          }
-        : undefined,
-    });
-    const svg = stripeGridToSvg(built.grid, colors, display.width, display.height, {
-      useCellColors: textureLuminanceSettings.mode === "colors",
-    });
+    const luminanceSettings = textureLuminanceSettingsRef.current;
+    const useCellColors = luminanceSettings.mode === "colors";
+    const gridConfig = gridConfigRef.current;
+    const effectiveCell = effectivePlaygroundCellSize(gridConfig);
+    const imageStripeSvgOptions = {
+      useCellColors,
+      layout: {
+        cellPitchWidth: effectiveCell.width,
+        cellPitchHeight: effectiveCell.height,
+        gapX: gridConfig.gapX,
+        gapY: gridConfig.gapY,
+        orientation: gridConfig.orientation,
+      },
+      widthShuffle: widthShuffleOptionsRef.current,
+      sparkleGaps: sparkleOptionsRef.current,
+      timeSec: performance.now() / 1000,
+    };
 
-    try {
-      await writeSvgToClipboard(svg);
-      setExportFeedback("copied");
-    } catch {
-      setExportFeedback("failed");
+    const built =
+      exportDisplayGridRef.current?.() ??
+      exportGridCaptureRef.current?.() ??
+      (() => {
+        const snapshot = exportStateRef.current;
+        if (isCompletePlaygroundExportGrid(snapshot, display, { requireCellColors: useCellColors })) {
+          return snapshot!.grid!;
+        }
+        return null;
+      })();
+
+    if (!built) {
+      if (!sampleCanvasRef.current) {
+        sampleCanvasRef.current = document.createElement("canvas");
+        sampleCtxRef.current = sampleCanvasRef.current.getContext("2d", { willReadFrequently: true });
+      }
+      const sampleCanvas = sampleCanvasRef.current;
+      const sampleCtx = sampleCtxRef.current;
+      if (!sampleCtx) {
+        await finishExport(null);
+        return;
+      }
+
+      const effectiveCell = effectivePlaygroundCellSize(gridConfigRef.current);
+      const frame = sampleTextureFrame(
+        loadState.image,
+        display.width,
+        display.height,
+        sampleCanvas,
+        sampleCtx,
+        sourceTransformRef.current,
+      );
+      if (!frame) {
+        await finishExport(null);
+        return;
+      }
+
+      const fallbackGrid = buildPlaygroundBlockGrid(
+        frame,
+        display.width,
+        display.height,
+        colors,
+        {},
+        textureGammaRef.current,
+        {
+          cellWidth: effectiveCell.width,
+          cellHeight: effectiveCell.height,
+          textureAdjustments: {
+            ...textureAdjustmentsRef.current,
+            gamma: textureGammaRef.current,
+          },
+          luminanceSettings,
+          flamesState: flamesStateRef.current,
+          flamesConfig: flamesConfigRef.current,
+          reveal: revealConfigRef.current.enabled
+            ? {
+                config: revealConfigRef.current,
+                progress: revealStateRef.current.progress,
+                replayKey: revealPlaybackRef.current.replayKey,
+              }
+            : undefined,
+        },
+      ).grid;
+      await finishExport(stripeGridToSvg(fallbackGrid, colors, display.width, display.height, imageStripeSvgOptions));
+      return;
     }
-    window.setTimeout(() => setExportFeedback("idle"), 1600);
+
+    await finishExport(stripeGridToSvg(built, colors, display.width, display.height, imageStripeSvgOptions));
   };
 
   useEffect(() => {
@@ -1608,6 +1911,47 @@ export function TexturePlayground() {
       }
     };
   }, [catalog]);
+
+  const shaderReadyForAudio = loadState.status === "ready" && loadState.kind === "shader";
+  useEffect(() => {
+    const shouldCapture = audioInputEnabled && shaderReadyForAudio;
+    if (!shouldCapture) {
+      audioInputRef.current?.stop();
+      setAudioInputStatus("");
+      return;
+    }
+    let cancelled = false;
+    let input = audioInputRef.current;
+    if (!input) {
+      input = new PlaygroundAudioInput();
+      audioInputRef.current = input;
+    }
+    setAudioInputStatus("Requesting microphone…");
+    void input.start().then((result) => {
+      if (cancelled) {
+        input?.stop();
+        return;
+      }
+      if (result.ok) {
+        setAudioInputStatus("Microphone live");
+      } else {
+        setAudioInputStatus(result.error);
+        setAudioInputEnabled(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [audioInputEnabled, shaderReadyForAudio]);
+
+  useEffect(() => {
+    return () => {
+      audioInputRef.current?.stop();
+      audioInputRef.current = null;
+      shaderRendererRef.current?.destroy();
+      shaderRendererRef.current = null;
+    };
+  }, []);
 
   const reactExportSnapshot = useMemo(
     () =>
@@ -1688,6 +2032,10 @@ export function TexturePlayground() {
       const fallback = displayHeight > 0 ? displayHeight : sourceHeight || 1;
       setDisplayHeight(clampPlaygroundDisplayDimension(value, fallback));
     },
+    renderScale,
+    onRenderScaleChange: (value) => {
+      setRenderScale(normalizePlaygroundRenderScale(value));
+    },
     applyDisplayScale,
     onUploadFile,
     importText,
@@ -1734,8 +2082,16 @@ export function TexturePlayground() {
     onStripeColorChange,
     onStripeStartFromCommit,
     onStripeWidthCommit,
+    onStripeMove,
+    onStripeAdd,
+    onStripeRemove,
     onResetStripes: resetStripes,
     stripesModified,
+    colorPresets,
+    activeColorPresetId,
+    onApplyColorPreset: applyColorPreset,
+    onSaveColorPreset: saveColorPreset,
+    onDeleteColorPreset: removeActiveColorPreset,
     sparkleGapsActivePercent,
     sparkleGapsSpeed,
     setSparkleGapsActivePercentLive,
@@ -1777,6 +2133,83 @@ export function TexturePlayground() {
     revealModified,
     onResetGeneral: resetGeneral,
     generalModified,
+    shaderSource,
+    savedShaders,
+    onShaderSourceLive: (value: string) => {
+      shaderSourceRef.current = value;
+      applyShaderSourceToRenderer(value);
+    },
+    onShaderSourceCommit: (value: string) => {
+      setShaderSource(value);
+      shaderSourceRef.current = value;
+      applyShaderSourceToRenderer(value);
+    },
+    onShaderPresetChange: (presetId: string) => {
+      const loadSource = (source: string) => {
+        if (source.trim() === shaderSourceRef.current.trim()) {
+          return;
+        }
+        setShaderSource(source);
+        shaderSourceRef.current = source;
+        // Presets are framed for the default view; clear any leftover zoom/pan.
+        updateSourceTransform({ zoom: 1, panX: 0, panY: 0 });
+        applyShaderSourceToRenderer(source);
+      };
+      const savedId = parseSavedShaderPresetId(presetId);
+      if (savedId) {
+        const saved = savedShaders.find((entry) => entry.id === savedId);
+        if (!saved) {
+          return;
+        }
+        if (saved.config) {
+          // Restore the full saved look (colors, sizing, zoom, tone, grid, effects) plus the equation.
+          applyConfig({ ...saved.config, shaderSource: saved.source });
+          applyShaderSourceToRenderer(saved.source);
+        } else {
+          loadSource(saved.source);
+        }
+        return;
+      }
+      const preset = PLAYGROUND_SHADER_PRESETS.find((entry) => entry.id === presetId);
+      if (preset) {
+        loadSource(preset.source);
+      }
+    },
+    onSaveShader: () => {
+      const source = shaderSourceRef.current;
+      if (source.trim().length === 0) {
+        return;
+      }
+      const existing = findSavedShaderBySource(savedShaders, source);
+      const suggested = existing?.label ?? `Custom shader ${savedShaders.length + 1}`;
+      const name = window.prompt("Name this shader (saves the current colors, size, zoom, and effects too)", suggested);
+      if (name === null) {
+        return;
+      }
+      const entry = addSavedShader(name, source, buildCurrentPersistedConfig());
+      void writeSavedShaderFile(entry);
+      setSavedShaders((prev) => mergeSavedShaderLists(prev, [entry]));
+    },
+    onDeleteSavedShader: () => {
+      const saved = findSavedShaderBySource(savedShaders, shaderSourceRef.current);
+      if (!saved) {
+        return;
+      }
+      if (!window.confirm(`Delete saved shader "${saved.label}"?`)) {
+        return;
+      }
+      deleteSavedShader(saved.id);
+      void deleteSavedShaderFile(saved.id);
+      setSavedShaders((prev) => prev.filter((entry) => entry.id !== saved.id));
+    },
+    onBackupShadersToFiles: () => {
+      void backupSavedShadersToFiles(savedShaders);
+    },
+    audioInputEnabled,
+    audioInputStatus,
+    onAudioInputToggle: (enabled: boolean) => setAudioInputEnabled(enabled),
+    perfOverlayEnabled,
+    perfSample,
   };
 
   if (!hydrated || loadState.status === "loading") {
@@ -1806,8 +2239,10 @@ export function TexturePlayground() {
   const { textureId } = loadState;
   // Grid/letter config changes are applied live by the ticker. Texture, media kind, and display
   // size remount Pixi with a fresh canvas (WebGL context cannot be recreated on the same element).
-  const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}`;
+  const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}@${renderScale}`;
   const isVideoSource = loadState.kind === "video";
+  const isShaderSource = loadState.kind === "shader";
+  const isAnimatedSource = isVideoSource || isShaderSource;
   const exportLabel = exportFeedback === "copied" ? "Copied" : exportFeedback === "failed" ? "Copy failed" : "Copy SVG";
   const videoExportTranscodeElapsedMs =
     videoExportTranscodeStartedAtRef.current === null
@@ -1847,16 +2282,21 @@ export function TexturePlayground() {
               return { context: context as WebGL2RenderingContext };
             }}
             onInitialized={(app) => {
+              pixiAppRef.current = app;
               const canvas = canvasRef.current;
               if (canvas) {
                 configurePlaygroundCanvasAfterPixiInit(canvas, app);
               }
             }}
+            onDisposed={() => {
+              pixiAppRef.current = null;
+            }}
             initOptions={{
               preference: "webgl",
               background: 0x000000,
               antialias: false,
-              resolution: PLAYGROUND_PIXI_RESOLUTION,
+              powerPreference: "high-performance",
+              resolution: renderScale,
             }}
             tickers={tickers}
           />
@@ -1892,7 +2332,7 @@ export function TexturePlayground() {
               </Button>
             </div>
             <div className="flex min-w-0 items-center gap-2" data-testid="playground-playback-controls">
-              {isVideoSource ? (
+              {isAnimatedSource ? (
                 <>
                   <Button
                     className="flex h-8 w-8 items-center justify-center p-0"
@@ -1901,22 +2341,28 @@ export function TexturePlayground() {
                   >
                     {isPlaying ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
                   </Button>
-                  <span className="w-10 shrink-0 text-right tabular-nums text-[11px] text-builder-control">
-                    {formatTime(currentTime)}
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration || 0}
-                    step={0.01}
-                    value={currentTime}
-                    onChange={(event) => onScrub(Number(event.target.value))}
-                    className="w-72 max-w-[40vw] min-w-32"
-                    aria-label="Texture timeline"
-                  />
-                  <span className="w-10 shrink-0 tabular-nums text-[11px] text-builder-control">
-                    {formatTime(duration)}
-                  </span>
+                  {isVideoSource ? (
+                    <>
+                      <span className="w-10 shrink-0 text-right tabular-nums text-[11px] text-builder-control">
+                        {formatTime(currentTime)}
+                      </span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={duration || 0}
+                        step={0.01}
+                        value={currentTime}
+                        onChange={(event) => onScrub(Number(event.target.value))}
+                        className="w-72 max-w-[40vw] min-w-32"
+                        aria-label="Texture timeline"
+                      />
+                      <span className="w-10 shrink-0 tabular-nums text-[11px] text-builder-control">
+                        {formatTime(duration)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="tabular-nums text-[11px] text-builder-control">Shader equation</span>
+                  )}
                 </>
               ) : null}
             </div>

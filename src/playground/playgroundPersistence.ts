@@ -87,6 +87,21 @@ import {
   type PlaygroundMediaKind,
   type PlaygroundTextureId,
 } from "./playgroundTextures";
+import { DEFAULT_PLAYGROUND_SHADER_SOURCE } from "./playgroundShaderSource";
+import {
+  createSavedShaderId,
+  mergeSavedShaderLists,
+  normalizeSavedShaderLabel,
+  normalizeSavedShaders,
+  type PlaygroundSavedShader,
+} from "./playgroundSavedShaders";
+import {
+  createColorPresetId,
+  mergeColorPresetLists,
+  normalizeColorPresetLabel,
+  normalizeColorPresets,
+  type PlaygroundColorPreset,
+} from "./playgroundColorPresets";
 
 export const PLAYGROUND_LS_KEY = "section-grid-playground";
 export const PLAYGROUND_DB_NAME = "section-grid-playground";
@@ -127,6 +142,8 @@ export type PlaygroundPersistedConfig = {
   displayWidth?: number;
   /** Canvas height in px; omitted = match native source height on load. */
   displayHeight?: number;
+  /** Pixi backing-store scale (0.5–2). Omitted = 2 (sharp). Lower = faster fill rate. */
+  renderScale?: number;
   /** Designer-tunable grid geometry / letter / animation config. Omitted = defaults. */
   grid?: PlaygroundGridConfig;
   /** Background flame streak settings. Omitted = defaults. */
@@ -141,6 +158,12 @@ export type PlaygroundPersistedConfig = {
   stripes: Stripe[];
   /** Overlay-mode stripe list (loudest three bands). Omitted = defaults. */
   overlayStripes?: Stripe[];
+  /** ShaderToy-style mainImage body for the built-in shader equation source. */
+  shaderSource?: string;
+  /** User-saved custom shader library. Carried through copy/import; stored globally on disk. */
+  savedShaders?: PlaygroundSavedShader[];
+  /** Reusable color-palette library. Carried through copy/import; stored globally on disk. */
+  colorPresets?: PlaygroundColorPreset[];
 };
 
 export function resolvePersistedGridConfig(config: PlaygroundPersistedConfig): PlaygroundGridConfig {
@@ -193,6 +216,27 @@ export function resolvePersistedClickWaveConfig(config: PlaygroundPersistedConfi
   return normalizePlaygroundClickWaveConfig(config.clickWave);
 }
 
+export function resolvePersistedShaderSource(config: PlaygroundPersistedConfig): string {
+  const trimmed = config.shaderSource?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : DEFAULT_PLAYGROUND_SHADER_SOURCE;
+}
+
+export const DEFAULT_PLAYGROUND_RENDER_SCALE = 2;
+
+export function normalizePlaygroundRenderScale(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_PLAYGROUND_RENDER_SCALE;
+  }
+  return Math.min(2, Math.max(0.5, numeric));
+}
+
+export function resolvePersistedRenderScale(config: PlaygroundPersistedConfig): number {
+  return config.renderScale === undefined
+    ? DEFAULT_PLAYGROUND_RENDER_SCALE
+    : normalizePlaygroundRenderScale(config.renderScale);
+}
+
 export type PlaygroundUploadMeta = {
   id: string;
   label: string;
@@ -206,6 +250,8 @@ type PlaygroundEnvelope = {
   lastTextureId: string;
   uploads: PlaygroundUploadMeta[];
   configs: Record<string, PlaygroundPersistedConfig>;
+  savedShaders: PlaygroundSavedShader[];
+  colorPresets: PlaygroundColorPreset[];
 };
 
 export type PlaygroundCatalogEntry = {
@@ -252,6 +298,8 @@ export type PlaygroundStateWire = {
   xf?: SourceTransformWire;
   w?: number;
   h?: number;
+  /** Pixi backing-store scale (0.5–2). Omitted = 2. */
+  rs?: number;
   /** v4+: designer grid/letter/animation config (omitted = defaults). */
   gc?: Partial<PlaygroundGridConfig>;
   /** v3+: ordered luminosity stripes. */
@@ -266,6 +314,12 @@ export type PlaygroundStateWire = {
   ct?: CursorTrailWire;
   /** v7+: click ripple settings. */
   cc?: ClickWaveWire;
+  /** ShaderToy-style mainImage body for procedural shader sources. */
+  sh?: string;
+  /** User-saved custom shader library, carried so it can move between browsers. */
+  shl?: SavedShaderWire[];
+  /** Reusable color-palette library, carried so it can move between browsers. */
+  cp?: ColorPresetWire[];
   /** @deprecated v1/v2 distance-model fields, migrated to default stripes. */
   c?: string;
   t?: number;
@@ -273,6 +327,23 @@ export type PlaygroundStateWire = {
   th?: number;
   de?: number;
   bp?: number[];
+};
+
+type SavedShaderWire = {
+  id: string;
+  l: string;
+  s: string;
+  t?: number;
+  /** Nested serialized look snapshot (state string) captured when the shader was saved. */
+  c?: string;
+};
+
+type ColorPresetWire = {
+  id: string;
+  l: string;
+  st: StripeWire[];
+  os?: StripeWire[];
+  t?: number;
 };
 
 type TextureAdjustmentsWire = {
@@ -375,8 +446,8 @@ type RevealWire = {
   cs?: number;
 };
 
-function stripesToWire(stripes: readonly Stripe[]): StripeWire[] {
-  return stripes.map((stripe) => ({ hex: stripe.hex, p3: stripe.p3Css, s: stripe.startFrom, w: stripe.width }));
+function stripesToWire(stripes: readonly Stripe[] | undefined): StripeWire[] {
+  return (stripes ?? []).map((stripe) => ({ hex: stripe.hex, p3: stripe.p3Css, s: stripe.startFrom, w: stripe.width }));
 }
 
 function wireToStripes(raw: unknown): Stripe[] | undefined {
@@ -392,6 +463,84 @@ function wireToStripes(raw: unknown): Stripe[] | undefined {
       normalizeStripe({ hex: entry.hex, p3Css: entry.p3, startFrom: Number(entry.s), width: Number(entry.w) }),
     );
   return stripes.length > 0 ? stripes : undefined;
+}
+
+function colorPresetsToWire(colorPresets: readonly PlaygroundColorPreset[] | undefined): ColorPresetWire[] | undefined {
+  if (!colorPresets || colorPresets.length === 0) {
+    return undefined;
+  }
+  return colorPresets.map((entry) => {
+    const wire: ColorPresetWire = {
+      id: entry.id,
+      l: entry.label,
+      st: stripesToWire(entry.stripes),
+      t: entry.createdAt,
+    };
+    if (entry.overlayStripes && entry.overlayStripes.length > 0) {
+      wire.os = stripesToWire(entry.overlayStripes);
+    }
+    return wire;
+  });
+}
+
+function wireToColorPresets(raw: unknown): PlaygroundColorPreset[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const normalized = normalizeColorPresets(
+    raw.map((entry) => {
+      const wire = (entry ?? {}) as ColorPresetWire;
+      return {
+        id: wire.id,
+        label: wire.l,
+        stripes: wireToStripes(wire.st) ?? [],
+        overlayStripes: wire.os ? wireToStripes(wire.os) : undefined,
+        createdAt: wire.t,
+      };
+    }),
+  );
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+/** Drop nested libraries so a saved-shader/color-preset snapshot never recursively embeds them. */
+function stripLibrariesFromConfig(config: PlaygroundPersistedConfig): PlaygroundPersistedConfig {
+  const { savedShaders: _savedShaders, colorPresets: _colorPresets, ...rest } = config;
+  return rest;
+}
+
+function savedShadersToWire(savedShaders: readonly PlaygroundSavedShader[] | undefined): SavedShaderWire[] | undefined {
+  if (!savedShaders || savedShaders.length === 0) {
+    return undefined;
+  }
+  return savedShaders.map((entry) => {
+    const wire: SavedShaderWire = { id: entry.id, l: entry.label, s: entry.source, t: entry.createdAt };
+    if (entry.config) {
+      // Nest the look as a serialized state string, with the source stripped (carried by `s`).
+      wire.c = serializePlaygroundState({ ...stripLibrariesFromConfig(entry.config), shaderSource: undefined });
+    }
+    return wire;
+  });
+}
+
+function wireToSavedShaders(raw: unknown): PlaygroundSavedShader[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const normalized = normalizeSavedShaders(
+    raw.map((entry) => {
+      const wire = (entry ?? {}) as SavedShaderWire;
+      let config: PlaygroundPersistedConfig | undefined;
+      if (typeof wire.c === "string" && wire.c.trim().length > 0) {
+        try {
+          config = parsePlaygroundStateInput(wire.c);
+        } catch {
+          config = undefined;
+        }
+      }
+      return { id: wire.id, label: wire.l, source: wire.s, createdAt: wire.t, config };
+    }),
+  );
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function textureAdjustmentsToWire(adjustments: PlaygroundTextureAdjustments): TextureAdjustmentsWire | undefined {
@@ -691,15 +840,26 @@ function uploadMediaKind(meta: PlaygroundUploadMeta): PlaygroundMediaKind {
   return meta.mediaKind === "image" ? "image" : "video";
 }
 
+function emptyEnvelope(): PlaygroundEnvelope {
+  return {
+    version: 1,
+    lastTextureId: DEFAULT_PLAYGROUND_TEXTURE_ID,
+    uploads: [],
+    configs: {},
+    savedShaders: [],
+    colorPresets: [],
+  };
+}
+
 function readEnvelope(): PlaygroundEnvelope {
   try {
     const raw = localStorage.getItem(PLAYGROUND_LS_KEY);
     if (!raw) {
-      return { version: 1, lastTextureId: DEFAULT_PLAYGROUND_TEXTURE_ID, uploads: [], configs: {} };
+      return emptyEnvelope();
     }
     const parsed = JSON.parse(raw) as Partial<PlaygroundEnvelope> & { lastVideoId?: string };
     if (parsed.version !== 1) {
-      return { version: 1, lastTextureId: DEFAULT_PLAYGROUND_TEXTURE_ID, uploads: [], configs: {} };
+      return emptyEnvelope();
     }
     const lastTextureId =
       typeof parsed.lastTextureId === "string"
@@ -712,9 +872,11 @@ function readEnvelope(): PlaygroundEnvelope {
       lastTextureId,
       uploads: Array.isArray(parsed.uploads) ? parsed.uploads : [],
       configs: parsed.configs && typeof parsed.configs === "object" ? parsed.configs : {},
+      savedShaders: normalizeSavedShaders(parsed.savedShaders),
+      colorPresets: normalizeColorPresets(parsed.colorPresets),
     };
   } catch {
-    return { version: 1, lastTextureId: DEFAULT_PLAYGROUND_TEXTURE_ID, uploads: [], configs: {} };
+    return emptyEnvelope();
   }
 }
 
@@ -825,6 +987,82 @@ export function schedulePersistedConfig(textureId: PlaygroundTextureId, config: 
   }, 300);
 }
 
+export function loadSavedShaders(): PlaygroundSavedShader[] {
+  return readEnvelope().savedShaders;
+}
+
+/** Persist a new saved shader (newest appended) and return the created entry. */
+export function addSavedShader(
+  label: string,
+  source: string,
+  config?: PlaygroundPersistedConfig,
+): PlaygroundSavedShader {
+  const envelope = readEnvelope();
+  const entry: PlaygroundSavedShader = {
+    id: createSavedShaderId(),
+    label: normalizeSavedShaderLabel(label),
+    source,
+    createdAt: Date.now(),
+    ...(config ? { config: stripLibrariesFromConfig(config) } : {}),
+  };
+  envelope.savedShaders = [...envelope.savedShaders, entry];
+  writeEnvelope(envelope);
+  return entry;
+}
+
+export function deleteSavedShader(id: string): PlaygroundSavedShader[] {
+  const envelope = readEnvelope();
+  envelope.savedShaders = envelope.savedShaders.filter((entry) => entry.id !== id);
+  writeEnvelope(envelope);
+  return envelope.savedShaders;
+}
+
+/** Merge imported saved shaders into the on-disk library and return the merged list. */
+export function mergeSavedShaders(incoming: readonly PlaygroundSavedShader[]): PlaygroundSavedShader[] {
+  const envelope = readEnvelope();
+  envelope.savedShaders = mergeSavedShaderLists(envelope.savedShaders, incoming);
+  writeEnvelope(envelope);
+  return envelope.savedShaders;
+}
+
+export function loadColorPresets(): PlaygroundColorPreset[] {
+  return readEnvelope().colorPresets;
+}
+
+/** Persist a new color preset (newest appended) and return the created entry. */
+export function addColorPreset(
+  label: string,
+  stripes: readonly Stripe[],
+  overlayStripes?: readonly Stripe[],
+): PlaygroundColorPreset {
+  const envelope = readEnvelope();
+  const entry: PlaygroundColorPreset = {
+    id: createColorPresetId(),
+    label: normalizeColorPresetLabel(label),
+    stripes: stripes.map((stripe) => ({ ...stripe })),
+    ...(overlayStripes ? { overlayStripes: overlayStripes.map((stripe) => ({ ...stripe })) } : {}),
+    createdAt: Date.now(),
+  };
+  envelope.colorPresets = [...envelope.colorPresets, entry];
+  writeEnvelope(envelope);
+  return entry;
+}
+
+export function deleteColorPreset(id: string): PlaygroundColorPreset[] {
+  const envelope = readEnvelope();
+  envelope.colorPresets = envelope.colorPresets.filter((entry) => entry.id !== id);
+  writeEnvelope(envelope);
+  return envelope.colorPresets;
+}
+
+/** Merge imported color presets into the on-disk library and return the merged list. */
+export function mergeColorPresets(incoming: readonly PlaygroundColorPreset[]): PlaygroundColorPreset[] {
+  const envelope = readEnvelope();
+  envelope.colorPresets = mergeColorPresetLists(envelope.colorPresets, incoming);
+  writeEnvelope(envelope);
+  return envelope.colorPresets;
+}
+
 export function builtinCatalogEntries(): PlaygroundCatalogEntry[] {
   return PLAYGROUND_TEXTURES.map((entry) => ({
     id: entry.id,
@@ -876,7 +1114,7 @@ export function catalogEntriesForLoadAttempt(
   catalog: PlaygroundCatalogEntry[],
   preferredId: PlaygroundTextureId,
 ): PlaygroundCatalogEntry[] {
-  const withUrl = catalog.filter((entry) => entry.url.length > 0);
+  const withUrl = catalog.filter((entry) => entry.url.length > 0 || entry.mediaKind === "shader");
   const preferredIndex = withUrl.findIndex((entry) => entry.id === preferredId);
   if (preferredIndex <= 0) {
     return withUrl;
@@ -1051,6 +1289,21 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
     wire.cc = clickWaveWire;
     wire.v = 7;
   }
+  const shaderSource = resolvePersistedShaderSource(config);
+  if (shaderSource !== DEFAULT_PLAYGROUND_SHADER_SOURCE) {
+    wire.sh = shaderSource;
+    wire.v = 7;
+  }
+  const savedShadersWire = savedShadersToWire(config.savedShaders);
+  if (savedShadersWire) {
+    wire.shl = savedShadersWire;
+    wire.v = 7;
+  }
+  const colorPresetsWire = colorPresetsToWire(config.colorPresets);
+  if (colorPresetsWire) {
+    wire.cp = colorPresetsWire;
+    wire.v = 7;
+  }
   const gapsActive =
     config.sparkleGapsActivePercent !== undefined
       ? normalizeSparkleGapsActivePercent(config.sparkleGapsActivePercent)
@@ -1084,6 +1337,12 @@ export function serializePlaygroundState(config: PlaygroundPersistedConfig): str
   }
   if (config.displayHeight && config.displayHeight > 0) {
     wire.h = config.displayHeight;
+  }
+  if (config.renderScale !== undefined) {
+    const renderScale = normalizePlaygroundRenderScale(config.renderScale);
+    if (renderScale !== DEFAULT_PLAYGROUND_RENDER_SCALE) {
+      wire.rs = renderScale;
+    }
   }
   const textureGamma = textureAdjustments.gamma;
   if (textureGamma !== DEFAULT_TEXTURE_GAMMA) {
@@ -1264,6 +1523,18 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
     overlayStripes: overlayStripes && !overlayStripesMatchDefault(overlayStripes) ? overlayStripes : undefined,
     displayWidth: w && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     displayHeight: h && Number.isFinite(h) && h > 0 ? Math.round(h) : undefined,
+    renderScale:
+      typeof parsed.rs === "number" && normalizePlaygroundRenderScale(parsed.rs) !== DEFAULT_PLAYGROUND_RENDER_SCALE
+        ? normalizePlaygroundRenderScale(parsed.rs)
+        : undefined,
+    shaderSource:
+      typeof parsed.sh === "string" &&
+      parsed.sh.trim().length > 0 &&
+      parsed.sh.trim() !== DEFAULT_PLAYGROUND_SHADER_SOURCE
+        ? parsed.sh
+        : undefined,
+    savedShaders: wireToSavedShaders(parsed.shl),
+    colorPresets: wireToColorPresets(parsed.cp),
   };
 }
 

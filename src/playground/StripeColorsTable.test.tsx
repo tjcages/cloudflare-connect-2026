@@ -7,19 +7,24 @@ import { cloneDefaultStripes } from "./stripeColors";
 
 describe("StripeColorsTable", () => {
   it("renders stripe rows with column headers", () => {
+    const stripes = cloneDefaultStripes();
     render(
       <StripeColorsTable
-        stripes={cloneDefaultStripes()}
+        stripes={stripes}
         onColorChange={() => {}}
         onThresholdChange={() => {}}
         onWidthChange={() => {}}
+        onMove={() => {}}
+        onAdd={() => {}}
+        onRemove={() => {}}
       />,
     );
 
     expect(screen.getByText("Color")).toBeInTheDocument();
     expect(screen.getByText("Threshold")).toBeInTheDocument();
     expect(screen.getByText("Width")).toBeInTheDocument();
-    expect(screen.getAllByLabelText(/Stripe \d+ color/)).toHaveLength(6);
+    expect(screen.getByText("Order")).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/Stripe \d+ color/)).toHaveLength(stripes.length);
   });
 
   it("calls threshold and width handlers with clamped values", () => {
@@ -33,6 +38,9 @@ describe("StripeColorsTable", () => {
         onColorChange={() => {}}
         onThresholdChange={onThresholdChange}
         onWidthChange={onWidthChange}
+        onMove={() => {}}
+        onAdd={() => {}}
+        onRemove={() => {}}
       />,
     );
 
@@ -53,6 +61,9 @@ describe("StripeColorsTable", () => {
         onColorChange={onColorChange}
         onThresholdChange={() => {}}
         onWidthChange={() => {}}
+        onMove={() => {}}
+        onAdd={() => {}}
+        onRemove={() => {}}
       />,
     );
 
@@ -60,5 +71,73 @@ describe("StripeColorsTable", () => {
     const hexInput = screen.getByLabelText("Stripe 1 color hex value");
     fireEvent.change(hexInput, { target: { value: "#112233" } });
     expect(onColorChange).toHaveBeenCalledWith(stripes[0]!.id, "#112233");
+  });
+
+  it("calls color handler from the inline hex field without opening the popover", () => {
+    const onColorChange = vi.fn();
+    const stripes = cloneDefaultStripes();
+
+    render(
+      <StripeColorsTable
+        stripes={stripes}
+        onColorChange={onColorChange}
+        onThresholdChange={() => {}}
+        onWidthChange={() => {}}
+        onMove={() => {}}
+        onAdd={() => {}}
+        onRemove={() => {}}
+      />,
+    );
+
+    const inlineHex = screen.getByLabelText("Stripe 1 hex");
+    fireEvent.change(inlineHex, { target: { value: "#445566" } });
+    expect(onColorChange).toHaveBeenCalledWith(stripes[0]!.id, "#445566");
+  });
+
+  it("calls move handler for up/down actions", () => {
+    const onMove = vi.fn();
+    const stripes = cloneDefaultStripes();
+    render(
+      <StripeColorsTable
+        stripes={stripes}
+        onColorChange={() => {}}
+        onThresholdChange={() => {}}
+        onWidthChange={() => {}}
+        onMove={onMove}
+        onAdd={() => {}}
+        onRemove={() => {}}
+      />,
+    );
+
+    const secondDown = screen.getByLabelText("Move stripe 2 down");
+    fireEvent.click(secondDown);
+    expect(onMove).toHaveBeenCalledWith(stripes[1]!.id, 1);
+
+    const secondUp = screen.getByLabelText("Move stripe 2 up");
+    fireEvent.click(secondUp);
+    expect(onMove).toHaveBeenCalledWith(stripes[1]!.id, -1);
+  });
+
+  it("calls add/remove handlers from action buttons", () => {
+    const onAdd = vi.fn();
+    const onRemove = vi.fn();
+    const stripes = cloneDefaultStripes();
+    render(
+      <StripeColorsTable
+        stripes={stripes}
+        onColorChange={() => {}}
+        onThresholdChange={() => {}}
+        onWidthChange={() => {}}
+        onMove={() => {}}
+        onAdd={onAdd}
+        onRemove={onRemove}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Add stripe"));
+    expect(onAdd).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByLabelText("Remove stripe 2"));
+    expect(onRemove).toHaveBeenCalledWith(stripes[1]!.id);
   });
 });

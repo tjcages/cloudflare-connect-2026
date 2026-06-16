@@ -13,18 +13,24 @@ import type { PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundCatalogEntry } from "./playgroundPersistence";
 import { PLAYGROUND_TEXTURE_UPLOAD_ACCEPT, type PlaygroundTextureId } from "./playgroundTextures";
+import type { PlaygroundSavedShader } from "./playgroundSavedShaders";
+import type { PlaygroundColorPreset } from "./playgroundColorPresets";
 import type { TextureLuminanceSettings } from "./colorWhiteness";
 import {
   buildPlaygroundCanvasLevaSchema,
   buildPlaygroundCanvasLevaSyncValues,
   buildPlaygroundLevaSchema,
   buildPlaygroundLevaSyncValues,
+  buildPlaygroundShaderLevaSchema,
+  buildPlaygroundShaderLevaSyncValues,
   buildPlaygroundWorkflowLevaSchema,
   buildPlaygroundWorkflowLevaSyncValues,
   type PlaygroundCanvasLevaHandlers,
   type PlaygroundCanvasLevaSnapshot,
   type PlaygroundLevaHandlers,
   type PlaygroundLevaSnapshot,
+  type PlaygroundShaderLevaHandlers,
+  type PlaygroundShaderLevaSnapshot,
   type PlaygroundWorkflowLevaHandlers,
   type PlaygroundWorkflowLevaSnapshot,
 } from "./playgroundLevaSchema";
@@ -34,6 +40,7 @@ import { PLAYGROUND_LEVA_LIGHT_THEME } from "./playgroundLevaTheme";
 import { PLAYGROUND_LEVA_SIDEBAR_CLASS } from "./playgroundUi";
 import { stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import type { Stripe } from "./stripeColors";
+import type { PlaygroundPerfSample } from "./playgroundPerfProfile";
 
 export type PlaygroundLevaControlsProps = {
   catalog: readonly PlaygroundCatalogEntry[];
@@ -45,6 +52,8 @@ export type PlaygroundLevaControlsProps = {
   sourceHeight: number;
   onDisplayWidthChange: (value: number) => void;
   onDisplayHeightChange: (value: number) => void;
+  renderScale: number;
+  onRenderScaleChange: (value: number) => void;
   applyDisplayScale: (multiplier: number) => void;
   onUploadFile: (event: ChangeEvent<HTMLInputElement>) => void;
   importText: string;
@@ -95,8 +104,16 @@ export type PlaygroundLevaControlsProps = {
   onStripeColorChange: (id: string, hex: string) => void;
   onStripeStartFromCommit: (id: string, value: number) => void;
   onStripeWidthCommit: (id: string, value: number) => void;
+  onStripeMove: (id: string, direction: -1 | 1) => void;
+  onStripeAdd: () => void;
+  onStripeRemove: (id: string) => void;
   onResetStripes: () => void;
   stripesModified: boolean;
+  colorPresets: readonly PlaygroundColorPreset[];
+  activeColorPresetId: string;
+  onApplyColorPreset: (id: string) => void;
+  onSaveColorPreset: () => void;
+  onDeleteColorPreset: () => void;
   sparkleGapsActivePercent: number;
   sparkleGapsSpeed: number;
   setSparkleGapsActivePercentLive: (value: number) => void;
@@ -138,7 +155,104 @@ export type PlaygroundLevaControlsProps = {
   revealModified: boolean;
   onResetGeneral: () => void;
   generalModified: boolean;
+  shaderSource: string;
+  savedShaders: readonly PlaygroundSavedShader[];
+  onShaderSourceLive: (value: string) => void;
+  onShaderSourceCommit: (value: string) => void;
+  onShaderPresetChange: (presetId: string) => void;
+  onSaveShader: () => void;
+  onDeleteSavedShader: () => void;
+  onBackupShadersToFiles: () => void;
+  audioInputEnabled: boolean;
+  audioInputStatus: string;
+  onAudioInputToggle: (enabled: boolean) => void;
+  perfOverlayEnabled?: boolean;
+  perfSample?: PlaygroundPerfSample | null;
 };
+
+type PlaygroundShaderEquationControlsProps = {
+  shaderSource: string;
+  savedShaders: readonly PlaygroundSavedShader[];
+  workflowDisabled: boolean;
+  onShaderSourceLive: (value: string) => void;
+  onShaderSourceCommit: (value: string) => void;
+  onShaderPresetChange: (presetId: string) => void;
+  onSaveShader: () => void;
+  onDeleteSavedShader: () => void;
+  onBackupShadersToFiles: () => void;
+  audioInputEnabled: boolean;
+  audioInputStatus: string;
+  onAudioInputToggle: (enabled: boolean) => void;
+};
+
+function PlaygroundShaderEquationControls({
+  shaderSource,
+  savedShaders,
+  workflowDisabled,
+  onShaderSourceLive,
+  onShaderSourceCommit,
+  onShaderPresetChange,
+  onSaveShader,
+  onDeleteSavedShader,
+  onBackupShadersToFiles,
+  audioInputEnabled,
+  audioInputStatus,
+  onAudioInputToggle,
+}: PlaygroundShaderEquationControlsProps) {
+  const store = useCreateStore();
+  const handlersRef = useRef<PlaygroundShaderLevaHandlers>({
+    onShaderSourceLive,
+    onShaderSourceCommit,
+    onShaderPresetChange,
+    onSaveShader,
+    onDeleteSavedShader,
+    onBackupShadersToFiles,
+    onAudioInputToggle,
+  });
+  handlersRef.current = {
+    onShaderSourceLive,
+    onShaderSourceCommit,
+    onShaderPresetChange,
+    onSaveShader,
+    onDeleteSavedShader,
+    onBackupShadersToFiles,
+    onAudioInputToggle,
+  };
+
+  const savedShadersKey = useMemo(
+    () => savedShaders.map((entry) => `${entry.id}:${entry.label}`).join("|"),
+    [savedShaders],
+  );
+
+  const snapshot = useMemo(
+    (): PlaygroundShaderLevaSnapshot => ({
+      shaderSource,
+      workflowDisabled,
+      savedShaders,
+      audioInputEnabled,
+      audioInputStatus,
+    }),
+    [shaderSource, workflowDisabled, savedShaders, audioInputEnabled, audioInputStatus],
+  );
+
+  const [, setShaderEquationValues] = useControls(
+    () => buildPlaygroundShaderLevaSchema(snapshot, handlersRef.current) as never,
+    { store },
+    [snapshot.shaderSource, snapshot.workflowDisabled, savedShadersKey, snapshot.audioInputStatus],
+  ) as [unknown, (values: Record<string, unknown>) => void, unknown];
+
+  const syncSignature = useMemo(() => JSON.stringify(buildPlaygroundShaderLevaSyncValues(snapshot)), [snapshot]);
+
+  useEffect(() => {
+    setShaderEquationValues(buildPlaygroundShaderLevaSyncValues(snapshot));
+  }, [setShaderEquationValues, syncSignature, snapshot]);
+
+  return (
+    <div data-testid="playground-shader-leva-panel" className="playground-shader-leva-panel shrink-0">
+      <LevaPanel store={store} theme={PLAYGROUND_LEVA_LIGHT_THEME} fill flat titleBar={false} />
+    </div>
+  );
+}
 
 export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
   const canvasStore = useCreateStore();
@@ -170,14 +284,20 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       textureOptions,
       displayWidth: current.displayWidth,
       displayHeight: current.displayHeight,
+      renderScale: current.renderScale,
       workflowDisabled: current.workflowDisabled,
+      perfOverlayEnabled: current.perfOverlayEnabled,
+      perfSample: current.perfSample ?? null,
     };
   }, [
     textureOptions,
     props.selectedTextureId,
     props.displayWidth,
     props.displayHeight,
+    props.renderScale,
     props.workflowDisabled,
+    props.perfOverlayEnabled,
+    props.perfSample,
     props.catalog.length,
   ]);
 
@@ -210,6 +330,8 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       stripes: current.stripes,
       stripesEnabled: current.stripesEnabled,
       textureLuminanceSettings: current.textureLuminanceSettings,
+      colorPresets: current.colorPresets,
+      activeColorPresetId: current.activeColorPresetId,
       sparkleGapsActivePercent: current.sparkleGapsActivePercent,
       sparkleGapsSpeed: current.sparkleGapsSpeed,
       sparkleWidthActivePercent: current.sparkleWidthActivePercent,
@@ -232,6 +354,8 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       cursorTrailModified: current.cursorTrailModified,
       cursorClickModified: current.cursorClickModified,
       revealModified: current.revealModified,
+      perfOverlayEnabled: current.perfOverlayEnabled,
+      perfSample: current.perfSample ?? null,
     };
   }, [
     props.duotoneEnabled,
@@ -251,6 +375,8 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.gridConfig,
     props.stripes,
     props.textureLuminanceSettings,
+    props.colorPresets,
+    props.activeColorPresetId,
     props.sparkleGapsSpeed,
     props.sparkleWidthActivePercent,
     props.sparkleWidthSpeed,
@@ -272,12 +398,15 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.cursorTrailModified,
     props.cursorClickModified,
     props.revealModified,
+    props.perfOverlayEnabled,
+    props.perfSample,
   ]);
 
   const canvasHandlersRef = useRef<PlaygroundCanvasLevaHandlers>({
     onTextureSelect: (value) => propsRef.current.onTextureSelect(value),
     setDisplayWidth: (value) => propsRef.current.onDisplayWidthChange(value),
     setDisplayHeight: (value) => propsRef.current.onDisplayHeightChange(value),
+    setRenderScale: (value) => propsRef.current.onRenderScaleChange(value),
   });
 
   const workflowHandlersRef = useRef<PlaygroundWorkflowLevaHandlers>({
@@ -306,7 +435,13 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onStripeColorChange: (id, hex) => propsRef.current.onStripeColorChange(id, hex),
     onStripeStartFromCommit: (id, value) => propsRef.current.onStripeStartFromCommit(id, value),
     onStripeWidthCommit: (id, value) => propsRef.current.onStripeWidthCommit(id, value),
+    onStripeMove: (id, direction) => propsRef.current.onStripeMove(id, direction),
+    onStripeAdd: () => propsRef.current.onStripeAdd(),
+    onStripeRemove: (id) => propsRef.current.onStripeRemove(id),
     resetStripes: () => propsRef.current.onResetStripes(),
+    applyColorPreset: (id) => propsRef.current.onApplyColorPreset(id),
+    saveColorPreset: () => propsRef.current.onSaveColorPreset(),
+    deleteColorPreset: () => propsRef.current.onDeleteColorPreset(),
     setSparkleGapsActivePercentLive: (value) => propsRef.current.setSparkleGapsActivePercentLive(value),
     commitSparkleGapsActivePercent: (value) => propsRef.current.commitSparkleGapsActivePercent(value),
     setSparkleGapsSpeedLive: (value) => propsRef.current.setSparkleGapsSpeedLive(value),
@@ -348,6 +483,9 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onColorChange: handlersRef.current.onStripeColorChange,
     onThresholdChange: handlersRef.current.onStripeStartFromCommit,
     onWidthChange: handlersRef.current.onStripeWidthCommit,
+    onMove: handlersRef.current.onStripeMove,
+    onAdd: handlersRef.current.onStripeAdd,
+    onRemove: handlersRef.current.onStripeRemove,
   };
 
   const [, setCanvasLevaValues] = useControls(
@@ -382,6 +520,8 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       snapshot.revealFieldsDisabled,
       stripeKey,
       props.textureLuminanceSettings.mode,
+      props.activeColorPresetId,
+      props.colorPresets.map((entry) => `${entry.id}:${entry.label}`).join("|"),
       props.gridConfig.cellWidth,
       props.gridConfig.cellHeight,
       props.catalog.length,
@@ -424,9 +564,35 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
           className="hidden"
           onChange={(event) => void props.onUploadFile(event)}
         />
+        <div className="playground-top-upload shrink-0">
+          <button
+            type="button"
+            data-testid="playground-top-upload-button"
+            disabled={props.workflowDisabled}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Upload image / video
+          </button>
+        </div>
         <div data-testid="playground-canvas-leva-panel" className="playground-canvas-leva-panel shrink-0">
           <LevaPanel store={canvasStore} theme={PLAYGROUND_LEVA_LIGHT_THEME} fill flat titleBar={false} />
         </div>
+        {props.selectedTextureId === "shader" ? (
+          <PlaygroundShaderEquationControls
+            shaderSource={props.shaderSource}
+            savedShaders={props.savedShaders}
+            workflowDisabled={props.workflowDisabled}
+            onShaderSourceLive={props.onShaderSourceLive}
+            onShaderSourceCommit={props.onShaderSourceCommit}
+            onShaderPresetChange={props.onShaderPresetChange}
+            onSaveShader={props.onSaveShader}
+            onDeleteSavedShader={props.onDeleteSavedShader}
+            onBackupShadersToFiles={props.onBackupShadersToFiles}
+            audioInputEnabled={props.audioInputEnabled}
+            audioInputStatus={props.audioInputStatus}
+            onAudioInputToggle={props.onAudioInputToggle}
+          />
+        ) : null}
         <PlaygroundCanvasSizeControls
           sourceWidth={props.sourceWidth}
           sourceHeight={props.sourceHeight}

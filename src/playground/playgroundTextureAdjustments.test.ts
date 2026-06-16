@@ -136,6 +136,17 @@ describe("playground texture adjustments", () => {
     expect(preview[5]).toBeLessThan(255);
   });
 
+  it("passes opaque pixels through unchanged with default adjustments (overlay bake skip relies on this)", () => {
+    const pixels = new Uint8ClampedArray([10, 200, 73, 255, 0, 0, 0, 255, 255, 128, 64, 255, 90, 91, 92, 255]);
+    const preview = renderAdjustedPreviewPixels(pixels, 2, 2, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS);
+    for (let i = 0; i < pixels.length; i += 4) {
+      expect(Math.abs((preview[i] ?? 0) - (pixels[i] ?? 0))).toBeLessThanOrEqual(1);
+      expect(Math.abs((preview[i + 1] ?? 0) - (pixels[i + 1] ?? 0))).toBeLessThanOrEqual(1);
+      expect(Math.abs((preview[i + 2] ?? 0) - (pixels[i + 2] ?? 0))).toBeLessThanOrEqual(1);
+      expect(preview[i + 3]).toBe(255);
+    }
+  });
+
   it("can invert and add deterministic luma noise", () => {
     const a = applyTextureLuminanceAdjustments(
       0.2,

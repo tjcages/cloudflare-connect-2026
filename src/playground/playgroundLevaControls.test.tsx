@@ -3,6 +3,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
+
+// Full Leva panel renders take 2-4s each under jsdom; the default 5s timeout flakes when the
+// suite shares a loaded worker.
+vi.setConfig({ testTimeout: 20000 });
 import { PlaygroundLevaControls } from "./playgroundLevaControls";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
 import { DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG } from "./playgroundCursorTrailConfig";
@@ -14,6 +18,7 @@ import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjus
 import {
   buildPlaygroundLevaSchema,
   buildPlaygroundLevaSyncValues,
+  buildPlaygroundShaderLevaSchema,
   type PlaygroundLevaHandlers,
   type PlaygroundLevaSnapshot,
 } from "./playgroundLevaSchema";
@@ -62,6 +67,8 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       sourceHeight={720}
       onDisplayWidthChange={() => {}}
       onDisplayHeightChange={() => {}}
+      renderScale={2}
+      onRenderScaleChange={() => {}}
       applyDisplayScale={() => {}}
       onUploadFile={() => {}}
       importText=""
@@ -111,8 +118,16 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onStripeColorChange={() => {}}
       onStripeStartFromCommit={() => {}}
       onStripeWidthCommit={() => {}}
+      onStripeMove={() => {}}
+      onStripeAdd={() => {}}
+      onStripeRemove={() => {}}
       onResetStripes={() => {}}
       stripesModified={false}
+      colorPresets={[]}
+      activeColorPresetId="custom"
+      onApplyColorPreset={() => {}}
+      onSaveColorPreset={() => {}}
+      onDeleteColorPreset={() => {}}
       sparkleGapsActivePercent={0}
       sparkleGapsSpeed={1}
       setSparkleGapsActivePercentLive={() => {}}
@@ -154,6 +169,17 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       revealModified={false}
       onResetGeneral={() => {}}
       generalModified={false}
+      shaderSource=""
+      savedShaders={[]}
+      onShaderSourceLive={() => {}}
+      onShaderSourceCommit={() => {}}
+      onShaderPresetChange={() => {}}
+      onSaveShader={() => {}}
+      onDeleteSavedShader={() => {}}
+      onBackupShadersToFiles={() => {}}
+      audioInputEnabled={false}
+      audioInputStatus=""
+      onAudioInputToggle={() => {}}
       {...overrides}
     />,
   );
@@ -184,6 +210,146 @@ describe("PlaygroundLevaControls", () => {
     const checkbox = screen.getByLabelText("Shader enabled");
     checkbox.click();
     expect(onDuotoneEnabledChange).toHaveBeenCalledWith(false);
+  });
+
+  it("builds shader preset options and save/delete controls from saved shaders", () => {
+    const noop = () => {};
+    const onSaveShader = vi.fn();
+    const onDeleteSavedShader = vi.fn();
+    const savedShaders = [{ id: "kept", label: "Kept shader", source: "void mainImage(){ kept }", createdAt: 1 }];
+
+    const activeSchema = buildPlaygroundShaderLevaSchema(
+      {
+        shaderSource: "void mainImage(){ kept }",
+        workflowDisabled: false,
+        savedShaders,
+        audioInputEnabled: false,
+        audioInputStatus: "",
+      },
+      {
+        onShaderSourceLive: noop,
+        onShaderSourceCommit: noop,
+        onShaderPresetChange: noop,
+        onSaveShader,
+        onDeleteSavedShader,
+        onBackupShadersToFiles: noop,
+        onAudioInputToggle: noop,
+      },
+    );
+    const presetControl = activeSchema.shaderPreset as { value: string; options: Record<string, string> };
+    expect(presetControl.options).toHaveProperty("Kept shader", "saved:kept");
+    expect(presetControl.value).toBe("saved:kept");
+    // Delete is enabled while a saved shader is the active source.
+    expect((activeSchema.deleteShader as { settings: { disabled?: boolean } }).settings.disabled).toBe(false);
+    (activeSchema.saveShader as { onClick: () => void }).onClick();
+    expect(onSaveShader).toHaveBeenCalledTimes(1);
+
+    const editedSchema = buildPlaygroundShaderLevaSchema(
+      {
+        shaderSource: "void mainImage(){ edited }",
+        workflowDisabled: false,
+        savedShaders,
+        audioInputEnabled: false,
+        audioInputStatus: "",
+      },
+      {
+        onShaderSourceLive: noop,
+        onShaderSourceCommit: noop,
+        onShaderPresetChange: noop,
+        onSaveShader,
+        onDeleteSavedShader,
+        onBackupShadersToFiles: noop,
+        onAudioInputToggle: noop,
+      },
+    );
+    // Editing away from a saved source disables delete and resolves to Custom.
+    expect((editedSchema.shaderPreset as { value: string }).value).toBe("custom");
+    expect((editedSchema.deleteShader as { settings: { disabled?: boolean } }).settings.disabled).toBe(true);
+  });
+
+  it("offers a 'save all to files' action gated on having saved shaders", () => {
+    const noop = () => {};
+    const onBackupShadersToFiles = vi.fn();
+    const handlers = {
+      onShaderSourceLive: noop,
+      onShaderSourceCommit: noop,
+      onShaderPresetChange: noop,
+      onSaveShader: noop,
+      onDeleteSavedShader: noop,
+      onBackupShadersToFiles,
+      onAudioInputToggle: noop,
+    };
+
+    const empty = buildPlaygroundShaderLevaSchema(
+      {
+        shaderSource: "void mainImage(){}",
+        workflowDisabled: false,
+        savedShaders: [],
+        audioInputEnabled: false,
+        audioInputStatus: "",
+      },
+      handlers,
+    );
+    expect((empty.backupShaders as { settings: { disabled?: boolean } }).settings.disabled).toBe(true);
+
+    const withSaved = buildPlaygroundShaderLevaSchema(
+      {
+        shaderSource: "void mainImage(){}",
+        workflowDisabled: false,
+        savedShaders: [{ id: "kept", label: "Kept", source: "void mainImage(){ kept }", createdAt: 1 }],
+        audioInputEnabled: false,
+        audioInputStatus: "",
+      },
+      handlers,
+    );
+    expect((withSaved.backupShaders as { settings: { disabled?: boolean } }).settings.disabled).toBe(false);
+    (withSaved.backupShaders as { onClick: () => void }).onClick();
+    expect(onBackupShadersToFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes the microphone audio toggle and surfaces status only when set", () => {
+    const noop = () => {};
+    const onAudioInputToggle = vi.fn();
+    const handlers = {
+      onShaderSourceLive: noop,
+      onShaderSourceCommit: noop,
+      onShaderPresetChange: noop,
+      onSaveShader: noop,
+      onDeleteSavedShader: noop,
+      onBackupShadersToFiles: noop,
+      onAudioInputToggle,
+    };
+
+    const quiet = buildPlaygroundShaderLevaSchema(
+      {
+        shaderSource: "void mainImage(){}",
+        workflowDisabled: false,
+        savedShaders: [],
+        audioInputEnabled: false,
+        audioInputStatus: "",
+      },
+      handlers,
+    );
+    expect(quiet.audioInput).toBeTruthy();
+    expect(quiet.audioInputStatus).toBeUndefined();
+    (quiet.audioInput as { onChange: (v: unknown, p: string, c: { initial: boolean }) => void }).onChange(
+      true,
+      "audioInput",
+      { initial: false },
+    );
+    expect(onAudioInputToggle).toHaveBeenCalledWith(true);
+
+    const live = buildPlaygroundShaderLevaSchema(
+      {
+        shaderSource: "void mainImage(){}",
+        workflowDisabled: false,
+        savedShaders: [],
+        audioInputEnabled: true,
+        audioInputStatus: "Microphone live",
+      },
+      handlers,
+    );
+    expect((live.audioInputStatus as { value: string }).value).toBe("Microphone live");
   });
 
   it("renders reveal controls in the Leva panel", () => {
@@ -246,6 +412,24 @@ describe("PlaygroundLevaControls", () => {
     expect(screen.queryByText("Workflow")).not.toBeInTheDocument();
   });
 
+  it("exposes a prominent upload button at the top that opens the file picker", () => {
+    const clickSpy = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+    renderLevaControls();
+
+    const button = screen.getByTestId("playground-top-upload-button");
+    expect(button).toBeInTheDocument();
+
+    const panel = screen.getByTestId("playground-leva-panel");
+    const canvasPanel = screen.getByTestId("playground-canvas-leva-panel");
+    // The top upload button must appear before the texture/size controls so it is above the fold.
+    expect(button.compareDocumentPosition(canvasPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(panel.contains(button)).toBe(true);
+
+    fireEvent.click(button);
+    expect(clickSpy).toHaveBeenCalled();
+    clickSpy.mockRestore();
+  });
+
   it("hides stripe tuning controls in colors mode", () => {
     const noop = () => {};
     const snapshot: PlaygroundLevaSnapshot = {
@@ -267,6 +451,8 @@ describe("PlaygroundLevaControls", () => {
       gridConfig: DEFAULT_PLAYGROUND_GRID_CONFIG,
       stripes: cloneDefaultStripes(),
       stripesEnabled: true,
+      colorPresets: [],
+      activeColorPresetId: "custom",
       textureLuminanceSettings: { mode: "colors", backgroundColor: DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR },
       sparkleGapsActivePercent: 0,
       sparkleGapsSpeed: 1,
@@ -313,7 +499,13 @@ describe("PlaygroundLevaControls", () => {
       onStripeColorChange: noop,
       onStripeStartFromCommit: noop,
       onStripeWidthCommit: noop,
+      onStripeMove: noop,
+      onStripeAdd: noop,
+      onStripeRemove: noop,
       resetStripes: noop,
+      applyColorPreset: noop,
+      saveColorPreset: noop,
+      deleteColorPreset: noop,
       setSparkleGapsActivePercentLive: noop,
       commitSparkleGapsActivePercent: noop,
       setSparkleGapsSpeedLive: noop,
@@ -380,6 +572,8 @@ describe("PlaygroundLevaControls", () => {
       gridConfig: DEFAULT_PLAYGROUND_GRID_CONFIG,
       stripes: cloneDefaultStripes(),
       stripesEnabled: true,
+      colorPresets: [],
+      activeColorPresetId: "custom",
       textureLuminanceSettings: {
         mode: DEFAULT_TEXTURE_LUMINANCE_MODE,
         backgroundColor: DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
@@ -429,7 +623,13 @@ describe("PlaygroundLevaControls", () => {
       onStripeColorChange: noop,
       onStripeStartFromCommit: noop,
       onStripeWidthCommit: noop,
+      onStripeMove: noop,
+      onStripeAdd: noop,
+      onStripeRemove: noop,
       resetStripes: noop,
+      applyColorPreset: noop,
+      saveColorPreset: noop,
+      deleteColorPreset: noop,
       setSparkleGapsActivePercentLive: noop,
       commitSparkleGapsActivePercent: noop,
       setSparkleGapsSpeedLive: noop,
@@ -489,6 +689,8 @@ describe("PlaygroundLevaControls", () => {
       gridConfig: DEFAULT_PLAYGROUND_GRID_CONFIG,
       stripes: cloneDefaultStripes().slice(3),
       stripesEnabled: true,
+      colorPresets: [],
+      activeColorPresetId: "custom",
       textureLuminanceSettings: { mode: "overlay", backgroundColor: DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR },
       sparkleGapsActivePercent: 0,
       sparkleGapsSpeed: 1,
@@ -535,7 +737,13 @@ describe("PlaygroundLevaControls", () => {
       onStripeColorChange: noop,
       onStripeStartFromCommit: noop,
       onStripeWidthCommit: noop,
+      onStripeMove: noop,
+      onStripeAdd: noop,
+      onStripeRemove: noop,
       resetStripes: noop,
+      applyColorPreset: noop,
+      saveColorPreset: noop,
+      deleteColorPreset: noop,
       setSparkleGapsActivePercentLive: noop,
       commitSparkleGapsActivePercent: noop,
       setSparkleGapsSpeedLive: noop,

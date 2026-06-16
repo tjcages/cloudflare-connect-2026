@@ -8,9 +8,10 @@ import {
 } from "./playgroundTextures";
 
 describe("playgroundTextures", () => {
-  it("defaults to example 5 video and lists example 10 first in the catalog", () => {
+  it("defaults to example 5 video and lists shader equation first in the catalog", () => {
     expect(DEFAULT_PLAYGROUND_TEXTURE_ID).toBe("example5");
-    expect(PLAYGROUND_TEXTURES[0]?.id).toBe("example10");
+    expect(PLAYGROUND_TEXTURES[0]?.id).toBe("shader");
+    expect(PLAYGROUND_TEXTURES[1]?.id).toBe("example10");
   });
 
   it("detects media kind from MIME type", () => {

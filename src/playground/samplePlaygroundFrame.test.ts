@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import * as playgroundFlames from "./playgroundFlames";
 import { createPlaygroundFlamesState } from "./playgroundFlames";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
-import { buildPlaygroundBlockGrid, sampleTextureFrame } from "./samplePlaygroundFrame";
+import type { PlaygroundShaderRenderer } from "./playgroundShaderSource";
+import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
+import { buildPlaygroundBlockGrid, sampleShaderPlaygroundFrame, sampleTextureFrame } from "./samplePlaygroundFrame";
 import { pixelBoundsToCellRegion } from "./playgroundGridDirty";
 import { buildStripeColors, cloneDefaultOverlayStripes } from "./stripeColors";
 
@@ -177,5 +179,50 @@ describe("sampleTextureFrame", () => {
     const whiteCellIndex = built.grid.indices[row * cols + 1];
     expect(blackCellIndex).toBeGreaterThan(0);
     expect(whiteCellIndex).toBe(0);
+  });
+});
+
+describe("sampleShaderPlaygroundFrame", () => {
+  it("can sample without triggering an extra shader render", () => {
+    const sampleCanvas = document.createElement("canvas");
+    const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
+    expect(sampleCtx).not.toBeNull();
+    const shaderCanvas = document.createElement("canvas");
+    shaderCanvas.width = 4;
+    shaderCanvas.height = 4;
+    const shaderCtx = shaderCanvas.getContext("2d");
+    expect(shaderCtx).not.toBeNull();
+    shaderCtx!.fillStyle = "#ff00ff";
+    shaderCtx!.fillRect(0, 0, 4, 4);
+
+    const resize = vi.fn();
+    const setViewTransform = vi.fn();
+    const render = vi.fn();
+    const viewZoomAppliedInShader = vi.fn(() => true);
+    const resolveSampleSourceTransform = vi.fn(() => DEFAULT_PLAYGROUND_SOURCE_TRANSFORM);
+    const renderer = {
+      canvas: shaderCanvas,
+      resize,
+      setViewTransform,
+      render,
+      viewZoomAppliedInShader,
+      resolveSampleSourceTransform,
+    } as unknown as PlaygroundShaderRenderer;
+
+    const frame = sampleShaderPlaygroundFrame(
+      renderer,
+      4,
+      4,
+      sampleCanvas,
+      sampleCtx!,
+      DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+      1.23,
+      { renderBeforeSample: false },
+    );
+
+    expect(frame).not.toBeNull();
+    expect(resize).not.toHaveBeenCalled();
+    expect(setViewTransform).not.toHaveBeenCalled();
+    expect(render).not.toHaveBeenCalled();
   });
 });

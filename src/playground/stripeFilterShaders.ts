@@ -413,7 +413,8 @@ void main(void) {
     vec2 stripeHalf = vec2(halfW, bandHalf);
     float stripeCoverage = stripeRectCoverage(stripePoint, stripeHalf, uCornerRadius);
 
-    vec4 texturePixel = texture(uTexture, vTextureCoord);
+    bool needsTexturePixel = uTextureUnderlay > 0.5 || uDebugVideoAlpha > 0.0;
+    vec4 texturePixel = needsTexturePixel ? texture(uTexture, vTextureCoord) : vec4(0.0);
 
     if (stripeBand > 0.5) {
         if (!sparkleCellVisible(colIndex, rowIndex)) {
@@ -438,8 +439,7 @@ void main(void) {
     }
 
     if (uDebugVideoAlpha > 0.0) {
-        vec4 videoPx = texture(uTexture, vTextureCoord);
-        finalColor = mix(finalColor, videoPx, uDebugVideoAlpha);
+        finalColor = mix(finalColor, texturePixel, uDebugVideoAlpha);
     }
 }
 `;

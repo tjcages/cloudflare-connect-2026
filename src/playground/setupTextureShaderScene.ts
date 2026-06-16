@@ -3,9 +3,10 @@ import type { RefObject } from "react";
 import type { Ticker } from "../components/pixi";
 import { BlockGridTexture } from "./blockGridTexture";
 import { resampleBlockGrid } from "./resampleBlockGrid";
-import type { BlockGrid, LumaGrid } from "./computeBlockGrid";
+import type { BlockGrid, GridPreprocessCache, LumaGrid } from "./computeBlockGrid";
 import {
   buildPlaygroundBlockGrid,
+  sampleShaderPlaygroundFrame,
   sampleTextureFrame,
   sampleVideoFrame,
   type PlaygroundGridBuildState,
@@ -35,6 +36,8 @@ import {
 } from "./playgroundSourceTransform";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  isDefaultPlaygroundTextureAdjustments,
+  normalizePlaygroundTextureAdjustments,
   renderAdjustedPreviewPixels,
   type PlaygroundTextureAdjustments,
 } from "./playgroundTextureAdjustments";
@@ -58,12 +61,7 @@ import {
   type PlaygroundCursorTrailConfig,
 } from "./playgroundCursorTrailConfig";
 import { addClickWave, createClickWaveState, updateClickWave, type ClickWaveState } from "./clickWave";
-import {
-  createCursorTrailState,
-  setCursorTrailTarget,
-  updateCursorTrail,
-  type CursorTrailState,
-} from "./cursorTrail";
+import { createCursorTrailState, setCursorTrailTarget, updateCursorTrail, type CursorTrailState } from "./cursorTrail";
 import {
   accumulateClickWaveCellMap,
   accumulateCursorTrailCellMap,
@@ -76,6 +74,7 @@ import {
   resolveCursorTrailPushScaleCells,
   type CursorTrailCellMap,
 } from "./cursorTrailOverlay";
+import { resolvePlaygroundDisplayStripeIndices } from "./resolvePlaygroundDisplayStripeIndices";
 import { buildStripeIndexLut, resolvePlaygroundPixiTint, resolveStripesForLuminanceMode } from "./stripeColors";
 import {
   DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
@@ -87,6 +86,20 @@ import {
   isPlaygroundPerfProfilingEnabled,
   recordPlaygroundPerfSample,
 } from "./playgroundPerfProfile";
+import {
+  PLAYGROUND_SHADER_NATIVE_HEIGHT,
+  PLAYGROUND_SHADER_NATIVE_WIDTH,
+  PlaygroundShaderRenderer,
+  resolvePlaygroundShaderRenderSize,
+} from "./playgroundShaderSource";
+import { createPlaygroundGridBuildQueue, type AsyncGridBuildResult } from "./playgroundGridBuildAsync";
+import type { PlaygroundAudioInput } from "./playgroundAudioInput";
+import {
+  flamesToPixelBounds,
+  pixelBoundsToCellRegion,
+  regionCellCount,
+  type GridCellRegion,
+} from "./playgroundGridDirty";
 
 /** Default canvas scale for clips without an explicit per-texture scale. */
 export const PLAYGROUND_DISPLAY_SCALE = 0.5;
@@ -112,6 +125,61 @@ export const PLAYGROUND_GRID_UPDATE_INTERVAL_MS = 66;
 
 /** Minimum ms between full pixel resamples during continuous slider scrubbing. */
 export const PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS = 32;
+
+type GridSampleDecision = {
+  needsSourceFrame: boolean;
+  shouldRebuildGrid: boolean;
+};
+
+export function resolveGridSampleDecision(params: {
+  hasBuiltGrid: boolean;
+  pendingFullResample: boolean;
+  fullResampleReady: boolean;
+  sourceSampleDirty: boolean;
+  gridUpdateDue: boolean;
+}): GridSampleDecision {
+  const { hasBuiltGrid, pendingFullResample, fullResampleReady, sourceSampleDirty, gridUpdateDue } = params;
+  const shouldRebuildGrid =
+    !hasBuiltGrid ||
+    (pendingFullResample && fullResampleReady) ||
+    (!pendingFullResample && sourceSampleDirty && gridUpdateDue);
+  return {
+    needsSourceFrame: shouldRebuildGrid,
+    shouldRebuildGrid,
+  };
+}
+
+/**
+ * The cell-resolution grid sampling fast path reads the source back at one pixel per grid cell.
+ * It is only safe when no feature needs per-display-pixel data: reveal applies sub-cell column
+ * softness and colors mode measures per-pixel background coverage. Flames do not gate the fast
+ * path: live ticks composite flames on the GPU (stripe filter overlay), and only the export
+ * capture merges them into the grid build at full resolution.
+ */
+export function canUseCellResGridSampling(params: {
+  revealEnabled: boolean;
+  luminanceMode: TextureLuminanceMode;
+}): boolean {
+  return !params.revealEnabled && params.luminanceMode !== "colors";
+}
+
+function mergePixelBounds(
+  a: { dirtyMinX: number; dirtyMinY: number; dirtyMaxX: number; dirtyMaxY: number } | null,
+  b: { dirtyMinX: number; dirtyMinY: number; dirtyMaxX: number; dirtyMaxY: number } | null,
+): { dirtyMinX: number; dirtyMinY: number; dirtyMaxX: number; dirtyMaxY: number } | null {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  return {
+    dirtyMinX: Math.min(a.dirtyMinX, b.dirtyMinX),
+    dirtyMinY: Math.min(a.dirtyMinY, b.dirtyMinY),
+    dirtyMaxX: Math.max(a.dirtyMaxX, b.dirtyMaxX),
+    dirtyMaxY: Math.max(a.dirtyMaxY, b.dirtyMaxY),
+  };
+}
 
 /** Static ref used when a caller does not provide a live grid-config ref. */
 const DEFAULT_GRID_CONFIG_REF: RefObject<PlaygroundGridConfig> = { current: DEFAULT_PLAYGROUND_GRID_CONFIG };
@@ -147,9 +215,42 @@ export type PlaygroundSceneExportState = {
   displayHeight: number;
 };
 
+/** Returns the block map currently driving the stripe filter (no resample). */
+export type PlaygroundExportDisplayGridCapture = () => BlockGrid | null;
+
+/** Synchronously rebuild the live stripe grid using the same path as the scene ticker. */
+export type PlaygroundExportGridCapture = () => BlockGrid | null;
+
+/** True when export state holds a full grid rebuild (not a partial indices-only update). */
+export function isCompletePlaygroundExportGrid(
+  snapshot: PlaygroundSceneExportState | null | undefined,
+  display: PlaygroundDisplaySize,
+  options: { requireCellColors?: boolean } = {},
+): boolean {
+  const grid = snapshot?.grid;
+  if (!grid || !snapshot) {
+    return false;
+  }
+  if (snapshot.displayWidth !== display.width || snapshot.displayHeight !== display.height) {
+    return false;
+  }
+  const cells = grid.cols * grid.rows;
+  if (cells <= 0 || grid.indices.length !== cells) {
+    return false;
+  }
+  if (grid.luma?.length !== cells) {
+    return false;
+  }
+  if (options.requireCellColors && grid.colors?.length !== cells * 3) {
+    return false;
+  }
+  return true;
+}
+
 export type PlaygroundTextureSource =
   | { kind: "video"; element: HTMLVideoElement }
-  | { kind: "image"; element: HTMLImageElement };
+  | { kind: "image"; element: HTMLImageElement }
+  | { kind: "shader"; renderer: PlaygroundShaderRenderer };
 
 type TextureFilterMode = "off" | "preview" | "stripes";
 
@@ -166,6 +267,22 @@ function resolveTextureFilterMode(duotoneEnabled: boolean, stripesEnabled: boole
     return "off";
   }
   return "stripes";
+}
+
+/**
+ * Whether the procedural shader's Pixi texture is actually visible on screen. In pure stripe
+ * rendering the duotone filter replaces every sprite pixel, so the per-tick WebGL render and
+ * canvas-to-GPU texture upload are pure waste — grid samplers render on demand instead. The
+ * texture only needs live updates when the raw source shows: preview/off modes and the overlay
+ * underlay.
+ */
+export function isShaderTextureLiveRenderNeeded(params: {
+  duotoneEnabled: boolean;
+  stripesEnabled: boolean;
+  luminanceMode: TextureLuminanceMode;
+}): boolean {
+  const mode = resolveTextureFilterMode(params.duotoneEnabled, params.stripesEnabled);
+  return mode !== "stripes" || params.luminanceMode === "overlay";
 }
 
 export function resolveStripeSpriteFilters(
@@ -212,6 +329,12 @@ function maybeAutoDetectColorsBackground(
 
 /** Native pixel dimensions from the loaded texture source. */
 export function getPlaygroundTextureNativeSize(source: PlaygroundTextureSource): PlaygroundDisplaySize {
+  if (source.kind === "shader") {
+    return {
+      width: source.renderer.canvas.width || PLAYGROUND_SHADER_NATIVE_WIDTH,
+      height: source.renderer.canvas.height || PLAYGROUND_SHADER_NATIVE_HEIGHT,
+    };
+  }
   if (source.kind === "video") {
     const width = source.element.videoWidth;
     const height = source.element.videoHeight;
@@ -410,9 +533,22 @@ function runDuotoneTick(params: {
   cursorTrailState: CursorTrailState;
   clickWaveState: ClickWaveState;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
+  exportDisplayGridRef?: RefObject<PlaygroundExportDisplayGridCapture | null>;
+  exportGridCaptureRef?: RefObject<PlaygroundExportGridCapture | null>;
+  prepareExportSample?: () => void;
   syncVisual: () => void;
   shouldSample: () => boolean;
   sampleFrame: () => ImageData | null;
+  /**
+   * Optional low-resolution sampler for grid rebuilds: returns a cols×rows frame where one
+   * pixel maps to one grid cell (built with cell size 1×1), or null to use `sampleFrame`.
+   */
+  sampleGridFrame?: (cols: number, rows: number) => ImageData | null;
+  /**
+   * True when sampled frames are guaranteed fully opaque (e.g. shader frames force alpha 255).
+   * Lets preview/overlay baking skip the CPU adjustment pass when adjustments are identity.
+   */
+  previewSourceOpaque?: boolean;
   onSampled?: () => void;
   onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void;
 }): { tick: () => void; dispose: () => void } {
@@ -444,9 +580,14 @@ function runDuotoneTick(params: {
     cursorTrailState,
     clickWaveState,
     exportStateRef,
+    exportDisplayGridRef,
+    exportGridCaptureRef,
+    prepareExportSample,
     syncVisual,
     shouldSample,
     sampleFrame,
+    sampleGridFrame,
+    previewSourceOpaque,
     onSampled,
     onTextureLuminanceSettingsDetected,
   } = params;
@@ -463,6 +604,7 @@ function runDuotoneTick(params: {
   let gridState: PlaygroundGridBuildState = {};
   let lastGridUpdateMs = 0;
   let lastFullResampleMs = 0;
+  let lastPreviewBakeMs = 0;
   let lastTrailTickMs = performance.now();
   let hasBuiltGrid = false;
   let pendingFullResample = false;
@@ -479,6 +621,8 @@ function runDuotoneTick(params: {
     : null;
   const cursorTrailOverlay = new CursorTrailOverlay(blockGridTexture.cols, blockGridTexture.rows);
   let lastLumaGrid: LumaGrid | null = null;
+  let lastGrid: BlockGrid | null = null;
+  let gridPreprocessCache: GridPreprocessCache | null = null;
   let trailStripeLut: Uint8Array | null = null;
   let trailMap: CursorTrailCellMap | null = null;
   let trailLetterIndices: Uint8Array | null = null;
@@ -489,6 +633,10 @@ function runDuotoneTick(params: {
   let lastLetterCharset = gridConfigRef.current.letterCharset;
   let lastLetterRatio = gridConfigRef.current.letterRatio;
   let lastRevealReplayKey = revealPlaybackRef.current.replayKey;
+  let lastScreenScale = Number.NaN;
+  let workerRequestEpoch = 0;
+  const gridBuildQueue = createPlaygroundGridBuildQueue();
+  let queuedGridResult: AsyncGridBuildResult | null = null;
 
   const originalSpriteTexture = sprite.texture;
   const previewCanvas = document.createElement("canvas");
@@ -510,6 +658,21 @@ function runDuotoneTick(params: {
   };
 
   const bakeAdjustedPreviewTexture = (): boolean => {
+    // Identity adjustments leave opaque pixels unchanged, so the raw source texture is already
+    // the adjusted preview: skip the full-res readback + CPU adjustment pass entirely.
+    if (
+      previewSourceOpaque &&
+      isDefaultPlaygroundTextureAdjustments(
+        normalizePlaygroundTextureAdjustments({
+          ...textureAdjustmentsRef.current,
+          gamma: textureGammaRef.current,
+        }),
+      )
+    ) {
+      restoreOriginalSpriteTexture();
+      syncVisual();
+      return true;
+    }
     const frame = sampleFrame();
     if (!frame) {
       return false;
@@ -539,6 +702,28 @@ function runDuotoneTick(params: {
     return true;
   };
 
+  const applyBuiltGrid = (
+    builtGrid: BlockGrid,
+    nextState: PlaygroundGridBuildState,
+    nextLumaGrid: LumaGrid,
+    nextPreprocessCache: GridPreprocessCache | null,
+    partial: boolean,
+    partialRegion: GridCellRegion | null,
+    includeColors: boolean,
+  ) => {
+    hasBuiltGrid = true;
+    gridState = nextState;
+    lastLumaGrid = nextLumaGrid;
+    lastGrid = builtGrid;
+    gridPreprocessCache = nextPreprocessCache;
+    if (partial && partialRegion) {
+      blockGridTexture.updateRegion(builtGrid, partialRegion, { includeColors });
+    } else {
+      blockGridTexture.update(builtGrid, { includeColors });
+    }
+    letterLayer.sync(builtGrid);
+  };
+
   const applyStructuralChanges = (gridConfig: PlaygroundGridConfig) => {
     const eff = effectivePlaygroundCellSize(gridConfig);
     if (eff.width !== lastEffWidth || eff.height !== lastEffHeight) {
@@ -554,6 +739,8 @@ function runDuotoneTick(params: {
         letterLayer.setCellSize(eff.width, eff.height);
         cursorTrailOverlay.resize(blockGridTexture.cols, blockGridTexture.rows);
         lastLumaGrid = null;
+        gridPreprocessCache = null;
+        workerRequestEpoch += 1;
 
         if (prevIndices && prevIndices.length > 0) {
           const resampled = resampleBlockGrid(
@@ -566,8 +753,10 @@ function runDuotoneTick(params: {
           gridState = { stableIndices: resampled.indices };
           blockGridTexture.update(resampled);
           letterLayer.sync(resampled);
+          lastGrid = resampled;
           hasBuiltGrid = true;
         } else {
+          lastGrid = null;
           hasBuiltGrid = false;
         }
         pendingFullResample = true;
@@ -586,6 +775,9 @@ function runDuotoneTick(params: {
       letterLayer.setCharset(charset);
       lastLetterSize = gridConfig.letterSize;
       lastLetterCharset = gridConfig.letterCharset;
+      lastGrid = null;
+      gridPreprocessCache = null;
+      workerRequestEpoch += 1;
       hasBuiltGrid = false;
       pendingFullResample = true;
     }
@@ -597,10 +789,133 @@ function runDuotoneTick(params: {
     }
   };
 
+  const captureDisplayGrid = (): BlockGrid | null => {
+    if (!duotoneEnabledRef.current || !stripesEnabledRef.current || !hasBuiltGrid) {
+      return null;
+    }
+    const useCellColors = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode) === "colors";
+    const snapshot = blockGridTexture.snapshotGrid({ includeColors: useCellColors });
+    const luminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
+    const cursorTrailConfig = normalizePlaygroundCursorTrailConfig(cursorTrailConfigRef.current);
+    const clickWaveConfig = normalizePlaygroundClickWaveConfig(clickWaveConfigRef.current);
+    const trailSamplingEnabled = cursorTrailConfig.enabled;
+    const clickWaveSamplingEnabled = clickWaveConfig.enabled;
+    const pointerActive = (trailSamplingEnabled || clickWaveSamplingEnabled) && trailMap?.nonEmpty === true;
+    const displayIndices = resolvePlaygroundDisplayStripeIndices(
+      snapshot.indices,
+      snapshot.luma,
+      stripeColorsRef.current,
+      luminanceMode,
+      pointerActive ? trailMap : null,
+    );
+    return {
+      ...snapshot,
+      indices: displayIndices,
+    };
+  };
+
+  const captureExportGrid = (): BlockGrid | null => {
+    if (!duotoneEnabledRef.current || !stripesEnabledRef.current) {
+      return null;
+    }
+
+    const luminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
+    if (luminanceMode === "overlay") {
+      bakeAdjustedPreviewTexture();
+    } else {
+      restoreOriginalSpriteTexture();
+      syncVisual();
+    }
+
+    prepareExportSample?.();
+    const frame = sampleFrame();
+    if (!frame) {
+      return null;
+    }
+
+    const colors = stripeColorsRef.current;
+    const gridConfig = gridConfigRef.current;
+    const effectiveCell = effectivePlaygroundCellSize(gridConfig);
+    const revealConfig = revealConfigRef.current;
+    const revealEnabled = revealConfig.enabled;
+    const revealProgress = revealEnabled
+      ? Math.min(
+          1,
+          Math.max(
+            0,
+            (performance.now() - revealPlaybackRef.current.startedAtMs) /
+              Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig)),
+          ),
+        )
+      : 1;
+
+    const built = buildPlaygroundBlockGrid(
+      frame,
+      display.width,
+      display.height,
+      colors,
+      gridState,
+      textureGammaRef.current,
+      {
+        cellWidth: effectiveCell.width,
+        cellHeight: effectiveCell.height,
+        textureAdjustments: {
+          ...textureAdjustmentsRef.current,
+          gamma: textureGammaRef.current,
+        },
+        luminanceSettings: textureLuminanceSettingsRef.current,
+        flamesState: flamesStateRef.current,
+        flamesConfig: flamesConfigRef.current,
+        reveal: revealEnabled
+          ? {
+              config: revealConfig,
+              progress: revealProgress,
+              replayKey: revealPlaybackRef.current.replayKey,
+            }
+          : undefined,
+      },
+    );
+    gridState = built.state;
+    lastLumaGrid = built.lumaGrid;
+    lastGrid = built.grid;
+    gridPreprocessCache = built.preprocessCache;
+    hasBuiltGrid = true;
+
+    blockGridTexture.update(built.grid, {
+      includeColors: normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode) === "colors",
+    });
+    letterLayer.sync(built.grid);
+
+    if (exportStateRef) {
+      exportStateRef.current = {
+        grid: built.grid,
+        colors,
+        displayWidth: display.width,
+        displayHeight: display.height,
+      };
+    }
+
+    return built.grid;
+  };
+
+  if (exportDisplayGridRef) {
+    exportDisplayGridRef.current = captureDisplayGrid;
+  }
+  if (exportGridCaptureRef) {
+    exportGridCaptureRef.current = captureExportGrid;
+  }
+
   const dispose = () => {
+    if (exportDisplayGridRef) {
+      exportDisplayGridRef.current = null;
+    }
+    if (exportGridCaptureRef) {
+      exportGridCaptureRef.current = null;
+    }
     restoreOriginalSpriteTexture();
     previewTexture.destroy(true);
     blockGridTexture.destroy();
+    gridBuildQueue?.dispose();
     flamesOverlay?.destroy();
     cursorTrailOverlay.destroy();
     letterLayer.destroy();
@@ -613,6 +928,7 @@ function runDuotoneTick(params: {
     let pointerCompositeMs = 0;
     let buildGridMs = 0;
     let blockTextureMs = 0;
+    let workerGridApplied = false;
     const now = performance.now();
     const cursorTrailConfig = normalizePlaygroundCursorTrailConfig(cursorTrailConfigRef.current);
     const clickWaveConfig = normalizePlaygroundClickWaveConfig(clickWaveConfigRef.current);
@@ -628,11 +944,28 @@ function runDuotoneTick(params: {
     stripeFilter.syncUseCellColors(textureLuminanceSettingsRef.current.mode === "colors");
     stripeFilter.syncInvertStripeBucketing(overlayInvertsStripeBucketing(textureLuminanceSettingsRef.current.mode));
     const luminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
+    const useCellColors = luminanceMode === "colors";
     stripeFilter.syncTextureUnderlay(luminanceMode === "overlay");
     const flamesState = flamesStateRef.current;
     const flamesConfig = flamesConfigRef.current;
+    const previousFlamesBounds = flamesState && flamesConfig.enabled ? flamesToPixelBounds(flamesState.flames) : null;
     if (flamesState && flamesConfig.enabled) {
       stepPlaygroundFlames(flamesState, flamesConfig, display, performance.now());
+    }
+    const nextFlamesBounds = flamesState && flamesConfig.enabled ? flamesToPixelBounds(flamesState.flames) : null;
+    const dirtyFlamesBounds = mergePixelBounds(previousFlamesBounds, nextFlamesBounds);
+
+    if (queuedGridResult) {
+      const next = queuedGridResult;
+      queuedGridResult = null;
+      if (next.grid.cols === blockGridTexture.cols && next.grid.rows === blockGridTexture.rows) {
+        const textureTimer = tickTimer ? createPlaygroundPerfTimer() : null;
+        applyBuiltGrid(next.grid, next.state, next.lumaGrid, null, false, null, useCellColors);
+        if (textureTimer) {
+          blockTextureMs += textureTimer.elapsedMs();
+        }
+        workerGridApplied = true;
+      }
     }
 
     stripeFilter.syncGrid(gridConfigRef.current);
@@ -650,6 +983,9 @@ function runDuotoneTick(params: {
       letterLayer.setVisible(textureFilterMode === "stripes");
       if (textureFilterMode === "stripes") {
         lastColorsKey = "";
+        lastGrid = null;
+        gridPreprocessCache = null;
+        workerRequestEpoch += 1;
         hasBuiltGrid = false;
       } else {
         letterLayer.sync(null);
@@ -667,6 +1003,9 @@ function runDuotoneTick(params: {
           pendingFullResample = true;
           lastColorsKey = "";
           gridState = {};
+          lastGrid = null;
+          gridPreprocessCache = null;
+          workerRequestEpoch += 1;
           hasBuiltGrid = false;
           if (luminanceMode === "overlay") {
             bakeAdjustedPreviewTexture();
@@ -737,8 +1076,14 @@ function runDuotoneTick(params: {
       stripeFilter.syncFlames(null, null);
     }
     if (luminanceMode === "overlay") {
-      // Baked preview is already display-sized (see preview mode); native-source scaling would shrink it.
-      bakeAdjustedPreviewTexture();
+      // Baked preview is already display-sized (see preview mode); native-source scaling would
+      // shrink it. The CPU bake is heavy at large display sizes, so re-bake on the grid update
+      // cadence instead of every tick (identity adjustments skip the bake inside and stay live).
+      if (now - lastPreviewBakeMs >= gridConfigRef.current.gridUpdateIntervalMs) {
+        if (bakeAdjustedPreviewTexture()) {
+          lastPreviewBakeMs = now;
+        }
+      }
     } else {
       restoreOriginalSpriteTexture();
       syncVisual();
@@ -778,8 +1123,7 @@ function runDuotoneTick(params: {
     const revealActive = revealEnabled && revealProgress < 1;
     const trailSamplingEnabled = cursorTrailConfig.enabled;
     const clickWaveSamplingEnabled = clickWaveConfig.enabled && !revealActive;
-    const sourceTimeChanged = shouldSample() || revealActive;
-    const needsSourceFrame = sourceTimeChanged || colorsChanged || !hasBuiltGrid || pendingFullResample;
+    const sourceSampleDirty = shouldSample() || revealActive;
 
     if (colorsChanged) {
       const effectiveColors = {
@@ -795,6 +1139,7 @@ function runDuotoneTick(params: {
       lastColorsKey = colorsKey;
       pendingFullResample = true;
       pendingColorsResample = true;
+      workerRequestEpoch += 1;
     }
 
     const gridConfig = gridConfigRef.current;
@@ -802,94 +1147,214 @@ function runDuotoneTick(params: {
 
     const fullResampleReady = now - lastFullResampleMs >= PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS;
 
+    const gridUpdateDue = now - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs;
+    const sampleDecision = resolveGridSampleDecision({
+      hasBuiltGrid,
+      pendingFullResample,
+      fullResampleReady,
+      sourceSampleDirty,
+      gridUpdateDue,
+    });
+    const workerStatsBeforeSample = gridBuildQueue?.getStats() ?? null;
+    const canSkipSamplingForWorkerInFlight =
+      !revealEnabled &&
+      !(flamesState && flamesConfig.enabled) &&
+      sampleDecision.needsSourceFrame &&
+      !!workerStatsBeforeSample?.inFlight &&
+      !workerStatsBeforeSample.queued &&
+      !queuedGridResult;
+
     let frame: ImageData | null = null;
-    if (needsSourceFrame) {
+    let gridFrame: ImageData | null = null;
+    if (sampleDecision.needsSourceFrame && !canSkipSamplingForWorkerInFlight) {
       const sampleTimer = tickTimer ? createPlaygroundPerfTimer() : null;
-      frame = sampleFrame();
+      gridFrame = sampleGridFrame?.(blockGridTexture.cols, blockGridTexture.rows) ?? null;
+      if (!gridFrame) {
+        frame = sampleFrame();
+      }
       if (sampleTimer) {
         sampleFrameMs += sampleTimer.elapsedMs();
       }
-      if (frame) {
+      if (frame || gridFrame) {
         onSampled?.();
       }
     }
 
-    const shouldRebuildGrid =
-      frame &&
-      (!hasBuiltGrid ||
-        (pendingFullResample && fullResampleReady) ||
-        (sourceTimeChanged && !pendingFullResample && now - lastGridUpdateMs >= gridConfig.gridUpdateIntervalMs));
+    const buildFrame = gridFrame ?? frame;
+    const shouldRebuildGrid = buildFrame && sampleDecision.shouldRebuildGrid;
 
-    if (shouldRebuildGrid && frame) {
-      hasBuiltGrid = true;
+    if (shouldRebuildGrid && buildFrame) {
       pendingFullResample = false;
       lastGridUpdateMs = now;
       lastFullResampleMs = now;
       if (pendingColorsResample) {
         gridState = {};
+        lastGrid = null;
+        gridPreprocessCache = null;
+        workerRequestEpoch += 1;
         pendingColorsResample = false;
       }
 
       let luminanceSettings = textureLuminanceSettingsRef.current;
-      const autoDetect = maybeAutoDetectColorsBackground(
-        frame,
-        display,
-        luminanceSettings,
-        colorsBackgroundAutoDetected,
-      );
-      colorsBackgroundAutoDetected = autoDetect.detected;
-      if (autoDetect.changed) {
-        luminanceSettings = autoDetect.settings;
-        textureLuminanceSettingsRef.current = luminanceSettings;
-        sourceTextureFilter.syncLuminanceSettings(luminanceSettings);
-        onTextureLuminanceSettingsDetected?.(luminanceSettings);
-      }
-
-      const buildTimer = tickTimer ? createPlaygroundPerfTimer() : null;
-      const built = buildPlaygroundBlockGrid(
-        frame,
-        display.width,
-        display.height,
-        colors,
-        gridState,
-        textureGammaRef.current,
-        {
-          cellWidth: effectiveCell.width,
-          cellHeight: effectiveCell.height,
-          textureAdjustments: {
-            ...textureAdjustmentsRef.current,
-            gamma: textureGammaRef.current,
-          },
+      if (frame) {
+        const autoDetect = maybeAutoDetectColorsBackground(
+          frame,
+          display,
           luminanceSettings,
-          reveal: revealEnabled
-            ? {
-                config: revealConfig,
-                progress: revealProgress,
-                replayKey: revealPlayback.replayKey,
-              }
-            : undefined,
-        },
-      );
-      if (buildTimer) {
-        buildGridMs += buildTimer.elapsedMs();
+          colorsBackgroundAutoDetected,
+        );
+        colorsBackgroundAutoDetected = autoDetect.detected;
+        if (autoDetect.changed) {
+          luminanceSettings = autoDetect.settings;
+          textureLuminanceSettingsRef.current = luminanceSettings;
+          sourceTextureFilter.syncLuminanceSettings(luminanceSettings);
+          onTextureLuminanceSettingsDetected?.(luminanceSettings);
+        }
       }
-      gridState = built.state;
-      lastLumaGrid = built.lumaGrid;
 
-      const textureTimer = tickTimer ? createPlaygroundPerfTimer() : null;
-      blockGridTexture.update(built.grid);
-      if (textureTimer) {
-        blockTextureMs += textureTimer.elapsedMs();
+      // Cell-res frames map one pixel to one grid cell, so the build runs in frame space.
+      const buildWidth = gridFrame ? gridFrame.width : display.width;
+      const buildHeight = gridFrame ? gridFrame.height : display.height;
+      const buildCellWidth = gridFrame ? 1 : effectiveCell.width;
+      const buildCellHeight = gridFrame ? 1 : effectiveCell.height;
+
+      let dirtyRegion: GridCellRegion | null = null;
+      if (
+        frame &&
+        !pendingFullResample &&
+        lastLumaGrid &&
+        lastGrid &&
+        gridPreprocessCache &&
+        dirtyFlamesBounds &&
+        dirtyFlamesBounds.dirtyMaxX >= 0
+      ) {
+        const candidate = pixelBoundsToCellRegion(
+          dirtyFlamesBounds,
+          effectiveCell.width,
+          effectiveCell.height,
+          display.width,
+          display.height,
+          1,
+        );
+        if (candidate) {
+          const candidateCells = regionCellCount(candidate);
+          const totalCells = blockGridTexture.cols * blockGridTexture.rows;
+          if (candidateCells > 0 && candidateCells < totalCells * 0.8) {
+            dirtyRegion = candidate;
+          }
+        }
       }
-      stripeFilter.updateBlockMap(blockGridTexture.texture);
-      stripeFilter.updateCellColorMap(blockGridTexture.colorTexture);
-      letterLayer.sync(built.grid);
+
+      // Live builds never merge flames (the stripe filter composites them on the GPU; only the
+      // export capture bakes them into the grid), so cell-res frames can always go to the worker.
+      // Full-res frames keep the flames exclusion for the display-space dirty-region machinery.
+      const asyncWorkerEligible =
+        Boolean(gridBuildQueue) && !dirtyRegion && (gridFrame !== null || !(flamesState && flamesConfig.enabled));
+
+      if (asyncWorkerEligible && gridBuildQueue) {
+        const epochAtSubmit = workerRequestEpoch;
+        const submitResult = gridBuildQueue.submitLatest(
+          {
+            frame: buildFrame,
+            displayWidth: buildWidth,
+            displayHeight: buildHeight,
+            colors,
+            gamma: textureGammaRef.current,
+            state: gridState,
+            options: {
+              cellWidth: buildCellWidth,
+              cellHeight: buildCellHeight,
+              textureAdjustments: {
+                ...textureAdjustmentsRef.current,
+                gamma: textureGammaRef.current,
+              },
+              luminanceSettings,
+              reveal: revealEnabled
+                ? {
+                    config: revealConfig,
+                    progress: revealProgress,
+                    replayKey: revealPlayback.replayKey,
+                  }
+                : undefined,
+            },
+          },
+          {
+            onResult: (result) => {
+              if (epochAtSubmit !== workerRequestEpoch) {
+                return;
+              }
+              queuedGridResult = result;
+            },
+            onError: (error) => {
+              // Worker failures must stay visible: a silent failure freezes the stripe grid
+              // and forces full sampling every tick (this exact bug shipped once).
+              console.warn("[playground] grid build worker error:", error);
+            },
+          },
+        );
+        if (!submitResult.accepted) {
+          workerRequestEpoch += 1;
+        }
+      }
+
+      if (!asyncWorkerEligible || !gridBuildQueue) {
+        const buildTimer = tickTimer ? createPlaygroundPerfTimer() : null;
+        const built = buildPlaygroundBlockGrid(
+          buildFrame,
+          buildWidth,
+          buildHeight,
+          colors,
+          gridState,
+          textureGammaRef.current,
+          {
+            cellWidth: buildCellWidth,
+            cellHeight: buildCellHeight,
+            textureAdjustments: {
+              ...textureAdjustmentsRef.current,
+              gamma: textureGammaRef.current,
+            },
+            luminanceSettings,
+            reveal: revealEnabled
+              ? {
+                  config: revealConfig,
+                  progress: revealProgress,
+                  replayKey: revealPlayback.replayKey,
+                }
+              : undefined,
+            dirtyRegion: dirtyRegion ?? undefined,
+            previousLumaGrid: dirtyRegion ? (lastLumaGrid ?? undefined) : undefined,
+            previousGrid: dirtyRegion ? (lastGrid ?? undefined) : undefined,
+            preprocessCache: dirtyRegion ? (gridPreprocessCache ?? undefined) : undefined,
+            pixelDirtyBounds: dirtyRegion ? dirtyFlamesBounds : undefined,
+          },
+        );
+        if (buildTimer) {
+          buildGridMs += buildTimer.elapsedMs();
+        }
+
+        const textureTimer = tickTimer ? createPlaygroundPerfTimer() : null;
+        applyBuiltGrid(
+          built.grid,
+          built.state,
+          built.lumaGrid,
+          // Cell-res preprocess caches live in frame space and must never seed a display-space
+          // partial rebuild (flames), so drop them.
+          gridFrame ? null : built.preprocessCache,
+          built.partial,
+          built.partialRegion,
+          useCellColors,
+        );
+        if (textureTimer) {
+          blockTextureMs += textureTimer.elapsedMs();
+        }
+      }
+
       const sparkleTimeSec = performance.now() / 1000;
       letterLayer.applySparkle(sparkleTimeSec, sparkleOptionsRef.current);
 
       if (exportStateRef) {
         exportStateRef.current = {
-          grid: built.grid,
+          grid: hasBuiltGrid ? lastGrid : null,
           colors,
           displayWidth: display.width,
           displayHeight: display.height,
@@ -1022,7 +1487,11 @@ function runDuotoneTick(params: {
 
     const sparkleTimeSec = performance.now() / 1000;
     const sparkleOptions = sparkleOptionsRef.current;
-    stripeFilter.syncScreenScale(app.renderer.resolution);
+    const screenScale = app.renderer.resolution;
+    if (screenScale !== lastScreenScale) {
+      stripeFilter.syncScreenScale(screenScale);
+      lastScreenScale = screenScale;
+    }
     stripeFilter.syncSparkle(sparkleOptions, sparkleTimeSec);
     stripeFilter.syncWidthShuffle(widthShuffleOptionsRef.current, sparkleTimeSec);
     letterLayer.applySparkle(sparkleTimeSec, sparkleOptions);
@@ -1034,6 +1503,7 @@ function runDuotoneTick(params: {
     const renderTimer = tickTimer ? createPlaygroundPerfTimer() : null;
     app.render();
     if (tickTimer) {
+      const workerStats = gridBuildQueue?.getStats() ?? null;
       recordPlaygroundPerfSample({
         sampleFrameMs,
         pointerCompositeMs,
@@ -1042,6 +1512,12 @@ function runDuotoneTick(params: {
         renderMs: renderTimer?.elapsedMs() ?? 0,
         tickTotalMs: tickTimer.elapsedMs(),
         partialGrid: false,
+        workerGridInFlight: workerStats?.inFlight ?? false,
+        workerGridApplied,
+        workerGridQueueDepth: workerStats?.depth ?? 0,
+        workerGridCoalesced: workerStats?.coalesced ?? 0,
+        workerGridDroppedQueued: workerStats?.droppedQueued ?? 0,
+        workerGridLatencyMs: workerStats?.lastLatencyMs ?? undefined,
       });
     }
   };
@@ -1061,6 +1537,8 @@ export function createTextureSceneTicker(
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
   autoplayRef: RefObject<boolean>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
+  exportDisplayGridRef?: RefObject<PlaygroundExportDisplayGridCapture | null>,
+  exportGridCaptureRef?: RefObject<PlaygroundExportGridCapture | null>,
   gridConfigRef: RefObject<PlaygroundGridConfig> = DEFAULT_GRID_CONFIG_REF,
   textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = DEFAULT_TEXTURE_ADJUSTMENTS_REF,
   textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings> = DEFAULT_TEXTURE_LUMINANCE_SETTINGS_REF,
@@ -1073,7 +1551,44 @@ export function createTextureSceneTicker(
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = DEFAULT_CURSOR_TRAIL_CONFIG_REF,
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig> = DEFAULT_CLICK_WAVE_CONFIG_REF,
   onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
+  shaderTimeRef?: RefObject<number>,
+  shaderPlayingRef?: RefObject<boolean>,
+  shaderSourceRef?: RefObject<string>,
+  audioInputRef?: RefObject<PlaygroundAudioInput | null>,
 ): Ticker {
+  if (source.kind === "shader") {
+    return createShaderSceneTicker(
+      source.renderer,
+      display,
+      stripeColorsRef,
+      preferP3Ref,
+      duotoneEnabledRef,
+      stripesEnabledRef,
+      textureGammaRef,
+      sparkleOptionsRef,
+      widthShuffleOptionsRef,
+      autoplayRef,
+      gridConfigRef,
+      textureAdjustmentsRef,
+      textureLuminanceSettingsRef,
+      sourceTransformRef,
+      flamesStateRef,
+      flamesConfigRef,
+      revealConfigRef,
+      revealStateRef,
+      revealPlaybackRef,
+      cursorTrailConfigRef,
+      clickWaveConfigRef,
+      exportStateRef,
+      exportDisplayGridRef,
+      exportGridCaptureRef,
+      onTextureLuminanceSettingsDetected,
+      shaderTimeRef,
+      shaderPlayingRef,
+      shaderSourceRef,
+      audioInputRef,
+    );
+  }
   if (source.kind === "image") {
     return createImageSceneTicker(
       source.element,
@@ -1097,6 +1612,8 @@ export function createTextureSceneTicker(
       cursorTrailConfigRef,
       clickWaveConfigRef,
       exportStateRef,
+      exportDisplayGridRef,
+      exportGridCaptureRef,
       onTextureLuminanceSettingsDetected,
     );
   }
@@ -1123,8 +1640,306 @@ export function createTextureSceneTicker(
     cursorTrailConfigRef,
     clickWaveConfigRef,
     exportStateRef,
+    exportDisplayGridRef,
+    exportGridCaptureRef,
     onTextureLuminanceSettingsDetected,
   );
+}
+
+const DEFAULT_SHADER_TIME_REF: RefObject<number> = { current: 0 };
+const DEFAULT_SHADER_PLAYING_REF: RefObject<boolean> = { current: true };
+
+function createShaderSceneTicker(
+  renderer: PlaygroundShaderRenderer,
+  display: PlaygroundDisplaySize,
+  stripeColorsRef: RefObject<StripeColors>,
+  preferP3Ref: RefObject<boolean>,
+  duotoneEnabledRef: RefObject<boolean>,
+  stripesEnabledRef: RefObject<boolean>,
+  textureGammaRef: RefObject<number>,
+  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
+  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
+  autoplayRef: RefObject<boolean>,
+  gridConfigRef: RefObject<PlaygroundGridConfig>,
+  textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments>,
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings>,
+  sourceTransformRef: RefObject<PlaygroundSourceTransform>,
+  flamesStateRef: RefObject<PlaygroundFlamesState | null>,
+  flamesConfigRef: RefObject<PlaygroundFlamesConfig>,
+  revealConfigRef: RefObject<PlaygroundRevealConfig>,
+  revealStateRef: RefObject<PlaygroundRevealState>,
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
+  clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
+  exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
+  exportDisplayGridRef?: RefObject<PlaygroundExportDisplayGridCapture | null>,
+  exportGridCaptureRef?: RefObject<PlaygroundExportGridCapture | null>,
+  onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
+  shaderTimeRef: RefObject<number> = DEFAULT_SHADER_TIME_REF,
+  shaderPlayingRef: RefObject<boolean> = DEFAULT_SHADER_PLAYING_REF,
+  shaderSourceRef?: RefObject<string>,
+  audioInputRef?: RefObject<PlaygroundAudioInput | null>,
+): Ticker {
+  return ({ app, cleanup }) => {
+    const grid = gridConfigRef.current;
+    const effectiveCell = effectivePlaygroundCellSize(grid);
+    const renderSize = resolvePlaygroundShaderRenderSize(display.width, display.height);
+    renderer.resize(renderSize.width, renderSize.height);
+
+    const texture = Texture.from(renderer.canvas);
+    // Exports temporarily resize the renderer to full display resolution; keep the Pixi
+    // texture source dimensions in sync with the canvas so live frames stay correctly mapped.
+    const syncTextureSourceSize = () => {
+      if (
+        texture.source.pixelWidth !== renderer.canvas.width ||
+        texture.source.pixelHeight !== renderer.canvas.height
+      ) {
+        texture.source.resize(renderer.canvas.width, renderer.canvas.height);
+      }
+    };
+    texture.source.alphaMode = "no-premultiply-alpha";
+    texture.source.scaleMode = "linear";
+    const sprite = new Sprite(texture);
+    const shaderSource = { kind: "shader" as const, renderer };
+    const syncShaderLayout = () => {
+      renderer.setViewTransform(sourceTransformRef.current);
+      syncSpriteToDisplay(sprite, shaderSource, display, renderer.resolveSpriteSourceTransform());
+    };
+    syncShaderLayout();
+
+    const sampleCanvas = document.createElement("canvas");
+    const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
+    if (!sampleCtx) {
+      throw new Error("2D canvas context unavailable for texture sampling.");
+    }
+    const gridSampleCanvas = document.createElement("canvas");
+    const gridSampleCtx = gridSampleCanvas.getContext("2d", { willReadFrequently: true });
+    // True when this tick already rendered the shader canvas (visible-texture modes). When false,
+    // samplers render on demand via ensureLiveFrame before reading pixels.
+    let renderedThisTick = true;
+    // Renders the shader at the capped live size if this tick skipped it. The canvas must keep a
+    // stable size: Pixi wraps it in a Texture, and resizing it behind Pixi's back breaks the
+    // sprite (and with it the stripe filter pass).
+    const ensureLiveFrame = () => {
+      if (renderedThisTick) {
+        return;
+      }
+      renderer.resize(renderSize.width, renderSize.height);
+      renderer.render(shaderTimeRef.current);
+      // No-op unless an export resized the canvas while live renders were skipped.
+      syncTextureSourceSize();
+      renderedThisTick = true;
+    };
+
+    const blockGridTexture = new BlockGridTexture(
+      display.width,
+      display.height,
+      effectiveCell.width,
+      effectiveCell.height,
+    );
+    const stripeFilter = createStripeDuotoneFilter(
+      display.width,
+      display.height,
+      blockGridTexture.texture,
+      blockGridTexture.cols,
+      blockGridTexture.rows,
+      stripeColorsRef.current,
+      preferP3Ref.current,
+      grid,
+    );
+    const sourceTextureFilter = createSourceTextureFilter({
+      ...textureAdjustmentsRef.current,
+      gamma: textureGammaRef.current,
+    });
+    const textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
+    syncStripeSpriteFilters(sprite, textureFilterMode, textureLuminanceSettingsRef.current.mode, stripeFilter);
+    app.stage.addChild(sprite);
+    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
+    const cursorTrailState = createCursorTrailState();
+    const clickWaveState = createClickWaveState();
+    const detachPlaygroundPointerEvents = attachPlaygroundPointerEvents(
+      app.canvas as HTMLCanvasElement,
+      display,
+      cursorTrailState,
+      clickWaveState,
+      clickWaveConfigRef,
+    );
+
+    let lastCompiledSource = "";
+    let lastSampledTime = -1;
+    let lastSampledTransformKey = "";
+    let lastShaderTickMs = performance.now();
+    let audioTextureUploaded = false;
+
+    // Pushes the latest microphone frame into iChannel0, or clears it once when capture stops.
+    const syncAudioTexture = () => {
+      const audioInput = audioInputRef?.current ?? null;
+      if (audioInput?.active) {
+        const data = audioInput.update();
+        if (data) {
+          renderer.setAudioTexture(data, audioInput.textureWidth, audioInput.textureHeight);
+          audioTextureUploaded = true;
+          return;
+        }
+      }
+      if (audioTextureUploaded) {
+        renderer.setAudioTexture(null, 0, 0);
+        audioTextureUploaded = false;
+      }
+    };
+
+    const currentSampleTransformKey = (): string => {
+      const transform = sourceTransformRef.current;
+      return `${transform.fit}:${transform.zoom}:${transform.panX}:${transform.panY}`;
+    };
+    shaderPlayingRef.current = autoplayRef.current;
+
+    const syncShaderTime = (nowMs: number) => {
+      if (shaderPlayingRef.current) {
+        shaderTimeRef.current += (nowMs - lastShaderTickMs) / 1000;
+      }
+      lastShaderTickMs = nowMs;
+    };
+
+    const maybeRecompileShader = () => {
+      const nextSource = shaderSourceRef?.current;
+      if (!nextSource || nextSource === lastCompiledSource) {
+        return;
+      }
+      const compile = renderer.setSource(nextSource);
+      if (compile.ok) {
+        lastCompiledSource = nextSource;
+      }
+    };
+    maybeRecompileShader();
+
+    const { tick: renderTick, dispose } = runDuotoneTick({
+      app,
+      sprite,
+      stripeFilter,
+      sourceTextureFilter,
+      letterLayer,
+      duotoneEnabledRef,
+      stripesEnabledRef,
+      sparkleOptionsRef,
+      widthShuffleOptionsRef,
+      flamesStateRef,
+      flamesConfigRef,
+      revealConfigRef,
+      revealStateRef,
+      revealPlaybackRef,
+      stripeColorsRef,
+      preferP3Ref,
+      textureGammaRef,
+      textureAdjustmentsRef,
+      textureLuminanceSettingsRef,
+      sourceTransformRef,
+      gridConfigRef,
+      display,
+      blockGridTexture,
+      atlas,
+      cursorTrailConfigRef,
+      clickWaveConfigRef,
+      cursorTrailState,
+      clickWaveState,
+      exportStateRef,
+      exportDisplayGridRef,
+      exportGridCaptureRef,
+      prepareExportSample: () => {
+        maybeRecompileShader();
+        syncShaderTime(performance.now());
+        syncAudioTexture();
+        renderer.setViewTransform(sourceTransformRef.current);
+        // Exports sample at full display resolution; the live tick restores the capped size.
+        renderer.resize(display.width, display.height);
+        renderer.render(shaderTimeRef.current);
+        syncTextureSourceSize();
+        texture.source.update();
+      },
+      syncVisual: syncShaderLayout,
+      shouldSample: () =>
+        shaderTimeRef.current !== lastSampledTime || currentSampleTransformKey() !== lastSampledTransformKey,
+      sampleFrame: () => {
+        ensureLiveFrame();
+        return sampleShaderPlaygroundFrame(
+          renderer,
+          display.width,
+          display.height,
+          sampleCanvas,
+          sampleCtx,
+          sourceTransformRef.current,
+          shaderTimeRef.current,
+          { renderBeforeSample: false },
+        );
+      },
+      sampleGridFrame: (cols, rows) => {
+        if (
+          !gridSampleCtx ||
+          !canUseCellResGridSampling({
+            revealEnabled: revealConfigRef.current.enabled,
+            luminanceMode: normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode),
+          })
+        ) {
+          return null;
+        }
+        ensureLiveFrame();
+        return sampleShaderPlaygroundFrame(
+          renderer,
+          cols,
+          rows,
+          gridSampleCanvas,
+          gridSampleCtx,
+          sourceTransformRef.current,
+          shaderTimeRef.current,
+          { renderBeforeSample: false },
+        );
+      },
+      // Shader frames force alpha 255 (see sampleShaderPlaygroundFrame), enabling the
+      // identity-adjustments preview bake skip.
+      previewSourceOpaque: true,
+      onSampled: () => {
+        lastSampledTime = shaderTimeRef.current;
+        lastSampledTransformKey = currentSampleTransformKey();
+      },
+      onTextureLuminanceSettingsDetected,
+    });
+
+    const tick = () => {
+      shaderPlayingRef.current = autoplayRef.current;
+      maybeRecompileShader();
+      syncShaderTime(performance.now());
+      syncAudioTexture();
+      renderer.setViewTransform(sourceTransformRef.current);
+      renderedThisTick = isShaderTextureLiveRenderNeeded({
+        duotoneEnabled: duotoneEnabledRef.current,
+        stripesEnabled: stripesEnabledRef.current,
+        luminanceMode: normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode),
+      });
+      if (renderedThisTick) {
+        // No-op normally; restores the capped live size after a full-resolution export render.
+        renderer.resize(renderSize.width, renderSize.height);
+        renderer.render(shaderTimeRef.current);
+        syncTextureSourceSize();
+        texture.source.update();
+      }
+      syncShaderLayout();
+      renderTick();
+    };
+
+    app.ticker.add(tick);
+
+    cleanup(() => {
+      if (app.ticker) {
+        app.ticker.remove(tick);
+      }
+      // Drop any frozen audio frame so a later audio-free shader does not inherit stale iChannel0.
+      renderer.setAudioTexture(null, 0, 0);
+      detachPlaygroundPointerEvents();
+      dispose();
+      sprite.destroy({ children: true });
+      texture.destroy(true);
+    });
+  };
 }
 
 function createImageSceneTicker(
@@ -1149,6 +1964,8 @@ function createImageSceneTicker(
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
+  exportDisplayGridRef?: RefObject<PlaygroundExportDisplayGridCapture | null>,
+  exportGridCaptureRef?: RefObject<PlaygroundExportGridCapture | null>,
   onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -1232,6 +2049,8 @@ function createImageSceneTicker(
       cursorTrailState,
       clickWaveState,
       exportStateRef,
+      exportDisplayGridRef,
+      exportGridCaptureRef,
       syncVisual: () =>
         syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current),
       shouldSample: () => false,
@@ -1278,6 +2097,8 @@ function createVideoSceneTickerInternal(
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
+  exportDisplayGridRef?: RefObject<PlaygroundExportDisplayGridCapture | null>,
+  exportGridCaptureRef?: RefObject<PlaygroundExportGridCapture | null>,
   onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
 ): Ticker {
   return ({ app, cleanup }) => {
@@ -1368,6 +2189,8 @@ function createVideoSceneTickerInternal(
       cursorTrailState,
       clickWaveState,
       exportStateRef,
+      exportDisplayGridRef,
+      exportGridCaptureRef,
       syncVisual: () =>
         syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current),
       shouldSample: () => video.currentTime !== lastSampledTime,

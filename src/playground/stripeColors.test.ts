@@ -8,6 +8,7 @@ import {
   DEFAULT_STRIPES,
   displayP3CssToHex,
   hexToDisplayP3Css,
+  moveStripe,
   normalizeStripe,
   removeStripe,
   resolveActivePlaygroundStripes,
@@ -22,19 +23,21 @@ import {
 } from "./stripeColors";
 
 describe("DEFAULT_STRIPES", () => {
-  it("ramps gray (darkest) up to the loud orange (brightest) by ascending startFrom", () => {
+  it("ramps from neutral gray into green/blue/purple accents by ascending startFrom", () => {
     expect(DEFAULT_STRIPES.map((s) => s.hex)).toEqual([
       "#F3F3F3",
       "#FADA98",
-      "#F8BD70",
-      "#F69E4D",
-      "#F27C33",
-      "#EB5729",
+      "#B8F1C9",
+      "#7FE7D8",
+      "#63CDF8",
+      "#5A8BFF",
+      "#6A63F6",
+      "#8E59F3",
+      "#B14BFF",
     ]);
     const starts = DEFAULT_STRIPES.map((s) => s.startFrom);
     expect([...starts]).toEqual([...starts].sort((a, b) => a - b));
-    // Orangest color sits at the brightest threshold.
-    expect(DEFAULT_STRIPES[DEFAULT_STRIPES.length - 1]!.startFrom).toBe(0.9);
+    expect(DEFAULT_STRIPES[DEFAULT_STRIPES.length - 1]!.startFrom).toBe(0.96);
   });
 
   it("derives display-p3 css from each hex", () => {
@@ -50,11 +53,12 @@ describe("stripeIndexForLuminance", () => {
   });
 
   it("returns the stripe with the greatest startFrom not exceeding the luminance", () => {
-    // thresholds: 0.12, 0.28, 0.44, 0.6, 0.76, 0.9
-    expect(stripeIndexForLuminance(0.12, stripes)).toBe(1);
-    expect(stripeIndexForLuminance(0.27, stripes)).toBe(1);
-    expect(stripeIndexForLuminance(0.28, stripes)).toBe(2);
-    expect(stripeIndexForLuminance(0.95, stripes)).toBe(6);
+    // thresholds: 0.1, 0.24, 0.38, 0.5, 0.62, 0.74, 0.84, 0.91, 0.96
+    expect(stripeIndexForLuminance(0.1, stripes)).toBe(1);
+    expect(stripeIndexForLuminance(0.23, stripes)).toBe(1);
+    expect(stripeIndexForLuminance(0.24, stripes)).toBe(2);
+    expect(stripeIndexForLuminance(0.95, stripes)).toBe(8);
+    expect(stripeIndexForLuminance(0.99, stripes)).toBe(9);
   });
 
   it("is order-independent (picks highest qualifying threshold)", () => {
@@ -69,7 +73,7 @@ describe("resolveStripeIndices", () => {
   it("buckets a luminance grid via the threshold LUT", () => {
     const stripes = cloneDefaultStripes();
     const luma = new Uint8Array([0, Math.round(0.3 * 255), 255]);
-    expect(Array.from(resolveStripeIndices(luma, stripes))).toEqual([0, 2, 6]);
+    expect(Array.from(resolveStripeIndices(luma, stripes))).toEqual([0, 2, 9]);
   });
 });
 
@@ -123,6 +127,19 @@ describe("stripe list editing", () => {
     expect(removed.stripes.find((s) => s.id === firstId)).toBeUndefined();
   });
 
+  it("moves stripes up and down by id", () => {
+    const base = buildStripeColors();
+    const firstId = base.stripes[0]!.id;
+    const secondId = base.stripes[1]!.id;
+
+    const movedDown = moveStripe(base, firstId, 1);
+    expect(movedDown.stripes[0]!.id).toBe(secondId);
+    expect(movedDown.stripes[1]!.id).toBe(firstId);
+
+    const movedUp = moveStripe(movedDown, firstId, -1);
+    expect(movedUp.stripes[0]!.id).toBe(firstId);
+  });
+
   it("clamps width and startFrom on update", () => {
     const base = buildStripeColors();
     const id = base.stripes[0]!.id;
@@ -135,17 +152,17 @@ describe("stripe list editing", () => {
 });
 
 describe("DEFAULT_OVERLAY_STRIPES", () => {
-  it("contains the three loudest default colors with ascending thresholds", () => {
-    expect(DEFAULT_OVERLAY_STRIPES.map((stripe) => stripe.hex)).toEqual(["#F69E4D", "#F27C33", "#EB5729"]);
-    expect(DEFAULT_OVERLAY_STRIPES.map((stripe) => stripe.startFrom)).toEqual([0.6, 0.76, 0.9]);
+  it("contains the three loudest cool accents with ascending thresholds", () => {
+    expect(DEFAULT_OVERLAY_STRIPES.map((stripe) => stripe.hex)).toEqual(["#5A8BFF", "#8E59F3", "#B14BFF"]);
+    expect(DEFAULT_OVERLAY_STRIPES.map((stripe) => stripe.startFrom)).toEqual([0.84, 0.91, 0.96]);
   });
 
   it("clones into an editable list", () => {
     const cloned = cloneDefaultOverlayStripes();
     expect(cloned).toHaveLength(3);
-    expect(cloned[0]!.hex).toBe("#F69E4D");
+    expect(cloned[0]!.hex).toBe("#5A8BFF");
     cloned[0]!.hex = "#000000";
-    expect(DEFAULT_OVERLAY_STRIPES[0]!.hex).toBe("#F69E4D");
+    expect(DEFAULT_OVERLAY_STRIPES[0]!.hex).toBe("#5A8BFF");
   });
 });
 
