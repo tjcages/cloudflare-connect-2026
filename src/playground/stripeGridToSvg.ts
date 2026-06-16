@@ -1,10 +1,29 @@
 import type { BlockGrid } from "./computeBlockGrid";
+import type { StripeOrientation } from "./playgroundGridConfig";
+import { isPlaygroundSparkleCellVisible, type PlaygroundSparkleOptions } from "./playgroundSparkle";
+import { resolveWidthShuffleStripeWidth, type PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
 import { stripeAtIndex, type StripeColors } from "./stripeColors";
 import { STRIPE_CELL_SIZE, STRIPE_INDEX_NONE } from "./stripeGridConstants";
 import { computeStripeLetterPlacements } from "./stripeLetterPlacements";
 import { buildStripeLetterSvgGlyphs, type StripeLetterSvgGlyph } from "./stripeLetterFont";
 
 const ROW_WIDTH_GAP = 1;
+
+export type StripeGridSvgLayout = {
+  cellPitchWidth: number;
+  cellPitchHeight: number;
+  gapX: number;
+  gapY: number;
+  orientation: StripeOrientation;
+};
+
+const DEFAULT_SVG_LAYOUT: StripeGridSvgLayout = {
+  cellPitchWidth: STRIPE_CELL_SIZE,
+  cellPitchHeight: STRIPE_CELL_SIZE,
+  gapX: 0,
+  gapY: 0,
+  orientation: "vertical",
+};
 
 function svgStripeClass(index: number): string {
   return `fill-stripe-${index}`;
@@ -49,7 +68,11 @@ function stripeSvgLetterDefs(glyphs: Map<string, StripeLetterSvgGlyph>): string 
   return ["  <defs>", ...symbols, "  </defs>"].join("\n");
 }
 
-function stripeSvgLetterElements(grid: BlockGrid, glyphs: Map<string, StripeLetterSvgGlyph>): string {
+function stripeSvgLetterElements(
+  grid: BlockGrid,
+  glyphs: Map<string, StripeLetterSvgGlyph>,
+  layout: StripeGridSvgLayout,
+): string {
   const placements = computeStripeLetterPlacements(grid);
   if (placements.length === 0) {
     return "";
@@ -61,8 +84,8 @@ function stripeSvgLetterElements(grid: BlockGrid, glyphs: Map<string, StripeLett
       return [];
     }
 
-    const centerX = placement.col * STRIPE_CELL_SIZE + STRIPE_CELL_SIZE * 0.5;
-    const centerY = placement.row * STRIPE_CELL_SIZE + STRIPE_CELL_SIZE * 0.5;
+    const centerX = placement.col * layout.cellPitchWidth + layout.cellPitchWidth * 0.5;
+    const centerY = placement.row * layout.cellPitchHeight + layout.cellPitchHeight * 0.5;
     const x = centerX - glyph.width * 0.5;
     const y = centerY - glyph.height * 0.5;
     return [`  <use href="#${glyph.id}" x="${x}" y="${y}" width="${glyph.width}" height="${glyph.height}" />`];
@@ -83,13 +106,79 @@ function cellColorHex(grid: BlockGrid, cellIndex: number): string {
   return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
+function resolveAlongBandBounds(
+  layout: StripeGridSvgLayout,
+  chainBreaksAbove: boolean,
+  chainBreaksBelow: boolean,
+): { bandStart: number; bandEnd: number } {
+  const alongCell = layout.orientation === "horizontal" ? layout.cellPitchWidth : layout.cellPitchHeight;
+  const alongGap = layout.orientation === "horizontal" ? layout.gapX : layout.gapY;
+  let bandStart = alongGap * 0.5;
+  let bandEnd = alongCell - alongGap * 0.5;
+  if (chainBreaksAbove) {
+    bandStart = Math.max(bandStart, ROW_WIDTH_GAP * 0.5);
+  }
+  if (chainBreaksBelow) {
+    bandEnd = Math.min(bandEnd, alongCell - ROW_WIDTH_GAP * 0.5);
+  }
+  if (bandEnd - bandStart < 1) {
+    bandStart = 0;
+    bandEnd = alongCell;
+  }
+  return { bandStart, bandEnd };
+}
+
+function stripeSegmentPath(
+  col: number,
+  row: number,
+  layout: StripeGridSvgLayout,
+  bandStart: number,
+  bandEnd: number,
+  stripeWidth: number,
+): string {
+  if (layout.orientation === "horizontal") {
+    const halfW = stripeWidth * 0.5;
+    const rowCenter = row * layout.cellPitchHeight + layout.cellPitchHeight * 0.5;
+    const y = rowCenter - halfW;
+    const x = col * layout.cellPitchWidth + bandStart;
+    const rectW = bandEnd - bandStart;
+    const rectH = stripeWidth;
+    return `M${x} ${y}h${rectW}v${rectH}h-${rectW}Z`;
+  }
+
+  const halfW = stripeWidth * 0.5;
+  const colCenter = col * layout.cellPitchWidth + layout.cellPitchWidth * 0.5;
+  const x = colCenter - halfW;
+  const y = row * layout.cellPitchHeight + bandStart;
+  const rectW = stripeWidth;
+  const rectH = bandEnd - bandStart;
+  return `M${x} ${y}h${rectW}v${rectH}h-${rectW}Z`;
+}
+
+export type StripeGridSvgOptions = {
+  useCellColors?: boolean;
+  /** Full-frame raster placed beneath stripe paths (matches video/image underlay in the canvas). */
+  underlayDataUrl?: string;
+  /** Grid pitch used by the live canvas (cell size + gap). Defaults to 7×7. */
+  layout?: StripeGridSvgLayout;
+  widthShuffle?: PlaygroundWidthShuffleOptions;
+  sparkleGaps?: PlaygroundSparkleOptions;
+  timeSec?: number;
+};
+
+function stripeSvgUnderlayElement(dataUrl: string, width: number, height: number): string {
+  return `  <image class="stripe-underlay" width="${width}" height="${height}" href="${dataUrl}" />`;
+}
+
 export function stripeGridToSvg(
   grid: BlockGrid,
   colors: StripeColors,
   width: number,
   height: number,
-  options: { useCellColors?: boolean } = {},
+  options: StripeGridSvgOptions = {},
 ): string {
+  const layout = options.layout ?? DEFAULT_SVG_LAYOUT;
+  const timeSec = options.timeSec ?? 0;
   const pathsByIndex = new Map<number, string[]>();
   const cellColorPaths: string[] = [];
 
@@ -102,30 +191,25 @@ export function stripeGridToSvg(
         continue;
       }
 
+      if (options.sparkleGaps && !isPlaygroundSparkleCellVisible(col, row, timeSec, options.sparkleGaps)) {
+        continue;
+      }
+
       const bandAbove = row > 0 ? (grid.indices[index - grid.cols] ?? 0) : 0;
       const bandBelow = row < grid.rows - 1 ? (grid.indices[index + grid.cols] ?? 0) : 0;
       const chainBreaksAbove = !sameStripeBand(stripeBand, bandAbove);
       const chainBreaksBelow = !sameStripeBand(stripeBand, bandBelow);
+      const { bandStart, bandEnd } = resolveAlongBandBounds(layout, chainBreaksAbove, chainBreaksBelow);
 
-      let bandTop = chainBreaksAbove ? ROW_WIDTH_GAP * 0.5 : 0;
-      let bandBottom = STRIPE_CELL_SIZE - (chainBreaksBelow ? ROW_WIDTH_GAP * 0.5 : 0);
-      if (bandBottom - bandTop < STRIPE_CELL_SIZE) {
-        bandTop = 0;
-        bandBottom = STRIPE_CELL_SIZE;
-      }
+      const coverageScale = options.useCellColors ? Math.max((grid.colorCoverage?.[index] ?? 255) / 255, 1 / 255) : 1;
+      const defaultWidth = stripe.width * coverageScale;
+      const acrossCell = layout.orientation === "horizontal" ? layout.cellPitchHeight : layout.cellPitchWidth;
+      const animatedWidth = options.widthShuffle
+        ? resolveWidthShuffleStripeWidth(col, row, defaultWidth, timeSec, options.widthShuffle)
+        : defaultWidth;
+      const stripeWidth = Math.max(1, Math.min(animatedWidth, acrossCell));
 
-      const coverageScale = options.useCellColors
-        ? Math.max((grid.colorCoverage?.[index] ?? 255) / 255, 1 / 255)
-        : 1;
-      const stripeWidth = Math.max(1, stripe.width * coverageScale);
-      const halfW = stripeWidth * 0.5;
-      const columnCenter = col * STRIPE_CELL_SIZE + STRIPE_CELL_SIZE * 0.5;
-      const x = columnCenter - halfW;
-      const y = row * STRIPE_CELL_SIZE + bandTop;
-      const rectW = stripeWidth;
-      const rectH = bandBottom - bandTop;
-
-      const segment = `M${x} ${y}h${rectW}v${rectH}h-${rectW}Z`;
+      const segment = stripeSegmentPath(col, row, layout, bandStart, bandEnd, stripeWidth);
       if (options.useCellColors) {
         cellColorPaths.push(`  <path fill="${cellColorHex(grid, index)}" d="${segment}" />`);
         continue;
@@ -143,12 +227,18 @@ export function stripeGridToSvg(
 
   const svgGlyphs = buildStripeLetterSvgGlyphs();
   const letterDefs = stripeSvgLetterDefs(svgGlyphs);
-  const letterElements = stripeSvgLetterElements(grid, svgGlyphs);
+  const letterElements = stripeSvgLetterElements(grid, svgGlyphs, layout);
+
+  const underlay =
+    options.underlayDataUrl && options.underlayDataUrl.length > 0
+      ? stripeSvgUnderlayElement(options.underlayDataUrl, width, height)
+      : "";
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="visible">`,
     stripeSvgStyleBlock(colors, usedIndices),
     letterDefs,
+    underlay,
     options.useCellColors ? cellColorPaths.join("\n") : pathElements,
     letterElements,
     `</svg>`,

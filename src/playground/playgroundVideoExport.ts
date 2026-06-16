@@ -12,7 +12,7 @@ export const PLAYGROUND_VIDEO_EXPORT_BITRATE = 6_000_000;
 const MP4_MIME_CANDIDATES = ["video/mp4;codecs=avc1", "video/mp4"] as const;
 const WEBM_MIME_CANDIDATES = ["video/webm;codecs=vp8", "video/webm;codecs=vp9", "video/webm"] as const;
 
-export type PlaygroundExportSourceKind = "video" | "image";
+export type PlaygroundExportSourceKind = "video" | "image" | "shader";
 
 export type PlaygroundVideoExportPhase = "idle" | "recording" | "loading-encoder" | "transcoding" | "done" | "failed";
 
@@ -82,7 +82,7 @@ function formatExportTime(seconds: number): string {
 }
 
 export function resolveExportDuration(kind: PlaygroundExportSourceKind, videoDuration: number): number {
-  if (kind === "image") {
+  if (kind === "image" || kind === "shader") {
     return PLAYGROUND_IMAGE_EXPORT_DURATION_SEC;
   }
   if (!Number.isFinite(videoDuration) || videoDuration <= 0) {

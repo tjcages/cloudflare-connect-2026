@@ -1,0 +1,100 @@
+{
+  "id": "a35de9c2-e85b-4d5c-bb4d-313c236370cc",
+  "label": "Sweeping Wave",
+  "source": "#define PI 3.1415\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    float i = iTime;\n\tvec2 uv = fragCoord.xy / iResolution.xy;\n    vec4 c = vec4(1.0);\n    c.r = sin(uv.y*10.0*cos(uv.x*2.0+i+sin(uv.x+uv.y+i)*tan(uv.y*1.0+i))+i)*.5+.5;\n    c.g = sin(c.r*PI*2.0)*.5+.5;\n    c.b = sin(c.g*PI*2.0+i)*.5+.5;\n\tfragColor = c;\n}",
+  "createdAt": 1781562288442,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.29,
+      "exposure": -0.6,
+      "contrast": 2,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1.9500000000000002,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "#define PI 3.1415\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    float i = iTime;\n\tvec2 uv = fragCoord.xy / iResolution.xy;\n    vec4 c = vec4(1.0);\n    c.r = sin(uv.y*10.0*cos(uv.x*2.0+i+sin(uv.x+uv.y+i)*tan(uv.y*1.0+i))+i)*.5+.5;\n    c.g = sin(c.r*PI*2.0)*.5+.5;\n    c.b = sin(c.g*PI*2.0+i)*.5+.5;\n\tfragColor = c;\n}"
+  }
+}

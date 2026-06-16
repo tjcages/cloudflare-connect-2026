@@ -13,6 +13,13 @@ import type {
   PlaygroundWaveRevealConfig,
   PlaygroundWaveRevealPosition,
 } from "./playgroundRevealConfig";
+import {
+  PLAYGROUND_SHADER_PRESETS,
+  PLAYGROUND_SHADER_PRESET_CUSTOM_ID,
+  resolvePlaygroundShaderPresetId,
+} from "./playgroundShaderSource";
+import { findSavedShaderBySource, savedShaderPresetId, type PlaygroundSavedShader } from "./playgroundSavedShaders";
+import { COLOR_PRESET_CUSTOM_ID, type PlaygroundColorPreset } from "./playgroundColorPresets";
 import type { PlaygroundSourceFit, PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundTextureId } from "./playgroundTextures";
@@ -20,6 +27,7 @@ import { PLAYGROUND_DISPLAY_MAX_PX } from "./setupTextureShaderScene";
 import { type Stripe } from "./stripeColors";
 import { stripeColorsTablePlugin, stripeSyncKey } from "./stripeColorsTablePlugin";
 import { type TextureLuminanceMode, type TextureLuminanceSettings } from "./colorWhiteness";
+import type { PlaygroundPerfSample } from "./playgroundPerfProfile";
 
 type LevaChangeContext = {
   initial: boolean;
@@ -135,6 +143,55 @@ function folderColor(modified: boolean): string | undefined {
   return modified ? "#c45c26" : undefined;
 }
 
+function readOnlyControl(value: string, options: { label: string; hint?: string }) {
+  return {
+    value,
+    label: options.label,
+    hint: options.hint,
+    disabled: true,
+  };
+}
+
+function formatPerfNumber(value: number | undefined): string {
+  return Number.isFinite(value) ? `${value!.toFixed(2)} ms` : "n/a";
+}
+
+function formatPerfCount(value: number | undefined): string {
+  return Number.isFinite(value) ? `${Math.round(value!)}` : "n/a";
+}
+
+function formatPerfBool(value: boolean | undefined): string {
+  return value ? "Yes" : "No";
+}
+
+function formatPerfFps(value: number | undefined): string {
+  return Number.isFinite(value) ? `${value!.toFixed(1)} fps` : "n/a";
+}
+
+function formatPerfPct(value: number | undefined): string {
+  return Number.isFinite(value) ? `${value!.toFixed(0)}%` : "n/a";
+}
+
+function formatPerfStatus(perfOverlayEnabled: boolean, perfSample: PlaygroundPerfSample | null): string {
+  if (!perfOverlayEnabled) {
+    return "Disabled (set __PLAYGROUND_PERF__ = true)";
+  }
+  return perfSample ? "Collecting live samples" : "Waiting for samples";
+}
+
+function formatPerfHealth(health: PlaygroundPerfSample["perfHealth"] | undefined): string {
+  switch (health) {
+    case "good":
+      return "Good";
+    case "ok":
+      return "OK";
+    case "slow":
+      return "Slow";
+    default:
+      return "n/a";
+  }
+}
+
 function intToHex(value: number): string {
   return `#${(value & 0xffffff).toString(16).padStart(6, "0")}`;
 }
@@ -166,20 +223,82 @@ export type PlaygroundCanvasLevaSnapshot = {
   textureOptions: Record<string, PlaygroundTextureId>;
   displayWidth: number;
   displayHeight: number;
+  renderScale: number;
   workflowDisabled: boolean;
+  perfOverlayEnabled?: boolean;
+  perfSample?: PlaygroundPerfSample | null;
 };
 
 export type PlaygroundCanvasLevaHandlers = {
   onTextureSelect: (value: PlaygroundTextureId) => void;
   setDisplayWidth: (value: number) => void;
   setDisplayHeight: (value: number) => void;
+  setRenderScale: (value: number) => void;
 };
+
+export type PlaygroundShaderLevaSnapshot = {
+  shaderSource: string;
+  workflowDisabled: boolean;
+  savedShaders: readonly PlaygroundSavedShader[];
+  audioInputEnabled: boolean;
+  audioInputStatus: string;
+};
+
+export type PlaygroundShaderLevaHandlers = {
+  onShaderSourceLive: (value: string) => void;
+  onShaderSourceCommit: (value: string) => void;
+  onShaderPresetChange: (presetId: string) => void;
+  onSaveShader: () => void;
+  onDeleteSavedShader: () => void;
+  onBackupShadersToFiles: () => void;
+  onAudioInputToggle: (enabled: boolean) => void;
+};
+
+function shaderPresetOptions(savedShaders: readonly PlaygroundSavedShader[]): Record<string, string> {
+  const options: Record<string, string> = {};
+  for (const preset of PLAYGROUND_SHADER_PRESETS) {
+    options[preset.label] = preset.id;
+  }
+  const usedLabels = new Set(Object.keys(options));
+  for (const saved of savedShaders) {
+    let label = saved.label;
+    let suffix = 2;
+    while (usedLabels.has(label)) {
+      label = `${saved.label} (${suffix})`;
+      suffix += 1;
+    }
+    usedLabels.add(label);
+    options[label] = savedShaderPresetId(saved.id);
+  }
+  options.Custom = PLAYGROUND_SHADER_PRESET_CUSTOM_ID;
+  return options;
+}
+
+function colorPresetOptions(colorPresets: readonly PlaygroundColorPreset[]): Record<string, string> {
+  const options: Record<string, string> = {};
+  const usedLabels = new Set<string>();
+  for (const preset of colorPresets) {
+    let label = preset.label;
+    let suffix = 2;
+    while (usedLabels.has(label)) {
+      label = `${preset.label} (${suffix})`;
+      suffix += 1;
+    }
+    usedLabels.add(label);
+    options[label] = preset.id;
+  }
+  // Sentinel shown when the live palette matches no saved preset.
+  options.Custom = COLOR_PRESET_CUSTOM_ID;
+  return options;
+}
 
 export function buildPlaygroundCanvasLevaSchema(
   snapshot: PlaygroundCanvasLevaSnapshot,
   handlers: PlaygroundCanvasLevaHandlers,
 ): Record<string, unknown> {
   const workflowDisabled = snapshot.workflowDisabled;
+  const perfOverlayEnabled = snapshot.perfOverlayEnabled === true;
+  const perfSample = snapshot.perfSample ?? null;
 
   return {
     texture: selectControl(snapshot.selectedTextureId, snapshot.textureOptions, {
@@ -202,14 +321,174 @@ export function buildPlaygroundCanvasLevaSchema(
       onLive: handlers.setDisplayHeight,
       onCommit: handlers.setDisplayHeight,
     }),
+    renderScale: selectControl(
+      String(snapshot.renderScale),
+      { "2x (sharp)": "2", "1.5x": "1.5", "1x (fast)": "1", "0.5x (fastest)": "0.5" },
+      {
+        label: "Render scale",
+        hint: PLAYGROUND_FIELD_HELP.renderScale,
+        disabled: workflowDisabled,
+        onChange: (value: string) => handlers.setRenderScale(Number(value)),
+      },
+    ),
+    Performance: levaFolder({
+      perfStatus: readOnlyControl(formatPerfStatus(perfOverlayEnabled, perfSample), {
+        label: "Status",
+        hint: PLAYGROUND_FIELD_HELP.perfStatus,
+      }),
+      perfHealth: readOnlyControl(formatPerfHealth(perfSample?.perfHealth), {
+        label: "Health",
+        hint: PLAYGROUND_FIELD_HELP.perfHealth,
+      }),
+      perfFps: readOnlyControl(formatPerfFps(perfSample?.fps), {
+        label: "FPS (inst)",
+        hint: PLAYGROUND_FIELD_HELP.perfFps,
+      }),
+      perfFpsSmoothed: readOnlyControl(formatPerfFps(perfSample?.fpsSmoothed), {
+        label: "FPS (smooth)",
+        hint: PLAYGROUND_FIELD_HELP.perfFpsSmoothed,
+      }),
+      perfFrameBudgetUsage: readOnlyControl(formatPerfPct(perfSample?.frameBudgetUsagePct), {
+        label: "Budget usage",
+        hint: PLAYGROUND_FIELD_HELP.perfFrameBudgetUsage,
+      }),
+      perfFrameHeadroom: readOnlyControl(formatPerfNumber(perfSample?.frameHeadroomMs), {
+        label: "Headroom",
+        hint: PLAYGROUND_FIELD_HELP.perfFrameHeadroom,
+      }),
+      perfTickTotalMs: readOnlyControl(formatPerfNumber(perfSample?.tickTotalMs), {
+        label: "Tick total",
+        hint: PLAYGROUND_FIELD_HELP.perfTickTotal,
+      }),
+      perfRenderMs: readOnlyControl(formatPerfNumber(perfSample?.renderMs), {
+        label: "Render",
+        hint: PLAYGROUND_FIELD_HELP.perfRender,
+      }),
+      perfBuildGridMs: readOnlyControl(formatPerfNumber(perfSample?.buildGridMs), {
+        label: "Build grid",
+        hint: PLAYGROUND_FIELD_HELP.perfBuildGrid,
+      }),
+      perfSampleFrameMs: readOnlyControl(formatPerfNumber(perfSample?.sampleFrameMs), {
+        label: "Sample frame",
+        hint: PLAYGROUND_FIELD_HELP.perfSampleFrame,
+      }),
+      perfBlockTextureMs: readOnlyControl(formatPerfNumber(perfSample?.blockTextureMs), {
+        label: "Upload grid",
+        hint: PLAYGROUND_FIELD_HELP.perfBlockTexture,
+      }),
+      perfWorkerLatencyMs: readOnlyControl(formatPerfNumber(perfSample?.workerGridLatencyMs), {
+        label: "Worker latency",
+        hint: PLAYGROUND_FIELD_HELP.perfWorkerLatency,
+      }),
+      perfWorkerQueueDepth: readOnlyControl(formatPerfCount(perfSample?.workerGridQueueDepth), {
+        label: "Worker queue depth",
+        hint: PLAYGROUND_FIELD_HELP.perfWorkerQueueDepth,
+      }),
+      perfWorkerInFlight: readOnlyControl(formatPerfBool(perfSample?.workerGridInFlight), {
+        label: "Worker in flight",
+        hint: PLAYGROUND_FIELD_HELP.perfWorkerInFlight,
+      }),
+      perfWorkerApplied: readOnlyControl(formatPerfBool(perfSample?.workerGridApplied), {
+        label: "Worker applied",
+        hint: PLAYGROUND_FIELD_HELP.perfWorkerApplied,
+      }),
+      perfWorkerCoalesced: readOnlyControl(formatPerfCount(perfSample?.workerGridCoalesced), {
+        label: "Worker coalesced",
+        hint: PLAYGROUND_FIELD_HELP.perfWorkerCoalesced,
+      }),
+      perfWorkerDroppedQueued: readOnlyControl(formatPerfCount(perfSample?.workerGridDroppedQueued), {
+        label: "Worker dropped queued",
+        hint: PLAYGROUND_FIELD_HELP.perfWorkerDroppedQueued,
+      }),
+      perfPartialGrid: readOnlyControl(formatPerfBool(perfSample?.partialGrid), {
+        label: "Partial grid",
+        hint: PLAYGROUND_FIELD_HELP.perfPartialGrid,
+      }),
+    }),
   };
 }
 
 export function buildPlaygroundCanvasLevaSyncValues(snapshot: PlaygroundCanvasLevaSnapshot): Record<string, unknown> {
+  const perfOverlayEnabled = snapshot.perfOverlayEnabled === true;
+  const perfSample = snapshot.perfSample ?? null;
   return {
     texture: snapshot.selectedTextureId,
     canvasWidth: Math.max(snapshot.displayWidth, 1),
     canvasHeight: Math.max(snapshot.displayHeight, 1),
+    renderScale: String(snapshot.renderScale),
+    perfStatus: formatPerfStatus(perfOverlayEnabled, perfSample),
+    perfHealth: formatPerfHealth(perfSample?.perfHealth),
+    perfFps: formatPerfFps(perfSample?.fps),
+    perfFpsSmoothed: formatPerfFps(perfSample?.fpsSmoothed),
+    perfFrameBudgetUsage: formatPerfPct(perfSample?.frameBudgetUsagePct),
+    perfFrameHeadroom: formatPerfNumber(perfSample?.frameHeadroomMs),
+    perfTickTotalMs: formatPerfNumber(perfSample?.tickTotalMs),
+    perfRenderMs: formatPerfNumber(perfSample?.renderMs),
+    perfBuildGridMs: formatPerfNumber(perfSample?.buildGridMs),
+    perfSampleFrameMs: formatPerfNumber(perfSample?.sampleFrameMs),
+    perfBlockTextureMs: formatPerfNumber(perfSample?.blockTextureMs),
+    perfWorkerLatencyMs: formatPerfNumber(perfSample?.workerGridLatencyMs),
+    perfWorkerQueueDepth: formatPerfCount(perfSample?.workerGridQueueDepth),
+    perfWorkerInFlight: formatPerfBool(perfSample?.workerGridInFlight),
+    perfWorkerApplied: formatPerfBool(perfSample?.workerGridApplied),
+    perfWorkerCoalesced: formatPerfCount(perfSample?.workerGridCoalesced),
+    perfWorkerDroppedQueued: formatPerfCount(perfSample?.workerGridDroppedQueued),
+    perfPartialGrid: formatPerfBool(perfSample?.partialGrid),
+  };
+}
+
+export function buildPlaygroundShaderLevaSchema(
+  snapshot: PlaygroundShaderLevaSnapshot,
+  handlers: PlaygroundShaderLevaHandlers,
+): Record<string, unknown> {
+  const isSavedShaderActive = Boolean(findSavedShaderBySource(snapshot.savedShaders, snapshot.shaderSource));
+  return {
+    shaderPreset: selectControl(
+      resolvePlaygroundShaderPresetId(snapshot.shaderSource, snapshot.savedShaders),
+      shaderPresetOptions(snapshot.savedShaders),
+      {
+        label: "Preset",
+        hint: PLAYGROUND_FIELD_HELP.shaderPreset,
+        disabled: snapshot.workflowDisabled,
+        onChange: handlers.onShaderPresetChange,
+      },
+    ),
+    shaderSource: {
+      value: snapshot.shaderSource,
+      label: "Shader equation",
+      hint: PLAYGROUND_FIELD_HELP.shaderSource,
+      rows: 18 as const,
+      disabled: snapshot.workflowDisabled,
+      transient: true as const,
+      onChange: skipInitialString(handlers.onShaderSourceLive),
+      onEditEnd: skipInitialString(handlers.onShaderSourceCommit),
+    },
+    audioInput: boolControl(snapshot.audioInputEnabled, {
+      label: "Audio input (mic)",
+      hint: PLAYGROUND_FIELD_HELP.audioInput,
+      disabled: snapshot.workflowDisabled,
+      onChange: handlers.onAudioInputToggle,
+    }),
+    ...(snapshot.audioInputStatus
+      ? { audioInputStatus: { value: snapshot.audioInputStatus, label: "Mic status", editable: false } }
+      : {}),
+    saveShader: { ...actionButton(handlers.onSaveShader, snapshot.workflowDisabled), label: "Save shader" },
+    deleteShader: {
+      ...actionButton(handlers.onDeleteSavedShader, snapshot.workflowDisabled || !isSavedShaderActive),
+      label: "Delete saved shader",
+    },
+    backupShaders: {
+      ...actionButton(handlers.onBackupShadersToFiles, snapshot.workflowDisabled || snapshot.savedShaders.length === 0),
+      label: "Save all shaders to files",
+    },
+  };
+}
+
+export function buildPlaygroundShaderLevaSyncValues(snapshot: PlaygroundShaderLevaSnapshot): Record<string, unknown> {
+  return {
+    shaderPreset: resolvePlaygroundShaderPresetId(snapshot.shaderSource, snapshot.savedShaders),
+    shaderSource: snapshot.shaderSource,
+    audioInput: snapshot.audioInputEnabled,
   };
 }
 
@@ -265,6 +544,8 @@ export type PlaygroundLevaSnapshot = {
   stripes: readonly Stripe[];
   stripesEnabled: boolean;
   textureLuminanceSettings: TextureLuminanceSettings;
+  colorPresets: readonly PlaygroundColorPreset[];
+  activeColorPresetId: string;
   sparkleGapsActivePercent: number;
   sparkleGapsSpeed: number;
   sparkleWidthActivePercent: number;
@@ -287,6 +568,8 @@ export type PlaygroundLevaSnapshot = {
   cursorTrailModified: boolean;
   cursorClickModified: boolean;
   revealModified: boolean;
+  perfOverlayEnabled?: boolean;
+  perfSample?: PlaygroundPerfSample | null;
 };
 
 export type PlaygroundLevaHandlers = {
@@ -311,7 +594,13 @@ export type PlaygroundLevaHandlers = {
   onStripeColorChange: (id: string, hex: string) => void;
   onStripeStartFromCommit: (id: string, value: number) => void;
   onStripeWidthCommit: (id: string, value: number) => void;
+  onStripeMove: (id: string, direction: -1 | 1) => void;
+  onStripeAdd: () => void;
+  onStripeRemove: (id: string) => void;
   resetStripes: () => void;
+  applyColorPreset: (id: string) => void;
+  saveColorPreset: () => void;
+  deleteColorPreset: () => void;
   setSparkleGapsActivePercentLive: (value: number) => void;
   commitSparkleGapsActivePercent: (value: number) => void;
   setSparkleGapsSpeedLive: (value: number) => void;
@@ -612,7 +901,7 @@ export function buildPlaygroundLevaSchema(
             },
           },
         ),
-        zoom: numControl(source.zoom, 0.5, 4, 0.01, {
+        zoom: numControl(source.zoom, 0.1, 8, 0.01, {
           label: "Zoom",
           hint: PLAYGROUND_FIELD_HELP.zoom,
           disabled,
@@ -767,6 +1056,23 @@ export function buildPlaygroundLevaSchema(
           disabled,
           onChange: handlers.setStripesEnabled,
         }),
+        colorPreset: selectControl(snapshot.activeColorPresetId, colorPresetOptions(snapshot.colorPresets), {
+          label: "Color preset",
+          hint: PLAYGROUND_FIELD_HELP.colorPreset,
+          disabled: stripeDisabled,
+          onChange: handlers.applyColorPreset,
+        }),
+        saveColorPreset: {
+          ...actionButton(() => handlers.saveColorPreset(), stripeDisabled),
+          label: "Save color preset",
+        },
+        deleteColorPreset: {
+          ...actionButton(
+            () => handlers.deleteColorPreset(),
+            stripeDisabled || snapshot.activeColorPresetId === COLOR_PRESET_CUSTOM_ID,
+          ),
+          label: "Delete color preset",
+        },
         textureLuminanceMode: selectControl<TextureLuminanceMode>(
           snapshot.textureLuminanceSettings.mode,
           { Luminance: "luminance", Overlay: "overlay", Colors: "colors" },
@@ -1548,6 +1854,7 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     letterShuffleSpeed: grid.letterShuffleSpeed,
     stripesEnabled: snapshot.stripesEnabled,
     textureLuminanceMode: snapshot.textureLuminanceSettings.mode,
+    colorPreset: snapshot.activeColorPresetId,
     gridUpdateIntervalMs: grid.gridUpdateIntervalMs,
     sparkleGapsActivePercent: snapshot.sparkleGapsActivePercent,
     sparkleGapsSpeed: snapshot.sparkleGapsSpeed,

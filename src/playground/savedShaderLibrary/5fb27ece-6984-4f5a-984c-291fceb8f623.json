@@ -1,0 +1,86 @@
+{
+  "id": "5fb27ece-6984-4f5a-984c-291fceb8f623",
+  "label": "Retro Wave",
+  "source": "void mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n// Normalized pixel coordinates (from 0 to 1)\nvec2 uv = fragCoord/iResolution.xy;\n\n// Time varying pixel color\nfloat x = fragCoord.x/100.0;\nfloat phase = iTime*1.0;\n\nfloat ass = 0.0;\nfloat arr[10];\n\narr[0] = -0.55;\narr[1] = 0.77;\narr[2] = 0.15;\narr[3] = -0.45;\narr[4] = -0.3;\narr[5] = 0.42;\narr[6] = 0.433;\narr[7] = -0.13;\narr[8] = 0.55;\narr[9] = 0.65;\n\nfor(float i=0.0; i<10.0; i+=1.0){\nfloat k = pow(2.0, i);\nass += sin(iTime + arr[int(i)] * x ) * sin((x+ arr[int(i)] * phase)*k/2.0) / k / 4.0;\n}\n\nvec3 col = vec3(sin(iTime), distance(vec2(0, 0), fragCoord)/500.0, 0);\n\nfloat val = 1.0- pow(abs(0.55 + sin(fragCoord.y*1.0 + 0.567)*0.05 - uv.y), 1.0) * (ass + 0.4)/(sin(iTime*2.0 + 1.11*x)*0.5+1.0)*32.0 ;\nfloat val1 = 1.0- pow(abs(0.5 + sin(fragCoord.y*1.123 + 1.111)*0.05 - uv.y), 1.0) * (ass + 0.4)/(sin(iTime*2.0 - 2.0*x)*0.5+1.0)*32.0 ;\nfloat val2 = 1.0- pow(abs(0.45 + sin(fragCoord.y*0.984 + 5.123)*0.05 - uv.y), 1.0) * (ass + 0.4)/(sin(iTime*5.1 - 0.67*x)*0.5+1.0) *32.0;\nif(val > 0.0 || val1 > 0.0 || val2 > 0.0){\ncol = vec3 (1.0 - val, 1.0 - val1, 1.0 - val2);\n}\nelse\ncol = vec3(0.0, 0.0, 0.0);\n\n// Output to screen\nfragColor = vec4(col,1.0);\n}",
+  "createdAt": 1781561999212,
+  "config": {
+    "duotoneEnabled": true,
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "void mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n// Normalized pixel coordinates (from 0 to 1)\nvec2 uv = fragCoord/iResolution.xy;\n\n// Time varying pixel color\nfloat x = fragCoord.x/100.0;\nfloat phase = iTime*1.0;\n\nfloat ass = 0.0;\nfloat arr[10];\n\narr[0] = -0.55;\narr[1] = 0.77;\narr[2] = 0.15;\narr[3] = -0.45;\narr[4] = -0.3;\narr[5] = 0.42;\narr[6] = 0.433;\narr[7] = -0.13;\narr[8] = 0.55;\narr[9] = 0.65;\n\nfor(float i=0.0; i<10.0; i+=1.0){\nfloat k = pow(2.0, i);\nass += sin(iTime + arr[int(i)] * x ) * sin((x+ arr[int(i)] * phase)*k/2.0) / k / 4.0;\n}\n\nvec3 col = vec3(sin(iTime), distance(vec2(0, 0), fragCoord)/500.0, 0);\n\nfloat val = 1.0- pow(abs(0.55 + sin(fragCoord.y*1.0 + 0.567)*0.05 - uv.y), 1.0) * (ass + 0.4)/(sin(iTime*2.0 + 1.11*x)*0.5+1.0)*32.0 ;\nfloat val1 = 1.0- pow(abs(0.5 + sin(fragCoord.y*1.123 + 1.111)*0.05 - uv.y), 1.0) * (ass + 0.4)/(sin(iTime*2.0 - 2.0*x)*0.5+1.0)*32.0 ;\nfloat val2 = 1.0- pow(abs(0.45 + sin(fragCoord.y*0.984 + 5.123)*0.05 - uv.y), 1.0) * (ass + 0.4)/(sin(iTime*5.1 - 0.67*x)*0.5+1.0) *32.0;\nif(val > 0.0 || val1 > 0.0 || val2 > 0.0){\ncol = vec3 (1.0 - val, 1.0 - val1, 1.0 - val2);\n}\nelse\ncol = vec3(0.0, 0.0, 0.0);\n\n// Output to screen\nfragColor = vec4(col,1.0);\n}"
+  }
+}

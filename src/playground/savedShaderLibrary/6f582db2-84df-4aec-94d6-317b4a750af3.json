@@ -1,0 +1,70 @@
+{
+  "id": "6f582db2-84df-4aec-94d6-317b4a750af3",
+  "label": "Wave Spectrum",
+  "source": "#define PI 3.141592\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    \n\n    \n    vec2 uv = fragCoord.xy / iResolution.xy;\n    \n\tvec4 color = vec4(uv,.5+.5*sin(iTime),1.);\n    \n    vec4 color2 = vec4(1. - ((uv.x + uv.y) / 2.),uv,1.);\n    \n    vec2 pos = uv*2.-1.;\n    \n    \n    color = color2 * abs(1./(sin(pos.y + cos(pos.x*.5 + iTime)*.8)*10.));\n   \n    fragColor = color;\n}\n\n",
+  "createdAt": 1781556386957,
+  "config": {
+    "duotoneEnabled": true,
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "#define PI 3.141592\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    \n\n    \n    vec2 uv = fragCoord.xy / iResolution.xy;\n    \n\tvec4 color = vec4(uv,.5+.5*sin(iTime),1.);\n    \n    vec4 color2 = vec4(1. - ((uv.x + uv.y) / 2.),uv,1.);\n    \n    vec2 pos = uv*2.-1.;\n    \n    \n    color = color2 * abs(1./(sin(pos.y + cos(pos.x*.5 + iTime)*.8)*10.));\n   \n    fragColor = color;\n}\n\n"
+  }
+}

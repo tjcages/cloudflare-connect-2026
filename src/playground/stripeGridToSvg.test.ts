@@ -26,6 +26,22 @@ describe("stripeGridToSvg", () => {
     expect(svg).toContain("@supports");
   });
 
+  it("can embed a full-frame underlay image beneath stripe paths", () => {
+    const colors = buildStripeColors();
+    const grid: BlockGrid = {
+      cols: 1,
+      rows: 1,
+      indices: new Uint8Array([1]),
+    };
+    const svg = stripeGridToSvg(grid, colors, 7, 7, {
+      underlayDataUrl: "data:image/png;base64,underlay-test",
+    });
+
+    expect(svg).toContain('class="stripe-underlay"');
+    expect(svg).toContain('href="data:image/png;base64,underlay-test"');
+    expect(svg.indexOf('class="stripe-underlay"')).toBeLessThan(svg.indexOf('<path class="fill-stripe-1"'));
+  });
+
   it("can fill stripes from per-cell sampled colors", () => {
     const colors = buildStripeColors();
     const grid: BlockGrid = {
@@ -38,6 +54,34 @@ describe("stripeGridToSvg", () => {
 
     expect(svg).toContain('fill="#ff0000"');
     expect(svg).not.toContain(`class="fill-stripe-${colors.stripes.length}"`);
+  });
+
+  it("uses cell pitch for stripe placement instead of hardcoded 7px", () => {
+    const colors = buildStripeColors();
+    const grid: BlockGrid = {
+      cols: 2,
+      rows: 1,
+      indices: new Uint8Array([0, 1]),
+    };
+    const pitch = 70;
+    const svg = stripeGridToSvg(grid, colors, pitch * 2, pitch, {
+      layout: {
+        cellPitchWidth: pitch,
+        cellPitchHeight: pitch,
+        gapX: 0,
+        gapY: 0,
+        orientation: "vertical",
+      },
+    });
+
+    const defaultSvg = stripeGridToSvg(grid, colors, 14, 7);
+    const pitchedMatch = svg.match(/<path class="fill-stripe-1" d="([^"]+)"/);
+    const defaultMatch = defaultSvg.match(/<path class="fill-stripe-1" d="([^"]+)"/);
+    expect(pitchedMatch).not.toBeNull();
+    expect(defaultMatch).not.toBeNull();
+    const pitchedX = Number(pitchedMatch![1]!.match(/^M([\d.]+)/)?.[1]);
+    const defaultX = Number(defaultMatch![1]!.match(/^M([\d.]+)/)?.[1]);
+    expect(pitchedX).toBeGreaterThan(defaultX * 5);
   });
 
   it("embeds rasterized Berkeley glyphs as reusable SVG symbols", () => {

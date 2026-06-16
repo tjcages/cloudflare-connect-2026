@@ -1,0 +1,106 @@
+{
+  "id": "6b50180e-ae56-41fa-a64f-d930eff6af65",
+  "label": "Signal 0",
+  "source": "#define PI 3.141592\n\nfloat attenuate(float dist, vec3 coeffs) {\n    return 1.0 / (dot(vec3(1.0, dist, dist * dist), coeffs));\n}\n\nfloat get_signal_y(float x, float u_time) {\n    float y = sin(x);\n    y += 0.5 * sin(2.0 * x - u_time);\n    y += 0.25 * sin(4.0 * x);\n    y += 0.15 * sin(8.0 * x - u_time);\n    y += 0.05 * sin(16.0 * x);\n    return y;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord)\n{\n    float u_aspect = iResolution.x / iResolution.y;\n    float u_zoomout = 5.0;\n    vec3 u_grid_color = vec3(0.3, 1.0, 0.3);\n    vec3 u_signal_color = vec3(0.0, 1.0, 0.0);\n    float u_anim_period = 10.0;\n    float u_time = iTime + u_anim_period * 0.5;\n    float u_distortion = 2.850;\n    vec3 u_grid_atten = vec3(1.0, 250.0, 500.0);\n    vec3 u_ghost_atten = vec3(1.0, 10.0, 50.0);\n    vec3 u_tip_atten = vec3(1.0, 2.0, 4.0);\n\n    vec2 vs_uv = fragCoord / iResolution.xy;\n    vec2 sp = vs_uv * 2.0 - 1.0;\n    sp.x *= u_aspect;\n    sp *= u_zoomout;\n\n    {\n        float r = length(sp);\n        float power = PI * u_distortion / 100.0;\n        sp = normalize(sp) * tan(r * power) / tan(power);\n    }\n\n    vec3 signal_color;\n    vec2 signal_tip;\n    {\n        float range = u_zoomout * u_aspect * 2.0;\n        range *= 2.0;\n\n        float progress = mod(u_time, u_anim_period) / u_anim_period;\n\n        float tip_x = -0.5 * range + progress * range;\n        float tip_y = get_signal_y(tip_x, u_time);\n        signal_tip = vec2(tip_x, tip_y);\n        float tip_d = distance(sp, signal_tip);\n\n        float ghost_x = sp.x;\n        float ghost_y = get_signal_y(ghost_x, u_time);\n        float ghost_d = distance(sp, vec2(ghost_x, ghost_y));\n\n        float d = tip_x - sp.x;\n        d = d + abs(min(d, 0.0)) * 9999.9;\n\n        vec3 atten = u_ghost_atten;\n        atten += pow(d, 2.0);\n\n        float ghost = attenuate(ghost_d, atten);\n        ghost += attenuate(tip_d, u_tip_atten);\n\n        signal_color = ghost * u_signal_color;\n    }\n\n    vec3 grid_color;\n    {\n        float dx = min(fract(abs(sp.x)), 1.0 - fract(abs(sp.x)));\n        float dy = min(fract(abs(sp.y)), 1.0 - fract(abs(sp.y)));\n        float d = min(dx, dy);\n\n        vec3 atten = u_grid_atten;\n        atten.x += 0.25 * pow(distance(signal_tip, sp), 2.0);\n        float grid = attenuate(d, atten);\n\n        grid_color = grid * u_grid_color;\n    }\n\n    vec3 color = grid_color + signal_color;\n    fragColor = vec4(color, 1.0);\n}",
+  "createdAt": 1781557463928,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.07,
+      "exposure": -0.6000000000000002,
+      "contrast": 0.88,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1.1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "sourceTransform": {
+      "fit": "stretch",
+      "zoom": 1,
+      "panX": 0,
+      "panY": 1
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "randomColumns",
+      "wave": {
+        "position": "center bottom",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "#define PI 3.141592\n\nfloat attenuate(float dist, vec3 coeffs) {\n    return 1.0 / (dot(vec3(1.0, dist, dist * dist), coeffs));\n}\n\nfloat get_signal_y(float x, float u_time) {\n    float y = sin(x);\n    y += 0.5 * sin(2.0 * x - u_time);\n    y += 0.25 * sin(4.0 * x);\n    y += 0.15 * sin(8.0 * x - u_time);\n    y += 0.05 * sin(16.0 * x);\n    return y;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord)\n{\n    float u_aspect = iResolution.x / iResolution.y;\n    float u_zoomout = 5.0;\n    vec3 u_grid_color = vec3(0.3, 1.0, 0.3);\n    vec3 u_signal_color = vec3(0.0, 1.0, 0.0);\n    float u_anim_period = 10.0;\n    float u_time = iTime + u_anim_period * 0.5;\n    float u_distortion = 2.850;\n    vec3 u_grid_atten = vec3(1.0, 250.0, 500.0);\n    vec3 u_ghost_atten = vec3(1.0, 10.0, 50.0);\n    vec3 u_tip_atten = vec3(1.0, 2.0, 4.0);\n\n    vec2 vs_uv = fragCoord / iResolution.xy;\n    vec2 sp = vs_uv * 2.0 - 1.0;\n    sp.x *= u_aspect;\n    sp *= u_zoomout;\n\n    {\n        float r = length(sp);\n        float power = PI * u_distortion / 100.0;\n        sp = normalize(sp) * tan(r * power) / tan(power);\n    }\n\n    vec3 signal_color;\n    vec2 signal_tip;\n    {\n        float range = u_zoomout * u_aspect * 2.0;\n        range *= 2.0;\n\n        float progress = mod(u_time, u_anim_period) / u_anim_period;\n\n        float tip_x = -0.5 * range + progress * range;\n        float tip_y = get_signal_y(tip_x, u_time);\n        signal_tip = vec2(tip_x, tip_y);\n        float tip_d = distance(sp, signal_tip);\n\n        float ghost_x = sp.x;\n        float ghost_y = get_signal_y(ghost_x, u_time);\n        float ghost_d = distance(sp, vec2(ghost_x, ghost_y));\n\n        float d = tip_x - sp.x;\n        d = d + abs(min(d, 0.0)) * 9999.9;\n\n        vec3 atten = u_ghost_atten;\n        atten += pow(d, 2.0);\n\n        float ghost = attenuate(ghost_d, atten);\n        ghost += attenuate(tip_d, u_tip_atten);\n\n        signal_color = ghost * u_signal_color;\n    }\n\n    vec3 grid_color;\n    {\n        float dx = min(fract(abs(sp.x)), 1.0 - fract(abs(sp.x)));\n        float dy = min(fract(abs(sp.y)), 1.0 - fract(abs(sp.y)));\n        float d = min(dx, dy);\n\n        vec3 atten = u_grid_atten;\n        atten.x += 0.25 * pow(distance(signal_tip, sp), 2.0);\n        float grid = attenuate(d, atten);\n\n        grid_color = grid * u_grid_color;\n    }\n\n    vec3 color = grid_color + signal_color;\n    fragColor = vec4(color, 1.0);\n}"
+  }
+}

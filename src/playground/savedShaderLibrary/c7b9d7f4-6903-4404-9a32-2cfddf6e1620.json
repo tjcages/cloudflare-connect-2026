@@ -1,0 +1,106 @@
+{
+  "id": "c7b9d7f4-6903-4404-9a32-2cfddf6e1620",
+  "label": "Audio Ring",
+  "source": "// Trying to hack together a neat visualizer I saw a year or so ago,\n// something along those lines...\n\n// optimizations? better camera movement?\n\nconst int MAX_MARCH_STEPS = 20;\nconst float EPSILON = .001;\nconst float PI = 3.14159;\nconst float PI23 = PI * .66;\nconst float LIGHT_INTENSITY =  .8;\nconst float BASE_LIGHT = 0.7;\n\nstruct Light\n{\n    vec3 Position;\n    vec3 Color;\n};\n\n\nstruct Ray\n{\n    vec3 Origin;\n    vec3 Direction;\n};\n\nstruct Camera\n{\n    vec3 Position;\n    vec3 LookAt;\n    vec3 Up;\n};\n\nmat4 ViewMatrix(Camera camera)\n{\n    vec3 viewDir = normalize(camera.LookAt - camera.Position);\n    vec3 right = normalize(cross(viewDir, camera.Up));\n    vec3 transUp = normalize(cross(right, viewDir));\n    \n    return mat4(\n        vec4(right, 0.0),\n        vec4(transUp, 0.0),\n        vec4(-viewDir, 0.0),\n        vec4(0.0, 0.0, 0.0, 1.0)\n    );\n}\n\n//Almost all of the SDF functions are taken directly from or adapted from:\n//https://iquilezles.org/articles/distfunctions\nfloat IntersectSDF(float distA, float distB) \n{\n    return max(distA, distB);\n}\n\nfloat UnionSDF(float distA, float distB) \n{\n    return min(distA, distB);\n}\n\nfloat DifferenceSDF(float distA, float distB) \n{\n    return max(distA, -distB);\n}\n\nfloat SphereSDF(vec3 center, float radius)\n{\n    return length(center) - radius;\n}\n\nfloat BoxSDF(vec3 p, vec3 b)\n{\n  vec3 q = abs(p) - b;\n  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);\n}\n\n// Create infinite copies of an object\nvec3 opRep( in vec3 p, in vec3 c)\n{\n    vec3 q = mod(p+0.5*c,c)-0.5*c;\n    return q;\n}\n\n//A single instance of the infinitely repeated scene\nfloat RepeatedSceneSingleInstance(vec3 point)\n{\n    float finalT = 10.;\n    float i_step = 1./20.;\n    float i = -2.5;\n    for(int j=0; j<125; j++)\n    {\n        float freq = texture(iChannel0, vec2((i + 2.5) / 20.0, 0.0)).x;\n        float discFrequency = pow(floor(freq * 20.0) / 20.0, 4.0) * 4.0;\n        \n        vec3 boxPoint = vec3(5.-point.x-10.*sin(i), 5.-point.y, point.z-10.*cos(i));\n        finalT = UnionSDF(finalT, BoxSDF(boxPoint, vec3(.1, discFrequency,.1)));\n        i += i_step;\n    }\n    \n    \n    return finalT;\n}\n\n\n//The single instance scene\nfloat NormalScene(vec3 point, Light light1, Light light2, Light light3)\n{\n    vec3 lightPoint = point - light1.Position;\n    float t = SphereSDF(lightPoint, .5);\n    \n    lightPoint = point - light2.Position;\n    t = UnionSDF(t, SphereSDF(lightPoint, .5));\n    \n    lightPoint = point - light3.Position;\n    t = UnionSDF(t, SphereSDF(lightPoint, .5));\n    return t;\n}\n\n\nvec3 GetNormal(vec3 point, Light light1, Light light2, Light light3) \n{\n    vec3 normal = vec3(0,0,0);\n    \n    normal.x  = RepeatedSceneSingleInstance(vec3(point.x + EPSILON, point.y, point.z));\n    normal.x -= RepeatedSceneSingleInstance(vec3(point.x - EPSILON, point.y, point.z));\n    \n    normal.y  = RepeatedSceneSingleInstance(vec3(point.x, point.y + EPSILON, point.z));\n    normal.y -= RepeatedSceneSingleInstance(vec3(point.x, point.y - EPSILON, point.z));\n    \n    normal.z  = RepeatedSceneSingleInstance(vec3(point.x, point.y, point.z + EPSILON));\n    normal.z -= RepeatedSceneSingleInstance(vec3(point.x, point.y, point.z - EPSILON));\n\n    return normalize(normal);\n}\n\nfloat RayMarch(Ray ray, float startingTValue, float maxTValue) \n{\n    float currentT = startingTValue;\n    \n    for(int i = 0; i < MAX_MARCH_STEPS; ++i) \n    {\n        vec3 point = ray.Origin + ray.Direction * currentT;\n        \n        float closestTValue = RepeatedSceneSingleInstance(point);\n        currentT += closestTValue;\n        \n        if(closestTValue < EPSILON || closestTValue > maxTValue) \n        {\n            return currentT;\n        }\n    }\n    \n    return currentT;\n}\n\nfloat RayMarchLights(Ray ray, float startingTValue, float maxTValue, Light light1, Light light2, Light light3) \n{\n    float currentT = startingTValue;\n    \n    for(int i = 0; i < MAX_MARCH_STEPS; ++i) \n    {\n        vec3 point = ray.Origin + ray.Direction * currentT;\n        \n        float closestTValue = NormalScene(point, light1, light2, light3);\n        currentT += closestTValue;\n        \n        if(closestTValue < EPSILON || closestTValue > maxTValue) \n        {\n            return currentT;\n        }\n    }\n    \n    return currentT;\n}\n\n\nfloat Diffuse(vec3 point, vec3 normal, Light light) \n{\n    \n    vec3 lightVector = normalize(light.Position - point);\n    \n    float cosAngle = max(dot(lightVector, normal), 0.0);\n    \n    return max(cosAngle, 0.0);\n}\n\nfloat Specular(vec3 point, vec3 normal, Camera camera, Light light, float shinyNess) \n{\n    vec3 lightVector = normalize(light.Position - point);\n    lightVector = reflect(lightVector, normal);\n    vec3 viewVector = normalize(camera.Position - point);\n    \n    float cosAngle = pow(max(dot(-lightVector, viewVector), 0.0), shinyNess);\n    \n    return max(cosAngle, 0.0);\n}\n\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord)\n{\n    //Generating our ray\n    vec2 uvRay = (fragCoord - .5 * iResolution.xy) / iResolution.y;\n    \n    \n    vec3 col = vec3(0,0,0);\n    \n    //Construct camera\n    Camera camera;\n    camera.Position = vec3(cos(iTime * .25) * 0.0, 10, sin(iTime * .25) * 20.0);\n    camera.Up = vec3(0, 1, 0);\n    camera.LookAt = vec3(10, 2, 0);\n    \n    mat4 worldToView = ViewMatrix(camera);\n    \n    vec4 worldDirection = normalize(vec4(uvRay, -1, 0));\n    vec4 viewDir = worldToView * worldDirection;\n    \n    //Get view ray\n    Ray ray;\n    ray.Origin = camera.Position;\n    ray.Direction = viewDir.xyz;\n    \n    vec4 tx = vec4(texture(iChannel0, uvRay));\n    vec3 k = 0.9*cos(tx.x*8.9)*cos(tx.x*8.9)*vec3(0.15, 0.25, 0.55) ;\n    \n    float bassFreq = texture(iChannel0, vec2((.1), 0.0)).x;\n    float medFreq = texture(iChannel0, vec2((.2), 0.0)).x;\n    medFreq += texture(iChannel0, vec2((.3), 0.0)).x;\n    medFreq += texture(iChannel0, vec2((.4), 0.0)).x;\n    medFreq = medFreq / 3.0;\n    \n    float topFreq = texture(iChannel0, vec2((.5), 0.0)).x;\n    topFreq += texture(iChannel0, vec2((.6), 0.0)).x;\n    topFreq += texture(iChannel0, vec2((.7), 0.0)).x;\n    topFreq += texture(iChannel0, vec2((.8), 0.0)).x;\n    topFreq += texture(iChannel0, vec2((.9), 0.0)).x;\n    topFreq = topFreq / 5.0f;\n    \n    vec3 lightColor = vec3(1, 0.533, 0.066);\n    \n    //Define our lights\n    Light light1;\n    light1.Position = camera.LookAt + vec3(cos(iTime * 1.0), .25, sin(iTime * 1.0)) * 10.0;\n    light1.Color = BASE_LIGHT * lightColor;\n    vec3 light1ModulatedColor = BASE_LIGHT * lightColor + lightColor * LIGHT_INTENSITY * bassFreq;\n    \n    lightColor = vec3(0.125, 0.639, 0.619);\n    Light light2;\n    light2.Position = camera.LookAt + vec3(cos(PI23 + iTime * 1.0), .25, sin(PI23 + iTime * 1.0)) * 10.0;\n    light2.Color = BASE_LIGHT * lightColor;\n    vec3 light2ModulatedColor = BASE_LIGHT * lightColor + lightColor * LIGHT_INTENSITY * medFreq;\n    \n    lightColor = vec3(0.615, 0, 1);\n    Light light3;\n    light3.Position = camera.LookAt + vec3(cos(2.0 * PI23 + iTime * 1.0), .25, sin(2.0 * PI23 + iTime * 1.0)) * 10.0;\n    light3.Color = BASE_LIGHT * lightColor;\n    vec3 light3ModulatedColor = BASE_LIGHT * lightColor + lightColor * LIGHT_INTENSITY * topFreq;\n    \n    float rayTValue = RayMarch(ray, 0.0, 100.0);\n    \n    vec3 point = ray.Origin + ray.Direction * rayTValue;\n    float closestTValue = RepeatedSceneSingleInstance(point);\n    \n    if(closestTValue < EPSILON) \n    {\n        vec3 surfaceColor = vec3(1.0f, 1.0f, 1.0f);\n        vec3 normal = GetNormal(point, light1, light2, light3);\n        col = surfaceColor * .1f;  \n         \n        col += Diffuse(point, normal, light1) * light1ModulatedColor * surfaceColor;\n            col += Specular(point, normal, camera, light1, 10.0) * light1ModulatedColor * surfaceColor;\n        col += Diffuse(point, normal, light2) * light2ModulatedColor * surfaceColor;\n          col += Specular(point, normal, camera, light2, 10.0) * light2ModulatedColor * surfaceColor;\n        col += Diffuse(point, normal, light3) * light3ModulatedColor * surfaceColor;\n        col += Specular(point, normal, camera, light3, 10.0) * light3ModulatedColor * surfaceColor;\n    }\n   //  col = clamp(pow(vec3(col*bassFreq),0.3/col), vec3(0),vec3(2));\n   \n //  col = mix(col, vec3(0,0,0), min(rayTValue / 200.0, 1.0));\n    \n    fragColor = vec4(col, rayTValue);\n}\n\n",
+  "createdAt": 1781560440733,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.060000000000000005,
+      "exposure": -0.5000000000000002,
+      "contrast": 0.88,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1.1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "sourceTransform": {
+      "fit": "stretch",
+      "zoom": 1.2,
+      "panX": 0,
+      "panY": 0
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "// Trying to hack together a neat visualizer I saw a year or so ago,\n// something along those lines...\n\n// optimizations? better camera movement?\n\nconst int MAX_MARCH_STEPS = 20;\nconst float EPSILON = .001;\nconst float PI = 3.14159;\nconst float PI23 = PI * .66;\nconst float LIGHT_INTENSITY =  .8;\nconst float BASE_LIGHT = 0.7;\n\nstruct Light\n{\n    vec3 Position;\n    vec3 Color;\n};\n\n\nstruct Ray\n{\n    vec3 Origin;\n    vec3 Direction;\n};\n\nstruct Camera\n{\n    vec3 Position;\n    vec3 LookAt;\n    vec3 Up;\n};\n\nmat4 ViewMatrix(Camera camera)\n{\n    vec3 viewDir = normalize(camera.LookAt - camera.Position);\n    vec3 right = normalize(cross(viewDir, camera.Up));\n    vec3 transUp = normalize(cross(right, viewDir));\n    \n    return mat4(\n        vec4(right, 0.0),\n        vec4(transUp, 0.0),\n        vec4(-viewDir, 0.0),\n        vec4(0.0, 0.0, 0.0, 1.0)\n    );\n}\n\n//Almost all of the SDF functions are taken directly from or adapted from:\n//https://iquilezles.org/articles/distfunctions\nfloat IntersectSDF(float distA, float distB) \n{\n    return max(distA, distB);\n}\n\nfloat UnionSDF(float distA, float distB) \n{\n    return min(distA, distB);\n}\n\nfloat DifferenceSDF(float distA, float distB) \n{\n    return max(distA, -distB);\n}\n\nfloat SphereSDF(vec3 center, float radius)\n{\n    return length(center) - radius;\n}\n\nfloat BoxSDF(vec3 p, vec3 b)\n{\n  vec3 q = abs(p) - b;\n  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);\n}\n\n// Create infinite copies of an object\nvec3 opRep( in vec3 p, in vec3 c)\n{\n    vec3 q = mod(p+0.5*c,c)-0.5*c;\n    return q;\n}\n\n//A single instance of the infinitely repeated scene\nfloat RepeatedSceneSingleInstance(vec3 point)\n{\n    float finalT = 10.;\n    float i_step = 1./20.;\n    float i = -2.5;\n    for(int j=0; j<125; j++)\n    {\n        float freq = texture(iChannel0, vec2((i + 2.5) / 20.0, 0.0)).x;\n        float discFrequency = pow(floor(freq * 20.0) / 20.0, 4.0) * 4.0;\n        \n        vec3 boxPoint = vec3(5.-point.x-10.*sin(i), 5.-point.y, point.z-10.*cos(i));\n        finalT = UnionSDF(finalT, BoxSDF(boxPoint, vec3(.1, discFrequency,.1)));\n        i += i_step;\n    }\n    \n    \n    return finalT;\n}\n\n\n//The single instance scene\nfloat NormalScene(vec3 point, Light light1, Light light2, Light light3)\n{\n    vec3 lightPoint = point - light1.Position;\n    float t = SphereSDF(lightPoint, .5);\n    \n    lightPoint = point - light2.Position;\n    t = UnionSDF(t, SphereSDF(lightPoint, .5));\n    \n    lightPoint = point - light3.Position;\n    t = UnionSDF(t, SphereSDF(lightPoint, .5));\n    return t;\n}\n\n\nvec3 GetNormal(vec3 point, Light light1, Light light2, Light light3) \n{\n    vec3 normal = vec3(0,0,0);\n    \n    normal.x  = RepeatedSceneSingleInstance(vec3(point.x + EPSILON, point.y, point.z));\n    normal.x -= RepeatedSceneSingleInstance(vec3(point.x - EPSILON, point.y, point.z));\n    \n    normal.y  = RepeatedSceneSingleInstance(vec3(point.x, point.y + EPSILON, point.z));\n    normal.y -= RepeatedSceneSingleInstance(vec3(point.x, point.y - EPSILON, point.z));\n    \n    normal.z  = RepeatedSceneSingleInstance(vec3(point.x, point.y, point.z + EPSILON));\n    normal.z -= RepeatedSceneSingleInstance(vec3(point.x, point.y, point.z - EPSILON));\n\n    return normalize(normal);\n}\n\nfloat RayMarch(Ray ray, float startingTValue, float maxTValue) \n{\n    float currentT = startingTValue;\n    \n    for(int i = 0; i < MAX_MARCH_STEPS; ++i) \n    {\n        vec3 point = ray.Origin + ray.Direction * currentT;\n        \n        float closestTValue = RepeatedSceneSingleInstance(point);\n        currentT += closestTValue;\n        \n        if(closestTValue < EPSILON || closestTValue > maxTValue) \n        {\n            return currentT;\n        }\n    }\n    \n    return currentT;\n}\n\nfloat RayMarchLights(Ray ray, float startingTValue, float maxTValue, Light light1, Light light2, Light light3) \n{\n    float currentT = startingTValue;\n    \n    for(int i = 0; i < MAX_MARCH_STEPS; ++i) \n    {\n        vec3 point = ray.Origin + ray.Direction * currentT;\n        \n        float closestTValue = NormalScene(point, light1, light2, light3);\n        currentT += closestTValue;\n        \n        if(closestTValue < EPSILON || closestTValue > maxTValue) \n        {\n            return currentT;\n        }\n    }\n    \n    return currentT;\n}\n\n\nfloat Diffuse(vec3 point, vec3 normal, Light light) \n{\n    \n    vec3 lightVector = normalize(light.Position - point);\n    \n    float cosAngle = max(dot(lightVector, normal), 0.0);\n    \n    return max(cosAngle, 0.0);\n}\n\nfloat Specular(vec3 point, vec3 normal, Camera camera, Light light, float shinyNess) \n{\n    vec3 lightVector = normalize(light.Position - point);\n    lightVector = reflect(lightVector, normal);\n    vec3 viewVector = normalize(camera.Position - point);\n    \n    float cosAngle = pow(max(dot(-lightVector, viewVector), 0.0), shinyNess);\n    \n    return max(cosAngle, 0.0);\n}\n\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord)\n{\n    //Generating our ray\n    vec2 uvRay = (fragCoord - .5 * iResolution.xy) / iResolution.y;\n    \n    \n    vec3 col = vec3(0,0,0);\n    \n    //Construct camera\n    Camera camera;\n    camera.Position = vec3(cos(iTime * .25) * 0.0, 10, sin(iTime * .25) * 20.0);\n    camera.Up = vec3(0, 1, 0);\n    camera.LookAt = vec3(10, 2, 0);\n    \n    mat4 worldToView = ViewMatrix(camera);\n    \n    vec4 worldDirection = normalize(vec4(uvRay, -1, 0));\n    vec4 viewDir = worldToView * worldDirection;\n    \n    //Get view ray\n    Ray ray;\n    ray.Origin = camera.Position;\n    ray.Direction = viewDir.xyz;\n    \n    vec4 tx = vec4(texture(iChannel0, uvRay));\n    vec3 k = 0.9*cos(tx.x*8.9)*cos(tx.x*8.9)*vec3(0.15, 0.25, 0.55) ;\n    \n    float bassFreq = texture(iChannel0, vec2((.1), 0.0)).x;\n    float medFreq = texture(iChannel0, vec2((.2), 0.0)).x;\n    medFreq += texture(iChannel0, vec2((.3), 0.0)).x;\n    medFreq += texture(iChannel0, vec2((.4), 0.0)).x;\n    medFreq = medFreq / 3.0;\n    \n    float topFreq = texture(iChannel0, vec2((.5), 0.0)).x;\n    topFreq += texture(iChannel0, vec2((.6), 0.0)).x;\n    topFreq += texture(iChannel0, vec2((.7), 0.0)).x;\n    topFreq += texture(iChannel0, vec2((.8), 0.0)).x;\n    topFreq += texture(iChannel0, vec2((.9), 0.0)).x;\n    topFreq = topFreq / 5.0f;\n    \n    vec3 lightColor = vec3(1, 0.533, 0.066);\n    \n    //Define our lights\n    Light light1;\n    light1.Position = camera.LookAt + vec3(cos(iTime * 1.0), .25, sin(iTime * 1.0)) * 10.0;\n    light1.Color = BASE_LIGHT * lightColor;\n    vec3 light1ModulatedColor = BASE_LIGHT * lightColor + lightColor * LIGHT_INTENSITY * bassFreq;\n    \n    lightColor = vec3(0.125, 0.639, 0.619);\n    Light light2;\n    light2.Position = camera.LookAt + vec3(cos(PI23 + iTime * 1.0), .25, sin(PI23 + iTime * 1.0)) * 10.0;\n    light2.Color = BASE_LIGHT * lightColor;\n    vec3 light2ModulatedColor = BASE_LIGHT * lightColor + lightColor * LIGHT_INTENSITY * medFreq;\n    \n    lightColor = vec3(0.615, 0, 1);\n    Light light3;\n    light3.Position = camera.LookAt + vec3(cos(2.0 * PI23 + iTime * 1.0), .25, sin(2.0 * PI23 + iTime * 1.0)) * 10.0;\n    light3.Color = BASE_LIGHT * lightColor;\n    vec3 light3ModulatedColor = BASE_LIGHT * lightColor + lightColor * LIGHT_INTENSITY * topFreq;\n    \n    float rayTValue = RayMarch(ray, 0.0, 100.0);\n    \n    vec3 point = ray.Origin + ray.Direction * rayTValue;\n    float closestTValue = RepeatedSceneSingleInstance(point);\n    \n    if(closestTValue < EPSILON) \n    {\n        vec3 surfaceColor = vec3(1.0f, 1.0f, 1.0f);\n        vec3 normal = GetNormal(point, light1, light2, light3);\n        col = surfaceColor * .1f;  \n         \n        col += Diffuse(point, normal, light1) * light1ModulatedColor * surfaceColor;\n            col += Specular(point, normal, camera, light1, 10.0) * light1ModulatedColor * surfaceColor;\n        col += Diffuse(point, normal, light2) * light2ModulatedColor * surfaceColor;\n          col += Specular(point, normal, camera, light2, 10.0) * light2ModulatedColor * surfaceColor;\n        col += Diffuse(point, normal, light3) * light3ModulatedColor * surfaceColor;\n        col += Specular(point, normal, camera, light3, 10.0) * light3ModulatedColor * surfaceColor;\n    }\n   //  col = clamp(pow(vec3(col*bassFreq),0.3/col), vec3(0),vec3(2));\n   \n //  col = mix(col, vec3(0,0,0), min(rayTValue / 200.0, 1.0));\n    \n    fragColor = vec4(col, rayTValue);\n}\n\n"
+  }
+}

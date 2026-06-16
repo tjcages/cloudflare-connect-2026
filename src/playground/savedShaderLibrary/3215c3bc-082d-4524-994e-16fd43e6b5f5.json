@@ -1,0 +1,106 @@
+{
+  "id": "3215c3bc-082d-4524-994e-16fd43e6b5f5",
+  "label": "River Path",
+  "source": "/*\n    Golfed from 399 to 377 by\n    \n        @FabriceNeyret2     -14\n        @AleDev             -8\n        \n        \n        Thanks! :D\n*/\n\n#define A(x,r) abs(dot(sin(x*p*a), r +p-p )) / a\n\nvoid mainImage(out vec4 o, vec2 u) \n{\n    float i,r,d,s,a,t=iTime*5e1;\n    vec3  p = iResolution; \n    \n    u = (u-p.xy/2.)/p.y;\n    \n    for (o*=i;i++<1e2; \n         d += s = .02 + abs(min(s,r))*.2,\n         o += vec4(1,2,4,0) / s)\n         \n        for(p = vec3(u * d, d + t),\n            a = .01,\n            r = 15. + p.y,\n            s = r + 7. - sin(p.z*.01) * 32. -\n            abs(p.x += sin(p.z*.03)*8.)*.72;\n\n            a < .1;\n\n            r += A(.06 * p.z + .04 * t + 12., .015),\n            s += A(1.,.5),\n\n            a *= 1.4);\n\n    o = tanh(o / 2e3 / dot(u-=.45,u));\n}\n\n\n\n\n/*\n\noriginal:\n\nvoid mainImage(out vec4 o, vec2 u) {\n    float i,r,d,s,t=iTime*5e1;\n    vec3  p = iResolution;    \n    u = (u-p.xy/2.)/p.y;\n    for(o*=i; i++<1e2; ) {\n        p = vec3(u * d,d+t);\n        p.x += sin(p.z*.03)*8.;\n        s = 22. + p.y - sin(p.z*.01) * 32. - abs(p.x*.08)*9.;\n        r = 15. + p.y;\n        for (float a = .01; a < .1;\n            r += abs(dot(sin(.06*p.z+.04*t+p * 12. * a ), vec3(.015))) / a,\n            s += abs(dot(sin(p * 1. * a ), vec3(.5))) / a,\n            a *= 1.4);\n        d += s = .02 + abs(min(s,r))*.2;\n        o += vec4(1,2,4,0) / s;\n    }\n    o = tanh(o / 2e3 / dot(u-=.45,u));\n}\n\n*/",
+  "createdAt": 1781559029344,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.07,
+      "exposure": -0.6000000000000002,
+      "contrast": 0.88,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1.1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "sourceTransform": {
+      "fit": "stretch",
+      "zoom": 1,
+      "panX": 0,
+      "panY": 1
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center bottom",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "/*\n    Golfed from 399 to 377 by\n    \n        @FabriceNeyret2     -14\n        @AleDev             -8\n        \n        \n        Thanks! :D\n*/\n\n#define A(x,r) abs(dot(sin(x*p*a), r +p-p )) / a\n\nvoid mainImage(out vec4 o, vec2 u) \n{\n    float i,r,d,s,a,t=iTime*5e1;\n    vec3  p = iResolution; \n    \n    u = (u-p.xy/2.)/p.y;\n    \n    for (o*=i;i++<1e2; \n         d += s = .02 + abs(min(s,r))*.2,\n         o += vec4(1,2,4,0) / s)\n         \n        for(p = vec3(u * d, d + t),\n            a = .01,\n            r = 15. + p.y,\n            s = r + 7. - sin(p.z*.01) * 32. -\n            abs(p.x += sin(p.z*.03)*8.)*.72;\n\n            a < .1;\n\n            r += A(.06 * p.z + .04 * t + 12., .015),\n            s += A(1.,.5),\n\n            a *= 1.4);\n\n    o = tanh(o / 2e3 / dot(u-=.45,u));\n}\n\n\n\n\n/*\n\noriginal:\n\nvoid mainImage(out vec4 o, vec2 u) {\n    float i,r,d,s,t=iTime*5e1;\n    vec3  p = iResolution;    \n    u = (u-p.xy/2.)/p.y;\n    for(o*=i; i++<1e2; ) {\n        p = vec3(u * d,d+t);\n        p.x += sin(p.z*.03)*8.;\n        s = 22. + p.y - sin(p.z*.01) * 32. - abs(p.x*.08)*9.;\n        r = 15. + p.y;\n        for (float a = .01; a < .1;\n            r += abs(dot(sin(.06*p.z+.04*t+p * 12. * a ), vec3(.015))) / a,\n            s += abs(dot(sin(p * 1. * a ), vec3(.5))) / a,\n            a *= 1.4);\n        d += s = .02 + abs(min(s,r))*.2;\n        o += vec4(1,2,4,0) / s;\n    }\n    o = tanh(o / 2e3 / dot(u-=.45,u));\n}\n\n*/"
+  }
+}

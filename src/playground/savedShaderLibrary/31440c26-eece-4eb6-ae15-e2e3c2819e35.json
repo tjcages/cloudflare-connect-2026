@@ -1,0 +1,100 @@
+{
+  "id": "31440c26-eece-4eb6-ae15-e2e3c2819e35",
+  "label": "World Waves",
+  "source": "#define RM_FACTOR   0.9\n#define RM_ITERS     90\n\nfloat plasma(vec3 r) {\n\tfloat mx = r.x + iTime / 0.130;\n\tmx += 20.0 * sin((r.y + mx) / 20.0 + iTime / 0.810);\n\tfloat my = r.y - iTime / 0.200;\n\tmy += 30.0 * cos(r.x / 23.0 + iTime / 0.710);\n\treturn r.z - (sin(mx / 7.0) * 2.25 + sin(my / 3.0) * 2.25 + 5.5);\n}\n\nfloat scene(vec3 r) {\n\treturn plasma(r);\n}\n\nfloat raymarch(vec3 pos, vec3 dir) {\n\tfloat dist = 0.0;\n\tfloat dscene;\n\n\tfor (int i = 0; i < RM_ITERS; i++) {\n\t\tdscene = scene(pos + dist * dir);\n\t\tif (abs(dscene) < 0.1)\n\t\t\tbreak;\n\t\tdist += RM_FACTOR * dscene;\n\t}\n\n\treturn dist;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n\tfloat c, s;\n\tfloat vfov = 3.14159 / 2.3;\n\n\tvec3 cam = vec3(0.0, 0.0, 30.0);\n\n\tvec2 uv = (fragCoord.xy / iResolution.xy) - 0.5;\n\tuv.x *= iResolution.x / iResolution.y;\n\tuv.y *= -1.0;\n\n\tvec3 dir = vec3(0.0, 0.0, -1.0);\n\n\tfloat xrot = vfov * length(uv);\n\n\tc = cos(xrot);\n\ts = sin(xrot);\n\tdir = mat3(1.0, 0.0, 0.0,\n\t           0.0,   c,  -s,\n\t           0.0,   s,   c) * dir;\n\n\tc = normalize(uv).x;\n\ts = normalize(uv).y;\n\tdir = mat3(  c,  -s, 0.0,\n\t             s,   c, 0.0,\n\t           0.0, 0.0, 1.0) * dir;\n\n\tc = cos(0.7);\n\ts = sin(0.7);\n\tdir = mat3(  c, 0.0,   s,\n\t           0.0, 1.0, 0.0,\n\t            -s, 0.0,   c) * dir;\n\n\tfloat dist = raymarch(cam, dir);\n\tvec3 pos = cam + dist * dir;\n\n\tfragColor.rgb = mix(\n\t\tvec3(0.4, 0.8, 1.0),\n\t\tmix(\n\t\t\tvec3(0.0, 0.0, 1.0),\n\t\t\tvec3(1.0, 1.0, 1.0),\n\t\t\tpos.z / 10.0\n\t\t),\n\t\t1.0 / (dist / 20.0)\n\t);\n}\n",
+  "createdAt": 1781562990141,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.24999999999999997,
+      "exposure": 1.3000000000000003,
+      "contrast": 1,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "randomColumns",
+      "wave": {
+        "position": "center",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "#define RM_FACTOR   0.9\n#define RM_ITERS     90\n\nfloat plasma(vec3 r) {\n\tfloat mx = r.x + iTime / 0.130;\n\tmx += 20.0 * sin((r.y + mx) / 20.0 + iTime / 0.810);\n\tfloat my = r.y - iTime / 0.200;\n\tmy += 30.0 * cos(r.x / 23.0 + iTime / 0.710);\n\treturn r.z - (sin(mx / 7.0) * 2.25 + sin(my / 3.0) * 2.25 + 5.5);\n}\n\nfloat scene(vec3 r) {\n\treturn plasma(r);\n}\n\nfloat raymarch(vec3 pos, vec3 dir) {\n\tfloat dist = 0.0;\n\tfloat dscene;\n\n\tfor (int i = 0; i < RM_ITERS; i++) {\n\t\tdscene = scene(pos + dist * dir);\n\t\tif (abs(dscene) < 0.1)\n\t\t\tbreak;\n\t\tdist += RM_FACTOR * dscene;\n\t}\n\n\treturn dist;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n\tfloat c, s;\n\tfloat vfov = 3.14159 / 2.3;\n\n\tvec3 cam = vec3(0.0, 0.0, 30.0);\n\n\tvec2 uv = (fragCoord.xy / iResolution.xy) - 0.5;\n\tuv.x *= iResolution.x / iResolution.y;\n\tuv.y *= -1.0;\n\n\tvec3 dir = vec3(0.0, 0.0, -1.0);\n\n\tfloat xrot = vfov * length(uv);\n\n\tc = cos(xrot);\n\ts = sin(xrot);\n\tdir = mat3(1.0, 0.0, 0.0,\n\t           0.0,   c,  -s,\n\t           0.0,   s,   c) * dir;\n\n\tc = normalize(uv).x;\n\ts = normalize(uv).y;\n\tdir = mat3(  c,  -s, 0.0,\n\t             s,   c, 0.0,\n\t           0.0, 0.0, 1.0) * dir;\n\n\tc = cos(0.7);\n\ts = sin(0.7);\n\tdir = mat3(  c, 0.0,   s,\n\t           0.0, 1.0, 0.0,\n\t            -s, 0.0,   c) * dir;\n\n\tfloat dist = raymarch(cam, dir);\n\tvec3 pos = cam + dist * dir;\n\n\tfragColor.rgb = mix(\n\t\tvec3(0.4, 0.8, 1.0),\n\t\tmix(\n\t\t\tvec3(0.0, 0.0, 1.0),\n\t\t\tvec3(1.0, 1.0, 1.0),\n\t\t\tpos.z / 10.0\n\t\t),\n\t\t1.0 / (dist / 20.0)\n\t);\n}\n"
+  }
+}

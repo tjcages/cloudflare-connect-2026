@@ -1,0 +1,100 @@
+{
+  "id": "780d4b85-9d32-4550-9cd1-013542743d67",
+  "label": "Spotlight",
+  "source": "#define T(a) texture(iChannel0,p.xz*.1-t*a)\nvoid mainImage( out vec4 o, in vec2 c ) {\n    vec4 p = vec4(c,0.,1.)/iResolution.xyxy-.5, d=p, e;\n    float t = iTime+6., x;\n    d.y -= .2;\n    p.z += t*.3;\n    for(float i=1.; i>0.; i-=.02)\n    {\n        e = sin(p*6.+t);\n        x = abs(p.y+e.x*e.z*.1-.75)-(e=T(.01)+T(.02)).x*.08;\n        o = .3/length(p.xy+vec2(sin(t),-.4)) - e*i*i;\n        if(x<.01) break;\n        p -= d*x*.5;\n     }\n}\n\n",
+  "createdAt": 1781561610706,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.5,
+      "exposure": -0.3500000000000003,
+      "contrast": 1,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "#define T(a) texture(iChannel0,p.xz*.1-t*a)\nvoid mainImage( out vec4 o, in vec2 c ) {\n    vec4 p = vec4(c,0.,1.)/iResolution.xyxy-.5, d=p, e;\n    float t = iTime+6., x;\n    d.y -= .2;\n    p.z += t*.3;\n    for(float i=1.; i>0.; i-=.02)\n    {\n        e = sin(p*6.+t);\n        x = abs(p.y+e.x*e.z*.1-.75)-(e=T(.01)+T(.02)).x*.08;\n        o = .3/length(p.xy+vec2(sin(t),-.4)) - e*i*i;\n        if(x<.01) break;\n        p -= d*x*.5;\n     }\n}\n\n"
+  }
+}

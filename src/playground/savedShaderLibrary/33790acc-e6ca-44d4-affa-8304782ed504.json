@@ -1,0 +1,90 @@
+{
+  "id": "33790acc-e6ca-44d4-affa-8304782ed504",
+  "label": "Spectrum Cornea",
+  "source": "#define PI 3.1415926535897932384626433832795\n\n// WAVE DRAWING FUNCTION\nvec4 wave(vec2 uv, float thic, float xoff, float yoff, float freq, float amp, float blur, float speed, vec3 colour) {\n    return vec4(\n        colour, \n        smoothstep(\n            .1 / iResolution.y, \n            -abs(uv.x * blur), \n            abs(yoff + (amp/2. * cos(uv.x * freq * PI + (iTime * speed) + xoff)) - uv.y) - thic)\n    );\n}\n\n// CIRCLE FUNCTION\nvec4 circle(vec2 uv, vec2 pos, float rad, vec3 col, float smt) {\n    float value = distance(pos, uv);\n\n    if (smt > 1.0) // Smooth edges mode\n        value = smoothstep(value, value + smt, rad);\n    else     // Hard edges mode\n        value = step(value, rad);\n    \n    return vec4(col, value);\n}\n\n// RING FUNCTION\nvec4 ring(vec2 uv, vec2 pos, float rad, vec3 col, float thic) {\n    float value = distance(pos, uv);\n    value = step(value, rad) - step(value + thic, rad);\n    return vec4(col, value);\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord ) {\n\n    // Normalized pixel coordinates (from 0 to 1)\n    vec2 uv = fragCoord/iResolution.xy;\n    \n    // Aspect Ratio Fix\n    uv = uv * 2. - 1.;\n    uv.x *= iResolution.x/iResolution.y;\n    \n    vec4 background = vec4(0.);\n    vec4 foreground;\n    \n    // Colour Waves\n    vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));\n    col = col * 0.1;\n    for(float i = 0.; i < 100.; i += 1.0) {\n        background = mix(background, foreground, foreground.a);\n        foreground = wave(\n            uv,\n            0.01 + i/10000.,\n            0.0,\n            0.75 * i/1000. + 0.5,\n            i/100.,\n            i/250. * tan(iTime),\n            i/1000.,\n            iTime/1000. * cos(iTime)/10.,\n            col\n        );\n        col = col * 1.025;\n    }\n    \n    col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));\n    col = col * 0.1;\n    for(float i = 0.; i < 100.; i += 1.0) {\n        background = mix(background, foreground, foreground.a);\n        foreground = wave(\n            uv,\n            0.01 + i/10000.,\n            PI,\n            0.75 * i/1000. - 0.5,\n            i/100.,\n            i/250. * tan(iTime),\n            i/1000.,\n            iTime/1000. * cos(iTime)/10.,\n            col\n        );\n        col = col * 1.025;\n    }\n    \n    col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));\n    col = col * 0.1;\n    for(float i = 0.; i < 100.; i += 1.0) {\n        background = mix(background, foreground, foreground.a);\n        foreground = wave(\n            uv,\n            0.01 + i/10000.,\n            0.0,\n            0.75 * i/1000. * -sin(iTime),\n            i/50.,\n            i/150. * cos(iTime),\n            i/1000.,\n            iTime/1000. * sin(iTime)/10.,\n            col\n        );\n        col = col * 1.025;\n    }\n    \n    // Circle Cutout\n    background = mix(background, foreground, foreground.a);\n    foreground = ring(\n        uv,\n        vec2(0.),\n        2.5,\n        vec3(0.),\n        1.\n    );\n    background = mix(background, foreground, foreground.a);\n    foreground = ring(\n        uv,\n        vec2(0.),\n        0.75,\n        vec3(0.),\n        -0.5\n    );\n    background = mix(background, foreground, foreground.a);\n    foreground = ring(\n        uv,\n        vec2(0.),\n        0.95,\n        vec3(0.),\n        -0.5\n    );\n    background = mix(background, foreground, foreground.a);\n    foreground = ring(\n        uv,\n        vec2(0.),\n        0.99,\n        vec3(0.),\n        -0.5\n    );\n\n\n    // Output to screen\n    fragColor = mix(background, foreground, foreground.a);\n}",
+  "createdAt": 1781556901338,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.17,
+      "exposure": -1.5500000000000003,
+      "contrast": 0.88,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1.1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "sourceTransform": {
+      "fit": "stretch",
+      "zoom": 1,
+      "panX": 0,
+      "panY": 1
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "#define PI 3.1415926535897932384626433832795\n\n// WAVE DRAWING FUNCTION\nvec4 wave(vec2 uv, float thic, float xoff, float yoff, float freq, float amp, float blur, float speed, vec3 colour) {\n    return vec4(\n        colour, \n        smoothstep(\n            .1 / iResolution.y, \n            -abs(uv.x * blur), \n            abs(yoff + (amp/2. * cos(uv.x * freq * PI + (iTime * speed) + xoff)) - uv.y) - thic)\n    );\n}\n\n// CIRCLE FUNCTION\nvec4 circle(vec2 uv, vec2 pos, float rad, vec3 col, float smt) {\n    float value = distance(pos, uv);\n\n    if (smt > 1.0) // Smooth edges mode\n        value = smoothstep(value, value + smt, rad);\n    else     // Hard edges mode\n        value = step(value, rad);\n    \n    return vec4(col, value);\n}\n\n// RING FUNCTION\nvec4 ring(vec2 uv, vec2 pos, float rad, vec3 col, float thic) {\n    float value = distance(pos, uv);\n    value = step(value, rad) - step(value + thic, rad);\n    return vec4(col, value);\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord ) {\n\n    // Normalized pixel coordinates (from 0 to 1)\n    vec2 uv = fragCoord/iResolution.xy;\n    \n    // Aspect Ratio Fix\n    uv = uv * 2. - 1.;\n    uv.x *= iResolution.x/iResolution.y;\n    \n    vec4 background = vec4(0.);\n    vec4 foreground;\n    \n    // Colour Waves\n    vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));\n    col = col * 0.1;\n    for(float i = 0.; i < 100.; i += 1.0) {\n        background = mix(background, foreground, foreground.a);\n        foreground = wave(\n            uv,\n            0.01 + i/10000.,\n            0.0,\n            0.75 * i/1000. + 0.5,\n            i/100.,\n            i/250. * tan(iTime),\n            i/1000.,\n            iTime/1000. * cos(iTime)/10.,\n            col\n        );\n        col = col * 1.025;\n    }\n    \n    col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));\n    col = col * 0.1;\n    for(float i = 0.; i < 100.; i += 1.0) {\n        background = mix(background, foreground, foreground.a);\n        foreground = wave(\n            uv,\n            0.01 + i/10000.,\n            PI,\n            0.75 * i/1000. - 0.5,\n            i/100.,\n            i/250. * tan(iTime),\n            i/1000.,\n            iTime/1000. * cos(iTime)/10.,\n            col\n        );\n        col = col * 1.025;\n    }\n    \n    col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));\n    col = col * 0.1;\n    for(float i = 0.; i < 100.; i += 1.0) {\n        background = mix(background, foreground, foreground.a);\n        foreground = wave(\n            uv,\n            0.01 + i/10000.,\n            0.0,\n            0.75 * i/1000. * -sin(iTime),\n            i/50.,\n            i/150. * cos(iTime),\n            i/1000.,\n            iTime/1000. * sin(iTime)/10.,\n            col\n        );\n        col = col * 1.025;\n    }\n    \n    // Circle Cutout\n    background = mix(background, foreground, foreground.a);\n    foreground = ring(\n        uv,\n        vec2(0.),\n        2.5,\n        vec3(0.),\n        1.\n    );\n    background = mix(background, foreground, foreground.a);\n    foreground = ring(\n        uv,\n        vec2(0.),\n        0.75,\n        vec3(0.),\n        -0.5\n    );\n    background = mix(background, foreground, foreground.a);\n    foreground = ring(\n        uv,\n        vec2(0.),\n        0.95,\n        vec3(0.),\n        -0.5\n    );\n    background = mix(background, foreground, foreground.a);\n    foreground = ring(\n        uv,\n        vec2(0.),\n        0.99,\n        vec3(0.),\n        -0.5\n    );\n\n\n    // Output to screen\n    fragColor = mix(background, foreground, foreground.a);\n}"
+  }
+}

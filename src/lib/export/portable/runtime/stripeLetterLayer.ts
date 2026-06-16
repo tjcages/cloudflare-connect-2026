@@ -6,10 +6,7 @@ import {
   randomLetterCycleStepDelayMs,
   scheduleInitialLetterCycleAt,
 } from "./playgroundLetterShuffle";
-import {
-  isPlaygroundSparkleCellVisible,
-  type PlaygroundSparkleOptions,
-} from "./playgroundSparkle";
+import { isPlaygroundSparkleCellVisible, type PlaygroundSparkleOptions } from "./playgroundSparkle";
 import { STRIPE_CELL_SIZE } from "./stripeGridConstants";
 import { computeStripeLetterPlacements, type StripeLetterPlacement } from "./stripeLetterPlacements";
 import { STRIPE_LETTER_CHARSET, type StripeLetterAtlas } from "./stripeLetterFont";
@@ -69,11 +66,8 @@ export function createStripeLetterLayer(atlas: StripeLetterAtlas): StripeLetterL
     return true;
   };
 
-  const applyRandomLetter = (
-    placement: StripeLetterPlacement,
-    sprite: Sprite,
-    charset: readonly string[],
-  ) => {
+  const applyRandomLetter = (placement: StripeLetterPlacement, sprite: Sprite, charset: readonly string[]) => {
+    // eslint-disable-next-line no-restricted-properties -- random glyph for letter shuffle, not grid PRNG
     const charIndex = Math.floor(Math.random() * charset.length);
     const char = charset[charIndex] ?? charset[0] ?? "?";
     placement.char = char;

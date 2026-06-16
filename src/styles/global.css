@@ -525,6 +525,19 @@ html.playground-app #root {
 }
 
 /* Workflow actions (React, above Leva). */
+/* Prominent upload action pinned to the top of the panel (above the Texture selector). */
+.playground-top-upload {
+  padding: 0 14px 10px;
+}
+
+.playground-top-upload button {
+  width: 100%;
+  height: 28px;
+  font-size: 11px;
+  line-height: 16.5px;
+  font-weight: 500;
+}
+
 .playground-workflow-controls {
   display: flex;
   flex-direction: column;
@@ -567,14 +580,31 @@ html.playground-app #root {
   display: none !important;
 }
 
-.playground-leva-panel
-  [class*="grzFYX"]:has(> div:first-child > label[title=" "])
-  > [class*="textArea-true"] {
+.playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) > [class*="textArea-true"] {
   width: 100% !important;
   max-width: none !important;
 }
 
 .playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) textarea {
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Shader equation editor: stack the label above a full-width textarea. The extra
+   .playground-leva-panel prefix outranks the generic label-left grid rule above. */
+.playground-leva-panel .playground-shader-leva-panel [class*="grzFYX"]:has(textarea) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+  row-gap: 4px;
+  width: 100% !important;
+}
+
+.playground-leva-panel .playground-shader-leva-panel [class*="grzFYX"]:has(textarea) > [class*="textArea-true"] {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.playground-leva-panel .playground-shader-leva-panel [class*="grzFYX"]:has(textarea) textarea {
   width: 100% !important;
   box-sizing: border-box;
 }
@@ -634,7 +664,8 @@ html.playground-app #root {
   border-radius: var(--leva-radius);
 }
 
-.playground-leva-panel .stripe-colors-table .stripe-colors-leva-input input[type="number"] {
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-input input[type="number"],
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-input input[type="text"] {
   width: 100%;
   min-width: 0;
   height: 22px;
@@ -647,6 +678,16 @@ html.playground-app #root {
   line-height: normal;
   padding: 0 4px !important;
   outline: none;
+}
+
+/* Inline hex editor sits next to the swatch; wider than the numeric shells and monospaced. */
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-input.stripe-colors-hex-input {
+  width: 64px;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-hex-input input[type="text"] {
+  font-family: var(--leva-mono, ui-monospace, monospace);
+  text-transform: uppercase;
 }
 
 /* Stripe color swatches — match native Leva 24×24 picker chips. */
@@ -670,8 +711,7 @@ html.playground-app #root {
 }
 
 /* Status feedback rows: value only, no side label. */
-.playground-leva-panel
-  div:has(> div:nth-child(2):not(:has(*)):not(:has(input)):not(:has(textarea)):not(:has(select))) {
+.playground-leva-panel div:has(> div:nth-child(2):not(:has(*)):not(:has(input)):not(:has(textarea)):not(:has(select))) {
   grid-template-columns: minmax(0, 1fr) !important;
   column-gap: 0 !important;
 }

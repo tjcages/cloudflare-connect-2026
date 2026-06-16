@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { HexColorInput } from "react-colorful";
 import { HexColorPopover } from "../components/HexColorPopover";
 import { PLAYGROUND_LEVA_COLOR_SWATCH_CLASS } from "./playgroundUi";
 import {
@@ -18,6 +19,9 @@ export type StripeColorsTableProps = {
   onColorChange: (id: string, hex: string) => void;
   onThresholdChange: (id: string, value: number) => void;
   onWidthChange: (id: string, value: number) => void;
+  onMove: (id: string, direction: -1 | 1) => void;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
 };
 
 function parseThresholdInput(raw: string): number | null {
@@ -48,6 +52,9 @@ export function StripeColorsTable({
   onColorChange,
   onThresholdChange,
   onWidthChange,
+  onMove,
+  onAdd,
+  onRemove,
 }: StripeColorsTableProps) {
   return (
     <table
@@ -67,26 +74,43 @@ export function StripeColorsTable({
           <th className="stripe-colors-table-label text-right" scope="col">
             Width
           </th>
+          <th className="stripe-colors-table-label pl-1 text-right" scope="col">
+            Order
+          </th>
+          <th className="stripe-colors-table-label pl-1 text-right" scope="col">
+            Actions
+          </th>
         </tr>
       </thead>
       <tbody>
         {stripes.map((stripe, index) => (
           <tr key={stripe.id}>
             <td className="py-1 pr-1 align-middle">
-              <HexColorPopover
-                color={stripe.hex}
-                onChange={(hex) => onColorChange(stripe.id, hex)}
-                disabled={disabled}
-                ariaLabel={`Stripe ${index + 1} color`}
-                triggerClassName={PLAYGROUND_LEVA_COLOR_SWATCH_CLASS}
-                triggerStyle={
-                  {
-                    backgroundColor: stripe.hex,
-                    "--stripe-swatch-color": stripe.hex,
-                  } as CSSProperties
-                }
-                align="right"
-              />
+              <div className="flex items-center gap-1">
+                <HexColorPopover
+                  color={stripe.hex}
+                  onChange={(hex) => onColorChange(stripe.id, hex)}
+                  disabled={disabled}
+                  ariaLabel={`Stripe ${index + 1} color`}
+                  triggerClassName={PLAYGROUND_LEVA_COLOR_SWATCH_CLASS}
+                  triggerStyle={
+                    {
+                      backgroundColor: stripe.hex,
+                      "--stripe-swatch-color": stripe.hex,
+                    } as CSSProperties
+                  }
+                  align="right"
+                />
+                <div className="stripe-colors-leva-input stripe-colors-hex-input">
+                  <HexColorInput
+                    color={stripe.hex}
+                    onChange={(hex) => onColorChange(stripe.id, hex)}
+                    prefixed
+                    disabled={disabled}
+                    aria-label={`Stripe ${index + 1} hex`}
+                  />
+                </div>
+              </div>
             </td>
             <td className="py-1 pr-1 text-right align-middle">
               <div className="stripe-colors-leva-input">
@@ -126,8 +150,55 @@ export function StripeColorsTable({
                 />
               </div>
             </td>
+            <td className="py-1 pl-1 text-right align-middle">
+              <div className="flex items-center justify-end gap-1">
+                <button
+                  type="button"
+                  disabled={disabled || index === 0}
+                  aria-label={`Move stripe ${index + 1} up`}
+                  onClick={() => onMove(stripe.id, -1)}
+                  className="h-5 w-5 rounded border border-builder-hairline text-[10px] leading-none text-builder-control disabled:opacity-40"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled || index === stripes.length - 1}
+                  aria-label={`Move stripe ${index + 1} down`}
+                  onClick={() => onMove(stripe.id, 1)}
+                  className="h-5 w-5 rounded border border-builder-hairline text-[10px] leading-none text-builder-control disabled:opacity-40"
+                >
+                  ↓
+                </button>
+              </div>
+            </td>
+            <td className="py-1 pl-1 text-right align-middle">
+              <button
+                type="button"
+                disabled={disabled || stripes.length <= 1}
+                aria-label={`Remove stripe ${index + 1}`}
+                onClick={() => onRemove(stripe.id)}
+                className="h-5 w-5 rounded border border-builder-hairline text-[10px] leading-none text-builder-control disabled:opacity-40"
+              >
+                -
+              </button>
+            </td>
           </tr>
         ))}
+        <tr>
+          <td colSpan={4} />
+          <td className="py-1 pl-1 text-right align-middle">
+            <button
+              type="button"
+              disabled={disabled}
+              aria-label="Add stripe"
+              onClick={onAdd}
+              className="h-5 w-5 rounded border border-builder-hairline text-[10px] leading-none text-builder-control disabled:opacity-40"
+            >
+              +
+            </button>
+          </td>
+        </tr>
       </tbody>
     </table>
   );

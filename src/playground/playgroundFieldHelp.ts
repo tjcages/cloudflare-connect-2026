@@ -1,7 +1,17 @@
 export const PLAYGROUND_FIELD_HELP = {
-  texture: "Choose the image or video used as the source.",
+  texture: "Choose the image, video, or shader equation used as the source.",
+  colorPreset:
+    "Apply a saved color palette to the stripes (and overlay stripes). Use Save color preset to keep the current palette so you can reuse it on any texture; editing colors switches this to Custom.",
+  shaderPreset:
+    "Load a starting-point equation. Waveform presets render in a single cheap 2D pass; the raymarch preset is the heavy original. Your saved shaders appear here too. Editing the equation switches this to Custom — use Save shader to keep it.",
+  shaderSource:
+    "ShaderToy-style GLSL with a mainImage(out vec4, vec2) entry point. Uses iTime, iResolution, and iChannel0–3 uniforms. Tweak the constants block at the top to reshape waveform presets. Texture Source zoom/pan applies to the equation when fit is Stretch. Enable Audio input to feed the live microphone into iChannel0.",
+  audioInput:
+    "Capture the microphone and feed it into iChannel0 as a ShaderToy-style audio texture (row 0 = FFT spectrum, row 1 = waveform). Sample it with texture(iChannel0, vec2(x, 0.25)).x for the spectrum. Requires microphone permission.",
   canvasWidth: "Set the output canvas width in pixels.",
   canvasHeight: "Set the output canvas height in pixels.",
+  renderScale:
+    "GPU backing-store resolution multiplier. 2x is sharpest; drop to 1x or 0.5x for a big fps boost on slower GPUs (stripes soften slightly). Video export captures at this resolution; SVG/React exports are unaffected.",
   shaderEnabled: "Turn the stripe shader on or off.",
   backgroundColor: "Set the canvas background color. Ignored while canvas CSS is filled in.",
   canvasCss: "Add CSS background declarations behind the canvas.",
@@ -120,4 +130,23 @@ export const PLAYGROUND_FIELD_HELP = {
     "Peak radial push at click birth (capped at two cells). The tear hole opens behind the expanding front.",
   cursorClickPushBandScale: "Multiplier on stroke width for how wide the push displacement band is.",
   cursorClickRingWhite: "White brighten on the leading ring edge. Feeds lighter stripe cells.",
+  perfStatus:
+    "Perf overlay state. Enabled by default in dev. Override with globalThis.__PLAYGROUND_PERF__ = true/false in devtools.",
+  perfHealth: "Quick signal of overall runtime health (good, ok, or slow).",
+  perfFps: "Instantaneous frames per second from the latest frame delta.",
+  perfFpsSmoothed: "Smoothed FPS trend for easier readability while scrubbing.",
+  perfFrameBudgetUsage: "How much of a 60 FPS frame budget this tick consumed.",
+  perfFrameHeadroom: "How many milliseconds remain before missing a 60 FPS frame budget.",
+  perfTickTotal: "Total time spent in one scene tick.",
+  perfRender: "Time spent rendering the Pixi frame.",
+  perfBuildGrid: "Time spent building the stripe block grid.",
+  perfSampleFrame: "Time spent sampling source frame pixels.",
+  perfBlockTexture: "Time spent uploading block-grid textures.",
+  perfWorkerLatency: "Main-thread submit -> worker result latency.",
+  perfWorkerQueueDepth: "Current async worker queue depth.",
+  perfWorkerInFlight: "Whether a worker grid build is currently running.",
+  perfWorkerApplied: "Whether this tick applied a worker-produced grid.",
+  perfWorkerCoalesced: "Count of worker requests coalesced into newer ones.",
+  perfWorkerDroppedQueued: "Count of queued requests replaced before execution.",
+  perfPartialGrid: "Whether this tick used a partial grid rebuild.",
 } as const;
