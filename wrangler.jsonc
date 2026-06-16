@@ -1,7 +1,10 @@
 {
-  "name": "section-grid-generator",
+  "name": "cloudflare-connect-2026-shader",
   "compatibility_date": "2026-05-14",
   "assets": {
     "directory": "./dist",
+  },
+  "observability": {
+    "enabled": true,
   },
 }
