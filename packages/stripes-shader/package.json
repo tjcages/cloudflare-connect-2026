@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "build": "vite build",
+    "prepublishOnly": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
