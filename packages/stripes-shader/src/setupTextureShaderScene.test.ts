@@ -1,8 +1,6 @@
-import type { RefObject } from "react";
 import { describe, expect, it, vi } from "vitest";
 import {
   createStripesShaderScene,
-  createTextureSceneTicker,
   PLAYGROUND_DEFAULT_DISPLAY_MAX_WIDTH,
   resolveDefaultPlaygroundDisplaySize,
   resolvePlaygroundDisplaySize,
@@ -83,7 +81,7 @@ function makeImageSource(): PlaygroundTextureSource {
   return { kind: "image", element: image };
 }
 
-describe("createStripesShaderScene / createTextureSceneTicker getConfig contract", () => {
+describe("createStripesShaderScene getConfig contract", () => {
   it("createStripesShaderScene returns a Ticker function and reads getConfig live at setup", () => {
     const getConfig = vi.fn(() => makeConfig());
     const ticker = createStripesShaderScene({
@@ -96,57 +94,13 @@ describe("createStripesShaderScene / createTextureSceneTicker getConfig contract
     expect(getConfig).toHaveBeenCalled();
   });
 
-  it("createTextureSceneTicker is a thin adapter: returns a Ticker and builds a live getConfig from its refs", () => {
-    const stripeColorsRef: RefObject<StripesSceneConfig["stripeColors"]> = { current: { stripes: [] } };
-    const preferP3Ref: RefObject<boolean> = { current: false };
-    const duotoneEnabledRef: RefObject<boolean> = { current: true };
-    const stripesEnabledRef: RefObject<boolean> = { current: true };
-    const textureGammaRef: RefObject<number> = { current: 1 };
-    const sparkleOptionsRef: RefObject<StripesSceneConfig["sparkle"]> = {
-      current: { enabled: false, coverage: 0, speed: 1 } as never,
-    };
-    const widthShuffleOptionsRef: RefObject<StripesSceneConfig["widthShuffle"]> = {
-      current: { enabled: false } as never,
-    };
-    const autoplayRef: RefObject<boolean> = { current: false };
-
-    const source = makeImageSource();
-    const ticker = createTextureSceneTicker(
-      source,
-      TEST_DISPLAY,
-      stripeColorsRef,
-      preferP3Ref,
-      duotoneEnabledRef,
-      stripesEnabledRef,
-      textureGammaRef,
-      sparkleOptionsRef,
-      widthShuffleOptionsRef,
-      autoplayRef,
-    );
-    // Identical surface to the direct factory: both return a Ticker function.
-    expect(typeof ticker).toBe("function");
-  });
-
-  it("adapter equivalence: createTextureSceneTicker and a direct createStripesShaderScene with the same source produce equivalent setup", () => {
+  it("reads getConfig live for the scene setup regardless of source kind", () => {
     const source = makeImageSource();
     const direct = createStripesShaderScene({
       getConfig: () => makeConfig({ stripesEnabled: false }),
       getSource: () => source,
       getDisplaySize: () => TEST_DISPLAY,
     });
-    const viaAdapter = createTextureSceneTicker(
-      source,
-      TEST_DISPLAY,
-      { current: { stripes: [] } },
-      { current: false },
-      { current: true },
-      { current: false },
-      { current: 1 },
-      { current: { enabled: false, coverage: 0, speed: 1 } as never },
-      { current: { enabled: false } as never },
-      { current: false },
-    );
     expect(typeof direct).toBe("function");
-    expect(typeof viaAdapter).toBe("function");
   });
 });

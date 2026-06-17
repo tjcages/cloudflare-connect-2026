@@ -19,30 +19,14 @@ import {
   stepPlaygroundFlames,
   type PlaygroundFlamesState,
 } from "./playgroundFlames";
-import { DEFAULT_PLAYGROUND_FLAMES_CONFIG, type PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import type { PlaygroundSparkleOptions } from "./playgroundSparkle";
 import type { PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
 import { createStripeLetterLayer, type StripeLetterLayer } from "./stripeLetterLayer";
-import {
-  DEFAULT_PLAYGROUND_GRID_CONFIG,
-  effectivePlaygroundCellSize,
-  type PlaygroundGridConfig,
-} from "./playgroundGridConfig";
-import {
-  DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
-  resolvePlaygroundDrawRects,
-  type PlaygroundSourceTransform,
-} from "./playgroundSourceTransform";
-import {
-  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-  renderAdjustedPreviewPixels,
-  type PlaygroundTextureAdjustments,
-} from "./playgroundTextureAdjustments";
-import {
-  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
-  resolvePlaygroundRevealDurationMs,
-  type PlaygroundRevealConfig,
-} from "./playgroundRevealConfig";
+import { effectivePlaygroundCellSize, type PlaygroundGridConfig } from "./playgroundGridConfig";
+import { resolvePlaygroundDrawRects, type PlaygroundSourceTransform } from "./playgroundSourceTransform";
+import { renderAdjustedPreviewPixels, type PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
+import { resolvePlaygroundRevealDurationMs, type PlaygroundRevealConfig } from "./playgroundRevealConfig";
 import { resolveRevealOvershoot, waveRevealAmountAtCell, type PlaygroundRevealState } from "./playgroundReveal";
 import {
   detectTextureBackgroundColor,
@@ -52,11 +36,7 @@ import {
   type TextureLuminanceSettings,
 } from "./colorWhiteness";
 import { createSourceTextureFilter } from "./sourceTextureFilter";
-import {
-  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
-  normalizePlaygroundCursorTrailConfig,
-  type PlaygroundCursorTrailConfig,
-} from "./playgroundCursorTrailConfig";
+import { normalizePlaygroundCursorTrailConfig, type PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 import { addClickWave, createClickWaveState, updateClickWave, type ClickWaveState } from "./clickWave";
 import { createCursorTrailState, setCursorTrailTarget, updateCursorTrail, type CursorTrailState } from "./cursorTrail";
 import {
@@ -72,11 +52,7 @@ import {
   type CursorTrailCellMap,
 } from "./cursorTrailOverlay";
 import { buildStripeIndexLut, resolvePlaygroundPixiTint, resolveStripesForLuminanceMode } from "./stripeColors";
-import {
-  DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
-  normalizePlaygroundClickWaveConfig,
-  type PlaygroundClickWaveConfig,
-} from "./playgroundClickWaveConfig";
+import { normalizePlaygroundClickWaveConfig, type PlaygroundClickWaveConfig } from "./playgroundClickWaveConfig";
 import {
   createPlaygroundPerfTimer,
   isPlaygroundPerfProfilingEnabled,
@@ -108,31 +84,9 @@ export const PLAYGROUND_GRID_UPDATE_INTERVAL_MS = 66;
 /** Minimum ms between full pixel resamples during continuous slider scrubbing. */
 export const PLAYGROUND_FULL_RESAMPLE_THROTTLE_MS = 32;
 
-/** Static ref used when a caller does not provide a live grid-config ref. */
-const DEFAULT_GRID_CONFIG_REF: RefObject<PlaygroundGridConfig> = { current: DEFAULT_PLAYGROUND_GRID_CONFIG };
-const DEFAULT_STRIPES_ENABLED_REF: RefObject<boolean> = { current: true };
-const DEFAULT_TEXTURE_ADJUSTMENTS_REF: RefObject<PlaygroundTextureAdjustments> = {
-  current: DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-};
-const DEFAULT_TEXTURE_LUMINANCE_SETTINGS_REF: RefObject<TextureLuminanceSettings> = {
-  current: { mode: "luminance", backgroundColor: 0x000000 },
-};
-const DEFAULT_SOURCE_TRANSFORM_REF: RefObject<PlaygroundSourceTransform> = {
-  current: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
-};
+/** Default state refs used by {@link createStripesShaderScene} when the caller omits them. */
 const DEFAULT_FLAMES_STATE_REF: RefObject<PlaygroundFlamesState | null> = { current: null };
-const DEFAULT_FLAMES_CONFIG_REF: RefObject<PlaygroundFlamesConfig> = { current: DEFAULT_PLAYGROUND_FLAMES_CONFIG };
-const DEFAULT_REVEAL_CONFIG_REF: RefObject<PlaygroundRevealConfig> = { current: DEFAULT_PLAYGROUND_REVEAL_CONFIG };
 const DEFAULT_REVEAL_STATE_REF: RefObject<PlaygroundRevealState> = { current: { progress: 1 } };
-const DEFAULT_REVEAL_PLAYBACK_REF: RefObject<PlaygroundRevealPlayback> = {
-  current: { replayKey: 0, startedAtMs: 0 },
-};
-const DEFAULT_CURSOR_TRAIL_CONFIG_REF: RefObject<PlaygroundCursorTrailConfig> = {
-  current: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
-};
-const DEFAULT_CLICK_WAVE_CONFIG_REF: RefObject<PlaygroundClickWaveConfig> = {
-  current: DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
-};
 export type PlaygroundDisplaySize = { width: number; height: number };
 
 export type PlaygroundSceneExportState = {
@@ -1230,64 +1184,6 @@ export function createStripesShaderScene(options: StripesShaderSceneOptions): Ti
   );
 }
 
-/**
- * Thin adapter over {@link createStripesShaderScene}. The signature, defaults, and the studio's call
- * site are UNCHANGED — the body just builds `getConfig` from the 23 refs and delegates.
- */
-export function createTextureSceneTicker(
-  source: PlaygroundTextureSource,
-  display: PlaygroundDisplaySize,
-  stripeColorsRef: RefObject<StripeColors>,
-  preferP3Ref: RefObject<boolean>,
-  duotoneEnabledRef: RefObject<boolean>,
-  stripesEnabledRef: RefObject<boolean>,
-  textureGammaRef: RefObject<number>,
-  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
-  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
-  autoplayRef: RefObject<boolean>,
-  exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
-  gridConfigRef: RefObject<PlaygroundGridConfig> = DEFAULT_GRID_CONFIG_REF,
-  textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = DEFAULT_TEXTURE_ADJUSTMENTS_REF,
-  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings> = DEFAULT_TEXTURE_LUMINANCE_SETTINGS_REF,
-  sourceTransformRef: RefObject<PlaygroundSourceTransform> = DEFAULT_SOURCE_TRANSFORM_REF,
-  flamesStateRef: RefObject<PlaygroundFlamesState | null> = DEFAULT_FLAMES_STATE_REF,
-  flamesConfigRef: RefObject<PlaygroundFlamesConfig> = DEFAULT_FLAMES_CONFIG_REF,
-  revealConfigRef: RefObject<PlaygroundRevealConfig> = DEFAULT_REVEAL_CONFIG_REF,
-  revealStateRef: RefObject<PlaygroundRevealState> = DEFAULT_REVEAL_STATE_REF,
-  revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = DEFAULT_REVEAL_PLAYBACK_REF,
-  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = DEFAULT_CURSOR_TRAIL_CONFIG_REF,
-  clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig> = DEFAULT_CLICK_WAVE_CONFIG_REF,
-  onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
-): Ticker {
-  return createStripesShaderScene({
-    getConfig: () => ({
-      stripeColors: stripeColorsRef.current,
-      preferP3: preferP3Ref.current,
-      duotoneEnabled: duotoneEnabledRef.current,
-      stripesEnabled: stripesEnabledRef.current,
-      textureGamma: textureGammaRef.current,
-      sparkle: sparkleOptionsRef.current,
-      widthShuffle: widthShuffleOptionsRef.current,
-      gridConfig: gridConfigRef.current,
-      textureAdjustments: textureAdjustmentsRef.current,
-      textureLuminanceSettings: textureLuminanceSettingsRef.current,
-      sourceTransform: sourceTransformRef.current,
-      flamesConfig: flamesConfigRef.current,
-      revealConfig: revealConfigRef.current,
-      revealPlayback: revealPlaybackRef.current,
-      cursorTrailConfig: cursorTrailConfigRef.current,
-      clickWaveConfig: clickWaveConfigRef.current,
-    }),
-    getSource: () => source,
-    getDisplaySize: () => display,
-    autoplay: autoplayRef.current,
-    flamesStateRef,
-    revealStateRef,
-    exportStateRef,
-    onTextureLuminanceSettingsDetected,
-  });
-}
-
 function createImageSceneTicker(
   image: HTMLImageElement,
   display: PlaygroundDisplaySize,
@@ -1582,34 +1478,3 @@ function createVideoSceneTickerInternal(
     });
   };
 }
-
-/** @deprecated Use {@link createTextureSceneTicker}. */
-export function createVideoSceneTicker(
-  video: HTMLVideoElement,
-  display: PlaygroundDisplaySize,
-  stripeColorsRef: RefObject<StripeColors>,
-  preferP3Ref: RefObject<boolean>,
-  duotoneEnabledRef: RefObject<boolean>,
-  textureGammaRef: RefObject<number>,
-  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
-  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
-  autoplayRef: RefObject<boolean>,
-  exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
-): Ticker {
-  return createTextureSceneTicker(
-    { kind: "video", element: video },
-    display,
-    stripeColorsRef,
-    preferP3Ref,
-    duotoneEnabledRef,
-    DEFAULT_STRIPES_ENABLED_REF,
-    textureGammaRef,
-    sparkleOptionsRef,
-    widthShuffleOptionsRef,
-    autoplayRef,
-    exportStateRef,
-  );
-}
-
-/** @deprecated Use {@link createTextureSceneTicker}. */
-export const createVideoShaderSceneTicker = createVideoSceneTicker;
