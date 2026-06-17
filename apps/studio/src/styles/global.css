@@ -71,7 +71,7 @@
   }
 }
 
-/* Stripe-letter / code-snippet canvas font. Family matches `CODE_SNIPPET_FONT_FAMILY` in `src/fonts/codeSnippet.ts` (used by `src/playground/stripeLetterFont.ts`). */
+/* Berkeley Mono — the stripe-letter font. Family matches the STRIPES font constants in @necatikcl/stripes-shader (codeSnippet.ts / stripeLetterFont.ts). */
 @font-face {
   font-family: "Berkeley Mono Trial";
   font-weight: 400;
