@@ -29,7 +29,7 @@
   },
   "overrides": [
     {
-      "files": ["src/**/*.test.{ts,tsx}", "src/test/**/*.ts"],
+      "files": ["**/src/**/*.test.{ts,tsx}", "**/src/test/**/*.ts"],
       "env": {
         "builtin": true,
         "browser": true,
@@ -47,7 +47,7 @@
       }
     },
     {
-      "files": ["src/grid/**/*.ts"],
+      "files": ["**/src/grid/**/*.ts"],
       "rules": {
         "no-restricted-properties": [
           "error",
@@ -60,7 +60,7 @@
       }
     },
     {
-      "files": ["src/grid/clipboard.ts"],
+      "files": ["**/src/grid/clipboard.ts"],
       "rules": {
         "no-restricted-properties": "off"
       }
