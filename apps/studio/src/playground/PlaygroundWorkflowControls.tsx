@@ -5,6 +5,7 @@ type PlaygroundWorkflowControlsProps = {
   workflowStore: ReturnType<typeof useCreateStore>;
   onUploadClick: () => void;
   onCopyState: () => void;
+  onCopyConfig: () => void;
   onImportState: () => void;
   uploadError?: string | null;
   importStatus?: string | null;
@@ -18,6 +19,7 @@ export function PlaygroundWorkflowControls({
   workflowStore,
   onUploadClick,
   onCopyState,
+  onCopyConfig,
   onImportState,
   uploadError,
   importStatus,
@@ -50,6 +52,10 @@ export function PlaygroundWorkflowControls({
 
       <button type="button" disabled={disabled} onClick={() => void onCopyState()}>
         Copy state
+      </button>
+
+      <button type="button" disabled={disabled} onClick={() => void onCopyConfig()}>
+        Copy config
       </button>
 
       <div data-testid="playground-workflow-import-panel" className="playground-workflow-leva-panel shrink-0">

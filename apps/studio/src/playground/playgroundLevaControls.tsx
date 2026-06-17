@@ -49,6 +49,7 @@ export type PlaygroundLevaControlsProps = {
   importText: string;
   onImportTextChange: (value: string) => void;
   onCopyState: () => void;
+  onCopyConfig: () => void;
   onImportState: () => void;
   importStatus: string | null;
   uploadError: string | null;
@@ -429,6 +430,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
           workflowStore={workflowStore}
           onUploadClick={() => fileInputRef.current?.click()}
           onCopyState={props.onCopyState}
+          onCopyConfig={props.onCopyConfig}
           onImportState={props.onImportState}
           uploadError={props.uploadError}
           importStatus={props.importStatus}

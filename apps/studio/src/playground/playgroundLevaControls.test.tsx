@@ -70,6 +70,7 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       importText=""
       onImportTextChange={() => {}}
       onCopyState={() => {}}
+      onCopyConfig={() => {}}
       onImportState={() => {}}
       importStatus={null}
       uploadError={null}
