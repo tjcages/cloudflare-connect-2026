@@ -153,6 +153,48 @@ export type PlaygroundRevealPlayback = {
   startedAtMs: number;
 };
 
+/**
+ * The full per-frame configuration the scene reads each tick. Every field maps 1:1 onto an
+ * internal ref that {@link runDuotoneTick} already reads; {@link createStripesShaderScene} syncs
+ * these onto its internal refs at the top of every tick (before the render logic reads them), so
+ * the render path is byte-for-byte identical regardless of who owns the values.
+ */
+export type StripesSceneConfig = {
+  stripeColors: StripeColors;
+  preferP3: boolean;
+  duotoneEnabled: boolean;
+  stripesEnabled: boolean;
+  textureGamma: number;
+  sparkle: PlaygroundSparkleOptions;
+  widthShuffle: PlaygroundWidthShuffleOptions;
+  gridConfig: PlaygroundGridConfig;
+  textureAdjustments: PlaygroundTextureAdjustments;
+  textureLuminanceSettings: TextureLuminanceSettings;
+  sourceTransform: PlaygroundSourceTransform;
+  flamesConfig: PlaygroundFlamesConfig;
+  revealConfig: PlaygroundRevealConfig;
+  revealPlayback: PlaygroundRevealPlayback;
+  cursorTrailConfig: PlaygroundCursorTrailConfig;
+  clickWaveConfig: PlaygroundClickWaveConfig;
+};
+
+/**
+ * Options for {@link createStripesShaderScene}. `getSource`/`getDisplaySize` are structural and are
+ * captured once at setup (the studio remounts via `sceneKey` when either changes). `getConfig` is
+ * read live at the top of every tick. The remaining state refs and the luminance-detect callback
+ * map straight onto the internal refs/params {@link runDuotoneTick} already uses.
+ */
+export type StripesShaderSceneOptions = {
+  getConfig: () => StripesSceneConfig;
+  getSource: () => PlaygroundTextureSource;
+  getDisplaySize: () => PlaygroundDisplaySize;
+  autoplay?: boolean;
+  flamesStateRef?: RefObject<PlaygroundFlamesState | null>;
+  revealStateRef?: RefObject<PlaygroundRevealState>;
+  exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
+  onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void;
+};
+
 function resolveTextureFilterMode(duotoneEnabled: boolean, stripesEnabled: boolean): TextureFilterMode {
   if (!stripesEnabled) {
     return "preview";
@@ -1060,31 +1102,79 @@ function runDuotoneTick(params: {
   return { tick, dispose };
 }
 
-export function createTextureSceneTicker(
-  source: PlaygroundTextureSource,
-  display: PlaygroundDisplaySize,
-  stripeColorsRef: RefObject<StripeColors>,
-  preferP3Ref: RefObject<boolean>,
-  duotoneEnabledRef: RefObject<boolean>,
-  stripesEnabledRef: RefObject<boolean>,
-  textureGammaRef: RefObject<number>,
-  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
-  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
-  autoplayRef: RefObject<boolean>,
-  exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
-  gridConfigRef: RefObject<PlaygroundGridConfig> = DEFAULT_GRID_CONFIG_REF,
-  textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = DEFAULT_TEXTURE_ADJUSTMENTS_REF,
-  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings> = DEFAULT_TEXTURE_LUMINANCE_SETTINGS_REF,
-  sourceTransformRef: RefObject<PlaygroundSourceTransform> = DEFAULT_SOURCE_TRANSFORM_REF,
-  flamesStateRef: RefObject<PlaygroundFlamesState | null> = DEFAULT_FLAMES_STATE_REF,
-  flamesConfigRef: RefObject<PlaygroundFlamesConfig> = DEFAULT_FLAMES_CONFIG_REF,
-  revealConfigRef: RefObject<PlaygroundRevealConfig> = DEFAULT_REVEAL_CONFIG_REF,
-  revealStateRef: RefObject<PlaygroundRevealState> = DEFAULT_REVEAL_STATE_REF,
-  revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = DEFAULT_REVEAL_PLAYBACK_REF,
-  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = DEFAULT_CURSOR_TRAIL_CONFIG_REF,
-  clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig> = DEFAULT_CLICK_WAVE_CONFIG_REF,
-  onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
-): Ticker {
+/**
+ * The getter-based scene factory. It owns an INTERNAL ref-set — the exact refs {@link runDuotoneTick}
+ * already reads — sets up the image/video scene exactly as the legacy ticker did, and syncs the
+ * internal refs from `options.getConfig()` at the TOP of each per-frame tick (before the render logic
+ * reads them). Structural inputs (`getSource`/`getDisplaySize`) are captured once at setup; the
+ * studio remounts via `sceneKey` when either changes. Render math, uniform syncs, pointer wiring,
+ * sceneKey logic, and the reveal time-base are unchanged — only the SOURCE of the per-frame values
+ * differs (a getter copied into internal refs vs. externally-owned refs).
+ */
+export function createStripesShaderScene(options: StripesShaderSceneOptions): Ticker {
+  const source = options.getSource();
+  const display = options.getDisplaySize();
+
+  // Internal ref-set: the same refs the per-frame tick reads today. Seeded from the first
+  // getConfig() so the initial scene construction sees identical values, then re-synced each tick.
+  const initial = options.getConfig();
+  const stripeColorsRef: RefObject<StripeColors> = { current: initial.stripeColors };
+  const preferP3Ref: RefObject<boolean> = { current: initial.preferP3 };
+  const duotoneEnabledRef: RefObject<boolean> = { current: initial.duotoneEnabled };
+  const stripesEnabledRef: RefObject<boolean> = { current: initial.stripesEnabled };
+  const textureGammaRef: RefObject<number> = { current: initial.textureGamma };
+  const sparkleOptionsRef: RefObject<PlaygroundSparkleOptions> = { current: initial.sparkle };
+  const widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions> = { current: initial.widthShuffle };
+  const gridConfigRef: RefObject<PlaygroundGridConfig> = { current: initial.gridConfig };
+  const textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = { current: initial.textureAdjustments };
+  const textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings> = {
+    current: initial.textureLuminanceSettings,
+  };
+  const sourceTransformRef: RefObject<PlaygroundSourceTransform> = { current: initial.sourceTransform };
+  const flamesConfigRef: RefObject<PlaygroundFlamesConfig> = { current: initial.flamesConfig };
+  const revealConfigRef: RefObject<PlaygroundRevealConfig> = { current: initial.revealConfig };
+  const revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = { current: initial.revealPlayback };
+  const cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = { current: initial.cursorTrailConfig };
+  const clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig> = { current: initial.clickWaveConfig };
+
+  // State refs and the detect callback map straight onto the existing params. flamesState defaults
+  // to { current: null } exactly as the legacy default — runDuotoneTick reads it at setup to decide
+  // whether to allocate a flames overlay, so it must be the real owner ref (not a getConfig field).
+  const flamesStateRef = options.flamesStateRef ?? DEFAULT_FLAMES_STATE_REF;
+  const revealStateRef = options.revealStateRef ?? DEFAULT_REVEAL_STATE_REF;
+  const exportStateRef = options.exportStateRef;
+  const autoplayRef: RefObject<boolean> = { current: options.autoplay ?? false };
+
+  // Copy the live config onto the internal refs. Called once before setup and at the top of every
+  // tick (via beforeTick) — before runDuotoneTick's logic reads them, so render order is unchanged.
+  // The luminance ref is the same two-way slot the tick mutates in place for colors auto-detect; the
+  // owner reconciles via onTextureLuminanceSettingsDetected and surfaces the result through getConfig.
+  const syncInternalRefs = () => {
+    const config = options.getConfig();
+    stripeColorsRef.current = config.stripeColors;
+    preferP3Ref.current = config.preferP3;
+    duotoneEnabledRef.current = config.duotoneEnabled;
+    stripesEnabledRef.current = config.stripesEnabled;
+    textureGammaRef.current = config.textureGamma;
+    sparkleOptionsRef.current = config.sparkle;
+    widthShuffleOptionsRef.current = config.widthShuffle;
+    gridConfigRef.current = config.gridConfig;
+    textureAdjustmentsRef.current = config.textureAdjustments;
+    textureLuminanceSettingsRef.current = config.textureLuminanceSettings;
+    sourceTransformRef.current = config.sourceTransform;
+    flamesConfigRef.current = config.flamesConfig;
+    revealConfigRef.current = config.revealConfig;
+    revealPlaybackRef.current = config.revealPlayback;
+    cursorTrailConfigRef.current = config.cursorTrailConfig;
+    clickWaveConfigRef.current = config.clickWaveConfig;
+  };
+
+  // Seed before setup so scene construction (filters, sprite layout, letter layer) reads the same
+  // values it reads today. (No-op relative to the seeds above, but keeps the single source of truth.)
+  syncInternalRefs();
+
+  const { onTextureLuminanceSettingsDetected } = options;
+
   if (source.kind === "image") {
     return createImageSceneTicker(
       source.element,
@@ -1109,6 +1199,7 @@ export function createTextureSceneTicker(
       clickWaveConfigRef,
       exportStateRef,
       onTextureLuminanceSettingsDetected,
+      syncInternalRefs,
     );
   }
   return createVideoSceneTickerInternal(
@@ -1135,7 +1226,66 @@ export function createTextureSceneTicker(
     clickWaveConfigRef,
     exportStateRef,
     onTextureLuminanceSettingsDetected,
+    syncInternalRefs,
   );
+}
+
+/**
+ * Thin adapter over {@link createStripesShaderScene}. The signature, defaults, and the studio's call
+ * site are UNCHANGED — the body just builds `getConfig` from the 23 refs and delegates.
+ */
+export function createTextureSceneTicker(
+  source: PlaygroundTextureSource,
+  display: PlaygroundDisplaySize,
+  stripeColorsRef: RefObject<StripeColors>,
+  preferP3Ref: RefObject<boolean>,
+  duotoneEnabledRef: RefObject<boolean>,
+  stripesEnabledRef: RefObject<boolean>,
+  textureGammaRef: RefObject<number>,
+  sparkleOptionsRef: RefObject<PlaygroundSparkleOptions>,
+  widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>,
+  autoplayRef: RefObject<boolean>,
+  exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
+  gridConfigRef: RefObject<PlaygroundGridConfig> = DEFAULT_GRID_CONFIG_REF,
+  textureAdjustmentsRef: RefObject<PlaygroundTextureAdjustments> = DEFAULT_TEXTURE_ADJUSTMENTS_REF,
+  textureLuminanceSettingsRef: RefObject<TextureLuminanceSettings> = DEFAULT_TEXTURE_LUMINANCE_SETTINGS_REF,
+  sourceTransformRef: RefObject<PlaygroundSourceTransform> = DEFAULT_SOURCE_TRANSFORM_REF,
+  flamesStateRef: RefObject<PlaygroundFlamesState | null> = DEFAULT_FLAMES_STATE_REF,
+  flamesConfigRef: RefObject<PlaygroundFlamesConfig> = DEFAULT_FLAMES_CONFIG_REF,
+  revealConfigRef: RefObject<PlaygroundRevealConfig> = DEFAULT_REVEAL_CONFIG_REF,
+  revealStateRef: RefObject<PlaygroundRevealState> = DEFAULT_REVEAL_STATE_REF,
+  revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = DEFAULT_REVEAL_PLAYBACK_REF,
+  cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = DEFAULT_CURSOR_TRAIL_CONFIG_REF,
+  clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig> = DEFAULT_CLICK_WAVE_CONFIG_REF,
+  onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
+): Ticker {
+  return createStripesShaderScene({
+    getConfig: () => ({
+      stripeColors: stripeColorsRef.current,
+      preferP3: preferP3Ref.current,
+      duotoneEnabled: duotoneEnabledRef.current,
+      stripesEnabled: stripesEnabledRef.current,
+      textureGamma: textureGammaRef.current,
+      sparkle: sparkleOptionsRef.current,
+      widthShuffle: widthShuffleOptionsRef.current,
+      gridConfig: gridConfigRef.current,
+      textureAdjustments: textureAdjustmentsRef.current,
+      textureLuminanceSettings: textureLuminanceSettingsRef.current,
+      sourceTransform: sourceTransformRef.current,
+      flamesConfig: flamesConfigRef.current,
+      revealConfig: revealConfigRef.current,
+      revealPlayback: revealPlaybackRef.current,
+      cursorTrailConfig: cursorTrailConfigRef.current,
+      clickWaveConfig: clickWaveConfigRef.current,
+    }),
+    getSource: () => source,
+    getDisplaySize: () => display,
+    autoplay: autoplayRef.current,
+    flamesStateRef,
+    revealStateRef,
+    exportStateRef,
+    onTextureLuminanceSettingsDetected,
+  });
 }
 
 function createImageSceneTicker(
@@ -1161,6 +1311,7 @@ function createImageSceneTicker(
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
   onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
+  beforeTick?: () => void,
 ): Ticker {
   return ({ app, cleanup }) => {
     const grid = gridConfigRef.current;
@@ -1251,11 +1402,20 @@ function createImageSceneTicker(
       onTextureLuminanceSettingsDetected,
     });
 
-    app.ticker.add(renderTick);
+    // Sync the live config onto the internal refs before the render logic reads them, then run the
+    // unchanged tick. Without a beforeTick hook (legacy direct callers) renderTick runs as-is.
+    const tick = beforeTick
+      ? () => {
+          beforeTick();
+          renderTick();
+        }
+      : renderTick;
+
+    app.ticker.add(tick);
 
     cleanup(() => {
       if (app.ticker) {
-        app.ticker.remove(renderTick);
+        app.ticker.remove(tick);
       }
       image.removeEventListener("load", onLayoutChange);
       detachPlaygroundPointerEvents();
@@ -1290,6 +1450,7 @@ function createVideoSceneTickerInternal(
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
   onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
+  beforeTick?: () => void,
 ): Ticker {
   return ({ app, cleanup }) => {
     const grid = gridConfigRef.current;
@@ -1390,7 +1551,16 @@ function createVideoSceneTickerInternal(
       onTextureLuminanceSettingsDetected,
     });
 
-    app.ticker.add(renderTick);
+    // Sync the live config onto the internal refs before the render logic reads them, then run the
+    // unchanged tick. Without a beforeTick hook (legacy direct callers) renderTick runs as-is.
+    const tick = beforeTick
+      ? () => {
+          beforeTick();
+          renderTick();
+        }
+      : renderTick;
+
+    app.ticker.add(tick);
 
     if (autoplayRef.current) {
       void video.play().catch(() => {
@@ -1400,7 +1570,7 @@ function createVideoSceneTickerInternal(
 
     cleanup(() => {
       if (app.ticker) {
-        app.ticker.remove(renderTick);
+        app.ticker.remove(tick);
       }
       video.removeEventListener("loadedmetadata", onVideoLayoutChange);
       videoSource.off("resize", onVideoLayoutChange);

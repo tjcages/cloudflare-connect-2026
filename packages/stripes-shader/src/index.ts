@@ -1,5 +1,11 @@
 // Render core public surface (2a: relocated as-is; 2b/2c refine into config/ + <StripesShader>).
 export * from "./setupTextureShaderScene";
+// Explicit re-export of the 2c getter-based API for curation (already covered by export * above).
+export {
+  createStripesShaderScene,
+  type StripesSceneConfig,
+  type StripesShaderSceneOptions,
+} from "./setupTextureShaderScene";
 export * from "./samplePlaygroundFrame";
 export * from "./computeBlockGrid";
 export * from "./resampleBlockGrid";

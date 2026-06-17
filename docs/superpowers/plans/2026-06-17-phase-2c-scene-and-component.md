@@ -25,6 +25,7 @@
 Types (all in the package): `PlaygroundTextureSource` (`{kind:"video"|"image", element}`), `PlaygroundDisplaySize` (`{width,height}`), `StripeColors`, `PlaygroundSparkleOptions`, `PlaygroundWidthShuffleOptions`, `PlaygroundGridConfig`, `PlaygroundTextureAdjustments`, `TextureLuminanceSettings`, `PlaygroundSourceTransform`, `PlaygroundFlamesState`, `PlaygroundFlamesConfig`, `PlaygroundRevealConfig`, `PlaygroundRevealState` (output), `PlaygroundRevealPlayback` (replay timing), `PlaygroundCursorTrailConfig`, `PlaygroundClickWaveConfig`, `PlaygroundSceneExportState` (output). Pointer handlers: `attachPlaygroundPointerEvents` (internal). The Ticker is `(props:{app, cleanup})=>void` from `pixiMount`.
 
 Classification of the 23 params:
+
 - **Per-frame config** (→ `getConfig()`): stripeColors, preferP3, duotoneEnabled, stripesEnabled, textureGamma, sparkleOptions, widthShuffleOptions, gridConfig, textureAdjustments, textureLuminanceSettings, sourceTransform, flamesConfig, revealConfig, revealPlayback, cursorTrailConfig, clickWaveConfig.
 - **Static** (→ getSource/getDisplaySize, captured once; changing them remounts via sceneKey): source, display.
 - **Outputs / runtime state** (→ explicit option fields): exportStateRef (studio export), revealStateRef (studio reveal-progress readout), flamesStateRef (runtime sim — scene may own it; keep as optional passthrough for studio parity), autoplayRef (playback), onTextureLuminanceSettingsDetected (colors-mode auto-detect callback; the scene must NOT mutate the caller's settings ref directly — it calls the callback and the owner updates).
@@ -34,6 +35,7 @@ Classification of the 23 params:
 ### Task 1: Generalize `createTextureSceneTicker` → `createStripesShaderScene` (adapter keeps the studio identical)
 
 **Files:**
+
 - Modify: `packages/stripes-shader/src/setupTextureShaderScene.ts`
 - Modify: `packages/stripes-shader/src/index.ts` (export the new API)
 - Create/extend: `packages/stripes-shader/src/setupTextureShaderScene.test.ts` (adapter-equivalence + getConfig tests)
@@ -41,6 +43,7 @@ Classification of the 23 params:
 - [ ] **Step 1: Define the `getConfig` bundle + options types**
 
 In `setupTextureShaderScene.ts`, add:
+
 ```ts
 export type StripesSceneConfig = {
   stripeColors: StripeColors;
@@ -119,6 +122,7 @@ export function createTextureSceneTicker(
   });
 }
 ```
+
 The signature, defaults, and the studio's call site are UNCHANGED — only the body delegates. (If `autoplay` must stay live per-frame rather than captured, pass `autoplayRef` through as an optional option and read it where the existing code reads `autoplayRef.current`; keep behavior identical to today.)
 
 - [ ] **Step 4: Export the new API from the barrel**
@@ -148,6 +152,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ### Task 2: Build the render-only `<StripesShader>` component
 
 **Files:**
+
 - Create: `packages/stripes-shader/src/StripesShader.tsx`, `packages/stripes-shader/src/buildSceneConfig.ts` (config→scene-config resolver), `packages/stripes-shader/src/StripesShader.test.tsx`
 - Modify: `packages/stripes-shader/src/index.ts` (export `StripesShader`)
 
@@ -162,14 +167,20 @@ Model the structure on the OLD `apps/studio/src/lib/export/portable/AsciiVideo.t
 ```tsx
 export type StripesShaderProps = {
   src: string;
-  mediaKind?: "video" | "image";          // default "video"
+  mediaKind?: "video" | "image"; // default "video"
   config?: Partial<StripesShaderConfig>;
-  width?: number; height?: number;        // default config.displayWidth/Height, else native
-  autoPlay?: boolean; loop?: boolean; muted?: boolean; paused?: boolean;
-  className?: string; style?: React.CSSProperties;
+  width?: number;
+  height?: number; // default config.displayWidth/Height, else native
+  autoPlay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  paused?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
 };
 export function StripesShader(props: StripesShaderProps): JSX.Element;
 ```
+
 Internals: `"use client"` directive at top; SSR guard (bail to a placeholder if `typeof window === "undefined"`); load media (crossOrigin="anonymous"); a `revealPlaybackRef` bumped on `config.reveal` change + media load; `displaySize` from props/config/native; `<Pixi>` with `onPreload={preloadStripeLetterFont}` + a `resolveInitOptions` that creates the WebGL context (mirror the studio's `createPlaygroundWebGLContext`/p3 setup — copy the minimal init the studio uses, or expose a package helper); `tickers={[createStripesShaderScene({ getConfig: () => resolveStripesSceneConfig(config, {preferP3}), getSource: () => loadState.source, getDisplaySize: () => displaySize, autoplay: autoPlay })]}`; sceneKey = `${src}:${mediaKind}:${displaySize.width}x${displaySize.height}`. Pointer trail/click come for free (scene-internal).
 
 NOTE on WebGL color-space init: the studio's p3 setup lives in studio-only `playgroundColorSpace.ts`. If the component needs it, add a minimal package-side init (the package already has `colorSpace.ts`); do NOT import studio code. If full p3 parity needs more, add a small `packages/stripes-shader/src/webglInit.ts` and have BOTH the studio and component use it (note any studio change as a follow-up — but prefer leaving the studio's init untouched in 2c and giving the component its own minimal-but-equivalent init).
@@ -182,6 +193,7 @@ NOTE on WebGL color-space init: the studio's p3 setup lives in studio-only `play
 
 Add `export { StripesShader, type StripesShaderProps } from "./StripesShader";` and `export { resolveStripesSceneConfig } from "./buildSceneConfig";` to the barrel.
 Run: `pir verify && pir code-check` (both green).
+
 ```bash
 git add -A
 git commit -m "Phase 2c: add the render-only <StripesShader> component + config→scene resolver
