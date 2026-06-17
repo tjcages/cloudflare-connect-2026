@@ -1,0 +1,46 @@
+{
+  "name": "studio",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc -b",
+    "build": "pnpm run typecheck && vite build",
+    "build:client": "vite build",
+    "preview:worker": "pnpm run build && wrangler dev",
+    "deploy": "pnpm run build && wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "pnpm run test && pnpm run typecheck && pnpm run build:client"
+  },
+  "dependencies": {
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
+    "clsx": "^2.1.1",
+    "fflate": "^0.8.2",
+    "leva": "^0.10.1",
+    "lucide-react": "^1.14.0",
+    "pixi.js": "^8.18.1",
+    "react": "^19.0.5",
+    "react-colorful": "^5.7.0",
+    "react-dom": "^19.0.5",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "happy-dom": "^20.9.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5",
+    "wrangler": "^4.88.0"
+  }
+}

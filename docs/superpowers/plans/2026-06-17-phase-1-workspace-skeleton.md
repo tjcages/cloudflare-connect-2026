@@ -49,6 +49,7 @@ stripes-shader/                  (workspace root)
 The atomic restructure: relocate the app, create its package, make the root a workspace coordinator. Everything must land together so the workspace is coherent and `verify` passes.
 
 **Files:**
+
 - Move (git mv): `src/` → `apps/studio/src/`; `index.html`, `public/`, `vite.config.ts`, `wrangler.jsonc` → `apps/studio/`; `tsconfig.app.json` → `apps/studio/tsconfig.json`; `tsconfig.node.json` → `apps/studio/tsconfig.node.json`
 - Create: `apps/studio/package.json`
 - Modify: `pnpm-workspace.yaml`, root `package.json`, root `tsconfig.json`
@@ -232,14 +233,17 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 Remove the runtime deps the builder left behind (0 import sites in the surviving tree). Verify the two ambiguous ones before dropping.
 
 **Files:**
+
 - Modify: `apps/studio/package.json` (root already shed runtime deps in Task 1)
 
 - [ ] **Step 1: Confirm the ambiguous deps before deciding**
 
 Run:
+
 ```bash
 rg -n "@ffmpeg/core|ffmpeg-core|prettier" apps/studio/src
 ```
+
 Expected: `@ffmpeg/core` may appear only as a runtime/CDN URL string in `playgroundFfmpeg.ts` (keep it as a dep); `prettier` should have NO hits (the export formatting path was deleted) → safe to drop. Record what you find.
 
 - [ ] **Step 2: Remove the confirmed-dead deps from `apps/studio/package.json`**
@@ -267,11 +271,13 @@ git commit -m "Phase 1: prune dead builder dependencies from the studio app"
 Reserve the render-core package so the monorepo skeleton is complete. It is empty here and filled in Phase 2.
 
 **Files:**
+
 - Create: `packages/stripes-shader/package.json`, `packages/stripes-shader/src/index.ts`, `packages/stripes-shader/tsconfig.json`
 
 - [ ] **Step 1: Create the placeholder package**
 
 `packages/stripes-shader/package.json`:
+
 ```json
 {
   "name": "@necatikcl/stripes-shader",
@@ -285,6 +291,7 @@ Reserve the render-core package so the monorepo skeleton is complete. It is empt
 ```
 
 `packages/stripes-shader/src/index.ts`:
+
 ```ts
 // Placeholder — the render core (StripesShader, StripesShaderConfig,
 // createStripesShaderScene) is extracted here in Phase 2.
@@ -292,6 +299,7 @@ export {};
 ```
 
 `packages/stripes-shader/tsconfig.json`:
+
 ```json
 {
   "compilerOptions": {
@@ -334,6 +342,7 @@ git commit -m "Phase 1: add packages/stripes-shader placeholder for the render c
 Reflect the new structure so README/AGENTS describe how to work in the workspace.
 
 **Files:**
+
 - Modify: `README.md`, `AGENTS.md`
 
 - [ ] **Step 1: Update `README.md` Scripts/structure section**

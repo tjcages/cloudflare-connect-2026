@@ -1,5 +1,5 @@
 {
-  "name": "seeded-grid-tool",
+  "name": "stripes-shader-monorepo",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -8,22 +8,21 @@
     "minimumReleaseAge": 10080
   },
   "scripts": {
-    "dev": "vite",
-    "typecheck": "tsc -b",
-    "build": "pnpm run typecheck && pnpm run build:client",
-    "build:client": "vite build",
-    "preview:worker": "pnpm run build && wrangler dev",
-    "deploy": "pnpm run build && wrangler deploy",
+    "dev": "pnpm --filter studio dev",
+    "build": "pnpm --filter studio build",
+    "build:client": "pnpm --filter studio build:client",
+    "typecheck": "pnpm --filter studio typecheck",
+    "preview:worker": "pnpm --filter studio preview:worker",
+    "deploy": "pnpm --filter studio deploy",
+    "test": "pnpm --filter studio test",
+    "test:watch": "pnpm --filter studio test:watch",
+    "verify": "pnpm --filter studio verify",
     "code-check": "oxlint -c .oxlintrc.json . && oxfmt --check .",
     "lint": "oxlint -c .oxlintrc.json .",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "prepare": "husky",
-    "precommit": "lint-staged",
-    "test": "vitest run",
-    "export:sync-test": "SYNC_EXPORT_TEST=1 vitest run src/lib/export/syncExportToTest.test.ts",
-    "test:watch": "vitest",
-    "verify": "pnpm test && pnpm run typecheck && pnpm run build:client"
+    "precommit": "lint-staged"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,jsonc,css,md,yml,yaml}": [
@@ -33,50 +32,10 @@
       "oxlint -c .oxlintrc.json"
     ]
   },
-  "dependencies": {
-    "@chenglou/pretext": "^0.0.6",
-    "@cloudflare/kumo": "^2.0.5",
-    "@ffmpeg/core": "^0.12.10",
-    "@ffmpeg/ffmpeg": "^0.12.15",
-    "@ffmpeg/util": "^0.12.2",
-    "@phosphor-icons/react": "^2.1.10",
-    "@radix-ui/react-slider": "^1.4.0",
-    "@tailwindcss/vite": "^4.2.4",
-    "clsx": "^2.1.1",
-    "fflate": "^0.8.2",
-    "highlight.js": "^11.11.1",
-    "leva": "^0.10.1",
-    "lowlight": "^3.3.0",
-    "lucide-react": "^1.14.0",
-    "motion": "^12.38.0",
-    "pixi-box-shadow": "^1.2.0",
-    "pixi.js": "^8.18.1",
-    "prettier": "^3.8.3",
-    "react": "^19.0.5",
-    "react-colorful": "^5.7.0",
-    "react-dom": "^19.0.5",
-    "react-hotkeys-hook": "^5.3.2",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.4",
-    "zundo": "^2.3.0",
-    "zustand": "^5.0.13"
-  },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/hast": "^3.0.4",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "happy-dom": "^20.9.0",
     "husky": "^9.1.7",
-    "jsdom": "^29.1.1",
     "lint-staged": "^16.4.0",
     "oxfmt": "^0.48.0",
-    "oxlint": "^1.63.0",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.10",
-    "vitest": "^4.1.5",
-    "wrangler": "^4.88.0"
+    "oxlint": "^1.63.0"
   }
 }
