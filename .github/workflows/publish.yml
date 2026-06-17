@@ -1,0 +1,42 @@
+name: Publish @necatikcl/stripes-shader
+
+# Publishes the package to GitHub Packages using the repo's built-in GITHUB_TOKEN.
+# No personal token is ever stored on your machine — the write credential lives
+# only inside the GitHub Actions run and is destroyed when the run ends.
+# The package inherits this repository's visibility (private repo -> private package).
+
+on:
+  push:
+    tags:
+      - "v*" # push a version tag (e.g. v0.1.0) to publish
+  workflow_dispatch: {} # ...or run it manually from the Actions tab
+
+# Disable husky git-hook install in CI.
+env:
+  HUSKY: "0"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # the ONLY write grant — scoped to this run, GitHub-managed
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # reads packageManager (pnpm@10.6.3) from package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".node-version" # Node 22
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@necatikcl"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @necatikcl/stripes-shader build
+
+      - run: pnpm --filter @necatikcl/stripes-shader publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
