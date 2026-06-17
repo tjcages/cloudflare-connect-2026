@@ -12,7 +12,7 @@ import {
   type PlaygroundRevealPlayback,
   type PlaygroundTextureSource,
 } from "./setupTextureShaderScene";
-import { preloadStripeLetterFont } from "./stripeLetterFont";
+import { registerStripesFont } from "./registerStripesFont";
 import { createPlaygroundFlamesState } from "./playgroundFlames";
 import { normalizeStripesShaderConfig, type StripesShaderConfig } from "./StripesShaderConfig";
 import { resolveStripesSceneConfig } from "./buildSceneConfig";
@@ -317,7 +317,7 @@ function StripesShaderClient({
         layoutWidth={displaySize.width}
         layoutHeight={displaySize.height}
         onPreload={async () => {
-          await preloadStripeLetterFont();
+          await registerStripesFont();
         }}
         resolveInitOptions={(canvas) => {
           const context = createStripesWebGLContext(canvas);
