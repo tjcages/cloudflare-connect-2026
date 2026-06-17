@@ -53,3 +53,5 @@ export {
   DEFAULT_STRIPES_SHADER_CONFIG,
   normalizeStripesShaderConfig,
 } from "./StripesShaderConfig";
+export { StripesShader, type StripesShaderProps } from "./StripesShader";
+export { resolveStripesSceneConfig } from "./buildSceneConfig";
