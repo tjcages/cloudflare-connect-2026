@@ -72,12 +72,6 @@
       "rules": {
         "no-restricted-properties": "off"
       }
-    },
-    {
-      "files": ["src/grid/generatorWorker.ts"],
-      "rules": {
-        "typescript/no-useless-empty-export": "off"
-      }
     }
   ],
   "settings": {

@@ -16,11 +16,6 @@ export default defineConfig({
       ["src/grid/**/*.test.ts", "node"],
       ["src/lib/**/*.test.ts", "node"],
       ["src/theme/**/*.test.ts", "node"],
-      ["src/store*.test.ts", "node"],
-      ["src/canvas/hitTest.test.ts", "node"],
-      ["src/canvas/scrollAroundEdges.test.ts", "node"],
-      ["src/canvas/selection-setup.test.ts", "node"],
-      ["src/canvas/components/connector-line/**/*.test.ts", "node"],
     ],
   },
 });
