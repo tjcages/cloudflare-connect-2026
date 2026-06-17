@@ -4,7 +4,7 @@
 
 **Goal:** Make `StripesShaderConfig` (owned by `packages/stripes-shader/`) the single serializable config type, with a top-level `normalizeStripesShaderConfig(partial)` that fills defaults via the existing per-field normalizers. Rewire the studio's `PlaygroundPersistedConfig` to be that type, keeping the 3 deprecated fields handled only at the studio's wire-read/migration layer.
 
-**Architecture:** The per-feature sub-config types + their `DEFAULT_*`/`normalize*`/`isDefault*` helpers already live in the package (moved in 2a). 2b adds the *aggregate*: `StripesShaderConfig` = today's `PlaygroundPersistedConfig` **minus** the 3 deprecated fields (`textureGamma`, `sparkleRate`, `sparkleEnabled`), plus `DEFAULT_STRIPES_SHADER_CONFIG` and `normalizeStripesShaderConfig`. The studio's persistence envelope, compact wire format, IndexedDB, and catalog stay studio-only and now wrap the core type; the deprecated-field migration (`textureGamma`→`textureAdjustments.gamma`, `sparkleRate`/`sparkleEnabled`→`sparkleGaps*`) lives only in the studio's parse path, reading a `LegacyConfigInput` superset so it still type-checks.
+**Architecture:** The per-feature sub-config types + their `DEFAULT_*`/`normalize*`/`isDefault*` helpers already live in the package (moved in 2a). 2b adds the _aggregate_: `StripesShaderConfig` = today's `PlaygroundPersistedConfig` **minus** the 3 deprecated fields (`textureGamma`, `sparkleRate`, `sparkleEnabled`), plus `DEFAULT_STRIPES_SHADER_CONFIG` and `normalizeStripesShaderConfig`. The studio's persistence envelope, compact wire format, IndexedDB, and catalog stay studio-only and now wrap the core type; the deprecated-field migration (`textureGamma`→`textureAdjustments.gamma`, `sparkleRate`/`sparkleEnabled`→`sparkleGaps*`) lives only in the studio's parse path, reading a `LegacyConfigInput` superset so it still type-checks.
 
 **Tech Stack:** TypeScript 6, pnpm workspace, Vitest 4.
 
@@ -29,16 +29,19 @@ Sub-config helper modules in the package (exact export names): `playgroundTextur
 ### Task 1: Define `StripesShaderConfig` + defaults + normalizer in the package
 
 **Files:**
+
 - Create: `packages/stripes-shader/src/StripesShaderConfig.ts`, `packages/stripes-shader/src/StripesShaderConfig.test.ts`
 - Modify: `packages/stripes-shader/src/index.ts` (export the new type/fns)
 
 - [ ] **Step 1: Verify the exact export names you'll import**
 
 Run (confirm every helper the type/normalizer needs is exported from the package, with these names):
+
 ```bash
 cd /Users/necatikcl/Documents/code/cloudflare/section-grid-generator/packages/stripes-shader/src
 rg -n "export (const|function|type) (DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS|normalizePlaygroundTextureAdjustments|DEFAULT_TEXTURE_LUMINANCE_MODE|normalizeTextureLuminanceMode|DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR|normalizeTextureLuminanceBackgroundColor|DEFAULT_PLAYGROUND_SOURCE_TRANSFORM|normalizePlaygroundSourceTransform|DEFAULT_PLAYGROUND_GRID_CONFIG|normalizePlaygroundGridConfig|DEFAULT_PLAYGROUND_FLAMES_CONFIG|normalizePlaygroundFlamesConfig|DEFAULT_PLAYGROUND_REVEAL_CONFIG|normalizePlaygroundRevealConfig|DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG|normalizePlaygroundCursorTrailConfig|DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG|normalizePlaygroundClickWaveConfig|cloneDefaultStripes|cloneDefaultOverlayStripes|normalizeStripe|DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT|normalizeSparkleGapsActivePercent|DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED|normalizeSparkleGapsSpeed|DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT|normalizeSparkleWidthActivePercent|DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED|normalizeSparkleWidthSpeed)" *.ts
 ```
+
 Adjust the imports in Step 3 to the actual exported names if any differ. Also locate `DEFAULT_PLAYGROUND_BACKGROUND_COLOR`: `rg -n "DEFAULT_PLAYGROUND_BACKGROUND_COLOR" ../../apps/studio/src packages 2>/dev/null` — note where it lives (likely still studio `canvasBackgroundCss.ts`); if the normalizer needs the background default and it's studio-only, default `backgroundColor` to `0xffffff` inline with a comment rather than importing studio code.
 
 - [ ] **Step 2: Write the failing test** (`packages/stripes-shader/src/StripesShaderConfig.test.ts`)
@@ -86,17 +89,61 @@ Expected: FAIL (module/exports missing).
 Define the clean aggregate type (sub-config types imported by relative path), `DEFAULT_STRIPES_SHADER_CONFIG`, and `normalizeStripesShaderConfig`. The type:
 
 ```ts
-import { type PlaygroundTextureAdjustments, normalizePlaygroundTextureAdjustments, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
-import { type TextureLuminanceMode, normalizeTextureLuminanceMode, DEFAULT_TEXTURE_LUMINANCE_MODE, normalizeTextureLuminanceBackgroundColor, DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR } from "./colorWhiteness";
-import { type PlaygroundSourceTransform, normalizePlaygroundSourceTransform, DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
-import { type PlaygroundGridConfig, normalizePlaygroundGridConfig, DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
-import { type PlaygroundFlamesConfig, normalizePlaygroundFlamesConfig, DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
-import { type PlaygroundRevealConfig, normalizePlaygroundRevealConfig, DEFAULT_PLAYGROUND_REVEAL_CONFIG } from "./playgroundRevealConfig";
-import { type PlaygroundCursorTrailConfig, normalizePlaygroundCursorTrailConfig, DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG } from "./playgroundCursorTrailConfig";
-import { type PlaygroundClickWaveConfig, normalizePlaygroundClickWaveConfig, DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG } from "./playgroundClickWaveConfig";
+import {
+  type PlaygroundTextureAdjustments,
+  normalizePlaygroundTextureAdjustments,
+  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+} from "./playgroundTextureAdjustments";
+import {
+  type TextureLuminanceMode,
+  normalizeTextureLuminanceMode,
+  DEFAULT_TEXTURE_LUMINANCE_MODE,
+  normalizeTextureLuminanceBackgroundColor,
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+} from "./colorWhiteness";
+import {
+  type PlaygroundSourceTransform,
+  normalizePlaygroundSourceTransform,
+  DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+} from "./playgroundSourceTransform";
+import {
+  type PlaygroundGridConfig,
+  normalizePlaygroundGridConfig,
+  DEFAULT_PLAYGROUND_GRID_CONFIG,
+} from "./playgroundGridConfig";
+import {
+  type PlaygroundFlamesConfig,
+  normalizePlaygroundFlamesConfig,
+  DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+} from "./playgroundFlamesConfig";
+import {
+  type PlaygroundRevealConfig,
+  normalizePlaygroundRevealConfig,
+  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+} from "./playgroundRevealConfig";
+import {
+  type PlaygroundCursorTrailConfig,
+  normalizePlaygroundCursorTrailConfig,
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+} from "./playgroundCursorTrailConfig";
+import {
+  type PlaygroundClickWaveConfig,
+  normalizePlaygroundClickWaveConfig,
+  DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
+} from "./playgroundClickWaveConfig";
 import { type Stripe, cloneDefaultStripes, cloneDefaultOverlayStripes, normalizeStripe } from "./stripeColors";
-import { normalizeSparkleGapsActivePercent, DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT, normalizeSparkleGapsSpeed, DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED } from "./playgroundSparkle";
-import { normalizeSparkleWidthActivePercent, DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT, normalizeSparkleWidthSpeed, DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED } from "./playgroundWidthShuffle";
+import {
+  normalizeSparkleGapsActivePercent,
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
+  normalizeSparkleGapsSpeed,
+  DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
+} from "./playgroundSparkle";
+import {
+  normalizeSparkleWidthActivePercent,
+  DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT,
+  normalizeSparkleWidthSpeed,
+  DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED,
+} from "./playgroundWidthShuffle";
 
 export type StripesShaderConfig = {
   duotoneEnabled: boolean;
@@ -135,14 +182,20 @@ Expected: PASS.
 - [ ] **Step 6: Export from the barrel**
 
 In `packages/stripes-shader/src/index.ts`, add an explicit (not `export *`) re-export so the new public type is curated:
+
 ```ts
-export { type StripesShaderConfig, DEFAULT_STRIPES_SHADER_CONFIG, normalizeStripesShaderConfig } from "./StripesShaderConfig";
+export {
+  type StripesShaderConfig,
+  DEFAULT_STRIPES_SHADER_CONFIG,
+  normalizeStripesShaderConfig,
+} from "./StripesShaderConfig";
 ```
 
 - [ ] **Step 7: Gate + commit**
 
 Run: `pir verify && pir code-check`
 Expected: both green.
+
 ```bash
 git add -A
 git commit -m "Phase 2b: add StripesShaderConfig (aggregate type + defaults + normalizer) to the core
@@ -157,11 +210,13 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 Make the studio's in-memory/stored config type be the core `StripesShaderConfig`, and keep the deprecated-field migration only at the parse-input boundary via a `LegacyConfigInput` superset.
 
 **Files:**
+
 - Modify: `apps/studio/src/playground/playgroundPersistence.ts` (the type + parse/migration path), `apps/studio/src/playground/TexturePlayground.tsx`, `apps/studio/src/lib/export/playgroundSnapshot.ts` (the 3 referrers)
 
 - [ ] **Step 1: Replace the `PlaygroundPersistedConfig` definition with a core alias + legacy input**
 
 In `playgroundPersistence.ts`, delete the local `export type PlaygroundPersistedConfig = {...}` block and replace with:
+
 ```ts
 import type { StripesShaderConfig } from "@necatikcl/stripes-shader";
 
@@ -182,9 +237,11 @@ export type LegacyPlaygroundConfigInput = StripesShaderConfig & {
 - [ ] **Step 2: Point the deprecated-field readers at `LegacyPlaygroundConfigInput`**
 
 Anywhere a function reads `config.textureGamma`, `config.sparkleRate`, or `config.sparkleEnabled` (the migration shims: `resolvePersistedTextureGamma`, `resolvePersistedTextureAdjustments`, the sparkle `legacySparkleGaps*` migration, `parsePlaygroundStateInput`/`wireTo*`), change that parameter/local's type from `PlaygroundPersistedConfig` to `LegacyPlaygroundConfigInput` (or read from the raw parsed JSON object typed as `LegacyPlaygroundConfigInput`). The OUTPUT of parse/resolve remains a clean `PlaygroundPersistedConfig` (= `StripesShaderConfig`). Find them:
+
 ```bash
 rg -n "textureGamma|sparkleRate|sparkleEnabled" apps/studio/src/playground/playgroundPersistence.ts
 ```
+
 Adjust each reader's input type so it compiles without the deprecated fields living on the clean type.
 
 - [ ] **Step 3: Fix the other two referrers**
@@ -212,15 +269,18 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 Cheap fidelity/cleanup items deferred from 2a, done now while the config surface is fresh.
 
 **Files:**
+
 - Modify: `packages/stripes-shader/vitest.config.ts`, `apps/studio/src/styles/global.css`
 
 - [ ] **Step 1: Restore `colorSpace.test` node-env fidelity**
 
 In `packages/stripes-shader/vitest.config.ts`, add to the `test` config:
+
 ```ts
 // @ts-expect-error Vitest-only option valid at runtime.
 environmentMatchGlobs: [["src/colorSpace.test.ts", "node"]],
 ```
+
 (It ran under `node` pre-2a; this restores that. Keep happy-dom as the default for the other tests.)
 
 - [ ] **Step 2: Fix the stale font comment**
@@ -231,6 +291,7 @@ In `apps/studio/src/styles/global.css` (~line 74), the `@font-face` comment refe
 
 Run: `pir verify && pir code-check`
 Expected: both green; confirm `colorSpace.test` now runs in node (check the vitest output env label or that the count is unchanged + green).
+
 ```bash
 git add -A
 git commit -m "Phase 2b: restore colorSpace.test node env + fix stale font comment
