@@ -1,6 +1,5 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach } from "vitest";
-import { resetAppStoreDocumentToDefault } from "../store";
 
 const originalGetContext =
   typeof HTMLCanvasElement !== "undefined" ? HTMLCanvasElement.prototype.getContext : undefined;
@@ -76,7 +75,6 @@ beforeEach(() => {
   if (typeof localStorage !== "undefined") {
     localStorage.clear();
   }
-  resetAppStoreDocumentToDefault();
 });
 
 afterEach(() => {

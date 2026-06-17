@@ -1,1 +1,0 @@
-export { GridCanvas } from "../canvas";
