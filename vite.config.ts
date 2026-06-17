@@ -1,37 +1,9 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-const projectRoot = path.dirname(fileURLToPath(import.meta.url));
-
-function playgroundPathRedirect() {
-  return {
-    name: "playground-path-redirect",
-    configureServer(server: {
-      middlewares: { use: (fn: (req: { url?: string }, res: unknown, next: () => void) => void) => void };
-    }) {
-      server.middlewares.use((req, _res, next) => {
-        if (req.url === "/playground" || req.url === "/playground/") {
-          req.url = "/playground.html";
-        }
-        next();
-      });
-    },
-  };
-}
-
 export default defineConfig({
-  plugins: [playgroundPathRedirect(), tailwindcss(), react()],
-  build: {
-    rollupOptions: {
-      input: {
-        main: path.resolve(projectRoot, "index.html"),
-        playground: path.resolve(projectRoot, "playground.html"),
-      },
-    },
-  },
+  plugins: [tailwindcss(), react()],
   test: {
     environment: "happy-dom",
     /** `forks` (Vitest default) is much slower here with many jsdom/happy-dom workers; threads pool is ~order-of-magnitude faster for this suite. */
