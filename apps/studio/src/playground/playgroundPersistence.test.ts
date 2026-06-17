@@ -7,6 +7,7 @@ import {
   PLAYGROUND_LS_KEY,
   resolveInitialTextureId,
   serializePlaygroundState,
+  type LegacyPlaygroundConfigInput,
   type PlaygroundCatalogEntry,
 } from "./playgroundPersistence";
 import {
@@ -55,13 +56,14 @@ describe("playgroundPersistence envelope migration", () => {
   });
 
   it("clamps legacy negative texture gamma through serialize/parse", () => {
-    const text = serializePlaygroundState({
+    const input: LegacyPlaygroundConfigInput = {
       duotoneEnabled: true,
       textureGamma: -50,
       stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
-    });
+    };
+    const text = serializePlaygroundState(input);
     const parsed = parsePlaygroundStateInput(text);
-    expect(parsed.textureGamma).toBe(0.05);
+    expect(parsed.textureAdjustments?.gamma).toBe(0.05);
     expect(JSON.parse(text).tgm).toBe(0.05);
   });
 

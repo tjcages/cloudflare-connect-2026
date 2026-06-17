@@ -52,6 +52,7 @@ import {
   isDefaultPlaygroundClickWaveConfig,
   normalizePlaygroundClickWaveConfig,
   type PlaygroundClickWaveConfig,
+  type StripesShaderConfig,
 } from "@necatikcl/stripes-shader";
 import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import {
@@ -71,66 +72,28 @@ export const PLAYGROUND_LS_KEY = "section-grid-playground";
 export const PLAYGROUND_DB_NAME = "section-grid-playground";
 export const PLAYGROUND_DB_VERSION = 1;
 
-export type PlaygroundPersistedConfig = {
-  duotoneEnabled: boolean;
-  /** Stripe overlay visibility. False keeps the source texture visible without stripe bucketing. */
-  stripesEnabled?: boolean;
-  /** Raw CSS declarations applied to the playground canvas element. */
-  backgroundCss?: string;
-  /** Canvas background color as 0xRRGGBB when CSS is empty. Omitted when white. */
-  backgroundColor?: number;
-  /** Positive texture luminance gamma. Omitted when 1. */
-  /** @deprecated Use textureAdjustments.gamma. */
+/** The studio's stored config is the core type. */
+export type PlaygroundPersistedConfig = StripesShaderConfig;
+
+/** Parse-time input that still tolerates the 3 deprecated fields for migration. */
+export type LegacyPlaygroundConfigInput = StripesShaderConfig & {
+  /** @deprecated → textureAdjustments.gamma */
   textureGamma?: number;
-  /** Designer texture/tone adjustments. Omitted = defaults. */
-  textureAdjustments?: PlaygroundTextureAdjustments;
-  /** How sampled texture pixels become 0–1 stripe thresholds. Omitted = luminance. */
-  textureLuminanceMode?: TextureLuminanceMode;
-  /** Texture background color used by color-distance luminance mode. Omitted = black. */
-  textureLuminanceBackgroundColor?: number;
-  /** Source fit/crop transform. Omitted = stretch/full source. */
-  sourceTransform?: PlaygroundSourceTransform;
-  /** Active cell ratio 0–1. 0 = off. Default 0.22. */
-  sparkleGapsActivePercent?: number;
-  /** Gap pulse speed factor (1 = baseline). Default 1. */
-  sparkleGapsSpeed?: number;
-  /** @deprecated Migrated to sparkleGapsActivePercent / sparkleGapsSpeed. */
+  /** @deprecated → sparkleGapsActivePercent/Speed */
   sparkleRate?: number;
-  /** @deprecated Migrated to sparkleGapsActivePercent. */
+  /** @deprecated → sparkleGapsActivePercent */
   sparkleEnabled?: boolean;
-  /** Active cell ratio 0–1. 0 = off. Default 0.3. */
-  sparkleWidthActivePercent?: number;
-  /** Width pulse speed factor (1 = baseline). Default 1. */
-  sparkleWidthSpeed?: number;
-  /** Canvas width in px; omitted = match native source width on load. */
-  displayWidth?: number;
-  /** Canvas height in px; omitted = match native source height on load. */
-  displayHeight?: number;
-  /** Designer-tunable grid geometry / letter / animation config. Omitted = defaults. */
-  grid?: PlaygroundGridConfig;
-  /** Background flame streak settings. Omitted = defaults. */
-  flames?: PlaygroundFlamesConfig;
-  /** Reveal animation settings. Omitted = defaults. */
-  reveal?: PlaygroundRevealConfig;
-  /** Cursor trail settings. Omitted = defaults. */
-  cursorTrail?: PlaygroundCursorTrailConfig;
-  /** Click ripple settings. Omitted = defaults. */
-  clickWave?: PlaygroundClickWaveConfig;
-  /** Ordered luminosity stripes (color + start-from + width). */
-  stripes: Stripe[];
-  /** Overlay-mode stripe list (loudest three bands). Omitted = defaults. */
-  overlayStripes?: Stripe[];
 };
 
 export function resolvePersistedGridConfig(config: PlaygroundPersistedConfig): PlaygroundGridConfig {
   return normalizePlaygroundGridConfig(config.grid);
 }
 
-export function resolvePersistedTextureGamma(config: PlaygroundPersistedConfig): number {
+export function resolvePersistedTextureGamma(config: LegacyPlaygroundConfigInput): number {
   return resolvePersistedTextureAdjustments(config).gamma;
 }
 
-export function resolvePersistedTextureAdjustments(config: PlaygroundPersistedConfig): PlaygroundTextureAdjustments {
+export function resolvePersistedTextureAdjustments(config: LegacyPlaygroundConfigInput): PlaygroundTextureAdjustments {
   return normalizePlaygroundTextureAdjustments({
     ...config.textureAdjustments,
     gamma: config.textureAdjustments?.gamma ?? config.textureGamma ?? DEFAULT_TEXTURE_GAMMA,
@@ -928,7 +891,7 @@ export async function registerUpload(
   return { textureId: textureId as PlaygroundTextureId, meta };
 }
 
-export function serializePlaygroundState(config: PlaygroundPersistedConfig): string {
+export function serializePlaygroundState(config: LegacyPlaygroundConfigInput): string {
   const grid = normalizePlaygroundGridConfig(config.grid);
   const includeGrid = !isDefaultPlaygroundGridConfig(grid);
   const backgroundCss = normalizePlaygroundBackgroundCss(config.backgroundCss);
@@ -1143,7 +1106,7 @@ function parseRatioField(raw: unknown, wireVersion: PlaygroundStateWire["v"]): n
   return normalizeSparkleGapsActivePercent(value);
 }
 
-function legacySparkleGapsActivePercent(config: PlaygroundPersistedConfig): number {
+function legacySparkleGapsActivePercent(config: LegacyPlaygroundConfigInput): number {
   if (config.sparkleRate !== undefined && config.sparkleRate > 0) {
     return DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT;
   }
@@ -1153,7 +1116,7 @@ function legacySparkleGapsActivePercent(config: PlaygroundPersistedConfig): numb
   return 0;
 }
 
-function legacySparkleGapsSpeed(config: PlaygroundPersistedConfig): number {
+function legacySparkleGapsSpeed(config: LegacyPlaygroundConfigInput): number {
   if (config.sparkleRate !== undefined && config.sparkleRate > 0) {
     return migrateSparkleGapsSpeedFromWireV1(normalizeSparkleRate(config.sparkleRate));
   }
@@ -1199,7 +1162,6 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   return {
     duotoneEnabled: parsed.d,
     stripesEnabled: parsed.se === false ? false : undefined,
-    textureGamma: textureGamma !== undefined && textureGamma !== DEFAULT_TEXTURE_GAMMA ? textureGamma : undefined,
     textureAdjustments:
       textureAdjustments && !isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? textureAdjustments : undefined,
     textureLuminanceMode: textureLuminanceMode !== DEFAULT_TEXTURE_LUMINANCE_MODE ? textureLuminanceMode : undefined,
