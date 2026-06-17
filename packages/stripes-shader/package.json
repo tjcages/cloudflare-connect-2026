@@ -4,6 +4,11 @@
   "type": "module",
   "description": "Render-only Stripes Shader canvas: <StripesShader src config /> turns a video/image into a duotone stripe-grid texture.",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/necatikcl/section-grid-generator.git",
+    "directory": "packages/stripes-shader"
+  },
   "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
