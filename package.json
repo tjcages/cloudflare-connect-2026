@@ -11,12 +11,12 @@
     "dev": "pnpm --filter studio dev",
     "build": "pnpm --filter studio build",
     "build:client": "pnpm --filter studio build:client",
-    "typecheck": "pnpm --filter studio typecheck",
+    "typecheck": "pnpm --filter studio typecheck && pnpm --filter @necatikcl/stripes-shader typecheck",
     "preview:worker": "pnpm --filter studio preview:worker",
     "deploy": "pnpm --filter studio deploy",
-    "test": "pnpm --filter studio test",
-    "test:watch": "pnpm --filter studio test:watch",
-    "verify": "pnpm --filter studio verify",
+    "test": "vitest run --config vitest.workspace.ts",
+    "test:watch": "vitest --config vitest.workspace.ts",
+    "verify": "pnpm run test && pnpm run typecheck && pnpm --filter studio build:client",
     "code-check": "oxlint -c .oxlintrc.json . && oxfmt --check .",
     "lint": "oxlint -c .oxlintrc.json .",
     "format": "oxfmt --write .",
@@ -36,6 +36,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "oxfmt": "^0.48.0",
-    "oxlint": "^1.63.0"
+    "oxlint": "^1.63.0",
+    "vitest": "^4.1.5"
   }
 }
