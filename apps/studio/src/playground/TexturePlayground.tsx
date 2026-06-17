@@ -1347,8 +1347,8 @@ export function TexturePlayground() {
     }
   };
 
-  const onCopyState = async () => {
-    const config: PlaygroundPersistedConfig = {
+  const buildCurrentConfig = useCallback((): PlaygroundPersistedConfig => {
+    return {
       duotoneEnabled,
       stripesEnabled: stripesEnabled ? undefined : false,
       textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? undefined : textureAdjustments,
@@ -1381,43 +1381,36 @@ export function TexturePlayground() {
       stripes,
       overlayStripes: overlayStripesMatchDefault(overlayStripes) ? undefined : overlayStripes,
     };
+  }, [
+    duotoneEnabled,
+    stripesEnabled,
+    textureAdjustments,
+    textureLuminanceSettings,
+    sourceTransform,
+    sparkleGapsActivePercent,
+    sparkleGapsSpeed,
+    sparkleWidthActivePercent,
+    sparkleWidthSpeed,
+    displayWidth,
+    displayHeight,
+    backgroundCss,
+    backgroundColor,
+    gridConfig,
+    flamesConfig,
+    revealConfig,
+    cursorTrailConfig,
+    clickWaveConfig,
+    stripes,
+    overlayStripes,
+  ]);
+
+  const onCopyState = async () => {
+    const config = buildCurrentConfig();
     await copyPlaygroundStateToClipboard(config);
   };
 
   const onCopyConfig = async () => {
-    const config: PlaygroundPersistedConfig = {
-      duotoneEnabled,
-      stripesEnabled: stripesEnabled ? undefined : false,
-      textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments) ? undefined : textureAdjustments,
-      textureLuminanceMode:
-        textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE ? textureLuminanceSettings.mode : undefined,
-      textureLuminanceBackgroundColor:
-        textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
-          ? textureLuminanceSettings.backgroundColor
-          : undefined,
-      sourceTransform: isDefaultPlaygroundSourceTransform(sourceTransform) ? undefined : sourceTransform,
-      sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
-      sparkleGapsSpeed:
-        sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
-          ? sparkleGapsSpeed
-          : undefined,
-      sparkleWidthActivePercent:
-        sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
-          ? sparkleWidthActivePercent
-          : undefined,
-      sparkleWidthSpeed: sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
-      displayWidth: displayWidth > 0 ? displayWidth : undefined,
-      displayHeight: displayHeight > 0 ? displayHeight : undefined,
-      backgroundCss: normalizePlaygroundBackgroundCss(backgroundCss),
-      backgroundColor: backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? backgroundColor : undefined,
-      grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
-      flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
-      reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
-      cursorTrail: isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig) ? undefined : cursorTrailConfig,
-      clickWave: isDefaultPlaygroundClickWaveConfig(clickWaveConfig) ? undefined : clickWaveConfig,
-      stripes,
-      overlayStripes: overlayStripesMatchDefault(overlayStripes) ? undefined : overlayStripes,
-    };
+    const config = buildCurrentConfig();
     if (navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(serializeStripesShaderConfig(config));
