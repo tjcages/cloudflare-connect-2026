@@ -195,7 +195,7 @@ function StripesShaderClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealKey, loadGeneration]);
 
-  // Load media (mirrors AsciiVideo.tsx useEffect on src/mediaKind)
+  // Load media (image or video) into a source element for the scene.
   // loop and muted are applied at load time (video element attributes set before load())
   useEffect(() => {
     let cancelled = false;
