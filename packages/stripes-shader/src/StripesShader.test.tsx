@@ -1,5 +1,5 @@
 /** @vitest-environment happy-dom */
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { StripesShader } from "./StripesShader";
 
@@ -109,5 +109,74 @@ describe("StripesShader", () => {
     HTMLVideoElement.prototype.load = origLoad;
     if (origVideoWidth) Object.defineProperty(HTMLVideoElement.prototype, "videoWidth", origVideoWidth);
     if (origVideoHeight) Object.defineProperty(HTMLVideoElement.prototype, "videoHeight", origVideoHeight);
+  });
+
+  it("reveal effect fires on content change but NOT on equivalent re-renders (inline config objects)", async () => {
+    // Guard for the reveal-replay-every-render bug:
+    // onRevealReplay is called each time revealPlaybackRef is bumped.
+    // We assert it is NOT called again when re-rendering with a new object that has the same content,
+    // and IS called when the reveal config content actually changes.
+    const replayKeys: number[] = [];
+    const onRevealReplay = (key: number) => replayKeys.push(key);
+
+    // Initial render with reveal enabled — captures the initial bump (mount)
+    const revealOn = {
+      enabled: true,
+      wave: { position: "center" as const, durationMs: 1100, softness: 0.08, waviness: 0.35, noiseScale: 0.5 },
+    };
+    const { rerender } = render(
+      <StripesShader src="test.mp4" mediaKind="image" config={{ reveal: revealOn }} onRevealReplay={onRevealReplay} />,
+    );
+
+    // Wait for any async effects to settle
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const afterMountCount = replayKeys.length;
+    // At least one bump on mount (initial effect run)
+    expect(afterMountCount).toBeGreaterThanOrEqual(1);
+
+    // Re-render with a NEW object that has the SAME reveal content — must NOT bump again
+    await act(async () => {
+      rerender(
+        <StripesShader
+          src="test.mp4"
+          mediaKind="image"
+          config={{
+            reveal: {
+              enabled: true,
+              wave: { position: "center", durationMs: 1100, softness: 0.08, waviness: 0.35, noiseScale: 0.5 },
+            },
+          }}
+          onRevealReplay={onRevealReplay}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    // Count must NOT have increased — same content, different object reference
+    expect(replayKeys.length).toBe(afterMountCount);
+
+    // Re-render with CHANGED reveal content (durationMs differs) — MUST bump
+    await act(async () => {
+      rerender(
+        <StripesShader
+          src="test.mp4"
+          mediaKind="image"
+          config={{
+            reveal: {
+              enabled: true,
+              wave: { position: "center", durationMs: 2000, softness: 0.08, waviness: 0.35, noiseScale: 0.5 },
+            },
+          }}
+          onRevealReplay={onRevealReplay}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    // Must have bumped exactly once more
+    expect(replayKeys.length).toBe(afterMountCount + 1);
   });
 });

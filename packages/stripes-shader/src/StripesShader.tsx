@@ -30,6 +30,8 @@ export type StripesShaderProps = {
   paused?: boolean;
   className?: string;
   style?: CSSProperties;
+  /** Called each time the reveal animation is replayed (reveal config change or media load). For testing/observability. */
+  onRevealReplay?: (replayKey: number) => void;
 };
 
 type MediaLoadState =
@@ -117,6 +119,7 @@ export function StripesShader({
   paused = false,
   className,
   style,
+  onRevealReplay,
 }: StripesShaderProps) {
   // SSR guard
   if (typeof window === "undefined") {
@@ -136,6 +139,7 @@ export function StripesShader({
       paused={paused}
       className={className}
       style={style}
+      onRevealReplay={onRevealReplay}
     />
   );
 }
@@ -153,8 +157,12 @@ function StripesShaderClient({
   paused = false,
   className,
   style,
+  onRevealReplay,
 }: StripesShaderProps) {
   const [loadState, setLoadState] = useState<MediaLoadState>({ status: "loading" });
+  // loadGeneration increments each time media finishes loading — used as the media-load signal
+  // for the reveal-replay effect so it fires on actual load, not on every render.
+  const [loadGeneration, setLoadGeneration] = useState(0);
 
   // Normalize config on each render so refs always see the current resolved values
   const normalizedConfig = normalizeStripesShaderConfig(config ?? {});
@@ -167,14 +175,25 @@ function StripesShaderClient({
     startedAtMs: typeof performance !== "undefined" ? performance.now() : 0,
   });
 
-  // Bump revealPlayback when reveal config changes (mirrors AsciiVideo.tsx useEffect on config.reveal)
+  // Stable content key for the reveal config — avoid bumping on object reference changes
+  // when the reveal config CONTENT is identical (e.g. inline config={{ ... }} prop pattern).
+  const revealKey = JSON.stringify(normalizedConfig.reveal ?? null);
+
+  // Bump revealPlayback only when reveal config CONTENT changes or media (re)loads.
+  // Using revealKey (serialized content) instead of the object reference prevents
+  // every-render restart when the consumer passes a new inline config object each render.
+  const onRevealReplayRef = useRef(onRevealReplay);
+  onRevealReplayRef.current = onRevealReplay;
   useEffect(() => {
     revealStateRef.current = { progress: 0 };
+    const nextKey = revealPlaybackRef.current.replayKey + 1;
     revealPlaybackRef.current = {
-      replayKey: revealPlaybackRef.current.replayKey + 1,
+      replayKey: nextKey,
       startedAtMs: performance.now(),
     };
-  }, [normalizedConfig.reveal]);
+    onRevealReplayRef.current?.(nextKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealKey, loadGeneration]);
 
   // Load media (mirrors AsciiVideo.tsx useEffect on src/mediaKind)
   // loop and muted are applied at load time (video element attributes set before load())
@@ -183,12 +202,8 @@ function StripesShaderClient({
     setLoadState({ status: "loading" });
     void loadMedia(src, mediaKind, loop, muted).then((next) => {
       if (!cancelled) {
-        // Bump reveal on new media load
-        revealStateRef.current = { progress: 0 };
-        revealPlaybackRef.current = {
-          replayKey: revealPlaybackRef.current.replayKey + 1,
-          startedAtMs: performance.now(),
-        };
+        // Signal reveal-replay effect that media (re)loaded; the effect handles the bump.
+        setLoadGeneration((g) => g + 1);
         setLoadState(next);
       }
     });
@@ -226,24 +241,27 @@ function StripesShaderClient({
     });
   }, [loadState, width, height, normalizedConfig.displayWidth, normalizedConfig.displayHeight]);
 
-  // Memoize the heavy scene-config resolution so it only runs when config/preferP3 change,
-  // not every frame. revealPlayback stays live via its ref.
+  // Memoize the heavy scene-config resolution so it only runs when config CONTENT or preferP3
+  // changes, not every frame. revealPlayback stays live via its ref.
+  // configKey serializes config content so inline-object callers (new object, same content)
+  // don't trigger a rebuild on every render.
   // preferP3 is unknown until after mount (set in resolveInitOptions); we re-resolve once it
   // becomes known by storing the result in a ref and invalidating when preferP3Ref flips.
+  const configKey = JSON.stringify(config ?? {});
   const [preferP3Known, setPreferP3Known] = useState(false);
   const sceneBaseRef = useRef<ReturnType<typeof resolveStripesSceneConfig> | null>(null);
   // Keep a stable ref to the normalized config for use inside the getter closure
   const normalizedConfigRef = useRef(normalizedConfig);
   normalizedConfigRef.current = normalizedConfig;
 
-  // Recompute base scene config when config or preferP3 changes
+  // Recompute base scene config when config CONTENT or preferP3 changes
   useMemo(() => {
     sceneBaseRef.current = resolveStripesSceneConfig(normalizedConfig, {
       preferP3: preferP3Ref.current,
       revealPlayback: revealPlaybackRef.current,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, preferP3Known]);
+  }, [configKey, preferP3Known]);
 
   const tickers = useMemo(() => {
     if (loadState.status !== "ready" || displaySize.width <= 0 || displaySize.height <= 0) {

@@ -79,6 +79,7 @@ export function resolveStripesSceneConfig(
   // Sparkle options: slider values + grid period config
   // Authority: TexturePlayground.tsx useEffect lines 453-465
   const sparkle = playgroundSparkleOptionsFromSliders(
+    // normalizeStripesShaderConfig always populates these; ?? satisfies the optional type signature
     normalized.sparkleGapsActivePercent ?? 0,
     normalized.sparkleGapsSpeed ?? 1,
     grid.sparkleGapsPeriodMinSec,
@@ -88,6 +89,7 @@ export function resolveStripesSceneConfig(
   // Width shuffle options: slider values + grid period config
   // Authority: TexturePlayground.tsx useEffect lines 467-479
   const widthShuffle = playgroundWidthShuffleOptionsFromSliders(
+    // normalizeStripesShaderConfig always populates these; ?? satisfies the optional type signature
     normalized.sparkleWidthActivePercent ?? 0.3,
     normalized.sparkleWidthSpeed ?? 1,
     grid.sparkleWidthPeriodMinSec,
