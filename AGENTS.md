@@ -15,7 +15,7 @@ Read `docs/ai-context.md` before broad architecture work.
 ## Architecture Boundaries
 
 - The repo is a pnpm-workspace monorepo: the app lives in `apps/studio/` (entry `apps/studio/src/playground/main.tsx`), and `packages/stripes-shader/` is the (placeholder) render core. Root scripts delegate to the studio; `pir verify` runs the studio's gate.
-- NOTE: the builder modules below were removed in Phase 0; the live app is `src/playground/**` rendering via Pixi. This section is updated in the upcoming restructure.
+- NOTE: the builder modules below were removed in Phase 0; the live app is `apps/studio/src/playground/**` rendering via Pixi. The module paths listed below are pre-restructure (they were at repo-root `src/`, now under `apps/studio/src/`) and will be rewritten in the upcoming core extraction.
 - Pure grid core: `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, and `types.ts`. No React, DOM, Canvas, or browser APIs.
 - Grid integration exception: `src/grid/clipboard.ts` (legacy clipboard helper around grid serialization).
 - `src/canvas/`: Pixi rendering modules, hit testing, PNG extract. `src/store.ts` holds shared builder state wired from tickers/setup functions.

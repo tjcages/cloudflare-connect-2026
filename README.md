@@ -20,17 +20,17 @@ Run scripts from the repo root (they delegate to the studio): `pir dev`, `pir bu
 
 ## Scripts
 
-- `pnpm dev` (run via `pir dev`) serves the playground at `/`.
-- `pnpm typecheck` runs TypeScript project checks.
-- `pnpm code-check` runs `oxlint` and `oxfmt --check` (run before `git push` if you want lint/format gates early).
-- `pnpm lint` runs `oxlint` only.
-- `pnpm format` / `pnpm format:check` run `oxfmt`.
-- `pnpm test` runs the Vitest suite.
-- `pnpm build` type-checks and builds the app.
-- `pnpm verify` runs tests, then `tsc -b` and `vite build` in parallel (lint/format are intentionally excluded for speed).
-- Tip — quicker loops while editing: `pnpm typecheck`, targeted `pnpm exec vitest run <pattern>`, then finish with full `pnpm verify` (Vitest uses `pool: "threads"` + happy-dom here).
+- `pir dev` serves the playground at `/`.
+- `pir typecheck` runs TypeScript project checks.
+- `pir code-check` runs `oxlint` and `oxfmt --check` (run before `git push` if you want lint/format gates early).
+- `pir lint` runs `oxlint` only.
+- `pir format` / `pir format:check` run `oxfmt`.
+- `pir test` runs the Vitest suite.
+- `pir build` type-checks and builds the app.
+- `pir verify` runs tests, then `tsc -b` and `vite build` in parallel (lint/format are intentionally excluded for speed).
+- Tip — quicker loops while editing: `pir typecheck`, targeted `pir test <pattern>`, then finish with full `pir verify` (Vitest uses `pool: "threads"` + happy-dom here).
 
-Install dependencies with `pnpm install`.
+Install dependencies with `pi`.
 
 ## Project Context
 
