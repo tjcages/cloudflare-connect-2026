@@ -4,9 +4,15 @@ This document is the high-level map for future AI agents working in this repo.
 
 ## Current Product
 
-The app is a Canvas component builder with a deterministic seeded grid background. Users can configure the grid, add component layers, move/select instances on the canvas, configure icon-box properties, and copy the composed canvas as a 2x PNG.
+The app is a WebGL texture-shader playground. It samples an image/video into per-cell
+luminance, renders it as a duotone stripe grid with optional baked glyph letters, and
+layers animated effects (sparkle gaps/width, background flames, reveal wipe-in, cursor
+trail, click wave). Outputs: live canvas, SVG copy, and MP4/WebM video export, plus a
+copyable config.
 
-The repo started as a seeded grid tool. Some older docs still describe an SVG-first implementation. Treat source code plus this file as the current architecture. `docs/grid-rulebook.md` remains authoritative for grid generation semantics.
+The legacy Section Grid Builder (canvas component builder) was removed in Phase 0. The
+"Architecture Map" below still documents builder internals and is stale; it is rewritten
+during the planned monorepo restructure. The live code is `src/playground/**`.
 
 ## Architecture Map
 

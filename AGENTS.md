@@ -2,12 +2,19 @@
 
 ## Project Summary
 
-This is a React + TypeScript Canvas component builder. It combines a deterministic seeded grid background with component layers, SVG icon metadata, Canvas rendering, and PNG export.
+This is a React + TypeScript WebGL texture-shader playground (Pixi.js). It renders a
+duotone stripe-grid texture from an image/video, with baked letters and animated
+effects, plus SVG/video export and a copyable config.
+
+The legacy Section Grid Builder app was removed. A monorepo restructure and an
+installable render package are planned — see
+`docs/superpowers/specs/2026-06-17-stripes-shader-refactor-design.md`.
 
 Read `docs/ai-context.md` before broad architecture work.
 
 ## Architecture Boundaries
 
+- NOTE: the builder modules below were removed in Phase 0; the live app is `src/playground/**` rendering via Pixi. This section is updated in the upcoming restructure.
 - Pure grid core: `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, and `types.ts`. No React, DOM, Canvas, or browser APIs.
 - Grid integration exception: `src/grid/clipboard.ts` (legacy clipboard helper around grid serialization).
 - `src/canvas/`: Pixi rendering modules, hit testing, PNG extract. `src/store.ts` holds shared builder state wired from tickers/setup functions.

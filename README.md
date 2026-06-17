@@ -1,10 +1,17 @@
-# Section Grid Generator
+# Stripes Shader
 
-A React/TypeScript Canvas component builder. It generates deterministic seeded grid backgrounds from `40x40` and `80x80` cells, supports component layers, and exports the composed canvas as PNG.
+A React/TypeScript WebGL texture-shader playground (Pixi.js). It turns an image or
+video into a stylized duotone stripe-grid texture with baked glyph letters and
+animated effects (sparkle, flames, reveal, cursor trail, click wave), and supports
+SVG/video export and a copyable config.
+
+> The legacy "Section Grid Builder" app was removed; the playground is now the only
+> app. A pnpm-workspace restructure (`packages/stripes-shader` + `apps/studio`) and an
+> installable package are planned — see `docs/superpowers/specs/2026-06-17-stripes-shader-refactor-design.md`.
 
 ## Scripts
 
-- `pnpm dev` starts the Vite dev server.
+- `pnpm dev` (run via `pir dev`) serves the playground at `/`.
 - `pnpm typecheck` runs TypeScript project checks.
 - `pnpm code-check` runs `oxlint` and `oxfmt --check` (run before `git push` if you want lint/format gates early).
 - `pnpm lint` runs `oxlint` only.
