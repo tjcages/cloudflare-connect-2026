@@ -71,7 +71,7 @@
   }
 }
 
-/* Icon-box canvas title: CSS family name matches `ICON_BOX_TITLE_FONT_FAMILY` in `src/fonts/iconBoxTitle.ts`. */
+/* Stripe-letter / code-snippet canvas font. Family matches `CODE_SNIPPET_FONT_FAMILY` in `src/fonts/codeSnippet.ts` (used by `src/playground/stripeLetterFont.ts`). */
 @font-face {
   font-family: "Berkeley Mono Trial";
   font-weight: 400;
@@ -567,9 +567,7 @@ html.playground-app #root {
   display: none !important;
 }
 
-.playground-leva-panel
-  [class*="grzFYX"]:has(> div:first-child > label[title=" "])
-  > [class*="textArea-true"] {
+.playground-leva-panel [class*="grzFYX"]:has(> div:first-child > label[title=" "]) > [class*="textArea-true"] {
   width: 100% !important;
   max-width: none !important;
 }
@@ -670,8 +668,7 @@ html.playground-app #root {
 }
 
 /* Status feedback rows: value only, no side label. */
-.playground-leva-panel
-  div:has(> div:nth-child(2):not(:has(*)):not(:has(input)):not(:has(textarea)):not(:has(select))) {
+.playground-leva-panel div:has(> div:nth-child(2):not(:has(*)):not(:has(input)):not(:has(textarea)):not(:has(select))) {
   grid-template-columns: minmax(0, 1fr) !important;
   column-gap: 0 !important;
 }

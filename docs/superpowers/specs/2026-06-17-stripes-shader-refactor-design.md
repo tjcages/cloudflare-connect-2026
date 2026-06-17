@@ -22,13 +22,13 @@ scene). The git repo/directory rename happens later.
 
 ## Approved Decisions
 
-| Decision | Choice |
-| --- | --- |
-| Render fidelity / drift | **Extract one shared render core** (single source of truth). Delete the hand-maintained `portable/**` twin. Both the studio and the package consume the core. |
-| Package scope | **Render-only canvas.** No Leva, no export, no ffmpeg in the package. The studio authors a config for a given video; the product app uses `config + video`. Interactive effects (cursor trail, click wave) are included when the config enables them. |
-| Distribution | **Private registry / GitHub Packages.** Scoped, versioned, `npm i`-installable, access-controlled. `react`/`react-dom`/`pixi.js` are peer deps. |
-| Font | **Self-bundle + auto-register.** The package ships the font file and registers `@font-face` on mount (`FontFace` API), so letters render with zero setup. Production swaps in the licensed font file; private registry keeps it internal. |
-| Repo layout | **pnpm workspace monorepo** — `packages/stripes-shader` (published core) + `apps/studio` (authoring app, deployed to Cloudflare). Studio consumes the core via `workspace:*`. |
+| Decision                | Choice                                                                                                                                                                                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Render fidelity / drift | **Extract one shared render core** (single source of truth). Delete the hand-maintained `portable/**` twin. Both the studio and the package consume the core.                                                                                         |
+| Package scope           | **Render-only canvas.** No Leva, no export, no ffmpeg in the package. The studio authors a config for a given video; the product app uses `config + video`. Interactive effects (cursor trail, click wave) are included when the config enables them. |
+| Distribution            | **Private registry / GitHub Packages.** Scoped, versioned, `npm i`-installable, access-controlled. `react`/`react-dom`/`pixi.js` are peer deps.                                                                                                       |
+| Font                    | **Self-bundle + auto-register.** The package ships the font file and registers `@font-face` on mount (`FontFace` API), so letters render with zero setup. Production swaps in the licensed font file; private registry keeps it internal.             |
+| Repo layout             | **pnpm workspace monorepo** — `packages/stripes-shader` (published core) + `apps/studio` (authoring app, deployed to Cloudflare). Studio consumes the core via `workspace:*`.                                                                         |
 
 Assumed package scope `@necatikcl/stripes-shader` (GitHub Packages owner). Adjust if a
 different org/scope is wanted.
@@ -159,11 +159,11 @@ swaps in the licensed font file.
 - `package.json`: `name: "@necatikcl/stripes-shader"`, `type: module`, `exports`
   (`"."` → types + import), `main`/`module`/`types`, `files: ["dist"]`,
   `peerDependencies: { react, react-dom, pixi.js }`, `publishConfig.registry =
-  https://npm.pkg.github.com`.
+https://npm.pkg.github.com`.
 - Build: lib mode (ESM), externalize `react`/`react-dom`/`react/jsx-runtime`/`pixi.js`;
   `vite-plugin-dts` for `.d.ts`; font emitted as a bundled asset.
 - Consumer: `.npmrc` (`@necatikcl:registry=…` + token) → `npm i
-  @necatikcl/stripes-shader pixi.js` → paste config → `<StripesShader src config />`.
+@necatikcl/stripes-shader pixi.js` → paste config → `<StripesShader src config />`.
 
 ## The Studio (`apps/studio`)
 
@@ -251,7 +251,7 @@ this spec → write Phase 0 plan → execute → write Phase 1 → …).
 5. Dynamic import edge: `CodeSnippetCodeField.tsx` does `await import("../lib/code-snippet/formatCode")`
    — both files are builder-only, deleted together in Phase 0.
 6. Pre-existing broken re-export `buildReactExport.ts:137` (`export { hexToRgb01 } from
-   "./colorSpace"` — no such file). Moot once the export system is deleted in Phase 2.
+"./colorSpace"` — no such file). Moot once the export system is deleted in Phase 2.
 7. ORPHANs dead in both apps today — delete opportunistically: `components/GridCanvas.tsx`,
    `grid/renderer.tsx`, plus the playground-adjacent dead files listed in Phase 0.
 8. Font fidelity: the studio currently relies on a `global.css` `@font-face`; the core

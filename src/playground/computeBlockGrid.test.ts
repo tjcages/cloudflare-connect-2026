@@ -195,38 +195,18 @@ describe("computeBlockGrid cell sizing", () => {
     const sparse = new Uint8ClampedArray(4 * 4);
     sparse[0] = 255;
     sparse[3] = 255;
-    const sparseGrid = computeBlockGrid(
-      sparse,
-      4,
-      4,
-      1,
-      4,
-      4,
-      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-      undefined,
-      {
-        mode: "colors",
-        backgroundColor: 0x000000,
-      },
-    );
+    const sparseGrid = computeBlockGrid(sparse, 4, 4, 1, 4, 4, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, {
+      mode: "colors",
+      backgroundColor: 0x000000,
+    });
 
     const dense = new Uint8ClampedArray(4);
     dense[0] = 255;
     dense[3] = 255;
-    const denseGrid = computeBlockGrid(
-      dense,
-      1,
-      1,
-      1,
-      1,
-      1,
-      DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-      undefined,
-      {
-        mode: "colors",
-        backgroundColor: 0x000000,
-      },
-    );
+    const denseGrid = computeBlockGrid(dense, 1, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, {
+      mode: "colors",
+      backgroundColor: 0x000000,
+    });
 
     expect(sparseGrid.colorCoverage?.[0] ?? 0).toBeLessThan(denseGrid.colorCoverage?.[0] ?? 0);
   });

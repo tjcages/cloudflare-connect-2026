@@ -25,15 +25,7 @@
     ],
     "jsx-a11y/control-has-associated-label": "off",
     "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn",
-    "no-restricted-properties": [
-      "error",
-      {
-        "object": "Math",
-        "property": "random",
-        "message": "Do not use Math.random in grid generation; use the seeded PRNG helpers."
-      }
-    ]
+    "react-hooks/exhaustive-deps": "warn"
   },
   "overrides": [
     {

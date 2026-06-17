@@ -1,5 +1,7 @@
 # Seeded Grid App Implementation Plan
 
+> **Legacy (pre-Phase-0).** Describes the removed Section Grid Builder; retained for history, not current.
+
 This plan describes how to build the app after the rule book is accepted. The rule book in `docs/grid-rulebook.md` is the source of truth for generation and rendering behavior.
 
 ## Recommended Stack

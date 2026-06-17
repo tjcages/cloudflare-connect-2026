@@ -190,11 +190,7 @@ export function resetCursorTrailCellMap(
 }
 
 /** Display-pixel push strength → cell units, shared by the trail and click accumulators. */
-export function resolveCursorTrailPushScaleCells(
-  pushStrengthPx: number,
-  displayWidth: number,
-  cols: number,
-): number {
+export function resolveCursorTrailPushScaleCells(pushStrengthPx: number, displayWidth: number, cols: number): number {
   return pushStrengthPx * (cols / Math.max(1, displayWidth));
 }
 
@@ -333,7 +329,6 @@ export function accumulateCursorTrailCellMap(
         }
       }
     }
-
   }
 }
 

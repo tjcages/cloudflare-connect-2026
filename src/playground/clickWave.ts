@@ -113,8 +113,7 @@ export function updateClickWave(
     const progress = ageMs / wave.lifeMs;
     const eased = easeOutQuart(progress);
     const radius = config.startRadiusPx + (config.maxRadiusPx - config.startRadiusPx) * eased;
-    const strokeWidth =
-      config.startStrokeWidthPx + (config.endStrokeWidthPx - config.startStrokeWidthPx) * progress;
+    const strokeWidth = config.startStrokeWidthPx + (config.endStrokeWidthPx - config.startStrokeWidthPx) * progress;
     const life = 1 - progress;
 
     nextWaves.push({ ...wave, ageMs });

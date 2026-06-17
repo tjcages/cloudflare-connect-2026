@@ -765,17 +765,7 @@ describe("rasterizeCursorTrailCellMap – buffer reuse and nonEmpty", () => {
     const snapshotWhite = Float32Array.from(out.whiteAlpha);
 
     // Second pass: no samples — should clear all
-    rasterizeCursorTrailCellMap(
-      [],
-      config,
-      40,
-      40,
-      cols,
-      rows,
-      undefined,
-      cellColors,
-      out,
-    );
+    rasterizeCursorTrailCellMap([], config, 40, 40, cols, rows, undefined, cellColors, out);
 
     for (let i = 0; i < cols * rows; i++) {
       expect(out.whiteAlpha[i]).toBe(0);
@@ -790,16 +780,7 @@ describe("rasterizeCursorTrailCellMap – buffer reuse and nonEmpty", () => {
     const config = makeConfig({ pushStrengthPx: 5, pushLeadBlackAlpha: 0.5 });
     const cellColors = new Uint8Array(cols * rows * 3).fill(255);
 
-    const map = rasterizeCursorTrailCellMap(
-      [],
-      config,
-      40,
-      40,
-      cols,
-      rows,
-      undefined,
-      cellColors,
-    );
+    const map = rasterizeCursorTrailCellMap([], config, 40, 40, cols, rows, undefined, cellColors);
 
     expect(map.nonEmpty).toBe(false);
     expect(map.pushRange).toBe(0);
@@ -963,14 +944,15 @@ describe("accumulateClickWaveCellMap – explosion ring", () => {
 
     for (const x of [12, 14, 16]) {
       const d = x - 10;
-      const w = d <= front
-        ? smooth(d / front)
-        : (() => {
-            const band = 2;
-            if (d - front >= band) return 0;
-            const t = 1 - (d - front) / band;
-            return t * t * (3 - 2 * t);
-          })();
+      const w =
+        d <= front
+          ? smooth(d / front)
+          : (() => {
+              const band = 2;
+              if (d - front >= band) return 0;
+              const t = 1 - (d - front) / band;
+              return t * t * (3 - 2 * t);
+            })();
       expect(pushAt(x)).toBeCloseTo(pushScale * sample.pushPower * w, 5);
       // Outward on the +x axis → no vertical component.
       expect(map.pushY[10 * cols + x]).toBeCloseTo(0, 5);
@@ -1042,7 +1024,15 @@ describe("accumulateClickWaveCellMap – explosion ring", () => {
     const cellIdx = 10 * cols + 16;
 
     const trailOnly = resetCursorTrailCellMap(null, cols, rows);
-    accumulateCursorTrailCellMap(trailOnly, trailSamples, trailConfig, displayWidth, displayHeight, undefined, undefined);
+    accumulateCursorTrailCellMap(
+      trailOnly,
+      trailSamples,
+      trailConfig,
+      displayWidth,
+      displayHeight,
+      undefined,
+      undefined,
+    );
     const trailAlpha = trailOnly.whiteAlpha[cellIdx] ?? 0;
     expect(trailAlpha).toBeGreaterThan(0);
 
@@ -1104,7 +1094,10 @@ describe("accumulateClickWaveCellMap – explosion ring", () => {
     accumulateCursorTrailCellMap(manual, samples, config, displayWidth, displayHeight, undefined, undefined);
     finalizeCursorTrailCellMap(
       manual,
-      Math.min(resolveCursorTrailPushScaleCells(config.pushStrengthPx, displayWidth, cols), CURSOR_TRAIL_MAX_PUSH_CELLS),
+      Math.min(
+        resolveCursorTrailPushScaleCells(config.pushStrengthPx, displayWidth, cols),
+        CURSOR_TRAIL_MAX_PUSH_CELLS,
+      ),
     );
 
     expect(Array.from(viaWrapper.whiteAlpha)).toEqual(Array.from(manual.whiteAlpha));

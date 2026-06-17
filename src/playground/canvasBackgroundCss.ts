@@ -13,10 +13,7 @@ export function playgroundBackgroundColorToHex(value: number): string {
   return `#${(value & 0xffffff).toString(16).padStart(6, "0")}`;
 }
 
-export function playgroundBackgroundColorToCss(
-  value: number,
-  preferP3: boolean = supportsDisplayP3(),
-): string {
+export function playgroundBackgroundColorToCss(value: number, preferP3: boolean = supportsDisplayP3()): string {
   const hex = playgroundBackgroundColorToHex(value);
   if (!preferP3) {
     return hex;

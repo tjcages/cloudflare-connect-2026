@@ -10,6 +10,6 @@ alwaysApply: false
 - Do not mutate props, state, hook arguments, or values after passing them to JSX.
 - Extract pure logic for geometry, snapping, rendering data, formatting, registries, and validation so it can be unit-tested.
 - Prefer named functions and types that describe behavior. Avoid clever or anonymous logic when it hides intent.
-- Split files when they own multiple responsibilities. `App.tsx` should orchestrate, not become a rendering or domain engine.
+- Split files when they own multiple responsibilities. An app entry/root should orchestrate, not become a rendering or domain engine.
 - Use discriminated unions for editor modes, drag state, and component variants.
 - Keep tests close to changed behavior. New helpers should normally get focused tests before broad integration tests.

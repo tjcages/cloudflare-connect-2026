@@ -13,7 +13,9 @@ describe("SOURCE_TEXTURE_FILTER_FRAGMENT", () => {
   });
 
   it("composites flames before tone adjustments in preview", () => {
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("vec3 merged = applyFlames(sampleFilteredSourceRgb(vTextureCoord));");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain(
+      "vec3 merged = applyFlames(sampleFilteredSourceRgb(vTextureCoord));",
+    );
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("float mergedLuma = sampleMergedLuma(merged);");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("float adjusted = adjustLuma(mergedLuma);");
   });

@@ -4,10 +4,7 @@ import type {
   PlaygroundWaveRevealPosition,
 } from "../types";
 import type { LumaGrid } from "./computeBlockGrid";
-import {
-  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
-  normalizePlaygroundRevealConfig,
-} from "./playgroundRevealConfig";
+import { DEFAULT_PLAYGROUND_REVEAL_CONFIG, normalizePlaygroundRevealConfig } from "./playgroundRevealConfig";
 
 export type PlaygroundRevealState = {
   progress: number;
@@ -186,10 +183,7 @@ function applyRandomColumnsShiftReveal(
   return { ...grid, luma: output };
 }
 
-export function applyPlaygroundRevealToLumaGrid(
-  grid: LumaGrid,
-  options: PlaygroundRevealOptions = {},
-): LumaGrid {
+export function applyPlaygroundRevealToLumaGrid(grid: LumaGrid, options: PlaygroundRevealOptions = {}): LumaGrid {
   const config = normalizePlaygroundRevealConfig(options.config ?? DEFAULT_PLAYGROUND_REVEAL_CONFIG);
   const progress = clamp01(options.progress ?? 1);
   if (config.preset !== "wave" || progress >= 1 || grid.luma.length === 0) {
@@ -216,7 +210,11 @@ export function applyPlaygroundRevealToLumaGrid(
       const y = grid.rows <= 1 ? 0.5 : (row + 0.5) / grid.rows;
       const distance = Math.hypot(x - origin.x, y - origin.y) / maxDistance;
       const edgeNoise = (cellNoise(col, row, config.wave.noiseScale) - 0.5) * config.wave.waviness;
-      const revealAmount = smoothstep(distance - config.wave.softness, distance + config.wave.softness, progress + edgeNoise);
+      const revealAmount = smoothstep(
+        distance - config.wave.softness,
+        distance + config.wave.softness,
+        progress + edgeNoise,
+      );
       output[index] = Math.round((grid.luma[index] ?? 0) * revealAmount);
     }
   }

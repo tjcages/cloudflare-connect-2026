@@ -287,9 +287,7 @@ export function blurRgbaPixels(
       const idx = i + channel;
       const original = pixels[idx] ?? 0;
       const soft = blurred[idx] ?? 0;
-      sharpened[idx] = Math.round(
-        Math.min(255, Math.max(0, original + (original - soft) * adjustments.sharpenAmount)),
-      );
+      sharpened[idx] = Math.round(Math.min(255, Math.max(0, original + (original - soft) * adjustments.sharpenAmount)));
     }
     sharpened[i + 3] = pixels[i + 3] ?? 255;
   }

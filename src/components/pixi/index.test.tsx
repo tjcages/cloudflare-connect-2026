@@ -82,9 +82,7 @@ describe("Pixi", () => {
 
   it("remounts with a fresh canvas when the React key changes", async () => {
     const ticker = vi.fn();
-    const { rerender } = render(
-      <Pixi key="scene-a" tickers={[ticker]} layoutWidth={640} layoutHeight={360} />,
-    );
+    const { rerender } = render(<Pixi key="scene-a" tickers={[ticker]} layoutWidth={640} layoutHeight={360} />);
 
     await waitFor(() => {
       expect(initMock).toHaveBeenCalledTimes(1);
@@ -97,9 +95,7 @@ describe("Pixi", () => {
     expect(ticker).toHaveBeenCalledTimes(1);
     const canvas = document.querySelector("canvas");
 
-    rerender(
-      <Pixi key="scene-b" tickers={[ticker]} layoutWidth={1280} layoutHeight={720} />,
-    );
+    rerender(<Pixi key="scene-b" tickers={[ticker]} layoutWidth={1280} layoutHeight={720} />);
 
     await waitFor(() => {
       expect(initMock).toHaveBeenCalledTimes(2);

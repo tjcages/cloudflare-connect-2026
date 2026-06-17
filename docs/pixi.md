@@ -1,5 +1,7 @@
 # Pixi rendering notes
 
+> **Partly legacy.** Builder/icon-box examples below describe removed code; the general PixiJS v8 constraints still apply to the playground.
+
 This project uses **PixiJS v8** (`pixi.js`). These notes capture constraints that matter when adding particle-style effects or batch rendering.
 
 ## `ParticleContainer` (v8)

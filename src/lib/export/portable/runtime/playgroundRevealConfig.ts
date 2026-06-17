@@ -62,7 +62,9 @@ export function normalizePlaygroundRevealConfig(
   }
   const wave = input.wave ?? {};
   const randomColumns =
-    input.preset === "randomColumnsShift" ? { ...input.randomColumnsShift, ...input.randomColumns } : (input.randomColumns ?? {});
+    input.preset === "randomColumnsShift"
+      ? { ...input.randomColumnsShift, ...input.randomColumns }
+      : (input.randomColumns ?? {});
   return {
     preset: input.preset === "randomColumns" || input.preset === "randomColumnsShift" ? "randomColumns" : "wave",
     wave: {
@@ -76,7 +78,12 @@ export function normalizePlaygroundRevealConfig(
     },
     randomColumns: {
       durationMs: Math.round(
-        clampNumber(randomColumns.durationMs ?? base.randomColumns.durationMs, 100, 30_000, base.randomColumns.durationMs),
+        clampNumber(
+          randomColumns.durationMs ?? base.randomColumns.durationMs,
+          100,
+          30_000,
+          base.randomColumns.durationMs,
+        ),
       ),
       stagger: clampNumber(randomColumns.stagger ?? base.randomColumns.stagger, 0, 1, base.randomColumns.stagger),
       yShift: clampNumber(randomColumns.yShift ?? base.randomColumns.yShift, 0, 1, base.randomColumns.yShift),

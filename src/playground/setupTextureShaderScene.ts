@@ -58,12 +58,7 @@ import {
   type PlaygroundCursorTrailConfig,
 } from "./playgroundCursorTrailConfig";
 import { addClickWave, createClickWaveState, updateClickWave, type ClickWaveState } from "./clickWave";
-import {
-  createCursorTrailState,
-  setCursorTrailTarget,
-  updateCursorTrail,
-  type CursorTrailState,
-} from "./cursorTrail";
+import { createCursorTrailState, setCursorTrailTarget, updateCursorTrail, type CursorTrailState } from "./cursorTrail";
 import {
   accumulateClickWaveCellMap,
   accumulateCursorTrailCellMap,

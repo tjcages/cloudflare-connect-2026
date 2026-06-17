@@ -1,5 +1,7 @@
 # Seeded Grid Rulebook
 
+> **Legacy (pre-Phase-0).** Describes the removed Section Grid Builder; retained for history, not current.
+
 This document defines the rules for generating deterministic random grid artwork made from `40x40` and `80x80` rectangular cells. The goal is to keep every output visually consistent, easy to validate, and easy for future agents to extend without weakening the core geometry rules.
 
 The reference images are visual inspiration only. The generator should create the same family of thin-line, irregular grid compositions, not copy a fixed layout.

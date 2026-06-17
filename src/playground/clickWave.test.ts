@@ -8,7 +8,13 @@ function makeConfig(overrides: Partial<typeof DEFAULT_PLAYGROUND_CLICK_WAVE_CONF
 
 describe("updateClickWave", () => {
   it("emits eased radius, interpolated stroke, and unitless powers", () => {
-    const config = makeConfig({ lifeMs: 1000, startRadiusPx: 10, maxRadiusPx: 110, startStrokeWidthPx: 24, endStrokeWidthPx: 4 });
+    const config = makeConfig({
+      lifeMs: 1000,
+      startRadiusPx: 10,
+      maxRadiusPx: 110,
+      startStrokeWidthPx: 24,
+      endStrokeWidthPx: 4,
+    });
     const state = createClickWaveState();
     addClickWave(state, { x: 50, y: 60 }, config.lifeMs);
 

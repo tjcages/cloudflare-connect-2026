@@ -9,11 +9,7 @@ describe("PlaygroundCanvasSizeControls", () => {
     const applyDisplayScale = vi.fn();
 
     render(
-      <PlaygroundCanvasSizeControls
-        sourceWidth={1280}
-        sourceHeight={720}
-        applyDisplayScale={applyDisplayScale}
-      />,
+      <PlaygroundCanvasSizeControls sourceWidth={1280} sourceHeight={720} applyDisplayScale={applyDisplayScale} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "2x" }));
@@ -30,11 +26,7 @@ describe("PlaygroundCanvasSizeControls", () => {
     const applyDisplayScale = vi.fn();
 
     render(
-      <PlaygroundCanvasSizeControls
-        sourceWidth={1280}
-        sourceHeight={720}
-        applyDisplayScale={applyDisplayScale}
-      />,
+      <PlaygroundCanvasSizeControls sourceWidth={1280} sourceHeight={720} applyDisplayScale={applyDisplayScale} />,
     );
 
     const input = screen.getByLabelText("Custom canvas scale multiplier");
@@ -49,11 +41,7 @@ describe("PlaygroundCanvasSizeControls", () => {
     const applyDisplayScale = vi.fn();
 
     render(
-      <PlaygroundCanvasSizeControls
-        sourceWidth={1280}
-        sourceHeight={720}
-        applyDisplayScale={applyDisplayScale}
-      />,
+      <PlaygroundCanvasSizeControls sourceWidth={1280} sourceHeight={720} applyDisplayScale={applyDisplayScale} />,
     );
 
     const input = screen.getByLabelText("Custom canvas scale multiplier");

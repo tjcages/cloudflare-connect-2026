@@ -14,7 +14,7 @@ Write focused tests for the completed behavior.
 2. Prefer the narrowest useful test level:
    - pure helpers and registries in focused unit tests
    - component interactions with Testing Library
-   - integrated canvas/editor flows in `src/app/App.test.tsx`
+   - integrated playground flows in `src/playground/**/*.test.tsx`
 3. Prefer roles, labels, and visible text over implementation details in React tests.
 4. Do not test third-party libraries. Test this app's wiring and behavior.
 5. Run the relevant test target, then rely on final `pnpm verify` before completion.

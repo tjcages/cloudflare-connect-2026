@@ -14,7 +14,7 @@
 - **Package manager is `pi`** — never `pnpm`/`npm`/`npx`. Run scripts with `pir <script>` (= `pi run <script>`). Install with `pi`.
 - **Do not start a dev server.** The user runs their own. For visual checks, ask the user to look at their running dev server (`pir dev` serves the playground at `/` after Task 1).
 - **Per-task gate is `pir verify`** (= `vitest run` + `tsc -b` + `vite build`). A task is done only when `pir verify` is green.
-- **This is over-delete-unsafe, under-delete-safe.** Leftover builder files are harmless dead code; `tsc -b` only fails if a *kept* file loses a dependency. The kept set is verified-closed against builder modules, so never delete a kept file (see KEEP SET below).
+- **This is over-delete-unsafe, under-delete-safe.** Leftover builder files are harmless dead code; `tsc -b` only fails if a _kept_ file loses a dependency. The kept set is verified-closed against builder modules, so never delete a kept file (see KEEP SET below).
 - **KEEP SET (never delete in Phase 0):** `src/playground/**`, `src/lib/export/**`, `src/lib/cn.ts`, `src/components/Button.tsx`, `src/components/HexColorPopover.tsx` (+ `.test.tsx`), `src/components/pixi/**`, `src/theme/colorSpace.ts` (+ `.test.ts`), `src/grid/prng.ts`, `src/grid/clipboard.ts` (+ `.test.ts`), `src/fonts/codeSnippet.ts`, `src/styles/global.css`, `src/test/**`, `src/vite-env.d.ts`.
 - **Out of scope for Phase 0:** the monorepo restructure (Phase 1), the core extraction (Phase 2), the package (Phase 3), and `src/lib/export/**` removal (Phase 2). `.cursor/rules/*.mdc` are now partly stale but are NOT rewritten here (deferred to the restructure).
 
@@ -25,6 +25,7 @@
 Make the playground the single Vite entry served at `/`. After this task, all builder source still exists but is unreferenced by any entry — so the repo still builds and typechecks.
 
 **Files:**
+
 - Delete: `index.html`, `src/main.tsx`, `src/devExposeBuilderStorage.ts`
 - Rename: `playground.html` → `index.html`
 - Modify: `vite.config.ts`, `src/vite-env.d.ts`, `package.json`
@@ -116,6 +117,7 @@ git commit -m "Phase 0: make the playground the sole entry at /"
 Remove every builder-only and orphan file in one commit. They are mutually referential, so this must be a single delete — a partial one would leave dangling imports. The KEEP SET (Global Constraints) is preserved.
 
 **Files:**
+
 - Delete: `src/app/`, `src/canvas/`, `src/store/`, `src/presets/`, `src/types/`, `src/lib/icon-box/`, `src/lib/code-snippet/` (whole dirs)
 - Delete: builder state, grid, theme, fonts, lib, and component files (explicit list below)
 
@@ -195,11 +197,13 @@ git rm src/components/BuilderField.tsx src/components/BuilderFieldHeaderRow.tsx 
 - [ ] **Step 7: Confirm the KEEP SET survived**
 
 Run:
+
 ```bash
 ls src/components/Button.tsx src/components/HexColorPopover.tsx src/components/pixi/index.tsx \
    src/lib/cn.ts src/theme/colorSpace.ts src/grid/prng.ts src/grid/clipboard.ts \
    src/fonts/codeSnippet.ts && ls -d src/lib/export src/playground
 ```
+
 Expected: every path lists without error.
 
 - [ ] **Step 8: Confirm no remaining file imports a deleted module**
@@ -226,6 +230,7 @@ git commit -m "Phase 0: delete the legacy Section Grid Builder app"
 Remove config entries that name files deleted in Task 2, so the config matches reality and `code-check` stays clean.
 
 **Files:**
+
 - Modify: `vite.config.ts` (`environmentMatchGlobs`), `.oxlintrc.json` (`overrides`)
 
 - [ ] **Step 1: Drop the dead `environmentMatchGlobs` entries in `vite.config.ts`**
@@ -247,12 +252,12 @@ In the `test.environmentMatchGlobs` array, delete the five entries that referenc
 Delete this object from the `overrides` array (its file was deleted in Task 2):
 
 ```json
-    {
-      "files": ["src/grid/generatorWorker.ts"],
-      "rules": {
-        "typescript/no-useless-empty-export": "off"
-      }
-    }
+{
+  "files": ["src/grid/generatorWorker.ts"],
+  "rules": {
+    "typescript/no-useless-empty-export": "off"
+  }
+}
 ```
 
 Keep the `src/grid/**/*.ts` Math.random ban (covers the surviving `grid/prng.ts`) and the `src/grid/clipboard.ts` override (file survives).
@@ -276,17 +281,20 @@ git commit -m "Phase 0: prune test globs and lint overrides for deleted builder 
 Remove the deprecated/unreferenced files that live under `src/playground/` (verified to have no non-test importers). These import only kept code, so they can go after the builder.
 
 **Files:**
+
 - Delete: `src/playground/VideoPlayground.tsx`, `setupVideoShaderScene.ts`, `playgroundVideos.ts`, `controlValueParsing.ts` (+ `controlValueParsing.test.ts`), `FieldHelp.tsx` (+ `FieldHelp.test.tsx`)
 
 - [ ] **Step 1: Re-confirm each target has no live importer**
 
 Run:
+
 ```bash
 rg -n "VideoPlayground|setupVideoShaderScene|playgroundVideos|controlValueParsing|['\"]\./FieldHelp['\"]" src \
   --glob '!**/VideoPlayground.tsx' --glob '!**/setupVideoShaderScene.ts' \
   --glob '!**/playgroundVideos.ts' --glob '!**/controlValueParsing*' --glob '!**/FieldHelp*'
 ```
-Expected: no matches (note: `playgroundFieldHelp.ts` is a *different*, kept file — the `['"]./FieldHelp['"]` pattern intentionally excludes it). If any match appears, do NOT delete that file; report it.
+
+Expected: no matches (note: `playgroundFieldHelp.ts` is a _different_, kept file — the `['"]./FieldHelp['"]` pattern intentionally excludes it). If any match appears, do NOT delete that file; report it.
 
 - [ ] **Step 2: Delete the dead files**
 
@@ -316,6 +324,7 @@ git commit -m "Phase 0: remove deprecated playground dead files"
 Update the human/agent-facing docs that currently describe the deleted builder. Keep edits light — a deeper rewrite waits for the Phase 1 restructure.
 
 **Files:**
+
 - Modify: `README.md`, `AGENTS.md`, `docs/ai-context.md`
 
 - [ ] **Step 1: Update `README.md` title + summary**

@@ -1,5 +1,7 @@
 # Icon-box Pixi: filters and `cacheAsTexture`
 
+> **Legacy (pre-Phase-0).** Describes the removed Section Grid Builder; retained for history, not current.
+
 This note captures why icon-box chrome caches **per filtered leaf** and how transforms stay stable so `pixi-box-shadow` does not “double” offsets.
 
 ## Where the code lives

@@ -1,7 +1,4 @@
-import type {
-  PlaygroundWaveRevealConfig,
-  PlaygroundWaveRevealPosition,
-} from "./playgroundRevealConfig";
+import type { PlaygroundWaveRevealConfig, PlaygroundWaveRevealPosition } from "./playgroundRevealConfig";
 
 export type PlaygroundRevealState = {
   progress: number;

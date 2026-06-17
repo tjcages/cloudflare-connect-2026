@@ -304,7 +304,10 @@ export function createStripeDuotoneFilter(
     }
     uniforms.uRevealProgress = progress;
     // Trailing band-climb window: ~5 of the old 66ms smoothing rebuilds, in progress units.
-    uniforms.uRevealBandRamp = Math.min(0.4, Math.max(0.04, 330 / Math.max(1, resolvePlaygroundRevealDurationMs(config))));
+    uniforms.uRevealBandRamp = Math.min(
+      0.4,
+      Math.max(0.04, 330 / Math.max(1, resolvePlaygroundRevealDurationMs(config))),
+    );
     uniforms.uRevealMode = 1;
     const geometry = resolveWaveRevealGeometry(config.wave.position);
     uniforms.uRevealOrigin[0] = geometry.x;

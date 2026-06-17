@@ -1,5 +1,5 @@
 ---
-description: Core architecture boundaries for the Canvas component builder
+description: Core architecture boundaries for the Texture Shader Playground
 alwaysApply: true
 ---
 
@@ -7,11 +7,11 @@ alwaysApply: true
 
 Read `docs/ai-context.md` and nearby source before broad changes.
 
-- The pure grid domain is `src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, and `types.ts`. Keep those files free of React, DOM, Canvas, and browser APIs.
+- The single app is a Vite + React + TypeScript Pixi (WebGL2) texture-shader playground at `src/playground/**`. Entry point is `src/playground/main.tsx` → `TexturePlayground.tsx`. It renders an image/video into a duotone stripe-grid texture with baked letters and effects.
+- Shared leaves: `src/components/{Button,HexColorPopover,pixi}`, `src/lib/cn.ts`, `src/theme/colorSpace.ts`, `src/grid/{prng,clipboard}.ts`, `src/fonts/codeSnippet.ts`.
+- The React-export pipeline lives in `src/lib/export/**`.
+- The pure grid math (`src/grid/config.ts`, `mask.ts`, `prng.ts`, `generator.ts`, `validate.ts`, `types.ts`) must stay free of React, DOM, Canvas, and browser APIs.
 - `src/grid/clipboard.ts` is a legacy integration helper around grid serialization; keep it out of the pure grid math modules.
-- `src/canvas/` owns Canvas rendering, hit testing, and PNG export. Keep editor rendering and export rendering aligned through `drawDocument`.
-- `src/lib/` owns shared component-domain registries, icon metadata, and layout contracts used across UI, canvas, and store.
 - `src/components/` owns reusable React UI and shared controls.
-- `src/app/App.tsx` is orchestration: app state, wiring, drag flow, and top-level layout. Move reusable logic out when it grows.
-- Prefer registry-backed extensions over duplicated switch logic. Add new component and icon behavior through `src/lib/componentRegistry.ts`, `src/lib/iconRegistry.ts`, canvas drawing, and tests.
 - Do not edit `.cursor/plans` unless the user explicitly asks.
+- A pnpm-workspace restructure (packages/stripes-shader + apps/studio) and an installable render package are planned — see docs/superpowers/specs/2026-06-17-stripes-shader-refactor-design.md.
