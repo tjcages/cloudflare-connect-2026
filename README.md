@@ -9,6 +9,15 @@ SVG/video export and a copyable config.
 > app. A pnpm-workspace restructure (`packages/stripes-shader` + `apps/studio`) and an
 > installable package are planned — see `docs/superpowers/specs/2026-06-17-stripes-shader-refactor-design.md`.
 
+## Workspace
+
+This is a pnpm-workspace monorepo:
+
+- `apps/studio/` — the Stripes Shader playground/authoring app (served at `/`, deployed to Cloudflare).
+- `packages/stripes-shader/` — the render core package (placeholder; populated in a later phase).
+
+Run scripts from the repo root (they delegate to the studio): `pir dev`, `pir build`, `pir test`, `pir verify`. Lint/format run repo-wide: `pir code-check`. See `docs/superpowers/specs/2026-06-17-stripes-shader-refactor-design.md` for the full plan.
+
 ## Scripts
 
 - `pnpm dev` (run via `pir dev`) serves the playground at `/`.
