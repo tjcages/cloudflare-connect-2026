@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { supportsDisplayP3 } from "../theme/colorSpace";
+import { supportsDisplayP3 } from "@necatikcl/stripes-shader";
 import { createPlaygroundWebGLContext, playgroundPrefersDisplayP3, readCanvasColorSpace } from "./playgroundColorSpace";
 
 describe("playgroundColorSpace", () => {

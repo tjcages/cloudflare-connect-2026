@@ -15,6 +15,7 @@
     "verify": "pnpm run test && pnpm run typecheck && pnpm run build:client"
   },
   "dependencies": {
+    "@necatikcl/stripes-shader": "workspace:*",
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",

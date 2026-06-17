@@ -1,4 +1,4 @@
-import { displayP3ToSrgb, hexToRgb01, parseDisplayP3Css, rgb01ToHex, type Rgb01 } from "../theme/colorSpace";
+import { displayP3ToSrgb, hexToRgb01, parseDisplayP3Css, rgb01ToHex, type Rgb01 } from "./colorSpace";
 import type { TextureLuminanceMode } from "./colorWhiteness";
 import { STRIPE_MAX_WIDTH_PX, STRIPE_WIDTH_ENCODE_MAX } from "./stripeGridConstants";
 

@@ -7,73 +7,53 @@ import {
   normalizeTextureLuminanceMode,
   type TextureLuminanceMode,
   type TextureLuminanceSettings,
-} from "./colorWhiteness";
-import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
-import {
   isDefaultPlaygroundGridConfig,
   normalizePlaygroundGridConfig,
   type PlaygroundGridConfig,
-} from "./playgroundGridConfig";
-import {
   cloneDefaultOverlayStripes,
   cloneDefaultStripes,
   normalizeStripe,
   overlayStripesMatchDefault,
   type Stripe,
-} from "./stripeColors";
-import {
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
   migrateSparkleGapsSpeedFromWireV1,
   normalizeSparkleGapsActivePercent,
   normalizeSparkleGapsSpeed,
   normalizeSparkleRate,
-} from "./playgroundSparkle";
-import {
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT,
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED,
   migrateSparkleWidthSpeedFromWireV1,
   normalizeSparkleWidthActivePercent,
   normalizeSparkleWidthSpeed,
-} from "./playgroundWidthShuffle";
-import {
   DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
   isDefaultPlaygroundSourceTransform,
   normalizePlaygroundSourceTransform,
   type PlaygroundSourceFit,
   type PlaygroundSourceTransform,
-} from "./playgroundSourceTransform";
-import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   isDefaultPlaygroundTextureAdjustments,
   normalizePlaygroundTextureAdjustments,
   type PlaygroundTextureAdjustments,
-} from "./playgroundTextureAdjustments";
-import {
   DEFAULT_PLAYGROUND_FLAMES_CONFIG,
   isDefaultPlaygroundFlamesConfig,
   normalizePlaygroundFlamesConfig,
   type PlaygroundFlamesConfig,
-} from "./playgroundFlamesConfig";
-import {
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
   type PlaygroundRevealConfig,
   type PlaygroundWaveRevealPosition,
-} from "./playgroundRevealConfig";
-import {
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   isDefaultPlaygroundCursorTrailConfig,
   normalizePlaygroundCursorTrailConfig,
   type PlaygroundCursorTrailConfig,
-} from "./playgroundCursorTrailConfig";
-import {
   DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
   isDefaultPlaygroundClickWaveConfig,
   normalizePlaygroundClickWaveConfig,
   type PlaygroundClickWaveConfig,
-} from "./playgroundClickWaveConfig";
+} from "@necatikcl/stripes-shader";
+import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ID,
   DEFAULT_PLAYGROUND_UPLOAD_STRIPES,

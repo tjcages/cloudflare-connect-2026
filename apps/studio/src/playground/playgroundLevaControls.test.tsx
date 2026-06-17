@@ -4,22 +4,25 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { PlaygroundLevaControls } from "./playgroundLevaControls";
-import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
-import { DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG } from "./playgroundCursorTrailConfig";
-import { DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG } from "./playgroundClickWaveConfig";
-import { DEFAULT_PLAYGROUND_REVEAL_CONFIG } from "./playgroundRevealConfig";
-import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
-import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
-import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
+import {
+  DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+  DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
+  DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
+  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+  DEFAULT_PLAYGROUND_GRID_CONFIG,
+  DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  cloneDefaultStripes,
+  DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
+  DEFAULT_TEXTURE_LUMINANCE_MODE,
+} from "@necatikcl/stripes-shader";
 import {
   buildPlaygroundLevaSchema,
   buildPlaygroundLevaSyncValues,
   type PlaygroundLevaHandlers,
   type PlaygroundLevaSnapshot,
 } from "./playgroundLevaSchema";
-import { cloneDefaultStripes } from "./stripeColors";
 import { DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
-import { DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR, DEFAULT_TEXTURE_LUMINANCE_MODE } from "./colorWhiteness";
 import type { PlaygroundTextureId } from "./playgroundTextures";
 
 const DEFAULT_TEXTURE_ID = "sample-video" as PlaygroundTextureId;

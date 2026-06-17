@@ -1,6 +1,6 @@
 import { Application, type ApplicationOptions } from "pixi.js";
 import { type HTMLAttributes, type Ref, useCallback, useEffect, useRef } from "react";
-import { isDestroyed } from "./utils";
+import { isDestroyed } from "./pixiUtils";
 
 function assignRef<T>(ref: Ref<T | null> | undefined, value: T | null) {
   if (ref === undefined) {

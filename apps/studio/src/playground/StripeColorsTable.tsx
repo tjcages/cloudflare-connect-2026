@@ -9,7 +9,7 @@ import {
   STRIPE_WIDTH_MIN,
   STRIPE_WIDTH_STORAGE_MAX,
   type Stripe,
-} from "./stripeColors";
+} from "@necatikcl/stripes-shader";
 import { cn } from "../lib/cn";
 
 export type StripeColorsTableProps = {

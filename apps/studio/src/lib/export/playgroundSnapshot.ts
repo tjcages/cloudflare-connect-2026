@@ -1,8 +1,16 @@
-import { DEFAULT_TEXTURE_GAMMA } from "../../playground/colorWhiteness";
 import {
+  DEFAULT_TEXTURE_GAMMA,
   DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
   DEFAULT_TEXTURE_LUMINANCE_MODE,
-} from "../../playground/colorWhiteness";
+  DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
+  isDefaultPlaygroundSourceTransform,
+  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  isDefaultPlaygroundTextureAdjustments,
+  resolvePersistedSparkleGapsActivePercent,
+  resolvePersistedSparkleGapsSpeed,
+  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
+  isDefaultPlaygroundRevealConfig,
+} from "@necatikcl/stripes-shader";
 import type { PlaygroundPersistedConfig } from "../../playground/playgroundPersistence";
 import {
   resolvePersistedSourceTransform,
@@ -11,22 +19,6 @@ import {
   resolvePersistedRevealConfig,
   resolvePersistedTextureLuminanceSettings,
 } from "../../playground/playgroundPersistence";
-import {
-  DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
-  isDefaultPlaygroundSourceTransform,
-} from "../../playground/playgroundSourceTransform";
-import {
-  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
-  isDefaultPlaygroundTextureAdjustments,
-} from "../../playground/playgroundTextureAdjustments";
-import {
-  resolvePersistedSparkleGapsActivePercent,
-  resolvePersistedSparkleGapsSpeed,
-} from "../../playground/playgroundSparkle";
-import {
-  DEFAULT_PLAYGROUND_REVEAL_CONFIG,
-  isDefaultPlaygroundRevealConfig,
-} from "../../playground/playgroundRevealConfig";
 import type { PlaygroundMediaKind } from "../../playground/playgroundTextures";
 
 /** Export-side stripe (no UI id). */

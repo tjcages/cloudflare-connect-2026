@@ -2,7 +2,7 @@ import { Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { writeSvgToClipboard } from "../grid/clipboard";
 import { Button } from "../components/Button";
-import Pixi from "../components/pixi";
+import { Pixi } from "@necatikcl/stripes-shader";
 import {
   catalogEntriesForLoadAttempt,
   copyPlaygroundStateToClipboard,
@@ -37,23 +37,20 @@ import {
   type PlaygroundMediaKind,
   type PlaygroundTextureId,
 } from "./playgroundTextures";
-import { buildPlaygroundBlockGrid, sampleTextureFrame, sampleVideoFrame } from "./samplePlaygroundFrame";
-import { PLAYGROUND_SCRUB_COMMIT_MS, useThrottledCallback } from "./playgroundLiveRefs";
 import {
+  buildPlaygroundBlockGrid,
+  sampleTextureFrame,
+  sampleVideoFrame,
   DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED,
   playgroundSparkleOptionsFromSliders,
   resolvePersistedSparkleGapsActivePercent,
   resolvePersistedSparkleGapsSpeed,
-} from "./playgroundSparkle";
-import {
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT,
   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED,
   playgroundWidthShuffleOptionsFromSliders,
   resolvePersistedSparkleWidthActivePercent,
   resolvePersistedSparkleWidthSpeed,
-} from "./playgroundWidthShuffle";
-import { createPlaygroundFlamesState } from "./playgroundFlames";
-import {
+  createPlaygroundFlamesState,
   clampPlaygroundDisplayDimension,
   createTextureSceneTicker,
   getPlaygroundTextureNativeSize,
@@ -63,7 +60,8 @@ import {
   type PlaygroundRevealPlayback,
   type PlaygroundSceneExportState,
   type PlaygroundTextureSource,
-} from "./setupTextureShaderScene";
+} from "@necatikcl/stripes-shader";
+import { PLAYGROUND_SCRUB_COMMIT_MS, useThrottledCallback } from "./playgroundLiveRefs";
 import {
   configurePlaygroundCanvasAfterPixiInit,
   configurePlaygroundGlColorSpace,
@@ -86,46 +84,34 @@ import {
   isDefaultPlaygroundGridConfig,
   normalizePlaygroundGridConfig,
   type PlaygroundGridConfig,
-} from "./playgroundGridConfig";
-import {
   DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
   isDefaultPlaygroundSourceTransform,
   normalizePlaygroundSourceTransform,
   type PlaygroundSourceTransform,
-} from "./playgroundSourceTransform";
-import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   isDefaultPlaygroundTextureAdjustments,
   normalizePlaygroundTextureAdjustments,
   type PlaygroundTextureAdjustments,
-} from "./playgroundTextureAdjustments";
-import {
   DEFAULT_PLAYGROUND_FLAMES_CONFIG,
   isDefaultPlaygroundFlamesConfig,
   normalizePlaygroundFlamesConfig,
   type PlaygroundFlamesConfig,
-} from "./playgroundFlamesConfig";
-import {
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
   type PlaygroundRevealConfig,
   type PlaygroundWaveRevealConfig,
-} from "./playgroundRevealConfig";
-import {
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   isDefaultPlaygroundCursorTrailConfig,
   normalizePlaygroundCursorTrailConfig,
   type PlaygroundCursorTrailConfig,
-} from "./playgroundCursorTrailConfig";
-import {
   DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
   isDefaultPlaygroundClickWaveConfig,
   normalizePlaygroundClickWaveConfig,
   type PlaygroundClickWaveConfig,
-} from "./playgroundClickWaveConfig";
-import type { PlaygroundRevealState } from "./playgroundReveal";
-import { preloadStripeLetterFont } from "./stripeLetterFont";
+  type PlaygroundRevealState,
+  preloadStripeLetterFont,
+} from "@necatikcl/stripes-shader";
 import {
   applyColorsModeStripeDefaults,
   cloneDefaultOverlayStripes,
@@ -137,15 +123,13 @@ import {
   updateStripe,
   type Stripe,
   type StripeColors,
-} from "./stripeColors";
-import { applyCanvasBackgroundCss, DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
-import {
   DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
   DEFAULT_TEXTURE_LUMINANCE_MODE,
   normalizeTextureLuminanceBackgroundColor,
   normalizeTextureLuminanceMode,
   type TextureLuminanceSettings,
-} from "./colorWhiteness";
+} from "@necatikcl/stripes-shader";
+import { applyCanvasBackgroundCss, DEFAULT_PLAYGROUND_BACKGROUND_COLOR } from "./canvasBackgroundCss";
 import { shouldToggleStripesFromShortcut } from "./playgroundShortcuts";
 import { PLAYGROUND_BUTTON_ROW_CLASS, PLAYGROUND_SHELL_CLASS } from "./playgroundUi";
 

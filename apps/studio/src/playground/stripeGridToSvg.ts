@@ -1,8 +1,13 @@
-import type { BlockGrid } from "./computeBlockGrid";
-import { stripeAtIndex, type StripeColors } from "./stripeColors";
-import { STRIPE_CELL_SIZE, STRIPE_INDEX_NONE } from "./stripeGridConstants";
-import { computeStripeLetterPlacements } from "./stripeLetterPlacements";
-import { buildStripeLetterSvgGlyphs, type StripeLetterSvgGlyph } from "./stripeLetterFont";
+import {
+  type BlockGrid,
+  stripeAtIndex,
+  type StripeColors,
+  STRIPE_CELL_SIZE,
+  STRIPE_INDEX_NONE,
+  computeStripeLetterPlacements,
+  buildStripeLetterSvgGlyphs,
+  type StripeLetterSvgGlyph,
+} from "@necatikcl/stripes-shader";
 
 const ROW_WIDTH_GAP = 1;
 

@@ -1,6 +1,6 @@
 import { Filter, Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
-import type { Ticker } from "../components/pixi";
+import type { Ticker } from "./pixiMount";
 import { BlockGridTexture } from "./blockGridTexture";
 import { resampleBlockGrid } from "./resampleBlockGrid";
 import type { BlockGrid, LumaGrid } from "./computeBlockGrid";

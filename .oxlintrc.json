@@ -47,7 +47,7 @@
       }
     },
     {
-      "files": ["**/src/grid/**/*.ts"],
+      "files": ["**/src/grid/**/*.ts", "**/src/prng.ts"],
       "rules": {
         "no-restricted-properties": [
           "error",

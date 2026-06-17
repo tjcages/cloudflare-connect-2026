@@ -1,6 +1,5 @@
-import { supportsDisplayP3 } from "../theme/colorSpace";
+import { supportsDisplayP3, hexToDisplayP3Css } from "@necatikcl/stripes-shader";
 import { normalizePlaygroundBackgroundCss } from "./playgroundPersistence";
-import { hexToDisplayP3Css } from "./stripeColors";
 
 export const DEFAULT_PLAYGROUND_BACKGROUND_COLOR = 0xffffff;
 

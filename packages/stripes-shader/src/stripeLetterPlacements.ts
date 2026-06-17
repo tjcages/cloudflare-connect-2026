@@ -1,5 +1,5 @@
 import type { BlockGrid } from "./computeBlockGrid";
-import { createPrng } from "../grid/prng";
+import { createPrng } from "./prng";
 import { STRIPE_LETTER_CHARSET } from "./stripeLetterFont";
 
 export const STRIPE_LETTER_COVERAGE = 0.1;

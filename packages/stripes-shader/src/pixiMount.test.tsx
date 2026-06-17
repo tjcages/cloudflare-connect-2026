@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Pixi from "./index";
+import Pixi from "./pixiMount";
 
 const { initMock, resizeMock, renderMock, ApplicationMock, releaseInit } = vi.hoisted(() => {
   const initMock = vi.fn();

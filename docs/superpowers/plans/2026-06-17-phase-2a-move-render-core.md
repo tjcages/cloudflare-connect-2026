@@ -24,6 +24,7 @@
 **From `apps/studio/src/playground/` (38):** `setupTextureShaderScene.ts`, `samplePlaygroundFrame.ts`, `computeBlockGrid.ts`, `resampleBlockGrid.ts`, `stabilizeBlockGrid.ts`, `playgroundGridDirty.ts`, `blockGridTexture.ts`, `stripeDuotoneFilter.ts`, `stripeFilterShaders.ts`, `sourceTextureFilter.ts`, `stripeIndexLutTexture.ts`, `stripePaletteTexture.ts`, `stripeLetterLayer.ts`, `stripeLetterFont.ts`, `stripeLetterPlacements.ts`, `playgroundLetterShuffle.ts`, `stripeLetterConstants.ts`, `stripeColors.ts`, `colorWhiteness.ts`, `playgroundVibrantColors.ts`, `playgroundGridConfig.ts`, `playgroundSourceTransform.ts`, `playgroundTextureAdjustments.ts`, `playgroundSparkle.ts`, `playgroundWidthShuffle.ts`, `playgroundFlames.ts`, `playgroundFlamesConfig.ts`, `playgroundFlameComposite.ts`, `playgroundRevealConfig.ts`, `playgroundReveal.ts`, `playgroundCursorTrailConfig.ts`, `playgroundClickWaveConfig.ts`, `cursorTrail.ts`, `clickWave.ts`, `cursorTrailOverlay.ts`, `stripeGridConstants.ts`, `playgroundPerfProfile.ts`, plus their co-located `*.test.ts` files.
 
 **5 shared leaves (relocate + rename to avoid the `components/`/`theme/`/`fonts/`/`grid/` paths):**
+
 - `apps/studio/src/components/pixi/index.tsx` → `packages/stripes-shader/src/pixiMount.tsx`
 - `apps/studio/src/components/pixi/utils.ts` → `packages/stripes-shader/src/pixiUtils.ts`
 - `apps/studio/src/theme/colorSpace.ts` (+ `.test.ts`) → `packages/stripes-shader/src/colorSpace.ts`
@@ -41,6 +42,7 @@
 ### Task 1: Stand up the package — move the 43 files + barrel + package wiring
 
 **Files:**
+
 - Move (git mv): the 43 core files (+ their tests, + `theme/accents.ts`) flat into `packages/stripes-shader/src/`
 - Create: `packages/stripes-shader/src/index.ts` (barrel)
 - Modify: `packages/stripes-shader/package.json`, `packages/stripes-shader/tsconfig.json`, `packages/stripes-shader/src/index.ts` (replace the `export {}` placeholder)
@@ -64,6 +66,7 @@ for f in setupTextureShaderScene samplePlaygroundFrame computeBlockGrid resample
   done
 done
 ```
+
 (The inner loop moves whichever extensions exist; missing ones are skipped. Run it; then `ls "$PKG"` and confirm ~38 modules + their tests landed.)
 
 - [ ] **Step 2: Move the 5 shared leaves (+ accents) with renames**
@@ -78,11 +81,13 @@ git mv apps/studio/src/theme/accents.ts "$PKG/accents.ts"
 git mv apps/studio/src/fonts/codeSnippet.ts "$PKG/codeSnippet.ts"
 git mv apps/studio/src/grid/prng.ts "$PKG/prng.ts"
 ```
+
 Then confirm now-empty dirs and remove them if empty: `apps/studio/src/components/pixi/`, `apps/studio/src/theme/`, `apps/studio/src/fonts/`. (Check first: `ls apps/studio/src/components/pixi apps/studio/src/theme apps/studio/src/fonts` — `components/` still has Button.tsx/HexColorPopover.tsx etc. and `grid/` still has clipboard.ts; only remove dirs that are fully empty.)
 
 - [ ] **Step 3: Fix the relocated shared-leaf relative imports WITHIN the package**
 
 Inside `packages/stripes-shader/src/`, the moved files referenced the leaves by their old paths. Fix only these (all now flat siblings):
+
 ```bash
 cd packages/stripes-shader/src
 # pixi mount/utils (was ../components/pixi, ../components/pixi/utils, ./utils, ./index)
@@ -98,10 +103,13 @@ rg -l "fonts/codeSnippet" . | xargs sed -i '' -e 's#\.\./fonts/codeSnippet#./cod
 # prng (was ../grid/prng)
 rg -l "grid/prng" . | xargs sed -i '' -e 's#\.\./grid/prng#./prng#g'
 ```
+
 Then grep to confirm no `../components`, `../theme`, `../fonts`, `../grid`, `../lib` remain inside the package:
+
 ```bash
 rg -n "from \"\.\./(components|theme|fonts|grid|lib)" packages/stripes-shader/src && echo "STILL HAS CROSS REFS — fix" || echo "clean: no cross-package relative imports remain"
 ```
+
 Expected: "clean". (If any remain — e.g. a moved file importing a studio-only module — STOP and report; that file may not actually belong in the core.)
 
 - [ ] **Step 4: Write the barrel `packages/stripes-shader/src/index.ts`**
@@ -158,6 +166,7 @@ export * from "./pixiUtils";
 - [ ] **Step 5: Set the package `package.json` + `tsconfig.json` for source consumption**
 
 `packages/stripes-shader/package.json` — point `main`/`types` at the barrel, declare peer deps, drop `private` to allow workspace linking (publishing is Phase 3):
+
 ```json
 {
   "name": "@necatikcl/stripes-shader",
@@ -182,6 +191,7 @@ export * from "./pixiUtils";
 ```
 
 `packages/stripes-shader/tsconfig.json` — keep the standalone leaf config but ensure it includes `src` and uses the same strictness as the studio:
+
 ```json
 {
   "compilerOptions": {
@@ -219,25 +229,30 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ### Task 2: Repoint studio imports to the package + link it; restore green
 
 **Files:**
+
 - Modify: `apps/studio/package.json` (add the workspace dep), and every studio file importing a moved module
 - Possibly: `apps/studio/vite.config.ts` / root tooling for workspace-TS resolution
 
 - [ ] **Step 1: Add the package as a studio dependency**
 
 In `apps/studio/package.json` `dependencies`, add:
+
 ```json
 "@necatikcl/stripes-shader": "workspace:*",
 ```
+
 Then run `pi` to link it.
 
 - [ ] **Step 2: Find every studio import of a moved module**
 
 Run (the moved bare module names + the renamed leaves):
+
 ```bash
 cd /Users/necatikcl/Documents/code/cloudflare/section-grid-generator
 rg -n "from \"\.{1,2}/(setupTextureShaderScene|samplePlaygroundFrame|computeBlockGrid|resampleBlockGrid|stabilizeBlockGrid|playgroundGridDirty|blockGridTexture|stripeDuotoneFilter|stripeFilterShaders|sourceTextureFilter|stripeIndexLutTexture|stripePaletteTexture|stripeLetterLayer|stripeLetterFont|stripeLetterPlacements|playgroundLetterShuffle|stripeLetterConstants|stripeColors|colorWhiteness|playgroundVibrantColors|playgroundGridConfig|playgroundSourceTransform|playgroundTextureAdjustments|playgroundSparkle|playgroundWidthShuffle|playgroundFlames|playgroundFlamesConfig|playgroundFlameComposite|playgroundRevealConfig|playgroundReveal|playgroundCursorTrailConfig|playgroundClickWaveConfig|cursorTrail|clickWave|cursorTrailOverlay|stripeGridConstants|playgroundPerfProfile)\"" apps/studio/src
 rg -n "components/pixi|theme/colorSpace|theme/accents|fonts/codeSnippet|grid/prng" apps/studio/src
 ```
+
 This is the exact repoint surface. Record it.
 
 - [ ] **Step 3: Repoint each import to `@necatikcl/stripes-shader`**
@@ -247,9 +262,10 @@ For every match, replace the relative import with a barrel import. Mechanically,
 - [ ] **Step 4: Resolve workspace-TS consumption (vite/vitest/tsc)**
 
 Run `pir --filter studio exec tsc -b --noEmit 2>&1 | tail -30`. Then `pir build:client` (via filter) and `pir test` (filter). If any of these fail to resolve `@necatikcl/stripes-shader`'s TS source:
+
 - **Vite/Vitest:** workspace-linked `.ts` usually resolves, but if Vite externalizes it or fails to transpile, add to `apps/studio/vite.config.ts`: `resolve: { dedupe: ["pixi.js", "react", "react-dom"] }` and, if needed, `ssr: { noExternal: ["@necatikcl/stripes-shader"] }` / `optimizeDeps: { include: ["@necatikcl/stripes-shader"] }`. Apply the minimal fix the error indicates.
 - **tsc:** with `moduleResolution: bundler` + the package `types: ./src/index.ts`, tsc resolves the workspace symlink. If it cannot, add a path alias in `apps/studio/tsconfig.app.json` `compilerOptions.paths`: `{"@necatikcl/stripes-shader": ["../../packages/stripes-shader/src/index.ts"]}` with `baseUrl: "."`.
-Record exactly which (if any) resolution fix was needed.
+  Record exactly which (if any) resolution fix was needed.
 
 - [ ] **Step 5: Full gate**
 
@@ -272,6 +288,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 The ~20 render-module test files moved into the package. Ensure they execute (they currently may be outside the studio's vitest root).
 
 **Files:**
+
 - Create: `vitest.workspace.ts` (root) OR `packages/stripes-shader/vitest.config.ts` + root script
 - Modify: root `package.json` test script if needed
 
@@ -282,15 +299,15 @@ Run: `pir test 2>&1 | tail -20` and check the test-file count (was 48 studio fil
 - [ ] **Step 2: Add a Vitest workspace so both packages' tests run**
 
 Create root `vitest.workspace.ts`:
+
 ```ts
 import { defineWorkspace } from "vitest/config";
 
-export default defineWorkspace([
-  "apps/studio/vite.config.ts",
-  "packages/stripes-shader/vitest.config.ts",
-]);
+export default defineWorkspace(["apps/studio/vite.config.ts", "packages/stripes-shader/vitest.config.ts"]);
 ```
+
 Create `packages/stripes-shader/vitest.config.ts` mirroring the studio's node/happy-dom split for these pure-logic + GPU tests:
+
 ```ts
 import { defineConfig } from "vitest/config";
 
@@ -304,6 +321,7 @@ export default defineConfig({
   },
 });
 ```
+
 Update the root `test` script (and `verify` delegation) so `pir test` runs the workspace (e.g. root `"test": "vitest run"` at the repo root, since `vitest.workspace.ts` makes vitest cover both). Re-point root `verify` to run the workspace test + both typechecks + the studio build, e.g. root scripts: `"test": "vitest run"`, `"verify": "pnpm run test && pnpm run typecheck && pnpm --filter studio build:client"`, `"typecheck": "pnpm -r --filter ./apps/* --filter ./packages/* exec tsc -b"` (or `pnpm -r typecheck` once the package has a `typecheck` script). Choose the form that runs both projects' tests + typechecks; verify it does.
 
 - [ ] **Step 3: Confirm all tests run + green**

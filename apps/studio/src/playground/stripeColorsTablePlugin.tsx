@@ -1,6 +1,6 @@
 import { Components, createPlugin, useInputContext, type LevaInputProps } from "leva/plugin";
 import { StripeColorsTable } from "./StripeColorsTable";
-import type { Stripe } from "./stripeColors";
+import type { Stripe } from "@necatikcl/stripes-shader";
 
 const { Row } = Components;
 

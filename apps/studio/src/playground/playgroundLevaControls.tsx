@@ -1,15 +1,18 @@
 import { LevaPanel, useControls, useCreateStore } from "leva";
 import { useEffect, useMemo, useRef, type ChangeEvent } from "react";
-import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
-import type { PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
-import type { PlaygroundClickWaveConfig } from "./playgroundClickWaveConfig";
-import type { PlaygroundGridConfig } from "./playgroundGridConfig";
-import type { PlaygroundRevealConfig, PlaygroundWaveRevealConfig } from "./playgroundRevealConfig";
-import type { PlaygroundSourceTransform } from "./playgroundSourceTransform";
-import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
+import type {
+  PlaygroundFlamesConfig,
+  PlaygroundCursorTrailConfig,
+  PlaygroundClickWaveConfig,
+  PlaygroundGridConfig,
+  PlaygroundRevealConfig,
+  PlaygroundWaveRevealConfig,
+  PlaygroundSourceTransform,
+  PlaygroundTextureAdjustments,
+  TextureLuminanceSettings,
+} from "@necatikcl/stripes-shader";
 import type { PlaygroundCatalogEntry } from "./playgroundPersistence";
 import { PLAYGROUND_TEXTURE_UPLOAD_ACCEPT, type PlaygroundTextureId } from "./playgroundTextures";
-import type { TextureLuminanceSettings } from "./colorWhiteness";
 import {
   buildPlaygroundCanvasLevaSchema,
   buildPlaygroundCanvasLevaSyncValues,
@@ -29,7 +32,7 @@ import { PlaygroundWorkflowControls } from "./PlaygroundWorkflowControls";
 import { PLAYGROUND_LEVA_LIGHT_THEME } from "./playgroundLevaTheme";
 import { PLAYGROUND_LEVA_SIDEBAR_CLASS } from "./playgroundUi";
 import { stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
-import type { Stripe } from "./stripeColors";
+import type { Stripe } from "@necatikcl/stripes-shader";
 
 export type PlaygroundLevaControlsProps = {
   catalog: readonly PlaygroundCatalogEntry[];

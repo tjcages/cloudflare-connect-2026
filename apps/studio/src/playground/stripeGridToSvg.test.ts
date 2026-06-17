@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BlockGrid } from "./computeBlockGrid";
-import { buildStripeColors } from "./stripeColors";
+import {
+  type BlockGrid,
+  buildStripeColors,
+  computeStripeLetterPlacements,
+  stripeLetterSvgGlyphId,
+  STRIPE_LETTER_CHARSET,
+} from "@necatikcl/stripes-shader";
 import { stripeGridToSvg } from "./stripeGridToSvg";
-import { computeStripeLetterPlacements } from "./stripeLetterPlacements";
-import { stripeLetterSvgGlyphId, STRIPE_LETTER_CHARSET } from "./stripeLetterFont";
 
 describe("stripeGridToSvg", () => {
   beforeEach(() => {

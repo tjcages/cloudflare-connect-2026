@@ -4,9 +4,9 @@ import {
   computeBlockGridRegion,
   createGridPreprocessCache,
   patchGridPreprocessRegion,
-} from "./computeBlockGrid";
-import { pixelBoundsToCellRegion } from "./playgroundGridDirty";
-import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
+  pixelBoundsToCellRegion,
+  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+} from "@necatikcl/stripes-shader";
 
 function splitImage(width: number, height: number, whiteCols: number): Uint8ClampedArray {
   const data = new Uint8ClampedArray(width * height * 4);

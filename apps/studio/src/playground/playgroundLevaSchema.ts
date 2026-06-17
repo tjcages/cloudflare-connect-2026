@@ -2,22 +2,25 @@ import { button, folder } from "leva";
 import type { FolderSettings } from "leva/dist/declarations/src/types/public";
 import { PLAYGROUND_CONTROL_RANGES } from "./playgroundControlRanges";
 import { PLAYGROUND_FIELD_HELP } from "./playgroundFieldHelp";
-import type { PlaygroundGridConfig } from "./playgroundGridConfig";
-import type { PlaygroundFlamesConfig, PlaygroundFlamesDirection } from "./playgroundFlamesConfig";
-import type { PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
-import type { PlaygroundClickWaveConfig } from "./playgroundClickWaveConfig";
-import type {
-  PlaygroundRevealConfig,
-  PlaygroundWaveRevealConfig,
-  PlaygroundWaveRevealPosition,
-} from "./playgroundRevealConfig";
-import type { PlaygroundSourceFit, PlaygroundSourceTransform } from "./playgroundSourceTransform";
-import type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import type { PlaygroundTextureId } from "./playgroundTextures";
-import { PLAYGROUND_DISPLAY_MAX_PX } from "./setupTextureShaderScene";
-import { type Stripe } from "./stripeColors";
+import {
+  PLAYGROUND_DISPLAY_MAX_PX,
+  type Stripe,
+  type TextureLuminanceMode,
+  type TextureLuminanceSettings,
+  type PlaygroundGridConfig,
+  type PlaygroundFlamesConfig,
+  type PlaygroundFlamesDirection,
+  type PlaygroundCursorTrailConfig,
+  type PlaygroundClickWaveConfig,
+  type PlaygroundRevealConfig,
+  type PlaygroundWaveRevealConfig,
+  type PlaygroundWaveRevealPosition,
+  type PlaygroundSourceFit,
+  type PlaygroundSourceTransform,
+  type PlaygroundTextureAdjustments,
+} from "@necatikcl/stripes-shader";
 import { stripeColorsTablePlugin, stripeSyncKey } from "./stripeColorsTablePlugin";
-import { type TextureLuminanceMode, type TextureLuminanceSettings } from "./colorWhiteness";
 
 type LevaChangeContext = {
   initial: boolean;

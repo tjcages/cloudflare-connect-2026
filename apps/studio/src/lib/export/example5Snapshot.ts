@@ -1,4 +1,4 @@
-import { cloneDefaultStripes } from "../../playground/stripeColors";
+import { cloneDefaultStripes } from "@necatikcl/stripes-shader";
 import { buildPlaygroundExportSnapshot, type ReactExportSnapshot } from "./playgroundSnapshot";
 
 /** Catalog defaults for example5 @ 848×480 — reproducible export parity baseline. */

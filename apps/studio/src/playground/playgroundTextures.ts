@@ -1,4 +1,4 @@
-import { DEFAULT_STRIPES, type Stripe } from "./stripeColors";
+import { DEFAULT_STRIPES, type Stripe } from "@necatikcl/stripes-shader";
 
 export type PlaygroundMediaKind = "video" | "image";
 

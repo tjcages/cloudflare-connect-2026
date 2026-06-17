@@ -1,5 +1,5 @@
 import type { Application } from "pixi.js";
-import { supportsDisplayP3 } from "../theme/colorSpace";
+import { supportsDisplayP3 } from "@necatikcl/stripes-shader";
 
 type WebGLContextWithColorSpace = WebGLContextAttributes & {
   colorSpace?: "srgb" | "display-p3";

@@ -3,7 +3,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { StripeColorsTable } from "./StripeColorsTable";
-import { cloneDefaultStripes } from "./stripeColors";
+import { cloneDefaultStripes } from "@necatikcl/stripes-shader";
 
 describe("StripeColorsTable", () => {
   it("renders stripe rows with column headers", () => {

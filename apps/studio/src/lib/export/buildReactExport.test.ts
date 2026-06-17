@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cloneDefaultStripes } from "../../playground/stripeColors";
+import { cloneDefaultStripes } from "@necatikcl/stripes-shader";
 import { buildAiInstructions, buildReactExport } from "./buildReactExport";
 import { buildPlaygroundExportSnapshot } from "./playgroundSnapshot";
 

@@ -9,7 +9,11 @@
     "jsx": "react-jsx",
     "noEmit": true,
     "isolatedModules": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "useDefineForClassFields": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

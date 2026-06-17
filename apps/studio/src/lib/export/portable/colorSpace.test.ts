@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStripeColors, resolveStripeRgb } from "../../../playground/stripeColors";
+import { buildStripeColors, resolveStripeRgb } from "@necatikcl/stripes-shader";
 import { bandUniformRgb } from "./colorSpace";
 
 describe("export stripe uniforms", () => {

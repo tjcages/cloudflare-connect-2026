@@ -1,5 +1,5 @@
 import { Texture } from "pixi.js";
-import { CODE_SNIPPET_FONT_FAMILY } from "../fonts/codeSnippet";
+import { CODE_SNIPPET_FONT_FAMILY } from "./codeSnippet";
 import { STRIPE_LETTER_CHARSET, STRIPE_LETTER_FONT_SIZE_PX, STRIPE_LETTER_RASTER_SCALE } from "./stripeLetterConstants";
 
 export { STRIPE_LETTER_CHARSET, STRIPE_LETTER_FONT_SIZE_PX, STRIPE_LETTER_RASTER_SCALE };

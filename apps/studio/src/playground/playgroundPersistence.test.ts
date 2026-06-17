@@ -9,14 +9,15 @@ import {
   serializePlaygroundState,
   type PlaygroundCatalogEntry,
 } from "./playgroundPersistence";
-import { cloneDefaultOverlayStripes, DEFAULT_STRIPES } from "./stripeColors";
-import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
-import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
-import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
 import {
+  cloneDefaultOverlayStripes,
+  DEFAULT_STRIPES,
+  DEFAULT_PLAYGROUND_GRID_CONFIG,
+  DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
+  DEFAULT_PLAYGROUND_FLAMES_CONFIG,
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   type PlaygroundCursorTrailConfig,
-} from "./playgroundCursorTrailConfig";
+} from "@necatikcl/stripes-shader";
 
 describe("playgroundPersistence envelope migration", () => {
   afterEach(() => {
