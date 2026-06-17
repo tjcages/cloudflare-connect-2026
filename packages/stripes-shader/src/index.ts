@@ -42,3 +42,8 @@ export * from "./prng";
 export { default as Pixi } from "./pixiMount";
 export * from "./pixiMount";
 export * from "./pixiUtils";
+export {
+  type StripesShaderConfig,
+  DEFAULT_STRIPES_SHADER_CONFIG,
+  normalizeStripesShaderConfig,
+} from "./StripesShaderConfig";
