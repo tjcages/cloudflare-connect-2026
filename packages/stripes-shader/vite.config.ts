@@ -37,7 +37,10 @@ function bundleDts(): import("vite").Plugin {
         configObjectFullPath: resolve(root, "api-extractor.json"),
         packageJsonFullPath: resolve(root, "package.json"),
       });
-      Extractor.invoke(config, { localBuild: true });
+      const result = Extractor.invoke(config, { localBuild: true });
+      if (!result.succeeded) {
+        throw new Error(`api-extractor failed: ${result.errorCount} error(s), ${result.warningCount} warning(s)`);
+      }
       await rm(resolve(outDir, "src"), { recursive: true, force: true });
     },
   };
