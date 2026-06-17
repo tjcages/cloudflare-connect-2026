@@ -18,12 +18,6 @@ import { normalizeStripesShaderConfig, type StripesShaderConfig } from "./Stripe
 import { resolveStripesSceneConfig } from "./buildSceneConfig";
 import type { PlaygroundRevealState } from "./playgroundReveal";
 
-// SSR guard — bail to a placeholder when running outside the browser.
-if (typeof window === "undefined") {
-  // Export a no-op placeholder for SSR environments.
-  // The module-level guard ensures the real component below never executes server-side.
-}
-
 export type StripesShaderProps = {
   src: string;
   mediaKind?: "video" | "image";
@@ -43,12 +37,12 @@ type MediaLoadState =
   | { status: "error"; message: string }
   | { status: "ready"; source: PlaygroundTextureSource; native: PlaygroundDisplaySize };
 
-function loadMedia(src: string, mediaKind: "video" | "image"): Promise<MediaLoadState> {
+function loadMedia(src: string, mediaKind: "video" | "image", loop: boolean, muted: boolean): Promise<MediaLoadState> {
   if (mediaKind === "video") {
     return new Promise((resolve) => {
       const video = document.createElement("video");
-      video.muted = true;
-      video.loop = true;
+      video.muted = muted;
+      video.loop = loop;
       video.playsInline = true;
       video.preload = "auto";
       video.crossOrigin = "anonymous";
@@ -154,9 +148,9 @@ function StripesShaderClient({
   width,
   height,
   autoPlay = true,
-  loop: _loop = true,
-  muted: _muted = true,
-  paused: _paused = false,
+  loop = true,
+  muted = true,
+  paused = false,
   className,
   style,
 }: StripesShaderProps) {
@@ -183,10 +177,11 @@ function StripesShaderClient({
   }, [normalizedConfig.reveal]);
 
   // Load media (mirrors AsciiVideo.tsx useEffect on src/mediaKind)
+  // loop and muted are applied at load time (video element attributes set before load())
   useEffect(() => {
     let cancelled = false;
     setLoadState({ status: "loading" });
-    void loadMedia(src, mediaKind).then((next) => {
+    void loadMedia(src, mediaKind, loop, muted).then((next) => {
       if (!cancelled) {
         // Bump reveal on new media load
         revealStateRef.current = { progress: 0 };
@@ -200,7 +195,23 @@ function StripesShaderClient({
     return () => {
       cancelled = true;
     };
-  }, [src, mediaKind]);
+  }, [src, mediaKind, loop, muted]);
+
+  // paused: control video playback after load (guard play() promise rejections per browser requirements)
+  useEffect(() => {
+    if (loadState.status !== "ready" || loadState.source.kind !== "video") return;
+    const video = loadState.source.element as HTMLVideoElement;
+    if (paused) {
+      video.pause();
+    } else {
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Autoplay may be blocked — ignore; the video will play once user interacts
+        });
+      }
+    }
+  }, [loadState, paused]);
 
   // Display size: from props, then from config, then from native source
   const displaySize = useMemo((): PlaygroundDisplaySize => {
@@ -215,9 +226,24 @@ function StripesShaderClient({
     });
   }, [loadState, width, height, normalizedConfig.displayWidth, normalizedConfig.displayHeight]);
 
+  // Memoize the heavy scene-config resolution so it only runs when config/preferP3 change,
+  // not every frame. revealPlayback stays live via its ref.
+  // preferP3 is unknown until after mount (set in resolveInitOptions); we re-resolve once it
+  // becomes known by storing the result in a ref and invalidating when preferP3Ref flips.
+  const [preferP3Known, setPreferP3Known] = useState(false);
+  const sceneBaseRef = useRef<ReturnType<typeof resolveStripesSceneConfig> | null>(null);
   // Keep a stable ref to the normalized config for use inside the getter closure
   const normalizedConfigRef = useRef(normalizedConfig);
   normalizedConfigRef.current = normalizedConfig;
+
+  // Recompute base scene config when config or preferP3 changes
+  useMemo(() => {
+    sceneBaseRef.current = resolveStripesSceneConfig(normalizedConfig, {
+      preferP3: preferP3Ref.current,
+      revealPlayback: revealPlaybackRef.current,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, preferP3Known]);
 
   const tickers = useMemo(() => {
     if (loadState.status !== "ready" || displaySize.width <= 0 || displaySize.height <= 0) {
@@ -226,11 +252,16 @@ function StripesShaderClient({
     const source = loadState.source;
     return [
       createStripesShaderScene({
-        getConfig: () =>
-          resolveStripesSceneConfig(normalizedConfigRef.current, {
-            preferP3: preferP3Ref.current,
-            revealPlayback: revealPlaybackRef.current,
-          }),
+        // Return cached base with only the live revealPlayback overridden each frame.
+        // The base is recomputed only when config/preferP3 change (useMemo above), not per-frame.
+        getConfig: () => ({
+          ...(sceneBaseRef.current ??
+            resolveStripesSceneConfig(normalizedConfigRef.current, {
+              preferP3: preferP3Ref.current,
+              revealPlayback: revealPlaybackRef.current,
+            })),
+          revealPlayback: revealPlaybackRef.current,
+        }),
         getSource: () => source,
         getDisplaySize: () => displaySize,
         autoplay: autoPlay,
@@ -272,7 +303,14 @@ function StripesShaderClient({
         }}
         resolveInitOptions={(canvas) => {
           const context = createStripesWebGLContext(canvas);
-          preferP3Ref.current = stripesPreferDisplayP3();
+          const p3 = stripesPreferDisplayP3();
+          preferP3Ref.current = p3;
+          // Trigger base scene-config recompute now that preferP3 is known
+          sceneBaseRef.current = resolveStripesSceneConfig(normalizedConfigRef.current, {
+            preferP3: p3,
+            revealPlayback: revealPlaybackRef.current,
+          });
+          setPreferP3Known(true);
           if (!context) {
             return {};
           }
