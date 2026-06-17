@@ -1,13 +1,18 @@
 {
   "name": "@necatikcl/stripes-shader",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
-  "description": "Render-only Stripes Shader core (relocated in Phase 2a; public API finalized in 2c/3).",
+  "description": "Render-only Stripes Shader canvas: <StripesShader src config /> turns a video/image into a duotone stripe-grid texture.",
+  "license": "UNLICENSED",
+  "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "vite build",
     "test": "vitest run",
@@ -18,6 +23,18 @@
     "pixi.js": "^8.18.1",
     "react": "^19.0.5",
     "react-dom": "^19.0.5"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/src/public.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/src/public.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
