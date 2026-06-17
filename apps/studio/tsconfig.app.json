@@ -19,5 +19,5 @@
     "jsx": "react-jsx"
   },
   "include": ["src"],
-  "exclude": ["src/lib/export/syncExportToTest.ts", "src/lib/export/syncExportToTest.test.ts"]
+  "exclude": []
 }

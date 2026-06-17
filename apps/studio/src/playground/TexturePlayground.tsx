@@ -70,9 +70,7 @@ import {
   playgroundPrefersDisplayP3,
 } from "./playgroundColorSpace";
 import { stripeGridToSvg } from "./stripeGridToSvg";
-import { ExportReactDialog } from "./ExportReactDialog";
 import { PlaygroundLevaControls, type PlaygroundLevaControlsProps } from "./playgroundLevaControls";
-import { buildPlaygroundExportSnapshot } from "../lib/export/playgroundSnapshot";
 import {
   exportPlaygroundVideo,
   formatVideoExportStatusLabel,
@@ -343,7 +341,6 @@ export function TexturePlayground() {
   const [importText, setImportText] = useState("");
   const [importFeedback, setImportFeedback] = useState<"idle" | "imported" | "failed">("idle");
   const [exportFeedback, setExportFeedback] = useState<"idle" | "copied" | "failed">("idle");
-  const [exportReactOpen, setExportReactOpen] = useState(false);
   const [videoExportPhase, setVideoExportPhase] = useState<PlaygroundVideoExportPhase>("idle");
   const [videoExportProgress, setVideoExportProgress] = useState({ elapsedMs: 0, totalMs: 0 });
   const [videoExportTranscodePercent, setVideoExportTranscodePercent] = useState<number | null>(null);
@@ -1620,64 +1617,6 @@ export function TexturePlayground() {
     };
   }, [catalog]);
 
-  const reactExportSnapshot = useMemo(
-    () =>
-      buildPlaygroundExportSnapshot({
-        config: {
-          duotoneEnabled,
-          stripesEnabled: stripesEnabled ? undefined : false,
-          textureAdjustments: isDefaultPlaygroundTextureAdjustments(textureAdjustments)
-            ? undefined
-            : textureAdjustments,
-          textureLuminanceMode:
-            textureLuminanceSettings.mode !== DEFAULT_TEXTURE_LUMINANCE_MODE
-              ? textureLuminanceSettings.mode
-              : undefined,
-          textureLuminanceBackgroundColor:
-            textureLuminanceSettings.backgroundColor !== DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR
-              ? textureLuminanceSettings.backgroundColor
-              : undefined,
-          sourceTransform: isDefaultPlaygroundSourceTransform(sourceTransform) ? undefined : sourceTransform,
-          sparkleGapsActivePercent: sparkleGapsActivePercent > 0 ? sparkleGapsActivePercent : undefined,
-          sparkleGapsSpeed:
-            sparkleGapsActivePercent > 0 && sparkleGapsSpeed !== DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED
-              ? sparkleGapsSpeed
-              : undefined,
-          sparkleWidthActivePercent:
-            sparkleWidthActivePercent !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT
-              ? sparkleWidthActivePercent
-              : undefined,
-          sparkleWidthSpeed:
-            sparkleWidthSpeed !== DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED ? sparkleWidthSpeed : undefined,
-          displayWidth: displayWidth > 0 ? displayWidth : undefined,
-          displayHeight: displayHeight > 0 ? displayHeight : undefined,
-          reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
-          stripes: activeStripes,
-          overlayStripes: overlayStripesMatchDefault(overlayStripes) ? undefined : overlayStripes,
-        },
-        displayWidth: displayWidth > 0 ? displayWidth : 640,
-        displayHeight: displayHeight > 0 ? displayHeight : 360,
-        mediaKind: loadState.status === "ready" ? loadState.kind : "video",
-      }),
-    [
-      duotoneEnabled,
-      stripesEnabled,
-      textureAdjustments,
-      textureLuminanceSettings,
-      sourceTransform,
-      sparkleGapsActivePercent,
-      sparkleGapsSpeed,
-      sparkleWidthActivePercent,
-      sparkleWidthSpeed,
-      displayWidth,
-      displayHeight,
-      revealConfig,
-      activeStripes,
-      overlayStripes,
-      loadState,
-    ],
-  );
-
   const importStatusMessage =
     importFeedback === "imported" ? "Imported" : importFeedback === "failed" ? "Import failed" : null;
   const isVideoExportBusy =
@@ -1891,9 +1830,6 @@ export function TexturePlayground() {
               >
                 {videoExportLabel}
               </Button>
-              <Button padding="inline" onClick={() => setExportReactOpen(true)} disabled={isVideoExportBusy}>
-                Export React
-              </Button>
               <Button
                 padding="inline"
                 onClick={() => void onExportSvg()}
@@ -1937,12 +1873,6 @@ export function TexturePlayground() {
       </div>
 
       <PlaygroundLevaControls {...playgroundLevaProps} />
-
-      <ExportReactDialog
-        open={exportReactOpen}
-        onClose={() => setExportReactOpen(false)}
-        snapshot={reactExportSnapshot}
-      />
     </div>
   );
 }
