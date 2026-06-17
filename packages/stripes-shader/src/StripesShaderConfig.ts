@@ -166,9 +166,27 @@ export function normalizeStripesShaderConfig(input: Partial<StripesShaderConfig>
       input.textureLuminanceBackgroundColor ?? DEFAULT_TEXTURE_LUMINANCE_BACKGROUND_COLOR,
     ),
     sourceTransform: normalizePlaygroundSourceTransform(input.sourceTransform),
-    // sparkle scalars: normalize with fallback to defaults
+    // sparkle scalars: absent-field semantics mirror the studio's resolvePersisted* functions exactly.
+    //
+    // sparkleGapsActivePercent:
+    //   resolvePersistedSparkleGapsActivePercent (playgroundSparkle.ts:113-129) returns 0 when the
+    //   field is absent and no legacy sparkleRate/sparkleEnabled present → absent means OFF (0), not
+    //   DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT (0.22).
+    //
+    // sparkleGapsSpeed:
+    //   resolvePersistedSparkleGapsSpeed (playgroundSparkle.ts:131-147) returns
+    //   DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED (1) when the field is absent → absent = default speed.
+    //
+    // sparkleWidthActivePercent:
+    //   resolvePersistedSparkleWidthActivePercent (playgroundWidthShuffle.ts:244-249) returns
+    //   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_ACTIVE_PERCENT (0.3) when absent → absent = default ON (0.3).
+    //   serializePlaygroundState omits the field precisely when it equals 0.3, so round-trips cleanly.
+    //
+    // sparkleWidthSpeed:
+    //   resolvePersistedSparkleWidthSpeed (playgroundWidthShuffle.ts:251-256) returns
+    //   DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED (1) when absent → absent = default speed.
     sparkleGapsActivePercent: normalizeSparkleGapsActivePercent(
-      input.sparkleGapsActivePercent ?? DEFAULT_PLAYGROUND_SPARKLE_GAPS_ACTIVE_PERCENT,
+      input.sparkleGapsActivePercent !== undefined ? input.sparkleGapsActivePercent : 0,
     ),
     sparkleGapsSpeed: normalizeSparkleGapsSpeed(input.sparkleGapsSpeed ?? DEFAULT_PLAYGROUND_SPARKLE_GAPS_SPEED),
     sparkleWidthActivePercent: normalizeSparkleWidthActivePercent(
