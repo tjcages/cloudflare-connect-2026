@@ -342,7 +342,7 @@ void main(void) {
             if (uRevealOrder > 2.5) {
                 o = revealCellNoise(colIndex, rowIndex, 1.0);
             } else if (uRevealOrder > 1.5) {
-                o = cols <= 1.0 ? 0.0 : colIndex / (cols - 1.0);
+                o = cols <= 1.0 ? 0.0 : clamp(colIndex / (cols - 1.0), 0.0, 1.0);
             } else {
                 float cx = cols <= 1.0 ? 0.5 : (colIndex + 0.5) / cols;
                 float cy = rows <= 1.0 ? 0.5 : (rowIndex + 0.5) / rows;

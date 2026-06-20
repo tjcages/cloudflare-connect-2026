@@ -20,6 +20,7 @@ describe("assemblySpawnPoint", () => {
     const cy = 150;
     const [x, y] = assemblySpawnPoint(2, cx, cy, 400, 300, "radial"); // cell right of center
     expect(x).toBeGreaterThan(cx);
+    expect(x).toBeGreaterThan(400);
     expect(Math.abs(y - 150)).toBeLessThan(1); // same horizontal ray as center (200,150)
   });
 });
