@@ -1127,6 +1127,7 @@ const revealProgressRaw = revealEnabled
   : 1;
 const revealProgress = Math.min(1, revealProgressRaw);
 revealStateRef.current = { progress: revealProgress };
+const revealActive = revealEnabled && revealProgress < 1;
 const revealDurationMs = Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig));
 const revealBandRamp = Math.min(0.4, Math.max(0.04, 330 / revealDurationMs));
 const revealOvershoot =
@@ -1138,7 +1139,7 @@ const revealAnimating = revealEnabled && revealProgressRaw < 1 + revealOvershoot
 // The reveal is a GPU mask: the grid stays fully built and only uniforms animate.
 stripeFilter.syncReveal(revealAnimating ? revealConfig : null, revealProgressRaw);
 
-if (revealConfig.type === "assembly" && revealAnimating && hasBuiltGrid && gridState) {
+if (revealConfig.type === "assembly" && revealAnimating && hasBuiltGrid && gridState.stableIndices) {
   assemblyGlowOverlay.ensure(
     blockGridTexture.cols,
     blockGridTexture.rows,
@@ -1156,8 +1157,8 @@ if (revealConfig.type === "assembly" && revealAnimating && hasBuiltGrid && gridS
 
 Notes for the implementer:
 
-- The previous code computed `revealActive`/`revealAnimating` and a `revealOvershoot` via `resolveRevealOvershoot(revealConfig.wave, revealBandRamp)`. Keep any other uses of `revealProgressRaw`/`revealBandRamp` later in the frame unchanged.
-- If the persisted grid variable is named something other than `gridState`, use whatever the letters pass reads at the `const base = <gridVar>.stableIndices;` line. Match that exact name.
+- `revealActive` (kept above) is still consumed later in the frame (`const clickWaveSamplingEnabled = clickWaveConfig.enabled && !revealActive;`) — do not drop it. The original code computed `revealOvershoot` via `resolveRevealOvershoot(revealConfig.wave, revealBandRamp)`; this replacement makes it type-aware. Keep any other uses of `revealProgressRaw`/`revealBandRamp`/`revealActive` later in the frame unchanged.
+- `gridState` is declared `let gridState: PlaygroundGridBuildState = {}` and `gridState.stableIndices` is `Uint8Array | undefined`; the `&& gridState.stableIndices` guard both narrows the type and skips the first frame before the grid is built. At this point in the frame `gridState` holds the previous frame's indices, which is correct — content is stable during a reveal. The letters pass reads the same `gridState.stableIndices`.
 
 - [ ] **Step 6: Branch the letters CPU mirror by reveal type**
 
