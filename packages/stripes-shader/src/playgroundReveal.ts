@@ -1,4 +1,9 @@
-import type { PlaygroundWaveRevealConfig, PlaygroundWaveRevealPosition } from "./playgroundRevealConfig";
+import type {
+  PlaygroundAssemblyRevealConfig,
+  PlaygroundAssemblyRevealOrder,
+  PlaygroundWaveRevealConfig,
+  PlaygroundWaveRevealPosition,
+} from "./playgroundRevealConfig";
 
 export type PlaygroundRevealState = {
   progress: number;
@@ -89,4 +94,54 @@ export function waveRevealAmountAtCell(
 /** Extra progress past 1 the reveal needs so every cell finishes its feather/ramp naturally. */
 export function resolveRevealOvershoot(wave: PlaygroundWaveRevealConfig, bandRamp: number): number {
   return Math.max(0, wave.softness) + Math.max(0, bandRamp) + 0.5 * wave.waviness;
+}
+
+export const ASSEMBLY_SETTLE = 0.12;
+const ASSEMBLY_MAX_CENTER_DIST = 0.70710678; // hypot(0.5, 0.5)
+
+/** 0..1 ordering key for a cell: 0 assembles first, 1 last. Mirrors the GPU assembly branch. */
+export function assemblyOrderNorm(
+  col: number,
+  row: number,
+  cols: number,
+  rows: number,
+  order: PlaygroundAssemblyRevealOrder,
+): number {
+  if (order === "sweep") {
+    return cols <= 1 ? 0 : clamp01(col / (cols - 1));
+  }
+  if (order === "random") {
+    return cellNoise(col, row, 1);
+  }
+  const cx = cols <= 1 ? 0.5 : (col + 0.5) / cols;
+  const cy = rows <= 1 ? 0.5 : (row + 0.5) / rows;
+  const centerNorm = clamp01(Math.hypot(cx - 0.5, cy - 0.5) / ASSEMBLY_MAX_CENTER_DIST);
+  return order === "edges" ? 1 - centerNorm : centerNorm;
+}
+
+/**
+ * Per-cell stripe reveal mask for the assembly (fly-in) reveal — the stripe materializes
+ * when its circle lands (arrival = emitterStart + flight). Kept in sync with the
+ * uRevealMode == 2 branch in stripeFilterShaders.ts and the overlay timing in
+ * assemblyGlowOverlay.ts.
+ */
+export function assemblyRevealAmountAtCell(
+  col: number,
+  row: number,
+  cols: number,
+  rows: number,
+  progress: number,
+  assembly: PlaygroundAssemblyRevealConfig,
+  bandRamp = 0,
+): number {
+  const o = assemblyOrderNorm(col, row, cols, rows, assembly.order);
+  const flight = Math.max(0, assembly.flight);
+  const spread = Math.max(0, assembly.spread);
+  const arrival = o * (1 - flight) * spread + flight;
+  return smoothstep(arrival, arrival + Math.max(0, bandRamp), Math.max(0, progress));
+}
+
+/** Extra progress past 1 the assembly reveal needs so glow settle + band climbs finish. */
+export function resolveAssemblyRevealOvershoot(bandRamp: number): number {
+  return Math.max(ASSEMBLY_SETTLE, Math.max(0, bandRamp));
 }
