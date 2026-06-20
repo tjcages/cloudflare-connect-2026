@@ -124,4 +124,9 @@ describe("assembly reveal config", () => {
   it("maps order names to stable shader indices", () => {
     expect(ASSEMBLY_ORDER_TO_INDEX).toEqual({ center: 0, edges: 1, sweep: 2, random: 3 });
   });
+
+  it("rounds a fractional glowSize to an integer", () => {
+    const normalized = normalizePlaygroundRevealConfig({ type: "assembly", assembly: { glowSize: 3.7 } } as never);
+    expect(normalized.assembly.glowSize).toBe(4);
+  });
 });

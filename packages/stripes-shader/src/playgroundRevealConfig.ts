@@ -126,7 +126,7 @@ function normalizeAssemblyRevealConfig(
     from: normalizeAssemblyFrom(a.from),
     durationMs: clampInt(a.durationMs ?? base.durationMs, 100, 30_000, base.durationMs),
     spread: clampNumber(a.spread ?? base.spread, 0, 1, base.spread),
-    glowSize: clampNumber(a.glowSize ?? base.glowSize, 4, 200, base.glowSize),
+    glowSize: clampInt(a.glowSize ?? base.glowSize, 4, 200, base.glowSize),
     flight: clampNumber(a.flight ?? base.flight, 0.05, 0.6, base.flight),
     overshoot: a.overshoot === true,
   };
