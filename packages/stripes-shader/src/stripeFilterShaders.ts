@@ -59,6 +59,9 @@ uniform float uRevealSoftness;
 uniform float uRevealWaviness;
 uniform float uRevealNoiseScale;
 uniform float uRevealBandRamp;
+uniform float uRevealOrder;
+uniform float uRevealSpread;
+uniform float uRevealFlight;
 uniform float uFlamesMaskEnabled;
 uniform float uFlamesMaskStart;
 uniform float uFlamesMaskEnd;
@@ -330,15 +333,35 @@ void main(void) {
     float revealMask = 1.0;
     bool revealing = uRevealMode > 0.5;
     if (revealing) {
-        vec2 cellUvPos = vec2((colIndex + 0.5) / uGridSize.x, (rowIndex + 0.5) / uGridSize.y);
-        float normalizedDistance = length(cellUvPos - uRevealOrigin) / uRevealMaxDistance;
-        float edgeNoise = (revealCellNoise(colIndex, rowIndex, uRevealNoiseScale) - 0.5) * uRevealWaviness;
-        float softness = max(uRevealSoftness, 0.0001);
-        revealMask = smoothstep(
-            normalizedDistance - softness,
-            normalizedDistance + softness + uRevealBandRamp,
-            uRevealProgress + edgeNoise
-        );
+        if (uRevealMode > 1.5) {
+            // Assembly fly-in: per-cell arrival time from the order field. The stripe
+            // materializes when its circle lands; the glow overlay draws the circle itself.
+            float cols = max(uGridSize.x, 1.0);
+            float rows = max(uGridSize.y, 1.0);
+            float o;
+            if (uRevealOrder > 2.5) {
+                o = revealCellNoise(colIndex, rowIndex, 1.0);
+            } else if (uRevealOrder > 1.5) {
+                o = cols <= 1.0 ? 0.0 : colIndex / (cols - 1.0);
+            } else {
+                float cx = cols <= 1.0 ? 0.5 : (colIndex + 0.5) / cols;
+                float cy = rows <= 1.0 ? 0.5 : (rowIndex + 0.5) / rows;
+                float centerNorm = clamp(length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678, 0.0, 1.0);
+                o = uRevealOrder > 0.5 ? 1.0 - centerNorm : centerNorm;
+            }
+            float arrival = o * (1.0 - uRevealFlight) * uRevealSpread + uRevealFlight;
+            revealMask = smoothstep(arrival, arrival + uRevealBandRamp, uRevealProgress);
+        } else {
+            vec2 cellUvPos = vec2((colIndex + 0.5) / uGridSize.x, (rowIndex + 0.5) / uGridSize.y);
+            float normalizedDistance = length(cellUvPos - uRevealOrigin) / uRevealMaxDistance;
+            float edgeNoise = (revealCellNoise(colIndex, rowIndex, uRevealNoiseScale) - 0.5) * uRevealWaviness;
+            float softness = max(uRevealSoftness, 0.0001);
+            revealMask = smoothstep(
+                normalizedDistance - softness,
+                normalizedDistance + softness + uRevealBandRamp,
+                uRevealProgress + edgeNoise
+            );
+        }
     }
 
     vec4 trail = uCursorTrailEnabled > 0.5 ? texture(uCursorTrail, flameCellUv(colIndex, rowIndex)) : vec4(0.0);

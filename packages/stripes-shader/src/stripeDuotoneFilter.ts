@@ -1,7 +1,11 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import { resolveWaveRevealGeometry } from "./playgroundReveal";
-import { resolvePlaygroundRevealDurationMs, type PlaygroundRevealConfig } from "./playgroundRevealConfig";
+import {
+  ASSEMBLY_ORDER_TO_INDEX,
+  resolvePlaygroundRevealDurationMs,
+  type PlaygroundRevealConfig,
+} from "./playgroundRevealConfig";
 import { STRIPE_FILTER_FRAGMENT, STRIPE_FILTER_VERTEX } from "./stripeFilterShaders";
 import { buildStripeIndexLut, buildStripeColors, resolveStripePalette, type StripeColors } from "./stripeColors";
 import { StripeIndexLutTexture } from "./stripeIndexLutTexture";
@@ -116,6 +120,9 @@ export function createStripeDuotoneFilter(
     uRevealWaviness: { value: 0, type: "f32" },
     uRevealNoiseScale: { value: 4, type: "f32" },
     uRevealBandRamp: { value: 0.18, type: "f32" },
+    uRevealOrder: { value: 0, type: "f32" },
+    uRevealSpread: { value: 0.85, type: "f32" },
+    uRevealFlight: { value: 0.22, type: "f32" },
   });
 
   const filter = new Filter({
@@ -295,6 +302,9 @@ export function createStripeDuotoneFilter(
       uRevealWaviness: number;
       uRevealNoiseScale: number;
       uRevealBandRamp: number;
+      uRevealOrder: number;
+      uRevealSpread: number;
+      uRevealFlight: number;
     };
     if (!config) {
       uniforms.uRevealMode = 0;
@@ -308,6 +318,14 @@ export function createStripeDuotoneFilter(
       0.4,
       Math.max(0.04, 330 / Math.max(1, resolvePlaygroundRevealDurationMs(config))),
     );
+    if (config.type === "assembly") {
+      uniforms.uRevealMode = 2;
+      uniforms.uRevealOrder = ASSEMBLY_ORDER_TO_INDEX[config.assembly.order];
+      uniforms.uRevealSpread = Math.max(0, config.assembly.spread);
+      uniforms.uRevealFlight = Math.max(0, config.assembly.flight);
+      stripeUniforms.update();
+      return;
+    }
     uniforms.uRevealMode = 1;
     const geometry = resolveWaveRevealGeometry(config.wave.position);
     uniforms.uRevealOrigin[0] = geometry.x;
