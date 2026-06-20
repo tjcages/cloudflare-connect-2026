@@ -14,6 +14,10 @@ import {
   type PlaygroundCursorTrailConfig,
   type PlaygroundClickWaveConfig,
   type PlaygroundRevealConfig,
+  type PlaygroundAssemblyRevealConfig,
+  type PlaygroundAssemblyRevealFrom,
+  type PlaygroundAssemblyRevealOrder,
+  type PlaygroundRevealType,
   type PlaygroundWaveRevealConfig,
   type PlaygroundWaveRevealPosition,
   type PlaygroundSourceFit,
@@ -155,6 +159,19 @@ const WAVE_POSITION_OPTIONS: Record<string, PlaygroundWaveRevealPosition> = {
   "Left bottom": "left bottom",
   "Center bottom": "center bottom",
   "Right bottom": "right bottom",
+};
+
+const REVEAL_TYPE_OPTIONS: Record<string, PlaygroundRevealType> = { Wave: "wave", Assembly: "assembly" };
+const ASSEMBLY_ORDER_OPTIONS: Record<string, PlaygroundAssemblyRevealOrder> = {
+  "Center → out": "center",
+  "Edges → in": "edges",
+  "Sweep L → R": "sweep",
+  Random: "random",
+};
+const ASSEMBLY_FROM_OPTIONS: Record<string, PlaygroundAssemblyRevealFrom> = {
+  "All around": "scatter",
+  "Straight in": "radial",
+  "Nearest edge": "edge",
 };
 
 export type PlaygroundCanvasLevaSnapshot = {
@@ -331,6 +348,8 @@ export type PlaygroundLevaHandlers = {
   onRevealCommit: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealWaveLive: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
   onRevealWaveCommit: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
+  onRevealAssemblyLive: (patch: Partial<PlaygroundAssemblyRevealConfig>) => void;
+  onRevealAssemblyCommit: (patch: Partial<PlaygroundAssemblyRevealConfig>) => void;
   resetReveal: () => void;
   replayReveal: () => void;
 };
@@ -355,6 +374,8 @@ export function buildPlaygroundLevaSchema(
   const clickWaveDisabled = snapshot.cursorClickFieldsDisabled;
   const reveal = snapshot.revealConfig;
   const revealDisabled = snapshot.revealFieldsDisabled;
+  const waveDisabled = revealDisabled || reveal.type !== "wave";
+  const assemblyDisabled = revealDisabled || reveal.type !== "assembly";
 
   return {
     General: levaFolder(
@@ -381,10 +402,16 @@ export function buildPlaygroundLevaSchema(
           },
         }),
         Replay: actionButton(() => handlers.replayReveal(), revealDisabled),
+        revealType: selectControl<PlaygroundRevealType>(reveal.type, REVEAL_TYPE_OPTIONS, {
+          label: "Reveal type",
+          hint: PLAYGROUND_FIELD_HELP.revealType,
+          disabled: revealDisabled,
+          onChange: (type) => handlers.onRevealCommit({ type }),
+        }),
         revealPosition: selectControl<PlaygroundWaveRevealPosition>(reveal.wave.position, WAVE_POSITION_OPTIONS, {
           label: "Position",
           hint: PLAYGROUND_FIELD_HELP.revealPosition,
-          disabled: revealDisabled,
+          disabled: waveDisabled,
           onChange: (position) => handlers.onRevealWaveCommit({ position }),
         }),
         revealWaveDuration: numControl(
@@ -395,7 +422,7 @@ export function buildPlaygroundLevaSchema(
           {
             label: "Duration",
             hint: PLAYGROUND_FIELD_HELP.revealDuration,
-            disabled: revealDisabled,
+            disabled: waveDisabled,
             onLive: (value) => handlers.onRevealWaveLive({ durationMs: value }),
             onCommit: (value) => handlers.onRevealWaveCommit({ durationMs: value }),
           },
@@ -408,7 +435,7 @@ export function buildPlaygroundLevaSchema(
           {
             label: "Softness",
             hint: PLAYGROUND_FIELD_HELP.revealSoftness,
-            disabled: revealDisabled,
+            disabled: waveDisabled,
             onLive: (value) => handlers.onRevealWaveLive({ softness: value }),
             onCommit: (value) => handlers.onRevealWaveCommit({ softness: value }),
           },
@@ -421,7 +448,7 @@ export function buildPlaygroundLevaSchema(
           {
             label: "Waviness",
             hint: PLAYGROUND_FIELD_HELP.revealWaviness,
-            disabled: revealDisabled,
+            disabled: waveDisabled,
             onLive: (value) => handlers.onRevealWaveLive({ waviness: value }),
             onCommit: (value) => handlers.onRevealWaveCommit({ waviness: value }),
           },
@@ -434,11 +461,85 @@ export function buildPlaygroundLevaSchema(
           {
             label: "Noise scale",
             hint: PLAYGROUND_FIELD_HELP.revealNoiseScale,
-            disabled: revealDisabled,
+            disabled: waveDisabled,
             onLive: (value) => handlers.onRevealWaveLive({ noiseScale: value }),
             onCommit: (value) => handlers.onRevealWaveCommit({ noiseScale: value }),
           },
         ),
+        revealAssemblyOrder: selectControl<PlaygroundAssemblyRevealOrder>(
+          reveal.assembly.order,
+          ASSEMBLY_ORDER_OPTIONS,
+          {
+            label: "Order",
+            hint: PLAYGROUND_FIELD_HELP.revealAssemblyOrder,
+            disabled: assemblyDisabled,
+            onChange: (order) => handlers.onRevealAssemblyCommit({ order }),
+          },
+        ),
+        revealAssemblyFrom: selectControl<PlaygroundAssemblyRevealFrom>(reveal.assembly.from, ASSEMBLY_FROM_OPTIONS, {
+          label: "Come from",
+          hint: PLAYGROUND_FIELD_HELP.revealAssemblyFrom,
+          disabled: assemblyDisabled,
+          onChange: (from) => handlers.onRevealAssemblyCommit({ from }),
+        }),
+        revealAssemblyDuration: numControl(
+          reveal.assembly.durationMs,
+          PLAYGROUND_CONTROL_RANGES.revealDurationMs.min,
+          PLAYGROUND_CONTROL_RANGES.revealDurationMs.max,
+          PLAYGROUND_CONTROL_RANGES.revealDurationMs.step,
+          {
+            label: "Duration (ms)",
+            hint: PLAYGROUND_FIELD_HELP.revealDuration,
+            disabled: assemblyDisabled,
+            onLive: (value) => handlers.onRevealAssemblyLive({ durationMs: value }),
+            onCommit: (value) => handlers.onRevealAssemblyCommit({ durationMs: value }),
+          },
+        ),
+        revealAssemblySpread: numControl(
+          reveal.assembly.spread,
+          PLAYGROUND_CONTROL_RANGES.revealSpread.min,
+          PLAYGROUND_CONTROL_RANGES.revealSpread.max,
+          PLAYGROUND_CONTROL_RANGES.revealSpread.step,
+          {
+            label: "Stagger spread",
+            hint: PLAYGROUND_FIELD_HELP.revealSpread,
+            disabled: assemblyDisabled,
+            onLive: (value) => handlers.onRevealAssemblyLive({ spread: value }),
+            onCommit: (value) => handlers.onRevealAssemblyCommit({ spread: value }),
+          },
+        ),
+        revealAssemblyGlowSize: numControl(
+          reveal.assembly.glowSize,
+          PLAYGROUND_CONTROL_RANGES.revealGlowSize.min,
+          PLAYGROUND_CONTROL_RANGES.revealGlowSize.max,
+          PLAYGROUND_CONTROL_RANGES.revealGlowSize.step,
+          {
+            label: "Glow size",
+            hint: PLAYGROUND_FIELD_HELP.revealGlowSize,
+            disabled: assemblyDisabled,
+            onLive: (value) => handlers.onRevealAssemblyLive({ glowSize: value }),
+            onCommit: (value) => handlers.onRevealAssemblyCommit({ glowSize: value }),
+          },
+        ),
+        revealAssemblyFlight: numControl(
+          reveal.assembly.flight,
+          PLAYGROUND_CONTROL_RANGES.revealFlight.min,
+          PLAYGROUND_CONTROL_RANGES.revealFlight.max,
+          PLAYGROUND_CONTROL_RANGES.revealFlight.step,
+          {
+            label: "Flight length",
+            hint: PLAYGROUND_FIELD_HELP.revealFlight,
+            disabled: assemblyDisabled,
+            onLive: (value) => handlers.onRevealAssemblyLive({ flight: value }),
+            onCommit: (value) => handlers.onRevealAssemblyCommit({ flight: value }),
+          },
+        ),
+        revealAssemblyOvershoot: boolControl(reveal.assembly.overshoot, {
+          label: "Overshoot landing",
+          hint: PLAYGROUND_FIELD_HELP.revealOvershoot,
+          disabled: assemblyDisabled,
+          onChange: (value) => handlers.onRevealAssemblyCommit({ overshoot: value }),
+        }),
       },
       { color: folderColor(snapshot.revealModified) },
     ),
@@ -1551,11 +1652,19 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     clickWaveRingWhite: clickWave.stripeWhiteAlpha,
   };
 
+  values.revealType = reveal.type;
   values.revealPosition = reveal.wave.position;
   values.revealWaveDuration = reveal.wave.durationMs;
   values.revealSoftness = reveal.wave.softness;
   values.revealWaviness = reveal.wave.waviness;
   values.revealNoiseScale = reveal.wave.noiseScale;
+  values.revealAssemblyOrder = reveal.assembly.order;
+  values.revealAssemblyFrom = reveal.assembly.from;
+  values.revealAssemblyDuration = reveal.assembly.durationMs;
+  values.revealAssemblySpread = reveal.assembly.spread;
+  values.revealAssemblyGlowSize = reveal.assembly.glowSize;
+  values.revealAssemblyFlight = reveal.assembly.flight;
+  values.revealAssemblyOvershoot = reveal.assembly.overshoot;
 
   if (snapshot.textureLuminanceSettings.mode === "luminance" || snapshot.textureLuminanceSettings.mode === "overlay") {
     values.stripeColorsTable = stripeSyncKey(snapshot.stripes);

@@ -152,6 +152,7 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onRevealChange={() => {}}
       onRevealLiveChange={() => {}}
       onRevealWaveLiveChange={() => {}}
+      onRevealAssemblyLiveChange={() => {}}
       onResetReveal={() => {}}
       onReplayReveal={() => {}}
       revealModified={false}
@@ -340,6 +341,8 @@ describe("PlaygroundLevaControls", () => {
       onRevealCommit: noop,
       onRevealWaveLive: noop,
       onRevealWaveCommit: noop,
+      onRevealAssemblyLive: noop,
+      onRevealAssemblyCommit: noop,
       resetReveal: noop,
       replayReveal: noop,
     };
@@ -454,6 +457,8 @@ describe("PlaygroundLevaControls", () => {
       onRevealCommit: noop,
       onRevealWaveLive: noop,
       onRevealWaveCommit: noop,
+      onRevealAssemblyLive: noop,
+      onRevealAssemblyCommit: noop,
       resetReveal: noop,
       replayReveal: noop,
     };
@@ -558,6 +563,8 @@ describe("PlaygroundLevaControls", () => {
       onRevealCommit: noop,
       onRevealWaveLive: noop,
       onRevealWaveCommit: noop,
+      onRevealAssemblyLive: noop,
+      onRevealAssemblyCommit: noop,
       resetReveal: noop,
       replayReveal: noop,
     };

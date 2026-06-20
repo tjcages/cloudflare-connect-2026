@@ -78,6 +78,14 @@ export const PLAYGROUND_FIELD_HELP = {
   flamesEdgeMaskPower: "Curve shaping for the flame luminance ramp (1 = linear, higher = softer mid-fade).",
 
   revealEnabled: "Show or hide the reveal animation applied before stripe thresholds are calculated.",
+  revealType: "Reveal style: Wave expands a feathered front; Assembly flies glowing circles in to build the texture.",
+  revealAssemblyOrder: "Order cells assemble in: from the center out, the edges in, a left-to-right sweep, or random.",
+  revealAssemblyFrom:
+    "Where the circles enter from: scattered all around, straight in along each cell's ray, or the nearest edge.",
+  revealSpread: "How staggered the arrivals are. Low = all circles land together; high = a long progressive wave.",
+  revealGlowSize: "Radius of each flying glow circle.",
+  revealFlight: "How long each circle is in flight, as a fraction of the whole reveal.",
+  revealOvershoot: "Circles overshoot slightly and pop into place on landing.",
   revealPreset: "Choose the reveal animation applied before stripe thresholds are calculated.",
   revealPosition: "Choose where the wave starts on the canvas.",
   revealDuration: "How long the reveal takes from start to fully visible.",

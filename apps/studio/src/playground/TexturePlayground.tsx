@@ -99,6 +99,7 @@ import {
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
   type PlaygroundRevealConfig,
+  type PlaygroundAssemblyRevealConfig,
   type PlaygroundWaveRevealConfig,
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   isDefaultPlaygroundCursorTrailConfig,
@@ -871,6 +872,13 @@ export function TexturePlayground() {
     [updateRevealConfigLive],
   );
 
+  const updateRevealAssemblyLive = useCallback(
+    (patch: Partial<PlaygroundAssemblyRevealConfig>) => {
+      updateRevealConfigLive({ assembly: { ...revealConfigRef.current.assembly, ...patch } });
+    },
+    [updateRevealConfigLive],
+  );
+
   const updateRevealConfig = useCallback(
     (patch: Partial<PlaygroundRevealConfig>) => {
       const next = normalizePlaygroundRevealConfig({ ...revealConfigRef.current, ...patch });
@@ -884,7 +892,9 @@ export function TexturePlayground() {
   const resetReveal = useCallback(() => {
     const next = {
       enabled: DEFAULT_PLAYGROUND_REVEAL_CONFIG.enabled,
+      type: DEFAULT_PLAYGROUND_REVEAL_CONFIG.type,
       wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave },
+      assembly: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.assembly },
     };
     revealConfigRef.current = next;
     setRevealConfig(next);
@@ -1717,6 +1727,7 @@ export function TexturePlayground() {
     onRevealChange: updateRevealConfig,
     onRevealLiveChange: updateRevealConfigLive,
     onRevealWaveLiveChange: updateRevealWaveLive,
+    onRevealAssemblyLiveChange: updateRevealAssemblyLive,
     onResetReveal: resetReveal,
     onReplayReveal: replayReveal,
     revealModified,

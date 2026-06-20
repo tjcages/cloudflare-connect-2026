@@ -6,6 +6,7 @@ import type {
   PlaygroundClickWaveConfig,
   PlaygroundGridConfig,
   PlaygroundRevealConfig,
+  PlaygroundAssemblyRevealConfig,
   PlaygroundWaveRevealConfig,
   PlaygroundSourceTransform,
   PlaygroundTextureAdjustments,
@@ -132,6 +133,7 @@ export type PlaygroundLevaControlsProps = {
   onRevealChange: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealLiveChange: (patch: Partial<PlaygroundRevealConfig>) => void;
   onRevealWaveLiveChange: (patch: Partial<PlaygroundWaveRevealConfig>) => void;
+  onRevealAssemblyLiveChange: (patch: Partial<PlaygroundAssemblyRevealConfig>) => void;
   onResetReveal: () => void;
   onReplayReveal: () => void;
   revealModified: boolean;
@@ -330,6 +332,9 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onRevealWaveLive: (patch) => propsRef.current.onRevealWaveLiveChange(patch),
     onRevealWaveCommit: (patch) =>
       propsRef.current.onRevealChange({ wave: { ...propsRef.current.revealConfig.wave, ...patch } }),
+    onRevealAssemblyLive: (patch) => propsRef.current.onRevealAssemblyLiveChange(patch),
+    onRevealAssemblyCommit: (patch) =>
+      propsRef.current.onRevealChange({ assembly: { ...propsRef.current.revealConfig.assembly, ...patch } }),
     resetReveal: () => propsRef.current.onResetReveal(),
     replayReveal: () => propsRef.current.onReplayReveal(),
   });
