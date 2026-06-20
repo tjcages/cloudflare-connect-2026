@@ -22,6 +22,12 @@ export type { PlaygroundGridConfig } from "./playgroundGridConfig";
 export type { PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 export type { PlaygroundSourceTransform } from "./playgroundSourceTransform";
 export type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
-export type { PlaygroundRevealConfig } from "./playgroundRevealConfig";
+export type {
+  PlaygroundAssemblyRevealConfig,
+  PlaygroundAssemblyRevealFrom,
+  PlaygroundAssemblyRevealOrder,
+  PlaygroundRevealConfig,
+  PlaygroundRevealType,
+} from "./playgroundRevealConfig";
 export type { PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 export type { PlaygroundClickWaveConfig } from "./playgroundClickWaveConfig";
