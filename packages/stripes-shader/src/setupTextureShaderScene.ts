@@ -27,7 +27,14 @@ import { effectivePlaygroundCellSize, type PlaygroundGridConfig } from "./playgr
 import { resolvePlaygroundDrawRects, type PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import { renderAdjustedPreviewPixels, type PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
 import { resolvePlaygroundRevealDurationMs, type PlaygroundRevealConfig } from "./playgroundRevealConfig";
-import { resolveRevealOvershoot, waveRevealAmountAtCell, type PlaygroundRevealState } from "./playgroundReveal";
+import {
+  assemblyRevealAmountAtCell,
+  resolveAssemblyRevealOvershoot,
+  resolveRevealOvershoot,
+  waveRevealAmountAtCell,
+  type PlaygroundRevealState,
+} from "./playgroundReveal";
+import { AssemblyGlowOverlay } from "./assemblyGlowOverlay";
 import {
   detectTextureBackgroundColor,
   overlayInvertsStripeBucketing,
@@ -469,6 +476,8 @@ function runDuotoneTick(params: {
     ? new PlaygroundFlamesOverlay(initialFlamesRaster.width, initialFlamesRaster.height)
     : null;
   const cursorTrailOverlay = new CursorTrailOverlay(blockGridTexture.cols, blockGridTexture.rows);
+  const assemblyGlowOverlay = new AssemblyGlowOverlay(display.width, display.height);
+  app.stage.addChild(assemblyGlowOverlay.container);
   let lastLumaGrid: LumaGrid | null = null;
   let trailStripeLut: Uint8Array | null = null;
   let trailMap: CursorTrailCellMap | null = null;
@@ -543,6 +552,7 @@ function runDuotoneTick(params: {
         stripeFilter.resizeGrid(blockGridTexture.cols, blockGridTexture.rows, eff.width, eff.height);
         letterLayer.setCellSize(eff.width, eff.height);
         cursorTrailOverlay.resize(blockGridTexture.cols, blockGridTexture.rows);
+        assemblyGlowOverlay.resize(display.width, display.height);
         lastLumaGrid = null;
 
         if (prevIndices && prevIndices.length > 0) {
@@ -593,6 +603,7 @@ function runDuotoneTick(params: {
     blockGridTexture.destroy();
     flamesOverlay?.destroy();
     cursorTrailOverlay.destroy();
+    assemblyGlowOverlay.destroy();
     letterLayer.destroy();
     destroyStripeLetterAtlas(atlas);
   };
@@ -749,11 +760,29 @@ function runDuotoneTick(params: {
     // converging after the reveal ended the same way).
     const revealDurationMs = Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig));
     const revealBandRamp = Math.min(0.4, Math.max(0.04, 330 / revealDurationMs));
-    const revealOvershoot = resolveRevealOvershoot(revealConfig.wave, revealBandRamp);
+    const revealOvershoot =
+      revealConfig.type === "assembly"
+        ? resolveAssemblyRevealOvershoot(revealBandRamp)
+        : resolveRevealOvershoot(revealConfig.wave, revealBandRamp);
     const revealAnimating = revealEnabled && revealProgressRaw < 1 + revealOvershoot;
 
     // The reveal is a GPU mask: the grid stays fully built and only uniforms animate.
     stripeFilter.syncReveal(revealAnimating ? revealConfig : null, revealProgressRaw);
+
+    if (revealConfig.type === "assembly" && revealAnimating && hasBuiltGrid && gridState.stableIndices) {
+      assemblyGlowOverlay.ensure(
+        blockGridTexture.cols,
+        blockGridTexture.rows,
+        gridState.stableIndices,
+        display.width,
+        display.height,
+        revealConfig.assembly,
+      );
+      assemblyGlowOverlay.sync(revealProgressRaw, revealConfig.assembly);
+      assemblyGlowOverlay.setVisible(true);
+    } else {
+      assemblyGlowOverlay.setVisible(false);
+    }
 
     const colors = stripeColorsRef.current;
     const colorsKey = JSON.stringify({
@@ -972,15 +1001,18 @@ function runDuotoneTick(params: {
         if (lettersRevealActive) {
           const col = i % cols;
           const row = (i - col) / cols;
-          revealMask = waveRevealAmountAtCell(
-            col,
-            row,
-            cols,
-            rows,
-            revealProgressRaw,
-            revealConfig.wave,
-            revealBandRamp,
-          );
+          revealMask =
+            revealConfig.type === "assembly"
+              ? assemblyRevealAmountAtCell(
+                  col,
+                  row,
+                  cols,
+                  rows,
+                  revealProgressRaw,
+                  revealConfig.assembly,
+                  revealBandRamp,
+                )
+              : waveRevealAmountAtCell(col, row, cols, rows, revealProgressRaw, revealConfig.wave, revealBandRamp);
         }
         if (revealMask >= 1 && whiteAlpha <= 0.002 && tear <= 0.002) {
           adjusted[i] = base[i] ?? 0;
