@@ -180,7 +180,7 @@ const ASSEMBLY_FROM_OPTIONS: Record<string, PlaygroundAssemblyRevealFrom> = {
 const DEBUG_STAGE_OPTIONS: Record<string, PlaygroundDebugStage> = {
   Normal: "normal",
   Source: "source",
-  Processed: "processed",
+  Field: "processed",
 };
 
 export type PlaygroundCanvasLevaSnapshot = {

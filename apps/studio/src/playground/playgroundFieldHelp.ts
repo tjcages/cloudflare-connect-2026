@@ -129,5 +129,5 @@ export const PLAYGROUND_FIELD_HELP = {
   cursorClickPushBandScale: "Multiplier on stroke width for how wide the push displacement band is.",
   cursorClickRingWhite: "White brighten on the leading ring edge. Feeds lighter stripe cells.",
   debugStage:
-    "Debug view: Normal renders the app; Source shows the raw texture; Processed shows the adjusted texture (overlays hidden).",
+    "Debug view: Normal renders the app; Source shows the raw texture; Field shows the render field (grayscale, white = render a stripe), overlays hidden.",
 } as const;
