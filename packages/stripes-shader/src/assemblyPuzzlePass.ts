@@ -18,6 +18,29 @@ uniform float uOrder;
 uniform float uSpread;
 uniform float uDurationMs;
 float hash(float n){ return fract(sin(n * 127.1 + 0.37) * 43758.5453); }
+// CSS cubic-bezier easing: solve x(s)=t (Newton), return y(s). Control points P1(x1,y1), P2(x2,y2).
+float bezierAxis(float a1, float a2, float s) {
+    float c = 3.0 * a1;
+    float b = 3.0 * (a2 - a1) - c;
+    float a = 1.0 - c - b;
+    return ((a * s + b) * s + c) * s;
+}
+float bezierSlope(float a1, float a2, float s) {
+    float c = 3.0 * a1;
+    float b = 3.0 * (a2 - a1) - c;
+    float a = 1.0 - c - b;
+    return (3.0 * a * s + 2.0 * b) * s + c;
+}
+float cubicBezier(float t, float x1, float y1, float x2, float y2) {
+    float s = t;
+    for (int i = 0; i < 5; i++) {
+        float dx = bezierAxis(x1, x2, s) - t;
+        float d = bezierSlope(x1, x2, s);
+        if (abs(d) < 0.00001) break;
+        s = clamp(s - dx / d, 0.0, 1.0);
+    }
+    return bezierAxis(y1, y2, s);
+}
 void main(void){
     float h1 = hash(aSeed);
     float h2 = hash(aSeed + 19.0);
@@ -43,7 +66,7 @@ void main(void){
     float start = o * (1.0 - cellFlight) * uSpread;
     float arrival = start + cellFlight;
     float t = cellFlight <= 0.0 ? 1.0 : clamp((uProgress - start) / cellFlight, 0.0, 1.0);
-    float e = t * t * (3.0 - 2.0 * t);
+    float e = cubicBezier(t, 0.6, 0.6, 0.0, 1.0);
     // Enter from the NEAREST canvas edge (shortest path in), not a random direction:
     // pick whichever of the cell's home edges (left/right vs top/bottom) is closer, and
     // start just past it. Edge cells barely move; center cells slide in from their side.
