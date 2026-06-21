@@ -20,6 +20,7 @@ uniform float uFlight;
 float hash(float n){ return fract(sin(n * 127.1 + 0.37) * 43758.5453); }
 void main(void){
     float h1 = hash(aSeed);
+    float h2 = hash(aSeed + 19.0);
     float o;
     if (uOrder > 2.5) {
         o = h1; // random
@@ -35,9 +36,11 @@ void main(void){
         // ring-by-ring stagger, while keeping the directional trend (center still fills first).
         o = clamp(mix(base, h1, 0.75), 0.0, 1.0);
     }
-    float start = o * (1.0 - uFlight) * uSpread;
-    float arrival = start + uFlight;
-    float t = uFlight <= 0.0 ? 1.0 : clamp((uProgress - start) / uFlight, 0.0, 1.0);
+    // Per-cell travel time: each cell moves at its own (randomized) speed around the base.
+    float cellFlight = clamp(uFlight * (0.7 + h2 * 0.8), 0.05, 0.95);
+    float start = o * (1.0 - cellFlight) * uSpread;
+    float arrival = start + cellFlight;
+    float t = cellFlight <= 0.0 ? 1.0 : clamp((uProgress - start) / cellFlight, 0.0, 1.0);
     float e = t * t * (3.0 - 2.0 * t);
     // Enter from the NEAREST canvas edge (shortest path in), not a random direction:
     // pick whichever of the cell's home edges (left/right vs top/bottom) is closer, and
@@ -55,7 +58,7 @@ void main(void){
     vCorner = aCorner;
     // Stay a full smooth circle for the ENTIRE flight; only AFTER the cell lands (arrival)
     // does it sharpen, over a short settle window, into the crisp square tile.
-    float settleT = clamp((uProgress - arrival) / 0.15, 0.0, 1.0);
+    float settleT = clamp((uProgress - arrival) / 0.06, 0.0, 1.0);
     vSoft = 1.0 - settleT; // 1 = full circle (whole flight + landing), 0 = sharp (settled)
 }
 `;

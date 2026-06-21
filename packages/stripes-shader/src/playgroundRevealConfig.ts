@@ -62,7 +62,7 @@ export const DEFAULT_PLAYGROUND_REVEAL_CONFIG: PlaygroundRevealConfig = {
     durationMs: 2600,
     spread: 0.85,
     glowSize: 42,
-    flight: 0.32,
+    flight: 0.5,
     overshoot: false,
   },
 };
