@@ -48,21 +48,37 @@ void main(void) {
         float colIndex = floor(pixelCoord.x / cw);
         float rowIndex = floor(pixelCoord.y / ch);
         if (uRevealMode > 1.5) {
-            float cols = max(uGridSize.x, 1.0);
-            float rows = max(uGridSize.y, 1.0);
-            float o;
-            if (uRevealOrder > 2.5) {
-                o = revealCellNoise(colIndex, rowIndex, 1.0);
-            } else if (uRevealOrder > 1.5) {
-                o = cols <= 1.0 ? 0.0 : clamp(colIndex / (cols - 1.0), 0.0, 1.0);
-            } else {
-                float cx = cols <= 1.0 ? 0.5 : (colIndex + 0.5) / cols;
-                float cy = rows <= 1.0 ? 0.5 : (rowIndex + 0.5) / rows;
-                float centerNorm = clamp(length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678, 0.0, 1.0);
-                o = uRevealOrder > 0.5 ? 1.0 - centerNorm : centerNorm;
+            float result = 0.0;
+            for (int i = 0; i < 49; i++) {
+                float fi = float(i);
+                float pcx = mod(fi, 7.0);
+                float pcy = floor(fi / 7.0);
+                float ocx = (pcx + 0.5) / 7.0;
+                float ocy = (pcy + 0.5) / 7.0;
+                float h1 = revealCellNoise(pcx, pcy, 1.0);
+                float h2 = revealCellNoise(pcx + 13.0, pcy + 7.0, 1.0);
+                float o;
+                if (uRevealOrder > 2.5) { o = h1; }
+                else if (uRevealOrder > 1.5) { o = ocx; }
+                else {
+                    float cn = clamp(length(vec2(ocx - 0.5, ocy - 0.5)) / 0.70710678, 0.0, 1.0);
+                    o = uRevealOrder > 0.5 ? 1.0 - cn : cn;
+                }
+                float start = o * (1.0 - uRevealFlight) * uRevealSpread;
+                float t = uRevealFlight <= 0.0 ? 1.0 : clamp((uRevealProgress - start) / uRevealFlight, 0.0, 1.0);
+                float e = t * t * (3.0 - 2.0 * t);
+                float ang = h2 * 6.28318530718;
+                vec2 dir = vec2(cos(ang), sin(ang));
+                float dist = 1.3 + h1 * 0.7;
+                vec2 curOffset = dir * dist * (1.0 - e);
+                vec2 srcPos = vDisplayCoord - curOffset;
+                if (srcPos.x >= pcx / 7.0 && srcPos.x < (pcx + 1.0) / 7.0 &&
+                    srcPos.y >= pcy / 7.0 && srcPos.y < (pcy + 1.0) / 7.0) {
+                    result = texture(uTexture, vTextureCoord - curOffset).r;
+                }
             }
-            float arrival = o * (1.0 - uRevealFlight) * uRevealSpread + uRevealFlight;
-            revealMask = smoothstep(arrival, arrival + uRevealBandRamp, uRevealProgress);
+            finalColor = vec4(vec3(result), 1.0);
+            return;
         } else {
             vec2 cellUvPos = vec2((colIndex + 0.5) / uGridSize.x, (rowIndex + 0.5) / uGridSize.y);
             float normalizedDistance = length(cellUvPos - uRevealOrigin) / uRevealMaxDistance;

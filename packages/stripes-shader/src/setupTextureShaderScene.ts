@@ -35,7 +35,6 @@ import {
   waveRevealAmountAtCell,
   type PlaygroundRevealState,
 } from "./playgroundReveal";
-import { AssemblyGlowOverlay } from "./assemblyGlowOverlay";
 import {
   detectTextureBackgroundColor,
   overlayInvertsStripeBucketing,
@@ -513,9 +512,6 @@ function runDuotoneTick(params: {
     resolution: 1,
   });
 
-  let assemblyContentIndices: Uint8Array | null = null;
-  let assemblyContentGridKey = "";
-
   let textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
   let lastColorsKey = "";
   let colorsBackgroundAutoDetected = false;
@@ -538,7 +534,6 @@ function runDuotoneTick(params: {
     ? new PlaygroundFlamesOverlay(initialFlamesRaster.width, initialFlamesRaster.height)
     : null;
   const cursorTrailOverlay = new CursorTrailOverlay(blockGridTexture.cols, blockGridTexture.rows);
-  const assemblyGlowOverlay = new AssemblyGlowOverlay(display.width, display.height);
   let lastLumaGrid: LumaGrid | null = null;
   let trailStripeLut: Uint8Array | null = null;
   let trailMap: CursorTrailCellMap | null = null;
@@ -564,7 +559,6 @@ function runDuotoneTick(params: {
         stripeFilter.resizeGrid(blockGridTexture.cols, blockGridTexture.rows, eff.width, eff.height);
         letterLayer.setCellSize(eff.width, eff.height);
         cursorTrailOverlay.resize(blockGridTexture.cols, blockGridTexture.rows);
-        assemblyGlowOverlay.resize(display.width, display.height);
         fieldCellRT.destroy(true);
         fieldCellRT = RenderTexture.create({
           width: Math.max(1, blockGridTexture.cols),
@@ -572,8 +566,6 @@ function runDuotoneTick(params: {
           resolution: 1,
         });
         lastLumaGrid = null;
-        assemblyContentIndices = null;
-        assemblyContentGridKey = "";
 
         if (prevIndices && prevIndices.length > 0) {
           const resampled = resampleBlockGrid(
@@ -622,7 +614,6 @@ function runDuotoneTick(params: {
     blockGridTexture.destroy();
     flamesOverlay?.destroy();
     cursorTrailOverlay.destroy();
-    assemblyGlowOverlay.destroy();
     letterLayer.destroy();
     destroyStripeLetterAtlas(atlas);
     fieldCellRT.destroy(true);
@@ -825,69 +816,6 @@ function runDuotoneTick(params: {
       return active;
     };
 
-    const isAssemblyContentStale = (): boolean => {
-      const cfg = revealConfigRef.current;
-      if (cfg.type !== "assembly" || !cfg.enabled) {
-        return false;
-      }
-      const cols = blockGridTexture.cols;
-      const rows = blockGridTexture.rows;
-      const gridKey = `${cols}x${rows}`;
-      return assemblyContentIndices === null || assemblyContentGridKey !== gridKey;
-    };
-
-    const seedAssemblyContent = (): void => {
-      const cols = blockGridTexture.cols;
-      const rows = blockGridTexture.rows;
-      const gridKey = `${cols}x${rows}`;
-      revealFieldFilter.syncReveal(null, 1);
-      renderProcessed();
-      fieldDownsample.render(app.renderer, processedRT, fieldCellRT, cols, rows);
-      const { pixels } = app.renderer.extract.pixels(fieldCellRT);
-      const indices = new Uint8Array(cols * rows);
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          // fieldCellRT is a GPU RenderTexture read back bottom-up, so flip the row to
-          // match the display top-left cell grid the glow targets use (verified in-browser:
-          // without this, the energy converges to the vertical mirror of the content).
-          const readRow = rows - 1 - r;
-          const srcIdx = (readRow * cols + c) * 4;
-          indices[r * cols + c] = (pixels[srcIdx] ?? 0) > 102 ? 1 : 0;
-        }
-      }
-      assemblyContentIndices = indices;
-      assemblyContentGridKey = gridKey;
-    };
-
-    const updateAssemblyGlow = (): void => {
-      const cfg = revealConfigRef.current;
-      const plan = resolveDisplayPlan(debugStageRef.current, textureFilterMode);
-      if (!plan.overlaysVisible) {
-        return;
-      }
-      const enabled = cfg.enabled;
-      const type = cfg.type;
-      if (!enabled || type !== "assembly") {
-        return;
-      }
-      const durationMs = Math.max(1, resolvePlaygroundRevealDurationMs(cfg));
-      const progressRaw = Math.max(0, (now - revealPlaybackRef.current.startedAtMs) / durationMs);
-      const bandRamp = Math.min(0.4, Math.max(0.04, 330 / durationMs));
-      const overshoot = resolveAssemblyRevealOvershoot(bandRamp);
-      const animating = progressRaw < 1 + overshoot;
-      const cols = blockGridTexture.cols;
-      const rows = blockGridTexture.rows;
-      const indices = assemblyContentIndices;
-      const hasContent = indices !== null && indices.some((v) => v > 0);
-      if (animating && hasContent && indices !== null) {
-        assemblyGlowOverlay.ensure(cols, rows, indices, display.width, display.height, cfg.assembly);
-        assemblyGlowOverlay.sync(progressRaw, cfg.assembly);
-        assemblyGlowOverlay.container.visible = true;
-        app.renderer.render({ container: assemblyGlowOverlay.container, target: processedRT, clear: false });
-        assemblyGlowOverlay.container.visible = false;
-      }
-    };
-
     if (textureFilterMode !== "stripes") {
       if (luminanceMode === "colors" && !colorsBackgroundAutoDetected) {
         const frame = sampleFrame();
@@ -907,20 +835,10 @@ function runDuotoneTick(params: {
         }
       }
 
-      // Seed assembly content from an unmasked render when stale (first play or grid resize),
-      // so the reveal has content cells even while animating. Runs before syncRevealField so
-      // the normal tick immediately re-applies the correct mask and re-renders over it.
-      if (isAssemblyContentStale()) {
-        seedAssemblyContent();
-      }
-      // Render the processed texture and apply the display plan.
       syncRevealField();
       syncFlamesField();
       updateCursorField();
       renderProcessed();
-      // Composite glow additively into processedRT BEFORE the downsample so the energy
-      // is part of the render field (field view shows it; stripes render it as bands).
-      updateAssemblyGlow();
       fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
       stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
       applyDisplayPlan(textureFilterMode);
@@ -948,19 +866,9 @@ function runDuotoneTick(params: {
     } else {
       stripeFilter.syncFlames(null, null);
     }
-    // Seed assembly content from an unmasked render when stale (first play or grid resize),
-    // so the reveal has content cells even while animating. Runs before syncRevealField so
-    // the normal tick immediately re-applies the correct mask and re-renders over it.
-    if (isAssemblyContentStale()) {
-      seedAssemblyContent();
-    }
-    // Render the source sprite through the field + reveal + flames + cursor passes into processedRT.
     syncRevealField();
     updateCursorField();
     renderProcessed();
-    // Composite glow additively into processedRT BEFORE the downsample so the energy
-    // is part of the render field (field view shows it; stripes render it as bands).
-    updateAssemblyGlow();
     fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
     stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
 

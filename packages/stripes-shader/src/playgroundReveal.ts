@@ -122,8 +122,7 @@ export function assemblyOrderNorm(
 /**
  * Per-cell stripe reveal mask for the assembly (fly-in) reveal — the stripe materializes
  * when its circle lands (arrival = emitterStart + flight). Kept in sync with the
- * uRevealMode == 2 branch in stripeFilterShaders.ts and the overlay timing in
- * assemblyGlowOverlay.ts.
+ * uRevealMode == 2 branch in stripeFilterShaders.ts.
  */
 export function assemblyRevealAmountAtCell(
   col: number,
