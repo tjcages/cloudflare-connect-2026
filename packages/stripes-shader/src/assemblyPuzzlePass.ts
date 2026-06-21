@@ -20,7 +20,6 @@ uniform float uFlight;
 float hash(float n){ return fract(sin(n * 127.1 + 0.37) * 43758.5453); }
 void main(void){
     float h1 = hash(aSeed);
-    float h2 = hash(aSeed + 57.0);
     float o;
     if (uOrder > 2.5) { o = h1; }
     else if (uOrder > 1.5) { o = aCellCenter.x; }
@@ -32,10 +31,17 @@ void main(void){
     float arrival = start + uFlight;
     float t = uFlight <= 0.0 ? 1.0 : clamp((uProgress - start) / uFlight, 0.0, 1.0);
     float e = t * t * (3.0 - 2.0 * t);
-    float ang = h2 * 6.28318530718;
-    vec2 dir = vec2(cos(ang), sin(ang));
-    float dist = 2.6 + h1 * 1.0;
-    vec2 offset = dir * dist * (1.0 - e);
+    // Enter from the NEAREST canvas edge (shortest path in), not a random direction:
+    // pick whichever of the cell's home edges (left/right vs top/bottom) is closer, and
+    // start just past it. Edge cells barely move; center cells slide in from their side.
+    vec2 ch = vec2(aCellCenter.x * 2.0 - 1.0, 1.0 - aCellCenter.y * 2.0); // home center in clip
+    float dx = ch.x > 0.0 ? (1.0 - ch.x) : (ch.x + 1.0); // distance to nearest left/right edge
+    float dy = ch.y > 0.0 ? (1.0 - ch.y) : (ch.y + 1.0); // distance to nearest top/bottom edge
+    vec2 spawnDir = dx < dy
+        ? vec2(ch.x > 0.0 ? 1.0 : -1.0, 0.0)
+        : vec2(0.0, ch.y > 0.0 ? 1.0 : -1.0);
+    float spawnDist = min(dx, dy) + 0.3; // push just past the nearest edge, off-screen
+    vec2 offset = spawnDir * spawnDist * (1.0 - e);
     gl_Position = vec4(aClipHome + offset, 0.0, 1.0);
     vUV = aHomeUV;
     vCorner = aCorner;
