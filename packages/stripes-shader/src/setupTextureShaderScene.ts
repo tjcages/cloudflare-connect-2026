@@ -707,6 +707,23 @@ function runDuotoneTick(params: {
       revealFieldFilter.syncReveal(animating ? cfg : null, progressRaw);
     };
 
+    // Flames as a field pass (R3): feed the flames raster to the field filter (which already
+    // brightens the field by it via applyFlames) so flames show on the field with stripes
+    // ON or OFF. Syncs the overlay once; the stripe path reads the same overlay texture.
+    const syncFlamesField = () => {
+      const cell = effectivePlaygroundCellSize(gridConfigRef.current);
+      const size = resolvePlaygroundFlamesRasterSize(display.width, display.height, cell.width, cell.height);
+      if (flamesOverlay) {
+        flamesOverlay.resize(size.width, size.height);
+      }
+      if (flamesOverlay && flamesState && flamesConfig.enabled) {
+        flamesOverlay.sync(flamesState, flamesConfig, display.width, display.height);
+        sourceTextureFilter.syncFlames(flamesOverlay.texture, flamesConfig);
+      } else {
+        sourceTextureFilter.syncFlames(null, null);
+      }
+    };
+
     if (textureFilterMode !== "stripes") {
       if (luminanceMode === "colors" && !colorsBackgroundAutoDetected) {
         const frame = sampleFrame();
@@ -728,10 +745,10 @@ function runDuotoneTick(params: {
 
       // Render the processed texture and apply the display plan.
       syncRevealField();
+      syncFlamesField();
       renderProcessed();
       applyDisplayPlan(textureFilterMode);
 
-      sourceTextureFilter.syncFlames(null, null);
       stripeFilter.syncFlames(null, null);
       stripeFilter.syncCursorTrail(null, null, 0);
       stripeFilter.syncReveal(null, 1);
@@ -747,24 +764,15 @@ function runDuotoneTick(params: {
       return;
     }
 
-    sourceTextureFilter.syncFlames(null, null);
-    const flamesRasterCell = effectivePlaygroundCellSize(gridConfigRef.current);
-    const flamesRasterSize = resolvePlaygroundFlamesRasterSize(
-      display.width,
-      display.height,
-      flamesRasterCell.width,
-      flamesRasterCell.height,
-    );
-    if (flamesOverlay) {
-      flamesOverlay.resize(flamesRasterSize.width, flamesRasterSize.height);
-    }
+    // Flames: sync the overlay + feed the field filter (R3), then feed the stripe filter
+    // from the same overlay texture.
+    syncFlamesField();
     if (flamesOverlay && flamesState && flamesConfig.enabled) {
-      flamesOverlay.sync(flamesState, flamesConfig, display.width, display.height);
       stripeFilter.syncFlames(flamesOverlay.texture, flamesConfig);
     } else {
       stripeFilter.syncFlames(null, null);
     }
-    // Render the source sprite through sourceTextureFilter into processedRT each tick.
+    // Render the source sprite through the field + reveal + flames passes into processedRT.
     syncRevealField();
     renderProcessed();
 
