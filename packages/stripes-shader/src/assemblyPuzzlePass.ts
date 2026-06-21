@@ -2,14 +2,17 @@ import { Geometry, GlProgram, Mesh, RenderTexture, Shader, Texture, UniformGroup
 import type { Renderer } from "pixi.js";
 
 // Side length of each puzzle cell in display pixels.
-export const CELL_PX = 16;
+export const CELL_PX = 20;
 
 const ASSEMBLY_PUZZLE_VERTEX = `
 in vec2 aClipHome;
 in vec2 aHomeUV;
 in vec2 aCellCenter;
+in vec2 aCorner;
 in float aSeed;
 out vec2 vUV;
+out vec2 vCorner;
+out float vSoft;
 uniform float uProgress;
 uniform float uOrder;
 uniform float uSpread;
@@ -34,6 +37,9 @@ void main(void){
     vec2 offset = dir * dist * (1.0 - e);
     gl_Position = vec4(aClipHome + offset, 0.0, 1.0);
     vUV = aHomeUV;
+    vCorner = aCorner;
+    // Edges start soft (feathered) and sharpen smoothly to crisp by ~70% of the flight.
+    vSoft = mix(0.5, 0.0, smoothstep(0.0, 0.7, t));
 }
 `;
 
@@ -43,10 +49,17 @@ void main(void){
 // (so flying cells never erase already-landed content).
 const ASSEMBLY_PUZZLE_FRAGMENT = `
 in vec2 vUV;
+in vec2 vCorner;
+in float vSoft;
 out vec4 finalColor;
 uniform sampler2D uHomeField;
 void main(void){
     float c = texture(uHomeField, vUV).r;
+    if (vSoft > 0.001) {
+        // Distance to the nearest cell border (0 at edge, 0.5 at center); fade within vSoft.
+        float edge = min(min(vCorner.x, 1.0 - vCorner.x), min(vCorner.y, 1.0 - vCorner.y));
+        c *= smoothstep(0.0, vSoft, edge);
+    }
     finalColor = vec4(c, c, c, c);
 }
 `;
@@ -107,6 +120,7 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
     const clipHome = new Float32Array(vertCount * 2);
     const homeUV = new Float32Array(vertCount * 2);
     const cellCenter = new Float32Array(vertCount * 2);
+    const corner = new Float32Array(vertCount * 2);
     const seed = new Float32Array(vertCount);
     const indices = new Uint32Array(indexCount);
 
@@ -123,11 +137,12 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
         const clipY0 = 1 - (2 * cy) / rows; // top edge of this row in clip space
         const clipY1 = 1 - (2 * (cy + 1)) / rows; // bottom edge of this row in clip space
 
-        // UV corners: u in [cx/cols, (cx+1)/cols], v in [cy/rows, (cy+1)/rows]
+        // UV corners: u in [cx/cols, (cx+1)/cols]. The home field is a RenderTexture sampled
+        // raw (bottom-up), so v is flipped: the screen-top row (cy=0) samples the field top.
         const u0 = cx / cols;
         const u1 = (cx + 1) / cols;
-        const v0 = cy / rows;
-        const v1 = (cy + 1) / rows;
+        const v0 = 1 - cy / rows;
+        const v1 = 1 - (cy + 1) / rows;
 
         const ccx = (cx + 0.5) / cols;
         const ccy = (cy + 0.5) / rows;
@@ -157,9 +172,13 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
         homeUV[(baseV + 3) * 2 + 0] = u0;
         homeUV[(baseV + 3) * 2 + 1] = v1;
 
+        // Per-vertex cell-local corner (0..1): TL, TR, BR, BL — for edge feathering.
+        const corners = [0, 0, 1, 0, 1, 1, 0, 1];
         for (let v = 0; v < 4; v++) {
           cellCenter[(baseV + v) * 2 + 0] = ccx;
           cellCenter[(baseV + v) * 2 + 1] = ccy;
+          corner[(baseV + v) * 2 + 0] = corners[v * 2]!;
+          corner[(baseV + v) * 2 + 1] = corners[v * 2 + 1]!;
           seed[baseV + v] = s;
         }
 
@@ -178,6 +197,7 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
         aClipHome: { buffer: clipHome, format: "float32x2", stride: 8, offset: 0 },
         aHomeUV: { buffer: homeUV, format: "float32x2", stride: 8, offset: 0 },
         aCellCenter: { buffer: cellCenter, format: "float32x2", stride: 8, offset: 0 },
+        aCorner: { buffer: corner, format: "float32x2", stride: 8, offset: 0 },
         aSeed: { buffer: seed, format: "float32", stride: 4, offset: 0 },
       },
       indexBuffer: indices,
