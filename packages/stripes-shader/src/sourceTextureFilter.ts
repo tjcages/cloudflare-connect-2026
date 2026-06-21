@@ -160,7 +160,7 @@ vec3 boxBlurSourceRgb(vec2 uv, float radius) {
     float count = 0.0;
     for (int y = -8; y <= 8; y++) {
         for (int x = -8; x <= 8; x++) {
-            if (float(abs(x)) > radius || float(abs(y)) > radius) {
+            if (abs(float(x)) > radius || abs(float(y)) > radius) {
                 continue;
             }
             vec2 offset = vec2(float(x), float(y)) * uTexelSize;
