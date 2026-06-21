@@ -45,6 +45,15 @@ field_ (black/white), not the color source and not a blank screen. If a white-ba
 photo shows a white screen with stripes off, R1/R2 are being violated — the pipeline is
 showing the color image instead of the field.
 
+- **R6 — Every shader must compile on WebGL1 (GLSL ES 1.00).** This app runs on WebGL1 in
+  some environments. ES 1.00 has **no integer `abs`/`min`/`max`/`mod`** and other gaps — a
+  filter that fails to compile renders **nothing** (a transparent render target → a white
+  screen, silently). Cast ints to float first (`abs(float(x))`, not `float(abs(x))`).
+  After any shader edit, check the browser console for `Could not initialize shader` /
+  `no matching overloaded function`. (This exact `abs(int)` bug in the source→field blur
+  was the white-screen root cause — latent while the filter was dead code, fatal once it
+  was wired into the live chain.)
+
 ---
 
 ## The render field, precisely
