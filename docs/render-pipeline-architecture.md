@@ -14,6 +14,15 @@ was no way to see what each stage did. These rules prevent that.
 
 ## The rules (the invariant)
 
+**The pipeline is field-first.** The renderer always produces a complete black/white
+_render field_ first; **stripes are a pure post-process applied last and nothing else
+depends on them.** Turning stripes off changes nothing upstream — every effect already
+happened on the field, so the field looks identical whether or not stripes are drawn on
+top. A viewer should not be able to tell from the field that a stripe pass exists. If you
+ever find yourself adding effect logic to the stripe pass, stop: it belongs in a field
+pass (R3). This is the consistency the whole architecture exists to guarantee — "stripes
+first" is the bug class we are eliminating.
+
 - **R1 — One canonical intermediate: the _render field_.** Everything flows through a
   single texture, the _render field_: a grayscale value where **white (1) = render a full
   stripe here, black (0) = hide (background)**. The field is the single source of truth.
@@ -53,6 +62,15 @@ showing the color image instead of the field.
   `no matching overloaded function`. (This exact `abs(int)` bug in the source→field blur
   was the white-screen root cause — latent while the filter was dead code, fatal once it
   was wired into the live chain.)
+
+- **R7 — GPU-first.** Per-pixel and per-cell work runs on the GPU (filter/shader
+  render-to-texture passes), not the CPU. The field, every effect pass, and the stripe
+  **band derivation** (downsample the field per cell → LUT → bars) are GPU passes. The
+  CPU's job is to set uniforms and orchestrate — not to sample the frame's pixels every
+  tick. The legacy CPU per-cell sampler (`computeBlockGrid`) is being retired from the
+  **render** path; it survives only where a non-render consumer still needs per-cell data
+  (SVG export, letters, colors-mode tint) until those move to the field too. New effects
+  are field passes (R3), never CPU loops over pixels.
 
 ---
 
@@ -123,25 +141,33 @@ and makes the chain embody R1–R5.
 
 ## Phase roadmap (each its own spec → plan → ship, verified before the next)
 
-1. **Source → render field; the field is what you see.** Replace "processed = color image"
+> **Status (2026-06-21):** Phases 1, 3, 4 landed (the field is real and visible; reveal,
+> flames, and cursor-trail/click all run as field passes, visible with stripes off — done
+> out of numeric order). **Phase 2 (stripes downsample the field) is now in progress** — it
+> is the last step that makes stripes a true pure post-process for luminance + overlay.
+> Colors-mode band derivation and the CPU-grid retirement (Phase 5) stay deferred.
+
+1. ✅ **Source → render field; the field is what you see.** Replace "processed = color image"
    with "processed = render field": a GPU source→field pass (luma + overlay/background
    inversion + adjustments → grayscale, white = content). Stripes-off and the
    Processed/Field debug stage show the black/white field (white content on black). The
    stripe pass still reads the CPU block map for bars in this phase, but the field it
    shows must be consistent with that block map's bucketing. **Fixes the white screen;
    establishes R1, R2, R5.**
-2. **Stripes downsample the field (R4).** Stripe pass reads a GPU-downsampled per-cell
-   value from the field → band via LUT → bars. The CPU block grid stops feeding the stripe
-   render (still feeds letters / SVG export / assembly glow for now). Pixel-parity verified
-   against the current build.
-3. **Reveal as a field pass (R3).** Lift reveal out of the stripe shader into a field→field
+2. ▶ **Stripes downsample the field (R4) — IN PROGRESS.** Stripe pass reads a
+   GPU-downsampled per-cell value from the field → band via LUT → bars, for **luminance +
+   overlay** modes. In those modes the stripe shader stops computing reveal/flames/cursor
+   (they are already in the field) and stops reading the CPU block grid for bands. The CPU
+   block grid still feeds letters / SVG export / assembly glow / **colors-mode bands** for
+   now. Verify the field-driven stripes stay consistent with the field shown stripes-off.
+3. ✅ **Reveal as a field pass (R3).** Lift reveal out of the stripe shader into a field→field
    pass that masks the field toward black until revealed; redo the assembly glow as the
    visible colored treatment. Reveal now works stripes-on or -off and is visible before
    stripes. (This is where the assembly reveal finally looks right.)
-4. **Flames + cursor-trail/click as field passes (R3).** Move the remaining effects to
+4. ✅ **Flames + cursor-trail/click as field passes (R3).** Move the remaining effects to
    field passes; collapse the duplicated adjustments/flames; delete the dead CPU bake.
    (Cursor push is delicate — measured against recordings.)
-5. **Colors-mode color side-input + cleanup.** Make colors-mode tint/coverage a clean
+5. ◻ **Colors-mode color side-input + cleanup.** Make colors-mode tint/coverage a clean
    per-cell side input to the stripe pass; re-point letters/export off the CPU grid where
    possible; prune.
 
