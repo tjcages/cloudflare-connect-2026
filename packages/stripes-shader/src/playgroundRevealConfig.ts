@@ -61,8 +61,8 @@ export const DEFAULT_PLAYGROUND_REVEAL_CONFIG: PlaygroundRevealConfig = {
     from: "scatter",
     durationMs: 2600,
     spread: 0.85,
-    glowSize: 34,
-    flight: 0.22,
+    glowSize: 42,
+    flight: 0.32,
     overshoot: false,
   },
 };
