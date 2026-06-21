@@ -44,6 +44,7 @@ import {
   type TextureLuminanceSettings,
 } from "./colorWhiteness";
 import { createSourceTextureFilter } from "./sourceTextureFilter";
+import { createRevealFieldFilter } from "./revealFieldFilter";
 import { normalizePlaygroundCursorTrailConfig, type PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 import { addClickWave, createClickWaveState, updateClickWave, type ClickWaveState } from "./clickWave";
 import { createCursorTrailState, setCursorTrailTarget, updateCursorTrail, type CursorTrailState } from "./cursorTrail";
@@ -422,6 +423,7 @@ function runDuotoneTick(params: {
   processedDisplay: ProcessedDisplay;
   stripeFilter: ReturnType<typeof createStripeDuotoneFilter>;
   sourceTextureFilter: ReturnType<typeof createSourceTextureFilter>;
+  revealFieldFilter: ReturnType<typeof createRevealFieldFilter>;
   letterLayer: StripeLetterLayer;
   duotoneEnabledRef: RefObject<boolean>;
   stripesEnabledRef: RefObject<boolean>;
@@ -460,6 +462,7 @@ function runDuotoneTick(params: {
     processedDisplay,
     stripeFilter,
     sourceTextureFilter,
+    revealFieldFilter,
     letterLayer,
     duotoneEnabledRef,
     stripesEnabledRef,
@@ -679,6 +682,31 @@ function runDuotoneTick(params: {
       }
     };
 
+    // Reveal as a field pass (R3): mask the render field by the reveal timing so reveal is
+    // visible with stripes ON or OFF. Runs before renderProcessed() in both paths; uses the
+    // same reveal config + time base as the stripe-shader reveal so they stay in sync.
+    const syncRevealField = () => {
+      const cfg = revealConfigRef.current;
+      const durationMs = Math.max(1, resolvePlaygroundRevealDurationMs(cfg));
+      const progressRaw = cfg.enabled
+        ? Math.max(0, (performance.now() - revealPlaybackRef.current.startedAtMs) / durationMs)
+        : 1;
+      const bandRamp = Math.min(0.4, Math.max(0.04, 330 / durationMs));
+      const overshoot =
+        cfg.type === "assembly" ? resolveAssemblyRevealOvershoot(bandRamp) : resolveRevealOvershoot(cfg.wave, bandRamp);
+      const animating = cfg.enabled && progressRaw < 1 + overshoot;
+      const eff = effectivePlaygroundCellSize(gridConfigRef.current);
+      revealFieldFilter.syncGrid(
+        blockGridTexture.cols,
+        blockGridTexture.rows,
+        eff.width,
+        eff.height,
+        display.width,
+        display.height,
+      );
+      revealFieldFilter.syncReveal(animating ? cfg : null, progressRaw);
+    };
+
     if (textureFilterMode !== "stripes") {
       if (luminanceMode === "colors" && !colorsBackgroundAutoDetected) {
         const frame = sampleFrame();
@@ -699,6 +727,7 @@ function runDuotoneTick(params: {
       }
 
       // Render the processed texture and apply the display plan.
+      syncRevealField();
       renderProcessed();
       applyDisplayPlan(textureFilterMode);
 
@@ -736,6 +765,7 @@ function runDuotoneTick(params: {
       stripeFilter.syncFlames(null, null);
     }
     // Render the source sprite through sourceTextureFilter into processedRT each tick.
+    syncRevealField();
     renderProcessed();
 
     const revealConfig = revealConfigRef.current;
@@ -1278,8 +1308,9 @@ function createImageSceneTicker(
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
     });
-    // Source sprite stays offscreen; sourceTextureFilter produces the processed texture.
-    sprite.filters = [sourceTextureFilter];
+    // Source sprite stays offscreen; the field + reveal passes produce the processed texture.
+    const revealFieldFilter = createRevealFieldFilter();
+    sprite.filters = [sourceTextureFilter, revealFieldFilter];
     const processed = createProcessedDisplay(app, sprite, display);
     app.stage.addChild(processed.displaySprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(
@@ -1303,6 +1334,7 @@ function createImageSceneTicker(
       processedDisplay: processed,
       stripeFilter,
       sourceTextureFilter,
+      revealFieldFilter,
       letterLayer,
       duotoneEnabledRef,
       stripesEnabledRef,
@@ -1430,8 +1462,9 @@ function createVideoSceneTickerInternal(
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
     });
-    // Source sprite stays offscreen; sourceTextureFilter produces the processed texture.
-    sprite.filters = [sourceTextureFilter];
+    // Source sprite stays offscreen; the field + reveal passes produce the processed texture.
+    const revealFieldFilter = createRevealFieldFilter();
+    sprite.filters = [sourceTextureFilter, revealFieldFilter];
     const processed = createProcessedDisplay(app, sprite, display);
     app.stage.addChild(processed.displaySprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(
@@ -1457,6 +1490,7 @@ function createVideoSceneTickerInternal(
       processedDisplay: processed,
       stripeFilter,
       sourceTextureFilter,
+      revealFieldFilter,
       letterLayer,
       duotoneEnabledRef,
       stripesEnabledRef,
