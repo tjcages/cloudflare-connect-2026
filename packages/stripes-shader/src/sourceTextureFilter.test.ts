@@ -25,12 +25,11 @@ describe("SOURCE_TEXTURE_FILTER_FRAGMENT", () => {
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uniform vec3 uTextureBgColor");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("colorPixelPresence");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("pixelSaturation");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("mergedLuma > 0.0001");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("adjustLuma(bgLuma)");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("boxBlurSourceRgb");
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("compositeSourceRgb");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("finalColor = vec4(clamp(finalRgb, 0.0, 1.0), 1.0)");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("merged * (adjusted / mergedLuma)");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uniform float uOverlayInvert");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("float field = uOverlayInvert > 0.5 ? 1.0 - adjusted : adjusted");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("finalColor = vec4(vec3(field), 1.0)");
   });
 
   it("supports preview blur and sharpen before tone mapping", () => {

@@ -11,6 +11,8 @@ import {
 } from "./playgroundTextureAdjustments";
 import { STRIPE_FILTER_VERTEX } from "./stripeFilterShaders";
 
+// Produces the RENDER FIELD (docs/render-pipeline-architecture.md, R1/R2): a grayscale
+// texture where white = render a stripe, black = hide. NOT a color image.
 export const SOURCE_TEXTURE_FILTER_FRAGMENT = `
 in vec2 vTextureCoord;
 in vec2 vDisplayCoord;
@@ -37,6 +39,7 @@ uniform float uFlamesMaskStart;
 uniform float uFlamesMaskEnd;
 uniform float uFlamesMaskPower;
 uniform float uColorsMode;
+uniform float uOverlayInvert;
 uniform vec3 uTextureBgColor;
 
 const float COLOR_DISTANCE_SCALE = 0.8660254037844386; // sqrt(3)
@@ -187,17 +190,11 @@ void main(void) {
     vec3 merged = applyFlames(sampleFilteredSourceRgb(vTextureCoord));
     float mergedLuma = sampleMergedLuma(merged);
     float adjusted = adjustLuma(mergedLuma);
-    vec3 finalRgb;
-    if (mergedLuma > 0.0001) {
-        finalRgb = merged * (adjusted / mergedLuma);
-    } else if (uColorsMode > 0.5) {
-        float bgLuma = rec709Luma(uTextureBgColor);
-        float adjustedBg = adjustLuma(bgLuma);
-        finalRgb = bgLuma > 0.0001 ? uTextureBgColor * (adjustedBg / bgLuma) : vec3(adjustedBg);
-    } else {
-        finalRgb = vec3(adjusted);
-    }
-    finalColor = vec4(clamp(finalRgb, 0.0, 1.0), 1.0);
+    // Render field (rules R1/R2): grayscale, white = render a stripe, black = hide.
+    // Overlay mode inverts so dark content on a light background renders on the content.
+    // Mirrors finalizeStripeBucketingLuminance(applyTextureLuminanceAdjustments(...), mode).
+    float field = uOverlayInvert > 0.5 ? 1.0 - adjusted : adjusted;
+    finalColor = vec4(vec3(field), 1.0);
 }
 `;
 
@@ -241,6 +238,7 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     uFlamesMaskEnd: { value: 0.1, type: "f32" },
     uFlamesMaskPower: { value: 1, type: "f32" },
     uColorsMode: { value: 0, type: "f32" },
+    uOverlayInvert: { value: 0, type: "f32" },
     uTextureBgColor: { value: [0, 0, 0], type: "vec3<f32>" },
   });
 
@@ -302,9 +300,11 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     const uniforms = textureUniforms.uniforms as {
       uColorsMode: number;
       uTextureBgColor: number[];
+      uOverlayInvert: number;
     };
     uniforms.uColorsMode = mode === "colors" ? 1 : 0;
     uniforms.uTextureBgColor = bg;
+    uniforms.uOverlayInvert = mode === "overlay" ? 1 : 0;
     textureUniforms.update();
   };
 
