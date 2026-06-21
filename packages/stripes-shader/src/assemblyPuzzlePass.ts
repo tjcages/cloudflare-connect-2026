@@ -37,11 +37,18 @@ void main(void){
 }
 `;
 
+// Each cell contributes WHITE weighted by the field value (premultiplied), drawn with
+// additive blending: black/background (0) contributes nothing (ignored), a half-white cell
+// contributes 0.5 white, and overlapping cells STACK toward white instead of overwriting
+// (so flying cells never erase already-landed content).
 const ASSEMBLY_PUZZLE_FRAGMENT = `
 in vec2 vUV;
 out vec4 finalColor;
 uniform sampler2D uHomeField;
-void main(void){ finalColor = vec4(vec3(texture(uHomeField, vUV).r), 1.0); }
+void main(void){
+    float c = texture(uHomeField, vUV).r;
+    finalColor = vec4(c, c, c, c);
+}
 `;
 
 export type AssemblyPuzzleRenderOpts = {
@@ -177,6 +184,7 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
     });
 
     mesh = new Mesh({ geometry: currentGeometry, shader });
+    mesh.blendMode = "add";
   };
 
   return {
