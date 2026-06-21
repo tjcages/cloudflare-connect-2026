@@ -513,6 +513,9 @@ function runDuotoneTick(params: {
     resolution: 1,
   });
 
+  let assemblyContentIndices: Uint8Array | null = null;
+  let assemblyContentGridKey = "";
+
   let textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
   let lastColorsKey = "";
   let colorsBackgroundAutoDetected = false;
@@ -570,6 +573,8 @@ function runDuotoneTick(params: {
           resolution: 1,
         });
         lastLumaGrid = null;
+        assemblyContentIndices = null;
+        assemblyContentGridKey = "";
 
         if (prevIndices && prevIndices.length > 0) {
           const resampled = resampleBlockGrid(
@@ -696,9 +701,6 @@ function runDuotoneTick(params: {
         displaySprite.filters = [];
       }
       letterLayer.setVisible(plan.overlaysVisible && mode === "stripes");
-      if (!plan.overlaysVisible) {
-        assemblyGlowOverlay.setVisible(false);
-      }
     };
 
     // Reveal as a field pass (R3): mask the render field by the reveal timing so reveal is
@@ -824,6 +826,64 @@ function runDuotoneTick(params: {
       return active;
     };
 
+    const refreshAssemblyContentIfNeeded = (animating: boolean): void => {
+      const cfg = revealConfigRef.current;
+      if (cfg.type !== "assembly" || !cfg.enabled) {
+        return;
+      }
+      const cols = blockGridTexture.cols;
+      const rows = blockGridTexture.rows;
+      const gridKey = `${cols}x${rows}`;
+      if (!animating && (assemblyContentIndices === null || assemblyContentGridKey !== gridKey)) {
+        const { pixels } = app.renderer.extract.pixels(fieldCellRT);
+        const indices = new Uint8Array(cols * rows);
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            // FLIP_ROWS: fieldCellRT is a GPU RenderTexture (bottom-up readback).
+            // If glow targets appear vertically mirrored relative to field content,
+            // change `readRow` to `rows - 1 - r` to flip the orientation.
+            const readRow = r;
+            const srcIdx = (readRow * cols + c) * 4;
+            indices[r * cols + c] = (pixels[srcIdx] ?? 0) > 102 ? 1 : 0;
+          }
+        }
+        assemblyContentIndices = indices;
+        assemblyContentGridKey = gridKey;
+      }
+    };
+
+    const updateAssemblyGlow = (): void => {
+      const cfg = revealConfigRef.current;
+      const plan = resolveDisplayPlan(debugStageRef.current, textureFilterMode);
+      if (!plan.overlaysVisible) {
+        assemblyGlowOverlay.setVisible(false);
+        return;
+      }
+      const enabled = cfg.enabled;
+      const type = cfg.type;
+      if (!enabled || type !== "assembly") {
+        assemblyGlowOverlay.setVisible(false);
+        return;
+      }
+      const durationMs = Math.max(1, resolvePlaygroundRevealDurationMs(cfg));
+      const progressRaw = Math.max(0, (now - revealPlaybackRef.current.startedAtMs) / durationMs);
+      const bandRamp = Math.min(0.4, Math.max(0.04, 330 / durationMs));
+      const overshoot = resolveAssemblyRevealOvershoot(bandRamp);
+      const animating = progressRaw < 1 + overshoot;
+      refreshAssemblyContentIfNeeded(animating);
+      const cols = blockGridTexture.cols;
+      const rows = blockGridTexture.rows;
+      const indices = assemblyContentIndices;
+      const hasContent = indices !== null && indices.some((v) => v > 0);
+      if (animating && hasContent && indices !== null) {
+        assemblyGlowOverlay.ensure(cols, rows, indices, display.width, display.height, cfg.assembly);
+        assemblyGlowOverlay.sync(progressRaw, cfg.assembly);
+        assemblyGlowOverlay.setVisible(true);
+      } else {
+        assemblyGlowOverlay.setVisible(false);
+      }
+    };
+
     if (textureFilterMode !== "stripes") {
       if (luminanceMode === "colors" && !colorsBackgroundAutoDetected) {
         const frame = sampleFrame();
@@ -850,6 +910,7 @@ function runDuotoneTick(params: {
       renderProcessed();
       fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
       stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
+      updateAssemblyGlow();
       applyDisplayPlan(textureFilterMode);
 
       stripeFilter.syncFlames(null, null);
@@ -881,6 +942,7 @@ function runDuotoneTick(params: {
     renderProcessed();
     fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
     stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
+    updateAssemblyGlow();
 
     const revealConfig = revealConfigRef.current;
     const revealEnabled = revealConfig.enabled;
@@ -904,21 +966,6 @@ function runDuotoneTick(params: {
 
     // The reveal is a GPU mask: the grid stays fully built and only uniforms animate.
     stripeFilter.syncReveal(revealAnimating ? revealConfig : null, revealProgressRaw);
-
-    if (revealConfig.type === "assembly" && revealAnimating && hasBuiltGrid && gridState.stableIndices) {
-      assemblyGlowOverlay.ensure(
-        blockGridTexture.cols,
-        blockGridTexture.rows,
-        gridState.stableIndices,
-        display.width,
-        display.height,
-        revealConfig.assembly,
-      );
-      assemblyGlowOverlay.sync(revealProgressRaw, revealConfig.assembly);
-      assemblyGlowOverlay.setVisible(true);
-    } else {
-      assemblyGlowOverlay.setVisible(false);
-    }
 
     const colors = stripeColorsRef.current;
     const colorsKey = JSON.stringify({

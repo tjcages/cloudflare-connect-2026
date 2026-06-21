@@ -117,9 +117,9 @@ function buildGlowTexel(): HTMLCanvasElement {
     throw new Error("2D canvas context unavailable for assembly glow sprite.");
   }
   const g = ctx.createRadialGradient(GLOW_TEXEL / 2, GLOW_TEXEL / 2, 0, GLOW_TEXEL / 2, GLOW_TEXEL / 2, GLOW_TEXEL / 2);
-  g.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-  g.addColorStop(0.4, "rgba(255, 255, 255, 0.32)");
-  g.addColorStop(1, "rgba(255, 255, 255, 0)");
+  g.addColorStop(0, "rgba(255, 255, 255, 1)");
+  g.addColorStop(0.32, "rgba(190, 214, 255, 0.55)");
+  g.addColorStop(1, "rgba(120, 160, 255, 0)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, GLOW_TEXEL, GLOW_TEXEL);
   return canvas;
@@ -227,6 +227,29 @@ export class AssemblyGlowOverlay {
       if (!s.visible || s.alpha <= 0.001 || s.radius <= 0) {
         continue;
       }
+
+      const flight = Math.max(0, opts.flight);
+      const spread = Math.max(0, opts.spread);
+      const start = e.o * (1 - flight) * spread;
+      const arrival = start + flight;
+      const inFlight = progress >= start && progress < arrival;
+
+      if (inFlight && flight > 0) {
+        const lt = clamp01((progress - start) / flight);
+        for (let g = 3; g >= 1; g--) {
+          const lt2 = Math.max(0, lt - g * 0.05);
+          const e2 = opts.overshoot ? easeOutBack(lt2) : easeOutCubic(lt2);
+          const gx = lerp(e.sx, e.cx, e2);
+          const gy = lerp(e.sy, e.cy, e2);
+          const gr = s.radius * (1 - g * 0.16);
+          const ga = s.alpha * (0.34 - g * 0.085);
+          if (gr > 0 && ga > 0.001) {
+            this.ctx.globalAlpha = clamp01(ga);
+            this.ctx.drawImage(this.glow, gx - gr, gy - gr, gr * 2, gr * 2);
+          }
+        }
+      }
+
       this.ctx.globalAlpha = clamp01(s.alpha);
       this.ctx.drawImage(this.glow, s.x - s.radius, s.y - s.radius, s.radius * 2, s.radius * 2);
     }
