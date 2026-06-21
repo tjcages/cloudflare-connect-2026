@@ -539,7 +539,6 @@ function runDuotoneTick(params: {
     : null;
   const cursorTrailOverlay = new CursorTrailOverlay(blockGridTexture.cols, blockGridTexture.rows);
   const assemblyGlowOverlay = new AssemblyGlowOverlay(display.width, display.height);
-  app.stage.addChild(assemblyGlowOverlay.container);
   let lastLumaGrid: LumaGrid | null = null;
   let trailStripeLut: Uint8Array | null = null;
   let trailMap: CursorTrailCellMap | null = null;
@@ -826,43 +825,49 @@ function runDuotoneTick(params: {
       return active;
     };
 
-    const refreshAssemblyContentIfNeeded = (animating: boolean): void => {
+    const isAssemblyContentStale = (): boolean => {
       const cfg = revealConfigRef.current;
       if (cfg.type !== "assembly" || !cfg.enabled) {
-        return;
+        return false;
       }
       const cols = blockGridTexture.cols;
       const rows = blockGridTexture.rows;
       const gridKey = `${cols}x${rows}`;
-      if (!animating && (assemblyContentIndices === null || assemblyContentGridKey !== gridKey)) {
-        const { pixels } = app.renderer.extract.pixels(fieldCellRT);
-        const indices = new Uint8Array(cols * rows);
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < cols; c++) {
-            // FLIP_ROWS: fieldCellRT is a GPU RenderTexture (bottom-up readback).
-            // If glow targets appear vertically mirrored relative to field content,
-            // change `readRow` to `rows - 1 - r` to flip the orientation.
-            const readRow = r;
-            const srcIdx = (readRow * cols + c) * 4;
-            indices[r * cols + c] = (pixels[srcIdx] ?? 0) > 102 ? 1 : 0;
-          }
+      return assemblyContentIndices === null || assemblyContentGridKey !== gridKey;
+    };
+
+    const seedAssemblyContent = (): void => {
+      const cols = blockGridTexture.cols;
+      const rows = blockGridTexture.rows;
+      const gridKey = `${cols}x${rows}`;
+      revealFieldFilter.syncReveal(null, 1);
+      renderProcessed();
+      fieldDownsample.render(app.renderer, processedRT, fieldCellRT, cols, rows);
+      const { pixels } = app.renderer.extract.pixels(fieldCellRT);
+      const indices = new Uint8Array(cols * rows);
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          // FLIP_ROWS: fieldCellRT is a GPU RenderTexture (bottom-up readback).
+          // If glow targets appear vertically mirrored relative to field content,
+          // change `readRow` to `rows - 1 - r` to flip the orientation.
+          const readRow = r;
+          const srcIdx = (readRow * cols + c) * 4;
+          indices[r * cols + c] = (pixels[srcIdx] ?? 0) > 102 ? 1 : 0;
         }
-        assemblyContentIndices = indices;
-        assemblyContentGridKey = gridKey;
       }
+      assemblyContentIndices = indices;
+      assemblyContentGridKey = gridKey;
     };
 
     const updateAssemblyGlow = (): void => {
       const cfg = revealConfigRef.current;
       const plan = resolveDisplayPlan(debugStageRef.current, textureFilterMode);
       if (!plan.overlaysVisible) {
-        assemblyGlowOverlay.setVisible(false);
         return;
       }
       const enabled = cfg.enabled;
       const type = cfg.type;
       if (!enabled || type !== "assembly") {
-        assemblyGlowOverlay.setVisible(false);
         return;
       }
       const durationMs = Math.max(1, resolvePlaygroundRevealDurationMs(cfg));
@@ -870,7 +875,6 @@ function runDuotoneTick(params: {
       const bandRamp = Math.min(0.4, Math.max(0.04, 330 / durationMs));
       const overshoot = resolveAssemblyRevealOvershoot(bandRamp);
       const animating = progressRaw < 1 + overshoot;
-      refreshAssemblyContentIfNeeded(animating);
       const cols = blockGridTexture.cols;
       const rows = blockGridTexture.rows;
       const indices = assemblyContentIndices;
@@ -878,9 +882,9 @@ function runDuotoneTick(params: {
       if (animating && hasContent && indices !== null) {
         assemblyGlowOverlay.ensure(cols, rows, indices, display.width, display.height, cfg.assembly);
         assemblyGlowOverlay.sync(progressRaw, cfg.assembly);
-        assemblyGlowOverlay.setVisible(true);
-      } else {
-        assemblyGlowOverlay.setVisible(false);
+        assemblyGlowOverlay.container.visible = true;
+        app.renderer.render({ container: assemblyGlowOverlay.container, target: processedRT, clear: false });
+        assemblyGlowOverlay.container.visible = false;
       }
     };
 
@@ -903,14 +907,22 @@ function runDuotoneTick(params: {
         }
       }
 
+      // Seed assembly content from an unmasked render when stale (first play or grid resize),
+      // so the reveal has content cells even while animating. Runs before syncRevealField so
+      // the normal tick immediately re-applies the correct mask and re-renders over it.
+      if (isAssemblyContentStale()) {
+        seedAssemblyContent();
+      }
       // Render the processed texture and apply the display plan.
       syncRevealField();
       syncFlamesField();
       updateCursorField();
       renderProcessed();
+      // Composite glow additively into processedRT BEFORE the downsample so the energy
+      // is part of the render field (field view shows it; stripes render it as bands).
+      updateAssemblyGlow();
       fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
       stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
-      updateAssemblyGlow();
       applyDisplayPlan(textureFilterMode);
 
       stripeFilter.syncFlames(null, null);
@@ -936,13 +948,21 @@ function runDuotoneTick(params: {
     } else {
       stripeFilter.syncFlames(null, null);
     }
+    // Seed assembly content from an unmasked render when stale (first play or grid resize),
+    // so the reveal has content cells even while animating. Runs before syncRevealField so
+    // the normal tick immediately re-applies the correct mask and re-renders over it.
+    if (isAssemblyContentStale()) {
+      seedAssemblyContent();
+    }
     // Render the source sprite through the field + reveal + flames + cursor passes into processedRT.
     syncRevealField();
     updateCursorField();
     renderProcessed();
+    // Composite glow additively into processedRT BEFORE the downsample so the energy
+    // is part of the render field (field view shows it; stripes render it as bands).
+    updateAssemblyGlow();
     fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
     stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
-    updateAssemblyGlow();
 
     const revealConfig = revealConfigRef.current;
     const revealEnabled = revealConfig.enabled;
