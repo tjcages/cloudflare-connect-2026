@@ -847,10 +847,10 @@ function runDuotoneTick(params: {
       const indices = new Uint8Array(cols * rows);
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          // FLIP_ROWS: fieldCellRT is a GPU RenderTexture (bottom-up readback).
-          // If glow targets appear vertically mirrored relative to field content,
-          // change `readRow` to `rows - 1 - r` to flip the orientation.
-          const readRow = r;
+          // fieldCellRT is a GPU RenderTexture read back bottom-up, so flip the row to
+          // match the display top-left cell grid the glow targets use (verified in-browser:
+          // without this, the energy converges to the vertical mirror of the content).
+          const readRow = rows - 1 - r;
           const srcIdx = (readRow * cols + c) * 4;
           indices[r * cols + c] = (pixels[srcIdx] ?? 0) > 102 ? 1 : 0;
         }
