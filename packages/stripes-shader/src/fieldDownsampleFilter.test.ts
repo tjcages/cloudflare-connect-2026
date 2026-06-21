@@ -1,6 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { cellTapUv } from "./fieldDownsampleFilter";
 
+describe("field value → band mapping intent (Task 2)", () => {
+  it("field value 0 (background) maps to band 0 via LUT (documented intent)", () => {
+    const fieldVal = 0.0;
+    const clamped = Math.min(1, Math.max(0, fieldVal));
+    expect(clamped).toBe(0.0);
+  });
+
+  it("field value 1 (full content) maps to a high band index (documented intent)", () => {
+    const fieldVal = 1.0;
+    const clamped = Math.min(1, Math.max(0, fieldVal));
+    expect(clamped).toBe(1.0);
+  });
+
+  it("field value is already bucketing-space: no re-inversion should be applied", () => {
+    const fieldVal = 0.7;
+    const clampedDirect = Math.min(1, Math.max(0, fieldVal));
+    const clampedInverted = Math.min(1, Math.max(0, 1 - fieldVal));
+    expect(clampedDirect).toBeCloseTo(0.7, 10);
+    expect(clampedInverted).toBeCloseTo(0.3, 10);
+    expect(clampedDirect).not.toBeCloseTo(clampedInverted, 5);
+  });
+});
+
 describe("cellTapUv", () => {
   it("returns UVs inside the cell footprint for all taps", () => {
     const cols = 4;

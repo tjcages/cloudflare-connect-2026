@@ -48,6 +48,11 @@ export type StripeDuotoneFilter = Filter & {
   syncCursorTrail: (trail: Texture | null, pushTexture: Texture | null, pushRange: number) => void;
   /** GPU wave reveal mask: null disables it; progress may run past 1 for the ramp tail. */
   syncReveal: (config: PlaygroundRevealConfig | null, progress: number) => void;
+  /**
+   * Bind the downsampled field texture and enable/disable the field-driven band path.
+   * Pass null to disable (fall back to the classic in-shader path). Use for luminance/overlay.
+   */
+  syncFieldCells: (fieldTexture: Texture | null, enabled: boolean) => void;
 };
 
 function bindBlockMapTexture(filter: Filter, blockMap: Texture) {
@@ -123,6 +128,7 @@ export function createStripeDuotoneFilter(
     uRevealOrder: { value: 0, type: "f32" },
     uRevealSpread: { value: 0.85, type: "f32" },
     uRevealFlight: { value: 0.22, type: "f32" },
+    uFieldBands: { value: 0, type: "f32" },
   });
 
   const filter = new Filter({
@@ -141,6 +147,7 @@ export function createStripeDuotoneFilter(
       uFlames: Texture.EMPTY.source,
       uCursorTrail: Texture.EMPTY.source,
       uCursorTrailPush: Texture.EMPTY.source,
+      uFieldCells: Texture.EMPTY.source,
     },
   }) as StripeDuotoneFilter;
 
@@ -289,6 +296,15 @@ export function createStripeDuotoneFilter(
     uniforms.uCursorTrailEnabled = trail ? 1 : 0;
     uniforms.uCursorTrailPushEnabled = pushTexture ? 1 : 0;
     uniforms.uCursorTrailPushRange = pushRange;
+    stripeUniforms.update();
+  };
+
+  filter.syncFieldCells = (fieldTexture, enabled) => {
+    const tex = fieldTexture ?? Texture.EMPTY;
+    tex.source.style.scaleMode = "nearest";
+    filter.resources.uFieldCells = tex.source;
+    const uniforms = stripeUniforms.uniforms as { uFieldBands: number };
+    uniforms.uFieldBands = enabled ? 1 : 0;
     stripeUniforms.update();
   };
 

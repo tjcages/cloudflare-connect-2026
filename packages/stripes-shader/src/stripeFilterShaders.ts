@@ -45,7 +45,9 @@ uniform sampler2D uFlames;
 uniform sampler2D uStripeIndexLut;
 uniform sampler2D uCursorTrail;
 uniform sampler2D uCursorTrailPush;
+uniform sampler2D uFieldCells;
 uniform float uFlamesEnabled;
+uniform float uFieldBands;
 uniform float uInvertStripeBucketing;
 uniform float uCursorTrailEnabled;
 uniform float uCursorTrailPushEnabled;
@@ -325,142 +327,155 @@ void main(void) {
     float acrossCell = horizontal ? ch : cw;
     float alongGap = horizontal ? uGap.x : uGap.y;
 
-    // Reveal runs on the GPU as a per-cell data mask before stripe calculation: the grid
-    // is built once unmasked, and the animation only changes uniforms. Wave: feathered
-    // distance front from the origin with hash-noise waviness. The trailing band ramp
-    // recreates the concentric intermediate rings the CPU path produced via temporal
-    // index smoothing during rebuilds.
-    float revealMask = 1.0;
-    bool revealing = uRevealMode > 0.5;
-    if (revealing) {
-        if (uRevealMode > 1.5) {
-            // Assembly fly-in: per-cell arrival time from the order field. The stripe
-            // materializes when its circle lands; the glow overlay draws the circle itself.
-            float cols = max(uGridSize.x, 1.0);
-            float rows = max(uGridSize.y, 1.0);
-            float o;
-            if (uRevealOrder > 2.5) {
-                o = revealCellNoise(colIndex, rowIndex, 1.0);
-            } else if (uRevealOrder > 1.5) {
-                o = cols <= 1.0 ? 0.0 : clamp(colIndex / (cols - 1.0), 0.0, 1.0);
-            } else {
-                float cx = cols <= 1.0 ? 0.5 : (colIndex + 0.5) / cols;
-                float cy = rows <= 1.0 ? 0.5 : (rowIndex + 0.5) / rows;
-                float centerNorm = clamp(length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678, 0.0, 1.0);
-                o = uRevealOrder > 0.5 ? 1.0 - centerNorm : centerNorm;
-            }
-            float arrival = o * (1.0 - uRevealFlight) * uRevealSpread + uRevealFlight;
-            revealMask = smoothstep(arrival, arrival + uRevealBandRamp, uRevealProgress);
-        } else {
-            vec2 cellUvPos = vec2((colIndex + 0.5) / uGridSize.x, (rowIndex + 0.5) / uGridSize.y);
-            float normalizedDistance = length(cellUvPos - uRevealOrigin) / uRevealMaxDistance;
-            float edgeNoise = (revealCellNoise(colIndex, rowIndex, uRevealNoiseScale) - 0.5) * uRevealWaviness;
-            float softness = max(uRevealSoftness, 0.0001);
-            revealMask = smoothstep(
-                normalizedDistance - softness,
-                normalizedDistance + softness + uRevealBandRamp,
-                uRevealProgress + edgeNoise
-            );
-        }
-    }
-
-    vec4 trail = uCursorTrailEnabled > 0.5 ? texture(uCursorTrail, flameCellUv(colIndex, rowIndex)) : vec4(0.0);
-    vec3 push = uCursorTrailPushEnabled > 0.5
-        ? texture(uCursorTrailPush, flameCellUv(colIndex, rowIndex)).rgb
-        : vec3(128.0 / 255.0, 128.0 / 255.0, 0.0);
-    // Byte 128 = exactly zero offset (matches the 127-step biased encoding in CursorTrailOverlay).
-    vec2 offset = (push.xy * 255.0 - 128.0) / 127.0 * uCursorTrailPushRange;
-    float tear = push.z;
-    bool displaced = dot(offset, offset) >= 0.0001;
-    // Push happens strictly before stripe calculation: each fixed grid cell buckets the
-    // source data displaced into it (cell-quantized), then stripes render on the unchanged
-    // grid. Block map: R = stripe band, G = bucketing-space luma (already inverted for
-    // overlay mode upstream — do not re-invert), A = color coverage.
-    vec2 srcPos = vec2(colIndex, rowIndex) + 0.5 - offset;
+    float stripeBand;
     float srcCol = colIndex;
     float srcRow = rowIndex;
-    vec4 srcBlock;
-    if (displaced) {
-        // Footprint sampling: take the most content-ful cell (highest band) in the 2x2
-        // around the displaced source, so sparse single-cell stripes survive quantization
-        // when pushed instead of vanishing into the background.
-        vec2 base = floor(srcPos - 0.5);
-        vec2 maxCell = uGridSize - 1.0;
-        vec2 c00 = clamp(base, vec2(0.0), maxCell);
-        vec2 c11 = clamp(base + 1.0, vec2(0.0), maxCell);
-        srcCol = c00.x;
-        srcRow = c00.y;
-        srcBlock = texture(uBlockMap, blockGridUv(c00.x, c00.y));
-        vec4 s10 = texture(uBlockMap, blockGridUv(c11.x, c00.y));
-        if (s10.r > srcBlock.r) {
-            srcBlock = s10;
-            srcCol = c11.x;
-            srcRow = c00.y;
-        }
-        vec4 s01 = texture(uBlockMap, blockGridUv(c00.x, c11.y));
-        if (s01.r > srcBlock.r) {
-            srcBlock = s01;
-            srcCol = c00.x;
-            srcRow = c11.y;
-        }
-        vec4 s11 = texture(uBlockMap, blockGridUv(c11.x, c11.y));
-        if (s11.r > srcBlock.r) {
-            srcBlock = s11;
-            srcCol = c11.x;
-            srcRow = c11.y;
-        }
+    float srcCoverage = 1.0;
+    vec4 trail = vec4(0.0);
+
+    if (uFieldBands > 0.5 && uUseCellColors < 0.5) {
+        // Field-driven branch (luminance + overlay): the field already contains reveal,
+        // flames, and cursor — sample it directly. No re-application of those effects.
+        float fieldVal = texture(uFieldCells, flameCellUv(colIndex, rowIndex)).r;
+        stripeBand = stripeBandForBucketLuma(fieldVal);
     } else {
-        srcBlock = texture(uBlockMap, blockGridUv(colIndex, rowIndex));
-    }
-    float storedBand = floor(srcBlock.r * 255.0 + 0.5);
-    float l = srcBlock.g;
-    float srcCoverage = srcBlock.a;
-    if (uCursorTrailDebug > 1.5) {
-        // Reveal debug: raw mask field in grayscale.
-        finalColor = vec4(vec3(revealMask), 1.0);
-        return;
-    }
-    if (uCursorTrailDebug > 0.5) {
-        finalColor = vec4(displaced ? 1.0 : 0.0, trail.a > 0.002 ? 1.0 : 0.0, tear, 1.0);
-        return;
-    }
-    bool inverted = uInvertStripeBucketing > 0.5;
-    bool torn = tear > 0.002;
-    if (displaced || torn || trail.a > 0.002) {
-        // Tear: where the push field stretches the source apart (positive divergence), the
-        // data thins toward background — pixels genuinely leave, opening a hole at the core.
-        if (inverted) {
-            l += (1.0 - l) * tear;
+        // Classic branch (colors mode, or field toggle off): full in-shader path.
+
+        // Reveal runs on the GPU as a per-cell data mask before stripe calculation: the grid
+        // is built once unmasked, and the animation only changes uniforms. Wave: feathered
+        // distance front from the origin with hash-noise waviness. The trailing band ramp
+        // recreates the concentric intermediate rings the CPU path produced via temporal
+        // index smoothing during rebuilds.
+        float revealMask = 1.0;
+        bool revealing = uRevealMode > 0.5;
+        if (revealing) {
+            if (uRevealMode > 1.5) {
+                // Assembly fly-in: per-cell arrival time from the order field. The stripe
+                // materializes when its circle lands; the glow overlay draws the circle itself.
+                float cols = max(uGridSize.x, 1.0);
+                float rows = max(uGridSize.y, 1.0);
+                float o;
+                if (uRevealOrder > 2.5) {
+                    o = revealCellNoise(colIndex, rowIndex, 1.0);
+                } else if (uRevealOrder > 1.5) {
+                    o = cols <= 1.0 ? 0.0 : clamp(colIndex / (cols - 1.0), 0.0, 1.0);
+                } else {
+                    float cx = cols <= 1.0 ? 0.5 : (colIndex + 0.5) / cols;
+                    float cy = rows <= 1.0 ? 0.5 : (rowIndex + 0.5) / rows;
+                    float centerNorm = clamp(length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678, 0.0, 1.0);
+                    o = uRevealOrder > 0.5 ? 1.0 - centerNorm : centerNorm;
+                }
+                float arrival = o * (1.0 - uRevealFlight) * uRevealSpread + uRevealFlight;
+                revealMask = smoothstep(arrival, arrival + uRevealBandRamp, uRevealProgress);
+            } else {
+                vec2 cellUvPos = vec2((colIndex + 0.5) / uGridSize.x, (rowIndex + 0.5) / uGridSize.y);
+                float normalizedDistance = length(cellUvPos - uRevealOrigin) / uRevealMaxDistance;
+                float edgeNoise = (revealCellNoise(colIndex, rowIndex, uRevealNoiseScale) - 0.5) * uRevealWaviness;
+                float softness = max(uRevealSoftness, 0.0001);
+                revealMask = smoothstep(
+                    normalizedDistance - softness,
+                    normalizedDistance + softness + uRevealBandRamp,
+                    uRevealProgress + edgeNoise
+                );
+            }
+        }
+
+        trail = uCursorTrailEnabled > 0.5 ? texture(uCursorTrail, flameCellUv(colIndex, rowIndex)) : vec4(0.0);
+        vec3 push = uCursorTrailPushEnabled > 0.5
+            ? texture(uCursorTrailPush, flameCellUv(colIndex, rowIndex)).rgb
+            : vec3(128.0 / 255.0, 128.0 / 255.0, 0.0);
+        // Byte 128 = exactly zero offset (matches the 127-step biased encoding in CursorTrailOverlay).
+        vec2 offset = (push.xy * 255.0 - 128.0) / 127.0 * uCursorTrailPushRange;
+        float tear = push.z;
+        bool displaced = dot(offset, offset) >= 0.0001;
+        // Push happens strictly before stripe calculation: each fixed grid cell buckets the
+        // source data displaced into it (cell-quantized), then stripes render on the unchanged
+        // grid. Block map: R = stripe band, G = bucketing-space luma (already inverted for
+        // overlay mode upstream — do not re-invert), A = color coverage.
+        vec2 srcPos = vec2(colIndex, rowIndex) + 0.5 - offset;
+        vec4 srcBlock;
+        if (displaced) {
+            // Footprint sampling: take the most content-ful cell (highest band) in the 2x2
+            // around the displaced source, so sparse single-cell stripes survive quantization
+            // when pushed instead of vanishing into the background.
+            vec2 base = floor(srcPos - 0.5);
+            vec2 maxCell = uGridSize - 1.0;
+            vec2 c00 = clamp(base, vec2(0.0), maxCell);
+            vec2 c11 = clamp(base + 1.0, vec2(0.0), maxCell);
+            srcCol = c00.x;
+            srcRow = c00.y;
+            srcBlock = texture(uBlockMap, blockGridUv(c00.x, c00.y));
+            vec4 s10 = texture(uBlockMap, blockGridUv(c11.x, c00.y));
+            if (s10.r > srcBlock.r) {
+                srcBlock = s10;
+                srcCol = c11.x;
+                srcRow = c00.y;
+            }
+            vec4 s01 = texture(uBlockMap, blockGridUv(c00.x, c11.y));
+            if (s01.r > srcBlock.r) {
+                srcBlock = s01;
+                srcCol = c00.x;
+                srcRow = c11.y;
+            }
+            vec4 s11 = texture(uBlockMap, blockGridUv(c11.x, c11.y));
+            if (s11.r > srcBlock.r) {
+                srcBlock = s11;
+                srcCol = c11.x;
+                srcRow = c11.y;
+            }
         } else {
-            l *= (1.0 - tear);
+            srcBlock = texture(uBlockMap, blockGridUv(colIndex, rowIndex));
         }
-        // Trail/click paint white directly: every touched cell is lifted toward white
-        // (→ top stripe band) by the trail alpha, so the wake adds new stripes over the
-        // background too, not just over existing content. No content gate — this matches
-        // the applyCursorTrailCell reference model (l + (1 - l) * whiteAlpha).
-        float trailLift = trail.a;
-        if (inverted) {
-            l *= (1.0 - trailLift);
-        } else {
-            l += (1.0 - l) * trailLift;
+        float storedBand = floor(srcBlock.r * 255.0 + 0.5);
+        float l = srcBlock.g;
+        srcCoverage = srcBlock.a;
+        if (uCursorTrailDebug > 1.5) {
+            // Reveal debug: raw mask field in grayscale.
+            finalColor = vec4(vec3(revealMask), 1.0);
+            return;
         }
-        float trailBand = stripeBandForBucketLuma(l);
-        // Brighten-only cells stay monotonic vs the stored index (protects colors-mode
-        // promotion and non-monotonic stripe lists); displaced/torn/inverted replace.
-        storedBand = (displaced || torn || inverted) ? trailBand : max(storedBand, trailBand);
-        if (uUseCellColors > 0.5) {
-            srcCoverage *= (1.0 - tear);
+        if (uCursorTrailDebug > 0.5) {
+            finalColor = vec4(displaced ? 1.0 : 0.0, trail.a > 0.002 ? 1.0 : 0.0, tear, 1.0);
+            return;
         }
+        bool inverted = uInvertStripeBucketing > 0.5;
+        bool torn = tear > 0.002;
+        if (displaced || torn || trail.a > 0.002) {
+            // Tear: where the push field stretches the source apart (positive divergence), the
+            // data thins toward background — pixels genuinely leave, opening a hole at the core.
+            if (inverted) {
+                l += (1.0 - l) * tear;
+            } else {
+                l *= (1.0 - tear);
+            }
+            // Trail/click paint white directly: every touched cell is lifted toward white
+            // (→ top stripe band) by the trail alpha, so the wake adds new stripes over the
+            // background too, not just over existing content. No content gate — this matches
+            // the applyCursorTrailCell reference model (l + (1 - l) * whiteAlpha).
+            float trailLift = trail.a;
+            if (inverted) {
+                l *= (1.0 - trailLift);
+            } else {
+                l += (1.0 - l) * trailLift;
+            }
+            float trailBand = stripeBandForBucketLuma(l);
+            // Brighten-only cells stay monotonic vs the stored index (protects colors-mode
+            // promotion and non-monotonic stripe lists); displaced/torn/inverted replace.
+            storedBand = (displaced || torn || inverted) ? trailBand : max(storedBand, trailBand);
+            if (uUseCellColors > 0.5) {
+                srcCoverage *= (1.0 - tear);
+            }
+        }
+        if (revealing) {
+            // Band-space ramp across the feathered front recreates the concentric
+            // intermediate rings of the CPU path.
+            storedBand = min(storedBand, floor(storedBand * revealMask + 0.5));
+            if (uUseCellColors > 0.5 && revealMask < 1.0) {
+                srcCoverage *= revealMask;
+            }
+        }
+        stripeBand = resolveStripeBand(storedBand, colIndex, rowIndex);
     }
-    if (revealing) {
-        // Band-space ramp across the feathered front recreates the concentric
-        // intermediate rings of the CPU path.
-        storedBand = min(storedBand, floor(storedBand * revealMask + 0.5));
-        if (uUseCellColors > 0.5 && revealMask < 1.0) {
-            srcCoverage *= revealMask;
-        }
-    }
-    float stripeBand = resolveStripeBand(storedBand, colIndex, rowIndex);
 
     // The cell size fed in already includes the gap (effective cell = bar size + gap), so the
     // bar keeps its full configured size and the gap is real spacing carved uniformly between

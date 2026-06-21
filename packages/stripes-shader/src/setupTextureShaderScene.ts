@@ -849,6 +849,7 @@ function runDuotoneTick(params: {
       updateCursorField();
       renderProcessed();
       fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
+      stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
       applyDisplayPlan(textureFilterMode);
 
       stripeFilter.syncFlames(null, null);
@@ -879,6 +880,7 @@ function runDuotoneTick(params: {
     updateCursorField();
     renderProcessed();
     fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
+    stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
 
     const revealConfig = revealConfigRef.current;
     const revealEnabled = revealConfig.enabled;
