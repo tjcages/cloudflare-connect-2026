@@ -21,11 +21,19 @@ float hash(float n){ return fract(sin(n * 127.1 + 0.37) * 43758.5453); }
 void main(void){
     float h1 = hash(aSeed);
     float o;
-    if (uOrder > 2.5) { o = h1; }
-    else if (uOrder > 1.5) { o = aCellCenter.x; }
-    else {
-        float cn = clamp(length(aCellCenter - vec2(0.5)) / 0.70710678, 0.0, 1.0);
-        o = uOrder > 0.5 ? 1.0 - cn : cn;
+    if (uOrder > 2.5) {
+        o = h1; // random
+    } else {
+        float base;
+        if (uOrder > 1.5) {
+            base = aCellCenter.x; // sweep
+        } else {
+            float cn = clamp(length(aCellCenter - vec2(0.5)) / 0.70710678, 0.0, 1.0);
+            base = uOrder > 0.5 ? 1.0 - cn : cn; // edges-in / center-out
+        }
+        // Blend in per-cell randomness so the fill is organic/scattered rather than a clean
+        // ring-by-ring stagger, while keeping the directional trend (center still fills first).
+        o = clamp(mix(base, h1, 0.45), 0.0, 1.0);
     }
     float start = o * (1.0 - uFlight) * uSpread;
     float arrival = start + uFlight;
