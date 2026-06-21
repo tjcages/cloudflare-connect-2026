@@ -60,7 +60,9 @@ void main(void){
     vCorner = aCorner;
     // Smooth → sharp: begins 200–1000ms BEFORE the cell arrives (per-cell random) and runs
     // for a fixed 450ms, so the circle crisps into its tile around the moment it docks.
-    float preStart = mix(200.0, 1000.0, h3) / dur;
+    // Cap the lead so it never starts before the cell is on its (visible) final approach —
+    // for fast cells 1000ms could otherwise predate launch, sharpening it before it appears.
+    float preStart = min(mix(200.0, 1000.0, h3) / dur, cellFlight * 0.35);
     float sharpenSpan = 450.0 / dur;
     float sharpenStart = arrival - preStart;
     float sharpenProgress = sharpenSpan <= 0.0 ? 1.0 : clamp((uProgress - sharpenStart) / sharpenSpan, 0.0, 1.0);
