@@ -16,11 +16,13 @@ out float vSoft;
 uniform float uProgress;
 uniform float uOrder;
 uniform float uSpread;
-uniform float uFlight;
+uniform float uDurationMs;
 float hash(float n){ return fract(sin(n * 127.1 + 0.37) * 43758.5453); }
 void main(void){
     float h1 = hash(aSeed);
     float h2 = hash(aSeed + 19.0);
+    float h3 = hash(aSeed + 41.0);
+    float dur = max(uDurationMs, 1.0);
     float o;
     if (uOrder > 2.5) {
         o = h1; // random
@@ -36,9 +38,8 @@ void main(void){
         // ring-by-ring stagger, while keeping the directional trend (center still fills first).
         o = clamp(mix(base, h1, 0.75), 0.0, 1.0);
     }
-    // Per-cell travel time: each cell moves at its own (randomized) speed around the base,
-    // with a wide spread (0.4x..1.8x) so travel speeds vary a lot from cell to cell.
-    float cellFlight = clamp(uFlight * (0.4 + h2 * 1.4), 0.05, 0.95);
+    // Per-cell travel time in absolute ms (random 800–4000ms), as a fraction of the reveal.
+    float cellFlight = clamp(mix(800.0, 4000.0, h2) / dur, 0.05, 0.95);
     float start = o * (1.0 - cellFlight) * uSpread;
     float arrival = start + cellFlight;
     float t = cellFlight <= 0.0 ? 1.0 : clamp((uProgress - start) / cellFlight, 0.0, 1.0);
@@ -57,10 +58,13 @@ void main(void){
     gl_Position = vec4(aClipHome + offset, 0.0, 1.0);
     vUV = aHomeUV;
     vCorner = aCorner;
-    // Stay a full smooth circle for the ENTIRE flight; only AFTER the cell lands (arrival)
-    // does it sharpen, over a short settle window, into the crisp square tile.
-    float settleT = clamp((uProgress - arrival) / 0.06, 0.0, 1.0);
-    vSoft = 1.0 - settleT; // 1 = full circle (whole flight + landing), 0 = sharp (settled)
+    // Smooth → sharp: begins 200–1000ms BEFORE the cell arrives (per-cell random) and runs
+    // for a fixed 450ms, so the circle crisps into its tile around the moment it docks.
+    float preStart = mix(200.0, 1000.0, h3) / dur;
+    float sharpenSpan = 450.0 / dur;
+    float sharpenStart = arrival - preStart;
+    float sharpenProgress = sharpenSpan <= 0.0 ? 1.0 : clamp((uProgress - sharpenStart) / sharpenSpan, 0.0, 1.0);
+    vSoft = 1.0 - sharpenProgress; // 1 = full circle, 0 = sharp tile
 }
 `;
 
@@ -95,7 +99,7 @@ export type AssemblyPuzzleRenderOpts = {
   progress: number;
   order: number;
   spread: number;
-  flight: number;
+  durationMs: number;
 };
 
 export type AssemblyPuzzlePass = {
@@ -109,7 +113,7 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
     uProgress: { value: 0, type: "f32" },
     uOrder: { value: 0, type: "f32" },
     uSpread: { value: 0.85, type: "f32" },
-    uFlight: { value: 0.32, type: "f32" },
+    uDurationMs: { value: 2600, type: "f32" },
   });
 
   const glProgram = GlProgram.from({
@@ -234,14 +238,14 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
 
   return {
     render(renderer, homeFieldTexture, target, opts) {
-      const { cols, rows, progress, order, spread, flight } = opts;
+      const { cols, rows, progress, order, spread, durationMs } = opts;
       ensureGrid(cols, rows);
       if (!mesh) return;
-      const u = uniforms.uniforms as { uProgress: number; uOrder: number; uSpread: number; uFlight: number };
+      const u = uniforms.uniforms as { uProgress: number; uOrder: number; uSpread: number; uDurationMs: number };
       u.uProgress = progress;
       u.uOrder = order;
       u.uSpread = spread;
-      u.uFlight = flight;
+      u.uDurationMs = durationMs;
       uniforms.update();
       shader.resources.uHomeField = homeFieldTexture.source;
       // Clear to OPAQUE black: gaps where no cell has landed are field background (hide),

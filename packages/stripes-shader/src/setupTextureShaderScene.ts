@@ -857,7 +857,7 @@ function runDuotoneTick(params: {
           progress: revealProgressRawShared,
           order: ASSEMBLY_ORDER_TO_INDEX[revealCfg.assembly.order],
           spread: revealCfg.assembly.spread,
-          flight: revealCfg.assembly.flight,
+          durationMs: revealDurMs,
         });
       } else {
         sourceSprite.filters = [sourceTextureFilter, cursorFieldFilter, revealFieldFilter];

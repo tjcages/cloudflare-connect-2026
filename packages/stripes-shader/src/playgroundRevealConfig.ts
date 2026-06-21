@@ -59,7 +59,7 @@ export const DEFAULT_PLAYGROUND_REVEAL_CONFIG: PlaygroundRevealConfig = {
   assembly: {
     order: "center",
     from: "scatter",
-    durationMs: 2600,
+    durationMs: 6000,
     spread: 0.85,
     glowSize: 42,
     flight: 0.5,
