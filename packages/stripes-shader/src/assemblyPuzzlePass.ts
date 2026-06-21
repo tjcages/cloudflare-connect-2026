@@ -69,7 +69,8 @@ void main(void){
     float softFactor = clamp(vSoft, 0.0, 1.0); // 1 = full radial circle, 0 = sharp square
     if (softFactor > 0.001) {
         float r = length(vCorner - vec2(0.5)) * 2.0;  // 0 at center, 1 at edge midpoint
-        float radial = exp(-2.5 * r * r);               // smooth gaussian glow (no hard rim)
+        // Defined core with a crisper (still smooth) edge — sharper than a wide gaussian.
+        float radial = 1.0 - smoothstep(0.25, 0.85, r);
         c *= mix(1.0, radial, softFactor);
     }
     finalColor = vec4(c, c, c, c);
