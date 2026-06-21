@@ -45,6 +45,7 @@ import {
 } from "./colorWhiteness";
 import { createSourceTextureFilter } from "./sourceTextureFilter";
 import { createRevealFieldFilter } from "./revealFieldFilter";
+import { createCursorFieldFilter } from "./cursorFieldFilter";
 import { normalizePlaygroundCursorTrailConfig, type PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 import { addClickWave, createClickWaveState, updateClickWave, type ClickWaveState } from "./clickWave";
 import { createCursorTrailState, setCursorTrailTarget, updateCursorTrail, type CursorTrailState } from "./cursorTrail";
@@ -424,6 +425,7 @@ function runDuotoneTick(params: {
   stripeFilter: ReturnType<typeof createStripeDuotoneFilter>;
   sourceTextureFilter: ReturnType<typeof createSourceTextureFilter>;
   revealFieldFilter: ReturnType<typeof createRevealFieldFilter>;
+  cursorFieldFilter: ReturnType<typeof createCursorFieldFilter>;
   letterLayer: StripeLetterLayer;
   duotoneEnabledRef: RefObject<boolean>;
   stripesEnabledRef: RefObject<boolean>;
@@ -463,6 +465,7 @@ function runDuotoneTick(params: {
     stripeFilter,
     sourceTextureFilter,
     revealFieldFilter,
+    cursorFieldFilter,
     letterLayer,
     duotoneEnabledRef,
     stripesEnabledRef,
@@ -724,6 +727,87 @@ function runDuotoneTick(params: {
       }
     };
 
+    // Cursor trail + click-wave as a field pass (R3): accumulate the pointer wake into the
+    // trail cell map (decoupled from stripes — gated on grid dims, not hasBuiltGrid) and feed
+    // the cursor field filter, so click/trail paint + warp the field with stripes ON or OFF.
+    // Returns whether the cursor is active (so the stripe path can also feed the stripe filter).
+    const updateCursorField = (): boolean => {
+      const rcfg = revealConfigRef.current;
+      const revDur = Math.max(1, resolvePlaygroundRevealDurationMs(rcfg));
+      const revProg = rcfg.enabled ? Math.max(0, (now - revealPlaybackRef.current.startedAtMs) / revDur) : 1;
+      const revActive = rcfg.enabled && revProg < 1;
+      const trailSampling = cursorTrailConfig.enabled;
+      const clickSampling = clickWaveConfig.enabled && !revActive;
+      const mapChanged = (trailSampling && trail.changed) || (clickSampling && clickWave.changed);
+      if (mapChanged && blockGridTexture.cols > 0) {
+        trailMap = resetCursorTrailCellMap(trailMap, blockGridTexture.cols, blockGridTexture.rows);
+        if (trailSampling) {
+          accumulateCursorTrailCellMap(
+            trailMap,
+            trail.samples,
+            cursorTrailConfig,
+            display.width,
+            display.height,
+            textureLuminanceSettingsRef.current,
+            lastLumaGrid?.colors,
+          );
+        }
+        if (clickSampling) {
+          accumulateClickWaveCellMap(
+            trailMap,
+            clickWave.samples,
+            clickWaveConfig,
+            display.width,
+            display.height,
+            textureLuminanceSettingsRef.current,
+            lastLumaGrid?.colors,
+          );
+        }
+        const pushCap = Math.max(
+          trailSampling
+            ? Math.min(
+                CURSOR_TRAIL_MAX_PUSH_CELLS,
+                resolveCursorTrailPushScaleCells(
+                  cursorTrailConfig.pushStrengthPx,
+                  display.width,
+                  blockGridTexture.cols,
+                ),
+              )
+            : 0,
+          clickSampling
+            ? Math.min(
+                CLICK_WAVE_MAX_PUSH_CELLS,
+                resolveCursorTrailPushScaleCells(clickWaveConfig.pushStrengthPx, display.width, blockGridTexture.cols),
+              )
+            : 0,
+        );
+        finalizeCursorTrailCellMap(trailMap, pushCap);
+        cursorTrailOverlay.sync(trailMap);
+      }
+      const active = (trailSampling || clickSampling) && trailMap?.nonEmpty === true;
+      const pushActive = cursorTrailConfig.pushStrengthPx > 0 || clickWaveConfig.pushStrengthPx > 0;
+      const cursorCell = effectivePlaygroundCellSize(gridConfigRef.current);
+      cursorFieldFilter.syncGrid(
+        blockGridTexture.cols,
+        blockGridTexture.rows,
+        cursorCell.width,
+        cursorCell.height,
+        display.width,
+        display.height,
+      );
+      cursorFieldFilter.syncOverlayInvert(overlayInvertsStripeBucketing(textureLuminanceSettingsRef.current.mode));
+      if (active && trailMap) {
+        cursorFieldFilter.syncCursorTrail(
+          cursorTrailOverlay.texture,
+          pushActive ? cursorTrailOverlay.pushTexture : null,
+          trailMap.pushRange,
+        );
+      } else {
+        cursorFieldFilter.syncCursorTrail(null, null, 0);
+      }
+      return active;
+    };
+
     if (textureFilterMode !== "stripes") {
       if (luminanceMode === "colors" && !colorsBackgroundAutoDetected) {
         const frame = sampleFrame();
@@ -746,6 +830,7 @@ function runDuotoneTick(params: {
       // Render the processed texture and apply the display plan.
       syncRevealField();
       syncFlamesField();
+      updateCursorField();
       renderProcessed();
       applyDisplayPlan(textureFilterMode);
 
@@ -772,8 +857,9 @@ function runDuotoneTick(params: {
     } else {
       stripeFilter.syncFlames(null, null);
     }
-    // Render the source sprite through the field + reveal + flames passes into processedRT.
+    // Render the source sprite through the field + reveal + flames + cursor passes into processedRT.
     syncRevealField();
+    updateCursorField();
     renderProcessed();
 
     const revealConfig = revealConfigRef.current;
@@ -949,50 +1035,9 @@ function runDuotoneTick(params: {
       };
     }
 
-    const trailTimer = tickTimer ? createPlaygroundPerfTimer() : null;
-    const pointerMapChanged =
-      (trailSamplingEnabled && trail.changed) || (clickWaveSamplingEnabled && clickWave.changed);
-    if (pointerMapChanged && hasBuiltGrid) {
-      trailMap = resetCursorTrailCellMap(trailMap, blockGridTexture.cols, blockGridTexture.rows);
-      if (trailSamplingEnabled) {
-        accumulateCursorTrailCellMap(
-          trailMap,
-          trail.samples,
-          cursorTrailConfig,
-          display.width,
-          display.height,
-          textureLuminanceSettingsRef.current,
-          lastLumaGrid?.colors,
-        );
-      }
-      if (clickWaveSamplingEnabled) {
-        accumulateClickWaveCellMap(
-          trailMap,
-          clickWave.samples,
-          clickWaveConfig,
-          display.width,
-          display.height,
-          textureLuminanceSettingsRef.current,
-          lastLumaGrid?.colors,
-        );
-      }
-      const pushCap = Math.max(
-        trailSamplingEnabled
-          ? Math.min(
-              CURSOR_TRAIL_MAX_PUSH_CELLS,
-              resolveCursorTrailPushScaleCells(cursorTrailConfig.pushStrengthPx, display.width, blockGridTexture.cols),
-            )
-          : 0,
-        clickWaveSamplingEnabled
-          ? Math.min(
-              CLICK_WAVE_MAX_PUSH_CELLS,
-              resolveCursorTrailPushScaleCells(clickWaveConfig.pushStrengthPx, display.width, blockGridTexture.cols),
-            )
-          : 0,
-      );
-      finalizeCursorTrailCellMap(trailMap, pushCap);
-      cursorTrailOverlay.sync(trailMap);
-    }
+    // The cursor trail/click accumulation now runs in updateCursorField() before renderProcessed
+    // (so it also feeds the field, decoupled from stripes); here we only feed the stripe filter
+    // from the cell map it produced.
     const pointerActive =
       (trailSamplingEnabled || clickWaveSamplingEnabled) && hasBuiltGrid && trailMap?.nonEmpty === true;
     if (pointerActive && trailMap) {
@@ -1084,9 +1129,6 @@ function runDuotoneTick(params: {
           luma: lastLumaGrid?.luma,
         });
       }
-    }
-    if (trailTimer) {
-      pointerCompositeMs += trailTimer.elapsedMs();
     }
 
     const sparkleTimeSec = performance.now() / 1000;
@@ -1318,7 +1360,8 @@ function createImageSceneTicker(
     });
     // Source sprite stays offscreen; the field + reveal passes produce the processed texture.
     const revealFieldFilter = createRevealFieldFilter();
-    sprite.filters = [sourceTextureFilter, revealFieldFilter];
+    const cursorFieldFilter = createCursorFieldFilter();
+    sprite.filters = [sourceTextureFilter, cursorFieldFilter, revealFieldFilter];
     const processed = createProcessedDisplay(app, sprite, display);
     app.stage.addChild(processed.displaySprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(
@@ -1343,6 +1386,7 @@ function createImageSceneTicker(
       stripeFilter,
       sourceTextureFilter,
       revealFieldFilter,
+      cursorFieldFilter,
       letterLayer,
       duotoneEnabledRef,
       stripesEnabledRef,
@@ -1472,7 +1516,8 @@ function createVideoSceneTickerInternal(
     });
     // Source sprite stays offscreen; the field + reveal passes produce the processed texture.
     const revealFieldFilter = createRevealFieldFilter();
-    sprite.filters = [sourceTextureFilter, revealFieldFilter];
+    const cursorFieldFilter = createCursorFieldFilter();
+    sprite.filters = [sourceTextureFilter, cursorFieldFilter, revealFieldFilter];
     const processed = createProcessedDisplay(app, sprite, display);
     app.stage.addChild(processed.displaySprite);
     const { letterLayer, atlas } = createPlaygroundLetterLayer(
@@ -1499,6 +1544,7 @@ function createVideoSceneTickerInternal(
       stripeFilter,
       sourceTextureFilter,
       revealFieldFilter,
+      cursorFieldFilter,
       letterLayer,
       duotoneEnabledRef,
       stripesEnabledRef,
