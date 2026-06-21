@@ -448,6 +448,7 @@ function runDuotoneTick(params: {
   cursorTrailState: CursorTrailState;
   clickWaveState: ClickWaveState;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
+  syncSourceLayout: () => void;
   shouldSample: () => boolean;
   sampleFrame: () => ImageData | null;
   onSampled?: () => void;
@@ -483,6 +484,7 @@ function runDuotoneTick(params: {
     cursorTrailState,
     clickWaveState,
     exportStateRef,
+    syncSourceLayout,
     shouldSample,
     sampleFrame,
     onSampled,
@@ -608,6 +610,7 @@ function runDuotoneTick(params: {
     let buildGridMs = 0;
     let blockTextureMs = 0;
     const now = performance.now();
+    syncSourceLayout();
     const cursorTrailConfig = normalizePlaygroundCursorTrailConfig(cursorTrailConfigRef.current);
     const clickWaveConfig = normalizePlaygroundClickWaveConfig(clickWaveConfigRef.current);
     const trailDtMs = now - lastTrailTickMs;
@@ -1326,6 +1329,8 @@ function createImageSceneTicker(
       cursorTrailState,
       clickWaveState,
       exportStateRef,
+      syncSourceLayout: () =>
+        syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current),
       shouldSample: () => false,
       sampleFrame: () =>
         sampleTextureFrame(image, display.width, display.height, sampleCanvas, sampleCtx, sourceTransformRef.current),
@@ -1478,6 +1483,8 @@ function createVideoSceneTickerInternal(
       cursorTrailState,
       clickWaveState,
       exportStateRef,
+      syncSourceLayout: () =>
+        syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current),
       shouldSample: () => video.currentTime !== lastSampledTime,
       sampleFrame: () =>
         sampleVideoFrame(video, display.width, display.height, sampleCanvas, sampleCtx, sourceTransformRef.current),

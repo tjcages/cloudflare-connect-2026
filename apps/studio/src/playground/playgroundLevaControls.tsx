@@ -11,7 +11,10 @@ import type {
   PlaygroundSourceTransform,
   PlaygroundTextureAdjustments,
   TextureLuminanceSettings,
+  StripesSceneConfig,
 } from "@necatikcl/stripes-shader";
+
+type PlaygroundDebugStage = StripesSceneConfig["debugStage"];
 import type { PlaygroundCatalogEntry } from "./playgroundPersistence";
 import { PLAYGROUND_TEXTURE_UPLOAD_ACCEPT, type PlaygroundTextureId } from "./playgroundTextures";
 import {
@@ -139,8 +142,8 @@ export type PlaygroundLevaControlsProps = {
   revealModified: boolean;
   onResetGeneral: () => void;
   generalModified: boolean;
-  debugStage: "normal" | "source" | "processed";
-  onDebugStageChange: (value: "normal" | "source" | "processed") => void;
+  debugStage: PlaygroundDebugStage;
+  onDebugStageChange: (value: PlaygroundDebugStage) => void;
 };
 
 export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
