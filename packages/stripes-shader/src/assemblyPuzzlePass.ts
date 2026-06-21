@@ -2,7 +2,7 @@ import { Geometry, GlProgram, Mesh, RenderTexture, Shader, Texture, UniformGroup
 import type { Renderer } from "pixi.js";
 
 // Side length of each puzzle cell in display pixels.
-export const CELL_PX = 20;
+export const CELL_PX = 28;
 
 const ASSEMBLY_PUZZLE_VERTEX = `
 in vec2 aClipHome;
@@ -38,8 +38,9 @@ void main(void){
     gl_Position = vec4(aClipHome + offset, 0.0, 1.0);
     vUV = aHomeUV;
     vCorner = aCorner;
-    // Edges start soft (feathered) and sharpen smoothly to crisp by ~70% of the flight.
-    vSoft = mix(0.5, 0.0, smoothstep(0.0, 0.7, t));
+    // Stay a full smooth radial circle for the first ~70% of the flight, then sharpen
+    // smoothly to the crisp square tile over the last stretch. (1 = full circle, 0 = sharp.)
+    vSoft = 1.0 - smoothstep(0.7, 1.0, t);
 }
 `;
 
@@ -55,10 +56,13 @@ out vec4 finalColor;
 uniform sampler2D uHomeField;
 void main(void){
     float c = texture(uHomeField, vUV).r;
-    if (vSoft > 0.001) {
-        // Distance to the nearest cell border (0 at edge, 0.5 at center); fade within vSoft.
-        float edge = min(min(vCorner.x, 1.0 - vCorner.x), min(vCorner.y, 1.0 - vCorner.y));
-        c *= smoothstep(0.0, vSoft, edge);
+    // In flight each cell is a smooth radial-gradient circle; as it nears home the shape
+    // fills out to the full sharp square tile so the field reassembles seamlessly.
+    float softFactor = clamp(vSoft, 0.0, 1.0); // 1 = full radial circle, 0 = sharp square
+    if (softFactor > 0.001) {
+        float r = length(vCorner - vec2(0.5)) * 2.0;  // 0 at center, 1 at edge midpoint
+        float radial = 1.0 - smoothstep(0.0, 1.0, r);  // smooth radial gradient, 0 at the rim
+        c *= mix(1.0, radial, softFactor);
     }
     finalColor = vec4(c, c, c, c);
 }
