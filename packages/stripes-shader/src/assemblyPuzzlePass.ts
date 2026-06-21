@@ -36,8 +36,9 @@ void main(void){
         // ring-by-ring stagger, while keeping the directional trend (center still fills first).
         o = clamp(mix(base, h1, 0.75), 0.0, 1.0);
     }
-    // Per-cell travel time: each cell moves at its own (randomized) speed around the base.
-    float cellFlight = clamp(uFlight * (0.7 + h2 * 0.8), 0.05, 0.95);
+    // Per-cell travel time: each cell moves at its own (randomized) speed around the base,
+    // with a wide spread (0.4x..1.8x) so travel speeds vary a lot from cell to cell.
+    float cellFlight = clamp(uFlight * (0.4 + h2 * 1.4), 0.05, 0.95);
     float start = o * (1.0 - cellFlight) * uSpread;
     float arrival = start + cellFlight;
     float t = cellFlight <= 0.0 ? 1.0 : clamp((uProgress - start) / cellFlight, 0.0, 1.0);
