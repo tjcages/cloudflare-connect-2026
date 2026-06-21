@@ -33,7 +33,7 @@ void main(void){
         }
         // Blend in per-cell randomness so the fill is organic/scattered rather than a clean
         // ring-by-ring stagger, while keeping the directional trend (center still fills first).
-        o = clamp(mix(base, h1, 0.45), 0.0, 1.0);
+        o = clamp(mix(base, h1, 0.75), 0.0, 1.0);
     }
     float start = o * (1.0 - uFlight) * uSpread;
     float arrival = start + uFlight;
