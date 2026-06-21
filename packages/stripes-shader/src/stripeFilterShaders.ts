@@ -336,7 +336,9 @@ void main(void) {
     if (uFieldBands > 0.5 && uUseCellColors < 0.5) {
         // Field-driven branch (luminance + overlay): the field already contains reveal,
         // flames, and cursor — sample it directly. No re-application of those effects.
-        float fieldVal = texture(uFieldCells, flameCellUv(colIndex, rowIndex)).r;
+        // uFieldCells is a RenderTexture (GL framebuffer = bottom-up), so it is sampled with
+        // blockGridUv (row-flipped), like uBlockMap — NOT flameCellUv (top-left).
+        float fieldVal = texture(uFieldCells, blockGridUv(colIndex, rowIndex)).r;
         stripeBand = stripeBandForBucketLuma(fieldVal);
     } else {
         // Classic branch (colors mode, or field toggle off): full in-shader path.
