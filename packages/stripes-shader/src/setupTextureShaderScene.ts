@@ -46,6 +46,8 @@ import { createSourceTextureFilter } from "./sourceTextureFilter";
 import { createRevealFieldFilter } from "./revealFieldFilter";
 import { createCursorFieldFilter } from "./cursorFieldFilter";
 import { createFieldDownsample } from "./fieldDownsampleFilter";
+import { createAssemblyPuzzlePass, CELL_PX } from "./assemblyPuzzlePass";
+import { ASSEMBLY_ORDER_TO_INDEX } from "./playgroundRevealConfig";
 import { normalizePlaygroundCursorTrailConfig, type PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 import { addClickWave, createClickWaveState, updateClickWave, type ClickWaveState } from "./clickWave";
 import { createCursorTrailState, setCursorTrailTarget, updateCursorTrail, type CursorTrailState } from "./cursorTrail";
@@ -506,10 +508,16 @@ function runDuotoneTick(params: {
   const { processedRT, displaySprite, renderProcessed } = processedDisplay;
 
   const fieldDownsample = createFieldDownsample();
+  const assemblyPuzzle = createAssemblyPuzzlePass();
   let fieldCellRT = RenderTexture.create({
     width: Math.max(1, blockGridTexture.cols),
     height: Math.max(1, blockGridTexture.rows),
     resolution: 1,
+  });
+  let homeFieldRT = RenderTexture.create({
+    width: Math.max(1, display.width),
+    height: Math.max(1, display.height),
+    resolution: PLAYGROUND_PIXI_RESOLUTION,
   });
 
   let textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
@@ -617,7 +625,9 @@ function runDuotoneTick(params: {
     letterLayer.destroy();
     destroyStripeLetterAtlas(atlas);
     fieldCellRT.destroy(true);
+    homeFieldRT.destroy(true);
     fieldDownsample.destroy();
+    assemblyPuzzle.destroy();
   };
 
   const tick = () => {
@@ -816,6 +826,46 @@ function runDuotoneTick(params: {
       return active;
     };
 
+    // Compute reveal timing once; both render paths use it.
+    const revealCfg = revealConfigRef.current;
+    const revealDurMs = Math.max(1, resolvePlaygroundRevealDurationMs(revealCfg));
+    const revealProgressRawShared = revealCfg.enabled
+      ? Math.max(0, (now - revealPlaybackRef.current.startedAtMs) / revealDurMs)
+      : 1;
+    const revealBandRampShared = Math.min(0.4, Math.max(0.04, 330 / revealDurMs));
+    const revealOvershootShared =
+      revealCfg.type === "assembly"
+        ? resolveAssemblyRevealOvershoot(revealBandRampShared)
+        : resolveRevealOvershoot(revealCfg.wave, revealBandRampShared);
+    const revealAnimatingShared = revealCfg.enabled && revealProgressRawShared < 1 + revealOvershootShared;
+    const isAssemblyAnimating = revealCfg.type === "assembly" && revealAnimatingShared;
+
+    // Puzzle grid dimensions (based on CELL_PX, independent of the stripe block grid).
+    const puzzleCols = Math.max(1, Math.round(display.width / CELL_PX));
+    const puzzleRows = Math.max(1, Math.round(display.height / CELL_PX));
+
+    // Render the processed field into processedRT (or homeFieldRT for assembly) and then
+    // into processedRT via the puzzle mesh. When assembly is NOT animating, fall through to
+    // the normal filter chain (revealFieldFilter is pass-through for assembly anyway).
+    const renderProcessedField = () => {
+      if (isAssemblyAnimating) {
+        sourceSprite.filters = [sourceTextureFilter, cursorFieldFilter];
+        app.renderer.render({ container: sourceSprite, target: homeFieldRT, clear: true });
+        assemblyPuzzle.render(app.renderer, homeFieldRT, processedRT, {
+          cols: puzzleCols,
+          rows: puzzleRows,
+          progress: revealProgressRawShared,
+          order: ASSEMBLY_ORDER_TO_INDEX[revealCfg.assembly.order],
+          spread: revealCfg.assembly.spread,
+          flight: revealCfg.assembly.flight,
+        });
+      } else {
+        sourceSprite.filters = [sourceTextureFilter, cursorFieldFilter, revealFieldFilter];
+        syncRevealField();
+        renderProcessed();
+      }
+    };
+
     if (textureFilterMode !== "stripes") {
       if (luminanceMode === "colors" && !colorsBackgroundAutoDetected) {
         const frame = sampleFrame();
@@ -835,10 +885,9 @@ function runDuotoneTick(params: {
         }
       }
 
-      syncRevealField();
       syncFlamesField();
       updateCursorField();
-      renderProcessed();
+      renderProcessedField();
       fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
       stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
       applyDisplayPlan(textureFilterMode);
@@ -866,34 +915,27 @@ function runDuotoneTick(params: {
     } else {
       stripeFilter.syncFlames(null, null);
     }
-    syncRevealField();
     updateCursorField();
-    renderProcessed();
+    renderProcessedField();
     fieldDownsample.render(app.renderer, processedRT, fieldCellRT, blockGridTexture.cols, blockGridTexture.rows);
     stripeFilter.syncFieldCells(fieldCellRT, luminanceMode !== "colors");
 
-    const revealConfig = revealConfigRef.current;
+    const revealConfig = revealCfg;
     const revealEnabled = revealConfig.enabled;
-    const revealPlayback = revealPlaybackRef.current;
-    const revealProgressRaw = revealEnabled
-      ? Math.max(0, (now - revealPlayback.startedAtMs) / Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig)))
-      : 1;
+    const revealProgressRaw = revealProgressRawShared;
     const revealProgress = Math.min(1, revealProgressRaw);
     revealStateRef.current = { progress: revealProgress };
     const revealActive = revealEnabled && revealProgress < 1;
     // The mask stays bound past nominal progress 1 so trailing band climbs ease out on
     // their own schedule instead of snapping at the deadline (the old CPU smoothing kept
     // converging after the reveal ended the same way).
-    const revealDurationMs = Math.max(1, resolvePlaygroundRevealDurationMs(revealConfig));
-    const revealBandRamp = Math.min(0.4, Math.max(0.04, 330 / revealDurationMs));
-    const revealOvershoot =
-      revealConfig.type === "assembly"
-        ? resolveAssemblyRevealOvershoot(revealBandRamp)
-        : resolveRevealOvershoot(revealConfig.wave, revealBandRamp);
-    const revealAnimating = revealEnabled && revealProgressRaw < 1 + revealOvershoot;
+    const revealBandRamp = revealBandRampShared;
+    const revealAnimating = revealAnimatingShared;
 
     // The reveal is a GPU mask: the grid stays fully built and only uniforms animate.
-    stripeFilter.syncReveal(revealAnimating ? revealConfig : null, revealProgressRaw);
+    // For assembly, the mesh already rendered into processedRT above — pass null here
+    // so the stripe filter does not also try to mask (it would double-apply).
+    stripeFilter.syncReveal(revealAnimating && !isAssemblyAnimating ? revealConfig : null, revealProgressRaw);
 
     const colors = stripeColorsRef.current;
     const colorsKey = JSON.stringify({
