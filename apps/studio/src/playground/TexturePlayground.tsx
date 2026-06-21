@@ -61,7 +61,10 @@ import {
   type PlaygroundRevealPlayback,
   type PlaygroundSceneExportState,
   type PlaygroundTextureSource,
+  type StripesSceneConfig,
 } from "@necatikcl/stripes-shader";
+
+type PlaygroundDebugStage = StripesSceneConfig["debugStage"];
 import { PLAYGROUND_SCRUB_COMMIT_MS, useThrottledCallback } from "./playgroundLiveRefs";
 import {
   configurePlaygroundCanvasAfterPixiInit,
@@ -338,6 +341,7 @@ export function TexturePlayground() {
   const [revealConfig, setRevealConfig] = useState<PlaygroundRevealConfig>(appliedInitial.reveal);
   const [cursorTrailConfig, setCursorTrailConfig] = useState<PlaygroundCursorTrailConfig>(appliedInitial.cursorTrail);
   const [clickWaveConfig, setClickWaveConfig] = useState<PlaygroundClickWaveConfig>(appliedInitial.clickWave);
+  const [debugStage, setDebugStage] = useState<PlaygroundDebugStage>("normal");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
   const [importFeedback, setImportFeedback] = useState<"idle" | "imported" | "failed">("idle");
@@ -371,12 +375,14 @@ export function TexturePlayground() {
   const revealConfigRef = useRef<PlaygroundRevealConfig>(revealConfig);
   const cursorTrailConfigRef = useRef<PlaygroundCursorTrailConfig>(cursorTrailConfig);
   const clickWaveConfigRef = useRef<PlaygroundClickWaveConfig>(clickWaveConfig);
+  const debugStageRef = useRef<PlaygroundDebugStage>(debugStage);
   // Set during render so a scene rebuild (sceneKey change) reads fresh structural values.
   gridConfigRef.current = gridConfig;
   flamesConfigRef.current = flamesConfig;
   revealConfigRef.current = revealConfig;
   cursorTrailConfigRef.current = cursorTrailConfig;
   clickWaveConfigRef.current = clickWaveConfig;
+  debugStageRef.current = debugStage;
   const preferP3Ref = useRef(false);
   const duotoneEnabledRef = useRef(duotoneEnabled);
   const stripesEnabledRef = useRef(stripesEnabled);
@@ -1319,6 +1325,7 @@ export function TexturePlayground() {
           revealPlayback: revealPlaybackRef.current,
           cursorTrailConfig: cursorTrailConfigRef.current,
           clickWaveConfig: clickWaveConfigRef.current,
+          debugStage: debugStageRef.current,
         }),
         getSource: () => textureSource,
         getDisplaySize: () => displaySize,
@@ -1733,6 +1740,8 @@ export function TexturePlayground() {
     revealModified,
     onResetGeneral: resetGeneral,
     generalModified,
+    debugStage,
+    onDebugStageChange: setDebugStage,
   };
 
   if (!hydrated || loadState.status === "loading") {

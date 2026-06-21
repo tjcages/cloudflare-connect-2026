@@ -158,6 +158,8 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       revealModified={false}
       onResetGeneral={() => {}}
       generalModified={false}
+      debugStage="normal"
+      onDebugStageChange={() => {}}
       {...overrides}
     />,
   );
@@ -294,6 +296,7 @@ describe("PlaygroundLevaControls", () => {
       cursorTrailModified: false,
       cursorClickModified: false,
       revealModified: false,
+      debugStage: "normal" as const,
     };
     const handlers: PlaygroundLevaHandlers = {
       setDuotoneEnabled: noop,
@@ -345,6 +348,7 @@ describe("PlaygroundLevaControls", () => {
       onRevealAssemblyCommit: noop,
       resetReveal: noop,
       replayReveal: noop,
+      onDebugStageChange: noop,
     };
     const schema = buildPlaygroundLevaSchema(snapshot, handlers);
 
@@ -410,6 +414,7 @@ describe("PlaygroundLevaControls", () => {
       cursorTrailModified: false,
       cursorClickModified: false,
       revealModified: false,
+      debugStage: "normal" as const,
     };
     const handlers: PlaygroundLevaHandlers = {
       setDuotoneEnabled: noop,
@@ -461,6 +466,7 @@ describe("PlaygroundLevaControls", () => {
       onRevealAssemblyCommit: noop,
       resetReveal: noop,
       replayReveal: noop,
+      onDebugStageChange: noop,
     };
     const schema = buildPlaygroundLevaSchema(snapshot, handlers);
 
@@ -516,6 +522,7 @@ describe("PlaygroundLevaControls", () => {
       cursorTrailModified: false,
       cursorClickModified: false,
       revealModified: false,
+      debugStage: "normal" as const,
     };
     const handlers: PlaygroundLevaHandlers = {
       setDuotoneEnabled: noop,
@@ -567,6 +574,7 @@ describe("PlaygroundLevaControls", () => {
       onRevealAssemblyCommit: noop,
       resetReveal: noop,
       replayReveal: noop,
+      onDebugStageChange: noop,
     };
     const schema = buildPlaygroundLevaSchema(snapshot, handlers);
 

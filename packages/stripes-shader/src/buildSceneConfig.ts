@@ -117,5 +117,6 @@ export function resolveStripesSceneConfig(
     revealPlayback: opts.revealPlayback,
     cursorTrailConfig,
     clickWaveConfig,
+    debugStage: "normal",
   };
 }

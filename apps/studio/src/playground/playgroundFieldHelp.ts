@@ -128,4 +128,6 @@ export const PLAYGROUND_FIELD_HELP = {
     "Peak radial push at click birth (capped at two cells). The tear hole opens behind the expanding front.",
   cursorClickPushBandScale: "Multiplier on stroke width for how wide the push displacement band is.",
   cursorClickRingWhite: "White brighten on the leading ring edge. Feeds lighter stripe cells.",
+  debugStage:
+    "Debug view: Normal renders the app; Source shows the raw texture; Processed shows the adjusted texture (overlays hidden).",
 } as const;

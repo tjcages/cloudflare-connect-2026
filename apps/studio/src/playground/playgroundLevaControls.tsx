@@ -139,6 +139,8 @@ export type PlaygroundLevaControlsProps = {
   revealModified: boolean;
   onResetGeneral: () => void;
   generalModified: boolean;
+  debugStage: "normal" | "source" | "processed";
+  onDebugStageChange: (value: "normal" | "source" | "processed") => void;
 };
 
 export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
@@ -233,6 +235,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       cursorTrailModified: current.cursorTrailModified,
       cursorClickModified: current.cursorClickModified,
       revealModified: current.revealModified,
+      debugStage: current.debugStage,
     };
   }, [
     props.duotoneEnabled,
@@ -273,6 +276,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     props.cursorTrailModified,
     props.cursorClickModified,
     props.revealModified,
+    props.debugStage,
   ]);
 
   const canvasHandlersRef = useRef<PlaygroundCanvasLevaHandlers>({
@@ -337,6 +341,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       propsRef.current.onRevealChange({ assembly: { ...propsRef.current.revealConfig.assembly, ...patch } }),
     resetReveal: () => propsRef.current.onResetReveal(),
     replayReveal: () => propsRef.current.onReplayReveal(),
+    onDebugStageChange: (value) => propsRef.current.onDebugStageChange(value),
   });
 
   const stripeKey = stripeSyncKey(props.stripes);

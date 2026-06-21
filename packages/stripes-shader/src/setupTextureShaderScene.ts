@@ -26,7 +26,7 @@ import { createStripeLetterLayer, type StripeLetterLayer } from "./stripeLetterL
 import { effectivePlaygroundCellSize, type PlaygroundGridConfig } from "./playgroundGridConfig";
 import { resolvePlaygroundDrawRects, type PlaygroundSourceTransform } from "./playgroundSourceTransform";
 import { type PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
-import { resolveDisplayPlan } from "./playgroundDisplayPlan";
+import { normalizeDebugStage, resolveDisplayPlan, type PlaygroundDebugStage } from "./playgroundDisplayPlan";
 import { resolvePlaygroundRevealDurationMs, type PlaygroundRevealConfig } from "./playgroundRevealConfig";
 import {
   assemblyRevealAmountAtCell,
@@ -138,6 +138,7 @@ export type StripesSceneConfig = {
   revealPlayback: PlaygroundRevealPlayback;
   cursorTrailConfig: PlaygroundCursorTrailConfig;
   clickWaveConfig: PlaygroundClickWaveConfig;
+  debugStage: PlaygroundDebugStage;
 };
 
 /**
@@ -443,6 +444,7 @@ function runDuotoneTick(params: {
   atlas: ReturnType<typeof buildStripeLetterAtlas>;
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>;
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>;
+  debugStageRef: RefObject<PlaygroundDebugStage>;
   cursorTrailState: CursorTrailState;
   clickWaveState: ClickWaveState;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
@@ -477,6 +479,7 @@ function runDuotoneTick(params: {
     display,
     cursorTrailConfigRef,
     clickWaveConfigRef,
+    debugStageRef,
     cursorTrailState,
     clickWaveState,
     exportStateRef,
@@ -660,7 +663,7 @@ function runDuotoneTick(params: {
     }
 
     const applyDisplayPlan = (mode: TextureFilterMode) => {
-      const plan = resolveDisplayPlan("normal", mode);
+      const plan = resolveDisplayPlan(debugStageRef.current, mode);
       displaySprite.texture = plan.textureSource === "source" ? sourceSprite.texture : processedRT;
       if (plan.useStripeFilter) {
         syncStripeSpriteFilters(displaySprite, "stripes", luminanceMode, stripeFilter);
@@ -668,6 +671,9 @@ function runDuotoneTick(params: {
         displaySprite.filters = [];
       }
       letterLayer.setVisible(plan.overlaysVisible && mode === "stripes");
+      if (!plan.overlaysVisible) {
+        assemblyGlowOverlay.setVisible(false);
+      }
     };
 
     if (textureFilterMode !== "stripes") {
@@ -1108,6 +1114,7 @@ export function createStripesShaderScene(options: StripesShaderSceneOptions): Ti
   const revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = { current: initial.revealPlayback };
   const cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = { current: initial.cursorTrailConfig };
   const clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig> = { current: initial.clickWaveConfig };
+  const debugStageRef: RefObject<PlaygroundDebugStage> = { current: normalizeDebugStage(initial.debugStage) };
 
   // State refs and the detect callback map straight onto the existing params. flamesState defaults
   // to { current: null } exactly as the legacy default — runDuotoneTick reads it at setup to decide
@@ -1139,6 +1146,7 @@ export function createStripesShaderScene(options: StripesShaderSceneOptions): Ti
     revealPlaybackRef.current = config.revealPlayback;
     cursorTrailConfigRef.current = config.cursorTrailConfig;
     clickWaveConfigRef.current = config.clickWaveConfig;
+    debugStageRef.current = normalizeDebugStage(config.debugStage);
   };
 
   // Seed before setup so scene construction (filters, sprite layout, letter layer) reads the same
@@ -1169,6 +1177,7 @@ export function createStripesShaderScene(options: StripesShaderSceneOptions): Ti
       revealPlaybackRef,
       cursorTrailConfigRef,
       clickWaveConfigRef,
+      debugStageRef,
       exportStateRef,
       onTextureLuminanceSettingsDetected,
       syncInternalRefs,
@@ -1196,6 +1205,7 @@ export function createStripesShaderScene(options: StripesShaderSceneOptions): Ti
     revealPlaybackRef,
     cursorTrailConfigRef,
     clickWaveConfigRef,
+    debugStageRef,
     exportStateRef,
     onTextureLuminanceSettingsDetected,
     syncInternalRefs,
@@ -1223,6 +1233,7 @@ function createImageSceneTicker(
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
+  debugStageRef: RefObject<PlaygroundDebugStage>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
   onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
   beforeTick?: () => void,
@@ -1311,6 +1322,7 @@ function createImageSceneTicker(
       atlas,
       cursorTrailConfigRef,
       clickWaveConfigRef,
+      debugStageRef,
       cursorTrailState,
       clickWaveState,
       exportStateRef,
@@ -1366,6 +1378,7 @@ function createVideoSceneTickerInternal(
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
   cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig>,
   clickWaveConfigRef: RefObject<PlaygroundClickWaveConfig>,
+  debugStageRef: RefObject<PlaygroundDebugStage>,
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>,
   onTextureLuminanceSettingsDetected?: (settings: TextureLuminanceSettings) => void,
   beforeTick?: () => void,
@@ -1461,6 +1474,7 @@ function createVideoSceneTickerInternal(
       atlas,
       cursorTrailConfigRef,
       clickWaveConfigRef,
+      debugStageRef,
       cursorTrailState,
       clickWaveState,
       exportStateRef,

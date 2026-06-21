@@ -23,7 +23,10 @@ import {
   type PlaygroundSourceFit,
   type PlaygroundSourceTransform,
   type PlaygroundTextureAdjustments,
+  type StripesSceneConfig,
 } from "@necatikcl/stripes-shader";
+
+type PlaygroundDebugStage = StripesSceneConfig["debugStage"];
 import { stripeColorsTablePlugin, stripeSyncKey } from "./stripeColorsTablePlugin";
 
 type LevaChangeContext = {
@@ -174,6 +177,12 @@ const ASSEMBLY_FROM_OPTIONS: Record<string, PlaygroundAssemblyRevealFrom> = {
   "Nearest edge": "edge",
 };
 
+const DEBUG_STAGE_OPTIONS: Record<string, PlaygroundDebugStage> = {
+  Normal: "normal",
+  Source: "source",
+  Processed: "processed",
+};
+
 export type PlaygroundCanvasLevaSnapshot = {
   selectedTextureId: PlaygroundTextureId;
   textureOptions: Record<string, PlaygroundTextureId>;
@@ -300,6 +309,7 @@ export type PlaygroundLevaSnapshot = {
   cursorTrailModified: boolean;
   cursorClickModified: boolean;
   revealModified: boolean;
+  debugStage: PlaygroundDebugStage;
 };
 
 export type PlaygroundLevaHandlers = {
@@ -352,6 +362,7 @@ export type PlaygroundLevaHandlers = {
   onRevealAssemblyCommit: (patch: Partial<PlaygroundAssemblyRevealConfig>) => void;
   resetReveal: () => void;
   replayReveal: () => void;
+  onDebugStageChange: (value: PlaygroundDebugStage) => void;
 };
 
 export function buildPlaygroundLevaSchema(
@@ -1541,6 +1552,13 @@ export function buildPlaygroundLevaSchema(
       },
       { color: folderColor(snapshot.cursorClickModified) },
     ),
+    Debug: levaFolder({
+      debugStage: selectControl<PlaygroundDebugStage>(snapshot.debugStage, DEBUG_STAGE_OPTIONS, {
+        label: "Debug view",
+        hint: PLAYGROUND_FIELD_HELP.debugStage,
+        onChange: (value) => handlers.onDebugStageChange(value),
+      }),
+    }),
   } as Record<string, unknown>;
 }
 
@@ -1669,6 +1687,8 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
   if (snapshot.textureLuminanceSettings.mode === "luminance" || snapshot.textureLuminanceSettings.mode === "overlay") {
     values.stripeColorsTable = stripeSyncKey(snapshot.stripes);
   }
+
+  values.debugStage = snapshot.debugStage;
 
   return values;
 }
