@@ -222,6 +222,7 @@ function createProcessedDisplay(
       app.renderer.render({ container: sourceSprite, target: processedRT, clear: true });
     },
     destroy: () => {
+      displaySprite.parent?.removeChild(displaySprite);
       displaySprite.destroy();
       processedRT.destroy(true);
     },
@@ -658,6 +659,17 @@ function runDuotoneTick(params: {
       lastLuminanceMode = luminanceMode;
     }
 
+    const applyDisplayPlan = (mode: TextureFilterMode) => {
+      const plan = resolveDisplayPlan("normal", mode);
+      displaySprite.texture = plan.textureSource === "source" ? sourceSprite.texture : processedRT;
+      if (plan.useStripeFilter) {
+        syncStripeSpriteFilters(displaySprite, "stripes", luminanceMode, stripeFilter);
+      } else {
+        displaySprite.filters = [];
+      }
+      letterLayer.setVisible(plan.overlaysVisible && mode === "stripes");
+    };
+
     if (textureFilterMode !== "stripes") {
       if (luminanceMode === "colors" && !colorsBackgroundAutoDetected) {
         const frame = sampleFrame();
@@ -679,15 +691,7 @@ function runDuotoneTick(params: {
 
       // Render the processed texture and apply the display plan.
       renderProcessed();
-      const plan = resolveDisplayPlan("normal", textureFilterMode);
-      displaySprite.texture = plan.textureSource === "source" ? sourceSprite.texture : processedRT;
-      if (plan.useStripeFilter) {
-        syncStripeSpriteFilters(displaySprite, "stripes", luminanceMode, stripeFilter);
-      } else {
-        displaySprite.filters = [];
-      }
-      // In non-stripes mode the letter overlay is never shown regardless of plan.
-      letterLayer.setVisible(false);
+      applyDisplayPlan(textureFilterMode);
 
       sourceTextureFilter.syncFlames(null, null);
       stripeFilter.syncFlames(null, null);
@@ -1050,14 +1054,7 @@ function runDuotoneTick(params: {
     }
 
     // Apply the display plan: stripes mode always shows processedRT through the stripe filter.
-    const plan = resolveDisplayPlan("normal", textureFilterMode);
-    displaySprite.texture = plan.textureSource === "source" ? sourceSprite.texture : processedRT;
-    if (plan.useStripeFilter) {
-      syncStripeSpriteFilters(displaySprite, "stripes", luminanceMode, stripeFilter);
-    } else {
-      displaySprite.filters = [];
-    }
-    letterLayer.setVisible(plan.overlaysVisible && textureFilterMode === "stripes");
+    applyDisplayPlan(textureFilterMode);
 
     const renderTimer = tickTimer ? createPlaygroundPerfTimer() : null;
     app.render();
