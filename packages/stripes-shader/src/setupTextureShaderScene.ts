@@ -1,4 +1,4 @@
-import { Filter, Sprite, Texture, VideoSource } from "pixi.js";
+import { Filter, RenderTexture, Sprite, Texture, VideoSource } from "pixi.js";
 import type { RefObject } from "react";
 import type { Ticker } from "./pixiMount";
 import { BlockGridTexture } from "./blockGridTexture";
@@ -25,7 +25,8 @@ import type { PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
 import { createStripeLetterLayer, type StripeLetterLayer } from "./stripeLetterLayer";
 import { effectivePlaygroundCellSize, type PlaygroundGridConfig } from "./playgroundGridConfig";
 import { resolvePlaygroundDrawRects, type PlaygroundSourceTransform } from "./playgroundSourceTransform";
-import { renderAdjustedPreviewPixels, type PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
+import { type PlaygroundTextureAdjustments } from "./playgroundTextureAdjustments";
+import { resolveDisplayPlan } from "./playgroundDisplayPlan";
 import { resolvePlaygroundRevealDurationMs, type PlaygroundRevealConfig } from "./playgroundRevealConfig";
 import {
   assemblyRevealAmountAtCell,
@@ -186,6 +187,47 @@ function syncStripeSpriteFilters(
   stripeFilter.syncTextureUnderlay(normalizeTextureLuminanceMode(luminanceMode) === "overlay");
 }
 
+type ProcessedDisplay = {
+  /** Display-sized GPU render target holding the processed (adjusted) texture. */
+  processedRT: RenderTexture;
+  /** On-stage sprite that shows the processed texture (optionally stripe-filtered). */
+  displaySprite: Sprite;
+  /** Render the offscreen source sprite (with adjustments) into processedRT. Call once per tick. */
+  renderProcessed: () => void;
+  destroy: () => void;
+};
+
+/**
+ * Build the texture pipeline display trio: the source sprite stays offscreen and is rendered
+ * (through sourceTextureFilter) into processedRT each tick; the display sprite shows processedRT.
+ * The display sprite is the one added to the stage (below letters + glow).
+ */
+function createProcessedDisplay(
+  app: Parameters<Ticker>[0]["app"],
+  sourceSprite: Sprite,
+  display: PlaygroundDisplaySize,
+): ProcessedDisplay {
+  const processedRT = RenderTexture.create({
+    width: display.width,
+    height: display.height,
+    resolution: PLAYGROUND_PIXI_RESOLUTION,
+  });
+  const displaySprite = new Sprite(processedRT);
+  displaySprite.width = display.width;
+  displaySprite.height = display.height;
+  return {
+    processedRT,
+    displaySprite,
+    renderProcessed: () => {
+      app.renderer.render({ container: sourceSprite, target: processedRT, clear: true });
+    },
+    destroy: () => {
+      displaySprite.destroy();
+      processedRT.destroy(true);
+    },
+  };
+}
+
 function maybeAutoDetectColorsBackground(
   frame: ImageData,
   display: PlaygroundDisplaySize,
@@ -270,12 +312,6 @@ export function getPlaygroundDisplaySize(
   const width = Math.round(native.width * displayScale);
   const height = Math.round((width * native.height) / native.width);
   return { width, height };
-}
-
-function syncPreviewSpriteLayout(sprite: Sprite) {
-  sprite.anchor.set(0, 0);
-  sprite.position.set(0, 0);
-  sprite.scale.set(1, 1);
 }
 
 function syncSpriteToDisplay(
@@ -380,7 +416,8 @@ function attachPlaygroundPointerEvents(
 
 function runDuotoneTick(params: {
   app: Parameters<Ticker>[0]["app"];
-  sprite: Sprite;
+  sourceSprite: Sprite;
+  processedDisplay: ProcessedDisplay;
   stripeFilter: ReturnType<typeof createStripeDuotoneFilter>;
   sourceTextureFilter: ReturnType<typeof createSourceTextureFilter>;
   letterLayer: StripeLetterLayer;
@@ -408,7 +445,6 @@ function runDuotoneTick(params: {
   cursorTrailState: CursorTrailState;
   clickWaveState: ClickWaveState;
   exportStateRef?: RefObject<PlaygroundSceneExportState | null>;
-  syncVisual: () => void;
   shouldSample: () => boolean;
   sampleFrame: () => ImageData | null;
   onSampled?: () => void;
@@ -416,7 +452,8 @@ function runDuotoneTick(params: {
 }): { tick: () => void; dispose: () => void } {
   const {
     app,
-    sprite,
+    sourceSprite,
+    processedDisplay,
     stripeFilter,
     sourceTextureFilter,
     letterLayer,
@@ -442,7 +479,6 @@ function runDuotoneTick(params: {
     cursorTrailState,
     clickWaveState,
     exportStateRef,
-    syncVisual,
     shouldSample,
     sampleFrame,
     onSampled,
@@ -453,6 +489,9 @@ function runDuotoneTick(params: {
   // config tweak updates the live scene instead of remounting the whole Pixi app.
   let blockGridTexture = params.blockGridTexture;
   let atlas = params.atlas;
+
+  // Convenience locals from the processed display trio.
+  const { processedRT, displaySprite, renderProcessed } = processedDisplay;
 
   let textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
   let lastColorsKey = "";
@@ -488,55 +527,6 @@ function runDuotoneTick(params: {
   let lastLetterSize = gridConfigRef.current.letterSize;
   let lastLetterCharset = gridConfigRef.current.letterCharset;
   let lastLetterRatio = gridConfigRef.current.letterRatio;
-
-  const originalSpriteTexture = sprite.texture;
-  const previewCanvas = document.createElement("canvas");
-  previewCanvas.width = display.width;
-  previewCanvas.height = display.height;
-  const previewCtx = previewCanvas.getContext("2d", { willReadFrequently: true });
-  if (!previewCtx) {
-    throw new Error("2D canvas context unavailable for preview texture baking.");
-  }
-  let previewImageData = previewCtx.createImageData(display.width, display.height);
-  const previewTexture = Texture.from(previewCanvas);
-  previewTexture.source.alphaMode = "no-premultiply-alpha";
-  previewTexture.source.scaleMode = "linear";
-
-  const restoreOriginalSpriteTexture = () => {
-    if (sprite.texture !== originalSpriteTexture) {
-      sprite.texture = originalSpriteTexture;
-    }
-  };
-
-  const bakeAdjustedPreviewTexture = (): boolean => {
-    const frame = sampleFrame();
-    if (!frame) {
-      return false;
-    }
-    if (previewCanvas.width !== frame.width || previewCanvas.height !== frame.height) {
-      previewCanvas.width = frame.width;
-      previewCanvas.height = frame.height;
-      previewImageData = previewCtx.createImageData(frame.width, frame.height);
-    }
-    const adjusted = renderAdjustedPreviewPixels(
-      frame.data,
-      frame.width,
-      frame.height,
-      {
-        ...textureAdjustmentsRef.current,
-        gamma: textureGammaRef.current,
-      },
-      textureLuminanceSettingsRef.current,
-    );
-    previewImageData.data.set(adjusted);
-    previewCtx.putImageData(previewImageData, 0, 0);
-    previewTexture.source.update();
-    if (sprite.texture !== previewTexture) {
-      sprite.texture = previewTexture;
-    }
-    syncPreviewSpriteLayout(sprite);
-    return true;
-  };
 
   const applyStructuralChanges = (gridConfig: PlaygroundGridConfig) => {
     const eff = effectivePlaygroundCellSize(gridConfig);
@@ -598,8 +588,7 @@ function runDuotoneTick(params: {
   };
 
   const dispose = () => {
-    restoreOriginalSpriteTexture();
-    previewTexture.destroy(true);
+    processedDisplay.destroy();
     blockGridTexture.destroy();
     flamesOverlay?.destroy();
     cursorTrailOverlay.destroy();
@@ -643,11 +632,7 @@ function runDuotoneTick(params: {
 
     const nextTextureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
     if (nextTextureFilterMode !== textureFilterMode) {
-      if (nextTextureFilterMode === "stripes" || nextTextureFilterMode === "off") {
-        restoreOriginalSpriteTexture();
-      }
       textureFilterMode = nextTextureFilterMode;
-      syncStripeSpriteFilters(sprite, textureFilterMode, luminanceMode, stripeFilter);
       letterLayer.setVisible(textureFilterMode === "stripes");
       if (textureFilterMode === "stripes") {
         lastColorsKey = "";
@@ -662,31 +647,18 @@ function runDuotoneTick(params: {
         colorsBackgroundAutoDetected = false;
       }
       if (textureFilterMode === "stripes") {
-        syncStripeSpriteFilters(sprite, textureFilterMode, luminanceMode, stripeFilter);
         const switchedOverlay = luminanceMode === "overlay" || lastLuminanceMode === "overlay";
         if (switchedOverlay) {
           pendingFullResample = true;
           lastColorsKey = "";
           gridState = {};
           hasBuiltGrid = false;
-          if (luminanceMode === "overlay") {
-            bakeAdjustedPreviewTexture();
-          } else {
-            restoreOriginalSpriteTexture();
-          }
         }
       }
       lastLuminanceMode = luminanceMode;
     }
 
     if (textureFilterMode !== "stripes") {
-      if (textureFilterMode === "preview") {
-        bakeAdjustedPreviewTexture();
-      } else {
-        restoreOriginalSpriteTexture();
-        syncVisual();
-      }
-
       if (luminanceMode === "colors" && !colorsBackgroundAutoDetected) {
         const frame = sampleFrame();
         if (frame) {
@@ -704,6 +676,18 @@ function runDuotoneTick(params: {
           }
         }
       }
+
+      // Render the processed texture and apply the display plan.
+      renderProcessed();
+      const plan = resolveDisplayPlan("normal", textureFilterMode);
+      displaySprite.texture = plan.textureSource === "source" ? sourceSprite.texture : processedRT;
+      if (plan.useStripeFilter) {
+        syncStripeSpriteFilters(displaySprite, "stripes", luminanceMode, stripeFilter);
+      } else {
+        displaySprite.filters = [];
+      }
+      // In non-stripes mode the letter overlay is never shown regardless of plan.
+      letterLayer.setVisible(false);
 
       sourceTextureFilter.syncFlames(null, null);
       stripeFilter.syncFlames(null, null);
@@ -738,13 +722,8 @@ function runDuotoneTick(params: {
     } else {
       stripeFilter.syncFlames(null, null);
     }
-    if (luminanceMode === "overlay") {
-      // Baked preview is already display-sized (see preview mode); native-source scaling would shrink it.
-      bakeAdjustedPreviewTexture();
-    } else {
-      restoreOriginalSpriteTexture();
-      syncVisual();
-    }
+    // Render the source sprite through sourceTextureFilter into processedRT each tick.
+    renderProcessed();
 
     const revealConfig = revealConfigRef.current;
     const revealEnabled = revealConfig.enabled;
@@ -1070,6 +1049,16 @@ function runDuotoneTick(params: {
       letterLayer.tickLetterShuffle(performance.now());
     }
 
+    // Apply the display plan: stripes mode always shows processedRT through the stripe filter.
+    const plan = resolveDisplayPlan("normal", textureFilterMode);
+    displaySprite.texture = plan.textureSource === "source" ? sourceSprite.texture : processedRT;
+    if (plan.useStripeFilter) {
+      syncStripeSpriteFilters(displaySprite, "stripes", luminanceMode, stripeFilter);
+    } else {
+      displaySprite.filters = [];
+    }
+    letterLayer.setVisible(plan.overlaysVisible && textureFilterMode === "stripes");
+
     const renderTimer = tickTimer ? createPlaygroundPerfTimer() : null;
     app.render();
     if (tickTimer) {
@@ -1278,10 +1267,15 @@ function createImageSceneTicker(
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
     });
-    const textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
-    syncStripeSpriteFilters(sprite, textureFilterMode, textureLuminanceSettingsRef.current.mode, stripeFilter);
-    app.stage.addChild(sprite);
-    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
+    // Source sprite stays offscreen; sourceTextureFilter produces the processed texture.
+    sprite.filters = [sourceTextureFilter];
+    const processed = createProcessedDisplay(app, sprite, display);
+    app.stage.addChild(processed.displaySprite);
+    const { letterLayer, atlas } = createPlaygroundLetterLayer(
+      app,
+      duotoneEnabledRef.current && stripesEnabledRef.current,
+      grid,
+    );
     const cursorTrailState = createCursorTrailState();
     const clickWaveState = createClickWaveState();
     const detachPlaygroundPointerEvents = attachPlaygroundPointerEvents(
@@ -1294,7 +1288,8 @@ function createImageSceneTicker(
 
     const { tick: renderTick, dispose } = runDuotoneTick({
       app,
-      sprite,
+      sourceSprite: sprite,
+      processedDisplay: processed,
       stripeFilter,
       sourceTextureFilter,
       letterLayer,
@@ -1322,8 +1317,6 @@ function createImageSceneTicker(
       cursorTrailState,
       clickWaveState,
       exportStateRef,
-      syncVisual: () =>
-        syncSpriteToDisplay(sprite, { kind: "image", element: image }, display, sourceTransformRef.current),
       shouldSample: () => false,
       sampleFrame: () =>
         sampleTextureFrame(image, display.width, display.height, sampleCanvas, sampleCtx, sourceTransformRef.current),
@@ -1422,10 +1415,15 @@ function createVideoSceneTickerInternal(
       ...textureAdjustmentsRef.current,
       gamma: textureGammaRef.current,
     });
-    const textureFilterMode = resolveTextureFilterMode(duotoneEnabledRef.current, stripesEnabledRef.current);
-    syncStripeSpriteFilters(sprite, textureFilterMode, textureLuminanceSettingsRef.current.mode, stripeFilter);
-    app.stage.addChild(sprite);
-    const { letterLayer, atlas } = createPlaygroundLetterLayer(app, textureFilterMode === "stripes", grid);
+    // Source sprite stays offscreen; sourceTextureFilter produces the processed texture.
+    sprite.filters = [sourceTextureFilter];
+    const processed = createProcessedDisplay(app, sprite, display);
+    app.stage.addChild(processed.displaySprite);
+    const { letterLayer, atlas } = createPlaygroundLetterLayer(
+      app,
+      duotoneEnabledRef.current && stripesEnabledRef.current,
+      grid,
+    );
     const cursorTrailState = createCursorTrailState();
     const clickWaveState = createClickWaveState();
     const detachPlaygroundPointerEvents = attachPlaygroundPointerEvents(
@@ -1440,7 +1438,8 @@ function createVideoSceneTickerInternal(
 
     const { tick: renderTick, dispose } = runDuotoneTick({
       app,
-      sprite,
+      sourceSprite: sprite,
+      processedDisplay: processed,
       stripeFilter,
       sourceTextureFilter,
       letterLayer,
@@ -1468,8 +1467,6 @@ function createVideoSceneTickerInternal(
       cursorTrailState,
       clickWaveState,
       exportStateRef,
-      syncVisual: () =>
-        syncSpriteToDisplay(sprite, { kind: "video", element: video }, display, sourceTransformRef.current),
       shouldSample: () => video.currentTime !== lastSampledTime,
       sampleFrame: () =>
         sampleVideoFrame(video, display.width, display.height, sampleCanvas, sampleCtx, sourceTransformRef.current),
