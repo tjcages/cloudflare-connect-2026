@@ -96,7 +96,9 @@ export function resolveRevealOvershoot(wave: PlaygroundWaveRevealConfig, bandRam
   return Math.max(0, wave.softness) + Math.max(0, bandRamp) + 0.5 * wave.waviness;
 }
 
-export const ASSEMBLY_SETTLE = 0.12;
+// Progress past 1 the assembly keeps animating so landed puzzle cells finish sharpening
+// from circle → tile (post-landing settle) before the static field takes over.
+export const ASSEMBLY_SETTLE = 0.25;
 const ASSEMBLY_MAX_CENTER_DIST = 0.70710678; // hypot(0.5, 0.5)
 
 /** 0..1 ordering key for a cell: 0 assembles first, 1 last. Mirrors the GPU assembly branch. */

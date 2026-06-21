@@ -29,6 +29,7 @@ void main(void){
         o = uOrder > 0.5 ? 1.0 - cn : cn;
     }
     float start = o * (1.0 - uFlight) * uSpread;
+    float arrival = start + uFlight;
     float t = uFlight <= 0.0 ? 1.0 : clamp((uProgress - start) / uFlight, 0.0, 1.0);
     float e = t * t * (3.0 - 2.0 * t);
     float ang = h2 * 6.28318530718;
@@ -38,9 +39,10 @@ void main(void){
     gl_Position = vec4(aClipHome + offset, 0.0, 1.0);
     vUV = aHomeUV;
     vCorner = aCorner;
-    // Stay a full smooth radial circle for the first ~70% of the flight, then sharpen
-    // smoothly to the crisp square tile over the last stretch. (1 = full circle, 0 = sharp.)
-    vSoft = 1.0 - smoothstep(0.7, 1.0, t);
+    // Stay a full smooth circle for the ENTIRE flight; only AFTER the cell lands (arrival)
+    // does it sharpen, over a short settle window, into the crisp square tile.
+    float settleT = clamp((uProgress - arrival) / 0.15, 0.0, 1.0);
+    vSoft = 1.0 - settleT; // 1 = full circle (whole flight + landing), 0 = sharp (settled)
 }
 `;
 
@@ -61,7 +63,7 @@ void main(void){
     float softFactor = clamp(vSoft, 0.0, 1.0); // 1 = full radial circle, 0 = sharp square
     if (softFactor > 0.001) {
         float r = length(vCorner - vec2(0.5)) * 2.0;  // 0 at center, 1 at edge midpoint
-        float radial = 1.0 - smoothstep(0.0, 1.0, r);  // smooth radial gradient, 0 at the rim
+        float radial = exp(-2.5 * r * r);               // smooth gaussian glow (no hard rim)
         c *= mix(1.0, radial, softFactor);
     }
     finalColor = vec4(c, c, c, c);
