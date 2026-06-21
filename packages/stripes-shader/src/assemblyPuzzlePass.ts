@@ -191,7 +191,9 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
       u.uFlight = flight;
       uniforms.update();
       shader.resources.uHomeField = homeFieldTexture.source;
-      renderer.render({ container: mesh, target, clear: true });
+      // Clear to OPAQUE black: gaps where no cell has landed are field background (hide),
+      // not transparent (which would show the page through in the stripes-off field view).
+      renderer.render({ container: mesh, target, clear: true, clearColor: [0, 0, 0, 1] });
     },
     ensureGrid,
     destroy() {
