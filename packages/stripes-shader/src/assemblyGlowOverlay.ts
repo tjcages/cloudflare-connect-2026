@@ -116,10 +116,14 @@ function buildGlowTexel(): HTMLCanvasElement {
   if (!ctx) {
     throw new Error("2D canvas context unavailable for assembly glow sprite.");
   }
+  // Solid white particle (the field is already black/white pre-stripes, so no tint): an
+  // opaque core out to ~55% radius with a thin soft edge — reads as a solid particle, not a
+  // diffuse glow.
   const g = ctx.createRadialGradient(GLOW_TEXEL / 2, GLOW_TEXEL / 2, 0, GLOW_TEXEL / 2, GLOW_TEXEL / 2, GLOW_TEXEL / 2);
   g.addColorStop(0, "rgba(255, 255, 255, 1)");
-  g.addColorStop(0.32, "rgba(190, 214, 255, 0.55)");
-  g.addColorStop(1, "rgba(120, 160, 255, 0)");
+  g.addColorStop(0.55, "rgba(255, 255, 255, 1)");
+  g.addColorStop(0.82, "rgba(255, 255, 255, 0.45)");
+  g.addColorStop(1, "rgba(255, 255, 255, 0)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, GLOW_TEXEL, GLOW_TEXEL);
   return canvas;
