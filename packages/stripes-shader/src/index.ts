@@ -32,6 +32,7 @@ export * from "./playgroundSparkle";
 export * from "./playgroundWidthShuffle";
 export * from "./playgroundFlames";
 export * from "./playgroundFlamesConfig";
+export * from "./playgroundEdgeMaskConfig";
 export * from "./playgroundFlameComposite";
 export * from "./playgroundRevealConfig";
 export * from "./playgroundReveal";

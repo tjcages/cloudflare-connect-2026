@@ -20,6 +20,7 @@ import {
   type PlaygroundFlamesState,
 } from "./playgroundFlames";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import { DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG, type PlaygroundEdgeMaskConfig } from "./playgroundEdgeMaskConfig";
 import type { PlaygroundSparkleOptions } from "./playgroundSparkle";
 import type { PlaygroundWidthShuffleOptions } from "./playgroundWidthShuffle";
 import { createStripeLetterLayer, type StripeLetterLayer } from "./stripeLetterLayer";
@@ -138,6 +139,7 @@ export type StripesSceneConfig = {
   textureLuminanceSettings: TextureLuminanceSettings;
   sourceTransform: PlaygroundSourceTransform;
   flamesConfig: PlaygroundFlamesConfig;
+  edgeMaskConfig: PlaygroundEdgeMaskConfig;
   revealConfig: PlaygroundRevealConfig;
   revealPlayback: PlaygroundRevealPlayback;
   cursorTrailConfig: PlaygroundCursorTrailConfig;
@@ -435,6 +437,7 @@ function runDuotoneTick(params: {
   widthShuffleOptionsRef: RefObject<PlaygroundWidthShuffleOptions>;
   flamesStateRef: RefObject<PlaygroundFlamesState | null>;
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>;
+  edgeMaskConfigRef: RefObject<PlaygroundEdgeMaskConfig>;
   revealConfigRef: RefObject<PlaygroundRevealConfig>;
   revealStateRef: RefObject<PlaygroundRevealState>;
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback>;
@@ -475,6 +478,7 @@ function runDuotoneTick(params: {
     widthShuffleOptionsRef,
     flamesStateRef,
     flamesConfigRef,
+    edgeMaskConfigRef,
     revealConfigRef,
     revealStateRef,
     revealPlaybackRef,
@@ -653,6 +657,7 @@ function runDuotoneTick(params: {
     stripeFilter.syncInvertStripeBucketing(overlayInvertsStripeBucketing(textureLuminanceSettingsRef.current.mode));
     const luminanceMode = normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode);
     stripeFilter.syncTextureUnderlay(luminanceMode === "overlay");
+    stripeFilter.syncEdgeMask(edgeMaskConfigRef.current);
     const flamesState = flamesStateRef.current;
     const flamesConfig = flamesConfigRef.current;
     if (flamesState && flamesConfig.enabled) {
@@ -1034,6 +1039,7 @@ function runDuotoneTick(params: {
             gamma: textureGammaRef.current,
           },
           luminanceSettings,
+          edgeMask: edgeMaskConfigRef.current,
         },
       );
       if (buildTimer) {
@@ -1232,6 +1238,9 @@ export function createStripesShaderScene(options: StripesShaderSceneOptions): Ti
   };
   const sourceTransformRef: RefObject<PlaygroundSourceTransform> = { current: initial.sourceTransform };
   const flamesConfigRef: RefObject<PlaygroundFlamesConfig> = { current: initial.flamesConfig };
+  const edgeMaskConfigRef: RefObject<PlaygroundEdgeMaskConfig> = {
+    current: initial.edgeMaskConfig ?? DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
+  };
   const revealConfigRef: RefObject<PlaygroundRevealConfig> = { current: initial.revealConfig };
   const revealPlaybackRef: RefObject<PlaygroundRevealPlayback> = { current: initial.revealPlayback };
   const cursorTrailConfigRef: RefObject<PlaygroundCursorTrailConfig> = { current: initial.cursorTrailConfig };
@@ -1264,6 +1273,7 @@ export function createStripesShaderScene(options: StripesShaderSceneOptions): Ti
     textureLuminanceSettingsRef.current = config.textureLuminanceSettings;
     sourceTransformRef.current = config.sourceTransform;
     flamesConfigRef.current = config.flamesConfig;
+    edgeMaskConfigRef.current = config.edgeMaskConfig ?? DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG;
     revealConfigRef.current = config.revealConfig;
     revealPlaybackRef.current = config.revealPlayback;
     cursorTrailConfigRef.current = config.cursorTrailConfig;
@@ -1294,6 +1304,7 @@ export function createStripesShaderScene(options: StripesShaderSceneOptions): Ti
       sourceTransformRef,
       flamesStateRef,
       flamesConfigRef,
+      edgeMaskConfigRef,
       revealConfigRef,
       revealStateRef,
       revealPlaybackRef,
@@ -1322,6 +1333,7 @@ export function createStripesShaderScene(options: StripesShaderSceneOptions): Ti
     sourceTransformRef,
     flamesStateRef,
     flamesConfigRef,
+    edgeMaskConfigRef,
     revealConfigRef,
     revealStateRef,
     revealPlaybackRef,
@@ -1350,6 +1362,7 @@ function createImageSceneTicker(
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
   flamesStateRef: RefObject<PlaygroundFlamesState | null>,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>,
+  edgeMaskConfigRef: RefObject<PlaygroundEdgeMaskConfig>,
   revealConfigRef: RefObject<PlaygroundRevealConfig>,
   revealStateRef: RefObject<PlaygroundRevealState>,
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
@@ -1433,6 +1446,7 @@ function createImageSceneTicker(
       widthShuffleOptionsRef,
       flamesStateRef,
       flamesConfigRef,
+      edgeMaskConfigRef,
       revealConfigRef,
       revealStateRef,
       revealPlaybackRef,
@@ -1501,6 +1515,7 @@ function createVideoSceneTickerInternal(
   sourceTransformRef: RefObject<PlaygroundSourceTransform>,
   flamesStateRef: RefObject<PlaygroundFlamesState | null>,
   flamesConfigRef: RefObject<PlaygroundFlamesConfig>,
+  edgeMaskConfigRef: RefObject<PlaygroundEdgeMaskConfig>,
   revealConfigRef: RefObject<PlaygroundRevealConfig>,
   revealStateRef: RefObject<PlaygroundRevealState>,
   revealPlaybackRef: RefObject<PlaygroundRevealPlayback>,
@@ -1591,6 +1606,7 @@ function createVideoSceneTickerInternal(
       widthShuffleOptionsRef,
       flamesStateRef,
       flamesConfigRef,
+      edgeMaskConfigRef,
       revealConfigRef,
       revealStateRef,
       revealPlaybackRef,

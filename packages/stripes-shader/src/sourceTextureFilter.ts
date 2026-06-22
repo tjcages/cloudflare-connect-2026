@@ -34,10 +34,6 @@ uniform float uBlurRadius;
 uniform float uSharpenAmount;
 uniform vec2 uTexelSize;
 uniform float uFlamesEnabled;
-uniform float uFlamesMaskEnabled;
-uniform float uFlamesMaskStart;
-uniform float uFlamesMaskEnd;
-uniform float uFlamesMaskPower;
 uniform float uColorsMode;
 uniform float uOverlayInvert;
 uniform vec3 uTextureBgColor;
@@ -103,30 +99,13 @@ float adjustLuma(float luma) {
     return clamp(value, 0.0, 1.0);
 }
 
-float flamesEdgeMaskInset(float inset) {
-    if (uFlamesMaskEnabled < 0.5) {
-        return 1.0;
-    }
-    float start = uFlamesMaskStart;
-    float end = max(uFlamesMaskEnd, start + 0.0001);
-    float t = clamp((inset - start) / (end - start), 0.0, 1.0);
-    return pow(t, max(uFlamesMaskPower, 0.0001));
-}
-
-float flamesEdgeMask(vec2 coord) {
-    float insetX = min(coord.x, 1.0 - coord.x);
-    float insetY = min(coord.y, 1.0 - coord.y);
-    return flamesEdgeMaskInset(insetX) * flamesEdgeMaskInset(insetY);
-}
-
 vec3 readFlameSample(out float flameCover) {
     flameCover = 0.0;
     if (uFlamesEnabled < 0.5) {
         return vec3(0.0);
     }
     vec3 flame = texture(uFlames, vDisplayCoord).rgb;
-    float mask = flamesEdgeMask(vDisplayCoord);
-    vec3 flameRgb = flame * mask;
+    vec3 flameRgb = flame;
     flameCover = clamp(max(max(flameRgb.r, flameRgb.g), flameRgb.b), 0.0, 1.0);
     return flameRgb;
 }
@@ -135,8 +114,11 @@ vec3 mergeFlameColor(vec3 sourceRgb, vec3 flameRgb, float flameCover) {
     if (flameCover < 0.001) {
         return sourceRgb;
     }
-    // max() hides flames on bright/white pixels; blend toward overlay color instead.
-    return mix(sourceRgb, flameRgb, flameCover);
+    // The flame raster is white/colored streaks drawn over opaque black, so flameRgb is
+    // premultiplied (rgb = straightColor * coverage). Un-premultiply to the straight color and
+    // composite it as light: partial-coverage flames brighten toward white instead of toward black.
+    vec3 flameColor = clamp(flameRgb / flameCover, 0.0, 1.0);
+    return mix(sourceRgb, flameColor, flameCover);
 }
 
 vec3 applyFlames(vec3 color) {
@@ -233,10 +215,6 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     uSharpenAmount: { value: normalized.sharpenAmount, type: "f32" },
     uTexelSize: { value: [0, 0], type: "vec2<f32>" },
     uFlamesEnabled: { value: 0, type: "f32" },
-    uFlamesMaskEnabled: { value: 0, type: "f32" },
-    uFlamesMaskStart: { value: 0, type: "f32" },
-    uFlamesMaskEnd: { value: 0.1, type: "f32" },
-    uFlamesMaskPower: { value: 1, type: "f32" },
     uColorsMode: { value: 0, type: "f32" },
     uOverlayInvert: { value: 0, type: "f32" },
     uTextureBgColor: { value: [0, 0, 0], type: "vec3<f32>" },
@@ -319,17 +297,9 @@ export function createSourceTextureFilter(adjustments: PlaygroundTextureAdjustme
     filter.resources.uFlames = flamesTexture.source;
     const uniforms = textureUniforms.uniforms as {
       uFlamesEnabled: number;
-      uFlamesMaskEnabled: number;
-      uFlamesMaskStart: number;
-      uFlamesMaskEnd: number;
-      uFlamesMaskPower: number;
     };
     const enabled = Boolean(config?.enabled);
     uniforms.uFlamesEnabled = enabled ? 1 : 0;
-    uniforms.uFlamesMaskEnabled = enabled && config?.edgeMaskEnabled !== false ? 1 : 0;
-    uniforms.uFlamesMaskStart = config?.edgeMaskStart ?? 0;
-    uniforms.uFlamesMaskEnd = config?.edgeMaskEnd ?? 0.1;
-    uniforms.uFlamesMaskPower = config?.edgeMaskPower ?? 1;
     textureUniforms.update();
   };
 

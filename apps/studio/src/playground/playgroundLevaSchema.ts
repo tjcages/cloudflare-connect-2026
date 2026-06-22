@@ -10,6 +10,7 @@ import {
   type TextureLuminanceSettings,
   type PlaygroundGridConfig,
   type PlaygroundFlamesConfig,
+  type PlaygroundEdgeMaskConfig,
   type PlaygroundFlamesDirection,
   type PlaygroundCursorTrailConfig,
   type PlaygroundClickWaveConfig,
@@ -268,7 +269,7 @@ export type PlaygroundLevaSnapshot = {
   sparkleGapsSpeedDisabled: boolean;
   sparkleWidthSpeedDisabled: boolean;
   flamesFieldsDisabled: boolean;
-  flamesMaskDisabled: boolean;
+  edgeMaskFieldsDisabled: boolean;
   cursorTrailFieldsDisabled: boolean;
   cursorClickFieldsDisabled: boolean;
   revealFieldsDisabled: boolean;
@@ -285,6 +286,7 @@ export type PlaygroundLevaSnapshot = {
   sparkleWidthActivePercent: number;
   sparkleWidthSpeed: number;
   flamesConfig: PlaygroundFlamesConfig;
+  edgeMaskConfig: PlaygroundEdgeMaskConfig;
   cursorTrailConfig: PlaygroundCursorTrailConfig;
   clickWaveConfig: PlaygroundClickWaveConfig;
   revealConfig: PlaygroundRevealConfig;
@@ -299,6 +301,7 @@ export type PlaygroundLevaSnapshot = {
   sparkleGapsModified: boolean;
   sparkleWidthModified: boolean;
   flamesModified: boolean;
+  edgeMaskModified: boolean;
   cursorTrailModified: boolean;
   cursorClickModified: boolean;
   revealModified: boolean;
@@ -341,6 +344,9 @@ export type PlaygroundLevaHandlers = {
   onFlamesLive: (patch: Partial<PlaygroundFlamesConfig>) => void;
   onFlamesCommit: (patch: Partial<PlaygroundFlamesConfig>) => void;
   resetFlames: () => void;
+  onEdgeMaskLive: (patch: Partial<PlaygroundEdgeMaskConfig>) => void;
+  onEdgeMaskCommit: (patch: Partial<PlaygroundEdgeMaskConfig>) => void;
+  resetEdgeMask: () => void;
   onCursorTrailLive: (patch: Partial<PlaygroundCursorTrailConfig>) => void;
   onCursorTrailCommit: (patch: Partial<PlaygroundCursorTrailConfig>) => void;
   resetCursorTrail: () => void;
@@ -365,13 +371,14 @@ export function buildPlaygroundLevaSchema(
   const disabled = snapshot.duotoneControlsDisabled;
   const stripeDisabled = snapshot.stripeControlsDisabled;
   const flamesDisabled = snapshot.flamesFieldsDisabled;
-  const flamesMaskDisabled = snapshot.flamesMaskDisabled;
   const ratio = PLAYGROUND_CONTROL_RANGES.flamesSizeRatio;
   const acrossMax = Math.max(snapshot.gridConfig.cellWidth, snapshot.gridConfig.cellHeight);
   const adjustments = snapshot.textureAdjustments;
   const source = snapshot.sourceTransform;
   const grid = snapshot.gridConfig;
   const flames = snapshot.flamesConfig;
+  const edgeMask = snapshot.edgeMaskConfig;
+  const edgeMaskDisabled = snapshot.edgeMaskFieldsDisabled;
   const cursorTrail = snapshot.cursorTrailConfig;
   const cursorTrailDisabled = snapshot.cursorTrailFieldsDisabled;
   const clickWave = snapshot.clickWaveConfig;
@@ -1093,56 +1100,62 @@ export function buildPlaygroundLevaSchema(
             onCommit: (value) => handlers.onFlamesCommit({ opacityMax: value }),
           },
         ),
-        edgeMaskEnabled: boolControl(flames.edgeMaskEnabled, {
-          label: "Edge mask",
-          hint: PLAYGROUND_FIELD_HELP.flamesEdgeMaskEnabled,
-          disabled: flamesDisabled,
+      },
+      { color: folderColor(snapshot.flamesModified) },
+    ),
+    "Edge Mask": levaFolder(
+      {
+        edgeMaskReset: resetButton(() => handlers.resetEdgeMask(), !snapshot.edgeMaskModified),
+        edgeMaskEnabled: boolControl(edgeMask.enabled, {
+          label: "Enabled",
+          hint: PLAYGROUND_FIELD_HELP.edgeMaskEnabled,
+          disabled,
           onChange: (value) => {
-            handlers.onFlamesLive({ edgeMaskEnabled: value });
-            handlers.onFlamesCommit({ edgeMaskEnabled: value });
+            handlers.onEdgeMaskLive({ enabled: value });
+            handlers.onEdgeMaskCommit({ enabled: value });
           },
         }),
         edgeMaskStart: numControl(
-          flames.edgeMaskStart * 100,
-          PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.min,
-          PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.max,
-          PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.step,
+          edgeMask.start * 100,
+          PLAYGROUND_CONTROL_RANGES.edgeMaskInset.min,
+          PLAYGROUND_CONTROL_RANGES.edgeMaskInset.max,
+          PLAYGROUND_CONTROL_RANGES.edgeMaskInset.step,
           {
             label: "Mask start",
-            hint: PLAYGROUND_FIELD_HELP.flamesEdgeMaskStart,
-            disabled: flamesMaskDisabled,
-            onLive: (value) => handlers.onFlamesLive({ edgeMaskStart: value / 100 }),
-            onCommit: (value) => handlers.onFlamesCommit({ edgeMaskStart: value / 100 }),
+            hint: PLAYGROUND_FIELD_HELP.edgeMaskStart,
+            disabled: edgeMaskDisabled,
+            onLive: (value) => handlers.onEdgeMaskLive({ start: value / 100 }),
+            onCommit: (value) => handlers.onEdgeMaskCommit({ start: value / 100 }),
           },
         ),
         edgeMaskEnd: numControl(
-          flames.edgeMaskEnd * 100,
-          PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.min,
-          PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.max,
-          PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskInset.step,
+          edgeMask.end * 100,
+          PLAYGROUND_CONTROL_RANGES.edgeMaskInset.min,
+          PLAYGROUND_CONTROL_RANGES.edgeMaskInset.max,
+          PLAYGROUND_CONTROL_RANGES.edgeMaskInset.step,
           {
             label: "Mask end",
-            hint: PLAYGROUND_FIELD_HELP.flamesEdgeMaskEnd,
-            disabled: flamesMaskDisabled,
-            onLive: (value) => handlers.onFlamesLive({ edgeMaskEnd: value / 100 }),
-            onCommit: (value) => handlers.onFlamesCommit({ edgeMaskEnd: value / 100 }),
+            hint: PLAYGROUND_FIELD_HELP.edgeMaskEnd,
+            disabled: edgeMaskDisabled,
+            onLive: (value) => handlers.onEdgeMaskLive({ end: value / 100 }),
+            onCommit: (value) => handlers.onEdgeMaskCommit({ end: value / 100 }),
           },
         ),
         edgeMaskPower: numControl(
-          flames.edgeMaskPower,
-          PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskPower.min,
-          PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskPower.max,
-          PLAYGROUND_CONTROL_RANGES.flamesEdgeMaskPower.step,
+          edgeMask.power,
+          PLAYGROUND_CONTROL_RANGES.edgeMaskPower.min,
+          PLAYGROUND_CONTROL_RANGES.edgeMaskPower.max,
+          PLAYGROUND_CONTROL_RANGES.edgeMaskPower.step,
           {
             label: "Mask power",
-            hint: PLAYGROUND_FIELD_HELP.flamesEdgeMaskPower,
-            disabled: flamesMaskDisabled,
-            onLive: (value) => handlers.onFlamesLive({ edgeMaskPower: value }),
-            onCommit: (value) => handlers.onFlamesCommit({ edgeMaskPower: value }),
+            hint: PLAYGROUND_FIELD_HELP.edgeMaskPower,
+            disabled: edgeMaskDisabled,
+            onLive: (value) => handlers.onEdgeMaskLive({ power: value }),
+            onCommit: (value) => handlers.onEdgeMaskCommit({ power: value }),
           },
         ),
       },
-      { color: folderColor(snapshot.flamesModified) },
+      { color: folderColor(snapshot.edgeMaskModified) },
     ),
     "Cursor Trail": levaFolder(
       {
@@ -1558,6 +1571,7 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
   const source = snapshot.sourceTransform;
   const grid = snapshot.gridConfig;
   const flames = snapshot.flamesConfig;
+  const edgeMask = snapshot.edgeMaskConfig;
   const cursorTrail = snapshot.cursorTrailConfig;
   const clickWave = snapshot.clickWaveConfig;
   const reveal = snapshot.revealConfig;
@@ -1620,10 +1634,10 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     edgeSharpness: flames.edgeSharpness,
     opacityMin: flames.opacityMin,
     opacityMax: flames.opacityMax,
-    edgeMaskEnabled: flames.edgeMaskEnabled,
-    edgeMaskStart: flames.edgeMaskStart * 100,
-    edgeMaskEnd: flames.edgeMaskEnd * 100,
-    edgeMaskPower: flames.edgeMaskPower,
+    edgeMaskEnabled: edgeMask.enabled,
+    edgeMaskStart: edgeMask.start * 100,
+    edgeMaskEnd: edgeMask.end * 100,
+    edgeMaskPower: edgeMask.power,
     cursorTrailEnabled: cursorTrail.enabled,
     particleRadius: cursorTrail.particleRadius,
     particleAlpha: cursorTrail.particleAlpha,

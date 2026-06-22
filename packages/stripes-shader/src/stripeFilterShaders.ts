@@ -64,10 +64,10 @@ uniform float uRevealBandRamp;
 uniform float uRevealOrder;
 uniform float uRevealSpread;
 uniform float uRevealFlight;
-uniform float uFlamesMaskEnabled;
-uniform float uFlamesMaskStart;
-uniform float uFlamesMaskEnd;
-uniform float uFlamesMaskPower;
+uniform float uEdgeMaskEnabled;
+uniform float uEdgeMaskStart;
+uniform float uEdgeMaskEnd;
+uniform float uEdgeMaskPower;
 uniform float uStripeCount;
 uniform float uUseCellColors;
 uniform float uTextureUnderlay;
@@ -226,20 +226,20 @@ float widthShufflePulseEnvelope(float localT) {
     return widthShuffleSmoothStep(cosine);
 }
 
-float flamesEdgeMaskInset(float inset) {
-    if (uFlamesMaskEnabled < 0.5) {
+float edgeMaskInset(float inset) {
+    if (uEdgeMaskEnabled < 0.5) {
         return 1.0;
     }
-    float start = uFlamesMaskStart;
-    float end = max(uFlamesMaskEnd, start + 0.0001);
+    float start = uEdgeMaskStart;
+    float end = max(uEdgeMaskEnd, start + 0.0001);
     float t = clamp((inset - start) / (end - start), 0.0, 1.0);
-    return pow(t, max(uFlamesMaskPower, 0.0001));
+    return pow(t, max(uEdgeMaskPower, 0.0001));
 }
 
-float flamesEdgeMask(vec2 coord) {
+float edgeMask(vec2 coord) {
     float insetX = min(coord.x, 1.0 - coord.x);
     float insetY = min(coord.y, 1.0 - coord.y);
-    return flamesEdgeMaskInset(insetX) * flamesEdgeMaskInset(insetY);
+    return edgeMaskInset(insetX) * edgeMaskInset(insetY);
 }
 
 float bucketingLuma(float luma01) {
@@ -257,7 +257,7 @@ float flameCoverAtCell(float colIndex, float rowIndex) {
     }
     vec2 cellUv = flameCellUv(colIndex, rowIndex);
     vec3 flame = texture(uFlames, cellUv).rgb;
-    float mask = flamesEdgeMask(cellUv);
+    float mask = edgeMask(cellUv);
     vec3 flameRgb = flame * mask;
     return clamp(max(max(flameRgb.r, flameRgb.g), flameRgb.b), 0.0, 1.0);
 }
@@ -339,6 +339,7 @@ void main(void) {
         // uFieldCells is a RenderTexture (GL framebuffer = bottom-up), so it is sampled with
         // blockGridUv (row-flipped), like uBlockMap — NOT flameCellUv (top-left).
         float fieldVal = texture(uFieldCells, blockGridUv(colIndex, rowIndex)).r;
+        fieldVal *= edgeMask(flameCellUv(colIndex, rowIndex));
         stripeBand = stripeBandForBucketLuma(fieldVal);
     } else {
         // Classic branch (colors mode, or field toggle off): full in-shader path.

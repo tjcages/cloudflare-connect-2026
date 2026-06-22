@@ -277,7 +277,7 @@ describe("computeBlockGrid cell sizing", () => {
     expect(Array.from(grid.luma)).toEqual([128, 85, 0]);
   });
 
-  it("adds masked flame luminance without changing source pixels", () => {
+  it("merges flame luminance unmasked into the cell field", () => {
     const data = splitImage(2, 1, 0);
     const flames = new Uint8ClampedArray(2 * 1 * 4);
     flames[0] = 255;
@@ -285,23 +285,29 @@ describe("computeBlockGrid cell sizing", () => {
     flames[2] = 255;
     flames[3] = 255;
 
-    const unmasked = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, {
+    const grid = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, {
       pixels: flames,
       imageWidth: 2,
       imageHeight: 1,
-      mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
-    });
-    const masked = computeBlockGrid(data, 2, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, {
-      pixels: flames,
-      imageWidth: 2,
-      imageHeight: 1,
-      mask: { edgeMaskEnabled: true, edgeMaskStart: 0, edgeMaskEnd: 0.5, edgeMaskPower: 1 },
     });
 
-    expect(unmasked.luma[0]).toBe(255);
-    expect(masked.luma[0]).toBe(0);
-    expect(unmasked.luma[1]).toBe(0);
-    expect(masked.luma[1]).toBe(0);
+    expect(grid.luma[0]).toBe(255);
+    expect(grid.luma[1]).toBe(0);
+  });
+
+  it("fades per-cell luma toward the canvas edge when the global edge mask is enabled", () => {
+    const data = splitImage(4, 1, 4);
+
+    const grid = computeBlockGrid(data, 4, 1, 1, 1, 1, DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS, undefined, undefined, {
+      enabled: true,
+      start: 0,
+      end: 0.5,
+      power: 1,
+    });
+
+    // Edge cells (col 0 and col 3) sit at low inset → faded toward 0; the inner cells stay brighter.
+    expect(grid.luma[0]).toBeLessThan(grid.luma[1] ?? 0);
+    expect(grid.luma[3] ?? 0).toBeLessThan(grid.luma[2] ?? 0);
   });
 
   it("composites flame rgb into cell colors in colors mode on background pixels", () => {
@@ -324,7 +330,6 @@ describe("computeBlockGrid cell sizing", () => {
         pixels: flames,
         imageWidth: 2,
         imageHeight: 1,
-        mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
       },
       {
         mode: "colors",
@@ -357,7 +362,6 @@ describe("computeBlockGrid cell sizing", () => {
         pixels: flames,
         imageWidth: 1,
         imageHeight: 1,
-        mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
       },
       {
         mode: "colors",
@@ -392,7 +396,6 @@ describe("computeBlockGrid cell sizing", () => {
         pixels: flames,
         imageWidth: size,
         imageHeight: size,
-        mask: { edgeMaskEnabled: false, edgeMaskStart: 0, edgeMaskEnd: 0.1, edgeMaskPower: 1 },
       },
       {
         mode: "colors",

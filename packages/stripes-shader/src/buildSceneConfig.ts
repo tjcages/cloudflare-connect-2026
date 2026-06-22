@@ -18,6 +18,7 @@ import {
 } from "./playgroundTextureAdjustments";
 import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM, normalizePlaygroundSourceTransform } from "./playgroundSourceTransform";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG, normalizePlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import { DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG, normalizePlaygroundEdgeMaskConfig } from "./playgroundEdgeMaskConfig";
 import { DEFAULT_PLAYGROUND_REVEAL_CONFIG, normalizePlaygroundRevealConfig } from "./playgroundRevealConfig";
 import {
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
@@ -54,6 +55,7 @@ export function resolveStripesSceneConfig(
     normalized.sourceTransform ?? DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
   );
   const flamesConfig = normalizePlaygroundFlamesConfig(normalized.flames ?? DEFAULT_PLAYGROUND_FLAMES_CONFIG);
+  const edgeMaskConfig = normalizePlaygroundEdgeMaskConfig(normalized.edgeMask ?? DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG);
   const revealConfig = normalizePlaygroundRevealConfig(normalized.reveal ?? DEFAULT_PLAYGROUND_REVEAL_CONFIG);
   const cursorTrailConfig = normalizePlaygroundCursorTrailConfig(
     normalized.cursorTrail ?? DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
@@ -113,6 +115,7 @@ export function resolveStripesSceneConfig(
     textureLuminanceSettings,
     sourceTransform,
     flamesConfig,
+    edgeMaskConfig,
     revealConfig,
     revealPlayback: opts.revealPlayback,
     cursorTrailConfig,

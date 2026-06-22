@@ -9,7 +9,7 @@ import {
   type TextureLuminanceSettings,
 } from "./colorWhiteness";
 import { mergeFlameColorBytes } from "./playgroundFlameComposite";
-import { resolveFlamesEdgeMaskAlpha, type PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import { resolveEdgeMaskAlpha, type PlaygroundEdgeMaskConfig } from "./playgroundEdgeMaskConfig";
 import {
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   applyTextureLuminanceAdjustments,
@@ -27,7 +27,6 @@ export type FlamesLuminanceContribution = {
   pixels: Uint8ClampedArray;
   imageWidth: number;
   imageHeight: number;
-  mask: Pick<PlaygroundFlamesConfig, "edgeMaskEnabled" | "edgeMaskStart" | "edgeMaskEnd" | "edgeMaskPower">;
 };
 
 /** Per-cell mean luminance (0–255), independent of the stripe list. */
@@ -104,19 +103,16 @@ function cellMeanSample(
         flames.imageHeight === imageHeight &&
         flames.pixels.length >= idx + 3
       ) {
-        const mask = resolveFlamesEdgeMaskAlpha(x / imageWidth, y / imageHeight, flames.mask);
-        if (mask > 0) {
-          const flameR = flames.pixels[idx] ?? 0;
-          const flameG = flames.pixels[idx + 1] ?? 0;
-          const flameB = flames.pixels[idx + 2] ?? 0;
-          const merged = mergeFlameColorBytes(r, g, b, flameR, flameG, flameB, mask);
-          if (merged.hasFlame) {
-            hasFlameSample = true;
-          }
-          r = merged.r;
-          g = merged.g;
-          b = merged.b;
+        const flameR = flames.pixels[idx] ?? 0;
+        const flameG = flames.pixels[idx + 1] ?? 0;
+        const flameB = flames.pixels[idx + 2] ?? 0;
+        const merged = mergeFlameColorBytes(r, g, b, flameR, flameG, flameB, 1);
+        if (merged.hasFlame) {
+          hasFlameSample = true;
         }
+        r = merged.r;
+        g = merged.g;
+        b = merged.b;
       }
       rSum += r;
       gSum += g;
@@ -208,6 +204,7 @@ export function computeBlockGrid(
   adjustmentsInput: PlaygroundTextureAdjustments = DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   flames?: FlamesLuminanceContribution,
   luminanceSettings?: TextureLuminanceSettings,
+  edgeMask?: PlaygroundEdgeMaskConfig,
 ): LumaGrid {
   const safeCellWidth = Math.max(1, Math.round(cellWidth));
   const safeCellHeight = Math.max(1, Math.round(cellHeight));
@@ -242,7 +239,10 @@ export function computeBlockGrid(
         luminanceSettings,
       );
       const cellIndex = row * cols + col;
-      luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * 255);
+      const u = ((col + 0.5) * safeCellWidth) / imageWidth;
+      const v = ((row + 0.5) * safeCellHeight) / imageHeight;
+      const em = edgeMask ? resolveEdgeMaskAlpha(u, v, edgeMask) : 1;
+      luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * em * 255);
       flameCells[cellIndex] = mean.hasFlameSample ? 1 : 0;
       const colorOffset = cellIndex * 3;
       colors[colorOffset] = Math.round(Math.min(255, Math.max(0, mean.r)));
@@ -274,7 +274,10 @@ export function computeBlockGrid(
           flames,
           luminanceSettings,
         );
-        luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * 255);
+        const u = ((col + 0.5) * safeCellWidth) / imageWidth;
+        const v = ((row + 0.5) * safeCellHeight) / imageHeight;
+        const em = edgeMask ? resolveEdgeMaskAlpha(u, v, edgeMask) : 1;
+        luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * em * 255);
       }
     }
   }
@@ -467,8 +470,9 @@ function writeCellMeanToGrid(
   colors: Uint8Array,
   colorCoverage: Uint8Array | undefined,
   flameCells: Uint8Array,
+  edgeMaskAlpha = 1,
 ): void {
-  luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * 255);
+  luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * edgeMaskAlpha * 255);
   flameCells[cellIndex] = mean.hasFlameSample ? 1 : 0;
   const colorOffset = cellIndex * 3;
   colors[colorOffset] = Math.round(Math.min(255, Math.max(0, mean.r)));
@@ -491,6 +495,7 @@ function sampleCellsInRegion(
   colors: Uint8Array,
   colorCoverage: Uint8Array | undefined,
   flameCells: Uint8Array,
+  edgeMask: PlaygroundEdgeMaskConfig | undefined,
 ): void {
   for (let row = region.rowMin; row <= region.rowMax; row++) {
     for (let col = region.colMin; col <= region.colMax; col++) {
@@ -507,7 +512,10 @@ function sampleCellsInRegion(
         flames,
         luminanceSettings,
       );
-      writeCellMeanToGrid(mean, row * ctx.cols + col, luma, colors, colorCoverage, flameCells);
+      const u = ((col + 0.5) * ctx.safeCellWidth) / imageWidth;
+      const v = ((row + 0.5) * ctx.safeCellHeight) / imageHeight;
+      const em = edgeMask ? resolveEdgeMaskAlpha(u, v, edgeMask) : 1;
+      writeCellMeanToGrid(mean, row * ctx.cols + col, luma, colors, colorCoverage, flameCells, em);
     }
   }
 
@@ -534,7 +542,10 @@ function sampleCellsInRegion(
         flames,
         luminanceSettings,
       );
-      luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * 255);
+      const u = ((col + 0.5) * ctx.safeCellWidth) / imageWidth;
+      const v = ((row + 0.5) * ctx.safeCellHeight) / imageHeight;
+      const em = edgeMask ? resolveEdgeMaskAlpha(u, v, edgeMask) : 1;
+      luma[cellIndex] = Math.round(Math.min(1, Math.max(0, mean.luma)) * em * 255);
     }
   }
 }
@@ -554,6 +565,7 @@ export function computeBlockGridRegion(
   luminanceSettings?: TextureLuminanceSettings,
   preprocessCache?: GridPreprocessCache,
   pixelDirtyBounds?: CursorTrailPixelBounds | null,
+  edgeMask?: PlaygroundEdgeMaskConfig,
 ): LumaGrid {
   const ctx =
     preprocessCache && pixelDirtyBounds && pixelDirtyBounds.dirtyMaxX >= 0
@@ -594,6 +606,7 @@ export function computeBlockGridRegion(
     colors,
     colorCoverage,
     flameCells,
+    edgeMask,
   );
 
   return { cols: ctx.cols, rows: ctx.rows, luma, colors, colorCoverage };

@@ -13,6 +13,7 @@ import { DEFAULT_PLAYGROUND_GRID_CONFIG } from "./playgroundGridConfig";
 import { DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS } from "./playgroundTextureAdjustments";
 import { DEFAULT_PLAYGROUND_SOURCE_TRANSFORM } from "./playgroundSourceTransform";
 import { DEFAULT_PLAYGROUND_FLAMES_CONFIG } from "./playgroundFlamesConfig";
+import { DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG } from "./playgroundEdgeMaskConfig";
 import { DEFAULT_PLAYGROUND_REVEAL_CONFIG } from "./playgroundRevealConfig";
 import { DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG } from "./playgroundCursorTrailConfig";
 import { DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG } from "./playgroundClickWaveConfig";
@@ -63,6 +64,7 @@ function makeConfig(overrides: Partial<StripesSceneConfig> = {}): StripesSceneCo
     textureLuminanceSettings: { mode: "luminance", backgroundColor: 0x000000 },
     sourceTransform: DEFAULT_PLAYGROUND_SOURCE_TRANSFORM,
     flamesConfig: DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+    edgeMaskConfig: DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
     revealConfig: DEFAULT_PLAYGROUND_REVEAL_CONFIG,
     revealPlayback: { replayKey: 0, startedAtMs: 0 },
     cursorTrailConfig: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,

@@ -70,12 +70,10 @@ export const PLAYGROUND_FIELD_HELP = {
     "Gradient plateau width across streak thickness (0 = wide solid core, looks harder; 1 = narrow core with longer fades).",
   flamesOpacityMin: "Minimum peak opacity for each flame streak (0–1).",
   flamesOpacityMax: "Maximum peak opacity for each flame streak (0–1).",
-  flamesEdgeMaskEnabled:
-    "Reduce how much flames brighten luminance near canvas edges (preview texture and stripe width sampling). Stripe opacity stays unchanged.",
-  flamesEdgeMaskStart: "Inset from each canvas edge where masked flame luminance stays 0 (percent of width/height).",
-  flamesEdgeMaskEnd:
-    "Inset from each canvas edge where masked flame luminance reaches full strength. Must be greater than mask start.",
-  flamesEdgeMaskPower: "Curve shaping for the flame luminance ramp (1 = linear, higher = softer mid-fade).",
+  edgeMaskEnabled: "Fade the whole render field to background near the canvas edges (after effects, before stripes).",
+  edgeMaskStart: "Inset from each canvas edge where the field stays fully hidden (percent of width/height).",
+  edgeMaskEnd: "Inset from each canvas edge where the field is fully shown. Must be greater than start.",
+  edgeMaskPower: "Curve shaping for the edge fade ramp (1 = linear, higher = softer mid-fade).",
 
   revealEnabled: "Show or hide the reveal animation applied before stripe thresholds are calculated.",
   revealType: "Reveal style: Wave expands a feathered front; Assembly flies glowing circles in to build the texture.",

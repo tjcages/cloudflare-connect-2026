@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PlaygroundLevaControls } from "./playgroundLevaControls";
 import {
   DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+  DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
@@ -39,6 +40,7 @@ const SHADER_RESET_KEYS = [
   ["Sparkle Gaps", "sparkleGapsReset"],
   ["Sparkle Width", "sparkleWidthReset"],
   ["Background Flames", "backgroundFlamesReset"],
+  ["Edge Mask", "edgeMaskReset"],
   ["Cursor Trail", "cursorTrailReset"],
   ["Cursor Click", "cursorClickReset"],
 ] as const;
@@ -138,6 +140,11 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onFlamesLiveChange={() => {}}
       onResetFlames={() => {}}
       flamesModified={false}
+      edgeMaskConfig={DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG}
+      onEdgeMaskChange={() => {}}
+      onEdgeMaskLiveChange={() => {}}
+      onResetEdgeMask={() => {}}
+      edgeMaskModified={false}
       cursorTrailConfig={DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG}
       onCursorTrailChange={() => {}}
       onCursorTrailLiveChange={() => {}}
@@ -262,7 +269,7 @@ describe("PlaygroundLevaControls", () => {
       sparkleGapsSpeedDisabled: false,
       sparkleWidthSpeedDisabled: false,
       flamesFieldsDisabled: false,
-      flamesMaskDisabled: false,
+      edgeMaskFieldsDisabled: false,
       cursorTrailFieldsDisabled: false,
       cursorClickFieldsDisabled: false,
       revealFieldsDisabled: true,
@@ -279,6 +286,7 @@ describe("PlaygroundLevaControls", () => {
       sparkleWidthActivePercent: 0.3,
       sparkleWidthSpeed: 1,
       flamesConfig: DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+      edgeMaskConfig: DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
       cursorTrailConfig: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
       clickWaveConfig: DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
       revealConfig: DEFAULT_PLAYGROUND_REVEAL_CONFIG,
@@ -293,6 +301,7 @@ describe("PlaygroundLevaControls", () => {
       sparkleGapsModified: false,
       sparkleWidthModified: false,
       flamesModified: false,
+      edgeMaskModified: false,
       cursorTrailModified: false,
       cursorClickModified: false,
       revealModified: false,
@@ -334,6 +343,9 @@ describe("PlaygroundLevaControls", () => {
       onFlamesLive: noop,
       onFlamesCommit: noop,
       resetFlames: noop,
+      onEdgeMaskLive: noop,
+      onEdgeMaskCommit: noop,
+      resetEdgeMask: noop,
       onCursorTrailLive: noop,
       onCursorTrailCommit: noop,
       resetCursorTrail: noop,
@@ -377,7 +389,7 @@ describe("PlaygroundLevaControls", () => {
       sparkleGapsSpeedDisabled: false,
       sparkleWidthSpeedDisabled: false,
       flamesFieldsDisabled: false,
-      flamesMaskDisabled: false,
+      edgeMaskFieldsDisabled: false,
       cursorTrailFieldsDisabled: false,
       cursorClickFieldsDisabled: false,
       revealFieldsDisabled: true,
@@ -397,6 +409,7 @@ describe("PlaygroundLevaControls", () => {
       sparkleWidthActivePercent: 0.3,
       sparkleWidthSpeed: 1,
       flamesConfig: DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+      edgeMaskConfig: DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
       cursorTrailConfig: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
       clickWaveConfig: DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
       revealConfig: DEFAULT_PLAYGROUND_REVEAL_CONFIG,
@@ -411,6 +424,7 @@ describe("PlaygroundLevaControls", () => {
       sparkleGapsModified: false,
       sparkleWidthModified: false,
       flamesModified: false,
+      edgeMaskModified: false,
       cursorTrailModified: false,
       cursorClickModified: false,
       revealModified: false,
@@ -452,6 +466,9 @@ describe("PlaygroundLevaControls", () => {
       onFlamesLive: noop,
       onFlamesCommit: noop,
       resetFlames: noop,
+      onEdgeMaskLive: noop,
+      onEdgeMaskCommit: noop,
+      resetEdgeMask: noop,
       onCursorTrailLive: noop,
       onCursorTrailCommit: noop,
       resetCursorTrail: noop,
@@ -488,7 +505,7 @@ describe("PlaygroundLevaControls", () => {
       sparkleGapsSpeedDisabled: false,
       sparkleWidthSpeedDisabled: false,
       flamesFieldsDisabled: false,
-      flamesMaskDisabled: false,
+      edgeMaskFieldsDisabled: false,
       cursorTrailFieldsDisabled: false,
       cursorClickFieldsDisabled: false,
       revealFieldsDisabled: true,
@@ -505,6 +522,7 @@ describe("PlaygroundLevaControls", () => {
       sparkleWidthActivePercent: 0.3,
       sparkleWidthSpeed: 1,
       flamesConfig: DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+      edgeMaskConfig: DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
       cursorTrailConfig: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
       clickWaveConfig: DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
       revealConfig: DEFAULT_PLAYGROUND_REVEAL_CONFIG,
@@ -519,6 +537,7 @@ describe("PlaygroundLevaControls", () => {
       sparkleGapsModified: false,
       sparkleWidthModified: false,
       flamesModified: false,
+      edgeMaskModified: false,
       cursorTrailModified: false,
       cursorClickModified: false,
       revealModified: false,
@@ -560,6 +579,9 @@ describe("PlaygroundLevaControls", () => {
       onFlamesLive: noop,
       onFlamesCommit: noop,
       resetFlames: noop,
+      onEdgeMaskLive: noop,
+      onEdgeMaskCommit: noop,
+      resetEdgeMask: noop,
       onCursorTrailLive: noop,
       onCursorTrailCommit: noop,
       resetCursorTrail: noop,

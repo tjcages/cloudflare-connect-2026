@@ -34,6 +34,11 @@ import {
   DEFAULT_PLAYGROUND_FLAMES_CONFIG,
 } from "./playgroundFlamesConfig";
 import {
+  type PlaygroundEdgeMaskConfig,
+  normalizePlaygroundEdgeMaskConfig,
+  DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
+} from "./playgroundEdgeMaskConfig";
+import {
   type PlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
@@ -104,6 +109,8 @@ export type StripesShaderConfig = {
   grid?: PlaygroundGridConfig;
   /** Background flame streak settings. */
   flames?: PlaygroundFlamesConfig;
+  /** Global edge mask: fades the whole render field near canvas edges before stripe bucketing. */
+  edgeMask?: PlaygroundEdgeMaskConfig;
   /** Reveal animation settings. */
   reveal?: PlaygroundRevealConfig;
   /** Cursor trail settings. */
@@ -133,6 +140,7 @@ export const DEFAULT_STRIPES_SHADER_CONFIG: StripesShaderConfig = {
   sparkleWidthSpeed: DEFAULT_PLAYGROUND_SPARKLE_WIDTH_SPEED,
   grid: DEFAULT_PLAYGROUND_GRID_CONFIG,
   flames: DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+  edgeMask: DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
   reveal: DEFAULT_PLAYGROUND_REVEAL_CONFIG,
   cursorTrail: DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   clickWave: DEFAULT_PLAYGROUND_CLICK_WAVE_CONFIG,
@@ -199,6 +207,7 @@ export function normalizeStripesShaderConfig(input: Partial<StripesShaderConfig>
     // sub-configs via their own normalizers
     grid: normalizePlaygroundGridConfig(input.grid),
     flames: normalizePlaygroundFlamesConfig(input.flames),
+    edgeMask: normalizePlaygroundEdgeMaskConfig(input.edgeMask),
     reveal: normalizePlaygroundRevealConfig(input.reveal),
     cursorTrail: normalizePlaygroundCursorTrailConfig(input.cursorTrail),
     clickWave: normalizePlaygroundClickWaveConfig(input.clickWave),

@@ -18,6 +18,7 @@ import {
   normalizePlaygroundBackgroundColor,
   resolvePersistedGridConfig,
   resolvePersistedFlamesConfig,
+  resolvePersistedEdgeMaskConfig,
   resolvePersistedRevealConfig,
   resolvePersistedCursorTrailConfig,
   resolvePersistedClickWaveConfig,
@@ -98,6 +99,10 @@ import {
   isDefaultPlaygroundFlamesConfig,
   normalizePlaygroundFlamesConfig,
   type PlaygroundFlamesConfig,
+  DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
+  isDefaultPlaygroundEdgeMaskConfig,
+  normalizePlaygroundEdgeMaskConfig,
+  type PlaygroundEdgeMaskConfig,
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
@@ -281,6 +286,7 @@ function applyPersistedConfig(config: PlaygroundPersistedConfig) {
     displayHeight: config.displayHeight,
     grid: resolvePersistedGridConfig(config),
     flames: resolvePersistedFlamesConfig(config),
+    edgeMask: resolvePersistedEdgeMaskConfig(config),
     reveal: resolvePersistedRevealConfig(config),
     cursorTrail: resolvePersistedCursorTrailConfig(config),
     clickWave: resolvePersistedClickWaveConfig(config),
@@ -338,6 +344,7 @@ export function TexturePlayground() {
   const [overlayStripes, setOverlayStripes] = useState<Stripe[]>(() => appliedInitial.overlayStripes);
   const [gridConfig, setGridConfig] = useState<PlaygroundGridConfig>(appliedInitial.grid);
   const [flamesConfig, setFlamesConfig] = useState<PlaygroundFlamesConfig>(appliedInitial.flames);
+  const [edgeMaskConfig, setEdgeMaskConfig] = useState<PlaygroundEdgeMaskConfig>(appliedInitial.edgeMask);
   const [revealConfig, setRevealConfig] = useState<PlaygroundRevealConfig>(appliedInitial.reveal);
   const [cursorTrailConfig, setCursorTrailConfig] = useState<PlaygroundCursorTrailConfig>(appliedInitial.cursorTrail);
   const [clickWaveConfig, setClickWaveConfig] = useState<PlaygroundClickWaveConfig>(appliedInitial.clickWave);
@@ -372,6 +379,7 @@ export function TexturePlayground() {
   const stripeColorsRef = useRef<StripeColors>({ stripes });
   const gridConfigRef = useRef<PlaygroundGridConfig>(gridConfig);
   const flamesConfigRef = useRef<PlaygroundFlamesConfig>(flamesConfig);
+  const edgeMaskConfigRef = useRef<PlaygroundEdgeMaskConfig>(edgeMaskConfig);
   const revealConfigRef = useRef<PlaygroundRevealConfig>(revealConfig);
   const cursorTrailConfigRef = useRef<PlaygroundCursorTrailConfig>(cursorTrailConfig);
   const clickWaveConfigRef = useRef<PlaygroundClickWaveConfig>(clickWaveConfig);
@@ -379,6 +387,7 @@ export function TexturePlayground() {
   // Set during render so a scene rebuild (sceneKey change) reads fresh structural values.
   gridConfigRef.current = gridConfig;
   flamesConfigRef.current = flamesConfig;
+  edgeMaskConfigRef.current = edgeMaskConfig;
   revealConfigRef.current = revealConfig;
   cursorTrailConfigRef.current = cursorTrailConfig;
   clickWaveConfigRef.current = clickWaveConfig;
@@ -519,6 +528,7 @@ export function TexturePlayground() {
       backgroundColor: backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? backgroundColor : undefined,
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
+      edgeMask: isDefaultPlaygroundEdgeMaskConfig(edgeMaskConfig) ? undefined : edgeMaskConfig,
       reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
       cursorTrail: isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig) ? undefined : cursorTrailConfig,
       clickWave: isDefaultPlaygroundClickWaveConfig(clickWaveConfig) ? undefined : clickWaveConfig,
@@ -543,6 +553,7 @@ export function TexturePlayground() {
     backgroundColor,
     gridConfig,
     flamesConfig,
+    edgeMaskConfig,
     revealConfig,
     cursorTrailConfig,
     clickWaveConfig,
@@ -586,9 +597,11 @@ export function TexturePlayground() {
       }
       setGridConfig(next.grid);
       setFlamesConfig(next.flames);
+      setEdgeMaskConfig(next.edgeMask);
       setRevealConfig(next.reveal);
       setCursorTrailConfig(next.cursorTrail);
       setClickWaveConfig(next.clickWave);
+      edgeMaskConfigRef.current = next.edgeMask;
       revealConfigRef.current = next.reveal;
       cursorTrailConfigRef.current = next.cursorTrail;
       clickWaveConfigRef.current = next.clickWave;
@@ -678,6 +691,10 @@ export function TexturePlayground() {
 
   const throttledSetFlamesConfig = useThrottledCallback((next: PlaygroundFlamesConfig) => {
     setFlamesConfig(next);
+  }, PLAYGROUND_SCRUB_COMMIT_MS);
+
+  const throttledSetEdgeMaskConfig = useThrottledCallback((next: PlaygroundEdgeMaskConfig) => {
+    setEdgeMaskConfig(next);
   }, PLAYGROUND_SCRUB_COMMIT_MS);
 
   const throttledSetCursorTrailConfig = useThrottledCallback((next: PlaygroundCursorTrailConfig) => {
@@ -819,6 +836,26 @@ export function TexturePlayground() {
     flamesConfigRef.current = { ...DEFAULT_PLAYGROUND_FLAMES_CONFIG };
     flamesStateRef.current = createPlaygroundFlamesState();
     setFlamesConfig({ ...DEFAULT_PLAYGROUND_FLAMES_CONFIG });
+  }, []);
+
+  const updateEdgeMaskConfigLive = useCallback(
+    (patch: Partial<PlaygroundEdgeMaskConfig>) => {
+      const next = normalizePlaygroundEdgeMaskConfig({ ...edgeMaskConfigRef.current, ...patch });
+      edgeMaskConfigRef.current = next;
+      throttledSetEdgeMaskConfig(next);
+    },
+    [throttledSetEdgeMaskConfig],
+  );
+
+  const updateEdgeMaskConfig = useCallback((patch: Partial<PlaygroundEdgeMaskConfig>) => {
+    const next = normalizePlaygroundEdgeMaskConfig({ ...edgeMaskConfigRef.current, ...patch });
+    edgeMaskConfigRef.current = next;
+    setEdgeMaskConfig(next);
+  }, []);
+
+  const resetEdgeMask = useCallback(() => {
+    edgeMaskConfigRef.current = { ...DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG };
+    setEdgeMaskConfig({ ...DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG });
   }, []);
 
   const updateCursorTrailConfigLive = useCallback(
@@ -1093,6 +1130,7 @@ export function TexturePlayground() {
   const backgroundCssActive = normalizePlaygroundBackgroundCss(backgroundCss) !== undefined;
   const backgroundModified = backgroundCssActive || backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR;
   const flamesModified = !isDefaultPlaygroundFlamesConfig(flamesConfig);
+  const edgeMaskModified = !isDefaultPlaygroundEdgeMaskConfig(edgeMaskConfig);
   const cursorTrailModified = !isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig);
   const cursorClickModified = !isDefaultPlaygroundClickWaveConfig(clickWaveConfig);
   const revealModified = !isDefaultPlaygroundRevealConfig(revealConfig);
@@ -1321,6 +1359,7 @@ export function TexturePlayground() {
           textureLuminanceSettings: textureLuminanceSettingsRef.current,
           sourceTransform: sourceTransformRef.current,
           flamesConfig: flamesConfigRef.current,
+          edgeMaskConfig: edgeMaskConfigRef.current,
           revealConfig: revealConfigRef.current,
           revealPlayback: revealPlaybackRef.current,
           cursorTrailConfig: cursorTrailConfigRef.current,
@@ -1343,6 +1382,7 @@ export function TexturePlayground() {
     displaySize,
     flamesStateRef,
     flamesConfigRef,
+    edgeMaskConfigRef,
     cursorTrailConfigRef,
     clickWaveConfigRef,
     onTextureLuminanceSettingsDetected,
@@ -1394,6 +1434,7 @@ export function TexturePlayground() {
       backgroundColor: backgroundColor !== DEFAULT_PLAYGROUND_BACKGROUND_COLOR ? backgroundColor : undefined,
       grid: isDefaultPlaygroundGridConfig(gridConfig) ? undefined : gridConfig,
       flames: isDefaultPlaygroundFlamesConfig(flamesConfig) ? undefined : flamesConfig,
+      edgeMask: isDefaultPlaygroundEdgeMaskConfig(edgeMaskConfig) ? undefined : edgeMaskConfig,
       reveal: isDefaultPlaygroundRevealConfig(revealConfig) ? undefined : revealConfig,
       cursorTrail: isDefaultPlaygroundCursorTrailConfig(cursorTrailConfig) ? undefined : cursorTrailConfig,
       clickWave: isDefaultPlaygroundClickWaveConfig(clickWaveConfig) ? undefined : clickWaveConfig,
@@ -1416,6 +1457,7 @@ export function TexturePlayground() {
     backgroundColor,
     gridConfig,
     flamesConfig,
+    edgeMaskConfig,
     revealConfig,
     cursorTrailConfig,
     clickWaveConfig,
@@ -1605,6 +1647,7 @@ export function TexturePlayground() {
       luminanceSettings: textureLuminanceSettings,
       flamesState: flamesStateRef.current,
       flamesConfig: flamesConfigRef.current,
+      edgeMask: edgeMaskConfigRef.current,
     });
     const svg = stripeGridToSvg(built.grid, colors, display.width, display.height, {
       useCellColors: textureLuminanceSettings.mode === "colors",
@@ -1720,6 +1763,11 @@ export function TexturePlayground() {
     onFlamesLiveChange: updateFlamesConfigLive,
     onResetFlames: resetFlames,
     flamesModified,
+    edgeMaskConfig,
+    onEdgeMaskChange: updateEdgeMaskConfig,
+    onEdgeMaskLiveChange: updateEdgeMaskConfigLive,
+    onResetEdgeMask: resetEdgeMask,
+    edgeMaskModified,
     cursorTrailConfig,
     onCursorTrailChange: updateCursorTrailConfig,
     onCursorTrailLiveChange: updateCursorTrailConfigLive,

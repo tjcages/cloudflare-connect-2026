@@ -11,6 +11,7 @@ import {
 import { normalizeTextureLuminanceMode, type TextureLuminanceSettings } from "./colorWhiteness";
 import { PlaygroundFlamesRaster, rasterizePlaygroundFlames, type PlaygroundFlamesState } from "./playgroundFlames";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import type { PlaygroundEdgeMaskConfig } from "./playgroundEdgeMaskConfig";
 import {
   promoteColorsModeIndicesInRegion,
   resolveStripeIndicesInRegion,
@@ -85,7 +86,6 @@ function resolveFlamesLuminanceContribution(
     pixels: raster.data,
     imageWidth: displayWidth,
     imageHeight: displayHeight,
-    mask: flamesConfig,
   };
 }
 
@@ -161,6 +161,8 @@ export type PlaygroundGridBuildOptions = {
   flamesState?: PlaygroundFlamesState | null;
   flamesConfig?: PlaygroundFlamesConfig | null;
   flamesRaster?: PlaygroundFlamesRaster;
+  /** Global edge mask: fades per-cell luma near canvas edges in the CPU block map + export. */
+  edgeMask?: PlaygroundEdgeMaskConfig;
   /** When set with `previousLumaGrid`, only recompute stripe cells inside this region. */
   dirtyRegion?: GridCellRegion;
   previousLumaGrid?: LumaGrid;
@@ -213,6 +215,7 @@ export function buildPlaygroundBlockGrid(
         options.luminanceSettings,
         options.preprocessCache,
         options.pixelDirtyBounds,
+        options.edgeMask,
       )
     : computeBlockGrid(
         frame.data,
@@ -224,6 +227,7 @@ export function buildPlaygroundBlockGrid(
         options.textureAdjustments ?? DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
         flames,
         options.luminanceSettings,
+        options.edgeMask,
       );
 
   const stableIndices = buildIndicesFromLumaGrid(

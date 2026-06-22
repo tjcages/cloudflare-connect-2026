@@ -1,5 +1,6 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
+import type { PlaygroundEdgeMaskConfig } from "./playgroundEdgeMaskConfig";
 import { resolveWaveRevealGeometry } from "./playgroundReveal";
 import { resolvePlaygroundRevealDurationMs, type PlaygroundRevealConfig } from "./playgroundRevealConfig";
 import { STRIPE_FILTER_FRAGMENT, STRIPE_FILTER_VERTEX } from "./stripeFilterShaders";
@@ -41,6 +42,8 @@ export type StripeDuotoneFilter = Filter & {
   updateBlockMap: (blockMap: Texture) => void;
   updateCellColorMap: (cellColorMap: Texture) => void;
   syncFlames: (texture: Texture | null, config: PlaygroundFlamesConfig | null) => void;
+  /** Global edge mask uniforms: fades the whole field near canvas edges before stripe bucketing. */
+  syncEdgeMask: (config: PlaygroundEdgeMaskConfig | null) => void;
   syncCursorTrail: (trail: Texture | null, pushTexture: Texture | null, pushRange: number) => void;
   /** GPU wave reveal mask: null disables it; progress may run past 1 for the ramp tail. */
   syncReveal: (config: PlaygroundRevealConfig | null, progress: number) => void;
@@ -104,10 +107,10 @@ export function createStripeDuotoneFilter(
     uWidthShufflePeriodMaxSec: { value: DEFAULT_PLAYGROUND_WIDTH_SHUFFLE_OPTIONS.periodMaxSec, type: "f32" },
     uScreenScale: { value: 1, type: "f32" },
     uFlamesEnabled: { value: 0, type: "f32" },
-    uFlamesMaskEnabled: { value: 0, type: "f32" },
-    uFlamesMaskStart: { value: 0, type: "f32" },
-    uFlamesMaskEnd: { value: 0.1, type: "f32" },
-    uFlamesMaskPower: { value: 1, type: "f32" },
+    uEdgeMaskEnabled: { value: 0, type: "f32" },
+    uEdgeMaskStart: { value: 0, type: "f32" },
+    uEdgeMaskEnd: { value: 0.1, type: "f32" },
+    uEdgeMaskPower: { value: 1, type: "f32" },
     uInvertStripeBucketing: { value: 0, type: "f32" },
     uCursorTrailEnabled: { value: 0, type: "f32" },
     uCursorTrailPushEnabled: { value: 0, type: "f32" },
@@ -256,17 +259,23 @@ export function createStripeDuotoneFilter(
     filter.resources.uFlames = flamesTexture.source;
     const uniforms = stripeUniforms.uniforms as {
       uFlamesEnabled: number;
-      uFlamesMaskEnabled: number;
-      uFlamesMaskStart: number;
-      uFlamesMaskEnd: number;
-      uFlamesMaskPower: number;
     };
     const enabled = Boolean(config?.enabled);
     uniforms.uFlamesEnabled = enabled ? 1 : 0;
-    uniforms.uFlamesMaskEnabled = enabled && config?.edgeMaskEnabled !== false ? 1 : 0;
-    uniforms.uFlamesMaskStart = config?.edgeMaskStart ?? 0;
-    uniforms.uFlamesMaskEnd = config?.edgeMaskEnd ?? 0.1;
-    uniforms.uFlamesMaskPower = config?.edgeMaskPower ?? 1;
+    stripeUniforms.update();
+  };
+
+  filter.syncEdgeMask = (config) => {
+    const uniforms = stripeUniforms.uniforms as {
+      uEdgeMaskEnabled: number;
+      uEdgeMaskStart: number;
+      uEdgeMaskEnd: number;
+      uEdgeMaskPower: number;
+    };
+    uniforms.uEdgeMaskEnabled = config?.enabled ? 1 : 0;
+    uniforms.uEdgeMaskStart = config?.start ?? 0;
+    uniforms.uEdgeMaskEnd = config?.end ?? 0.1;
+    uniforms.uEdgeMaskPower = config?.power ?? 1;
     stripeUniforms.update();
   };
 

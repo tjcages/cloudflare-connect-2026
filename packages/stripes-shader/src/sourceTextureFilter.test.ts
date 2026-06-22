@@ -39,14 +39,15 @@ describe("SOURCE_TEXTURE_FILTER_FRAGMENT", () => {
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("sampleFilteredSourceRgb");
   });
 
-  it("blends flames over the preview so they stay visible on bright pixels", () => {
+  it("composites flames as additive white light (un-premultiplied, never darkening bright pixels)", () => {
     expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uniform sampler2D uFlames");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("return mix(sourceRgb, flameRgb, flameCover);");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("flamesEdgeMask(vDisplayCoord)");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("vec3 flameColor = clamp(flameRgb / flameCover, 0.0, 1.0);");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("return mix(sourceRgb, flameColor, flameCover);");
   });
 
-  it("fades flames near canvas edges with configurable inset ramp", () => {
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uFlamesMaskStart");
-    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("uFlamesMaskEnd");
+  it("merges flames unmasked (the global edge mask is applied later, not in the source filter)", () => {
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).toContain("vec3 flameRgb = flame;");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).not.toContain("flamesEdgeMask");
+    expect(SOURCE_TEXTURE_FILTER_FRAGMENT).not.toContain("uFlamesMask");
   });
 });

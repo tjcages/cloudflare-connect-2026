@@ -39,6 +39,10 @@ import {
   isDefaultPlaygroundFlamesConfig,
   normalizePlaygroundFlamesConfig,
   type PlaygroundFlamesConfig,
+  DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
+  isDefaultPlaygroundEdgeMaskConfig,
+  normalizePlaygroundEdgeMaskConfig,
+  type PlaygroundEdgeMaskConfig,
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
@@ -123,6 +127,10 @@ export function resolvePersistedFlamesConfig(config: PlaygroundPersistedConfig):
   return normalizePlaygroundFlamesConfig(config.flames);
 }
 
+export function resolvePersistedEdgeMaskConfig(config: PlaygroundPersistedConfig): PlaygroundEdgeMaskConfig {
+  return normalizePlaygroundEdgeMaskConfig(config.edgeMask);
+}
+
 export function resolvePersistedRevealConfig(config: PlaygroundPersistedConfig): PlaygroundRevealConfig {
   return normalizePlaygroundRevealConfig(config.reveal);
 }
@@ -202,6 +210,8 @@ export type PlaygroundStateWire = {
   os?: StripeWire[];
   /** v6+: background flame settings. */
   fl?: FlamesWire;
+  /** v7+: global render-field edge mask settings. */
+  mk?: EdgeMaskWire;
   /** v7+: reveal animation settings. */
   rv?: RevealWire;
   /** v7+: cursor trail settings. */
@@ -254,10 +264,13 @@ type FlamesWire = {
   es?: number;
   omin?: number;
   omax?: number;
-  em?: boolean;
-  ms?: number;
-  me?: number;
-  mp?: number;
+};
+
+type EdgeMaskWire = {
+  en?: boolean;
+  s?: number;
+  e?: number;
+  p?: number;
 };
 
 type CursorTrailWire = {
@@ -426,10 +439,6 @@ function flamesToWire(config: PlaygroundFlamesConfig): FlamesWire | undefined {
   if (normalized.edgeSharpness !== base.edgeSharpness) wire.es = normalized.edgeSharpness;
   if (normalized.opacityMin !== base.opacityMin) wire.omin = normalized.opacityMin;
   if (normalized.opacityMax !== base.opacityMax) wire.omax = normalized.opacityMax;
-  if (normalized.edgeMaskEnabled !== base.edgeMaskEnabled) wire.em = normalized.edgeMaskEnabled;
-  if (normalized.edgeMaskStart !== base.edgeMaskStart) wire.ms = normalized.edgeMaskStart;
-  if (normalized.edgeMaskEnd !== base.edgeMaskEnd) wire.me = normalized.edgeMaskEnd;
-  if (normalized.edgeMaskPower !== base.edgeMaskPower) wire.mp = normalized.edgeMaskPower;
   return wire;
 }
 
@@ -453,10 +462,33 @@ function wireToFlames(raw: unknown): PlaygroundFlamesConfig | undefined {
     edgeSharpness: wire.es,
     opacityMin: wire.omin,
     opacityMax: wire.omax,
-    edgeMaskEnabled: wire.em,
-    edgeMaskStart: wire.ms,
-    edgeMaskEnd: wire.me,
-    edgeMaskPower: wire.mp,
+  });
+}
+
+function edgeMaskToWire(config: PlaygroundEdgeMaskConfig): EdgeMaskWire | undefined {
+  const normalized = normalizePlaygroundEdgeMaskConfig(config);
+  if (isDefaultPlaygroundEdgeMaskConfig(normalized)) {
+    return undefined;
+  }
+  const base = DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG;
+  const wire: EdgeMaskWire = {};
+  if (normalized.enabled !== base.enabled) wire.en = normalized.enabled;
+  if (normalized.start !== base.start) wire.s = normalized.start;
+  if (normalized.end !== base.end) wire.e = normalized.end;
+  if (normalized.power !== base.power) wire.p = normalized.power;
+  return wire;
+}
+
+function wireToEdgeMask(raw: unknown): PlaygroundEdgeMaskConfig | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const wire = raw as EdgeMaskWire;
+  return normalizePlaygroundEdgeMaskConfig({
+    enabled: wire.en,
+    start: wire.s,
+    end: wire.e,
+    power: wire.p,
   });
 }
 
@@ -912,6 +944,8 @@ export function serializePlaygroundState(config: LegacyPlaygroundConfigInput): s
   const sourceTransformWire = sourceTransformToWire(sourceTransform);
   const flames = resolvePersistedFlamesConfig(config);
   const flamesWire = flamesToWire(flames);
+  const edgeMask = resolvePersistedEdgeMaskConfig(config);
+  const edgeMaskWire = edgeMaskToWire(edgeMask);
   const reveal = resolvePersistedRevealConfig(config);
   const revealWire = revealToWire(reveal);
   const cursorTrail = resolvePersistedCursorTrailConfig(config);
@@ -967,6 +1001,10 @@ export function serializePlaygroundState(config: LegacyPlaygroundConfigInput): s
   if (flamesWire) {
     wire.fl = flamesWire;
     wire.v = 6;
+  }
+  if (edgeMaskWire) {
+    wire.mk = edgeMaskWire;
+    wire.v = 7;
   }
   if (revealWire) {
     wire.rv = revealWire;
@@ -1155,6 +1193,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
   const textureLuminanceBackgroundColor = normalizeTextureLuminanceBackgroundColor(parsed.tbg);
   const sourceTransform = wireToSourceTransform(parsed.xf);
   const flames = wireToFlames(parsed.fl);
+  const edgeMask = wireToEdgeMask(parsed.mk);
   const reveal = wireToReveal(parsed.rv);
   const cursorTrail = wireToCursorTrail(parsed.ct);
   const clickWave = wireToClickWave(parsed.cc);
@@ -1185,6 +1224,7 @@ export function parsePlaygroundStateInput(text: string): PlaygroundPersistedConf
           })(),
     grid: grid && !isDefaultPlaygroundGridConfig(grid) ? grid : undefined,
     flames: flames && !isDefaultPlaygroundFlamesConfig(flames) ? flames : undefined,
+    edgeMask: edgeMask && !isDefaultPlaygroundEdgeMaskConfig(edgeMask) ? edgeMask : undefined,
     reveal: reveal && !isDefaultPlaygroundRevealConfig(reveal) ? reveal : undefined,
     cursorTrail: cursorTrail && !isDefaultPlaygroundCursorTrailConfig(cursorTrail) ? cursorTrail : undefined,
     clickWave: clickWave && !isDefaultPlaygroundClickWaveConfig(clickWave) ? clickWave : undefined,

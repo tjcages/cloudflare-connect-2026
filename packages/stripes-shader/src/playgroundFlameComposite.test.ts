@@ -26,4 +26,14 @@ describe("mergeFlameColorBytes", () => {
     expect(merged.g).toBe(40);
     expect(merged.b).toBe(20);
   });
+
+  it("brightens (never darkens) a bright source under a partial white flame", () => {
+    // The flame raster is white drawn over opaque black, so a half-coverage white streak reads
+    // as premultiplied gray (128,128,128). Compositing it must add white light, not pull the
+    // bright cell down toward gray.
+    const merged = mergeFlameColorBytes(230, 230, 230, 128, 128, 128, 1);
+    expect(merged.r).toBeGreaterThanOrEqual(230);
+    expect(merged.g).toBeGreaterThanOrEqual(230);
+    expect(merged.b).toBeGreaterThanOrEqual(230);
+  });
 });

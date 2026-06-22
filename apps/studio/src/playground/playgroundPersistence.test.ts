@@ -16,6 +16,7 @@ import {
   DEFAULT_PLAYGROUND_GRID_CONFIG,
   DEFAULT_PLAYGROUND_TEXTURE_ADJUSTMENTS,
   DEFAULT_PLAYGROUND_FLAMES_CONFIG,
+  DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
   DEFAULT_PLAYGROUND_CURSOR_TRAIL_CONFIG,
   type PlaygroundCursorTrailConfig,
 } from "@necatikcl/stripes-shader";
@@ -273,6 +274,57 @@ describe("playgroundPersistence envelope migration", () => {
 
     expect(wire.fl).toBeUndefined();
     expect(parsePlaygroundStateInput(text).flames).toBeUndefined();
+  });
+
+  it("never carries edge mask data on the flames wire", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      flames: { ...DEFAULT_PLAYGROUND_FLAMES_CONFIG, enabled: true, baseSpeedPxPerSec: 90 },
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.fl).toBeDefined();
+    expect(wire.fl).not.toHaveProperty("em");
+    expect(wire.fl).not.toHaveProperty("ms");
+    expect(wire.fl).not.toHaveProperty("me");
+    expect(wire.fl).not.toHaveProperty("mp");
+  });
+
+  it("round-trips non-default edge mask config as wire v7", () => {
+    const edgeMask = {
+      ...DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG,
+      enabled: true,
+      start: 0.05,
+      end: 0.2,
+      power: 2,
+    };
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      edgeMask,
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.v).toBe(7);
+    expect(wire.mk).toEqual({ en: true, s: 0.05, e: 0.2, p: 2 });
+    const parsed = parsePlaygroundStateInput(text);
+    expect(parsed.edgeMask?.enabled).toBe(true);
+    expect(parsed.edgeMask?.start).toBe(0.05);
+    expect(parsed.edgeMask?.end).toBe(0.2);
+    expect(parsed.edgeMask?.power).toBe(2);
+  });
+
+  it("omits default edge mask config from copied state", () => {
+    const text = serializePlaygroundState({
+      duotoneEnabled: true,
+      edgeMask: { ...DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG },
+      stripes: DEFAULT_STRIPES.map((stripe) => ({ ...stripe })),
+    });
+    const wire = JSON.parse(text);
+
+    expect(wire.mk).toBeUndefined();
+    expect(parsePlaygroundStateInput(text).edgeMask).toBeUndefined();
   });
 
   it("omits blank background CSS from copied state", () => {

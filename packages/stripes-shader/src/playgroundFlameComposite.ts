@@ -1,4 +1,4 @@
-/** Blend source + flame RGB to match preview shader mix(source, flame, flameCover). */
+/** Composite premultiplied flame RGB over the source as light (mirrors the preview shader). */
 export function mergeFlameColorBytes(
   sourceR: number,
   sourceG: number,
@@ -16,13 +16,18 @@ export function mergeFlameColorBytes(
     return { r: sourceR, g: sourceG, b: sourceB, hasFlame: false };
   }
 
+  // The flame raster is white/colored streaks drawn over opaque black, so flameR/G/B are
+  // premultiplied (channel = straightColor * coverage). Un-premultiply to the straight color
+  // before compositing so partial-coverage flames add light toward the flame color (white =
+  // brighter cells), instead of pulling bright cells down toward gray/black.
+  const unpremul = (flame: number) => Math.min(255, flame / flameCover);
   const mixChannel = (source: number, flame: number) =>
     Math.round(Math.min(255, Math.max(0, source + (flame - source) * flameCover)));
 
   return {
-    r: mixChannel(sourceR, fr),
-    g: mixChannel(sourceG, fg),
-    b: mixChannel(sourceB, fb),
+    r: mixChannel(sourceR, unpremul(fr)),
+    g: mixChannel(sourceG, unpremul(fg)),
+    b: mixChannel(sourceB, unpremul(fb)),
     hasFlame: fr > 0 || fg > 0 || fb > 0,
   };
 }
