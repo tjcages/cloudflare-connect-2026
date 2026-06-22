@@ -20,6 +20,11 @@ export function createGpuTimer(gl: WebGL2RenderingContext): GpuTimer {
   return {
     supported: true,
     begin(name: string) {
+      if (active) {
+        gl.endQuery(ext.TIME_ELAPSED_EXT);
+        pending.push(active);
+        active = null;
+      }
       const query = gl.createQuery();
       if (!query) return;
       active = { name, query };

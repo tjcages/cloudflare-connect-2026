@@ -22,6 +22,7 @@ Use `pi` (install) and `pir` (run scripts). Never `npm`, `pnpm`, `yarn`, or `npx
 - Typecheck new engine: `pir --filter @necatikcl/stripes-engine typecheck`
 - Unit tests: `pir test`
 - E2E / visual goldens: `pir test:e2e`
+- Live-product changes (`apps/studio` + `packages/stripes-shader`) are verified with `pir verify`.
 - Docs/rules-only changes: verify frontmatter, links, paths, and stale references.
 - Do not claim completion without fresh verification evidence.
 

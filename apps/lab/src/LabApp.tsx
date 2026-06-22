@@ -66,6 +66,7 @@ export function LabApp() {
     return () => {
       if (raf) cancelAnimationFrame(raf);
       engine.dispose();
+      (window as unknown as { __lab?: unknown }).__lab = undefined;
     };
   }, []);
 

@@ -5,8 +5,8 @@ test("renders 4K within the 60fps budget", async ({ page }) => {
   await page.goto("/?seed=1&dpr=1&w=3840&h=2160");
   await page.waitForFunction(() => (window as any).__lab !== undefined);
   await page.bringToFront();
-  // Warm up, then sample ~2s of real rAF frames.
-  await page.waitForTimeout(2500);
+  // Wait until enough frames have accumulated (replaces a fixed 2500ms timeout).
+  await page.waitForFunction(() => ((window as any).__lab?.snapshot?.().sampleCount ?? 0) > 60, { timeout: 15_000 });
   const snap = await page.evaluate(() => (window as any).__lab.snapshot());
   console.log("perf @4K:", JSON.stringify(snap));
   expect(snap.sampleCount).toBeGreaterThan(30);

@@ -11,7 +11,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "vitest run"
   },
   "devDependencies": {
     "typescript": "^6.0.3",

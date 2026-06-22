@@ -21,7 +21,11 @@ export function createRenderTarget(
 ): RenderTarget {
   const texture = gl.createTexture();
   const fbo = gl.createFramebuffer();
-  if (!texture || !fbo) throw new Error("Failed to create render target");
+  if (!texture || !fbo) {
+    if (texture) gl.deleteTexture(texture);
+    if (fbo) gl.deleteFramebuffer(fbo);
+    throw new Error("Failed to create render target");
+  }
   gl.bindTexture(gl.TEXTURE_2D, texture);
   const filter = opts.linear ? gl.LINEAR : gl.NEAREST;
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
