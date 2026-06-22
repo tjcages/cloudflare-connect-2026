@@ -1,4 +1,4 @@
-import type { Transform, FieldConfig, Background, Grid, Adjustments, Stripe } from "./types";
+import type { Transform, FieldConfig, Background, Grid, Adjustments, Stripe, EngineConfig } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
@@ -102,4 +102,28 @@ export function normalizeStripe(i: Partial<Stripe>): Stripe {
 export function normalizeStripes(i: Partial<Stripe>[] | undefined, fallback: Stripe[]): Stripe[] {
   if (!i || i.length === 0) return fallback.map((s) => ({ ...s }));
   return i.map(normalizeStripe);
+}
+
+export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
+  transform: DEFAULT_TRANSFORM,
+  adjustments: DEFAULT_ADJUSTMENTS,
+  field: DEFAULT_FIELD,
+  background: DEFAULT_BACKGROUND,
+  grid: DEFAULT_GRID,
+  stripes: DEFAULT_STRIPES.map((s) => ({ ...s })),
+  overlayStripes: DEFAULT_OVERLAY_STRIPES.map((s) => ({ ...s })),
+  stripesEnabled: true,
+};
+
+export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
+  return {
+    transform: normalizeTransform(i.transform),
+    adjustments: normalizeAdjustments(i.adjustments),
+    field: normalizeField(i.field),
+    background: normalizeBackground(i.background),
+    grid: normalizeGrid(i.grid),
+    stripes: normalizeStripes(i.stripes, DEFAULT_STRIPES),
+    overlayStripes: normalizeStripes(i.overlayStripes, DEFAULT_OVERLAY_STRIPES),
+    stripesEnabled: i.stripesEnabled !== undefined ? !!i.stripesEnabled : true,
+  };
 }

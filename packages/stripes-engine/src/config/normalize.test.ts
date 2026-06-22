@@ -11,6 +11,8 @@ import {
   DEFAULT_STRIPES,
   DEFAULT_TRANSFORM,
   DEFAULT_GRID,
+  normalizeEngineConfig,
+  DEFAULT_ENGINE_CONFIG,
 } from "./normalize";
 
 describe("simple normalizers", () => {
@@ -71,5 +73,17 @@ describe("stripes normalizer", () => {
     expect(normalizeStripes([{ color: 0x010203, startFrom: 0.5, width: 3 }], DEFAULT_STRIPES)).toEqual([
       { color: 0x010203, startFrom: 0.5, width: 3 },
     ]);
+  });
+});
+describe("normalizeEngineConfig", () => {
+  it("fills a complete config from {}", () => {
+    expect(normalizeEngineConfig({})).toEqual(DEFAULT_ENGINE_CONFIG);
+    expect(DEFAULT_ENGINE_CONFIG.stripesEnabled).toBe(true);
+  });
+  it("merges partials through sub-normalizers", () => {
+    const c = normalizeEngineConfig({ field: { mode: "overlay" }, adjustments: { contrast: 2 } });
+    expect(c.field.mode).toBe("overlay");
+    expect(c.adjustments.contrast).toBe(2);
+    expect(c.transform).toEqual(DEFAULT_ENGINE_CONFIG.transform);
   });
 });
