@@ -1,12 +1,13 @@
 import { type Clock, createRealClock } from "./core/clock";
 import { createEngineContext } from "./gl/context";
 import { createFullscreenQuad } from "./gl/program";
-import { type RenderTarget, createRenderTarget, resizeRenderTarget, disposeRenderTarget } from "./gl/renderTarget";
 import { resolveOutputSize, resolveFieldSize, type Size } from "./gl/resolution";
 import { createFieldPass } from "./passes/fieldPass";
 import { createPresentPass } from "./passes/presentPass";
 import { createGpuTimer } from "./perf/gpuTimer";
 import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
+import { createRtPool, type RtPool } from "./pipeline/rtPool";
+import { runPipeline, type Pass } from "./pipeline/pipeline";
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
 export type StripesEngine = {
@@ -29,11 +30,11 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
 
   let { gl, isP3, maxTextureSize } = createEngineContext(canvas);
   let output: Size = { width: 0, height: 0 };
+  let fieldSize: Size = { width: 2, height: 2 };
 
   let quad = createFullscreenQuad(gl);
-  let fieldPass = createFieldPass(gl, quad);
-  let presentPass = createPresentPass(gl, quad);
-  let fieldRT: RenderTarget = createRenderTarget(gl, 2, 2, { linear: true });
+  let pool: RtPool = createRtPool(gl);
+  let passes: Pass[] = [];
   let gpuTimer = createGpuTimer(gl);
   const perf = createPerfCollector();
 
@@ -41,26 +42,48 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lastFrameStart = clock.now();
   let lost = false;
 
+  function buildPasses() {
+    for (const p of passes) p.dispose();
+    const fieldPass = createFieldPass(gl, quad);
+    const presentPass = createPresentPass(gl, quad);
+    passes = [
+      {
+        name: "field",
+        render: () =>
+          fieldPass.render(pool.get("field", fieldSize.width, fieldSize.height, { linear: true }), clock.now()),
+        dispose: () => fieldPass.dispose(),
+      },
+      {
+        name: "present",
+        render: () =>
+          presentPass.render(
+            pool.get("field", fieldSize.width, fieldSize.height, { linear: true }).texture,
+            output.width,
+            output.height,
+          ),
+        dispose: () => presentPass.dispose(),
+      },
+    ];
+  }
+
   function applySizes() {
     const dpr = opts.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
     output = resolveOutputSize(cssW, cssH, dpr, maxTextureSize);
     canvas.width = output.width;
     canvas.height = output.height;
-    const field = resolveFieldSize(output, fieldScale);
-    resizeRenderTarget(gl, fieldRT, field.width, field.height);
+    fieldSize = resolveFieldSize(output, fieldScale);
+    pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
   }
 
   function rebuildGpuResources() {
-    // Context-loss invalidated the old GL objects already — disposing them would no-op or error, so we drop and recreate. Do not repurpose this as a general rebuild without adding teardown.
     const ctx = createEngineContext(canvas);
     gl = ctx.gl;
     isP3 = ctx.isP3;
     maxTextureSize = ctx.maxTextureSize;
     quad = createFullscreenQuad(gl);
-    fieldPass = createFieldPass(gl, quad);
-    presentPass = createPresentPass(gl, quad);
-    fieldRT = createRenderTarget(gl, 2, 2, { linear: true });
+    pool = createRtPool(gl);
     gpuTimer = createGpuTimer(gl);
+    buildPasses();
     applySizes();
   }
 
@@ -75,22 +98,14 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   canvas.addEventListener("webglcontextlost", onLost as EventListener, false);
   canvas.addEventListener("webglcontextrestored", onRestored as EventListener, false);
 
+  buildPasses();
   applySizes();
 
   function renderFrame() {
     if (lost) return;
     const t0 = clock.now();
     gpuTimer.poll();
-    const time = clock.now();
-
-    gpuTimer.begin("field");
-    fieldPass.render(fieldRT, time);
-    gpuTimer.end();
-
-    gpuTimer.begin("present");
-    presentPass.render(fieldRT.texture, output.width, output.height);
-    gpuTimer.end();
-
+    runPipeline(passes, gpuTimer);
     gl.flush();
     const frameMs = clock.now() - lastFrameStart;
     lastFrameStart = t0;
@@ -142,10 +157,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       this.stop();
       canvas.removeEventListener("webglcontextlost", onLost as EventListener);
       canvas.removeEventListener("webglcontextrestored", onRestored as EventListener);
-      fieldPass.dispose();
-      presentPass.dispose();
+      for (const p of passes) p.dispose();
+      pool.dispose();
       quad.dispose();
-      disposeRenderTarget(gl, fieldRT);
     },
   };
 }
