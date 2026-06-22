@@ -92,6 +92,33 @@ export default function Pixi({
     const app = new Application();
     appRef.current = app;
 
+    const runResourceCleanups = () => {
+      for (let index = resourceCleanups.length - 1; index >= 0; index -= 1) {
+        try {
+          resourceCleanups[index]();
+        } catch {
+          // Ignore teardown errors during unmount.
+        }
+      }
+      resourceCleanups.length = 0;
+    };
+
+    // Free the WebGL context. No-op while the app is still initializing (no renderer
+    // yet), tears it down exactly once after `app.init` resolves. Safe to call repeatedly.
+    const destroyApp = () => {
+      if (!isDestroyed(app)) {
+        app.destroy(
+          {},
+          {
+            children: true,
+            texture: true,
+            context: true,
+            style: true,
+          },
+        );
+      }
+    };
+
     (async () => {
       const resolution = window.devicePixelRatio || 1;
       const initialLayout = layoutSizeRef.current;
@@ -124,6 +151,11 @@ export default function Pixi({
       });
 
       if (aborted) {
+        // Unmounted mid-init: the cleanup ran while the renderer was still null and
+        // skipped destroy. Now that init produced a real WebGL context, free it here —
+        // otherwise it leaks and eventually exhausts the browser's context limit.
+        runResourceCleanups();
+        destroyApp();
         return;
       }
 
@@ -141,6 +173,8 @@ export default function Pixi({
       }
 
       if (aborted) {
+        runResourceCleanups();
+        destroyApp();
         return;
       }
 
@@ -156,29 +190,12 @@ export default function Pixi({
 
       app.ticker?.stop?.();
 
-      for (let index = resourceCleanups.length - 1; index >= 0; index -= 1) {
-        try {
-          resourceCleanups[index]();
-        } catch {
-          // Ignore teardown errors during unmount.
-        }
-      }
-      resourceCleanups.length = 0;
+      runResourceCleanups();
 
       appRef.current = null;
       onDisposed?.();
 
-      if (!isDestroyed(app)) {
-        app.destroy(
-          {},
-          {
-            children: true,
-            texture: true,
-            context: true,
-            style: true,
-          },
-        );
-      }
+      destroyApp();
     };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initOptions/onPreload are intentionally stable per mount

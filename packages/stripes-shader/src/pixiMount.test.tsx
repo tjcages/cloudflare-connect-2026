@@ -3,15 +3,18 @@ import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Pixi from "./pixiMount";
 
-const { initMock, resizeMock, renderMock, ApplicationMock, releaseInit } = vi.hoisted(() => {
+const { initMock, resizeMock, renderMock, destroyMock, ApplicationMock, releaseInit } = vi.hoisted(() => {
   const initMock = vi.fn();
   const resizeMock = vi.fn();
   const renderMock = vi.fn();
+  const destroyMock = vi.fn();
   let resolveInit: (() => void) | null = null;
 
   class ApplicationMock {
     canvas = document.createElement("canvas");
-    renderer = { resize: resizeMock, resolution: 1 };
+    // Real Pixi leaves `renderer` undefined until `init` resolves; mirror that so the
+    // unmount-during-init path is exercised faithfully (isDestroyed → true mid-init).
+    renderer: { resize: typeof resizeMock; resolution: number } | undefined = undefined;
     ticker = { stop: vi.fn() };
     stage = {};
 
@@ -21,17 +24,19 @@ const { initMock, resizeMock, renderMock, ApplicationMock, releaseInit } = vi.ho
         await new Promise<void>((resolve) => {
           resolveInit = resolve;
         });
+        this.renderer = { resize: resizeMock, resolution: 1 };
       },
     );
 
     render = renderMock;
-    destroy = vi.fn();
+    destroy = destroyMock;
   }
 
   return {
     initMock,
     resizeMock,
     renderMock,
+    destroyMock,
     ApplicationMock,
     releaseInit: () => {
       resolveInit?.();
@@ -50,6 +55,7 @@ describe("Pixi", () => {
     initMock.mockClear();
     resizeMock.mockClear();
     renderMock.mockClear();
+    destroyMock.mockClear();
   });
 
   afterEach(() => {
@@ -107,5 +113,27 @@ describe("Pixi", () => {
 
     expect(ticker).toHaveBeenCalledTimes(2);
     expect(document.querySelector("canvas")).not.toBe(canvas);
+  });
+
+  it("destroys the app when unmounted before async init resolves (no leaked WebGL context)", async () => {
+    const { unmount } = render(<Pixi key="scene-a" tickers={[]} layoutWidth={640} layoutHeight={360} />);
+
+    await waitFor(() => {
+      expect(initMock).toHaveBeenCalledTimes(1);
+    });
+
+    // Unmount while init is still pending — at this point the renderer is undefined,
+    // so the synchronous cleanup cannot destroy the app yet.
+    unmount();
+    expect(destroyMock).not.toHaveBeenCalled();
+
+    // Once the in-flight init resolves and produces a real context, it must be torn down.
+    await act(async () => {
+      releaseInit();
+    });
+
+    await waitFor(() => {
+      expect(destroyMock).toHaveBeenCalledTimes(1);
+    });
   });
 });
