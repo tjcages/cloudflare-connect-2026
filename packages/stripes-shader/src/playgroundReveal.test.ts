@@ -1,7 +1,6 @@
 import { describe, expect, test, it } from "vitest";
 import {
   ASSEMBLY_SETTLE,
-  assemblyOrderNorm,
   assemblyRevealAmountAtCell,
   resolveAssemblyRevealOvershoot,
   resolveWaveRevealGeometry,
@@ -50,40 +49,10 @@ describe("playground wave reveal", () => {
 });
 
 const ASSEMBLY: PlaygroundAssemblyRevealConfig = {
-  order: "center",
-  durationMs: 6000,
-  spread: 0.85,
   speedMinMs: 800,
   speedMaxMs: 1200,
+  staggerMs: 4000,
 };
-
-describe("assemblyOrderNorm", () => {
-  it("orders center cells before corner cells for center order", () => {
-    const center = assemblyOrderNorm(5, 5, 11, 11, "center");
-    const corner = assemblyOrderNorm(0, 0, 11, 11, "center");
-    expect(center).toBeLessThan(corner);
-    expect(center).toBeCloseTo(0, 0);
-    expect(corner).toBeCloseTo(1, 0);
-  });
-
-  it("inverts the center field for edges order", () => {
-    const center = assemblyOrderNorm(5, 5, 11, 11, "edges");
-    const corner = assemblyOrderNorm(0, 0, 11, 11, "edges");
-    expect(center).toBeGreaterThan(corner);
-  });
-
-  it("orders left-to-right for sweep order", () => {
-    expect(assemblyOrderNorm(0, 3, 11, 11, "sweep")).toBeLessThan(assemblyOrderNorm(10, 3, 11, 11, "sweep"));
-  });
-
-  it("is deterministic and within 0..1 for random order", () => {
-    const a = assemblyOrderNorm(4, 7, 20, 20, "random");
-    const b = assemblyOrderNorm(4, 7, 20, 20, "random");
-    expect(a).toBe(b);
-    expect(a).toBeGreaterThanOrEqual(0);
-    expect(a).toBeLessThanOrEqual(1);
-  });
-});
 
 describe("assemblyRevealAmountAtCell", () => {
   it("is monotonic non-decreasing in progress", () => {
@@ -93,12 +62,6 @@ describe("assemblyRevealAmountAtCell", () => {
       expect(v).toBeGreaterThanOrEqual(prev - 1e-9);
       prev = v;
     }
-  });
-
-  it("reveals the center cell before a corner cell at mid progress (center order)", () => {
-    const center = assemblyRevealAmountAtCell(5, 5, 11, 11, 0.4, ASSEMBLY, 0.1);
-    const corner = assemblyRevealAmountAtCell(0, 0, 11, 11, 0.4, ASSEMBLY, 0.1);
-    expect(center).toBeGreaterThan(corner);
   });
 
   it("fully reveals every cell by progress 1 + bandRamp", () => {

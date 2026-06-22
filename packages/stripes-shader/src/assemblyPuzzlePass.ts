@@ -13,12 +13,12 @@ in float aSeed;
 out vec2 vUV;
 out vec2 vCorner;
 out float vSoft;
+out float vFade;
 uniform float uProgress;
-uniform float uOrder;
-uniform float uSpread;
 uniform float uDurationMs;
 uniform float uSpeedMinMs;
 uniform float uSpeedMaxMs;
+uniform float uStaggerMs;
 float hash(float n){ return fract(sin(n * 127.1 + 0.37) * 43758.5453); }
 // CSS cubic-bezier easing: solve x(s)=t (Newton), return y(s). Control points P1(x1,y1), P2(x2,y2).
 float bezierAxis(float a1, float a2, float s) {
@@ -46,36 +46,32 @@ float cubicBezier(float t, float x1, float y1, float x2, float y2) {
 void main(void){
     float h1 = hash(aSeed);
     float h2 = hash(aSeed + 19.0);
+    float h3 = hash(aSeed + 37.0);
+    float h4 = hash(aSeed + 53.0);
     float dur = max(uDurationMs, 1.0);
-    float o;
-    if (uOrder > 2.5) {
-        o = h1;
-    } else {
-        float base;
-        if (uOrder > 1.5) {
-            base = aCellCenter.x;
-        } else {
-            float cn = clamp(length(aCellCenter - vec2(0.5)) / 0.70710678, 0.0, 1.0);
-            base = uOrder > 0.5 ? 1.0 - cn : cn;
-        }
-        o = clamp(mix(base, h1, 0.75), 0.0, 1.0);
-    }
+    float o = h1;
     float cellTotal = clamp(mix(uSpeedMinMs, uSpeedMaxMs, h2) / dur, 0.05, 0.98);
-    float start = o * (1.0 - cellTotal) * uSpread;
+    float start = (uStaggerMs / dur) * o;
     float t = clamp((uProgress - start) / cellTotal, 0.0, 1.0);
-    float e = cubicBezier(t, 0.6, 0.6, 0.0, 1.0);
+    float e = cubicBezier(t, 0.33, 1.0, 0.68, 1.0);
     vec2 ch = vec2(aCellCenter.x * 2.0 - 1.0, 1.0 - aCellCenter.y * 2.0);
-    float dx = ch.x > 0.0 ? (1.0 - ch.x) : (ch.x + 1.0);
-    float dy = ch.y > 0.0 ? (1.0 - ch.y) : (ch.y + 1.0);
-    vec2 spawnDir = dx < dy
-        ? vec2(ch.x > 0.0 ? 1.0 : -1.0, 0.0)
-        : vec2(0.0, ch.y > 0.0 ? 1.0 : -1.0);
-    float spawnDist = min(dx, dy) + 0.3;
-    vec2 offset = spawnDir * spawnDist * (1.0 - e);
+    float clen = max(length(ch), 0.0001);
+    vec2 outward = clen > 0.2 ? ch / clen : vec2(cos(h3 * 6.2831853), sin(h3 * 6.2831853));
+    float jitter = (h4 - 0.5) * 1.4;
+    float cj = cos(jitter);
+    float sj = sin(jitter);
+    vec2 dir = vec2(outward.x * cj - outward.y * sj, outward.x * sj + outward.y * cj);
+    vec2 g = vec2(dir.x >= 0.0 ? max(dir.x, 0.001) : min(dir.x, -0.001), dir.y >= 0.0 ? max(dir.y, 0.001) : min(dir.y, -0.001));
+    vec2 tA = (vec2(1.0) - ch) / g;
+    vec2 tB = (vec2(-1.0) - ch) / g;
+    float exitDist = min(max(tA.x, tB.x), max(tA.y, tB.y));
+    float spawnDist = exitDist + 0.12;
+    vec2 offset = dir * spawnDist * (1.0 - e);
     gl_Position = vec4(aClipHome + offset, 0.0, 1.0);
     vUV = aHomeUV;
     vCorner = aCorner;
-    vSoft = 1.0 - smoothstep(0.6, 1.0, e);
+    vSoft = 1.0 - smoothstep(0.7, 1.0, t);
+    vFade = smoothstep(0.0, 0.4, t);
 }
 `;
 
@@ -87,6 +83,7 @@ const ASSEMBLY_PUZZLE_FRAGMENT = `
 in vec2 vUV;
 in vec2 vCorner;
 in float vSoft;
+in float vFade;
 out vec4 finalColor;
 uniform sampler2D uHomeField;
 void main(void){
@@ -100,7 +97,7 @@ void main(void){
         float radial = 1.0 - smoothstep(0.25, 0.85, r);
         c *= mix(1.0, radial, softFactor);
     }
-    finalColor = vec4(c, c, c, c);
+    finalColor = vec4(c, c, c, c) * vFade;
 }
 `;
 
@@ -108,11 +105,10 @@ export type AssemblyPuzzleRenderOpts = {
   cols: number;
   rows: number;
   progress: number;
-  order: number;
-  spread: number;
   durationMs: number;
   speedMinMs: number;
   speedMaxMs: number;
+  staggerMs: number;
 };
 
 export type AssemblyPuzzlePass = {
@@ -124,11 +120,10 @@ export type AssemblyPuzzlePass = {
 export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
   const uniforms = new UniformGroup({
     uProgress: { value: 0, type: "f32" },
-    uOrder: { value: 0, type: "f32" },
-    uSpread: { value: 0.85, type: "f32" },
     uDurationMs: { value: 2600, type: "f32" },
-    uSpeedMinMs: { value: 800, type: "f32" },
-    uSpeedMaxMs: { value: 4000, type: "f32" },
+    uSpeedMinMs: { value: 300, type: "f32" },
+    uSpeedMaxMs: { value: 1600, type: "f32" },
+    uStaggerMs: { value: 900, type: "f32" },
   });
 
   const glProgram = GlProgram.from({
@@ -253,23 +248,21 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
 
   return {
     render(renderer, homeFieldTexture, target, opts) {
-      const { cols, rows, progress, order, spread, durationMs, speedMinMs, speedMaxMs } = opts;
+      const { cols, rows, progress, durationMs, speedMinMs, speedMaxMs, staggerMs } = opts;
       ensureGrid(cols, rows);
       if (!mesh) return;
       const u = uniforms.uniforms as {
         uProgress: number;
-        uOrder: number;
-        uSpread: number;
         uDurationMs: number;
         uSpeedMinMs: number;
         uSpeedMaxMs: number;
+        uStaggerMs: number;
       };
       u.uProgress = progress;
-      u.uOrder = order;
-      u.uSpread = spread;
       u.uDurationMs = durationMs;
       u.uSpeedMinMs = speedMinMs;
       u.uSpeedMaxMs = speedMaxMs;
+      u.uStaggerMs = staggerMs;
       uniforms.update();
       shader.resources.uHomeField = homeFieldTexture.source;
       // Clear to OPAQUE black: gaps where no cell has landed are field background (hide),

@@ -24,7 +24,6 @@ export type { PlaygroundSourceTransform } from "./playgroundSourceTransform";
 export type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 export type {
   PlaygroundAssemblyRevealConfig,
-  PlaygroundAssemblyRevealOrder,
   PlaygroundRevealConfig,
   PlaygroundRevealType,
 } from "./playgroundRevealConfig";

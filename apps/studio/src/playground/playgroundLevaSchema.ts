@@ -16,7 +16,6 @@ import {
   type PlaygroundClickWaveConfig,
   type PlaygroundRevealConfig,
   type PlaygroundAssemblyRevealConfig,
-  type PlaygroundAssemblyRevealOrder,
   type PlaygroundRevealType,
   type PlaygroundWaveRevealConfig,
   type PlaygroundWaveRevealPosition,
@@ -165,12 +164,6 @@ const WAVE_POSITION_OPTIONS: Record<string, PlaygroundWaveRevealPosition> = {
 };
 
 const REVEAL_TYPE_OPTIONS: Record<string, PlaygroundRevealType> = { Wave: "wave", Assembly: "assembly" };
-const ASSEMBLY_ORDER_OPTIONS: Record<string, PlaygroundAssemblyRevealOrder> = {
-  "Center → out": "center",
-  "Edges → in": "edges",
-  "Sweep L → R": "sweep",
-  Random: "random",
-};
 const DEBUG_STAGE_OPTIONS: Record<string, PlaygroundDebugStage> = {
   Normal: "normal",
   Source: "source",
@@ -481,40 +474,17 @@ export function buildPlaygroundLevaSchema(
               ),
             }
           : {
-              revealAssemblyOrder: selectControl<PlaygroundAssemblyRevealOrder>(
-                reveal.assembly.order,
-                ASSEMBLY_ORDER_OPTIONS,
+              revealAssemblyStagger: numControl(
+                reveal.assembly.staggerMs,
+                PLAYGROUND_CONTROL_RANGES.revealStaggerMs.min,
+                PLAYGROUND_CONTROL_RANGES.revealStaggerMs.max,
+                PLAYGROUND_CONTROL_RANGES.revealStaggerMs.step,
                 {
-                  label: "Order",
-                  hint: PLAYGROUND_FIELD_HELP.revealAssemblyOrder,
+                  label: "Stagger (ms)",
+                  hint: PLAYGROUND_FIELD_HELP.revealStagger,
                   disabled: assemblyDisabled,
-                  onChange: (order) => handlers.onRevealAssemblyCommit({ order }),
-                },
-              ),
-              revealAssemblyDuration: numControl(
-                reveal.assembly.durationMs,
-                PLAYGROUND_CONTROL_RANGES.revealDurationMs.min,
-                PLAYGROUND_CONTROL_RANGES.revealDurationMs.max,
-                PLAYGROUND_CONTROL_RANGES.revealDurationMs.step,
-                {
-                  label: "Duration (ms)",
-                  hint: PLAYGROUND_FIELD_HELP.revealDuration,
-                  disabled: assemblyDisabled,
-                  onLive: (value) => handlers.onRevealAssemblyLive({ durationMs: value }),
-                  onCommit: (value) => handlers.onRevealAssemblyCommit({ durationMs: value }),
-                },
-              ),
-              revealAssemblySpread: numControl(
-                reveal.assembly.spread,
-                PLAYGROUND_CONTROL_RANGES.revealSpread.min,
-                PLAYGROUND_CONTROL_RANGES.revealSpread.max,
-                PLAYGROUND_CONTROL_RANGES.revealSpread.step,
-                {
-                  label: "Stagger spread",
-                  hint: PLAYGROUND_FIELD_HELP.revealSpread,
-                  disabled: assemblyDisabled,
-                  onLive: (value) => handlers.onRevealAssemblyLive({ spread: value }),
-                  onCommit: (value) => handlers.onRevealAssemblyCommit({ spread: value }),
+                  onLive: (value) => handlers.onRevealAssemblyLive({ staggerMs: value }),
+                  onCommit: (value) => handlers.onRevealAssemblyCommit({ staggerMs: value }),
                 },
               ),
               revealAssemblySpeedMin: numControl(
@@ -1678,9 +1648,7 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
     values.revealWaviness = reveal.wave.waviness;
     values.revealNoiseScale = reveal.wave.noiseScale;
   } else {
-    values.revealAssemblyOrder = reveal.assembly.order;
-    values.revealAssemblyDuration = reveal.assembly.durationMs;
-    values.revealAssemblySpread = reveal.assembly.spread;
+    values.revealAssemblyStagger = reveal.assembly.staggerMs;
     values.revealAssemblySpeedMin = reveal.assembly.speedMinMs;
     values.revealAssemblySpeedMax = reveal.assembly.speedMaxMs;
   }

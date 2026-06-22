@@ -1,6 +1,5 @@
 import { describe, expect, test, it } from "vitest";
 import {
-  ASSEMBLY_ORDER_TO_INDEX,
   DEFAULT_PLAYGROUND_REVEAL_CONFIG,
   isDefaultPlaygroundRevealConfig,
   normalizePlaygroundRevealConfig,
@@ -84,14 +83,14 @@ describe("assembly reveal config", () => {
     const normalized = normalizePlaygroundRevealConfig({
       enabled: true,
       type: "assembly",
-      assembly: { order: "sweep", durationMs: 999, spread: 5, speedMinMs: 50, speedMaxMs: 200 },
+      assembly: { speedMinMs: 50, speedMaxMs: 200, staggerMs: 99_999 },
     } as never);
     expect(normalized.type).toBe("assembly");
-    expect(normalized.assembly.order).toBe("sweep");
-    expect(normalized.assembly.durationMs).toBe(999);
-    expect(normalized.assembly.spread).toBe(1); // clamped 0..1
-    expect(normalized.assembly.speedMinMs).toBe(100); // clamped to min 100
-    expect(normalized.assembly.speedMaxMs).toBe(200);
+    expect(normalized.assembly).toEqual({
+      speedMinMs: 100, // clamped to min 100
+      speedMaxMs: 200,
+      staggerMs: 30_000, // clamped to max 30000
+    });
   });
 
   it("forces speed max to be at least speed min", () => {
@@ -103,20 +102,17 @@ describe("assembly reveal config", () => {
     expect(normalized.assembly.speedMaxMs).toBe(3000);
   });
 
-  it("ignores legacy assembly fields (from/glowSize/flight/overshoot)", () => {
+  it("clamps staggerMs down to zero and ignores legacy assembly fields", () => {
     const normalized = normalizePlaygroundRevealConfig({
       type: "assembly",
-      assembly: { from: "edge", glowSize: 12, flight: 0.4, overshoot: true } as never,
+      assembly: { staggerMs: -100, order: "sweep", durationMs: 6000, spread: 0.5 } as never,
     } as never);
-    expect(normalized.assembly).toEqual(DEFAULT_PLAYGROUND_REVEAL_CONFIG.assembly);
-  });
-
-  it("falls back to defaults for unknown order", () => {
-    const normalized = normalizePlaygroundRevealConfig({
-      type: "assembly",
-      assembly: { order: "nope" },
-    } as never);
-    expect(normalized.assembly.order).toBe("center");
+    expect(normalized.assembly.staggerMs).toBe(0);
+    expect(normalized.assembly).toEqual({
+      speedMinMs: DEFAULT_PLAYGROUND_REVEAL_CONFIG.assembly.speedMinMs,
+      speedMaxMs: DEFAULT_PLAYGROUND_REVEAL_CONFIG.assembly.speedMaxMs,
+      staggerMs: 0,
+    });
   });
 
   it("rejects an unknown reveal type", () => {
@@ -125,9 +121,12 @@ describe("assembly reveal config", () => {
 
   it("resolves duration from the active type", () => {
     const wave = normalizePlaygroundRevealConfig({ type: "wave", wave: { durationMs: 1200 } } as never);
-    const assembly = normalizePlaygroundRevealConfig({ type: "assembly", assembly: { durationMs: 3400 } } as never);
+    const assembly = normalizePlaygroundRevealConfig({
+      type: "assembly",
+      assembly: { staggerMs: 1500, speedMaxMs: 2200 },
+    } as never);
     expect(resolvePlaygroundRevealDurationMs(wave)).toBe(1200);
-    expect(resolvePlaygroundRevealDurationMs(assembly)).toBe(3400);
+    expect(resolvePlaygroundRevealDurationMs(assembly)).toBe(3700);
   });
 
   it("treats an assembly config as non-default", () => {
@@ -135,16 +134,13 @@ describe("assembly reveal config", () => {
     expect(isDefaultPlaygroundRevealConfig(assembly)).toBe(false);
   });
 
-  it("maps order names to stable shader indices", () => {
-    expect(ASSEMBLY_ORDER_TO_INDEX).toEqual({ center: 0, edges: 1, sweep: 2, random: 3 });
-  });
-
   it("rounds fractional ms fields to integers", () => {
     const normalized = normalizePlaygroundRevealConfig({
       type: "assembly",
-      assembly: { speedMinMs: 810.7, speedMaxMs: 3999.4 },
+      assembly: { speedMinMs: 810.7, speedMaxMs: 3999.4, staggerMs: 2000.6 },
     } as never);
     expect(normalized.assembly.speedMinMs).toBe(811);
     expect(normalized.assembly.speedMaxMs).toBe(3999);
+    expect(normalized.assembly.staggerMs).toBe(2001);
   });
 });

@@ -19,21 +19,10 @@ export type PlaygroundWaveRevealConfig = {
 
 export type PlaygroundRevealType = "wave" | "assembly";
 
-export type PlaygroundAssemblyRevealOrder = "center" | "edges" | "sweep" | "random";
-
 export type PlaygroundAssemblyRevealConfig = {
-  order: PlaygroundAssemblyRevealOrder;
-  durationMs: number;
-  spread: number;
   speedMinMs: number;
   speedMaxMs: number;
-};
-
-export const ASSEMBLY_ORDER_TO_INDEX: Record<PlaygroundAssemblyRevealOrder, number> = {
-  center: 0,
-  edges: 1,
-  sweep: 2,
-  random: 3,
+  staggerMs: number;
 };
 
 export type PlaygroundRevealConfig = {
@@ -53,13 +42,7 @@ export const DEFAULT_PLAYGROUND_REVEAL_CONFIG: PlaygroundRevealConfig = {
     waviness: 0.35,
     noiseScale: 0.5,
   },
-  assembly: {
-    order: "center",
-    durationMs: 6000,
-    spread: 0.85,
-    speedMinMs: 800,
-    speedMaxMs: 4000,
-  },
+  assembly: { speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
 };
 
 const PLAYGROUND_WAVE_REVEAL_POSITIONS = new Set<PlaygroundWaveRevealPosition>([
@@ -73,8 +56,6 @@ const PLAYGROUND_WAVE_REVEAL_POSITIONS = new Set<PlaygroundWaveRevealPosition>([
   "center bottom",
   "right bottom",
 ]);
-
-const ASSEMBLY_REVEAL_ORDERS = new Set<PlaygroundAssemblyRevealOrder>(["center", "edges", "sweep", "random"]);
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   const numeric = Number(value);
@@ -98,12 +79,6 @@ function normalizeRevealType(value: unknown): PlaygroundRevealType {
   return value === "assembly" ? "assembly" : "wave";
 }
 
-function normalizeAssemblyOrder(value: unknown): PlaygroundAssemblyRevealOrder {
-  return ASSEMBLY_REVEAL_ORDERS.has(value as PlaygroundAssemblyRevealOrder)
-    ? (value as PlaygroundAssemblyRevealOrder)
-    : DEFAULT_PLAYGROUND_REVEAL_CONFIG.assembly.order;
-}
-
 function normalizeAssemblyRevealConfig(
   input: Partial<PlaygroundAssemblyRevealConfig> | undefined,
 ): PlaygroundAssemblyRevealConfig {
@@ -112,11 +87,9 @@ function normalizeAssemblyRevealConfig(
   const speedMinMs = clampInt(a.speedMinMs ?? base.speedMinMs, 100, 30_000, base.speedMinMs);
   const speedMaxMs = Math.max(speedMinMs, clampInt(a.speedMaxMs ?? base.speedMaxMs, 100, 30_000, base.speedMaxMs));
   return {
-    order: normalizeAssemblyOrder(a.order),
-    durationMs: clampInt(a.durationMs ?? base.durationMs, 100, 30_000, base.durationMs),
-    spread: clampNumber(a.spread ?? base.spread, 0, 1, base.spread),
     speedMinMs,
     speedMaxMs,
+    staggerMs: clampInt(a.staggerMs ?? base.staggerMs, 0, 30_000, base.staggerMs),
   };
 }
 
@@ -156,7 +129,9 @@ export function normalizePlaygroundRevealConfig(
 
 export function resolvePlaygroundRevealDurationMs(config: PlaygroundRevealConfig): number {
   const normalized = normalizePlaygroundRevealConfig(config);
-  return normalized.type === "assembly" ? normalized.assembly.durationMs : normalized.wave.durationMs;
+  return normalized.type === "assembly"
+    ? normalized.assembly.staggerMs + normalized.assembly.speedMaxMs
+    : normalized.wave.durationMs;
 }
 
 export function isDefaultPlaygroundRevealConfig(input: PlaygroundRevealConfig): boolean {
@@ -170,10 +145,8 @@ export function isDefaultPlaygroundRevealConfig(input: PlaygroundRevealConfig): 
     normalized.wave.softness === base.wave.softness &&
     normalized.wave.waviness === base.wave.waviness &&
     normalized.wave.noiseScale === base.wave.noiseScale &&
-    normalized.assembly.order === base.assembly.order &&
-    normalized.assembly.durationMs === base.assembly.durationMs &&
-    normalized.assembly.spread === base.assembly.spread &&
     normalized.assembly.speedMinMs === base.assembly.speedMinMs &&
-    normalized.assembly.speedMaxMs === base.assembly.speedMaxMs
+    normalized.assembly.speedMaxMs === base.assembly.speedMaxMs &&
+    normalized.assembly.staggerMs === base.assembly.staggerMs
   );
 }

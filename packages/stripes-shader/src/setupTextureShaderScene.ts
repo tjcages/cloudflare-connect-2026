@@ -48,7 +48,6 @@ import { createRevealFieldFilter } from "./revealFieldFilter";
 import { createCursorFieldFilter } from "./cursorFieldFilter";
 import { createFieldDownsample } from "./fieldDownsampleFilter";
 import { createAssemblyPuzzlePass, CELL_PX } from "./assemblyPuzzlePass";
-import { ASSEMBLY_ORDER_TO_INDEX } from "./playgroundRevealConfig";
 import { normalizePlaygroundCursorTrailConfig, type PlaygroundCursorTrailConfig } from "./playgroundCursorTrailConfig";
 import { addClickWave, createClickWaveState, updateClickWave, type ClickWaveState } from "./clickWave";
 import { createCursorTrailState, setCursorTrailTarget, updateCursorTrail, type CursorTrailState } from "./cursorTrail";
@@ -860,11 +859,10 @@ function runDuotoneTick(params: {
           cols: puzzleCols,
           rows: puzzleRows,
           progress: revealProgressRawShared,
-          order: ASSEMBLY_ORDER_TO_INDEX[revealCfg.assembly.order],
-          spread: revealCfg.assembly.spread,
           durationMs: revealDurMs,
           speedMinMs: revealCfg.assembly.speedMinMs,
           speedMaxMs: revealCfg.assembly.speedMaxMs,
+          staggerMs: revealCfg.assembly.staggerMs,
         });
       } else {
         sourceSprite.filters = [sourceTextureFilter, cursorFieldFilter, revealFieldFilter];
