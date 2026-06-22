@@ -604,7 +604,7 @@ html.playground-app #root {
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-header {
-  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   column-gap: 8px;
   padding-bottom: 6px;
 }
@@ -616,9 +616,9 @@ html.playground-app #root {
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-header-ladder {
   display: grid;
-  grid-template-columns: 44px 44px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   column-gap: 8px;
-  justify-content: end;
+  justify-items: end;
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-header-ladder .stripe-colors-table-label {
@@ -627,7 +627,7 @@ html.playground-app #root {
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   column-gap: 8px;
   align-items: start;
 }
@@ -652,9 +652,9 @@ html.playground-app #root {
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-ladder-row {
-  grid-template-columns: 44px 44px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   column-gap: 8px;
-  justify-content: end;
+  justify-items: end;
   height: var(--sc-row-h);
 }
 
@@ -715,7 +715,8 @@ html.playground-app #root {
 .playground-leva-panel .stripe-colors-table .stripe-colors-leva-input {
   display: inline-flex;
   align-items: center;
-  width: 44px;
+  box-sizing: border-box;
+  width: 56px;
   height: 24px;
   border: 1px solid transparent;
   box-shadow: none;
