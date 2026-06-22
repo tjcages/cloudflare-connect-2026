@@ -1,6 +1,6 @@
 {
   "name": "@necatikcl/stripes-shader",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "description": "Render-only Stripes Shader canvas: <StripesShader src config /> turns a video/image into a duotone stripe-grid texture.",
   "license": "UNLICENSED",
