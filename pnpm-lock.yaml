@@ -24,6 +24,37 @@ importers:
         specifier: ^4.1.5
         version: 4.1.8(@types/node@25.9.1)(happy-dom@20.10.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
 
+  apps/lab:
+    dependencies:
+      '@necatikcl/stripes-engine':
+        specifier: workspace:*
+        version: link:../../packages/stripes-engine
+      react:
+        specifier: ^19.0.5
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.0.5
+        version: 19.2.7(react@19.2.7)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.16
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.16)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.1
+        version: 6.0.2(vite@8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.10
+        version: 8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.5
+        version: 4.1.8(@types/node@25.9.1)(happy-dom@20.10.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
+
   apps/studio:
     dependencies:
       '@ffmpeg/core':
@@ -108,6 +139,21 @@ importers:
       wrangler:
         specifier: ^4.88.0
         version: 4.98.0
+
+  packages/stripes-engine:
+    devDependencies:
+      '@vitejs/plugin-react':
+        specifier: ^6.0.1
+        version: 6.0.2(vite@8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.10
+        version: 8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.5
+        version: 4.1.8(@types/node@25.9.1)(happy-dom@20.10.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/stripes-shader:
     devDependencies:
