@@ -34,8 +34,8 @@ Install dependencies with `pi`.
 
 ## Project Context
 
-- Grid generation rules live in `docs/grid-rulebook.md`.
-- AI/agent architecture context lives in `docs/ai-context.md`.
-- Persistent Cursor rules live in `.cursor/rules/`.
+- New engine architecture: `docs/engine-architecture.md` + `docs/superpowers/specs/2026-06-22-gpu-engine-rewrite-design.md`.
+- Legacy Pixi/CPU engine docs (historical): `docs/legacy/`.
+- Legacy Cursor rules (historical): `.cursor/legacy/rules/`.
 
 Use Node `22` from `.node-version` for local development (match this in the Cloudflare dashboard build settings).
