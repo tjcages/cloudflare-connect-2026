@@ -858,6 +858,8 @@ function runDuotoneTick(params: {
           order: ASSEMBLY_ORDER_TO_INDEX[revealCfg.assembly.order],
           spread: revealCfg.assembly.spread,
           durationMs: revealDurMs,
+          speedMinMs: revealCfg.assembly.speedMinMs,
+          speedMaxMs: revealCfg.assembly.speedMaxMs,
         });
       } else {
         sourceSprite.filters = [sourceTextureFilter, cursorFieldFilter, revealFieldFilter];

@@ -98,7 +98,7 @@ export function resolveRevealOvershoot(wave: PlaygroundWaveRevealConfig, bandRam
 
 // Progress past 1 the assembly keeps animating so landed puzzle cells finish sharpening
 // from circle → tile (post-landing settle) before the static field takes over.
-export const ASSEMBLY_SETTLE = 0.25;
+export const ASSEMBLY_SETTLE = 0.06;
 const ASSEMBLY_MAX_CENTER_DIST = 0.70710678; // hypot(0.5, 0.5)
 
 /** 0..1 ordering key for a cell: 0 assembles first, 1 last. Mirrors the GPU assembly branch. */
@@ -136,9 +136,12 @@ export function assemblyRevealAmountAtCell(
   bandRamp = 0,
 ): number {
   const o = assemblyOrderNorm(col, row, cols, rows, assembly.order);
-  const flight = Math.max(0, assembly.flight);
+  const dur = Math.max(1, assembly.durationMs);
+  const speedMin = Math.max(0, assembly.speedMinMs);
+  const speedMax = Math.max(speedMin, assembly.speedMaxMs);
+  const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
   const spread = Math.max(0, assembly.spread);
-  const arrival = o * (1 - flight) * spread + flight;
+  const arrival = o * (1 - avgTotal) * spread + avgTotal;
   return smoothstep(arrival, arrival + Math.max(0, bandRamp), Math.max(0, progress));
 }
 

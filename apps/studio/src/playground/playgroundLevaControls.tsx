@@ -391,6 +391,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
       props.textureLuminanceSettings.mode,
       props.gridConfig.cellWidth,
       props.gridConfig.cellHeight,
+      props.revealConfig.type,
       props.catalog.length,
     ],
   ) as [unknown, (values: Record<string, unknown>) => void, unknown];

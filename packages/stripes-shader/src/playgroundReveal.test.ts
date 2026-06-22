@@ -51,12 +51,10 @@ describe("playground wave reveal", () => {
 
 const ASSEMBLY: PlaygroundAssemblyRevealConfig = {
   order: "center",
-  from: "scatter",
-  durationMs: 2600,
+  durationMs: 6000,
   spread: 0.85,
-  glowSize: 34,
-  flight: 0.22,
-  overshoot: false,
+  speedMinMs: 800,
+  speedMaxMs: 1200,
 };
 
 describe("assemblyOrderNorm", () => {

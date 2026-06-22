@@ -1,11 +1,7 @@
 import { Filter, GlProgram, Texture, UniformGroup } from "pixi.js";
 import type { PlaygroundFlamesConfig } from "./playgroundFlamesConfig";
 import { resolveWaveRevealGeometry } from "./playgroundReveal";
-import {
-  ASSEMBLY_ORDER_TO_INDEX,
-  resolvePlaygroundRevealDurationMs,
-  type PlaygroundRevealConfig,
-} from "./playgroundRevealConfig";
+import { resolvePlaygroundRevealDurationMs, type PlaygroundRevealConfig } from "./playgroundRevealConfig";
 import { STRIPE_FILTER_FRAGMENT, STRIPE_FILTER_VERTEX } from "./stripeFilterShaders";
 import { buildStripeIndexLut, buildStripeColors, resolveStripePalette, type StripeColors } from "./stripeColors";
 import { StripeIndexLutTexture } from "./stripeIndexLutTexture";
@@ -335,10 +331,7 @@ export function createStripeDuotoneFilter(
       Math.max(0.04, 330 / Math.max(1, resolvePlaygroundRevealDurationMs(config))),
     );
     if (config.type === "assembly") {
-      uniforms.uRevealMode = 2;
-      uniforms.uRevealOrder = ASSEMBLY_ORDER_TO_INDEX[config.assembly.order];
-      uniforms.uRevealSpread = Math.max(0, config.assembly.spread);
-      uniforms.uRevealFlight = Math.max(0, config.assembly.flight);
+      uniforms.uRevealMode = 0;
       stripeUniforms.update();
       return;
     }

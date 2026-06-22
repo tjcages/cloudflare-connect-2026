@@ -17,6 +17,8 @@ uniform float uProgress;
 uniform float uOrder;
 uniform float uSpread;
 uniform float uDurationMs;
+uniform float uSpeedMinMs;
+uniform float uSpeedMaxMs;
 float hash(float n){ return fract(sin(n * 127.1 + 0.37) * 43758.5453); }
 // CSS cubic-bezier easing: solve x(s)=t (Newton), return y(s). Control points P1(x1,y1), P2(x2,y2).
 float bezierAxis(float a1, float a2, float s) {
@@ -44,52 +46,36 @@ float cubicBezier(float t, float x1, float y1, float x2, float y2) {
 void main(void){
     float h1 = hash(aSeed);
     float h2 = hash(aSeed + 19.0);
-    float h3 = hash(aSeed + 41.0);
     float dur = max(uDurationMs, 1.0);
     float o;
     if (uOrder > 2.5) {
-        o = h1; // random
+        o = h1;
     } else {
         float base;
         if (uOrder > 1.5) {
-            base = aCellCenter.x; // sweep
+            base = aCellCenter.x;
         } else {
             float cn = clamp(length(aCellCenter - vec2(0.5)) / 0.70710678, 0.0, 1.0);
-            base = uOrder > 0.5 ? 1.0 - cn : cn; // edges-in / center-out
+            base = uOrder > 0.5 ? 1.0 - cn : cn;
         }
-        // Blend in per-cell randomness so the fill is organic/scattered rather than a clean
-        // ring-by-ring stagger, while keeping the directional trend (center still fills first).
         o = clamp(mix(base, h1, 0.75), 0.0, 1.0);
     }
-    // Per-cell travel time in absolute ms (random 800–4000ms), as a fraction of the reveal.
-    float cellFlight = clamp(mix(800.0, 4000.0, h2) / dur, 0.05, 0.95);
-    float start = o * (1.0 - cellFlight) * uSpread;
-    float arrival = start + cellFlight;
-    float t = cellFlight <= 0.0 ? 1.0 : clamp((uProgress - start) / cellFlight, 0.0, 1.0);
+    float cellTotal = clamp(mix(uSpeedMinMs, uSpeedMaxMs, h2) / dur, 0.05, 0.98);
+    float start = o * (1.0 - cellTotal) * uSpread;
+    float t = clamp((uProgress - start) / cellTotal, 0.0, 1.0);
     float e = cubicBezier(t, 0.6, 0.6, 0.0, 1.0);
-    // Enter from the NEAREST canvas edge (shortest path in), not a random direction:
-    // pick whichever of the cell's home edges (left/right vs top/bottom) is closer, and
-    // start just past it. Edge cells barely move; center cells slide in from their side.
-    vec2 ch = vec2(aCellCenter.x * 2.0 - 1.0, 1.0 - aCellCenter.y * 2.0); // home center in clip
-    float dx = ch.x > 0.0 ? (1.0 - ch.x) : (ch.x + 1.0); // distance to nearest left/right edge
-    float dy = ch.y > 0.0 ? (1.0 - ch.y) : (ch.y + 1.0); // distance to nearest top/bottom edge
+    vec2 ch = vec2(aCellCenter.x * 2.0 - 1.0, 1.0 - aCellCenter.y * 2.0);
+    float dx = ch.x > 0.0 ? (1.0 - ch.x) : (ch.x + 1.0);
+    float dy = ch.y > 0.0 ? (1.0 - ch.y) : (ch.y + 1.0);
     vec2 spawnDir = dx < dy
         ? vec2(ch.x > 0.0 ? 1.0 : -1.0, 0.0)
         : vec2(0.0, ch.y > 0.0 ? 1.0 : -1.0);
-    float spawnDist = min(dx, dy) + 0.3; // push just past the nearest edge, off-screen
+    float spawnDist = min(dx, dy) + 0.3;
     vec2 offset = spawnDir * spawnDist * (1.0 - e);
     gl_Position = vec4(aClipHome + offset, 0.0, 1.0);
     vUV = aHomeUV;
     vCorner = aCorner;
-    // Smooth → sharp: begins 200–1000ms BEFORE the cell arrives (per-cell random) and runs
-    // for a fixed 450ms, so the circle crisps into its tile around the moment it docks.
-    // Cap the lead so it never starts before the cell is on its (visible) final approach —
-    // for fast cells 1000ms could otherwise predate launch, sharpening it before it appears.
-    float preStart = min(mix(200.0, 1000.0, h3) / dur, cellFlight * 0.35);
-    float sharpenSpan = 450.0 / dur;
-    float sharpenStart = arrival - preStart;
-    float sharpenProgress = sharpenSpan <= 0.0 ? 1.0 : clamp((uProgress - sharpenStart) / sharpenSpan, 0.0, 1.0);
-    vSoft = 1.0 - sharpenProgress; // 1 = full circle, 0 = sharp tile
+    vSoft = 1.0 - smoothstep(0.6, 1.0, e);
 }
 `;
 
@@ -125,6 +111,8 @@ export type AssemblyPuzzleRenderOpts = {
   order: number;
   spread: number;
   durationMs: number;
+  speedMinMs: number;
+  speedMaxMs: number;
 };
 
 export type AssemblyPuzzlePass = {
@@ -139,6 +127,8 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
     uOrder: { value: 0, type: "f32" },
     uSpread: { value: 0.85, type: "f32" },
     uDurationMs: { value: 2600, type: "f32" },
+    uSpeedMinMs: { value: 800, type: "f32" },
+    uSpeedMaxMs: { value: 4000, type: "f32" },
   });
 
   const glProgram = GlProgram.from({
@@ -263,14 +253,23 @@ export function createAssemblyPuzzlePass(): AssemblyPuzzlePass {
 
   return {
     render(renderer, homeFieldTexture, target, opts) {
-      const { cols, rows, progress, order, spread, durationMs } = opts;
+      const { cols, rows, progress, order, spread, durationMs, speedMinMs, speedMaxMs } = opts;
       ensureGrid(cols, rows);
       if (!mesh) return;
-      const u = uniforms.uniforms as { uProgress: number; uOrder: number; uSpread: number; uDurationMs: number };
+      const u = uniforms.uniforms as {
+        uProgress: number;
+        uOrder: number;
+        uSpread: number;
+        uDurationMs: number;
+        uSpeedMinMs: number;
+        uSpeedMaxMs: number;
+      };
       u.uProgress = progress;
       u.uOrder = order;
       u.uSpread = spread;
       u.uDurationMs = durationMs;
+      u.uSpeedMinMs = speedMinMs;
+      u.uSpeedMaxMs = speedMaxMs;
       uniforms.update();
       shader.resources.uHomeField = homeFieldTexture.source;
       // Clear to OPAQUE black: gaps where no cell has landed are field background (hide),

@@ -15,7 +15,6 @@ import {
   type PlaygroundClickWaveConfig,
   type PlaygroundRevealConfig,
   type PlaygroundAssemblyRevealConfig,
-  type PlaygroundAssemblyRevealFrom,
   type PlaygroundAssemblyRevealOrder,
   type PlaygroundRevealType,
   type PlaygroundWaveRevealConfig,
@@ -171,12 +170,6 @@ const ASSEMBLY_ORDER_OPTIONS: Record<string, PlaygroundAssemblyRevealOrder> = {
   "Sweep L → R": "sweep",
   Random: "random",
 };
-const ASSEMBLY_FROM_OPTIONS: Record<string, PlaygroundAssemblyRevealFrom> = {
-  "All around": "scatter",
-  "Straight in": "radial",
-  "Nearest edge": "edge",
-};
-
 const DEBUG_STAGE_OPTIONS: Record<string, PlaygroundDebugStage> = {
   Normal: "normal",
   Source: "source",
@@ -419,138 +412,131 @@ export function buildPlaygroundLevaSchema(
           disabled: revealDisabled,
           onChange: (type) => handlers.onRevealCommit({ type }),
         }),
-        revealPosition: selectControl<PlaygroundWaveRevealPosition>(reveal.wave.position, WAVE_POSITION_OPTIONS, {
-          label: "Position",
-          hint: PLAYGROUND_FIELD_HELP.revealPosition,
-          disabled: waveDisabled,
-          onChange: (position) => handlers.onRevealWaveCommit({ position }),
-        }),
-        revealWaveDuration: numControl(
-          reveal.wave.durationMs,
-          PLAYGROUND_CONTROL_RANGES.revealDurationMs.min,
-          PLAYGROUND_CONTROL_RANGES.revealDurationMs.max,
-          PLAYGROUND_CONTROL_RANGES.revealDurationMs.step,
-          {
-            label: "Duration",
-            hint: PLAYGROUND_FIELD_HELP.revealDuration,
-            disabled: waveDisabled,
-            onLive: (value) => handlers.onRevealWaveLive({ durationMs: value }),
-            onCommit: (value) => handlers.onRevealWaveCommit({ durationMs: value }),
-          },
-        ),
-        revealSoftness: numControl(
-          reveal.wave.softness,
-          PLAYGROUND_CONTROL_RANGES.revealSoftness.min,
-          PLAYGROUND_CONTROL_RANGES.revealSoftness.max,
-          PLAYGROUND_CONTROL_RANGES.revealSoftness.step,
-          {
-            label: "Softness",
-            hint: PLAYGROUND_FIELD_HELP.revealSoftness,
-            disabled: waveDisabled,
-            onLive: (value) => handlers.onRevealWaveLive({ softness: value }),
-            onCommit: (value) => handlers.onRevealWaveCommit({ softness: value }),
-          },
-        ),
-        revealWaviness: numControl(
-          reveal.wave.waviness,
-          PLAYGROUND_CONTROL_RANGES.revealWaviness.min,
-          PLAYGROUND_CONTROL_RANGES.revealWaviness.max,
-          PLAYGROUND_CONTROL_RANGES.revealWaviness.step,
-          {
-            label: "Waviness",
-            hint: PLAYGROUND_FIELD_HELP.revealWaviness,
-            disabled: waveDisabled,
-            onLive: (value) => handlers.onRevealWaveLive({ waviness: value }),
-            onCommit: (value) => handlers.onRevealWaveCommit({ waviness: value }),
-          },
-        ),
-        revealNoiseScale: numControl(
-          reveal.wave.noiseScale,
-          PLAYGROUND_CONTROL_RANGES.revealNoiseScale.min,
-          PLAYGROUND_CONTROL_RANGES.revealNoiseScale.max,
-          PLAYGROUND_CONTROL_RANGES.revealNoiseScale.step,
-          {
-            label: "Noise scale",
-            hint: PLAYGROUND_FIELD_HELP.revealNoiseScale,
-            disabled: waveDisabled,
-            onLive: (value) => handlers.onRevealWaveLive({ noiseScale: value }),
-            onCommit: (value) => handlers.onRevealWaveCommit({ noiseScale: value }),
-          },
-        ),
-        revealAssemblyOrder: selectControl<PlaygroundAssemblyRevealOrder>(
-          reveal.assembly.order,
-          ASSEMBLY_ORDER_OPTIONS,
-          {
-            label: "Order",
-            hint: PLAYGROUND_FIELD_HELP.revealAssemblyOrder,
-            disabled: assemblyDisabled,
-            onChange: (order) => handlers.onRevealAssemblyCommit({ order }),
-          },
-        ),
-        revealAssemblyFrom: selectControl<PlaygroundAssemblyRevealFrom>(reveal.assembly.from, ASSEMBLY_FROM_OPTIONS, {
-          label: "Come from",
-          hint: PLAYGROUND_FIELD_HELP.revealAssemblyFrom,
-          disabled: assemblyDisabled,
-          onChange: (from) => handlers.onRevealAssemblyCommit({ from }),
-        }),
-        revealAssemblyDuration: numControl(
-          reveal.assembly.durationMs,
-          PLAYGROUND_CONTROL_RANGES.revealDurationMs.min,
-          PLAYGROUND_CONTROL_RANGES.revealDurationMs.max,
-          PLAYGROUND_CONTROL_RANGES.revealDurationMs.step,
-          {
-            label: "Duration (ms)",
-            hint: PLAYGROUND_FIELD_HELP.revealDuration,
-            disabled: assemblyDisabled,
-            onLive: (value) => handlers.onRevealAssemblyLive({ durationMs: value }),
-            onCommit: (value) => handlers.onRevealAssemblyCommit({ durationMs: value }),
-          },
-        ),
-        revealAssemblySpread: numControl(
-          reveal.assembly.spread,
-          PLAYGROUND_CONTROL_RANGES.revealSpread.min,
-          PLAYGROUND_CONTROL_RANGES.revealSpread.max,
-          PLAYGROUND_CONTROL_RANGES.revealSpread.step,
-          {
-            label: "Stagger spread",
-            hint: PLAYGROUND_FIELD_HELP.revealSpread,
-            disabled: assemblyDisabled,
-            onLive: (value) => handlers.onRevealAssemblyLive({ spread: value }),
-            onCommit: (value) => handlers.onRevealAssemblyCommit({ spread: value }),
-          },
-        ),
-        revealAssemblyGlowSize: numControl(
-          reveal.assembly.glowSize,
-          PLAYGROUND_CONTROL_RANGES.revealGlowSize.min,
-          PLAYGROUND_CONTROL_RANGES.revealGlowSize.max,
-          PLAYGROUND_CONTROL_RANGES.revealGlowSize.step,
-          {
-            label: "Glow size",
-            hint: PLAYGROUND_FIELD_HELP.revealGlowSize,
-            disabled: assemblyDisabled,
-            onLive: (value) => handlers.onRevealAssemblyLive({ glowSize: value }),
-            onCommit: (value) => handlers.onRevealAssemblyCommit({ glowSize: value }),
-          },
-        ),
-        revealAssemblyFlight: numControl(
-          reveal.assembly.flight,
-          PLAYGROUND_CONTROL_RANGES.revealFlight.min,
-          PLAYGROUND_CONTROL_RANGES.revealFlight.max,
-          PLAYGROUND_CONTROL_RANGES.revealFlight.step,
-          {
-            label: "Flight length",
-            hint: PLAYGROUND_FIELD_HELP.revealFlight,
-            disabled: assemblyDisabled,
-            onLive: (value) => handlers.onRevealAssemblyLive({ flight: value }),
-            onCommit: (value) => handlers.onRevealAssemblyCommit({ flight: value }),
-          },
-        ),
-        revealAssemblyOvershoot: boolControl(reveal.assembly.overshoot, {
-          label: "Overshoot landing",
-          hint: PLAYGROUND_FIELD_HELP.revealOvershoot,
-          disabled: assemblyDisabled,
-          onChange: (value) => handlers.onRevealAssemblyCommit({ overshoot: value }),
-        }),
+        ...(reveal.type === "wave"
+          ? {
+              revealPosition: selectControl<PlaygroundWaveRevealPosition>(reveal.wave.position, WAVE_POSITION_OPTIONS, {
+                label: "Position",
+                hint: PLAYGROUND_FIELD_HELP.revealPosition,
+                disabled: waveDisabled,
+                onChange: (position) => handlers.onRevealWaveCommit({ position }),
+              }),
+              revealWaveDuration: numControl(
+                reveal.wave.durationMs,
+                PLAYGROUND_CONTROL_RANGES.revealDurationMs.min,
+                PLAYGROUND_CONTROL_RANGES.revealDurationMs.max,
+                PLAYGROUND_CONTROL_RANGES.revealDurationMs.step,
+                {
+                  label: "Duration",
+                  hint: PLAYGROUND_FIELD_HELP.revealDuration,
+                  disabled: waveDisabled,
+                  onLive: (value) => handlers.onRevealWaveLive({ durationMs: value }),
+                  onCommit: (value) => handlers.onRevealWaveCommit({ durationMs: value }),
+                },
+              ),
+              revealSoftness: numControl(
+                reveal.wave.softness,
+                PLAYGROUND_CONTROL_RANGES.revealSoftness.min,
+                PLAYGROUND_CONTROL_RANGES.revealSoftness.max,
+                PLAYGROUND_CONTROL_RANGES.revealSoftness.step,
+                {
+                  label: "Softness",
+                  hint: PLAYGROUND_FIELD_HELP.revealSoftness,
+                  disabled: waveDisabled,
+                  onLive: (value) => handlers.onRevealWaveLive({ softness: value }),
+                  onCommit: (value) => handlers.onRevealWaveCommit({ softness: value }),
+                },
+              ),
+              revealWaviness: numControl(
+                reveal.wave.waviness,
+                PLAYGROUND_CONTROL_RANGES.revealWaviness.min,
+                PLAYGROUND_CONTROL_RANGES.revealWaviness.max,
+                PLAYGROUND_CONTROL_RANGES.revealWaviness.step,
+                {
+                  label: "Waviness",
+                  hint: PLAYGROUND_FIELD_HELP.revealWaviness,
+                  disabled: waveDisabled,
+                  onLive: (value) => handlers.onRevealWaveLive({ waviness: value }),
+                  onCommit: (value) => handlers.onRevealWaveCommit({ waviness: value }),
+                },
+              ),
+              revealNoiseScale: numControl(
+                reveal.wave.noiseScale,
+                PLAYGROUND_CONTROL_RANGES.revealNoiseScale.min,
+                PLAYGROUND_CONTROL_RANGES.revealNoiseScale.max,
+                PLAYGROUND_CONTROL_RANGES.revealNoiseScale.step,
+                {
+                  label: "Noise scale",
+                  hint: PLAYGROUND_FIELD_HELP.revealNoiseScale,
+                  disabled: waveDisabled,
+                  onLive: (value) => handlers.onRevealWaveLive({ noiseScale: value }),
+                  onCommit: (value) => handlers.onRevealWaveCommit({ noiseScale: value }),
+                },
+              ),
+            }
+          : {
+              revealAssemblyOrder: selectControl<PlaygroundAssemblyRevealOrder>(
+                reveal.assembly.order,
+                ASSEMBLY_ORDER_OPTIONS,
+                {
+                  label: "Order",
+                  hint: PLAYGROUND_FIELD_HELP.revealAssemblyOrder,
+                  disabled: assemblyDisabled,
+                  onChange: (order) => handlers.onRevealAssemblyCommit({ order }),
+                },
+              ),
+              revealAssemblyDuration: numControl(
+                reveal.assembly.durationMs,
+                PLAYGROUND_CONTROL_RANGES.revealDurationMs.min,
+                PLAYGROUND_CONTROL_RANGES.revealDurationMs.max,
+                PLAYGROUND_CONTROL_RANGES.revealDurationMs.step,
+                {
+                  label: "Duration (ms)",
+                  hint: PLAYGROUND_FIELD_HELP.revealDuration,
+                  disabled: assemblyDisabled,
+                  onLive: (value) => handlers.onRevealAssemblyLive({ durationMs: value }),
+                  onCommit: (value) => handlers.onRevealAssemblyCommit({ durationMs: value }),
+                },
+              ),
+              revealAssemblySpread: numControl(
+                reveal.assembly.spread,
+                PLAYGROUND_CONTROL_RANGES.revealSpread.min,
+                PLAYGROUND_CONTROL_RANGES.revealSpread.max,
+                PLAYGROUND_CONTROL_RANGES.revealSpread.step,
+                {
+                  label: "Stagger spread",
+                  hint: PLAYGROUND_FIELD_HELP.revealSpread,
+                  disabled: assemblyDisabled,
+                  onLive: (value) => handlers.onRevealAssemblyLive({ spread: value }),
+                  onCommit: (value) => handlers.onRevealAssemblyCommit({ spread: value }),
+                },
+              ),
+              revealAssemblySpeedMin: numControl(
+                reveal.assembly.speedMinMs,
+                PLAYGROUND_CONTROL_RANGES.revealSpeedMs.min,
+                PLAYGROUND_CONTROL_RANGES.revealSpeedMs.max,
+                PLAYGROUND_CONTROL_RANGES.revealSpeedMs.step,
+                {
+                  label: "Speed min (ms)",
+                  hint: PLAYGROUND_FIELD_HELP.revealSpeedMin,
+                  disabled: assemblyDisabled,
+                  onLive: (value) => handlers.onRevealAssemblyLive({ speedMinMs: value }),
+                  onCommit: (value) => handlers.onRevealAssemblyCommit({ speedMinMs: value }),
+                },
+              ),
+              revealAssemblySpeedMax: numControl(
+                reveal.assembly.speedMaxMs,
+                PLAYGROUND_CONTROL_RANGES.revealSpeedMs.min,
+                PLAYGROUND_CONTROL_RANGES.revealSpeedMs.max,
+                PLAYGROUND_CONTROL_RANGES.revealSpeedMs.step,
+                {
+                  label: "Speed max (ms)",
+                  hint: PLAYGROUND_FIELD_HELP.revealSpeedMax,
+                  disabled: assemblyDisabled,
+                  onLive: (value) => handlers.onRevealAssemblyLive({ speedMaxMs: value }),
+                  onCommit: (value) => handlers.onRevealAssemblyCommit({ speedMaxMs: value }),
+                },
+              ),
+            }),
       },
       { color: folderColor(snapshot.revealModified) },
     ),
@@ -1671,18 +1657,19 @@ export function buildPlaygroundLevaSyncValues(snapshot: PlaygroundLevaSnapshot):
   };
 
   values.revealType = reveal.type;
-  values.revealPosition = reveal.wave.position;
-  values.revealWaveDuration = reveal.wave.durationMs;
-  values.revealSoftness = reveal.wave.softness;
-  values.revealWaviness = reveal.wave.waviness;
-  values.revealNoiseScale = reveal.wave.noiseScale;
-  values.revealAssemblyOrder = reveal.assembly.order;
-  values.revealAssemblyFrom = reveal.assembly.from;
-  values.revealAssemblyDuration = reveal.assembly.durationMs;
-  values.revealAssemblySpread = reveal.assembly.spread;
-  values.revealAssemblyGlowSize = reveal.assembly.glowSize;
-  values.revealAssemblyFlight = reveal.assembly.flight;
-  values.revealAssemblyOvershoot = reveal.assembly.overshoot;
+  if (reveal.type === "wave") {
+    values.revealPosition = reveal.wave.position;
+    values.revealWaveDuration = reveal.wave.durationMs;
+    values.revealSoftness = reveal.wave.softness;
+    values.revealWaviness = reveal.wave.waviness;
+    values.revealNoiseScale = reveal.wave.noiseScale;
+  } else {
+    values.revealAssemblyOrder = reveal.assembly.order;
+    values.revealAssemblyDuration = reveal.assembly.durationMs;
+    values.revealAssemblySpread = reveal.assembly.spread;
+    values.revealAssemblySpeedMin = reveal.assembly.speedMinMs;
+    values.revealAssemblySpeedMax = reveal.assembly.speedMaxMs;
+  }
 
   if (snapshot.textureLuminanceSettings.mode === "luminance" || snapshot.textureLuminanceSettings.mode === "overlay") {
     values.stripeColorsTable = stripeSyncKey(snapshot.stripes);

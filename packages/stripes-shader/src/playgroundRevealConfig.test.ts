@@ -84,25 +84,39 @@ describe("assembly reveal config", () => {
     const normalized = normalizePlaygroundRevealConfig({
       enabled: true,
       type: "assembly",
-      assembly: { order: "sweep", from: "edge", durationMs: 999, spread: 5, glowSize: 1, flight: 9, overshoot: true },
+      assembly: { order: "sweep", durationMs: 999, spread: 5, speedMinMs: 50, speedMaxMs: 200 },
     } as never);
     expect(normalized.type).toBe("assembly");
     expect(normalized.assembly.order).toBe("sweep");
-    expect(normalized.assembly.from).toBe("edge");
     expect(normalized.assembly.durationMs).toBe(999);
     expect(normalized.assembly.spread).toBe(1); // clamped 0..1
-    expect(normalized.assembly.glowSize).toBe(4); // clamped to min
-    expect(normalized.assembly.flight).toBe(0.6); // clamped to max
-    expect(normalized.assembly.overshoot).toBe(true);
+    expect(normalized.assembly.speedMinMs).toBe(100); // clamped to min 100
+    expect(normalized.assembly.speedMaxMs).toBe(200);
   });
 
-  it("falls back to defaults for unknown order/from", () => {
+  it("forces speed max to be at least speed min", () => {
     const normalized = normalizePlaygroundRevealConfig({
       type: "assembly",
-      assembly: { order: "nope", from: "bogus" },
+      assembly: { speedMinMs: 3000, speedMaxMs: 500 },
+    } as never);
+    expect(normalized.assembly.speedMinMs).toBe(3000);
+    expect(normalized.assembly.speedMaxMs).toBe(3000);
+  });
+
+  it("ignores legacy assembly fields (from/glowSize/flight/overshoot)", () => {
+    const normalized = normalizePlaygroundRevealConfig({
+      type: "assembly",
+      assembly: { from: "edge", glowSize: 12, flight: 0.4, overshoot: true } as never,
+    } as never);
+    expect(normalized.assembly).toEqual(DEFAULT_PLAYGROUND_REVEAL_CONFIG.assembly);
+  });
+
+  it("falls back to defaults for unknown order", () => {
+    const normalized = normalizePlaygroundRevealConfig({
+      type: "assembly",
+      assembly: { order: "nope" },
     } as never);
     expect(normalized.assembly.order).toBe("center");
-    expect(normalized.assembly.from).toBe("scatter");
   });
 
   it("rejects an unknown reveal type", () => {
@@ -125,8 +139,12 @@ describe("assembly reveal config", () => {
     expect(ASSEMBLY_ORDER_TO_INDEX).toEqual({ center: 0, edges: 1, sweep: 2, random: 3 });
   });
 
-  it("rounds a fractional glowSize to an integer", () => {
-    const normalized = normalizePlaygroundRevealConfig({ type: "assembly", assembly: { glowSize: 3.7 } } as never);
-    expect(normalized.assembly.glowSize).toBe(4);
+  it("rounds fractional ms fields to integers", () => {
+    const normalized = normalizePlaygroundRevealConfig({
+      type: "assembly",
+      assembly: { speedMinMs: 810.7, speedMaxMs: 3999.4 },
+    } as never);
+    expect(normalized.assembly.speedMinMs).toBe(811);
+    expect(normalized.assembly.speedMaxMs).toBe(3999);
   });
 });
