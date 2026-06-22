@@ -11,7 +11,7 @@
     "dev": "pnpm --filter studio dev",
     "build": "pnpm --filter studio build",
     "build:client": "pnpm --filter studio build:client",
-    "typecheck": "pnpm --filter studio typecheck && pnpm --filter @necatikcl/stripes-shader typecheck",
+    "typecheck": "pnpm --filter studio typecheck && pnpm --filter @necatikcl/stripes-shader typecheck && pnpm --filter @necatikcl/stripes-engine typecheck",
     "preview:worker": "pnpm --filter studio preview:worker",
     "deploy": "pnpm --filter studio deploy",
     "test": "vitest run --config vitest.workspace.ts",
