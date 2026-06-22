@@ -32,6 +32,8 @@ export interface PixiProps {
   resolveInitOptions?: (canvas: HTMLCanvasElement) => Partial<ApplicationOptions>;
   onInitialized?: (app: Application) => void;
   onDisposed?: () => void;
+  /** Fired when the canvas WebGL context is lost (GPU reset, resource pressure). Use to rebuild. */
+  onContextLost?: () => void;
   tickers: Ticker[];
 }
 
@@ -45,6 +47,7 @@ export default function Pixi({
   resolveInitOptions,
   onInitialized,
   onDisposed,
+  onContextLost,
   canvasAttrs,
   canvasRef: forwardedCanvasRef,
   initOptions,
@@ -65,6 +68,8 @@ export default function Pixi({
   const initCompleteRef = useRef(false);
   const tickersRef = useRef(tickers);
   tickersRef.current = tickers;
+  const onContextLostRef = useRef(onContextLost);
+  onContextLostRef.current = onContextLost;
   const layoutSizeRef = useRef({ width: layoutWidth, height: layoutHeight });
   layoutSizeRef.current = { width: layoutWidth, height: layoutHeight };
 
@@ -91,6 +96,14 @@ export default function Pixi({
 
     const app = new Application();
     appRef.current = app;
+
+    // A lost context (GPU reset / resource pressure) leaves the canvas blank with no way back
+    // on its own. Surface it so the owner can rebuild on a fresh canvas + context.
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      onContextLostRef.current?.();
+    };
+    canvas.addEventListener("webglcontextlost", handleContextLost);
 
     const runResourceCleanups = () => {
       for (let index = resourceCleanups.length - 1; index >= 0; index -= 1) {
@@ -187,6 +200,8 @@ export default function Pixi({
     return () => {
       aborted = true;
       initCompleteRef.current = false;
+
+      canvas.removeEventListener("webglcontextlost", handleContextLost);
 
       app.ticker?.stop?.();
 

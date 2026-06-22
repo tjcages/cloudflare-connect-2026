@@ -136,4 +136,21 @@ describe("Pixi", () => {
       expect(destroyMock).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("notifies onContextLost (and preventDefaults) when the canvas loses its WebGL context", async () => {
+    const onContextLost = vi.fn();
+    render(<Pixi tickers={[]} layoutWidth={640} layoutHeight={360} onContextLost={onContextLost} />);
+
+    await waitFor(() => {
+      expect(initMock).toHaveBeenCalledTimes(1);
+    });
+
+    const canvas = document.querySelector("canvas");
+    expect(canvas).not.toBeNull();
+    const event = new Event("webglcontextlost", { cancelable: true });
+    canvas?.dispatchEvent(event);
+
+    expect(onContextLost).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+  });
 });
