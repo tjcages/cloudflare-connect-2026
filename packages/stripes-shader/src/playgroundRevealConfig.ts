@@ -33,14 +33,14 @@ export type PlaygroundRevealConfig = {
 };
 
 export const DEFAULT_PLAYGROUND_REVEAL_CONFIG: PlaygroundRevealConfig = {
-  enabled: false,
+  enabled: true,
   type: "wave",
   wave: {
     position: "center",
-    durationMs: 1100,
-    softness: 0.08,
+    durationMs: 1300,
+    softness: 0.16,
     waviness: 0.35,
-    noiseScale: 0.5,
+    noiseScale: 14.5,
   },
   assembly: { speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
 };
@@ -114,7 +114,7 @@ export function normalizePlaygroundRevealConfig(
 
   const wave = input.wave ?? {};
   return {
-    enabled: input.enabled === true,
+    enabled: input.enabled !== false,
     type: normalizeRevealType((input as { type?: unknown }).type),
     wave: {
       position: normalizePlaygroundWaveRevealPosition(wave.position),

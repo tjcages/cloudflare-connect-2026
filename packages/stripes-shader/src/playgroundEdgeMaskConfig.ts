@@ -10,7 +10,7 @@ export type PlaygroundEdgeMaskConfig = {
 };
 
 export const DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG: PlaygroundEdgeMaskConfig = {
-  enabled: false,
+  enabled: true,
   start: 0,
   end: 0.1,
   power: 1,
@@ -36,7 +36,7 @@ export function normalizePlaygroundEdgeMaskConfig(
   const end = clampNumber(input.end ?? base.end, start + 0.001, 0.5, Math.max(start + 0.001, input.end ?? base.end));
 
   return {
-    enabled: input.enabled === true,
+    enabled: input.enabled !== false,
     start,
     end,
     power: clampNumber(input.power ?? base.power, 0.1, 4, base.power),

@@ -255,7 +255,7 @@ describe("playgroundPersistence envelope migration", () => {
     const wire = JSON.parse(text);
 
     expect(wire.v).toBe(6);
-    expect(wire.fl).toEqual({ en: true, dir: "right", spd: 90, ma: 24, es: 0.5 });
+    expect(wire.fl).toEqual({ dir: "right", spd: 90, ma: 24, es: 0.5 });
     const parsed = parsePlaygroundStateInput(text);
     expect(parsed.flames?.enabled).toBe(true);
     expect(parsed.flames?.direction).toBe("right");
@@ -307,7 +307,7 @@ describe("playgroundPersistence envelope migration", () => {
     const wire = JSON.parse(text);
 
     expect(wire.v).toBe(7);
-    expect(wire.mk).toEqual({ en: true, s: 0.05, e: 0.2, p: 2 });
+    expect(wire.mk).toEqual({ s: 0.05, e: 0.2, p: 2 });
     const parsed = parsePlaygroundStateInput(text);
     expect(parsed.edgeMask?.enabled).toBe(true);
     expect(parsed.edgeMask?.start).toBe(0.05);

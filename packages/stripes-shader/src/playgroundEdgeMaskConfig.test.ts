@@ -7,10 +7,10 @@ import {
 } from "./playgroundEdgeMaskConfig";
 
 describe("playgroundEdgeMaskConfig", () => {
-  it("defaults to disabled", () => {
-    expect(DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG.enabled).toBe(false);
+  it("defaults to enabled", () => {
+    expect(DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG.enabled).toBe(true);
     expect(normalizePlaygroundEdgeMaskConfig(undefined)).toEqual(DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG);
-    expect(normalizePlaygroundEdgeMaskConfig({}).enabled).toBe(false);
+    expect(normalizePlaygroundEdgeMaskConfig({}).enabled).toBe(true);
   });
 
   it("returns full mask alpha when disabled", () => {
@@ -38,7 +38,7 @@ describe("playgroundEdgeMaskConfig", () => {
 
   it("detects default vs non-default config", () => {
     expect(isDefaultPlaygroundEdgeMaskConfig(DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG)).toBe(true);
-    expect(isDefaultPlaygroundEdgeMaskConfig({ ...DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG, enabled: true })).toBe(false);
+    expect(isDefaultPlaygroundEdgeMaskConfig({ ...DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG, enabled: false })).toBe(false);
     expect(isDefaultPlaygroundEdgeMaskConfig({ ...DEFAULT_PLAYGROUND_EDGE_MASK_CONFIG, end: 0.2 })).toBe(false);
   });
 });

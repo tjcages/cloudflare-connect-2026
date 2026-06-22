@@ -19,7 +19,7 @@ describe("playground reveal config", () => {
     });
 
     expect(config).toEqual({
-      enabled: false,
+      enabled: true,
       type: "wave",
       wave: {
         position: "right bottom",
@@ -52,7 +52,7 @@ describe("playground reveal config", () => {
     expect(
       isDefaultPlaygroundRevealConfig(
         normalizePlaygroundRevealConfig({
-          enabled: true,
+          enabled: false,
           wave: { ...DEFAULT_PLAYGROUND_REVEAL_CONFIG.wave },
         }),
       ),

@@ -24,19 +24,19 @@ export type PlaygroundFlamesConfig = {
 };
 
 export const DEFAULT_PLAYGROUND_FLAMES_CONFIG: PlaygroundFlamesConfig = {
-  enabled: false,
+  enabled: true,
   direction: "up",
   minWidthRatio: 0.0223,
   maxWidthRatio: 0.0453,
   minHeightRatio: 0.0245,
-  maxHeightRatio: 0.0485,
-  baseSpeedPxPerSec: 60,
-  speedVariation: 0.5,
+  maxHeightRatio: 0.08,
+  baseSpeedPxPerSec: 40,
+  speedVariation: 1,
   spawnIntervalMs: 50,
   spawnJitterMs: 80,
   maxActive: 48,
   edgeSharpness: 1,
-  opacityMin: 0.65,
+  opacityMin: 0.3,
   opacityMax: 1,
 };
 
