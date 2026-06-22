@@ -13,13 +13,15 @@ describe("StripeColorsTable", () => {
         onColorChange={() => {}}
         onThresholdChange={() => {}}
         onWidthChange={() => {}}
+        onColorReorder={() => {}}
       />,
     );
 
     expect(screen.getByText("Color")).toBeInTheDocument();
     expect(screen.getByText("Threshold")).toBeInTheDocument();
     expect(screen.getByText("Width")).toBeInTheDocument();
-    expect(screen.getAllByLabelText(/Stripe \d+ color/)).toHaveLength(6);
+    expect(screen.getAllByLabelText(/^Stripe \d+ color$/)).toHaveLength(6);
+    expect(screen.getAllByLabelText(/^Reorder Stripe \d+ color$/)).toHaveLength(6);
   });
 
   it("calls threshold and width handlers with clamped values", () => {
@@ -33,6 +35,7 @@ describe("StripeColorsTable", () => {
         onColorChange={() => {}}
         onThresholdChange={onThresholdChange}
         onWidthChange={onWidthChange}
+        onColorReorder={() => {}}
       />,
     );
 
@@ -53,6 +56,7 @@ describe("StripeColorsTable", () => {
         onColorChange={onColorChange}
         onThresholdChange={() => {}}
         onWidthChange={() => {}}
+        onColorReorder={() => {}}
       />,
     );
 

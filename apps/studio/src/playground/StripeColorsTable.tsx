@@ -1,4 +1,7 @@
 import type { CSSProperties } from "react";
+import { useEffect, useState } from "react";
+import { Reorder, useDragControls } from "motion/react";
+import { GripVertical } from "lucide-react";
 import { HexColorPopover } from "../components/HexColorPopover";
 import { PLAYGROUND_LEVA_COLOR_SWATCH_CLASS } from "./playgroundUi";
 import {
@@ -18,6 +21,7 @@ export type StripeColorsTableProps = {
   onColorChange: (id: string, hex: string) => void;
   onThresholdChange: (id: string, value: number) => void;
   onWidthChange: (id: string, value: number) => void;
+  onColorReorder: (orderedIds: string[]) => void;
 };
 
 function parseThresholdInput(raw: string): number | null {
@@ -42,53 +46,105 @@ function parseWidthInput(raw: string): number | null {
   return clampStripeWidth(value);
 }
 
+function StripeColorRow({
+  stripe,
+  index,
+  disabled,
+  onColorChange,
+}: {
+  stripe: Stripe;
+  index: number;
+  disabled: boolean;
+  onColorChange: (id: string, hex: string) => void;
+}) {
+  const controls = useDragControls();
+
+  return (
+    <Reorder.Item
+      as="div"
+      value={stripe}
+      dragListener={false}
+      dragControls={controls}
+      className="stripe-colors-color-row"
+    >
+      <button
+        type="button"
+        aria-label={`Reorder Stripe ${index + 1} color`}
+        className="stripe-colors-grip cursor-grab active:cursor-grabbing"
+        style={{ touchAction: "none" }}
+        disabled={disabled}
+        onPointerDown={disabled ? undefined : (event) => controls.start(event)}
+      >
+        <GripVertical size={14} />
+      </button>
+      <HexColorPopover
+        color={stripe.hex}
+        onChange={(hex) => onColorChange(stripe.id, hex)}
+        disabled={disabled}
+        ariaLabel={`Stripe ${index + 1} color`}
+        triggerClassName={PLAYGROUND_LEVA_COLOR_SWATCH_CLASS}
+        triggerStyle={
+          {
+            backgroundColor: stripe.hex,
+            "--stripe-swatch-color": stripe.hex,
+          } as CSSProperties
+        }
+        align="right"
+      />
+    </Reorder.Item>
+  );
+}
+
 export function StripeColorsTable({
   stripes,
   disabled = false,
   onColorChange,
   onThresholdChange,
   onWidthChange,
+  onColorReorder,
 }: StripeColorsTableProps) {
+  const [order, setOrder] = useState<Stripe[]>(() => [...stripes]);
+  const reconcileKey = stripes.map((s) => `${s.id}:${s.hex}`).join("|");
+
+  useEffect(() => {
+    setOrder([...stripes]);
+  }, [reconcileKey]);
+
   return (
-    <table
-      className={cn(
-        "stripe-colors-table w-full border-collapse text-[11px]",
-        disabled && "pointer-events-none opacity-45",
-      )}
-    >
-      <thead>
-        <tr>
-          <th className="stripe-colors-table-label pr-1 text-left" scope="col">
-            Color
-          </th>
-          <th className="stripe-colors-table-label pr-1 text-right" scope="col">
-            Threshold
-          </th>
-          <th className="stripe-colors-table-label text-right" scope="col">
-            Width
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {stripes.map((stripe, index) => (
-          <tr key={stripe.id}>
-            <td className="py-1 pr-1 align-middle">
-              <HexColorPopover
-                color={stripe.hex}
-                onChange={(hex) => onColorChange(stripe.id, hex)}
-                disabled={disabled}
-                ariaLabel={`Stripe ${index + 1} color`}
-                triggerClassName={PLAYGROUND_LEVA_COLOR_SWATCH_CLASS}
-                triggerStyle={
-                  {
-                    backgroundColor: stripe.hex,
-                    "--stripe-swatch-color": stripe.hex,
-                  } as CSSProperties
-                }
-                align="right"
-              />
-            </td>
-            <td className="py-1 pr-1 text-right align-middle">
+    <div className={cn("stripe-colors-table text-[11px]", disabled && "pointer-events-none opacity-45")}>
+      <div className="stripe-colors-header">
+        <div className="stripe-colors-header-color">
+          <span className="stripe-colors-table-label text-left">Color</span>
+        </div>
+        <div className="stripe-colors-header-ladder">
+          <span className="stripe-colors-table-label text-right">Threshold</span>
+          <span className="stripe-colors-table-label text-right">Width</span>
+        </div>
+      </div>
+      <div className="stripe-colors-body">
+        <Reorder.Group
+          as="div"
+          axis="y"
+          values={order}
+          onReorder={(next) => {
+            setOrder(next);
+            onColorReorder(next.map((s) => s.id));
+          }}
+          className="stripe-colors-color-column"
+        >
+          {order.map((stripe, index) => (
+            <StripeColorRow
+              key={stripe.id}
+              stripe={stripe}
+              index={index}
+              disabled={disabled}
+              onColorChange={onColorChange}
+            />
+          ))}
+        </Reorder.Group>
+        <div className="stripe-colors-ladder-column">
+          {stripes.map((stripe, index) => (
+            <div key={index} className="stripe-colors-ladder-row">
               <div className="stripe-colors-leva-input">
                 <input
                   type="number"
@@ -106,8 +162,6 @@ export function StripeColorsTable({
                   }}
                 />
               </div>
-            </td>
-            <td className="py-1 text-right align-middle">
               <div className="stripe-colors-leva-input">
                 <input
                   type="number"
@@ -125,10 +179,10 @@ export function StripeColorsTable({
                   }}
                 />
               </div>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -587,15 +587,107 @@ html.playground-app #root {
   display: none !important;
 }
 
-/* Stripe colors table — flat rows; header labels match native Leva field labels. */
-.playground-leva-panel .stripe-colors-table th,
-.playground-leva-panel .stripe-colors-table td {
-  background-color: transparent !important;
-  border: none !important;
+/* Stripe colors table — column-split grid: draggable color column + static threshold/width ladder. */
+.playground-leva-panel .stripe-colors-table {
+  --sc-row-h: 32px;
+  --sc-grip-w: 18px;
+  display: grid;
+  width: 100%;
+  row-gap: 0;
 }
 
-.playground-leva-panel .stripe-colors-table tr {
-  border: none !important;
+.playground-leva-panel .stripe-colors-table .stripe-colors-header,
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row,
+.playground-leva-panel .stripe-colors-table .stripe-colors-ladder-row {
+  display: grid;
+  align-items: center;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-header {
+  grid-template-columns: minmax(0, 1fr) 96px;
+  column-gap: 8px;
+  padding-bottom: 6px;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-header-color {
+  min-width: 0;
+  padding-left: calc(var(--sc-grip-w) + 8px);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-header-ladder {
+  display: grid;
+  grid-template-columns: 44px 44px;
+  column-gap: 8px;
+  justify-content: end;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-header-ladder .stripe-colors-table-label {
+  overflow: visible;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  column-gap: 8px;
+  align-items: start;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-column {
+  display: grid;
+  grid-auto-rows: var(--sc-row-h);
+  row-gap: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row {
+  grid-template-columns: var(--sc-grip-w) 24px;
+  column-gap: 8px;
+  height: var(--sc-row-h);
+  position: relative;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-ladder-column {
+  display: grid;
+  grid-auto-rows: var(--sc-row-h);
+  row-gap: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-ladder-row {
+  grid-template-columns: 44px 44px;
+  column-gap: 8px;
+  justify-content: end;
+  height: var(--sc-row-h);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  appearance: none;
+  color: var(--leva-text-muted);
+  touch-action: none;
+  cursor: grab;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-grip:disabled {
+  cursor: default;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-grip:active {
+  cursor: grabbing;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row:hover .stripe-colors-grip,
+.playground-leva-panel .stripe-colors-table .stripe-colors-grip:focus-visible {
+  color: var(--leva-text);
+  outline: none;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row[data-dragging="true"],
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-row:active {
+  z-index: 2;
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-table-label {
@@ -603,7 +695,6 @@ html.playground-app #root {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
-  padding-bottom: 6px;
   font-weight: 400;
   color: var(--leva-text-muted);
 }

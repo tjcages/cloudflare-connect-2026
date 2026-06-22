@@ -117,6 +117,7 @@ function renderLevaControls(overrides: Partial<ComponentProps<typeof PlaygroundL
       onStripeColorChange={() => {}}
       onStripeStartFromCommit={() => {}}
       onStripeWidthCommit={() => {}}
+      onStripeColorReorder={() => {}}
       onResetStripes={() => {}}
       stripesModified={false}
       sparkleGapsActivePercent={0}
@@ -243,6 +244,12 @@ describe("PlaygroundLevaControls", () => {
     expect(onStripeStartFromCommit).toHaveBeenCalledWith(stripes[0]!.id, 0.2);
   });
 
+  it("renders a reorder grip handle for each stripe color", () => {
+    renderLevaControls({ stripes: cloneDefaultStripes() });
+
+    expect(screen.getAllByLabelText(/^Reorder Stripe \d+ color$/)).toHaveLength(6);
+  });
+
   it("renders canvas controls, presets, and workflow above shader folders", () => {
     renderLevaControls();
 
@@ -329,6 +336,7 @@ describe("PlaygroundLevaControls", () => {
       onStripeColorChange: noop,
       onStripeStartFromCommit: noop,
       onStripeWidthCommit: noop,
+      onStripeColorReorder: noop,
       resetStripes: noop,
       setSparkleGapsActivePercentLive: noop,
       commitSparkleGapsActivePercent: noop,
@@ -452,6 +460,7 @@ describe("PlaygroundLevaControls", () => {
       onStripeColorChange: noop,
       onStripeStartFromCommit: noop,
       onStripeWidthCommit: noop,
+      onStripeColorReorder: noop,
       resetStripes: noop,
       setSparkleGapsActivePercentLive: noop,
       commitSparkleGapsActivePercent: noop,
@@ -565,6 +574,7 @@ describe("PlaygroundLevaControls", () => {
       onStripeColorChange: noop,
       onStripeStartFromCommit: noop,
       onStripeWidthCommit: noop,
+      onStripeColorReorder: noop,
       resetStripes: noop,
       setSparkleGapsActivePercentLive: noop,
       commitSparkleGapsActivePercent: noop,

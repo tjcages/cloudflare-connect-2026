@@ -237,6 +237,32 @@ export function updateStripe(colors: StripeColors, id: string, patch: Partial<St
   };
 }
 
+/**
+ * Reorders stripe colors to a new id sequence while pinning startFrom/width to
+ * position ("color only" reorder). The color identity (id, hex, p3Css) travels to
+ * its new slot; each slot keeps its original startFrom/width. Returns a fresh copy
+ * unchanged if orderedIds does not match the current id set.
+ */
+export function reorderStripeColors(stripes: readonly Stripe[], orderedIds: readonly string[]): Stripe[] {
+  if (orderedIds.length !== stripes.length) {
+    return stripes.map((entry) => ({ ...entry }));
+  }
+  const byId = new Map(stripes.map((entry) => [entry.id, entry]));
+  const reordered: Stripe[] = [];
+  for (const id of orderedIds) {
+    const entry = byId.get(id);
+    if (!entry) {
+      return stripes.map((copy) => ({ ...copy }));
+    }
+    reordered.push(entry);
+  }
+  return reordered.map((entry, index) => ({
+    ...entry,
+    startFrom: stripes[index]!.startFrom,
+    width: stripes[index]!.width,
+  }));
+}
+
 /** Shader/filter RGB. Wide gamut always derives display-p3 from the stripe hex picker value. */
 export function resolveStripeRgb(stripe: Stripe, preferP3: boolean): Rgb01 {
   return resolvePlaygroundShaderRgb(stripe.hex, preferP3);

@@ -126,6 +126,7 @@ import {
   cloneDefaultStripes,
   DEFAULT_STRIPES,
   overlayStripesMatchDefault,
+  reorderStripeColors,
   resolveActivePlaygroundStripes,
   stripeColorFromHexPicker,
   updateStripe,
@@ -367,6 +368,8 @@ export function TexturePlayground() {
   const [sourceWidth, setSourceWidth] = useState(0);
   const [sourceHeight, setSourceHeight] = useState(0);
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
+  const [canvasGeneration, setCanvasGeneration] = useState(0);
+  const contextLossTimesRef = useRef<number[]>([]);
   const textureGamma = textureAdjustments.gamma;
   const activeStripes = useMemo(
     () => [...resolveActivePlaygroundStripes(textureLuminanceSettings.mode, stripes, overlayStripes)],
@@ -631,6 +634,20 @@ export function TexturePlayground() {
     setDisplayHeight(clampPlaygroundDisplayDimension(source.height * multiplier, source.height));
   }, []);
 
+  // Rebuild the canvas on WebGL context loss so it recovers instead of staying blank until reload.
+  // Heavier GPU work (video decode + large render targets after upscaling) can lose the context;
+  // a fresh canvas + context restores it. Cap rapid retries so a persistent failure can't thrash.
+  const handleCanvasContextLost = useCallback(() => {
+    const now = performance.now();
+    const recent = contextLossTimesRef.current.filter((time) => now - time < 10000);
+    recent.push(now);
+    contextLossTimesRef.current = recent;
+    if (recent.length > 3) {
+      return;
+    }
+    setCanvasGeneration((generation) => generation + 1);
+  }, []);
+
   const onTextureSelect = useCallback(
     (textureId: PlaygroundTextureId) => {
       applyConfig(defaultConfigForTexture(textureId));
@@ -709,16 +726,30 @@ export function TexturePlayground() {
     setRevealConfig(next);
   }, PLAYGROUND_SCRUB_COMMIT_MS);
 
-  const applyStripePatch = useCallback((id: string, patch: Parameters<typeof updateStripe>[2]) => {
-    const next = updateStripe({ stripes: stripeColorsRef.current.stripes }, id, patch).stripes;
+  const commitStripeList = useCallback((next: Stripe[]) => {
     stripeColorsRef.current = { stripes: next };
     if (normalizeTextureLuminanceMode(textureLuminanceSettingsRef.current.mode) === "overlay") {
       setOverlayStripes(next);
     } else {
       setStripes(next);
     }
-    return next;
   }, []);
+
+  const applyStripePatch = useCallback(
+    (id: string, patch: Parameters<typeof updateStripe>[2]) => {
+      const next = updateStripe({ stripes: stripeColorsRef.current.stripes }, id, patch).stripes;
+      commitStripeList(next);
+      return next;
+    },
+    [commitStripeList],
+  );
+
+  const onStripeColorReorder = useCallback(
+    (orderedIds: string[]) => {
+      commitStripeList(reorderStripeColors(stripeColorsRef.current.stripes, orderedIds));
+    },
+    [commitStripeList],
+  );
 
   const onStripeColorChange = useCallback(
     (id: string, hex: string) => {
@@ -1740,6 +1771,7 @@ export function TexturePlayground() {
     onStripeColorChange,
     onStripeStartFromCommit,
     onStripeWidthCommit,
+    onStripeColorReorder,
     onResetStripes: resetStripes,
     stripesModified,
     sparkleGapsActivePercent,
@@ -1819,7 +1851,8 @@ export function TexturePlayground() {
   const { textureId } = loadState;
   // Grid/letter config changes are applied live by the ticker. Texture, media kind, and display
   // size remount Pixi with a fresh canvas (WebGL context cannot be recreated on the same element).
-  const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}`;
+  // canvasGeneration bumps on context loss to force that fresh canvas as a recovery path.
+  const sceneKey = `${textureId}-${loadState.kind}-${displayWidth}x${displayHeight}-g${canvasGeneration}`;
   const isVideoSource = loadState.kind === "video";
   const exportLabel = exportFeedback === "copied" ? "Copied" : exportFeedback === "failed" ? "Copy failed" : "Copy SVG";
   const videoExportTranscodeElapsedMs =
@@ -1850,6 +1883,7 @@ export function TexturePlayground() {
               style: { width: displayWidth, height: displayHeight },
             }}
             canvasRef={setCanvasNode}
+            onContextLost={handleCanvasContextLost}
             resolveInitOptions={(canvas) => {
               const context = createPlaygroundWebGLContext(canvas);
               preferP3Ref.current = playgroundPrefersDisplayP3(canvas, context);

@@ -100,6 +100,7 @@ export type PlaygroundLevaControlsProps = {
   onStripeColorChange: (id: string, hex: string) => void;
   onStripeStartFromCommit: (id: string, value: number) => void;
   onStripeWidthCommit: (id: string, value: number) => void;
+  onStripeColorReorder: (orderedIds: string[]) => void;
   onResetStripes: () => void;
   stripesModified: boolean;
   sparkleGapsActivePercent: number;
@@ -324,6 +325,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onStripeColorChange: (id, hex) => propsRef.current.onStripeColorChange(id, hex),
     onStripeStartFromCommit: (id, value) => propsRef.current.onStripeStartFromCommit(id, value),
     onStripeWidthCommit: (id, value) => propsRef.current.onStripeWidthCommit(id, value),
+    onStripeColorReorder: (orderedIds) => propsRef.current.onStripeColorReorder(orderedIds),
     resetStripes: () => propsRef.current.onResetStripes(),
     setSparkleGapsActivePercentLive: (value) => propsRef.current.setSparkleGapsActivePercentLive(value),
     commitSparkleGapsActivePercent: (value) => propsRef.current.commitSparkleGapsActivePercent(value),
@@ -368,6 +370,7 @@ export function PlaygroundLevaControls(props: PlaygroundLevaControlsProps) {
     onColorChange: handlersRef.current.onStripeColorChange,
     onThresholdChange: handlersRef.current.onStripeStartFromCommit,
     onWidthChange: handlersRef.current.onStripeWidthCommit,
+    onColorReorder: handlersRef.current.onStripeColorReorder,
   };
 
   const [, setCanvasLevaValues] = useControls(

@@ -10,6 +10,7 @@ import {
   hexToDisplayP3Css,
   normalizeStripe,
   removeStripe,
+  reorderStripeColors,
   resolveActivePlaygroundStripes,
   resolvePlaygroundPixiTint,
   resolveStripeIndices,
@@ -131,6 +132,67 @@ describe("stripe list editing", () => {
     // Width stores up to the encode ceiling so wide cells can carry thick stripes;
     // the shader clamps the drawn thickness to the actual cell size.
     expect(clamped.stripes[0]!.width).toBe(STRIPE_WIDTH_STORAGE_MAX);
+  });
+});
+
+describe("reorderStripeColors", () => {
+  it("moves the first color to the end while pinning startFrom/width to position", () => {
+    const stripes = cloneDefaultStripes();
+    const orderedIds = [...stripes.slice(1).map((s) => s.id), stripes[0]!.id];
+    const reordered = reorderStripeColors(stripes, orderedIds);
+
+    expect(reordered.map((s) => s.id)).toEqual(orderedIds);
+    expect(reordered.map((s) => s.startFrom)).toEqual([0.12, 0.28, 0.44, 0.6, 0.76, 0.9]);
+    expect(reordered.map((s) => s.width)).toEqual([1, 1, 2, 3, 4, 5]);
+    expect(stripes.map((s) => s.startFrom)).toEqual([0.12, 0.28, 0.44, 0.6, 0.76, 0.9]);
+  });
+
+  it("carries id/hex/p3Css together to the new slot", () => {
+    const stripes = cloneDefaultStripes();
+    const first = stripes[0]!;
+    const orderedIds = [...stripes.slice(1).map((s) => s.id), first.id];
+    const reordered = reorderStripeColors(stripes, orderedIds);
+
+    const moved = reordered[reordered.length - 1]!;
+    expect(moved.id).toBe(first.id);
+    expect(moved.hex).toBe(first.hex);
+    expect(moved.p3Css).toBe(first.p3Css);
+    expect(moved.startFrom).toBe(0.9);
+    expect(moved.width).toBe(5);
+  });
+
+  it("returns an unchanged copy on length mismatch", () => {
+    const stripes = cloneDefaultStripes();
+    const reordered = reorderStripeColors(stripes, [stripes[0]!.id]);
+
+    expect(reordered).toEqual(stripes);
+    expect(reordered).not.toBe(stripes);
+    expect(reordered[0]).not.toBe(stripes[0]);
+  });
+
+  it("returns an unchanged copy when an id is unknown", () => {
+    const stripes = cloneDefaultStripes();
+    const orderedIds = stripes.map((s) => s.id);
+    orderedIds[2] = "does-not-exist";
+    const reordered = reorderStripeColors(stripes, orderedIds);
+
+    expect(reordered).toEqual(stripes);
+    expect(reordered).not.toBe(stripes);
+    expect(reordered[0]).not.toBe(stripes[0]);
+  });
+
+  it("reorders a duplicate-hex palette correctly by id", () => {
+    const stripes = buildStripeColors([
+      { ...cloneDefaultStripes()[0]!, id: "dup-a", hex: "#123456" },
+      { ...cloneDefaultStripes()[1]!, id: "dup-b", hex: "#123456" },
+      { ...cloneDefaultStripes()[2]!, id: "uniq", hex: "#abcdef" },
+    ]).stripes;
+    const reordered = reorderStripeColors(stripes, ["uniq", "dup-b", "dup-a"]);
+
+    expect(reordered.map((s) => s.id)).toEqual(["uniq", "dup-b", "dup-a"]);
+    expect(reordered.map((s) => s.hex)).toEqual(["#abcdef", "#123456", "#123456"]);
+    expect(reordered.map((s) => s.startFrom)).toEqual(stripes.map((s) => s.startFrom));
+    expect(reordered.map((s) => s.width)).toEqual(stripes.map((s) => s.width));
   });
 });
 

@@ -323,6 +323,7 @@ export type PlaygroundLevaHandlers = {
   onStripeColorChange: (id: string, hex: string) => void;
   onStripeStartFromCommit: (id: string, value: number) => void;
   onStripeWidthCommit: (id: string, value: number) => void;
+  onStripeColorReorder: (orderedIds: string[]) => void;
   resetStripes: () => void;
   setSparkleGapsActivePercentLive: (value: number) => void;
   commitSparkleGapsActivePercent: (value: number) => void;

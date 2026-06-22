@@ -8,6 +8,7 @@ export type StripeColorsTableHandlers = {
   onColorChange: (id: string, hex: string) => void;
   onThresholdChange: (id: string, value: number) => void;
   onWidthChange: (id: string, value: number) => void;
+  onColorReorder: (orderedIds: string[]) => void;
 };
 
 export type StripeColorsTableRuntime = {
@@ -24,6 +25,7 @@ export const stripeColorsTableRuntime: StripeColorsTableRuntime = {
     onColorChange: () => {},
     onThresholdChange: () => {},
     onWidthChange: () => {},
+    onColorReorder: () => {},
   },
 };
 
@@ -52,6 +54,7 @@ function StripeColorsTablePluginComponent() {
           onColorChange={handlers.onColorChange}
           onThresholdChange={handlers.onThresholdChange}
           onWidthChange={handlers.onWidthChange}
+          onColorReorder={handlers.onColorReorder}
         />
       </div>
     </Row>

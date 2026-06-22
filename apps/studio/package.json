@@ -15,14 +15,15 @@
     "verify": "pnpm run test && pnpm run typecheck && pnpm run build:client"
   },
   "dependencies": {
-    "@necatikcl/stripes-shader": "workspace:*",
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "@necatikcl/stripes-shader": "workspace:*",
     "clsx": "^2.1.1",
     "fflate": "^0.8.2",
     "leva": "^0.10.1",
     "lucide-react": "^1.14.0",
+    "motion": "^12.40.0",
     "pixi.js": "^8.18.1",
     "react": "^19.0.5",
     "react-colorful": "^5.7.0",
