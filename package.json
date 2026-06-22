@@ -16,6 +16,7 @@
     "deploy": "pnpm --filter studio deploy",
     "test": "vitest run --config vitest.workspace.ts",
     "test:watch": "vitest --config vitest.workspace.ts",
+    "test:e2e": "playwright test",
     "verify": "pnpm run test && pnpm run typecheck && pnpm --filter studio build:client",
     "code-check": "oxlint -c .oxlintrc.json . && oxfmt --check .",
     "lint": "oxlint -c .oxlintrc.json .",
@@ -33,6 +34,7 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "oxfmt": "^0.48.0",
