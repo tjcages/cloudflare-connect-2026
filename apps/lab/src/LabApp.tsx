@@ -4,6 +4,7 @@ import {
   createManualClock,
   createRealClock,
   serializeEngineConfig,
+  normalizeEngineConfig,
   type StripesEngine,
   type PerfSnapshot,
   type EngineConfig,
@@ -12,7 +13,7 @@ import { Leva } from "leva";
 import { PerfOverlay } from "./PerfOverlay";
 import { createTestImage } from "./testImage";
 import { useEngineControls } from "./controls/levaSchema";
-import { loadInitialConfig, saveConfig, importConfig } from "./persistence";
+import { saveConfig, importConfig } from "./persistence";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -61,7 +62,6 @@ function LabInner() {
 
     const testImage = createTestImage();
     engine.setSource(testImage);
-    engine.setConfig(loadInitialConfig());
 
     (window as unknown as { __lab: unknown }).__lab = {
       engine,
@@ -117,6 +117,7 @@ function LabInner() {
       const engine = engineRef.current;
       if (!engine) return;
       engine.setConfig(cfg);
+      saveConfig(normalizeEngineConfig(cfg));
       if (manualRef.current) engine.renderFrame();
     } catch {
       window.alert("Invalid config JSON.");

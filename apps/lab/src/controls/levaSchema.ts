@@ -1,9 +1,11 @@
+import { useMemo } from "react";
 import { useControls, folder } from "leva";
-import { normalizeEngineConfig, DEFAULT_ENGINE_CONFIG } from "@necatikcl/stripes-engine";
+import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
+import { loadInitialConfig } from "../persistence";
 
 export function useEngineControls(): EngineConfig {
-  const d = DEFAULT_ENGINE_CONFIG;
+  const d = useMemo(() => normalizeEngineConfig(loadInitialConfig()), []);
 
   const values = useControls({
     Transform: folder({
