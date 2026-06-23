@@ -31,12 +31,6 @@ export function useEngineControls(): EngineConfig {
       blurRadius: { value: d.adjustments.blurRadius, min: 0, max: 4, step: 0.1 },
       sharpenAmount: { value: d.adjustments.sharpenAmount, min: 0, max: 4, step: 0.1 },
     }),
-    Field: folder({
-      fieldMode: {
-        value: d.field.mode,
-        options: ["luminance", "overlay"] as const,
-      },
-    }),
     Background: folder({
       backgroundColor: {
         value: "#" + d.background.color.toString(16).padStart(6, "0"),
@@ -74,7 +68,6 @@ export function useEngineControls(): EngineConfig {
       blurRadius: values.blurRadius,
       sharpenAmount: values.sharpenAmount,
     },
-    field: { mode: values.fieldMode },
     background: { color: parseInt(values.backgroundColor.replace("#", ""), 16) },
     grid: {
       cellWidth: values.cellWidth,
