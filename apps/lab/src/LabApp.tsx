@@ -21,6 +21,7 @@ function LabInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<StripesEngine | null>(null);
   const manualRef = useRef(false);
+  const lastObjectUrlRef = useRef<string | null>(null);
   const [snap, setSnap] = useState<PerfSnapshot>({
     fps: 0,
     frameMs: { p50: 0, p95: 0, p99: 0 },
@@ -100,7 +101,9 @@ function LabInner() {
     if (!file) return;
     const engine = engineRef.current;
     if (!engine) return;
+    if (lastObjectUrlRef.current) URL.revokeObjectURL(lastObjectUrlRef.current);
     const url = URL.createObjectURL(file);
+    lastObjectUrlRef.current = url;
     if (file.type.startsWith("video/")) {
       const video = document.createElement("video");
       video.src = url;
@@ -110,6 +113,7 @@ function LabInner() {
       video.playsInline = true;
       video.onloadeddata = () => {
         engine.setSource(video);
+        video.play().catch(() => {});
         if (manualRef.current) engine.renderFrame();
       };
     } else {

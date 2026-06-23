@@ -111,6 +111,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   }
 
   function rebuildGpuResources() {
+    // Context loss already invalidated the old GL objects (pool, passes, source); disposing them would no-op or error against the dead context, so we drop and recreate. Do not add teardown here without guarding for the lost context.
     const ctx = createEngineContext(canvas);
     gl = ctx.gl;
     isP3 = ctx.isP3;

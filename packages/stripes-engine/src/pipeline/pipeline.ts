@@ -5,7 +5,10 @@ export type Pass = { name: string; render(): void; dispose(): void };
 export function runPipeline(passes: Pass[], gpuTimer: GpuTimer): void {
   for (const pass of passes) {
     gpuTimer.begin(pass.name);
-    pass.render();
-    gpuTimer.end();
+    try {
+      pass.render();
+    } finally {
+      gpuTimer.end();
+    }
   }
 }

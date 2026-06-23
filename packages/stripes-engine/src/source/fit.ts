@@ -10,6 +10,9 @@ export function resolveSourceRect(
   panX: number,
   panY: number,
 ): SourceRect {
+  if (srcH <= 0 || dstH <= 0 || srcW <= 0 || dstW <= 0 || zoom <= 0) {
+    return { u0: 0, v0: 0, u1: 1, v1: 1 };
+  }
   // base span in source UV (1 = whole source) per axis
   let spanU = 1,
     spanV = 1;

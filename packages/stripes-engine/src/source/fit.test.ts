@@ -29,4 +29,8 @@ describe("resolveSourceRect", () => {
     expect(r.u0).toBeCloseTo(0.5);
     expect(r.u1).toBeCloseTo(1.0); // panned +0.5 span
   });
+  it("degenerate inputs (zero size or zoom) → full rect", () => {
+    expect(resolveSourceRect(0, 0, 100, 100, "cover", 1, 0, 0)).toEqual({ u0: 0, v0: 0, u1: 1, v1: 1 });
+    expect(resolveSourceRect(100, 100, 100, 100, "stretch", 0, 0, 0)).toEqual({ u0: 0, v0: 0, u1: 1, v1: 1 });
+  });
 });
