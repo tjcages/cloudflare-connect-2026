@@ -13,6 +13,7 @@ import { Leva } from "leva";
 import { PerfOverlay } from "./PerfOverlay";
 import { createTestImage } from "./testImage";
 import { useEngineControls } from "./controls/levaSchema";
+import { LAB_LEVA_THEME } from "./controls/levaTheme";
 import { saveConfig, importConfig } from "./persistence";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
@@ -216,7 +217,7 @@ function LabInner() {
 export function LabApp() {
   return (
     <>
-      {hudEnabled() && <Leva />}
+      {hudEnabled() && <Leva theme={LAB_LEVA_THEME} />}
       <LabInner />
     </>
   );
