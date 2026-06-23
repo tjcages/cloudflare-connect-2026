@@ -329,7 +329,7 @@
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-header-ladder {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 16px;
   column-gap: 8px;
   justify-items: end;
 }
@@ -352,7 +352,7 @@
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-color-row {
-  grid-template-columns: var(--sc-grip-w) 24px 1fr;
+  grid-template-columns: var(--sc-grip-w) 24px;
   column-gap: 8px;
   height: var(--sc-row-h);
   position: relative;
@@ -365,9 +365,9 @@
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-ladder-row {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 16px;
   column-gap: 8px;
-  justify-items: end;
+  align-items: center;
   height: var(--sc-row-h);
 }
 

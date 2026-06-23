@@ -35,6 +35,61 @@ function formatTime(seconds: number): string {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
+const MAX_BASE_WIDTH = 1000;
+
+function computeCanvasSize(srcW: number, srcH: number, scale: number): { cssW: number; cssH: number } {
+  if (srcW <= 0 || srcH <= 0) return { cssW: 400, cssH: 300 };
+  let baseW = srcW;
+  let baseH = srcH;
+  if (baseW > MAX_BASE_WIDTH) {
+    baseH = Math.round((baseH * MAX_BASE_WIDTH) / baseW);
+    baseW = MAX_BASE_WIDTH;
+  }
+  return { cssW: Math.round(baseW * scale), cssH: Math.round(baseH * scale) };
+}
+
+function LabCanvasSizeControls({
+  sourceWidth,
+  sourceHeight,
+  scale,
+  onScale,
+}: {
+  sourceWidth: number;
+  sourceHeight: number;
+  scale: number;
+  onScale: (s: number) => void;
+}) {
+  const { cssW, cssH } = computeCanvasSize(sourceWidth, sourceHeight, scale);
+  const disabled = sourceWidth <= 0 || sourceHeight <= 0;
+
+  return (
+    <section className="playground-canvas-size-controls">
+      <div className="playground-canvas-size-row">
+        <div>
+          <span className="playground-canvas-scale-label">{disabled ? "— × —" : `${cssW} × ${cssH}`}</span>
+        </div>
+        <div>
+          <div className="playground-canvas-scale-controls">
+            <div className="playground-canvas-scale-buttons">
+              {([1, 2, 3, 4] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  disabled={disabled}
+                  style={scale === n ? { fontWeight: 600, color: "var(--leva-text)" } : undefined}
+                  onClick={() => onScale(n)}
+                >
+                  {n}×
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function LabBottomBar({ videoEl }: { videoEl: HTMLVideoElement | null }) {
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
@@ -117,7 +172,6 @@ function LabBottomBar({ videoEl }: { videoEl: HTMLVideoElement | null }) {
 
 function LabInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const canvasAreaRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<StripesEngine | null>(null);
   const manualRef = useRef(false);
   const lastObjectUrlRef = useRef<string | null>(null);
@@ -129,6 +183,12 @@ function LabInner() {
     sampleCount: 0,
   });
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
+  const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [scale, setScale] = useState(1);
+  const sourceSizeRef = useRef(sourceSize);
+  sourceSizeRef.current = sourceSize;
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
 
   const hud = hudEnabled();
   const manual = useMemo(() => new URLSearchParams(window.location.search).get("manual") === "1", []);
@@ -143,6 +203,16 @@ function LabInner() {
   stripesEnabledRef.current = controls.stripesEnabled;
   const revealEnabledRef = useRef(controls.reveal.enabled);
   revealEnabledRef.current = controls.reveal.enabled;
+
+  const applyCanvasSize = useCallback(
+    (engine: StripesEngine, canvas: HTMLCanvasElement, src: { w: number; h: number }, s: number) => {
+      const { cssW, cssH } = computeCanvasSize(src.w, src.h, s);
+      canvas.style.width = `${cssW}px`;
+      canvas.style.height = `${cssH}px`;
+      engine.resize(cssW, cssH);
+    },
+    [],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -159,26 +229,22 @@ function LabInner() {
     });
     engineRef.current = engine;
 
-    function applySize() {
-      if (!canvas) return;
-      let cssW: number;
-      let cssH: number;
-      const area = canvasAreaRef.current;
-      if (shell && area) {
-        cssW = Math.max(1, area.clientWidth - 48);
-        cssH = Math.max(1, area.clientHeight - 48);
-      } else {
-        cssW = num(params, "w", window.innerWidth);
-        cssH = num(params, "h", window.innerHeight);
-      }
+    if (!shell) {
+      const cssW = num(params, "w", window.innerWidth);
+      const cssH = num(params, "h", window.innerHeight);
       canvas.style.width = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
       engine.resize(cssW, cssH);
     }
-    applySize();
 
     const testImage = createTestImage();
     engine.setSource(testImage);
+
+    if (shell) {
+      const src = { w: testImage.width, h: testImage.height };
+      setSourceSize(src);
+      applyCanvasSize(engine, canvas, src, scaleRef.current);
+    }
 
     onReplayRef.current = () => engine.triggerReveal();
 
@@ -198,7 +264,6 @@ function LabInner() {
     };
 
     let raf = 0;
-    let resizeObs: ResizeObserver | null = null;
     if (!manual) {
       engine.start();
       const tick = () => {
@@ -206,10 +271,6 @@ function LabInner() {
         raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
-      if (shell && canvasAreaRef.current) {
-        resizeObs = new ResizeObserver(() => applySize());
-        resizeObs.observe(canvasAreaRef.current);
-      }
     } else {
       engine.renderFrame();
       setSnap(engine.getPerf());
@@ -228,13 +289,20 @@ function LabInner() {
 
     return () => {
       if (raf) cancelAnimationFrame(raf);
-      if (resizeObs) resizeObs.disconnect();
       engine.dispose();
       engineRef.current = null;
       (window as unknown as { __lab?: unknown }).__lab = undefined;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    if (!shell) return;
+    const engine = engineRef.current;
+    const canvas = canvasRef.current;
+    if (!engine || !canvas) return;
+    applyCanvasSize(engine, canvas, sourceSizeRef.current, scale);
+  }, [scale, shell, applyCanvasSize]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -266,6 +334,23 @@ function LabInner() {
         engine.setSource(source);
         prevVideoRef.current = video;
         setVideoEl(video);
+        if (shell) {
+          let srcW = 0;
+          let srcH = 0;
+          if (video) {
+            srcW = video.videoWidth;
+            srcH = video.videoHeight;
+          } else if (source instanceof HTMLImageElement) {
+            srcW = source.naturalWidth;
+            srcH = source.naturalHeight;
+          }
+          if (srcW > 0 && srcH > 0) {
+            const src = { w: srcW, h: srcH };
+            setSourceSize(src);
+            const canvas = canvasRef.current;
+            if (canvas) applyCanvasSize(engine, canvas, src, scaleRef.current);
+          }
+        }
         if (revealEnabledRef.current) engine.triggerReveal();
       })
       .catch(() => {});
@@ -313,6 +398,14 @@ function LabInner() {
         engine.setSource(video);
         prevVideoRef.current = video;
         setVideoEl(video);
+        if (shell) {
+          const src = { w: video.videoWidth, h: video.videoHeight };
+          if (src.w > 0 && src.h > 0) {
+            setSourceSize(src);
+            const canvas = canvasRef.current;
+            if (canvas) applyCanvasSize(engine, canvas, src, scaleRef.current);
+          }
+        }
         video.play().catch(() => {});
         if (manualRef.current) engine.renderFrame();
       };
@@ -321,6 +414,14 @@ function LabInner() {
       img.onload = () => {
         engine.setSource(img);
         setVideoEl(null);
+        if (shell) {
+          const src = { w: img.naturalWidth, h: img.naturalHeight };
+          if (src.w > 0 && src.h > 0) {
+            setSourceSize(src);
+            const canvas = canvasRef.current;
+            if (canvas) applyCanvasSize(engine, canvas, src, scaleRef.current);
+          }
+        }
         if (manualRef.current) engine.renderFrame();
       };
       img.src = url;
@@ -334,7 +435,7 @@ function LabInner() {
   return (
     <div className="lab-shell">
       <div className="lab-main">
-        <div className="lab-canvas-area" ref={canvasAreaRef}>
+        <div className="lab-canvas-area">
           <canvas ref={canvasRef} style={{ display: "block" }} />
         </div>
         <LabBottomBar videoEl={videoEl} />
@@ -363,6 +464,12 @@ function LabInner() {
               Import config
             </button>
           </div>
+          <LabCanvasSizeControls
+            sourceWidth={sourceSize.w}
+            sourceHeight={sourceSize.h}
+            scale={scale}
+            onScale={setScale}
+          />
           <LevaPanel store={store} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
         </div>
       </aside>

@@ -50,13 +50,11 @@ function StripeColorRow({
   index,
   disabled,
   onColorChange,
-  onRemove,
 }: {
   stripe: EditableStripe;
   index: number;
   disabled: boolean;
   onColorChange: (id: string, hex: string) => void;
-  onRemove: (id: string) => void;
 }) {
   const controls = useDragControls();
 
@@ -87,15 +85,6 @@ function StripeColorRow({
         triggerStyle={{ "--stripe-swatch-color": stripe.hex } as CSSProperties}
         align="right"
       />
-      <button
-        type="button"
-        aria-label={`Remove Stripe ${index + 1}`}
-        className="stripe-colors-remove"
-        disabled={disabled}
-        onClick={() => onRemove(stripe.id)}
-      >
-        <X size={12} />
-      </button>
     </Reorder.Item>
   );
 }
@@ -146,7 +135,6 @@ export function StripeColorsTable({
               index={index}
               disabled={disabled}
               onColorChange={onColorChange}
-              onRemove={onRemove}
             />
           ))}
         </Reorder.Group>
@@ -183,6 +171,15 @@ export function StripeColorsTable({
                   }}
                 />
               </div>
+              <button
+                type="button"
+                aria-label={`Remove Stripe ${index + 1}`}
+                className="stripe-colors-remove"
+                disabled={disabled}
+                onClick={() => onRemove(stripe.id)}
+              >
+                <X size={12} />
+              </button>
             </div>
           ))}
         </div>
