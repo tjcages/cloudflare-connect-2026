@@ -3,6 +3,7 @@ import {
   createStripesEngine,
   createManualClock,
   createRealClock,
+  serializeEngineConfig,
   type StripesEngine,
   type PerfSnapshot,
   type EngineConfig,
@@ -11,6 +12,7 @@ import { Leva } from "leva";
 import { PerfOverlay } from "./PerfOverlay";
 import { createTestImage } from "./testImage";
 import { useEngineControls } from "./controls/levaSchema";
+import { loadInitialConfig, saveConfig, importConfig } from "./persistence";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -59,6 +61,7 @@ function LabInner() {
 
     const testImage = createTestImage();
     engine.setSource(testImage);
+    engine.setConfig(loadInitialConfig());
 
     (window as unknown as { __lab: unknown }).__lab = {
       engine,
@@ -98,8 +101,27 @@ function LabInner() {
     const engine = engineRef.current;
     if (!engine) return;
     engine.setConfig(controls);
+    saveConfig(controls);
     if (manualRef.current) engine.renderFrame();
   }, [controls]);
+
+  function handleExport() {
+    void navigator.clipboard.writeText(serializeEngineConfig(controls));
+  }
+
+  function handleImport() {
+    const text = window.prompt("Paste config JSON:");
+    if (!text) return;
+    try {
+      const cfg = importConfig(text);
+      const engine = engineRef.current;
+      if (!engine) return;
+      engine.setConfig(cfg);
+      if (manualRef.current) engine.renderFrame();
+    } catch {
+      window.alert("Invalid config JSON.");
+    }
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -143,15 +165,50 @@ function LabInner() {
             bottom: 12,
             left: 12,
             zIndex: 100,
-            background: "rgba(0,0,0,0.6)",
-            borderRadius: 6,
-            padding: "4px 8px",
+            display: "flex",
+            gap: 8,
           }}
         >
-          <label style={{ color: "#fff", fontSize: 12, cursor: "pointer" }}>
-            Load image/video
-            <input type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={handleFileChange} />
-          </label>
+          <div
+            style={{
+              background: "rgba(0,0,0,0.6)",
+              borderRadius: 6,
+              padding: "4px 8px",
+            }}
+          >
+            <label style={{ color: "#fff", fontSize: 12, cursor: "pointer" }}>
+              Load image/video
+              <input type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={handleFileChange} />
+            </label>
+          </div>
+          <button
+            onClick={handleExport}
+            style={{
+              background: "rgba(0,0,0,0.6)",
+              border: "none",
+              borderRadius: 6,
+              padding: "4px 8px",
+              color: "#fff",
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            Export config
+          </button>
+          <button
+            onClick={handleImport}
+            style={{
+              background: "rgba(0,0,0,0.6)",
+              border: "none",
+              borderRadius: 6,
+              padding: "4px 8px",
+              color: "#fff",
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            Import config
+          </button>
         </div>
       )}
     </>
