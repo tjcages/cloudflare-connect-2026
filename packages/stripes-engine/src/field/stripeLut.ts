@@ -6,12 +6,14 @@ export function buildStripeLut(stripes: Stripe[]): Uint8Array {
   const sorted = [...stripes].sort((a, b) => a.startFrom - b.startFrom);
   for (let v = 0; v < 256; v++) {
     const t = v / 255;
-    let band = 0;
-    for (let i = 0; i < sorted.length; i++) {
-      if (sorted[i].startFrom <= t) band = i;
-    }
-    const s = sorted[band];
+    let band = -1;
+    for (let i = 0; i < sorted.length; i++) if (sorted[i].startFrom <= t) band = i;
     const o = v * 4;
+    if (band < 0) {
+      lut[o] = lut[o + 1] = lut[o + 2] = lut[o + 3] = 0;
+      continue;
+    } // no stripe
+    const s = sorted[band];
     lut[o] = (s.color >> 16) & 255;
     lut[o + 1] = (s.color >> 8) & 255;
     lut[o + 2] = s.color & 255;

@@ -6,6 +6,11 @@ const STRIPES = [
   { color: 0xff8833, startFrom: 0.5, width: 8 },
 ];
 
+const STRIPES_NO_ZERO = [
+  { color: 0xff0000, startFrom: 0.2, width: 10 },
+  { color: 0x00ff00, startFrom: 0.8, width: 12 },
+];
+
 describe("buildStripeLut", () => {
   it("is 256 RGBA entries", () => {
     expect(buildStripeLut(STRIPES).length).toBe(256 * 4);
@@ -26,5 +31,13 @@ describe("buildStripeLut", () => {
   it("signature changes with the list, stable for equal lists", () => {
     expect(lutSignature(STRIPES)).toBe(lutSignature([...STRIPES]));
     expect(lutSignature(STRIPES)).not.toBe(lutSignature([STRIPES[0]]));
+  });
+  it("encodes no stripe below the lowest threshold", () => {
+    const lut = buildStripeLut(STRIPES_NO_ZERO);
+    // v=0 (t=0.0) is below startFrom=0.2 → [0,0,0,0] (no stripe)
+    expect([lut[0], lut[1], lut[2], lut[3]]).toEqual([0, 0, 0, 0]);
+    // v=255 (t=1.0) → band with highest startFrom (0.8, green, width 12)
+    const i = 255 * 4;
+    expect([lut[i], lut[i + 1], lut[i + 2], lut[i + 3]]).toEqual([0, 0xff, 0, 12]);
   });
 });
