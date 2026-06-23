@@ -135,6 +135,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     const revealFieldPasses: Pass[] = [];
 
     const MAX_BLUR_PX = 5;
+    const ASSEMBLY_HSPREAD_PX = 50;
     if (assemblyTopology) {
       const scatterPass = createAssemblyScatterPass(gl);
       const blurPass = createBlurPass(gl, quad);
@@ -165,6 +166,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             flight: avgTotal,
             spawnDist: 1.6,
             order,
+            hSpread: ASSEMBLY_HSPREAD_PX / Math.max(1, cssW),
           });
 
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });

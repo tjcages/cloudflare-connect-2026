@@ -11,6 +11,7 @@ export type AssemblyScatterUniforms = {
   flight: number;
   spawnDist: number;
   order: number;
+  hSpread: number;
 };
 
 export function createAssemblyScatterPass(gl: WebGL2RenderingContext) {
@@ -26,6 +27,7 @@ export function createAssemblyScatterPass(gl: WebGL2RenderingContext) {
     flight: u("uFlight"),
     spawnDist: u("uSpawnDist"),
     order: u("uOrder"),
+    hSpread: u("uHSpread"),
   };
   return {
     render(target: RenderTarget, fieldTex: WebGLTexture, p: AssemblyScatterUniforms) {
@@ -42,6 +44,7 @@ export function createAssemblyScatterPass(gl: WebGL2RenderingContext) {
       gl.uniform1f(L.flight, p.flight);
       gl.uniform1f(L.spawnDist, p.spawnDist);
       gl.uniform1f(L.order, p.order);
+      gl.uniform1f(L.hSpread, p.hSpread);
       gl.enable(gl.BLEND);
       gl.blendEquation(gl.MAX);
       gl.bindVertexArray(vao);

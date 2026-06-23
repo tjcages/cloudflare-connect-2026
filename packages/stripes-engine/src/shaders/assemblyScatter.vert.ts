@@ -6,6 +6,7 @@ uniform float uSpread;
 uniform float uFlight;
 uniform float uSpawnDist;
 uniform float uOrder;
+uniform float uHSpread;
 out vec2 vSampleUv;
 
 highp float fract1(highp float v) {
@@ -107,6 +108,7 @@ void main() {
   vec2 perp = vec2(-edgeDir.y, edgeDir.x);
   highp float spr = (cellNoise(by + 11.0, bx + 5.0, 1.0) - 0.5) * 0.18;
   vec2 spawnOffset = edgeDir * (edgeDistTo + offMargin) + perp * spr;
+  spawnOffset.x += (cellNoise(bx + 3.0, by + 7.0, 1.0) - 0.5) * 2.0 * uHSpread;
 
   highp float ease = cubicBezier(f, 0.25, 0.1, 0.25, 1.0);
   vec2 offset = (1.0 - ease) * spawnOffset;
