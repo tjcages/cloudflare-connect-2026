@@ -19,3 +19,22 @@ test("field — overlay", async ({ page }) => {
   await boot(page, "overlay");
   await expect(page.locator("canvas")).toHaveScreenshot("field-overlay.png", { maxDiffPixelRatio: 0.01 });
 });
+
+async function bootStripes(page: import("@playwright/test").Page, mode: "luminance" | "overlay") {
+  await page.goto("/?manual=1&seed=1&dpr=2&w=400&h=300&hud=0");
+  await page.waitForFunction(() => (window as any).__lab !== undefined);
+  await page.evaluate((m) => {
+    (window as any).__lab.setConfig({ field: { mode: m }, stripesEnabled: true });
+    (window as any).__lab.renderAt(0);
+  }, mode);
+}
+
+test("stripes — luminance", async ({ page }) => {
+  await bootStripes(page, "luminance");
+  await expect(page.locator("canvas")).toHaveScreenshot("stripes-luminance.png", { maxDiffPixelRatio: 0.01 });
+});
+
+test("stripes — overlay", async ({ page }) => {
+  await bootStripes(page, "overlay");
+  await expect(page.locator("canvas")).toHaveScreenshot("stripes-overlay.png", { maxDiffPixelRatio: 0.01 });
+});
