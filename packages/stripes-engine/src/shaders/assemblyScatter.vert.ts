@@ -78,8 +78,8 @@ void main() {
   highp float qx = (vid == 1 || vid == 2 || vid == 4) ? 1.0 : 0.0;
   highp float qy = (vid == 2 || vid == 4 || vid == 5) ? 1.0 : 0.0;
 
-  highp float softV = 1.0 - smoothstep(0.0, 0.7, f);
-  highp float expand = 1.0 + softV * 1.6;
+  highp float softV = 1.0 - smoothstep(0.3, 1.0, f);
+  highp float expand = 1.0 + softV * 2.2;
   vec2 halfExt = 0.5 * (uv1 - uv0);
   vec2 el = (vec2(qx, qy) - 0.5) * expand + 0.5;
   vSampleUv = blockCenterUv + (el - 0.5) * 2.0 * halfExt;

@@ -7,20 +7,21 @@ uniform sampler2D uField;
 out vec4 finalColor;
 
 void main() {
-  float soft = 1.0 - smoothstep(0.0, 0.7, vF);
-  float r = soft * 0.07;
+  float soft = 1.0 - smoothstep(0.3, 1.0, vF);
+  float r = soft * 0.13;
   float v = 0.0;
-  v += texture(uField, vSampleUv + vec2(-r, -r)).r * 0.075;
-  v += texture(uField, vSampleUv + vec2(0.0, -r)).r * 0.125;
-  v += texture(uField, vSampleUv + vec2(r, -r)).r * 0.075;
-  v += texture(uField, vSampleUv + vec2(-r, 0.0)).r * 0.125;
-  v += texture(uField, vSampleUv).r * 0.2;
-  v += texture(uField, vSampleUv + vec2(r, 0.0)).r * 0.125;
-  v += texture(uField, vSampleUv + vec2(-r, r)).r * 0.075;
-  v += texture(uField, vSampleUv + vec2(0.0, r)).r * 0.125;
-  v += texture(uField, vSampleUv + vec2(r, r)).r * 0.075;
+  float wsum = 0.0;
+  for (int j = -2; j <= 2; j++) {
+    for (int i = -2; i <= 2; i++) {
+      vec2 o = vec2(float(i), float(j)) * (r * 0.5);
+      float w = exp(-float(i * i + j * j) * 0.4);
+      v += texture(uField, vSampleUv + o).r * w;
+      wsum += w;
+    }
+  }
+  v /= wsum;
   float inner = mix(2.0, 0.0, soft);
-  float outer = mix(3.0, 0.62, soft);
+  float outer = mix(3.0, 0.74, soft);
   float d = length(vBlockLocal - vec2(0.5));
   float alpha = 1.0 - smoothstep(inner, outer, d);
   finalColor = vec4(vec3(v), alpha);
