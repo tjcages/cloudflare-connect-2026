@@ -44,7 +44,7 @@ describe("cellNoise", () => {
     expect(cellNoise(7, 2, 14.5)).toBe(cellNoise(7, 2, 14.5));
   });
   it("golden values guard the hash recipe", () => {
-    expect(cellNoise(0, 0, 1)).toBeCloseTo(0, 10);
+    expect(cellNoise(0, 0, 1)).toBe(0);
     expect(cellNoise(1, 0, 1)).toBeCloseTo(0.49662673138453783, 10);
     expect(cellNoise(0, 1, 1)).toBeCloseTo(0.924438650199999, 10);
     expect(cellNoise(3, 5, 1)).toBeCloseTo(0.13764058006836422, 10);
