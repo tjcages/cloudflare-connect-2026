@@ -40,6 +40,14 @@ export function useEngineControls(): EngineConfig {
         value: "#" + d.background.color.toString(16).padStart(6, "0"),
       },
     }),
+    Grid: folder({
+      cellWidth: { value: d.grid.cellWidth, min: 1, max: 64, step: 1 },
+      cellHeight: { value: d.grid.cellHeight, min: 1, max: 64, step: 1 },
+      gapX: { value: d.grid.gapX, min: 0, max: 64, step: 1 },
+      gapY: { value: d.grid.gapY, min: 0, max: 64, step: 1 },
+      cornerRadius: { value: d.grid.cornerRadius, min: 0, max: 64, step: 0.5 },
+      orientation: { value: d.grid.orientation, options: ["vertical", "horizontal"] as const },
+    }),
     stripesEnabled: d.stripesEnabled,
   });
 
@@ -66,6 +74,14 @@ export function useEngineControls(): EngineConfig {
     },
     field: { mode: values.fieldMode },
     background: { color: parseInt(values.backgroundColor.replace("#", ""), 16) },
+    grid: {
+      cellWidth: values.cellWidth,
+      cellHeight: values.cellHeight,
+      gapX: values.gapX,
+      gapY: values.gapY,
+      cornerRadius: values.cornerRadius,
+      orientation: values.orientation,
+    },
     stripesEnabled: values.stripesEnabled,
   });
 }
