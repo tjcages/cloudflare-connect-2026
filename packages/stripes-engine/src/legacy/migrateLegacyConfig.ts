@@ -1,6 +1,6 @@
 /** @deprecated legacy-config shim — delete once old configs are gone */
 import type { EngineConfig, Stripe } from "../config/types";
-import type { LegacyStripe } from "./legacyTypes";
+import type { LegacyStripe, LegacyRevealConfig } from "./legacyTypes";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
@@ -17,6 +17,28 @@ function migrateStripe(s: LegacyStripe): Stripe {
   };
 }
 
+function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
+  const w = r.wave ?? {};
+  const a = r.assembly ?? {};
+  return {
+    enabled: typeof r.enabled === "boolean" ? r.enabled : false,
+    type: r.type === "assembly" ? "assembly" : "wave",
+    wave: {
+      position: (w.position as EngineConfig["reveal"]["wave"]["position"]) ?? "center",
+      durationMs: typeof w.durationMs === "number" ? w.durationMs : 1300,
+      softness: typeof w.softness === "number" ? w.softness : 0.16,
+      waviness: typeof w.waviness === "number" ? w.waviness : 0.35,
+      noiseScale: typeof w.noiseScale === "number" ? w.noiseScale : 14.5,
+    },
+    assembly: {
+      order: "center",
+      speedMinMs: typeof a.speedMinMs === "number" ? a.speedMinMs : 300,
+      speedMaxMs: typeof a.speedMaxMs === "number" ? a.speedMaxMs : 1600,
+      staggerMs: typeof a.staggerMs === "number" ? a.staggerMs : 900,
+    },
+  };
+}
+
 export function migrateLegacyConfig(old: unknown): Partial<EngineConfig> {
   const o = asRecord(old);
   if (!o) return {};
@@ -27,5 +49,6 @@ export function migrateLegacyConfig(old: unknown): Partial<EngineConfig> {
   if (typeof o.backgroundColor === "number") out.background = { color: o.backgroundColor };
   if (Array.isArray(o.stripes)) out.stripes = (o.stripes as LegacyStripe[]).map(migrateStripe);
   if (typeof o.stripesEnabled === "boolean") out.stripesEnabled = o.stripesEnabled;
+  if (asRecord(o.reveal)) out.reveal = migrateReveal(o.reveal as LegacyRevealConfig);
   return out;
 }

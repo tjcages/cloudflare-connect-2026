@@ -1,5 +1,36 @@
 export type Fit = "stretch" | "contain" | "cover";
 
+export type WavePosition =
+  | "center"
+  | "left top"
+  | "center top"
+  | "right top"
+  | "left center"
+  | "right center"
+  | "left bottom"
+  | "center bottom"
+  | "right bottom";
+
+export type AssemblyOrder = "center" | "edges" | "sweep" | "random";
+
+export interface RevealConfig {
+  enabled: boolean;
+  type: "wave" | "assembly";
+  wave: {
+    position: WavePosition;
+    durationMs: number;
+    softness: number;
+    waviness: number;
+    noiseScale: number;
+  };
+  assembly: {
+    order: AssemblyOrder;
+    speedMinMs: number;
+    speedMaxMs: number;
+    staggerMs: number;
+  };
+}
+
 export interface Stripe {
   color: number;
   startFrom: number;
@@ -49,4 +80,5 @@ export interface EngineConfig {
   stripes: Stripe[];
   stripesEnabled: boolean;
   fieldScale: number;
+  reveal: RevealConfig;
 }

@@ -1,4 +1,14 @@
-import type { Transform, Background, Grid, Adjustments, Stripe, EngineConfig } from "./types";
+import type {
+  Transform,
+  Background,
+  Grid,
+  Adjustments,
+  Stripe,
+  EngineConfig,
+  RevealConfig,
+  WavePosition,
+  AssemblyOrder,
+} from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
@@ -94,6 +104,66 @@ export function normalizeStripes(i: Partial<Stripe>[] | undefined, fallback: Str
   return i.map(normalizeStripe);
 }
 
+const WAVE_POSITIONS: WavePosition[] = [
+  "center",
+  "left top",
+  "center top",
+  "right top",
+  "left center",
+  "right center",
+  "left bottom",
+  "center bottom",
+  "right bottom",
+];
+const ASSEMBLY_ORDERS: AssemblyOrder[] = ["center", "edges", "sweep", "random"];
+
+export const DEFAULT_REVEAL: RevealConfig = {
+  enabled: false,
+  type: "wave",
+  wave: { position: "center", durationMs: 1300, softness: 0.16, waviness: 0.35, noiseScale: 14.5 },
+  assembly: { order: "center", speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
+};
+
+type PartialReveal = {
+  enabled?: unknown;
+  type?: unknown;
+  wave?: Partial<RevealConfig["wave"]>;
+  assembly?: Partial<RevealConfig["assembly"]>;
+};
+
+export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
+  const w = i.wave ?? {};
+  const a = i.assembly ?? {};
+  const position = WAVE_POSITIONS.includes(w.position as WavePosition)
+    ? (w.position as WavePosition)
+    : DEFAULT_REVEAL.wave.position;
+  const order = ASSEMBLY_ORDERS.includes(a.order as AssemblyOrder)
+    ? (a.order as AssemblyOrder)
+    : DEFAULT_REVEAL.assembly.order;
+  const speedMinMs = clamp(Math.round(num(a.speedMinMs, DEFAULT_REVEAL.assembly.speedMinMs)), 100, 30000);
+  const speedMaxMs = Math.max(
+    speedMinMs,
+    clamp(Math.round(num(a.speedMaxMs, DEFAULT_REVEAL.assembly.speedMaxMs)), 100, 30000),
+  );
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_REVEAL.enabled,
+    type: i.type === "assembly" || i.type === "wave" ? i.type : "wave",
+    wave: {
+      position,
+      durationMs: clamp(Math.round(num(w.durationMs, DEFAULT_REVEAL.wave.durationMs)), 100, 30000),
+      softness: clamp(num(w.softness, DEFAULT_REVEAL.wave.softness), 0, 1),
+      waviness: clamp(num(w.waviness, DEFAULT_REVEAL.wave.waviness), 0, 1),
+      noiseScale: clamp(num(w.noiseScale, DEFAULT_REVEAL.wave.noiseScale), 0.1, 50),
+    },
+    assembly: {
+      order,
+      speedMinMs,
+      speedMaxMs,
+      staggerMs: clamp(Math.round(num(a.staggerMs, DEFAULT_REVEAL.assembly.staggerMs)), 0, 30000),
+    },
+  };
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
@@ -102,6 +172,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   stripes: DEFAULT_STRIPES.map((s) => ({ ...s })),
   stripesEnabled: true,
   fieldScale: 1,
+  reveal: { ...DEFAULT_REVEAL, wave: { ...DEFAULT_REVEAL.wave }, assembly: { ...DEFAULT_REVEAL.assembly } },
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -113,5 +184,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     stripes: normalizeStripes(i.stripes, DEFAULT_STRIPES),
     stripesEnabled: i.stripesEnabled !== undefined ? !!i.stripesEnabled : true,
     fieldScale: clamp(num(i.fieldScale, 1), 0.25, 2),
+    reveal: normalizeReveal(i.reveal as PartialReveal | undefined),
   };
 }

@@ -24,4 +24,31 @@ describe("migrateLegacyConfig", () => {
     expect(migrateLegacyConfig(null)).toEqual({});
     expect(migrateLegacyConfig("garbage")).toEqual({});
   });
+  it("maps old reveal shape into reveal config", () => {
+    const out = migrateLegacyConfig({
+      reveal: {
+        enabled: true,
+        type: "assembly",
+        wave: { position: "left top", durationMs: 2000, softness: 0.5, waviness: 0.7, noiseScale: 20 },
+        assembly: { speedMinMs: 400, speedMaxMs: 1800, staggerMs: 1000 },
+      },
+    });
+    expect(out.reveal).toEqual({
+      enabled: true,
+      type: "assembly",
+      wave: { position: "left top", durationMs: 2000, softness: 0.5, waviness: 0.7, noiseScale: 20 },
+      assembly: { order: "center", speedMinMs: 400, speedMaxMs: 1800, staggerMs: 1000 },
+    });
+  });
+  it("defaults assembly.order to center when old shape has no order", () => {
+    const out = migrateLegacyConfig({
+      reveal: {
+        enabled: false,
+        type: "wave",
+        wave: { position: "center", durationMs: 1300, softness: 0.16, waviness: 0.35, noiseScale: 14.5 },
+        assembly: { speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
+      },
+    });
+    expect(out.reveal?.assembly?.order).toBe("center");
+  });
 });
