@@ -1,0 +1,164 @@
+import { describe, it, expect } from "vitest";
+import {
+  WAVE_POSITIONS,
+  originForPosition,
+  cellNoise,
+  assemblyOrderNorm,
+  resolveRevealDurationMs,
+  resolveBandRamp,
+  waveRevealAt,
+  assemblyRevealAt,
+} from "./revealMath";
+import { DEFAULT_REVEAL } from "../config/normalize";
+
+describe("WAVE_POSITIONS", () => {
+  it("contains all 9 positions", () => {
+    expect(WAVE_POSITIONS).toHaveLength(9);
+    expect(WAVE_POSITIONS).toContain("center");
+    expect(WAVE_POSITIONS).toContain("left top");
+    expect(WAVE_POSITIONS).toContain("right bottom");
+  });
+});
+
+describe("originForPosition", () => {
+  it("maps center to [0.5, 0.5]", () => {
+    expect(originForPosition("center")).toEqual([0.5, 0.5]);
+  });
+  it("maps corner positions to unit corners", () => {
+    expect(originForPosition("left top")).toEqual([0, 0]);
+    expect(originForPosition("right top")).toEqual([1, 0]);
+    expect(originForPosition("left bottom")).toEqual([0, 1]);
+    expect(originForPosition("right bottom")).toEqual([1, 1]);
+  });
+  it("maps edge midpoints correctly", () => {
+    expect(originForPosition("center top")).toEqual([0.5, 0]);
+    expect(originForPosition("center bottom")).toEqual([0.5, 1]);
+    expect(originForPosition("left center")).toEqual([0, 0.5]);
+    expect(originForPosition("right center")).toEqual([1, 0.5]);
+  });
+});
+
+describe("cellNoise", () => {
+  it("is deterministic for identical inputs", () => {
+    expect(cellNoise(3, 5, 1)).toBe(cellNoise(3, 5, 1));
+    expect(cellNoise(7, 2, 14.5)).toBe(cellNoise(7, 2, 14.5));
+  });
+  it("golden values guard the hash recipe", () => {
+    expect(cellNoise(0, 0, 1)).toBeCloseTo(0, 10);
+    expect(cellNoise(1, 0, 1)).toBeCloseTo(0.49662673138453783, 10);
+    expect(cellNoise(0, 1, 1)).toBeCloseTo(0.924438650199999, 10);
+    expect(cellNoise(3, 5, 1)).toBeCloseTo(0.13764058006836422, 10);
+  });
+  it("output is always in [0, 1]", () => {
+    for (let col = 0; col < 10; col++) {
+      for (let row = 0; row < 10; row++) {
+        const v = cellNoise(col, row, 1);
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+});
+
+describe("assemblyOrderNorm", () => {
+  it("sweep equals col/(cols-1)", () => {
+    expect(assemblyOrderNorm(0, 0, 5, 5, "sweep")).toBeCloseTo(0, 10);
+    expect(assemblyOrderNorm(4, 0, 5, 5, "sweep")).toBeCloseTo(1, 10);
+    expect(assemblyOrderNorm(2, 3, 5, 5, "sweep")).toBeCloseTo(0.5, 10);
+  });
+  it("center is 0 at the center cell and ~0.8 at (0,0) in a 5x5 grid", () => {
+    expect(assemblyOrderNorm(2, 2, 5, 5, "center")).toBeCloseTo(0, 5);
+    expect(assemblyOrderNorm(0, 0, 5, 5, "center")).toBeCloseTo(0.8, 5);
+  });
+  it("edges is complement of center", () => {
+    expect(assemblyOrderNorm(2, 2, 5, 5, "edges")).toBeCloseTo(1, 5);
+    expect(assemblyOrderNorm(0, 0, 5, 5, "edges")).toBeCloseTo(0.2, 5);
+  });
+  it("random returns cellNoise(col, row, 1)", () => {
+    expect(assemblyOrderNorm(1, 0, 5, 5, "random")).toBeCloseTo(cellNoise(1, 0, 1), 10);
+    expect(assemblyOrderNorm(0, 1, 5, 5, "random")).toBeCloseTo(cellNoise(0, 1, 1), 10);
+  });
+});
+
+describe("resolveRevealDurationMs", () => {
+  it("returns wave.durationMs for wave type", () => {
+    const r = { ...DEFAULT_REVEAL, type: "wave" as const };
+    expect(resolveRevealDurationMs(r)).toBe(r.wave.durationMs);
+  });
+  it("returns staggerMs + speedMaxMs for assembly type", () => {
+    const r = { ...DEFAULT_REVEAL, type: "assembly" as const };
+    expect(resolveRevealDurationMs(r)).toBe(r.assembly.staggerMs + r.assembly.speedMaxMs);
+  });
+  it("custom assembly durations", () => {
+    const r = {
+      ...DEFAULT_REVEAL,
+      type: "assembly" as const,
+      assembly: { ...DEFAULT_REVEAL.assembly, staggerMs: 500, speedMaxMs: 1000 },
+    };
+    expect(resolveRevealDurationMs(r)).toBe(1500);
+  });
+});
+
+describe("resolveBandRamp", () => {
+  it("clamp(330/durationMs, 0.04, 0.4)", () => {
+    expect(resolveBandRamp(1300)).toBeCloseTo(0.25384615384615383, 10);
+  });
+  it("clamps to minimum 0.04", () => {
+    expect(resolveBandRamp(10000)).toBeCloseTo(0.04, 10);
+    expect(resolveBandRamp(100000)).toBeCloseTo(0.04, 10);
+  });
+  it("clamps to maximum 0.4", () => {
+    expect(resolveBandRamp(100)).toBeCloseTo(0.4, 10);
+    expect(resolveBandRamp(1)).toBeCloseTo(0.4, 10);
+  });
+});
+
+describe("waveRevealAt", () => {
+  const wave = DEFAULT_REVEAL.wave;
+  const bandRamp = resolveBandRamp(wave.durationMs);
+  const waveNoWaviness = { ...wave, waviness: 0 };
+
+  it("cell near origin (center) is fully revealed at progress=0.5 (no waviness)", () => {
+    const result = waveRevealAt(4, 4, 10, 10, 0.5, waveNoWaviness, bandRamp);
+    expect(result).toBeGreaterThan(0.95);
+  });
+
+  it("far corner (0,0) stays 0 at progress=0 from center position", () => {
+    const result = waveRevealAt(0, 0, 10, 10, 0, wave, bandRamp);
+    expect(result).toBeCloseTo(0, 5);
+  });
+
+  it("far corner (0,0) is partially revealed at progress=1 from center", () => {
+    const result = waveRevealAt(0, 0, 10, 10, 1, wave, bandRamp);
+    expect(result).toBeGreaterThan(0);
+    expect(result).toBeCloseTo(0.05932175239628031, 5);
+  });
+
+  it("wave from left top: cell (0,0) is near-origin and reveals by progress=0.3", () => {
+    const waveFromCorner = { ...wave, position: "left top" as const, waviness: 0 };
+    const br = resolveBandRamp(waveFromCorner.durationMs);
+    const result = waveRevealAt(0, 0, 10, 10, 0.3, waveFromCorner, br);
+    expect(result).toBeGreaterThan(0.5);
+  });
+});
+
+describe("assemblyRevealAt", () => {
+  const assembly = DEFAULT_REVEAL.assembly;
+  const assemblyDurationMs = assembly.staggerMs + assembly.speedMaxMs;
+  const bandRamp = resolveBandRamp(assemblyDurationMs);
+
+  it("all cells are unrevealed at progress=0", () => {
+    expect(assemblyRevealAt(0, 0, 10, 10, 0, assembly, bandRamp)).toBeCloseTo(0, 5);
+    expect(assemblyRevealAt(5, 5, 10, 10, 0, assembly, bandRamp)).toBeCloseTo(0, 5);
+  });
+
+  it("cell (0,0) which has noise=0 is mid-ramp at progress=0.42 (arrival=0.38, bandRamp=0.132)", () => {
+    const result = assemblyRevealAt(0, 0, 10, 10, 0.42, assembly, bandRamp);
+    expect(result).toBeCloseTo(0.21982914544898, 5);
+  });
+
+  it("all cells fully revealed at progress=1", () => {
+    expect(assemblyRevealAt(0, 0, 10, 10, 1, assembly, bandRamp)).toBeCloseTo(1, 5);
+    expect(assemblyRevealAt(9, 9, 10, 10, 1, assembly, bandRamp)).toBeCloseTo(1, 5);
+  });
+});
