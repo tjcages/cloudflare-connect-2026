@@ -27,15 +27,19 @@ void main() {
 
   if (barWidthPx < 0.5) { finalColor = vec4(uBg, 1.0); return; }
   vec2 p = (local - 0.5) * uCellPx;
-  vec2 halfExt;
-  if (uOrient < 0.5) {
-    halfExt = vec2(min(barWidthPx, uCellPx.x) * 0.5, uCellPx.y * 0.5);
-  } else {
-    halfExt = vec2(uCellPx.x * 0.5, min(barWidthPx, uCellPx.y) * 0.5);
-  }
-  float r = min(uCorner, min(halfExt.x, halfExt.y));
-  float d = sdRoundBox(p, halfExt, r);
   float w = max(1.0 / uDpr, 1e-4);
+  float halfW;
+  float halfH;
+  if (uOrient < 0.5) {
+    halfW = min(barWidthPx, uCellPx.x) * 0.5;
+    halfH = uCellPx.y * 0.5;
+  } else {
+    halfW = uCellPx.x * 0.5;
+    halfH = min(barWidthPx, uCellPx.y) * 0.5;
+  }
+  float r = min(uCorner, (uOrient < 0.5) ? halfW : halfH);
+  vec2 halfExt = (uOrient < 0.5) ? vec2(halfW, halfH + r + w) : vec2(halfW + r + w, halfH);
+  float d = sdRoundBox(p, halfExt, r);
   float alpha = clamp(0.5 - d / w, 0.0, 1.0);
   finalColor = vec4(mix(uBg, barColor, alpha), 1.0);
 }
