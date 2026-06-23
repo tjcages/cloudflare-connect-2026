@@ -5,3 +5,7 @@ export type { PerfSnapshot } from "./perf/perfCollector";
 export { createRealClock, createManualClock } from "./core/clock";
 export type { Clock, ManualClock } from "./core/clock";
 export { createSeededRng } from "./core/rng";
+export type { EngineConfig, Stripe, Fit, FieldMode } from "./config/types";
+export { normalizeEngineConfig, DEFAULT_ENGINE_CONFIG } from "./config/normalize";
+export { serializeEngineConfig, parseEngineConfig } from "./config/serialize";
+export type { EngineSource } from "./source/sourceTexture";
