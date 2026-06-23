@@ -109,7 +109,7 @@ export function assemblyRevealAt(
   const speedMin = Math.max(0, assembly.speedMinMs);
   const speedMax = Math.max(speedMin, assembly.speedMaxMs);
   const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
-  const o = cellNoise(col, row, 1);
+  const o = assemblyOrderNorm(col, row, cols, rows, assembly.order);
   const start = (assembly.staggerMs / dur) * o;
   const arrival = start + avgTotal;
   return smoothstep(arrival, arrival + Math.max(0, bandRamp), Math.max(0, progress));

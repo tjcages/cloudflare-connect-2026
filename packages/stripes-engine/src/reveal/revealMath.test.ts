@@ -152,13 +152,25 @@ describe("assemblyRevealAt", () => {
     expect(assemblyRevealAt(5, 5, 10, 10, 0, assembly, bandRamp)).toBeCloseTo(0, 5);
   });
 
-  it("cell (0,0) which has noise=0 is mid-ramp at progress=0.42 (arrival=0.38, bandRamp=0.132)", () => {
-    const result = assemblyRevealAt(0, 0, 10, 10, 0.42, assembly, bandRamp);
-    expect(result).toBeCloseTo(0.21982914544898, 5);
+  it("cell (5,5) with center order is mid-ramp at progress=0.48 (o=0.1, arrival=0.416, bandRamp=0.132)", () => {
+    const result = assemblyRevealAt(5, 5, 10, 10, 0.48, assembly, bandRamp);
+    expect(result).toBeCloseTo(0.47727968389125347, 5);
   });
 
   it("all cells fully revealed at progress=1", () => {
     expect(assemblyRevealAt(0, 0, 10, 10, 1, assembly, bandRamp)).toBeCloseTo(1, 5);
     expect(assemblyRevealAt(9, 9, 10, 10, 1, assembly, bandRamp)).toBeCloseTo(1, 5);
+  });
+
+  it("order-awareness: off-center cell (2,0) yields distinct values for center/sweep/edges at progress=0.55", () => {
+    const center = assemblyRevealAt(2, 0, 10, 10, 0.55, { ...assembly, order: "center" }, bandRamp);
+    const sweep = assemblyRevealAt(2, 0, 10, 10, 0.55, { ...assembly, order: "sweep" }, bandRamp);
+    const edges = assemblyRevealAt(2, 0, 10, 10, 0.55, { ...assembly, order: "edges" }, bandRamp);
+    expect(center).toBeCloseTo(0, 5);
+    expect(sweep).toBeCloseTo(0.7607062359128482, 5);
+    expect(edges).toBeCloseTo(0.5689400395796158, 5);
+    expect(center).not.toBeCloseTo(sweep, 3);
+    expect(center).not.toBeCloseTo(edges, 3);
+    expect(sweep).not.toBeCloseTo(edges, 3);
   });
 });
