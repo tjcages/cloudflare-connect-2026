@@ -25,10 +25,9 @@ function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
     type: r.type === "assembly" ? "assembly" : "wave",
     wave: {
       position: (w.position as EngineConfig["reveal"]["wave"]["position"]) ?? "center",
-      durationMs: typeof w.durationMs === "number" ? w.durationMs : 1300,
-      softness: typeof w.softness === "number" ? w.softness : 0.16,
-      waviness: typeof w.waviness === "number" ? w.waviness : 0.35,
-      noiseScale: typeof w.noiseScale === "number" ? w.noiseScale : 14.5,
+      durationMs: typeof w.durationMs === "number" ? w.durationMs : 1200,
+      softness: typeof w.softness === "number" ? w.softness : 0.22,
+      waviness: typeof w.waviness === "number" ? w.waviness : 0.11,
     },
     assembly: {
       order: "center",

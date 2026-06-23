@@ -42,9 +42,12 @@ export function createAssemblyScatterPass(gl: WebGL2RenderingContext) {
       gl.uniform1f(L.flight, p.flight);
       gl.uniform1f(L.spawnDist, p.spawnDist);
       gl.uniform1f(L.order, p.order);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.bindVertexArray(vao);
       gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, p.blockCols * p.blockRows);
       gl.bindVertexArray(null);
+      gl.disable(gl.BLEND);
     },
     dispose() {
       gl.deleteProgram(program);

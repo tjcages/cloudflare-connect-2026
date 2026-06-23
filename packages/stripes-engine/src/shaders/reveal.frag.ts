@@ -9,14 +9,12 @@ uniform float uMaxDist;
 uniform float uProgress;
 uniform float uSoftness;
 uniform float uWaviness;
-uniform float uNoiseScale;
 uniform float uBandRamp;
 out vec4 finalColor;
 
-highp float cellNoise(highp float col, highp float row, highp float scale) {
-  highp float s = max(0.1, scale);
-  highp float px = floor(col / s);
-  highp float py = floor(row / s);
+highp float cellNoise(highp float col, highp float row) {
+  highp float px = floor(col / 0.1);
+  highp float py = floor(row / 0.1);
   highp float p3x = fract(px * 0.1031);
   highp float p3y = fract(py * 0.103);
   highp float p3z = fract(px * 0.0973);
@@ -34,7 +32,7 @@ void main() {
     vec2 cell = floor(vUv * uGridCount);
     vec2 cellCenterUv = (cell + 0.5) / uGridCount;
     float dist = length(cellCenterUv - uOrigin) / max(uMaxDist, 1e-4);
-    float n = (cellNoise(cell.x, cell.y, uNoiseScale) - 0.5) * uWaviness;
+    float n = (cellNoise(cell.x, cell.y) - 0.5) * uWaviness;
     mask = smoothstep(dist - max(uSoftness, 0.0), dist + max(uSoftness, 0.0) + uBandRamp, max(uProgress, 0.0) + n);
   }
   finalColor = vec4(vec3(v * mask), 1.0);

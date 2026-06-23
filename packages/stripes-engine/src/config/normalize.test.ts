@@ -105,10 +105,6 @@ describe("reveal normalizer", () => {
     expect(normalizeReveal({ wave: { waviness: -1 } }).wave.waviness).toBe(0);
     expect(normalizeReveal({ wave: { waviness: 5 } }).wave.waviness).toBe(1);
   });
-  it("clamps wave.noiseScale to 0.1..50", () => {
-    expect(normalizeReveal({ wave: { noiseScale: 0 } }).wave.noiseScale).toBe(0.1);
-    expect(normalizeReveal({ wave: { noiseScale: 100 } }).wave.noiseScale).toBe(50);
-  });
   it("clamps assembly.speedMinMs to 100..30000", () => {
     expect(normalizeReveal({ assembly: { speedMinMs: 50 } }).assembly.speedMinMs).toBe(100);
     expect(normalizeReveal({ assembly: { speedMinMs: 99999 } }).assembly.speedMinMs).toBe(30000);

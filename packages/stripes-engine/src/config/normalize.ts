@@ -120,7 +120,7 @@ const ASSEMBLY_ORDERS: AssemblyOrder[] = ["center", "edges", "sweep", "random"];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "wave",
-  wave: { position: "center", durationMs: 1300, softness: 0.16, waviness: 0.35, noiseScale: 14.5 },
+  wave: { position: "center", durationMs: 1200, softness: 0.22, waviness: 0.11 },
   assembly: { order: "center", speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
 };
 
@@ -153,7 +153,6 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
       durationMs: clamp(Math.round(num(w.durationMs, DEFAULT_REVEAL.wave.durationMs)), 100, 30000),
       softness: clamp(num(w.softness, DEFAULT_REVEAL.wave.softness), 0, 1),
       waviness: clamp(num(w.waviness, DEFAULT_REVEAL.wave.waviness), 0, 1),
-      noiseScale: clamp(num(w.noiseScale, DEFAULT_REVEAL.wave.noiseScale), 0.1, 50),
     },
     assembly: {
       order,

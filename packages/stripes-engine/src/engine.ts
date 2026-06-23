@@ -187,7 +187,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             progress,
             softness: config.reveal.wave.softness,
             waviness: config.reveal.wave.waviness,
-            noiseScale: config.reveal.wave.noiseScale,
             bandRamp,
           });
         },

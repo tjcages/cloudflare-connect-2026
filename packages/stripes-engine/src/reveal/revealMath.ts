@@ -86,7 +86,7 @@ export function waveRevealAt(
   const x = cols <= 1 ? 0.5 : (col + 0.5) / cols;
   const y = rows <= 1 ? 0.5 : (row + 0.5) / rows;
   const normalizedDistance = Math.hypot(x - ox, y - oy) / maxDistance;
-  const edgeNoise = (cellNoise(col, row, wave.noiseScale) - 0.5) * wave.waviness;
+  const edgeNoise = (cellNoise(col, row, 0.1) - 0.5) * wave.waviness;
   const softness = Math.max(0, wave.softness);
   const ramp = Math.max(0, bandRamp);
   return smoothstep(

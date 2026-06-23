@@ -181,14 +181,6 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
           label: "Waviness",
           render: (get) => get("Reveal.revealType") === "wave",
         },
-        revealNoiseScale: {
-          value: d.reveal.wave.noiseScale,
-          min: 0.1,
-          max: 50,
-          step: 0.1,
-          label: "Noise scale",
-          render: (get) => get("Reveal.revealType") === "wave",
-        },
         revealOrder: {
           value: d.reveal.assembly.order,
           options: { Center: "center", Edges: "edges", Sweep: "sweep", Random: "random" } as const,
@@ -270,7 +262,6 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
         durationMs: values.revealDurationMs,
         softness: values.revealSoftness,
         waviness: values.revealWaviness,
-        noiseScale: values.revealNoiseScale,
       },
       assembly: {
         order: values.revealOrder,

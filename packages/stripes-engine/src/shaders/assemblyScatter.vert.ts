@@ -7,6 +7,8 @@ uniform float uFlight;
 uniform float uSpawnDist;
 uniform float uOrder;
 out vec2 vSampleUv;
+out vec2 vBlockLocal;
+out float vF;
 
 highp float fract1(highp float v) {
   return v - floor(v);
@@ -58,6 +60,8 @@ void main() {
 
   if (f <= 0.0) {
     vSampleUv = blockCenterUv;
+    vBlockLocal = vec2(0.5);
+    vF = 0.0;
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     return;
   }
@@ -76,6 +80,8 @@ void main() {
 
   vec2 homeUv = vec2(mix(uv0.x, uv1.x, qx), mix(uv0.y, uv1.y, qy));
   vSampleUv = homeUv;
+  vBlockLocal = vec2(qx, qy);
+  vF = f;
 
   vec2 posUv = homeUv + offset;
   gl_Position = vec4(posUv * 2.0 - 1.0, 0.0, 1.0);

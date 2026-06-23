@@ -21,7 +21,6 @@ export interface RevealConfig {
     durationMs: number;
     softness: number;
     waviness: number;
-    noiseScale: number;
   };
   assembly: {
     order: AssemblyOrder;

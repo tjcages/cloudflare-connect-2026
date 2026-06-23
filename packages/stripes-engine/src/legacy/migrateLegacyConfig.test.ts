@@ -24,7 +24,7 @@ describe("migrateLegacyConfig", () => {
     expect(migrateLegacyConfig(null)).toEqual({});
     expect(migrateLegacyConfig("garbage")).toEqual({});
   });
-  it("maps old reveal shape into reveal config", () => {
+  it("maps old reveal shape into reveal config (noiseScale ignored)", () => {
     const out = migrateLegacyConfig({
       reveal: {
         enabled: true,
@@ -36,7 +36,7 @@ describe("migrateLegacyConfig", () => {
     expect(out.reveal).toEqual({
       enabled: true,
       type: "assembly",
-      wave: { position: "left top", durationMs: 2000, softness: 0.5, waviness: 0.7, noiseScale: 20 },
+      wave: { position: "left top", durationMs: 2000, softness: 0.5, waviness: 0.7 },
       assembly: { order: "center", speedMinMs: 400, speedMaxMs: 1800, staggerMs: 1000 },
     });
   });

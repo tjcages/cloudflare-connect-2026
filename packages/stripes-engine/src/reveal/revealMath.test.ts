@@ -131,7 +131,7 @@ describe("waveRevealAt", () => {
   it("far corner (0,0) is partially revealed at progress=1 from center", () => {
     const result = waveRevealAt(0, 0, 10, 10, 1, wave, bandRamp);
     expect(result).toBeGreaterThan(0);
-    expect(result).toBeCloseTo(0.05932175239628031, 5);
+    expect(result).toBeCloseTo(0.3102745462274044, 5);
   });
 
   it("wave from left top: cell (0,0) is near-origin and reveals by progress=0.3", () => {

@@ -10,7 +10,6 @@ export type LegacyRevealWave = {
   durationMs?: number;
   softness?: number;
   waviness?: number;
-  noiseScale?: number;
 };
 /** @deprecated legacy-config shim — delete once old configs are gone */
 export type LegacyRevealConfig = {

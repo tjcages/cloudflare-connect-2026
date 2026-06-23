@@ -10,7 +10,6 @@ export type RevealPassUniforms = {
   progress: number;
   softness: number;
   waviness: number;
-  noiseScale: number;
   bandRamp: number;
 };
 
@@ -26,7 +25,6 @@ export function createRevealPass(gl: WebGL2RenderingContext, quad: { draw(): voi
     progress: u("uProgress"),
     softness: u("uSoftness"),
     waviness: u("uWaviness"),
-    noiseScale: u("uNoiseScale"),
     bandRamp: u("uBandRamp"),
   };
   return {
@@ -43,7 +41,6 @@ export function createRevealPass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.progress, p.progress);
       gl.uniform1f(L.softness, p.softness);
       gl.uniform1f(L.waviness, p.waviness);
-      gl.uniform1f(L.noiseScale, p.noiseScale);
       gl.uniform1f(L.bandRamp, p.bandRamp);
       quad.draw();
     },
