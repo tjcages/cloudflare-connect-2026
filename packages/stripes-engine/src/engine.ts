@@ -5,6 +5,7 @@ import { resolveOutputSize, resolveFieldSize, type Size } from "./gl/resolution"
 import { createSourceFieldPass } from "./passes/sourceFieldPass";
 import { createPresentPass } from "./passes/presentPass";
 import { createDownsamplePass } from "./passes/downsamplePass";
+import { createRevealPass } from "./passes/revealPass";
 import { createStripePass } from "./passes/stripePass";
 import { createGpuTimer } from "./perf/gpuTimer";
 import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
@@ -17,6 +18,7 @@ import { resolveSourceRect } from "./source/fit";
 import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
 import { buildStripeLut, lutSignature } from "./field/stripeLut";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
+import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
 export type StripesEngine = {
@@ -59,6 +61,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lastFrameStart = clock.now();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
+  let lastRevealEnabled = config.reveal.enabled;
+  let revealStartMs = 0;
 
   function getDpr() {
     return opts.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
@@ -115,6 +119,39 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     if (config.stripesEnabled) {
       const downsamplePass = createDownsamplePass(gl, quad);
       const stripePass = createStripePass(gl, quad);
+      const midPasses: Pass[] = [];
+      if (config.reveal.enabled) {
+        const revealPass = createRevealPass(gl, quad);
+        midPasses.push({
+          name: "reveal",
+          render: () => {
+            const { cols, rows } = cellGrid;
+            const cellRT = pool.get("cell", cols, rows);
+            const revealRT = pool.get("reveal", cols, rows);
+            const [ox, oy] = originForPosition(config.reveal.wave.position);
+            const maxDist = Math.max(
+              Math.hypot(ox, oy),
+              Math.hypot(1 - ox, oy),
+              Math.hypot(ox, 1 - oy),
+              Math.hypot(1 - ox, 1 - oy),
+            );
+            const durationMs = resolveRevealDurationMs(config.reveal);
+            const progress = (clock.now() - revealStartMs) / durationMs;
+            const bandRamp = resolveBandRamp(config.reveal.wave.durationMs);
+            revealPass.render(revealRT, cellRT.texture, cols, rows, {
+              revealMode: 1,
+              origin: [ox, oy],
+              maxDist,
+              progress,
+              softness: config.reveal.wave.softness,
+              waviness: config.reveal.wave.waviness,
+              noiseScale: config.reveal.wave.noiseScale,
+              bandRamp,
+            });
+          },
+          dispose: () => revealPass.dispose(),
+        });
+      }
       passes = [
         fieldPass,
         {
@@ -127,13 +164,14 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           },
           dispose: () => downsamplePass.dispose(),
         },
+        ...midPasses,
         {
           name: "stripe",
           render: () => {
             const { cols, rows } = cellGrid;
-            const cellRT = pool.get("cell", cols, rows);
+            const inputRT = config.reveal.enabled ? pool.get("reveal", cols, rows) : pool.get("cell", cols, rows);
             stripePass.render(
-              cellRT.texture,
+              inputRT.texture,
               stripeLutTex!,
               {
                 cellW: config.grid.cellWidth,
@@ -179,6 +217,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
     cellGrid = resolveCellGrid(cssW, cssH, config.grid.cellWidth, config.grid.cellHeight);
     pool.get("cell", cellGrid.cols, cellGrid.rows);
+    if (config.reveal.enabled) {
+      pool.get("reveal", cellGrid.cols, cellGrid.rows);
+    }
   }
 
   function rebuildGpuResources() {
@@ -254,9 +295,10 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       config = normalizeEngineConfig({ ...config, ...partial });
       ensureLut();
       applySizes();
-      if (config.stripesEnabled !== lastStripesEnabled) {
+      if (config.stripesEnabled !== lastStripesEnabled || config.reveal.enabled !== lastRevealEnabled) {
         buildPasses();
         lastStripesEnabled = config.stripesEnabled;
+        lastRevealEnabled = config.reveal.enabled;
       }
     },
     renderFrame,
