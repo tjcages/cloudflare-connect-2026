@@ -29,6 +29,7 @@ export type StripesEngine = {
   setFieldScale(s: number): void;
   setSource(media: EngineSource | null): void;
   setConfig(partial: Partial<EngineConfig>): void;
+  triggerReveal(): void;
   readOutputPixels(): Uint8Array;
   getPerf(): PerfSnapshot;
   dispose(): void;
@@ -302,6 +303,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         lastStripesEnabled = config.stripesEnabled;
         lastRevealEnabled = config.reveal.enabled;
       }
+    },
+    triggerReveal() {
+      revealStartMs = clock.now();
     },
     renderFrame,
     start() {

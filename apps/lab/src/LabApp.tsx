@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createStripesEngine,
   createManualClock,
@@ -134,11 +134,15 @@ function LabInner() {
   const manual = useMemo(() => new URLSearchParams(window.location.search).get("manual") === "1", []);
   const shell = hud && !manual;
 
-  const { config: controls, setControl, textureId, store } = useEngineControls();
+  const onReplayRef = useRef<() => void>(() => {});
+  const onReplay = useCallback(() => onReplayRef.current(), []);
+  const { config: controls, setControl, textureId, store } = useEngineControls(onReplay);
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
   const stripesEnabledRef = useRef(controls.stripesEnabled);
   stripesEnabledRef.current = controls.stripesEnabled;
+  const revealEnabledRef = useRef(controls.reveal.enabled);
+  revealEnabledRef.current = controls.reveal.enabled;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -176,6 +180,8 @@ function LabInner() {
     const testImage = createTestImage();
     engine.setSource(testImage);
 
+    onReplayRef.current = () => engine.triggerReveal();
+
     (window as unknown as { __lab: unknown }).__lab = {
       engine,
       clock,
@@ -188,6 +194,7 @@ function LabInner() {
         engine.setConfig(c);
         if (manual) engine.renderFrame();
       },
+      triggerReveal: () => engine.triggerReveal(),
     };
 
     let raf = 0;
@@ -232,7 +239,10 @@ function LabInner() {
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    engine.setConfig(controls);
+    const configToApply = manualRef.current
+      ? { ...controls, reveal: { ...controls.reveal, enabled: false } }
+      : controls;
+    engine.setConfig(configToApply);
     saveConfig(controls);
     if (manualRef.current) engine.renderFrame();
   }, [controls]);
@@ -256,6 +266,7 @@ function LabInner() {
         engine.setSource(source);
         prevVideoRef.current = video;
         setVideoEl(video);
+        if (revealEnabledRef.current) engine.triggerReveal();
       })
       .catch(() => {});
     return () => {

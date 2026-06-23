@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { useControls, useCreateStore, folder } from "leva";
+import { useControls, useCreateStore, folder, button } from "leva";
 import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { loadInitialConfig } from "../persistence";
@@ -31,7 +31,7 @@ export interface EngineControlsResult {
   store: ReturnType<typeof useCreateStore>;
 }
 
-export function useEngineControls(): EngineControlsResult {
+export function useEngineControls(onReplay: () => void): EngineControlsResult {
   const d = useMemo(() => normalizeEngineConfig(loadInitialConfig()), []);
   const store = useCreateStore();
 
@@ -133,6 +133,54 @@ export function useEngineControls(): EngineControlsResult {
           label: "Orientation",
         },
       }),
+      Reveal: folder({
+        revealEnabled: { value: true, label: "Enabled" },
+        revealType: {
+          value: d.reveal.type,
+          options: { Wave: "wave", Assembly: "assembly" } as const,
+          label: "Type",
+        },
+        revealPosition: {
+          value: d.reveal.wave.position,
+          options: {
+            Center: "center",
+            "Left Top": "left top",
+            "Center Top": "center top",
+            "Right Top": "right top",
+            "Left Center": "left center",
+            "Right Center": "right center",
+            "Left Bottom": "left bottom",
+            "Center Bottom": "center bottom",
+            "Right Bottom": "right bottom",
+          } as const,
+          label: "Position",
+        },
+        revealDurationMs: { value: d.reveal.wave.durationMs, min: 100, max: 30000, step: 50, label: "Duration (ms)" },
+        revealSoftness: { value: d.reveal.wave.softness, min: 0, max: 1, step: 0.01, label: "Softness" },
+        revealWaviness: { value: d.reveal.wave.waviness, min: 0, max: 1, step: 0.01, label: "Waviness" },
+        revealNoiseScale: { value: d.reveal.wave.noiseScale, min: 0.1, max: 50, step: 0.1, label: "Noise scale" },
+        revealOrder: {
+          value: d.reveal.assembly.order,
+          options: { Center: "center", Edges: "edges", Sweep: "sweep", Random: "random" } as const,
+          label: "Order",
+        },
+        revealSpeedMinMs: {
+          value: d.reveal.assembly.speedMinMs,
+          min: 100,
+          max: 30000,
+          step: 50,
+          label: "Speed min (ms)",
+        },
+        revealSpeedMaxMs: {
+          value: d.reveal.assembly.speedMaxMs,
+          min: 100,
+          max: 30000,
+          step: 50,
+          label: "Speed max (ms)",
+        },
+        revealStaggerMs: { value: d.reveal.assembly.staggerMs, min: 0, max: 30000, step: 50, label: "Stagger (ms)" },
+        Replay: button(() => onReplay()),
+      }),
       Quality: folder({
         textureDpr: { value: d.fieldScale, min: 0.25, max: 2, step: 0.25, label: "Texture DPR" },
       }),
@@ -177,6 +225,23 @@ export function useEngineControls(): EngineControlsResult {
     stripesEnabled: values.stripesEnabled,
     fieldScale: values.textureDpr,
     stripes: fromEditable(stripes),
+    reveal: {
+      enabled: values.revealEnabled,
+      type: values.revealType,
+      wave: {
+        position: values.revealPosition,
+        durationMs: values.revealDurationMs,
+        softness: values.revealSoftness,
+        waviness: values.revealWaviness,
+        noiseScale: values.revealNoiseScale,
+      },
+      assembly: {
+        order: values.revealOrder,
+        speedMinMs: values.revealSpeedMinMs,
+        speedMaxMs: values.revealSpeedMaxMs,
+        staggerMs: values.revealStaggerMs,
+      },
+    },
   });
 
   return { config, setControl, textureId: values.texture, store };
