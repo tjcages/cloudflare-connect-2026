@@ -78,12 +78,15 @@ void main() {
   highp float qx = (vid == 1 || vid == 2 || vid == 4) ? 1.0 : 0.0;
   highp float qy = (vid == 2 || vid == 4 || vid == 5) ? 1.0 : 0.0;
 
-  vec2 homeUv = vec2(mix(uv0.x, uv1.x, qx), mix(uv0.y, uv1.y, qy));
-  vSampleUv = homeUv;
-  vBlockLocal = vec2(qx, qy);
+  highp float softV = 1.0 - smoothstep(0.0, 0.7, f);
+  highp float expand = 1.0 + softV * 1.6;
+  vec2 halfExt = 0.5 * (uv1 - uv0);
+  vec2 el = (vec2(qx, qy) - 0.5) * expand + 0.5;
+  vSampleUv = blockCenterUv + (el - 0.5) * 2.0 * halfExt;
+  vBlockLocal = el;
   vF = f;
 
-  vec2 posUv = homeUv + offset;
+  vec2 posUv = vSampleUv + offset;
   gl_Position = vec4(posUv * 2.0 - 1.0, 0.0, 1.0);
 }
 `;
