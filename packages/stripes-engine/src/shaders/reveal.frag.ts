@@ -1,7 +1,7 @@
 export const REVEAL_FRAG = `#version 300 es
 precision highp float;
 in vec2 vUv;
-uniform sampler2D uCell;
+uniform sampler2D uField;
 uniform vec2 uGridCount;
 uniform float uRevealMode;
 uniform vec2 uOrigin;
@@ -28,12 +28,12 @@ highp float cellNoise(highp float col, highp float row, highp float scale) {
 }
 
 void main() {
-  float v = texture(uCell, vUv).r;
+  float v = texture(uField, vUv).r;
   float mask = 1.0;
   if (uRevealMode > 0.5) {
-    vec2 cellUv = vUv;
-    float dist = length(cellUv - uOrigin) / max(uMaxDist, 1e-4);
     vec2 cell = floor(vUv * uGridCount);
+    vec2 cellCenterUv = (cell + 0.5) / uGridCount;
+    float dist = length(cellCenterUv - uOrigin) / max(uMaxDist, 1e-4);
     float n = (cellNoise(cell.x, cell.y, uNoiseScale) - 0.5) * uWaviness;
     mask = smoothstep(dist - max(uSoftness, 0.0), dist + max(uSoftness, 0.0) + uBandRamp, max(uProgress, 0.0) + n);
   }

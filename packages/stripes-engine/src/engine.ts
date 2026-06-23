@@ -127,95 +127,95 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       dispose: () => sourceFieldPass.dispose(),
     };
 
+    const revealEnabled = config.reveal.enabled;
+    const assemblyTopology = revealEnabled && config.reveal.type === "assembly";
+    const activeFieldRT = revealEnabled ? "revealedField" : "field";
+    const revealFieldPasses: Pass[] = [];
+
+    if (assemblyTopology) {
+      const scatterPass = createAssemblyScatterPass(gl);
+      revealFieldPasses.push({
+        name: "assemblyScatterField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const { assembly } = config.reveal;
+          const durationMs = resolveRevealDurationMs(config.reveal);
+          const progress = (clock.now() - revealStartMs) / durationMs;
+          const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
+          const speedMin = Math.max(0, assembly.speedMinMs);
+          const speedMax = Math.max(speedMin, assembly.speedMaxMs);
+          const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
+          const spread = assembly.staggerMs / dur;
+          const blockCols = Math.max(1, Math.ceil(cssW / 40));
+          const blockRows = Math.max(1, Math.ceil(cssH / 40));
+          scatterPass.render(revealedRT, fieldRT.texture, {
+            blockCols,
+            blockRows,
+            progress,
+            spread,
+            flight: avgTotal,
+            spawnDist: 1.6,
+            order: ASSEMBLY_ORDER_INDEX[assembly.order],
+          });
+        },
+        dispose: () => scatterPass.dispose(),
+      });
+    } else if (revealEnabled) {
+      const revealPass = createRevealPass(gl, quad);
+      revealFieldPasses.push({
+        name: "revealField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const { cols, rows } = cellGrid;
+          const durationMs = resolveRevealDurationMs(config.reveal);
+          const progress = (clock.now() - revealStartMs) / durationMs;
+          const [ox, oy] = originForPosition(config.reveal.wave.position);
+          const maxDist = Math.max(
+            Math.hypot(ox, oy),
+            Math.hypot(1 - ox, oy),
+            Math.hypot(ox, 1 - oy),
+            Math.hypot(1 - ox, 1 - oy),
+            0.0001,
+          );
+          const bandRamp = resolveBandRamp(config.reveal.wave.durationMs);
+          revealPass.render(revealedRT, fieldRT.texture, cols, rows, {
+            revealMode: 1,
+            origin: [ox, oy],
+            maxDist,
+            progress,
+            softness: config.reveal.wave.softness,
+            waviness: config.reveal.wave.waviness,
+            noiseScale: config.reveal.wave.noiseScale,
+            bandRamp,
+          });
+        },
+        dispose: () => revealPass.dispose(),
+      });
+    }
+
     if (config.stripesEnabled) {
       const downsamplePass = createDownsamplePass(gl, quad);
       const stripePass = createStripePass(gl, quad);
-      const midPasses: Pass[] = [];
-      const stripeInputRT = config.reveal.enabled ? "reveal" : "cell";
-      const assemblyTopology = config.reveal.enabled && config.reveal.type === "assembly";
-      if (assemblyTopology) {
-        const scatterPass = createAssemblyScatterPass(gl);
-        midPasses.push({
-          name: "assemblyScatter",
-          render: () => {
-            const { cols, rows } = cellGrid;
-            const cellRT = pool.get("cell", cols, rows);
-            const scatterRT = pool.get("reveal", cols, rows);
-            const { assembly } = config.reveal;
-            const durationMs = resolveRevealDurationMs(config.reveal);
-            const progress = (clock.now() - revealStartMs) / durationMs;
-            const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
-            const speedMin = Math.max(0, assembly.speedMinMs);
-            const speedMax = Math.max(speedMin, assembly.speedMaxMs);
-            const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
-            const spread = assembly.staggerMs / dur;
-            const blockCells = Math.max(1, Math.round(40 / config.grid.cellWidth));
-            const blockCols = Math.ceil(cols / blockCells);
-            const blockRows = Math.ceil(rows / blockCells);
-            scatterPass.render(scatterRT, cellRT.texture, cols, rows, {
-              blockCols,
-              blockRows,
-              blockCells,
-              progress,
-              spread,
-              flight: avgTotal,
-              spawnDist: 1.6,
-              order: ASSEMBLY_ORDER_INDEX[assembly.order],
-            });
-          },
-          dispose: () => scatterPass.dispose(),
-        });
-      } else if (config.reveal.enabled) {
-        const revealPass = createRevealPass(gl, quad);
-        midPasses.push({
-          name: "reveal",
-          render: () => {
-            const { cols, rows } = cellGrid;
-            const cellRT = pool.get("cell", cols, rows);
-            const revealRT = pool.get("reveal", cols, rows);
-            const durationMs = resolveRevealDurationMs(config.reveal);
-            const progress = (clock.now() - revealStartMs) / durationMs;
-            const [ox, oy] = originForPosition(config.reveal.wave.position);
-            const maxDist = Math.max(
-              Math.hypot(ox, oy),
-              Math.hypot(1 - ox, oy),
-              Math.hypot(ox, 1 - oy),
-              Math.hypot(1 - ox, 1 - oy),
-              0.0001,
-            );
-            const bandRamp = resolveBandRamp(config.reveal.wave.durationMs);
-            revealPass.render(revealRT, cellRT.texture, cols, rows, {
-              revealMode: 1,
-              origin: [ox, oy],
-              maxDist,
-              progress,
-              softness: config.reveal.wave.softness,
-              waviness: config.reveal.wave.waviness,
-              noiseScale: config.reveal.wave.noiseScale,
-              bandRamp,
-            });
-          },
-          dispose: () => revealPass.dispose(),
-        });
-      }
       passes = [
         fieldPass,
+        ...revealFieldPasses,
         {
           name: "downsample",
           render: () => {
             const { cols, rows } = cellGrid;
-            const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+            const fieldRT = pool.get(activeFieldRT, fieldSize.width, fieldSize.height, { linear: true });
             const cellRT = pool.get("cell", cols, rows);
             downsamplePass.render(cellRT, fieldRT.texture, cols, rows);
           },
           dispose: () => downsamplePass.dispose(),
         },
-        ...midPasses,
         {
           name: "stripe",
           render: () => {
             const { cols, rows } = cellGrid;
-            const inputRT = pool.get(stripeInputRT, cols, rows);
+            const inputRT = pool.get("cell", cols, rows);
             stripePass.render(
               inputRT.texture,
               stripeLutTex!,
@@ -240,11 +240,12 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       const presentPass = createPresentPass(gl, quad);
       passes = [
         fieldPass,
+        ...revealFieldPasses,
         {
           name: "present",
           render: () =>
             presentPass.render(
-              pool.get("field", fieldSize.width, fieldSize.height, { linear: true }).texture,
+              pool.get(activeFieldRT, fieldSize.width, fieldSize.height, { linear: true }).texture,
               output.width,
               output.height,
             ),
@@ -264,7 +265,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     cellGrid = resolveCellGrid(cssW, cssH, config.grid.cellWidth, config.grid.cellHeight);
     pool.get("cell", cellGrid.cols, cellGrid.rows);
     if (config.reveal.enabled) {
-      pool.get("reveal", cellGrid.cols, cellGrid.rows);
+      pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
     }
   }
 

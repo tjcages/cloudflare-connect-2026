@@ -18,7 +18,7 @@ export function createRevealPass(gl: WebGL2RenderingContext, quad: { draw(): voi
   const program = compileProgram(gl, FULLSCREEN_VERT, REVEAL_FRAG);
   const u = (n: string) => gl.getUniformLocation(program, n);
   const L = {
-    cell: u("uCell"),
+    field: u("uField"),
     grid: u("uGridCount"),
     mode: u("uRevealMode"),
     origin: u("uOrigin"),
@@ -30,12 +30,12 @@ export function createRevealPass(gl: WebGL2RenderingContext, quad: { draw(): voi
     bandRamp: u("uBandRamp"),
   };
   return {
-    render(target: RenderTarget, cellTex: WebGLTexture, cols: number, rows: number, p: RevealPassUniforms) {
+    render(target: RenderTarget, fieldTex: WebGLTexture, cols: number, rows: number, p: RevealPassUniforms) {
       bindRenderTarget(gl, target);
       gl.useProgram(program);
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, cellTex);
-      gl.uniform1i(L.cell, 0);
+      gl.bindTexture(gl.TEXTURE_2D, fieldTex);
+      gl.uniform1i(L.field, 0);
       gl.uniform2f(L.grid, cols, rows);
       gl.uniform1f(L.mode, p.revealMode);
       gl.uniform2f(L.origin, p.origin[0], p.origin[1]);

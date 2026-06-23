@@ -1,8 +1,6 @@
 export const ASSEMBLY_SCATTER_VERT = `#version 300 es
 precision highp float;
-uniform vec2 uGridCount;
 uniform vec2 uBlockGrid;
-uniform float uBlockCells;
 uniform float uProgress;
 uniform float uSpread;
 uniform float uFlight;
@@ -51,13 +49,8 @@ void main() {
   highp float bx = mod(instance, bCols);
   highp float by = floor(instance / bCols);
 
-  highp float c0 = bx * uBlockCells;
-  highp float r0 = by * uBlockCells;
-  highp float c1 = min(uGridCount.x, c0 + uBlockCells);
-  highp float r1 = min(uGridCount.y, r0 + uBlockCells);
-
-  vec2 uv0 = vec2(c0 / uGridCount.x, r0 / uGridCount.y);
-  vec2 uv1 = vec2(c1 / uGridCount.x, r1 / uGridCount.y);
+  vec2 uv0 = vec2(bx / uBlockGrid.x, by / uBlockGrid.y);
+  vec2 uv1 = vec2(min(1.0, (bx + 1.0) / uBlockGrid.x), min(1.0, (by + 1.0) / uBlockGrid.y));
   vec2 blockCenterUv = 0.5 * (uv0 + uv1);
 
   highp float orderKey = orderNorm(bx, by, uBlockGrid.x, uBlockGrid.y);
