@@ -4,11 +4,11 @@ import { normalizeEngineConfig } from "./normalize";
 
 describe("serialize round-trip", () => {
   it("serialize→parse yields an equal normalized config", () => {
-    const c = normalizeEngineConfig({ field: { mode: "overlay" }, transform: { zoom: 2 } });
+    const c = normalizeEngineConfig({ transform: { zoom: 2 } });
     expect(parseEngineConfig(serializeEngineConfig(c))).toEqual(c);
   });
   it("parse normalizes a partial json and throws on garbage", () => {
-    expect(parseEngineConfig('{"field":{"mode":"overlay"}}').field.mode).toBe("overlay");
+    expect(parseEngineConfig('{"transform":{"zoom":2}}').transform.zoom).toBe(2);
     expect(() => parseEngineConfig("not json")).toThrow();
   });
 });

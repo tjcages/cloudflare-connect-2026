@@ -1,5 +1,4 @@
 export type Fit = "stretch" | "contain" | "cover";
-export type FieldMode = "luminance" | "overlay";
 
 export interface Stripe {
   color: number;
@@ -29,10 +28,6 @@ export interface Adjustments {
   sharpenAmount: number;
 }
 
-export interface FieldConfig {
-  mode: FieldMode;
-}
-
 export interface Background {
   color: number;
 }
@@ -49,10 +44,8 @@ export interface Grid {
 export interface EngineConfig {
   transform: Transform;
   adjustments: Adjustments;
-  field: FieldConfig;
   background: Background;
   grid: Grid;
   stripes: Stripe[];
-  overlayStripes: Stripe[];
   stripesEnabled: boolean;
 }

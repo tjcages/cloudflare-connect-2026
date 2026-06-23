@@ -1,4 +1,4 @@
-import type { Transform, FieldConfig, Background, Grid, Adjustments, Stripe, EngineConfig } from "./types";
+import type { Transform, Background, Grid, Adjustments, Stripe, EngineConfig } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
@@ -14,11 +14,6 @@ export function normalizeTransform(i: Partial<Transform> = {}): Transform {
     panX: clamp(num(i.panX, 0), -1, 1),
     panY: clamp(num(i.panY, 0), -1, 1),
   };
-}
-
-export const DEFAULT_FIELD: FieldConfig = { mode: "luminance" };
-export function normalizeField(i: Partial<FieldConfig> = {}): FieldConfig {
-  return { mode: i.mode === "overlay" ? "overlay" : "luminance" };
 }
 
 export const DEFAULT_BACKGROUND: Background = { color: 0x000000 };
@@ -80,17 +75,12 @@ export function normalizeAdjustments(i: Partial<Adjustments> = {}): Adjustments 
 }
 
 export const DEFAULT_STRIPES: Stripe[] = [
-  { color: 0x111111, startFrom: 0.0, width: 6 },
-  { color: 0x333333, startFrom: 0.2, width: 6 },
-  { color: 0x666666, startFrom: 0.4, width: 6 },
-  { color: 0x999999, startFrom: 0.6, width: 6 },
-  { color: 0xcc6622, startFrom: 0.8, width: 6 },
-  { color: 0xff8833, startFrom: 0.95, width: 6 },
-];
-export const DEFAULT_OVERLAY_STRIPES: Stripe[] = [
-  { color: 0x000000, startFrom: 0.0, width: 6 },
-  { color: 0x888888, startFrom: 0.5, width: 6 },
-  { color: 0xffffff, startFrom: 0.85, width: 6 },
+  { color: 0xf3f3f3, startFrom: 0.12, width: 1 },
+  { color: 0xfada98, startFrom: 0.28, width: 1 },
+  { color: 0xf8bd70, startFrom: 0.44, width: 2 },
+  { color: 0xf69e4d, startFrom: 0.6, width: 3 },
+  { color: 0xf27c33, startFrom: 0.76, width: 4 },
+  { color: 0xeb5729, startFrom: 0.9, width: 5 },
 ];
 export function normalizeStripe(i: Partial<Stripe>): Stripe {
   return {
@@ -107,11 +97,9 @@ export function normalizeStripes(i: Partial<Stripe>[] | undefined, fallback: Str
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
-  field: DEFAULT_FIELD,
   background: DEFAULT_BACKGROUND,
   grid: DEFAULT_GRID,
   stripes: DEFAULT_STRIPES.map((s) => ({ ...s })),
-  overlayStripes: DEFAULT_OVERLAY_STRIPES.map((s) => ({ ...s })),
   stripesEnabled: true,
 };
 
@@ -119,11 +107,9 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
   return {
     transform: normalizeTransform(i.transform),
     adjustments: normalizeAdjustments(i.adjustments),
-    field: normalizeField(i.field),
     background: normalizeBackground(i.background),
     grid: normalizeGrid(i.grid),
     stripes: normalizeStripes(i.stripes, DEFAULT_STRIPES),
-    overlayStripes: normalizeStripes(i.overlayStripes, DEFAULT_OVERLAY_STRIPES),
     stripesEnabled: i.stripesEnabled !== undefined ? !!i.stripesEnabled : true,
   };
 }

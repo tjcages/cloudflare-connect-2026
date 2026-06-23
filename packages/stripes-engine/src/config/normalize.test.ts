@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   normalizeTransform,
-  normalizeField,
   normalizeBackground,
   normalizeGrid,
   normalizeAdjustments,
@@ -23,11 +22,6 @@ describe("simple normalizers", () => {
     expect(normalizeTransform({ panX: -5 }).panX).toBe(-1); // min -1
     expect(normalizeTransform({ fit: "cover" }).fit).toBe("cover");
     expect(normalizeTransform({ fit: "bogus" as any }).fit).toBe("stretch"); // invalid → default
-  });
-  it("field defaults to luminance and rejects invalid mode", () => {
-    expect(normalizeField({}).mode).toBe("luminance");
-    expect(normalizeField({ mode: "overlay" }).mode).toBe("overlay");
-    expect(normalizeField({ mode: "colors" as any }).mode).toBe("luminance");
   });
   it("background coerces to a 24-bit int", () => {
     expect(normalizeBackground({ color: 0xff8833 }).color).toBe(0xff8833);
@@ -81,8 +75,7 @@ describe("normalizeEngineConfig", () => {
     expect(DEFAULT_ENGINE_CONFIG.stripesEnabled).toBe(true);
   });
   it("merges partials through sub-normalizers", () => {
-    const c = normalizeEngineConfig({ field: { mode: "overlay" }, adjustments: { contrast: 2 } });
-    expect(c.field.mode).toBe("overlay");
+    const c = normalizeEngineConfig({ adjustments: { contrast: 2 } });
     expect(c.adjustments.contrast).toBe(2);
     expect(c.transform).toEqual(DEFAULT_ENGINE_CONFIG.transform);
   });
