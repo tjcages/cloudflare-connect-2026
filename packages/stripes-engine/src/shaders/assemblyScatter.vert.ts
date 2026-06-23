@@ -8,7 +8,7 @@ uniform float uSpawnDist;
 uniform float uOrder;
 out vec2 vSampleUv;
 out vec2 vBlockLocal;
-out float vSoft;
+out float vCellHalf;
 
 highp float fract1(highp float v) {
   return v - floor(v);
@@ -54,6 +54,7 @@ void main() {
   vec2 uv0 = vec2(bx / uBlockGrid.x, by / uBlockGrid.y);
   vec2 uv1 = vec2(min(1.0, (bx + 1.0) / uBlockGrid.x), min(1.0, (by + 1.0) / uBlockGrid.y));
   vec2 blockCenterUv = 0.5 * (uv0 + uv1);
+  vec2 halfExt = 0.5 * (uv1 - uv0);
 
   highp float orderKey = orderNorm(bx, by, uBlockGrid.x, uBlockGrid.y);
   highp float f = clamp((uProgress - uSpread * orderKey) / max(uFlight, 1e-4), 0.0, 1.0);
@@ -65,28 +66,29 @@ void main() {
   if (f <= 0.0) {
     vSampleUv = blockCenterUv;
     vBlockLocal = vec2(qx, qy);
-    vSoft = 1.0;
+    vCellHalf = 0.5;
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     return;
   }
 
-  vec2 toCenter = blockCenterUv - vec2(0.5);
-  highp float len = length(toCenter);
-  vec2 outwardDir = len < 1e-4 ? vec2(0.0, 1.0) : toCenter / len;
-
+  highp float ang = cellNoise(bx, by, 1.0) * 6.2831853;
+  highp float dist = 0.5 + 0.5 * cellNoise(by + 11.0, bx + 5.0, 1.0);
+  vec2 scatterDir = vec2(cos(ang), sin(ang));
   highp float inv = 1.0 - f;
   highp float ease = 1.0 - inv * inv * inv;
-  vec2 offset = (1.0 - ease) * outwardDir * uSpawnDist;
+  vec2 offset = (1.0 - ease) * scatterDir * dist * uSpawnDist;
 
-  vec2 cellSz = uv1 - uv0;
-  highp float cellSizeUv = max(cellSz.x, cellSz.y);
-  vSoft = smoothstep(cellSizeUv, cellSizeUv * 4.0, length(offset));
+  highp float cellSizeUv = max(halfExt.x, halfExt.y) * 2.0;
+  highp float soft = smoothstep(cellSizeUv, cellSizeUv * 4.0, length(offset));
+  highp float expand = 1.0 + soft * 2.5;
+  vCellHalf = 0.5 / expand;
 
-  vec2 homeUv = vec2(mix(uv0.x, uv1.x, qx), mix(uv0.y, uv1.y, qy));
-  vSampleUv = homeUv;
-  vBlockLocal = vec2(qx, qy);
+  vec2 el = (vec2(qx, qy) - 0.5) * expand + 0.5;
+  vec2 rawSample = blockCenterUv + (el - 0.5) * 2.0 * halfExt;
+  vSampleUv = clamp(rawSample, uv0, uv1);
+  vBlockLocal = el;
 
-  vec2 posUv = homeUv + offset;
+  vec2 posUv = rawSample + offset;
   gl_Position = vec4(posUv * 2.0 - 1.0, 0.0, 1.0);
 }
 `;
