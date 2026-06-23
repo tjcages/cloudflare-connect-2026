@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     projects: [
       "apps/studio/vite.config.ts",
+      "apps/lab/vite.config.ts",
       "packages/stripes-shader/vitest.config.ts",
       "packages/stripes-engine/vitest.config.ts",
     ],

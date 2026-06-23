@@ -10,9 +10,14 @@
   },
   "dependencies": {
     "@necatikcl/stripes-engine": "workspace:*",
+    "clsx": "^2.1.1",
     "leva": "^0.10.1",
+    "lucide-react": "^1.14.0",
+    "motion": "^12.40.0",
     "react": "^19.0.5",
-    "react-dom": "^19.0.5"
+    "react-colorful": "^5.7.0",
+    "react-dom": "^19.0.5",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
