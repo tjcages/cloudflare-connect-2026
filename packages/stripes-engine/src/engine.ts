@@ -6,6 +6,7 @@ import { createSourceFieldPass } from "./passes/sourceFieldPass";
 import { createPresentPass } from "./passes/presentPass";
 import { createDownsamplePass } from "./passes/downsamplePass";
 import { createRevealPass } from "./passes/revealPass";
+import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createStripePass } from "./passes/stripePass";
 import { createGpuTimer } from "./perf/gpuTimer";
 import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
@@ -71,6 +72,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
   let lastRevealEnabled = config.reveal.enabled;
+  let lastAssemblyTopo = config.reveal.enabled && config.reveal.type === "assembly";
   let revealStartMs = 0;
 
   function getDpr() {
@@ -130,7 +132,40 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       const stripePass = createStripePass(gl, quad);
       const midPasses: Pass[] = [];
       const stripeInputRT = config.reveal.enabled ? "reveal" : "cell";
-      if (config.reveal.enabled) {
+      const assemblyTopology = config.reveal.enabled && config.reveal.type === "assembly";
+      if (assemblyTopology) {
+        const scatterPass = createAssemblyScatterPass(gl);
+        midPasses.push({
+          name: "assemblyScatter",
+          render: () => {
+            const { cols, rows } = cellGrid;
+            const cellRT = pool.get("cell", cols, rows);
+            const scatterRT = pool.get("reveal", cols, rows);
+            const { assembly } = config.reveal;
+            const durationMs = resolveRevealDurationMs(config.reveal);
+            const progress = (clock.now() - revealStartMs) / durationMs;
+            const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
+            const speedMin = Math.max(0, assembly.speedMinMs);
+            const speedMax = Math.max(speedMin, assembly.speedMaxMs);
+            const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
+            const spread = assembly.staggerMs / dur;
+            const blockCells = Math.max(1, Math.round(40 / config.grid.cellWidth));
+            const blockCols = Math.ceil(cols / blockCells);
+            const blockRows = Math.ceil(rows / blockCells);
+            scatterPass.render(scatterRT, cellRT.texture, cols, rows, {
+              blockCols,
+              blockRows,
+              blockCells,
+              progress,
+              spread,
+              flight: avgTotal,
+              spawnDist: 1.6,
+              order: ASSEMBLY_ORDER_INDEX[assembly.order],
+            });
+          },
+          dispose: () => scatterPass.dispose(),
+        });
+      } else if (config.reveal.enabled) {
         const revealPass = createRevealPass(gl, quad);
         midPasses.push({
           name: "reveal",
@@ -140,51 +175,28 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             const revealRT = pool.get("reveal", cols, rows);
             const durationMs = resolveRevealDurationMs(config.reveal);
             const progress = (clock.now() - revealStartMs) / durationMs;
-            if (config.reveal.type === "assembly") {
-              const { assembly } = config.reveal;
-              const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
-              const speedMin = Math.max(0, assembly.speedMinMs);
-              const speedMax = Math.max(speedMin, assembly.speedMaxMs);
-              const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
-              const spread = assembly.staggerMs / dur;
-              const bandRamp = resolveBandRamp(durationMs);
-              revealPass.render(revealRT, cellRT.texture, cols, rows, {
-                revealMode: 2,
-                origin: [0, 0],
-                maxDist: 1,
-                progress,
-                softness: 0,
-                waviness: 0,
-                noiseScale: 1,
-                bandRamp,
-                order: ASSEMBLY_ORDER_INDEX[assembly.order],
-                avgTotal,
-                spread,
-              });
-            } else {
-              const [ox, oy] = originForPosition(config.reveal.wave.position);
-              const maxDist = Math.max(
-                Math.hypot(ox, oy),
-                Math.hypot(1 - ox, oy),
-                Math.hypot(ox, 1 - oy),
-                Math.hypot(1 - ox, 1 - oy),
-                0.0001,
-              );
-              const bandRamp = resolveBandRamp(config.reveal.wave.durationMs);
-              revealPass.render(revealRT, cellRT.texture, cols, rows, {
-                revealMode: 1,
-                origin: [ox, oy],
-                maxDist,
-                progress,
-                softness: config.reveal.wave.softness,
-                waviness: config.reveal.wave.waviness,
-                noiseScale: config.reveal.wave.noiseScale,
-                bandRamp,
-                order: 0,
-                avgTotal: 0,
-                spread: 0,
-              });
-            }
+            const [ox, oy] = originForPosition(config.reveal.wave.position);
+            const maxDist = Math.max(
+              Math.hypot(ox, oy),
+              Math.hypot(1 - ox, oy),
+              Math.hypot(ox, 1 - oy),
+              Math.hypot(1 - ox, 1 - oy),
+              0.0001,
+            );
+            const bandRamp = resolveBandRamp(config.reveal.wave.durationMs);
+            revealPass.render(revealRT, cellRT.texture, cols, rows, {
+              revealMode: 1,
+              origin: [ox, oy],
+              maxDist,
+              progress,
+              softness: config.reveal.wave.softness,
+              waviness: config.reveal.wave.waviness,
+              noiseScale: config.reveal.wave.noiseScale,
+              bandRamp,
+              order: 0,
+              avgTotal: 0,
+              spread: 0,
+            });
           },
           dispose: () => revealPass.dispose(),
         });
@@ -332,10 +344,16 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       config = normalizeEngineConfig({ ...config, ...partial });
       ensureLut();
       applySizes();
-      if (config.stripesEnabled !== lastStripesEnabled || config.reveal.enabled !== lastRevealEnabled) {
+      const assemblyTopo = config.reveal.enabled && config.reveal.type === "assembly";
+      if (
+        config.stripesEnabled !== lastStripesEnabled ||
+        config.reveal.enabled !== lastRevealEnabled ||
+        assemblyTopo !== lastAssemblyTopo
+      ) {
         buildPasses();
         lastStripesEnabled = config.stripesEnabled;
         lastRevealEnabled = config.reveal.enabled;
+        lastAssemblyTopo = assemblyTopo;
       }
     },
     triggerReveal() {

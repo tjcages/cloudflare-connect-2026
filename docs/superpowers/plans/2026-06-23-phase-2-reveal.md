@@ -50,8 +50,8 @@
 - `packages/stripes-engine/src/reveal/revealMath.test.ts` — unit tests (numeric goldens + CPU↔intended-GPU parity).
 - `packages/stripes-engine/src/shaders/reveal.frag.ts` — fragment shader, masks the cols×rows cell texture.
 - `packages/stripes-engine/src/passes/revealPass.ts` — the reveal pass (cell-tex in → masked cell-tex out).
-- `packages/stripes-engine/src/shaders/assemblyComposite.frag.ts` — terminal pass: per-cell displace + edge-feather of the stripe-rendered texture, sharpening to identity at arrival.
-- `packages/stripes-engine/src/passes/assemblyCompositePass.ts` — the assembly fly-in/sharpen pass (reads the stripe output, writes the composited frame).
+- `packages/stripes-engine/src/shaders/assemblyScatter.vert.ts` + `assemblyScatter.frag.ts` — instanced 40px-block quads that scatter the cols×rows cell texture (each block flies spawn→home, textured from its home region).
+- `packages/stripes-engine/src/passes/assemblyScatterPass.ts` — the PRE-STRIPE block fly-in pass (cell texture in → assembled cell texture out, consumed by the stripe pass).
 - `tests/reveal-wave.spec.ts`, `tests/reveal-assembly.spec.ts` — visual goldens.
 
 **Modified:**
@@ -60,8 +60,8 @@
 - `packages/stripes-engine/src/config/normalize.ts` — `DEFAULT_REVEAL`, clamps, normalize.
 - `packages/stripes-engine/src/config/serialize.ts` — round-trip `reveal`.
 - `packages/stripes-engine/src/legacy/migrateLegacyConfig.ts` + `legacyTypes.ts` — map `PlaygroundRevealConfig` → `reveal`.
-- `packages/stripes-engine/src/engine.ts` — insert `revealPass` (after downsample, before stripe) + `glowPass` (after present); progress/playback API; topology gating on `reveal.enabled`/`reveal.type`.
-- `packages/stripes-engine/src/pipeline/pipeline.ts` — allow a pass between downsample and stripe + a terminal overlay slot (if not already flexible).
+- `packages/stripes-engine/src/engine.ts` — insert `revealPass` (wave mask, after downsample before stripe) + `assemblyScatterPass` (assembly, after downsample before stripe — REPLACES the mask for assembly); progress/playback API; topology gating on `reveal.enabled` and `(enabled && type==="assembly")`. NO post-stripe pass.
+- `packages/stripes-engine/src/pipeline/pipeline.ts` — allow the reveal/scatter pass between downsample and stripe (the stripe pass stays terminal/unchanged).
 - `apps/lab/src/controls/levaSchema.ts` — `Reveal` folder + `Play`/progress wiring.
 - `apps/lab/src/LabApp.tsx` — reveal trigger button + progress; expose `__lab.triggerReveal()`.
 
@@ -219,26 +219,29 @@ mask = smoothstep(arrival, arrival + uBandRamp, uProgress);
 
 ---
 
-### Task 6: Assembly cell fly-in + edge-sharpen (terminal composite)
+### Task 6: Assembly block fly-in (PRE-STRIPE field scatter)
 
 **Files:**
 
-- Create: `packages/stripes-engine/src/shaders/assemblyComposite.frag.ts`, `packages/stripes-engine/src/passes/assemblyCompositePass.ts`
-- Modify: `packages/stripes-engine/src/engine.ts` (terminal pass after stripe; active only for `type==="assembly"`)
-- Test: extend `tests/reveal-assembly.spec.ts` with a mid-flight frame
+- Create: `packages/stripes-engine/src/shaders/assemblyScatter.vert.ts` + `assemblyScatter.frag.ts`, `packages/stripes-engine/src/passes/assemblyScatterPass.ts`
+- Modify: `packages/stripes-engine/src/engine.ts` (insert the scatter pass for assembly BEFORE the stripe pass, replacing the wave mask routing for assembly), `pipeline/pipeline.ts` if needed
+- Test: re-capture `reveal-assembly-mid` + add `reveal-assembly-flyin`
 
-The flying element **is the cell's own content** (not a glow). A single fullscreen terminal pass reads the stripe-rendered texture and, per output pixel, finds its cell, computes the cell's fly progress `f = clamp((progress − start) / flight, 0, 1)` from the SAME arrival timing as Task 5, then:
+**BASE RULE (non-negotiable, from the user):** the effect runs ENTIRELY BEFORE the stripe pass, on the cell texture. The stripe pass is UNCHANGED and renders 1:1 SHARP on whatever the assembled field is. Nothing is drawn on top of stripes — NO post-stripe pass, NO glow, NO blur of the stripe output.
 
-- **Displaces** the sample: `home` = cell center; `spawn = home + outwardDir·spawnDist` (radial: `outwardDir = normalize(home − canvasCenter)`, `spawnDist` pushes off-canvas). Sample the stripe texture at `mix(spawn, home, ease(f))` so the cell appears to fly in from off-canvas to home.
-- **Sharpens**: while flying, sample softly (small blur / feathered footprint / mip-bias scaled by `(1 − f)`) so the cell is low-res & smooth-edged in flight and crisp at `f = 1`.
-- Cells with `progress < start` are not yet emitted (background); at `f = 1` the pass is identity (exact 1:1 stripe). Once all cells land the pass is a pure passthrough.
-  Per-cell timing/order reuses `revealMath` (Tasks 2/5). **No instance geometry, no additive blend, no glow sprite.** Cap in-flight blur taps for perf and `log` if clamped.
+The flying units are **40×40 CSS-px blocks** (NOT per stripe-cell — far fewer particles, ~ `(cssW/40)×(cssH/40)`). Each block carries its home slice of the cell texture and flies from an off-canvas spawn to its home, locking into the grid. Implementation:
 
-- [ ] **Step 1: Write failing visual test** — assembly at `renderAt(900)` (mid-flight) → `reveal-assembly-flyin.png` shows soft cell blocks in flight resolving toward home; already-landed cells are crisp.
-- [ ] **Step 2: Implement** the composite shader + pass + engine wiring (active only for `type==="assembly"` while `progress < 1 + overshoot`; passthrough otherwise).
-- [ ] **Step 3: Capture + inspect** — a cell's blur→sharp transition is synchronized with its arrival; landed cells are pixel-identical to the no-reveal stripe output.
-- [ ] **Step 4: Verify** — `pir test:e2e` green (wave + default goldens unchanged).
-- [ ] **Step 5: Commit** — `feat(engine): assembly cell fly-in + edge-sharpen`.
+- A PRE-STRIPE pass renders the assembled cols×rows cell texture that the stripe pass then consumes. Clear to background (0).
+- **Block size** = a fixed integer number of cells closest to 40px (`blockCells = max(1, round(40 / cellPx))`), so blocks TILE the cell grid exactly and map 1:1 at home (this guarantees the f=1 identity below).
+- **Instanced block quads**: one instance per block (block grid = `ceil(cols/blockCells) × ceil(rows/blockCells)`). Per block: `homeRect` = its cell-region; `outwardDir = normalize(blockHomeCenterUV − vec2(0.5))` (guard center); `spawn = home + outwardDir·spawnDist` (push fully off-canvas). Per-block flight `f = clamp((progress − start)/flight, 0, 1)` using the assembly order/timing from `revealMath` evaluated at BLOCK granularity (block-center index → `assemblyOrderNorm`). Draw the quad at `mix(spawn, home, ease(f))`, textured by sampling the source cell texture at the block's `homeRect` → the block's SHARP stripe-content flies in.
+- Blocks with `progress < start` are not drawn (background). At `f = 1` every block sits exactly at home with 1:1 texel mapping → the assembled cell texture **equals the source cell texture exactly** → stripes render pixel-identical to no-reveal. Once all blocks land it is a pure passthrough.
+- Overlap: blocks tile exactly at home (no overlap); transient flight overlap resolves by overwrite (or draw in arrival order). Instance count is the bounded block grid — no per-pixel cap needed.
+
+- [ ] **Step 1:** Extend `tests/reveal-assembly.spec.ts`: re-capture `reveal-assembly-mid` (renderAt 1250) + add `reveal-assembly-flyin` (renderAt 900).
+- [ ] **Step 2: Implement** the instanced block-scatter vert+frag, the pass, engine wiring (scatter pass replaces the assembly mask routing; runs after downsample, before stripe), topology gate on `(enabled && type==="assembly")`.
+- [ ] **Step 3: Capture + READ both PNGs** — confirm discrete ~40px SHARP stripe-blocks flying in from off-canvas toward home; landed (center-first) blocks crisp; unlanded = background; final state == exact logo. Debug if it smears or never resolves; do NOT accept a bad golden.
+- [ ] **Step 4: Verify** — `pir test:e2e`: `field`, `stripes`, `reveal-wave-mid` UNCHANGED; perf 4K within budget.
+- [ ] **Step 5: Commit** — `feat(engine): assembly block fly-in (pre-stripe field scatter)`.
 
 ---
 
