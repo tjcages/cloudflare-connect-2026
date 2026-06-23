@@ -133,7 +133,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     const activeFieldRT = revealEnabled ? "revealedField" : "field";
     const revealFieldPasses: Pass[] = [];
 
-    const MAX_BLUR_PX = 40;
+    const MAX_BLUR_PX = 20;
     if (assemblyTopology) {
       const scatterPass = createAssemblyScatterPass(gl);
       const blurPass = createBlurPass(gl, quad);
