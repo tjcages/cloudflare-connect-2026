@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useControls, folder } from "leva";
 import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
@@ -21,7 +21,12 @@ function newStripeId(): string {
   return `s${nextStripeId++}`;
 }
 
-export function useEngineControls(): EngineConfig {
+export interface EngineControlsResult {
+  config: EngineConfig;
+  setControl: (values: Record<string, unknown>) => void;
+}
+
+export function useEngineControls(): EngineControlsResult {
   const d = useMemo(() => normalizeEngineConfig(loadInitialConfig()), []);
 
   const [stripes, setStripes] = useState<EditableStripe[]>(() =>
@@ -32,9 +37,6 @@ export function useEngineControls(): EngineConfig {
       width: s.width,
     })),
   );
-
-  const stripesRef = useRef(stripes);
-  stripesRef.current = stripes;
 
   const stripeKey = stripeSyncKey(stripes);
 
@@ -76,8 +78,8 @@ export function useEngineControls(): EngineConfig {
     onRemove: handleRemove,
   };
 
-  const values = useControls(
-    {
+  const [values, setControl] = useControls(
+    () => ({
       General: folder({
         stripesEnabled: { value: d.stripesEnabled, label: "Stripes enabled" },
       }),
@@ -128,11 +130,11 @@ export function useEngineControls(): EngineConfig {
       Stripes: folder({
         stripeColorsTable: stripeColorsTablePlugin({ value: stripeKey }),
       }),
-    },
+    }),
     [stripeKey],
   );
 
-  return normalizeEngineConfig({
+  const config = normalizeEngineConfig({
     adjustments: {
       brightness: values.brightness,
       exposure: values.exposure,
@@ -166,4 +168,6 @@ export function useEngineControls(): EngineConfig {
     fieldScale: values.textureDpr,
     stripes: fromEditable(stripes),
   });
+
+  return { config, setControl };
 }

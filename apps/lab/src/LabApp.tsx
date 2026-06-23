@@ -38,7 +38,11 @@ function LabInner() {
     sampleCount: 0,
   });
 
-  const controls = useEngineControls();
+  const { config: controls, setControl } = useEngineControls();
+  const setControlRef = useRef(setControl);
+  setControlRef.current = setControl;
+  const stripesEnabledRef = useRef(controls.stripesEnabled);
+  stripesEnabledRef.current = controls.stripesEnabled;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -90,11 +94,23 @@ function LabInner() {
       engine.renderFrame();
       setSnap(engine.getPerf());
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!e.shiftKey) return;
+      if (e.key !== "s" && e.key !== "S") return;
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable)
+        return;
+      e.preventDefault();
+      setControlRef.current({ stripesEnabled: !stripesEnabledRef.current });
+    }
+    window.addEventListener("keydown", handleKeyDown);
+
     return () => {
       if (raf) cancelAnimationFrame(raf);
       engine.dispose();
       engineRef.current = null;
       (window as unknown as { __lab?: unknown }).__lab = undefined;
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
