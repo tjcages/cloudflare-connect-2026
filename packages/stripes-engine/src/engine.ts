@@ -59,6 +59,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let rafId = 0;
   let lastFrameStart = clock.now();
   let lost = false;
+  let lastStripesEnabled = config.stripesEnabled;
 
   function getDpr() {
     return opts.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
@@ -146,7 +147,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
                 orientation: config.grid.orientation === "horizontal" ? 1 : 0,
                 cols,
                 rows,
-                dpr: getDpr(),
                 background: config.background.color,
               },
               output.width,
@@ -259,7 +259,10 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       config = normalizeEngineConfig({ ...config, ...partial });
       ensureLut();
       applySizes();
-      buildPasses();
+      if (config.stripesEnabled !== lastStripesEnabled) {
+        buildPasses();
+        lastStripesEnabled = config.stripesEnabled;
+      }
     },
     renderFrame,
     start() {

@@ -8,7 +8,6 @@ uniform vec2 uCellPx;        // cellW, cellH (logical px)
 uniform vec2 uGapPx;         // gapX, gapY
 uniform float uCorner;       // corner radius (logical px)
 uniform float uOrient;       // 0 vertical, 1 horizontal
-uniform float uDpr;
 uniform vec3 uBg;
 out vec4 finalColor;
 

@@ -114,11 +114,8 @@ function LabInner() {
     if (!text) return;
     try {
       const cfg = importConfig(text);
-      const engine = engineRef.current;
-      if (!engine) return;
-      engine.setConfig(cfg);
       saveConfig(normalizeEngineConfig(cfg));
-      if (manualRef.current) engine.renderFrame();
+      window.location.reload();
     } catch {
       window.alert("Invalid config JSON.");
     }
