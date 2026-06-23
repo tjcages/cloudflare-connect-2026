@@ -79,9 +79,10 @@ void main() {
   highp float qy = (vid == 2 || vid == 4 || vid == 5) ? 1.0 : 0.0;
 
   highp float softV = 1.0 - smoothstep(0.3, 1.0, f);
-  highp float expand = 1.0 + softV * 2.2;
   vec2 halfExt = 0.5 * (uv1 - uv0);
-  vec2 el = (vec2(qx, qy) - 0.5) * expand + 0.5;
+  highp float blurUv = softV * 0.13;
+  vec2 ex = vec2(1.0) + (blurUv * 1.5) / max(halfExt, vec2(1e-4));
+  vec2 el = (vec2(qx, qy) - 0.5) * ex + 0.5;
   vSampleUv = blockCenterUv + (el - 0.5) * 2.0 * halfExt;
   vBlockLocal = el;
   vF = f;

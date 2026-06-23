@@ -20,10 +20,6 @@ void main() {
     }
   }
   v /= wsum;
-  float inner = mix(2.0, 0.0, soft);
-  float outer = mix(3.0, 0.74, soft);
-  float d = length(vBlockLocal - vec2(0.5));
-  float alpha = 1.0 - smoothstep(inner, outer, d);
-  finalColor = vec4(vec3(v), alpha);
+  finalColor = vec4(vec3(v), 1.0);
 }
 `;
