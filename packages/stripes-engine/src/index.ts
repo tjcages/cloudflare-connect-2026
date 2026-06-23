@@ -9,3 +9,5 @@ export type { EngineConfig, Stripe, Fit, FieldMode } from "./config/types";
 export { normalizeEngineConfig, DEFAULT_ENGINE_CONFIG } from "./config/normalize";
 export { serializeEngineConfig, parseEngineConfig } from "./config/serialize";
 export type { EngineSource } from "./source/sourceTexture";
+export { migrateLegacyConfig } from "./legacy/migrateLegacyConfig";
+export type { Adjustments, Grid, Transform, Background } from "./config/types";
