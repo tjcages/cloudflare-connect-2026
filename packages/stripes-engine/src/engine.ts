@@ -193,9 +193,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
               waviness: config.reveal.wave.waviness,
               noiseScale: config.reveal.wave.noiseScale,
               bandRamp,
-              order: 0,
-              avgTotal: 0,
-              spread: 0,
             });
           },
           dispose: () => revealPass.dispose(),

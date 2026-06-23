@@ -11,9 +11,6 @@ uniform float uSoftness;
 uniform float uWaviness;
 uniform float uNoiseScale;
 uniform float uBandRamp;
-uniform float uOrder;
-uniform float uAvgTotal;
-uniform float uSpread;
 out vec4 finalColor;
 
 highp float cellNoise(highp float col, highp float row, highp float scale) {
