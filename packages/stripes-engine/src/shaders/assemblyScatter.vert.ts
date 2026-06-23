@@ -8,7 +8,7 @@ uniform float uSpawnDist;
 uniform float uOrder;
 out vec2 vSampleUv;
 out vec2 vBlockLocal;
-out float vF;
+out float vSoft;
 
 highp float fract1(highp float v) {
   return v - floor(v);
@@ -58,10 +58,14 @@ void main() {
   highp float orderKey = orderNorm(bx, by, uBlockGrid.x, uBlockGrid.y);
   highp float f = clamp((uProgress - uSpread * orderKey) / max(uFlight, 1e-4), 0.0, 1.0);
 
+  int vid = gl_VertexID;
+  highp float qx = (vid == 1 || vid == 2 || vid == 4) ? 1.0 : 0.0;
+  highp float qy = (vid == 2 || vid == 4 || vid == 5) ? 1.0 : 0.0;
+
   if (f <= 0.0) {
     vSampleUv = blockCenterUv;
-    vBlockLocal = vec2(0.5);
-    vF = 0.0;
+    vBlockLocal = vec2(qx, qy);
+    vSoft = 1.0;
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     return;
   }
@@ -74,20 +78,15 @@ void main() {
   highp float ease = 1.0 - inv * inv * inv;
   vec2 offset = (1.0 - ease) * outwardDir * uSpawnDist;
 
-  int vid = gl_VertexID;
-  highp float qx = (vid == 1 || vid == 2 || vid == 4) ? 1.0 : 0.0;
-  highp float qy = (vid == 2 || vid == 4 || vid == 5) ? 1.0 : 0.0;
+  vec2 cellSz = uv1 - uv0;
+  highp float cellSizeUv = max(cellSz.x, cellSz.y);
+  vSoft = smoothstep(cellSizeUv, cellSizeUv * 4.0, length(offset));
 
-  highp float softV = 1.0 - smoothstep(0.3, 1.0, f);
-  vec2 halfExt = 0.5 * (uv1 - uv0);
-  highp float blurUv = softV * 0.13;
-  vec2 ex = vec2(1.0) + (blurUv * 1.5) / max(halfExt, vec2(1e-4));
-  vec2 el = (vec2(qx, qy) - 0.5) * ex + 0.5;
-  vSampleUv = blockCenterUv + (el - 0.5) * 2.0 * halfExt;
-  vBlockLocal = el;
-  vF = f;
+  vec2 homeUv = vec2(mix(uv0.x, uv1.x, qx), mix(uv0.y, uv1.y, qy));
+  vSampleUv = homeUv;
+  vBlockLocal = vec2(qx, qy);
 
-  vec2 posUv = vSampleUv + offset;
+  vec2 posUv = homeUv + offset;
   gl_Position = vec4(posUv * 2.0 - 1.0, 0.0, 1.0);
 }
 `;
