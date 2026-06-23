@@ -4,6 +4,8 @@ import { createFullscreenQuad } from "./gl/program";
 import { resolveOutputSize, resolveFieldSize, type Size } from "./gl/resolution";
 import { createSourceFieldPass } from "./passes/sourceFieldPass";
 import { createPresentPass } from "./passes/presentPass";
+import { createDownsamplePass } from "./passes/downsamplePass";
+import { createStripePass } from "./passes/stripePass";
 import { createGpuTimer } from "./perf/gpuTimer";
 import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
 import { createRtPool, type RtPool } from "./pipeline/rtPool";
@@ -12,6 +14,9 @@ import { normalizeEngineConfig } from "./config/normalize";
 import type { EngineConfig } from "./config/types";
 import { createSourceTexture, type EngineSource, type SourceTexture } from "./source/sourceTexture";
 import { resolveSourceRect } from "./source/fit";
+import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
+import { buildStripeLut, lutSignature } from "./field/stripeLut";
+import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
 export type StripesEngine = {
@@ -37,6 +42,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let { gl, isP3, maxTextureSize } = createEngineContext(canvas);
   let output: Size = { width: 0, height: 0 };
   let fieldSize: Size = { width: 2, height: 2 };
+  let cellGrid: CellGrid = { cols: 1, rows: 1 };
 
   let quad = createFullscreenQuad(gl);
   let pool: RtPool = createRtPool(gl);
@@ -47,67 +53,136 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let source: SourceTexture | null = null;
   let config = normalizeEngineConfig({});
 
+  let stripeLutTex: WebGLTexture | null = null;
+  let lutSig = "";
+
   let rafId = 0;
   let lastFrameStart = clock.now();
   let lost = false;
 
+  function getDpr() {
+    return opts.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
+  }
+
+  function ensureLut() {
+    const active = config.field.mode === "overlay" ? config.overlayStripes : config.stripes;
+    const sig = lutSignature(active);
+    if (sig !== lutSig) {
+      const bytes = buildStripeLut(active);
+      if (stripeLutTex) {
+        updateDataTexture(gl, stripeLutTex, bytes, 256, 1);
+      } else {
+        stripeLutTex = createDataTexture(gl, bytes, 256, 1);
+      }
+      lutSig = sig;
+    }
+  }
+
   function buildPasses() {
     for (const p of passes) p.dispose();
     const sourceFieldPass = createSourceFieldPass(gl, quad);
-    const presentPass = createPresentPass(gl, quad);
-    passes = [
-      {
-        name: "field",
-        render: () => {
-          const fieldTarget = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
-          if (source) {
-            source.update();
-            const srcRect = resolveSourceRect(
-              source.width,
-              source.height,
-              output.width,
-              output.height,
-              config.transform.fit,
-              config.transform.zoom,
-              config.transform.panX,
-              config.transform.panY,
-            );
-            sourceFieldPass.render(fieldTarget, source.texture, {
-              srcRect,
-              adjustments: config.adjustments,
-              overlay: config.field.mode === "overlay",
-              background: config.background.color,
-              sourceTexelW: 1 / source.width,
-              sourceTexelH: 1 / source.height,
-            });
-          } else {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, fieldTarget.fbo);
-            gl.clearColor(0, 0, 0, 1);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-          }
-        },
-        dispose: () => sourceFieldPass.dispose(),
-      },
-      {
-        name: "present",
-        render: () =>
-          presentPass.render(
-            pool.get("field", fieldSize.width, fieldSize.height, { linear: true }).texture,
+    const fieldPass: Pass = {
+      name: "field",
+      render: () => {
+        const fieldTarget = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+        if (source) {
+          source.update();
+          const srcRect = resolveSourceRect(
+            source.width,
+            source.height,
             output.width,
             output.height,
-          ),
-        dispose: () => presentPass.dispose(),
+            config.transform.fit,
+            config.transform.zoom,
+            config.transform.panX,
+            config.transform.panY,
+          );
+          sourceFieldPass.render(fieldTarget, source.texture, {
+            srcRect,
+            adjustments: config.adjustments,
+            overlay: config.field.mode === "overlay",
+            background: config.background.color,
+            sourceTexelW: 1 / source.width,
+            sourceTexelH: 1 / source.height,
+          });
+        } else {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fieldTarget.fbo);
+          gl.clearColor(0, 0, 0, 1);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+        }
       },
-    ];
+      dispose: () => sourceFieldPass.dispose(),
+    };
+
+    if (config.stripesEnabled) {
+      const downsamplePass = createDownsamplePass(gl, quad);
+      const stripePass = createStripePass(gl, quad);
+      passes = [
+        fieldPass,
+        {
+          name: "downsample",
+          render: () => {
+            const { cols, rows } = cellGrid;
+            const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+            const cellRT = pool.get("cell", cols, rows);
+            downsamplePass.render(cellRT, fieldRT.texture, cols, rows);
+          },
+          dispose: () => downsamplePass.dispose(),
+        },
+        {
+          name: "stripe",
+          render: () => {
+            const { cols, rows } = cellGrid;
+            const cellRT = pool.get("cell", cols, rows);
+            stripePass.render(
+              cellRT.texture,
+              stripeLutTex!,
+              {
+                cellW: config.grid.cellWidth,
+                cellH: config.grid.cellHeight,
+                gapX: config.grid.gapX,
+                gapY: config.grid.gapY,
+                cornerRadius: config.grid.cornerRadius,
+                orientation: config.grid.orientation === "horizontal" ? 1 : 0,
+                cols,
+                rows,
+                dpr: getDpr(),
+                background: config.background.color,
+              },
+              output.width,
+              output.height,
+            );
+          },
+          dispose: () => stripePass.dispose(),
+        },
+      ];
+    } else {
+      const presentPass = createPresentPass(gl, quad);
+      passes = [
+        fieldPass,
+        {
+          name: "present",
+          render: () =>
+            presentPass.render(
+              pool.get("field", fieldSize.width, fieldSize.height, { linear: true }).texture,
+              output.width,
+              output.height,
+            ),
+          dispose: () => presentPass.dispose(),
+        },
+      ];
+    }
   }
 
   function applySizes() {
-    const dpr = opts.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
+    const dpr = getDpr();
     output = resolveOutputSize(cssW, cssH, dpr, maxTextureSize);
-    canvas.width = output.width;
-    canvas.height = output.height;
+    if (canvas.width !== output.width) canvas.width = output.width;
+    if (canvas.height !== output.height) canvas.height = output.height;
     fieldSize = resolveFieldSize(output, fieldScale);
     pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+    cellGrid = resolveCellGrid(cssW, cssH, config.grid.cellWidth, config.grid.cellHeight);
+    pool.get("cell", cellGrid.cols, cellGrid.rows);
   }
 
   function rebuildGpuResources() {
@@ -123,6 +198,10 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     // can re-set it. The SourceTexture.dispose() call is intentionally skipped
     // here because the old context is already lost and the GPU objects are gone.
     source = null;
+    // LUT texture is on the old context; reset so ensureLut() recreates it.
+    stripeLutTex = null;
+    lutSig = "";
+    ensureLut();
     buildPasses();
     applySizes();
   }
@@ -138,6 +217,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   canvas.addEventListener("webglcontextlost", onLost as EventListener, false);
   canvas.addEventListener("webglcontextrestored", onRestored as EventListener, false);
 
+  ensureLut();
   buildPasses();
   applySizes();
 
@@ -177,6 +257,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     },
     setConfig(partial) {
       config = normalizeEngineConfig({ ...config, ...partial });
+      ensureLut();
+      applySizes();
+      buildPasses();
     },
     renderFrame,
     start() {
@@ -208,6 +291,10 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       pool.dispose();
       quad.dispose();
       source?.dispose();
+      if (stripeLutTex) {
+        gl.deleteTexture(stripeLutTex);
+        stripeLutTex = null;
+      }
     },
   };
 }
