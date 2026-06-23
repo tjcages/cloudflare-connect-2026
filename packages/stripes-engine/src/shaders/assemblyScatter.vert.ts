@@ -7,8 +7,6 @@ uniform float uFlight;
 uniform float uSpawnDist;
 uniform float uOrder;
 out vec2 vSampleUv;
-out vec2 vBlockLocal;
-out float vSoft;
 
 highp float fract1(highp float v) {
   return v - floor(v);
@@ -65,8 +63,6 @@ void main() {
 
   if (f <= 0.0) {
     vSampleUv = blockCenterUv;
-    vBlockLocal = vec2(qx, qy);
-    vSoft = 1.0;
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     return;
   }
@@ -91,12 +87,8 @@ void main() {
   highp float ease = 1.0 - inv * inv * inv;
   vec2 offset = (1.0 - ease) * spawnOffset;
 
-  highp float cellSizeUv = max(halfExt.x, halfExt.y) * 2.0;
-  vSoft = smoothstep(cellSizeUv, cellSizeUv * 4.0, length(offset));
-
   vec2 homeUv = vec2(mix(uv0.x, uv1.x, qx), mix(uv0.y, uv1.y, qy));
   vSampleUv = homeUv;
-  vBlockLocal = vec2(qx, qy);
 
   vec2 posUv = homeUv + offset;
   gl_Position = vec4(posUv * 2.0 - 1.0, 0.0, 1.0);

@@ -7,6 +7,7 @@ import { createPresentPass } from "./passes/presentPass";
 import { createDownsamplePass } from "./passes/downsamplePass";
 import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
+import { createBlurPass } from "./passes/blurPass";
 import { createStripePass } from "./passes/stripePass";
 import { createGpuTimer } from "./perf/gpuTimer";
 import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
@@ -132,16 +133,19 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     const activeFieldRT = revealEnabled ? "revealedField" : "field";
     const revealFieldPasses: Pass[] = [];
 
+    const MAX_BLUR_PX = 40;
     if (assemblyTopology) {
       const scatterPass = createAssemblyScatterPass(gl);
+      const blurPass = createBlurPass(gl, quad);
       revealFieldPasses.push({
         name: "assemblyScatterField",
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
-          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const assembledRT = pool.get("assembledField", fieldSize.width, fieldSize.height, { linear: true });
           const { assembly } = config.reveal;
           const durationMs = resolveRevealDurationMs(config.reveal);
-          const progress = (clock.now() - revealStartMs) / durationMs;
+          const rawProgress = (clock.now() - revealStartMs) / durationMs;
+          const progress = Math.max(0, Math.min(1, rawProgress));
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
           const speedMin = Math.max(0, assembly.speedMinMs);
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
@@ -149,17 +153,32 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           const spread = assembly.staggerMs / dur;
           const blockCols = Math.max(1, Math.ceil(cssW / 40));
           const blockRows = Math.max(1, Math.ceil(cssH / 40));
-          scatterPass.render(revealedRT, fieldRT.texture, {
+          scatterPass.render(assembledRT, fieldRT.texture, {
             blockCols,
             blockRows,
-            progress,
+            progress: rawProgress,
             spread,
             flight: avgTotal,
             spawnDist: 1.6,
             order: ASSEMBLY_ORDER_INDEX[assembly.order],
           });
+
+          const p = progress;
+          const smooth = p * p * (3 - 2 * p);
+          const radiusPx = MAX_BLUR_PX * (1 - smooth);
+
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          if (radiusPx < 0.5) {
+            blurPass.copy(assembledRT.texture, revealedRT);
+          } else {
+            const blurTempRT = pool.get("blurTemp", fieldSize.width, fieldSize.height, { linear: true });
+            blurPass.render(assembledRT.texture, blurTempRT, revealedRT, radiusPx, fieldSize);
+          }
         },
-        dispose: () => scatterPass.dispose(),
+        dispose: () => {
+          scatterPass.dispose();
+          blurPass.dispose();
+        },
       });
     } else if (revealEnabled) {
       const revealPass = createRevealPass(gl, quad);
@@ -265,6 +284,10 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     pool.get("cell", cellGrid.cols, cellGrid.rows);
     if (config.reveal.enabled) {
       pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+      if (config.reveal.type === "assembly") {
+        pool.get("assembledField", fieldSize.width, fieldSize.height, { linear: true });
+        pool.get("blurTemp", fieldSize.width, fieldSize.height, { linear: true });
+      }
     }
   }
 
