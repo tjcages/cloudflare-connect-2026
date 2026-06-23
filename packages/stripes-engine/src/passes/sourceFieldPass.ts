@@ -8,7 +8,6 @@ import type { SourceRect } from "../source/fit";
 export type SourceFieldUniforms = {
   srcRect: SourceRect;
   adjustments: Adjustments;
-  overlay: boolean;
   background: number;
   sourceTexelW: number;
   sourceTexelH: number;
@@ -33,7 +32,6 @@ export function createSourceFieldPass(gl: WebGL2RenderingContext, quad: { draw()
     invert: u("uInvert"),
     posterize: u("uPosterize"),
     noise: u("uNoise"),
-    overlay: u("uOverlay"),
   };
   return {
     render(target: RenderTarget, sourceTex: WebGLTexture, p: SourceFieldUniforms) {
@@ -62,7 +60,6 @@ export function createSourceFieldPass(gl: WebGL2RenderingContext, quad: { draw()
       gl.uniform1f(L.invert, a.invert ? 1 : 0);
       gl.uniform1f(L.posterize, a.posterizeLevels);
       gl.uniform1f(L.noise, a.noiseAmount);
-      gl.uniform1f(L.overlay, p.overlay ? 1 : 0);
       quad.draw();
     },
     dispose() {

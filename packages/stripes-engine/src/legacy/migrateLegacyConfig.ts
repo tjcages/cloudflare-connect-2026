@@ -23,13 +23,9 @@ export function migrateLegacyConfig(old: unknown): Partial<EngineConfig> {
   const out: Partial<EngineConfig> = {};
   if (asRecord(o.textureAdjustments)) out.adjustments = o.textureAdjustments as EngineConfig["adjustments"];
   if (asRecord(o.sourceTransform)) out.transform = o.sourceTransform as EngineConfig["transform"];
-  if (typeof o.textureLuminanceMode === "string") {
-    out.field = { mode: o.textureLuminanceMode === "overlay" ? "overlay" : "luminance" };
-  }
   if (asRecord(o.grid)) out.grid = o.grid as EngineConfig["grid"];
   if (typeof o.backgroundColor === "number") out.background = { color: o.backgroundColor };
   if (Array.isArray(o.stripes)) out.stripes = (o.stripes as LegacyStripe[]).map(migrateStripe);
-  if (Array.isArray(o.overlayStripes)) out.overlayStripes = (o.overlayStripes as LegacyStripe[]).map(migrateStripe);
   if (typeof o.stripesEnabled === "boolean") out.stripesEnabled = o.stripesEnabled;
   return out;
 }

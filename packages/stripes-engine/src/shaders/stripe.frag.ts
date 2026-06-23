@@ -5,7 +5,6 @@ uniform sampler2D uCell;     // cols×rows grayscale cell value
 uniform sampler2D uLut;      // 256×1 RGBA: value → (color.rgb, width byte)
 uniform vec2 uGridCount;     // cols, rows
 uniform vec2 uCellPx;        // cellW, cellH (logical px)
-uniform vec2 uGapPx;         // gapX, gapY
 uniform float uCorner;       // corner radius (logical px)
 uniform float uOrient;       // 0 vertical, 1 horizontal
 uniform vec3 uBg;
@@ -25,14 +24,14 @@ void main() {
   vec3 barColor = lut.rgb;
   float barWidthPx = lut.a * 255.0;
 
+  if (barWidthPx < 0.5) { finalColor = vec4(uBg, 1.0); return; }
   vec2 p = (local - 0.5) * uCellPx;
   vec2 halfExt;
   if (uOrient < 0.5) {
-    halfExt = vec2(min(barWidthPx, uCellPx.x - uGapPx.x) * 0.5, (uCellPx.y - uGapPx.y) * 0.5);
+    halfExt = vec2(min(barWidthPx, uCellPx.x) * 0.5, uCellPx.y * 0.5);
   } else {
-    halfExt = vec2((uCellPx.x - uGapPx.x) * 0.5, min(barWidthPx, uCellPx.y - uGapPx.y) * 0.5);
+    halfExt = vec2(uCellPx.x * 0.5, min(barWidthPx, uCellPx.y) * 0.5);
   }
-  halfExt = max(halfExt, vec2(0.0));
   float r = min(uCorner, min(halfExt.x, halfExt.y));
   float d = sdRoundBox(p, halfExt, r);
   float w = max(fwidth(d), 1e-4);

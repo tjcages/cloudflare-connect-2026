@@ -7,7 +7,7 @@ uniform vec2 uTexel;          // 1/sourceW, 1/sourceH
 uniform vec3 uBg;             // background rgb 0..1
 uniform float uBlur, uSharpen;
 uniform float uBlack, uWhite, uGamma, uExposure, uContrast, uBrightThresh;
-uniform float uInvert, uPosterize, uNoise, uOverlay;
+uniform float uInvert, uPosterize, uNoise;
 out vec4 finalColor;
 
 vec3 sampleBox(vec2 uv, float radius) {
@@ -45,7 +45,6 @@ void main() {
   if (uNoise > 0.0) col += vec3((hash(vUv * 4096.0) - 0.5) * uNoise);
   col = clamp(col, 0.0, 1.0);
   float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-  if (uOverlay > 0.5) luma = 1.0 - luma;
   finalColor = vec4(vec3(luma), 1.0);
 }
 `;

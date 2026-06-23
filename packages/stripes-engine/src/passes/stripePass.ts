@@ -5,8 +5,6 @@ import { STRIPE_FRAG } from "../shaders/stripe.frag";
 export type StripeUniforms = {
   cellW: number;
   cellH: number;
-  gapX: number;
-  gapY: number;
   cornerRadius: number;
   orientation: 0 | 1;
   cols: number;
@@ -22,7 +20,6 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     lut: u("uLut"),
     grid: u("uGridCount"),
     cellPx: u("uCellPx"),
-    gap: u("uGapPx"),
     corner: u("uCorner"),
     orient: u("uOrient"),
     bg: u("uBg"),
@@ -40,7 +37,6 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1i(L.lut, 1);
       gl.uniform2f(L.grid, p.cols, p.rows);
       gl.uniform2f(L.cellPx, p.cellW, p.cellH);
-      gl.uniform2f(L.gap, p.gapX, p.gapY);
       gl.uniform1f(L.corner, p.cornerRadius);
       gl.uniform1f(L.orient, p.orientation);
       gl.uniform3f(

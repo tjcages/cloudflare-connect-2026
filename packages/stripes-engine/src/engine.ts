@@ -66,10 +66,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   }
 
   function ensureLut() {
-    const active = config.field.mode === "overlay" ? config.overlayStripes : config.stripes;
-    const sig = lutSignature(active);
+    const sig = lutSignature(config.stripes);
     if (sig !== lutSig) {
-      const bytes = buildStripeLut(active);
+      const bytes = buildStripeLut(config.stripes);
       if (stripeLutTex) {
         updateDataTexture(gl, stripeLutTex, bytes, 256, 1);
       } else {
@@ -101,7 +100,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           sourceFieldPass.render(fieldTarget, source.texture, {
             srcRect,
             adjustments: config.adjustments,
-            overlay: config.field.mode === "overlay",
             background: config.background.color,
             sourceTexelW: 1 / source.width,
             sourceTexelH: 1 / source.height,
@@ -141,8 +139,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
               {
                 cellW: config.grid.cellWidth,
                 cellH: config.grid.cellHeight,
-                gapX: config.grid.gapX,
-                gapY: config.grid.gapY,
                 cornerRadius: config.grid.cornerRadius,
                 orientation: config.grid.orientation === "horizontal" ? 1 : 0,
                 cols,
