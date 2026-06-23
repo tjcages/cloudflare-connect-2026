@@ -26,6 +26,31 @@ highp float cellNoise(highp float col, highp float row, highp float scale) {
   return fract1((p3x + p3y) * p3z);
 }
 
+highp float bezierAxis(highp float a1, highp float a2, highp float s) {
+  highp float c = 3.0 * a1;
+  highp float b = 3.0 * (a2 - a1) - c;
+  highp float a = 1.0 - c - b;
+  return ((a * s + b) * s + c) * s;
+}
+
+highp float bezierSlope(highp float a1, highp float a2, highp float s) {
+  highp float c = 3.0 * a1;
+  highp float b = 3.0 * (a2 - a1) - c;
+  highp float a = 1.0 - c - b;
+  return (3.0 * a * s + 2.0 * b) * s + c;
+}
+
+highp float cubicBezier(highp float t, highp float x1, highp float y1, highp float x2, highp float y2) {
+  highp float s = t;
+  for (int i = 0; i < 5; i++) {
+    highp float dx = bezierAxis(x1, x2, s) - t;
+    highp float d = bezierSlope(x1, x2, s);
+    if (abs(d) < 0.00001) break;
+    s = clamp(s - dx / d, 0.0, 1.0);
+  }
+  return bezierAxis(y1, y2, s);
+}
+
 highp float orderNorm(highp float col, highp float row, highp float cols, highp float rows) {
   if (uOrder < 0.5) {
     highp float cx = cols <= 1.0 ? 0.5 : (col + 0.5) / cols;
@@ -83,8 +108,7 @@ void main() {
   highp float spr = (cellNoise(by + 11.0, bx + 5.0, 1.0) - 0.5) * 0.18;
   vec2 spawnOffset = edgeDir * (edgeDistTo + offMargin) + perp * spr;
 
-  highp float inv = 1.0 - f;
-  highp float ease = 1.0 - inv * inv * inv;
+  highp float ease = cubicBezier(f, 0.25, 0.1, 0.25, 1.0);
   vec2 offset = (1.0 - ease) * spawnOffset;
 
   vec2 homeUv = vec2(mix(uv0.x, uv1.x, qx), mix(uv0.y, uv1.y, qy));

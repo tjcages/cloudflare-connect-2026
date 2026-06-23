@@ -133,7 +133,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     const activeFieldRT = revealEnabled ? "revealedField" : "field";
     const revealFieldPasses: Pass[] = [];
 
-    const MAX_BLUR_PX = 10;
+    const MAX_BLUR_PX = 5;
     if (assemblyTopology) {
       const scatterPass = createAssemblyScatterPass(gl);
       const blurPass = createBlurPass(gl, quad);
@@ -163,8 +163,11 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             order: ASSEMBLY_ORDER_INDEX[assembly.order],
           });
 
-          const p = progress;
-          const smooth = p * p * (3 - 2 * p);
+          const moveEnd = Math.min(1, spread + avgTotal);
+          const fadeStart = moveEnd * 0.7;
+          const fadeSpan = Math.max(1e-4, moveEnd - fadeStart);
+          const t = Math.max(0, Math.min(1, (progress - fadeStart) / fadeSpan));
+          const smooth = t * t * (3 - 2 * t);
           const radiusPx = MAX_BLUR_PX * (1 - smooth);
 
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
