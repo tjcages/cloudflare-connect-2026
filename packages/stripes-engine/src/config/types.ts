@@ -48,4 +48,5 @@ export interface EngineConfig {
   grid: Grid;
   stripes: Stripe[];
   stripesEnabled: boolean;
+  fieldScale: number;
 }

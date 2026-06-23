@@ -16,9 +16,9 @@ export function normalizeTransform(i: Partial<Transform> = {}): Transform {
   };
 }
 
-export const DEFAULT_BACKGROUND: Background = { color: 0x000000 };
+export const DEFAULT_BACKGROUND: Background = { color: 0xffffff };
 export function normalizeBackground(i: Partial<Background> = {}): Background {
-  return { color: Math.round(clamp(num(i.color, 0), 0, 0xffffff)) };
+  return { color: Math.round(clamp(num(i.color, 0xffffff), 0, 0xffffff)) };
 }
 
 export const DEFAULT_GRID: Grid = {
@@ -101,6 +101,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   grid: DEFAULT_GRID,
   stripes: DEFAULT_STRIPES.map((s) => ({ ...s })),
   stripesEnabled: true,
+  fieldScale: 1,
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -111,5 +112,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     grid: normalizeGrid(i.grid),
     stripes: normalizeStripes(i.stripes, DEFAULT_STRIPES),
     stripesEnabled: i.stripesEnabled !== undefined ? !!i.stripesEnabled : true,
+    fieldScale: clamp(num(i.fieldScale, 1), 0.25, 2),
   };
 }

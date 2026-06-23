@@ -8,6 +8,7 @@ uniform vec2 uCellPx;        // cellW, cellH (logical px)
 uniform float uCorner;       // corner radius (logical px)
 uniform float uOrient;       // 0 vertical, 1 horizontal
 uniform vec3 uBg;
+uniform float uDpr;
 out vec4 finalColor;
 
 float sdRoundBox(vec2 p, vec2 b, float r) {
@@ -34,7 +35,7 @@ void main() {
   }
   float r = min(uCorner, min(halfExt.x, halfExt.y));
   float d = sdRoundBox(p, halfExt, r);
-  float w = max(fwidth(d), 1e-4);
+  float w = max(1.0 / uDpr, 1e-4);
   float alpha = clamp(0.5 - d / w, 0.0, 1.0);
   finalColor = vec4(mix(uBg, barColor, alpha), 1.0);
 }

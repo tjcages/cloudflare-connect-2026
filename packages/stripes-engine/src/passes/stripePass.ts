@@ -10,6 +10,7 @@ export type StripeUniforms = {
   cols: number;
   rows: number;
   background: number;
+  dpr: number;
 };
 
 export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -23,6 +24,7 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     corner: u("uCorner"),
     orient: u("uOrient"),
     bg: u("uBg"),
+    dpr: u("uDpr"),
   };
   return {
     render(cellTex: WebGLTexture, lutTex: WebGLTexture, p: StripeUniforms, outWidth: number, outHeight: number) {
@@ -45,6 +47,7 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
         ((p.background >> 8) & 255) / 255,
         (p.background & 255) / 255,
       );
+      gl.uniform1f(L.dpr, p.dpr);
       quad.draw();
     },
     dispose() {

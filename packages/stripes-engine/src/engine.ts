@@ -35,7 +35,6 @@ export type StripesEngine = {
 
 export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}): StripesEngine {
   const clock = opts.clock ?? createRealClock();
-  let fieldScale = opts.fieldScale ?? 0.5;
   let cssW = canvas.clientWidth || 800;
   let cssH = canvas.clientHeight || 600;
 
@@ -51,7 +50,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   const perf = createPerfCollector();
 
   let source: SourceTexture | null = null;
-  let config = normalizeEngineConfig({});
+  let config = normalizeEngineConfig({ fieldScale: opts.fieldScale });
 
   let stripeLutTex: WebGLTexture | null = null;
   let lutSig = "";
@@ -144,6 +143,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
                 cols,
                 rows,
                 background: config.background.color,
+                dpr: getDpr(),
               },
               output.width,
               output.height,
@@ -175,7 +175,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     output = resolveOutputSize(cssW, cssH, dpr, maxTextureSize);
     if (canvas.width !== output.width) canvas.width = output.width;
     if (canvas.height !== output.height) canvas.height = output.height;
-    fieldSize = resolveFieldSize(output, fieldScale);
+    fieldSize = resolveFieldSize(output, config.fieldScale);
     pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
     cellGrid = resolveCellGrid(cssW, cssH, config.grid.cellWidth, config.grid.cellHeight);
     pool.get("cell", cellGrid.cols, cellGrid.rows);
@@ -244,8 +244,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       applySizes();
     },
     setFieldScale(s) {
-      fieldScale = s;
-      applySizes();
+      this.setConfig({ fieldScale: s });
     },
     setSource(media) {
       source?.dispose();

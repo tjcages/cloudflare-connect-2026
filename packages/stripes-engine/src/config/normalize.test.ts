@@ -25,7 +25,7 @@ describe("simple normalizers", () => {
   });
   it("background coerces to a 24-bit int", () => {
     expect(normalizeBackground({ color: 0xff8833 }).color).toBe(0xff8833);
-    expect(normalizeBackground({}).color).toBe(0x000000);
+    expect(normalizeBackground({}).color).toBe(0xffffff);
     expect(normalizeBackground({ color: -1 }).color).toBe(0x000000); // clamp ≥ 0
     expect(normalizeBackground({ color: 0x1ffffff }).color).toBe(0xffffff); // clamp ≤ 0xffffff
   });
