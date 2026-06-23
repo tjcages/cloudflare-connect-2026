@@ -12,6 +12,9 @@ export type RevealPassUniforms = {
   waviness: number;
   noiseScale: number;
   bandRamp: number;
+  order: number;
+  avgTotal: number;
+  spread: number;
 };
 
 export function createRevealPass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -28,6 +31,9 @@ export function createRevealPass(gl: WebGL2RenderingContext, quad: { draw(): voi
     waviness: u("uWaviness"),
     noiseScale: u("uNoiseScale"),
     bandRamp: u("uBandRamp"),
+    order: u("uOrder"),
+    avgTotal: u("uAvgTotal"),
+    spread: u("uSpread"),
   };
   return {
     render(target: RenderTarget, cellTex: WebGLTexture, cols: number, rows: number, p: RevealPassUniforms) {
@@ -45,6 +51,9 @@ export function createRevealPass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.waviness, p.waviness);
       gl.uniform1f(L.noiseScale, p.noiseScale);
       gl.uniform1f(L.bandRamp, p.bandRamp);
+      gl.uniform1f(L.order, p.order);
+      gl.uniform1f(L.avgTotal, p.avgTotal);
+      gl.uniform1f(L.spread, p.spread);
       quad.draw();
     },
     dispose() {

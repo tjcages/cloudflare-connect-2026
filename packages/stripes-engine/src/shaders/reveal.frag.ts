@@ -11,6 +11,9 @@ uniform float uSoftness;
 uniform float uWaviness;
 uniform float uNoiseScale;
 uniform float uBandRamp;
+uniform float uOrder;
+uniform float uAvgTotal;
+uniform float uSpread;
 out vec4 finalColor;
 
 highp float cellNoise(highp float col, highp float row, highp float scale) {
@@ -27,10 +30,35 @@ highp float cellNoise(highp float col, highp float row, highp float scale) {
   return fract((p3x + p3y) * p3z);
 }
 
+highp float assemblyOrderNorm(highp float col, highp float row, highp float cols, highp float rows) {
+  if (uOrder < 0.5) {
+    highp float cx = cols <= 1.0 ? 0.5 : (col + 0.5) / cols;
+    highp float cy = rows <= 1.0 ? 0.5 : (row + 0.5) / rows;
+    highp float center = length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678;
+    return center;
+  }
+  if (uOrder < 1.5) {
+    highp float cx = cols <= 1.0 ? 0.5 : (col + 0.5) / cols;
+    highp float cy = rows <= 1.0 ? 0.5 : (row + 0.5) / rows;
+    highp float center = length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678;
+    return 1.0 - center;
+  }
+  if (uOrder < 2.5) {
+    return cols <= 1.0 ? 0.0 : col / (cols - 1.0);
+  }
+  return cellNoise(col, row, 1.0);
+}
+
 void main() {
   float v = texture(uCell, vUv).r;
   float mask = 1.0;
-  if (uRevealMode > 0.5) {
+  if (uRevealMode > 1.5) {
+    vec2 cell = floor(vUv * uGridCount);
+    highp float o = assemblyOrderNorm(cell.x, cell.y, uGridCount.x, uGridCount.y);
+    highp float start = uSpread * o;
+    highp float arrival = start + uAvgTotal;
+    mask = smoothstep(arrival, arrival + uBandRamp, max(uProgress, 0.0));
+  } else if (uRevealMode > 0.5) {
     vec2 cellUv = vUv;
     float dist = length(cellUv - uOrigin) / max(uMaxDist, 1e-4);
     vec2 cell = floor(vUv * uGridCount);

@@ -19,6 +19,14 @@ import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
 import { buildStripeLut, lutSignature } from "./field/stripeLut";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
+import type { AssemblyOrder } from "./config/types";
+
+const ASSEMBLY_ORDER_INDEX: Record<AssemblyOrder, number> = {
+  center: 0,
+  edges: 1,
+  sweep: 2,
+  random: 3,
+};
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
 export type StripesEngine = {
@@ -130,27 +138,53 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             const { cols, rows } = cellGrid;
             const cellRT = pool.get("cell", cols, rows);
             const revealRT = pool.get("reveal", cols, rows);
-            const [ox, oy] = originForPosition(config.reveal.wave.position);
-            const maxDist = Math.max(
-              Math.hypot(ox, oy),
-              Math.hypot(1 - ox, oy),
-              Math.hypot(ox, 1 - oy),
-              Math.hypot(1 - ox, 1 - oy),
-              0.0001,
-            );
             const durationMs = resolveRevealDurationMs(config.reveal);
             const progress = (clock.now() - revealStartMs) / durationMs;
-            const bandRamp = resolveBandRamp(config.reveal.wave.durationMs);
-            revealPass.render(revealRT, cellRT.texture, cols, rows, {
-              revealMode: 1,
-              origin: [ox, oy],
-              maxDist,
-              progress,
-              softness: config.reveal.wave.softness,
-              waviness: config.reveal.wave.waviness,
-              noiseScale: config.reveal.wave.noiseScale,
-              bandRamp,
-            });
+            if (config.reveal.type === "assembly") {
+              const { assembly } = config.reveal;
+              const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
+              const speedMin = Math.max(0, assembly.speedMinMs);
+              const speedMax = Math.max(speedMin, assembly.speedMaxMs);
+              const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
+              const spread = assembly.staggerMs / dur;
+              const bandRamp = resolveBandRamp(durationMs);
+              revealPass.render(revealRT, cellRT.texture, cols, rows, {
+                revealMode: 2,
+                origin: [0, 0],
+                maxDist: 1,
+                progress,
+                softness: 0,
+                waviness: 0,
+                noiseScale: 1,
+                bandRamp,
+                order: ASSEMBLY_ORDER_INDEX[assembly.order],
+                avgTotal,
+                spread,
+              });
+            } else {
+              const [ox, oy] = originForPosition(config.reveal.wave.position);
+              const maxDist = Math.max(
+                Math.hypot(ox, oy),
+                Math.hypot(1 - ox, oy),
+                Math.hypot(ox, 1 - oy),
+                Math.hypot(1 - ox, 1 - oy),
+                0.0001,
+              );
+              const bandRamp = resolveBandRamp(config.reveal.wave.durationMs);
+              revealPass.render(revealRT, cellRT.texture, cols, rows, {
+                revealMode: 1,
+                origin: [ox, oy],
+                maxDist,
+                progress,
+                softness: config.reveal.wave.softness,
+                waviness: config.reveal.wave.waviness,
+                noiseScale: config.reveal.wave.noiseScale,
+                bandRamp,
+                order: 0,
+                avgTotal: 0,
+                spread: 0,
+              });
+            }
           },
           dispose: () => revealPass.dispose(),
         });
