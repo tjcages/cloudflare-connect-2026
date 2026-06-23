@@ -35,7 +35,7 @@ void main() {
     float dist = length(cellUv - uOrigin) / max(uMaxDist, 1e-4);
     vec2 cell = floor(vUv * uGridCount);
     float n = (cellNoise(cell.x, cell.y, uNoiseScale) - 0.5) * uWaviness;
-    mask = smoothstep(dist - uSoftness, dist + uSoftness + uBandRamp, uProgress + n);
+    mask = smoothstep(dist - max(uSoftness, 0.0), dist + max(uSoftness, 0.0) + uBandRamp, max(uProgress, 0.0) + n);
   }
   finalColor = vec4(vec3(v * mask), 1.0);
 }

@@ -120,6 +120,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       const downsamplePass = createDownsamplePass(gl, quad);
       const stripePass = createStripePass(gl, quad);
       const midPasses: Pass[] = [];
+      const stripeInputRT = config.reveal.enabled ? "reveal" : "cell";
       if (config.reveal.enabled) {
         const revealPass = createRevealPass(gl, quad);
         midPasses.push({
@@ -134,6 +135,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
               Math.hypot(1 - ox, oy),
               Math.hypot(ox, 1 - oy),
               Math.hypot(1 - ox, 1 - oy),
+              0.0001,
             );
             const durationMs = resolveRevealDurationMs(config.reveal);
             const progress = (clock.now() - revealStartMs) / durationMs;
@@ -169,7 +171,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           name: "stripe",
           render: () => {
             const { cols, rows } = cellGrid;
-            const inputRT = config.reveal.enabled ? pool.get("reveal", cols, rows) : pool.get("cell", cols, rows);
+            const inputRT = pool.get(stripeInputRT, cols, rows);
             stripePass.render(
               inputRT.texture,
               stripeLutTex!,
