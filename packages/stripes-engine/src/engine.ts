@@ -8,6 +8,7 @@ import { createDownsamplePass } from "./passes/downsamplePass";
 import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createBlurPass } from "./passes/blurPass";
+import { createAssemblyCompositePass } from "./passes/assemblyCompositePass";
 import { createStripePass } from "./passes/stripePass";
 import { createGpuTimer } from "./perf/gpuTimer";
 import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
@@ -137,6 +138,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     if (assemblyTopology) {
       const scatterPass = createAssemblyScatterPass(gl);
       const blurPass = createBlurPass(gl, quad);
+      const compositePass = createAssemblyCompositePass(gl, quad);
       revealFieldPasses.push({
         name: "assemblyScatterField",
         render: () => {
@@ -151,8 +153,10 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
-          const blockCols = Math.max(1, Math.ceil(cssW / 40));
-          const blockRows = Math.max(1, Math.ceil(cssH / 40));
+          const sliceSizePx = Math.max(1, assembly.sliceSizePx);
+          const blockCols = Math.max(1, Math.ceil(cssW / sliceSizePx));
+          const blockRows = Math.max(1, Math.ceil(cssH / sliceSizePx));
+          const order = ASSEMBLY_ORDER_INDEX[assembly.order];
           scatterPass.render(assembledRT, fieldRT.texture, {
             blockCols,
             blockRows,
@@ -160,27 +164,33 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             spread,
             flight: avgTotal,
             spawnDist: 1.6,
-            order: ASSEMBLY_ORDER_INDEX[assembly.order],
+            order,
           });
 
-          const moveEnd = Math.min(1, spread + avgTotal);
-          const fadeStart = moveEnd * 0.7;
-          const fadeSpan = Math.max(1e-4, moveEnd - fadeStart);
-          const t = Math.max(0, Math.min(1, (progress - fadeStart) / fadeSpan));
-          const smooth = t * t * (3 - 2 * t);
-          const radiusPx = MAX_BLUR_PX * (1 - smooth);
-
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
-          if (radiusPx < 0.5) {
+          const moveEnd = Math.min(1, spread + avgTotal);
+          if (progress >= moveEnd) {
+            // Every cell has landed → crisp field, no blur (byte-exact identity).
             blurPass.copy(assembledRT.texture, revealedRT);
           } else {
+            // Full-strength Gaussian; the composite reveals it crisp per-cell as each cell lands.
+            const blurredRT = pool.get("assemblyBlurred", fieldSize.width, fieldSize.height, { linear: true });
             const blurTempRT = pool.get("blurTemp", fieldSize.width, fieldSize.height, { linear: true });
-            blurPass.render(assembledRT.texture, blurTempRT, revealedRT, radiusPx, fieldSize);
+            blurPass.render(assembledRT.texture, blurTempRT, blurredRT, MAX_BLUR_PX, fieldSize);
+            compositePass.render(revealedRT, assembledRT.texture, blurredRT.texture, {
+              blockCols,
+              blockRows,
+              progress: rawProgress,
+              spread,
+              flight: avgTotal,
+              order,
+            });
           }
         },
         dispose: () => {
           scatterPass.dispose();
           blurPass.dispose();
+          compositePass.dispose();
         },
       });
     } else if (revealEnabled) {

@@ -31,6 +31,7 @@ function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
     },
     assembly: {
       order: "center",
+      sliceSizePx: 40,
       speedMinMs: typeof a.speedMinMs === "number" ? a.speedMinMs : 300,
       speedMaxMs: typeof a.speedMaxMs === "number" ? a.speedMaxMs : 1600,
       staggerMs: typeof a.staggerMs === "number" ? a.staggerMs : 900,

@@ -187,6 +187,14 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
           label: "Order",
           render: (get) => get("Reveal.revealType") === "assembly",
         },
+        revealSliceSizePx: {
+          value: d.reveal.assembly.sliceSizePx,
+          min: 8,
+          max: 200,
+          step: 1,
+          label: "Slice size (px)",
+          render: (get) => get("Reveal.revealType") === "assembly",
+        },
         revealSpeedMinMs: {
           value: d.reveal.assembly.speedMinMs,
           min: 100,
@@ -265,6 +273,7 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
       },
       assembly: {
         order: values.revealOrder,
+        sliceSizePx: values.revealSliceSizePx,
         speedMinMs: values.revealSpeedMinMs,
         speedMaxMs: values.revealSpeedMaxMs,
         staggerMs: values.revealStaggerMs,

@@ -37,7 +37,7 @@ describe("migrateLegacyConfig", () => {
       enabled: true,
       type: "assembly",
       wave: { position: "left top", durationMs: 2000, softness: 0.5, waviness: 0.7 },
-      assembly: { order: "center", speedMinMs: 400, speedMaxMs: 1800, staggerMs: 1000 },
+      assembly: { order: "center", sliceSizePx: 40, speedMinMs: 400, speedMaxMs: 1800, staggerMs: 1000 },
     });
   });
   it("defaults assembly.order to center when old shape has no order", () => {

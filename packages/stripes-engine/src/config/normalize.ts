@@ -121,7 +121,7 @@ export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "wave",
   wave: { position: "center", durationMs: 1200, softness: 0.22, waviness: 0.11 },
-  assembly: { order: "center", speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
+  assembly: { order: "center", sliceSizePx: 40, speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
 };
 
 type PartialReveal = {
@@ -156,6 +156,7 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     },
     assembly: {
       order,
+      sliceSizePx: clamp(Math.round(num(a.sliceSizePx, DEFAULT_REVEAL.assembly.sliceSizePx)), 8, 200),
       speedMinMs,
       speedMaxMs,
       staggerMs: clamp(Math.round(num(a.staggerMs, DEFAULT_REVEAL.assembly.staggerMs)), 0, 30000),

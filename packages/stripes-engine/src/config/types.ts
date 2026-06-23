@@ -24,6 +24,7 @@ export interface RevealConfig {
   };
   assembly: {
     order: AssemblyOrder;
+    sliceSizePx: number;
     speedMinMs: number;
     speedMaxMs: number;
     staggerMs: number;
