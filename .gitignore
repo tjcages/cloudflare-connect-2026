@@ -7,3 +7,6 @@ dist
 .wrangler
 .worktrees/
 .pnpm-store/
+# playwright
+test-results/
+playwright-report/

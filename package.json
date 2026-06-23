@@ -17,6 +17,7 @@
     "test": "vitest run --config vitest.workspace.ts",
     "test:watch": "vitest --config vitest.workspace.ts",
     "test:e2e": "playwright test",
+    "test:e2e:update": "playwright test --update-snapshots",
     "verify": "pnpm run test && pnpm run typecheck && pnpm --filter studio build:client",
     "code-check": "oxlint -c .oxlintrc.json . && oxfmt --check .",
     "lint": "oxlint -c .oxlintrc.json .",

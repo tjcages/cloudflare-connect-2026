@@ -17,6 +17,11 @@ function num(params: URLSearchParams, key: string, dflt: number): number {
   return v == null ? dflt : Number(v);
 }
 
+/** HUD (perf overlay, file picker, Leva) is on unless `?hud=0` — kept out of visual goldens. */
+function hudEnabled(): boolean {
+  return new URLSearchParams(window.location.search).get("hud") !== "0";
+}
+
 function LabInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<StripesEngine | null>(null);
@@ -126,26 +131,29 @@ function LabInner() {
     }
   }
 
+  const hud = hudEnabled();
   return (
     <>
       <canvas ref={canvasRef} style={{ display: "block" }} />
-      <PerfOverlay snap={snap} />
-      <div
-        style={{
-          position: "fixed",
-          bottom: 12,
-          left: 12,
-          zIndex: 100,
-          background: "rgba(0,0,0,0.6)",
-          borderRadius: 6,
-          padding: "4px 8px",
-        }}
-      >
-        <label style={{ color: "#fff", fontSize: 12, cursor: "pointer" }}>
-          Load image/video
-          <input type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={handleFileChange} />
-        </label>
-      </div>
+      {hud && <PerfOverlay snap={snap} />}
+      {hud && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 12,
+            left: 12,
+            zIndex: 100,
+            background: "rgba(0,0,0,0.6)",
+            borderRadius: 6,
+            padding: "4px 8px",
+          }}
+        >
+          <label style={{ color: "#fff", fontSize: 12, cursor: "pointer" }}>
+            Load image/video
+            <input type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={handleFileChange} />
+          </label>
+        </div>
+      )}
     </>
   );
 }
@@ -153,7 +161,7 @@ function LabInner() {
 export function LabApp() {
   return (
     <>
-      <Leva />
+      {hudEnabled() && <Leva />}
       <LabInner />
     </>
   );
