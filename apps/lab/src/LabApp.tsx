@@ -185,6 +185,7 @@ function LabInner() {
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [scale, setScale] = useState(1);
+  const [ready, setReady] = useState(false);
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
   const scaleRef = useRef(scale);
@@ -351,6 +352,8 @@ function LabInner() {
             if (canvas) applyCanvasSize(engine, canvas, src, scaleRef.current);
           }
         }
+        if (manualRef.current) engine.renderFrame();
+        setReady(true);
         if (revealEnabledRef.current) engine.triggerReveal();
       })
       .catch(() => {});
@@ -436,7 +439,10 @@ function LabInner() {
     <div className="lab-shell">
       <div className="lab-main">
         <div className="lab-canvas-area">
-          <canvas ref={canvasRef} style={{ display: "block" }} />
+          <canvas
+            ref={canvasRef}
+            style={{ display: "block", opacity: ready ? 1 : 0, transition: "opacity 150ms ease" }}
+          />
         </div>
         <LabBottomBar videoEl={videoEl} />
       </div>
