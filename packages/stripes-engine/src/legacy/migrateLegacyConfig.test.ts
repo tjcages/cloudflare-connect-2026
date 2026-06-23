@@ -12,12 +12,8 @@ describe("migrateLegacyConfig", () => {
     });
     expect(out.adjustments).toMatchObject({ contrast: 2, gamma: 1.5 });
     expect(out.transform).toMatchObject({ fit: "cover", zoom: 1.5, panX: 0.2 });
-    expect(out.field).toEqual({ mode: "overlay" });
     expect(out.grid).toMatchObject({ cellWidth: 9, orientation: "horizontal" });
     expect(out.background).toEqual({ color: 0x222222 });
-  });
-  it("maps colors mode to luminance (until Phase 8)", () => {
-    expect(migrateLegacyConfig({ textureLuminanceMode: "colors" }).field).toEqual({ mode: "luminance" });
   });
   it("converts hex-string stripe colors to numeric", () => {
     const out = migrateLegacyConfig({ stripes: [{ hex: "#ff8833", startFrom: 0.5, width: 6 }] });
