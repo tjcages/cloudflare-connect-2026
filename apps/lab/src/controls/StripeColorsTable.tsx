@@ -66,12 +66,12 @@ function StripeColorRow({
       value={stripe}
       dragListener={false}
       dragControls={controls}
-      className="stripe-colors-color-row flex items-center gap-1"
+      className="stripe-colors-color-row"
     >
       <button
         type="button"
         aria-label={`Reorder Stripe ${index + 1} color`}
-        className="stripe-colors-grip cursor-grab active:cursor-grabbing text-neutral-400 hover:text-neutral-600"
+        className="stripe-colors-grip"
         style={{ touchAction: "none" }}
         disabled={disabled}
         onPointerDown={disabled ? undefined : (event) => controls.start(event)}
@@ -83,18 +83,14 @@ function StripeColorRow({
         onChange={(hex) => onColorChange(stripe.id, hex)}
         disabled={disabled}
         ariaLabel={`Stripe ${index + 1} color`}
-        triggerClassName="size-6 shrink-0 rounded border border-[#d6d6d6] p-0"
-        triggerStyle={
-          {
-            backgroundColor: stripe.hex,
-          } as CSSProperties
-        }
+        triggerClassName="stripe-colors-leva-swatch"
+        triggerStyle={{ "--stripe-swatch-color": stripe.hex } as CSSProperties}
         align="right"
       />
       <button
         type="button"
         aria-label={`Remove Stripe ${index + 1}`}
-        className="ml-auto cursor-pointer text-neutral-400 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-45"
+        className="stripe-colors-remove"
         disabled={disabled}
         onClick={() => onRemove(stripe.id)}
       >
@@ -115,21 +111,24 @@ export function StripeColorsTable({
   onRemove,
 }: StripeColorsTableProps) {
   const [order, setOrder] = useState<EditableStripe[]>(() => [...stripes]);
+  const reconcileKey = stripes.map((s) => `${s.id}:${s.hex}`).join("|");
 
   useEffect(() => {
     setOrder([...stripes]);
-  }, [stripes]);
+  }, [reconcileKey]);
 
   return (
-    <div className={cn("stripe-colors-table text-[11px]", disabled && "pointer-events-none opacity-45")}>
-      <div className="flex gap-1 mb-1">
-        <div className="flex-1 text-right pr-1 text-neutral-400 font-medium">Color</div>
-        <div className="flex-1 flex gap-1">
-          <span className="flex-1 text-right text-neutral-400 font-medium">Threshold</span>
-          <span className="flex-1 text-right text-neutral-400 font-medium">Width</span>
+    <div className={cn("stripe-colors-table", disabled && "pointer-events-none opacity-45")}>
+      <div className="stripe-colors-header">
+        <div className="stripe-colors-header-color">
+          <span className="stripe-colors-table-label">Color</span>
+        </div>
+        <div className="stripe-colors-header-ladder">
+          <span className="stripe-colors-table-label">Threshold</span>
+          <span className="stripe-colors-table-label">Width</span>
         </div>
       </div>
-      <div className="flex gap-1">
+      <div className="stripe-colors-body">
         <Reorder.Group
           as="div"
           axis="y"
@@ -138,7 +137,7 @@ export function StripeColorsTable({
             setOrder(next);
             onColorReorder(next.map((s) => s.id));
           }}
-          className="flex flex-col gap-0.5 w-[72px] shrink-0"
+          className="stripe-colors-color-column"
         >
           {order.map((stripe, index) => (
             <StripeColorRow
@@ -151,51 +150,44 @@ export function StripeColorsTable({
             />
           ))}
         </Reorder.Group>
-        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+        <div className="stripe-colors-ladder-column">
           {stripes.map((stripe, index) => (
-            <div key={stripe.id} className="flex gap-1 h-6 items-center">
-              <input
-                type="number"
-                min={STRIPE_START_FROM_MIN}
-                max={STRIPE_START_FROM_MAX}
-                step={0.01}
-                value={stripe.startFrom}
-                disabled={disabled}
-                aria-label={`Stripe ${index + 1} threshold`}
-                className="w-full min-w-0 rounded border border-[#d6d6d6] bg-white px-1 py-0 text-[11px] tabular-nums"
-                onChange={(event) => {
-                  const next = parseThresholdInput(event.target.value);
-                  if (next !== null) {
-                    onThresholdChange(stripe.id, next);
-                  }
-                }}
-              />
-              <input
-                type="number"
-                min={STRIPE_WIDTH_MIN}
-                max={STRIPE_WIDTH_MAX}
-                step={1}
-                value={stripe.width}
-                disabled={disabled}
-                aria-label={`Stripe ${index + 1} width`}
-                className="w-full min-w-0 rounded border border-[#d6d6d6] bg-white px-1 py-0 text-[11px] tabular-nums"
-                onChange={(event) => {
-                  const next = parseWidthInput(event.target.value);
-                  if (next !== null) {
-                    onWidthChange(stripe.id, next);
-                  }
-                }}
-              />
+            <div key={stripe.id} className="stripe-colors-ladder-row">
+              <div className="stripe-colors-leva-input">
+                <input
+                  type="number"
+                  min={STRIPE_START_FROM_MIN}
+                  max={STRIPE_START_FROM_MAX}
+                  step={0.01}
+                  value={stripe.startFrom}
+                  disabled={disabled}
+                  aria-label={`Stripe ${index + 1} threshold`}
+                  onChange={(event) => {
+                    const next = parseThresholdInput(event.target.value);
+                    if (next !== null) onThresholdChange(stripe.id, next);
+                  }}
+                />
+              </div>
+              <div className="stripe-colors-leva-input">
+                <input
+                  type="number"
+                  min={STRIPE_WIDTH_MIN}
+                  max={STRIPE_WIDTH_MAX}
+                  step={1}
+                  value={stripe.width}
+                  disabled={disabled}
+                  aria-label={`Stripe ${index + 1} width`}
+                  onChange={(event) => {
+                    const next = parseWidthInput(event.target.value);
+                    if (next !== null) onWidthChange(stripe.id, next);
+                  }}
+                />
+              </div>
             </div>
           ))}
         </div>
       </div>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onAdd}
-        className="mt-1.5 flex w-full items-center justify-center gap-1 rounded border border-dashed border-[#d6d6d6] px-2 py-1 text-[11px] text-neutral-400 hover:border-neutral-400 hover:text-neutral-600 disabled:cursor-not-allowed disabled:opacity-45"
-      >
+      <button type="button" className="stripe-colors-add" disabled={disabled} onClick={onAdd}>
         <Plus size={11} />
         Add stripe
       </button>

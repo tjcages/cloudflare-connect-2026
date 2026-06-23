@@ -1,11 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
-import { useControls, folder } from "leva";
+import { useControls, useCreateStore, folder } from "leva";
 import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { loadInitialConfig } from "../persistence";
 import { fromEditable } from "./stripeAdapter";
 import type { EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
+import { LAB_TEXTURES, DEFAULT_LAB_TEXTURE_ID } from "../textures";
+
+const TEXTURE_OPTIONS = Object.fromEntries(LAB_TEXTURES.map((t) => [t.label, t.id]));
 
 function intToHex(value: number): string {
   return `#${(value & 0xffffff).toString(16).padStart(6, "0")}`;
@@ -24,10 +27,13 @@ function newStripeId(): string {
 export interface EngineControlsResult {
   config: EngineConfig;
   setControl: (values: Record<string, unknown>) => void;
+  textureId: string;
+  store: ReturnType<typeof useCreateStore>;
 }
 
 export function useEngineControls(): EngineControlsResult {
   const d = useMemo(() => normalizeEngineConfig(loadInitialConfig()), []);
+  const store = useCreateStore();
 
   const [stripes, setStripes] = useState<EditableStripe[]>(() =>
     d.stripes.map((s, i) => ({
@@ -80,6 +86,9 @@ export function useEngineControls(): EngineControlsResult {
 
   const [values, setControl] = useControls(
     () => ({
+      Texture: folder({
+        texture: { value: DEFAULT_LAB_TEXTURE_ID, options: TEXTURE_OPTIONS, label: "Texture" },
+      }),
       General: folder({
         stripesEnabled: { value: d.stripesEnabled, label: "Stripes enabled" },
       }),
@@ -131,6 +140,7 @@ export function useEngineControls(): EngineControlsResult {
         stripeColorsTable: stripeColorsTablePlugin({ value: stripeKey }),
       }),
     }),
+    { store },
     [stripeKey],
   );
 
@@ -169,5 +179,5 @@ export function useEngineControls(): EngineControlsResult {
     stripes: fromEditable(stripes),
   });
 
-  return { config, setControl };
+  return { config, setControl, textureId: values.texture, store };
 }

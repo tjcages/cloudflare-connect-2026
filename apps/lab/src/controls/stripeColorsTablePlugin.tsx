@@ -50,7 +50,7 @@ function StripeColorsTablePluginComponent() {
 
   return (
     <Row>
-      <div className="w-full min-w-0">
+      <div className="playground-stripe-colors-leva-row w-full min-w-0">
         <StripeColorsTable
           stripes={stripes}
           disabled={disabled}
