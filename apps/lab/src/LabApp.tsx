@@ -212,9 +212,10 @@ function LabInner() {
   const canDeleteTexture = selectedEntry?.origin === "upload";
 
   function handleDeleteTexture() {
-    const entry = findTextureEntry(textureId, loadManifest());
+    const manifest = loadManifest();
+    const entry = findTextureEntry(textureId, manifest);
     if (!entry || entry.origin !== "upload") return;
-    saveManifest(removeUpload(loadManifest(), entry.id));
+    saveManifest(removeUpload(manifest, entry.id));
     void deleteTextureBlob(entry.id);
     deleteConfig(entry.id);
     saveTextureId(DEFAULT_LAB_TEXTURE_ID);
@@ -472,9 +473,15 @@ function LabInner() {
       await putTextureBlob(id, file, file.type);
     } catch {
       window.alert("Couldn't save this upload (storage full). It will show for this session but won't persist.");
-      loadFileSource(file).then((loaded) => {
-        if (engineRef.current) applyLoadedSource(loaded);
-      });
+      loadFileSource(file)
+        .then((loaded) => {
+          if (engineRef.current) {
+            applyLoadedSource(loaded);
+          } else if (loaded.objectUrl) {
+            URL.revokeObjectURL(loaded.objectUrl);
+          }
+        })
+        .catch(() => {});
       return;
     }
     saveManifest(addUpload(loadManifest(), { id, label: file.name, kind, defaultScale: 1, createdAt: Date.now() }));
