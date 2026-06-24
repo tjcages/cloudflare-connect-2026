@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useControls, useCreateStore, folder, button } from "leva";
 import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
-import { loadInitialConfig } from "../persistence";
+import { loadInitialConfig, loadTextureId } from "../persistence";
 import { fromEditable } from "./stripeAdapter";
 import type { EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
@@ -32,7 +32,11 @@ export interface EngineControlsResult {
 }
 
 export function useEngineControls(onReplay: () => void): EngineControlsResult {
-  const d = useMemo(() => normalizeEngineConfig(loadInitialConfig()), []);
+  const initialTextureId = useMemo(() => {
+    const stored = loadTextureId();
+    return stored && LAB_TEXTURES.some((t) => t.id === stored) ? stored : DEFAULT_LAB_TEXTURE_ID;
+  }, []);
+  const d = useMemo(() => normalizeEngineConfig(loadInitialConfig(initialTextureId)), [initialTextureId]);
   const store = useCreateStore();
 
   const [stripes, setStripes] = useState<EditableStripe[]>(() =>
@@ -87,7 +91,7 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
   const [values, setControl] = useControls(
     () => ({
       Texture: folder({
-        texture: { value: DEFAULT_LAB_TEXTURE_ID, options: TEXTURE_OPTIONS, label: "Texture" },
+        texture: { value: initialTextureId, options: TEXTURE_OPTIONS, label: "Texture" },
       }),
       General: folder({
         stripesEnabled: { value: d.stripesEnabled, label: "Stripes enabled" },

@@ -8,6 +8,7 @@ export interface LabTexturePreset {
   label: string;
   url: string | null;
   kind: LabTextureKind;
+  defaultScale: number;
 }
 
 export const LAB_TEXTURES: LabTexturePreset[] = [
@@ -16,8 +17,15 @@ export const LAB_TEXTURES: LabTexturePreset[] = [
     label: "Footer / Cloudflare",
     url: `${import.meta.env.BASE_URL}textures/cloudflare-footer.svg`,
     kind: "image",
+    defaultScale: 2,
   },
-  { id: "test-gradient", label: "Test / Gradient", url: null, kind: "image" },
+  {
+    id: "cta",
+    label: "CTA",
+    url: `${import.meta.env.BASE_URL}textures/cta.mp4`,
+    kind: "video",
+    defaultScale: 4,
+  },
 ];
 
 export const DEFAULT_LAB_TEXTURE_ID = "cloudflare-footer";

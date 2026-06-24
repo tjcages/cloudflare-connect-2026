@@ -15,8 +15,8 @@ import { PerfOverlay } from "./PerfOverlay";
 import { createTestImage } from "./testImage";
 import { useEngineControls } from "./controls/levaSchema";
 import { LAB_LEVA_THEME } from "./controls/levaTheme";
-import { saveConfig, importConfig } from "./persistence";
-import { LAB_TEXTURES, loadTextureSource } from "./textures";
+import { saveConfig, saveTextureId, importConfig } from "./persistence";
+import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, loadTextureSource } from "./textures";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -184,7 +184,9 @@ function LabInner() {
   });
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(
+    (LAB_TEXTURES.find((t) => t.id === DEFAULT_LAB_TEXTURE_ID) ?? LAB_TEXTURES[0]).defaultScale,
+  );
   const [ready, setReady] = useState(false);
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
@@ -200,6 +202,9 @@ function LabInner() {
   const { config: controls, setControl, textureId, store } = useEngineControls(onReplay);
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
+  const textureIdRef = useRef(textureId);
+  textureIdRef.current = textureId;
+  const mountTextureIdRef = useRef(textureId);
   const stripesEnabledRef = useRef(controls.stripesEnabled);
   stripesEnabledRef.current = controls.stripesEnabled;
   const revealEnabledRef = useRef(controls.reveal.enabled);
@@ -345,9 +350,18 @@ function LabInner() {
       ? { ...controls, reveal: { ...controls.reveal, enabled: false } }
       : controls;
     engine.setConfig(configToApply);
-    saveConfig(controls);
+    saveConfig(textureIdRef.current, controls);
     if (manualRef.current) engine.renderFrame();
   }, [controls]);
+
+  useEffect(() => {
+    saveTextureId(textureId);
+    // The leva store is seeded from the selected texture's saved config at init,
+    // so switching textures reloads to re-init with that texture's own settings.
+    if (!manual && textureId !== mountTextureIdRef.current) {
+      window.location.reload();
+    }
+  }, [textureId, manual]);
 
   useEffect(() => {
     if (manual) return;
@@ -359,6 +373,7 @@ function LabInner() {
       prevVideoRef.current = null;
     }
     const preset = LAB_TEXTURES.find((t) => t.id === textureId) ?? LAB_TEXTURES[0];
+    setScale(preset.defaultScale);
     loadTextureSource(preset)
       .then(({ source, video }) => {
         if (cancelled) {
@@ -404,7 +419,7 @@ function LabInner() {
     if (!text) return;
     try {
       const cfg = importConfig(text);
-      saveConfig(normalizeEngineConfig(cfg));
+      saveConfig(textureIdRef.current, normalizeEngineConfig(cfg));
       window.location.reload();
     } catch {
       window.alert("Invalid config JSON.");
