@@ -11,6 +11,16 @@ export type StripeUniforms = {
   rows: number;
   background: number;
   dpr: number;
+  timeSec: number;
+  gapEnabled: boolean;
+  gapCoverage: number;
+  gapPeriodMin: number;
+  gapPeriodMax: number;
+  shuffleEnabled: boolean;
+  shuffleCoverage: number;
+  shufflePeriodMin: number;
+  shufflePeriodMax: number;
+  shuffleSwingPx: number;
 };
 
 export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -25,6 +35,16 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     orient: u("uOrient"),
     bg: u("uBg"),
     dpr: u("uDpr"),
+    timeSec: u("uTimeSec"),
+    gapEnabled: u("uGapEnabled"),
+    gapCoverage: u("uGapCoverage"),
+    gapPeriodMin: u("uGapPeriodMin"),
+    gapPeriodMax: u("uGapPeriodMax"),
+    shuffleEnabled: u("uShuffleEnabled"),
+    shuffleCoverage: u("uShuffleCoverage"),
+    shufflePeriodMin: u("uShufflePeriodMin"),
+    shufflePeriodMax: u("uShufflePeriodMax"),
+    shuffleSwingPx: u("uShuffleSwingPx"),
   };
   return {
     render(cellTex: WebGLTexture, lutTex: WebGLTexture, p: StripeUniforms, outWidth: number, outHeight: number) {
@@ -48,6 +68,16 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
         (p.background & 255) / 255,
       );
       gl.uniform1f(L.dpr, p.dpr);
+      gl.uniform1f(L.timeSec, p.timeSec);
+      gl.uniform1f(L.gapEnabled, p.gapEnabled ? 1 : 0);
+      gl.uniform1f(L.gapCoverage, p.gapCoverage);
+      gl.uniform1f(L.gapPeriodMin, p.gapPeriodMin);
+      gl.uniform1f(L.gapPeriodMax, p.gapPeriodMax);
+      gl.uniform1f(L.shuffleEnabled, p.shuffleEnabled ? 1 : 0);
+      gl.uniform1f(L.shuffleCoverage, p.shuffleCoverage);
+      gl.uniform1f(L.shufflePeriodMin, p.shufflePeriodMin);
+      gl.uniform1f(L.shufflePeriodMax, p.shufflePeriodMax);
+      gl.uniform1f(L.shuffleSwingPx, p.shuffleSwingPx);
       quad.draw();
     },
     dispose() {

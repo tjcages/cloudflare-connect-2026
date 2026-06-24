@@ -1,19 +1,103 @@
 export const STRIPE_FRAG = `#version 300 es
 precision highp float;
 in vec2 vUv;
-uniform sampler2D uCell;     // cols×rows grayscale cell value
-uniform sampler2D uLut;      // 256×1 RGBA: value → (color.rgb, width byte)
-uniform vec2 uGridCount;     // cols, rows
-uniform vec2 uCellPx;        // cellW, cellH (logical px)
-uniform float uCorner;       // corner radius (logical px)
-uniform float uOrient;       // 0 vertical, 1 horizontal
+uniform sampler2D uCell;
+uniform sampler2D uLut;
+uniform vec2 uGridCount;
+uniform vec2 uCellPx;
+uniform float uCorner;
+uniform float uOrient;
 uniform vec3 uBg;
 uniform float uDpr;
+uniform float uTimeSec;
+uniform float uGapEnabled;
+uniform float uGapCoverage;
+uniform float uGapPeriodMin;
+uniform float uGapPeriodMax;
+uniform float uShuffleEnabled;
+uniform float uShuffleCoverage;
+uniform float uShufflePeriodMin;
+uniform float uShufflePeriodMax;
+uniform float uShuffleSwingPx;
 out vec4 finalColor;
 
 float sdRoundBox(vec2 p, vec2 b, float r) {
   vec2 q = abs(p) - b + r;
   return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+}
+
+float sparkleHash(float px, float py) {
+  float p3x = fract(px * 0.1031);
+  float p3y = fract(py * 0.103);
+  float p3z = fract(px * 0.0973);
+  float dotVal = p3x * (p3y + 33.33) + p3y * (p3z + 33.33) + p3z * (p3x + 33.33);
+  p3x = fract(p3x + dotVal);
+  p3y = fract(p3y + dotVal);
+  p3z = fract(p3z + dotVal);
+  return fract((p3x + p3y) * p3z);
+}
+
+float phaseHash(float col, float row) {
+  return sparkleHash(col + 53.0, row + 71.0);
+}
+
+float periodHash(float col, float row) {
+  return sparkleHash(col + 89.0, row + 113.0);
+}
+
+float cellSeed(float col, float row) {
+  return sparkleHash(col + 17.0, row + 31.0);
+}
+
+float altHash(float col, float row, float pulseIndex) {
+  return sparkleHash(col + 53.0 + pulseIndex * 61.0, row + 71.0 + pulseIndex * 101.0);
+}
+
+struct CellPulse {
+  float localTime;
+  float period;
+  float cycleIndex;
+};
+
+CellPulse cellPulse(float col, float row, float timeSec, float coverage, float periodMin, float periodMax) {
+  float periodSpan = periodMax - periodMin;
+  float period = periodMin + periodHash(col, row) * periodSpan;
+  float cyclePeriod = period / max(coverage, 0.001);
+  float phaseOffset = phaseHash(col, row) * cyclePeriod;
+  float scheduledTime = timeSec + phaseOffset;
+  float cycleIndex = floor(scheduledTime / cyclePeriod);
+  float localTime = scheduledTime - cycleIndex * cyclePeriod;
+  CellPulse p;
+  p.localTime = localTime;
+  p.period = period;
+  p.cycleIndex = cycleIndex;
+  return p;
+}
+
+bool isGapped(float col, float row) {
+  if (uGapCoverage <= 0.0) return false;
+  CellPulse p = cellPulse(col, row, uTimeSec, uGapCoverage, uGapPeriodMin, uGapPeriodMax);
+  return p.localTime < p.period;
+}
+
+float pulseEnvelope(float localT) {
+  if (localT < 0.0 || localT > 1.0) return 0.0;
+  float cosine = 0.5 - 0.5 * cos(2.0 * 3.141592653589793 * localT);
+  float c = clamp(cosine, 0.0, 1.0);
+  return c * c * (3.0 - 2.0 * c);
+}
+
+float shuffledWidth(float col, float row, float defaultWidth) {
+  if (defaultWidth <= 0.0) return defaultWidth;
+  if (cellSeed(col, row) >= uShuffleCoverage) return defaultWidth;
+  CellPulse p = cellPulse(col, row, uTimeSec, uShuffleCoverage, uShufflePeriodMin, uShufflePeriodMax);
+  if (p.localTime >= p.period) return defaultWidth;
+  float localT = p.localTime / p.period;
+  float h = altHash(col, row, p.cycleIndex);
+  float maxWidth = min(255.0, (uOrient < 0.5 ? uCellPx.x : uCellPx.y));
+  float tw = clamp(defaultWidth + (h * 2.0 - 1.0) * max(uShuffleSwingPx, 0.0), 1.0, maxWidth);
+  float envelope = pulseEnvelope(localT);
+  return defaultWidth + (tw - defaultWidth) * envelope;
 }
 
 void main() {
@@ -25,7 +109,12 @@ void main() {
   vec3 barColor = lut.rgb;
   float barWidthPx = lut.a * 255.0;
 
+  if (uShuffleEnabled > 0.5) barWidthPx = shuffledWidth(cell.x, cell.y, barWidthPx);
+
   if (barWidthPx < 0.5) { finalColor = vec4(uBg, 1.0); return; }
+
+  if (uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(cell.x, cell.y)) { finalColor = vec4(uBg, 1.0); return; }
+
   vec2 p = (local - 0.5) * uCellPx;
   float w = max(1.0 / uDpr, 1e-4);
   float halfW;

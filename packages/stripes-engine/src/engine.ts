@@ -238,6 +238,13 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           render: () => {
             const { cols, rows } = cellGrid;
             const inputRT = pool.get("cell", cols, rows);
+            const timeSec = clock.now() / 1000;
+            const gapSpeed = Math.max(0.05, config.sparkle.gaps.speed);
+            const gapPeriodMin = 0.21 / gapSpeed;
+            const gapPeriodMax = 0.55 / gapSpeed;
+            const widthSpeed = Math.max(0.05, config.sparkle.width.speed);
+            const shufflePeriodMin = 0.21 / widthSpeed;
+            const shufflePeriodMax = 0.55 / widthSpeed;
             stripePass.render(
               inputRT.texture,
               stripeLutTex!,
@@ -250,6 +257,16 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
                 rows,
                 background: config.background.color,
                 dpr: getDpr(),
+                timeSec,
+                gapEnabled: config.sparkle.gaps.enabled,
+                gapCoverage: config.sparkle.gaps.coverage,
+                gapPeriodMin,
+                gapPeriodMax,
+                shuffleEnabled: config.sparkle.width.enabled,
+                shuffleCoverage: config.sparkle.width.coverage,
+                shufflePeriodMin,
+                shufflePeriodMax,
+                shuffleSwingPx: config.sparkle.width.swingPx,
               },
               output.width,
               output.height,
