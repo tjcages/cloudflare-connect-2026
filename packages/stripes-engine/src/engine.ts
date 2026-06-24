@@ -343,6 +343,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     const revealEnabled = config.reveal.enabled;
     const assemblyTopology = revealEnabled && config.reveal.type === "assembly";
     let activeFieldRT = revealEnabled ? "revealedField" : "field";
+    let activeColorRT = "fieldColor";
     const revealFieldPasses: Pass[] = [];
 
     const MAX_BLUR_PX = 5;
@@ -465,6 +466,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       const tearPass = createCursorTearPass(gl, quad);
       const warpPass = createCursorWarpPass(gl, quad);
       const srcRT = activeFieldRT;
+      const srcColorRT = activeColorRT;
       cursorFieldPasses.push({
         name: "cursorField",
         render: () => {
@@ -515,9 +517,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           const tearRT = pool.get("cursorTear", cols, rows);
           tearPass.render(tearRT, accumRT.texture, { cols, rows, pushCap });
 
-          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
-          const warpedRT = pool.get("cursorField", fieldSize.width, fieldSize.height, { linear: true });
-          warpPass.render(warpedRT, srcTex, accumRT.texture, tearRT.texture, {
+          const warpParams = {
             cols,
             rows,
             cellW: cssW / Math.max(1, cols),
@@ -525,7 +525,16 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             pixelW: cssW,
             pixelH: cssH,
             pushCap,
-          });
+          };
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const warpedRT = pool.get("cursorField", fieldSize.width, fieldSize.height, { linear: true });
+          warpPass.render(warpedRT, srcTex, accumRT.texture, tearRT.texture, warpParams);
+
+          if (colorsMode) {
+            const srcColorTex = pool.get(srcColorRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+            const warpedColorRT = pool.get("cursorFieldColor", fieldSize.width, fieldSize.height, { linear: true });
+            warpPass.renderColor(warpedColorRT, srcColorTex, accumRT.texture, tearRT.texture, warpParams);
+          }
         },
         dispose: () => {
           splatPass?.dispose();
@@ -535,6 +544,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         },
       });
       activeFieldRT = "cursorField";
+      if (colorsMode) activeColorRT = "cursorFieldColor";
     }
 
     const colorsModeActive = config.colors.mode === "colors";
@@ -547,7 +557,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
               name: "downsampleColor",
               render: () => {
                 const { cols, rows } = cellGrid;
-                const fieldColorRT = pool.get("fieldColor", fieldSize.width, fieldSize.height, { linear: true });
+                const fieldColorRT = pool.get(activeColorRT, fieldSize.width, fieldSize.height, { linear: true });
                 const cellColorRT = pool.get("cellColor", cols, rows);
                 downsampleColorPass.render(cellColorRT, fieldColorRT.texture, cols, rows);
               },
@@ -659,7 +669,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         {
           name: "present",
           render: () => {
-            const presentRT = colorsMode ? "fieldColor" : activeFieldRT;
+            const presentRT = colorsMode ? activeColorRT : activeFieldRT;
             presentPass.render(
               pool.get(presentRT, fieldSize.width, fieldSize.height, { linear: true }).texture,
               output.width,
