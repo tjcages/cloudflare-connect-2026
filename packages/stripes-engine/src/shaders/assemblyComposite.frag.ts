@@ -7,7 +7,6 @@ uniform vec2 uBlockGrid;
 uniform float uProgress;
 uniform float uSpread;
 uniform float uFlight;
-uniform float uOrder;
 out vec4 finalColor;
 
 highp float fract1(highp float v) {
@@ -29,20 +28,9 @@ highp float cellNoise(highp float col, highp float row, highp float scale) {
 }
 
 highp float orderNorm(highp float col, highp float row, highp float cols, highp float rows) {
-  if (uOrder < 0.5) {
-    highp float cx = cols <= 1.0 ? 0.5 : (col + 0.5) / cols;
-    highp float cy = rows <= 1.0 ? 0.5 : (row + 0.5) / rows;
-    return length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678;
-  }
-  if (uOrder < 1.5) {
-    highp float cx = cols <= 1.0 ? 0.5 : (col + 0.5) / cols;
-    highp float cy = rows <= 1.0 ? 0.5 : (row + 0.5) / rows;
-    return 1.0 - length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678;
-  }
-  if (uOrder < 2.5) {
-    return cols <= 1.0 ? 0.0 : col / (cols - 1.0);
-  }
-  return cellNoise(col, row, 1.0);
+  highp float cx = cols <= 1.0 ? 0.5 : (col + 0.5) / cols;
+  highp float cy = rows <= 1.0 ? 0.5 : (row + 0.5) / rows;
+  return length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678;
 }
 
 void main() {

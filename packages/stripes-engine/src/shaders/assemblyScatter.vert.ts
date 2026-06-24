@@ -5,8 +5,8 @@ uniform float uProgress;
 uniform float uSpread;
 uniform float uFlight;
 uniform float uSpawnDist;
-uniform float uOrder;
-uniform float uHSpread;
+uniform vec2 uScatter;
+uniform float uAngleJitter;
 out vec2 vSampleUv;
 
 highp float fract1(highp float v) {
@@ -53,20 +53,9 @@ highp float cubicBezier(highp float t, highp float x1, highp float y1, highp flo
 }
 
 highp float orderNorm(highp float col, highp float row, highp float cols, highp float rows) {
-  if (uOrder < 0.5) {
-    highp float cx = cols <= 1.0 ? 0.5 : (col + 0.5) / cols;
-    highp float cy = rows <= 1.0 ? 0.5 : (row + 0.5) / rows;
-    return length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678;
-  }
-  if (uOrder < 1.5) {
-    highp float cx = cols <= 1.0 ? 0.5 : (col + 0.5) / cols;
-    highp float cy = rows <= 1.0 ? 0.5 : (row + 0.5) / rows;
-    return 1.0 - length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678;
-  }
-  if (uOrder < 2.5) {
-    return cols <= 1.0 ? 0.0 : col / (cols - 1.0);
-  }
-  return cellNoise(col, row, 1.0);
+  highp float cx = cols <= 1.0 ? 0.5 : (col + 0.5) / cols;
+  highp float cy = rows <= 1.0 ? 0.5 : (row + 0.5) / rows;
+  return length(vec2(cx - 0.5, cy - 0.5)) / 0.70710678;
 }
 
 void main() {
@@ -104,11 +93,17 @@ void main() {
   else if (dT <= dB) { edgeDir = vec2(0.0, -1.0); edgeDistTo = dT; }
   else { edgeDir = vec2(0.0, 1.0); edgeDistTo = dB; }
 
+  highp float ang = (cellNoise(bx + 17.0, by + 23.0, 1.0) - 0.5) * 2.0 * uAngleJitter;
+  highp float ca = cos(ang);
+  highp float sa = sin(ang);
+  edgeDir = vec2(edgeDir.x * ca - edgeDir.y * sa, edgeDir.x * sa + edgeDir.y * ca);
+
   highp float offMargin = 0.06 + 0.16 * cellNoise(bx, by, 1.0);
   vec2 perp = vec2(-edgeDir.y, edgeDir.x);
   highp float spr = (cellNoise(by + 11.0, bx + 5.0, 1.0) - 0.5) * 0.18;
   vec2 spawnOffset = edgeDir * (edgeDistTo + offMargin) + perp * spr;
-  spawnOffset.x += (cellNoise(bx + 3.0, by + 7.0, 1.0) - 0.5) * 2.0 * uHSpread;
+  vec2 jitter = vec2(cellNoise(bx + 3.0, by + 7.0, 1.0), cellNoise(bx + 31.0, by + 13.0, 1.0)) - 0.5;
+  spawnOffset += jitter * 2.0 * uScatter;
 
   highp float ease = cubicBezier(f, 0.25, 0.1, 0.25, 1.0);
   vec2 offset = (1.0 - ease) * spawnOffset;

@@ -9,7 +9,6 @@ export type AssemblyCompositeUniforms = {
   progress: number;
   spread: number;
   flight: number;
-  order: number;
 };
 
 export function createAssemblyCompositePass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -22,7 +21,6 @@ export function createAssemblyCompositePass(gl: WebGL2RenderingContext, quad: { 
     progress: u("uProgress"),
     spread: u("uSpread"),
     flight: u("uFlight"),
-    order: u("uOrder"),
   };
   return {
     render(target: RenderTarget, crispTex: WebGLTexture, blurredTex: WebGLTexture, p: AssemblyCompositeUniforms) {
@@ -38,7 +36,6 @@ export function createAssemblyCompositePass(gl: WebGL2RenderingContext, quad: { 
       gl.uniform1f(L.progress, p.progress);
       gl.uniform1f(L.spread, p.spread);
       gl.uniform1f(L.flight, p.flight);
-      gl.uniform1f(L.order, p.order);
       quad.draw();
       gl.activeTexture(gl.TEXTURE0);
     },

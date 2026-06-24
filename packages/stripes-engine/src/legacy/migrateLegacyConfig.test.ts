@@ -37,18 +37,14 @@ describe("migrateLegacyConfig", () => {
       enabled: true,
       type: "assembly",
       wave: { position: "left top", durationMs: 2000, softness: 0.5, waviness: 0.7 },
-      assembly: { order: "center", sliceSizePx: 40, speedMinMs: 400, speedMaxMs: 1800, staggerMs: 1000 },
-    });
-  });
-  it("defaults assembly.order to center when old shape has no order", () => {
-    const out = migrateLegacyConfig({
-      reveal: {
-        enabled: false,
-        type: "wave",
-        wave: { position: "center", durationMs: 1300, softness: 0.16, waviness: 0.35, noiseScale: 14.5 },
-        assembly: { speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
+      assembly: {
+        sliceSizePx: 40,
+        speedMinMs: 400,
+        speedMaxMs: 1800,
+        staggerMs: 1000,
+        scatterPx: 50,
+        angleJitterDeg: 22,
       },
     });
-    expect(out.reveal?.assembly?.order).toBe("center");
   });
 });

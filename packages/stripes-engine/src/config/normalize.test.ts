@@ -136,6 +136,16 @@ describe("reveal normalizer", () => {
     expect(normalizeReveal({ assembly: { sliceSizePx: 9999 } }).assembly.sliceSizePx).toBe(200);
     expect(normalizeReveal({ assembly: {} }).assembly.sliceSizePx).toBe(40);
   });
+  it("clamps assembly.scatterPx to 0..300, defaults to 50", () => {
+    expect(normalizeReveal({ assembly: { scatterPx: -10 } }).assembly.scatterPx).toBe(0);
+    expect(normalizeReveal({ assembly: { scatterPx: 9999 } }).assembly.scatterPx).toBe(300);
+    expect(normalizeReveal({ assembly: {} }).assembly.scatterPx).toBe(50);
+  });
+  it("clamps assembly.angleJitterDeg to 0..90, defaults to 22", () => {
+    expect(normalizeReveal({ assembly: { angleJitterDeg: -10 } }).assembly.angleJitterDeg).toBe(0);
+    expect(normalizeReveal({ assembly: { angleJitterDeg: 9999 } }).assembly.angleJitterDeg).toBe(90);
+    expect(normalizeReveal({ assembly: {} }).assembly.angleJitterDeg).toBe(22);
+  });
   it("unknown wave.position falls back to default", () => {
     expect(normalizeReveal({ wave: { position: "bogus" as any } }).wave.position).toBe(DEFAULT_REVEAL.wave.position);
   });

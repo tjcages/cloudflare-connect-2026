@@ -22,14 +22,6 @@ import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
 import { buildStripeLut, lutSignature } from "./field/stripeLut";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
-import type { AssemblyOrder } from "./config/types";
-
-const ASSEMBLY_ORDER_INDEX: Record<AssemblyOrder, number> = {
-  center: 0,
-  edges: 1,
-  sweep: 2,
-  random: 3,
-};
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
 export type StripesEngine = {
@@ -135,7 +127,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     const revealFieldPasses: Pass[] = [];
 
     const MAX_BLUR_PX = 5;
-    const ASSEMBLY_HSPREAD_PX = 50;
     if (assemblyTopology) {
       const scatterPass = createAssemblyScatterPass(gl);
       const blurPass = createBlurPass(gl, quad);
@@ -157,7 +148,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           const sliceSizePx = Math.max(1, assembly.sliceSizePx);
           const blockCols = Math.max(1, Math.ceil(cssW / sliceSizePx));
           const blockRows = Math.max(1, Math.ceil(cssH / sliceSizePx));
-          const order = ASSEMBLY_ORDER_INDEX[assembly.order];
           scatterPass.render(assembledRT, fieldRT.texture, {
             blockCols,
             blockRows,
@@ -165,8 +155,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             spread,
             flight: avgTotal,
             spawnDist: 1.6,
-            order,
-            hSpread: ASSEMBLY_HSPREAD_PX / Math.max(1, cssW),
+            scatter: [assembly.scatterPx / Math.max(1, cssW), assembly.scatterPx / Math.max(1, cssH)],
+            angleJitter: (assembly.angleJitterDeg * Math.PI) / 180,
           });
 
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
@@ -185,7 +175,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
               progress: rawProgress,
               spread,
               flight: avgTotal,
-              order,
             });
           }
         },

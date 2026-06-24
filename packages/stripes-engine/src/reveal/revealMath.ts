@@ -1,4 +1,4 @@
-import type { WavePosition, AssemblyOrder, RevealConfig } from "../config/types";
+import type { WavePosition, RevealConfig } from "../config/types";
 
 export const WAVE_POSITIONS: readonly WavePosition[] = [
   "center",
@@ -43,19 +43,11 @@ export function cellNoise(col: number, row: number, scale: number): number {
   return fract((p3x + p3y) * p3z);
 }
 
-export function assemblyOrderNorm(col: number, row: number, cols: number, rows: number, order: AssemblyOrder): number {
-  if (order === "sweep") {
-    return cols <= 1 ? 0 : col / (cols - 1);
-  }
-  if (order === "random") {
-    return cellNoise(col, row, 1);
-  }
+export function assemblyOrderNorm(col: number, row: number, cols: number, rows: number): number {
   const cx = cols <= 1 ? 0.5 : (col + 0.5) / cols;
   const cy = rows <= 1 ? 0.5 : (row + 0.5) / rows;
   const maxDist = Math.hypot(0.5, 0.5);
-  const center = Math.hypot(cx - 0.5, cy - 0.5) / maxDist;
-  if (order === "center") return center;
-  return 1 - center;
+  return Math.hypot(cx - 0.5, cy - 0.5) / maxDist;
 }
 
 export function resolveRevealDurationMs(r: RevealConfig): number {
@@ -109,7 +101,7 @@ export function assemblyRevealAt(
   const speedMin = Math.max(0, assembly.speedMinMs);
   const speedMax = Math.max(speedMin, assembly.speedMaxMs);
   const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
-  const o = assemblyOrderNorm(col, row, cols, rows, assembly.order);
+  const o = assemblyOrderNorm(col, row, cols, rows);
   const start = (assembly.staggerMs / dur) * o;
   const arrival = start + avgTotal;
   return smoothstep(arrival, arrival + Math.max(0, bandRamp), Math.max(0, progress));

@@ -25,6 +25,8 @@ export interface RevealConfig {
     speedMinMs: number;
     speedMaxMs: number;
     staggerMs: number;
+    scatterPx: number;
+    angleJitterDeg: number;
   };
 }
 

@@ -47,7 +47,7 @@ describe("setConfig topology gating", () => {
 
   it("same topology repeated does not trigger rebuild", () => {
     const a = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
-    const b = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly", assembly: { order: "sweep" } } });
+    const b = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly", assembly: { staggerMs: 1234 } } });
     expect(needsRebuild(a, b)).toBe(false);
   });
 

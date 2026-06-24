@@ -61,22 +61,9 @@ describe("cellNoise", () => {
 });
 
 describe("assemblyOrderNorm", () => {
-  it("sweep equals col/(cols-1)", () => {
-    expect(assemblyOrderNorm(0, 0, 5, 5, "sweep")).toBeCloseTo(0, 10);
-    expect(assemblyOrderNorm(4, 0, 5, 5, "sweep")).toBeCloseTo(1, 10);
-    expect(assemblyOrderNorm(2, 3, 5, 5, "sweep")).toBeCloseTo(0.5, 10);
-  });
-  it("center is 0 at the center cell and ~0.8 at (0,0) in a 5x5 grid", () => {
-    expect(assemblyOrderNorm(2, 2, 5, 5, "center")).toBeCloseTo(0, 5);
-    expect(assemblyOrderNorm(0, 0, 5, 5, "center")).toBeCloseTo(0.8, 5);
-  });
-  it("edges is complement of center", () => {
-    expect(assemblyOrderNorm(2, 2, 5, 5, "edges")).toBeCloseTo(1, 5);
-    expect(assemblyOrderNorm(0, 0, 5, 5, "edges")).toBeCloseTo(0.2, 5);
-  });
-  it("random returns cellNoise(col, row, 1)", () => {
-    expect(assemblyOrderNorm(1, 0, 5, 5, "random")).toBeCloseTo(cellNoise(1, 0, 1), 10);
-    expect(assemblyOrderNorm(0, 1, 5, 5, "random")).toBeCloseTo(cellNoise(0, 1, 1), 10);
+  it("is 0 at the center cell and ~0.8 at (0,0) in a 5x5 grid", () => {
+    expect(assemblyOrderNorm(2, 2, 5, 5)).toBeCloseTo(0, 5);
+    expect(assemblyOrderNorm(0, 0, 5, 5)).toBeCloseTo(0.8, 5);
   });
 });
 
@@ -152,7 +139,7 @@ describe("assemblyRevealAt", () => {
     expect(assemblyRevealAt(5, 5, 10, 10, 0, assembly, bandRamp)).toBeCloseTo(0, 5);
   });
 
-  it("cell (5,5) with center order is mid-ramp at progress=0.48 (o=0.1, arrival=0.416, bandRamp=0.132)", () => {
+  it("cell (5,5) is mid-ramp at progress=0.48 (o=0.1, arrival=0.416, bandRamp=0.132)", () => {
     const result = assemblyRevealAt(5, 5, 10, 10, 0.48, assembly, bandRamp);
     expect(result).toBeCloseTo(0.47727968389125347, 5);
   });
@@ -162,15 +149,9 @@ describe("assemblyRevealAt", () => {
     expect(assemblyRevealAt(9, 9, 10, 10, 1, assembly, bandRamp)).toBeCloseTo(1, 5);
   });
 
-  it("order-awareness: off-center cell (2,0) yields distinct values for center/sweep/edges at progress=0.55", () => {
-    const center = assemblyRevealAt(2, 0, 10, 10, 0.55, { ...assembly, order: "center" }, bandRamp);
-    const sweep = assemblyRevealAt(2, 0, 10, 10, 0.55, { ...assembly, order: "sweep" }, bandRamp);
-    const edges = assemblyRevealAt(2, 0, 10, 10, 0.55, { ...assembly, order: "edges" }, bandRamp);
-    expect(center).toBeCloseTo(0, 5);
-    expect(sweep).toBeCloseTo(0.7607062359128482, 5);
-    expect(edges).toBeCloseTo(0.5689400395796158, 5);
-    expect(center).not.toBeCloseTo(sweep, 3);
-    expect(center).not.toBeCloseTo(edges, 3);
-    expect(sweep).not.toBeCloseTo(edges, 3);
+  it("center-out: corner cell lags the center cell at the same progress", () => {
+    const center = assemblyRevealAt(5, 5, 10, 10, 0.48, assembly, bandRamp);
+    const corner = assemblyRevealAt(0, 0, 10, 10, 0.48, assembly, bandRamp);
+    expect(center).toBeGreaterThan(corner);
   });
 });
