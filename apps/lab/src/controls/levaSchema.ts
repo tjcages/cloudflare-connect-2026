@@ -237,6 +237,21 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
       }),
       Stripes: folder({
         stripeColorsTable: stripeColorsTablePlugin({ value: stripeKey }),
+        colorsMode: {
+          value: d.colors.mode,
+          options: { Luminance: "luminance", Colors: "colors" } as const,
+          label: "Color mode",
+        },
+        colorsAutoDetectBg: {
+          value: d.colors.autoDetectBackground,
+          label: "Auto-detect background",
+          render: (get) => get("Stripes.colorsMode") === "colors",
+        },
+        colorsBackgroundColor: {
+          value: intToHex(d.colors.backgroundColor),
+          label: "Background color",
+          render: (get) => get("Stripes.colorsMode") === "colors" && get("Stripes.colorsAutoDetectBg") === false,
+        },
       }),
       Sparkle: folder({
         sparkleGapsEnabled: { value: d.sparkle.gaps.enabled, label: "Gaps enabled" },
@@ -500,23 +515,6 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
           step: 0.01,
           label: "Stripe white alpha",
           render: (get) => get("Click Wave.clickWaveEnabled") === true,
-        },
-      }),
-      Colors: folder({
-        colorsMode: {
-          value: d.colors.mode,
-          options: { Luminance: "luminance", Colors: "colors" } as const,
-          label: "Mode",
-        },
-        colorsAutoDetectBg: {
-          value: d.colors.autoDetectBackground,
-          label: "Auto-detect background",
-          render: (get) => get("Colors.colorsMode") === "colors",
-        },
-        colorsBackgroundColor: {
-          value: intToHex(d.colors.backgroundColor),
-          label: "Background color",
-          render: (get) => get("Colors.colorsMode") === "colors" && get("Colors.colorsAutoDetectBg") === false,
         },
       }),
       "Background Flames": folder({
