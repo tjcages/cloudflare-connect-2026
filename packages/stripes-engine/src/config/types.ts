@@ -76,6 +76,25 @@ export interface SparkleConfig {
   width: { enabled: boolean; coverage: number; speed: number; swingPx: number };
 }
 
+export type FlamesDirection = "up" | "down" | "left" | "right";
+
+export interface FlamesConfig {
+  enabled: boolean;
+  direction: FlamesDirection;
+  minWidthRatio: number;
+  maxWidthRatio: number;
+  minHeightRatio: number;
+  maxHeightRatio: number;
+  baseSpeedPxPerSec: number;
+  speedVariation: number;
+  spawnIntervalMs: number;
+  spawnJitterMs: number;
+  maxActive: number;
+  edgeSharpness: number;
+  opacityMin: number;
+  opacityMax: number;
+}
+
 export interface EngineConfig {
   transform: Transform;
   adjustments: Adjustments;
@@ -86,4 +105,5 @@ export interface EngineConfig {
   fieldScale: number;
   reveal: RevealConfig;
   sparkle: SparkleConfig;
+  flames: FlamesConfig;
 }

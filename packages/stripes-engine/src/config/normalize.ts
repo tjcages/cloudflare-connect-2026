@@ -7,6 +7,8 @@ import type {
   EngineConfig,
   RevealConfig,
   SparkleConfig,
+  FlamesConfig,
+  FlamesDirection,
   WavePosition,
 } from "./types";
 
@@ -188,6 +190,55 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
   };
 }
 
+export const DEFAULT_FLAMES: FlamesConfig = {
+  enabled: false,
+  direction: "up",
+  minWidthRatio: 0.0223,
+  maxWidthRatio: 0.0453,
+  minHeightRatio: 0.0245,
+  maxHeightRatio: 0.08,
+  baseSpeedPxPerSec: 40,
+  speedVariation: 1,
+  spawnIntervalMs: 50,
+  spawnJitterMs: 80,
+  maxActive: 48,
+  edgeSharpness: 1,
+  opacityMin: 0.3,
+  opacityMax: 1,
+};
+
+type PartialFlames = Partial<FlamesConfig>;
+
+function normalizeFlamesDirection(value: unknown): FlamesDirection {
+  if (value === "down" || value === "left" || value === "right") return value;
+  return "up";
+}
+
+export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
+  const minWidthRatio = clamp(num(i.minWidthRatio, DEFAULT_FLAMES.minWidthRatio), 0.001, 0.5);
+  const maxWidthRatio = clamp(num(i.maxWidthRatio, DEFAULT_FLAMES.maxWidthRatio), minWidthRatio, 0.5);
+  const minHeightRatio = clamp(num(i.minHeightRatio, DEFAULT_FLAMES.minHeightRatio), 0.001, 0.5);
+  const maxHeightRatio = clamp(num(i.maxHeightRatio, DEFAULT_FLAMES.maxHeightRatio), minHeightRatio, 0.5);
+  const opacityMin = clamp(num(i.opacityMin, DEFAULT_FLAMES.opacityMin), 0, 1);
+  const opacityMax = clamp(num(i.opacityMax, DEFAULT_FLAMES.opacityMax), opacityMin, 1);
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_FLAMES.enabled,
+    direction: normalizeFlamesDirection(i.direction ?? DEFAULT_FLAMES.direction),
+    minWidthRatio,
+    maxWidthRatio,
+    minHeightRatio,
+    maxHeightRatio,
+    baseSpeedPxPerSec: clamp(num(i.baseSpeedPxPerSec, DEFAULT_FLAMES.baseSpeedPxPerSec), 1, 500),
+    speedVariation: clamp(num(i.speedVariation, DEFAULT_FLAMES.speedVariation), 0, 1),
+    spawnIntervalMs: clamp(Math.round(num(i.spawnIntervalMs, DEFAULT_FLAMES.spawnIntervalMs)), 20, 5000),
+    spawnJitterMs: clamp(Math.round(num(i.spawnJitterMs, DEFAULT_FLAMES.spawnJitterMs)), 0, 2000),
+    maxActive: clamp(Math.round(num(i.maxActive, DEFAULT_FLAMES.maxActive)), 1, 200),
+    edgeSharpness: clamp(num(i.edgeSharpness, DEFAULT_FLAMES.edgeSharpness), 0, 1),
+    opacityMin,
+    opacityMax,
+  };
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
@@ -198,6 +249,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   fieldScale: 1,
   reveal: { ...DEFAULT_REVEAL, wave: { ...DEFAULT_REVEAL.wave }, assembly: { ...DEFAULT_REVEAL.assembly } },
   sparkle: { gaps: { ...DEFAULT_SPARKLE.gaps }, width: { ...DEFAULT_SPARKLE.width } },
+  flames: { ...DEFAULT_FLAMES },
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -211,5 +263,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     fieldScale: clamp(num(i.fieldScale, 1), 0.25, 2),
     reveal: normalizeReveal(i.reveal as PartialReveal | undefined),
     sparkle: normalizeSparkle(i.sparkle as PartialSparkle | undefined),
+    flames: normalizeFlames(i.flames as PartialFlames | undefined),
   };
 }

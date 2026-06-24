@@ -14,6 +14,8 @@ import {
   DEFAULT_ENGINE_CONFIG,
   normalizeReveal,
   DEFAULT_REVEAL,
+  normalizeFlames,
+  DEFAULT_FLAMES,
 } from "./normalize";
 import { serializeEngineConfig, parseEngineConfig } from "./serialize";
 
@@ -159,5 +161,53 @@ describe("reveal normalizer", () => {
     const serialized = serializeEngineConfig(config);
     const parsed = parseEngineConfig(serialized);
     expect(parsed.reveal).toEqual(config.reveal);
+  });
+});
+describe("flames normalizer", () => {
+  it("defaults to DEFAULT_FLAMES when called with {}", () => {
+    expect(normalizeFlames({})).toEqual(DEFAULT_FLAMES);
+    expect(DEFAULT_FLAMES.enabled).toBe(false);
+    expect(DEFAULT_FLAMES.direction).toBe("up");
+    expect(DEFAULT_FLAMES.minWidthRatio).toBe(0.0223);
+    expect(DEFAULT_FLAMES.maxWidthRatio).toBe(0.0453);
+    expect(DEFAULT_FLAMES.minHeightRatio).toBe(0.0245);
+    expect(DEFAULT_FLAMES.maxHeightRatio).toBe(0.08);
+    expect(DEFAULT_FLAMES.baseSpeedPxPerSec).toBe(40);
+    expect(DEFAULT_FLAMES.speedVariation).toBe(1);
+    expect(DEFAULT_FLAMES.spawnIntervalMs).toBe(50);
+    expect(DEFAULT_FLAMES.spawnJitterMs).toBe(80);
+    expect(DEFAULT_FLAMES.maxActive).toBe(48);
+    expect(DEFAULT_FLAMES.edgeSharpness).toBe(1);
+    expect(DEFAULT_FLAMES.opacityMin).toBe(0.3);
+    expect(DEFAULT_FLAMES.opacityMax).toBe(1);
+  });
+  it("normalizeEngineConfig({}) includes DEFAULT_FLAMES", () => {
+    expect(normalizeEngineConfig({}).flames).toEqual(DEFAULT_FLAMES);
+  });
+  it("clamps minWidthRatio to 0.001..0.5", () => {
+    expect(normalizeFlames({ minWidthRatio: 0 }).minWidthRatio).toBe(0.001);
+    expect(normalizeFlames({ minWidthRatio: 0.6 }).minWidthRatio).toBe(0.5);
+    expect(normalizeFlames({ minWidthRatio: 0.1 }).minWidthRatio).toBe(0.1);
+  });
+  it("enforces maxWidthRatio >= minWidthRatio", () => {
+    expect(normalizeFlames({ minWidthRatio: 0.3, maxWidthRatio: 0.1 }).maxWidthRatio).toBe(0.3);
+  });
+  it("clamps baseSpeedPxPerSec to 1..500", () => {
+    expect(normalizeFlames({ baseSpeedPxPerSec: 0 }).baseSpeedPxPerSec).toBe(1);
+    expect(normalizeFlames({ baseSpeedPxPerSec: 999 }).baseSpeedPxPerSec).toBe(500);
+  });
+  it("clamps maxActive to integer 1..200", () => {
+    expect(normalizeFlames({ maxActive: 0 }).maxActive).toBe(1);
+    expect(normalizeFlames({ maxActive: 999 }).maxActive).toBe(200);
+    expect(normalizeFlames({ maxActive: 5.7 }).maxActive).toBe(6);
+  });
+  it("enforces opacityMax >= opacityMin", () => {
+    expect(normalizeFlames({ opacityMin: 0.8, opacityMax: 0.2 }).opacityMax).toBe(0.8);
+  });
+  it("bogus direction falls back to 'up'", () => {
+    expect(normalizeFlames({ direction: "diagonal" as any }).direction).toBe("up");
+    expect(normalizeFlames({ direction: "down" }).direction).toBe("down");
+    expect(normalizeFlames({ direction: "left" }).direction).toBe("left");
+    expect(normalizeFlames({ direction: "right" }).direction).toBe("right");
   });
 });
