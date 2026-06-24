@@ -19,6 +19,11 @@ uniform float uShuffleCoverage;
 uniform float uShufflePeriodMin;
 uniform float uShufflePeriodMax;
 uniform float uShuffleSwingPx;
+uniform float uLettersEnabled;
+uniform sampler2D uGlyphData;
+uniform sampler2D uAtlas;
+uniform vec2 uAtlasGrid;
+uniform float uLetterSizeScale;
 out vec4 finalColor;
 
 float sdRoundBox(vec2 p, vec2 b, float r) {
@@ -131,5 +136,20 @@ void main() {
   float d = sdRoundBox(p, halfExt, r);
   float alpha = clamp(0.5 - d / w, 0.0, 1.0);
   finalColor = vec4(mix(uBg, barColor, alpha), 1.0);
+
+  if (uLettersEnabled > 0.5) {
+    float data = texture(uGlyphData, (cell + 0.5) / uGridCount).r * 255.0;
+    if (data >= 0.5) {
+      float gi = floor(data + 0.5) - 1.0;
+      vec2 gpos = (local - 0.5) / max(uLetterSizeScale, 0.001) + 0.5;
+      if (all(greaterThanEqual(gpos, vec2(0.0))) && all(lessThanEqual(gpos, vec2(1.0)))) {
+        float gcol = mod(gi, uAtlasGrid.x);
+        float grow = floor(gi / uAtlasGrid.x);
+        vec2 atlasUv = (vec2(gcol, grow) + vec2(gpos.x, 1.0 - gpos.y)) / uAtlasGrid;
+        float cov = texture(uAtlas, atlasUv).r;
+        finalColor.rgb = mix(finalColor.rgb, vec3(1.0), cov);
+      }
+    }
+  }
 }
 `;

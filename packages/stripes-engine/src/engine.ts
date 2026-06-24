@@ -10,6 +10,9 @@ import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createBlurPass } from "./passes/blurPass";
 import { createAssemblyCompositePass } from "./passes/assemblyCompositePass";
 import { createStripePass } from "./passes/stripePass";
+import { createLetterDataPass } from "./passes/letterDataPass";
+import { buildLetterAtlas, createLetterAtlasTexture } from "./letters/letterAtlas";
+import { LETTER_CHARSET_LEN } from "./letters/charset";
 import { createFlamesPass } from "./passes/flamesPass";
 import { createEdgeMaskPass } from "./passes/edgeMaskPass";
 import { createCursorSplatPass } from "./passes/cursorSplatPass";
@@ -88,6 +91,10 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let stripeLutTex: WebGLTexture | null = null;
   let lutSig = "";
 
+  let letterAtlasTex: WebGLTexture | null = null;
+  let letterAtlasGrid: [number, number] = [1, 1];
+  let lettersDummyTex: WebGLTexture | null = null;
+
   let rafId = 0;
   let lastFrameStart = clock.now();
   let lost = false;
@@ -98,6 +105,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
   let lastClickWaveEnabled = config.clickWave.enabled;
+  let lastLettersEnabled = config.letters.enabled;
   let revealStartMs = 0;
 
   const flamesSeed = (opts.seed ?? 1) >>> 0;
@@ -121,6 +129,17 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         stripeLutTex = createDataTexture(gl, bytes, 256, 1);
       }
       lutSig = sig;
+    }
+  }
+
+  function ensureLetterAtlas() {
+    if (!letterAtlasTex) {
+      const atlas = buildLetterAtlas();
+      letterAtlasTex = createLetterAtlasTexture(gl, atlas);
+      letterAtlasGrid = [atlas.gridCols, atlas.gridRows];
+    }
+    if (!lettersDummyTex) {
+      lettersDummyTex = createDataTexture(gl, new Uint8Array(4), 1, 1);
     }
   }
 
@@ -380,6 +399,31 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     if (config.stripesEnabled) {
       const downsamplePass = createDownsamplePass(gl, quad);
       const stripePass = createStripePass(gl, quad);
+      const lettersEnabled = config.letters.enabled;
+      const letterDataPass = lettersEnabled ? createLetterDataPass(gl, quad) : null;
+      const letterDataPasses: Pass[] = letterDataPass
+        ? [
+            {
+              name: "letterData",
+              render: () => {
+                const { cols, rows } = cellGrid;
+                const cellRT = pool.get("cell", cols, rows);
+                const glyphDataRT = pool.get("glyphData", cols, rows);
+                const topBandThreshold = Math.max(...config.stripes.map((s) => s.startFrom));
+                letterDataPass.render(glyphDataRT, cellRT.texture, {
+                  cols,
+                  rows,
+                  topBandThreshold,
+                  coverage: config.letters.coverage,
+                  timeSec: clock.now() / 1000,
+                  charsetLen: LETTER_CHARSET_LEN,
+                  shuffleSpeed: config.letters.shuffleSpeed,
+                });
+              },
+              dispose: () => letterDataPass.dispose(),
+            },
+          ]
+        : [];
       passes = [
         fieldPass,
         ...flamesFieldPasses,
@@ -396,6 +440,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           },
           dispose: () => downsamplePass.dispose(),
         },
+        ...letterDataPasses,
         {
           name: "stripe",
           render: () => {
@@ -430,6 +475,11 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
                 shufflePeriodMin,
                 shufflePeriodMax,
                 shuffleSwingPx: config.sparkle.width.swingPx,
+                lettersEnabled,
+                glyphDataTex: lettersEnabled ? pool.get("glyphData", cols, rows).texture : lettersDummyTex!,
+                atlasTex: letterAtlasTex!,
+                atlasGrid: letterAtlasGrid,
+                letterSizeScale: config.letters.sizeScale,
               },
               output.width,
               output.height,
@@ -494,11 +544,15 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     // LUT texture is on the old context; reset so ensureLut() recreates it.
     stripeLutTex = null;
     lutSig = "";
+    // Letter atlas + dummy textures are on the old context; reset so ensureLetterAtlas() recreates them.
+    letterAtlasTex = null;
+    lettersDummyTex = null;
     flamesState = createFlamesState(mulberry32(flamesSeed));
     cursorTrailState = createCursorTrailState();
     clickWaveState = createClickWaveState();
     lastCursorMs = clock.now();
     ensureLut();
+    ensureLetterAtlas();
     buildPasses();
     applySizes();
   }
@@ -515,6 +569,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   canvas.addEventListener("webglcontextrestored", onRestored as EventListener, false);
 
   ensureLut();
+  ensureLetterAtlas();
   buildPasses();
   applySizes();
 
@@ -563,7 +618,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         config.flames.enabled !== lastFlamesEnabled ||
         config.edgeMask.enabled !== lastEdgeMaskEnabled ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
-        config.clickWave.enabled !== lastClickWaveEnabled
+        config.clickWave.enabled !== lastClickWaveEnabled ||
+        config.letters.enabled !== lastLettersEnabled
       ) {
         if (config.flames.enabled && !lastFlamesEnabled) {
           flamesState = createFlamesState(mulberry32(flamesSeed));
@@ -584,6 +640,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         lastEdgeMaskEnabled = config.edgeMask.enabled;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
         lastClickWaveEnabled = config.clickWave.enabled;
+        lastLettersEnabled = config.letters.enabled;
       }
     },
     setCursor(x, y) {
@@ -632,6 +689,14 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       if (stripeLutTex) {
         gl.deleteTexture(stripeLutTex);
         stripeLutTex = null;
+      }
+      if (letterAtlasTex) {
+        gl.deleteTexture(letterAtlasTex);
+        letterAtlasTex = null;
+      }
+      if (lettersDummyTex) {
+        gl.deleteTexture(lettersDummyTex);
+        lettersDummyTex = null;
       }
     },
   };

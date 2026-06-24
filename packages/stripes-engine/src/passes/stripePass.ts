@@ -21,6 +21,11 @@ export type StripeUniforms = {
   shufflePeriodMin: number;
   shufflePeriodMax: number;
   shuffleSwingPx: number;
+  lettersEnabled: boolean;
+  glyphDataTex: WebGLTexture;
+  atlasTex: WebGLTexture;
+  atlasGrid: [number, number];
+  letterSizeScale: number;
 };
 
 export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -45,6 +50,11 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     shufflePeriodMin: u("uShufflePeriodMin"),
     shufflePeriodMax: u("uShufflePeriodMax"),
     shuffleSwingPx: u("uShuffleSwingPx"),
+    lettersEnabled: u("uLettersEnabled"),
+    glyphData: u("uGlyphData"),
+    atlas: u("uAtlas"),
+    atlasGrid: u("uAtlasGrid"),
+    letterSizeScale: u("uLetterSizeScale"),
   };
   return {
     render(cellTex: WebGLTexture, lutTex: WebGLTexture, p: StripeUniforms, outWidth: number, outHeight: number) {
@@ -78,6 +88,15 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.shufflePeriodMin, p.shufflePeriodMin);
       gl.uniform1f(L.shufflePeriodMax, p.shufflePeriodMax);
       gl.uniform1f(L.shuffleSwingPx, p.shuffleSwingPx);
+      gl.uniform1f(L.lettersEnabled, p.lettersEnabled ? 1 : 0);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, p.glyphDataTex);
+      gl.uniform1i(L.glyphData, 2);
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, p.atlasTex);
+      gl.uniform1i(L.atlas, 3);
+      gl.uniform2f(L.atlasGrid, p.atlasGrid[0], p.atlasGrid[1]);
+      gl.uniform1f(L.letterSizeScale, p.letterSizeScale);
       quad.draw();
     },
     dispose() {
