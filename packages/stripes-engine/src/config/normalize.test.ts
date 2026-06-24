@@ -24,6 +24,8 @@ import {
   DEFAULT_CLICK_WAVE,
   normalizeLetters,
   DEFAULT_LETTERS,
+  normalizeColors,
+  DEFAULT_COLORS,
 } from "./normalize";
 import { serializeEngineConfig, parseEngineConfig } from "./serialize";
 
@@ -459,5 +461,41 @@ describe("letters normalizer", () => {
     expect(normalizeLetters({ shuffleSpeed: 0 }).shuffleSpeed).toBe(0.05);
     expect(normalizeLetters({ shuffleSpeed: 20 }).shuffleSpeed).toBe(10);
     expect(normalizeLetters({ shuffleSpeed: 3 }).shuffleSpeed).toBe(3);
+  });
+});
+describe("colors normalizer", () => {
+  it("defaults to DEFAULT_COLORS when called with {}", () => {
+    expect(normalizeColors({})).toEqual(DEFAULT_COLORS);
+    expect(DEFAULT_COLORS.mode).toBe("luminance");
+    expect(DEFAULT_COLORS.autoDetectBackground).toBe(true);
+    expect(DEFAULT_COLORS.backgroundColor).toBe(0x000000);
+  });
+  it("normalizeEngineConfig({}) includes DEFAULT_COLORS", () => {
+    expect(normalizeEngineConfig({}).colors).toEqual(DEFAULT_COLORS);
+  });
+  it("omitted mode → luminance", () => {
+    expect(normalizeColors({}).mode).toBe("luminance");
+    expect(normalizeColors(undefined).mode).toBe("luminance");
+  });
+  it("bogus mode → luminance", () => {
+    expect(normalizeColors({ mode: "bogus" as any }).mode).toBe("luminance");
+    expect(normalizeColors({ mode: "COLORS" as any }).mode).toBe("luminance");
+  });
+  it("mode 'colors' preserved", () => {
+    expect(normalizeColors({ mode: "colors" }).mode).toBe("colors");
+  });
+  it("autoDetectBackground defaults true, boolean-coerced when provided", () => {
+    expect(normalizeColors({}).autoDetectBackground).toBe(true);
+    expect(normalizeColors({ autoDetectBackground: false }).autoDetectBackground).toBe(false);
+    expect(normalizeColors({ autoDetectBackground: true }).autoDetectBackground).toBe(true);
+    expect(normalizeColors({ autoDetectBackground: 0 as any }).autoDetectBackground).toBe(false);
+    expect(normalizeColors({ autoDetectBackground: 1 as any }).autoDetectBackground).toBe(true);
+  });
+  it("backgroundColor coerced to 24-bit integer", () => {
+    expect(normalizeColors({ backgroundColor: 0xff8833 }).backgroundColor).toBe(0xff8833);
+    expect(normalizeColors({}).backgroundColor).toBe(0x000000);
+    expect(normalizeColors({ backgroundColor: -1 }).backgroundColor).toBe(0x000000);
+    expect(normalizeColors({ backgroundColor: 0x1ffffff }).backgroundColor).toBe(0xffffff);
+    expect(normalizeColors({ backgroundColor: 0.7 }).backgroundColor).toBe(1);
   });
 });

@@ -146,6 +146,12 @@ export interface LettersConfig {
   shuffleSpeed: number;
 }
 
+export interface ColorsConfig {
+  mode: "luminance" | "colors";
+  autoDetectBackground: boolean;
+  backgroundColor: number;
+}
+
 export interface EngineConfig {
   transform: Transform;
   adjustments: Adjustments;
@@ -161,4 +167,5 @@ export interface EngineConfig {
   cursorTrail: CursorTrailConfig;
   clickWave: ClickWaveConfig;
   letters: LettersConfig;
+  colors: ColorsConfig;
 }

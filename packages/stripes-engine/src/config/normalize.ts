@@ -14,6 +14,7 @@ import type {
   CursorTrailConfig,
   ClickWaveConfig,
   LettersConfig,
+  ColorsConfig,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -373,6 +374,22 @@ export function normalizeLetters(i: PartialLetters = {}): LettersConfig {
   };
 }
 
+export const DEFAULT_COLORS: ColorsConfig = {
+  mode: "luminance",
+  autoDetectBackground: true,
+  backgroundColor: 0x000000,
+};
+
+type PartialColors = Partial<ColorsConfig>;
+
+export function normalizeColors(i: PartialColors = {}): ColorsConfig {
+  return {
+    mode: i.mode === "colors" ? "colors" : "luminance",
+    autoDetectBackground: i.autoDetectBackground !== undefined ? !!i.autoDetectBackground : true,
+    backgroundColor: Math.round(clamp(num(i.backgroundColor, 0), 0, 0xffffff)),
+  };
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
@@ -388,6 +405,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   cursorTrail: { ...DEFAULT_CURSOR_TRAIL },
   clickWave: { ...DEFAULT_CLICK_WAVE },
   letters: { ...DEFAULT_LETTERS },
+  colors: { ...DEFAULT_COLORS },
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -406,5 +424,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     cursorTrail: normalizeCursorTrail(i.cursorTrail),
     clickWave: normalizeClickWave(i.clickWave),
     letters: normalizeLetters(i.letters),
+    colors: normalizeColors(i.colors),
   };
 }
