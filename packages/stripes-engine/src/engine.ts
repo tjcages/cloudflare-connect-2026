@@ -12,6 +12,15 @@ import { createAssemblyCompositePass } from "./passes/assemblyCompositePass";
 import { createStripePass } from "./passes/stripePass";
 import { createFlamesPass } from "./passes/flamesPass";
 import { createEdgeMaskPass } from "./passes/edgeMaskPass";
+import { createCursorSplatPass } from "./passes/cursorSplatPass";
+import { createCursorTearPass } from "./passes/cursorTearPass";
+import { createCursorWarpPass } from "./passes/cursorWarpPass";
+import {
+  createCursorTrailState,
+  setCursorTrailTarget,
+  updateCursorTrail,
+  type CursorTrailState,
+} from "./cursorTrail/cursorTrailSim";
 import {
   createFlamesState,
   stepFlames,
@@ -42,6 +51,7 @@ export type StripesEngine = {
   setFieldScale(s: number): void;
   setSource(media: EngineSource | null): void;
   setConfig(partial: Partial<EngineConfig>): void;
+  setCursor(x: number | null, y?: number): void;
   triggerReveal(): void;
   readOutputPixels(): Uint8Array;
   getPerf(): PerfSnapshot;
@@ -79,10 +89,14 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lastAssemblyTopo = config.reveal.enabled && config.reveal.type === "assembly";
   let lastFlamesEnabled = config.flames.enabled;
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
+  let lastCursorTrailEnabled = config.cursorTrail.enabled;
   let revealStartMs = 0;
 
   const flamesSeed = (opts.seed ?? 1) >>> 0;
   let flamesState: FlamesState = createFlamesState(mulberry32(flamesSeed));
+
+  let cursorTrailState: CursorTrailState = createCursorTrailState();
+  let lastCursorMs = clock.now();
 
   function getDpr() {
     return opts.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
@@ -273,6 +287,52 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       activeFieldRT = "maskedField";
     }
 
+    const cursorFieldPasses: Pass[] = [];
+    if (config.cursorTrail.enabled) {
+      const splatPass = createCursorSplatPass(gl);
+      const tearPass = createCursorTearPass(gl, quad);
+      const warpPass = createCursorWarpPass(gl, quad);
+      const srcRT = activeFieldRT;
+      cursorFieldPasses.push({
+        name: "cursorField",
+        render: () => {
+          const dt = clock.now() - lastCursorMs;
+          lastCursorMs = clock.now();
+          const { samples } = updateCursorTrail(cursorTrailState, dt, config.cursorTrail);
+          const { cols, rows } = cellGrid;
+          const pushScale = (config.cursorTrail.pushStrengthPx * cols) / Math.max(1, cssW);
+          const accumRT = pool.get("cursorAccum", cols, rows, { float: true });
+          splatPass.render(accumRT, samples, {
+            cols,
+            rows,
+            displayWidth: cssW,
+            displayHeight: cssH,
+            pushRadiusScale: config.cursorTrail.pushRadiusScale,
+            pushScale,
+          });
+          const tearRT = pool.get("cursorTear", cols, rows);
+          tearPass.render(tearRT, accumRT.texture, { cols, rows });
+
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const warpedRT = pool.get("cursorField", fieldSize.width, fieldSize.height, { linear: true });
+          warpPass.render(warpedRT, srcTex, accumRT.texture, tearRT.texture, {
+            cols,
+            rows,
+            cellW: cssW / Math.max(1, cols),
+            cellH: cssH / Math.max(1, rows),
+            pixelW: cssW,
+            pixelH: cssH,
+          });
+        },
+        dispose: () => {
+          splatPass.dispose();
+          tearPass.dispose();
+          warpPass.dispose();
+        },
+      });
+      activeFieldRT = "cursorField";
+    }
+
     if (config.stripesEnabled) {
       const downsamplePass = createDownsamplePass(gl, quad);
       const stripePass = createStripePass(gl, quad);
@@ -281,6 +341,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         ...flamesFieldPasses,
         ...revealFieldPasses,
         ...edgeMaskFieldPasses,
+        ...cursorFieldPasses,
         {
           name: "downsample",
           render: () => {
@@ -340,6 +401,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         ...flamesFieldPasses,
         ...revealFieldPasses,
         ...edgeMaskFieldPasses,
+        ...cursorFieldPasses,
         {
           name: "present",
           render: () =>
@@ -389,6 +451,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     stripeLutTex = null;
     lutSig = "";
     flamesState = createFlamesState(mulberry32(flamesSeed));
+    cursorTrailState = createCursorTrailState();
+    lastCursorMs = clock.now();
     ensureLut();
     buildPasses();
     applySizes();
@@ -452,10 +516,15 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         config.reveal.enabled !== lastRevealEnabled ||
         assemblyTopo !== lastAssemblyTopo ||
         config.flames.enabled !== lastFlamesEnabled ||
-        config.edgeMask.enabled !== lastEdgeMaskEnabled
+        config.edgeMask.enabled !== lastEdgeMaskEnabled ||
+        config.cursorTrail.enabled !== lastCursorTrailEnabled
       ) {
         if (config.flames.enabled && !lastFlamesEnabled) {
           flamesState = createFlamesState(mulberry32(flamesSeed));
+        }
+        if (config.cursorTrail.enabled && !lastCursorTrailEnabled) {
+          cursorTrailState = createCursorTrailState();
+          lastCursorMs = clock.now();
         }
         buildPasses();
         lastStripesEnabled = config.stripesEnabled;
@@ -463,6 +532,14 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         lastAssemblyTopo = assemblyTopo;
         lastFlamesEnabled = config.flames.enabled;
         lastEdgeMaskEnabled = config.edgeMask.enabled;
+        lastCursorTrailEnabled = config.cursorTrail.enabled;
+      }
+    },
+    setCursor(x, y) {
+      if (x === null) {
+        setCursorTrailTarget(cursorTrailState, null);
+      } else {
+        setCursorTrailTarget(cursorTrailState, { x, y: y ?? 0 });
       }
     },
     triggerReveal() {

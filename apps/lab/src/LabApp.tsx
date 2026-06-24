@@ -261,6 +261,7 @@ function LabInner() {
         engine.setConfig(c);
         if (manual) engine.renderFrame();
       },
+      cursorTo: (x: number | null, y?: number) => engine.setCursor(x, y),
       triggerReveal: () => engine.triggerReveal(),
     };
 

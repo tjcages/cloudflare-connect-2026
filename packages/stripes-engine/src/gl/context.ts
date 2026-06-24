@@ -23,6 +23,7 @@ export type EngineContext = { gl: WebGL2RenderingContext; isP3: boolean; maxText
 export function createEngineContext(canvas: HTMLCanvasElement): EngineContext {
   const gl = canvas.getContext("webgl2", GL_ATTRIBUTES);
   if (!gl) throw new Error("WebGL2 is required but not available");
+  gl.getExtension("EXT_color_buffer_float");
   let isP3 = false;
   if (supportsDisplayP3()) {
     const ext = gl as GlColorSpaceCtx;
