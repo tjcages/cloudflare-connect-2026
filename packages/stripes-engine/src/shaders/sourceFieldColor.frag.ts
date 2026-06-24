@@ -6,6 +6,7 @@ uniform vec4 uSrcRect;        // u0,v0,u1,v1
 uniform vec2 uTexel;          // 1/sourceW, 1/sourceH
 uniform vec3 uBg;             // out-of-rect fill rgb 0..1
 uniform vec3 uColorBg;        // distance reference background rgb 0..1
+uniform float uMaxColorDist;  // largest in-texture distance from uColorBg (0..sqrt(3))
 uniform float uBlur, uSharpen;
 uniform float uBlack, uWhite, uGamma, uExposure, uContrast, uBrightThresh;
 uniform float uInvert, uPosterize, uNoise;
@@ -46,7 +47,7 @@ void main() {
   if (uPosterize >= 2.0) col = floor(col * uPosterize) / max(1.0, uPosterize - 1.0);
   if (uNoise > 0.0) col += vec3((hash(vUv * 4096.0) - 0.5) * uNoise);
   col = clamp(col, 0.0, 1.0);
-  float presence = min(1.0, length(col - uColorBg) / sqrt(3.0));
+  float presence = min(1.0, length(col - uColorBg) / max(uMaxColorDist, 1e-4));
   oField = vec4(vec3(presence), 1.0);
   oColor = vec4(col, presence);
 }

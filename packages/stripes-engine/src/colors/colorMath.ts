@@ -24,3 +24,20 @@ export function colorDistanceLuminance(r: number, g: number, b: number, backgrou
   const db = b - bb;
   return Math.min(1, Math.sqrt(dr * dr + dg * dg + db * db) / (255 * Math.sqrt(3)));
 }
+
+export function maxColorDistance(pixels: Uint8ClampedArray | Uint8Array, backgroundColor: number): number {
+  const bg = backgroundColor & 0xffffff;
+  const br = (bg >> 16) & 0xff;
+  const bgc = (bg >> 8) & 0xff;
+  const bb = bg & 0xff;
+  let maxSq = 0;
+  for (let i = 0; i + 3 < pixels.length; i += 4) {
+    if (pixels[i + 3] < 8) continue;
+    const dr = pixels[i] - br;
+    const dg = pixels[i + 1] - bgc;
+    const db = pixels[i + 2] - bb;
+    const sq = dr * dr + dg * dg + db * db;
+    if (sq > maxSq) maxSq = sq;
+  }
+  return Math.sqrt(maxSq) / 255;
+}

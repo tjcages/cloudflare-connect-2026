@@ -10,6 +10,7 @@ export type SourceFieldColorUniforms = {
   adjustments: Adjustments;
   background: number;
   colorBackground: number;
+  maxColorDist: number;
   sourceTexelW: number;
   sourceTexelH: number;
 };
@@ -23,6 +24,7 @@ export function createSourceFieldColorPass(gl: WebGL2RenderingContext, quad: { d
     texel: u("uTexel"),
     bg: u("uBg"),
     colorBg: u("uColorBg"),
+    maxColorDist: u("uMaxColorDist"),
     blur: u("uBlur"),
     sharpen: u("uSharpen"),
     black: u("uBlack"),
@@ -63,6 +65,7 @@ export function createSourceFieldColorPass(gl: WebGL2RenderingContext, quad: { d
         ((p.colorBackground >> 8) & 255) / 255,
         (p.colorBackground & 255) / 255,
       );
+      gl.uniform1f(L.maxColorDist, p.maxColorDist);
       gl.uniform1f(L.blur, a.blurRadius);
       gl.uniform1f(L.sharpen, a.sharpenAmount);
       gl.uniform1f(L.black, a.blackPoint);

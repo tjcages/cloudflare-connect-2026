@@ -50,6 +50,7 @@ import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
 import { bindRenderTarget, createMrtTarget, type MrtTarget } from "./gl/renderTarget";
 import { detectBackgroundColor } from "./colors/backgroundDetect";
 import { extractVibrantColors, createSyntheticVibrantPalette, type VibrantColor } from "./colors/vibrantPalette";
+import { maxColorDistance } from "./colors/colorMath";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
 
 const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
@@ -116,6 +117,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let detectedBgColor = config.colors.backgroundColor;
   let colorsMrt: MrtTarget | null = null;
   let flamesPalette: VibrantColor[] = createSyntheticVibrantPalette();
+  let sourcePixels: Uint8ClampedArray | null = null;
+  let maxColorDist = Math.sqrt(3);
+  let lastColorBgKey = config.colors.autoDetectBackground ? detectedBgColor : config.colors.backgroundColor;
 
   const flamesSeed = (opts.seed ?? 1) >>> 0;
   let flamesState: FlamesState = createFlamesState(mulberry32(flamesSeed));
@@ -138,72 +142,67 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     );
   }
 
+  function readSourcePixels(
+    media: EngineSource,
+    maxSide: number,
+  ): { data: Uint8ClampedArray; w: number; h: number } | null {
+    if (!isDrawable(media)) return null;
+    let mw = 1;
+    let mh = 1;
+    if (typeof HTMLVideoElement !== "undefined" && media instanceof HTMLVideoElement) {
+      mw = media.videoWidth || 1;
+      mh = media.videoHeight || 1;
+    } else if (typeof HTMLImageElement !== "undefined" && media instanceof HTMLImageElement) {
+      mw = media.naturalWidth || media.width || 1;
+      mh = media.naturalHeight || media.height || 1;
+    } else {
+      mw = (media as ImageBitmap | HTMLCanvasElement).width || 1;
+      mh = (media as ImageBitmap | HTMLCanvasElement).height || 1;
+    }
+    const scale = Math.min(1, maxSide / Math.max(mw, mh));
+    const w = Math.max(1, Math.round(mw * scale));
+    const h = Math.max(1, Math.round(mh * scale));
+    const temp = document.createElement("canvas");
+    temp.width = w;
+    temp.height = h;
+    const ctx = temp.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(media as CanvasImageSource, 0, 0, w, h);
+    return { data: ctx.getImageData(0, 0, w, h).data, w, h };
+  }
+
   function detectSourceBackground(media: EngineSource): number {
     try {
-      if (!isDrawable(media)) return config.colors.backgroundColor;
-      let mw = 1;
-      let mh = 1;
-      if (typeof HTMLVideoElement !== "undefined" && media instanceof HTMLVideoElement) {
-        mw = media.videoWidth || 1;
-        mh = media.videoHeight || 1;
-      } else if (typeof HTMLImageElement !== "undefined" && media instanceof HTMLImageElement) {
-        mw = media.naturalWidth || media.width || 1;
-        mh = media.naturalHeight || media.height || 1;
-      } else {
-        mw = (media as ImageBitmap | HTMLCanvasElement).width || 1;
-        mh = (media as ImageBitmap | HTMLCanvasElement).height || 1;
-      }
-      const maxSide = 64;
-      const scale = Math.min(1, maxSide / Math.max(mw, mh));
-      const w = Math.max(1, Math.round(mw * scale));
-      const h = Math.max(1, Math.round(mh * scale));
-      const temp = document.createElement("canvas");
-      temp.width = w;
-      temp.height = h;
-      const ctx = temp.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return config.colors.backgroundColor;
-      ctx.drawImage(media as CanvasImageSource, 0, 0, w, h);
-      const data = ctx.getImageData(0, 0, w, h).data;
-      return detectBackgroundColor(data, w, h);
+      const px = readSourcePixels(media, 64);
+      if (!px) return config.colors.backgroundColor;
+      return detectBackgroundColor(px.data, px.w, px.h);
     } catch {
       return config.colors.backgroundColor;
     }
   }
 
-  function extractSourcePalette(media: EngineSource): VibrantColor[] {
+  function applySourceColorData(media: EngineSource | null): void {
+    let px: { data: Uint8ClampedArray; w: number; h: number } | null = null;
     try {
-      if (!isDrawable(media)) return createSyntheticVibrantPalette();
-      let mw = 1;
-      let mh = 1;
-      if (typeof HTMLVideoElement !== "undefined" && media instanceof HTMLVideoElement) {
-        mw = media.videoWidth || 1;
-        mh = media.videoHeight || 1;
-      } else if (typeof HTMLImageElement !== "undefined" && media instanceof HTMLImageElement) {
-        mw = media.naturalWidth || media.width || 1;
-        mh = media.naturalHeight || media.height || 1;
-      } else {
-        mw = (media as ImageBitmap | HTMLCanvasElement).width || 1;
-        mh = (media as ImageBitmap | HTMLCanvasElement).height || 1;
-      }
-      const maxSide = 96;
-      const scale = Math.min(1, maxSide / Math.max(mw, mh));
-      const w = Math.max(1, Math.round(mw * scale));
-      const h = Math.max(1, Math.round(mh * scale));
-      const temp = document.createElement("canvas");
-      temp.width = w;
-      temp.height = h;
-      const ctx = temp.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return createSyntheticVibrantPalette();
-      ctx.drawImage(media as CanvasImageSource, 0, 0, w, h);
-      const data = ctx.getImageData(0, 0, w, h).data;
-      return extractVibrantColors(data, w, h);
+      px = media ? readSourcePixels(media, 96) : null;
     } catch {
-      return createSyntheticVibrantPalette();
+      px = null;
     }
+    sourcePixels = px?.data ?? null;
+    flamesPalette = px ? extractVibrantColors(px.data, px.w, px.h) : createSyntheticVibrantPalette();
   }
 
   function colorBackground(): number {
     return config.colors.autoDetectBackground ? detectedBgColor : config.colors.backgroundColor;
+  }
+
+  function recomputeMaxColorDist(): void {
+    if (!sourcePixels) {
+      maxColorDist = Math.sqrt(3);
+      return;
+    }
+    const d = maxColorDistance(sourcePixels, colorBackground());
+    maxColorDist = d > 1e-4 ? d : Math.sqrt(3);
   }
 
   function ensureLut() {
@@ -264,6 +263,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
               adjustments: config.adjustments,
               background: config.background.color,
               colorBackground: colorBackground(),
+              maxColorDist,
               sourceTexelW: 1 / source.width,
               sourceTexelH: 1 / source.height,
             });
@@ -769,13 +769,20 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       source?.dispose();
       source = media ? createSourceTexture(gl, media) : null;
       detectedBgColor = media ? detectSourceBackground(media) : config.colors.backgroundColor;
-      flamesPalette = media ? extractSourcePalette(media) : createSyntheticVibrantPalette();
+      applySourceColorData(media);
+      recomputeMaxColorDist();
+      lastColorBgKey = colorBackground();
       if (config.colors.mode === "colors") buildPasses();
     },
     setConfig(partial) {
       config = normalizeEngineConfig({ ...config, ...partial });
       ensureLut();
       applySizes();
+      const colorBgKey = colorBackground();
+      if (colorBgKey !== lastColorBgKey) {
+        recomputeMaxColorDist();
+        lastColorBgKey = colorBgKey;
+      }
       const assemblyTopo = config.reveal.enabled && config.reveal.type === "assembly";
       if (
         config.stripesEnabled !== lastStripesEnabled ||
