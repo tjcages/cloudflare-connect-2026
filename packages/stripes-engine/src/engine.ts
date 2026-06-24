@@ -11,6 +11,7 @@ import { createBlurPass } from "./passes/blurPass";
 import { createAssemblyCompositePass } from "./passes/assemblyCompositePass";
 import { createStripePass } from "./passes/stripePass";
 import { createFlamesPass } from "./passes/flamesPass";
+import { createEdgeMaskPass } from "./passes/edgeMaskPass";
 import {
   createFlamesState,
   stepFlames,
@@ -77,6 +78,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lastRevealEnabled = config.reveal.enabled;
   let lastAssemblyTopo = config.reveal.enabled && config.reveal.type === "assembly";
   let lastFlamesEnabled = config.flames.enabled;
+  let lastEdgeMaskEnabled = config.edgeMask.enabled;
   let revealStartMs = 0;
 
   const flamesSeed = (opts.seed ?? 1) >>> 0;
@@ -157,7 +159,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
 
     const revealEnabled = config.reveal.enabled;
     const assemblyTopology = revealEnabled && config.reveal.type === "assembly";
-    const activeFieldRT = revealEnabled ? "revealedField" : "field";
+    let activeFieldRT = revealEnabled ? "revealedField" : "field";
     const revealFieldPasses: Pass[] = [];
 
     const MAX_BLUR_PX = 5;
@@ -251,6 +253,26 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       });
     }
 
+    const edgeMaskFieldPasses: Pass[] = [];
+    if (config.edgeMask.enabled) {
+      const edgeMaskPass = createEdgeMaskPass(gl, quad);
+      const srcRT = activeFieldRT;
+      edgeMaskFieldPasses.push({
+        name: "edgeMaskField",
+        render: () => {
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const maskedRT = pool.get("maskedField", fieldSize.width, fieldSize.height, { linear: true });
+          edgeMaskPass.render(maskedRT, srcTex, {
+            start: config.edgeMask.start,
+            end: config.edgeMask.end,
+            power: config.edgeMask.power,
+          });
+        },
+        dispose: () => edgeMaskPass.dispose(),
+      });
+      activeFieldRT = "maskedField";
+    }
+
     if (config.stripesEnabled) {
       const downsamplePass = createDownsamplePass(gl, quad);
       const stripePass = createStripePass(gl, quad);
@@ -258,6 +280,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         fieldPass,
         ...flamesFieldPasses,
         ...revealFieldPasses,
+        ...edgeMaskFieldPasses,
         {
           name: "downsample",
           render: () => {
@@ -316,6 +339,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         fieldPass,
         ...flamesFieldPasses,
         ...revealFieldPasses,
+        ...edgeMaskFieldPasses,
         {
           name: "present",
           render: () =>
@@ -427,7 +451,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         config.stripesEnabled !== lastStripesEnabled ||
         config.reveal.enabled !== lastRevealEnabled ||
         assemblyTopo !== lastAssemblyTopo ||
-        config.flames.enabled !== lastFlamesEnabled
+        config.flames.enabled !== lastFlamesEnabled ||
+        config.edgeMask.enabled !== lastEdgeMaskEnabled
       ) {
         if (config.flames.enabled && !lastFlamesEnabled) {
           flamesState = createFlamesState(mulberry32(flamesSeed));
@@ -437,6 +462,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         lastRevealEnabled = config.reveal.enabled;
         lastAssemblyTopo = assemblyTopo;
         lastFlamesEnabled = config.flames.enabled;
+        lastEdgeMaskEnabled = config.edgeMask.enabled;
       }
     },
     triggerReveal() {
