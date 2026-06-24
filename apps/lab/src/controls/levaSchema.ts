@@ -237,7 +237,10 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
         Replay: button(() => onReplay()),
       }),
       Stripes: folder({
-        stripeColorsTable: stripeColorsTablePlugin({ value: stripeKey }),
+        stripeColorsTable: stripeColorsTablePlugin({
+          value: stripeKey,
+          render: (get) => get("Stripes.colorsMode") !== "colors",
+        }),
         colorsMode: {
           value: d.colors.mode,
           options: { Luminance: "luminance", Colors: "colors" } as const,

@@ -36,6 +36,7 @@ type StripeColorsTableSettings = Record<string, never>;
 
 type StripeColorsTableInput = {
   value: string;
+  render?: (get: (path: string) => unknown) => boolean;
 };
 
 type StripeColorsTablePluginProps = LevaInputProps<string, StripeColorsTableSettings>;
