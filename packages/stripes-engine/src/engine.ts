@@ -544,7 +544,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     // LUT texture is on the old context; reset so ensureLut() recreates it.
     stripeLutTex = null;
     lutSig = "";
-    // Letter atlas + dummy textures are on the old context; reset so ensureLetterAtlas() recreates them.
     letterAtlasTex = null;
     lettersDummyTex = null;
     flamesState = createFlamesState(mulberry32(flamesSeed));
