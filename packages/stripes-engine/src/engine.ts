@@ -316,7 +316,6 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     const flamesFieldPasses: Pass[] = [];
     if (config.flames.enabled) {
       const flamesPass = createFlamesPass(gl);
-      const flamesMrt = colorsMrt;
       flamesFieldPasses.push({
         name: "flamesField",
         render: () => {
@@ -330,9 +329,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             outer,
           };
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
-          if (colorsMode && flamesMrt) {
+          if (colorsMode) {
             const fieldColorRT = pool.get("fieldColor", fieldSize.width, fieldSize.height, { linear: true });
-            flamesPass.renderColors(flamesMrt, fieldRT, fieldColorRT, flamesState.flames, flamesPalette, opts);
+            flamesPass.renderColors(fieldRT, fieldColorRT, flamesState.flames, flamesPalette, opts);
           } else {
             flamesPass.render(fieldRT, flamesState.flames, opts);
           }

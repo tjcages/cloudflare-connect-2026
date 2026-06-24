@@ -1,7 +1,7 @@
 import { compileProgram } from "../gl/program";
-import { bindRenderTarget, bindMrtTarget, type RenderTarget, type MrtTarget } from "../gl/renderTarget";
+import { bindRenderTarget, type RenderTarget } from "../gl/renderTarget";
 import { FLAMES_VERT, FLAMES_COLOR_VERT } from "../shaders/flames.vert";
-import { FLAMES_FRAG, FLAMES_COLOR_FRAG } from "../shaders/flames.frag";
+import { FLAMES_FRAG, FLAMES_COLOR_OVER_FRAG } from "../shaders/flames.frag";
 import type { Flame } from "../flames/flamesSim";
 import type { VibrantColor } from "../colors/vibrantPalette";
 
@@ -9,7 +9,7 @@ type FlamesOpts = { canvasW: number; canvasH: number; vertical: boolean; inner: 
 
 export function createFlamesPass(gl: WebGL2RenderingContext) {
   const lumProgram = compileProgram(gl, FLAMES_VERT, FLAMES_FRAG);
-  const colorProgram = compileProgram(gl, FLAMES_COLOR_VERT, FLAMES_COLOR_FRAG);
+  const colorProgram = compileProgram(gl, FLAMES_COLOR_VERT, FLAMES_COLOR_OVER_FRAG);
 
   const lumVao = gl.createVertexArray();
   const colorVao = gl.createVertexArray();
@@ -99,7 +99,6 @@ export function createFlamesPass(gl: WebGL2RenderingContext) {
       gl.bindVertexArray(null);
     },
     renderColors(
-      mrt: MrtTarget,
       field: RenderTarget,
       fieldColor: RenderTarget,
       flames: Flame[],
@@ -108,6 +107,33 @@ export function createFlamesPass(gl: WebGL2RenderingContext) {
     ) {
       if (flames.length === 0) return;
       const paletteLen = Math.max(1, palette.length);
+
+      const lumNeeded = flames.length * 5;
+      if (lumData.length < lumNeeded) lumData = new Float32Array(lumNeeded);
+      for (let i = 0; i < flames.length; i++) {
+        const f = flames[i];
+        const base = i * 5;
+        lumData[base] = f.x;
+        lumData[base + 1] = f.y;
+        lumData[base + 2] = f.width;
+        lumData[base + 3] = f.height;
+        lumData[base + 4] = f.opacity;
+      }
+
+      bindRenderTarget(gl, field);
+      gl.useProgram(lumProgram);
+      gl.uniform2f(lumUCanvas, opts.canvasW, opts.canvasH);
+      gl.uniform1f(lumUVertical, opts.vertical ? 1.0 : 0.0);
+      gl.uniform1f(lumUInner, opts.inner);
+      gl.uniform1f(lumUOuter, opts.outer);
+      gl.bindVertexArray(lumVao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, lumBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, lumData.subarray(0, lumNeeded), gl.DYNAMIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE);
+      gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, flames.length);
+      gl.bindVertexArray(null);
 
       const needed = flames.length * 8;
       if (colorData.length < needed) colorData = new Float32Array(needed);
@@ -125,21 +151,20 @@ export function createFlamesPass(gl: WebGL2RenderingContext) {
         colorData[base + 7] = pick.b / 255;
       }
 
-      bindMrtTarget(gl, mrt, [field, fieldColor]);
+      bindRenderTarget(gl, fieldColor);
       gl.useProgram(colorProgram);
       gl.uniform2f(colorUCanvas, opts.canvasW, opts.canvasH);
       gl.uniform1f(colorUVertical, opts.vertical ? 1.0 : 0.0);
       gl.uniform1f(colorUInner, opts.inner);
       gl.uniform1f(colorUOuter, opts.outer);
-
       gl.bindVertexArray(colorVao);
       gl.bindBuffer(gl.ARRAY_BUFFER, colorBuf);
       gl.bufferData(gl.ARRAY_BUFFER, colorData.subarray(0, needed), gl.DYNAMIC_DRAW);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
       gl.enable(gl.BLEND);
-      gl.blendFunc(gl.ONE, gl.ONE);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, flames.length);
+      gl.blendFunc(gl.ONE, gl.ONE);
       gl.disable(gl.BLEND);
       gl.bindVertexArray(null);
     },
