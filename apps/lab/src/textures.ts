@@ -11,7 +11,12 @@ export interface LabTexturePreset {
 }
 
 export const LAB_TEXTURES: LabTexturePreset[] = [
-  { id: "cloudflare-footer", label: "Footer / Cloudflare", url: "/textures/cloudflare-footer.svg", kind: "image" },
+  {
+    id: "cloudflare-footer",
+    label: "Footer / Cloudflare",
+    url: `${import.meta.env.BASE_URL}textures/cloudflare-footer.svg`,
+    kind: "image",
+  },
   { id: "test-gradient", label: "Test / Gradient", url: null, kind: "image" },
 ];
 

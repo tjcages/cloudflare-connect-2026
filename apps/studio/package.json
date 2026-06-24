@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc -b",
-    "build": "pnpm run typecheck && vite build",
-    "build:client": "vite build",
+    "build": "pnpm run typecheck && vite build && pnpm run build:playground",
+    "build:client": "vite build && pnpm run build:playground",
+    "build:playground": "pnpm --filter lab build:playground",
     "preview:worker": "pnpm run build && wrangler dev",
     "deploy": "pnpm run build && wrangler deploy",
     "test": "vitest run",
