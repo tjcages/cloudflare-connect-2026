@@ -50,7 +50,8 @@ import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
 import { bindRenderTarget, createMrtTarget, type MrtTarget } from "./gl/renderTarget";
 import { detectBackgroundColor } from "./colors/backgroundDetect";
 import { extractVibrantColors, createSyntheticVibrantPalette, type VibrantColor } from "./colors/vibrantPalette";
-import { maxColorDistance } from "./colors/colorMath";
+import { createColorDistPass } from "./passes/colorDistPass";
+import { createMaxReducePass } from "./passes/maxReducePass";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
 
 const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
@@ -117,9 +118,10 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let detectedBgColor = config.colors.backgroundColor;
   let colorsMrt: MrtTarget | null = null;
   let flamesPalette: VibrantColor[] = createSyntheticVibrantPalette();
-  let sourcePixels: Uint8ClampedArray | null = null;
   let maxColorDist = Math.sqrt(3);
-  let lastColorBgKey = config.colors.autoDetectBackground ? detectedBgColor : config.colors.backgroundColor;
+  let colorDistPass: ReturnType<typeof createColorDistPass> | null = null;
+  let maxReducePass: ReturnType<typeof createMaxReducePass> | null = null;
+  let lastColorInputSig = "";
 
   const flamesSeed = (opts.seed ?? 1) >>> 0;
   let flamesState: FlamesState = createFlamesState(mulberry32(flamesSeed));
@@ -181,14 +183,13 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     }
   }
 
-  function applySourceColorData(media: EngineSource | null): void {
+  function applySourcePalette(media: EngineSource | null): void {
     let px: { data: Uint8ClampedArray; w: number; h: number } | null = null;
     try {
       px = media ? readSourcePixels(media, 96) : null;
     } catch {
       px = null;
     }
-    sourcePixels = px?.data ?? null;
     flamesPalette = px ? extractVibrantColors(px.data, px.w, px.h) : createSyntheticVibrantPalette();
   }
 
@@ -196,12 +197,81 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     return config.colors.autoDetectBackground ? detectedBgColor : config.colors.backgroundColor;
   }
 
-  function recomputeMaxColorDist(): void {
-    if (!sourcePixels) {
+  function colorInputSig(): string {
+    const a = config.adjustments;
+    const t = config.transform;
+    return [
+      config.colors.mode,
+      colorBackground(),
+      config.background.color,
+      a.blackPoint,
+      a.whitePoint,
+      a.gamma,
+      a.exposure,
+      a.contrast,
+      a.brightness,
+      a.thresholdBias,
+      a.invert ? 1 : 0,
+      a.posterizeLevels,
+      a.noiseAmount,
+      a.blurRadius,
+      a.sharpenAmount,
+      t.fit,
+      t.zoom,
+      t.panX,
+      t.panY,
+      fieldSize.width,
+      fieldSize.height,
+    ].join("|");
+  }
+
+  function computeMaxColorDist(): void {
+    lastColorInputSig = colorInputSig();
+    if (!source || config.colors.mode !== "colors" || !colorDistPass || !maxReducePass) {
       maxColorDist = Math.sqrt(3);
       return;
     }
-    const d = maxColorDistance(sourcePixels, colorBackground());
+    source.update();
+    const srcRect = resolveSourceRect(
+      source.width,
+      source.height,
+      output.width,
+      output.height,
+      config.transform.fit,
+      config.transform.zoom,
+      config.transform.panX,
+      config.transform.panY,
+    );
+    const distRT = pool.get("colorDistFull", fieldSize.width, fieldSize.height);
+    colorDistPass.render(distRT, source.texture, {
+      srcRect,
+      adjustments: config.adjustments,
+      background: config.background.color,
+      colorBackground: colorBackground(),
+      sourceTexelW: 1 / source.width,
+      sourceTexelH: 1 / source.height,
+    });
+    let w = fieldSize.width;
+    let h = fieldSize.height;
+    let srcTex = distRT.texture;
+    let lastRT = distRT;
+    let level = 0;
+    while (w > 1 || h > 1) {
+      const nw = Math.max(1, Math.ceil(w / 4));
+      const nh = Math.max(1, Math.ceil(h / 4));
+      const dst = pool.get(`colorMaxReduce${level}`, nw, nh);
+      maxReducePass.render(dst, srcTex, w, h);
+      srcTex = dst.texture;
+      lastRT = dst;
+      w = nw;
+      h = nh;
+      level++;
+    }
+    const px = new Uint8Array(4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, lastRT.fbo);
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const d = (px[0] / 255) * Math.sqrt(3);
     maxColorDist = d > 1e-4 ? d : Math.sqrt(3);
   }
 
@@ -721,6 +791,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     letterAtlasTex = null;
     lettersDummyTex = null;
     colorsMrt = null;
+    colorDistPass = createColorDistPass(gl, quad);
+    maxReducePass = createMaxReducePass(gl, quad);
     flamesState = createFlamesState(mulberry32(flamesSeed));
     cursorTrailState = createCursorTrailState();
     clickWaveState = createClickWaveState();
@@ -742,6 +814,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   canvas.addEventListener("webglcontextlost", onLost as EventListener, false);
   canvas.addEventListener("webglcontextrestored", onRestored as EventListener, false);
 
+  colorDistPass = createColorDistPass(gl, quad);
+  maxReducePass = createMaxReducePass(gl, quad);
   ensureLut();
   ensureLetterAtlas();
   buildPasses();
@@ -772,6 +846,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       cssW = w;
       cssH = h;
       applySizes();
+      if (config.colors.mode === "colors" && colorInputSig() !== lastColorInputSig) computeMaxColorDist();
     },
     setFieldScale(s) {
       this.setConfig({ fieldScale: s });
@@ -780,20 +855,15 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       source?.dispose();
       source = media ? createSourceTexture(gl, media) : null;
       detectedBgColor = media ? detectSourceBackground(media) : config.colors.backgroundColor;
-      applySourceColorData(media);
-      recomputeMaxColorDist();
-      lastColorBgKey = colorBackground();
+      applySourcePalette(media);
+      computeMaxColorDist();
       if (config.colors.mode === "colors") buildPasses();
     },
     setConfig(partial) {
       config = normalizeEngineConfig({ ...config, ...partial });
       ensureLut();
       applySizes();
-      const colorBgKey = colorBackground();
-      if (colorBgKey !== lastColorBgKey) {
-        recomputeMaxColorDist();
-        lastColorBgKey = colorBgKey;
-      }
+      if (config.colors.mode === "colors" && colorInputSig() !== lastColorInputSig) computeMaxColorDist();
       const assemblyTopo = config.reveal.enabled && config.reveal.type === "assembly";
       if (
         config.stripesEnabled !== lastStripesEnabled ||
@@ -873,6 +943,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         colorsMrt.dispose();
         colorsMrt = null;
       }
+      colorDistPass?.dispose();
+      maxReducePass?.dispose();
       pool.dispose();
       quad.dispose();
       source?.dispose();
