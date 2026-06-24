@@ -31,6 +31,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
   const cCellSize = gl.getUniformLocation(colorProgram, "uCellSize");
   const cGridSize = gl.getUniformLocation(colorProgram, "uGridSize");
   const cPushCap = gl.getUniformLocation(colorProgram, "uPushCap");
+  const cTrailColor = gl.getUniformLocation(colorProgram, "uTrailColor");
 
   function bind(
     prog: WebGLProgram,
@@ -48,6 +49,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
     accumTex: WebGLTexture,
     tearTex: WebGLTexture,
     p: CursorWarpParams,
+    trailColor?: [number, number, number],
   ) {
     bindRenderTarget(gl, target);
     gl.useProgram(prog);
@@ -64,6 +66,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
     gl.uniform2f(locs.cellSize, p.cellW, p.cellH);
     gl.uniform2f(locs.gridSize, p.cols, p.rows);
     gl.uniform1f(locs.pushCap, p.pushCap);
+    if (trailColor) gl.uniform3f(cTrailColor, trailColor[0], trailColor[1], trailColor[2]);
     quad.draw();
     gl.activeTexture(gl.TEXTURE0);
   }
@@ -100,6 +103,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
       accumTex: WebGLTexture,
       tearTex: WebGLTexture,
       p: CursorWarpParams,
+      trailColor: [number, number, number],
     ) {
       bind(
         colorProgram,
@@ -117,6 +121,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
         accumTex,
         tearTex,
         p,
+        trailColor,
       );
     },
     dispose() {

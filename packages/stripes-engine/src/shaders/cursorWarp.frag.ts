@@ -46,6 +46,7 @@ uniform vec2 uPixelSize;
 uniform vec2 uCellSize;
 uniform vec2 uGridSize;
 uniform float uPushCap;
+uniform vec3 uTrailColor;
 out vec4 finalColor;
 
 vec2 capPush(vec2 p, float cap) {
@@ -60,7 +61,7 @@ void main() {
   vec2 cuv = vec2((colIndex + 0.5) / max(uGridSize.x, 1.0), (rowIndex + 0.5) / max(uGridSize.y, 1.0));
 
   vec4 accum = texture(uAccum, cuv);
-  float brighten = accum.r;
+  float brighten = clamp(accum.r, 0.0, 1.0);
   vec2 pushCells = capPush(accum.gb, uPushCap);
   float tear = texture(uTear, cuv).r;
 
@@ -69,6 +70,7 @@ void main() {
   vec4 c = texture(uFieldColor, vUv - offsetUv);
   float cov = c.a * (1.0 - tear);
   cov += (1.0 - cov) * brighten;
-  finalColor = vec4(c.rgb, clamp(cov, 0.0, 1.0));
+  vec3 rgb = mix(c.rgb, uTrailColor, brighten);
+  finalColor = vec4(rgb, clamp(cov, 0.0, 1.0));
 }
 `;

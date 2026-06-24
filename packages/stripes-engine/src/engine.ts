@@ -533,7 +533,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           if (colorsMode) {
             const srcColorTex = pool.get(srcColorRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
             const warpedColorRT = pool.get("cursorFieldColor", fieldSize.width, fieldSize.height, { linear: true });
-            warpPass.renderColor(warpedColorRT, srcColorTex, accumRT.texture, tearRT.texture, warpParams);
+            const tc = flamesPalette[0];
+            const trailColor: [number, number, number] = tc ? [tc.r / 255, tc.g / 255, tc.b / 255] : [1, 0.5, 0.2];
+            warpPass.renderColor(warpedColorRT, srcColorTex, accumRT.texture, tearRT.texture, warpParams, trailColor);
           }
         },
         dispose: () => {
