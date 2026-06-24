@@ -57,3 +57,33 @@ export function bindRenderTarget(gl: WebGL2RenderingContext, rt: RenderTarget | 
   gl.bindFramebuffer(gl.FRAMEBUFFER, rt ? rt.fbo : null);
   if (rt) gl.viewport(0, 0, rt.width, rt.height);
 }
+
+export type MrtTarget = {
+  fbo: WebGLFramebuffer;
+  dispose(): void;
+};
+
+export function createMrtTarget(gl: WebGL2RenderingContext): MrtTarget {
+  const fbo = gl.createFramebuffer();
+  if (!fbo) throw new Error("Failed to create MRT framebuffer");
+  return {
+    fbo,
+    dispose() {
+      gl.deleteFramebuffer(fbo);
+    },
+  };
+}
+
+export function bindMrtTarget(gl: WebGL2RenderingContext, mrt: MrtTarget, attachments: RenderTarget[]): void {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, mrt.fbo);
+  const buffers: number[] = [];
+  for (let i = 0; i < attachments.length; i++) {
+    const point = gl.COLOR_ATTACHMENT0 + i;
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, point, gl.TEXTURE_2D, attachments[i].texture, 0);
+    buffers.push(point);
+  }
+  gl.drawBuffers(buffers);
+  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  if (status !== gl.FRAMEBUFFER_COMPLETE) throw new Error(`MRT framebuffer incomplete: 0x${status.toString(16)}`);
+  gl.viewport(0, 0, attachments[0].width, attachments[0].height);
+}

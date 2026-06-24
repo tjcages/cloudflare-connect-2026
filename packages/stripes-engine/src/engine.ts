@@ -3,8 +3,10 @@ import { createEngineContext } from "./gl/context";
 import { createFullscreenQuad } from "./gl/program";
 import { resolveOutputSize, resolveFieldSize, type Size } from "./gl/resolution";
 import { createSourceFieldPass } from "./passes/sourceFieldPass";
+import { createSourceFieldColorPass } from "./passes/sourceFieldColorPass";
 import { createPresentPass } from "./passes/presentPass";
 import { createDownsamplePass } from "./passes/downsamplePass";
+import { createDownsampleColorPass } from "./passes/downsampleColorPass";
 import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createBlurPass } from "./passes/blurPass";
@@ -45,7 +47,8 @@ import { resolveSourceRect } from "./source/fit";
 import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
 import { buildStripeLut, lutSignature } from "./field/stripeLut";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
-import { bindRenderTarget } from "./gl/renderTarget";
+import { bindRenderTarget, createMrtTarget, type MrtTarget } from "./gl/renderTarget";
+import { detectBackgroundColor } from "./colors/backgroundDetect";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
 
 const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
@@ -106,7 +109,11 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
   let lastClickWaveEnabled = config.clickWave.enabled;
   let lastLettersEnabled = config.letters.enabled;
+  let lastColorsMode = config.colors.mode;
   let revealStartMs = 0;
+
+  let detectedBgColor = config.colors.backgroundColor;
+  let colorsMrt: MrtTarget | null = null;
 
   const flamesSeed = (opts.seed ?? 1) >>> 0;
   let flamesState: FlamesState = createFlamesState(mulberry32(flamesSeed));
@@ -117,6 +124,52 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
 
   function getDpr() {
     return opts.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
+  }
+
+  function isDrawable(media: EngineSource): boolean {
+    return (
+      (typeof HTMLImageElement !== "undefined" && media instanceof HTMLImageElement) ||
+      (typeof ImageBitmap !== "undefined" && media instanceof ImageBitmap) ||
+      (typeof HTMLCanvasElement !== "undefined" && media instanceof HTMLCanvasElement) ||
+      (typeof OffscreenCanvas !== "undefined" && media instanceof OffscreenCanvas) ||
+      (typeof HTMLVideoElement !== "undefined" && media instanceof HTMLVideoElement)
+    );
+  }
+
+  function detectSourceBackground(media: EngineSource): number {
+    try {
+      if (!isDrawable(media)) return config.colors.backgroundColor;
+      let mw = 1;
+      let mh = 1;
+      if (typeof HTMLVideoElement !== "undefined" && media instanceof HTMLVideoElement) {
+        mw = media.videoWidth || 1;
+        mh = media.videoHeight || 1;
+      } else if (typeof HTMLImageElement !== "undefined" && media instanceof HTMLImageElement) {
+        mw = media.naturalWidth || media.width || 1;
+        mh = media.naturalHeight || media.height || 1;
+      } else {
+        mw = (media as ImageBitmap | HTMLCanvasElement).width || 1;
+        mh = (media as ImageBitmap | HTMLCanvasElement).height || 1;
+      }
+      const maxSide = 64;
+      const scale = Math.min(1, maxSide / Math.max(mw, mh));
+      const w = Math.max(1, Math.round(mw * scale));
+      const h = Math.max(1, Math.round(mh * scale));
+      const temp = document.createElement("canvas");
+      temp.width = w;
+      temp.height = h;
+      const ctx = temp.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return config.colors.backgroundColor;
+      ctx.drawImage(media as CanvasImageSource, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h).data;
+      return detectBackgroundColor(data, w, h);
+    } catch {
+      return config.colors.backgroundColor;
+    }
+  }
+
+  function colorBackground(): number {
+    return config.colors.autoDetectBackground ? detectedBgColor : config.colors.backgroundColor;
   }
 
   function ensureLut() {
@@ -145,38 +198,86 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
 
   function buildPasses() {
     for (const p of passes) p.dispose();
-    const sourceFieldPass = createSourceFieldPass(gl, quad);
-    const fieldPass: Pass = {
-      name: "field",
-      render: () => {
-        const fieldTarget = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
-        if (source) {
-          source.update();
-          const srcRect = resolveSourceRect(
-            source.width,
-            source.height,
-            output.width,
-            output.height,
-            config.transform.fit,
-            config.transform.zoom,
-            config.transform.panX,
-            config.transform.panY,
-          );
-          sourceFieldPass.render(fieldTarget, source.texture, {
-            srcRect,
-            adjustments: config.adjustments,
-            background: config.background.color,
-            sourceTexelW: 1 / source.width,
-            sourceTexelH: 1 / source.height,
-          });
-        } else {
-          gl.bindFramebuffer(gl.FRAMEBUFFER, fieldTarget.fbo);
-          gl.clearColor(0, 0, 0, 1);
-          gl.clear(gl.COLOR_BUFFER_BIT);
-        }
-      },
-      dispose: () => sourceFieldPass.dispose(),
-    };
+    if (colorsMrt) {
+      colorsMrt.dispose();
+      colorsMrt = null;
+    }
+    const colorsMode = config.colors.mode === "colors";
+    let fieldPass: Pass;
+    if (colorsMode) {
+      const sourceFieldColorPass = createSourceFieldColorPass(gl, quad);
+      const mrt = createMrtTarget(gl);
+      colorsMrt = mrt;
+      fieldPass = {
+        name: "field",
+        render: () => {
+          const fieldTarget = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const fieldColorTarget = pool.get("fieldColor", fieldSize.width, fieldSize.height, { linear: true });
+          if (source) {
+            source.update();
+            const srcRect = resolveSourceRect(
+              source.width,
+              source.height,
+              output.width,
+              output.height,
+              config.transform.fit,
+              config.transform.zoom,
+              config.transform.panX,
+              config.transform.panY,
+            );
+            sourceFieldColorPass.render(mrt, fieldTarget, fieldColorTarget, source.texture, {
+              srcRect,
+              adjustments: config.adjustments,
+              background: config.background.color,
+              colorBackground: colorBackground(),
+              sourceTexelW: 1 / source.width,
+              sourceTexelH: 1 / source.height,
+            });
+          } else {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fieldTarget.fbo);
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fieldColorTarget.fbo);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+          }
+        },
+        dispose: () => sourceFieldColorPass.dispose(),
+      };
+    } else {
+      const sourceFieldPass = createSourceFieldPass(gl, quad);
+      fieldPass = {
+        name: "field",
+        render: () => {
+          const fieldTarget = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          if (source) {
+            source.update();
+            const srcRect = resolveSourceRect(
+              source.width,
+              source.height,
+              output.width,
+              output.height,
+              config.transform.fit,
+              config.transform.zoom,
+              config.transform.panX,
+              config.transform.panY,
+            );
+            sourceFieldPass.render(fieldTarget, source.texture, {
+              srcRect,
+              adjustments: config.adjustments,
+              background: config.background.color,
+              sourceTexelW: 1 / source.width,
+              sourceTexelH: 1 / source.height,
+            });
+          } else {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fieldTarget.fbo);
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+          }
+        },
+        dispose: () => sourceFieldPass.dispose(),
+      };
+    }
 
     const flamesFieldPasses: Pass[] = [];
     if (config.flames.enabled) {
@@ -396,8 +497,24 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       activeFieldRT = "cursorField";
     }
 
+    const colorsModeActive = config.colors.mode === "colors";
     if (config.stripesEnabled) {
       const downsamplePass = createDownsamplePass(gl, quad);
+      const downsampleColorPass = colorsModeActive ? createDownsampleColorPass(gl, quad) : null;
+      const colorDownsamplePasses: Pass[] = downsampleColorPass
+        ? [
+            {
+              name: "downsampleColor",
+              render: () => {
+                const { cols, rows } = cellGrid;
+                const fieldColorRT = pool.get("fieldColor", fieldSize.width, fieldSize.height, { linear: true });
+                const cellColorRT = pool.get("cellColor", cols, rows);
+                downsampleColorPass.render(cellColorRT, fieldColorRT.texture, cols, rows);
+              },
+              dispose: () => downsampleColorPass.dispose(),
+            },
+          ]
+        : [];
       const stripePass = createStripePass(gl, quad);
       const lettersEnabled = config.letters.enabled;
       const letterDataPass = lettersEnabled ? createLetterDataPass(gl, quad) : null;
@@ -440,6 +557,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
           },
           dispose: () => downsamplePass.dispose(),
         },
+        ...colorDownsamplePasses,
         ...letterDataPasses,
         {
           name: "stripe",
@@ -546,6 +664,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     lutSig = "";
     letterAtlasTex = null;
     lettersDummyTex = null;
+    colorsMrt = null;
     flamesState = createFlamesState(mulberry32(flamesSeed));
     cursorTrailState = createCursorTrailState();
     clickWaveState = createClickWaveState();
@@ -604,6 +723,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     setSource(media) {
       source?.dispose();
       source = media ? createSourceTexture(gl, media) : null;
+      detectedBgColor = media ? detectSourceBackground(media) : config.colors.backgroundColor;
+      if (config.colors.mode === "colors") buildPasses();
     },
     setConfig(partial) {
       config = normalizeEngineConfig({ ...config, ...partial });
@@ -618,7 +739,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         config.edgeMask.enabled !== lastEdgeMaskEnabled ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
         config.clickWave.enabled !== lastClickWaveEnabled ||
-        config.letters.enabled !== lastLettersEnabled
+        config.letters.enabled !== lastLettersEnabled ||
+        config.colors.mode !== lastColorsMode
       ) {
         if (config.flames.enabled && !lastFlamesEnabled) {
           flamesState = createFlamesState(mulberry32(flamesSeed));
@@ -640,6 +762,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         lastCursorTrailEnabled = config.cursorTrail.enabled;
         lastClickWaveEnabled = config.clickWave.enabled;
         lastLettersEnabled = config.letters.enabled;
+        lastColorsMode = config.colors.mode;
       }
     },
     setCursor(x, y) {
@@ -682,6 +805,10 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       canvas.removeEventListener("webglcontextlost", onLost as EventListener);
       canvas.removeEventListener("webglcontextrestored", onRestored as EventListener);
       for (const p of passes) p.dispose();
+      if (colorsMrt) {
+        colorsMrt.dispose();
+        colorsMrt = null;
+      }
       pool.dispose();
       quad.dispose();
       source?.dispose();
