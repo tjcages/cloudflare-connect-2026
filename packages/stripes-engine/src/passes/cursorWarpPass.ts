@@ -43,6 +43,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
       cellSize: WebGLUniformLocation | null;
       gridSize: WebGLUniformLocation | null;
       pushCap: WebGLUniformLocation | null;
+      trailColor?: WebGLUniformLocation | null;
     },
     target: RenderTarget,
     inputTex: WebGLTexture,
@@ -66,7 +67,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
     gl.uniform2f(locs.cellSize, p.cellW, p.cellH);
     gl.uniform2f(locs.gridSize, p.cols, p.rows);
     gl.uniform1f(locs.pushCap, p.pushCap);
-    if (trailColor) gl.uniform3f(cTrailColor, trailColor[0], trailColor[1], trailColor[2]);
+    if (trailColor && locs.trailColor) gl.uniform3f(locs.trailColor, trailColor[0], trailColor[1], trailColor[2]);
     quad.draw();
     gl.activeTexture(gl.TEXTURE0);
   }
@@ -115,6 +116,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
           cellSize: cCellSize,
           gridSize: cGridSize,
           pushCap: cPushCap,
+          trailColor: cTrailColor,
         },
         target,
         fieldColorTex,

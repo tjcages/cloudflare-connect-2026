@@ -222,6 +222,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       t.panY,
       fieldSize.width,
       fieldSize.height,
+      output.width,
+      output.height,
     ].join("|");
   }
 
