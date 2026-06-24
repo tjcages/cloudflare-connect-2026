@@ -322,11 +322,19 @@ function LabInner() {
       if (!engine) return;
       engine.setCursor(null);
     };
+    const onDown = (e: PointerEvent) => {
+      const engine = engineRef.current;
+      if (!engine) return;
+      const rect = canvas.getBoundingClientRect();
+      engine.click(e.clientX - rect.left, e.clientY - rect.top);
+    };
     canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("pointerleave", onLeave);
+    canvas.addEventListener("pointerdown", onDown);
     return () => {
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerleave", onLeave);
+      canvas.removeEventListener("pointerdown", onDown);
     };
   }, [manual]);
 
