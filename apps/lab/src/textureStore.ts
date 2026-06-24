@@ -27,6 +27,14 @@ function run<T>(mode: IDBTransactionMode, op: (store: IDBObjectStore) => IDBRequ
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error ?? new Error("IndexedDB request failed"));
         tx.oncomplete = () => db.close();
+        tx.onabort = () => {
+          db.close();
+          reject(tx.error ?? new Error("IndexedDB transaction aborted"));
+        };
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error ?? new Error("IndexedDB transaction failed"));
+        };
       }),
   );
 }
