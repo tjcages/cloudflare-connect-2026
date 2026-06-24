@@ -16,6 +16,8 @@ import {
   DEFAULT_REVEAL,
   normalizeFlames,
   DEFAULT_FLAMES,
+  normalizeEdgeMask,
+  DEFAULT_EDGE_MASK,
 } from "./normalize";
 import { serializeEngineConfig, parseEngineConfig } from "./serialize";
 
@@ -209,5 +211,40 @@ describe("flames normalizer", () => {
     expect(normalizeFlames({ direction: "down" }).direction).toBe("down");
     expect(normalizeFlames({ direction: "left" }).direction).toBe("left");
     expect(normalizeFlames({ direction: "right" }).direction).toBe("right");
+  });
+});
+describe("edgeMask normalizer", () => {
+  it("defaults to DEFAULT_EDGE_MASK when called with {}", () => {
+    expect(normalizeEdgeMask({})).toEqual(DEFAULT_EDGE_MASK);
+    expect(DEFAULT_EDGE_MASK.enabled).toBe(false);
+    expect(DEFAULT_EDGE_MASK.start).toBe(0);
+    expect(DEFAULT_EDGE_MASK.end).toBe(0.1);
+    expect(DEFAULT_EDGE_MASK.power).toBe(1);
+  });
+  it("normalizeEngineConfig({}) includes DEFAULT_EDGE_MASK", () => {
+    expect(normalizeEngineConfig({}).edgeMask).toEqual(DEFAULT_EDGE_MASK);
+  });
+  it("clamps start to 0..0.5", () => {
+    expect(normalizeEdgeMask({ start: -0.1 }).start).toBe(0);
+    expect(normalizeEdgeMask({ start: 0.6 }).start).toBe(0.5);
+    expect(normalizeEdgeMask({ start: 0.3 }).start).toBe(0.3);
+  });
+  it("enforces end >= start + 0.001", () => {
+    expect(normalizeEdgeMask({ start: 0.3, end: 0.1 }).end).toBe(0.301);
+    expect(normalizeEdgeMask({ start: 0.3, end: 0.3 }).end).toBe(0.301);
+  });
+  it("clamps end to (start+0.001)..0.5", () => {
+    expect(normalizeEdgeMask({ end: 0.6 }).end).toBe(0.5);
+    expect(normalizeEdgeMask({ start: 0.2, end: 0.8 }).end).toBe(0.5);
+  });
+  it("clamps power to 0.1..4", () => {
+    expect(normalizeEdgeMask({ power: 0 }).power).toBe(0.1);
+    expect(normalizeEdgeMask({ power: 5 }).power).toBe(4);
+    expect(normalizeEdgeMask({ power: 2 }).power).toBe(2);
+  });
+  it("enabled defaults false when undefined, false when explicitly false", () => {
+    expect(normalizeEdgeMask({}).enabled).toBe(false);
+    expect(normalizeEdgeMask({ enabled: false }).enabled).toBe(false);
+    expect(normalizeEdgeMask({ enabled: true }).enabled).toBe(true);
   });
 });

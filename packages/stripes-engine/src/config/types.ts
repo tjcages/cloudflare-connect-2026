@@ -95,6 +95,13 @@ export interface FlamesConfig {
   opacityMax: number;
 }
 
+export interface EdgeMaskConfig {
+  enabled: boolean;
+  start: number;
+  end: number;
+  power: number;
+}
+
 export interface EngineConfig {
   transform: Transform;
   adjustments: Adjustments;
@@ -106,4 +113,5 @@ export interface EngineConfig {
   reveal: RevealConfig;
   sparkle: SparkleConfig;
   flames: FlamesConfig;
+  edgeMask: EdgeMaskConfig;
 }

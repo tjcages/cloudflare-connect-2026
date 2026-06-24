@@ -10,6 +10,7 @@ import type {
   FlamesConfig,
   FlamesDirection,
   WavePosition,
+  EdgeMaskConfig,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -239,6 +240,26 @@ export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
   };
 }
 
+export const DEFAULT_EDGE_MASK: EdgeMaskConfig = {
+  enabled: false,
+  start: 0,
+  end: 0.1,
+  power: 1,
+};
+
+type PartialEdgeMask = Partial<EdgeMaskConfig>;
+
+export function normalizeEdgeMask(i: PartialEdgeMask = {}): EdgeMaskConfig {
+  const start = clamp(num(i.start, DEFAULT_EDGE_MASK.start), 0, 0.5);
+  const end = clamp(num(i.end, DEFAULT_EDGE_MASK.end), start + 0.001, 0.5);
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_EDGE_MASK.enabled,
+    start,
+    end,
+    power: clamp(num(i.power, DEFAULT_EDGE_MASK.power), 0.1, 4),
+  };
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
@@ -250,6 +271,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   reveal: { ...DEFAULT_REVEAL, wave: { ...DEFAULT_REVEAL.wave }, assembly: { ...DEFAULT_REVEAL.assembly } },
   sparkle: { gaps: { ...DEFAULT_SPARKLE.gaps }, width: { ...DEFAULT_SPARKLE.width } },
   flames: { ...DEFAULT_FLAMES },
+  edgeMask: { ...DEFAULT_EDGE_MASK },
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -264,5 +286,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     reveal: normalizeReveal(i.reveal as PartialReveal | undefined),
     sparkle: normalizeSparkle(i.sparkle as PartialSparkle | undefined),
     flames: normalizeFlames(i.flames as PartialFlames | undefined),
+    edgeMask: normalizeEdgeMask(i.edgeMask),
   };
 }
