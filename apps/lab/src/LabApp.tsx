@@ -307,6 +307,29 @@ function LabInner() {
   }, [scale, shell, applyCanvasSize]);
 
   useEffect(() => {
+    if (manual) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onMove = (e: PointerEvent) => {
+      const engine = engineRef.current;
+      if (!engine) return;
+      const rect = canvas.getBoundingClientRect();
+      engine.setCursor(e.clientX - rect.left, e.clientY - rect.top);
+    };
+    const onLeave = () => {
+      const engine = engineRef.current;
+      if (!engine) return;
+      engine.setCursor(null);
+    };
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerleave", onLeave);
+    return () => {
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerleave", onLeave);
+    };
+  }, [manual]);
+
+  useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
     const configToApply = manualRef.current
