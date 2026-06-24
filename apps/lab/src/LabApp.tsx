@@ -15,8 +15,11 @@ import { PerfOverlay } from "./PerfOverlay";
 import { createTestImage } from "./testImage";
 import { useEngineControls } from "./controls/levaSchema";
 import { LAB_LEVA_THEME } from "./controls/levaTheme";
-import { saveConfig, saveTextureId, importConfig } from "./persistence";
-import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, loadTextureSource } from "./textures";
+import { saveConfig, saveTextureId, importConfig, deleteConfig } from "./persistence";
+import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, findTextureEntry, loadFileSource, loadTextureSource } from "./textures";
+import type { LabTextureKind, LoadedTextureSource } from "./textures";
+import { addUpload, loadManifest, removeUpload, saveManifest } from "./uploads";
+import { putTextureBlob, deleteTextureBlob } from "./textureStore";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -174,7 +177,7 @@ function LabInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<StripesEngine | null>(null);
   const manualRef = useRef(false);
-  const lastObjectUrlRef = useRef<string | null>(null);
+  const uploadObjectUrlRef = useRef<string | null>(null);
   const prevVideoRef = useRef<HTMLVideoElement | null>(null);
   const [snap, setSnap] = useState<PerfSnapshot>({
     fps: 0,
@@ -205,6 +208,19 @@ function LabInner() {
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const mountTextureIdRef = useRef(textureId);
+  const selectedEntry = useMemo(() => findTextureEntry(textureId, loadManifest()), [textureId]);
+  const canDeleteTexture = selectedEntry?.origin === "upload";
+
+  function handleDeleteTexture() {
+    const entry = findTextureEntry(textureId, loadManifest());
+    if (!entry || entry.origin !== "upload") return;
+    saveManifest(removeUpload(loadManifest(), entry.id));
+    void deleteTextureBlob(entry.id);
+    deleteConfig(entry.id);
+    saveTextureId(DEFAULT_LAB_TEXTURE_ID);
+    window.location.reload();
+  }
+
   const stripesEnabledRef = useRef(controls.stripesEnabled);
   stripesEnabledRef.current = controls.stripesEnabled;
   const revealEnabledRef = useRef(controls.reveal.enabled);
@@ -297,6 +313,10 @@ function LabInner() {
 
     return () => {
       if (raf) cancelAnimationFrame(raf);
+      if (uploadObjectUrlRef.current) {
+        URL.revokeObjectURL(uploadObjectUrlRef.current);
+        uploadObjectUrlRef.current = null;
+      }
       engine.dispose();
       engineRef.current = null;
       (window as unknown as { __lab?: unknown }).__lab = undefined;
@@ -372,43 +392,59 @@ function LabInner() {
       prevVideoRef.current.pause();
       prevVideoRef.current = null;
     }
-    const preset = LAB_TEXTURES.find((t) => t.id === textureId) ?? LAB_TEXTURES[0];
-    setScale(preset.defaultScale);
-    loadTextureSource(preset)
-      .then(({ source, video }) => {
+    const entry = findTextureEntry(textureId, loadManifest()) ?? LAB_TEXTURES[0];
+    setScale(entry.defaultScale);
+    loadTextureSource(entry)
+      .then((loaded) => {
         if (cancelled) {
-          if (video) video.pause();
+          if (loaded.video) loaded.video.pause();
+          if (loaded.objectUrl) URL.revokeObjectURL(loaded.objectUrl);
           return;
         }
-        engine.setSource(source);
-        prevVideoRef.current = video;
-        setVideoEl(video);
-        if (shell) {
-          let srcW = 0;
-          let srcH = 0;
-          if (video) {
-            srcW = video.videoWidth;
-            srcH = video.videoHeight;
-          } else if (source instanceof HTMLImageElement) {
-            srcW = source.naturalWidth;
-            srcH = source.naturalHeight;
-          }
-          if (srcW > 0 && srcH > 0) {
-            const src = { w: srcW, h: srcH };
-            setSourceSize(src);
-            const canvas = canvasRef.current;
-            if (canvas) applyCanvasSize(engine, canvas, src, scaleRef.current);
-          }
-        }
-        if (manualRef.current) engine.renderFrame();
+        applyLoadedSource(loaded);
         setReady(true);
         if (revealEnabledRef.current) engine.triggerReveal();
       })
-      .catch(() => {});
+      .catch(() => {
+        if (cancelled) return;
+        if (textureId !== DEFAULT_LAB_TEXTURE_ID) {
+          saveManifest(removeUpload(loadManifest(), textureId));
+          saveTextureId(DEFAULT_LAB_TEXTURE_ID);
+          window.location.reload();
+        }
+      });
     return () => {
       cancelled = true;
     };
   }, [textureId, manual]);
+
+  function applyLoadedSource(loaded: LoadedTextureSource) {
+    const engine = engineRef.current;
+    const canvas = canvasRef.current;
+    if (!engine) return;
+    if (uploadObjectUrlRef.current) URL.revokeObjectURL(uploadObjectUrlRef.current);
+    uploadObjectUrlRef.current = loaded.objectUrl;
+    engine.setSource(loaded.source);
+    prevVideoRef.current = loaded.video;
+    setVideoEl(loaded.video);
+    if (shell) {
+      let srcW = 0;
+      let srcH = 0;
+      if (loaded.video) {
+        srcW = loaded.video.videoWidth;
+        srcH = loaded.video.videoHeight;
+      } else if (loaded.source instanceof HTMLImageElement) {
+        srcW = loaded.source.naturalWidth;
+        srcH = loaded.source.naturalHeight;
+      }
+      if (srcW > 0 && srcH > 0) {
+        const src = { w: srcW, h: srcH };
+        setSourceSize(src);
+        if (canvas) applyCanvasSize(engine, canvas, src, scaleRef.current);
+      }
+    }
+    if (manualRef.current) engine.renderFrame();
+  }
 
   function handleExport() {
     void navigator.clipboard.writeText(serializeEngineConfig(controls));
@@ -426,57 +462,24 @@ function LabInner() {
     }
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const engine = engineRef.current;
-    if (!engine) return;
-    if (lastObjectUrlRef.current) URL.revokeObjectURL(lastObjectUrlRef.current);
-    if (prevVideoRef.current) {
-      prevVideoRef.current.pause();
-      prevVideoRef.current = null;
+    e.target.value = "";
+    const kind: LabTextureKind = file.type.startsWith("video/") ? "video" : "image";
+    const id = `upload-${crypto.randomUUID()}`;
+    try {
+      await putTextureBlob(id, file, file.type);
+    } catch {
+      window.alert("Couldn't save this upload (storage full). It will show for this session but won't persist.");
+      loadFileSource(file).then((loaded) => {
+        if (engineRef.current) applyLoadedSource(loaded);
+      });
+      return;
     }
-    const url = URL.createObjectURL(file);
-    lastObjectUrlRef.current = url;
-    if (file.type.startsWith("video/")) {
-      const video = document.createElement("video");
-      video.src = url;
-      video.autoplay = true;
-      video.loop = true;
-      video.muted = true;
-      video.playsInline = true;
-      video.onloadeddata = () => {
-        engine.setSource(video);
-        prevVideoRef.current = video;
-        setVideoEl(video);
-        if (shell) {
-          const src = { w: video.videoWidth, h: video.videoHeight };
-          if (src.w > 0 && src.h > 0) {
-            setSourceSize(src);
-            const canvas = canvasRef.current;
-            if (canvas) applyCanvasSize(engine, canvas, src, scaleRef.current);
-          }
-        }
-        video.play().catch(() => {});
-        if (manualRef.current) engine.renderFrame();
-      };
-    } else {
-      const img = new Image();
-      img.onload = () => {
-        engine.setSource(img);
-        setVideoEl(null);
-        if (shell) {
-          const src = { w: img.naturalWidth, h: img.naturalHeight };
-          if (src.w > 0 && src.h > 0) {
-            setSourceSize(src);
-            const canvas = canvasRef.current;
-            if (canvas) applyCanvasSize(engine, canvas, src, scaleRef.current);
-          }
-        }
-        if (manualRef.current) engine.renderFrame();
-      };
-      img.src = url;
-    }
+    saveManifest(addUpload(loadManifest(), { id, label: file.name, kind, defaultScale: 1, createdAt: Date.now() }));
+    saveTextureId(id);
+    window.location.reload();
   }
 
   if (!shell) {
@@ -511,6 +514,9 @@ function LabInner() {
               Upload texture
               <input type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={handleFileChange} />
             </label>
+            <button className="lab-btn" onClick={handleDeleteTexture} disabled={!canDeleteTexture}>
+              Delete texture
+            </button>
             <button className="lab-btn" onClick={handleExport}>
               Copy config
             </button>
