@@ -10,6 +10,15 @@ import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createBlurPass } from "./passes/blurPass";
 import { createAssemblyCompositePass } from "./passes/assemblyCompositePass";
 import { createStripePass } from "./passes/stripePass";
+import { createFlamesPass } from "./passes/flamesPass";
+import {
+  createFlamesState,
+  stepFlames,
+  flamesGradientStops,
+  isVerticalFlamesDirection,
+  mulberry32,
+  type FlamesState,
+} from "./flames/flamesSim";
 import { createGpuTimer } from "./perf/gpuTimer";
 import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
 import { createRtPool, type RtPool } from "./pipeline/rtPool";
@@ -67,7 +76,11 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lastStripesEnabled = config.stripesEnabled;
   let lastRevealEnabled = config.reveal.enabled;
   let lastAssemblyTopo = config.reveal.enabled && config.reveal.type === "assembly";
+  let lastFlamesEnabled = config.flames.enabled;
   let revealStartMs = 0;
+
+  const flamesSeed = (opts.seed ?? 1) >>> 0;
+  let flamesState: FlamesState = createFlamesState(mulberry32(flamesSeed));
 
   function getDpr() {
     return opts.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
@@ -120,6 +133,27 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       },
       dispose: () => sourceFieldPass.dispose(),
     };
+
+    const flamesFieldPasses: Pass[] = [];
+    if (config.flames.enabled) {
+      const flamesPass = createFlamesPass(gl);
+      flamesFieldPasses.push({
+        name: "flamesField",
+        render: () => {
+          stepFlames(flamesState, config.flames, { width: cssW, height: cssH }, clock.now());
+          const { inner, outer } = flamesGradientStops(config.flames.edgeSharpness);
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          flamesPass.render(fieldRT, flamesState.flames, {
+            canvasW: cssW,
+            canvasH: cssH,
+            vertical: isVerticalFlamesDirection(config.flames.direction),
+            inner,
+            outer,
+          });
+        },
+        dispose: () => flamesPass.dispose(),
+      });
+    }
 
     const revealEnabled = config.reveal.enabled;
     const assemblyTopology = revealEnabled && config.reveal.type === "assembly";
@@ -222,6 +256,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       const stripePass = createStripePass(gl, quad);
       passes = [
         fieldPass,
+        ...flamesFieldPasses,
         ...revealFieldPasses,
         {
           name: "downsample",
@@ -279,6 +314,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       const presentPass = createPresentPass(gl, quad);
       passes = [
         fieldPass,
+        ...flamesFieldPasses,
         ...revealFieldPasses,
         {
           name: "present",
@@ -328,6 +364,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     // LUT texture is on the old context; reset so ensureLut() recreates it.
     stripeLutTex = null;
     lutSig = "";
+    flamesState = createFlamesState(mulberry32(flamesSeed));
     ensureLut();
     buildPasses();
     applySizes();
@@ -389,12 +426,17 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       if (
         config.stripesEnabled !== lastStripesEnabled ||
         config.reveal.enabled !== lastRevealEnabled ||
-        assemblyTopo !== lastAssemblyTopo
+        assemblyTopo !== lastAssemblyTopo ||
+        config.flames.enabled !== lastFlamesEnabled
       ) {
+        if (config.flames.enabled && !lastFlamesEnabled) {
+          flamesState = createFlamesState(mulberry32(flamesSeed));
+        }
         buildPasses();
         lastStripesEnabled = config.stripesEnabled;
         lastRevealEnabled = config.reveal.enabled;
         lastAssemblyTopo = assemblyTopo;
+        lastFlamesEnabled = config.flames.enabled;
       }
     },
     triggerReveal() {

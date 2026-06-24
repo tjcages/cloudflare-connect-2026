@@ -4,7 +4,7 @@ import type { EngineConfig } from "./config/types";
 
 function topologyKey(cfg: EngineConfig): string {
   const assemblyTopo = cfg.reveal.enabled && cfg.reveal.type === "assembly";
-  return `${cfg.stripesEnabled}:${cfg.reveal.enabled}:${assemblyTopo}`;
+  return `${cfg.stripesEnabled}:${cfg.reveal.enabled}:${assemblyTopo}:${cfg.flames.enabled}`;
 }
 
 function needsRebuild(prev: EngineConfig, next: EngineConfig): boolean {
@@ -36,6 +36,19 @@ describe("setConfig topology gating", () => {
     const assembly = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
     expect(needsRebuild(wave, assembly)).toBe(true);
     expect(needsRebuild(assembly, wave)).toBe(true);
+  });
+
+  it("flipping flames.enabled triggers rebuild", () => {
+    const off = normalizeEngineConfig({ flames: { enabled: false } });
+    const on = normalizeEngineConfig({ flames: { enabled: true } });
+    expect(needsRebuild(off, on)).toBe(true);
+    expect(needsRebuild(on, off)).toBe(true);
+  });
+
+  it("flames param-only change (same enabled) does not trigger rebuild", () => {
+    const a = normalizeEngineConfig({ flames: { enabled: true, baseSpeedPxPerSec: 100 } });
+    const b = normalizeEngineConfig({ flames: { enabled: true, baseSpeedPxPerSec: 200 } });
+    expect(needsRebuild(a, b)).toBe(false);
   });
 
   it("toggling stripesEnabled triggers rebuild", () => {
