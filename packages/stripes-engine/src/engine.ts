@@ -659,12 +659,14 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         ...cursorFieldPasses,
         {
           name: "present",
-          render: () =>
+          render: () => {
+            const presentRT = colorsMode ? "fieldColor" : activeFieldRT;
             presentPass.render(
-              pool.get(activeFieldRT, fieldSize.width, fieldSize.height, { linear: true }).texture,
+              pool.get(presentRT, fieldSize.width, fieldSize.height, { linear: true }).texture,
               output.width,
               output.height,
-            ),
+            );
+          },
           dispose: () => presentPass.dispose(),
         },
       ];
