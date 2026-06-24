@@ -6,9 +6,10 @@ import { loadInitialConfig, loadTextureId } from "../persistence";
 import { fromEditable } from "./stripeAdapter";
 import type { EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
-import { LAB_TEXTURES, DEFAULT_LAB_TEXTURE_ID } from "../textures";
+import { DEFAULT_LAB_TEXTURE_ID, buildTextureEntries, findTextureEntry } from "../textures";
+import { loadManifest } from "../uploads";
 
-const TEXTURE_OPTIONS = Object.fromEntries(LAB_TEXTURES.map((t) => [t.label, t.id]));
+const TEXTURE_OPTIONS = Object.fromEntries(buildTextureEntries(loadManifest()).map((t) => [t.label, t.id]));
 
 function intToHex(value: number): string {
   return `#${(value & 0xffffff).toString(16).padStart(6, "0")}`;
@@ -34,7 +35,7 @@ export interface EngineControlsResult {
 export function useEngineControls(onReplay: () => void): EngineControlsResult {
   const initialTextureId = useMemo(() => {
     const stored = loadTextureId();
-    return stored && LAB_TEXTURES.some((t) => t.id === stored) ? stored : DEFAULT_LAB_TEXTURE_ID;
+    return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;
   }, []);
   const d = useMemo(() => normalizeEngineConfig(loadInitialConfig(initialTextureId)), [initialTextureId]);
   const store = useCreateStore();

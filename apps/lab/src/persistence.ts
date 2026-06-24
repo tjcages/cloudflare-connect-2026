@@ -44,6 +44,18 @@ export function saveConfig(textureId: string, c: EngineConfig): void {
   }
 }
 
+export function deleteConfig(textureId: string): void {
+  try {
+    const map = loadConfigMap();
+    if (textureId in map) {
+      delete map[textureId];
+      localStorage.setItem(MAP_KEY, JSON.stringify(map));
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 export function loadTextureId(): string | null {
   try {
     return localStorage.getItem(TEXTURE_KEY);
