@@ -10,9 +10,10 @@ export function createCursorTearPass(gl: WebGL2RenderingContext, quad: { draw():
   const uAccum = gl.getUniformLocation(program, "uAccum");
   const uTexel = gl.getUniformLocation(program, "uTexel");
   const uTearStrength = gl.getUniformLocation(program, "uTearStrength");
+  const uPushCap = gl.getUniformLocation(program, "uPushCap");
 
   return {
-    render(target: RenderTarget, accumTex: WebGLTexture, p: { cols: number; rows: number }) {
+    render(target: RenderTarget, accumTex: WebGLTexture, p: { cols: number; rows: number; pushCap: number }) {
       bindRenderTarget(gl, target);
       gl.useProgram(program);
       gl.activeTexture(gl.TEXTURE0);
@@ -20,6 +21,7 @@ export function createCursorTearPass(gl: WebGL2RenderingContext, quad: { draw():
       gl.uniform1i(uAccum, 0);
       gl.uniform2f(uTexel, p.cols > 0 ? 1 / p.cols : 0, p.rows > 0 ? 1 / p.rows : 0);
       gl.uniform1f(uTearStrength, TEAR_STRENGTH);
+      gl.uniform1f(uPushCap, p.pushCap);
       quad.draw();
     },
     dispose() {

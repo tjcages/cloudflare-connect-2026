@@ -262,6 +262,7 @@ function LabInner() {
         if (manual) engine.renderFrame();
       },
       cursorTo: (x: number | null, y?: number) => engine.setCursor(x, y),
+      clickAt: (x: number, y?: number) => engine.click(x, y),
       triggerReveal: () => engine.triggerReveal(),
     };
 

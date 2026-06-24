@@ -7,11 +7,12 @@ uniform sampler2D uTear;
 uniform vec2 uPixelSize;
 uniform vec2 uCellSize;
 uniform vec2 uGridSize;
+uniform float uPushCap;
 out vec4 finalColor;
 
-vec2 capPush(vec2 p) {
+vec2 capPush(vec2 p, float cap) {
   float L = length(p);
-  return L > 2.0 ? p * (2.0 / L) : p;
+  return L > cap ? p * (cap / L) : p;
 }
 
 void main() {
@@ -22,7 +23,7 @@ void main() {
 
   vec4 accum = texture(uAccum, cuv);
   float brighten = accum.r;
-  vec2 pushCells = capPush(accum.gb);
+  vec2 pushCells = capPush(accum.gb, uPushCap);
   float tear = texture(uTear, cuv).r;
 
   vec2 offsetUv = pushCells * uCellSize / uPixelSize;

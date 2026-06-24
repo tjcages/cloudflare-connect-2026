@@ -10,6 +10,7 @@ export type CursorWarpParams = {
   cellH: number;
   pixelW: number;
   pixelH: number;
+  pushCap: number;
 };
 
 export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -20,6 +21,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
   const uPixelSize = gl.getUniformLocation(program, "uPixelSize");
   const uCellSize = gl.getUniformLocation(program, "uCellSize");
   const uGridSize = gl.getUniformLocation(program, "uGridSize");
+  const uPushCap = gl.getUniformLocation(program, "uPushCap");
 
   return {
     render(
@@ -43,6 +45,7 @@ export function createCursorWarpPass(gl: WebGL2RenderingContext, quad: { draw():
       gl.uniform2f(uPixelSize, p.pixelW, p.pixelH);
       gl.uniform2f(uCellSize, p.cellW, p.cellH);
       gl.uniform2f(uGridSize, p.cols, p.rows);
+      gl.uniform1f(uPushCap, p.pushCap);
       quad.draw();
       gl.activeTexture(gl.TEXTURE0);
     },

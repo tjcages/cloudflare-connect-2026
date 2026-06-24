@@ -15,12 +15,14 @@ import { createEdgeMaskPass } from "./passes/edgeMaskPass";
 import { createCursorSplatPass } from "./passes/cursorSplatPass";
 import { createCursorTearPass } from "./passes/cursorTearPass";
 import { createCursorWarpPass } from "./passes/cursorWarpPass";
+import { createClickSplatPass } from "./passes/clickSplatPass";
 import {
   createCursorTrailState,
   setCursorTrailTarget,
   updateCursorTrail,
   type CursorTrailState,
 } from "./cursorTrail/cursorTrailSim";
+import { createClickWaveState, addClickWave, updateClickWave, type ClickWaveState } from "./cursorTrail/clickWaveSim";
 import {
   createFlamesState,
   stepFlames,
@@ -40,7 +42,11 @@ import { resolveSourceRect } from "./source/fit";
 import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
 import { buildStripeLut, lutSignature } from "./field/stripeLut";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
+import { bindRenderTarget } from "./gl/renderTarget";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
+
+const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
+const CLICK_WAVE_MAX_PUSH_CELLS = 6;
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
 export type StripesEngine = {
@@ -52,6 +58,7 @@ export type StripesEngine = {
   setSource(media: EngineSource | null): void;
   setConfig(partial: Partial<EngineConfig>): void;
   setCursor(x: number | null, y?: number): void;
+  click(x: number, y?: number): void;
   triggerReveal(): void;
   readOutputPixels(): Uint8Array;
   getPerf(): PerfSnapshot;
@@ -90,12 +97,14 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lastFlamesEnabled = config.flames.enabled;
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
+  let lastClickWaveEnabled = config.clickWave.enabled;
   let revealStartMs = 0;
 
   const flamesSeed = (opts.seed ?? 1) >>> 0;
   let flamesState: FlamesState = createFlamesState(mulberry32(flamesSeed));
 
   let cursorTrailState: CursorTrailState = createCursorTrailState();
+  let clickWaveState: ClickWaveState = createClickWaveState();
   let lastCursorMs = clock.now();
 
   function getDpr() {
@@ -288,8 +297,11 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     }
 
     const cursorFieldPasses: Pass[] = [];
-    if (config.cursorTrail.enabled) {
-      const splatPass = createCursorSplatPass(gl);
+    if (config.cursorTrail.enabled || config.clickWave.enabled) {
+      const trailEnabled = config.cursorTrail.enabled;
+      const clickEnabled = config.clickWave.enabled;
+      const splatPass = trailEnabled ? createCursorSplatPass(gl) : null;
+      const clickSplatPass = clickEnabled ? createClickSplatPass(gl) : null;
       const tearPass = createCursorTearPass(gl, quad);
       const warpPass = createCursorWarpPass(gl, quad);
       const srcRT = activeFieldRT;
@@ -298,20 +310,50 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         render: () => {
           const dt = clock.now() - lastCursorMs;
           lastCursorMs = clock.now();
-          const { samples } = updateCursorTrail(cursorTrailState, dt, config.cursorTrail);
           const { cols, rows } = cellGrid;
-          const pushScale = (config.cursorTrail.pushStrengthPx * cols) / Math.max(1, cssW);
+          const scale = cols / Math.max(1, cssW);
+          const trailCap = trailEnabled
+            ? Math.min(CURSOR_TRAIL_MAX_PUSH_CELLS, config.cursorTrail.pushStrengthPx * scale)
+            : 0;
+          const clickCap = clickEnabled
+            ? Math.min(CLICK_WAVE_MAX_PUSH_CELLS, config.clickWave.pushStrengthPx * scale)
+            : 0;
+          const pushCap = Math.max(trailCap, clickCap);
+
           const accumRT = pool.get("cursorAccum", cols, rows, { float: true });
-          splatPass.render(accumRT, samples, {
-            cols,
-            rows,
-            displayWidth: cssW,
-            displayHeight: cssH,
-            pushRadiusScale: config.cursorTrail.pushRadiusScale,
-            pushScale,
-          });
+          bindRenderTarget(gl, accumRT);
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+
+          if (splatPass) {
+            const { samples } = updateCursorTrail(cursorTrailState, dt, config.cursorTrail);
+            const pushScale = (config.cursorTrail.pushStrengthPx * cols) / Math.max(1, cssW);
+            splatPass.render(accumRT, samples, {
+              cols,
+              rows,
+              displayWidth: cssW,
+              displayHeight: cssH,
+              pushRadiusScale: config.cursorTrail.pushRadiusScale,
+              pushScale,
+            });
+          }
+
+          if (clickSplatPass) {
+            const { samples } = updateClickWave(clickWaveState, dt, config.clickWave);
+            const pushScale = (config.clickWave.pushStrengthPx * cols) / Math.max(1, cssW);
+            clickSplatPass.render(accumRT, samples, {
+              cols,
+              rows,
+              displayWidth: cssW,
+              displayHeight: cssH,
+              pushScale,
+              pushBandScale: config.clickWave.pushBandScale,
+              stripeWhiteAlpha: config.clickWave.stripeWhiteAlpha,
+            });
+          }
+
           const tearRT = pool.get("cursorTear", cols, rows);
-          tearPass.render(tearRT, accumRT.texture, { cols, rows });
+          tearPass.render(tearRT, accumRT.texture, { cols, rows, pushCap });
 
           const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
           const warpedRT = pool.get("cursorField", fieldSize.width, fieldSize.height, { linear: true });
@@ -322,10 +364,12 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             cellH: cssH / Math.max(1, rows),
             pixelW: cssW,
             pixelH: cssH,
+            pushCap,
           });
         },
         dispose: () => {
-          splatPass.dispose();
+          splatPass?.dispose();
+          clickSplatPass?.dispose();
           tearPass.dispose();
           warpPass.dispose();
         },
@@ -452,6 +496,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     lutSig = "";
     flamesState = createFlamesState(mulberry32(flamesSeed));
     cursorTrailState = createCursorTrailState();
+    clickWaveState = createClickWaveState();
     lastCursorMs = clock.now();
     ensureLut();
     buildPasses();
@@ -517,13 +562,18 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         assemblyTopo !== lastAssemblyTopo ||
         config.flames.enabled !== lastFlamesEnabled ||
         config.edgeMask.enabled !== lastEdgeMaskEnabled ||
-        config.cursorTrail.enabled !== lastCursorTrailEnabled
+        config.cursorTrail.enabled !== lastCursorTrailEnabled ||
+        config.clickWave.enabled !== lastClickWaveEnabled
       ) {
         if (config.flames.enabled && !lastFlamesEnabled) {
           flamesState = createFlamesState(mulberry32(flamesSeed));
         }
         if (config.cursorTrail.enabled && !lastCursorTrailEnabled) {
           cursorTrailState = createCursorTrailState();
+          lastCursorMs = clock.now();
+        }
+        if (config.clickWave.enabled && !lastClickWaveEnabled) {
+          clickWaveState = createClickWaveState();
           lastCursorMs = clock.now();
         }
         buildPasses();
@@ -533,6 +583,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
         lastFlamesEnabled = config.flames.enabled;
         lastEdgeMaskEnabled = config.edgeMask.enabled;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
+        lastClickWaveEnabled = config.clickWave.enabled;
       }
     },
     setCursor(x, y) {
@@ -541,6 +592,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       } else {
         setCursorTrailTarget(cursorTrailState, { x, y: y ?? 0 });
       }
+    },
+    click(x, y) {
+      addClickWave(clickWaveState, { x, y: y ?? 0 }, config.clickWave.lifeMs);
     },
     triggerReveal() {
       revealStartMs = clock.now();
