@@ -11,6 +11,7 @@ import type {
   FlamesDirection,
   WavePosition,
   EdgeMaskConfig,
+  CursorTrailConfig,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -260,6 +261,68 @@ export function normalizeEdgeMask(i: PartialEdgeMask = {}): EdgeMaskConfig {
   };
 }
 
+export const DEFAULT_CURSOR_TRAIL: CursorTrailConfig = {
+  enabled: false,
+  particleRadius: 40,
+  particleAlpha: 0.07,
+  particleLifeMs: 960,
+  particleLifeJitterMs: 100,
+  emitterVelocitySmoothing: 0.7,
+  particleVelocityScale: 0.01,
+  particleTangentVelocity: 1.65,
+  particleDamping: 0.96,
+  particleSpacingPx: 3,
+  maxEmitPerTick: 10,
+  spreadMinPx: 1.5,
+  spreadMaxPx: 21,
+  spinStrength: 0.039,
+  densityRadiusMinScale: 0.2,
+  densityRadiusLifeScale: 1,
+  pushRadiusScale: 2.15,
+  pushStrengthPx: 14,
+  pushLagPx: 0,
+  pushWobblePx: 12,
+  pushLeadBlackAlpha: 0,
+};
+
+type PartialCursorTrail = Partial<CursorTrailConfig>;
+
+function clampInt(v: number, min: number, max: number): number {
+  return Math.round(clamp(v, min, max));
+}
+
+export function normalizeCursorTrail(i: PartialCursorTrail = {}): CursorTrailConfig {
+  const spreadMinPx = clamp(num(i.spreadMinPx, DEFAULT_CURSOR_TRAIL.spreadMinPx), 0, 80);
+  const spreadMaxPx = Math.max(spreadMinPx, clamp(num(i.spreadMaxPx, DEFAULT_CURSOR_TRAIL.spreadMaxPx), 0, 120));
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_CURSOR_TRAIL.enabled,
+    particleRadius: clamp(num(i.particleRadius, DEFAULT_CURSOR_TRAIL.particleRadius), 0.5, 80),
+    particleAlpha: clamp(num(i.particleAlpha, DEFAULT_CURSOR_TRAIL.particleAlpha), 0, 1),
+    particleLifeMs: clamp(num(i.particleLifeMs, DEFAULT_CURSOR_TRAIL.particleLifeMs), 50, 10_000),
+    particleLifeJitterMs: clamp(num(i.particleLifeJitterMs, DEFAULT_CURSOR_TRAIL.particleLifeJitterMs), 0, 10_000),
+    emitterVelocitySmoothing: clamp(
+      num(i.emitterVelocitySmoothing, DEFAULT_CURSOR_TRAIL.emitterVelocitySmoothing),
+      0,
+      0.98,
+    ),
+    particleVelocityScale: clamp(num(i.particleVelocityScale, DEFAULT_CURSOR_TRAIL.particleVelocityScale), 0, 2),
+    particleTangentVelocity: clamp(num(i.particleTangentVelocity, DEFAULT_CURSOR_TRAIL.particleTangentVelocity), 0, 20),
+    particleDamping: clamp(num(i.particleDamping, DEFAULT_CURSOR_TRAIL.particleDamping), 0, 1),
+    particleSpacingPx: clamp(num(i.particleSpacingPx, DEFAULT_CURSOR_TRAIL.particleSpacingPx), 0.5, 80),
+    maxEmitPerTick: clampInt(num(i.maxEmitPerTick, DEFAULT_CURSOR_TRAIL.maxEmitPerTick), 1, 200),
+    spreadMinPx,
+    spreadMaxPx,
+    spinStrength: clamp(num(i.spinStrength, DEFAULT_CURSOR_TRAIL.spinStrength), 0, 0.2),
+    densityRadiusMinScale: clamp(num(i.densityRadiusMinScale, DEFAULT_CURSOR_TRAIL.densityRadiusMinScale), 0, 3),
+    densityRadiusLifeScale: clamp(num(i.densityRadiusLifeScale, DEFAULT_CURSOR_TRAIL.densityRadiusLifeScale), 0, 3),
+    pushRadiusScale: clamp(num(i.pushRadiusScale, DEFAULT_CURSOR_TRAIL.pushRadiusScale), 0, 8),
+    pushStrengthPx: clamp(num(i.pushStrengthPx, DEFAULT_CURSOR_TRAIL.pushStrengthPx), 0, 120),
+    pushLagPx: clamp(num(i.pushLagPx, DEFAULT_CURSOR_TRAIL.pushLagPx), 0, 80),
+    pushWobblePx: clamp(num(i.pushWobblePx, DEFAULT_CURSOR_TRAIL.pushWobblePx), 0, 80),
+    pushLeadBlackAlpha: clamp(num(i.pushLeadBlackAlpha, DEFAULT_CURSOR_TRAIL.pushLeadBlackAlpha), 0, 1),
+  };
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
@@ -272,6 +335,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   sparkle: { gaps: { ...DEFAULT_SPARKLE.gaps }, width: { ...DEFAULT_SPARKLE.width } },
   flames: { ...DEFAULT_FLAMES },
   edgeMask: { ...DEFAULT_EDGE_MASK },
+  cursorTrail: { ...DEFAULT_CURSOR_TRAIL },
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -287,5 +351,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     sparkle: normalizeSparkle(i.sparkle as PartialSparkle | undefined),
     flames: normalizeFlames(i.flames as PartialFlames | undefined),
     edgeMask: normalizeEdgeMask(i.edgeMask),
+    cursorTrail: normalizeCursorTrail(i.cursorTrail),
   };
 }

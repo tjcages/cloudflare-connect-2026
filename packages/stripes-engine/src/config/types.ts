@@ -102,6 +102,30 @@ export interface EdgeMaskConfig {
   power: number;
 }
 
+export interface CursorTrailConfig {
+  enabled: boolean;
+  particleRadius: number;
+  particleAlpha: number;
+  particleLifeMs: number;
+  particleLifeJitterMs: number;
+  emitterVelocitySmoothing: number;
+  particleVelocityScale: number;
+  particleTangentVelocity: number;
+  particleDamping: number;
+  particleSpacingPx: number;
+  maxEmitPerTick: number;
+  spreadMinPx: number;
+  spreadMaxPx: number;
+  spinStrength: number;
+  densityRadiusMinScale: number;
+  densityRadiusLifeScale: number;
+  pushRadiusScale: number;
+  pushStrengthPx: number;
+  pushLagPx: number;
+  pushWobblePx: number;
+  pushLeadBlackAlpha: number;
+}
+
 export interface EngineConfig {
   transform: Transform;
   adjustments: Adjustments;
@@ -114,4 +138,5 @@ export interface EngineConfig {
   sparkle: SparkleConfig;
   flames: FlamesConfig;
   edgeMask: EdgeMaskConfig;
+  cursorTrail: CursorTrailConfig;
 }

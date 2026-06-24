@@ -18,6 +18,8 @@ import {
   DEFAULT_FLAMES,
   normalizeEdgeMask,
   DEFAULT_EDGE_MASK,
+  normalizeCursorTrail,
+  DEFAULT_CURSOR_TRAIL,
 } from "./normalize";
 import { serializeEngineConfig, parseEngineConfig } from "./serialize";
 
@@ -246,5 +248,107 @@ describe("edgeMask normalizer", () => {
     expect(normalizeEdgeMask({}).enabled).toBe(false);
     expect(normalizeEdgeMask({ enabled: false }).enabled).toBe(false);
     expect(normalizeEdgeMask({ enabled: true }).enabled).toBe(true);
+  });
+});
+describe("cursorTrail normalizer", () => {
+  it("defaults to DEFAULT_CURSOR_TRAIL when called with {}", () => {
+    expect(normalizeCursorTrail({})).toEqual(DEFAULT_CURSOR_TRAIL);
+    expect(DEFAULT_CURSOR_TRAIL.enabled).toBe(false);
+    expect(DEFAULT_CURSOR_TRAIL.pushStrengthPx).toBe(14);
+  });
+  it("normalizeEngineConfig({}) includes DEFAULT_CURSOR_TRAIL", () => {
+    expect(normalizeEngineConfig({}).cursorTrail).toEqual(DEFAULT_CURSOR_TRAIL);
+  });
+  it("omitted cursorTrail → enabled:false", () => {
+    expect(normalizeEngineConfig({}).cursorTrail.enabled).toBe(false);
+    expect(normalizeCursorTrail({}).enabled).toBe(false);
+    expect(normalizeCursorTrail(undefined).enabled).toBe(false);
+  });
+  it("enabled:false stays false, enabled:true becomes true", () => {
+    expect(normalizeCursorTrail({ enabled: false }).enabled).toBe(false);
+    expect(normalizeCursorTrail({ enabled: true }).enabled).toBe(true);
+  });
+  it("clamps particleRadius to 0.5..80", () => {
+    expect(normalizeCursorTrail({ particleRadius: 0 }).particleRadius).toBe(0.5);
+    expect(normalizeCursorTrail({ particleRadius: 100 }).particleRadius).toBe(80);
+    expect(normalizeCursorTrail({ particleRadius: 40 }).particleRadius).toBe(40);
+  });
+  it("clamps particleAlpha to 0..1", () => {
+    expect(normalizeCursorTrail({ particleAlpha: -1 }).particleAlpha).toBe(0);
+    expect(normalizeCursorTrail({ particleAlpha: 2 }).particleAlpha).toBe(1);
+  });
+  it("clamps particleLifeMs to 50..10000", () => {
+    expect(normalizeCursorTrail({ particleLifeMs: 10 }).particleLifeMs).toBe(50);
+    expect(normalizeCursorTrail({ particleLifeMs: 99999 }).particleLifeMs).toBe(10000);
+  });
+  it("clamps particleLifeJitterMs to 0..10000", () => {
+    expect(normalizeCursorTrail({ particleLifeJitterMs: -1 }).particleLifeJitterMs).toBe(0);
+    expect(normalizeCursorTrail({ particleLifeJitterMs: 99999 }).particleLifeJitterMs).toBe(10000);
+  });
+  it("clamps emitterVelocitySmoothing to 0..0.98", () => {
+    expect(normalizeCursorTrail({ emitterVelocitySmoothing: -1 }).emitterVelocitySmoothing).toBe(0);
+    expect(normalizeCursorTrail({ emitterVelocitySmoothing: 1 }).emitterVelocitySmoothing).toBe(0.98);
+  });
+  it("clamps particleVelocityScale to 0..2", () => {
+    expect(normalizeCursorTrail({ particleVelocityScale: -1 }).particleVelocityScale).toBe(0);
+    expect(normalizeCursorTrail({ particleVelocityScale: 5 }).particleVelocityScale).toBe(2);
+  });
+  it("clamps particleTangentVelocity to 0..20", () => {
+    expect(normalizeCursorTrail({ particleTangentVelocity: -1 }).particleTangentVelocity).toBe(0);
+    expect(normalizeCursorTrail({ particleTangentVelocity: 25 }).particleTangentVelocity).toBe(20);
+  });
+  it("clamps particleDamping to 0..1", () => {
+    expect(normalizeCursorTrail({ particleDamping: -1 }).particleDamping).toBe(0);
+    expect(normalizeCursorTrail({ particleDamping: 2 }).particleDamping).toBe(1);
+  });
+  it("clamps particleSpacingPx to 0.5..80", () => {
+    expect(normalizeCursorTrail({ particleSpacingPx: 0 }).particleSpacingPx).toBe(0.5);
+    expect(normalizeCursorTrail({ particleSpacingPx: 100 }).particleSpacingPx).toBe(80);
+  });
+  it("clamps maxEmitPerTick to integer 1..200", () => {
+    expect(normalizeCursorTrail({ maxEmitPerTick: 0 }).maxEmitPerTick).toBe(1);
+    expect(normalizeCursorTrail({ maxEmitPerTick: 999 }).maxEmitPerTick).toBe(200);
+    expect(normalizeCursorTrail({ maxEmitPerTick: 5.7 }).maxEmitPerTick).toBe(6);
+  });
+  it("clamps spreadMinPx to 0..80", () => {
+    expect(normalizeCursorTrail({ spreadMinPx: -1 }).spreadMinPx).toBe(0);
+    expect(normalizeCursorTrail({ spreadMinPx: 100 }).spreadMinPx).toBe(80);
+  });
+  it("clamps spreadMaxPx to 0..120 and enforces >= spreadMinPx", () => {
+    expect(normalizeCursorTrail({ spreadMinPx: 30, spreadMaxPx: 10 }).spreadMaxPx).toBe(30);
+    expect(normalizeCursorTrail({ spreadMaxPx: 200 }).spreadMaxPx).toBe(120);
+  });
+  it("clamps spinStrength to 0..0.2", () => {
+    expect(normalizeCursorTrail({ spinStrength: -1 }).spinStrength).toBe(0);
+    expect(normalizeCursorTrail({ spinStrength: 1 }).spinStrength).toBe(0.2);
+  });
+  it("clamps densityRadiusMinScale to 0..3", () => {
+    expect(normalizeCursorTrail({ densityRadiusMinScale: -1 }).densityRadiusMinScale).toBe(0);
+    expect(normalizeCursorTrail({ densityRadiusMinScale: 5 }).densityRadiusMinScale).toBe(3);
+  });
+  it("clamps densityRadiusLifeScale to 0..3", () => {
+    expect(normalizeCursorTrail({ densityRadiusLifeScale: -1 }).densityRadiusLifeScale).toBe(0);
+    expect(normalizeCursorTrail({ densityRadiusLifeScale: 5 }).densityRadiusLifeScale).toBe(3);
+  });
+  it("clamps pushRadiusScale to 0..8", () => {
+    expect(normalizeCursorTrail({ pushRadiusScale: -1 }).pushRadiusScale).toBe(0);
+    expect(normalizeCursorTrail({ pushRadiusScale: 10 }).pushRadiusScale).toBe(8);
+  });
+  it("clamps pushStrengthPx to 0..120, default 14", () => {
+    expect(normalizeCursorTrail({}).pushStrengthPx).toBe(14);
+    expect(normalizeCursorTrail({ pushStrengthPx: -1 }).pushStrengthPx).toBe(0);
+    expect(normalizeCursorTrail({ pushStrengthPx: 200 }).pushStrengthPx).toBe(120);
+  });
+  it("clamps pushLagPx to 0..80", () => {
+    expect(normalizeCursorTrail({ pushLagPx: -1 }).pushLagPx).toBe(0);
+    expect(normalizeCursorTrail({ pushLagPx: 100 }).pushLagPx).toBe(80);
+  });
+  it("clamps pushWobblePx to 0..80", () => {
+    expect(normalizeCursorTrail({ pushWobblePx: -1 }).pushWobblePx).toBe(0);
+    expect(normalizeCursorTrail({ pushWobblePx: 100 }).pushWobblePx).toBe(80);
+  });
+  it("clamps pushLeadBlackAlpha to 0..1", () => {
+    expect(normalizeCursorTrail({ pushLeadBlackAlpha: -1 }).pushLeadBlackAlpha).toBe(0);
+    expect(normalizeCursorTrail({ pushLeadBlackAlpha: 2 }).pushLeadBlackAlpha).toBe(1);
   });
 });
