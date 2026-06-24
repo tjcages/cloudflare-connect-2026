@@ -30,7 +30,6 @@ function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
       waviness: typeof w.waviness === "number" ? w.waviness : 0.11,
     },
     assembly: {
-      order: "center",
       sliceSizePx: 40,
       speedMinMs: typeof a.speedMinMs === "number" ? a.speedMinMs : 300,
       speedMaxMs: typeof a.speedMaxMs === "number" ? a.speedMaxMs : 1600,

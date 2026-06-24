@@ -83,6 +83,20 @@ describe("normalizeEngineConfig", () => {
     expect(c.transform).toEqual(DEFAULT_ENGINE_CONFIG.transform);
   });
 });
+describe("sparkle normalizer", () => {
+  it("defaults sparkle when omitted", () => {
+    const c = normalizeEngineConfig({});
+    expect(c.sparkle.gaps).toEqual({ enabled: false, coverage: 0.22, speed: 1 });
+    expect(c.sparkle.width).toEqual({ enabled: false, coverage: 0.3, speed: 1, swingPx: 1.25 });
+  });
+  it("clamps sparkle.gaps.coverage to 0..1 and speed to >=0.05", () => {
+    expect(normalizeEngineConfig({ sparkle: { gaps: { coverage: 9 } } }).sparkle.gaps.coverage).toBe(1);
+    expect(normalizeEngineConfig({ sparkle: { gaps: { speed: 0 } } }).sparkle.gaps.speed).toBe(0.05);
+  });
+  it("clamps sparkle.width.swingPx to 0..40", () => {
+    expect(normalizeEngineConfig({ sparkle: { width: { swingPx: 999 } } }).sparkle.width.swingPx).toBe(40);
+  });
+});
 describe("reveal normalizer", () => {
   it("defaults to DEFAULT_REVEAL when called with {}", () => {
     expect(normalizeReveal({})).toEqual(DEFAULT_REVEAL);
@@ -125,15 +139,12 @@ describe("reveal normalizer", () => {
   it("unknown wave.position falls back to default", () => {
     expect(normalizeReveal({ wave: { position: "bogus" as any } }).wave.position).toBe(DEFAULT_REVEAL.wave.position);
   });
-  it("unknown assembly.order falls back to default", () => {
-    expect(normalizeReveal({ assembly: { order: "bogus" as any } }).assembly.order).toBe(DEFAULT_REVEAL.assembly.order);
-  });
   it("unknown type falls back to default", () => {
     expect(normalizeReveal({ type: "bogus" as any }).type).toBe("wave");
   });
   it("round-trips reveal through serialize/parse", () => {
     const config = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", wave: { durationMs: 2000 }, assembly: { order: "sweep" } },
+      reveal: { enabled: true, type: "assembly", wave: { durationMs: 2000 }, assembly: { sliceSizePx: 50 } },
     });
     const serialized = serializeEngineConfig(config);
     const parsed = parseEngineConfig(serialized);

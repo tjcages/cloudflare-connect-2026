@@ -11,8 +11,6 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type AssemblyOrder = "center" | "edges" | "sweep" | "random";
-
 export interface RevealConfig {
   enabled: boolean;
   type: "wave" | "assembly";
@@ -23,7 +21,6 @@ export interface RevealConfig {
     waviness: number;
   };
   assembly: {
-    order: AssemblyOrder;
     sliceSizePx: number;
     speedMinMs: number;
     speedMaxMs: number;
@@ -72,6 +69,11 @@ export interface Grid {
   orientation: "vertical" | "horizontal";
 }
 
+export interface SparkleConfig {
+  gaps: { enabled: boolean; coverage: number; speed: number };
+  width: { enabled: boolean; coverage: number; speed: number; swingPx: number };
+}
+
 export interface EngineConfig {
   transform: Transform;
   adjustments: Adjustments;
@@ -81,4 +83,5 @@ export interface EngineConfig {
   stripesEnabled: boolean;
   fieldScale: number;
   reveal: RevealConfig;
+  sparkle: SparkleConfig;
 }

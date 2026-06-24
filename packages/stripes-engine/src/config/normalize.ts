@@ -6,8 +6,8 @@ import type {
   Stripe,
   EngineConfig,
   RevealConfig,
+  SparkleConfig,
   WavePosition,
-  AssemblyOrder,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -115,13 +115,11 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-const ASSEMBLY_ORDERS: AssemblyOrder[] = ["center", "edges", "sweep", "random"];
-
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "wave",
   wave: { position: "center", durationMs: 1200, softness: 0.22, waviness: 0.11 },
-  assembly: { order: "center", sliceSizePx: 40, speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
+  assembly: { sliceSizePx: 40, speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900 },
 };
 
 type PartialReveal = {
@@ -137,9 +135,6 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
   const position = WAVE_POSITIONS.includes(w.position as WavePosition)
     ? (w.position as WavePosition)
     : DEFAULT_REVEAL.wave.position;
-  const order = ASSEMBLY_ORDERS.includes(a.order as AssemblyOrder)
-    ? (a.order as AssemblyOrder)
-    : DEFAULT_REVEAL.assembly.order;
   const speedMinMs = clamp(Math.round(num(a.speedMinMs, DEFAULT_REVEAL.assembly.speedMinMs)), 100, 30000);
   const speedMaxMs = Math.max(
     speedMinMs,
@@ -155,11 +150,38 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
       waviness: clamp(num(w.waviness, DEFAULT_REVEAL.wave.waviness), 0, 1),
     },
     assembly: {
-      order,
       sliceSizePx: clamp(Math.round(num(a.sliceSizePx, DEFAULT_REVEAL.assembly.sliceSizePx)), 8, 200),
       speedMinMs,
       speedMaxMs,
       staggerMs: clamp(Math.round(num(a.staggerMs, DEFAULT_REVEAL.assembly.staggerMs)), 0, 30000),
+    },
+  };
+}
+
+export const DEFAULT_SPARKLE: SparkleConfig = {
+  gaps: { enabled: false, coverage: 0.22, speed: 1 },
+  width: { enabled: false, coverage: 0.3, speed: 1, swingPx: 1.25 },
+};
+
+type PartialSparkle = {
+  gaps?: Partial<SparkleConfig["gaps"]>;
+  width?: Partial<SparkleConfig["width"]>;
+};
+
+export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
+  const g = i.gaps ?? {};
+  const w = i.width ?? {};
+  return {
+    gaps: {
+      enabled: g.enabled !== undefined ? !!g.enabled : DEFAULT_SPARKLE.gaps.enabled,
+      coverage: clamp(num(g.coverage, DEFAULT_SPARKLE.gaps.coverage), 0, 1),
+      speed: clamp(num(g.speed, DEFAULT_SPARKLE.gaps.speed), 0.05, 100),
+    },
+    width: {
+      enabled: w.enabled !== undefined ? !!w.enabled : DEFAULT_SPARKLE.width.enabled,
+      coverage: clamp(num(w.coverage, DEFAULT_SPARKLE.width.coverage), 0, 1),
+      speed: clamp(num(w.speed, DEFAULT_SPARKLE.width.speed), 0.05, 100),
+      swingPx: clamp(num(w.swingPx, DEFAULT_SPARKLE.width.swingPx), 0, 40),
     },
   };
 }
@@ -173,6 +195,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   stripesEnabled: true,
   fieldScale: 1,
   reveal: { ...DEFAULT_REVEAL, wave: { ...DEFAULT_REVEAL.wave }, assembly: { ...DEFAULT_REVEAL.assembly } },
+  sparkle: { gaps: { ...DEFAULT_SPARKLE.gaps }, width: { ...DEFAULT_SPARKLE.width } },
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -185,5 +208,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     stripesEnabled: i.stripesEnabled !== undefined ? !!i.stripesEnabled : true,
     fieldScale: clamp(num(i.fieldScale, 1), 0.25, 2),
     reveal: normalizeReveal(i.reveal as PartialReveal | undefined),
+    sparkle: normalizeSparkle(i.sparkle as PartialSparkle | undefined),
   };
 }
