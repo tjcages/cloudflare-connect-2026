@@ -7,6 +7,7 @@ export interface Flame {
   height: number;
   speedPxPerSec: number;
   opacity: number;
+  colorSeed: number;
 }
 
 export interface FlamesState {
@@ -70,12 +71,22 @@ export function flamesSpeedRange(config: FlamesConfig): { minPxPerSec: number; m
   };
 }
 
+function flameColorSeed(width: number, height: number, speedPxPerSec: number, opacity: number): number {
+  let h = Math.imul(Math.round(width * 977) ^ 0x9e3779b9, 0x85ebca6b);
+  h = Math.imul(h ^ Math.round(height * 1013), 0xc2b2ae35);
+  h = Math.imul(h ^ Math.round(speedPxPerSec * 131), 0x27d4eb2f);
+  h = Math.imul(h ^ Math.round(opacity * 100003), 0x165667b1);
+  h ^= h >>> 15;
+  return (h >>> 0) / 4294967296;
+}
+
 function createFlame(state: FlamesState, config: FlamesConfig, displayWidth: number, displayHeight: number): Flame {
   const width = randomFlameSpan(state.random, displayWidth, config.minWidthRatio, config.maxWidthRatio);
   const height = randomFlameSpan(state.random, displayHeight, config.minHeightRatio, config.maxHeightRatio);
   const speedRange = flamesSpeedRange(config);
   const speedPxPerSec = randomBetween(state.random, speedRange.minPxPerSec, speedRange.maxPxPerSec);
   const opacity = randomBetween(state.random, config.opacityMin, config.opacityMax);
+  const colorSeed = flameColorSeed(width, height, speedPxPerSec, opacity);
 
   if (isVerticalFlamesDirection(config.direction)) {
     return {
@@ -85,6 +96,7 @@ function createFlame(state: FlamesState, config: FlamesConfig, displayWidth: num
       height,
       speedPxPerSec,
       opacity,
+      colorSeed,
     };
   }
 
@@ -95,6 +107,7 @@ function createFlame(state: FlamesState, config: FlamesConfig, displayWidth: num
     height,
     speedPxPerSec,
     opacity,
+    colorSeed,
   };
 }
 

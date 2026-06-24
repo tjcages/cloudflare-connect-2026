@@ -49,6 +49,7 @@ import { buildStripeLut, lutSignature } from "./field/stripeLut";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
 import { bindRenderTarget, createMrtTarget, type MrtTarget } from "./gl/renderTarget";
 import { detectBackgroundColor } from "./colors/backgroundDetect";
+import { extractVibrantColors, createSyntheticVibrantPalette, type VibrantColor } from "./colors/vibrantPalette";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
 
 const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
@@ -114,6 +115,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
 
   let detectedBgColor = config.colors.backgroundColor;
   let colorsMrt: MrtTarget | null = null;
+  let flamesPalette: VibrantColor[] = createSyntheticVibrantPalette();
 
   const flamesSeed = (opts.seed ?? 1) >>> 0;
   let flamesState: FlamesState = createFlamesState(mulberry32(flamesSeed));
@@ -165,6 +167,38 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       return detectBackgroundColor(data, w, h);
     } catch {
       return config.colors.backgroundColor;
+    }
+  }
+
+  function extractSourcePalette(media: EngineSource): VibrantColor[] {
+    try {
+      if (!isDrawable(media)) return createSyntheticVibrantPalette();
+      let mw = 1;
+      let mh = 1;
+      if (typeof HTMLVideoElement !== "undefined" && media instanceof HTMLVideoElement) {
+        mw = media.videoWidth || 1;
+        mh = media.videoHeight || 1;
+      } else if (typeof HTMLImageElement !== "undefined" && media instanceof HTMLImageElement) {
+        mw = media.naturalWidth || media.width || 1;
+        mh = media.naturalHeight || media.height || 1;
+      } else {
+        mw = (media as ImageBitmap | HTMLCanvasElement).width || 1;
+        mh = (media as ImageBitmap | HTMLCanvasElement).height || 1;
+      }
+      const maxSide = 96;
+      const scale = Math.min(1, maxSide / Math.max(mw, mh));
+      const w = Math.max(1, Math.round(mw * scale));
+      const h = Math.max(1, Math.round(mh * scale));
+      const temp = document.createElement("canvas");
+      temp.width = w;
+      temp.height = h;
+      const ctx = temp.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return createSyntheticVibrantPalette();
+      ctx.drawImage(media as CanvasImageSource, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h).data;
+      return extractVibrantColors(data, w, h);
+    } catch {
+      return createSyntheticVibrantPalette();
     }
   }
 
@@ -282,19 +316,26 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     const flamesFieldPasses: Pass[] = [];
     if (config.flames.enabled) {
       const flamesPass = createFlamesPass(gl);
+      const flamesMrt = colorsMrt;
       flamesFieldPasses.push({
         name: "flamesField",
         render: () => {
           stepFlames(flamesState, config.flames, { width: cssW, height: cssH }, clock.now());
           const { inner, outer } = flamesGradientStops(config.flames.edgeSharpness);
-          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
-          flamesPass.render(fieldRT, flamesState.flames, {
+          const opts = {
             canvasW: cssW,
             canvasH: cssH,
             vertical: isVerticalFlamesDirection(config.flames.direction),
             inner,
             outer,
-          });
+          };
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          if (colorsMode && flamesMrt) {
+            const fieldColorRT = pool.get("fieldColor", fieldSize.width, fieldSize.height, { linear: true });
+            flamesPass.renderColors(flamesMrt, fieldRT, fieldColorRT, flamesState.flames, flamesPalette, opts);
+          } else {
+            flamesPass.render(fieldRT, flamesState.flames, opts);
+          }
         },
         dispose: () => flamesPass.dispose(),
       });
@@ -726,6 +767,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       source?.dispose();
       source = media ? createSourceTexture(gl, media) : null;
       detectedBgColor = media ? detectSourceBackground(media) : config.colors.backgroundColor;
+      flamesPalette = media ? extractSourcePalette(media) : createSyntheticVibrantPalette();
       if (config.colors.mode === "colors") buildPasses();
     },
     setConfig(partial) {
