@@ -139,6 +139,13 @@ export interface ClickWaveConfig {
   stripeWhiteAlpha: number;
 }
 
+export interface LettersConfig {
+  enabled: boolean;
+  coverage: number;
+  sizeScale: number;
+  shuffleSpeed: number;
+}
+
 export interface EngineConfig {
   transform: Transform;
   adjustments: Adjustments;
@@ -153,4 +160,5 @@ export interface EngineConfig {
   edgeMask: EdgeMaskConfig;
   cursorTrail: CursorTrailConfig;
   clickWave: ClickWaveConfig;
+  letters: LettersConfig;
 }

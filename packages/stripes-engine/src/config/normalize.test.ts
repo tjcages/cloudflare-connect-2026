@@ -22,6 +22,8 @@ import {
   DEFAULT_CURSOR_TRAIL,
   normalizeClickWave,
   DEFAULT_CLICK_WAVE,
+  normalizeLetters,
+  DEFAULT_LETTERS,
 } from "./normalize";
 import { serializeEngineConfig, parseEngineConfig } from "./serialize";
 
@@ -418,5 +420,44 @@ describe("clickWave normalizer", () => {
     expect(normalizeClickWave({}).stripeWhiteAlpha).toBe(0.5);
     expect(normalizeClickWave({ stripeWhiteAlpha: -1 }).stripeWhiteAlpha).toBe(0);
     expect(normalizeClickWave({ stripeWhiteAlpha: 2 }).stripeWhiteAlpha).toBe(1);
+  });
+});
+describe("letters normalizer", () => {
+  it("defaults to DEFAULT_LETTERS when called with {}", () => {
+    expect(normalizeLetters({})).toEqual(DEFAULT_LETTERS);
+    expect(DEFAULT_LETTERS.enabled).toBe(false);
+    expect(DEFAULT_LETTERS.coverage).toBe(0.1);
+    expect(DEFAULT_LETTERS.sizeScale).toBe(0.9);
+    expect(DEFAULT_LETTERS.shuffleSpeed).toBe(1);
+  });
+  it("normalizeEngineConfig({}) includes DEFAULT_LETTERS", () => {
+    expect(normalizeEngineConfig({}).letters).toEqual(DEFAULT_LETTERS);
+  });
+  it("omitted letters → enabled:false", () => {
+    expect(normalizeEngineConfig({}).letters.enabled).toBe(false);
+    expect(normalizeLetters({}).enabled).toBe(false);
+    expect(normalizeLetters(undefined).enabled).toBe(false);
+  });
+  it("enabled:false stays false, enabled:true becomes true", () => {
+    expect(normalizeLetters({ enabled: false }).enabled).toBe(false);
+    expect(normalizeLetters({ enabled: true }).enabled).toBe(true);
+  });
+  it("clamps coverage to 0..1, default 0.1", () => {
+    expect(normalizeLetters({}).coverage).toBe(0.1);
+    expect(normalizeLetters({ coverage: -1 }).coverage).toBe(0);
+    expect(normalizeLetters({ coverage: 2 }).coverage).toBe(1);
+    expect(normalizeLetters({ coverage: 0.5 }).coverage).toBe(0.5);
+  });
+  it("clamps sizeScale to 0.1..1, default 0.9", () => {
+    expect(normalizeLetters({}).sizeScale).toBe(0.9);
+    expect(normalizeLetters({ sizeScale: 0 }).sizeScale).toBe(0.1);
+    expect(normalizeLetters({ sizeScale: 2 }).sizeScale).toBe(1);
+    expect(normalizeLetters({ sizeScale: 0.5 }).sizeScale).toBe(0.5);
+  });
+  it("clamps shuffleSpeed to 0.05..10, default 1", () => {
+    expect(normalizeLetters({}).shuffleSpeed).toBe(1);
+    expect(normalizeLetters({ shuffleSpeed: 0 }).shuffleSpeed).toBe(0.05);
+    expect(normalizeLetters({ shuffleSpeed: 20 }).shuffleSpeed).toBe(10);
+    expect(normalizeLetters({ shuffleSpeed: 3 }).shuffleSpeed).toBe(3);
   });
 });

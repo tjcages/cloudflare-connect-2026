@@ -13,6 +13,7 @@ import type {
   EdgeMaskConfig,
   CursorTrailConfig,
   ClickWaveConfig,
+  LettersConfig,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -354,6 +355,24 @@ export function normalizeClickWave(i: PartialClickWave = {}): ClickWaveConfig {
   };
 }
 
+export const DEFAULT_LETTERS: LettersConfig = {
+  enabled: false,
+  coverage: 0.1,
+  sizeScale: 0.9,
+  shuffleSpeed: 1,
+};
+
+type PartialLetters = Partial<LettersConfig>;
+
+export function normalizeLetters(i: PartialLetters = {}): LettersConfig {
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_LETTERS.enabled,
+    coverage: clamp(num(i.coverage, DEFAULT_LETTERS.coverage), 0, 1),
+    sizeScale: clamp(num(i.sizeScale, DEFAULT_LETTERS.sizeScale), 0.1, 1),
+    shuffleSpeed: clamp(num(i.shuffleSpeed, DEFAULT_LETTERS.shuffleSpeed), 0.05, 10),
+  };
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
@@ -368,6 +387,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   edgeMask: { ...DEFAULT_EDGE_MASK },
   cursorTrail: { ...DEFAULT_CURSOR_TRAIL },
   clickWave: { ...DEFAULT_CLICK_WAVE },
+  letters: { ...DEFAULT_LETTERS },
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -385,5 +405,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     edgeMask: normalizeEdgeMask(i.edgeMask),
     cursorTrail: normalizeCursorTrail(i.cursorTrail),
     clickWave: normalizeClickWave(i.clickWave),
+    letters: normalizeLetters(i.letters),
   };
 }
