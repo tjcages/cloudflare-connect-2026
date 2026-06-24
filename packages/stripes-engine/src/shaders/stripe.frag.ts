@@ -119,7 +119,8 @@ void main() {
   if (uUseCellColors > 0.5) {
     vec4 cc = texture(uCellColor, (cell + 0.5) / uGridCount);
     barColor = cc.rgb;
-    barWidthPx *= clamp(cc.a, 0.0, 1.0);
+    float maxBarPx = (uOrient < 0.5) ? uCellPx.x : uCellPx.y;
+    barWidthPx = clamp(cc.a, 0.0, 1.0) * maxBarPx;
   }
 
   if (uShuffleEnabled > 0.5) barWidthPx = shuffledWidth(cell.x, cell.y, barWidthPx);
