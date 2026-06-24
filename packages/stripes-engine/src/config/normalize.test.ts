@@ -256,7 +256,7 @@ describe("cursorTrail normalizer", () => {
   it("defaults to DEFAULT_CURSOR_TRAIL when called with {}", () => {
     expect(normalizeCursorTrail({})).toEqual(DEFAULT_CURSOR_TRAIL);
     expect(DEFAULT_CURSOR_TRAIL.enabled).toBe(false);
-    expect(DEFAULT_CURSOR_TRAIL.pushStrengthPx).toBe(14);
+    expect(DEFAULT_CURSOR_TRAIL.pushStrengthPx).toBe(48);
   });
   it("normalizeEngineConfig({}) includes DEFAULT_CURSOR_TRAIL", () => {
     expect(normalizeEngineConfig({}).cursorTrail).toEqual(DEFAULT_CURSOR_TRAIL);
@@ -336,8 +336,8 @@ describe("cursorTrail normalizer", () => {
     expect(normalizeCursorTrail({ pushRadiusScale: -1 }).pushRadiusScale).toBe(0);
     expect(normalizeCursorTrail({ pushRadiusScale: 10 }).pushRadiusScale).toBe(8);
   });
-  it("clamps pushStrengthPx to 0..120, default 14", () => {
-    expect(normalizeCursorTrail({}).pushStrengthPx).toBe(14);
+  it("clamps pushStrengthPx to 0..120, default 48", () => {
+    expect(normalizeCursorTrail({}).pushStrengthPx).toBe(48);
     expect(normalizeCursorTrail({ pushStrengthPx: -1 }).pushStrengthPx).toBe(0);
     expect(normalizeCursorTrail({ pushStrengthPx: 200 }).pushStrengthPx).toBe(120);
   });

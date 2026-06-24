@@ -276,13 +276,13 @@ export const DEFAULT_CURSOR_TRAIL: CursorTrailConfig = {
   maxEmitPerTick: 10,
   spreadMinPx: 1.5,
   spreadMaxPx: 21,
-  spinStrength: 0.039,
+  spinStrength: 0.04,
   densityRadiusMinScale: 0.2,
   densityRadiusLifeScale: 1,
-  pushRadiusScale: 2.15,
-  pushStrengthPx: 14,
+  pushRadiusScale: 0.9,
+  pushStrengthPx: 48,
   pushLagPx: 0,
-  pushWobblePx: 12,
+  pushWobblePx: 8,
   pushLeadBlackAlpha: 0,
 };
 
