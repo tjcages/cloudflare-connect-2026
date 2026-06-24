@@ -502,6 +502,23 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
           render: (get) => get("Click Wave.clickWaveEnabled") === true,
         },
       }),
+      Colors: folder({
+        colorsMode: {
+          value: d.colors.mode,
+          options: { Luminance: "luminance", Colors: "colors" } as const,
+          label: "Mode",
+        },
+        colorsAutoDetectBg: {
+          value: d.colors.autoDetectBackground,
+          label: "Auto-detect background",
+          render: (get) => get("Colors.colorsMode") === "colors",
+        },
+        colorsBackgroundColor: {
+          value: intToHex(d.colors.backgroundColor),
+          label: "Background color",
+          render: (get) => get("Colors.colorsMode") === "colors" && get("Colors.colorsAutoDetectBg") === false,
+        },
+      }),
       "Background Flames": folder({
         flamesEnabled: { value: d.flames.enabled, label: "Enabled" },
         flamesDirection: {
@@ -738,6 +755,11 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
       pushStrengthPx: values.clickWavePushStrengthPx,
       pushBandScale: values.clickWavePushBandScale,
       stripeWhiteAlpha: values.clickWaveStripeWhiteAlpha,
+    },
+    colors: {
+      mode: values.colorsMode,
+      autoDetectBackground: values.colorsAutoDetectBg,
+      backgroundColor: hexToInt(values.colorsBackgroundColor),
     },
   });
 
