@@ -278,6 +278,33 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
           render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
         },
       }),
+      Letters: folder({
+        lettersEnabled: { value: d.letters.enabled, label: "Enabled" },
+        coverage: {
+          value: d.letters.coverage,
+          min: 0,
+          max: 1,
+          step: 0.01,
+          label: "Coverage",
+          render: (get) => get("Letters.lettersEnabled") === true,
+        },
+        sizeScale: {
+          value: d.letters.sizeScale,
+          min: 0.1,
+          max: 1,
+          step: 0.05,
+          label: "Size scale",
+          render: (get) => get("Letters.lettersEnabled") === true,
+        },
+        shuffleSpeed: {
+          value: d.letters.shuffleSpeed,
+          min: 0.05,
+          max: 3,
+          step: 0.05,
+          label: "Shuffle speed",
+          render: (get) => get("Letters.lettersEnabled") === true,
+        },
+      }),
       "Edge Mask": folder({
         edgeMaskEnabled: { value: d.edgeMask.enabled, label: "Enabled" },
         edgeMaskStart: {
@@ -644,6 +671,12 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
         speed: values.sparkleWidthSpeed,
         swingPx: values.sparkleWidthSwingPx,
       },
+    },
+    letters: {
+      enabled: values.lettersEnabled,
+      coverage: values.coverage,
+      sizeScale: values.sizeScale,
+      shuffleSpeed: values.shuffleSpeed,
     },
     flames: {
       enabled: values.flamesEnabled,
