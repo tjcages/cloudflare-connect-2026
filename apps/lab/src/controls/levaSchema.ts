@@ -278,6 +278,33 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
           render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
         },
       }),
+      "Edge Mask": folder({
+        edgeMaskEnabled: { value: d.edgeMask.enabled, label: "Enabled" },
+        edgeMaskStart: {
+          value: d.edgeMask.start,
+          min: 0,
+          max: 0.5,
+          step: 0.005,
+          label: "Start inset",
+          render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
+        },
+        edgeMaskEnd: {
+          value: d.edgeMask.end,
+          min: 0,
+          max: 0.5,
+          step: 0.005,
+          label: "End inset",
+          render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
+        },
+        edgeMaskPower: {
+          value: d.edgeMask.power,
+          min: 0.1,
+          max: 4,
+          step: 0.05,
+          label: "Power",
+          render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
+        },
+      }),
       "Background Flames": folder({
         flamesEnabled: { value: d.flames.enabled, label: "Enabled" },
         flamesDirection: {
@@ -467,6 +494,12 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
       edgeSharpness: values.flamesEdgeSharpness,
       opacityMin: values.flamesOpacityMin,
       opacityMax: values.flamesOpacityMax,
+    },
+    edgeMask: {
+      enabled: values.edgeMaskEnabled,
+      start: values.edgeMaskStart,
+      end: values.edgeMaskEnd,
+      power: values.edgeMaskPower,
     },
   });
 
