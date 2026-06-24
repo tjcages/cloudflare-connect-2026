@@ -126,6 +126,19 @@ export interface CursorTrailConfig {
   pushLeadBlackAlpha: number;
 }
 
+export interface ClickWaveConfig {
+  enabled: boolean;
+  lifeMs: number;
+  startRadiusPx: number;
+  maxRadiusPx: number;
+  startStrokeWidthPx: number;
+  endStrokeWidthPx: number;
+  maxWaves: number;
+  pushStrengthPx: number;
+  pushBandScale: number;
+  stripeWhiteAlpha: number;
+}
+
 export interface EngineConfig {
   transform: Transform;
   adjustments: Adjustments;
@@ -139,4 +152,5 @@ export interface EngineConfig {
   flames: FlamesConfig;
   edgeMask: EdgeMaskConfig;
   cursorTrail: CursorTrailConfig;
+  clickWave: ClickWaveConfig;
 }

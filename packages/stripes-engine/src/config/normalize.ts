@@ -12,6 +12,7 @@ import type {
   WavePosition,
   EdgeMaskConfig,
   CursorTrailConfig,
+  ClickWaveConfig,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -323,6 +324,36 @@ export function normalizeCursorTrail(i: PartialCursorTrail = {}): CursorTrailCon
   };
 }
 
+export const DEFAULT_CLICK_WAVE: ClickWaveConfig = {
+  enabled: false,
+  lifeMs: 630,
+  startRadiusPx: 6,
+  maxRadiusPx: 120,
+  startStrokeWidthPx: 24,
+  endStrokeWidthPx: 12,
+  maxWaves: 12,
+  pushStrengthPx: 38,
+  pushBandScale: 3.2,
+  stripeWhiteAlpha: 0.9,
+};
+
+type PartialClickWave = Partial<ClickWaveConfig>;
+
+export function normalizeClickWave(i: PartialClickWave = {}): ClickWaveConfig {
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_CLICK_WAVE.enabled,
+    lifeMs: clamp(num(i.lifeMs, DEFAULT_CLICK_WAVE.lifeMs), 80, 10_000),
+    startRadiusPx: clamp(num(i.startRadiusPx, DEFAULT_CLICK_WAVE.startRadiusPx), 1, 120),
+    maxRadiusPx: clamp(num(i.maxRadiusPx, DEFAULT_CLICK_WAVE.maxRadiusPx), 4, 600),
+    startStrokeWidthPx: clamp(num(i.startStrokeWidthPx, DEFAULT_CLICK_WAVE.startStrokeWidthPx), 0.5, 80),
+    endStrokeWidthPx: clamp(num(i.endStrokeWidthPx, DEFAULT_CLICK_WAVE.endStrokeWidthPx), 0.25, 40),
+    maxWaves: clampInt(num(i.maxWaves, DEFAULT_CLICK_WAVE.maxWaves), 1, 32),
+    pushStrengthPx: clamp(num(i.pushStrengthPx, DEFAULT_CLICK_WAVE.pushStrengthPx), 0, 200),
+    pushBandScale: clamp(num(i.pushBandScale, DEFAULT_CLICK_WAVE.pushBandScale), 1, 8),
+    stripeWhiteAlpha: clamp(num(i.stripeWhiteAlpha, DEFAULT_CLICK_WAVE.stripeWhiteAlpha), 0, 1),
+  };
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
@@ -336,6 +367,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   flames: { ...DEFAULT_FLAMES },
   edgeMask: { ...DEFAULT_EDGE_MASK },
   cursorTrail: { ...DEFAULT_CURSOR_TRAIL },
+  clickWave: { ...DEFAULT_CLICK_WAVE },
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -352,5 +384,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     flames: normalizeFlames(i.flames as PartialFlames | undefined),
     edgeMask: normalizeEdgeMask(i.edgeMask),
     cursorTrail: normalizeCursorTrail(i.cursorTrail),
+    clickWave: normalizeClickWave(i.clickWave),
   };
 }

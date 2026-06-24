@@ -20,6 +20,8 @@ import {
   DEFAULT_EDGE_MASK,
   normalizeCursorTrail,
   DEFAULT_CURSOR_TRAIL,
+  normalizeClickWave,
+  DEFAULT_CLICK_WAVE,
 } from "./normalize";
 import { serializeEngineConfig, parseEngineConfig } from "./serialize";
 
@@ -350,5 +352,71 @@ describe("cursorTrail normalizer", () => {
   it("clamps pushLeadBlackAlpha to 0..1", () => {
     expect(normalizeCursorTrail({ pushLeadBlackAlpha: -1 }).pushLeadBlackAlpha).toBe(0);
     expect(normalizeCursorTrail({ pushLeadBlackAlpha: 2 }).pushLeadBlackAlpha).toBe(1);
+  });
+});
+describe("clickWave normalizer", () => {
+  it("defaults to DEFAULT_CLICK_WAVE when called with {}", () => {
+    expect(normalizeClickWave({})).toEqual(DEFAULT_CLICK_WAVE);
+    expect(DEFAULT_CLICK_WAVE.enabled).toBe(false);
+    expect(DEFAULT_CLICK_WAVE.pushStrengthPx).toBe(38);
+  });
+  it("normalizeEngineConfig({}) includes DEFAULT_CLICK_WAVE", () => {
+    expect(normalizeEngineConfig({}).clickWave).toEqual(DEFAULT_CLICK_WAVE);
+  });
+  it("omitted clickWave → enabled:false", () => {
+    expect(normalizeEngineConfig({}).clickWave.enabled).toBe(false);
+    expect(normalizeClickWave({}).enabled).toBe(false);
+    expect(normalizeClickWave(undefined).enabled).toBe(false);
+  });
+  it("enabled:false stays false, enabled:true becomes true", () => {
+    expect(normalizeClickWave({ enabled: false }).enabled).toBe(false);
+    expect(normalizeClickWave({ enabled: true }).enabled).toBe(true);
+  });
+  it("clamps lifeMs to 80..10000, default 630", () => {
+    expect(normalizeClickWave({}).lifeMs).toBe(630);
+    expect(normalizeClickWave({ lifeMs: 10 }).lifeMs).toBe(80);
+    expect(normalizeClickWave({ lifeMs: 99999 }).lifeMs).toBe(10000);
+    expect(normalizeClickWave({ lifeMs: 500 }).lifeMs).toBe(500);
+  });
+  it("clamps startRadiusPx to 1..120, default 6", () => {
+    expect(normalizeClickWave({}).startRadiusPx).toBe(6);
+    expect(normalizeClickWave({ startRadiusPx: 0 }).startRadiusPx).toBe(1);
+    expect(normalizeClickWave({ startRadiusPx: 200 }).startRadiusPx).toBe(120);
+  });
+  it("clamps maxRadiusPx to 4..600, default 120", () => {
+    expect(normalizeClickWave({}).maxRadiusPx).toBe(120);
+    expect(normalizeClickWave({ maxRadiusPx: 1 }).maxRadiusPx).toBe(4);
+    expect(normalizeClickWave({ maxRadiusPx: 9999 }).maxRadiusPx).toBe(600);
+  });
+  it("clamps startStrokeWidthPx to 0.5..80, default 24", () => {
+    expect(normalizeClickWave({}).startStrokeWidthPx).toBe(24);
+    expect(normalizeClickWave({ startStrokeWidthPx: 0 }).startStrokeWidthPx).toBe(0.5);
+    expect(normalizeClickWave({ startStrokeWidthPx: 100 }).startStrokeWidthPx).toBe(80);
+  });
+  it("clamps endStrokeWidthPx to 0.25..40, default 12", () => {
+    expect(normalizeClickWave({}).endStrokeWidthPx).toBe(12);
+    expect(normalizeClickWave({ endStrokeWidthPx: 0 }).endStrokeWidthPx).toBe(0.25);
+    expect(normalizeClickWave({ endStrokeWidthPx: 100 }).endStrokeWidthPx).toBe(40);
+  });
+  it("clamps maxWaves to integer 1..32, default 12", () => {
+    expect(normalizeClickWave({}).maxWaves).toBe(12);
+    expect(normalizeClickWave({ maxWaves: 0 }).maxWaves).toBe(1);
+    expect(normalizeClickWave({ maxWaves: 100 }).maxWaves).toBe(32);
+    expect(normalizeClickWave({ maxWaves: 5.7 }).maxWaves).toBe(6);
+  });
+  it("clamps pushStrengthPx to 0..200, default 38", () => {
+    expect(normalizeClickWave({}).pushStrengthPx).toBe(38);
+    expect(normalizeClickWave({ pushStrengthPx: -1 }).pushStrengthPx).toBe(0);
+    expect(normalizeClickWave({ pushStrengthPx: 999 }).pushStrengthPx).toBe(200);
+  });
+  it("clamps pushBandScale to 1..8, default 3.2", () => {
+    expect(normalizeClickWave({}).pushBandScale).toBe(3.2);
+    expect(normalizeClickWave({ pushBandScale: 0 }).pushBandScale).toBe(1);
+    expect(normalizeClickWave({ pushBandScale: 10 }).pushBandScale).toBe(8);
+  });
+  it("clamps stripeWhiteAlpha to 0..1, default 0.9", () => {
+    expect(normalizeClickWave({}).stripeWhiteAlpha).toBe(0.9);
+    expect(normalizeClickWave({ stripeWhiteAlpha: -1 }).stripeWhiteAlpha).toBe(0);
+    expect(normalizeClickWave({ stripeWhiteAlpha: 2 }).stripeWhiteAlpha).toBe(1);
   });
 });
