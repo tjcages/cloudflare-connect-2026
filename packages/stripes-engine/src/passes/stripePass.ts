@@ -26,6 +26,8 @@ export type StripeUniforms = {
   atlasTex: WebGLTexture;
   atlasGrid: [number, number];
   letterSizeScale: number;
+  useCellColors: boolean;
+  cellColorTex: WebGLTexture;
 };
 
 export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -55,6 +57,8 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     atlas: u("uAtlas"),
     atlasGrid: u("uAtlasGrid"),
     letterSizeScale: u("uLetterSizeScale"),
+    useCellColors: u("uUseCellColors"),
+    cellColor: u("uCellColor"),
   };
   return {
     render(cellTex: WebGLTexture, lutTex: WebGLTexture, p: StripeUniforms, outWidth: number, outHeight: number) {
@@ -97,6 +101,10 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1i(L.atlas, 3);
       gl.uniform2f(L.atlasGrid, p.atlasGrid[0], p.atlasGrid[1]);
       gl.uniform1f(L.letterSizeScale, p.letterSizeScale);
+      gl.uniform1f(L.useCellColors, p.useCellColors ? 1 : 0);
+      gl.activeTexture(gl.TEXTURE4);
+      gl.bindTexture(gl.TEXTURE_2D, p.cellColorTex);
+      gl.uniform1i(L.cellColor, 4);
       quad.draw();
     },
     dispose() {

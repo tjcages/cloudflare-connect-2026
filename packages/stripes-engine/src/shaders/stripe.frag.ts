@@ -24,6 +24,8 @@ uniform sampler2D uGlyphData;
 uniform sampler2D uAtlas;
 uniform vec2 uAtlasGrid;
 uniform float uLetterSizeScale;
+uniform float uUseCellColors;
+uniform sampler2D uCellColor;
 out vec4 finalColor;
 
 float sdRoundBox(vec2 p, vec2 b, float r) {
@@ -113,6 +115,12 @@ void main() {
   vec4 lut = texture(uLut, vec2((v * 255.0 + 0.5) / 256.0, 0.5));
   vec3 barColor = lut.rgb;
   float barWidthPx = lut.a * 255.0;
+
+  if (uUseCellColors > 0.5) {
+    vec4 cc = texture(uCellColor, (cell + 0.5) / uGridCount);
+    barColor = cc.rgb;
+    barWidthPx *= clamp(cc.a, 0.0, 1.0);
+  }
 
   if (uShuffleEnabled > 0.5) barWidthPx = shuffledWidth(cell.x, cell.y, barWidthPx);
 

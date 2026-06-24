@@ -598,6 +598,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
                 atlasTex: letterAtlasTex!,
                 atlasGrid: letterAtlasGrid,
                 letterSizeScale: config.letters.sizeScale,
+                useCellColors: colorsModeActive,
+                cellColorTex: colorsModeActive ? pool.get("cellColor", cols, rows).texture : lettersDummyTex!,
               },
               output.width,
               output.height,
