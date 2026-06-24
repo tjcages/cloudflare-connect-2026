@@ -16,7 +16,7 @@ vec2 capPush(vec2 p, float cap) {
 }
 
 void main() {
-  vec2 pixelCoord = vUv * uPixelSize;
+  vec2 pixelCoord = vec2(vUv.x, 1.0 - vUv.y) * uPixelSize;
   float colIndex = floor(pixelCoord.x / max(uCellSize.x, 1.0));
   float rowIndex = floor(pixelCoord.y / max(uCellSize.y, 1.0));
   vec2 cuv = vec2((colIndex + 0.5) / max(uGridSize.x, 1.0), (rowIndex + 0.5) / max(uGridSize.y, 1.0));
@@ -27,6 +27,7 @@ void main() {
   float tear = texture(uTear, cuv).r;
 
   vec2 offsetUv = pushCells * uCellSize / uPixelSize;
+  offsetUv.y = -offsetUv.y;
   float field = texture(uField, vUv - offsetUv).r;
   field *= (1.0 - tear);
   field += (1.0 - field) * brighten;

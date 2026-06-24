@@ -414,8 +414,8 @@ describe("clickWave normalizer", () => {
     expect(normalizeClickWave({ pushBandScale: 0 }).pushBandScale).toBe(1);
     expect(normalizeClickWave({ pushBandScale: 10 }).pushBandScale).toBe(8);
   });
-  it("clamps stripeWhiteAlpha to 0..1, default 0.9", () => {
-    expect(normalizeClickWave({}).stripeWhiteAlpha).toBe(0.9);
+  it("clamps stripeWhiteAlpha to 0..1, default 0.5", () => {
+    expect(normalizeClickWave({}).stripeWhiteAlpha).toBe(0.5);
     expect(normalizeClickWave({ stripeWhiteAlpha: -1 }).stripeWhiteAlpha).toBe(0);
     expect(normalizeClickWave({ stripeWhiteAlpha: 2 }).stripeWhiteAlpha).toBe(1);
   });

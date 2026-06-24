@@ -334,7 +334,7 @@ export const DEFAULT_CLICK_WAVE: ClickWaveConfig = {
   maxWaves: 12,
   pushStrengthPx: 38,
   pushBandScale: 3.2,
-  stripeWhiteAlpha: 0.9,
+  stripeWhiteAlpha: 0.5,
 };
 
 type PartialClickWave = Partial<ClickWaveConfig>;
