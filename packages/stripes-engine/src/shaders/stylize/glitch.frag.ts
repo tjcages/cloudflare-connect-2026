@@ -5,15 +5,18 @@ export const GLITCH_FRAG =
   `
 void main(){
   float t = uTime;
+  float slipAmt = mix(0.04, 0.2, uParams.x);
+  float splitAmt = mix(2.0, 16.0, uParams.y);
+  float freq = mix(0.3, 0.85, uParams.z);
   float row = floor(vUv.y * 24.0);
   float seed = hash21(vec2(row, floor(t * 8.0)));
-  float active = step(0.6, hash21(vec2(row * 2.3, floor(t * 8.0) + 7.0)));
-  float slip = (seed - 0.5) * 0.15 * active * uIntensity;
+  float active = step(1.0 - freq, hash21(vec2(row * 2.3, floor(t * 8.0) + 7.0)));
+  float slip = (seed - 0.5) * slipAmt * active * uIntensity;
   vec2 uv = vUv + vec2(slip, 0.0);
-  float sp = (6.0 + 10.0 * active) / uResolution.x * uIntensity;
+  float sp = splitAmt * active / uResolution.x * uIntensity;
   vec3 c;
   c.r = texture(uTex, uv + vec2(sp, 0.0)).r;
-  c.g = texture(uTex, uv + vec2(slip * 0.3, 0.0)).g;
+  c.g = texture(uTex, uv).g;
   c.b = texture(uTex, uv - vec2(sp, 0.0)).b;
   float tear = step(0.97, hash21(vec2(floor(vUv.y * 120.0), floor(t * 12.0))));
   c = mix(c, vec3(1.0) - c, tear * active);
