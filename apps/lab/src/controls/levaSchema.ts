@@ -11,21 +11,34 @@ import { loadManifest } from "../uploads";
 
 const TEXTURE_OPTIONS = Object.fromEntries(buildTextureEntries(loadManifest()).map((t) => [t.label, t.id]));
 
+const RENDER_MODE_INTENSITY: Record<string, number> = {
+  abstract: 1,
+  charcoal: 0.29,
+  pencil: 1,
+  brush: 1,
+  halftone: 1,
+  risograph: 1,
+  stainedGlass: 1,
+  paperCutout: 1,
+  crt: 1,
+  glitch: 1,
+  vhs: 1,
+  plasma: 1,
+  amber: 1,
+  gummy: 1,
+  caramel: 1,
+};
+
 const RENDER_MODE_PARAMS: Record<string, { key: string; label: string; def: number }[]> = {
   abstract: [
     { key: "abstractP0", label: "Wobble", def: 0.5 },
     { key: "abstractP1", label: "Grain", def: 0.6 },
     { key: "abstractP2", label: "Softness", def: 0.2 },
   ],
-  watercolor: [
-    { key: "watercolorP0", label: "Bleed", def: 0.5 },
-    { key: "watercolorP1", label: "Paper", def: 0.5 },
-    { key: "watercolorP2", label: "Edge pooling", def: 0.5 },
-  ],
   charcoal: [
-    { key: "charcoalP0", label: "Grain", def: 0.7 },
-    { key: "charcoalP1", label: "Smudge", def: 0.4 },
-    { key: "charcoalP2", label: "Darkness", def: 0.6 },
+    { key: "charcoalP0", label: "Grain", def: 0.08 },
+    { key: "charcoalP1", label: "Smudge", def: 0.0 },
+    { key: "charcoalP2", label: "Darkness", def: 0.0 },
   ],
   pencil: [
     { key: "pencilP0", label: "Hatch density", def: 0.6 },
@@ -357,7 +370,6 @@ export function useEngineControls(
           options: {
             Sharp: "sharp",
             Abstract: "abstract",
-            Watercolor: "watercolor",
             Charcoal: "charcoal",
             Pencil: "pencil",
             Brush: "brush",
@@ -375,14 +387,19 @@ export function useEngineControls(
           } as const,
           label: "Render mode",
         },
-        renderIntensity: {
-          value: d.renderIntensity,
-          min: 0,
-          max: 1,
-          step: 0.01,
-          label: "Intensity",
-          render: (get) => get("Stripes.renderMode") !== "sharp",
-        },
+        ...Object.fromEntries(
+          Object.entries(RENDER_MODE_INTENSITY).map(([mode, def]) => [
+            mode + "Intensity",
+            {
+              value: def,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Intensity",
+              render: (get: (path: string) => unknown) => get("Stripes.renderMode") === mode,
+            },
+          ]),
+        ),
         ...Object.fromEntries(
           Object.entries(RENDER_MODE_PARAMS).flatMap(([mode, params]) =>
             params.map((p) => [
@@ -813,7 +830,10 @@ export function useEngineControls(
     },
     stripesEnabled: values.stripesEnabled,
     renderMode: values.renderMode,
-    renderIntensity: values.renderIntensity,
+    renderIntensity:
+      RENDER_MODE_INTENSITY[values.renderMode as string] !== undefined
+        ? ((values[(values.renderMode + "Intensity") as keyof typeof values] as number) ?? 1)
+        : 1,
     renderParams: (() => {
       const ps = RENDER_MODE_PARAMS[values.renderMode as string];
       if (!ps) return [0.5, 0.5, 0.5, 0.5];

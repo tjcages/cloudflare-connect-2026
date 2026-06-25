@@ -395,7 +395,6 @@ export function normalizeColors(i: PartialColors = {}): ColorsConfig {
 export const RENDER_MODES: RenderMode[] = [
   "sharp",
   "abstract",
-  "watercolor",
   "charcoal",
   "pencil",
   "brush",

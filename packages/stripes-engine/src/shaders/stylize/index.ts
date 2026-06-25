@@ -1,7 +1,6 @@
 import type { RenderMode } from "../../config/types";
 import { STYLIZE_COMMON } from "./common";
 import { ABSTRACT_FRAG } from "./abstract.frag";
-import { WATERCOLOR_FRAG } from "./watercolor.frag";
 import { CHARCOAL_FRAG } from "./charcoal.frag";
 import { PENCIL_FRAG } from "./pencil.frag";
 import { BRUSH_FRAG } from "./brush.frag";
@@ -25,7 +24,6 @@ void main(){ fragColor = vec4(texture(uTex, vUv).rgb, 1.0); }
 
 export const STYLIZE_FRAGS: Partial<Record<RenderMode, string>> = {
   abstract: ABSTRACT_FRAG,
-  watercolor: WATERCOLOR_FRAG,
   charcoal: CHARCOAL_FRAG,
   pencil: PENCIL_FRAG,
   brush: BRUSH_FRAG,

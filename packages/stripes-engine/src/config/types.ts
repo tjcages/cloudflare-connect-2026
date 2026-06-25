@@ -155,7 +155,6 @@ export interface ColorsConfig {
 export type RenderMode =
   | "sharp"
   | "abstract"
-  | "watercolor"
   | "charcoal"
   | "pencil"
   | "brush"
