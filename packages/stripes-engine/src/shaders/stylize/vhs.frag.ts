@@ -5,17 +5,19 @@ export const VHS_FRAG =
   `
 void main(){
   float t = uTime;
-  float jitter = (fbm(vec2(vUv.y * 60.0, t * 2.0)) - 0.5) * 0.02 * uIntensity;
-  vec2 uv = vUv + vec2(jitter, 0.0);
-  float sp = (2.6 / uResolution.x) * uIntensity;
+  float wob = (fbm(vec2(vUv.y * 40.0, t * 1.5)) - 0.5) * 0.04 * uIntensity;
+  float band = smoothstep(0.0, 0.1, fract(vUv.y * 3.0 - t * 0.3));
+  vec2 uv = vUv + vec2(wob + (1.0 - band) * 0.02 * uIntensity, 0.0);
+  float sp = 5.0 / uResolution.x * uIntensity;
   vec3 c;
-  c.r = texture(uTex, uv + vec2(sp, 0.0)).r;
+  c.r = texture(uTex, uv + vec2(sp * 1.5, 0.0)).r;
   c.g = texture(uTex, uv).g;
   c.b = texture(uTex, uv - vec2(sp, 0.0)).b;
-  float scan = 0.5 + 0.5 * sin(uv.y * uResolution.y * 0.5 - t * 20.0);
-  c *= mix(1.0, 0.7 + 0.3 * scan, 0.4 * uIntensity);
-  float n = grain(vUv, floor(t * 24.0));
-  c += (n - 0.5) * 0.08 * uIntensity;
+  float scan = 0.5 + 0.5 * sin(vUv.y * uResolution.y / 1.5 * 6.28318 - t * 10.0);
+  c *= mix(1.0, 0.7 + 0.3 * scan, 0.5 * uIntensity);
+  float n = hash21(floor(vUv * uResolution / 2.0) + floor(t * 30.0));
+  c += (n - 0.5) * 0.12 * uIntensity;
+  c = mix(c, vec3(n), smoothstep(0.05, 0.0, vUv.y) * 0.8 * uIntensity);
   fragColor = vec4(c, 1.0);
 }
 `;

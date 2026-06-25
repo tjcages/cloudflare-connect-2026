@@ -7,13 +7,14 @@ void main(){
   float t = uTime;
   vec3 src = texture(uTex, vUv).rgb;
   float l = luma(src);
-  vec3 amber = vec3(1.25, 0.72, 0.08) * l;
+  float lit = 1.0 - l;
+  vec3 amber = vec3(1.3, 0.6, 0.05) * lit;
   float bl = 0.0;
-  vec2 o = 2.5 / uResolution;
-  for (int i = -2; i <= 2; i++){ bl += luma(texture(uTex, vUv + vec2(float(i) * o.x, 0.0)).rgb); }
-  amber += vec3(1.2, 0.7, 0.1) * (bl / 5.0) * 0.5;
-  float scan = 0.5 + 0.5 * sin((vUv.y * uResolution.y + t * 20.0) * 3.14159);
-  amber *= mix(1.0, 0.65 + 0.35 * scan, 0.5 * uIntensity);
-  fragColor = vec4(mix(src, amber, uIntensity), 1.0);
+  vec2 o = 3.0 / uResolution;
+  for (int i = -3; i <= 3; i++){ bl += (1.0 - luma(texture(uTex, vUv + vec2(float(i) * o.x, 0.0)).rgb)); }
+  amber += vec3(1.2, 0.55, 0.05) * (bl / 7.0) * 0.6;
+  float scan = 0.5 + 0.5 * sin(vUv.y * uResolution.y / 1.8 * 6.28318 - t * 4.0);
+  vec3 screen = vec3(0.03, 0.015, 0.0) + amber * mix(0.5, 1.0, scan);
+  fragColor = vec4(mix(src, screen, uIntensity), 1.0);
 }
 `;
