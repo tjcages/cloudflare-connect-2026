@@ -19,7 +19,7 @@ const RENDER_MODE_INTENSITY: Record<string, number> = {
   halftone: 1,
   risograph: 1,
   stainedGlass: 1,
-  paperCutout: 1,
+  paperCutout: 0.0,
   crt: 1,
   glitch: 1,
   vhs: 1,
@@ -29,7 +29,10 @@ const RENDER_MODE_INTENSITY: Record<string, number> = {
   caramel: 1,
 };
 
-const RENDER_MODE_PARAMS: Record<string, { key: string; label: string; def: number }[]> = {
+const RENDER_MODE_PARAMS: Record<
+  string,
+  { key: string; label: string; def: number; px?: { min: number; max: number; step: number } }[]
+> = {
   abstract: [
     { key: "abstractP0", label: "Wobble", def: 0.5 },
     { key: "abstractP1", label: "Grain", def: 0.6 },
@@ -51,24 +54,23 @@ const RENDER_MODE_PARAMS: Record<string, { key: string; label: string; def: numb
     { key: "brushP2", label: "Impasto", def: 0.4 },
   ],
   halftone: [
-    { key: "halftoneP0", label: "Dot size", def: 0.4 },
-    { key: "halftoneP1", label: "Contrast", def: 0.6 },
-    { key: "halftoneP2", label: "Paper tone", def: 0.2 },
+    { key: "halftoneP0", label: "Dot size", def: 6, px: { min: 2, max: 22, step: 1 } },
+    { key: "halftoneP1", label: "Radius", def: 0.0 },
   ],
   risograph: [
-    { key: "risographP0", label: "Misregister", def: 0.5 },
-    { key: "risographP1", label: "Ink hue", def: 0.4 },
-    { key: "risographP2", label: "Grain", def: 0.4 },
+    { key: "risographP0", label: "Misregister", def: 1.0 },
+    { key: "risographP1", label: "Ink hue", def: 0.0 },
   ],
   stainedGlass: [
-    { key: "stainedGlassP0", label: "Cell size", def: 0.6 },
-    { key: "stainedGlassP1", label: "Lead width", def: 0.5 },
-    { key: "stainedGlassP2", label: "Saturation", def: 0.6 },
+    { key: "stainedGlassP0", label: "Cell size", def: 16, px: { min: 6, max: 60, step: 1 } },
+    { key: "stainedGlassP1", label: "Lead width", def: 0.0 },
+    { key: "stainedGlassP2", label: "Saturation", def: 0.0 },
+    { key: "stainedGlassP3", label: "Grid opacity", def: 1.0 },
   ],
   paperCutout: [
-    { key: "paperCutoutP0", label: "Shadow", def: 0.6 },
-    { key: "paperCutoutP1", label: "Posterize", def: 0.4 },
-    { key: "paperCutoutP2", label: "Roughness", def: 0.4 },
+    { key: "paperCutoutP0", label: "Shadow", def: 0.0 },
+    { key: "paperCutoutP1", label: "Posterize", def: 1.0 },
+    { key: "paperCutoutP2", label: "Roughness", def: 0.0 },
   ],
   crt: [
     { key: "crtP0", label: "Scanlines", def: 0.6 },
@@ -404,14 +406,23 @@ export function useEngineControls(
           Object.entries(RENDER_MODE_PARAMS).flatMap(([mode, params]) =>
             params.map((p) => [
               p.key,
-              {
-                value: p.def,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: p.label,
-                render: (get: (path: string) => unknown) => get("Stripes.renderMode") === mode,
-              },
+              p.px
+                ? {
+                    value: p.def,
+                    min: p.px.min,
+                    max: p.px.max,
+                    step: p.px.step,
+                    label: p.label,
+                    render: (get: (path: string) => unknown) => get("Stripes.renderMode") === mode,
+                  }
+                : {
+                    value: p.def,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: p.label,
+                    render: (get: (path: string) => unknown) => get("Stripes.renderMode") === mode,
+                  },
             ]),
           ),
         ),
@@ -836,13 +847,14 @@ export function useEngineControls(
         : 1,
     renderParams: (() => {
       const ps = RENDER_MODE_PARAMS[values.renderMode as string];
-      if (!ps) return [0.5, 0.5, 0.5, 0.5];
-      return [
-        values[ps[0].key as keyof typeof values] as number,
-        values[ps[1].key as keyof typeof values] as number,
-        values[ps[2].key as keyof typeof values] as number,
-        0.5,
-      ];
+      const out = [0.5, 0.5, 0.5, 0.5];
+      if (ps) {
+        ps.forEach((p, i) => {
+          const raw = values[p.key as keyof typeof values] as number;
+          out[i] = p.px ? (raw - p.px.min) / (p.px.max - p.px.min) : raw;
+        });
+      }
+      return out;
     })(),
     fieldScale: values.textureDpr,
     stripes: fromEditable(stripes),
