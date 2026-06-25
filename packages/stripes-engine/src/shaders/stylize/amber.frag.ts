@@ -8,7 +8,9 @@ void main(){
   float glowAmt = uParams.x;
   float scanAmt = uParams.y;
   float bright = mix(0.7, 1.4, uParams.z);
-  vec3 src = texture(uTex, vUv).rgb;
+  float cell = mix(2.0, 16.0, uParams.w) * uDpr;
+  vec2 cells = uResolution / cell;
+  vec3 src = texture(uTex, (floor(vUv * cells) + 0.5) / cells).rgb;
   float l = luma(src);
   float lit = 1.0 - l;
   vec3 amber = vec3(1.3, 0.6, 0.05) * lit;

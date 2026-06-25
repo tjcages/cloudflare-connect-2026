@@ -4,7 +4,7 @@ export const GUMMY_FRAG =
   STYLIZE_COMMON +
   `
 void main(){
-  float cell = mix(14.0, 40.0, uParams.x) * uDpr;
+  float cell = mix(6.0, 48.0, uParams.x) * uDpr;
   float glossAmt = uParams.y;
   float sat = mix(1.0, 2.0, uParams.z);
   vec2 cells = uResolution / cell;

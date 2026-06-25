@@ -7,7 +7,7 @@ void main(){
   float t = uTime;
   vec2 px = vUv * uResolution;
   float scanAmt = uParams.x;
-  float ab = mix(0.5, 4.0, uParams.y);
+  float ab = mix(0.0, 30.0, uParams.y);
   float bloomAmt = uParams.z;
   float sp = ab / uResolution.x;
   vec3 c;
