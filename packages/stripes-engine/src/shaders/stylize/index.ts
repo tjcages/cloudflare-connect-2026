@@ -11,7 +11,6 @@ import { PAPER_CUTOUT_FRAG } from "./paperCutout.frag";
 import { CRT_FRAG } from "./crt.frag";
 import { GLITCH_FRAG } from "./glitch.frag";
 import { VHS_FRAG } from "./vhs.frag";
-import { PLASMA_FRAG } from "./plasma.frag";
 import { AMBER_FRAG } from "./amber.frag";
 import { GUMMY_FRAG } from "./gummy.frag";
 
@@ -33,7 +32,6 @@ export const STYLIZE_FRAGS: Partial<Record<RenderMode, string>> = {
   crt: CRT_FRAG,
   glitch: GLITCH_FRAG,
   vhs: VHS_FRAG,
-  plasma: PLASMA_FRAG,
   amber: AMBER_FRAG,
   gummy: GUMMY_FRAG,
 };

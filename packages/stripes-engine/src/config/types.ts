@@ -165,7 +165,6 @@ export type RenderMode =
   | "crt"
   | "glitch"
   | "vhs"
-  | "plasma"
   | "amber"
   | "gummy";
 

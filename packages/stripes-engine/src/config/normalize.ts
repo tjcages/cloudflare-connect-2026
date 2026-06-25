@@ -405,7 +405,6 @@ export const RENDER_MODES: RenderMode[] = [
   "crt",
   "glitch",
   "vhs",
-  "plasma",
   "amber",
   "gummy",
 ];

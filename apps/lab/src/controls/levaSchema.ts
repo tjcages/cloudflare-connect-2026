@@ -23,7 +23,6 @@ const RENDER_MODE_INTENSITY: Record<string, number> = {
   crt: 1,
   glitch: 1,
   vhs: 1,
-  plasma: 1,
   amber: 1,
   gummy: 1,
 };
@@ -84,12 +83,6 @@ const RENDER_MODE_PARAMS: Record<
   vhs: [
     { key: "vhsP0", label: "Tracking", def: 0.5 },
     { key: "vhsP1", label: "Chroma", def: 0.5 },
-  ],
-  plasma: [
-    { key: "plasmaP0", label: "Scale", def: 0.5 },
-    { key: "plasmaP1", label: "Speed", def: 0.5 },
-    { key: "plasmaP2", label: "Takeover", def: 1.0 },
-    { key: "plasmaP3", label: "Scanlines", def: 0.5 },
   ],
   amber: [
     { key: "amberP0", label: "Glow", def: 0.6 },
@@ -377,7 +370,6 @@ export function useEngineControls(
             CRT: "crt",
             Glitch: "glitch",
             VHS: "vhs",
-            Plasma: "plasma",
             Amber: "amber",
             Gummy: "gummy",
           } as const,
