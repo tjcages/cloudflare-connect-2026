@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "preview:worker": "vite build && wrangler dev",
-    "deploy": "vite build && wrangler deploy",
+    "deploy": "tsc --noEmit && vite build && wrangler deploy",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
