@@ -20,6 +20,7 @@ import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, findTextureEntry, loadFileSource,
 import type { LabTextureKind, LoadedTextureSource } from "./textures";
 import { addUpload, loadManifest, removeUpload, saveManifest } from "./uploads";
 import { putTextureBlob, deleteTextureBlob } from "./textureStore";
+import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -202,7 +203,11 @@ function LabInner() {
 
   const onReplayRef = useRef<() => void>(() => {});
   const onReplay = useCallback(() => onReplayRef.current(), []);
-  const { config: controls, setControl, textureId, store } = useEngineControls(onReplay);
+  const onExportSvgRef = useRef<() => void>(() => {});
+  const onExportSvg = useCallback(() => onExportSvgRef.current(), []);
+  const { config: controls, setControl, textureId, store } = useEngineControls(onReplay, onExportSvg);
+  const controlsRef = useRef(controls);
+  controlsRef.current = controls;
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
   const textureIdRef = useRef(textureId);
@@ -271,9 +276,25 @@ function LabInner() {
 
     onReplayRef.current = () => engine.triggerReveal();
 
+    const buildExportSvg = (): string => {
+      const cfg = controlsRef.current;
+      const readback = engine.readCellGrid();
+      const stripes = cfg.stripes.map((s) => ({
+        hex: "#" + s.color.toString(16).padStart(6, "0"),
+        startFrom: s.startFrom,
+        width: s.width,
+      }));
+      return cellGridToSvg(readback, stripes, {
+        cellSizePx: cfg.grid.cellWidth,
+        useCellColors: readback.colors !== null,
+      });
+    };
+    onExportSvgRef.current = () => downloadSvg(buildExportSvg());
+
     (window as unknown as { __lab: unknown }).__lab = {
       engine,
       clock,
+      exportSvg: () => buildExportSvg(),
       renderAt: (ms: number) => {
         if (manual && "set" in clock) (clock as { set(n: number): void }).set(ms);
         engine.renderFrame();
