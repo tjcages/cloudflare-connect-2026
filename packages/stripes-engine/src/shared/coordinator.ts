@@ -1,0 +1,205 @@
+import type { EngineConfig } from "../config/types";
+import { createVideoFramePump, loadImageFrame, type VideoFramePump } from "./media";
+import type { InstanceId, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
+import SharedShaderWorker from "./sharedWorker?worker&inline";
+
+export type SharedShaderHandle = {
+  setConfig(config: Partial<EngineConfig>): void;
+  unregister(): void;
+};
+
+export type RegisterSharedShaderOptions = {
+  canvas: HTMLCanvasElement;
+  src: string;
+  mediaKind: "image" | "video";
+  config?: Partial<EngineConfig>;
+  loop?: boolean;
+  muted?: boolean;
+  autoPlay?: boolean;
+  rootMargin?: string;
+};
+
+type RegisteredInstance = {
+  id: InstanceId;
+  canvas: HTMLCanvasElement;
+  src: string;
+  mediaKind: "image" | "video";
+  intersectionObserver: IntersectionObserver;
+  resizeObserver: ResizeObserver;
+  pump: VideoFramePump | null;
+  visible: boolean;
+  disposed: boolean;
+  imageRequested: boolean;
+};
+
+const DEFAULT_ROOT_MARGIN = "200% 0px";
+const FALLBACK_SIZE = 320;
+
+let worker: Worker | null = null;
+let workerMessageHandler: ((event: MessageEvent<WorkerToMainMessage>) => void) | null = null;
+const instances = new Map<InstanceId, RegisteredInstance>();
+let nextId = 0;
+
+function post(message: MainToWorkerMessage, transfer?: Transferable[]): void {
+  if (!worker) return;
+  if (transfer && transfer.length > 0) worker.postMessage(message, transfer);
+  else worker.postMessage(message);
+}
+
+function ensureWorker(): Worker {
+  if (worker) return worker;
+  const next = new SharedShaderWorker();
+  workerMessageHandler = (event: MessageEvent<WorkerToMainMessage>) => {
+    const data = event.data;
+    if (data.type === "error") {
+      console.error(`[stripes-engine:shared] ${data.id ?? "worker"}: ${data.message}`);
+    } else if (data.type === "needsSource") {
+      const instance = instances.get(data.id);
+      if (!instance || instance.disposed) return;
+      if (instance.mediaKind === "image") {
+        instance.imageRequested = false;
+        void loadImageFrameOnce(instance, instance.src);
+      }
+    }
+  };
+  next.addEventListener("message", workerMessageHandler);
+  worker = next;
+  return next;
+}
+
+function teardownWorker(): void {
+  if (!worker) return;
+  post({ type: "terminate" });
+  if (workerMessageHandler) worker.removeEventListener("message", workerMessageHandler);
+  worker.terminate();
+  worker = null;
+  workerMessageHandler = null;
+}
+
+function readDpr(): number {
+  return window.devicePixelRatio || 1;
+}
+
+function readSize(canvas: HTMLCanvasElement): { cssWidth: number; cssHeight: number } {
+  const cssWidth = canvas.clientWidth || FALLBACK_SIZE;
+  const cssHeight = canvas.clientHeight || FALLBACK_SIZE;
+  return { cssWidth, cssHeight };
+}
+
+function startMedia(instance: RegisteredInstance, src: string): void {
+  if (instance.mediaKind === "video") {
+    instance.pump?.start((bmp) => {
+      post({ type: "source", id: instance.id, frame: bmp, isStream: true }, [bmp]);
+    });
+    return;
+  }
+  void loadImageFrameOnce(instance, src);
+}
+
+async function loadImageFrameOnce(instance: RegisteredInstance, src: string): Promise<void> {
+  if (instance.imageRequested) return;
+  instance.imageRequested = true;
+  try {
+    const frame = await loadImageFrame(src);
+    if (instance.disposed) {
+      frame.close();
+      return;
+    }
+    post({ type: "source", id: instance.id, frame, isStream: false }, [frame]);
+  } catch (error) {
+    console.error(`[stripes-engine:shared] ${instance.id}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function stopMedia(instance: RegisteredInstance): void {
+  if (instance.mediaKind === "video") instance.pump?.stop();
+}
+
+export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedShaderHandle {
+  ensureWorker();
+
+  const id: InstanceId = `shared-${nextId++}`;
+  const { canvas, src, mediaKind } = opts;
+
+  const offscreen = canvas.transferControlToOffscreen();
+  const { cssWidth, cssHeight } = readSize(canvas);
+  const dpr = readDpr();
+
+  post(
+    {
+      type: "register",
+      id,
+      canvas: offscreen,
+      cssWidth,
+      cssHeight,
+      dpr,
+      config: opts.config,
+    },
+    [offscreen],
+  );
+
+  const pump =
+    mediaKind === "video"
+      ? createVideoFramePump({
+          src,
+          loop: opts.loop ?? true,
+          muted: opts.muted ?? true,
+          autoPlay: opts.autoPlay ?? true,
+        })
+      : null;
+
+  const instance: RegisteredInstance = {
+    id,
+    canvas,
+    src,
+    mediaKind,
+    pump,
+    visible: false,
+    disposed: false,
+    imageRequested: false,
+    intersectionObserver: undefined as unknown as IntersectionObserver,
+    resizeObserver: undefined as unknown as ResizeObserver,
+  };
+
+  const intersectionObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const visible = entry.isIntersecting;
+        if (visible === instance.visible) continue;
+        instance.visible = visible;
+        post({ type: "visibility", id, visible });
+        if (visible) startMedia(instance, src);
+        else stopMedia(instance);
+      }
+    },
+    { rootMargin: opts.rootMargin ?? DEFAULT_ROOT_MARGIN },
+  );
+
+  const resizeObserver = new ResizeObserver(() => {
+    const size = readSize(canvas);
+    post({ type: "resize", id, cssWidth: size.cssWidth, cssHeight: size.cssHeight, dpr: readDpr() });
+  });
+
+  instance.intersectionObserver = intersectionObserver;
+  instance.resizeObserver = resizeObserver;
+  instances.set(id, instance);
+
+  intersectionObserver.observe(canvas);
+  resizeObserver.observe(canvas);
+
+  return {
+    setConfig(config: Partial<EngineConfig>) {
+      post({ type: "setConfig", id, config });
+    },
+    unregister() {
+      if (instance.disposed) return;
+      instance.disposed = true;
+      intersectionObserver.disconnect();
+      resizeObserver.disconnect();
+      instance.pump?.dispose();
+      post({ type: "unregister", id });
+      instances.delete(id);
+      if (instances.size === 0) teardownWorker();
+    },
+  };
+}

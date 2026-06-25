@@ -1,6 +1,13 @@
 export const ENGINE_PACKAGE = "@necatikcl/stripes-engine";
-export { createStripesEngine } from "./engine";
-export type { StripesEngine, EngineOptions, CellGridReadback } from "./engine";
+export { createStripesEngine, createStripesEngineShared } from "./engine";
+export type {
+  StripesEngine,
+  EngineOptions,
+  CellGridReadback,
+  SharedStripesEngine,
+  SharedEngineOptions,
+} from "./engine";
+export type { EngineContext } from "./gl/context";
 export { bandIndexForValue } from "./field/cellBand";
 export type { PerfSnapshot } from "./perf/perfCollector";
 export { createRealClock, createManualClock } from "./core/clock";

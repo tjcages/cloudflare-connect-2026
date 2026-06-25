@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { createStripesEngine, type StripesEngine } from "../engine";
 import type { EngineConfig } from "../config/types";
+import type { SharedShaderHandle } from "../shared/coordinator";
 
 export type StripesShaderProps = {
   src: string;
@@ -15,6 +16,8 @@ export type StripesShaderProps = {
   muted?: boolean;
   className?: string;
   style?: CSSProperties;
+  sharedContext?: boolean;
+  rootMargin?: string;
 };
 
 export function StripesShader(props: StripesShaderProps) {
@@ -29,10 +32,14 @@ export function StripesShader(props: StripesShaderProps) {
     muted = true,
     className,
     style,
+    sharedContext = false,
+    rootMargin,
   } = props;
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<StripesEngine | null>(null);
+  const sharedHandleRef = useRef<SharedShaderHandle | null>(null);
+  const configRef = useRef(config);
 
   const mergedStyle = useMemo<CSSProperties>(
     () => ({ display: "block", ...(width != null && height != null ? { width, height } : null), ...style }),
@@ -40,6 +47,7 @@ export function StripesShader(props: StripesShaderProps) {
   );
 
   useEffect(() => {
+    if (sharedContext) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const engine = createStripesEngine(canvas);
@@ -60,14 +68,16 @@ export function StripesShader(props: StripesShaderProps) {
       engineRef.current = null;
       engine.dispose();
     };
-  }, []);
+  }, [sharedContext]);
 
   useEffect(() => {
+    if (sharedContext) return;
     const engine = engineRef.current;
     if (engine && config) engine.setConfig(config);
-  }, [config]);
+  }, [sharedContext, config]);
 
   useEffect(() => {
+    if (sharedContext) return;
     const engine = engineRef.current;
     if (!engine) return;
     let disposed = false;
@@ -106,7 +116,43 @@ export function StripesShader(props: StripesShaderProps) {
       disposed = true;
       engine.setSource(null);
     };
-  }, [src, mediaKind, autoPlay, loop, muted]);
+  }, [sharedContext, src, mediaKind, autoPlay, loop, muted]);
+
+  configRef.current = config;
+
+  useEffect(() => {
+    if (!sharedContext) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let handle: SharedShaderHandle | null = null;
+    import("../shared/coordinator").then(({ registerSharedShader }) => {
+      if (cancelled || !canvasRef.current) return;
+      handle = registerSharedShader({
+        canvas: canvasRef.current,
+        src,
+        mediaKind,
+        config,
+        loop,
+        muted,
+        autoPlay,
+        rootMargin,
+      });
+      sharedHandleRef.current = handle;
+      if (configRef.current) handle.setConfig(configRef.current);
+    });
+    return () => {
+      cancelled = true;
+      handle?.unregister();
+      sharedHandleRef.current = null;
+    };
+  }, [sharedContext, src, mediaKind, autoPlay, loop, muted, rootMargin]);
+
+  useEffect(() => {
+    if (!sharedContext) return;
+    const handle = sharedHandleRef.current;
+    if (handle && config) handle.setConfig(config);
+  }, [sharedContext, config]);
 
   return <canvas ref={canvasRef} className={className} style={mergedStyle} />;
 }

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shared-context StripesShader demo</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { background: #0a0a0a; color: #ddd; margin: 0; font: 13px system-ui, sans-serif; }
+      h1 { font-size: 16px; margin: 16px; }
+      .section { padding: 16px; border-bottom: 1px solid #1c1c1c; }
+      .section h2 { font-size: 13px; margin: 0 0 8px; color: #9aa; }
+      .shader { width: 280px; height: 200px; background: #111; border: 1px solid #333; }
+    </style>
+  </head>
+  <body>
+    <h1>Shared-context StripesShader demo (one worker, one GL context)</h1>
+    <div id="root"></div>
+    <script type="module" src="./shared-demo.main.tsx"></script>
+  </body>
+</html>

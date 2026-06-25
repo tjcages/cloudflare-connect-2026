@@ -1,5 +1,6 @@
 import { type Clock, createRealClock } from "./core/clock";
-import { createEngineContext } from "./gl/context";
+import type { EngineContext } from "./gl/context";
+import { createCanvasSurface, createSharedSurface, type RenderSurface } from "./gl/renderSurface";
 import { createFullscreenQuad } from "./gl/program";
 import { resolveOutputSize, resolveFieldSize, type Size } from "./gl/resolution";
 import { createSourceFieldPass } from "./passes/sourceFieldPass";
@@ -66,6 +67,7 @@ export type StripesEngine = {
   stop(): void;
   setFieldScale(s: number): void;
   setSource(media: EngineSource | null): void;
+  updateSourceFrame(frame: EngineSource): void;
   setConfig(partial: Partial<EngineConfig>): void;
   setCursor(x: number | null, y?: number): void;
   click(x: number, y?: number): void;
@@ -77,12 +79,70 @@ export type StripesEngine = {
   readonly isP3: boolean;
 };
 
-export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}): StripesEngine {
-  const clock = opts.clock ?? createRealClock();
-  let cssW = canvas.clientWidth || 800;
-  let cssH = canvas.clientHeight || 600;
+export type SharedEngineOptions = {
+  context: EngineContext;
+  width: number;
+  height: number;
+  dpr: number;
+  clock?: Clock;
+  seed?: number;
+  fieldScale?: number;
+};
+export type SharedStripesEngine = {
+  resize(cssWidth: number, cssHeight: number): void;
+  setDpr(dpr: number): void;
+  readonly outputWidth: number;
+  readonly outputHeight: number;
+  renderFrame(): void;
+  setFieldScale(s: number): void;
+  setSource(media: EngineSource | null): void;
+  updateSourceFrame(frame: EngineSource): void;
+  setConfig(partial: Partial<EngineConfig>): void;
+  setCursor(x: number | null, y?: number): void;
+  click(x: number, y?: number): void;
+  triggerReveal(): void;
+  rebuild(context: EngineContext): void;
+  getPerf(): PerfSnapshot;
+  dispose(): void;
+  readonly isP3: boolean;
+};
 
-  let { gl, isP3, maxTextureSize } = createEngineContext(canvas);
+export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}): StripesEngine {
+  const surface = createCanvasSurface(canvas, opts.dpr);
+  return createEngineCore(surface, {
+    clock: opts.clock,
+    seed: opts.seed,
+    fieldScale: opts.fieldScale,
+    cssWidth: canvas.clientWidth || 800,
+    cssHeight: canvas.clientHeight || 600,
+  });
+}
+
+export function createStripesEngineShared(opts: SharedEngineOptions): SharedStripesEngine {
+  const surface = createSharedSurface(opts.context, opts.dpr);
+  return createEngineCore(surface, {
+    clock: opts.clock,
+    seed: opts.seed,
+    fieldScale: opts.fieldScale,
+    cssWidth: opts.width,
+    cssHeight: opts.height,
+  });
+}
+
+type EngineCoreOptions = {
+  clock?: Clock;
+  seed?: number;
+  fieldScale?: number;
+  cssWidth: number;
+  cssHeight: number;
+};
+
+function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): StripesEngine & SharedStripesEngine {
+  const clock = opts.clock ?? createRealClock();
+  let cssW = opts.cssWidth;
+  let cssH = opts.cssHeight;
+
+  let { gl, isP3, maxTextureSize } = surface.acquireContext();
   let output: Size = { width: 0, height: 0 };
   let fieldSize: Size = { width: 2, height: 2 };
   let cellGrid: CellGrid = { cols: 1, rows: 1 };
@@ -133,7 +193,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   let lastCursorMs = clock.now();
 
   function getDpr() {
-    return opts.dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
+    return surface.getDpr();
   }
 
   function isDrawable(media: EngineSource): boolean {
@@ -151,6 +211,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     maxSide: number,
   ): { data: Uint8ClampedArray; w: number; h: number } | null {
     if (!isDrawable(media)) return null;
+    if (typeof document === "undefined" || typeof document.createElement !== "function") return null;
     let mw = 1;
     let mh = 1;
     if (typeof HTMLVideoElement !== "undefined" && media instanceof HTMLVideoElement) {
@@ -760,8 +821,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
   function applySizes() {
     const dpr = getDpr();
     output = resolveOutputSize(cssW, cssH, dpr, maxTextureSize);
-    if (canvas.width !== output.width) canvas.width = output.width;
-    if (canvas.height !== output.height) canvas.height = output.height;
+    surface.applyOutputSize(output.width, output.height);
     fieldSize = resolveFieldSize(output, config.fieldScale);
     pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
     cellGrid = resolveCellGrid(cssW, cssH, config.grid.cellWidth, config.grid.cellHeight);
@@ -775,9 +835,9 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     }
   }
 
-  function rebuildGpuResources() {
+  function rebuildGpuResources(provided?: EngineContext) {
     // Context loss already invalidated the old GL objects (pool, passes, source); disposing them would no-op or error against the dead context, so we drop and recreate. Do not add teardown here without guarding for the lost context.
-    const ctx = createEngineContext(canvas);
+    const ctx = provided ?? surface.acquireContext();
     gl = ctx.gl;
     isP3 = ctx.isP3;
     maxTextureSize = ctx.maxTextureSize;
@@ -814,8 +874,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     lost = false;
     rebuildGpuResources();
   }
-  canvas.addEventListener("webglcontextlost", onLost as EventListener, false);
-  canvas.addEventListener("webglcontextrestored", onRestored as EventListener, false);
+  surface.attachContextLossListeners(onLost, onRestored);
 
   colorDistPass = createColorDistPass(gl, quad);
   maxReducePass = createMaxReducePass(gl, quad);
@@ -845,11 +904,26 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     get isP3() {
       return isP3;
     },
+    get outputWidth() {
+      return output.width;
+    },
+    get outputHeight() {
+      return output.height;
+    },
     resize(w, h) {
       cssW = w;
       cssH = h;
       applySizes();
       if (config.colors.mode === "colors" && colorInputSig() !== lastColorInputSig) computeMaxColorDist();
+    },
+    setDpr(dpr) {
+      surface.setDpr(dpr);
+      applySizes();
+      if (config.colors.mode === "colors" && colorInputSig() !== lastColorInputSig) computeMaxColorDist();
+    },
+    rebuild(context) {
+      lost = false;
+      rebuildGpuResources(context);
     },
     setFieldScale(s) {
       this.setConfig({ fieldScale: s });
@@ -861,6 +935,14 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       applySourcePalette(media);
       computeMaxColorDist();
       if (config.colors.mode === "colors") buildPasses();
+    },
+    updateSourceFrame(frame) {
+      if (lost) return;
+      if (!source) {
+        this.setSource(frame);
+        return;
+      }
+      source.uploadFrame(frame);
     },
     setConfig(partial) {
       config = normalizeEngineConfig({ ...config, ...partial });
@@ -917,6 +999,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     },
     renderFrame,
     start() {
+      if (!surface.supportsRaf) return;
       if (!rafId) {
         lastFrameStart = clock.now();
         rafId = requestAnimationFrame(loop);
@@ -957,8 +1040,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     },
     dispose() {
       this.stop();
-      canvas.removeEventListener("webglcontextlost", onLost as EventListener);
-      canvas.removeEventListener("webglcontextrestored", onRestored as EventListener);
+      surface.detachContextLossListeners();
       for (const p of passes) p.dispose();
       if (colorsMrt) {
         colorsMrt.dispose();
