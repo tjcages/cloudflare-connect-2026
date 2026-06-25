@@ -95,7 +95,15 @@ function LabCanvasSizeControls({
   );
 }
 
-function LabBottomBar({ videoEl }: { videoEl: HTMLVideoElement | null }) {
+function LabBottomBar({
+  videoEl,
+  onExportSvg,
+  onExportVideo,
+}: {
+  videoEl: HTMLVideoElement | null;
+  onExportSvg: () => void;
+  onExportVideo: () => void;
+}) {
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -130,11 +138,11 @@ function LabBottomBar({ videoEl }: { videoEl: HTMLVideoElement | null }) {
     <footer className="lab-bottom-bar">
       <div className="lab-bottom-grid">
         <div className="lab-btn-row">
-          <button className="lab-btn" disabled title="Video export — coming in Phase 9">
+          <button className="lab-btn" onClick={onExportVideo}>
             Export Video
           </button>
-          <button className="lab-btn" disabled title="SVG export — coming in Phase 9">
-            Copy SVG
+          <button className="lab-btn" onClick={onExportSvg}>
+            Export SVG
           </button>
         </div>
         {videoEl ? (
@@ -540,7 +548,7 @@ function LabInner() {
             style={{ display: "block", opacity: ready ? 1 : 0, transition: "opacity 150ms ease" }}
           />
         </div>
-        <LabBottomBar videoEl={videoEl} />
+        <LabBottomBar videoEl={videoEl} onExportSvg={onExportSvg} onExportVideo={onExportVideo} />
       </div>
       <aside className="lab-sidebar">
         <div className="lab-sidebar-scroll playground-leva-panel ui-scroll-hidden">
