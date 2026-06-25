@@ -218,6 +218,8 @@ function LabInner() {
   const onExportSvg = useCallback(() => onExportSvgRef.current(), []);
   const onExportVideoRef = useRef<() => void>(() => {});
   const onExportVideo = useCallback(() => onExportVideoRef.current(), []);
+  const exportingVideoRef = useRef(false);
+  const videoExportAbortRef = useRef<AbortController | null>(null);
   const { config: controls, setControl, textureId, store } = useEngineControls(onReplay, onExportSvg, onExportVideo);
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -298,22 +300,48 @@ function LabInner() {
         width: s.width,
       }));
       return cellGridToSvg(readback, stripes, {
-        cellSizePx: cfg.grid.cellWidth,
+        cellWidthPx: cfg.grid.cellWidth,
+        cellHeightPx: cfg.grid.cellHeight,
         useCellColors: readback.colors !== null,
       });
     };
-    onExportSvgRef.current = () => downloadSvg(buildExportSvg());
+    onExportSvgRef.current = () => {
+      const cfg = controlsRef.current;
+      if (!cfg.stripesEnabled) {
+        window.alert("Enable stripes before exporting an SVG.");
+        return;
+      }
+      if (cfg.grid.orientation === "horizontal") {
+        window.alert("SVG export currently supports vertical orientation only.");
+        return;
+      }
+      downloadSvg(buildExportSvg());
+    };
 
     onExportVideoRef.current = () => {
       const targetCanvas = canvasRef.current;
       if (!targetCanvas) return;
+      if (exportingVideoRef.current) return;
       const video = videoElRef.current;
+      const durationSec = video?.duration && Number.isFinite(video.duration) ? Math.min(video.duration, 120) : 5;
+      if (durationSec > 60 && !window.confirm(`Export ~${Math.round(durationSec)}s of video? This may take a while.`)) {
+        return;
+      }
+      const controller = new AbortController();
+      videoExportAbortRef.current = controller;
+      exportingVideoRef.current = true;
       void exportLabVideo({
         canvas: targetCanvas,
         sourceKind: video ? "video" : "image",
         video: video ?? undefined,
         backgroundColor: controlsRef.current.background.color,
-      }).catch(() => {});
+        signal: controller.signal,
+      })
+        .catch(() => {})
+        .finally(() => {
+          exportingVideoRef.current = false;
+          videoExportAbortRef.current = null;
+        });
     };
 
     (window as unknown as { __lab: unknown }).__lab = {

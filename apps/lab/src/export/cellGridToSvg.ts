@@ -31,10 +31,10 @@ function cellColorHex(colors: Uint8Array, cellIndex: number): string {
 export function cellGridToSvg(
   readback: CellReadback,
   stripes: LabStripe[],
-  opts: { cellSizePx: number; useCellColors: boolean },
+  opts: { cellWidthPx: number; cellHeightPx: number; useCellColors: boolean },
 ): string {
   const { cols, rows, values, colors } = readback;
-  const { cellSizePx, useCellColors } = opts;
+  const { cellWidthPx, cellHeightPx, useCellColors } = opts;
 
   const sortedStripes = [...stripes].sort((a, b) => a.startFrom - b.startFrom);
   const engineStripes = stripes.map((s) => ({
@@ -64,19 +64,18 @@ export function cellGridToSvg(
       const chainBreaksBelow = !sameStripeBand(band, bandBelow);
 
       let bandTop = chainBreaksAbove ? ROW_WIDTH_GAP * 0.5 : 0;
-      let bandBottom = cellSizePx - (chainBreaksBelow ? ROW_WIDTH_GAP * 0.5 : 0);
-      if (bandBottom - bandTop < cellSizePx) {
+      let bandBottom = cellHeightPx - (chainBreaksBelow ? ROW_WIDTH_GAP * 0.5 : 0);
+      if (bandBottom - bandTop < cellHeightPx) {
         bandTop = 0;
-        bandBottom = cellSizePx;
+        bandBottom = cellHeightPx;
       }
 
       const rbIndex = (rows - 1 - row) * cols + col;
-      const coverageScale = useCellColors && colors ? Math.max((colors[rbIndex * 4 + 3] ?? 255) / 255, 1 / 255) : 1;
-      const stripeWidth = Math.max(1, stripe.width * coverageScale);
+      const stripeWidth = Math.max(1, Math.min(stripe.width, cellWidthPx));
       const halfW = stripeWidth * 0.5;
-      const columnCenter = col * cellSizePx + cellSizePx * 0.5;
+      const columnCenter = col * cellWidthPx + cellWidthPx * 0.5;
       const x = columnCenter - halfW;
-      const y = row * cellSizePx + bandTop;
+      const y = row * cellHeightPx + bandTop;
       const rectW = stripeWidth;
       const rectH = bandBottom - bandTop;
 
@@ -91,8 +90,8 @@ export function cellGridToSvg(
     }
   }
 
-  const width = cols * cellSizePx;
-  const height = rows * cellSizePx;
+  const width = cols * cellWidthPx;
+  const height = rows * cellHeightPx;
 
   if (useCellColors) {
     return [
