@@ -415,6 +415,13 @@ function normalizeRenderMode(v: unknown): RenderMode {
   return RENDER_MODES.includes(v as RenderMode) ? (v as RenderMode) : "sharp";
 }
 
+function normalizeRenderParams(v: unknown): number[] {
+  const arr = Array.isArray(v) ? v : [];
+  const out: number[] = [];
+  for (let i = 0; i < 4; i++) out.push(clamp(num(arr[i], 0.5), 0, 1));
+  return out;
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
@@ -433,6 +440,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   colors: { ...DEFAULT_COLORS },
   renderMode: "sharp",
   renderIntensity: 1,
+  renderParams: [0.5, 0.5, 0.5, 0.5],
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -454,5 +462,6 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     colors: normalizeColors(i.colors),
     renderMode: normalizeRenderMode(i.renderMode),
     renderIntensity: clamp(num(i.renderIntensity, 1), 0, 1),
+    renderParams: normalizeRenderParams(i.renderParams),
   };
 }

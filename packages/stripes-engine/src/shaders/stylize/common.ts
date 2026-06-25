@@ -6,6 +6,7 @@ uniform float uTime;
 uniform float uIntensity;
 uniform vec2 uResolution;
 uniform float uDpr;
+uniform vec4 uParams;
 out vec4 fragColor;
 
 float hash21(vec2 p){ p = fract(p * vec2(123.34, 345.45)); p += dot(p, p + 34.345); return fract(p.x * p.y); }

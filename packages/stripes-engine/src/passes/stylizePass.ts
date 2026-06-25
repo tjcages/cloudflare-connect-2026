@@ -10,6 +10,7 @@ type StylizeUniforms = {
   intensity: number;
   resolution: [number, number];
   dpr: number;
+  params: [number, number, number, number];
 };
 
 type ModeProgram = {
@@ -19,6 +20,7 @@ type ModeProgram = {
   uIntensity: WebGLUniformLocation | null;
   uResolution: WebGLUniformLocation | null;
   uDpr: WebGLUniformLocation | null;
+  uParams: WebGLUniformLocation | null;
 };
 
 export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -36,6 +38,7 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
       uIntensity: gl.getUniformLocation(program, "uIntensity"),
       uResolution: gl.getUniformLocation(program, "uResolution"),
       uDpr: gl.getUniformLocation(program, "uDpr"),
+      uParams: gl.getUniformLocation(program, "uParams"),
     };
     cache.set(mode, mp);
     return mp;
@@ -54,6 +57,7 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
       gl.uniform1f(mp.uIntensity, p.intensity);
       gl.uniform2f(mp.uResolution, p.resolution[0], p.resolution[1]);
       gl.uniform1f(mp.uDpr, p.dpr);
+      gl.uniform4f(mp.uParams, p.params[0], p.params[1], p.params[2], p.params[3]);
       quad.draw();
     },
     dispose() {

@@ -505,6 +505,14 @@ describe("colors normalizer", () => {
     expect(normalizeColors({ backgroundColor: 0.7 }).backgroundColor).toBe(1);
   });
 });
+describe("renderParams", () => {
+  it("defaults to four 0.5 values", () => {
+    expect(normalizeEngineConfig({}).renderParams).toEqual([0.5, 0.5, 0.5, 0.5]);
+  });
+  it("clamps each entry to 0..1 and pads to length 4", () => {
+    expect(normalizeEngineConfig({ renderParams: [2, -1, 0.3] }).renderParams).toEqual([1, 0, 0.3, 0.5]);
+  });
+});
 describe("renderMode + renderIntensity", () => {
   it("defaults to sharp at full intensity", () => {
     const c = normalizeEngineConfig({});

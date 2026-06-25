@@ -809,6 +809,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                     intensity: config.renderIntensity,
                     resolution: [output.width, output.height] as [number, number],
                     dpr: getDpr(),
+                    params: config.renderParams as [number, number, number, number],
                   });
                 },
                 dispose: () => stylizePass.dispose(),
