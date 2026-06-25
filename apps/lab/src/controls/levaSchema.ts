@@ -11,6 +11,89 @@ import { loadManifest } from "../uploads";
 
 const TEXTURE_OPTIONS = Object.fromEntries(buildTextureEntries(loadManifest()).map((t) => [t.label, t.id]));
 
+const RENDER_MODE_PARAMS: Record<string, { key: string; label: string; def: number }[]> = {
+  abstract: [
+    { key: "abstractP0", label: "Wobble", def: 0.5 },
+    { key: "abstractP1", label: "Grain", def: 0.6 },
+    { key: "abstractP2", label: "Softness", def: 0.2 },
+  ],
+  watercolor: [
+    { key: "watercolorP0", label: "Bleed", def: 0.5 },
+    { key: "watercolorP1", label: "Paper", def: 0.5 },
+    { key: "watercolorP2", label: "Edge pooling", def: 0.5 },
+  ],
+  charcoal: [
+    { key: "charcoalP0", label: "Grain", def: 0.7 },
+    { key: "charcoalP1", label: "Smudge", def: 0.4 },
+    { key: "charcoalP2", label: "Darkness", def: 0.6 },
+  ],
+  pencil: [
+    { key: "pencilP0", label: "Hatch density", def: 0.6 },
+    { key: "pencilP1", label: "Pressure", def: 0.6 },
+    { key: "pencilP2", label: "Paper", def: 0.4 },
+  ],
+  brush: [
+    { key: "brushP0", label: "Stroke", def: 0.5 },
+    { key: "brushP1", label: "Bristle", def: 0.6 },
+    { key: "brushP2", label: "Impasto", def: 0.4 },
+  ],
+  halftone: [
+    { key: "halftoneP0", label: "Dot size", def: 0.4 },
+    { key: "halftoneP1", label: "Contrast", def: 0.6 },
+    { key: "halftoneP2", label: "Paper tone", def: 0.2 },
+  ],
+  risograph: [
+    { key: "risographP0", label: "Misregister", def: 0.5 },
+    { key: "risographP1", label: "Ink hue", def: 0.4 },
+    { key: "risographP2", label: "Grain", def: 0.4 },
+  ],
+  stainedGlass: [
+    { key: "stainedGlassP0", label: "Cell size", def: 0.6 },
+    { key: "stainedGlassP1", label: "Lead width", def: 0.5 },
+    { key: "stainedGlassP2", label: "Saturation", def: 0.6 },
+  ],
+  paperCutout: [
+    { key: "paperCutoutP0", label: "Shadow", def: 0.6 },
+    { key: "paperCutoutP1", label: "Posterize", def: 0.4 },
+    { key: "paperCutoutP2", label: "Roughness", def: 0.4 },
+  ],
+  crt: [
+    { key: "crtP0", label: "Scanlines", def: 0.6 },
+    { key: "crtP1", label: "Aberration", def: 0.4 },
+    { key: "crtP2", label: "Bloom", def: 0.5 },
+  ],
+  glitch: [
+    { key: "glitchP0", label: "Slip", def: 0.5 },
+    { key: "glitchP1", label: "Split", def: 0.5 },
+    { key: "glitchP2", label: "Frequency", def: 0.4 },
+  ],
+  vhs: [
+    { key: "vhsP0", label: "Tracking", def: 0.5 },
+    { key: "vhsP1", label: "Chroma", def: 0.5 },
+    { key: "vhsP2", label: "Noise", def: 0.5 },
+  ],
+  plasma: [
+    { key: "plasmaP0", label: "Scale", def: 0.5 },
+    { key: "plasmaP1", label: "Speed", def: 0.5 },
+    { key: "plasmaP2", label: "Takeover", def: 0.7 },
+  ],
+  amber: [
+    { key: "amberP0", label: "Glow", def: 0.6 },
+    { key: "amberP1", label: "Scanlines", def: 0.5 },
+    { key: "amberP2", label: "Brightness", def: 0.5 },
+  ],
+  gummy: [
+    { key: "gummyP0", label: "Blob size", def: 0.5 },
+    { key: "gummyP1", label: "Gloss", def: 0.6 },
+    { key: "gummyP2", label: "Saturation", def: 0.6 },
+  ],
+  caramel: [
+    { key: "caramelP0", label: "Drip", def: 0.4 },
+    { key: "caramelP1", label: "Gloss", def: 0.6 },
+    { key: "caramelP2", label: "Depth", def: 0.6 },
+  ],
+};
+
 function intToHex(value: number): string {
   return `#${(value & 0xffffff).toString(16).padStart(6, "0")}`;
 }
@@ -300,6 +383,21 @@ export function useEngineControls(
           label: "Intensity",
           render: (get) => get("Stripes.renderMode") !== "sharp",
         },
+        ...Object.fromEntries(
+          Object.entries(RENDER_MODE_PARAMS).flatMap(([mode, params]) =>
+            params.map((p) => [
+              p.key,
+              {
+                value: p.def,
+                min: 0,
+                max: 1,
+                step: 0.01,
+                label: p.label,
+                render: (get: (path: string) => unknown) => get("Stripes.renderMode") === mode,
+              },
+            ]),
+          ),
+        ),
       }),
       Sparkle: folder({
         sparkleGapsEnabled: { value: d.sparkle.gaps.enabled, label: "Gaps enabled" },
@@ -716,6 +814,16 @@ export function useEngineControls(
     stripesEnabled: values.stripesEnabled,
     renderMode: values.renderMode,
     renderIntensity: values.renderIntensity,
+    renderParams: (() => {
+      const ps = RENDER_MODE_PARAMS[values.renderMode as string];
+      if (!ps) return [0.5, 0.5, 0.5, 0.5];
+      return [
+        values[ps[0].key as keyof typeof values] as number,
+        values[ps[1].key as keyof typeof values] as number,
+        values[ps[2].key as keyof typeof values] as number,
+        0.5,
+      ];
+    })(),
     fieldScale: values.textureDpr,
     stripes: fromEditable(stripes),
     reveal: {
