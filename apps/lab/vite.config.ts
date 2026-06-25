@@ -8,7 +8,10 @@ const enginePath = (sub: string) => fileURLToPath(new URL(`../../packages/stripe
 export default defineConfig({
   base: "/",
   plugins: [tailwindcss(), react()],
-  server: { port: 5174 },
+  server: {
+    port: 5174,
+    watch: { ignored: ["**/packages/stripes-engine/dist/**", "**/node_modules/.vite/**"] },
+  },
   resolve: {
     alias: {
       "@necatikcl/stripes-engine/react": enginePath("react/index.ts"),
