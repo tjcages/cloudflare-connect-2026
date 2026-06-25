@@ -4,17 +4,25 @@ export const BRUSH_FRAG =
   STYLIZE_COMMON +
   `
 void main(){
-  float t = uTime * 0.25;
   float strokeAmt = uParams.x;
   float bristleAmt = uParams.y;
   float impasto = uParams.z;
-  vec2 uv = warp(vUv, vec2(18.0, 260.0), mix(0.008, 0.03, strokeAmt) * uIntensity, t);
-  vec3 c = texture(uTex, uv).rgb;
-  float streak = fbm(vec2(vUv.x * 120.0, vUv.y * 30.0) + t * 0.5);
-  float bristle = fbm(vec2(vUv.x * 400.0, vUv.y * 60.0));
-  c *= mix(1.0, 0.65 + 0.5 * streak, 0.5 * uIntensity);
-  c *= mix(1.0, 0.8 + 0.35 * bristle, bristleAmt * 0.5 * uIntensity);
-  c += smoothstep(0.7, 1.0, bristle) * impasto * 0.25 * uIntensity;
-  fragColor = vec4(c, 1.0);
+  float strokeLen = mix(3.0, 16.0, strokeAmt) * uDpr;
+  float ang = (fbm(vUv * 2.5) - 0.5) * 3.14159;
+  vec2 dir = vec2(cos(ang), sin(ang));
+  vec2 perp = vec2(-dir.y, dir.x);
+  vec3 col = vec3(0.0);
+  float wsum = 0.0;
+  for (int i = -5; i <= 5; i++) {
+    float w = 1.0 - abs(float(i)) / 6.0;
+    col += texture(uTex, vUv + dir * float(i) * strokeLen / uResolution).rgb * w;
+    wsum += w;
+  }
+  col /= wsum;
+  vec2 sp = vUv * uResolution;
+  float bristle = fbm(vec2(dot(sp, perp) * 0.5, dot(sp, dir) * 0.04));
+  col *= mix(1.0, 0.72 + 0.45 * bristle, bristleAmt);
+  col += smoothstep(0.72, 1.0, bristle) * impasto * 0.22;
+  fragColor = vec4(mix(texture(uTex, vUv).rgb, col, uIntensity), 1.0);
 }
 `;
