@@ -438,6 +438,8 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   renderMode: "sharp",
   renderIntensity: 1,
   renderParams: [0.5, 0.5, 0.5, 0.5],
+  renderColorA: 0x222222,
+  renderColorB: 0xffffff,
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -460,5 +462,7 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     renderMode: normalizeRenderMode(i.renderMode),
     renderIntensity: clamp(num(i.renderIntensity, 1), 0, 1),
     renderParams: normalizeRenderParams(i.renderParams),
+    renderColorA: Math.round(clamp(num(i.renderColorA, 0x222222), 0, 0xffffff)),
+    renderColorB: Math.round(clamp(num(i.renderColorB, 0xffffff), 0, 0xffffff)),
   };
 }

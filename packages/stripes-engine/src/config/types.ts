@@ -187,4 +187,6 @@ export interface EngineConfig {
   renderMode: RenderMode;
   renderIntensity: number;
   renderParams: number[];
+  renderColorA: number;
+  renderColorB: number;
 }

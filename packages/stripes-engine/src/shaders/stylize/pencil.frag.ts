@@ -32,7 +32,7 @@ void main(){
   float cover = max(outline, hatch * 0.75);
   float grain = hash21(floor(pp / 1.5));
   cover *= mix(1.0, 0.55 + 0.45 * grain, paperAmt);
-  vec3 outc = mix(vec3(0.97), vec3(0.13), clamp(cover, 0.0, 1.0));
+  vec3 outc = mix(uColorB, uColorA, clamp(cover, 0.0, 1.0));
   fragColor = vec4(mix(texture(uTex, vUv).rgb, outc, uIntensity), 1.0);
 }
 `;

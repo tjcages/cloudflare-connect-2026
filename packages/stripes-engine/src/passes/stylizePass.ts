@@ -11,6 +11,8 @@ type StylizeUniforms = {
   resolution: [number, number];
   dpr: number;
   params: [number, number, number, number];
+  colorA: number;
+  colorB: number;
 };
 
 type ModeProgram = {
@@ -22,6 +24,8 @@ type ModeProgram = {
   uResolution: WebGLUniformLocation | null;
   uDpr: WebGLUniformLocation | null;
   uParams: WebGLUniformLocation | null;
+  uColorA: WebGLUniformLocation | null;
+  uColorB: WebGLUniformLocation | null;
 };
 
 export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -41,6 +45,8 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
       uResolution: gl.getUniformLocation(program, "uResolution"),
       uDpr: gl.getUniformLocation(program, "uDpr"),
       uParams: gl.getUniformLocation(program, "uParams"),
+      uColorA: gl.getUniformLocation(program, "uColorA"),
+      uColorB: gl.getUniformLocation(program, "uColorB"),
     };
     cache.set(mode, mp);
     return mp;
@@ -63,6 +69,8 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
       gl.uniform2f(mp.uResolution, p.resolution[0], p.resolution[1]);
       gl.uniform1f(mp.uDpr, p.dpr);
       gl.uniform4f(mp.uParams, p.params[0], p.params[1], p.params[2], p.params[3]);
+      gl.uniform3f(mp.uColorA, ((p.colorA >> 16) & 255) / 255, ((p.colorA >> 8) & 255) / 255, (p.colorA & 255) / 255);
+      gl.uniform3f(mp.uColorB, ((p.colorB >> 16) & 255) / 255, ((p.colorB >> 8) & 255) / 255, (p.colorB & 255) / 255);
       quad.draw();
     },
     dispose() {

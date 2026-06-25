@@ -25,6 +25,11 @@ const RENDER_MODE_INTENSITY: Record<string, number> = {
   gummy: 1,
 };
 
+const RENDER_MODE_COLORS: Record<string, { a: { label: string; def: string }; b: { label: string; def: string } }> = {
+  pencil: { a: { label: "Stroke color", def: "#222222" }, b: { label: "Paper color", def: "#faf9f5" } },
+  amber: { a: { label: "Phosphor", def: "#ffae12" }, b: { label: "Screen", def: "#0a0500" } },
+};
+
 const RENDER_MODE_PARAMS: Record<
   string,
   { key: string; label: string; def: number; px?: { min: number; max: number; step: number } }[]
@@ -339,7 +344,9 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
       Stripes: folder({
         stripeColorsTable: stripeColorsTablePlugin({
           value: stripeKey,
-          render: (get) => get("Stripes.colorsMode") !== "colors",
+          render: (get) =>
+            get("Stripes.colorsMode") !== "colors" &&
+            RENDER_MODE_COLORS[get("Stripes.renderMode") as string] === undefined,
         }),
         colorsMode: {
           value: d.colors.mode,
@@ -412,6 +419,26 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
                   },
             ]),
           ),
+        ),
+        ...Object.fromEntries(
+          Object.entries(RENDER_MODE_COLORS).flatMap(([mode, c]) => [
+            [
+              mode + "ColorA",
+              {
+                value: c.a.def,
+                label: c.a.label,
+                render: (get: (path: string) => unknown) => get("Stripes.renderMode") === mode,
+              },
+            ],
+            [
+              mode + "ColorB",
+              {
+                value: c.b.def,
+                label: c.b.label,
+                render: (get: (path: string) => unknown) => get("Stripes.renderMode") === mode,
+              },
+            ],
+          ]),
         ),
       }),
       Sparkle: folder({
@@ -842,6 +869,14 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
         });
       }
       return out;
+    })(),
+    renderColorA: (() => {
+      const c = RENDER_MODE_COLORS[values.renderMode as string];
+      return c ? hexToInt(values[(values.renderMode + "ColorA") as keyof typeof values] as string) : 0x222222;
+    })(),
+    renderColorB: (() => {
+      const c = RENDER_MODE_COLORS[values.renderMode as string];
+      return c ? hexToInt(values[(values.renderMode + "ColorB") as keyof typeof values] as string) : 0xffffff;
     })(),
     fieldScale: values.textureDpr,
     stripes: fromEditable(stripes),

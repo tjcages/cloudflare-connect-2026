@@ -829,6 +829,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                     resolution: [output.width, output.height] as [number, number],
                     dpr: getDpr(),
                     params: config.renderParams as [number, number, number, number],
+                    colorA: config.renderColorA,
+                    colorB: config.renderColorB,
                   });
                 },
                 dispose: () => stylizePass.dispose(),
