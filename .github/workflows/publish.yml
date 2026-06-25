@@ -1,4 +1,4 @@
-name: Publish @necatikcl/stripes-shader
+name: Publish @necatikcl/stripes-engine
 
 # Publishes the package to GitHub Packages using the repo's built-in GITHUB_TOKEN.
 # No personal token is ever stored on your machine — the write credential lives
@@ -35,8 +35,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm --filter @necatikcl/stripes-shader build
+      - run: pnpm --filter @necatikcl/stripes-engine build
 
-      - run: pnpm --filter @necatikcl/stripes-shader publish --no-git-checks
+      - run: pnpm --filter @necatikcl/stripes-engine publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
