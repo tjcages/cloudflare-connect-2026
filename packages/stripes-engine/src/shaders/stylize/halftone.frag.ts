@@ -9,8 +9,15 @@ void main(){
   float square = uParams.y;
   vec2 cells = uResolution / cell;
   vec2 gp = vUv * cells;
-  vec2 center = (floor(gp) + 0.5) / cells;
-  vec3 src = texture(uTex, center).rgb;
+  vec2 cellOrigin = floor(gp);
+  vec3 src = vec3(0.0);
+  for (int sx = 0; sx < 4; sx++) {
+    for (int sy = 0; sy < 4; sy++) {
+      vec2 s = (cellOrigin + (vec2(float(sx), float(sy)) + 0.5) / 4.0) / cells;
+      src += texture(uTex, s).rgb;
+    }
+  }
+  src /= 16.0;
   float ink = clamp((1.0 - luma(src)) * 1.3, 0.0, 1.0);
   float rad = sqrt(ink) * 0.85;
   vec2 f = abs(fract(gp) - 0.5);
