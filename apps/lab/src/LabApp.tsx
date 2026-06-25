@@ -19,6 +19,7 @@ import { saveConfig, saveTextureId, importConfig, deleteConfig } from "./persist
 import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, findTextureEntry, loadFileSource, loadTextureSource } from "./textures";
 import type { LabTextureKind, LoadedTextureSource } from "./textures";
 import { addUpload, loadManifest, removeUpload, saveManifest } from "./uploads";
+import { addPreset, loadPresets, removePreset, savePresets, type ConfigPreset } from "./presets";
 import { putTextureBlob, deleteTextureBlob } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { exportLabVideo } from "./export/videoExport";
@@ -203,6 +204,8 @@ function LabInner() {
     (LAB_TEXTURES.find((t) => t.id === DEFAULT_LAB_TEXTURE_ID) ?? LAB_TEXTURES[0]).defaultScale,
   );
   const [ready, setReady] = useState(false);
+  const [presets, setPresets] = useState<ConfigPreset[]>(() => loadPresets());
+  const [selectedPreset, setSelectedPreset] = useState("");
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
   const scaleRef = useRef(scale);
@@ -220,7 +223,7 @@ function LabInner() {
   const onExportVideo = useCallback(() => onExportVideoRef.current(), []);
   const exportingVideoRef = useRef(false);
   const videoExportAbortRef = useRef<AbortController | null>(null);
-  const { config: controls, setControl, textureId, store } = useEngineControls(onReplay, onExportSvg, onExportVideo);
+  const { config: controls, setControl, textureId, setTextureId, textureOptions, store } = useEngineControls(onReplay);
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
   const setControlRef = useRef(setControl);
@@ -537,6 +540,31 @@ function LabInner() {
     }
   }
 
+  function handleSavePreset() {
+    const name = window.prompt("Preset name:")?.trim();
+    if (!name) return;
+    if (presets.some((p) => p.name === name) && !window.confirm(`Overwrite preset "${name}"?`)) return;
+    const next = addPreset(presets, { name, config: controls });
+    savePresets(next);
+    setPresets(next);
+    setSelectedPreset(name);
+  }
+
+  function handleApplyPreset() {
+    const preset = presets.find((p) => p.name === selectedPreset);
+    if (!preset) return;
+    saveConfig(textureIdRef.current, normalizeEngineConfig(preset.config));
+    window.location.reload();
+  }
+
+  function handleDeletePreset() {
+    if (!selectedPreset) return;
+    const next = removePreset(presets, selectedPreset);
+    savePresets(next);
+    setPresets(next);
+    setSelectedPreset("");
+  }
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -581,29 +609,60 @@ function LabInner() {
       <aside className="lab-sidebar">
         <div className="lab-sidebar-scroll playground-leva-panel ui-scroll-hidden">
           <div className="playground-workflow-controls">
-            <label
-              className="lab-btn"
-              style={{
-                width: "100%",
-                height: 24,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxSizing: "border-box",
-              }}
-            >
-              Upload texture
-              <input type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={handleFileChange} />
-            </label>
-            <button className="lab-btn" onClick={handleDeleteTexture} disabled={!canDeleteTexture}>
-              Delete texture
-            </button>
-            <button className="lab-btn" onClick={handleExport}>
-              Copy config
-            </button>
-            <button className="lab-btn" onClick={handleImport}>
-              Import config
-            </button>
+            <div className="wf-field">
+              <span className="wf-field-label">Texture</span>
+              <select className="lab-btn" value={textureId} onChange={(e) => setTextureId(e.target.value)}>
+                {textureOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="wf-row">
+              <label className="lab-btn wf-upload">
+                Upload texture
+                <input type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={handleFileChange} />
+              </label>
+              <button className="lab-btn" onClick={handleDeleteTexture} disabled={!canDeleteTexture}>
+                Delete texture
+              </button>
+            </div>
+            <hr className="wf-divider" />
+            <div className="wf-field">
+              <span className="wf-field-label">Config</span>
+              <div className="wf-row">
+                <button className="lab-btn" onClick={handleExport}>
+                  Copy config
+                </button>
+                <button className="lab-btn" onClick={handleImport}>
+                  Import config
+                </button>
+              </div>
+            </div>
+            <hr className="wf-divider" />
+            <div className="wf-field">
+              <span className="wf-field-label">Presets</span>
+              <select className="lab-btn" value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
+                <option value="">No preset selected</option>
+                {presets.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="wf-row">
+              <button className="lab-btn" onClick={handleApplyPreset} disabled={!selectedPreset}>
+                Apply
+              </button>
+              <button className="lab-btn" onClick={handleSavePreset}>
+                Save
+              </button>
+              <button className="lab-btn" onClick={handleDeletePreset} disabled={!selectedPreset}>
+                Delete
+              </button>
+            </div>
           </div>
           <LabCanvasSizeControls
             sourceWidth={sourceSize.w}

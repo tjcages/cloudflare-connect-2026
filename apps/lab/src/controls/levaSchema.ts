@@ -9,8 +9,6 @@ import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from
 import { DEFAULT_LAB_TEXTURE_ID, buildTextureEntries, findTextureEntry } from "../textures";
 import { loadManifest } from "../uploads";
 
-const TEXTURE_OPTIONS = Object.fromEntries(buildTextureEntries(loadManifest()).map((t) => [t.label, t.id]));
-
 const RENDER_MODE_INTENSITY: Record<string, number> = {
   abstract: 1,
   charcoal: 0.29,
@@ -111,18 +109,21 @@ function newStripeId(): string {
   return `s${nextStripeId++}`;
 }
 
+export interface TextureOption {
+  id: string;
+  label: string;
+}
+
 export interface EngineControlsResult {
   config: EngineConfig;
   setControl: (values: Record<string, unknown>) => void;
   textureId: string;
+  setTextureId: (id: string) => void;
+  textureOptions: TextureOption[];
   store: ReturnType<typeof useCreateStore>;
 }
 
-export function useEngineControls(
-  onReplay: () => void,
-  onExportSvg: () => void,
-  onExportVideo: () => void,
-): EngineControlsResult {
+export function useEngineControls(onReplay: () => void): EngineControlsResult {
   const initialTextureId = useMemo(() => {
     const stored = loadTextureId();
     return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;
@@ -134,6 +135,13 @@ export function useEngineControls(
   // if LevaPanel received a freshly-recomputed store it would render empty until
   // a full reload. Preserving the first store here keeps both sides in sync.
   const [store] = useState(useCreateStore());
+  // Texture selection is a plain React control (rendered as a stacked label +
+  // <select> in the sidebar), not a leva folder.
+  const [textureId, setTextureId] = useState(initialTextureId);
+  const textureOptions = useMemo<TextureOption[]>(
+    () => buildTextureEntries(loadManifest()).map((t) => ({ id: t.id, label: t.label })),
+    [],
+  );
 
   const [stripes, setStripes] = useState<EditableStripe[]>(() =>
     d.stripes.map((s, i) => ({
@@ -186,13 +194,6 @@ export function useEngineControls(
 
   const [values, setControl] = useControls(
     () => ({
-      Texture: folder({
-        texture: { value: initialTextureId, options: TEXTURE_OPTIONS, label: "Texture" },
-      }),
-      Export: folder({
-        "Export SVG": button(() => onExportSvg()),
-        "Export Video": button(() => onExportVideo()),
-      }),
       General: folder({
         stripesEnabled: { value: d.stripesEnabled, label: "Stripes enabled" },
         textureDpr: { value: d.fieldScale, min: 0.25, max: 2, step: 0.25, label: "Texture DPR" },
@@ -946,5 +947,5 @@ export function useEngineControls(
     },
   });
 
-  return { config, setControl, textureId: values.texture, store };
+  return { config, setControl, textureId, setTextureId, textureOptions, store };
 }
