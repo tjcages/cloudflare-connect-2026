@@ -28,6 +28,15 @@ function cellColorHex(colors: Uint8Array, cellIndex: number): string {
   return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.replace(/^#/, ""), 16) || 0;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function p3Css(r: number, g: number, b: number): string {
+  return `color(display-p3 ${(r / 255).toFixed(4)} ${(g / 255).toFixed(4)} ${(b / 255).toFixed(4)})`;
+}
+
 export function cellGridToSvg(
   readback: CellReadback,
   stripes: LabStripe[],
@@ -81,7 +90,12 @@ export function cellGridToSvg(
 
       const segment = `M${x} ${y}h${rectW}v${rectH}h-${rectW}Z`;
       if (useCellColors && colors) {
-        cellColorPaths.push(`  <path fill="${cellColorHex(colors, rbIndex)}" d="${segment}" />`);
+        const cr = colors[rbIndex * 4] ?? 0;
+        const cg = colors[rbIndex * 4 + 1] ?? 0;
+        const cb = colors[rbIndex * 4 + 2] ?? 0;
+        cellColorPaths.push(
+          `  <path fill="${cellColorHex(colors, rbIndex)}" style="fill:${p3Css(cr, cg, cb)}" d="${segment}" />`,
+        );
         continue;
       }
       const list = pathsByBand.get(band) ?? [];
@@ -108,7 +122,16 @@ export function cellGridToSvg(
     const stripe = sortedStripes[band - 1];
     return `  .${svgStripeClass(band)} { fill: ${stripe?.hex ?? "#000000"}; }`;
   });
-  const styleBlock = usedBands.length > 0 ? ["<style>", ...styleRules, "</style>"].join("\n") : "";
+  const p3Rules = usedBands.map((band) => {
+    const [r, g, b] = hexToRgb(sortedStripes[band - 1]?.hex ?? "#000000");
+    return `    .${svgStripeClass(band)} { fill: ${p3Css(r, g, b)}; }`;
+  });
+  const styleBlock =
+    usedBands.length > 0
+      ? ["<style>", ...styleRules, "  @supports (fill: color(display-p3 1 1 1)) {", ...p3Rules, "  }", "</style>"].join(
+          "\n",
+        )
+      : "";
   const pathElements = usedBands
     .map((band) => `  <path class="${svgStripeClass(band)}" d="${(pathsByBand.get(band) ?? []).join(" ")}" />`)
     .join("\n");

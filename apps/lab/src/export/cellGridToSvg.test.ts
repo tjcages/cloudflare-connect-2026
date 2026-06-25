@@ -22,6 +22,14 @@ describe("cellGridToSvg", () => {
     expect(svg).toContain('height="7"');
   });
 
+  it("emits display-p3 band colors with an sRGB fallback (@supports)", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, STRIPES, { cellWidthPx: 7, cellHeightPx: 7, useCellColors: false });
+    expect(svg).toContain("#00cc88"); // sRGB fallback
+    expect(svg).toContain("@supports (fill: color(display-p3 1 1 1))");
+    expect(svg).toContain("color(display-p3 0.0000 0.8000 0.5333)"); // 0x00cc88 as p3 coords
+  });
+
   it("skips band-0 cells (no path)", () => {
     const readback = { cols: 1, rows: 1, values: v(0), colors: null };
     const stripes = [{ hex: "#ff0000", startFrom: 0.5, width: 4 }];
@@ -46,10 +54,11 @@ describe("cellGridToSvg", () => {
     expect(Number(match![1])).toBeGreaterThanOrEqual(10);
   });
 
-  it("uses per-cell colors in colors mode", () => {
+  it("uses per-cell colors in colors mode with sRGB fallback + display-p3 style", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: v(0x33, 0x66, 0x99, 255) };
     const svg = cellGridToSvg(readback, STRIPES, { cellWidthPx: 7, cellHeightPx: 7, useCellColors: true });
-    expect(svg).toContain('fill="#336699"');
+    expect(svg).toContain('fill="#336699"'); // sRGB fallback attribute
+    expect(svg).toContain('style="fill:color(display-p3 0.2000 0.4000 0.6000)"');
     expect(svg).not.toContain("<style>");
   });
 
