@@ -821,7 +821,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                 name: "stylize",
                 render: () => {
                   const src = pool.get("solidOut", output.width, output.height, { linear: true });
-                  stylizePass.render(null, src.texture, {
+                  const stripesRT = pool.get("stripeOut", output.width, output.height, { linear: true });
+                  stylizePass.render(null, src.texture, stripesRT.texture, {
                     mode: config.renderMode,
                     time: clock.now() / 1000,
                     intensity: config.renderIntensity,

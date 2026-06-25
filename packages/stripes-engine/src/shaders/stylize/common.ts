@@ -2,6 +2,7 @@ export const STYLIZE_COMMON = `#version 300 es
 precision highp float;
 in vec2 vUv;
 uniform sampler2D uTex;
+uniform sampler2D uStripes;
 uniform float uTime;
 uniform float uIntensity;
 uniform vec2 uResolution;

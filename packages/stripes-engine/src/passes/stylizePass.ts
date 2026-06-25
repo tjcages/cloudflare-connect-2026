@@ -16,6 +16,7 @@ type StylizeUniforms = {
 type ModeProgram = {
   program: WebGLProgram;
   uTex: WebGLUniformLocation | null;
+  uStripes: WebGLUniformLocation | null;
   uTime: WebGLUniformLocation | null;
   uIntensity: WebGLUniformLocation | null;
   uResolution: WebGLUniformLocation | null;
@@ -34,6 +35,7 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
     const mp: ModeProgram = {
       program,
       uTex: gl.getUniformLocation(program, "uTex"),
+      uStripes: gl.getUniformLocation(program, "uStripes"),
       uTime: gl.getUniformLocation(program, "uTime"),
       uIntensity: gl.getUniformLocation(program, "uIntensity"),
       uResolution: gl.getUniformLocation(program, "uResolution"),
@@ -45,7 +47,7 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
   }
 
   return {
-    render(target: RenderTarget | null, srcTex: WebGLTexture, p: StylizeUniforms) {
+    render(target: RenderTarget | null, srcTex: WebGLTexture, stripesTex: WebGLTexture, p: StylizeUniforms) {
       const mp = getProgram(p.mode);
       bindRenderTarget(gl, target);
       if (!target) gl.viewport(0, 0, p.resolution[0], p.resolution[1]);
@@ -53,6 +55,9 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, srcTex);
       gl.uniform1i(mp.uTex, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, stripesTex);
+      gl.uniform1i(mp.uStripes, 1);
       gl.uniform1f(mp.uTime, p.time);
       gl.uniform1f(mp.uIntensity, p.intensity);
       gl.uniform2f(mp.uResolution, p.resolution[0], p.resolution[1]);
