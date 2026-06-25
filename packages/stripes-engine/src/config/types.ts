@@ -152,6 +152,25 @@ export interface ColorsConfig {
   backgroundColor: number;
 }
 
+export type RenderMode =
+  | "sharp"
+  | "abstract"
+  | "watercolor"
+  | "charcoal"
+  | "pencil"
+  | "brush"
+  | "halftone"
+  | "risograph"
+  | "stainedGlass"
+  | "paperCutout"
+  | "crt"
+  | "glitch"
+  | "vhs"
+  | "plasma"
+  | "amber"
+  | "gummy"
+  | "caramel";
+
 export interface EngineConfig {
   transform: Transform;
   adjustments: Adjustments;
@@ -168,4 +187,6 @@ export interface EngineConfig {
   clickWave: ClickWaveConfig;
   letters: LettersConfig;
   colors: ColorsConfig;
+  renderMode: RenderMode;
+  renderIntensity: number;
 }

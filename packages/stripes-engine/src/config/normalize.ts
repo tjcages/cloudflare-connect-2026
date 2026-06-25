@@ -15,6 +15,7 @@ import type {
   ClickWaveConfig,
   LettersConfig,
   ColorsConfig,
+  RenderMode,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -391,6 +392,29 @@ export function normalizeColors(i: PartialColors = {}): ColorsConfig {
   };
 }
 
+export const RENDER_MODES: RenderMode[] = [
+  "sharp",
+  "abstract",
+  "watercolor",
+  "charcoal",
+  "pencil",
+  "brush",
+  "halftone",
+  "risograph",
+  "stainedGlass",
+  "paperCutout",
+  "crt",
+  "glitch",
+  "vhs",
+  "plasma",
+  "amber",
+  "gummy",
+  "caramel",
+];
+function normalizeRenderMode(v: unknown): RenderMode {
+  return RENDER_MODES.includes(v as RenderMode) ? (v as RenderMode) : "sharp";
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   transform: DEFAULT_TRANSFORM,
   adjustments: DEFAULT_ADJUSTMENTS,
@@ -407,6 +431,8 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   clickWave: { ...DEFAULT_CLICK_WAVE },
   letters: { ...DEFAULT_LETTERS },
   colors: { ...DEFAULT_COLORS },
+  renderMode: "sharp",
+  renderIntensity: 1,
 };
 
 export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConfig {
@@ -426,5 +452,7 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     clickWave: normalizeClickWave(i.clickWave),
     letters: normalizeLetters(i.letters),
     colors: normalizeColors(i.colors),
+    renderMode: normalizeRenderMode(i.renderMode),
+    renderIntensity: clamp(num(i.renderIntensity, 1), 0, 1),
   };
 }

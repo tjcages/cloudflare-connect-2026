@@ -505,3 +505,22 @@ describe("colors normalizer", () => {
     expect(normalizeColors({ backgroundColor: 0.7 }).backgroundColor).toBe(1);
   });
 });
+describe("renderMode + renderIntensity", () => {
+  it("defaults to sharp at full intensity", () => {
+    const c = normalizeEngineConfig({});
+    expect(c.renderMode).toBe("sharp");
+    expect(c.renderIntensity).toBe(1);
+  });
+  it("keeps a known mode", () => {
+    expect(normalizeEngineConfig({ renderMode: "abstract" }).renderMode).toBe("abstract");
+    expect(normalizeEngineConfig({ renderMode: "caramel" }).renderMode).toBe("caramel");
+  });
+  it("falls back to sharp for an unknown mode", () => {
+    expect(normalizeEngineConfig({ renderMode: "bogus" as any }).renderMode).toBe("sharp");
+  });
+  it("clamps renderIntensity to 0..1", () => {
+    expect(normalizeEngineConfig({ renderIntensity: -1 }).renderIntensity).toBe(0);
+    expect(normalizeEngineConfig({ renderIntensity: 5 }).renderIntensity).toBe(1);
+    expect(normalizeEngineConfig({ renderIntensity: 0.4 }).renderIntensity).toBe(0.4);
+  });
+});
