@@ -9,6 +9,13 @@ import { HALFTONE_FRAG } from "./halftone.frag";
 import { RISOGRAPH_FRAG } from "./risograph.frag";
 import { STAINED_GLASS_FRAG } from "./stainedGlass.frag";
 import { PAPER_CUTOUT_FRAG } from "./paperCutout.frag";
+import { CRT_FRAG } from "./crt.frag";
+import { GLITCH_FRAG } from "./glitch.frag";
+import { VHS_FRAG } from "./vhs.frag";
+import { PLASMA_FRAG } from "./plasma.frag";
+import { AMBER_FRAG } from "./amber.frag";
+import { GUMMY_FRAG } from "./gummy.frag";
+import { CARAMEL_FRAG } from "./caramel.frag";
 
 export const PASSTHROUGH_FRAG =
   STYLIZE_COMMON +
@@ -26,4 +33,11 @@ export const STYLIZE_FRAGS: Partial<Record<RenderMode, string>> = {
   risograph: RISOGRAPH_FRAG,
   stainedGlass: STAINED_GLASS_FRAG,
   paperCutout: PAPER_CUTOUT_FRAG,
+  crt: CRT_FRAG,
+  glitch: GLITCH_FRAG,
+  vhs: VHS_FRAG,
+  plasma: PLASMA_FRAG,
+  amber: AMBER_FRAG,
+  gummy: GUMMY_FRAG,
+  caramel: CARAMEL_FRAG,
 };
