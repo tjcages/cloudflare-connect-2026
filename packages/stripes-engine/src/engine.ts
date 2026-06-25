@@ -14,6 +14,7 @@ import { createBlurPass } from "./passes/blurPass";
 import { createAssemblyCompositePass } from "./passes/assemblyCompositePass";
 import { createStripePass } from "./passes/stripePass";
 import { createStylizePass } from "./passes/stylizePass";
+import { createLogoFillPass } from "./passes/logoFillPass";
 import { createLetterDataPass } from "./passes/letterDataPass";
 import { buildLetterAtlas, createLetterAtlasTexture } from "./letters/letterAtlas";
 import { LETTER_CHARSET_LEN } from "./letters/charset";
@@ -706,6 +707,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         : [];
       const stripePass = createStripePass(gl, quad);
       const stylizePass = config.renderMode !== "sharp" ? createStylizePass(gl, quad) : null;
+      const logoFillPass = stylizePass ? createLogoFillPass(gl, quad) : null;
       const lettersEnabled = config.letters.enabled;
       const letterDataPass = lettersEnabled ? createLetterDataPass(gl, quad) : null;
       const letterDataPasses: Pass[] = letterDataPass
@@ -800,9 +802,25 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...(stylizePass
           ? [
               {
+                name: "logoFill",
+                render: () => {
+                  const srcRT = pool.get("stripeOut", output.width, output.height, { linear: true });
+                  const dstRT = pool.get("solidOut", output.width, output.height, { linear: true });
+                  logoFillPass!.render(dstRT, srcRT.texture, {
+                    resolution: [output.width, output.height] as [number, number],
+                    bg: config.background.color,
+                  });
+                },
+                dispose: () => logoFillPass!.dispose(),
+              },
+            ]
+          : []),
+        ...(stylizePass
+          ? [
+              {
                 name: "stylize",
                 render: () => {
-                  const src = pool.get("stripeOut", output.width, output.height, { linear: true });
+                  const src = pool.get("solidOut", output.width, output.height, { linear: true });
                   stylizePass.render(null, src.texture, {
                     mode: config.renderMode,
                     time: clock.now() / 1000,
@@ -851,6 +869,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     pool.get("cell", cellGrid.cols, cellGrid.rows);
     if (config.renderMode !== "sharp") {
       pool.get("stripeOut", output.width, output.height, { linear: true });
+      pool.get("solidOut", output.width, output.height, { linear: true });
     }
     if (config.reveal.enabled) {
       pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
