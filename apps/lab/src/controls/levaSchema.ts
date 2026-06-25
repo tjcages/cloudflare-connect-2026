@@ -42,7 +42,12 @@ export function useEngineControls(
     return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;
   }, []);
   const d = useMemo(() => normalizeEngineConfig(loadInitialConfig(initialTextureId)), [initialTextureId]);
-  const store = useCreateStore();
+  // Pin the store across HMR. React Fast Refresh recomputes useMemo (and thus
+  // useCreateStore's store) while preserving useState/useRef. leva's useControls
+  // captures its store via useState, so it keeps writing to the original store;
+  // if LevaPanel received a freshly-recomputed store it would render empty until
+  // a full reload. Preserving the first store here keeps both sides in sync.
+  const [store] = useState(useCreateStore());
 
   const [stripes, setStripes] = useState<EditableStripe[]>(() =>
     d.stripes.map((s, i) => ({
