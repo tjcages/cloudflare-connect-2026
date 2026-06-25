@@ -21,6 +21,7 @@ import type { LabTextureKind, LoadedTextureSource } from "./textures";
 import { addUpload, loadManifest, removeUpload, saveManifest } from "./uploads";
 import { putTextureBlob, deleteTextureBlob } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
+import { exportLabVideo } from "./export/videoExport";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -187,6 +188,8 @@ function LabInner() {
     sampleCount: 0,
   });
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
+  videoElRef.current = videoEl;
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [scale, setScale] = useState(
     (LAB_TEXTURES.find((t) => t.id === DEFAULT_LAB_TEXTURE_ID) ?? LAB_TEXTURES[0]).defaultScale,
@@ -205,7 +208,9 @@ function LabInner() {
   const onReplay = useCallback(() => onReplayRef.current(), []);
   const onExportSvgRef = useRef<() => void>(() => {});
   const onExportSvg = useCallback(() => onExportSvgRef.current(), []);
-  const { config: controls, setControl, textureId, store } = useEngineControls(onReplay, onExportSvg);
+  const onExportVideoRef = useRef<() => void>(() => {});
+  const onExportVideo = useCallback(() => onExportVideoRef.current(), []);
+  const { config: controls, setControl, textureId, store } = useEngineControls(onReplay, onExportSvg, onExportVideo);
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
   const setControlRef = useRef(setControl);
@@ -290,6 +295,18 @@ function LabInner() {
       });
     };
     onExportSvgRef.current = () => downloadSvg(buildExportSvg());
+
+    onExportVideoRef.current = () => {
+      const targetCanvas = canvasRef.current;
+      if (!targetCanvas) return;
+      const video = videoElRef.current;
+      void exportLabVideo({
+        canvas: targetCanvas,
+        sourceKind: video ? "video" : "image",
+        video: video ?? undefined,
+        backgroundColor: controlsRef.current.background.color,
+      }).catch(() => {});
+    };
 
     (window as unknown as { __lab: unknown }).__lab = {
       engine,

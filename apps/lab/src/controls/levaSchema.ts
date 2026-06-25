@@ -32,7 +32,11 @@ export interface EngineControlsResult {
   store: ReturnType<typeof useCreateStore>;
 }
 
-export function useEngineControls(onReplay: () => void, onExportSvg: () => void): EngineControlsResult {
+export function useEngineControls(
+  onReplay: () => void,
+  onExportSvg: () => void,
+  onExportVideo: () => void,
+): EngineControlsResult {
   const initialTextureId = useMemo(() => {
     const stored = loadTextureId();
     return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;
@@ -96,6 +100,7 @@ export function useEngineControls(onReplay: () => void, onExportSvg: () => void)
       }),
       Export: folder({
         "Export SVG": button(() => onExportSvg()),
+        "Export Video": button(() => onExportVideo()),
       }),
       General: folder({
         stripesEnabled: { value: d.stripesEnabled, label: "Stripes enabled" },
