@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { createStripesEngine, type StripesEngine } from "../engine";
 import type { EngineConfig } from "../config/types";
 
@@ -34,13 +34,29 @@ export function StripesShader(props: StripesShaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<StripesEngine | null>(null);
 
+  const mergedStyle = useMemo<CSSProperties>(
+    () => ({ display: "block", ...(width != null && height != null ? { width, height } : null), ...style }),
+    [width, height, style],
+  );
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const engine = createStripesEngine(canvas);
     engineRef.current = engine;
     engine.start();
+
+    const applySize = () => {
+      const w = Math.round(canvas.clientWidth);
+      const h = Math.round(canvas.clientHeight);
+      if (w > 0 && h > 0) engine.resize(w, h);
+    };
+    applySize();
+    const ro = new ResizeObserver(applySize);
+    ro.observe(canvas);
+
     return () => {
+      ro.disconnect();
       engineRef.current = null;
       engine.dispose();
     };
@@ -50,11 +66,6 @@ export function StripesShader(props: StripesShaderProps) {
     const engine = engineRef.current;
     if (engine && config) engine.setConfig(config);
   }, [config]);
-
-  useEffect(() => {
-    const engine = engineRef.current;
-    if (engine && width != null && height != null) engine.resize(width, height);
-  }, [width, height]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -97,5 +108,5 @@ export function StripesShader(props: StripesShaderProps) {
     };
   }, [src, mediaKind, autoPlay, loop, muted]);
 
-  return <canvas ref={canvasRef} className={className} style={style} />;
+  return <canvas ref={canvasRef} className={className} style={mergedStyle} />;
 }

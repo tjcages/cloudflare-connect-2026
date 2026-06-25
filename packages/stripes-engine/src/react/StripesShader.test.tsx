@@ -1,6 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
-import { StripesShader } from "./StripesShader";
 
 const engineStub = {
   start: vi.fn(),
@@ -16,11 +15,37 @@ vi.mock("../engine", () => ({
   createStripesEngine: vi.fn(() => engineStub),
 }));
 
+import { StripesShader } from "./StripesShader";
 import { createStripesEngine } from "../engine";
+
+const images: HTMLImageElement[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  images.length = 0;
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const OrigImage = globalThis.Image;
+  vi.stubGlobal(
+    "Image",
+    class extends OrigImage {
+      constructor() {
+        super();
+        images.push(this as unknown as HTMLImageElement);
+      }
+    },
+  );
+});
+
+afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe("<StripesShader>", () => {
@@ -33,11 +58,20 @@ describe("<StripesShader>", () => {
     expect(engineStub.start).toHaveBeenCalled();
   });
 
-  it("applies the config and resizes when width/height are given", () => {
+  it("applies the config and sizes the canvas from width/height props", () => {
     const config = { stripesEnabled: true, colors: { mode: "colors" as const } };
-    render(<StripesShader src="logo.png" config={config} width={320} height={240} />);
+    const { container } = render(<StripesShader src="logo.png" config={config} width={320} height={240} />);
     expect(engineStub.setConfig).toHaveBeenCalledWith(config);
-    expect(engineStub.resize).toHaveBeenCalledWith(320, 240);
+    const canvas = container.querySelector("canvas")!;
+    expect(canvas.style.width).toBe("320px");
+    expect(canvas.style.height).toBe("240px");
+  });
+
+  it("loads the image source and calls setSource on load", () => {
+    render(<StripesShader src="logo.png" />);
+    expect(images.length).toBe(1);
+    images[0].dispatchEvent(new Event("load"));
+    expect(engineStub.setSource).toHaveBeenCalledWith(images[0]);
   });
 
   it("disposes the engine on unmount", () => {

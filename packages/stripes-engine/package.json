@@ -1,8 +1,15 @@
 {
   "name": "@necatikcl/stripes-engine",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
+  "description": "GPU (WebGL2) renderer that turns an image or video into an animated duotone stripe-grid. Core + render-only <StripesShader> React canvas.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/necatikcl/section-grid-generator.git",
+    "directory": "packages/stripes-engine"
+  },
+  "sideEffects": false,
   "main": "./src/index.ts",
   "module": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,9 +17,13 @@
     ".": "./src/index.ts",
     "./react": "./src/react/index.ts"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "vite build",
+    "prepublishOnly": "vite build",
     "test": "vitest run"
   },
   "peerDependencies": {
@@ -27,6 +38,22 @@
       "optional": true
     }
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./react": {
+        "types": "./dist/react/index.d.ts",
+        "import": "./dist/react/index.js"
+      }
+    }
+  },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
@@ -37,6 +64,7 @@
     "react-dom": "^19.0.5",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",
+    "vite-plugin-dts": "^5.0.2",
     "vitest": "^4.1.5"
   }
 }
