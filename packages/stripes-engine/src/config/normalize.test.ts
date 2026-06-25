@@ -99,7 +99,13 @@ describe("sparkle normalizer", () => {
   it("defaults sparkle when omitted", () => {
     const c = normalizeEngineConfig({});
     expect(c.sparkle.gaps).toEqual({ enabled: false, coverage: 0.22, speed: 1 });
-    expect(c.sparkle.width).toEqual({ enabled: false, coverage: 0.3, speed: 1, swingPx: 1.25 });
+    expect(c.sparkle.width).toEqual({
+      enabled: false,
+      coverage: 0.3,
+      swingPx: 1.25,
+      swingPeriodMin: 0.21,
+      swingPeriodMax: 0.55,
+    });
   });
   it("clamps sparkle.gaps.coverage to 0..1 and speed to >=0.05", () => {
     expect(normalizeEngineConfig({ sparkle: { gaps: { coverage: 9 } } }).sparkle.gaps.coverage).toBe(1);

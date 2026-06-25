@@ -694,9 +694,8 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
             const gapSpeed = Math.max(0.05, config.sparkle.gaps.speed);
             const gapPeriodMin = 0.21 / gapSpeed;
             const gapPeriodMax = 0.55 / gapSpeed;
-            const widthSpeed = Math.max(0.05, config.sparkle.width.speed);
-            const shufflePeriodMin = 0.21 / widthSpeed;
-            const shufflePeriodMax = 0.55 / widthSpeed;
+            const shufflePeriodMin = config.sparkle.width.swingPeriodMin;
+            const shufflePeriodMax = config.sparkle.width.swingPeriodMax;
             stripePass.render(
               inputRT.texture,
               stripeLutTex!,

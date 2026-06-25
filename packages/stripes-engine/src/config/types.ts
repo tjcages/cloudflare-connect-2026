@@ -73,7 +73,7 @@ export interface Grid {
 
 export interface SparkleConfig {
   gaps: { enabled: boolean; coverage: number; speed: number };
-  width: { enabled: boolean; coverage: number; speed: number; swingPx: number };
+  width: { enabled: boolean; coverage: number; swingPx: number; swingPeriodMin: number; swingPeriodMax: number };
 }
 
 export type FlamesDirection = "up" | "down" | "left" | "right";

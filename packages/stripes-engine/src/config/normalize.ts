@@ -169,7 +169,7 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
 
 export const DEFAULT_SPARKLE: SparkleConfig = {
   gaps: { enabled: false, coverage: 0.22, speed: 1 },
-  width: { enabled: false, coverage: 0.3, speed: 1, swingPx: 1.25 },
+  width: { enabled: false, coverage: 0.3, swingPx: 1.25, swingPeriodMin: 0.21, swingPeriodMax: 0.55 },
 };
 
 type PartialSparkle = {
@@ -189,8 +189,9 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
     width: {
       enabled: w.enabled !== undefined ? !!w.enabled : DEFAULT_SPARKLE.width.enabled,
       coverage: clamp(num(w.coverage, DEFAULT_SPARKLE.width.coverage), 0, 1),
-      speed: clamp(num(w.speed, DEFAULT_SPARKLE.width.speed), 0.05, 100),
       swingPx: clamp(num(w.swingPx, DEFAULT_SPARKLE.width.swingPx), 0, 40),
+      swingPeriodMin: clamp(num(w.swingPeriodMin, DEFAULT_SPARKLE.width.swingPeriodMin), 0.02, 5),
+      swingPeriodMax: clamp(num(w.swingPeriodMax, DEFAULT_SPARKLE.width.swingPeriodMax), 0.02, 5),
     },
   };
 }
