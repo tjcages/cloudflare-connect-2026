@@ -1,4 +1,5 @@
 import { compileProgram } from "../gl/program";
+import { bindRenderTarget, type RenderTarget } from "../gl/renderTarget";
 import { FULLSCREEN_VERT } from "../shaders/fullscreen.vert";
 import { STRIPE_FRAG } from "../shaders/stripe.frag";
 
@@ -61,9 +62,20 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     cellColor: u("uCellColor"),
   };
   return {
-    render(cellTex: WebGLTexture, lutTex: WebGLTexture, p: StripeUniforms, outWidth: number, outHeight: number) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, outWidth, outHeight);
+    render(
+      cellTex: WebGLTexture,
+      lutTex: WebGLTexture,
+      p: StripeUniforms,
+      outWidth: number,
+      outHeight: number,
+      target: RenderTarget | null = null,
+    ) {
+      if (target) {
+        bindRenderTarget(gl, target);
+      } else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, outWidth, outHeight);
+      }
       gl.useProgram(program);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, cellTex);
