@@ -14,7 +14,6 @@ import { VHS_FRAG } from "./vhs.frag";
 import { PLASMA_FRAG } from "./plasma.frag";
 import { AMBER_FRAG } from "./amber.frag";
 import { GUMMY_FRAG } from "./gummy.frag";
-import { CARAMEL_FRAG } from "./caramel.frag";
 
 export const PASSTHROUGH_FRAG =
   STYLIZE_COMMON +
@@ -37,5 +36,4 @@ export const STYLIZE_FRAGS: Partial<Record<RenderMode, string>> = {
   plasma: PLASMA_FRAG,
   amber: AMBER_FRAG,
   gummy: GUMMY_FRAG,
-  caramel: CARAMEL_FRAG,
 };

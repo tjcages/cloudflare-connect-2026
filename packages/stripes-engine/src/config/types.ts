@@ -167,8 +167,7 @@ export type RenderMode =
   | "vhs"
   | "plasma"
   | "amber"
-  | "gummy"
-  | "caramel";
+  | "gummy";
 
 export interface EngineConfig {
   transform: Transform;

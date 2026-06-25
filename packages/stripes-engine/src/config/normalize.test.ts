@@ -521,7 +521,7 @@ describe("renderMode + renderIntensity", () => {
   });
   it("keeps a known mode", () => {
     expect(normalizeEngineConfig({ renderMode: "abstract" }).renderMode).toBe("abstract");
-    expect(normalizeEngineConfig({ renderMode: "caramel" }).renderMode).toBe("caramel");
+    expect(normalizeEngineConfig({ renderMode: "gummy" }).renderMode).toBe("gummy");
   });
   it("falls back to sharp for an unknown mode", () => {
     expect(normalizeEngineConfig({ renderMode: "bogus" as any }).renderMode).toBe("sharp");

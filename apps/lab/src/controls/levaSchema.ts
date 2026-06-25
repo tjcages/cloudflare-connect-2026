@@ -26,7 +26,6 @@ const RENDER_MODE_INTENSITY: Record<string, number> = {
   plasma: 1,
   amber: 1,
   gummy: 1,
-  caramel: 1,
 };
 
 const RENDER_MODE_PARAMS: Record<
@@ -74,7 +73,7 @@ const RENDER_MODE_PARAMS: Record<
   ],
   crt: [
     { key: "crtP0", label: "Scanlines", def: 0.6 },
-    { key: "crtP1", label: "Aberration", def: 0.4 },
+    { key: "crtP1", label: "Aberration", def: 0.6 },
     { key: "crtP2", label: "Bloom", def: 0.5 },
   ],
   glitch: [
@@ -85,27 +84,23 @@ const RENDER_MODE_PARAMS: Record<
   vhs: [
     { key: "vhsP0", label: "Tracking", def: 0.5 },
     { key: "vhsP1", label: "Chroma", def: 0.5 },
-    { key: "vhsP2", label: "Noise", def: 0.5 },
   ],
   plasma: [
     { key: "plasmaP0", label: "Scale", def: 0.5 },
     { key: "plasmaP1", label: "Speed", def: 0.5 },
-    { key: "plasmaP2", label: "Takeover", def: 0.7 },
+    { key: "plasmaP2", label: "Takeover", def: 1.0 },
+    { key: "plasmaP3", label: "Scanlines", def: 0.5 },
   ],
   amber: [
     { key: "amberP0", label: "Glow", def: 0.6 },
     { key: "amberP1", label: "Scanlines", def: 0.5 },
     { key: "amberP2", label: "Brightness", def: 0.5 },
+    { key: "amberP3", label: "Cell size", def: 4, px: { min: 2, max: 16, step: 1 } },
   ],
   gummy: [
-    { key: "gummyP0", label: "Blob size", def: 0.5 },
+    { key: "gummyP0", label: "Blob size", def: 18, px: { min: 6, max: 48, step: 1 } },
     { key: "gummyP1", label: "Gloss", def: 0.6 },
     { key: "gummyP2", label: "Saturation", def: 0.6 },
-  ],
-  caramel: [
-    { key: "caramelP0", label: "Drip", def: 0.4 },
-    { key: "caramelP1", label: "Gloss", def: 0.6 },
-    { key: "caramelP2", label: "Depth", def: 0.6 },
   ],
 };
 
@@ -385,7 +380,6 @@ export function useEngineControls(
             Plasma: "plasma",
             Amber: "amber",
             Gummy: "gummy",
-            Caramel: "caramel",
           } as const,
           label: "Render mode",
         },

@@ -408,7 +408,6 @@ export const RENDER_MODES: RenderMode[] = [
   "plasma",
   "amber",
   "gummy",
-  "caramel",
 ];
 function normalizeRenderMode(v: unknown): RenderMode {
   return RENDER_MODES.includes(v as RenderMode) ? (v as RenderMode) : "sharp";
