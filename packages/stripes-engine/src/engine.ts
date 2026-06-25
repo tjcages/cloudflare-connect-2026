@@ -58,6 +58,7 @@ const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
 const CLICK_WAVE_MAX_PUSH_CELLS = 6;
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
+export type CellGridReadback = { cols: number; rows: number; values: Uint8Array; colors: Uint8Array | null };
 export type StripesEngine = {
   resize(cssWidth: number, cssHeight: number): void;
   renderFrame(): void;
@@ -70,6 +71,7 @@ export type StripesEngine = {
   click(x: number, y?: number): void;
   triggerReveal(): void;
   readOutputPixels(): Uint8Array;
+  readCellGrid(): CellGridReadback;
   getPerf(): PerfSnapshot;
   dispose(): void;
   readonly isP3: boolean;
@@ -932,6 +934,24 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.readPixels(0, 0, output.width, output.height, gl.RGBA, gl.UNSIGNED_BYTE, px);
       return px;
+    },
+    readCellGrid() {
+      const { cols, rows } = cellGrid;
+      const cellRT = pool.get("cell", cols, rows);
+      const cellPx = new Uint8Array(cols * rows * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, cellRT.fbo);
+      gl.readPixels(0, 0, cols, rows, gl.RGBA, gl.UNSIGNED_BYTE, cellPx);
+      const values = new Uint8Array(cols * rows);
+      for (let i = 0; i < cols * rows; i++) values[i] = cellPx[i * 4];
+      let colors: Uint8Array | null = null;
+      if (config.colors.mode === "colors") {
+        const cellColorRT = pool.get("cellColor", cols, rows);
+        colors = new Uint8Array(cols * rows * 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, cellColorRT.fbo);
+        gl.readPixels(0, 0, cols, rows, gl.RGBA, gl.UNSIGNED_BYTE, colors);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      return { cols, rows, values, colors };
     },
     getPerf() {
       return perf.snapshot();
