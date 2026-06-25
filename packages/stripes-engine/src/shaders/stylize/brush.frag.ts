@@ -7,7 +7,7 @@ void main(){
   float strokeAmt = uParams.x;
   float bristleAmt = uParams.y;
   float impasto = uParams.z;
-  float strokeLen = mix(3.0, 16.0, strokeAmt) * uDpr;
+  float strokeLen = mix(0.5, 16.0, strokeAmt) * uDpr;
   float ang = (fbm(vUv * 2.5) - 0.5) * 3.14159;
   vec2 dir = vec2(cos(ang), sin(ang));
   vec2 perp = vec2(-dir.y, dir.x);

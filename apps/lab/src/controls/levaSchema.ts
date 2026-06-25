@@ -33,6 +33,7 @@ const RENDER_MODE_PARAMS: Record<
     { key: "abstractP0", label: "Wobble", def: 0.5 },
     { key: "abstractP1", label: "Grain", def: 0.6 },
     { key: "abstractP2", label: "Softness", def: 0.2 },
+    { key: "abstractP3", label: "Width", def: 0.7 },
   ],
   charcoal: [
     { key: "charcoalP0", label: "Grain", def: 0.08 },
