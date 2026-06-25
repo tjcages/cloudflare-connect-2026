@@ -13,6 +13,7 @@ import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createBlurPass } from "./passes/blurPass";
 import { createAssemblyCompositePass } from "./passes/assemblyCompositePass";
 import { createStripePass } from "./passes/stripePass";
+import { createStylizePass } from "./passes/stylizePass";
 import { createLetterDataPass } from "./passes/letterDataPass";
 import { buildLetterAtlas, createLetterAtlasTexture } from "./letters/letterAtlas";
 import { LETTER_CHARSET_LEN } from "./letters/charset";
@@ -171,6 +172,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastAssemblyTopo = config.reveal.enabled && config.reveal.type === "assembly";
   let lastFlamesEnabled = config.flames.enabled;
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
+  let lastRenderMode = config.renderMode;
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
   let lastClickWaveEnabled = config.clickWave.enabled;
   let lastLettersEnabled = config.letters.enabled;
@@ -703,6 +705,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           ]
         : [];
       const stripePass = createStripePass(gl, quad);
+      const stylizePass = config.renderMode !== "sharp" ? createStylizePass(gl, quad) : null;
       const lettersEnabled = config.letters.enabled;
       const letterDataPass = lettersEnabled ? createLetterDataPass(gl, quad) : null;
       const letterDataPasses: Pass[] = letterDataPass
@@ -789,10 +792,29 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
               },
               output.width,
               output.height,
+              stylizePass ? pool.get("stripeOut", output.width, output.height, { linear: true }) : null,
             );
           },
           dispose: () => stripePass.dispose(),
         },
+        ...(stylizePass
+          ? [
+              {
+                name: "stylize",
+                render: () => {
+                  const src = pool.get("stripeOut", output.width, output.height, { linear: true });
+                  stylizePass.render(null, src.texture, {
+                    mode: config.renderMode,
+                    time: clock.now() / 1000,
+                    intensity: config.renderIntensity,
+                    resolution: [output.width, output.height] as [number, number],
+                    dpr: getDpr(),
+                  });
+                },
+                dispose: () => stylizePass.dispose(),
+              },
+            ]
+          : []),
       ];
     } else {
       const presentPass = createPresentPass(gl, quad);
@@ -826,6 +848,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
     cellGrid = resolveCellGrid(cssW, cssH, config.grid.cellWidth, config.grid.cellHeight);
     pool.get("cell", cellGrid.cols, cellGrid.rows);
+    if (config.renderMode !== "sharp") {
+      pool.get("stripeOut", output.width, output.height, { linear: true });
+    }
     if (config.reveal.enabled) {
       pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
       if (config.reveal.type === "assembly") {
@@ -956,6 +981,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         assemblyTopo !== lastAssemblyTopo ||
         config.flames.enabled !== lastFlamesEnabled ||
         config.edgeMask.enabled !== lastEdgeMaskEnabled ||
+        config.renderMode !== lastRenderMode ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
         config.clickWave.enabled !== lastClickWaveEnabled ||
         config.letters.enabled !== lastLettersEnabled ||
@@ -978,6 +1004,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastAssemblyTopo = assemblyTopo;
         lastFlamesEnabled = config.flames.enabled;
         lastEdgeMaskEnabled = config.edgeMask.enabled;
+        lastRenderMode = config.renderMode;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
         lastClickWaveEnabled = config.clickWave.enabled;
         lastLettersEnabled = config.letters.enabled;
