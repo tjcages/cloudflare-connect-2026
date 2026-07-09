@@ -26,17 +26,16 @@ export function buildLetterAtlas(opts: BuildOpts = {}): LetterAtlas {
   const width = A * glyphPx;
   const height = A * glyphPx;
 
-  const canvasUnavailable = typeof document === "undefined" || typeof document.createElement !== "function";
-
-  if (canvasUnavailable) {
-    return { data: new Uint8Array(width * height), width, height, gridCols, gridRows, glyphPx };
+  let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+  if (typeof document !== "undefined" && typeof document.createElement === "function") {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    ctx = canvas.getContext("2d");
+  } else if (typeof OffscreenCanvas !== "undefined") {
+    ctx = new OffscreenCanvas(width, height).getContext("2d");
   }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext("2d");
   if (!ctx) {
     return { data: new Uint8Array(width * height), width, height, gridCols, gridRows, glyphPx };
   }

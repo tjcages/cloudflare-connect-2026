@@ -213,7 +213,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     maxSide: number,
   ): { data: Uint8ClampedArray; w: number; h: number } | null {
     if (!isDrawable(media)) return null;
-    if (typeof document === "undefined" || typeof document.createElement !== "function") return null;
     let mw = 1;
     let mh = 1;
     if (typeof HTMLVideoElement !== "undefined" && media instanceof HTMLVideoElement) {
@@ -229,10 +228,15 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     const scale = Math.min(1, maxSide / Math.max(mw, mh));
     const w = Math.max(1, Math.round(mw * scale));
     const h = Math.max(1, Math.round(mh * scale));
-    const temp = document.createElement("canvas");
-    temp.width = w;
-    temp.height = h;
-    const ctx = temp.getContext("2d", { willReadFrequently: true });
+    let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+    if (typeof document !== "undefined" && typeof document.createElement === "function") {
+      const temp = document.createElement("canvas");
+      temp.width = w;
+      temp.height = h;
+      ctx = temp.getContext("2d", { willReadFrequently: true });
+    } else if (typeof OffscreenCanvas !== "undefined") {
+      ctx = new OffscreenCanvas(w, h).getContext("2d", { willReadFrequently: true });
+    }
     if (!ctx) return null;
     ctx.drawImage(media as CanvasImageSource, 0, 0, w, h);
     return { data: ctx.getImageData(0, 0, w, h).data, w, h };
