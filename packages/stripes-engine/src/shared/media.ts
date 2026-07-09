@@ -5,7 +5,7 @@ export function loadImageFrame(src: string): Promise<ImageBitmap> {
     img.addEventListener(
       "load",
       () => {
-        createImageBitmap(img, { colorSpaceConversion: "none" }).then(resolve, reject);
+        createImageBitmap(img, { colorSpaceConversion: "none", imageOrientation: "flipY" }).then(resolve, reject);
       },
       { once: true },
     );
@@ -53,7 +53,7 @@ export function createVideoFramePump(opts: VideoFramePumpOptions): VideoFramePum
     if (disposed || inFlight) return;
     if (video.readyState < 2) return;
     inFlight = true;
-    createImageBitmap(video, { colorSpaceConversion: "none" }).then(
+    createImageBitmap(video, { colorSpaceConversion: "none", imageOrientation: "flipY" }).then(
       (bmp) => {
         inFlight = false;
         if (disposed || !running) {
