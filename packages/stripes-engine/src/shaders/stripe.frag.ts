@@ -8,6 +8,7 @@ uniform vec2 uCellPx;
 uniform float uCorner;
 uniform float uOrient;
 uniform vec3 uBg;
+uniform float uTransparent;
 uniform float uDpr;
 uniform float uTimeSec;
 uniform float uGapEnabled;
@@ -123,9 +124,10 @@ void main() {
 
   if (uShuffleEnabled > 0.5) barWidthPx = shuffledWidth(cell.x, cell.y, barWidthPx);
 
-  if (barWidthPx < 0.5) { finalColor = vec4(uBg, 1.0); return; }
+  vec4 empty = uTransparent > 0.5 ? vec4(0.0) : vec4(uBg, 1.0);
+  if (barWidthPx < 0.5) { finalColor = empty; return; }
 
-  if (uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(cell.x, cell.y)) { finalColor = vec4(uBg, 1.0); return; }
+  if (uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(cell.x, cell.y)) { finalColor = empty; return; }
 
   vec2 p = (local - 0.5) * uCellPx;
   float w = max(1.0 / uDpr, 1e-4);
@@ -142,7 +144,7 @@ void main() {
   vec2 halfExt = (uOrient < 0.5) ? vec2(halfW, halfH + r + w) : vec2(halfW + r + w, halfH);
   float d = sdRoundBox(p, halfExt, r);
   float alpha = clamp(0.5 - d / w, 0.0, 1.0);
-  finalColor = vec4(mix(uBg, barColor, alpha), 1.0);
+  finalColor = uTransparent > 0.5 ? vec4(barColor * alpha, alpha) : vec4(mix(uBg, barColor, alpha), 1.0);
 
   if (uLettersEnabled > 0.5) {
     float data = texture(uGlyphData, (cell + 0.5) / uGridCount).r * 255.0;
@@ -154,7 +156,8 @@ void main() {
         float grow = floor(gi / uAtlasGrid.x);
         vec2 atlasUv = (vec2(gcol, grow) + vec2(gpos.x, 1.0 - gpos.y)) / uAtlasGrid;
         float cov = texture(uAtlas, atlasUv).r;
-        finalColor.rgb = mix(finalColor.rgb, vec3(1.0), cov);
+        if (uTransparent > 0.5) finalColor *= 1.0 - cov;
+        else finalColor.rgb = mix(finalColor.rgb, vec3(1.0), cov);
       }
     }
   }

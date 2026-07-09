@@ -62,6 +62,7 @@ export interface Adjustments {
 
 export interface Background {
   color: number;
+  transparent: boolean;
 }
 
 export interface Grid {

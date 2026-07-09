@@ -34,9 +34,9 @@ export function normalizeTransform(i: Partial<Transform> = {}): Transform {
   };
 }
 
-export const DEFAULT_BACKGROUND: Background = { color: 0xffffff };
+export const DEFAULT_BACKGROUND: Background = { color: 0xffffff, transparent: false };
 export function normalizeBackground(i: Partial<Background> = {}): Background {
-  return { color: Math.round(clamp(num(i.color, 0xffffff), 0, 0xffffff)) };
+  return { color: Math.round(clamp(num(i.color, 0xffffff), 0, 0xffffff)), transparent: !!i.transparent };
 }
 
 export const DEFAULT_GRID: Grid = {

@@ -786,6 +786,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                 cols,
                 rows,
                 background: config.background.color,
+                transparent: config.background.transparent,
                 dpr: getDpr(),
                 timeSec,
                 gapEnabled: config.sparkle.gaps.enabled,

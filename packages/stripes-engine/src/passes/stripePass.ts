@@ -11,6 +11,7 @@ export type StripeUniforms = {
   cols: number;
   rows: number;
   background: number;
+  transparent: boolean;
   dpr: number;
   timeSec: number;
   gapEnabled: boolean;
@@ -42,6 +43,7 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     corner: u("uCorner"),
     orient: u("uOrient"),
     bg: u("uBg"),
+    transparent: u("uTransparent"),
     dpr: u("uDpr"),
     timeSec: u("uTimeSec"),
     gapEnabled: u("uGapEnabled"),
@@ -93,6 +95,7 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
         ((p.background >> 8) & 255) / 255,
         (p.background & 255) / 255,
       );
+      gl.uniform1f(L.transparent, p.transparent ? 1 : 0);
       gl.uniform1f(L.dpr, p.dpr);
       gl.uniform1f(L.timeSec, p.timeSec);
       gl.uniform1f(L.gapEnabled, p.gapEnabled ? 1 : 0);
