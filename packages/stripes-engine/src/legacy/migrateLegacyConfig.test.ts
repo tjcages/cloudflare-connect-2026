@@ -44,6 +44,8 @@ describe("migrateLegacyConfig", () => {
         staggerMs: 1000,
         scatterPx: 50,
         angleJitterDeg: 22,
+        blurPx: 8,
+        blurStart: 0,
       },
     });
   });

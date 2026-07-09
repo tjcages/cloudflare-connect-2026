@@ -36,6 +36,8 @@ function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
       staggerMs: typeof a.staggerMs === "number" ? a.staggerMs : 900,
       scatterPx: 50,
       angleJitterDeg: 22,
+      blurPx: 8,
+      blurStart: 0,
     },
   };
 }

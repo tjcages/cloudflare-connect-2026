@@ -125,9 +125,18 @@ const WAVE_POSITIONS: WavePosition[] = [
 ];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
-  type: "wave",
+  type: "assembly",
   wave: { position: "center", durationMs: 1200, softness: 0.22, waviness: 0.11 },
-  assembly: { sliceSizePx: 40, speedMinMs: 300, speedMaxMs: 1600, staggerMs: 900, scatterPx: 50, angleJitterDeg: 22 },
+  assembly: {
+    sliceSizePx: 29,
+    speedMinMs: 300,
+    speedMaxMs: 1600,
+    staggerMs: 6550,
+    scatterPx: 90,
+    angleJitterDeg: 35,
+    blurPx: 8,
+    blurStart: 0,
+  },
 };
 
 type PartialReveal = {
@@ -150,7 +159,7 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
   );
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_REVEAL.enabled,
-    type: i.type === "assembly" || i.type === "wave" ? i.type : "wave",
+    type: i.type === "assembly" || i.type === "wave" ? i.type : DEFAULT_REVEAL.type,
     wave: {
       position,
       durationMs: clamp(Math.round(num(w.durationMs, DEFAULT_REVEAL.wave.durationMs)), 100, 30000),
@@ -164,6 +173,8 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
       staggerMs: clamp(Math.round(num(a.staggerMs, DEFAULT_REVEAL.assembly.staggerMs)), 0, 30000),
       scatterPx: clamp(Math.round(num(a.scatterPx, DEFAULT_REVEAL.assembly.scatterPx)), 0, 300),
       angleJitterDeg: clamp(num(a.angleJitterDeg, DEFAULT_REVEAL.assembly.angleJitterDeg), 0, 90),
+      blurPx: clamp(num(a.blurPx, DEFAULT_REVEAL.assembly.blurPx), 0, 50),
+      blurStart: clamp(num(a.blurStart, DEFAULT_REVEAL.assembly.blurStart), 0, 0.95),
     },
   };
 }

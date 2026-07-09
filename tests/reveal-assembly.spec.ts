@@ -8,7 +8,7 @@ test("reveal assembly — mid", async ({ page }) => {
       reveal: { enabled: true, type: "assembly", assembly: { order: "center" } },
       stripesEnabled: true,
     });
-    (window as any).__lab.renderAt(1250);
+    (window as any).__lab.renderAt(6500);
   });
   await expect(page.locator("canvas")).toHaveScreenshot("reveal-assembly-mid.png", { maxDiffPixelRatio: 0.01 });
 });
@@ -21,7 +21,7 @@ test("reveal assembly — flyin", async ({ page }) => {
       reveal: { enabled: true, type: "assembly", assembly: { order: "center" } },
       stripesEnabled: true,
     });
-    (window as any).__lab.renderAt(900);
+    (window as any).__lab.renderAt(3500);
   });
   await expect(page.locator("canvas")).toHaveScreenshot("reveal-assembly-flyin.png", { maxDiffPixelRatio: 0.01 });
 });

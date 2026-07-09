@@ -7,7 +7,12 @@ uniform float uFlight;
 uniform float uSpawnDist;
 uniform vec2 uScatter;
 uniform float uAngleJitter;
+uniform vec2 uSigmaUv;
+uniform float uBlurStart;
 out vec2 vSampleUv;
+flat out highp float vBlurAmount;
+flat out vec2 vRectMin;
+flat out vec2 vRectMax;
 
 highp float fract1(highp float v) {
   return v - floor(v);
@@ -78,6 +83,9 @@ void main() {
 
   if (f <= 0.0) {
     vSampleUv = blockCenterUv;
+    vBlurAmount = 1.0;
+    vRectMin = uv0;
+    vRectMax = uv1;
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     return;
   }
@@ -108,10 +116,16 @@ void main() {
   highp float ease = cubicBezier(f, 0.25, 0.1, 0.25, 1.0);
   vec2 offset = (1.0 - ease) * spawnOffset;
 
-  vec2 homeUv = vec2(mix(uv0.x, uv1.x, qx), mix(uv0.y, uv1.y, qy));
-  vSampleUv = homeUv;
+  highp float fBlur = clamp((f - uBlurStart) / max(1.0 - uBlurStart, 1e-4), 0.0, 1.0);
+  highp float blurAmount = 1.0 - cubicBezier(fBlur, 0.25, 0.1, 0.25, 1.0);
+  vec2 ext = blurAmount * uSigmaUv * 2.0;
+  vec2 cornerUv = vec2(mix(uv0.x - ext.x, uv1.x + ext.x, qx), mix(uv0.y - ext.y, uv1.y + ext.y, qy));
+  vSampleUv = cornerUv;
+  vBlurAmount = blurAmount;
+  vRectMin = uv0;
+  vRectMax = uv1;
 
-  vec2 posUv = homeUv + offset;
+  vec2 posUv = cornerUv + offset;
   gl_Position = vec4(posUv * 2.0 - 1.0, 0.0, 1.0);
 }
 `;

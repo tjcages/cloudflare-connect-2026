@@ -11,7 +11,6 @@ import { createDownsampleColorPass } from "./passes/downsampleColorPass";
 import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createBlurPass } from "./passes/blurPass";
-import { createAssemblyCompositePass } from "./passes/assemblyCompositePass";
 import { createStripePass } from "./passes/stripePass";
 import { createStylizePass } from "./passes/stylizePass";
 import { createLogoFillPass } from "./passes/logoFillPass";
@@ -484,16 +483,14 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     let activeColorRT = "fieldColor";
     const revealFieldPasses: Pass[] = [];
 
-    const MAX_BLUR_PX = 5;
     if (assemblyTopology) {
       const scatterPass = createAssemblyScatterPass(gl);
       const blurPass = createBlurPass(gl, quad);
-      const compositePass = createAssemblyCompositePass(gl, quad);
       revealFieldPasses.push({
         name: "assemblyScatterField",
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
-          const assembledRT = pool.get("assembledField", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const { assembly } = config.reveal;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
@@ -506,7 +503,37 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const sliceSizePx = Math.max(1, assembly.sliceSizePx);
           const blockCols = Math.max(1, Math.ceil(cssW / sliceSizePx));
           const blockRows = Math.max(1, Math.ceil(cssH / sliceSizePx));
-          scatterPass.render(assembledRT, fieldRT.texture, {
+
+          const moveEnd = Math.min(1, spread + avgTotal);
+          let blurQuarterTex = fieldRT.texture;
+          let blurHalfTex = fieldRT.texture;
+          let blurFullTex = fieldRT.texture;
+          if (progress < moveEnd && assembly.blurPx > 0) {
+            // Blur pyramid of the source field at half res: sigma/4, sigma/2 and the full
+            // sigma of blurPx CSS px on screen (Gaussians compose as sqrt(a²+b²); one blur
+            // render ≈ sigma of 0.45·radius). Each flying piece blends the two levels
+            // bracketing its own remaining-travel blur, so pieces defocus individually.
+            const halfSize = {
+              width: Math.max(1, Math.round(fieldSize.width / 2)),
+              height: Math.max(1, Math.round(fieldSize.height / 2)),
+            };
+            const quarterRT = pool.get("assemblyBlurQuarter", halfSize.width, halfSize.height, { linear: true });
+            const halfRT = pool.get("assemblyBlurHalf", halfSize.width, halfSize.height, { linear: true });
+            const fullRT = pool.get("assemblyBlurFull", halfSize.width, halfSize.height, { linear: true });
+            const blurTempRT = pool.get("assemblyBlurTemp", halfSize.width, halfSize.height, { linear: true });
+            const sigmaPx = (assembly.blurPx * halfSize.width) / Math.max(1, cssW);
+            blurPass.copy(fieldRT.texture, quarterRT);
+            blurPass.render(quarterRT.texture, blurTempRT, quarterRT, (sigmaPx * 0.25) / 0.45, halfSize);
+            blurPass.render(quarterRT.texture, blurTempRT, halfRT, (sigmaPx * (Math.sqrt(3) / 4)) / 0.45, halfSize);
+            const fullStepRadius = (sigmaPx * (Math.sqrt(3) / 2 / Math.SQRT2)) / 0.45;
+            blurPass.render(halfRT.texture, blurTempRT, fullRT, fullStepRadius, halfSize);
+            blurPass.render(fullRT.texture, blurTempRT, fullRT, fullStepRadius, halfSize);
+            blurQuarterTex = quarterRT.texture;
+            blurHalfTex = halfRT.texture;
+            blurFullTex = fullRT.texture;
+          }
+
+          scatterPass.render(revealedRT, fieldRT.texture, blurQuarterTex, blurHalfTex, blurFullTex, {
             blockCols,
             blockRows,
             progress: rawProgress,
@@ -515,31 +542,13 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             spawnDist: 1.6,
             scatter: [assembly.scatterPx / Math.max(1, cssW), assembly.scatterPx / Math.max(1, cssH)],
             angleJitter: (assembly.angleJitterDeg * Math.PI) / 180,
+            sigmaUv: [assembly.blurPx / Math.max(1, cssW), assembly.blurPx / Math.max(1, cssH)],
+            blurStart: assembly.blurStart,
           });
-
-          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
-          const moveEnd = Math.min(1, spread + avgTotal);
-          if (progress >= moveEnd) {
-            // Every cell has landed → crisp field, no blur (byte-exact identity).
-            blurPass.copy(assembledRT.texture, revealedRT);
-          } else {
-            // Full-strength Gaussian; the composite reveals it crisp per-cell as each cell lands.
-            const blurredRT = pool.get("assemblyBlurred", fieldSize.width, fieldSize.height, { linear: true });
-            const blurTempRT = pool.get("blurTemp", fieldSize.width, fieldSize.height, { linear: true });
-            blurPass.render(assembledRT.texture, blurTempRT, blurredRT, MAX_BLUR_PX, fieldSize);
-            compositePass.render(revealedRT, assembledRT.texture, blurredRT.texture, {
-              blockCols,
-              blockRows,
-              progress: rawProgress,
-              spread,
-              flight: avgTotal,
-            });
-          }
         },
         dispose: () => {
           scatterPass.dispose();
           blurPass.dispose();
-          compositePass.dispose();
         },
       });
     } else if (revealEnabled) {
@@ -877,8 +886,12 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     if (config.reveal.enabled) {
       pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
       if (config.reveal.type === "assembly") {
-        pool.get("assembledField", fieldSize.width, fieldSize.height, { linear: true });
-        pool.get("blurTemp", fieldSize.width, fieldSize.height, { linear: true });
+        const halfW = Math.max(1, Math.round(fieldSize.width / 2));
+        const halfH = Math.max(1, Math.round(fieldSize.height / 2));
+        pool.get("assemblyBlurQuarter", halfW, halfH, { linear: true });
+        pool.get("assemblyBlurHalf", halfW, halfH, { linear: true });
+        pool.get("assemblyBlurFull", halfW, halfH, { linear: true });
+        pool.get("assemblyBlurTemp", halfW, halfH, { linear: true });
       }
     }
   }

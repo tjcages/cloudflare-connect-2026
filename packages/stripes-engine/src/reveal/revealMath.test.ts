@@ -130,7 +130,16 @@ describe("waveRevealAt", () => {
 });
 
 describe("assemblyRevealAt", () => {
-  const assembly = DEFAULT_REVEAL.assembly;
+  const assembly = {
+    sliceSizePx: 40,
+    speedMinMs: 300,
+    speedMaxMs: 1600,
+    staggerMs: 900,
+    scatterPx: 50,
+    angleJitterDeg: 22,
+    blurPx: 8,
+    blurStart: 0,
+  };
   const assemblyDurationMs = assembly.staggerMs + assembly.speedMaxMs;
   const bandRamp = resolveBandRamp(assemblyDurationMs);
 

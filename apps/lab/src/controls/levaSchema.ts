@@ -339,6 +339,22 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
           label: "Angle jitter (°)",
           render: (get) => get("Reveal.revealType") === "assembly",
         },
+        revealBlurPx: {
+          value: d.reveal.assembly.blurPx,
+          min: 0,
+          max: 50,
+          step: 0.5,
+          label: "Blur (px)",
+          render: (get) => get("Reveal.revealType") === "assembly",
+        },
+        revealBlurStart: {
+          value: d.reveal.assembly.blurStart,
+          min: 0,
+          max: 0.95,
+          step: 0.05,
+          label: "Blur start",
+          render: (get) => get("Reveal.revealType") === "assembly",
+        },
         Replay: button(() => onReplay()),
       }),
       Stripes: folder({
@@ -896,6 +912,8 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
         speedMinMs: values.revealSpeedMinMs,
         speedMaxMs: values.revealSpeedMaxMs,
         staggerMs: values.revealStaggerMs,
+        blurPx: values.revealBlurPx,
+        blurStart: values.revealBlurStart,
       },
     },
     sparkle: {

@@ -27,6 +27,8 @@ export interface RevealConfig {
     staggerMs: number;
     scatterPx: number;
     angleJitterDeg: number;
+    blurPx: number;
+    blurStart: number;
   };
 }
 
