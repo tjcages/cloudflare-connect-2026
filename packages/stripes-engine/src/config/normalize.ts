@@ -134,8 +134,8 @@ export const DEFAULT_REVEAL: RevealConfig = {
     staggerMs: 6550,
     scatterPx: 90,
     angleJitterDeg: 35,
-    blurPx: 8,
-    blurStart: 0,
+    blurPx: 17.5,
+    blurStart: 0.45,
   },
 };
 

@@ -164,16 +164,16 @@ describe("reveal normalizer", () => {
     expect(normalizeReveal({ assembly: { angleJitterDeg: 9999 } }).assembly.angleJitterDeg).toBe(90);
     expect(normalizeReveal({ assembly: {} }).assembly.angleJitterDeg).toBe(35);
   });
-  it("clamps assembly.blurPx to 0..50, defaults to 8", () => {
+  it("clamps assembly.blurPx to 0..50, defaults to 17.5", () => {
     expect(normalizeReveal({ assembly: { blurPx: -1 } }).assembly.blurPx).toBe(0);
     expect(normalizeReveal({ assembly: { blurPx: 9999 } }).assembly.blurPx).toBe(50);
-    expect(normalizeReveal({ assembly: {} }).assembly.blurPx).toBe(8);
+    expect(normalizeReveal({ assembly: {} }).assembly.blurPx).toBe(17.5);
   });
-  it("clamps assembly.blurStart to 0..0.95, defaults to 0", () => {
+  it("clamps assembly.blurStart to 0..0.95, defaults to 0.45", () => {
     expect(normalizeReveal({ assembly: { blurStart: -1 } }).assembly.blurStart).toBe(0);
     expect(normalizeReveal({ assembly: { blurStart: 2 } }).assembly.blurStart).toBe(0.95);
     expect(normalizeReveal({ assembly: { blurStart: 0.5 } }).assembly.blurStart).toBe(0.5);
-    expect(normalizeReveal({ assembly: {} }).assembly.blurStart).toBe(0);
+    expect(normalizeReveal({ assembly: {} }).assembly.blurStart).toBe(0.45);
   });
   it("unknown wave.position falls back to default", () => {
     expect(normalizeReveal({ wave: { position: "bogus" as any } }).wave.position).toBe(DEFAULT_REVEAL.wave.position);
