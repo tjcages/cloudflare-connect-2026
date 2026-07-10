@@ -78,6 +78,29 @@ export function StripesShader(props: StripesShaderProps) {
 
   useEffect(() => {
     if (sharedContext) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onMove = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      engineRef.current?.setCursor(e.clientX - rect.left, e.clientY - rect.top);
+    };
+    const onLeave = () => engineRef.current?.setCursor(null);
+    const onDown = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      engineRef.current?.click(e.clientX - rect.left, e.clientY - rect.top);
+    };
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerleave", onLeave);
+    canvas.addEventListener("pointerdown", onDown);
+    return () => {
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerleave", onLeave);
+      canvas.removeEventListener("pointerdown", onDown);
+    };
+  }, [sharedContext]);
+
+  useEffect(() => {
+    if (sharedContext) return;
     const engine = engineRef.current;
     if (!engine) return;
     let disposed = false;

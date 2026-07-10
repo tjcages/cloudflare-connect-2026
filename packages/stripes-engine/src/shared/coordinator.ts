@@ -180,12 +180,27 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     post({ type: "resize", id, cssWidth: size.cssWidth, cssHeight: size.cssHeight, dpr: readDpr() });
   });
 
+  const onPointerMove = (e: PointerEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    post({ type: "cursor", id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+  const onPointerLeave = () => {
+    post({ type: "cursor", id, x: null });
+  };
+  const onPointerDown = (e: PointerEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    post({ type: "click", id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
   instance.intersectionObserver = intersectionObserver;
   instance.resizeObserver = resizeObserver;
   instances.set(id, instance);
 
   intersectionObserver.observe(canvas);
   resizeObserver.observe(canvas);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerleave", onPointerLeave);
+  canvas.addEventListener("pointerdown", onPointerDown);
 
   return {
     setConfig(config: Partial<EngineConfig>) {
@@ -196,6 +211,9 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
       instance.disposed = true;
       intersectionObserver.disconnect();
       resizeObserver.disconnect();
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerleave", onPointerLeave);
+      canvas.removeEventListener("pointerdown", onPointerDown);
       instance.pump?.dispose();
       post({ type: "unregister", id });
       instances.delete(id);
