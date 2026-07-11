@@ -5,6 +5,7 @@ import SharedShaderWorker from "./sharedWorker?worker&inline";
 
 export type SharedShaderHandle = {
   setConfig(config: Partial<EngineConfig>): void;
+  triggerReveal(): void;
   unregister(): void;
 };
 
@@ -13,6 +14,7 @@ export type RegisterSharedShaderOptions = {
   src: string;
   mediaKind: "image" | "video";
   config?: Partial<EngineConfig>;
+  revealDelayMs?: number;
   loop?: boolean;
   muted?: boolean;
   autoPlay?: boolean;
@@ -22,6 +24,7 @@ export type RegisterSharedShaderOptions = {
 type RegisteredInstance = {
   id: InstanceId;
   canvas: HTMLCanvasElement;
+  displayCtx: CanvasRenderingContext2D | null;
   src: string;
   mediaKind: "image" | "video";
   intersectionObserver: IntersectionObserver;
@@ -30,6 +33,9 @@ type RegisteredInstance = {
   visible: boolean;
   disposed: boolean;
   imageRequested: boolean;
+  revealDelayMs: number;
+  revealArmed: boolean;
+  revealTimer: ReturnType<typeof setTimeout> | null;
 };
 
 const DEFAULT_ROOT_MARGIN = "200% 0px";
@@ -39,6 +45,45 @@ let worker: Worker | null = null;
 let workerMessageHandler: ((event: MessageEvent<WorkerToMainMessage>) => void) | null = null;
 const instances = new Map<InstanceId, RegisteredInstance>();
 let nextId = 0;
+let clockRafId = 0;
+let tickInFlight = false;
+
+// The worker renders one tick per main-thread rAF: worker rAF stalls without a
+// placeholder canvas, and the main clock pauses with the tab exactly like rAF.
+function clockFrame(): void {
+  clockRafId = requestAnimationFrame(clockFrame);
+  if (tickInFlight || instances.size === 0) return;
+  tickInFlight = true;
+  post({ type: "tick" });
+}
+
+function startClock(): void {
+  if (!clockRafId) clockRafId = requestAnimationFrame(clockFrame);
+}
+
+function stopClock(): void {
+  if (clockRafId) cancelAnimationFrame(clockRafId);
+  clockRafId = 0;
+  tickInFlight = false;
+}
+
+// Present on a 2D display-p3 context: readbacks honor a P3-tagged ImageBitmap,
+// but the compositor paints bitmaprenderer canvases as sRGB (clipping P3).
+function presentFrame(instance: RegisteredInstance, frame: ImageBitmap): void {
+  const ctx = instance.displayCtx;
+  if (!ctx) {
+    frame.close();
+    return;
+  }
+  const canvas = ctx.canvas;
+  if (canvas.width !== frame.width || canvas.height !== frame.height) {
+    canvas.width = frame.width;
+    canvas.height = frame.height;
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(frame, 0, 0);
+  frame.close();
+}
 
 function post(message: MainToWorkerMessage, transfer?: Transferable[]): void {
   if (!worker) return;
@@ -53,6 +98,15 @@ function ensureWorker(): Worker {
     const data = event.data;
     if (data.type === "error") {
       console.error(`[stripes-engine:shared] ${data.id ?? "worker"}: ${data.message}`);
+    } else if (data.type === "tock") {
+      tickInFlight = false;
+    } else if (data.type === "frame") {
+      const instance = instances.get(data.id);
+      if (!instance || instance.disposed) {
+        data.frame.close();
+        return;
+      }
+      presentFrame(instance, data.frame);
     } else if (data.type === "needsSource") {
       const instance = instances.get(data.id);
       if (!instance || instance.disposed) return;
@@ -68,6 +122,7 @@ function ensureWorker(): Worker {
 }
 
 function teardownWorker(): void {
+  stopClock();
   if (!worker) return;
   post({ type: "terminate" });
   if (workerMessageHandler) worker.removeEventListener("message", workerMessageHandler);
@@ -87,6 +142,15 @@ function readSize(canvas: HTMLCanvasElement): { cssWidth: number; cssHeight: num
 }
 
 function startMedia(instance: RegisteredInstance, src: string): void {
+  if (instance.revealDelayMs > 0 && !instance.revealArmed) {
+    instance.revealArmed = true;
+    instance.revealTimer = setTimeout(() => {
+      instance.revealTimer = null;
+      if (!instance.disposed) startMedia(instance, src);
+    }, instance.revealDelayMs);
+    return;
+  }
+  if (instance.revealTimer) return;
   if (instance.mediaKind === "video") {
     instance.pump?.start((bmp) => {
       post({ type: "source", id: instance.id, frame: bmp, isStream: true }, [bmp]);
@@ -121,22 +185,18 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   const id: InstanceId = `shared-${nextId++}`;
   const { canvas, src, mediaKind } = opts;
 
-  const offscreen = canvas.transferControlToOffscreen();
+  const displayCtx = canvas.getContext("2d", { colorSpace: "display-p3" });
   const { cssWidth, cssHeight } = readSize(canvas);
   const dpr = readDpr();
 
-  post(
-    {
-      type: "register",
-      id,
-      canvas: offscreen,
-      cssWidth,
-      cssHeight,
-      dpr,
-      config: opts.config,
-    },
-    [offscreen],
-  );
+  post({
+    type: "register",
+    id,
+    cssWidth,
+    cssHeight,
+    dpr,
+    config: opts.config,
+  });
 
   const pump =
     mediaKind === "video"
@@ -151,12 +211,16 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   const instance: RegisteredInstance = {
     id,
     canvas,
+    displayCtx,
     src,
     mediaKind,
     pump,
     visible: false,
     disposed: false,
     imageRequested: false,
+    revealDelayMs: opts.revealDelayMs ?? 0,
+    revealArmed: false,
+    revealTimer: null,
     intersectionObserver: undefined as unknown as IntersectionObserver,
     resizeObserver: undefined as unknown as ResizeObserver,
   };
@@ -195,6 +259,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   instance.intersectionObserver = intersectionObserver;
   instance.resizeObserver = resizeObserver;
   instances.set(id, instance);
+  startClock();
 
   intersectionObserver.observe(canvas);
   resizeObserver.observe(canvas);
@@ -206,9 +271,16 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     setConfig(config: Partial<EngineConfig>) {
       post({ type: "setConfig", id, config });
     },
+    triggerReveal() {
+      post({ type: "reveal", id });
+    },
     unregister() {
       if (instance.disposed) return;
       instance.disposed = true;
+      if (instance.revealTimer) {
+        clearTimeout(instance.revealTimer);
+        instance.revealTimer = null;
+      }
       intersectionObserver.disconnect();
       resizeObserver.disconnect();
       canvas.removeEventListener("pointermove", onPointerMove);

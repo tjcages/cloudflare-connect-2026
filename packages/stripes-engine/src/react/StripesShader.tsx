@@ -18,6 +18,8 @@ export type StripesShaderProps = {
   style?: CSSProperties;
   sharedContext?: boolean;
   rootMargin?: string;
+  /** Shared mode only: delay the first source load so the reveal plays visibly after mount. */
+  revealDelayMs?: number;
 };
 
 export function StripesShader(props: StripesShaderProps) {
@@ -34,6 +36,7 @@ export function StripesShader(props: StripesShaderProps) {
     style,
     sharedContext = false,
     rootMargin,
+    revealDelayMs,
   } = props;
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -156,6 +159,7 @@ export function StripesShader(props: StripesShaderProps) {
         src,
         mediaKind,
         config,
+        revealDelayMs,
         loop,
         muted,
         autoPlay,
@@ -169,7 +173,7 @@ export function StripesShader(props: StripesShaderProps) {
       handle?.unregister();
       sharedHandleRef.current = null;
     };
-  }, [sharedContext, src, mediaKind, autoPlay, loop, muted, rootMargin]);
+  }, [sharedContext, src, mediaKind, autoPlay, loop, muted, rootMargin, revealDelayMs]);
 
   useEffect(() => {
     if (!sharedContext) return;

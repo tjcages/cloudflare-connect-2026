@@ -7,12 +7,15 @@ export type SharedSourceFrame = ImageBitmap | VideoFrame;
 export type RegisterMessage = {
   type: "register";
   id: InstanceId;
-  canvas: OffscreenCanvas;
   cssWidth: number;
   cssHeight: number;
   dpr: number;
   config?: Partial<EngineConfig>;
   seed?: number;
+};
+
+export type TickMessage = {
+  type: "tick";
 };
 
 export type ResizeMessage = {
@@ -72,6 +75,7 @@ export type TerminateMessage = {
 
 export type MainToWorkerMessage =
   | RegisterMessage
+  | TickMessage
   | ResizeMessage
   | VisibilityMessage
   | SourceMessage
@@ -97,4 +101,14 @@ export type NeedsSourceMessage = {
   id: InstanceId;
 };
 
-export type WorkerToMainMessage = ReadyMessage | ErrorMessage | NeedsSourceMessage;
+export type FrameMessage = {
+  type: "frame";
+  id: InstanceId;
+  frame: ImageBitmap;
+};
+
+export type TockMessage = {
+  type: "tock";
+};
+
+export type WorkerToMainMessage = ReadyMessage | ErrorMessage | NeedsSourceMessage | FrameMessage | TockMessage;

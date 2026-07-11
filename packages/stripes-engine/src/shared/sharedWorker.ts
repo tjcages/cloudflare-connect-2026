@@ -4,10 +4,8 @@ import type { EngineSource } from "../source/sourceTexture";
 import type { InstanceId, MainToWorkerMessage, SharedSourceFrame, WorkerToMainMessage } from "./protocol";
 
 type WorkerScope = {
-  postMessage(message: WorkerToMainMessage): void;
+  postMessage(message: WorkerToMainMessage, transfer?: Transferable[]): void;
   addEventListener(type: "message", listener: (event: MessageEvent<MainToWorkerMessage>) => void): void;
-  requestAnimationFrame(callback: () => void): number;
-  cancelAnimationFrame(handle: number): void;
   close(): void;
 };
 
@@ -20,7 +18,6 @@ type GlColorSpaceCtx = WebGL2RenderingContext & {
 
 type Instance = {
   engine: SharedStripesEngine;
-  displayCtx: ImageBitmapRenderingContext;
   visible: boolean;
   hasSource: boolean;
 };
@@ -34,7 +31,6 @@ const SHARED_GL_ATTRIBUTES: WebGLContextAttributes = {
 let sharedCanvas: OffscreenCanvas | null = null;
 let sharedGl: WebGL2RenderingContext | null = null;
 let context: EngineContext | null = null;
-let rafId = 0;
 
 const instances = new Map<InstanceId, Instance>();
 
@@ -86,28 +82,19 @@ function sizeShared(width: number, height: number): void {
   if (sharedCanvas.height !== height) sharedCanvas.height = height;
 }
 
-function frame(): void {
-  for (const instance of instances.values()) {
+// Driven by "tick" messages from the main-thread clock: worker rAF only fires
+// while the worker owns a placeholder canvas, which this present path avoids.
+function renderTick(): void {
+  for (const [id, instance] of instances) {
     if (!instance.visible) continue;
-    const { engine, displayCtx } = instance;
+    const { engine } = instance;
     sizeShared(engine.outputWidth, engine.outputHeight);
     engine.renderFrame();
     if (!sharedCanvas) continue;
-    const bmp = sharedCanvas.transferToImageBitmap();
-    displayCtx.transferFromImageBitmap(bmp);
+    const frame = sharedCanvas.transferToImageBitmap();
+    scope.postMessage({ type: "frame", id, frame }, [frame]);
   }
-  rafId = scope.requestAnimationFrame(frame);
-}
-
-function startLoop(): void {
-  if (rafId) return;
-  rafId = scope.requestAnimationFrame(frame);
-}
-
-function stopLoop(): void {
-  if (!rafId) return;
-  scope.cancelAnimationFrame(rafId);
-  rafId = 0;
+  scope.postMessage({ type: "tock" });
 }
 
 function asEngineSource(source: SharedSourceFrame): EngineSource {
@@ -122,8 +109,6 @@ function handle(message: MainToWorkerMessage): void {
   switch (message.type) {
     case "register": {
       const ctx = ensureContext();
-      const displayCtx = message.canvas.getContext("bitmaprenderer");
-      if (!displayCtx) throw new Error("bitmaprenderer context unavailable");
       const engine = createStripesEngineShared({
         context: ctx,
         width: message.cssWidth,
@@ -132,8 +117,11 @@ function handle(message: MainToWorkerMessage): void {
         seed: message.seed,
       });
       if (message.config) engine.setConfig(message.config);
-      instances.set(message.id, { engine, displayCtx, visible: false, hasSource: false });
-      startLoop();
+      instances.set(message.id, { engine, visible: false, hasSource: false });
+      return;
+    }
+    case "tick": {
+      renderTick();
       return;
     }
     case "resize": {
@@ -166,6 +154,7 @@ function handle(message: MainToWorkerMessage): void {
         return;
       }
       instance.engine.setSource(asEngineSource(message.frame));
+      if (!instance.hasSource) instance.engine.triggerReveal();
       instance.hasSource = true;
       closeFrame(message.frame);
       return;
@@ -199,11 +188,9 @@ function handle(message: MainToWorkerMessage): void {
       if (!instance) return;
       instance.engine.dispose();
       instances.delete(message.id);
-      if (instances.size === 0) stopLoop();
       return;
     }
     case "terminate": {
-      stopLoop();
       for (const instance of instances.values()) instance.engine.dispose();
       instances.clear();
       scope.close();
