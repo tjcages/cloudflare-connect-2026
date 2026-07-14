@@ -54,6 +54,9 @@ uniform vec2 uAtlasGrid;
 uniform float uLetterSizeScale;
 uniform float uUseCellColors;
 uniform sampler2D uCellColor;
+uniform float uImageColorLightness;
+uniform float uImageColorDensity;
+uniform vec3 uLetterColor;
 uniform float uBlendMode;
 uniform float uGradientEnabled;
 uniform float uGradientDirection;
@@ -286,6 +289,52 @@ vec3 blendStripeColor(vec3 base, vec3 source) {
   return base + source - 2.0 * base * source;
 }
 
+float colorLightness(vec3 c) {
+  float hi = max(max(c.r, c.g), c.b);
+  float lo = min(min(c.r, c.g), c.b);
+  return (hi + lo) * 0.5;
+}
+
+vec3 withLightness(vec3 base, float targetLightness) {
+  float currentLightness = colorLightness(base);
+  float target = clamp(targetLightness, 0.0, 1.0);
+  if (currentLightness < 0.0001 || currentLightness > 0.9999) return vec3(target);
+  if (target < currentLightness) {
+    return clamp(base * (target / currentLightness), 0.0, 1.0);
+  }
+  return clamp(1.0 - (1.0 - base) * ((1.0 - target) / (1.0 - currentLightness)), 0.0, 1.0);
+}
+
+vec3 gradientColorWithRampLightness(vec2 uv, vec3 rampColor) {
+  return withLightness(gradientColor(uv), colorLightness(rampColor));
+}
+
+vec3 applyImageColorLightness(vec3 color) {
+  float amount = clamp(uImageColorLightness, -1.0, 1.0);
+  return amount >= 0.0 ? mix(color, vec3(1.0), amount) : mix(color, vec3(0.0), -amount);
+}
+
+vec3 cellImageColor(vec2 uv) {
+  vec2 colorCell = clamp(floor(uv * uGridCount), vec2(0.0), max(vec2(0.0), uGridCount - 1.0));
+  vec2 colorUv = (colorCell + 0.5) / uGridCount;
+  vec3 color = texture(uCellColor, colorUv).rgb;
+  return applyImageColorLightness(color);
+}
+
+bool imageColorDensityVisible(vec2 cell) {
+  float density = clamp(uImageColorDensity, 0.0, 1.0);
+  if (density >= 0.999) return true;
+  if (density <= 0.001) return false;
+  float col = clamp(floor(cell.x), 0.0, max(0.0, uGridCount.x - 1.0));
+  float row = clamp(floor(cell.y), 0.0, max(0.0, uGridCount.y - 1.0));
+  float chunk = floor(row / 20.0);
+  float localRow = row - chunk * 20.0;
+  float splitRow = 5.0 + floor(sparkleHash(col + 421.0, chunk + 17.0) * 11.0);
+  float side = localRow < splitRow ? 0.0 : 1.0;
+  float cluster = col * 4096.0 + chunk * 2.0 + side;
+  return sparkleHash(cluster + 197.0, 313.0) <= density;
+}
+
 void main() {
   vec4 bgColor = backgroundColor(vUv);
   float angleRad = radians(uAngleDeg);
@@ -306,11 +355,10 @@ void main() {
   float barOpacity = texture(uOpacityLut, lutUv).r;
 
   if (uUseCellColors > 0.5) {
-    vec4 cc = texture(uCellColor, sourceUv);
-    barColor = cc.rgb;
+    barColor = cellImageColor(sourceUv);
   }
-  if (uGradientEnabled > 0.5) {
-    barColor = gradientColor(vUv);
+  if (uGradientEnabled > 0.5 && uUseCellColors < 0.5) {
+    barColor = gradientColorWithRampLightness(sourceUv, barColor);
   }
 
   if (uShuffleEnabled > 0.5) barWidthPx = shuffledWidth(cell.x, cell.y, barWidthPx);
@@ -320,6 +368,8 @@ void main() {
   if (!willUseNeighborRotation && barWidthPx < 0.5) { finalColor = bgColor; return; }
 
   if (!willUseNeighborRotation && uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(cell.x, cell.y)) { finalColor = bgColor; return; }
+
+  if (!willUseNeighborRotation && uUseCellColors > 0.5 && !imageColorDensityVisible(sourceCell)) { finalColor = bgColor; return; }
 
   vec2 drawablePx = max(vec2(0.0001), uCellPx - clamp(uGridGapPx, vec2(0.0), uCellPx));
   vec2 p = (local - 0.5) * uCellPx;
@@ -375,12 +425,16 @@ void main() {
         float candidateWidthPx = (candidateLut.a * 255.0) * 0.5;
         float candidateOpacity = texture(uOpacityLut, candidateLutUv).r;
 
-        if (uGradientEnabled > 0.5) {
-          candidateColor = gradientColor(vUv);
+        if (uUseCellColors > 0.5) {
+          candidateColor = cellImageColor(candidateUv);
+        }
+        if (uGradientEnabled > 0.5 && uUseCellColors < 0.5) {
+          candidateColor = gradientColorWithRampLightness(candidateUv, candidateColor);
         }
         if (uShuffleEnabled > 0.5) candidateWidthPx = shuffledWidth(candidateCell.x, candidateCell.y, candidateWidthPx);
         if (candidateWidthPx < 0.5) continue;
         if (uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(candidateCell.x, candidateCell.y)) continue;
+        if (uUseCellColors > 0.5 && !imageColorDensityVisible(candidateCell)) continue;
 
         float normalDist = stackCoord - stackCenter;
         float axisDist = axisCoord - axisCenter;
@@ -425,7 +479,7 @@ void main() {
         vec2 atlasUv = (vec2(gcol, grow) + vec2(gpos.x, 1.0 - gpos.y)) / uAtlasGrid;
         float cov = texture(uAtlas, atlasUv).r;
         if (uTransparent > 0.5) finalColor *= 1.0 - cov;
-        else finalColor.rgb = mix(finalColor.rgb, vec3(1.0), cov);
+        else finalColor.rgb = mix(finalColor.rgb, uLetterColor, cov);
       }
     }
   }

@@ -37,7 +37,9 @@ describe("simple normalizers", () => {
     expect(normalizeTransform({ zoom: 99 }).zoom).toBe(8); // max 8
     expect(normalizeTransform({ panX: -5 }).panX).toBe(-1); // min -1
     expect(normalizeTransform({ fit: "cover" }).fit).toBe("cover");
-    expect(normalizeTransform({ fit: "bogus" as any }).fit).toBe("stretch"); // invalid → default
+    expect(normalizeTransform({ fit: "width" }).fit).toBe("width");
+    expect(normalizeTransform({ fit: "height" }).fit).toBe("height");
+    expect(normalizeTransform({ fit: "bogus" as any }).fit).toBe("width"); // invalid → default
   });
   it("background coerces to a 24-bit int", () => {
     expect(normalizeBackground({ color: 0xff8833 }).color).toBe(0xff8833);
@@ -578,10 +580,18 @@ describe("letters normalizer", () => {
     expect(normalizeLetters({ textCopies: 999 }).textCopies).toBe(100);
     expect(normalizeLetters({ textCopies: 2.6 }).textCopies).toBe(3);
   });
+  it("colorMode defaults white, accepts colorful, and color clamps", () => {
+    expect(normalizeLetters({}).colorMode).toBe("white");
+    expect(normalizeLetters({}).color).toBe(0xffffff);
+    expect(normalizeLetters({ colorMode: "colorful" }).colorMode).toBe("colorful");
+    expect(normalizeLetters({ colorMode: "bogus" as any }).colorMode).toBe("white");
+    expect(normalizeLetters({ color: 0x1ffffff }).color).toBe(0xffffff);
+    expect(normalizeLetters({ color: -1 }).color).toBe(0);
+  });
   it("fontFamily must be whitelisted", () => {
-    expect(normalizeLetters({}).fontFamily).toBe("monospace");
+    expect(normalizeLetters({}).fontFamily).toBe("Geist Mono Medium");
     expect(normalizeLetters({ fontFamily: "Georgia, serif" }).fontFamily).toBe("Georgia, serif");
-    expect(normalizeLetters({ fontFamily: "Comic Sans MS" }).fontFamily).toBe("monospace");
+    expect(normalizeLetters({ fontFamily: "Comic Sans MS" }).fontFamily).toBe("Geist Mono Medium");
   });
 });
 describe("colors normalizer", () => {
@@ -626,12 +636,28 @@ describe("colors normalizer", () => {
   });
   it("gradient normalized with defaults and clamped stops", () => {
     expect(normalizeColors({}).gradient).toEqual({
+      enabled: false,
       direction: "topToBottom",
       stopCount: 2,
       stops: [0xffffff, 0, 0, 0],
     });
     expect(normalizeColors({ gradient: { stops: [0x1ffffff, -1] } }).gradient.stops).toEqual([0xffffff, 0, 0, 0]);
     expect(normalizeColors({ gradient: { direction: "leftToRight" } }).gradient.direction).toBe("leftToRight");
+  });
+  it("gradient.enabled defaults false and is coerced", () => {
+    expect(normalizeColors({}).gradient.enabled).toBe(false);
+    expect(normalizeColors({ gradient: { enabled: true } }).gradient.enabled).toBe(true);
+    expect(normalizeColors({ gradient: { enabled: 1 as any } }).gradient.enabled).toBe(true);
+  });
+  it("imageColorLightness defaults to 0.2 and clamps to [-1, 1]", () => {
+    expect(normalizeColors({}).imageColorLightness).toBe(0.2);
+    expect(normalizeColors({ imageColorLightness: 5 }).imageColorLightness).toBe(1);
+    expect(normalizeColors({ imageColorLightness: -5 }).imageColorLightness).toBe(-1);
+  });
+  it("imageColorDensity defaults to 1 and clamps to [0, 1]", () => {
+    expect(normalizeColors({}).imageColorDensity).toBe(1);
+    expect(normalizeColors({ imageColorDensity: 2 }).imageColorDensity).toBe(1);
+    expect(normalizeColors({ imageColorDensity: -1 }).imageColorDensity).toBe(0);
   });
 });
 describe("renderParams", () => {

@@ -19,6 +19,20 @@ describe("resolveSourceRect", () => {
     expect(r.u0).toBeCloseTo(-0.5);
     expect(r.u1).toBeCloseTo(1.5); // source narrower than dst → UV overflows
   });
+  it("width fits full source width, height overflows/crops per aspect (square src, wide dst)", () => {
+    const r = resolveSourceRect(100, 100, 200, 100, "width", 1, 0, 0);
+    expect(r.u0).toBeCloseTo(0);
+    expect(r.u1).toBeCloseTo(1); // full width
+    expect(r.v0).toBeCloseTo(0.25);
+    expect(r.v1).toBeCloseTo(0.75); // spanV = srcAspect/dstAspect = 0.5
+  });
+  it("height fits full source height, width overflows per aspect (square src, wide dst)", () => {
+    const r = resolveSourceRect(100, 100, 200, 100, "height", 1, 0, 0);
+    expect(r.v0).toBeCloseTo(0);
+    expect(r.v1).toBeCloseTo(1); // full height
+    expect(r.u0).toBeCloseTo(-0.5);
+    expect(r.u1).toBeCloseTo(1.5); // spanU = dstAspect/srcAspect = 2
+  });
   it("zoom>1 tightens the rect about center", () => {
     const r = resolveSourceRect(100, 100, 100, 100, "stretch", 2, 0, 0);
     expect(r.u0).toBeCloseTo(0.25);

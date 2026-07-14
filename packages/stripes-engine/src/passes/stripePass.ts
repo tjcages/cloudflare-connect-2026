@@ -57,8 +57,11 @@ export type StripeUniforms = {
   atlasTex: WebGLTexture;
   atlasGrid: [number, number];
   letterSizeScale: number;
+  letterColor: number;
   useCellColors: boolean;
   cellColorTex: WebGLTexture;
+  imageColorLightness: number;
+  imageColorDensity: number;
   opacityTex: WebGLTexture;
   blendMode: number;
   gradientEnabled: boolean;
@@ -136,11 +139,14 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     atlasTex: i.atlasTex,
     atlasGrid: i.atlasGrid,
     letterSizeScale: config.letters.sizeScale,
+    letterColor: config.letters.color,
     useCellColors: i.colorsMode,
     cellColorTex: i.cellColorTex,
+    imageColorLightness: config.colors.imageColorLightness,
+    imageColorDensity: config.colors.imageColorDensity,
     opacityTex: i.opacityTex,
     blendMode: STRIPE_BLEND_MODE_INDEX[config.colors.stripeBlendMode],
-    gradientEnabled: false,
+    gradientEnabled: config.colors.gradient.enabled,
     gradientDirection: gradientDirectionIndex(config.colors.gradient.direction),
     gradientStopCount: config.colors.gradient.stopCount,
     gradientStops: config.colors.gradient.stops,
@@ -201,8 +207,11 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     atlas: u("uAtlas"),
     atlasGrid: u("uAtlasGrid"),
     letterSizeScale: u("uLetterSizeScale"),
+    letterColor: u("uLetterColor"),
     useCellColors: u("uUseCellColors"),
     cellColor: u("uCellColor"),
+    imageColorLightness: u("uImageColorLightness"),
+    imageColorDensity: u("uImageColorDensity"),
     blendMode: u("uBlendMode"),
     gradientEnabled: u("uGradientEnabled"),
     gradientDirection: u("uGradientDirection"),
@@ -289,10 +298,13 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1i(L.atlas, 3);
       gl.uniform2f(L.atlasGrid, p.atlasGrid[0], p.atlasGrid[1]);
       gl.uniform1f(L.letterSizeScale, p.letterSizeScale);
+      setColor(L.letterColor, p.letterColor);
       gl.uniform1f(L.useCellColors, p.useCellColors ? 1 : 0);
       gl.activeTexture(gl.TEXTURE4);
       gl.bindTexture(gl.TEXTURE_2D, p.cellColorTex);
       gl.uniform1i(L.cellColor, 4);
+      gl.uniform1f(L.imageColorLightness, p.imageColorLightness);
+      gl.uniform1f(L.imageColorDensity, p.imageColorDensity);
       gl.uniform1f(L.blendMode, p.blendMode);
       gl.uniform1f(L.gradientEnabled, p.gradientEnabled ? 1 : 0);
       gl.uniform1f(L.gradientDirection, p.gradientDirection);

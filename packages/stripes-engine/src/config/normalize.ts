@@ -17,6 +17,7 @@ import type {
   ColorsConfig,
   RenderMode,
   GradientConfig,
+  BackgroundGradient,
   GradientDirection,
   MotionDirection,
   StripeBlendMode,
@@ -27,9 +28,12 @@ export function clamp(v: number, min: number, max: number): number {
 }
 const num = (v: unknown, dflt: number): number => (typeof v === "number" && Number.isFinite(v) ? v : dflt);
 
-export const DEFAULT_TRANSFORM: Transform = { fit: "stretch", zoom: 1, panX: 0, panY: 0 };
+export const DEFAULT_TRANSFORM: Transform = { fit: "width", zoom: 1, panX: 0, panY: 0 };
 export function normalizeTransform(i: Partial<Transform> = {}): Transform {
-  const fit = i.fit === "contain" || i.fit === "cover" || i.fit === "stretch" ? i.fit : "stretch";
+  const fit =
+    i.fit === "contain" || i.fit === "cover" || i.fit === "stretch" || i.fit === "width" || i.fit === "height"
+      ? i.fit
+      : "width";
   return {
     fit,
     zoom: clamp(num(i.zoom, 1), 0.1, 8),
@@ -490,6 +494,8 @@ export function normalizeClickWave(i: PartialClickWave = {}): ClickWaveConfig {
 export const DEFAULT_LETTERS: LettersConfig = {
   enabled: false,
   mode: "random",
+  colorMode: "white",
+  color: 0xffffff,
   coverage: 0.1,
   positionX: 0.5,
   positionY: 0.5,
@@ -497,12 +503,13 @@ export const DEFAULT_LETTERS: LettersConfig = {
   areaHeight: 1,
   text: "CF",
   textCopies: 1,
-  fontFamily: "monospace",
+  fontFamily: "Geist Mono Medium",
   sizeScale: 0.9,
   shuffleSpeed: 1,
 };
 
 export const LETTER_FONT_FAMILIES: string[] = [
+  "Geist Mono Medium",
   "monospace",
   "Arial, sans-serif",
   "Georgia, serif",
@@ -518,6 +525,8 @@ export function normalizeLetters(i: PartialLetters = {}): LettersConfig {
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_LETTERS.enabled,
     mode: i.mode === "text" ? "text" : "random",
+    colorMode: i.colorMode === "colorful" ? "colorful" : "white",
+    color: Math.round(clamp(num(i.color, DEFAULT_LETTERS.color), 0, 0xffffff)),
     coverage: clamp(num(i.coverage, DEFAULT_LETTERS.coverage), 0, 1),
     positionX: clamp(num(i.positionX, DEFAULT_LETTERS.positionX), 0, 1),
     positionY: clamp(num(i.positionY, DEFAULT_LETTERS.positionY), 0, 1),
@@ -551,28 +560,38 @@ export const STRIPE_BLEND_MODE_INDEX: Record<StripeBlendMode, number> = Object.f
 export const DEFAULT_COLORS: ColorsConfig = {
   mode: "luminance",
   stripeBlendMode: "normal",
+  imageColorLightness: 0.2,
+  imageColorDensity: 1,
   autoDetectBackground: true,
   backgroundColor: 0x000000,
-  gradient: { ...DEFAULT_GRADIENT, stops: [...DEFAULT_GRADIENT.stops] },
+  gradient: { enabled: false, ...DEFAULT_GRADIENT, stops: [...DEFAULT_GRADIENT.stops] },
 };
 
 type PartialColors = {
   mode?: unknown;
   stripeBlendMode?: unknown;
+  imageColorLightness?: unknown;
+  imageColorDensity?: unknown;
   autoDetectBackground?: unknown;
   backgroundColor?: unknown;
-  gradient?: Partial<GradientConfig>;
+  gradient?: Partial<BackgroundGradient>;
 };
 
 export function normalizeColors(i: PartialColors = {}): ColorsConfig {
+  const gr = i.gradient ?? {};
   return {
     mode: i.mode === "colors" ? "colors" : "luminance",
     stripeBlendMode: STRIPE_BLEND_MODES.includes(i.stripeBlendMode as StripeBlendMode)
       ? (i.stripeBlendMode as StripeBlendMode)
       : DEFAULT_COLORS.stripeBlendMode,
+    imageColorLightness: clamp(num(i.imageColorLightness, DEFAULT_COLORS.imageColorLightness), -1, 1),
+    imageColorDensity: clamp(num(i.imageColorDensity, DEFAULT_COLORS.imageColorDensity), 0, 1),
     autoDetectBackground: i.autoDetectBackground !== undefined ? !!i.autoDetectBackground : true,
     backgroundColor: Math.round(clamp(num(i.backgroundColor, 0), 0, 0xffffff)),
-    gradient: normalizeGradient(i.gradient),
+    gradient: {
+      enabled: gr.enabled === undefined ? DEFAULT_COLORS.gradient.enabled : !!gr.enabled,
+      ...normalizeGradient(gr),
+    },
   };
 }
 

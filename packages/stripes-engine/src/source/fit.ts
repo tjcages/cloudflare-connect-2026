@@ -1,3 +1,5 @@
+import type { Fit } from "../config/types";
+
 export type SourceRect = { u0: number; v0: number; u1: number; v1: number };
 
 export function resolveSourceRect(
@@ -5,7 +7,7 @@ export function resolveSourceRect(
   srcH: number,
   dstW: number,
   dstH: number,
-  fit: "stretch" | "contain" | "cover",
+  fit: Fit,
   zoom: number,
   panX: number,
   panY: number,
@@ -16,9 +18,15 @@ export function resolveSourceRect(
   // base span in source UV (1 = whole source) per axis
   let spanU = 1,
     spanV = 1;
-  if (fit !== "stretch") {
-    const srcAspect = srcW / srcH;
-    const dstAspect = dstW / dstH;
+  const srcAspect = srcW / srcH;
+  const dstAspect = dstW / dstH;
+  if (fit === "width") {
+    // fit full source width, height overflows/letterboxes
+    spanV = srcAspect / dstAspect;
+  } else if (fit === "height") {
+    // fit full source height, width overflows/letterboxes
+    spanU = dstAspect / srcAspect;
+  } else if (fit !== "stretch") {
     if (fit === "cover") {
       if (srcAspect > dstAspect) spanU = dstAspect / srcAspect;
       else spanV = srcAspect / dstAspect;

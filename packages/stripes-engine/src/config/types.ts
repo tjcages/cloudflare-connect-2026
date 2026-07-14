@@ -1,4 +1,4 @@
-export type Fit = "stretch" | "contain" | "cover";
+export type Fit = "stretch" | "contain" | "cover" | "width" | "height";
 
 export type WavePosition =
   | "center"
@@ -196,6 +196,8 @@ export interface ClickWaveConfig {
 export interface LettersConfig {
   enabled: boolean;
   mode: "random" | "text";
+  colorMode: "white" | "colorful";
+  color: number;
   coverage: number;
   positionX: number;
   positionY: number;
@@ -221,9 +223,11 @@ export type StripeBlendMode =
 export interface ColorsConfig {
   mode: "luminance" | "colors";
   stripeBlendMode: StripeBlendMode;
+  imageColorLightness: number;
+  imageColorDensity: number;
   autoDetectBackground: boolean;
   backgroundColor: number;
-  gradient: GradientConfig;
+  gradient: BackgroundGradient;
 }
 
 export type RenderMode =
