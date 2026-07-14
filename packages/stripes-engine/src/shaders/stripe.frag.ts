@@ -56,6 +56,7 @@ uniform float uUseCellColors;
 uniform sampler2D uCellColor;
 uniform float uImageColorLightness;
 uniform float uImageColorDensity;
+uniform float uOverlapAmount;
 uniform vec3 uLetterColor;
 uniform float uBlendMode;
 uniform float uGradientEnabled;
@@ -379,6 +380,8 @@ void main() {
   vec2 normal = vec2(cos(cellAngleRad), -sin(cellAngleRad));
   float angleNorm = mod(abs(uAngleDeg), 180.0);
   bool arbitraryAngle = abs(angleNorm) > 0.001 && abs(angleNorm - 90.0) > 0.001;
+  bool overlapRotation = uRotationMode > 1.5;
+  float overlapAmount = overlapRotation ? clamp(uOverlapAmount, 0.0, 4.0) : 1.0;
   float extendY = (uGridGapPx.y <= 0.0001) ? w : 0.0;
   float extendX = (uGridGapPx.x <= 0.0001) ? w : 0.0;
   float noGapExtend = max(extendX, extendY);
@@ -402,17 +405,24 @@ void main() {
     float drawableStackPx = max(0.0001, stackCellPx - min(stackGapPx, stackCellPx));
     float drawableAxisPx = max(0.0001, axisCellPx - min(axisGapPx, axisCellPx));
     float groupNoGapExtend = axisGapPx <= 0.0001 ? w : 0.0;
+    float maxNormalReach = drawableStackPx * 0.5 + w;
+    float maxAxisReach = drawableAxisPx * 0.5 + drawableStackPx * 0.5 * overlapAmount + groupNoGapExtend + w * 2.0;
     float bestAlpha = 0.0;
     vec3 bestColor = barColor;
     float bestDepth = -1.0;
+    vec4 overlapColor = bgColor;
 
-    for (int ss = -4; ss <= 4; ss++) {
+    for (int ss = -1; ss <= 1; ss++) {
       float stackIndex = baseStack + float(ss);
       float stackCenter = (stackIndex + 0.5) * stackCellPx;
+      float normalDist = stackCoord - stackCenter;
+      if (abs(normalDist) > maxNormalReach) continue;
 
-      for (int aa = -4; aa <= 4; aa++) {
+      for (int aa = -2; aa <= 2; aa++) {
         float axisIndex = baseAxis + float(aa);
         float axisCenter = (axisIndex + 0.5) * axisCellPx;
+        float axisDist = axisCoord - axisCenter;
+        if (abs(axisDist) > maxAxisReach) continue;
 
         vec2 candidateCell = horizontalStacks ? vec2(axisIndex, stackIndex) : vec2(stackIndex, axisIndex);
         vec2 samplePixel = displayCenter + normal * (stackCenter - stackSpanPx * 0.5) + axis * (axisCenter - axisSpanPx * 0.5);
@@ -421,32 +431,44 @@ void main() {
         float candidateValue = normalizedCellValue(candidateUv);
         vec2 candidateLutUv = vec2((candidateValue * 255.0 + 0.5) / 256.0, 0.5);
         vec4 candidateLut = texture(uLut, candidateLutUv);
-        vec3 candidateColor = candidateLut.rgb;
         float candidateWidthPx = (candidateLut.a * 255.0) * 0.5;
-        float candidateOpacity = texture(uOpacityLut, candidateLutUv).r;
 
-        if (uUseCellColors > 0.5) {
-          candidateColor = cellImageColor(candidateUv);
-        }
-        if (uGradientEnabled > 0.5 && uUseCellColors < 0.5) {
-          candidateColor = gradientColorWithRampLightness(candidateUv, candidateColor);
-        }
         if (uShuffleEnabled > 0.5) candidateWidthPx = shuffledWidth(candidateCell.x, candidateCell.y, candidateWidthPx);
+        if (uUseCellColors > 0.5 && !imageColorDensityVisible(candidateCell)) continue;
         if (candidateWidthPx < 0.5) continue;
         if (uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(candidateCell.x, candidateCell.y)) continue;
-        if (uUseCellColors > 0.5 && !imageColorDensityVisible(candidateCell)) continue;
 
-        float normalDist = stackCoord - stackCenter;
-        float axisDist = axisCoord - axisCenter;
         vec2 candidateRotatedP = vec2(normalDist, axisDist);
         float candidateHalfW = min(candidateWidthPx, drawableStackPx) * 0.5;
-        float candidateHalfH = drawableAxisPx * 0.5 + groupNoGapExtend + candidateHalfW + w;
+        float candidateHalfH = drawableAxisPx * 0.5 + groupNoGapExtend + candidateHalfW * overlapAmount + w;
         float candidateR = min(uCorner, min(candidateHalfW, candidateHalfH));
-        float candidateAlpha = stripeAlpha(candidateRotatedP, vec2(candidateHalfW, candidateHalfH), candidateR, w) * candidateOpacity;
-        if (
-          candidateAlpha > 0.001 &&
-          (candidateValue > bestDepth + 0.0001 || (abs(candidateValue - bestDepth) <= 0.0001 && candidateAlpha > bestAlpha))
-        ) {
+        float candidateGeometryAlpha = stripeAlpha(candidateRotatedP, vec2(candidateHalfW, candidateHalfH), candidateR, w);
+        if (candidateGeometryAlpha <= 0.001) continue;
+
+        float candidateOpacity = texture(uOpacityLut, candidateLutUv).r;
+        float candidateAlpha = candidateGeometryAlpha * candidateOpacity;
+        if (candidateAlpha > 0.001) {
+          vec3 candidateColor = candidateLut.rgb;
+          if (uUseCellColors > 0.5) {
+            candidateColor = cellImageColor(candidateUv);
+          }
+          if (uGradientEnabled > 0.5 && uUseCellColors < 0.5) {
+            candidateColor = gradientColorWithRampLightness(candidateUv, candidateColor);
+          }
+
+          if (overlapRotation) {
+            vec3 blendedCandidateColor = bgColor.a <= 0.0001 ? candidateColor : blendStripeColor(bgColor.rgb, candidateColor);
+            overlapColor = mix(overlapColor, vec4(blendedCandidateColor, 1.0), candidateAlpha);
+            continue;
+          }
+
+          if (
+            candidateValue <= bestDepth + 0.0001 &&
+            (abs(candidateValue - bestDepth) > 0.0001 || candidateAlpha <= bestAlpha)
+          ) {
+            continue;
+          }
+
           bestAlpha = candidateAlpha;
           bestColor = candidateColor;
           bestDepth = candidateValue;
@@ -454,8 +476,12 @@ void main() {
       }
     }
 
-    vec3 blendedBestColor = bgColor.a <= 0.0001 ? bestColor : blendStripeColor(bgColor.rgb, bestColor);
-    finalColor = mix(bgColor, vec4(blendedBestColor, 1.0), bestAlpha);
+    if (overlapRotation) {
+      finalColor = overlapColor;
+    } else {
+      vec3 blendedBestColor = bgColor.a <= 0.0001 ? bestColor : blendStripeColor(bgColor.rgb, bestColor);
+      finalColor = mix(bgColor, vec4(blendedBestColor, 1.0), bestAlpha);
+    }
   } else {
   vec2 rotatedP = vec2(dot(p, normal), dot(p, axis));
   float halfW = min(barWidthPx, max(drawablePx.x, drawablePx.y)) * 0.5;

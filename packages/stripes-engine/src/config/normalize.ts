@@ -147,6 +147,7 @@ export const DEFAULT_GRID: Grid = {
   orientation: "vertical",
   angleDeg: 0,
   rotationMode: "cell",
+  overlapAmount: 1,
 };
 export function normalizeGrid(i: Partial<Grid> = {}): Grid {
   const cellWidth = clamp(Math.round(num(i.cellWidth, 7)), 1, 64);
@@ -160,7 +161,8 @@ export function normalizeGrid(i: Partial<Grid> = {}): Grid {
     cornerRadius: clamp(num(i.cornerRadius, 0), 0, Math.max(cellWidth, cellHeight)),
     orientation,
     angleDeg: clamp(num(i.angleDeg, orientation === "horizontal" ? 90 : 0), -180, 180),
-    rotationMode: i.rotationMode === "global" ? "global" : "cell",
+    rotationMode: i.rotationMode === "overlap" ? "overlap" : "cell",
+    overlapAmount: clamp(num(i.overlapAmount, 1), 0, 4),
   };
 }
 

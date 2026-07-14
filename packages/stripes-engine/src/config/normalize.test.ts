@@ -98,8 +98,15 @@ describe("simple normalizers", () => {
     expect(normalizeGrid({ orientation: "horizontal" }).angleDeg).toBe(90);
     expect(normalizeGrid({ angleDeg: 200 }).angleDeg).toBe(180);
     expect(normalizeGrid({ angleDeg: -200 }).angleDeg).toBe(-180);
-    expect(normalizeGrid({ rotationMode: "global" }).rotationMode).toBe("global");
+    expect(normalizeGrid({ rotationMode: "overlap" }).rotationMode).toBe("overlap");
+    expect(normalizeGrid({ rotationMode: "global" as any }).rotationMode).toBe("cell");
     expect(normalizeGrid({ rotationMode: "bogus" as any }).rotationMode).toBe("cell");
+  });
+  it("grid overlapAmount defaults to 1 and clamps to 0..4", () => {
+    expect(normalizeGrid({}).overlapAmount).toBe(1);
+    expect(normalizeGrid({ overlapAmount: 9 }).overlapAmount).toBe(4);
+    expect(normalizeGrid({ overlapAmount: -3 }).overlapAmount).toBe(0);
+    expect(normalizeGrid({ overlapAmount: 2.5 }).overlapAmount).toBe(2.5);
   });
 });
 describe("adjustments normalizer", () => {

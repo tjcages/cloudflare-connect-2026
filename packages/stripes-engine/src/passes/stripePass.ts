@@ -14,6 +14,8 @@ export type StripeUniforms = {
   cornerRadius: number;
   orientation: 0 | 1;
   angleDeg: number;
+  rotationMode: number;
+  overlapAmount: number;
   cellMin: number;
   cellMax: number;
   cols: number;
@@ -96,6 +98,8 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     cornerRadius: config.grid.cornerRadius,
     orientation: config.grid.orientation === "horizontal" ? 1 : 0,
     angleDeg: config.grid.angleDeg,
+    rotationMode: config.grid.rotationMode === "overlap" ? 2 : 0,
+    overlapAmount: config.grid.overlapAmount,
     cellMin: 0,
     cellMax: 1,
     cols: i.cols,
@@ -166,6 +170,8 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     corner: u("uCorner"),
     orient: u("uOrient"),
     angleDeg: u("uAngleDeg"),
+    rotationMode: u("uRotationMode"),
+    overlapAmount: u("uOverlapAmount"),
     cellMin: u("uCellMin"),
     cellMax: u("uCellMax"),
     bg: u("uBg"),
@@ -253,6 +259,8 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.corner, p.cornerRadius);
       gl.uniform1f(L.orient, p.orientation);
       gl.uniform1f(L.angleDeg, p.angleDeg);
+      gl.uniform1f(L.rotationMode, p.rotationMode);
+      gl.uniform1f(L.overlapAmount, p.overlapAmount);
       gl.uniform1f(L.cellMin, p.cellMin);
       gl.uniform1f(L.cellMax, p.cellMax);
       setColor(L.bg, p.background);

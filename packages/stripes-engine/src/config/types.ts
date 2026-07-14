@@ -112,7 +112,8 @@ export interface Grid {
   cornerRadius: number;
   orientation: "vertical" | "horizontal";
   angleDeg: number;
-  rotationMode: "cell" | "global";
+  rotationMode: "cell" | "overlap";
+  overlapAmount: number;
 }
 
 export type MotionDirection = "leftToRight" | "rightToLeft" | "topToBottom" | "bottomToTop";
