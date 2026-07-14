@@ -76,22 +76,40 @@ function onContextRestored(): void {
   }
 }
 
+// Grow-only: consumer instances range from 160×160 tiles to ~3000×1700 surfaces
+// and all share this one backbuffer, so reallocating to each instance's exact
+// size churned the drawing buffer several times per frame. Only enlarge (never
+// shrink) so the buffer settles at the per-dimension max and stops thrashing.
 function sizeShared(width: number, height: number): void {
   if (!sharedCanvas) return;
-  if (sharedCanvas.width !== width) sharedCanvas.width = width;
-  if (sharedCanvas.height !== height) sharedCanvas.height = height;
+  if (width > sharedCanvas.width) sharedCanvas.width = width;
+  if (height > sharedCanvas.height) sharedCanvas.height = height;
 }
 
 // Driven by "tick" messages from the main-thread clock: worker rAF only fires
 // while the worker owns a placeholder canvas, which this present path avoids.
-function renderTick(): void {
+// Instances render strictly sequentially — they share one backbuffer, so each
+// bitmap must be produced before the next instance overwrites it.
+async function renderTick(): Promise<void> {
   for (const [id, instance] of instances) {
     if (!instance.visible) continue;
     const { engine } = instance;
-    sizeShared(engine.outputWidth, engine.outputHeight);
+    const outW = engine.outputWidth;
+    const outH = engine.outputHeight;
+    sizeShared(outW, outH);
     engine.renderFrame();
     if (!sharedCanvas) continue;
-    const frame = sharedCanvas.transferToImageBitmap();
+    // The present pass renders with gl.viewport(0, 0, outW, outH), i.e. into the
+    // bottom-left corner of the (possibly larger) backbuffer.
+    let frame: ImageBitmap;
+    if (sharedCanvas.width === outW && sharedCanvas.height === outH) {
+      // Backbuffer matches this instance exactly: zero-copy, pool-recycled.
+      frame = sharedCanvas.transferToImageBitmap();
+    } else {
+      // Backbuffer is larger: crop the rendered region. GL origin is bottom-left
+      // but ImageBitmap coordinates are top-left, so y = canvasHeight - outH.
+      frame = await createImageBitmap(sharedCanvas, 0, sharedCanvas.height - outH, outW, outH);
+    }
     scope.postMessage({ type: "frame", id, frame }, [frame]);
   }
   scope.postMessage({ type: "tock" });
@@ -121,7 +139,13 @@ function handle(message: MainToWorkerMessage): void {
       return;
     }
     case "tick": {
-      renderTick();
+      // renderTick is async; its rejection must not escape unhandled. Post the
+      // error but still post "tock" — the main-thread clock deadlocks otherwise
+      // (tickInFlight would never clear).
+      void renderTick().catch((error) => {
+        scope.postMessage({ type: "error", message: error instanceof Error ? error.message : String(error) });
+        scope.postMessage({ type: "tock" });
+      });
       return;
     }
     case "resize": {
