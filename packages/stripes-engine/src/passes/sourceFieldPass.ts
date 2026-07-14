@@ -4,6 +4,7 @@ import { FULLSCREEN_VERT } from "../shaders/fullscreen.vert";
 import { SOURCE_FIELD_FRAG } from "../shaders/sourceField.frag";
 import type { Adjustments } from "../config/types";
 import type { SourceRect } from "../source/fit";
+import { unpackRgb } from "../colors/colorMath";
 
 export type SourceFieldUniforms = {
   srcRect: SourceRect;
@@ -43,12 +44,7 @@ export function createSourceFieldPass(gl: WebGL2RenderingContext, quad: { draw()
       gl.uniform4f(L.rect, p.srcRect.u0, p.srcRect.v0, p.srcRect.u1, p.srcRect.v1);
       gl.uniform2f(L.texel, p.sourceTexelW, p.sourceTexelH);
       const a = p.adjustments;
-      gl.uniform3f(
-        L.bg,
-        ((p.background >> 16) & 255) / 255,
-        ((p.background >> 8) & 255) / 255,
-        (p.background & 255) / 255,
-      );
+      gl.uniform3f(L.bg, ...unpackRgb(p.background));
       gl.uniform1f(L.blur, a.blurRadius);
       gl.uniform1f(L.sharpen, a.sharpenAmount);
       gl.uniform1f(L.black, a.blackPoint);

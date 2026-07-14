@@ -13,11 +13,11 @@ describe("migrateLegacyConfig", () => {
     expect(out.adjustments).toMatchObject({ contrast: 2, gamma: 1.5 });
     expect(out.transform).toMatchObject({ fit: "cover", zoom: 1.5, panX: 0.2 });
     expect(out.grid).toMatchObject({ cellWidth: 9, orientation: "horizontal" });
-    expect(out.background).toEqual({ color: 0x222222, transparent: false });
+    expect(out.background).toMatchObject({ color: 0x222222, transparent: false });
   });
   it("converts hex-string stripe colors to numeric", () => {
     const out = migrateLegacyConfig({ stripes: [{ hex: "#ff8833", startFrom: 0.5, width: 6 }] });
-    expect(out.stripes).toEqual([{ color: 0xff8833, startFrom: 0.5, width: 6 }]);
+    expect(out.stripes).toEqual([{ color: 0xff8833, startFrom: 0.5, width: 6, opacity: 1 }]);
   });
   it("ignores unknown / missing input safely", () => {
     expect(migrateLegacyConfig({})).toEqual({});

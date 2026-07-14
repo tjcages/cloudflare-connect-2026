@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   normalizeTransform,
   normalizeBackground,
+  DEFAULT_BACKGROUND,
   normalizeGrid,
   normalizeAdjustments,
   DEFAULT_ADJUSTMENTS,
@@ -44,12 +45,59 @@ describe("simple normalizers", () => {
     expect(normalizeBackground({ color: -1 }).color).toBe(0x000000); // clamp ≥ 0
     expect(normalizeBackground({ color: 0x1ffffff }).color).toBe(0xffffff); // clamp ≤ 0xffffff
   });
+  it("background transparent defaults true, boolean-coerced when provided", () => {
+    expect(normalizeBackground({}).transparent).toBe(true);
+    expect(DEFAULT_BACKGROUND.transparent).toBe(true);
+    expect(normalizeBackground({ transparent: false }).transparent).toBe(false);
+    expect(normalizeBackground({ transparent: true }).transparent).toBe(true);
+  });
+  it("background gradient/grid/stars default and clamp", () => {
+    const b = normalizeBackground({});
+    expect(b.gradient).toEqual({ enabled: false, direction: "topToBottom", stopCount: 2, stops: [0xffffff, 0, 0, 0] });
+    expect(b.grid).toEqual({
+      enabled: false,
+      cellWidth: 96,
+      cellHeight: 96,
+      gapX: 8,
+      gapY: 8,
+      cornerRadius: 0,
+      color: 0xf3f3f3,
+      opacity: 1,
+    });
+    expect(b.stars).toEqual({
+      enabled: false,
+      density: 50,
+      sizePx: 8,
+      sizeRandomness: 0.65,
+      tiltAngleDeg: 0,
+      twinkleSpeed: 1,
+      twinkleAmount: 0.7,
+      opacity: 0.8,
+      color: 0xffffff,
+    });
+    expect(normalizeBackground({ grid: { cellWidth: 1 } }).grid.cellWidth).toBe(4);
+    expect(normalizeBackground({ grid: { cellWidth: 9999 } }).grid.cellWidth).toBe(512);
+    expect(normalizeBackground({ grid: { cellWidth: 20, gapX: 50 } }).grid.gapX).toBe(20);
+    expect(normalizeBackground({ stars: { density: 999 } }).stars.density).toBe(100);
+    expect(normalizeBackground({ stars: { sizePx: 0 } }).stars.sizePx).toBe(0.25);
+    expect(normalizeBackground({ stars: { tiltAngleDeg: -180 } }).stars.tiltAngleDeg).toBe(-89);
+    expect(normalizeBackground({ gradient: { stopCount: 9 } }).gradient.stopCount).toBe(4);
+    expect(normalizeBackground({ gradient: { direction: "bogus" as any } }).gradient.direction).toBe("topToBottom");
+  });
   it("grid clamps sizes and gaps", () => {
     expect(normalizeGrid({})).toEqual(DEFAULT_GRID);
     expect(normalizeGrid({ cellWidth: 0 }).cellWidth).toBe(1); // min 1
     expect(normalizeGrid({ cellWidth: 999 }).cellWidth).toBe(64); // max 64
     expect(normalizeGrid({ cellWidth: 10, gapX: 20 }).gapX).toBe(10); // gap ≤ cellWidth
     expect(normalizeGrid({ orientation: "horizontal" }).orientation).toBe("horizontal");
+  });
+  it("grid angleDeg defaults by orientation and clamps to -180..180", () => {
+    expect(normalizeGrid({}).angleDeg).toBe(0);
+    expect(normalizeGrid({ orientation: "horizontal" }).angleDeg).toBe(90);
+    expect(normalizeGrid({ angleDeg: 200 }).angleDeg).toBe(180);
+    expect(normalizeGrid({ angleDeg: -200 }).angleDeg).toBe(-180);
+    expect(normalizeGrid({ rotationMode: "global" }).rotationMode).toBe("global");
+    expect(normalizeGrid({ rotationMode: "bogus" as any }).rotationMode).toBe("cell");
   });
 });
 describe("adjustments normalizer", () => {
@@ -73,14 +121,26 @@ describe("stripes normalizer", () => {
     expect(normalizeStripe({ color: 0xff8833, startFrom: 2, width: 0 })).toEqual({
       color: 0xff8833,
       startFrom: 1,
-      width: 1,
+      width: 0.5,
+      opacity: 1,
     });
+  });
+  it("keeps fractional widths and clamps to 0.5..64", () => {
+    expect(normalizeStripe({ width: 1.25 }).width).toBe(1.25);
+    expect(normalizeStripe({ width: 0.1 }).width).toBe(0.5);
+    expect(normalizeStripe({ width: 99 }).width).toBe(64);
+  });
+  it("clamps opacity to 0..1, default 1", () => {
+    expect(normalizeStripe({}).opacity).toBe(1);
+    expect(normalizeStripe({ opacity: -1 }).opacity).toBe(0);
+    expect(normalizeStripe({ opacity: 2 }).opacity).toBe(1);
+    expect(normalizeStripe({ opacity: 0.4 }).opacity).toBe(0.4);
   });
   it("empty/absent stripe list falls back to the provided defaults", () => {
     expect(normalizeStripes(undefined, DEFAULT_STRIPES)).toEqual(DEFAULT_STRIPES);
     expect(normalizeStripes([], DEFAULT_STRIPES)).toEqual(DEFAULT_STRIPES);
     expect(normalizeStripes([{ color: 0x010203, startFrom: 0.5, width: 3 }], DEFAULT_STRIPES)).toEqual([
-      { color: 0x010203, startFrom: 0.5, width: 3 },
+      { color: 0x010203, startFrom: 0.5, width: 3, opacity: 1 },
     ]);
   });
 });
@@ -113,6 +173,27 @@ describe("sparkle normalizer", () => {
   });
   it("clamps sparkle.width.swingPx to 0..40", () => {
     expect(normalizeEngineConfig({ sparkle: { width: { swingPx: 999 } } }).sparkle.width.swingPx).toBe(40);
+  });
+  it("defaults sparkle.motion and clamps its ranges", () => {
+    expect(normalizeEngineConfig({}).sparkle.motion).toEqual({
+      enabled: false,
+      amplitudePx: 4,
+      staggerPx: 24,
+      maxOffsetPx: 12,
+      speed: 1,
+      direction: "leftToRight",
+    });
+    expect(normalizeEngineConfig({ sparkle: { motion: { amplitudePx: 999 } } }).sparkle.motion.amplitudePx).toBe(64);
+    expect(normalizeEngineConfig({ sparkle: { motion: { staggerPx: 0 } } }).sparkle.motion.staggerPx).toBe(1);
+    expect(normalizeEngineConfig({ sparkle: { motion: { maxOffsetPx: 999 } } }).sparkle.motion.maxOffsetPx).toBe(128);
+    expect(normalizeEngineConfig({ sparkle: { motion: { speed: 0 } } }).sparkle.motion.speed).toBe(0.05);
+    expect(normalizeEngineConfig({ sparkle: { motion: { speed: 500 } } }).sparkle.motion.speed).toBe(500);
+    expect(normalizeEngineConfig({ sparkle: { motion: { direction: "bogus" as any } } }).sparkle.motion.direction).toBe(
+      "leftToRight",
+    );
+    expect(normalizeEngineConfig({ sparkle: { motion: { direction: "bottomToTop" } } }).sparkle.motion.direction).toBe(
+      "bottomToTop",
+    );
   });
 });
 describe("reveal normalizer", () => {
@@ -479,6 +560,29 @@ describe("letters normalizer", () => {
     expect(normalizeLetters({ shuffleSpeed: 20 }).shuffleSpeed).toBe(10);
     expect(normalizeLetters({ shuffleSpeed: 3 }).shuffleSpeed).toBe(3);
   });
+  it("mode defaults to random, only 'text' accepted", () => {
+    expect(normalizeLetters({}).mode).toBe("random");
+    expect(normalizeLetters({ mode: "text" }).mode).toBe("text");
+    expect(normalizeLetters({ mode: "bogus" as any }).mode).toBe("random");
+  });
+  it("clamps position/area and coerces text/textCopies", () => {
+    expect(normalizeLetters({}).positionX).toBe(0.5);
+    expect(normalizeLetters({ positionX: 2 }).positionX).toBe(1);
+    expect(normalizeLetters({ positionY: -1 }).positionY).toBe(0);
+    expect(normalizeLetters({ areaWidth: 0 }).areaWidth).toBe(0.01);
+    expect(normalizeLetters({ areaHeight: 5 }).areaHeight).toBe(1);
+    expect(normalizeLetters({}).text).toBe("CF");
+    expect(normalizeLetters({ text: "x".repeat(600) }).text.length).toBe(512);
+    expect(normalizeLetters({ text: 5 as any }).text).toBe("CF");
+    expect(normalizeLetters({}).textCopies).toBe(1);
+    expect(normalizeLetters({ textCopies: 999 }).textCopies).toBe(100);
+    expect(normalizeLetters({ textCopies: 2.6 }).textCopies).toBe(3);
+  });
+  it("fontFamily must be whitelisted", () => {
+    expect(normalizeLetters({}).fontFamily).toBe("monospace");
+    expect(normalizeLetters({ fontFamily: "Georgia, serif" }).fontFamily).toBe("Georgia, serif");
+    expect(normalizeLetters({ fontFamily: "Comic Sans MS" }).fontFamily).toBe("monospace");
+  });
 });
 describe("colors normalizer", () => {
   it("defaults to DEFAULT_COLORS when called with {}", () => {
@@ -514,6 +618,20 @@ describe("colors normalizer", () => {
     expect(normalizeColors({ backgroundColor: -1 }).backgroundColor).toBe(0x000000);
     expect(normalizeColors({ backgroundColor: 0x1ffffff }).backgroundColor).toBe(0xffffff);
     expect(normalizeColors({ backgroundColor: 0.7 }).backgroundColor).toBe(1);
+  });
+  it("stripeBlendMode defaults to normal and only accepts known modes", () => {
+    expect(normalizeColors({}).stripeBlendMode).toBe("normal");
+    expect(normalizeColors({ stripeBlendMode: "exclusion" }).stripeBlendMode).toBe("exclusion");
+    expect(normalizeColors({ stripeBlendMode: "bogus" as any }).stripeBlendMode).toBe("normal");
+  });
+  it("gradient normalized with defaults and clamped stops", () => {
+    expect(normalizeColors({}).gradient).toEqual({
+      direction: "topToBottom",
+      stopCount: 2,
+      stops: [0xffffff, 0, 0, 0],
+    });
+    expect(normalizeColors({ gradient: { stops: [0x1ffffff, -1] } }).gradient.stops).toEqual([0xffffff, 0, 0, 0]);
+    expect(normalizeColors({ gradient: { direction: "leftToRight" } }).gradient.direction).toBe("leftToRight");
   });
 });
 describe("renderParams", () => {

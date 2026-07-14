@@ -12,11 +12,13 @@ export type LetterAtlas = {
 type BuildOpts = {
   fontPx?: number;
   rasterScale?: number;
+  fontFamily?: string;
 };
 
 export function buildLetterAtlas(opts: BuildOpts = {}): LetterAtlas {
   const fontPx = opts.fontPx ?? 6;
   const rasterScale = opts.rasterScale ?? 8;
+  const fontFamily = opts.fontFamily ?? "monospace";
   const glyphPx = fontPx * rasterScale;
 
   const len = LETTER_CHARSET.length;
@@ -41,7 +43,7 @@ export function buildLetterAtlas(opts: BuildOpts = {}): LetterAtlas {
   }
 
   ctx.clearRect(0, 0, width, height);
-  ctx.font = `${fontPx * rasterScale}px monospace`;
+  ctx.font = `${fontPx * rasterScale}px ${fontFamily}`;
   ctx.fillStyle = "#ffffff";
   ctx.textBaseline = "top";
   ctx.textAlign = "left";

@@ -10,6 +10,8 @@ uniform float uCoverage;
 uniform float uTimeSec;
 uniform float uCharsetLen;
 uniform float uShuffleSpeed;
+uniform vec2 uPosition;
+uniform vec2 uArea;
 
 out vec4 finalColor;
 
@@ -56,8 +58,11 @@ void main() {
   float row = floor(vUv.y * rows);
 
   float luma = texture(uCell, vUv).r;
+  vec2 cellCenter = (vec2(col, row) + 0.5) / uGridSize;
+  vec2 halfArea = max(uArea * 0.5, vec2(0.0001));
+  bool insideArea = all(lessThanEqual(abs(cellCenter - uPosition), halfArea));
 
-  bool present = (uCoverage > 0.0) && (luma >= uTopBandThreshold) && (cellHash(col, row, 1.0) < uCoverage);
+  bool present = insideArea && (uCoverage > 0.0) && (luma >= uTopBandThreshold) && (cellHash(col, row, 1.0) < uCoverage);
   float gi = letterGlyphAt(col, row);
 
   finalColor = vec4((present ? (gi + 1.0) : 0.0) / 255.0, 0.0, 0.0, 1.0);

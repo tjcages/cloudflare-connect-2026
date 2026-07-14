@@ -3,6 +3,7 @@ import { bindRenderTarget, type RenderTarget } from "../gl/renderTarget";
 import { FULLSCREEN_VERT } from "../shaders/fullscreen.vert";
 import type { RenderMode } from "../config/types";
 import { STYLIZE_FRAGS, PASSTHROUGH_FRAG } from "../shaders/stylize";
+import { unpackRgb } from "../colors/colorMath";
 
 type StylizeUniforms = {
   mode: RenderMode;
@@ -69,8 +70,8 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
       gl.uniform2f(mp.uResolution, p.resolution[0], p.resolution[1]);
       gl.uniform1f(mp.uDpr, p.dpr);
       gl.uniform4f(mp.uParams, p.params[0], p.params[1], p.params[2], p.params[3]);
-      gl.uniform3f(mp.uColorA, ((p.colorA >> 16) & 255) / 255, ((p.colorA >> 8) & 255) / 255, (p.colorA & 255) / 255);
-      gl.uniform3f(mp.uColorB, ((p.colorB >> 16) & 255) / 255, ((p.colorB >> 8) & 255) / 255, (p.colorB & 255) / 255);
+      gl.uniform3f(mp.uColorA, ...unpackRgb(p.colorA));
+      gl.uniform3f(mp.uColorB, ...unpackRgb(p.colorB));
       quad.draw();
     },
     dispose() {

@@ -4,6 +4,7 @@ import { FULLSCREEN_VERT } from "../shaders/fullscreen.vert";
 import { SOURCE_FIELD_COLOR_FRAG } from "../shaders/sourceFieldColor.frag";
 import type { Adjustments } from "../config/types";
 import type { SourceRect } from "../source/fit";
+import { unpackRgb } from "../colors/colorMath";
 
 export type SourceFieldColorUniforms = {
   srcRect: SourceRect;
@@ -53,18 +54,8 @@ export function createSourceFieldColorPass(gl: WebGL2RenderingContext, quad: { d
       gl.uniform4f(L.rect, p.srcRect.u0, p.srcRect.v0, p.srcRect.u1, p.srcRect.v1);
       gl.uniform2f(L.texel, p.sourceTexelW, p.sourceTexelH);
       const a = p.adjustments;
-      gl.uniform3f(
-        L.bg,
-        ((p.background >> 16) & 255) / 255,
-        ((p.background >> 8) & 255) / 255,
-        (p.background & 255) / 255,
-      );
-      gl.uniform3f(
-        L.colorBg,
-        ((p.colorBackground >> 16) & 255) / 255,
-        ((p.colorBackground >> 8) & 255) / 255,
-        (p.colorBackground & 255) / 255,
-      );
+      gl.uniform3f(L.bg, ...unpackRgb(p.background));
+      gl.uniform3f(L.colorBg, ...unpackRgb(p.colorBackground));
       gl.uniform1f(L.maxColorDist, p.maxColorDist);
       gl.uniform1f(L.blur, a.blurRadius);
       gl.uniform1f(L.sharpen, a.sharpenAmount);

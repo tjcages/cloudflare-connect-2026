@@ -27,8 +27,8 @@ export interface RevealConfig {
     staggerMs: number;
     scatterPx: number;
     angleJitterDeg: number;
-    blurPx: number;
-    blurStart: number;
+    blurPx?: number;
+    blurStart?: number;
   };
 }
 
@@ -36,6 +36,42 @@ export interface Stripe {
   color: number;
   startFrom: number;
   width: number;
+  opacity: number;
+}
+
+export type GradientDirection = "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
+
+export interface GradientConfig {
+  direction: GradientDirection;
+  stopCount: number;
+  stops: number[];
+}
+
+export interface BackgroundGradient extends GradientConfig {
+  enabled: boolean;
+}
+
+export interface BackgroundGrid {
+  enabled: boolean;
+  cellWidth: number;
+  cellHeight: number;
+  gapX: number;
+  gapY: number;
+  cornerRadius: number;
+  color: number;
+  opacity: number;
+}
+
+export interface BackgroundStars {
+  enabled: boolean;
+  density: number;
+  sizePx: number;
+  sizeRandomness: number;
+  tiltAngleDeg: number;
+  twinkleSpeed: number;
+  twinkleAmount: number;
+  opacity: number;
+  color: number;
 }
 
 export interface Transform {
@@ -63,6 +99,9 @@ export interface Adjustments {
 export interface Background {
   color: number;
   transparent: boolean;
+  gradient: BackgroundGradient;
+  grid: BackgroundGrid;
+  stars: BackgroundStars;
 }
 
 export interface Grid {
@@ -72,11 +111,23 @@ export interface Grid {
   gapY: number;
   cornerRadius: number;
   orientation: "vertical" | "horizontal";
+  angleDeg: number;
+  rotationMode: "cell" | "global";
 }
+
+export type MotionDirection = "leftToRight" | "rightToLeft" | "topToBottom" | "bottomToTop";
 
 export interface SparkleConfig {
   gaps: { enabled: boolean; coverage: number; speed: number };
   width: { enabled: boolean; coverage: number; swingPx: number; swingPeriodMin: number; swingPeriodMax: number };
+  motion: {
+    enabled: boolean;
+    amplitudePx: number;
+    staggerPx: number;
+    maxOffsetPx: number;
+    speed: number;
+    direction: MotionDirection;
+  };
 }
 
 export type FlamesDirection = "up" | "down" | "left" | "right";
@@ -144,15 +195,35 @@ export interface ClickWaveConfig {
 
 export interface LettersConfig {
   enabled: boolean;
+  mode: "random" | "text";
   coverage: number;
+  positionX: number;
+  positionY: number;
+  areaWidth: number;
+  areaHeight: number;
+  text: string;
+  textCopies: number;
+  fontFamily: string;
   sizeScale: number;
   shuffleSpeed: number;
 }
 
+export type StripeBlendMode =
+  | "normal"
+  | "multiply"
+  | "screen"
+  | "overlay"
+  | "darken"
+  | "lighten"
+  | "difference"
+  | "exclusion";
+
 export interface ColorsConfig {
   mode: "luminance" | "colors";
+  stripeBlendMode: StripeBlendMode;
   autoDetectBackground: boolean;
   backgroundColor: number;
+  gradient: GradientConfig;
 }
 
 export type RenderMode =

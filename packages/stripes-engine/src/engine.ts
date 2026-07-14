@@ -11,13 +11,16 @@ import { createDownsampleColorPass } from "./passes/downsampleColorPass";
 import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createBlurPass } from "./passes/blurPass";
-import { createStripePass } from "./passes/stripePass";
+import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
 import { createStylizePass } from "./passes/stylizePass";
 import { createLogoFillPass } from "./passes/logoFillPass";
 import { createLetterDataPass } from "./passes/letterDataPass";
-import { buildLetterAtlas, createLetterAtlasTexture } from "./letters/letterAtlas";
 import { LETTER_CHARSET_LEN } from "./letters/charset";
+import { createLetterResources } from "./letters/letterResources";
 import { createFlamesPass } from "./passes/flamesPass";
+import { createStarsPass } from "./passes/starsPass";
+import { createParticleFieldPass } from "./passes/particleFieldPass";
+import { createStarsState, stepStars, type StarsState } from "./stars/starsSim";
 import { createEdgeMaskPass } from "./passes/edgeMaskPass";
 import { createCursorSplatPass } from "./passes/cursorSplatPass";
 import { createCursorTearPass } from "./passes/cursorTearPass";
@@ -35,19 +38,19 @@ import {
   stepFlames,
   flamesGradientStops,
   isVerticalFlamesDirection,
-  mulberry32,
   type FlamesState,
 } from "./flames/flamesSim";
+import { mulberry32 } from "./core/rng";
 import { createGpuTimer } from "./perf/gpuTimer";
 import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
 import { createRtPool, type RtPool } from "./pipeline/rtPool";
 import { runPipeline, type Pass } from "./pipeline/pipeline";
-import { normalizeEngineConfig } from "./config/normalize";
+import { DEFAULT_REVEAL, normalizeEngineConfig } from "./config/normalize";
 import type { EngineConfig } from "./config/types";
 import { createSourceTexture, type EngineSource, type SourceTexture } from "./source/sourceTexture";
 import { resolveSourceRect } from "./source/fit";
 import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
-import { buildStripeLut, lutSignature } from "./field/stripeLut";
+import { buildStripeLut, buildStripeOpacityLut, lutSignature } from "./field/stripeLut";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
 import { bindRenderTarget, createMrtTarget, type MrtTarget } from "./gl/renderTarget";
 import { detectBackgroundColor } from "./colors/backgroundDetect";
@@ -58,6 +61,7 @@ import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./r
 
 const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
 const CLICK_WAVE_MAX_PUSH_CELLS = 6;
+const STARS_SEED_XOR = 173516199;
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
 export type CellGridReadback = { cols: number; rows: number; values: Uint8Array; colors: Uint8Array | null };
@@ -158,11 +162,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let config = normalizeEngineConfig({ fieldScale: opts.fieldScale });
 
   let stripeLutTex: WebGLTexture | null = null;
+  let stripeOpacityLutTex: WebGLTexture | null = null;
   let lutSig = "";
 
-  let letterAtlasTex: WebGLTexture | null = null;
-  let letterAtlasGrid: [number, number] = [1, 1];
-  let lettersDummyTex: WebGLTexture | null = null;
+  const letterResources = createLetterResources(gl);
 
   let rafId = 0;
   let lastFrameStart = clock.now();
@@ -177,6 +180,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastClickWaveEnabled = config.clickWave.enabled;
   let lastLettersEnabled = config.letters.enabled;
   let lastColorsMode = config.colors.mode;
+  let lastStarsEnabled = config.background.stars.enabled;
   let revealStartMs = 0;
 
   let detectedBgColor = config.colors.backgroundColor;
@@ -189,6 +193,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
 
   const flamesSeed = (opts.seed ?? 1) >>> 0;
   let flamesState: FlamesState = createFlamesState(mulberry32(flamesSeed));
+  const starsSeed = (flamesSeed ^ STARS_SEED_XOR) >>> 0;
+  let starsState: StarsState = createStarsState(mulberry32(starsSeed));
 
   let cursorTrailState: CursorTrailState = createCursorTrailState();
   let clickWaveState: ClickWaveState = createClickWaveState();
@@ -350,24 +356,29 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     const sig = lutSignature(config.stripes);
     if (sig !== lutSig) {
       const bytes = buildStripeLut(config.stripes);
+      const opacityBytes = buildStripeOpacityLut(config.stripes);
       if (stripeLutTex) {
         updateDataTexture(gl, stripeLutTex, bytes, 256, 1);
       } else {
         stripeLutTex = createDataTexture(gl, bytes, 256, 1);
       }
+      if (stripeOpacityLutTex) {
+        updateDataTexture(gl, stripeOpacityLutTex, opacityBytes, 256, 1);
+      } else {
+        stripeOpacityLutTex = createDataTexture(gl, opacityBytes, 256, 1);
+      }
       lutSig = sig;
     }
   }
 
-  function ensureLetterAtlas() {
-    if (!letterAtlasTex) {
-      const atlas = buildLetterAtlas();
-      letterAtlasTex = createLetterAtlasTexture(gl, atlas);
-      letterAtlasGrid = [atlas.gridCols, atlas.gridRows];
-    }
-    if (!lettersDummyTex) {
-      lettersDummyTex = createDataTexture(gl, new Uint8Array(4), 1, 1);
-    }
+  function ensureTextGlyphMap(cols: number, rows: number): WebGLTexture {
+    return letterResources.ensureTextMap(
+      cols,
+      rows,
+      config.grid.orientation,
+      config.letters.text,
+      config.letters.textCopies,
+    );
   }
 
   function buildPasses() {
@@ -454,31 +465,54 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       };
     }
 
+    const particleFieldDeps = {
+      colorsMode,
+      getFieldRT: () => pool.get("field", fieldSize.width, fieldSize.height, { linear: true }),
+      getFieldColorRT: () => pool.get("fieldColor", fieldSize.width, fieldSize.height, { linear: true }),
+      getPalette: () => flamesPalette,
+    };
+
+    const starsFieldPasses: Pass[] = [];
+    if (config.background.stars.enabled) {
+      starsFieldPasses.push(
+        createParticleFieldPass({
+          ...particleFieldDeps,
+          name: "backgroundStarsField",
+          pass: createStarsPass(gl),
+          step: () => {
+            stepStars(starsState, config.background.stars, { width: cssW, height: cssH }, clock.now());
+            return {
+              particles: starsState.stars,
+              opts: { canvasW: cssW, canvasH: cssH, color: config.background.stars.color },
+            };
+          },
+        }),
+      );
+    }
+
     const flamesFieldPasses: Pass[] = [];
     if (config.flames.enabled) {
-      const flamesPass = createFlamesPass(gl);
-      flamesFieldPasses.push({
-        name: "flamesField",
-        render: () => {
-          stepFlames(flamesState, config.flames, { width: cssW, height: cssH }, clock.now());
-          const { inner, outer } = flamesGradientStops(config.flames.edgeSharpness);
-          const opts = {
-            canvasW: cssW,
-            canvasH: cssH,
-            vertical: isVerticalFlamesDirection(config.flames.direction),
-            inner,
-            outer,
-          };
-          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
-          if (colorsMode) {
-            const fieldColorRT = pool.get("fieldColor", fieldSize.width, fieldSize.height, { linear: true });
-            flamesPass.renderColors(fieldRT, fieldColorRT, flamesState.flames, flamesPalette, opts);
-          } else {
-            flamesPass.render(fieldRT, flamesState.flames, opts);
-          }
-        },
-        dispose: () => flamesPass.dispose(),
-      });
+      flamesFieldPasses.push(
+        createParticleFieldPass({
+          ...particleFieldDeps,
+          name: "flamesField",
+          pass: createFlamesPass(gl),
+          step: () => {
+            stepFlames(flamesState, config.flames, { width: cssW, height: cssH }, clock.now());
+            const { inner, outer } = flamesGradientStops(config.flames.edgeSharpness);
+            return {
+              particles: flamesState.flames,
+              opts: {
+                canvasW: cssW,
+                canvasH: cssH,
+                vertical: isVerticalFlamesDirection(config.flames.direction),
+                inner,
+                outer,
+              },
+            };
+          },
+        }),
+      );
     }
 
     const revealEnabled = config.reveal.enabled;
@@ -496,6 +530,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const { assembly } = config.reveal;
+          const blurPx = assembly.blurPx ?? DEFAULT_REVEAL.assembly.blurPx ?? 0;
+          const blurStart = assembly.blurStart ?? DEFAULT_REVEAL.assembly.blurStart ?? 0;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
           const progress = Math.max(0, Math.min(1, rawProgress));
@@ -512,7 +548,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           let blurQuarterTex = fieldRT.texture;
           let blurHalfTex = fieldRT.texture;
           let blurFullTex = fieldRT.texture;
-          if (progress < moveEnd && assembly.blurPx > 0) {
+          if (progress < moveEnd && blurPx > 0) {
             // Blur pyramid of the source field at half res: sigma/4, sigma/2 and the full
             // sigma of blurPx CSS px on screen (Gaussians compose as sqrt(a²+b²); one blur
             // render ≈ sigma of 0.45·radius). Each flying piece blends the two levels
@@ -525,7 +561,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             const halfRT = pool.get("assemblyBlurHalf", halfSize.width, halfSize.height, { linear: true });
             const fullRT = pool.get("assemblyBlurFull", halfSize.width, halfSize.height, { linear: true });
             const blurTempRT = pool.get("assemblyBlurTemp", halfSize.width, halfSize.height, { linear: true });
-            const sigmaPx = (assembly.blurPx * halfSize.width) / Math.max(1, cssW);
+            const sigmaPx = (blurPx * halfSize.width) / Math.max(1, cssW);
             blurPass.copy(fieldRT.texture, quarterRT);
             blurPass.render(quarterRT.texture, blurTempRT, quarterRT, (sigmaPx * 0.25) / 0.45, halfSize);
             blurPass.render(quarterRT.texture, blurTempRT, halfRT, (sigmaPx * (Math.sqrt(3) / 4)) / 0.45, halfSize);
@@ -546,8 +582,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             spawnDist: 1.6,
             scatter: [assembly.scatterPx / Math.max(1, cssW), assembly.scatterPx / Math.max(1, cssH)],
             angleJitter: (assembly.angleJitterDeg * Math.PI) / 180,
-            sigmaUv: [assembly.blurPx / Math.max(1, cssW), assembly.blurPx / Math.max(1, cssH)],
-            blurStart: assembly.blurStart,
+            sigmaUv: [blurPx / Math.max(1, cssW), blurPx / Math.max(1, cssH)],
+            blurStart,
           });
         },
         dispose: () => {
@@ -729,6 +765,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
               name: "letterData",
               render: () => {
                 const { cols, rows } = cellGrid;
+                if (config.letters.mode === "text") {
+                  ensureTextGlyphMap(cols, rows);
+                  return;
+                }
                 const cellRT = pool.get("cell", cols, rows);
                 const glyphDataRT = pool.get("glyphData", cols, rows);
                 const topBandThreshold = Math.max(...config.stripes.map((s) => s.startFrom));
@@ -740,6 +780,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                   timeSec: clock.now() / 1000,
                   charsetLen: LETTER_CHARSET_LEN,
                   shuffleSpeed: config.letters.shuffleSpeed,
+                  positionX: config.letters.positionX,
+                  positionY: config.letters.positionY,
+                  areaWidth: config.letters.areaWidth,
+                  areaHeight: config.letters.areaHeight,
                 });
               },
               dispose: () => letterDataPass.dispose(),
@@ -748,6 +792,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         : [];
       passes = [
         fieldPass,
+        ...starsFieldPasses,
         ...flamesFieldPasses,
         ...revealFieldPasses,
         ...edgeMaskFieldPasses,
@@ -770,42 +815,30 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             const { cols, rows } = cellGrid;
             const inputRT = pool.get("cell", cols, rows);
             const timeSec = clock.now() / 1000;
-            const gapSpeed = Math.max(0.05, config.sparkle.gaps.speed);
-            const gapPeriodMin = 0.21 / gapSpeed;
-            const gapPeriodMax = 0.55 / gapSpeed;
-            const shufflePeriodMin = config.sparkle.width.swingPeriodMin;
-            const shufflePeriodMax = config.sparkle.width.swingPeriodMax;
+            const glyphDataTex =
+              lettersEnabled && config.letters.mode === "text"
+                ? ensureTextGlyphMap(cols, rows)
+                : lettersEnabled
+                  ? pool.get("glyphData", cols, rows).texture
+                  : letterResources.dummyTex!;
             stripePass.render(
               inputRT.texture,
               stripeLutTex!,
-              {
-                cellW: config.grid.cellWidth,
-                cellH: config.grid.cellHeight,
-                cornerRadius: config.grid.cornerRadius,
-                orientation: config.grid.orientation === "horizontal" ? 1 : 0,
+              buildStripeRenderOpts(config, {
                 cols,
                 rows,
-                background: config.background.color,
-                transparent: config.background.transparent,
+                displayW: cssW,
+                displayH: cssH,
                 dpr: getDpr(),
                 timeSec,
-                gapEnabled: config.sparkle.gaps.enabled,
-                gapCoverage: config.sparkle.gaps.coverage,
-                gapPeriodMin,
-                gapPeriodMax,
-                shuffleEnabled: config.sparkle.width.enabled,
-                shuffleCoverage: config.sparkle.width.coverage,
-                shufflePeriodMin,
-                shufflePeriodMax,
-                shuffleSwingPx: config.sparkle.width.swingPx,
                 lettersEnabled,
-                glyphDataTex: lettersEnabled ? pool.get("glyphData", cols, rows).texture : lettersDummyTex!,
-                atlasTex: letterAtlasTex!,
-                atlasGrid: letterAtlasGrid,
-                letterSizeScale: config.letters.sizeScale,
-                useCellColors: colorsModeActive,
-                cellColorTex: colorsModeActive ? pool.get("cellColor", cols, rows).texture : lettersDummyTex!,
-              },
+                colorsMode: colorsModeActive,
+                glyphDataTex,
+                atlasTex: letterResources.atlasTex!,
+                atlasGrid: letterResources.atlasGrid,
+                cellColorTex: colorsModeActive ? pool.get("cellColor", cols, rows).texture : letterResources.dummyTex!,
+                opacityTex: stripeOpacityLutTex!,
+              }),
               output.width,
               output.height,
               stylizePass ? pool.get("stripeOut", output.width, output.height, { linear: true }) : null,
@@ -856,6 +889,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       const presentPass = createPresentPass(gl, quad);
       passes = [
         fieldPass,
+        ...starsFieldPasses,
         ...flamesFieldPasses,
         ...revealFieldPasses,
         ...edgeMaskFieldPasses,
@@ -916,18 +950,19 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     source = null;
     // LUT texture is on the old context; reset so ensureLut() recreates it.
     stripeLutTex = null;
+    stripeOpacityLutTex = null;
     lutSig = "";
-    letterAtlasTex = null;
-    lettersDummyTex = null;
+    letterResources.reset(gl);
     colorsMrt = null;
     colorDistPass = createColorDistPass(gl, quad);
     maxReducePass = createMaxReducePass(gl, quad);
     flamesState = createFlamesState(mulberry32(flamesSeed));
+    starsState = createStarsState(mulberry32(starsSeed));
     cursorTrailState = createCursorTrailState();
     clickWaveState = createClickWaveState();
     lastCursorMs = clock.now();
     ensureLut();
-    ensureLetterAtlas();
+    letterResources.ensureAtlas(config.letters.fontFamily);
     buildPasses();
     applySizes();
   }
@@ -945,7 +980,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   colorDistPass = createColorDistPass(gl, quad);
   maxReducePass = createMaxReducePass(gl, quad);
   ensureLut();
-  ensureLetterAtlas();
+  letterResources.ensureAtlas(config.letters.fontFamily);
   buildPasses();
   applySizes();
 
@@ -1013,6 +1048,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     setConfig(partial) {
       config = normalizeEngineConfig({ ...config, ...partial });
       ensureLut();
+      letterResources.ensureAtlas(config.letters.fontFamily);
       applySizes();
       if (config.colors.mode === "colors" && colorInputSig() !== lastColorInputSig) computeMaxColorDist();
       const assemblyTopo = config.reveal.enabled && config.reveal.type === "assembly";
@@ -1026,10 +1062,14 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
         config.clickWave.enabled !== lastClickWaveEnabled ||
         config.letters.enabled !== lastLettersEnabled ||
-        config.colors.mode !== lastColorsMode
+        config.colors.mode !== lastColorsMode ||
+        config.background.stars.enabled !== lastStarsEnabled
       ) {
         if (config.flames.enabled && !lastFlamesEnabled) {
           flamesState = createFlamesState(mulberry32(flamesSeed));
+        }
+        if (config.background.stars.enabled && !lastStarsEnabled) {
+          starsState = createStarsState(mulberry32(starsSeed));
         }
         if (config.cursorTrail.enabled && !lastCursorTrailEnabled) {
           cursorTrailState = createCursorTrailState();
@@ -1050,6 +1090,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastClickWaveEnabled = config.clickWave.enabled;
         lastLettersEnabled = config.letters.enabled;
         lastColorsMode = config.colors.mode;
+        lastStarsEnabled = config.background.stars.enabled;
       }
     },
     setCursor(x, y) {
@@ -1123,14 +1164,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         gl.deleteTexture(stripeLutTex);
         stripeLutTex = null;
       }
-      if (letterAtlasTex) {
-        gl.deleteTexture(letterAtlasTex);
-        letterAtlasTex = null;
+      if (stripeOpacityLutTex) {
+        gl.deleteTexture(stripeOpacityLutTex);
+        stripeOpacityLutTex = null;
       }
-      if (lettersDummyTex) {
-        gl.deleteTexture(lettersDummyTex);
-        lettersDummyTex = null;
-      }
+      letterResources.dispose();
     },
   };
 }

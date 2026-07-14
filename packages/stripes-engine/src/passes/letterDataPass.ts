@@ -12,6 +12,8 @@ export function createLetterDataPass(gl: WebGL2RenderingContext, quad: { draw():
   const uTimeSec = gl.getUniformLocation(program, "uTimeSec");
   const uCharsetLen = gl.getUniformLocation(program, "uCharsetLen");
   const uShuffleSpeed = gl.getUniformLocation(program, "uShuffleSpeed");
+  const uPosition = gl.getUniformLocation(program, "uPosition");
+  const uArea = gl.getUniformLocation(program, "uArea");
 
   return {
     render(
@@ -25,6 +27,10 @@ export function createLetterDataPass(gl: WebGL2RenderingContext, quad: { draw():
         timeSec: number;
         charsetLen: number;
         shuffleSpeed: number;
+        positionX: number;
+        positionY: number;
+        areaWidth: number;
+        areaHeight: number;
       },
     ) {
       bindRenderTarget(gl, target);
@@ -38,6 +44,8 @@ export function createLetterDataPass(gl: WebGL2RenderingContext, quad: { draw():
       gl.uniform1f(uTimeSec, p.timeSec);
       gl.uniform1f(uCharsetLen, p.charsetLen);
       gl.uniform1f(uShuffleSpeed, p.shuffleSpeed);
+      gl.uniform2f(uPosition, p.positionX, p.positionY);
+      gl.uniform2f(uArea, p.areaWidth, p.areaHeight);
       quad.draw();
     },
     dispose() {

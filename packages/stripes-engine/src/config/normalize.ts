@@ -16,6 +16,10 @@ import type {
   LettersConfig,
   ColorsConfig,
   RenderMode,
+  GradientConfig,
+  GradientDirection,
+  MotionDirection,
+  StripeBlendMode,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -34,9 +38,100 @@ export function normalizeTransform(i: Partial<Transform> = {}): Transform {
   };
 }
 
-export const DEFAULT_BACKGROUND: Background = { color: 0xffffff, transparent: false };
-export function normalizeBackground(i: Partial<Background> = {}): Background {
-  return { color: Math.round(clamp(num(i.color, 0xffffff), 0, 0xffffff)), transparent: !!i.transparent };
+export const GRADIENT_DIRECTIONS: GradientDirection[] = ["topToBottom", "leftToRight", "rightToLeft", "bottomToTop"];
+export function gradientDirectionIndex(d: GradientDirection): number {
+  return GRADIENT_DIRECTIONS.indexOf(d);
+}
+export const DEFAULT_GRADIENT: GradientConfig = {
+  direction: "topToBottom",
+  stopCount: 2,
+  stops: [0xffffff, 0, 0, 0],
+};
+export function normalizeGradient(i: Partial<GradientConfig> = {}): GradientConfig {
+  const stops = Array.isArray(i.stops) ? i.stops : [];
+  return {
+    direction: GRADIENT_DIRECTIONS.includes(i.direction as GradientDirection)
+      ? (i.direction as GradientDirection)
+      : DEFAULT_GRADIENT.direction,
+    stopCount: Math.round(clamp(num(i.stopCount, DEFAULT_GRADIENT.stopCount), 2, 4)),
+    stops: [0, 1, 2, 3].map((k) => Math.round(clamp(num(stops[k], DEFAULT_GRADIENT.stops[k]), 0, 0xffffff))),
+  };
+}
+
+export const DEFAULT_BACKGROUND: Background = {
+  color: 0xffffff,
+  transparent: true,
+  gradient: { enabled: false, ...DEFAULT_GRADIENT, stops: [...DEFAULT_GRADIENT.stops] },
+  grid: {
+    enabled: false,
+    cellWidth: 96,
+    cellHeight: 96,
+    gapX: 8,
+    gapY: 8,
+    cornerRadius: 0,
+    color: 0xf3f3f3,
+    opacity: 1,
+  },
+  stars: {
+    enabled: false,
+    density: 50,
+    sizePx: 8,
+    sizeRandomness: 0.65,
+    tiltAngleDeg: 0,
+    twinkleSpeed: 1,
+    twinkleAmount: 0.7,
+    opacity: 0.8,
+    color: 0xffffff,
+  },
+};
+
+type PartialBackground = {
+  color?: unknown;
+  transparent?: unknown;
+  gradient?: Partial<Background["gradient"]>;
+  grid?: Partial<Background["grid"]>;
+  stars?: Partial<Background["stars"]>;
+};
+
+export function normalizeBackground(i: PartialBackground = {}): Background {
+  const g = i.grid ?? {};
+  const s = i.stars ?? {};
+  const gr = i.gradient ?? {};
+  const cellWidth = clamp(Math.round(num(g.cellWidth, DEFAULT_BACKGROUND.grid.cellWidth)), 4, 512);
+  const cellHeight = clamp(Math.round(num(g.cellHeight, DEFAULT_BACKGROUND.grid.cellHeight)), 4, 512);
+  return {
+    color: Math.round(clamp(num(i.color, DEFAULT_BACKGROUND.color), 0, 0xffffff)),
+    transparent: i.transparent === undefined ? DEFAULT_BACKGROUND.transparent : !!i.transparent,
+    gradient: {
+      enabled: gr.enabled === undefined ? DEFAULT_BACKGROUND.gradient.enabled : !!gr.enabled,
+      ...normalizeGradient(gr),
+    },
+    grid: {
+      enabled: g.enabled === undefined ? DEFAULT_BACKGROUND.grid.enabled : !!g.enabled,
+      cellWidth,
+      cellHeight,
+      gapX: clamp(num(g.gapX, DEFAULT_BACKGROUND.grid.gapX), 0, cellWidth),
+      gapY: clamp(num(g.gapY, DEFAULT_BACKGROUND.grid.gapY), 0, cellHeight),
+      cornerRadius: clamp(
+        num(g.cornerRadius, DEFAULT_BACKGROUND.grid.cornerRadius),
+        0,
+        Math.max(cellWidth, cellHeight),
+      ),
+      color: Math.round(clamp(num(g.color, DEFAULT_BACKGROUND.grid.color), 0, 0xffffff)),
+      opacity: clamp(num(g.opacity, DEFAULT_BACKGROUND.grid.opacity), 0, 1),
+    },
+    stars: {
+      enabled: s.enabled === undefined ? DEFAULT_BACKGROUND.stars.enabled : !!s.enabled,
+      density: clamp(num(s.density, DEFAULT_BACKGROUND.stars.density), 0, 100),
+      sizePx: clamp(num(s.sizePx, DEFAULT_BACKGROUND.stars.sizePx), 0.25, 64),
+      sizeRandomness: clamp(num(s.sizeRandomness, DEFAULT_BACKGROUND.stars.sizeRandomness), 0, 1),
+      tiltAngleDeg: clamp(num(s.tiltAngleDeg, DEFAULT_BACKGROUND.stars.tiltAngleDeg), -89, 89),
+      twinkleSpeed: clamp(num(s.twinkleSpeed, DEFAULT_BACKGROUND.stars.twinkleSpeed), 0, 10),
+      twinkleAmount: clamp(num(s.twinkleAmount, DEFAULT_BACKGROUND.stars.twinkleAmount), 0, 1),
+      opacity: clamp(num(s.opacity, DEFAULT_BACKGROUND.stars.opacity), 0, 1),
+      color: Math.round(clamp(num(s.color, DEFAULT_BACKGROUND.stars.color), 0, 0xffffff)),
+    },
+  };
 }
 
 export const DEFAULT_GRID: Grid = {
@@ -46,17 +141,22 @@ export const DEFAULT_GRID: Grid = {
   gapY: 0,
   cornerRadius: 0,
   orientation: "vertical",
+  angleDeg: 0,
+  rotationMode: "cell",
 };
 export function normalizeGrid(i: Partial<Grid> = {}): Grid {
   const cellWidth = clamp(Math.round(num(i.cellWidth, 7)), 1, 64);
   const cellHeight = clamp(Math.round(num(i.cellHeight, 7)), 1, 64);
+  const orientation = i.orientation === "horizontal" ? "horizontal" : "vertical";
   return {
     cellWidth,
     cellHeight,
     gapX: clamp(num(i.gapX, 0), 0, cellWidth),
     gapY: clamp(num(i.gapY, 0), 0, cellHeight),
     cornerRadius: clamp(num(i.cornerRadius, 0), 0, Math.max(cellWidth, cellHeight)),
-    orientation: i.orientation === "horizontal" ? "horizontal" : "vertical",
+    orientation,
+    angleDeg: clamp(num(i.angleDeg, orientation === "horizontal" ? 90 : 0), -180, 180),
+    rotationMode: i.rotationMode === "global" ? "global" : "cell",
   };
 }
 
@@ -93,18 +193,19 @@ export function normalizeAdjustments(i: Partial<Adjustments> = {}): Adjustments 
 }
 
 export const DEFAULT_STRIPES: Stripe[] = [
-  { color: 0xf3f3f3, startFrom: 0.12, width: 1 },
-  { color: 0xfada98, startFrom: 0.28, width: 1 },
-  { color: 0xf8bd70, startFrom: 0.44, width: 2 },
-  { color: 0xf69e4d, startFrom: 0.6, width: 3 },
-  { color: 0xf27c33, startFrom: 0.76, width: 4 },
-  { color: 0xeb5729, startFrom: 0.9, width: 5 },
+  { color: 0xf3f3f3, startFrom: 0.12, width: 1, opacity: 1 },
+  { color: 0xfada98, startFrom: 0.28, width: 1, opacity: 1 },
+  { color: 0xf8bd70, startFrom: 0.44, width: 2, opacity: 1 },
+  { color: 0xf69e4d, startFrom: 0.6, width: 3, opacity: 1 },
+  { color: 0xf27c33, startFrom: 0.76, width: 4, opacity: 1 },
+  { color: 0xeb5729, startFrom: 0.9, width: 5, opacity: 1 },
 ];
 export function normalizeStripe(i: Partial<Stripe>): Stripe {
   return {
     color: Math.round(clamp(num(i.color, 0), 0, 0xffffff)),
     startFrom: clamp(num(i.startFrom, 0), 0, 1),
-    width: clamp(Math.round(num(i.width, 1)), 1, 64),
+    width: clamp(num(i.width, 1), 0.5, 64),
+    opacity: clamp(num(i.opacity, 1), 0, 1),
   };
 }
 export function normalizeStripes(i: Partial<Stripe>[] | undefined, fallback: Stripe[]): Stripe[] {
@@ -173,25 +274,32 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
       staggerMs: clamp(Math.round(num(a.staggerMs, DEFAULT_REVEAL.assembly.staggerMs)), 0, 30000),
       scatterPx: clamp(Math.round(num(a.scatterPx, DEFAULT_REVEAL.assembly.scatterPx)), 0, 300),
       angleJitterDeg: clamp(num(a.angleJitterDeg, DEFAULT_REVEAL.assembly.angleJitterDeg), 0, 90),
-      blurPx: clamp(num(a.blurPx, DEFAULT_REVEAL.assembly.blurPx), 0, 50),
-      blurStart: clamp(num(a.blurStart, DEFAULT_REVEAL.assembly.blurStart), 0, 0.95),
+      blurPx: clamp(num(a.blurPx, DEFAULT_REVEAL.assembly.blurPx ?? 17.5), 0, 50),
+      blurStart: clamp(num(a.blurStart, DEFAULT_REVEAL.assembly.blurStart ?? 0.45), 0, 0.95),
     },
   };
 }
 
+export const MOTION_DIRECTIONS: MotionDirection[] = ["leftToRight", "rightToLeft", "topToBottom", "bottomToTop"];
+export function motionDirectionIndex(d: MotionDirection): number {
+  return MOTION_DIRECTIONS.indexOf(d);
+}
 export const DEFAULT_SPARKLE: SparkleConfig = {
   gaps: { enabled: false, coverage: 0.22, speed: 1 },
   width: { enabled: false, coverage: 0.3, swingPx: 1.25, swingPeriodMin: 0.21, swingPeriodMax: 0.55 },
+  motion: { enabled: false, amplitudePx: 4, staggerPx: 24, maxOffsetPx: 12, speed: 1, direction: "leftToRight" },
 };
 
 type PartialSparkle = {
   gaps?: Partial<SparkleConfig["gaps"]>;
   width?: Partial<SparkleConfig["width"]>;
+  motion?: Partial<SparkleConfig["motion"]>;
 };
 
 export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
   const g = i.gaps ?? {};
   const w = i.width ?? {};
+  const m = i.motion ?? {};
   return {
     gaps: {
       enabled: g.enabled !== undefined ? !!g.enabled : DEFAULT_SPARKLE.gaps.enabled,
@@ -204,6 +312,16 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
       swingPx: clamp(num(w.swingPx, DEFAULT_SPARKLE.width.swingPx), 0, 40),
       swingPeriodMin: clamp(num(w.swingPeriodMin, DEFAULT_SPARKLE.width.swingPeriodMin), 0.02, 5),
       swingPeriodMax: clamp(num(w.swingPeriodMax, DEFAULT_SPARKLE.width.swingPeriodMax), 0.02, 5),
+    },
+    motion: {
+      enabled: m.enabled !== undefined ? !!m.enabled : DEFAULT_SPARKLE.motion.enabled,
+      amplitudePx: clamp(num(m.amplitudePx, DEFAULT_SPARKLE.motion.amplitudePx), 0, 64),
+      staggerPx: clamp(num(m.staggerPx, DEFAULT_SPARKLE.motion.staggerPx), 1, 512),
+      maxOffsetPx: clamp(num(m.maxOffsetPx, DEFAULT_SPARKLE.motion.maxOffsetPx), 0, 128),
+      speed: Math.max(0.05, num(m.speed, DEFAULT_SPARKLE.motion.speed)),
+      direction: MOTION_DIRECTIONS.includes(m.direction as MotionDirection)
+        ? (m.direction as MotionDirection)
+        : DEFAULT_SPARKLE.motion.direction,
     },
   };
 }
@@ -371,35 +489,90 @@ export function normalizeClickWave(i: PartialClickWave = {}): ClickWaveConfig {
 
 export const DEFAULT_LETTERS: LettersConfig = {
   enabled: false,
+  mode: "random",
   coverage: 0.1,
+  positionX: 0.5,
+  positionY: 0.5,
+  areaWidth: 1,
+  areaHeight: 1,
+  text: "CF",
+  textCopies: 1,
+  fontFamily: "monospace",
   sizeScale: 0.9,
   shuffleSpeed: 1,
 };
+
+export const LETTER_FONT_FAMILIES: string[] = [
+  "monospace",
+  "Arial, sans-serif",
+  "Georgia, serif",
+  '"Courier New", monospace',
+  '"Times New Roman", serif',
+  "Impact, fantasy",
+];
+const LETTER_FONT_FAMILY_SET = new Set(LETTER_FONT_FAMILIES);
 
 type PartialLetters = Partial<LettersConfig>;
 
 export function normalizeLetters(i: PartialLetters = {}): LettersConfig {
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_LETTERS.enabled,
+    mode: i.mode === "text" ? "text" : "random",
     coverage: clamp(num(i.coverage, DEFAULT_LETTERS.coverage), 0, 1),
+    positionX: clamp(num(i.positionX, DEFAULT_LETTERS.positionX), 0, 1),
+    positionY: clamp(num(i.positionY, DEFAULT_LETTERS.positionY), 0, 1),
+    areaWidth: clamp(num(i.areaWidth, DEFAULT_LETTERS.areaWidth), 0.01, 1),
+    areaHeight: clamp(num(i.areaHeight, DEFAULT_LETTERS.areaHeight), 0.01, 1),
+    text: typeof i.text === "string" ? i.text.slice(0, 512) : DEFAULT_LETTERS.text,
+    textCopies: clampInt(num(i.textCopies, DEFAULT_LETTERS.textCopies), 1, 100),
+    fontFamily:
+      typeof i.fontFamily === "string" && LETTER_FONT_FAMILY_SET.has(i.fontFamily)
+        ? i.fontFamily
+        : DEFAULT_LETTERS.fontFamily,
     sizeScale: clamp(num(i.sizeScale, DEFAULT_LETTERS.sizeScale), 0.1, 1),
     shuffleSpeed: clamp(num(i.shuffleSpeed, DEFAULT_LETTERS.shuffleSpeed), 0.05, 10),
   };
 }
 
+export const STRIPE_BLEND_MODES: StripeBlendMode[] = [
+  "normal",
+  "multiply",
+  "screen",
+  "overlay",
+  "darken",
+  "lighten",
+  "difference",
+  "exclusion",
+];
+export const STRIPE_BLEND_MODE_INDEX: Record<StripeBlendMode, number> = Object.fromEntries(
+  STRIPE_BLEND_MODES.map((mode, index) => [mode, index]),
+) as Record<StripeBlendMode, number>;
+
 export const DEFAULT_COLORS: ColorsConfig = {
   mode: "luminance",
+  stripeBlendMode: "normal",
   autoDetectBackground: true,
   backgroundColor: 0x000000,
+  gradient: { ...DEFAULT_GRADIENT, stops: [...DEFAULT_GRADIENT.stops] },
 };
 
-type PartialColors = Partial<ColorsConfig>;
+type PartialColors = {
+  mode?: unknown;
+  stripeBlendMode?: unknown;
+  autoDetectBackground?: unknown;
+  backgroundColor?: unknown;
+  gradient?: Partial<GradientConfig>;
+};
 
 export function normalizeColors(i: PartialColors = {}): ColorsConfig {
   return {
     mode: i.mode === "colors" ? "colors" : "luminance",
+    stripeBlendMode: STRIPE_BLEND_MODES.includes(i.stripeBlendMode as StripeBlendMode)
+      ? (i.stripeBlendMode as StripeBlendMode)
+      : DEFAULT_COLORS.stripeBlendMode,
     autoDetectBackground: i.autoDetectBackground !== undefined ? !!i.autoDetectBackground : true,
     backgroundColor: Math.round(clamp(num(i.backgroundColor, 0), 0, 0xffffff)),
+    gradient: normalizeGradient(i.gradient),
   };
 }
 
@@ -439,7 +612,11 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   stripesEnabled: true,
   fieldScale: 1,
   reveal: { ...DEFAULT_REVEAL, wave: { ...DEFAULT_REVEAL.wave }, assembly: { ...DEFAULT_REVEAL.assembly } },
-  sparkle: { gaps: { ...DEFAULT_SPARKLE.gaps }, width: { ...DEFAULT_SPARKLE.width } },
+  sparkle: {
+    gaps: { ...DEFAULT_SPARKLE.gaps },
+    width: { ...DEFAULT_SPARKLE.width },
+    motion: { ...DEFAULT_SPARKLE.motion },
+  },
   flames: { ...DEFAULT_FLAMES },
   edgeMask: { ...DEFAULT_EDGE_MASK },
   cursorTrail: { ...DEFAULT_CURSOR_TRAIL },

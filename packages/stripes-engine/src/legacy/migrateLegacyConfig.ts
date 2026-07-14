@@ -1,5 +1,6 @@
 /** @deprecated legacy-config shim — delete once old configs are gone */
 import type { EngineConfig, Stripe } from "../config/types";
+import { normalizeBackground } from "../config/normalize";
 import type { LegacyStripe, LegacyRevealConfig } from "./legacyTypes";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -14,6 +15,7 @@ function migrateStripe(s: LegacyStripe): Stripe {
     color,
     startFrom: typeof s.startFrom === "number" ? s.startFrom : 0,
     width: typeof s.width === "number" ? s.width : 1,
+    opacity: 1,
   };
 }
 
@@ -49,7 +51,8 @@ export function migrateLegacyConfig(old: unknown): Partial<EngineConfig> {
   if (asRecord(o.textureAdjustments)) out.adjustments = o.textureAdjustments as EngineConfig["adjustments"];
   if (asRecord(o.sourceTransform)) out.transform = o.sourceTransform as EngineConfig["transform"];
   if (asRecord(o.grid)) out.grid = o.grid as EngineConfig["grid"];
-  if (typeof o.backgroundColor === "number") out.background = { color: o.backgroundColor, transparent: false };
+  if (typeof o.backgroundColor === "number")
+    out.background = normalizeBackground({ color: o.backgroundColor, transparent: false });
   if (Array.isArray(o.stripes)) out.stripes = (o.stripes as LegacyStripe[]).map(migrateStripe);
   if (typeof o.stripesEnabled === "boolean") out.stripesEnabled = o.stripesEnabled;
   if (asRecord(o.reveal)) out.reveal = migrateReveal(o.reveal as LegacyRevealConfig);

@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  mulberry32,
   createFlamesState,
   stepFlames,
   flamesGradientStops,
   flamesSpeedRange,
   isVerticalFlamesDirection,
 } from "./flamesSim";
+import { mulberry32 } from "../core/rng";
 import type { FlamesConfig } from "../config/types";
 
 const BASE_CONFIG: FlamesConfig = {

@@ -1,3 +1,7 @@
+export function unpackRgb(color: number): [number, number, number] {
+  return [((color >> 16) & 255) / 255, ((color >> 8) & 255) / 255, (color & 255) / 255];
+}
+
 export function pixelLuminance(r: number, g: number, b: number): number {
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }
