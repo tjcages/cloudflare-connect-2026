@@ -61,6 +61,7 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
     orientation: "vertical",
     angleDeg: 0,
     rotationMode: "cell",
+    overlapAmount: 1,
   },
   stripes: [
     {

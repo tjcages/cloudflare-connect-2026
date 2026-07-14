@@ -829,7 +829,19 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
             label: "Rotate stacks",
           },
           orientationAngleDeg: { value: d.grid.angleDeg, min: -180, max: 180, step: 1, label: "Orientation °" },
-          orientationWholeRotation: { value: d.grid.rotationMode === "global", label: "Whole rotation" },
+          orientationRotationMode: {
+            value: d.grid.rotationMode === "overlap" ? "overlap" : "cell",
+            options: { Cell: "cell", Overlap: "overlap" } as const,
+            label: "Rotation mode",
+          },
+          orientationOverlapAmount: {
+            value: d.grid.overlapAmount,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Overlap amount",
+            render: (get) => get("Grid.orientationRotationMode") === "overlap",
+          },
           orientationShortcuts: buttonGroup({
             label: "Shortcuts",
             opts: {
@@ -1822,7 +1834,8 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
       cornerRadius: values.cornerRadius,
       orientation: values.orientationStackMode,
       angleDeg: values.orientationAngleDeg,
-      rotationMode: values.orientationWholeRotation ? "global" : "cell",
+      rotationMode: values.orientationRotationMode === "overlap" ? "overlap" : "cell",
+      overlapAmount: values.orientationOverlapAmount,
     },
     stripesEnabled: values.stripesEnabled,
     renderMode: "sharp",

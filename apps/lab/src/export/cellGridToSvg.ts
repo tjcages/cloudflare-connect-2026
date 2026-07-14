@@ -12,7 +12,7 @@ type SvgGradientOptions = {
 };
 type SvgBlendMode = "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "difference" | "exclusion";
 type StripeOrientation = "vertical" | "horizontal";
-type GridRotationMode = "cell" | "global";
+type GridRotationMode = "cell" | "overlap";
 type LettersSvgOptions = {
   enabled: boolean;
   mode: "random" | "text";
@@ -281,6 +281,7 @@ export function cellGridToSvg(
     orientation?: StripeOrientation;
     angleDeg?: number;
     rotationMode?: GridRotationMode;
+    overlapAmount?: number;
     backgroundHex?: string;
     letters?: LettersSvgOptions;
     gradient?: SvgGradientOptions;
@@ -298,6 +299,7 @@ export function cellGridToSvg(
     orientation = "vertical",
     angleDeg,
     rotationMode = "cell",
+    overlapAmount = 1,
     backgroundHex,
     letters,
     gradient,
@@ -308,9 +310,10 @@ export function cellGridToSvg(
   const gapY = Math.max(0, opts.gapY ?? 0);
   const blendStyle = svgBlendStyle(blendMode);
   const resolvedAngleDeg = normalizeAngleDeg(angleDeg, orientation);
-  const globalRotation = rotationMode === "global";
-  const arbitraryAngle = !globalRotation && !isAxisAlignedAngle(resolvedAngleDeg);
-  const effectiveOrientation: StripeOrientation = globalRotation ? "vertical" : orientation;
+  const overlapRotation = rotationMode === "overlap";
+  const resolvedOverlapAmount = overlapRotation ? Math.max(0, Math.min(4, overlapAmount)) : 1;
+  const arbitraryAngle = !isAxisAlignedAngle(resolvedAngleDeg);
+  const effectiveOrientation: StripeOrientation = orientation;
   const gridWidth = cols * cellWidthPx;
   const gridHeight = rows * cellHeightPx;
   const width = Math.max(1, opts.canvasWidthPx ?? gridWidth);
@@ -390,7 +393,7 @@ export function cellGridToSvg(
         const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));
         const stripeWidth = Math.max(MIN_STRIPE_WIDTH_PX, Math.min(stripe.width, drawableStackPx));
         const halfNormal = stripeWidth * 0.5;
-        const halfAxis = drawableAxisPx * 0.5 + halfNormal;
+        const halfAxis = drawableAxisPx * 0.5 + halfNormal * resolvedOverlapAmount;
         const segment = rotatedStripePath(cx, cy, halfNormal, halfAxis, resolvedAngleDeg);
 
         pathsByBand.set(band, pathsByBand.get(band) ?? []);
@@ -425,7 +428,7 @@ export function cellGridToSvg(
             cx,
             cy,
             stripeWidth * 0.5,
-            Math.hypot(cellWidthPx, cellHeightPx),
+            Math.hypot(cellWidthPx, cellHeightPx) * resolvedOverlapAmount,
             resolvedAngleDeg,
           );
           if (useCellColors && colors) {
@@ -527,16 +530,12 @@ export function cellGridToSvg(
   if (useCellColors && !arbitraryAngle) {
     const styleBlock = letterLayer.style ? ["<style>", letterLayer.style, "</style>"].join("\n") : "";
     const cellColorLayer = [cellColorPaths.join("\n"), letterLayer.elements].filter(Boolean).join("\n");
-    const transformedCellColorLayer =
-      globalRotation && Math.abs(resolvedAngleDeg) > 0.001
-        ? `  <g transform="rotate(${formatSvgNumber(resolvedAngleDeg)} ${formatSvgNumber(width / 2)} ${formatSvgNumber(height / 2)})">\n${cellColorLayer}\n  </g>`
-        : cellColorLayer;
     return [
       `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
       gradientDefs,
       backgroundRect,
       styleBlock,
-      transformedCellColorLayer,
+      cellColorLayer,
       `</svg>`,
     ]
       .filter(Boolean)
@@ -572,22 +571,18 @@ export function cellGridToSvg(
     .map((band) => `  <path class="${svgStripeClass(band)}" d="${(pathsByBand.get(band) ?? []).join(" ")}" />`)
     .filter((path) => !path.includes('d=""'))
     .join("\n");
-  const clippedPathElements = clippedStripeElements
-    .sort((a, b) => a.depth - b.depth || a.opacity - b.opacity)
-    .map((item) => item.element)
-    .join("\n");
+  const orderedClippedStripeElements = overlapRotation
+    ? clippedStripeElements
+    : clippedStripeElements.sort((a, b) => a.depth - b.depth || a.opacity - b.opacity);
+  const clippedPathElements = orderedClippedStripeElements.map((item) => item.element).join("\n");
   const stripeLayer = [pathElements, clippedPathElements, letterLayer.elements].filter(Boolean).join("\n");
-  const transformedStripeLayer =
-    globalRotation && Math.abs(resolvedAngleDeg) > 0.001
-      ? `  <g transform="rotate(${formatSvgNumber(resolvedAngleDeg)} ${formatSvgNumber(width / 2)} ${formatSvgNumber(height / 2)})">\n${stripeLayer}\n  </g>`
-      : stripeLayer;
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
     gradientDefs,
     backgroundRect,
     styleBlock,
-    transformedStripeLayer,
+    stripeLayer,
     `</svg>`,
   ]
     .filter(Boolean)

@@ -839,6 +839,7 @@ function LabInner() {
         orientation: cfg.grid.orientation,
         angleDeg: cfg.grid.angleDeg,
         rotationMode: cfg.grid.rotationMode,
+        overlapAmount: cfg.grid.overlapAmount,
         backgroundHex:
           cfg.background.transparent || cfg.background.gradient.enabled
             ? undefined
