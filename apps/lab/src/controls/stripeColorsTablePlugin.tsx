@@ -28,6 +28,7 @@ export type StripeColorsTableRuntime = {
   rampEasingOptions: Readonly<Record<string, string>>;
   rampEasingValue: string;
   showRampEasing: boolean;
+  showColorControls: boolean;
   thresholdEasingOptions: Readonly<Record<string, string>>;
   thresholdEasingValue: string;
   canUndoShuffle: boolean;
@@ -42,6 +43,7 @@ export const stripeColorsTableRuntime: StripeColorsTableRuntime = {
   rampEasingOptions: {},
   rampEasingValue: "",
   showRampEasing: false,
+  showColorControls: true,
   thresholdEasingOptions: {},
   thresholdEasingValue: "",
   canUndoShuffle: false,
@@ -90,6 +92,7 @@ function StripeColorsTablePluginComponent() {
           rampEasingOptions={stripeColorsTableRuntime.rampEasingOptions}
           rampEasingValue={stripeColorsTableRuntime.rampEasingValue}
           showRampEasing={stripeColorsTableRuntime.showRampEasing}
+          showColorControls={stripeColorsTableRuntime.showColorControls}
           thresholdEasingOptions={stripeColorsTableRuntime.thresholdEasingOptions}
           thresholdEasingValue={stripeColorsTableRuntime.thresholdEasingValue}
           canUndoShuffle={stripeColorsTableRuntime.canUndoShuffle}

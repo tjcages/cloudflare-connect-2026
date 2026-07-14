@@ -30,6 +30,34 @@ describe("stripe palette mapping", () => {
     expect(mapped[4].hex).toBe(color("Purple", "600"));
   });
 
+  it("uses a white-background palette ramp from Neutral 1 into the selected group up to 800", () => {
+    const stripes: EditableStripe[] = Array.from({ length: 10 }, (_, index) => ({
+      id: String(index),
+      hex: color("Orange", "1000"),
+      startFrom: 0.1 + index * 0.05,
+      width: 0.5 + index * 0.5,
+      opacity: 0.5,
+    }));
+
+    const mapped = applyStripePalette(stripes, "Blue", "#ffffff");
+
+    expect(mapped.map((stripe) => stripe.hex)).toEqual([
+      color("Neutral", "1"),
+      color("Blue", "0"),
+      color("Blue", "100"),
+      color("Blue", "200"),
+      color("Blue", "300"),
+      color("Blue", "400"),
+      color("Blue", "500"),
+      color("Blue", "600"),
+      color("Blue", "700"),
+      color("Blue", "800"),
+    ]);
+    expect(mapped.map((stripe) => stripe.opacity)).toEqual(Array(10).fill(1));
+    expect(mapped.map((stripe) => stripe.startFrom)).toEqual(stripes.map((stripe) => stripe.startFrom));
+    expect(mapped.map((stripe) => stripe.width)).toEqual(stripes.map((stripe) => stripe.width));
+  });
+
   it("detects a palette from mapped stripe colors", () => {
     const stripes: EditableStripe[] = [
       { id: "1000", hex: color("Purple", "1000"), startFrom: 0.2, width: 1, opacity: 1 },
@@ -59,7 +87,7 @@ describe("stripe palette mapping", () => {
     expect(mapPaletteColor(color("Orange", "900"), "Purple")).toBe(color("Purple", "900"));
   });
 
-  it("adds a white opacity ladder palette without changing threshold or width", () => {
+  it("adds a white eased opacity palette without changing threshold or width", () => {
     const stripes: EditableStripe[] = [
       { id: "a", hex: color("Orange", "1000"), startFrom: 0.2, width: 1, opacity: 1 },
       { id: "b", hex: color("Orange", "900"), startFrom: 0.32, width: 1.5, opacity: 1 },
@@ -69,10 +97,25 @@ describe("stripe palette mapping", () => {
     const mapped = applyStripePalette(stripes, "White");
 
     expect(mapped.map((stripe) => stripe.hex)).toEqual(["#ffffff", "#ffffff", "#ffffff"]);
-    expect(mapped.map((stripe) => stripe.opacity)).toEqual([0.05, 0.1, 0.15]);
+    expect(mapped.map((stripe) => stripe.opacity)).toEqual([0, 0.35, 0.7]);
     expect(mapped.map((stripe) => stripe.startFrom)).toEqual([0.2, 0.32, 0.44]);
     expect(mapped.map((stripe) => stripe.width)).toEqual([1, 1.5, 2]);
     expect(detectStripePalette(mapped)).toBe("White");
+  });
+
+  it("uses the ramp easing curve for white palette opacity", () => {
+    const stripes: EditableStripe[] = [
+      { id: "a", hex: color("Orange", "1000"), startFrom: 0.2, width: 1, opacity: 1 },
+      { id: "b", hex: color("Orange", "900"), startFrom: 0.32, width: 1.5, opacity: 1 },
+      { id: "c", hex: color("Orange", "800"), startFrom: 0.44, width: 2, opacity: 1 },
+    ];
+
+    const linear = applyStripePalette(stripes, "White", undefined, "linear");
+    const easeIn = applyStripePalette(stripes, "White", undefined, "easeInQuad");
+
+    expect(linear.map((stripe) => stripe.opacity)).toEqual([0, 0.35, 0.7]);
+    expect(easeIn.map((stripe) => stripe.opacity)).toEqual([0, 0.175, 0.7]);
+    expect(detectStripePalette(easeIn, undefined, "easeInQuad")).toBe("White");
   });
 
   it("adds a background-driven OKLCH ramp palette with full opacity without changing threshold or width", () => {

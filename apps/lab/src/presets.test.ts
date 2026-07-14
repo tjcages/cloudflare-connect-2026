@@ -9,6 +9,18 @@ const preset = (name: string, tag = name): ConfigPreset => ({
   config: cfg(tag),
 });
 
+const presetWithLab = (name: string): ConfigPreset => ({
+  name,
+  config: cfg(name),
+  lab: {
+    backgroundFillMode: "gradient",
+    stripePalette: "Background Ramp",
+    backgroundRampEasing: "custom:0.1,0,0.2,1",
+    thresholdDistributionEasing: "easeOutQuad",
+    drawerOpen: { Stripes: true },
+  },
+});
+
 describe("preset library transforms", () => {
   it("addPreset appends a new preset", () => {
     const next = addPreset([preset("a")], preset("b"));
@@ -19,6 +31,18 @@ describe("preset library transforms", () => {
     const next = addPreset([preset("a", "old")], preset("a", "new"));
     expect(next).toHaveLength(1);
     expect((next[0].config as unknown as { tag: string }).tag).toBe("new");
+  });
+
+  it("addPreset preserves full lab UI settings on presets", () => {
+    const next = addPreset([], presetWithLab("full"));
+
+    expect(next[0].lab).toMatchObject({
+      backgroundFillMode: "gradient",
+      stripePalette: "Background Ramp",
+      backgroundRampEasing: "custom:0.1,0,0.2,1",
+      thresholdDistributionEasing: "easeOutQuad",
+      drawerOpen: { Stripes: true },
+    });
   });
 
   it("removePreset drops the matching name", () => {

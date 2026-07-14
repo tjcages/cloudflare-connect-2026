@@ -1,6 +1,7 @@
 import { DEFAULT_ENGINE_CONFIG } from "@necatikcl/stripes-engine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  importConfig,
   importSettingsFile,
   DEFAULT_LAB_SETTINGS,
   factoryResetSettings,
@@ -88,7 +89,7 @@ describe("config file import/export", () => {
       grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 3, gapY: 4 },
     });
 
-    const imported = importSettingsFile(text).config;
+    const imported = importConfig(text);
 
     expect(imported.grid?.gapX).toBe(3);
     expect(imported.grid?.gapY).toBe(4);
@@ -119,7 +120,7 @@ describe("config file import/export", () => {
   });
 
   it("still imports raw engine config JSON", () => {
-    const imported = importSettingsFile(JSON.stringify({ grid: { cellWidth: 11 } })).config;
+    const imported = importConfig(JSON.stringify({ grid: { cellWidth: 11 } }));
 
     expect(imported.grid?.cellWidth).toBe(11);
   });

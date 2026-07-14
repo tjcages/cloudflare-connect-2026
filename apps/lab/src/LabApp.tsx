@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type WheelEvent } from "react";
 import {
   createStripesEngine,
   createManualClock,
@@ -24,6 +24,7 @@ import {
   saveLabSettings,
   factoryResetSettings,
   type LabSettings,
+  type LabTextureSourceMode,
 } from "./persistence";
 import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, findTextureEntry, loadFileSource, loadTextureSource } from "./textures";
 import type { LabTextureKind, LoadedTextureSource } from "./textures";
@@ -34,7 +35,11 @@ import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { exportLabVideo } from "./export/videoExport";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
-import { intToHex } from "./lib/color";
+import {
+  createShaderTextureRenderer,
+  DEFAULT_SHADER_TEXTURE_SOURCE,
+  type ShaderTextureRenderer,
+} from "./shaderTextureSource";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -87,11 +92,25 @@ function computeCanvasSize(srcW: number, srcH: number): { cssW: number; cssH: nu
 }
 
 function computeLabCanvasSize(srcW: number, srcH: number, settings: LabSettings): { cssW: number; cssH: number } {
+  if (settings.canvasMode === "original") return computeCanvasSize(srcW, srcH);
+  if (settings.canvasMode === "manual") {
+    return {
+      cssW: Math.max(1, Math.round(settings.canvasWidth)),
+      cssH: Math.max(1, Math.round(settings.canvasHeight)),
+    };
+  }
   const base = computeCanvasSize(srcW, srcH);
   const scale = Number.isFinite(settings.canvasScale) ? Math.max(0.1, Math.min(8, settings.canvasScale)) : 1;
   return {
     cssW: Math.max(1, Math.round(base.cssW * scale)),
     cssH: Math.max(1, Math.round(base.cssH * scale)),
+  };
+}
+
+function shaderOriginalSize(settings: LabSettings): { w: number; h: number } {
+  return {
+    w: Math.max(1, Math.round(settings.shaderSourceWidth)),
+    h: Math.max(1, Math.round(settings.shaderSourceHeight)),
   };
 }
 
@@ -102,6 +121,22 @@ function pointerToEnginePoint(canvas: HTMLCanvasElement, e: PointerEvent): { x: 
   return {
     x: ((e.clientX - rect.left) * engineW) / Math.max(1, rect.width),
     y: ((e.clientY - rect.top) * engineH) / Math.max(1, rect.height),
+  };
+}
+
+function pointerToShaderMouse(
+  canvas: HTMLCanvasElement,
+  renderer: ShaderTextureRenderer,
+  e: PointerEvent,
+  down: boolean,
+): { x: number; y: number; down: boolean } {
+  const point = pointerToEnginePoint(canvas, e);
+  const engineW = Number.parseFloat(canvas.style.width) || canvas.clientWidth || 1;
+  const engineH = Number.parseFloat(canvas.style.height) || canvas.clientHeight || 1;
+  return {
+    x: (point.x / Math.max(1, engineW)) * renderer.width,
+    y: (1 - point.y / Math.max(1, engineH)) * renderer.height,
+    down,
   };
 }
 
@@ -129,7 +164,7 @@ function finalizeLuminanceRange(range: LuminanceAccumulator): LuminanceRange | n
   if (range.seen === 0) return null;
   if (range.max - range.min < 0.01) return { blackPoint: 0, whitePoint: 1 };
   return {
-    blackPoint: Math.max(0, Math.min(0.99, Number(range.min.toFixed(3)))),
+    blackPoint: 0,
     whitePoint: Math.max(0.01, Math.min(1, Number(range.max.toFixed(3)))),
   };
 }
@@ -260,9 +295,61 @@ function LabCanvasSizeControls({
   const disabled = sourceWidth <= 0 || sourceHeight <= 0;
   const scaleOptions = [0.25, 0.5, 1, 2, 3];
   const activeScale = Number.isFinite(settings.canvasScale) ? settings.canvasScale : 1;
+  const isOriginal = settings.canvasMode === "original";
+  const isCustom = settings.canvasMode === "manual";
+  const aspect = Math.max(1, cssW) / Math.max(1, cssH);
+  const applyOriginal = () => {
+    const base = computeCanvasSize(sourceWidth, sourceHeight);
+    onSettings({ canvasMode: "original", canvasScale: 1, canvasWidth: base.cssW, canvasHeight: base.cssH });
+  };
+  const applyCustom = () => {
+    onSettings({ canvasMode: "manual", canvasWidth: cssW, canvasHeight: cssH });
+  };
+  const setCanvasWidth = (value: string) => {
+    const width = Math.max(1, Math.min(8192, Math.round(Number(value))));
+    if (!Number.isFinite(width)) return;
+    onSettings({
+      canvasMode: "manual",
+      canvasWidth: width,
+      ...(settings.canvasAspectLocked ? { canvasHeight: Math.max(1, Math.min(8192, Math.round(width / aspect))) } : {}),
+    });
+  };
+  const setCanvasHeight = (value: string) => {
+    const height = Math.max(1, Math.min(8192, Math.round(Number(value))));
+    if (!Number.isFinite(height)) return;
+    onSettings({
+      canvasMode: "manual",
+      canvasHeight: height,
+      ...(settings.canvasAspectLocked ? { canvasWidth: Math.max(1, Math.min(8192, Math.round(height * aspect))) } : {}),
+    });
+  };
+  const applyScale = (scale: number) => {
+    const base = computeCanvasSize(sourceWidth, sourceHeight);
+    onSettings({
+      canvasMode: "scale",
+      canvasScale: scale,
+      canvasWidth: Math.max(1, Math.round(base.cssW * scale)),
+      canvasHeight: Math.max(1, Math.round(base.cssH * scale)),
+    });
+  };
 
   return (
     <section className="playground-canvas-size-controls">
+      <div className="playground-canvas-size-row">
+        <div>
+          <span className="playground-canvas-scale-label">Canvas size</span>
+        </div>
+        <div className="playground-canvas-scale-controls">
+          <div className="playground-canvas-scale-buttons">
+            <button type="button" className={isOriginal ? "is-active" : ""} disabled={disabled} onClick={applyOriginal}>
+              Original
+            </button>
+            <button type="button" className={isCustom ? "is-active" : ""} disabled={disabled} onClick={applyCustom}>
+              Custom
+            </button>
+          </div>
+        </div>
+      </div>
       <div className="playground-canvas-size-row">
         <div>
           <span className="playground-canvas-scale-label">Canvas scale</span>
@@ -273,9 +360,9 @@ function LabCanvasSizeControls({
               <button
                 key={scale}
                 type="button"
-                className={Math.abs(activeScale - scale) < 0.001 ? "is-active" : ""}
+                className={settings.canvasMode === "scale" && Math.abs(activeScale - scale) < 0.001 ? "is-active" : ""}
                 disabled={disabled}
-                onClick={() => onSettings({ canvasMode: "scale", canvasScale: scale })}
+                onClick={() => applyScale(scale)}
               >
                 {scale}x
               </button>
@@ -285,10 +372,39 @@ function LabCanvasSizeControls({
       </div>
       <div className="playground-canvas-size-row">
         <div>
-          <span className="playground-canvas-scale-label">Canvas size</span>
+          <span className="playground-canvas-scale-label">Custom size</span>
         </div>
-        <div>
-          <span className="playground-canvas-source-size">{disabled ? "— × —" : `${cssW} × ${cssH}`}</span>
+        <div className="playground-canvas-dimension-controls">
+          <input
+            type="number"
+            min={1}
+            max={8192}
+            step={1}
+            disabled={disabled || !isCustom}
+            value={disabled ? "" : cssW}
+            onChange={(event) => setCanvasWidth(event.currentTarget.value)}
+            aria-label="Canvas width"
+          />
+          <button
+            type="button"
+            className={settings.canvasAspectLocked ? "is-active" : ""}
+            disabled={disabled || !isCustom}
+            onClick={() => onSettings({ canvasAspectLocked: !settings.canvasAspectLocked })}
+            aria-label={settings.canvasAspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+            title={settings.canvasAspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+          >
+            {settings.canvasAspectLocked ? "🔒" : "🔓"}
+          </button>
+          <input
+            type="number"
+            min={1}
+            max={8192}
+            step={1}
+            disabled={disabled || !isCustom}
+            value={disabled ? "" : cssH}
+            onChange={(event) => setCanvasHeight(event.currentTarget.value)}
+            aria-label="Canvas height"
+          />
         </div>
       </div>
     </section>
@@ -436,7 +552,7 @@ function LabBottomBar({ videoEl }: { videoEl: HTMLVideoElement | null }) {
 
 function LabInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const canvasAreaRef = useRef<HTMLDivElement>(null);
+  const shaderPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const configFileInputRef = useRef<HTMLInputElement>(null);
   const engineRef = useRef<StripesEngine | null>(null);
   const manualRef = useRef(false);
@@ -458,12 +574,28 @@ function LabInner() {
     ...loadLabSettings(),
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
   }));
+  const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(
+    () => loadLabSettings().textureSourceMode,
+  );
+  const [shaderSourceCode, setShaderSourceCode] = useState(
+    () => loadLabSettings().shaderSourceCode || DEFAULT_SHADER_TEXTURE_SOURCE,
+  );
+  const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
+  const [shaderPlaying, setShaderPlaying] = useState(true);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [mouseZoomEnabled, setMouseZoomEnabled] = useState(true);
   const [presets, setPresets] = useState<ConfigPreset[]>(() => loadPresets());
   const [selectedPreset, setSelectedPreset] = useState("");
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
+  const textureSourceModeRef = useRef(textureSourceMode);
+  textureSourceModeRef.current = textureSourceMode;
+  const shaderRendererRef = useRef<ShaderTextureRenderer | null>(null);
+  const shaderPlayingRef = useRef(shaderPlaying);
+  shaderPlayingRef.current = shaderPlaying;
+  const shaderTimeSecRef = useRef(0);
+  const shaderLastTickMsRef = useRef(performance.now());
+  const shaderMouseRef = useRef({ x: 0, y: 0, down: false });
   const labSettingsRef = useRef(labSettings);
   labSettingsRef.current = labSettings;
 
@@ -486,7 +618,7 @@ function LabInner() {
     setLabSettings((prev) => {
       const merged = { ...prev, ...next };
       saveLabSettings(merged);
-      return { ...loadLabSettings(), canvasScale: merged.canvasScale };
+      return loadLabSettings();
     });
   }, []);
 
@@ -494,19 +626,16 @@ function LabInner() {
     setPreviewZoom((current) => clampPreviewZoom(typeof next === "function" ? next(current) : next));
   }, []);
 
-  useEffect(() => {
-    const area = canvasAreaRef.current;
-    if (!area) return;
-    const onWheel = (event: WheelEvent) => {
+  const handlePreviewWheel = useCallback(
+    (event: WheelEvent<HTMLDivElement>) => {
       if (!mouseZoomEnabled) return;
       event.preventDefault();
       updatePreviewZoom(
         (current) => current + (event.deltaY < 0 ? CANVAS_PREVIEW_ZOOM_STEP : -CANVAS_PREVIEW_ZOOM_STEP),
       );
-    };
-    area.addEventListener("wheel", onWheel, { passive: false });
-    return () => area.removeEventListener("wheel", onWheel);
-  }, [mouseZoomEnabled, updatePreviewZoom]);
+    },
+    [mouseZoomEnabled, updatePreviewZoom],
+  );
 
   const hud = hudEnabled();
   const manual = useMemo(() => new URLSearchParams(window.location.search).get("manual") === "1", []);
@@ -522,7 +651,7 @@ function LabInner() {
   const videoExportAbortRef = useRef<AbortController | null>(null);
   const {
     config: controls,
-    backgroundFillMode,
+    backgroundSourceOpacity,
     setControl,
     getLabSettingsSnapshot,
     textureId,
@@ -563,6 +692,18 @@ function LabInner() {
       canvas.style.width = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
       engine.resize(cssW, cssH);
+      const shaderRenderer = shaderRendererRef.current;
+      if (textureSourceModeRef.current === "shader" && shaderRenderer) {
+        shaderRenderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+        engine.setSource(shaderRenderer.canvas);
+        engine.updateSourceFrame(shaderRenderer.canvas);
+        const previewCanvas = shaderPreviewCanvasRef.current;
+        if (previewCanvas) {
+          if (previewCanvas.width !== shaderRenderer.width) previewCanvas.width = shaderRenderer.width;
+          if (previewCanvas.height !== shaderRenderer.height) previewCanvas.height = shaderRenderer.height;
+          previewCanvas.getContext("2d")?.drawImage(shaderRenderer.canvas, 0, 0);
+        }
+      }
     },
     [],
   );
@@ -605,6 +746,54 @@ function LabInner() {
     [setTextureId],
   );
 
+  const applyShaderTextureSource = useCallback(
+    (sourceCode: string) => {
+      if (manualRef.current) return;
+      const engine = engineRef.current;
+      const canvas = canvasRef.current;
+      if (!engine) return;
+      if (prevVideoRef.current) {
+        prevVideoRef.current.pause();
+        prevVideoRef.current = null;
+      }
+      textureLoadSeqRef.current++;
+      const shaderBaseSize = shaderOriginalSize(labSettingsRef.current);
+
+      let renderer = shaderRendererRef.current;
+      try {
+        if (!renderer) {
+          renderer = createShaderTextureRenderer(shaderBaseSize.w, shaderBaseSize.h);
+          shaderRendererRef.current = renderer;
+        }
+        renderer.resize(shaderBaseSize.w, shaderBaseSize.h);
+      } catch (error) {
+        setShaderSourceError(error instanceof Error ? error.message : String(error));
+        return;
+      }
+
+      const compileError = renderer.setSource(sourceCode);
+      setShaderSourceError(compileError);
+      if (compileError) return;
+
+      renderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+      engine.setSource(renderer.canvas);
+      setVideoEl(null);
+      setSourcePreview({
+        source: renderer.canvas,
+        video: null,
+        objectUrl: null,
+        width: renderer.width,
+        height: renderer.height,
+      });
+      const src = shaderBaseSize;
+      setSourceSize(src);
+      if (canvas && shell) applyCanvasSize(engine, canvas, src, labSettingsRef.current);
+      if (revealEnabledRef.current) engine.triggerReveal();
+      if (manualRef.current) engine.renderFrame();
+    },
+    [applyCanvasSize, shell],
+  );
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -636,7 +825,7 @@ function LabInner() {
       const canvasWidthPx = Math.round(Number.parseFloat(canvas.style.width) || canvas.clientWidth || canvas.width);
       const canvasHeightPx = Math.round(Number.parseFloat(canvas.style.height) || canvas.clientHeight || canvas.height);
       const stripes = cfg.stripes.map((s) => ({
-        hex: intToHex(s.color),
+        hex: "#" + s.color.toString(16).padStart(6, "0"),
         startFrom: s.startFrom,
         width: s.width,
         opacity: s.opacity,
@@ -651,15 +840,24 @@ function LabInner() {
         angleDeg: cfg.grid.angleDeg,
         rotationMode: cfg.grid.rotationMode,
         backgroundHex:
-          cfg.background.transparent || cfg.background.gradient.enabled ? undefined : intToHex(cfg.background.color),
+          cfg.background.transparent || cfg.background.gradient.enabled
+            ? undefined
+            : "#" + cfg.background.color.toString(16).padStart(6, "0"),
         letters: cfg.letters,
         blendMode: cfg.colors.stripeBlendMode,
+        gradient: cfg.colors.gradient.enabled
+          ? {
+              direction: cfg.colors.gradient.direction,
+              stopCount: cfg.colors.gradient.stopCount,
+              stops: cfg.colors.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
+            }
+          : undefined,
         backgroundGradient:
           !cfg.background.transparent && cfg.background.gradient.enabled
             ? {
                 direction: cfg.background.gradient.direction,
                 stopCount: cfg.background.gradient.stopCount,
-                stops: cfg.background.gradient.stops.map(intToHex),
+                stops: cfg.background.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
               }
             : undefined,
         canvasWidthPx,
@@ -730,9 +928,37 @@ function LabInner() {
     let raf = 0;
     if (!manual) {
       engine.start();
-      loadTextureById(textureIdRef.current);
+      if (textureSourceModeRef.current === "shader") {
+        applyShaderTextureSource(shaderSourceCode);
+      } else {
+        loadTextureById(textureIdRef.current);
+      }
+      let lastSnapAt = 0;
+      let lastShaderPreviewAt = 0;
       const tick = () => {
-        setSnap(engine.getPerf());
+        const now = performance.now();
+        const shaderRenderer = shaderRendererRef.current;
+        if (textureSourceModeRef.current === "shader" && shaderRenderer) {
+          const deltaSec = Math.max(0, Math.min(0.1, (now - shaderLastTickMsRef.current) / 1000));
+          shaderLastTickMsRef.current = now;
+          if (shaderPlayingRef.current) shaderTimeSecRef.current += deltaSec;
+          shaderRenderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+          engine.updateSourceFrame(shaderRenderer.canvas);
+          const previewCanvas = shaderPreviewCanvasRef.current;
+          const previewSizeChanged =
+            !!previewCanvas &&
+            (previewCanvas.width !== shaderRenderer.width || previewCanvas.height !== shaderRenderer.height);
+          if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+            lastShaderPreviewAt = now;
+            if (previewCanvas.width !== shaderRenderer.width) previewCanvas.width = shaderRenderer.width;
+            if (previewCanvas.height !== shaderRenderer.height) previewCanvas.height = shaderRenderer.height;
+            previewCanvas.getContext("2d")?.drawImage(shaderRenderer.canvas, 0, 0);
+          }
+        }
+        if (now - lastSnapAt >= 500) {
+          lastSnapAt = now;
+          setSnap(engine.getPerf());
+        }
         raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
@@ -783,43 +1009,65 @@ function LabInner() {
       if (!engine) return;
       const point = pointerToEnginePoint(canvas, e);
       engine.setCursor(point.x, point.y);
+      const shaderRenderer = shaderRendererRef.current;
+      if (textureSourceModeRef.current === "shader" && shaderRenderer) {
+        shaderMouseRef.current = pointerToShaderMouse(canvas, shaderRenderer, e, shaderMouseRef.current.down);
+      }
     };
     const onLeave = () => {
       const engine = engineRef.current;
       if (!engine) return;
       engine.setCursor(null);
+      shaderMouseRef.current = { ...shaderMouseRef.current, down: false };
     };
     const onDown = (e: PointerEvent) => {
       const engine = engineRef.current;
       if (!engine) return;
       const point = pointerToEnginePoint(canvas, e);
       engine.click(point.x, point.y);
+      canvas.setPointerCapture?.(e.pointerId);
+      const shaderRenderer = shaderRendererRef.current;
+      if (textureSourceModeRef.current === "shader" && shaderRenderer) {
+        shaderMouseRef.current = pointerToShaderMouse(canvas, shaderRenderer, e, true);
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      canvas.releasePointerCapture?.(e.pointerId);
+      const shaderRenderer = shaderRendererRef.current;
+      if (textureSourceModeRef.current === "shader" && shaderRenderer) {
+        shaderMouseRef.current = pointerToShaderMouse(canvas, shaderRenderer, e, false);
+      } else {
+        shaderMouseRef.current = { ...shaderMouseRef.current, down: false };
+      }
     };
     canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("pointerleave", onLeave);
     canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.addEventListener("pointercancel", onUp);
     return () => {
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerleave", onLeave);
       canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointercancel", onUp);
     };
   }, [manual]);
 
-  const lastSavedConfigRef = useRef<string | null>(null);
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
+    const previewConfig =
+      backgroundSourceOpacity > 0.001
+        ? { ...controls, background: { ...controls.background, transparent: true } }
+        : controls;
     const configToApply = manualRef.current
-      ? { ...controls, reveal: { ...controls.reveal, enabled: false } }
-      : controls;
+      ? { ...previewConfig, reveal: { ...previewConfig.reveal, enabled: false } }
+      : previewConfig;
     engine.setConfig(configToApply);
-    const saveKey = `${textureId}\n${JSON.stringify(controls)}`;
-    if (lastSavedConfigRef.current !== saveKey) {
-      lastSavedConfigRef.current = saveKey;
-      saveConfig(textureId, controls);
-    }
+    saveConfig(textureIdRef.current, controls);
     if (manualRef.current) engine.renderFrame();
-  }, [controls, textureId]);
+  }, [controls, backgroundSourceOpacity]);
 
   useEffect(() => {
     setLabSettings((prev) => {
@@ -829,15 +1077,42 @@ function LabInner() {
       const unchanged = JSON.stringify({ ...prev, ...uiSnapshot, backgroundColor }) === JSON.stringify(prev);
       if (unchanged) return prev;
       saveLabSettings(next);
-      return { ...loadLabSettings(), canvasScale: next.canvasScale };
+      return loadLabSettings();
     });
   }, [controls.background.color, controls.background.transparent, getLabSettingsSnapshot]);
 
   useEffect(() => {
     saveTextureId(textureId);
+    if (textureSourceModeRef.current === "texture") loadTextureById(textureId);
+  }, [textureId, loadTextureById]);
+
+  useEffect(() => {
+    saveLabSettings({ ...labSettingsRef.current, textureSourceMode, shaderSourceCode });
+    if (!engineRef.current) return;
+    if (textureSourceMode === "shader") {
+      applyShaderTextureSource(shaderSourceCode);
+    } else {
+      loadTextureById(textureIdRef.current);
+    }
+  }, [textureSourceMode, applyShaderTextureSource, loadTextureById]);
+
+  useEffect(() => {
+    if (textureSourceModeRef.current !== "shader") return;
+    if (!engineRef.current) return;
+    applyShaderTextureSource(shaderSourceCode);
+  }, [
+    labSettings.shaderSourceWidth,
+    labSettings.shaderSourceHeight,
+    labSettings.canvasMode,
+    labSettings.canvasScale,
+    labSettings.canvasWidth,
+    labSettings.canvasHeight,
+    applyShaderTextureSource,
+  ]);
+
+  useEffect(() => {
     saveLabSettings({ ...labSettingsRef.current, ...getLabSettingsSnapshot(), textureId });
-    loadTextureById(textureId);
-  }, [textureId, getLabSettingsSnapshot, loadTextureById]);
+  }, [textureId, getLabSettingsSnapshot]);
 
   function applyLoadedSource(loaded: LoadedTextureSource) {
     const engine = engineRef.current;
@@ -874,7 +1149,15 @@ function LabInner() {
   }
 
   function fullLabSettingsSnapshot(): Partial<LabSettings> {
-    return { ...labSettingsRef.current, ...getLabSettingsSnapshot() };
+    const current = controlsRef.current;
+    const backgroundColor = current.background.transparent ? null : current.background.color;
+    return {
+      ...labSettingsRef.current,
+      ...getLabSettingsSnapshot(),
+      textureSourceMode,
+      shaderSourceCode,
+      backgroundColor,
+    };
   }
 
   function applyImportedSettings(text: string): void {
@@ -956,7 +1239,7 @@ function LabInner() {
     const name = window.prompt("Preset name:")?.trim();
     if (!name) return;
     if (presets.some((p) => p.name === name) && !window.confirm(`Overwrite preset "${name}"?`)) return;
-    const next = addPreset(presets, { name, config: controls });
+    const next = addPreset(presets, { name, config: controls, lab: fullLabSettingsSnapshot() });
     savePresets(next);
     setPresets(next);
     setSelectedPreset(name);
@@ -965,7 +1248,13 @@ function LabInner() {
   function handleApplyPreset() {
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
-    saveConfig(textureIdRef.current, normalizeEngineConfig(preset.config));
+    const targetTextureId = textureIdRef.current;
+    saveConfig(targetTextureId, normalizeEngineConfig(preset.config));
+    if (preset.lab) {
+      saveLabSettings({ ...preset.lab, textureId: targetTextureId });
+      saveControlDrawerSnapshot(preset.lab.drawerOpen);
+      saveTextureId(targetTextureId);
+    }
     window.location.reload();
   }
 
@@ -981,6 +1270,7 @@ function LabInner() {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    saveLabSettings({ ...labSettingsRef.current, textureSourceMode: "texture", shaderSourceCode, canvasScale: 1 });
     const kind: LabTextureKind = file.type.startsWith("video/") ? "video" : "image";
     const id = `upload-${crypto.randomUUID()}`;
     try {
@@ -1004,12 +1294,55 @@ function LabInner() {
     window.location.reload();
   }
 
+  function handleTextureSourceModeChange(next: LabTextureSourceMode) {
+    setTextureSourceMode(next);
+    saveLabSettings({
+      ...labSettingsRef.current,
+      textureSourceMode: next,
+      shaderSourceCode,
+      ...(next === "texture" ? { canvasScale: 1 } : {}),
+    });
+  }
+
+  function handleApplyShaderSource() {
+    setTextureSourceMode("shader");
+    saveLabSettings({ ...labSettingsRef.current, textureSourceMode: "shader", shaderSourceCode });
+    applyShaderTextureSource(shaderSourceCode);
+  }
+
+  function handleResetShaderSource() {
+    setShaderSourceCode(DEFAULT_SHADER_TEXTURE_SOURCE);
+    setShaderSourceError(null);
+    saveLabSettings({ ...labSettingsRef.current, textureSourceMode, shaderSourceCode: DEFAULT_SHADER_TEXTURE_SOURCE });
+    if (textureSourceMode === "shader") applyShaderTextureSource(DEFAULT_SHADER_TEXTURE_SOURCE);
+  }
+
   if (!shell) {
     return <canvas ref={canvasRef} style={{ display: "block" }} />;
   }
 
-  const showSourceBackground = backgroundFillMode === "source" && sourcePreview !== null;
+  const showSourceBackground = backgroundSourceOpacity > 0.001 && sourcePreview !== null;
   const sourceObjectFit = controls.transform.fit === "contain" ? "contain" : "cover";
+  const sourceBackgroundStyle: CSSProperties =
+    controls.transform.fit === "width"
+      ? {
+          left: 0,
+          top: "50%",
+          width: "100%",
+          height: "auto",
+          transform: "translateY(-50%)",
+          opacity: backgroundSourceOpacity,
+        }
+      : controls.transform.fit === "height"
+        ? {
+            left: "50%",
+            top: 0,
+            width: "auto",
+            height: "100%",
+            transform: "translateX(-50%)",
+            opacity: backgroundSourceOpacity,
+          }
+        : { objectFit: sourceObjectFit, opacity: backgroundSourceOpacity };
 
   return (
     <div className="lab-shell">
@@ -1018,24 +1351,116 @@ function LabInner() {
           <img className="lab-sidebar-logo" src="/cf-logo-dev.svg" alt="Cloudflare Stripes" />
           <div className="playground-workflow-controls">
             <div className="wf-field">
-              <span className="wf-field-label">Texture</span>
-              <select className="lab-btn" value={textureId} onChange={(e) => setTextureId(e.target.value)}>
-                {textureOptions.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
+              <span className="wf-field-label">Source</span>
+              <select
+                className="lab-btn"
+                value={textureSourceMode}
+                onChange={(e) => handleTextureSourceModeChange(e.target.value === "shader" ? "shader" : "texture")}
+              >
+                <option value="texture">Texture</option>
+                <option value="shader">Shader</option>
               </select>
             </div>
-            <div className="wf-row">
-              <label className="lab-btn wf-upload">
-                Upload texture
-                <input type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={handleFileChange} />
-              </label>
-              <button className="lab-btn" onClick={handleDeleteTexture} disabled={!canDeleteTexture}>
-                Delete texture
-              </button>
-            </div>
+            {textureSourceMode === "texture" ? (
+              <>
+                <div className="wf-field">
+                  <span className="wf-field-label">Texture</span>
+                  <select className="lab-btn" value={textureId} onChange={(e) => setTextureId(e.target.value)}>
+                    {textureOptions.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="wf-row">
+                  <label className="lab-btn wf-upload">
+                    Upload texture
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      style={{ display: "none" }}
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                  <button className="lab-btn" onClick={handleDeleteTexture} disabled={!canDeleteTexture}>
+                    Delete texture
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="wf-field wf-shader-source">
+                <span className="wf-field-label">Shader resolution</span>
+                <div className="playground-canvas-dimension-controls">
+                  <input
+                    type="number"
+                    min={1}
+                    max={8192}
+                    step={1}
+                    value={labSettings.shaderSourceWidth}
+                    onChange={(event) => {
+                      const width = Math.max(1, Math.min(8192, Math.round(Number(event.currentTarget.value))));
+                      if (!Number.isFinite(width)) return;
+                      updateLabSettings({ shaderSourceWidth: width });
+                    }}
+                    aria-label="Shader source width"
+                  />
+                  <span className="wf-resolution-separator">×</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={8192}
+                    step={1}
+                    value={labSettings.shaderSourceHeight}
+                    onChange={(event) => {
+                      const height = Math.max(1, Math.min(8192, Math.round(Number(event.currentTarget.value))));
+                      if (!Number.isFinite(height)) return;
+                      updateLabSettings({ shaderSourceHeight: height });
+                    }}
+                    aria-label="Shader source height"
+                  />
+                </div>
+                <span className="wf-field-label">Shader source</span>
+                <textarea
+                  className="lab-shader-source-input"
+                  spellCheck={false}
+                  value={shaderSourceCode}
+                  onChange={(event) => {
+                    const next = event.currentTarget.value;
+                    setShaderSourceCode(next);
+                    saveLabSettings({ ...labSettingsRef.current, textureSourceMode: "shader", shaderSourceCode: next });
+                  }}
+                />
+                <div className="wf-row">
+                  <button className="lab-btn" onClick={() => setShaderPlaying((playing) => !playing)}>
+                    {shaderPlaying ? "Pause shader" : "Play shader"}
+                  </button>
+                  <button
+                    className="lab-btn"
+                    onClick={() => {
+                      shaderTimeSecRef.current = 0;
+                      shaderLastTickMsRef.current = performance.now();
+                      const shaderRenderer = shaderRendererRef.current;
+                      if (shaderRenderer) {
+                        shaderRenderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+                        engineRef.current?.updateSourceFrame(shaderRenderer.canvas);
+                      }
+                    }}
+                  >
+                    Reset time
+                  </button>
+                </div>
+                <div className="wf-row">
+                  <button className="lab-btn" onClick={handleApplyShaderSource}>
+                    Apply shader
+                  </button>
+                  <button className="lab-btn" onClick={handleResetShaderSource}>
+                    Reset shader
+                  </button>
+                </div>
+                {shaderSourceError ? <div className="lab-shader-source-error">{shaderSourceError}</div> : null}
+              </div>
+            )}
             <hr className="wf-divider" />
             <div className="wf-field wf-config">
               <span className="wf-field-label">Config</span>
@@ -1116,7 +1541,7 @@ function LabInner() {
         </div>
       </aside>
       <div className="lab-main">
-        <div className="lab-canvas-area" ref={canvasAreaRef}>
+        <div className="lab-canvas-area" onWheel={handlePreviewWheel}>
           <div className="lab-canvas-stage">
             <div
               className="lab-canvas-stack"
@@ -1133,7 +1558,7 @@ function LabInner() {
                   loop
                   autoPlay
                   playsInline
-                  style={{ objectFit: sourceObjectFit }}
+                  style={sourceBackgroundStyle}
                 />
               ) : showSourceBackground && sourcePreview.source instanceof HTMLImageElement ? (
                 <img
@@ -1141,7 +1566,14 @@ function LabInner() {
                   src={sourcePreview.source.currentSrc || sourcePreview.source.src}
                   alt=""
                   aria-hidden="true"
-                  style={{ objectFit: sourceObjectFit }}
+                  style={sourceBackgroundStyle}
+                />
+              ) : showSourceBackground && sourcePreview.source instanceof HTMLCanvasElement ? (
+                <canvas
+                  ref={shaderPreviewCanvasRef}
+                  className="lab-canvas-source-background"
+                  aria-hidden="true"
+                  style={sourceBackgroundStyle}
                 />
               ) : null}
               <canvas

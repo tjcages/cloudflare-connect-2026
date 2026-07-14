@@ -1,8 +1,19 @@
 import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Reorder, useDragControls } from "motion/react";
 import { ChevronDown, ChevronRight, GripVertical, X, Plus } from "lucide-react";
-import { range as levaRange } from "leva/plugin";
+import { Components } from "leva/plugin";
+import {
+  I as Indicator,
+  q as Range,
+  l as RangeWrapper,
+  S as Scrubber,
+  j as invertedRange,
+  r as levaRange,
+  k as sanitizeLevaStep,
+  e as useDrag,
+  d as useTh,
+} from "leva/dist/vector-plugin-5e122f40.esm.js";
 import { HexColorPopover } from "../components/HexColorPopover";
 import { COLOR_LIBRARY, cssColorForHex } from "../components/colorLibrary";
 import { cn } from "../lib/cn";
@@ -11,66 +22,17 @@ import { DEFAULT_CUSTOM_EASING, easeValue, formatCustomEasing, parseCustomEasing
 import type { EditableStripe } from "./stripeAdapter";
 
 const STRIPE_START_FROM_MIN = 0;
-const STRIPE_START_FROM_MAX = 1;
+const STRIPE_START_FROM_MAX = 0.8;
 const STRIPE_WIDTH_MIN = 0.5;
 const STRIPE_WIDTH_MAX = 64;
 const STRIPE_OPACITY_MIN = 0;
 const STRIPE_OPACITY_MAX = 100;
-
-function clampStartFrom(v: number): number {
-  return v < STRIPE_START_FROM_MIN ? STRIPE_START_FROM_MIN : v > STRIPE_START_FROM_MAX ? STRIPE_START_FROM_MAX : v;
-}
-
-function clampWidth(v: number): number {
-  return v < STRIPE_WIDTH_MIN ? STRIPE_WIDTH_MIN : v > STRIPE_WIDTH_MAX ? STRIPE_WIDTH_MAX : v;
-}
-
-function clampOpacityPercent(v: number): number {
-  return v < STRIPE_OPACITY_MIN ? STRIPE_OPACITY_MIN : v > STRIPE_OPACITY_MAX ? STRIPE_OPACITY_MAX : v;
-}
+const { Select: LevaSelect } = Components;
 
 function parseNumberLike(raw: string): number | null {
   if (raw.trim() === "") return null;
   const value = Number(raw.replace(",", "."));
   return Number.isFinite(value) ? value : null;
-}
-
-function parseThresholdInput(raw: string): number | null {
-  const value = parseNumberLike(raw);
-  if (value === null) return null;
-  return clampStartFrom(value);
-}
-
-function parseWidthInput(raw: string): number | null {
-  const value = parseNumberLike(raw);
-  if (value === null) return null;
-  return clampWidth(value);
-}
-
-function parseOpacityInput(raw: string): number | null {
-  const value = parseNumberLike(raw);
-  if (value === null) return null;
-  return Math.round(clampOpacityPercent(value));
-}
-
-function isIncompleteDecimal(raw: string): boolean {
-  return /[,.]$/.test(raw.trim());
-}
-
-function formatWidth(value: number): string {
-  return Number.isInteger(value)
-    ? String(value)
-    : String(value)
-        .replace(/(\.\d*?)0+$/, "$1")
-        .replace(/\.$/, "");
-}
-
-function formatThreshold(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function formatOpacityPercent(value: number): string {
-  return String(Math.round(clampOpacityPercent(value)));
 }
 
 function normalizeHexForDisplay(value: string): string {
@@ -92,13 +54,12 @@ function getStripeColorMeta(hex: string): { name: string; code: string } {
   return { name: "Custom", code: normalizeHexForDisplay(hex) };
 }
 
-function sanitizeLevaStep(v: number, { step, initialValue }: { step: number; initialValue: number }): number {
-  const steps = Math.round((v - initialValue) / step);
-  return initialValue + steps * step;
-}
-
 function clampRangeValue(value: number, min: number, max: number): number {
   return value < min ? min : value > max ? max : value;
+}
+
+function formatNumberDraft(value: number): string {
+  return Number(value.toFixed(4)).toString();
 }
 
 export type StripeColorsTableProps = {
@@ -109,6 +70,7 @@ export type StripeColorsTableProps = {
   rampEasingOptions?: Readonly<Record<string, string>>;
   rampEasingValue?: string;
   showRampEasing?: boolean;
+  showColorControls?: boolean;
   thresholdEasingOptions?: Readonly<Record<string, string>>;
   thresholdEasingValue?: string;
   canUndoShuffle?: boolean;
@@ -127,12 +89,11 @@ export type StripeColorsTableProps = {
   onRemove: (id: string) => void;
 };
 
-function LevaRangeSlider({
+function LevaNumberControl({
   value,
   min,
   max,
   step,
-  initialValue,
   disabled,
   ariaLabel,
   onChange,
@@ -141,147 +102,188 @@ function LevaRangeSlider({
   min: number;
   max: number;
   step: number;
-  initialValue: number;
   disabled: boolean;
   ariaLabel: string;
   onChange: (value: number) => void;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const pointerId = useRef<number | null>(null);
+  const [draft, setDraft] = useState(() => formatNumberDraft(value));
+  const [focused, setFocused] = useState(false);
 
-  function updateValue(nextValue: number) {
-    onChange(clampRangeValue(sanitizeLevaStep(nextValue, { step, initialValue }), min, max));
-  }
+  useEffect(() => {
+    if (!focused) setDraft(formatNumberDraft(value));
+  }, [focused, value]);
 
-  function updateFromClientX(clientX: number) {
-    const bounds = ref.current?.getBoundingClientRect();
-    if (!bounds || bounds.width <= 0) return;
-    const percent = (clientX - bounds.left) / bounds.width;
-    updateValue(min + clampRangeValue(percent, 0, 1) * (max - min));
-  }
+  const commit = (raw: string, normalizeDraft: boolean) => {
+    const parsed = parseNumberLike(raw);
+    if (parsed === null) {
+      if (normalizeDraft) setDraft(formatNumberDraft(value));
+      return;
+    }
+    const next = clampRangeValue(parsed, min, max);
+    onChange(next);
+    if (normalizeDraft) setDraft(formatNumberDraft(next));
+  };
 
-  const pos = levaRange(value, min, max);
+  const handleChange = (raw: string) => {
+    if (!/^-?\d*([.,]\d*)?$/.test(raw)) return;
+    setDraft(raw);
+    if (raw === "" || raw === "-" || raw.endsWith(".") || raw.endsWith(",")) return;
+    commit(raw, false);
+  };
+
+  const handleStep = (direction: number) => {
+    const parsed = parseNumberLike(draft) ?? value;
+    const next = clampRangeValue(parsed + direction * step, min, max);
+    onChange(next);
+    setDraft(formatNumberDraft(next));
+  };
 
   return (
-    <div
-      ref={ref}
-      className="stripe-colors-range-root"
-      role="slider"
-      tabIndex={disabled ? -1 : 0}
-      aria-label={ariaLabel}
-      aria-disabled={disabled}
-      aria-valuemin={min}
-      aria-valuemax={max}
-      aria-valuenow={value}
-      onPointerDown={(event) => {
-        if (disabled) return;
-        event.preventDefault();
-        event.stopPropagation();
-        pointerId.current = event.pointerId;
-        event.currentTarget.setPointerCapture(event.pointerId);
-        updateFromClientX(event.clientX);
-      }}
-      onPointerMove={(event) => {
-        if (disabled || pointerId.current !== event.pointerId) return;
-        event.preventDefault();
-        event.stopPropagation();
-        updateFromClientX(event.clientX);
-      }}
-      onPointerUp={(event) => {
-        if (pointerId.current !== event.pointerId) return;
-        event.preventDefault();
-        event.stopPropagation();
-        pointerId.current = null;
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }}
-      onPointerCancel={(event) => {
-        if (pointerId.current !== event.pointerId) return;
-        pointerId.current = null;
-      }}
-      onKeyDown={(event) => {
-        if (disabled) return;
-        if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
-          event.preventDefault();
-          updateValue(value - step);
-        }
-        if (event.key === "ArrowRight" || event.key === "ArrowUp") {
-          event.preventDefault();
-          updateValue(value + step);
-        }
-        if (event.key === "Home") {
-          event.preventDefault();
-          updateValue(min);
-        }
-        if (event.key === "End") {
-          event.preventDefault();
-          updateValue(max);
-        }
-      }}
-    >
-      <div className="stripe-colors-range-track">
-        <div className="stripe-colors-range-fill" style={{ right: `${(1 - pos) * 100}%` }} />
-      </div>
-      <div className="stripe-colors-range-thumb" style={{ left: `calc(${pos} * (100% - 8px))` }} />
+    <div className="stripe-colors-leva-number" aria-label={ariaLabel}>
+      <input
+        className="stripe-colors-number-input"
+        value={draft}
+        type="text"
+        inputMode="decimal"
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false);
+          commit(draft, true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+            return;
+          }
+          if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+            event.preventDefault();
+            handleStep(event.key === "ArrowUp" ? 1 : -1);
+          }
+        }}
+        onChange={(event) => handleChange(event.currentTarget.value)}
+      />
     </div>
   );
 }
 
-function StripeNumberInput({
+function LevaRangeSlider({
   value,
-  formatValue,
-  parseValue,
-  onValueChange,
-  ariaLabel,
-  disabled,
+  min,
+  max,
+  step,
+  initialValue,
+  onDrag,
 }: {
   value: number;
-  formatValue: (value: number) => string;
-  parseValue: (raw: string) => number | null;
-  onValueChange: (value: number) => void;
-  ariaLabel: string;
-  disabled: boolean;
+  min: number;
+  max: number;
+  step: number;
+  initialValue: number;
+  onDrag: (value: number) => void;
 }) {
-  const [draft, setDraft] = useState(() => formatValue(value));
-  const [focused, setFocused] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const scrubberRef = useRef<HTMLDivElement>(null);
+  const rangeWidth = useRef(0);
+  const scrubberWidth = useTh("sizes", "scrubberWidth");
 
-  useEffect(() => {
-    if (!focused) setDraft(formatValue(value));
-  }, [focused, formatValue, value]);
-
-  function commit(raw: string) {
-    const next = parseValue(raw);
-    if (next === null) {
-      setDraft(formatValue(value));
-      return;
+  const bind = useDrag(({ event, first, xy: [x], movement: [mx], memo }: any) => {
+    if (first) {
+      const bounds = ref.current?.getBoundingClientRect();
+      if (!bounds) return value;
+      rangeWidth.current = bounds.width - parseFloat(String(scrubberWidth));
+      const targetIsScrub = event?.target === scrubberRef.current;
+      memo = targetIsScrub ? value : invertedRange((x - bounds.left) / bounds.width, min, max);
     }
-    onValueChange(next);
-    setDraft(formatValue(next));
-  }
+    const next = memo + invertedRange(mx / rangeWidth.current, 0, max - min);
+    onDrag(sanitizeLevaStep(next, { step, initialValue }));
+    return memo;
+  });
+
+  const pos = levaRange(value, min, max);
 
   return (
-    <input
-      type="text"
-      inputMode="decimal"
-      value={draft}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      onFocus={() => setFocused(true)}
-      onChange={(event) => {
-        const raw = event.target.value;
-        setDraft(raw);
-        const next = parseValue(raw);
-        if (next !== null && !isIncompleteDecimal(raw)) onValueChange(next);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        commit(draft);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.currentTarget.blur();
-        }
-      }}
-    />
+    <RangeWrapper ref={ref} {...bind()}>
+      <Range>
+        <Indicator style={{ left: 0, right: `${(1 - pos) * 100}%` }} />
+      </Range>
+      <Scrubber ref={scrubberRef} style={{ left: `calc(${pos} * (100% - ${scrubberWidth}))` }} />
+    </RangeWrapper>
+  );
+}
+
+function LevaSliderControl({
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  ariaLabel,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  disabled: boolean;
+  ariaLabel: string;
+  onChange: (value: number) => void;
+}) {
+  const update = (next: number) => onChange(clampRangeValue(next, min, max));
+
+  return (
+    <div className="hasRange stripe-colors-leva-range-grid" aria-label={ariaLabel}>
+      <LevaRangeSlider
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        initialValue={min}
+        onDrag={disabled ? () => {} : update}
+      />
+      <LevaNumberControl
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        disabled={disabled}
+        ariaLabel={`${ariaLabel} input`}
+        onChange={update}
+      />
+    </div>
+  );
+}
+
+function LevaSelectControl({
+  value,
+  options,
+  disabled,
+  ariaLabel,
+  onChange,
+}: {
+  value: string;
+  options: readonly { label: string; value: string }[];
+  disabled: boolean;
+  ariaLabel: string;
+  onChange: (value: string) => void;
+}) {
+  const id = useId();
+  const keys = options.map((option) => option.label);
+  const values = options.map((option) => option.value);
+  const displayValue = Math.max(0, values.indexOf(value));
+
+  return (
+    <div className="stripe-colors-leva-select" aria-label={ariaLabel}>
+      <LevaSelect
+        id={id}
+        value={value}
+        displayValue={displayValue}
+        onUpdate={(next: string) => onChange(next)}
+        settings={{ keys, values }}
+        disabled={disabled}
+      />
+    </div>
   );
 }
 
@@ -444,19 +446,19 @@ function EasingControl({
     <div className="stripe-colors-easing-row">
       <span className="stripe-colors-table-label">{label}</span>
       <div className="stripe-colors-easing-control">
-        <select
+        <LevaSelectControl
           value={selectValue}
           disabled={disabled}
-          aria-label={ariaLabel}
-          onChange={(event) => onChange(event.target.value === "__custom" ? customValue : event.target.value)}
-        >
-          {Object.entries(options).map(([optionLabel, optionValue]) => (
-            <option key={optionValue} value={optionValue}>
-              {optionLabel}
-            </option>
-          ))}
-          <option value="__custom">Custom</option>
-        </select>
+          ariaLabel={ariaLabel}
+          options={[
+            ...Object.entries(options).map(([optionLabel, optionValue]) => ({
+              label: optionLabel,
+              value: optionValue,
+            })),
+            { label: "Custom", value: "__custom" },
+          ]}
+          onChange={(nextValue) => onChange(nextValue === "__custom" ? customValue : nextValue)}
+        />
         <EasingGraph value={value} disabled={disabled} onChange={onChange} />
       </div>
     </div>
@@ -467,6 +469,7 @@ function StripeDetailRow({
   stripe,
   index,
   disabled,
+  showColorControls,
   onColorChange,
   onOpacityChange,
   onThresholdChange,
@@ -476,6 +479,7 @@ function StripeDetailRow({
   stripe: EditableStripe;
   index: number;
   disabled: boolean;
+  showColorControls: boolean;
   onColorChange: (id: string, hex: string) => void;
   onOpacityChange: (id: string, opacity: number) => void;
   onThresholdChange: (id: string, value: number) => void;
@@ -505,19 +509,31 @@ function StripeDetailRow({
         >
           <GripVertical size={14} />
         </button>
-        <HexColorPopover
-          color={stripe.hex}
-          onChange={(hex) => onColorChange(stripe.id, hex)}
-          disabled={disabled}
-          ariaLabel={`Stripe ${index + 1} color`}
-          triggerClassName="stripe-colors-leva-swatch"
-          triggerStyle={{ "--stripe-swatch-color": cssColorForHex(stripe.hex) } as CSSProperties}
-          align="right"
-        />
-        <div className="stripe-colors-color-meta">
-          <span className="stripe-colors-color-name">{colorMeta.name}</span>
-          <span className="stripe-colors-color-code">[{colorMeta.code}]</span>
-        </div>
+        {showColorControls ? (
+          <>
+            <HexColorPopover
+              color={stripe.hex}
+              onChange={(hex) => onColorChange(stripe.id, hex)}
+              disabled={disabled}
+              ariaLabel={`Stripe ${index + 1} color`}
+              triggerClassName="stripe-colors-leva-swatch"
+              triggerStyle={{ "--stripe-swatch-color": cssColorForHex(stripe.hex) } as CSSProperties}
+              align="right"
+            />
+            <div className="stripe-colors-color-meta">
+              <span className="stripe-colors-color-name">{colorMeta.name}</span>
+              <span className="stripe-colors-color-code">[{colorMeta.code}]</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="stripe-colors-leva-swatch stripe-colors-leva-swatch-placeholder" aria-hidden="true" />
+            <div className="stripe-colors-color-meta">
+              <span className="stripe-colors-color-name">Level {index + 1}</span>
+              <span className="stripe-colors-color-code">[image colors]</span>
+            </div>
+          </>
+        )}
         <button
           type="button"
           aria-label={`Remove Stripe ${index + 1}`}
@@ -530,76 +546,37 @@ function StripeDetailRow({
       </div>
       <div className="stripe-colors-control-stack">
         <StripeControlRow label="Opacity">
-          <div className="stripe-colors-leva-range hasRange">
-            <LevaRangeSlider
-              value={opacityPercent}
-              min={STRIPE_OPACITY_MIN}
-              max={STRIPE_OPACITY_MAX}
-              step={1}
-              initialValue={opacityPercent}
-              disabled={disabled}
-              ariaLabel={`Stripe ${index + 1} opacity`}
-              onChange={(value) => onOpacityChange(stripe.id, value / 100)}
-            />
-          </div>
-          <div className="stripe-colors-leva-input">
-            <StripeNumberInput
-              value={opacityPercent}
-              formatValue={formatOpacityPercent}
-              parseValue={parseOpacityInput}
-              onValueChange={(value) => onOpacityChange(stripe.id, value / 100)}
-              ariaLabel={`Stripe ${index + 1} opacity input`}
-              disabled={disabled}
-            />
-          </div>
+          <LevaSliderControl
+            value={opacityPercent}
+            min={STRIPE_OPACITY_MIN}
+            max={STRIPE_OPACITY_MAX}
+            step={1}
+            disabled={disabled}
+            ariaLabel={`Stripe ${index + 1} opacity`}
+            onChange={(value) => onOpacityChange(stripe.id, value / 100)}
+          />
         </StripeControlRow>
         <StripeControlRow label="Threshold">
-          <div className="stripe-colors-leva-range hasRange">
-            <LevaRangeSlider
-              value={stripe.startFrom}
-              min={STRIPE_START_FROM_MIN}
-              max={STRIPE_START_FROM_MAX}
-              step={0.01}
-              initialValue={stripe.startFrom}
-              disabled={disabled}
-              ariaLabel={`Stripe ${index + 1} threshold`}
-              onChange={(value) => onThresholdChange(stripe.id, value)}
-            />
-          </div>
-          <div className="stripe-colors-leva-input">
-            <StripeNumberInput
-              value={stripe.startFrom}
-              formatValue={formatThreshold}
-              parseValue={parseThresholdInput}
-              onValueChange={(value) => onThresholdChange(stripe.id, value)}
-              ariaLabel={`Stripe ${index + 1} threshold input`}
-              disabled={disabled}
-            />
-          </div>
+          <LevaSliderControl
+            value={stripe.startFrom}
+            min={STRIPE_START_FROM_MIN}
+            max={STRIPE_START_FROM_MAX}
+            step={0.01}
+            disabled={disabled}
+            ariaLabel={`Stripe ${index + 1} threshold`}
+            onChange={(value) => onThresholdChange(stripe.id, value)}
+          />
         </StripeControlRow>
         <StripeControlRow label="Width">
-          <div className="stripe-colors-leva-range hasRange">
-            <LevaRangeSlider
-              value={stripe.width}
-              min={STRIPE_WIDTH_MIN}
-              max={STRIPE_WIDTH_MAX}
-              step={0.5}
-              initialValue={stripe.width}
-              disabled={disabled}
-              ariaLabel={`Stripe ${index + 1} width`}
-              onChange={(value) => onWidthChange(stripe.id, value)}
-            />
-          </div>
-          <div className="stripe-colors-leva-input">
-            <StripeNumberInput
-              value={stripe.width}
-              formatValue={formatWidth}
-              parseValue={parseWidthInput}
-              onValueChange={(value) => onWidthChange(stripe.id, value)}
-              ariaLabel={`Stripe ${index + 1} width input`}
-              disabled={disabled}
-            />
-          </div>
+          <LevaSliderControl
+            value={stripe.width}
+            min={STRIPE_WIDTH_MIN}
+            max={STRIPE_WIDTH_MAX}
+            step={0.5}
+            disabled={disabled}
+            ariaLabel={`Stripe ${index + 1} width`}
+            onChange={(value) => onWidthChange(stripe.id, value)}
+          />
         </StripeControlRow>
       </div>
     </Reorder.Item>
@@ -614,6 +591,7 @@ export function StripeColorsTable({
   rampEasingOptions = {},
   rampEasingValue,
   showRampEasing = false,
+  showColorControls = true,
   thresholdEasingOptions = {},
   thresholdEasingValue,
   canUndoShuffle = false,
@@ -639,55 +617,56 @@ export function StripeColorsTable({
     setOrder([...stripes]);
   }, [reconcileKey]);
 
+  const hasEasingControls =
+    (showRampEasing && !!onRampEasingChange) ||
+    (Object.keys(thresholdEasingOptions).length > 0 && !!onThresholdEasingChange);
+
   return (
     <div className={cn("stripe-colors-table", disabled && "pointer-events-none opacity-45")}>
-      {paletteOptions.length > 0 && onPaletteChange ? (
+      {(paletteOptions.length > 0 && onPaletteChange) || hasEasingControls ? (
         <div className="stripe-colors-palette-wrap">
-          <span className="stripe-colors-palette-title">Palette</span>
-          <div className="stripe-colors-palette-toolbar">
-            <select
-              value={paletteValue ?? ""}
-              disabled={disabled}
-              aria-label="Stripe color palette"
-              onChange={(event) => onPaletteChange(event.target.value)}
-            >
-              {paletteOptions.map((palette) => (
-                <option key={palette} value={palette}>
-                  {palette}
-                </option>
-              ))}
-            </select>
-            {onShufflePalette ? (
-              <button
-                type="button"
-                className="stripe-colors-palette-action"
+          <span className="stripe-colors-palette-title">{paletteOptions.length > 0 ? "Palette" : "Distribution"}</span>
+          {paletteOptions.length > 0 && onPaletteChange ? (
+            <div className="stripe-colors-palette-toolbar">
+              <LevaSelectControl
+                value={paletteValue ?? ""}
                 disabled={disabled}
-                onClick={onShufflePalette}
-              >
-                Shuffle
-              </button>
-            ) : null}
-            {onUndoShuffle ? (
-              <button
-                type="button"
-                className="stripe-colors-palette-action"
-                disabled={disabled || !canUndoShuffle}
-                onClick={onUndoShuffle}
-              >
-                Undo
-              </button>
-            ) : null}
-            {onReverseColorOrder ? (
-              <button
-                type="button"
-                className="stripe-colors-palette-action"
-                disabled={disabled || stripes.length < 2}
-                onClick={onReverseColorOrder}
-              >
-                Flip
-              </button>
-            ) : null}
-          </div>
+                ariaLabel="Stripe color palette"
+                options={paletteOptions.map((palette) => ({ label: palette, value: palette }))}
+                onChange={onPaletteChange}
+              />
+              {onShufflePalette ? (
+                <button
+                  type="button"
+                  className="stripe-colors-palette-action"
+                  disabled={disabled}
+                  onClick={onShufflePalette}
+                >
+                  Shuffle
+                </button>
+              ) : null}
+              {onUndoShuffle ? (
+                <button
+                  type="button"
+                  className="stripe-colors-palette-action"
+                  disabled={disabled || !canUndoShuffle}
+                  onClick={onUndoShuffle}
+                >
+                  Undo
+                </button>
+              ) : null}
+              {onReverseColorOrder ? (
+                <button
+                  type="button"
+                  className="stripe-colors-palette-action"
+                  disabled={disabled || stripes.length < 2}
+                  onClick={onReverseColorOrder}
+                >
+                  Flip
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {showRampEasing && onRampEasingChange ? (
             <EasingControl
               label="Brightness easing"
@@ -724,7 +703,7 @@ export function StripeColorsTable({
         }
       >
         {colorsOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-        <span>Colors</span>
+        <span>{showColorControls ? "Colors" : "Levels"}</span>
         <span className="stripe-colors-drawer-count">{stripes.length}</span>
       </button>
       {colorsOpen ? (
@@ -745,6 +724,7 @@ export function StripeColorsTable({
                 stripe={stripe}
                 index={index}
                 disabled={disabled}
+                showColorControls={showColorControls}
                 onColorChange={onColorChange}
                 onOpacityChange={onOpacityChange}
                 onThresholdChange={onThresholdChange}

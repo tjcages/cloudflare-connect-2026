@@ -1,5 +1,3 @@
-import { clamp01 } from "../lib/math";
-
 export const EASING_OPTIONS = {
   Linear: "linear",
   Ease: "ease",
@@ -59,6 +57,10 @@ export function parseCustomEasing(value: string | undefined): CustomEasingContro
     x2: clamp01(parts[2] ?? DEFAULT_CUSTOM_EASING.x2),
     y2: clamp01(parts[3] ?? DEFAULT_CUSTOM_EASING.y2),
   };
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
 }
 
 function cubicBezierValue(p1x: number, p1y: number, p2x: number, p2y: number, v: number): number {

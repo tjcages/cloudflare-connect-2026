@@ -15,6 +15,7 @@ export const CONTROL_DRAWER_IDS = [
   "Click Wave",
   "Background Flames",
   "Colors",
+  "Detailed settings",
 ] as const;
 
 const CONTROL_DRAWER_STATE_KEY = "stripes-engine-lab-control-drawers-v1";

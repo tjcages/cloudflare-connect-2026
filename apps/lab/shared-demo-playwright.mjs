@@ -30,7 +30,9 @@ function resolveFromStore(name) {
   } catch {
     const dir = resolve(repoRoot, "node_modules/.pnpm");
     const re = new RegExp(`^${name.replace("/", "\\+")}@`);
-    const glob = require("node:fs").readdirSync(dir).find((d) => re.test(d));
+    const glob = require("node:fs")
+      .readdirSync(dir)
+      .find((d) => re.test(d));
     if (!glob) throw new Error(`${name} not found in node_modules/.pnpm`);
     return require.resolve(resolve(dir, glob, "node_modules", name));
   }
@@ -72,7 +74,13 @@ const url = `http://localhost:${port}/index.html`;
 
 const browser = await chromium.launch({
   headless: true,
-  args: ["--use-gl=angle", "--use-angle=default", "--ignore-gpu-blocklist", "--enable-gpu", "--autoplay-policy=no-user-gesture-required"],
+  args: [
+    "--use-gl=angle",
+    "--use-angle=default",
+    "--ignore-gpu-blocklist",
+    "--enable-gpu",
+    "--autoplay-policy=no-user-gesture-required",
+  ],
 });
 const page = await browser.newPage({ deviceScaleFactor: 1, viewport: { width: 800, height: 700 } });
 
@@ -159,7 +167,14 @@ async function sampleViewport() {
     }
     const nonBlank = samples.some((p) => p[0] > 30 || p[1] > 30 || p[2] > 30);
     const fingerprint = samples.flat();
-    out[id] = { kind: b.kind, inViewport: true, nonBlank, center: px(cx, cy), fingerprint, meta: { w: meta.width, h: meta.height } };
+    out[id] = {
+      kind: b.kind,
+      inViewport: true,
+      nonBlank,
+      center: px(cx, cy),
+      fingerprint,
+      meta: { w: meta.width, h: meta.height },
+    };
   }
   return out;
 }

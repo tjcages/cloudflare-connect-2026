@@ -3,7 +3,6 @@ import { Components, createPlugin, useInputContext, type LevaInputProps } from "
 import { HexColorPopover } from "../components/HexColorPopover";
 import { cssColorForHex } from "../components/colorLibrary";
 import { clearStickyBackgroundColor, saveStickyBackgroundColor } from "../persistence";
-import { hexToInt, normalizeHexString } from "../lib/color";
 
 const { Label, Row } = Components;
 
@@ -21,9 +20,17 @@ type ColorLibraryInput = {
 
 type ColorLibraryInputProps = LevaInputProps<string | null, ColorLibraryInputSettings>;
 
+function normalizeHex(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  const raw = typeof value === "string" ? value.trim() : "";
+  const withoutHash = raw.replace(/^#/, "");
+  if (/^[0-9a-fA-F]{6}$/.test(withoutHash)) return `#${withoutHash.toLowerCase()}`;
+  return null;
+}
+
 function ColorLibraryInputComponent() {
   const { label, value, onUpdate, disabled, settings } = useInputContext<ColorLibraryInputProps>();
-  const color = normalizeHexString(value);
+  const color = normalizeHex(value);
   const [draft, setDraft] = useState(color ? color.toUpperCase() : "");
 
   useEffect(() => {
@@ -31,16 +38,16 @@ function ColorLibraryInputComponent() {
   }, [color]);
 
   const updateColor = (hex: string) => {
-    const next = normalizeHexString(hex);
+    const next = normalizeHex(hex);
     if (next === null) return;
     if (settings.persist === "backgroundColor") {
-      saveStickyBackgroundColor(hexToInt(next));
+      saveStickyBackgroundColor(Number.parseInt(next.replace(/^#/, ""), 16));
     }
     settings.onLiveChange?.(next);
     onUpdate(next);
   };
   const commitDraft = () => {
-    const next = normalizeHexString(draft);
+    const next = normalizeHex(draft);
     if (next) {
       updateColor(next);
       setDraft(next.toUpperCase());
@@ -120,12 +127,12 @@ export const colorLibraryInputPlugin = createPlugin<ColorLibraryInput, string | 
   normalize: (input) => {
     const record = input && typeof input === "object" ? input : null;
     return {
-      value: normalizeHexString(record && "value" in record ? record.value : input),
+      value: normalizeHex(record && "value" in record ? record.value : input),
       settings: {
         persist: record && "persist" in record ? record.persist : undefined,
         onLiveChange: record && "onLiveChange" in record ? record.onLiveChange : undefined,
       },
     };
   },
-  sanitize: (value) => normalizeHexString(value),
+  sanitize: (value) => normalizeHex(value),
 });

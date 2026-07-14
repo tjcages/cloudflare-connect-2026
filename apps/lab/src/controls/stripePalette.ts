@@ -1,8 +1,6 @@
 import { COLOR_LIBRARY } from "../components/colorLibrary";
 import { EASING_OPTIONS, easeValue, type EasingName } from "./easing";
 import type { EditableStripe } from "./stripeAdapter";
-import { clamp01 } from "../lib/math";
-import { normalizeHexString } from "../lib/color";
 
 export const STRIPE_PALETTE_LEVELS = [
   "1000",
@@ -22,20 +20,68 @@ export type StripePaletteLevel = (typeof STRIPE_PALETTE_LEVELS)[number];
 export const WHITE_STRIPE_PALETTE_NAME = "White";
 export const BACKGROUND_RAMP_PALETTE_NAME = "Background Ramp";
 const WHITE_STRIPE_HEX = "#ffffff";
+const WHITE_STRIPE_OPACITY_MAX = 0.7;
+const WHITE_BACKGROUND_FIRST_STRIPE_HEX = "#fafafa";
+const WHITE_BACKGROUND_STRIPE_LEVELS = ["0", "100", "200", "300", "400", "500", "600", "700", "800"] as const;
 const BACKGROUND_RAMP_20_BASE_THRESHOLD = 0.2;
 const BACKGROUND_RAMP_40_BASE_THRESHOLD = 0.4;
 const BACKGROUND_RAMP_60_BASE_THRESHOLD = 0.6;
+const BACKGROUND_RAMP_70_BASE_THRESHOLD = 0.7;
 const BACKGROUND_RAMP_80_BASE_THRESHOLD = 0.8;
-const BACKGROUND_RAMP_UNDER_20_MAX_HSL_LIGHTNESS = 0.6;
-const BACKGROUND_RAMP_20_TO_40_MAX_HSL_LIGHTNESS = 0.7;
-const BACKGROUND_RAMP_40_TO_60_MAX_HSL_LIGHTNESS = 0.8;
-const BACKGROUND_RAMP_60_TO_80_MAX_HSL_LIGHTNESS = 0.9;
-const BACKGROUND_RAMP_OVER_80_MAX_HSL_LIGHTNESS = 1;
 export const BACKGROUND_RAMP_EASING_OPTIONS = EASING_OPTIONS;
 export type BackgroundRampEasing = EasingName;
+export type BackgroundRampSettings = {
+  maxLightnessUnder20: number;
+  maxLightness20To40: number;
+  maxLightness40To60: number;
+  maxLightness60To70: number;
+  maxLightness70To80: number;
+  maxLightnessOver80: number;
+  hueDriftDeg: number;
+  saturationBoost: number;
+};
 
-function whitePaletteOpacity(index: number): number {
-  return Math.min(1, Number(((index + 1) * 0.05).toFixed(2)));
+export const DEFAULT_BACKGROUND_RAMP_SETTINGS: BackgroundRampSettings = {
+  maxLightnessUnder20: 50,
+  maxLightness20To40: 60,
+  maxLightness40To60: 70,
+  maxLightness60To70: 80,
+  maxLightness70To80: 90,
+  maxLightnessOver80: 100,
+  hueDriftDeg: 4,
+  saturationBoost: 26,
+};
+
+export function normalizeBackgroundRampSettings(
+  input: Partial<BackgroundRampSettings> | null | undefined,
+): BackgroundRampSettings {
+  const n = (value: unknown, fallback: number, min: number, max: number): number =>
+    typeof value === "number" && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
+  return {
+    maxLightnessUnder20: n(input?.maxLightnessUnder20, DEFAULT_BACKGROUND_RAMP_SETTINGS.maxLightnessUnder20, 0, 100),
+    maxLightness20To40: n(input?.maxLightness20To40, DEFAULT_BACKGROUND_RAMP_SETTINGS.maxLightness20To40, 0, 100),
+    maxLightness40To60: n(input?.maxLightness40To60, DEFAULT_BACKGROUND_RAMP_SETTINGS.maxLightness40To60, 0, 100),
+    maxLightness60To70: n(input?.maxLightness60To70, DEFAULT_BACKGROUND_RAMP_SETTINGS.maxLightness60To70, 0, 100),
+    maxLightness70To80: n(input?.maxLightness70To80, DEFAULT_BACKGROUND_RAMP_SETTINGS.maxLightness70To80, 0, 100),
+    maxLightnessOver80: n(input?.maxLightnessOver80, DEFAULT_BACKGROUND_RAMP_SETTINGS.maxLightnessOver80, 0, 100),
+    hueDriftDeg: n(input?.hueDriftDeg, DEFAULT_BACKGROUND_RAMP_SETTINGS.hueDriftDeg, 0, 45),
+    saturationBoost: n(input?.saturationBoost, DEFAULT_BACKGROUND_RAMP_SETTINGS.saturationBoost, 0, 100),
+  };
+}
+
+function whitePaletteOpacity(index: number, count: number, easing: BackgroundRampEasing): number {
+  const t = count <= 1 ? 1 : index / (count - 1);
+  return Number((WHITE_STRIPE_OPACITY_MAX * easeRampT(t, easing)).toFixed(4));
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function normalizeHex(value: string | undefined): string | null {
+  if (!value) return null;
+  const raw = value.trim().replace(/^#/, "");
+  return /^[0-9a-fA-F]{6}$/.test(raw) ? `#${raw.toLowerCase()}` : null;
 }
 
 function srgbDecode(value: number): number {
@@ -49,18 +95,12 @@ function srgbEncode(value: number): number {
 }
 
 function hexToDisplayP3(hex: string): [number, number, number] {
-  const raw = normalizeHexString(hex)?.replace(/^#/, "") ?? "000000";
+  const raw = normalizeHex(hex)?.replace(/^#/, "") ?? "000000";
   return [
     Number.parseInt(raw.slice(0, 2), 16) / 255,
     Number.parseInt(raw.slice(2, 4), 16) / 255,
     Number.parseInt(raw.slice(4, 6), 16) / 255,
   ];
-}
-
-function rgbLightness([r, g, b]: [number, number, number]): number {
-  const max = Math.max(clamp01(r), clamp01(g), clamp01(b));
-  const min = Math.min(clamp01(r), clamp01(g), clamp01(b));
-  return (max + min) / 2;
 }
 
 function displayP3ToLinearSrgb([r, g, b]: [number, number, number]): [number, number, number] {
@@ -134,50 +174,47 @@ function easeRampT(t: number, easing: BackgroundRampEasing): number {
   return easeValue(t, easing);
 }
 
-function lightHueShift(hue: number): number {
-  if (hue >= 25 && hue < 80) return 4;
-  if (hue >= 80 && hue < 180) return -4;
-  if (hue >= 180 && hue < 285) return -4;
-  if (hue >= 285 && hue < 340) return 4;
-  if (hue >= 340) return 4;
-  return -4;
+function lightHueShift(hue: number, settings: BackgroundRampSettings): number {
+  const drift = settings.hueDriftDeg;
+  if (hue >= 25 && hue < 80) return drift;
+  if (hue >= 80 && hue < 180) return -drift;
+  if (hue >= 180 && hue < 285) return -drift;
+  if (hue >= 285 && hue < 340) return drift;
+  if (hue >= 340) return drift;
+  return -drift;
 }
 
-function backgroundRampMaxHslLightness(baseHslLightness: number): number {
-  if (baseHslLightness < BACKGROUND_RAMP_20_BASE_THRESHOLD) return BACKGROUND_RAMP_UNDER_20_MAX_HSL_LIGHTNESS;
-  if (baseHslLightness < BACKGROUND_RAMP_40_BASE_THRESHOLD) return BACKGROUND_RAMP_20_TO_40_MAX_HSL_LIGHTNESS;
-  if (baseHslLightness < BACKGROUND_RAMP_60_BASE_THRESHOLD) return BACKGROUND_RAMP_40_TO_60_MAX_HSL_LIGHTNESS;
-  if (baseHslLightness < BACKGROUND_RAMP_80_BASE_THRESHOLD) return BACKGROUND_RAMP_60_TO_80_MAX_HSL_LIGHTNESS;
-  return BACKGROUND_RAMP_OVER_80_MAX_HSL_LIGHTNESS;
+function backgroundRampMaxOklchLightness(baseOklchLightness: number, settings: BackgroundRampSettings): number {
+  if (baseOklchLightness < BACKGROUND_RAMP_20_BASE_THRESHOLD) return settings.maxLightnessUnder20 / 100;
+  if (baseOklchLightness < BACKGROUND_RAMP_40_BASE_THRESHOLD) return settings.maxLightness20To40 / 100;
+  if (baseOklchLightness < BACKGROUND_RAMP_60_BASE_THRESHOLD) return settings.maxLightness40To60 / 100;
+  if (baseOklchLightness < BACKGROUND_RAMP_70_BASE_THRESHOLD) return settings.maxLightness60To70 / 100;
+  if (baseOklchLightness < BACKGROUND_RAMP_80_BASE_THRESHOLD) return settings.maxLightness70To80 / 100;
+  return settings.maxLightnessOver80 / 100;
 }
 
-function oklchLightnessForHslTarget(targetHslLightness: number, chroma: number, hue: number): number {
-  let low = 0;
-  let high = 1;
-  for (let i = 0; i < 18; i++) {
-    const mid = (low + high) / 2;
-    const current = rgbLightness(linearSrgbToDisplayP3(oklchToLinearSrgb(mid, chroma, hue)));
-    if (current < targetHslLightness) low = mid;
-    else high = mid;
-  }
-  return low;
+function oklchChromaForLightness(chroma: number, lightness: number): number {
+  if (lightness <= 0.92) return chroma;
+  const t = clamp01((lightness - 0.92) / 0.08);
+  const fadeToWhite = t * t * (3 - 2 * t);
+  return chroma * (1 - fadeToWhite);
 }
 
 function backgroundRampHex(
   baseHex: string | undefined,
   stripes: readonly EditableStripe[],
   easing: BackgroundRampEasing = "easeInOutQuad",
+  rampSettings: BackgroundRampSettings = DEFAULT_BACKGROUND_RAMP_SETTINGS,
 ): string[] {
-  const fallback = normalizeHexString(baseHex) ?? normalizeHexString(stripes[0]?.hex) ?? "#5865f2";
+  const settings = normalizeBackgroundRampSettings(rampSettings);
+  const fallback = normalizeHex(baseHex) ?? normalizeHex(stripes[0]?.hex) ?? "#5865f2";
   const baseP3 = hexToDisplayP3(fallback);
   const base = linearSrgbToOklch(displayP3ToLinearSrgb(baseP3));
   const count = Math.max(1, stripes.length);
-  const hueTarget = (base.h + lightHueShift(base.h) + 360) % 360;
+  const hueTarget = (base.h + lightHueShift(base.h, settings) + 360) % 360;
   const hueDelta = shortestHueDelta(base.h, hueTarget);
-  const maxHslLightness = backgroundRampMaxHslLightness(rgbLightness(baseP3));
-  const finalSaturationLift = 0.26 * Math.sin(Math.PI * 0.85);
-  const finalChroma = Math.max(0.01, Math.min(0.34, base.c * (1 + finalSaturationLift)));
-  const maxLightness = oklchLightnessForHslTarget(maxHslLightness, finalChroma, hueTarget);
+  const maxLightness = backgroundRampMaxOklchLightness(base.l, settings);
+  const saturationBoost = settings.saturationBoost / 100;
   const baseStartL = Math.min(base.l, maxLightness);
   const endL = Math.max(baseStartL, maxLightness);
 
@@ -186,8 +223,9 @@ function backgroundRampHex(
     const brightnessT = count === 1 ? 1 : (index + 1) / count;
     const easedBrightnessT = easeRampT(brightnessT, easing);
     const l = baseStartL + (endL - baseStartL) * easedBrightnessT;
-    const saturationLift = 0.26 * Math.sin(rampT * Math.PI * 0.85);
-    const c = Math.max(0.01, Math.min(0.34, base.c * (1 + saturationLift)));
+    const saturationLift = saturationBoost * Math.sin(rampT * Math.PI * 0.85);
+    const rawChroma = Math.max(0.01, Math.min(0.34, base.c * (1 + saturationLift)));
+    const c = oklchChromaForLightness(rawChroma, l);
     const h = (base.h + hueDelta * rampT + 360) % 360;
     return displayP3ToHex(linearSrgbToDisplayP3(oklchToLinearSrgb(l, c, h)));
   });
@@ -226,18 +264,20 @@ export function detectStripePalette(
   stripes: readonly EditableStripe[],
   backgroundHex?: string | null,
   backgroundRampEasing: BackgroundRampEasing = "easeInOutQuad",
+  backgroundRampSettings: BackgroundRampSettings = DEFAULT_BACKGROUND_RAMP_SETTINGS,
 ): string | null {
   if (
     stripes.length > 0 &&
     stripes.every(
       (stripe, index) =>
-        stripe.hex.toLowerCase() === WHITE_STRIPE_HEX && Math.abs(stripe.opacity - whitePaletteOpacity(index)) < 0.001,
+        stripe.hex.toLowerCase() === WHITE_STRIPE_HEX &&
+        Math.abs(stripe.opacity - whitePaletteOpacity(index, stripes.length, backgroundRampEasing)) < 0.001,
     )
   ) {
     return WHITE_STRIPE_PALETTE_NAME;
   }
   if (stripes.length > 0 && backgroundHex) {
-    const ramp = backgroundRampHex(backgroundHex, stripes, backgroundRampEasing);
+    const ramp = backgroundRampHex(backgroundHex, stripes, backgroundRampEasing, backgroundRampSettings);
     if (stripes.every((stripe, index) => stripe.hex.toLowerCase() === ramp[index])) {
       return BACKGROUND_RAMP_PALETTE_NAME;
     }
@@ -266,6 +306,16 @@ function dynamicStripeLevelsFromBackground(backgroundHex?: string | null): Strip
   return STRIPE_PALETTE_LEVELS.slice(startIndex);
 }
 
+function isWhiteBackground(backgroundHex?: string | null): boolean {
+  return normalizeHex(backgroundHex ?? undefined) === WHITE_STRIPE_HEX;
+}
+
+function whiteBackgroundStripeLevel(index: number): StripePaletteLevel {
+  return (
+    WHITE_BACKGROUND_STRIPE_LEVELS[index] ?? WHITE_BACKGROUND_STRIPE_LEVELS[WHITE_BACKGROUND_STRIPE_LEVELS.length - 1]
+  );
+}
+
 export function mapPaletteColor(hex: string, groupName: string): string | null {
   const token = TOKEN_BY_HEX.get(hex.toLowerCase());
   if (!token) return null;
@@ -277,21 +327,29 @@ export function applyStripePalette(
   groupName: string,
   backgroundHex?: string | null,
   backgroundRampEasing: BackgroundRampEasing = "easeInOutQuad",
+  backgroundRampSettings: BackgroundRampSettings = DEFAULT_BACKGROUND_RAMP_SETTINGS,
 ): EditableStripe[] {
   if (groupName === WHITE_STRIPE_PALETTE_NAME) {
     return stripes.map((stripe, index) => ({
       ...stripe,
       hex: WHITE_STRIPE_HEX,
-      opacity: whitePaletteOpacity(index),
+      opacity: whitePaletteOpacity(index, stripes.length, backgroundRampEasing),
     }));
   }
   if (groupName === BACKGROUND_RAMP_PALETTE_NAME) {
-    const ramp = backgroundRampHex(backgroundHex ?? undefined, stripes, backgroundRampEasing);
+    const ramp = backgroundRampHex(backgroundHex ?? undefined, stripes, backgroundRampEasing, backgroundRampSettings);
     return stripes.map((stripe, index) => ({
       ...stripe,
       hex: ramp[index] ?? stripe.hex,
       opacity: 1,
     }));
+  }
+  if (isWhiteBackground(backgroundHex)) {
+    return stripes.map((stripe, index) => {
+      if (index === 0) return { ...stripe, hex: WHITE_BACKGROUND_FIRST_STRIPE_HEX, opacity: 1 };
+      const hex = paletteHex(groupName, whiteBackgroundStripeLevel(index - 1));
+      return hex ? { ...stripe, hex, opacity: 1 } : stripe;
+    });
   }
   const dynamicLevels = dynamicStripeLevelsFromBackground(backgroundHex);
   return stripes.map((stripe, index) => {

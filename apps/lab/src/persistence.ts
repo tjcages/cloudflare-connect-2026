@@ -1,6 +1,7 @@
 import { migrateLegacyConfig, parseEngineConfig } from "@necatikcl/stripes-engine";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { DEFAULT_LAB_ENGINE_CONFIG, DEFAULT_LAB_UI_SETTINGS } from "./defaultLabConfig";
+import { DEFAULT_SHADER_TEXTURE_SOURCE } from "./shaderTextureSource";
 
 const NEW_KEY = "stripes-engine-lab"; // legacy: single global config (pre per-texture)
 const OLD_KEY = "section-grid-playground"; // legacy v0
@@ -16,21 +17,39 @@ const CONFIG_FILE_VERSION = 2;
 const WINDOW_NAME_STATE_KEY = "__stripesEngineLab";
 const BACKGROUND_QUERY_PARAM = "bg";
 
-export type LabCanvasMode = "scale" | "manual";
+export type LabCanvasMode = "scale" | "manual" | "original";
 export type LabBackgroundFillMode = "transparent" | "source" | "solid" | "gradient";
+export type LabTextureSourceMode = "texture" | "shader";
+export type LabBackgroundRampSettings = {
+  maxLightnessUnder20: number;
+  maxLightness20To40: number;
+  maxLightness40To60: number;
+  maxLightness60To70: number;
+  maxLightness70To80: number;
+  maxLightnessOver80: number;
+  hueDriftDeg: number;
+  saturationBoost: number;
+};
 
 export type LabSettings = {
   canvasMode: LabCanvasMode;
   canvasScale: number;
   canvasWidth: number;
   canvasHeight: number;
+  canvasAspectLocked: boolean;
   exportStartSec: number;
   exportDurationSec: number;
   backgroundColor: number | null;
   textureId: string | null;
+  textureSourceMode: LabTextureSourceMode;
+  shaderSourceCode: string;
+  shaderSourceWidth: number;
+  shaderSourceHeight: number;
   backgroundFillMode: LabBackgroundFillMode | null;
+  backgroundSourceOpacity: number;
   stripePalette: string | null;
   backgroundRampEasing: string | null;
+  backgroundRampSettings: LabBackgroundRampSettings;
   thresholdDistributionEasing: string | null;
   autoStripeWidths: boolean | null;
   drawerOpen: Record<string, boolean>;
@@ -95,6 +114,25 @@ function normalizeString(value: unknown): string | null {
 
 function normalizeBoolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
+}
+
+function normalizeBackgroundRampSettings(value: unknown): LabBackgroundRampSettings {
+  const fallback = DEFAULT_LAB_SETTINGS.backgroundRampSettings;
+  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const n = (key: keyof LabBackgroundRampSettings, min: number, max: number): number => {
+    const raw = record[key];
+    return typeof raw === "number" && Number.isFinite(raw) ? Math.max(min, Math.min(max, raw)) : fallback[key];
+  };
+  return {
+    maxLightnessUnder20: n("maxLightnessUnder20", 0, 100),
+    maxLightness20To40: n("maxLightness20To40", 0, 100),
+    maxLightness40To60: n("maxLightness40To60", 0, 100),
+    maxLightness60To70: n("maxLightness60To70", 0, 100),
+    maxLightness70To80: n("maxLightness70To80", 0, 100),
+    maxLightnessOver80: n("maxLightnessOver80", 0, 100),
+    hueDriftDeg: n("hueDriftDeg", 0, 45),
+    saturationBoost: n("saturationBoost", 0, 100),
+  };
 }
 
 function normalizeBackgroundFillMode(value: unknown): LabBackgroundFillMode | null {
@@ -308,17 +346,25 @@ export function saveTextureId(id: string): void {
 }
 
 export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings {
-  const canvasMode = i.canvasMode === "manual" ? "manual" : "scale";
+  const canvasMode = i.canvasMode === "manual" ? "manual" : i.canvasMode === "original" ? "original" : "scale";
+  const textureSourceMode = i.textureSourceMode === "shader" ? "shader" : "texture";
   const n = (value: unknown, fallback: number): number =>
     typeof value === "number" && Number.isFinite(value) ? value : fallback;
   const has = (key: keyof LabSettings): boolean => Object.prototype.hasOwnProperty.call(i, key);
   const hasBackgroundColor = Object.prototype.hasOwnProperty.call(i, "backgroundColor");
   const backgroundColor = hasBackgroundColor ? normalizeColor(i.backgroundColor) : DEFAULT_LAB_SETTINGS.backgroundColor;
+  const rawShaderSource = has("shaderSourceCode") && typeof i.shaderSourceCode === "string" ? i.shaderSourceCode : "";
+  const shaderSourceCode =
+    rawShaderSource && !rawShaderSource.includes("float rings = 0.5 + 0.5 * cos(18.0 * r")
+      ? rawShaderSource
+      : DEFAULT_LAB_SETTINGS.shaderSourceCode || DEFAULT_SHADER_TEXTURE_SOURCE;
   return {
     canvasMode,
     canvasScale: Math.max(0.1, Math.min(8, n(i.canvasScale, DEFAULT_LAB_SETTINGS.canvasScale))),
     canvasWidth: Math.round(Math.max(1, Math.min(8192, n(i.canvasWidth, DEFAULT_LAB_SETTINGS.canvasWidth)))),
     canvasHeight: Math.round(Math.max(1, Math.min(8192, n(i.canvasHeight, DEFAULT_LAB_SETTINGS.canvasHeight)))),
+    canvasAspectLocked:
+      typeof i.canvasAspectLocked === "boolean" ? i.canvasAspectLocked : DEFAULT_LAB_SETTINGS.canvasAspectLocked,
     exportStartSec: Math.max(0, Math.min(24 * 60 * 60, n(i.exportStartSec, DEFAULT_LAB_SETTINGS.exportStartSec))),
     exportDurationSec: Math.max(
       0.1,
@@ -326,13 +372,28 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
     ),
     backgroundColor,
     textureId: has("textureId") ? normalizeString(i.textureId) : DEFAULT_LAB_SETTINGS.textureId,
+    textureSourceMode,
+    shaderSourceCode,
+    shaderSourceWidth: Math.round(
+      Math.max(1, Math.min(8192, n(i.shaderSourceWidth, DEFAULT_LAB_SETTINGS.shaderSourceWidth))),
+    ),
+    shaderSourceHeight: Math.round(
+      Math.max(1, Math.min(8192, n(i.shaderSourceHeight, DEFAULT_LAB_SETTINGS.shaderSourceHeight))),
+    ),
     backgroundFillMode: has("backgroundFillMode")
       ? normalizeBackgroundFillMode(i.backgroundFillMode)
       : DEFAULT_LAB_SETTINGS.backgroundFillMode,
+    backgroundSourceOpacity: Math.max(
+      0,
+      Math.min(1, n(i.backgroundSourceOpacity, DEFAULT_LAB_SETTINGS.backgroundSourceOpacity)),
+    ),
     stripePalette: has("stripePalette") ? normalizeString(i.stripePalette) : DEFAULT_LAB_SETTINGS.stripePalette,
     backgroundRampEasing: has("backgroundRampEasing")
       ? normalizeString(i.backgroundRampEasing)
       : DEFAULT_LAB_SETTINGS.backgroundRampEasing,
+    backgroundRampSettings: has("backgroundRampSettings")
+      ? normalizeBackgroundRampSettings(i.backgroundRampSettings)
+      : DEFAULT_LAB_SETTINGS.backgroundRampSettings,
     thresholdDistributionEasing: has("thresholdDistributionEasing")
       ? normalizeString(i.thresholdDistributionEasing)
       : DEFAULT_LAB_SETTINGS.thresholdDistributionEasing,
@@ -444,6 +505,10 @@ export function factoryResetSettings(): void {
   } catch {
     /* ignore */
   }
+}
+
+export function importConfig(text: string): Partial<EngineConfig> {
+  return importSettingsFile(text).config;
 }
 
 export function importSettingsFile(text: string): { config: Partial<EngineConfig>; lab: LabSettings | null } {

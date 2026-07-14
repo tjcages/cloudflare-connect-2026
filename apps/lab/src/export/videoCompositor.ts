@@ -1,5 +1,4 @@
 import { cssColorForHex } from "../components/colorLibrary";
-import { intToHex } from "../lib/color";
 
 export const DEFAULT_LAB_BACKGROUND_COLOR = 0x000000;
 
@@ -11,6 +10,10 @@ export type LabExportCompositor = {
   canvas: HTMLCanvasElement;
   compositeFrame: () => void;
 };
+
+function backgroundColorToHex(color: number): string {
+  return `#${(color & 0xffffff).toString(16).padStart(6, "0")}`;
+}
 
 export async function createLabExportCompositor(
   sourceCanvas: HTMLCanvasElement,
@@ -33,7 +36,7 @@ export async function createLabExportCompositor(
     throw new Error("2D canvas context is unavailable.");
   }
 
-  const fillStyle = cssColorForHex(intToHex(backgroundColor));
+  const fillStyle = cssColorForHex(backgroundColorToHex(backgroundColor));
 
   const compositeFrame = () => {
     if (hasBackgroundColor) {

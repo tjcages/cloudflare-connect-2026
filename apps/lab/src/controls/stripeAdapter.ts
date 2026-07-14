@@ -1,5 +1,4 @@
 import type { Stripe } from "@necatikcl/stripes-engine";
-import { hexToInt, intToHex } from "../lib/color";
 
 export type EditableStripe = {
   id: string;
@@ -12,7 +11,7 @@ export type EditableStripe = {
 export function toEditable(stripes: Stripe[]): EditableStripe[] {
   return stripes.map((s, index) => ({
     id: String(index),
-    hex: intToHex(s.color),
+    hex: "#" + s.color.toString(16).padStart(6, "0"),
     startFrom: s.startFrom,
     width: s.width,
     opacity: s.opacity,
@@ -21,7 +20,7 @@ export function toEditable(stripes: Stripe[]): EditableStripe[] {
 
 export function fromEditable(rows: EditableStripe[]): Stripe[] {
   return rows.map((r) => ({
-    color: hexToInt(r.hex),
+    color: parseInt(r.hex.replace(/^#/, ""), 16) || 0,
     startFrom: r.startFrom,
     width: r.width,
     opacity: r.opacity,

@@ -24,7 +24,6 @@ import {
   useRole,
 } from "@floating-ui/react";
 import { cn } from "../lib/cn";
-import { normalizeHexString } from "../lib/color";
 import { COLOR_LIBRARY, cssColorForHex } from "./colorLibrary";
 
 type PopoverTab = "library" | "picker";
@@ -48,12 +47,18 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function normalizeHex(value: string): string {
+  const raw = value.trim().replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{6}$/.test(raw)) return "#ffffff";
+  return `#${raw.toLowerCase()}`;
+}
+
 function channelToHex(value: number): string {
   return clamp(Math.round(value), 0, 255).toString(16).padStart(2, "0");
 }
 
 function hexToRgb(hex: string): RgbColor {
-  const normalized = (normalizeHexString(hex) ?? "#ffffff").replace(/^#/, "");
+  const normalized = normalizeHex(hex).replace(/^#/, "");
   return {
     r: Number.parseInt(normalized.slice(0, 2), 16),
     g: Number.parseInt(normalized.slice(2, 4), 16),
@@ -281,14 +286,14 @@ export const HexColorPopover = ({
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<PopoverTab>("library");
   const selectedLibraryButtonRef = useRef<HTMLButtonElement | null>(null);
-  const normalizedColor = normalizeHexString(color) ?? "#ffffff";
+  const normalizedColor = normalizeHex(color);
   const [draftColor, setDraftColor] = useState(normalizedColor);
   const [hexDraft, setHexDraft] = useState(normalizedColor.toUpperCase());
   const displayColor = open ? draftColor : normalizedColor;
 
   const updateColor = useCallback(
     (hex: string) => {
-      const next = normalizeHexString(hex) ?? "#ffffff";
+      const next = normalizeHex(hex);
       setDraftColor(next);
       setHexDraft(next.toUpperCase());
       onChange(next);
@@ -302,7 +307,7 @@ export const HexColorPopover = ({
       setHexDraft(displayColor.toUpperCase());
       return;
     }
-    const next = normalizeHexString(raw) ?? "#ffffff";
+    const next = normalizeHex(raw);
     setHexDraft(next.toUpperCase());
     updateColor(next);
   }, [displayColor, hexDraft, updateColor]);

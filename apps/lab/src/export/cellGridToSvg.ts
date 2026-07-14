@@ -1,6 +1,5 @@
 import { bandIndexForValue } from "@necatikcl/stripes-engine";
 import { p3ColorForHex } from "../components/colorLibrary";
-import { hexToInt } from "../lib/color";
 
 const ROW_WIDTH_GAP = 1;
 const MIN_STRIPE_WIDTH_PX = 0.5;
@@ -17,6 +16,7 @@ type GridRotationMode = "cell" | "global";
 type LettersSvgOptions = {
   enabled: boolean;
   mode: "random" | "text";
+  color: number;
   text: string;
   textCopies: number;
   fontFamily: string;
@@ -221,6 +221,7 @@ function buildTextLettersSvg(
   const occupied = new Uint8Array(cols * rows);
   const fontSize = Math.max(1, Math.min(cellWidthPx, cellHeightPx) * Math.max(0.1, Math.min(1, letters.sizeScale)));
   const family = sanitizeCssFontFamily(letters.fontFamily);
+  const color = `#${(letters.color & 0xffffff).toString(16).padStart(6, "0")}`;
   const elements: string[] = [];
   let placed = 0;
 
@@ -243,7 +244,9 @@ function buildTextLettersSvg(
       const cellIndex = readbackRow * cols + col;
       const x = (col + 0.5) * cellWidthPx;
       const y = (svgRow + 0.5) * cellHeightPx;
-      elements.push(`  <text class="letter-glyph" x="${x}" y="${y}">${escapeXml(glyph.char)}</text>`);
+      elements.push(
+        `  <text class="letter-glyph" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle">${escapeXml(glyph.char)}</text>`,
+      );
       occupied[cellIndex] = 1;
     }
     placed++;
@@ -253,12 +256,13 @@ function buildTextLettersSvg(
 
   const style = [
     `  .letter-glyph {`,
-    `    fill: #ffffff;`,
+    `    fill: ${color};`,
     `    font-family: ${family};`,
     `    font-size: ${fontSize}px;`,
     `    font-weight: 400;`,
     `    text-anchor: middle;`,
-    `    dominant-baseline: central;`,
+    `    dominant-baseline: middle;`,
+    `    alignment-baseline: middle;`,
     `  }`,
   ].join("\n");
 
@@ -314,7 +318,7 @@ export function cellGridToSvg(
 
   const sortedStripes = [...stripes].sort((a, b) => a.startFrom - b.startFrom);
   const engineStripes = stripes.map((s) => ({
-    color: hexToInt(s.hex),
+    color: parseInt(s.hex.replace(/^#/, ""), 16) || 0,
     startFrom: s.startFrom,
     width: s.width,
     opacity: s.opacity ?? 1,
@@ -365,11 +369,11 @@ export function cellGridToSvg(
     const drawableStackPx = Math.max(0.0001, stackCellPx - Math.min(stackGapPx, stackCellPx));
     const drawableAxisPx = Math.max(0.0001, axisCellPx - Math.min(axisGapPx, axisCellPx));
 
-    const valueAtPixel = (x: number, y: number): number => {
+    const valueAtPixel = (x: number, y: number): { value: number; rbIndex: number } => {
       const sourceCol = Math.max(0, Math.min(cols - 1, Math.floor(x / Math.max(cellWidthPx, 0.0001))));
       const sourceRow = Math.max(0, Math.min(rows - 1, Math.floor(y / Math.max(cellHeightPx, 0.0001))));
       const rbIndex = (rows - 1 - sourceRow) * cols + sourceCol;
-      return (values[rbIndex] ?? 0) / 255;
+      return { value: (values[rbIndex] ?? 0) / 255, rbIndex };
     };
 
     for (let stackIndex = minStack; stackIndex <= maxStack; stackIndex++) {
@@ -378,7 +382,7 @@ export function cellGridToSvg(
         const axisCenter = (axisIndex + 0.5) * axisCellPx;
         const cx = center.x + normal.x * (stackCenter - stackSpanPx * 0.5) + axis.x * (axisCenter - axisSpanPx * 0.5);
         const cy = center.y + normal.y * (stackCenter - stackSpanPx * 0.5) + axis.y * (axisCenter - axisSpanPx * 0.5);
-        const value = valueAtPixel(cx, cy);
+        const { value } = valueAtPixel(cx, cy);
         const band = bandIndexForValue(value, engineStripes);
         const stripe = band >= 1 ? sortedStripes[band - 1] : undefined;
         if (band < 1 || !stripe) continue;
@@ -409,6 +413,38 @@ export function cellGridToSvg(
         let y: number;
         let rectW: number;
         let rectH: number;
+
+        if (arbitraryAngle) {
+          const stripeWidth = Math.max(
+            MIN_STRIPE_WIDTH_PX,
+            Math.min(stripe.width, Math.max(cellWidthPx, cellHeightPx)),
+          );
+          const cx = col * cellWidthPx + cellWidthPx * 0.5;
+          const cy = row * cellHeightPx + cellHeightPx * 0.5;
+          const segment = rotatedStripePath(
+            cx,
+            cy,
+            stripeWidth * 0.5,
+            Math.hypot(cellWidthPx, cellHeightPx),
+            resolvedAngleDeg,
+          );
+          if (useCellColors && colors) {
+            const hex = cellColorHex(colors, rbIndex);
+            const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));
+            const style = [`fill:${p3SvgColor(hex)}`, blendStyle].filter(Boolean).join(";");
+            cellColorPaths.push(
+              `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segment}" />`,
+            );
+          } else {
+            clippedStripeElements.push({
+              depth: (values[rbIndex] ?? 0) / 255,
+              opacity: stripe.opacity ?? 1,
+              element: `  <path class="${svgStripeClass(band)}" d="${segment}" />`,
+            });
+            pathsByBand.set(band, pathsByBand.get(band) ?? []);
+          }
+          continue;
+        }
 
         if (effectiveOrientation === "horizontal") {
           const bandLeft = col > 0 ? bandAt(row, col - 1) : 0;
@@ -533,8 +569,8 @@ export function cellGridToSvg(
         ].join("\n")
       : "";
   const pathElements = usedBands
-    .filter((band) => (pathsByBand.get(band) ?? []).length > 0)
     .map((band) => `  <path class="${svgStripeClass(band)}" d="${(pathsByBand.get(band) ?? []).join(" ")}" />`)
+    .filter((path) => !path.includes('d=""'))
     .join("\n");
   const clippedPathElements = clippedStripeElements
     .sort((a, b) => a.depth - b.depth || a.opacity - b.opacity)

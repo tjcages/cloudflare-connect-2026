@@ -1,5 +1,3 @@
-import { normalizeHexString } from "../lib/color";
-
 export type LibraryColor = {
   label: string;
   hex: string;
@@ -21,12 +19,17 @@ function colorGroup(name: string, steps: ColorStep[]): LibraryGroup {
   };
 }
 
+function normalizeHex(value: string): string {
+  const raw = value.trim().replace(/^#/, "");
+  return /^[0-9a-fA-F]{6}$/.test(raw) ? `#${raw.toLowerCase()}` : "#000000";
+}
+
 function p3ChannelFromHex(hex: string, start: number): string {
   return (Number.parseInt(hex.slice(start, start + 2), 16) / 255).toFixed(4);
 }
 
 export function p3CssFromHex(hex: string): string {
-  const normalized = (normalizeHexString(hex) ?? "#000000").replace(/^#/, "");
+  const normalized = normalizeHex(hex).replace(/^#/, "");
   return `color(display-p3 ${p3ChannelFromHex(normalized, 0)} ${p3ChannelFromHex(normalized, 2)} ${p3ChannelFromHex(normalized, 4)})`;
 }
 
@@ -131,7 +134,7 @@ export const COLOR_LIBRARY: LibraryGroup[] = [
 
 const P3_BY_HEX = new Map(
   COLOR_LIBRARY.flatMap((group) =>
-    group.colors.map((color) => [normalizeHexString(color.hex) ?? "#000000", color.p3 ?? p3CssFromHex(color.hex)]),
+    group.colors.map((color) => [normalizeHex(color.hex), color.p3 ?? p3CssFromHex(color.hex)]),
   ),
 );
 
@@ -147,11 +150,11 @@ export function supportsDisplayP3Color(): boolean {
 }
 
 export function p3ColorForHex(hex: string): string {
-  const normalized = normalizeHexString(hex) ?? "#000000";
+  const normalized = normalizeHex(hex);
   return P3_BY_HEX.get(normalized) ?? p3CssFromHex(normalized);
 }
 
 export function cssColorForHex(hex: string): string {
-  const normalized = normalizeHexString(hex) ?? "#000000";
+  const normalized = normalizeHex(hex);
   return supportsDisplayP3Color() ? p3ColorForHex(normalized) : normalized;
 }

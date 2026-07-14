@@ -1,8 +1,10 @@
 import type { EngineConfig } from "@necatikcl/stripes-engine";
+import type { LabSettings } from "./persistence";
 
 export interface ConfigPreset {
   name: string;
   config: EngineConfig;
+  lab?: Partial<LabSettings>;
 }
 
 const PRESETS_KEY = "stripes-engine-lab-presets";
