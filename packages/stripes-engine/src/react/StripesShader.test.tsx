@@ -15,6 +15,17 @@ vi.mock("../engine", () => ({
   createStripesEngine: vi.fn(() => engineStub),
 }));
 
+const sharedHandleStub = {
+  setConfig: vi.fn(),
+  triggerReveal: vi.fn(),
+  unregister: vi.fn(),
+};
+const registerSharedShader = vi.fn(() => sharedHandleStub);
+
+vi.mock("../shared/coordinator", () => ({
+  registerSharedShader,
+}));
+
 import { StripesShader } from "./StripesShader";
 import { createStripesEngine } from "../engine";
 
@@ -78,5 +89,13 @@ describe("<StripesShader>", () => {
     const { unmount } = render(<StripesShader src="logo.png" />);
     unmount();
     expect(engineStub.dispose).toHaveBeenCalled();
+  });
+
+  it("shared mode forwards rootMargin and preloadRootMargin to registerSharedShader", async () => {
+    render(<StripesShader src="logo.png" sharedContext rootMargin="10% 0px" preloadRootMargin="200% 0px" />);
+    await vi.waitFor(() => expect(registerSharedShader).toHaveBeenCalled());
+    expect(registerSharedShader).toHaveBeenCalledWith(
+      expect.objectContaining({ rootMargin: "10% 0px", preloadRootMargin: "200% 0px" }),
+    );
   });
 });

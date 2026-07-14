@@ -18,6 +18,8 @@ export type StripesShaderProps = {
   style?: CSSProperties;
   sharedContext?: boolean;
   rootMargin?: string;
+  /** Shared mode only: rootMargin for the preload gate that starts image loading ahead of the render gate. */
+  preloadRootMargin?: string;
   /** Shared mode only: delay the first source load so the reveal plays visibly after mount. */
   revealDelayMs?: number;
 };
@@ -36,6 +38,7 @@ export function StripesShader(props: StripesShaderProps) {
     style,
     sharedContext = false,
     rootMargin,
+    preloadRootMargin,
     revealDelayMs,
   } = props;
 
@@ -164,6 +167,7 @@ export function StripesShader(props: StripesShaderProps) {
         muted,
         autoPlay,
         rootMargin,
+        preloadRootMargin,
       });
       sharedHandleRef.current = handle;
       if (configRef.current) handle.setConfig(configRef.current);
@@ -173,7 +177,7 @@ export function StripesShader(props: StripesShaderProps) {
       handle?.unregister();
       sharedHandleRef.current = null;
     };
-  }, [sharedContext, src, mediaKind, autoPlay, loop, muted, rootMargin, revealDelayMs]);
+  }, [sharedContext, src, mediaKind, autoPlay, loop, muted, rootMargin, preloadRootMargin, revealDelayMs]);
 
   useEffect(() => {
     if (!sharedContext) return;

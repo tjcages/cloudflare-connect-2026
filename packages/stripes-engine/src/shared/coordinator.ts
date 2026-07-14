@@ -19,6 +19,7 @@ export type RegisterSharedShaderOptions = {
   muted?: boolean;
   autoPlay?: boolean;
   rootMargin?: string;
+  preloadRootMargin?: string;
 };
 
 type RegisteredInstance = {
@@ -28,6 +29,7 @@ type RegisteredInstance = {
   src: string;
   mediaKind: "image" | "video";
   intersectionObserver: IntersectionObserver;
+  preloadObserver: IntersectionObserver | null;
   resizeObserver: ResizeObserver;
   pump: VideoFramePump | null;
   visible: boolean;
@@ -222,6 +224,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     revealArmed: false,
     revealTimer: null,
     intersectionObserver: undefined as unknown as IntersectionObserver,
+    preloadObserver: null,
     resizeObserver: undefined as unknown as ResizeObserver,
   };
 
@@ -238,6 +241,23 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     },
     { rootMargin: opts.rootMargin ?? DEFAULT_ROOT_MARGIN },
   );
+
+  // Preload gate, separate from the render gate above. A tight render `rootMargin`
+  // keeps offscreen instances from rendering, but images must still load ahead of
+  // the viewport to avoid pop-in — so this wider `preloadRootMargin` starts the
+  // image load only, then disconnects after the first intersection. Video decode
+  // stays driven purely by the render observer (visibility start/stop).
+  let preloadObserver: IntersectionObserver | null = null;
+  if (mediaKind === "image") {
+    preloadObserver = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        preloadObserver?.disconnect();
+        startMedia(instance, src);
+      },
+      { rootMargin: opts.preloadRootMargin ?? DEFAULT_ROOT_MARGIN },
+    );
+  }
 
   const resizeObserver = new ResizeObserver(() => {
     const size = readSize(canvas);
@@ -257,11 +277,13 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   };
 
   instance.intersectionObserver = intersectionObserver;
+  instance.preloadObserver = preloadObserver;
   instance.resizeObserver = resizeObserver;
   instances.set(id, instance);
   startClock();
 
   intersectionObserver.observe(canvas);
+  preloadObserver?.observe(canvas);
   resizeObserver.observe(canvas);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerleave", onPointerLeave);
@@ -282,6 +304,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
         instance.revealTimer = null;
       }
       intersectionObserver.disconnect();
+      preloadObserver?.disconnect();
       resizeObserver.disconnect();
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerleave", onPointerLeave);

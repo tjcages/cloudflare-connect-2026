@@ -20,6 +20,7 @@ type Instance = {
   engine: SharedStripesEngine;
   visible: boolean;
   hasSource: boolean;
+  pendingReveal: boolean;
 };
 
 const SHARED_GL_ATTRIBUTES: WebGLContextAttributes = {
@@ -135,7 +136,7 @@ function handle(message: MainToWorkerMessage): void {
         seed: message.seed,
       });
       if (message.config) engine.setConfig(message.config);
-      instances.set(message.id, { engine, visible: false, hasSource: false });
+      instances.set(message.id, { engine, visible: false, hasSource: false, pendingReveal: false });
       return;
     }
     case "tick": {
@@ -159,6 +160,12 @@ function handle(message: MainToWorkerMessage): void {
       const instance = instances.get(message.id);
       if (!instance) return;
       instance.visible = message.visible;
+      // A source that arrived while offscreen deferred its reveal so it plays in
+      // view rather than two viewports away. Fire it now, once, on first sight.
+      if (message.visible && instance.pendingReveal) {
+        instance.pendingReveal = false;
+        instance.engine.triggerReveal();
+      }
       return;
     }
     case "source": {
@@ -178,7 +185,12 @@ function handle(message: MainToWorkerMessage): void {
         return;
       }
       instance.engine.setSource(asEngineSource(message.frame));
-      if (!instance.hasSource) instance.engine.triggerReveal();
+      // Reveal on the first source only. If the instance is already visible, play
+      // it now (unchanged behavior); otherwise defer until it enters the viewport.
+      if (!instance.hasSource) {
+        if (instance.visible) instance.engine.triggerReveal();
+        else instance.pendingReveal = true;
+      }
       instance.hasSource = true;
       closeFrame(message.frame);
       return;
