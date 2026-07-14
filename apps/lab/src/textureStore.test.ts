@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect } from "vitest";
-import { putTextureBlob, getTextureBlob, deleteTextureBlob } from "./textureStore";
+import { putTextureBlob, getTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 
 describe("textureStore", () => {
   it("stores and retrieves bytes by id", async () => {
@@ -20,5 +20,13 @@ describe("textureStore", () => {
     await putTextureBlob("upload-b", blob, "video/mp4");
     await deleteTextureBlob("upload-b");
     expect(await getTextureBlob("upload-b")).toBeUndefined();
+  });
+
+  it("clears all stored blobs", async () => {
+    await putTextureBlob("upload-c", new Blob(["c"], { type: "image/png" }), "image/png");
+    await putTextureBlob("upload-d", new Blob(["d"], { type: "image/png" }), "image/png");
+    await clearTextureBlobs();
+    expect(await getTextureBlob("upload-c")).toBeUndefined();
+    expect(await getTextureBlob("upload-d")).toBeUndefined();
   });
 });

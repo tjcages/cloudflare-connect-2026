@@ -82,13 +82,40 @@ function formatExportTime(seconds: number): string {
 }
 
 export function resolveExportDuration(kind: LabExportSourceKind, videoDuration: number): number {
+  return resolveRequestedExportRange(kind, videoDuration).durationSec;
+}
+
+export function resolveRequestedExportRange(
+  kind: LabExportSourceKind,
+  videoDuration: number,
+  requestedStartSec = 0,
+  requestedDurationSec?: number,
+): { startTimeSec: number; durationSec: number } {
+  const requestedDuration =
+    typeof requestedDurationSec === "number" && Number.isFinite(requestedDurationSec)
+      ? requestedDurationSec
+      : undefined;
   if (kind === "image") {
-    return LAB_IMAGE_EXPORT_DURATION_SEC;
+    return {
+      startTimeSec: 0,
+      durationSec: Math.max(
+        0.1,
+        Math.min(requestedDuration ?? LAB_IMAGE_EXPORT_DURATION_SEC, LAB_VIDEO_EXPORT_MAX_DURATION_SEC),
+      ),
+    };
   }
   if (!Number.isFinite(videoDuration) || videoDuration <= 0) {
-    return 0;
+    return { startTimeSec: 0, durationSec: 0 };
   }
-  return Math.min(videoDuration, LAB_VIDEO_EXPORT_MAX_DURATION_SEC);
+  const startTimeSec = Math.max(0, Math.min(requestedStartSec, Math.max(0, videoDuration - 0.001)));
+  const maxDuration = Math.max(0, videoDuration - startTimeSec);
+  return {
+    startTimeSec,
+    durationSec: Math.max(
+      0,
+      Math.min(requestedDuration ?? maxDuration, maxDuration, LAB_VIDEO_EXPORT_MAX_DURATION_SEC),
+    ),
+  };
 }
 
 export function resolveExportFrameCount(durationSec: number): number {
@@ -177,6 +204,7 @@ type RecordCanvasOptions = {
   videoBitsPerSecond?: number;
   signal?: AbortSignal;
   video?: HTMLVideoElement;
+  startTimeSec?: number;
   onProgress?: (elapsedMs: number, totalMs: number) => void;
   onStart?: () => void | Promise<void>;
   compositeFrame?: () => void;
@@ -285,6 +313,7 @@ type FastRecordOptions = {
   videoBitsPerSecond?: number;
   signal?: AbortSignal;
   video: HTMLVideoElement;
+  startTimeSec?: number;
   onProgress?: (elapsedMs: number, totalMs: number) => void;
   compositeFrame?: () => void;
 };
@@ -335,7 +364,10 @@ export async function recordCanvasFast(canvas: HTMLCanvasElement, options: FastR
       if (options.signal?.aborted) {
         break;
       }
-      const timeSec = Math.min(options.video.duration || Number.POSITIVE_INFINITY, frame / options.fps);
+      const timeSec = Math.min(
+        options.video.duration || Number.POSITIVE_INFINITY,
+        (options.startTimeSec ?? 0) + frame / options.fps,
+      );
       await waitVideoSeek(options.video, timeSec);
       await waitNextPaint();
       options.compositeFrame?.();
@@ -389,6 +421,8 @@ export type ExportLabVideoOptions = {
   sourceKind: LabExportSourceKind;
   video?: HTMLVideoElement;
   backgroundColor?: number;
+  startTimeSec?: number;
+  durationSec?: number;
   signal?: AbortSignal;
   onPhase?: (phase: LabVideoExportPhase) => void;
   onProgress?: (elapsedMs: number, totalMs: number) => void;
@@ -408,6 +442,8 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     sourceKind,
     video,
     backgroundColor,
+    startTimeSec: requestedStartTimeSec = 0,
+    durationSec: requestedDurationSec,
     signal,
     onPhase,
     onProgress,
@@ -422,7 +458,13 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     throw new DOMException("Export aborted.", "AbortError");
   }
 
-  const durationSec = resolveExportDuration(sourceKind, video?.duration ?? 0);
+  const range = resolveRequestedExportRange(
+    sourceKind,
+    video?.duration ?? 0,
+    requestedStartTimeSec,
+    requestedDurationSec,
+  );
+  const { startTimeSec, durationSec } = range;
   if (durationSec <= 0) {
     throw new Error("Invalid export duration.");
   }
@@ -441,8 +483,9 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
   if (video) {
     savedVideoState = saveVideoState(video);
     video.loop = false;
-    video.currentTime = 0;
+    video.currentTime = startTimeSec;
     video.pause();
+    await waitVideoSeek(video, startTimeSec);
   }
 
   onPhase?.("recording");
@@ -468,13 +511,16 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
         ...recorderOptions,
         frameCount,
         video,
+        startTimeSec,
       });
     } else {
       recordedBlob = await recordCanvasToWebm(recordCanvas, {
         ...recorderOptions,
         video,
+        startTimeSec,
         onStart: async () => {
           if (video) {
+            await waitVideoSeek(video, startTimeSec);
             await video.play();
           }
         },

@@ -1,5 +1,4 @@
 import type { EngineSource } from "@necatikcl/stripes-engine";
-import { createTestImage } from "./testImage";
 import type { UploadEntry } from "./uploads";
 import { getTextureBlob } from "./textureStore";
 
@@ -17,24 +16,16 @@ export interface LabTextureEntry {
 
 export const LAB_TEXTURES: LabTextureEntry[] = [
   {
-    id: "cloudflare-footer",
-    label: "Footer / Cloudflare",
-    url: `${import.meta.env.BASE_URL}textures/cloudflare-footer.svg`,
+    id: "cf-base",
+    label: "Cloudflare Base",
+    url: `${import.meta.env.BASE_URL}textures/cf-base.png`,
     kind: "image",
-    defaultScale: 2,
-    origin: "builtin",
-  },
-  {
-    id: "cta",
-    label: "CTA",
-    url: `${import.meta.env.BASE_URL}textures/cta.mp4`,
-    kind: "video",
-    defaultScale: 4,
+    defaultScale: 1,
     origin: "builtin",
   },
 ];
 
-export const DEFAULT_LAB_TEXTURE_ID = "cloudflare-footer";
+export const DEFAULT_LAB_TEXTURE_ID = "cf-base";
 
 export function buildTextureEntries(manifest: UploadEntry[]): LabTextureEntry[] {
   const uploads = manifest.map(
@@ -58,12 +49,14 @@ export interface LoadedTextureSource {
   source: EngineSource;
   video: HTMLVideoElement | null;
   objectUrl: string | null;
+  width: number;
+  height: number;
 }
 
 export function loadTextureSource(entry: LabTextureEntry): Promise<LoadedTextureSource> {
   if (entry.origin === "upload") return loadUploadSource(entry);
   if (entry.url === null) {
-    return Promise.resolve({ source: createTestImage(), video: null, objectUrl: null });
+    return Promise.reject(new Error(`Missing texture URL: ${entry.id}`));
   }
   return entry.kind === "video" ? loadVideoFromUrl(entry.url, null) : loadImageFromUrl(entry.url, null);
 }
@@ -84,24 +77,53 @@ async function loadUploadSource(entry: LabTextureEntry): Promise<LoadedTextureSo
 function loadVideoFromUrl(url: string, objectUrl: string | null): Promise<LoadedTextureSource> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      const width = video.videoWidth || 0;
+      const height = video.videoHeight || 0;
+      if (width <= 0 || height <= 0) return;
+      done = true;
+      video.play().catch(() => {});
+      resolve({ source: video, video, objectUrl, width, height });
+    };
     video.src = url;
     video.autoplay = true;
     video.loop = true;
     video.muted = true;
     video.playsInline = true;
-    video.onloadeddata = () => {
-      video.play().catch(() => {});
-      resolve({ source: video, video, objectUrl });
+    video.preload = "auto";
+    video.onloadedmetadata = finish;
+    video.onloadeddata = finish;
+    video.oncanplay = finish;
+    video.onerror = () => {
+      if (!done) reject(new Error(`Failed to load texture: ${url}`));
     };
-    video.onerror = () => reject(new Error(`Failed to load texture: ${url}`));
+    if (video.readyState >= 1) finish();
   });
 }
 
 function loadImageFromUrl(url: string, objectUrl: string | null): Promise<LoadedTextureSource> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve({ source: img, video: null, objectUrl });
-    img.onerror = () => reject(new Error(`Failed to load texture: ${url}`));
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      const width = img.naturalWidth || img.width || 0;
+      const height = img.naturalHeight || img.height || 0;
+      if (width <= 0 || height <= 0) return;
+      done = true;
+      resolve({ source: img, video: null, objectUrl, width, height });
+    };
+    img.onload = finish;
+    img.onerror = () => {
+      if (!done) reject(new Error(`Failed to load texture: ${url}`));
+    };
     img.src = url;
+    if (img.complete) queueMicrotask(finish);
+    img
+      .decode?.()
+      .then(finish)
+      .catch(() => {});
   });
 }

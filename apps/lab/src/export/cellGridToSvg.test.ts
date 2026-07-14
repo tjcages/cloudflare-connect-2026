@@ -22,12 +22,66 @@ describe("cellGridToSvg", () => {
     expect(svg).toContain('height="7"');
   });
 
+  it("keeps the exported svg size pinned to the canvas size", () => {
+    const readback = { cols: 46, rows: 46, values: v(...new Array(46 * 46).fill(255)), colors: null };
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: false,
+      canvasWidthPx: 320,
+      canvasHeightPx: 320,
+    });
+    expect(svg).toContain('width="320"');
+    expect(svg).toContain('height="320"');
+    expect(svg).toContain('viewBox="0 0 320 320"');
+    expect(svg).not.toContain('width="322"');
+    expect(svg).not.toContain('height="322"');
+  });
+
   it("emits display-p3 band colors with an sRGB fallback (@supports)", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: null };
     const svg = cellGridToSvg(readback, STRIPES, { cellWidthPx: 7, cellHeightPx: 7, useCellColors: false });
     expect(svg).toContain("#00cc88"); // sRGB fallback
     expect(svg).toContain("@supports (fill: color(display-p3 1 1 1))");
     expect(svg).toContain("color(display-p3 0.0000 0.8000 0.5333)"); // 0x00cc88 as p3 coords
+  });
+
+  it("uses exact library display-p3 tokens when a stripe color comes from the color library", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, [{ hex: "#f46021", startFrom: 0, width: 4 }], {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: false,
+    });
+
+    expect(svg).toContain("#f46021"); // fallback / packed P3 canvas color
+    expect(svg).toContain("color(display-p3 0.9569 0.3765 0.1294)"); // Orange 700 [Main] token
+  });
+
+  it("includes an optional background color rect behind paths", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: false,
+      backgroundHex: "#fff0d1",
+    });
+
+    expect(svg).toContain('<rect width="7" height="7" fill="#fff0d1" style="fill:color(display-p3');
+    expect(svg.indexOf("<rect")).toBeLessThan(svg.indexOf("<path"));
+  });
+
+  it("includes the background color rect in image-colors SVG export too", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: v(0x33, 0x66, 0x99, 255) };
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: true,
+      backgroundHex: "#111111",
+    });
+
+    expect(svg).toContain('<rect width="7" height="7" fill="#111111" style="fill:color(display-p3');
+    expect(svg.indexOf("<rect")).toBeLessThan(svg.indexOf("<path"));
   });
 
   it("skips band-0 cells (no path)", () => {
@@ -69,6 +123,17 @@ describe("cellGridToSvg", () => {
     expect(svg).toContain("h4"); // stripe.width = 4, not 2
   });
 
+  it("preserves sub-pixel stripe widths in svg export", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, [{ hex: "#111111", startFrom: 0, width: 0.5 }], {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: false,
+    });
+    expect(svg).toContain("h0.5");
+    expect(svg).not.toContain("h1v");
+  });
+
   it("uses cellHeight for the vertical axis (non-square cells)", () => {
     const readback = { cols: 1, rows: 2, values: v(255, 255), colors: null };
     const svg = cellGridToSvg(readback, STRIPES, { cellWidthPx: 7, cellHeightPx: 14, useCellColors: false });
@@ -82,5 +147,32 @@ describe("cellGridToSvg", () => {
     const svg = cellGridToSvg(readback, stripes, { cellWidthPx: 7, cellHeightPx: 7, useCellColors: false });
     expect(svg).toContain("h7"); // width 20 clamped to cellWidthPx 7
     expect(svg).not.toContain("h20");
+  });
+
+  it("exports horizontal orientation as horizontal stripe bars", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, stripes, {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      orientation: "horizontal",
+    });
+
+    expect(svg).toContain("M0 2h10v4h-10Z");
+  });
+
+  it("clamps horizontal stripe thickness to the cell height", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 20 }];
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, stripes, {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      orientation: "horizontal",
+    });
+
+    expect(svg).toContain("h10v8h-10");
+    expect(svg).not.toContain("v20");
   });
 });

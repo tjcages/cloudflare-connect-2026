@@ -5,25 +5,22 @@ export function PerfOverlay({ snap }: { snap: PerfSnapshot }) {
     <div
       style={{
         position: "fixed",
-        top: 8,
-        left: 8,
-        padding: "8px 10px",
-        borderRadius: 6,
-        background: "rgba(0,0,0,0.6)",
+        bottom: 24,
+        left: "50%",
+        transform: "translateX(-50%)",
+        padding: "4px 6px",
+        borderRadius: 4,
+        background: "rgba(0,0,0,0.42)",
         color: "#0f0",
-        font: "12px ui-monospace, monospace",
+        font: "8px ui-monospace, monospace",
+        lineHeight: 1.25,
         whiteSpace: "pre",
         pointerEvents: "none",
+        textAlign: "center",
+        zIndex: 20,
       }}
     >
-      {`fps      ${snap.fps.toFixed(1)}
-frame ms p50 ${snap.frameMs.p50.toFixed(2)}  p95 ${snap.frameMs.p95.toFixed(2)}  p99 ${snap.frameMs.p99.toFixed(2)}
-gpu ms   ${
-        Object.entries(snap.passMs)
-          .map(([k, v]) => `${k} ${v.toFixed(2)}`)
-          .join("  ") || "(timer unsupported)"
-      }
-samples  ${snap.sampleCount}`}
+      {`fps ${snap.fps.toFixed(1)} · frame ${snap.frameMs.p50.toFixed(1)}ms`}
     </div>
   );
 }

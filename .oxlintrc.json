@@ -64,6 +64,12 @@
       "rules": {
         "no-restricted-properties": "off"
       }
+    },
+    {
+      "files": ["**/src/components/HexColorPopover.tsx", "**/src/controls/StripeColorsTable.tsx"],
+      "rules": {
+        "jsx-a11y/prefer-tag-over-role": "off"
+      }
     }
   ],
   "settings": {

@@ -174,7 +174,6 @@
   border: none;
 }
 
-.playground-canvas-scale-input-group > div:has(> input):focus-within,
 .playground-canvas-scale-controls > div:has(> input):focus-within {
   outline: none !important;
   box-shadow: none !important;
@@ -186,6 +185,20 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.playground-canvas-source-size {
+  display: block;
+  width: 100%;
+  height: 24px;
+  box-sizing: border-box;
+  border-radius: var(--leva-radius);
+  background: var(--leva-surface);
+  color: var(--leva-text);
+  font-size: 11px;
+  line-height: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .playground-canvas-scale-controls {
@@ -215,25 +228,9 @@
   line-height: 16.5px;
 }
 
-.playground-canvas-scale-input-group {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  margin-left: 8px;
-}
-
-.playground-canvas-scale-input-group > div {
-  flex: 0 0 44px;
-  width: 44px;
-  min-width: 44px;
-}
-
-.playground-canvas-scale-suffix {
-  flex: 0 0 auto;
-  color: var(--leva-text-muted);
-  font-size: 11px;
-  line-height: 16.5px;
+.playground-canvas-scale-controls button.is-active {
+  color: var(--leva-accent2);
+  background: var(--leva-elevation2);
 }
 
 /* Workflow actions (React, above Leva). */
@@ -286,6 +283,13 @@
   background: transparent !important;
 }
 
+.playground-leva-panel .playground-workflow-controls .wf-config,
+.playground-leva-panel .playground-workflow-controls .wf-config > div,
+.playground-leva-panel .playground-workflow-controls .wf-config .wf-row {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 .playground-workflow-controls .wf-field-label {
   color: var(--leva-text-muted);
 }
@@ -314,20 +318,6 @@
   padding-right: 24px;
   text-align: center;
   text-align-last: center;
-}
-
-.playground-workflow-leva-panel {
-  width: 100%;
-}
-
-/* Workflow import field: align with full-width buttons (no extra Leva row inset). */
-.playground-workflow-leva-panel [class*="bDGmTT"] {
-  padding-inline: 0 !important;
-}
-
-.playground-workflow-status {
-  margin: 0;
-  color: var(--leva-text-muted);
 }
 
 /* Import JSON: full-width textarea without a side label (label is a single space). */
@@ -371,66 +361,287 @@
   font-size: 11px;
 }
 
-.playground-leva-panel .stripe-colors-table .stripe-colors-header,
-.playground-leva-panel .stripe-colors-table .stripe-colors-color-row,
-.playground-leva-panel .stripe-colors-table .stripe-colors-ladder-row {
+.playground-leva-panel .stripe-colors-table .stripe-colors-palette-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-palette-title {
+  color: var(--leva-text-muted);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-palette-toolbar {
   display: grid;
-  align-items: center;
-}
-
-.playground-leva-panel .stripe-colors-table .stripe-colors-header {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  column-gap: 8px;
-  padding-bottom: 6px;
-}
-
-.playground-leva-panel .stripe-colors-table .stripe-colors-header-color {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 6px;
   min-width: 0;
-  padding-left: calc(var(--sc-grip-w) + 8px);
 }
 
-.playground-leva-panel .stripe-colors-table .stripe-colors-header-ladder {
+.playground-leva-panel .stripe-colors-table .stripe-colors-palette-toolbar select,
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-row select {
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: var(--leva-radius);
+  background-color: var(--leva-surface);
+  color: var(--leva-text);
+  font-size: 11px;
+  padding: 0 24px 0 8px;
+  outline: none;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 16px;
-  column-gap: 8px;
-  justify-items: end;
-}
-
-.playground-leva-panel .stripe-colors-table .stripe-colors-header-ladder .stripe-colors-table-label {
-  overflow: visible;
-}
-
-.playground-leva-panel .stripe-colors-table .stripe-colors-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  column-gap: 8px;
+  grid-template-columns: 76px minmax(0, 1fr);
   align-items: start;
+  gap: 6px;
+  min-width: 0;
 }
 
-.playground-leva-panel .stripe-colors-table .stripe-colors-color-column {
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-control {
   display: grid;
-  grid-auto-rows: var(--sc-row-h);
-  row-gap: 0;
+  gap: 5px;
+  min-width: 0;
 }
 
-.playground-leva-panel .stripe-colors-table .stripe-colors-color-row {
-  grid-template-columns: var(--sc-grip-w) 24px;
-  column-gap: 8px;
-  height: var(--sc-row-h);
-  position: relative;
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-graph {
+  width: 100%;
+  height: 88px;
+  display: block;
+  overflow: visible;
+  border-radius: var(--leva-radius);
+  background: color-mix(in srgb, var(--leva-surface) 68%, transparent);
+  touch-action: none;
+  user-select: none;
 }
 
-.playground-leva-panel .stripe-colors-table .stripe-colors-ladder-column {
-  display: grid;
-  grid-auto-rows: var(--sc-row-h);
-  row-gap: 0;
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-graph.is-editable {
+  cursor: crosshair;
 }
 
-.playground-leva-panel .stripe-colors-table .stripe-colors-ladder-row {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 16px;
-  column-gap: 8px;
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-graph line {
+  stroke: color-mix(in srgb, var(--leva-text-muted) 28%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-graph polyline {
+  fill: none;
+  stroke: var(--leva-text-muted);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-handle-line {
+  stroke: color-mix(in srgb, var(--leva-text-muted) 34%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-easing-handle {
+  fill: var(--leva-text-muted);
+  stroke: var(--leva-surface);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-toggle {
+  display: grid !important;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
-  height: var(--sc-row-h);
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  margin-top: 8px;
+  padding: 0 8px !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--leva-radius) !important;
+  background-color: var(--leva-surface) !important;
+  color: var(--leva-text-muted) !important;
+  font-size: 11px;
+  text-align: left;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-toggle:not(:disabled):hover,
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-toggle:not(:disabled):focus-visible {
+  background-color: var(--leva-surface-hover) !important;
+  color: var(--leva-text) !important;
+  outline: none;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-toggle span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-count {
+  color: var(--leva-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-drawer-panel {
+  display: grid;
+  row-gap: 8px;
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-palette-action {
+  min-width: 44px;
+  height: 24px;
+  padding: 0 8px !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--leva-radius) !important;
+  background-color: var(--leva-surface) !important;
+  color: var(--leva-text-muted) !important;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-palette-action:not(:disabled):hover,
+.playground-leva-panel .stripe-colors-table button.stripe-colors-palette-action:not(:disabled):focus-visible {
+  background-color: var(--leva-surface-hover) !important;
+  color: var(--leva-text) !important;
+}
+
+.playground-leva-panel .stripe-colors-table button.stripe-colors-palette-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-list {
+  display: grid;
+  row-gap: 8px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-row {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--leva-surface);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-detail-row:last-child {
+  border-bottom: none;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-header {
+  display: grid;
+  grid-template-columns: var(--sc-grip-w) 24px minmax(0, 1fr) 16px;
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-name,
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-name {
+  color: var(--leva-text);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-color-code {
+  flex: 0 1 auto;
+  color: var(--leva-text-muted);
+  font-size: 10px;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-control-stack {
+  display: grid;
+  row-gap: 6px;
+  min-width: 0;
+  padding-left: calc(var(--sc-grip-w) + 32px);
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-control-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 56px;
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-range {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-range-root {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-range-track {
+  position: relative;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: #eeeeee;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-range-fill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  border-radius: inherit;
+  background: #8a8a8a;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-range-thumb {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 16px;
+  border-radius: var(--leva-radius);
+  background: #8a8a8a;
+  box-shadow: 0 0 0 2px #ffffff;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-range-root:focus-visible .stripe-colors-range-thumb {
+  box-shadow:
+    0 0 0 2px #ffffff,
+    0 0 0 3px #8a8a8a;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-control-row > .stripe-colors-table-label:first-child {
+  text-align: left;
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-grip {
@@ -454,15 +665,9 @@
   cursor: grabbing;
 }
 
-.playground-leva-panel .stripe-colors-table .stripe-colors-color-row:hover .stripe-colors-grip,
 .playground-leva-panel .stripe-colors-table .stripe-colors-grip:focus-visible {
   color: var(--leva-text);
   outline: none;
-}
-
-.playground-leva-panel .stripe-colors-table .stripe-colors-color-row[data-dragging="true"],
-.playground-leva-panel .stripe-colors-table .stripe-colors-color-row:active {
-  z-index: 2;
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-table-label {
@@ -474,15 +679,25 @@
   color: var(--leva-text-muted);
 }
 
-.playground-leva-panel .stripe-colors-table button:not(.stripe-colors-leva-swatch) {
+.playground-leva-panel
+  .stripe-colors-table
+  button:not(.stripe-colors-leva-swatch):not(.stripe-colors-palette-action):not(.stripe-colors-drawer-toggle) {
   background-color: transparent !important;
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
 
-.playground-leva-panel .stripe-colors-table button:not(.stripe-colors-leva-swatch):not(:disabled):hover,
-.playground-leva-panel .stripe-colors-table button:not(.stripe-colors-leva-swatch):not(:disabled):focus-visible {
+.playground-leva-panel
+  .stripe-colors-table
+  button:not(.stripe-colors-leva-swatch):not(.stripe-colors-palette-action):not(.stripe-colors-drawer-toggle):not(
+    :disabled
+  ):hover,
+.playground-leva-panel
+  .stripe-colors-table
+  button:not(.stripe-colors-leva-swatch):not(.stripe-colors-palette-action):not(.stripe-colors-drawer-toggle):not(
+    :disabled
+  ):focus-visible {
   background-color: transparent !important;
 }
 
@@ -492,14 +707,18 @@
   align-items: center;
   box-sizing: border-box;
   width: 56px;
+  min-width: 0;
   height: 24px;
+  overflow: hidden;
   border: 1px solid transparent;
   box-shadow: none;
   background-color: var(--leva-surface);
   border-radius: var(--leva-radius);
 }
 
-.playground-leva-panel .stripe-colors-table .stripe-colors-leva-input input[type="number"] {
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-input input[type="number"],
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-input input[type="text"] {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   height: 22px;
@@ -511,7 +730,13 @@
   font-size: 11px;
   line-height: normal;
   padding: 0 4px !important;
-  outline: none;
+  outline: none !important;
+  outline-offset: 0;
+}
+
+.playground-leva-panel .stripe-colors-table .stripe-colors-leva-input:focus-within {
+  border-color: var(--leva-accent);
+  box-shadow: inset 0 0 0 1px var(--leva-accent);
 }
 
 /* Stripe color swatches — match native Leva 24×24 picker chips. */
@@ -568,6 +793,89 @@
   background-color: transparent !important;
 }
 
+.playground-leva-panel .library-color-input {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+}
+
+.playground-leva-panel button.library-color-input-swatch {
+  box-sizing: border-box;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 !important;
+  border: 1px solid #d6d6d6 !important;
+  border-radius: var(--leva-radius) !important;
+  box-shadow: none !important;
+  background-color: var(--library-color-input-color) !important;
+  background-image: var(--library-color-input-image, none) !important;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0 !important;
+  background-size: 12px 12px !important;
+}
+
+.playground-leva-panel button.library-color-input-swatch:not(:disabled):hover,
+.playground-leva-panel button.library-color-input-swatch:not(:disabled):focus-visible {
+  background-color: var(--library-color-input-color) !important;
+  border-color: #d6d6d6 !important;
+}
+
+.playground-leva-panel .library-color-input-value {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  height: 24px;
+  border: 0;
+  border-radius: var(--leva-radius);
+  background-color: var(--leva-surface);
+  color: var(--leva-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  line-height: 24px;
+  padding: 0 8px;
+  outline: none;
+  box-sizing: border-box;
+  text-transform: uppercase;
+}
+
+.playground-leva-panel .library-color-input-value::placeholder {
+  color: var(--leva-text-faint);
+  text-transform: none;
+}
+
+.playground-leva-panel .library-color-input-value:focus {
+  box-shadow: inset 0 0 0 1px var(--leva-accent);
+}
+
+.playground-leva-panel .library-color-input-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--leva-radius) !important;
+  background-color: transparent !important;
+  color: var(--leva-text-muted) !important;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.playground-leva-panel .library-color-input-clear:hover:not(:disabled) {
+  background-color: var(--leva-surface-hover) !important;
+  color: var(--leva-text) !important;
+}
+
 /* Status feedback rows: value only, no side label. */
 .playground-leva-panel div:has(> div:nth-child(2):not(:has(*)):not(:has(input)):not(:has(textarea)):not(:has(select))) {
   grid-template-columns: minmax(0, 1fr) !important;
@@ -581,7 +889,7 @@
 }
 
 /* Inputs — filled gray surfaces, no competing outline. */
-.playground-leva-panel div:has(> input:not([type="range"]):not([type="checkbox"])),
+.playground-leva-panel div:has(> input:not([type="range"]):not([type="checkbox"]):not([type="file"])),
 .playground-leva-panel div:has(> textarea),
 .playground-leva-panel div:has(> select),
 .playground-leva-panel [class*="kXfPOu"]:not([class*="textArea"]) {
@@ -603,7 +911,7 @@
   color: var(--leva-text-muted) !important;
 }
 
-.playground-leva-panel input:not([type="range"]):not([type="checkbox"]),
+.playground-leva-panel input:not([type="range"]):not([type="checkbox"]):not([type="file"]),
 .playground-leva-panel textarea,
 .playground-leva-panel select {
   border: none;
@@ -611,7 +919,7 @@
   color: var(--leva-text);
 }
 
-.playground-leva-panel input:not([type="range"]):not([type="checkbox"]) {
+.playground-leva-panel input:not([type="range"]):not([type="checkbox"]):not([type="file"]) {
   padding-left: 4px !important;
   padding-right: 4px !important;
 }
@@ -712,7 +1020,7 @@
 /* ── Lab shell (plain-CSS translation of the studio Tailwind layout) ── */
 .lab-shell {
   display: flex;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   background: var(--color-builder-hover-surface);
   color: var(--color-builder-text);
@@ -730,28 +1038,103 @@
   display: flex;
   min-height: 0;
   flex: 1;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: safe center;
+  justify-content: safe center;
   overflow: auto;
   padding: 24px;
+  gap: 14px;
+}
+
+.lab-canvas-stage {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  flex: 1;
+  align-items: safe center;
+  justify-content: safe center;
+  overflow: visible;
+}
+
+.lab-canvas-stack {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.lab-canvas-source-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .lab-canvas-area canvas {
+  position: relative;
+  z-index: 1;
   display: block;
-  max-width: 100%;
-  max-height: 100%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  max-width: none;
+  max-height: none;
+  flex: 0 0 auto;
+}
+
+.lab-canvas-zoom-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid var(--color-builder-hairline);
+  backdrop-filter: blur(10px);
+}
+
+.lab-canvas-zoom-controls .lab-btn {
+  height: 22px;
+  min-width: 28px;
+  padding: 0 8px;
+}
+
+.lab-canvas-zoom-controls .lab-btn[aria-pressed="true"] {
+  color: var(--color-builder-text);
+  background: #e5e5e5;
+}
+
+.lab-canvas-zoom-value {
+  min-width: 34px;
+  color: var(--color-builder-muted);
+  font-size: 10px;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .lab-sidebar {
   display: flex;
   min-height: 0;
-  width: 360px;
   flex-shrink: 0;
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid var(--color-builder-hairline);
   background: #fff;
+}
+
+.lab-sidebar-texture {
+  width: 320px;
+  border-left: none;
+  border-right: 1px solid var(--color-builder-hairline);
+}
+
+.lab-sidebar-shader {
+  width: 360px;
+  border-left: 1px solid var(--color-builder-hairline);
 }
 
 .lab-sidebar-scroll {
@@ -760,6 +1143,15 @@
   flex: 1;
   flex-direction: column;
   overflow-y: auto;
+}
+
+.lab-sidebar-logo {
+  display: block;
+  width: auto;
+  height: 28px;
+  align-self: flex-start;
+  margin: 8px 14px 16px;
+  flex-shrink: 0;
 }
 
 .lab-bottom-bar {
@@ -776,13 +1168,6 @@
   gap: 16px;
 }
 
-.lab-btn-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
 .lab-btn {
   height: 24px;
   padding: 0 10px;
@@ -793,6 +1178,18 @@
   background: #eeeeee;
   color: #525252;
   cursor: pointer;
+}
+
+.lab-input {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 1;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: #eeeeee;
+  color: #525252;
+  box-sizing: border-box;
 }
 
 .lab-btn:hover:not(:disabled) {

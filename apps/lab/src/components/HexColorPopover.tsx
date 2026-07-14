@@ -1,4 +1,15 @@
-import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   autoUpdate,
   flip,
@@ -12,9 +23,9 @@ import {
   useInteractions,
   useRole,
 } from "@floating-ui/react";
-import { HexColorInput, HexColorPicker } from "react-colorful";
 import { cn } from "../lib/cn";
-import { COLOR_LIBRARY } from "./colorLibrary";
+import { normalizeHexString } from "../lib/color";
+import { COLOR_LIBRARY, cssColorForHex } from "./colorLibrary";
 
 type PopoverTab = "library" | "picker";
 
@@ -30,6 +41,232 @@ type HexColorPopoverProps = {
   align?: "left" | "right";
 };
 
+type RgbColor = { r: number; g: number; b: number };
+type HsvColor = { h: number; s: number; v: number };
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function channelToHex(value: number): string {
+  return clamp(Math.round(value), 0, 255).toString(16).padStart(2, "0");
+}
+
+function hexToRgb(hex: string): RgbColor {
+  const normalized = (normalizeHexString(hex) ?? "#ffffff").replace(/^#/, "");
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function rgbToHex({ r, g, b }: RgbColor): string {
+  return `#${channelToHex(r)}${channelToHex(g)}${channelToHex(b)}`;
+}
+
+function rgbToHsv({ r, g, b }: RgbColor): HsvColor {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+  let h = 0;
+
+  if (delta > 0) {
+    if (max === rn) h = ((gn - bn) / delta) % 6;
+    else if (max === gn) h = (bn - rn) / delta + 2;
+    else h = (rn - gn) / delta + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+
+  return {
+    h,
+    s: max <= 0 ? 0 : (delta / max) * 100,
+    v: max * 100,
+  };
+}
+
+function hsvToRgb({ h, s, v }: HsvColor): RgbColor {
+  const hue = ((h % 360) + 360) % 360;
+  const sat = clamp(s, 0, 100) / 100;
+  const val = clamp(v, 0, 100) / 100;
+  const chroma = val * sat;
+  const x = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = val - chroma;
+  let rp = 0;
+  let gp = 0;
+  let bp = 0;
+
+  if (hue < 60) [rp, gp, bp] = [chroma, x, 0];
+  else if (hue < 120) [rp, gp, bp] = [x, chroma, 0];
+  else if (hue < 180) [rp, gp, bp] = [0, chroma, x];
+  else if (hue < 240) [rp, gp, bp] = [0, x, chroma];
+  else if (hue < 300) [rp, gp, bp] = [x, 0, chroma];
+  else [rp, gp, bp] = [chroma, 0, x];
+
+  return {
+    r: (rp + m) * 255,
+    g: (gp + m) * 255,
+    b: (bp + m) * 255,
+  };
+}
+
+function hsvToHex(hsv: HsvColor): string {
+  return rgbToHex(hsvToRgb(hsv));
+}
+
+type EmbeddedHexColorPickerProps = {
+  color: string;
+  onChange: (hex: string) => void;
+};
+
+function EmbeddedHexColorPicker({ color, onChange }: EmbeddedHexColorPickerProps) {
+  const hsv = useMemo(() => rgbToHsv(hexToRgb(color)), [color]);
+  const saturationRef = useRef<HTMLButtonElement | null>(null);
+  const hueRef = useRef<HTMLButtonElement | null>(null);
+
+  const updateSaturation = useCallback(
+    (clientX: number, clientY: number) => {
+      const rect = saturationRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const s = clamp(((clientX - rect.left) / Math.max(1, rect.width)) * 100, 0, 100);
+      const v = clamp((1 - (clientY - rect.top) / Math.max(1, rect.height)) * 100, 0, 100);
+      onChange(hsvToHex({ h: hsv.h, s, v }));
+    },
+    [hsv.h, onChange],
+  );
+
+  const updateSaturationFromOffset = useCallback(
+    (offsetX: number, offsetY: number, width: number, height: number) => {
+      const s = clamp((offsetX / Math.max(1, width)) * 100, 0, 100);
+      const v = clamp((1 - offsetY / Math.max(1, height)) * 100, 0, 100);
+      onChange(hsvToHex({ h: hsv.h, s, v }));
+    },
+    [hsv.h, onChange],
+  );
+
+  const updateHue = useCallback(
+    (clientX: number) => {
+      const rect = hueRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const h = clamp(((clientX - rect.left) / Math.max(1, rect.width)) * 360, 0, 360);
+      onChange(hsvToHex({ ...hsv, h }));
+    },
+    [hsv, onChange],
+  );
+
+  const updateHueFromOffset = useCallback(
+    (offsetX: number, width: number) => {
+      const h = clamp((offsetX / Math.max(1, width)) * 360, 0, 360);
+      onChange(hsvToHex({ ...hsv, h }));
+    },
+    [hsv, onChange],
+  );
+
+  const beginPointerDrag = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>, update: (clientX: number, clientY: number) => void) => {
+      event.preventDefault();
+      update(event.clientX, event.clientY);
+
+      const handleMove = (moveEvent: PointerEvent) => {
+        moveEvent.preventDefault();
+        update(moveEvent.clientX, moveEvent.clientY);
+      };
+      const handleEnd = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleEnd);
+        window.removeEventListener("pointercancel", handleEnd);
+      };
+
+      window.addEventListener("pointermove", handleMove, { passive: false });
+      window.addEventListener("pointerup", handleEnd);
+      window.addEventListener("pointercancel", handleEnd);
+    },
+    [],
+  );
+
+  return (
+    <div className="flex w-[200px] flex-col gap-3">
+      <button
+        type="button"
+        ref={saturationRef}
+        role="slider"
+        aria-label="Color"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(hsv.v)}
+        aria-valuetext={`Saturation ${Math.round(hsv.s)}%, Brightness ${Math.round(hsv.v)}%`}
+        className="relative h-[164px] w-[200px] touch-none cursor-crosshair overflow-hidden rounded-lg border-0 p-0"
+        style={{
+          backgroundColor: `hsl(${hsv.h}, 100%, 50%)`,
+          backgroundImage:
+            "linear-gradient(0deg, #000, transparent), linear-gradient(90deg, #fff, rgba(255,255,255,0))",
+          boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.06)",
+        }}
+        onPointerDown={(event) => beginPointerDrag(event, updateSaturation)}
+        onMouseDown={(event: ReactMouseEvent<HTMLButtonElement>) =>
+          updateSaturationFromOffset(
+            event.nativeEvent.offsetX,
+            event.nativeEvent.offsetY,
+            event.currentTarget.clientWidth,
+            event.currentTarget.clientHeight,
+          )
+        }
+        onClick={(event: ReactMouseEvent<HTMLButtonElement>) =>
+          updateSaturationFromOffset(
+            event.nativeEvent.offsetX,
+            event.nativeEvent.offsetY,
+            event.currentTarget.clientWidth,
+            event.currentTarget.clientHeight,
+          )
+        }
+      >
+        <span
+          className="pointer-events-none absolute size-7 rounded-full border-2 border-white shadow-[0_2px_4px_rgba(0,0,0,0.25)]"
+          style={{
+            left: `${hsv.s}%`,
+            top: `${100 - hsv.v}%`,
+            transform: "translate(-50%, -50%)",
+            backgroundColor: cssColorForHex(color),
+          }}
+        />
+      </button>
+      <button
+        type="button"
+        ref={hueRef}
+        role="slider"
+        aria-label="Hue"
+        aria-valuemin={0}
+        aria-valuemax={360}
+        aria-valuenow={Math.round(hsv.h)}
+        className="relative h-6 w-[200px] touch-none cursor-ew-resize rounded-b-lg border-0 p-0"
+        style={{
+          background: "linear-gradient(90deg, red 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, red 100%)",
+        }}
+        onPointerDown={(event) => beginPointerDrag(event, (clientX) => updateHue(clientX))}
+        onMouseDown={(event: ReactMouseEvent<HTMLButtonElement>) =>
+          updateHueFromOffset(event.nativeEvent.offsetX, event.currentTarget.clientWidth)
+        }
+        onClick={(event: ReactMouseEvent<HTMLButtonElement>) =>
+          updateHueFromOffset(event.nativeEvent.offsetX, event.currentTarget.clientWidth)
+        }
+      >
+        <span
+          className="pointer-events-none absolute top-1/2 size-7 rounded-full border-2 border-white shadow-[0_2px_4px_rgba(0,0,0,0.25)]"
+          style={{
+            left: `${(hsv.h / 360) * 100}%`,
+            transform: "translate(-50%, -50%)",
+            backgroundColor: `hsl(${hsv.h}, 100%, 50%)`,
+          }}
+        />
+      </button>
+    </div>
+  );
+}
+
 export const HexColorPopover = ({
   color,
   onChange,
@@ -43,7 +280,46 @@ export const HexColorPopover = ({
 }: HexColorPopoverProps) => {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<PopoverTab>("library");
-  const normalizedColor = color.toLowerCase();
+  const selectedLibraryButtonRef = useRef<HTMLButtonElement | null>(null);
+  const normalizedColor = normalizeHexString(color) ?? "#ffffff";
+  const [draftColor, setDraftColor] = useState(normalizedColor);
+  const [hexDraft, setHexDraft] = useState(normalizedColor.toUpperCase());
+  const displayColor = open ? draftColor : normalizedColor;
+
+  const updateColor = useCallback(
+    (hex: string) => {
+      const next = normalizeHexString(hex) ?? "#ffffff";
+      setDraftColor(next);
+      setHexDraft(next.toUpperCase());
+      onChange(next);
+    },
+    [onChange],
+  );
+
+  const commitHexDraft = useCallback(() => {
+    const raw = hexDraft.trim().replace(/^#/, "");
+    if (!/^[0-9a-fA-F]{6}$/.test(raw)) {
+      setHexDraft(displayColor.toUpperCase());
+      return;
+    }
+    const next = normalizeHexString(raw) ?? "#ffffff";
+    setHexDraft(next.toUpperCase());
+    updateColor(next);
+  }, [displayColor, hexDraft, updateColor]);
+
+  const handleHexInputKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      event.stopPropagation();
+      if (event.key === "Enter") {
+        event.currentTarget.blur();
+      }
+      if (event.key === "Escape") {
+        setHexDraft(displayColor.toUpperCase());
+        event.currentTarget.blur();
+      }
+    },
+    [displayColor],
+  );
 
   const { refs, floatingStyles, context } = useFloating({
     open: open && !disabled,
@@ -69,12 +345,29 @@ export const HexColorPopover = ({
   const { getReferenceProps, getFloatingProps } = useInteractions([click, dismiss, role]);
 
   useEffect(() => {
+    setDraftColor(normalizedColor);
+    setHexDraft(normalizedColor.toUpperCase());
+  }, [normalizedColor]);
+
+  useEffect(() => {
+    setHexDraft(displayColor.toUpperCase());
+  }, [displayColor]);
+
+  useEffect(() => {
     if (open) setTab("library");
   }, [open]);
 
   useEffect(() => {
     if (disabled) setOpen(false);
   }, [disabled]);
+
+  useEffect(() => {
+    if (!open || disabled || tab !== "library") return;
+    const frame = requestAnimationFrame(() => {
+      selectedLibraryButtonRef.current?.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [disabled, displayColor, open, tab]);
 
   return (
     <div className={cn("relative inline-flex", containerClassName)}>
@@ -116,12 +409,24 @@ export const HexColorPopover = ({
             </div>
             {tab === "picker" ? (
               <div className="flex shrink-0 flex-col gap-2">
-                <HexColorPicker color={color} onChange={onChange} />
+                <EmbeddedHexColorPicker color={displayColor} onChange={updateColor} />
                 <div className="flex items-center rounded border border-neutral-300 px-2 py-1 font-mono text-xs">
-                  <HexColorInput
-                    color={color}
-                    onChange={onChange}
-                    prefixed
+                  <input
+                    value={hexDraft}
+                    onChange={(event) => {
+                      const raw = event.target.value.trim();
+                      const withoutHash = raw.replace(/^#/, "");
+                      if (/^[0-9a-fA-F]{0,6}$/.test(withoutHash)) {
+                        setHexDraft(withoutHash.length > 0 ? `#${withoutHash.toUpperCase()}` : "");
+                      }
+                      if (/^[0-9a-fA-F]{6}$/.test(withoutHash)) {
+                        updateColor(`#${withoutHash}`);
+                      }
+                    }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={handleHexInputKeyDown}
+                    onBlur={commitHexDraft}
                     aria-label={ariaLabel ? `${ariaLabel} hex value` : "Hex color value"}
                     className="w-full min-w-0 border-0 bg-transparent uppercase outline-none"
                   />
@@ -135,14 +440,22 @@ export const HexColorPopover = ({
                       {group.name}
                     </span>
                     {group.colors.map((c) => {
-                      const selected = c.hex.toLowerCase() === normalizedColor;
+                      const selected = c.hex.toLowerCase() === displayColor;
                       return (
                         <button
+                          ref={selected ? selectedLibraryButtonRef : undefined}
                           key={`${group.name}-${c.label}`}
                           type="button"
                           aria-pressed={selected}
+                          title={
+                            c.oklch
+                              ? `${c.oklch} / ${c.p3 ?? c.hex} / fallback ${c.hex.toUpperCase()}`
+                              : c.p3
+                                ? `${c.p3} / fallback ${c.hex.toUpperCase()}`
+                                : c.hex.toUpperCase()
+                          }
                           onClick={() => {
-                            onChange(c.hex);
+                            updateColor(c.hex);
                             setOpen(false);
                           }}
                           className={cn(
@@ -155,7 +468,7 @@ export const HexColorPopover = ({
                               "size-5 shrink-0 rounded border",
                               selected ? "border-blue-500 ring-1 ring-blue-500" : "border-neutral-300",
                             )}
-                            style={{ backgroundColor: c.hex }}
+                            style={{ backgroundColor: cssColorForHex(c.hex) }}
                           />
                           <span className="min-w-0 flex-1 truncate text-xs text-neutral-700">{c.label}</span>
                           <span className="shrink-0 font-mono text-[0.625rem] uppercase text-neutral-400">{c.hex}</span>

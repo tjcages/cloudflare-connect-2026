@@ -1,0 +1,101 @@
+import type { EngineConfig } from "@necatikcl/stripes-engine";
+import { drawerFolder } from "./drawerFolder";
+
+export function buildSparkleFolder(d: EngineConfig) {
+  return drawerFolder("Sparkle", {
+    sparkleGapsEnabled: { value: d.sparkle.gaps.enabled, label: "Gaps enabled" },
+    sparkleGapsCoverage: {
+      value: d.sparkle.gaps.coverage,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: "Gap active %",
+      render: (get) => get("Sparkle.sparkleGapsEnabled") === true,
+    },
+    sparkleGapsSpeed: {
+      value: d.sparkle.gaps.speed,
+      min: 0.05,
+      max: 3,
+      step: 0.05,
+      label: "Gap speed",
+      render: (get) => get("Sparkle.sparkleGapsEnabled") === true,
+    },
+    sparkleWidthEnabled: { value: d.sparkle.width.enabled, label: "Width shuffle enabled" },
+    sparkleWidthCoverage: {
+      value: d.sparkle.width.coverage,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: "Width active %",
+      render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
+    },
+    sparkleWidthSwingPx: {
+      value: d.sparkle.width.swingPx,
+      min: 0,
+      max: 40,
+      step: 0.25,
+      label: "Width swing (px)",
+      render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
+    },
+    sparkleWidthSwingPeriodMin: {
+      value: d.sparkle.width.swingPeriodMin,
+      min: 0.02,
+      max: 5,
+      step: 0.01,
+      label: "Swing period min",
+      render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
+    },
+    sparkleWidthSwingPeriodMax: {
+      value: d.sparkle.width.swingPeriodMax,
+      min: 0.02,
+      max: 5,
+      step: 0.01,
+      label: "Swing period max",
+      render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
+    },
+    sparkleMotionEnabled: { value: d.sparkle.motion.enabled, label: "Row motion enabled" },
+    sparkleMotionAmplitudePx: {
+      value: d.sparkle.motion.amplitudePx,
+      min: 0,
+      max: 64,
+      step: 0.5,
+      label: "Move amount (px)",
+      render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+    },
+    sparkleMotionStaggerPx: {
+      value: d.sparkle.motion.staggerPx,
+      min: 1,
+      max: 512,
+      step: 1,
+      label: "Stagger distance",
+      render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+    },
+    sparkleMotionMaxOffsetPx: {
+      value: d.sparkle.motion.maxOffsetPx,
+      min: 0,
+      max: 128,
+      step: 0.5,
+      label: "Max offset (px)",
+      render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+    },
+    sparkleMotionSpeed: {
+      value: d.sparkle.motion.speed,
+      min: 0.05,
+      max: 5,
+      step: 0.05,
+      label: "Motion speed",
+      render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+    },
+    sparkleMotionDirection: {
+      value: d.sparkle.motion.direction,
+      options: {
+        "Left → Right": "leftToRight",
+        "Right → Left": "rightToLeft",
+        "Top → Bottom": "topToBottom",
+        "Bottom → Top": "bottomToTop",
+      } as const,
+      label: "Sweep direction",
+      render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+    },
+  });
+}

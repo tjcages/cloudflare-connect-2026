@@ -55,3 +55,7 @@ export function getTextureBlob(id: string): Promise<{ blob: Blob; type: string }
 export function deleteTextureBlob(id: string): Promise<void> {
   return run<undefined>("readwrite", (store) => store.delete(id) as IDBRequest<undefined>).then(() => undefined);
 }
+
+export function clearTextureBlobs(): Promise<void> {
+  return run<undefined>("readwrite", (store) => store.clear() as IDBRequest<undefined>).then(() => undefined);
+}

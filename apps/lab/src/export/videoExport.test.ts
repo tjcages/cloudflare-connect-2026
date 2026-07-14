@@ -13,6 +13,7 @@ import {
   pickMediaRecorderProfile,
   resolveExportDuration,
   resolveExportFrameCount,
+  resolveRequestedExportRange,
   shouldConfirmLongExport,
 } from "./videoExport";
 
@@ -29,6 +30,16 @@ describe("resolveExportDuration", () => {
   it("returns zero for invalid video duration", () => {
     expect(resolveExportDuration("video", 0)).toBe(0);
     expect(resolveExportDuration("video", Number.NaN)).toBe(0);
+  });
+});
+
+describe("resolveRequestedExportRange", () => {
+  it("resolves custom image duration", () => {
+    expect(resolveRequestedExportRange("image", 0, 4, 8)).toEqual({ startTimeSec: 0, durationSec: 8 });
+  });
+
+  it("clamps custom video start and duration to source bounds", () => {
+    expect(resolveRequestedExportRange("video", 10, 7, 8)).toEqual({ startTimeSec: 7, durationSec: 3 });
   });
 });
 
