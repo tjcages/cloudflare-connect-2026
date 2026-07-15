@@ -190,6 +190,22 @@
   justify-content: flex-end;
 }
 
+.playground-export-include-background {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.playground-export-include-background input[type="checkbox"] {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.playground-export-include-background .playground-canvas-scale-label {
+  flex: 1 1 auto;
+}
+
 .playground-canvas-size-row > div:last-child > div,
 .playground-canvas-scale-controls > div:has(> input) {
   display: flex !important;

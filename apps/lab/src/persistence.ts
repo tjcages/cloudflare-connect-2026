@@ -26,6 +26,14 @@ const CONFIG_FILE_VERSION = 2;
 const WINDOW_NAME_STATE_KEY = "__stripesEngineLab";
 const BACKGROUND_QUERY_PARAM = "bg";
 
+/** Blocks localStorage writes after factory reset until the page reloads. */
+let persistenceWritesEnabled = true;
+
+/** Test helper — re-enables writes after factoryResetSettings() freezes them. */
+export function resumePersistenceWritesForTests(): void {
+  persistenceWritesEnabled = true;
+}
+
 export type LabCanvasMode = "scale" | "manual" | "original";
 export type LabBackgroundFillMode = "transparent" | "source" | "solid" | "gradient";
 export type LabTextureSourceMode = "texture" | "shader";
@@ -48,6 +56,8 @@ export type LabSettings = {
   canvasAspectLocked: boolean;
   exportStartSec: number;
   exportDurationSec: number;
+  /** When true, SVG export includes solid/gradient fill and Connect underlay. */
+  exportSvgIncludeBackground: boolean;
   backgroundColor: number | null;
   textureId: string | null;
   textureSourceMode: LabTextureSourceMode;
@@ -408,6 +418,7 @@ export function saveConfig(
   c: EngineConfig,
   options: { updateStickyBackground?: boolean } = {},
 ): void {
+  if (!persistenceWritesEnabled) return;
   try {
     const map = loadConfigMap();
     const config = c;
@@ -477,6 +488,10 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
       0.1,
       Math.min(24 * 60 * 60, n(i.exportDurationSec, DEFAULT_LAB_SETTINGS.exportDurationSec)),
     ),
+    exportSvgIncludeBackground:
+      typeof i.exportSvgIncludeBackground === "boolean"
+        ? i.exportSvgIncludeBackground
+        : DEFAULT_LAB_SETTINGS.exportSvgIncludeBackground,
     backgroundColor,
     textureId: has("textureId") ? normalizeString(i.textureId) : DEFAULT_LAB_SETTINGS.textureId,
     textureSourceMode,
@@ -561,6 +576,7 @@ export function loadLabSettings(): LabSettings {
 }
 
 export function saveLabSettings(settings: Partial<LabSettings>): void {
+  if (!persistenceWritesEnabled) return;
   try {
     const existingBackground = loadLastBackgroundColor();
     const incomingBackground = normalizeColor(settings.backgroundColor);
@@ -598,6 +614,7 @@ export function saveLabSettings(settings: Partial<LabSettings>): void {
 }
 
 export function saveStickyBackgroundColor(color: number): void {
+  if (!persistenceWritesEnabled) return;
   const normalized = normalizeColor(color);
   if (normalized === null) return;
   try {
@@ -616,6 +633,7 @@ export function saveStickyBackgroundColor(color: number): void {
 }
 
 export function clearStickyBackgroundColor(): void {
+  if (!persistenceWritesEnabled) return;
   try {
     const next = normalizeLabSettings({ ...loadLabSettings(), backgroundColor: null });
     next.canvasScale = DEFAULT_LAB_SETTINGS.canvasScale;
@@ -647,8 +665,12 @@ export function factoryResetSettings(): void {
     clearUrlBackgroundColor();
     deleteCookie(LAST_BACKGROUND_COLOR_KEY);
     clearWindowNameState();
+    // Seed defaults, then freeze writes so in-memory controls can't resurrect sticky bg before reload.
+    localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(normalizeLabSettings(DEFAULT_LAB_SETTINGS)));
   } catch {
     /* ignore */
+  } finally {
+    persistenceWritesEnabled = false;
   }
 }
 

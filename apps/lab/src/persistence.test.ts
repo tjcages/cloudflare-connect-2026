@@ -7,6 +7,7 @@ import {
   factoryResetSettings,
   loadInitialConfig,
   loadLabSettings,
+  resumePersistenceWritesForTests,
   saveConfig,
   saveLabSettings,
   saveStickyBackgroundColor,
@@ -37,6 +38,7 @@ describe("config file import/export", () => {
   });
 
   afterEach(() => {
+    resumePersistenceWritesForTests();
     vi.unstubAllGlobals();
   });
 
@@ -102,6 +104,7 @@ describe("config file import/export", () => {
       canvasHeight: 900,
       exportStartSec: 2,
       exportDurationSec: 4,
+      exportSvgIncludeBackground: true,
       backgroundFillMode: "gradient",
       stripePalette: "Orange",
     });
@@ -114,9 +117,15 @@ describe("config file import/export", () => {
       canvasHeight: 900,
       exportStartSec: 2,
       exportDurationSec: 4,
+      exportSvgIncludeBackground: true,
       backgroundFillMode: "gradient",
       stripePalette: "Orange",
     });
+  });
+
+  it("defaults exportSvgIncludeBackground to false", () => {
+    expect(DEFAULT_LAB_SETTINGS.exportSvgIncludeBackground).toBe(false);
+    expect(loadLabSettings().exportSvgIncludeBackground).toBe(false);
   });
 
   it("still imports raw engine config JSON", () => {
@@ -351,5 +360,23 @@ describe("config file import/export", () => {
 
     expect(loadInitialConfig("texture-a")).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
     expect(loadLabSettings()).toEqual(DEFAULT_LAB_SETTINGS);
+  });
+
+  it("factory reset ignores post-clear saves that would restore sticky background", () => {
+    saveStickyBackgroundColor(0x334455);
+    saveLabSettings({ backgroundColor: 0x334455 });
+    expect(loadLabSettings().backgroundColor).toBe(0x334455);
+
+    factoryResetSettings();
+    // Simulate React effects that still hold the old in-memory color before reload.
+    saveLabSettings({ backgroundColor: 0x334455 });
+    saveStickyBackgroundColor(0x99aabb);
+    saveConfig("texture-a", {
+      ...DEFAULT_ENGINE_CONFIG,
+      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x334455, transparent: false },
+    });
+
+    expect(loadLabSettings().backgroundColor).toBe(DEFAULT_LAB_SETTINGS.backgroundColor);
+    expect(loadInitialConfig("texture-a")).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
   });
 });

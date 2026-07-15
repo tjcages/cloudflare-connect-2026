@@ -271,6 +271,7 @@ export const DEFAULT_LAB_UI_SETTINGS = {
   canvasAspectLocked: true,
   exportStartSec: 0,
   exportDurationSec: 5,
+  exportSvgIncludeBackground: false,
   backgroundColor: 16777215,
   textureId: "cf-base",
   textureSourceMode: "shader",

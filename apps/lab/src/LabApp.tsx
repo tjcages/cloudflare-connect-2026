@@ -66,6 +66,7 @@ import {
   type ConnectTextureRenderer,
 } from "./connectShader";
 import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./connectShader/underlayIntro";
+import { canvasStackBackgroundCss } from "./canvasStackBackground";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -540,6 +541,14 @@ function LabExportControls({
           onChange={(e) => setNumber("exportDurationSec", e.target.value)}
         />
       </div>
+      <label className="playground-canvas-size-inline playground-export-include-background">
+        <input
+          type="checkbox"
+          checked={settings.exportSvgIncludeBackground}
+          onChange={(e) => onSettings({ exportSvgIncludeBackground: e.target.checked })}
+        />
+        <span className="playground-canvas-scale-label">Include background in SVG</span>
+      </label>
     </div>
   );
 }
@@ -1068,8 +1077,10 @@ function LabInner() {
         opacity: s.opacity,
       }));
       const lab = labSettingsRef.current;
+      const includeBackground = lab.exportSvgIncludeBackground;
       let backgroundImageHref: string | undefined;
       if (
+        includeBackground &&
         lab.textureSourceMode === "shader" &&
         isConnectShaderPreset(shaderPresetIdRef.current) &&
         lab.connectGradientUnderlay
@@ -1095,9 +1106,9 @@ function LabInner() {
         rotationMode: cfg.grid.rotationMode,
         overlapAmount: cfg.grid.overlapAmount,
         backgroundHex:
-          cfg.background.transparent || cfg.background.gradient.enabled
-            ? undefined
-            : "#" + cfg.background.color.toString(16).padStart(6, "0"),
+          includeBackground && !cfg.background.transparent && !cfg.background.gradient.enabled
+            ? "#" + cfg.background.color.toString(16).padStart(6, "0")
+            : undefined,
         letters: cfg.letters,
         blendMode: cfg.colors.stripeBlendMode,
         gradient: cfg.colors.gradient.enabled
@@ -1108,7 +1119,7 @@ function LabInner() {
             }
           : undefined,
         backgroundGradient:
-          !cfg.background.transparent && cfg.background.gradient.enabled
+          includeBackground && !cfg.background.transparent && cfg.background.gradient.enabled
             ? {
                 direction: cfg.background.gradient.direction,
                 stopCount: cfg.background.gradient.stopCount,
@@ -1891,6 +1902,9 @@ function LabInner() {
   const showSourceBackground = backgroundSourceOpacity > 0.001 && sourcePreview !== null;
   const showConnectGradientUnderlay =
     textureSourceMode === "shader" && isConnectShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
+  // Engine bg is forced transparent when underlay/source preview is shown — keep the
+  // chosen solid color on the stack so it still sits behind those layers.
+  const canvasStackBackground = canvasStackBackgroundCss(controls.background);
   const sourceObjectFit = controls.transform.fit === "contain" ? "contain" : "cover";
   const sourceBackgroundStyle: CSSProperties =
     controls.transform.fit === "width"
@@ -2195,6 +2209,7 @@ function LabInner() {
                 style={{
                   transform: `scale(${previewZoom})`,
                   transformOrigin: "center center",
+                  backgroundColor: canvasStackBackground,
                 }}
               >
                 <div
