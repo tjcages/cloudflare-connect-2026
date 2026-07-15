@@ -17,10 +17,20 @@ import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
 import { DEFAULT_LAB_TEXTURE_ID, buildTextureEntries, findTextureEntry } from "../textures";
 import { loadManifest } from "../uploads";
 import {
+  CONNECT_CAMERA_DEFAULTS,
+  buildConnectShaderLevaFolders,
+  connectShaderParamsFromLevaValues,
+  normalizeConnectShaderParams,
+  type ConnectCameraState,
+  type ConnectShaderParams,
+} from "../connectShader";
+import { SHADER_VIEW_DEFAULTS, type ShaderViewState } from "../shaderView";
+import {
   applyStripePalette,
   BACKGROUND_RAMP_EASING_OPTIONS,
   BACKGROUND_RAMP_PALETTE_NAME,
   DEFAULT_BACKGROUND_RAMP_SETTINGS,
+  DEFAULT_STRIPE_PALETTE_NAME,
   WHITE_STRIPE_PALETTE_NAME,
   type BackgroundRampEasing,
   type BackgroundRampSettings,
@@ -39,6 +49,13 @@ function drawerFolder<S extends Parameters<typeof folder>[0]>(id: string, schema
 }
 
 const SHADER_PANEL_ORDER = [
+  "Connect Wave",
+  "Connect Shape",
+  "Connect Fill",
+  "Connect Lines",
+  "Connect Hatch",
+  "Connect Particles",
+  "Connect Colors",
   "Background",
   "Stripes",
   "Grid",
@@ -157,14 +174,16 @@ function withDefaultStripeDistribution<T extends { startFrom: number; width: num
 }
 
 const LAB_DEFAULT_STRIPES: Stripe[] = withDefaultStripeDistribution([
-  { color: 0xfff8e8, startFrom: 0.08, width: 1, opacity: 1 },
-  { color: 0xfeefd2, startFrom: 0.2, width: 1, opacity: 1 },
-  { color: 0xffe3b5, startFrom: 0.32, width: 1, opacity: 1 },
-  { color: 0xffd295, startFrom: 0.44, width: 2, opacity: 1 },
-  { color: 0xffb970, startFrom: 0.56, width: 3, opacity: 1 },
-  { color: 0xfe9c4c, startFrom: 0.68, width: 4, opacity: 1 },
-  { color: 0xf67c3e, startFrom: 0.8, width: 5, opacity: 1 },
-  { color: 0xeb5729, startFrom: 0.92, width: 6, opacity: 1 },
+  { color: 0xfafafa, startFrom: 0.08, width: 1, opacity: 1 },
+  { color: 0xfff8e8, startFrom: 0.2, width: 1, opacity: 1 },
+  { color: 0xfeefd2, startFrom: 0.32, width: 1, opacity: 1 },
+  { color: 0xffe3b5, startFrom: 0.44, width: 2, opacity: 1 },
+  { color: 0xffd295, startFrom: 0.56, width: 3, opacity: 1 },
+  { color: 0xffb970, startFrom: 0.68, width: 4, opacity: 1 },
+  { color: 0xfe9c4c, startFrom: 0.8, width: 5, opacity: 1 },
+  { color: 0xf67c3e, startFrom: 0.92, width: 6, opacity: 1 },
+  { color: 0xfab83b, startFrom: 0.96, width: 6.5, opacity: 1 },
+  { color: 0xff6721, startFrom: 1, width: 7, opacity: 1 },
 ]);
 
 function intToHex(value: number): string {
@@ -338,6 +357,10 @@ export interface EngineControlsResult {
   textureOptions: TextureOption[];
   textureStore: ReturnType<typeof useCreateStore>;
   shaderStore: ReturnType<typeof useCreateStore>;
+  connectCamera: ConnectCameraState | null;
+  shaderView: ShaderViewState | null;
+  connectShaderParams: ConnectShaderParams | null;
+  connectGradientUnderlay: boolean | null;
 }
 
 function paletteForBackgroundFillMode(mode: BackgroundFillMode): string {
@@ -347,7 +370,7 @@ function paletteForBackgroundFillMode(mode: BackgroundFillMode): string {
     case "solid":
       return BACKGROUND_RAMP_PALETTE_NAME;
     case "transparent":
-      return "Orange";
+      return DEFAULT_STRIPE_PALETTE_NAME;
   }
 }
 
@@ -362,7 +385,19 @@ function applyPaletteForBackgroundFillMode(
   return applyStripePalette(stripes, palette, backgroundHex, backgroundRampEasing, backgroundRampSettings);
 }
 
-export function useEngineControls(onReplay: () => void): EngineControlsResult {
+export function useEngineControls(
+  onReplay: () => void,
+  options: { showShaderCamera?: boolean; showConnectCamera?: boolean } = {},
+): EngineControlsResult {
+  const showShaderCamera = options.showShaderCamera === true;
+  const showConnectCamera = options.showConnectCamera === true;
+  const showShaderToyCamera = showShaderCamera && !showConnectCamera;
+  const showShaderCameraRef = useRef(showShaderCamera);
+  showShaderCameraRef.current = showShaderCamera;
+  const showConnectCameraRef = useRef(showConnectCamera);
+  showConnectCameraRef.current = showConnectCamera;
+  const showShaderToyCameraRef = useRef(showShaderToyCamera);
+  showShaderToyCameraRef.current = showShaderToyCamera;
   const initialLabSettings = useMemo(() => loadLabSettings(), []);
   const initialTextureId = useMemo(() => {
     const stored = loadTextureId() ?? initialLabSettings.textureId;
@@ -448,6 +483,7 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
   const backgroundFillModeRef = useRef<BackgroundFillMode | null>(null);
   const lastStickyBackgroundRef = useRef(backgroundHex);
   const shaderControlSetterRef = useRef<((values: Record<string, unknown>) => void) | null>(null);
+  const textureControlSetterRef = useRef<((values: Record<string, unknown>) => void) | null>(null);
 
   stripePaletteValueRef.current = stripePaletteValue;
   activeGeneratedPaletteRef.current = activeGeneratedPalette;
@@ -632,6 +668,154 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
 
   const [textureValues, setTextureControl] = useControls(
     () => ({
+      Camera: folder(
+        {
+          connectCameraDistance: {
+            value: initialLabSettings.connectCameraDistance,
+            min: 0.5,
+            max: 60,
+            step: 0.5,
+            label: "Distance",
+            render: () => showConnectCameraRef.current,
+          },
+          connectCameraRotateX: {
+            value: initialLabSettings.connectCameraRotateX,
+            min: -89,
+            max: 89,
+            step: 1,
+            label: "Rotate X °",
+            render: () => showConnectCameraRef.current,
+          },
+          connectCameraRotateY: {
+            value: initialLabSettings.connectCameraRotateY,
+            min: -180,
+            max: 180,
+            step: 1,
+            label: "Rotate Y °",
+            render: () => showConnectCameraRef.current,
+          },
+          connectCameraRotateZ: {
+            value: initialLabSettings.connectCameraRotateZ,
+            min: -180,
+            max: 180,
+            step: 1,
+            label: "Rotate Z °",
+            render: () => showConnectCameraRef.current,
+          },
+          connectCameraPanX: {
+            value: initialLabSettings.connectCameraPanX,
+            min: -40,
+            max: 40,
+            step: 0.25,
+            label: "Pan X",
+            render: () => showConnectCameraRef.current,
+          },
+          connectCameraPanY: {
+            value: initialLabSettings.connectCameraPanY,
+            min: -40,
+            max: 40,
+            step: 0.25,
+            label: "Pan Y",
+            render: () => showConnectCameraRef.current,
+          },
+          connectCameraFov: {
+            value: initialLabSettings.connectCameraFov,
+            min: 20,
+            max: 110,
+            step: 1,
+            label: "FOV",
+            render: () => showConnectCameraRef.current,
+          },
+          connectGradientUnderlay: {
+            value: initialLabSettings.connectGradientUnderlay,
+            label: "Gradient underlay",
+            render: () => showConnectCameraRef.current,
+          },
+          shaderViewDistance: {
+            value: initialLabSettings.shaderViewDistance,
+            min: 0.5,
+            max: 120,
+            step: 0.5,
+            label: "Distance",
+            render: () => showShaderToyCameraRef.current,
+          },
+          shaderViewRotateX: {
+            value: initialLabSettings.shaderViewRotateX,
+            min: -89,
+            max: 89,
+            step: 1,
+            label: "Rotate X °",
+            render: () => showShaderToyCameraRef.current,
+          },
+          shaderViewRotateY: {
+            value: initialLabSettings.shaderViewRotateY,
+            min: -180,
+            max: 180,
+            step: 1,
+            label: "Rotate Y °",
+            render: () => showShaderToyCameraRef.current,
+          },
+          shaderViewRotateZ: {
+            value: initialLabSettings.shaderViewRotateZ,
+            min: -180,
+            max: 180,
+            step: 1,
+            label: "Rotate Z °",
+            render: () => showShaderToyCameraRef.current,
+          },
+          shaderViewPanX: {
+            value: initialLabSettings.shaderViewPanX,
+            min: -40,
+            max: 40,
+            step: 0.25,
+            label: "Pan X",
+            render: () => showShaderToyCameraRef.current,
+          },
+          shaderViewPanY: {
+            value: initialLabSettings.shaderViewPanY,
+            min: -40,
+            max: 40,
+            step: 0.25,
+            label: "Pan Y",
+            render: () => showShaderToyCameraRef.current,
+          },
+          shaderViewFov: {
+            value: initialLabSettings.shaderViewFov,
+            min: 20,
+            max: 110,
+            step: 1,
+            label: "FOV",
+            render: () => showShaderToyCameraRef.current,
+          },
+          "Reset view": button(() => {
+            if (showConnectCameraRef.current) {
+              textureControlSetterRef.current?.({
+                connectCameraDistance: CONNECT_CAMERA_DEFAULTS.distance,
+                connectCameraRotateX: CONNECT_CAMERA_DEFAULTS.rotateXDeg,
+                connectCameraRotateY: CONNECT_CAMERA_DEFAULTS.rotateYDeg,
+                connectCameraRotateZ: CONNECT_CAMERA_DEFAULTS.rotateZDeg,
+                connectCameraPanX: CONNECT_CAMERA_DEFAULTS.panX,
+                connectCameraPanY: CONNECT_CAMERA_DEFAULTS.panY,
+                connectCameraFov: CONNECT_CAMERA_DEFAULTS.fov,
+              });
+              return;
+            }
+            textureControlSetterRef.current?.({
+              shaderViewDistance: SHADER_VIEW_DEFAULTS.distance,
+              shaderViewRotateX: SHADER_VIEW_DEFAULTS.rotateXDeg,
+              shaderViewRotateY: SHADER_VIEW_DEFAULTS.rotateYDeg,
+              shaderViewRotateZ: SHADER_VIEW_DEFAULTS.rotateZDeg,
+              shaderViewPanX: SHADER_VIEW_DEFAULTS.panX,
+              shaderViewPanY: SHADER_VIEW_DEFAULTS.panY,
+              shaderViewFov: SHADER_VIEW_DEFAULTS.fov,
+            });
+          }),
+        },
+        {
+          collapsed: !loadControlDrawerOpen("Camera", initialLabSettings.drawerOpen["Camera"] ?? false),
+          render: () => showShaderCameraRef.current,
+        },
+      ),
       General: drawerFolder("General", {
         stripesEnabled: { value: d.stripesEnabled, label: "Stripes enabled" },
         textureDpr: { value: d.fieldScale, min: 0.25, max: 2, step: 0.25, label: "Texture DPR" },
@@ -683,10 +867,15 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
     { store: textureStore },
     [],
   );
+  textureControlSetterRef.current = setTextureControl as (values: Record<string, unknown>) => void;
 
   const [shaderValues, setShaderControl] = useControls(
     () =>
       orderShaderPanel({
+        ...buildConnectShaderLevaFolders(
+          normalizeConnectShaderParams(initialLabSettings.connectShaderParams),
+          showConnectCameraRef,
+        ),
         Stripes: drawerFolder("Stripes", {
           colorsMode: {
             value: d.colors.mode === "colors" ? "colors" : "luminance",
@@ -1584,6 +1773,13 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
     [stripeKey, stripePaletteValue],
   );
   shaderControlSetterRef.current = setShaderControl;
+
+  useEffect(() => {
+    // Nudge stores so Camera / Connect folder `render()` re-evaluates visibility.
+    setTextureControl({});
+    setShaderControl({});
+  }, [showShaderCamera, showConnectCamera, setTextureControl, setShaderControl]);
+
   const values = { ...textureValues, ...shaderValues };
   const imageColorsMode = values.colorsMode === "colors";
   const stripeTableKey = `${stripeKey}|colorMode:${imageColorsMode ? "image-colors" : "luminance"}`;
@@ -1998,5 +2194,31 @@ export function useEngineControls(onReplay: () => void): EngineControlsResult {
     textureOptions,
     textureStore,
     shaderStore,
+    connectCamera: showConnectCamera
+      ? {
+          distance: Number(textureValues.connectCameraDistance),
+          rotateXDeg: Number(textureValues.connectCameraRotateX),
+          rotateYDeg: Number(textureValues.connectCameraRotateY),
+          rotateZDeg: Number(textureValues.connectCameraRotateZ),
+          panX: Number(textureValues.connectCameraPanX),
+          panY: Number(textureValues.connectCameraPanY),
+          fov: Number(textureValues.connectCameraFov),
+        }
+      : null,
+    shaderView: showShaderToyCamera
+      ? {
+          distance: Number(textureValues.shaderViewDistance),
+          rotateXDeg: Number(textureValues.shaderViewRotateX),
+          rotateYDeg: Number(textureValues.shaderViewRotateY),
+          rotateZDeg: Number(textureValues.shaderViewRotateZ),
+          panX: Number(textureValues.shaderViewPanX),
+          panY: Number(textureValues.shaderViewPanY),
+          fov: Number(textureValues.shaderViewFov),
+        }
+      : null,
+    connectShaderParams: showConnectCamera
+      ? normalizeConnectShaderParams(connectShaderParamsFromLevaValues(shaderValues as Record<string, unknown>))
+      : null,
+    connectGradientUnderlay: showConnectCamera ? Boolean(textureValues.connectGradientUnderlay) : null,
   };
 }

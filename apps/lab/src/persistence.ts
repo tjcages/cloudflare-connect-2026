@@ -2,6 +2,15 @@ import { migrateLegacyConfig, parseEngineConfig } from "@necatikcl/stripes-engin
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { DEFAULT_LAB_ENGINE_CONFIG, DEFAULT_LAB_UI_SETTINGS } from "./defaultLabConfig";
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "./shaderTextureSource";
+import type { ConnectShapeType } from "./connectShader";
+import {
+  CONNECT_CAMERA_DEFAULTS,
+  CONNECT_SHAPE_OPTIONS,
+  normalizeConnectCameraState,
+  normalizeConnectShaderParams,
+} from "./connectShader";
+import type { ConnectShaderParams } from "./connectShader";
+import { normalizeShaderViewState } from "./shaderView";
 
 const NEW_KEY = "stripes-engine-lab"; // legacy: single global config (pre per-texture)
 const OLD_KEY = "section-grid-playground"; // legacy v0
@@ -53,6 +62,28 @@ export type LabSettings = {
   thresholdDistributionEasing: string | null;
   autoStripeWidths: boolean | null;
   drawerOpen: Record<string, boolean>;
+  textureSidebarOpen: boolean;
+  shaderSidebarOpen: boolean;
+  textureSidebarWidth: number;
+  shaderSidebarWidth: number;
+  connectShapeType: ConnectShapeType;
+  shaderPresetId: string;
+  connectCameraDistance: number;
+  connectCameraRotateX: number;
+  connectCameraRotateY: number;
+  connectCameraRotateZ: number;
+  connectCameraPanX: number;
+  connectCameraPanY: number;
+  connectCameraFov: number;
+  connectGradientUnderlay: boolean;
+  connectShaderParams: ConnectShaderParams;
+  shaderViewDistance: number;
+  shaderViewRotateX: number;
+  shaderViewRotateY: number;
+  shaderViewRotateZ: number;
+  shaderViewPanX: number;
+  shaderViewPanY: number;
+  shaderViewFov: number;
 };
 
 export const DEFAULT_LAB_SETTINGS: LabSettings = {
@@ -114,6 +145,78 @@ function normalizeString(value: unknown): string | null {
 
 function normalizeBoolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
+}
+
+const CONNECT_SHAPE_TYPE_SET = new Set<string>(CONNECT_SHAPE_OPTIONS.map((option) => option.value));
+
+function normalizeConnectShapeType(value: unknown): ConnectShapeType {
+  return typeof value === "string" && CONNECT_SHAPE_TYPE_SET.has(value)
+    ? (value as ConnectShapeType)
+    : DEFAULT_LAB_SETTINGS.connectShapeType;
+}
+
+function normalizeShaderPresetId(value: unknown): string {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : DEFAULT_LAB_SETTINGS.shaderPresetId;
+}
+
+function normalizeConnectCameraFromSettings(i: Partial<LabSettings> & Record<string, unknown>): {
+  connectCameraDistance: number;
+  connectCameraRotateX: number;
+  connectCameraRotateY: number;
+  connectCameraRotateZ: number;
+  connectCameraPanX: number;
+  connectCameraPanY: number;
+  connectCameraFov: number;
+} {
+  const legacyY = typeof i.connectCameraY === "number" && Number.isFinite(i.connectCameraY) ? i.connectCameraY : null;
+  const legacyZ = typeof i.connectCameraZ === "number" && Number.isFinite(i.connectCameraZ) ? i.connectCameraZ : null;
+  const legacyAzimuth =
+    typeof i.connectCameraAzimuthDeg === "number" && Number.isFinite(i.connectCameraAzimuthDeg)
+      ? i.connectCameraAzimuthDeg
+      : null;
+
+  let distance =
+    typeof i.connectCameraDistance === "number" && Number.isFinite(i.connectCameraDistance)
+      ? i.connectCameraDistance
+      : null;
+  let rotateX =
+    typeof i.connectCameraRotateX === "number" && Number.isFinite(i.connectCameraRotateX)
+      ? i.connectCameraRotateX
+      : null;
+  let rotateY =
+    typeof i.connectCameraRotateY === "number" && Number.isFinite(i.connectCameraRotateY)
+      ? i.connectCameraRotateY
+      : legacyAzimuth;
+  const rotateZ =
+    typeof i.connectCameraRotateZ === "number" && Number.isFinite(i.connectCameraRotateZ)
+      ? i.connectCameraRotateZ
+      : CONNECT_CAMERA_DEFAULTS.rotateZDeg;
+
+  if (distance === null && legacyZ !== null) {
+    distance = legacyY !== null ? Math.hypot(legacyY, legacyZ) : legacyZ;
+  }
+  if (rotateX === null && legacyY !== null && legacyZ !== null) {
+    rotateX = (Math.atan2(legacyY, legacyZ) * 180) / Math.PI;
+  }
+
+  const camera = normalizeConnectCameraState({
+    distance: distance ?? CONNECT_CAMERA_DEFAULTS.distance,
+    rotateXDeg: rotateX ?? CONNECT_CAMERA_DEFAULTS.rotateXDeg,
+    rotateYDeg: rotateY ?? CONNECT_CAMERA_DEFAULTS.rotateYDeg,
+    rotateZDeg: rotateZ,
+    panX: typeof i.connectCameraPanX === "number" ? i.connectCameraPanX : CONNECT_CAMERA_DEFAULTS.panX,
+    panY: typeof i.connectCameraPanY === "number" ? i.connectCameraPanY : CONNECT_CAMERA_DEFAULTS.panY,
+    fov: typeof i.connectCameraFov === "number" ? i.connectCameraFov : CONNECT_CAMERA_DEFAULTS.fov,
+  });
+  return {
+    connectCameraDistance: camera.distance,
+    connectCameraRotateX: camera.rotateXDeg,
+    connectCameraRotateY: camera.rotateYDeg,
+    connectCameraRotateZ: camera.rotateZDeg,
+    connectCameraPanX: camera.panX,
+    connectCameraPanY: camera.panY,
+    connectCameraFov: camera.fov,
+  };
 }
 
 function normalizeBackgroundRampSettings(value: unknown): LabBackgroundRampSettings {
@@ -347,10 +450,14 @@ export function saveTextureId(id: string): void {
 
 export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings {
   const canvasMode = i.canvasMode === "manual" ? "manual" : i.canvasMode === "original" ? "original" : "scale";
-  const textureSourceMode = i.textureSourceMode === "shader" ? "shader" : "texture";
   const n = (value: unknown, fallback: number): number =>
     typeof value === "number" && Number.isFinite(value) ? value : fallback;
   const has = (key: keyof LabSettings): boolean => Object.prototype.hasOwnProperty.call(i, key);
+  const textureSourceMode = has("textureSourceMode")
+    ? i.textureSourceMode === "shader"
+      ? "shader"
+      : "texture"
+    : DEFAULT_LAB_SETTINGS.textureSourceMode;
   const hasBackgroundColor = Object.prototype.hasOwnProperty.call(i, "backgroundColor");
   const backgroundColor = hasBackgroundColor ? normalizeColor(i.backgroundColor) : DEFAULT_LAB_SETTINGS.backgroundColor;
   const rawShaderSource = has("shaderSourceCode") && typeof i.shaderSourceCode === "string" ? i.shaderSourceCode : "";
@@ -401,6 +508,44 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
       ? normalizeBoolean(i.autoStripeWidths)
       : DEFAULT_LAB_SETTINGS.autoStripeWidths,
     drawerOpen: has("drawerOpen") ? normalizeDrawerOpen(i.drawerOpen) : DEFAULT_LAB_SETTINGS.drawerOpen,
+    textureSidebarOpen:
+      typeof i.textureSidebarOpen === "boolean" ? i.textureSidebarOpen : DEFAULT_LAB_SETTINGS.textureSidebarOpen,
+    shaderSidebarOpen:
+      typeof i.shaderSidebarOpen === "boolean" ? i.shaderSidebarOpen : DEFAULT_LAB_SETTINGS.shaderSidebarOpen,
+    textureSidebarWidth: Math.round(
+      Math.max(240, Math.min(640, n(i.textureSidebarWidth, DEFAULT_LAB_SETTINGS.textureSidebarWidth))),
+    ),
+    shaderSidebarWidth: Math.round(
+      Math.max(240, Math.min(640, n(i.shaderSidebarWidth, DEFAULT_LAB_SETTINGS.shaderSidebarWidth))),
+    ),
+    connectShapeType: normalizeConnectShapeType(i.connectShapeType),
+    shaderPresetId: normalizeShaderPresetId(i.shaderPresetId),
+    ...normalizeConnectCameraFromSettings(i),
+    connectGradientUnderlay:
+      typeof i.connectGradientUnderlay === "boolean"
+        ? i.connectGradientUnderlay
+        : DEFAULT_LAB_SETTINGS.connectGradientUnderlay,
+    connectShaderParams: normalizeConnectShaderParams(i.connectShaderParams),
+    ...(() => {
+      const view = normalizeShaderViewState({
+        distance: typeof i.shaderViewDistance === "number" ? i.shaderViewDistance : undefined,
+        rotateXDeg: typeof i.shaderViewRotateX === "number" ? i.shaderViewRotateX : undefined,
+        rotateYDeg: typeof i.shaderViewRotateY === "number" ? i.shaderViewRotateY : undefined,
+        rotateZDeg: typeof i.shaderViewRotateZ === "number" ? i.shaderViewRotateZ : undefined,
+        panX: typeof i.shaderViewPanX === "number" ? i.shaderViewPanX : undefined,
+        panY: typeof i.shaderViewPanY === "number" ? i.shaderViewPanY : undefined,
+        fov: typeof i.shaderViewFov === "number" ? i.shaderViewFov : undefined,
+      });
+      return {
+        shaderViewDistance: view.distance,
+        shaderViewRotateX: view.rotateXDeg,
+        shaderViewRotateY: view.rotateYDeg,
+        shaderViewRotateZ: view.rotateZDeg,
+        shaderViewPanX: view.panX,
+        shaderViewPanY: view.panY,
+        shaderViewFov: view.fov,
+      };
+    })(),
   };
 }
 

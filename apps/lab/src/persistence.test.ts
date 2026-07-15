@@ -145,6 +145,28 @@ describe("config file import/export", () => {
     });
   });
 
+  it("persists sidebar open state and widths", () => {
+    saveLabSettings({
+      textureSidebarOpen: false,
+      shaderSidebarOpen: true,
+      textureSidebarWidth: 280,
+      shaderSidebarWidth: 420,
+    });
+
+    expect(loadLabSettings()).toMatchObject({
+      textureSidebarOpen: false,
+      shaderSidebarOpen: true,
+      textureSidebarWidth: 280,
+      shaderSidebarWidth: 420,
+    });
+
+    saveLabSettings({ textureSidebarWidth: 100, shaderSidebarWidth: 900 });
+    expect(loadLabSettings()).toMatchObject({
+      textureSidebarWidth: 240,
+      shaderSidebarWidth: 640,
+    });
+  });
+
   it("does not persist canvas scale above the default 1x", () => {
     saveLabSettings({ canvasScale: 3 });
 

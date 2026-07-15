@@ -1,6 +1,14 @@
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "./defaultShaderTextureSource";
+import { shaderViewToUniforms, type ShaderViewState } from "./shaderView";
 
 export { DEFAULT_SHADER_TEXTURE_SOURCE } from "./defaultShaderTextureSource";
+export {
+  SHADER_VIEW_DEFAULTS,
+  normalizeShaderViewState,
+  shaderViewToUniforms,
+  type ShaderViewState,
+  type ShaderViewUniforms,
+} from "./shaderView";
 
 const VERTEX_SOURCE = `#version 300 es
 precision highp float;
@@ -20,6 +28,9 @@ out vec4 outColor;
 uniform vec3 iResolution;
 uniform float iTime;
 uniform vec4 iMouse;
+uniform vec3 iViewOrbit;
+uniform vec2 iViewPan;
+uniform float iViewZoom;
 uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
 uniform sampler2D iChannel2;
@@ -30,9 +41,26 @@ const float eps = 0.001;
 
 ${userSource}
 
+vec2 applyViewTransform(vec2 fragCoord) {
+  vec2 center = 0.5 * iResolution.xy;
+  vec2 uv = (fragCoord - center) / max(iResolution.y, 1.0);
+  float cy = cos(iViewOrbit.y);
+  float sy = sin(iViewOrbit.y);
+  float cx = cos(iViewOrbit.x);
+  float sx = sin(iViewOrbit.x);
+  float cz = cos(iViewOrbit.z);
+  float sz = sin(iViewOrbit.z);
+  // Yaw around Y, then pitch around X, then roll around Z — in 2D UV space.
+  uv = mat2(cx, -sx, sx, cx) * uv;
+  uv = mat2(cy, -sy, sy, cy) * uv;
+  uv = mat2(cz, -sz, sz, cz) * uv;
+  uv = uv / max(iViewZoom, 0.01) + iViewPan;
+  return uv * iResolution.y + center;
+}
+
 void main() {
   vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
-  mainImage(color, gl_FragCoord.xy);
+  mainImage(color, applyViewTransform(gl_FragCoord.xy));
   outColor = vec4(color.rgb, 1.0);
 }`;
 }
@@ -74,7 +102,11 @@ export type ShaderTextureRenderer = {
   height: number;
   setSource(source: string): string | null;
   resize(width: number, height: number): void;
-  render(timeSec: number, mouse?: { x: number; y: number; down?: boolean }): void;
+  render(
+    timeSec: number,
+    mouse?: { x: number; y: number; down?: boolean },
+    view?: Partial<ShaderViewState> | null,
+  ): void;
   dispose(): void;
 };
 
@@ -110,6 +142,9 @@ export function createShaderTextureRenderer(width = 1000, height = 1000): Shader
   let resolutionLoc: WebGLUniformLocation | null = null;
   let timeLoc: WebGLUniformLocation | null = null;
   let mouseLoc: WebGLUniformLocation | null = null;
+  let viewOrbitLoc: WebGLUniformLocation | null = null;
+  let viewPanLoc: WebGLUniformLocation | null = null;
+  let viewZoomLoc: WebGLUniformLocation | null = null;
 
   const channelTextures = Array.from({ length: 4 }, (_, index) => {
     const fallback = makeFallbackChannelPixels(index);
@@ -143,6 +178,9 @@ export function createShaderTextureRenderer(width = 1000, height = 1000): Shader
       resolutionLoc = gl.getUniformLocation(program, "iResolution");
       timeLoc = gl.getUniformLocation(program, "iTime");
       mouseLoc = gl.getUniformLocation(program, "iMouse");
+      viewOrbitLoc = gl.getUniformLocation(program, "iViewOrbit");
+      viewPanLoc = gl.getUniformLocation(program, "iViewPan");
+      viewZoomLoc = gl.getUniformLocation(program, "iViewZoom");
       gl.useProgram(program);
       for (let index = 0; index < channelTextures.length; index += 1) {
         gl.uniform1i(gl.getUniformLocation(program, `iChannel${index}`), index);
@@ -175,13 +213,17 @@ export function createShaderTextureRenderer(width = 1000, height = 1000): Shader
       canvas.height = h;
       gl.viewport(0, 0, w, h);
     },
-    render(timeSec: number, mouse = { x: 0, y: 0, down: false }) {
+    render(timeSec: number, mouse = { x: 0, y: 0, down: false }, view = null) {
       if (!program) return;
+      const uniforms = shaderViewToUniforms(view);
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.useProgram(program);
       gl.uniform3f(resolutionLoc, canvas.width, canvas.height, 1);
       gl.uniform1f(timeLoc, timeSec);
       gl.uniform4f(mouseLoc, mouse.x, mouse.y, mouse.down ? mouse.x : 0, mouse.down ? mouse.y : 0);
+      gl.uniform3f(viewOrbitLoc, uniforms.orbitRad[0], uniforms.orbitRad[1], uniforms.orbitRad[2]);
+      gl.uniform2f(viewPanLoc, uniforms.pan[0], uniforms.pan[1]);
+      gl.uniform1f(viewZoomLoc, uniforms.zoom);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.flush();
     },

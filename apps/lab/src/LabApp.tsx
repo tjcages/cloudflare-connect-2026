@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type WheelEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent,
+} from "react";
 import {
   createStripesEngine,
   createManualClock,
@@ -9,7 +18,7 @@ import {
   type EngineConfig,
 } from "@necatikcl/stripes-engine";
 import { LevaPanel } from "leva";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, PanelLeftClose, PanelLeft, PanelRightClose, PanelRight } from "lucide-react";
 import { PerfOverlay } from "./PerfOverlay";
 import { useEngineControls } from "./controls/levaSchema";
 import { LAB_LEVA_THEME } from "./controls/levaTheme";
@@ -40,6 +49,23 @@ import {
   DEFAULT_SHADER_TEXTURE_SOURCE,
   type ShaderTextureRenderer,
 } from "./shaderTextureSource";
+import { normalizeShaderViewState, type ShaderViewState } from "./shaderView";
+import {
+  CUSTOM_SHADER_PRESET_ID,
+  DEFAULT_SHADER_PRESET_ID,
+  findShaderLibraryEntry,
+  isConnectShaderPreset,
+  NEBULA_SHADER_PRESET_ID,
+  SHADER_LIBRARY,
+} from "./shaderLibrary";
+import {
+  CONNECT_SHAPE_OPTIONS,
+  createConnectTextureRenderer,
+  type ConnectCameraState,
+  type ConnectShapeType,
+  type ConnectTextureRenderer,
+} from "./connectShader";
+import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./connectShader/underlayIntro";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -62,11 +88,71 @@ const LUMINANCE_SAMPLE_MAX_SIDE = 192;
 const VIDEO_LUMINANCE_SAMPLE_COUNT = 16;
 const CANVAS_PREVIEW_ZOOM_MIN = 0.25;
 const CANVAS_PREVIEW_ZOOM_MAX = 4;
-const CANVAS_PREVIEW_ZOOM_STEP = 0.1;
+const CANVAS_PREVIEW_ZOOM_STEP = 0.05;
+const CANVAS_PREVIEW_ZOOM_WHEEL_SENSITIVITY = 0.001;
+const SIDEBAR_WIDTH_MIN = 240;
+const SIDEBAR_WIDTH_MAX = 640;
 const CONTROL_DRAWER_ID_SET = new Set<string>(CONTROL_DRAWER_IDS);
 
+function clampSidebarWidth(value: number): number {
+  return Math.round(Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, value)));
+}
+
 function clampPreviewZoom(value: number): number {
-  return Math.min(CANVAS_PREVIEW_ZOOM_MAX, Math.max(CANVAS_PREVIEW_ZOOM_MIN, Number(value.toFixed(2))));
+  return Math.min(CANVAS_PREVIEW_ZOOM_MAX, Math.max(CANVAS_PREVIEW_ZOOM_MIN, Number(value.toFixed(3))));
+}
+
+function wheelZoomFactor(deltaY: number, deltaMode: number): number {
+  const pixels = deltaMode === 1 ? deltaY * 16 : deltaMode === 2 ? deltaY * 400 : deltaY;
+  return Math.exp(-pixels * CANVAS_PREVIEW_ZOOM_WHEEL_SENSITIVITY);
+}
+
+function connectCameraFromSettings(settings: LabSettings): ConnectCameraState {
+  return {
+    distance: settings.connectCameraDistance,
+    rotateXDeg: settings.connectCameraRotateX,
+    rotateYDeg: settings.connectCameraRotateY,
+    rotateZDeg: settings.connectCameraRotateZ,
+    panX: settings.connectCameraPanX,
+    panY: settings.connectCameraPanY,
+    fov: settings.connectCameraFov,
+  };
+}
+
+function connectCameraToSettingsPatch(camera: ConnectCameraState): Partial<LabSettings> {
+  return {
+    connectCameraDistance: camera.distance,
+    connectCameraRotateX: camera.rotateXDeg,
+    connectCameraRotateY: camera.rotateYDeg,
+    connectCameraRotateZ: camera.rotateZDeg,
+    connectCameraPanX: camera.panX,
+    connectCameraPanY: camera.panY,
+    connectCameraFov: camera.fov,
+  };
+}
+
+function shaderViewFromSettings(settings: LabSettings): ShaderViewState {
+  return normalizeShaderViewState({
+    distance: settings.shaderViewDistance,
+    rotateXDeg: settings.shaderViewRotateX,
+    rotateYDeg: settings.shaderViewRotateY,
+    rotateZDeg: settings.shaderViewRotateZ,
+    panX: settings.shaderViewPanX,
+    panY: settings.shaderViewPanY,
+    fov: settings.shaderViewFov,
+  });
+}
+
+function shaderViewToSettingsPatch(view: ShaderViewState): Partial<LabSettings> {
+  return {
+    shaderViewDistance: view.distance,
+    shaderViewRotateX: view.rotateXDeg,
+    shaderViewRotateY: view.rotateYDeg,
+    shaderViewRotateZ: view.rotateZDeg,
+    shaderViewPanX: view.panX,
+    shaderViewPanY: view.panY,
+    shaderViewFov: view.fov,
+  };
 }
 
 function findLevaFolderTitle(target: EventTarget | null): HTMLElement | null {
@@ -336,9 +422,7 @@ function LabCanvasSizeControls({
   return (
     <section className="playground-canvas-size-controls">
       <div className="playground-canvas-size-row">
-        <div>
-          <span className="playground-canvas-scale-label">Canvas size</span>
-        </div>
+        <span className="playground-canvas-scale-label">Canvas size</span>
         <div className="playground-canvas-scale-controls">
           <div className="playground-canvas-scale-buttons">
             <button type="button" className={isOriginal ? "is-active" : ""} disabled={disabled} onClick={applyOriginal}>
@@ -351,9 +435,7 @@ function LabCanvasSizeControls({
         </div>
       </div>
       <div className="playground-canvas-size-row">
-        <div>
-          <span className="playground-canvas-scale-label">Canvas scale</span>
-        </div>
+        <span className="playground-canvas-scale-label">Canvas scale</span>
         <div className="playground-canvas-scale-controls">
           <div className="playground-canvas-scale-buttons">
             {scaleOptions.map((scale) => (
@@ -371,9 +453,7 @@ function LabCanvasSizeControls({
         </div>
       </div>
       <div className="playground-canvas-size-row">
-        <div>
-          <span className="playground-canvas-scale-label">Custom size</span>
-        </div>
+        <span className="playground-canvas-scale-label">Custom size</span>
         <div className="playground-canvas-dimension-controls">
           <input
             type="number"
@@ -428,52 +508,39 @@ function LabExportControls({
   };
 
   return (
-    <section className="playground-canvas-size-controls">
-      <div className="playground-canvas-size-row">
-        <div>
-          <span className="playground-canvas-scale-label">Export video</span>
-        </div>
-        <div>
-          <span className="playground-canvas-scale-label">
-            {videoEl ? `Source ${formatTime(videoDuration)}` : "Image loop"}
-          </span>
-        </div>
+    <div className="playground-export-controls">
+      <div className="playground-canvas-size-row-header">
+        <span className="playground-canvas-scale-meta">
+          {videoEl ? `Source ${formatTime(videoDuration)}` : "Image loop"}
+        </span>
       </div>
       {videoEl ? (
-        <div className="playground-canvas-size-row">
-          <div>
-            <span className="playground-canvas-scale-label">Start second</span>
-          </div>
-          <div>
-            <input
-              className="lab-input"
-              type="number"
-              min={0}
-              max={Math.max(0, videoDuration)}
-              step={0.1}
-              value={settings.exportStartSec}
-              onChange={(e) => setNumber("exportStartSec", e.target.value)}
-            />
-          </div>
-        </div>
-      ) : null}
-      <div className="playground-canvas-size-row">
-        <div>
-          <span className="playground-canvas-scale-label">Duration second</span>
-        </div>
-        <div>
+        <div className="playground-canvas-size-inline">
+          <span className="playground-canvas-scale-label">Start second</span>
           <input
             className="lab-input"
             type="number"
-            min={0.1}
-            max={videoEl ? Math.max(0.1, videoDuration) : 3600}
+            min={0}
+            max={Math.max(0, videoDuration)}
             step={0.1}
-            value={settings.exportDurationSec}
-            onChange={(e) => setNumber("exportDurationSec", e.target.value)}
+            value={settings.exportStartSec}
+            onChange={(e) => setNumber("exportStartSec", e.target.value)}
           />
         </div>
+      ) : null}
+      <div className="playground-canvas-size-inline">
+        <span className="playground-canvas-scale-label">Duration second</span>
+        <input
+          className="lab-input"
+          type="number"
+          min={0.1}
+          max={videoEl ? Math.max(0.1, videoDuration) : 3600}
+          step={0.1}
+          value={settings.exportDurationSec}
+          onChange={(e) => setNumber("exportDurationSec", e.target.value)}
+        />
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -552,7 +619,12 @@ function LabBottomBar({ videoEl }: { videoEl: HTMLVideoElement | null }) {
 
 function LabInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasAreaRef = useRef<HTMLDivElement>(null);
   const shaderPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const connectUnderlayHostRef = useRef<HTMLDivElement>(null);
+  const underlayIntroRef = useRef(createUnderlayIntroController());
+  const revealStartedAtRef = useRef<number | null>(null);
+  const underlayIntroArmedRef = useRef(false);
   const configFileInputRef = useRef<HTMLInputElement>(null);
   const engineRef = useRef<StripesEngine | null>(null);
   const manualRef = useRef(false);
@@ -581,6 +653,9 @@ function LabInner() {
     () => loadLabSettings().shaderSourceCode || DEFAULT_SHADER_TEXTURE_SOURCE,
   );
   const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
+  const [shaderPresetId, setShaderPresetId] = useState(
+    () => loadLabSettings().shaderPresetId || DEFAULT_SHADER_PRESET_ID,
+  );
   const [shaderPlaying, setShaderPlaying] = useState(true);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [mouseZoomEnabled, setMouseZoomEnabled] = useState(true);
@@ -590,7 +665,12 @@ function LabInner() {
   sourceSizeRef.current = sourceSize;
   const textureSourceModeRef = useRef(textureSourceMode);
   textureSourceModeRef.current = textureSourceMode;
+  const shaderSourceCodeRef = useRef(shaderSourceCode);
+  shaderSourceCodeRef.current = shaderSourceCode;
   const shaderRendererRef = useRef<ShaderTextureRenderer | null>(null);
+  const connectRendererRef = useRef<ConnectTextureRenderer | null>(null);
+  const shaderPresetIdRef = useRef(shaderPresetId);
+  shaderPresetIdRef.current = shaderPresetId;
   const shaderPlayingRef = useRef(shaderPlaying);
   shaderPlayingRef.current = shaderPlaying;
   const shaderTimeSecRef = useRef(0);
@@ -622,6 +702,43 @@ function LabInner() {
     });
   }, []);
 
+  const [sidebarResizing, setSidebarResizing] = useState<"texture" | "shader" | null>(null);
+  const sidebarDragWidthRef = useRef(0);
+
+  const startSidebarResize = useCallback((side: "texture" | "shader", event: ReactPointerEvent<HTMLDivElement>) => {
+    if (side === "texture" && !labSettingsRef.current.textureSidebarOpen) return;
+    if (side === "shader" && !labSettingsRef.current.shaderSidebarOpen) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth =
+      side === "texture" ? labSettingsRef.current.textureSidebarWidth : labSettingsRef.current.shaderSidebarWidth;
+    sidebarDragWidthRef.current = startWidth;
+    setSidebarResizing(side);
+    document.body.classList.add("lab-sidebar-resizing");
+
+    const onMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const nextWidth = clampSidebarWidth(side === "texture" ? startWidth + delta : startWidth - delta);
+      sidebarDragWidthRef.current = nextWidth;
+      setLabSettings((prev) =>
+        side === "texture" ? { ...prev, textureSidebarWidth: nextWidth } : { ...prev, shaderSidebarWidth: nextWidth },
+      );
+    };
+
+    const onUp = () => {
+      document.body.classList.remove("lab-sidebar-resizing");
+      setSidebarResizing(null);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      const nextWidth = sidebarDragWidthRef.current;
+      saveLabSettings(side === "texture" ? { textureSidebarWidth: nextWidth } : { shaderSidebarWidth: nextWidth });
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, []);
+
   const updatePreviewZoom = useCallback((next: number | ((current: number) => number)) => {
     setPreviewZoom((current) => clampPreviewZoom(typeof next === "function" ? next(current) : next));
   }, []);
@@ -630,9 +747,8 @@ function LabInner() {
     (event: WheelEvent<HTMLDivElement>) => {
       if (!mouseZoomEnabled) return;
       event.preventDefault();
-      updatePreviewZoom(
-        (current) => current + (event.deltaY < 0 ? CANVAS_PREVIEW_ZOOM_STEP : -CANVAS_PREVIEW_ZOOM_STEP),
-      );
+      const factor = wheelZoomFactor(event.deltaY, event.deltaMode);
+      updatePreviewZoom((current) => current * factor);
     },
     [mouseZoomEnabled, updatePreviewZoom],
   );
@@ -659,7 +775,14 @@ function LabInner() {
     textureOptions,
     textureStore,
     shaderStore,
-  } = useEngineControls(onReplay);
+    connectCamera,
+    connectShaderParams,
+    connectGradientUnderlay,
+    shaderView,
+  } = useEngineControls(onReplay, {
+    showShaderCamera: textureSourceMode === "shader",
+    showConnectCamera: textureSourceMode === "shader" && isConnectShaderPreset(shaderPresetId),
+  });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
   const setControlRef = useRef(setControl);
@@ -685,6 +808,35 @@ function LabInner() {
   const revealEnabledRef = useRef(controls.reveal.enabled);
   revealEnabledRef.current = controls.reveal.enabled;
 
+  const scheduleConnectUnderlayIntro = useCallback(() => {
+    const host = connectUnderlayHostRef.current;
+    const show =
+      textureSourceModeRef.current === "shader" &&
+      isConnectShaderPreset(shaderPresetIdRef.current) &&
+      labSettingsRef.current.connectGradientUnderlay;
+    if (!show || !host) {
+      underlayIntroRef.current.hide(host);
+      return;
+    }
+    const delayTotal = resolveUnderlayIntroDelayMs(controlsRef.current.reveal);
+    const started = revealStartedAtRef.current;
+    const remaining = started === null ? delayTotal : Math.max(0, delayTotal - (performance.now() - started));
+    underlayIntroRef.current.play(host, remaining);
+  }, []);
+
+  const beginReveal = useCallback(
+    (engine: StripesEngine) => {
+      revealStartedAtRef.current = performance.now();
+      if (revealEnabledRef.current) engine.triggerReveal();
+      underlayIntroArmedRef.current = false;
+      scheduleConnectUnderlayIntro();
+      underlayIntroArmedRef.current = true;
+    },
+    [scheduleConnectUnderlayIntro],
+  );
+  const beginRevealRef = useRef(beginReveal);
+  beginRevealRef.current = beginReveal;
+
   const applyCanvasSize = useCallback(
     (engine: StripesEngine, canvas: HTMLCanvasElement, src: { w: number; h: number }, settings: LabSettings) => {
       if (src.w <= 0 || src.h <= 0) return;
@@ -692,17 +844,37 @@ function LabInner() {
       canvas.style.width = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
       engine.resize(cssW, cssH);
-      const shaderRenderer = shaderRendererRef.current;
-      if (textureSourceModeRef.current === "shader" && shaderRenderer) {
-        shaderRenderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
-        engine.setSource(shaderRenderer.canvas);
-        engine.updateSourceFrame(shaderRenderer.canvas);
+      if (textureSourceModeRef.current !== "shader") return;
+
+      if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+        const connectRenderer = connectRendererRef.current;
+        if (!connectRenderer) return;
+        connectRenderer.render(shaderTimeSecRef.current);
+        engine.setSource(connectRenderer.canvas);
+        engine.updateSourceFrame(connectRenderer.canvas);
         const previewCanvas = shaderPreviewCanvasRef.current;
         if (previewCanvas) {
-          if (previewCanvas.width !== shaderRenderer.width) previewCanvas.width = shaderRenderer.width;
-          if (previewCanvas.height !== shaderRenderer.height) previewCanvas.height = shaderRenderer.height;
-          previewCanvas.getContext("2d")?.drawImage(shaderRenderer.canvas, 0, 0);
+          if (previewCanvas.width !== connectRenderer.width) previewCanvas.width = connectRenderer.width;
+          if (previewCanvas.height !== connectRenderer.height) previewCanvas.height = connectRenderer.height;
+          previewCanvas.getContext("2d")?.drawImage(connectRenderer.canvas, 0, 0);
         }
+        return;
+      }
+
+      const shaderRenderer = shaderRendererRef.current;
+      if (!shaderRenderer) return;
+      shaderRenderer.render(
+        shaderTimeSecRef.current,
+        shaderMouseRef.current,
+        shaderViewFromSettings(labSettingsRef.current),
+      );
+      engine.setSource(shaderRenderer.canvas);
+      engine.updateSourceFrame(shaderRenderer.canvas);
+      const previewCanvas = shaderPreviewCanvasRef.current;
+      if (previewCanvas) {
+        if (previewCanvas.width !== shaderRenderer.width) previewCanvas.width = shaderRenderer.width;
+        if (previewCanvas.height !== shaderRenderer.height) previewCanvas.height = shaderRenderer.height;
+        previewCanvas.getContext("2d")?.drawImage(shaderRenderer.canvas, 0, 0);
       }
     },
     [],
@@ -728,7 +900,7 @@ function LabInner() {
           }
           try {
             applyLoadedSource(loaded);
-            if (revealEnabledRef.current) engine.triggerReveal();
+            beginRevealRef.current(engine);
           } catch (error) {
             console.error("Failed to apply texture.", error);
           }
@@ -746,6 +918,60 @@ function LabInner() {
     [setTextureId],
   );
 
+  const applyConnectTextureSource = useCallback(
+    (shapeType: ConnectShapeType = labSettingsRef.current.connectShapeType) => {
+      if (manualRef.current) return;
+      const engine = engineRef.current;
+      const canvas = canvasRef.current;
+      if (!engine) return;
+      if (prevVideoRef.current) {
+        prevVideoRef.current.pause();
+        prevVideoRef.current = null;
+      }
+      textureLoadSeqRef.current++;
+      const shaderBaseSize = shaderOriginalSize(labSettingsRef.current);
+      const camera = connectCameraFromSettings(labSettingsRef.current);
+      const params = labSettingsRef.current.connectShaderParams;
+
+      shaderRendererRef.current?.dispose();
+      shaderRendererRef.current = null;
+
+      let renderer = connectRendererRef.current;
+      try {
+        if (!renderer) {
+          renderer = createConnectTextureRenderer(shaderBaseSize.w, shaderBaseSize.h, shapeType, camera, params);
+          connectRendererRef.current = renderer;
+        } else {
+          renderer.resize(shaderBaseSize.w, shaderBaseSize.h);
+          renderer.setShape(shapeType);
+          renderer.setCamera(camera);
+          renderer.setParams(params);
+        }
+      } catch (error) {
+        setShaderSourceError(error instanceof Error ? error.message : String(error));
+        return;
+      }
+
+      setShaderSourceError(null);
+      renderer.render(shaderTimeSecRef.current);
+      engine.setSource(renderer.canvas);
+      setVideoEl(null);
+      setSourcePreview({
+        source: renderer.canvas,
+        video: null,
+        objectUrl: null,
+        width: renderer.width,
+        height: renderer.height,
+      });
+      const src = shaderBaseSize;
+      setSourceSize(src);
+      if (canvas && shell) applyCanvasSize(engine, canvas, src, labSettingsRef.current);
+      beginRevealRef.current(engine);
+      if (manualRef.current) engine.renderFrame();
+    },
+    [applyCanvasSize, shell],
+  );
+
   const applyShaderTextureSource = useCallback(
     (sourceCode: string) => {
       if (manualRef.current) return;
@@ -758,6 +984,9 @@ function LabInner() {
       }
       textureLoadSeqRef.current++;
       const shaderBaseSize = shaderOriginalSize(labSettingsRef.current);
+
+      connectRendererRef.current?.dispose();
+      connectRendererRef.current = null;
 
       let renderer = shaderRendererRef.current;
       try {
@@ -775,7 +1004,7 @@ function LabInner() {
       setShaderSourceError(compileError);
       if (compileError) return;
 
-      renderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+      renderer.render(shaderTimeSecRef.current, shaderMouseRef.current, shaderViewFromSettings(labSettingsRef.current));
       engine.setSource(renderer.canvas);
       setVideoEl(null);
       setSourcePreview({
@@ -788,11 +1017,19 @@ function LabInner() {
       const src = shaderBaseSize;
       setSourceSize(src);
       if (canvas && shell) applyCanvasSize(engine, canvas, src, labSettingsRef.current);
-      if (revealEnabledRef.current) engine.triggerReveal();
+      beginRevealRef.current(engine);
       if (manualRef.current) engine.renderFrame();
     },
     [applyCanvasSize, shell],
   );
+
+  const applyActiveShaderSource = useCallback(() => {
+    if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+      applyConnectTextureSource(labSettingsRef.current.connectShapeType);
+      return;
+    }
+    applyShaderTextureSource(shaderSourceCodeRef.current);
+  }, [applyConnectTextureSource, applyShaderTextureSource]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -817,7 +1054,7 @@ function LabInner() {
       engine.resize(cssW, cssH);
     }
 
-    onReplayRef.current = () => engine.triggerReveal();
+    onReplayRef.current = () => beginRevealRef.current(engine);
 
     const buildExportSvg = (): string => {
       const cfg = controlsRef.current;
@@ -830,6 +1067,23 @@ function LabInner() {
         width: s.width,
         opacity: s.opacity,
       }));
+      const lab = labSettingsRef.current;
+      let backgroundImageHref: string | undefined;
+      if (
+        lab.textureSourceMode === "shader" &&
+        isConnectShaderPreset(shaderPresetIdRef.current) &&
+        lab.connectGradientUnderlay
+      ) {
+        const connectRenderer = connectRendererRef.current;
+        if (connectRenderer) {
+          connectRenderer.render(shaderTimeSecRef.current);
+          try {
+            backgroundImageHref = connectRenderer.underlayCanvas.toDataURL("image/png");
+          } catch {
+            backgroundImageHref = undefined;
+          }
+        }
+      }
       return cellGridToSvg(readback, stripes, {
         cellWidthPx: cfg.grid.cellWidth,
         cellHeightPx: cfg.grid.cellHeight,
@@ -861,6 +1115,7 @@ function LabInner() {
                 stops: cfg.background.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
               }
             : undefined,
+        backgroundImageHref,
         canvasWidthPx,
         canvasHeightPx,
       });
@@ -923,14 +1178,18 @@ function LabInner() {
       },
       cursorTo: (x: number | null, y?: number) => engine.setCursor(x, y),
       clickAt: (x: number, y?: number) => engine.click(x, y),
-      triggerReveal: () => engine.triggerReveal(),
+      triggerReveal: () => beginRevealRef.current(engine),
     };
 
     let raf = 0;
     if (!manual) {
       engine.start();
       if (textureSourceModeRef.current === "shader") {
-        applyShaderTextureSource(shaderSourceCode);
+        if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+          applyConnectTextureSource(labSettingsRef.current.connectShapeType);
+        } else {
+          applyShaderTextureSource(shaderSourceCode);
+        }
       } else {
         loadTextureById(textureIdRef.current);
       }
@@ -938,22 +1197,47 @@ function LabInner() {
       let lastShaderPreviewAt = 0;
       const tick = () => {
         const now = performance.now();
-        const shaderRenderer = shaderRendererRef.current;
-        if (textureSourceModeRef.current === "shader" && shaderRenderer) {
+        if (textureSourceModeRef.current === "shader") {
           const deltaSec = Math.max(0, Math.min(0.1, (now - shaderLastTickMsRef.current) / 1000));
           shaderLastTickMsRef.current = now;
           if (shaderPlayingRef.current) shaderTimeSecRef.current += deltaSec;
-          shaderRenderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
-          engine.updateSourceFrame(shaderRenderer.canvas);
-          const previewCanvas = shaderPreviewCanvasRef.current;
-          const previewSizeChanged =
-            !!previewCanvas &&
-            (previewCanvas.width !== shaderRenderer.width || previewCanvas.height !== shaderRenderer.height);
-          if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
-            lastShaderPreviewAt = now;
-            if (previewCanvas.width !== shaderRenderer.width) previewCanvas.width = shaderRenderer.width;
-            if (previewCanvas.height !== shaderRenderer.height) previewCanvas.height = shaderRenderer.height;
-            previewCanvas.getContext("2d")?.drawImage(shaderRenderer.canvas, 0, 0);
+
+          if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+            const connectRenderer = connectRendererRef.current;
+            if (connectRenderer) {
+              connectRenderer.render(shaderTimeSecRef.current);
+              engine.updateSourceFrame(connectRenderer.canvas);
+              const previewCanvas = shaderPreviewCanvasRef.current;
+              const previewSizeChanged =
+                !!previewCanvas &&
+                (previewCanvas.width !== connectRenderer.width || previewCanvas.height !== connectRenderer.height);
+              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+                lastShaderPreviewAt = now;
+                if (previewCanvas.width !== connectRenderer.width) previewCanvas.width = connectRenderer.width;
+                if (previewCanvas.height !== connectRenderer.height) previewCanvas.height = connectRenderer.height;
+                previewCanvas.getContext("2d")?.drawImage(connectRenderer.canvas, 0, 0);
+              }
+            }
+          } else {
+            const shaderRenderer = shaderRendererRef.current;
+            if (shaderRenderer) {
+              shaderRenderer.render(
+                shaderTimeSecRef.current,
+                shaderMouseRef.current,
+                shaderViewFromSettings(labSettingsRef.current),
+              );
+              engine.updateSourceFrame(shaderRenderer.canvas);
+              const previewCanvas = shaderPreviewCanvasRef.current;
+              const previewSizeChanged =
+                !!previewCanvas &&
+                (previewCanvas.width !== shaderRenderer.width || previewCanvas.height !== shaderRenderer.height);
+              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+                lastShaderPreviewAt = now;
+                if (previewCanvas.width !== shaderRenderer.width) previewCanvas.width = shaderRenderer.width;
+                if (previewCanvas.height !== shaderRenderer.height) previewCanvas.height = shaderRenderer.height;
+                previewCanvas.getContext("2d")?.drawImage(shaderRenderer.canvas, 0, 0);
+              }
+            }
           }
         }
         if (now - lastSnapAt >= 500) {
@@ -986,6 +1270,10 @@ function LabInner() {
         uploadObjectUrlRef.current = null;
       }
       textureLoadSeqRef.current++;
+      shaderRendererRef.current?.dispose();
+      shaderRendererRef.current = null;
+      connectRendererRef.current?.dispose();
+      connectRendererRef.current = null;
       engine.dispose();
       engineRef.current = null;
       (window as unknown as { __lab?: unknown }).__lab = undefined;
@@ -1001,6 +1289,67 @@ function LabInner() {
     applyCanvasSize(engine, canvas, sourceSizeRef.current, labSettings);
   }, [labSettings, shell, applyCanvasSize]);
 
+  const centerCanvasViewport = useCallback(() => {
+    const area = canvasAreaRef.current;
+    if (!area) return;
+    area.scrollLeft = Math.max(0, (area.scrollWidth - area.clientWidth) / 2);
+    area.scrollTop = Math.max(0, (area.scrollHeight - area.clientHeight) / 2);
+  }, []);
+
+  useEffect(() => {
+    if (!shell) return;
+    const area = canvasAreaRef.current;
+    if (!area) return;
+
+    let frame2 = 0;
+    const frame1 = window.requestAnimationFrame(() => {
+      centerCanvasViewport();
+      frame2 = window.requestAnimationFrame(() => {
+        centerCanvasViewport();
+      });
+    });
+
+    const observer = new ResizeObserver(() => {
+      centerCanvasViewport();
+    });
+    observer.observe(area);
+    const stage = area.querySelector(".lab-canvas-stage");
+    if (stage) observer.observe(stage);
+    const stack = area.querySelector(".lab-canvas-stack");
+    if (stack) observer.observe(stack);
+
+    const onTransitionEnd = (event: Event) => {
+      if (!(event instanceof TransitionEvent) || event.propertyName !== "width") return;
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.classList.contains("lab-sidebar")) return;
+      centerCanvasViewport();
+    };
+    const shellEl = area.closest(".lab-shell");
+    shellEl?.addEventListener("transitionend", onTransitionEnd);
+
+    return () => {
+      window.cancelAnimationFrame(frame1);
+      if (frame2) window.cancelAnimationFrame(frame2);
+      observer.disconnect();
+      shellEl?.removeEventListener("transitionend", onTransitionEnd);
+    };
+  }, [
+    shell,
+    centerCanvasViewport,
+    textureSourceMode,
+    sourceSize.w,
+    sourceSize.h,
+    previewZoom,
+    labSettings.canvasMode,
+    labSettings.canvasScale,
+    labSettings.canvasWidth,
+    labSettings.canvasHeight,
+    labSettings.textureSidebarOpen,
+    labSettings.shaderSidebarOpen,
+    labSettings.textureSidebarWidth,
+    labSettings.shaderSidebarWidth,
+  ]);
+
   useEffect(() => {
     if (manual) return;
     const canvas = canvasRef.current;
@@ -1011,15 +1360,18 @@ function LabInner() {
       const point = pointerToEnginePoint(canvas, e);
       engine.setCursor(point.x, point.y);
       const shaderRenderer = shaderRendererRef.current;
-      if (textureSourceModeRef.current === "shader" && shaderRenderer) {
-        shaderMouseRef.current = pointerToShaderMouse(canvas, shaderRenderer, e, shaderMouseRef.current.down);
+      // Orbit-style: only update shader mouse while dragging (click + move).
+      if (textureSourceModeRef.current === "shader" && shaderRenderer && shaderMouseRef.current.down) {
+        shaderMouseRef.current = pointerToShaderMouse(canvas, shaderRenderer, e, true);
       }
     };
     const onLeave = () => {
       const engine = engineRef.current;
       if (!engine) return;
       engine.setCursor(null);
-      shaderMouseRef.current = { ...shaderMouseRef.current, down: false };
+      if (shaderMouseRef.current.down) {
+        shaderMouseRef.current = { ...shaderMouseRef.current, down: false };
+      }
     };
     const onDown = (e: PointerEvent) => {
       const engine = engineRef.current;
@@ -1035,7 +1387,8 @@ function LabInner() {
     const onUp = (e: PointerEvent) => {
       canvas.releasePointerCapture?.(e.pointerId);
       const shaderRenderer = shaderRendererRef.current;
-      if (textureSourceModeRef.current === "shader" && shaderRenderer) {
+      if (textureSourceModeRef.current === "shader" && shaderRenderer && shaderMouseRef.current.down) {
+        // Keep last drag position (xy); clear only the down flag.
         shaderMouseRef.current = pointerToShaderMouse(canvas, shaderRenderer, e, false);
       } else {
         shaderMouseRef.current = { ...shaderMouseRef.current, down: false };
@@ -1058,8 +1411,12 @@ function LabInner() {
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
+    const connectUnderlayActive =
+      textureSourceModeRef.current === "shader" &&
+      isConnectShaderPreset(shaderPresetIdRef.current) &&
+      labSettingsRef.current.connectGradientUnderlay;
     const previewConfig =
-      backgroundSourceOpacity > 0.001
+      backgroundSourceOpacity > 0.001 || connectUnderlayActive
         ? { ...controls, background: { ...controls.background, transparent: true } }
         : controls;
     const configToApply = manualRef.current
@@ -1068,7 +1425,7 @@ function LabInner() {
     engine.setConfig(configToApply);
     saveConfig(textureIdRef.current, controls);
     if (manualRef.current) engine.renderFrame();
-  }, [controls, backgroundSourceOpacity]);
+  }, [controls, backgroundSourceOpacity, labSettings.connectGradientUnderlay, shaderPresetId, textureSourceMode]);
 
   useEffect(() => {
     setLabSettings((prev) => {
@@ -1088,19 +1445,28 @@ function LabInner() {
   }, [textureId, loadTextureById]);
 
   useEffect(() => {
-    saveLabSettings({ ...labSettingsRef.current, textureSourceMode, shaderSourceCode });
+    saveLabSettings({
+      ...labSettingsRef.current,
+      textureSourceMode,
+      shaderSourceCode,
+      shaderPresetId,
+    });
     if (!engineRef.current) return;
     if (textureSourceMode === "shader") {
-      applyShaderTextureSource(shaderSourceCode);
+      applyActiveShaderSource();
     } else {
+      shaderRendererRef.current?.dispose();
+      shaderRendererRef.current = null;
+      connectRendererRef.current?.dispose();
+      connectRendererRef.current = null;
       loadTextureById(textureIdRef.current);
     }
-  }, [textureSourceMode, applyShaderTextureSource, loadTextureById]);
+  }, [textureSourceMode, applyActiveShaderSource, loadTextureById]);
 
   useEffect(() => {
     if (textureSourceModeRef.current !== "shader") return;
     if (!engineRef.current) return;
-    applyShaderTextureSource(shaderSourceCode);
+    applyActiveShaderSource();
   }, [
     labSettings.shaderSourceWidth,
     labSettings.shaderSourceHeight,
@@ -1108,8 +1474,139 @@ function LabInner() {
     labSettings.canvasScale,
     labSettings.canvasWidth,
     labSettings.canvasHeight,
-    applyShaderTextureSource,
+    applyActiveShaderSource,
   ]);
+
+  useEffect(() => {
+    if (textureSourceModeRef.current !== "shader") return;
+    if (!isConnectShaderPreset(shaderPresetIdRef.current)) return;
+    if (!engineRef.current) return;
+    applyConnectTextureSource(labSettings.connectShapeType);
+  }, [labSettings.connectShapeType, applyConnectTextureSource]);
+
+  useEffect(() => {
+    if (!connectCamera) return;
+    const patch = connectCameraToSettingsPatch(connectCamera);
+    const current = labSettingsRef.current;
+    if (
+      current.connectCameraDistance === patch.connectCameraDistance &&
+      current.connectCameraRotateX === patch.connectCameraRotateX &&
+      current.connectCameraRotateY === patch.connectCameraRotateY &&
+      current.connectCameraRotateZ === patch.connectCameraRotateZ &&
+      current.connectCameraPanX === patch.connectCameraPanX &&
+      current.connectCameraPanY === patch.connectCameraPanY &&
+      current.connectCameraFov === patch.connectCameraFov
+    ) {
+      return;
+    }
+    updateLabSettings(patch);
+  }, [
+    connectCamera,
+    connectCamera?.distance,
+    connectCamera?.rotateXDeg,
+    connectCamera?.rotateYDeg,
+    connectCamera?.rotateZDeg,
+    connectCamera?.panX,
+    connectCamera?.panY,
+    connectCamera?.fov,
+    updateLabSettings,
+  ]);
+
+  useEffect(() => {
+    if (!shaderView) return;
+    const patch = shaderViewToSettingsPatch(shaderView);
+    const current = labSettingsRef.current;
+    if (
+      current.shaderViewDistance === patch.shaderViewDistance &&
+      current.shaderViewRotateX === patch.shaderViewRotateX &&
+      current.shaderViewRotateY === patch.shaderViewRotateY &&
+      current.shaderViewRotateZ === patch.shaderViewRotateZ &&
+      current.shaderViewPanX === patch.shaderViewPanX &&
+      current.shaderViewPanY === patch.shaderViewPanY &&
+      current.shaderViewFov === patch.shaderViewFov
+    ) {
+      return;
+    }
+    updateLabSettings(patch);
+  }, [
+    shaderView,
+    shaderView?.distance,
+    shaderView?.rotateXDeg,
+    shaderView?.rotateYDeg,
+    shaderView?.rotateZDeg,
+    shaderView?.panX,
+    shaderView?.panY,
+    shaderView?.fov,
+    updateLabSettings,
+  ]);
+
+  useEffect(() => {
+    if (!connectShaderParams) return;
+    const current = labSettingsRef.current.connectShaderParams;
+    if (JSON.stringify(current) === JSON.stringify(connectShaderParams)) return;
+    updateLabSettings({ connectShaderParams });
+  }, [connectShaderParams, updateLabSettings]);
+
+  useEffect(() => {
+    if (connectGradientUnderlay === null) return;
+    if (labSettingsRef.current.connectGradientUnderlay === connectGradientUnderlay) return;
+    updateLabSettings({ connectGradientUnderlay });
+  }, [connectGradientUnderlay, updateLabSettings]);
+
+  useEffect(() => {
+    if (textureSourceModeRef.current !== "shader") return;
+    if (!isConnectShaderPreset(shaderPresetIdRef.current)) return;
+    const renderer = connectRendererRef.current;
+    if (!renderer) return;
+    renderer.setCamera(connectCameraFromSettings(labSettings));
+    renderer.setParams(labSettings.connectShaderParams);
+  }, [
+    labSettings.connectCameraDistance,
+    labSettings.connectCameraRotateX,
+    labSettings.connectCameraRotateY,
+    labSettings.connectCameraRotateZ,
+    labSettings.connectCameraPanX,
+    labSettings.connectCameraPanY,
+    labSettings.connectCameraFov,
+    labSettings.connectShaderParams,
+  ]);
+
+  useEffect(() => {
+    const host = connectUnderlayHostRef.current;
+    if (!host) return;
+    const show =
+      textureSourceMode === "shader" && isConnectShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
+    const underlay = connectRendererRef.current?.underlayCanvas ?? null;
+    host.replaceChildren();
+    if (!show || !underlay) {
+      underlayIntroArmedRef.current = false;
+      underlayIntroRef.current.hide(host);
+      return;
+    }
+    underlay.className = "lab-canvas-connect-underlay";
+    underlay.setAttribute("aria-hidden", "true");
+    host.appendChild(underlay);
+    if (!underlayIntroArmedRef.current) {
+      scheduleConnectUnderlayIntro();
+      underlayIntroArmedRef.current = true;
+    }
+    return () => {
+      host.replaceChildren();
+    };
+  }, [
+    textureSourceMode,
+    shaderPresetId,
+    labSettings.connectGradientUnderlay,
+    sourceSize.w,
+    sourceSize.h,
+    sourcePreview,
+    connectShaderParams,
+    scheduleConnectUnderlayIntro,
+  ]);
+
+  useEffect(() => {
+    return () => underlayIntroRef.current.cancel();
+  }, []);
 
   useEffect(() => {
     saveLabSettings({ ...labSettingsRef.current, ...getLabSettingsSnapshot(), textureId });
@@ -1307,22 +1804,93 @@ function LabInner() {
 
   function handleApplyShaderSource() {
     setTextureSourceMode("shader");
-    saveLabSettings({ ...labSettingsRef.current, textureSourceMode: "shader", shaderSourceCode });
+    setShaderPresetId(CUSTOM_SHADER_PRESET_ID);
+    saveLabSettings({
+      ...labSettingsRef.current,
+      textureSourceMode: "shader",
+      shaderSourceCode,
+      shaderPresetId: CUSTOM_SHADER_PRESET_ID,
+    });
     applyShaderTextureSource(shaderSourceCode);
   }
 
   function handleResetShaderSource() {
     setShaderSourceCode(DEFAULT_SHADER_TEXTURE_SOURCE);
     setShaderSourceError(null);
-    saveLabSettings({ ...labSettingsRef.current, textureSourceMode, shaderSourceCode: DEFAULT_SHADER_TEXTURE_SOURCE });
+    setShaderPresetId(NEBULA_SHADER_PRESET_ID);
+    saveLabSettings({
+      ...labSettingsRef.current,
+      textureSourceMode,
+      shaderSourceCode: DEFAULT_SHADER_TEXTURE_SOURCE,
+      shaderPresetId: NEBULA_SHADER_PRESET_ID,
+    });
     if (textureSourceMode === "shader") applyShaderTextureSource(DEFAULT_SHADER_TEXTURE_SOURCE);
+  }
+
+  function handleShaderPresetChange(presetId: string) {
+    if (presetId === CUSTOM_SHADER_PRESET_ID) return;
+    const entry = findShaderLibraryEntry(presetId);
+    if (!entry) return;
+    setShaderPresetId(presetId);
+    setShaderSourceError(null);
+    setTextureSourceMode("shader");
+
+    if (isConnectShaderPreset(presetId)) {
+      saveLabSettings({
+        ...labSettingsRef.current,
+        textureSourceMode: "shader",
+        shaderPresetId: presetId,
+      });
+      applyConnectTextureSource(labSettingsRef.current.connectShapeType);
+      return;
+    }
+
+    setShaderSourceCode(entry.source);
+    saveLabSettings({
+      ...labSettingsRef.current,
+      textureSourceMode: "shader",
+      shaderPresetId: presetId,
+      shaderSourceCode: entry.source,
+    });
+    applyShaderTextureSource(entry.source);
+  }
+
+  function handleConnectShapeChange(shapeType: ConnectShapeType) {
+    updateLabSettings({ connectShapeType: shapeType });
+  }
+
+  function handleResetShaderTime() {
+    shaderTimeSecRef.current = 0;
+    shaderLastTickMsRef.current = performance.now();
+    const engine = engineRef.current;
+    if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+      const connectRenderer = connectRendererRef.current;
+      if (connectRenderer) {
+        connectRenderer.render(shaderTimeSecRef.current);
+        engine?.updateSourceFrame(connectRenderer.canvas);
+      }
+      return;
+    }
+    const shaderRenderer = shaderRendererRef.current;
+    if (shaderRenderer) {
+      shaderRenderer.render(
+        shaderTimeSecRef.current,
+        shaderMouseRef.current,
+        shaderViewFromSettings(labSettingsRef.current),
+      );
+      engine?.updateSourceFrame(shaderRenderer.canvas);
+    }
   }
 
   if (!shell) {
     return <canvas ref={canvasRef} style={{ display: "block" }} />;
   }
 
+  const connectSelected = isConnectShaderPreset(shaderPresetId);
+
   const showSourceBackground = backgroundSourceOpacity > 0.001 && sourcePreview !== null;
+  const showConnectGradientUnderlay =
+    textureSourceMode === "shader" && isConnectShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
   const sourceObjectFit = controls.transform.fit === "contain" ? "contain" : "cover";
   const sourceBackgroundStyle: CSSProperties =
     controls.transform.fit === "width"
@@ -1346,10 +1914,28 @@ function LabInner() {
         : { objectFit: sourceObjectFit, opacity: backgroundSourceOpacity };
 
   return (
-    <div className="lab-shell">
-      <aside className="lab-sidebar lab-sidebar-texture">
-        <div className="lab-sidebar-scroll playground-leva-panel texture-config-panel ui-scroll-hidden">
-          <img className="lab-sidebar-logo" src="/cf-logo-dev.svg" alt="Cloudflare Stripes" />
+    <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}`}>
+      <aside
+        className={`lab-sidebar lab-sidebar-texture${labSettings.textureSidebarOpen ? "" : " is-closed"}`}
+        style={{ width: labSettings.textureSidebarOpen ? labSettings.textureSidebarWidth : 0 }}
+        aria-hidden={!labSettings.textureSidebarOpen}
+      >
+        <div
+          className="lab-sidebar-scroll playground-leva-panel texture-config-panel ui-scroll-hidden"
+          style={{ width: labSettings.textureSidebarWidth }}
+        >
+          <div className="lab-sidebar-header">
+            <img className="lab-sidebar-logo" src="/connect-logo.svg" alt="Connect" />
+            <button
+              className="lab-sidebar-toggle"
+              type="button"
+              onClick={() => updateLabSettings({ textureSidebarOpen: false })}
+              aria-label="Close texture panel"
+              title="Close texture panel"
+            >
+              <PanelLeftClose size={14} strokeWidth={1.75} />
+            </button>
+          </div>
           <div className="playground-workflow-controls">
             <div className="wf-field">
               <span className="wf-field-label">Source</span>
@@ -1391,74 +1977,105 @@ function LabInner() {
               </>
             ) : (
               <div className="wf-field wf-shader-source">
-                <span className="wf-field-label">Shader resolution</span>
-                <div className="playground-canvas-dimension-controls">
-                  <input
-                    type="number"
-                    min={1}
-                    max={8192}
-                    step={1}
-                    value={labSettings.shaderSourceWidth}
-                    onChange={(event) => {
-                      const width = Math.max(1, Math.min(8192, Math.round(Number(event.currentTarget.value))));
-                      if (!Number.isFinite(width)) return;
-                      updateLabSettings({ shaderSourceWidth: width });
-                    }}
-                    aria-label="Shader source width"
-                  />
-                  <span className="wf-resolution-separator">×</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={8192}
-                    step={1}
-                    value={labSettings.shaderSourceHeight}
-                    onChange={(event) => {
-                      const height = Math.max(1, Math.min(8192, Math.round(Number(event.currentTarget.value))));
-                      if (!Number.isFinite(height)) return;
-                      updateLabSettings({ shaderSourceHeight: height });
-                    }}
-                    aria-label="Shader source height"
-                  />
-                </div>
-                <span className="wf-field-label">Shader source</span>
-                <textarea
-                  className="lab-shader-source-input"
-                  spellCheck={false}
-                  value={shaderSourceCode}
-                  onChange={(event) => {
-                    const next = event.currentTarget.value;
-                    setShaderSourceCode(next);
-                    saveLabSettings({ ...labSettingsRef.current, textureSourceMode: "shader", shaderSourceCode: next });
-                  }}
-                />
+                <span className="wf-field-label">Shader</span>
+                <select
+                  className="lab-btn"
+                  value={shaderPresetId}
+                  onChange={(event) => handleShaderPresetChange(event.target.value)}
+                >
+                  {SHADER_LIBRARY.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.id === DEFAULT_SHADER_PRESET_ID ? `${entry.label} (default)` : entry.label}
+                    </option>
+                  ))}
+                  {shaderPresetId === CUSTOM_SHADER_PRESET_ID ? (
+                    <option value={CUSTOM_SHADER_PRESET_ID}>Custom</option>
+                  ) : null}
+                </select>
+                {connectSelected ? (
+                  <>
+                    <span className="wf-field-label">Shape</span>
+                    <select
+                      className="lab-btn"
+                      value={labSettings.connectShapeType}
+                      onChange={(event) => handleConnectShapeChange(event.target.value as ConnectShapeType)}
+                    >
+                      {CONNECT_SHAPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <span className="wf-field-label">Shader resolution</span>
+                    <div className="playground-canvas-dimension-controls">
+                      <input
+                        type="number"
+                        min={1}
+                        max={8192}
+                        step={1}
+                        value={labSettings.shaderSourceWidth}
+                        onChange={(event) => {
+                          const width = Math.max(1, Math.min(8192, Math.round(Number(event.currentTarget.value))));
+                          if (!Number.isFinite(width)) return;
+                          updateLabSettings({ shaderSourceWidth: width });
+                        }}
+                        aria-label="Shader source width"
+                      />
+                      <span className="wf-resolution-separator">×</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={8192}
+                        step={1}
+                        value={labSettings.shaderSourceHeight}
+                        onChange={(event) => {
+                          const height = Math.max(1, Math.min(8192, Math.round(Number(event.currentTarget.value))));
+                          if (!Number.isFinite(height)) return;
+                          updateLabSettings({ shaderSourceHeight: height });
+                        }}
+                        aria-label="Shader source height"
+                      />
+                    </div>
+                    <span className="wf-field-label">Shader source</span>
+                    <textarea
+                      className="lab-shader-source-input"
+                      spellCheck={false}
+                      value={shaderSourceCode}
+                      onChange={(event) => {
+                        const next = event.currentTarget.value;
+                        setShaderSourceCode(next);
+                        setShaderPresetId(CUSTOM_SHADER_PRESET_ID);
+                        saveLabSettings({
+                          ...labSettingsRef.current,
+                          textureSourceMode: "shader",
+                          shaderSourceCode: next,
+                          shaderPresetId: CUSTOM_SHADER_PRESET_ID,
+                        });
+                      }}
+                    />
+                  </>
+                )}
                 <div className="wf-row">
                   <button className="lab-btn" onClick={() => setShaderPlaying((playing) => !playing)}>
                     {shaderPlaying ? "Pause shader" : "Play shader"}
                   </button>
-                  <button
-                    className="lab-btn"
-                    onClick={() => {
-                      shaderTimeSecRef.current = 0;
-                      shaderLastTickMsRef.current = performance.now();
-                      const shaderRenderer = shaderRendererRef.current;
-                      if (shaderRenderer) {
-                        shaderRenderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
-                        engineRef.current?.updateSourceFrame(shaderRenderer.canvas);
-                      }
-                    }}
-                  >
+                  <button className="lab-btn" onClick={handleResetShaderTime}>
                     Reset time
                   </button>
                 </div>
-                <div className="wf-row">
-                  <button className="lab-btn" onClick={handleApplyShaderSource}>
-                    Apply shader
-                  </button>
-                  <button className="lab-btn" onClick={handleResetShaderSource}>
-                    Reset shader
-                  </button>
-                </div>
+                {!connectSelected ? (
+                  <div className="wf-row">
+                    <button className="lab-btn" onClick={handleApplyShaderSource}>
+                      Apply shader
+                    </button>
+                    <button className="lab-btn" onClick={handleResetShaderSource}>
+                      Reset shader
+                    </button>
+                  </div>
+                ) : null}
                 {shaderSourceError ? <div className="lab-shader-source-error">{shaderSourceError}</div> : null}
               </div>
             )}
@@ -1521,6 +2138,7 @@ function LabInner() {
             <hr className="wf-divider" />
             <div className="wf-field">
               <span className="wf-field-label">Export</span>
+              <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
               <div className="wf-row">
                 <button className="lab-btn" onClick={onExportVideo}>
                   Export Video
@@ -1537,53 +2155,88 @@ function LabInner() {
             settings={labSettings}
             onSettings={updateLabSettings}
           />
-          <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
           <LevaPanel store={textureStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
         </div>
+        <hr
+          className="lab-sidebar-resize-handle"
+          onPointerDown={(event) => startSidebarResize("texture", event)}
+          aria-orientation="vertical"
+          aria-label="Resize texture panel"
+        />
       </aside>
       <div className="lab-main">
-        <div className="lab-canvas-area" onWheel={handlePreviewWheel}>
-          <div className="lab-canvas-stage">
-            <div
-              className="lab-canvas-stack"
-              style={{
-                transform: `scale(${previewZoom})`,
-                transformOrigin: "center center",
-              }}
-            >
-              {showSourceBackground && sourcePreview.video ? (
-                <video
-                  className="lab-canvas-source-background"
-                  src={sourcePreview.video.currentSrc || sourcePreview.video.src}
-                  muted
-                  loop
-                  autoPlay
-                  playsInline
-                  style={sourceBackgroundStyle}
-                />
-              ) : showSourceBackground && sourcePreview.source instanceof HTMLImageElement ? (
-                <img
-                  className="lab-canvas-source-background"
-                  src={sourcePreview.source.currentSrc || sourcePreview.source.src}
-                  alt=""
-                  aria-hidden="true"
-                  style={sourceBackgroundStyle}
-                />
-              ) : showSourceBackground && sourcePreview.source instanceof HTMLCanvasElement ? (
-                <canvas
-                  ref={shaderPreviewCanvasRef}
-                  className="lab-canvas-source-background"
-                  aria-hidden="true"
-                  style={sourceBackgroundStyle}
-                />
-              ) : null}
-              <canvas
-                ref={canvasRef}
+        {!labSettings.textureSidebarOpen ? (
+          <button
+            className="lab-sidebar-reopen lab-sidebar-reopen-left"
+            type="button"
+            onClick={() => updateLabSettings({ textureSidebarOpen: true })}
+            aria-label="Open texture panel"
+            title="Open texture panel"
+          >
+            <PanelLeft size={14} strokeWidth={1.75} />
+          </button>
+        ) : null}
+        {!labSettings.shaderSidebarOpen ? (
+          <button
+            className="lab-sidebar-reopen lab-sidebar-reopen-right"
+            type="button"
+            onClick={() => updateLabSettings({ shaderSidebarOpen: true })}
+            aria-label="Open shader panel"
+            title="Open shader panel"
+          >
+            <PanelRight size={14} strokeWidth={1.75} />
+          </button>
+        ) : null}
+        <div className="lab-canvas-viewport">
+          <div className="lab-canvas-area" ref={canvasAreaRef} onWheel={handlePreviewWheel}>
+            <div className="lab-canvas-stage">
+              <div
+                className="lab-canvas-stack"
                 style={{
-                  display: "block",
-                  opacity: 1,
+                  transform: `scale(${previewZoom})`,
+                  transformOrigin: "center center",
                 }}
-              />
+              >
+                <div
+                  ref={connectUnderlayHostRef}
+                  className="lab-canvas-connect-underlay-host"
+                  hidden={!showConnectGradientUnderlay}
+                  aria-hidden={!showConnectGradientUnderlay}
+                />
+                {showSourceBackground && sourcePreview.video ? (
+                  <video
+                    className="lab-canvas-source-background"
+                    src={sourcePreview.video.currentSrc || sourcePreview.video.src}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                    style={sourceBackgroundStyle}
+                  />
+                ) : showSourceBackground && sourcePreview.source instanceof HTMLImageElement ? (
+                  <img
+                    className="lab-canvas-source-background"
+                    src={sourcePreview.source.currentSrc || sourcePreview.source.src}
+                    alt=""
+                    aria-hidden="true"
+                    style={sourceBackgroundStyle}
+                  />
+                ) : showSourceBackground && sourcePreview.source instanceof HTMLCanvasElement ? (
+                  <canvas
+                    ref={shaderPreviewCanvasRef}
+                    className="lab-canvas-source-background"
+                    aria-hidden="true"
+                    style={sourceBackgroundStyle}
+                  />
+                ) : null}
+                <canvas
+                  ref={canvasRef}
+                  style={{
+                    display: "block",
+                    opacity: 1,
+                  }}
+                />
+              </div>
             </div>
           </div>
           <div className="lab-canvas-zoom-controls" aria-label="Canvas preview zoom controls">
@@ -1617,8 +2270,32 @@ function LabInner() {
         </div>
         <LabBottomBar videoEl={videoEl} />
       </div>
-      <aside className="lab-sidebar lab-sidebar-shader">
-        <div className="lab-sidebar-scroll playground-leva-panel shader-config-panel ui-scroll-hidden">
+      <aside
+        className={`lab-sidebar lab-sidebar-shader${labSettings.shaderSidebarOpen ? "" : " is-closed"}`}
+        style={{ width: labSettings.shaderSidebarOpen ? labSettings.shaderSidebarWidth : 0 }}
+        aria-hidden={!labSettings.shaderSidebarOpen}
+      >
+        <hr
+          className="lab-sidebar-resize-handle"
+          onPointerDown={(event) => startSidebarResize("shader", event)}
+          aria-orientation="vertical"
+          aria-label="Resize shader panel"
+        />
+        <div
+          className="lab-sidebar-scroll playground-leva-panel shader-config-panel ui-scroll-hidden"
+          style={{ width: labSettings.shaderSidebarWidth }}
+        >
+          <div className="lab-sidebar-header lab-sidebar-header-end">
+            <button
+              className="lab-sidebar-toggle"
+              type="button"
+              onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
+              aria-label="Close shader panel"
+              title="Close shader panel"
+            >
+              <PanelRightClose size={14} strokeWidth={1.75} />
+            </button>
+          </div>
           <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
         </div>
       </aside>

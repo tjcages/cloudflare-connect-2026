@@ -1,0 +1,106 @@
+{
+  "id": "a1f684cd-6845-4f12-8978-e8315cfb4820",
+  "label": "Wave to Full Screen",
+  "source": "/*\n    \"Corridor\" by @XorDev\n    \n    https://x.com/XorDev/status/1923882930834751520\n*/\nvoid mainImage(out vec4 O, vec2 I)\n{\n    //Time for scrolling\n    float t = iTime,\n    //Raymarch iterator\n    i,\n    //Raymarch step distance\n    d,\n    //Raymarch depth\n    z;\n    //Clear fragColor and raymarch 30 steps\n    for(O *= i; i++<3e1;)\n    {\n        //Compute ray direction \n        vec3 r = normalize(vec3(I+I,0)-iResolution.xyy),\n        //Raymarch sample position\n        p = z*r,\n        //Raytraced wall coordinates\n        w = abs(r);\n        //Compute distance to walls\n        w /= max(w.x,w.y);\n        //Scroll forward\n        w.z += t;\n        p.z -= t;\n        \n        //Shift camera\n        r = ++p;\n        //Step forward\n        z += d = length(\n        //Reflected coordinates\n            (p.xy=abs(mod(p.xy-2.,4.)-2.))-1.\n            //Line position\n            +cos(p.z/vec2(3.1,2))) +\n            //Reflection fall off\n            .1 * length(p-r) *\n            //Reflectivity blocks\n            exp(dot(cos(ceil(w/=.3)),sin(w/.6).yzx));\n        \n        //Add coloring\n        O.rgb += (cos(p)+1.4) / d / z;\n    }\n    //Tanh tonemapping\n    O = tanh(O/4e1);\n}",
+  "createdAt": 1781564325138,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.11,
+      "exposure": -1.4000000000000001,
+      "contrast": 2,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 0.35,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "sourceTransform": {
+      "fit": "stretch",
+      "zoom": 0.51,
+      "panX": 0,
+      "panY": 0
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "/*\n    \"Corridor\" by @XorDev\n    \n    https://x.com/XorDev/status/1923882930834751520\n*/\nvoid mainImage(out vec4 O, vec2 I)\n{\n    //Time for scrolling\n    float t = iTime,\n    //Raymarch iterator\n    i,\n    //Raymarch step distance\n    d,\n    //Raymarch depth\n    z;\n    //Clear fragColor and raymarch 30 steps\n    for(O *= i; i++<3e1;)\n    {\n        //Compute ray direction \n        vec3 r = normalize(vec3(I+I,0)-iResolution.xyy),\n        //Raymarch sample position\n        p = z*r,\n        //Raytraced wall coordinates\n        w = abs(r);\n        //Compute distance to walls\n        w /= max(w.x,w.y);\n        //Scroll forward\n        w.z += t;\n        p.z -= t;\n        \n        //Shift camera\n        r = ++p;\n        //Step forward\n        z += d = length(\n        //Reflected coordinates\n            (p.xy=abs(mod(p.xy-2.,4.)-2.))-1.\n            //Line position\n            +cos(p.z/vec2(3.1,2))) +\n            //Reflection fall off\n            .1 * length(p-r) *\n            //Reflectivity blocks\n            exp(dot(cos(ceil(w/=.3)),sin(w/.6).yzx));\n        \n        //Add coloring\n        O.rgb += (cos(p)+1.4) / d / z;\n    }\n    //Tanh tonemapping\n    O = tanh(O/4e1);\n}"
+  }
+}
