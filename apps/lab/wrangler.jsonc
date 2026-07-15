@@ -1,7 +1,13 @@
 {
-  "name": "section-grid-generator",
+  "name": "connect-shader",
   "compatibility_date": "2026-05-14",
+  "account_id": "944ca70087298faa2e84783db46162c5",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+  },
   "assets": {
     "directory": "./dist",
+    "not_found_handling": "single-page-application",
   },
 }
