@@ -67,6 +67,7 @@ import {
 } from "./connectShader";
 import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./connectShader/underlayIntro";
 import { canvasStackBackgroundCss } from "./canvasStackBackground";
+import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } from "./canvasFitPreviewZoom";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -87,10 +88,10 @@ function formatTime(seconds: number): string {
 
 const LUMINANCE_SAMPLE_MAX_SIDE = 192;
 const VIDEO_LUMINANCE_SAMPLE_COUNT = 16;
-const CANVAS_PREVIEW_ZOOM_MIN = 0.25;
-const CANVAS_PREVIEW_ZOOM_MAX = 4;
 const CANVAS_PREVIEW_ZOOM_STEP = 0.05;
 const CANVAS_PREVIEW_ZOOM_WHEEL_SENSITIVITY = 0.001;
+const CANVAS_AREA_PADDING_PX = 48;
+const LAB_BOTTOM_BAR_HEIGHT_PX = 52;
 const SIDEBAR_WIDTH_MIN = 240;
 const SIDEBAR_WIDTH_MAX = 640;
 const CONTROL_DRAWER_ID_SET = new Set<string>(CONTROL_DRAWER_IDS);
@@ -99,8 +100,34 @@ function clampSidebarWidth(value: number): number {
   return Math.round(Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, value)));
 }
 
-function clampPreviewZoom(value: number): number {
-  return Math.min(CANVAS_PREVIEW_ZOOM_MAX, Math.max(CANVAS_PREVIEW_ZOOM_MIN, Number(value.toFixed(3))));
+function initialFitPreviewZoom(settings: LabSettings): number {
+  if (typeof window === "undefined") return 1;
+  const srcW =
+    settings.textureSourceMode === "shader"
+      ? Math.max(1, Math.round(settings.shaderSourceWidth))
+      : Math.max(1, Math.round(settings.canvasWidth));
+  const srcH =
+    settings.textureSourceMode === "shader"
+      ? Math.max(1, Math.round(settings.shaderSourceHeight))
+      : Math.max(1, Math.round(settings.canvasHeight));
+  const { cssW, cssH } = computeLabCanvasSize(srcW, srcH, settings);
+  const viewport = estimateCanvasViewportSize({
+    windowWidth: window.innerWidth,
+    windowHeight: window.innerHeight,
+    textureSidebarOpen: settings.textureSidebarOpen,
+    textureSidebarWidth: settings.textureSidebarWidth,
+    shaderSidebarOpen: settings.shaderSidebarOpen,
+    shaderSidebarWidth: settings.shaderSidebarWidth,
+    areaPaddingX: CANVAS_AREA_PADDING_PX,
+    areaPaddingY: CANVAS_AREA_PADDING_PX,
+    bottomBarHeight: LAB_BOTTOM_BAR_HEIGHT_PX,
+  });
+  return computeFitPreviewZoom({
+    canvasWidth: cssW,
+    canvasHeight: cssH,
+    viewportWidth: viewport.width,
+    viewportHeight: viewport.height,
+  });
 }
 
 function wheelZoomFactor(deltaY: number, deltaMode: number): number {
@@ -666,8 +693,14 @@ function LabInner() {
     () => loadLabSettings().shaderPresetId || DEFAULT_SHADER_PRESET_ID,
   );
   const [shaderPlaying, setShaderPlaying] = useState(true);
-  const [previewZoom, setPreviewZoom] = useState(1);
+  const [previewZoom, setPreviewZoom] = useState(() =>
+    initialFitPreviewZoom({
+      ...loadLabSettings(),
+      canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
+    }),
+  );
   const [mouseZoomEnabled, setMouseZoomEnabled] = useState(true);
+  const hasAutoFittedPreviewZoomRef = useRef(false);
   const [presets, setPresets] = useState<ConfigPreset[]>(() => loadPresets());
   const [selectedPreset, setSelectedPreset] = useState("");
   const sourceSizeRef = useRef(sourceSize);
@@ -1306,6 +1339,59 @@ function LabInner() {
     area.scrollLeft = Math.max(0, (area.scrollWidth - area.clientWidth) / 2);
     area.scrollTop = Math.max(0, (area.scrollHeight - area.clientHeight) / 2);
   }, []);
+
+  const fitPreviewZoomToViewport = useCallback(() => {
+    const area = canvasAreaRef.current;
+    if (!area || area.clientWidth <= 0 || area.clientHeight <= 0) return false;
+    const settings = labSettingsRef.current;
+    const srcW =
+      sourceSizeRef.current.w > 0
+        ? sourceSizeRef.current.w
+        : settings.textureSourceMode === "shader"
+          ? Math.max(1, Math.round(settings.shaderSourceWidth))
+          : 0;
+    const srcH =
+      sourceSizeRef.current.h > 0
+        ? sourceSizeRef.current.h
+        : settings.textureSourceMode === "shader"
+          ? Math.max(1, Math.round(settings.shaderSourceHeight))
+          : 0;
+    if (srcW <= 0 || srcH <= 0) return false;
+    const { cssW, cssH } = computeLabCanvasSize(srcW, srcH, settings);
+    const style = window.getComputedStyle(area);
+    const padX = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+    const padY = (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0);
+    const next = computeFitPreviewZoom({
+      canvasWidth: cssW,
+      canvasHeight: cssH,
+      viewportWidth: Math.max(1, area.clientWidth - padX),
+      viewportHeight: Math.max(1, area.clientHeight - padY),
+    });
+    setPreviewZoom((current) => (Math.abs(current - next) < 0.001 ? current : next));
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (!shell || hasAutoFittedPreviewZoomRef.current) return;
+    const area = canvasAreaRef.current;
+    if (!area) return;
+
+    const tryFit = () => {
+      if (hasAutoFittedPreviewZoomRef.current) return;
+      if (!fitPreviewZoomToViewport()) return;
+      hasAutoFittedPreviewZoomRef.current = true;
+      window.requestAnimationFrame(() => centerCanvasViewport());
+    };
+
+    tryFit();
+    const frame = window.requestAnimationFrame(tryFit);
+    const observer = new ResizeObserver(() => tryFit());
+    observer.observe(area);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [shell, fitPreviewZoomToViewport, centerCanvasViewport, textureSourceMode, sourceSize.w, sourceSize.h]);
 
   useEffect(() => {
     if (!shell) return;
