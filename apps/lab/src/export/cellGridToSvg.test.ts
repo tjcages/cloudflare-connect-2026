@@ -48,14 +48,14 @@ describe("cellGridToSvg", () => {
 
   it("uses exact library display-p3 tokens when a stripe color comes from the color library", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: null };
-    const svg = cellGridToSvg(readback, [{ hex: "#f46021", startFrom: 0, width: 4 }], {
+    const svg = cellGridToSvg(readback, [{ hex: "#ff6721", startFrom: 0, width: 4 }], {
       cellWidthPx: 7,
       cellHeightPx: 7,
       useCellColors: false,
     });
 
-    expect(svg).toContain("#f46021"); // fallback / packed P3 canvas color
-    expect(svg).toContain("color(display-p3 0.9569 0.3765 0.1294)"); // Orange 700 [Main] token
+    expect(svg).toContain("#ff6721"); // fallback / packed P3 canvas color
+    expect(svg).toContain("color(display-p3 1.0000 0.4039 0.1294)"); // Orange 700 [Main] token
   });
 
   it("includes an optional background color rect behind paths", () => {
@@ -69,6 +69,22 @@ describe("cellGridToSvg", () => {
 
     expect(svg).toContain('<rect width="7" height="7" fill="#fff0d1" style="fill:color(display-p3');
     expect(svg.indexOf("<rect")).toBeLessThan(svg.indexOf("<path"));
+  });
+
+  it("embeds a Connect underlay image behind stripe paths", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const href = "data:image/png;base64,abc123";
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: false,
+      backgroundImageHref: href,
+      canvasWidthPx: 70,
+      canvasHeightPx: 40,
+    });
+
+    expect(svg).toContain(`<image href="${href}" width="70" height="40" preserveAspectRatio="none" />`);
+    expect(svg.indexOf("<image")).toBeLessThan(svg.indexOf("<path"));
   });
 
   it("includes the background color rect in image-colors SVG export too", () => {

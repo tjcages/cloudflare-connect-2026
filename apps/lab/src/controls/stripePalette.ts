@@ -7,6 +7,7 @@ export const STRIPE_PALETTE_LEVELS = [
   "900",
   "800",
   "700",
+  "650",
   "600",
   "500",
   "400",
@@ -17,12 +18,14 @@ export const STRIPE_PALETTE_LEVELS = [
 ] as const;
 
 export type StripePaletteLevel = (typeof STRIPE_PALETTE_LEVELS)[number];
+export const DEFAULT_STRIPE_PALETTE_NAME = "Default";
+export const DEFAULT_STRIPE_PALETTE_GROUP = "Orange";
 export const WHITE_STRIPE_PALETTE_NAME = "White";
 export const BACKGROUND_RAMP_PALETTE_NAME = "Background Ramp";
 const WHITE_STRIPE_HEX = "#ffffff";
 const WHITE_STRIPE_OPACITY_MAX = 0.7;
 const WHITE_BACKGROUND_FIRST_STRIPE_HEX = "#fafafa";
-const WHITE_BACKGROUND_STRIPE_LEVELS = ["0", "100", "200", "300", "400", "500", "600", "700", "800"] as const;
+const WHITE_BACKGROUND_STRIPE_LEVELS = ["0", "100", "200", "300", "400", "500", "600", "650", "700", "800"] as const;
 const BACKGROUND_RAMP_20_BASE_THRESHOLD = 0.2;
 const BACKGROUND_RAMP_40_BASE_THRESHOLD = 0.4;
 const BACKGROUND_RAMP_60_BASE_THRESHOLD = 0.6;
@@ -236,10 +239,12 @@ function stripePaletteLevelFromLabel(label: string): StripePaletteLevel | null {
   return STRIPE_PALETTE_LEVELS.includes(level as StripePaletteLevel) ? (level as StripePaletteLevel) : null;
 }
 
-export const STRIPE_PALETTE_GROUPS = COLOR_LIBRARY.filter((group) =>
-  group.colors.some((color) => stripePaletteLevelFromLabel(color.label) !== null),
+export const STRIPE_PALETTE_GROUPS = COLOR_LIBRARY.filter(
+  (group) =>
+    group.name !== "Neutral" && group.colors.some((color) => stripePaletteLevelFromLabel(color.label) !== null),
 );
 export const STRIPE_PALETTE_NAMES = [
+  DEFAULT_STRIPE_PALETTE_NAME,
   ...STRIPE_PALETTE_GROUPS.map((group) => group.name),
   WHITE_STRIPE_PALETTE_NAME,
   BACKGROUND_RAMP_PALETTE_NAME,
@@ -319,7 +324,8 @@ function whiteBackgroundStripeLevel(index: number): StripePaletteLevel {
 export function mapPaletteColor(hex: string, groupName: string): string | null {
   const token = TOKEN_BY_HEX.get(hex.toLowerCase());
   if (!token) return null;
-  return paletteHex(groupName, token.level);
+  const resolvedGroupName = groupName === DEFAULT_STRIPE_PALETTE_NAME ? DEFAULT_STRIPE_PALETTE_GROUP : groupName;
+  return paletteHex(resolvedGroupName, token.level);
 }
 
 export function applyStripePalette(
@@ -329,6 +335,7 @@ export function applyStripePalette(
   backgroundRampEasing: BackgroundRampEasing = "easeInOutQuad",
   backgroundRampSettings: BackgroundRampSettings = DEFAULT_BACKGROUND_RAMP_SETTINGS,
 ): EditableStripe[] {
+  const resolvedGroupName = groupName === DEFAULT_STRIPE_PALETTE_NAME ? DEFAULT_STRIPE_PALETTE_GROUP : groupName;
   if (groupName === WHITE_STRIPE_PALETTE_NAME) {
     return stripes.map((stripe, index) => ({
       ...stripe,
@@ -347,7 +354,7 @@ export function applyStripePalette(
   if (isWhiteBackground(backgroundHex)) {
     return stripes.map((stripe, index) => {
       if (index === 0) return { ...stripe, hex: WHITE_BACKGROUND_FIRST_STRIPE_HEX, opacity: 1 };
-      const hex = paletteHex(groupName, whiteBackgroundStripeLevel(index - 1));
+      const hex = paletteHex(resolvedGroupName, whiteBackgroundStripeLevel(index - 1));
       return hex ? { ...stripe, hex, opacity: 1 } : stripe;
     });
   }
@@ -355,7 +362,7 @@ export function applyStripePalette(
   return stripes.map((stripe, index) => {
     const level = dynamicLevels[index] ?? dynamicLevels[dynamicLevels.length - 1] ?? stripeLevel(stripe, index);
     if (!level) return stripe;
-    const hex = paletteHex(groupName, level);
+    const hex = paletteHex(resolvedGroupName, level);
     return hex ? { ...stripe, hex, opacity: 1 } : stripe;
   });
 }

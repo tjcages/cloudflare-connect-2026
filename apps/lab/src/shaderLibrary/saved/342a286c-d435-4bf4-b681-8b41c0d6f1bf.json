@@ -1,0 +1,100 @@
+{
+  "id": "342a286c-d435-4bf4-b681-8b41c0d6f1bf",
+  "label": "Diffraction",
+  "source": "float v(in vec2 uv, float d, float o){\n    return 1.0-smoothstep(0.0, d, distance(uv.x, 0.5 + sin(o+uv.y*3.0)*0.3));\n}\n\nvec4 b(vec2 uv, float o) {\n float d = 0.05+abs(sin(o*0.2))*0.25 * distance(uv.y+0.5, 0.0);\n return vec4(v(uv+vec2(d*0.25, 0.0), d, o), 0.0, 0.0, 1.0) +\n        vec4(0.0, v(uv-vec2(0.015, 0.005), d, o), 0.0, 1.0) + \n        vec4(0.0, 0.0, v(uv-vec2(d*0.5, 0.015), d, o), 1.0);   \n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord ) {\n\tvec2 uv = fragCoord.xy / iResolution.y;\n\tfragColor =  b(uv, iTime)*0.5 + \n       b(uv, iTime*2.0)*0.5 + \n       b(uv+vec2(0.3, 0.0), iTime*3.3)*0.5;\n        \n     \n}",
+  "createdAt": 1781561560719,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.5,
+      "exposure": -0.3500000000000003,
+      "contrast": 1,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "float v(in vec2 uv, float d, float o){\n    return 1.0-smoothstep(0.0, d, distance(uv.x, 0.5 + sin(o+uv.y*3.0)*0.3));\n}\n\nvec4 b(vec2 uv, float o) {\n float d = 0.05+abs(sin(o*0.2))*0.25 * distance(uv.y+0.5, 0.0);\n return vec4(v(uv+vec2(d*0.25, 0.0), d, o), 0.0, 0.0, 1.0) +\n        vec4(0.0, v(uv-vec2(0.015, 0.005), d, o), 0.0, 1.0) + \n        vec4(0.0, 0.0, v(uv-vec2(d*0.5, 0.015), d, o), 1.0);   \n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord ) {\n\tvec2 uv = fragCoord.xy / iResolution.y;\n\tfragColor =  b(uv, iTime)*0.5 + \n       b(uv, iTime*2.0)*0.5 + \n       b(uv+vec2(0.3, 0.0), iTime*3.3)*0.5;\n        \n     \n}"
+  }
+}

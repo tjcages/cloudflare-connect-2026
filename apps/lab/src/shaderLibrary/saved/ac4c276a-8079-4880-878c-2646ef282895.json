@@ -1,0 +1,100 @@
+{
+  "id": "ac4c276a-8079-4880-878c-2646ef282895",
+  "label": "Pulse Rings",
+  "source": "// This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0\n// Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/ \n// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.\n// =========================================================================================================\n\n#define sat(a) clamp(a, 0., 1.)\n\nfloat hash11(float seed)\n{\n    return mod(sin(seed*123.456789)*123.456,1.);\n}\n\nvec3 getCam(vec3 rd, vec2 uv)\n{\n    float fov = .5;\n    vec3 r = normalize(cross(rd, vec3(0.,1.,0.)));\n    vec3 u = normalize(cross(rd, r));\n    return normalize(rd+fov*(r*uv.x+u*uv.y));\n}\n\nvec2 _min(vec2 a, vec2 b)\n{\n    if (a.x < b.x)\n        return a;\n    return b;\n}\n\n// This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0\n// Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/ \n// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.\n// =========================================================================================================\n\nfloat _seed;\nfloat rand()\n{\n    _seed++;\n    return hash11(_seed);\n}\n\nvec2 map(vec3 p)\n{\n    vec2 acc = vec2(10000.,-1.);\n    vec2 rep = vec2(.6);\n    vec2 id = floor((p.xz+rep*.5)/rep);\n    p.xz = mod(p.xz+rep*.5,rep)-rep*.5;\n    p.y += sin(length(id)*.25-iTime)*2.;\n    acc = _min(acc, vec2(length(p)-.25, 0.));\n    \n    return acc;\n}\n\nvec3 getNorm(vec3 p, float d)\n{\n    vec2 e = vec2(0.01, 0.);\n    return normalize(vec3(d)-vec3(map(p-e.xyy).x, map(p-e.yxy).x, map(p-e.yyx).x));\n}\nvec3 accCol;\nvec3 trace(vec3 ro, vec3 rd, int steps)\n{\n    vec3 p = ro;\n    for (int i = 0; i < steps && distance(p, ro) < 150.; ++i)\n    {\n        vec2 res = map(p);\n        if (res.x < 0.01)\n            return vec3(res.x, distance(p, ro), res.y);\n        p+=rd*res.x*.4;\n        accCol += vec3(1.)*(1.-sat(res.x/.2))*.01;\n    }\n    return vec3(-1.);\n}\n\nvec3 rdr(vec2 uv)\n{\n    vec3 col = vec3(0.);\n    float d = 60.;\n    vec3 ro = vec3(sin(iTime*.5)*40.,-d,-d);\n    vec3 ta = vec3(0.,0.,0.);\n    vec3 rd = normalize(ta-ro);\n    \n    rd = getCam(rd, uv);\n    vec3 res = trace(ro, rd, 128);\n    float depth = 100.;\n    if (res.y > 0.)\n    {\n        depth = res.y;\n        vec3 p = ro+rd*res.y;\n        vec3 n = getNorm(p, res.x);\n        col = n*.5+.5;\n        col = mix(\n        vec3(1.000,0.451,0.000), \n        vec3(0.094,0.376,0.949),\n        1.-pow(sat(-dot(normalize(vec3(1.)), n)*.75),1.));\n        col = mix(col, vec3(1.), pow(sat(-dot(rd, n)),5.));\n        col = mix(col, col*.5, sat(p.y*.5+.5));\n    }\n    col += accCol;\n\n    return col;\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 ouv = (fragCoord)/iResolution.xy;\n    vec2 uv = (fragCoord-.5*iResolution.xy)/iResolution.xx;\n    _seed = iTime+texture(iChannel0, uv).x;\n    vec2 off = .75*(vec2(rand(), rand())-.5);\n    vec3 col = rdr(uv+off*pow(abs(uv.y),3.));\n    col = sat(col*1.2);\n    col = pow(col, vec3(2.2));\n    \n\n    col = mix(col, texture(iChannel1, fragCoord/iResolution.xy).xyz, .95);\n    fragColor = vec4(col,1.0);\n}\n\n// This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0\n// Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/ \n// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.\n// =========================================================================================================\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 uv = fragCoord/iResolution.xy;\n\n    vec3 rgb = texture(iChannel0, uv).xyz;\n    fragColor = vec4(rgb,1.0);\n}",
+  "createdAt": 1781563212586,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": 0,
+      "exposure": 2,
+      "contrast": 1,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "randomColumns",
+      "wave": {
+        "position": "center",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "// This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0\n// Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/ \n// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.\n// =========================================================================================================\n\n#define sat(a) clamp(a, 0., 1.)\n\nfloat hash11(float seed)\n{\n    return mod(sin(seed*123.456789)*123.456,1.);\n}\n\nvec3 getCam(vec3 rd, vec2 uv)\n{\n    float fov = .5;\n    vec3 r = normalize(cross(rd, vec3(0.,1.,0.)));\n    vec3 u = normalize(cross(rd, r));\n    return normalize(rd+fov*(r*uv.x+u*uv.y));\n}\n\nvec2 _min(vec2 a, vec2 b)\n{\n    if (a.x < b.x)\n        return a;\n    return b;\n}\n\n// This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0\n// Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/ \n// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.\n// =========================================================================================================\n\nfloat _seed;\nfloat rand()\n{\n    _seed++;\n    return hash11(_seed);\n}\n\nvec2 map(vec3 p)\n{\n    vec2 acc = vec2(10000.,-1.);\n    vec2 rep = vec2(.6);\n    vec2 id = floor((p.xz+rep*.5)/rep);\n    p.xz = mod(p.xz+rep*.5,rep)-rep*.5;\n    p.y += sin(length(id)*.25-iTime)*2.;\n    acc = _min(acc, vec2(length(p)-.25, 0.));\n    \n    return acc;\n}\n\nvec3 getNorm(vec3 p, float d)\n{\n    vec2 e = vec2(0.01, 0.);\n    return normalize(vec3(d)-vec3(map(p-e.xyy).x, map(p-e.yxy).x, map(p-e.yyx).x));\n}\nvec3 accCol;\nvec3 trace(vec3 ro, vec3 rd, int steps)\n{\n    vec3 p = ro;\n    for (int i = 0; i < steps && distance(p, ro) < 150.; ++i)\n    {\n        vec2 res = map(p);\n        if (res.x < 0.01)\n            return vec3(res.x, distance(p, ro), res.y);\n        p+=rd*res.x*.4;\n        accCol += vec3(1.)*(1.-sat(res.x/.2))*.01;\n    }\n    return vec3(-1.);\n}\n\nvec3 rdr(vec2 uv)\n{\n    vec3 col = vec3(0.);\n    float d = 60.;\n    vec3 ro = vec3(sin(iTime*.5)*40.,-d,-d);\n    vec3 ta = vec3(0.,0.,0.);\n    vec3 rd = normalize(ta-ro);\n    \n    rd = getCam(rd, uv);\n    vec3 res = trace(ro, rd, 128);\n    float depth = 100.;\n    if (res.y > 0.)\n    {\n        depth = res.y;\n        vec3 p = ro+rd*res.y;\n        vec3 n = getNorm(p, res.x);\n        col = n*.5+.5;\n        col = mix(\n        vec3(1.000,0.451,0.000), \n        vec3(0.094,0.376,0.949),\n        1.-pow(sat(-dot(normalize(vec3(1.)), n)*.75),1.));\n        col = mix(col, vec3(1.), pow(sat(-dot(rd, n)),5.));\n        col = mix(col, col*.5, sat(p.y*.5+.5));\n    }\n    col += accCol;\n\n    return col;\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 ouv = (fragCoord)/iResolution.xy;\n    vec2 uv = (fragCoord-.5*iResolution.xy)/iResolution.xx;\n    _seed = iTime+texture(iChannel0, uv).x;\n    vec2 off = .75*(vec2(rand(), rand())-.5);\n    vec3 col = rdr(uv+off*pow(abs(uv.y),3.));\n    col = sat(col*1.2);\n    col = pow(col, vec3(2.2));\n    \n\n    col = mix(col, texture(iChannel1, fragCoord/iResolution.xy).xyz, .95);\n    fragColor = vec4(col,1.0);\n}\n\n// This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0\n// Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/ \n// or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.\n// =========================================================================================================\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 uv = fragCoord/iResolution.xy;\n\n    vec3 rgb = texture(iChannel0, uv).xyz;\n    fragColor = vec4(rgb,1.0);\n}"
+  }
+}
