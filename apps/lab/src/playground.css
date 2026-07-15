@@ -1365,12 +1365,15 @@
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   isolation: isolate;
-  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
 
+.lab-canvas-stack.is-preview-zoom-ready {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .lab-canvas-stack {
+  .lab-canvas-stack.is-preview-zoom-ready {
     transition: none;
   }
 }

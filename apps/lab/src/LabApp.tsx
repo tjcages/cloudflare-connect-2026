@@ -221,6 +221,29 @@ function computeLabCanvasSize(srcW: number, srcH: number, settings: LabSettings)
   };
 }
 
+/** Known source size before async texture/shader init finishes. */
+function expectedSourceSize(settings: LabSettings, textureSourceMode: LabTextureSourceMode): { w: number; h: number } {
+  if (textureSourceMode === "shader") {
+    return {
+      w: Math.max(1, Math.round(settings.shaderSourceWidth)),
+      h: Math.max(1, Math.round(settings.shaderSourceHeight)),
+    };
+  }
+  return { w: 0, h: 0 };
+}
+
+function applyCanvasCssSize(
+  canvas: HTMLCanvasElement,
+  src: { w: number; h: number },
+  settings: LabSettings,
+): { cssW: number; cssH: number } | null {
+  if (src.w <= 0 || src.h <= 0) return null;
+  const size = computeLabCanvasSize(src.w, src.h, settings);
+  canvas.style.width = `${size.cssW}px`;
+  canvas.style.height = `${size.cssH}px`;
+  return size;
+}
+
 function shaderOriginalSize(settings: LabSettings): { w: number; h: number } {
   return {
     w: Math.max(1, Math.round(settings.shaderSourceWidth)),
@@ -677,28 +700,22 @@ function LabInner() {
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   videoElRef.current = videoEl;
   const [sourcePreview, setSourcePreview] = useState<LoadedTextureSource | null>(null);
-  const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [labSettings, setLabSettings] = useState<LabSettings>(() => ({
     ...loadLabSettings(),
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
   }));
-  const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(
-    () => loadLabSettings().textureSourceMode,
+  const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(() => labSettings.textureSourceMode);
+  const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>(() =>
+    expectedSourceSize(labSettings, labSettings.textureSourceMode),
   );
   const [shaderSourceCode, setShaderSourceCode] = useState(
-    () => loadLabSettings().shaderSourceCode || DEFAULT_SHADER_TEXTURE_SOURCE,
+    () => labSettings.shaderSourceCode || DEFAULT_SHADER_TEXTURE_SOURCE,
   );
   const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
-  const [shaderPresetId, setShaderPresetId] = useState(
-    () => loadLabSettings().shaderPresetId || DEFAULT_SHADER_PRESET_ID,
-  );
+  const [shaderPresetId, setShaderPresetId] = useState(() => labSettings.shaderPresetId || DEFAULT_SHADER_PRESET_ID);
   const [shaderPlaying, setShaderPlaying] = useState(true);
-  const [previewZoom, setPreviewZoom] = useState(() =>
-    initialFitPreviewZoom({
-      ...loadLabSettings(),
-      canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
-    }),
-  );
+  const [previewZoom, setPreviewZoom] = useState(() => initialFitPreviewZoom(labSettings));
+  const [previewZoomReady, setPreviewZoomReady] = useState(false);
   const [mouseZoomEnabled, setMouseZoomEnabled] = useState(true);
   const hasAutoFittedPreviewZoomRef = useRef(false);
   const [presets, setPresets] = useState<ConfigPreset[]>(() => loadPresets());
@@ -881,10 +898,9 @@ function LabInner() {
 
   const applyCanvasSize = useCallback(
     (engine: StripesEngine, canvas: HTMLCanvasElement, src: { w: number; h: number }, settings: LabSettings) => {
-      if (src.w <= 0 || src.h <= 0) return;
-      const { cssW, cssH } = computeLabCanvasSize(src.w, src.h, settings);
-      canvas.style.width = `${cssW}px`;
-      canvas.style.height = `${cssH}px`;
+      const size = applyCanvasCssSize(canvas, src, settings);
+      if (!size) return;
+      const { cssW, cssH } = size;
       engine.resize(cssW, cssH);
       if (textureSourceModeRef.current !== "shader") return;
 
@@ -1094,6 +1110,15 @@ function LabInner() {
       canvas.style.width = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
       engine.resize(cssW, cssH);
+    } else {
+      // Reserve the final layout size before async shader/texture init paints a tiny default canvas.
+      const expected = expectedSourceSize(labSettingsRef.current, textureSourceModeRef.current);
+      const sized = applyCanvasCssSize(canvas, expected, labSettingsRef.current);
+      if (sized) engine.resize(sized.cssW, sized.cssH);
+      if (expected.w > 0 && expected.h > 0) {
+        sourceSizeRef.current = expected;
+        setSourceSize(expected);
+      }
     }
 
     onReplayRef.current = () => beginRevealRef.current(engine);
@@ -1327,10 +1352,17 @@ function LabInner() {
 
   useEffect(() => {
     if (!shell) return;
-    const engine = engineRef.current;
     const canvas = canvasRef.current;
-    if (!engine || !canvas) return;
-    applyCanvasSize(engine, canvas, sourceSizeRef.current, labSettings);
+    if (!canvas) return;
+    const src =
+      sourceSizeRef.current.w > 0 && sourceSizeRef.current.h > 0
+        ? sourceSizeRef.current
+        : expectedSourceSize(labSettings, textureSourceModeRef.current);
+    // Size the DOM canvas immediately so fit-zoom has real geometry before the shader finishes.
+    applyCanvasCssSize(canvas, src, labSettings);
+    const engine = engineRef.current;
+    if (!engine) return;
+    applyCanvasSize(engine, canvas, src, labSettings);
   }, [labSettings, shell, applyCanvasSize]);
 
   const centerCanvasViewport = useCallback(() => {
@@ -1380,7 +1412,10 @@ function LabInner() {
       if (hasAutoFittedPreviewZoomRef.current) return;
       if (!fitPreviewZoomToViewport()) return;
       hasAutoFittedPreviewZoomRef.current = true;
-      window.requestAnimationFrame(() => centerCanvasViewport());
+      window.requestAnimationFrame(() => {
+        centerCanvasViewport();
+        setPreviewZoomReady(true);
+      });
     };
 
     tryFit();
@@ -1991,6 +2026,9 @@ function LabInner() {
   // Engine bg is forced transparent when underlay/source preview is shown — keep the
   // chosen solid color on the stack so it still sits behind those layers.
   const canvasStackBackground = canvasStackBackgroundCss(controls.background);
+  const resolvedSourceSize =
+    sourceSize.w > 0 && sourceSize.h > 0 ? sourceSize : expectedSourceSize(labSettings, textureSourceMode);
+  const canvasCssSize = computeLabCanvasSize(resolvedSourceSize.w, resolvedSourceSize.h, labSettings);
   const sourceObjectFit = controls.transform.fit === "contain" ? "contain" : "cover";
   const sourceBackgroundStyle: CSSProperties =
     controls.transform.fit === "width"
@@ -2291,11 +2329,13 @@ function LabInner() {
           <div className="lab-canvas-area" ref={canvasAreaRef} onWheel={handlePreviewWheel}>
             <div className="lab-canvas-stage">
               <div
-                className="lab-canvas-stack"
+                className={`lab-canvas-stack${previewZoomReady ? " is-preview-zoom-ready" : ""}`}
                 style={{
                   transform: `scale(${previewZoom})`,
                   transformOrigin: "center center",
                   backgroundColor: canvasStackBackground,
+                  width: canvasCssSize.cssW,
+                  height: canvasCssSize.cssH,
                 }}
               >
                 <div
@@ -2335,6 +2375,8 @@ function LabInner() {
                   style={{
                     display: "block",
                     opacity: 1,
+                    width: canvasCssSize.cssW,
+                    height: canvasCssSize.cssH,
                   }}
                 />
               </div>
