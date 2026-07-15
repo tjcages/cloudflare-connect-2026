@@ -56,7 +56,7 @@ export type LabSettings = {
   canvasAspectLocked: boolean;
   exportStartSec: number;
   exportDurationSec: number;
-  /** When true, SVG export includes solid/gradient fill and Connect underlay. */
+  /** When true, SVG export includes solid/engine-gradient fill behind stripes (Connect underlay always exports when active). */
   exportSvgIncludeBackground: boolean;
   backgroundColor: number | null;
   textureId: string | null;

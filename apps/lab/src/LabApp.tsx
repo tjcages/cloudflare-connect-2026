@@ -41,6 +41,7 @@ import { addUpload, loadManifest, removeUpload, saveManifest } from "./uploads";
 import { addPreset, loadPresets, removePreset, savePresets, type ConfigPreset } from "./presets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
+import { resolveSvgExportBackground } from "./export/svgExportBackground";
 import { exportLabVideo } from "./export/videoExport";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
@@ -597,7 +598,7 @@ function LabExportControls({
           checked={settings.exportSvgIncludeBackground}
           onChange={(e) => onSettings({ exportSvgIncludeBackground: e.target.checked })}
         />
-        <span className="playground-canvas-scale-label">Include background in SVG</span>
+        <span className="playground-canvas-scale-label">Include solid background in SVG</span>
       </label>
     </div>
   );
@@ -1135,10 +1136,9 @@ function LabInner() {
         opacity: s.opacity,
       }));
       const lab = labSettingsRef.current;
-      const includeBackground = lab.exportSvgIncludeBackground;
-      let backgroundImageHref: string | undefined;
+      let connectUnderlayHref: string | undefined;
+      // Connect gradient underlay always exports when active (independent of solid-bg toggle).
       if (
-        includeBackground &&
         lab.textureSourceMode === "shader" &&
         isConnectShaderPreset(shaderPresetIdRef.current) &&
         lab.connectGradientUnderlay
@@ -1147,12 +1147,26 @@ function LabInner() {
         if (connectRenderer) {
           connectRenderer.render(shaderTimeSecRef.current);
           try {
-            backgroundImageHref = connectRenderer.underlayCanvas.toDataURL("image/png");
+            connectUnderlayHref = connectRenderer.underlayCanvas.toDataURL("image/png");
           } catch {
-            backgroundImageHref = undefined;
+            connectUnderlayHref = undefined;
           }
         }
       }
+      const exportBackground = resolveSvgExportBackground({
+        includeSolidBackground: lab.exportSvgIncludeBackground,
+        backgroundTransparent: cfg.background.transparent,
+        backgroundGradientEnabled: cfg.background.gradient.enabled,
+        backgroundColorHex: "#" + cfg.background.color.toString(16).padStart(6, "0"),
+        backgroundGradient: cfg.background.gradient.enabled
+          ? {
+              direction: cfg.background.gradient.direction,
+              stopCount: cfg.background.gradient.stopCount,
+              stops: cfg.background.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
+            }
+          : undefined,
+        connectUnderlayHref,
+      });
       return cellGridToSvg(readback, stripes, {
         cellWidthPx: cfg.grid.cellWidth,
         cellHeightPx: cfg.grid.cellHeight,
@@ -1163,10 +1177,7 @@ function LabInner() {
         angleDeg: cfg.grid.angleDeg,
         rotationMode: cfg.grid.rotationMode,
         overlapAmount: cfg.grid.overlapAmount,
-        backgroundHex:
-          includeBackground && !cfg.background.transparent && !cfg.background.gradient.enabled
-            ? "#" + cfg.background.color.toString(16).padStart(6, "0")
-            : undefined,
+        backgroundHex: exportBackground.backgroundHex,
         letters: cfg.letters,
         blendMode: cfg.colors.stripeBlendMode,
         gradient: cfg.colors.gradient.enabled
@@ -1176,15 +1187,8 @@ function LabInner() {
               stops: cfg.colors.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
             }
           : undefined,
-        backgroundGradient:
-          includeBackground && !cfg.background.transparent && cfg.background.gradient.enabled
-            ? {
-                direction: cfg.background.gradient.direction,
-                stopCount: cfg.background.gradient.stopCount,
-                stops: cfg.background.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
-              }
-            : undefined,
-        backgroundImageHref,
+        backgroundGradient: exportBackground.backgroundGradient,
+        backgroundImageHref: exportBackground.backgroundImageHref,
         canvasWidthPx,
         canvasHeightPx,
       });
