@@ -1,0 +1,100 @@
+{
+  "id": "a61725f5-5216-4de1-8cb9-4185d46b079b",
+  "label": "Constant Wave",
+  "source": "// Author: bitless\n// Title: Microwaves\n\n// Thanks to Patricio Gonzalez Vivo & Jen Lowe for \"The Book of Shaders\"\n// and Fabrice Neyret (FabriceNeyret2) for https://shadertoyunofficial.wordpress.com/\n// and Inigo Quilez (iq) for  https://iquilezles.org/www/index.htm\n// and whole Shadertoy community for inspiration.\n\n#define p(t, a, b, c, d) ( a + b*cos( 6.28318*(c*t+d) ) ) //palette function (https://iquilezles.org/articles/palettes)\n#define S(x,y,z) smoothstep(x,y,z)\n\nfloat w(float x, float p){ //sin wave function\n    x *= 5.;\n    float t= p*.5+sin(iTime*.25)*10.5;\n    return (sin(x*.25 + t)*5. + sin(x*4.5 + t*3.)*.2 + sin(x + t*3.)*2.3  + sin(x*.8 + t*1.1)*2.5)*0.275;\n}\n\n\n\nvoid mainImage( out vec4 fragColor, in vec2 g)\n{\n    vec2 r = iResolution.xy\n        ,st = (g+g-r)/r.y;\n\n    float \tth = .05 //thickness\n    \t\t,sm = 15./r.y+.85*length(S(vec2(01.,.2),vec2(2.,.7),abs(st))) //smoothing factor\n    \t\t,c = 0. \n            ,t = iTime*0.25\n            ,n = floor((st.y+t)/.1)\n            ,y = fract((st.y+t)/.1);\n    \n    vec3 clr;\n    for (float i = -5.;i<5.;i++)\n    {\n        float f = w(st.x,(n-i))-y-i;\n        c = mix(c,0.,S(-0.3,abs(st.y),f));\n        c += S(th+sm,th-sm,abs(f))\n            *(1.-abs(st.y)*.75)\n            + S(5.5-abs(f*0.5),0.,f)*0.25;\n            \n        clr = mix(clr,p(sin((n-i)*.15),vec3(.5),vec3(.5), vec3(.270), vec3(.0,.05,0.15))*c,S(-0.3,abs(st.y),f));\n    }\n    fragColor = vec4(clr,1.);\n}",
+  "createdAt": 1781562337006,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.29,
+      "exposure": -0.6,
+      "contrast": 2,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1.9500000000000002,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "// Author: bitless\n// Title: Microwaves\n\n// Thanks to Patricio Gonzalez Vivo & Jen Lowe for \"The Book of Shaders\"\n// and Fabrice Neyret (FabriceNeyret2) for https://shadertoyunofficial.wordpress.com/\n// and Inigo Quilez (iq) for  https://iquilezles.org/www/index.htm\n// and whole Shadertoy community for inspiration.\n\n#define p(t, a, b, c, d) ( a + b*cos( 6.28318*(c*t+d) ) ) //palette function (https://iquilezles.org/articles/palettes)\n#define S(x,y,z) smoothstep(x,y,z)\n\nfloat w(float x, float p){ //sin wave function\n    x *= 5.;\n    float t= p*.5+sin(iTime*.25)*10.5;\n    return (sin(x*.25 + t)*5. + sin(x*4.5 + t*3.)*.2 + sin(x + t*3.)*2.3  + sin(x*.8 + t*1.1)*2.5)*0.275;\n}\n\n\n\nvoid mainImage( out vec4 fragColor, in vec2 g)\n{\n    vec2 r = iResolution.xy\n        ,st = (g+g-r)/r.y;\n\n    float \tth = .05 //thickness\n    \t\t,sm = 15./r.y+.85*length(S(vec2(01.,.2),vec2(2.,.7),abs(st))) //smoothing factor\n    \t\t,c = 0. \n            ,t = iTime*0.25\n            ,n = floor((st.y+t)/.1)\n            ,y = fract((st.y+t)/.1);\n    \n    vec3 clr;\n    for (float i = -5.;i<5.;i++)\n    {\n        float f = w(st.x,(n-i))-y-i;\n        c = mix(c,0.,S(-0.3,abs(st.y),f));\n        c += S(th+sm,th-sm,abs(f))\n            *(1.-abs(st.y)*.75)\n            + S(5.5-abs(f*0.5),0.,f)*0.25;\n            \n        clr = mix(clr,p(sin((n-i)*.15),vec3(.5),vec3(.5), vec3(.270), vec3(.0,.05,0.15))*c,S(-0.3,abs(st.y),f));\n    }\n    fragColor = vec4(clr,1.);\n}"
+  }
+}

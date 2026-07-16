@@ -286,6 +286,8 @@ export function cellGridToSvg(
     letters?: LettersSvgOptions;
     gradient?: SvgGradientOptions;
     backgroundGradient?: SvgGradientOptions;
+    /** Raster backdrop (e.g. Connect fill underlay) drawn behind stripes. */
+    backgroundImageHref?: string;
     blendMode?: SvgBlendMode;
     canvasWidthPx?: number;
     canvasHeightPx?: number;
@@ -304,6 +306,7 @@ export function cellGridToSvg(
     letters,
     gradient,
     backgroundGradient,
+    backgroundImageHref,
     blendMode,
   } = opts;
   const gapX = Math.max(0, opts.gapX ?? 0);
@@ -513,6 +516,10 @@ export function cellGridToSvg(
     : backgroundHex
       ? `  <rect width="${width}" height="${height}" fill="${normalizeSvgHex(backgroundHex)}" style="fill:${p3SvgColor(backgroundHex)}" />`
       : "";
+  const backgroundImage =
+    typeof backgroundImageHref === "string" && backgroundImageHref.length > 0
+      ? `  <image href="${escapeXml(backgroundImageHref)}" width="${width}" height="${height}" preserveAspectRatio="none" />`
+      : "";
   const letterLayer = buildTextLettersSvg(letters, {
     cols,
     rows,
@@ -534,6 +541,7 @@ export function cellGridToSvg(
       `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
       gradientDefs,
       backgroundRect,
+      backgroundImage,
       styleBlock,
       cellColorLayer,
       `</svg>`,
@@ -581,6 +589,7 @@ export function cellGridToSvg(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
     gradientDefs,
     backgroundRect,
+    backgroundImage,
     styleBlock,
     stripeLayer,
     `</svg>`,

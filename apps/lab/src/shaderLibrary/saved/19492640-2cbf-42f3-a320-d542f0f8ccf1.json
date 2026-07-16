@@ -1,0 +1,109 @@
+{
+  "id": "19492640-2cbf-42f3-a320-d542f0f8ccf1",
+  "label": "Simple Waveform",
+  "source": "#define S smoothstep\n\nvec4 Line(vec2 uv, float speed, float height, vec3 col) {\n    uv.y += S(1., 0., abs(uv.x)) * sin(iTime * speed + uv.x * height) * .2;\n    return vec4(S(.06 * S(.2, .9, abs(uv.x)), 0., abs(uv.y) - .004) * col, 1.0) * S(1., .3, abs(uv.x));\n}\n\nvoid mainImage(out vec4 O, in vec2 I) {\n    vec2 uv = (I - .5 * iResolution.xy) / iResolution.y;\n    O = vec4 (0.);\n    for (float i = 0.; i <= 5.; i += 1.) {\n        float t = i / 5.;\n        O += Line(uv, 1. + t, 4. + t, vec3(.2 + t * .7, .2 + t * .4, 0.3));\n    }\n}",
+  "createdAt": 1781558118027,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.060000000000000005,
+      "exposure": -1.7000000000000002,
+      "contrast": 1.47,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 0.05,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "sourceTransform": {
+      "fit": "stretch",
+      "zoom": 1,
+      "panX": 0,
+      "panY": 1
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "grid": {
+      "cellWidth": 4,
+      "cellHeight": 6,
+      "gapX": 0,
+      "gapY": 0,
+      "cornerRadius": 0,
+      "orientation": "vertical",
+      "letterSize": 6,
+      "letterRatio": 0.1,
+      "letterCharset": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
+      "letterColor": 16777215,
+      "letterShuffleSpeed": 1,
+      "sparkleGapsPeriodMinSec": 0.21,
+      "sparkleGapsPeriodMaxSec": 0.55,
+      "sparkleWidthPeriodMinSec": 0.21,
+      "sparkleWidthPeriodMaxSec": 0.55,
+      "widthShuffleSwing": 1.25,
+      "gridUpdateIntervalMs": 66
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      }
+    ],
+    "shaderSource": "#define S smoothstep\n\nvec4 Line(vec2 uv, float speed, float height, vec3 col) {\n    uv.y += S(1., 0., abs(uv.x)) * sin(iTime * speed + uv.x * height) * .2;\n    return vec4(S(.06 * S(.2, .9, abs(uv.x)), 0., abs(uv.y) - .004) * col, 1.0) * S(1., .3, abs(uv.x));\n}\n\nvoid mainImage(out vec4 O, in vec2 I) {\n    vec2 uv = (I - .5 * iResolution.xy) / iResolution.y;\n    O = vec4 (0.);\n    for (float i = 0.; i <= 5.; i += 1.) {\n        float t = i / 5.;\n        O += Line(uv, 1. + t, 4. + t, vec3(.2 + t * .7, .2 + t * .4, 0.3));\n    }\n}"
+  }
+}

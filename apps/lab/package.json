@@ -24,12 +24,14 @@
     "react": "^19.0.5",
     "react-colorful": "^5.7.0",
     "react-dom": "^19.0.5",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.185.1",
     "@vitejs/plugin-react": "^6.0.1",
     "fake-indexeddb": "^6.2.5",
     "tailwindcss": "^4.2.4",

@@ -1,0 +1,113 @@
+{
+  "id": "2e0fd683-2090-4c99-bfa6-0950ebe9a6c4",
+  "label": "Matrix Grid",
+  "source": "#define PI 3.1415926535897932384626433832795\n\nfloat map(float v, float low1, float high1, float low2, float high2) {\n\treturn (v-low1)/(high1-low1)*(high2-low2);\n}\n\nvec2 xyzToLonLat(vec3 v) {\n    vec3 p = normalize(v);\n    float lat = map(asin(p.y), PI*0.5, -PI*0.5, 0.0, 1.0);\n    float lon = map(atan(p.x, -p.z), PI, -PI, 0.0, 1.0);\n    return vec2(lon, lat);\n}\n\nvec3 lonLatToXYZ(vec2 lonLat) {\n  float lon = map(lonLat.x, 0.0, 1.0, -PI, PI);\n  float lat = map(lonLat.y, 0.0, 1.0, -PI*0.5, PI*0.5);\n  float x = sin(lat)*sin(lon);\n  float y = cos(lat);\n  float z = sin(lat)*cos(lon);\n  return vec3(x,y,z);\n}\n\nvec3 xRot(vec3 v, float theta) {\n  float x = v.x;\n  float y = v.y*cos(theta) - v.z*sin(theta);\n  float z = v.y*sin(theta) + v.z*cos(theta);\n  return vec3(x,y,z);\n}\n\nvec3 yRot(vec3 v, float theta) {\n  float x = v.z*sin(theta) + v.x*cos(theta);\n  float y = v.y;\n  float z = v.z*cos(theta) - v.x*sin(theta);\n  return vec3(x,y,z);\n}\n\nvec3 zRot(vec3 v, float theta) {\n  float x = v.x*cos(theta) - v.y*sin(theta);\n  float y = v.x*sin(theta) + v.y*cos(theta);\n  float z = v.z;\n  return vec3(x,y,z);\n}\n\nvec2 equiRemap(vec2 lonLat, vec2 delta) {\n    vec3 v = lonLatToXYZ(lonLat);\n\tv = yRot(v,delta.x);\n    v = xRot(v,delta.y);\n    return xyzToLonLat(v);\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    float graticuleSize = 0.05;\n    float graticuleWeight = 0.003;\n    //line to be visualised\n\n    //normalized lonLat\n\tvec2 lonLat = fragCoord.xy / iResolution.xy;\n    lonLat = equiRemap(lonLat, vec2(iTime*0.2,iTime*0.4));\n\tfragColor = vec4(lonLat,0.0,1.0);\n    vec2 graticuleDist = mod(lonLat + vec2(graticuleWeight*0.5),vec2(graticuleSize));\n    if (graticuleDist.x < graticuleWeight || graticuleDist.y < graticuleWeight) {\n    \tfragColor += vec4(0.5);\n    }\n    \n    //visualising a rhumb line, x is lon, y is lat\n    //normalized over \n    vec2 p0 = vec2(0.0,0.0);\n    vec2 p1 = vec2(7.0,1.0);\n    float slope = (p1.y-p0.y)/(p1.x-p0.x);\n    float theta = atan(p1.y-p0.y,p1.x-p0.x);\n    float lineHalfWeight = 0.01*(1.0+cos(theta));\n    bool b0 = atan(mod(lonLat.y,slope)-p0.y,lonLat.x-p0.x+lineHalfWeight) < theta;\n    bool b1 = atan(mod(lonLat.y,slope)-p0.y,lonLat.x-p0.x-lineHalfWeight) > theta;\n    if (b0 && b1 ){\n    \tfragColor = vec4(0.0, 0.0, 1.0, 1.0);\n    }\n}",
+  "createdAt": 1781559677954,
+  "config": {
+    "duotoneEnabled": true,
+    "textureAdjustments": {
+      "brightness": -0.060000000000000005,
+      "exposure": -0.30000000000000016,
+      "contrast": 0.88,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1.1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "sourceTransform": {
+      "fit": "stretch",
+      "zoom": 1,
+      "panX": 0,
+      "panY": 1
+    },
+    "displayWidth": 800,
+    "displayHeight": 450,
+    "reveal": {
+      "enabled": true,
+      "preset": "wave",
+      "wave": {
+        "position": "center bottom",
+        "durationMs": 1800,
+        "softness": 0.08,
+        "waviness": 0.08,
+        "noiseScale": 4
+      },
+      "randomColumns": {
+        "durationMs": 1800,
+        "stagger": 0.8,
+        "yShift": 0.35
+      }
+    },
+    "stripes": [
+      {
+        "id": "faint",
+        "hex": "#FADA98",
+        "p3Css": "color(display-p3 0.9804 0.8549 0.5961)",
+        "startFrom": 0.24,
+        "width": 1
+      },
+      {
+        "id": "mint",
+        "hex": "#B8F1C9",
+        "p3Css": "color(display-p3 0.7216 0.9451 0.7882)",
+        "startFrom": 0.38,
+        "width": 2
+      },
+      {
+        "id": "teal",
+        "hex": "#7FE7D8",
+        "p3Css": "color(display-p3 0.498 0.9059 0.8471)",
+        "startFrom": 0.5,
+        "width": 2
+      },
+      {
+        "id": "cyan",
+        "hex": "#63CDF8",
+        "p3Css": "color(display-p3 0.3882 0.8039 0.9725)",
+        "startFrom": 0.62,
+        "width": 3
+      },
+      {
+        "id": "blue",
+        "hex": "#5A8BFF",
+        "p3Css": "color(display-p3 0.3529 0.5451 1)",
+        "startFrom": 0.74,
+        "width": 3
+      },
+      {
+        "id": "indigo",
+        "hex": "#6A63F6",
+        "p3Css": "color(display-p3 0.4157 0.3882 0.9647)",
+        "startFrom": 0.84,
+        "width": 4
+      },
+      {
+        "id": "purple",
+        "hex": "#8E59F3",
+        "p3Css": "color(display-p3 0.5569 0.349 0.9529)",
+        "startFrom": 0.91,
+        "width": 5
+      },
+      {
+        "id": "violet",
+        "hex": "#EB5729",
+        "p3Css": "color(display-p3 0.9216 0.3412 0.1608)",
+        "startFrom": 0.96,
+        "width": 6
+      },
+      {
+        "id": "de7b3b47-3110-43bd-9743-323a7187e231",
+        "hex": "#ffffff",
+        "p3Css": "color(display-p3 1 1 1)",
+        "startFrom": 1,
+        "width": 6
+      }
+    ],
+    "shaderSource": "#define PI 3.1415926535897932384626433832795\n\nfloat map(float v, float low1, float high1, float low2, float high2) {\n\treturn (v-low1)/(high1-low1)*(high2-low2);\n}\n\nvec2 xyzToLonLat(vec3 v) {\n    vec3 p = normalize(v);\n    float lat = map(asin(p.y), PI*0.5, -PI*0.5, 0.0, 1.0);\n    float lon = map(atan(p.x, -p.z), PI, -PI, 0.0, 1.0);\n    return vec2(lon, lat);\n}\n\nvec3 lonLatToXYZ(vec2 lonLat) {\n  float lon = map(lonLat.x, 0.0, 1.0, -PI, PI);\n  float lat = map(lonLat.y, 0.0, 1.0, -PI*0.5, PI*0.5);\n  float x = sin(lat)*sin(lon);\n  float y = cos(lat);\n  float z = sin(lat)*cos(lon);\n  return vec3(x,y,z);\n}\n\nvec3 xRot(vec3 v, float theta) {\n  float x = v.x;\n  float y = v.y*cos(theta) - v.z*sin(theta);\n  float z = v.y*sin(theta) + v.z*cos(theta);\n  return vec3(x,y,z);\n}\n\nvec3 yRot(vec3 v, float theta) {\n  float x = v.z*sin(theta) + v.x*cos(theta);\n  float y = v.y;\n  float z = v.z*cos(theta) - v.x*sin(theta);\n  return vec3(x,y,z);\n}\n\nvec3 zRot(vec3 v, float theta) {\n  float x = v.x*cos(theta) - v.y*sin(theta);\n  float y = v.x*sin(theta) + v.y*cos(theta);\n  float z = v.z;\n  return vec3(x,y,z);\n}\n\nvec2 equiRemap(vec2 lonLat, vec2 delta) {\n    vec3 v = lonLatToXYZ(lonLat);\n\tv = yRot(v,delta.x);\n    v = xRot(v,delta.y);\n    return xyzToLonLat(v);\n}\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    float graticuleSize = 0.05;\n    float graticuleWeight = 0.003;\n    //line to be visualised\n\n    //normalized lonLat\n\tvec2 lonLat = fragCoord.xy / iResolution.xy;\n    lonLat = equiRemap(lonLat, vec2(iTime*0.2,iTime*0.4));\n\tfragColor = vec4(lonLat,0.0,1.0);\n    vec2 graticuleDist = mod(lonLat + vec2(graticuleWeight*0.5),vec2(graticuleSize));\n    if (graticuleDist.x < graticuleWeight || graticuleDist.y < graticuleWeight) {\n    \tfragColor += vec4(0.5);\n    }\n    \n    //visualising a rhumb line, x is lon, y is lat\n    //normalized over \n    vec2 p0 = vec2(0.0,0.0);\n    vec2 p1 = vec2(7.0,1.0);\n    float slope = (p1.y-p0.y)/(p1.x-p0.x);\n    float theta = atan(p1.y-p0.y,p1.x-p0.x);\n    float lineHalfWeight = 0.01*(1.0+cos(theta));\n    bool b0 = atan(mod(lonLat.y,slope)-p0.y,lonLat.x-p0.x+lineHalfWeight) < theta;\n    bool b1 = atan(mod(lonLat.y,slope)-p0.y,lonLat.x-p0.x-lineHalfWeight) > theta;\n    if (b0 && b1 ){\n    \tfragColor = vec4(0.0, 0.0, 1.0, 1.0);\n    }\n}"
+  }
+}
