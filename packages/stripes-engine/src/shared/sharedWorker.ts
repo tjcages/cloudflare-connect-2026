@@ -1,4 +1,5 @@
 import { createStripesEngineShared, type SharedStripesEngine } from "../engine";
+import { createFrameCapState, type FrameCapState, shouldRenderFrame } from "../core/frameCap";
 import type { EngineContext } from "../gl/context";
 import type { EngineSource } from "../source/sourceTexture";
 import type { InstanceId, MainToWorkerMessage, SharedSourceFrame, WorkerToMainMessage } from "./protocol";
@@ -21,6 +22,7 @@ type Instance = {
   visible: boolean;
   hasSource: boolean;
   pendingReveal: boolean;
+  frameCap: FrameCapState;
 };
 
 const SHARED_GL_ATTRIBUTES: WebGLContextAttributes = {
@@ -92,9 +94,15 @@ function sizeShared(width: number, height: number): void {
 // Instances render strictly sequentially — they share one backbuffer, so each
 // bitmap must be produced before the next instance overwrites it.
 async function renderTick(): Promise<void> {
+  // One clock read per tick: instances gate against their own maxFps using
+  // relative intervals, so a capped tile skips its render here (leaving its last
+  // frame on the display canvas) while uncapped tiles on the same tick render
+  // every frame. The shared tick loop itself is never slowed.
+  const now = performance.now();
   for (const [id, instance] of instances) {
     if (!instance.visible) continue;
     const { engine } = instance;
+    if (!shouldRenderFrame(instance.frameCap, engine.maxFps, now)) continue;
     const outW = engine.outputWidth;
     const outH = engine.outputHeight;
     sizeShared(outW, outH);
@@ -136,7 +144,13 @@ function handle(message: MainToWorkerMessage): void {
         seed: message.seed,
       });
       if (message.config) engine.setConfig(message.config);
-      instances.set(message.id, { engine, visible: false, hasSource: false, pendingReveal: false });
+      instances.set(message.id, {
+        engine,
+        visible: false,
+        hasSource: false,
+        pendingReveal: false,
+        frameCap: createFrameCapState(),
+      });
       return;
     }
     case "tick": {

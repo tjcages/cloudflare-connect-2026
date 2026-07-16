@@ -255,6 +255,16 @@ export interface EngineConfig {
   stripes: Stripe[];
   stripesEnabled: boolean;
   fieldScale: number;
+  /**
+   * Per-texture paint-rate cap in frames per second. `0` (the default) leaves the
+   * texture uncapped — it renders every animation tick, byte-identical to omitting
+   * the field. A positive value skips renders so this texture paints at most
+   * `maxFps` frames/sec; because animation timing is wall-clock based, capping
+   * lowers the paint rate without changing animation speed. Applies both to the
+   * standalone rAF loop and per-registration in the shared-context worker, so one
+   * texture can be capped while others on the same page stay uncapped.
+   */
+  maxFps: number;
   reveal: RevealConfig;
   sparkle: SparkleConfig;
   flames: FlamesConfig;

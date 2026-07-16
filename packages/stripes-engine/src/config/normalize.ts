@@ -632,6 +632,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   stripes: DEFAULT_STRIPES.map((s) => ({ ...s })),
   stripesEnabled: true,
   fieldScale: 1,
+  maxFps: 0,
   reveal: { ...DEFAULT_REVEAL, wave: { ...DEFAULT_REVEAL.wave }, assembly: { ...DEFAULT_REVEAL.assembly } },
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },
@@ -660,6 +661,7 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     stripes: normalizeStripes(i.stripes, DEFAULT_STRIPES),
     stripesEnabled: i.stripesEnabled !== undefined ? !!i.stripesEnabled : true,
     fieldScale: clamp(num(i.fieldScale, 1), 0.25, 2),
+    maxFps: Math.max(0, num(i.maxFps, 0)),
     reveal: normalizeReveal(i.reveal as PartialReveal | undefined),
     sparkle: normalizeSparkle(i.sparkle as PartialSparkle | undefined),
     flames: normalizeFlames(i.flames as PartialFlames | undefined),

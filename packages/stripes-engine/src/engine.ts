@@ -1,4 +1,5 @@
 import { type Clock, createRealClock } from "./core/clock";
+import { createFrameCapState, shouldRenderFrame } from "./core/frameCap";
 import type { EngineContext } from "./gl/context";
 import { createCanvasSurface, createSharedSurface, type RenderSurface } from "./gl/renderSurface";
 import { createFullscreenQuad } from "./gl/program";
@@ -82,6 +83,7 @@ export type StripesEngine = {
   getPerf(): PerfSnapshot;
   dispose(): void;
   readonly isP3: boolean;
+  readonly maxFps: number;
 };
 
 export type SharedEngineOptions = {
@@ -110,6 +112,7 @@ export type SharedStripesEngine = {
   getPerf(): PerfSnapshot;
   dispose(): void;
   readonly isP3: boolean;
+  readonly maxFps: number;
 };
 
 export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}): StripesEngine {
@@ -169,6 +172,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
 
   let rafId = 0;
   let lastFrameStart = clock.now();
+  const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
   let lastRevealEnabled = config.reveal.enabled;
@@ -997,13 +1001,16 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   }
 
   function loop() {
-    renderFrame();
+    if (shouldRenderFrame(frameCap, config.maxFps, clock.now())) renderFrame();
     rafId = requestAnimationFrame(loop);
   }
 
   return {
     get isP3() {
       return isP3;
+    },
+    get maxFps() {
+      return config.maxFps;
     },
     get outputWidth() {
       return output.width;

@@ -163,6 +163,20 @@ describe("normalizeEngineConfig", () => {
     expect(c.adjustments.contrast).toBe(2);
     expect(c.transform).toEqual(DEFAULT_ENGINE_CONFIG.transform);
   });
+  it("maxFps defaults to 0 (uncapped) and floors non-finite/negative to 0", () => {
+    expect(DEFAULT_ENGINE_CONFIG.maxFps).toBe(0);
+    expect(normalizeEngineConfig({}).maxFps).toBe(0);
+    expect(normalizeEngineConfig({ maxFps: 30 }).maxFps).toBe(30);
+    expect(normalizeEngineConfig({ maxFps: 24 }).maxFps).toBe(24);
+    expect(normalizeEngineConfig({ maxFps: -5 }).maxFps).toBe(0);
+    expect(normalizeEngineConfig({ maxFps: Number.NaN }).maxFps).toBe(0);
+    expect(normalizeEngineConfig({ maxFps: Infinity }).maxFps).toBe(0);
+    expect(normalizeEngineConfig({ maxFps: "30" as any }).maxFps).toBe(0);
+  });
+  it("round-trips maxFps through serialize/parse", () => {
+    const config = normalizeEngineConfig({ maxFps: 30 });
+    expect(parseEngineConfig(serializeEngineConfig(config)).maxFps).toBe(30);
+  });
 });
 describe("sparkle normalizer", () => {
   it("defaults sparkle when omitted", () => {
