@@ -9,6 +9,7 @@ export interface Flame {
   speedPxPerSec: number;
   opacity: number;
   colorSeed: number;
+  direction: FlamesDirection;
 }
 
 export interface FlamesState {
@@ -41,7 +42,23 @@ function randomFlameCrossAxisPosition(random: () => number, displaySize: number,
 }
 
 export function isVerticalFlamesDirection(d: FlamesDirection): boolean {
-  return d === "up" || d === "down";
+  return d === "up" || d === "down" || d === "upDown";
+}
+
+function expandFlamesDirection(d: FlamesDirection): FlamesDirection[] {
+  switch (d) {
+    case "upDown":
+      return ["up", "down"];
+    case "leftRight":
+      return ["left", "right"];
+    default:
+      return [d];
+  }
+}
+
+function pickFlameDirection(state: FlamesState, direction: FlamesDirection): FlamesDirection {
+  const options = expandFlamesDirection(direction);
+  return options[Math.floor(state.random() * options.length) % options.length];
 }
 
 export function flamesGradientStops(sharpness: number): { inner: number; outer: number } {
@@ -67,7 +84,13 @@ function flameColorSeed(width: number, height: number, speedPxPerSec: number, op
   return (h >>> 0) / 4294967296;
 }
 
-function createFlame(state: FlamesState, config: FlamesConfig, displayWidth: number, displayHeight: number): Flame {
+function createFlame(
+  state: FlamesState,
+  config: FlamesConfig,
+  displayWidth: number,
+  displayHeight: number,
+  direction: FlamesDirection,
+): Flame {
   const width = randomFlameSpan(state.random, displayWidth, config.minWidthRatio, config.maxWidthRatio);
   const height = randomFlameSpan(state.random, displayHeight, config.minHeightRatio, config.maxHeightRatio);
   const speedRange = flamesSpeedRange(config);
@@ -75,7 +98,7 @@ function createFlame(state: FlamesState, config: FlamesConfig, displayWidth: num
   const opacity = randomBetween(state.random, config.opacityMin, config.opacityMax);
   const colorSeed = flameColorSeed(width, height, speedPxPerSec, opacity);
 
-  if (isVerticalFlamesDirection(config.direction)) {
+  if (isVerticalFlamesDirection(direction)) {
     return {
       x: randomFlameCrossAxisPosition(state.random, displayWidth, width),
       y: 0,
@@ -84,6 +107,7 @@ function createFlame(state: FlamesState, config: FlamesConfig, displayWidth: num
       speedPxPerSec,
       opacity,
       colorSeed,
+      direction,
     };
   }
 
@@ -95,6 +119,7 @@ function createFlame(state: FlamesState, config: FlamesConfig, displayWidth: num
     speedPxPerSec,
     opacity,
     colorSeed,
+    direction,
   };
 }
 
@@ -135,8 +160,9 @@ function placeSeededFlame(
 }
 
 function spawnFlame(state: FlamesState, config: FlamesConfig, displayWidth: number, displayHeight: number): Flame {
-  const flame = createFlame(state, config, displayWidth, displayHeight);
-  placeSpawnedFlame(flame, config.direction, displayWidth, displayHeight);
+  const direction = pickFlameDirection(state, config.direction);
+  const flame = createFlame(state, config, displayWidth, displayHeight, direction);
+  placeSpawnedFlame(flame, flame.direction, displayWidth, displayHeight);
   return flame;
 }
 
@@ -146,14 +172,15 @@ function seedFlames(state: FlamesState, config: FlamesConfig, displayWidth: numb
   }
 
   for (let i = 0; i < config.maxActive; i++) {
-    const flame = createFlame(state, config, displayWidth, displayHeight);
-    placeSeededFlame(flame, config.direction, displayWidth, displayHeight, state.random);
+    const direction = pickFlameDirection(state, config.direction);
+    const flame = createFlame(state, config, displayWidth, displayHeight, direction);
+    placeSeededFlame(flame, flame.direction, displayWidth, displayHeight, state.random);
     state.flames.push(flame);
   }
 }
 
-function isFlameVisible(flame: Flame, direction: FlamesDirection, display: { width: number; height: number }): boolean {
-  switch (direction) {
+function isFlameVisible(flame: Flame, display: { width: number; height: number }): boolean {
+  switch (flame.direction) {
     case "up":
       return flame.y + flame.height >= 0;
     case "down":
@@ -162,6 +189,8 @@ function isFlameVisible(flame: Flame, direction: FlamesDirection, display: { wid
       return flame.x + flame.width >= 0;
     case "right":
       return flame.x <= display.width;
+    default:
+      return false;
   }
 }
 
@@ -186,7 +215,7 @@ export function stepFlames(
   state.lastStepMs = nowMs;
 
   for (const flame of state.flames) {
-    switch (config.direction) {
+    switch (flame.direction) {
       case "up":
         flame.y -= flame.speedPxPerSec * dtSec;
         break;
@@ -202,7 +231,7 @@ export function stepFlames(
     }
   }
 
-  state.flames = state.flames.filter((flame) => isFlameVisible(flame, config.direction, display));
+  state.flames = state.flames.filter((flame) => isFlameVisible(flame, display));
 
   if (state.flames.length > config.maxActive) {
     state.flames.length = config.maxActive;

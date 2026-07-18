@@ -50,6 +50,8 @@ export const DEFAULT_GRADIENT: GradientConfig = {
   direction: "topToBottom",
   stopCount: 2,
   stops: [0xffffff, 0, 0, 0],
+  hueDriftDeg: 0,
+  saturationBoost: 0,
 };
 export function normalizeGradient(i: Partial<GradientConfig> = {}): GradientConfig {
   const stops = Array.isArray(i.stops) ? i.stops : [];
@@ -59,6 +61,8 @@ export function normalizeGradient(i: Partial<GradientConfig> = {}): GradientConf
       : DEFAULT_GRADIENT.direction,
     stopCount: Math.round(clamp(num(i.stopCount, DEFAULT_GRADIENT.stopCount), 2, 4)),
     stops: [0, 1, 2, 3].map((k) => Math.round(clamp(num(stops[k], DEFAULT_GRADIENT.stops[k]), 0, 0xffffff))),
+    hueDriftDeg: clamp(num(i.hueDriftDeg, DEFAULT_GRADIENT.hueDriftDeg), -180, 180),
+    saturationBoost: clamp(num(i.saturationBoost, DEFAULT_GRADIENT.saturationBoost), 0, 1),
   };
 }
 
@@ -293,18 +297,29 @@ export function motionDirectionIndex(d: MotionDirection): number {
 export const DEFAULT_SPARKLE: SparkleConfig = {
   gaps: { enabled: false, coverage: 0.22, speed: 1 },
   width: { enabled: false, coverage: 0.3, swingPx: 1.25, swingPeriodMin: 0.21, swingPeriodMax: 0.55 },
+  stripe: {
+    enabled: false,
+    coverage: 0.35,
+    maxBrightness: 0.65,
+    speed: 1,
+    thickestCount: 3,
+    hueDriftDeg: 0,
+    saturationBoost: 0,
+  },
   motion: { enabled: false, amplitudePx: 4, staggerPx: 24, maxOffsetPx: 12, speed: 1, direction: "leftToRight" },
 };
 
 type PartialSparkle = {
   gaps?: Partial<SparkleConfig["gaps"]>;
   width?: Partial<SparkleConfig["width"]>;
+  stripe?: Partial<SparkleConfig["stripe"]>;
   motion?: Partial<SparkleConfig["motion"]>;
 };
 
 export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
   const g = i.gaps ?? {};
   const w = i.width ?? {};
+  const st = i.stripe ?? {};
   const m = i.motion ?? {};
   return {
     gaps: {
@@ -318,6 +333,15 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
       swingPx: clamp(num(w.swingPx, DEFAULT_SPARKLE.width.swingPx), 0, 40),
       swingPeriodMin: clamp(num(w.swingPeriodMin, DEFAULT_SPARKLE.width.swingPeriodMin), 0.02, 5),
       swingPeriodMax: clamp(num(w.swingPeriodMax, DEFAULT_SPARKLE.width.swingPeriodMax), 0.02, 5),
+    },
+    stripe: {
+      enabled: st.enabled !== undefined ? !!st.enabled : DEFAULT_SPARKLE.stripe.enabled,
+      coverage: clamp(num(st.coverage, DEFAULT_SPARKLE.stripe.coverage), 0, 1),
+      maxBrightness: clamp(num(st.maxBrightness, DEFAULT_SPARKLE.stripe.maxBrightness), 0, 1),
+      speed: clamp(num(st.speed, DEFAULT_SPARKLE.stripe.speed), 0.05, 100),
+      thickestCount: clamp(Math.round(num(st.thickestCount, DEFAULT_SPARKLE.stripe.thickestCount)), 1, 64),
+      hueDriftDeg: clamp(num(st.hueDriftDeg, DEFAULT_SPARKLE.stripe.hueDriftDeg), -180, 180),
+      saturationBoost: clamp(num(st.saturationBoost, DEFAULT_SPARKLE.stripe.saturationBoost), 0, 1),
     },
     motion: {
       enabled: m.enabled !== undefined ? !!m.enabled : DEFAULT_SPARKLE.motion.enabled,
@@ -352,7 +376,9 @@ export const DEFAULT_FLAMES: FlamesConfig = {
 type PartialFlames = Partial<FlamesConfig>;
 
 function normalizeFlamesDirection(value: unknown): FlamesDirection {
-  if (value === "down" || value === "left" || value === "right") return value;
+  if (value === "down" || value === "left" || value === "right" || value === "upDown" || value === "leftRight") {
+    return value;
+  }
   return "up";
 }
 
@@ -637,6 +663,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },
     width: { ...DEFAULT_SPARKLE.width },
+    stripe: { ...DEFAULT_SPARKLE.stripe },
     motion: { ...DEFAULT_SPARKLE.motion },
   },
   flames: { ...DEFAULT_FLAMES },

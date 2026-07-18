@@ -43,6 +43,13 @@ export type StripeUniforms = {
   gapCoverage: number;
   gapPeriodMin: number;
   gapPeriodMax: number;
+  stripeSparkleEnabled: boolean;
+  stripeSparkleCoverage: number;
+  stripeSparkleMaxBrightness: number;
+  stripeSparkleSpeed: number;
+  stripeSparkleMinWidthPx: number;
+  stripeSparkleHueDriftDeg: number;
+  stripeSparkleSaturationBoost: number;
   shuffleEnabled: boolean;
   shuffleCoverage: number;
   shufflePeriodMin: number;
@@ -70,6 +77,8 @@ export type StripeUniforms = {
   gradientDirection: number;
   gradientStopCount: number;
   gradientStops: number[];
+  gradientHueDriftDeg: number;
+  gradientSaturationBoost: number;
 };
 
 export type StripeRenderInputs = {
@@ -90,6 +99,16 @@ export type StripeRenderInputs = {
 
 export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInputs): StripeUniforms {
   const gapSpeed = Math.max(0.05, config.sparkle.gaps.speed);
+  const stripeSparkleMinWidthPx = () => {
+    const widths = Array.from(
+      new Set(
+        config.stripes.filter((s) => s.opacity > 0.001 && s.width >= 0.5).map((s) => Math.round(s.width * 1000) / 1000),
+      ),
+    ).sort((a, b) => b - a);
+    if (widths.length === 0) return 1e6;
+    const n = Math.max(1, Math.round(config.sparkle.stripe.thickestCount));
+    return widths[Math.min(n - 1, widths.length - 1)];
+  };
   return {
     cellW: config.grid.cellWidth,
     cellH: config.grid.cellHeight,
@@ -127,6 +146,13 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     gapCoverage: config.sparkle.gaps.coverage,
     gapPeriodMin: 0.21 / gapSpeed,
     gapPeriodMax: 0.55 / gapSpeed,
+    stripeSparkleEnabled: config.sparkle.stripe.enabled,
+    stripeSparkleCoverage: config.sparkle.stripe.coverage,
+    stripeSparkleMaxBrightness: config.sparkle.stripe.maxBrightness,
+    stripeSparkleSpeed: config.sparkle.stripe.speed,
+    stripeSparkleMinWidthPx: stripeSparkleMinWidthPx(),
+    stripeSparkleHueDriftDeg: config.sparkle.stripe.hueDriftDeg,
+    stripeSparkleSaturationBoost: config.sparkle.stripe.saturationBoost,
     shuffleEnabled: config.sparkle.width.enabled,
     shuffleCoverage: config.sparkle.width.coverage,
     shufflePeriodMin: config.sparkle.width.swingPeriodMin,
@@ -154,6 +180,8 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     gradientDirection: gradientDirectionIndex(config.colors.gradient.direction),
     gradientStopCount: config.colors.gradient.stopCount,
     gradientStops: config.colors.gradient.stops,
+    gradientHueDriftDeg: config.colors.gradient.hueDriftDeg,
+    gradientSaturationBoost: config.colors.gradient.saturationBoost,
   };
 }
 
@@ -197,6 +225,13 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     gapCoverage: u("uGapCoverage"),
     gapPeriodMin: u("uGapPeriodMin"),
     gapPeriodMax: u("uGapPeriodMax"),
+    stripeSparkleEnabled: u("uStripeSparkleEnabled"),
+    stripeSparkleCoverage: u("uStripeSparkleCoverage"),
+    stripeSparkleMaxBrightness: u("uStripeSparkleMaxBrightness"),
+    stripeSparkleSpeed: u("uStripeSparkleSpeed"),
+    stripeSparkleMinWidthPx: u("uStripeSparkleMinWidthPx"),
+    stripeSparkleHueDriftDeg: u("uStripeSparkleHueDriftDeg"),
+    stripeSparkleSaturationBoost: u("uStripeSparkleSaturationBoost"),
     shuffleEnabled: u("uShuffleEnabled"),
     shuffleCoverage: u("uShuffleCoverage"),
     shufflePeriodMin: u("uShufflePeriodMin"),
@@ -226,6 +261,8 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     gradientStop1: u("uGradientStop1"),
     gradientStop2: u("uGradientStop2"),
     gradientStop3: u("uGradientStop3"),
+    gradientHueDriftDeg: u("uGradientHueDriftDeg"),
+    gradientSaturationBoost: u("uGradientSaturationBoost"),
   };
   const setColor = (loc: WebGLUniformLocation | null, color: number) => gl.uniform3f(loc, ...unpackRgb(color));
   return {
@@ -286,6 +323,13 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.gapCoverage, p.gapCoverage);
       gl.uniform1f(L.gapPeriodMin, p.gapPeriodMin);
       gl.uniform1f(L.gapPeriodMax, p.gapPeriodMax);
+      gl.uniform1f(L.stripeSparkleEnabled, p.stripeSparkleEnabled ? 1 : 0);
+      gl.uniform1f(L.stripeSparkleCoverage, p.stripeSparkleCoverage);
+      gl.uniform1f(L.stripeSparkleMaxBrightness, p.stripeSparkleMaxBrightness);
+      gl.uniform1f(L.stripeSparkleSpeed, p.stripeSparkleSpeed);
+      gl.uniform1f(L.stripeSparkleMinWidthPx, p.stripeSparkleMinWidthPx);
+      gl.uniform1f(L.stripeSparkleHueDriftDeg, p.stripeSparkleHueDriftDeg);
+      gl.uniform1f(L.stripeSparkleSaturationBoost, p.stripeSparkleSaturationBoost);
       gl.uniform1f(L.shuffleEnabled, p.shuffleEnabled ? 1 : 0);
       gl.uniform1f(L.shuffleCoverage, p.shuffleCoverage);
       gl.uniform1f(L.shufflePeriodMin, p.shufflePeriodMin);
@@ -321,6 +365,8 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       setColor(L.gradientStop1, p.gradientStops[1]);
       setColor(L.gradientStop2, p.gradientStops[2]);
       setColor(L.gradientStop3, p.gradientStops[3]);
+      gl.uniform1f(L.gradientHueDriftDeg, p.gradientHueDriftDeg);
+      gl.uniform1f(L.gradientSaturationBoost, p.gradientSaturationBoost);
       quad.draw();
     },
     dispose() {

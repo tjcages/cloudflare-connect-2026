@@ -38,7 +38,10 @@ export function buildStripeOpacityLut(stripes: Stripe[]): Uint8Array {
     const band = resolveBand(sorted, t);
     const o = v * 4;
     const opacity = band < 0 ? 0 : Math.max(0, Math.min(255, Math.round(sorted[band].opacity * 255)));
-    lut[o] = lut[o + 1] = lut[o + 2] = opacity;
+    const rampT = band < 0 ? 0 : sorted.length <= 1 ? 1 : band / (sorted.length - 1);
+    lut[o] = opacity;
+    lut[o + 1] = Math.max(0, Math.min(255, Math.round(rampT * 255)));
+    lut[o + 2] = opacity;
     lut[o + 3] = 255;
   }
   return lut;

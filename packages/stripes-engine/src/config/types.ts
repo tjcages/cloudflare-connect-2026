@@ -45,6 +45,8 @@ export interface GradientConfig {
   direction: GradientDirection;
   stopCount: number;
   stops: number[];
+  hueDriftDeg: number;
+  saturationBoost: number;
 }
 
 export interface BackgroundGradient extends GradientConfig {
@@ -121,6 +123,15 @@ export type MotionDirection = "leftToRight" | "rightToLeft" | "topToBottom" | "b
 export interface SparkleConfig {
   gaps: { enabled: boolean; coverage: number; speed: number };
   width: { enabled: boolean; coverage: number; swingPx: number; swingPeriodMin: number; swingPeriodMax: number };
+  stripe: {
+    enabled: boolean;
+    coverage: number;
+    maxBrightness: number;
+    speed: number;
+    thickestCount: number;
+    hueDriftDeg: number;
+    saturationBoost: number;
+  };
   motion: {
     enabled: boolean;
     amplitudePx: number;
@@ -131,7 +142,7 @@ export interface SparkleConfig {
   };
 }
 
-export type FlamesDirection = "up" | "down" | "left" | "right";
+export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight";
 
 export interface FlamesConfig {
   enabled: boolean;

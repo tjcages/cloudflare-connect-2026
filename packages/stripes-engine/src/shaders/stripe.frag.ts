@@ -36,6 +36,13 @@ uniform float uGapEnabled;
 uniform float uGapCoverage;
 uniform float uGapPeriodMin;
 uniform float uGapPeriodMax;
+uniform float uStripeSparkleEnabled;
+uniform float uStripeSparkleCoverage;
+uniform float uStripeSparkleMaxBrightness;
+uniform float uStripeSparkleSpeed;
+uniform float uStripeSparkleMinWidthPx;
+uniform float uStripeSparkleHueDriftDeg;
+uniform float uStripeSparkleSaturationBoost;
 uniform float uShuffleEnabled;
 uniform float uShuffleCoverage;
 uniform float uShufflePeriodMin;
@@ -66,6 +73,8 @@ uniform vec3 uGradientStop0;
 uniform vec3 uGradientStop1;
 uniform vec3 uGradientStop2;
 uniform vec3 uGradientStop3;
+uniform float uGradientHueDriftDeg;
+uniform float uGradientSaturationBoost;
 out vec4 finalColor;
 
 float sdRoundBox(vec2 p, vec2 b, float r) {
@@ -306,8 +315,92 @@ vec3 withLightness(vec3 base, float targetLightness) {
   return clamp(1.0 - (1.0 - base) * ((1.0 - target) / (1.0 - currentLightness)), 0.0, 1.0);
 }
 
-vec3 gradientColorWithRampLightness(vec2 uv, vec3 rampColor) {
-  return withLightness(gradientColor(uv), colorLightness(rampColor));
+vec3 rgbToHsl(vec3 c) {
+  float maxc = max(max(c.r, c.g), c.b);
+  float minc = min(min(c.r, c.g), c.b);
+  float l = (maxc + minc) * 0.5;
+  float h = 0.0;
+  float s = 0.0;
+  float d = maxc - minc;
+  if (d > 0.00001) {
+    s = l > 0.5 ? d / (2.0 - maxc - minc) : d / (maxc + minc);
+    if (maxc == c.r) h = (c.g - c.b) / d + (c.g < c.b ? 6.0 : 0.0);
+    else if (maxc == c.g) h = (c.b - c.r) / d + 2.0;
+    else h = (c.r - c.g) / d + 4.0;
+    h /= 6.0;
+  }
+  return vec3(h, s, l);
+}
+
+float hueToRgb(float p, float q, float t) {
+  if (t < 0.0) t += 1.0;
+  if (t > 1.0) t -= 1.0;
+  if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
+  if (t < 1.0 / 2.0) return q;
+  if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+  return p;
+}
+
+vec3 hslToRgb(vec3 hsl) {
+  float h = fract(hsl.x);
+  float s = clamp(hsl.y, 0.0, 1.0);
+  float l = clamp(hsl.z, 0.0, 1.0);
+  if (s <= 0.00001) return vec3(l);
+  float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;
+  float p = 2.0 * l - q;
+  return vec3(
+    hueToRgb(p, q, h + 1.0 / 3.0),
+    hueToRgb(p, q, h),
+    hueToRgb(p, q, h - 1.0 / 3.0)
+  );
+}
+
+vec3 applyStripeSparkleTone(vec3 color, float amount) {
+  vec3 hsl = rgbToHsl(color);
+  if (hsl.y <= 0.0001) return color;
+  hsl.y = clamp(hsl.y * (1.0 + clamp(uStripeSparkleSaturationBoost, 0.0, 1.0) * amount), 0.0, 1.0);
+  return hslToRgb(hsl);
+}
+
+float stripeSparkleAmount(float col, float row) {
+  if (uStripeSparkleEnabled <= 0.5) return 0.0;
+  float coverage = clamp(uStripeSparkleCoverage, 0.0, 1.0);
+  if (coverage <= 0.0) return 0.0;
+  if (cellSeed(col, row) >= coverage) return 0.0;
+  float speed = max(uStripeSparkleSpeed, 0.05);
+  float periodMin = 0.18 / speed;
+  float periodMax = 0.85 / speed;
+  CellPulse p = cellPulse(col + 179.0, row + 233.0, uTimeSec, coverage, periodMin, periodMax);
+  if (p.localTime >= p.period) return 0.0;
+  return pulseEnvelope(p.localTime / p.period) * clamp(uStripeSparkleMaxBrightness, 0.0, 1.0);
+}
+
+vec3 applyStripeSparkle(vec3 color, vec2 cell, float widthPx, float opacity) {
+  if (widthPx < uStripeSparkleMinWidthPx || opacity <= 0.001) return color;
+  float amount = stripeSparkleAmount(cell.x, cell.y);
+  vec3 brightened = withLightness(color, colorLightness(color) + amount);
+  return applyStripeSparkleTone(brightened, amount);
+}
+
+vec3 gradientAverageColor() {
+  if (uGradientStopCount < 2.5) return (uGradientStop0 + uGradientStop1) * 0.5;
+  if (uGradientStopCount < 3.5) return (uGradientStop0 + uGradientStop1 + uGradientStop2) / 3.0;
+  return (uGradientStop0 + uGradientStop1 + uGradientStop2 + uGradientStop3) * 0.25;
+}
+
+vec3 gradientColorWithRampLightness(vec2 uv, vec3 rampColor, float rampT) {
+  vec3 localColor = gradientColor(uv);
+  vec3 hsl = rgbToHsl(localColor);
+  float t = clamp(rampT, 0.0, 1.0);
+  if (hsl.y > 0.0001) {
+    hsl.x = fract(hsl.x + (uGradientHueDriftDeg * t) / 360.0);
+    float satLift = clamp(uGradientSaturationBoost, 0.0, 1.0) * sin(t * 3.141592653589793 * 0.85);
+    hsl.y = clamp(hsl.y * (1.0 + satLift), 0.0, 1.0);
+    localColor = hslToRgb(hsl);
+  }
+  float baseLightness = colorLightness(gradientAverageColor());
+  float lightnessLift = max(0.0, colorLightness(rampColor) - baseLightness);
+  return withLightness(localColor, colorLightness(localColor) + lightnessLift);
 }
 
 vec3 applyImageColorLightness(vec3 color) {
@@ -353,14 +446,17 @@ void main() {
   vec4 lut = texture(uLut, lutUv);
   vec3 barColor = lut.rgb;
   float barWidthPx = (lut.a * 255.0) * 0.5;
-  float barOpacity = texture(uOpacityLut, lutUv).r;
+  vec4 opacityMeta = texture(uOpacityLut, lutUv);
+  float barOpacity = opacityMeta.r;
+  float barRampT = opacityMeta.g;
 
   if (uUseCellColors > 0.5) {
     barColor = cellImageColor(sourceUv);
   }
   if (uGradientEnabled > 0.5 && uUseCellColors < 0.5) {
-    barColor = gradientColorWithRampLightness(sourceUv, barColor);
+    barColor = gradientColorWithRampLightness(sourceUv, barColor, barRampT);
   }
+  barColor = applyStripeSparkle(barColor, sourceCell, barWidthPx, barOpacity);
 
   if (uShuffleEnabled > 0.5) barWidthPx = shuffledWidth(cell.x, cell.y, barWidthPx);
   float earlyAngleNorm = mod(abs(uAngleDeg), 180.0);
@@ -445,7 +541,9 @@ void main() {
         float candidateGeometryAlpha = stripeAlpha(candidateRotatedP, vec2(candidateHalfW, candidateHalfH), candidateR, w);
         if (candidateGeometryAlpha <= 0.001) continue;
 
-        float candidateOpacity = texture(uOpacityLut, candidateLutUv).r;
+        vec4 candidateOpacityMeta = texture(uOpacityLut, candidateLutUv);
+        float candidateOpacity = candidateOpacityMeta.r;
+        float candidateRampT = candidateOpacityMeta.g;
         float candidateAlpha = candidateGeometryAlpha * candidateOpacity;
         if (candidateAlpha > 0.001) {
           vec3 candidateColor = candidateLut.rgb;
@@ -453,8 +551,9 @@ void main() {
             candidateColor = cellImageColor(candidateUv);
           }
           if (uGradientEnabled > 0.5 && uUseCellColors < 0.5) {
-            candidateColor = gradientColorWithRampLightness(candidateUv, candidateColor);
+            candidateColor = gradientColorWithRampLightness(candidateUv, candidateColor, candidateRampT);
           }
+          candidateColor = applyStripeSparkle(candidateColor, candidateCell, candidateWidthPx, candidateOpacity);
 
           if (overlapRotation) {
             vec3 blendedCandidateColor = bgColor.a <= 0.0001 ? candidateColor : blendStripeColor(bgColor.rgb, candidateColor);

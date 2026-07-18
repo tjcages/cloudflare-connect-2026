@@ -55,7 +55,14 @@ describe("simple normalizers", () => {
   });
   it("background gradient/grid/stars default and clamp", () => {
     const b = normalizeBackground({});
-    expect(b.gradient).toEqual({ enabled: false, direction: "topToBottom", stopCount: 2, stops: [0xffffff, 0, 0, 0] });
+    expect(b.gradient).toEqual({
+      enabled: false,
+      direction: "topToBottom",
+      stopCount: 2,
+      stops: [0xffffff, 0, 0, 0],
+      hueDriftDeg: 0,
+      saturationBoost: 0,
+    });
     expect(b.grid).toEqual({
       enabled: false,
       cellWidth: 96,
@@ -196,6 +203,30 @@ describe("sparkle normalizer", () => {
   });
   it("clamps sparkle.width.swingPx to 0..40", () => {
     expect(normalizeEngineConfig({ sparkle: { width: { swingPx: 999 } } }).sparkle.width.swingPx).toBe(40);
+  });
+  it("defaults sparkle.stripe and clamps its ranges", () => {
+    expect(normalizeEngineConfig({}).sparkle.stripe).toEqual({
+      enabled: false,
+      coverage: 0.35,
+      maxBrightness: 0.65,
+      speed: 1,
+      thickestCount: 3,
+      hueDriftDeg: 0,
+      saturationBoost: 0,
+    });
+    expect(normalizeEngineConfig({ sparkle: { stripe: { coverage: 9 } } }).sparkle.stripe.coverage).toBe(1);
+    expect(normalizeEngineConfig({ sparkle: { stripe: { maxBrightness: 9 } } }).sparkle.stripe.maxBrightness).toBe(1);
+    expect(normalizeEngineConfig({ sparkle: { stripe: { speed: 0 } } }).sparkle.stripe.speed).toBe(0.05);
+    expect(normalizeEngineConfig({ sparkle: { stripe: { thickestCount: 0 } } }).sparkle.stripe.thickestCount).toBe(1);
+    expect(normalizeEngineConfig({ sparkle: { stripe: { thickestCount: 999 } } }).sparkle.stripe.thickestCount).toBe(
+      64,
+    );
+    expect(normalizeEngineConfig({ sparkle: { stripe: { thickestCount: 2.6 } } }).sparkle.stripe.thickestCount).toBe(3);
+    expect(normalizeEngineConfig({ sparkle: { stripe: { hueDriftDeg: 999 } } }).sparkle.stripe.hueDriftDeg).toBe(180);
+    expect(normalizeEngineConfig({ sparkle: { stripe: { hueDriftDeg: -999 } } }).sparkle.stripe.hueDriftDeg).toBe(-180);
+    expect(normalizeEngineConfig({ sparkle: { stripe: { saturationBoost: 9 } } }).sparkle.stripe.saturationBoost).toBe(
+      1,
+    );
   });
   it("defaults sparkle.motion and clamps its ranges", () => {
     expect(normalizeEngineConfig({}).sparkle.motion).toEqual({
@@ -661,9 +692,17 @@ describe("colors normalizer", () => {
       direction: "topToBottom",
       stopCount: 2,
       stops: [0xffffff, 0, 0, 0],
+      hueDriftDeg: 0,
+      saturationBoost: 0,
     });
     expect(normalizeColors({ gradient: { stops: [0x1ffffff, -1] } }).gradient.stops).toEqual([0xffffff, 0, 0, 0]);
     expect(normalizeColors({ gradient: { direction: "leftToRight" } }).gradient.direction).toBe("leftToRight");
+  });
+  it("gradient hueDriftDeg clamps to [-180, 180] and saturationBoost to [0, 1]", () => {
+    expect(normalizeColors({ gradient: { hueDriftDeg: 999 } }).gradient.hueDriftDeg).toBe(180);
+    expect(normalizeColors({ gradient: { hueDriftDeg: -999 } }).gradient.hueDriftDeg).toBe(-180);
+    expect(normalizeColors({ gradient: { saturationBoost: 9 } }).gradient.saturationBoost).toBe(1);
+    expect(normalizeColors({ gradient: { saturationBoost: -1 } }).gradient.saturationBoost).toBe(0);
   });
   it("gradient.enabled defaults false and is coerced", () => {
     expect(normalizeColors({}).gradient.enabled).toBe(false);
