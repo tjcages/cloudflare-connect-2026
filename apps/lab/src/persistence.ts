@@ -38,12 +38,7 @@ export type LabCanvasMode = "scale" | "manual" | "original";
 export type LabBackgroundFillMode = "transparent" | "source" | "solid" | "gradient";
 export type LabTextureSourceMode = "texture" | "shader";
 export type LabBackgroundRampSettings = {
-  maxLightnessUnder20: number;
-  maxLightness20To40: number;
-  maxLightness40To60: number;
-  maxLightness60To70: number;
-  maxLightness70To80: number;
-  maxLightnessOver80: number;
+  brightnessAdd: number;
   hueDriftDeg: number;
   saturationBoost: number;
 };
@@ -237,13 +232,8 @@ function normalizeBackgroundRampSettings(value: unknown): LabBackgroundRampSetti
     return typeof raw === "number" && Number.isFinite(raw) ? Math.max(min, Math.min(max, raw)) : fallback[key];
   };
   return {
-    maxLightnessUnder20: n("maxLightnessUnder20", 0, 100),
-    maxLightness20To40: n("maxLightness20To40", 0, 100),
-    maxLightness40To60: n("maxLightness40To60", 0, 100),
-    maxLightness60To70: n("maxLightness60To70", 0, 100),
-    maxLightness70To80: n("maxLightness70To80", 0, 100),
-    maxLightnessOver80: n("maxLightnessOver80", 0, 100),
-    hueDriftDeg: n("hueDriftDeg", 0, 45),
+    brightnessAdd: n("brightnessAdd", 0, 100),
+    hueDriftDeg: n("hueDriftDeg", -180, 180),
     saturationBoost: n("saturationBoost", 0, 100),
   };
 }

@@ -1,13 +1,28 @@
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import type { LabSettings } from "./persistence";
 
+const PRESET_KIND = "stripes-engine-lab-settings";
+const PRESET_VERSION = 2;
+
 export interface ConfigPreset {
   name: string;
+  kind: typeof PRESET_KIND;
+  version: number;
   config: EngineConfig;
   lab?: Partial<LabSettings>;
 }
 
 const PRESETS_KEY = "stripes-engine-lab-presets";
+
+export function createPreset(name: string, config: EngineConfig, lab?: Partial<LabSettings>): ConfigPreset {
+  return {
+    name,
+    kind: PRESET_KIND,
+    version: PRESET_VERSION,
+    config,
+    ...(lab ? { lab } : {}),
+  };
+}
 
 export function addPreset(presets: ConfigPreset[], preset: ConfigPreset): ConfigPreset[] {
   return [...presets.filter((p) => p.name !== preset.name), preset];
@@ -22,7 +37,15 @@ export function loadPresets(): ConfigPreset[] {
     const raw = localStorage.getItem(PRESETS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? (parsed as ConfigPreset[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const record = item as Partial<ConfigPreset>;
+        if (typeof record.name !== "string" || !record.config) return null;
+        return createPreset(record.name, record.config, record.lab);
+      })
+      .filter((preset): preset is ConfigPreset => preset !== null);
   } catch {
     return [];
   }

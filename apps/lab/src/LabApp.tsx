@@ -38,7 +38,7 @@ import {
 import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, findTextureEntry, loadFileSource, loadTextureSource } from "./textures";
 import type { LabTextureKind, LoadedTextureSource } from "./textures";
 import { addUpload, loadManifest, removeUpload, saveManifest } from "./uploads";
-import { addPreset, loadPresets, removePreset, savePresets, type ConfigPreset } from "./presets";
+import { addPreset, createPreset, loadPresets, removePreset, savePresets, type ConfigPreset } from "./presets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -1185,6 +1185,8 @@ function LabInner() {
               direction: cfg.colors.gradient.direction,
               stopCount: cfg.colors.gradient.stopCount,
               stops: cfg.colors.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
+              hueDriftDeg: cfg.colors.gradient.hueDriftDeg,
+              saturationBoost: cfg.colors.gradient.saturationBoost,
             }
           : undefined,
         backgroundGradient: exportBackground.backgroundGradient,
@@ -1873,7 +1875,7 @@ function LabInner() {
     const name = window.prompt("Preset name:")?.trim();
     if (!name) return;
     if (presets.some((p) => p.name === name) && !window.confirm(`Overwrite preset "${name}"?`)) return;
-    const next = addPreset(presets, { name, config: controls, lab: fullLabSettingsSnapshot() });
+    const next = addPreset(presets, createPreset(name, controls, fullLabSettingsSnapshot()));
     savePresets(next);
     setPresets(next);
     setSelectedPreset(name);

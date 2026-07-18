@@ -1,25 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { addPreset, removePreset, type ConfigPreset } from "./presets";
+import { addPreset, createPreset, removePreset, type ConfigPreset } from "./presets";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 
 const cfg = (tag: string): EngineConfig => ({ tag }) as unknown as EngineConfig;
 
-const preset = (name: string, tag = name): ConfigPreset => ({
-  name,
-  config: cfg(tag),
-});
+const preset = (name: string, tag = name): ConfigPreset => createPreset(name, cfg(tag));
 
-const presetWithLab = (name: string): ConfigPreset => ({
-  name,
-  config: cfg(name),
-  lab: {
+const presetWithLab = (name: string): ConfigPreset =>
+  createPreset(name, cfg(name), {
     backgroundFillMode: "gradient",
     stripePalette: "Background Ramp",
     backgroundRampEasing: "custom:0.1,0,0.2,1",
     thresholdDistributionEasing: "easeOutQuad",
     drawerOpen: { Stripes: true },
-  },
-});
+  });
 
 describe("preset library transforms", () => {
   it("addPreset appends a new preset", () => {
@@ -36,6 +30,7 @@ describe("preset library transforms", () => {
   it("addPreset preserves full lab UI settings on presets", () => {
     const next = addPreset([], presetWithLab("full"));
 
+    expect(next[0]).toMatchObject({ kind: "stripes-engine-lab-settings", version: 2 });
     expect(next[0].lab).toMatchObject({
       backgroundFillMode: "gradient",
       stripePalette: "Background Ramp",

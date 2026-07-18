@@ -36,7 +36,7 @@ export const LAB_LEVA_THEME = {
     sans: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   },
   sizes: {
-    rootWidth: "272px",
+    rootWidth: "360px",
     controlWidth: "155px",
     numberInputMinWidth: "44px",
   },

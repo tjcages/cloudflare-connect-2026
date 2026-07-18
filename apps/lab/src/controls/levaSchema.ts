@@ -30,7 +30,6 @@ import {
   BACKGROUND_RAMP_EASING_OPTIONS,
   BACKGROUND_RAMP_PALETTE_NAME,
   DEFAULT_BACKGROUND_RAMP_SETTINGS,
-  DEFAULT_STRIPE_PALETTE_NAME,
   WHITE_STRIPE_PALETTE_NAME,
   type BackgroundRampEasing,
   type BackgroundRampSettings,
@@ -174,16 +173,14 @@ function withDefaultStripeDistribution<T extends { startFrom: number; width: num
 }
 
 const LAB_DEFAULT_STRIPES: Stripe[] = withDefaultStripeDistribution([
-  { color: 0xfafafa, startFrom: 0.08, width: 1, opacity: 1 },
-  { color: 0xfff8e8, startFrom: 0.2, width: 1, opacity: 1 },
-  { color: 0xfeefd2, startFrom: 0.32, width: 1, opacity: 1 },
-  { color: 0xffe3b5, startFrom: 0.44, width: 2, opacity: 1 },
-  { color: 0xffd295, startFrom: 0.56, width: 3, opacity: 1 },
-  { color: 0xffb970, startFrom: 0.68, width: 4, opacity: 1 },
-  { color: 0xfe9c4c, startFrom: 0.8, width: 5, opacity: 1 },
-  { color: 0xf67c3e, startFrom: 0.92, width: 6, opacity: 1 },
-  { color: 0xfab83b, startFrom: 0.96, width: 6.5, opacity: 1 },
-  { color: 0xff6721, startFrom: 1, width: 7, opacity: 1 },
+  { color: 0xfff8e8, startFrom: 0.08, width: 1, opacity: 1 },
+  { color: 0xfeefd2, startFrom: 0.2, width: 1, opacity: 1 },
+  { color: 0xffe3b5, startFrom: 0.32, width: 1, opacity: 1 },
+  { color: 0xffd295, startFrom: 0.44, width: 2, opacity: 1 },
+  { color: 0xffb970, startFrom: 0.56, width: 3, opacity: 1 },
+  { color: 0xfe9c4c, startFrom: 0.68, width: 4, opacity: 1 },
+  { color: 0xf67c3e, startFrom: 0.8, width: 5, opacity: 1 },
+  { color: 0xeb5729, startFrom: 0.92, width: 6, opacity: 1 },
 ]);
 
 function intToHex(value: number): string {
@@ -370,7 +367,7 @@ function paletteForBackgroundFillMode(mode: BackgroundFillMode): string {
     case "solid":
       return BACKGROUND_RAMP_PALETTE_NAME;
     case "transparent":
-      return DEFAULT_STRIPE_PALETTE_NAME;
+      return "Orange";
   }
 }
 
@@ -383,6 +380,15 @@ function applyPaletteForBackgroundFillMode(
 ): EditableStripe[] {
   const palette = paletteForBackgroundFillMode(mode);
   return applyStripePalette(stripes, palette, backgroundHex, backgroundRampEasing, backgroundRampSettings);
+}
+
+function visibleStripeWidthLevelCount(stripes: readonly { width: number; opacity: number }[]): number {
+  const levels = new Set<number>();
+  for (const stripe of stripes) {
+    if (stripe.opacity <= 0.001 || stripe.width < 0.5) continue;
+    levels.add(Math.round(stripe.width * 1000) / 1000);
+  }
+  return Math.max(1, levels.size);
 }
 
 export function useEngineControls(
@@ -901,54 +907,19 @@ export function useEngineControls(
           }),
           "Detailed settings": folder(
             {
-              backgroundRampMaxLightnessUnder20: {
-                value: backgroundRampSettings.maxLightnessUnder20,
+              backgroundRampBrightnessAdd: {
+                value: backgroundRampSettings.brightnessAdd,
                 min: 0,
                 max: 100,
                 step: 1,
-                label: "Max bright <20",
-              },
-              backgroundRampMaxLightness20To40: {
-                value: backgroundRampSettings.maxLightness20To40,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Max bright 20–40",
-              },
-              backgroundRampMaxLightness40To60: {
-                value: backgroundRampSettings.maxLightness40To60,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Max bright 40–60",
-              },
-              backgroundRampMaxLightness60To70: {
-                value: backgroundRampSettings.maxLightness60To70,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Max bright 60–70",
-              },
-              backgroundRampMaxLightness70To80: {
-                value: backgroundRampSettings.maxLightness70To80,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Max bright 70–80",
-              },
-              backgroundRampMaxLightnessOver80: {
-                value: backgroundRampSettings.maxLightnessOver80,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Max bright 80+",
+                label: "+ Brightness",
               },
               backgroundRampHueDriftDeg: {
                 value: backgroundRampSettings.hueDriftDeg,
-                min: 0,
-                max: 45,
+                min: -180,
+                max: 180,
                 step: 0.5,
-                label: "Hue drift ±°",
+                label: "Hue drift",
               },
               backgroundRampSaturationBoost: {
                 value: backgroundRampSettings.saturationBoost,
@@ -1178,7 +1149,14 @@ export function useEngineControls(
           flamesEnabled: { value: d.flames.enabled, label: "Enabled" },
           flamesDirection: {
             value: d.flames.direction,
-            options: { Up: "up", Down: "down", Left: "left", Right: "right" } as const,
+            options: {
+              Up: "up",
+              Down: "down",
+              Left: "left",
+              Right: "right",
+              "Up - Down": "upDown",
+              "Left - Right": "leftRight",
+            } as const,
             label: "Direction",
             render: (get) => get("Background Flames.flamesEnabled") === true,
           },
@@ -1280,22 +1258,38 @@ export function useEngineControls(
           },
         }),
         Sparkle: drawerFolder("Sparkle", {
-          sparkleGapsEnabled: { value: d.sparkle.gaps.enabled, label: "Gaps enabled" },
-          sparkleGapsCoverage: {
-            value: d.sparkle.gaps.coverage,
+          sparkleStripeEnabled: { value: d.sparkle.stripe.enabled, label: "Stripe sparkle enabled" },
+          sparkleStripeCoverage: {
+            value: d.sparkle.stripe.coverage * 100,
             min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Gap active %",
-            render: (get) => get("Sparkle.sparkleGapsEnabled") === true,
+            max: 100,
+            step: 1,
+            label: "Stripe sparkle %",
+            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
           },
-          sparkleGapsSpeed: {
-            value: d.sparkle.gaps.speed,
+          sparkleStripeThickestCount: {
+            value: Math.min(d.sparkle.stripe.thickestCount, visibleStripeWidthLevelCount(d.stripes)),
+            min: 1,
+            max: visibleStripeWidthLevelCount(d.stripes),
+            step: 1,
+            label: "Thickest levels",
+            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+          },
+          sparkleStripeMaxBrightness: {
+            value: d.sparkle.stripe.maxBrightness * 100,
+            min: 0,
+            max: 100,
+            step: 1,
+            label: "+ Brightness",
+            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+          },
+          sparkleStripeSpeed: {
+            value: d.sparkle.stripe.speed,
             min: 0.05,
-            max: 3,
+            max: 10,
             step: 0.05,
-            label: "Gap speed",
-            render: (get) => get("Sparkle.sparkleGapsEnabled") === true,
+            label: "Sparkle speed",
+            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
           },
           sparkleWidthEnabled: { value: d.sparkle.width.enabled, label: "Width shuffle enabled" },
           sparkleWidthCoverage: {
@@ -1789,12 +1783,7 @@ export function useEngineControls(
     !imageColorsMode &&
     (stripePaletteValue === BACKGROUND_RAMP_PALETTE_NAME || stripePaletteValue === WHITE_STRIPE_PALETTE_NAME);
   const currentBackgroundRampSettings = normalizeBackgroundRampSettings({
-    maxLightnessUnder20: values.backgroundRampMaxLightnessUnder20,
-    maxLightness20To40: values.backgroundRampMaxLightness20To40,
-    maxLightness40To60: values.backgroundRampMaxLightness40To60,
-    maxLightness60To70: values.backgroundRampMaxLightness60To70,
-    maxLightness70To80: values.backgroundRampMaxLightness70To80,
-    maxLightnessOver80: values.backgroundRampMaxLightnessOver80,
+    brightnessAdd: values.backgroundRampBrightnessAdd,
     hueDriftDeg: values.backgroundRampHueDriftDeg,
     saturationBoost: values.backgroundRampSaturationBoost,
   });
@@ -1999,6 +1988,8 @@ export function useEngineControls(
           hexToInt(values.backgroundGradientStop2),
           hexToInt(values.backgroundGradientStop3),
         ],
+        hueDriftDeg: 0,
+        saturationBoost: 0,
       },
       grid: {
         enabled: false,
@@ -2061,9 +2052,18 @@ export function useEngineControls(
     },
     sparkle: {
       gaps: {
-        enabled: values.sparkleGapsEnabled,
-        coverage: values.sparkleGapsCoverage,
-        speed: values.sparkleGapsSpeed,
+        enabled: false,
+        coverage: 0,
+        speed: 1,
+      },
+      stripe: {
+        enabled: values.sparkleStripeEnabled,
+        coverage: values.sparkleStripeCoverage / 100,
+        thickestCount: values.sparkleStripeThickestCount,
+        maxBrightness: values.sparkleStripeMaxBrightness / 100,
+        speed: values.sparkleStripeSpeed,
+        hueDriftDeg: currentBackgroundRampSettings.hueDriftDeg,
+        saturationBoost: currentBackgroundRampSettings.saturationBoost / 100,
       },
       width: {
         enabled: values.sparkleWidthEnabled,
@@ -2178,6 +2178,8 @@ export function useEngineControls(
                 hexToInt(values.backgroundGradientStop2),
                 hexToInt(values.backgroundGradientStop3),
               ] as [number, number, number, number],
+              hueDriftDeg: currentBackgroundRampSettings.hueDriftDeg,
+              saturationBoost: currentBackgroundRampSettings.saturationBoost / 100,
             }
           : { ...d.colors.gradient, enabled: false },
     },

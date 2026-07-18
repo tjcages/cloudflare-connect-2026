@@ -9,6 +9,8 @@ type SvgGradientOptions = {
   direction: "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
   stopCount: number;
   stops: string[];
+  hueDriftDeg?: number;
+  saturationBoost?: number;
 };
 type SvgBlendMode = "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "difference" | "exclusion";
 type StripeOrientation = "vertical" | "horizontal";
@@ -84,6 +86,139 @@ function normalizeSvgHex(value: string): string {
 
 function p3SvgColor(value: string): string {
   return p3ColorForHex(normalizeSvgHex(value));
+}
+
+function hexToRgb(value: string): [number, number, number] {
+  const raw = normalizeSvgHex(value).replace(/^#/, "");
+  return [
+    Number.parseInt(raw.slice(0, 2), 16) / 255,
+    Number.parseInt(raw.slice(2, 4), 16) / 255,
+    Number.parseInt(raw.slice(4, 6), 16) / 255,
+  ];
+}
+
+function rgbToHex([r, g, b]: [number, number, number]): string {
+  return `#${[r, g, b]
+    .map((channel) =>
+      Math.round(Math.max(0, Math.min(1, channel)) * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+function colorLightness([r, g, b]: [number, number, number]): number {
+  return (Math.max(r, g, b) + Math.min(r, g, b)) * 0.5;
+}
+
+function withLightness(base: [number, number, number], targetLightness: number): [number, number, number] {
+  const currentLightness = colorLightness(base);
+  const target = Math.max(0, Math.min(1, targetLightness));
+  if (currentLightness < 0.0001 || currentLightness > 0.9999) return [target, target, target];
+  if (target < currentLightness) {
+    const ratio = target / currentLightness;
+    return [base[0] * ratio, base[1] * ratio, base[2] * ratio];
+  }
+  const ratio = (1 - target) / (1 - currentLightness);
+  return [1 - (1 - base[0]) * ratio, 1 - (1 - base[1]) * ratio, 1 - (1 - base[2]) * ratio];
+}
+
+function rgbToHsl([r, g, b]: [number, number, number]): [number, number, number] {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) * 0.5;
+  if (Math.abs(max - min) < 0.0001) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h / 6, s, l];
+}
+
+function hueToRgb(p: number, q: number, value: number): number {
+  let t = value;
+  if (t < 0) t += 1;
+  if (t > 1) t -= 1;
+  if (t < 1 / 6) return p + (q - p) * 6 * t;
+  if (t < 1 / 2) return q;
+  if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+  return p;
+}
+
+function hslToRgb([h, s, l]: [number, number, number]): [number, number, number] {
+  const hue = ((h % 1) + 1) % 1;
+  const sat = Math.max(0, Math.min(1, s));
+  const light = Math.max(0, Math.min(1, l));
+  if (sat < 0.0001) return [light, light, light];
+  const q = light < 0.5 ? light * (1 + sat) : light + sat - light * sat;
+  const p = 2 * light - q;
+  return [hueToRgb(p, q, hue + 1 / 3), hueToRgb(p, q, hue), hueToRgb(p, q, hue - 1 / 3)];
+}
+
+function gradientRampTone(
+  rgb: [number, number, number],
+  gradient: SvgGradientOptions,
+  rampT: number,
+): [number, number, number] {
+  const [h, s, l] = rgbToHsl(rgb);
+  if (s <= 0.0001) return rgb;
+  const t = Math.max(0, Math.min(1, rampT));
+  const hue = h + ((gradient.hueDriftDeg ?? 0) * t) / 360;
+  const satLift = Math.max(0, Math.min(1, gradient.saturationBoost ?? 0)) * Math.sin(t * Math.PI * 0.85);
+  return hslToRgb([hue, Math.max(0, Math.min(1, s * (1 + satLift))), l]);
+}
+
+function gradientPositionAt(gradient: SvgGradientOptions, x: number, y: number, width: number, height: number): number {
+  const nx = Math.max(0, Math.min(1, x / Math.max(1, width)));
+  const ny = Math.max(0, Math.min(1, y / Math.max(1, height)));
+  if (gradient.direction === "leftToRight") return nx;
+  if (gradient.direction === "rightToLeft") return 1 - nx;
+  if (gradient.direction === "bottomToTop") return 1 - ny;
+  return ny;
+}
+
+function gradientColorAt(
+  gradient: SvgGradientOptions,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): [number, number, number] {
+  const stopCount = Math.max(2, Math.min(4, Math.round(gradient.stopCount)));
+  const stops = gradient.stops.slice(0, stopCount).map(hexToRgb);
+  while (stops.length < stopCount) stops.push(stops[stops.length - 1] ?? [0, 0, 0]);
+  const t = gradientPositionAt(gradient, x, y, width, height);
+  const scaled = t * (stopCount - 1);
+  const index = Math.max(0, Math.min(stopCount - 2, Math.floor(scaled)));
+  const localT = scaled - index;
+  const a = stops[index] ?? [0, 0, 0];
+  const b = stops[index + 1] ?? a;
+  return [a[0] + (b[0] - a[0]) * localT, a[1] + (b[1] - a[1]) * localT, a[2] + (b[2] - a[2]) * localT];
+}
+
+function gradientAverageColor(gradient: SvgGradientOptions): [number, number, number] {
+  const stopCount = Math.max(2, Math.min(4, Math.round(gradient.stopCount)));
+  const stops = gradient.stops.slice(0, stopCount).map(hexToRgb);
+  while (stops.length < stopCount) stops.push(stops[stops.length - 1] ?? [0, 0, 0]);
+  return stops.reduce<[number, number, number]>(
+    (sum, stop) => [sum[0] + stop[0] / stopCount, sum[1] + stop[1] / stopCount, sum[2] + stop[2] / stopCount],
+    [0, 0, 0],
+  );
+}
+
+function gradientRampStripeHex(
+  gradient: SvgGradientOptions,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  stripeHex: string,
+  rampT: number,
+): string {
+  const gradientRgb = gradientRampTone(gradientColorAt(gradient, x, y, width, height), gradient, rampT);
+  const baseLightness = colorLightness(gradientAverageColor(gradient));
+  const lightnessLift = Math.max(0, colorLightness(hexToRgb(stripeHex)) - baseLightness);
+  const targetLightness = colorLightness(gradientRgb) + lightnessLift;
+  return rgbToHex(withLightness(gradientRgb, targetLightness));
 }
 
 function svgBlendStyle(blendMode: SvgBlendMode | undefined): string {
@@ -312,6 +447,7 @@ export function cellGridToSvg(
   const gapX = Math.max(0, opts.gapX ?? 0);
   const gapY = Math.max(0, opts.gapY ?? 0);
   const blendStyle = svgBlendStyle(blendMode);
+  const dynamicGradientRamp = !!gradient && !useCellColors;
   const resolvedAngleDeg = normalizeAngleDeg(angleDeg, orientation);
   const overlapRotation = rotationMode === "overlap";
   const resolvedOverlapAmount = overlapRotation ? Math.max(0, Math.min(4, overlapAmount)) : 1;
@@ -336,9 +472,13 @@ export function cellGridToSvg(
     return bandIndexForValue((values[rbIndex] ?? 0) / 255, engineStripes);
   };
 
+  const rampTForBand = (band: number): number =>
+    band < 1 ? 0 : sortedStripes.length <= 1 ? 1 : (band - 1) / (sortedStripes.length - 1);
+
   const pathsByBand = new Map<number, string[]>();
   const cellColorPaths: string[] = [];
   const clippedStripeElements: Array<{ depth: number; opacity: number; element: string }> = [];
+  const gradientRampPaths: string[] = [];
 
   if (arbitraryAngle) {
     const rad = (resolvedAngleDeg * Math.PI) / 180;
@@ -399,12 +539,22 @@ export function cellGridToSvg(
         const halfAxis = drawableAxisPx * 0.5 + halfNormal * resolvedOverlapAmount;
         const segment = rotatedStripePath(cx, cy, halfNormal, halfAxis, resolvedAngleDeg);
 
-        pathsByBand.set(band, pathsByBand.get(band) ?? []);
-        clippedStripeElements.push({
-          depth: value,
-          opacity,
-          element: `  <path class="${svgStripeClass(band)}" d="${segment}" />`,
-        });
+        if (dynamicGradientRamp && gradient) {
+          const hex = gradientRampStripeHex(gradient, cx, cy, width, height, stripe.hex, rampTForBand(band));
+          const style = [`fill:${p3SvgColor(hex)}`, blendStyle].filter(Boolean).join(";");
+          clippedStripeElements.push({
+            depth: value,
+            opacity,
+            element: `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segment}" />`,
+          });
+        } else {
+          pathsByBand.set(band, pathsByBand.get(band) ?? []);
+          clippedStripeElements.push({
+            depth: value,
+            opacity,
+            element: `  <path class="${svgStripeClass(band)}" d="${segment}" />`,
+          });
+        }
       }
     }
   } else {
@@ -504,6 +654,17 @@ export function cellGridToSvg(
           );
           continue;
         }
+        if (dynamicGradientRamp && gradient) {
+          const cx = x + rectW * 0.5;
+          const cy = y + rectH * 0.5;
+          const hex = gradientRampStripeHex(gradient, cx, cy, width, height, stripe.hex, rampTForBand(band));
+          const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));
+          const style = [`fill:${p3SvgColor(hex)}`, blendStyle].filter(Boolean).join(";");
+          gradientRampPaths.push(
+            `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segment}" />`,
+          );
+          continue;
+        }
         const list = pathsByBand.get(band) ?? [];
         list.push(segment);
         pathsByBand.set(band, list);
@@ -529,7 +690,7 @@ export function cellGridToSvg(
   });
   const gradientDefs = [
     backgroundGradient ? buildSvgGradientDef(backgroundGradient, "backgroundGradient") : "",
-    gradient ? buildSvgGradientDef(gradient, "stripeGradient") : "",
+    gradient && !dynamicGradientRamp ? buildSvgGradientDef(gradient, "stripeGradient") : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -583,7 +744,9 @@ export function cellGridToSvg(
     ? clippedStripeElements
     : clippedStripeElements.sort((a, b) => a.depth - b.depth || a.opacity - b.opacity);
   const clippedPathElements = orderedClippedStripeElements.map((item) => item.element).join("\n");
-  const stripeLayer = [pathElements, clippedPathElements, letterLayer.elements].filter(Boolean).join("\n");
+  const stripeLayer = [pathElements, gradientRampPaths.join("\n"), clippedPathElements, letterLayer.elements]
+    .filter(Boolean)
+    .join("\n");
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
