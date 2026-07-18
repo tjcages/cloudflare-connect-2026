@@ -86,22 +86,38 @@ export function StripesShader(props: StripesShaderProps) {
     if (sharedContext) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
+    let pointerInside = false;
     const onMove = (e: PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
-      engineRef.current?.setCursor(e.clientX - rect.left, e.clientY - rect.top);
+      const inside =
+        e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (inside) {
+        pointerInside = true;
+        engineRef.current?.setCursor(e.clientX - rect.left, e.clientY - rect.top);
+      } else if (pointerInside) {
+        pointerInside = false;
+        engineRef.current?.setCursor(null);
+      }
     };
-    const onLeave = () => engineRef.current?.setCursor(null);
+    const onLeave = () => {
+      if (!pointerInside) return;
+      pointerInside = false;
+      engineRef.current?.setCursor(null);
+    };
     const onDown = (e: PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
+      const inside =
+        e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (!inside) return;
       engineRef.current?.click(e.clientX - rect.left, e.clientY - rect.top);
     };
-    canvas.addEventListener("pointermove", onMove);
-    canvas.addEventListener("pointerleave", onLeave);
-    canvas.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerleave", onLeave);
+    window.addEventListener("pointerdown", onDown);
     return () => {
-      canvas.removeEventListener("pointermove", onMove);
-      canvas.removeEventListener("pointerleave", onLeave);
-      canvas.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("pointerdown", onDown);
     };
   }, [sharedContext]);
 

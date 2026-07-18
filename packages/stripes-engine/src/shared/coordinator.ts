@@ -264,15 +264,29 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     post({ type: "resize", id, cssWidth: size.cssWidth, cssHeight: size.cssHeight, dpr: readDpr() });
   });
 
+  let pointerInside = false;
   const onPointerMove = (e: PointerEvent) => {
     const rect = canvas.getBoundingClientRect();
-    post({ type: "cursor", id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    const inside =
+      e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    if (inside) {
+      pointerInside = true;
+      post({ type: "cursor", id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    } else if (pointerInside) {
+      pointerInside = false;
+      post({ type: "cursor", id, x: null });
+    }
   };
-  const onPointerLeave = () => {
+  const onDocumentLeave = () => {
+    if (!pointerInside) return;
+    pointerInside = false;
     post({ type: "cursor", id, x: null });
   };
   const onPointerDown = (e: PointerEvent) => {
     const rect = canvas.getBoundingClientRect();
+    const inside =
+      e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    if (!inside) return;
     post({ type: "click", id, x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
@@ -285,9 +299,9 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   intersectionObserver.observe(canvas);
   preloadObserver?.observe(canvas);
   resizeObserver.observe(canvas);
-  canvas.addEventListener("pointermove", onPointerMove);
-  canvas.addEventListener("pointerleave", onPointerLeave);
-  canvas.addEventListener("pointerdown", onPointerDown);
+  window.addEventListener("pointermove", onPointerMove);
+  document.addEventListener("pointerleave", onDocumentLeave);
+  window.addEventListener("pointerdown", onPointerDown);
 
   return {
     setConfig(config: Partial<EngineConfig>) {
@@ -306,9 +320,9 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
       intersectionObserver.disconnect();
       preloadObserver?.disconnect();
       resizeObserver.disconnect();
-      canvas.removeEventListener("pointermove", onPointerMove);
-      canvas.removeEventListener("pointerleave", onPointerLeave);
-      canvas.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerleave", onDocumentLeave);
+      window.removeEventListener("pointerdown", onPointerDown);
       instance.pump?.dispose();
       post({ type: "unregister", id });
       instances.delete(id);
