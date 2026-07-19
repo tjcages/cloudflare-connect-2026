@@ -1479,6 +1479,46 @@ export function useEngineControls(
             options: { Wave: "wave", Assembly: "assembly" } as const,
             label: "Type",
           },
+          revealAssemblyStyle: {
+            value: d.reveal.assembly.style,
+            options: {
+              Scatter: "scatter",
+              Streaks: "streaks",
+              Implosion: "implosion",
+              "Charge-up": "chargeup",
+              Shards: "shards",
+            } as const,
+            label: "Style",
+            render: (get) => get("Reveal.revealType") === "assembly",
+          },
+          revealMassCount: {
+            value: d.reveal.assembly.massCount,
+            min: 2,
+            max: 24,
+            step: 1,
+            label: "Mass count",
+            render: (get) =>
+              get("Reveal.revealType") === "assembly" &&
+              ["streaks", "implosion", "shards"].includes(get("Reveal.revealAssemblyStyle")),
+          },
+          revealOvershoot: {
+            value: d.reveal.assembly.overshoot,
+            min: 0,
+            max: 0.3,
+            step: 0.01,
+            label: "Overshoot",
+            render: (get) =>
+              get("Reveal.revealType") === "assembly" &&
+              ["streaks", "implosion", "shards"].includes(get("Reveal.revealAssemblyStyle")),
+          },
+          revealImpact: {
+            value: d.reveal.assembly.impact,
+            min: 0,
+            max: 1,
+            step: 0.05,
+            label: "Impact",
+            render: (get) => get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") !== "scatter",
+          },
           revealPosition: {
             value: d.reveal.wave.position,
             options: {
@@ -1525,7 +1565,7 @@ export function useEngineControls(
             max: 200,
             step: 1,
             label: "Slice size (px)",
-            render: (get) => get("Reveal.revealType") === "assembly",
+            render: (get) => get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") === "scatter",
           },
           revealSpeedMinMs: {
             value: d.reveal.assembly.speedMinMs,
@@ -1557,7 +1597,7 @@ export function useEngineControls(
             max: 300,
             step: 1,
             label: "Scatter (px)",
-            render: (get) => get("Reveal.revealType") === "assembly",
+            render: (get) => get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") === "scatter",
           },
           revealAngleJitterDeg: {
             value: d.reveal.assembly.angleJitterDeg,
@@ -1565,7 +1605,7 @@ export function useEngineControls(
             max: 90,
             step: 1,
             label: "Angle jitter (°)",
-            render: (get) => get("Reveal.revealType") === "assembly",
+            render: (get) => get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") === "scatter",
           },
           Replay: button(() => onReplay()),
         }),
@@ -2042,16 +2082,16 @@ export function useEngineControls(
         waviness: values.revealWaviness,
       },
       assembly: {
-        style: "scatter",
+        style: values.revealAssemblyStyle,
         sliceSizePx: values.revealSliceSizePx,
         scatterPx: values.revealScatterPx,
         angleJitterDeg: values.revealAngleJitterDeg,
         speedMinMs: values.revealSpeedMinMs,
         speedMaxMs: values.revealSpeedMaxMs,
         staggerMs: values.revealStaggerMs,
-        massCount: 8,
-        overshoot: 0.15,
-        impact: 0.6,
+        massCount: values.revealMassCount,
+        overshoot: values.revealOvershoot,
+        impact: values.revealImpact,
       },
     },
     sparkle: {
