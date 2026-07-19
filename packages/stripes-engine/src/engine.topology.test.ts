@@ -4,7 +4,13 @@ import type { EngineConfig } from "./config/types";
 
 function topologyKey(cfg: EngineConfig): string {
   const assemblyTopo = cfg.reveal.enabled && cfg.reveal.type === "assembly";
-  const assemblyKind = !assemblyTopo ? "none" : cfg.reveal.assembly.style === "scatter" ? "scatter" : "warp";
+  const assemblyKind = !assemblyTopo
+    ? "none"
+    : cfg.reveal.assembly.style === "scatter"
+      ? "scatter"
+      : cfg.reveal.assembly.style === "hadouken"
+        ? "hadouken"
+        : "warp";
   return `${cfg.stripesEnabled}:${cfg.reveal.enabled}:${assemblyTopo}:${assemblyKind}:${cfg.flames.enabled}`;
 }
 
@@ -74,7 +80,7 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(assembly, assembly)).toBe(false);
   });
 
-  it("switching assembly style scatter <-> warp triggers rebuild", () => {
+  it("switching assembly style scatter <-> turbulence triggers rebuild", () => {
     const scatter = normalizeEngineConfig({
       reveal: { enabled: true, type: "assembly", assembly: { style: "scatter" } },
     });
@@ -85,12 +91,21 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(warp, scatter)).toBe(true);
   });
 
-  it("warp param change does not trigger rebuild", () => {
+  it("switching warp <-> hadouken triggers rebuild", () => {
+    const warp = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly", assembly: { style: "glitch" } } });
+    const hadouken = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { style: "hadouken" } },
+    });
+    expect(needsRebuild(warp, hadouken)).toBe(true);
+    expect(needsRebuild(hadouken, warp)).toBe(true);
+  });
+
+  it("turbulence <-> glitch and param changes do not trigger rebuild", () => {
     const a = normalizeEngineConfig({
       reveal: { enabled: true, type: "assembly", assembly: { style: "turbulence", intensity: 0.5 } },
     });
     const b = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "turbulence", intensity: 1.5 } },
+      reveal: { enabled: true, type: "assembly", assembly: { style: "glitch", intensity: 2 } },
     });
     expect(needsRebuild(a, b)).toBe(false);
   });

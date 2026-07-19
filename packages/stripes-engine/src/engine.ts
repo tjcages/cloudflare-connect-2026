@@ -12,6 +12,7 @@ import { createDownsampleColorPass } from "./passes/downsampleColorPass";
 import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createEnergyWarpPass } from "./passes/energyWarpPass";
+import { createHadoukenPass } from "./passes/hadoukenPass";
 import { createBlurPass } from "./passes/blurPass";
 import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
 import { createStylizePass } from "./passes/stylizePass";
@@ -182,7 +183,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       ? "none"
       : config.reveal.assembly.style === "scatter"
         ? "scatter"
-        : "warp";
+        : config.reveal.assembly.style === "hadouken"
+          ? "hadouken"
+          : "warp";
   let lastAssemblyKind = assemblyPassKind();
   let lastFlamesEnabled = config.flames.enabled;
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
@@ -532,7 +535,38 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     let activeColorRT = "fieldColor";
     const revealFieldPasses: Pass[] = [];
 
-    if (assemblyTopology && config.reveal.assembly.style !== "scatter") {
+    if (assemblyTopology && config.reveal.assembly.style === "hadouken") {
+      const hadoukenPass = createHadoukenPass(gl, quad);
+      revealFieldPasses.push({
+        name: "hadoukenField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const { assembly } = config.reveal;
+          const durationMs = resolveRevealDurationMs(config.reveal);
+          const rawProgress = (clock.now() - revealStartMs) / durationMs;
+          const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
+          const speedMin = Math.max(0, assembly.speedMinMs);
+          const speedMax = Math.max(speedMin, assembly.speedMaxMs);
+          const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
+          const spread = assembly.staggerMs / dur;
+          const charge = Math.min(1, Math.max(0, (rawProgress - avgTotal) / Math.max(spread, 0.2)));
+          const sizePx = 6 * Math.max(0.05, assembly.intensity);
+          hadoukenPass.render(revealedRT, fieldRT.texture, {
+            progress: rawProgress,
+            spread,
+            flight: avgTotal,
+            charge,
+            count: assembly.particleCount,
+            sizeUv: [sizePx / Math.max(1, cssW), sizePx / Math.max(1, cssH)],
+            detail: assembly.detail,
+            glow: assembly.glow,
+            aspect: cssW / Math.max(1, cssH),
+          });
+        },
+        dispose: () => hadoukenPass.dispose(),
+      });
+    } else if (assemblyTopology && config.reveal.assembly.style !== "scatter") {
       const warpPass = createEnergyWarpPass(gl, quad);
       const WARP_MODES: Record<string, number> = {
         turbulence: 0,
