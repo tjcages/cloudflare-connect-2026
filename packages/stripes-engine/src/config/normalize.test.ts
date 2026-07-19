@@ -747,26 +747,27 @@ describe("renderMode + renderIntensity", () => {
     expect(normalizeEngineConfig({ renderIntensity: 0.4 }).renderIntensity).toBe(0.4);
   });
 });
-describe("assembly merge styles", () => {
-  it("defaults style to scatter and accepts valid styles", () => {
+describe("assembly particle style", () => {
+  it("defaults style to scatter and accepts particles", () => {
     expect(normalizeReveal({}).assembly.style).toBe("scatter");
-    expect(normalizeReveal({ assembly: { style: "streaks" } }).assembly.style).toBe("streaks");
-    expect(normalizeReveal({ assembly: { style: "chargeup" } }).assembly.style).toBe("chargeup");
+    expect(normalizeReveal({ assembly: { style: "particles" } }).assembly.style).toBe("particles");
   });
 
-  it("falls back to scatter on invalid style", () => {
+  it("falls back to scatter on invalid or legacy styles", () => {
     expect(normalizeReveal({ assembly: { style: "bogus" as never } }).assembly.style).toBe("scatter");
+    expect(normalizeReveal({ assembly: { style: "streaks" as never } }).assembly.style).toBe("scatter");
+    expect(normalizeReveal({ assembly: { style: "shards" as never } }).assembly.style).toBe("scatter");
   });
 
-  it("defaults and clamps massCount, overshoot, impact", () => {
+  it("defaults and clamps particleCount, particleSizePx, swirl", () => {
     const d = normalizeReveal({}).assembly;
-    expect(d.massCount).toBe(8);
-    expect(d.overshoot).toBe(0.15);
-    expect(d.impact).toBe(0.6);
-    const c = normalizeReveal({ assembly: { massCount: 99, overshoot: 5, impact: -1 } }).assembly;
-    expect(c.massCount).toBe(24);
-    expect(c.overshoot).toBe(0.3);
-    expect(c.impact).toBe(0);
-    expect(normalizeReveal({ assembly: { massCount: 1 } }).assembly.massCount).toBe(2);
+    expect(d.particleCount).toBe(9000);
+    expect(d.particleSizePx).toBe(5);
+    expect(d.swirl).toBe(0.5);
+    const c = normalizeReveal({ assembly: { particleCount: 99999, particleSizePx: 0, swirl: 2 } }).assembly;
+    expect(c.particleCount).toBe(20000);
+    expect(c.particleSizePx).toBe(1);
+    expect(c.swirl).toBe(1);
+    expect(normalizeReveal({ assembly: { particleCount: 10 } }).assembly.particleCount).toBe(500);
   });
 });

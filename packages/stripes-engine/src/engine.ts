@@ -541,16 +541,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const { assembly } = config.reveal;
-          const mode =
-            assembly.style === "streaks"
-              ? 0
-              : assembly.style === "implosion"
-                ? 1
-                : assembly.style === "chargeup"
-                  ? 2
-                  : 3;
+          const mode = 3;
           const baseBlurPx = assembly.blurPx ?? DEFAULT_REVEAL.assembly.blurPx ?? 0;
-          const blurPx = assembly.style === "chargeup" ? Math.max(baseBlurPx, 17.5) : baseBlurPx;
+          const blurPx = baseBlurPx;
           const blurStart = assembly.blurStart ?? DEFAULT_REVEAL.assembly.blurStart ?? 0;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
@@ -592,9 +585,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             spread,
             flight: avgTotal,
             moveEnd,
-            massCount: assembly.massCount,
-            overshoot: assembly.overshoot,
-            impact: assembly.impact,
+            massCount: 8,
+            overshoot: 0,
+            impact: 0,
             sigmaUv: [blurPx / Math.max(1, cssW), blurPx / Math.max(1, cssH)],
             blurStart,
             aspect: cssW / Math.max(1, cssH),

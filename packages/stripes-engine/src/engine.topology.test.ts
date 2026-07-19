@@ -74,24 +74,14 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(assembly, assembly)).toBe(false);
   });
 
-  it("switching assembly style scatter -> streaks triggers rebuild", () => {
+  it("switching assembly style scatter -> particles triggers rebuild", () => {
     const scatter = normalizeEngineConfig({
       reveal: { enabled: true, type: "assembly", assembly: { style: "scatter" } },
     });
-    const streaks = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "streaks" } },
+    const particles = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { style: "particles" } },
     });
-    expect(needsRebuild(scatter, streaks)).toBe(true);
-    expect(needsRebuild(streaks, scatter)).toBe(true);
-  });
-
-  it("switching among merge styles does not trigger rebuild", () => {
-    const streaks = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "streaks" } },
-    });
-    const shards = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "shards" } },
-    });
-    expect(needsRebuild(streaks, shards)).toBe(false);
+    expect(needsRebuild(scatter, particles)).toBe(true);
+    expect(needsRebuild(particles, scatter)).toBe(true);
   });
 });

@@ -11,7 +11,7 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type AssemblyStyle = "scatter" | "streaks" | "implosion" | "chargeup" | "shards";
+export type AssemblyStyle = "scatter" | "particles";
 
 export interface RevealConfig {
   enabled: boolean;
@@ -30,9 +30,9 @@ export interface RevealConfig {
     staggerMs: number;
     scatterPx: number;
     angleJitterDeg: number;
-    massCount: number;
-    overshoot: number;
-    impact: number;
+    particleCount: number;
+    particleSizePx: number;
+    swirl: number;
     blurPx?: number;
     blurStart?: number;
   };

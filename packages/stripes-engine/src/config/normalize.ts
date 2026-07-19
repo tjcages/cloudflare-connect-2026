@@ -235,7 +235,7 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-export const ASSEMBLY_STYLES: readonly AssemblyStyle[] = ["scatter", "streaks", "implosion", "chargeup", "shards"];
+export const ASSEMBLY_STYLES: readonly AssemblyStyle[] = ["scatter", "particles"];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",
@@ -248,9 +248,9 @@ export const DEFAULT_REVEAL: RevealConfig = {
     staggerMs: 6550,
     scatterPx: 90,
     angleJitterDeg: 35,
-    massCount: 8,
-    overshoot: 0.15,
-    impact: 0.6,
+    particleCount: 9000,
+    particleSizePx: 5,
+    swirl: 0.5,
     blurPx: 17.5,
     blurStart: 0.45,
   },
@@ -293,9 +293,9 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
       staggerMs: clamp(Math.round(num(a.staggerMs, DEFAULT_REVEAL.assembly.staggerMs)), 0, 30000),
       scatterPx: clamp(Math.round(num(a.scatterPx, DEFAULT_REVEAL.assembly.scatterPx)), 0, 300),
       angleJitterDeg: clamp(num(a.angleJitterDeg, DEFAULT_REVEAL.assembly.angleJitterDeg), 0, 90),
-      massCount: clamp(Math.round(num(a.massCount, DEFAULT_REVEAL.assembly.massCount)), 2, 24),
-      overshoot: clamp(num(a.overshoot, DEFAULT_REVEAL.assembly.overshoot), 0, 0.3),
-      impact: clamp(num(a.impact, DEFAULT_REVEAL.assembly.impact), 0, 1),
+      particleCount: clamp(Math.round(num(a.particleCount, DEFAULT_REVEAL.assembly.particleCount)), 500, 20000),
+      particleSizePx: clamp(num(a.particleSizePx, DEFAULT_REVEAL.assembly.particleSizePx), 1, 20),
+      swirl: clamp(num(a.swirl, DEFAULT_REVEAL.assembly.swirl), 0, 1),
       blurPx: clamp(num(a.blurPx, DEFAULT_REVEAL.assembly.blurPx ?? 17.5), 0, 50),
       blurStart: clamp(num(a.blurStart, DEFAULT_REVEAL.assembly.blurStart ?? 0.45), 0, 0.95),
     },

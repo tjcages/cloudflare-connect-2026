@@ -1483,41 +1483,37 @@ export function useEngineControls(
             value: d.reveal.assembly.style,
             options: {
               Scatter: "scatter",
-              Streaks: "streaks",
-              Implosion: "implosion",
-              "Charge-up": "chargeup",
-              Shards: "shards",
+              Particles: "particles",
             } as const,
             label: "Style",
             render: (get) => get("Reveal.revealType") === "assembly",
           },
-          revealMassCount: {
-            value: d.reveal.assembly.massCount,
-            min: 2,
-            max: 24,
-            step: 1,
-            label: "Mass count",
+          revealParticleCount: {
+            value: d.reveal.assembly.particleCount,
+            min: 500,
+            max: 20000,
+            step: 500,
+            label: "Particle count",
             render: (get) =>
-              get("Reveal.revealType") === "assembly" &&
-              ["streaks", "implosion", "shards"].includes(get("Reveal.revealAssemblyStyle")),
+              get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") === "particles",
           },
-          revealOvershoot: {
-            value: d.reveal.assembly.overshoot,
-            min: 0,
-            max: 0.3,
-            step: 0.01,
-            label: "Overshoot",
+          revealParticleSizePx: {
+            value: d.reveal.assembly.particleSizePx,
+            min: 1,
+            max: 20,
+            step: 0.5,
+            label: "Particle size (px)",
             render: (get) =>
-              get("Reveal.revealType") === "assembly" &&
-              ["streaks", "implosion", "shards"].includes(get("Reveal.revealAssemblyStyle")),
+              get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") === "particles",
           },
-          revealImpact: {
-            value: d.reveal.assembly.impact,
+          revealSwirl: {
+            value: d.reveal.assembly.swirl,
             min: 0,
             max: 1,
             step: 0.05,
-            label: "Impact",
-            render: (get) => get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") !== "scatter",
+            label: "Swirl",
+            render: (get) =>
+              get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") === "particles",
           },
           revealPosition: {
             value: d.reveal.wave.position,
@@ -2089,9 +2085,9 @@ export function useEngineControls(
         speedMinMs: values.revealSpeedMinMs,
         speedMaxMs: values.revealSpeedMaxMs,
         staggerMs: values.revealStaggerMs,
-        massCount: values.revealMassCount,
-        overshoot: values.revealOvershoot,
-        impact: values.revealImpact,
+        particleCount: values.revealParticleCount,
+        particleSizePx: values.revealParticleSizePx,
+        swirl: values.revealSwirl,
       },
     },
     sparkle: {
