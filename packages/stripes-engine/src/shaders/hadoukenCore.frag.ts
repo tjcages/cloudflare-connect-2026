@@ -7,6 +7,7 @@ uniform float uCharge;
 uniform float uDetail;
 uniform float uGlow;
 uniform float uAspect;
+uniform float uBurst;
 out vec4 finalColor;
 
 highp float vhash(vec2 q) {
@@ -30,7 +31,7 @@ highp float fbm2(vec2 q) {
 
 void main() {
   highp float p = max(uProgress, 0.0);
-  if (uCharge >= 1.0) {
+  if (uBurst >= 1.0) {
     finalColor = vec4(vec3(texture(uField, vUv).r), 1.0);
     return;
   }
@@ -38,21 +39,29 @@ void main() {
   highp float r = length(a);
   vec2 edir = r > 1e-5 ? a / r : vec2(1.0, 0.0);
   highp float maxR = length(vec2(uAspect, 1.0)) * 0.5;
-  highp float R = (maxR * 1.15 + 0.16) * pow(uCharge, 0.8);
-  highp float k = mix(1.0, 4.0, uDetail);
-  highp float edgeN = ((fbm2(edir * k + vec2(3.1, p * 1.5)) - 0.5) + 0.5 * (fbm2(edir * k * 2.3 + vec2(p * 2.6, 7.7)) - 0.5)) * 0.22;
-  highp float Rl = max(0.0, R * (1.0 + edgeN));
-  highp float done = smoothstep(0.85, 1.0, uCharge);
-  highp float mask = max(smoothstep(Rl, Rl - 0.12, r), done);
-  highp float rw = (r - Rl) * 9.0;
-  highp float ring = exp(-rw * rw) * uGlow * 1.2 * (1.0 - done) * step(0.001, uCharge);
-  highp float pulse = 1.0 + 0.06 * sin(p * 9.0 + uCharge * 5.0);
-  highp float coreSize = (0.045 + 0.11 * uCharge) * pulse;
-  highp float nuc = exp(-(r * r) / (coreSize * coreSize * 0.16));
-  highp float halo = exp(-(r * r) / (coreSize * coreSize));
-  highp float core = (nuc * 1.1 + halo * 0.45) * uGlow * (0.4 + 1.2 * uCharge) * (1.0 - done) * step(0.001, uCharge);
-  vec2 pullUv = r > 1e-4 ? (a / r) / vec2(uAspect, 1.0) : vec2(0.0);
-  highp float v = texture(uField, clamp(vUv + pullUv * exp(-rw * rw) * 0.02 * (1.0 - done), 0.0, 1.0)).r * mask;
-  finalColor = vec4(vec3(v + ring + core), 1.0);
+
+  highp float grow = smoothstep(0.0, 0.55, uCharge);
+  highp float comp = smoothstep(0.55, 1.0, uCharge);
+  highp float orbR = (0.035 + 0.11 * grow) * (1.0 - 0.55 * comp);
+  highp float orbN = fbm2(edir * 3.0 + vec2(p * 1.1, 5.3)) - 0.5;
+  highp float orbRl = max(orbR * (1.0 + orbN * 0.35) * (1.0 + 0.05 * sin(p * 11.0)), 1e-3);
+  highp float dens = 0.9 + 1.6 * comp;
+  highp float orb = (exp(-(r * r) / (orbRl * orbRl * 0.25)) * dens + exp(-(r * r) / (orbRl * orbRl * 2.5)) * 0.35) * uGlow * step(0.001, uCharge);
+  orb *= 1.0 - smoothstep(0.0, 0.3, uBurst);
+
+  highp float v = 0.0;
+  highp float ring = 0.0;
+  if (uBurst > 0.0) {
+    highp float be = 1.0 - pow(1.0 - uBurst, 3.0);
+    highp float Rb = orbR + be * (maxR + 0.28 - orbR);
+    highp float n1 = fbm2(edir * mix(4.0, 9.0, uDetail) + vec2(2.2, p * 0.7));
+    highp float ridge = 1.0 - abs(2.0 * n1 - 1.0);
+    highp float Rl = Rb * (1.0 + (ridge - 0.5) * 0.55 * (1.0 - be));
+    highp float mask = max(smoothstep(Rl, Rl - 0.1, r), smoothstep(0.97, 1.0, uBurst));
+    highp float rw = (r - Rl) * 8.0;
+    ring = exp(-rw * rw) * uGlow * 1.6 * (1.0 - be) + uGlow * 0.9 * exp(-uBurst * 5.0) * exp(-(r * r) * 2.0);
+    v = texture(uField, vUv).r * mask;
+  }
+  finalColor = vec4(vec3(v + orb + ring), 1.0);
 }
 `;

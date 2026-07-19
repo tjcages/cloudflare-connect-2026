@@ -10,6 +10,7 @@ export type HadoukenUniforms = {
   spread: number;
   flight: number;
   charge: number;
+  burst: number;
   count: number;
   sizeUv: [number, number];
   detail: number;
@@ -27,6 +28,7 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
     field: cu("uField"),
     progress: cu("uProgress"),
     charge: cu("uCharge"),
+    burst: cu("uBurst"),
     detail: cu("uDetail"),
     glow: cu("uGlow"),
     aspect: cu("uAspect"),
@@ -48,6 +50,7 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
       gl.uniform1i(C.field, 0);
       gl.uniform1f(C.progress, p.progress);
       gl.uniform1f(C.charge, p.charge);
+      gl.uniform1f(C.burst, p.burst);
       gl.uniform1f(C.detail, p.detail);
       gl.uniform1f(C.glow, p.glow);
       gl.uniform1f(C.aspect, p.aspect);
