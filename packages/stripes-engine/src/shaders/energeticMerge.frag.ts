@@ -18,7 +18,7 @@ uniform float uBlurStart;
 uniform float uAspect;
 out vec4 finalColor;
 
-const int MAX_MASSES = 32;
+const int MAX_MASSES = 36;
 
 highp float hash11(highp float n) {
   return fract(sin(n * 127.1 + 311.7) * 43758.5453123);
