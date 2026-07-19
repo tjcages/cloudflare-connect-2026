@@ -11,7 +11,7 @@ import { createDownsamplePass } from "./passes/downsamplePass";
 import { createDownsampleColorPass } from "./passes/downsampleColorPass";
 import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
-import { createParticleMergePass } from "./passes/particleMergePass";
+import { createEnergyWarpPass } from "./passes/energyWarpPass";
 import { createBlurPass } from "./passes/blurPass";
 import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
 import { createStylizePass } from "./passes/stylizePass";
@@ -533,9 +533,17 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     const revealFieldPasses: Pass[] = [];
 
     if (assemblyTopology && config.reveal.assembly.style !== "scatter") {
-      const particlePass = createParticleMergePass(gl, quad);
+      const warpPass = createEnergyWarpPass(gl, quad);
+      const WARP_MODES: Record<string, number> = {
+        turbulence: 0,
+        vortex: 1,
+        streams: 2,
+        pull: 3,
+        ripple: 4,
+        glitch: 5,
+      };
       revealFieldPasses.push({
-        name: "particleMergeField",
+        name: "energyWarpField",
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
@@ -547,22 +555,18 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
-          const moveEnd = Math.min(1, spread + avgTotal);
-          const settleT = Math.min(1, Math.max(0, (rawProgress - moveEnd) / 0.12));
-          const settle = settleT * settleT * (3 - 2 * settleT);
-          // TODO(task-3): particleMergeField is retired with the particle-style assembly branch;
-          // these are shimmed literals (previously assembly.particleCount/particleSizePx/swirl).
-          particlePass.render(revealedRT, fieldRT.texture, {
-            count: 9000,
+          warpPass.render(revealedRT, fieldRT.texture, {
+            mode: WARP_MODES[assembly.style] ?? 0,
             progress: rawProgress,
             spread,
             flight: avgTotal,
-            settle,
-            sizeUv: [5 / Math.max(1, cssW), 5 / Math.max(1, cssH)],
-            swirl: 0.5,
+            intensity: assembly.intensity,
+            detail: assembly.detail,
+            glow: assembly.glow,
+            aspect: cssW / Math.max(1, cssH),
           });
         },
-        dispose: () => particlePass.dispose(),
+        dispose: () => warpPass.dispose(),
       });
     } else if (assemblyTopology) {
       const scatterPass = createAssemblyScatterPass(gl);
