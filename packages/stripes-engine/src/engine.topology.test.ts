@@ -4,7 +4,7 @@ import type { EngineConfig } from "./config/types";
 
 function topologyKey(cfg: EngineConfig): string {
   const assemblyTopo = cfg.reveal.enabled && cfg.reveal.type === "assembly";
-  const assemblyKind = !assemblyTopo ? "none" : cfg.reveal.assembly.style === "scatter" ? "scatter" : "merge";
+  const assemblyKind = !assemblyTopo ? "none" : cfg.reveal.assembly.style === "scatter" ? "scatter" : "particles";
   return `${cfg.stripesEnabled}:${cfg.reveal.enabled}:${assemblyTopo}:${assemblyKind}:${cfg.flames.enabled}`;
 }
 
@@ -74,7 +74,7 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(assembly, assembly)).toBe(false);
   });
 
-  it("switching assembly style scatter -> particles triggers rebuild", () => {
+  it("switching assembly style scatter <-> particles triggers rebuild", () => {
     const scatter = normalizeEngineConfig({
       reveal: { enabled: true, type: "assembly", assembly: { style: "scatter" } },
     });
@@ -83,5 +83,15 @@ describe("setConfig topology gating", () => {
     });
     expect(needsRebuild(scatter, particles)).toBe(true);
     expect(needsRebuild(particles, scatter)).toBe(true);
+  });
+
+  it("particles param change does not trigger rebuild", () => {
+    const a = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { style: "particles", particleCount: 5000 } },
+    });
+    const b = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { style: "particles", particleCount: 12000 } },
+    });
+    expect(needsRebuild(a, b)).toBe(false);
   });
 });

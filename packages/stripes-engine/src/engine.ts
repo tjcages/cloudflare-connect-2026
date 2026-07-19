@@ -11,7 +11,7 @@ import { createDownsamplePass } from "./passes/downsamplePass";
 import { createDownsampleColorPass } from "./passes/downsampleColorPass";
 import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
-import { createEnergeticMergePass } from "./passes/energeticMergePass";
+import { createParticleMergePass } from "./passes/particleMergePass";
 import { createBlurPass } from "./passes/blurPass";
 import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
 import { createStylizePass } from "./passes/stylizePass";
@@ -182,7 +182,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       ? "none"
       : config.reveal.assembly.style === "scatter"
         ? "scatter"
-        : "merge";
+        : "particles";
   let lastAssemblyKind = assemblyPassKind();
   let lastFlamesEnabled = config.flames.enabled;
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
@@ -533,70 +533,36 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     const revealFieldPasses: Pass[] = [];
 
     if (assemblyTopology && config.reveal.assembly.style !== "scatter") {
-      const mergePass = createEnergeticMergePass(gl, quad);
-      const blurPass = createBlurPass(gl, quad);
+      const particlePass = createParticleMergePass(gl, quad);
       revealFieldPasses.push({
-        name: "energeticMergeField",
+        name: "particleMergeField",
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const { assembly } = config.reveal;
-          const mode = 3;
-          const baseBlurPx = assembly.blurPx ?? DEFAULT_REVEAL.assembly.blurPx ?? 0;
-          const blurPx = baseBlurPx;
-          const blurStart = assembly.blurStart ?? DEFAULT_REVEAL.assembly.blurStart ?? 0;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
-          const progress = Math.max(0, Math.min(1, rawProgress));
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
           const speedMin = Math.max(0, assembly.speedMinMs);
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
           const moveEnd = Math.min(1, spread + avgTotal);
-
-          let blurQuarterTex = fieldRT.texture;
-          let blurHalfTex = fieldRT.texture;
-          let blurFullTex = fieldRT.texture;
-          if (progress < moveEnd && blurPx > 0) {
-            const halfSize = {
-              width: Math.max(1, Math.round(fieldSize.width / 2)),
-              height: Math.max(1, Math.round(fieldSize.height / 2)),
-            };
-            const quarterRT = pool.get("assemblyBlurQuarter", halfSize.width, halfSize.height, { linear: true });
-            const halfRT = pool.get("assemblyBlurHalf", halfSize.width, halfSize.height, { linear: true });
-            const fullRT = pool.get("assemblyBlurFull", halfSize.width, halfSize.height, { linear: true });
-            const blurTempRT = pool.get("assemblyBlurTemp", halfSize.width, halfSize.height, { linear: true });
-            const sigmaPx = (blurPx * halfSize.width) / Math.max(1, cssW);
-            blurPass.copy(fieldRT.texture, quarterRT);
-            blurPass.render(quarterRT.texture, blurTempRT, quarterRT, (sigmaPx * 0.25) / 0.45, halfSize);
-            blurPass.render(quarterRT.texture, blurTempRT, halfRT, (sigmaPx * (Math.sqrt(3) / 4)) / 0.45, halfSize);
-            const fullStepRadius = (sigmaPx * (Math.sqrt(3) / 2 / Math.SQRT2)) / 0.45;
-            blurPass.render(halfRT.texture, blurTempRT, fullRT, fullStepRadius, halfSize);
-            blurPass.render(fullRT.texture, blurTempRT, fullRT, fullStepRadius, halfSize);
-            blurQuarterTex = quarterRT.texture;
-            blurHalfTex = halfRT.texture;
-            blurFullTex = fullRT.texture;
-          }
-
-          mergePass.render(revealedRT, fieldRT.texture, blurQuarterTex, blurHalfTex, blurFullTex, {
-            mode,
+          const settleEnd = Math.min(1, moveEnd + 0.12);
+          const settleRange = Math.max(1e-4, settleEnd - moveEnd);
+          const settleT = Math.min(1, Math.max(0, (rawProgress - moveEnd) / settleRange));
+          const settle = settleT * settleT * (3 - 2 * settleT);
+          particlePass.render(revealedRT, fieldRT.texture, {
+            count: assembly.particleCount,
             progress: rawProgress,
             spread,
             flight: avgTotal,
-            moveEnd,
-            massCount: 8,
-            overshoot: 0,
-            impact: 0,
-            sigmaUv: [blurPx / Math.max(1, cssW), blurPx / Math.max(1, cssH)],
-            blurStart,
-            aspect: cssW / Math.max(1, cssH),
+            settle,
+            sizeUv: [assembly.particleSizePx / Math.max(1, cssW), assembly.particleSizePx / Math.max(1, cssH)],
+            swirl: assembly.swirl,
           });
         },
-        dispose: () => {
-          mergePass.dispose();
-          blurPass.dispose();
-        },
+        dispose: () => particlePass.dispose(),
       });
     } else if (assemblyTopology) {
       const scatterPass = createAssemblyScatterPass(gl);
