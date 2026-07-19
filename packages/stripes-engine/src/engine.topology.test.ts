@@ -4,7 +4,8 @@ import type { EngineConfig } from "./config/types";
 
 function topologyKey(cfg: EngineConfig): string {
   const assemblyTopo = cfg.reveal.enabled && cfg.reveal.type === "assembly";
-  return `${cfg.stripesEnabled}:${cfg.reveal.enabled}:${assemblyTopo}:${cfg.flames.enabled}`;
+  const assemblyKind = !assemblyTopo ? "none" : cfg.reveal.assembly.style === "scatter" ? "scatter" : "merge";
+  return `${cfg.stripesEnabled}:${cfg.reveal.enabled}:${assemblyTopo}:${assemblyKind}:${cfg.flames.enabled}`;
 }
 
 function needsRebuild(prev: EngineConfig, next: EngineConfig): boolean {
@@ -71,5 +72,26 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(disabled, wave)).toBe(true);
     expect(needsRebuild(wave, assembly)).toBe(true);
     expect(needsRebuild(assembly, assembly)).toBe(false);
+  });
+
+  it("switching assembly style scatter -> streaks triggers rebuild", () => {
+    const scatter = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { style: "scatter" } },
+    });
+    const streaks = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { style: "streaks" } },
+    });
+    expect(needsRebuild(scatter, streaks)).toBe(true);
+    expect(needsRebuild(streaks, scatter)).toBe(true);
+  });
+
+  it("switching among merge styles does not trigger rebuild", () => {
+    const streaks = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { style: "streaks" } },
+    });
+    const shards = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { style: "shards" } },
+    });
+    expect(needsRebuild(streaks, shards)).toBe(false);
   });
 });
