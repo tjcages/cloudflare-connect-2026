@@ -45,6 +45,10 @@ void main() {
   highp float f = clamp((p - uSpread * n) / max(uFlight, 1e-4), 0.0, 1.0);
   highp float ease = 1.0 - pow(1.0 - f, 3.0);
   highp float decay = 1.0 - ease;
+  if (f >= 1.0) {
+    finalColor = vec4(vec3(texture(uField, vUv).r), 1.0);
+    return;
+  }
 
   vec2 D;
   highp float emerge;

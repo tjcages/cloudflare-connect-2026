@@ -30,6 +30,10 @@ highp float fbm2(vec2 q) {
 
 void main() {
   highp float p = max(uProgress, 0.0);
+  if (uCharge >= 1.0) {
+    finalColor = vec4(vec3(texture(uField, vUv).r), 1.0);
+    return;
+  }
   vec2 a = (vUv - 0.5) * vec2(uAspect, 1.0);
   highp float r = length(a);
   vec2 edir = r > 1e-5 ? a / r : vec2(1.0, 0.0);
