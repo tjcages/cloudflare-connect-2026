@@ -49,7 +49,7 @@ import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
 import { createRtPool, type RtPool } from "./pipeline/rtPool";
 import { runPipeline, type Pass } from "./pipeline/pipeline";
 import { DEFAULT_REVEAL, normalizeEngineConfig } from "./config/normalize";
-import type { EngineConfig } from "./config/types";
+import type { EngineConfig, RevealType } from "./config/types";
 import { createSourceTexture, type EngineSource, type SourceTexture } from "./source/sourceTexture";
 import { resolveSourceRect } from "./source/fit";
 import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
@@ -65,6 +65,12 @@ import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./r
 const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
 const CLICK_WAVE_MAX_PUSH_CELLS = 6;
 const STARS_SEED_XOR = 173516199;
+
+type WarpRevealType = "turbulence" | "glitch" | "burn" | "portal" | "lightning";
+const WARP_MODES: Record<WarpRevealType, number> = { turbulence: 0, glitch: 1, burn: 2, portal: 3, lightning: 4 };
+function isWarpRevealType(t: RevealType): t is WarpRevealType {
+  return t === "turbulence" || t === "glitch" || t === "burn" || t === "portal" || t === "lightning";
+}
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
 export type CellGridReadback = { cols: number; rows: number; values: Uint8Array; colors: Uint8Array | null };
@@ -177,16 +183,14 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
-  let lastRevealEnabled = config.reveal.enabled;
-  const assemblyPassKind = () =>
-    !config.reveal.enabled || config.reveal.type !== "assembly"
-      ? "none"
-      : config.reveal.assembly.style === "scatter"
-        ? "scatter"
-        : config.reveal.assembly.style === "hadouken"
-          ? "hadouken"
-          : "warp";
-  let lastAssemblyKind = assemblyPassKind();
+  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "hadouken" => {
+    if (!config.reveal.enabled) return "none";
+    if (config.reveal.type === "wave") return "wave";
+    if (config.reveal.type === "assembly") return "scatter";
+    if (config.reveal.type === "hadouken") return "hadouken";
+    return "warp";
+  };
+  let lastRevealKind = revealPassKind();
   let lastFlamesEnabled = config.flames.enabled;
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
   let lastRenderMode = config.renderMode;
@@ -530,19 +534,18 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     }
 
     const revealEnabled = config.reveal.enabled;
-    const assemblyTopology = revealEnabled && config.reveal.type === "assembly";
     let activeFieldRT = revealEnabled ? "revealedField" : "field";
     let activeColorRT = "fieldColor";
     const revealFieldPasses: Pass[] = [];
 
-    if (assemblyTopology && config.reveal.assembly.style === "hadouken") {
+    if (revealEnabled && config.reveal.type === "hadouken") {
       const hadoukenPass = createHadoukenPass(gl, quad);
       revealFieldPasses.push({
         name: "hadoukenField",
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
-          const assembly = config.reveal.assembly.hadouken;
+          const assembly = config.reveal.hadouken;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
@@ -569,19 +572,16 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => hadoukenPass.dispose(),
       });
-    } else if (assemblyTopology && config.reveal.assembly.style !== "scatter") {
+    } else if (revealEnabled && isWarpRevealType(config.reveal.type)) {
       const warpPass = createEnergyWarpPass(gl, quad);
-      const WARP_MODES: Record<string, number> = {
-        turbulence: 0,
-        glitch: 1,
-      };
       revealFieldPasses.push({
         name: "energyWarpField",
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
-          const style = config.reveal.assembly.style;
-          const assembly = style === "glitch" ? config.reveal.assembly.glitch : config.reveal.assembly.turbulence;
+          if (!isWarpRevealType(config.reveal.type)) return;
+          const type = config.reveal.type;
+          const assembly = config.reveal[type];
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
@@ -590,7 +590,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
           warpPass.render(revealedRT, fieldRT.texture, {
-            mode: WARP_MODES[style] ?? 0,
+            mode: WARP_MODES[type] ?? 0,
             progress: rawProgress,
             spread,
             flight: avgTotal,
@@ -601,7 +601,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => warpPass.dispose(),
       });
-    } else if (assemblyTopology) {
+    } else if (revealEnabled && config.reveal.type === "assembly") {
       const scatterPass = createAssemblyScatterPass(gl);
       const blurPass = createBlurPass(gl, quad);
       revealFieldPasses.push({
@@ -609,9 +609,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
-          const assembly = config.reveal.assembly.scatter;
-          const blurPx = assembly.blurPx ?? DEFAULT_REVEAL.assembly.scatter.blurPx ?? 0;
-          const blurStart = assembly.blurStart ?? DEFAULT_REVEAL.assembly.scatter.blurStart ?? 0;
+          const assembly = config.reveal.assembly;
+          const blurPx = assembly.blurPx ?? DEFAULT_REVEAL.assembly.blurPx ?? 0;
+          const blurStart = assembly.blurStart ?? DEFAULT_REVEAL.assembly.blurStart ?? 0;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
           const progress = Math.max(0, Math.min(1, rawProgress));
@@ -1136,8 +1136,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       if (config.colors.mode === "colors" && colorInputSig() !== lastColorInputSig) computeMaxColorDist();
       if (
         config.stripesEnabled !== lastStripesEnabled ||
-        config.reveal.enabled !== lastRevealEnabled ||
-        assemblyPassKind() !== lastAssemblyKind ||
+        revealPassKind() !== lastRevealKind ||
         config.flames.enabled !== lastFlamesEnabled ||
         config.edgeMask.enabled !== lastEdgeMaskEnabled ||
         config.renderMode !== lastRenderMode ||
@@ -1163,8 +1162,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         }
         buildPasses();
         lastStripesEnabled = config.stripesEnabled;
-        lastRevealEnabled = config.reveal.enabled;
-        lastAssemblyKind = assemblyPassKind();
+        lastRevealKind = revealPassKind();
         lastFlamesEnabled = config.flames.enabled;
         lastEdgeMaskEnabled = config.edgeMask.enabled;
         lastRenderMode = config.renderMode;

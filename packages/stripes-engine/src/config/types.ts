@@ -11,7 +11,7 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type AssemblyStyle = "scatter" | "turbulence" | "glitch" | "hadouken";
+export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken" | "burn" | "portal" | "lightning";
 
 export interface WarpStyleConfig {
   speedMinMs: number;
@@ -24,7 +24,7 @@ export interface WarpStyleConfig {
 
 export interface RevealConfig {
   enabled: boolean;
-  type: "wave" | "assembly";
+  type: RevealType;
   wave: {
     position: WavePosition;
     durationMs: number;
@@ -32,21 +32,21 @@ export interface RevealConfig {
     waviness: number;
   };
   assembly: {
-    style: AssemblyStyle;
-    scatter: {
-      sliceSizePx: number;
-      speedMinMs: number;
-      speedMaxMs: number;
-      staggerMs: number;
-      scatterPx: number;
-      angleJitterDeg: number;
-      blurPx?: number;
-      blurStart?: number;
-    };
-    turbulence: WarpStyleConfig;
-    glitch: WarpStyleConfig;
-    hadouken: WarpStyleConfig & { particleCount: number };
+    sliceSizePx: number;
+    speedMinMs: number;
+    speedMaxMs: number;
+    staggerMs: number;
+    scatterPx: number;
+    angleJitterDeg: number;
+    blurPx?: number;
+    blurStart?: number;
   };
+  turbulence: WarpStyleConfig;
+  glitch: WarpStyleConfig;
+  hadouken: WarpStyleConfig & { particleCount: number };
+  burn: WarpStyleConfig;
+  portal: WarpStyleConfig;
+  lightning: WarpStyleConfig;
 }
 
 export interface Stripe {

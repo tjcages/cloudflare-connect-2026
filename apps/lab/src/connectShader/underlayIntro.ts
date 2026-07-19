@@ -3,26 +3,26 @@ import { easeValue } from "../controls/easing";
 export const UNDERLAY_INTRO_FADE_MS = 4000;
 
 type WarpStyleLike = { staggerMs: number; speedMaxMs: number };
-type AssemblyStyleLike = "scatter" | "turbulence" | "glitch" | "hadouken";
+type RevealTypeLike = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken" | "burn" | "portal" | "lightning";
 
 type RevealLike = {
   enabled: boolean;
-  type: "wave" | "assembly";
+  type: RevealTypeLike;
   wave: { durationMs: number };
-  assembly: {
-    style: AssemblyStyleLike;
-    scatter: WarpStyleLike;
-    turbulence: WarpStyleLike;
-    glitch: WarpStyleLike;
-    hadouken: WarpStyleLike;
-  };
+  assembly: WarpStyleLike;
+  turbulence: WarpStyleLike;
+  glitch: WarpStyleLike;
+  hadouken: WarpStyleLike;
+  burn: WarpStyleLike;
+  portal: WarpStyleLike;
+  lightning: WarpStyleLike;
 };
 
 /** Match stripes-engine `resolveRevealDurationMs` — when progress reaches 1. */
 export function resolveUnderlayIntroDelayMs(reveal: RevealLike): number {
   if (!reveal.enabled) return 0;
-  if (reveal.type !== "assembly") return reveal.wave.durationMs;
-  const block = reveal.assembly[reveal.assembly.style];
+  if (reveal.type === "wave") return reveal.wave.durationMs;
+  const block = reveal.type === "assembly" ? reveal.assembly : reveal[reveal.type];
   return block.staggerMs + block.speedMaxMs;
 }
 

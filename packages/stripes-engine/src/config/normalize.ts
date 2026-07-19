@@ -21,7 +21,7 @@ import type {
   GradientDirection,
   MotionDirection,
   StripeBlendMode,
-  AssemblyStyle,
+  RevealType,
   WarpStyleConfig,
 } from "./types";
 
@@ -236,77 +236,85 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-export const ASSEMBLY_STYLES: readonly AssemblyStyle[] = ["scatter", "turbulence", "glitch", "hadouken"];
+export const REVEAL_TYPES: readonly RevealType[] = [
+  "wave",
+  "assembly",
+  "turbulence",
+  "glitch",
+  "hadouken",
+  "burn",
+  "portal",
+  "lightning",
+];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",
   wave: { position: "center", durationMs: 1200, softness: 0.22, waviness: 0.11 },
   assembly: {
-    style: "scatter",
-    scatter: {
-      sliceSizePx: 29,
-      speedMinMs: 300,
-      speedMaxMs: 1600,
-      staggerMs: 6550,
-      scatterPx: 90,
-      angleJitterDeg: 35,
-      blurPx: 17.5,
-      blurStart: 0.45,
-    },
-    turbulence: { speedMinMs: 400, speedMaxMs: 1800, staggerMs: 800, intensity: 1, detail: 0.5, glow: 0.6 },
-    glitch: { speedMinMs: 80, speedMaxMs: 350, staggerMs: 220, intensity: 1, detail: 0.5, glow: 0.7 },
-    hadouken: {
-      speedMinMs: 500,
-      speedMaxMs: 1800,
-      staggerMs: 1400,
-      intensity: 1,
-      detail: 0.5,
-      glow: 0.7,
-      particleCount: 4000,
-    },
+    sliceSizePx: 29,
+    speedMinMs: 300,
+    speedMaxMs: 1600,
+    staggerMs: 6550,
+    scatterPx: 90,
+    angleJitterDeg: 35,
+    blurPx: 17.5,
+    blurStart: 0.45,
   },
+  turbulence: { speedMinMs: 400, speedMaxMs: 1800, staggerMs: 800, intensity: 1, detail: 0.5, glow: 0.6 },
+  glitch: { speedMinMs: 80, speedMaxMs: 350, staggerMs: 220, intensity: 1, detail: 0.5, glow: 0.7 },
+  hadouken: {
+    speedMinMs: 500,
+    speedMaxMs: 1800,
+    staggerMs: 1400,
+    intensity: 1,
+    detail: 0.5,
+    glow: 0.7,
+    particleCount: 4000,
+  },
+  burn: { speedMinMs: 500, speedMaxMs: 2000, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.7 },
+  portal: { speedMinMs: 400, speedMaxMs: 1600, staggerMs: 300, intensity: 1, detail: 0.5, glow: 0.7 },
+  lightning: { speedMinMs: 300, speedMaxMs: 2400, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.8 },
+};
+
+/** @deprecated legacy-config shim — R5/R6 nested assembly.style + assembly.{scatter,turbulence,glitch,hadouken} */
+type LegacyAssemblyBlock = Partial<RevealConfig["assembly"]> & {
+  style?: unknown;
+  scatter?: Partial<RevealConfig["assembly"]>;
+  turbulence?: Partial<WarpStyleConfig>;
+  glitch?: Partial<WarpStyleConfig>;
+  hadouken?: Partial<RevealConfig["hadouken"]>;
 };
 
 type PartialReveal = {
   enabled?: unknown;
   type?: unknown;
   wave?: Partial<RevealConfig["wave"]>;
-  assembly?: {
-    style?: unknown;
-    scatter?: Partial<RevealConfig["assembly"]["scatter"]>;
-    turbulence?: Partial<WarpStyleConfig>;
-    glitch?: Partial<WarpStyleConfig>;
-    hadouken?: Partial<RevealConfig["assembly"]["hadouken"]>;
-  };
+  assembly?: LegacyAssemblyBlock;
+  turbulence?: Partial<WarpStyleConfig>;
+  glitch?: Partial<WarpStyleConfig>;
+  hadouken?: Partial<RevealConfig["hadouken"]>;
+  burn?: Partial<WarpStyleConfig>;
+  portal?: Partial<WarpStyleConfig>;
+  lightning?: Partial<WarpStyleConfig>;
 };
 
-function normalizeScatterBlock(a: NonNullable<PartialReveal["assembly"]>): RevealConfig["assembly"]["scatter"] {
+function normalizeAssemblyBlock(a: LegacyAssemblyBlock): RevealConfig["assembly"] {
   const s = a.scatter ?? {};
-  const legacy = a as Partial<{
-    sliceSizePx: unknown;
-    speedMinMs: unknown;
-    speedMaxMs: unknown;
-    staggerMs: unknown;
-    scatterPx: unknown;
-    angleJitterDeg: unknown;
-    blurPx: unknown;
-    blurStart: unknown;
-  }>;
-  const d = DEFAULT_REVEAL.assembly.scatter;
-  const speedMinMs = clamp(Math.round(num(s.speedMinMs ?? legacy.speedMinMs, d.speedMinMs)), 100, 30000);
+  const d = DEFAULT_REVEAL.assembly;
+  const speedMinMs = clamp(Math.round(num(s.speedMinMs ?? a.speedMinMs, d.speedMinMs)), 100, 30000);
   const speedMaxMs = Math.max(
     speedMinMs,
-    clamp(Math.round(num(s.speedMaxMs ?? legacy.speedMaxMs, d.speedMaxMs)), 100, 30000),
+    clamp(Math.round(num(s.speedMaxMs ?? a.speedMaxMs, d.speedMaxMs)), 100, 30000),
   );
   return {
-    sliceSizePx: clamp(Math.round(num(s.sliceSizePx ?? legacy.sliceSizePx, d.sliceSizePx)), 8, 200),
+    sliceSizePx: clamp(Math.round(num(s.sliceSizePx ?? a.sliceSizePx, d.sliceSizePx)), 8, 200),
     speedMinMs,
     speedMaxMs,
-    staggerMs: clamp(Math.round(num(s.staggerMs ?? legacy.staggerMs, d.staggerMs)), 0, 30000),
-    scatterPx: clamp(Math.round(num(s.scatterPx ?? legacy.scatterPx, d.scatterPx)), 0, 300),
-    angleJitterDeg: clamp(num(s.angleJitterDeg ?? legacy.angleJitterDeg, d.angleJitterDeg), 0, 90),
-    blurPx: clamp(num(s.blurPx ?? legacy.blurPx, d.blurPx ?? 17.5), 0, 50),
-    blurStart: clamp(num(s.blurStart ?? legacy.blurStart, d.blurStart ?? 0.45), 0, 0.95),
+    staggerMs: clamp(Math.round(num(s.staggerMs ?? a.staggerMs, d.staggerMs)), 0, 30000),
+    scatterPx: clamp(Math.round(num(s.scatterPx ?? a.scatterPx, d.scatterPx)), 0, 300),
+    angleJitterDeg: clamp(num(s.angleJitterDeg ?? a.angleJitterDeg, d.angleJitterDeg), 0, 90),
+    blurPx: clamp(num(s.blurPx ?? a.blurPx, d.blurPx ?? 17.5), 0, 50),
+    blurStart: clamp(num(s.blurStart ?? a.blurStart, d.blurStart ?? 0.45), 0, 0.95),
   };
 }
 
@@ -323,10 +331,8 @@ function normalizeWarpStyleBlock(i: Partial<WarpStyleConfig> = {}, d: WarpStyleC
   };
 }
 
-function normalizeHadoukenBlock(
-  i: Partial<RevealConfig["assembly"]["hadouken"]> = {},
-): RevealConfig["assembly"]["hadouken"] {
-  const d = DEFAULT_REVEAL.assembly.hadouken;
+function normalizeHadoukenBlock(i: Partial<RevealConfig["hadouken"]> = {}): RevealConfig["hadouken"] {
+  const d = DEFAULT_REVEAL.hadouken;
   return {
     ...normalizeWarpStyleBlock(i, d),
     particleCount: clamp(Math.round(num(i.particleCount, d.particleCount)), 500, 20000),
@@ -339,24 +345,30 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
   const position = WAVE_POSITIONS.includes(w.position as WavePosition)
     ? (w.position as WavePosition)
     : DEFAULT_REVEAL.wave.position;
+
+  let type: unknown = i.type;
+  const legacyStyle = a.style;
+  if (type === "assembly" && (legacyStyle === "turbulence" || legacyStyle === "glitch" || legacyStyle === "hadouken")) {
+    type = legacyStyle;
+  }
+  const resolvedType = REVEAL_TYPES.includes(type as RevealType) ? (type as RevealType) : DEFAULT_REVEAL.type;
+
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_REVEAL.enabled,
-    type: i.type === "assembly" || i.type === "wave" ? i.type : DEFAULT_REVEAL.type,
+    type: resolvedType,
     wave: {
       position,
       durationMs: clamp(Math.round(num(w.durationMs, DEFAULT_REVEAL.wave.durationMs)), 100, 30000),
       softness: clamp(num(w.softness, DEFAULT_REVEAL.wave.softness), 0, 1),
       waviness: clamp(num(w.waviness, DEFAULT_REVEAL.wave.waviness), 0, 1),
     },
-    assembly: {
-      style: ASSEMBLY_STYLES.includes(a.style as AssemblyStyle)
-        ? (a.style as AssemblyStyle)
-        : DEFAULT_REVEAL.assembly.style,
-      scatter: normalizeScatterBlock(a),
-      turbulence: normalizeWarpStyleBlock(a.turbulence, DEFAULT_REVEAL.assembly.turbulence),
-      glitch: normalizeWarpStyleBlock(a.glitch, DEFAULT_REVEAL.assembly.glitch),
-      hadouken: normalizeHadoukenBlock(a.hadouken),
-    },
+    assembly: normalizeAssemblyBlock(a),
+    turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
+    glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
+    hadouken: normalizeHadoukenBlock(i.hadouken ?? a.hadouken),
+    burn: normalizeWarpStyleBlock(i.burn, DEFAULT_REVEAL.burn),
+    portal: normalizeWarpStyleBlock(i.portal, DEFAULT_REVEAL.portal),
+    lightning: normalizeWarpStyleBlock(i.lightning, DEFAULT_REVEAL.lightning),
   };
 }
 
@@ -732,13 +744,13 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   reveal: {
     ...DEFAULT_REVEAL,
     wave: { ...DEFAULT_REVEAL.wave },
-    assembly: {
-      ...DEFAULT_REVEAL.assembly,
-      scatter: { ...DEFAULT_REVEAL.assembly.scatter },
-      turbulence: { ...DEFAULT_REVEAL.assembly.turbulence },
-      glitch: { ...DEFAULT_REVEAL.assembly.glitch },
-      hadouken: { ...DEFAULT_REVEAL.assembly.hadouken },
-    },
+    assembly: { ...DEFAULT_REVEAL.assembly },
+    turbulence: { ...DEFAULT_REVEAL.turbulence },
+    glitch: { ...DEFAULT_REVEAL.glitch },
+    hadouken: { ...DEFAULT_REVEAL.hadouken },
+    burn: { ...DEFAULT_REVEAL.burn },
+    portal: { ...DEFAULT_REVEAL.portal },
+    lightning: { ...DEFAULT_REVEAL.lightning },
   },
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },

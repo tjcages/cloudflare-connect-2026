@@ -72,26 +72,31 @@ describe("resolveRevealDurationMs", () => {
     const r = { ...DEFAULT_REVEAL, type: "wave" as const };
     expect(resolveRevealDurationMs(r)).toBe(r.wave.durationMs);
   });
-  it("returns staggerMs + speedMaxMs of the active style block for assembly type", () => {
+  it("returns staggerMs + speedMaxMs of the assembly block for assembly type", () => {
     const r = { ...DEFAULT_REVEAL, type: "assembly" as const };
-    expect(resolveRevealDurationMs(r)).toBe(r.assembly.scatter.staggerMs + r.assembly.scatter.speedMaxMs);
+    expect(resolveRevealDurationMs(r)).toBe(r.assembly.staggerMs + r.assembly.speedMaxMs);
   });
   it("custom assembly durations", () => {
     const r = {
       ...DEFAULT_REVEAL,
       type: "assembly" as const,
-      assembly: {
-        ...DEFAULT_REVEAL.assembly,
-        scatter: { ...DEFAULT_REVEAL.assembly.scatter, staggerMs: 500, speedMaxMs: 1000 },
-      },
+      assembly: { ...DEFAULT_REVEAL.assembly, staggerMs: 500, speedMaxMs: 1000 },
     };
     expect(resolveRevealDurationMs(r)).toBe(1500);
   });
-  it("assembly duration follows the active style block", () => {
-    const base = normalizeReveal({ enabled: true, type: "assembly", assembly: { style: "glitch" } });
-    expect(resolveRevealDurationMs(base)).toBe(220 + 350);
-    const turb = normalizeReveal({ enabled: true, type: "assembly", assembly: { style: "turbulence" } });
+  it("duration follows the active type's own block for each energy type", () => {
+    const glitch = normalizeReveal({ enabled: true, type: "glitch" });
+    expect(resolveRevealDurationMs(glitch)).toBe(220 + 350);
+    const turb = normalizeReveal({ enabled: true, type: "turbulence" });
     expect(resolveRevealDurationMs(turb)).toBe(800 + 1800);
+    const hadouken = normalizeReveal({ enabled: true, type: "hadouken" });
+    expect(resolveRevealDurationMs(hadouken)).toBe(1400 + 1800);
+    const burn = normalizeReveal({ enabled: true, type: "burn" });
+    expect(resolveRevealDurationMs(burn)).toBe(1200 + 2000);
+    const portal = normalizeReveal({ enabled: true, type: "portal" });
+    expect(resolveRevealDurationMs(portal)).toBe(300 + 1600);
+    const lightning = normalizeReveal({ enabled: true, type: "lightning" });
+    expect(resolveRevealDurationMs(lightning)).toBe(0 + 2400);
   });
 });
 

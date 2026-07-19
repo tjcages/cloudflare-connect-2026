@@ -1,11 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { UNDERLAY_INTRO_FADE_MS, createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./underlayIntro";
 
-const ASSEMBLY_ALL_STYLES = {
-  scatter: { staggerMs: 900, speedMaxMs: 1600 },
+const ALL_REVEAL_BLOCKS = {
+  assembly: { staggerMs: 900, speedMaxMs: 1600 },
   turbulence: { staggerMs: 800, speedMaxMs: 1800 },
   glitch: { staggerMs: 220, speedMaxMs: 350 },
   hadouken: { staggerMs: 1400, speedMaxMs: 1800 },
+  burn: { staggerMs: 1200, speedMaxMs: 2000 },
+  portal: { staggerMs: 300, speedMaxMs: 1600 },
+  lightning: { staggerMs: 0, speedMaxMs: 2400 },
 };
 
 describe("resolveUnderlayIntroDelayMs", () => {
@@ -15,7 +18,7 @@ describe("resolveUnderlayIntroDelayMs", () => {
         enabled: false,
         type: "wave",
         wave: { durationMs: 1200 },
-        assembly: { style: "scatter", ...ASSEMBLY_ALL_STYLES },
+        ...ALL_REVEAL_BLOCKS,
       }),
     ).toBe(0);
   });
@@ -26,28 +29,47 @@ describe("resolveUnderlayIntroDelayMs", () => {
         enabled: true,
         type: "wave",
         wave: { durationMs: 1200 },
-        assembly: { style: "scatter", ...ASSEMBLY_ALL_STYLES },
+        ...ALL_REVEAL_BLOCKS,
       }),
     ).toBe(1200);
   });
 
-  it("uses the active style block's stagger + speedMax for assembly reveals", () => {
+  it("uses the assembly block's stagger + speedMax for assembly reveals", () => {
     expect(
       resolveUnderlayIntroDelayMs({
         enabled: true,
         type: "assembly",
         wave: { durationMs: 1200 },
-        assembly: { style: "scatter", ...ASSEMBLY_ALL_STYLES },
+        ...ALL_REVEAL_BLOCKS,
       }),
     ).toBe(2500);
+  });
+
+  it("uses the active type's own block's stagger + speedMax for energy reveals", () => {
     expect(
       resolveUnderlayIntroDelayMs({
         enabled: true,
-        type: "assembly",
+        type: "glitch",
         wave: { durationMs: 1200 },
-        assembly: { style: "glitch", ...ASSEMBLY_ALL_STYLES },
+        ...ALL_REVEAL_BLOCKS,
       }),
     ).toBe(570);
+    expect(
+      resolveUnderlayIntroDelayMs({
+        enabled: true,
+        type: "lightning",
+        wave: { durationMs: 1200 },
+        ...ALL_REVEAL_BLOCKS,
+      }),
+    ).toBe(2400);
+    expect(
+      resolveUnderlayIntroDelayMs({
+        enabled: true,
+        type: "burn",
+        wave: { durationMs: 1200 },
+        ...ALL_REVEAL_BLOCKS,
+      }),
+    ).toBe(3200);
   });
 });
 

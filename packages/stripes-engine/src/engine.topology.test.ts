@@ -3,15 +3,16 @@ import { normalizeEngineConfig } from "./config/normalize";
 import type { EngineConfig } from "./config/types";
 
 function topologyKey(cfg: EngineConfig): string {
-  const assemblyTopo = cfg.reveal.enabled && cfg.reveal.type === "assembly";
-  const assemblyKind = !assemblyTopo
+  const revealKind = !cfg.reveal.enabled
     ? "none"
-    : cfg.reveal.assembly.style === "scatter"
-      ? "scatter"
-      : cfg.reveal.assembly.style === "hadouken"
-        ? "hadouken"
-        : "warp";
-  return `${cfg.stripesEnabled}:${cfg.reveal.enabled}:${assemblyTopo}:${assemblyKind}:${cfg.flames.enabled}`;
+    : cfg.reveal.type === "wave"
+      ? "wave"
+      : cfg.reveal.type === "assembly"
+        ? "scatter"
+        : cfg.reveal.type === "hadouken"
+          ? "hadouken"
+          : "warp";
+  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}`;
 }
 
 function needsRebuild(prev: EngineConfig, next: EngineConfig): boolean {
@@ -68,7 +69,7 @@ describe("setConfig topology gating", () => {
   it("same topology repeated does not trigger rebuild", () => {
     const a = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
     const b = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { scatter: { staggerMs: 1234 } } },
+      reveal: { enabled: true, type: "assembly", assembly: { staggerMs: 1234 } },
     });
     expect(needsRebuild(a, b)).toBe(false);
   });
@@ -82,32 +83,40 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(assembly, assembly)).toBe(false);
   });
 
-  it("switching assembly style scatter <-> turbulence triggers rebuild", () => {
-    const scatter = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "scatter" } },
-    });
-    const warp = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "turbulence" } },
-    });
-    expect(needsRebuild(scatter, warp)).toBe(true);
-    expect(needsRebuild(warp, scatter)).toBe(true);
+  it("switching wave <-> turbulence triggers rebuild", () => {
+    const wave = normalizeEngineConfig({ reveal: { enabled: true, type: "wave" } });
+    const turbulence = normalizeEngineConfig({ reveal: { enabled: true, type: "turbulence" } });
+    expect(needsRebuild(wave, turbulence)).toBe(true);
+    expect(needsRebuild(turbulence, wave)).toBe(true);
   });
 
-  it("switching warp <-> hadouken triggers rebuild", () => {
-    const warp = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly", assembly: { style: "glitch" } } });
-    const hadouken = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "hadouken" } },
-    });
-    expect(needsRebuild(warp, hadouken)).toBe(true);
-    expect(needsRebuild(hadouken, warp)).toBe(true);
+  it("switching assembly <-> burn triggers rebuild", () => {
+    const assembly = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
+    const burn = normalizeEngineConfig({ reveal: { enabled: true, type: "burn" } });
+    expect(needsRebuild(assembly, burn)).toBe(true);
+    expect(needsRebuild(burn, assembly)).toBe(true);
+  });
+
+  it("switching turbulence <-> lightning does NOT trigger rebuild (both share the warp kind)", () => {
+    const turbulence = normalizeEngineConfig({ reveal: { enabled: true, type: "turbulence" } });
+    const lightning = normalizeEngineConfig({ reveal: { enabled: true, type: "lightning" } });
+    expect(needsRebuild(turbulence, lightning)).toBe(false);
+    expect(needsRebuild(lightning, turbulence)).toBe(false);
+  });
+
+  it("switching hadouken <-> portal triggers rebuild", () => {
+    const hadouken = normalizeEngineConfig({ reveal: { enabled: true, type: "hadouken" } });
+    const portal = normalizeEngineConfig({ reveal: { enabled: true, type: "portal" } });
+    expect(needsRebuild(hadouken, portal)).toBe(true);
+    expect(needsRebuild(portal, hadouken)).toBe(true);
   });
 
   it("turbulence <-> glitch and param changes do not trigger rebuild", () => {
     const a = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "turbulence", turbulence: { intensity: 0.5 } } },
+      reveal: { enabled: true, type: "turbulence", turbulence: { intensity: 0.5 } },
     });
     const b = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "glitch", glitch: { intensity: 2 } } },
+      reveal: { enabled: true, type: "glitch", glitch: { intensity: 2 } },
     });
     expect(needsRebuild(a, b)).toBe(false);
   });

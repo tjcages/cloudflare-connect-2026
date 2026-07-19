@@ -51,9 +51,8 @@ export function assemblyOrderNorm(col: number, row: number, cols: number, rows: 
 }
 
 export function resolveRevealDurationMs(r: RevealConfig): number {
-  if (r.type !== "assembly") return r.wave.durationMs;
-  const s = r.assembly.style;
-  const block = s === "scatter" ? r.assembly.scatter : r.assembly[s];
+  if (r.type === "wave") return r.wave.durationMs;
+  const block = r.type === "assembly" ? r.assembly : r[r.type];
   return block.staggerMs + block.speedMaxMs;
 }
 
@@ -97,7 +96,7 @@ export function assemblyRevealAt(
   cols: number,
   rows: number,
   progress: number,
-  assembly: RevealConfig["assembly"]["scatter"],
+  assembly: RevealConfig["assembly"],
   bandRamp: number,
 ): number {
   const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
