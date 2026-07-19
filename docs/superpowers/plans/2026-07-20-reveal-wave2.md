@@ -159,7 +159,9 @@ void main() {
       } else {
         highp float tp = (f - th) / max(1.0 - th, 1e-4);
         highp float pe = 1.0 - pow(1.0 - tp, 3.0);
-        highp float en = (fbm2(normalize(vUv - tgt + vec2(1e-4)) * 2.5 + fk * 3.7 + vec2(0.0, p * 1.1)) - 0.5) * 0.3;
+        vec2 rd = vUv - tgt;
+        rd = dot(rd, rd) > 1e-8 ? rd * inversesqrt(dot(rd, rd)) : vec2(1.0, 0.0);
+        highp float en = (fbm2(rd * 2.5 + fk * 3.7 + vec2(0.0, p * 1.1)) - 0.5) * 0.3;
         highp float Rk = 1.6 * pe * (1.0 + en);
         highp float dd = distance(vUv, tgt);
         mask = max(mask, smoothstep(Rk, Rk - 0.09, dd));
@@ -174,9 +176,9 @@ void main() {
   if (uMode == 4) {
     highp float sweep = smoothstep(0.25, 0.9, f);
     highp float se = 1.0 - pow(1.0 - sweep, 3.0);
-    highp float bx = mix(0.06, 1.02, se);
+    highp float bx = mix(0.06, 1.07, se);
     highp float damp = 1.0 - smoothstep(0.85, 1.0, f);
-    highp float behind = smoothstep(bx, bx - 0.05, vUv.x) * smoothstep(0.25, 0.32, f);
+    highp float behind = max(smoothstep(bx, bx - 0.05, vUv.x), smoothstep(0.9, 0.97, f)) * smoothstep(0.25, 0.32, f);
     highp float wake = exp(-max(bx - vUv.x, 0.0) * 9.0) * behind * damp;
     vec2 disp = (vec2(fbm2(vUv * 9.0 + vec2(p * 2.4, 3.1)), fbm2(vUv * 9.0 + vec2(17.9, -p * 1.9))) - 0.5) * 0.12 * uIntensity * wake;
     highp float acc = 0.0;
@@ -186,7 +188,7 @@ void main() {
     }
     highp float v = acc * 0.2 * behind * (1.0 + uGlow * 0.8 * wake);
     highp float db = abs(vUv.x - bx);
-    highp float beamAmp = damp * (f < 0.25 ? 0.55 + 0.25 * sin(p * 14.0) : 1.0);
+    highp float beamAmp = damp * mix(0.55 + 0.25 * sin(p * 14.0), 1.0, smoothstep(0.22, 0.27, f)) * smoothstep(0.0, 0.04, f);
     highp float beamG = (exp(-db * db * 2400.0) * 1.3 + exp(-db * db * 180.0) * 0.5) * uGlow * beamAmp;
     finalColor = vec4(vec3(v + beamG), 1.0);
     return;
