@@ -84,17 +84,17 @@ void main() {
     highp float rows = mix(18.0, 70.0, uDetail);
     highp float row = floor(vUv.y * rows);
     highp float stp = floor(p * 38.0);
-    highp float active = step(0.55, vhash(vec2(row * 0.53 + stp * 1.71, 6.1)));
+    highp float rowOn = step(0.55, vhash(vec2(row * 0.53 + stp * 1.71, 6.1)));
     highp float h = vhash(vec2(row * 0.37 + stp * 1.13, 4.2));
     highp float spike = 1.0 + step(0.92, vhash(vec2(row * 0.29 + stp * 0.97, 9.4))) * 2.2;
-    vec2 disp = vec2((h - 0.5) * 0.35 * spike, (vhash(vec2(row * 0.71 + stp * 1.31, 2.6)) - 0.5) * 0.06) * active * uIntensity * decay;
+    vec2 disp = vec2((h - 0.5) * 0.35 * spike, (vhash(vec2(row * 0.71 + stp * 1.31, 2.6)) - 0.5) * 0.06) * rowOn * uIntensity * decay;
     highp float acc = 0.0;
     for (int t = 0; t < 5; t++) {
       highp float w = 0.55 + 0.225 * float(t);
       acc += texture(uField, clamp(vUv + disp * w, 0.0, 1.0)).r;
     }
     highp float v = acc * 0.2;
-    highp float gain = 1.0 + uGlow * 0.5 * active * decay + uGlow * 0.6 * decay * (vhash(vec2(stp, 3.7)) - 0.5) * 2.0 + uGlow * 1.2 * emerge * (1.0 - emerge);
+    highp float gain = 1.0 + uGlow * 0.5 * rowOn * decay + uGlow * 0.6 * decay * (vhash(vec2(stp, 3.7)) - 0.5) * 2.0 + uGlow * 1.2 * emerge * (1.0 - emerge);
     finalColor = vec4(vec3(v * max(gain, 0.0) * emerge), 1.0);
     return;
   }
