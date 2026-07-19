@@ -256,11 +256,11 @@ void main() {
   highp float r = length(a);
   highp float angn = r > 1e-5 ? atan(a.y, a.x) : 0.0;
   highp float maxR = length(vec2(uAspect, 1.0)) * 0.5;
-  highp float R = maxR * 1.15 * pow(uCharge, 0.8);
+  highp float R = (maxR * 1.15 + 0.16) * pow(uCharge, 0.8);
   highp float edgeN = (fbm2(vec2(angn * mix(1.0, 4.0, uDetail) + 3.1, p * 1.5)) - 0.5) * 0.25;
   highp float Rl = max(0.0, R * (1.0 + edgeN));
-  highp float mask = smoothstep(Rl, Rl - 0.12, r);
   highp float done = smoothstep(0.85, 1.0, uCharge);
+  highp float mask = max(smoothstep(Rl, Rl - 0.12, r), done);
   highp float rw = (r - Rl) * 9.0;
   highp float ring = exp(-rw * rw) * uGlow * 1.2 * (1.0 - done) * step(0.001, uCharge);
   highp float coreSize = 0.04 + 0.1 * uCharge;
