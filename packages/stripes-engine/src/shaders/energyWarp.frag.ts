@@ -49,10 +49,21 @@ void main() {
   vec2 D;
   highp float emerge;
   if (uMode == 0) {
-    vec2 flow = vec2(p * 2.2, -p * 1.7);
-    highp float ang = fbm2(vUv * freq + flow + 2.1) * 12.566370;
-    highp float mag = 0.5 + 0.5 * fbm2(vUv * freq * 1.7 - flow.yx + 5.9);
-    D = vec2(cos(ang), sin(ang)) * 0.28 * mag;
+    vec2 flow = vec2(p * 0.9, -p * 0.6);
+    vec2 q1 = vUv * freq + flow + 2.1;
+    vec2 q2 = vUv * freq * 2.6 + flow * 1.8 + 17.3;
+    highp float e = 0.09;
+    vec2 c1 = vec2(
+      fbm2(q1 + vec2(0.0, e)) - fbm2(q1 - vec2(0.0, e)),
+      fbm2(q1 - vec2(e, 0.0)) - fbm2(q1 + vec2(e, 0.0))
+    ) / (2.0 * e);
+    vec2 c2 = vec2(
+      fbm2(q2 + vec2(0.0, e)) - fbm2(q2 - vec2(0.0, e)),
+      fbm2(q2 - vec2(e, 0.0)) - fbm2(q2 + vec2(e, 0.0))
+    ) / (2.0 * e);
+    vec2 curlV = c1 * 0.75 + c2 * 0.35;
+    highp float vort = 0.55 + 0.9 * decay;
+    D = curlV * 0.09 * vort;
     emerge = smoothstep(0.0, 0.4, f);
   } else {
     highp float rows = mix(14.0, 56.0, uDetail);
