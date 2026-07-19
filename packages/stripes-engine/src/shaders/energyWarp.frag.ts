@@ -117,7 +117,7 @@ void main() {
     highp float edge = max(w * (1.0 + e2 * 0.35 * uIntensity), 0.0);
     highp float mask = max(smoothstep(edge, edge - 0.06, dx), smoothstep(0.97, 1.0, f));
     highp float rw = (dx - edge) * 26.0;
-    highp float ring = exp(-rw * rw) * uGlow * 1.5 * (1.0 - ease);
+    highp float ring = exp(-rw * rw) * uGlow * 1.5 * (1.0 - ease) * smoothstep(0.0, 0.05, f);
     finalColor = vec4(vec3(texture(uField, vUv).r * mask + ring), 1.0);
     return;
   }
