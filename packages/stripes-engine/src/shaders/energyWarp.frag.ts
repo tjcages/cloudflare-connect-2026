@@ -86,7 +86,8 @@ void main() {
     D = dir * exp(-best * 2.2) * 0.55;
   } else if (uMode == 4) {
     highp float R = ease * 1.4;
-    D = rdir * exp(-pow((r - R) * 6.0, 2.0)) * 0.3 + rdir * smoothstep(R, R + 0.6, r) * 0.12;
+    highp float rw = (r - R) * 6.0;
+    D = rdir * exp(-rw * rw) * 0.3 + rdir * smoothstep(R, R + 0.6, r) * 0.12;
   } else {
     highp float rows = mix(14.0, 56.0, uDetail);
     highp float row = floor(vUv.y * rows);
