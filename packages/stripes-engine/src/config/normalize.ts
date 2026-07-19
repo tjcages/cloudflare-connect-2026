@@ -21,6 +21,7 @@ import type {
   GradientDirection,
   MotionDirection,
   StripeBlendMode,
+  AssemblyStyle,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -234,17 +235,22 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
+export const ASSEMBLY_STYLES: readonly AssemblyStyle[] = ["scatter", "streaks", "implosion", "chargeup", "shards"];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",
   wave: { position: "center", durationMs: 1200, softness: 0.22, waviness: 0.11 },
   assembly: {
+    style: "scatter",
     sliceSizePx: 29,
     speedMinMs: 300,
     speedMaxMs: 1600,
     staggerMs: 6550,
     scatterPx: 90,
     angleJitterDeg: 35,
+    massCount: 8,
+    overshoot: 0.15,
+    impact: 0.6,
     blurPx: 17.5,
     blurStart: 0.45,
   },
@@ -278,12 +284,18 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
       waviness: clamp(num(w.waviness, DEFAULT_REVEAL.wave.waviness), 0, 1),
     },
     assembly: {
+      style: ASSEMBLY_STYLES.includes(a.style as AssemblyStyle)
+        ? (a.style as AssemblyStyle)
+        : DEFAULT_REVEAL.assembly.style,
       sliceSizePx: clamp(Math.round(num(a.sliceSizePx, DEFAULT_REVEAL.assembly.sliceSizePx)), 8, 200),
       speedMinMs,
       speedMaxMs,
       staggerMs: clamp(Math.round(num(a.staggerMs, DEFAULT_REVEAL.assembly.staggerMs)), 0, 30000),
       scatterPx: clamp(Math.round(num(a.scatterPx, DEFAULT_REVEAL.assembly.scatterPx)), 0, 300),
       angleJitterDeg: clamp(num(a.angleJitterDeg, DEFAULT_REVEAL.assembly.angleJitterDeg), 0, 90),
+      massCount: clamp(Math.round(num(a.massCount, DEFAULT_REVEAL.assembly.massCount)), 2, 24),
+      overshoot: clamp(num(a.overshoot, DEFAULT_REVEAL.assembly.overshoot), 0, 0.3),
+      impact: clamp(num(a.impact, DEFAULT_REVEAL.assembly.impact), 0, 1),
       blurPx: clamp(num(a.blurPx, DEFAULT_REVEAL.assembly.blurPx ?? 17.5), 0, 50),
       blurStart: clamp(num(a.blurStart, DEFAULT_REVEAL.assembly.blurStart ?? 0.45), 0, 0.95),
     },

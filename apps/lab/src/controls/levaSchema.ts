@@ -2042,12 +2042,16 @@ export function useEngineControls(
         waviness: values.revealWaviness,
       },
       assembly: {
+        style: "scatter",
         sliceSizePx: values.revealSliceSizePx,
         scatterPx: values.revealScatterPx,
         angleJitterDeg: values.revealAngleJitterDeg,
         speedMinMs: values.revealSpeedMinMs,
         speedMaxMs: values.revealSpeedMaxMs,
         staggerMs: values.revealStaggerMs,
+        massCount: 8,
+        overshoot: 0.15,
+        impact: 0.6,
       },
     },
     sparkle: {

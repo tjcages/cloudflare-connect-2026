@@ -747,3 +747,26 @@ describe("renderMode + renderIntensity", () => {
     expect(normalizeEngineConfig({ renderIntensity: 0.4 }).renderIntensity).toBe(0.4);
   });
 });
+describe("assembly merge styles", () => {
+  it("defaults style to scatter and accepts valid styles", () => {
+    expect(normalizeReveal({}).assembly.style).toBe("scatter");
+    expect(normalizeReveal({ assembly: { style: "streaks" } }).assembly.style).toBe("streaks");
+    expect(normalizeReveal({ assembly: { style: "chargeup" } }).assembly.style).toBe("chargeup");
+  });
+
+  it("falls back to scatter on invalid style", () => {
+    expect(normalizeReveal({ assembly: { style: "bogus" as never } }).assembly.style).toBe("scatter");
+  });
+
+  it("defaults and clamps massCount, overshoot, impact", () => {
+    const d = normalizeReveal({}).assembly;
+    expect(d.massCount).toBe(8);
+    expect(d.overshoot).toBe(0.15);
+    expect(d.impact).toBe(0.6);
+    const c = normalizeReveal({ assembly: { massCount: 99, overshoot: 5, impact: -1 } }).assembly;
+    expect(c.massCount).toBe(24);
+    expect(c.overshoot).toBe(0.3);
+    expect(c.impact).toBe(0);
+    expect(normalizeReveal({ assembly: { massCount: 1 } }).assembly.massCount).toBe(2);
+  });
+});

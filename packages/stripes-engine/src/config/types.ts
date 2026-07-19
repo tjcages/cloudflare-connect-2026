@@ -11,6 +11,8 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
+export type AssemblyStyle = "scatter" | "streaks" | "implosion" | "chargeup" | "shards";
+
 export interface RevealConfig {
   enabled: boolean;
   type: "wave" | "assembly";
@@ -21,12 +23,16 @@ export interface RevealConfig {
     waviness: number;
   };
   assembly: {
+    style: AssemblyStyle;
     sliceSizePx: number;
     speedMinMs: number;
     speedMaxMs: number;
     staggerMs: number;
     scatterPx: number;
     angleJitterDeg: number;
+    massCount: number;
+    overshoot: number;
+    impact: number;
     blurPx?: number;
     blurStart?: number;
   };
