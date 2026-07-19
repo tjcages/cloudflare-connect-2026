@@ -37,6 +37,7 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
     spread: pu("uSpread"),
     flight: pu("uFlight"),
     sizeUv: pu("uSizeUv"),
+    aspect: pu("uAspect"),
   };
   return {
     render(target: RenderTarget, fieldTex: WebGLTexture, p: HadoukenUniforms) {
@@ -57,6 +58,7 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
         gl.uniform1f(P.spread, p.spread);
         gl.uniform1f(P.flight, p.flight);
         gl.uniform2f(P.sizeUv, p.sizeUv[0], p.sizeUv[1]);
+        gl.uniform1f(P.aspect, p.aspect);
         gl.enable(gl.BLEND);
         gl.blendEquation(gl.MAX);
         gl.bindVertexArray(vao);

@@ -35,15 +35,20 @@ void main() {
   vec2 edir = r > 1e-5 ? a / r : vec2(1.0, 0.0);
   highp float maxR = length(vec2(uAspect, 1.0)) * 0.5;
   highp float R = (maxR * 1.15 + 0.16) * pow(uCharge, 0.8);
-  highp float edgeN = (fbm2(edir * mix(1.0, 4.0, uDetail) + vec2(3.1, p * 1.5)) - 0.5) * 0.25;
+  highp float k = mix(1.0, 4.0, uDetail);
+  highp float edgeN = ((fbm2(edir * k + vec2(3.1, p * 1.5)) - 0.5) + 0.5 * (fbm2(edir * k * 2.3 + vec2(p * 2.6, 7.7)) - 0.5)) * 0.22;
   highp float Rl = max(0.0, R * (1.0 + edgeN));
   highp float done = smoothstep(0.85, 1.0, uCharge);
   highp float mask = max(smoothstep(Rl, Rl - 0.12, r), done);
   highp float rw = (r - Rl) * 9.0;
   highp float ring = exp(-rw * rw) * uGlow * 1.2 * (1.0 - done) * step(0.001, uCharge);
-  highp float coreSize = 0.04 + 0.1 * uCharge;
-  highp float core = exp(-(r * r) / (coreSize * coreSize)) * uGlow * (0.4 + 1.2 * uCharge) * (1.0 - done) * step(0.001, uCharge);
-  highp float v = texture(uField, vUv).r * mask;
+  highp float pulse = 1.0 + 0.06 * sin(p * 9.0 + uCharge * 5.0);
+  highp float coreSize = (0.045 + 0.11 * uCharge) * pulse;
+  highp float nuc = exp(-(r * r) / (coreSize * coreSize * 0.16));
+  highp float halo = exp(-(r * r) / (coreSize * coreSize));
+  highp float core = (nuc * 1.1 + halo * 0.45) * uGlow * (0.4 + 1.2 * uCharge) * (1.0 - done) * step(0.001, uCharge);
+  vec2 pullUv = r > 1e-4 ? (a / r) / vec2(uAspect, 1.0) : vec2(0.0);
+  highp float v = texture(uField, clamp(vUv + pullUv * exp(-rw * rw) * 0.02 * (1.0 - done), 0.0, 1.0)).r * mask;
   finalColor = vec4(vec3(v + ring + core), 1.0);
 }
 `;
