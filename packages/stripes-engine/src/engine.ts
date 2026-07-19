@@ -554,8 +554,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
           const charge = Math.min(1, Math.max(0, (rawProgress - avgTotal) / Math.max(spread, 0.2)));
-          const chargeEnd = avgTotal + Math.max(spread, 0.2);
-          const burst = Math.min(1, Math.max(0, (rawProgress - chargeEnd) / 0.15));
+          const chargeEnd = avgTotal + 0.82 * Math.max(spread, 0.2);
+          const burst = Math.min(1, Math.max(0, (rawProgress - chargeEnd) / 0.26));
           const sizePx = 6 * Math.max(0.05, assembly.intensity);
           hadoukenPass.render(revealedRT, fieldRT.texture, {
             progress: rawProgress,

@@ -40,8 +40,9 @@ void main() {
   vec2 edir = r > 1e-5 ? a / r : vec2(1.0, 0.0);
   highp float maxR = length(vec2(uAspect, 1.0)) * 0.5;
 
-  highp float grow = smoothstep(0.0, 0.55, uCharge);
-  highp float comp = smoothstep(0.55, 1.0, uCharge);
+  highp float grow = smoothstep(0.0, 0.5, uCharge);
+  highp float cs = smoothstep(0.42, 0.82, uCharge);
+  highp float comp = cs * cs * (3.0 - 2.0 * cs);
   highp float orbR = (0.035 + 0.11 * grow) * (1.0 - 0.55 * comp);
   highp float orbN = fbm2(edir * 3.0 + vec2(p * 1.1, 5.3)) - 0.5;
   highp float orbRl = max(orbR * (1.0 + orbN * 0.35) * (1.0 + 0.05 * sin(p * 11.0)), 1e-3);
