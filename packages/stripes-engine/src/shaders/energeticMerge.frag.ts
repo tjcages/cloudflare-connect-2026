@@ -58,7 +58,8 @@ void main() {
     if (uMode == 1 || uMode == 3) {
       vec2 c = (vUv - 0.5) * vec2(uAspect, 1.0);
       highp float d = length(c);
-      highp float ring = exp(-pow((d - tI * 0.9) * 7.0, 2.0));
+      highp float r = (d - tI * 0.9) * 7.0;
+      highp float ring = exp(-r * r);
       vec2 dir = d > 1e-4 ? c / d : vec2(0.0);
       uv += dir * ring * 0.012 * uImpact * fade / vec2(uAspect, 1.0);
       boost = ring * 0.5 * uImpact * fade;
@@ -91,7 +92,7 @@ void main() {
     }
     v = acc * 0.2;
   } else if (uMode == 1) {
-    highp float gc = max(2.0, floor(sqrt(uMassCount * uAspect) + 0.5));
+    highp float gc = clamp(floor(sqrt(uMassCount * uAspect) + 0.5), 2.0, 16.0);
     highp float gr = max(2.0, ceil(uMassCount / gc));
     int count = int(gc * gr);
     for (int i = 0; i < MAX_MASSES; i++) {
