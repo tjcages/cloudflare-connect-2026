@@ -536,11 +536,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       const warpPass = createEnergyWarpPass(gl, quad);
       const WARP_MODES: Record<string, number> = {
         turbulence: 0,
-        vortex: 1,
-        streams: 2,
-        pull: 3,
-        ripple: 4,
-        glitch: 5,
+        glitch: 1,
       };
       revealFieldPasses.push({
         name: "energyWarpField",
@@ -563,7 +559,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             intensity: assembly.intensity,
             detail: assembly.detail,
             glow: assembly.glow,
-            aspect: cssW / Math.max(1, cssH),
           });
         },
         dispose: () => warpPass.dispose(),

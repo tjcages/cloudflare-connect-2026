@@ -11,7 +11,6 @@ export type EnergyWarpUniforms = {
   intensity: number;
   detail: number;
   glow: number;
-  aspect: number;
 };
 
 export function createEnergyWarpPass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -26,7 +25,6 @@ export function createEnergyWarpPass(gl: WebGL2RenderingContext, quad: { draw():
     intensity: u("uIntensity"),
     detail: u("uDetail"),
     glow: u("uGlow"),
-    aspect: u("uAspect"),
   };
   return {
     render(target: RenderTarget, fieldTex: WebGLTexture, p: EnergyWarpUniforms) {
@@ -42,7 +40,6 @@ export function createEnergyWarpPass(gl: WebGL2RenderingContext, quad: { draw():
       gl.uniform1f(L.intensity, p.intensity);
       gl.uniform1f(L.detail, p.detail);
       gl.uniform1f(L.glow, p.glow);
-      gl.uniform1f(L.aspect, p.aspect);
       quad.draw();
     },
     dispose() {

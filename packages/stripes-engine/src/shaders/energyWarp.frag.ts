@@ -9,7 +9,6 @@ uniform float uFlight;
 uniform float uIntensity;
 uniform float uDetail;
 uniform float uGlow;
-uniform float uAspect;
 out vec4 finalColor;
 
 highp float vhash(vec2 q) {
@@ -33,22 +32,11 @@ highp float fbm2(vec2 q) {
 
 void main() {
   highp float p = max(uProgress, 0.0);
-  vec2 a = (vUv - 0.5) * vec2(uAspect, 1.0);
-  highp float r = length(a);
-  vec2 rdir = r > 1e-4 ? a / r : vec2(0.0, 1.0);
   highp float freq = mix(2.0, 10.0, uDetail);
 
   highp float n;
   if (uMode == 0) {
     n = fbm2(vUv * mix(3.0, 12.0, uDetail) + 7.3);
-  } else if (uMode == 1) {
-    n = fbm2(vUv * 6.0 + 3.3) * 0.6 + r * 0.4;
-  } else if (uMode == 2) {
-    n = fbm2(vec2(vUv.x * freq * 2.0, 1.7)) * 0.8 + 0.2 * fbm2(vUv * 5.0);
-  } else if (uMode == 3) {
-    n = fbm2(vUv * 7.0 + 1.9);
-  } else if (uMode == 4) {
-    n = 0.15;
   } else {
     highp float rows = mix(14.0, 56.0, uDetail);
     n = vhash(vec2(floor(vUv.y * rows) * 0.61, 8.8));
@@ -59,40 +47,19 @@ void main() {
   highp float decay = 1.0 - ease;
 
   vec2 D;
+  highp float emerge;
   if (uMode == 0) {
-    highp float ang = fbm2(vUv * freq + 2.1) * 12.566370;
-    highp float mag = 0.5 + 0.5 * fbm2(vUv * freq * 1.7 + 5.9);
+    vec2 flow = vec2(p * 2.2, -p * 1.7);
+    highp float ang = fbm2(vUv * freq + flow + 2.1) * 12.566370;
+    highp float mag = 0.5 + 0.5 * fbm2(vUv * freq * 1.7 - flow.yx + 5.9);
     D = vec2(cos(ang), sin(ang)) * 0.28 * mag;
-  } else if (uMode == 1) {
-    vec2 perp = vec2(-rdir.y, rdir.x);
-    highp float fall = 1.0 - smoothstep(0.0, 0.85, r);
-    D = perp * (0.9 * fall + 0.15) * r + a * 0.55;
-  } else if (uMode == 2) {
-    highp float dy = 0.45 + 0.75 * fbm2(vec2(vUv.x * freq * 2.0, vUv.y * 1.2 + 9.1));
-    D = vec2((fbm2(vec2(vUv.x * freq, vUv.y * 2.0)) - 0.5) * 0.12, -dy);
-  } else if (uMode == 3) {
-    highp float best = 1e9;
-    vec2 bw = vec2(0.0);
-    for (int k = 0; k < 4; k++) {
-      highp float fk = float(k);
-      vec2 w = (vec2(vhash(vec2(fk * 1.7 + 0.3, 2.9)), vhash(vec2(fk * 3.1 + 1.1, 7.7))) - 0.5) * vec2(uAspect, 1.0) * 0.9;
-      highp float dd = length(a - w);
-      if (dd < best) {
-        best = dd;
-        bw = w;
-      }
-    }
-    vec2 dir = best > 1e-4 ? (bw - a) / best : vec2(0.0, 1.0);
-    D = dir * exp(-best * 2.2) * 0.55;
-  } else if (uMode == 4) {
-    highp float R = ease * 1.4;
-    highp float rw = (r - R) * 6.0;
-    D = rdir * exp(-rw * rw) * 0.3 + rdir * smoothstep(R, R + 0.6, r) * 0.12;
+    emerge = smoothstep(0.0, 0.4, f);
   } else {
     highp float rows = mix(14.0, 56.0, uDetail);
     highp float row = floor(vUv.y * rows);
     highp float h = vhash(vec2(row * 0.37 + floor(p * 22.0) * 1.13, 4.2));
     D = vec2((h - 0.5) * 0.55, 0.0);
+    emerge = smoothstep(0.0, 0.25, f);
   }
 
   vec2 disp = D * uIntensity * decay;
@@ -102,11 +69,10 @@ void main() {
     acc += texture(uField, clamp(vUv + disp * w, 0.0, 1.0)).r;
   }
   highp float v = acc * 0.2;
-  highp float gain = 1.0 + uGlow * 1.2 * min(1.0, length(disp) * 8.0) * decay;
-  if (uMode == 5) {
+  highp float gain = 1.0 + uGlow * 1.2 * min(1.0, length(disp) * 8.0) * decay + uGlow * 1.6 * emerge * (1.0 - emerge);
+  if (uMode == 1) {
     gain += uGlow * 0.5 * decay * (vhash(vec2(floor(p * 22.0), 3.7)) - 0.5) * 2.0;
   }
-  highp float fadeIn = smoothstep(0.0, 0.08, p);
-  finalColor = vec4(vec3(v * gain * fadeIn), 1.0);
+  finalColor = vec4(vec3(v * gain * emerge), 1.0);
 }
 `;
