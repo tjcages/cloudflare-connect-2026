@@ -747,27 +747,27 @@ describe("renderMode + renderIntensity", () => {
     expect(normalizeEngineConfig({ renderIntensity: 0.4 }).renderIntensity).toBe(0.4);
   });
 });
-describe("assembly particle style", () => {
-  it("defaults style to scatter and accepts particles", () => {
+describe("assembly warp styles", () => {
+  it("defaults style to scatter and accepts all warp styles", () => {
     expect(normalizeReveal({}).assembly.style).toBe("scatter");
-    expect(normalizeReveal({ assembly: { style: "particles" } }).assembly.style).toBe("particles");
+    for (const s of ["turbulence", "vortex", "streams", "pull", "ripple", "glitch"] as const) {
+      expect(normalizeReveal({ assembly: { style: s } }).assembly.style).toBe(s);
+    }
   });
 
   it("falls back to scatter on invalid or legacy styles", () => {
     expect(normalizeReveal({ assembly: { style: "bogus" as never } }).assembly.style).toBe("scatter");
-    expect(normalizeReveal({ assembly: { style: "streaks" as never } }).assembly.style).toBe("scatter");
-    expect(normalizeReveal({ assembly: { style: "shards" as never } }).assembly.style).toBe("scatter");
+    expect(normalizeReveal({ assembly: { style: "particles" as never } }).assembly.style).toBe("scatter");
   });
 
-  it("defaults and clamps particleCount, particleSizePx, swirl", () => {
+  it("defaults and clamps intensity, detail, glow", () => {
     const d = normalizeReveal({}).assembly;
-    expect(d.particleCount).toBe(9000);
-    expect(d.particleSizePx).toBe(5);
-    expect(d.swirl).toBe(0.5);
-    const c = normalizeReveal({ assembly: { particleCount: 99999, particleSizePx: 0, swirl: 2 } }).assembly;
-    expect(c.particleCount).toBe(20000);
-    expect(c.particleSizePx).toBe(1);
-    expect(c.swirl).toBe(1);
-    expect(normalizeReveal({ assembly: { particleCount: 10 } }).assembly.particleCount).toBe(500);
+    expect(d.intensity).toBe(1);
+    expect(d.detail).toBe(0.5);
+    expect(d.glow).toBe(0.6);
+    const c = normalizeReveal({ assembly: { intensity: 5, detail: -1, glow: 2 } }).assembly;
+    expect(c.intensity).toBe(2);
+    expect(c.detail).toBe(0);
+    expect(c.glow).toBe(1);
   });
 });

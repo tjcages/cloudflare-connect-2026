@@ -11,7 +11,7 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type AssemblyStyle = "scatter" | "particles";
+export type AssemblyStyle = "scatter" | "turbulence" | "vortex" | "streams" | "pull" | "ripple" | "glitch";
 
 export interface RevealConfig {
   enabled: boolean;
@@ -30,9 +30,9 @@ export interface RevealConfig {
     staggerMs: number;
     scatterPx: number;
     angleJitterDeg: number;
-    particleCount: number;
-    particleSizePx: number;
-    swirl: number;
+    intensity: number;
+    detail: number;
+    glow: number;
     blurPx?: number;
     blurStart?: number;
   };

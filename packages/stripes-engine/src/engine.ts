@@ -182,7 +182,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       ? "none"
       : config.reveal.assembly.style === "scatter"
         ? "scatter"
-        : "particles";
+        : "warp";
   let lastAssemblyKind = assemblyPassKind();
   let lastFlamesEnabled = config.flames.enabled;
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
@@ -550,14 +550,16 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const moveEnd = Math.min(1, spread + avgTotal);
           const settleT = Math.min(1, Math.max(0, (rawProgress - moveEnd) / 0.12));
           const settle = settleT * settleT * (3 - 2 * settleT);
+          // TODO(task-3): particleMergeField is retired with the particle-style assembly branch;
+          // these are shimmed literals (previously assembly.particleCount/particleSizePx/swirl).
           particlePass.render(revealedRT, fieldRT.texture, {
-            count: assembly.particleCount,
+            count: 9000,
             progress: rawProgress,
             spread,
             flight: avgTotal,
             settle,
-            sizeUv: [assembly.particleSizePx / Math.max(1, cssW), assembly.particleSizePx / Math.max(1, cssH)],
-            swirl: assembly.swirl,
+            sizeUv: [5 / Math.max(1, cssW), 5 / Math.max(1, cssH)],
+            swirl: 0.5,
           });
         },
         dispose: () => particlePass.dispose(),

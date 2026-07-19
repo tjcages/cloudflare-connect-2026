@@ -4,7 +4,7 @@ import type { EngineConfig } from "./config/types";
 
 function topologyKey(cfg: EngineConfig): string {
   const assemblyTopo = cfg.reveal.enabled && cfg.reveal.type === "assembly";
-  const assemblyKind = !assemblyTopo ? "none" : cfg.reveal.assembly.style === "scatter" ? "scatter" : "particles";
+  const assemblyKind = !assemblyTopo ? "none" : cfg.reveal.assembly.style === "scatter" ? "scatter" : "warp";
   return `${cfg.stripesEnabled}:${cfg.reveal.enabled}:${assemblyTopo}:${assemblyKind}:${cfg.flames.enabled}`;
 }
 
@@ -74,23 +74,23 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(assembly, assembly)).toBe(false);
   });
 
-  it("switching assembly style scatter <-> particles triggers rebuild", () => {
+  it("switching assembly style scatter <-> warp triggers rebuild", () => {
     const scatter = normalizeEngineConfig({
       reveal: { enabled: true, type: "assembly", assembly: { style: "scatter" } },
     });
-    const particles = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "particles" } },
+    const warp = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { style: "turbulence" } },
     });
-    expect(needsRebuild(scatter, particles)).toBe(true);
-    expect(needsRebuild(particles, scatter)).toBe(true);
+    expect(needsRebuild(scatter, warp)).toBe(true);
+    expect(needsRebuild(warp, scatter)).toBe(true);
   });
 
-  it("particles param change does not trigger rebuild", () => {
+  it("warp param change does not trigger rebuild", () => {
     const a = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "particles", particleCount: 5000 } },
+      reveal: { enabled: true, type: "assembly", assembly: { style: "turbulence", intensity: 0.5 } },
     });
     const b = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "particles", particleCount: 12000 } },
+      reveal: { enabled: true, type: "assembly", assembly: { style: "turbulence", intensity: 1.5 } },
     });
     expect(needsRebuild(a, b)).toBe(false);
   });
