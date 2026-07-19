@@ -67,7 +67,9 @@ describe("setConfig topology gating", () => {
 
   it("same topology repeated does not trigger rebuild", () => {
     const a = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
-    const b = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly", assembly: { staggerMs: 1234 } } });
+    const b = normalizeEngineConfig({
+      reveal: { enabled: true, type: "assembly", assembly: { scatter: { staggerMs: 1234 } } },
+    });
     expect(needsRebuild(a, b)).toBe(false);
   });
 
@@ -102,10 +104,10 @@ describe("setConfig topology gating", () => {
 
   it("turbulence <-> glitch and param changes do not trigger rebuild", () => {
     const a = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "turbulence", intensity: 0.5 } },
+      reveal: { enabled: true, type: "assembly", assembly: { style: "turbulence", turbulence: { intensity: 0.5 } } },
     });
     const b = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", assembly: { style: "glitch", intensity: 2 } },
+      reveal: { enabled: true, type: "assembly", assembly: { style: "glitch", glitch: { intensity: 2 } } },
     });
     expect(needsRebuild(a, b)).toBe(false);
   });

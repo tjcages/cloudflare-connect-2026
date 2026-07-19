@@ -1,6 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { UNDERLAY_INTRO_FADE_MS, createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./underlayIntro";
 
+const ASSEMBLY_ALL_STYLES = {
+  scatter: { staggerMs: 900, speedMaxMs: 1600 },
+  turbulence: { staggerMs: 800, speedMaxMs: 1800 },
+  glitch: { staggerMs: 220, speedMaxMs: 350 },
+  hadouken: { staggerMs: 1400, speedMaxMs: 1800 },
+};
+
 describe("resolveUnderlayIntroDelayMs", () => {
   it("returns 0 when reveal is disabled", () => {
     expect(
@@ -8,7 +15,7 @@ describe("resolveUnderlayIntroDelayMs", () => {
         enabled: false,
         type: "wave",
         wave: { durationMs: 1200 },
-        assembly: { staggerMs: 900, speedMaxMs: 1600 },
+        assembly: { style: "scatter", ...ASSEMBLY_ALL_STYLES },
       }),
     ).toBe(0);
   });
@@ -19,20 +26,28 @@ describe("resolveUnderlayIntroDelayMs", () => {
         enabled: true,
         type: "wave",
         wave: { durationMs: 1200 },
-        assembly: { staggerMs: 900, speedMaxMs: 1600 },
+        assembly: { style: "scatter", ...ASSEMBLY_ALL_STYLES },
       }),
     ).toBe(1200);
   });
 
-  it("uses stagger + speedMax for assembly reveals", () => {
+  it("uses the active style block's stagger + speedMax for assembly reveals", () => {
     expect(
       resolveUnderlayIntroDelayMs({
         enabled: true,
         type: "assembly",
         wave: { durationMs: 1200 },
-        assembly: { staggerMs: 900, speedMaxMs: 1600 },
+        assembly: { style: "scatter", ...ASSEMBLY_ALL_STYLES },
       }),
     ).toBe(2500);
+    expect(
+      resolveUnderlayIntroDelayMs({
+        enabled: true,
+        type: "assembly",
+        wave: { durationMs: 1200 },
+        assembly: { style: "glitch", ...ASSEMBLY_ALL_STYLES },
+      }),
+    ).toBe(570);
   });
 });
 

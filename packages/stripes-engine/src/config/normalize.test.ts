@@ -272,43 +272,47 @@ describe("reveal normalizer", () => {
     expect(normalizeReveal({ wave: { waviness: -1 } }).wave.waviness).toBe(0);
     expect(normalizeReveal({ wave: { waviness: 5 } }).wave.waviness).toBe(1);
   });
-  it("clamps assembly.speedMinMs to 100..30000", () => {
-    expect(normalizeReveal({ assembly: { speedMinMs: 50 } }).assembly.speedMinMs).toBe(100);
-    expect(normalizeReveal({ assembly: { speedMinMs: 99999 } }).assembly.speedMinMs).toBe(30000);
+  it("clamps scatter.speedMinMs to 100..30000", () => {
+    expect(normalizeReveal({ assembly: { scatter: { speedMinMs: 50 } } }).assembly.scatter.speedMinMs).toBe(100);
+    expect(normalizeReveal({ assembly: { scatter: { speedMinMs: 99999 } } }).assembly.scatter.speedMinMs).toBe(30000);
   });
-  it("clamps assembly.speedMaxMs and enforces >= speedMinMs", () => {
-    expect(normalizeReveal({ assembly: { speedMinMs: 1000, speedMaxMs: 500 } }).assembly.speedMaxMs).toBe(1000);
-    expect(normalizeReveal({ assembly: { speedMaxMs: 99999 } }).assembly.speedMaxMs).toBe(30000);
+  it("clamps scatter.speedMaxMs and enforces >= speedMinMs", () => {
+    expect(
+      normalizeReveal({ assembly: { scatter: { speedMinMs: 1000, speedMaxMs: 500 } } }).assembly.scatter.speedMaxMs,
+    ).toBe(1000);
+    expect(normalizeReveal({ assembly: { scatter: { speedMaxMs: 99999 } } }).assembly.scatter.speedMaxMs).toBe(30000);
   });
-  it("clamps assembly.staggerMs to 0..30000", () => {
-    expect(normalizeReveal({ assembly: { staggerMs: -100 } }).assembly.staggerMs).toBe(0);
-    expect(normalizeReveal({ assembly: { staggerMs: 99999 } }).assembly.staggerMs).toBe(30000);
+  it("clamps scatter.staggerMs to 0..30000", () => {
+    expect(normalizeReveal({ assembly: { scatter: { staggerMs: -100 } } }).assembly.scatter.staggerMs).toBe(0);
+    expect(normalizeReveal({ assembly: { scatter: { staggerMs: 99999 } } }).assembly.scatter.staggerMs).toBe(30000);
   });
-  it("clamps assembly.sliceSizePx to 8..200", () => {
-    expect(normalizeReveal({ assembly: { sliceSizePx: 1 } }).assembly.sliceSizePx).toBe(8);
-    expect(normalizeReveal({ assembly: { sliceSizePx: 9999 } }).assembly.sliceSizePx).toBe(200);
-    expect(normalizeReveal({ assembly: {} }).assembly.sliceSizePx).toBe(29);
+  it("clamps scatter.sliceSizePx to 8..200", () => {
+    expect(normalizeReveal({ assembly: { scatter: { sliceSizePx: 1 } } }).assembly.scatter.sliceSizePx).toBe(8);
+    expect(normalizeReveal({ assembly: { scatter: { sliceSizePx: 9999 } } }).assembly.scatter.sliceSizePx).toBe(200);
+    expect(normalizeReveal({ assembly: { scatter: {} } }).assembly.scatter.sliceSizePx).toBe(29);
   });
-  it("clamps assembly.scatterPx to 0..300, defaults to 90", () => {
-    expect(normalizeReveal({ assembly: { scatterPx: -10 } }).assembly.scatterPx).toBe(0);
-    expect(normalizeReveal({ assembly: { scatterPx: 9999 } }).assembly.scatterPx).toBe(300);
-    expect(normalizeReveal({ assembly: {} }).assembly.scatterPx).toBe(90);
+  it("clamps scatter.scatterPx to 0..300, defaults to 90", () => {
+    expect(normalizeReveal({ assembly: { scatter: { scatterPx: -10 } } }).assembly.scatter.scatterPx).toBe(0);
+    expect(normalizeReveal({ assembly: { scatter: { scatterPx: 9999 } } }).assembly.scatter.scatterPx).toBe(300);
+    expect(normalizeReveal({ assembly: { scatter: {} } }).assembly.scatter.scatterPx).toBe(90);
   });
-  it("clamps assembly.angleJitterDeg to 0..90, defaults to 35", () => {
-    expect(normalizeReveal({ assembly: { angleJitterDeg: -10 } }).assembly.angleJitterDeg).toBe(0);
-    expect(normalizeReveal({ assembly: { angleJitterDeg: 9999 } }).assembly.angleJitterDeg).toBe(90);
-    expect(normalizeReveal({ assembly: {} }).assembly.angleJitterDeg).toBe(35);
+  it("clamps scatter.angleJitterDeg to 0..90, defaults to 35", () => {
+    expect(normalizeReveal({ assembly: { scatter: { angleJitterDeg: -10 } } }).assembly.scatter.angleJitterDeg).toBe(0);
+    expect(normalizeReveal({ assembly: { scatter: { angleJitterDeg: 9999 } } }).assembly.scatter.angleJitterDeg).toBe(
+      90,
+    );
+    expect(normalizeReveal({ assembly: { scatter: {} } }).assembly.scatter.angleJitterDeg).toBe(35);
   });
-  it("clamps assembly.blurPx to 0..50, defaults to 17.5", () => {
-    expect(normalizeReveal({ assembly: { blurPx: -1 } }).assembly.blurPx).toBe(0);
-    expect(normalizeReveal({ assembly: { blurPx: 9999 } }).assembly.blurPx).toBe(50);
-    expect(normalizeReveal({ assembly: {} }).assembly.blurPx).toBe(17.5);
+  it("clamps scatter.blurPx to 0..50, defaults to 17.5", () => {
+    expect(normalizeReveal({ assembly: { scatter: { blurPx: -1 } } }).assembly.scatter.blurPx).toBe(0);
+    expect(normalizeReveal({ assembly: { scatter: { blurPx: 9999 } } }).assembly.scatter.blurPx).toBe(50);
+    expect(normalizeReveal({ assembly: { scatter: {} } }).assembly.scatter.blurPx).toBe(17.5);
   });
-  it("clamps assembly.blurStart to 0..0.95, defaults to 0.45", () => {
-    expect(normalizeReveal({ assembly: { blurStart: -1 } }).assembly.blurStart).toBe(0);
-    expect(normalizeReveal({ assembly: { blurStart: 2 } }).assembly.blurStart).toBe(0.95);
-    expect(normalizeReveal({ assembly: { blurStart: 0.5 } }).assembly.blurStart).toBe(0.5);
-    expect(normalizeReveal({ assembly: {} }).assembly.blurStart).toBe(0.45);
+  it("clamps scatter.blurStart to 0..0.95, defaults to 0.45", () => {
+    expect(normalizeReveal({ assembly: { scatter: { blurStart: -1 } } }).assembly.scatter.blurStart).toBe(0);
+    expect(normalizeReveal({ assembly: { scatter: { blurStart: 2 } } }).assembly.scatter.blurStart).toBe(0.95);
+    expect(normalizeReveal({ assembly: { scatter: { blurStart: 0.5 } } }).assembly.scatter.blurStart).toBe(0.5);
+    expect(normalizeReveal({ assembly: { scatter: {} } }).assembly.scatter.blurStart).toBe(0.45);
   });
   it("unknown wave.position falls back to default", () => {
     expect(normalizeReveal({ wave: { position: "bogus" as any } }).wave.position).toBe(DEFAULT_REVEAL.wave.position);
@@ -318,7 +322,12 @@ describe("reveal normalizer", () => {
   });
   it("round-trips reveal through serialize/parse", () => {
     const config = normalizeEngineConfig({
-      reveal: { enabled: true, type: "assembly", wave: { durationMs: 2000 }, assembly: { sliceSizePx: 50 } },
+      reveal: {
+        enabled: true,
+        type: "assembly",
+        wave: { durationMs: 2000 },
+        assembly: { style: "scatter", scatter: { sliceSizePx: 50 } },
+      },
     });
     const serialized = serializeEngineConfig(config);
     const parsed = parseEngineConfig(serialized);
@@ -760,18 +769,71 @@ describe("assembly warp styles", () => {
       expect(normalizeReveal({ assembly: { style: s as never } }).assembly.style).toBe("scatter");
     }
   });
+});
 
-  it("defaults and clamps intensity, detail, glow, particleCount", () => {
+describe("assembly per-style configs", () => {
+  it("provides per-style defaults incl. fast glitch", () => {
+    const a = normalizeReveal({}).assembly;
+    expect(a.style).toBe("scatter");
+    expect(a.glitch.speedMinMs).toBe(80);
+    expect(a.glitch.speedMaxMs).toBe(350);
+    expect(a.glitch.staggerMs).toBe(220);
+    expect(a.turbulence.speedMaxMs).toBe(1800);
+    expect(a.hadouken.staggerMs).toBe(1400);
+    expect(a.hadouken.particleCount).toBe(4000);
+    expect(a.scatter.sliceSizePx).toBe(29);
+  });
+
+  it("reads nested per-style overrides independently", () => {
+    const a = normalizeReveal({
+      assembly: { style: "glitch", glitch: { speedMaxMs: 900 }, turbulence: { glow: 0.2 } },
+    }).assembly;
+    expect(a.glitch.speedMaxMs).toBe(900);
+    expect(a.turbulence.glow).toBe(0.2);
+    expect(a.turbulence.speedMaxMs).toBe(1800);
+  });
+
+  it("seeds scatter block from legacy flat fields", () => {
+    const a = normalizeReveal({
+      assembly: { style: "scatter", speedMinMs: 111, speedMaxMs: 2222, staggerMs: 333, sliceSizePx: 50 } as never,
+    }).assembly;
+    expect(a.scatter.speedMinMs).toBe(111);
+    expect(a.scatter.speedMaxMs).toBe(2222);
+    expect(a.scatter.staggerMs).toBe(333);
+    expect(a.scatter.sliceSizePx).toBe(50);
+    expect(a.glitch.speedMaxMs).toBe(350);
+  });
+
+  it("still falls back to scatter on invalid styles", () => {
+    expect(normalizeReveal({ assembly: { style: "bogus" as never } }).assembly.style).toBe("scatter");
+  });
+
+  it("defaults and clamps intensity, detail, glow for warp blocks", () => {
     const d = normalizeReveal({}).assembly;
-    expect(d.intensity).toBe(1);
-    expect(d.detail).toBe(0.5);
-    expect(d.glow).toBe(0.6);
-    expect(d.particleCount).toBe(4000);
-    const c = normalizeReveal({ assembly: { intensity: 5, detail: -1, glow: 2, particleCount: 999999 } }).assembly;
+    expect(d.turbulence.intensity).toBe(1);
+    expect(d.turbulence.detail).toBe(0.5);
+    expect(d.turbulence.glow).toBe(0.6);
+    expect(d.glitch.glow).toBe(0.7);
+    expect(d.hadouken.glow).toBe(0.7);
+    const c = normalizeReveal({ assembly: { turbulence: { intensity: 5, detail: -1, glow: 2 } } }).assembly.turbulence;
     expect(c.intensity).toBe(2);
     expect(c.detail).toBe(0);
     expect(c.glow).toBe(1);
-    expect(c.particleCount).toBe(20000);
-    expect(normalizeReveal({ assembly: { particleCount: 10 } }).assembly.particleCount).toBe(500);
+  });
+
+  it("clamps warp-style speeds to a floor of 50 (scatter keeps its floor of 100)", () => {
+    expect(normalizeReveal({ assembly: { turbulence: { speedMinMs: 10 } } }).assembly.turbulence.speedMinMs).toBe(50);
+    expect(normalizeReveal({ assembly: { glitch: { speedMinMs: 10 } } }).assembly.glitch.speedMinMs).toBe(50);
+    expect(normalizeReveal({ assembly: { hadouken: { speedMinMs: 10 } } }).assembly.hadouken.speedMinMs).toBe(50);
+    expect(normalizeReveal({ assembly: { scatter: { speedMinMs: 10 } } }).assembly.scatter.speedMinMs).toBe(100);
+  });
+
+  it("clamps hadouken.particleCount to 500..20000", () => {
+    expect(normalizeReveal({ assembly: { hadouken: { particleCount: 999999 } } }).assembly.hadouken.particleCount).toBe(
+      20000,
+    );
+    expect(normalizeReveal({ assembly: { hadouken: { particleCount: 10 } } }).assembly.hadouken.particleCount).toBe(
+      500,
+    );
   });
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { migrateLegacyConfig } from "./migrateLegacyConfig";
+import { DEFAULT_REVEAL } from "../config/normalize";
 
 describe("migrateLegacyConfig", () => {
   it("maps adjustments/transform/mode/grid/background", () => {
@@ -39,18 +40,19 @@ describe("migrateLegacyConfig", () => {
       wave: { position: "left top", durationMs: 2000, softness: 0.5, waviness: 0.7 },
       assembly: {
         style: "scatter",
-        sliceSizePx: 40,
-        speedMinMs: 400,
-        speedMaxMs: 1800,
-        staggerMs: 1000,
-        scatterPx: 50,
-        angleJitterDeg: 22,
-        intensity: 1,
-        detail: 0.5,
-        glow: 0.6,
-        particleCount: 4000,
-        blurPx: 8,
-        blurStart: 0,
+        scatter: {
+          sliceSizePx: 40,
+          speedMinMs: 400,
+          speedMaxMs: 1800,
+          staggerMs: 1000,
+          scatterPx: 50,
+          angleJitterDeg: 22,
+          blurPx: 8,
+          blurStart: 0,
+        },
+        turbulence: DEFAULT_REVEAL.assembly.turbulence,
+        glitch: DEFAULT_REVEAL.assembly.glitch,
+        hadouken: DEFAULT_REVEAL.assembly.hadouken,
       },
     });
   });

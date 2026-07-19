@@ -22,6 +22,7 @@ import type {
   MotionDirection,
   StripeBlendMode,
   AssemblyStyle,
+  WarpStyleConfig,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -242,18 +243,27 @@ export const DEFAULT_REVEAL: RevealConfig = {
   wave: { position: "center", durationMs: 1200, softness: 0.22, waviness: 0.11 },
   assembly: {
     style: "scatter",
-    sliceSizePx: 29,
-    speedMinMs: 300,
-    speedMaxMs: 1600,
-    staggerMs: 6550,
-    scatterPx: 90,
-    angleJitterDeg: 35,
-    intensity: 1,
-    detail: 0.5,
-    glow: 0.6,
-    particleCount: 4000,
-    blurPx: 17.5,
-    blurStart: 0.45,
+    scatter: {
+      sliceSizePx: 29,
+      speedMinMs: 300,
+      speedMaxMs: 1600,
+      staggerMs: 6550,
+      scatterPx: 90,
+      angleJitterDeg: 35,
+      blurPx: 17.5,
+      blurStart: 0.45,
+    },
+    turbulence: { speedMinMs: 400, speedMaxMs: 1800, staggerMs: 800, intensity: 1, detail: 0.5, glow: 0.6 },
+    glitch: { speedMinMs: 80, speedMaxMs: 350, staggerMs: 220, intensity: 1, detail: 0.5, glow: 0.7 },
+    hadouken: {
+      speedMinMs: 500,
+      speedMaxMs: 1800,
+      staggerMs: 1400,
+      intensity: 1,
+      detail: 0.5,
+      glow: 0.7,
+      particleCount: 4000,
+    },
   },
 };
 
@@ -261,8 +271,67 @@ type PartialReveal = {
   enabled?: unknown;
   type?: unknown;
   wave?: Partial<RevealConfig["wave"]>;
-  assembly?: Partial<RevealConfig["assembly"]>;
+  assembly?: {
+    style?: unknown;
+    scatter?: Partial<RevealConfig["assembly"]["scatter"]>;
+    turbulence?: Partial<WarpStyleConfig>;
+    glitch?: Partial<WarpStyleConfig>;
+    hadouken?: Partial<RevealConfig["assembly"]["hadouken"]>;
+  };
 };
+
+function normalizeScatterBlock(a: NonNullable<PartialReveal["assembly"]>): RevealConfig["assembly"]["scatter"] {
+  const s = a.scatter ?? {};
+  const legacy = a as Partial<{
+    sliceSizePx: unknown;
+    speedMinMs: unknown;
+    speedMaxMs: unknown;
+    staggerMs: unknown;
+    scatterPx: unknown;
+    angleJitterDeg: unknown;
+    blurPx: unknown;
+    blurStart: unknown;
+  }>;
+  const d = DEFAULT_REVEAL.assembly.scatter;
+  const speedMinMs = clamp(Math.round(num(s.speedMinMs ?? legacy.speedMinMs, d.speedMinMs)), 100, 30000);
+  const speedMaxMs = Math.max(
+    speedMinMs,
+    clamp(Math.round(num(s.speedMaxMs ?? legacy.speedMaxMs, d.speedMaxMs)), 100, 30000),
+  );
+  return {
+    sliceSizePx: clamp(Math.round(num(s.sliceSizePx ?? legacy.sliceSizePx, d.sliceSizePx)), 8, 200),
+    speedMinMs,
+    speedMaxMs,
+    staggerMs: clamp(Math.round(num(s.staggerMs ?? legacy.staggerMs, d.staggerMs)), 0, 30000),
+    scatterPx: clamp(Math.round(num(s.scatterPx ?? legacy.scatterPx, d.scatterPx)), 0, 300),
+    angleJitterDeg: clamp(num(s.angleJitterDeg ?? legacy.angleJitterDeg, d.angleJitterDeg), 0, 90),
+    blurPx: clamp(num(s.blurPx ?? legacy.blurPx, d.blurPx ?? 17.5), 0, 50),
+    blurStart: clamp(num(s.blurStart ?? legacy.blurStart, d.blurStart ?? 0.45), 0, 0.95),
+  };
+}
+
+function normalizeWarpStyleBlock(i: Partial<WarpStyleConfig> = {}, d: WarpStyleConfig): WarpStyleConfig {
+  const speedMinMs = clamp(Math.round(num(i.speedMinMs, d.speedMinMs)), 50, 30000);
+  const speedMaxMs = Math.max(speedMinMs, clamp(Math.round(num(i.speedMaxMs, d.speedMaxMs)), 50, 30000));
+  return {
+    speedMinMs,
+    speedMaxMs,
+    staggerMs: clamp(Math.round(num(i.staggerMs, d.staggerMs)), 0, 30000),
+    intensity: clamp(num(i.intensity, d.intensity), 0, 2),
+    detail: clamp(num(i.detail, d.detail), 0, 1),
+    glow: clamp(num(i.glow, d.glow), 0, 1),
+  };
+}
+
+function normalizeHadoukenBlock(
+  i: Partial<RevealConfig["assembly"]["hadouken"]> = {},
+): RevealConfig["assembly"]["hadouken"] {
+  const d = DEFAULT_REVEAL.assembly.hadouken;
+  return {
+    ...normalizeWarpStyleBlock(i, d),
+    particleCount: clamp(Math.round(num(i.particleCount, d.particleCount)), 500, 20000),
+  };
+}
 
 export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
   const w = i.wave ?? {};
@@ -270,11 +339,6 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
   const position = WAVE_POSITIONS.includes(w.position as WavePosition)
     ? (w.position as WavePosition)
     : DEFAULT_REVEAL.wave.position;
-  const speedMinMs = clamp(Math.round(num(a.speedMinMs, DEFAULT_REVEAL.assembly.speedMinMs)), 100, 30000);
-  const speedMaxMs = Math.max(
-    speedMinMs,
-    clamp(Math.round(num(a.speedMaxMs, DEFAULT_REVEAL.assembly.speedMaxMs)), 100, 30000),
-  );
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_REVEAL.enabled,
     type: i.type === "assembly" || i.type === "wave" ? i.type : DEFAULT_REVEAL.type,
@@ -288,18 +352,10 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
       style: ASSEMBLY_STYLES.includes(a.style as AssemblyStyle)
         ? (a.style as AssemblyStyle)
         : DEFAULT_REVEAL.assembly.style,
-      sliceSizePx: clamp(Math.round(num(a.sliceSizePx, DEFAULT_REVEAL.assembly.sliceSizePx)), 8, 200),
-      speedMinMs,
-      speedMaxMs,
-      staggerMs: clamp(Math.round(num(a.staggerMs, DEFAULT_REVEAL.assembly.staggerMs)), 0, 30000),
-      scatterPx: clamp(Math.round(num(a.scatterPx, DEFAULT_REVEAL.assembly.scatterPx)), 0, 300),
-      angleJitterDeg: clamp(num(a.angleJitterDeg, DEFAULT_REVEAL.assembly.angleJitterDeg), 0, 90),
-      intensity: clamp(num(a.intensity, DEFAULT_REVEAL.assembly.intensity), 0, 2),
-      detail: clamp(num(a.detail, DEFAULT_REVEAL.assembly.detail), 0, 1),
-      glow: clamp(num(a.glow, DEFAULT_REVEAL.assembly.glow), 0, 1),
-      particleCount: clamp(Math.round(num(a.particleCount, DEFAULT_REVEAL.assembly.particleCount)), 500, 20000),
-      blurPx: clamp(num(a.blurPx, DEFAULT_REVEAL.assembly.blurPx ?? 17.5), 0, 50),
-      blurStart: clamp(num(a.blurStart, DEFAULT_REVEAL.assembly.blurStart ?? 0.45), 0, 0.95),
+      scatter: normalizeScatterBlock(a),
+      turbulence: normalizeWarpStyleBlock(a.turbulence, DEFAULT_REVEAL.assembly.turbulence),
+      glitch: normalizeWarpStyleBlock(a.glitch, DEFAULT_REVEAL.assembly.glitch),
+      hadouken: normalizeHadoukenBlock(a.hadouken),
     },
   };
 }
@@ -673,7 +729,17 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   stripesEnabled: true,
   fieldScale: 1,
   maxFps: 0,
-  reveal: { ...DEFAULT_REVEAL, wave: { ...DEFAULT_REVEAL.wave }, assembly: { ...DEFAULT_REVEAL.assembly } },
+  reveal: {
+    ...DEFAULT_REVEAL,
+    wave: { ...DEFAULT_REVEAL.wave },
+    assembly: {
+      ...DEFAULT_REVEAL.assembly,
+      scatter: { ...DEFAULT_REVEAL.assembly.scatter },
+      turbulence: { ...DEFAULT_REVEAL.assembly.turbulence },
+      glitch: { ...DEFAULT_REVEAL.assembly.glitch },
+      hadouken: { ...DEFAULT_REVEAL.assembly.hadouken },
+    },
+  },
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },
     width: { ...DEFAULT_SPARKLE.width },

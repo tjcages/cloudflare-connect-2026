@@ -2,17 +2,28 @@ import { easeValue } from "../controls/easing";
 
 export const UNDERLAY_INTRO_FADE_MS = 4000;
 
+type WarpStyleLike = { staggerMs: number; speedMaxMs: number };
+type AssemblyStyleLike = "scatter" | "turbulence" | "glitch" | "hadouken";
+
 type RevealLike = {
   enabled: boolean;
   type: "wave" | "assembly";
   wave: { durationMs: number };
-  assembly: { staggerMs: number; speedMaxMs: number };
+  assembly: {
+    style: AssemblyStyleLike;
+    scatter: WarpStyleLike;
+    turbulence: WarpStyleLike;
+    glitch: WarpStyleLike;
+    hadouken: WarpStyleLike;
+  };
 };
 
 /** Match stripes-engine `resolveRevealDurationMs` — when progress reaches 1. */
 export function resolveUnderlayIntroDelayMs(reveal: RevealLike): number {
   if (!reveal.enabled) return 0;
-  return reveal.type === "assembly" ? reveal.assembly.staggerMs + reveal.assembly.speedMaxMs : reveal.wave.durationMs;
+  if (reveal.type !== "assembly") return reveal.wave.durationMs;
+  const block = reveal.assembly[reveal.assembly.style];
+  return block.staggerMs + block.speedMaxMs;
 }
 
 export type UnderlayIntroController = {

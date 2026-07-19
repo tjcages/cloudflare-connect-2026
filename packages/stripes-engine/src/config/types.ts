@@ -13,6 +13,15 @@ export type WavePosition =
 
 export type AssemblyStyle = "scatter" | "turbulence" | "glitch" | "hadouken";
 
+export interface WarpStyleConfig {
+  speedMinMs: number;
+  speedMaxMs: number;
+  staggerMs: number;
+  intensity: number;
+  detail: number;
+  glow: number;
+}
+
 export interface RevealConfig {
   enabled: boolean;
   type: "wave" | "assembly";
@@ -24,18 +33,19 @@ export interface RevealConfig {
   };
   assembly: {
     style: AssemblyStyle;
-    sliceSizePx: number;
-    speedMinMs: number;
-    speedMaxMs: number;
-    staggerMs: number;
-    scatterPx: number;
-    angleJitterDeg: number;
-    intensity: number;
-    detail: number;
-    glow: number;
-    particleCount: number;
-    blurPx?: number;
-    blurStart?: number;
+    scatter: {
+      sliceSizePx: number;
+      speedMinMs: number;
+      speedMaxMs: number;
+      staggerMs: number;
+      scatterPx: number;
+      angleJitterDeg: number;
+      blurPx?: number;
+      blurStart?: number;
+    };
+    turbulence: WarpStyleConfig;
+    glitch: WarpStyleConfig;
+    hadouken: WarpStyleConfig & { particleCount: number };
   };
 }
 

@@ -9,7 +9,7 @@ import {
   waveRevealAt,
   assemblyRevealAt,
 } from "./revealMath";
-import { DEFAULT_REVEAL } from "../config/normalize";
+import { DEFAULT_REVEAL, normalizeReveal } from "../config/normalize";
 
 describe("WAVE_POSITIONS", () => {
   it("contains all 9 positions", () => {
@@ -72,17 +72,26 @@ describe("resolveRevealDurationMs", () => {
     const r = { ...DEFAULT_REVEAL, type: "wave" as const };
     expect(resolveRevealDurationMs(r)).toBe(r.wave.durationMs);
   });
-  it("returns staggerMs + speedMaxMs for assembly type", () => {
+  it("returns staggerMs + speedMaxMs of the active style block for assembly type", () => {
     const r = { ...DEFAULT_REVEAL, type: "assembly" as const };
-    expect(resolveRevealDurationMs(r)).toBe(r.assembly.staggerMs + r.assembly.speedMaxMs);
+    expect(resolveRevealDurationMs(r)).toBe(r.assembly.scatter.staggerMs + r.assembly.scatter.speedMaxMs);
   });
   it("custom assembly durations", () => {
     const r = {
       ...DEFAULT_REVEAL,
       type: "assembly" as const,
-      assembly: { ...DEFAULT_REVEAL.assembly, staggerMs: 500, speedMaxMs: 1000 },
+      assembly: {
+        ...DEFAULT_REVEAL.assembly,
+        scatter: { ...DEFAULT_REVEAL.assembly.scatter, staggerMs: 500, speedMaxMs: 1000 },
+      },
     };
     expect(resolveRevealDurationMs(r)).toBe(1500);
+  });
+  it("assembly duration follows the active style block", () => {
+    const base = normalizeReveal({ enabled: true, type: "assembly", assembly: { style: "glitch" } });
+    expect(resolveRevealDurationMs(base)).toBe(220 + 350);
+    const turb = normalizeReveal({ enabled: true, type: "assembly", assembly: { style: "turbulence" } });
+    expect(resolveRevealDurationMs(turb)).toBe(800 + 1800);
   });
 });
 

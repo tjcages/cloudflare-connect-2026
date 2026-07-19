@@ -542,7 +542,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
-          const { assembly } = config.reveal;
+          const assembly = config.reveal.assembly.hadouken;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
@@ -577,7 +577,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
-          const { assembly } = config.reveal;
+          const style = config.reveal.assembly.style;
+          const assembly = style === "glitch" ? config.reveal.assembly.glitch : config.reveal.assembly.turbulence;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
@@ -586,7 +587,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
           warpPass.render(revealedRT, fieldRT.texture, {
-            mode: WARP_MODES[assembly.style] ?? 0,
+            mode: WARP_MODES[style] ?? 0,
             progress: rawProgress,
             spread,
             flight: avgTotal,
@@ -605,9 +606,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
-          const { assembly } = config.reveal;
-          const blurPx = assembly.blurPx ?? DEFAULT_REVEAL.assembly.blurPx ?? 0;
-          const blurStart = assembly.blurStart ?? DEFAULT_REVEAL.assembly.blurStart ?? 0;
+          const assembly = config.reveal.assembly.scatter;
+          const blurPx = assembly.blurPx ?? DEFAULT_REVEAL.assembly.scatter.blurPx ?? 0;
+          const blurStart = assembly.blurStart ?? DEFAULT_REVEAL.assembly.scatter.blurStart ?? 0;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
           const progress = Math.max(0, Math.min(1, rawProgress));

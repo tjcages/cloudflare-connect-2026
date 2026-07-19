@@ -1,6 +1,6 @@
 /** @deprecated legacy-config shim — delete once old configs are gone */
 import type { EngineConfig, Stripe } from "../config/types";
-import { normalizeBackground } from "../config/normalize";
+import { normalizeBackground, DEFAULT_REVEAL } from "../config/normalize";
 import type { LegacyStripe, LegacyRevealConfig } from "./legacyTypes";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -33,18 +33,19 @@ function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
     },
     assembly: {
       style: "scatter",
-      sliceSizePx: 40,
-      speedMinMs: typeof a.speedMinMs === "number" ? a.speedMinMs : 300,
-      speedMaxMs: typeof a.speedMaxMs === "number" ? a.speedMaxMs : 1600,
-      staggerMs: typeof a.staggerMs === "number" ? a.staggerMs : 900,
-      scatterPx: 50,
-      angleJitterDeg: 22,
-      intensity: 1,
-      detail: 0.5,
-      glow: 0.6,
-      particleCount: 4000,
-      blurPx: 8,
-      blurStart: 0,
+      scatter: {
+        sliceSizePx: 40,
+        speedMinMs: typeof a.speedMinMs === "number" ? a.speedMinMs : 300,
+        speedMaxMs: typeof a.speedMaxMs === "number" ? a.speedMaxMs : 1600,
+        staggerMs: typeof a.staggerMs === "number" ? a.staggerMs : 900,
+        scatterPx: 50,
+        angleJitterDeg: 22,
+        blurPx: 8,
+        blurStart: 0,
+      },
+      turbulence: { ...DEFAULT_REVEAL.assembly.turbulence },
+      glitch: { ...DEFAULT_REVEAL.assembly.glitch },
+      hadouken: { ...DEFAULT_REVEAL.assembly.hadouken },
     },
   };
 }
