@@ -242,9 +242,10 @@ export const REVEAL_TYPES: readonly RevealType[] = [
   "turbulence",
   "glitch",
   "hadouken",
-  "burn",
-  "portal",
-  "lightning",
+  "warptunnel",
+  "meteor",
+  "beam",
+  "plasma",
 ];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
@@ -261,7 +262,7 @@ export const DEFAULT_REVEAL: RevealConfig = {
     blurStart: 0.45,
   },
   turbulence: { speedMinMs: 400, speedMaxMs: 1800, staggerMs: 800, intensity: 1, detail: 0.5, glow: 0.6 },
-  glitch: { speedMinMs: 80, speedMaxMs: 350, staggerMs: 220, intensity: 1, detail: 0.5, glow: 0.7 },
+  glitch: { speedMinMs: 80, speedMaxMs: 600, staggerMs: 1100, intensity: 1, detail: 0.5, glow: 0.7 },
   hadouken: {
     speedMinMs: 500,
     speedMaxMs: 1800,
@@ -271,9 +272,10 @@ export const DEFAULT_REVEAL: RevealConfig = {
     glow: 0.7,
     particleCount: 4000,
   },
-  burn: { speedMinMs: 500, speedMaxMs: 2000, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.7 },
-  portal: { speedMinMs: 400, speedMaxMs: 1600, staggerMs: 300, intensity: 1, detail: 0.5, glow: 0.7 },
-  lightning: { speedMinMs: 300, speedMaxMs: 2400, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.8 },
+  warptunnel: { speedMinMs: 300, speedMaxMs: 1800, staggerMs: 400, intensity: 1, detail: 0.5, glow: 0.8 },
+  meteor: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.8 },
+  beam: { speedMinMs: 300, speedMaxMs: 2200, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.8 },
+  plasma: { speedMinMs: 400, speedMaxMs: 2000, staggerMs: 900, intensity: 1, detail: 0.5, glow: 0.8 },
 };
 
 /** @deprecated legacy-config shim — R5/R6 nested assembly.style + assembly.{scatter,turbulence,glitch,hadouken} */
@@ -293,9 +295,10 @@ type PartialReveal = {
   turbulence?: Partial<WarpStyleConfig>;
   glitch?: Partial<WarpStyleConfig>;
   hadouken?: Partial<RevealConfig["hadouken"]>;
-  burn?: Partial<WarpStyleConfig>;
-  portal?: Partial<WarpStyleConfig>;
-  lightning?: Partial<WarpStyleConfig>;
+  warptunnel?: Partial<WarpStyleConfig>;
+  meteor?: Partial<WarpStyleConfig>;
+  beam?: Partial<WarpStyleConfig>;
+  plasma?: Partial<WarpStyleConfig>;
 };
 
 function normalizeAssemblyBlock(a: LegacyAssemblyBlock): RevealConfig["assembly"] {
@@ -366,9 +369,10 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     hadouken: normalizeHadoukenBlock(i.hadouken ?? a.hadouken),
-    burn: normalizeWarpStyleBlock(i.burn, DEFAULT_REVEAL.burn),
-    portal: normalizeWarpStyleBlock(i.portal, DEFAULT_REVEAL.portal),
-    lightning: normalizeWarpStyleBlock(i.lightning, DEFAULT_REVEAL.lightning),
+    warptunnel: normalizeWarpStyleBlock(i.warptunnel, DEFAULT_REVEAL.warptunnel),
+    meteor: normalizeWarpStyleBlock(i.meteor, DEFAULT_REVEAL.meteor),
+    beam: normalizeWarpStyleBlock(i.beam, DEFAULT_REVEAL.beam),
+    plasma: normalizeWarpStyleBlock(i.plasma, DEFAULT_REVEAL.plasma),
   };
 }
 
@@ -748,9 +752,10 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
     hadouken: { ...DEFAULT_REVEAL.hadouken },
-    burn: { ...DEFAULT_REVEAL.burn },
-    portal: { ...DEFAULT_REVEAL.portal },
-    lightning: { ...DEFAULT_REVEAL.lightning },
+    warptunnel: { ...DEFAULT_REVEAL.warptunnel },
+    meteor: { ...DEFAULT_REVEAL.meteor },
+    beam: { ...DEFAULT_REVEAL.beam },
+    plasma: { ...DEFAULT_REVEAL.plasma },
   },
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },

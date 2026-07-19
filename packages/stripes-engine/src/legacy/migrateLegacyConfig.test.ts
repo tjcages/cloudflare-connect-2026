@@ -51,9 +51,10 @@ describe("migrateLegacyConfig", () => {
       turbulence: DEFAULT_REVEAL.turbulence,
       glitch: DEFAULT_REVEAL.glitch,
       hadouken: DEFAULT_REVEAL.hadouken,
-      burn: DEFAULT_REVEAL.burn,
-      portal: DEFAULT_REVEAL.portal,
-      lightning: DEFAULT_REVEAL.lightning,
+      warptunnel: DEFAULT_REVEAL.warptunnel,
+      meteor: DEFAULT_REVEAL.meteor,
+      beam: DEFAULT_REVEAL.beam,
+      plasma: DEFAULT_REVEAL.plasma,
     });
   });
 });

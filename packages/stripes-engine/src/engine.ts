@@ -66,10 +66,17 @@ const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
 const CLICK_WAVE_MAX_PUSH_CELLS = 6;
 const STARS_SEED_XOR = 173516199;
 
-type WarpRevealType = "turbulence" | "glitch" | "burn" | "portal" | "lightning";
-const WARP_MODES: Record<WarpRevealType, number> = { turbulence: 0, glitch: 1, burn: 2, portal: 3, lightning: 4 };
+type WarpRevealType = "turbulence" | "glitch" | "warptunnel" | "meteor" | "beam" | "plasma";
+const WARP_MODES: Record<WarpRevealType, number> = {
+  turbulence: 0,
+  glitch: 1,
+  warptunnel: 2,
+  meteor: 3,
+  beam: 4,
+  plasma: 5,
+};
 function isWarpRevealType(t: RevealType): t is WarpRevealType {
-  return t === "turbulence" || t === "glitch" || t === "burn" || t === "portal" || t === "lightning";
+  return t === "turbulence" || t === "glitch" || t === "warptunnel" || t === "meteor" || t === "beam" || t === "plasma";
 }
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };

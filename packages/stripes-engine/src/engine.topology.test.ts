@@ -90,25 +90,32 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(turbulence, wave)).toBe(true);
   });
 
-  it("switching assembly <-> burn triggers rebuild", () => {
+  it("switching assembly <-> meteor triggers rebuild", () => {
     const assembly = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
-    const burn = normalizeEngineConfig({ reveal: { enabled: true, type: "burn" } });
-    expect(needsRebuild(assembly, burn)).toBe(true);
-    expect(needsRebuild(burn, assembly)).toBe(true);
+    const meteor = normalizeEngineConfig({ reveal: { enabled: true, type: "meteor" } });
+    expect(needsRebuild(assembly, meteor)).toBe(true);
+    expect(needsRebuild(meteor, assembly)).toBe(true);
   });
 
-  it("switching turbulence <-> lightning does NOT trigger rebuild (both share the warp kind)", () => {
+  it("switching turbulence <-> plasma does NOT trigger rebuild (both share the warp kind)", () => {
     const turbulence = normalizeEngineConfig({ reveal: { enabled: true, type: "turbulence" } });
-    const lightning = normalizeEngineConfig({ reveal: { enabled: true, type: "lightning" } });
-    expect(needsRebuild(turbulence, lightning)).toBe(false);
-    expect(needsRebuild(lightning, turbulence)).toBe(false);
+    const plasma = normalizeEngineConfig({ reveal: { enabled: true, type: "plasma" } });
+    expect(needsRebuild(turbulence, plasma)).toBe(false);
+    expect(needsRebuild(plasma, turbulence)).toBe(false);
   });
 
-  it("switching hadouken <-> portal triggers rebuild", () => {
+  it("switching warptunnel <-> plasma does NOT trigger rebuild (both share the warp kind)", () => {
+    const warptunnel = normalizeEngineConfig({ reveal: { enabled: true, type: "warptunnel" } });
+    const plasma = normalizeEngineConfig({ reveal: { enabled: true, type: "plasma" } });
+    expect(needsRebuild(warptunnel, plasma)).toBe(false);
+    expect(needsRebuild(plasma, warptunnel)).toBe(false);
+  });
+
+  it("switching hadouken <-> beam triggers rebuild", () => {
     const hadouken = normalizeEngineConfig({ reveal: { enabled: true, type: "hadouken" } });
-    const portal = normalizeEngineConfig({ reveal: { enabled: true, type: "portal" } });
-    expect(needsRebuild(hadouken, portal)).toBe(true);
-    expect(needsRebuild(portal, hadouken)).toBe(true);
+    const beam = normalizeEngineConfig({ reveal: { enabled: true, type: "beam" } });
+    expect(needsRebuild(hadouken, beam)).toBe(true);
+    expect(needsRebuild(beam, hadouken)).toBe(true);
   });
 
   it("turbulence <-> glitch and param changes do not trigger rebuild", () => {

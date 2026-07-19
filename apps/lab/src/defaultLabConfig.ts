@@ -149,7 +149,7 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
       blurStart: 0.45,
     },
     turbulence: { speedMinMs: 400, speedMaxMs: 1800, staggerMs: 800, intensity: 1, detail: 0.5, glow: 0.6 },
-    glitch: { speedMinMs: 80, speedMaxMs: 350, staggerMs: 220, intensity: 1, detail: 0.5, glow: 0.7 },
+    glitch: { speedMinMs: 80, speedMaxMs: 600, staggerMs: 1100, intensity: 1, detail: 0.5, glow: 0.7 },
     hadouken: {
       speedMinMs: 500,
       speedMaxMs: 1800,
@@ -159,9 +159,10 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
       glow: 0.7,
       particleCount: 4000,
     },
-    burn: { speedMinMs: 500, speedMaxMs: 2000, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.7 },
-    portal: { speedMinMs: 400, speedMaxMs: 1600, staggerMs: 300, intensity: 1, detail: 0.5, glow: 0.7 },
-    lightning: { speedMinMs: 300, speedMaxMs: 2400, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.8 },
+    warptunnel: { speedMinMs: 300, speedMaxMs: 1800, staggerMs: 400, intensity: 1, detail: 0.5, glow: 0.8 },
+    meteor: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.8 },
+    beam: { speedMinMs: 300, speedMaxMs: 2200, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.8 },
+    plasma: { speedMinMs: 400, speedMaxMs: 2000, staggerMs: 900, intensity: 1, detail: 0.5, glow: 0.8 },
   },
   sparkle: {
     gaps: {

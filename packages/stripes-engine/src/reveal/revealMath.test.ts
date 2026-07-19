@@ -86,17 +86,19 @@ describe("resolveRevealDurationMs", () => {
   });
   it("duration follows the active type's own block for each energy type", () => {
     const glitch = normalizeReveal({ enabled: true, type: "glitch" });
-    expect(resolveRevealDurationMs(glitch)).toBe(220 + 350);
+    expect(resolveRevealDurationMs(glitch)).toBe(1100 + 600);
     const turb = normalizeReveal({ enabled: true, type: "turbulence" });
     expect(resolveRevealDurationMs(turb)).toBe(800 + 1800);
     const hadouken = normalizeReveal({ enabled: true, type: "hadouken" });
     expect(resolveRevealDurationMs(hadouken)).toBe(1400 + 1800);
-    const burn = normalizeReveal({ enabled: true, type: "burn" });
-    expect(resolveRevealDurationMs(burn)).toBe(1200 + 2000);
-    const portal = normalizeReveal({ enabled: true, type: "portal" });
-    expect(resolveRevealDurationMs(portal)).toBe(300 + 1600);
-    const lightning = normalizeReveal({ enabled: true, type: "lightning" });
-    expect(resolveRevealDurationMs(lightning)).toBe(0 + 2400);
+    const warptunnel = normalizeReveal({ enabled: true, type: "warptunnel" });
+    expect(resolveRevealDurationMs(warptunnel)).toBe(400 + 1800);
+    const meteor = normalizeReveal({ enabled: true, type: "meteor" });
+    expect(resolveRevealDurationMs(meteor)).toBe(0 + 2600);
+    const beam = normalizeReveal({ enabled: true, type: "beam" });
+    expect(resolveRevealDurationMs(beam)).toBe(0 + 2200);
+    const plasma = normalizeReveal({ enabled: true, type: "plasma" });
+    expect(resolveRevealDurationMs(plasma)).toBe(900 + 2000);
   });
 });
 

@@ -11,7 +11,16 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken" | "burn" | "portal" | "lightning";
+export type RevealType =
+  | "wave"
+  | "assembly"
+  | "turbulence"
+  | "glitch"
+  | "hadouken"
+  | "warptunnel"
+  | "meteor"
+  | "beam"
+  | "plasma";
 
 export interface WarpStyleConfig {
   speedMinMs: number;
@@ -44,9 +53,10 @@ export interface RevealConfig {
   turbulence: WarpStyleConfig;
   glitch: WarpStyleConfig;
   hadouken: WarpStyleConfig & { particleCount: number };
-  burn: WarpStyleConfig;
-  portal: WarpStyleConfig;
-  lightning: WarpStyleConfig;
+  warptunnel: WarpStyleConfig;
+  meteor: WarpStyleConfig;
+  beam: WarpStyleConfig;
+  plasma: WarpStyleConfig;
 }
 
 export interface Stripe {
