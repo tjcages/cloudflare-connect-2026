@@ -32,10 +32,10 @@ void main() {
   highp float p = max(uProgress, 0.0);
   vec2 a = (vUv - 0.5) * vec2(uAspect, 1.0);
   highp float r = length(a);
-  highp float angn = r > 1e-5 ? atan(a.y, a.x) : 0.0;
+  vec2 edir = r > 1e-5 ? a / r : vec2(1.0, 0.0);
   highp float maxR = length(vec2(uAspect, 1.0)) * 0.5;
   highp float R = (maxR * 1.15 + 0.16) * pow(uCharge, 0.8);
-  highp float edgeN = (fbm2(vec2(angn * mix(1.0, 4.0, uDetail) + 3.1, p * 1.5)) - 0.5) * 0.25;
+  highp float edgeN = (fbm2(edir * mix(1.0, 4.0, uDetail) + vec2(3.1, p * 1.5)) - 0.5) * 0.25;
   highp float Rl = max(0.0, R * (1.0 + edgeN));
   highp float done = smoothstep(0.85, 1.0, uCharge);
   highp float mask = max(smoothstep(Rl, Rl - 0.12, r), done);
