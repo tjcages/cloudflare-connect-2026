@@ -62,6 +62,7 @@ export function createParticleMergePass(gl: WebGL2RenderingContext, quad: { draw
           gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA);
           quad.draw();
           gl.blendFunc(gl.ONE, gl.ZERO);
+          gl.blendColor(0, 0, 0, 0);
           gl.disable(gl.BLEND);
         } else {
           quad.draw();

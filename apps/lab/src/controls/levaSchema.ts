@@ -1492,7 +1492,7 @@ export function useEngineControls(
             value: d.reveal.assembly.particleCount,
             min: 500,
             max: 20000,
-            step: 500,
+            step: 100,
             label: "Particle count",
             render: (get) =>
               get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") === "particles",

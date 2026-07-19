@@ -548,9 +548,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
           const moveEnd = Math.min(1, spread + avgTotal);
-          const settleEnd = Math.min(1, moveEnd + 0.12);
-          const settleRange = Math.max(1e-4, settleEnd - moveEnd);
-          const settleT = Math.min(1, Math.max(0, (rawProgress - moveEnd) / settleRange));
+          const settleT = Math.min(1, Math.max(0, (rawProgress - moveEnd) / 0.12));
           const settle = settleT * settleT * (3 - 2 * settleT);
           particlePass.render(revealedRT, fieldRT.texture, {
             count: assembly.particleCount,
