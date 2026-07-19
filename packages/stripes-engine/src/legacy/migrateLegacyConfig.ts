@@ -42,6 +42,7 @@ function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
       intensity: 1,
       detail: 0.5,
       glow: 0.6,
+      particleCount: 4000,
       blurPx: 8,
       blurStart: 0,
     },

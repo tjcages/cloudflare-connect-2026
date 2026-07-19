@@ -235,15 +235,7 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-export const ASSEMBLY_STYLES: readonly AssemblyStyle[] = [
-  "scatter",
-  "turbulence",
-  "vortex",
-  "streams",
-  "pull",
-  "ripple",
-  "glitch",
-];
+export const ASSEMBLY_STYLES: readonly AssemblyStyle[] = ["scatter", "turbulence", "glitch", "hadouken"];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",
@@ -259,6 +251,7 @@ export const DEFAULT_REVEAL: RevealConfig = {
     intensity: 1,
     detail: 0.5,
     glow: 0.6,
+    particleCount: 4000,
     blurPx: 17.5,
     blurStart: 0.45,
   },
@@ -304,6 +297,7 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
       intensity: clamp(num(a.intensity, DEFAULT_REVEAL.assembly.intensity), 0, 2),
       detail: clamp(num(a.detail, DEFAULT_REVEAL.assembly.detail), 0, 1),
       glow: clamp(num(a.glow, DEFAULT_REVEAL.assembly.glow), 0, 1),
+      particleCount: clamp(Math.round(num(a.particleCount, DEFAULT_REVEAL.assembly.particleCount)), 500, 20000),
       blurPx: clamp(num(a.blurPx, DEFAULT_REVEAL.assembly.blurPx ?? 17.5), 0, 50),
       blurStart: clamp(num(a.blurStart, DEFAULT_REVEAL.assembly.blurStart ?? 0.45), 0, 0.95),
     },

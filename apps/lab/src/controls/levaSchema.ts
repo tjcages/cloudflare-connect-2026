@@ -1481,15 +1481,7 @@ export function useEngineControls(
           },
           revealAssemblyStyle: {
             value: d.reveal.assembly.style,
-            options: {
-              Scatter: "scatter",
-              Turbulence: "turbulence",
-              Vortex: "vortex",
-              Streams: "streams",
-              Pull: "pull",
-              Ripple: "ripple",
-              Glitch: "glitch",
-            } as const,
+            options: { Scatter: "scatter", Turbulence: "turbulence", Glitch: "glitch", Hadouken: "hadouken" } as const,
             label: "Style",
             render: (get) => get("Reveal.revealType") === "assembly",
           },
@@ -1516,6 +1508,15 @@ export function useEngineControls(
             step: 0.05,
             label: "Glow",
             render: (get) => get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") !== "scatter",
+          },
+          revealParticleCount: {
+            value: d.reveal.assembly.particleCount,
+            min: 500,
+            max: 20000,
+            step: 100,
+            label: "Particle count",
+            render: (get) =>
+              get("Reveal.revealType") === "assembly" && get("Reveal.revealAssemblyStyle") === "hadouken",
           },
           revealPosition: {
             value: d.reveal.wave.position,
@@ -2090,6 +2091,7 @@ export function useEngineControls(
         intensity: values.revealIntensity,
         detail: values.revealDetail,
         glow: values.revealGlow,
+        particleCount: values.revealParticleCount,
       },
     },
     sparkle: {

@@ -48,6 +48,7 @@ describe("migrateLegacyConfig", () => {
         intensity: 1,
         detail: 0.5,
         glow: 0.6,
+        particleCount: 4000,
         blurPx: 8,
         blurStart: 0,
       },

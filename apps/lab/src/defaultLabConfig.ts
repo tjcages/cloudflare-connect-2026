@@ -149,6 +149,7 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
       intensity: 1,
       detail: 0.5,
       glow: 0.6,
+      particleCount: 4000,
       blurPx: 17.5,
       blurStart: 0.45,
     },
