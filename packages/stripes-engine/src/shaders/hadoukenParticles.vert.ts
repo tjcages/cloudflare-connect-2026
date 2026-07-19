@@ -20,7 +20,8 @@ highp float hashLane(highp uint i, highp uint salt) {
 
 void main() {
   highp uint id = uint(gl_InstanceID);
-  highp float o = hashLane(id, 1u);
+  highp float u0 = hashLane(id, 1u);
+  highp float o = u0 < 0.5 ? sqrt(0.5 * u0) : 1.0 - sqrt(0.5 * (1.0 - u0));
   highp float p = max(uProgress, 0.0);
   highp float f = clamp((p - uSpread * o) / max(uFlight, 1e-4), 0.0, 1.0);
   if (f <= 0.0 || f >= 1.0) {
@@ -34,23 +35,12 @@ void main() {
   vec2 asp = vec2(uAspect, 1.0);
   vec2 rel = (startUv - targetUv) * asp;
   highp float rad = length(rel);
-  highp float baseAng = rad > 1e-5 ? atan(rel.y, rel.x) : 0.0;
-  highp float orb = step(hashLane(id, 8u), 0.12);
-  highp float spin = (hashLane(id, 6u) - 0.5) * 2.0 * mix(1.2, 2.6, hashLane(id, 9u)) * (1.0 - 0.5 * orb);
-  highp float wob = sin(f * (7.0 + 6.0 * hashLane(id, 10u)) + hashLane(id, 11u) * 6.2831853) * 0.015 * (1.0 - (1.0 - pow(1.0 - f, 3.0)));
+  vec2 dirN = rad > 1e-5 ? -rel / rad : vec2(1.0, 0.0);
   highp float ease = 1.0 - pow(1.0 - f, 3.0);
-  highp float ang = baseAng + spin * ease;
-  highp float rr = max(rad * (1.0 - ease) + wob, 0.0);
-  vec2 posA = vec2(cos(ang), sin(ang)) * rr;
-  highp float f2 = min(f + 0.03, 1.0);
-  highp float ease2 = 1.0 - pow(1.0 - f2, 3.0);
-  highp float ang2 = baseAng + spin * ease2;
-  highp float rr2 = max(rad * (1.0 - ease2) + wob, 0.0);
-  vec2 posB = vec2(cos(ang2), sin(ang2)) * rr2;
-  vec2 vel = posB - posA;
-  highp float vlen = length(vel);
-  vec2 dirN = vlen > 1e-5 ? vel / vlen : vec2(1.0, 0.0);
-  highp float stretch = mix(1.0 + min(6.0, vlen * 55.0), 1.0, orb);
+  vec2 posA = rel * (1.0 - ease);
+  highp float orb = step(hashLane(id, 8u), 0.12);
+  highp float speed = 3.0 * (1.0 - f) * (1.0 - f) * rad;
+  highp float stretch = mix(1.0 + min(14.0, speed * 34.0), 1.0, orb);
   highp float sizeScale = (0.6 + 0.8 * hashLane(id, 7u)) * (1.0 - 0.55 * ease) * (1.0 + 1.6 * orb);
   highp float sizeA = 0.5 * uSizeUv.y * sizeScale;
   int vid = gl_VertexID;
@@ -60,7 +50,7 @@ void main() {
   vec2 rot = vec2(corner0.x * dirN.x - corner0.y * dirN.y, corner0.x * dirN.y + corner0.y * dirN.x);
   vec2 uvPos = targetUv + (posA + rot) / asp;
   vQuad = vec2(qx, qy);
-  highp float fadeIn = smoothstep(0.0, 0.15, f);
+  highp float fadeIn = smoothstep(0.0, 0.12, f);
   highp float fadeOut = 1.0 - smoothstep(0.85, 1.0, f);
   vVal = (0.55 + 0.45 * hashLane(id, 12u)) * fadeIn * fadeOut * (1.0 + 0.3 * orb);
   gl_Position = vec4(uvPos * 2.0 - 1.0, 0.0, 1.0);

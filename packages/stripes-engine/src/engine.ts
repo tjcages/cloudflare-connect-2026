@@ -560,7 +560,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
-          const charge = Math.min(1, Math.max(0, (rawProgress - avgTotal) / Math.max(spread, 0.2)));
+          const lin = Math.min(1, Math.max(0, (rawProgress - avgTotal) / Math.max(spread, 0.2)));
+          const charge = lin < 0.5 ? 2 * lin * lin : 1 - 2 * (1 - lin) * (1 - lin);
           const chargeEnd = avgTotal + 0.82 * Math.max(spread, 0.2);
           const burst = Math.min(1, Math.max(0, (rawProgress - chargeEnd) / 0.26));
           const sizePx = 6 * Math.max(0.05, assembly.intensity);
