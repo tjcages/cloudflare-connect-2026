@@ -373,6 +373,22 @@ describe("vortex lines", () => {
     }
   });
 
+  it("trails the tail opposite the spin so segments sit where the head already passed", () => {
+    const state = createFlamesState(seededRandom());
+    const config = linesConfig();
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames
+      .filter((f) => f.pivotX === head.pivotX && f.pivotY === head.pivotY)
+      .sort((a, b) => a.segIndex - b.segIndex);
+    const spinSign = Math.sign(head.angVel);
+    expect(spinSign).not.toBe(0);
+    for (let i = 1; i < mates.length; i++) {
+      const stepSign = Math.sign(mates[i].angle - mates[i - 1].angle);
+      expect(stepSign).toBe(-spinSign);
+    }
+  });
+
   it("expires a whole snake together", () => {
     const state = createFlamesState(seededRandom());
     const config = linesConfig({ spawnIntervalMs: 5000 });
