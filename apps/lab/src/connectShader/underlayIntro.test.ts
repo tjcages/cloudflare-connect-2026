@@ -4,10 +4,8 @@ import { UNDERLAY_INTRO_FADE_MS, createUnderlayIntroController, resolveUnderlayI
 const ALL_REVEAL_BLOCKS = {
   assembly: { staggerMs: 900, speedMaxMs: 1600 },
   turbulence: { staggerMs: 1400, speedMaxMs: 2600 },
-  glitch: { staggerMs: 2400, speedMaxMs: 900 },
+  glitch: { staggerMs: 1200, speedMaxMs: 1400 },
   hadouken: { staggerMs: 900, speedMaxMs: 1100 },
-  storm: { staggerMs: 600, speedMaxMs: 2600 },
-  detonation: { staggerMs: 1200, speedMaxMs: 1400 },
 };
 
 describe("resolveUnderlayIntroDelayMs", () => {
@@ -52,15 +50,15 @@ describe("resolveUnderlayIntroDelayMs", () => {
         wave: { durationMs: 1200 },
         ...ALL_REVEAL_BLOCKS,
       }),
-    ).toBe(3300);
+    ).toBe(2600);
     expect(
       resolveUnderlayIntroDelayMs({
         enabled: true,
-        type: "detonation",
+        type: "turbulence",
         wave: { durationMs: 1200 },
         ...ALL_REVEAL_BLOCKS,
       }),
-    ).toBe(2600);
+    ).toBe(4000);
   });
 });
 

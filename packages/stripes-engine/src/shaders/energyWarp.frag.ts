@@ -39,12 +39,6 @@ void main() {
     highp float n0 = fbm2(vUv * mix(4.0, 14.0, uDetail) + 7.3);
     highp float n1 = vhash(floor(vUv * mix(8.0, 26.0, uDetail)) * 0.173 + 3.7);
     n = clamp(mix(n0, n1, 0.55), 0.0, 1.0);
-  } else if (uMode == 1) {
-    highp float rowsC = mix(8.0, 24.0, uDetail);
-    highp float rowsF = mix(40.0, 120.0, uDetail);
-    n = clamp(vhash(vec2(floor(vUv.y * rowsC) * 0.61, 8.8)) * 0.6 + vhash(vec2(floor(vUv.y * rowsF) * 0.13, 5.2)) * 0.4, 0.0, 1.0);
-  } else if (uMode == 2) {
-    n = 0.1 + fbm2(vUv * 6.0 + 11.7) * 0.1;
   } else {
     highp float rows = mix(14.0, 60.0, uDetail);
     n = vhash(vec2(floor(vUv.y * rows) * 0.57, 12.3));
@@ -84,78 +78,29 @@ void main() {
   }
 
   if (uMode == 1) {
-    highp float decay = 1.0 - ease;
-    highp float emerge = smoothstep(0.0, 0.25, f);
-    highp float rowsC = mix(8.0, 24.0, uDetail);
-    highp float rowsF = mix(40.0, 120.0, uDetail);
-    highp float rowC = floor(vUv.y * rowsC);
-    highp float rowF = floor(vUv.y * rowsF);
-    highp float stp = floor(p * 38.0);
-    highp float actC = step(0.6, vhash(vec2(rowC * 0.53 + stp * 1.71, 6.1)));
-    highp float actF = step(0.72, vhash(vec2(rowF * 0.41 + stp * 1.29, 3.3)));
-    highp float magVar = 0.4 + 0.6 * vhash(vec2(stp * 0.77, 1.9));
-    highp float hC = vhash(vec2(rowC * 0.37 + stp * 1.13, 4.2));
-    highp float hF = vhash(vec2(rowF * 0.23 + stp * 0.87, 7.6));
-    highp float spike = 1.0 + step(0.93, vhash(vec2(rowC * 0.29 + stp * 0.97, 9.4))) * 2.6;
-    vec2 disp = vec2((hC - 0.5) * 0.4 * spike * actC + (hF - 0.5) * 0.18 * actF, (vhash(vec2(rowC * 0.71 + stp * 1.31, 2.6)) - 0.5) * 0.08 * actC) * magVar * uIntensity * decay;
+    highp float inten = smoothstep(0.0, 0.75, f);
+    inten *= inten;
+    highp float masterDecay = 1.0 - smoothstep(0.82, 0.95, f);
+    highp float emerge = smoothstep(0.0, 0.1, f) * (0.45 + 0.55 * smoothstep(0.3, 0.9, f));
+    highp float rows = mix(14.0, 60.0, uDetail);
+    highp float rowC = floor(vUv.y * rows);
+    highp float stp = floor(p * 46.0);
+    highp float duty = mix(0.92, 0.3, inten);
+    highp float act = step(duty, vhash(vec2(rowC * 0.53 + stp * 1.71, 6.1)));
+    highp float h = vhash(vec2(rowC * 0.37 + stp * 1.13, 4.2));
+    vec2 disp = vec2((h - 0.5) * (0.25 + 0.45 * inten), (vhash(vec2(rowC * 0.71 + stp * 1.31, 2.6)) - 0.5) * 0.05 * inten) * act * masterDecay * uIntensity;
     highp float acc = 0.0;
     for (int t = 0; t < 5; t++) {
       highp float w = 0.55 + 0.225 * float(t);
       acc += texture(uField, clamp(vUv + disp * w, 0.0, 1.0)).r;
     }
     highp float v = acc * 0.2;
-    highp float gain = 1.0 + uGlow * 0.5 * actC * decay + uGlow * 0.6 * decay * (vhash(vec2(stp, 3.7)) - 0.5) * 2.0 + uGlow * 1.2 * emerge * (1.0 - emerge);
-    finalColor = vec4(vec3(v * max(gain, 0.0) * emerge), 1.0);
+    highp float white = smoothstep(0.78, 0.86, f) * (1.0 - smoothstep(0.88, 0.97, f));
+    highp float gain = 1.0 + uGlow * 0.6 * act * inten * masterDecay + uGlow * 0.5 * inten * masterDecay * (vhash(vec2(stp, 3.7)) - 0.5) * 2.0;
+    finalColor = vec4(vec3(v * max(gain, 0.0) * emerge + white * uGlow * 1.6), 1.0);
     return;
   }
 
-  if (uMode == 2) {
-    vec2 c0 = vUv - 0.5;
-    highp float r = length(c0);
-    vec2 rdir = r > 1e-4 ? c0 / r : vec2(1.0, 0.0);
-    vec2 perp = vec2(-rdir.y, rdir.x);
-    highp float settleStart = 0.55 + 0.35 * clamp(r * 1.4, 0.0, 1.0);
-    highp float s = smoothstep(settleStart, 1.0, f);
-    highp float dsettle = s * s * (3.0 - 2.0 * s);
-    highp float decay = 1.0 - dsettle;
-    highp float emerge = smoothstep(0.0, 0.18, f);
-    highp float eye = smoothstep(0.04, 0.3, r);
-    highp float spinUp = smoothstep(0.05, 0.45, f);
-    vec2 flow = vec2(p * 1.1, -p * 0.8);
-    vec2 q1 = vUv * freq + flow + 4.2;
-    highp float e = 0.09;
-    vec2 c1 = vec2(fbm2(q1 + vec2(0.0, e)) - fbm2(q1 - vec2(0.0, e)), fbm2(q1 - vec2(e, 0.0)) - fbm2(q1 + vec2(e, 0.0))) / (2.0 * e);
-    vec2 disp = (perp * 0.38 * eye * spinUp + c1 * 0.05) * uIntensity * decay;
-    highp float acc = 0.0;
-    for (int t = 0; t < 5; t++) {
-      highp float w = 0.55 + 0.225 * float(t);
-      acc += texture(uField, clamp(vUv + disp * w, 0.0, 1.0)).r;
-    }
-    highp float v = acc * 0.2;
-    highp float gain = 1.0 + uGlow * 1.1 * min(1.0, length(disp) * 6.0) * decay + uGlow * 1.4 * emerge * (1.0 - emerge);
-    finalColor = vec4(vec3(v * gain * emerge), 1.0);
-    return;
-  }
-
-  highp float inten = smoothstep(0.0, 0.75, f);
-  inten *= inten;
-  highp float masterDecay = 1.0 - smoothstep(0.82, 0.95, f);
-  highp float emerge = smoothstep(0.0, 0.1, f) * (0.45 + 0.55 * smoothstep(0.3, 0.9, f));
-  highp float rows = mix(14.0, 60.0, uDetail);
-  highp float rowC = floor(vUv.y * rows);
-  highp float stp = floor(p * 46.0);
-  highp float duty = mix(0.92, 0.3, inten);
-  highp float act = step(duty, vhash(vec2(rowC * 0.53 + stp * 1.71, 6.1)));
-  highp float h = vhash(vec2(rowC * 0.37 + stp * 1.13, 4.2));
-  vec2 disp = vec2((h - 0.5) * (0.25 + 0.45 * inten), (vhash(vec2(rowC * 0.71 + stp * 1.31, 2.6)) - 0.5) * 0.05 * inten) * act * masterDecay * uIntensity;
-  highp float acc = 0.0;
-  for (int t = 0; t < 5; t++) {
-    highp float w = 0.55 + 0.225 * float(t);
-    acc += texture(uField, clamp(vUv + disp * w, 0.0, 1.0)).r;
-  }
-  highp float v = acc * 0.2;
-  highp float white = smoothstep(0.78, 0.86, f) * (1.0 - smoothstep(0.88, 0.97, f));
-  highp float gain = 1.0 + uGlow * 0.6 * act * inten * masterDecay + uGlow * 0.5 * inten * masterDecay * (vhash(vec2(stp, 3.7)) - 0.5) * 2.0;
-  finalColor = vec4(vec3(v * max(gain, 0.0) * emerge + white * uGlow * 1.6), 1.0);
+  finalColor = vec4(vec3(texture(uField, vUv).r * smoothstep(0.0, 0.2, f)), 1.0);
 }
 `;

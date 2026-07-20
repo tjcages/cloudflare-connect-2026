@@ -67,15 +67,13 @@ const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
 const CLICK_WAVE_MAX_PUSH_CELLS = 6;
 const STARS_SEED_XOR = 173516199;
 
-type WarpRevealType = "turbulence" | "glitch" | "storm" | "detonation";
+type WarpRevealType = "turbulence" | "glitch";
 const WARP_MODES: Record<WarpRevealType, number> = {
   turbulence: 0,
   glitch: 1,
-  storm: 2,
-  detonation: 3,
 };
 function isWarpRevealType(t: RevealType): t is WarpRevealType {
-  return t === "turbulence" || t === "glitch" || t === "storm" || t === "detonation";
+  return t === "turbulence" || t === "glitch";
 }
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
@@ -560,7 +558,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
-          const gridX = Math.round(28 + 44 * assembly.detail);
+          const gridX = Math.round(80 + 120 * assembly.detail);
           const gridY = Math.max(2, Math.round((gridX * cssH) / Math.max(1, cssW)));
           hadoukenPass.render(revealedRT, fieldRT.texture, {
             progress: rawProgress,

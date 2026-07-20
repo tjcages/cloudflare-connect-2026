@@ -90,32 +90,18 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(turbulence, wave)).toBe(true);
   });
 
-  it("switching assembly <-> detonation triggers rebuild", () => {
+  it("switching assembly <-> glitch triggers rebuild", () => {
     const assembly = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
-    const detonation = normalizeEngineConfig({ reveal: { enabled: true, type: "detonation" } });
-    expect(needsRebuild(assembly, detonation)).toBe(true);
-    expect(needsRebuild(detonation, assembly)).toBe(true);
+    const glitch = normalizeEngineConfig({ reveal: { enabled: true, type: "glitch" } });
+    expect(needsRebuild(assembly, glitch)).toBe(true);
+    expect(needsRebuild(glitch, assembly)).toBe(true);
   });
 
-  it("switching turbulence <-> storm does NOT trigger rebuild (both share the warp kind)", () => {
-    const turbulence = normalizeEngineConfig({ reveal: { enabled: true, type: "turbulence" } });
-    const storm = normalizeEngineConfig({ reveal: { enabled: true, type: "storm" } });
-    expect(needsRebuild(turbulence, storm)).toBe(false);
-    expect(needsRebuild(storm, turbulence)).toBe(false);
-  });
-
-  it("switching storm <-> detonation does NOT trigger rebuild (both share the warp kind)", () => {
-    const storm = normalizeEngineConfig({ reveal: { enabled: true, type: "storm" } });
-    const detonation = normalizeEngineConfig({ reveal: { enabled: true, type: "detonation" } });
-    expect(needsRebuild(storm, detonation)).toBe(false);
-    expect(needsRebuild(detonation, storm)).toBe(false);
-  });
-
-  it("switching hadouken <-> detonation triggers rebuild", () => {
+  it("switching hadouken <-> glitch triggers rebuild", () => {
     const hadouken = normalizeEngineConfig({ reveal: { enabled: true, type: "hadouken" } });
-    const detonation = normalizeEngineConfig({ reveal: { enabled: true, type: "detonation" } });
-    expect(needsRebuild(hadouken, detonation)).toBe(true);
-    expect(needsRebuild(detonation, hadouken)).toBe(true);
+    const glitch = normalizeEngineConfig({ reveal: { enabled: true, type: "glitch" } });
+    expect(needsRebuild(hadouken, glitch)).toBe(true);
+    expect(needsRebuild(glitch, hadouken)).toBe(true);
   });
 
   it("fluid is an invalid type and normalizes to assembly (no topology change vs assembly)", () => {

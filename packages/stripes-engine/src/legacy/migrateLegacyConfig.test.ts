@@ -51,8 +51,6 @@ describe("migrateLegacyConfig", () => {
       turbulence: DEFAULT_REVEAL.turbulence,
       glitch: DEFAULT_REVEAL.glitch,
       hadouken: DEFAULT_REVEAL.hadouken,
-      storm: DEFAULT_REVEAL.storm,
-      detonation: DEFAULT_REVEAL.detonation,
     });
   });
 });

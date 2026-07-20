@@ -149,7 +149,7 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
       blurStart: 0.45,
     },
     turbulence: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 1400, intensity: 1, detail: 0.5, glow: 0.6 },
-    glitch: { speedMinMs: 150, speedMaxMs: 900, staggerMs: 2400, intensity: 1, detail: 0.5, glow: 0.7 },
+    glitch: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
     hadouken: {
       speedMinMs: 300,
       speedMaxMs: 1100,
@@ -158,8 +158,6 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
       detail: 0.5,
       glow: 0.7,
     },
-    storm: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
-    detonation: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
   },
   sparkle: {
     gaps: {

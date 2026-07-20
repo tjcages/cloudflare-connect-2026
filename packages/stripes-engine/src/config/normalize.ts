@@ -236,15 +236,7 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-export const REVEAL_TYPES: readonly RevealType[] = [
-  "wave",
-  "assembly",
-  "turbulence",
-  "glitch",
-  "hadouken",
-  "storm",
-  "detonation",
-];
+export const REVEAL_TYPES: readonly RevealType[] = ["wave", "assembly", "turbulence", "glitch", "hadouken"];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",
@@ -260,7 +252,7 @@ export const DEFAULT_REVEAL: RevealConfig = {
     blurStart: 0.45,
   },
   turbulence: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 1400, intensity: 1, detail: 0.5, glow: 0.6 },
-  glitch: { speedMinMs: 150, speedMaxMs: 900, staggerMs: 2400, intensity: 1, detail: 0.5, glow: 0.7 },
+  glitch: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
   hadouken: {
     speedMinMs: 300,
     speedMaxMs: 1100,
@@ -269,8 +261,6 @@ export const DEFAULT_REVEAL: RevealConfig = {
     detail: 0.5,
     glow: 0.7,
   },
-  storm: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
-  detonation: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
 };
 
 /** @deprecated legacy-config shim — R5/R6 nested assembly.style + assembly.{scatter,turbulence,glitch,hadouken} */
@@ -290,8 +280,6 @@ type PartialReveal = {
   turbulence?: Partial<WarpStyleConfig>;
   glitch?: Partial<WarpStyleConfig>;
   hadouken?: Partial<RevealConfig["hadouken"]>;
-  storm?: Partial<WarpStyleConfig>;
-  detonation?: Partial<WarpStyleConfig>;
 };
 
 function normalizeAssemblyBlock(a: LegacyAssemblyBlock): RevealConfig["assembly"] {
@@ -354,8 +342,6 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     hadouken: normalizeWarpStyleBlock(i.hadouken ?? a.hadouken, DEFAULT_REVEAL.hadouken),
-    storm: normalizeWarpStyleBlock(i.storm, DEFAULT_REVEAL.storm),
-    detonation: normalizeWarpStyleBlock(i.detonation, DEFAULT_REVEAL.detonation),
   };
 }
 
@@ -741,8 +727,6 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
     hadouken: { ...DEFAULT_REVEAL.hadouken },
-    storm: { ...DEFAULT_REVEAL.storm },
-    detonation: { ...DEFAULT_REVEAL.detonation },
   },
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },

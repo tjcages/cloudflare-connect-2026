@@ -86,15 +86,11 @@ describe("resolveRevealDurationMs", () => {
   });
   it("duration follows the active type's own block for each energy type", () => {
     const glitch = normalizeReveal({ enabled: true, type: "glitch" });
-    expect(resolveRevealDurationMs(glitch)).toBe(2400 + 900);
+    expect(resolveRevealDurationMs(glitch)).toBe(1200 + 1400);
     const turb = normalizeReveal({ enabled: true, type: "turbulence" });
     expect(resolveRevealDurationMs(turb)).toBe(1400 + 2600);
     const hadouken = normalizeReveal({ enabled: true, type: "hadouken" });
     expect(resolveRevealDurationMs(hadouken)).toBe(900 + 1100);
-    const storm = normalizeReveal({ enabled: true, type: "storm" });
-    expect(resolveRevealDurationMs(storm)).toBe(600 + 2600);
-    const detonation = normalizeReveal({ enabled: true, type: "detonation" });
-    expect(resolveRevealDurationMs(detonation)).toBe(1200 + 1400);
   });
 });
 

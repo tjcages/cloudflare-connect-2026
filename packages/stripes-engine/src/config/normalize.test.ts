@@ -753,8 +753,8 @@ describe("renderMode + renderIntensity", () => {
   });
 });
 describe("reveal type promotion", () => {
-  it("accepts all 7 reveal types", () => {
-    for (const t of ["wave", "assembly", "turbulence", "glitch", "hadouken", "storm", "detonation"] as const) {
+  it("accepts all 5 reveal types", () => {
+    for (const t of ["wave", "assembly", "turbulence", "glitch", "hadouken"] as const) {
       expect(normalizeReveal({ type: t }).type).toBe(t);
     }
   });
@@ -779,20 +779,22 @@ describe("reveal type promotion", () => {
       "trace",
       "pulse",
       "fluid",
+      "storm",
+      "detonation",
     ]) {
       expect(normalizeReveal({ type: t as never }).type).toBe("assembly");
     }
   });
 
-  it("provides per-type defaults incl. the two new energy blocks", () => {
+  it("provides per-type defaults incl. the energy blocks", () => {
     const r = normalizeReveal({});
     expect(r.glitch).toEqual({
-      speedMinMs: 150,
-      speedMaxMs: 900,
-      staggerMs: 2400,
+      speedMinMs: 200,
+      speedMaxMs: 1400,
+      staggerMs: 1200,
       intensity: 1,
       detail: 0.5,
-      glow: 0.7,
+      glow: 0.8,
     });
     expect(r.turbulence).toEqual({
       speedMinMs: 400,
@@ -809,22 +811,6 @@ describe("reveal type promotion", () => {
       intensity: 1,
       detail: 0.5,
       glow: 0.7,
-    });
-    expect(r.storm).toEqual({
-      speedMinMs: 400,
-      speedMaxMs: 2600,
-      staggerMs: 600,
-      intensity: 1,
-      detail: 0.5,
-      glow: 0.7,
-    });
-    expect(r.detonation).toEqual({
-      speedMinMs: 200,
-      speedMaxMs: 1400,
-      staggerMs: 1200,
-      intensity: 1,
-      detail: 0.5,
-      glow: 0.8,
     });
     expect(r.assembly.sliceSizePx).toBe(29);
   });
@@ -867,7 +853,7 @@ describe("reveal type promotion", () => {
     expect(r.assembly.speedMaxMs).toBe(2222);
     expect(r.assembly.staggerMs).toBe(333);
     expect(r.assembly.sliceSizePx).toBe(50);
-    expect(r.glitch.speedMaxMs).toBe(900);
+    expect(r.glitch.speedMaxMs).toBe(1400);
   });
 
   it("invalid type falls back to assembly", () => {
@@ -879,7 +865,7 @@ describe("reveal type promotion", () => {
     expect(d.turbulence.intensity).toBe(1);
     expect(d.turbulence.detail).toBe(0.5);
     expect(d.turbulence.glow).toBe(0.6);
-    expect(d.glitch.glow).toBe(0.7);
+    expect(d.glitch.glow).toBe(0.8);
     expect(d.hadouken.glow).toBe(0.7);
     const c = normalizeReveal({ turbulence: { intensity: 5, detail: -1, glow: 2 } }).turbulence;
     expect(c.intensity).toBe(2);
@@ -891,8 +877,6 @@ describe("reveal type promotion", () => {
     expect(normalizeReveal({ turbulence: { speedMinMs: 10 } }).turbulence.speedMinMs).toBe(50);
     expect(normalizeReveal({ glitch: { speedMinMs: 10 } }).glitch.speedMinMs).toBe(50);
     expect(normalizeReveal({ hadouken: { speedMinMs: 10 } }).hadouken.speedMinMs).toBe(50);
-    expect(normalizeReveal({ storm: { speedMinMs: 10 } }).storm.speedMinMs).toBe(50);
-    expect(normalizeReveal({ detonation: { speedMinMs: 10 } }).detonation.speedMinMs).toBe(50);
     expect(normalizeReveal({ assembly: { speedMinMs: 10 } }).assembly.speedMinMs).toBe(100);
   });
 });
