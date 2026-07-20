@@ -268,6 +268,16 @@ describe("engine config persistence", () => {
     expect(localStorage.getItem("stripes-engine-lab-by-texture")).toBeNull();
   });
 
+  it("factory reset clears an already-saved engine config", () => {
+    const config = { ...DEFAULT_LAB_ENGINE_CONFIG, fieldScale: 0.42 } as EngineConfig;
+    saveConfig("tex-a", config);
+    expect(loadInitialConfig("tex-a").fieldScale).toBe(0.42);
+
+    factoryResetSettings();
+
+    expect(loadInitialConfig("tex-a")).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
+  });
+
   it("deletes a stored per-texture config", () => {
     saveConfig("tex-a", DEFAULT_LAB_ENGINE_CONFIG as EngineConfig);
     deleteConfig("tex-a");
