@@ -21,17 +21,6 @@ highp float hashLane(highp uint i, highp uint salt) {
   return float(pcg(i * 747796405u + salt)) * (1.0 / 4294967296.0);
 }
 
-highp float cellNoise(vec2 q) {
-  vec2 i = floor(q);
-  vec2 fr = fract(q);
-  vec2 u = fr * fr * (3.0 - 2.0 * fr);
-  highp float a = hashLane(uint(i.y * 512.0 + i.x), 6u);
-  highp float b = hashLane(uint(i.y * 512.0 + i.x + 1.0), 6u);
-  highp float c = hashLane(uint((i.y + 1.0) * 512.0 + i.x), 6u);
-  highp float d = hashLane(uint((i.y + 1.0) * 512.0 + i.x + 1.0), 6u);
-  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-}
-
 void main() {
   highp uint id = uint(gl_InstanceID);
   highp float gx = uGrid.x;
@@ -39,7 +28,7 @@ void main() {
   vec2 targetUv = (cell + 0.5) / uGrid;
   vec2 asp = vec2(uAspect, 1.0);
   highp float dn = length((targetUv - 0.5) * asp) / (length(asp) * 0.5);
-  highp float o = (dn * 0.55 + (hashLane(id, 1u) - 0.5) * 0.28 + (cellNoise(targetUv * 6.0) - 0.5) * 0.4 + 0.34) / 1.23;
+  highp float o = dn;
   o = o < 0.5 ? sqrt(0.5 * o) : 1.0 - sqrt(0.5 * (1.0 - o));
   highp float p = max(uProgress, 0.0);
   highp float f = (p - uSpread * o) / max(uFlight, 1e-4);
@@ -50,30 +39,10 @@ void main() {
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     return;
   }
-  highp float dL = targetUv.x;
-  highp float dR = 1.0 - targetUv.x;
-  highp float dT = targetUv.y;
-  highp float dB = 1.0 - targetUv.y;
-  vec2 edgeDir;
-  highp float edgeDist;
-  if (dL <= dR && dL <= dT && dL <= dB) {
-    edgeDir = vec2(-1.0, 0.0);
-    edgeDist = dL;
-  } else if (dR <= dT && dR <= dB) {
-    edgeDir = vec2(1.0, 0.0);
-    edgeDist = dR;
-  } else if (dT <= dB) {
-    edgeDir = vec2(0.0, -1.0);
-    edgeDist = dT;
-  } else {
-    edgeDir = vec2(0.0, 1.0);
-    edgeDist = dB;
-  }
-  highp float ang = (hashLane(id, 2u) - 0.5) * 1.1;
-  highp float ca = cos(ang);
-  highp float sa = sin(ang);
-  edgeDir = vec2(edgeDir.x * ca - edgeDir.y * sa, edgeDir.x * sa + edgeDir.y * ca);
-  vec2 startUv = targetUv + edgeDir * (edgeDist + 0.08 + 0.25 * hashLane(id, 3u));
+  highp float sang = hashLane(id, 2u) * 6.2831853;
+  vec2 sdir = vec2(cos(sang), sin(sang));
+  highp float sdist = 0.25 + 0.55 * hashLane(id, 3u);
+  vec2 startUv = targetUv + (sdir * sdist) / asp;
   highp float ease = 1.0 - pow(1.0 - f, 3.0);
   vec2 posUv = mix(startUv, targetUv, ease);
   highp float f2 = min(f + 0.03, 1.0);
