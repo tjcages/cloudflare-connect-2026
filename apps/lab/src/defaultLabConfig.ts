@@ -1,6 +1,27 @@
 import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
+import type { EngineConfig } from "@necatikcl/stripes-engine";
+import factoryDefaults from "./factoryDefaults.json";
 
-export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
+type PlainRecord = Record<string, unknown>;
+
+function isPlainObject(value: unknown): value is PlainRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function deepMergeDefaults<T>(base: T, override: unknown): T {
+  if (Array.isArray(override)) return override as T;
+  if (!isPlainObject(override)) return override === undefined ? base : (override as T);
+  if (!isPlainObject(base)) return override as unknown as T;
+  const merged: PlainRecord = { ...(base as PlainRecord) };
+  for (const key of Object.keys(override)) {
+    const value = override[key];
+    if (value === undefined) continue;
+    merged[key] = deepMergeDefaults((base as PlainRecord)[key], value);
+  }
+  return merged as unknown as T;
+}
+
+const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
   transform: {
     fit: "width",
     zoom: 1,
@@ -286,9 +307,13 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
   renderParams: [0.5, 0.5, 0.5, 0.5],
   renderColorA: 2236962,
   renderColorB: 16777215,
-});
+};
 
-export const DEFAULT_LAB_UI_SETTINGS = {
+export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig(
+  deepMergeDefaults(HAND_WRITTEN_ENGINE_CONFIG, factoryDefaults.config),
+);
+
+const HAND_WRITTEN_LAB_UI_SETTINGS = {
   canvasMode: "scale",
   canvasScale: 1,
   canvasWidth: 800,
@@ -427,3 +452,5 @@ export const DEFAULT_LAB_UI_SETTINGS = {
     renderAntialias: true,
   },
 } as const;
+
+export const DEFAULT_LAB_UI_SETTINGS = deepMergeDefaults(HAND_WRITTEN_LAB_UI_SETTINGS, factoryDefaults.lab);
