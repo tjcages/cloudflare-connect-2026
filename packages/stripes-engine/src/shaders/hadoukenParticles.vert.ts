@@ -28,7 +28,7 @@ void main() {
   vec2 targetUv = (cell + 0.5) / uGrid;
   vec2 asp = vec2(uAspect, 1.0);
   highp float dn = length((targetUv - 0.5) * asp) / (length(asp) * 0.5);
-  highp float o = dn;
+  highp float o = (dn * 0.7 + (hashLane(id, 1u) - 0.5) * 0.5 + 0.25) / 1.2;
   o = o < 0.5 ? sqrt(0.5 * o) : 1.0 - sqrt(0.5 * (1.0 - o));
   highp float p = max(uProgress, 0.0);
   highp float f = (p - uSpread * o) / max(uFlight, 1e-4);
@@ -43,8 +43,8 @@ void main() {
   highp float dR = 1.0 - targetUv.x;
   highp float dT = targetUv.y;
   highp float dB = 1.0 - targetUv.y;
-  highp float jit = (hashLane(id, 2u) - 0.5) * 0.2;
-  highp float depth = 0.03 + 0.1 * hashLane(id, 3u);
+  highp float jit = (hashLane(id, 2u) - 0.5) * 0.3;
+  highp float depth = 0.04 + 0.18 * hashLane(id, 3u);
   vec2 startUv;
   if (dL <= dR && dL <= dT && dL <= dB) {
     startUv = vec2(-depth, targetUv.y + jit);
