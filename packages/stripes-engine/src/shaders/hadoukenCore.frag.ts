@@ -42,7 +42,7 @@ void main() {
   vec2 cellCenter = (cid + 0.5) / uGrid;
   vec2 asp = vec2(uAspect, 1.0);
   highp float dn = length((cellCenter - 0.5) * asp) / (length(asp) * 0.5);
-  highp float o = clamp(dn * 0.55 + (hashLane(id, 1u) - 0.5) * 0.28 + (cellNoise(cellCenter * 6.0) - 0.5) * 0.4, 0.0, 1.0);
+  highp float o = (dn * 0.55 + (hashLane(id, 1u) - 0.5) * 0.28 + (cellNoise(cellCenter * 6.0) - 0.5) * 0.4 + 0.34) / 1.23;
   o = o < 0.5 ? sqrt(0.5 * o) : 1.0 - sqrt(0.5 * (1.0 - o));
   highp float fraw = (p - uSpread * o) / max(uFlight, 1e-4);
   highp float blockV = texture(uField, cellCenter).r;
