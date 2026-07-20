@@ -184,6 +184,8 @@ export interface FlamesSnakeConfig {
   lifeMinMs: number;
   lifeMaxMs: number;
   maxInstances: number;
+  meanderAmp: number;
+  meanderFreq: number;
 }
 
 export type FlamesLinesConfig = FlamesSnakeConfig;

@@ -286,14 +286,14 @@ describe("vortex bits (global snakes)", () => {
     state.flames.forEach((f) => expect(f.segCount).toBe(5));
   });
 
-  it("places the pivot on its own orbit ring around the canvas centre", () => {
+  it("places every segment's pivot on the canvas centre so radius is a true polar distance", () => {
     const state = createFlamesState(seededRandom());
     stepFlames(state, bitsConfig(), DISPLAY, 1);
     const cx = DISPLAY.width / 2;
     const cy = DISPLAY.height / 2;
     state.flames.forEach((f) => {
-      expect(f.pivotX).toBeCloseTo(cx + Math.cos(f.orbitAngle) * f.orbitRadius, 5);
-      expect(f.pivotY).toBeCloseTo(cy + Math.sin(f.orbitAngle) * f.orbitRadius, 5);
+      expect(f.pivotX).toBeCloseTo(cx, 5);
+      expect(f.pivotY).toBeCloseTo(cy, 5);
     });
   });
 
@@ -337,7 +337,7 @@ describe("vortex bits (global snakes)", () => {
     const state = createFlamesState(seededRandom());
     stepFlames(state, bitsConfig(), DISPLAY, 1);
     const head = state.flames.find((f) => f.segIndex === 0);
-    const mates = state.flames.filter((f) => f.radius === head.radius).sort((a, b) => a.segIndex - b.segIndex);
+    const mates = state.flames.filter((f) => f.bornMs === head.bornMs).sort((a, b) => a.segIndex - b.segIndex);
     expect(mates[mates.length - 1].height).toBeLessThan(head.height);
   });
 
@@ -361,46 +361,49 @@ describe("vortex bits (global snakes)", () => {
     expect(mates[mates.length - 1].height).toBeGreaterThan(0);
   });
 
-  it("curls at its own radius, not its orbit radius", () => {
+  it("derives its radius from its own orbit radius, not a shared bend radius", () => {
     const state = createFlamesState(seededRandom());
-    const config = bitsConfig({ tailMin: 10, tailMax: 10, scaleMin: 0.05, scaleMax: 0.05 });
+    const config = bitsConfig({ tailMin: 10, tailMax: 10, scaleMin: 0.05, scaleMax: 0.05, meanderAmp: 0 });
     stepFlames(state, config, DISPLAY, 1);
     const heads = state.flames.filter((f) => f.segIndex === 0);
     const radii = heads.map((h) => h.radius);
-    expect(Math.max(...radii) - Math.min(...radii)).toBeLessThan(0.001);
     const orbits = heads.map((h) => h.orbitRadius);
     expect(Math.max(...orbits) - Math.min(...orbits)).toBeGreaterThan(20);
+    const spread = Math.max(...radii) - Math.min(...radii);
+    const orbitSpread = Math.max(...orbits) - Math.min(...orbits);
+    expect(spread).toBeGreaterThan(orbitSpread * 0.5);
   });
 
-  it("moves the whole snake rigidly along the vortex", () => {
+  it("shares one orbit reference across the whole snake, and that reference stays fixed at birth", () => {
     const state = createFlamesState(seededRandom());
     const config = bitsConfig({ tailMin: 8, tailMax: 8, lifeMinMs: 20000, lifeMaxMs: 20000 });
     stepFlames(state, config, DISPLAY, 1);
     const head = state.flames.find((f) => f.segIndex === 0);
     const key = head.bornMs;
     const before = state.flames.filter((f) => f.bornMs === key).map((f) => f.orbitAngle);
+    const angleBefore = head.angle;
     stepFlames(state, config, DISPLAY, 400);
+    const headAfter = state.flames.find((f) => f.bornMs === key && f.segIndex === 0)!;
     const after = state.flames.filter((f) => f.bornMs === key).map((f) => f.orbitAngle);
-    expect(after[0]).not.toBeCloseTo(before[0], 4);
+    expect(after).toEqual(before);
     after.forEach((a) => expect(a).toBeCloseTo(after[0], 6));
+    expect(headAfter.angle).not.toBeCloseTo(angleBefore, 4);
   });
 
-  it("couples the placement angle to the orbit so the body actually rotates as it travels", () => {
+  it("advances the head's placement angle from orbitAngVel as it travels", () => {
     const state = createFlamesState(seededRandom());
     const config = bitsConfig({ tailMin: 6, tailMax: 6, lifeMinMs: 20000, lifeMaxMs: 20000 });
     stepFlames(state, config, DISPLAY, 1);
     const headBefore = state.flames.find((f) => f.segIndex === 0)!;
     const key = headBefore.bornMs;
-    const orbitBefore = headBefore.orbitAngle;
     const angleBefore = headBefore.angle;
-    const angVel = headBefore.angVel;
+    const orbitAngVel = headBefore.orbitAngVel;
     stepFlames(state, config, DISPLAY, 401);
     const headAfter = state.flames.find((f) => f.bornMs === key && f.segIndex === 0)!;
     const dtSec = 0.4;
-    const orbitDelta = headAfter.orbitAngle - orbitBefore;
-    expect(Math.abs(orbitDelta)).toBeGreaterThan(0.01);
-    const expectedAngleDelta = orbitDelta + angVel * dtSec;
+    const expectedAngleDelta = orbitAngVel * dtSec;
     const actualAngleDelta = headAfter.angle - angleBefore;
+    expect(Math.abs(actualAngleDelta)).toBeGreaterThan(0.01);
     expect(actualAngleDelta).toBeCloseTo(expectedAngleDelta, 5);
   });
 
@@ -429,7 +432,7 @@ describe("vortex bits (global snakes)", () => {
     } as never);
     stepFlames(state, config, DISPLAY, 1);
     const head = state.flames.find((f) => f.segIndex === 0)!;
-    const mates = state.flames.filter((f) => f.radius === head.radius).sort((a, b) => a.segIndex - b.segIndex);
+    const mates = state.flames.filter((f) => f.bornMs === head.bornMs).sort((a, b) => a.segIndex - b.segIndex);
     const spinSign = Math.sign(head.angVel);
     expect(spinSign).not.toBe(0);
     for (let i = 1; i < mates.length; i++) {
@@ -450,7 +453,7 @@ describe("vortex bits (global snakes)", () => {
     } as never);
     stepFlames(state, config, DISPLAY, 1);
     const head = state.flames.find((f) => f.segIndex === 0)!;
-    const mates = state.flames.filter((f) => f.radius === head.radius).sort((a, b) => a.segIndex - b.segIndex);
+    const mates = state.flames.filter((f) => f.bornMs === head.bornMs).sort((a, b) => a.segIndex - b.segIndex);
     const spinSign = Math.sign(head.angVel);
     expect(spinSign).not.toBe(0);
     for (let i = 1; i < mates.length; i++) {
@@ -461,11 +464,11 @@ describe("vortex bits (global snakes)", () => {
 
   it("drifts radially so the population reads as a spiral", () => {
     const state = createFlamesState(seededRandom());
-    const config = bitsConfig({ lifeMinMs: 9000, lifeMaxMs: 9000 });
+    const config = bitsConfig({ lifeMinMs: 9000, lifeMaxMs: 9000, meanderAmp: 0 });
     stepFlames(state, config, DISPLAY, 1);
-    const before = state.flames[0].orbitRadius;
+    const before = state.flames[0].radius;
     stepFlames(state, config, DISPLAY, 600);
-    expect(state.flames[0].orbitRadius).not.toBeCloseTo(before, 3);
+    expect(state.flames[0].radius).not.toBeCloseTo(before, 3);
   });
 
   it("expires a whole snake together", () => {
@@ -548,6 +551,56 @@ describe("vortex bits (global snakes)", () => {
       if (i > 120) min = Math.min(min, state.flames.filter((f) => f.segIndex === 0).length);
     }
     expect(min).toBeGreaterThanOrEqual(config.bits.maxInstances - 1);
+  });
+
+  it("bends differently as it travels rather than holding a frozen shape", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 14, tailMax: 14, lifeMinMs: 30000, lifeMaxMs: 30000 });
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const shapeAt = () => {
+      const mates = state.flames.filter((f) => f.bornMs === head.bornMs).sort((a, b) => a.segIndex - b.segIndex);
+      const cx = mates.map((m) => m.x + m.width * 0.5);
+      const cy = mates.map((m) => m.y + m.height * 0.5);
+      const out: number[] = [];
+      for (let i = 2; i < mates.length; i++) {
+        const a1 = Math.atan2(cy[i - 1] - cy[i - 2], cx[i - 1] - cx[i - 2]);
+        const a2 = Math.atan2(cy[i] - cy[i - 1], cx[i] - cx[i - 1]);
+        out.push(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1)));
+      }
+      return out;
+    };
+    const before = shapeAt();
+    stepFlames(state, config, DISPLAY, 2500);
+    const after = shapeAt();
+    const maxDelta = Math.max(...after.map((v, i) => Math.abs(v - before[i])));
+    expect(maxDelta).toBeGreaterThan(0.02);
+  });
+
+  it("keeps consecutive segments overlapping along the trail", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 14, tailMax: 14 });
+    stepFlames(state, config, DISPLAY, 1);
+    stepFlames(state, config, DISPLAY, 200);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames.filter((f) => f.bornMs === head.bornMs).sort((a, b) => a.segIndex - b.segIndex);
+    for (let i = 1; i < mates.length; i++) {
+      const d = Math.hypot(
+        mates[i].x + mates[i].width * 0.5 - (mates[i - 1].x + mates[i - 1].width * 0.5),
+        mates[i].y + mates[i].height * 0.5 - (mates[i - 1].y + mates[i - 1].height * 0.5),
+      );
+      expect(d).toBeLessThan(mates[i].width * 1.35);
+    }
+  });
+
+  it("meanderAmp 0 gives a clean unmeandering path", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 10, tailMax: 10, meanderAmp: 0, speedMin: 0.5, speedMax: 0.5 });
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames.filter((f) => f.bornMs === head.bornMs);
+    const radii = mates.map((m) => m.radius);
+    expect(Math.max(...radii) - Math.min(...radii)).toBeLessThan(1);
   });
 });
 

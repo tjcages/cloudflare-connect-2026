@@ -242,6 +242,8 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       lifeMinMs: 900,
       lifeMaxMs: 2200,
       maxInstances: 18,
+      meanderAmp: 0.12,
+      meanderFreq: 0.7,
     },
     bits: {
       tailMin: 6,
@@ -256,6 +258,8 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       lifeMinMs: 1400,
       lifeMaxMs: 3200,
       maxInstances: 26,
+      meanderAmp: 0.18,
+      meanderFreq: 3.2,
     },
   },
   edgeMask: {

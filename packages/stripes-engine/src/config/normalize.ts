@@ -440,6 +440,8 @@ export const DEFAULT_FLAMES_LINES: FlamesSnakeConfig = {
   lifeMinMs: 900,
   lifeMaxMs: 2200,
   maxInstances: 18,
+  meanderAmp: 0.12,
+  meanderFreq: 0.7,
 };
 
 export const DEFAULT_FLAMES_BITS: FlamesSnakeConfig = {
@@ -455,6 +457,8 @@ export const DEFAULT_FLAMES_BITS: FlamesSnakeConfig = {
   lifeMinMs: 1400,
   lifeMaxMs: 3200,
   maxInstances: 26,
+  meanderAmp: 0.18,
+  meanderFreq: 3.2,
 };
 
 export const DEFAULT_FLAMES: FlamesConfig = {
@@ -520,6 +524,8 @@ function normalizeFlamesSnake(i: Partial<FlamesSnakeConfig> = {}, fallback: Flam
     lifeMinMs,
     lifeMaxMs,
     maxInstances: clamp(Math.round(num(i.maxInstances, fallback.maxInstances)), 1, 120),
+    meanderAmp: clamp(num(i.meanderAmp, fallback.meanderAmp), 0, 1),
+    meanderFreq: clamp(num(i.meanderFreq, fallback.meanderFreq), 0, 4),
   };
 }
 

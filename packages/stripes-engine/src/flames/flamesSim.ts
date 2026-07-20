@@ -26,6 +26,9 @@ export interface Flame {
   lifeMs: number;
   segIndex: number;
   segCount: number;
+  ageSec: number;
+  lagSec: number;
+  meanderPhase: number;
 }
 
 export interface FlamesState {
@@ -163,6 +166,9 @@ function createFlame(
     lifeMs: 0,
     segIndex: 0,
     segCount: 1,
+    ageSec: 0,
+    lagSec: 0,
+    meanderPhase: 0,
   };
 
   if (isVortexFlamesDirection(direction)) {
@@ -279,6 +285,9 @@ function emitVortexSnake(
   let orbitAngle: number;
   let orbitRadius: number;
   let orbitAngVel: number;
+  let speedPxPerSec: number;
+  let lagSec: number;
+  let meanderPhase: number;
   if (global) {
     const rMax = vortexMaxRadius(displayWidth, displayHeight);
     const rMin = rMax * VORTEX_CORE_RATIO;
@@ -288,8 +297,12 @@ function emitVortexSnake(
     radialSign = config.inward ? -1 : 1;
     angVel = randomBetween(state.random, snake.speedMin, snake.speedMax) * (config.inward ? -1 : 1);
     orbitAngVel = randomBetween(state.random, snake.speedMin, snake.speedMax) * (config.inward ? -1 : 1);
-    pivotX = displayWidth * 0.5 + Math.cos(orbitAngle) * orbitRadius;
-    pivotY = displayHeight * 0.5 + Math.sin(orbitAngle) * orbitRadius;
+    pivotX = displayWidth * 0.5;
+    pivotY = displayHeight * 0.5;
+    speedPxPerSec = Math.abs(orbitAngVel) * orbitRadius * 0.06;
+    const pathSpeed = Math.max(1, Math.abs(orbitAngVel) * orbitRadius);
+    lagSec = segLen / pathSpeed;
+    meanderPhase = state.random() * Math.PI * 2;
   } else {
     pivotX = state.random() * displayWidth;
     pivotY = state.random() * displayHeight;
@@ -298,10 +311,14 @@ function emitVortexSnake(
     orbitAngle = 0;
     orbitRadius = 0;
     orbitAngVel = 0;
+    speedPxPerSec = 0;
+    lagSec = 0;
+    meanderPhase = 0;
   }
 
   const headAngle = state.random() * Math.PI * 2;
   const bornMs = seeded ? nowMs - state.random() * lifeMs : nowMs;
+  const ageSec = (nowMs - bornMs) / 1000;
   const baseOpacity = randomBetween(state.random, config.opacityMin, config.opacityMax);
   const colorSeed = flameColorSeed(headWidth, thickness, Math.abs(angVel), baseOpacity);
 
@@ -309,24 +326,38 @@ function emitVortexSnake(
   const dirSign = Math.sign(angVel);
   for (let i = 0; i < segCount; i++) {
     const along = 1 - i / segCount;
-    const shapePhase = headAngle - dirSign * i * segArc;
+    let angle: number;
+    let radius: number;
+    let shapePhase: number;
+    if (global) {
+      const ts = ageSec - i * lagSec;
+      angle = orbitAngle + orbitAngVel * ts;
+      const rBase = orbitRadius + radialSign * speedPxPerSec * ts;
+      const meander = snake.meanderAmp * rBase * Math.sin(snake.meanderFreq * ts + meanderPhase);
+      radius = Math.max(1, rBase + meander);
+      shapePhase = 0;
+    } else {
+      shapePhase = headAngle - dirSign * i * segArc;
+      angle = shapePhase + orbitAngle;
+      radius = bendRadius;
+    }
     const flame: Flame = {
       x: 0,
       y: 0,
       width: headWidth,
       height: Math.max(1, thickness * (0.35 + 0.65 * along)),
-      speedPxPerSec: global ? Math.abs(orbitAngVel) * orbitRadius * 0.06 : 0,
+      speedPxPerSec: global ? speedPxPerSec : 0,
       opacity: baseOpacity * (0.45 + 0.55 * along),
       colorSeed,
       direction: global ? "vortexBits" : "vortexLines",
       rot: 0,
       pivotX,
       pivotY,
-      radius: bendRadius,
+      radius,
       orbitAngle,
       orbitRadius,
       orbitAngVel,
-      angle: shapePhase + orbitAngle,
+      angle,
       shapePhase,
       angVel,
       radialSign,
@@ -335,6 +366,9 @@ function emitVortexSnake(
       lifeMs,
       segIndex: i,
       segCount,
+      ageSec,
+      lagSec,
+      meanderPhase,
     };
     applyVortexTransform(flame);
     segments.push(flame);
@@ -468,12 +502,16 @@ export function stepFlames(
         break;
       }
       case "vortexBits": {
-        flame.orbitAngle += flame.orbitAngVel * dtSec;
-        flame.orbitRadius += flame.radialSign * flame.speedPxPerSec * dtSec;
-        flame.pivotX = display.width * 0.5 + Math.cos(flame.orbitAngle) * flame.orbitRadius;
-        flame.pivotY = display.height * 0.5 + Math.sin(flame.orbitAngle) * flame.orbitRadius;
-        flame.shapePhase += flame.angVel * dtSec;
-        flame.angle = flame.shapePhase + flame.orbitAngle;
+        const snakeCfg = config.bits;
+        flame.ageSec += dtSec;
+        const ts = flame.ageSec - flame.segIndex * flame.lagSec;
+        const a = flame.orbitAngle + flame.orbitAngVel * ts;
+        const rBase = flame.orbitRadius + flame.radialSign * flame.speedPxPerSec * ts;
+        const meander = snakeCfg.meanderAmp * rBase * Math.sin(snakeCfg.meanderFreq * ts + flame.meanderPhase);
+        flame.pivotX = display.width * 0.5;
+        flame.pivotY = display.height * 0.5;
+        flame.radius = Math.max(1, rBase + meander);
+        flame.angle = a;
         applyVortexTransform(flame);
         flame.opacity = flame.baseOpacity * snakeEnvelope(nowMs - flame.bornMs, flame.lifeMs);
         break;
