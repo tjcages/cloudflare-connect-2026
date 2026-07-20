@@ -241,6 +241,7 @@ function placeVortexFlame(
 
 const SNAKE_SEG_ARC = 0.16;
 const SNAKE_SEG_OVERLAP = 1.15;
+const SNAKE_SEG_LEN_RATIO = 0.5;
 
 function emitVortexSnake(
   state: FlamesState,
@@ -280,8 +281,11 @@ function emitVortexSnake(
     angVel = spin * randomBetween(state.random, snake.speedMin, snake.speedMax);
   }
 
-  const segArc = SNAKE_SEG_ARC;
-  const headWidth = Math.max(1, radius * segArc * SNAKE_SEG_OVERLAP);
+  const segLen = Math.max(1, scale * SNAKE_SEG_LEN_RATIO);
+  const segArc = global ? segLen / Math.max(1, radius) : SNAKE_SEG_ARC;
+  const headWidth = global
+    ? Math.max(1, segLen * SNAKE_SEG_OVERLAP)
+    : Math.max(1, radius * SNAKE_SEG_ARC * SNAKE_SEG_OVERLAP);
   const headAngle = state.random() * Math.PI * 2;
   const bornMs = seeded ? nowMs - state.random() * lifeMs : nowMs;
   const baseOpacity = randomBetween(state.random, config.opacityMin, config.opacityMax);

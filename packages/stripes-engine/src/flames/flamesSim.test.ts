@@ -399,6 +399,35 @@ describe("vortex bits (global snakes)", () => {
     stepFlames(state, config, DISPLAY, 4000);
     expect(state.flames.length).toBe(0);
   });
+
+  it("scale genuinely drives global snake size", () => {
+    const small = createFlamesState(seededRandom());
+    const big = createFlamesState(seededRandom());
+    const mk = (s: number) => bitsConfig({ scaleMin: s, scaleMax: s, maxInstances: 8, tailMin: 5, tailMax: 5 });
+    stepFlames(small, mk(0.02), DISPLAY, 1);
+    stepFlames(big, mk(0.08), DISPLAY, 1);
+    const avgHeadWidth = (state: FlamesState) => {
+      const heads = state.flames.filter((f) => f.segIndex === 0);
+      return heads.reduce((sum, f) => sum + f.width, 0) / heads.length;
+    };
+    const widthRatio = avgHeadWidth(big) / avgHeadWidth(small);
+    const scaleRatio = 0.08 / 0.02;
+    expect(widthRatio).toBeGreaterThan(scaleRatio * 0.8);
+    expect(widthRatio).toBeLessThan(scaleRatio * 1.2);
+  });
+
+  it("segment width no longer tracks orbit radius at a fixed scale", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ scaleMin: 0.05, scaleMax: 0.05, maxInstances: 14, tailMin: 5, tailMax: 5 });
+    stepFlames(state, config, DISPLAY, 1);
+    const heads = state.flames.filter((f) => f.segIndex === 0);
+    const radii = heads.map((f) => f.radius);
+    const widths = heads.map((f) => f.width);
+    const radiusSpread = Math.max(...radii) / Math.min(...radii);
+    const widthSpread = Math.max(...widths) / Math.min(...widths);
+    expect(radiusSpread).toBeGreaterThan(2);
+    expect(widthSpread).toBeLessThan(1.05);
+  });
 });
 
 describe("vortex lines", () => {
