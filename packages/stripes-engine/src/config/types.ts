@@ -11,7 +11,7 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken";
+export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "vortex";
 
 export interface WarpStyleConfig {
   speedMinMs: number;
@@ -22,7 +22,7 @@ export interface WarpStyleConfig {
   glow: number;
 }
 
-export interface HadoukenRevealConfig extends WarpStyleConfig {
+export interface VortexRevealConfig extends WarpStyleConfig {
   swirl: number;
 }
 
@@ -47,7 +47,7 @@ export interface RevealConfig {
   };
   turbulence: WarpStyleConfig;
   glitch: WarpStyleConfig;
-  hadouken: HadoukenRevealConfig;
+  vortex: VortexRevealConfig;
 }
 
 export interface Stripe {

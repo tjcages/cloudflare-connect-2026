@@ -9,8 +9,8 @@ function topologyKey(cfg: EngineConfig): string {
       ? "wave"
       : cfg.reveal.type === "assembly"
         ? "scatter"
-        : cfg.reveal.type === "hadouken"
-          ? "hadouken"
+        : cfg.reveal.type === "vortex"
+          ? "vortex"
           : "warp";
   return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}:${cfg.flames.direction}:${cfg.flames.inward}`;
 }
@@ -97,11 +97,11 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(glitch, assembly)).toBe(true);
   });
 
-  it("switching hadouken <-> glitch triggers rebuild", () => {
-    const hadouken = normalizeEngineConfig({ reveal: { enabled: true, type: "hadouken" } });
+  it("switching vortex <-> glitch triggers rebuild", () => {
+    const vortex = normalizeEngineConfig({ reveal: { enabled: true, type: "vortex" } });
     const glitch = normalizeEngineConfig({ reveal: { enabled: true, type: "glitch" } });
-    expect(needsRebuild(hadouken, glitch)).toBe(true);
-    expect(needsRebuild(glitch, hadouken)).toBe(true);
+    expect(needsRebuild(vortex, glitch)).toBe(true);
+    expect(needsRebuild(glitch, vortex)).toBe(true);
   });
 
   it("fluid is an invalid type and normalizes to assembly (no topology change vs assembly)", () => {

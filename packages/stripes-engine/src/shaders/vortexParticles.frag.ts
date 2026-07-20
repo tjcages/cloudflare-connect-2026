@@ -1,4 +1,4 @@
-export const HADOUKEN_PARTICLES_FRAG = `#version 300 es
+export const VORTEX_PARTICLES_FRAG = `#version 300 es
 precision highp float;
 in vec2 vQuad;
 flat in highp float vVal;

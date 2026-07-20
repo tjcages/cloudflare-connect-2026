@@ -1,11 +1,11 @@
 import { compileProgram } from "../gl/program";
 import { bindRenderTarget, type RenderTarget } from "../gl/renderTarget";
 import { FULLSCREEN_VERT } from "../shaders/fullscreen.vert";
-import { HADOUKEN_CORE_FRAG } from "../shaders/hadoukenCore.frag";
-import { HADOUKEN_PARTICLES_VERT } from "../shaders/hadoukenParticles.vert";
-import { HADOUKEN_PARTICLES_FRAG } from "../shaders/hadoukenParticles.frag";
+import { VORTEX_CORE_FRAG } from "../shaders/vortexCore.frag";
+import { VORTEX_PARTICLES_VERT } from "../shaders/vortexParticles.vert";
+import { VORTEX_PARTICLES_FRAG } from "../shaders/vortexParticles.frag";
 
-export type HadoukenUniforms = {
+export type VortexUniforms = {
   progress: number;
   spread: number;
   flight: number;
@@ -18,9 +18,9 @@ export type HadoukenUniforms = {
   count: number;
 };
 
-export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
-  const coreProgram = compileProgram(gl, FULLSCREEN_VERT, HADOUKEN_CORE_FRAG);
-  const particleProgram = compileProgram(gl, HADOUKEN_PARTICLES_VERT, HADOUKEN_PARTICLES_FRAG);
+export function createVortexPass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
+  const coreProgram = compileProgram(gl, FULLSCREEN_VERT, VORTEX_CORE_FRAG);
+  const particleProgram = compileProgram(gl, VORTEX_PARTICLES_VERT, VORTEX_PARTICLES_FRAG);
   const vao = gl.createVertexArray();
   if (!vao) throw new Error("Failed to create VAO");
   const cu = (n: string) => gl.getUniformLocation(coreProgram, n);
@@ -46,7 +46,7 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
     aspect: pu("uAspect"),
   };
   return {
-    render(target: RenderTarget, fieldTex: WebGLTexture, p: HadoukenUniforms) {
+    render(target: RenderTarget, fieldTex: WebGLTexture, p: VortexUniforms) {
       bindRenderTarget(gl, target);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, fieldTex);

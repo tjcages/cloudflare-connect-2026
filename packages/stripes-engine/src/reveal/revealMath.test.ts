@@ -89,8 +89,8 @@ describe("resolveRevealDurationMs", () => {
     expect(resolveRevealDurationMs(glitch)).toBe(1200 + 1400);
     const turb = normalizeReveal({ enabled: true, type: "turbulence" });
     expect(resolveRevealDurationMs(turb)).toBe(1400 + 2600);
-    const hadouken = normalizeReveal({ enabled: true, type: "hadouken" });
-    expect(resolveRevealDurationMs(hadouken)).toBe(2600 + 1400);
+    const vortex = normalizeReveal({ enabled: true, type: "vortex" });
+    expect(resolveRevealDurationMs(vortex)).toBe(2600 + 1400);
   });
 });
 

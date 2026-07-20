@@ -43,7 +43,7 @@ function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
     },
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
-    hadouken: { ...DEFAULT_REVEAL.hadouken },
+    vortex: { ...DEFAULT_REVEAL.vortex },
   };
 }
 

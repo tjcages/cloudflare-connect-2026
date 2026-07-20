@@ -1,4 +1,4 @@
-export const HADOUKEN_CORE_FRAG = `#version 300 es
+export const VORTEX_CORE_FRAG = `#version 300 es
 precision highp float;
 in vec2 vUv;
 uniform sampler2D uField;

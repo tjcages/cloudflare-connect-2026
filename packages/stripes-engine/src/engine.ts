@@ -12,7 +12,7 @@ import { createDownsampleColorPass } from "./passes/downsampleColorPass";
 import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createEnergyWarpPass } from "./passes/energyWarpPass";
-import { createHadoukenPass } from "./passes/hadoukenPass";
+import { createVortexPass } from "./passes/vortexPass";
 import { createBlurPass } from "./passes/blurPass";
 import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
 import { createStylizePass } from "./passes/stylizePass";
@@ -201,11 +201,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
-  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "hadouken" => {
+  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" => {
     if (!config.reveal.enabled) return "none";
     if (config.reveal.type === "wave") return "wave";
     if (config.reveal.type === "assembly") return "scatter";
-    if (config.reveal.type === "hadouken") return "hadouken";
+    if (config.reveal.type === "vortex") return "vortex";
     return "warp";
   };
   let lastRevealKind = revealPassKind();
@@ -592,14 +592,14 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     let activeColorRT = "fieldColor";
     const revealFieldPasses: Pass[] = [];
 
-    if (revealEnabled && config.reveal.type === "hadouken") {
-      const hadoukenPass = createHadoukenPass(gl, quad);
+    if (revealEnabled && config.reveal.type === "vortex") {
+      const vortexPass = createVortexPass(gl, quad);
       revealFieldPasses.push({
-        name: "hadoukenField",
+        name: "vortexField",
         render: () => {
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
-          const assembly = config.reveal.hadouken;
+          const assembly = config.reveal.vortex;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const rawProgress = (clock.now() - revealStartMs) / durationMs;
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
@@ -609,7 +609,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const spread = assembly.staggerMs / dur;
           const gridX = Math.round(280 + 280 * assembly.detail);
           const gridY = Math.max(2, Math.round((gridX * cssH) / Math.max(1, cssW)));
-          hadoukenPass.render(revealedRT, fieldRT.texture, {
+          vortexPass.render(revealedRT, fieldRT.texture, {
             progress: rawProgress,
             spread,
             flight: avgTotal,
@@ -622,7 +622,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             count: gridX * gridY * 3,
           });
         },
-        dispose: () => hadoukenPass.dispose(),
+        dispose: () => vortexPass.dispose(),
       });
     } else if (revealEnabled && isWarpRevealType(config.reveal.type)) {
       const warpPass = createEnergyWarpPass(gl, quad);

@@ -23,7 +23,7 @@ import type {
   StripeBlendMode,
   RevealType,
   WarpStyleConfig,
-  HadoukenRevealConfig,
+  VortexRevealConfig,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -237,7 +237,7 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-export const REVEAL_TYPES: readonly RevealType[] = ["wave", "assembly", "turbulence", "glitch", "hadouken"];
+export const REVEAL_TYPES: readonly RevealType[] = ["wave", "assembly", "turbulence", "glitch", "vortex"];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",
@@ -254,7 +254,7 @@ export const DEFAULT_REVEAL: RevealConfig = {
   },
   turbulence: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 1400, intensity: 1, detail: 0.5, glow: 0.6 },
   glitch: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
-  hadouken: {
+  vortex: {
     speedMinMs: 300,
     speedMaxMs: 1400,
     staggerMs: 2600,
@@ -271,7 +271,8 @@ type LegacyAssemblyBlock = Partial<RevealConfig["assembly"]> & {
   scatter?: Partial<RevealConfig["assembly"]>;
   turbulence?: Partial<WarpStyleConfig>;
   glitch?: Partial<WarpStyleConfig>;
-  hadouken?: Partial<RevealConfig["hadouken"]>;
+  vortex?: Partial<RevealConfig["vortex"]>;
+  hadouken?: Partial<RevealConfig["vortex"]>;
 };
 
 type PartialReveal = {
@@ -281,7 +282,8 @@ type PartialReveal = {
   assembly?: LegacyAssemblyBlock;
   turbulence?: Partial<WarpStyleConfig>;
   glitch?: Partial<WarpStyleConfig>;
-  hadouken?: Partial<RevealConfig["hadouken"]>;
+  vortex?: Partial<RevealConfig["vortex"]>;
+  hadouken?: Partial<RevealConfig["vortex"]>;
 };
 
 function normalizeAssemblyBlock(a: LegacyAssemblyBlock): RevealConfig["assembly"] {
@@ -317,7 +319,7 @@ function normalizeWarpStyleBlock(i: Partial<WarpStyleConfig> = {}, d: WarpStyleC
   };
 }
 
-function normalizeHadoukenBlock(i: Partial<HadoukenRevealConfig> = {}, d: HadoukenRevealConfig): HadoukenRevealConfig {
+function normalizeVortexBlock(i: Partial<VortexRevealConfig> = {}, d: VortexRevealConfig): VortexRevealConfig {
   return {
     ...normalizeWarpStyleBlock(i, d),
     swirl: clamp(num(i.swirl, d.swirl), 0, 3),
@@ -333,9 +335,13 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
 
   let type: unknown = i.type;
   const legacyStyle = a.style;
-  if (type === "assembly" && (legacyStyle === "turbulence" || legacyStyle === "glitch" || legacyStyle === "hadouken")) {
-    type = legacyStyle;
+  if (
+    type === "assembly" &&
+    (legacyStyle === "turbulence" || legacyStyle === "glitch" || legacyStyle === "hadouken" || legacyStyle === "vortex")
+  ) {
+    type = legacyStyle === "hadouken" ? "vortex" : legacyStyle;
   }
+  if (type === "hadouken") type = "vortex";
   const resolvedType = REVEAL_TYPES.includes(type as RevealType) ? (type as RevealType) : DEFAULT_REVEAL.type;
 
   return {
@@ -350,7 +356,7 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     assembly: normalizeAssemblyBlock(a),
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
-    hadouken: normalizeHadoukenBlock(i.hadouken ?? a.hadouken, DEFAULT_REVEAL.hadouken),
+    vortex: normalizeVortexBlock(i.vortex ?? i.hadouken ?? a.vortex ?? a.hadouken, DEFAULT_REVEAL.vortex),
   };
 }
 
@@ -749,7 +755,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     assembly: { ...DEFAULT_REVEAL.assembly },
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
-    hadouken: { ...DEFAULT_REVEAL.hadouken },
+    vortex: { ...DEFAULT_REVEAL.vortex },
   },
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },

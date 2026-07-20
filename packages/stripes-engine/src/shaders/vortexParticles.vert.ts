@@ -1,4 +1,4 @@
-export const HADOUKEN_PARTICLES_VERT = `#version 300 es
+export const VORTEX_PARTICLES_VERT = `#version 300 es
 precision highp float;
 uniform float uProgress;
 uniform float uSpread;

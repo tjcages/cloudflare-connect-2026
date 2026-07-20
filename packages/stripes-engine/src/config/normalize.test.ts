@@ -754,7 +754,7 @@ describe("renderMode + renderIntensity", () => {
 });
 describe("reveal type promotion", () => {
   it("accepts all 5 reveal types", () => {
-    for (const t of ["wave", "assembly", "turbulence", "glitch", "hadouken"] as const) {
+    for (const t of ["wave", "assembly", "turbulence", "glitch", "vortex"] as const) {
       expect(normalizeReveal({ type: t }).type).toBe(t);
     }
   });
@@ -764,7 +764,6 @@ describe("reveal type promotion", () => {
       "bogus",
       "scatter",
       "particles",
-      "vortex",
       "streams",
       "pull",
       "ripple",
@@ -804,7 +803,7 @@ describe("reveal type promotion", () => {
       detail: 0.5,
       glow: 0.6,
     });
-    expect(r.hadouken).toEqual({
+    expect(r.vortex).toEqual({
       speedMinMs: 300,
       speedMaxMs: 1400,
       staggerMs: 2600,
@@ -827,7 +826,7 @@ describe("reveal type promotion", () => {
     expect(r.turbulence.speedMaxMs).toBe(2600);
   });
 
-  it("R5/R6 nested-shape lift: assembly.style + nested assembly.{scatter,turbulence,glitch,hadouken} promote to flat reveal-level blocks", () => {
+  it("R5/R6 nested-shape lift: assembly.style + nested assembly.{scatter,turbulence,glitch,vortex} promote to flat reveal-level blocks", () => {
     const r = normalizeReveal({
       type: "assembly",
       assembly: { style: "turbulence", scatter: { sliceSizePx: 50 }, turbulence: { glow: 0.2 } } as never,
@@ -867,7 +866,7 @@ describe("reveal type promotion", () => {
     expect(d.turbulence.detail).toBe(0.5);
     expect(d.turbulence.glow).toBe(0.6);
     expect(d.glitch.glow).toBe(0.8);
-    expect(d.hadouken.glow).toBe(0.7);
+    expect(d.vortex.glow).toBe(0.7);
     const c = normalizeReveal({ turbulence: { intensity: 5, detail: -1, glow: 2 } }).turbulence;
     expect(c.intensity).toBe(2);
     expect(c.detail).toBe(0);
@@ -877,7 +876,7 @@ describe("reveal type promotion", () => {
   it("clamps warp-style speeds to a floor of 50 (assembly keeps its floor of 100)", () => {
     expect(normalizeReveal({ turbulence: { speedMinMs: 10 } }).turbulence.speedMinMs).toBe(50);
     expect(normalizeReveal({ glitch: { speedMinMs: 10 } }).glitch.speedMinMs).toBe(50);
-    expect(normalizeReveal({ hadouken: { speedMinMs: 10 } }).hadouken.speedMinMs).toBe(50);
+    expect(normalizeReveal({ vortex: { speedMinMs: 10 } }).vortex.speedMinMs).toBe(50);
     expect(normalizeReveal({ assembly: { speedMinMs: 10 } }).assembly.speedMinMs).toBe(100);
   });
 });
@@ -902,5 +901,26 @@ describe("normalizeFlames vortex", () => {
     expect(normalizeFlames({ swirlRate: -3 }).swirlRate).toBe(0);
     expect(normalizeFlames({ swirlRate: 99 }).swirlRate).toBe(6);
     expect(normalizeFlames({ inward: 1 as never }).inward).toBe(true);
+  });
+});
+
+describe("hadouken -> vortex migration", () => {
+  it("maps the legacy reveal type", () => {
+    expect(normalizeEngineConfig({ reveal: { type: "hadouken" } as never }).reveal.type).toBe("vortex");
+  });
+
+  it("carries the legacy block across", () => {
+    const c = normalizeEngineConfig({
+      reveal: { type: "hadouken", hadouken: { swirl: 2.5, detail: 0.8 } } as never,
+    });
+    expect(c.reveal.vortex.swirl).toBeCloseTo(2.5);
+    expect(c.reveal.vortex.detail).toBeCloseTo(0.8);
+  });
+
+  it("prefers a new-name block over the legacy one", () => {
+    const c = normalizeEngineConfig({
+      reveal: { type: "vortex", vortex: { swirl: 1 }, hadouken: { swirl: 3 } } as never,
+    });
+    expect(c.reveal.vortex.swirl).toBeCloseTo(1);
   });
 });
