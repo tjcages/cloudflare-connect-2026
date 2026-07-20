@@ -22,6 +22,11 @@ export type StripesShaderProps = {
   preloadRootMargin?: string;
   /** Shared mode only: delay the first source load so the reveal plays visibly after mount. */
   revealDelayMs?: number;
+  /**
+   * Standalone mode only: called when the "wave" cursor trail's 0..1 activity
+   * changes. Fires from the render loop, so keep the handler cheap.
+   */
+  onWaterActivity?: (activity: number) => void;
 };
 
 export function StripesShader(props: StripesShaderProps) {
@@ -40,12 +45,16 @@ export function StripesShader(props: StripesShaderProps) {
     rootMargin,
     preloadRootMargin,
     revealDelayMs,
+    onWaterActivity,
   } = props;
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<StripesEngine | null>(null);
   const sharedHandleRef = useRef<SharedShaderHandle | null>(null);
   const configRef = useRef(config);
+  // Held in a ref so a new handler identity never tears the engine down.
+  const waterActivityRef = useRef(onWaterActivity);
+  waterActivityRef.current = onWaterActivity;
 
   const mergedStyle = useMemo<CSSProperties>(
     () => ({ display: "block", ...(width != null && height != null ? { width, height } : null), ...style }),
@@ -56,7 +65,9 @@ export function StripesShader(props: StripesShaderProps) {
     if (sharedContext) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const engine = createStripesEngine(canvas);
+    const engine = createStripesEngine(canvas, {
+      onWaterActivity: (activity) => waterActivityRef.current?.(activity),
+    });
     engineRef.current = engine;
     engine.start();
 

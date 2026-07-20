@@ -65,7 +65,9 @@ describe("<StripesShader>", () => {
     const canvas = container.querySelector("canvas");
     expect(canvas).not.toBeNull();
     expect(createStripesEngine).toHaveBeenCalledTimes(1);
-    expect(createStripesEngine).toHaveBeenCalledWith(canvas);
+    expect(createStripesEngine).toHaveBeenCalledWith(canvas, {
+      onWaterActivity: expect.any(Function),
+    });
     expect(engineStub.start).toHaveBeenCalled();
   });
 

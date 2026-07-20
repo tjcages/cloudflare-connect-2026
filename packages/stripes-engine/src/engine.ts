@@ -77,7 +77,14 @@ function isWarpRevealType(t: RevealType): t is WarpRevealType {
   return t === "turbulence" || t === "glitch";
 }
 
-export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
+export type EngineOptions = {
+  clock?: Clock;
+  seed?: number;
+  dpr?: number;
+  fieldScale?: number;
+  /** Called when the "wave" trail's 0..1 activity changes meaningfully. */
+  onWaterActivity?: (activity: number) => void;
+};
 export type CellGridReadback = { cols: number; rows: number; values: Uint8Array; colors: Uint8Array | null };
 export type StripesEngine = {
   resize(cssWidth: number, cssHeight: number): void;
@@ -138,6 +145,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     clock: opts.clock,
     seed: opts.seed,
     fieldScale: opts.fieldScale,
+    onWaterActivity: opts.onWaterActivity,
     cssWidth: canvas.clientWidth || 800,
     cssHeight: canvas.clientHeight || 600,
   });
@@ -158,6 +166,7 @@ type EngineCoreOptions = {
   clock?: Clock;
   seed?: number;
   fieldScale?: number;
+  onWaterActivity?: (activity: number) => void;
   cssWidth: number;
   cssHeight: number;
 };
@@ -231,6 +240,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   // outside the pass graph and is stepped before the pipeline each frame.
   let waterSim: WaterSim | null = null;
   let lastCursorTrailType = config.cursorTrail.type;
+  let lastReportedActivity = 0;
 
   function waveTrailEnabled(): boolean {
     return config.cursorTrail.enabled && config.cursorTrail.type === "wave";
@@ -238,12 +248,24 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
 
   function stepWaterSim() {
     if (!waveTrailEnabled()) {
-      waterSim?.dispose();
-      waterSim = null;
+      if (waterSim) {
+        waterSim.dispose();
+        waterSim = null;
+        if (lastReportedActivity !== 0) {
+          lastReportedActivity = 0;
+          opts.onWaterActivity?.(0);
+        }
+      }
       return;
     }
     waterSim ??= createWaterSim(gl, quad);
     waterSim.tick(clock.now(), cursorTrailState.target, cssW, cssH);
+    const activity = waterSim.activity();
+    // Report only on visible change; hosts typically drive a CSS variable.
+    if (Math.abs(activity - lastReportedActivity) > 0.01) {
+      lastReportedActivity = activity;
+      opts.onWaterActivity?.(activity);
+    }
   }
 
   function getDpr() {
