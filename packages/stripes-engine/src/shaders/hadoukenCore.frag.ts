@@ -31,7 +31,9 @@ void main() {
   vec2 cellCenter = (cid + 0.5) / uGrid;
   vec2 asp = vec2(uAspect, 1.0);
   highp float dn = length((cellCenter - 0.5) * asp) / (length(asp) * 0.5);
-  highp float o = clamp(dn * 0.75 + (hashLane(id, 1u) - 0.5) * 0.3, 0.0, 1.0);
+  vec2 c8 = floor(cid / 8.0);
+  highp float clusterH = hashLane(uint(c8.y * 128.0 + c8.x), 5u);
+  highp float o = clamp(dn * 0.6 + (hashLane(id, 1u) - 0.5) * 0.35 + (clusterH - 0.5) * 0.3, 0.0, 1.0);
   highp float fraw = (p - uSpread * o) / max(uFlight, 1e-4);
   highp float blockV = texture(uField, cellCenter).r;
   highp float on = step(1.0, fraw);
