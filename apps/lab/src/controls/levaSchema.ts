@@ -1138,6 +1138,7 @@ export function useEngineControls(
               "Left - Right": "leftRight",
               Vortex: "vortex",
               "Vortex Bits": "vortexBits",
+              "Vortex Lines": "vortexLines",
             } as const,
             label: "Direction",
             render: (get) => get("Background Flames.flamesEnabled") === true,
@@ -1157,7 +1158,7 @@ export function useEngineControls(
             render: (get) => {
               if (get("Background Flames.flamesEnabled") !== true) return false;
               const dir = get("Background Flames.flamesDirection");
-              return dir === "vortex" || dir === "vortexBits";
+              return dir === "vortex" || dir === "vortexBits" || dir === "vortexLines";
             },
           },
           flamesMinWidthPct: {
