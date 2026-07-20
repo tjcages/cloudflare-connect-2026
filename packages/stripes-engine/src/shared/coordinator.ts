@@ -271,7 +271,8 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
       e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
     if (inside) {
       pointerInside = true;
-      post({ type: "cursor", id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+      const zoom = canvas.currentCSSZoom ?? 1;
+      post({ type: "cursor", id, x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
     } else if (pointerInside) {
       pointerInside = false;
       post({ type: "cursor", id, x: null });
@@ -287,7 +288,8 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     const inside =
       e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
     if (!inside) return;
-    post({ type: "click", id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    const zoom = canvas.currentCSSZoom ?? 1;
+    post({ type: "click", id, x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
   };
 
   instance.intersectionObserver = intersectionObserver;

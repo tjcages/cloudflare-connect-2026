@@ -93,7 +93,8 @@ export function StripesShader(props: StripesShaderProps) {
         e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
       if (inside) {
         pointerInside = true;
-        engineRef.current?.setCursor(e.clientX - rect.left, e.clientY - rect.top);
+        const zoom = canvas.currentCSSZoom ?? 1;
+        engineRef.current?.setCursor((e.clientX - rect.left) / zoom, (e.clientY - rect.top) / zoom);
       } else if (pointerInside) {
         pointerInside = false;
         engineRef.current?.setCursor(null);
@@ -109,7 +110,8 @@ export function StripesShader(props: StripesShaderProps) {
       const inside =
         e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
       if (!inside) return;
-      engineRef.current?.click(e.clientX - rect.left, e.clientY - rect.top);
+      const zoom = canvas.currentCSSZoom ?? 1;
+      engineRef.current?.click((e.clientX - rect.left) / zoom, (e.clientY - rect.top) / zoom);
     };
     window.addEventListener("pointermove", onMove);
     document.addEventListener("pointerleave", onLeave);
