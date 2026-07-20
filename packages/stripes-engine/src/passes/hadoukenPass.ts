@@ -9,12 +9,12 @@ export type HadoukenUniforms = {
   progress: number;
   spread: number;
   flight: number;
-  charge: number;
-  count: number;
-  sizeUv: [number, number];
-  detail: number;
+  gridX: number;
+  gridY: number;
   glow: number;
+  intensity: number;
   aspect: number;
+  count: number;
 };
 
 export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -25,37 +25,49 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
   const cu = (n: string) => gl.getUniformLocation(coreProgram, n);
   const C = {
     field: cu("uField"),
-    charge: cu("uCharge"),
-    detail: cu("uDetail"),
+    progress: cu("uProgress"),
+    spread: cu("uSpread"),
+    flight: cu("uFlight"),
+    grid: cu("uGrid"),
     glow: cu("uGlow"),
-    aspect: cu("uAspect"),
   };
   const pu = (n: string) => gl.getUniformLocation(particleProgram, n);
   const P = {
+    field: pu("uField"),
     progress: pu("uProgress"),
     spread: pu("uSpread"),
     flight: pu("uFlight"),
-    sizeUv: pu("uSizeUv"),
+    grid: pu("uGrid"),
+    glow: pu("uGlow"),
+    intensity: pu("uIntensity"),
     aspect: pu("uAspect"),
   };
   return {
     render(target: RenderTarget, fieldTex: WebGLTexture, p: HadoukenUniforms) {
       bindRenderTarget(gl, target);
-      gl.useProgram(coreProgram);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, fieldTex);
+
+      gl.useProgram(coreProgram);
       gl.uniform1i(C.field, 0);
-      gl.uniform1f(C.charge, p.charge);
-      gl.uniform1f(C.detail, p.detail);
+      gl.uniform1f(C.progress, p.progress);
+      gl.uniform1f(C.spread, p.spread);
+      gl.uniform1f(C.flight, p.flight);
+      gl.uniform2f(C.grid, p.gridX, p.gridY);
       gl.uniform1f(C.glow, p.glow);
-      gl.uniform1f(C.aspect, p.aspect);
       quad.draw();
-      if (p.charge < 1) {
+
+      if (p.progress < p.spread + p.flight) {
         gl.useProgram(particleProgram);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, fieldTex);
+        gl.uniform1i(P.field, 0);
         gl.uniform1f(P.progress, p.progress);
         gl.uniform1f(P.spread, p.spread);
         gl.uniform1f(P.flight, p.flight);
-        gl.uniform2f(P.sizeUv, p.sizeUv[0], p.sizeUv[1]);
+        gl.uniform2f(P.grid, p.gridX, p.gridY);
+        gl.uniform1f(P.glow, p.glow);
+        gl.uniform1f(P.intensity, p.intensity);
         gl.uniform1f(P.aspect, p.aspect);
         gl.enable(gl.BLEND);
         gl.blendEquation(gl.MAX);

@@ -5,7 +5,7 @@ const ALL_REVEAL_BLOCKS = {
   assembly: { staggerMs: 900, speedMaxMs: 1600 },
   turbulence: { staggerMs: 1400, speedMaxMs: 2600 },
   glitch: { staggerMs: 2400, speedMaxMs: 900 },
-  hadouken: { staggerMs: 900, speedMaxMs: 1800 },
+  hadouken: { staggerMs: 900, speedMaxMs: 1100 },
   storm: { staggerMs: 600, speedMaxMs: 2600 },
   detonation: { staggerMs: 1200, speedMaxMs: 1400 },
 };

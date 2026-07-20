@@ -560,19 +560,18 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
-          const lin = Math.min(1, Math.max(0, (rawProgress - avgTotal) / Math.max(spread, 0.2)));
-          const charge = lin < 0.3 ? (lin * lin) / 0.3 : 1 - ((1 - lin) * (1 - lin)) / 0.7;
-          const sizePx = 6 * Math.max(0.05, assembly.intensity);
+          const gridX = Math.round(28 + 44 * assembly.detail);
+          const gridY = Math.max(2, Math.round((gridX * cssH) / Math.max(1, cssW)));
           hadoukenPass.render(revealedRT, fieldRT.texture, {
             progress: rawProgress,
             spread,
             flight: avgTotal,
-            charge,
-            count: assembly.particleCount,
-            sizeUv: [sizePx / Math.max(1, cssW), sizePx / Math.max(1, cssH)],
-            detail: assembly.detail,
+            gridX,
+            gridY,
             glow: assembly.glow,
+            intensity: assembly.intensity,
             aspect: cssW / Math.max(1, cssH),
+            count: gridX * gridY,
           });
         },
         dispose: () => hadoukenPass.dispose(),

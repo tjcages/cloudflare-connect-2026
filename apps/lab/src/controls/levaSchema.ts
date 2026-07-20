@@ -1699,14 +1699,6 @@ export function useEngineControls(
             label: "Glow",
             render: (get) => get("Reveal.revealType") === "hadouken",
           },
-          revealHadParticleCount: {
-            value: d.reveal.hadouken.particleCount,
-            min: 500,
-            max: 20000,
-            step: 100,
-            label: "Particle count",
-            render: (get) => get("Reveal.revealType") === "hadouken",
-          },
           revealStormSpeedMinMs: {
             value: d.reveal.storm.speedMinMs,
             min: 50,
@@ -2304,7 +2296,6 @@ export function useEngineControls(
         intensity: values.revealHadIntensity,
         detail: values.revealHadDetail,
         glow: values.revealHadGlow,
-        particleCount: values.revealHadParticleCount,
       },
       storm: {
         speedMinMs: values.revealStormSpeedMinMs,

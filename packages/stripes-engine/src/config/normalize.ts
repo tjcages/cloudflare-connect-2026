@@ -262,13 +262,12 @@ export const DEFAULT_REVEAL: RevealConfig = {
   turbulence: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 1400, intensity: 1, detail: 0.5, glow: 0.6 },
   glitch: { speedMinMs: 150, speedMaxMs: 900, staggerMs: 2400, intensity: 1, detail: 0.5, glow: 0.7 },
   hadouken: {
-    speedMinMs: 500,
-    speedMaxMs: 1800,
+    speedMinMs: 300,
+    speedMaxMs: 1100,
     staggerMs: 900,
     intensity: 1,
     detail: 0.5,
     glow: 0.7,
-    particleCount: 1800,
   },
   storm: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
   detonation: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
@@ -328,14 +327,6 @@ function normalizeWarpStyleBlock(i: Partial<WarpStyleConfig> = {}, d: WarpStyleC
   };
 }
 
-function normalizeHadoukenBlock(i: Partial<RevealConfig["hadouken"]> = {}): RevealConfig["hadouken"] {
-  const d = DEFAULT_REVEAL.hadouken;
-  return {
-    ...normalizeWarpStyleBlock(i, d),
-    particleCount: clamp(Math.round(num(i.particleCount, d.particleCount)), 500, 20000),
-  };
-}
-
 export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
   const w = i.wave ?? {};
   const a = i.assembly ?? {};
@@ -362,7 +353,7 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     assembly: normalizeAssemblyBlock(a),
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
-    hadouken: normalizeHadoukenBlock(i.hadouken ?? a.hadouken),
+    hadouken: normalizeWarpStyleBlock(i.hadouken ?? a.hadouken, DEFAULT_REVEAL.hadouken),
     storm: normalizeWarpStyleBlock(i.storm, DEFAULT_REVEAL.storm),
     detonation: normalizeWarpStyleBlock(i.detonation, DEFAULT_REVEAL.detonation),
   };

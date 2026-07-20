@@ -803,13 +803,12 @@ describe("reveal type promotion", () => {
       glow: 0.6,
     });
     expect(r.hadouken).toEqual({
-      speedMinMs: 500,
-      speedMaxMs: 1800,
+      speedMinMs: 300,
+      speedMaxMs: 1100,
       staggerMs: 900,
       intensity: 1,
       detail: 0.5,
       glow: 0.7,
-      particleCount: 1800,
     });
     expect(r.storm).toEqual({
       speedMinMs: 400,
@@ -895,10 +894,5 @@ describe("reveal type promotion", () => {
     expect(normalizeReveal({ storm: { speedMinMs: 10 } }).storm.speedMinMs).toBe(50);
     expect(normalizeReveal({ detonation: { speedMinMs: 10 } }).detonation.speedMinMs).toBe(50);
     expect(normalizeReveal({ assembly: { speedMinMs: 10 } }).assembly.speedMinMs).toBe(100);
-  });
-
-  it("clamps hadouken.particleCount to 500..20000", () => {
-    expect(normalizeReveal({ hadouken: { particleCount: 999999 } }).hadouken.particleCount).toBe(20000);
-    expect(normalizeReveal({ hadouken: { particleCount: 10 } }).hadouken.particleCount).toBe(500);
   });
 });

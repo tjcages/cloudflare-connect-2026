@@ -43,7 +43,7 @@ export interface RevealConfig {
   };
   turbulence: WarpStyleConfig;
   glitch: WarpStyleConfig;
-  hadouken: WarpStyleConfig & { particleCount: number };
+  hadouken: WarpStyleConfig;
   storm: WarpStyleConfig;
   detonation: WarpStyleConfig;
 }

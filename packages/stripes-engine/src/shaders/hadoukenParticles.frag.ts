@@ -4,8 +4,6 @@ in vec2 vQuad;
 flat in highp float vVal;
 out vec4 finalColor;
 void main() {
-  highp float d = length(vQuad - 0.5) * 2.0;
-  highp float a = smoothstep(1.0, 0.1, d);
-  finalColor = vec4(vec3(vVal * a), 1.0);
+  finalColor = vec4(vec3(vVal), 1.0);
 }
 `;
