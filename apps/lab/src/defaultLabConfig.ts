@@ -153,15 +153,15 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
     hadouken: {
       speedMinMs: 500,
       speedMaxMs: 1800,
-      staggerMs: 1400,
+      staggerMs: 900,
       intensity: 1,
       detail: 0.5,
       glow: 0.7,
-      particleCount: 4000,
+      particleCount: 1800,
     },
-    ink: { speedMinMs: 400, speedMaxMs: 2400, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
-    trace: { speedMinMs: 300, speedMaxMs: 2200, staggerMs: 1600, intensity: 1, detail: 0.5, glow: 0.8 },
-    pulse: { speedMinMs: 300, speedMaxMs: 3000, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.7 },
+    fluid: { speedMinMs: 400, speedMaxMs: 2800, staggerMs: 400, intensity: 1, detail: 0.5, glow: 0.7 },
+    storm: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
+    detonation: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
   },
   sparkle: {
     gaps: {

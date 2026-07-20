@@ -90,13 +90,13 @@ describe("resolveRevealDurationMs", () => {
     const turb = normalizeReveal({ enabled: true, type: "turbulence" });
     expect(resolveRevealDurationMs(turb)).toBe(1400 + 2600);
     const hadouken = normalizeReveal({ enabled: true, type: "hadouken" });
-    expect(resolveRevealDurationMs(hadouken)).toBe(1400 + 1800);
-    const ink = normalizeReveal({ enabled: true, type: "ink" });
-    expect(resolveRevealDurationMs(ink)).toBe(600 + 2400);
-    const trace = normalizeReveal({ enabled: true, type: "trace" });
-    expect(resolveRevealDurationMs(trace)).toBe(1600 + 2200);
-    const pulse = normalizeReveal({ enabled: true, type: "pulse" });
-    expect(resolveRevealDurationMs(pulse)).toBe(0 + 3000);
+    expect(resolveRevealDurationMs(hadouken)).toBe(900 + 1800);
+    const fluid = normalizeReveal({ enabled: true, type: "fluid" });
+    expect(resolveRevealDurationMs(fluid)).toBe(400 + 2800);
+    const storm = normalizeReveal({ enabled: true, type: "storm" });
+    expect(resolveRevealDurationMs(storm)).toBe(600 + 2600);
+    const detonation = normalizeReveal({ enabled: true, type: "detonation" });
+    expect(resolveRevealDurationMs(detonation)).toBe(1200 + 1400);
   });
 });
 

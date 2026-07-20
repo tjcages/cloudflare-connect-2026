@@ -11,7 +11,7 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken" | "ink" | "trace" | "pulse";
+export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken" | "fluid" | "storm" | "detonation";
 
 export interface WarpStyleConfig {
   speedMinMs: number;
@@ -44,9 +44,9 @@ export interface RevealConfig {
   turbulence: WarpStyleConfig;
   glitch: WarpStyleConfig;
   hadouken: WarpStyleConfig & { particleCount: number };
-  ink: WarpStyleConfig;
-  trace: WarpStyleConfig;
-  pulse: WarpStyleConfig;
+  fluid: WarpStyleConfig;
+  storm: WarpStyleConfig;
+  detonation: WarpStyleConfig;
 }
 
 export interface Stripe {

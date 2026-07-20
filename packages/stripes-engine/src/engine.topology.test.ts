@@ -11,7 +11,9 @@ function topologyKey(cfg: EngineConfig): string {
         ? "scatter"
         : cfg.reveal.type === "hadouken"
           ? "hadouken"
-          : "warp";
+          : cfg.reveal.type === "fluid"
+            ? "fluid"
+            : "warp";
   return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}`;
 }
 
@@ -90,32 +92,39 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(turbulence, wave)).toBe(true);
   });
 
-  it("switching assembly <-> trace triggers rebuild", () => {
+  it("switching assembly <-> detonation triggers rebuild", () => {
     const assembly = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
-    const trace = normalizeEngineConfig({ reveal: { enabled: true, type: "trace" } });
-    expect(needsRebuild(assembly, trace)).toBe(true);
-    expect(needsRebuild(trace, assembly)).toBe(true);
+    const detonation = normalizeEngineConfig({ reveal: { enabled: true, type: "detonation" } });
+    expect(needsRebuild(assembly, detonation)).toBe(true);
+    expect(needsRebuild(detonation, assembly)).toBe(true);
   });
 
-  it("switching turbulence <-> pulse does NOT trigger rebuild (both share the warp kind)", () => {
+  it("switching turbulence <-> storm does NOT trigger rebuild (both share the warp kind)", () => {
     const turbulence = normalizeEngineConfig({ reveal: { enabled: true, type: "turbulence" } });
-    const pulse = normalizeEngineConfig({ reveal: { enabled: true, type: "pulse" } });
-    expect(needsRebuild(turbulence, pulse)).toBe(false);
-    expect(needsRebuild(pulse, turbulence)).toBe(false);
+    const storm = normalizeEngineConfig({ reveal: { enabled: true, type: "storm" } });
+    expect(needsRebuild(turbulence, storm)).toBe(false);
+    expect(needsRebuild(storm, turbulence)).toBe(false);
   });
 
-  it("switching ink <-> pulse does NOT trigger rebuild (both share the warp kind)", () => {
-    const ink = normalizeEngineConfig({ reveal: { enabled: true, type: "ink" } });
-    const pulse = normalizeEngineConfig({ reveal: { enabled: true, type: "pulse" } });
-    expect(needsRebuild(ink, pulse)).toBe(false);
-    expect(needsRebuild(pulse, ink)).toBe(false);
+  it("switching storm <-> detonation does NOT trigger rebuild (both share the warp kind)", () => {
+    const storm = normalizeEngineConfig({ reveal: { enabled: true, type: "storm" } });
+    const detonation = normalizeEngineConfig({ reveal: { enabled: true, type: "detonation" } });
+    expect(needsRebuild(storm, detonation)).toBe(false);
+    expect(needsRebuild(detonation, storm)).toBe(false);
   });
 
-  it("switching hadouken <-> ink triggers rebuild", () => {
+  it("switching hadouken <-> detonation triggers rebuild", () => {
     const hadouken = normalizeEngineConfig({ reveal: { enabled: true, type: "hadouken" } });
-    const ink = normalizeEngineConfig({ reveal: { enabled: true, type: "ink" } });
-    expect(needsRebuild(hadouken, ink)).toBe(true);
-    expect(needsRebuild(ink, hadouken)).toBe(true);
+    const detonation = normalizeEngineConfig({ reveal: { enabled: true, type: "detonation" } });
+    expect(needsRebuild(hadouken, detonation)).toBe(true);
+    expect(needsRebuild(detonation, hadouken)).toBe(true);
+  });
+
+  it("switching fluid <-> storm triggers rebuild (fluid has its own topology kind)", () => {
+    const fluid = normalizeEngineConfig({ reveal: { enabled: true, type: "fluid" } });
+    const storm = normalizeEngineConfig({ reveal: { enabled: true, type: "storm" } });
+    expect(needsRebuild(fluid, storm)).toBe(true);
+    expect(needsRebuild(storm, fluid)).toBe(true);
   });
 
   it("turbulence <-> glitch and param changes do not trigger rebuild", () => {

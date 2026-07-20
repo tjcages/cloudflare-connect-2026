@@ -3,7 +3,7 @@ import { easeValue } from "../controls/easing";
 export const UNDERLAY_INTRO_FADE_MS = 4000;
 
 type WarpStyleLike = { staggerMs: number; speedMaxMs: number };
-type RevealTypeLike = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken" | "ink" | "trace" | "pulse";
+type RevealTypeLike = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken" | "fluid" | "storm" | "detonation";
 
 type RevealLike = {
   enabled: boolean;
@@ -13,9 +13,9 @@ type RevealLike = {
   turbulence: WarpStyleLike;
   glitch: WarpStyleLike;
   hadouken: WarpStyleLike;
-  ink: WarpStyleLike;
-  trace: WarpStyleLike;
-  pulse: WarpStyleLike;
+  fluid: WarpStyleLike;
+  storm: WarpStyleLike;
+  detonation: WarpStyleLike;
 };
 
 /** Match stripes-engine `resolveRevealDurationMs` — when progress reaches 1. */

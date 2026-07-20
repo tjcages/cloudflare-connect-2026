@@ -242,9 +242,9 @@ export const REVEAL_TYPES: readonly RevealType[] = [
   "turbulence",
   "glitch",
   "hadouken",
-  "ink",
-  "trace",
-  "pulse",
+  "fluid",
+  "storm",
+  "detonation",
 ];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
@@ -265,15 +265,15 @@ export const DEFAULT_REVEAL: RevealConfig = {
   hadouken: {
     speedMinMs: 500,
     speedMaxMs: 1800,
-    staggerMs: 1400,
+    staggerMs: 900,
     intensity: 1,
     detail: 0.5,
     glow: 0.7,
-    particleCount: 4000,
+    particleCount: 1800,
   },
-  ink: { speedMinMs: 400, speedMaxMs: 2400, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
-  trace: { speedMinMs: 300, speedMaxMs: 2200, staggerMs: 1600, intensity: 1, detail: 0.5, glow: 0.8 },
-  pulse: { speedMinMs: 300, speedMaxMs: 3000, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.7 },
+  fluid: { speedMinMs: 400, speedMaxMs: 2800, staggerMs: 400, intensity: 1, detail: 0.5, glow: 0.7 },
+  storm: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
+  detonation: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
 };
 
 /** @deprecated legacy-config shim — R5/R6 nested assembly.style + assembly.{scatter,turbulence,glitch,hadouken} */
@@ -293,9 +293,9 @@ type PartialReveal = {
   turbulence?: Partial<WarpStyleConfig>;
   glitch?: Partial<WarpStyleConfig>;
   hadouken?: Partial<RevealConfig["hadouken"]>;
-  ink?: Partial<WarpStyleConfig>;
-  trace?: Partial<WarpStyleConfig>;
-  pulse?: Partial<WarpStyleConfig>;
+  fluid?: Partial<WarpStyleConfig>;
+  storm?: Partial<WarpStyleConfig>;
+  detonation?: Partial<WarpStyleConfig>;
 };
 
 function normalizeAssemblyBlock(a: LegacyAssemblyBlock): RevealConfig["assembly"] {
@@ -366,9 +366,9 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     hadouken: normalizeHadoukenBlock(i.hadouken ?? a.hadouken),
-    ink: normalizeWarpStyleBlock(i.ink, DEFAULT_REVEAL.ink),
-    trace: normalizeWarpStyleBlock(i.trace, DEFAULT_REVEAL.trace),
-    pulse: normalizeWarpStyleBlock(i.pulse, DEFAULT_REVEAL.pulse),
+    fluid: normalizeWarpStyleBlock(i.fluid, DEFAULT_REVEAL.fluid),
+    storm: normalizeWarpStyleBlock(i.storm, DEFAULT_REVEAL.storm),
+    detonation: normalizeWarpStyleBlock(i.detonation, DEFAULT_REVEAL.detonation),
   };
 }
 
@@ -748,9 +748,9 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
     hadouken: { ...DEFAULT_REVEAL.hadouken },
-    ink: { ...DEFAULT_REVEAL.ink },
-    trace: { ...DEFAULT_REVEAL.trace },
-    pulse: { ...DEFAULT_REVEAL.pulse },
+    fluid: { ...DEFAULT_REVEAL.fluid },
+    storm: { ...DEFAULT_REVEAL.storm },
+    detonation: { ...DEFAULT_REVEAL.detonation },
   },
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },

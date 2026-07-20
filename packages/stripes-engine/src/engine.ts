@@ -66,16 +66,15 @@ const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
 const CLICK_WAVE_MAX_PUSH_CELLS = 6;
 const STARS_SEED_XOR = 173516199;
 
-type WarpRevealType = "turbulence" | "glitch" | "ink" | "trace" | "pulse";
+type WarpRevealType = "turbulence" | "glitch" | "storm" | "detonation";
 const WARP_MODES: Record<WarpRevealType, number> = {
   turbulence: 0,
   glitch: 1,
-  ink: 2,
-  trace: 3,
-  pulse: 4,
+  storm: 2,
+  detonation: 3,
 };
 function isWarpRevealType(t: RevealType): t is WarpRevealType {
-  return t === "turbulence" || t === "glitch" || t === "ink" || t === "trace" || t === "pulse";
+  return t === "turbulence" || t === "glitch" || t === "storm" || t === "detonation";
 }
 
 export type EngineOptions = { clock?: Clock; seed?: number; dpr?: number; fieldScale?: number };
@@ -189,11 +188,12 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
-  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "hadouken" => {
+  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "hadouken" | "fluid" => {
     if (!config.reveal.enabled) return "none";
     if (config.reveal.type === "wave") return "wave";
     if (config.reveal.type === "assembly") return "scatter";
     if (config.reveal.type === "hadouken") return "hadouken";
+    if (config.reveal.type === "fluid") return "fluid";
     return "warp";
   };
   let lastRevealKind = revealPassKind();
@@ -539,7 +539,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       );
     }
 
-    const revealEnabled = config.reveal.enabled;
+    const revealEnabled = config.reveal.enabled && config.reveal.type !== "fluid";
     let activeFieldRT = revealEnabled ? "revealedField" : "field";
     let activeColorRT = "fieldColor";
     const revealFieldPasses: Pass[] = [];

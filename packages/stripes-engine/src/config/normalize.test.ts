@@ -754,7 +754,7 @@ describe("renderMode + renderIntensity", () => {
 });
 describe("reveal type promotion", () => {
   it("accepts all 8 reveal types", () => {
-    for (const t of ["wave", "assembly", "turbulence", "glitch", "hadouken", "ink", "trace", "pulse"] as const) {
+    for (const t of ["wave", "assembly", "turbulence", "glitch", "hadouken", "fluid", "storm", "detonation"] as const) {
       expect(normalizeReveal({ type: t }).type).toBe(t);
     }
   });
@@ -775,6 +775,9 @@ describe("reveal type promotion", () => {
       "meteor",
       "beam",
       "plasma",
+      "ink",
+      "trace",
+      "pulse",
     ]) {
       expect(normalizeReveal({ type: t as never }).type).toBe("assembly");
     }
@@ -801,35 +804,35 @@ describe("reveal type promotion", () => {
     expect(r.hadouken).toEqual({
       speedMinMs: 500,
       speedMaxMs: 1800,
-      staggerMs: 1400,
+      staggerMs: 900,
       intensity: 1,
       detail: 0.5,
       glow: 0.7,
-      particleCount: 4000,
+      particleCount: 1800,
     });
-    expect(r.ink).toEqual({
+    expect(r.fluid).toEqual({
       speedMinMs: 400,
-      speedMaxMs: 2400,
+      speedMaxMs: 2800,
+      staggerMs: 400,
+      intensity: 1,
+      detail: 0.5,
+      glow: 0.7,
+    });
+    expect(r.storm).toEqual({
+      speedMinMs: 400,
+      speedMaxMs: 2600,
       staggerMs: 600,
       intensity: 1,
       detail: 0.5,
       glow: 0.7,
     });
-    expect(r.trace).toEqual({
-      speedMinMs: 300,
-      speedMaxMs: 2200,
-      staggerMs: 1600,
+    expect(r.detonation).toEqual({
+      speedMinMs: 200,
+      speedMaxMs: 1400,
+      staggerMs: 1200,
       intensity: 1,
       detail: 0.5,
       glow: 0.8,
-    });
-    expect(r.pulse).toEqual({
-      speedMinMs: 300,
-      speedMaxMs: 3000,
-      staggerMs: 0,
-      intensity: 1,
-      detail: 0.5,
-      glow: 0.7,
     });
     expect(r.assembly.sliceSizePx).toBe(29);
   });
@@ -896,9 +899,9 @@ describe("reveal type promotion", () => {
     expect(normalizeReveal({ turbulence: { speedMinMs: 10 } }).turbulence.speedMinMs).toBe(50);
     expect(normalizeReveal({ glitch: { speedMinMs: 10 } }).glitch.speedMinMs).toBe(50);
     expect(normalizeReveal({ hadouken: { speedMinMs: 10 } }).hadouken.speedMinMs).toBe(50);
-    expect(normalizeReveal({ ink: { speedMinMs: 10 } }).ink.speedMinMs).toBe(50);
-    expect(normalizeReveal({ trace: { speedMinMs: 10 } }).trace.speedMinMs).toBe(50);
-    expect(normalizeReveal({ pulse: { speedMinMs: 10 } }).pulse.speedMinMs).toBe(50);
+    expect(normalizeReveal({ fluid: { speedMinMs: 10 } }).fluid.speedMinMs).toBe(50);
+    expect(normalizeReveal({ storm: { speedMinMs: 10 } }).storm.speedMinMs).toBe(50);
+    expect(normalizeReveal({ detonation: { speedMinMs: 10 } }).detonation.speedMinMs).toBe(50);
     expect(normalizeReveal({ assembly: { speedMinMs: 10 } }).assembly.speedMinMs).toBe(100);
   });
 

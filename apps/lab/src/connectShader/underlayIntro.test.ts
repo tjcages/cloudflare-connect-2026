@@ -5,10 +5,10 @@ const ALL_REVEAL_BLOCKS = {
   assembly: { staggerMs: 900, speedMaxMs: 1600 },
   turbulence: { staggerMs: 1400, speedMaxMs: 2600 },
   glitch: { staggerMs: 2400, speedMaxMs: 900 },
-  hadouken: { staggerMs: 1400, speedMaxMs: 1800 },
-  ink: { staggerMs: 600, speedMaxMs: 2400 },
-  trace: { staggerMs: 1600, speedMaxMs: 2200 },
-  pulse: { staggerMs: 0, speedMaxMs: 3000 },
+  hadouken: { staggerMs: 900, speedMaxMs: 1800 },
+  fluid: { staggerMs: 400, speedMaxMs: 2800 },
+  storm: { staggerMs: 600, speedMaxMs: 2600 },
+  detonation: { staggerMs: 1200, speedMaxMs: 1400 },
 };
 
 describe("resolveUnderlayIntroDelayMs", () => {
@@ -57,19 +57,19 @@ describe("resolveUnderlayIntroDelayMs", () => {
     expect(
       resolveUnderlayIntroDelayMs({
         enabled: true,
-        type: "trace",
+        type: "detonation",
         wave: { durationMs: 1200 },
         ...ALL_REVEAL_BLOCKS,
       }),
-    ).toBe(3800);
+    ).toBe(2600);
     expect(
       resolveUnderlayIntroDelayMs({
         enabled: true,
-        type: "pulse",
+        type: "fluid",
         wave: { durationMs: 1200 },
         ...ALL_REVEAL_BLOCKS,
       }),
-    ).toBe(3000);
+    ).toBe(3200);
   });
 });
 
