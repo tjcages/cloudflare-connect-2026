@@ -11,6 +11,7 @@ import {
 } from "./connectShader";
 import type { ConnectShaderParams } from "./connectShader";
 import { normalizeShaderViewState } from "./shaderView";
+import { clampPreviewZoom } from "./canvasFitPreviewZoom";
 
 const MAP_KEY = "stripes-engine-lab-by-texture";
 const LAST_KEY = "stripes-engine-lab-last-config";
@@ -61,6 +62,7 @@ export type LabSettings = {
   thresholdDistributionEasing: string | null;
   autoStripeWidths: boolean | null;
   drawerOpen: Record<string, boolean>;
+  previewZoom: number | null;
   textureSidebarOpen: boolean;
   shaderSidebarOpen: boolean;
   textureSidebarWidth: number;
@@ -372,6 +374,12 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
       ? normalizeBoolean(i.autoStripeWidths)
       : DEFAULT_LAB_SETTINGS.autoStripeWidths,
     drawerOpen: has("drawerOpen") ? normalizeDrawerOpen(i.drawerOpen) : DEFAULT_LAB_SETTINGS.drawerOpen,
+    previewZoom:
+      typeof i.previewZoom === "number" && Number.isFinite(i.previewZoom) && i.previewZoom > 0
+        ? clampPreviewZoom(i.previewZoom)
+        : has("previewZoom")
+          ? null
+          : DEFAULT_LAB_SETTINGS.previewZoom,
     textureSidebarOpen:
       typeof i.textureSidebarOpen === "boolean" ? i.textureSidebarOpen : DEFAULT_LAB_SETTINGS.textureSidebarOpen,
     shaderSidebarOpen:

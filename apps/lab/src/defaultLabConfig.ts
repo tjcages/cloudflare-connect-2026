@@ -236,6 +236,7 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
   },
   cursorTrail: {
     enabled: true,
+    type: "default",
     particleRadius: 40,
     particleAlpha: 0.07,
     particleLifeMs: 960,
@@ -362,6 +363,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     "Connect Fill": true,
     "Connect Colors": false,
   },
+  previewZoom: null,
   textureSidebarOpen: true,
   shaderSidebarOpen: true,
   textureSidebarWidth: 272,

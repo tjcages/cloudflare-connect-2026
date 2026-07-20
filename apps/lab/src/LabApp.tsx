@@ -715,10 +715,12 @@ function LabInner() {
   const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
   const [shaderPresetId, setShaderPresetId] = useState(() => labSettings.shaderPresetId || DEFAULT_SHADER_PRESET_ID);
   const [shaderPlaying, setShaderPlaying] = useState(true);
-  const [previewZoom, setPreviewZoom] = useState(() => initialFitPreviewZoom(labSettings));
+  const [previewZoom, setPreviewZoom] = useState(() => labSettings.previewZoom ?? initialFitPreviewZoom(labSettings));
   const [previewZoomReady, setPreviewZoomReady] = useState(false);
   const [mouseZoomEnabled, setMouseZoomEnabled] = useState(true);
   const hasAutoFittedPreviewZoomRef = useRef(false);
+  const hasStoredPreviewZoomRef = useRef(labSettings.previewZoom != null);
+  const previewZoomTouchedRef = useRef(false);
   const [presets, setPresets] = useState<ConfigPreset[]>(() => loadPresets());
   const [selectedPreset, setSelectedPreset] = useState("");
   const sourceSizeRef = useRef(sourceSize);
@@ -800,8 +802,15 @@ function LabInner() {
   }, []);
 
   const updatePreviewZoom = useCallback((next: number | ((current: number) => number)) => {
+    previewZoomTouchedRef.current = true;
     setPreviewZoom((current) => clampPreviewZoom(typeof next === "function" ? next(current) : next));
   }, []);
+
+  useEffect(() => {
+    if (!previewZoomTouchedRef.current) return;
+    const id = window.setTimeout(() => updateLabSettings({ previewZoom }), 250);
+    return () => window.clearTimeout(id);
+  }, [previewZoom, updateLabSettings]);
 
   const handlePreviewWheel = useCallback(
     (event: WheelEvent<HTMLDivElement>) => {
@@ -1415,7 +1424,7 @@ function LabInner() {
 
     const tryFit = () => {
       if (hasAutoFittedPreviewZoomRef.current) return;
-      if (!fitPreviewZoomToViewport()) return;
+      if (!hasStoredPreviewZoomRef.current && !fitPreviewZoomToViewport()) return;
       hasAutoFittedPreviewZoomRef.current = true;
       window.requestAnimationFrame(() => {
         centerCanvasViewport();
