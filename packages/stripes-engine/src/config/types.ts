@@ -171,6 +171,21 @@ export type FlamesDirection =
   | "vortexBits"
   | "vortexLines";
 
+export interface FlamesLinesConfig {
+  tailMin: number;
+  tailMax: number;
+  scaleMin: number;
+  scaleMax: number;
+  thickness: number;
+  speedMin: number;
+  speedMax: number;
+  intervalMinMs: number;
+  intervalMaxMs: number;
+  lifeMinMs: number;
+  lifeMaxMs: number;
+  maxInstances: number;
+}
+
 export interface FlamesConfig {
   enabled: boolean;
   direction: FlamesDirection;
@@ -188,6 +203,7 @@ export interface FlamesConfig {
   edgeSharpness: number;
   opacityMin: number;
   opacityMax: number;
+  lines: FlamesLinesConfig;
 }
 
 export interface EdgeMaskConfig {

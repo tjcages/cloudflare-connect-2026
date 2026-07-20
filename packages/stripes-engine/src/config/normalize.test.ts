@@ -928,3 +928,47 @@ describe("hadouken -> vortex migration", () => {
     expect(c.reveal.vortex.swirl).toBeCloseTo(1);
   });
 });
+
+describe("normalizeFlames lines block", () => {
+  it("defaults the lines block", () => {
+    const l = normalizeFlames({}).lines;
+    expect(l.tailMin).toBe(4);
+    expect(l.tailMax).toBe(10);
+    expect(l.speedMin).toBeCloseTo(0.6);
+    expect(l.speedMax).toBeCloseTo(2.4);
+    expect(l.maxInstances).toBe(18);
+  });
+
+  it("orders every min/max pair", () => {
+    const l = normalizeFlames({
+      lines: {
+        tailMin: 20,
+        tailMax: 3,
+        scaleMin: 0.4,
+        scaleMax: 0.01,
+        speedMin: 9,
+        speedMax: 0.1,
+        intervalMinMs: 5000,
+        intervalMaxMs: 10,
+        lifeMinMs: 9000,
+        lifeMaxMs: 100,
+      },
+    } as never).lines;
+    expect(l.tailMax).toBeGreaterThanOrEqual(l.tailMin);
+    expect(l.scaleMax).toBeGreaterThanOrEqual(l.scaleMin);
+    expect(l.speedMax).toBeGreaterThanOrEqual(l.speedMin);
+    expect(l.intervalMaxMs).toBeGreaterThanOrEqual(l.intervalMinMs);
+    expect(l.lifeMaxMs).toBeGreaterThanOrEqual(l.lifeMinMs);
+  });
+
+  it("rounds and clamps segment counts and instances", () => {
+    const l = normalizeFlames({
+      lines: { tailMin: 0.2, tailMax: 999, maxInstances: 0 },
+    } as never).lines;
+    expect(Number.isInteger(l.tailMin)).toBe(true);
+    expect(Number.isInteger(l.tailMax)).toBe(true);
+    expect(l.tailMin).toBeGreaterThanOrEqual(2);
+    expect(l.tailMax).toBeLessThanOrEqual(40);
+    expect(l.maxInstances).toBeGreaterThanOrEqual(1);
+  });
+});

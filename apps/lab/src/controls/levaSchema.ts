@@ -2311,6 +2311,7 @@ export function useEngineControls(
       edgeSharpness: values.flamesEdgeSharpness,
       opacityMin: values.flamesOpacityMin,
       opacityMax: values.flamesOpacityMax,
+      lines: d.flames.lines,
     },
     edgeMask: {
       enabled: values.edgeMaskEnabled,

@@ -8,6 +8,7 @@ import type {
   RevealConfig,
   SparkleConfig,
   FlamesConfig,
+  FlamesLinesConfig,
   FlamesDirection,
   WavePosition,
   EdgeMaskConfig,
@@ -426,6 +427,21 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
   };
 }
 
+export const DEFAULT_FLAMES_LINES: FlamesLinesConfig = {
+  tailMin: 4,
+  tailMax: 10,
+  scaleMin: 0.04,
+  scaleMax: 0.11,
+  thickness: 0.16,
+  speedMin: 0.6,
+  speedMax: 2.4,
+  intervalMinMs: 90,
+  intervalMaxMs: 260,
+  lifeMinMs: 900,
+  lifeMaxMs: 2200,
+  maxInstances: 18,
+};
+
 export const DEFAULT_FLAMES: FlamesConfig = {
   enabled: false,
   direction: "up",
@@ -443,6 +459,7 @@ export const DEFAULT_FLAMES: FlamesConfig = {
   edgeSharpness: 1,
   opacityMin: 0.3,
   opacityMax: 1,
+  lines: DEFAULT_FLAMES_LINES,
 };
 
 type PartialFlames = Partial<FlamesConfig>;
@@ -461,6 +478,37 @@ const FLAMES_DIRECTIONS: readonly FlamesDirection[] = [
 
 function normalizeFlamesDirection(value: unknown): FlamesDirection {
   return FLAMES_DIRECTIONS.includes(value as FlamesDirection) ? (value as FlamesDirection) : "up";
+}
+
+function normalizeFlamesLines(i: Partial<FlamesLinesConfig> = {}): FlamesLinesConfig {
+  const tailMin = clamp(Math.round(num(i.tailMin, DEFAULT_FLAMES_LINES.tailMin)), 2, 40);
+  const tailMax = clamp(Math.round(num(i.tailMax, DEFAULT_FLAMES_LINES.tailMax)), tailMin, 40);
+  const scaleMin = clamp(num(i.scaleMin, DEFAULT_FLAMES_LINES.scaleMin), 0.005, 0.5);
+  const scaleMax = clamp(num(i.scaleMax, DEFAULT_FLAMES_LINES.scaleMax), scaleMin, 0.5);
+  const speedMin = clamp(num(i.speedMin, DEFAULT_FLAMES_LINES.speedMin), 0, 12);
+  const speedMax = clamp(num(i.speedMax, DEFAULT_FLAMES_LINES.speedMax), speedMin, 12);
+  const intervalMinMs = clamp(Math.round(num(i.intervalMinMs, DEFAULT_FLAMES_LINES.intervalMinMs)), 10, 5000);
+  const intervalMaxMs = clamp(
+    Math.round(num(i.intervalMaxMs, DEFAULT_FLAMES_LINES.intervalMaxMs)),
+    intervalMinMs,
+    5000,
+  );
+  const lifeMinMs = clamp(Math.round(num(i.lifeMinMs, DEFAULT_FLAMES_LINES.lifeMinMs)), 100, 20000);
+  const lifeMaxMs = clamp(Math.round(num(i.lifeMaxMs, DEFAULT_FLAMES_LINES.lifeMaxMs)), lifeMinMs, 20000);
+  return {
+    tailMin,
+    tailMax,
+    scaleMin,
+    scaleMax,
+    thickness: clamp(num(i.thickness, DEFAULT_FLAMES_LINES.thickness), 0.02, 1),
+    speedMin,
+    speedMax,
+    intervalMinMs,
+    intervalMaxMs,
+    lifeMinMs,
+    lifeMaxMs,
+    maxInstances: clamp(Math.round(num(i.maxInstances, DEFAULT_FLAMES_LINES.maxInstances)), 1, 120),
+  };
 }
 
 export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
@@ -487,6 +535,7 @@ export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
     edgeSharpness: clamp(num(i.edgeSharpness, DEFAULT_FLAMES.edgeSharpness), 0, 1),
     opacityMin,
     opacityMax,
+    lines: normalizeFlamesLines(i.lines),
   };
 }
 
