@@ -668,6 +668,8 @@ export const DEFAULT_COLORS: ColorsConfig = {
   stripeBlendMode: "normal",
   imageColorLightness: 0.2,
   imageColorDensity: 1,
+  imageColorRemoveThin: 0,
+  imageColorBoostThick: 0,
   autoDetectBackground: true,
   backgroundColor: 0x000000,
   gradient: { enabled: false, ...DEFAULT_GRADIENT, stops: [...DEFAULT_GRADIENT.stops] },
@@ -678,6 +680,8 @@ type PartialColors = {
   stripeBlendMode?: unknown;
   imageColorLightness?: unknown;
   imageColorDensity?: unknown;
+  imageColorRemoveThin?: unknown;
+  imageColorBoostThick?: unknown;
   autoDetectBackground?: unknown;
   backgroundColor?: unknown;
   gradient?: Partial<BackgroundGradient>;
@@ -692,6 +696,8 @@ export function normalizeColors(i: PartialColors = {}): ColorsConfig {
       : DEFAULT_COLORS.stripeBlendMode,
     imageColorLightness: clamp(num(i.imageColorLightness, DEFAULT_COLORS.imageColorLightness), -1, 1),
     imageColorDensity: clamp(num(i.imageColorDensity, DEFAULT_COLORS.imageColorDensity), 0, 1),
+    imageColorRemoveThin: clamp(num(i.imageColorRemoveThin, DEFAULT_COLORS.imageColorRemoveThin), 0, 0.95),
+    imageColorBoostThick: clamp(num(i.imageColorBoostThick, DEFAULT_COLORS.imageColorBoostThick), 0, 2),
     autoDetectBackground: i.autoDetectBackground !== undefined ? !!i.autoDetectBackground : true,
     backgroundColor: Math.round(clamp(num(i.backgroundColor, 0), 0, 0xffffff)),
     gradient: {

@@ -271,6 +271,8 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
     stripeBlendMode: "normal",
     imageColorLightness: 0,
     imageColorDensity: 1,
+    imageColorRemoveThin: 0,
+    imageColorBoostThick: 0,
     autoDetectBackground: false,
     backgroundColor: 0,
     gradient: {

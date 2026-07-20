@@ -54,6 +54,7 @@ import { createSourceTexture, type EngineSource, type SourceTexture } from "./so
 import { resolveSourceRect } from "./source/fit";
 import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
 import { buildStripeLut, buildStripeOpacityLut, lutSignature } from "./field/stripeLut";
+import { effectiveStripes } from "./field/imageColorDensity";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
 import { bindRenderTarget, createMrtTarget, type MrtTarget } from "./gl/renderTarget";
 import { detectBackgroundColor } from "./colors/backgroundDetect";
@@ -376,10 +377,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   }
 
   function ensureLut() {
-    const sig = lutSignature(config.stripes);
+    const stripes = effectiveStripes(config);
+    const sig = lutSignature(stripes);
     if (sig !== lutSig) {
-      const bytes = buildStripeLut(config.stripes);
-      const opacityBytes = buildStripeOpacityLut(config.stripes);
+      const bytes = buildStripeLut(stripes);
+      const opacityBytes = buildStripeOpacityLut(stripes);
       if (stripeLutTex) {
         updateDataTexture(gl, stripeLutTex, bytes, 256, 1);
       } else {
@@ -854,7 +856,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                 }
                 const cellRT = pool.get("cell", cols, rows);
                 const glyphDataRT = pool.get("glyphData", cols, rows);
-                const topBandThreshold = Math.max(...config.stripes.map((s) => s.startFrom));
+                const topBandThreshold = Math.max(...effectiveStripes(config).map((s) => s.startFrom));
                 letterDataPass.render(glyphDataRT, cellRT.texture, {
                   cols,
                   rows,

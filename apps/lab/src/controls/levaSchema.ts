@@ -3,6 +3,7 @@ import { useControls, useCreateStore, folder, button, buttonGroup } from "leva";
 import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
 import type { EngineConfig, Stripe } from "@necatikcl/stripes-engine";
 import {
+  consumeImportedConfigPristine,
   loadInitialConfig,
   loadLabSettings,
   loadStickyBackgroundColor,
@@ -292,29 +293,6 @@ function initialImageColorWidthSource(colors: EngineConfig["colors"]): ImageColo
   return "bright";
 }
 
-function smoothstep(edge0: number, edge1: number, value: number): number {
-  const t = clamp01((value - edge0) / Math.max(1e-5, edge1 - edge0));
-  return t * t * (3 - 2 * t);
-}
-
-function applyImageColorDensity(stripes: Stripe[], removeThin: number, boostThick: number): Stripe[] {
-  const cutoff = clamp01(removeThin);
-  const boost = Math.max(0, boostThick);
-  const filtered = stripes.filter((stripe) => stripe.startFrom >= cutoff);
-  const source = filtered.length > 0 ? filtered : stripes.slice(-1);
-
-  return source.map((stripe) => {
-    const highBandWeight = smoothstep(0.45, 1, stripe.startFrom);
-    const expandedStart = Math.max(cutoff, stripe.startFrom - highBandWeight * boost * 0.12);
-    const boostedWidth = Math.round(stripe.width * (1 + highBandWeight * boost));
-    return {
-      ...stripe,
-      startFrom: expandedStart,
-      width: Math.max(1, Math.min(64, boostedWidth)),
-    };
-  });
-}
-
 function sameStripeSet(a: Stripe[], b: Stripe[]): boolean {
   if (a.length !== b.length) return false;
   return a.every(
@@ -410,12 +388,14 @@ export function useEngineControls(
     return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;
   }, [initialLabSettings.textureId]);
   const d = useMemo(() => {
-    const upgraded = upgradeDefaultStripes(normalizeEngineConfig(loadInitialConfig(initialTextureId)));
+    const loaded = normalizeEngineConfig(loadInitialConfig(initialTextureId));
+    const importedPristine = consumeImportedConfigPristine();
+    const upgraded = importedPristine ? loaded : upgradeDefaultStripes(loaded);
     const fitUpgraded =
       upgraded.transform.fit === "stretch"
         ? { ...upgraded, transform: { ...upgraded.transform, fit: "width" as const } }
         : upgraded;
-    if (!hasAutomaticStripeWidthDistribution(fitUpgraded.stripes)) return fitUpgraded;
+    if (importedPristine || !hasAutomaticStripeWidthDistribution(fitUpgraded.stripes)) return fitUpgraded;
     return { ...fitUpgraded, stripes: withDefaultStripeWidths(fitUpgraded.stripes) };
   }, [initialTextureId]);
   // Pin the store across HMR. React Fast Refresh recomputes useMemo (and thus
@@ -437,7 +417,7 @@ export function useEngineControls(
     d.stripes.map((s, i) => ({
       id: String(i),
       hex: "#" + s.color.toString(16).padStart(6, "0"),
-      startFrom: clampStripeThreshold(s.startFrom),
+      startFrom: s.startFrom,
       width: s.width,
       opacity: s.opacity,
     })),
@@ -945,7 +925,7 @@ export function useEngineControls(
             render: (get) => get("Stripes.colorsMode") === "colors",
           },
           imageColorRemoveThin: {
-            value: 0,
+            value: d.colors.imageColorRemoveThin ?? 0,
             min: 0,
             max: 0.95,
             step: 0.01,
@@ -953,7 +933,7 @@ export function useEngineControls(
             render: (get) => get("Stripes.colorsMode") === "colors",
           },
           imageColorBoostThick: {
-            value: 0,
+            value: d.colors.imageColorBoostThick ?? 0,
             min: 0,
             max: 2,
             step: 0.01,
@@ -2119,10 +2099,6 @@ export function useEngineControls(
           : "solid";
   const sourcePreviewOpacity = Math.max(0, Math.min(1, Number(values.backgroundSourceOpacity ?? 0) / 100));
   const effectiveColorsMode = values.colorsMode === "colors" ? "colors" : "luminance";
-  const renderedStripes =
-    effectiveColorsMode === "colors"
-      ? applyImageColorDensity(baseStripes, values.imageColorRemoveThin, values.imageColorBoostThick)
-      : baseStripes;
   backgroundFillModeRef.current = backgroundFillMode;
   const normalizedBackgroundColor = normalizeHexString(values.backgroundColor, backgroundHex);
   const activeGradientStopCount = Math.max(2, Math.min(4, Math.round(Number(values.backgroundGradientStopCount) || 2)));
@@ -2244,11 +2220,11 @@ export function useEngineControls(
           hexToInt(values.backgroundGradientStop2),
           hexToInt(values.backgroundGradientStop3),
         ],
-        hueDriftDeg: 0,
-        saturationBoost: 0,
+        hueDriftDeg: d.background.gradient.hueDriftDeg,
+        saturationBoost: d.background.gradient.saturationBoost,
       },
       grid: {
-        enabled: false,
+        enabled: d.background.grid.enabled,
         cellWidth: d.background.grid.cellWidth,
         cellHeight: d.background.grid.cellHeight,
         gapX: d.background.grid.gapX,
@@ -2281,15 +2257,15 @@ export function useEngineControls(
       overlapAmount: values.orientationOverlapAmount,
     },
     stripesEnabled: values.stripesEnabled,
-    renderMode: "sharp",
-    renderIntensity: 1,
-    renderParams: [0.5, 0.5, 0.5, 0.5],
-    renderColorA: 0x222222,
-    renderColorB: 0xffffff,
+    renderMode: d.renderMode,
+    renderIntensity: d.renderIntensity,
+    renderParams: d.renderParams,
+    renderColorA: d.renderColorA,
+    renderColorB: d.renderColorB,
     fieldScale: values.textureDpr,
-    stripes: renderedStripes,
+    stripes: baseStripes,
     reveal: {
-      enabled: true,
+      enabled: d.reveal.enabled,
       type: values.revealType,
       wave: {
         position: values.revealPosition,
@@ -2349,9 +2325,9 @@ export function useEngineControls(
     },
     sparkle: {
       gaps: {
-        enabled: false,
-        coverage: 0,
-        speed: 1,
+        enabled: d.sparkle.gaps.enabled,
+        coverage: d.sparkle.gaps.coverage,
+        speed: d.sparkle.gaps.speed,
       },
       stripe: {
         enabled: values.sparkleStripeEnabled,
@@ -2456,6 +2432,8 @@ export function useEngineControls(
       stripeBlendMode: values.stripeBlendMode,
       imageColorLightness: Math.max(-1, Math.min(1, Number(values.imageColorLightness ?? 0) / 100)),
       imageColorDensity: Math.max(0, Math.min(1, Number(values.imageColorDensity ?? 100) / 100)),
+      imageColorRemoveThin: Math.max(0, Math.min(0.95, Number(values.imageColorRemoveThin ?? 0))),
+      imageColorBoostThick: Math.max(0, Math.min(2, Number(values.imageColorBoostThick ?? 0))),
       autoDetectBackground: effectiveColorsMode === "colors" ? false : d.colors.autoDetectBackground,
       backgroundColor:
         effectiveColorsMode === "colors"

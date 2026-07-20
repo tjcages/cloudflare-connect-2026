@@ -9,6 +9,7 @@ export type {
 } from "./engine";
 export type { EngineContext } from "./gl/context";
 export { bandIndexForValue } from "./field/cellBand";
+export { applyImageColorDensity, effectiveStripes } from "./field/imageColorDensity";
 export type { PerfSnapshot } from "./perf/perfCollector";
 export { createRealClock, createManualClock } from "./core/clock";
 export type { Clock, ManualClock } from "./core/clock";

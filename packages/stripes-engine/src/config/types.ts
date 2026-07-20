@@ -253,6 +253,8 @@ export interface ColorsConfig {
   stripeBlendMode: StripeBlendMode;
   imageColorLightness: number;
   imageColorDensity: number;
+  imageColorRemoveThin: number;
+  imageColorBoostThick: number;
   autoDetectBackground: boolean;
   backgroundColor: number;
   gradient: BackgroundGradient;

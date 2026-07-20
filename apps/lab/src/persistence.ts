@@ -664,6 +664,48 @@ export function factoryResetSettings(): void {
   }
 }
 
+const IMPORT_PRISTINE_KEY = "stripes-engine-lab-import-pristine";
+
+export function markImportedConfigPristine(): void {
+  try {
+    sessionStorage.setItem(IMPORT_PRISTINE_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function consumeImportedConfigPristine(): boolean {
+  try {
+    const pristine = sessionStorage.getItem(IMPORT_PRISTINE_KEY) === "1";
+    sessionStorage.removeItem(IMPORT_PRISTINE_KEY);
+    return pristine;
+  } catch {
+    return false;
+  }
+}
+
+export function applyImportedBackgroundColor(color: number | null): void {
+  if (!persistenceWritesEnabled) return;
+  try {
+    const normalized = color === null ? null : normalizeColor(color);
+    const next = normalizeLabSettings({ ...loadLabSettings(), backgroundColor: normalized });
+    localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(next));
+    if (normalized === null) {
+      localStorage.removeItem(USER_BACKGROUND_COLOR_KEY);
+      localStorage.removeItem(OLD_USER_BACKGROUND_COLOR_KEY);
+      localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
+    } else {
+      localStorage.setItem(USER_BACKGROUND_COLOR_KEY, String(normalized));
+      localStorage.setItem(LAST_BACKGROUND_COLOR_KEY, String(normalized));
+    }
+    clearUrlBackgroundColor();
+    deleteCookie(LAST_BACKGROUND_COLOR_KEY);
+    clearWindowNameState();
+  } catch {
+    /* ignore */
+  }
+}
+
 export function importConfig(text: string): Partial<EngineConfig> {
   return importSettingsFile(text).config;
 }

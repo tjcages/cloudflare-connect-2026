@@ -1,12 +1,15 @@
 import { DEFAULT_ENGINE_CONFIG } from "@necatikcl/stripes-engine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  applyImportedBackgroundColor,
+  consumeImportedConfigPristine,
   importConfig,
   importSettingsFile,
   DEFAULT_LAB_SETTINGS,
   factoryResetSettings,
   loadInitialConfig,
   loadLabSettings,
+  markImportedConfigPristine,
   resumePersistenceWritesForTests,
   saveConfig,
   saveLabSettings,
@@ -378,5 +381,70 @@ describe("config file import/export", () => {
 
     expect(loadLabSettings().backgroundColor).toBe(DEFAULT_LAB_SETTINGS.backgroundColor);
     expect(loadInitialConfig("texture-a")).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
+  });
+});
+
+describe("imported background fidelity", () => {
+  beforeEach(() => {
+    stubLocalStorage();
+    const items = new Map<string, string>();
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => items.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        items.set(key, value);
+      },
+      removeItem: (key: string) => {
+        items.delete(key);
+      },
+    });
+  });
+
+  afterEach(() => {
+    resumePersistenceWritesForTests();
+    vi.unstubAllGlobals();
+  });
+
+  it("an imported white background survives a previous non-white sticky color", () => {
+    saveStickyBackgroundColor(0x123456);
+
+    const imported: EngineConfig = {
+      ...DEFAULT_ENGINE_CONFIG,
+      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0xffffff, transparent: false },
+    };
+    saveConfig("texture-a", imported, { updateStickyBackground: false });
+    applyImportedBackgroundColor(0xffffff);
+
+    const loaded = loadInitialConfig("texture-a");
+    expect(loaded.background?.color).toBe(0xffffff);
+    expect(loaded.background?.transparent).toBe(false);
+    expect(loadLabSettings().backgroundColor).toBe(0xffffff);
+  });
+
+  it("an imported transparent background clears the sticky override", () => {
+    saveStickyBackgroundColor(0x123456);
+
+    const imported: EngineConfig = {
+      ...DEFAULT_ENGINE_CONFIG,
+      background: { ...DEFAULT_ENGINE_CONFIG.background, transparent: true },
+    };
+    saveConfig("texture-a", imported, { updateStickyBackground: false });
+    applyImportedBackgroundColor(null);
+
+    const loaded = loadInitialConfig("texture-a");
+    expect(loaded.background?.transparent).toBe(true);
+    expect(loadLabSettings().backgroundColor).toBe(null);
+  });
+
+  it("an imported non-white color replaces the sticky color", () => {
+    saveStickyBackgroundColor(0x123456);
+    applyImportedBackgroundColor(0xaabbcc);
+    expect(loadLabSettings().backgroundColor).toBe(0xaabbcc);
+  });
+
+  it("import-pristine flag is one-shot", () => {
+    expect(consumeImportedConfigPristine()).toBe(false);
+    markImportedConfigPristine();
+    expect(consumeImportedConfigPristine()).toBe(true);
+    expect(consumeImportedConfigPristine()).toBe(false);
   });
 });

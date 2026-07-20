@@ -12,6 +12,7 @@ import {
   createStripesEngine,
   createManualClock,
   createRealClock,
+  effectiveStripes,
   normalizeEngineConfig,
   type StripesEngine,
   type PerfSnapshot,
@@ -24,10 +25,12 @@ import { useEngineControls } from "./controls/levaSchema";
 import { LAB_LEVA_THEME } from "./controls/levaTheme";
 import {
   DEFAULT_LAB_SETTINGS,
+  applyImportedBackgroundColor,
   saveConfig,
   saveTextureId,
   importSettingsFile,
   deleteConfig,
+  markImportedConfigPristine,
   serializeConfigFile,
   loadLabSettings,
   saveLabSettings,
@@ -1129,7 +1132,7 @@ function LabInner() {
       const readback = engine.readCellGrid();
       const canvasWidthPx = Math.round(Number.parseFloat(canvas.style.width) || canvas.clientWidth || canvas.width);
       const canvasHeightPx = Math.round(Number.parseFloat(canvas.style.height) || canvas.clientHeight || canvas.height);
-      const stripes = cfg.stripes.map((s) => ({
+      const stripes = effectiveStripes(cfg).map((s) => ({
         hex: "#" + s.color.toString(16).padStart(6, "0"),
         startFrom: s.startFrom,
         width: s.width,
@@ -1803,7 +1806,15 @@ function LabInner() {
       importedTextureId && findTextureEntry(importedTextureId, loadManifest())
         ? importedTextureId
         : textureIdRef.current;
-    saveConfig(targetTextureId, normalizeEngineConfig(imported.config));
+    const config = normalizeEngineConfig(imported.config);
+    saveConfig(targetTextureId, config, { updateStickyBackground: false });
+    const importedBackgroundColor = imported.lab
+      ? imported.lab.backgroundColor
+      : config.background.transparent
+        ? null
+        : config.background.color;
+    applyImportedBackgroundColor(importedBackgroundColor);
+    markImportedConfigPristine();
     if (imported.lab) {
       saveLabSettings(imported.lab);
       saveControlDrawerSnapshot(imported.lab.drawerOpen);
