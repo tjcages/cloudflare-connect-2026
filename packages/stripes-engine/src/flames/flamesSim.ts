@@ -330,9 +330,9 @@ function emitVortexSnake(
   return segments;
 }
 
-function vortexBitEnvelope(t: number): number {
-  const fadeIn = smoothstep01(t / 0.25);
-  const fadeOut = 1 - smoothstep01((t - 0.65) / 0.35);
+export function vortexBitEnvelope(t: number): number {
+  const fadeIn = smoothstep01(t / 0.12);
+  const fadeOut = 1 - smoothstep01((t - 0.86) / 0.14);
   return fadeIn * fadeOut;
 }
 
@@ -490,19 +490,27 @@ export function stepFlames(
   }
 
   const snake = config.direction === "vortexBits" ? config.bits : config.lines;
-  const spawnInterval = isSnake
-    ? randomBetween(state.random, snake.intervalMinMs, snake.intervalMaxMs)
-    : config.spawnIntervalMs + randomBetween(state.random, -config.spawnJitterMs, config.spawnJitterMs);
-  const atCapacity = isSnake
-    ? state.flames.filter((f) => f.segIndex === 0).length >= snake.maxInstances
-    : state.flames.length >= config.maxActive;
-  if (!atCapacity && nowMs - state.lastSpawnMs >= spawnInterval) {
-    if (isSnake) {
-      const global = config.direction === "vortexBits";
+
+  if (isSnake) {
+    const global = config.direction === "vortexBits";
+    let headCount = state.flames.filter((f) => f.segIndex === 0).length;
+    let lastSpawnMs = state.lastSpawnMs;
+    while (headCount < snake.maxInstances) {
+      const spawnInterval = randomBetween(state.random, snake.intervalMinMs, snake.intervalMaxMs);
+      if (nowMs - lastSpawnMs < spawnInterval) break;
       state.flames.push(...emitVortexSnake(state, config, snake, global, display.width, display.height, nowMs, false));
-    } else {
-      state.flames.push(spawnFlame(state, config, display.width, display.height));
+      headCount++;
+      lastSpawnMs += spawnInterval;
     }
+    state.lastSpawnMs = lastSpawnMs;
+    return;
+  }
+
+  const spawnInterval =
+    config.spawnIntervalMs + randomBetween(state.random, -config.spawnJitterMs, config.spawnJitterMs);
+  const atCapacity = state.flames.length >= config.maxActive;
+  if (!atCapacity && nowMs - state.lastSpawnMs >= spawnInterval) {
+    state.flames.push(spawnFlame(state, config, display.width, display.height));
     state.lastSpawnMs = nowMs;
   }
 }

@@ -6,6 +6,7 @@ import {
   flamesSpeedRange,
   isVerticalFlamesDirection,
   isVortexFlamesDirection,
+  vortexBitEnvelope,
 } from "./flamesSim";
 import type { FlamesState } from "./flamesSim";
 import { mulberry32 } from "../core/rng";
@@ -474,6 +475,28 @@ describe("vortex bits (global snakes)", () => {
     for (let i = 1; i < mates.length; i++) {
       expect(Math.abs(mates[i].angle - mates[i - 1].angle)).toBeLessThan(0.12);
     }
+  });
+
+  it("holds full brightness across most of a snake's life", () => {
+    expect(vortexBitEnvelope(0.5)).toBeCloseTo(1, 5);
+    expect(vortexBitEnvelope(0.2)).toBeCloseTo(1, 5);
+    expect(vortexBitEnvelope(0.8)).toBeCloseTo(1, 5);
+    expect(vortexBitEnvelope(0)).toBeCloseTo(0, 5);
+    expect(vortexBitEnvelope(1)).toBeCloseTo(0, 5);
+  });
+
+  it("sustains a full population so the count does not dip", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({ enabled: true, direction: "vortexBits" } as never);
+    let t = 1;
+    stepFlames(state, config, DISPLAY, t);
+    let min = Infinity;
+    for (let i = 0; i < 600; i++) {
+      t += 16.67;
+      stepFlames(state, config, DISPLAY, t);
+      if (i > 120) min = Math.min(min, state.flames.filter((f) => f.segIndex === 0).length);
+    }
+    expect(min).toBeGreaterThanOrEqual(config.bits.maxInstances - 1);
   });
 });
 
