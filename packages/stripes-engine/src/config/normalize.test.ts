@@ -972,3 +972,41 @@ describe("normalizeFlames lines block", () => {
     expect(l.maxInstances).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe("normalizeFlames bits block", () => {
+  it("defaults the bits block independently of lines", () => {
+    const f = normalizeFlames({});
+    expect(f.bits.tailMin).toBe(3);
+    expect(f.bits.tailMax).toBe(7);
+    expect(f.bits.maxInstances).toBe(26);
+    expect(f.lines.tailMin).toBe(4);
+  });
+
+  it("keeps bits and lines independent", () => {
+    const f = normalizeFlames({ bits: { tailMin: 9, tailMax: 9 } } as never);
+    expect(f.bits.tailMin).toBe(9);
+    expect(f.lines.tailMin).toBe(4);
+  });
+
+  it("orders every bits min/max pair", () => {
+    const b = normalizeFlames({
+      bits: {
+        tailMin: 20,
+        tailMax: 3,
+        scaleMin: 0.4,
+        scaleMax: 0.01,
+        speedMin: 9,
+        speedMax: 0.1,
+        intervalMinMs: 5000,
+        intervalMaxMs: 10,
+        lifeMinMs: 9000,
+        lifeMaxMs: 100,
+      },
+    } as never).bits;
+    expect(b.tailMax).toBeGreaterThanOrEqual(b.tailMin);
+    expect(b.scaleMax).toBeGreaterThanOrEqual(b.scaleMin);
+    expect(b.speedMax).toBeGreaterThanOrEqual(b.speedMin);
+    expect(b.intervalMaxMs).toBeGreaterThanOrEqual(b.intervalMinMs);
+    expect(b.lifeMaxMs).toBeGreaterThanOrEqual(b.lifeMinMs);
+  });
+});

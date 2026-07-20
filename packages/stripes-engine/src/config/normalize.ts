@@ -8,7 +8,7 @@ import type {
   RevealConfig,
   SparkleConfig,
   FlamesConfig,
-  FlamesLinesConfig,
+  FlamesSnakeConfig,
   FlamesDirection,
   WavePosition,
   EdgeMaskConfig,
@@ -427,7 +427,7 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
   };
 }
 
-export const DEFAULT_FLAMES_LINES: FlamesLinesConfig = {
+export const DEFAULT_FLAMES_LINES: FlamesSnakeConfig = {
   tailMin: 4,
   tailMax: 10,
   scaleMin: 0.04,
@@ -440,6 +440,21 @@ export const DEFAULT_FLAMES_LINES: FlamesLinesConfig = {
   lifeMinMs: 900,
   lifeMaxMs: 2200,
   maxInstances: 18,
+};
+
+export const DEFAULT_FLAMES_BITS: FlamesSnakeConfig = {
+  tailMin: 3,
+  tailMax: 7,
+  scaleMin: 0.02,
+  scaleMax: 0.06,
+  thickness: 0.14,
+  speedMin: 0.25,
+  speedMax: 0.9,
+  intervalMinMs: 70,
+  intervalMaxMs: 200,
+  lifeMinMs: 1400,
+  lifeMaxMs: 3200,
+  maxInstances: 26,
 };
 
 export const DEFAULT_FLAMES: FlamesConfig = {
@@ -460,6 +475,7 @@ export const DEFAULT_FLAMES: FlamesConfig = {
   opacityMin: 0.3,
   opacityMax: 1,
   lines: DEFAULT_FLAMES_LINES,
+  bits: DEFAULT_FLAMES_BITS,
 };
 
 type PartialFlames = Partial<FlamesConfig>;
@@ -480,34 +496,30 @@ function normalizeFlamesDirection(value: unknown): FlamesDirection {
   return FLAMES_DIRECTIONS.includes(value as FlamesDirection) ? (value as FlamesDirection) : "up";
 }
 
-function normalizeFlamesLines(i: Partial<FlamesLinesConfig> = {}): FlamesLinesConfig {
-  const tailMin = clamp(Math.round(num(i.tailMin, DEFAULT_FLAMES_LINES.tailMin)), 2, 40);
-  const tailMax = clamp(Math.round(num(i.tailMax, DEFAULT_FLAMES_LINES.tailMax)), tailMin, 40);
-  const scaleMin = clamp(num(i.scaleMin, DEFAULT_FLAMES_LINES.scaleMin), 0.005, 0.5);
-  const scaleMax = clamp(num(i.scaleMax, DEFAULT_FLAMES_LINES.scaleMax), scaleMin, 0.5);
-  const speedMin = clamp(num(i.speedMin, DEFAULT_FLAMES_LINES.speedMin), 0, 12);
-  const speedMax = clamp(num(i.speedMax, DEFAULT_FLAMES_LINES.speedMax), speedMin, 12);
-  const intervalMinMs = clamp(Math.round(num(i.intervalMinMs, DEFAULT_FLAMES_LINES.intervalMinMs)), 10, 5000);
-  const intervalMaxMs = clamp(
-    Math.round(num(i.intervalMaxMs, DEFAULT_FLAMES_LINES.intervalMaxMs)),
-    intervalMinMs,
-    5000,
-  );
-  const lifeMinMs = clamp(Math.round(num(i.lifeMinMs, DEFAULT_FLAMES_LINES.lifeMinMs)), 100, 20000);
-  const lifeMaxMs = clamp(Math.round(num(i.lifeMaxMs, DEFAULT_FLAMES_LINES.lifeMaxMs)), lifeMinMs, 20000);
+function normalizeFlamesSnake(i: Partial<FlamesSnakeConfig> = {}, fallback: FlamesSnakeConfig): FlamesSnakeConfig {
+  const tailMin = clamp(Math.round(num(i.tailMin, fallback.tailMin)), 2, 40);
+  const tailMax = clamp(Math.round(num(i.tailMax, fallback.tailMax)), tailMin, 40);
+  const scaleMin = clamp(num(i.scaleMin, fallback.scaleMin), 0.005, 0.5);
+  const scaleMax = clamp(num(i.scaleMax, fallback.scaleMax), scaleMin, 0.5);
+  const speedMin = clamp(num(i.speedMin, fallback.speedMin), 0, 12);
+  const speedMax = clamp(num(i.speedMax, fallback.speedMax), speedMin, 12);
+  const intervalMinMs = clamp(Math.round(num(i.intervalMinMs, fallback.intervalMinMs)), 10, 5000);
+  const intervalMaxMs = clamp(Math.round(num(i.intervalMaxMs, fallback.intervalMaxMs)), intervalMinMs, 5000);
+  const lifeMinMs = clamp(Math.round(num(i.lifeMinMs, fallback.lifeMinMs)), 100, 20000);
+  const lifeMaxMs = clamp(Math.round(num(i.lifeMaxMs, fallback.lifeMaxMs)), lifeMinMs, 20000);
   return {
     tailMin,
     tailMax,
     scaleMin,
     scaleMax,
-    thickness: clamp(num(i.thickness, DEFAULT_FLAMES_LINES.thickness), 0.02, 1),
+    thickness: clamp(num(i.thickness, fallback.thickness), 0.02, 1),
     speedMin,
     speedMax,
     intervalMinMs,
     intervalMaxMs,
     lifeMinMs,
     lifeMaxMs,
-    maxInstances: clamp(Math.round(num(i.maxInstances, DEFAULT_FLAMES_LINES.maxInstances)), 1, 120),
+    maxInstances: clamp(Math.round(num(i.maxInstances, fallback.maxInstances)), 1, 120),
   };
 }
 
@@ -535,7 +547,8 @@ export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
     edgeSharpness: clamp(num(i.edgeSharpness, DEFAULT_FLAMES.edgeSharpness), 0, 1),
     opacityMin,
     opacityMax,
-    lines: normalizeFlamesLines(i.lines),
+    lines: normalizeFlamesSnake(i.lines, DEFAULT_FLAMES_LINES),
+    bits: normalizeFlamesSnake(i.bits, DEFAULT_FLAMES_BITS),
   };
 }
 

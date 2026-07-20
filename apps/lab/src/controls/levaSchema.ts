@@ -2422,6 +2422,7 @@ export function useEngineControls(
         lifeMaxMs: values.flamesLinesLifeMaxMs,
         maxInstances: values.flamesLinesMaxInstances,
       },
+      bits: d.flames.bits,
     },
     edgeMask: {
       enabled: values.edgeMaskEnabled,
