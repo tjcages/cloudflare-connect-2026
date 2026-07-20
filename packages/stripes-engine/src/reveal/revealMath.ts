@@ -109,3 +109,18 @@ export function assemblyRevealAt(
   const arrival = start + avgTotal;
   return smoothstep(arrival, arrival + Math.max(0, bandRamp), Math.max(0, progress));
 }
+
+export function serpentinePoint(progress: number, rows: number, wobble: number): { x: number; y: number } {
+  const r = Math.max(1, Math.round(rows));
+  const t = Math.min(1, Math.max(0, progress));
+  const f = Math.min(r - 1e-6, t * r);
+  const row = Math.floor(f);
+  const frac = f - row;
+  const x = row % 2 === 0 ? frac : 1 - frac;
+  const half = 1 / (2 * r);
+  const yBase = half + t * (1 - 2 * half);
+  const wobbleAmp = (wobble * 0.35) / r;
+  const wob = Math.sin(frac * Math.PI * 5 + row * 1.7) * wobbleAmp;
+  const y = Math.min(1, Math.max(0, yBase + wob));
+  return { x, y };
+}

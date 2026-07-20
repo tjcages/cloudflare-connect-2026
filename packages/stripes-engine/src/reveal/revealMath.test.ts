@@ -8,6 +8,7 @@ import {
   resolveBandRamp,
   waveRevealAt,
   assemblyRevealAt,
+  serpentinePoint,
 } from "./revealMath";
 import { DEFAULT_REVEAL, normalizeReveal } from "../config/normalize";
 
@@ -175,5 +176,43 @@ describe("assemblyRevealAt", () => {
     const center = assemblyRevealAt(5, 5, 10, 10, 0.48, assembly, bandRamp);
     const corner = assemblyRevealAt(0, 0, 10, 10, 0.48, assembly, bandRamp);
     expect(center).toBeGreaterThan(corner);
+  });
+});
+
+describe("serpentinePoint", () => {
+  it("starts at the left of the top row and ends at the right or left of the bottom row", () => {
+    const start = serpentinePoint(0, 5, 0);
+    expect(start.x).toBeCloseTo(0, 5);
+    expect(start.y).toBeLessThan(0.2);
+    const end = serpentinePoint(1, 5, 0);
+    expect(end.y).toBeGreaterThan(0.8);
+  });
+  it("alternates sweep direction per row", () => {
+    const rows = 4;
+    const early = serpentinePoint(0.1 / rows, rows, 0);
+    const later = serpentinePoint(0.9 / rows, rows, 0);
+    expect(later.x).toBeGreaterThan(early.x);
+    const row2early = serpentinePoint(1.1 / rows, rows, 0);
+    const row2later = serpentinePoint(1.9 / rows, rows, 0);
+    expect(row2later.x).toBeLessThan(row2early.x);
+  });
+  it("descends monotonically without wobble", () => {
+    let prevY = -1;
+    for (let t = 0; t <= 1.0001; t += 0.01) {
+      const { y } = serpentinePoint(Math.min(1, t), 6, 0);
+      expect(y).toBeGreaterThanOrEqual(prevY);
+      prevY = y;
+    }
+  });
+  it("clamps progress and keeps wobble inside the canvas", () => {
+    expect(serpentinePoint(-1, 5, 1).y).toBeCloseTo(serpentinePoint(0, 5, 1).y, 5);
+    expect(serpentinePoint(2, 5, 1).y).toBeCloseTo(serpentinePoint(1, 5, 1).y, 5);
+    for (let t = 0; t <= 1.0001; t += 0.01) {
+      const p = serpentinePoint(Math.min(1, t), 3, 1);
+      expect(p.x).toBeGreaterThanOrEqual(0);
+      expect(p.x).toBeLessThanOrEqual(1);
+      expect(p.y).toBeGreaterThanOrEqual(0);
+      expect(p.y).toBeLessThanOrEqual(1);
+    }
   });
 });
