@@ -385,6 +385,25 @@ describe("vortex bits (global snakes)", () => {
     after.forEach((a) => expect(a).toBeCloseTo(after[0], 6));
   });
 
+  it("couples the placement angle to the orbit so the body actually rotates as it travels", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 6, tailMax: 6, lifeMinMs: 20000, lifeMaxMs: 20000 });
+    stepFlames(state, config, DISPLAY, 1);
+    const headBefore = state.flames.find((f) => f.segIndex === 0)!;
+    const key = headBefore.bornMs;
+    const orbitBefore = headBefore.orbitAngle;
+    const angleBefore = headBefore.angle;
+    const angVel = headBefore.angVel;
+    stepFlames(state, config, DISPLAY, 401);
+    const headAfter = state.flames.find((f) => f.bornMs === key && f.segIndex === 0)!;
+    const dtSec = 0.4;
+    const orbitDelta = headAfter.orbitAngle - orbitBefore;
+    expect(Math.abs(orbitDelta)).toBeGreaterThan(0.01);
+    const expectedAngleDelta = orbitDelta + angVel * dtSec;
+    const actualAngleDelta = headAfter.angle - angleBefore;
+    expect(actualAngleDelta).toBeCloseTo(expectedAngleDelta, 5);
+  });
+
   it("keeps the joint angle small at any scale", () => {
     for (const s of [0.02, 0.2]) {
       const st = createFlamesState(seededRandom());
