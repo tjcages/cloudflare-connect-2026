@@ -342,10 +342,14 @@ function emitVortexSnake(
   return segments;
 }
 
-export function vortexBitEnvelope(t: number): number {
-  const fadeIn = smoothstep01(t / 0.12);
-  const fadeOut = 1 - smoothstep01((t - 0.86) / 0.14);
-  return fadeIn * fadeOut;
+const SNAKE_FADE_MS = 260;
+
+export function snakeEnvelope(ageMs: number, lifeMs: number): number {
+  if (lifeMs <= 0) return 0;
+  const fade = Math.min(SNAKE_FADE_MS, lifeMs * 0.45);
+  const inAmt = smoothstep01(ageMs / fade);
+  const outAmt = smoothstep01((lifeMs - ageMs) / fade);
+  return Math.max(0, Math.min(inAmt, outAmt));
 }
 
 function smoothstep01(x: number): number {
@@ -471,16 +475,14 @@ export function stepFlames(
         flame.shapePhase += flame.angVel * dtSec;
         flame.angle = flame.shapePhase + flame.orbitAngle;
         applyVortexTransform(flame);
-        const t = flame.lifeMs > 0 ? (nowMs - flame.bornMs) / flame.lifeMs : 1;
-        flame.opacity = flame.baseOpacity * vortexBitEnvelope(t);
+        flame.opacity = flame.baseOpacity * snakeEnvelope(nowMs - flame.bornMs, flame.lifeMs);
         break;
       }
       case "vortexLines": {
         flame.shapePhase += flame.angVel * dtSec;
         flame.angle = flame.shapePhase + flame.orbitAngle;
         applyVortexTransform(flame);
-        const t = flame.lifeMs > 0 ? (nowMs - flame.bornMs) / flame.lifeMs : 1;
-        flame.opacity = flame.baseOpacity * vortexBitEnvelope(t);
+        flame.opacity = flame.baseOpacity * snakeEnvelope(nowMs - flame.bornMs, flame.lifeMs);
         break;
       }
     }
