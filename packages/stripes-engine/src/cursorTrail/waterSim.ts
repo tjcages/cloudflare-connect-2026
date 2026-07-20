@@ -185,7 +185,7 @@ export function createWaterSim(gl: WebGL2RenderingContext, quad: { draw(): void 
         }
       }
 
-      const target = amp !== 0 ? Math.min(1, Math.abs(amp) * 1.6) : 0;
+      const target = amp !== 0 ? Math.min(1, Math.abs(amp) * 3.2) : 0;
       activityValue += (target - activityValue) * (1 - Math.exp(-dt / ACTIVITY_TAU));
 
       step(nowMs, ax, ay, bx, by, amp, displayWidth, displayHeight);
