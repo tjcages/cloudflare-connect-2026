@@ -27,6 +27,7 @@ import {
   DEFAULT_LAB_SETTINGS,
   stagePendingConfig,
   saveConfig,
+  deleteConfig,
   saveTextureId,
   importSettingsFile,
   markImportedConfigPristine,
@@ -46,6 +47,7 @@ import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
 import { exportLabVideo } from "./export/videoExport";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
+import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
 import {
   createShaderTextureRenderer,
   DEFAULT_SHADER_TEXTURE_SOURCE,
@@ -869,6 +871,7 @@ function LabInner() {
     if (!entry || entry.origin !== "upload") return;
     saveManifest(removeUpload(manifest, entry.id));
     void deleteTextureBlob(entry.id);
+    deleteConfig(entry.id);
     saveTextureId(DEFAULT_LAB_TEXTURE_ID);
     window.location.reload();
   }
@@ -1587,11 +1590,12 @@ function LabInner() {
   }, [controls.background.color, controls.background.transparent, getLabSettingsSnapshot]);
 
   useEffect(() => {
-    const key = `${textureId}:${JSON.stringify(controls)}`;
+    const id = textureIdRef.current;
+    const key = `${id}:${JSON.stringify(controls)}`;
     if (lastSavedConfigJsonRef.current === key) return;
     lastSavedConfigJsonRef.current = key;
-    saveConfig(textureId, controls);
-  }, [controls, textureId]);
+    saveConfig(id, controls);
+  }, [controls]);
 
   useEffect(() => {
     saveTextureId(textureId);
@@ -1863,6 +1867,8 @@ function LabInner() {
 
   function handleResetSettings() {
     if (!window.confirm("Reset settings for this texture?")) return;
+    deleteConfig(textureIdRef.current);
+    stagePendingConfig(DEFAULT_LAB_ENGINE_CONFIG);
     saveLabSettings({ ...DEFAULT_LAB_SETTINGS, backgroundColor: labSettingsRef.current.backgroundColor });
     saveTextureId(textureIdRef.current);
     window.location.reload();
