@@ -43,7 +43,7 @@ void main() {
   highp float dR = 1.0 - targetUv.x;
   highp float dT = targetUv.y;
   highp float dB = 1.0 - targetUv.y;
-  highp float jit = (hashLane(id, 2u) - 0.5) * 0.12;
+  highp float jit = (hashLane(id, 2u) - 0.5) * 0.2;
   highp float depth = 0.03 + 0.1 * hashLane(id, 3u);
   vec2 startUv;
   if (dL <= dR && dL <= dT && dL <= dB) {
