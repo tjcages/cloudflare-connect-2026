@@ -90,32 +90,32 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(turbulence, wave)).toBe(true);
   });
 
-  it("switching assembly <-> meteor triggers rebuild", () => {
+  it("switching assembly <-> trace triggers rebuild", () => {
     const assembly = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
-    const meteor = normalizeEngineConfig({ reveal: { enabled: true, type: "meteor" } });
-    expect(needsRebuild(assembly, meteor)).toBe(true);
-    expect(needsRebuild(meteor, assembly)).toBe(true);
+    const trace = normalizeEngineConfig({ reveal: { enabled: true, type: "trace" } });
+    expect(needsRebuild(assembly, trace)).toBe(true);
+    expect(needsRebuild(trace, assembly)).toBe(true);
   });
 
-  it("switching turbulence <-> plasma does NOT trigger rebuild (both share the warp kind)", () => {
+  it("switching turbulence <-> pulse does NOT trigger rebuild (both share the warp kind)", () => {
     const turbulence = normalizeEngineConfig({ reveal: { enabled: true, type: "turbulence" } });
-    const plasma = normalizeEngineConfig({ reveal: { enabled: true, type: "plasma" } });
-    expect(needsRebuild(turbulence, plasma)).toBe(false);
-    expect(needsRebuild(plasma, turbulence)).toBe(false);
+    const pulse = normalizeEngineConfig({ reveal: { enabled: true, type: "pulse" } });
+    expect(needsRebuild(turbulence, pulse)).toBe(false);
+    expect(needsRebuild(pulse, turbulence)).toBe(false);
   });
 
-  it("switching warptunnel <-> plasma does NOT trigger rebuild (both share the warp kind)", () => {
-    const warptunnel = normalizeEngineConfig({ reveal: { enabled: true, type: "warptunnel" } });
-    const plasma = normalizeEngineConfig({ reveal: { enabled: true, type: "plasma" } });
-    expect(needsRebuild(warptunnel, plasma)).toBe(false);
-    expect(needsRebuild(plasma, warptunnel)).toBe(false);
+  it("switching ink <-> pulse does NOT trigger rebuild (both share the warp kind)", () => {
+    const ink = normalizeEngineConfig({ reveal: { enabled: true, type: "ink" } });
+    const pulse = normalizeEngineConfig({ reveal: { enabled: true, type: "pulse" } });
+    expect(needsRebuild(ink, pulse)).toBe(false);
+    expect(needsRebuild(pulse, ink)).toBe(false);
   });
 
-  it("switching hadouken <-> beam triggers rebuild", () => {
+  it("switching hadouken <-> ink triggers rebuild", () => {
     const hadouken = normalizeEngineConfig({ reveal: { enabled: true, type: "hadouken" } });
-    const beam = normalizeEngineConfig({ reveal: { enabled: true, type: "beam" } });
-    expect(needsRebuild(hadouken, beam)).toBe(true);
-    expect(needsRebuild(beam, hadouken)).toBe(true);
+    const ink = normalizeEngineConfig({ reveal: { enabled: true, type: "ink" } });
+    expect(needsRebuild(hadouken, ink)).toBe(true);
+    expect(needsRebuild(ink, hadouken)).toBe(true);
   });
 
   it("turbulence <-> glitch and param changes do not trigger rebuild", () => {

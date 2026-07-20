@@ -3,13 +3,12 @@ import { UNDERLAY_INTRO_FADE_MS, createUnderlayIntroController, resolveUnderlayI
 
 const ALL_REVEAL_BLOCKS = {
   assembly: { staggerMs: 900, speedMaxMs: 1600 },
-  turbulence: { staggerMs: 800, speedMaxMs: 1800 },
-  glitch: { staggerMs: 1100, speedMaxMs: 600 },
+  turbulence: { staggerMs: 1400, speedMaxMs: 2600 },
+  glitch: { staggerMs: 2400, speedMaxMs: 900 },
   hadouken: { staggerMs: 1400, speedMaxMs: 1800 },
-  warptunnel: { staggerMs: 400, speedMaxMs: 1800 },
-  meteor: { staggerMs: 0, speedMaxMs: 2600 },
-  beam: { staggerMs: 0, speedMaxMs: 2200 },
-  plasma: { staggerMs: 900, speedMaxMs: 2000 },
+  ink: { staggerMs: 600, speedMaxMs: 2400 },
+  trace: { staggerMs: 1600, speedMaxMs: 2200 },
+  pulse: { staggerMs: 0, speedMaxMs: 3000 },
 };
 
 describe("resolveUnderlayIntroDelayMs", () => {
@@ -54,23 +53,23 @@ describe("resolveUnderlayIntroDelayMs", () => {
         wave: { durationMs: 1200 },
         ...ALL_REVEAL_BLOCKS,
       }),
-    ).toBe(1700);
+    ).toBe(3300);
     expect(
       resolveUnderlayIntroDelayMs({
         enabled: true,
-        type: "meteor",
+        type: "trace",
         wave: { durationMs: 1200 },
         ...ALL_REVEAL_BLOCKS,
       }),
-    ).toBe(2600);
+    ).toBe(3800);
     expect(
       resolveUnderlayIntroDelayMs({
         enabled: true,
-        type: "plasma",
+        type: "pulse",
         wave: { durationMs: 1200 },
         ...ALL_REVEAL_BLOCKS,
       }),
-    ).toBe(2900);
+    ).toBe(3000);
   });
 });
 

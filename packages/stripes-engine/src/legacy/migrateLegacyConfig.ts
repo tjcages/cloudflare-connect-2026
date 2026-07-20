@@ -44,10 +44,9 @@ function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
     hadouken: { ...DEFAULT_REVEAL.hadouken },
-    warptunnel: { ...DEFAULT_REVEAL.warptunnel },
-    meteor: { ...DEFAULT_REVEAL.meteor },
-    beam: { ...DEFAULT_REVEAL.beam },
-    plasma: { ...DEFAULT_REVEAL.plasma },
+    ink: { ...DEFAULT_REVEAL.ink },
+    trace: { ...DEFAULT_REVEAL.trace },
+    pulse: { ...DEFAULT_REVEAL.pulse },
   };
 }
 

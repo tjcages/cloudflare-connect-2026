@@ -242,10 +242,9 @@ export const REVEAL_TYPES: readonly RevealType[] = [
   "turbulence",
   "glitch",
   "hadouken",
-  "warptunnel",
-  "meteor",
-  "beam",
-  "plasma",
+  "ink",
+  "trace",
+  "pulse",
 ];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
@@ -261,8 +260,8 @@ export const DEFAULT_REVEAL: RevealConfig = {
     blurPx: 17.5,
     blurStart: 0.45,
   },
-  turbulence: { speedMinMs: 400, speedMaxMs: 1800, staggerMs: 800, intensity: 1, detail: 0.5, glow: 0.6 },
-  glitch: { speedMinMs: 80, speedMaxMs: 600, staggerMs: 1100, intensity: 1, detail: 0.5, glow: 0.7 },
+  turbulence: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 1400, intensity: 1, detail: 0.5, glow: 0.6 },
+  glitch: { speedMinMs: 150, speedMaxMs: 900, staggerMs: 2400, intensity: 1, detail: 0.5, glow: 0.7 },
   hadouken: {
     speedMinMs: 500,
     speedMaxMs: 1800,
@@ -272,10 +271,9 @@ export const DEFAULT_REVEAL: RevealConfig = {
     glow: 0.7,
     particleCount: 4000,
   },
-  warptunnel: { speedMinMs: 300, speedMaxMs: 1800, staggerMs: 400, intensity: 1, detail: 0.5, glow: 0.8 },
-  meteor: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.8 },
-  beam: { speedMinMs: 300, speedMaxMs: 2200, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.8 },
-  plasma: { speedMinMs: 400, speedMaxMs: 2000, staggerMs: 900, intensity: 1, detail: 0.5, glow: 0.8 },
+  ink: { speedMinMs: 400, speedMaxMs: 2400, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
+  trace: { speedMinMs: 300, speedMaxMs: 2200, staggerMs: 1600, intensity: 1, detail: 0.5, glow: 0.8 },
+  pulse: { speedMinMs: 300, speedMaxMs: 3000, staggerMs: 0, intensity: 1, detail: 0.5, glow: 0.7 },
 };
 
 /** @deprecated legacy-config shim — R5/R6 nested assembly.style + assembly.{scatter,turbulence,glitch,hadouken} */
@@ -295,10 +293,9 @@ type PartialReveal = {
   turbulence?: Partial<WarpStyleConfig>;
   glitch?: Partial<WarpStyleConfig>;
   hadouken?: Partial<RevealConfig["hadouken"]>;
-  warptunnel?: Partial<WarpStyleConfig>;
-  meteor?: Partial<WarpStyleConfig>;
-  beam?: Partial<WarpStyleConfig>;
-  plasma?: Partial<WarpStyleConfig>;
+  ink?: Partial<WarpStyleConfig>;
+  trace?: Partial<WarpStyleConfig>;
+  pulse?: Partial<WarpStyleConfig>;
 };
 
 function normalizeAssemblyBlock(a: LegacyAssemblyBlock): RevealConfig["assembly"] {
@@ -369,10 +366,9 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     hadouken: normalizeHadoukenBlock(i.hadouken ?? a.hadouken),
-    warptunnel: normalizeWarpStyleBlock(i.warptunnel, DEFAULT_REVEAL.warptunnel),
-    meteor: normalizeWarpStyleBlock(i.meteor, DEFAULT_REVEAL.meteor),
-    beam: normalizeWarpStyleBlock(i.beam, DEFAULT_REVEAL.beam),
-    plasma: normalizeWarpStyleBlock(i.plasma, DEFAULT_REVEAL.plasma),
+    ink: normalizeWarpStyleBlock(i.ink, DEFAULT_REVEAL.ink),
+    trace: normalizeWarpStyleBlock(i.trace, DEFAULT_REVEAL.trace),
+    pulse: normalizeWarpStyleBlock(i.pulse, DEFAULT_REVEAL.pulse),
   };
 }
 
@@ -752,10 +748,9 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
     hadouken: { ...DEFAULT_REVEAL.hadouken },
-    warptunnel: { ...DEFAULT_REVEAL.warptunnel },
-    meteor: { ...DEFAULT_REVEAL.meteor },
-    beam: { ...DEFAULT_REVEAL.beam },
-    plasma: { ...DEFAULT_REVEAL.plasma },
+    ink: { ...DEFAULT_REVEAL.ink },
+    trace: { ...DEFAULT_REVEAL.trace },
+    pulse: { ...DEFAULT_REVEAL.pulse },
   },
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },

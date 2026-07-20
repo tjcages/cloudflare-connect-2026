@@ -753,18 +753,8 @@ describe("renderMode + renderIntensity", () => {
   });
 });
 describe("reveal type promotion", () => {
-  it("accepts all 9 reveal types", () => {
-    for (const t of [
-      "wave",
-      "assembly",
-      "turbulence",
-      "glitch",
-      "hadouken",
-      "warptunnel",
-      "meteor",
-      "beam",
-      "plasma",
-    ] as const) {
+  it("accepts all 8 reveal types", () => {
+    for (const t of ["wave", "assembly", "turbulence", "glitch", "hadouken", "ink", "trace", "pulse"] as const) {
       expect(normalizeReveal({ type: t }).type).toBe(t);
     }
   });
@@ -781,25 +771,29 @@ describe("reveal type promotion", () => {
       "burn",
       "portal",
       "lightning",
+      "warptunnel",
+      "meteor",
+      "beam",
+      "plasma",
     ]) {
       expect(normalizeReveal({ type: t as never }).type).toBe("assembly");
     }
   });
 
-  it("provides per-type defaults incl. the four new energy blocks", () => {
+  it("provides per-type defaults incl. the three new energy blocks", () => {
     const r = normalizeReveal({});
     expect(r.glitch).toEqual({
-      speedMinMs: 80,
-      speedMaxMs: 600,
-      staggerMs: 1100,
+      speedMinMs: 150,
+      speedMaxMs: 900,
+      staggerMs: 2400,
       intensity: 1,
       detail: 0.5,
       glow: 0.7,
     });
     expect(r.turbulence).toEqual({
       speedMinMs: 400,
-      speedMaxMs: 1800,
-      staggerMs: 800,
+      speedMaxMs: 2600,
+      staggerMs: 1400,
       intensity: 1,
       detail: 0.5,
       glow: 0.6,
@@ -813,37 +807,29 @@ describe("reveal type promotion", () => {
       glow: 0.7,
       particleCount: 4000,
     });
-    expect(r.warptunnel).toEqual({
-      speedMinMs: 300,
-      speedMaxMs: 1800,
-      staggerMs: 400,
-      intensity: 1,
-      detail: 0.5,
-      glow: 0.8,
-    });
-    expect(r.meteor).toEqual({
+    expect(r.ink).toEqual({
       speedMinMs: 400,
-      speedMaxMs: 2600,
-      staggerMs: 0,
+      speedMaxMs: 2400,
+      staggerMs: 600,
       intensity: 1,
       detail: 0.5,
-      glow: 0.8,
+      glow: 0.7,
     });
-    expect(r.beam).toEqual({
+    expect(r.trace).toEqual({
       speedMinMs: 300,
       speedMaxMs: 2200,
-      staggerMs: 0,
+      staggerMs: 1600,
       intensity: 1,
       detail: 0.5,
       glow: 0.8,
     });
-    expect(r.plasma).toEqual({
-      speedMinMs: 400,
-      speedMaxMs: 2000,
-      staggerMs: 900,
+    expect(r.pulse).toEqual({
+      speedMinMs: 300,
+      speedMaxMs: 3000,
+      staggerMs: 0,
       intensity: 1,
       detail: 0.5,
-      glow: 0.8,
+      glow: 0.7,
     });
     expect(r.assembly.sliceSizePx).toBe(29);
   });
@@ -856,7 +842,7 @@ describe("reveal type promotion", () => {
     });
     expect(r.glitch.speedMaxMs).toBe(900);
     expect(r.turbulence.glow).toBe(0.2);
-    expect(r.turbulence.speedMaxMs).toBe(1800);
+    expect(r.turbulence.speedMaxMs).toBe(2600);
   });
 
   it("R5/R6 nested-shape lift: assembly.style + nested assembly.{scatter,turbulence,glitch,hadouken} promote to flat reveal-level blocks", () => {
@@ -886,7 +872,7 @@ describe("reveal type promotion", () => {
     expect(r.assembly.speedMaxMs).toBe(2222);
     expect(r.assembly.staggerMs).toBe(333);
     expect(r.assembly.sliceSizePx).toBe(50);
-    expect(r.glitch.speedMaxMs).toBe(600);
+    expect(r.glitch.speedMaxMs).toBe(900);
   });
 
   it("invalid type falls back to assembly", () => {
@@ -910,10 +896,9 @@ describe("reveal type promotion", () => {
     expect(normalizeReveal({ turbulence: { speedMinMs: 10 } }).turbulence.speedMinMs).toBe(50);
     expect(normalizeReveal({ glitch: { speedMinMs: 10 } }).glitch.speedMinMs).toBe(50);
     expect(normalizeReveal({ hadouken: { speedMinMs: 10 } }).hadouken.speedMinMs).toBe(50);
-    expect(normalizeReveal({ warptunnel: { speedMinMs: 10 } }).warptunnel.speedMinMs).toBe(50);
-    expect(normalizeReveal({ meteor: { speedMinMs: 10 } }).meteor.speedMinMs).toBe(50);
-    expect(normalizeReveal({ beam: { speedMinMs: 10 } }).beam.speedMinMs).toBe(50);
-    expect(normalizeReveal({ plasma: { speedMinMs: 10 } }).plasma.speedMinMs).toBe(50);
+    expect(normalizeReveal({ ink: { speedMinMs: 10 } }).ink.speedMinMs).toBe(50);
+    expect(normalizeReveal({ trace: { speedMinMs: 10 } }).trace.speedMinMs).toBe(50);
+    expect(normalizeReveal({ pulse: { speedMinMs: 10 } }).pulse.speedMinMs).toBe(50);
     expect(normalizeReveal({ assembly: { speedMinMs: 10 } }).assembly.speedMinMs).toBe(100);
   });
 
