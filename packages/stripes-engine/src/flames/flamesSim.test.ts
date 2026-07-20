@@ -311,6 +311,79 @@ describe("vortex bits", () => {
   });
 });
 
+describe("vortex lines", () => {
+  const linesConfig = (o = {}) =>
+    normalizeFlames({
+      enabled: true,
+      direction: "vortexLines",
+      maxActive: 48,
+      swirlRate: 2,
+      speedVariation: 0,
+      opacityMin: 1,
+      opacityMax: 1,
+      ...o,
+    });
+
+  it("emits snakes as ordered segment runs", () => {
+    const state = createFlamesState(seededRandom());
+    stepFlames(state, linesConfig(), DISPLAY, 1);
+    expect(state.flames.length).toBeGreaterThan(0);
+    state.flames.forEach((f) => {
+      expect(f.segCount).toBeGreaterThan(1);
+      expect(f.segIndex).toBeLessThan(f.segCount);
+    });
+    const heads = state.flames.filter((f) => f.segIndex === 0);
+    expect(heads.length).toBeGreaterThan(0);
+  });
+
+  it("groups each snake's segments on one shared pivot", () => {
+    const state = createFlamesState(seededRandom());
+    stepFlames(state, linesConfig(), DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames.filter((f) => f.pivotX === head.pivotX && f.pivotY === head.pivotY);
+    expect(mates.length).toBe(head.segCount);
+  });
+
+  it("tapers width and opacity from head to tail", () => {
+    const state = createFlamesState(seededRandom());
+    stepFlames(state, linesConfig(), DISPLAY, 1);
+    stepFlames(state, linesConfig(), DISPLAY, 60);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames
+      .filter((f) => f.pivotX === head.pivotX && f.pivotY === head.pivotY)
+      .sort((a, b) => a.segIndex - b.segIndex);
+    const tail = mates[mates.length - 1];
+    expect(tail.width).toBeLessThan(head.width);
+    expect(tail.opacity).toBeLessThan(head.opacity);
+  });
+
+  it("trails the tail behind the head at a constant arc", () => {
+    const state = createFlamesState(seededRandom());
+    const config = linesConfig();
+    stepFlames(state, config, DISPLAY, 1);
+    stepFlames(state, config, DISPLAY, 200);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames
+      .filter((f) => f.pivotX === head.pivotX && f.pivotY === head.pivotY)
+      .sort((a, b) => a.segIndex - b.segIndex);
+    for (let i = 1; i < mates.length; i++) {
+      const gap = Math.abs(mates[i - 1].angle - mates[i].angle);
+      expect(gap).toBeGreaterThan(0);
+      expect(gap).toBeLessThan(1);
+    }
+  });
+
+  it("expires a whole snake together", () => {
+    const state = createFlamesState(seededRandom());
+    const config = linesConfig({ spawnIntervalMs: 5000 });
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const pivotX = head.pivotX;
+    stepFlames(state, config, DISPLAY, 9000);
+    expect(state.flames.filter((f) => f.pivotX === pivotX).length).toBe(0);
+  });
+});
+
 describe("vortex center density", () => {
   it("seeds area-uniformly rather than radius-uniformly", () => {
     const state = createFlamesState(seededRandom());

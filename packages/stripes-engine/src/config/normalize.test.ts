@@ -891,6 +891,10 @@ describe("normalizeFlames vortex", () => {
     expect(normalizeFlames({ direction: "sideways" as never }).direction).toBe("up");
   });
 
+  it("accepts the vortexLines direction", () => {
+    expect(normalizeFlames({ direction: "vortexLines" }).direction).toBe("vortexLines");
+  });
+
   it("defaults inward false and swirlRate 1.2", () => {
     const f = normalizeFlames({});
     expect(f.inward).toBe(false);

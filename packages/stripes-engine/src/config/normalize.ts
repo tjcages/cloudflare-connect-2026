@@ -456,6 +456,7 @@ const FLAMES_DIRECTIONS: readonly FlamesDirection[] = [
   "leftRight",
   "vortex",
   "vortexBits",
+  "vortexLines",
 ];
 
 function normalizeFlamesDirection(value: unknown): FlamesDirection {

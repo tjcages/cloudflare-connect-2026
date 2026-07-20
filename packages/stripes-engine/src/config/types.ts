@@ -160,7 +160,16 @@ export interface SparkleConfig {
   };
 }
 
-export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight" | "vortex" | "vortexBits";
+export type FlamesDirection =
+  | "up"
+  | "down"
+  | "left"
+  | "right"
+  | "upDown"
+  | "leftRight"
+  | "vortex"
+  | "vortexBits"
+  | "vortexLines";
 
 export interface FlamesConfig {
   enabled: boolean;
