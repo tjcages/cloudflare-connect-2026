@@ -6,6 +6,7 @@ const ALL_REVEAL_BLOCKS = {
   turbulence: { staggerMs: 1400, speedMaxMs: 2600 },
   glitch: { staggerMs: 1200, speedMaxMs: 1400 },
   vortex: { staggerMs: 900, speedMaxMs: 1100 },
+  water: { durationMs: 2600, settleMs: 900 },
 };
 
 describe("resolveUnderlayIntroDelayMs", () => {
@@ -59,6 +60,17 @@ describe("resolveUnderlayIntroDelayMs", () => {
         ...ALL_REVEAL_BLOCKS,
       }),
     ).toBe(4000);
+  });
+
+  it("uses water.durationMs + water.settleMs for water reveals", () => {
+    expect(
+      resolveUnderlayIntroDelayMs({
+        enabled: true,
+        type: "water",
+        wave: { durationMs: 1200 },
+        ...ALL_REVEAL_BLOCKS,
+      }),
+    ).toBe(3500);
   });
 });
 

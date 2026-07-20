@@ -92,6 +92,11 @@ describe("resolveRevealDurationMs", () => {
     const vortex = normalizeReveal({ enabled: true, type: "vortex" });
     expect(resolveRevealDurationMs(vortex)).toBe(2600 + 1400);
   });
+
+  it("resolves water duration as durationMs + settleMs", () => {
+    const water = normalizeReveal({ enabled: true, type: "water" });
+    expect(resolveRevealDurationMs(water)).toBe(2600 + 900);
+  });
 });
 
 describe("resolveBandRamp", () => {

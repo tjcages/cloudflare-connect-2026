@@ -25,6 +25,7 @@ import type {
   RevealType,
   WarpStyleConfig,
   VortexRevealConfig,
+  WaterRevealConfig,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -238,7 +239,7 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-export const REVEAL_TYPES: readonly RevealType[] = ["wave", "assembly", "turbulence", "glitch", "vortex"];
+export const REVEAL_TYPES: readonly RevealType[] = ["wave", "assembly", "turbulence", "glitch", "vortex", "water"];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",
@@ -264,6 +265,15 @@ export const DEFAULT_REVEAL: RevealConfig = {
     glow: 0.7,
     swirl: 1,
   },
+  water: {
+    durationMs: 2600,
+    settleMs: 900,
+    rows: 5,
+    intensity: 0.85,
+    wobble: 0.5,
+    refraction: 1,
+    softness: 0.35,
+  },
 };
 
 /** @deprecated legacy-config shim — R5/R6 nested assembly.style + assembly.{scatter,turbulence,glitch,hadouken} */
@@ -285,6 +295,7 @@ type PartialReveal = {
   glitch?: Partial<WarpStyleConfig>;
   vortex?: Partial<RevealConfig["vortex"]>;
   hadouken?: Partial<RevealConfig["vortex"]>;
+  water?: Partial<WaterRevealConfig>;
 };
 
 function normalizeAssemblyBlock(a: LegacyAssemblyBlock): RevealConfig["assembly"] {
@@ -327,6 +338,18 @@ function normalizeVortexBlock(i: Partial<VortexRevealConfig> = {}, d: VortexReve
   };
 }
 
+function normalizeWaterBlock(i: Partial<WaterRevealConfig> = {}, d: WaterRevealConfig): WaterRevealConfig {
+  return {
+    durationMs: clamp(Math.round(num(i.durationMs, d.durationMs)), 1, 60000),
+    settleMs: clamp(Math.round(num(i.settleMs, d.settleMs)), 0, 20000),
+    rows: clamp(Math.round(num(i.rows, d.rows)), 1, 24),
+    intensity: clamp(num(i.intensity, d.intensity), 0, 3),
+    wobble: clamp(num(i.wobble, d.wobble), 0, 1),
+    refraction: clamp(num(i.refraction, d.refraction), 0, 4),
+    softness: clamp(num(i.softness, d.softness), 0, 1),
+  };
+}
+
 export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
   const w = i.wave ?? {};
   const a = i.assembly ?? {};
@@ -358,6 +381,7 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     vortex: normalizeVortexBlock(i.vortex ?? i.hadouken ?? a.vortex ?? a.hadouken, DEFAULT_REVEAL.vortex),
+    water: normalizeWaterBlock(i.water, DEFAULT_REVEAL.water),
   };
 }
 
@@ -825,6 +849,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
     vortex: { ...DEFAULT_REVEAL.vortex },
+    water: { ...DEFAULT_REVEAL.water },
   },
   sparkle: {
     gaps: { ...DEFAULT_SPARKLE.gaps },

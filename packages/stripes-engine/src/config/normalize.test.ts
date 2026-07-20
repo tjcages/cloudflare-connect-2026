@@ -879,6 +879,29 @@ describe("reveal type promotion", () => {
     expect(normalizeReveal({ vortex: { speedMinMs: 10 } }).vortex.speedMinMs).toBe(50);
     expect(normalizeReveal({ assembly: { speedMinMs: 10 } }).assembly.speedMinMs).toBe(100);
   });
+
+  it("defaults and clamps the water reveal block", () => {
+    const r = normalizeReveal({ enabled: true, type: "water" });
+    expect(r.type).toBe("water");
+    expect(r.water).toEqual({
+      durationMs: 2600,
+      settleMs: 900,
+      rows: 5,
+      intensity: 0.85,
+      wobble: 0.5,
+      refraction: 1,
+      softness: 0.35,
+    });
+    const clamped = normalizeReveal({
+      enabled: true,
+      type: "water",
+      water: { durationMs: -5, settleMs: -5, rows: 99, intensity: 99, wobble: 9, refraction: 99, softness: 9 },
+    });
+    expect(clamped.water.durationMs).toBeGreaterThan(0);
+    expect(clamped.water.rows).toBeLessThanOrEqual(24);
+    expect(clamped.water.wobble).toBe(1);
+    expect(clamped.water.softness).toBe(1);
+  });
 });
 
 describe("normalizeFlames vortex", () => {
