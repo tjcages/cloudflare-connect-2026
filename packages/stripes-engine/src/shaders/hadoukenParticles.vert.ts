@@ -39,16 +39,22 @@ void main() {
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     return;
   }
-  vec2 outv = (targetUv - 0.5) * asp;
-  highp float olen = length(outv);
-  vec2 odir = olen > 1e-4 ? outv / olen : vec2(1.0, 0.0);
-  highp float spread = mix(3.14159265, 1.3, clamp(dn * 3.0, 0.0, 1.0));
-  highp float sang = (hashLane(id, 2u) - 0.5) * 2.0 * spread;
-  highp float cs = cos(sang);
-  highp float sn = sin(sang);
-  vec2 sdir = vec2(odir.x * cs - odir.y * sn, odir.x * sn + odir.y * cs);
-  highp float sdist = 0.25 + 0.55 * hashLane(id, 3u);
-  vec2 startUv = targetUv + (sdir * sdist) / asp;
+  highp float dL = targetUv.x;
+  highp float dR = 1.0 - targetUv.x;
+  highp float dT = targetUv.y;
+  highp float dB = 1.0 - targetUv.y;
+  highp float jit = (hashLane(id, 2u) - 0.5) * 0.12;
+  highp float depth = 0.03 + 0.1 * hashLane(id, 3u);
+  vec2 startUv;
+  if (dL <= dR && dL <= dT && dL <= dB) {
+    startUv = vec2(-depth, targetUv.y + jit);
+  } else if (dR <= dT && dR <= dB) {
+    startUv = vec2(1.0 + depth, targetUv.y + jit);
+  } else if (dT <= dB) {
+    startUv = vec2(targetUv.x + jit, -depth);
+  } else {
+    startUv = vec2(targetUv.x + jit, 1.0 + depth);
+  }
   highp float ease = 1.0 - pow(1.0 - f, 3.0);
   vec2 posUv = mix(startUv, targetUv, ease);
   highp float f2 = min(f + 0.03, 1.0);
