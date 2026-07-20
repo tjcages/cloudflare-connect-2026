@@ -1329,6 +1329,22 @@ export function useEngineControls(
             label: "Max snakes",
             render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
           },
+          flamesLinesMeanderAmp: {
+            value: d.flames.lines.meanderAmp,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Meander amount",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesMeanderFreq: {
+            value: d.flames.lines.meanderFreq,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Meander freq",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
           flamesBitsTailMin: {
             value: d.flames.bits.tailMin,
             min: 2,
@@ -1423,6 +1439,22 @@ export function useEngineControls(
             max: 120,
             step: 1,
             label: "Max snakes",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexBits"),
+          },
+          flamesBitsMeanderAmp: {
+            value: d.flames.bits.meanderAmp,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Meander amount",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexBits"),
+          },
+          flamesBitsMeanderFreq: {
+            value: d.flames.bits.meanderFreq,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Meander freq",
             render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexBits"),
           },
           flamesEdgeSharpness: {
@@ -2516,6 +2548,8 @@ export function useEngineControls(
         lifeMinMs: values.flamesLinesLifeMinMs,
         lifeMaxMs: values.flamesLinesLifeMaxMs,
         maxInstances: values.flamesLinesMaxInstances,
+        meanderAmp: values.flamesLinesMeanderAmp,
+        meanderFreq: values.flamesLinesMeanderFreq,
       },
       bits: {
         tailMin: values.flamesBitsTailMin,
@@ -2530,6 +2564,8 @@ export function useEngineControls(
         lifeMinMs: values.flamesBitsLifeMinMs,
         lifeMaxMs: values.flamesBitsLifeMaxMs,
         maxInstances: values.flamesBitsMaxInstances,
+        meanderAmp: values.flamesBitsMeanderAmp,
+        meanderFreq: values.flamesBitsMeanderFreq,
       },
     },
     edgeMask: {
