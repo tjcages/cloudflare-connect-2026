@@ -1,7 +1,7 @@
 import { DEFAULT_ENGINE_CONFIG } from "@necatikcl/stripes-engine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  applyImportedBackgroundColor,
+  clearStickyBackgroundColor,
   consumeImportedConfigPristine,
   importConfig,
   importSettingsFile,
@@ -9,12 +9,13 @@ import {
   factoryResetSettings,
   loadInitialConfig,
   loadLabSettings,
+  loadStickyBackgroundColor,
   markImportedConfigPristine,
   resumePersistenceWritesForTests,
-  saveConfig,
   saveLabSettings,
   saveStickyBackgroundColor,
   serializeConfigFile,
+  stagePendingConfig,
 } from "./persistence";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
@@ -33,11 +34,30 @@ function stubLocalStorage() {
       items.clear();
     },
   });
+  return items;
+}
+
+function stubSessionStorage() {
+  const items = new Map<string, string>();
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => items.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      items.set(key, value);
+    },
+    removeItem: (key: string) => {
+      items.delete(key);
+    },
+    clear: () => {
+      items.clear();
+    },
+  });
+  return items;
 }
 
 describe("config file import/export", () => {
   beforeEach(() => {
     stubLocalStorage();
+    stubSessionStorage();
   });
 
   afterEach(() => {
@@ -190,213 +210,19 @@ describe("config file import/export", () => {
     expect((exported.lab as Record<string, unknown>).canvasScale).toBe(3);
   });
 
-  it("uses the last saved config as the fallback for new textures", () => {
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 3, gapY: 4 },
-    });
-
-    const loaded = loadInitialConfig("new-upload");
-
-    expect(loaded.grid?.gapX).toBe(3);
-    expect(loaded.grid?.gapY).toBe(4);
-  });
-
-  it("keeps per-texture configs ahead of the global last-config fallback", () => {
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 3 },
-    });
-    saveConfig("texture-b", {
-      ...DEFAULT_ENGINE_CONFIG,
-      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 9 },
-    });
-
-    expect(loadInitialConfig("texture-a").grid?.gapX).toBe(3);
-    expect(loadInitialConfig("new-upload").grid?.gapX).toBe(9);
-  });
-
-  it("keeps the last background color sticky across existing texture configs", () => {
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x111111, transparent: false },
-      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 3 },
-    });
-    saveConfig("texture-b", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x222222, transparent: false },
-      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 9 },
-    });
-
-    const loaded = loadInitialConfig("texture-a");
-
-    expect(loaded.background?.color).toBe(0x222222);
-    expect(loaded.grid?.gapX).toBe(3);
-  });
-
-  it("keeps sticky background when resetting a texture without updating sticky background", () => {
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x334455, transparent: false },
-      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 3 },
-    });
-    saveConfig("texture-a", DEFAULT_ENGINE_CONFIG, { updateStickyBackground: false });
-
-    const loaded = loadInitialConfig("texture-a");
-
-    expect(loaded.background?.color).toBe(0x334455);
-    expect(loaded.grid?.gapX).toBe(DEFAULT_ENGINE_CONFIG.grid.gapX);
-  });
-
-  it("applies sticky background even when there is no saved config for the texture", () => {
-    saveLabSettings({ backgroundColor: 0x778899 });
-
-    const loaded = loadInitialConfig("brand-new-texture");
-
-    expect(loaded.background?.color).toBe(0x778899);
-  });
-
-  it("does not reset sticky background when saving partial lab settings", () => {
-    saveLabSettings({ backgroundColor: 0x778899 });
-    saveLabSettings({ canvasWidth: 1234 });
-
-    expect(loadLabSettings().backgroundColor).toBe(0x778899);
-    expect(loadInitialConfig("brand-new-texture").background?.color).toBe(0x778899);
-  });
-
-  it("prefers a non-default direct sticky background over default lab background on reload", () => {
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x778899, transparent: false },
-    });
-    saveLabSettings({ backgroundColor: DEFAULT_ENGINE_CONFIG.background.color });
-
-    expect(loadLabSettings().backgroundColor).toBe(0x778899);
-    expect(loadInitialConfig("texture-a").background?.color).toBe(0x778899);
-  });
-
-  it("does not let an automatic default background config save clobber a non-default sticky background", () => {
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x778899, transparent: false },
-    });
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: DEFAULT_ENGINE_CONFIG.background.color },
-    });
-
-    expect(loadLabSettings().backgroundColor).toBe(0x778899);
-    expect(loadInitialConfig("texture-a").background?.color).toBe(0x778899);
-  });
-
-  it("persists direct background picker changes immediately", () => {
-    saveStickyBackgroundColor(0x445566);
-
-    expect(loadLabSettings().backgroundColor).toBe(0x445566);
-    expect(loadInitialConfig("texture-a").background?.color).toBe(0x445566);
-  });
-
-  it("keeps explicit picker background ahead of later automatic config saves", () => {
-    saveStickyBackgroundColor(0x445566);
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x112233 },
-    });
-
-    expect(loadLabSettings().backgroundColor).toBe(0x445566);
-    expect(loadInitialConfig("texture-a").background?.color).toBe(0x445566);
-  });
-
-  it("does not let a default white bg query override a saved non-default background", () => {
-    localStorage.setItem("stripes-engine-lab-last-background-color", String(0x778899));
-    vi.stubGlobal("window", {
-      location: { href: "http://127.0.0.1:5174/?bg=ffffff" },
-      history: { replaceState: vi.fn() },
-    });
-
-    expect(loadLabSettings().backgroundColor).toBe(0x778899);
-    expect(loadInitialConfig("texture-a").background?.color).toBe(0x778899);
-  });
-
-  it("ignores bg query params as a background source on refresh", () => {
-    vi.stubGlobal("window", {
-      location: { href: "http://127.0.0.1:5174/?bg=123456" },
-      history: { replaceState: vi.fn() },
-    });
-
-    expect(loadLabSettings().backgroundColor).toBe(DEFAULT_LAB_SETTINGS.backgroundColor);
-    expect(loadInitialConfig("texture-a").background?.color).toBe(DEFAULT_LAB_ENGINE_CONFIG.background.color);
-  });
-
-  it("does not let a stale default direct background override a saved non-default lab background", () => {
-    saveLabSettings({ backgroundColor: 0x778899 });
-    localStorage.setItem("stripes-engine-lab-last-background-color", String(DEFAULT_ENGINE_CONFIG.background.color));
-
-    expect(loadLabSettings().backgroundColor).toBe(0x778899);
-    expect(loadInitialConfig("texture-a").background?.color).toBe(0x778899);
-  });
-
-  it("recovers a non-default texture background when old sticky storage is corrupted to default white", () => {
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x778899, transparent: false },
-    });
-    localStorage.setItem(
-      "stripes-engine-lab-ui-settings",
-      JSON.stringify({ ...loadLabSettings(), backgroundColor: DEFAULT_ENGINE_CONFIG.background.color }),
-    );
-    localStorage.setItem("stripes-engine-lab-last-background-color", String(DEFAULT_ENGINE_CONFIG.background.color));
-
-    expect(loadInitialConfig("texture-a").background?.color).toBe(0x778899);
-    expect(loadLabSettings().backgroundColor).toBe(0x778899);
-  });
-
-  it("factory reset clears saved configs and sticky background", () => {
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x334455, transparent: false },
-      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 3 },
-    });
+  it("factory reset clears lab UI settings back to defaults", () => {
     saveLabSettings({ canvasMode: "manual", canvasWidth: 1111, backgroundColor: 0x334455 });
 
     factoryResetSettings();
 
-    expect(loadInitialConfig("texture-a")).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
     expect(loadLabSettings()).toEqual(DEFAULT_LAB_SETTINGS);
-  });
-
-  it("factory reset ignores post-clear saves that would restore sticky background", () => {
-    saveStickyBackgroundColor(0x334455);
-    saveLabSettings({ backgroundColor: 0x334455 });
-    expect(loadLabSettings().backgroundColor).toBe(0x334455);
-
-    factoryResetSettings();
-    // Simulate React effects that still hold the old in-memory color before reload.
-    saveLabSettings({ backgroundColor: 0x334455 });
-    saveStickyBackgroundColor(0x99aabb);
-    saveConfig("texture-a", {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x334455, transparent: false },
-    });
-
-    expect(loadLabSettings().backgroundColor).toBe(DEFAULT_LAB_SETTINGS.backgroundColor);
-    expect(loadInitialConfig("texture-a")).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
   });
 });
 
-describe("imported background fidelity", () => {
+describe("engine config never persists across a boot", () => {
   beforeEach(() => {
     stubLocalStorage();
-    const items = new Map<string, string>();
-    vi.stubGlobal("sessionStorage", {
-      getItem: (key: string) => items.get(key) ?? null,
-      setItem: (key: string, value: string) => {
-        items.set(key, value);
-      },
-      removeItem: (key: string) => {
-        items.delete(key);
-      },
-    });
+    stubSessionStorage();
   });
 
   afterEach(() => {
@@ -404,41 +230,59 @@ describe("imported background fidelity", () => {
     vi.unstubAllGlobals();
   });
 
-  it("an imported white background survives a previous non-white sticky color", () => {
-    saveStickyBackgroundColor(0x123456);
-
-    const imported: EngineConfig = {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0xffffff, transparent: false },
-    };
-    saveConfig("texture-a", imported, { updateStickyBackground: false });
-    applyImportedBackgroundColor(0xffffff);
-
-    const loaded = loadInitialConfig("texture-a");
-    expect(loaded.background?.color).toBe(0xffffff);
-    expect(loaded.background?.transparent).toBe(false);
-    expect(loadLabSettings().backgroundColor).toBe(0xffffff);
+  it("always boots from the default engine config when nothing is staged", () => {
+    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
   });
 
-  it("an imported transparent background clears the sticky override", () => {
-    saveStickyBackgroundColor(0x123456);
+  it("ignores stale legacy per-texture / last-config / sticky-background keys and removes them", () => {
+    localStorage.setItem("stripes-engine-lab-by-texture", JSON.stringify({ "texture-a": { grid: { gapX: 3 } } }));
+    localStorage.setItem("stripes-engine-lab-last-config", JSON.stringify({ grid: { gapX: 9 } }));
+    localStorage.setItem("stripes-engine-lab-last-background-color", String(0x778899));
 
-    const imported: EngineConfig = {
-      ...DEFAULT_ENGINE_CONFIG,
-      background: { ...DEFAULT_ENGINE_CONFIG.background, transparent: true },
-    };
-    saveConfig("texture-a", imported, { updateStickyBackground: false });
-    applyImportedBackgroundColor(null);
-
-    const loaded = loadInitialConfig("texture-a");
-    expect(loaded.background?.transparent).toBe(true);
-    expect(loadLabSettings().backgroundColor).toBe(null);
+    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
+    expect(localStorage.getItem("stripes-engine-lab-by-texture")).toBeNull();
+    expect(localStorage.getItem("stripes-engine-lab-last-config")).toBeNull();
+    expect(localStorage.getItem("stripes-engine-lab-last-background-color")).toBeNull();
   });
 
-  it("an imported non-white color replaces the sticky color", () => {
-    saveStickyBackgroundColor(0x123456);
-    applyImportedBackgroundColor(0xaabbcc);
-    expect(loadLabSettings().backgroundColor).toBe(0xaabbcc);
+  it("applies a staged pending config exactly once, then reverts to default", () => {
+    const staged: EngineConfig = {
+      ...DEFAULT_ENGINE_CONFIG,
+      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 7 },
+    };
+    stagePendingConfig(staged);
+
+    expect(loadInitialConfig().grid?.gapX).toBe(7);
+    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
+  });
+
+  it("does not stage a pending config once persistence writes are frozen by a factory reset", () => {
+    factoryResetSettings();
+    stagePendingConfig({
+      ...DEFAULT_ENGINE_CONFIG,
+      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 7 },
+    });
+
+    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
+  });
+
+  it("factory reset clears saved configs and sticky background", () => {
+    saveLabSettings({ canvasMode: "manual", canvasWidth: 1111, backgroundColor: 0x334455 });
+
+    factoryResetSettings();
+
+    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
+    expect(loadLabSettings()).toEqual(DEFAULT_LAB_SETTINGS);
+  });
+
+  it("never sticks a background color across boots, even after picking one live", () => {
+    saveStickyBackgroundColor(0x445566);
+
+    expect(loadStickyBackgroundColor()).toBeNull();
+    expect(loadInitialConfig().background?.color).toBe(DEFAULT_LAB_ENGINE_CONFIG.background.color);
+
+    clearStickyBackgroundColor();
+    expect(loadStickyBackgroundColor()).toBeNull();
   });
 
   it("import-pristine flag is one-shot", () => {

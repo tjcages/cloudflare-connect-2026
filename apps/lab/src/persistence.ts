@@ -12,24 +12,19 @@ import {
 import type { ConnectShaderParams } from "./connectShader";
 import { normalizeShaderViewState } from "./shaderView";
 
-const NEW_KEY = "stripes-engine-lab"; // legacy: single global config (pre per-texture)
-const OLD_KEY = "section-grid-playground"; // legacy v0
-const MAP_KEY = "stripes-engine-lab-by-texture"; // per-texture configs, keyed by texture id
-const LAST_KEY = "stripes-engine-lab-last-config"; // global fallback for newly selected/uploaded textures
-const LAST_BACKGROUND_COLOR_KEY = "stripes-engine-lab-last-background-color"; // sticky across textures
-const OLD_USER_BACKGROUND_COLOR_KEY = "stripes-engine-lab-user-background-color"; // pre-transparent picker choice
-const USER_BACKGROUND_COLOR_KEY = "stripes-engine-lab-user-background-color-v2"; // explicit picker/library choice
+const MAP_KEY = "stripes-engine-lab-by-texture";
+const LAST_KEY = "stripes-engine-lab-last-config";
+const LAST_BACKGROUND_COLOR_KEY = "stripes-engine-lab-last-background-color";
 const LAB_SETTINGS_KEY = "stripes-engine-lab-ui-settings";
 const TEXTURE_KEY = "stripes-engine-lab-texture";
 const CONFIG_FILE_KIND = "stripes-engine-lab-settings";
 const CONFIG_FILE_VERSION = 2;
 const WINDOW_NAME_STATE_KEY = "__stripesEngineLab";
 const BACKGROUND_QUERY_PARAM = "bg";
+const PENDING_CONFIG_KEY = "stripes-engine-lab-pending-config";
 
-/** Blocks localStorage writes after factory reset until the page reloads. */
 let persistenceWritesEnabled = true;
 
-/** Test helper — re-enables writes after factoryResetSettings() freezes them. */
 export function resumePersistenceWritesForTests(): void {
   persistenceWritesEnabled = true;
 }
@@ -51,7 +46,6 @@ export type LabSettings = {
   canvasAspectLocked: boolean;
   exportStartSec: number;
   exportDurationSec: number;
-  /** When true, SVG export includes solid/engine-gradient fill behind stripes (Connect underlay always exports when active). */
   exportSvgIncludeBackground: boolean;
   backgroundColor: number | null;
   textureId: string | null;
@@ -108,40 +102,9 @@ function isConfigFile(value: unknown): value is ConfigFile {
   return record.kind === CONFIG_FILE_KIND && typeof record.config === "object" && record.config !== null;
 }
 
-function loadConfigMap(): Record<string, Partial<EngineConfig>> {
-  try {
-    const raw = localStorage.getItem(MAP_KEY);
-    if (raw) return JSON.parse(raw) as Record<string, Partial<EngineConfig>>;
-  } catch {
-    /* ignore corrupt storage */
-  }
-  return {};
-}
-
-function loadLastConfig(): Partial<EngineConfig> | null {
-  try {
-    const raw = localStorage.getItem(LAST_KEY);
-    return raw ? (JSON.parse(raw) as Partial<EngineConfig>) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveLastConfig(c: Partial<EngineConfig>): void {
-  try {
-    localStorage.setItem(LAST_KEY, JSON.stringify(c));
-  } catch {
-    /* ignore quota errors */
-  }
-}
-
 function normalizeColor(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return Math.max(0, Math.min(0xffffff, Math.round(value)));
-}
-
-function isLegacyDefaultBackgroundFallback(color: number | null): boolean {
-  return color === DEFAULT_LAB_ENGINE_CONFIG.background.color || color === 0xffffff;
 }
 
 function normalizeString(value: unknown): string | null {
@@ -266,10 +229,6 @@ function clearUrlBackgroundColor(): void {
   }
 }
 
-// Cookie/window.name mirroring is disabled: localhost cookies are shared across
-// every port and tab, so one stale lab tab could re-poison all other sessions.
-// localStorage is the single source of truth; reads report empty and writes
-// scrub any legacy value left behind by older builds.
 function deleteCookie(key: string): void {
   if (typeof document === "undefined") return;
   document.cookie = `${encodeURIComponent(key)}=; path=/; max-age=0; SameSite=Lax`;
@@ -288,150 +247,50 @@ function clearWindowNameState(): void {
   }
 }
 
-function loadStoredLabBackgroundColor(): number | null {
+function clearPersistedEngineConfig(): void {
   try {
-    const labRaw = localStorage.getItem(LAB_SETTINGS_KEY);
-    if (!labRaw) return null;
-    const lab = JSON.parse(labRaw) as Partial<LabSettings>;
-    const color = normalizeColor(lab.backgroundColor);
-    return isLegacyDefaultBackgroundFallback(color) ? null : color;
+    localStorage.removeItem(MAP_KEY);
+    localStorage.removeItem(LAST_KEY);
+    localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
+  } catch {
+    /* ignore */
+  }
+  clearUrlBackgroundColor();
+  deleteCookie(LAST_BACKGROUND_COLOR_KEY);
+  clearWindowNameState();
+}
+
+function readPendingConfig(): Partial<EngineConfig> | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_CONFIG_KEY);
+    sessionStorage.removeItem(PENDING_CONFIG_KEY);
+    return raw ? (JSON.parse(raw) as Partial<EngineConfig>) : null;
   } catch {
     return null;
   }
 }
 
-function loadStoredDirectBackgroundColor(): number | null {
-  try {
-    const userRaw = localStorage.getItem(USER_BACKGROUND_COLOR_KEY);
-    const userColor = userRaw == null ? null : normalizeColor(Number(userRaw));
-    if (userColor !== null) return userColor;
-  } catch {
-    /* try legacy sticky fallbacks */
-  }
-  try {
-    const raw = localStorage.getItem(LAST_BACKGROUND_COLOR_KEY);
-    const color = raw == null ? null : normalizeColor(Number(raw));
-    if (color !== null && !isLegacyDefaultBackgroundFallback(color)) return color;
-  } catch {
-    /* try cookie fallback */
-  }
-  deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-  clearWindowNameState();
-  return null;
-}
-
-function loadLastBackgroundColor(): number | null {
-  const directColor = loadStoredDirectBackgroundColor();
-  const labColor = loadStoredLabBackgroundColor();
-  const defaultColor = DEFAULT_LAB_ENGINE_CONFIG.background.color;
-
-  if (directColor !== null && (directColor !== defaultColor || labColor === null || labColor === defaultColor)) {
-    return directColor;
-  }
-  if (labColor !== null) return labColor;
-  if (directColor !== null) return directColor;
-  return null;
-}
-
-export function loadStickyBackgroundColor(): number | null {
-  return loadLastBackgroundColor();
-}
-
-function saveLastBackgroundColor(c: Partial<EngineConfig>): void {
-  if (c.background?.transparent) return;
-  const color = normalizeColor(c.background?.color);
-  if (color === null) return;
-  const existing = loadLastBackgroundColor();
-  const defaultColor = DEFAULT_LAB_ENGINE_CONFIG.background.color;
-  if (color === defaultColor && existing !== null && existing !== defaultColor) return;
-  try {
-    const next = normalizeLabSettings({ ...loadLabSettings(), backgroundColor: color });
-    localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(next));
-    localStorage.setItem(LAST_BACKGROUND_COLOR_KEY, String(color));
-    clearUrlBackgroundColor();
-    deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-    clearWindowNameState();
-  } catch {
-    clearUrlBackgroundColor();
-    deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-    clearWindowNameState();
-  }
-}
-
-function withStickyBackgroundColor(c: Partial<EngineConfig>): Partial<EngineConfig> {
-  const stickyColor = loadLastBackgroundColor();
-  const configColor = normalizeColor(c.background?.color);
-  const defaultColor = DEFAULT_LAB_ENGINE_CONFIG.background.color;
-  if (stickyColor === null) {
-    if (configColor !== null && configColor !== defaultColor && c.background?.transparent === false) {
-      saveLastBackgroundColor(c);
-    }
-    return c;
-  }
-  const color =
-    stickyColor === defaultColor && configColor !== null && configColor !== defaultColor ? configColor : stickyColor;
-  if (color !== stickyColor)
-    saveLastBackgroundColor({ background: { ...DEFAULT_LAB_ENGINE_CONFIG.background, color } });
-  return {
-    ...c,
-    background: {
-      ...DEFAULT_LAB_ENGINE_CONFIG.background,
-      ...(c.background ?? {}),
-      color,
-      transparent: false,
-    },
-  };
-}
-
-export function loadInitialConfig(textureId: string): Partial<EngineConfig> {
-  try {
-    const map = loadConfigMap();
-    if (textureId in map) return withStickyBackgroundColor(map[textureId] ?? {});
-    const last = loadLastConfig();
-    if (last) return withStickyBackgroundColor(last);
-    // Before any per-texture config exists, migrate the legacy single config
-    // onto whichever texture loads first (the persisted / last-selected one).
-    if (Object.keys(map).length === 0) {
-      const fresh = localStorage.getItem(NEW_KEY);
-      if (fresh) return withStickyBackgroundColor(JSON.parse(fresh) as Partial<EngineConfig>);
-      const legacy = localStorage.getItem(OLD_KEY);
-      if (legacy) return withStickyBackgroundColor(migrateLegacyConfig(JSON.parse(legacy)));
-    }
-  } catch {
-    /* ignore corrupt storage */
-  }
-  return withStickyBackgroundColor(DEFAULT_LAB_ENGINE_CONFIG);
-}
-
-export function saveConfig(
-  textureId: string,
-  c: EngineConfig,
-  options: { updateStickyBackground?: boolean } = {},
-): void {
+export function stagePendingConfig(config: Partial<EngineConfig>): void {
   if (!persistenceWritesEnabled) return;
   try {
-    const map = loadConfigMap();
-    const config = c;
-    map[textureId] = config;
-    localStorage.setItem(MAP_KEY, JSON.stringify(map));
-    saveLastConfig(config);
-    if (options.updateStickyBackground !== false) saveLastBackgroundColor(config);
+    sessionStorage.setItem(PENDING_CONFIG_KEY, JSON.stringify(config));
   } catch {
     /* ignore quota errors */
   }
 }
 
-export function deleteConfig(textureId: string): void {
-  try {
-    const map = loadConfigMap();
-    if (textureId in map) {
-      delete map[textureId];
-      localStorage.setItem(MAP_KEY, JSON.stringify(map));
-    }
-  } catch {
-    /* ignore */
-  }
+export function loadInitialConfig(): Partial<EngineConfig> {
+  clearPersistedEngineConfig();
+  return readPendingConfig() ?? DEFAULT_LAB_ENGINE_CONFIG;
 }
+
+export function loadStickyBackgroundColor(): number | null {
+  return null;
+}
+
+export function saveStickyBackgroundColor(_color: number): void {}
+
+export function clearStickyBackgroundColor(): void {}
 
 export function loadTextureId(): string | null {
   try {
@@ -557,9 +416,7 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
 export function loadLabSettings(): LabSettings {
   try {
     const raw = localStorage.getItem(LAB_SETTINGS_KEY);
-    const normalized = normalizeLabSettings(raw ? (JSON.parse(raw) as Partial<LabSettings>) : {});
-    const stickyBackground = loadLastBackgroundColor();
-    return stickyBackground === null ? normalized : { ...normalized, backgroundColor: stickyBackground };
+    return normalizeLabSettings(raw ? (JSON.parse(raw) as Partial<LabSettings>) : {});
   } catch {
     return DEFAULT_LAB_SETTINGS;
   }
@@ -568,76 +425,10 @@ export function loadLabSettings(): LabSettings {
 export function saveLabSettings(settings: Partial<LabSettings>): void {
   if (!persistenceWritesEnabled) return;
   try {
-    const existingBackground = loadLastBackgroundColor();
-    const incomingBackground = normalizeColor(settings.backgroundColor);
-    const hasExplicitBackgroundSetting = Object.prototype.hasOwnProperty.call(settings, "backgroundColor");
     const next = normalizeLabSettings({ ...loadLabSettings(), ...settings });
-    const shouldPreserveExistingBackground =
-      isLegacyDefaultBackgroundFallback(incomingBackground) &&
-      existingBackground !== null &&
-      !isLegacyDefaultBackgroundFallback(existingBackground);
-    if (shouldPreserveExistingBackground) next.backgroundColor = existingBackground;
     localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(next));
-    if (next.backgroundColor === null) {
-      localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
-      if (hasExplicitBackgroundSetting) {
-        localStorage.removeItem(USER_BACKGROUND_COLOR_KEY);
-        localStorage.removeItem(OLD_USER_BACKGROUND_COLOR_KEY);
-      }
-      clearUrlBackgroundColor();
-      deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-      clearWindowNameState();
-    } else {
-      localStorage.setItem(LAST_BACKGROUND_COLOR_KEY, String(next.backgroundColor));
-      clearUrlBackgroundColor();
-      deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-      clearWindowNameState();
-    }
   } catch {
-    const color = normalizeColor(settings.backgroundColor);
-    if (color !== null) {
-      clearUrlBackgroundColor();
-      deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-      clearWindowNameState();
-    }
-  }
-}
-
-export function saveStickyBackgroundColor(color: number): void {
-  if (!persistenceWritesEnabled) return;
-  const normalized = normalizeColor(color);
-  if (normalized === null) return;
-  try {
-    const next = normalizeLabSettings({ ...loadLabSettings(), backgroundColor: normalized });
-    localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(next));
-    localStorage.setItem(USER_BACKGROUND_COLOR_KEY, String(normalized));
-    localStorage.setItem(LAST_BACKGROUND_COLOR_KEY, String(normalized));
-    clearUrlBackgroundColor();
-    deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-    clearWindowNameState();
-  } catch {
-    clearUrlBackgroundColor();
-    deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-    clearWindowNameState();
-  }
-}
-
-export function clearStickyBackgroundColor(): void {
-  if (!persistenceWritesEnabled) return;
-  try {
-    const next = normalizeLabSettings({ ...loadLabSettings(), backgroundColor: null });
-    next.canvasScale = DEFAULT_LAB_SETTINGS.canvasScale;
-    localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(next));
-    localStorage.removeItem(USER_BACKGROUND_COLOR_KEY);
-    localStorage.removeItem(OLD_USER_BACKGROUND_COLOR_KEY);
-    localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
-    clearUrlBackgroundColor();
-    deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-    clearWindowNameState();
-  } catch {
-    clearUrlBackgroundColor();
-    deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-    clearWindowNameState();
+    /* ignore quota errors */
   }
 }
 
@@ -646,16 +437,12 @@ export function factoryResetSettings(): void {
     localStorage.removeItem(MAP_KEY);
     localStorage.removeItem(LAST_KEY);
     localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
-    localStorage.removeItem(USER_BACKGROUND_COLOR_KEY);
-    localStorage.removeItem(OLD_USER_BACKGROUND_COLOR_KEY);
     localStorage.removeItem(LAB_SETTINGS_KEY);
-    localStorage.removeItem(NEW_KEY);
-    localStorage.removeItem(OLD_KEY);
     localStorage.removeItem(TEXTURE_KEY);
+    sessionStorage.removeItem(PENDING_CONFIG_KEY);
     clearUrlBackgroundColor();
     deleteCookie(LAST_BACKGROUND_COLOR_KEY);
     clearWindowNameState();
-    // Seed defaults, then freeze writes so in-memory controls can't resurrect sticky bg before reload.
     localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(normalizeLabSettings(DEFAULT_LAB_SETTINGS)));
   } catch {
     /* ignore */
@@ -681,28 +468,6 @@ export function consumeImportedConfigPristine(): boolean {
     return pristine;
   } catch {
     return false;
-  }
-}
-
-export function applyImportedBackgroundColor(color: number | null): void {
-  if (!persistenceWritesEnabled) return;
-  try {
-    const normalized = color === null ? null : normalizeColor(color);
-    const next = normalizeLabSettings({ ...loadLabSettings(), backgroundColor: normalized });
-    localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(next));
-    if (normalized === null) {
-      localStorage.removeItem(USER_BACKGROUND_COLOR_KEY);
-      localStorage.removeItem(OLD_USER_BACKGROUND_COLOR_KEY);
-      localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
-    } else {
-      localStorage.setItem(USER_BACKGROUND_COLOR_KEY, String(normalized));
-      localStorage.setItem(LAST_BACKGROUND_COLOR_KEY, String(normalized));
-    }
-    clearUrlBackgroundColor();
-    deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-    clearWindowNameState();
-  } catch {
-    /* ignore */
   }
 }
 

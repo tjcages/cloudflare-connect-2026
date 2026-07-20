@@ -34,6 +34,7 @@ void main() {
   vec2 c8 = floor(cid / 8.0);
   highp float clusterH = hashLane(uint(c8.y * 128.0 + c8.x), 5u);
   highp float o = clamp(dn * 0.6 + (hashLane(id, 1u) - 0.5) * 0.35 + (clusterH - 0.5) * 0.3, 0.0, 1.0);
+  o = o < 0.5 ? sqrt(0.5 * o) : 1.0 - sqrt(0.5 * (1.0 - o));
   highp float fraw = (p - uSpread * o) / max(uFlight, 1e-4);
   highp float blockV = texture(uField, cellCenter).r;
   highp float on = step(1.0, fraw);

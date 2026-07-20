@@ -25,11 +25,9 @@ import { useEngineControls } from "./controls/levaSchema";
 import { LAB_LEVA_THEME } from "./controls/levaTheme";
 import {
   DEFAULT_LAB_SETTINGS,
-  applyImportedBackgroundColor,
-  saveConfig,
+  stagePendingConfig,
   saveTextureId,
   importSettingsFile,
-  deleteConfig,
   markImportedConfigPristine,
   serializeConfigFile,
   loadLabSettings,
@@ -47,7 +45,6 @@ import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
 import { exportLabVideo } from "./export/videoExport";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
-import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
 import {
   createShaderTextureRenderer,
   DEFAULT_SHADER_TEXTURE_SOURCE,
@@ -861,7 +858,6 @@ function LabInner() {
     if (!entry || entry.origin !== "upload") return;
     saveManifest(removeUpload(manifest, entry.id));
     void deleteTextureBlob(entry.id);
-    deleteConfig(entry.id);
     saveTextureId(DEFAULT_LAB_TEXTURE_ID);
     window.location.reload();
   }
@@ -1564,7 +1560,6 @@ function LabInner() {
       ? { ...previewConfig, reveal: { ...previewConfig.reveal, enabled: false } }
       : previewConfig;
     engine.setConfig(configToApply);
-    saveConfig(textureIdRef.current, controls);
     if (manualRef.current) engine.renderFrame();
   }, [controls, backgroundSourceOpacity, labSettings.connectGradientUnderlay, shaderPresetId, textureSourceMode]);
 
@@ -1807,13 +1802,7 @@ function LabInner() {
         ? importedTextureId
         : textureIdRef.current;
     const config = normalizeEngineConfig(imported.config);
-    saveConfig(targetTextureId, config, { updateStickyBackground: false });
-    const importedBackgroundColor = imported.lab
-      ? imported.lab.backgroundColor
-      : config.background.transparent
-        ? null
-        : config.background.color;
-    applyImportedBackgroundColor(importedBackgroundColor);
+    stagePendingConfig(config);
     markImportedConfigPristine();
     if (imported.lab) {
       saveLabSettings(imported.lab);
@@ -1856,8 +1845,6 @@ function LabInner() {
 
   function handleResetSettings() {
     if (!window.confirm("Reset settings for this texture?")) return;
-    deleteConfig(textureIdRef.current);
-    saveConfig(textureIdRef.current, DEFAULT_LAB_ENGINE_CONFIG, { updateStickyBackground: false });
     saveLabSettings({ ...DEFAULT_LAB_SETTINGS, backgroundColor: labSettingsRef.current.backgroundColor });
     saveTextureId(textureIdRef.current);
     window.location.reload();
@@ -1896,7 +1883,7 @@ function LabInner() {
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
     const targetTextureId = textureIdRef.current;
-    saveConfig(targetTextureId, normalizeEngineConfig(preset.config));
+    stagePendingConfig(normalizeEngineConfig(preset.config));
     if (preset.lab) {
       saveLabSettings({ ...preset.lab, textureId: targetTextureId });
       saveControlDrawerSnapshot(preset.lab.drawerOpen);
@@ -1936,7 +1923,7 @@ function LabInner() {
       return;
     }
     saveManifest(addUpload(loadManifest(), { id, label: file.name, kind, defaultScale: 1, createdAt: Date.now() }));
-    saveConfig(id, controlsRef.current);
+    stagePendingConfig(controlsRef.current);
     saveTextureId(id);
     window.location.reload();
   }

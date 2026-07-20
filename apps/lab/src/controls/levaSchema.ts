@@ -388,7 +388,7 @@ export function useEngineControls(
     return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;
   }, [initialLabSettings.textureId]);
   const d = useMemo(() => {
-    const loaded = normalizeEngineConfig(loadInitialConfig(initialTextureId));
+    const loaded = normalizeEngineConfig(loadInitialConfig());
     const importedPristine = consumeImportedConfigPristine();
     const upgraded = importedPristine ? loaded : upgradeDefaultStripes(loaded);
     const fitUpgraded =
