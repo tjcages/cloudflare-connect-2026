@@ -1429,6 +1429,9 @@ function LabInner() {
 
     const tryFit = () => {
       if (hasAutoFittedPreviewZoomRef.current) return;
+      const finalSizeKnown =
+        labSettingsRef.current.canvasMode === "manual" || (sourceSizeRef.current.w > 0 && sourceSizeRef.current.h > 0);
+      if (!finalSizeKnown) return;
       if (!hasStoredPreviewZoomRef.current && !fitPreviewZoomToViewport()) return;
       hasAutoFittedPreviewZoomRef.current = true;
       window.requestAnimationFrame(() => {
