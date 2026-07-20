@@ -268,47 +268,71 @@ describe("vortex motion", () => {
   });
 });
 
-describe("vortex bits", () => {
-  const bitsConfig = () =>
+describe("vortex bits (global snakes)", () => {
+  const bitsConfig = (o = {}) =>
     normalizeFlames({
       enabled: true,
       direction: "vortexBits",
-      maxActive: 20,
-      swirlRate: 3,
-      speedVariation: 0,
       opacityMin: 1,
       opacityMax: 1,
-    });
+      bits: { maxInstances: 10, tailMin: 5, tailMax: 5, ...o },
+    } as never);
 
-  it("scatters pivots across the canvas instead of the center", () => {
+  it("emits snakes, not single bars", () => {
     const state = createFlamesState(seededRandom());
     stepFlames(state, bitsConfig(), DISPLAY, 1);
-    const pivots = new Set(state.flames.map((f) => `${Math.round(f.pivotX)},${Math.round(f.pivotY)}`));
-    expect(pivots.size).toBeGreaterThan(5);
+    expect(state.flames.length).toBeGreaterThan(0);
+    state.flames.forEach((f) => expect(f.segCount).toBe(5));
   });
 
-  it("keeps each bit at a constant orbit radius", () => {
+  it("shares one global pivot at the canvas centre", () => {
     const state = createFlamesState(seededRandom());
-    const config = bitsConfig();
+    stepFlames(state, bitsConfig(), DISPLAY, 1);
+    const cx = DISPLAY.width / 2;
+    const cy = DISPLAY.height / 2;
+    state.flames.forEach((f) => {
+      expect(f.pivotX).toBeCloseTo(cx, 5);
+      expect(f.pivotY).toBeCloseTo(cy, 5);
+    });
+  });
+
+  it("spreads snakes across distinct orbit radii", () => {
+    const state = createFlamesState(seededRandom());
+    stepFlames(state, bitsConfig(), DISPLAY, 1);
+    const radii = new Set(state.flames.map((f) => Math.round(f.radius)));
+    expect(radii.size).toBeGreaterThan(3);
+  });
+
+  it("caps by snake instances", () => {
+    const state = createFlamesState(seededRandom());
+    stepFlames(state, bitsConfig({ maxInstances: 4, tailMin: 6, tailMax: 6 }), DISPLAY, 1);
+    expect(state.flames.length).toBe(24);
+  });
+
+  it("tapers head to tail", () => {
+    const state = createFlamesState(seededRandom());
+    stepFlames(state, bitsConfig(), DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames.filter((f) => f.radius === head.radius).sort((a, b) => a.segIndex - b.segIndex);
+    expect(mates[mates.length - 1].width).toBeLessThan(head.width);
+  });
+
+  it("drifts radially so the population reads as a spiral", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ lifeMinMs: 9000, lifeMaxMs: 9000 });
     stepFlames(state, config, DISPLAY, 1);
     const before = state.flames[0].radius;
-    stepFlames(state, config, DISPLAY, 201);
-    expect(state.flames[0].radius).toBeCloseTo(before);
+    stepFlames(state, config, DISPLAY, 600);
+    expect(state.flames[0].radius).not.toBeCloseTo(before, 3);
   });
 
-  it("fades in from zero and expires after its lifetime", () => {
+  it("expires a whole snake together", () => {
     const state = createFlamesState(seededRandom());
-    const config = bitsConfig();
+    const config = bitsConfig({ lifeMinMs: 300, lifeMaxMs: 300, intervalMinMs: 5000, intervalMaxMs: 5000 });
     stepFlames(state, config, DISPLAY, 1);
-    const bit = state.flames[0];
-    bit.bornMs = 0;
-    bit.lifeMs = 1000;
-    stepFlames(state, config, DISPLAY, 2);
-    expect(state.flames[0].opacity).toBeLessThan(state.flames[0].baseOpacity);
-
-    const identity = state.flames[0];
-    stepFlames(state, config, DISPLAY, 5001);
-    expect(state.flames).not.toContain(identity);
+    expect(state.flames.length).toBeGreaterThan(0);
+    stepFlames(state, config, DISPLAY, 4000);
+    expect(state.flames.length).toBe(0);
   });
 });
 

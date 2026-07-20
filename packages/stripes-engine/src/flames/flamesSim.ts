@@ -1,4 +1,4 @@
-import type { FlamesConfig, FlamesDirection } from "../config/types";
+import type { FlamesConfig, FlamesDirection, FlamesSnakeConfig } from "../config/types";
 import { lerp } from "../core/math";
 
 export interface Flame {
@@ -59,6 +59,10 @@ export function isVerticalFlamesDirection(d: FlamesDirection): boolean {
 
 export function isVortexFlamesDirection(d: FlamesDirection): boolean {
   return d === "vortex" || d === "vortexBits" || d === "vortexLines";
+}
+
+function isSnakeDirection(d: FlamesDirection): boolean {
+  return d === "vortexBits" || d === "vortexLines";
 }
 
 function vortexMaxRadius(displayWidth: number, displayHeight: number): number {
@@ -235,55 +239,56 @@ function placeVortexFlame(
   applyVortexTransform(flame);
 }
 
-function placeVortexBit(
-  flame: Flame,
-  config: FlamesConfig,
-  displayWidth: number,
-  displayHeight: number,
-  random: () => number,
-  nowMs: number,
-  seeded: boolean,
-): void {
-  flame.pivotX = random() * displayWidth;
-  flame.pivotY = random() * displayHeight;
-  flame.angle = random() * Math.PI * 2;
-  flame.radius = flame.width;
-  flame.radialSign = 0;
-  flame.angVel = config.swirlRate * (random() < 0.5 ? -1 : 1) * (1 + (random() - 0.5) * config.speedVariation);
-  flame.lifeMs = randomBetween(random, 600, 1800);
-  flame.bornMs = seeded ? nowMs - random() * flame.lifeMs : nowMs;
-  applyVortexTransform(flame);
-}
-
 const SNAKE_SEG_ARC = 0.16;
 const SNAKE_SEG_OVERLAP = 1.15;
 
 function emitVortexSnake(
   state: FlamesState,
   config: FlamesConfig,
+  snake: FlamesSnakeConfig,
+  global: boolean,
   displayWidth: number,
   displayHeight: number,
   nowMs: number,
   seeded: boolean,
 ): Flame[] {
-  const lines = config.lines;
-  const segCount = Math.round(randomBetween(state.random, lines.tailMin, lines.tailMax));
-  const scale = randomBetween(state.random, lines.scaleMin, lines.scaleMax) * displayWidth;
-  const radius = scale;
+  const segCount = Math.round(randomBetween(state.random, snake.tailMin, snake.tailMax));
+  const scale = randomBetween(state.random, snake.scaleMin, snake.scaleMax) * displayWidth;
+  const thickness = Math.max(1, scale * snake.thickness);
+  const lifeMs = randomBetween(state.random, snake.lifeMinMs, snake.lifeMaxMs);
+  const spin = state.random() < 0.5 ? -1 : 1;
+
+  let pivotX: number;
+  let pivotY: number;
+  let radius: number;
+  let radialSign: number;
+  let angVel: number;
+  if (global) {
+    const rMax = vortexMaxRadius(displayWidth, displayHeight);
+    const rMin = rMax * VORTEX_CORE_RATIO;
+    const u = state.random();
+    pivotX = displayWidth * 0.5;
+    pivotY = displayHeight * 0.5;
+    radius = Math.sqrt(rMin * rMin + u * (rMax * rMax - rMin * rMin));
+    radialSign = config.inward ? -1 : 1;
+    angVel = randomBetween(state.random, snake.speedMin, snake.speedMax) * (config.inward ? -1 : 1);
+  } else {
+    pivotX = state.random() * displayWidth;
+    pivotY = state.random() * displayHeight;
+    radius = scale;
+    radialSign = 0;
+    angVel = spin * randomBetween(state.random, snake.speedMin, snake.speedMax);
+  }
+
   const segArc = SNAKE_SEG_ARC;
   const headWidth = Math.max(1, radius * segArc * SNAKE_SEG_OVERLAP);
-  const thickness = Math.max(1, scale * lines.thickness);
-  const pivotX = state.random() * displayWidth;
-  const pivotY = state.random() * displayHeight;
   const headAngle = state.random() * Math.PI * 2;
-  const spin = state.random() < 0.5 ? -1 : 1;
-  const angVel = spin * randomBetween(state.random, lines.speedMin, lines.speedMax);
-  const lifeMs = randomBetween(state.random, lines.lifeMinMs, lines.lifeMaxMs);
   const bornMs = seeded ? nowMs - state.random() * lifeMs : nowMs;
   const baseOpacity = randomBetween(state.random, config.opacityMin, config.opacityMax);
   const colorSeed = flameColorSeed(headWidth, thickness, Math.abs(angVel), baseOpacity);
 
   const segments: Flame[] = [];
+  const dirSign = Math.sign(angVel);
   for (let i = 0; i < segCount; i++) {
     const along = 1 - i / segCount;
     const flame: Flame = {
@@ -291,17 +296,17 @@ function emitVortexSnake(
       y: 0,
       width: Math.max(1, headWidth * along),
       height: Math.max(1, thickness * along),
-      speedPxPerSec: 0,
+      speedPxPerSec: global ? Math.abs(angVel) * radius * 0.06 : 0,
       opacity: baseOpacity * along,
       colorSeed,
-      direction: "vortexLines",
+      direction: global ? "vortexBits" : "vortexLines",
       rot: 0,
       pivotX,
       pivotY,
       radius,
-      angle: headAngle - spin * i * segArc,
+      angle: headAngle - dirSign * i * segArc,
       angVel,
-      radialSign: 0,
+      radialSign,
       baseOpacity: baseOpacity * along,
       bornMs,
       lifeMs,
@@ -325,18 +330,10 @@ function smoothstep01(x: number): number {
   return c * c * (3 - 2 * c);
 }
 
-function spawnFlame(
-  state: FlamesState,
-  config: FlamesConfig,
-  displayWidth: number,
-  displayHeight: number,
-  nowMs: number,
-): Flame {
+function spawnFlame(state: FlamesState, config: FlamesConfig, displayWidth: number, displayHeight: number): Flame {
   const direction = pickFlameDirection(state, config.direction);
   const flame = createFlame(state, config, displayWidth, displayHeight, direction);
-  if (flame.direction === "vortexBits") {
-    placeVortexBit(flame, config, displayWidth, displayHeight, state.random, nowMs, false);
-  } else if (flame.direction === "vortex") {
+  if (flame.direction === "vortex") {
     placeVortexFlame(flame, config, displayWidth, displayHeight, state.random, false);
   } else {
     placeSpawnedFlame(flame, flame.direction, displayWidth, displayHeight);
@@ -355,9 +352,11 @@ function seedFlames(
     return;
   }
 
-  if (config.direction === "vortexLines") {
-    for (let i = 0; i < config.lines.maxInstances; i++) {
-      state.flames.push(...emitVortexSnake(state, config, displayWidth, displayHeight, nowMs, true));
+  if (isSnakeDirection(config.direction)) {
+    const snake = config.direction === "vortexBits" ? config.bits : config.lines;
+    const global = config.direction === "vortexBits";
+    for (let i = 0; i < snake.maxInstances; i++) {
+      state.flames.push(...emitVortexSnake(state, config, snake, global, displayWidth, displayHeight, nowMs, true));
     }
     return;
   }
@@ -365,9 +364,7 @@ function seedFlames(
   for (let i = 0; i < config.maxActive; i++) {
     const direction = pickFlameDirection(state, config.direction);
     const flame = createFlame(state, config, displayWidth, displayHeight, direction);
-    if (flame.direction === "vortexBits") {
-      placeVortexBit(flame, config, displayWidth, displayHeight, state.random, nowMs, true);
-    } else if (flame.direction === "vortex") {
+    if (flame.direction === "vortex") {
       placeVortexFlame(flame, config, displayWidth, displayHeight, state.random, true);
     } else {
       placeSeededFlame(flame, flame.direction, displayWidth, displayHeight, state.random);
@@ -444,6 +441,7 @@ export function stepFlames(
         break;
       }
       case "vortexBits": {
+        flame.radius += flame.radialSign * flame.speedPxPerSec * dtSec;
         flame.angle += flame.angVel * dtSec;
         applyVortexTransform(flame);
         const t = flame.lifeMs > 0 ? (nowMs - flame.bornMs) / flame.lifeMs : 1;
@@ -462,23 +460,25 @@ export function stepFlames(
 
   state.flames = state.flames.filter((flame) => isFlameVisible(flame, display, nowMs));
 
-  const isLines = config.direction === "vortexLines";
+  const isSnake = isSnakeDirection(config.direction);
 
-  if (!isLines && state.flames.length > config.maxActive) {
+  if (!isSnake && state.flames.length > config.maxActive) {
     state.flames.length = config.maxActive;
   }
 
-  const spawnInterval = isLines
-    ? randomBetween(state.random, config.lines.intervalMinMs, config.lines.intervalMaxMs)
+  const snake = config.direction === "vortexBits" ? config.bits : config.lines;
+  const spawnInterval = isSnake
+    ? randomBetween(state.random, snake.intervalMinMs, snake.intervalMaxMs)
     : config.spawnIntervalMs + randomBetween(state.random, -config.spawnJitterMs, config.spawnJitterMs);
-  const atCapacity = isLines
-    ? new Set(state.flames.map((f) => `${f.pivotX},${f.pivotY}`)).size >= config.lines.maxInstances
+  const atCapacity = isSnake
+    ? state.flames.filter((f) => f.segIndex === 0).length >= snake.maxInstances
     : state.flames.length >= config.maxActive;
   if (!atCapacity && nowMs - state.lastSpawnMs >= spawnInterval) {
-    if (isLines) {
-      state.flames.push(...emitVortexSnake(state, config, display.width, display.height, nowMs, false));
+    if (isSnake) {
+      const global = config.direction === "vortexBits";
+      state.flames.push(...emitVortexSnake(state, config, snake, global, display.width, display.height, nowMs, false));
     } else {
-      state.flames.push(spawnFlame(state, config, display.width, display.height, nowMs));
+      state.flames.push(spawnFlame(state, config, display.width, display.height));
     }
     state.lastSpawnMs = nowMs;
   }
