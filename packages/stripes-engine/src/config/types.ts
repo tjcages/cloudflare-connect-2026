@@ -184,6 +184,8 @@ export interface FlamesSnakeConfig {
   lifeMinMs: number;
   lifeMaxMs: number;
   maxInstances: number;
+  waveAmp: number;
+  waveFreq: number;
 }
 
 export type FlamesLinesConfig = FlamesSnakeConfig;

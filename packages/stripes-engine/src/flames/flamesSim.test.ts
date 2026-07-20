@@ -428,6 +428,53 @@ describe("vortex bits (global snakes)", () => {
     expect(radiusSpread).toBeGreaterThan(2);
     expect(widthSpread).toBeLessThan(1.05);
   });
+
+  it("undulates: segments deviate from a constant orbit radius", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 12, tailMax: 12, waveAmp: 0.6, waveFreq: 2 });
+    stepFlames(state, config, DISPLAY, 1);
+    stepFlames(state, config, DISPLAY, 40);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames.filter((f) => f.baseRadius === head.baseRadius).sort((a, b) => a.segIndex - b.segIndex);
+    const radii = mates.map((m) => m.radius);
+    const spread = Math.max(...radii) - Math.min(...radii);
+    expect(spread).toBeGreaterThan(1);
+  });
+
+  it("waveAmp 0 gives a constant-radius arc", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 10, tailMax: 10, waveAmp: 0 });
+    stepFlames(state, config, DISPLAY, 1);
+    stepFlames(state, config, DISPLAY, 40);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames.filter((f) => f.baseRadius === head.baseRadius);
+    const radii = mates.map((m) => m.radius);
+    expect(Math.max(...radii) - Math.min(...radii)).toBeLessThan(0.001);
+  });
+
+  it("the undulation animates over time", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 10, tailMax: 10, waveAmp: 0.6, lifeMinMs: 20000, lifeMaxMs: 20000 });
+    stepFlames(state, config, DISPLAY, 1);
+    stepFlames(state, config, DISPLAY, 40);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const key = head.bornMs;
+    const before = state.flames.filter((f) => f.bornMs === key).map((f) => f.radius);
+    stepFlames(state, config, DISPLAY, 240);
+    const after = state.flames.filter((f) => f.bornMs === key).map((f) => f.radius);
+    expect(after.some((v, i) => Math.abs(v - before[i]) > 0.5)).toBe(true);
+  });
+
+  it("keeps the angular step per segment small enough to read as a curve", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 10, tailMax: 10, scaleMin: 0.06, scaleMax: 0.06 });
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames.filter((f) => f.baseRadius === head.baseRadius).sort((a, b) => a.segIndex - b.segIndex);
+    for (let i = 1; i < mates.length; i++) {
+      expect(Math.abs(mates[i].angle - mates[i - 1].angle)).toBeLessThan(0.12);
+    }
+  });
 });
 
 describe("vortex lines", () => {

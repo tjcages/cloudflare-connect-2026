@@ -377,6 +377,14 @@ describe("flames normalizer", () => {
     expect(normalizeFlames({ direction: "left" }).direction).toBe("left");
     expect(normalizeFlames({ direction: "right" }).direction).toBe("right");
   });
+  it("defaults and clamps the wave knobs", () => {
+    const f = normalizeFlames({});
+    expect(f.bits.waveAmp).toBeCloseTo(0.35);
+    expect(f.bits.waveFreq).toBeCloseTo(2.2);
+    expect(normalizeFlames({ bits: { waveAmp: 9 } } as never).bits.waveAmp).toBe(1);
+    expect(normalizeFlames({ bits: { waveAmp: -3 } } as never).bits.waveAmp).toBe(0);
+    expect(normalizeFlames({ bits: { waveFreq: 99 } } as never).bits.waveFreq).toBe(8);
+  });
 });
 describe("edgeMask normalizer", () => {
   it("defaults to DEFAULT_EDGE_MASK when called with {}", () => {
@@ -932,8 +940,8 @@ describe("hadouken -> vortex migration", () => {
 describe("normalizeFlames lines block", () => {
   it("defaults the lines block", () => {
     const l = normalizeFlames({}).lines;
-    expect(l.tailMin).toBe(4);
-    expect(l.tailMax).toBe(10);
+    expect(l.tailMin).toBe(8);
+    expect(l.tailMax).toBe(16);
     expect(l.speedMin).toBeCloseTo(0.6);
     expect(l.speedMax).toBeCloseTo(2.4);
     expect(l.maxInstances).toBe(18);
@@ -976,16 +984,16 @@ describe("normalizeFlames lines block", () => {
 describe("normalizeFlames bits block", () => {
   it("defaults the bits block independently of lines", () => {
     const f = normalizeFlames({});
-    expect(f.bits.tailMin).toBe(3);
-    expect(f.bits.tailMax).toBe(7);
+    expect(f.bits.tailMin).toBe(6);
+    expect(f.bits.tailMax).toBe(12);
     expect(f.bits.maxInstances).toBe(26);
-    expect(f.lines.tailMin).toBe(4);
+    expect(f.lines.tailMin).toBe(8);
   });
 
   it("keeps bits and lines independent", () => {
     const f = normalizeFlames({ bits: { tailMin: 9, tailMax: 9 } } as never);
     expect(f.bits.tailMin).toBe(9);
-    expect(f.lines.tailMin).toBe(4);
+    expect(f.lines.tailMin).toBe(8);
   });
 
   it("orders every bits min/max pair", () => {

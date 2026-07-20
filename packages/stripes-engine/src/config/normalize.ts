@@ -428,8 +428,8 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
 }
 
 export const DEFAULT_FLAMES_LINES: FlamesSnakeConfig = {
-  tailMin: 4,
-  tailMax: 10,
+  tailMin: 8,
+  tailMax: 16,
   scaleMin: 0.04,
   scaleMax: 0.11,
   thickness: 0.16,
@@ -440,11 +440,13 @@ export const DEFAULT_FLAMES_LINES: FlamesSnakeConfig = {
   lifeMinMs: 900,
   lifeMaxMs: 2200,
   maxInstances: 18,
+  waveAmp: 0.25,
+  waveFreq: 1.8,
 };
 
 export const DEFAULT_FLAMES_BITS: FlamesSnakeConfig = {
-  tailMin: 3,
-  tailMax: 7,
+  tailMin: 6,
+  tailMax: 12,
   scaleMin: 0.02,
   scaleMax: 0.06,
   thickness: 0.14,
@@ -455,6 +457,8 @@ export const DEFAULT_FLAMES_BITS: FlamesSnakeConfig = {
   lifeMinMs: 1400,
   lifeMaxMs: 3200,
   maxInstances: 26,
+  waveAmp: 0.35,
+  waveFreq: 2.2,
 };
 
 export const DEFAULT_FLAMES: FlamesConfig = {
@@ -520,6 +524,8 @@ function normalizeFlamesSnake(i: Partial<FlamesSnakeConfig> = {}, fallback: Flam
     lifeMinMs,
     lifeMaxMs,
     maxInstances: clamp(Math.round(num(i.maxInstances, fallback.maxInstances)), 1, 120),
+    waveAmp: clamp(num(i.waveAmp, fallback.waveAmp), 0, 1),
+    waveFreq: clamp(num(i.waveFreq, fallback.waveFreq), 0, 8),
   };
 }
 

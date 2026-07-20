@@ -2516,6 +2516,8 @@ export function useEngineControls(
         lifeMinMs: values.flamesLinesLifeMinMs,
         lifeMaxMs: values.flamesLinesLifeMaxMs,
         maxInstances: values.flamesLinesMaxInstances,
+        waveAmp: d.flames.lines.waveAmp,
+        waveFreq: d.flames.lines.waveFreq,
       },
       bits: {
         tailMin: values.flamesBitsTailMin,
@@ -2530,6 +2532,8 @@ export function useEngineControls(
         lifeMinMs: values.flamesBitsLifeMinMs,
         lifeMaxMs: values.flamesBitsLifeMaxMs,
         maxInstances: values.flamesBitsMaxInstances,
+        waveAmp: d.flames.bits.waveAmp,
+        waveFreq: d.flames.bits.waveFreq,
       },
     },
     edgeMask: {
