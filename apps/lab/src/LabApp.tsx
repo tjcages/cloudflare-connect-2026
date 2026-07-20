@@ -98,6 +98,9 @@ const CANVAS_AREA_PADDING_PX = 48;
 const LAB_BOTTOM_BAR_HEIGHT_PX = 52;
 const SIDEBAR_WIDTH_MIN = 240;
 const SIDEBAR_WIDTH_MAX = 640;
+const WIDE_SCREEN_MIN_PX = 1800;
+const DEFAULT_SIDEBAR_WIDTH = 272;
+const WIDE_SHADER_SIDEBAR_WIDTH = 372;
 const CONTROL_DRAWER_ID_SET = new Set<string>(CONTROL_DRAWER_IDS);
 
 function clampSidebarWidth(value: number): number {
@@ -743,6 +746,17 @@ function LabInner() {
   const shaderMouseRef = useRef({ x: 0, y: 0, down: false });
   const labSettingsRef = useRef(labSettings);
   labSettingsRef.current = labSettings;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia(`(min-width: ${WIDE_SCREEN_MIN_PX}px)`).matches) return;
+    setLabSettings((prev) => {
+      if (prev.shaderSidebarWidth !== DEFAULT_SIDEBAR_WIDTH) return prev;
+      const next = { ...prev, shaderSidebarWidth: WIDE_SHADER_SIDEBAR_WIDTH };
+      saveLabSettings(next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const onFolderClick = (event: MouseEvent) => {
