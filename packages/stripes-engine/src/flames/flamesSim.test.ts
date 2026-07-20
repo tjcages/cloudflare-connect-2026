@@ -338,7 +338,27 @@ describe("vortex bits (global snakes)", () => {
     stepFlames(state, bitsConfig(), DISPLAY, 1);
     const head = state.flames.find((f) => f.segIndex === 0);
     const mates = state.flames.filter((f) => f.radius === head.radius).sort((a, b) => a.segIndex - b.segIndex);
-    expect(mates[mates.length - 1].width).toBeLessThan(head.width);
+    expect(mates[mates.length - 1].height).toBeLessThan(head.height);
+  });
+
+  it("keeps every segment the same length so the body has no gaps", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 12, tailMax: 12 });
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames.filter((f) => f.bornMs === head.bornMs);
+    const widths = mates.map((m) => m.width);
+    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(0.001);
+  });
+
+  it("still tapers thickness from head to tail", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 12, tailMax: 12 });
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const mates = state.flames.filter((f) => f.bornMs === head.bornMs).sort((a, b) => a.segIndex - b.segIndex);
+    expect(mates[mates.length - 1].height).toBeLessThan(mates[0].height);
+    expect(mates[mates.length - 1].height).toBeGreaterThan(0);
   });
 
   it("trails the tail opposite the spin when inward, global bits", () => {
@@ -497,7 +517,7 @@ describe("vortex lines", () => {
     expect(mates.length).toBe(head.segCount);
   });
 
-  it("tapers width and opacity from head to tail", () => {
+  it("tapers thickness and opacity from head to tail", () => {
     const state = createFlamesState(seededRandom());
     stepFlames(state, linesConfig(), DISPLAY, 1);
     stepFlames(state, linesConfig(), DISPLAY, 60);
@@ -506,7 +526,7 @@ describe("vortex lines", () => {
       .filter((f) => f.pivotX === head.pivotX && f.pivotY === head.pivotY)
       .sort((a, b) => a.segIndex - b.segIndex);
     const tail = mates[mates.length - 1];
-    expect(tail.width).toBeLessThan(head.width);
+    expect(tail.height).toBeLessThan(head.height);
     expect(tail.opacity).toBeLessThan(head.opacity);
   });
 
