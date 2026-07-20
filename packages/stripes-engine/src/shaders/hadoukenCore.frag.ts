@@ -36,16 +36,18 @@ void main() {
     return;
   }
   vec2 a = (vUv - 0.5) * vec2(uAspect, 1.0);
-  highp float r = length(a);
-  vec2 edir = r > 1e-5 ? a / r : vec2(1.0, 0.0);
-  highp float maxR = length(vec2(uAspect, 1.0)) * 0.5;
+  vec2 ea = a / vec2(1.55, 1.0);
+  highp float r = length(ea);
+  vec2 edir = r > 1e-5 ? ea / r : vec2(1.0, 0.0);
+  highp float maxR = length(vec2(uAspect / 1.55, 1.0)) * 0.5;
 
   highp float grow = smoothstep(0.0, 0.5, uCharge);
   highp float cs = smoothstep(0.42, 0.82, uCharge);
   highp float comp = cs * cs * (3.0 - 2.0 * cs);
   highp float orbR = (0.035 + 0.11 * grow) * (1.0 - 0.55 * comp);
-  highp float orbN = fbm2(edir * 3.0 + vec2(p * 1.1, 5.3)) - 0.5;
-  highp float orbRl = max(orbR * (1.0 + orbN * 0.35) * (1.0 + 0.05 * sin(p * 11.0)), 1e-3);
+  highp float oraw = fbm2(edir * 3.0 + vec2(p * 1.1, 5.3));
+  highp float orbN = (1.0 - abs(2.0 * oraw - 1.0)) - 0.5;
+  highp float orbRl = max(orbR * (1.0 + orbN * 0.55) * (1.0 + 0.05 * sin(p * 11.0)), 1e-3);
   highp float dens = 0.9 + 1.6 * comp;
   highp float orb = (exp(-(r * r) / (orbRl * orbRl * 0.25)) * dens + exp(-(r * r) / (orbRl * orbRl * 2.5)) * 0.35) * uGlow * step(0.001, uCharge);
   orb *= 1.0 - smoothstep(0.0, 0.3, uBurst);

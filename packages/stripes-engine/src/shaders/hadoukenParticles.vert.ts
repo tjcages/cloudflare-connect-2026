@@ -31,7 +31,7 @@ void main() {
     return;
   }
   vec2 startUv = vec2(hashLane(id, 2u), hashLane(id, 3u)) * 1.3 - 0.15;
-  vec2 targetUv = vec2(0.5) + (vec2(hashLane(id, 4u), hashLane(id, 5u)) - 0.5) * 0.05;
+  vec2 targetUv = vec2(0.5) + (vec2(hashLane(id, 4u), hashLane(id, 5u)) - 0.5) * vec2(0.1, 0.05);
   vec2 asp = vec2(uAspect, 1.0);
   vec2 rel = (startUv - targetUv) * asp;
   highp float rad = length(rel);
