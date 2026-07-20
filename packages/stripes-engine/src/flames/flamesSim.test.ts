@@ -310,3 +310,50 @@ describe("vortex bits", () => {
     expect(state.flames).not.toContain(identity);
   });
 });
+
+describe("vortex center density", () => {
+  it("seeds area-uniformly rather than radius-uniformly", () => {
+    const state = createFlamesState(seededRandom());
+    const config = vortexConfig({ maxActive: 400, spawnIntervalMs: 5000 });
+    stepFlames(state, config, DISPLAY, 1);
+    const rMax = 0.5 * Math.hypot(DISPLAY.width, DISPLAY.height);
+    const inner = state.flames.filter((f) => f.radius < rMax * 0.5).length;
+    const ratio = inner / state.flames.length;
+    expect(ratio).toBeGreaterThan(0.15);
+    expect(ratio).toBeLessThan(0.35);
+  });
+
+  it("never seeds a particle on top of the center", () => {
+    const state = createFlamesState(seededRandom());
+    const config = vortexConfig({ maxActive: 300, spawnIntervalMs: 5000 });
+    stepFlames(state, config, DISPLAY, 1);
+    const rMax = 0.5 * Math.hypot(DISPLAY.width, DISPLAY.height);
+    state.flames.forEach((f) => expect(f.radius).toBeGreaterThan(rMax * 0.02));
+  });
+
+  it("spawns onto a ring, not a point", () => {
+    const state = createFlamesState(seededRandom());
+    const config = vortexConfig({ maxActive: 60, spawnIntervalMs: 20, spawnJitterMs: 0 });
+    stepFlames(state, config, DISPLAY, 1);
+    const before = new Set(state.flames);
+    stepFlames(state, config, DISPLAY, 400);
+    const spawned = state.flames.filter((f) => !before.has(f));
+    const rMax = 0.5 * Math.hypot(DISPLAY.width, DISPLAY.height);
+    expect(spawned.length).toBeGreaterThan(0);
+    spawned.forEach((f) => expect(f.radius).toBeGreaterThan(rMax * 0.02));
+  });
+
+  it("fades a vortex particle in near the core", () => {
+    const state = createFlamesState(seededRandom());
+    const config = vortexConfig({ maxActive: 40, opacityMin: 1, opacityMax: 1 });
+    stepFlames(state, config, DISPLAY, 1);
+    stepFlames(state, config, DISPLAY, 40);
+    const rMax = 0.5 * Math.hypot(DISPLAY.width, DISPLAY.height);
+    const nearest = state.flames.reduce((a, b) => (a.radius < b.radius ? a : b));
+    if (nearest.radius < rMax * 0.25) {
+      expect(nearest.opacity).toBeLessThan(nearest.baseOpacity);
+    }
+    const far = state.flames.filter((f) => f.radius > rMax * 0.6);
+    far.forEach((f) => expect(f.opacity).toBeCloseTo(f.baseOpacity, 5));
+  });
+});

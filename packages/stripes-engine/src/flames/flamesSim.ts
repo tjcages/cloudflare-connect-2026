@@ -63,6 +63,10 @@ function vortexMaxRadius(displayWidth: number, displayHeight: number): number {
   return 0.5 * Math.hypot(displayWidth, displayHeight);
 }
 
+const VORTEX_CORE_RATIO = 0.06;
+const VORTEX_SPAWN_BAND = 0.04;
+const VORTEX_FADE_RATIO = 0.22;
+
 function applyVortexTransform(flame: Flame): void {
   const cx = flame.pivotX + Math.cos(flame.angle) * flame.radius;
   const cy = flame.pivotY + Math.sin(flame.angle) * flame.radius;
@@ -215,12 +219,14 @@ function placeVortexFlame(
   flame.radialSign = config.inward ? -1 : 1;
 
   const rMax = vortexMaxRadius(displayWidth, displayHeight);
+  const rMin = rMax * VORTEX_CORE_RATIO;
   if (seeded) {
-    flame.radius = randomBetween(random, 2, rMax);
+    const u = random();
+    flame.radius = Math.sqrt(rMin * rMin + u * (rMax * rMax - rMin * rMin));
   } else if (config.inward) {
     flame.radius = rMax * randomBetween(random, 1, 1.08);
   } else {
-    flame.radius = randomBetween(random, 2, 8);
+    flame.radius = rMin + rMax * VORTEX_SPAWN_BAND * random();
   }
   applyVortexTransform(flame);
 }
@@ -356,11 +362,15 @@ export function stepFlames(
       case "right":
         flame.x += flame.speedPxPerSec * dtSec;
         break;
-      case "vortex":
+      case "vortex": {
         flame.radius += flame.radialSign * flame.speedPxPerSec * dtSec;
         flame.angle += flame.angVel * dtSec;
         applyVortexTransform(flame);
+        const rMaxV = vortexMaxRadius(display.width, display.height);
+        const t = rMaxV > 0 ? flame.radius / (rMaxV * VORTEX_FADE_RATIO) : 1;
+        flame.opacity = flame.baseOpacity * smoothstep01(t);
         break;
+      }
       case "vortexBits": {
         flame.angle += flame.angVel * dtSec;
         applyVortexTransform(flame);
