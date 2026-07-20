@@ -5,7 +5,7 @@ const ALL_REVEAL_BLOCKS = {
   assembly: { staggerMs: 900, speedMaxMs: 1600 },
   turbulence: { staggerMs: 1400, speedMaxMs: 2600 },
   glitch: { staggerMs: 1200, speedMaxMs: 1400 },
-  hadouken: { staggerMs: 900, speedMaxMs: 1100 },
+  vortex: { staggerMs: 900, speedMaxMs: 1100 },
 };
 
 describe("resolveUnderlayIntroDelayMs", () => {

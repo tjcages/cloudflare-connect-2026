@@ -154,13 +154,14 @@
         "detail": 0.5,
         "glow": 0.8
       },
-      "hadouken": {
+      "vortex": {
         "speedMinMs": 300,
         "speedMaxMs": 1400,
         "staggerMs": 2600,
         "intensity": 1,
         "detail": 0.5,
-        "glow": 0.7
+        "glow": 0.7,
+        "swirl": 1
       }
     },
     "sparkle": {

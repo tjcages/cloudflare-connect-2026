@@ -171,7 +171,7 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
     },
     turbulence: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 1400, intensity: 1, detail: 0.5, glow: 0.6 },
     glitch: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
-    hadouken: {
+    vortex: {
       speedMinMs: 300,
       speedMaxMs: 1400,
       staggerMs: 2600,
