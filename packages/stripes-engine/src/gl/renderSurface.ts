@@ -18,7 +18,9 @@ export function createCanvasSurface(canvas: HTMLCanvasElement, dprOverride?: num
       return createEngineContext(canvas);
     },
     getDpr() {
-      return dprOverride ?? (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
+      if (dprOverride !== undefined) return dprOverride;
+      const dpr = (typeof window !== "undefined" ? window.devicePixelRatio : 1) ?? 1;
+      return dpr * (canvas.currentCSSZoom ?? 1);
     },
     setDpr(dpr: number) {
       dprOverride = dpr;

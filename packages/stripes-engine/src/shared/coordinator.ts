@@ -133,8 +133,8 @@ function teardownWorker(): void {
   workerMessageHandler = null;
 }
 
-function readDpr(): number {
-  return window.devicePixelRatio || 1;
+function readDpr(canvas: HTMLCanvasElement): number {
+  return (window.devicePixelRatio || 1) * (canvas.currentCSSZoom ?? 1);
 }
 
 function readSize(canvas: HTMLCanvasElement): { cssWidth: number; cssHeight: number } {
@@ -189,7 +189,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
 
   const displayCtx = canvas.getContext("2d", { colorSpace: "display-p3" });
   const { cssWidth, cssHeight } = readSize(canvas);
-  const dpr = readDpr();
+  const dpr = readDpr(canvas);
 
   post({
     type: "register",
@@ -261,7 +261,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
 
   const resizeObserver = new ResizeObserver(() => {
     const size = readSize(canvas);
-    post({ type: "resize", id, cssWidth: size.cssWidth, cssHeight: size.cssHeight, dpr: readDpr() });
+    post({ type: "resize", id, cssWidth: size.cssWidth, cssHeight: size.cssHeight, dpr: readDpr(canvas) });
   });
 
   let pointerInside = false;
