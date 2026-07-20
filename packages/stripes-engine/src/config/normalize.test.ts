@@ -806,8 +806,8 @@ describe("reveal type promotion", () => {
     });
     expect(r.hadouken).toEqual({
       speedMinMs: 300,
-      speedMaxMs: 1100,
-      staggerMs: 900,
+      speedMaxMs: 1500,
+      staggerMs: 1400,
       intensity: 1,
       detail: 0.5,
       glow: 0.7,

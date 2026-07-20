@@ -558,7 +558,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
-          const gridX = Math.round(110 + 150 * assembly.detail);
+          const gridX = Math.round(160 + 200 * assembly.detail);
           const gridY = Math.max(2, Math.round((gridX * cssH) / Math.max(1, cssW)));
           hadoukenPass.render(revealedRT, fieldRT.texture, {
             progress: rawProgress,

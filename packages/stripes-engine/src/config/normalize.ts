@@ -255,8 +255,8 @@ export const DEFAULT_REVEAL: RevealConfig = {
   glitch: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
   hadouken: {
     speedMinMs: 300,
-    speedMaxMs: 1100,
-    staggerMs: 900,
+    speedMaxMs: 1500,
+    staggerMs: 1400,
     intensity: 1,
     detail: 0.5,
     glow: 0.7,
