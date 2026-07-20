@@ -11,9 +11,7 @@ function topologyKey(cfg: EngineConfig): string {
         ? "scatter"
         : cfg.reveal.type === "hadouken"
           ? "hadouken"
-          : cfg.reveal.type === "fluid"
-            ? "fluid"
-            : "warp";
+          : "warp";
   return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}`;
 }
 
@@ -120,11 +118,11 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(detonation, hadouken)).toBe(true);
   });
 
-  it("switching fluid <-> storm triggers rebuild (fluid has its own topology kind)", () => {
-    const fluid = normalizeEngineConfig({ reveal: { enabled: true, type: "fluid" } });
-    const storm = normalizeEngineConfig({ reveal: { enabled: true, type: "storm" } });
-    expect(needsRebuild(fluid, storm)).toBe(true);
-    expect(needsRebuild(storm, fluid)).toBe(true);
+  it("fluid is an invalid type and normalizes to assembly (no topology change vs assembly)", () => {
+    const fluid = normalizeEngineConfig({ reveal: { enabled: true, type: "fluid" as never } });
+    const assembly = normalizeEngineConfig({ reveal: { enabled: true, type: "assembly" } });
+    expect(fluid.reveal.type).toBe("assembly");
+    expect(needsRebuild(fluid, assembly)).toBe(false);
   });
 
   it("turbulence <-> glitch and param changes do not trigger rebuild", () => {

@@ -188,12 +188,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
-  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "hadouken" | "fluid" => {
+  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "hadouken" => {
     if (!config.reveal.enabled) return "none";
     if (config.reveal.type === "wave") return "wave";
     if (config.reveal.type === "assembly") return "scatter";
     if (config.reveal.type === "hadouken") return "hadouken";
-    if (config.reveal.type === "fluid") return "fluid";
     return "warp";
   };
   let lastRevealKind = revealPassKind();
@@ -539,7 +538,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       );
     }
 
-    const revealEnabled = config.reveal.enabled && config.reveal.type !== "fluid";
+    const revealEnabled = config.reveal.enabled;
     let activeFieldRT = revealEnabled ? "revealedField" : "field";
     let activeColorRT = "fieldColor";
     const revealFieldPasses: Pass[] = [];
@@ -560,16 +559,13 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const avgTotal = Math.min(0.98, Math.max(0.05, (speedMin + speedMax) / 2 / dur));
           const spread = assembly.staggerMs / dur;
           const lin = Math.min(1, Math.max(0, (rawProgress - avgTotal) / Math.max(spread, 0.2)));
-          const charge = lin < 0.5 ? 2 * lin * lin : 1 - 2 * (1 - lin) * (1 - lin);
-          const chargeEnd = avgTotal + 0.82 * Math.max(spread, 0.2);
-          const burst = Math.min(1, Math.max(0, (rawProgress - chargeEnd) / 0.42));
+          const charge = lin < 0.3 ? (lin * lin) / 0.3 : 1 - ((1 - lin) * (1 - lin)) / 0.7;
           const sizePx = 6 * Math.max(0.05, assembly.intensity);
           hadoukenPass.render(revealedRT, fieldRT.texture, {
             progress: rawProgress,
             spread,
             flight: avgTotal,
             charge,
-            burst,
             count: assembly.particleCount,
             sizeUv: [sizePx / Math.max(1, cssW), sizePx / Math.max(1, cssH)],
             detail: assembly.detail,

@@ -91,8 +91,6 @@ describe("resolveRevealDurationMs", () => {
     expect(resolveRevealDurationMs(turb)).toBe(1400 + 2600);
     const hadouken = normalizeReveal({ enabled: true, type: "hadouken" });
     expect(resolveRevealDurationMs(hadouken)).toBe(900 + 1800);
-    const fluid = normalizeReveal({ enabled: true, type: "fluid" });
-    expect(resolveRevealDurationMs(fluid)).toBe(400 + 2800);
     const storm = normalizeReveal({ enabled: true, type: "storm" });
     expect(resolveRevealDurationMs(storm)).toBe(600 + 2600);
     const detonation = normalizeReveal({ enabled: true, type: "detonation" });

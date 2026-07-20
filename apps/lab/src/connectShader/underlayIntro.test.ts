@@ -6,7 +6,6 @@ const ALL_REVEAL_BLOCKS = {
   turbulence: { staggerMs: 1400, speedMaxMs: 2600 },
   glitch: { staggerMs: 2400, speedMaxMs: 900 },
   hadouken: { staggerMs: 900, speedMaxMs: 1800 },
-  fluid: { staggerMs: 400, speedMaxMs: 2800 },
   storm: { staggerMs: 600, speedMaxMs: 2600 },
   detonation: { staggerMs: 1200, speedMaxMs: 1400 },
 };
@@ -62,14 +61,6 @@ describe("resolveUnderlayIntroDelayMs", () => {
         ...ALL_REVEAL_BLOCKS,
       }),
     ).toBe(2600);
-    expect(
-      resolveUnderlayIntroDelayMs({
-        enabled: true,
-        type: "fluid",
-        wave: { durationMs: 1200 },
-        ...ALL_REVEAL_BLOCKS,
-      }),
-    ).toBe(3200);
   });
 });
 

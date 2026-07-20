@@ -21,7 +21,7 @@ highp float hashLane(highp uint i, highp uint salt) {
 void main() {
   highp uint id = uint(gl_InstanceID);
   highp float u0 = hashLane(id, 1u);
-  highp float o = u0 < 0.5 ? sqrt(0.5 * u0) : 1.0 - sqrt(0.5 * (1.0 - u0));
+  highp float o = u0 < 0.3 ? sqrt(u0 * 0.3) : 1.0 - sqrt((1.0 - u0) * 0.7);
   highp float p = max(uProgress, 0.0);
   highp float f = clamp((p - uSpread * o) / max(uFlight, 1e-4), 0.0, 1.0);
   if (f <= 0.0 || f >= 1.0) {

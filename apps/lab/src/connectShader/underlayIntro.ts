@@ -3,7 +3,7 @@ import { easeValue } from "../controls/easing";
 export const UNDERLAY_INTRO_FADE_MS = 4000;
 
 type WarpStyleLike = { staggerMs: number; speedMaxMs: number };
-type RevealTypeLike = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken" | "fluid" | "storm" | "detonation";
+type RevealTypeLike = "wave" | "assembly" | "turbulence" | "glitch" | "hadouken" | "storm" | "detonation";
 
 type RevealLike = {
   enabled: boolean;
@@ -13,7 +13,6 @@ type RevealLike = {
   turbulence: WarpStyleLike;
   glitch: WarpStyleLike;
   hadouken: WarpStyleLike;
-  fluid: WarpStyleLike;
   storm: WarpStyleLike;
   detonation: WarpStyleLike;
 };

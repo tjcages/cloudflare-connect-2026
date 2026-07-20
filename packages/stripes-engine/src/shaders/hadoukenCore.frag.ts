@@ -2,12 +2,10 @@ export const HADOUKEN_CORE_FRAG = `#version 300 es
 precision highp float;
 in vec2 vUv;
 uniform sampler2D uField;
-uniform float uProgress;
 uniform float uCharge;
 uniform float uDetail;
 uniform float uGlow;
 uniform float uAspect;
-uniform float uBurst;
 out vec4 finalColor;
 
 highp float vhash(vec2 q) {
@@ -30,41 +28,28 @@ highp float fbm2(vec2 q) {
 }
 
 void main() {
-  highp float p = max(uProgress, 0.0);
-  if (uBurst >= 1.0) {
+  if (uCharge >= 1.0) {
     finalColor = vec4(vec3(texture(uField, vUv).r), 1.0);
     return;
   }
   vec2 a = (vUv - 0.5) * vec2(uAspect, 1.0);
   vec2 ea = a / vec2(1.55, 1.0);
   highp float r = length(ea);
-  vec2 edir = r > 1e-5 ? ea / r : vec2(1.0, 0.0);
   highp float maxR = length(vec2(uAspect / 1.55, 1.0)) * 0.5;
-
-  highp float grow = smoothstep(0.0, 0.5, uCharge);
-  highp float cs = smoothstep(0.42, 0.82, uCharge);
-  highp float comp = cs * cs * (3.0 - 2.0 * cs);
-  highp float orbR = (0.035 + 0.11 * grow) * (1.0 - 0.55 * comp);
-  highp float oraw = fbm2(edir * 3.0 + vec2(p * 1.1, 5.3));
-  highp float orbN = (1.0 - abs(2.0 * oraw - 1.0)) - 0.5;
-  highp float orbRl = max(orbR * (1.0 + orbN * 0.55) * (1.0 + 0.05 * sin(p * 11.0)), 1e-3);
-  highp float dens = 0.9 + 1.6 * comp;
-  highp float orb = (exp(-(r * r) / (orbRl * orbRl * 0.25)) * dens + exp(-(r * r) / (orbRl * orbRl * 2.5)) * 0.35) * uGlow * step(0.001, uCharge);
-  orb *= 1.0 - smoothstep(0.0, 0.3, uBurst);
-
-  highp float v = 0.0;
-  highp float ring = 0.0;
-  if (uBurst > 0.0) {
-    highp float be = 1.0 - pow(1.0 - uBurst, 3.0);
-    highp float Rb = orbR + be * (maxR + 0.28 - orbR);
-    highp float n1 = fbm2(edir * mix(4.0, 9.0, uDetail) + vec2(2.2, p * 0.7));
-    highp float ridge = 1.0 - abs(2.0 * n1 - 1.0);
-    highp float Rl = Rb * (1.0 + (ridge - 0.5) * 0.55 * (1.0 - be));
-    highp float mask = max(smoothstep(Rl, Rl - 0.1, r), smoothstep(0.97, 1.0, uBurst));
-    highp float rw = (r - Rl) * 8.0;
-    ring = exp(-rw * rw) * uGlow * 1.6 * (1.0 - be) + uGlow * 0.9 * exp(-uBurst * 5.0) * exp(-(r * r) * 2.0);
-    v = texture(uField, vUv).r * mask;
-  }
-  finalColor = vec4(vec3(v + orb + ring), 1.0);
+  highp float cells = mix(24.0, 64.0, uDetail);
+  vec2 grid = vec2(cells, cells / uAspect);
+  vec2 cid = floor(vUv * grid);
+  vec2 cellCenter = (cid + 0.5) / grid;
+  vec2 ca = (cellCenter - 0.5) * vec2(uAspect, 1.0) / vec2(1.55, 1.0);
+  highp float cr = length(ca) / max(maxR, 1e-4);
+  highp float hc = (vhash(cid * 0.173 + 4.7) * 0.65 + cr * 0.35) * 0.75;
+  highp float on = smoothstep(hc, hc + 0.06, uCharge);
+  highp float refine = smoothstep(hc + 0.05, hc + 0.2, uCharge);
+  highp float blockV = texture(uField, cellCenter).r;
+  highp float fullV = texture(uField, vUv).r;
+  highp float v = mix(blockV, fullV, refine) * on;
+  highp float flash = on * (1.0 - on) * 4.0;
+  highp float core = exp(-(r * r) / 0.012) * uGlow * 0.5 * (1.0 - uCharge) * step(0.001, uCharge);
+  finalColor = vec4(vec3(v + flash * flash * uGlow * 0.35 + core), 1.0);
 }
 `;

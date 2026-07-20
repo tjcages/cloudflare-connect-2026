@@ -159,7 +159,6 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
       glow: 0.7,
       particleCount: 1800,
     },
-    fluid: { speedMinMs: 400, speedMaxMs: 2800, staggerMs: 400, intensity: 1, detail: 0.5, glow: 0.7 },
     storm: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
     detonation: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
   },

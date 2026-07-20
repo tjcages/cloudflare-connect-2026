@@ -242,7 +242,6 @@ export const REVEAL_TYPES: readonly RevealType[] = [
   "turbulence",
   "glitch",
   "hadouken",
-  "fluid",
   "storm",
   "detonation",
 ];
@@ -271,7 +270,6 @@ export const DEFAULT_REVEAL: RevealConfig = {
     glow: 0.7,
     particleCount: 1800,
   },
-  fluid: { speedMinMs: 400, speedMaxMs: 2800, staggerMs: 400, intensity: 1, detail: 0.5, glow: 0.7 },
   storm: { speedMinMs: 400, speedMaxMs: 2600, staggerMs: 600, intensity: 1, detail: 0.5, glow: 0.7 },
   detonation: { speedMinMs: 200, speedMaxMs: 1400, staggerMs: 1200, intensity: 1, detail: 0.5, glow: 0.8 },
 };
@@ -293,7 +291,6 @@ type PartialReveal = {
   turbulence?: Partial<WarpStyleConfig>;
   glitch?: Partial<WarpStyleConfig>;
   hadouken?: Partial<RevealConfig["hadouken"]>;
-  fluid?: Partial<WarpStyleConfig>;
   storm?: Partial<WarpStyleConfig>;
   detonation?: Partial<WarpStyleConfig>;
 };
@@ -366,7 +363,6 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     hadouken: normalizeHadoukenBlock(i.hadouken ?? a.hadouken),
-    fluid: normalizeWarpStyleBlock(i.fluid, DEFAULT_REVEAL.fluid),
     storm: normalizeWarpStyleBlock(i.storm, DEFAULT_REVEAL.storm),
     detonation: normalizeWarpStyleBlock(i.detonation, DEFAULT_REVEAL.detonation),
   };
@@ -748,7 +744,6 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
     hadouken: { ...DEFAULT_REVEAL.hadouken },
-    fluid: { ...DEFAULT_REVEAL.fluid },
     storm: { ...DEFAULT_REVEAL.storm },
     detonation: { ...DEFAULT_REVEAL.detonation },
   },

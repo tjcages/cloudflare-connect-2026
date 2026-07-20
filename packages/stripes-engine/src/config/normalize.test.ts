@@ -753,8 +753,8 @@ describe("renderMode + renderIntensity", () => {
   });
 });
 describe("reveal type promotion", () => {
-  it("accepts all 8 reveal types", () => {
-    for (const t of ["wave", "assembly", "turbulence", "glitch", "hadouken", "fluid", "storm", "detonation"] as const) {
+  it("accepts all 7 reveal types", () => {
+    for (const t of ["wave", "assembly", "turbulence", "glitch", "hadouken", "storm", "detonation"] as const) {
       expect(normalizeReveal({ type: t }).type).toBe(t);
     }
   });
@@ -778,12 +778,13 @@ describe("reveal type promotion", () => {
       "ink",
       "trace",
       "pulse",
+      "fluid",
     ]) {
       expect(normalizeReveal({ type: t as never }).type).toBe("assembly");
     }
   });
 
-  it("provides per-type defaults incl. the three new energy blocks", () => {
+  it("provides per-type defaults incl. the two new energy blocks", () => {
     const r = normalizeReveal({});
     expect(r.glitch).toEqual({
       speedMinMs: 150,
@@ -809,14 +810,6 @@ describe("reveal type promotion", () => {
       detail: 0.5,
       glow: 0.7,
       particleCount: 1800,
-    });
-    expect(r.fluid).toEqual({
-      speedMinMs: 400,
-      speedMaxMs: 2800,
-      staggerMs: 400,
-      intensity: 1,
-      detail: 0.5,
-      glow: 0.7,
     });
     expect(r.storm).toEqual({
       speedMinMs: 400,
@@ -899,7 +892,6 @@ describe("reveal type promotion", () => {
     expect(normalizeReveal({ turbulence: { speedMinMs: 10 } }).turbulence.speedMinMs).toBe(50);
     expect(normalizeReveal({ glitch: { speedMinMs: 10 } }).glitch.speedMinMs).toBe(50);
     expect(normalizeReveal({ hadouken: { speedMinMs: 10 } }).hadouken.speedMinMs).toBe(50);
-    expect(normalizeReveal({ fluid: { speedMinMs: 10 } }).fluid.speedMinMs).toBe(50);
     expect(normalizeReveal({ storm: { speedMinMs: 10 } }).storm.speedMinMs).toBe(50);
     expect(normalizeReveal({ detonation: { speedMinMs: 10 } }).detonation.speedMinMs).toBe(50);
     expect(normalizeReveal({ assembly: { speedMinMs: 10 } }).assembly.speedMinMs).toBe(100);
