@@ -255,7 +255,8 @@ function placeVortexBit(
   applyVortexTransform(flame);
 }
 
-const SNAKE_ARC_PER_SEGMENT = 0.9;
+const SNAKE_SEG_ARC = 0.16;
+const SNAKE_SEG_OVERLAP = 1.15;
 
 function emitVortexSnake(
   state: FlamesState,
@@ -269,9 +270,9 @@ function emitVortexSnake(
   const segCount = Math.round(randomBetween(state.random, lines.tailMin, lines.tailMax));
   const scale = randomBetween(state.random, lines.scaleMin, lines.scaleMax) * displayWidth;
   const radius = scale;
-  const headWidth = scale * SNAKE_ARC_PER_SEGMENT * (1 / Math.max(2, segCount)) * 2;
+  const segArc = SNAKE_SEG_ARC;
+  const headWidth = Math.max(1, radius * segArc * SNAKE_SEG_OVERLAP);
   const thickness = Math.max(1, scale * lines.thickness);
-  const segArc = SNAKE_ARC_PER_SEGMENT / Math.max(2, segCount);
   const pivotX = state.random() * displayWidth;
   const pivotY = state.random() * displayHeight;
   const headAngle = state.random() * Math.PI * 2;

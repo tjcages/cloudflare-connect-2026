@@ -7,6 +7,7 @@ import {
   isVerticalFlamesDirection,
   isVortexFlamesDirection,
 } from "./flamesSim";
+import type { FlamesState } from "./flamesSim";
 import { mulberry32 } from "../core/rng";
 import { normalizeFlames } from "../config/normalize";
 import type { FlamesConfig } from "../config/types";
@@ -464,6 +465,33 @@ describe("vortex lines", () => {
     const ratioRadius = bHead.radius / sHead.radius;
     expect(ratioWidth).toBeGreaterThan(3);
     expect(ratioRadius).toBeCloseTo(ratioWidth, 1);
+  });
+
+  it("more segments span a strictly larger total angular arc, not a fixed one", () => {
+    const shortState = createFlamesState(seededRandom());
+    const longState = createFlamesState(seededRandom());
+    const mk = (tail: number) =>
+      normalizeFlames({
+        enabled: true,
+        direction: "vortexLines",
+        lines: { scaleMin: 0.08, scaleMax: 0.08, maxInstances: 6, tailMin: tail, tailMax: tail },
+      } as never);
+    stepFlames(shortState, mk(4), DISPLAY, 1);
+    stepFlames(longState, mk(16), DISPLAY, 1);
+
+    const spanOf = (state: FlamesState) => {
+      const head = state.flames.find((f) => f.segIndex === 0)!;
+      const mates = state.flames.filter((f) => f.pivotX === head.pivotX && f.pivotY === head.pivotY);
+      const tail = mates.reduce((a, b) => (a.segIndex > b.segIndex ? a : b));
+      return Math.abs(head.angle - tail.angle);
+    };
+
+    const shortSpan = spanOf(shortState);
+    const longSpan = spanOf(longState);
+    expect(longSpan).toBeGreaterThan(shortSpan);
+    const ratio = longSpan / shortSpan;
+    expect(ratio).toBeGreaterThan(4);
+    expect(ratio).toBeLessThan(6);
   });
 
   it("spawns on the configured interval range", () => {
