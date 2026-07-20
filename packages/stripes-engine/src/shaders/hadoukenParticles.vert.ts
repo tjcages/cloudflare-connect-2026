@@ -39,8 +39,14 @@ void main() {
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     return;
   }
-  highp float sang = hashLane(id, 2u) * 6.2831853;
-  vec2 sdir = vec2(cos(sang), sin(sang));
+  vec2 outv = (targetUv - 0.5) * asp;
+  highp float olen = length(outv);
+  vec2 odir = olen > 1e-4 ? outv / olen : vec2(1.0, 0.0);
+  highp float spread = mix(3.14159265, 1.3, clamp(dn * 3.0, 0.0, 1.0));
+  highp float sang = (hashLane(id, 2u) - 0.5) * 2.0 * spread;
+  highp float cs = cos(sang);
+  highp float sn = sin(sang);
+  vec2 sdir = vec2(odir.x * cs - odir.y * sn, odir.x * sn + odir.y * cs);
   highp float sdist = 0.25 + 0.55 * hashLane(id, 3u);
   vec2 startUv = targetUv + (sdir * sdist) / asp;
   highp float ease = 1.0 - pow(1.0 - f, 3.0);
