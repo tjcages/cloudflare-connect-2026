@@ -48,6 +48,11 @@ function drawerFolder<S extends Parameters<typeof folder>[0]>(id: string, schema
   return folder(schema, { collapsed: !loadControlDrawerOpen(id, loadLabSettings().drawerOpen[id] ?? false) });
 }
 
+function flamesEnabledAnd(get: (path: string) => unknown, predicate: (direction: unknown) => boolean): boolean {
+  if (get("Background Flames.flamesEnabled") !== true) return false;
+  return predicate(get("Background Flames.flamesDirection"));
+}
+
 const SHADER_PANEL_ORDER = [
   "Connect Wave",
   "Connect Shape",
@@ -1155,11 +1160,7 @@ export function useEngineControls(
             max: 6,
             step: 0.05,
             label: "Swirl",
-            render: (get) => {
-              if (get("Background Flames.flamesEnabled") !== true) return false;
-              const dir = get("Background Flames.flamesDirection");
-              return dir === "vortex" || dir === "vortexBits" || dir === "vortexLines";
-            },
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortex" || dir === "vortexBits"),
           },
           flamesMinWidthPct: {
             value: d.flames.minWidthRatio * 100,
@@ -1167,7 +1168,7 @@ export function useEngineControls(
             max: 50,
             step: 0.1,
             label: "Width min %",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
+            render: (get) => flamesEnabledAnd(get, (dir) => dir !== "vortexLines"),
           },
           flamesMaxWidthPct: {
             value: d.flames.maxWidthRatio * 100,
@@ -1175,7 +1176,7 @@ export function useEngineControls(
             max: 50,
             step: 0.1,
             label: "Width max %",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
+            render: (get) => flamesEnabledAnd(get, (dir) => dir !== "vortexLines"),
           },
           flamesMinHeightPct: {
             value: d.flames.minHeightRatio * 100,
@@ -1183,7 +1184,7 @@ export function useEngineControls(
             max: 50,
             step: 0.1,
             label: "Height min %",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
+            render: (get) => flamesEnabledAnd(get, (dir) => dir !== "vortexLines"),
           },
           flamesMaxHeightPct: {
             value: d.flames.maxHeightRatio * 100,
@@ -1191,7 +1192,7 @@ export function useEngineControls(
             max: 50,
             step: 0.1,
             label: "Height max %",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
+            render: (get) => flamesEnabledAnd(get, (dir) => dir !== "vortexLines"),
           },
           flamesBaseSpeed: {
             value: d.flames.baseSpeedPxPerSec,
@@ -1199,7 +1200,7 @@ export function useEngineControls(
             max: 500,
             step: 1,
             label: "Base speed (px/s)",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
+            render: (get) => flamesEnabledAnd(get, (dir) => dir !== "vortexLines" && dir !== "vortexBits"),
           },
           flamesSpeedVariation: {
             value: d.flames.speedVariation,
@@ -1207,7 +1208,7 @@ export function useEngineControls(
             max: 1,
             step: 0.01,
             label: "Speed variation",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
+            render: (get) => flamesEnabledAnd(get, (dir) => dir !== "vortexLines" && dir !== "vortexBits"),
           },
           flamesSpawnInterval: {
             value: d.flames.spawnIntervalMs,
@@ -1215,7 +1216,7 @@ export function useEngineControls(
             max: 5000,
             step: 10,
             label: "Spawn interval (ms)",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
+            render: (get) => flamesEnabledAnd(get, (dir) => dir !== "vortexLines"),
           },
           flamesSpawnJitter: {
             value: d.flames.spawnJitterMs,
@@ -1223,7 +1224,7 @@ export function useEngineControls(
             max: 2000,
             step: 10,
             label: "Spawn jitter (ms)",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
+            render: (get) => flamesEnabledAnd(get, (dir) => dir !== "vortexLines"),
           },
           flamesMaxActive: {
             value: d.flames.maxActive,
@@ -1231,7 +1232,103 @@ export function useEngineControls(
             max: 200,
             step: 1,
             label: "Max active",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
+            render: (get) => flamesEnabledAnd(get, (dir) => dir !== "vortexLines"),
+          },
+          flamesLinesTailMin: {
+            value: d.flames.lines.tailMin,
+            min: 2,
+            max: 40,
+            step: 1,
+            label: "Tail min",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesTailMax: {
+            value: d.flames.lines.tailMax,
+            min: 2,
+            max: 40,
+            step: 1,
+            label: "Tail max",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesScaleMinPct: {
+            value: d.flames.lines.scaleMin * 100,
+            min: 0.5,
+            max: 50,
+            step: 0.1,
+            label: "Scale min %",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesScaleMaxPct: {
+            value: d.flames.lines.scaleMax * 100,
+            min: 0.5,
+            max: 50,
+            step: 0.1,
+            label: "Scale max %",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesThickness: {
+            value: d.flames.lines.thickness,
+            min: 0.02,
+            max: 1,
+            step: 0.01,
+            label: "Thickness",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesSpeedMin: {
+            value: d.flames.lines.speedMin,
+            min: 0,
+            max: 12,
+            step: 0.05,
+            label: "Speed min",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesSpeedMax: {
+            value: d.flames.lines.speedMax,
+            min: 0,
+            max: 12,
+            step: 0.05,
+            label: "Speed max",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesIntervalMinMs: {
+            value: d.flames.lines.intervalMinMs,
+            min: 10,
+            max: 5000,
+            step: 10,
+            label: "Interval min (ms)",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesIntervalMaxMs: {
+            value: d.flames.lines.intervalMaxMs,
+            min: 10,
+            max: 5000,
+            step: 10,
+            label: "Interval max (ms)",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesLifeMinMs: {
+            value: d.flames.lines.lifeMinMs,
+            min: 100,
+            max: 20000,
+            step: 50,
+            label: "Life min (ms)",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesLifeMaxMs: {
+            value: d.flames.lines.lifeMaxMs,
+            min: 100,
+            max: 20000,
+            step: 50,
+            label: "Life max (ms)",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
+          },
+          flamesLinesMaxInstances: {
+            value: d.flames.lines.maxInstances,
+            min: 1,
+            max: 120,
+            step: 1,
+            label: "Max snakes",
+            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
           },
           flamesEdgeSharpness: {
             value: d.flames.edgeSharpness,
@@ -2311,7 +2408,20 @@ export function useEngineControls(
       edgeSharpness: values.flamesEdgeSharpness,
       opacityMin: values.flamesOpacityMin,
       opacityMax: values.flamesOpacityMax,
-      lines: d.flames.lines,
+      lines: {
+        tailMin: values.flamesLinesTailMin,
+        tailMax: values.flamesLinesTailMax,
+        scaleMin: values.flamesLinesScaleMinPct / 100,
+        scaleMax: values.flamesLinesScaleMaxPct / 100,
+        thickness: values.flamesLinesThickness,
+        speedMin: values.flamesLinesSpeedMin,
+        speedMax: values.flamesLinesSpeedMax,
+        intervalMinMs: values.flamesLinesIntervalMinMs,
+        intervalMaxMs: values.flamesLinesIntervalMaxMs,
+        lifeMinMs: values.flamesLinesLifeMinMs,
+        lifeMaxMs: values.flamesLinesLifeMaxMs,
+        maxInstances: values.flamesLinesMaxInstances,
+      },
     },
     edgeMask: {
       enabled: values.edgeMaskEnabled,
