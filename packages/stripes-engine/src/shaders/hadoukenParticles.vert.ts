@@ -21,6 +21,17 @@ highp float hashLane(highp uint i, highp uint salt) {
   return float(pcg(i * 747796405u + salt)) * (1.0 / 4294967296.0);
 }
 
+highp float cellNoise(vec2 q) {
+  vec2 i = floor(q);
+  vec2 fr = fract(q);
+  vec2 u = fr * fr * (3.0 - 2.0 * fr);
+  highp float a = hashLane(uint(i.y * 512.0 + i.x), 6u);
+  highp float b = hashLane(uint(i.y * 512.0 + i.x + 1.0), 6u);
+  highp float c = hashLane(uint((i.y + 1.0) * 512.0 + i.x), 6u);
+  highp float d = hashLane(uint((i.y + 1.0) * 512.0 + i.x + 1.0), 6u);
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
 void main() {
   highp uint id = uint(gl_InstanceID);
   highp float gx = uGrid.x;
@@ -28,9 +39,7 @@ void main() {
   vec2 targetUv = (cell + 0.5) / uGrid;
   vec2 asp = vec2(uAspect, 1.0);
   highp float dn = length((targetUv - 0.5) * asp) / (length(asp) * 0.5);
-  vec2 c8 = floor(cell / 8.0);
-  highp float clusterH = hashLane(uint(c8.y * 128.0 + c8.x), 5u);
-  highp float o = clamp(dn * 0.6 + (hashLane(id, 1u) - 0.5) * 0.35 + (clusterH - 0.5) * 0.3, 0.0, 1.0);
+  highp float o = clamp(dn * 0.55 + (hashLane(id, 1u) - 0.5) * 0.28 + (cellNoise(targetUv * 6.0) - 0.5) * 0.4, 0.0, 1.0);
   o = o < 0.5 ? sqrt(0.5 * o) : 1.0 - sqrt(0.5 * (1.0 - o));
   highp float p = max(uProgress, 0.0);
   highp float f = (p - uSpread * o) / max(uFlight, 1e-4);
