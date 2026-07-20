@@ -22,21 +22,19 @@ highp float hashLane(highp uint i, highp uint salt) {
   return float(pcg(i * 747796405u + salt)) * (1.0 / 4294967296.0);
 }
 
-vec2 vortexPos(vec2 sUv, vec2 tUv, vec2 asp, highp float bulge, highp float blend, highp float e) {
+vec2 vortexPos(vec2 sUv, vec2 tUv, vec2 asp, highp float total, highp float blend, highp float e) {
   vec2 straight = mix(sUv, tUv, e);
   if (blend <= 0.001) {
     return straight;
   }
   vec2 sv = (sUv - 0.5) * asp;
   vec2 tv = (tUv - 0.5) * asp;
-  highp float rs = length(sv);
   highp float rt = length(tv);
-  highp float aS = rs > 1e-5 ? atan(sv.y, sv.x) : 0.0;
-  highp float aT = rt > 1e-5 ? atan(tv.y, tv.x) : aS;
-  highp float da = aT - aS;
-  da = da - 6.2831853 * floor((da + 3.14159265) / 6.2831853);
-  highp float ang = aS + da * e + bulge * sin(e * 3.14159265);
-  highp float rr = mix(rs, rt, e);
+  highp float aT = rt > 1e-5 ? atan(tv.y, tv.x) : 0.0;
+  highp float rMax = length(asp) * 0.5;
+  highp float rStart = max(length(sv), rMax * 1.02);
+  highp float ang = aT - total * (1.0 - e);
+  highp float rr = mix(rStart, rt, e);
   vec2 spiral = 0.5 + (vec2(cos(ang), sin(ang)) * rr) / asp;
   return mix(straight, spiral, blend);
 }
@@ -79,12 +77,12 @@ void main() {
     startUv = vec2(targetUv.x + jit, 1.0 + depth);
   }
   highp float ease = 1.0 - pow(1.0 - f, 3.0);
-  highp float swirlBulge = (0.5 + 0.45 * hashLane(id, 5u)) * uSwirl;
+  highp float swirlTotal = uSwirl * 2.0 * (0.8 + 0.4 * hashLane(id, 5u));
   highp float swirlBlend = min(uSwirl, 1.0);
-  vec2 posUv = vortexPos(startUv, targetUv, asp, swirlBulge, swirlBlend, ease);
+  vec2 posUv = vortexPos(startUv, targetUv, asp, swirlTotal, swirlBlend, ease);
   highp float f2 = min(f + 0.03, 1.0);
   highp float ease2 = 1.0 - pow(1.0 - f2, 3.0);
-  vec2 vel = (vortexPos(startUv, targetUv, asp, swirlBulge, swirlBlend, ease2) - posUv) * asp;
+  vec2 vel = (vortexPos(startUv, targetUv, asp, swirlTotal, swirlBlend, ease2) - posUv) * asp;
   highp float vlen = length(vel);
   vec2 dirN = vlen > 1e-5 ? vel / vlen : vec2(1.0, 0.0);
   highp float stretch = 1.0 + min(3.5, vlen * 40.0) * uIntensity;
