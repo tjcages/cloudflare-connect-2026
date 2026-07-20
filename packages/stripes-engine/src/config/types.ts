@@ -186,8 +186,12 @@ export interface EdgeMaskConfig {
   power: number;
 }
 
+export type CursorTrailType = "default" | "wave";
+
 export interface CursorTrailConfig {
   enabled: boolean;
+  /** "default" = particle splats; "wave" = GPU heightfield water simulation. */
+  type: CursorTrailType;
   particleRadius: number;
   particleAlpha: number;
   particleLifeMs: number;

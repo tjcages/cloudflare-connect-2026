@@ -36,6 +36,7 @@ import {
   type CursorTrailState,
 } from "./cursorTrail/cursorTrailSim";
 import { createClickWaveState, addClickWave, updateClickWave, type ClickWaveState } from "./cursorTrail/clickWaveSim";
+import { createWaterSim, type WaterSim } from "./cursorTrail/waterSim";
 import {
   createFlamesState,
   stepFlames,
@@ -93,6 +94,8 @@ export type StripesEngine = {
   readOutputPixels(): Uint8Array;
   readCellGrid(): CellGridReadback;
   getPerf(): PerfSnapshot;
+  /** 0..1 eased surface motion of the "wave" cursor trail; 0 for other types. */
+  getWaterActivity(): number;
   dispose(): void;
   readonly isP3: boolean;
   readonly maxFps: number;
@@ -122,6 +125,8 @@ export type SharedStripesEngine = {
   triggerReveal(): void;
   rebuild(context: EngineContext): void;
   getPerf(): PerfSnapshot;
+  /** 0..1 eased surface motion of the "wave" cursor trail; 0 for other types. */
+  getWaterActivity(): number;
   dispose(): void;
   readonly isP3: boolean;
   readonly maxFps: number;
@@ -221,6 +226,25 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let cursorTrailState: CursorTrailState = createCursorTrailState();
   let clickWaveState: ClickWaveState = createClickWaveState();
   let lastCursorMs = clock.now();
+
+  // The "wave" trail is a heightfield sim the field pass samples, so it lives
+  // outside the pass graph and is stepped before the pipeline each frame.
+  let waterSim: WaterSim | null = null;
+  let lastCursorTrailType = config.cursorTrail.type;
+
+  function waveTrailEnabled(): boolean {
+    return config.cursorTrail.enabled && config.cursorTrail.type === "wave";
+  }
+
+  function stepWaterSim() {
+    if (!waveTrailEnabled()) {
+      waterSim?.dispose();
+      waterSim = null;
+      return;
+    }
+    waterSim ??= createWaterSim(gl, quad);
+    waterSim.tick(clock.now(), cursorTrailState.target, cssW, cssH);
+  }
 
   function getDpr() {
     return surface.getDpr();
@@ -477,6 +501,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
               background: config.background.color,
               sourceTexelW: 1 / source.width,
               sourceTexelH: 1 / source.height,
+              water: waterSim?.current() ?? null,
             });
           } else {
             gl.bindFramebuffer(gl.FRAMEBUFFER, fieldTarget.fbo);
@@ -728,8 +753,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     }
 
     const cursorFieldPasses: Pass[] = [];
-    if (config.cursorTrail.enabled || config.clickWave.enabled) {
-      const trailEnabled = config.cursorTrail.enabled;
+    // The "wave" type replaces the particle trail entirely; it couples into the
+    // field pass instead of adding passes here.
+    const particleTrailEnabled = config.cursorTrail.enabled && config.cursorTrail.type !== "wave";
+    if (particleTrailEnabled || config.clickWave.enabled) {
+      const trailEnabled = particleTrailEnabled;
       const clickEnabled = config.clickWave.enabled;
       const splatPass = trailEnabled ? createCursorSplatPass(gl) : null;
       const clickSplatPass = clickEnabled ? createClickSplatPass(gl) : null;
@@ -1043,6 +1071,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     starsState = createStarsState(mulberry32(starsSeed));
     cursorTrailState = createCursorTrailState();
     clickWaveState = createClickWaveState();
+    // Water targets/program belong to the lost context; drop without deleting.
+    waterSim = null;
     lastCursorMs = clock.now();
     ensureLut();
     letterResources.ensureAtlas(config.letters.fontFamily);
@@ -1071,6 +1101,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     if (lost) return;
     const t0 = clock.now();
     gpuTimer.poll();
+    stepWaterSim();
     runPipeline(passes, gpuTimer);
     gl.flush();
     const frameMs = clock.now() - lastFrameStart;
@@ -1144,6 +1175,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.edgeMask.enabled !== lastEdgeMaskEnabled ||
         config.renderMode !== lastRenderMode ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
+        config.cursorTrail.type !== lastCursorTrailType ||
         config.clickWave.enabled !== lastClickWaveEnabled ||
         config.letters.enabled !== lastLettersEnabled ||
         config.colors.mode !== lastColorsMode ||
@@ -1170,6 +1202,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastEdgeMaskEnabled = config.edgeMask.enabled;
         lastRenderMode = config.renderMode;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
+        lastCursorTrailType = config.cursorTrail.type;
         lastClickWaveEnabled = config.clickWave.enabled;
         lastLettersEnabled = config.letters.enabled;
         lastColorsMode = config.colors.mode;
@@ -1230,6 +1263,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     getPerf() {
       return perf.snapshot();
     },
+    getWaterActivity() {
+      return waterSim?.activity() ?? 0;
+    },
     dispose() {
       this.stop();
       surface.detachContextLossListeners();
@@ -1240,6 +1276,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       }
       colorDistPass?.dispose();
       maxReducePass?.dispose();
+      waterSim?.dispose();
+      waterSim = null;
       pool.dispose();
       quad.dispose();
       source?.dispose();

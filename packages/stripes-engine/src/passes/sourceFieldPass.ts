@@ -12,6 +12,12 @@ export type SourceFieldUniforms = {
   background: number;
   sourceTexelW: number;
   sourceTexelH: number;
+  water?: {
+    texture: WebGLTexture;
+    gain: number;
+    texelX: number;
+    texelY: number;
+  } | null;
 };
 
 export function createSourceFieldPass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
@@ -33,6 +39,9 @@ export function createSourceFieldPass(gl: WebGL2RenderingContext, quad: { draw()
     invert: u("uInvert"),
     posterize: u("uPosterize"),
     noise: u("uNoise"),
+    water: u("uWater"),
+    waterGain: u("uWaterGain"),
+    waterTexel: u("uWaterTexel"),
   };
   return {
     render(target: RenderTarget, sourceTex: WebGLTexture, p: SourceFieldUniforms) {
@@ -56,6 +65,14 @@ export function createSourceFieldPass(gl: WebGL2RenderingContext, quad: { draw()
       gl.uniform1f(L.invert, a.invert ? 1 : 0);
       gl.uniform1f(L.posterize, a.posterizeLevels);
       gl.uniform1f(L.noise, a.noiseAmount);
+      // Always bind unit 1: sampling an unbound sampler2D is undefined even
+      // when the branch guarded by uWaterGain is dead.
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, p.water ? p.water.texture : sourceTex);
+      gl.uniform1i(L.water, 1);
+      gl.uniform1f(L.waterGain, p.water ? p.water.gain : 0);
+      gl.uniform2f(L.waterTexel, p.water ? p.water.texelX : 1, p.water ? p.water.texelY : 1);
+      gl.activeTexture(gl.TEXTURE0);
       quad.draw();
     },
     dispose() {

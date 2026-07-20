@@ -1736,13 +1736,20 @@ export function useEngineControls(
         }),
         "Cursor Trail": drawerFolder("Cursor Trail", {
           cursorTrailEnabled: { value: d.cursorTrail.enabled, label: "Enabled" },
+          cursorTrailType: {
+            value: d.cursorTrail.type,
+            options: { Default: "default", Wave: "wave" } as const,
+            label: "Type",
+            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+          },
           particleRadius: {
             value: d.cursorTrail.particleRadius,
             min: 0.5,
             max: 80,
             step: 0.5,
             label: "Particle radius",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           particleAlpha: {
             value: d.cursorTrail.particleAlpha,
@@ -1750,7 +1757,8 @@ export function useEngineControls(
             max: 1,
             step: 0.005,
             label: "Particle alpha",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           particleLifeMs: {
             value: d.cursorTrail.particleLifeMs,
@@ -1758,7 +1766,8 @@ export function useEngineControls(
             max: 10000,
             step: 10,
             label: "Particle life (ms)",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           particleSpacingPx: {
             value: d.cursorTrail.particleSpacingPx,
@@ -1766,7 +1775,8 @@ export function useEngineControls(
             max: 80,
             step: 0.5,
             label: "Particle spacing (px)",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           maxEmitPerTick: {
             value: d.cursorTrail.maxEmitPerTick,
@@ -1774,7 +1784,8 @@ export function useEngineControls(
             max: 200,
             step: 1,
             label: "Max emit/tick",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           spreadMinPx: {
             value: d.cursorTrail.spreadMinPx,
@@ -1782,7 +1793,8 @@ export function useEngineControls(
             max: 80,
             step: 0.5,
             label: "Spread min (px)",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           spreadMaxPx: {
             value: d.cursorTrail.spreadMaxPx,
@@ -1790,7 +1802,8 @@ export function useEngineControls(
             max: 120,
             step: 0.5,
             label: "Spread max (px)",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           spinStrength: {
             value: d.cursorTrail.spinStrength,
@@ -1798,7 +1811,8 @@ export function useEngineControls(
             max: 0.2,
             step: 0.001,
             label: "Spin strength",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           pushStrengthPx: {
             value: d.cursorTrail.pushStrengthPx,
@@ -1806,7 +1820,8 @@ export function useEngineControls(
             max: 120,
             step: 1,
             label: "Push strength (px)",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           pushRadiusScale: {
             value: d.cursorTrail.pushRadiusScale,
@@ -1814,7 +1829,8 @@ export function useEngineControls(
             max: 8,
             step: 0.05,
             label: "Push radius scale",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
           pushWobblePx: {
             value: d.cursorTrail.pushWobblePx,
@@ -1822,7 +1838,8 @@ export function useEngineControls(
             max: 80,
             step: 1,
             label: "Push wobble (px)",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
         }),
         "Click Wave": drawerFolder("Click Wave", {
@@ -2280,6 +2297,7 @@ export function useEngineControls(
     },
     cursorTrail: {
       enabled: values.cursorTrailEnabled,
+      type: values.cursorTrailType,
       particleRadius: values.particleRadius,
       particleAlpha: values.particleAlpha,
       particleLifeMs: values.particleLifeMs,

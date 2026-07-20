@@ -265,18 +265,29 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   });
 
   let pointerInside = false;
-  const onPointerMove = (e: PointerEvent) => {
+  let lastClientX = Number.NaN;
+  let lastClientY = Number.NaN;
+  const hitTest = (clientX: number, clientY: number) => {
     const rect = canvas.getBoundingClientRect();
-    const inside =
-      e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    const inside = clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
     if (inside) {
       pointerInside = true;
       const zoom = canvas.currentCSSZoom ?? 1;
-      post({ type: "cursor", id, x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
+      post({ type: "cursor", id, x: (clientX - rect.left) / zoom, y: (clientY - rect.top) / zoom });
     } else if (pointerInside) {
       pointerInside = false;
       post({ type: "cursor", id, x: null });
     }
+  };
+  const onPointerMove = (e: PointerEvent) => {
+    lastClientX = e.clientX;
+    lastClientY = e.clientY;
+    hitTest(lastClientX, lastClientY);
+  };
+  // Scrolling moves the canvas under a stationary pointer, which fires no
+  // pointer event; re-test so the cursor doesn't stick inside or outside.
+  const onScroll = () => {
+    if (!Number.isNaN(lastClientX)) hitTest(lastClientX, lastClientY);
   };
   const onDocumentLeave = () => {
     if (!pointerInside) return;
@@ -304,6 +315,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   window.addEventListener("pointermove", onPointerMove);
   document.addEventListener("pointerleave", onDocumentLeave);
   window.addEventListener("pointerdown", onPointerDown);
+  window.addEventListener("scroll", onScroll, true);
 
   return {
     setConfig(config: Partial<EngineConfig>) {
@@ -325,6 +337,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
       window.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerleave", onDocumentLeave);
       window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("scroll", onScroll, true);
       instance.pump?.dispose();
       post({ type: "unregister", id });
       instances.delete(id);

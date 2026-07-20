@@ -493,6 +493,7 @@ export function normalizeEdgeMask(i: PartialEdgeMask = {}): EdgeMaskConfig {
 
 export const DEFAULT_CURSOR_TRAIL: CursorTrailConfig = {
   enabled: false,
+  type: "default",
   particleRadius: 40,
   particleAlpha: 0.07,
   particleLifeMs: 960,
@@ -526,6 +527,7 @@ export function normalizeCursorTrail(i: PartialCursorTrail = {}): CursorTrailCon
   const spreadMaxPx = Math.max(spreadMinPx, clamp(num(i.spreadMaxPx, DEFAULT_CURSOR_TRAIL.spreadMaxPx), 0, 120));
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_CURSOR_TRAIL.enabled,
+    type: i.type === "wave" ? "wave" : "default",
     particleRadius: clamp(num(i.particleRadius, DEFAULT_CURSOR_TRAIL.particleRadius), 0.5, 80),
     particleAlpha: clamp(num(i.particleAlpha, DEFAULT_CURSOR_TRAIL.particleAlpha), 0, 1),
     particleLifeMs: clamp(num(i.particleLifeMs, DEFAULT_CURSOR_TRAIL.particleLifeMs), 50, 10_000),
