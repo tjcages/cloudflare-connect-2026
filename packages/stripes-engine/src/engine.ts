@@ -211,7 +211,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastRevealKind = revealPassKind();
   let lastFlamesEnabled = config.flames.enabled;
   let lastFlamesDirection = config.flames.direction;
-  let lastFlamesInward = config.flames.inward;
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
   let lastRenderMode = config.renderMode;
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
@@ -1192,16 +1191,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       letterResources.ensureAtlas(config.letters.fontFamily);
       applySizes();
       if (config.colors.mode === "colors" && colorInputSig() !== lastColorInputSig) computeMaxColorDist();
-      if (
-        config.flames.enabled &&
-        (!lastFlamesEnabled ||
-          config.flames.direction !== lastFlamesDirection ||
-          config.flames.inward !== lastFlamesInward)
-      ) {
+      if (config.flames.enabled && (!lastFlamesEnabled || config.flames.direction !== lastFlamesDirection)) {
         flamesState = createFlamesState(mulberry32(flamesSeed));
       }
       lastFlamesDirection = config.flames.direction;
-      lastFlamesInward = config.flames.inward;
       if (
         config.stripesEnabled !== lastStripesEnabled ||
         revealPassKind() !== lastRevealKind ||

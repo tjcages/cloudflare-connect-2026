@@ -904,30 +904,19 @@ describe("reveal type promotion", () => {
   });
 });
 
-describe("normalizeFlames vortex", () => {
-  it("accepts the vortex directions", () => {
-    expect(normalizeFlames({ direction: "vortex" }).direction).toBe("vortex");
-    expect(normalizeFlames({ direction: "vortexBits" }).direction).toBe("vortexBits");
-  });
-
-  it("falls back to up for an unknown direction", () => {
-    expect(normalizeFlames({ direction: "sideways" as never }).direction).toBe("up");
-  });
-
-  it("accepts the vortexLines direction", () => {
-    expect(normalizeFlames({ direction: "vortexLines" }).direction).toBe("vortexLines");
-  });
-
-  it("defaults inward false and swirlRate 1.2", () => {
-    const f = normalizeFlames({});
-    expect(f.inward).toBe(false);
-    expect(f.swirlRate).toBeCloseTo(1.2);
-  });
-
-  it("clamps swirlRate to 0..6 and coerces inward", () => {
-    expect(normalizeFlames({ swirlRate: -3 }).swirlRate).toBe(0);
-    expect(normalizeFlames({ swirlRate: 99 }).swirlRate).toBe(6);
-    expect(normalizeFlames({ inward: 1 as never }).inward).toBe(true);
+describe("normalizeFlames removed vortex directions (backward compat)", () => {
+  it("falls back to 'up' for a stored config carrying a removed vortex direction, ignoring its lines/bits blocks", () => {
+    for (const direction of ["vortex", "vortexBits", "vortexLines"] as const) {
+      const f = normalizeFlames({
+        direction,
+        inward: true,
+        swirlRate: 3,
+        lines: { tailMin: 20, tailMax: 30 },
+        bits: { tailMin: 1, tailMax: 2 },
+      } as never);
+      expect(f.direction).toBe("up");
+      expect(f).toEqual(DEFAULT_FLAMES);
+    }
   });
 });
 
@@ -949,87 +938,5 @@ describe("hadouken -> vortex migration", () => {
       reveal: { type: "vortex", vortex: { swirl: 1 }, hadouken: { swirl: 3 } } as never,
     });
     expect(c.reveal.vortex.swirl).toBeCloseTo(1);
-  });
-});
-
-describe("normalizeFlames lines block", () => {
-  it("defaults the lines block", () => {
-    const l = normalizeFlames({}).lines;
-    expect(l.tailMin).toBe(8);
-    expect(l.tailMax).toBe(16);
-    expect(l.speedMin).toBeCloseTo(0.6);
-    expect(l.speedMax).toBeCloseTo(2.4);
-    expect(l.maxInstances).toBe(18);
-  });
-
-  it("orders every min/max pair", () => {
-    const l = normalizeFlames({
-      lines: {
-        tailMin: 20,
-        tailMax: 3,
-        scaleMin: 0.4,
-        scaleMax: 0.01,
-        speedMin: 9,
-        speedMax: 0.1,
-        intervalMinMs: 5000,
-        intervalMaxMs: 10,
-        lifeMinMs: 9000,
-        lifeMaxMs: 100,
-      },
-    } as never).lines;
-    expect(l.tailMax).toBeGreaterThanOrEqual(l.tailMin);
-    expect(l.scaleMax).toBeGreaterThanOrEqual(l.scaleMin);
-    expect(l.speedMax).toBeGreaterThanOrEqual(l.speedMin);
-    expect(l.intervalMaxMs).toBeGreaterThanOrEqual(l.intervalMinMs);
-    expect(l.lifeMaxMs).toBeGreaterThanOrEqual(l.lifeMinMs);
-  });
-
-  it("rounds and clamps segment counts and instances", () => {
-    const l = normalizeFlames({
-      lines: { tailMin: 0.2, tailMax: 999, maxInstances: 0 },
-    } as never).lines;
-    expect(Number.isInteger(l.tailMin)).toBe(true);
-    expect(Number.isInteger(l.tailMax)).toBe(true);
-    expect(l.tailMin).toBeGreaterThanOrEqual(2);
-    expect(l.tailMax).toBeLessThanOrEqual(40);
-    expect(l.maxInstances).toBeGreaterThanOrEqual(1);
-  });
-});
-
-describe("normalizeFlames bits block", () => {
-  it("defaults the bits block independently of lines", () => {
-    const f = normalizeFlames({});
-    expect(f.bits.tailMin).toBe(6);
-    expect(f.bits.tailMax).toBe(12);
-    expect(f.bits.maxInstances).toBe(26);
-    expect(f.lines.tailMin).toBe(8);
-  });
-
-  it("keeps bits and lines independent", () => {
-    const f = normalizeFlames({ bits: { tailMin: 9, tailMax: 9 } } as never);
-    expect(f.bits.tailMin).toBe(9);
-    expect(f.lines.tailMin).toBe(8);
-  });
-
-  it("orders every bits min/max pair", () => {
-    const b = normalizeFlames({
-      bits: {
-        tailMin: 20,
-        tailMax: 3,
-        scaleMin: 0.4,
-        scaleMax: 0.01,
-        speedMin: 9,
-        speedMax: 0.1,
-        intervalMinMs: 5000,
-        intervalMaxMs: 10,
-        lifeMinMs: 9000,
-        lifeMaxMs: 100,
-      },
-    } as never).bits;
-    expect(b.tailMax).toBeGreaterThanOrEqual(b.tailMin);
-    expect(b.scaleMax).toBeGreaterThanOrEqual(b.scaleMin);
-    expect(b.speedMax).toBeGreaterThanOrEqual(b.speedMin);
-    expect(b.intervalMaxMs).toBeGreaterThanOrEqual(b.intervalMinMs);
-    expect(b.lifeMaxMs).toBeGreaterThanOrEqual(b.lifeMinMs);
   });
 });

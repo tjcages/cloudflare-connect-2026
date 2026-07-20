@@ -121,17 +121,10 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(a, b)).toBe(false);
   });
 
-  it("switching flames.direction between linear and vortex does not trigger a topology rebuild (particle-pool reset only)", () => {
-    const linear = normalizeEngineConfig({ flames: { enabled: true, direction: "up" } });
-    const vortex = normalizeEngineConfig({ flames: { enabled: true, direction: "vortex" } });
-    expect(needsRebuild(linear, vortex)).toBe(false);
-    expect(needsRebuild(vortex, linear)).toBe(false);
-  });
-
-  it("flipping flames.inward does not trigger a topology rebuild (particle-pool reset only)", () => {
-    const outward = normalizeEngineConfig({ flames: { enabled: true, direction: "vortex", inward: false } });
-    const inward = normalizeEngineConfig({ flames: { enabled: true, direction: "vortex", inward: true } });
-    expect(needsRebuild(outward, inward)).toBe(false);
-    expect(needsRebuild(inward, outward)).toBe(false);
+  it("switching flames.direction between linear directions does not trigger a topology rebuild (particle-pool reset only)", () => {
+    const up = normalizeEngineConfig({ flames: { enabled: true, direction: "up" } });
+    const left = normalizeEngineConfig({ flames: { enabled: true, direction: "left" } });
+    expect(needsRebuild(up, left)).toBe(false);
+    expect(needsRebuild(left, up)).toBe(false);
   });
 });

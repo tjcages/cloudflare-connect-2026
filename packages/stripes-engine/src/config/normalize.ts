@@ -8,7 +8,6 @@ import type {
   RevealConfig,
   SparkleConfig,
   FlamesConfig,
-  FlamesSnakeConfig,
   FlamesDirection,
   WavePosition,
   EdgeMaskConfig,
@@ -451,45 +450,9 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
   };
 }
 
-export const DEFAULT_FLAMES_LINES: FlamesSnakeConfig = {
-  tailMin: 8,
-  tailMax: 16,
-  scaleMin: 0.04,
-  scaleMax: 0.11,
-  thickness: 0.16,
-  speedMin: 0.6,
-  speedMax: 2.4,
-  intervalMinMs: 40,
-  intervalMaxMs: 110,
-  lifeMinMs: 900,
-  lifeMaxMs: 2200,
-  maxInstances: 18,
-  meanderAmp: 0.12,
-  meanderFreq: 0.7,
-};
-
-export const DEFAULT_FLAMES_BITS: FlamesSnakeConfig = {
-  tailMin: 6,
-  tailMax: 12,
-  scaleMin: 0.02,
-  scaleMax: 0.06,
-  thickness: 0.14,
-  speedMin: 0.25,
-  speedMax: 0.9,
-  intervalMinMs: 25,
-  intervalMaxMs: 70,
-  lifeMinMs: 1400,
-  lifeMaxMs: 3200,
-  maxInstances: 26,
-  meanderAmp: 0.18,
-  meanderFreq: 3.2,
-};
-
 export const DEFAULT_FLAMES: FlamesConfig = {
   enabled: false,
   direction: "up",
-  inward: false,
-  swirlRate: 1.2,
   minWidthRatio: 0.0223,
   maxWidthRatio: 0.0453,
   minHeightRatio: 0.0245,
@@ -502,55 +465,14 @@ export const DEFAULT_FLAMES: FlamesConfig = {
   edgeSharpness: 1,
   opacityMin: 0.3,
   opacityMax: 1,
-  lines: DEFAULT_FLAMES_LINES,
-  bits: DEFAULT_FLAMES_BITS,
 };
 
 type PartialFlames = Partial<FlamesConfig>;
 
-const FLAMES_DIRECTIONS: readonly FlamesDirection[] = [
-  "up",
-  "down",
-  "left",
-  "right",
-  "upDown",
-  "leftRight",
-  "vortex",
-  "vortexBits",
-  "vortexLines",
-];
+const FLAMES_DIRECTIONS: readonly FlamesDirection[] = ["up", "down", "left", "right", "upDown", "leftRight"];
 
 function normalizeFlamesDirection(value: unknown): FlamesDirection {
   return FLAMES_DIRECTIONS.includes(value as FlamesDirection) ? (value as FlamesDirection) : "up";
-}
-
-function normalizeFlamesSnake(i: Partial<FlamesSnakeConfig> = {}, fallback: FlamesSnakeConfig): FlamesSnakeConfig {
-  const tailMin = clamp(Math.round(num(i.tailMin, fallback.tailMin)), 2, 40);
-  const tailMax = clamp(Math.round(num(i.tailMax, fallback.tailMax)), tailMin, 40);
-  const scaleMin = clamp(num(i.scaleMin, fallback.scaleMin), 0.005, 0.5);
-  const scaleMax = clamp(num(i.scaleMax, fallback.scaleMax), scaleMin, 0.5);
-  const speedMin = clamp(num(i.speedMin, fallback.speedMin), 0, 12);
-  const speedMax = clamp(num(i.speedMax, fallback.speedMax), speedMin, 12);
-  const intervalMinMs = clamp(Math.round(num(i.intervalMinMs, fallback.intervalMinMs)), 10, 5000);
-  const intervalMaxMs = clamp(Math.round(num(i.intervalMaxMs, fallback.intervalMaxMs)), intervalMinMs, 5000);
-  const lifeMinMs = clamp(Math.round(num(i.lifeMinMs, fallback.lifeMinMs)), 100, 20000);
-  const lifeMaxMs = clamp(Math.round(num(i.lifeMaxMs, fallback.lifeMaxMs)), lifeMinMs, 20000);
-  return {
-    tailMin,
-    tailMax,
-    scaleMin,
-    scaleMax,
-    thickness: clamp(num(i.thickness, fallback.thickness), 0.02, 1),
-    speedMin,
-    speedMax,
-    intervalMinMs,
-    intervalMaxMs,
-    lifeMinMs,
-    lifeMaxMs,
-    maxInstances: clamp(Math.round(num(i.maxInstances, fallback.maxInstances)), 1, 120),
-    meanderAmp: clamp(num(i.meanderAmp, fallback.meanderAmp), 0, 1),
-    meanderFreq: clamp(num(i.meanderFreq, fallback.meanderFreq), 0, 4),
-  };
 }
 
 export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
@@ -563,8 +485,6 @@ export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_FLAMES.enabled,
     direction: normalizeFlamesDirection(i.direction ?? DEFAULT_FLAMES.direction),
-    inward: i.inward !== undefined ? !!i.inward : DEFAULT_FLAMES.inward,
-    swirlRate: clamp(num(i.swirlRate, DEFAULT_FLAMES.swirlRate), 0, 6),
     minWidthRatio,
     maxWidthRatio,
     minHeightRatio,
@@ -577,8 +497,6 @@ export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
     edgeSharpness: clamp(num(i.edgeSharpness, DEFAULT_FLAMES.edgeSharpness), 0, 1),
     opacityMin,
     opacityMax,
-    lines: normalizeFlamesSnake(i.lines, DEFAULT_FLAMES_LINES),
-    bits: normalizeFlamesSnake(i.bits, DEFAULT_FLAMES_BITS),
   };
 }
 

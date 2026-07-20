@@ -171,41 +171,11 @@ export interface SparkleConfig {
   };
 }
 
-export type FlamesDirection =
-  | "up"
-  | "down"
-  | "left"
-  | "right"
-  | "upDown"
-  | "leftRight"
-  | "vortex"
-  | "vortexBits"
-  | "vortexLines";
-
-export interface FlamesSnakeConfig {
-  tailMin: number;
-  tailMax: number;
-  scaleMin: number;
-  scaleMax: number;
-  thickness: number;
-  speedMin: number;
-  speedMax: number;
-  intervalMinMs: number;
-  intervalMaxMs: number;
-  lifeMinMs: number;
-  lifeMaxMs: number;
-  maxInstances: number;
-  meanderAmp: number;
-  meanderFreq: number;
-}
-
-export type FlamesLinesConfig = FlamesSnakeConfig;
+export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight";
 
 export interface FlamesConfig {
   enabled: boolean;
   direction: FlamesDirection;
-  inward: boolean;
-  swirlRate: number;
   minWidthRatio: number;
   maxWidthRatio: number;
   minHeightRatio: number;
@@ -218,8 +188,6 @@ export interface FlamesConfig {
   edgeSharpness: number;
   opacityMin: number;
   opacityMax: number;
-  lines: FlamesSnakeConfig;
-  bits: FlamesSnakeConfig;
 }
 
 export interface EdgeMaskConfig {
