@@ -14,7 +14,9 @@ export interface Flame {
   pivotX: number;
   pivotY: number;
   radius: number;
-  baseRadius: number;
+  orbitAngle: number;
+  orbitRadius: number;
+  orbitAngVel: number;
   angle: number;
   angVel: number;
   radialSign: number;
@@ -148,7 +150,9 @@ function createFlame(
     pivotX: 0,
     pivotY: 0,
     radius: 0,
-    baseRadius: 0,
+    orbitAngle: 0,
+    orbitRadius: 0,
+    orbitAngVel: 0,
     angle: 0,
     angVel: 0,
     radialSign: 1,
@@ -241,9 +245,9 @@ function placeVortexFlame(
   applyVortexTransform(flame);
 }
 
-const SNAKE_SEG_ARC = 0.16;
 const SNAKE_SEG_OVERLAP = 1.15;
-const SNAKE_SEG_LEN_RATIO = 0.14;
+const SNAKE_BEND_RATIO = 0.6;
+const SNAKE_SEG_ARC = 0.08;
 
 function emitVortexSnake(
   state: FlamesState,
@@ -261,33 +265,39 @@ function emitVortexSnake(
   const lifeMs = randomBetween(state.random, snake.lifeMinMs, snake.lifeMaxMs);
   const spin = state.random() < 0.5 ? -1 : 1;
 
+  const bendRadius = Math.max(2, scale * SNAKE_BEND_RATIO);
+  const segArc = SNAKE_SEG_ARC;
+  const segLen = bendRadius * segArc;
+  const headWidth = Math.max(1, segLen * SNAKE_SEG_OVERLAP);
+
   let pivotX: number;
   let pivotY: number;
-  let radius: number;
   let radialSign: number;
   let angVel: number;
+  let orbitAngle: number;
+  let orbitRadius: number;
+  let orbitAngVel: number;
   if (global) {
     const rMax = vortexMaxRadius(displayWidth, displayHeight);
     const rMin = rMax * VORTEX_CORE_RATIO;
     const u = state.random();
-    pivotX = displayWidth * 0.5;
-    pivotY = displayHeight * 0.5;
-    radius = Math.sqrt(rMin * rMin + u * (rMax * rMax - rMin * rMin));
+    orbitRadius = Math.sqrt(rMin * rMin + u * (rMax * rMax - rMin * rMin));
+    orbitAngle = state.random() * Math.PI * 2;
     radialSign = config.inward ? -1 : 1;
     angVel = randomBetween(state.random, snake.speedMin, snake.speedMax) * (config.inward ? -1 : 1);
+    orbitAngVel = randomBetween(state.random, snake.speedMin, snake.speedMax) * (config.inward ? -1 : 1);
+    pivotX = displayWidth * 0.5 + Math.cos(orbitAngle) * orbitRadius;
+    pivotY = displayHeight * 0.5 + Math.sin(orbitAngle) * orbitRadius;
   } else {
     pivotX = state.random() * displayWidth;
     pivotY = state.random() * displayHeight;
-    radius = scale;
     radialSign = 0;
     angVel = spin * randomBetween(state.random, snake.speedMin, snake.speedMax);
+    orbitAngle = 0;
+    orbitRadius = 0;
+    orbitAngVel = 0;
   }
 
-  const segLen = Math.max(1, scale * SNAKE_SEG_LEN_RATIO);
-  const segArc = global ? segLen / Math.max(1, radius) : SNAKE_SEG_ARC;
-  const headWidth = global
-    ? Math.max(1, segLen * SNAKE_SEG_OVERLAP)
-    : Math.max(1, radius * SNAKE_SEG_ARC * SNAKE_SEG_OVERLAP);
   const headAngle = state.random() * Math.PI * 2;
   const bornMs = seeded ? nowMs - state.random() * lifeMs : nowMs;
   const baseOpacity = randomBetween(state.random, config.opacityMin, config.opacityMax);
@@ -302,15 +312,17 @@ function emitVortexSnake(
       y: 0,
       width: headWidth,
       height: Math.max(1, thickness * (0.35 + 0.65 * along)),
-      speedPxPerSec: global ? Math.abs(angVel) * radius * 0.06 : 0,
+      speedPxPerSec: global ? Math.abs(orbitAngVel) * orbitRadius * 0.06 : 0,
       opacity: baseOpacity * (0.45 + 0.55 * along),
       colorSeed,
       direction: global ? "vortexBits" : "vortexLines",
       rot: 0,
       pivotX,
       pivotY,
-      radius,
-      baseRadius: radius,
+      radius: bendRadius,
+      orbitAngle,
+      orbitRadius,
+      orbitAngVel,
       angle: headAngle - dirSign * i * segArc,
       angVel,
       radialSign,
@@ -448,9 +460,11 @@ export function stepFlames(
         break;
       }
       case "vortexBits": {
-        flame.baseRadius += flame.radialSign * flame.speedPxPerSec * dtSec;
+        flame.orbitAngle += flame.orbitAngVel * dtSec;
+        flame.orbitRadius += flame.radialSign * flame.speedPxPerSec * dtSec;
+        flame.pivotX = display.width * 0.5 + Math.cos(flame.orbitAngle) * flame.orbitRadius;
+        flame.pivotY = display.height * 0.5 + Math.sin(flame.orbitAngle) * flame.orbitRadius;
         flame.angle += flame.angVel * dtSec;
-        flame.radius = flame.baseRadius;
         applyVortexTransform(flame);
         const t = flame.lifeMs > 0 ? (nowMs - flame.bornMs) / flame.lifeMs : 1;
         flame.opacity = flame.baseOpacity * vortexBitEnvelope(t);
@@ -458,7 +472,6 @@ export function stepFlames(
       }
       case "vortexLines": {
         flame.angle += flame.angVel * dtSec;
-        flame.radius = flame.baseRadius;
         applyVortexTransform(flame);
         const t = flame.lifeMs > 0 ? (nowMs - flame.bornMs) / flame.lifeMs : 1;
         flame.opacity = flame.baseOpacity * vortexBitEnvelope(t);

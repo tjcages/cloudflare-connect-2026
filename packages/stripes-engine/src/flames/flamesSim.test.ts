@@ -286,21 +286,21 @@ describe("vortex bits (global snakes)", () => {
     state.flames.forEach((f) => expect(f.segCount).toBe(5));
   });
 
-  it("shares one global pivot at the canvas centre", () => {
+  it("places the pivot on its own orbit ring around the canvas centre", () => {
     const state = createFlamesState(seededRandom());
     stepFlames(state, bitsConfig(), DISPLAY, 1);
     const cx = DISPLAY.width / 2;
     const cy = DISPLAY.height / 2;
     state.flames.forEach((f) => {
-      expect(f.pivotX).toBeCloseTo(cx, 5);
-      expect(f.pivotY).toBeCloseTo(cy, 5);
+      expect(f.pivotX).toBeCloseTo(cx + Math.cos(f.orbitAngle) * f.orbitRadius, 5);
+      expect(f.pivotY).toBeCloseTo(cy + Math.sin(f.orbitAngle) * f.orbitRadius, 5);
     });
   });
 
   it("spreads snakes across distinct orbit radii", () => {
     const state = createFlamesState(seededRandom());
     stepFlames(state, bitsConfig(), DISPLAY, 1);
-    const radii = new Set(state.flames.map((f) => Math.round(f.radius)));
+    const radii = new Set(state.flames.map((f) => Math.round(f.orbitRadius)));
     expect(radii.size).toBeGreaterThan(3);
   });
 
@@ -361,6 +361,43 @@ describe("vortex bits (global snakes)", () => {
     expect(mates[mates.length - 1].height).toBeGreaterThan(0);
   });
 
+  it("curls at its own radius, not its orbit radius", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 10, tailMax: 10, scaleMin: 0.05, scaleMax: 0.05 });
+    stepFlames(state, config, DISPLAY, 1);
+    const heads = state.flames.filter((f) => f.segIndex === 0);
+    const radii = heads.map((h) => h.radius);
+    expect(Math.max(...radii) - Math.min(...radii)).toBeLessThan(0.001);
+    const orbits = heads.map((h) => h.orbitRadius);
+    expect(Math.max(...orbits) - Math.min(...orbits)).toBeGreaterThan(20);
+  });
+
+  it("moves the whole snake rigidly along the vortex", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({ tailMin: 8, tailMax: 8, lifeMinMs: 20000, lifeMaxMs: 20000 });
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0);
+    const key = head.bornMs;
+    const before = state.flames.filter((f) => f.bornMs === key).map((f) => f.orbitAngle);
+    stepFlames(state, config, DISPLAY, 400);
+    const after = state.flames.filter((f) => f.bornMs === key).map((f) => f.orbitAngle);
+    expect(after[0]).not.toBeCloseTo(before[0], 4);
+    after.forEach((a) => expect(a).toBeCloseTo(after[0], 6));
+  });
+
+  it("keeps the joint angle small at any scale", () => {
+    for (const s of [0.02, 0.2]) {
+      const st = createFlamesState(seededRandom());
+      const config = bitsConfig({ tailMin: 10, tailMax: 10, scaleMin: s, scaleMax: s });
+      stepFlames(st, config, DISPLAY, 1);
+      const head = st.flames.find((f) => f.segIndex === 0);
+      const mates = st.flames.filter((f) => f.bornMs === head.bornMs).sort((a, b) => a.segIndex - b.segIndex);
+      for (let i = 1; i < mates.length; i++) {
+        expect(Math.abs(mates[i].angle - mates[i - 1].angle)).toBeLessThan(0.1);
+      }
+    }
+  });
+
   it("trails the tail opposite the spin when inward, global bits", () => {
     const state = createFlamesState(seededRandom());
     const config = normalizeFlames({
@@ -407,9 +444,9 @@ describe("vortex bits (global snakes)", () => {
     const state = createFlamesState(seededRandom());
     const config = bitsConfig({ lifeMinMs: 9000, lifeMaxMs: 9000 });
     stepFlames(state, config, DISPLAY, 1);
-    const before = state.flames[0].radius;
+    const before = state.flames[0].orbitRadius;
     stepFlames(state, config, DISPLAY, 600);
-    expect(state.flames[0].radius).not.toBeCloseTo(before, 3);
+    expect(state.flames[0].orbitRadius).not.toBeCloseTo(before, 3);
   });
 
   it("expires a whole snake together", () => {
@@ -442,7 +479,7 @@ describe("vortex bits (global snakes)", () => {
     const config = bitsConfig({ scaleMin: 0.05, scaleMax: 0.05, maxInstances: 14, tailMin: 5, tailMax: 5 });
     stepFlames(state, config, DISPLAY, 1);
     const heads = state.flames.filter((f) => f.segIndex === 0);
-    const radii = heads.map((f) => f.radius);
+    const radii = heads.map((f) => f.orbitRadius);
     const widths = heads.map((f) => f.width);
     const radiusSpread = Math.max(...radii) / Math.min(...radii);
     const widthSpread = Math.max(...widths) / Math.min(...widths);
@@ -455,7 +492,7 @@ describe("vortex bits (global snakes)", () => {
     const config = bitsConfig({ tailMin: 10, tailMax: 10, scaleMin: 0.06, scaleMax: 0.06 });
     stepFlames(state, config, DISPLAY, 1);
     const head = state.flames.find((f) => f.segIndex === 0);
-    const mates = state.flames.filter((f) => f.baseRadius === head.baseRadius).sort((a, b) => a.segIndex - b.segIndex);
+    const mates = state.flames.filter((f) => f.bornMs === head.bornMs).sort((a, b) => a.segIndex - b.segIndex);
     for (let i = 1; i < mates.length; i++) {
       expect(Math.abs(mates[i].angle - mates[i - 1].angle)).toBeLessThan(0.12);
     }
