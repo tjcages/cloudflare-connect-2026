@@ -10,6 +10,16 @@ export interface Flame {
   opacity: number;
   colorSeed: number;
   direction: FlamesDirection;
+  rot: number;
+  pivotX: number;
+  pivotY: number;
+  radius: number;
+  angle: number;
+  angVel: number;
+  radialSign: number;
+  baseOpacity: number;
+  bornMs: number;
+  lifeMs: number;
 }
 
 export interface FlamesState {
@@ -43,6 +53,24 @@ function randomFlameCrossAxisPosition(random: () => number, displaySize: number,
 
 export function isVerticalFlamesDirection(d: FlamesDirection): boolean {
   return d === "up" || d === "down" || d === "upDown";
+}
+
+export function isVortexFlamesDirection(d: FlamesDirection): boolean {
+  return d === "vortex" || d === "vortexBits";
+}
+
+function vortexMaxRadius(displayWidth: number, displayHeight: number): number {
+  return 0.5 * Math.hypot(displayWidth, displayHeight);
+}
+
+function applyVortexTransform(flame: Flame): void {
+  const cx = flame.pivotX + Math.cos(flame.angle) * flame.radius;
+  const cy = flame.pivotY + Math.sin(flame.angle) * flame.radius;
+  flame.x = cx - flame.width * 0.5;
+  flame.y = cy - flame.height * 0.5;
+  const radialVel = flame.radialSign * flame.speedPxPerSec;
+  const tangentialVel = flame.radius * flame.angVel;
+  flame.rot = flame.angle + Math.atan2(tangentialVel, radialVel);
 }
 
 function expandFlamesDirection(d: FlamesDirection): FlamesDirection[] {
@@ -98,28 +126,41 @@ function createFlame(
   const opacity = randomBetween(state.random, config.opacityMin, config.opacityMax);
   const colorSeed = flameColorSeed(width, height, speedPxPerSec, opacity);
 
-  if (isVerticalFlamesDirection(direction)) {
-    return {
-      x: randomFlameCrossAxisPosition(state.random, displayWidth, width),
-      y: 0,
-      width,
-      height,
-      speedPxPerSec,
-      opacity,
-      colorSeed,
-      direction,
-    };
-  }
-
-  return {
-    x: 0,
-    y: randomFlameCrossAxisPosition(state.random, displayHeight, height),
+  const base = {
     width,
     height,
     speedPxPerSec,
     opacity,
     colorSeed,
     direction,
+    rot: 0,
+    pivotX: 0,
+    pivotY: 0,
+    radius: 0,
+    angle: 0,
+    angVel: 0,
+    radialSign: 1,
+    baseOpacity: opacity,
+    bornMs: 0,
+    lifeMs: 0,
+  };
+
+  if (isVortexFlamesDirection(direction)) {
+    return { ...base, x: 0, y: 0 };
+  }
+
+  if (isVerticalFlamesDirection(direction)) {
+    return {
+      ...base,
+      x: randomFlameCrossAxisPosition(state.random, displayWidth, width),
+      y: 0,
+    };
+  }
+
+  return {
+    ...base,
+    x: 0,
+    y: randomFlameCrossAxisPosition(state.random, displayHeight, height),
   };
 }
 
@@ -159,10 +200,39 @@ function placeSeededFlame(
   flame.x = randomBetween(random, -flame.width, displayWidth);
 }
 
+function placeVortexFlame(
+  flame: Flame,
+  config: FlamesConfig,
+  displayWidth: number,
+  displayHeight: number,
+  random: () => number,
+  seeded: boolean,
+): void {
+  flame.pivotX = displayWidth * 0.5;
+  flame.pivotY = displayHeight * 0.5;
+  flame.angle = random() * Math.PI * 2;
+  flame.angVel = config.swirlRate * (1 + (random() - 0.5) * config.speedVariation);
+  flame.radialSign = config.inward ? -1 : 1;
+
+  const rMax = vortexMaxRadius(displayWidth, displayHeight);
+  if (seeded) {
+    flame.radius = randomBetween(random, 2, rMax);
+  } else if (config.inward) {
+    flame.radius = rMax * randomBetween(random, 1, 1.08);
+  } else {
+    flame.radius = randomBetween(random, 2, 8);
+  }
+  applyVortexTransform(flame);
+}
+
 function spawnFlame(state: FlamesState, config: FlamesConfig, displayWidth: number, displayHeight: number): Flame {
   const direction = pickFlameDirection(state, config.direction);
   const flame = createFlame(state, config, displayWidth, displayHeight, direction);
-  placeSpawnedFlame(flame, flame.direction, displayWidth, displayHeight);
+  if (isVortexFlamesDirection(flame.direction)) {
+    placeVortexFlame(flame, config, displayWidth, displayHeight, state.random, false);
+  } else {
+    placeSpawnedFlame(flame, flame.direction, displayWidth, displayHeight);
+  }
   return flame;
 }
 
@@ -174,12 +244,16 @@ function seedFlames(state: FlamesState, config: FlamesConfig, displayWidth: numb
   for (let i = 0; i < config.maxActive; i++) {
     const direction = pickFlameDirection(state, config.direction);
     const flame = createFlame(state, config, displayWidth, displayHeight, direction);
-    placeSeededFlame(flame, flame.direction, displayWidth, displayHeight, state.random);
+    if (isVortexFlamesDirection(flame.direction)) {
+      placeVortexFlame(flame, config, displayWidth, displayHeight, state.random, true);
+    } else {
+      placeSeededFlame(flame, flame.direction, displayWidth, displayHeight, state.random);
+    }
     state.flames.push(flame);
   }
 }
 
-function isFlameVisible(flame: Flame, display: { width: number; height: number }): boolean {
+function isFlameVisible(flame: Flame, display: { width: number; height: number }, nowMs: number): boolean {
   switch (flame.direction) {
     case "up":
       return flame.y + flame.height >= 0;
@@ -189,6 +263,13 @@ function isFlameVisible(flame: Flame, display: { width: number; height: number }
       return flame.x + flame.width >= 0;
     case "right":
       return flame.x <= display.width;
+    case "vortex": {
+      if (flame.radialSign < 0) return flame.radius > 4;
+      const cull = 0.5 * Math.hypot(flame.width, flame.height);
+      return flame.radius <= vortexMaxRadius(display.width, display.height) + cull;
+    }
+    case "vortexBits":
+      return nowMs - flame.bornMs < flame.lifeMs;
     default:
       return false;
   }
@@ -228,10 +309,15 @@ export function stepFlames(
       case "right":
         flame.x += flame.speedPxPerSec * dtSec;
         break;
+      case "vortex":
+        flame.radius += flame.radialSign * flame.speedPxPerSec * dtSec;
+        flame.angle += flame.angVel * dtSec;
+        applyVortexTransform(flame);
+        break;
     }
   }
 
-  state.flames = state.flames.filter((flame) => isFlameVisible(flame, display));
+  state.flames = state.flames.filter((flame) => isFlameVisible(flame, display, nowMs));
 
   if (state.flames.length > config.maxActive) {
     state.flames.length = config.maxActive;

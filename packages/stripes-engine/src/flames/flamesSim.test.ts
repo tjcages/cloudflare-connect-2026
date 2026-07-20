@@ -5,8 +5,10 @@ import {
   flamesGradientStops,
   flamesSpeedRange,
   isVerticalFlamesDirection,
+  isVortexFlamesDirection,
 } from "./flamesSim";
 import { mulberry32 } from "../core/rng";
+import { normalizeFlames } from "../config/normalize";
 import type { FlamesConfig } from "../config/types";
 
 const BASE_CONFIG: FlamesConfig = {
@@ -182,5 +184,85 @@ describe("isVerticalFlamesDirection", () => {
   it("left and right are not vertical", () => {
     expect(isVerticalFlamesDirection("left")).toBe(false);
     expect(isVerticalFlamesDirection("right")).toBe(false);
+  });
+});
+
+const DISPLAY_VORTEX = { width: 800, height: 600 };
+
+function vortexConfig(overrides = {}) {
+  return normalizeFlames({
+    enabled: true,
+    direction: "vortex",
+    maxActive: 12,
+    baseSpeedPxPerSec: 100,
+    speedVariation: 0,
+    swirlRate: 2,
+    ...overrides,
+  });
+}
+
+function seededRandom() {
+  let s = 1;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+describe("isVortexFlamesDirection", () => {
+  it("is true only for the vortex family", () => {
+    expect(isVortexFlamesDirection("vortex")).toBe(true);
+    expect(isVortexFlamesDirection("vortexBits")).toBe(true);
+    expect(isVortexFlamesDirection("up")).toBe(false);
+    expect(isVortexFlamesDirection("leftRight")).toBe(false);
+  });
+});
+
+describe("vortex motion", () => {
+  it("seeds particles and grows their radius outward", () => {
+    const state = createFlamesState(seededRandom());
+    const config = vortexConfig();
+    stepFlames(state, config, DISPLAY_VORTEX, 1);
+    expect(state.flames.length).toBe(12);
+    const before = state.flames.map((f) => f.radius);
+    stepFlames(state, config, DISPLAY_VORTEX, 101);
+    state.flames.forEach((f, i) => {
+      expect(f.radius).toBeGreaterThan(before[i]);
+    });
+  });
+
+  it("shrinks radius when inward", () => {
+    const state = createFlamesState(seededRandom());
+    const config = vortexConfig({ inward: true, spawnIntervalMs: 5000 });
+    stepFlames(state, config, DISPLAY_VORTEX, 1);
+    const before = state.flames.map((f) => f.radius);
+    stepFlames(state, config, DISPLAY_VORTEX, 51);
+    state.flames.forEach((f, i) => {
+      expect(f.radius).toBeLessThan(before[i]);
+    });
+  });
+
+  it("advances the angle so the path curves", () => {
+    const state = createFlamesState(seededRandom());
+    const config = vortexConfig();
+    stepFlames(state, config, DISPLAY_VORTEX, 1);
+    const before = state.flames[0].angle;
+    stepFlames(state, config, DISPLAY_VORTEX, 501);
+    expect(state.flames[0].angle).not.toBeCloseTo(before);
+  });
+
+  it("keeps rot at zero for linear directions", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({ enabled: true, direction: "up", maxActive: 5 });
+    stepFlames(state, config, DISPLAY_VORTEX, 0);
+    state.flames.forEach((f) => expect(f.rot).toBe(0));
+  });
+
+  it("culls outward particles once past the rim", () => {
+    const state = createFlamesState(seededRandom());
+    const config = vortexConfig({ baseSpeedPxPerSec: 500, spawnIntervalMs: 5000 });
+    stepFlames(state, config, DISPLAY_VORTEX, 1);
+    stepFlames(state, config, DISPLAY_VORTEX, 3001);
+    expect(state.flames.length).toBe(0);
   });
 });
