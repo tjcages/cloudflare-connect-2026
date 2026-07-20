@@ -26,6 +26,7 @@ import { LAB_LEVA_THEME } from "./controls/levaTheme";
 import {
   DEFAULT_LAB_SETTINGS,
   stagePendingConfig,
+  saveConfig,
   saveTextureId,
   importSettingsFile,
   markImportedConfigPristine,
@@ -1583,6 +1584,10 @@ function LabInner() {
       return loadLabSettings();
     });
   }, [controls.background.color, controls.background.transparent, getLabSettingsSnapshot]);
+
+  useEffect(() => {
+    saveConfig(textureId, controls);
+  }, [controls, textureId]);
 
   useEffect(() => {
     saveTextureId(textureId);
