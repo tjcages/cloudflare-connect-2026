@@ -859,6 +859,7 @@ function LabInner() {
   setControlRef.current = setControl;
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
+  const lastSavedConfigJsonRef = useRef<string | null>(null);
   const selectedEntry = useMemo(() => findTextureEntry(textureId, loadManifest()), [textureId]);
   const canDeleteTexture = selectedEntry?.origin === "upload";
 
@@ -1586,6 +1587,9 @@ function LabInner() {
   }, [controls.background.color, controls.background.transparent, getLabSettingsSnapshot]);
 
   useEffect(() => {
+    const key = `${textureId}:${JSON.stringify(controls)}`;
+    if (lastSavedConfigJsonRef.current === key) return;
+    lastSavedConfigJsonRef.current = key;
     saveConfig(textureId, controls);
   }, [controls, textureId]);
 
