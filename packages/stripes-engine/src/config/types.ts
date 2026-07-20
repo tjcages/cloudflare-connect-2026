@@ -22,6 +22,10 @@ export interface WarpStyleConfig {
   glow: number;
 }
 
+export interface HadoukenRevealConfig extends WarpStyleConfig {
+  swirl: number;
+}
+
 export interface RevealConfig {
   enabled: boolean;
   type: RevealType;
@@ -43,7 +47,7 @@ export interface RevealConfig {
   };
   turbulence: WarpStyleConfig;
   glitch: WarpStyleConfig;
-  hadouken: WarpStyleConfig;
+  hadouken: HadoukenRevealConfig;
 }
 
 export interface Stripe {

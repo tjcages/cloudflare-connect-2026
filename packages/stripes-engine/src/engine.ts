@@ -568,6 +568,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             gridY,
             glow: assembly.glow,
             intensity: assembly.intensity,
+            swirl: assembly.swirl,
             aspect: cssW / Math.max(1, cssH),
             count: gridX * gridY * 3,
           });

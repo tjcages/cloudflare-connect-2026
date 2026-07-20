@@ -811,6 +811,7 @@ describe("reveal type promotion", () => {
       intensity: 1,
       detail: 0.5,
       glow: 0.7,
+      swirl: 1,
     });
     expect(r.assembly.sliceSizePx).toBe(29);
   });

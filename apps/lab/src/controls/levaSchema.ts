@@ -1689,6 +1689,14 @@ export function useEngineControls(
             label: "Detail",
             render: (get) => get("Reveal.revealType") === "hadouken",
           },
+          revealHadSwirl: {
+            value: d.reveal.hadouken.swirl,
+            min: 0,
+            max: 3,
+            step: 0.05,
+            label: "Swirl",
+            render: (get) => get("Reveal.revealType") === "hadouken",
+          },
           revealHadGlow: {
             value: d.reveal.hadouken.glow,
             min: 0,
@@ -2198,6 +2206,7 @@ export function useEngineControls(
         intensity: values.revealHadIntensity,
         detail: values.revealHadDetail,
         glow: values.revealHadGlow,
+        swirl: values.revealHadSwirl,
       },
     },
     sparkle: {

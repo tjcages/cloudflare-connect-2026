@@ -23,6 +23,7 @@ import type {
   StripeBlendMode,
   RevealType,
   WarpStyleConfig,
+  HadoukenRevealConfig,
 } from "./types";
 
 export function clamp(v: number, min: number, max: number): number {
@@ -260,6 +261,7 @@ export const DEFAULT_REVEAL: RevealConfig = {
     intensity: 1,
     detail: 0.5,
     glow: 0.7,
+    swirl: 1,
   },
 };
 
@@ -315,6 +317,13 @@ function normalizeWarpStyleBlock(i: Partial<WarpStyleConfig> = {}, d: WarpStyleC
   };
 }
 
+function normalizeHadoukenBlock(i: Partial<HadoukenRevealConfig> = {}, d: HadoukenRevealConfig): HadoukenRevealConfig {
+  return {
+    ...normalizeWarpStyleBlock(i, d),
+    swirl: clamp(num(i.swirl, d.swirl), 0, 3),
+  };
+}
+
 export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
   const w = i.wave ?? {};
   const a = i.assembly ?? {};
@@ -341,7 +350,7 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     assembly: normalizeAssemblyBlock(a),
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
-    hadouken: normalizeWarpStyleBlock(i.hadouken ?? a.hadouken, DEFAULT_REVEAL.hadouken),
+    hadouken: normalizeHadoukenBlock(i.hadouken ?? a.hadouken, DEFAULT_REVEAL.hadouken),
   };
 }
 

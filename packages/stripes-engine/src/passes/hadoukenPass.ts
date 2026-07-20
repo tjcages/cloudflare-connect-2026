@@ -13,6 +13,7 @@ export type HadoukenUniforms = {
   gridY: number;
   glow: number;
   intensity: number;
+  swirl: number;
   aspect: number;
   count: number;
 };
@@ -41,6 +42,7 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
     grid: pu("uGrid"),
     glow: pu("uGlow"),
     intensity: pu("uIntensity"),
+    swirl: pu("uSwirl"),
     aspect: pu("uAspect"),
   };
   return {
@@ -70,6 +72,7 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
         gl.uniform2f(P.grid, p.gridX, p.gridY);
         gl.uniform1f(P.glow, p.glow);
         gl.uniform1f(P.intensity, p.intensity);
+        gl.uniform1f(P.swirl, p.swirl);
         gl.uniform1f(P.aspect, p.aspect);
         gl.enable(gl.BLEND);
         gl.blendEquation(gl.MAX);
