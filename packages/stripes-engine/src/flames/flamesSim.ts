@@ -225,10 +225,49 @@ function placeVortexFlame(
   applyVortexTransform(flame);
 }
 
-function spawnFlame(state: FlamesState, config: FlamesConfig, displayWidth: number, displayHeight: number): Flame {
+function placeVortexBit(
+  flame: Flame,
+  config: FlamesConfig,
+  displayWidth: number,
+  displayHeight: number,
+  random: () => number,
+  nowMs: number,
+  seeded: boolean,
+): void {
+  flame.pivotX = random() * displayWidth;
+  flame.pivotY = random() * displayHeight;
+  flame.angle = random() * Math.PI * 2;
+  flame.radius = flame.width;
+  flame.radialSign = 0;
+  flame.angVel = config.swirlRate * (random() < 0.5 ? -1 : 1) * (1 + (random() - 0.5) * config.speedVariation);
+  flame.lifeMs = randomBetween(random, 600, 1800);
+  flame.bornMs = seeded ? nowMs - random() * flame.lifeMs : nowMs;
+  applyVortexTransform(flame);
+}
+
+function vortexBitEnvelope(t: number): number {
+  const fadeIn = smoothstep01(t / 0.25);
+  const fadeOut = 1 - smoothstep01((t - 0.65) / 0.35);
+  return Math.max(0, fadeIn * fadeOut);
+}
+
+function smoothstep01(x: number): number {
+  const c = Math.min(1, Math.max(0, x));
+  return c * c * (3 - 2 * c);
+}
+
+function spawnFlame(
+  state: FlamesState,
+  config: FlamesConfig,
+  displayWidth: number,
+  displayHeight: number,
+  nowMs: number,
+): Flame {
   const direction = pickFlameDirection(state, config.direction);
   const flame = createFlame(state, config, displayWidth, displayHeight, direction);
-  if (isVortexFlamesDirection(flame.direction)) {
+  if (flame.direction === "vortexBits") {
+    placeVortexBit(flame, config, displayWidth, displayHeight, state.random, nowMs, false);
+  } else if (flame.direction === "vortex") {
     placeVortexFlame(flame, config, displayWidth, displayHeight, state.random, false);
   } else {
     placeSpawnedFlame(flame, flame.direction, displayWidth, displayHeight);
@@ -236,7 +275,13 @@ function spawnFlame(state: FlamesState, config: FlamesConfig, displayWidth: numb
   return flame;
 }
 
-function seedFlames(state: FlamesState, config: FlamesConfig, displayWidth: number, displayHeight: number): void {
+function seedFlames(
+  state: FlamesState,
+  config: FlamesConfig,
+  displayWidth: number,
+  displayHeight: number,
+  nowMs: number,
+): void {
   if (!config.enabled || state.flames.length > 0 || displayWidth <= 0 || displayHeight <= 0) {
     return;
   }
@@ -244,7 +289,9 @@ function seedFlames(state: FlamesState, config: FlamesConfig, displayWidth: numb
   for (let i = 0; i < config.maxActive; i++) {
     const direction = pickFlameDirection(state, config.direction);
     const flame = createFlame(state, config, displayWidth, displayHeight, direction);
-    if (isVortexFlamesDirection(flame.direction)) {
+    if (flame.direction === "vortexBits") {
+      placeVortexBit(flame, config, displayWidth, displayHeight, state.random, nowMs, true);
+    } else if (flame.direction === "vortex") {
       placeVortexFlame(flame, config, displayWidth, displayHeight, state.random, true);
     } else {
       placeSeededFlame(flame, flame.direction, displayWidth, displayHeight, state.random);
@@ -288,7 +335,7 @@ export function stepFlames(
   if (state.lastStepMs <= 0) {
     state.lastStepMs = nowMs;
     state.lastSpawnMs = nowMs;
-    seedFlames(state, config, display.width, display.height);
+    seedFlames(state, config, display.width, display.height, nowMs);
     return;
   }
 
@@ -314,6 +361,13 @@ export function stepFlames(
         flame.angle += flame.angVel * dtSec;
         applyVortexTransform(flame);
         break;
+      case "vortexBits": {
+        flame.angle += flame.angVel * dtSec;
+        applyVortexTransform(flame);
+        const t = flame.lifeMs > 0 ? (nowMs - flame.bornMs) / flame.lifeMs : 1;
+        flame.opacity = flame.baseOpacity * vortexBitEnvelope(t);
+        break;
+      }
     }
   }
 
@@ -326,7 +380,7 @@ export function stepFlames(
   const spawnInterval =
     config.spawnIntervalMs + randomBetween(state.random, -config.spawnJitterMs, config.spawnJitterMs);
   if (state.flames.length < config.maxActive && nowMs - state.lastSpawnMs >= spawnInterval) {
-    state.flames.push(spawnFlame(state, config, display.width, display.height));
+    state.flames.push(spawnFlame(state, config, display.width, display.height, nowMs));
     state.lastSpawnMs = nowMs;
   }
 }

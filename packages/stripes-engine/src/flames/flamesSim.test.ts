@@ -221,7 +221,7 @@ describe("isVortexFlamesDirection", () => {
 describe("vortex motion", () => {
   it("seeds particles and grows their radius outward", () => {
     const state = createFlamesState(seededRandom());
-    const config = vortexConfig();
+    const config = vortexConfig({ spawnIntervalMs: 5000 });
     stepFlames(state, config, DISPLAY_VORTEX, 1);
     expect(state.flames.length).toBe(12);
     const before = state.flames.map((f) => f.radius);
@@ -264,5 +264,49 @@ describe("vortex motion", () => {
     stepFlames(state, config, DISPLAY_VORTEX, 1);
     stepFlames(state, config, DISPLAY_VORTEX, 3001);
     expect(state.flames.length).toBe(0);
+  });
+});
+
+describe("vortex bits", () => {
+  const bitsConfig = () =>
+    normalizeFlames({
+      enabled: true,
+      direction: "vortexBits",
+      maxActive: 20,
+      swirlRate: 3,
+      speedVariation: 0,
+      opacityMin: 1,
+      opacityMax: 1,
+    });
+
+  it("scatters pivots across the canvas instead of the center", () => {
+    const state = createFlamesState(seededRandom());
+    stepFlames(state, bitsConfig(), DISPLAY, 1);
+    const pivots = new Set(state.flames.map((f) => `${Math.round(f.pivotX)},${Math.round(f.pivotY)}`));
+    expect(pivots.size).toBeGreaterThan(5);
+  });
+
+  it("keeps each bit at a constant orbit radius", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig();
+    stepFlames(state, config, DISPLAY, 1);
+    const before = state.flames[0].radius;
+    stepFlames(state, config, DISPLAY, 201);
+    expect(state.flames[0].radius).toBeCloseTo(before);
+  });
+
+  it("fades in from zero and expires after its lifetime", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig();
+    stepFlames(state, config, DISPLAY, 1);
+    const bit = state.flames[0];
+    bit.bornMs = 0;
+    bit.lifeMs = 1000;
+    stepFlames(state, config, DISPLAY, 2);
+    expect(state.flames[0].opacity).toBeLessThan(state.flames[0].baseOpacity);
+
+    const identity = state.flames[0];
+    stepFlames(state, config, DISPLAY, 5001);
+    expect(state.flames).not.toContain(identity);
   });
 });
