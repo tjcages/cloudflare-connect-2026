@@ -1136,9 +1136,29 @@ export function useEngineControls(
               Right: "right",
               "Up - Down": "upDown",
               "Left - Right": "leftRight",
+              Vortex: "vortex",
+              "Vortex Bits": "vortexBits",
             } as const,
             label: "Direction",
             render: (get) => get("Background Flames.flamesEnabled") === true,
+          },
+          flamesInward: {
+            value: d.flames.inward,
+            label: "Inward",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true && get("Background Flames.flamesDirection") === "vortex",
+          },
+          flamesSwirlRate: {
+            value: d.flames.swirlRate,
+            min: 0,
+            max: 6,
+            step: 0.05,
+            label: "Swirl",
+            render: (get) => {
+              if (get("Background Flames.flamesEnabled") !== true) return false;
+              const dir = get("Background Flames.flamesDirection");
+              return dir === "vortex" || dir === "vortexBits";
+            },
           },
           flamesMinWidthPct: {
             value: d.flames.minWidthRatio * 100,
@@ -2276,6 +2296,8 @@ export function useEngineControls(
     flames: {
       enabled: values.flamesEnabled,
       direction: values.flamesDirection,
+      inward: values.flamesInward,
+      swirlRate: values.flamesSwirlRate,
       minWidthRatio: values.flamesMinWidthPct / 100,
       maxWidthRatio: values.flamesMaxWidthPct / 100,
       minHeightRatio: values.flamesMinHeightPct / 100,

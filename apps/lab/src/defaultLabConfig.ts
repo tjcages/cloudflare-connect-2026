@@ -215,6 +215,8 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
   flames: {
     enabled: true,
     direction: "up",
+    inward: false,
+    swirlRate: 1.2,
     minWidthRatio: 0.01,
     maxWidthRatio: 0.03,
     minHeightRatio: 0.01,
