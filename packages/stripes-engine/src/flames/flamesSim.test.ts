@@ -398,6 +398,94 @@ describe("vortex lines", () => {
     stepFlames(state, config, DISPLAY, 9000);
     expect(state.flames.filter((f) => f.pivotX === pivotX).length).toBe(0);
   });
+
+  it("honours the configured segment-count range", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({
+      enabled: true,
+      direction: "vortexLines",
+      maxActive: 200,
+      lines: { tailMin: 3, tailMax: 3, maxInstances: 6 },
+    } as never);
+    stepFlames(state, config, DISPLAY, 1);
+    state.flames.forEach((f) => expect(f.segCount).toBe(3));
+  });
+
+  it("caps by snake instances, not segments", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({
+      enabled: true,
+      direction: "vortexLines",
+      maxActive: 200,
+      lines: { tailMin: 5, tailMax: 5, maxInstances: 4 },
+    } as never);
+    stepFlames(state, config, DISPLAY, 1);
+    const pivots = new Set(state.flames.map((f) => `${f.pivotX},${f.pivotY}`));
+    expect(pivots.size).toBe(4);
+    expect(state.flames.length).toBe(20);
+  });
+
+  it("draws rotation speed from the configured range", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({
+      enabled: true,
+      direction: "vortexLines",
+      lines: { speedMin: 3, speedMax: 3, maxInstances: 8 },
+    } as never);
+    stepFlames(state, config, DISPLAY, 1);
+    state.flames.forEach((f) => expect(Math.abs(f.angVel)).toBeCloseTo(3, 5));
+  });
+
+  it("draws lifetime from the configured range", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({
+      enabled: true,
+      direction: "vortexLines",
+      lines: { lifeMinMs: 1500, lifeMaxMs: 1500, maxInstances: 6 },
+    } as never);
+    stepFlames(state, config, DISPLAY, 1);
+    state.flames.forEach((f) => expect(f.lifeMs).toBe(1500));
+  });
+
+  it("scales stroke and curl radius together", () => {
+    const small = createFlamesState(seededRandom());
+    const big = createFlamesState(seededRandom());
+    const mk = (s: number) =>
+      normalizeFlames({
+        enabled: true,
+        direction: "vortexLines",
+        lines: { scaleMin: s, scaleMax: s, maxInstances: 6, tailMin: 5, tailMax: 5 },
+      } as never);
+    stepFlames(small, mk(0.03), DISPLAY, 1);
+    stepFlames(big, mk(0.12), DISPLAY, 1);
+    const sHead = small.flames.find((f) => f.segIndex === 0);
+    const bHead = big.flames.find((f) => f.segIndex === 0);
+    const ratioWidth = bHead.width / sHead.width;
+    const ratioRadius = bHead.radius / sHead.radius;
+    expect(ratioWidth).toBeGreaterThan(3);
+    expect(ratioRadius).toBeCloseTo(ratioWidth, 1);
+  });
+
+  it("spawns on the configured interval range", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({
+      enabled: true,
+      direction: "vortexLines",
+      lines: {
+        intervalMinMs: 1000,
+        intervalMaxMs: 1000,
+        maxInstances: 40,
+        tailMin: 3,
+        tailMax: 3,
+        lifeMinMs: 100000,
+        lifeMaxMs: 100000,
+      },
+    } as never);
+    stepFlames(state, config, DISPLAY, 1);
+    const seeded = state.flames.length;
+    stepFlames(state, config, DISPLAY, 2);
+    expect(state.flames.length).toBe(seeded);
+  });
 });
 
 describe("vortex center density", () => {
