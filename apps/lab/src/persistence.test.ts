@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearStickyBackgroundColor,
   consumeImportedConfigPristine,
+  deleteConfig,
   importConfig,
   importSettingsFile,
   DEFAULT_LAB_SETTINGS,
@@ -12,6 +13,7 @@ import {
   loadStickyBackgroundColor,
   markImportedConfigPristine,
   resumePersistenceWritesForTests,
+  saveConfig,
   saveLabSettings,
   saveStickyBackgroundColor,
   serializeConfigFile,
@@ -219,10 +221,11 @@ describe("config file import/export", () => {
   });
 });
 
-describe("engine config never persists across a boot", () => {
+describe("engine config persistence", () => {
   beforeEach(() => {
     stubLocalStorage();
     stubSessionStorage();
+    resumePersistenceWritesForTests();
   });
 
   afterEach(() => {
@@ -230,30 +233,46 @@ describe("engine config never persists across a boot", () => {
     vi.unstubAllGlobals();
   });
 
-  it("always boots from the default engine config when nothing is staged", () => {
-    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
+  it("returns the lab defaults when nothing is stored", () => {
+    expect(loadInitialConfig("tex-a")).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
   });
 
-  it("ignores stale legacy per-texture / last-config / sticky-background keys and removes them", () => {
-    localStorage.setItem("stripes-engine-lab-by-texture", JSON.stringify({ "texture-a": { grid: { gapX: 3 } } }));
-    localStorage.setItem("stripes-engine-lab-last-config", JSON.stringify({ grid: { gapX: 9 } }));
-    localStorage.setItem("stripes-engine-lab-last-background-color", String(0x778899));
+  it("round-trips a per-texture config", () => {
+    const config = { ...DEFAULT_LAB_ENGINE_CONFIG, fieldScale: 0.42 } as EngineConfig;
+    saveConfig("tex-a", config);
+    expect(loadInitialConfig("tex-a").fieldScale).toBe(0.42);
+  });
 
-    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
+  it("falls back to the last saved config for an unknown texture", () => {
+    const config = { ...DEFAULT_LAB_ENGINE_CONFIG, fieldScale: 0.31 } as EngineConfig;
+    saveConfig("tex-a", config);
+    expect(loadInitialConfig("tex-b").fieldScale).toBe(0.31);
+  });
+
+  it("prefers a staged pending config over stored state", () => {
+    saveConfig("tex-a", { ...DEFAULT_LAB_ENGINE_CONFIG, fieldScale: 0.31 } as EngineConfig);
+    stagePendingConfig({ fieldScale: 0.77 });
+    expect(loadInitialConfig("tex-a").fieldScale).toBe(0.77);
+  });
+
+  it("consumes the pending config exactly once", () => {
+    saveConfig("tex-a", { ...DEFAULT_LAB_ENGINE_CONFIG, fieldScale: 0.31 } as EngineConfig);
+    stagePendingConfig({ fieldScale: 0.77 });
+    loadInitialConfig("tex-a");
+    expect(loadInitialConfig("tex-a").fieldScale).toBe(0.31);
+  });
+
+  it("does not write after a factory reset until reload", () => {
+    factoryResetSettings();
+    saveConfig("tex-a", { ...DEFAULT_LAB_ENGINE_CONFIG, fieldScale: 0.42 } as EngineConfig);
     expect(localStorage.getItem("stripes-engine-lab-by-texture")).toBeNull();
-    expect(localStorage.getItem("stripes-engine-lab-last-config")).toBeNull();
-    expect(localStorage.getItem("stripes-engine-lab-last-background-color")).toBeNull();
   });
 
-  it("applies a staged pending config exactly once, then reverts to default", () => {
-    const staged: EngineConfig = {
-      ...DEFAULT_ENGINE_CONFIG,
-      grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 7 },
-    };
-    stagePendingConfig(staged);
-
-    expect(loadInitialConfig().grid?.gapX).toBe(7);
-    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
+  it("deletes a stored per-texture config", () => {
+    saveConfig("tex-a", DEFAULT_LAB_ENGINE_CONFIG as EngineConfig);
+    deleteConfig("tex-a");
+    const raw = localStorage.getItem("stripes-engine-lab-by-texture");
+    expect(raw === null || JSON.parse(raw)["tex-a"] === undefined).toBe(true);
   });
 
   it("does not stage a pending config once persistence writes are frozen by a factory reset", () => {
@@ -263,26 +282,25 @@ describe("engine config never persists across a boot", () => {
       grid: { ...DEFAULT_ENGINE_CONFIG.grid, gapX: 7 },
     });
 
-    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
-  });
-
-  it("factory reset clears saved configs and sticky background", () => {
-    saveLabSettings({ canvasMode: "manual", canvasWidth: 1111, backgroundColor: 0x334455 });
-
-    factoryResetSettings();
-
-    expect(loadInitialConfig()).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
-    expect(loadLabSettings()).toEqual(DEFAULT_LAB_SETTINGS);
+    expect(loadInitialConfig("tex-a")).toEqual(DEFAULT_LAB_ENGINE_CONFIG);
   });
 
   it("never sticks a background color across boots, even after picking one live", () => {
     saveStickyBackgroundColor(0x445566);
 
     expect(loadStickyBackgroundColor()).toBeNull();
-    expect(loadInitialConfig().background?.color).toBe(DEFAULT_LAB_ENGINE_CONFIG.background.color);
+    expect(loadInitialConfig("tex-a").background?.color).toBe(DEFAULT_LAB_ENGINE_CONFIG.background.color);
 
     clearStickyBackgroundColor();
     expect(loadStickyBackgroundColor()).toBeNull();
+  });
+
+  it("factory reset clears lab UI settings even though engine config persists", () => {
+    saveLabSettings({ canvasMode: "manual", canvasWidth: 1111, backgroundColor: 0x334455 });
+
+    factoryResetSettings();
+
+    expect(loadLabSettings()).toEqual(DEFAULT_LAB_SETTINGS);
   });
 
   it("import-pristine flag is one-shot", () => {

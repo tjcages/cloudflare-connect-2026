@@ -104,6 +104,33 @@ function isConfigFile(value: unknown): value is ConfigFile {
   return record.kind === CONFIG_FILE_KIND && typeof record.config === "object" && record.config !== null;
 }
 
+function loadConfigMap(): Record<string, Partial<EngineConfig>> {
+  try {
+    const raw = localStorage.getItem(MAP_KEY);
+    if (raw) return JSON.parse(raw) as Record<string, Partial<EngineConfig>>;
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return {};
+}
+
+function loadLastConfig(): Partial<EngineConfig> | null {
+  try {
+    const raw = localStorage.getItem(LAST_KEY);
+    return raw ? (JSON.parse(raw) as Partial<EngineConfig>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLastConfig(c: Partial<EngineConfig>): void {
+  try {
+    localStorage.setItem(LAST_KEY, JSON.stringify(c));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
 function normalizeColor(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return Math.max(0, Math.min(0xffffff, Math.round(value)));
@@ -249,19 +276,6 @@ function clearWindowNameState(): void {
   }
 }
 
-function clearPersistedEngineConfig(): void {
-  try {
-    localStorage.removeItem(MAP_KEY);
-    localStorage.removeItem(LAST_KEY);
-    localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
-  } catch {
-    /* ignore */
-  }
-  clearUrlBackgroundColor();
-  deleteCookie(LAST_BACKGROUND_COLOR_KEY);
-  clearWindowNameState();
-}
-
 function readPendingConfig(): Partial<EngineConfig> | null {
   try {
     const raw = sessionStorage.getItem(PENDING_CONFIG_KEY);
@@ -281,9 +295,43 @@ export function stagePendingConfig(config: Partial<EngineConfig>): void {
   }
 }
 
-export function loadInitialConfig(): Partial<EngineConfig> {
-  clearPersistedEngineConfig();
-  return readPendingConfig() ?? DEFAULT_LAB_ENGINE_CONFIG;
+export function loadInitialConfig(textureId: string): Partial<EngineConfig> {
+  const pending = readPendingConfig();
+  if (pending) return pending;
+  try {
+    const map = loadConfigMap();
+    if (textureId in map) return map[textureId] ?? DEFAULT_LAB_ENGINE_CONFIG;
+    const last = loadLastConfig();
+    if (last) return last;
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return DEFAULT_LAB_ENGINE_CONFIG;
+}
+
+export function saveConfig(textureId: string, c: EngineConfig): void {
+  if (!persistenceWritesEnabled) return;
+  try {
+    const map = loadConfigMap();
+    map[textureId] = c;
+    localStorage.setItem(MAP_KEY, JSON.stringify(map));
+    saveLastConfig(c);
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+export function deleteConfig(textureId: string): void {
+  if (!persistenceWritesEnabled) return;
+  try {
+    const map = loadConfigMap();
+    if (textureId in map) {
+      delete map[textureId];
+      localStorage.setItem(MAP_KEY, JSON.stringify(map));
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function loadStickyBackgroundColor(): number | null {
