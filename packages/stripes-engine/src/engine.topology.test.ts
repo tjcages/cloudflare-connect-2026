@@ -12,7 +12,7 @@ function topologyKey(cfg: EngineConfig): string {
         : cfg.reveal.type === "vortex"
           ? "vortex"
           : "warp";
-  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}:${cfg.flames.direction}:${cfg.flames.inward}`;
+  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}`;
 }
 
 function needsRebuild(prev: EngineConfig, next: EngineConfig): boolean {
@@ -121,17 +121,17 @@ describe("setConfig topology gating", () => {
     expect(needsRebuild(a, b)).toBe(false);
   });
 
-  it("switching flames.direction between linear and vortex triggers rebuild", () => {
+  it("switching flames.direction between linear and vortex does not trigger a topology rebuild (particle-pool reset only)", () => {
     const linear = normalizeEngineConfig({ flames: { enabled: true, direction: "up" } });
     const vortex = normalizeEngineConfig({ flames: { enabled: true, direction: "vortex" } });
-    expect(needsRebuild(linear, vortex)).toBe(true);
-    expect(needsRebuild(vortex, linear)).toBe(true);
+    expect(needsRebuild(linear, vortex)).toBe(false);
+    expect(needsRebuild(vortex, linear)).toBe(false);
   });
 
-  it("flipping flames.inward triggers rebuild", () => {
+  it("flipping flames.inward does not trigger a topology rebuild (particle-pool reset only)", () => {
     const outward = normalizeEngineConfig({ flames: { enabled: true, direction: "vortex", inward: false } });
     const inward = normalizeEngineConfig({ flames: { enabled: true, direction: "vortex", inward: true } });
-    expect(needsRebuild(outward, inward)).toBe(true);
-    expect(needsRebuild(inward, outward)).toBe(true);
+    expect(needsRebuild(outward, inward)).toBe(false);
+    expect(needsRebuild(inward, outward)).toBe(false);
   });
 });

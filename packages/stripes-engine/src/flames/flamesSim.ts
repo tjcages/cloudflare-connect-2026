@@ -248,7 +248,7 @@ function placeVortexBit(
 function vortexBitEnvelope(t: number): number {
   const fadeIn = smoothstep01(t / 0.25);
   const fadeOut = 1 - smoothstep01((t - 0.65) / 0.35);
-  return Math.max(0, fadeIn * fadeOut);
+  return fadeIn * fadeOut;
 }
 
 function smoothstep01(x: number): number {

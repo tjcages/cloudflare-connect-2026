@@ -1193,11 +1193,19 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       applySizes();
       if (config.colors.mode === "colors" && colorInputSig() !== lastColorInputSig) computeMaxColorDist();
       if (
+        config.flames.enabled &&
+        (!lastFlamesEnabled ||
+          config.flames.direction !== lastFlamesDirection ||
+          config.flames.inward !== lastFlamesInward)
+      ) {
+        flamesState = createFlamesState(mulberry32(flamesSeed));
+      }
+      lastFlamesDirection = config.flames.direction;
+      lastFlamesInward = config.flames.inward;
+      if (
         config.stripesEnabled !== lastStripesEnabled ||
         revealPassKind() !== lastRevealKind ||
         config.flames.enabled !== lastFlamesEnabled ||
-        config.flames.direction !== lastFlamesDirection ||
-        config.flames.inward !== lastFlamesInward ||
         config.edgeMask.enabled !== lastEdgeMaskEnabled ||
         config.renderMode !== lastRenderMode ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
@@ -1207,14 +1215,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.colors.mode !== lastColorsMode ||
         config.background.stars.enabled !== lastStarsEnabled
       ) {
-        if (
-          config.flames.enabled &&
-          (!lastFlamesEnabled ||
-            config.flames.direction !== lastFlamesDirection ||
-            config.flames.inward !== lastFlamesInward)
-        ) {
-          flamesState = createFlamesState(mulberry32(flamesSeed));
-        }
         if (config.background.stars.enabled && !lastStarsEnabled) {
           starsState = createStarsState(mulberry32(starsSeed));
         }
@@ -1230,8 +1230,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastStripesEnabled = config.stripesEnabled;
         lastRevealKind = revealPassKind();
         lastFlamesEnabled = config.flames.enabled;
-        lastFlamesDirection = config.flames.direction;
-        lastFlamesInward = config.flames.inward;
         lastEdgeMaskEnabled = config.edgeMask.enabled;
         lastRenderMode = config.renderMode;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
