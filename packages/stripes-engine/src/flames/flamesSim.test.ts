@@ -309,12 +309,77 @@ describe("vortex bits (global snakes)", () => {
     expect(state.flames.length).toBe(24);
   });
 
+  it("caps snake instances across many spawn-gated steps, not just at seed", () => {
+    const state = createFlamesState(seededRandom());
+    const config = bitsConfig({
+      maxInstances: 4,
+      tailMin: 3,
+      tailMax: 3,
+      intervalMinMs: 10,
+      intervalMaxMs: 10,
+      lifeMinMs: 20000,
+      lifeMaxMs: 20000,
+    });
+    stepFlames(state, config, DISPLAY, 1);
+    let now = 1;
+    for (let i = 0; i < 40; i++) {
+      now += 50;
+      stepFlames(state, config, DISPLAY, now);
+      const heads = state.flames.filter((f) => f.segIndex === 0).length;
+      expect(heads).toBeLessThanOrEqual(4);
+    }
+    const heads = state.flames.filter((f) => f.segIndex === 0).length;
+    expect(heads).toBe(4);
+  });
+
   it("tapers head to tail", () => {
     const state = createFlamesState(seededRandom());
     stepFlames(state, bitsConfig(), DISPLAY, 1);
     const head = state.flames.find((f) => f.segIndex === 0);
     const mates = state.flames.filter((f) => f.radius === head.radius).sort((a, b) => a.segIndex - b.segIndex);
     expect(mates[mates.length - 1].width).toBeLessThan(head.width);
+  });
+
+  it("trails the tail opposite the spin when inward, global bits", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({
+      enabled: true,
+      direction: "vortexBits",
+      opacityMin: 1,
+      opacityMax: 1,
+      inward: true,
+      bits: { maxInstances: 6, tailMin: 6, tailMax: 6 },
+    } as never);
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0)!;
+    const mates = state.flames.filter((f) => f.radius === head.radius).sort((a, b) => a.segIndex - b.segIndex);
+    const spinSign = Math.sign(head.angVel);
+    expect(spinSign).not.toBe(0);
+    for (let i = 1; i < mates.length; i++) {
+      const stepSign = Math.sign(mates[i].angle - mates[i - 1].angle);
+      expect(stepSign).toBe(-spinSign);
+    }
+  });
+
+  it("trails the tail opposite the spin when outward, global bits", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({
+      enabled: true,
+      direction: "vortexBits",
+      opacityMin: 1,
+      opacityMax: 1,
+      inward: false,
+      bits: { maxInstances: 6, tailMin: 6, tailMax: 6 },
+    } as never);
+    stepFlames(state, config, DISPLAY, 1);
+    const head = state.flames.find((f) => f.segIndex === 0)!;
+    const mates = state.flames.filter((f) => f.radius === head.radius).sort((a, b) => a.segIndex - b.segIndex);
+    const spinSign = Math.sign(head.angVel);
+    expect(spinSign).not.toBe(0);
+    for (let i = 1; i < mates.length; i++) {
+      const stepSign = Math.sign(mates[i].angle - mates[i - 1].angle);
+      expect(stepSign).toBe(-spinSign);
+    }
   });
 
   it("drifts radially so the population reads as a spiral", () => {
@@ -448,6 +513,34 @@ describe("vortex lines", () => {
     const pivots = new Set(state.flames.map((f) => `${f.pivotX},${f.pivotY}`));
     expect(pivots.size).toBe(4);
     expect(state.flames.length).toBe(20);
+  });
+
+  it("caps snake instances across many spawn-gated steps, not just at seed", () => {
+    const state = createFlamesState(seededRandom());
+    const config = normalizeFlames({
+      enabled: true,
+      direction: "vortexLines",
+      maxActive: 200,
+      lines: {
+        tailMin: 3,
+        tailMax: 3,
+        maxInstances: 4,
+        intervalMinMs: 10,
+        intervalMaxMs: 10,
+        lifeMinMs: 20000,
+        lifeMaxMs: 20000,
+      },
+    } as never);
+    stepFlames(state, config, DISPLAY, 1);
+    let now = 1;
+    for (let i = 0; i < 40; i++) {
+      now += 50;
+      stepFlames(state, config, DISPLAY, now);
+      const heads = state.flames.filter((f) => f.segIndex === 0).length;
+      expect(heads).toBeLessThanOrEqual(4);
+    }
+    const heads = state.flames.filter((f) => f.segIndex === 0).length;
+    expect(heads).toBe(4);
   });
 
   it("draws rotation speed from the configured range", () => {
