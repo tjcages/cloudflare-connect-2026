@@ -153,7 +153,7 @@ export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig({
     hadouken: {
       speedMinMs: 300,
       speedMaxMs: 1500,
-      staggerMs: 1400,
+      staggerMs: 2600,
       intensity: 1,
       detail: 0.5,
       glow: 0.7,

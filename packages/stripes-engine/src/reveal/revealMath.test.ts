@@ -90,7 +90,7 @@ describe("resolveRevealDurationMs", () => {
     const turb = normalizeReveal({ enabled: true, type: "turbulence" });
     expect(resolveRevealDurationMs(turb)).toBe(1400 + 2600);
     const hadouken = normalizeReveal({ enabled: true, type: "hadouken" });
-    expect(resolveRevealDurationMs(hadouken)).toBe(1400 + 1500);
+    expect(resolveRevealDurationMs(hadouken)).toBe(2600 + 1500);
   });
 });
 
