@@ -579,8 +579,9 @@ describe("vortex bits", () => {
     stepFlames(state, config, DISPLAY, 1);
     expect(state.flames[0].opacity).toBeLessThan(state.flames[0].baseOpacity);
 
+    const identity = state.flames[0];
     stepFlames(state, config, DISPLAY, 5000);
-    expect(state.flames.every((f) => f.lifeMs > 0)).toBe(true);
+    expect(state.flames).not.toContain(identity);
   });
 });
 ```
