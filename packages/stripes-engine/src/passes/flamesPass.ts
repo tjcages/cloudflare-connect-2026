@@ -5,9 +5,9 @@ import { FLAMES_FRAG, FLAMES_COLOR_OVER_FRAG } from "../shaders/flames.frag";
 import type { Flame } from "../flames/flamesSim";
 import type { VibrantColor } from "../colors/vibrantPalette";
 
-const LUM_FLOATS_PER_INSTANCE = 5;
+const LUM_FLOATS_PER_INSTANCE = 6;
 const LUM_STRIDE_BYTES = LUM_FLOATS_PER_INSTANCE * 4;
-const COLOR_FLOATS_PER_INSTANCE = 8;
+const COLOR_FLOATS_PER_INSTANCE = 9;
 const COLOR_STRIDE_BYTES = COLOR_FLOATS_PER_INSTANCE * 4;
 
 type FlamesOpts = { canvasW: number; canvasH: number; vertical: boolean; inner: number; outer: number };
@@ -34,6 +34,10 @@ export function createFlamesPass(gl: WebGL2RenderingContext) {
     gl.enableVertexAttribArray(aOpacity);
     gl.vertexAttribPointer(aOpacity, 1, gl.FLOAT, false, lumStride, 16);
     gl.vertexAttribDivisor(aOpacity, 1);
+    const aRot = gl.getAttribLocation(lumProgram, "aRot");
+    gl.enableVertexAttribArray(aRot);
+    gl.vertexAttribPointer(aRot, 1, gl.FLOAT, false, lumStride, 20);
+    gl.vertexAttribDivisor(aRot, 1);
   }
 
   const colorStride = COLOR_STRIDE_BYTES;
@@ -49,8 +53,12 @@ export function createFlamesPass(gl: WebGL2RenderingContext) {
     gl.enableVertexAttribArray(aOpacity);
     gl.vertexAttribPointer(aOpacity, 1, gl.FLOAT, false, colorStride, 16);
     gl.vertexAttribDivisor(aOpacity, 1);
+    const aRot = gl.getAttribLocation(colorProgram, "aRot");
+    gl.enableVertexAttribArray(aRot);
+    gl.vertexAttribPointer(aRot, 1, gl.FLOAT, false, colorStride, 20);
+    gl.vertexAttribDivisor(aRot, 1);
     gl.enableVertexAttribArray(aColor);
-    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, colorStride, 20);
+    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, colorStride, 24);
     gl.vertexAttribDivisor(aColor, 1);
   }
   gl.bindVertexArray(null);
@@ -80,6 +88,7 @@ export function createFlamesPass(gl: WebGL2RenderingContext) {
       lumData[base + 2] = f.width;
       lumData[base + 3] = f.height;
       lumData[base + 4] = f.opacity;
+      lumData[base + 5] = f.rot;
     }
     return needed;
   }
@@ -146,9 +155,10 @@ export function createFlamesPass(gl: WebGL2RenderingContext) {
         colorData[base + 2] = f.width;
         colorData[base + 3] = f.height;
         colorData[base + 4] = f.opacity;
-        colorData[base + 5] = pick.r / 255;
-        colorData[base + 6] = pick.g / 255;
-        colorData[base + 7] = pick.b / 255;
+        colorData[base + 5] = f.rot;
+        colorData[base + 6] = pick.r / 255;
+        colorData[base + 7] = pick.g / 255;
+        colorData[base + 8] = pick.b / 255;
       }
 
       bindRenderTarget(gl, fieldColor);
