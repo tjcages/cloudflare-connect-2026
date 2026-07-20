@@ -242,8 +242,6 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       lifeMinMs: 900,
       lifeMaxMs: 2200,
       maxInstances: 18,
-      waveAmp: 0.25,
-      waveFreq: 1.8,
     },
     bits: {
       tailMin: 6,
@@ -258,8 +256,6 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       lifeMinMs: 1400,
       lifeMaxMs: 3200,
       maxInstances: 26,
-      waveAmp: 0.35,
-      waveFreq: 2.2,
     },
   },
   edgeMask: {

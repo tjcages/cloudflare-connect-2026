@@ -1329,22 +1329,6 @@ export function useEngineControls(
             label: "Max snakes",
             render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
           },
-          flamesLinesWaveAmp: {
-            value: d.flames.lines.waveAmp,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Wave amount",
-            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
-          },
-          flamesLinesWaveFreq: {
-            value: d.flames.lines.waveFreq,
-            min: 0,
-            max: 8,
-            step: 0.05,
-            label: "Wave freq",
-            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexLines"),
-          },
           flamesBitsTailMin: {
             value: d.flames.bits.tailMin,
             min: 2,
@@ -1439,22 +1423,6 @@ export function useEngineControls(
             max: 120,
             step: 1,
             label: "Max snakes",
-            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexBits"),
-          },
-          flamesBitsWaveAmp: {
-            value: d.flames.bits.waveAmp,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Wave amount",
-            render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexBits"),
-          },
-          flamesBitsWaveFreq: {
-            value: d.flames.bits.waveFreq,
-            min: 0,
-            max: 8,
-            step: 0.05,
-            label: "Wave freq",
             render: (get) => flamesEnabledAnd(get, (dir) => dir === "vortexBits"),
           },
           flamesEdgeSharpness: {
@@ -2548,8 +2516,6 @@ export function useEngineControls(
         lifeMinMs: values.flamesLinesLifeMinMs,
         lifeMaxMs: values.flamesLinesLifeMaxMs,
         maxInstances: values.flamesLinesMaxInstances,
-        waveAmp: values.flamesLinesWaveAmp,
-        waveFreq: values.flamesLinesWaveFreq,
       },
       bits: {
         tailMin: values.flamesBitsTailMin,
@@ -2564,8 +2530,6 @@ export function useEngineControls(
         lifeMinMs: values.flamesBitsLifeMinMs,
         lifeMaxMs: values.flamesBitsLifeMaxMs,
         maxInstances: values.flamesBitsMaxInstances,
-        waveAmp: values.flamesBitsWaveAmp,
-        waveFreq: values.flamesBitsWaveFreq,
       },
     },
     edgeMask: {

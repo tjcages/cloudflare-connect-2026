@@ -15,7 +15,6 @@ export interface Flame {
   pivotY: number;
   radius: number;
   baseRadius: number;
-  wavePhase: number;
   angle: number;
   angVel: number;
   radialSign: number;
@@ -150,7 +149,6 @@ function createFlame(
     pivotY: 0,
     radius: 0,
     baseRadius: 0,
-    wavePhase: 0,
     angle: 0,
     angVel: 0,
     radialSign: 1,
@@ -291,7 +289,6 @@ function emitVortexSnake(
     ? Math.max(1, segLen * SNAKE_SEG_OVERLAP)
     : Math.max(1, radius * SNAKE_SEG_ARC * SNAKE_SEG_OVERLAP);
   const headAngle = state.random() * Math.PI * 2;
-  const wavePhase = state.random() * Math.PI * 2;
   const bornMs = seeded ? nowMs - state.random() * lifeMs : nowMs;
   const baseOpacity = randomBetween(state.random, config.opacityMin, config.opacityMax);
   const colorSeed = flameColorSeed(headWidth, thickness, Math.abs(angVel), baseOpacity);
@@ -314,7 +311,6 @@ function emitVortexSnake(
       pivotY,
       radius,
       baseRadius: radius,
-      wavePhase,
       angle: headAngle - dirSign * i * segArc,
       angVel,
       radialSign,
@@ -454,12 +450,7 @@ export function stepFlames(
       case "vortexBits": {
         flame.baseRadius += flame.radialSign * flame.speedPxPerSec * dtSec;
         flame.angle += flame.angVel * dtSec;
-        const bitsWave =
-          config.bits.waveAmp *
-          flame.height *
-          6 *
-          Math.sin(flame.wavePhase + flame.segIndex * config.bits.waveFreq + nowMs * 0.004);
-        flame.radius = flame.baseRadius + bitsWave;
+        flame.radius = flame.baseRadius;
         applyVortexTransform(flame);
         const t = flame.lifeMs > 0 ? (nowMs - flame.bornMs) / flame.lifeMs : 1;
         flame.opacity = flame.baseOpacity * vortexBitEnvelope(t);
@@ -467,12 +458,7 @@ export function stepFlames(
       }
       case "vortexLines": {
         flame.angle += flame.angVel * dtSec;
-        const linesWave =
-          config.lines.waveAmp *
-          flame.height *
-          6 *
-          Math.sin(flame.wavePhase + flame.segIndex * config.lines.waveFreq + nowMs * 0.004);
-        flame.radius = flame.baseRadius + linesWave;
+        flame.radius = flame.baseRadius;
         applyVortexTransform(flame);
         const t = flame.lifeMs > 0 ? (nowMs - flame.bornMs) / flame.lifeMs : 1;
         flame.opacity = flame.baseOpacity * vortexBitEnvelope(t);

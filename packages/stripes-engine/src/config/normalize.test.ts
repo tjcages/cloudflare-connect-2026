@@ -377,14 +377,6 @@ describe("flames normalizer", () => {
     expect(normalizeFlames({ direction: "left" }).direction).toBe("left");
     expect(normalizeFlames({ direction: "right" }).direction).toBe("right");
   });
-  it("defaults and clamps the wave knobs", () => {
-    const f = normalizeFlames({});
-    expect(f.bits.waveAmp).toBeCloseTo(0.35);
-    expect(f.bits.waveFreq).toBeCloseTo(2.2);
-    expect(normalizeFlames({ bits: { waveAmp: 9 } } as never).bits.waveAmp).toBe(1);
-    expect(normalizeFlames({ bits: { waveAmp: -3 } } as never).bits.waveAmp).toBe(0);
-    expect(normalizeFlames({ bits: { waveFreq: 99 } } as never).bits.waveFreq).toBe(8);
-  });
 });
 describe("edgeMask normalizer", () => {
   it("defaults to DEFAULT_EDGE_MASK when called with {}", () => {
