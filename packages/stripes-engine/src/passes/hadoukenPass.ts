@@ -30,6 +30,7 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
     flight: cu("uFlight"),
     grid: cu("uGrid"),
     glow: cu("uGlow"),
+    aspect: cu("uAspect"),
   };
   const pu = (n: string) => gl.getUniformLocation(particleProgram, n);
   const P = {
@@ -55,6 +56,7 @@ export function createHadoukenPass(gl: WebGL2RenderingContext, quad: { draw(): v
       gl.uniform1f(C.flight, p.flight);
       gl.uniform2f(C.grid, p.gridX, p.gridY);
       gl.uniform1f(C.glow, p.glow);
+      gl.uniform1f(C.aspect, p.aspect);
       quad.draw();
 
       if (p.progress < p.spread + p.flight) {
