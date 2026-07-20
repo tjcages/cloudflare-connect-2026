@@ -43,10 +43,11 @@ void main() {
     highp float rowsC = mix(8.0, 24.0, uDetail);
     highp float rowsF = mix(40.0, 120.0, uDetail);
     n = clamp(vhash(vec2(floor(vUv.y * rowsC) * 0.61, 8.8)) * 0.6 + vhash(vec2(floor(vUv.y * rowsF) * 0.13, 5.2)) * 0.4, 0.0, 1.0);
-  } else if (uMode == 3) {
-    n = clamp(0.1 + 0.75 * (1.0 - texture(uField, vUv).r) + (fbm2(vUv * 6.0 + 1.3) - 0.5) * 0.3, 0.0, 1.0);
+  } else if (uMode == 2) {
+    n = 0.1 + fbm2(vUv * 6.0 + 11.7) * 0.1;
   } else {
-    n = 0.12;
+    highp float rows = mix(14.0, 60.0, uDetail);
+    n = vhash(vec2(floor(vUv.y * rows) * 0.57, 12.3));
   }
 
   highp float f = clamp((p - uSpread * n) / max(uFlight, 1e-4), 0.0, 1.0);
@@ -109,46 +110,52 @@ void main() {
   }
 
   if (uMode == 2) {
-    vec2 wv = vec2(fbm2(vUv * 3.5 + vec2(p * 0.7, 2.2)), fbm2(vUv * 3.5 + vec2(15.3, -p * 0.55))) - 0.5;
-    vec2 wuv = vUv + wv * 0.28 * uIntensity;
-    highp float dmin = 1e9;
-    for (int k = 0; k < 3; k++) {
-      highp float fk = float(k);
-      vec2 ip = vec2(vhash(vec2(fk * 2.9 + 0.8, 4.1)), vhash(vec2(fk * 4.3 + 2.2, 7.9))) * 0.7 + 0.15;
-      dmin = min(dmin, distance(wuv, ip));
-    }
-    highp float grow = ease * 1.7;
-    highp float conc = smoothstep(grow, grow - 0.3, dmin);
-    conc *= 0.55 + 0.45 * fbm2(wuv * 7.0 + vec2(p * 1.3, 9.4));
-    conc = max(conc, smoothstep(0.93, 1.0, f));
-    vec2 su = vUv + wv * 0.1 * uIntensity * (1.0 - conc);
-    highp float v = texture(uField, clamp(su, 0.0, 1.0)).r;
-    highp float edge = conc * (1.0 - conc) * 4.0;
-    finalColor = vec4(vec3(v * conc + edge * edge * uGlow * 0.5 * fbm2(wuv * 9.0 + p)), 1.0);
-    return;
-  }
-
-  if (uMode == 3) {
-    highp float lum = texture(uField, vUv).r;
+    vec2 c0 = vUv - 0.5;
+    highp float r = length(c0);
+    vec2 rdir = r > 1e-4 ? c0 / r : vec2(1.0, 0.0);
+    vec2 perp = vec2(-rdir.y, rdir.x);
+    highp float settleStart = 0.55 + 0.35 * clamp(r * 1.4, 0.0, 1.0);
+    highp float s = smoothstep(settleStart, 1.0, f);
+    highp float dsettle = s * s * (3.0 - 2.0 * s);
+    highp float decay = 1.0 - dsettle;
     highp float emerge = smoothstep(0.0, 0.18, f);
-    highp float rim = emerge * (1.0 - emerge) * 4.0;
-    highp float flick = 0.75 + 0.25 * sin(p * 40.0 + vhash(floor(vUv * 40.0) * 0.31 + 2.9) * 6.2831853);
-    finalColor = vec4(vec3(lum * emerge * (1.0 + uGlow * 0.6 * rim * flick) + rim * rim * lum * uGlow * 1.4 * flick), 1.0);
+    highp float eye = smoothstep(0.04, 0.3, r);
+    highp float spinUp = smoothstep(0.05, 0.45, f);
+    vec2 flow = vec2(p * 1.1, -p * 0.8);
+    vec2 q1 = vUv * freq + flow + 4.2;
+    highp float e = 0.09;
+    vec2 c1 = vec2(fbm2(q1 + vec2(0.0, e)) - fbm2(q1 - vec2(0.0, e)), fbm2(q1 - vec2(e, 0.0)) - fbm2(q1 + vec2(e, 0.0))) / (2.0 * e);
+    vec2 disp = (perp * 0.38 * eye * spinUp + c1 * 0.05) * uIntensity * decay;
+    highp float acc = 0.0;
+    for (int t = 0; t < 5; t++) {
+      highp float w = 0.55 + 0.225 * float(t);
+      acc += texture(uField, clamp(vUv + disp * w, 0.0, 1.0)).r;
+    }
+    highp float v = acc * 0.2;
+    highp float gain = 1.0 + uGlow * 1.1 * min(1.0, length(disp) * 6.0) * decay + uGlow * 1.4 * emerge * (1.0 - emerge);
+    finalColor = vec4(vec3(v * gain * emerge), 1.0);
     return;
   }
 
-  highp float rr = length(vUv - 0.5) * (1.0 + (fbm2(vUv * 4.0 + 6.7) - 0.5) * 0.25);
-  highp float mask = smoothstep(0.95, 1.0, f);
-  highp float ringG = 0.0;
-  for (int k = 0; k < 4; k++) {
-    highp float fk = float(k);
-    highp float tk = 0.1 + 0.2 * fk;
-    highp float sp = mix(0.9, 2.8, fk / 3.0);
-    highp float Rk = max(f - tk, 0.0) * sp;
-    mask = max(mask, smoothstep(Rk, Rk - 0.07, rr) * step(tk, f));
-    highp float rw = (rr - Rk) * 16.0;
-    ringG += exp(-rw * rw) * step(tk, f) * (1.0 - smoothstep(tk, tk + 0.28, f)) * (0.5 + 0.3 * fk);
+  highp float inten = smoothstep(0.0, 0.75, f);
+  inten *= inten;
+  highp float masterDecay = 1.0 - smoothstep(0.82, 0.95, f);
+  highp float emerge = smoothstep(0.0, 0.1, f) * (0.45 + 0.55 * smoothstep(0.3, 0.9, f));
+  highp float rows = mix(14.0, 60.0, uDetail);
+  highp float rowC = floor(vUv.y * rows);
+  highp float stp = floor(p * 46.0);
+  highp float duty = mix(0.92, 0.3, inten);
+  highp float act = step(duty, vhash(vec2(rowC * 0.53 + stp * 1.71, 6.1)));
+  highp float h = vhash(vec2(rowC * 0.37 + stp * 1.13, 4.2));
+  vec2 disp = vec2((h - 0.5) * (0.25 + 0.45 * inten), (vhash(vec2(rowC * 0.71 + stp * 1.31, 2.6)) - 0.5) * 0.05 * inten) * act * masterDecay * uIntensity;
+  highp float acc = 0.0;
+  for (int t = 0; t < 5; t++) {
+    highp float w = 0.55 + 0.225 * float(t);
+    acc += texture(uField, clamp(vUv + disp * w, 0.0, 1.0)).r;
   }
-  finalColor = vec4(vec3(texture(uField, vUv).r * mask + ringG * uGlow * 0.9), 1.0);
+  highp float v = acc * 0.2;
+  highp float white = smoothstep(0.78, 0.86, f) * (1.0 - smoothstep(0.88, 0.97, f));
+  highp float gain = 1.0 + uGlow * 0.6 * act * inten * masterDecay + uGlow * 0.5 * inten * masterDecay * (vhash(vec2(stp, 3.7)) - 0.5) * 2.0;
+  finalColor = vec4(vec3(v * max(gain, 0.0) * emerge + white * uGlow * 1.6), 1.0);
 }
 `;
