@@ -23,13 +23,16 @@ highp float hashLane(highp uint i, highp uint salt) {
 
 void main() {
   highp uint id = uint(gl_InstanceID);
+  highp uint cellIndex = id / 3u;
+  highp uint k = id - cellIndex * 3u;
   highp float gx = uGrid.x;
-  vec2 cell = vec2(mod(float(id), gx), floor(float(id) / gx));
+  vec2 cell = vec2(mod(float(cellIndex), gx), floor(float(cellIndex) / gx));
   vec2 targetUv = (cell + 0.5) / uGrid;
   vec2 asp = vec2(uAspect, 1.0);
   highp float dn = length((targetUv - 0.5) * asp) / (length(asp) * 0.5);
-  highp float o = (dn * 0.7 + (hashLane(id, 1u) - 0.5) * 0.5 + 0.25) / 1.2;
+  highp float o = (dn * 0.7 + (hashLane(cellIndex, 1u) - 0.5) * 0.5 + 0.25) / 1.2;
   o = o < 0.5 ? sqrt(0.5 * o) : 1.0 - sqrt(0.5 * (1.0 - o));
+  o = o + float(k) * 0.04 + hashLane(id, 4u) * 0.02;
   highp float p = max(uProgress, 0.0);
   highp float f = (p - uSpread * o) / max(uFlight, 1e-4);
   highp float blockV = texture(uField, targetUv).r;
@@ -72,7 +75,7 @@ void main() {
   vec2 uvPos = posUv + rot / asp;
   vQuad = vec2(qx, qy);
   highp float fadeIn = smoothstep(0.0, 0.08, f);
-  vVal = blockV * (1.0 + 0.25 * uGlow * (1.0 - f)) * fadeIn;
+  vVal = blockV * (float(k) + 1.0) / 3.0 * (1.0 + 0.25 * uGlow * (1.0 - f)) * fadeIn;
   gl_Position = vec4(uvPos * 2.0 - 1.0, 0.0, 1.0);
 }
 `;

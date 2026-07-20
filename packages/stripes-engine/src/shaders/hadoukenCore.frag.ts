@@ -22,24 +22,32 @@ highp float hashLane(highp uint i, highp uint salt) {
 
 void main() {
   highp float p = max(uProgress, 0.0);
-  if (p >= uSpread + uFlight * 1.25) {
+  if (p >= uSpread * 1.12 + uFlight * 1.25) {
     finalColor = vec4(vec3(texture(uField, vUv).r), 1.0);
     return;
   }
   vec2 cid = floor(vUv * uGrid);
-  highp uint id = uint(cid.y * uGrid.x + cid.x);
+  highp uint cellIndex = uint(cid.y * uGrid.x + cid.x);
   vec2 cellCenter = (cid + 0.5) / uGrid;
   vec2 asp = vec2(uAspect, 1.0);
   highp float dn = length((cellCenter - 0.5) * asp) / (length(asp) * 0.5);
-  highp float o = (dn * 0.7 + (hashLane(id, 1u) - 0.5) * 0.5 + 0.25) / 1.2;
+  highp float o = (dn * 0.7 + (hashLane(cellIndex, 1u) - 0.5) * 0.5 + 0.25) / 1.2;
   o = o < 0.5 ? sqrt(0.5 * o) : 1.0 - sqrt(0.5 * (1.0 - o));
-  highp float fraw = (p - uSpread * o) / max(uFlight, 1e-4);
   highp float blockV = texture(uField, cellCenter).r;
-  highp float on = step(1.0, fraw);
-  highp float refine = smoothstep(1.0, 1.2, fraw);
   highp float fullV = texture(uField, vUv).r;
-  highp float v = mix(blockV, fullV, refine) * on;
-  highp float flash = on * (1.0 - smoothstep(1.0, 1.1, fraw));
+  highp float accFrac = 0.0;
+  highp float lastRaw = 0.0;
+  for (uint k = 0u; k < 3u; k++) {
+    highp float ok = o + float(k) * 0.04 + hashLane(cellIndex * 3u + k, 4u) * 0.02;
+    highp float fr = (p - uSpread * ok) / max(uFlight, 1e-4);
+    accFrac += step(1.0, fr) / 3.0;
+    if (k == 2u) {
+      lastRaw = fr;
+    }
+  }
+  highp float refine = smoothstep(1.0, 1.2, lastRaw);
+  highp float flash = step(1.0, lastRaw) * (1.0 - smoothstep(1.0, 1.1, lastRaw));
+  highp float v = mix(blockV * accFrac, fullV, refine);
   finalColor = vec4(vec3(v * (1.0 + 0.3 * uGlow * flash)), 1.0);
 }
 `;

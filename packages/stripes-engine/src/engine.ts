@@ -569,7 +569,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             glow: assembly.glow,
             intensity: assembly.intensity,
             aspect: cssW / Math.max(1, cssH),
-            count: gridX * gridY,
+            count: gridX * gridY * 3,
           });
         },
         dispose: () => hadoukenPass.dispose(),
