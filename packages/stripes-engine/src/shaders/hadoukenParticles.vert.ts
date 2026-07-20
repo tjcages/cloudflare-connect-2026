@@ -38,7 +38,30 @@ void main() {
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
     return;
   }
-  vec2 startUv = vec2(0.5) + (vec2(hashLane(id, 2u), hashLane(id, 3u)) - 0.5) * 0.06;
+  highp float dL = targetUv.x;
+  highp float dR = 1.0 - targetUv.x;
+  highp float dT = targetUv.y;
+  highp float dB = 1.0 - targetUv.y;
+  vec2 edgeDir;
+  highp float edgeDist;
+  if (dL <= dR && dL <= dT && dL <= dB) {
+    edgeDir = vec2(-1.0, 0.0);
+    edgeDist = dL;
+  } else if (dR <= dT && dR <= dB) {
+    edgeDir = vec2(1.0, 0.0);
+    edgeDist = dR;
+  } else if (dT <= dB) {
+    edgeDir = vec2(0.0, -1.0);
+    edgeDist = dT;
+  } else {
+    edgeDir = vec2(0.0, 1.0);
+    edgeDist = dB;
+  }
+  highp float ang = (hashLane(id, 2u) - 0.5) * 1.1;
+  highp float ca = cos(ang);
+  highp float sa = sin(ang);
+  edgeDir = vec2(edgeDir.x * ca - edgeDir.y * sa, edgeDir.x * sa + edgeDir.y * ca);
+  vec2 startUv = targetUv + edgeDir * (edgeDist + 0.08 + 0.25 * hashLane(id, 3u));
   highp float ease = 1.0 - pow(1.0 - f, 3.0);
   vec2 posUv = mix(startUv, targetUv, ease);
   highp float f2 = min(f + 0.03, 1.0);
