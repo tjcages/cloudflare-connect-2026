@@ -12,7 +12,7 @@ function topologyKey(cfg: EngineConfig): string {
         : cfg.reveal.type === "hadouken"
           ? "hadouken"
           : "warp";
-  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}`;
+  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}:${cfg.flames.direction}:${cfg.flames.inward}`;
 }
 
 function needsRebuild(prev: EngineConfig, next: EngineConfig): boolean {
@@ -119,5 +119,19 @@ describe("setConfig topology gating", () => {
       reveal: { enabled: true, type: "glitch", glitch: { intensity: 2 } },
     });
     expect(needsRebuild(a, b)).toBe(false);
+  });
+
+  it("switching flames.direction between linear and vortex triggers rebuild", () => {
+    const linear = normalizeEngineConfig({ flames: { enabled: true, direction: "up" } });
+    const vortex = normalizeEngineConfig({ flames: { enabled: true, direction: "vortex" } });
+    expect(needsRebuild(linear, vortex)).toBe(true);
+    expect(needsRebuild(vortex, linear)).toBe(true);
+  });
+
+  it("flipping flames.inward triggers rebuild", () => {
+    const outward = normalizeEngineConfig({ flames: { enabled: true, direction: "vortex", inward: false } });
+    const inward = normalizeEngineConfig({ flames: { enabled: true, direction: "vortex", inward: true } });
+    expect(needsRebuild(outward, inward)).toBe(true);
+    expect(needsRebuild(inward, outward)).toBe(true);
   });
 });

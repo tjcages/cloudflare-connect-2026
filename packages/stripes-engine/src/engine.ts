@@ -210,6 +210,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   };
   let lastRevealKind = revealPassKind();
   let lastFlamesEnabled = config.flames.enabled;
+  let lastFlamesDirection = config.flames.direction;
+  let lastFlamesInward = config.flames.inward;
   let lastEdgeMaskEnabled = config.edgeMask.enabled;
   let lastRenderMode = config.renderMode;
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
@@ -1194,6 +1196,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.stripesEnabled !== lastStripesEnabled ||
         revealPassKind() !== lastRevealKind ||
         config.flames.enabled !== lastFlamesEnabled ||
+        config.flames.direction !== lastFlamesDirection ||
+        config.flames.inward !== lastFlamesInward ||
         config.edgeMask.enabled !== lastEdgeMaskEnabled ||
         config.renderMode !== lastRenderMode ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
@@ -1203,7 +1207,12 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.colors.mode !== lastColorsMode ||
         config.background.stars.enabled !== lastStarsEnabled
       ) {
-        if (config.flames.enabled && !lastFlamesEnabled) {
+        if (
+          config.flames.enabled &&
+          (!lastFlamesEnabled ||
+            config.flames.direction !== lastFlamesDirection ||
+            config.flames.inward !== lastFlamesInward)
+        ) {
           flamesState = createFlamesState(mulberry32(flamesSeed));
         }
         if (config.background.stars.enabled && !lastStarsEnabled) {
@@ -1221,6 +1230,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastStripesEnabled = config.stripesEnabled;
         lastRevealKind = revealPassKind();
         lastFlamesEnabled = config.flames.enabled;
+        lastFlamesDirection = config.flames.direction;
+        lastFlamesInward = config.flames.inward;
         lastEdgeMaskEnabled = config.edgeMask.enabled;
         lastRenderMode = config.renderMode;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
