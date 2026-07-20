@@ -881,3 +881,26 @@ describe("reveal type promotion", () => {
     expect(normalizeReveal({ assembly: { speedMinMs: 10 } }).assembly.speedMinMs).toBe(100);
   });
 });
+
+describe("normalizeFlames vortex", () => {
+  it("accepts the vortex directions", () => {
+    expect(normalizeFlames({ direction: "vortex" }).direction).toBe("vortex");
+    expect(normalizeFlames({ direction: "vortexBits" }).direction).toBe("vortexBits");
+  });
+
+  it("falls back to up for an unknown direction", () => {
+    expect(normalizeFlames({ direction: "sideways" as never }).direction).toBe("up");
+  });
+
+  it("defaults inward false and swirlRate 1.2", () => {
+    const f = normalizeFlames({});
+    expect(f.inward).toBe(false);
+    expect(f.swirlRate).toBeCloseTo(1.2);
+  });
+
+  it("clamps swirlRate to 0..6 and coerces inward", () => {
+    expect(normalizeFlames({ swirlRate: -3 }).swirlRate).toBe(0);
+    expect(normalizeFlames({ swirlRate: 99 }).swirlRate).toBe(6);
+    expect(normalizeFlames({ inward: 1 as never }).inward).toBe(true);
+  });
+});

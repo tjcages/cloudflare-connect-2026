@@ -423,6 +423,8 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
 export const DEFAULT_FLAMES: FlamesConfig = {
   enabled: false,
   direction: "up",
+  inward: false,
+  swirlRate: 1.2,
   minWidthRatio: 0.0223,
   maxWidthRatio: 0.0453,
   minHeightRatio: 0.0245,
@@ -439,11 +441,19 @@ export const DEFAULT_FLAMES: FlamesConfig = {
 
 type PartialFlames = Partial<FlamesConfig>;
 
+const FLAMES_DIRECTIONS: readonly FlamesDirection[] = [
+  "up",
+  "down",
+  "left",
+  "right",
+  "upDown",
+  "leftRight",
+  "vortex",
+  "vortexBits",
+];
+
 function normalizeFlamesDirection(value: unknown): FlamesDirection {
-  if (value === "down" || value === "left" || value === "right" || value === "upDown" || value === "leftRight") {
-    return value;
-  }
-  return "up";
+  return FLAMES_DIRECTIONS.includes(value as FlamesDirection) ? (value as FlamesDirection) : "up";
 }
 
 export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
@@ -456,6 +466,8 @@ export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_FLAMES.enabled,
     direction: normalizeFlamesDirection(i.direction ?? DEFAULT_FLAMES.direction),
+    inward: i.inward !== undefined ? !!i.inward : DEFAULT_FLAMES.inward,
+    swirlRate: clamp(num(i.swirlRate, DEFAULT_FLAMES.swirlRate), 0, 6),
     minWidthRatio,
     maxWidthRatio,
     minHeightRatio,

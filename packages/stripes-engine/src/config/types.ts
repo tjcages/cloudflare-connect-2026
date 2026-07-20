@@ -160,11 +160,13 @@ export interface SparkleConfig {
   };
 }
 
-export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight";
+export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight" | "vortex" | "vortexBits";
 
 export interface FlamesConfig {
   enabled: boolean;
   direction: FlamesDirection;
+  inward: boolean;
+  swirlRate: number;
   minWidthRatio: number;
   maxWidthRatio: number;
   minHeightRatio: number;
