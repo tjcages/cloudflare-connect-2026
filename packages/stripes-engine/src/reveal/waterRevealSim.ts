@@ -13,10 +13,10 @@ const MAX_SIM_EDGE = 420;
 const SUBSTEPS = 15;
 const SPLAT_AMP_PER_STEP = 0.5;
 /** Height at which water renders fully white. Must stay the reciprocal of the
- * crest gain in waterReveal.frag (`crest * 0.085`), so a pixel is revealed by
+ * crest gain in waterReveal.frag (`crest * 0.05`), so a pixel is revealed by
  * exactly as much as the water covering it looks white — otherwise visibly
  * white water reveals only a fraction and the reveal reads as broken. */
-const WATER_WHITE_HEIGHT = 1 / 0.085;
+const WATER_WHITE_HEIGHT = 1 / 0.05;
 /** Below this fraction of white the water is too dark to reveal anything. */
 const THRESH_FRACTION = 0.02;
 
@@ -171,7 +171,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
           prevPointValid = true;
         }
 
-        const radius = Math.max(3, sh / (Math.max(1, p.rows) * 2.2));
+        const radius = Math.max(3, sh / (Math.max(1, p.rows) * 1.5));
 
         for (let i = 0; i < SUBSTEPS; i++) {
           const t0 = i / SUBSTEPS;
