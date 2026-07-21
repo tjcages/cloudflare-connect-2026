@@ -17,6 +17,8 @@ export { createSeededRng } from "./core/rng";
 export type { EngineConfig, Stripe, Fit, RenderMode } from "./config/types";
 export { normalizeEngineConfig, DEFAULT_ENGINE_CONFIG } from "./config/normalize";
 export { serializeEngineConfig, parseEngineConfig } from "./config/serialize";
+export { resolveThemedConfig, diffEngineConfig, sanitizeThemedConfig } from "./config/theme";
+export type { ThemeName, ThemedEngineConfig, DeepPartial } from "./config/theme";
 export type { EngineSource } from "./source/sourceTexture";
 export { migrateLegacyConfig } from "./legacy/migrateLegacyConfig";
 export type { Adjustments, Grid, Transform, Background } from "./config/types";
