@@ -11,7 +11,7 @@ body,
 
 body {
   overflow: hidden;
-  background: #fafafa;
+  background: var(--color-builder-page, #fafafa);
 }
 
 canvas {
