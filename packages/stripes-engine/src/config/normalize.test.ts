@@ -884,12 +884,12 @@ describe("reveal type promotion", () => {
     const r = normalizeReveal({ enabled: true, type: "water" });
     expect(r.type).toBe("water");
     expect(r.water).toEqual({
-      durationMs: 1300,
-      settleMs: 420,
-      rows: 4,
-      intensity: 1.15,
+      durationMs: 2400,
+      settleMs: 700,
+      rows: 3,
+      intensity: 0.7,
       wobble: 0.7,
-      refraction: 1.4,
+      refraction: 1.15,
       softness: 0.35,
     });
     const clamped = normalizeReveal({

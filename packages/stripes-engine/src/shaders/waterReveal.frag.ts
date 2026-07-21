@@ -22,7 +22,7 @@ void main() {
   vec2 uv = clamp(vUv - grad * uRefraction * 0.04, 0.0, 1.0);
   float v = texture(uField, uv).r;
   float crest = max(texture(uHeight, vUv).r, 0.0);
-  v = clamp(v + crest * uRefraction * 0.22, 0.0, 1.0);
+  v = clamp(v + crest * uRefraction * 0.085, 0.0, 1.0);
   float cover = texture(uCover, vUv).r;
   finalColor = vec4(vec3(v * cover), 1.0);
 }
