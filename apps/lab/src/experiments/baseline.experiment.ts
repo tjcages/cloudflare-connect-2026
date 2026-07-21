@@ -1,4 +1,5 @@
 import { createStripesEngine, DEFAULT_ENGINE_CONFIG } from "@necatikcl/stripes-engine";
+import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
 
 const definition: ExperimentDefinition = {
@@ -9,6 +10,7 @@ const definition: ExperimentDefinition = {
   create: (ctx) => {
     const engine = createStripesEngine(ctx.canvas);
     engine.setConfig({
+      ...EXPERIMENT_BASE_CONFIG,
       reveal: { ...DEFAULT_ENGINE_CONFIG.reveal, enabled: true, type: "wave" },
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: true },
       clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: true },

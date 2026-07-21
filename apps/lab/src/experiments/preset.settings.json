@@ -1,0 +1,265 @@
+{
+  "kind": "stripes-engine-lab-settings",
+  "version": 2,
+  "config": {
+    "transform": {
+      "fit": "width",
+      "zoom": 1,
+      "panX": 0,
+      "panY": 0
+    },
+    "adjustments": {
+      "brightness": 0,
+      "exposure": 0,
+      "contrast": 1,
+      "blackPoint": 0,
+      "whitePoint": 1,
+      "gamma": 1,
+      "invert": false,
+      "posterizeLevels": 0,
+      "thresholdBias": 0,
+      "noiseAmount": 0,
+      "blurRadius": 0,
+      "sharpenAmount": 0
+    },
+    "background": {
+      "color": 16015393,
+      "transparent": false,
+      "gradient": {
+        "enabled": false,
+        "direction": "topToBottom",
+        "stopCount": 2,
+        "stops": [16777215, 0, 0, 0],
+        "hueDriftDeg": 0,
+        "saturationBoost": 0
+      },
+      "grid": {
+        "enabled": false,
+        "cellWidth": 96,
+        "cellHeight": 96,
+        "gapX": 8,
+        "gapY": 8,
+        "cornerRadius": 0,
+        "color": 15987699,
+        "opacity": 1
+      },
+      "stars": {
+        "enabled": true,
+        "density": 10,
+        "sizePx": 16,
+        "sizeRandomness": 1,
+        "tiltAngleDeg": -15,
+        "twinkleSpeed": 1,
+        "twinkleAmount": 0.7,
+        "opacity": 1,
+        "color": 16777215
+      }
+    },
+    "grid": {
+      "cellWidth": 7,
+      "cellHeight": 7,
+      "gapX": 0,
+      "gapY": 0,
+      "cornerRadius": 0,
+      "orientation": "horizontal",
+      "angleDeg": 0,
+      "rotationMode": "cell",
+      "overlapAmount": 1
+    },
+    "stripes": [
+      { "color": 16344359, "startFrom": 0, "width": 0.5, "opacity": 1 },
+      { "color": 16737792, "startFrom": 0.0259, "width": 1, "opacity": 1 },
+      { "color": 16739840, "startFrom": 0.0978, "width": 1.5, "opacity": 1 },
+      { "color": 16743680, "startFrom": 0.2084, "width": 2, "opacity": 1 },
+      { "color": 16748032, "startFrom": 0.3514, "width": 2.5, "opacity": 1 },
+      { "color": 16752384, "startFrom": 0.5214, "width": 3, "opacity": 1 },
+      { "color": 16759379, "startFrom": 0.7109, "width": 3.5, "opacity": 1 },
+      { "color": 16763512, "startFrom": 0.8, "width": 4, "opacity": 1 }
+    ],
+    "stripesEnabled": true,
+    "fieldScale": 1,
+    "maxFps": 0,
+    "reveal": {
+      "enabled": true,
+      "type": "water",
+      "wave": {
+        "position": "center",
+        "durationMs": 100,
+        "softness": 0.22,
+        "waviness": 0.11
+      },
+      "assembly": {
+        "sliceSizePx": 40,
+        "speedMinMs": 300,
+        "speedMaxMs": 1600,
+        "staggerMs": 900,
+        "scatterPx": 50,
+        "angleJitterDeg": 22,
+        "blurPx": 17.5,
+        "blurStart": 0.45
+      },
+      "turbulence": {
+        "speedMinMs": 400,
+        "speedMaxMs": 2600,
+        "staggerMs": 1400,
+        "intensity": 1,
+        "detail": 0.5,
+        "glow": 0.6
+      },
+      "glitch": {
+        "speedMinMs": 200,
+        "speedMaxMs": 1400,
+        "staggerMs": 1200,
+        "intensity": 1,
+        "detail": 0.5,
+        "glow": 0.8
+      },
+      "vortex": {
+        "speedMinMs": 300,
+        "speedMaxMs": 1400,
+        "staggerMs": 2600,
+        "intensity": 1,
+        "detail": 0.5,
+        "glow": 0.7,
+        "swirl": 1
+      },
+      "water": {
+        "durationMs": 2600,
+        "settleMs": 900,
+        "rows": 5,
+        "intensity": 0.85,
+        "wobble": 0.5,
+        "refraction": 1,
+        "softness": 0.35
+      }
+    },
+    "sparkle": {
+      "gaps": {
+        "enabled": false,
+        "coverage": 0.22,
+        "speed": 1
+      },
+      "width": {
+        "enabled": true,
+        "coverage": 0.3,
+        "swingPx": 1.25,
+        "swingPeriodMin": 0.5,
+        "swingPeriodMax": 1
+      },
+      "stripe": {
+        "enabled": false,
+        "coverage": 0.35,
+        "maxBrightness": 0.65,
+        "speed": 1,
+        "thickestCount": 3,
+        "hueDriftDeg": 12.5,
+        "saturationBoost": 0.3
+      },
+      "motion": {
+        "enabled": false,
+        "amplitudePx": 29,
+        "staggerPx": 218,
+        "maxOffsetPx": 63.5,
+        "speed": 2.45,
+        "direction": "rightToLeft"
+      }
+    },
+    "flames": {
+      "enabled": false,
+      "direction": "up",
+      "minWidthRatio": 0.094,
+      "maxWidthRatio": 0.2,
+      "minHeightRatio": 0.034,
+      "maxHeightRatio": 0.101,
+      "baseSpeedPxPerSec": 1,
+      "speedVariation": 0,
+      "spawnIntervalMs": 20,
+      "spawnJitterMs": 80,
+      "maxActive": 200,
+      "edgeSharpness": 1,
+      "opacityMin": 0.3,
+      "opacityMax": 1
+    },
+    "edgeMask": {
+      "enabled": true,
+      "start": 0,
+      "end": 0.1,
+      "power": 1
+    },
+    "cursorTrail": {
+      "enabled": true,
+      "type": "default",
+      "particleRadius": 40,
+      "particleAlpha": 0.07,
+      "particleLifeMs": 960,
+      "particleLifeJitterMs": 100,
+      "emitterVelocitySmoothing": 0.7,
+      "particleVelocityScale": 0.01,
+      "particleTangentVelocity": 1.65,
+      "particleDamping": 0.96,
+      "particleSpacingPx": 3,
+      "maxEmitPerTick": 10,
+      "spreadMinPx": 1.5,
+      "spreadMaxPx": 21,
+      "spinStrength": 0.04,
+      "densityRadiusMinScale": 0.2,
+      "densityRadiusLifeScale": 1,
+      "pushRadiusScale": 0.9,
+      "pushStrengthPx": 48,
+      "pushLagPx": 0,
+      "pushWobblePx": 8,
+      "pushLeadBlackAlpha": 0
+    },
+    "clickWave": {
+      "enabled": true,
+      "lifeMs": 630,
+      "startRadiusPx": 6,
+      "maxRadiusPx": 120,
+      "startStrokeWidthPx": 24,
+      "endStrokeWidthPx": 12,
+      "maxWaves": 12,
+      "pushStrengthPx": 38,
+      "pushBandScale": 3.2,
+      "stripeWhiteAlpha": 0.5
+    },
+    "letters": {
+      "enabled": false,
+      "mode": "random",
+      "colorMode": "white",
+      "color": 16777215,
+      "coverage": 0.1,
+      "positionX": 0.5,
+      "positionY": 0.5,
+      "areaWidth": 1,
+      "areaHeight": 1,
+      "text": "CF",
+      "textCopies": 1,
+      "fontFamily": "Arial, sans-serif",
+      "sizeScale": 0.9,
+      "shuffleSpeed": 1
+    },
+    "colors": {
+      "mode": "luminance",
+      "stripeBlendMode": "normal",
+      "imageColorLightness": 0.2,
+      "imageColorDensity": 1,
+      "imageColorRemoveThin": 0,
+      "imageColorBoostThick": 0,
+      "autoDetectBackground": true,
+      "backgroundColor": 0,
+      "gradient": {
+        "enabled": false,
+        "direction": "topToBottom",
+        "stopCount": 2,
+        "stops": [16777215, 0, 0, 0],
+        "hueDriftDeg": 0,
+        "saturationBoost": 0
+      }
+    },
+    "renderMode": "sharp",
+    "renderIntensity": 1,
+    "renderParams": [0.5, 0.5, 0.5, 0.5],
+    "renderColorA": 2236962,
+    "renderColorB": 16777215
+  }
+}

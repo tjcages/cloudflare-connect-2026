@@ -7,6 +7,7 @@ import {
   type EngineHookContext,
   type FieldHookPass,
 } from "@necatikcl/stripes-engine";
+import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
 import { MAGNETIC_GRAIN_FRAG, MAGNETIC_SIM_FRAG } from "./magnetic-grain.shaders";
 
@@ -162,6 +163,7 @@ const definition: ExperimentDefinition = {
 
     const engine = createStripesEngine(ctx.canvas, { hooks: { fieldPass } });
     engine.setConfig({
+      ...EXPERIMENT_BASE_CONFIG,
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
       clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: false },
     });

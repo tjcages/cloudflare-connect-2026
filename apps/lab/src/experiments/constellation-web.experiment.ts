@@ -9,6 +9,7 @@ import {
   type FieldHookFrame,
   type FieldHookPass,
 } from "@necatikcl/stripes-engine";
+import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
 import { CONSTELLATION_MAX_LINES, CONSTELLATION_STAR_COUNT, CONSTELLATION_WEB_FRAG } from "./constellation-web.shaders";
 
@@ -410,12 +411,13 @@ const definition: ExperimentDefinition = {
 
     const engine = createStripesEngine(ctx.canvas, { hooks: { fieldPass } });
     engine.setConfig({
+      ...EXPERIMENT_BASE_CONFIG,
       reveal: { ...DEFAULT_ENGINE_CONFIG.reveal, enabled: false },
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
       clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: false },
       flames: { ...DEFAULT_ENGINE_CONFIG.flames, enabled: false },
       background: {
-        ...DEFAULT_ENGINE_CONFIG.background,
+        ...EXPERIMENT_BASE_CONFIG.background,
         stars: { ...DEFAULT_ENGINE_CONFIG.background.stars, enabled: false },
       },
     });

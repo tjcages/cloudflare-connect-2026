@@ -8,6 +8,7 @@ import {
   type FieldHookPass,
   type PostHookPass,
 } from "@necatikcl/stripes-engine";
+import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
 import { DETONATION_FIELD_FRAG, DETONATION_POST_FRAG } from "./detonation-bloom.shaders";
 
@@ -150,6 +151,7 @@ const definition: ExperimentDefinition = {
 
     const engine = createStripesEngine(ctx.canvas, { hooks: { fieldPass, postPass } });
     engine.setConfig({
+      ...EXPERIMENT_BASE_CONFIG,
       reveal: { ...DEFAULT_ENGINE_CONFIG.reveal, enabled: false },
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
       clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: false },

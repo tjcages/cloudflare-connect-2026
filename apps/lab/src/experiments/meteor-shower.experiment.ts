@@ -7,6 +7,7 @@ import {
   type EngineHookContext,
   type FieldHookPass,
 } from "@necatikcl/stripes-engine";
+import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
 
 const METEOR_SHOWER_FRAG = `#version 300 es
@@ -226,12 +227,13 @@ const definition: ExperimentDefinition = {
 
     const engine = createStripesEngine(ctx.canvas, { fieldScale: FIELD_SCALE, hooks: { fieldPass } });
     engine.setConfig({
+      ...EXPERIMENT_BASE_CONFIG,
       reveal: { ...DEFAULT_ENGINE_CONFIG.reveal, enabled: false },
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
       clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: false },
       flames: { ...DEFAULT_ENGINE_CONFIG.flames, enabled: false },
       background: {
-        ...DEFAULT_ENGINE_CONFIG.background,
+        ...EXPERIMENT_BASE_CONFIG.background,
         stars: { ...DEFAULT_ENGINE_CONFIG.background.stars, enabled: false },
       },
     });

@@ -8,6 +8,7 @@ import {
   type CustomRevealPass,
   type EngineHookContext,
 } from "@necatikcl/stripes-engine";
+import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
 import { SONAR_LENS_REVEAL_FRAG } from "./sonar-lens.shaders";
 
@@ -143,6 +144,7 @@ const definition: ExperimentDefinition = {
 
     const engine = createStripesEngine(ctx.canvas, { clock, hooks: { customReveal } });
     engine.setConfig({
+      ...EXPERIMENT_BASE_CONFIG,
       reveal: {
         ...DEFAULT_ENGINE_CONFIG.reveal,
         enabled: true,

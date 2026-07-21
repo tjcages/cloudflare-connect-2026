@@ -6,6 +6,7 @@ import {
   type EngineHookContext,
   type FieldHookPass,
 } from "@necatikcl/stripes-engine";
+import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
 import { COMET_COMPOSITE_FRAG, EMBER_FRAG, EMBER_VERT } from "./comet-embers.shaders";
 import {
@@ -181,6 +182,7 @@ const definition: ExperimentDefinition = {
 
     const engine = createStripesEngine(ctx.canvas, { hooks: { fieldPass } });
     engine.setConfig({
+      ...EXPERIMENT_BASE_CONFIG,
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
       clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: false },
     });

@@ -8,6 +8,7 @@ import {
   type CustomRevealPass,
   type EngineHookContext,
 } from "@necatikcl/stripes-engine";
+import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
 import { PRINT_HEAD_BAKE_FRAG, PRINT_HEAD_COMPOSITE_FRAG } from "./print-head.shaders";
 
@@ -133,21 +134,13 @@ const definition: ExperimentDefinition = {
 
     const engine = createStripesEngine(ctx.canvas, { hooks: { customReveal } });
     engine.setConfig({
+      ...EXPERIMENT_BASE_CONFIG,
       reveal: {
         ...DEFAULT_ENGINE_CONFIG.reveal,
         enabled: true,
         type: "custom",
         wave: { ...DEFAULT_ENGINE_CONFIG.reveal.wave, durationMs: DURATION_MS },
       },
-      background: { ...DEFAULT_ENGINE_CONFIG.background, color: 0x0a0a0a, transparent: false },
-      stripes: [
-        { color: 0x3a3a3a, startFrom: 0.1, width: 1, opacity: 1 },
-        { color: 0x5c5c5c, startFrom: 0.26, width: 1, opacity: 1 },
-        { color: 0x8a8a8a, startFrom: 0.42, width: 2, opacity: 1 },
-        { color: 0xb4b4b4, startFrom: 0.58, width: 3, opacity: 1 },
-        { color: 0xdcdcdc, startFrom: 0.74, width: 4, opacity: 1 },
-        { color: 0xffffff, startFrom: 0.88, width: 5, opacity: 1 },
-      ],
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
       clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: false },
       flames: { ...DEFAULT_ENGINE_CONFIG.flames, enabled: false },
