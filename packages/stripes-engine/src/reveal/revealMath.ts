@@ -123,7 +123,11 @@ export function serpentinePoint(progress: number, rows: number, wobble: number):
   const f = t * r;
   const pass = Math.min(r - 1, Math.floor(f));
   const frac = f - pass;
-  const tri = pass % 2 === 0 ? frac * 2 - 1 : 1 - frac * 2;
+  // Ease the sideways sweep so the brush rounds each turn instead of reversing
+  // on a hard corner. The diagonal advance stays linear, so it never stalls at
+  // the edge — it carves a U-turn and keeps moving.
+  const eased = frac * frac * (3 - 2 * frac);
+  const tri = pass % 2 === 0 ? eased * 2 - 1 : 1 - eased * 2;
   const wob = Math.sin(t * Math.PI * 2 * r * 1.5) * wobble * 0.05;
   const along = tri * half + wob;
   const x = Math.min(1, Math.max(0, s + along));

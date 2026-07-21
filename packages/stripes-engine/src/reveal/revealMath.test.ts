@@ -202,6 +202,23 @@ describe("serpentinePoint", () => {
     const b = serpentinePoint(0.44, rows, 0);
     expect((b.x - a.x) * (b.y - a.y)).toBeLessThan(0);
   });
+  it("rounds each turn — no abrupt reversal of the sweep", () => {
+    const rows = 4;
+    const step = 0.001;
+    const along = (t: number) => {
+      const p = serpentinePoint(t, rows, 0);
+      return p.x - p.y;
+    };
+    // Sweep velocity must not jump across a turnaround. A raw triangle wave
+    // reverses at full speed (a step of ~2x the sweep rate); easing the pass
+    // makes the velocity pass through the turn continuously.
+    const vel = (t: number) => (along(t + step) - along(t - step)) / (2 * step);
+    const turn = 1 / rows;
+    const jump = Math.abs(vel(turn + 3 * step) - vel(turn - 3 * step));
+    const midPassSpeed = Math.abs(vel(0.5 / rows));
+    expect(midPassSpeed).toBeGreaterThan(0.5);
+    expect(jump).toBeLessThan(midPassSpeed * 0.5);
+  });
   it("is one connected path — no jumps between passes", () => {
     const rows = 4;
     const step = 0.002;
