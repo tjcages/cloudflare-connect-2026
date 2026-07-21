@@ -178,6 +178,35 @@ describe("cellGridToSvg", () => {
     expect(svg).toContain("M0 2h10v4h-10Z");
   });
 
+  it("exports vertical bars at 0deg even when orientation is horizontal (angle wins, like the shader)", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, stripes, {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      orientation: "horizontal",
+      angleDeg: 0,
+    });
+
+    expect(svg).toContain("M3 0h4v8h-4Z");
+    expect(svg).not.toContain("M0 2h10v4h-10Z");
+  });
+
+  it("exports horizontal bars at 90deg even when orientation is vertical (angle wins, like the shader)", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, stripes, {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      orientation: "vertical",
+      angleDeg: 90,
+    });
+
+    expect(svg).toContain("M0 2h10v4h-10Z");
+  });
+
   it("clamps horizontal stripe thickness to the cell height", () => {
     const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 20 }];
     const readback = { cols: 1, rows: 1, values: v(255), colors: null };

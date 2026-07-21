@@ -453,6 +453,7 @@ export function cellGridToSvg(
   const resolvedOverlapAmount = overlapRotation ? Math.max(0, Math.min(4, overlapAmount)) : 1;
   const arbitraryAngle = !isAxisAlignedAngle(resolvedAngleDeg);
   const effectiveOrientation: StripeOrientation = orientation;
+  const axisAlignedHorizontal = Math.abs(resolvedAngleDeg - 90) < 0.001;
   const gridWidth = cols * cellWidthPx;
   const gridHeight = rows * cellHeightPx;
   const width = Math.max(1, opts.canvasWidthPx ?? gridWidth);
@@ -602,7 +603,7 @@ export function cellGridToSvg(
           continue;
         }
 
-        if (effectiveOrientation === "horizontal") {
+        if (axisAlignedHorizontal) {
           const bandLeft = col > 0 ? bandAt(row, col - 1) : 0;
           const bandRight = col < cols - 1 ? bandAt(row, col + 1) : 0;
           const chainBreaksLeft = !sameStripeBand(band, bandLeft);
