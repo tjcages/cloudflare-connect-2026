@@ -290,9 +290,9 @@ export const DEFAULT_REVEAL: RevealConfig = {
     horizon: 0.12,
   },
   whirlpool: {
-    durationMs: 2800,
-    turns: 2.5,
-    tightness: 0.18,
+    durationMs: 3200,
+    turns: 4,
+    tightness: 0.22,
     streak: 0.6,
     glow: 0.4,
   },

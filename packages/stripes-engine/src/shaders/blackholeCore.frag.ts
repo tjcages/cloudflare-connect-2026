@@ -45,7 +45,9 @@ void main() {
   highp float s1 = formT - 1.0;
   highp float grow = 1.0 + 2.70158 * s1 * s1 * s1 + 1.70158 * s1 * s1;
   highp float shrink = pow(1.0 - collapseT, 1.7);
-  highp float R = max(uHorizon * grow * shrink * (1.0 + 0.02 * sin(p * 90.0)), 0.0);
+  highp float paintT = clamp((p - uForm) / max(1.0 - uForm - uCollapse, 1e-4), 0.0, 1.0);
+  highp float decay = 1.0 - 0.72 * smoothstep(0.4, 1.0, paintT);
+  highp float R = max(uHorizon * grow * shrink * decay * (1.0 + 0.02 * sin(p * 90.0)), 0.0);
 
   vec2 cid = floor(vUv * uGrid);
   highp uint cellIndex = uint(cid.y * uGrid.x + cid.x);
