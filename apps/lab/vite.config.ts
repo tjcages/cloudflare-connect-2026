@@ -19,6 +19,14 @@ export default defineConfig({
     },
   },
   optimizeDeps: { exclude: ["@necatikcl/stripes-engine"] },
+  build: {
+    rollupOptions: {
+      input: {
+        index: fileURLToPath(new URL("./index.html", import.meta.url)),
+        experiments: fileURLToPath(new URL("./experiments.html", import.meta.url)),
+      },
+    },
+  },
   test: {
     environment: "node",
   },

@@ -61,6 +61,7 @@ const SHADER_PANEL_ORDER = [
   "Stripes",
   "Grid",
   "Background Stars",
+  "Background Meteors",
   "Background Flames",
   "Edge Mask",
   "Cursor Trail",
@@ -1126,6 +1127,161 @@ export function useEngineControls(
             render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
           },
         }),
+        "Background Meteors": drawerFolder("Background Meteors", {
+          backgroundMeteorsEnabled: { value: d.background.meteors.enabled, label: "Enabled" },
+          backgroundMeteorsRatePerSec: {
+            value: d.background.meteors.ratePerSec,
+            min: 0.02,
+            max: 40,
+            step: 0.02,
+            label: "Meteors / sec",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsMaxActive: {
+            value: d.background.meteors.maxActive,
+            min: 1,
+            max: 64,
+            step: 1,
+            label: "Max in flight",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsRadiantAngleDeg: {
+            value: d.background.meteors.radiantAngleDeg,
+            min: -180,
+            max: 180,
+            step: 1,
+            label: "Radiant angle",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsAngleJitterDeg: {
+            value: d.background.meteors.angleJitterDeg,
+            min: 0,
+            max: 90,
+            step: 1,
+            label: "Angle spread",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsSpeedScale: {
+            value: d.background.meteors.speedScale,
+            min: 0.05,
+            max: 4,
+            step: 0.01,
+            label: "Speed",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsSpeedVariation: {
+            value: d.background.meteors.speedVariation,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Speed variation",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsTailLengthScale: {
+            value: d.background.meteors.tailLengthScale,
+            min: 0.05,
+            max: 4,
+            step: 0.01,
+            label: "Tail length",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsTailLengthVariation: {
+            value: d.background.meteors.tailLengthVariation,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Tail variation",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsThicknessScale: {
+            value: d.background.meteors.thicknessScale,
+            min: 0.05,
+            max: 4,
+            step: 0.01,
+            label: "Thickness",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsThicknessVariation: {
+            value: d.background.meteors.thicknessVariation,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Thickness variation",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsLifetimeMinMs: {
+            value: d.background.meteors.lifetimeMinMs,
+            min: 60,
+            max: 10000,
+            step: 10,
+            label: "Life min (ms)",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsLifetimeMaxMs: {
+            value: d.background.meteors.lifetimeMaxMs,
+            min: 60,
+            max: 10000,
+            step: 10,
+            label: "Life max (ms)",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsBrightness: {
+            value: d.background.meteors.brightness,
+            min: 0,
+            max: 4,
+            step: 0.01,
+            label: "Streak brightness",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsHeadGlow: {
+            value: d.background.meteors.headGlow,
+            min: 0,
+            max: 4,
+            step: 0.01,
+            label: "Head glow",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsPushPx: {
+            value: d.background.meteors.pushPx,
+            min: 0,
+            max: 40,
+            step: 0.1,
+            label: "Stripe push (px)",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsPushFalloffScale: {
+            value: d.background.meteors.pushFalloffScale,
+            min: 0.05,
+            max: 4,
+            step: 0.01,
+            label: "Push falloff",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsFadeInMs: {
+            value: d.background.meteors.fadeInMs,
+            min: 0,
+            max: 3000,
+            step: 10,
+            label: "Fade in (ms)",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsFadeOutMs: {
+            value: d.background.meteors.fadeOutMs,
+            min: 0,
+            max: 3000,
+            step: 10,
+            label: "Fade out (ms)",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+          backgroundMeteorsSeed: {
+            value: d.background.meteors.seed,
+            min: 0,
+            max: 9999,
+            step: 1,
+            label: "Seed",
+            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+          },
+        }),
         "Background Flames": drawerFolder("Background Flames", {
           flamesEnabled: { value: d.flames.enabled, label: "Enabled" },
           flamesDirection: {
@@ -2087,7 +2243,7 @@ export function useEngineControls(
           cursorTrailEnabled: { value: d.cursorTrail.enabled, label: "Enabled" },
           cursorTrailType: {
             value: d.cursorTrail.type,
-            options: { Default: "default", Wave: "wave" } as const,
+            options: { Default: "default", Wave: "wave", Constellation: "constellation", Comet: "comet" } as const,
             label: "Type",
             render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
           },
@@ -2190,16 +2346,574 @@ export function useEngineControls(
             render: (get) =>
               get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
           },
+          constellationRadiusScale: {
+            value: d.cursorTrail.constellation.radiusScale,
+            min: 0.02,
+            max: 2,
+            step: 0.005,
+            label: "Cursor radius (scale)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarDensity: {
+            value: d.cursorTrail.constellation.starDensity,
+            min: 0.05,
+            max: 4,
+            step: 0.05,
+            label: "Star density",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarSizePx: {
+            value: d.cursorTrail.constellation.starSizePx,
+            min: 0.2,
+            max: 20,
+            step: 0.05,
+            label: "Star size (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarSizeRandomness: {
+            value: d.cursorTrail.constellation.starSizeRandomness,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Star size randomness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarGrowScale: {
+            value: d.cursorTrail.constellation.starGrowScale,
+            min: 0,
+            max: 6,
+            step: 0.05,
+            label: "Star grow scale",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarPushPx: {
+            value: d.cursorTrail.constellation.starPushPx,
+            min: 0,
+            max: 40,
+            step: 0.1,
+            label: "Star push (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationTwinkleAmount: {
+            value: d.cursorTrail.constellation.twinkleAmount,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Twinkle amount",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationTwinkleSpeed: {
+            value: d.cursorTrail.constellation.twinkleSpeed,
+            min: 0,
+            max: 10,
+            step: 0.05,
+            label: "Twinkle speed",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkThicknessPx: {
+            value: d.cursorTrail.constellation.linkThicknessPx,
+            min: 0.2,
+            max: 20,
+            step: 0.05,
+            label: "Link thickness (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkBrightness: {
+            value: d.cursorTrail.constellation.linkBrightness,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Link brightness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkGrooveDepth: {
+            value: d.cursorTrail.constellation.linkGrooveDepth,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Link groove depth",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkShearPx: {
+            value: d.cursorTrail.constellation.linkShearPx,
+            min: 0,
+            max: 80,
+            step: 0.5,
+            label: "Link shear (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkMaxDistScale: {
+            value: d.cursorTrail.constellation.linkMaxDistScale,
+            min: 0.02,
+            max: 1,
+            step: 0.002,
+            label: "Link max distance (scale)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkFormMs: {
+            value: d.cursorTrail.constellation.linkFormMs,
+            min: 10,
+            max: 5000,
+            step: 10,
+            label: "Link form (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkHoldMs: {
+            value: d.cursorTrail.constellation.linkHoldMs,
+            min: 0,
+            max: 10000,
+            step: 10,
+            label: "Link hold (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkDissolveMs: {
+            value: d.cursorTrail.constellation.linkDissolveMs,
+            min: 10,
+            max: 10000,
+            step: 10,
+            label: "Link dissolve (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationMaxLinks: {
+            value: d.cursorTrail.constellation.maxLinks,
+            min: 4,
+            max: 80,
+            step: 1,
+            label: "Max links",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationMaxStars: {
+            value: d.cursorTrail.constellation.maxStars,
+            min: 4,
+            max: 160,
+            step: 1,
+            label: "Max stars",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationPulseEnabled: {
+            value: d.cursorTrail.constellation.pulseEnabled,
+            label: "Pulses",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationPulseDurationMs: {
+            value: d.cursorTrail.constellation.pulseDurationMs,
+            min: 60,
+            max: 10000,
+            step: 10,
+            label: "Pulse duration (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseCoreLenPx: {
+            value: d.cursorTrail.constellation.pulseCoreLenPx,
+            min: 0.5,
+            max: 60,
+            step: 0.1,
+            label: "Pulse core length (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseTailLenPx: {
+            value: d.cursorTrail.constellation.pulseTailLenPx,
+            min: 0.5,
+            max: 240,
+            step: 0.5,
+            label: "Pulse tail length (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseBrightness: {
+            value: d.cursorTrail.constellation.pulseBrightness,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Pulse brightness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseRelayHops: {
+            value: d.cursorTrail.constellation.pulseRelayHops,
+            min: 0,
+            max: 6,
+            step: 1,
+            label: "Pulse relay hops",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseCooldownMs: {
+            value: d.cursorTrail.constellation.pulseCooldownMs,
+            min: 0,
+            max: 20000,
+            step: 10,
+            label: "Pulse cooldown (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationFlareMs: {
+            value: d.cursorTrail.constellation.flareMs,
+            min: 30,
+            max: 5000,
+            step: 10,
+            label: "Flare (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationFlareScale: {
+            value: d.cursorTrail.constellation.flareScale,
+            min: 0,
+            max: 6,
+            step: 0.05,
+            label: "Flare scale",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationPolygonFlashEnabled: {
+            value: d.cursorTrail.constellation.polygonFlashEnabled,
+            label: "Polygon flash",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationPolygonFlashStrength: {
+            value: d.cursorTrail.constellation.polygonFlashStrength,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Polygon flash strength",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPolygonFlashEnabled") === true,
+          },
+          cometEmbersEnabled: {
+            value: d.cursorTrail.comet.embersEnabled,
+            label: "Embers",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometNodeCount: {
+            value: d.cursorTrail.comet.nodeCount,
+            min: 2,
+            max: 48,
+            step: 1,
+            label: "Body nodes",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometHeadStiffness: {
+            value: d.cursorTrail.comet.headStiffness,
+            min: 100,
+            max: 40000,
+            step: 50,
+            label: "Head stiffness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometHeadDamping: {
+            value: d.cursorTrail.comet.headDamping,
+            min: 1,
+            max: 600,
+            step: 1,
+            label: "Head damping",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometChainStiffness: {
+            value: d.cursorTrail.comet.chainStiffness,
+            min: 100,
+            max: 40000,
+            step: 50,
+            label: "Chain stiffness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometChainDamping: {
+            value: d.cursorTrail.comet.chainDamping,
+            min: 1,
+            max: 600,
+            step: 1,
+            label: "Chain damping",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometMaxLinkPx: {
+            value: d.cursorTrail.comet.maxLinkPx,
+            min: 2,
+            max: 200,
+            step: 1,
+            label: "Max link (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometHeadRadiusPx: {
+            value: d.cursorTrail.comet.headRadiusPx,
+            min: 0.5,
+            max: 60,
+            step: 0.1,
+            label: "Head radius (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometTailRadiusPx: {
+            value: d.cursorTrail.comet.tailRadiusPx,
+            min: 0,
+            max: 40,
+            step: 0.1,
+            label: "Tail radius (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometStretchThinning: {
+            value: d.cursorTrail.comet.stretchThinning,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Stretch thinning",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometSmoothUnionPx: {
+            value: d.cursorTrail.comet.smoothUnionPx,
+            min: 0.1,
+            max: 40,
+            step: 0.1,
+            label: "Smooth union (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometBodyBrightness: {
+            value: d.cursorTrail.comet.bodyBrightness,
+            min: 0,
+            max: 2,
+            step: 0.01,
+            label: "Body brightness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometAuraStrength: {
+            value: d.cursorTrail.comet.auraStrength,
+            min: 0,
+            max: 3,
+            step: 0.01,
+            label: "Aura strength",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometBodyPushPx: {
+            value: d.cursorTrail.comet.bodyPushPx,
+            min: 0,
+            max: 60,
+            step: 0.5,
+            label: "Body push (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometPresenceRiseRate: {
+            value: d.cursorTrail.comet.presenceRiseRate,
+            min: 0.5,
+            max: 60,
+            step: 0.1,
+            label: "Presence rise rate",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometPresenceFallRate: {
+            value: d.cursorTrail.comet.presenceFallRate,
+            min: 0.2,
+            max: 60,
+            step: 0.1,
+            label: "Presence fall rate",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
+          cometEmberRatePerSec: {
+            value: d.cursorTrail.comet.emberRatePerSec,
+            min: 0,
+            max: 400,
+            step: 1,
+            label: "Ember rate (/s)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometEmberMaxCount: {
+            value: d.cursorTrail.comet.emberMaxCount,
+            min: 1,
+            max: 512,
+            step: 1,
+            label: "Ember max count",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometEmberSizePx: {
+            value: d.cursorTrail.comet.emberSizePx,
+            min: 0.2,
+            max: 40,
+            step: 0.1,
+            label: "Ember size (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometEmberSpeedMinPxPerSec: {
+            value: d.cursorTrail.comet.emberSpeedMinPxPerSec,
+            min: 0,
+            max: 2000,
+            step: 1,
+            label: "Ember speed min (px/s)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometEmberSpeedMaxPxPerSec: {
+            value: d.cursorTrail.comet.emberSpeedMaxPxPerSec,
+            min: 0,
+            max: 2000,
+            step: 1,
+            label: "Ember speed max (px/s)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometEmberSpreadRad: {
+            value: d.cursorTrail.comet.emberSpreadRad,
+            min: 0,
+            max: 3.14159,
+            step: 0.01,
+            label: "Ember spread (rad)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometEmberLifetimeMinMs: {
+            value: d.cursorTrail.comet.emberLifetimeMinMs,
+            min: 60,
+            max: 20000,
+            step: 10,
+            label: "Ember lifetime min (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometEmberLifetimeMaxMs: {
+            value: d.cursorTrail.comet.emberLifetimeMaxMs,
+            min: 60,
+            max: 20000,
+            step: 10,
+            label: "Ember lifetime max (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometEmberBrightness: {
+            value: d.cursorTrail.comet.emberBrightness,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Ember brightness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometEmberFadeInFraction: {
+            value: d.cursorTrail.comet.emberFadeInFraction,
+            min: 0,
+            max: 0.9,
+            step: 0.01,
+            label: "Ember fade-in fraction",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "comet" &&
+              get("Cursor Trail.cometEmbersEnabled") === true,
+          },
+          cometSeed: {
+            value: d.cursorTrail.comet.seed,
+            min: 0,
+            max: 100000000,
+            step: 1,
+            label: "Seed",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+          },
         }),
         "Click Wave": drawerFolder("Click Wave", {
           clickWaveEnabled: { value: d.clickWave.enabled, label: "Enabled" },
+          clickWaveType: {
+            value: d.clickWave.type,
+            options: { Default: "default", Detonation: "detonation" } as const,
+            label: "Type",
+            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+          },
           clickWaveLifeMs: {
             value: d.clickWave.lifeMs,
             min: 80,
             max: 10000,
             step: 10,
             label: "Life (ms)",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
           },
           clickWaveStartRadiusPx: {
             value: d.clickWave.startRadiusPx,
@@ -2207,7 +2921,8 @@ export function useEngineControls(
             max: 120,
             step: 1,
             label: "Start radius (px)",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
           },
           clickWaveMaxRadiusPx: {
             value: d.clickWave.maxRadiusPx,
@@ -2215,7 +2930,8 @@ export function useEngineControls(
             max: 600,
             step: 2,
             label: "Max radius (px)",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
           },
           clickWaveStartStrokeWidthPx: {
             value: d.clickWave.startStrokeWidthPx,
@@ -2223,7 +2939,8 @@ export function useEngineControls(
             max: 80,
             step: 0.5,
             label: "Start stroke (px)",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
           },
           clickWaveEndStrokeWidthPx: {
             value: d.clickWave.endStrokeWidthPx,
@@ -2231,7 +2948,8 @@ export function useEngineControls(
             max: 40,
             step: 0.25,
             label: "End stroke (px)",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
           },
           clickWaveMaxWaves: {
             value: d.clickWave.maxWaves,
@@ -2239,7 +2957,8 @@ export function useEngineControls(
             max: 32,
             step: 1,
             label: "Max waves",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
           },
           clickWavePushStrengthPx: {
             value: d.clickWave.pushStrengthPx,
@@ -2247,7 +2966,8 @@ export function useEngineControls(
             max: 200,
             step: 1,
             label: "Push strength (px)",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
           },
           clickWavePushBandScale: {
             value: d.clickWave.pushBandScale,
@@ -2255,7 +2975,8 @@ export function useEngineControls(
             max: 8,
             step: 0.1,
             label: "Push band scale",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
           },
           clickWaveStripeWhiteAlpha: {
             value: d.clickWave.stripeWhiteAlpha,
@@ -2263,7 +2984,224 @@ export function useEngineControls(
             max: 1,
             step: 0.01,
             label: "Stripe white alpha",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+          },
+          detonationMaxConcurrent: {
+            value: d.clickWave.detonation.maxConcurrent,
+            min: 1,
+            max: 16,
+            step: 1,
+            label: "Max concurrent",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationRingReachPx: {
+            value: d.clickWave.detonation.ringReachPx,
+            min: 8,
+            max: 1200,
+            step: 2,
+            label: "Ring reach (px)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationRingDurationMs: {
+            value: d.clickWave.detonation.ringDurationMs,
+            min: 40,
+            max: 8000,
+            step: 10,
+            label: "Ring duration (ms)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationRingThicknessPx: {
+            value: d.clickWave.detonation.ringThicknessPx,
+            min: 1,
+            max: 200,
+            step: 0.5,
+            label: "Ring thickness (px)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationRingRefractionPx: {
+            value: d.clickWave.detonation.ringRefractionPx,
+            min: 0,
+            max: 160,
+            step: 0.5,
+            label: "Ring refraction (px)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationFlashRadiusPx: {
+            value: d.clickWave.detonation.flashRadiusPx,
+            min: 1,
+            max: 400,
+            step: 1,
+            label: "Flash radius (px)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationFlashDurationMs: {
+            value: d.clickWave.detonation.flashDurationMs,
+            min: 8,
+            max: 2000,
+            step: 2,
+            label: "Flash duration (ms)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationFlashBrightness: {
+            value: d.clickWave.detonation.flashBrightness,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Flash brightness",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationDebrisCount: {
+            value: d.clickWave.detonation.debrisCount,
+            min: 0,
+            max: 96,
+            step: 1,
+            label: "Debris count",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationDebrisSpeedPxPerSec: {
+            value: d.clickWave.detonation.debrisSpeedPxPerSec,
+            min: 10,
+            max: 4000,
+            step: 5,
+            label: "Debris speed (px/s)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationDebrisSpeedVariation: {
+            value: d.clickWave.detonation.debrisSpeedVariation,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Debris speed variation",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationDebrisDrag: {
+            value: d.clickWave.detonation.debrisDrag,
+            min: 0.05,
+            max: 12,
+            step: 0.05,
+            label: "Debris drag",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationDebrisGravityPxPerSec2: {
+            value: d.clickWave.detonation.debrisGravityPxPerSec2,
+            min: 0,
+            max: 4000,
+            step: 10,
+            label: "Debris gravity (px/s2)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationDebrisLifetimeMs: {
+            value: d.clickWave.detonation.debrisLifetimeMs,
+            min: 60,
+            max: 10000,
+            step: 10,
+            label: "Debris lifetime (ms)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationDebrisLifetimeVariation: {
+            value: d.clickWave.detonation.debrisLifetimeVariation,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Debris lifetime variation",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationDebrisSizePx: {
+            value: d.clickWave.detonation.debrisSizePx,
+            min: 0.2,
+            max: 40,
+            step: 0.1,
+            label: "Debris size (px)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationDebrisBrightness: {
+            value: d.clickWave.detonation.debrisBrightness,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Debris brightness",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationCraterRadiusPx: {
+            value: d.clickWave.detonation.craterRadiusPx,
+            min: 4,
+            max: 1200,
+            step: 2,
+            label: "Crater radius (px)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationCraterDepth: {
+            value: d.clickWave.detonation.craterDepth,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Crater depth",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationCraterRelaxFastMs: {
+            value: d.clickWave.detonation.craterRelaxFastMs,
+            min: 20,
+            max: 10000,
+            step: 10,
+            label: "Crater relax fast (ms)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationCraterRelaxSlowMs: {
+            value: d.clickWave.detonation.craterRelaxSlowMs,
+            min: 20,
+            max: 20000,
+            step: 10,
+            label: "Crater relax slow (ms)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationCraterLifeMs: {
+            value: d.clickWave.detonation.craterLifeMs,
+            min: 100,
+            max: 20000,
+            step: 10,
+            label: "Crater life (ms)",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationCraterRimStrength: {
+            value: d.clickWave.detonation.craterRimStrength,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Crater rim strength",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+          },
+          detonationSeed: {
+            value: d.clickWave.detonation.seed,
+            min: 0,
+            max: 1000000,
+            step: 1,
+            label: "Seed",
+            render: (get) =>
+              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
           },
         }),
       }),
@@ -2512,6 +3450,28 @@ export function useEngineControls(
         opacity: values.backgroundStarsOpacity,
         color: hexToInt(values.backgroundStarsColor),
       },
+      meteors: {
+        enabled: values.backgroundMeteorsEnabled,
+        ratePerSec: values.backgroundMeteorsRatePerSec,
+        maxActive: values.backgroundMeteorsMaxActive,
+        radiantAngleDeg: values.backgroundMeteorsRadiantAngleDeg,
+        angleJitterDeg: values.backgroundMeteorsAngleJitterDeg,
+        speedScale: values.backgroundMeteorsSpeedScale,
+        speedVariation: values.backgroundMeteorsSpeedVariation,
+        tailLengthScale: values.backgroundMeteorsTailLengthScale,
+        tailLengthVariation: values.backgroundMeteorsTailLengthVariation,
+        thicknessScale: values.backgroundMeteorsThicknessScale,
+        thicknessVariation: values.backgroundMeteorsThicknessVariation,
+        lifetimeMinMs: values.backgroundMeteorsLifetimeMinMs,
+        lifetimeMaxMs: values.backgroundMeteorsLifetimeMaxMs,
+        brightness: values.backgroundMeteorsBrightness,
+        headGlow: values.backgroundMeteorsHeadGlow,
+        pushPx: values.backgroundMeteorsPushPx,
+        pushFalloffScale: values.backgroundMeteorsPushFalloffScale,
+        fadeInMs: values.backgroundMeteorsFadeInMs,
+        fadeOutMs: values.backgroundMeteorsFadeOutMs,
+        seed: values.backgroundMeteorsSeed,
+      },
     },
     grid: {
       cellWidth: values.cellWidth,
@@ -2710,9 +3670,70 @@ export function useEngineControls(
       pushLagPx: d.cursorTrail.pushLagPx,
       pushWobblePx: values.pushWobblePx,
       pushLeadBlackAlpha: d.cursorTrail.pushLeadBlackAlpha,
+      constellation: {
+        radiusScale: values.constellationRadiusScale,
+        starDensity: values.constellationStarDensity,
+        starSizePx: values.constellationStarSizePx,
+        starSizeRandomness: values.constellationStarSizeRandomness,
+        starGrowScale: values.constellationStarGrowScale,
+        starPushPx: values.constellationStarPushPx,
+        twinkleAmount: values.constellationTwinkleAmount,
+        twinkleSpeed: values.constellationTwinkleSpeed,
+        linkThicknessPx: values.constellationLinkThicknessPx,
+        linkBrightness: values.constellationLinkBrightness,
+        linkGrooveDepth: values.constellationLinkGrooveDepth,
+        linkShearPx: values.constellationLinkShearPx,
+        linkMaxDistScale: values.constellationLinkMaxDistScale,
+        linkFormMs: values.constellationLinkFormMs,
+        linkHoldMs: values.constellationLinkHoldMs,
+        linkDissolveMs: values.constellationLinkDissolveMs,
+        maxLinks: values.constellationMaxLinks,
+        maxStars: values.constellationMaxStars,
+        pulseEnabled: values.constellationPulseEnabled,
+        pulseDurationMs: values.constellationPulseDurationMs,
+        pulseCoreLenPx: values.constellationPulseCoreLenPx,
+        pulseTailLenPx: values.constellationPulseTailLenPx,
+        pulseBrightness: values.constellationPulseBrightness,
+        pulseRelayHops: values.constellationPulseRelayHops,
+        pulseCooldownMs: values.constellationPulseCooldownMs,
+        flareMs: values.constellationFlareMs,
+        flareScale: values.constellationFlareScale,
+        polygonFlashEnabled: values.constellationPolygonFlashEnabled,
+        polygonFlashStrength: values.constellationPolygonFlashStrength,
+      },
+      comet: {
+        nodeCount: values.cometNodeCount,
+        headStiffness: values.cometHeadStiffness,
+        headDamping: values.cometHeadDamping,
+        chainStiffness: values.cometChainStiffness,
+        chainDamping: values.cometChainDamping,
+        maxLinkPx: values.cometMaxLinkPx,
+        headRadiusPx: values.cometHeadRadiusPx,
+        tailRadiusPx: values.cometTailRadiusPx,
+        stretchThinning: values.cometStretchThinning,
+        smoothUnionPx: values.cometSmoothUnionPx,
+        bodyBrightness: values.cometBodyBrightness,
+        auraStrength: values.cometAuraStrength,
+        bodyPushPx: values.cometBodyPushPx,
+        presenceRiseRate: values.cometPresenceRiseRate,
+        presenceFallRate: values.cometPresenceFallRate,
+        emberRatePerSec: values.cometEmberRatePerSec,
+        emberMaxCount: values.cometEmberMaxCount,
+        emberSizePx: values.cometEmberSizePx,
+        emberSpeedMinPxPerSec: values.cometEmberSpeedMinPxPerSec,
+        emberSpeedMaxPxPerSec: values.cometEmberSpeedMaxPxPerSec,
+        emberSpreadRad: values.cometEmberSpreadRad,
+        emberLifetimeMinMs: values.cometEmberLifetimeMinMs,
+        emberLifetimeMaxMs: values.cometEmberLifetimeMaxMs,
+        emberBrightness: values.cometEmberBrightness,
+        emberFadeInFraction: values.cometEmberFadeInFraction,
+        seed: values.cometSeed,
+        embersEnabled: values.cometEmbersEnabled,
+      },
     },
     clickWave: {
       enabled: values.clickWaveEnabled,
+      type: values.clickWaveType as EngineConfig["clickWave"]["type"],
       lifeMs: values.clickWaveLifeMs,
       startRadiusPx: values.clickWaveStartRadiusPx,
       maxRadiusPx: values.clickWaveMaxRadiusPx,
@@ -2722,6 +3743,32 @@ export function useEngineControls(
       pushStrengthPx: values.clickWavePushStrengthPx,
       pushBandScale: values.clickWavePushBandScale,
       stripeWhiteAlpha: values.clickWaveStripeWhiteAlpha,
+      detonation: {
+        maxConcurrent: values.detonationMaxConcurrent,
+        ringReachPx: values.detonationRingReachPx,
+        ringDurationMs: values.detonationRingDurationMs,
+        ringThicknessPx: values.detonationRingThicknessPx,
+        ringRefractionPx: values.detonationRingRefractionPx,
+        flashRadiusPx: values.detonationFlashRadiusPx,
+        flashDurationMs: values.detonationFlashDurationMs,
+        flashBrightness: values.detonationFlashBrightness,
+        debrisCount: values.detonationDebrisCount,
+        debrisSpeedPxPerSec: values.detonationDebrisSpeedPxPerSec,
+        debrisSpeedVariation: values.detonationDebrisSpeedVariation,
+        debrisDrag: values.detonationDebrisDrag,
+        debrisGravityPxPerSec2: values.detonationDebrisGravityPxPerSec2,
+        debrisLifetimeMs: values.detonationDebrisLifetimeMs,
+        debrisLifetimeVariation: values.detonationDebrisLifetimeVariation,
+        debrisSizePx: values.detonationDebrisSizePx,
+        debrisBrightness: values.detonationDebrisBrightness,
+        craterRadiusPx: values.detonationCraterRadiusPx,
+        craterDepth: values.detonationCraterDepth,
+        craterRelaxFastMs: values.detonationCraterRelaxFastMs,
+        craterRelaxSlowMs: values.detonationCraterRelaxSlowMs,
+        craterLifeMs: values.detonationCraterLifeMs,
+        craterRimStrength: values.detonationCraterRimStrength,
+        seed: values.detonationSeed,
+      },
     },
     colors: {
       mode: effectiveColorsMode,

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { normalizeEngineConfig } from "./config/normalize";
+import { constellationCaps } from "./cursorTrail/constellationSim";
+import { cometCaps } from "./cursorTrail/cometSim";
+import { meteorsCaps } from "./meteors/meteorsSim";
+import { detonationCaps } from "./detonation/detonationSim";
 import type { EngineConfig } from "./config/types";
 
 function topologyKey(cfg: EngineConfig): string {
@@ -14,7 +18,21 @@ function topologyKey(cfg: EngineConfig): string {
           : cfg.reveal.type === "water"
             ? "water"
             : "warp";
-  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}`;
+  const caps =
+    cfg.cursorTrail.enabled && cfg.cursorTrail.type === "constellation"
+      ? constellationCaps(cfg.cursorTrail.constellation)
+      : null;
+  const comet = cfg.cursorTrail.enabled && cfg.cursorTrail.type === "comet" ? cometCaps(cfg.cursorTrail.comet) : null;
+  const trailKey = `${cfg.cursorTrail.enabled}:${cfg.cursorTrail.type}:${
+    caps ? `${caps.maxStars}|${caps.maxLinks}|${caps.maxPulses}` : "off"
+  }:${comet ? `${comet.nodeCount}|${comet.maxEmbers}` : "off"}`;
+  const meteorsKey = cfg.background.meteors.enabled ? String(meteorsCaps(cfg.background.meteors).maxActive) : "off";
+  const detonation =
+    cfg.clickWave.enabled && cfg.clickWave.type === "detonation" ? detonationCaps(cfg.clickWave.detonation) : null;
+  const clickKey = `${cfg.clickWave.enabled}:${cfg.clickWave.type}:${
+    detonation ? `${detonation.maxConcurrent}|${detonation.debrisCount}` : "off"
+  }`;
+  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}:${trailKey}:${meteorsKey}:${clickKey}`;
 }
 
 function needsRebuild(prev: EngineConfig, next: EngineConfig): boolean {
@@ -142,5 +160,101 @@ describe("setConfig topology gating", () => {
     const left = normalizeEngineConfig({ flames: { enabled: true, direction: "left" } });
     expect(needsRebuild(up, left)).toBe(false);
     expect(needsRebuild(left, up)).toBe(false);
+  });
+
+  it("switching cursorTrail.type to constellation triggers rebuild", () => {
+    const dflt = normalizeEngineConfig({ cursorTrail: { enabled: true, type: "default" } });
+    const web = normalizeEngineConfig({ cursorTrail: { enabled: true, type: "constellation" } });
+    expect(needsRebuild(dflt, web)).toBe(true);
+    expect(needsRebuild(web, dflt)).toBe(true);
+  });
+
+  it("constellation style params do not trigger rebuild, but caps do", () => {
+    const thin = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "constellation", constellation: { linkThicknessPx: 0.6 } },
+    });
+    const thick = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "constellation", constellation: { linkThicknessPx: 6 } },
+    });
+    const capped = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "constellation", constellation: { maxLinks: 24 } },
+    });
+    expect(needsRebuild(thin, thick)).toBe(false);
+    expect(needsRebuild(thin, capped)).toBe(true);
+  });
+
+  it("switching cursorTrail.type to comet triggers rebuild", () => {
+    const dflt = normalizeEngineConfig({ cursorTrail: { enabled: true, type: "default" } });
+    const comet = normalizeEngineConfig({ cursorTrail: { enabled: true, type: "comet" } });
+    expect(needsRebuild(dflt, comet)).toBe(true);
+    expect(needsRebuild(comet, dflt)).toBe(true);
+  });
+
+  it("comet style params do not trigger rebuild, but caps do", () => {
+    const soft = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "comet", comet: { bodyBrightness: 0.4, emberRatePerSec: 20 } },
+    });
+    const bright = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "comet", comet: { bodyBrightness: 1.6, emberRatePerSec: 200 } },
+    });
+    const nodes = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "comet", comet: { nodeCount: 24 } },
+    });
+    const embers = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "comet", comet: { emberMaxCount: 40 } },
+    });
+    expect(needsRebuild(soft, bright)).toBe(false);
+    expect(needsRebuild(soft, nodes)).toBe(true);
+    expect(needsRebuild(soft, embers)).toBe(true);
+  });
+
+  it("toggling background meteors triggers rebuild", () => {
+    const off = normalizeEngineConfig({});
+    const on = normalizeEngineConfig({ background: { meteors: { enabled: true } } });
+    expect(needsRebuild(off, on)).toBe(true);
+    expect(needsRebuild(on, off)).toBe(true);
+  });
+
+  it("meteor style params do not trigger rebuild, but maxActive does", () => {
+    const soft = normalizeEngineConfig({ background: { meteors: { enabled: true, pushPx: 2 } } });
+    const hard = normalizeEngineConfig({
+      background: { meteors: { enabled: true, pushPx: 18, ratePerSec: 40, brightness: 2 } },
+    });
+    const capped = normalizeEngineConfig({ background: { meteors: { enabled: true, maxActive: 12 } } });
+    expect(needsRebuild(soft, hard)).toBe(false);
+    expect(needsRebuild(soft, capped)).toBe(true);
+  });
+
+  it("switching click wave type between default and detonation triggers rebuild", () => {
+    const ring = normalizeEngineConfig({ clickWave: { enabled: true } });
+    const detonation = normalizeEngineConfig({ clickWave: { enabled: true, type: "detonation" } });
+    expect(needsRebuild(ring, detonation)).toBe(true);
+    expect(needsRebuild(detonation, ring)).toBe(true);
+  });
+
+  it("detonation style params do not trigger rebuild, but baked array sizes do", () => {
+    const base = normalizeEngineConfig({ clickWave: { enabled: true, type: "detonation" } });
+    const styled = normalizeEngineConfig({
+      clickWave: {
+        enabled: true,
+        type: "detonation",
+        detonation: { ringReachPx: 320, craterDepth: 2, debrisBrightness: 1.8, seed: 9 },
+      },
+    });
+    const concurrent = normalizeEngineConfig({
+      clickWave: { enabled: true, type: "detonation", detonation: { maxConcurrent: 8 } },
+    });
+    const debris = normalizeEngineConfig({
+      clickWave: { enabled: true, type: "detonation", detonation: { debrisCount: 48 } },
+    });
+    expect(needsRebuild(base, styled)).toBe(false);
+    expect(needsRebuild(base, concurrent)).toBe(true);
+    expect(needsRebuild(base, debris)).toBe(true);
+  });
+
+  it("disabling the click wave drops the detonation pass", () => {
+    const on = normalizeEngineConfig({ clickWave: { enabled: true, type: "detonation" } });
+    const off = normalizeEngineConfig({ clickWave: { enabled: false, type: "detonation" } });
+    expect(needsRebuild(on, off)).toBe(true);
   });
 });

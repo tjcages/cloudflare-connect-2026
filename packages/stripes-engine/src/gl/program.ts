@@ -30,7 +30,9 @@ export function compileProgram(gl: WebGL2RenderingContext, vertSrc: string, frag
   return program;
 }
 
-export function createFullscreenQuad(gl: WebGL2RenderingContext): { draw(): void; dispose(): void } {
+export type FullscreenQuad = { draw(): void; dispose(): void };
+
+export function createFullscreenQuad(gl: WebGL2RenderingContext): FullscreenQuad {
   const vao = gl.createVertexArray();
   if (!vao) throw new Error("Failed to create VAO");
   return {

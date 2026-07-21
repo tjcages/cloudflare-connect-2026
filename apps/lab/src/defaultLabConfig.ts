@@ -1,4 +1,4 @@
-import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
+import { DEFAULT_ENGINE_CONFIG, normalizeEngineConfig } from "@necatikcl/stripes-engine";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import factoryDefaults from "./factoryDefaults.json";
 
@@ -74,6 +74,7 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       opacity: 0.71,
       color: 16777215,
     },
+    meteors: { ...DEFAULT_ENGINE_CONFIG.background.meteors },
   },
   grid: {
     cellWidth: 7,
@@ -300,9 +301,12 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
     pushLagPx: 0,
     pushWobblePx: 8,
     pushLeadBlackAlpha: 0,
+    constellation: { ...DEFAULT_ENGINE_CONFIG.cursorTrail.constellation },
+    comet: { ...DEFAULT_ENGINE_CONFIG.cursorTrail.comet },
   },
   clickWave: {
     enabled: true,
+    type: "default",
     lifeMs: 630,
     startRadiusPx: 6,
     maxRadiusPx: 120,
@@ -312,6 +316,7 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
     pushStrengthPx: 38,
     pushBandScale: 3.2,
     stripeWhiteAlpha: 0.5,
+    detonation: { ...DEFAULT_ENGINE_CONFIG.clickWave.detonation },
   },
   letters: {
     enabled: false,
@@ -388,6 +393,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
   drawerOpen: {
     "Background Flames": false,
     "Background Stars": false,
+    "Background Meteors": false,
     "Texture Source": false,
     "Texture Tone": false,
     "Texture Levels": false,
