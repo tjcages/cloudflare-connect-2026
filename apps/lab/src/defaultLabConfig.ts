@@ -181,9 +181,9 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       swirl: 1,
     },
     blackhole: {
-      speedMinMs: 300,
-      speedMaxMs: 1300,
-      staggerMs: 2400,
+      speedMinMs: 260,
+      speedMaxMs: 1050,
+      staggerMs: 3600,
       intensity: 1,
       detail: 0.5,
       glow: 0.7,

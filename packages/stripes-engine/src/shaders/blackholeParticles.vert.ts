@@ -72,7 +72,7 @@ void main() {
     highp float infall = smoothstep(0.0, 1.0, formT * formT);
     highp float spiralIn = 1.0 - 0.12 * fract(h3 * 3.7 + p * 0.5);
     highp float rOrb = mix(rBase * 3.2, rBase * spiralIn, infall);
-    highp float w = 26.0 / pow(max(rBase / max(uHorizon, 1e-4), 0.5), 1.5);
+    highp float w = 46.0 / pow(max(rBase / max(uHorizon, 1e-4), 0.5), 1.5);
     highp float angD = h2 * 6.2831853 + w * p;
     highp float env = smoothstep(0.0, 0.6, formT) * pow(1.0 - collapseT, 1.5);
     highp float flick = 0.8 + 0.2 * sin(p * (150.0 + 200.0 * h4));
@@ -101,7 +101,7 @@ void main() {
   highp float dn = length(tq) / cornerR;
   highp float tang = atan(tq.y, tq.x);
   highp float armW = 0.5 + 0.5 * sin(tang * uArms - dn * (5.0 + 3.0 * uSwirl));
-  highp float o = clamp(dn * 0.66 + armW * 0.24 + (hashLane(cellIndex, 1u) - 0.5) * 0.1 + 0.05, 0.0, 1.0);
+  highp float o = clamp(dn * 0.58 + armW * 0.34 + (hashLane(cellIndex, 1u) - 0.5) * 0.08 + 0.02, 0.0, 1.0);
   highp float ok = o + float(k) * 0.04 + hashLane(eid, 4u) * 0.02;
   highp float fl = max(mix(uFlightMin, uFlightMax, hashLane(eid, 6u)), 1e-4);
   highp float f = (p - uForm - uSpread * ok) / fl;
@@ -112,7 +112,7 @@ void main() {
   }
   highp float rT = length(tq);
   highp float rS = R * 1.05;
-  highp float swirlTotal = uSwirl * (1.8 + 1.0 * hashLane(eid, 5u));
+  highp float swirlTotal = uSwirl * (3.6 + 1.8 * hashLane(eid, 5u));
   highp float e = 1.0 - pow(1.0 - f, 3.0);
   highp float A1 = tang + swirlTotal * (1.0 - e);
   highp float r1 = mix(rS, rT, e);

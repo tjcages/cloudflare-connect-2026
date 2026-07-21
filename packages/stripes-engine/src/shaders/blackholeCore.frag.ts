@@ -56,7 +56,7 @@ void main() {
   highp float dn = length(cq) / cornerR;
   highp float cang = atan(cq.y, cq.x);
   highp float armW = 0.5 + 0.5 * sin(cang * uArms - dn * (5.0 + 3.0 * uSwirl));
-  highp float o = clamp(dn * 0.66 + armW * 0.24 + (hashLane(cellIndex, 1u) - 0.5) * 0.1 + 0.05, 0.0, 1.0);
+  highp float o = clamp(dn * 0.58 + armW * 0.34 + (hashLane(cellIndex, 1u) - 0.5) * 0.08 + 0.02, 0.0, 1.0);
 
   highp float blockV = texture(uField, cellCenter).r;
   highp float accFrac = 0.0;
@@ -94,13 +94,13 @@ void main() {
   highp float einstein = exp(-pow((r - R * 1.32) / max(R * 0.09, 1e-4), 2.0)) * 0.45;
   highp float ringV = (photon + einstein) * uGlow * ringEnv * beam * (0.88 + 0.12 * sin(ang * uArms * 2.0 + p * 50.0));
 
-  highp float diskR = (r - R * 1.5) / max(R * 2.2, 1e-4);
-  highp float diskBody = exp(-diskR * diskR) * smoothstep(R * 1.15, R * 1.45, r);
-  highp float bands = 0.55 + 0.45 * sin(r / max(R, 1e-4) * 9.0 - p * 26.0);
-  highp float turb = 0.75 + 0.25 * sin(ang * 7.0 - r / max(R, 1e-4) * 5.0 + p * 34.0);
-  highp float disk = uGlow * 0.5 * formT * (1.0 - collapseT) * diskBody * bands * turb * beam;
+  highp float diskR = (r - R * 1.45) / max(R * 1.15, 1e-4);
+  highp float diskBody = exp(-diskR * diskR) * smoothstep(R * 1.1, R * 1.3, r);
+  highp float bands = 0.4 + 0.6 * sin(r / max(R, 1e-4) * 13.0 - p * 46.0);
+  highp float turb = 0.6 + 0.4 * sin(ang * 9.0 - r / max(R, 1e-4) * 7.0 + p * 60.0);
+  highp float disk = uGlow * 0.75 * formT * (1.0 - collapseT) * diskBody * bands * bands * turb * beam;
 
-  highp float redshift = smoothstep(R * 0.98, R * 1.5, r);
+  highp float redshift = smoothstep(R * 0.995, R * 1.06, r);
   v = max(v, (ringV + disk) * redshift);
   finalColor = vec4(vec3(v), 1.0);
 }
