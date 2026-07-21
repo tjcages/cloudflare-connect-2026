@@ -10,28 +10,24 @@ uniform float uGlow;
 uniform float uAspect;
 out vec4 finalColor;
 
-const highp float ARMS = 4.0;
-const highp float WAVE_RATE = 34.0;
 const highp float TAU = 6.2831853;
+const highp float ARMS = 4.0;
+/* Angular speed never drops to nothing at the rim, or the outer ring could not complete a
+   turn inside the animation and would have no moment to lock on. */
+const highp float SPEED = 37.7;
 
-/* The swirl is a COVER, not the image: it spins forever and gets drained away, and the
-   sharp field is simply underneath it. */
-highp float sampleSwirl(highp float r, highp float ang, highp float theta, highp float pull, vec2 asp) {
+vec2 mirrorUv(vec2 uv) {
+  vec2 m = mod(uv, 2.0);
+  return mix(m, 2.0 - m, step(1.0, m));
+}
+
+highp float sampleSwirl(highp float r, highp float ang, highp float theta, vec2 asp) {
   highp float A = ang + theta;
-  highp float rr = r * (1.0 - pull);
-  vec2 uv = 0.5 + (vec2(cos(A), sin(A)) * rr) / asp;
-  vec2 inb = step(vec2(0.0), uv) * step(uv, vec2(1.0));
-  return texture(uField, uv).r * inb.x * inb.y;
+  return texture(uField, mirrorUv(0.5 + (vec2(cos(A), sin(A)) * r) / asp)).r;
 }
 
-highp float spinAngle(highp float falloff, highp float pp) {
-  return uTurns * TAU * falloff * (1.0 + 0.6 * pp);
-}
-
-/* Organic, non-circular envelope so the opening never reads as a hard ring. */
 highp float envelopeWobble(highp float r, highp float ang) {
-  return 0.5 * sin(ang * 4.0 + r * 9.0) + 0.32 * sin(ang * 8.0 - r * 15.0 + 1.3)
-    + 0.18 * sin(ang * 12.0 + r * 24.0 + 2.7);
+  return 0.5 * sin(ang * 4.0 + r * 9.0) + 0.3 * sin(ang * 8.0 - r * 15.0 + 1.3);
 }
 
 void main() {
@@ -49,33 +45,37 @@ void main() {
   highp float rn = clamp(r / max(maxR, 1e-4), 0.0, 1.0);
   highp float falloff = uTightness / (r + uTightness);
 
-  /* Radial envelope = when this radius becomes eligible; the wave decides the exact moment. */
-  highp float eligible = mix(0.28, 0.68, rn) + envelopeWobble(r, ang) * 0.015;
-
-  /* Spiral wave fronts, riding the same winding as the cover and sweeping with its rotation.
-     A point switches on when the next crest sweeps over it, so the waves carry the reveal. */
+  /* Pure differential rotation: wound at the start, spinning faster toward the centre. */
   highp float wound = uTurns * TAU * falloff;
-  highp float phase = ang * ARMS + wound + WAVE_RATE * eligible;
-  highp float wait = mod(-phase, TAU) / WAVE_RATE;
-  highp float arrival = eligible + wait;
-  highp float drained = smoothstep(arrival, arrival + 0.05, p);
+  highp float omega = SPEED * (0.35 + 0.65 * falloff);
+  highp float theta = wound + omega * p;
 
-  highp float rim = drained * (1.0 - drained) * 4.0;
-  highp float spinNow = spinAngle(falloff, p);
-  /* Right at the wave front the cover accelerates and is sucked inward. */
-  highp float theta = spinNow + rim * 0.7;
-  highp float arc = (spinAngle(falloff, min(p + 0.016, 1.0)) - spinNow) * (0.5 + 3.5 * uStreak);
-  highp float pull = falloff * (0.3 + 0.45 * rim);
+  /* Eligibility spreads outward and along the arms; the lock still happens only on a whole
+     turn, so arms differ by exactly one revolution. */
+  highp float eligible = mix(0.22, 0.6, rn)
+    + (0.5 - 0.5 * cos(ang * ARMS + wound)) * 0.05
+    + envelopeWobble(r, ang) * 0.012;
+
+  /* A whole turn means the rotated sample lands back on this very texel: cover == image, so
+     locking it in is seamless. The reveal IS the rotation completing. */
+  highp float thetaAtEligible = wound + omega * eligible;
+  highp float arrival = eligible + mod(-thetaAtEligible, TAU) / omega;
+  highp float locked = smoothstep(arrival, arrival + 0.02, p);
+
+  /* Motion blur has to vanish as the lock approaches, otherwise the cover is smeared at the
+     exact moment it is supposed to match the image. */
+  highp float toLock = clamp((arrival - p) / 0.25, 0.0, 1.0);
+  highp float arc = omega * 0.016 * (0.5 + 3.5 * uStreak) * toLock;
 
   highp float cover = 0.0;
   for (int i = 0; i < 5; i++) {
-    highp float t = (float(i) - 2.0) / 2.0;
-    cover += sampleSwirl(r, ang, theta + arc * t, pull, asp) * 0.2;
+    cover += sampleSwirl(r, ang, theta + arc * ((float(i) - 2.0) / 2.0), asp) * 0.2;
   }
-  cover *= smoothstep(0.0, 0.08, p);
+  cover *= smoothstep(0.0, 0.06, p);
 
-  highp float v = mix(cover, sharp, drained);
-  v *= 1.0 + uGlow * 0.3 * rim * rim;
+  highp float v = mix(cover, sharp, locked);
+  highp float rim = locked * (1.0 - locked) * 4.0;
+  v *= 1.0 + uGlow * 0.25 * rim * rim;
   finalColor = vec4(vec3(v), 1.0);
 }
 `;
