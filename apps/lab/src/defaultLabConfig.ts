@@ -236,6 +236,17 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
     edgeSharpness: 1,
     opacityMin: 0.3,
     opacityMax: 0.6,
+    vortexSingular: {
+      segCount: 22,
+      segSpacingPx: 10,
+      turnRate: 0.9,
+      turnVariation: 0.8,
+      fadeCycleRate: 0.5,
+      fadeDepth: 1,
+      lifeMinMs: 6000,
+      lifeMaxMs: 14000,
+      edgeMarginRatio: 0.12,
+    },
   },
   edgeMask: {
     enabled: false,

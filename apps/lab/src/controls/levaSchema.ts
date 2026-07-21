@@ -1136,9 +1136,100 @@ export function useEngineControls(
               Right: "right",
               "Up - Down": "upDown",
               "Left - Right": "leftRight",
+              "Vortex Singular": "vortexSingular",
             } as const,
             label: "Direction",
             render: (get) => get("Background Flames.flamesEnabled") === true,
+          },
+          flamesVsSegCount: {
+            value: d.flames.vortexSingular.segCount,
+            min: 2,
+            max: 80,
+            step: 1,
+            label: "VS Segments",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsSegSpacing: {
+            value: d.flames.vortexSingular.segSpacingPx,
+            min: 2,
+            max: 60,
+            step: 1,
+            label: "VS Spacing (px)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsTurnRate: {
+            value: d.flames.vortexSingular.turnRate,
+            min: 0.05,
+            max: 6,
+            step: 0.05,
+            label: "VS Turn Rate",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsTurnVariation: {
+            value: d.flames.vortexSingular.turnVariation,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "VS Turn Variation",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsFadeCycleRate: {
+            value: d.flames.vortexSingular.fadeCycleRate,
+            min: 0.02,
+            max: 4,
+            step: 0.02,
+            label: "VS Fade Rate",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsFadeDepth: {
+            value: d.flames.vortexSingular.fadeDepth,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "VS Fade Depth",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsLifeMinSec: {
+            value: d.flames.vortexSingular.lifeMinMs / 1000,
+            min: 0.5,
+            max: 60,
+            step: 0.5,
+            label: "VS Life Min (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsLifeMaxSec: {
+            value: d.flames.vortexSingular.lifeMaxMs / 1000,
+            min: 0.5,
+            max: 120,
+            step: 0.5,
+            label: "VS Life Max (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsEdgeMargin: {
+            value: d.flames.vortexSingular.edgeMarginRatio,
+            min: 0,
+            max: 0.4,
+            step: 0.01,
+            label: "VS Edge Margin",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
           },
           flamesMinWidthPct: {
             value: d.flames.minWidthRatio * 100,
@@ -2354,6 +2445,17 @@ export function useEngineControls(
       edgeSharpness: values.flamesEdgeSharpness,
       opacityMin: values.flamesOpacityMin,
       opacityMax: values.flamesOpacityMax,
+      vortexSingular: {
+        segCount: values.flamesVsSegCount,
+        segSpacingPx: values.flamesVsSegSpacing,
+        turnRate: values.flamesVsTurnRate,
+        turnVariation: values.flamesVsTurnVariation,
+        fadeCycleRate: values.flamesVsFadeCycleRate,
+        fadeDepth: values.flamesVsFadeDepth,
+        lifeMinMs: values.flamesVsLifeMinSec * 1000,
+        lifeMaxMs: values.flamesVsLifeMaxSec * 1000,
+        edgeMarginRatio: values.flamesVsEdgeMargin,
+      },
     },
     edgeMask: {
       enabled: values.edgeMaskEnabled,
