@@ -1,32 +1,97 @@
-export const COMET_COMPOSITE_FRAG = `#version 300 es
-precision highp float;
-in vec2 vUv;
-uniform sampler2D uField;
+const COMET_POTENTIAL = `
 uniform vec2 uCssSize;
 uniform vec2 uHead;
-uniform vec2 uVel;
-uniform float uGlow;
+uniform vec2 uDir;
+uniform float uTail;
+uniform float uPresence;
 uniform float uTime;
-out vec4 outColor;
-void main() {
-  float base = texture(uField, vUv).r;
-  vec2 p = vec2(vUv.x, 1.0 - vUv.y) * uCssSize;
-  float speed = length(uVel);
-  vec2 dir = speed > 1.0 ? uVel / speed : vec2(1.0, 0.0);
-  float tail = clamp(speed * 0.055, 0.0, 95.0);
+
+float cometPotential(vec2 p, float sc) {
   vec2 d = p - uHead;
-  float along = clamp(dot(d, dir), -tail, 0.0);
-  float tt = tail > 1.0 ? -along / tail : 0.0;
-  vec2 nearest = uHead + dir * along;
-  vec2 rel = p - nearest;
-  float dist2 = dot(rel, rel);
-  float coreR = mix(9.5, 3.5, tt);
-  float haloR = mix(26.0, 9.0, tt);
-  float core = exp(-dist2 / (coreR * coreR)) * (1.0 - tt * 0.8);
-  float halo = exp(-dist2 / (haloR * haloR)) * 0.32 * (1.0 - tt * 0.9);
-  float flick = 0.93 + 0.07 * sin(uTime * 9.3 + sin(uTime * 23.7) * 1.9);
-  float glow = (core + halo) * uGlow * flick;
-  outColor = vec4(vec3(clamp(base + glow, 0.0, 1.0)), 1.0);
+  vec2 side = vec2(-uDir.y, uDir.x);
+  float ax = dot(d, uDir);
+  float ay = dot(d, side);
+  float front = clamp(ax / (30.0 * sc), 0.0, 1.0);
+  float rx = mix(36.0, 17.0, front) * sc;
+  float ry = 28.0 * sc;
+  float bulb = exp(-(ax * ax) / (rx * rx) - (ay * ay) / (ry * ry));
+  float t = clamp(-ax / max(uTail, 1.0), 0.0, 1.0);
+  float behind = 1.0 - smoothstep(-12.0 * sc, 0.0, ax);
+  float w = (13.0 + 36.0 * t) * sc;
+  float wobble = sin(ax * 0.05 - uTime * 6.0) * 5.0 * sc * t;
+  float lat = ay - wobble;
+  float wake = exp(-(lat * lat) / (w * w)) * pow(1.0 - t, 1.15) * behind * 0.92;
+  return (bulb + wake) * uPresence;
+}
+`;
+
+export const COMET_COMPOSITE_FRAG = `#version 300 es
+precision highp float;
+
+in vec2 vUv;
+uniform sampler2D uField;
+uniform sampler2D uHeat;
+out vec4 outColor;
+${COMET_POTENTIAL}
+float heatAt(vec2 p) {
+  vec2 uv = vec2(p.x / uCssSize.x, 1.0 - p.y / uCssSize.y);
+  return texture(uHeat, uv).r;
+}
+
+float totalPotential(vec2 p, float sc) {
+  return cometPotential(p, sc) + heatAt(p) * 0.8;
+}
+
+void main() {
+  float sc = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.5, 2.5);
+  vec2 p = vec2(vUv.x, 1.0 - vUv.y) * uCssSize;
+
+  float e = 2.0 * sc;
+  float gx = totalPotential(p + vec2(e, 0.0), sc) - totalPotential(p - vec2(e, 0.0), sc);
+  float gy = totalPotential(p + vec2(0.0, e), sc) - totalPotential(p - vec2(0.0, e), sc);
+  vec2 push = vec2(gx, gy) / (2.0 * e) * 1250.0 * sc;
+  float mag = length(push);
+  float maxPush = 54.0 * sc;
+  if (mag > maxPush) push *= maxPush / mag;
+
+  vec2 uv = clamp(vUv + vec2(push.x / uCssSize.x, -push.y / uCssSize.y), 0.0, 1.0);
+  float base = texture(uField, uv).r;
+
+  vec2 heat = texture(uHeat, vUv).rg;
+  float pot = cometPotential(p, sc);
+  vec2 d = p - uHead;
+  float coreR = 12.0 * sc;
+  float flick = 0.9 + 0.1 * sin(uTime * 11.3 + sin(uTime * 27.1) * 1.7);
+  float core = exp(-dot(d, d) / (coreR * coreR)) * uPresence * flick;
+
+  float rim = clamp(pot * (1.0 - pot) * 4.0, 0.0, 1.0);
+  float emberRim = clamp(heat.r * (1.0 - heat.r) * 4.0, 0.0, 1.0);
+  float dim = clamp(rim * 0.44 + emberRim * 0.34, 0.0, 0.72);
+
+  float value = clamp(base * (1.0 - dim) + core * 0.95 + min(heat.g, 1.0) * 0.88, 0.0, 1.0);
+  outColor = vec4(vec3(value), 1.0);
+}
+`;
+
+export const COMET_POST_FRAG = `#version 300 es
+precision highp float;
+
+in vec2 vUv;
+uniform sampler2D uSrc;
+out vec4 outColor;
+${COMET_POTENTIAL}
+void main() {
+  float sc = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.5, 2.5);
+  vec2 p = vec2(vUv.x, 1.0 - vUv.y) * uCssSize;
+  float e = 2.0 * sc;
+  float gx = cometPotential(p + vec2(e, 0.0), sc) - cometPotential(p - vec2(e, 0.0), sc);
+  float gy = cometPotential(p + vec2(0.0, e), sc) - cometPotential(p - vec2(0.0, e), sc);
+  vec2 push = vec2(gx, gy) / (2.0 * e) * 520.0 * sc;
+  float mag = length(push);
+  float maxPush = 22.0 * sc;
+  if (mag > maxPush) push *= maxPush / mag;
+  vec2 uv = clamp(vUv + vec2(push.x / uCssSize.x, -push.y / uCssSize.y), 0.0, 1.0);
+  outColor = texture(uSrc, uv);
 }
 `;
 
@@ -41,10 +106,10 @@ out float vSeed;
 void main() {
   vec2 corner = vec2(float(gl_VertexID == 1 || gl_VertexID == 4 || gl_VertexID == 5), float(gl_VertexID == 2 || gl_VertexID == 3 || gl_VertexID == 5));
   vec2 local = (corner - 0.5) * 2.0;
-  vec2 worldPx = aEmber.xy + local * aEmber.z * 2.4;
+  vec2 worldPx = aEmber.xy + local * aEmber.z * 3.2;
   vec2 uv = worldPx / uCanvas;
   gl_Position = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, 0.0, 1.0);
-  vLocal = local * 2.4;
+  vLocal = local * 3.2;
   vT = aEmber.w;
   vSeed = aSeed;
 }
@@ -59,14 +124,15 @@ uniform float uTime;
 out vec4 outColor;
 void main() {
   float d2 = dot(vLocal, vLocal);
-  float fall = exp(-d2 * 1.4);
-  float heat = clamp(1.0 - vT, 0.0, 1.0);
-  float shade = pow(heat, 1.6);
-  float flick = 0.84 + 0.16 * sin(uTime * (5.0 + vSeed * 12.0) + vSeed * 61.7);
-  shade *= mix(1.0, flick, smoothstep(0.15, 0.5, vT));
-  float fadeIn = smoothstep(0.0, 0.06, vT);
-  float fadeOut = 1.0 - smoothstep(0.78, 1.0, vT);
-  float alpha = fall * fadeIn * fadeOut * 0.95;
-  outColor = vec4(vec3(shade), alpha);
+  float broad = exp(-d2 * 0.62);
+  float core = exp(-d2 * 4.6);
+  float t = clamp(vT, 0.0, 1.0);
+  float cool = pow(1.0 - t, 0.85);
+  float flick = 0.82 + 0.18 * sin(uTime * (6.0 + vSeed * 13.0) + vSeed * 61.7);
+  float fadeIn = smoothstep(0.0, 0.13, t);
+  float fadeOut = 1.0 - smoothstep(0.45, 1.0, t);
+  float amp = cool * fadeIn * fadeOut;
+  float shade = amp * mix(1.0, flick, smoothstep(0.2, 0.6, t));
+  outColor = vec4(broad * amp * 0.7, core * shade * 1.04, 0.0, 1.0);
 }
 `;

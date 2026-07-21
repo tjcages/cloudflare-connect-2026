@@ -9,9 +9,11 @@ import {
 } from "@necatikcl/stripes-engine";
 import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
-import { BURN_AWAY_FRAG } from "./burn-away.shaders";
+import { MOLTEN_POUR_FRAG } from "./molten-pour.shaders";
 
-const DURATION_MS = 3000;
+const DURATION_MS = 3200;
+const FILL_START = -0.22;
+const FILL_END = 1.45;
 
 const bezierSample = (a: number, b: number, t: number) =>
   3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
@@ -30,58 +32,65 @@ const easeStandard = (x: number) => {
   return bezierSample(0.6, 1, t);
 };
 
-const DIAGONAL_AXIS = Math.SQRT1_2;
+const smoothRange = (a: number, b: number, x: number) => {
+  const u = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return u * u * (3 - 2 * u);
+};
 
-const CORNERS: ReadonlyArray<readonly [number, number]> = [
-  [DIAGONAL_AXIS, DIAGONAL_AXIS],
-  [-DIAGONAL_AXIS, DIAGONAL_AXIS],
-  [DIAGONAL_AXIS, -DIAGONAL_AXIS],
-  [-DIAGONAL_AXIS, -DIAGONAL_AXIS],
-];
+const gravityEase = (t: number) => {
+  const fall = Math.pow(t, 1.55);
+  return fall + (easeStandard(t) - fall) * smoothRange(0.3, 1, t);
+};
 
 const definition: ExperimentDefinition = {
-  id: "burn-away",
-  title: "Burn Away",
+  id: "molten-pour",
+  title: "Molten Pour",
   category: "reveal",
-  blurb:
-    "A noise-driven ember front eats the static diagonally with a glowing rim and brief soot, leaving the image behind.",
+  blurb: "Molten image pours diagonally from a corner, its meniscus bulging the stripes ahead and settling behind.",
   create: (ctx) => {
-    const rng = createSeededRng(0x51f15e);
-    const run = { dirX: DIAGONAL_AXIS, dirY: DIAGONAL_AXIS, seedX: 0, seedY: 0 };
-    let cornerIndex = Math.floor(rng() * CORNERS.length) % CORNERS.length;
+    const rng = createSeededRng(0x0b1e77);
+    const run = { side: rng() < 0.5 ? 1 : -1, seedX: 1 + rng() * 96, seedY: 1 + rng() * 96 };
     const randomizeRun = () => {
-      cornerIndex = (cornerIndex + 1 + Math.floor(rng() * (CORNERS.length - 1))) % CORNERS.length;
-      const corner = CORNERS[cornerIndex] as readonly [number, number];
-      run.dirX = corner[0];
-      run.dirY = corner[1];
+      run.side = -run.side;
       run.seedX = 1 + rng() * 96;
       run.seedY = 1 + rng() * 96;
     };
-    randomizeRun();
 
     const customReveal = ({ gl, quad }: EngineHookContext): CustomRevealPass => {
-      const program = compileProgram(gl, FULLSCREEN_VERT, BURN_AWAY_FRAG);
+      const program = compileProgram(gl, FULLSCREEN_VERT, MOLTEN_POUR_FRAG);
       const uField = gl.getUniformLocation(program, "uField");
-      const uProgress = gl.getUniformLocation(program, "uProgress");
-      const uDir = gl.getUniformLocation(program, "uDir");
-      const uSeed = gl.getUniformLocation(program, "uSeed");
       const uAspect = gl.getUniformLocation(program, "uAspect");
       const uTime = gl.getUniformLocation(program, "uTime");
-      const uCssSize = gl.getUniformLocation(program, "uCssSize");
+      const uFill = gl.getUniformLocation(program, "uFill");
+      const uFade = gl.getUniformLocation(program, "uFade");
+      const uSettle = gl.getUniformLocation(program, "uSettle");
+      const uFlow = gl.getUniformLocation(program, "uFlow");
+      const uOrigin = gl.getUniformLocation(program, "uOrigin");
+      const uDiag = gl.getUniformLocation(program, "uDiag");
+      const uSeed = gl.getUniformLocation(program, "uSeed");
       return {
         render(frame) {
+          const t = Math.min(1, Math.max(0, frame.progress));
+          const aspect = frame.cssW / Math.max(1, frame.cssH);
+          const diag = Math.hypot(aspect, 1);
+          const flowX = (run.side * aspect) / diag;
+          const flowY = -1 / diag;
+
           gl.bindFramebuffer(gl.FRAMEBUFFER, frame.revealed.fbo);
           gl.viewport(0, 0, frame.revealed.width, frame.revealed.height);
           gl.useProgram(program);
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, frame.field.texture);
           gl.uniform1i(uField, 0);
-          gl.uniform1f(uProgress, easeStandard(Math.min(1, Math.max(0, frame.progress))));
-          gl.uniform2f(uDir, run.dirX, run.dirY);
-          gl.uniform2f(uSeed, run.seedX, run.seedY);
-          gl.uniform1f(uAspect, frame.cssW / Math.max(1, frame.cssH));
+          gl.uniform1f(uAspect, aspect);
           gl.uniform1f(uTime, frame.now / 1000);
-          gl.uniform2f(uCssSize, frame.cssW, frame.cssH);
+          gl.uniform1f(uFill, FILL_START + (FILL_END - FILL_START) * gravityEase(t));
+          gl.uniform1f(uFade, 1 - smoothRange(0.9, 1, t));
+          gl.uniform1f(uSettle, smoothRange(0.45, 0.95, t));
+          gl.uniform2f(uFlow, flowX, flowY);
+          gl.uniform2f(uOrigin, run.side > 0 ? 0 : aspect, 1);
+          gl.uniform1f(uDiag, diag);
+          gl.uniform2f(uSeed, run.seedX, run.seedY);
           quad.draw();
         },
         dispose: () => gl.deleteProgram(program),
@@ -97,6 +106,8 @@ const definition: ExperimentDefinition = {
         type: "custom",
         wave: { ...DEFAULT_ENGINE_CONFIG.reveal.wave, durationMs: DURATION_MS },
       },
+      cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
+      clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: false },
     });
 
     let disposed = false;

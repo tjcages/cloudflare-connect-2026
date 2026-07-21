@@ -8,69 +8,72 @@ import {
 } from "@necatikcl/stripes-engine";
 import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
-import { AURORA_CURTAINS_FRAG } from "./aurora-curtains.shaders";
+import { HEAT_SHIMMER_FIELD_FRAG } from "./heat-shimmer.shaders";
 
-const SURGE_MS = 1900;
-const GHOST_WEIGHT = 0.16;
+const SURGE_RISE_MS = 480;
+const SURGE_HOLD_MS = 240;
+const SURGE_FALL_MS = 1180;
+const SURGE_PEAK = 1;
 
-const standardEase = (t: number): number => {
+const bezierX = (u: number): number => 3 * u * (1 - u) * (1 - u) * 0.6 + u * u * u;
+const bezierY = (u: number): number => 3 * u * (1 - u) * (1 - u) * 0.6 + 3 * u * u * (1 - u) + u * u * u;
+
+function standardEase(t: number): number {
   if (t <= 0) return 0;
   if (t >= 1) return 1;
-  const cx = 1.8;
-  const bx = -3.6;
-  const ax = 2.8;
-  const cy = 1.8;
-  const by = -0.6;
-  const ay = -0.2;
-  let u = t;
-  for (let i = 0; i < 6; i++) {
-    const x = ((ax * u + bx) * u + cx) * u - t;
-    const dx = (3 * ax * u + 2 * bx) * u + cx;
-    if (Math.abs(dx) < 1e-6) break;
-    u -= x / dx;
+  let lo = 0;
+  let hi = 1;
+  let mid = t;
+  for (let i = 0; i < 22; i++) {
+    mid = (lo + hi) * 0.5;
+    if (bezierX(mid) < t) lo = mid;
+    else hi = mid;
   }
-  u = Math.min(1, Math.max(0, u));
-  return ((ay * u + by) * u + cy) * u;
-};
+  return bezierY(mid);
+}
 
 const definition: ExperimentDefinition = {
-  id: "aurora-curtains",
-  title: "Aurora Curtains",
+  id: "heat-shimmer",
+  title: "Heat Shimmer",
   category: "ambience",
-  blurb: "Three layered aurora curtains undulate at offset phases, brightness rippling along their length.",
+  blurb: "Rising columns of hot air refract the stripe geometry, strongest at the ground and fading upward.",
   create: (ctx) => {
-    let surgeRequested = false;
-    let surgeStartMs = -1;
+    const surge = { startMs: null as number | null, pending: false };
+
+    const surgeAt = (now: number): number => {
+      if (surge.pending) {
+        surge.startMs = now;
+        surge.pending = false;
+      }
+      if (surge.startMs === null) return 0;
+      const age = now - surge.startMs;
+      if (age < SURGE_RISE_MS) return standardEase(age / SURGE_RISE_MS) * SURGE_PEAK;
+      if (age < SURGE_RISE_MS + SURGE_HOLD_MS) return SURGE_PEAK;
+      const fall = (age - SURGE_RISE_MS - SURGE_HOLD_MS) / SURGE_FALL_MS;
+      if (fall >= 1) {
+        surge.startMs = null;
+        return 0;
+      }
+      return (1 - standardEase(fall)) * SURGE_PEAK;
+    };
 
     const fieldPass = ({ gl, quad }: EngineHookContext): FieldHookPass => {
-      const program = compileProgram(gl, FULLSCREEN_VERT, AURORA_CURTAINS_FRAG);
+      const program = compileProgram(gl, FULLSCREEN_VERT, HEAT_SHIMMER_FIELD_FRAG);
       const uField = gl.getUniformLocation(program, "uField");
+      const uCssSize = gl.getUniformLocation(program, "uCssSize");
       const uTime = gl.getUniformLocation(program, "uTime");
-      const uGhost = gl.getUniformLocation(program, "uGhost");
       const uSurge = gl.getUniformLocation(program, "uSurge");
-
       return {
         render(frame) {
-          if (surgeRequested) {
-            surgeRequested = false;
-            surgeStartMs = frame.now;
-          }
-          let surge = -1;
-          if (surgeStartMs >= 0) {
-            const progress = (frame.now - surgeStartMs) / SURGE_MS;
-            if (progress >= 1) surgeStartMs = -1;
-            else surge = standardEase(progress);
-          }
-
           gl.bindFramebuffer(gl.FRAMEBUFFER, frame.output.fbo);
           gl.viewport(0, 0, frame.output.width, frame.output.height);
           gl.useProgram(program);
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, frame.input.texture);
           gl.uniform1i(uField, 0);
+          gl.uniform2f(uCssSize, frame.cssW, frame.cssH);
           gl.uniform1f(uTime, frame.elapsed / 1000);
-          gl.uniform1f(uGhost, GHOST_WEIGHT);
-          gl.uniform1f(uSurge, surge);
+          gl.uniform1f(uSurge, surgeAt(frame.now));
           quad.draw();
         },
         dispose: () => gl.deleteProgram(program),
@@ -81,13 +84,9 @@ const definition: ExperimentDefinition = {
     engine.setConfig({
       ...EXPERIMENT_BASE_CONFIG,
       reveal: { ...DEFAULT_ENGINE_CONFIG.reveal, enabled: false },
-      flames: { ...DEFAULT_ENGINE_CONFIG.flames, enabled: false },
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
       clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: false },
-      background: {
-        ...EXPERIMENT_BASE_CONFIG.background,
-        stars: { ...DEFAULT_ENGINE_CONFIG.background.stars, enabled: false },
-      },
+      flames: { ...DEFAULT_ENGINE_CONFIG.flames, enabled: false },
     });
 
     let disposed = false;
@@ -101,7 +100,7 @@ const definition: ExperimentDefinition = {
     return {
       engine,
       replay: () => {
-        surgeRequested = true;
+        surge.pending = true;
       },
       destroy: () => {
         disposed = true;

@@ -5,10 +5,11 @@ import {
   FULLSCREEN_VERT,
   type EngineHookContext,
   type FieldHookPass,
+  type PostHookPass,
 } from "@necatikcl/stripes-engine";
 import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
-import { COMET_COMPOSITE_FRAG, EMBER_FRAG, EMBER_VERT } from "./comet-embers.shaders";
+import { COMET_COMPOSITE_FRAG, COMET_POST_FRAG, EMBER_FRAG, EMBER_VERT } from "./comet-embers.shaders";
 import {
   createEmberSim,
   EMBER_PACK_FLOATS,
@@ -17,15 +18,79 @@ import {
   replayPoint,
 } from "./comet-embers.sim";
 
+const HEAT_KEY = "comet-embers-heat";
+
+interface CometUniforms {
+  cssW: number;
+  cssH: number;
+  headX: number;
+  headY: number;
+  dirX: number;
+  dirY: number;
+  tail: number;
+  presence: number;
+  time: number;
+}
+
+interface CometLocations {
+  cssSize: WebGLUniformLocation | null;
+  head: WebGLUniformLocation | null;
+  dir: WebGLUniformLocation | null;
+  tail: WebGLUniformLocation | null;
+  presence: WebGLUniformLocation | null;
+  time: WebGLUniformLocation | null;
+}
+
+function cometLocations(gl: WebGL2RenderingContext, program: WebGLProgram): CometLocations {
+  return {
+    cssSize: gl.getUniformLocation(program, "uCssSize"),
+    head: gl.getUniformLocation(program, "uHead"),
+    dir: gl.getUniformLocation(program, "uDir"),
+    tail: gl.getUniformLocation(program, "uTail"),
+    presence: gl.getUniformLocation(program, "uPresence"),
+    time: gl.getUniformLocation(program, "uTime"),
+  };
+}
+
+function setCometUniforms(gl: WebGL2RenderingContext, loc: CometLocations, u: CometUniforms): void {
+  gl.uniform2f(loc.cssSize, u.cssW, u.cssH);
+  gl.uniform2f(loc.head, u.headX, u.headY);
+  gl.uniform2f(loc.dir, u.dirX, u.dirY);
+  gl.uniform1f(loc.tail, u.tail);
+  gl.uniform1f(loc.presence, u.presence);
+  gl.uniform1f(loc.time, u.time);
+}
+
 const definition: ExperimentDefinition = {
   id: "comet-embers",
   title: "Comet Embers",
   category: "trail",
-  blurb: "Velocity-stretched comet cursor that sheds cooling ember sparks on fast flicks.",
+  blurb: "A comet head shoves the stripes aside, carving a wake and flinging embers that bend the geometry.",
   pointer: "custom",
   create: (ctx) => {
     const input = { x: 0, y: 0, active: false };
-    const motion = { x: 0, y: 0, velX: 0, velY: 0, glow: 0, lastNow: 0, wasActive: false };
+    const motion = {
+      x: 0,
+      y: 0,
+      velX: 0,
+      velY: 0,
+      dirX: 1,
+      dirY: 0,
+      presence: 0,
+      lastNow: 0,
+      wasActive: false,
+    };
+    const uniforms: CometUniforms = {
+      cssW: 1,
+      cssH: 1,
+      headX: 0,
+      headY: 0,
+      dirX: 1,
+      dirY: 0,
+      tail: 0,
+      presence: 0,
+      time: 0,
+    };
     const sim = createEmberSim(0x9e3779);
 
     let replayRaf = 0;
@@ -75,14 +140,11 @@ const definition: ExperimentDefinition = {
     ctx.canvas.addEventListener("pointermove", onMove);
     ctx.canvas.addEventListener("pointerleave", onLeave);
 
-    const fieldPass = ({ gl, quad }: EngineHookContext): FieldHookPass => {
+    const fieldPass = ({ gl, quad, pool }: EngineHookContext): FieldHookPass => {
       const composite = compileProgram(gl, FULLSCREEN_VERT, COMET_COMPOSITE_FRAG);
+      const compositeLoc = cometLocations(gl, composite);
       const uField = gl.getUniformLocation(composite, "uField");
-      const uCssSize = gl.getUniformLocation(composite, "uCssSize");
-      const uHead = gl.getUniformLocation(composite, "uHead");
-      const uVel = gl.getUniformLocation(composite, "uVel");
-      const uGlow = gl.getUniformLocation(composite, "uGlow");
-      const uTime = gl.getUniformLocation(composite, "uTime");
+      const uHeat = gl.getUniformLocation(composite, "uHeat");
 
       const embers = compileProgram(gl, EMBER_VERT, EMBER_FRAG);
       const uEmberCanvas = gl.getUniformLocation(embers, "uCanvas");
@@ -126,10 +188,25 @@ const definition: ExperimentDefinition = {
           const instVX = (motion.x - prevX) / dt;
           const instVY = (motion.y - prevY) / dt;
           const instSpeed = Math.hypot(instVX, instVY);
-          const blend = 1 - Math.exp(-dt * 24);
+          const blend = 1 - Math.exp(-dt * 22);
           motion.velX += (instVX - motion.velX) * blend;
           motion.velY += (instVY - motion.velY) * blend;
-          motion.glow += ((active ? 1 : 0) - motion.glow) * (1 - Math.exp(-dt * (active ? 12 : 5)));
+          const smoothSpeed = Math.hypot(motion.velX, motion.velY);
+          const drive = Math.min(1, Math.max(0, (smoothSpeed - 18) / 150));
+          const target = active ? Math.pow(drive, 0.7) : 0;
+          const rate = target > motion.presence ? 15 : 3.4;
+          motion.presence += (target - motion.presence) * (1 - Math.exp(-dt * rate));
+
+          if (smoothSpeed > 12) {
+            const nx = motion.velX / smoothSpeed;
+            const ny = motion.velY / smoothSpeed;
+            const turn = 1 - Math.exp(-dt * 16);
+            motion.dirX += (nx - motion.dirX) * turn;
+            motion.dirY += (ny - motion.dirY) * turn;
+            const len = Math.hypot(motion.dirX, motion.dirY) || 1;
+            motion.dirX /= len;
+            motion.dirY /= len;
+          }
 
           if (active && motion.wasActive) {
             sim.emit(prevX, prevY, motion.x, motion.y, instVX, instVY, instSpeed, dt);
@@ -137,25 +214,27 @@ const definition: ExperimentDefinition = {
           motion.wasActive = active;
           sim.step(dtMs);
 
-          gl.disable(gl.BLEND);
-          gl.bindFramebuffer(gl.FRAMEBUFFER, frame.output.fbo);
-          gl.viewport(0, 0, frame.output.width, frame.output.height);
-          gl.useProgram(composite);
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, frame.input.texture);
-          gl.uniform1i(uField, 0);
-          gl.uniform2f(uCssSize, frame.cssW, frame.cssH);
-          gl.uniform2f(uHead, motion.x, motion.y);
-          gl.uniform2f(uVel, motion.velX, motion.velY);
-          gl.uniform1f(uGlow, motion.glow);
-          gl.uniform1f(uTime, frame.now / 1000);
-          quad.draw();
+          uniforms.cssW = frame.cssW;
+          uniforms.cssH = frame.cssH;
+          uniforms.headX = motion.x;
+          uniforms.headY = motion.y;
+          uniforms.dirX = motion.dirX;
+          uniforms.dirY = motion.dirY;
+          uniforms.tail = Math.min(210, 34 + smoothSpeed * 0.1);
+          uniforms.presence = motion.presence;
+          uniforms.time = frame.now / 1000;
+
+          const heat = pool.get(HEAT_KEY, frame.fieldSize.width, frame.fieldSize.height, { linear: true });
+          gl.bindFramebuffer(gl.FRAMEBUFFER, heat.fbo);
+          gl.viewport(0, 0, heat.width, heat.height);
+          gl.clearColor(0, 0, 0, 1);
+          gl.clear(gl.COLOR_BUFFER_BIT);
 
           const packedEmbers = sim.pack();
           if (packedEmbers.count > 0) {
             gl.useProgram(embers);
             gl.uniform2f(uEmberCanvas, frame.cssW, frame.cssH);
-            gl.uniform1f(uEmberTime, frame.now / 1000);
+            gl.uniform1f(uEmberTime, uniforms.time);
             gl.bindVertexArray(vao);
             gl.bindBuffer(gl.ARRAY_BUFFER, buf);
             gl.bufferData(
@@ -165,11 +244,25 @@ const definition: ExperimentDefinition = {
             );
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.blendFunc(gl.ONE, gl.ONE);
             gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, packedEmbers.count);
             gl.disable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             gl.bindVertexArray(null);
           }
+
+          gl.bindFramebuffer(gl.FRAMEBUFFER, frame.output.fbo);
+          gl.viewport(0, 0, frame.output.width, frame.output.height);
+          gl.useProgram(composite);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, frame.input.texture);
+          gl.uniform1i(uField, 0);
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, heat.texture);
+          gl.uniform1i(uHeat, 1);
+          gl.activeTexture(gl.TEXTURE0);
+          setCometUniforms(gl, compositeLoc, uniforms);
+          quad.draw();
         },
         dispose() {
           gl.deleteProgram(composite);
@@ -180,7 +273,26 @@ const definition: ExperimentDefinition = {
       };
     };
 
-    const engine = createStripesEngine(ctx.canvas, { hooks: { fieldPass } });
+    const postPass = ({ gl, quad }: EngineHookContext): PostHookPass => {
+      const program = compileProgram(gl, FULLSCREEN_VERT, COMET_POST_FRAG);
+      const loc = cometLocations(gl, program);
+      const uSrc = gl.getUniformLocation(program, "uSrc");
+      return {
+        render(src, dst, frame) {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, dst ? dst.fbo : null);
+          gl.viewport(0, 0, dst ? dst.width : frame.outputWidth, dst ? dst.height : frame.outputHeight);
+          gl.useProgram(program);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, src);
+          gl.uniform1i(uSrc, 0);
+          setCometUniforms(gl, loc, uniforms);
+          quad.draw();
+        },
+        dispose: () => gl.deleteProgram(program),
+      };
+    };
+
+    const engine = createStripesEngine(ctx.canvas, { hooks: { fieldPass, postPass } });
     engine.setConfig({
       ...EXPERIMENT_BASE_CONFIG,
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },

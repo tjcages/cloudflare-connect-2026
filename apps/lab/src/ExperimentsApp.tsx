@@ -4,7 +4,7 @@ import type { ExperimentCategory, ExperimentDefinition, ExperimentInstance } fro
 
 const TEXTURE_URL = "/textures/cf-base.png";
 const MAX_LIVE_INSTANCES = 8;
-const VISIBILITY_ROOT_MARGIN = "320px 0px";
+const VISIBILITY_ROOT_MARGIN = "600px 0px";
 const DEACTIVATE_LINGER_MS = 500;
 const CATEGORY_ORDER: ExperimentCategory[] = ["trail", "click", "reveal", "ambience", "stars"];
 const CATEGORY_CHIP: Record<ExperimentCategory, string> = {
@@ -171,11 +171,21 @@ function wireEnginePointer(canvas: HTMLCanvasElement, engine: StripesEngine): ()
   };
 }
 
-function ExperimentTile({ def, manager }: { def: ExperimentDefinition; manager: LifecycleManager }) {
+function ExperimentTile({
+  def,
+  manager,
+  stripesDebug,
+}: {
+  def: ExperimentDefinition;
+  manager: LifecycleManager;
+  stripesDebug: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const instanceRef = useRef<ExperimentInstance | null>(null);
   const deadCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stripesDebugRef = useRef(stripesDebug);
+  stripesDebugRef.current = stripesDebug;
   const [wantLive, setWantLive] = useState(false);
   const [epoch, setEpoch] = useState(0);
   const [hasReplay, setHasReplay] = useState(false);
@@ -199,6 +209,7 @@ function ExperimentTile({ def, manager }: { def: ExperimentDefinition; manager: 
     const instance = def.create({ canvas, container, textureUrl: TEXTURE_URL });
     instanceRef.current = instance;
     instance.engine?.resize(cssW, cssH);
+    if (stripesDebugRef.current) instance.engine?.setConfig({ stripesEnabled: false });
     setHasReplay(!!instance.replay);
     const unwire = instance.engine && def.pointer !== "custom" ? wireEnginePointer(canvas, instance.engine) : null;
     const resizeObserver = new ResizeObserver(() => {
@@ -220,6 +231,10 @@ function ExperimentTile({ def, manager }: { def: ExperimentDefinition; manager: 
       setEpoch((e) => e + 1);
     };
   }, [wantLive, epoch, def, manager]);
+
+  useEffect(() => {
+    instanceRef.current?.engine?.setConfig({ stripesEnabled: !stripesDebug });
+  }, [stripesDebug, wantLive, epoch]);
 
   return (
     <article className="flex flex-col overflow-hidden rounded-xl border border-white/10 bg-neutral-900/60">
@@ -261,6 +276,7 @@ function ExperimentTile({ def, manager }: { def: ExperimentDefinition; manager: 
 
 export function ExperimentsApp() {
   const [filter, setFilter] = useState<ExperimentCategory | "all">("all");
+  const [stripesDebug, setStripesDebug] = useState(false);
   const managerRef = useRef<LifecycleManager | null>(null);
   managerRef.current ??= createLifecycleManager(MAX_LIVE_INSTANCES);
   const manager = managerRef.current;
@@ -268,6 +284,21 @@ export function ExperimentsApp() {
   useEffect(() => {
     return () => manager.dispose();
   }, [manager]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "KeyS" || !e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      const target = e.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
+      }
+      e.preventDefault();
+      setStripesDebug((on) => !on);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const visible = useMemo(
     () => (filter === "all" ? EXPERIMENTS : EXPERIMENTS.filter((d) => d.category === filter)),
@@ -280,6 +311,12 @@ export function ExperimentsApp() {
         <h1 className="text-lg font-semibold text-white">Stripes Experiments</h1>
         <span className="text-xs text-neutral-500">
           {visible.length} of {EXPERIMENTS.length}
+        </span>
+        <span className="text-xs text-neutral-500">
+          <kbd className="rounded border border-white/15 px-1.5 py-0.5 font-mono text-[10px] text-neutral-300">
+            Shift+S
+          </kbd>{" "}
+          toggles stripes off to inspect the raw field
         </span>
         <nav className="ml-auto flex flex-wrap gap-1.5">
           {(["all", ...CATEGORY_ORDER] as const).map((category) => (
@@ -298,11 +335,16 @@ export function ExperimentsApp() {
           ))}
         </nav>
       </header>
-      <main className="mx-auto grid max-w-[1800px] grid-cols-[repeat(auto-fill,minmax(min(420px,100%),1fr))] gap-5 px-6 pb-12">
+      <main className="mx-auto grid max-w-[1800px] grid-cols-1 gap-5 px-6 pb-12 min-[900px]:grid-cols-2">
         {visible.map((def) => (
-          <ExperimentTile key={def.id} def={def} manager={manager} />
+          <ExperimentTile key={def.id} def={def} manager={manager} stripesDebug={stripesDebug} />
         ))}
       </main>
+      {stripesDebug && (
+        <div className="pointer-events-none fixed bottom-4 left-4 z-50 rounded-full border border-amber-400/30 bg-amber-500/15 px-3 py-1 font-mono text-[10px] tracking-widest text-amber-200 uppercase backdrop-blur-sm">
+          Debug · Stripes off · Shift+S
+        </div>
+      )}
     </div>
   );
 }

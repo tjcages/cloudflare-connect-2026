@@ -15,11 +15,11 @@ import { CONSTELLATION_MAX_LINES, CONSTELLATION_STAR_COUNT, CONSTELLATION_WEB_FR
 
 const LINK_RADIUS_SCALE = 0.42;
 const PAIR_DIST_SCALE = 0.52;
-const FADE_IN_MS = 320;
+const FADE_IN_MS = 210;
 const FADE_OUT_MS = 540;
 const FLASH_MS = 700;
 const REPLAY_MS = 3000;
-const LINE_PEAK_ALPHA = 0.65;
+const LINE_PEAK_ALPHA = 1;
 
 type StarSet = { xs: Float32Array; ys: Float32Array; bytes: Uint8Array };
 
@@ -151,7 +151,7 @@ function buildGraph(stars: StarSet, cssW: number, cssH: number, linkRadius: numb
     .map((key) => ({
       a: key >> 8,
       b: key & 255,
-      stagger: (((key * 2654435761) >>> 0) / 4294967296) * 140,
+      stagger: (((key * 2654435761) >>> 0) / 4294967296) * 90,
       phase: 0,
       env: 0,
       activeSince: -1,
@@ -319,7 +319,7 @@ function updateSim(state: SimState, frame: FieldHookFrame): void {
   let count = 0;
   for (const edge of graph.edges) {
     if (count >= CONSTELLATION_MAX_LINES) break;
-    const alpha = standardEase(edge.phase) * edge.env * LINE_PEAK_ALPHA;
+    const alpha = standardEase(edge.phase) * (0.62 + 0.38 * edge.env) * LINE_PEAK_ALPHA;
     if (alpha < 0.008) continue;
     const flashT = (now - edge.flashStart) / FLASH_MS;
     const flash =
@@ -345,7 +345,7 @@ const definition: ExperimentDefinition = {
   id: "constellation-web",
   title: "Constellation Web",
   category: "stars",
-  blurb: "Stars near the cursor link into transient constellations; completed triangles flash briefly brighter.",
+  blurb: "Stars bulge the stripe geometry around them; cursor-linked constellation lines shear it into visible seams.",
   create: (ctx) => {
     const state: SimState = {
       stars: buildStars(),
