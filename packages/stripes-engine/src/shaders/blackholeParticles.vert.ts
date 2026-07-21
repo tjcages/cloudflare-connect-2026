@@ -67,22 +67,25 @@ void main() {
     highp float h3 = hashLane(id, 13u);
     highp float h4 = hashLane(id, 14u);
     highp float h5 = hashLane(id, 15u);
-    highp float rBase = R * (1.15 + 1.25 * h1 * h1);
+    highp float rBase = R * (1.12 + 2.1 * h1 * h1);
+    highp float gap = 0.55 + 0.45 * sin(rBase / max(uHorizon, 1e-4) * 11.0);
     highp float infall = smoothstep(0.0, 1.0, formT * formT);
-    highp float rOrb = mix(rBase * 3.2, rBase, infall);
+    highp float spiralIn = 1.0 - 0.12 * fract(h3 * 3.7 + p * 0.5);
+    highp float rOrb = mix(rBase * 3.2, rBase * spiralIn, infall);
     highp float w = 26.0 / pow(max(rBase / max(uHorizon, 1e-4), 0.5), 1.5);
     highp float angD = h2 * 6.2831853 + w * p;
     highp float env = smoothstep(0.0, 0.6, formT) * pow(1.0 - collapseT, 1.5);
     highp float flick = 0.8 + 0.2 * sin(p * (150.0 + 200.0 * h4));
-    highp float bright = uGlow * (0.35 + 0.65 * h3) * env * flick;
+    highp float doppler = 1.0 + 0.8 * -sin(angD);
+    highp float bright = uGlow * (0.25 + 0.75 * h3) * env * flick * gap * doppler;
     if (bright < 0.01 || R < 1e-4) {
       cull(vQuad, vVal, vSoft);
       return;
     }
     vec2 dirN = vec2(-sin(angD), cos(angD));
     vec2 posUv = 0.5 + (vec2(cos(angD), sin(angD)) * rOrb) / asp;
-    highp float halfA = (0.5 / uGrid.y) * (0.7 + 0.9 * h5);
-    emitQuad(posUv, dirN, halfA, 2.0 + 4.0 * h1, asp);
+    highp float halfA = (0.5 / uGrid.y) * (0.5 + 0.8 * h5) * (0.6 + 0.7 * h1);
+    emitQuad(posUv, dirN, halfA, 2.5 + 6.0 * h1 * (1.0 - h1 * 0.5), asp);
     vVal = bright;
     vSoft = 1.0;
     return;

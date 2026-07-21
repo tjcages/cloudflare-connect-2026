@@ -89,16 +89,19 @@ void main() {
   v *= smoothstep(R * 0.98, R * 1.03, r);
 
   highp float ringEnv = formT * formT * (1.0 - collapseT * collapseT);
-  highp float ring = exp(-pow((r - R * 1.1) / max(R * 0.1, 1e-4), 2.0));
-  highp float ringV = ring * uGlow * ringEnv * (0.85 + 0.15 * sin(ang * uArms * 2.0 + p * 50.0));
-  highp float hazeBand = exp(-pow((r - R * 1.6) / max(R * 0.85, 1e-4), 2.0));
-  highp float haze = uGlow * 0.18 * formT * (1.0 - collapseT) * hazeBand * (0.7 + 0.3 * sin(ang * uArms - dn * 9.0 + p * 40.0));
+  highp float beam = 1.0 + 0.75 * -sin(ang);
+  highp float photon = exp(-pow((r - R * 1.06) / max(R * 0.045, 1e-4), 2.0));
+  highp float einstein = exp(-pow((r - R * 1.32) / max(R * 0.09, 1e-4), 2.0)) * 0.45;
+  highp float ringV = (photon + einstein) * uGlow * ringEnv * beam * (0.88 + 0.12 * sin(ang * uArms * 2.0 + p * 50.0));
 
-  highp float ft = smoothstep(0.55, 1.0, collapseT);
-  highp float dieOff = 1.0 - smoothstep(0.82, 1.0, collapseT);
-  highp float finalFlash = uGlow * 0.75 * step(0.001, ft) * exp(-pow((r - ft * 0.65) / 0.06, 2.0)) * dieOff;
+  highp float diskR = (r - R * 1.5) / max(R * 2.2, 1e-4);
+  highp float diskBody = exp(-diskR * diskR) * smoothstep(R * 1.15, R * 1.45, r);
+  highp float bands = 0.55 + 0.45 * sin(r / max(R, 1e-4) * 9.0 - p * 26.0);
+  highp float turb = 0.75 + 0.25 * sin(ang * 7.0 - r / max(R, 1e-4) * 5.0 + p * 34.0);
+  highp float disk = uGlow * 0.5 * formT * (1.0 - collapseT) * diskBody * bands * turb * beam;
 
-  v = max(v, max(ringV + haze, finalFlash));
+  highp float redshift = smoothstep(R * 0.98, R * 1.5, r);
+  v = max(v, (ringV + disk) * redshift);
   finalColor = vec4(vec3(v), 1.0);
 }
 `;

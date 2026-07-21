@@ -645,7 +645,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const speedMax = Math.max(speedMin, bh.speedMaxMs);
           const gridX = Math.round(280 + 280 * bh.detail);
           const gridY = Math.max(2, Math.round((gridX * cssH) / Math.max(1, cssW)));
-          const diskCount = 1200;
+          const diskCount = 4200;
           blackholePass.render(revealedRT, fieldRT.texture, {
             progress: rawProgress,
             form: bh.formMs / total,
