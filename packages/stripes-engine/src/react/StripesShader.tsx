@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { createStripesEngine, type StripesEngine } from "../engine";
-import type { EngineConfig } from "../config/types";
+import { resolveThemedConfig, type ThemedEngineConfig, type ThemeName } from "../config/theme";
 import type { SharedShaderHandle } from "../shared/coordinator";
 
 export type StripesShaderProps = {
   src: string;
   mediaKind?: "video" | "image";
-  config?: Partial<EngineConfig>;
+  config?: ThemedEngineConfig;
+  /** Which theme's config to render. Dark deep-merges `config.dark` over the base. */
+  theme?: ThemeName;
   width?: number;
   height?: number;
   autoPlay?: boolean;
@@ -34,6 +36,7 @@ export function StripesShader(props: StripesShaderProps) {
     src,
     mediaKind = "image",
     config,
+    theme = "light",
     width,
     height,
     autoPlay = true,
@@ -47,6 +50,8 @@ export function StripesShader(props: StripesShaderProps) {
     revealDelayMs,
     onWaterActivity,
   } = props;
+
+  const resolvedConfig = useMemo(() => (config ? resolveThemedConfig(config, theme) : undefined), [config, theme]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<StripesEngine | null>(null);
@@ -90,8 +95,8 @@ export function StripesShader(props: StripesShaderProps) {
   useEffect(() => {
     if (sharedContext) return;
     const engine = engineRef.current;
-    if (engine && config) engine.setConfig(config);
-  }, [sharedContext, config]);
+    if (engine && resolvedConfig) engine.setConfig(resolvedConfig);
+  }, [sharedContext, resolvedConfig]);
 
   useEffect(() => {
     if (sharedContext) return;
@@ -189,7 +194,7 @@ export function StripesShader(props: StripesShaderProps) {
     };
   }, [sharedContext, src, mediaKind, autoPlay, loop, muted]);
 
-  configRef.current = config;
+  configRef.current = resolvedConfig;
 
   useEffect(() => {
     if (!sharedContext) return;
@@ -203,7 +208,7 @@ export function StripesShader(props: StripesShaderProps) {
         canvas: canvasRef.current,
         src,
         mediaKind,
-        config,
+        config: resolvedConfig,
         revealDelayMs,
         loop,
         muted,
@@ -224,8 +229,8 @@ export function StripesShader(props: StripesShaderProps) {
   useEffect(() => {
     if (!sharedContext) return;
     const handle = sharedHandleRef.current;
-    if (handle && config) handle.setConfig(config);
-  }, [sharedContext, config]);
+    if (handle && resolvedConfig) handle.setConfig(resolvedConfig);
+  }, [sharedContext, resolvedConfig]);
 
   return <canvas ref={canvasRef} className={className} style={mergedStyle} />;
 }

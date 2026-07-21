@@ -1,5 +1,5 @@
-import { migrateLegacyConfig, parseEngineConfig } from "@necatikcl/stripes-engine";
-import type { EngineConfig } from "@necatikcl/stripes-engine";
+import { migrateLegacyConfig, sanitizeThemedConfig } from "@necatikcl/stripes-engine";
+import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import { DEFAULT_LAB_ENGINE_CONFIG, DEFAULT_LAB_UI_SETTINGS } from "./defaultLabConfig";
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "./shaderTextureSource";
 import type { ConnectShapeType } from "./connectShader";
@@ -23,6 +23,7 @@ const CONFIG_FILE_VERSION = 2;
 const WINDOW_NAME_STATE_KEY = "__stripesEngineLab";
 const BACKGROUND_QUERY_PARAM = "bg";
 const PENDING_CONFIG_KEY = "stripes-engine-lab-pending-config";
+const EDIT_THEME_KEY = "stripes-engine-lab-theme";
 
 let persistenceWritesEnabled = true;
 
@@ -94,7 +95,7 @@ export const DEFAULT_LAB_SETTINGS: LabSettings = {
 type ConfigFile = {
   kind: typeof CONFIG_FILE_KIND;
   version: number;
-  config: Partial<EngineConfig>;
+  config: ThemedEngineConfig;
   lab?: Partial<LabSettings>;
 };
 
@@ -104,26 +105,26 @@ function isConfigFile(value: unknown): value is ConfigFile {
   return record.kind === CONFIG_FILE_KIND && typeof record.config === "object" && record.config !== null;
 }
 
-function loadConfigMap(): Record<string, Partial<EngineConfig>> {
+function loadConfigMap(): Record<string, ThemedEngineConfig> {
   try {
     const raw = localStorage.getItem(MAP_KEY);
-    if (raw) return JSON.parse(raw) as Record<string, Partial<EngineConfig>>;
+    if (raw) return JSON.parse(raw) as Record<string, ThemedEngineConfig>;
   } catch {
     /* ignore corrupt storage */
   }
   return {};
 }
 
-function loadLastConfig(): Partial<EngineConfig> | null {
+function loadLastConfig(): ThemedEngineConfig | null {
   try {
     const raw = localStorage.getItem(LAST_KEY);
-    return raw ? (JSON.parse(raw) as Partial<EngineConfig>) : null;
+    return raw ? (JSON.parse(raw) as ThemedEngineConfig) : null;
   } catch {
     return null;
   }
 }
 
-function saveLastConfig(c: Partial<EngineConfig>): void {
+function saveLastConfig(c: ThemedEngineConfig): void {
   try {
     localStorage.setItem(LAST_KEY, JSON.stringify(c));
   } catch {
@@ -276,17 +277,17 @@ function clearWindowNameState(): void {
   }
 }
 
-function readPendingConfig(): Partial<EngineConfig> | null {
+function readPendingConfig(): ThemedEngineConfig | null {
   try {
     const raw = sessionStorage.getItem(PENDING_CONFIG_KEY);
     sessionStorage.removeItem(PENDING_CONFIG_KEY);
-    return raw ? (JSON.parse(raw) as Partial<EngineConfig>) : null;
+    return raw ? (JSON.parse(raw) as ThemedEngineConfig) : null;
   } catch {
     return null;
   }
 }
 
-export function stagePendingConfig(config: Partial<EngineConfig>): void {
+export function stagePendingConfig(config: ThemedEngineConfig): void {
   if (!persistenceWritesEnabled) return;
   try {
     sessionStorage.setItem(PENDING_CONFIG_KEY, JSON.stringify(config));
@@ -295,7 +296,7 @@ export function stagePendingConfig(config: Partial<EngineConfig>): void {
   }
 }
 
-export function loadInitialConfig(textureId: string): Partial<EngineConfig> {
+export function loadInitialConfig(textureId: string): ThemedEngineConfig {
   const pending = readPendingConfig();
   if (pending) return pending;
   try {
@@ -309,7 +310,7 @@ export function loadInitialConfig(textureId: string): Partial<EngineConfig> {
   return DEFAULT_LAB_ENGINE_CONFIG;
 }
 
-export function saveConfig(textureId: string, c: EngineConfig): void {
+export function saveConfig(textureId: string, c: ThemedEngineConfig): void {
   if (!persistenceWritesEnabled) return;
   try {
     const map = loadConfigMap();
@@ -353,6 +354,25 @@ export function loadTextureId(): string | null {
 export function saveTextureId(id: string): void {
   try {
     localStorage.setItem(TEXTURE_KEY, id);
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+export type LabEditTheme = "light" | "dark";
+
+export function loadEditTheme(): LabEditTheme {
+  try {
+    return localStorage.getItem(EDIT_THEME_KEY) === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+export function saveEditTheme(theme: LabEditTheme): void {
+  if (!persistenceWritesEnabled) return;
+  try {
+    localStorage.setItem(EDIT_THEME_KEY, theme);
   } catch {
     /* ignore quota errors */
   }
@@ -495,6 +515,7 @@ export function factoryResetSettings(): void {
     localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
     localStorage.removeItem(LAB_SETTINGS_KEY);
     localStorage.removeItem(TEXTURE_KEY);
+    localStorage.removeItem(EDIT_THEME_KEY);
     sessionStorage.removeItem(PENDING_CONFIG_KEY);
     clearUrlBackgroundColor();
     deleteCookie(LAST_BACKGROUND_COLOR_KEY);
@@ -527,23 +548,25 @@ export function consumeImportedConfigPristine(): boolean {
   }
 }
 
-export function importConfig(text: string): Partial<EngineConfig> {
+export function importConfig(text: string): ThemedEngineConfig {
   return importSettingsFile(text).config;
 }
 
-export function importSettingsFile(text: string): { config: Partial<EngineConfig>; lab: LabSettings | null } {
+export function importSettingsFile(text: string): { config: ThemedEngineConfig; lab: LabSettings | null } {
   const parsed = JSON.parse(text) as Record<string, unknown>;
   const configLike = isConfigFile(parsed) ? (parsed.config as Record<string, unknown>) : parsed;
   const looksLegacy =
     "textureAdjustments" in configLike || "sourceTransform" in configLike || "textureLuminanceMode" in configLike;
-  const config = looksLegacy ? migrateLegacyConfig(configLike) : parseEngineConfig(JSON.stringify(configLike));
+  const config = sanitizeThemedConfig(
+    looksLegacy ? migrateLegacyConfig(configLike) : (configLike as ThemedEngineConfig),
+  );
   return {
     config,
     lab: isConfigFile(parsed) && parsed.lab ? normalizeLabSettings(parsed.lab) : null,
   };
 }
 
-export function serializeConfigFile(c: EngineConfig, lab?: Partial<LabSettings>): string {
+export function serializeConfigFile(c: ThemedEngineConfig, lab?: Partial<LabSettings>): string {
   const normalizedLab = lab ? normalizeLabSettings(lab) : null;
   const file: ConfigFile = {
     kind: CONFIG_FILE_KIND,

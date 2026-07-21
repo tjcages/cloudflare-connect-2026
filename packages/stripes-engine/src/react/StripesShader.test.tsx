@@ -100,4 +100,32 @@ describe("<StripesShader>", () => {
       expect.objectContaining({ rootMargin: "10% 0px", preloadRootMargin: "200% 0px" }),
     );
   });
+
+  it("resolves the dark theme before calling setConfig", () => {
+    const config = { stripesEnabled: false, renderColorA: 0x222222, dark: { renderColorA: 0x101010 } };
+    render(<StripesShader src="logo.png" config={config} theme="dark" />);
+    expect(engineStub.setConfig).toHaveBeenCalledWith({ stripesEnabled: false, renderColorA: 0x101010 });
+  });
+
+  it("strips dark for the default light theme", () => {
+    const config = { renderColorA: 0x222222, dark: { renderColorA: 0x101010 } };
+    render(<StripesShader src="logo.png" config={config} />);
+    expect(engineStub.setConfig).toHaveBeenCalledWith({ renderColorA: 0x222222 });
+  });
+
+  it("recolors in place when the theme prop flips", () => {
+    const config = { renderColorA: 0x222222, dark: { renderColorA: 0x101010 } };
+    const { rerender } = render(<StripesShader src="logo.png" config={config} theme="light" />);
+    engineStub.setConfig.mockClear();
+    rerender(<StripesShader src="logo.png" config={config} theme="dark" />);
+    expect(engineStub.setConfig).toHaveBeenCalledWith({ renderColorA: 0x101010 });
+  });
+
+  it("shared mode passes the resolved config to registerSharedShader and setConfig", async () => {
+    const config = { renderColorA: 0x222222, dark: { renderColorA: 0x101010 } };
+    render(<StripesShader src="logo.png" sharedContext config={config} theme="dark" />);
+    await vi.waitFor(() => expect(registerSharedShader).toHaveBeenCalled());
+    expect(registerSharedShader).toHaveBeenCalledWith(expect.objectContaining({ config: { renderColorA: 0x101010 } }));
+    expect(sharedHandleStub.setConfig).toHaveBeenCalledWith({ renderColorA: 0x101010 });
+  });
 });

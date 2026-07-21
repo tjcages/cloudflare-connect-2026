@@ -8,12 +8,14 @@ import {
   importSettingsFile,
   DEFAULT_LAB_SETTINGS,
   factoryResetSettings,
+  loadEditTheme,
   loadInitialConfig,
   loadLabSettings,
   loadStickyBackgroundColor,
   markImportedConfigPristine,
   resumePersistenceWritesForTests,
   saveConfig,
+  saveEditTheme,
   saveLabSettings,
   saveStickyBackgroundColor,
   serializeConfigFile,
@@ -318,5 +320,51 @@ describe("engine config persistence", () => {
     markImportedConfigPristine();
     expect(consumeImportedConfigPristine()).toBe(true);
     expect(consumeImportedConfigPristine()).toBe(false);
+  });
+});
+
+describe("themed configs", () => {
+  beforeEach(() => {
+    stubLocalStorage();
+    stubSessionStorage();
+    resumePersistenceWritesForTests();
+  });
+
+  afterEach(() => {
+    resumePersistenceWritesForTests();
+    vi.unstubAllGlobals();
+  });
+
+  it("saveConfig/loadInitialConfig round-trips the dark diff", () => {
+    const themed = { ...DEFAULT_LAB_ENGINE_CONFIG, dark: { renderColorA: 0x101010 } };
+    saveConfig("tex-1", themed);
+    expect(loadInitialConfig("tex-1").dark).toEqual({ renderColorA: 0x101010 });
+  });
+
+  it("serializeConfigFile embeds dark inside config and importSettingsFile preserves it", () => {
+    const themed = { ...DEFAULT_LAB_ENGINE_CONFIG, dark: { renderColorA: 0x101010 } };
+    const text = serializeConfigFile(themed);
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    expect((parsed.config as Record<string, unknown>).dark).toEqual({ renderColorA: 0x101010 });
+    expect(importSettingsFile(text).config.dark).toEqual({ renderColorA: 0x101010 });
+  });
+
+  it("import sanitizes dark to a valid sparse diff and drops junk keys", () => {
+    const file = serializeConfigFile({
+      ...DEFAULT_LAB_ENGINE_CONFIG,
+      dark: { junk: 1, renderColorA: 0x101010 },
+    } as never);
+    expect(importSettingsFile(file).config.dark).toEqual({ renderColorA: 0x101010 });
+  });
+
+  it("legacy and light-only files import without a dark key", () => {
+    const file = serializeConfigFile(DEFAULT_LAB_ENGINE_CONFIG);
+    expect(importSettingsFile(file).config).not.toHaveProperty("dark");
+  });
+
+  it("edit theme persists and defaults to light", () => {
+    expect(loadEditTheme()).toBe("light");
+    saveEditTheme("dark");
+    expect(loadEditTheme()).toBe("dark");
   });
 });

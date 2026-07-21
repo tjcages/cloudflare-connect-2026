@@ -46,6 +46,8 @@ export type {
 export { CURSOR_TRAIL_TYPES } from "./config/types";
 export { normalizeEngineConfig, DEFAULT_ENGINE_CONFIG } from "./config/normalize";
 export { serializeEngineConfig, parseEngineConfig } from "./config/serialize";
+export { resolveThemedConfig, diffEngineConfig, sanitizeThemedConfig } from "./config/theme";
+export type { ThemeName, ThemedEngineConfig, DeepPartial } from "./config/theme";
 export type { EngineSource } from "./source/sourceTexture";
 export { migrateLegacyConfig } from "./legacy/migrateLegacyConfig";
 export type { Adjustments, Grid, Transform, Background, BackgroundMeteors } from "./config/types";

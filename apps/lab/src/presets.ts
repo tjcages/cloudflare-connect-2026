@@ -1,4 +1,4 @@
-import type { EngineConfig } from "@necatikcl/stripes-engine";
+import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import type { LabSettings } from "./persistence";
 
 const PRESET_KIND = "stripes-engine-lab-settings";
@@ -8,13 +8,13 @@ export interface ConfigPreset {
   name: string;
   kind: typeof PRESET_KIND;
   version: number;
-  config: EngineConfig;
+  config: ThemedEngineConfig;
   lab?: Partial<LabSettings>;
 }
 
 const PRESETS_KEY = "stripes-engine-lab-presets";
 
-export function createPreset(name: string, config: EngineConfig, lab?: Partial<LabSettings>): ConfigPreset {
+export function createPreset(name: string, config: ThemedEngineConfig, lab?: Partial<LabSettings>): ConfigPreset {
   return {
     name,
     kind: PRESET_KIND,

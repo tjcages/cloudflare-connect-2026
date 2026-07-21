@@ -29,6 +29,91 @@
 
   --color-builder-spinner-muted: #eeeeee;
   --color-builder-spinner-stroke: #b8b8b8;
+
+  --color-builder-danger-surface: #fff0f0;
+  --color-builder-danger-text: #9c1c1c;
+  --color-builder-input-border: #d6d6d6;
+  --color-builder-page: #fafafa;
+
+  --color-builder-disabled-surface: #f5f5f5;
+  --color-builder-code-surface: #ededed;
+  --color-builder-code-text: #3f3f3f;
+  --color-builder-code-focus: #9a9a9a;
+  --color-builder-remove-hover: #e5484d;
+  --color-builder-chip-surface: #eeeeee;
+  --color-builder-chip-surface-hover: #e6e6e6;
+  --color-builder-chip-text: #525252;
+  --color-builder-zoom-active-surface: #e5e5e5;
+  --color-builder-glass: rgba(255, 255, 255, 0.74);
+  --color-builder-glass-strong: rgba(255, 255, 255, 0.92);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-builder-text: #ededed;
+  --color-builder-muted: #9a9a9a;
+  --color-builder-subtle: #5b5b5b;
+  --color-builder-faint-label: #6f6f6f;
+  --color-builder-fainter: #4a4a4a;
+
+  --color-builder-hairline: #262626;
+  --color-builder-surface: #1c1c1c;
+  --color-builder-hover-row: #202020;
+  --color-builder-selected-row: #2a2a2a;
+  --color-builder-selected-row-hover: #2f2f2f;
+
+  --color-builder-control: #7a7a7a;
+  --color-builder-hover-surface: #232323;
+  --color-builder-active-surface: #272727;
+
+  --color-builder-rail: #565656;
+  --color-builder-rail-hover: #787878;
+
+  --color-builder-thumb-track: #3a3a3a;
+  --color-builder-range-thumb: #4a4a4a;
+  --color-builder-toggle-knob-off: #333333;
+  --color-builder-toggle-knob-on: #d0d0d0;
+
+  --color-builder-accent-border: #35547d;
+  --color-builder-accent-fill: #1c2a3d;
+  --color-builder-focus-ring: #35547d;
+
+  --color-builder-spinner-muted: #2a2a2a;
+  --color-builder-spinner-stroke: #6a6a6a;
+
+  --color-builder-danger-surface: #3a1d1d;
+  --color-builder-danger-text: #ff9d9d;
+  --color-builder-input-border: #3a3a3a;
+  --color-builder-page: #141414;
+
+  --color-builder-disabled-surface: #232323;
+  --color-builder-code-surface: #202020;
+  --color-builder-code-text: #d4d4d4;
+  --color-builder-code-focus: #6a6a6a;
+  --color-builder-remove-hover: #ff6369;
+  --color-builder-chip-surface: #262626;
+  --color-builder-chip-surface-hover: #2f2f2f;
+  --color-builder-chip-text: #d4d4d4;
+  --color-builder-zoom-active-surface: #2a2a2a;
+  --color-builder-glass: rgba(28, 28, 28, 0.74);
+  --color-builder-glass-strong: rgba(28, 28, 28, 0.92);
+}
+
+:root[data-theme="dark"] .playground-leva-panel {
+  --leva-panel-bg: #1c1c1c;
+  --leva-surface: #2a2a2a;
+  --leva-surface-hover: #313131;
+  --leva-border: #262626;
+  --leva-border-subtle: #262626;
+  --leva-text: #d4d4d4;
+  --leva-text-muted: #a3a3a3;
+  --leva-text-faint: #6f6f6f;
+  --leva-accent: #a3a3a3;
+  --leva-checkbox-border: #4a4a4a;
+  --leva-accent-soft: #5a5a5a;
+  --leva-accent-strong: #7f7f7f;
+  --leva-highlight-soft: #3f3f3f;
+  --leva-highlight-mid: #8a8a8a;
 }
 
 .ui-scroll-hidden {
@@ -51,6 +136,10 @@
   --leva-text-faint: #a3a3a3;
   --leva-accent: #8a8a8a;
   --leva-checkbox-border: #d4d4d4;
+  --leva-accent-soft: #bdbdbd;
+  --leva-accent-strong: #8f8f8f;
+  --leva-highlight-soft: #d6d6d6;
+  --leva-highlight-mid: #a8a8a8;
   --leva-radius: 4px;
   padding-top: 0;
   color: var(--leva-text-muted);
@@ -121,7 +210,7 @@
 .playground-leva-panel button:disabled {
   cursor: not-allowed;
   color: var(--leva-text-faint) !important;
-  background-color: #f5f5f5 !important;
+  background-color: var(--color-builder-disabled-surface) !important;
   border-color: transparent !important;
   opacity: 1;
 }
@@ -177,7 +266,7 @@
   min-width: 64px;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  background: #eeeeee;
+  background: var(--leva-surface);
 }
 
 .playground-export-controls {
@@ -417,8 +506,8 @@
   resize: vertical;
   border: 0;
   border-radius: 8px;
-  background: #ededed;
-  color: #3f3f3f;
+  background: var(--color-builder-code-surface);
+  color: var(--color-builder-code-text);
   outline: none;
   padding: 10px;
   font:
@@ -429,15 +518,15 @@
 }
 
 .playground-workflow-controls .lab-shader-source-input:focus {
-  box-shadow: 0 0 0 1px #9a9a9a;
+  box-shadow: 0 0 0 1px var(--color-builder-code-focus);
 }
 
 .playground-workflow-controls .lab-shader-source-error {
   max-height: 120px;
   overflow: auto;
   border-radius: 8px;
-  background: #fff0f0;
-  color: #9c1c1c;
+  background: var(--color-builder-danger-surface);
+  color: var(--color-builder-danger-text);
   padding: 8px;
   font:
     10px/1.35 "Geist Mono",
@@ -484,7 +573,7 @@
    custom chevron on the right since appearance:none drops the native one. */
 .playground-workflow-controls select.lab-btn {
   appearance: none;
-  background: #eeeeee
+  background: var(--color-builder-chip-surface)
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%23858585' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E")
     no-repeat right 10px center;
   padding-right: 24px;
@@ -1032,7 +1121,7 @@
   min-width: 24px;
   min-height: 24px;
   padding: 0 !important;
-  border: 1px solid #d6d6d6 !important;
+  border: 1px solid var(--color-builder-input-border) !important;
   border-radius: 4px !important;
   box-shadow: none !important;
   background-color: var(--stripe-swatch-color) !important;
@@ -1041,7 +1130,7 @@
 .playground-leva-panel .stripe-colors-table button.stripe-colors-leva-swatch:not(:disabled):hover,
 .playground-leva-panel .stripe-colors-table button.stripe-colors-leva-swatch:not(:disabled):focus-visible {
   background-color: var(--stripe-swatch-color) !important;
-  border-color: #d6d6d6 !important;
+  border-color: var(--color-builder-input-border) !important;
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-leva-swatch-placeholder {
@@ -1060,7 +1149,7 @@
 }
 
 .playground-leva-panel .stripe-colors-table button.stripe-colors-remove:not(:disabled):hover {
-  color: #e5484d !important;
+  color: var(--color-builder-remove-hover) !important;
 }
 
 .playground-leva-panel .stripe-colors-table button.stripe-colors-add {
@@ -1071,7 +1160,7 @@
   gap: 4px;
   width: 100%;
   height: 24px;
-  border: 1px dashed #d6d6d6 !important;
+  border: 1px dashed var(--color-builder-input-border) !important;
   border-radius: var(--leva-radius) !important;
   background-color: transparent !important;
   color: var(--leva-text-muted) !important;
@@ -1100,7 +1189,7 @@
   min-width: 24px;
   min-height: 24px;
   padding: 0 !important;
-  border: 1px solid #d6d6d6 !important;
+  border: 1px solid var(--color-builder-input-border) !important;
   border-radius: var(--leva-radius) !important;
   box-shadow: none !important;
   background-color: var(--library-color-input-color) !important;
@@ -1116,7 +1205,7 @@
 .playground-leva-panel button.library-color-input-swatch:not(:disabled):hover,
 .playground-leva-panel button.library-color-input-swatch:not(:disabled):focus-visible {
   background-color: var(--library-color-input-color) !important;
-  border-color: #d6d6d6 !important;
+  border-color: var(--color-builder-input-border) !important;
 }
 
 .playground-leva-panel .library-color-input-value {
@@ -1222,7 +1311,7 @@
 /* Color swatches need their own stroke so white values remain visible. */
 .playground-leva-panel div[style^="color: rgb("] {
   box-sizing: border-box;
-  border: 1px solid #d6d6d6 !important;
+  border: 1px solid var(--color-builder-input-border) !important;
 }
 
 /* Checkboxes */
@@ -1246,7 +1335,7 @@
 }
 
 .playground-leva-panel input[type="checkbox"] + label > svg {
-  stroke: #ffffff;
+  stroke: var(--color-builder-surface);
 }
 
 /* Section dividers between root folders */
@@ -1261,12 +1350,12 @@
 }
 
 .playground-leva-panel [class*="hasRange"] [class*="bbMqub"] {
-  background-color: #eeeeee !important;
+  background-color: var(--leva-surface) !important;
   border-radius: 2px;
 }
 
 .playground-leva-panel [class*="hasRange"] [class*="knrmXZ"] {
-  background-color: #d6d6d6 !important;
+  background-color: var(--color-builder-input-border) !important;
 }
 
 .playground-leva-panel [class*="hasRange"] [class*="gUBGce"] {
@@ -1430,7 +1519,7 @@
   gap: 8px;
   padding: 6px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.74);
+  background: var(--color-builder-glass);
   border: 1px solid var(--color-builder-hairline);
   backdrop-filter: blur(10px);
   transform: translateX(-50%);
@@ -1445,7 +1534,7 @@
 
 .lab-canvas-zoom-controls .lab-btn[aria-pressed="true"] {
   color: var(--color-builder-text);
-  background: #e5e5e5;
+  background: var(--color-builder-zoom-active-surface);
 }
 
 .lab-canvas-zoom-value {
@@ -1465,7 +1554,7 @@
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid var(--color-builder-hairline);
-  background: #fff;
+  background: var(--color-builder-surface);
   transition: width 300ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: width;
 }
@@ -1541,8 +1630,8 @@ body.lab-sidebar-resizing .lab-sidebar {
   padding: 0;
   border: 1px solid transparent;
   border-radius: 4px;
-  background: #eeeeee;
-  color: #525252;
+  background: var(--leva-surface);
+  color: var(--leva-text);
   cursor: pointer;
   transition-property: background-color, transform;
   transition-duration: 120ms;
@@ -1550,7 +1639,7 @@ body.lab-sidebar-resizing .lab-sidebar {
 }
 
 .lab-sidebar-toggle:hover {
-  background: #e6e6e6;
+  background: var(--leva-surface-hover);
 }
 
 .lab-sidebar-toggle:active {
@@ -1614,8 +1703,8 @@ body.lab-sidebar-resizing .lab-sidebar-resize-handle::after {
   padding: 0;
   border: 1px solid var(--color-builder-hairline);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #525252;
+  background: var(--color-builder-glass-strong);
+  color: var(--color-builder-chip-text);
   cursor: pointer;
   backdrop-filter: blur(10px);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -1625,7 +1714,7 @@ body.lab-sidebar-resizing .lab-sidebar-resize-handle::after {
 }
 
 .lab-sidebar-reopen:hover {
-  background: #fff;
+  background: var(--color-builder-surface);
 }
 
 .lab-sidebar-reopen:active {
@@ -1664,6 +1753,53 @@ body.lab-sidebar-resizing canvas {
   gap: 16px;
 }
 
+.lab-theme-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.lab-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.lab-theme-option.is-active {
+  background: var(--color-builder-selected-row);
+}
+
+.lab-theme-btn,
+.lab-theme-reset {
+  border: none;
+  background: transparent;
+  color: var(--color-builder-muted);
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.lab-theme-option.is-active .lab-theme-btn {
+  color: var(--color-builder-text);
+}
+
+.lab-theme-btn:hover,
+.lab-theme-reset:hover {
+  background: var(--color-builder-hover-surface);
+  color: var(--color-builder-text);
+}
+
 .lab-btn-row {
   display: flex;
   flex-wrap: wrap;
@@ -1678,8 +1814,8 @@ body.lab-sidebar-resizing canvas {
   line-height: 1;
   border: 1px solid transparent;
   border-radius: 4px;
-  background: #eeeeee;
-  color: #525252;
+  background: var(--color-builder-chip-surface);
+  color: var(--color-builder-chip-text);
   cursor: pointer;
 }
 
@@ -1690,13 +1826,13 @@ body.lab-sidebar-resizing canvas {
   line-height: 1;
   border: 1px solid transparent;
   border-radius: 4px;
-  background: #eeeeee;
-  color: #525252;
+  background: var(--color-builder-chip-surface);
+  color: var(--color-builder-chip-text);
   box-sizing: border-box;
 }
 
 .lab-btn:hover:not(:disabled) {
-  background: #e6e6e6;
+  background: var(--color-builder-chip-surface-hover);
 }
 
 .lab-btn:disabled {

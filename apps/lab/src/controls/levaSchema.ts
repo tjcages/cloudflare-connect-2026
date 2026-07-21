@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useControls, useCreateStore, folder, button, buttonGroup } from "leva";
-import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
-import type { EngineConfig, Stripe } from "@necatikcl/stripes-engine";
+import { normalizeEngineConfig, resolveThemedConfig } from "@necatikcl/stripes-engine";
+import type { DeepPartial, EngineConfig, Stripe } from "@necatikcl/stripes-engine";
 import {
   consumeImportedConfigPristine,
+  loadEditTheme,
   loadInitialConfig,
   loadLabSettings,
   loadStickyBackgroundColor,
   loadTextureId,
   saveStickyBackgroundColor,
 } from "../persistence";
-import type { LabSettings } from "../persistence";
+import type { LabEditTheme, LabSettings } from "../persistence";
 import { fromEditable } from "./stripeAdapter";
 import type { EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
@@ -327,6 +328,11 @@ export interface EngineControlsResult {
   config: EngineConfig;
   backgroundFillMode: BackgroundFillMode;
   backgroundSourceOpacity: number;
+  initialThemed: {
+    editTheme: LabEditTheme;
+    lightBase: Partial<EngineConfig>;
+    darkDiff: DeepPartial<EngineConfig>;
+  };
   setControl: (values: Record<string, unknown>) => void;
   getLabSettingsSnapshot: () => Partial<LabSettings>;
   textureId: string;
@@ -389,8 +395,18 @@ export function useEngineControls(
     const stored = loadTextureId() ?? initialLabSettings.textureId;
     return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;
   }, [initialLabSettings.textureId]);
+  const initialThemed = useMemo(() => {
+    const themed = loadInitialConfig(initialTextureId);
+    const editTheme = loadEditTheme();
+    return {
+      editTheme,
+      lightBase: resolveThemedConfig(themed, "light"),
+      darkDiff: (themed.dark ?? {}) as DeepPartial<EngineConfig>,
+      effective: resolveThemedConfig(themed, editTheme),
+    };
+  }, [initialTextureId]);
   const d = useMemo(() => {
-    const loaded = normalizeEngineConfig(loadInitialConfig(initialTextureId));
+    const loaded = normalizeEngineConfig(initialThemed.effective);
     const importedPristine = consumeImportedConfigPristine();
     const upgraded = importedPristine ? loaded : upgradeDefaultStripes(loaded);
     const fitUpgraded =
@@ -399,7 +415,7 @@ export function useEngineControls(
         : upgraded;
     if (importedPristine || !hasAutomaticStripeWidthDistribution(fitUpgraded.stripes)) return fitUpgraded;
     return { ...fitUpgraded, stripes: withDefaultStripeWidths(fitUpgraded.stripes) };
-  }, [initialTextureId]);
+  }, [initialThemed]);
   // Pin the store across HMR. React Fast Refresh recomputes useMemo (and thus
   // useCreateStore's store) while preserving useState/useRef. leva's useControls
   // captures its store via useState, so it keeps writing to the original store;
@@ -3807,6 +3823,7 @@ export function useEngineControls(
     config,
     backgroundFillMode,
     backgroundSourceOpacity: sourcePreviewOpacity,
+    initialThemed,
     setControl,
     getLabSettingsSnapshot,
     textureId,
