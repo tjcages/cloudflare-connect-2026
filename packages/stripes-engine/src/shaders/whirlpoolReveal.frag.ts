@@ -42,7 +42,9 @@ highp float cellOffset(vec2 uv, vec2 asp) {
   vec2 cq = (cellUv - 0.5) * asp;
   highp float cr = length(cq);
   highp float cfall = uTightness / (cr + uTightness);
-  highp float spiral = atan(cq.y, cq.x) + uTurns * 6.2831853 * cfall;
+  /* Keep a constant arm pitch outward, otherwise the spiral degenerates into a plain
+     left-right sweep at large radius where the tightness falloff has died away. */
+  highp float spiral = atan(cq.y, cq.x) + uTurns * 6.2831853 * cfall + cr * 5.0;
   highp float wave = 0.5 - 0.5 * cos(spiral);
   return (wave - 0.5) * 0.3 + (cellHash(c) - 0.5) * 0.05;
 }
@@ -52,8 +54,10 @@ highp float cellOffset(vec2 uv, vec2 asp) {
 highp float windAngle(highp float r, highp float ang, highp float falloff, highp float maxR, highp float band, highp float pp, highp float jit, out highp float settle) {
   highp float rn = clamp(r / max(maxR, 1e-4), 0.0, 1.0);
   highp float span = 0.13;
+  /* Headroom for the +-0.17 cell offset, so outer cells never pile up on the clamp and
+     land together on one frame. */
   highp float pArrive = clamp(
-    mix(0.3, 1.0 - span * 0.92, rn) + jit + frontierWobble(r, ang) * 0.02,
+    mix(0.3, 0.7, rn) + jit + frontierWobble(r, ang) * 0.02,
     0.0,
     1.0 - span * 0.9
   );
