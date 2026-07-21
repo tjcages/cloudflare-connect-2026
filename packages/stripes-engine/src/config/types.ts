@@ -264,9 +264,39 @@ export interface EdgeMaskConfig {
   power: number;
 }
 
-export type CursorTrailType = "default" | "wave" | "constellation";
+export type CursorTrailType = "default" | "wave" | "constellation" | "comet";
 
-export const CURSOR_TRAIL_TYPES: readonly CursorTrailType[] = ["default", "wave", "constellation"];
+export const CURSOR_TRAIL_TYPES: readonly CursorTrailType[] = ["default", "wave", "constellation", "comet"];
+
+export interface CometTrailConfig {
+  nodeCount: number;
+  headStiffness: number;
+  headDamping: number;
+  chainStiffness: number;
+  chainDamping: number;
+  maxLinkPx: number;
+  headRadiusPx: number;
+  tailRadiusPx: number;
+  stretchThinning: number;
+  smoothUnionPx: number;
+  bodyBrightness: number;
+  auraStrength: number;
+  bodyPushPx: number;
+  presenceRiseRate: number;
+  presenceFallRate: number;
+  embersEnabled: boolean;
+  emberRatePerSec: number;
+  emberMaxCount: number;
+  emberSizePx: number;
+  emberSpeedMinPxPerSec: number;
+  emberSpeedMaxPxPerSec: number;
+  emberSpreadRad: number;
+  emberLifetimeMinMs: number;
+  emberLifetimeMaxMs: number;
+  emberBrightness: number;
+  emberFadeInFraction: number;
+  seed: number;
+}
 
 export interface ConstellationTrailConfig {
   radiusScale: number;
@@ -304,7 +334,8 @@ export interface CursorTrailConfig {
   enabled: boolean;
   /**
    * "default" = particle splats; "wave" = GPU heightfield water simulation;
-   * "constellation" = cursor-linked star graph rendered into the field.
+   * "constellation" = cursor-linked star graph rendered into the field;
+   * "comet" = lagging liquid body with shed embers rendered into the field.
    */
   type: CursorTrailType;
   particleRadius: number;
@@ -328,10 +359,47 @@ export interface CursorTrailConfig {
   pushWobblePx: number;
   pushLeadBlackAlpha: number;
   constellation: ConstellationTrailConfig;
+  comet: CometTrailConfig;
+}
+
+export type ClickWaveType = "default" | "detonation";
+
+export const CLICK_WAVE_TYPES: readonly ClickWaveType[] = ["default", "detonation"];
+
+export interface DetonationClickConfig {
+  maxConcurrent: number;
+  ringReachPx: number;
+  ringDurationMs: number;
+  ringThicknessPx: number;
+  ringRefractionPx: number;
+  flashRadiusPx: number;
+  flashDurationMs: number;
+  flashBrightness: number;
+  debrisCount: number;
+  debrisSpeedPxPerSec: number;
+  debrisSpeedVariation: number;
+  debrisDrag: number;
+  debrisGravityPxPerSec2: number;
+  debrisLifetimeMs: number;
+  debrisLifetimeVariation: number;
+  debrisSizePx: number;
+  debrisBrightness: number;
+  craterRadiusPx: number;
+  craterDepth: number;
+  craterRelaxFastMs: number;
+  craterRelaxSlowMs: number;
+  craterLifeMs: number;
+  craterRimStrength: number;
+  seed: number;
 }
 
 export interface ClickWaveConfig {
   enabled: boolean;
+  /**
+   * "default" = expanding stripe ring; "detonation" = flash, shock ring,
+   * ballistic debris and a relaxing crater written into the field.
+   */
+  type: ClickWaveType;
   lifeMs: number;
   startRadiusPx: number;
   maxRadiusPx: number;
@@ -341,6 +409,7 @@ export interface ClickWaveConfig {
   pushStrengthPx: number;
   pushBandScale: number;
   stripeWhiteAlpha: number;
+  detonation: DetonationClickConfig;
 }
 
 export interface LettersConfig {

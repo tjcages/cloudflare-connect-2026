@@ -34,8 +34,12 @@ import { createCursorWarpPass } from "./passes/cursorWarpPass";
 import { createClickSplatPass } from "./passes/clickSplatPass";
 import { createConstellationPass } from "./passes/constellationPass";
 import { constellationCaps } from "./cursorTrail/constellationSim";
+import { createCometPass } from "./passes/cometPass";
+import { cometCaps } from "./cursorTrail/cometSim";
 import { createMeteorsPass } from "./passes/meteorsPass";
 import { meteorsCaps } from "./meteors/meteorsSim";
+import { createDetonationPass } from "./passes/detonationPass";
+import { addDetonation, createDetonationState, detonationCaps, type DetonationState } from "./detonation/detonationSim";
 import {
   createCursorTrailState,
   setCursorTrailTarget,
@@ -293,6 +297,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastRenderMode = config.renderMode;
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
   let lastClickWaveEnabled = config.clickWave.enabled;
+  let lastClickWaveType = config.clickWave.type;
   let lastLettersEnabled = config.letters.enabled;
   let lastColorsMode = config.colors.mode;
   let lastStarsEnabled = config.background.stars.enabled;
@@ -331,9 +336,36 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   };
   let lastConstellationCapSig = constellationCapSig();
 
+  const cometTrailEnabled = (): boolean => config.cursorTrail.enabled && config.cursorTrail.type === "comet";
+  const cometCapSig = (): string => {
+    if (!cometTrailEnabled()) return "off";
+    const caps = cometCaps(config.cursorTrail.comet);
+    return `${caps.nodeCount}|${caps.maxEmbers}`;
+  };
+  let lastCometCapSig = cometCapSig();
+
   const meteorsCapSig = (): string =>
     config.background.meteors.enabled ? String(meteorsCaps(config.background.meteors).maxActive) : "off";
   let lastMeteorsCapSig = meteorsCapSig();
+
+  const detonationClickEnabled = (): boolean => config.clickWave.enabled && config.clickWave.type === "detonation";
+  const detonationCapSig = (): string => {
+    if (!detonationClickEnabled()) return "off";
+    const caps = detonationCaps(config.clickWave.detonation);
+    return `${caps.maxConcurrent}|${caps.debrisCount}`;
+  };
+  let lastDetonationCapSig = detonationCapSig();
+  let detonationState: DetonationState | null = null;
+  let detonationStateSig = "";
+  const ensureDetonationState = (): DetonationState => {
+    const caps = detonationCaps(config.clickWave.detonation);
+    const sig = `${caps.maxConcurrent}|${caps.debrisCount}|${config.clickWave.detonation.seed}`;
+    if (!detonationState || sig !== detonationStateSig) {
+      detonationState = createDetonationState(caps, config.clickWave.detonation.seed);
+      detonationStateSig = sig;
+    }
+    return detonationState;
+  };
 
   function waveTrailEnabled(): boolean {
     return config.cursorTrail.enabled && config.cursorTrail.type === "wave";
@@ -1021,9 +1053,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     // The "wave" type replaces the particle trail entirely; it couples into the
     // field pass instead of adding passes here.
     const particleTrailEnabled = config.cursorTrail.enabled && config.cursorTrail.type === "default";
-    if (particleTrailEnabled || config.clickWave.enabled) {
+    const clickWaveRingEnabled = config.clickWave.enabled && config.clickWave.type === "default";
+    if (particleTrailEnabled || clickWaveRingEnabled) {
       const trailEnabled = particleTrailEnabled;
-      const clickEnabled = config.clickWave.enabled;
+      const clickEnabled = clickWaveRingEnabled;
       const splatPass = trailEnabled ? createCursorSplatPass(gl) : null;
       const clickSplatPass = clickEnabled ? createClickSplatPass(gl) : null;
       const tearPass = createCursorTearPass(gl, quad);
@@ -1135,6 +1168,29 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       activeFieldRT = "constellationField";
     }
 
+    const cometFieldPasses: Pass[] = [];
+    if (cometTrailEnabled()) {
+      const cometPass = createCometPass(gl, quad, cometCaps(config.cursorTrail.comet));
+      const srcRT = activeFieldRT;
+      cometFieldPasses.push({
+        name: "cometField",
+        render: () => {
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const outRT = pool.get("cometField", fieldSize.width, fieldSize.height, { linear: true });
+          cometPass.render(outRT, srcTex, {
+            config: config.cursorTrail.comet,
+            cursor: cursorTrailState.target,
+            cssW,
+            cssH,
+            now: clock.now(),
+            timeSec: (clock.now() - createdMs) * 0.001,
+          });
+        },
+        dispose: () => cometPass.dispose(),
+      });
+      activeFieldRT = "cometField";
+    }
+
     const meteorsFieldPasses: Pass[] = [];
     if (config.background.meteors.enabled) {
       const meteorsPass = createMeteorsPass(gl, quad, meteorsCaps(config.background.meteors));
@@ -1154,6 +1210,28 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         dispose: () => meteorsPass.dispose(),
       });
       activeFieldRT = "meteorsField";
+    }
+
+    const detonationFieldPasses: Pass[] = [];
+    if (detonationClickEnabled()) {
+      const detonationPass = createDetonationPass(gl, quad, detonationCaps(config.clickWave.detonation));
+      const srcRT = activeFieldRT;
+      detonationFieldPasses.push({
+        name: "detonationField",
+        render: () => {
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const outRT = pool.get("detonationField", fieldSize.width, fieldSize.height, { linear: true });
+          detonationPass.render(outRT, srcTex, {
+            config: config.clickWave.detonation,
+            state: ensureDetonationState(),
+            cssW,
+            cssH,
+            timeSec: (clock.now() - createdMs) * 0.001,
+          });
+        },
+        dispose: () => detonationPass.dispose(),
+      });
+      activeFieldRT = "detonationField";
     }
 
     const postHookPass = hooks?.postPass ? hooks.postPass({ gl, quad, pool }) : null;
@@ -1230,7 +1308,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         ...constellationFieldPasses,
+        ...cometFieldPasses,
         ...meteorsFieldPasses,
+        ...detonationFieldPasses,
         {
           name: "downsample",
           render: () => {
@@ -1344,7 +1424,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         ...constellationFieldPasses,
+        ...cometFieldPasses,
         ...meteorsFieldPasses,
+        ...detonationFieldPasses,
         {
           name: postHookPass ? "hookPost" : "present",
           render: () => {
@@ -1415,6 +1497,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     starsState = createStarsState(mulberry32(starsSeed));
     cursorTrailState = createCursorTrailState();
     clickWaveState = createClickWaveState();
+    detonationState = null;
+    detonationStateSig = "";
     // Water targets/program belong to the lost context; drop without deleting.
     waterSim = null;
     lastCursorMs = clock.now();
@@ -1525,7 +1609,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
         config.cursorTrail.type !== lastCursorTrailType ||
         constellationCapSig() !== lastConstellationCapSig ||
+        cometCapSig() !== lastCometCapSig ||
         config.clickWave.enabled !== lastClickWaveEnabled ||
+        config.clickWave.type !== lastClickWaveType ||
+        detonationCapSig() !== lastDetonationCapSig ||
         config.letters.enabled !== lastLettersEnabled ||
         config.colors.mode !== lastColorsMode ||
         config.background.stars.enabled !== lastStarsEnabled ||
@@ -1540,6 +1627,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         }
         if (config.clickWave.enabled && !lastClickWaveEnabled) {
           clickWaveState = createClickWaveState();
+          detonationState = null;
+          detonationStateSig = "";
           lastCursorMs = clock.now();
         }
         buildPasses();
@@ -1551,7 +1640,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastCursorTrailEnabled = config.cursorTrail.enabled;
         lastCursorTrailType = config.cursorTrail.type;
         lastConstellationCapSig = constellationCapSig();
+        lastCometCapSig = cometCapSig();
         lastClickWaveEnabled = config.clickWave.enabled;
+        lastClickWaveType = config.clickWave.type;
+        lastDetonationCapSig = detonationCapSig();
         lastLettersEnabled = config.letters.enabled;
         lastColorsMode = config.colors.mode;
         lastStarsEnabled = config.background.stars.enabled;
@@ -1566,6 +1658,16 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       }
     },
     click(x, y) {
+      if (detonationClickEnabled()) {
+        addDetonation(
+          ensureDetonationState(),
+          config.clickWave.detonation,
+          x,
+          y ?? 0,
+          (clock.now() - createdMs) * 0.001,
+        );
+        return;
+      }
       addClickWave(clickWaveState, { x, y: y ?? 0 }, config.clickWave.lifeMs);
     },
     triggerReveal() {

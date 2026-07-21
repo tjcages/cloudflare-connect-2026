@@ -41,6 +41,7 @@ export type {
   CursorTrailType,
   CursorTrailConfig,
   ConstellationTrailConfig,
+  CometTrailConfig,
 } from "./config/types";
 export { CURSOR_TRAIL_TYPES } from "./config/types";
 export { normalizeEngineConfig, DEFAULT_ENGINE_CONFIG } from "./config/normalize";
@@ -50,3 +51,9 @@ export { migrateLegacyConfig } from "./legacy/migrateLegacyConfig";
 export type { Adjustments, Grid, Transform, Background, BackgroundMeteors } from "./config/types";
 export { DEFAULT_BACKGROUND_METEORS, normalizeBackgroundMeteors } from "./config/normalize";
 export { meteorsCaps } from "./meteors/meteorsSim";
+export { DEFAULT_COMET_TRAIL, normalizeCometTrail } from "./config/normalize";
+export { cometCaps } from "./cursorTrail/cometSim";
+export type { ClickWaveType, ClickWaveConfig, DetonationClickConfig } from "./config/types";
+export { CLICK_WAVE_TYPES } from "./config/types";
+export { DEFAULT_CLICK_WAVE, DEFAULT_DETONATION_CLICK, normalizeDetonationClick } from "./config/normalize";
+export { detonationCaps } from "./detonation/detonationSim";

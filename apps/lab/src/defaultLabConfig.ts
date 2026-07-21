@@ -302,9 +302,11 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
     pushWobblePx: 8,
     pushLeadBlackAlpha: 0,
     constellation: { ...DEFAULT_ENGINE_CONFIG.cursorTrail.constellation },
+    comet: { ...DEFAULT_ENGINE_CONFIG.cursorTrail.comet },
   },
   clickWave: {
     enabled: true,
+    type: "default",
     lifeMs: 630,
     startRadiusPx: 6,
     maxRadiusPx: 120,
@@ -314,6 +316,7 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
     pushStrengthPx: 38,
     pushBandScale: 3.2,
     stripeWhiteAlpha: 0.5,
+    detonation: { ...DEFAULT_ENGINE_CONFIG.clickWave.detonation },
   },
   letters: {
     enabled: false,
