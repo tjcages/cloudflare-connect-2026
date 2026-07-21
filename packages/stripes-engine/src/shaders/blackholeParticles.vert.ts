@@ -58,7 +58,7 @@ void main() {
   highp float grow = 1.0 + 2.70158 * s1 * s1 * s1 + 1.70158 * s1 * s1;
   highp float shrink = pow(1.0 - collapseT, 1.7);
   highp float paintT = clamp((p - uForm) / max(1.0 - uForm - uCollapse, 1e-4), 0.0, 1.0);
-  highp float decay = 1.0 - 0.72 * smoothstep(0.4, 1.0, paintT);
+  highp float decay = 1.0 - 0.92 * smoothstep(0.15, 0.62, paintT);
   highp float R = max(uHorizon * grow * shrink * decay * (1.0 + 0.02 * sin(p * 90.0)), 0.0);
 
   if (float(id) < uDiskCount) {

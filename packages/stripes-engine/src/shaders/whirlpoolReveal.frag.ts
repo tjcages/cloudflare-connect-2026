@@ -19,11 +19,11 @@ highp float sampleWound(highp float r, highp float ang, highp float theta, highp
 }
 
 highp float windAngle(highp float r, highp float falloff, highp float maxR, highp float band, highp float pp, out highp float settle) {
-  highp float pF = smoothstep(0.12, 1.0, pp);
+  highp float pF = smoothstep(0.34, 1.0, pp);
   highp float Rf = pF * (maxR + band * 1.5);
   settle = smoothstep(0.0, band, Rf - r);
-  highp float grow = 1.0 + 0.6 * pp;
-  return uTurns * 6.2831853 * falloff * (1.0 - settle) * grow;
+  highp float spin = 1.6 * (1.0 - pp);
+  return uTurns * 6.2831853 * falloff * ((1.0 - settle) + spin);
 }
 
 void main() {
