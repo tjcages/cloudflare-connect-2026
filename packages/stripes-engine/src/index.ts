@@ -47,4 +47,6 @@ export { normalizeEngineConfig, DEFAULT_ENGINE_CONFIG } from "./config/normalize
 export { serializeEngineConfig, parseEngineConfig } from "./config/serialize";
 export type { EngineSource } from "./source/sourceTexture";
 export { migrateLegacyConfig } from "./legacy/migrateLegacyConfig";
-export type { Adjustments, Grid, Transform, Background } from "./config/types";
+export type { Adjustments, Grid, Transform, Background, BackgroundMeteors } from "./config/types";
+export { DEFAULT_BACKGROUND_METEORS, normalizeBackgroundMeteors } from "./config/normalize";
+export { meteorsCaps } from "./meteors/meteorsSim";

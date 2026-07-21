@@ -16,6 +16,7 @@ export const CONTROL_DRAWER_IDS = [
   "Reveal",
   "Stripes",
   "Background Stars",
+  "Background Meteors",
   "Sparkle",
   "Letters",
   "Edge Mask",

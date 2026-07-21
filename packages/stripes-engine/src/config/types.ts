@@ -105,6 +105,29 @@ export interface BackgroundStars {
   color: number;
 }
 
+export interface BackgroundMeteors {
+  enabled: boolean;
+  ratePerSec: number;
+  maxActive: number;
+  radiantAngleDeg: number;
+  angleJitterDeg: number;
+  speedScale: number;
+  speedVariation: number;
+  tailLengthScale: number;
+  tailLengthVariation: number;
+  thicknessScale: number;
+  thicknessVariation: number;
+  lifetimeMinMs: number;
+  lifetimeMaxMs: number;
+  brightness: number;
+  headGlow: number;
+  pushPx: number;
+  pushFalloffScale: number;
+  fadeInMs: number;
+  fadeOutMs: number;
+  seed: number;
+}
+
 export interface Transform {
   fit: Fit;
   zoom: number;
@@ -133,6 +156,7 @@ export interface Background {
   gradient: BackgroundGradient;
   grid: BackgroundGrid;
   stars: BackgroundStars;
+  meteors: BackgroundMeteors;
 }
 
 export interface Grid {

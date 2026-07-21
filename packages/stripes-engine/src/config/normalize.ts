@@ -19,6 +19,7 @@ import type {
   RenderMode,
   GradientConfig,
   BackgroundGradient,
+  BackgroundMeteors,
   GradientDirection,
   MotionDirection,
   StripeBlendMode,
@@ -71,6 +72,57 @@ export function normalizeGradient(i: Partial<GradientConfig> = {}): GradientConf
   };
 }
 
+export const DEFAULT_BACKGROUND_METEORS: BackgroundMeteors = {
+  enabled: false,
+  ratePerSec: 5,
+  maxActive: 36,
+  radiantAngleDeg: 35,
+  angleJitterDeg: 14,
+  speedScale: 1,
+  speedVariation: 0.4,
+  tailLengthScale: 1,
+  tailLengthVariation: 0.47,
+  thicknessScale: 1,
+  thicknessVariation: 0.39,
+  lifetimeMinMs: 1000,
+  lifetimeMaxMs: 2400,
+  brightness: 1,
+  headGlow: 1,
+  pushPx: 6,
+  pushFalloffScale: 1,
+  fadeInMs: 80,
+  fadeOutMs: 580,
+  seed: 1,
+};
+
+export function normalizeBackgroundMeteors(i: Partial<BackgroundMeteors> = {}): BackgroundMeteors {
+  const d = DEFAULT_BACKGROUND_METEORS;
+  const lifetimeMinMs = clamp(num(i.lifetimeMinMs, d.lifetimeMinMs), 60, 20_000);
+  const lifetimeMaxMs = Math.max(lifetimeMinMs, clamp(num(i.lifetimeMaxMs, d.lifetimeMaxMs), 60, 20_000));
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : d.enabled,
+    ratePerSec: clamp(num(i.ratePerSec, d.ratePerSec), 0.02, 120),
+    maxActive: clampInt(num(i.maxActive, d.maxActive), 1, 64),
+    radiantAngleDeg: clamp(num(i.radiantAngleDeg, d.radiantAngleDeg), -180, 180),
+    angleJitterDeg: clamp(num(i.angleJitterDeg, d.angleJitterDeg), 0, 90),
+    speedScale: clamp(num(i.speedScale, d.speedScale), 0.05, 6),
+    speedVariation: clamp(num(i.speedVariation, d.speedVariation), 0, 1),
+    tailLengthScale: clamp(num(i.tailLengthScale, d.tailLengthScale), 0.05, 6),
+    tailLengthVariation: clamp(num(i.tailLengthVariation, d.tailLengthVariation), 0, 1),
+    thicknessScale: clamp(num(i.thicknessScale, d.thicknessScale), 0.05, 6),
+    thicknessVariation: clamp(num(i.thicknessVariation, d.thicknessVariation), 0, 1),
+    lifetimeMinMs,
+    lifetimeMaxMs,
+    brightness: clamp(num(i.brightness, d.brightness), 0, 4),
+    headGlow: clamp(num(i.headGlow, d.headGlow), 0, 4),
+    pushPx: clamp(num(i.pushPx, d.pushPx), 0, 80),
+    pushFalloffScale: clamp(num(i.pushFalloffScale, d.pushFalloffScale), 0.05, 8),
+    fadeInMs: clamp(num(i.fadeInMs, d.fadeInMs), 0, 10_000),
+    fadeOutMs: clamp(num(i.fadeOutMs, d.fadeOutMs), 0, 10_000),
+    seed: clampInt(num(i.seed, d.seed), 0, 1_000_000),
+  };
+}
+
 export const DEFAULT_BACKGROUND: Background = {
   color: 0xffffff,
   transparent: true,
@@ -96,6 +148,7 @@ export const DEFAULT_BACKGROUND: Background = {
     opacity: 0.8,
     color: 0xffffff,
   },
+  meteors: { ...DEFAULT_BACKGROUND_METEORS },
 };
 
 type PartialBackground = {
@@ -104,6 +157,7 @@ type PartialBackground = {
   gradient?: Partial<Background["gradient"]>;
   grid?: Partial<Background["grid"]>;
   stars?: Partial<Background["stars"]>;
+  meteors?: Partial<Background["meteors"]>;
 };
 
 export function normalizeBackground(i: PartialBackground = {}): Background {
@@ -144,6 +198,7 @@ export function normalizeBackground(i: PartialBackground = {}): Background {
       opacity: clamp(num(s.opacity, DEFAULT_BACKGROUND.stars.opacity), 0, 1),
       color: Math.round(clamp(num(s.color, DEFAULT_BACKGROUND.stars.color), 0, 0xffffff)),
     },
+    meteors: normalizeBackgroundMeteors(i.meteors),
   };
 }
 

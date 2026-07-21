@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { normalizeEngineConfig } from "./config/normalize";
 import { constellationCaps } from "./cursorTrail/constellationSim";
+import { meteorsCaps } from "./meteors/meteorsSim";
 import type { EngineConfig } from "./config/types";
 
 function topologyKey(cfg: EngineConfig): string {
@@ -22,7 +23,8 @@ function topologyKey(cfg: EngineConfig): string {
   const trailKey = `${cfg.cursorTrail.enabled}:${cfg.cursorTrail.type}:${
     caps ? `${caps.maxStars}|${caps.maxLinks}|${caps.maxPulses}` : "off"
   }`;
-  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}:${trailKey}`;
+  const meteorsKey = cfg.background.meteors.enabled ? String(meteorsCaps(cfg.background.meteors).maxActive) : "off";
+  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}:${trailKey}:${meteorsKey}`;
 }
 
 function needsRebuild(prev: EngineConfig, next: EngineConfig): boolean {
@@ -171,5 +173,22 @@ describe("setConfig topology gating", () => {
     });
     expect(needsRebuild(thin, thick)).toBe(false);
     expect(needsRebuild(thin, capped)).toBe(true);
+  });
+
+  it("toggling background meteors triggers rebuild", () => {
+    const off = normalizeEngineConfig({});
+    const on = normalizeEngineConfig({ background: { meteors: { enabled: true } } });
+    expect(needsRebuild(off, on)).toBe(true);
+    expect(needsRebuild(on, off)).toBe(true);
+  });
+
+  it("meteor style params do not trigger rebuild, but maxActive does", () => {
+    const soft = normalizeEngineConfig({ background: { meteors: { enabled: true, pushPx: 2 } } });
+    const hard = normalizeEngineConfig({
+      background: { meteors: { enabled: true, pushPx: 18, ratePerSec: 40, brightness: 2 } },
+    });
+    const capped = normalizeEngineConfig({ background: { meteors: { enabled: true, maxActive: 12 } } });
+    expect(needsRebuild(soft, hard)).toBe(false);
+    expect(needsRebuild(soft, capped)).toBe(true);
   });
 });

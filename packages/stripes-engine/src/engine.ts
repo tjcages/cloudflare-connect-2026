@@ -32,6 +32,8 @@ import { createCursorWarpPass } from "./passes/cursorWarpPass";
 import { createClickSplatPass } from "./passes/clickSplatPass";
 import { createConstellationPass } from "./passes/constellationPass";
 import { constellationCaps } from "./cursorTrail/constellationSim";
+import { createMeteorsPass } from "./passes/meteorsPass";
+import { meteorsCaps } from "./meteors/meteorsSim";
 import {
   createCursorTrailState,
   setCursorTrailTarget,
@@ -315,6 +317,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     return `${caps.maxStars}|${caps.maxLinks}|${caps.maxPulses}`;
   };
   let lastConstellationCapSig = constellationCapSig();
+
+  const meteorsCapSig = (): string =>
+    config.background.meteors.enabled ? String(meteorsCaps(config.background.meteors).maxActive) : "off";
+  let lastMeteorsCapSig = meteorsCapSig();
 
   function waveTrailEnabled(): boolean {
     return config.cursorTrail.enabled && config.cursorTrail.type === "wave";
@@ -1049,6 +1055,27 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       activeFieldRT = "constellationField";
     }
 
+    const meteorsFieldPasses: Pass[] = [];
+    if (config.background.meteors.enabled) {
+      const meteorsPass = createMeteorsPass(gl, quad, meteorsCaps(config.background.meteors));
+      const srcRT = activeFieldRT;
+      meteorsFieldPasses.push({
+        name: "meteorsField",
+        render: () => {
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const outRT = pool.get("meteorsField", fieldSize.width, fieldSize.height, { linear: true });
+          meteorsPass.render(outRT, srcTex, {
+            config: config.background.meteors,
+            cssW,
+            cssH,
+            timeSec: (clock.now() - createdMs) * 0.001,
+          });
+        },
+        dispose: () => meteorsPass.dispose(),
+      });
+      activeFieldRT = "meteorsField";
+    }
+
     const postHookPass = hooks?.postPass ? hooks.postPass({ gl, quad, pool }) : null;
     const postFrame = (): PostHookFrame => ({
       outputWidth: output.width,
@@ -1123,6 +1150,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         ...constellationFieldPasses,
+        ...meteorsFieldPasses,
         {
           name: "downsample",
           render: () => {
@@ -1236,6 +1264,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         ...constellationFieldPasses,
+        ...meteorsFieldPasses,
         {
           name: postHookPass ? "hookPost" : "present",
           render: () => {
@@ -1419,7 +1448,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.clickWave.enabled !== lastClickWaveEnabled ||
         config.letters.enabled !== lastLettersEnabled ||
         config.colors.mode !== lastColorsMode ||
-        config.background.stars.enabled !== lastStarsEnabled
+        config.background.stars.enabled !== lastStarsEnabled ||
+        meteorsCapSig() !== lastMeteorsCapSig
       ) {
         if (config.background.stars.enabled && !lastStarsEnabled) {
           starsState = createStarsState(mulberry32(starsSeed));
@@ -1445,6 +1475,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastLettersEnabled = config.letters.enabled;
         lastColorsMode = config.colors.mode;
         lastStarsEnabled = config.background.stars.enabled;
+        lastMeteorsCapSig = meteorsCapSig();
       }
     },
     setCursor(x, y) {

@@ -76,7 +76,7 @@ in vec2 vUv;
 out vec4 outColor;
 ${SHOCK_HELPERS}${CRATER_HELPERS}
 const int DEBRIS_COUNT = 24;
-const float DEBRIS_SECONDS = 1.2;
+const float DEBRIS_SECONDS = 1.35;
 
 void main() {
   float sc = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.5, 2.5);
@@ -149,7 +149,7 @@ void main() {
       dim += exp(-behind * behind) * w * 0.24 * smoothstep(0.08, 0.4, ts);
     }
 
-    if (age < DEBRIS_SECONDS && r < 380.0 * sc) {
+    if (age < DEBRIS_SECONDS && r < 560.0 * sc) {
       for (int j = 0; j < DEBRIS_COUNT; j++) {
         float fj = float(j);
         float h1 = hash11(seed + fj * 7.13);
@@ -157,13 +157,13 @@ void main() {
         float h3 = hash11(seed + fj * 5.39 + 29.3);
         float h4 = hash11(seed + fj * 9.02 + 47.9);
         float h5 = hash11(seed + fj * 1.97 + 71.3);
-        float life = 0.7 + 0.5 * h3;
+        float life = 1.0 + 0.35 * h3;
         float tt = age / life;
         if (tt >= 1.0) continue;
         float angJ = (fj + (h1 - 0.5) * 0.9) * (TAU / float(DEBRIS_COUNT));
         vec2 dirJ = vec2(cos(angJ), sin(angJ));
-        float v0 = (130.0 + 290.0 * h2 * h2) * sc;
-        float k = 2.1 + 1.6 * h4;
+        float v0 = (255.0 + 100.0 * h2 * h2) * sc;
+        float k = 1.6 + 0.4 * h4;
         float ds = (1.0 - exp(-k * age)) / k;
         float grav = 360.0 * sc;
         vec2 pPos = uDetCenter[i] + dirJ * v0 * ds + vec2(0.0, grav * (age - ds) / k);

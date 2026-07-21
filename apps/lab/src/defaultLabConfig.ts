@@ -74,6 +74,7 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       opacity: 0.71,
       color: 16777215,
     },
+    meteors: { ...DEFAULT_ENGINE_CONFIG.background.meteors },
   },
   grid: {
     cellWidth: 7,
@@ -355,6 +356,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
   drawerOpen: {
     "Background Flames": false,
     "Background Stars": false,
+    "Background Meteors": false,
     "Texture Source": false,
     "Texture Tone": false,
     "Texture Levels": false,
