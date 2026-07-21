@@ -180,6 +180,15 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       glow: 0.7,
       swirl: 1,
     },
+    water: {
+      durationMs: 2600,
+      settleMs: 900,
+      rows: 5,
+      intensity: 0.85,
+      wobble: 0.5,
+      refraction: 1,
+      softness: 0.35,
+    },
   },
   sparkle: {
     gaps: {
