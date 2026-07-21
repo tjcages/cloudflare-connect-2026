@@ -113,14 +113,32 @@ export function assemblyRevealAt(
 export function serpentinePoint(progress: number, rows: number, wobble: number): { x: number; y: number } {
   const r = Math.max(1, Math.round(rows));
   const t = Math.min(1, Math.max(0, progress));
-  const f = Math.min(r - 1e-6, t * r);
-  const row = Math.floor(f);
-  const frac = f - row;
-  const x = row % 2 === 0 ? frac : 1 - frac;
-  const half = 1 / (2 * r);
-  const yBase = half + t * (1 - 2 * half);
-  const wobbleAmp = (wobble * 0.35) / r;
-  const wob = Math.sin(frac * Math.PI * 5 + row * 1.7) * wobbleAmp;
+  // Strokes run along diagonals x + y = c; pacing is arc-length weighted so the
+  // ghost cursor moves at constant speed even on the short corner strokes.
+  const lens: number[] = [];
+  let total = 0;
+  for (let i = 0; i < r; i++) {
+    const c = ((i + 0.5) * 2) / r;
+    const len = Math.max(0.02, Math.min(1, c) - Math.max(0, c - 1));
+    lens.push(len);
+    total += len;
+  }
+  let target = t * total;
+  let row = 0;
+  while (row < r - 1 && target > lens[row]) {
+    target -= lens[row];
+    row++;
+  }
+  const frac = Math.min(1, Math.max(0, target / lens[row]));
+  const c = ((row + 0.5) * 2) / r;
+  const x0 = Math.max(0, c - 1);
+  const x1 = Math.min(1, c);
+  const f = row % 2 === 0 ? frac : 1 - frac;
+  const xBase = x0 + (x1 - x0) * f;
+  const yBase = c - xBase;
+  const wobbleAmp = (wobble * 0.5) / r;
+  const wob = Math.sin(frac * Math.PI * 5 + row * 1.7) * wobbleAmp * Math.SQRT1_2;
+  const x = Math.min(1, Math.max(0, xBase + wob));
   const y = Math.min(1, Math.max(0, yBase + wob));
   return { x, y };
 }

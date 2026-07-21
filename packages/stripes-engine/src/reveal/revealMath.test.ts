@@ -180,28 +180,42 @@ describe("assemblyRevealAt", () => {
 });
 
 describe("serpentinePoint", () => {
-  it("starts at the left of the top row and ends at the right or left of the bottom row", () => {
+  it("starts near the top-left corner and ends near the bottom-right corner", () => {
     const start = serpentinePoint(0, 5, 0);
-    expect(start.x).toBeCloseTo(0, 5);
-    expect(start.y).toBeLessThan(0.2);
+    expect(start.x + start.y).toBeLessThan(0.3);
     const end = serpentinePoint(1, 5, 0);
-    expect(end.y).toBeGreaterThan(0.8);
+    expect(end.x + end.y).toBeGreaterThan(1.7);
   });
-  it("alternates sweep direction per row", () => {
-    const rows = 4;
-    const early = serpentinePoint(0.1 / rows, rows, 0);
-    const later = serpentinePoint(0.9 / rows, rows, 0);
-    expect(later.x).toBeGreaterThan(early.x);
-    const row2early = serpentinePoint(1.1 / rows, rows, 0);
-    const row2later = serpentinePoint(1.9 / rows, rows, 0);
-    expect(row2later.x).toBeLessThan(row2early.x);
+  it("strokes run along diagonals of constant x + y", () => {
+    const rows = 5;
+    const a = serpentinePoint(0.42, rows, 0);
+    const b = serpentinePoint(0.44, rows, 0);
+    expect(a.x + a.y).toBeCloseTo(b.x + b.y, 5);
+    expect(a.x).not.toBeCloseTo(b.x, 5);
   });
-  it("descends monotonically without wobble", () => {
-    let prevY = -1;
+  it("advances toward the far corner monotonically without wobble", () => {
+    let prev = -1;
     for (let t = 0; t <= 1.0001; t += 0.01) {
-      const { y } = serpentinePoint(Math.min(1, t), 6, 0);
-      expect(y).toBeGreaterThanOrEqual(prevY);
-      prevY = y;
+      const { x, y } = serpentinePoint(Math.min(1, t), 6, 0);
+      expect(x + y).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = x + y;
+    }
+  });
+  it("alternates stroke direction between consecutive diagonals", () => {
+    const rows = 4;
+    const samples: { row: number; frac: number; x: number }[] = [];
+    for (let t = 0; t <= 1.0001; t += 0.005) {
+      const p = serpentinePoint(Math.min(1, t), rows, 0);
+      const row = Math.min(rows - 1, Math.floor(((p.x + p.y) / 2) * rows));
+      samples.push({ row, frac: t, x: p.x });
+    }
+    for (let row = 0; row < rows - 1; row++) {
+      const cur = samples.filter((s) => s.row === row);
+      const next = samples.filter((s) => s.row === row + 1);
+      if (cur.length < 2 || next.length < 2) continue;
+      const curDir = Math.sign(cur[cur.length - 1].x - cur[0].x);
+      const nextDir = Math.sign(next[next.length - 1].x - next[0].x);
+      expect(curDir * nextDir).toBeLessThan(0);
     }
   });
   it("clamps progress and keeps wobble inside the canvas", () => {

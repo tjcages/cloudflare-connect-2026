@@ -12,6 +12,9 @@ const MAX_SIM_EDGE = 420;
 /** Sub-steps per frame. Wave speed is a function of this, not of frame time. */
 const SUBSTEPS = 15;
 const SPLAT_AMP_PER_STEP = 0.5;
+/** Per-tick cover gain at full crest energy. Deltas below 1/255 vanish in the
+ * 8-bit cover buffer, which intentionally floors out weak spill-over ripples. */
+const ACCUM_RATE = 0.28;
 
 export type WaterRevealTextures = {
   height: WebGLTexture;
@@ -51,6 +54,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     threshLo: u("uThreshLo"),
     threshHi: u("uThreshHi"),
     fillFloor: u("uFillFloor"),
+    accumRate: u("uAccumRate"),
   };
 
   let heightPingPong: PingPong | null = null;
@@ -107,6 +111,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     gl.uniform1f(L.threshLo, threshLo);
     gl.uniform1f(L.threshHi, threshHi);
     gl.uniform1f(L.fillFloor, fillFloor);
+    gl.uniform1f(L.accumRate, ACCUM_RATE);
     quad.draw();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     coverPingPong.swap();
