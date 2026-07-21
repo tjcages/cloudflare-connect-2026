@@ -28,12 +28,23 @@ highp float frontierWobble(highp float r, highp float ang) {
     + 0.18 * sin(ang * 13.0 + r * 24.0 + 2.7);
 }
 
-/* Per-cell offset: cells lock in one by one along the frontier instead of a smooth band. */
-highp float cellJitter(vec2 uv) {
-  vec2 c = floor(uv * vec2(150.0, 78.0));
+highp float cellHash(vec2 c) {
   vec3 p3 = fract(vec3(c.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
   return fract((p3.x + p3.y) * p3.z);
+}
+
+/* Per-cell arrival offset driven by the whirlpool's OWN spiral coordinate, so cells lock in
+   along the swirl arms rather than at random. Grain only textures it. */
+highp float cellOffset(vec2 uv, vec2 asp) {
+  vec2 c = floor(uv * vec2(150.0, 78.0));
+  vec2 cellUv = (c + 0.5) / vec2(150.0, 78.0);
+  vec2 cq = (cellUv - 0.5) * asp;
+  highp float cr = length(cq);
+  highp float cfall = uTightness / (cr + uTightness);
+  highp float spiral = atan(cq.y, cq.x) + uTurns * 6.2831853 * cfall;
+  highp float wave = 0.5 - 0.5 * cos(spiral);
+  return (wave - 0.5) * 0.3 + (cellHash(c) - 0.5) * 0.05;
 }
 
 /* Settling rotates ONWARD to the next whole turn (2pi multiple = identity), never backwards.
@@ -41,9 +52,8 @@ highp float cellJitter(vec2 uv) {
 highp float windAngle(highp float r, highp float ang, highp float falloff, highp float maxR, highp float band, highp float pp, highp float jit, out highp float settle) {
   highp float rn = clamp(r / max(maxR, 1e-4), 0.0, 1.0);
   highp float span = 0.13;
-  highp float arms = 0.075 * sin(ang * 2.0 - rn * 10.0) + 0.045 * sin(ang * 3.0 - rn * 17.0 + 2.1);
   highp float pArrive = clamp(
-    mix(0.3, 1.0 - span * 0.92, rn) + arms + frontierWobble(r, ang) * 0.035 + (jit - 0.5) * 0.22,
+    mix(0.3, 1.0 - span * 0.92, rn) + jit + frontierWobble(r, ang) * 0.02,
     0.0,
     1.0 - span * 0.9
   );
@@ -67,7 +77,7 @@ void main() {
   highp float band = 0.22 * maxR;
   highp float falloff = uTightness / (r + uTightness);
 
-  highp float jit = cellJitter(vUv);
+  highp float jit = cellOffset(vUv, asp);
   highp float settle;
   highp float theta = windAngle(r, ang, falloff, maxR, band, p, jit, settle);
   highp float pull = 0.3 * falloff * (1.0 - settle);
