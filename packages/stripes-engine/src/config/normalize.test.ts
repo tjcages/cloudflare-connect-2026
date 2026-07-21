@@ -921,8 +921,10 @@ describe("normalizeFlames vortexSingular", () => {
         segSpacingPx: 500,
         turnRate: -2,
         turnVariation: 3,
-        fadeCycleRate: 0,
-        fadeDepth: 9,
+        visibleMinMs: 10,
+        visibleMaxMs: 5,
+        hiddenMinMs: -5,
+        hiddenMaxMs: 999999,
         lifeMinMs: 10,
         lifeMaxMs: 5,
         edgeMarginRatio: 2,
@@ -932,8 +934,10 @@ describe("normalizeFlames vortexSingular", () => {
     expect(v.segSpacingPx).toBe(60);
     expect(v.turnRate).toBe(0.05);
     expect(v.turnVariation).toBe(1);
-    expect(v.fadeCycleRate).toBe(0.02);
-    expect(v.fadeDepth).toBe(1);
+    expect(v.visibleMinMs).toBe(500);
+    expect(v.visibleMaxMs).toBe(500);
+    expect(v.hiddenMinMs).toBe(0);
+    expect(v.hiddenMaxMs).toBe(60000);
     expect(v.lifeMinMs).toBe(500);
     expect(v.lifeMaxMs).toBe(500);
     expect(v.edgeMarginRatio).toBe(0.4);

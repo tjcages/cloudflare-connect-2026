@@ -13,14 +13,13 @@ export interface VortexTail {
   turnFreq2: number;
   turnPhase1: number;
   turnPhase2: number;
-  fadeSeed1: number;
-  fadeSeed2: number;
-  fadePhase1: number;
-  fadePhase2: number;
   bornMs: number;
   lifeMs: number;
   baseOpacity: number;
   colorSeed: number;
+  hidden: boolean;
+  phaseEndMs: number;
+  shownAtMs: number;
   trailX: number[];
   trailY: number[];
 }
@@ -29,6 +28,8 @@ const SEG_OVERLAP = 1.35;
 const TAIL_MIN_SIZE = 0.35;
 const HEAD_MIN_OPACITY = 0.45;
 const LIFE_FADE_MS = 600;
+const FADE_OUT_MS = 700;
+const FADE_IN_MS = 250;
 const STEER_GAIN = 3;
 const MIN_TRAIL_STEP_PX = 0.2;
 const GOLDEN = 1.618;
@@ -41,17 +42,18 @@ function smoothstep01(x: number): number {
 export function vortexSingularLifeEnvelope(ageMs: number, lifeMs: number): number {
   if (lifeMs <= 0) return 0;
   const fade = Math.min(LIFE_FADE_MS, lifeMs * 0.25);
-  return Math.max(0, Math.min(smoothstep01(ageMs / fade), smoothstep01((lifeMs - ageMs) / fade)));
+  return smoothstep01((lifeMs - ageMs) / fade);
 }
 
-export function vortexSingularFade(tail: VortexTail, tSec: number, cfg: VortexSingularConfig): number {
-  const w = Math.PI * 2 * cfg.fadeCycleRate;
-  const n =
-    0.5 +
-    0.25 * Math.sin(tSec * w * tail.fadeSeed1 + tail.fadePhase1) +
-    0.25 * Math.sin(tSec * w * tail.fadeSeed2 + tail.fadePhase2);
-  const raw = smoothstep01((n - 0.35) / 0.3);
-  return 1 - cfg.fadeDepth * (1 - raw);
+function growDurationMs(speedPxPerSec: number, cfg: VortexSingularConfig): number {
+  return ((cfg.segCount * cfg.segSpacingPx) / Math.max(1, speedPxPerSec)) * 1000;
+}
+
+function cycleAlpha(tail: VortexTail, nowMs: number): number {
+  if (tail.hidden) return 0;
+  const fadeIn = smoothstep01((nowMs - tail.shownAtMs) / FADE_IN_MS);
+  const fadeOut = smoothstep01((tail.phaseEndMs - nowMs) / FADE_OUT_MS);
+  return Math.min(fadeIn, fadeOut);
 }
 
 function turnRateAt(tail: VortexTail, tSec: number, cfg: VortexSingularConfig): number {
@@ -85,6 +87,8 @@ function spawnTail(
     random(),
   );
   const lifeMs = lerp(cfg.lifeMinMs, cfg.lifeMaxMs, random());
+  const growMs = growDurationMs(speedPxPerSec, cfg);
+  const visibleMs = lerp(cfg.visibleMinMs, cfg.visibleMaxMs, random());
   const x = random() * display.width;
   const y = random() * display.height;
   return {
@@ -98,14 +102,13 @@ function spawnTail(
     turnFreq2: lerp(0.15, 0.4, random()) * GOLDEN,
     turnPhase1: random() * Math.PI * 2,
     turnPhase2: random() * Math.PI * 2,
-    fadeSeed1: lerp(0.7, 1.3, random()),
-    fadeSeed2: lerp(0.7, 1.3, random()) * 1.7,
-    fadePhase1: random() * Math.PI * 2,
-    fadePhase2: random() * Math.PI * 2,
     bornMs: seeded ? nowMs - random() * lifeMs * 0.8 : nowMs,
     lifeMs,
     baseOpacity: lerp(config.opacityMin, config.opacityMax, random()),
     colorSeed: random(),
+    hidden: false,
+    phaseEndMs: nowMs + (seeded ? random() * (growMs + visibleMs) : growMs + visibleMs),
+    shownAtMs: nowMs,
     trailX: [x],
     trailY: [y],
   };
@@ -169,7 +172,7 @@ function rebuildFlames(state: FlamesState, config: FlamesConfig, nowMs: number):
   for (const tail of state.tails) {
     trimTrail(tail, cfg);
     const ageMs = nowMs - tail.bornMs;
-    const visibility = vortexSingularLifeEnvelope(ageMs, tail.lifeMs) * vortexSingularFade(tail, ageMs / 1000, cfg);
+    const visibility = vortexSingularLifeEnvelope(ageMs, tail.lifeMs) * cycleAlpha(tail, nowMs);
     if (visibility <= 0.001) continue;
     appendSegments(flames, tail, cfg, visibility);
   }
@@ -209,6 +212,17 @@ export function stepVortexSingular(
     if (nowMs - tail.bornMs >= tail.lifeMs) {
       tail = spawnTail(state.random, config, display, nowMs, false);
       state.tails[i] = tail;
+    }
+    if (!tail.hidden && nowMs >= tail.phaseEndMs) {
+      tail.hidden = true;
+      tail.phaseEndMs = nowMs + lerp(cfg.hiddenMinMs, cfg.hiddenMaxMs, state.random());
+    } else if (tail.hidden && nowMs >= tail.phaseEndMs) {
+      tail.hidden = false;
+      tail.shownAtMs = nowMs;
+      tail.phaseEndMs =
+        nowMs + growDurationMs(tail.speedPxPerSec, cfg) + lerp(cfg.visibleMinMs, cfg.visibleMaxMs, state.random());
+      tail.trailX = [tail.x];
+      tail.trailY = [tail.y];
     }
     const tSec = (nowMs - tail.bornMs) / 1000;
     const omega = turnRateAt(tail, tSec, cfg) + boundarySteer(tail, display.width, display.height, margin);

@@ -1181,22 +1181,42 @@ export function useEngineControls(
               get("Background Flames.flamesEnabled") === true &&
               get("Background Flames.flamesDirection") === "vortexSingular",
           },
-          flamesVsFadeCycleRate: {
-            value: d.flames.vortexSingular.fadeCycleRate,
-            min: 0.02,
-            max: 4,
-            step: 0.02,
-            label: "VS Fade Rate",
+          flamesVsVisibleMinSec: {
+            value: d.flames.vortexSingular.visibleMinMs / 1000,
+            min: 0.5,
+            max: 60,
+            step: 0.5,
+            label: "VS Visible Min (s)",
             render: (get) =>
               get("Background Flames.flamesEnabled") === true &&
               get("Background Flames.flamesDirection") === "vortexSingular",
           },
-          flamesVsFadeDepth: {
-            value: d.flames.vortexSingular.fadeDepth,
+          flamesVsVisibleMaxSec: {
+            value: d.flames.vortexSingular.visibleMaxMs / 1000,
+            min: 0.5,
+            max: 120,
+            step: 0.5,
+            label: "VS Visible Max (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsHiddenMinSec: {
+            value: d.flames.vortexSingular.hiddenMinMs / 1000,
             min: 0,
-            max: 1,
-            step: 0.01,
-            label: "VS Fade Depth",
+            max: 30,
+            step: 0.1,
+            label: "VS Hidden Min (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsHiddenMaxSec: {
+            value: d.flames.vortexSingular.hiddenMaxMs / 1000,
+            min: 0,
+            max: 60,
+            step: 0.1,
+            label: "VS Hidden Max (s)",
             render: (get) =>
               get("Background Flames.flamesEnabled") === true &&
               get("Background Flames.flamesDirection") === "vortexSingular",
@@ -2450,8 +2470,10 @@ export function useEngineControls(
         segSpacingPx: values.flamesVsSegSpacing,
         turnRate: values.flamesVsTurnRate,
         turnVariation: values.flamesVsTurnVariation,
-        fadeCycleRate: values.flamesVsFadeCycleRate,
-        fadeDepth: values.flamesVsFadeDepth,
+        visibleMinMs: values.flamesVsVisibleMinSec * 1000,
+        visibleMaxMs: values.flamesVsVisibleMaxSec * 1000,
+        hiddenMinMs: values.flamesVsHiddenMinSec * 1000,
+        hiddenMaxMs: values.flamesVsHiddenMaxSec * 1000,
         lifeMinMs: values.flamesVsLifeMinSec * 1000,
         lifeMaxMs: values.flamesVsLifeMaxSec * 1000,
         edgeMarginRatio: values.flamesVsEdgeMargin,

@@ -178,8 +178,10 @@ export interface VortexSingularConfig {
   segSpacingPx: number;
   turnRate: number;
   turnVariation: number;
-  fadeCycleRate: number;
-  fadeDepth: number;
+  visibleMinMs: number;
+  visibleMaxMs: number;
+  hiddenMinMs: number;
+  hiddenMaxMs: number;
   lifeMinMs: number;
   lifeMaxMs: number;
   edgeMarginRatio: number;

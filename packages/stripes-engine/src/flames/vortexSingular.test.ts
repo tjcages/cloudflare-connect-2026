@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createFlamesState, stepFlames } from "./flamesSim";
-import { vortexSingularFade, vortexSingularLifeEnvelope, type VortexTail } from "./vortexSingular";
+import { vortexSingularLifeEnvelope } from "./vortexSingular";
 import { mulberry32 } from "../core/rng";
 import { DEFAULT_VORTEX_SINGULAR } from "../config/normalize";
 import type { FlamesConfig } from "../config/types";
@@ -56,7 +56,7 @@ describe("stepVortexSingular", () => {
   });
 
   it("always turns and never settles into a fixed-rate circle", () => {
-    const config = makeConfig({ fadeDepth: 0, lifeMinMs: 60000, lifeMaxMs: 60000 });
+    const config = makeConfig({ lifeMinMs: 60000, lifeMaxMs: 60000 });
     const state = createFlamesState(mulberry32(7));
     stepFlames(state, config, DISPLAY, 1000);
     const tail = state.tails[0];
@@ -74,7 +74,7 @@ describe("stepVortexSingular", () => {
   });
 
   it("keeps segments at constant arc-length spacing", () => {
-    const cfg = makeConfig({ fadeDepth: 0, lifeMinMs: 60000, lifeMaxMs: 60000 });
+    const cfg = makeConfig({ lifeMinMs: 60000, lifeMaxMs: 60000, visibleMinMs: 60000, visibleMaxMs: 60000 });
     const state = run(cfg, 20);
     const first = state.flames.filter((f) => f.colorSeed === state.flames[0].colorSeed);
     expect(first.length).toBeGreaterThan(3);
@@ -87,16 +87,6 @@ describe("stepVortexSingular", () => {
     }
   });
 
-  it("keeps moving while fully faded", () => {
-    const state = run(makeConfig(), 5);
-    const tail = state.tails[0];
-    const { x, y } = tail;
-    for (let i = 0; i < 30; i++) {
-      stepFlames(state, makeConfig(), DISPLAY, 1000 + Math.round(5 / 0.016) * 16 + (i + 1) * 16);
-    }
-    expect(Math.hypot(tail.x - x, tail.y - y)).toBeGreaterThan(1);
-  });
-
   it("respawns dead tails so the population holds", () => {
     const config = makeConfig({ lifeMinMs: 1000, lifeMaxMs: 1000 });
     const state = run(config, 3);
@@ -107,7 +97,7 @@ describe("stepVortexSingular", () => {
   });
 
   it("steers heads back inside the viewport", () => {
-    const state = run(makeConfig({ fadeDepth: 0 }), 60);
+    const state = run(makeConfig(), 60);
     const margin = DEFAULT_VORTEX_SINGULAR.edgeMarginRatio * Math.min(DISPLAY.width, DISPLAY.height);
     for (const tail of state.tails) {
       expect(tail.x).toBeGreaterThan(-2 * margin);
@@ -116,42 +106,77 @@ describe("stepVortexSingular", () => {
       expect(tail.y).toBeLessThan(DISPLAY.height + 2 * margin);
     }
   });
-});
 
-describe("vortexSingularFade", () => {
-  const tail = {
-    fadeSeed1: 1,
-    fadeSeed2: 1.7,
-    fadePhase1: 0.4,
-    fadePhase2: 2.1,
-  } as VortexTail;
-
-  it("reaches zero and recovers at full depth", () => {
-    const cfg = { ...DEFAULT_VORTEX_SINGULAR, fadeDepth: 1 };
-    let sawZero = false;
-    let sawRecovered = false;
-    for (let t = 0; t < 120; t += 0.05) {
-      const v = vortexSingularFade(tail, t, cfg);
-      if (v <= 0.001) sawZero = true;
-      if (sawZero && v > 0.5) sawRecovered = true;
+  it("keeps moving while hidden and emits no segments", () => {
+    const config = makeConfig({
+      segCount: 5,
+      segSpacingPx: 4,
+      visibleMinMs: 600,
+      visibleMaxMs: 600,
+      hiddenMinMs: 800,
+      hiddenMaxMs: 800,
+      lifeMinMs: 60000,
+      lifeMaxMs: 60000,
+    });
+    const state = createFlamesState(mulberry32(7));
+    stepFlames(state, config, DISPLAY, 1000);
+    const tail = state.tails[0];
+    let sawHidden = false;
+    let movedWhileHidden = false;
+    let prevX = tail.x;
+    let prevY = tail.y;
+    for (let i = 1; i <= 400; i++) {
+      stepFlames(state, config, DISPLAY, 1000 + i * 16);
+      if (tail.hidden) {
+        sawHidden = true;
+        if (Math.hypot(tail.x - prevX, tail.y - prevY) > 0) movedWhileHidden = true;
+        expect(state.flames.some((f) => f.colorSeed === tail.colorSeed)).toBe(false);
+      }
+      prevX = tail.x;
+      prevY = tail.y;
     }
-    expect(sawZero).toBe(true);
-    expect(sawRecovered).toBe(true);
+    expect(sawHidden).toBe(true);
+    expect(movedWhileHidden).toBe(true);
   });
 
-  it("never fully vanishes at zero depth", () => {
-    const cfg = { ...DEFAULT_VORTEX_SINGULAR, fadeDepth: 0 };
-    for (let t = 0; t < 30; t += 0.05) {
-      expect(vortexSingularFade(tail, t, cfg)).toBe(1);
+  it("regrows from the head after reappearing", () => {
+    const config = makeConfig({
+      segCount: 8,
+      segSpacingPx: 6,
+      visibleMinMs: 600,
+      visibleMaxMs: 600,
+      hiddenMinMs: 400,
+      hiddenMaxMs: 400,
+      lifeMinMs: 60000,
+      lifeMaxMs: 60000,
+    });
+    const state = createFlamesState(mulberry32(7));
+    stepFlames(state, config, DISPLAY, 1000);
+    const tail = state.tails[0];
+    let wasHidden = false;
+    let reappearedAt = 0;
+    for (let i = 1; i <= 600 && !reappearedAt; i++) {
+      stepFlames(state, config, DISPLAY, 1000 + i * 16);
+      if (tail.hidden) wasHidden = true;
+      else if (wasHidden) reappearedAt = i;
     }
+    expect(reappearedAt).toBeGreaterThan(0);
+    const countFor = () => state.flames.filter((f) => f.colorSeed === tail.colorSeed).length;
+    const early = countFor();
+    for (let j = 1; j <= 40; j++) {
+      stepFlames(state, config, DISPLAY, 1000 + (reappearedAt + j) * 16);
+    }
+    const later = countFor();
+    expect(later).toBeGreaterThan(early);
+    expect(later).toBeLessThanOrEqual(8);
   });
 });
 
 describe("vortexSingularLifeEnvelope", () => {
-  it("fades in, holds, fades out", () => {
-    expect(vortexSingularLifeEnvelope(0, 10000)).toBe(0);
-    expect(vortexSingularLifeEnvelope(600, 10000)).toBe(1);
+  it("holds full then fades out at end of life", () => {
+    expect(vortexSingularLifeEnvelope(0, 10000)).toBe(1);
     expect(vortexSingularLifeEnvelope(5000, 10000)).toBe(1);
+    expect(vortexSingularLifeEnvelope(9400, 10000)).toBe(1);
     expect(vortexSingularLifeEnvelope(10000, 10000)).toBe(0);
   });
 });

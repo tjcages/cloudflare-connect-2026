@@ -456,10 +456,12 @@ export const DEFAULT_VORTEX_SINGULAR: VortexSingularConfig = {
   segSpacingPx: 10,
   turnRate: 0.9,
   turnVariation: 0.8,
-  fadeCycleRate: 0.5,
-  fadeDepth: 1,
-  lifeMinMs: 6000,
-  lifeMaxMs: 14000,
+  visibleMinMs: 7000,
+  visibleMaxMs: 13000,
+  hiddenMinMs: 800,
+  hiddenMaxMs: 2600,
+  lifeMinMs: 12000,
+  lifeMaxMs: 24000,
   edgeMarginRatio: 0.12,
 };
 
@@ -501,13 +503,17 @@ function normalizeFlamesDirection(value: unknown): FlamesDirection {
 
 function normalizeVortexSingular(i: Partial<VortexSingularConfig> = {}): VortexSingularConfig {
   const lifeMinMs = clamp(Math.round(num(i.lifeMinMs, DEFAULT_VORTEX_SINGULAR.lifeMinMs)), 500, 60000);
+  const visibleMinMs = clamp(Math.round(num(i.visibleMinMs, DEFAULT_VORTEX_SINGULAR.visibleMinMs)), 500, 60000);
+  const hiddenMinMs = clamp(Math.round(num(i.hiddenMinMs, DEFAULT_VORTEX_SINGULAR.hiddenMinMs)), 0, 30000);
   return {
     segCount: clamp(Math.round(num(i.segCount, DEFAULT_VORTEX_SINGULAR.segCount)), 2, 80),
     segSpacingPx: clamp(num(i.segSpacingPx, DEFAULT_VORTEX_SINGULAR.segSpacingPx), 2, 60),
     turnRate: clamp(num(i.turnRate, DEFAULT_VORTEX_SINGULAR.turnRate), 0.05, 6),
     turnVariation: clamp(num(i.turnVariation, DEFAULT_VORTEX_SINGULAR.turnVariation), 0, 1),
-    fadeCycleRate: clamp(num(i.fadeCycleRate, DEFAULT_VORTEX_SINGULAR.fadeCycleRate), 0.02, 4),
-    fadeDepth: clamp(num(i.fadeDepth, DEFAULT_VORTEX_SINGULAR.fadeDepth), 0, 1),
+    visibleMinMs,
+    visibleMaxMs: clamp(Math.round(num(i.visibleMaxMs, DEFAULT_VORTEX_SINGULAR.visibleMaxMs)), visibleMinMs, 120000),
+    hiddenMinMs,
+    hiddenMaxMs: clamp(Math.round(num(i.hiddenMaxMs, DEFAULT_VORTEX_SINGULAR.hiddenMaxMs)), hiddenMinMs, 60000),
     lifeMinMs,
     lifeMaxMs: clamp(Math.round(num(i.lifeMaxMs, DEFAULT_VORTEX_SINGULAR.lifeMaxMs)), lifeMinMs, 120000),
     edgeMarginRatio: clamp(num(i.edgeMarginRatio, DEFAULT_VORTEX_SINGULAR.edgeMarginRatio), 0, 0.4),
