@@ -2200,7 +2200,11 @@ function LabInner() {
           style={{ width: labSettings.textureSidebarWidth }}
         >
           <div className="lab-sidebar-header">
-            <img className="lab-sidebar-logo" src="/connect-logo.svg" alt="Connect" />
+            <img
+              className="lab-sidebar-logo"
+              src={editTheme === "dark" ? "/connect-logo-dark.svg" : "/connect-logo.svg"}
+              alt="Connect"
+            />
             <button
               className="lab-sidebar-toggle"
               type="button"
