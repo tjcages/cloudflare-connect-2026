@@ -12,19 +12,25 @@ import type {
   VortexSingularConfig,
   WavePosition,
   EdgeMaskConfig,
+  ConstellationTrailConfig,
+  CometTrailConfig,
   CursorTrailConfig,
   ClickWaveConfig,
+  DetonationClickConfig,
   LettersConfig,
   ColorsConfig,
   RenderMode,
   GradientConfig,
   BackgroundGradient,
+  BackgroundMeteors,
   GradientDirection,
   MotionDirection,
   StripeBlendMode,
   RevealType,
   WarpStyleConfig,
   VortexRevealConfig,
+  BlackholeRevealConfig,
+  WhirlpoolRevealConfig,
   WaterRevealConfig,
 } from "./types";
 
@@ -71,6 +77,57 @@ export function normalizeGradient(i: Partial<GradientConfig> = {}): GradientConf
   };
 }
 
+export const DEFAULT_BACKGROUND_METEORS: BackgroundMeteors = {
+  enabled: false,
+  ratePerSec: 5,
+  maxActive: 36,
+  radiantAngleDeg: 35,
+  angleJitterDeg: 14,
+  speedScale: 1,
+  speedVariation: 0.4,
+  tailLengthScale: 1,
+  tailLengthVariation: 0.47,
+  thicknessScale: 1,
+  thicknessVariation: 0.39,
+  lifetimeMinMs: 1000,
+  lifetimeMaxMs: 2400,
+  brightness: 1,
+  headGlow: 1,
+  pushPx: 6,
+  pushFalloffScale: 1,
+  fadeInMs: 80,
+  fadeOutMs: 580,
+  seed: 1,
+};
+
+export function normalizeBackgroundMeteors(i: Partial<BackgroundMeteors> = {}): BackgroundMeteors {
+  const d = DEFAULT_BACKGROUND_METEORS;
+  const lifetimeMinMs = clamp(num(i.lifetimeMinMs, d.lifetimeMinMs), 60, 20_000);
+  const lifetimeMaxMs = Math.max(lifetimeMinMs, clamp(num(i.lifetimeMaxMs, d.lifetimeMaxMs), 60, 20_000));
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : d.enabled,
+    ratePerSec: clamp(num(i.ratePerSec, d.ratePerSec), 0.02, 120),
+    maxActive: clampInt(num(i.maxActive, d.maxActive), 1, 64),
+    radiantAngleDeg: clamp(num(i.radiantAngleDeg, d.radiantAngleDeg), -180, 180),
+    angleJitterDeg: clamp(num(i.angleJitterDeg, d.angleJitterDeg), 0, 90),
+    speedScale: clamp(num(i.speedScale, d.speedScale), 0.05, 6),
+    speedVariation: clamp(num(i.speedVariation, d.speedVariation), 0, 1),
+    tailLengthScale: clamp(num(i.tailLengthScale, d.tailLengthScale), 0.05, 6),
+    tailLengthVariation: clamp(num(i.tailLengthVariation, d.tailLengthVariation), 0, 1),
+    thicknessScale: clamp(num(i.thicknessScale, d.thicknessScale), 0.05, 6),
+    thicknessVariation: clamp(num(i.thicknessVariation, d.thicknessVariation), 0, 1),
+    lifetimeMinMs,
+    lifetimeMaxMs,
+    brightness: clamp(num(i.brightness, d.brightness), 0, 4),
+    headGlow: clamp(num(i.headGlow, d.headGlow), 0, 4),
+    pushPx: clamp(num(i.pushPx, d.pushPx), 0, 80),
+    pushFalloffScale: clamp(num(i.pushFalloffScale, d.pushFalloffScale), 0.05, 8),
+    fadeInMs: clamp(num(i.fadeInMs, d.fadeInMs), 0, 10_000),
+    fadeOutMs: clamp(num(i.fadeOutMs, d.fadeOutMs), 0, 10_000),
+    seed: clampInt(num(i.seed, d.seed), 0, 1_000_000),
+  };
+}
+
 export const DEFAULT_BACKGROUND: Background = {
   color: 0xffffff,
   transparent: true,
@@ -96,6 +153,7 @@ export const DEFAULT_BACKGROUND: Background = {
     opacity: 0.8,
     color: 0xffffff,
   },
+  meteors: { ...DEFAULT_BACKGROUND_METEORS },
 };
 
 type PartialBackground = {
@@ -104,6 +162,7 @@ type PartialBackground = {
   gradient?: Partial<Background["gradient"]>;
   grid?: Partial<Background["grid"]>;
   stars?: Partial<Background["stars"]>;
+  meteors?: Partial<Background["meteors"]>;
 };
 
 export function normalizeBackground(i: PartialBackground = {}): Background {
@@ -144,6 +203,7 @@ export function normalizeBackground(i: PartialBackground = {}): Background {
       opacity: clamp(num(s.opacity, DEFAULT_BACKGROUND.stars.opacity), 0, 1),
       color: Math.round(clamp(num(s.color, DEFAULT_BACKGROUND.stars.color), 0, 0xffffff)),
     },
+    meteors: normalizeBackgroundMeteors(i.meteors),
   };
 }
 
@@ -239,7 +299,17 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-export const REVEAL_TYPES: readonly RevealType[] = ["wave", "assembly", "turbulence", "glitch", "vortex", "water"];
+export const REVEAL_TYPES: readonly RevealType[] = [
+  "wave",
+  "assembly",
+  "turbulence",
+  "glitch",
+  "vortex",
+  "blackhole",
+  "whirlpool",
+  "water",
+  "custom",
+];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",
@@ -264,6 +334,27 @@ export const DEFAULT_REVEAL: RevealConfig = {
     detail: 0.5,
     glow: 0.7,
     swirl: 1,
+  },
+  blackhole: {
+    speedMinMs: 260,
+    speedMaxMs: 1050,
+    staggerMs: 3600,
+    intensity: 1,
+    detail: 0.5,
+    glow: 0.7,
+    swirl: 1.2,
+    formMs: 1150,
+    collapseMs: 420,
+    arms: 3,
+    lensing: 1,
+    horizon: 0.12,
+  },
+  whirlpool: {
+    durationMs: 5600,
+    turns: 4,
+    tightness: 0.22,
+    streak: 0.6,
+    glow: 0.4,
   },
   water: {
     durationMs: 950,
@@ -295,6 +386,8 @@ type PartialReveal = {
   glitch?: Partial<WarpStyleConfig>;
   vortex?: Partial<RevealConfig["vortex"]>;
   hadouken?: Partial<RevealConfig["vortex"]>;
+  blackhole?: Partial<BlackholeRevealConfig>;
+  whirlpool?: Partial<WhirlpoolRevealConfig>;
   water?: Partial<WaterRevealConfig>;
 };
 
@@ -335,6 +428,34 @@ function normalizeVortexBlock(i: Partial<VortexRevealConfig> = {}, d: VortexReve
   return {
     ...normalizeWarpStyleBlock(i, d),
     swirl: clamp(num(i.swirl, d.swirl), 0, 3),
+  };
+}
+
+function normalizeBlackholeBlock(
+  i: Partial<BlackholeRevealConfig> = {},
+  d: BlackholeRevealConfig,
+): BlackholeRevealConfig {
+  return {
+    ...normalizeWarpStyleBlock(i, d),
+    swirl: clamp(num(i.swirl, d.swirl), 0, 3),
+    formMs: clamp(Math.round(num(i.formMs, d.formMs)), 0, 10000),
+    collapseMs: clamp(Math.round(num(i.collapseMs, d.collapseMs)), 0, 10000),
+    arms: clamp(Math.round(num(i.arms, d.arms)), 1, 8),
+    lensing: clamp(num(i.lensing, d.lensing), 0, 2),
+    horizon: clamp(num(i.horizon, d.horizon), 0.02, 0.3),
+  };
+}
+
+function normalizeWhirlpoolBlock(
+  i: Partial<WhirlpoolRevealConfig> = {},
+  d: WhirlpoolRevealConfig,
+): WhirlpoolRevealConfig {
+  return {
+    durationMs: clamp(Math.round(num(i.durationMs, d.durationMs)), 100, 30000),
+    turns: clamp(num(i.turns, d.turns), 0, 6),
+    tightness: clamp(num(i.tightness, d.tightness), 0.05, 0.5),
+    streak: clamp(num(i.streak, d.streak), 0, 1),
+    glow: clamp(num(i.glow, d.glow), 0, 1),
   };
 }
 
@@ -381,6 +502,8 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     vortex: normalizeVortexBlock(i.vortex ?? i.hadouken ?? a.vortex ?? a.hadouken, DEFAULT_REVEAL.vortex),
+    blackhole: normalizeBlackholeBlock(i.blackhole, DEFAULT_REVEAL.blackhole),
+    whirlpool: normalizeWhirlpoolBlock(i.whirlpool, DEFAULT_REVEAL.whirlpool),
     water: normalizeWaterBlock(i.water, DEFAULT_REVEAL.water),
   };
 }
@@ -566,6 +689,150 @@ export function normalizeEdgeMask(i: PartialEdgeMask = {}): EdgeMaskConfig {
   };
 }
 
+export const DEFAULT_CONSTELLATION_TRAIL: ConstellationTrailConfig = {
+  radiusScale: 0.31,
+  starDensity: 1,
+  starSizePx: 2.2,
+  starSizeRandomness: 0.77,
+  starGrowScale: 1.35,
+  starPushPx: 1.9,
+  twinkleAmount: 0.18,
+  twinkleSpeed: 1,
+  linkThicknessPx: 2.9,
+  linkBrightness: 1,
+  linkGrooveDepth: 1,
+  linkShearPx: 13.5,
+  linkMaxDistScale: 0.2184,
+  linkFormMs: 210,
+  linkHoldMs: 0,
+  linkDissolveMs: 540,
+  maxLinks: 48,
+  maxStars: 64,
+  pulseEnabled: true,
+  pulseDurationMs: 700,
+  pulseCoreLenPx: 3.4,
+  pulseTailLenPx: 27,
+  pulseBrightness: 1,
+  pulseRelayHops: 2,
+  pulseCooldownMs: 900,
+  flareMs: 460,
+  flareScale: 0.85,
+  polygonFlashEnabled: true,
+  polygonFlashStrength: 1,
+};
+
+type PartialConstellationTrail = Partial<ConstellationTrailConfig>;
+
+export function normalizeConstellationTrail(i: PartialConstellationTrail = {}): ConstellationTrailConfig {
+  const d = DEFAULT_CONSTELLATION_TRAIL;
+  return {
+    radiusScale: clamp(num(i.radiusScale, d.radiusScale), 0.02, 2),
+    starDensity: clamp(num(i.starDensity, d.starDensity), 0.05, 4),
+    starSizePx: clamp(num(i.starSizePx, d.starSizePx), 0.2, 20),
+    starSizeRandomness: clamp(num(i.starSizeRandomness, d.starSizeRandomness), 0, 1),
+    starGrowScale: clamp(num(i.starGrowScale, d.starGrowScale), 0, 6),
+    starPushPx: clamp(num(i.starPushPx, d.starPushPx), 0, 40),
+    twinkleAmount: clamp(num(i.twinkleAmount, d.twinkleAmount), 0, 1),
+    twinkleSpeed: clamp(num(i.twinkleSpeed, d.twinkleSpeed), 0, 10),
+    linkThicknessPx: clamp(num(i.linkThicknessPx, d.linkThicknessPx), 0.2, 20),
+    linkBrightness: clamp(num(i.linkBrightness, d.linkBrightness), 0, 4),
+    linkGrooveDepth: clamp(num(i.linkGrooveDepth, d.linkGrooveDepth), 0, 4),
+    linkShearPx: clamp(num(i.linkShearPx, d.linkShearPx), 0, 80),
+    linkMaxDistScale: clamp(num(i.linkMaxDistScale, d.linkMaxDistScale), 0.02, 1),
+    linkFormMs: clamp(num(i.linkFormMs, d.linkFormMs), 10, 5000),
+    linkHoldMs: clamp(num(i.linkHoldMs, d.linkHoldMs), 0, 10_000),
+    linkDissolveMs: clamp(num(i.linkDissolveMs, d.linkDissolveMs), 10, 10_000),
+    maxLinks: clampInt(num(i.maxLinks, d.maxLinks), 4, 80),
+    maxStars: clampInt(num(i.maxStars, d.maxStars), 4, 160),
+    pulseEnabled: i.pulseEnabled !== undefined ? !!i.pulseEnabled : d.pulseEnabled,
+    pulseDurationMs: clamp(num(i.pulseDurationMs, d.pulseDurationMs), 60, 10_000),
+    pulseCoreLenPx: clamp(num(i.pulseCoreLenPx, d.pulseCoreLenPx), 0.5, 60),
+    pulseTailLenPx: clamp(num(i.pulseTailLenPx, d.pulseTailLenPx), 0.5, 240),
+    pulseBrightness: clamp(num(i.pulseBrightness, d.pulseBrightness), 0, 4),
+    pulseRelayHops: clampInt(num(i.pulseRelayHops, d.pulseRelayHops), 0, 6),
+    pulseCooldownMs: clamp(num(i.pulseCooldownMs, d.pulseCooldownMs), 0, 20_000),
+    flareMs: clamp(num(i.flareMs, d.flareMs), 30, 5000),
+    flareScale: clamp(num(i.flareScale, d.flareScale), 0, 6),
+    polygonFlashEnabled: i.polygonFlashEnabled !== undefined ? !!i.polygonFlashEnabled : d.polygonFlashEnabled,
+    polygonFlashStrength: clamp(num(i.polygonFlashStrength, d.polygonFlashStrength), 0, 4),
+  };
+}
+
+export const DEFAULT_COMET_TRAIL: CometTrailConfig = {
+  nodeCount: 13,
+  headStiffness: 5200,
+  headDamping: 104,
+  chainStiffness: 4200,
+  chainDamping: 80,
+  maxLinkPx: 22,
+  headRadiusPx: 10.6,
+  tailRadiusPx: 3.2,
+  stretchThinning: 0.62,
+  smoothUnionPx: 5.4,
+  bodyBrightness: 1,
+  auraStrength: 1,
+  bodyPushPx: 12,
+  presenceRiseRate: 15,
+  presenceFallRate: 2.6,
+  embersEnabled: true,
+  emberRatePerSec: 92,
+  emberMaxCount: 210,
+  emberSizePx: 2.9,
+  emberSpeedMinPxPerSec: 26,
+  emberSpeedMaxPxPerSec: 56,
+  emberSpreadRad: 0.85,
+  emberLifetimeMinMs: 560,
+  emberLifetimeMaxMs: 1400,
+  emberBrightness: 1,
+  emberFadeInFraction: 0.12,
+  seed: 10_368_889,
+};
+
+type PartialCometTrail = Partial<CometTrailConfig>;
+
+export function normalizeCometTrail(i: PartialCometTrail = {}): CometTrailConfig {
+  const d = DEFAULT_COMET_TRAIL;
+  const emberSpeedMinPxPerSec = clamp(num(i.emberSpeedMinPxPerSec, d.emberSpeedMinPxPerSec), 0, 2000);
+  const emberSpeedMaxPxPerSec = Math.max(
+    emberSpeedMinPxPerSec,
+    clamp(num(i.emberSpeedMaxPxPerSec, d.emberSpeedMaxPxPerSec), 0, 2000),
+  );
+  const emberLifetimeMinMs = clamp(num(i.emberLifetimeMinMs, d.emberLifetimeMinMs), 60, 20_000);
+  const emberLifetimeMaxMs = Math.max(
+    emberLifetimeMinMs,
+    clamp(num(i.emberLifetimeMaxMs, d.emberLifetimeMaxMs), 60, 20_000),
+  );
+  return {
+    nodeCount: clampInt(num(i.nodeCount, d.nodeCount), 2, 48),
+    headStiffness: clamp(num(i.headStiffness, d.headStiffness), 100, 40_000),
+    headDamping: clamp(num(i.headDamping, d.headDamping), 1, 600),
+    chainStiffness: clamp(num(i.chainStiffness, d.chainStiffness), 100, 40_000),
+    chainDamping: clamp(num(i.chainDamping, d.chainDamping), 1, 600),
+    maxLinkPx: clamp(num(i.maxLinkPx, d.maxLinkPx), 2, 200),
+    headRadiusPx: clamp(num(i.headRadiusPx, d.headRadiusPx), 0.5, 60),
+    tailRadiusPx: clamp(num(i.tailRadiusPx, d.tailRadiusPx), 0, 40),
+    stretchThinning: clamp(num(i.stretchThinning, d.stretchThinning), 0, 1),
+    smoothUnionPx: clamp(num(i.smoothUnionPx, d.smoothUnionPx), 0.1, 40),
+    bodyBrightness: clamp(num(i.bodyBrightness, d.bodyBrightness), 0, 2),
+    auraStrength: clamp(num(i.auraStrength, d.auraStrength), 0, 3),
+    bodyPushPx: clamp(num(i.bodyPushPx, d.bodyPushPx), 0, 60),
+    presenceRiseRate: clamp(num(i.presenceRiseRate, d.presenceRiseRate), 0.5, 60),
+    presenceFallRate: clamp(num(i.presenceFallRate, d.presenceFallRate), 0.2, 60),
+    embersEnabled: i.embersEnabled !== undefined ? !!i.embersEnabled : d.embersEnabled,
+    emberRatePerSec: clamp(num(i.emberRatePerSec, d.emberRatePerSec), 0, 400),
+    emberMaxCount: clampInt(num(i.emberMaxCount, d.emberMaxCount), 1, 512),
+    emberSizePx: clamp(num(i.emberSizePx, d.emberSizePx), 0.2, 40),
+    emberSpeedMinPxPerSec,
+    emberSpeedMaxPxPerSec,
+    emberSpreadRad: clamp(num(i.emberSpreadRad, d.emberSpreadRad), 0, Math.PI),
+    emberLifetimeMinMs,
+    emberLifetimeMaxMs,
+    emberBrightness: clamp(num(i.emberBrightness, d.emberBrightness), 0, 4),
+    emberFadeInFraction: clamp(num(i.emberFadeInFraction, d.emberFadeInFraction), 0, 0.9),
+    seed: clampInt(num(i.seed, d.seed), 0, 100_000_000),
+  };
+}
+
 export const DEFAULT_CURSOR_TRAIL: CursorTrailConfig = {
   enabled: false,
   type: "default",
@@ -589,6 +856,8 @@ export const DEFAULT_CURSOR_TRAIL: CursorTrailConfig = {
   pushLagPx: 0,
   pushWobblePx: 8,
   pushLeadBlackAlpha: 0,
+  constellation: { ...DEFAULT_CONSTELLATION_TRAIL },
+  comet: { ...DEFAULT_COMET_TRAIL },
 };
 
 type PartialCursorTrail = Partial<CursorTrailConfig>;
@@ -602,7 +871,7 @@ export function normalizeCursorTrail(i: PartialCursorTrail = {}): CursorTrailCon
   const spreadMaxPx = Math.max(spreadMinPx, clamp(num(i.spreadMaxPx, DEFAULT_CURSOR_TRAIL.spreadMaxPx), 0, 120));
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_CURSOR_TRAIL.enabled,
-    type: i.type === "wave" ? "wave" : "default",
+    type: i.type === "wave" || i.type === "constellation" || i.type === "comet" ? i.type : "default",
     particleRadius: clamp(num(i.particleRadius, DEFAULT_CURSOR_TRAIL.particleRadius), 0.5, 80),
     particleAlpha: clamp(num(i.particleAlpha, DEFAULT_CURSOR_TRAIL.particleAlpha), 0, 1),
     particleLifeMs: clamp(num(i.particleLifeMs, DEFAULT_CURSOR_TRAIL.particleLifeMs), 50, 10_000),
@@ -627,11 +896,73 @@ export function normalizeCursorTrail(i: PartialCursorTrail = {}): CursorTrailCon
     pushLagPx: clamp(num(i.pushLagPx, DEFAULT_CURSOR_TRAIL.pushLagPx), 0, 80),
     pushWobblePx: clamp(num(i.pushWobblePx, DEFAULT_CURSOR_TRAIL.pushWobblePx), 0, 80),
     pushLeadBlackAlpha: clamp(num(i.pushLeadBlackAlpha, DEFAULT_CURSOR_TRAIL.pushLeadBlackAlpha), 0, 1),
+    constellation: normalizeConstellationTrail(i.constellation),
+    comet: normalizeCometTrail(i.comet),
+  };
+}
+
+export const DEFAULT_DETONATION_CLICK: DetonationClickConfig = {
+  maxConcurrent: 4,
+  ringReachPx: 168,
+  ringDurationMs: 600,
+  ringThicknessPx: 24,
+  ringRefractionPx: 20,
+  flashRadiusPx: 24,
+  flashDurationMs: 80,
+  flashBrightness: 1,
+  debrisCount: 24,
+  debrisSpeedPxPerSec: 315,
+  debrisSpeedVariation: 0.317,
+  debrisDrag: 1.55,
+  debrisGravityPxPerSec2: 360,
+  debrisLifetimeMs: 1060,
+  debrisLifetimeVariation: 0.302,
+  debrisSizePx: 2.6,
+  debrisBrightness: 1,
+  craterRadiusPx: 118,
+  craterDepth: 1,
+  craterRelaxFastMs: 260,
+  craterRelaxSlowMs: 1450,
+  craterLifeMs: 3400,
+  craterRimStrength: 1,
+  seed: 1,
+};
+
+type PartialDetonationClick = Partial<DetonationClickConfig>;
+
+export function normalizeDetonationClick(i: PartialDetonationClick = {}): DetonationClickConfig {
+  const d = DEFAULT_DETONATION_CLICK;
+  return {
+    maxConcurrent: clampInt(num(i.maxConcurrent, d.maxConcurrent), 1, 16),
+    ringReachPx: clamp(num(i.ringReachPx, d.ringReachPx), 8, 1200),
+    ringDurationMs: clamp(num(i.ringDurationMs, d.ringDurationMs), 40, 8000),
+    ringThicknessPx: clamp(num(i.ringThicknessPx, d.ringThicknessPx), 1, 200),
+    ringRefractionPx: clamp(num(i.ringRefractionPx, d.ringRefractionPx), 0, 160),
+    flashRadiusPx: clamp(num(i.flashRadiusPx, d.flashRadiusPx), 1, 400),
+    flashDurationMs: clamp(num(i.flashDurationMs, d.flashDurationMs), 8, 2000),
+    flashBrightness: clamp(num(i.flashBrightness, d.flashBrightness), 0, 4),
+    debrisCount: clampInt(num(i.debrisCount, d.debrisCount), 0, 96),
+    debrisSpeedPxPerSec: clamp(num(i.debrisSpeedPxPerSec, d.debrisSpeedPxPerSec), 10, 4000),
+    debrisSpeedVariation: clamp(num(i.debrisSpeedVariation, d.debrisSpeedVariation), 0, 1),
+    debrisDrag: clamp(num(i.debrisDrag, d.debrisDrag), 0.05, 12),
+    debrisGravityPxPerSec2: clamp(num(i.debrisGravityPxPerSec2, d.debrisGravityPxPerSec2), 0, 4000),
+    debrisLifetimeMs: clamp(num(i.debrisLifetimeMs, d.debrisLifetimeMs), 60, 10_000),
+    debrisLifetimeVariation: clamp(num(i.debrisLifetimeVariation, d.debrisLifetimeVariation), 0, 1),
+    debrisSizePx: clamp(num(i.debrisSizePx, d.debrisSizePx), 0.2, 40),
+    debrisBrightness: clamp(num(i.debrisBrightness, d.debrisBrightness), 0, 4),
+    craterRadiusPx: clamp(num(i.craterRadiusPx, d.craterRadiusPx), 4, 1200),
+    craterDepth: clamp(num(i.craterDepth, d.craterDepth), 0, 4),
+    craterRelaxFastMs: clamp(num(i.craterRelaxFastMs, d.craterRelaxFastMs), 20, 10_000),
+    craterRelaxSlowMs: clamp(num(i.craterRelaxSlowMs, d.craterRelaxSlowMs), 20, 20_000),
+    craterLifeMs: clamp(num(i.craterLifeMs, d.craterLifeMs), 100, 20_000),
+    craterRimStrength: clamp(num(i.craterRimStrength, d.craterRimStrength), 0, 4),
+    seed: Math.round(clamp(num(i.seed, d.seed), 0, 1_000_000)),
   };
 }
 
 export const DEFAULT_CLICK_WAVE: ClickWaveConfig = {
   enabled: false,
+  type: "default",
   lifeMs: 630,
   startRadiusPx: 6,
   maxRadiusPx: 120,
@@ -641,6 +972,7 @@ export const DEFAULT_CLICK_WAVE: ClickWaveConfig = {
   pushStrengthPx: 38,
   pushBandScale: 3.2,
   stripeWhiteAlpha: 0.5,
+  detonation: { ...DEFAULT_DETONATION_CLICK },
 };
 
 type PartialClickWave = Partial<ClickWaveConfig>;
@@ -648,6 +980,7 @@ type PartialClickWave = Partial<ClickWaveConfig>;
 export function normalizeClickWave(i: PartialClickWave = {}): ClickWaveConfig {
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_CLICK_WAVE.enabled,
+    type: i.type === "detonation" ? i.type : "default",
     lifeMs: clamp(num(i.lifeMs, DEFAULT_CLICK_WAVE.lifeMs), 80, 10_000),
     startRadiusPx: clamp(num(i.startRadiusPx, DEFAULT_CLICK_WAVE.startRadiusPx), 1, 120),
     maxRadiusPx: clamp(num(i.maxRadiusPx, DEFAULT_CLICK_WAVE.maxRadiusPx), 4, 600),
@@ -657,6 +990,7 @@ export function normalizeClickWave(i: PartialClickWave = {}): ClickWaveConfig {
     pushStrengthPx: clamp(num(i.pushStrengthPx, DEFAULT_CLICK_WAVE.pushStrengthPx), 0, 200),
     pushBandScale: clamp(num(i.pushBandScale, DEFAULT_CLICK_WAVE.pushBandScale), 1, 8),
     stripeWhiteAlpha: clamp(num(i.stripeWhiteAlpha, DEFAULT_CLICK_WAVE.stripeWhiteAlpha), 0, 1),
+    detonation: normalizeDetonationClick(i.detonation),
   };
 }
 

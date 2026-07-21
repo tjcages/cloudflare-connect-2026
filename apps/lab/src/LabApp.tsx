@@ -1261,6 +1261,7 @@ function LabInner() {
         backgroundHex: exportBackground.backgroundHex,
         letters: cfg.letters,
         blendMode: cfg.colors.stripeBlendMode,
+        widthSparkle: cfg.sparkle.width,
         gradient: cfg.colors.gradient.enabled
           ? {
               direction: cfg.colors.gradient.direction,

@@ -21,7 +21,9 @@ import {
   normalizeEdgeMask,
   DEFAULT_EDGE_MASK,
   normalizeCursorTrail,
+  normalizeConstellationTrail,
   DEFAULT_CURSOR_TRAIL,
+  DEFAULT_CONSTELLATION_TRAIL,
   normalizeClickWave,
   DEFAULT_CLICK_WAVE,
   normalizeLetters,
@@ -431,6 +433,12 @@ describe("cursorTrail normalizer", () => {
   it("enabled:false stays false, enabled:true becomes true", () => {
     expect(normalizeCursorTrail({ enabled: false }).enabled).toBe(false);
     expect(normalizeCursorTrail({ enabled: true }).enabled).toBe(true);
+  });
+  it("keeps known types and falls back to default otherwise", () => {
+    expect(normalizeCursorTrail({}).type).toBe("default");
+    expect(normalizeCursorTrail({ type: "wave" }).type).toBe("wave");
+    expect(normalizeCursorTrail({ type: "constellation" }).type).toBe("constellation");
+    expect(normalizeCursorTrail({ type: "nope" as never }).type).toBe("default");
   });
   it("clamps particleRadius to 0.5..80", () => {
     expect(normalizeCursorTrail({ particleRadius: 0 }).particleRadius).toBe(0.5);
@@ -983,5 +991,66 @@ describe("hadouken -> vortex migration", () => {
       reveal: { type: "vortex", vortex: { swirl: 1 }, hadouken: { swirl: 3 } } as never,
     });
     expect(c.reveal.vortex.swirl).toBeCloseTo(1);
+  });
+});
+
+describe("constellation trail normalizer", () => {
+  it("defaults to DEFAULT_CONSTELLATION_TRAIL when called with {}", () => {
+    expect(normalizeConstellationTrail({})).toEqual(DEFAULT_CONSTELLATION_TRAIL);
+    expect(normalizeConstellationTrail(undefined)).toEqual(DEFAULT_CONSTELLATION_TRAIL);
+  });
+  it("normalizeCursorTrail({}) includes DEFAULT_CONSTELLATION_TRAIL", () => {
+    expect(normalizeCursorTrail({}).constellation).toEqual(DEFAULT_CONSTELLATION_TRAIL);
+    expect(normalizeEngineConfig({}).cursorTrail.constellation).toEqual(DEFAULT_CONSTELLATION_TRAIL);
+  });
+  it("clamps linkThicknessPx to 0.2..20", () => {
+    expect(normalizeConstellationTrail({ linkThicknessPx: 0 }).linkThicknessPx).toBe(0.2);
+    expect(normalizeConstellationTrail({ linkThicknessPx: 99 }).linkThicknessPx).toBe(20);
+    expect(normalizeConstellationTrail({ linkThicknessPx: 1.4 }).linkThicknessPx).toBe(1.4);
+  });
+  it("clamps radiusScale and linkMaxDistScale independently", () => {
+    expect(normalizeConstellationTrail({ radiusScale: 0 }).radiusScale).toBe(0.02);
+    expect(normalizeConstellationTrail({ radiusScale: 9 }).radiusScale).toBe(2);
+    expect(normalizeConstellationTrail({ radiusScale: 0.9 }).linkMaxDistScale).toBe(
+      DEFAULT_CONSTELLATION_TRAIL.linkMaxDistScale,
+    );
+    expect(normalizeConstellationTrail({ linkMaxDistScale: 2 }).linkMaxDistScale).toBe(1);
+  });
+  it("rounds integer caps and clamps them", () => {
+    expect(normalizeConstellationTrail({ maxLinks: 3 }).maxLinks).toBe(4);
+    expect(normalizeConstellationTrail({ maxLinks: 999 }).maxLinks).toBe(80);
+    expect(normalizeConstellationTrail({ maxLinks: 12.6 }).maxLinks).toBe(13);
+    expect(normalizeConstellationTrail({ maxStars: 999 }).maxStars).toBe(160);
+    expect(normalizeConstellationTrail({ pulseRelayHops: 2.4 }).pulseRelayHops).toBe(2);
+    expect(normalizeConstellationTrail({ pulseRelayHops: 99 }).pulseRelayHops).toBe(6);
+  });
+  it("keeps booleans explicit and defaults them to true", () => {
+    expect(normalizeConstellationTrail({}).pulseEnabled).toBe(true);
+    expect(normalizeConstellationTrail({ pulseEnabled: false }).pulseEnabled).toBe(false);
+    expect(normalizeConstellationTrail({}).polygonFlashEnabled).toBe(true);
+    expect(normalizeConstellationTrail({ polygonFlashEnabled: false }).polygonFlashEnabled).toBe(false);
+  });
+  it("clamps timings to sane ranges", () => {
+    expect(normalizeConstellationTrail({ linkFormMs: 0 }).linkFormMs).toBe(10);
+    expect(normalizeConstellationTrail({ linkHoldMs: -5 }).linkHoldMs).toBe(0);
+    expect(normalizeConstellationTrail({ linkDissolveMs: 99999 }).linkDissolveMs).toBe(10_000);
+    expect(normalizeConstellationTrail({ flareMs: 1 }).flareMs).toBe(30);
+  });
+  it("round-trips through serialize/parse", () => {
+    const base = normalizeEngineConfig({});
+    const tuned = {
+      ...base,
+      cursorTrail: {
+        ...base.cursorTrail,
+        enabled: true,
+        type: "constellation" as const,
+        constellation: normalizeConstellationTrail({ linkThicknessPx: 0.8, maxLinks: 12 }),
+      },
+    };
+    const back = parseEngineConfig(serializeEngineConfig(tuned));
+    expect(back.cursorTrail.type).toBe("constellation");
+    expect(back.cursorTrail.constellation.linkThicknessPx).toBe(0.8);
+    expect(back.cursorTrail.constellation.maxLinks).toBe(12);
+    expect(back).toEqual(tuned);
   });
 });

@@ -2,7 +2,7 @@ import { type Clock, createRealClock } from "./core/clock";
 import { createFrameCapState, shouldRenderFrame } from "./core/frameCap";
 import type { EngineContext } from "./gl/context";
 import { createCanvasSurface, createSharedSurface, type RenderSurface } from "./gl/renderSurface";
-import { createFullscreenQuad } from "./gl/program";
+import { createFullscreenQuad, type FullscreenQuad } from "./gl/program";
 import { resolveOutputSize, resolveFieldSize, type Size } from "./gl/resolution";
 import { createSourceFieldPass } from "./passes/sourceFieldPass";
 import { createSourceFieldColorPass } from "./passes/sourceFieldColorPass";
@@ -13,6 +13,8 @@ import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createEnergyWarpPass } from "./passes/energyWarpPass";
 import { createVortexPass } from "./passes/vortexPass";
+import { createBlackholePass } from "./passes/blackholePass";
+import { createWhirlpoolPass } from "./passes/whirlpoolPass";
 import { createWaterRevealPass } from "./passes/waterRevealPass";
 import { createBlurPass } from "./passes/blurPass";
 import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
@@ -30,10 +32,19 @@ import { createCursorSplatPass } from "./passes/cursorSplatPass";
 import { createCursorTearPass } from "./passes/cursorTearPass";
 import { createCursorWarpPass } from "./passes/cursorWarpPass";
 import { createClickSplatPass } from "./passes/clickSplatPass";
+import { createConstellationPass } from "./passes/constellationPass";
+import { constellationCaps } from "./cursorTrail/constellationSim";
+import { createCometPass } from "./passes/cometPass";
+import { cometCaps } from "./cursorTrail/cometSim";
+import { createMeteorsPass } from "./passes/meteorsPass";
+import { meteorsCaps } from "./meteors/meteorsSim";
+import { createDetonationPass } from "./passes/detonationPass";
+import { addDetonation, createDetonationState, detonationCaps, type DetonationState } from "./detonation/detonationSim";
 import {
   createCursorTrailState,
   setCursorTrailTarget,
   updateCursorTrail,
+  type CursorTrailPoint,
   type CursorTrailState,
 } from "./cursorTrail/cursorTrailSim";
 import { createClickWaveState, addClickWave, updateClickWave, type ClickWaveState } from "./cursorTrail/clickWaveSim";
@@ -58,7 +69,7 @@ import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
 import { buildStripeLut, buildStripeOpacityLut, lutSignature } from "./field/stripeLut";
 import { effectiveStripes } from "./field/imageColorDensity";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
-import { bindRenderTarget, createMrtTarget, type MrtTarget } from "./gl/renderTarget";
+import { bindRenderTarget, createMrtTarget, type MrtTarget, type RenderTarget } from "./gl/renderTarget";
 import { detectBackgroundColor } from "./colors/backgroundDetect";
 import { extractVibrantColors, createSyntheticVibrantPalette, type VibrantColor } from "./colors/vibrantPalette";
 import { createColorDistPass } from "./passes/colorDistPass";
@@ -79,11 +90,63 @@ function isWarpRevealType(t: RevealType): t is WarpRevealType {
   return t === "turbulence" || t === "glitch";
 }
 
+export type EngineHookContext = {
+  gl: WebGL2RenderingContext;
+  quad: FullscreenQuad;
+  pool: RtPool;
+};
+export type FieldHookFrame = {
+  input: RenderTarget;
+  output: RenderTarget;
+  fieldSize: Size;
+  cssW: number;
+  cssH: number;
+  now: number;
+  elapsed: number;
+  cursor: () => CursorTrailPoint | null;
+};
+export type FieldHookPass = {
+  render(frame: FieldHookFrame): void;
+  dispose(): void;
+};
+export type PostHookFrame = {
+  outputWidth: number;
+  outputHeight: number;
+  cssW: number;
+  cssH: number;
+  now: number;
+  elapsed: number;
+  cursor: () => CursorTrailPoint | null;
+};
+export type PostHookPass = {
+  render(src: WebGLTexture, dst: RenderTarget | null, frame: PostHookFrame): void;
+  dispose(): void;
+};
+export type CustomRevealFrame = {
+  field: RenderTarget;
+  revealed: RenderTarget;
+  progress: number;
+  fieldSize: Size;
+  cssW: number;
+  cssH: number;
+  now: number;
+};
+export type CustomRevealPass = {
+  render(frame: CustomRevealFrame): void;
+  dispose(): void;
+};
+export type EngineHooks = {
+  fieldPass?: (ctx: EngineHookContext) => FieldHookPass;
+  postPass?: (ctx: EngineHookContext) => PostHookPass;
+  customReveal?: (ctx: EngineHookContext) => CustomRevealPass;
+};
+
 export type EngineOptions = {
   clock?: Clock;
   seed?: number;
   dpr?: number;
   fieldScale?: number;
+  hooks?: EngineHooks;
   /** Called when the "wave" trail's 0..1 activity changes meaningfully. */
   onWaterActivity?: (activity: number) => void;
 };
@@ -147,6 +210,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     clock: opts.clock,
     seed: opts.seed,
     fieldScale: opts.fieldScale,
+    hooks: opts.hooks,
     onWaterActivity: opts.onWaterActivity,
     cssWidth: canvas.clientWidth || 800,
     cssHeight: canvas.clientHeight || 600,
@@ -168,6 +232,7 @@ type EngineCoreOptions = {
   clock?: Clock;
   seed?: number;
   fieldScale?: number;
+  hooks?: EngineHooks;
   onWaterActivity?: (activity: number) => void;
   cssWidth: number;
   cssHeight: number;
@@ -175,6 +240,8 @@ type EngineCoreOptions = {
 
 function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): StripesEngine & SharedStripesEngine {
   const clock = opts.clock ?? createRealClock();
+  const hooks = opts.hooks;
+  const createdMs = clock.now();
   let cssW = opts.cssWidth;
   let cssH = opts.cssHeight;
 
@@ -203,12 +270,24 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
-  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" | "water" => {
+  const revealPassKind = ():
+    | "none"
+    | "wave"
+    | "scatter"
+    | "warp"
+    | "vortex"
+    | "blackhole"
+    | "whirlpool"
+    | "water"
+    | "custom" => {
     if (!config.reveal.enabled) return "none";
     if (config.reveal.type === "wave") return "wave";
     if (config.reveal.type === "assembly") return "scatter";
     if (config.reveal.type === "vortex") return "vortex";
+    if (config.reveal.type === "blackhole") return "blackhole";
+    if (config.reveal.type === "whirlpool") return "whirlpool";
     if (config.reveal.type === "water") return "water";
+    if (config.reveal.type === "custom") return hooks?.customReveal ? "custom" : "wave";
     return "warp";
   };
   let lastRevealKind = revealPassKind();
@@ -218,6 +297,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastRenderMode = config.renderMode;
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
   let lastClickWaveEnabled = config.clickWave.enabled;
+  let lastClickWaveType = config.clickWave.type;
   let lastLettersEnabled = config.letters.enabled;
   let lastColorsMode = config.colors.mode;
   let lastStarsEnabled = config.background.stars.enabled;
@@ -239,12 +319,53 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let cursorTrailState: CursorTrailState = createCursorTrailState();
   let clickWaveState: ClickWaveState = createClickWaveState();
   let lastCursorMs = clock.now();
+  const cursorPoint = (): CursorTrailPoint | null => cursorTrailState.target;
 
   // The "wave" trail is a heightfield sim the field pass samples, so it lives
   // outside the pass graph and is stepped before the pipeline each frame.
   let waterSim: WaterSim | null = null;
   let lastCursorTrailType = config.cursorTrail.type;
   let lastReportedActivity = 0;
+
+  const constellationTrailEnabled = (): boolean =>
+    config.cursorTrail.enabled && config.cursorTrail.type === "constellation";
+  const constellationCapSig = (): string => {
+    if (!constellationTrailEnabled()) return "off";
+    const caps = constellationCaps(config.cursorTrail.constellation);
+    return `${caps.maxStars}|${caps.maxLinks}|${caps.maxPulses}`;
+  };
+  let lastConstellationCapSig = constellationCapSig();
+
+  const cometTrailEnabled = (): boolean => config.cursorTrail.enabled && config.cursorTrail.type === "comet";
+  const cometCapSig = (): string => {
+    if (!cometTrailEnabled()) return "off";
+    const caps = cometCaps(config.cursorTrail.comet);
+    return `${caps.nodeCount}|${caps.maxEmbers}`;
+  };
+  let lastCometCapSig = cometCapSig();
+
+  const meteorsCapSig = (): string =>
+    config.background.meteors.enabled ? String(meteorsCaps(config.background.meteors).maxActive) : "off";
+  let lastMeteorsCapSig = meteorsCapSig();
+
+  const detonationClickEnabled = (): boolean => config.clickWave.enabled && config.clickWave.type === "detonation";
+  const detonationCapSig = (): string => {
+    if (!detonationClickEnabled()) return "off";
+    const caps = detonationCaps(config.clickWave.detonation);
+    return `${caps.maxConcurrent}|${caps.debrisCount}`;
+  };
+  let lastDetonationCapSig = detonationCapSig();
+  let detonationState: DetonationState | null = null;
+  let detonationStateSig = "";
+  const ensureDetonationState = (): DetonationState => {
+    const caps = detonationCaps(config.clickWave.detonation);
+    const sig = `${caps.maxConcurrent}|${caps.debrisCount}|${config.clickWave.detonation.seed}`;
+    if (!detonationState || sig !== detonationStateSig) {
+      detonationState = createDetonationState(caps, config.clickWave.detonation.seed);
+      detonationStateSig = sig;
+    }
+    return detonationState;
+  };
 
   function waveTrailEnabled(): boolean {
     return config.cursorTrail.enabled && config.cursorTrail.type === "wave";
@@ -626,6 +747,65 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => vortexPass.dispose(),
       });
+    } else if (revealEnabled && config.reveal.type === "blackhole") {
+      const blackholePass = createBlackholePass(gl, quad);
+      revealFieldPasses.push({
+        name: "blackholeField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const bh = config.reveal.blackhole;
+          const durationMs = resolveRevealDurationMs(config.reveal);
+          const total = Math.max(1, durationMs);
+          const rawProgress = (clock.now() - revealStartMs) / total;
+          const speedMin = Math.max(1, bh.speedMinMs);
+          const speedMax = Math.max(speedMin, bh.speedMaxMs);
+          const gridX = Math.round(280 + 280 * bh.detail);
+          const gridY = Math.max(2, Math.round((gridX * cssH) / Math.max(1, cssW)));
+          const diskCount = 4200;
+          blackholePass.render(revealedRT, fieldRT.texture, {
+            progress: rawProgress,
+            form: bh.formMs / total,
+            spread: bh.staggerMs / total,
+            flightMin: speedMin / total,
+            flightMax: speedMax / total,
+            collapse: bh.collapseMs / total,
+            gridX,
+            gridY,
+            glow: bh.glow,
+            swirl: bh.swirl,
+            arms: bh.arms,
+            lensing: bh.lensing,
+            horizon: bh.horizon,
+            intensity: bh.intensity,
+            aspect: cssW / Math.max(1, cssH),
+            diskCount,
+            count: gridX * gridY * 3 + diskCount,
+          });
+        },
+        dispose: () => blackholePass.dispose(),
+      });
+    } else if (revealEnabled && config.reveal.type === "whirlpool") {
+      const whirlpoolPass = createWhirlpoolPass(gl, quad);
+      revealFieldPasses.push({
+        name: "whirlpoolField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const wp = config.reveal.whirlpool;
+          const durationMs = Math.max(1, resolveRevealDurationMs(config.reveal));
+          const rawProgress = (clock.now() - revealStartMs) / durationMs;
+          whirlpoolPass.render(revealedRT, fieldRT.texture, {
+            progress: rawProgress,
+            turns: wp.turns,
+            tightness: wp.tightness,
+            streak: wp.streak,
+            glow: wp.glow,
+            aspect: cssW / Math.max(1, cssH),
+          });
+        },
+        dispose: () => whirlpoolPass.dispose(),
+      });
     } else if (revealEnabled && isWarpRevealType(config.reveal.type)) {
       const warpPass = createEnergyWarpPass(gl, quad);
       revealFieldPasses.push({
@@ -770,6 +950,27 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           waterRevealPass.dispose();
         },
       });
+    } else if (revealEnabled && config.reveal.type === "custom" && hooks?.customReveal) {
+      const customRevealPass = hooks.customReveal({ gl, quad, pool });
+      revealFieldPasses.push({
+        name: "customRevealField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const durationMs = resolveRevealDurationMs(config.reveal);
+          const progress = (clock.now() - revealStartMs) / durationMs;
+          customRevealPass.render({
+            field: fieldRT,
+            revealed: revealedRT,
+            progress,
+            fieldSize,
+            cssW,
+            cssH,
+            now: clock.now(),
+          });
+        },
+        dispose: () => customRevealPass.dispose(),
+      });
     } else if (revealEnabled) {
       const revealPass = createRevealPass(gl, quad);
       revealFieldPasses.push({
@@ -803,6 +1004,31 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       });
     }
 
+    const hookFieldPasses: Pass[] = [];
+    if (hooks?.fieldPass) {
+      const fieldHookPass = hooks.fieldPass({ gl, quad, pool });
+      const srcRT = activeFieldRT;
+      hookFieldPasses.push({
+        name: "hookField",
+        render: () => {
+          const inputRT = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true });
+          const outputRT = pool.get("hookField", fieldSize.width, fieldSize.height, { linear: true });
+          fieldHookPass.render({
+            input: inputRT,
+            output: outputRT,
+            fieldSize,
+            cssW,
+            cssH,
+            now: clock.now(),
+            elapsed: clock.now() - createdMs,
+            cursor: cursorPoint,
+          });
+        },
+        dispose: () => fieldHookPass.dispose(),
+      });
+      activeFieldRT = "hookField";
+    }
+
     const edgeMaskFieldPasses: Pass[] = [];
     if (config.edgeMask.enabled) {
       const edgeMaskPass = createEdgeMaskPass(gl, quad);
@@ -826,10 +1052,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     const cursorFieldPasses: Pass[] = [];
     // The "wave" type replaces the particle trail entirely; it couples into the
     // field pass instead of adding passes here.
-    const particleTrailEnabled = config.cursorTrail.enabled && config.cursorTrail.type !== "wave";
-    if (particleTrailEnabled || config.clickWave.enabled) {
+    const particleTrailEnabled = config.cursorTrail.enabled && config.cursorTrail.type === "default";
+    const clickWaveRingEnabled = config.clickWave.enabled && config.clickWave.type === "default";
+    if (particleTrailEnabled || clickWaveRingEnabled) {
       const trailEnabled = particleTrailEnabled;
-      const clickEnabled = config.clickWave.enabled;
+      const clickEnabled = clickWaveRingEnabled;
       const splatPass = trailEnabled ? createCursorSplatPass(gl) : null;
       const clickSplatPass = clickEnabled ? createClickSplatPass(gl) : null;
       const tearPass = createCursorTearPass(gl, quad);
@@ -918,6 +1145,106 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       if (colorsMode) activeColorRT = "cursorFieldColor";
     }
 
+    const constellationFieldPasses: Pass[] = [];
+    if (constellationTrailEnabled()) {
+      const constellationPass = createConstellationPass(gl, quad, constellationCaps(config.cursorTrail.constellation));
+      const srcRT = activeFieldRT;
+      constellationFieldPasses.push({
+        name: "constellationField",
+        render: () => {
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const outRT = pool.get("constellationField", fieldSize.width, fieldSize.height, { linear: true });
+          constellationPass.render(outRT, srcTex, {
+            config: config.cursorTrail.constellation,
+            cursor: cursorTrailState.target,
+            cssW,
+            cssH,
+            now: clock.now(),
+            timeSec: (clock.now() - createdMs) * 0.001,
+          });
+        },
+        dispose: () => constellationPass.dispose(),
+      });
+      activeFieldRT = "constellationField";
+    }
+
+    const cometFieldPasses: Pass[] = [];
+    if (cometTrailEnabled()) {
+      const cometPass = createCometPass(gl, quad, cometCaps(config.cursorTrail.comet));
+      const srcRT = activeFieldRT;
+      cometFieldPasses.push({
+        name: "cometField",
+        render: () => {
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const outRT = pool.get("cometField", fieldSize.width, fieldSize.height, { linear: true });
+          cometPass.render(outRT, srcTex, {
+            config: config.cursorTrail.comet,
+            cursor: cursorTrailState.target,
+            cssW,
+            cssH,
+            now: clock.now(),
+            timeSec: (clock.now() - createdMs) * 0.001,
+          });
+        },
+        dispose: () => cometPass.dispose(),
+      });
+      activeFieldRT = "cometField";
+    }
+
+    const meteorsFieldPasses: Pass[] = [];
+    if (config.background.meteors.enabled) {
+      const meteorsPass = createMeteorsPass(gl, quad, meteorsCaps(config.background.meteors));
+      const srcRT = activeFieldRT;
+      meteorsFieldPasses.push({
+        name: "meteorsField",
+        render: () => {
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const outRT = pool.get("meteorsField", fieldSize.width, fieldSize.height, { linear: true });
+          meteorsPass.render(outRT, srcTex, {
+            config: config.background.meteors,
+            cssW,
+            cssH,
+            timeSec: (clock.now() - createdMs) * 0.001,
+          });
+        },
+        dispose: () => meteorsPass.dispose(),
+      });
+      activeFieldRT = "meteorsField";
+    }
+
+    const detonationFieldPasses: Pass[] = [];
+    if (detonationClickEnabled()) {
+      const detonationPass = createDetonationPass(gl, quad, detonationCaps(config.clickWave.detonation));
+      const srcRT = activeFieldRT;
+      detonationFieldPasses.push({
+        name: "detonationField",
+        render: () => {
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const outRT = pool.get("detonationField", fieldSize.width, fieldSize.height, { linear: true });
+          detonationPass.render(outRT, srcTex, {
+            config: config.clickWave.detonation,
+            state: ensureDetonationState(),
+            cssW,
+            cssH,
+            timeSec: (clock.now() - createdMs) * 0.001,
+          });
+        },
+        dispose: () => detonationPass.dispose(),
+      });
+      activeFieldRT = "detonationField";
+    }
+
+    const postHookPass = hooks?.postPass ? hooks.postPass({ gl, quad, pool }) : null;
+    const postFrame = (): PostHookFrame => ({
+      outputWidth: output.width,
+      outputHeight: output.height,
+      cssW,
+      cssH,
+      now: clock.now(),
+      elapsed: clock.now() - createdMs,
+      cursor: cursorPoint,
+    });
+
     const colorsModeActive = config.colors.mode === "colors";
     if (config.stripesEnabled) {
       const downsamplePass = createDownsamplePass(gl, quad);
@@ -977,8 +1304,13 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...starsFieldPasses,
         ...flamesFieldPasses,
         ...revealFieldPasses,
+        ...hookFieldPasses,
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
+        ...constellationFieldPasses,
+        ...cometFieldPasses,
+        ...meteorsFieldPasses,
+        ...detonationFieldPasses,
         {
           name: "downsample",
           render: () => {
@@ -1023,7 +1355,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
               }),
               output.width,
               output.height,
-              stylizePass ? pool.get("stripeOut", output.width, output.height, { linear: true }) : null,
+              stylizePass || postHookPass ? pool.get("stripeOut", output.width, output.height, { linear: true }) : null,
             );
           },
           dispose: () => stripePass.dispose(),
@@ -1051,7 +1383,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                 render: () => {
                   const src = pool.get("solidOut", output.width, output.height, { linear: true });
                   const stripesRT = pool.get("stripeOut", output.width, output.height, { linear: true });
-                  stylizePass.render(null, src.texture, stripesRT.texture, {
+                  const dst = postHookPass ? pool.get("postSrc", output.width, output.height, { linear: true }) : null;
+                  stylizePass.render(dst, src.texture, stripesRT.texture, {
                     mode: config.renderMode,
                     time: clock.now() / 1000,
                     intensity: config.renderIntensity,
@@ -1066,27 +1399,49 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
               },
             ]
           : []),
+        ...(postHookPass
+          ? [
+              {
+                name: "hookPost",
+                render: () => {
+                  const srcKey = stylizePass ? "postSrc" : "stripeOut";
+                  const srcRT = pool.get(srcKey, output.width, output.height, { linear: true });
+                  postHookPass.render(srcRT.texture, null, postFrame());
+                },
+                dispose: () => postHookPass.dispose(),
+              },
+            ]
+          : []),
       ];
     } else {
-      const presentPass = createPresentPass(gl, quad);
+      const presentPass = postHookPass ? null : createPresentPass(gl, quad);
       passes = [
         fieldPass,
         ...starsFieldPasses,
         ...flamesFieldPasses,
         ...revealFieldPasses,
+        ...hookFieldPasses,
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
+        ...constellationFieldPasses,
+        ...cometFieldPasses,
+        ...meteorsFieldPasses,
+        ...detonationFieldPasses,
         {
-          name: "present",
+          name: postHookPass ? "hookPost" : "present",
           render: () => {
             const presentRT = colorsMode ? activeColorRT : activeFieldRT;
-            presentPass.render(
-              pool.get(presentRT, fieldSize.width, fieldSize.height, { linear: true }).texture,
-              output.width,
-              output.height,
-            );
+            const srcTex = pool.get(presentRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+            if (postHookPass) {
+              postHookPass.render(srcTex, null, postFrame());
+            } else {
+              presentPass!.render(srcTex, output.width, output.height);
+            }
           },
-          dispose: () => presentPass.dispose(),
+          dispose: () => {
+            presentPass?.dispose();
+            postHookPass?.dispose();
+          },
         },
       ];
     }
@@ -1142,6 +1497,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     starsState = createStarsState(mulberry32(starsSeed));
     cursorTrailState = createCursorTrailState();
     clickWaveState = createClickWaveState();
+    detonationState = null;
+    detonationStateSig = "";
     // Water targets/program belong to the lost context; drop without deleting.
     waterSim = null;
     lastCursorMs = clock.now();
@@ -1251,10 +1608,15 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.renderMode !== lastRenderMode ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
         config.cursorTrail.type !== lastCursorTrailType ||
+        constellationCapSig() !== lastConstellationCapSig ||
+        cometCapSig() !== lastCometCapSig ||
         config.clickWave.enabled !== lastClickWaveEnabled ||
+        config.clickWave.type !== lastClickWaveType ||
+        detonationCapSig() !== lastDetonationCapSig ||
         config.letters.enabled !== lastLettersEnabled ||
         config.colors.mode !== lastColorsMode ||
-        config.background.stars.enabled !== lastStarsEnabled
+        config.background.stars.enabled !== lastStarsEnabled ||
+        meteorsCapSig() !== lastMeteorsCapSig
       ) {
         if (config.background.stars.enabled && !lastStarsEnabled) {
           starsState = createStarsState(mulberry32(starsSeed));
@@ -1265,6 +1627,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         }
         if (config.clickWave.enabled && !lastClickWaveEnabled) {
           clickWaveState = createClickWaveState();
+          detonationState = null;
+          detonationStateSig = "";
           lastCursorMs = clock.now();
         }
         buildPasses();
@@ -1275,10 +1639,15 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastRenderMode = config.renderMode;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
         lastCursorTrailType = config.cursorTrail.type;
+        lastConstellationCapSig = constellationCapSig();
+        lastCometCapSig = cometCapSig();
         lastClickWaveEnabled = config.clickWave.enabled;
+        lastClickWaveType = config.clickWave.type;
+        lastDetonationCapSig = detonationCapSig();
         lastLettersEnabled = config.letters.enabled;
         lastColorsMode = config.colors.mode;
         lastStarsEnabled = config.background.stars.enabled;
+        lastMeteorsCapSig = meteorsCapSig();
       }
     },
     setCursor(x, y) {
@@ -1289,6 +1658,16 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       }
     },
     click(x, y) {
+      if (detonationClickEnabled()) {
+        addDetonation(
+          ensureDetonationState(),
+          config.clickWave.detonation,
+          x,
+          y ?? 0,
+          (clock.now() - createdMs) * 0.001,
+        );
+        return;
+      }
       addClickWave(clickWaveState, { x, y: y ?? 0 }, config.clickWave.lifeMs);
     },
     triggerReveal() {
