@@ -9,7 +9,7 @@ export type StripesShaderProps = {
   src: string;
   mediaKind?: "video" | "image";
   config?: ThemedEngineConfig;
-  /** Which theme's config to render. Dark deep-merges \`config.dark\` over the base. */
+  /** Which theme's config to render. Dark deep-merges `config.dark` over the base. */
   theme?: ThemeName;
   width?: number;
   height?: number;
