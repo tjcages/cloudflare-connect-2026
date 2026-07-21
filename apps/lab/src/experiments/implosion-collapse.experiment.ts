@@ -10,13 +10,13 @@ import {
 } from "@necatikcl/stripes-engine";
 import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
-import { PULSE_QUAKE_FIELD_FRAG, PULSE_QUAKE_POST_FRAG } from "./pulse-quake.shaders";
+import { IMPLOSION_FIELD_FRAG, IMPLOSION_POST_FRAG } from "./implosion-collapse.shaders";
 
-const MAX_QUAKES = 3;
-const EVENT_MS = 2200;
-const INTRO_DELAY_MS = 700;
+const MAX_EVENTS = 3;
+const EVENT_MS = 1250;
+const INTRO_DELAY_MS = 650;
 
-interface Quake {
+interface Implosion {
   x: number;
   y: number;
   seed: number;
@@ -24,43 +24,44 @@ interface Quake {
 }
 
 const definition: ExperimentDefinition = {
-  id: "pulse-quake",
-  title: "Pulse Quake",
+  id: "implosion-collapse",
+  title: "Implosion Collapse",
   category: "click",
-  blurb: "Click sets off a quake: a fast compression front, then a slower shear front dragging the stripes sideways.",
+  blurb:
+    "Click pulls the field inward, compresses it into a tight knot, holds a beat, then lets go with one soft rebound puff.",
   pointer: "custom",
   create: (ctx) => {
     const rng = createSeededRng(20260722);
-    const quakes: Quake[] = [];
+    const events: Implosion[] = [];
     const packed = {
       count: 0,
-      centers: new Float32Array(MAX_QUAKES * 2),
-      ages: new Float32Array(MAX_QUAKES),
-      seeds: new Float32Array(MAX_QUAKES),
+      centers: new Float32Array(MAX_EVENTS * 2),
+      ages: new Float32Array(MAX_EVENTS),
+      seeds: new Float32Array(MAX_EVENTS),
     };
 
-    const packQuakes = (now: number) => {
+    const packEvents = (now: number) => {
       let write = 0;
-      for (const quake of quakes) {
-        if (quake.startMs === null) quake.startMs = now;
-        if (now - quake.startMs <= EVENT_MS) quakes[write++] = quake;
+      for (const event of events) {
+        if (event.startMs === null) event.startMs = now;
+        if (now - event.startMs <= EVENT_MS) events[write++] = event;
       }
-      quakes.length = write;
+      events.length = write;
       let count = 0;
-      for (const quake of quakes) {
-        if (count >= MAX_QUAKES) break;
-        packed.centers[count * 2] = quake.x;
-        packed.centers[count * 2 + 1] = quake.y;
-        packed.ages[count] = (now - (quake.startMs ?? now)) / 1000;
-        packed.seeds[count] = quake.seed;
+      for (const event of events) {
+        if (count >= MAX_EVENTS) break;
+        packed.centers[count * 2] = event.x;
+        packed.centers[count * 2 + 1] = event.y;
+        packed.ages[count] = (now - (event.startMs ?? now)) / 1000;
+        packed.seeds[count] = event.seed;
         count++;
       }
       packed.count = count;
     };
 
     const spawn = (x: number, y: number) => {
-      if (quakes.length >= MAX_QUAKES) quakes.shift();
-      quakes.push({ x, y, seed: 1 + rng() * 96, startMs: null });
+      if (events.length >= MAX_EVENTS) events.shift();
+      events.push({ x, y, seed: 1 + rng() * 96, startMs: null });
     };
 
     const onDown = (e: PointerEvent) => {
@@ -72,16 +73,16 @@ const definition: ExperimentDefinition = {
     ctx.canvas.addEventListener("pointerdown", onDown);
 
     const fieldPass = ({ gl, quad }: EngineHookContext): FieldHookPass => {
-      const program = compileProgram(gl, FULLSCREEN_VERT, PULSE_QUAKE_FIELD_FRAG);
+      const program = compileProgram(gl, FULLSCREEN_VERT, IMPLOSION_FIELD_FRAG);
       const uField = gl.getUniformLocation(program, "uField");
       const uCssSize = gl.getUniformLocation(program, "uCssSize");
-      const uCount = gl.getUniformLocation(program, "uQuakeCount");
-      const uCenter = gl.getUniformLocation(program, "uQuakeCenter");
-      const uAge = gl.getUniformLocation(program, "uQuakeAge");
-      const uSeed = gl.getUniformLocation(program, "uQuakeSeed");
+      const uEventCount = gl.getUniformLocation(program, "uEventCount");
+      const uEventCenter = gl.getUniformLocation(program, "uEventCenter");
+      const uEventAge = gl.getUniformLocation(program, "uEventAge");
+      const uEventSeed = gl.getUniformLocation(program, "uEventSeed");
       return {
         render(frame) {
-          packQuakes(frame.now);
+          packEvents(frame.now);
           gl.bindFramebuffer(gl.FRAMEBUFFER, frame.output.fbo);
           gl.viewport(0, 0, frame.output.width, frame.output.height);
           gl.useProgram(program);
@@ -89,10 +90,10 @@ const definition: ExperimentDefinition = {
           gl.bindTexture(gl.TEXTURE_2D, frame.input.texture);
           gl.uniform1i(uField, 0);
           gl.uniform2f(uCssSize, frame.cssW, frame.cssH);
-          gl.uniform1i(uCount, packed.count);
-          gl.uniform2fv(uCenter, packed.centers);
-          gl.uniform1fv(uAge, packed.ages);
-          gl.uniform1fv(uSeed, packed.seeds);
+          gl.uniform1i(uEventCount, packed.count);
+          gl.uniform2fv(uEventCenter, packed.centers);
+          gl.uniform1fv(uEventAge, packed.ages);
+          gl.uniform1fv(uEventSeed, packed.seeds);
           quad.draw();
         },
         dispose: () => gl.deleteProgram(program),
@@ -100,13 +101,13 @@ const definition: ExperimentDefinition = {
     };
 
     const postPass = ({ gl, quad }: EngineHookContext): PostHookPass => {
-      const program = compileProgram(gl, FULLSCREEN_VERT, PULSE_QUAKE_POST_FRAG);
+      const program = compileProgram(gl, FULLSCREEN_VERT, IMPLOSION_POST_FRAG);
       const uSrc = gl.getUniformLocation(program, "uSrc");
       const uCssSize = gl.getUniformLocation(program, "uCssSize");
-      const uCount = gl.getUniformLocation(program, "uQuakeCount");
-      const uCenter = gl.getUniformLocation(program, "uQuakeCenter");
-      const uAge = gl.getUniformLocation(program, "uQuakeAge");
-      const uSeed = gl.getUniformLocation(program, "uQuakeSeed");
+      const uEventCount = gl.getUniformLocation(program, "uEventCount");
+      const uEventCenter = gl.getUniformLocation(program, "uEventCenter");
+      const uEventAge = gl.getUniformLocation(program, "uEventAge");
+      const uEventSeed = gl.getUniformLocation(program, "uEventSeed");
       return {
         render(src, dst, frame) {
           gl.bindFramebuffer(gl.FRAMEBUFFER, dst ? dst.fbo : null);
@@ -116,10 +117,10 @@ const definition: ExperimentDefinition = {
           gl.bindTexture(gl.TEXTURE_2D, src);
           gl.uniform1i(uSrc, 0);
           gl.uniform2f(uCssSize, frame.cssW, frame.cssH);
-          gl.uniform1i(uCount, packed.count);
-          gl.uniform2fv(uCenter, packed.centers);
-          gl.uniform1fv(uAge, packed.ages);
-          gl.uniform1fv(uSeed, packed.seeds);
+          gl.uniform1i(uEventCount, packed.count);
+          gl.uniform2fv(uEventCenter, packed.centers);
+          gl.uniform1fv(uEventAge, packed.ages);
+          gl.uniform1fv(uEventSeed, packed.seeds);
           quad.draw();
         },
         dispose: () => gl.deleteProgram(program),
@@ -132,12 +133,13 @@ const definition: ExperimentDefinition = {
       reveal: { ...DEFAULT_ENGINE_CONFIG.reveal, enabled: false },
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
       clickWave: { ...DEFAULT_ENGINE_CONFIG.clickWave, enabled: false },
+      flames: { ...DEFAULT_ENGINE_CONFIG.flames, enabled: false },
     });
 
     const replay = () => {
       const w = Math.max(1, ctx.canvas.clientWidth);
       const h = Math.max(1, ctx.canvas.clientHeight);
-      spawn(w * (0.26 + 0.48 * rng()), h * (0.3 + 0.4 * rng()));
+      spawn(w * (0.24 + 0.52 * rng()), h * (0.3 + 0.4 * rng()));
     };
 
     let disposed = false;

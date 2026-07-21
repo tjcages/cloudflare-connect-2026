@@ -17,6 +17,7 @@ import {
   REPLAY_DURATION_S,
   replayPoint,
 } from "./comet-embers.sim";
+import { COMET_PATH_POINTS, createCometPath } from "./comet-embers.path";
 
 const HEAT_KEY = "comet-embers-heat";
 
@@ -27,18 +28,24 @@ interface CometUniforms {
   headY: number;
   dirX: number;
   dirY: number;
-  tail: number;
+  headR: number;
   presence: number;
+  core: number;
   time: number;
+  pathCount: number;
+  path: Float32Array;
 }
 
 interface CometLocations {
   cssSize: WebGLUniformLocation | null;
   head: WebGLUniformLocation | null;
   dir: WebGLUniformLocation | null;
-  tail: WebGLUniformLocation | null;
+  headR: WebGLUniformLocation | null;
   presence: WebGLUniformLocation | null;
+  core: WebGLUniformLocation | null;
   time: WebGLUniformLocation | null;
+  pathCount: WebGLUniformLocation | null;
+  path: WebGLUniformLocation | null;
 }
 
 function cometLocations(gl: WebGL2RenderingContext, program: WebGLProgram): CometLocations {
@@ -46,9 +53,12 @@ function cometLocations(gl: WebGL2RenderingContext, program: WebGLProgram): Come
     cssSize: gl.getUniformLocation(program, "uCssSize"),
     head: gl.getUniformLocation(program, "uHead"),
     dir: gl.getUniformLocation(program, "uDir"),
-    tail: gl.getUniformLocation(program, "uTail"),
+    headR: gl.getUniformLocation(program, "uHeadR"),
     presence: gl.getUniformLocation(program, "uPresence"),
+    core: gl.getUniformLocation(program, "uCore"),
     time: gl.getUniformLocation(program, "uTime"),
+    pathCount: gl.getUniformLocation(program, "uPathCount"),
+    path: gl.getUniformLocation(program, "uPath"),
   };
 }
 
@@ -56,9 +66,12 @@ function setCometUniforms(gl: WebGL2RenderingContext, loc: CometLocations, u: Co
   gl.uniform2f(loc.cssSize, u.cssW, u.cssH);
   gl.uniform2f(loc.head, u.headX, u.headY);
   gl.uniform2f(loc.dir, u.dirX, u.dirY);
-  gl.uniform1f(loc.tail, u.tail);
+  gl.uniform1f(loc.headR, u.headR);
   gl.uniform1f(loc.presence, u.presence);
+  gl.uniform1f(loc.core, u.core);
   gl.uniform1f(loc.time, u.time);
+  gl.uniform1f(loc.pathCount, u.pathCount);
+  gl.uniform2fv(loc.path, u.path);
 }
 
 const definition: ExperimentDefinition = {
@@ -77,6 +90,7 @@ const definition: ExperimentDefinition = {
       dirX: 1,
       dirY: 0,
       presence: 0,
+      core: 0,
       lastNow: 0,
       wasActive: false,
     };
@@ -87,11 +101,15 @@ const definition: ExperimentDefinition = {
       headY: 0,
       dirX: 1,
       dirY: 0,
-      tail: 0,
+      headR: 8,
       presence: 0,
+      core: 0,
       time: 0,
+      pathCount: 0,
+      path: new Float32Array(COMET_PATH_POINTS * 2),
     };
     const sim = createEmberSim(0x9e3779);
+    const path = createCometPath();
 
     let replayRaf = 0;
     let replayStart = 0;
@@ -178,6 +196,7 @@ const definition: ExperimentDefinition = {
             motion.y = input.y;
             motion.velX = 0;
             motion.velY = 0;
+            path.reset(input.x, input.y, frame.now);
           }
           const prevX = motion.x;
           const prevY = motion.y;
@@ -196,6 +215,10 @@ const definition: ExperimentDefinition = {
           const target = active ? Math.pow(drive, 0.7) : 0;
           const rate = target > motion.presence ? 15 : 3.4;
           motion.presence += (target - motion.presence) * (1 - Math.exp(-dt * rate));
+          const coreDrive = Math.min(1, Math.max(0, (smoothSpeed - 5) / 70));
+          const coreTarget = active ? Math.pow(coreDrive, 0.6) : 0;
+          const coreRate = coreTarget > motion.core ? 19 : 4.2;
+          motion.core += (coreTarget - motion.core) * (1 - Math.exp(-dt * coreRate));
 
           if (smoothSpeed > 12) {
             const nx = motion.velX / smoothSpeed;
@@ -213,15 +236,20 @@ const definition: ExperimentDefinition = {
           }
           motion.wasActive = active;
           sim.step(dtMs);
+          if (active) path.push(motion.x, motion.y, frame.now);
 
+          const sc = Math.min(2.5, Math.max(0.5, Math.min(frame.cssW, frame.cssH) / 300));
+          const tailLen = (22 + Math.min(1, smoothSpeed / 900) * 190) * sc;
+          uniforms.pathCount = path.sample(motion.x, motion.y, frame.now, tailLen, uniforms.path);
           uniforms.cssW = frame.cssW;
           uniforms.cssH = frame.cssH;
           uniforms.headX = motion.x;
           uniforms.headY = motion.y;
           uniforms.dirX = motion.dirX;
           uniforms.dirY = motion.dirY;
-          uniforms.tail = Math.min(210, 34 + smoothSpeed * 0.1);
+          uniforms.headR = 7.4 + 5.4 * Math.min(1, smoothSpeed / 620);
           uniforms.presence = motion.presence;
+          uniforms.core = motion.core;
           uniforms.time = frame.now / 1000;
 
           const heat = pool.get(HEAT_KEY, frame.fieldSize.width, frame.fieldSize.height, { linear: true });

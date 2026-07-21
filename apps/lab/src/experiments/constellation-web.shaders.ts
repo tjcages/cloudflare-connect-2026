@@ -14,6 +14,7 @@ uniform float uTime;
 uniform int uLineCount;
 uniform vec4 uLineSeg[${CONSTELLATION_MAX_LINES}];
 uniform vec2 uLineFx[${CONSTELLATION_MAX_LINES}];
+uniform float uStarAct[${CONSTELLATION_STAR_COUNT}];
 
 in vec2 vUv;
 out vec4 outColor;
@@ -69,18 +70,20 @@ void main() {
     float near = smoothstep(uLinkRadius, uLinkRadius * 0.25, distance(sp, uCursor)) * uCursorFade;
     float speed = 0.6 + fract(s.z * 13.71 + s.w * 3.93) * 1.7;
     float tw = 0.82 + 0.18 * sin(uTime * speed + s.w * TAU);
-    float rc = (2.2 + 1.7 * s.z) * sc * (1.0 + 0.22 * near) * (0.95 + 0.05 * tw);
-    float reach = rc * 4.4;
+    float rcBase = (2.2 + 1.7 * s.z) * sc * (1.0 + 0.22 * near) * (0.95 + 0.05 * tw);
+    float reach = rcBase * 4.4;
     if (d > reach) continue;
     vec2 dir = d > 1e-4 ? q / d : vec2(0.0);
     float t = d / reach;
     float push = (1.9 + 1.5 * s.z) * sc * (1.0 + 0.55 * near);
     warp += dir * push * 3.3 * t * exp(-t * t * 2.0);
-    add += smoothstep(rc, rc * 0.28, d) * (0.92 + 0.16 * tw);
+    float grow = clamp(uStarAct[i], 0.0, 1.0);
+    float rc = rcBase * (1.0 + 1.35 * grow);
+    add += smoothstep(rc, rc * mix(0.28, 0.6, grow), d) * (0.92 + 0.16 * tw);
     float spikeX = exp(-abs(q.y) / (rc * 0.16)) * exp(-abs(q.x) / (rc * 1.35));
     float spikeY = exp(-abs(q.x) / (rc * 0.16)) * exp(-abs(q.y) / (rc * 1.35));
     add += (spikeX + spikeY) * tw * (0.24 + 0.22 * near);
-    float ring = smoothstep(rc * 2.9, rc * 1.5, d) * smoothstep(rc * 0.95, rc * 1.3, d);
+    float ring = smoothstep(rcBase * 2.9, rcBase * 1.5, d) * smoothstep(rcBase * 0.95, rcBase * 1.3, d);
     dim += ring * (0.42 + 0.14 * near);
   }
 

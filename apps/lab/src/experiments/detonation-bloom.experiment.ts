@@ -12,8 +12,8 @@ import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
 import { DETONATION_FIELD_FRAG, DETONATION_POST_FRAG } from "./detonation-bloom.shaders";
 
-const MAX_DETONATIONS = 3;
-const EVENT_MS = 1250;
+const MAX_DETONATIONS = 4;
+const EVENT_MS = 3400;
 const FLASH_MS = 80;
 const INTRO_DELAY_MS = 650;
 
@@ -45,7 +45,8 @@ const definition: ExperimentDefinition = {
   id: "detonation-bloom",
   title: "Detonation Bloom",
   category: "click",
-  blurb: "Click detonates: an instant flash core, a refracting shock ring, and ballistic ember debris.",
+  blurb:
+    "Click detonates: flash core, refracting shock ring, ballistic ember debris, and a crater dent that slowly relaxes.",
   pointer: "custom",
   create: (ctx) => {
     const rng = createSeededRng(20260721);

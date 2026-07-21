@@ -1,9 +1,9 @@
-export const METEOR_SHOWER_MAX_METEORS = 24;
+export const METEOR_DEPTH_MAX_METEORS = 26;
 
-export const METEOR_SHOWER_FRAG = `#version 300 es
+export const METEOR_DEPTH_FRAG = `#version 300 es
 precision highp float;
 
-const int MAX_METEORS = ${METEOR_SHOWER_MAX_METEORS};
+const int MAX_METEORS = ${METEOR_DEPTH_MAX_METEORS};
 const float TAU = 6.2831853;
 const float STAR_CELL = 30.0;
 
@@ -14,6 +14,7 @@ uniform float uTime;
 uniform int uMeteorCount;
 uniform vec4 uMeteorOrigin[MAX_METEORS];
 uniform vec4 uMeteorShape[MAX_METEORS];
+uniform vec4 uMeteorDepth[MAX_METEORS];
 
 in vec2 vUv;
 out vec4 outColor;
@@ -65,6 +66,7 @@ void meteorContribution(
   vec2 point,
   vec4 origin,
   vec4 shape,
+  vec4 depth,
   float diagonal,
   float scale,
   inout vec2 warp,
@@ -76,11 +78,15 @@ void meteorContribution(
   if (age < 0.0 || age > lifetime) return;
 
   float fadeStart = lifetime * 0.66;
-  float envelope = smoothstep(0.0, 0.08, age) * (1.0 - smoothstep(fadeStart, lifetime, age));
+  float envelope = smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(fadeStart, lifetime, age));
   vec2 direction = rotateVector(normalize(uRadiantDirection), shape.x);
   float speed = diagonal * 0.78 * shape.y;
   float tailLength = diagonal * 0.4 * shape.z;
   float bulk = shape.w * scale;
+  float pushScale = depth.x;
+  float lightScale = depth.y;
+  float carveScale = depth.z;
+  float headScale = depth.w;
 
   vec2 head = origin.xy * uCanvasSize + direction * speed * age;
   vec2 relative = point - head;
@@ -93,24 +99,25 @@ void meteorContribution(
   float taper = pow(1.0 - clamp(progress, 0.0, 1.0), 0.6);
 
   float channelWidth = (4.5 + 8.0 * taper) * bulk;
-  float amount = pushProfile(axisDistance, channelWidth) * channelWidth * 0.34 * envelope * taper;
+  float amount = pushProfile(axisDistance, channelWidth) * channelWidth * 0.34 * envelope * taper * pushScale;
   vec2 pushDirection = axisDistance > 0.0001 ? offset / axisDistance : vec2(-direction.y, direction.x);
   warp -= pushDirection * amount;
 
-  float drag = exp(-axisDistance / max(1.0, channelWidth * 1.1)) * envelope * taper * 5.5 * bulk;
+  float drag = exp(-axisDistance / max(1.0, channelWidth * 1.1)) * envelope * taper * 5.5 * bulk * pushScale;
   warp -= direction * drag;
 
   float coreWidth = (1.5 + 3.6 * taper) * bulk;
-  carve = max(carve, exp(-(axisDistance * axisDistance) / (coreWidth * coreWidth * 4.0)) * envelope * taper);
+  float channel = exp(-(axisDistance * axisDistance) / (coreWidth * coreWidth * 4.0)) * envelope * taper;
+  carve = max(carve, channel * carveScale);
 
   float streak = 1.0 - smoothstep(coreWidth * 0.35, coreWidth * 1.5, axisDistance);
-  light = max(light, streak * envelope * (0.55 + 0.45 * taper));
+  light = max(light, streak * envelope * (0.55 + 0.45 * taper) * lightScale);
 
   float headDistance = length(relative);
-  float headRadius = 9.5 * bulk;
-  light = max(light, (1.0 - smoothstep(headRadius * 0.2, headRadius, headDistance)) * envelope);
+  float headRadius = 9.5 * bulk * headScale;
+  light = max(light, (1.0 - smoothstep(headRadius * 0.2, headRadius, headDistance)) * envelope * lightScale);
 
-  float bow = pushProfile(headDistance, headRadius * 1.2) * headRadius * 0.4 * envelope;
+  float bow = pushProfile(headDistance, headRadius * 1.2) * headRadius * 0.4 * envelope * pushScale;
   vec2 bowDirection = headDistance > 0.0001 ? relative / headDistance : direction;
   warp -= bowDirection * bow;
 }
@@ -128,7 +135,17 @@ void main() {
   float carve = 0.0;
   for (int index = 0; index < MAX_METEORS; index++) {
     if (index >= uMeteorCount) break;
-    meteorContribution(point, uMeteorOrigin[index], uMeteorShape[index], diagonal, scale, warp, meteorLight, carve);
+    meteorContribution(
+      point,
+      uMeteorOrigin[index],
+      uMeteorShape[index],
+      uMeteorDepth[index],
+      diagonal,
+      scale,
+      warp,
+      meteorLight,
+      carve
+    );
   }
 
   vec2 uv = clamp(vUv + warp / uCanvasSize, 0.0, 1.0);
