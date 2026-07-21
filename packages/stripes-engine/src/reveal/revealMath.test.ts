@@ -96,7 +96,7 @@ describe("resolveRevealDurationMs", () => {
 
   it("resolves water duration as durationMs + settleMs", () => {
     const water = normalizeReveal({ enabled: true, type: "water" });
-    expect(resolveRevealDurationMs(water)).toBe(2600 + 900);
+    expect(resolveRevealDurationMs(water)).toBe(950 + 520);
   });
 });
 
@@ -180,28 +180,85 @@ describe("assemblyRevealAt", () => {
 });
 
 describe("serpentinePoint", () => {
-  it("starts at the left of the top row and ends at the right or left of the bottom row", () => {
-    const start = serpentinePoint(0, 5, 0);
+  it("runs corner to corner along the main diagonal", () => {
+    const start = serpentinePoint(0, 4, 0);
     expect(start.x).toBeCloseTo(0, 5);
-    expect(start.y).toBeLessThan(0.2);
-    const end = serpentinePoint(1, 5, 0);
-    expect(end.y).toBeGreaterThan(0.8);
+    expect(start.y).toBeCloseTo(0, 5);
+    const end = serpentinePoint(1, 4, 0);
+    expect(end.x).toBeCloseTo(1, 5);
+    expect(end.y).toBeCloseTo(1, 5);
   });
-  it("alternates sweep direction per row", () => {
-    const rows = 4;
-    const early = serpentinePoint(0.1 / rows, rows, 0);
-    const later = serpentinePoint(0.9 / rows, rows, 0);
-    expect(later.x).toBeGreaterThan(early.x);
-    const row2early = serpentinePoint(1.1 / rows, rows, 0);
-    const row2later = serpentinePoint(1.9 / rows, rows, 0);
-    expect(row2later.x).toBeLessThan(row2early.x);
-  });
-  it("descends monotonically without wobble", () => {
-    let prevY = -1;
+  it("advances down the main diagonal monotonically", () => {
+    let prev = -1;
     for (let t = 0; t <= 1.0001; t += 0.01) {
-      const { y } = serpentinePoint(Math.min(1, t), 6, 0);
-      expect(y).toBeGreaterThanOrEqual(prevY);
-      prevY = y;
+      const { x, y } = serpentinePoint(Math.min(1, t), 4, 0);
+      expect(x + y).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = x + y;
+    }
+  });
+  it("each pass strokes along the anti-diagonal (x and y move oppositely)", () => {
+    const rows = 4;
+    const a = serpentinePoint(0.4, rows, 0);
+    const b = serpentinePoint(0.44, rows, 0);
+    expect((b.x - a.x) * (b.y - a.y)).toBeLessThan(0);
+  });
+  it("rounds each turn — no abrupt reversal of the sweep", () => {
+    const rows = 4;
+    const step = 0.001;
+    const along = (t: number) => {
+      const p = serpentinePoint(t, rows, 0);
+      return p.x - p.y;
+    };
+    // Sweep velocity must not jump across a turnaround. A raw triangle wave
+    // reverses at full speed (a step of ~2x the sweep rate); easing the pass
+    // makes the velocity pass through the turn continuously.
+    const vel = (t: number) => (along(t + step) - along(t - step)) / (2 * step);
+    const turn = 1 / rows;
+    const jump = Math.abs(vel(turn + 3 * step) - vel(turn - 3 * step));
+    const midPassSpeed = Math.abs(vel(0.5 / rows));
+    expect(midPassSpeed).toBeGreaterThan(0.5);
+    expect(jump).toBeLessThan(midPassSpeed * 0.5);
+  });
+  it("is one connected path — no jumps between passes", () => {
+    const rows = 4;
+    const step = 0.002;
+    let prev = serpentinePoint(0, rows, 0);
+    for (let t = step; t <= 1.0001; t += step) {
+      const p = serpentinePoint(Math.min(1, t), rows, 0);
+      const jump = Math.hypot(p.x - prev.x, p.y - prev.y);
+      // A discontinuous hand-off between passes would be orders of magnitude
+      // larger than the per-step travel of a continuous path.
+      expect(jump).toBeLessThan(step * rows * 3);
+      prev = p;
+    }
+  });
+  it("sweeps back and forth along the anti-diagonal, one pass per row", () => {
+    // The zigzag axis is (x - y): near the end corner the diagonal advance
+    // cancels the sideways travel in x alone, so x is not the sweep axis.
+    const rows = 4;
+    const along = (t: number) => {
+      const p = serpentinePoint(t, rows, 0);
+      return p.x - p.y;
+    };
+    const dirs: number[] = [];
+    for (let pass = 0; pass < rows; pass++) {
+      dirs.push(Math.sign(along((pass + 0.85) / rows) - along((pass + 0.15) / rows)));
+    }
+    expect(dirs).toEqual([1, -1, 1, -1]);
+  });
+  it("reaches the full sweep width at mid-progress", () => {
+    const mid = serpentinePoint(0.5, 2, 0);
+    expect(Math.abs(mid.x - mid.y)).toBeCloseTo(1, 5);
+  });
+  it("stays inside the canvas at every progress and wobble", () => {
+    for (const wob of [0, 0.5, 1]) {
+      for (let t = 0; t <= 1.0001; t += 0.005) {
+        const p = serpentinePoint(Math.min(1, t), 5, wob);
+        expect(p.x).toBeGreaterThanOrEqual(0);
+        expect(p.x).toBeLessThanOrEqual(1);
+        expect(p.y).toBeGreaterThanOrEqual(0);
+        expect(p.y).toBeLessThanOrEqual(1);
+      }
     }
   });
   it("clamps progress and keeps wobble inside the canvas", () => {

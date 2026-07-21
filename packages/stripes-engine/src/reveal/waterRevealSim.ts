@@ -12,6 +12,24 @@ const MAX_SIM_EDGE = 420;
 /** Sub-steps per frame. Wave speed is a function of this, not of frame time. */
 const SUBSTEPS = 15;
 const SPLAT_AMP_PER_STEP = 0.5;
+/** Half-alpha height for the water's compressive alpha curve crest/(crest+K).
+ * Shared by the reveal pass and the cover accumulator so the reveal always
+ * matches how white the water looks. Measured crests run 4 (p90) to 25 (max),
+ * so this sits mid-range: strong water reads bright without ever clipping to a
+ * flat white plateau. */
+export const WATER_WHITE_K = 3;
+/** How much white the water adds on top of the field. Bounded well under 1 so
+ * water tints the image instead of blowing it out. */
+export const WATER_GLOW = 0.72;
+/** Reveal saturates faster than the glow: water that is clearly present should
+ * finish a pixel off, while still only tinting it. Nothing else reveals — there
+ * is no end-of-animation fill — so this has to be generous enough that the
+ * sweep plus the settle ring-down carry the whole image on their own. */
+const WATER_REVEAL_K = 0.3;
+/** Per-frame cover gained by water that keeps washing a pixel. This is what
+ * finishes the image, so it must outlast the animation: sustained water
+ * completes a pixel, a single faint ripple does not. */
+const WATER_SOAK = 0.045;
 
 export type WaterRevealTextures = {
   height: WebGLTexture;
@@ -23,7 +41,6 @@ export type WaterRevealTextures = {
 export type WaterRevealSim = {
   tick(p: {
     sweepT: number;
-    settleT: number;
     displayWidth: number;
     displayHeight: number;
     rows: number;
@@ -32,13 +49,9 @@ export type WaterRevealSim = {
     softness: number;
   }): void;
   current(): WaterRevealTextures | null;
+  release(): void;
   dispose(): void;
 };
-
-function smoothstep01(x: number): number {
-  const t = Math.min(1, Math.max(0, x));
-  return t * t * (3 - 2 * t);
-}
 
 export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw(): void }): WaterRevealSim {
   const heightPass = createWaterSimPass(gl, quad);
@@ -47,9 +60,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
   const L = {
     prevCover: u("uPrevCover"),
     height: u("uHeight"),
-    threshLo: u("uThreshLo"),
-    threshHi: u("uThreshHi"),
-    fillFloor: u("uFillFloor"),
+    revealK: u("uRevealK"),
+    gamma: u("uGamma"),
+    soak: u("uSoak"),
   };
 
   let heightPingPong: PingPong | null = null;
@@ -70,20 +83,29 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
-  function clearAll(): void {
-    if (!heightPingPong || !coverPingPong) return;
+  function clearHeight(): void {
+    if (!heightPingPong) return;
     clearRT(heightPingPong.read());
     clearRT(heightPingPong.write());
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  function clearCover(): void {
+    if (!coverPingPong) return;
     clearRT(coverPingPong.read());
     clearRT(coverPingPong.write());
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
-  function accumulate(settleT: number, softness: number): void {
+  /** Cover is UV-sampled only (never at sim texel offsets), so unlike height it doesn't need to track sim dims. */
+  function clearAll(): void {
+    clearHeight();
+    clearCover();
+  }
+
+  function accumulate(softness: number): void {
     if (!heightPingPong || !coverPingPong) return;
-    const threshLo = 0.015;
-    const threshHi = 0.015 + Math.max(0.01, softness * 0.25);
-    const fillFloor = smoothstep01((settleT - 0.35) / 0.55);
+    const gamma = 0.8 - 0.45 * Math.min(1, Math.max(0, softness));
     bindRenderTarget(gl, coverPingPong.write());
     gl.useProgram(accumProgram);
     gl.activeTexture(gl.TEXTURE0);
@@ -92,9 +114,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, heightPingPong.read().texture);
     gl.uniform1i(L.height, 1);
-    gl.uniform1f(L.threshLo, threshLo);
-    gl.uniform1f(L.threshHi, threshHi);
-    gl.uniform1f(L.fillFloor, fillFloor);
+    gl.uniform1f(L.revealK, WATER_REVEAL_K);
+    gl.uniform1f(L.gamma, gamma);
+    gl.uniform1f(L.soak, WATER_SOAK);
     quad.draw();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     coverPingPong.swap();
@@ -131,10 +153,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
           clearAll();
         } else if (sw !== simWidth || sh !== simHeight) {
           heightPingPong.resize(sw, sh);
-          coverPingPong.resize(sw, sh);
           simWidth = sw;
           simHeight = sh;
-          clearAll();
+          clearHeight();
         }
 
         let sx = prevSX;
@@ -153,7 +174,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
           prevPointValid = true;
         }
 
-        const radius = Math.max(3, sh / (Math.max(1, p.rows) * 2.2));
+        const radius = Math.max(3, sh / (Math.max(1, p.rows) * 2.6));
 
         for (let i = 0; i < SUBSTEPS; i++) {
           const t0 = i / SUBSTEPS;
@@ -173,7 +194,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
         prevSX = sx;
         prevSY = sy;
 
-        accumulate(p.settleT, p.softness);
+        accumulate(p.softness);
 
         hasTicked = true;
       } catch (error) {
@@ -189,6 +210,19 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
         texelX: 1 / simWidth,
         texelY: 1 / simHeight,
       };
+    },
+    release() {
+      heightPingPong?.dispose();
+      coverPingPong?.dispose();
+      heightPingPong = null;
+      coverPingPong = null;
+      simWidth = 0;
+      simHeight = 0;
+      hasTicked = false;
+      lastSweepT = -Infinity;
+      prevPointValid = false;
+      prevSX = 0;
+      prevSY = 0;
     },
     dispose() {
       heightPass.dispose();

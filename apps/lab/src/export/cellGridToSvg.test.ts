@@ -178,6 +178,35 @@ describe("cellGridToSvg", () => {
     expect(svg).toContain("M0 2h10v4h-10Z");
   });
 
+  it("exports vertical bars at 0deg even when orientation is horizontal (angle wins, like the shader)", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, stripes, {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      orientation: "horizontal",
+      angleDeg: 0,
+    });
+
+    expect(svg).toContain("M3 0h4v8h-4Z");
+    expect(svg).not.toContain("M0 2h10v4h-10Z");
+  });
+
+  it("exports horizontal bars at 90deg even when orientation is vertical (angle wins, like the shader)", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, stripes, {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      orientation: "vertical",
+      angleDeg: 90,
+    });
+
+    expect(svg).toContain("M0 2h10v4h-10Z");
+  });
+
   it("clamps horizontal stripe thickness to the cell height", () => {
     const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 20 }];
     const readback = { cols: 1, rows: 1, values: v(255), colors: null };
@@ -190,5 +219,43 @@ describe("cellGridToSvg", () => {
 
     expect(svg).toContain("h10v8h-10");
     expect(svg).not.toContain("v20");
+  });
+
+  it("bakes frame-0 width sparkle into vertical stripes when enabled", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 6, rows: 6, values: v(...new Array(36).fill(255)), colors: null };
+    const base = { cellWidthPx: 10, cellHeightPx: 10, useCellColors: false } as const;
+    const sparkle = { enabled: true, coverage: 1, swingPx: 4, swingPeriodMin: 0.4, swingPeriodMax: 1.2 };
+
+    const plain = cellGridToSvg(readback, stripes, base);
+    const sparkled = cellGridToSvg(readback, stripes, { ...base, widthSparkle: sparkle });
+
+    expect(sparkled).not.toEqual(plain);
+    const widths = new Set([...sparkled.matchAll(/h(\d+(?:\.\d+)?)v/g)].map((m) => m[1]));
+    expect(widths.size).toBeGreaterThan(1);
+    expect(cellGridToSvg(readback, stripes, { ...base, widthSparkle: sparkle })).toEqual(sparkled);
+  });
+
+  it("leaves the export untouched when width sparkle is disabled", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 6, rows: 6, values: v(...new Array(36).fill(255)), colors: null };
+    const base = { cellWidthPx: 10, cellHeightPx: 10, useCellColors: false } as const;
+    const disabled = { enabled: false, coverage: 1, swingPx: 4, swingPeriodMin: 0.4, swingPeriodMax: 1.2 };
+
+    expect(cellGridToSvg(readback, stripes, { ...base, widthSparkle: disabled })).toEqual(
+      cellGridToSvg(readback, stripes, base),
+    );
+  });
+
+  it("applies frame-0 width sparkle to rotated stripes", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 6, rows: 6, values: v(...new Array(36).fill(255)), colors: null };
+    const base = { cellWidthPx: 10, cellHeightPx: 10, useCellColors: false, angleDeg: 30 } as const;
+    const sparkle = { enabled: true, coverage: 1, swingPx: 4, swingPeriodMin: 0.4, swingPeriodMax: 1.2 };
+
+    const plain = cellGridToSvg(readback, stripes, base);
+    const sparkled = cellGridToSvg(readback, stripes, { ...base, widthSparkle: sparkle });
+
+    expect(sparkled).not.toEqual(plain);
   });
 });

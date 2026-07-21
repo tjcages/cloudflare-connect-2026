@@ -11,7 +11,16 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "vortex" | "water" | "custom";
+export type RevealType =
+  | "wave"
+  | "assembly"
+  | "turbulence"
+  | "glitch"
+  | "vortex"
+  | "blackhole"
+  | "whirlpool"
+  | "water"
+  | "custom";
 
 export interface WarpStyleConfig {
   speedMinMs: number;
@@ -24,6 +33,23 @@ export interface WarpStyleConfig {
 
 export interface VortexRevealConfig extends WarpStyleConfig {
   swirl: number;
+}
+
+export interface BlackholeRevealConfig extends WarpStyleConfig {
+  swirl: number;
+  formMs: number;
+  collapseMs: number;
+  arms: number;
+  lensing: number;
+  horizon: number;
+}
+
+export interface WhirlpoolRevealConfig {
+  durationMs: number;
+  turns: number;
+  tightness: number;
+  streak: number;
+  glow: number;
 }
 
 export interface WaterRevealConfig {
@@ -58,6 +84,8 @@ export interface RevealConfig {
   turbulence: WarpStyleConfig;
   glitch: WarpStyleConfig;
   vortex: VortexRevealConfig;
+  blackhole: BlackholeRevealConfig;
+  whirlpool: WhirlpoolRevealConfig;
   water: WaterRevealConfig;
 }
 
@@ -195,7 +223,21 @@ export interface SparkleConfig {
   };
 }
 
-export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight";
+export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight" | "vortexSingular";
+
+export interface VortexSingularConfig {
+  segCount: number;
+  segSpacingPx: number;
+  turnRate: number;
+  turnVariation: number;
+  visibleMinMs: number;
+  visibleMaxMs: number;
+  hiddenMinMs: number;
+  hiddenMaxMs: number;
+  lifeMinMs: number;
+  lifeMaxMs: number;
+  edgeMarginRatio: number;
+}
 
 export interface FlamesConfig {
   enabled: boolean;
@@ -212,6 +254,7 @@ export interface FlamesConfig {
   edgeSharpness: number;
   opacityMin: number;
   opacityMax: number;
+  vortexSingular: VortexSingularConfig;
 }
 
 export interface EdgeMaskConfig {

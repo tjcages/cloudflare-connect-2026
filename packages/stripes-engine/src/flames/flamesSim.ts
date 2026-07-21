@@ -1,5 +1,7 @@
 import type { FlamesConfig, FlamesDirection } from "../config/types";
 import { lerp } from "../core/math";
+import { stepVortexSingular } from "./vortexSingular";
+import type { VortexTail } from "./vortexSingular";
 
 export interface Flame {
   x: number;
@@ -15,6 +17,7 @@ export interface Flame {
 
 export interface FlamesState {
   flames: Flame[];
+  tails: VortexTail[];
   lastSpawnMs: number;
   lastStepMs: number;
   random: () => number;
@@ -23,6 +26,7 @@ export interface FlamesState {
 export function createFlamesState(random: () => number): FlamesState {
   return {
     flames: [],
+    tails: [],
     lastSpawnMs: 0,
     lastStepMs: 0,
     random,
@@ -202,6 +206,11 @@ export function stepFlames(
   nowMs: number,
 ): void {
   if (!config.enabled || display.width <= 0 || display.height <= 0) {
+    return;
+  }
+
+  if (config.direction === "vortexSingular") {
+    stepVortexSingular(state, config, display, nowMs);
     return;
   }
 

@@ -6,8 +6,17 @@ uniform sampler2D uCover;
 uniform sampler2D uHeight;
 uniform vec2 uHeightTexel;
 uniform float uRefraction;
+uniform float uWhiteK;
+uniform float uGlow;
 uniform float uActive;
 out vec4 finalColor;
+
+// Water alpha compresses instead of clipping: crest/(crest+K) approaches 1 but
+// never reaches it, so a strong splat stays a gradient rather than flattening
+// into a solid white plateau. Must match the same curve in waterRevealAccum.
+float waterAlpha(float crest, float k) {
+  return crest / (crest + k);
+}
 
 void main() {
   if (uActive < 0.5) {
@@ -22,7 +31,7 @@ void main() {
   vec2 uv = clamp(vUv - grad * uRefraction * 0.04, 0.0, 1.0);
   float v = texture(uField, uv).r;
   float crest = max(texture(uHeight, vUv).r, 0.0);
-  v = clamp(v + crest * uRefraction * 0.22, 0.0, 1.0);
+  v = clamp(v + waterAlpha(crest, uWhiteK) * uGlow, 0.0, 1.0);
   float cover = texture(uCover, vUv).r;
   finalColor = vec4(vec3(v * cover), 1.0);
 }

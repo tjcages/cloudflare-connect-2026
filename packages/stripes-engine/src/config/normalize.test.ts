@@ -17,6 +17,7 @@ import {
   DEFAULT_REVEAL,
   normalizeFlames,
   DEFAULT_FLAMES,
+  DEFAULT_VORTEX_SINGULAR,
   normalizeEdgeMask,
   DEFAULT_EDGE_MASK,
   normalizeCursorTrail,
@@ -892,12 +893,12 @@ describe("reveal type promotion", () => {
     const r = normalizeReveal({ enabled: true, type: "water" });
     expect(r.type).toBe("water");
     expect(r.water).toEqual({
-      durationMs: 2600,
-      settleMs: 900,
+      durationMs: 950,
+      settleMs: 520,
       rows: 5,
-      intensity: 0.85,
-      wobble: 0.5,
-      refraction: 1,
+      intensity: 1.7,
+      wobble: 0.7,
+      refraction: 1.3,
       softness: 0.35,
     });
     const clamped = normalizeReveal({
@@ -909,6 +910,50 @@ describe("reveal type promotion", () => {
     expect(clamped.water.rows).toBeLessThanOrEqual(24);
     expect(clamped.water.wobble).toBe(1);
     expect(clamped.water.softness).toBe(1);
+  });
+});
+
+describe("normalizeFlames vortexSingular", () => {
+  it("accepts the vortexSingular direction", () => {
+    expect(normalizeFlames({ direction: "vortexSingular" }).direction).toBe("vortexSingular");
+  });
+
+  it("fills vortexSingular defaults when absent", () => {
+    expect(normalizeFlames({}).vortexSingular).toEqual(DEFAULT_VORTEX_SINGULAR);
+  });
+
+  it("clamps vortexSingular fields", () => {
+    const v = normalizeFlames({
+      vortexSingular: {
+        segCount: 0,
+        segSpacingPx: 500,
+        turnRate: -2,
+        turnVariation: 3,
+        visibleMinMs: 10,
+        visibleMaxMs: 5,
+        hiddenMinMs: -5,
+        hiddenMaxMs: 999999,
+        lifeMinMs: 10,
+        lifeMaxMs: 5,
+        edgeMarginRatio: 2,
+      },
+    }).vortexSingular;
+    expect(v.segCount).toBe(2);
+    expect(v.segSpacingPx).toBe(60);
+    expect(v.turnRate).toBe(0.05);
+    expect(v.turnVariation).toBe(1);
+    expect(v.visibleMinMs).toBe(500);
+    expect(v.visibleMaxMs).toBe(500);
+    expect(v.hiddenMinMs).toBe(0);
+    expect(v.hiddenMaxMs).toBe(60000);
+    expect(v.lifeMinMs).toBe(500);
+    expect(v.lifeMaxMs).toBe(500);
+    expect(v.edgeMarginRatio).toBe(0.4);
+  });
+
+  it("raises lifeMaxMs to lifeMinMs", () => {
+    const v = normalizeFlames({ vortexSingular: { lifeMinMs: 8000, lifeMaxMs: 1000 } }).vortexSingular;
+    expect(v.lifeMaxMs).toBe(8000);
   });
 });
 

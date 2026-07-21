@@ -9,6 +9,7 @@ import type {
   SparkleConfig,
   FlamesConfig,
   FlamesDirection,
+  VortexSingularConfig,
   WavePosition,
   EdgeMaskConfig,
   ConstellationTrailConfig,
@@ -26,6 +27,8 @@ import type {
   RevealType,
   WarpStyleConfig,
   VortexRevealConfig,
+  BlackholeRevealConfig,
+  WhirlpoolRevealConfig,
   WaterRevealConfig,
 } from "./types";
 
@@ -300,6 +303,8 @@ export const REVEAL_TYPES: readonly RevealType[] = [
   "turbulence",
   "glitch",
   "vortex",
+  "blackhole",
+  "whirlpool",
   "water",
   "custom",
 ];
@@ -328,13 +333,34 @@ export const DEFAULT_REVEAL: RevealConfig = {
     glow: 0.7,
     swirl: 1,
   },
+  blackhole: {
+    speedMinMs: 260,
+    speedMaxMs: 1050,
+    staggerMs: 3600,
+    intensity: 1,
+    detail: 0.5,
+    glow: 0.7,
+    swirl: 1.2,
+    formMs: 1150,
+    collapseMs: 420,
+    arms: 3,
+    lensing: 1,
+    horizon: 0.12,
+  },
+  whirlpool: {
+    durationMs: 5600,
+    turns: 4,
+    tightness: 0.22,
+    streak: 0.6,
+    glow: 0.4,
+  },
   water: {
-    durationMs: 2600,
-    settleMs: 900,
+    durationMs: 950,
+    settleMs: 520,
     rows: 5,
-    intensity: 0.85,
-    wobble: 0.5,
-    refraction: 1,
+    intensity: 1.7,
+    wobble: 0.7,
+    refraction: 1.3,
     softness: 0.35,
   },
 };
@@ -358,6 +384,8 @@ type PartialReveal = {
   glitch?: Partial<WarpStyleConfig>;
   vortex?: Partial<RevealConfig["vortex"]>;
   hadouken?: Partial<RevealConfig["vortex"]>;
+  blackhole?: Partial<BlackholeRevealConfig>;
+  whirlpool?: Partial<WhirlpoolRevealConfig>;
   water?: Partial<WaterRevealConfig>;
 };
 
@@ -398,6 +426,34 @@ function normalizeVortexBlock(i: Partial<VortexRevealConfig> = {}, d: VortexReve
   return {
     ...normalizeWarpStyleBlock(i, d),
     swirl: clamp(num(i.swirl, d.swirl), 0, 3),
+  };
+}
+
+function normalizeBlackholeBlock(
+  i: Partial<BlackholeRevealConfig> = {},
+  d: BlackholeRevealConfig,
+): BlackholeRevealConfig {
+  return {
+    ...normalizeWarpStyleBlock(i, d),
+    swirl: clamp(num(i.swirl, d.swirl), 0, 3),
+    formMs: clamp(Math.round(num(i.formMs, d.formMs)), 0, 10000),
+    collapseMs: clamp(Math.round(num(i.collapseMs, d.collapseMs)), 0, 10000),
+    arms: clamp(Math.round(num(i.arms, d.arms)), 1, 8),
+    lensing: clamp(num(i.lensing, d.lensing), 0, 2),
+    horizon: clamp(num(i.horizon, d.horizon), 0.02, 0.3),
+  };
+}
+
+function normalizeWhirlpoolBlock(
+  i: Partial<WhirlpoolRevealConfig> = {},
+  d: WhirlpoolRevealConfig,
+): WhirlpoolRevealConfig {
+  return {
+    durationMs: clamp(Math.round(num(i.durationMs, d.durationMs)), 100, 30000),
+    turns: clamp(num(i.turns, d.turns), 0, 6),
+    tightness: clamp(num(i.tightness, d.tightness), 0.05, 0.5),
+    streak: clamp(num(i.streak, d.streak), 0, 1),
+    glow: clamp(num(i.glow, d.glow), 0, 1),
   };
 }
 
@@ -444,6 +500,8 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     vortex: normalizeVortexBlock(i.vortex ?? i.hadouken ?? a.vortex ?? a.hadouken, DEFAULT_REVEAL.vortex),
+    blackhole: normalizeBlackholeBlock(i.blackhole, DEFAULT_REVEAL.blackhole),
+    whirlpool: normalizeWhirlpoolBlock(i.whirlpool, DEFAULT_REVEAL.whirlpool),
     water: normalizeWaterBlock(i.water, DEFAULT_REVEAL.water),
   };
 }
@@ -514,6 +572,20 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
   };
 }
 
+export const DEFAULT_VORTEX_SINGULAR: VortexSingularConfig = {
+  segCount: 22,
+  segSpacingPx: 10,
+  turnRate: 0.9,
+  turnVariation: 0.8,
+  visibleMinMs: 7000,
+  visibleMaxMs: 13000,
+  hiddenMinMs: 800,
+  hiddenMaxMs: 2600,
+  lifeMinMs: 12000,
+  lifeMaxMs: 24000,
+  edgeMarginRatio: 0.12,
+};
+
 export const DEFAULT_FLAMES: FlamesConfig = {
   enabled: false,
   direction: "up",
@@ -529,14 +601,44 @@ export const DEFAULT_FLAMES: FlamesConfig = {
   edgeSharpness: 1,
   opacityMin: 0.3,
   opacityMax: 1,
+  vortexSingular: { ...DEFAULT_VORTEX_SINGULAR },
 };
 
-type PartialFlames = Partial<FlamesConfig>;
+type PartialFlames = Partial<Omit<FlamesConfig, "vortexSingular">> & {
+  vortexSingular?: Partial<VortexSingularConfig>;
+};
 
-const FLAMES_DIRECTIONS: readonly FlamesDirection[] = ["up", "down", "left", "right", "upDown", "leftRight"];
+const FLAMES_DIRECTIONS: readonly FlamesDirection[] = [
+  "up",
+  "down",
+  "left",
+  "right",
+  "upDown",
+  "leftRight",
+  "vortexSingular",
+];
 
 function normalizeFlamesDirection(value: unknown): FlamesDirection {
   return FLAMES_DIRECTIONS.includes(value as FlamesDirection) ? (value as FlamesDirection) : "up";
+}
+
+function normalizeVortexSingular(i: Partial<VortexSingularConfig> = {}): VortexSingularConfig {
+  const lifeMinMs = clamp(Math.round(num(i.lifeMinMs, DEFAULT_VORTEX_SINGULAR.lifeMinMs)), 500, 60000);
+  const visibleMinMs = clamp(Math.round(num(i.visibleMinMs, DEFAULT_VORTEX_SINGULAR.visibleMinMs)), 500, 60000);
+  const hiddenMinMs = clamp(Math.round(num(i.hiddenMinMs, DEFAULT_VORTEX_SINGULAR.hiddenMinMs)), 0, 30000);
+  return {
+    segCount: clamp(Math.round(num(i.segCount, DEFAULT_VORTEX_SINGULAR.segCount)), 2, 80),
+    segSpacingPx: clamp(num(i.segSpacingPx, DEFAULT_VORTEX_SINGULAR.segSpacingPx), 2, 60),
+    turnRate: clamp(num(i.turnRate, DEFAULT_VORTEX_SINGULAR.turnRate), 0.05, 6),
+    turnVariation: clamp(num(i.turnVariation, DEFAULT_VORTEX_SINGULAR.turnVariation), 0, 1),
+    visibleMinMs,
+    visibleMaxMs: clamp(Math.round(num(i.visibleMaxMs, DEFAULT_VORTEX_SINGULAR.visibleMaxMs)), visibleMinMs, 120000),
+    hiddenMinMs,
+    hiddenMaxMs: clamp(Math.round(num(i.hiddenMaxMs, DEFAULT_VORTEX_SINGULAR.hiddenMaxMs)), hiddenMinMs, 60000),
+    lifeMinMs,
+    lifeMaxMs: clamp(Math.round(num(i.lifeMaxMs, DEFAULT_VORTEX_SINGULAR.lifeMaxMs)), lifeMinMs, 120000),
+    edgeMarginRatio: clamp(num(i.edgeMarginRatio, DEFAULT_VORTEX_SINGULAR.edgeMarginRatio), 0, 0.4),
+  };
 }
 
 export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
@@ -561,6 +663,7 @@ export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
     edgeSharpness: clamp(num(i.edgeSharpness, DEFAULT_FLAMES.edgeSharpness), 0, 1),
     opacityMin,
     opacityMax,
+    vortexSingular: normalizeVortexSingular(i.vortexSingular),
   };
 }
 

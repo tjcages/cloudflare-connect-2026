@@ -13,11 +13,18 @@ export function createWaterRevealPass(gl: WebGL2RenderingContext, quad: { draw()
     height: u("uHeight"),
     heightTexel: u("uHeightTexel"),
     refraction: u("uRefraction"),
+    whiteK: u("uWhiteK"),
+    glow: u("uGlow"),
     active: u("uActive"),
   };
 
   return {
-    render(target: RenderTarget, fieldTex: WebGLTexture, sim: WaterRevealTextures | null, p: { refraction: number }) {
+    render(
+      target: RenderTarget,
+      fieldTex: WebGLTexture,
+      sim: WaterRevealTextures | null,
+      p: { refraction: number; whiteK: number; glow: number },
+    ) {
       bindRenderTarget(gl, target);
       gl.useProgram(program);
 
@@ -50,6 +57,8 @@ export function createWaterRevealPass(gl: WebGL2RenderingContext, quad: { draw()
 
       gl.uniform2f(L.heightTexel, sim.texelX, sim.texelY);
       gl.uniform1f(L.refraction, p.refraction);
+      gl.uniform1f(L.whiteK, p.whiteK);
+      gl.uniform1f(L.glow, p.glow);
       gl.uniform1f(L.active, 1);
       quad.draw();
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);

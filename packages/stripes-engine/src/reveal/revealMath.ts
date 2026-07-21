@@ -52,7 +52,12 @@ export function assemblyOrderNorm(col: number, row: number, cols: number, rows: 
 
 export function resolveRevealDurationMs(r: RevealConfig): number {
   if (r.type === "wave" || r.type === "custom") return r.wave.durationMs;
+  if (r.type === "whirlpool") return r.whirlpool.durationMs;
   if (r.type === "water") return r.water.durationMs + r.water.settleMs;
+  if (r.type === "blackhole") {
+    const b = r.blackhole;
+    return b.formMs + b.staggerMs + b.speedMaxMs + b.collapseMs;
+  }
   const block = r.type === "assembly" ? r.assembly : r[r.type];
   return block.staggerMs + block.speedMaxMs;
 }
@@ -113,14 +118,24 @@ export function assemblyRevealAt(
 export function serpentinePoint(progress: number, rows: number, wobble: number): { x: number; y: number } {
   const r = Math.max(1, Math.round(rows));
   const t = Math.min(1, Math.max(0, progress));
-  const f = Math.min(r - 1e-6, t * r);
-  const row = Math.floor(f);
-  const frac = f - row;
-  const x = row % 2 === 0 ? frac : 1 - frac;
-  const half = 1 / (2 * r);
-  const yBase = half + t * (1 - 2 * half);
-  const wobbleAmp = (wobble * 0.35) / r;
-  const wob = Math.sin(frac * Math.PI * 5 + row * 1.7) * wobbleAmp;
-  const y = Math.min(1, Math.max(0, yBase + wob));
+  // One unbroken diagonal brush: the stroke sweeps back and forth along the
+  // anti-diagonal (a triangle wave) while the whole motion advances down the
+  // main diagonal, so passes join edge-to-edge instead of jumping. The sweep
+  // range narrows toward the corners, which is what keeps the path inside the
+  // canvas without clamping it flat.
+  const s = t;
+  const half = Math.min(s, 1 - s);
+  const f = t * r;
+  const pass = Math.min(r - 1, Math.floor(f));
+  const frac = f - pass;
+  // Ease the sideways sweep so the brush rounds each turn instead of reversing
+  // on a hard corner. The diagonal advance stays linear, so it never stalls at
+  // the edge — it carves a U-turn and keeps moving.
+  const eased = frac * frac * (3 - 2 * frac);
+  const tri = pass % 2 === 0 ? eased * 2 - 1 : 1 - eased * 2;
+  const wob = Math.sin(t * Math.PI * 2 * r * 1.5) * wobble * 0.05;
+  const along = tri * half + wob;
+  const x = Math.min(1, Math.max(0, s + along));
+  const y = Math.min(1, Math.max(0, s - along));
   return { x, y };
 }
