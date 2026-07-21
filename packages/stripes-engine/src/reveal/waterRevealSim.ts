@@ -12,9 +12,10 @@ const MAX_SIM_EDGE = 420;
 /** Sub-steps per frame. Wave speed is a function of this, not of frame time. */
 const SUBSTEPS = 15;
 const SPLAT_AMP_PER_STEP = 0.5;
-/** Per-tick cover gain at full crest energy. Deltas below 1/255 vanish in the
- * 8-bit cover buffer, which intentionally floors out weak spill-over ripples. */
-const ACCUM_RATE = 0.28;
+/** Wave height that counts as "fully white" water, as a fraction of the splat
+ * amplitude. Cover = peak wave height / full height, so spill-over ripples
+ * reveal only as much as their actual brightness. */
+const FULL_HEIGHT_PER_AMP = 0.62;
 
 export type WaterRevealTextures = {
   height: WebGLTexture;
@@ -52,9 +53,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     prevCover: u("uPrevCover"),
     height: u("uHeight"),
     threshLo: u("uThreshLo"),
-    threshHi: u("uThreshHi"),
+    fullHeight: u("uFullHeight"),
+    gamma: u("uGamma"),
     fillFloor: u("uFillFloor"),
-    accumRate: u("uAccumRate"),
   };
 
   let heightPingPong: PingPong | null = null;
@@ -95,10 +96,11 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     clearCover();
   }
 
-  function accumulate(settleT: number, softness: number): void {
+  function accumulate(settleT: number, softness: number, intensity: number): void {
     if (!heightPingPong || !coverPingPong) return;
-    const threshLo = 0.015;
-    const threshHi = 0.015 + Math.max(0.01, softness * 0.25);
+    const threshLo = 0.012;
+    const fullHeight = Math.max(0.1, intensity * SPLAT_AMP_PER_STEP * FULL_HEIGHT_PER_AMP);
+    const gamma = 2.0 - 1.3 * Math.min(1, Math.max(0, softness));
     const fillFloor = smoothstep01((settleT - 0.35) / 0.55);
     bindRenderTarget(gl, coverPingPong.write());
     gl.useProgram(accumProgram);
@@ -109,9 +111,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     gl.bindTexture(gl.TEXTURE_2D, heightPingPong.read().texture);
     gl.uniform1i(L.height, 1);
     gl.uniform1f(L.threshLo, threshLo);
-    gl.uniform1f(L.threshHi, threshHi);
+    gl.uniform1f(L.fullHeight, fullHeight);
+    gl.uniform1f(L.gamma, gamma);
     gl.uniform1f(L.fillFloor, fillFloor);
-    gl.uniform1f(L.accumRate, ACCUM_RATE);
     quad.draw();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     coverPingPong.swap();
@@ -189,7 +191,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
         prevSX = sx;
         prevSY = sy;
 
-        accumulate(p.settleT, p.softness);
+        accumulate(p.settleT, p.softness, p.intensity);
 
         hasTicked = true;
       } catch (error) {
