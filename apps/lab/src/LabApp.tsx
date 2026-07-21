@@ -14,12 +14,17 @@ import {
   createRealClock,
   effectiveStripes,
   normalizeEngineConfig,
+  resolveThemedConfig,
+  diffEngineConfig,
+  sanitizeThemedConfig,
   type StripesEngine,
   type PerfSnapshot,
   type EngineConfig,
+  type ThemedEngineConfig,
+  type DeepPartial,
 } from "@necatikcl/stripes-engine";
 import { LevaPanel } from "leva";
-import { Play, Pause, PanelLeftClose, PanelLeft, PanelRightClose, PanelRight } from "lucide-react";
+import { Play, Pause, PanelLeftClose, PanelLeft, PanelRightClose, PanelRight, RotateCcw } from "lucide-react";
 import { PerfOverlay } from "./PerfOverlay";
 import { useEngineControls } from "./controls/levaSchema";
 import { LAB_LEVA_THEME } from "./controls/levaTheme";
@@ -35,8 +40,10 @@ import {
   loadLabSettings,
   saveLabSettings,
   factoryResetSettings,
+  saveEditTheme,
   type LabSettings,
   type LabTextureSourceMode,
+  type LabEditTheme,
 } from "./persistence";
 import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, findTextureEntry, loadFileSource, loadTextureSource } from "./textures";
 import type { LabTextureKind, LoadedTextureSource } from "./textures";
@@ -610,7 +617,17 @@ function LabExportControls({
   );
 }
 
-function LabBottomBar({ videoEl }: { videoEl: HTMLVideoElement | null }) {
+function LabBottomBar({
+  videoEl,
+  editTheme,
+  onSelectTheme,
+  onResetTheme,
+}: {
+  videoEl: HTMLVideoElement | null;
+  editTheme: LabEditTheme;
+  onSelectTheme: (t: LabEditTheme) => void;
+  onResetTheme: (t: LabEditTheme) => void;
+}) {
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -644,7 +661,24 @@ function LabBottomBar({ videoEl }: { videoEl: HTMLVideoElement | null }) {
   return (
     <footer className="lab-bottom-bar">
       <div className="lab-bottom-grid">
-        <div aria-hidden />
+        <fieldset className="lab-theme-switch" aria-label="Config theme">
+          {(["light", "dark"] as const).map((t) => (
+            <div key={t} className={`lab-theme-option${editTheme === t ? " is-active" : ""}`}>
+              <button type="button" className="lab-theme-btn" onClick={() => onSelectTheme(t)}>
+                {t === "light" ? "Light" : "Dark"}
+              </button>
+              <button
+                type="button"
+                className="lab-theme-reset"
+                aria-label={t === "light" ? "Reset light to dark's config" : "Reset dark to light's config"}
+                title={t === "light" ? "Reset light to dark's config" : "Reset dark to light's config"}
+                onClick={() => onResetTheme(t)}
+              >
+                <RotateCcw size={11} />
+              </button>
+            </div>
+          ))}
+        </fieldset>
         {videoEl ? (
           <div className="lab-playback">
             <button
@@ -865,6 +899,7 @@ function LabInner() {
     connectShaderParams,
     connectGradientUnderlay,
     shaderView,
+    initialThemed,
   } = useEngineControls(onReplay, {
     showShaderCamera: textureSourceMode === "shader",
     showConnectCamera: textureSourceMode === "shader" && isConnectShaderPreset(shaderPresetId),
@@ -876,6 +911,25 @@ function LabInner() {
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
+
+  const editTheme = initialThemed.editTheme;
+  const lightBaseRef = useRef<Partial<EngineConfig>>(initialThemed.lightBase);
+  const darkDiffRef = useRef<DeepPartial<EngineConfig>>(initialThemed.darkDiff);
+
+  const composeThemedConfig = useCallback((): ThemedEngineConfig => {
+    const current = controlsRef.current;
+    if (editTheme === "dark") {
+      const base = normalizeEngineConfig(lightBaseRef.current);
+      const dark = diffEngineConfig(base, current);
+      darkDiffRef.current = dark;
+      return Object.keys(dark).length > 0 ? { ...base, dark } : { ...base };
+    }
+    lightBaseRef.current = current;
+    const dark = darkDiffRef.current;
+    return Object.keys(dark).length > 0 ? { ...current, dark } : { ...current };
+  }, [editTheme]);
+  const composeThemedConfigRef = useRef(composeThemedConfig);
+  composeThemedConfigRef.current = composeThemedConfig;
   const selectedEntry = useMemo(() => findTextureEntry(textureId, loadManifest()), [textureId]);
   const canDeleteTexture = selectedEntry?.origin === "upload";
 
@@ -1608,11 +1662,12 @@ function LabInner() {
 
   useEffect(() => {
     const id = textureIdRef.current;
-    const key = `${id}:${JSON.stringify(controls)}`;
+    const themed = composeThemedConfig();
+    const key = `${id}:${JSON.stringify(themed)}`;
     if (lastSavedConfigJsonRef.current === key) return;
     lastSavedConfigJsonRef.current = key;
-    saveConfig(id, controls);
-  }, [controls]);
+    saveConfig(id, themed);
+  }, [controls, composeThemedConfig]);
 
   useEffect(() => {
     saveTextureId(textureId);
@@ -1851,11 +1906,14 @@ function LabInner() {
   }
 
   function handleExport() {
-    void navigator.clipboard.writeText(serializeConfigFile(controls, fullLabSettingsSnapshot()));
+    void navigator.clipboard.writeText(serializeConfigFile(composeThemedConfig(), fullLabSettingsSnapshot()));
   }
 
   function handleDownloadConfig() {
-    downloadTextFile(serializeConfigFile(controls, fullLabSettingsSnapshot()), settingsFilename(textureIdRef.current));
+    downloadTextFile(
+      serializeConfigFile(composeThemedConfig(), fullLabSettingsSnapshot()),
+      settingsFilename(textureIdRef.current),
+    );
   }
 
   function handleImport() {
@@ -1891,6 +1949,40 @@ function LabInner() {
     window.location.reload();
   }
 
+  function handleSelectTheme(next: LabEditTheme) {
+    if (next === editTheme) return;
+    const themed = composeThemedConfig();
+    saveConfig(textureIdRef.current, themed);
+    saveEditTheme(next);
+    stagePendingConfig(themed);
+    window.location.reload();
+  }
+
+  function handleResetTheme(target: LabEditTheme) {
+    const id = textureIdRef.current;
+    if (target === "dark") {
+      darkDiffRef.current = {};
+      const light = editTheme === "light" ? { ...controlsRef.current } : normalizeEngineConfig(lightBaseRef.current);
+      lightBaseRef.current = light;
+      saveConfig(id, light);
+      lastSavedConfigJsonRef.current = `${id}:${JSON.stringify(light)}`;
+      if (editTheme === "dark") {
+        stagePendingConfig(light);
+        window.location.reload();
+      }
+      return;
+    }
+    const merged = normalizeEngineConfig(resolveThemedConfig(composeThemedConfig(), "dark"));
+    lightBaseRef.current = merged;
+    darkDiffRef.current = {};
+    saveConfig(id, merged);
+    lastSavedConfigJsonRef.current = `${id}:${JSON.stringify(merged)}`;
+    if (editTheme === "light") {
+      stagePendingConfig(merged);
+      window.location.reload();
+    }
+  }
+
   async function handleFactoryResetSettings() {
     if (
       !window.confirm(
@@ -1914,7 +2006,7 @@ function LabInner() {
     const name = window.prompt("Preset name:")?.trim();
     if (!name) return;
     if (presets.some((p) => p.name === name) && !window.confirm(`Overwrite preset "${name}"?`)) return;
-    const next = addPreset(presets, createPreset(name, controls, fullLabSettingsSnapshot()));
+    const next = addPreset(presets, createPreset(name, composeThemedConfig(), fullLabSettingsSnapshot()));
     savePresets(next);
     setPresets(next);
     setSelectedPreset(name);
@@ -1924,7 +2016,7 @@ function LabInner() {
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
     const targetTextureId = textureIdRef.current;
-    stagePendingConfig(normalizeEngineConfig(preset.config));
+    stagePendingConfig(sanitizeThemedConfig(preset.config));
     if (preset.lab) {
       saveLabSettings({ ...preset.lab, textureId: targetTextureId });
       saveControlDrawerSnapshot(preset.lab.drawerOpen);
@@ -1964,7 +2056,7 @@ function LabInner() {
       return;
     }
     saveManifest(addUpload(loadManifest(), { id, label: file.name, kind, defaultScale: 1, createdAt: Date.now() }));
-    stagePendingConfig(controlsRef.current);
+    stagePendingConfig(composeThemedConfigRef.current());
     saveTextureId(id);
     window.location.reload();
   }
@@ -2456,7 +2548,12 @@ function LabInner() {
             <span className="lab-canvas-zoom-value">{Math.round(previewZoom * 100)}%</span>
           </div>
         </div>
-        <LabBottomBar videoEl={videoEl} />
+        <LabBottomBar
+          videoEl={videoEl}
+          editTheme={editTheme}
+          onSelectTheme={handleSelectTheme}
+          onResetTheme={handleResetTheme}
+        />
       </div>
       <aside
         className={`lab-sidebar lab-sidebar-shader${labSettings.shaderSidebarOpen ? "" : " is-closed"}`}

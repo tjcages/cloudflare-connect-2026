@@ -1664,6 +1664,53 @@ body.lab-sidebar-resizing canvas {
   gap: 16px;
 }
 
+.lab-theme-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.lab-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.lab-theme-option.is-active {
+  background: var(--color-builder-selected-row);
+}
+
+.lab-theme-btn,
+.lab-theme-reset {
+  border: none;
+  background: transparent;
+  color: var(--color-builder-muted);
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.lab-theme-option.is-active .lab-theme-btn {
+  color: var(--color-builder-text);
+}
+
+.lab-theme-btn:hover,
+.lab-theme-reset:hover {
+  background: var(--color-builder-hover-surface);
+  color: var(--color-builder-text);
+}
+
 .lab-btn-row {
   display: flex;
   flex-wrap: wrap;
