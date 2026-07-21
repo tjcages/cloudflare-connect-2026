@@ -17,10 +17,10 @@ const SPLAT_AMP_PER_STEP = 0.5;
  * matches how white the water looks. Measured crests run 4 (p90) to 25 (max),
  * so this sits mid-range: strong water reads bright without ever clipping to a
  * flat white plateau. */
-export const WATER_WHITE_K = 7;
+export const WATER_WHITE_K = 4;
 /** How much white the water adds on top of the field. Bounded well under 1 so
  * water tints the image instead of blowing it out. */
-export const WATER_GLOW = 0.5;
+export const WATER_GLOW = 0.62;
 
 export type WaterRevealTextures = {
   height: WebGLTexture;
