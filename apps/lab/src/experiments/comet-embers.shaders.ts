@@ -103,11 +103,9 @@ void main() {
 export const EMBER_VERT = `#version 300 es
 precision highp float;
 in vec4 aEmber;
-in float aSeed;
 uniform vec2 uCanvas;
 out vec2 vLocal;
 out float vT;
-out float vSeed;
 void main() {
   vec2 corner = vec2(float(gl_VertexID == 1 || gl_VertexID == 4 || gl_VertexID == 5), float(gl_VertexID == 2 || gl_VertexID == 3 || gl_VertexID == 5));
   vec2 local = (corner - 0.5) * 2.0;
@@ -116,7 +114,6 @@ void main() {
   gl_Position = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, 0.0, 1.0);
   vLocal = local * 3.2;
   vT = aEmber.w;
-  vSeed = aSeed;
 }
 `;
 
@@ -124,20 +121,13 @@ export const EMBER_FRAG = `#version 300 es
 precision highp float;
 in vec2 vLocal;
 in float vT;
-in float vSeed;
-uniform float uTime;
 out vec4 outColor;
 void main() {
   float d2 = dot(vLocal, vLocal);
-  float broad = exp(-d2 * 0.62);
-  float core = exp(-d2 * 4.6);
+  float disc = 1.0 - smoothstep(0.34, 0.52, sqrt(d2));
+  float halo = exp(-d2 * 0.62);
   float t = clamp(vT, 0.0, 1.0);
-  float cool = pow(1.0 - t, 0.85);
-  float flick = 0.82 + 0.18 * sin(uTime * (6.0 + vSeed * 13.0) + vSeed * 61.7);
-  float fadeIn = smoothstep(0.0, 0.13, t);
-  float fadeOut = 1.0 - smoothstep(0.45, 1.0, t);
-  float amp = cool * fadeIn * fadeOut;
-  float shade = amp * mix(1.0, flick, smoothstep(0.2, 0.6, t));
-  outColor = vec4(broad * amp * 0.7, core * shade * 1.04, 0.0, 1.0);
+  float amp = smoothstep(0.0, 0.12, t) * (1.0 - smoothstep(0.58, 1.0, t));
+  outColor = vec4(halo * amp * 0.7, disc * amp, 0.0, 1.0);
 }
 `;

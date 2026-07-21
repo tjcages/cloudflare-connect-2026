@@ -1,24 +1,20 @@
 import { createSeededRng } from "@necatikcl/stripes-engine";
 
-export const EMBER_PACK_FLOATS = 5;
+export const EMBER_PACK_FLOATS = 4;
 export const EMBER_PACK_STRIDE_BYTES = EMBER_PACK_FLOATS * 4;
 
 const MAX_EMBERS = 210;
-const STRIDE = 8;
-const GRAVITY = 92;
-const DRAG = 2.9;
+const STRIDE = 7;
 const SPEED_MIN = 34;
 const SPEED_RANGE = 760;
 const MAX_RATE = 92;
 const BASE_RATE_FRACTION = 0.12;
 const LIFE_MIN = 560;
 const LIFE_RANGE = 840;
+const DRIFT_MIN = 26;
+const DRIFT_RANGE = 30;
+const DRIFT_SPREAD = 0.85;
 const GOLDEN = 0.618033988749895;
-
-function smoothstep01(x: number): number {
-  const c = x < 0 ? 0 : x > 1 ? 1 : x;
-  return c * c * (3 - 2 * c);
-}
 
 export type EmberPack = { data: Float32Array; count: number };
 
@@ -41,19 +37,18 @@ export function createEmberSim(seed: number): EmberSim {
     const o = count * STRIDE;
     count += 1;
     const along = rng();
-    const ang = rng() * Math.PI * 2;
-    const kick = (26 + speed * 0.1) * (0.3 + rng() * 0.9);
-    const keep = 0.04 + rng() * 0.14;
+    const back = speed > 8 ? Math.atan2(-vy, -vx) : rng() * Math.PI * 2;
+    const ang = back + (rng() - 0.5) * 2 * DRIFT_SPREAD;
+    const drift = DRIFT_MIN + rng() * DRIFT_RANGE;
     lifePhase = (lifePhase + GOLDEN) % 1;
     const stagger = (lifePhase + rng() * 0.14) % 1;
     state[o] = x0 + (x1 - x0) * along + (rng() - 0.5) * 10;
     state[o + 1] = y0 + (y1 - y0) * along + (rng() - 0.5) * 10;
-    state[o + 2] = vx * keep + Math.cos(ang) * kick;
-    state[o + 3] = vy * keep + Math.sin(ang) * kick - 16 - rng() * 34;
+    state[o + 2] = Math.cos(ang) * drift;
+    state[o + 3] = Math.sin(ang) * drift;
     state[o + 4] = 0;
     state[o + 5] = LIFE_MIN + stagger * LIFE_RANGE;
     state[o + 6] = 2.9 + rng() * 4.3;
-    state[o + 7] = rng();
   };
 
   return {
@@ -71,7 +66,6 @@ export function createEmberSim(seed: number): EmberSim {
     },
     step(dtMs) {
       const dt = dtMs / 1000;
-      const dragK = Math.exp(-DRAG * dt);
       let i = 0;
       while (i < count) {
         const o = i * STRIDE;
@@ -83,16 +77,8 @@ export function createEmberSim(seed: number): EmberSim {
           continue;
         }
         state[o + 4] = age;
-        let vx = state[o + 2];
-        let vy = state[o + 3] + GRAVITY * dt;
-        vx *= dragK;
-        vy *= dragK;
-        const emberSeed = state[o + 7];
-        const sway = Math.sin(age * 0.005 * (0.7 + emberSeed) + emberSeed * 43.7) * 15 * dt;
-        state[o] += vx * dt + sway;
-        state[o + 1] += vy * dt;
-        state[o + 2] = vx;
-        state[o + 3] = vy;
+        state[o] += state[o + 2] * dt;
+        state[o + 1] += state[o + 3] * dt;
         i += 1;
       }
     },
@@ -100,14 +86,10 @@ export function createEmberSim(seed: number): EmberSim {
       for (let i = 0; i < count; i++) {
         const o = i * STRIDE;
         const p = i * EMBER_PACK_FLOATS;
-        const t = state[o + 4] / state[o + 5];
-        const birth = 0.46 + 0.54 * smoothstep01(t / 0.13);
-        const cool = 1 - 0.42 * t * t;
         packed[p] = state[o];
         packed[p + 1] = state[o + 1];
-        packed[p + 2] = state[o + 6] * birth * cool;
-        packed[p + 3] = t;
-        packed[p + 4] = state[o + 7];
+        packed[p + 2] = state[o + 6];
+        packed[p + 3] = state[o + 4] / state[o + 5];
       }
       return { data: packed, count };
     },

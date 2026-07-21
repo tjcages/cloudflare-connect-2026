@@ -145,7 +145,6 @@ const definition: ExperimentDefinition = {
 
       const embers = compileProgram(gl, EMBER_VERT, EMBER_FRAG);
       const uEmberCanvas = gl.getUniformLocation(embers, "uCanvas");
-      const uEmberTime = gl.getUniformLocation(embers, "uTime");
 
       const vao = gl.createVertexArray();
       const buf = gl.createBuffer();
@@ -153,13 +152,9 @@ const definition: ExperimentDefinition = {
       gl.bindVertexArray(vao);
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       const aEmber = gl.getAttribLocation(embers, "aEmber");
-      const aSeed = gl.getAttribLocation(embers, "aSeed");
       gl.enableVertexAttribArray(aEmber);
       gl.vertexAttribPointer(aEmber, 4, gl.FLOAT, false, EMBER_PACK_STRIDE_BYTES, 0);
       gl.vertexAttribDivisor(aEmber, 1);
-      gl.enableVertexAttribArray(aSeed);
-      gl.vertexAttribPointer(aSeed, 1, gl.FLOAT, false, EMBER_PACK_STRIDE_BYTES, 16);
-      gl.vertexAttribDivisor(aSeed, 1);
       gl.bindVertexArray(null);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
@@ -224,7 +219,6 @@ const definition: ExperimentDefinition = {
           if (packedEmbers.count > 0) {
             gl.useProgram(embers);
             gl.uniform2f(uEmberCanvas, frame.cssW, frame.cssH);
-            gl.uniform1f(uEmberTime, uniforms.time);
             gl.bindVertexArray(vao);
             gl.bindBuffer(gl.ARRAY_BUFFER, buf);
             gl.bufferData(
