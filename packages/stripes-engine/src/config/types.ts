@@ -11,7 +11,7 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "vortex" | "water";
+export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "vortex" | "blackhole" | "water";
 
 export interface WarpStyleConfig {
   speedMinMs: number;
@@ -24,6 +24,15 @@ export interface WarpStyleConfig {
 
 export interface VortexRevealConfig extends WarpStyleConfig {
   swirl: number;
+}
+
+export interface BlackholeRevealConfig extends WarpStyleConfig {
+  swirl: number;
+  formMs: number;
+  collapseMs: number;
+  arms: number;
+  lensing: number;
+  horizon: number;
 }
 
 export interface WaterRevealConfig {
@@ -58,6 +67,7 @@ export interface RevealConfig {
   turbulence: WarpStyleConfig;
   glitch: WarpStyleConfig;
   vortex: VortexRevealConfig;
+  blackhole: BlackholeRevealConfig;
   water: WaterRevealConfig;
 }
 

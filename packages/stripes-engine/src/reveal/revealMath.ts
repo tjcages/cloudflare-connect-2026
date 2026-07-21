@@ -53,6 +53,10 @@ export function assemblyOrderNorm(col: number, row: number, cols: number, rows: 
 export function resolveRevealDurationMs(r: RevealConfig): number {
   if (r.type === "wave") return r.wave.durationMs;
   if (r.type === "water") return r.water.durationMs + r.water.settleMs;
+  if (r.type === "blackhole") {
+    const b = r.blackhole;
+    return b.formMs + b.staggerMs + b.speedMaxMs + b.collapseMs;
+  }
   const block = r.type === "assembly" ? r.assembly : r[r.type];
   return block.staggerMs + block.speedMaxMs;
 }

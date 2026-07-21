@@ -3,7 +3,7 @@ import { easeValue } from "../controls/easing";
 export const UNDERLAY_INTRO_FADE_MS = 4000;
 
 type WarpStyleLike = { staggerMs: number; speedMaxMs: number };
-type RevealTypeLike = "wave" | "assembly" | "turbulence" | "glitch" | "vortex" | "water";
+type RevealTypeLike = "wave" | "assembly" | "turbulence" | "glitch" | "vortex" | "blackhole" | "water";
 
 type RevealLike = {
   enabled: boolean;
@@ -13,6 +13,7 @@ type RevealLike = {
   turbulence: WarpStyleLike;
   glitch: WarpStyleLike;
   vortex: WarpStyleLike;
+  blackhole: WarpStyleLike & { formMs: number; collapseMs: number };
   water: { durationMs: number; settleMs: number };
 };
 
@@ -21,6 +22,10 @@ export function resolveUnderlayIntroDelayMs(reveal: RevealLike): number {
   if (!reveal.enabled) return 0;
   if (reveal.type === "wave") return reveal.wave.durationMs;
   if (reveal.type === "water") return reveal.water.durationMs + reveal.water.settleMs;
+  if (reveal.type === "blackhole") {
+    const b = reveal.blackhole;
+    return b.formMs + b.staggerMs + b.speedMaxMs + b.collapseMs;
+  }
   const block = reveal.type === "assembly" ? reveal.assembly : reveal[reveal.type];
   return block.staggerMs + block.speedMaxMs;
 }

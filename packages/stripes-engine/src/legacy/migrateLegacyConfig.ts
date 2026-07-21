@@ -44,6 +44,7 @@ function migrateReveal(r: LegacyRevealConfig): EngineConfig["reveal"] {
     turbulence: { ...DEFAULT_REVEAL.turbulence },
     glitch: { ...DEFAULT_REVEAL.glitch },
     vortex: { ...DEFAULT_REVEAL.vortex },
+    blackhole: { ...DEFAULT_REVEAL.blackhole },
     water: { ...DEFAULT_REVEAL.water },
   };
 }
