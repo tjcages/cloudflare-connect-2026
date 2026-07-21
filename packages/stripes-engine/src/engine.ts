@@ -64,7 +64,7 @@ import { extractVibrantColors, createSyntheticVibrantPalette, type VibrantColor 
 import { createColorDistPass } from "./passes/colorDistPass";
 import { createMaxReducePass } from "./passes/maxReducePass";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
-import { createWaterRevealSim } from "./reveal/waterRevealSim";
+import { createWaterRevealSim, WATER_WHITE_K, WATER_GLOW } from "./reveal/waterRevealSim";
 
 const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
 const CLICK_WAVE_MAX_PUSH_CELLS = 6;
@@ -762,6 +762,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           }
           waterRevealPass.render(revealedRT, fieldRT.texture, done ? null : waterRevealSim.current(), {
             refraction: water.refraction,
+            whiteK: WATER_WHITE_K,
+            glow: WATER_GLOW,
           });
         },
         dispose: () => {

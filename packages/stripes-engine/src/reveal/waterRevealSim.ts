@@ -12,13 +12,15 @@ const MAX_SIM_EDGE = 420;
 /** Sub-steps per frame. Wave speed is a function of this, not of frame time. */
 const SUBSTEPS = 15;
 const SPLAT_AMP_PER_STEP = 0.5;
-/** Height at which water renders fully white. Must stay the reciprocal of the
- * crest gain in waterReveal.frag (`crest * 0.05`), so a pixel is revealed by
- * exactly as much as the water covering it looks white — otherwise visibly
- * white water reveals only a fraction and the reveal reads as broken. */
-const WATER_WHITE_HEIGHT = 1 / 0.05;
-/** Below this fraction of white the water is too dark to reveal anything. */
-const THRESH_FRACTION = 0.02;
+/** Half-alpha height for the water's compressive alpha curve crest/(crest+K).
+ * Shared by the reveal pass and the cover accumulator so the reveal always
+ * matches how white the water looks. Measured crests run 4 (p90) to 25 (max),
+ * so this sits mid-range: strong water reads bright without ever clipping to a
+ * flat white plateau. */
+export const WATER_WHITE_K = 7;
+/** How much white the water adds on top of the field. Bounded well under 1 so
+ * water tints the image instead of blowing it out. */
+export const WATER_GLOW = 0.5;
 
 export type WaterRevealTextures = {
   height: WebGLTexture;
@@ -50,8 +52,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
   const L = {
     prevCover: u("uPrevCover"),
     height: u("uHeight"),
-    threshLo: u("uThreshLo"),
-    fullHeight: u("uFullHeight"),
+    whiteK: u("uWhiteK"),
     gamma: u("uGamma"),
     fillFloor: u("uFillFloor"),
   };
@@ -96,8 +97,6 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
 
   function accumulate(settleT: number, softness: number): void {
     if (!heightPingPong || !coverPingPong) return;
-    const fullHeight = WATER_WHITE_HEIGHT;
-    const threshLo = fullHeight * THRESH_FRACTION;
     const gamma = 1.3 - 0.6 * Math.min(1, Math.max(0, softness));
     // Linear, not eased: the settle should read as the last of the water
     // running out, not as a fade curve tacked onto the end.
@@ -110,8 +109,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, heightPingPong.read().texture);
     gl.uniform1i(L.height, 1);
-    gl.uniform1f(L.threshLo, threshLo);
-    gl.uniform1f(L.fullHeight, fullHeight);
+    gl.uniform1f(L.whiteK, WATER_WHITE_K);
     gl.uniform1f(L.gamma, gamma);
     gl.uniform1f(L.fillFloor, fillFloor);
     quad.draw();
@@ -171,7 +169,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
           prevPointValid = true;
         }
 
-        const radius = Math.max(3, sh / (Math.max(1, p.rows) * 1.5));
+        const radius = Math.max(3, sh / (Math.max(1, p.rows) * 2.6));
 
         for (let i = 0; i < SUBSTEPS; i++) {
           const t0 = i / SUBSTEPS;
