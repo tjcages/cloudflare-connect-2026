@@ -885,9 +885,9 @@ describe("reveal type promotion", () => {
     expect(r.type).toBe("water");
     expect(r.water).toEqual({
       durationMs: 950,
-      settleMs: 320,
-      rows: 4,
-      intensity: 1.3,
+      settleMs: 520,
+      rows: 5,
+      intensity: 1.7,
       wobble: 0.7,
       refraction: 1.3,
       softness: 0.35,

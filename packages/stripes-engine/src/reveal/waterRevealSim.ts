@@ -21,6 +21,15 @@ export const WATER_WHITE_K = 3;
 /** How much white the water adds on top of the field. Bounded well under 1 so
  * water tints the image instead of blowing it out. */
 export const WATER_GLOW = 0.72;
+/** Reveal saturates faster than the glow: water that is clearly present should
+ * finish a pixel off, while still only tinting it. Nothing else reveals — there
+ * is no end-of-animation fill — so this has to be generous enough that the
+ * sweep plus the settle ring-down carry the whole image on their own. */
+const WATER_REVEAL_K = 0.3;
+/** Per-frame cover gained by water that keeps washing a pixel. This is what
+ * finishes the image, so it must outlast the animation: sustained water
+ * completes a pixel, a single faint ripple does not. */
+const WATER_SOAK = 0.045;
 
 export type WaterRevealTextures = {
   height: WebGLTexture;
@@ -32,7 +41,6 @@ export type WaterRevealTextures = {
 export type WaterRevealSim = {
   tick(p: {
     sweepT: number;
-    settleT: number;
     displayWidth: number;
     displayHeight: number;
     rows: number;
@@ -52,9 +60,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
   const L = {
     prevCover: u("uPrevCover"),
     height: u("uHeight"),
-    whiteK: u("uWhiteK"),
+    revealK: u("uRevealK"),
     gamma: u("uGamma"),
-    fillFloor: u("uFillFloor"),
+    soak: u("uSoak"),
   };
 
   let heightPingPong: PingPong | null = null;
@@ -95,12 +103,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     clearCover();
   }
 
-  function accumulate(settleT: number, softness: number): void {
+  function accumulate(softness: number): void {
     if (!heightPingPong || !coverPingPong) return;
-    const gamma = 1.3 - 0.6 * Math.min(1, Math.max(0, softness));
-    // Linear, not eased: the settle should read as the last of the water
-    // running out, not as a fade curve tacked onto the end.
-    const fillFloor = Math.min(1, Math.max(0, (settleT - 0.15) / 0.7));
+    const gamma = 0.8 - 0.45 * Math.min(1, Math.max(0, softness));
     bindRenderTarget(gl, coverPingPong.write());
     gl.useProgram(accumProgram);
     gl.activeTexture(gl.TEXTURE0);
@@ -109,9 +114,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, heightPingPong.read().texture);
     gl.uniform1i(L.height, 1);
-    gl.uniform1f(L.whiteK, WATER_WHITE_K);
+    gl.uniform1f(L.revealK, WATER_REVEAL_K);
     gl.uniform1f(L.gamma, gamma);
-    gl.uniform1f(L.fillFloor, fillFloor);
+    gl.uniform1f(L.soak, WATER_SOAK);
     quad.draw();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     coverPingPong.swap();
@@ -189,7 +194,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
         prevSX = sx;
         prevSY = sy;
 
-        accumulate(p.settleT, p.softness);
+        accumulate(p.softness);
 
         hasTicked = true;
       } catch (error) {

@@ -3,20 +3,23 @@ precision highp float;
 in vec2 vUv;
 uniform sampler2D uPrevCover;
 uniform sampler2D uHeight;
-uniform float uWhiteK;
+uniform float uRevealK;
 uniform float uGamma;
-uniform float uFillFloor;
+uniform float uSoak;
 out vec4 outColor;
 
-// Cover is a peak-hold of the water's alpha: a pixel is revealed exactly as much
-// as the whitest water that ever reached it. The alpha curve must stay identical
-// to waterAlpha() in waterReveal.frag, or the reveal stops matching what the
-// water looks like. Crests only — troughs are dark water and reveal nothing.
+// Cover is driven only by the water that touches each pixel — there is no global
+// end-of-animation fill, so a pixel the water never reaches stays hidden.
+// Two ways water reveals, both local:
+//   peak  — the whitest water that ever hit it, immediate
+//   soak  — water that keeps washing over it finishes it off
+// Soak is what completes the image: the weakest pixels only ever see a crest of
+// ~0.1, so peak alone cannot reach 1 and the reveal would pop at the end.
 void main() {
   float prev = texture(uPrevCover, vUv).r;
   float h = max(texture(uHeight, vUv).r, 0.0);
-  float a = pow(h / (h + uWhiteK), uGamma);
-  float cover = max(max(prev, a), uFillFloor);
+  float a = pow(h / (h + uRevealK), uGamma);
+  float cover = min(1.0, max(prev, a) + a * uSoak);
   outColor = vec4(cover, 0.0, 0.0, 1.0);
 }
 `;

@@ -751,7 +751,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             waterRevealReleased = false;
             waterRevealSim.tick({
               sweepT,
-              settleT,
               displayWidth: cssW,
               displayHeight: cssH,
               rows: water.rows,
