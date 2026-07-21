@@ -728,6 +728,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     } else if (revealEnabled && config.reveal.type === "water") {
       const waterRevealSim = createWaterRevealSim(gl, quad);
       const waterRevealPass = createWaterRevealPass(gl, quad);
+      let waterRevealReleased = false;
       revealFieldPasses.push({
         name: "waterRevealField",
         render: () => {
@@ -741,7 +742,13 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const settleT =
             settleMs <= 0 ? (sweepT >= 1 ? 1 : 0) : Math.min(1, Math.max(0, (elapsed - durationMs) / settleMs));
           const done = sweepT >= 1 && settleT >= 1;
-          if (!done) {
+          if (done) {
+            if (!waterRevealReleased) {
+              waterRevealSim.release();
+              waterRevealReleased = true;
+            }
+          } else {
+            waterRevealReleased = false;
             waterRevealSim.tick({
               sweepT,
               settleT,

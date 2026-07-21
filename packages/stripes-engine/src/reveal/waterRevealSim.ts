@@ -32,6 +32,7 @@ export type WaterRevealSim = {
     softness: number;
   }): void;
   current(): WaterRevealTextures | null;
+  release(): void;
   dispose(): void;
 };
 
@@ -70,13 +71,24 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
-  function clearAll(): void {
-    if (!heightPingPong || !coverPingPong) return;
+  function clearHeight(): void {
+    if (!heightPingPong) return;
     clearRT(heightPingPong.read());
     clearRT(heightPingPong.write());
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  function clearCover(): void {
+    if (!coverPingPong) return;
     clearRT(coverPingPong.read());
     clearRT(coverPingPong.write());
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  /** Cover is UV-sampled only (never at sim texel offsets), so unlike height it doesn't need to track sim dims. */
+  function clearAll(): void {
+    clearHeight();
+    clearCover();
   }
 
   function accumulate(settleT: number, softness: number): void {
@@ -131,10 +143,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
           clearAll();
         } else if (sw !== simWidth || sh !== simHeight) {
           heightPingPong.resize(sw, sh);
-          coverPingPong.resize(sw, sh);
           simWidth = sw;
           simHeight = sh;
-          clearAll();
+          clearHeight();
         }
 
         let sx = prevSX;
@@ -189,6 +200,19 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
         texelX: 1 / simWidth,
         texelY: 1 / simHeight,
       };
+    },
+    release() {
+      heightPingPong?.dispose();
+      coverPingPong?.dispose();
+      heightPingPong = null;
+      coverPingPong = null;
+      simWidth = 0;
+      simHeight = 0;
+      hasTicked = false;
+      lastSweepT = -Infinity;
+      prevPointValid = false;
+      prevSX = 0;
+      prevSY = 0;
     },
     dispose() {
       heightPass.dispose();
