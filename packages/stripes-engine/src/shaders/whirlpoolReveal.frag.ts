@@ -44,9 +44,12 @@ highp float cellOffset(vec2 uv, vec2 asp) {
   vec2 cq = (cellUv - 0.5) * asp;
   highp float cr = length(cq);
   highp float cfall = uTightness / (cr + uTightness);
-  highp float spiral = atan(cq.y, cq.x) + uTurns * 6.2831853 * cfall + cr * 5.0;
+  /* 4 arms: a single angular cycle makes one side of the frame systematically early (reads as
+     "the left reveals before the right"). EVEN arm counts cancel that bias exactly on both
+     axes; odd counts leave a residual. Integer multipliers stay continuous across the atan seam. */
+  highp float spiral = atan(cq.y, cq.x) * 4.0 + uTurns * 6.2831853 * cfall + cr * 5.0;
   highp float wave = 0.5 - 0.5 * cos(spiral);
-  return (wave - 0.5) * 0.3 + (cellHash(c) - 0.5) * 0.05;
+  return (wave - 0.5) * 0.22 + (cellHash(c) - 0.5) * 0.05;
 }
 
 void main() {
