@@ -13,6 +13,7 @@ import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createEnergyWarpPass } from "./passes/energyWarpPass";
 import { createVortexPass } from "./passes/vortexPass";
+import { createWaterRevealPass } from "./passes/waterRevealPass";
 import { createBlurPass } from "./passes/blurPass";
 import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
 import { createStylizePass } from "./passes/stylizePass";
@@ -63,6 +64,7 @@ import { extractVibrantColors, createSyntheticVibrantPalette, type VibrantColor 
 import { createColorDistPass } from "./passes/colorDistPass";
 import { createMaxReducePass } from "./passes/maxReducePass";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
+import { createWaterRevealSim } from "./reveal/waterRevealSim";
 
 const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
 const CLICK_WAVE_MAX_PUSH_CELLS = 6;
@@ -201,11 +203,12 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
-  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" => {
+  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" | "water" => {
     if (!config.reveal.enabled) return "none";
     if (config.reveal.type === "wave") return "wave";
     if (config.reveal.type === "assembly") return "scatter";
     if (config.reveal.type === "vortex") return "vortex";
+    if (config.reveal.type === "water") return "water";
     return "warp";
   };
   let lastRevealKind = revealPassKind();
@@ -720,6 +723,43 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         dispose: () => {
           scatterPass.dispose();
           blurPass.dispose();
+        },
+      });
+    } else if (revealEnabled && config.reveal.type === "water") {
+      const waterRevealSim = createWaterRevealSim(gl, quad);
+      const waterRevealPass = createWaterRevealPass(gl, quad);
+      revealFieldPasses.push({
+        name: "waterRevealField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const water = config.reveal.water;
+          const durationMs = Math.max(1, water.durationMs);
+          const settleMs = Math.max(0, water.settleMs);
+          const elapsed = clock.now() - revealStartMs;
+          const sweepT = Math.min(1, Math.max(0, elapsed / durationMs));
+          const settleT =
+            settleMs <= 0 ? (sweepT >= 1 ? 1 : 0) : Math.min(1, Math.max(0, (elapsed - durationMs) / settleMs));
+          const done = sweepT >= 1 && settleT >= 1;
+          if (!done) {
+            waterRevealSim.tick({
+              sweepT,
+              settleT,
+              displayWidth: cssW,
+              displayHeight: cssH,
+              rows: water.rows,
+              wobble: water.wobble,
+              intensity: water.intensity,
+              softness: water.softness,
+            });
+          }
+          waterRevealPass.render(revealedRT, fieldRT.texture, done ? null : waterRevealSim.current(), {
+            refraction: water.refraction,
+          });
+        },
+        dispose: () => {
+          waterRevealSim.dispose();
+          waterRevealPass.dispose();
         },
       });
     } else if (revealEnabled) {
