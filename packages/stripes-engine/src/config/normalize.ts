@@ -265,12 +265,12 @@ export const DEFAULT_REVEAL: RevealConfig = {
     swirl: 1,
   },
   water: {
-    durationMs: 2600,
-    settleMs: 900,
-    rows: 5,
-    intensity: 0.85,
-    wobble: 0.5,
-    refraction: 1,
+    durationMs: 1300,
+    settleMs: 420,
+    rows: 4,
+    intensity: 1.15,
+    wobble: 0.7,
+    refraction: 1.4,
     softness: 0.35,
   },
 };

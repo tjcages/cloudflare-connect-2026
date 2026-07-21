@@ -43,11 +43,6 @@ export type WaterRevealSim = {
   dispose(): void;
 };
 
-function smoothstep01(x: number): number {
-  const t = Math.min(1, Math.max(0, x));
-  return t * t * (3 - 2 * t);
-}
-
 export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw(): void }): WaterRevealSim {
   const heightPass = createWaterSimPass(gl, quad);
   const accumProgram = compileProgram(gl, FULLSCREEN_VERT, WATER_REVEAL_ACCUM_FRAG);
@@ -104,7 +99,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     const fullHeight = WATER_WHITE_HEIGHT;
     const threshLo = fullHeight * THRESH_FRACTION;
     const gamma = 1.3 - 0.6 * Math.min(1, Math.max(0, softness));
-    const fillFloor = smoothstep01((settleT - 0.35) / 0.55);
+    // Linear, not eased: the settle should read as the last of the water
+    // running out, not as a fade curve tacked onto the end.
+    const fillFloor = Math.min(1, Math.max(0, (settleT - 0.15) / 0.7));
     bindRenderTarget(gl, coverPingPong.write());
     gl.useProgram(accumProgram);
     gl.activeTexture(gl.TEXTURE0);

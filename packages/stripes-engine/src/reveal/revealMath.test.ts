@@ -96,7 +96,7 @@ describe("resolveRevealDurationMs", () => {
 
   it("resolves water duration as durationMs + settleMs", () => {
     const water = normalizeReveal({ enabled: true, type: "water" });
-    expect(resolveRevealDurationMs(water)).toBe(2600 + 900);
+    expect(resolveRevealDurationMs(water)).toBe(1300 + 420);
   });
 });
 
