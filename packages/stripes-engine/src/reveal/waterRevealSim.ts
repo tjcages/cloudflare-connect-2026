@@ -12,10 +12,13 @@ const MAX_SIM_EDGE = 420;
 /** Sub-steps per frame. Wave speed is a function of this, not of frame time. */
 const SUBSTEPS = 15;
 const SPLAT_AMP_PER_STEP = 0.5;
-/** Wave height that counts as "fully white" water, as a fraction of the splat
- * amplitude. Cover = peak wave height / full height, so spill-over ripples
- * reveal only as much as their actual brightness. */
-const FULL_HEIGHT_PER_AMP = 0.62;
+/** Height that counts as "fully white" water, as a multiple of one frame's total
+ * splat input. Measured heights: median ~0.5, p90 ~4, p99 ~16, max ~25 — so full
+ * reveal must sit at the p99 crest scale, otherwise ambient slosh (which reaches
+ * every pixel) reveals the whole canvas. */
+const FULL_HEIGHT_CREST_FACTOR = 2.5;
+/** Below this fraction of a full crest the water is too dark to reveal anything. */
+const THRESH_FRACTION = 0.045;
 
 export type WaterRevealTextures = {
   height: WebGLTexture;
@@ -98,9 +101,9 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
 
   function accumulate(settleT: number, softness: number, intensity: number): void {
     if (!heightPingPong || !coverPingPong) return;
-    const threshLo = 0.012;
-    const fullHeight = Math.max(0.1, intensity * SPLAT_AMP_PER_STEP * FULL_HEIGHT_PER_AMP);
-    const gamma = 2.0 - 1.3 * Math.min(1, Math.max(0, softness));
+    const fullHeight = Math.max(0.5, intensity * SPLAT_AMP_PER_STEP * SUBSTEPS * FULL_HEIGHT_CREST_FACTOR);
+    const threshLo = fullHeight * THRESH_FRACTION;
+    const gamma = 1.6 - 0.9 * Math.min(1, Math.max(0, softness));
     const fillFloor = smoothstep01((settleT - 0.35) / 0.55);
     bindRenderTarget(gl, coverPingPong.write());
     gl.useProgram(accumProgram);

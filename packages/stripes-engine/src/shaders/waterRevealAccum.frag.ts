@@ -10,11 +10,12 @@ uniform float uFillFloor;
 out vec4 outColor;
 
 // Cover is a peak-hold of wave brightness: a pixel is revealed exactly as much
-// as the strongest wave that ever reached it (a 0.1-high ripple leaves it 0.1
-// revealed; only a full crest at uFullHeight reveals it completely).
+// as the whitest water that ever reached it (a 0.1-bright ripple leaves it 0.1
+// revealed; only a full crest at uFullHeight reveals it completely). Crests
+// only — troughs are dark water and must not reveal anything.
 void main() {
   float prev = texture(uPrevCover, vUv).r;
-  float h = abs(texture(uHeight, vUv).r);
+  float h = max(texture(uHeight, vUv).r, 0.0);
   float a = clamp((h - uThreshLo) / max(uFullHeight - uThreshLo, 1e-4), 0.0, 1.0);
   a = pow(a, uGamma);
   float cover = max(max(prev, a), uFillFloor);
