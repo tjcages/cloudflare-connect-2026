@@ -41,7 +41,7 @@ highp float cellOffset(vec2 uv, vec2 asp) {
   vec2 cellUv = (c + 0.5) / vec2(150.0, 78.0);
   vec2 cq = (cellUv - 0.5) * asp;
   highp float cr = length(cq);
-  highp float cfall = uTightness / (cr + uTightness);
+  highp float cfall = pow(uTightness / (cr + uTightness), 0.45);
   /* Keep a constant arm pitch outward, otherwise the spiral degenerates into a plain
      left-right sweep at large radius where the tightness falloff has died away. */
   highp float spiral = atan(cq.y, cq.x) + uTurns * 6.2831853 * cfall + cr * 5.0;
@@ -79,7 +79,9 @@ void main() {
   highp float ang = atan(q.y, q.x);
   highp float maxR = length(asp) * 0.5;
   highp float band = 0.22 * maxR;
-  highp float falloff = uTightness / (r + uTightness);
+  /* pow() flattens the curve: without it the outer field gets ~5x less winding than the
+     centre, so the cells that settle LAST have almost no motion to resolve from. */
+  highp float falloff = pow(uTightness / (r + uTightness), 0.45);
 
   highp float jit = cellOffset(vUv, asp);
   highp float settle;
