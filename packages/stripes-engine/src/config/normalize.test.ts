@@ -884,9 +884,9 @@ describe("reveal type promotion", () => {
     const r = normalizeReveal({ enabled: true, type: "water" });
     expect(r.type).toBe("water");
     expect(r.water).toEqual({
-      durationMs: 1500,
-      settleMs: 480,
-      rows: 3,
+      durationMs: 950,
+      settleMs: 320,
+      rows: 4,
       intensity: 1.3,
       wobble: 0.7,
       refraction: 1.3,
