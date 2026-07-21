@@ -13,6 +13,8 @@ import { createRevealPass } from "./passes/revealPass";
 import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createEnergyWarpPass } from "./passes/energyWarpPass";
 import { createVortexPass } from "./passes/vortexPass";
+import { createBlackholePass } from "./passes/blackholePass";
+import { createWhirlpoolPass } from "./passes/whirlpoolPass";
 import { createWaterRevealPass } from "./passes/waterRevealPass";
 import { createBlurPass } from "./passes/blurPass";
 import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
@@ -203,11 +205,13 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
-  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" | "water" => {
+  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" | "blackhole" | "whirlpool" | "water" => {
     if (!config.reveal.enabled) return "none";
     if (config.reveal.type === "wave") return "wave";
     if (config.reveal.type === "assembly") return "scatter";
     if (config.reveal.type === "vortex") return "vortex";
+    if (config.reveal.type === "blackhole") return "blackhole";
+    if (config.reveal.type === "whirlpool") return "whirlpool";
     if (config.reveal.type === "water") return "water";
     return "warp";
   };
@@ -625,6 +629,65 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           });
         },
         dispose: () => vortexPass.dispose(),
+      });
+    } else if (revealEnabled && config.reveal.type === "blackhole") {
+      const blackholePass = createBlackholePass(gl, quad);
+      revealFieldPasses.push({
+        name: "blackholeField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const bh = config.reveal.blackhole;
+          const durationMs = resolveRevealDurationMs(config.reveal);
+          const total = Math.max(1, durationMs);
+          const rawProgress = (clock.now() - revealStartMs) / total;
+          const speedMin = Math.max(1, bh.speedMinMs);
+          const speedMax = Math.max(speedMin, bh.speedMaxMs);
+          const gridX = Math.round(280 + 280 * bh.detail);
+          const gridY = Math.max(2, Math.round((gridX * cssH) / Math.max(1, cssW)));
+          const diskCount = 4200;
+          blackholePass.render(revealedRT, fieldRT.texture, {
+            progress: rawProgress,
+            form: bh.formMs / total,
+            spread: bh.staggerMs / total,
+            flightMin: speedMin / total,
+            flightMax: speedMax / total,
+            collapse: bh.collapseMs / total,
+            gridX,
+            gridY,
+            glow: bh.glow,
+            swirl: bh.swirl,
+            arms: bh.arms,
+            lensing: bh.lensing,
+            horizon: bh.horizon,
+            intensity: bh.intensity,
+            aspect: cssW / Math.max(1, cssH),
+            diskCount,
+            count: gridX * gridY * 3 + diskCount,
+          });
+        },
+        dispose: () => blackholePass.dispose(),
+      });
+    } else if (revealEnabled && config.reveal.type === "whirlpool") {
+      const whirlpoolPass = createWhirlpoolPass(gl, quad);
+      revealFieldPasses.push({
+        name: "whirlpoolField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const wp = config.reveal.whirlpool;
+          const durationMs = Math.max(1, resolveRevealDurationMs(config.reveal));
+          const rawProgress = (clock.now() - revealStartMs) / durationMs;
+          whirlpoolPass.render(revealedRT, fieldRT.texture, {
+            progress: rawProgress,
+            turns: wp.turns,
+            tightness: wp.tightness,
+            streak: wp.streak,
+            glow: wp.glow,
+            aspect: cssW / Math.max(1, cssH),
+          });
+        },
+        dispose: () => whirlpoolPass.dispose(),
       });
     } else if (revealEnabled && isWarpRevealType(config.reveal.type)) {
       const warpPass = createEnergyWarpPass(gl, quad);

@@ -25,6 +25,8 @@ import type {
   RevealType,
   WarpStyleConfig,
   VortexRevealConfig,
+  BlackholeRevealConfig,
+  WhirlpoolRevealConfig,
   WaterRevealConfig,
 } from "./types";
 
@@ -239,7 +241,16 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-export const REVEAL_TYPES: readonly RevealType[] = ["wave", "assembly", "turbulence", "glitch", "vortex", "water"];
+export const REVEAL_TYPES: readonly RevealType[] = [
+  "wave",
+  "assembly",
+  "turbulence",
+  "glitch",
+  "vortex",
+  "blackhole",
+  "whirlpool",
+  "water",
+];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",
@@ -264,6 +275,27 @@ export const DEFAULT_REVEAL: RevealConfig = {
     detail: 0.5,
     glow: 0.7,
     swirl: 1,
+  },
+  blackhole: {
+    speedMinMs: 260,
+    speedMaxMs: 1050,
+    staggerMs: 3600,
+    intensity: 1,
+    detail: 0.5,
+    glow: 0.7,
+    swirl: 1.2,
+    formMs: 1150,
+    collapseMs: 420,
+    arms: 3,
+    lensing: 1,
+    horizon: 0.12,
+  },
+  whirlpool: {
+    durationMs: 5600,
+    turns: 4,
+    tightness: 0.22,
+    streak: 0.6,
+    glow: 0.4,
   },
   water: {
     durationMs: 950,
@@ -295,6 +327,8 @@ type PartialReveal = {
   glitch?: Partial<WarpStyleConfig>;
   vortex?: Partial<RevealConfig["vortex"]>;
   hadouken?: Partial<RevealConfig["vortex"]>;
+  blackhole?: Partial<BlackholeRevealConfig>;
+  whirlpool?: Partial<WhirlpoolRevealConfig>;
   water?: Partial<WaterRevealConfig>;
 };
 
@@ -335,6 +369,34 @@ function normalizeVortexBlock(i: Partial<VortexRevealConfig> = {}, d: VortexReve
   return {
     ...normalizeWarpStyleBlock(i, d),
     swirl: clamp(num(i.swirl, d.swirl), 0, 3),
+  };
+}
+
+function normalizeBlackholeBlock(
+  i: Partial<BlackholeRevealConfig> = {},
+  d: BlackholeRevealConfig,
+): BlackholeRevealConfig {
+  return {
+    ...normalizeWarpStyleBlock(i, d),
+    swirl: clamp(num(i.swirl, d.swirl), 0, 3),
+    formMs: clamp(Math.round(num(i.formMs, d.formMs)), 0, 10000),
+    collapseMs: clamp(Math.round(num(i.collapseMs, d.collapseMs)), 0, 10000),
+    arms: clamp(Math.round(num(i.arms, d.arms)), 1, 8),
+    lensing: clamp(num(i.lensing, d.lensing), 0, 2),
+    horizon: clamp(num(i.horizon, d.horizon), 0.02, 0.3),
+  };
+}
+
+function normalizeWhirlpoolBlock(
+  i: Partial<WhirlpoolRevealConfig> = {},
+  d: WhirlpoolRevealConfig,
+): WhirlpoolRevealConfig {
+  return {
+    durationMs: clamp(Math.round(num(i.durationMs, d.durationMs)), 100, 30000),
+    turns: clamp(num(i.turns, d.turns), 0, 6),
+    tightness: clamp(num(i.tightness, d.tightness), 0.05, 0.5),
+    streak: clamp(num(i.streak, d.streak), 0, 1),
+    glow: clamp(num(i.glow, d.glow), 0, 1),
   };
 }
 
@@ -381,6 +443,8 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     turbulence: normalizeWarpStyleBlock(i.turbulence ?? a.turbulence, DEFAULT_REVEAL.turbulence),
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     vortex: normalizeVortexBlock(i.vortex ?? i.hadouken ?? a.vortex ?? a.hadouken, DEFAULT_REVEAL.vortex),
+    blackhole: normalizeBlackholeBlock(i.blackhole, DEFAULT_REVEAL.blackhole),
+    whirlpool: normalizeWhirlpoolBlock(i.whirlpool, DEFAULT_REVEAL.whirlpool),
     water: normalizeWaterBlock(i.water, DEFAULT_REVEAL.water),
   };
 }

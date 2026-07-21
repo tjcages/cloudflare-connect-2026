@@ -51,6 +51,8 @@ describe("migrateLegacyConfig", () => {
       turbulence: DEFAULT_REVEAL.turbulence,
       glitch: DEFAULT_REVEAL.glitch,
       vortex: DEFAULT_REVEAL.vortex,
+      blackhole: DEFAULT_REVEAL.blackhole,
+      whirlpool: DEFAULT_REVEAL.whirlpool,
       water: DEFAULT_REVEAL.water,
     });
   });
