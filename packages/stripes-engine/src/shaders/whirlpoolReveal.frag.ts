@@ -28,14 +28,22 @@ highp float frontierWobble(highp float r, highp float ang) {
     + 0.18 * sin(ang * 13.0 + r * 24.0 + 2.7);
 }
 
+/* Per-cell offset: cells lock in one by one along the frontier instead of a smooth band. */
+highp float cellJitter(vec2 uv) {
+  vec2 c = floor(uv * vec2(150.0, 78.0));
+  vec3 p3 = fract(vec3(c.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
 /* Settling rotates ONWARD to the next whole turn (2pi multiple = identity), never backwards.
    The frontier trails the spiral arms, so calm spreads along the swirl instead of as a ring. */
-highp float windAngle(highp float r, highp float ang, highp float falloff, highp float maxR, highp float band, highp float pp, out highp float settle) {
+highp float windAngle(highp float r, highp float ang, highp float falloff, highp float maxR, highp float band, highp float pp, highp float jit, out highp float settle) {
   highp float rn = clamp(r / max(maxR, 1e-4), 0.0, 1.0);
-  highp float span = 0.3;
+  highp float span = 0.13;
   highp float arms = 0.075 * sin(ang * 2.0 - rn * 10.0) + 0.045 * sin(ang * 3.0 - rn * 17.0 + 2.1);
   highp float pArrive = clamp(
-    mix(0.36, 1.0 - span * 0.92, rn) + arms + frontierWobble(r, ang) * 0.035,
+    mix(0.36, 1.0 - span * 0.92, rn) + arms + frontierWobble(r, ang) * 0.035 + (jit - 0.5) * 0.22,
     0.0,
     1.0 - span * 0.9
   );
@@ -59,12 +67,13 @@ void main() {
   highp float band = 0.22 * maxR;
   highp float falloff = uTightness / (r + uTightness);
 
+  highp float jit = cellJitter(vUv);
   highp float settle;
-  highp float theta = windAngle(r, ang, falloff, maxR, band, p, settle);
+  highp float theta = windAngle(r, ang, falloff, maxR, band, p, jit, settle);
   highp float pull = 0.3 * falloff * (1.0 - settle);
 
   highp float settle2;
-  highp float theta2 = windAngle(r, ang, falloff, maxR, band, min(p + 0.016, 1.0), settle2);
+  highp float theta2 = windAngle(r, ang, falloff, maxR, band, min(p + 0.016, 1.0), jit, settle2);
   highp float arc = (theta2 - theta) * (0.5 + 3.5 * uStreak);
 
   highp float v = 0.0;
@@ -75,7 +84,7 @@ void main() {
 
   v *= smoothstep(0.0, 0.08, p);
   highp float edge = settle * (1.0 - settle) * 4.0;
-  v *= 1.0 + uGlow * 0.22 * edge * edge;
+  v *= 1.0 + uGlow * 0.35 * edge * edge;
   finalColor = vec4(vec3(v), 1.0);
 }
 `;
