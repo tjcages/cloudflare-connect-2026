@@ -238,7 +238,15 @@ const WAVE_POSITIONS: WavePosition[] = [
   "center bottom",
   "right bottom",
 ];
-export const REVEAL_TYPES: readonly RevealType[] = ["wave", "assembly", "turbulence", "glitch", "vortex", "water"];
+export const REVEAL_TYPES: readonly RevealType[] = [
+  "wave",
+  "assembly",
+  "turbulence",
+  "glitch",
+  "vortex",
+  "water",
+  "custom",
+];
 export const DEFAULT_REVEAL: RevealConfig = {
   enabled: false,
   type: "assembly",

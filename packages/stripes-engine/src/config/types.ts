@@ -11,7 +11,7 @@ export type WavePosition =
   | "center bottom"
   | "right bottom";
 
-export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "vortex" | "water";
+export type RevealType = "wave" | "assembly" | "turbulence" | "glitch" | "vortex" | "water" | "custom";
 
 export interface WarpStyleConfig {
   speedMinMs: number;

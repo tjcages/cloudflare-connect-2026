@@ -2,7 +2,7 @@ import { type Clock, createRealClock } from "./core/clock";
 import { createFrameCapState, shouldRenderFrame } from "./core/frameCap";
 import type { EngineContext } from "./gl/context";
 import { createCanvasSurface, createSharedSurface, type RenderSurface } from "./gl/renderSurface";
-import { createFullscreenQuad } from "./gl/program";
+import { createFullscreenQuad, type FullscreenQuad } from "./gl/program";
 import { resolveOutputSize, resolveFieldSize, type Size } from "./gl/resolution";
 import { createSourceFieldPass } from "./passes/sourceFieldPass";
 import { createSourceFieldColorPass } from "./passes/sourceFieldColorPass";
@@ -34,6 +34,7 @@ import {
   createCursorTrailState,
   setCursorTrailTarget,
   updateCursorTrail,
+  type CursorTrailPoint,
   type CursorTrailState,
 } from "./cursorTrail/cursorTrailSim";
 import { createClickWaveState, addClickWave, updateClickWave, type ClickWaveState } from "./cursorTrail/clickWaveSim";
@@ -58,7 +59,7 @@ import { resolveCellGrid, type CellGrid } from "./config/cellGrid";
 import { buildStripeLut, buildStripeOpacityLut, lutSignature } from "./field/stripeLut";
 import { effectiveStripes } from "./field/imageColorDensity";
 import { createDataTexture, updateDataTexture } from "./gl/dataTexture";
-import { bindRenderTarget, createMrtTarget, type MrtTarget } from "./gl/renderTarget";
+import { bindRenderTarget, createMrtTarget, type MrtTarget, type RenderTarget } from "./gl/renderTarget";
 import { detectBackgroundColor } from "./colors/backgroundDetect";
 import { extractVibrantColors, createSyntheticVibrantPalette, type VibrantColor } from "./colors/vibrantPalette";
 import { createColorDistPass } from "./passes/colorDistPass";
@@ -79,11 +80,63 @@ function isWarpRevealType(t: RevealType): t is WarpRevealType {
   return t === "turbulence" || t === "glitch";
 }
 
+export type EngineHookContext = {
+  gl: WebGL2RenderingContext;
+  quad: FullscreenQuad;
+  pool: RtPool;
+};
+export type FieldHookFrame = {
+  input: RenderTarget;
+  output: RenderTarget;
+  fieldSize: Size;
+  cssW: number;
+  cssH: number;
+  now: number;
+  elapsed: number;
+  cursor: () => CursorTrailPoint | null;
+};
+export type FieldHookPass = {
+  render(frame: FieldHookFrame): void;
+  dispose(): void;
+};
+export type PostHookFrame = {
+  outputWidth: number;
+  outputHeight: number;
+  cssW: number;
+  cssH: number;
+  now: number;
+  elapsed: number;
+  cursor: () => CursorTrailPoint | null;
+};
+export type PostHookPass = {
+  render(src: WebGLTexture, dst: RenderTarget | null, frame: PostHookFrame): void;
+  dispose(): void;
+};
+export type CustomRevealFrame = {
+  field: RenderTarget;
+  revealed: RenderTarget;
+  progress: number;
+  fieldSize: Size;
+  cssW: number;
+  cssH: number;
+  now: number;
+};
+export type CustomRevealPass = {
+  render(frame: CustomRevealFrame): void;
+  dispose(): void;
+};
+export type EngineHooks = {
+  fieldPass?: (ctx: EngineHookContext) => FieldHookPass;
+  postPass?: (ctx: EngineHookContext) => PostHookPass;
+  customReveal?: (ctx: EngineHookContext) => CustomRevealPass;
+};
+
 export type EngineOptions = {
   clock?: Clock;
   seed?: number;
   dpr?: number;
   fieldScale?: number;
+  hooks?: EngineHooks;
   /** Called when the "wave" trail's 0..1 activity changes meaningfully. */
   onWaterActivity?: (activity: number) => void;
 };
@@ -147,6 +200,7 @@ export function createStripesEngine(canvas: HTMLCanvasElement, opts: EngineOptio
     clock: opts.clock,
     seed: opts.seed,
     fieldScale: opts.fieldScale,
+    hooks: opts.hooks,
     onWaterActivity: opts.onWaterActivity,
     cssWidth: canvas.clientWidth || 800,
     cssHeight: canvas.clientHeight || 600,
@@ -168,6 +222,7 @@ type EngineCoreOptions = {
   clock?: Clock;
   seed?: number;
   fieldScale?: number;
+  hooks?: EngineHooks;
   onWaterActivity?: (activity: number) => void;
   cssWidth: number;
   cssHeight: number;
@@ -175,6 +230,8 @@ type EngineCoreOptions = {
 
 function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): StripesEngine & SharedStripesEngine {
   const clock = opts.clock ?? createRealClock();
+  const hooks = opts.hooks;
+  const createdMs = clock.now();
   let cssW = opts.cssWidth;
   let cssH = opts.cssHeight;
 
@@ -203,12 +260,13 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
-  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" | "water" => {
+  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" | "water" | "custom" => {
     if (!config.reveal.enabled) return "none";
     if (config.reveal.type === "wave") return "wave";
     if (config.reveal.type === "assembly") return "scatter";
     if (config.reveal.type === "vortex") return "vortex";
     if (config.reveal.type === "water") return "water";
+    if (config.reveal.type === "custom") return hooks?.customReveal ? "custom" : "wave";
     return "warp";
   };
   let lastRevealKind = revealPassKind();
@@ -239,6 +297,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let cursorTrailState: CursorTrailState = createCursorTrailState();
   let clickWaveState: ClickWaveState = createClickWaveState();
   let lastCursorMs = clock.now();
+  const cursorPoint = (): CursorTrailPoint | null => cursorTrailState.target;
 
   // The "wave" trail is a heightfield sim the field pass samples, so it lives
   // outside the pass graph and is stepped before the pipeline each frame.
@@ -762,6 +821,27 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           waterRevealPass.dispose();
         },
       });
+    } else if (revealEnabled && config.reveal.type === "custom" && hooks?.customReveal) {
+      const customRevealPass = hooks.customReveal({ gl, quad, pool });
+      revealFieldPasses.push({
+        name: "customRevealField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const durationMs = resolveRevealDurationMs(config.reveal);
+          const progress = (clock.now() - revealStartMs) / durationMs;
+          customRevealPass.render({
+            field: fieldRT,
+            revealed: revealedRT,
+            progress,
+            fieldSize,
+            cssW,
+            cssH,
+            now: clock.now(),
+          });
+        },
+        dispose: () => customRevealPass.dispose(),
+      });
     } else if (revealEnabled) {
       const revealPass = createRevealPass(gl, quad);
       revealFieldPasses.push({
@@ -793,6 +873,31 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => revealPass.dispose(),
       });
+    }
+
+    const hookFieldPasses: Pass[] = [];
+    if (hooks?.fieldPass) {
+      const fieldHookPass = hooks.fieldPass({ gl, quad, pool });
+      const srcRT = activeFieldRT;
+      hookFieldPasses.push({
+        name: "hookField",
+        render: () => {
+          const inputRT = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true });
+          const outputRT = pool.get("hookField", fieldSize.width, fieldSize.height, { linear: true });
+          fieldHookPass.render({
+            input: inputRT,
+            output: outputRT,
+            fieldSize,
+            cssW,
+            cssH,
+            now: clock.now(),
+            elapsed: clock.now() - createdMs,
+            cursor: cursorPoint,
+          });
+        },
+        dispose: () => fieldHookPass.dispose(),
+      });
+      activeFieldRT = "hookField";
     }
 
     const edgeMaskFieldPasses: Pass[] = [];
@@ -910,6 +1015,17 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       if (colorsMode) activeColorRT = "cursorFieldColor";
     }
 
+    const postHookPass = hooks?.postPass ? hooks.postPass({ gl, quad, pool }) : null;
+    const postFrame = (): PostHookFrame => ({
+      outputWidth: output.width,
+      outputHeight: output.height,
+      cssW,
+      cssH,
+      now: clock.now(),
+      elapsed: clock.now() - createdMs,
+      cursor: cursorPoint,
+    });
+
     const colorsModeActive = config.colors.mode === "colors";
     if (config.stripesEnabled) {
       const downsamplePass = createDownsamplePass(gl, quad);
@@ -969,6 +1085,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...starsFieldPasses,
         ...flamesFieldPasses,
         ...revealFieldPasses,
+        ...hookFieldPasses,
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         {
@@ -1015,7 +1132,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
               }),
               output.width,
               output.height,
-              stylizePass ? pool.get("stripeOut", output.width, output.height, { linear: true }) : null,
+              stylizePass || postHookPass ? pool.get("stripeOut", output.width, output.height, { linear: true }) : null,
             );
           },
           dispose: () => stripePass.dispose(),
@@ -1043,7 +1160,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                 render: () => {
                   const src = pool.get("solidOut", output.width, output.height, { linear: true });
                   const stripesRT = pool.get("stripeOut", output.width, output.height, { linear: true });
-                  stylizePass.render(null, src.texture, stripesRT.texture, {
+                  const dst = postHookPass ? pool.get("postSrc", output.width, output.height, { linear: true }) : null;
+                  stylizePass.render(dst, src.texture, stripesRT.texture, {
                     mode: config.renderMode,
                     time: clock.now() / 1000,
                     intensity: config.renderIntensity,
@@ -1058,27 +1176,45 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
               },
             ]
           : []),
+        ...(postHookPass
+          ? [
+              {
+                name: "hookPost",
+                render: () => {
+                  const srcKey = stylizePass ? "postSrc" : "stripeOut";
+                  const srcRT = pool.get(srcKey, output.width, output.height, { linear: true });
+                  postHookPass.render(srcRT.texture, null, postFrame());
+                },
+                dispose: () => postHookPass.dispose(),
+              },
+            ]
+          : []),
       ];
     } else {
-      const presentPass = createPresentPass(gl, quad);
+      const presentPass = postHookPass ? null : createPresentPass(gl, quad);
       passes = [
         fieldPass,
         ...starsFieldPasses,
         ...flamesFieldPasses,
         ...revealFieldPasses,
+        ...hookFieldPasses,
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         {
-          name: "present",
+          name: postHookPass ? "hookPost" : "present",
           render: () => {
             const presentRT = colorsMode ? activeColorRT : activeFieldRT;
-            presentPass.render(
-              pool.get(presentRT, fieldSize.width, fieldSize.height, { linear: true }).texture,
-              output.width,
-              output.height,
-            );
+            const srcTex = pool.get(presentRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+            if (postHookPass) {
+              postHookPass.render(srcTex, null, postFrame());
+            } else {
+              presentPass!.render(srcTex, output.width, output.height);
+            }
           },
-          dispose: () => presentPass.dispose(),
+          dispose: () => {
+            presentPass?.dispose();
+            postHookPass?.dispose();
+          },
         },
       ];
     }
