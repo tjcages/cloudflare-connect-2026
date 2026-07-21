@@ -5,6 +5,13 @@ const ROW_WIDTH_GAP = 1;
 const MIN_STRIPE_WIDTH_PX = 0.5;
 
 type LabStripe = { hex: string; startFrom: number; width: number; opacity?: number };
+type WidthSparkleSvgOptions = {
+  enabled: boolean;
+  coverage: number;
+  swingPx: number;
+  swingPeriodMin: number;
+  swingPeriodMax: number;
+};
 type SvgGradientOptions = {
   direction: "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
   stopCount: number;
@@ -31,6 +38,50 @@ type CellReadback = {
   values: Uint8Array;
   colors: Uint8Array | null;
 };
+
+function fract(value: number): number {
+  return value - Math.floor(value);
+}
+
+function sparkleHash(px: number, py: number): number {
+  let p3x = fract(px * 0.1031);
+  let p3y = fract(py * 0.103);
+  let p3z = fract(px * 0.0973);
+  const dotVal = p3x * (p3y + 33.33) + p3y * (p3z + 33.33) + p3z * (p3x + 33.33);
+  p3x = fract(p3x + dotVal);
+  p3y = fract(p3y + dotVal);
+  p3z = fract(p3z + dotVal);
+  return fract((p3x + p3y) * p3z);
+}
+
+function pulseEnvelope(localT: number): number {
+  if (localT < 0 || localT > 1) return 0;
+  const cosine = 0.5 - 0.5 * Math.cos(2 * Math.PI * localT);
+  const c = Math.max(0, Math.min(1, cosine));
+  return c * c * (3 - 2 * c);
+}
+
+function frameZeroShuffledWidth(
+  col: number,
+  row: number,
+  defaultWidth: number,
+  sparkle: WidthSparkleSvgOptions,
+  maxCellPx: number,
+): number {
+  if (defaultWidth <= 0) return defaultWidth;
+  if (sparkleHash(col + 17, row + 31) >= sparkle.coverage) return defaultWidth;
+  const period =
+    sparkle.swingPeriodMin + sparkleHash(col + 89, row + 113) * (sparkle.swingPeriodMax - sparkle.swingPeriodMin);
+  const cyclePeriod = period / Math.max(sparkle.coverage, 0.001);
+  const phaseOffset = sparkleHash(col + 53, row + 71) * cyclePeriod;
+  const cycleIndex = Math.floor(phaseOffset / cyclePeriod);
+  const localTime = phaseOffset - cycleIndex * cyclePeriod;
+  if (localTime >= period) return defaultWidth;
+  const h = sparkleHash(col + 53 + cycleIndex * 61, row + 71 + cycleIndex * 101);
+  const maxWidth = Math.min(255, maxCellPx);
+  const targetWidth = Math.max(1, Math.min(maxWidth, defaultWidth + (h * 2 - 1) * Math.max(sparkle.swingPx, 0)));
+  return defaultWidth + (targetWidth - defaultWidth) * pulseEnvelope(localTime / period);
+}
 
 function svgStripeClass(band: number): string {
   return `fill-stripe-${band}`;
@@ -424,6 +475,7 @@ export function cellGridToSvg(
     /** Raster backdrop (e.g. Connect fill underlay) drawn behind stripes. */
     backgroundImageHref?: string;
     blendMode?: SvgBlendMode;
+    widthSparkle?: WidthSparkleSvgOptions;
     canvasWidthPx?: number;
     canvasHeightPx?: number;
   },
@@ -443,6 +495,7 @@ export function cellGridToSvg(
     backgroundGradient,
     backgroundImageHref,
     blendMode,
+    widthSparkle,
   } = opts;
   const gapX = Math.max(0, opts.gapX ?? 0);
   const gapY = Math.max(0, opts.gapY ?? 0);
@@ -472,6 +525,11 @@ export function cellGridToSvg(
     const rbIndex = (rows - 1 - svgRow) * cols + col;
     return bandIndexForValue((values[rbIndex] ?? 0) / 255, engineStripes);
   };
+
+  const sparkleWidthAt = (col: number, row: number, baseWidth: number): number =>
+    widthSparkle?.enabled
+      ? frameZeroShuffledWidth(col, row, baseWidth, widthSparkle, Math.max(cellWidthPx, cellHeightPx))
+      : baseWidth;
 
   const rampTForBand = (band: number): number =>
     band < 1 ? 0 : sortedStripes.length <= 1 ? 1 : (band - 1) / (sortedStripes.length - 1);
@@ -535,7 +593,12 @@ export function cellGridToSvg(
         if (band < 1 || !stripe) continue;
 
         const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));
-        const stripeWidth = Math.max(MIN_STRIPE_WIDTH_PX, Math.min(stripe.width, drawableStackPx));
+        const sparkleCol = horizontalStacks ? axisIndex : stackIndex;
+        const sparkleRow = horizontalStacks ? stackIndex : axisIndex;
+        const stripeWidth = Math.max(
+          MIN_STRIPE_WIDTH_PX,
+          Math.min(sparkleWidthAt(sparkleCol, sparkleRow, stripe.width), drawableStackPx),
+        );
         const halfNormal = stripeWidth * 0.5;
         const halfAxis = drawableAxisPx * 0.5 + halfNormal * resolvedOverlapAmount;
         const segment = rotatedStripePath(cx, cy, halfNormal, halfAxis, resolvedAngleDeg);
@@ -616,7 +679,10 @@ export function cellGridToSvg(
             bandRightPx = cellWidthPx;
           }
 
-          const stripeWidth = Math.max(MIN_STRIPE_WIDTH_PX, Math.min(stripe.width, cellHeightPx));
+          const stripeWidth = Math.max(
+            MIN_STRIPE_WIDTH_PX,
+            Math.min(sparkleWidthAt(col, rows - 1 - row, stripe.width), cellHeightPx),
+          );
           const halfH = stripeWidth * 0.5;
           const rowCenter = row * cellHeightPx + cellHeightPx * 0.5;
           x = col * cellWidthPx + bandLeftPx;
@@ -636,7 +702,10 @@ export function cellGridToSvg(
             bandBottom = cellHeightPx;
           }
 
-          const stripeWidth = Math.max(MIN_STRIPE_WIDTH_PX, Math.min(stripe.width, cellWidthPx));
+          const stripeWidth = Math.max(
+            MIN_STRIPE_WIDTH_PX,
+            Math.min(sparkleWidthAt(col, rows - 1 - row, stripe.width), cellWidthPx),
+          );
           const halfW = stripeWidth * 0.5;
           const columnCenter = col * cellWidthPx + cellWidthPx * 0.5;
           x = columnCenter - halfW;
@@ -645,7 +714,7 @@ export function cellGridToSvg(
           rectH = bandBottom - bandTop;
         }
 
-        const segment = `M${x} ${y}h${rectW}v${rectH}h-${rectW}Z`;
+        const segment = `M${formatSvgNumber(x)} ${formatSvgNumber(y)}h${formatSvgNumber(rectW)}v${formatSvgNumber(rectH)}h-${formatSvgNumber(rectW)}Z`;
         if (useCellColors && colors) {
           const hex = cellColorHex(colors, rbIndex);
           const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));

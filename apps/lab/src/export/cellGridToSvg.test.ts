@@ -220,4 +220,42 @@ describe("cellGridToSvg", () => {
     expect(svg).toContain("h10v8h-10");
     expect(svg).not.toContain("v20");
   });
+
+  it("bakes frame-0 width sparkle into vertical stripes when enabled", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 6, rows: 6, values: v(...new Array(36).fill(255)), colors: null };
+    const base = { cellWidthPx: 10, cellHeightPx: 10, useCellColors: false } as const;
+    const sparkle = { enabled: true, coverage: 1, swingPx: 4, swingPeriodMin: 0.4, swingPeriodMax: 1.2 };
+
+    const plain = cellGridToSvg(readback, stripes, base);
+    const sparkled = cellGridToSvg(readback, stripes, { ...base, widthSparkle: sparkle });
+
+    expect(sparkled).not.toEqual(plain);
+    const widths = new Set([...sparkled.matchAll(/h(\d+(?:\.\d+)?)v/g)].map((m) => m[1]));
+    expect(widths.size).toBeGreaterThan(1);
+    expect(cellGridToSvg(readback, stripes, { ...base, widthSparkle: sparkle })).toEqual(sparkled);
+  });
+
+  it("leaves the export untouched when width sparkle is disabled", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 6, rows: 6, values: v(...new Array(36).fill(255)), colors: null };
+    const base = { cellWidthPx: 10, cellHeightPx: 10, useCellColors: false } as const;
+    const disabled = { enabled: false, coverage: 1, swingPx: 4, swingPeriodMin: 0.4, swingPeriodMax: 1.2 };
+
+    expect(cellGridToSvg(readback, stripes, { ...base, widthSparkle: disabled })).toEqual(
+      cellGridToSvg(readback, stripes, base),
+    );
+  });
+
+  it("applies frame-0 width sparkle to rotated stripes", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0.0, width: 4 }];
+    const readback = { cols: 6, rows: 6, values: v(...new Array(36).fill(255)), colors: null };
+    const base = { cellWidthPx: 10, cellHeightPx: 10, useCellColors: false, angleDeg: 30 } as const;
+    const sparkle = { enabled: true, coverage: 1, swingPx: 4, swingPeriodMin: 0.4, swingPeriodMax: 1.2 };
+
+    const plain = cellGridToSvg(readback, stripes, base);
+    const sparkled = cellGridToSvg(readback, stripes, { ...base, widthSparkle: sparkle });
+
+    expect(sparkled).not.toEqual(plain);
+  });
 });
