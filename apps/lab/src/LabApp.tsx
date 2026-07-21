@@ -1895,7 +1895,7 @@ function LabInner() {
       importedTextureId && findTextureEntry(importedTextureId, loadManifest())
         ? importedTextureId
         : textureIdRef.current;
-    const config = normalizeEngineConfig(imported.config);
+    const config = sanitizeThemedConfig(imported.config);
     stagePendingConfig(config);
     markImportedConfigPristine();
     if (imported.lab) {
