@@ -13,8 +13,9 @@ import type { ExperimentDefinition } from "./types";
 import { IMPLOSION_FIELD_FRAG, IMPLOSION_POST_FRAG } from "./implosion-collapse.shaders";
 
 const MAX_EVENTS = 3;
-const EVENT_MS = 1250;
+const EVENT_MS = 1600;
 const INTRO_DELAY_MS = 650;
+const SPAWN_DEDUPE_MS = 90;
 
 interface Implosion {
   x: number;
@@ -64,13 +65,24 @@ const definition: ExperimentDefinition = {
       events.push({ x, y, seed: 1 + rng() * 96, startMs: null });
     };
 
-    const onDown = (e: PointerEvent) => {
+    let lastSpawnMs = -Infinity;
+    const onDown = (e: Event) => {
+      const now = performance.now();
+      if (now - lastSpawnMs < SPAWN_DEDUPE_MS) return;
+      lastSpawnMs = now;
+      const w = Math.max(1, ctx.canvas.clientWidth);
+      const h = Math.max(1, ctx.canvas.clientHeight);
       const rect = ctx.canvas.getBoundingClientRect();
-      const sx = ctx.canvas.clientWidth / Math.max(1, rect.width);
-      const sy = ctx.canvas.clientHeight / Math.max(1, rect.height);
-      spawn((e.clientX - rect.left) * sx, (e.clientY - rect.top) * sy);
+      const sx = w / Math.max(1, rect.width);
+      const sy = h / Math.max(1, rect.height);
+      const point = e as MouseEvent;
+      const px = (point.clientX - rect.left) * sx;
+      const py = (point.clientY - rect.top) * sy;
+      const usable = Number.isFinite(px) && Number.isFinite(py) && px > 0.5 && py > 0.5 && px < w && py < h;
+      spawn(usable ? px : w * 0.5, usable ? py : h * 0.5);
     };
-    ctx.canvas.addEventListener("pointerdown", onDown);
+    const downEvents = ["pointerdown", "mousedown", "click"] as const;
+    for (const name of downEvents) ctx.canvas.addEventListener(name, onDown);
 
     const fieldPass = ({ gl, quad }: EngineHookContext): FieldHookPass => {
       const program = compileProgram(gl, FULLSCREEN_VERT, IMPLOSION_FIELD_FRAG);
@@ -157,7 +169,7 @@ const definition: ExperimentDefinition = {
       destroy: () => {
         disposed = true;
         window.clearTimeout(introTimer);
-        ctx.canvas.removeEventListener("pointerdown", onDown);
+        for (const name of downEvents) ctx.canvas.removeEventListener(name, onDown);
         engine.dispose();
       },
     };

@@ -3,9 +3,9 @@ import { createSeededRng } from "@necatikcl/stripes-engine";
 export const EMBER_PACK_FLOATS = 5;
 export const EMBER_PACK_STRIDE_BYTES = EMBER_PACK_FLOATS * 4;
 
-const MAX_EMBERS = 110;
+const MAX_EMBERS = 160;
 const STRIDE = 8;
-const BASE_RATE = 3.6;
+const BASE_RATE = 6.4;
 const REFERENCE_WIDTH = 880;
 const LIFE_MIN = 5200;
 const LIFE_RANGE = 4400;
@@ -54,7 +54,7 @@ export function createEmberDriftSim(seed: number): EmberDriftSim {
     state[o + 3] = rise;
     state[o + 4] = age;
     state[o + 5] = life;
-    state[o + 6] = 3.4 + rng() * 3.7;
+    state[o + 6] = 5.4 + rng() * 6.6;
     state[o + 7] = rng();
   };
 
@@ -104,8 +104,8 @@ export function createEmberDriftSim(seed: number): EmberDriftSim {
         const o = i * STRIDE;
         const p = i * EMBER_PACK_FLOATS;
         const t = state[o + 4] / state[o + 5];
-        const birth = 0.55 + 0.45 * smoothstep01(t / 0.2);
-        const cool = 1 - 0.34 * t * t;
+        const birth = 0.62 + 0.38 * smoothstep01(t / 0.2);
+        const cool = 1 - 0.3 * t * t;
         packed[p] = state[o];
         packed[p + 1] = state[o + 1];
         packed[p + 2] = state[o + 6] * birth * cool;

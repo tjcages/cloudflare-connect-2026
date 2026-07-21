@@ -20,16 +20,16 @@ const HOLD_MIN = 3400;
 const HOLD_SPAN = 2600;
 const FADE_OUT_MIN = 1080;
 const FADE_OUT_SPAN = 620;
-const SPAWN_MIN = 1500;
-const SPAWN_SPAN = 1900;
-const MAX_ALIVE = 5;
+const SPAWN_MIN = 1000;
+const SPAWN_SPAN = 1400;
+const MAX_ALIVE = 9;
 const FLASH_MS = 1900;
 const FLASH_GLOBAL_COOLDOWN = 9000;
 const FLASH_TRIANGLE_COOLDOWN = 22000;
 const STAR_ACT_TAU_MS = 260;
 const STAR_ACT_DEGREE_BONUS = 0.24;
 const REPLAY_STAGGER_MS = 300;
-const REPLAY_LINKS = 5;
+const REPLAY_LINKS = 7;
 
 type StarSet = {
   baseX: Float32Array;

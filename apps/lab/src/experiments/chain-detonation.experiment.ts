@@ -10,7 +10,14 @@ import {
 } from "@necatikcl/stripes-engine";
 import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
-import { CHAIN_FIELD_FRAG, CHAIN_MAX_DETONATIONS, CHAIN_MAX_FUSES, CHAIN_POST_FRAG } from "./chain-detonation.shaders";
+import {
+  CHAIN_FIELD_FRAG,
+  CHAIN_MAX_DETONATIONS,
+  CHAIN_MAX_FUSES,
+  CHAIN_POST_FRAG,
+  CHAIN_RING_REACH_PX,
+  CHAIN_SECONDARY_REACH,
+} from "./chain-detonation.shaders";
 
 const MAX_CHAINS = 2;
 const EVENT_MS = 3400;
@@ -23,6 +30,7 @@ interface Link {
   y: number;
   seed: number;
   scale: number;
+  reach: number;
   duration: number;
   fireAtMs: number;
   armAtMs: number;
@@ -40,6 +48,7 @@ interface Detonation {
   y: number;
   seed: number;
   scale: number;
+  secondary: number;
   duration: number;
   startMs: number;
 }
@@ -63,9 +72,12 @@ function standardEase(t: number): number {
 
 const durationFor = (scale: number): number => 0.72 + 0.28 * scale;
 
-function arrivalMs(distance: number, scaleUnits: number, duration: number): number {
-  const reach = 168 * scaleUnits;
-  const ts = Math.min(1, Math.pow(Math.max(distance, 0) / Math.max(reach, 1e-3), 1 / 0.42));
+function ringReachPx(scaleUnits: number, link: Link): number {
+  return CHAIN_RING_REACH_PX * scaleUnits * link.scale * link.reach;
+}
+
+function arrivalMs(distance: number, reachPx: number, duration: number): number {
+  const ts = Math.min(1, Math.pow(Math.max(distance, 0) / Math.max(reachPx, 1e-3), 1 / 0.42));
   return ts * SHOCK_MS * duration;
 }
 
@@ -87,6 +99,7 @@ const definition: ExperimentDefinition = {
       seeds: new Float32Array(CHAIN_MAX_DETONATIONS),
       flashes: new Float32Array(CHAIN_MAX_DETONATIONS),
       scales: new Float32Array(CHAIN_MAX_DETONATIONS),
+      secondaries: new Float32Array(CHAIN_MAX_DETONATIONS),
       fuseCount: 0,
       fuseCenters: new Float32Array(CHAIN_MAX_FUSES * 2),
       fuseHeats: new Float32Array(CHAIN_MAX_FUSES),
@@ -107,6 +120,7 @@ const definition: ExperimentDefinition = {
         y: Math.min(h - padY, Math.max(padY, y)),
         seed: 1 + rng() * 96,
         scale: 1,
+        reach: 1,
         duration: durationFor(1),
         fireAtMs: 0,
         armAtMs: 0,
@@ -119,7 +133,8 @@ const definition: ExperimentDefinition = {
       let parent = primary;
       for (let k = 0; k < secondaries; k++) {
         const scale = Math.min(0.65, Math.max(0.45, 0.63 - 0.06 * k + (rng() - 0.5) * 0.12));
-        const distance = minDim * (0.15 + 0.15 * rng());
+        const parentReachPx = ringReachPx(scaleUnits, parent);
+        const distance = Math.max(minDim * 0.095, Math.min(minDim * (0.13 + 0.08 * rng()), parentReachPx * 0.62));
         let nx = parent.x;
         let ny = parent.y;
         let found = false;
@@ -143,7 +158,7 @@ const definition: ExperimentDefinition = {
           ny = Math.min(h - padY, Math.max(padY, parent.y + Math.sin(toCenter) * distance));
         }
 
-        const reachMs = arrivalMs(Math.hypot(nx - parent.x, ny - parent.y), scaleUnits * parent.scale, parent.duration);
+        const reachMs = arrivalMs(Math.hypot(nx - parent.x, ny - parent.y), parentReachPx, parent.duration);
         const fuseMs = 74 + rng() * 72;
         const gap = Math.min(280, Math.max(112, reachMs + fuseMs));
         const link: Link = {
@@ -151,6 +166,7 @@ const definition: ExperimentDefinition = {
           y: ny,
           seed: 1 + rng() * 96,
           scale,
+          reach: CHAIN_SECONDARY_REACH,
           duration: durationFor(scale),
           fireAtMs: parent.fireAtMs + gap,
           armAtMs: parent.fireAtMs + Math.min(gap - 26, reachMs),
@@ -180,6 +196,7 @@ const definition: ExperimentDefinition = {
             y: link.y,
             seed: link.seed,
             scale: link.scale,
+            secondary: link.reach < 1 ? 1 : 0,
             duration: link.duration,
             startMs: base + link.fireAtMs,
           });
@@ -203,6 +220,7 @@ const definition: ExperimentDefinition = {
         packed.ages[count] = age / 1000 / det.duration;
         packed.seeds[count] = det.seed;
         packed.scales[count] = det.scale;
+        packed.secondaries[count] = det.secondary;
         packed.flashes[count] = standardEase(Math.min(1, age / (FLASH_MS * det.duration)));
         count++;
       }
@@ -245,6 +263,7 @@ const definition: ExperimentDefinition = {
       const uDetSeed = gl.getUniformLocation(program, "uDetSeed");
       const uDetFlash = gl.getUniformLocation(program, "uDetFlash");
       const uDetScale = gl.getUniformLocation(program, "uDetScale");
+      const uDetSecondary = gl.getUniformLocation(program, "uDetSecondary");
       const uFuseCount = gl.getUniformLocation(program, "uFuseCount");
       const uFuseCenter = gl.getUniformLocation(program, "uFuseCenter");
       const uFuseHeat = gl.getUniformLocation(program, "uFuseHeat");
@@ -265,6 +284,7 @@ const definition: ExperimentDefinition = {
           gl.uniform1fv(uDetSeed, packed.seeds);
           gl.uniform1fv(uDetFlash, packed.flashes);
           gl.uniform1fv(uDetScale, packed.scales);
+          gl.uniform1fv(uDetSecondary, packed.secondaries);
           gl.uniform1i(uFuseCount, packed.fuseCount);
           gl.uniform2fv(uFuseCenter, packed.fuseCenters);
           gl.uniform1fv(uFuseHeat, packed.fuseHeats);
@@ -284,6 +304,7 @@ const definition: ExperimentDefinition = {
       const uDetAge = gl.getUniformLocation(program, "uDetAge");
       const uDetSeed = gl.getUniformLocation(program, "uDetSeed");
       const uDetScale = gl.getUniformLocation(program, "uDetScale");
+      const uDetSecondary = gl.getUniformLocation(program, "uDetSecondary");
       return {
         render(src, dst, frame) {
           gl.bindFramebuffer(gl.FRAMEBUFFER, dst ? dst.fbo : null);
@@ -298,6 +319,7 @@ const definition: ExperimentDefinition = {
           gl.uniform1fv(uDetAge, packed.ages);
           gl.uniform1fv(uDetSeed, packed.seeds);
           gl.uniform1fv(uDetScale, packed.scales);
+          gl.uniform1fv(uDetSecondary, packed.secondaries);
           quad.draw();
         },
         dispose: () => gl.deleteProgram(program),

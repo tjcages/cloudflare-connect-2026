@@ -20,9 +20,9 @@ void main() {
   float e = 2.0 * sc;
   float gx = heatAt(p + vec2(e, 0.0)) - heatAt(p - vec2(e, 0.0));
   float gy = heatAt(p + vec2(0.0, e)) - heatAt(p - vec2(0.0, e));
-  vec2 push = vec2(gx, gy) / (2.0 * e) * 470.0 * sc * (1.0 + uUpdraft * 0.22);
+  vec2 push = vec2(gx, gy) / (2.0 * e) * 1180.0 * sc * (1.0 + uUpdraft * 0.22);
   float mag = length(push);
-  float maxPush = 12.0 * sc;
+  float maxPush = 34.0 * sc;
   if (mag > maxPush) push *= maxPush / mag;
 
   vec2 uv = clamp(vUv + vec2(push.x / uCssSize.x, -push.y / uCssSize.y), 0.0, 1.0);
@@ -30,8 +30,8 @@ void main() {
 
   vec2 heat = texture(uHeat, vUv).rg;
   float rim = clamp(heat.r * (1.0 - heat.r) * 4.0, 0.0, 1.0);
-  float dim = clamp(rim * 0.3, 0.0, 0.5);
-  float value = clamp(base * (1.0 - dim) + min(heat.g, 1.0) * 0.82, 0.0, 1.0);
+  float dim = clamp(rim * 0.44, 0.0, 0.62);
+  float value = clamp(base * (1.0 - dim) + min(heat.g, 1.0) * 0.94, 0.0, 1.0);
   outColor = vec4(vec3(value), 1.0);
 }
 `;
@@ -47,10 +47,10 @@ out float vSeed;
 void main() {
   vec2 corner = vec2(float(gl_VertexID == 1 || gl_VertexID == 4 || gl_VertexID == 5), float(gl_VertexID == 2 || gl_VertexID == 3 || gl_VertexID == 5));
   vec2 local = (corner - 0.5) * 2.0;
-  vec2 worldPx = aEmber.xy + local * aEmber.z * 3.0;
+  vec2 worldPx = aEmber.xy + local * aEmber.z * 3.2;
   vec2 uv = worldPx / uCanvas;
   gl_Position = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, 0.0, 1.0);
-  vLocal = local * 3.0;
+  vLocal = local * 3.2;
   vT = aEmber.w;
   vSeed = aSeed;
 }
@@ -66,8 +66,8 @@ uniform float uUpdraft;
 out vec4 outColor;
 void main() {
   float d2 = dot(vLocal, vLocal);
-  float broad = exp(-d2 * 0.78);
-  float core = exp(-d2 * 5.2);
+  float broad = exp(-d2 * 0.62);
+  float core = exp(-d2 * 4.6);
   float t = clamp(vT, 0.0, 1.0);
   float cool = pow(1.0 - t, 0.9);
   float flick = 0.9 + 0.1 * sin(uTime * (1.5 + vSeed * 2.6) + vSeed * 61.7);
@@ -75,6 +75,6 @@ void main() {
   float fadeOut = 1.0 - smoothstep(0.42, 1.0, t);
   float amp = cool * fadeIn * fadeOut;
   float shade = amp * flick * (1.0 + uUpdraft * 0.3);
-  outColor = vec4(broad * amp * 0.62, core * shade * 0.9, 0.0, 1.0);
+  outColor = vec4(broad * amp * 0.8, core * shade * 1.08, 0.0, 1.0);
 }
 `;

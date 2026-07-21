@@ -1,9 +1,8 @@
 const IMPLOSION_HELPERS = `
 const float PI = 3.14159265;
-const float COLLAPSE_S = 0.45;
-const float HOLD_S = 0.6;
-const float REBOUND_S = 1.1;
-const float BASE_RADIUS = 132.0;
+const float PULL_S = 0.55;
+const float HOLD_S = 1.02;
+const float END_S = 1.58;
 
 float hash11(float p) {
   p = fract(p * 0.1031);
@@ -12,44 +11,52 @@ float hash11(float p) {
   return fract(p);
 }
 
-float implodePower(float seed) {
-  return 0.88 + 0.26 * hash11(seed * 2.17 + 3.41);
+float implodeVar(float seed) {
+  return 0.92 + 0.16 * hash11(seed * 2.17 + 3.41);
 }
 
 float implodeAmp(float t) {
-  if (t <= 0.0 || t >= REBOUND_S) return 0.0;
-  if (t < COLLAPSE_S) {
-    float u = t / COLLAPSE_S;
-    return pow(u, 2.3);
+  if (t <= 0.0 || t >= END_S) return 0.0;
+  if (t < PULL_S) {
+    float u = t / PULL_S;
+    return pow(u, 2.4);
   }
   if (t < HOLD_S) {
-    float u = (t - COLLAPSE_S) / (HOLD_S - COLLAPSE_S);
-    return 1.0 - 0.035 * sin(PI * u);
+    float u = (t - PULL_S) / (HOLD_S - PULL_S);
+    return 1.0 - 0.05 * sin(PI * u);
   }
-  float u = (t - HOLD_S) / (REBOUND_S - HOLD_S);
-  float e = 1.0 - pow(1.0 - u, 2.6);
-  return (1.0 - e) - 0.3 * sin(PI * u) * (1.0 - 0.25 * u);
+  float u = (t - HOLD_S) / (END_S - HOLD_S);
+  return pow(1.0 - u, 3.0) - 0.3 * sin(PI * pow(u, 0.75));
 }
 
-float implodeRadius(float t, float sc, float seed, float ang) {
-  float squeeze = 1.0 - 0.16 * clamp(t / HOLD_S, 0.0, 1.0);
+float implodeRadius(float t, float minSide, float seed, float ang) {
+  float base = clamp(minSide * 0.2, 46.0, 108.0);
+  float squeeze = 1.0 - 0.2 * smoothstep(0.0, HOLD_S, min(t, HOLD_S));
   float puff = 1.0;
   if (t > HOLD_S) {
-    float u = clamp((t - HOLD_S) / (REBOUND_S - HOLD_S), 0.0, 1.0);
-    puff = 1.0 + 0.34 * sin(PI * pow(u, 0.8));
+    float u = clamp((t - HOLD_S) / (END_S - HOLD_S), 0.0, 1.0);
+    puff = 1.0 + 0.16 * sin(PI * pow(u, 0.8));
   }
-  float wob = 1.0 + 0.05 * sin(ang * 3.0 + seed * 5.0) + 0.028 * sin(ang * 5.0 - seed * 2.3);
-  return BASE_RADIUS * sc * squeeze * puff * wob;
+  float wob = 1.0 + 0.045 * sin(ang * 3.0 + seed * 5.0) + 0.025 * sin(ang * 5.0 - seed * 2.3);
+  return base * squeeze * puff * wob * implodeVar(seed);
 }
 
 float implodeProfile(float u) {
-  return u * exp(0.5 - 0.9 * u * u);
+  if (u >= 1.0) return 0.0;
+  float w = 1.0 - u * u;
+  return 4.2 * u * w * w * w;
+}
+
+float implodeWindow(float u) {
+  if (u >= 1.0) return 0.0;
+  float w = 1.0 - u * u;
+  return w * w;
 }
 
 float knotGlow(float t) {
   if (t <= 0.0) return 0.0;
-  float rise = smoothstep(COLLAPSE_S * 0.5, COLLAPSE_S, t);
-  float fall = 1.0 - smoothstep(HOLD_S, HOLD_S + 0.24, t);
+  float rise = smoothstep(PULL_S * 0.4, PULL_S, t);
+  float fall = 1.0 - smoothstep(HOLD_S, HOLD_S + 0.2, t);
   return rise * fall;
 }
 `;
@@ -68,7 +75,7 @@ in vec2 vUv;
 out vec4 outColor;
 ${IMPLOSION_HELPERS}
 void main() {
-  float sc = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.5, 2.5);
+  float minSide = min(uCssSize.x, uCssSize.y);
   vec2 pos = vec2(vUv.x, 1.0 - vUv.y) * uCssSize;
 
   vec2 warp = vec2(0.0);
@@ -78,14 +85,14 @@ void main() {
     float amp = implodeAmp(t);
     if (amp == 0.0) continue;
     float seed = uEventSeed[i];
-    float power = implodePower(seed);
     vec2 d = pos - uEventCenter[i];
     float r = max(length(d), 1e-3);
     vec2 dir = d / r;
     float ang = atan(d.y, d.x);
-    float R = implodeRadius(t, sc, seed, ang) * power;
-    float u = r / R;
-    warp -= dir * implodeProfile(u) * amp * power * 0.18 * R;
+    float R = implodeRadius(t, minSide, seed, ang);
+    float p = implodeProfile(r / R);
+    if (p == 0.0) continue;
+    warp += dir * p * amp * 0.34 * R;
   }
 
   vec2 uv = clamp(vUv + vec2(warp.x / uCssSize.x, -warp.y / uCssSize.y), 0.0, 1.0);
@@ -96,31 +103,31 @@ void main() {
   for (int i = 0; i < 3; i++) {
     if (i >= uEventCount) break;
     float t = uEventAge[i];
-    if (t <= 0.0 || t > REBOUND_S) continue;
+    if (t <= 0.0 || t >= END_S) continue;
     float seed = uEventSeed[i];
-    float power = implodePower(seed);
     vec2 d = pos - uEventCenter[i];
     float r = max(length(d), 1e-3);
     float ang = atan(d.y, d.x);
-    float R = implodeRadius(t, sc, seed, ang) * power;
+    float R = implodeRadius(t, minSide, seed, ang);
     float u = r / R;
+    float win = implodeWindow(u);
+    if (win == 0.0) continue;
 
-    float knot = knotGlow(t);
-    float core = 26.0 * sc;
-    add += exp(-pow(r / core, 2.0)) * knot * 0.42;
+    float core = 0.2 * R;
+    add += exp(-pow(r / core, 2.0)) * knotGlow(t) * 0.34 * win;
 
     float amp = implodeAmp(t);
-    float rim = exp(-pow((u - 1.02) / 0.36, 2.0));
-    dim += rim * max(amp, 0.0) * 0.16;
+    float rim = exp(-pow((u - 0.74) / 0.2, 2.0));
+    dim += rim * max(amp, 0.0) * 0.14 * win;
 
     if (t > HOLD_S) {
-      float ru = clamp((t - HOLD_S) / (REBOUND_S - HOLD_S), 0.0, 1.0);
-      float shell = exp(-pow((u - (0.35 + 0.75 * ru)) / 0.24, 2.0));
-      add += shell * sin(PI * ru) * 0.16 * (0.86 + 0.14 * sin(ang * 7.0 + seed * 13.0));
+      float ru = clamp((t - HOLD_S) / (END_S - HOLD_S), 0.0, 1.0);
+      float shell = exp(-pow((u - (0.24 + 0.6 * ru)) / 0.2, 2.0));
+      add += shell * sin(PI * ru) * 0.14 * win * (0.86 + 0.14 * sin(ang * 7.0 + seed * 13.0));
     }
   }
 
-  float value = clamp(base * (1.0 - min(dim, 0.45)) + add, 0.0, 1.0);
+  float value = clamp(base * (1.0 - min(dim, 0.28)) + add, 0.0, 1.0);
   outColor = vec4(vec3(value), 1.0);
 }
 `;
@@ -139,7 +146,7 @@ in vec2 vUv;
 out vec4 outColor;
 ${IMPLOSION_HELPERS}
 void main() {
-  float sc = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.5, 2.5);
+  float minSide = min(uCssSize.x, uCssSize.y);
   vec2 pos = vec2(vUv.x, 1.0 - vUv.y) * uCssSize;
 
   vec2 warp = vec2(0.0);
@@ -149,14 +156,14 @@ void main() {
     float amp = implodeAmp(t);
     if (amp == 0.0) continue;
     float seed = uEventSeed[i];
-    float power = implodePower(seed);
     vec2 d = pos - uEventCenter[i];
     float r = max(length(d), 1e-3);
     vec2 dir = d / r;
     float ang = atan(d.y, d.x);
-    float R = implodeRadius(t, sc, seed, ang) * power * 0.86;
-    float u = r / R;
-    warp -= dir * implodeProfile(u) * amp * power * 0.055 * R;
+    float R = implodeRadius(t, minSide, seed, ang) * 0.82;
+    float p = implodeProfile(r / R);
+    if (p == 0.0) continue;
+    warp += dir * p * amp * 0.09 * R;
   }
 
   vec2 uv = clamp(vUv + vec2(warp.x / uCssSize.x, -warp.y / uCssSize.y), 0.0, 1.0);
