@@ -44,6 +44,8 @@
   --color-builder-chip-surface-hover: #e6e6e6;
   --color-builder-chip-text: #525252;
   --color-builder-zoom-active-surface: #e5e5e5;
+  --color-builder-glass: rgba(255, 255, 255, 0.74);
+  --color-builder-glass-strong: rgba(255, 255, 255, 0.92);
 }
 
 :root[data-theme="dark"] {
@@ -93,6 +95,8 @@
   --color-builder-chip-surface-hover: #2f2f2f;
   --color-builder-chip-text: #d4d4d4;
   --color-builder-zoom-active-surface: #2a2a2a;
+  --color-builder-glass: rgba(28, 28, 28, 0.74);
+  --color-builder-glass-strong: rgba(28, 28, 28, 0.92);
 }
 
 :root[data-theme="dark"] .playground-leva-panel {
@@ -1515,7 +1519,7 @@
   gap: 8px;
   padding: 6px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.74);
+  background: var(--color-builder-glass);
   border: 1px solid var(--color-builder-hairline);
   backdrop-filter: blur(10px);
   transform: translateX(-50%);
@@ -1699,7 +1703,7 @@ body.lab-sidebar-resizing .lab-sidebar-resize-handle::after {
   padding: 0;
   border: 1px solid var(--color-builder-hairline);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--color-builder-glass-strong);
   color: var(--color-builder-chip-text);
   cursor: pointer;
   backdrop-filter: blur(10px);
