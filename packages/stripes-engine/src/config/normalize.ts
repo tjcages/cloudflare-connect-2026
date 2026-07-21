@@ -25,6 +25,7 @@ import type {
   WarpStyleConfig,
   VortexRevealConfig,
   BlackholeRevealConfig,
+  WhirlpoolRevealConfig,
   WaterRevealConfig,
 } from "./types";
 
@@ -246,6 +247,7 @@ export const REVEAL_TYPES: readonly RevealType[] = [
   "glitch",
   "vortex",
   "blackhole",
+  "whirlpool",
   "water",
 ];
 export const DEFAULT_REVEAL: RevealConfig = {
@@ -287,6 +289,13 @@ export const DEFAULT_REVEAL: RevealConfig = {
     lensing: 1,
     horizon: 0.12,
   },
+  whirlpool: {
+    durationMs: 2800,
+    turns: 2.5,
+    tightness: 0.18,
+    streak: 0.6,
+    glow: 0.4,
+  },
   water: {
     durationMs: 2600,
     settleMs: 900,
@@ -318,6 +327,7 @@ type PartialReveal = {
   vortex?: Partial<RevealConfig["vortex"]>;
   hadouken?: Partial<RevealConfig["vortex"]>;
   blackhole?: Partial<BlackholeRevealConfig>;
+  whirlpool?: Partial<WhirlpoolRevealConfig>;
   water?: Partial<WaterRevealConfig>;
 };
 
@@ -376,6 +386,19 @@ function normalizeBlackholeBlock(
   };
 }
 
+function normalizeWhirlpoolBlock(
+  i: Partial<WhirlpoolRevealConfig> = {},
+  d: WhirlpoolRevealConfig,
+): WhirlpoolRevealConfig {
+  return {
+    durationMs: clamp(Math.round(num(i.durationMs, d.durationMs)), 100, 30000),
+    turns: clamp(num(i.turns, d.turns), 0, 6),
+    tightness: clamp(num(i.tightness, d.tightness), 0.05, 0.5),
+    streak: clamp(num(i.streak, d.streak), 0, 1),
+    glow: clamp(num(i.glow, d.glow), 0, 1),
+  };
+}
+
 function normalizeWaterBlock(i: Partial<WaterRevealConfig> = {}, d: WaterRevealConfig): WaterRevealConfig {
   return {
     durationMs: clamp(Math.round(num(i.durationMs, d.durationMs)), 1, 60000),
@@ -420,6 +443,7 @@ export function normalizeReveal(i: PartialReveal = {}): RevealConfig {
     glitch: normalizeWarpStyleBlock(i.glitch ?? a.glitch, DEFAULT_REVEAL.glitch),
     vortex: normalizeVortexBlock(i.vortex ?? i.hadouken ?? a.vortex ?? a.hadouken, DEFAULT_REVEAL.vortex),
     blackhole: normalizeBlackholeBlock(i.blackhole, DEFAULT_REVEAL.blackhole),
+    whirlpool: normalizeWhirlpoolBlock(i.whirlpool, DEFAULT_REVEAL.whirlpool),
     water: normalizeWaterBlock(i.water, DEFAULT_REVEAL.water),
   };
 }

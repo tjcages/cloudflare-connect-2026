@@ -7,6 +7,7 @@ const ALL_REVEAL_BLOCKS = {
   glitch: { staggerMs: 1200, speedMaxMs: 1400 },
   vortex: { staggerMs: 900, speedMaxMs: 1100 },
   blackhole: { formMs: 650, staggerMs: 2400, speedMaxMs: 1300, collapseMs: 700 },
+  whirlpool: { durationMs: 2800 },
   water: { durationMs: 2600, settleMs: 900 },
 };
 
@@ -72,6 +73,17 @@ describe("resolveUnderlayIntroDelayMs", () => {
         ...ALL_REVEAL_BLOCKS,
       }),
     ).toBe(5050);
+  });
+
+  it("uses whirlpool.durationMs for whirlpool reveals", () => {
+    expect(
+      resolveUnderlayIntroDelayMs({
+        enabled: true,
+        type: "whirlpool",
+        wave: { durationMs: 1200 },
+        ...ALL_REVEAL_BLOCKS,
+      }),
+    ).toBe(2800);
   });
 
   it("uses water.durationMs + water.settleMs for water reveals", () => {

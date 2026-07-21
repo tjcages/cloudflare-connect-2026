@@ -194,6 +194,13 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       lensing: 1,
       horizon: 0.12,
     },
+    whirlpool: {
+      durationMs: 2800,
+      turns: 2.5,
+      tightness: 0.18,
+      streak: 0.6,
+      glow: 0.4,
+    },
     water: {
       durationMs: 2600,
       settleMs: 900,

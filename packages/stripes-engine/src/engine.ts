@@ -14,6 +14,7 @@ import { createAssemblyScatterPass } from "./passes/assemblyScatterPass";
 import { createEnergyWarpPass } from "./passes/energyWarpPass";
 import { createVortexPass } from "./passes/vortexPass";
 import { createBlackholePass } from "./passes/blackholePass";
+import { createWhirlpoolPass } from "./passes/whirlpoolPass";
 import { createWaterRevealPass } from "./passes/waterRevealPass";
 import { createBlurPass } from "./passes/blurPass";
 import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
@@ -204,12 +205,13 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
-  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" | "blackhole" | "water" => {
+  const revealPassKind = (): "none" | "wave" | "scatter" | "warp" | "vortex" | "blackhole" | "whirlpool" | "water" => {
     if (!config.reveal.enabled) return "none";
     if (config.reveal.type === "wave") return "wave";
     if (config.reveal.type === "assembly") return "scatter";
     if (config.reveal.type === "vortex") return "vortex";
     if (config.reveal.type === "blackhole") return "blackhole";
+    if (config.reveal.type === "whirlpool") return "whirlpool";
     if (config.reveal.type === "water") return "water";
     return "warp";
   };
@@ -665,6 +667,27 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           });
         },
         dispose: () => blackholePass.dispose(),
+      });
+    } else if (revealEnabled && config.reveal.type === "whirlpool") {
+      const whirlpoolPass = createWhirlpoolPass(gl, quad);
+      revealFieldPasses.push({
+        name: "whirlpoolField",
+        render: () => {
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          const wp = config.reveal.whirlpool;
+          const durationMs = Math.max(1, resolveRevealDurationMs(config.reveal));
+          const rawProgress = (clock.now() - revealStartMs) / durationMs;
+          whirlpoolPass.render(revealedRT, fieldRT.texture, {
+            progress: rawProgress,
+            turns: wp.turns,
+            tightness: wp.tightness,
+            streak: wp.streak,
+            glow: wp.glow,
+            aspect: cssW / Math.max(1, cssH),
+          });
+        },
+        dispose: () => whirlpoolPass.dispose(),
       });
     } else if (revealEnabled && isWarpRevealType(config.reveal.type)) {
       const warpPass = createEnergyWarpPass(gl, quad);

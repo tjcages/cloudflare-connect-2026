@@ -74,8 +74,13 @@ branch; `revealPassKind` gains `"blackhole"`.
   (`render:` gated on type === "blackhole"), values → config mapping
 - lab `defaultLabConfig.ts` if it enumerates reveal blocks
 
-## Stretch (only after blackhole is verified in-browser)
+## Second variant: whirlpool (implemented)
 
-`whirlpool`: image appears fully wound into a spiral smear (twist ∝ (1-p)² with
-1/(r+h) falloff, arc-tap motion blur) and unwinds into place. Single fullscreen frag,
-`durationMs`-only timing. Skipped if blackhole iteration consumes the session.
+`whirlpool`: the image appears fully wound into a spiral around center and unwinds
+into place. Twist θ = turns·2π·(1−smoothstep(p))·(tightness/(r+tightness)), slight
+inward pull while wound, 5-tap arc motion blur scaled by `streak`, spin glow scaled
+by `glow`, global fade-in over the first 8%. Single fullscreen frag
+(`whirlpoolReveal.frag.ts` / `whirlpoolPass.ts`), `durationMs`-only timing
+(default 2800 ms). Config: durationMs, turns 2.5, tightness 0.18, streak 0.6,
+glow 0.4. The smoothstep unwind ease is deliberate — an ease-out unwound too fast
+and read as a plain fade-in.
