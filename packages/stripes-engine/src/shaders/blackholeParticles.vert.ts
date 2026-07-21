@@ -59,25 +59,22 @@ void main() {
   highp float shrink = pow(1.0 - collapseT, 1.7);
   highp float paintT = clamp((p - uForm) / max(1.0 - uForm - uCollapse, 1e-4), 0.0, 1.0);
   highp float decay = 1.0 - 0.92 * smoothstep(0.15, 0.62, paintT);
-  highp float R = max(uHorizon * grow * shrink * decay * (1.0 + 0.02 * sin(p * 90.0)), 0.0);
+  highp float R = max(uHorizon * grow * shrink * decay, 0.0);
 
   if (float(id) < uDiskCount) {
     highp float h1 = hashLane(id, 11u);
     highp float h2 = hashLane(id, 12u);
     highp float h3 = hashLane(id, 13u);
-    highp float h4 = hashLane(id, 14u);
     highp float h5 = hashLane(id, 15u);
     highp float rBase = R * (1.12 + 2.1 * h1 * h1);
     highp float gap = 0.55 + 0.45 * sin(rBase / max(uHorizon, 1e-4) * 11.0);
     highp float infall = smoothstep(0.0, 1.0, formT * formT);
     highp float spiralIn = 1.0 - 0.12 * fract(h3 * 3.7 + p * 0.5);
     highp float rOrb = mix(rBase * 3.2, rBase * spiralIn, infall);
-    highp float w = 46.0 / pow(max(rBase / max(uHorizon, 1e-4), 0.5), 1.5);
+    highp float w = 76.0 / pow(max(rBase / max(uHorizon, 1e-4), 0.5), 1.5);
     highp float angD = h2 * 6.2831853 + w * p;
     highp float env = smoothstep(0.0, 0.6, formT) * pow(1.0 - collapseT, 1.5);
-    highp float flick = 0.8 + 0.2 * sin(p * (150.0 + 200.0 * h4));
-    highp float doppler = 1.0 + 0.8 * -sin(angD);
-    highp float bright = uGlow * (0.25 + 0.75 * h3) * env * flick * gap * doppler;
+    highp float bright = uGlow * (0.25 + 0.75 * h3) * env * gap;
     if (bright < 0.01 || R < 1e-4) {
       cull(vQuad, vVal, vSoft);
       return;
@@ -112,7 +109,7 @@ void main() {
   }
   highp float rT = length(tq);
   highp float rS = R * 1.05;
-  highp float swirlTotal = uSwirl * (3.6 + 1.8 * hashLane(eid, 5u));
+  highp float swirlTotal = uSwirl * (5.8 + 2.6 * hashLane(eid, 5u));
   highp float e = 1.0 - pow(1.0 - f, 3.0);
   highp float A1 = tang + swirlTotal * (1.0 - e);
   highp float r1 = mix(rS, rT, e);

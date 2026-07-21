@@ -47,7 +47,7 @@ void main() {
   highp float shrink = pow(1.0 - collapseT, 1.7);
   highp float paintT = clamp((p - uForm) / max(1.0 - uForm - uCollapse, 1e-4), 0.0, 1.0);
   highp float decay = 1.0 - 0.92 * smoothstep(0.15, 0.62, paintT);
-  highp float R = max(uHorizon * grow * shrink * decay * (1.0 + 0.02 * sin(p * 90.0)), 0.0);
+  highp float R = max(uHorizon * grow * shrink * decay, 0.0);
 
   vec2 cid = floor(vUv * uGrid);
   highp uint cellIndex = uint(cid.y * uGrid.x + cid.x);
@@ -89,16 +89,15 @@ void main() {
   v *= smoothstep(R * 0.98, R * 1.03, r);
 
   highp float ringEnv = formT * formT * (1.0 - collapseT * collapseT);
-  highp float beam = 1.0 + 0.75 * -sin(ang);
   highp float photon = exp(-pow((r - R * 1.06) / max(R * 0.045, 1e-4), 2.0));
   highp float einstein = exp(-pow((r - R * 1.32) / max(R * 0.09, 1e-4), 2.0)) * 0.45;
-  highp float ringV = (photon + einstein) * uGlow * ringEnv * beam * (0.88 + 0.12 * sin(ang * uArms * 2.0 + p * 50.0));
+  highp float ringV = (photon + einstein) * uGlow * ringEnv * (0.94 + 0.06 * sin(ang * uArms * 2.0 + p * 70.0));
 
   highp float diskR = (r - R * 1.45) / max(R * 1.15, 1e-4);
   highp float diskBody = exp(-diskR * diskR) * smoothstep(R * 1.1, R * 1.3, r);
-  highp float bands = 0.4 + 0.6 * sin(r / max(R, 1e-4) * 13.0 - p * 46.0);
-  highp float turb = 0.6 + 0.4 * sin(ang * 9.0 - r / max(R, 1e-4) * 7.0 + p * 60.0);
-  highp float disk = uGlow * 0.75 * formT * (1.0 - collapseT) * diskBody * bands * bands * turb * beam;
+  highp float bands = 0.4 + 0.6 * sin(r / max(R, 1e-4) * 13.0 - p * 70.0);
+  highp float turb = 0.6 + 0.4 * sin(ang * 9.0 - r / max(R, 1e-4) * 7.0 + p * 95.0);
+  highp float disk = uGlow * 0.75 * formT * (1.0 - collapseT) * diskBody * bands * bands * turb;
 
   highp float redshift = smoothstep(R * 0.995, R * 1.06, r);
   v = max(v, (ringV + disk) * redshift);

@@ -22,15 +22,21 @@ highp float spinAngle(highp float falloff, highp float pp) {
   return uTurns * 6.2831853 * falloff * (1.0 + 0.6 * pp);
 }
 
+/* Organic, non-circular frontier so the settle boundary never reads as a hard ring. */
+highp float frontierWobble(highp float r, highp float ang) {
+  return 0.5 * sin(ang * 3.0 + r * 9.0) + 0.32 * sin(ang * 7.0 - r * 15.0 + 1.3)
+    + 0.18 * sin(ang * 13.0 + r * 24.0 + 2.7);
+}
+
 /* Settling rotates ONWARD to the next whole turn (2pi multiple = identity), never backwards. */
-highp float windAngle(highp float r, highp float falloff, highp float maxR, highp float band, highp float pp, out highp float settle) {
+highp float windAngle(highp float r, highp float ang, highp float falloff, highp float maxR, highp float band, highp float pp, out highp float settle) {
   highp float reach = maxR + band * 1.5;
-  highp float pArrive = mix(0.12, 1.0, clamp(r / reach, 0.0, 1.0));
-  highp float span = band / reach;
+  highp float span = (band / reach) * 2.4;
+  highp float pArrive = mix(0.12, 1.0, clamp(r / reach, 0.0, 1.0)) + frontierWobble(r, ang) * 0.07;
   settle = smoothstep(pArrive, pArrive + span, pp);
   highp float spin = spinAngle(falloff, pp);
   highp float landed = ceil(spinAngle(falloff, pArrive + span) / 6.2831853) * 6.2831853;
-  return mix(spin, landed, settle);
+  return mix(spin, landed, smoothstep(0.0, 1.0, settle));
 }
 
 void main() {
@@ -48,11 +54,11 @@ void main() {
   highp float falloff = uTightness / (r + uTightness);
 
   highp float settle;
-  highp float theta = windAngle(r, falloff, maxR, band, p, settle);
+  highp float theta = windAngle(r, ang, falloff, maxR, band, p, settle);
   highp float pull = 0.3 * falloff * (1.0 - settle);
 
   highp float settle2;
-  highp float theta2 = windAngle(r, falloff, maxR, band, min(p + 0.016, 1.0), settle2);
+  highp float theta2 = windAngle(r, ang, falloff, maxR, band, min(p + 0.016, 1.0), settle2);
   highp float arc = (theta2 - theta) * (0.5 + 3.5 * uStreak);
 
   highp float v = 0.0;
@@ -63,7 +69,7 @@ void main() {
 
   v *= smoothstep(0.0, 0.08, p);
   highp float edge = settle * (1.0 - settle) * 4.0;
-  v *= 1.0 + uGlow * 0.6 * edge;
+  v *= 1.0 + uGlow * 0.22 * edge * edge;
   finalColor = vec4(vec3(v), 1.0);
 }
 `;
