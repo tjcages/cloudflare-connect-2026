@@ -180,11 +180,27 @@ describe("assemblyRevealAt", () => {
 });
 
 describe("serpentinePoint", () => {
-  it("starts at the top-left and ends at the bottom edge", () => {
+  it("runs corner to corner along the main diagonal", () => {
     const start = serpentinePoint(0, 4, 0);
     expect(start.x).toBeCloseTo(0, 5);
     expect(start.y).toBeCloseTo(0, 5);
-    expect(serpentinePoint(1, 4, 0).y).toBeCloseTo(1, 5);
+    const end = serpentinePoint(1, 4, 0);
+    expect(end.x).toBeCloseTo(1, 5);
+    expect(end.y).toBeCloseTo(1, 5);
+  });
+  it("advances down the main diagonal monotonically", () => {
+    let prev = -1;
+    for (let t = 0; t <= 1.0001; t += 0.01) {
+      const { x, y } = serpentinePoint(Math.min(1, t), 4, 0);
+      expect(x + y).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = x + y;
+    }
+  });
+  it("each pass strokes along the anti-diagonal (x and y move oppositely)", () => {
+    const rows = 4;
+    const a = serpentinePoint(0.4, rows, 0);
+    const b = serpentinePoint(0.44, rows, 0);
+    expect((b.x - a.x) * (b.y - a.y)).toBeLessThan(0);
   });
   it("is one connected path — no jumps between passes", () => {
     const rows = 4;
@@ -199,28 +215,33 @@ describe("serpentinePoint", () => {
       prev = p;
     }
   });
-  it("sweeps left, right, left, right across the passes", () => {
+  it("sweeps back and forth along the anti-diagonal, one pass per row", () => {
+    // The zigzag axis is (x - y): near the end corner the diagonal advance
+    // cancels the sideways travel in x alone, so x is not the sweep axis.
     const rows = 4;
+    const along = (t: number) => {
+      const p = serpentinePoint(t, rows, 0);
+      return p.x - p.y;
+    };
     const dirs: number[] = [];
     for (let pass = 0; pass < rows; pass++) {
-      const a = serpentinePoint((pass + 0.15) / rows, rows, 0);
-      const b = serpentinePoint((pass + 0.85) / rows, rows, 0);
-      dirs.push(Math.sign(b.x - a.x));
+      dirs.push(Math.sign(along((pass + 0.85) / rows) - along((pass + 0.15) / rows)));
     }
     expect(dirs).toEqual([1, -1, 1, -1]);
   });
-  it("each pass spans the full width", () => {
-    const rows = 4;
-    expect(serpentinePoint(0, rows, 0).x).toBeCloseTo(0, 5);
-    expect(serpentinePoint(1 / rows, rows, 0).x).toBeCloseTo(1, 5);
-    expect(serpentinePoint(2 / rows, rows, 0).x).toBeCloseTo(0, 5);
+  it("reaches the full sweep width at mid-progress", () => {
+    const mid = serpentinePoint(0.5, 2, 0);
+    expect(Math.abs(mid.x - mid.y)).toBeCloseTo(1, 5);
   });
-  it("descends monotonically without wobble", () => {
-    let prevY = -1;
-    for (let t = 0; t <= 1.0001; t += 0.01) {
-      const { y } = serpentinePoint(Math.min(1, t), 6, 0);
-      expect(y).toBeGreaterThanOrEqual(prevY - 1e-9);
-      prevY = y;
+  it("stays inside the canvas at every progress and wobble", () => {
+    for (const wob of [0, 0.5, 1]) {
+      for (let t = 0; t <= 1.0001; t += 0.005) {
+        const p = serpentinePoint(Math.min(1, t), 5, wob);
+        expect(p.x).toBeGreaterThanOrEqual(0);
+        expect(p.x).toBeLessThanOrEqual(1);
+        expect(p.y).toBeGreaterThanOrEqual(0);
+        expect(p.y).toBeLessThanOrEqual(1);
+      }
     }
   });
   it("clamps progress and keeps wobble inside the canvas", () => {

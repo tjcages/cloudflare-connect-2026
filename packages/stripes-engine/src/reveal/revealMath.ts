@@ -113,17 +113,20 @@ export function assemblyRevealAt(
 export function serpentinePoint(progress: number, rows: number, wobble: number): { x: number; y: number } {
   const r = Math.max(1, Math.round(rows));
   const t = Math.min(1, Math.max(0, progress));
-  // One unbroken brush path: x is a triangle wave (left, right, left, right)
-  // while y descends steadily, so each pass is a tilted stroke and consecutive
-  // passes join at the edge instead of jumping — the whole sweep is one motion.
+  // One unbroken diagonal brush: the stroke sweeps back and forth along the
+  // anti-diagonal (a triangle wave) while the whole motion advances down the
+  // main diagonal, so passes join edge-to-edge instead of jumping. The sweep
+  // range narrows toward the corners, which is what keeps the path inside the
+  // canvas without clamping it flat.
+  const s = t;
+  const half = Math.min(s, 1 - s);
   const f = t * r;
   const pass = Math.min(r - 1, Math.floor(f));
   const frac = f - pass;
-  const xBase = pass % 2 === 0 ? frac : 1 - frac;
-  const yBase = t;
-  const wobbleAmp = wobble * 0.06;
-  const wob = Math.sin(t * Math.PI * 2 * r * 1.5) * wobbleAmp;
-  const x = Math.min(1, Math.max(0, xBase));
-  const y = Math.min(1, Math.max(0, yBase + wob));
+  const tri = pass % 2 === 0 ? frac * 2 - 1 : 1 - frac * 2;
+  const wob = Math.sin(t * Math.PI * 2 * r * 1.5) * wobble * 0.05;
+  const along = tri * half + wob;
+  const x = Math.min(1, Math.max(0, s + along));
+  const y = Math.min(1, Math.max(0, s - along));
   return { x, y };
 }
