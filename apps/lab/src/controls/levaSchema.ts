@@ -1137,9 +1137,120 @@ export function useEngineControls(
               Right: "right",
               "Up - Down": "upDown",
               "Left - Right": "leftRight",
+              "Vortex Singular": "vortexSingular",
             } as const,
             label: "Direction",
             render: (get) => get("Background Flames.flamesEnabled") === true,
+          },
+          flamesVsSegCount: {
+            value: d.flames.vortexSingular.segCount,
+            min: 2,
+            max: 80,
+            step: 1,
+            label: "VS Segments",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsSegSpacing: {
+            value: d.flames.vortexSingular.segSpacingPx,
+            min: 2,
+            max: 60,
+            step: 1,
+            label: "VS Spacing (px)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsTurnRate: {
+            value: d.flames.vortexSingular.turnRate,
+            min: 0.05,
+            max: 6,
+            step: 0.05,
+            label: "VS Turn Rate",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsTurnVariation: {
+            value: d.flames.vortexSingular.turnVariation,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "VS Turn Variation",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsVisibleMinSec: {
+            value: d.flames.vortexSingular.visibleMinMs / 1000,
+            min: 0.5,
+            max: 60,
+            step: 0.5,
+            label: "VS Visible Min (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsVisibleMaxSec: {
+            value: d.flames.vortexSingular.visibleMaxMs / 1000,
+            min: 0.5,
+            max: 120,
+            step: 0.5,
+            label: "VS Visible Max (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsHiddenMinSec: {
+            value: d.flames.vortexSingular.hiddenMinMs / 1000,
+            min: 0,
+            max: 30,
+            step: 0.1,
+            label: "VS Hidden Min (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsHiddenMaxSec: {
+            value: d.flames.vortexSingular.hiddenMaxMs / 1000,
+            min: 0,
+            max: 60,
+            step: 0.1,
+            label: "VS Hidden Max (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsLifeMinSec: {
+            value: d.flames.vortexSingular.lifeMinMs / 1000,
+            min: 0.5,
+            max: 60,
+            step: 0.5,
+            label: "VS Life Min (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsLifeMaxSec: {
+            value: d.flames.vortexSingular.lifeMaxMs / 1000,
+            min: 0.5,
+            max: 120,
+            step: 0.5,
+            label: "VS Life Max (s)",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
+          },
+          flamesVsEdgeMargin: {
+            value: d.flames.vortexSingular.edgeMarginRatio,
+            min: 0,
+            max: 0.4,
+            step: 0.01,
+            label: "VS Edge Margin",
+            render: (get) =>
+              get("Background Flames.flamesEnabled") === true &&
+              get("Background Flames.flamesDirection") === "vortexSingular",
           },
           flamesMinWidthPct: {
             value: d.flames.minWidthRatio * 100,
@@ -2397,6 +2508,19 @@ export function useEngineControls(
       edgeSharpness: values.flamesEdgeSharpness,
       opacityMin: values.flamesOpacityMin,
       opacityMax: values.flamesOpacityMax,
+      vortexSingular: {
+        segCount: values.flamesVsSegCount,
+        segSpacingPx: values.flamesVsSegSpacing,
+        turnRate: values.flamesVsTurnRate,
+        turnVariation: values.flamesVsTurnVariation,
+        visibleMinMs: values.flamesVsVisibleMinSec * 1000,
+        visibleMaxMs: values.flamesVsVisibleMaxSec * 1000,
+        hiddenMinMs: values.flamesVsHiddenMinSec * 1000,
+        hiddenMaxMs: values.flamesVsHiddenMaxSec * 1000,
+        lifeMinMs: values.flamesVsLifeMinSec * 1000,
+        lifeMaxMs: values.flamesVsLifeMaxSec * 1000,
+        edgeMarginRatio: values.flamesVsEdgeMargin,
+      },
     },
     edgeMask: {
       enabled: values.edgeMaskEnabled,

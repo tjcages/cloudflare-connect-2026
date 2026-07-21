@@ -171,7 +171,21 @@ export interface SparkleConfig {
   };
 }
 
-export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight";
+export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight" | "vortexSingular";
+
+export interface VortexSingularConfig {
+  segCount: number;
+  segSpacingPx: number;
+  turnRate: number;
+  turnVariation: number;
+  visibleMinMs: number;
+  visibleMaxMs: number;
+  hiddenMinMs: number;
+  hiddenMaxMs: number;
+  lifeMinMs: number;
+  lifeMaxMs: number;
+  edgeMarginRatio: number;
+}
 
 export interface FlamesConfig {
   enabled: boolean;
@@ -188,6 +202,7 @@ export interface FlamesConfig {
   edgeSharpness: number;
   opacityMin: number;
   opacityMax: number;
+  vortexSingular: VortexSingularConfig;
 }
 
 export interface EdgeMaskConfig {
