@@ -302,6 +302,25 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastColorsMode = config.colors.mode;
   let lastStarsEnabled = config.background.stars.enabled;
   let revealStartMs = 0;
+  // Reveal progress is measured from the first frame rendered after a trigger,
+  // not from the trigger itself: frame-cap gating and first-frame source work
+  // can delay that frame, and a clock-based start would skip the reveal's head.
+  let revealAnchorMs = 0;
+  let revealAnchorStamp = -1;
+
+  function revealElapsedMs(): number {
+    if (revealAnchorStamp !== revealStartMs) {
+      revealAnchorStamp = revealStartMs;
+      revealAnchorMs = clock.now();
+    }
+    return clock.now() - revealAnchorMs;
+  }
+
+  function revealAnimating(): boolean {
+    if (!config.reveal.enabled) return false;
+    if (revealAnchorStamp !== revealStartMs) return true;
+    return clock.now() - revealAnchorMs < resolveRevealDurationMs(config.reveal);
+  }
 
   let detectedBgColor = config.colors.backgroundColor;
   let colorsMrt: MrtTarget | null = null;
@@ -724,7 +743,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const assembly = config.reveal.vortex;
           const durationMs = resolveRevealDurationMs(config.reveal);
-          const rawProgress = (clock.now() - revealStartMs) / durationMs;
+          const rawProgress = revealElapsedMs() / durationMs;
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
           const speedMin = Math.max(0, assembly.speedMinMs);
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
@@ -757,7 +776,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const bh = config.reveal.blackhole;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const total = Math.max(1, durationMs);
-          const rawProgress = (clock.now() - revealStartMs) / total;
+          const rawProgress = revealElapsedMs() / total;
           const speedMin = Math.max(1, bh.speedMinMs);
           const speedMax = Math.max(speedMin, bh.speedMaxMs);
           const gridX = Math.round(280 + 280 * bh.detail);
@@ -794,7 +813,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const wp = config.reveal.whirlpool;
           const durationMs = Math.max(1, resolveRevealDurationMs(config.reveal));
-          const rawProgress = (clock.now() - revealStartMs) / durationMs;
+          const rawProgress = revealElapsedMs() / durationMs;
           whirlpoolPass.render(revealedRT, fieldRT.texture, {
             progress: rawProgress,
             turns: wp.turns,
@@ -817,7 +836,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const type = config.reveal.type;
           const assembly = config.reveal[type];
           const durationMs = resolveRevealDurationMs(config.reveal);
-          const rawProgress = (clock.now() - revealStartMs) / durationMs;
+          const rawProgress = revealElapsedMs() / durationMs;
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
           const speedMin = Math.max(0, assembly.speedMinMs);
           const speedMax = Math.max(speedMin, assembly.speedMaxMs);
@@ -847,7 +866,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const blurPx = assembly.blurPx ?? DEFAULT_REVEAL.assembly.blurPx ?? 0;
           const blurStart = assembly.blurStart ?? DEFAULT_REVEAL.assembly.blurStart ?? 0;
           const durationMs = resolveRevealDurationMs(config.reveal);
-          const rawProgress = (clock.now() - revealStartMs) / durationMs;
+          const rawProgress = revealElapsedMs() / durationMs;
           const progress = Math.max(0, Math.min(1, rawProgress));
           const dur = Math.max(1, assembly.staggerMs + assembly.speedMaxMs);
           const speedMin = Math.max(0, assembly.speedMinMs);
@@ -917,11 +936,15 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const water = config.reveal.water;
           const durationMs = Math.max(1, water.durationMs);
           const settleMs = Math.max(0, water.settleMs);
-          const elapsed = clock.now() - revealStartMs;
+          const elapsed = revealElapsedMs();
           const sweepT = Math.min(1, Math.max(0, elapsed / durationMs));
           const settleT =
             settleMs <= 0 ? (sweepT >= 1 ? 1 : 0) : Math.min(1, Math.max(0, (elapsed - durationMs) / settleMs));
           const done = sweepT >= 1 && settleT >= 1;
+          // Residual crests fade with the settle instead of vanishing when the
+          // sim releases; cover blends to fully-revealed on the same ramp so
+          // the handoff to the plain field is seamless.
+          const fade = done ? 0 : 1 - settleT * settleT * (3 - 2 * settleT);
           if (done) {
             if (!waterRevealReleased) {
               waterRevealSim.release();
@@ -943,6 +966,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             refraction: water.refraction,
             whiteK: WATER_WHITE_K,
             glow: WATER_GLOW,
+            fade,
           });
         },
         dispose: () => {
@@ -958,7 +982,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const durationMs = resolveRevealDurationMs(config.reveal);
-          const progress = (clock.now() - revealStartMs) / durationMs;
+          const progress = revealElapsedMs() / durationMs;
           customRevealPass.render({
             field: fieldRT,
             revealed: revealedRT,
@@ -980,7 +1004,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const { cols, rows } = cellGrid;
           const durationMs = resolveRevealDurationMs(config.reveal);
-          const progress = (clock.now() - revealStartMs) / durationMs;
+          const progress = revealElapsedMs() / durationMs;
           const [ox, oy] = originForPosition(config.reveal.wave.position);
           const maxDist = Math.max(
             Math.hypot(ox, oy),
@@ -1539,7 +1563,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   }
 
   function loop() {
-    if (shouldRenderFrame(frameCap, config.maxFps, clock.now())) renderFrame();
+    // A reveal in flight overrides the frame cap: fluid sims and sweeps read as
+    // laggy at capped rates, and the override only lasts the reveal's duration.
+    // shouldRenderFrame still runs first so the cap's cadence stays advanced.
+    const capOk = shouldRenderFrame(frameCap, config.maxFps, clock.now());
+    if (capOk || revealAnimating()) renderFrame();
     rafId = requestAnimationFrame(loop);
   }
 

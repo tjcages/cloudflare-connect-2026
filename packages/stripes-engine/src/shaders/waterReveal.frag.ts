@@ -9,6 +9,7 @@ uniform float uRefraction;
 uniform float uWhiteK;
 uniform float uGlow;
 uniform float uActive;
+uniform float uFade;
 out vec4 finalColor;
 
 // Water alpha compresses instead of clipping: crest/(crest+K) approaches 1 but
@@ -28,11 +29,11 @@ void main() {
   float hT = texture(uHeight, vUv + vec2(0.0, uHeightTexel.y)).r;
   float hB = texture(uHeight, vUv - vec2(0.0, uHeightTexel.y)).r;
   vec2 grad = vec2(hR - hL, hT - hB);
-  vec2 uv = clamp(vUv - grad * uRefraction * 0.04, 0.0, 1.0);
+  vec2 uv = clamp(vUv - grad * uRefraction * 0.04 * uFade, 0.0, 1.0);
   float v = texture(uField, uv).r;
   float crest = max(texture(uHeight, vUv).r, 0.0);
-  v = clamp(v + waterAlpha(crest, uWhiteK) * uGlow, 0.0, 1.0);
-  float cover = texture(uCover, vUv).r;
+  v = clamp(v + waterAlpha(crest, uWhiteK) * uGlow * uFade, 0.0, 1.0);
+  float cover = mix(1.0, texture(uCover, vUv).r, uFade);
   finalColor = vec4(vec3(v * cover), 1.0);
 }
 `;
