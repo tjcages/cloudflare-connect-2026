@@ -195,7 +195,7 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
       horizon: 0.12,
     },
     whirlpool: {
-      durationMs: 4400,
+      durationMs: 5600,
       turns: 4,
       tightness: 0.22,
       streak: 0.6,

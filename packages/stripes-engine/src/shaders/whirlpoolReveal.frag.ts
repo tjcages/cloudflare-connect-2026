@@ -43,7 +43,7 @@ highp float windAngle(highp float r, highp float ang, highp float falloff, highp
   highp float span = 0.13;
   highp float arms = 0.075 * sin(ang * 2.0 - rn * 10.0) + 0.045 * sin(ang * 3.0 - rn * 17.0 + 2.1);
   highp float pArrive = clamp(
-    mix(0.36, 1.0 - span * 0.92, rn) + arms + frontierWobble(r, ang) * 0.035 + (jit - 0.5) * 0.22,
+    mix(0.3, 1.0 - span * 0.92, rn) + arms + frontierWobble(r, ang) * 0.035 + (jit - 0.5) * 0.22,
     0.0,
     1.0 - span * 0.9
   );
