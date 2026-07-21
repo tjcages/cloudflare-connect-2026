@@ -17,6 +17,7 @@ import {
   DEFAULT_REVEAL,
   normalizeFlames,
   DEFAULT_FLAMES,
+  DEFAULT_VORTEX_SINGULAR,
   normalizeEdgeMask,
   DEFAULT_EDGE_MASK,
   normalizeCursorTrail,
@@ -901,6 +902,46 @@ describe("reveal type promotion", () => {
     expect(clamped.water.rows).toBeLessThanOrEqual(24);
     expect(clamped.water.wobble).toBe(1);
     expect(clamped.water.softness).toBe(1);
+  });
+});
+
+describe("normalizeFlames vortexSingular", () => {
+  it("accepts the vortexSingular direction", () => {
+    expect(normalizeFlames({ direction: "vortexSingular" }).direction).toBe("vortexSingular");
+  });
+
+  it("fills vortexSingular defaults when absent", () => {
+    expect(normalizeFlames({}).vortexSingular).toEqual(DEFAULT_VORTEX_SINGULAR);
+  });
+
+  it("clamps vortexSingular fields", () => {
+    const v = normalizeFlames({
+      vortexSingular: {
+        segCount: 0,
+        segSpacingPx: 500,
+        turnRate: -2,
+        turnVariation: 3,
+        fadeCycleRate: 0,
+        fadeDepth: 9,
+        lifeMinMs: 10,
+        lifeMaxMs: 5,
+        edgeMarginRatio: 2,
+      },
+    }).vortexSingular;
+    expect(v.segCount).toBe(2);
+    expect(v.segSpacingPx).toBe(60);
+    expect(v.turnRate).toBe(0.05);
+    expect(v.turnVariation).toBe(1);
+    expect(v.fadeCycleRate).toBe(0.02);
+    expect(v.fadeDepth).toBe(1);
+    expect(v.lifeMinMs).toBe(500);
+    expect(v.lifeMaxMs).toBe(500);
+    expect(v.edgeMarginRatio).toBe(0.4);
+  });
+
+  it("raises lifeMaxMs to lifeMinMs", () => {
+    const v = normalizeFlames({ vortexSingular: { lifeMinMs: 8000, lifeMaxMs: 1000 } }).vortexSingular;
+    expect(v.lifeMaxMs).toBe(8000);
   });
 });
 

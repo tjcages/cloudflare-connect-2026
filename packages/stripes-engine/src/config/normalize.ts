@@ -9,6 +9,7 @@ import type {
   SparkleConfig,
   FlamesConfig,
   FlamesDirection,
+  VortexSingularConfig,
   WavePosition,
   EdgeMaskConfig,
   CursorTrailConfig,
@@ -450,6 +451,18 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
   };
 }
 
+export const DEFAULT_VORTEX_SINGULAR: VortexSingularConfig = {
+  segCount: 22,
+  segSpacingPx: 10,
+  turnRate: 0.9,
+  turnVariation: 0.8,
+  fadeCycleRate: 0.5,
+  fadeDepth: 1,
+  lifeMinMs: 6000,
+  lifeMaxMs: 14000,
+  edgeMarginRatio: 0.12,
+};
+
 export const DEFAULT_FLAMES: FlamesConfig = {
   enabled: false,
   direction: "up",
@@ -465,14 +478,40 @@ export const DEFAULT_FLAMES: FlamesConfig = {
   edgeSharpness: 1,
   opacityMin: 0.3,
   opacityMax: 1,
+  vortexSingular: { ...DEFAULT_VORTEX_SINGULAR },
 };
 
-type PartialFlames = Partial<FlamesConfig>;
+type PartialFlames = Partial<Omit<FlamesConfig, "vortexSingular">> & {
+  vortexSingular?: Partial<VortexSingularConfig>;
+};
 
-const FLAMES_DIRECTIONS: readonly FlamesDirection[] = ["up", "down", "left", "right", "upDown", "leftRight"];
+const FLAMES_DIRECTIONS: readonly FlamesDirection[] = [
+  "up",
+  "down",
+  "left",
+  "right",
+  "upDown",
+  "leftRight",
+  "vortexSingular",
+];
 
 function normalizeFlamesDirection(value: unknown): FlamesDirection {
   return FLAMES_DIRECTIONS.includes(value as FlamesDirection) ? (value as FlamesDirection) : "up";
+}
+
+function normalizeVortexSingular(i: Partial<VortexSingularConfig> = {}): VortexSingularConfig {
+  const lifeMinMs = clamp(Math.round(num(i.lifeMinMs, DEFAULT_VORTEX_SINGULAR.lifeMinMs)), 500, 60000);
+  return {
+    segCount: clamp(Math.round(num(i.segCount, DEFAULT_VORTEX_SINGULAR.segCount)), 2, 80),
+    segSpacingPx: clamp(num(i.segSpacingPx, DEFAULT_VORTEX_SINGULAR.segSpacingPx), 2, 60),
+    turnRate: clamp(num(i.turnRate, DEFAULT_VORTEX_SINGULAR.turnRate), 0.05, 6),
+    turnVariation: clamp(num(i.turnVariation, DEFAULT_VORTEX_SINGULAR.turnVariation), 0, 1),
+    fadeCycleRate: clamp(num(i.fadeCycleRate, DEFAULT_VORTEX_SINGULAR.fadeCycleRate), 0.02, 4),
+    fadeDepth: clamp(num(i.fadeDepth, DEFAULT_VORTEX_SINGULAR.fadeDepth), 0, 1),
+    lifeMinMs,
+    lifeMaxMs: clamp(Math.round(num(i.lifeMaxMs, DEFAULT_VORTEX_SINGULAR.lifeMaxMs)), lifeMinMs, 120000),
+    edgeMarginRatio: clamp(num(i.edgeMarginRatio, DEFAULT_VORTEX_SINGULAR.edgeMarginRatio), 0, 0.4),
+  };
 }
 
 export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
@@ -497,6 +536,7 @@ export function normalizeFlames(i: PartialFlames = {}): FlamesConfig {
     edgeSharpness: clamp(num(i.edgeSharpness, DEFAULT_FLAMES.edgeSharpness), 0, 1),
     opacityMin,
     opacityMax,
+    vortexSingular: normalizeVortexSingular(i.vortexSingular),
   };
 }
 

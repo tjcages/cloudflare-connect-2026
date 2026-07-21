@@ -74,8 +74,9 @@ and color branches, unchanged — no shader or pass work).
 | `lifeMinMs` / `lifeMaxMs` | lifetime range                                 |
 | `edgeMarginRatio`         | viewport ratio where boundary steering engages |
 
-Segment size reuses `minWidthRatio`/`maxWidthRatio`/`minHeightRatio`/
-`maxHeightRatio`; speed reuses `baseSpeedPxPerSec`/`speedVariation`; population
+Thickness reuses `minWidthRatio`/`maxWidthRatio` (× display width);
+`minHeightRatio`/`maxHeightRatio` are unused in this mode; speed reuses
+`baseSpeedPxPerSec`/`speedVariation`; population
 reuses `maxActive`; opacity reuses `opacityMin`/`opacityMax`. `spawnIntervalMs`
 /`spawnJitterMs` are ignored in this mode (population is respawn-driven).
 
