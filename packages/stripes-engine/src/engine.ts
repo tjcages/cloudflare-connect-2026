@@ -1575,8 +1575,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       this.setConfig({ fieldScale: s });
     },
     setSource(media) {
+      const hadSource = source !== null;
       source?.dispose();
       source = media ? createSourceTexture(gl, media) : null;
+      if (source && !hadSource) revealStartMs = clock.now();
       detectedBgColor = media ? detectSourceBackground(media) : config.colors.backgroundColor;
       applySourcePalette(media);
       computeMaxColorDist();
