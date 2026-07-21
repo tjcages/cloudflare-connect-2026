@@ -17,19 +17,18 @@ float nucleusShape(vec2 p, float sc) {
   float r = max(uHeadR * sc, 1.0);
   float ax = dot(d, uDir);
   float ay = dot(d, side);
-  float f = ax >= 0.0 ? ax / (r * 0.92) : ax / (r * 2.3);
-  float taper = 1.0 - 0.62 * clamp(-f, 0.0, 1.0);
-  float lat = ay / max(r * 0.6 * taper, 0.35);
-  float r2 = f * f + lat * lat;
-  return exp(-pow(r2 + 1e-4, 1.35));
+  float f = ax >= 0.0 ? ax / (r * 1.02) : ax / (r * 1.62);
+  float taper = 1.0 - 0.4 * clamp(-f, 0.0, 1.0);
+  float lat = ay / max(r * 0.84 * taper, 0.35);
+  float q = sqrt(f * f + lat * lat + 1e-5);
+  return 1.0 - smoothstep(0.68, 1.0, q);
 }
 
 float tailShape(vec2 p, float sc) {
   int n = int(uPathCount + 0.5);
   if (n < 2) return 0.0;
   float last = float(n - 1);
-  float w0 = max(uHeadR * sc * 0.78, 1.0);
-  float ripple = 0.94 + 0.06 * sin(uTime * 5.3);
+  float w0 = max(uHeadR * sc * 0.86, 1.0);
   float best = 0.0;
   for (int i = 0; i < ${COMET_PATH_POINTS - 1}; i++) {
     if (i >= n - 1) break;
@@ -40,9 +39,10 @@ float tailShape(vec2 p, float sc) {
     vec2 c = a + ab * t;
     vec2 e = p - c;
     float u = (float(i) + t) / last;
-    float w = w0 * mix(1.0, 0.12, u) * ripple;
-    float amp = pow(max(1.0 - u, 0.0), 1.35);
-    best = max(best, exp(-dot(e, e) / (w * w)) * amp);
+    float w = w0 * mix(1.0, 0.14, u);
+    float amp = pow(max(1.0 - u, 0.0), 1.15);
+    float q = length(e) / max(w, 0.6);
+    best = max(best, (1.0 - smoothstep(0.46, 1.0, q)) * amp);
   }
   return best;
 }
@@ -69,18 +69,23 @@ float heatAt(vec2 p) {
   return texture(uHeat, uv).r;
 }
 
-float totalPotential(vec2 p, float sc) {
-  return cometPotential(p, sc) + heatAt(p) * 0.8;
-}
-
 void main() {
   float sc = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.5, 2.5);
   vec2 p = vec2(vUv.x, 1.0 - vUv.y) * uCssSize;
 
   float e = 2.0 * sc;
-  float gx = totalPotential(p + vec2(e, 0.0), sc) - totalPotential(p - vec2(e, 0.0), sc);
-  float gy = totalPotential(p + vec2(0.0, e), sc) - totalPotential(p - vec2(0.0, e), sc);
-  vec2 push = vec2(gx, gy) / (2.0 * e) * 1250.0 * sc;
+  float hx = heatAt(p + vec2(e, 0.0)) - heatAt(p - vec2(e, 0.0));
+  float hy = heatAt(p + vec2(0.0, e)) - heatAt(p - vec2(0.0, e));
+  vec2 emberPush = vec2(hx, hy) * 0.8 / (2.0 * e) * 1250.0 * sc;
+
+  float cx = cometPotential(p + vec2(e, 0.0), sc) - cometPotential(p - vec2(e, 0.0), sc);
+  float cy = cometPotential(p + vec2(0.0, e), sc) - cometPotential(p - vec2(0.0, e), sc);
+  vec2 cometPush = vec2(cx, cy) / (2.0 * e) * 300.0 * sc;
+  float cometMag = length(cometPush);
+  float cometMax = 10.0 * sc;
+  if (cometMag > cometMax) cometPush *= cometMax / cometMag;
+
+  vec2 push = emberPush + cometPush;
   float mag = length(push);
   float maxPush = 54.0 * sc;
   if (mag > maxPush) push *= maxPush / mag;
@@ -105,28 +110,6 @@ void main() {
     1.0
   );
   outColor = vec4(vec3(value), 1.0);
-}
-`;
-
-export const COMET_POST_FRAG = `#version 300 es
-precision highp float;
-
-in vec2 vUv;
-uniform sampler2D uSrc;
-out vec4 outColor;
-${COMET_POTENTIAL}
-void main() {
-  float sc = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.5, 2.5);
-  vec2 p = vec2(vUv.x, 1.0 - vUv.y) * uCssSize;
-  float e = 2.0 * sc;
-  float gx = cometPotential(p + vec2(e, 0.0), sc) - cometPotential(p - vec2(e, 0.0), sc);
-  float gy = cometPotential(p + vec2(0.0, e), sc) - cometPotential(p - vec2(0.0, e), sc);
-  vec2 push = vec2(gx, gy) / (2.0 * e) * 1000.0 * sc;
-  float mag = length(push);
-  float maxPush = 22.0 * sc;
-  if (mag > maxPush) push *= maxPush / mag;
-  vec2 uv = clamp(vUv + vec2(push.x / uCssSize.x, -push.y / uCssSize.y), 0.0, 1.0);
-  outColor = texture(uSrc, uv);
 }
 `;
 

@@ -1,4 +1,4 @@
-export const METEOR_SHOWER_MAX_METEORS = 24;
+export const METEOR_SHOWER_MAX_METEORS = 36;
 
 export const METEOR_SHOWER_FRAG = `#version 300 es
 precision highp float;

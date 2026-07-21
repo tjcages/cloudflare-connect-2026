@@ -1,4 +1,4 @@
-export const COMET_PASSAGE_MAX_COMETS = 2;
+export const COMET_PASSAGE_MAX_COMETS = 4;
 export const COMET_PASSAGE_PATH_POINTS = 12;
 
 export const COMET_PASSAGE_FRAG = `#version 300 es

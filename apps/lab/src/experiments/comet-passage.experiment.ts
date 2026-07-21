@@ -22,8 +22,8 @@ import { COMET_PASSAGE_FRAG, COMET_PASSAGE_MAX_COMETS, COMET_PASSAGE_PATH_POINTS
 
 const FIELD_SCALE = 0.75;
 const FIRST_LAUNCH_SECONDS = 1.4;
-const MIN_GAP_SECONDS = 8;
-const MAX_GAP_SECONDS = 15;
+const MIN_GAP_SECONDS = 3;
+const MAX_GAP_SECONDS = 6;
 const MIN_CROSSING_SECONDS = 4.2;
 const MAX_CROSSING_SECONDS = 7;
 const COMPANION_CHANCE = 0.22;
@@ -81,10 +81,10 @@ const definition: ExperimentDefinition = {
       let launchPending = false;
 
       const buildComet = (bornAtSeconds: number, sizeScale: number): CometState => {
-        const heading = randomBetween(random, (-26 * Math.PI) / 180, (26 * Math.PI) / 180);
-        const orientation = random() < 0.5 ? 1 : -1;
-        const directionX = Math.cos(heading) * orientation;
-        const directionY = Math.sin(heading) * orientation;
+        const tilt = randomBetween(random, (-26 * Math.PI) / 180, (26 * Math.PI) / 180);
+        const lateralSign = random() < 0.5 ? 1 : -1;
+        const directionX = Math.sin(tilt) * lateralSign;
+        const directionY = -Math.cos(tilt);
         const normalX = -directionY;
         const normalY = directionX;
         const lateralOffset = randomBetween(random, -0.32, 0.32);

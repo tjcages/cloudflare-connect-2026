@@ -5,11 +5,10 @@ import {
   FULLSCREEN_VERT,
   type EngineHookContext,
   type FieldHookPass,
-  type PostHookPass,
 } from "@necatikcl/stripes-engine";
 import { EXPERIMENT_BASE_CONFIG } from "./preset";
 import type { ExperimentDefinition } from "./types";
-import { COMET_COMPOSITE_FRAG, COMET_POST_FRAG, EMBER_FRAG, EMBER_VERT } from "./comet-embers.shaders";
+import { COMET_COMPOSITE_FRAG, EMBER_FRAG, EMBER_VERT } from "./comet-embers.shaders";
 import {
   createEmberSim,
   EMBER_PACK_FLOATS,
@@ -301,26 +300,7 @@ const definition: ExperimentDefinition = {
       };
     };
 
-    const postPass = ({ gl, quad }: EngineHookContext): PostHookPass => {
-      const program = compileProgram(gl, FULLSCREEN_VERT, COMET_POST_FRAG);
-      const loc = cometLocations(gl, program);
-      const uSrc = gl.getUniformLocation(program, "uSrc");
-      return {
-        render(src, dst, frame) {
-          gl.bindFramebuffer(gl.FRAMEBUFFER, dst ? dst.fbo : null);
-          gl.viewport(0, 0, dst ? dst.width : frame.outputWidth, dst ? dst.height : frame.outputHeight);
-          gl.useProgram(program);
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, src);
-          gl.uniform1i(uSrc, 0);
-          setCometUniforms(gl, loc, uniforms);
-          quad.draw();
-        },
-        dispose: () => gl.deleteProgram(program),
-      };
-    };
-
-    const engine = createStripesEngine(ctx.canvas, { hooks: { fieldPass, postPass } });
+    const engine = createStripesEngine(ctx.canvas, { hooks: { fieldPass } });
     engine.setConfig({
       ...EXPERIMENT_BASE_CONFIG,
       cursorTrail: { ...DEFAULT_ENGINE_CONFIG.cursorTrail, enabled: false },
