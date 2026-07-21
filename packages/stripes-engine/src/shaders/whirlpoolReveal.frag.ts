@@ -43,7 +43,7 @@ highp float cellOffset(vec2 uv, vec2 asp) {
   vec2 cellUv = (c + 0.5) / vec2(150.0, 78.0);
   vec2 cq = (cellUv - 0.5) * asp;
   highp float cr = length(cq);
-  highp float cfall = pow(uTightness / (cr + uTightness), 0.45);
+  highp float cfall = uTightness / (cr + uTightness);
   highp float spiral = atan(cq.y, cq.x) + uTurns * 6.2831853 * cfall + cr * 5.0;
   highp float wave = 0.5 - 0.5 * cos(spiral);
   return (wave - 0.5) * 0.3 + (cellHash(c) - 0.5) * 0.05;
@@ -62,7 +62,7 @@ void main() {
   highp float ang = atan(q.y, q.x);
   highp float maxR = length(asp) * 0.5;
   highp float rn = clamp(r / max(maxR, 1e-4), 0.0, 1.0);
-  highp float falloff = pow(uTightness / (r + uTightness), 0.45);
+  highp float falloff = uTightness / (r + uTightness);
 
   highp float span = 0.13;
   highp float pDrain = clamp(
@@ -73,9 +73,12 @@ void main() {
   highp float drained = smoothstep(pDrain, pDrain + span, p);
 
   /* Cover keeps spinning the entire time — it is never asked to land on the image. */
-  highp float theta = spinAngle(falloff, p);
-  highp float arc = (spinAngle(falloff, min(p + 0.016, 1.0)) - theta) * (0.5 + 3.5 * uStreak);
-  highp float pull = 0.3 * falloff;
+  highp float rim = drained * (1.0 - drained) * 4.0;
+  highp float spinNow = spinAngle(falloff, p);
+  /* Right at the drain edge the cover accelerates and is sucked inward. */
+  highp float theta = spinNow + rim * 0.7;
+  highp float arc = (spinAngle(falloff, min(p + 0.016, 1.0)) - spinNow) * (0.5 + 3.5 * uStreak);
+  highp float pull = falloff * (0.3 + 0.45 * rim);
 
   highp float cover = 0.0;
   for (int i = 0; i < 5; i++) {
@@ -85,7 +88,6 @@ void main() {
   cover *= smoothstep(0.0, 0.08, p);
 
   highp float v = mix(cover, sharp, drained);
-  highp float rim = drained * (1.0 - drained) * 4.0;
   v *= 1.0 + uGlow * 0.3 * rim * rim;
   finalColor = vec4(vec3(v), 1.0);
 }
