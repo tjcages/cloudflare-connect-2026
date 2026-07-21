@@ -1,0 +1,163 @@
+const SHOCK_HELPERS = `
+const float SHOCK_SECONDS = 0.6;
+const float TAU = 6.2831853;
+
+float hash11(float p) {
+  p = fract(p * 0.1031);
+  p *= p + 33.33;
+  p *= p + p;
+  return fract(p);
+}
+
+float shockRadius(float ts, float sc) {
+  return 168.0 * sc * pow(ts, 0.42);
+}
+
+float shockWobble(float ang, float seed, float ts) {
+  return (sin(ang * 5.0 + seed * 11.0) + 0.6 * sin(ang * 9.0 - seed * 7.0) + 0.4 * sin(ang * 13.0 + seed * 3.0)) *
+    3.4 * ts;
+}
+`;
+
+export const DETONATION_FIELD_FRAG = `#version 300 es
+precision highp float;
+
+uniform sampler2D uField;
+uniform vec2 uCssSize;
+uniform int uDetCount;
+uniform vec2 uDetCenter[3];
+uniform float uDetAge[3];
+uniform float uDetSeed[3];
+uniform float uDetFlash[3];
+
+in vec2 vUv;
+out vec4 outColor;
+${SHOCK_HELPERS}
+const int DEBRIS_COUNT = 24;
+const float DEBRIS_SECONDS = 1.2;
+
+void main() {
+  float sc = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.5, 2.5);
+  vec2 pos = vec2(vUv.x, 1.0 - vUv.y) * uCssSize;
+
+  vec2 warp = vec2(0.0);
+  for (int i = 0; i < 3; i++) {
+    if (i >= uDetCount) break;
+    float ts = uDetAge[i] / SHOCK_SECONDS;
+    if (ts >= 1.0) continue;
+    vec2 d = pos - uDetCenter[i];
+    float r = max(length(d), 1e-3);
+    vec2 dir = d / r;
+    float ang = atan(d.y, d.x);
+    float R = shockRadius(ts, sc) + shockWobble(ang, uDetSeed[i], ts) * sc;
+    float th = mix(24.0, 9.0, ts) * sc;
+    float band = (r - R) / th;
+    float g = exp(-band * band);
+    float w = pow(1.0 - ts, 0.85);
+    warp += dir * band * g * 20.0 * sc * w;
+  }
+  vec2 uv = clamp(vUv + vec2(warp.x / uCssSize.x, -warp.y / uCssSize.y), 0.0, 1.0);
+  float base = texture(uField, uv).r;
+
+  float add = 0.0;
+  float dim = 0.0;
+  for (int i = 0; i < 3; i++) {
+    if (i >= uDetCount) break;
+    float age = uDetAge[i];
+    float seed = uDetSeed[i];
+    vec2 d = pos - uDetCenter[i];
+    float r = max(length(d), 1e-3);
+    float ang = atan(d.y, d.x);
+
+    float f = uDetFlash[i];
+    if (f < 1.0) {
+      float coreR = mix(24.0, 42.0, f) * sc;
+      add += smoothstep(coreR, coreR * 0.25, r) * (1.0 - f);
+    }
+    add += exp(-r / (70.0 * sc)) * exp(-age * 14.0) * 0.6;
+
+    float ts = age / SHOCK_SECONDS;
+    if (ts < 1.0) {
+      float R = shockRadius(ts, sc) + shockWobble(ang, seed, ts) * sc;
+      float th = mix(24.0, 9.0, ts) * sc;
+      float band = (r - R) / th;
+      float g = exp(-band * band);
+      float w = pow(1.0 - ts, 0.85);
+      float grain = 0.82 + 0.18 * sin(ang * 23.0 + seed * 29.0 + ts * 9.0);
+      add += g * w * 0.8 * grain;
+      float behind = (r - (R - th * 1.9)) / (th * 1.4);
+      dim += exp(-behind * behind) * w * 0.24 * smoothstep(0.08, 0.4, ts);
+    }
+
+    if (age < DEBRIS_SECONDS && r < 380.0 * sc) {
+      for (int j = 0; j < DEBRIS_COUNT; j++) {
+        float fj = float(j);
+        float h1 = hash11(seed + fj * 7.13);
+        float h2 = hash11(seed + fj * 3.71 + 11.7);
+        float h3 = hash11(seed + fj * 5.39 + 29.3);
+        float h4 = hash11(seed + fj * 9.02 + 47.9);
+        float h5 = hash11(seed + fj * 1.97 + 71.3);
+        float life = 0.7 + 0.5 * h3;
+        float tt = age / life;
+        if (tt >= 1.0) continue;
+        float angJ = (fj + (h1 - 0.5) * 0.9) * (TAU / float(DEBRIS_COUNT));
+        vec2 dirJ = vec2(cos(angJ), sin(angJ));
+        float v0 = (130.0 + 290.0 * h2 * h2) * sc;
+        float k = 2.1 + 1.6 * h4;
+        float ds = (1.0 - exp(-k * age)) / k;
+        float grav = 360.0 * sc;
+        vec2 pPos = uDetCenter[i] + dirJ * v0 * ds + vec2(0.0, grav * (age - ds) / k);
+        vec2 vel = dirJ * v0 * exp(-k * age) + vec2(0.0, grav * (1.0 - exp(-k * age)) / k);
+        vec2 seg = -vel * 0.045;
+        float segLen2 = max(dot(seg, seg), 1e-4);
+        float proj = clamp(dot(pos - pPos, seg) / segLen2, 0.0, 1.0);
+        float distSeg = length(pos - (pPos + seg * proj));
+        float size = (2.6 + 2.6 * h5) * sc * (1.0 - 0.45 * tt);
+        float cool = pow(1.0 - tt, 1.4);
+        float flicker = mix(1.0, 0.55 + 0.45 * sin(age * 34.0 + fj * 9.7 + seed), smoothstep(0.35, 0.9, tt));
+        add += smoothstep(size, size * 0.15, distSeg) * cool * flicker;
+      }
+    }
+  }
+
+  float value = clamp(base * (1.0 - min(dim, 0.6)) + add, 0.0, 1.0);
+  outColor = vec4(vec3(value), 1.0);
+}
+`;
+
+export const DETONATION_POST_FRAG = `#version 300 es
+precision highp float;
+
+uniform sampler2D uSrc;
+uniform vec2 uCssSize;
+uniform int uDetCount;
+uniform vec2 uDetCenter[3];
+uniform float uDetAge[3];
+uniform float uDetSeed[3];
+
+in vec2 vUv;
+out vec4 outColor;
+${SHOCK_HELPERS}
+void main() {
+  float sc = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.5, 2.5);
+  vec2 pos = vec2(vUv.x, 1.0 - vUv.y) * uCssSize;
+  vec2 warp = vec2(0.0);
+  for (int i = 0; i < 3; i++) {
+    if (i >= uDetCount) break;
+    float ts = uDetAge[i] / SHOCK_SECONDS;
+    if (ts >= 1.0) continue;
+    vec2 d = pos - uDetCenter[i];
+    float r = max(length(d), 1e-3);
+    vec2 dir = d / r;
+    float ang = atan(d.y, d.x);
+    float R = shockRadius(ts, sc) + shockWobble(ang, uDetSeed[i], ts) * sc;
+    float th = mix(26.0, 10.0, ts) * sc;
+    float band = (r - R) / th;
+    float g = exp(-band * band);
+    float w = pow(1.0 - ts, 0.9);
+    warp += dir * band * g * 10.0 * sc * w;
+  }
+  vec2 uv = clamp(vUv + vec2(warp.x / uCssSize.x, -warp.y / uCssSize.y), 0.0, 1.0);
+  outColor = texture(uSrc, uv);
+}
+`;
