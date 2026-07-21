@@ -1,58 +1,44 @@
-import { COMET_PATH_POINTS } from "./comet-embers.path";
+import { LIQUID_NODES } from "./comet-embers.liquid";
 
-const COMET_POTENTIAL = `
+const COMET_BODY = `
 uniform vec2 uCssSize;
-uniform vec2 uHead;
-uniform vec2 uDir;
-uniform float uHeadR;
+uniform vec2 uNode[${LIQUID_NODES}];
+uniform float uNodeR[${LIQUID_NODES}];
 uniform float uPresence;
 uniform float uCore;
 uniform float uTime;
-uniform float uPathCount;
-uniform vec2 uPath[${COMET_PATH_POINTS}];
 
-float nucleusShape(vec2 p, float sc) {
-  vec2 d = p - uHead;
-  vec2 side = vec2(-uDir.y, uDir.x);
-  float r = max(uHeadR * sc, 1.0);
-  float ax = dot(d, uDir);
-  float ay = dot(d, side);
-  float f = ax >= 0.0 ? ax / (r * 1.02) : ax / (r * 1.62);
-  float taper = 1.0 - 0.4 * clamp(-f, 0.0, 1.0);
-  float lat = ay / max(r * 0.84 * taper, 0.35);
-  float q = sqrt(f * f + lat * lat + 1e-5);
-  return 1.0 - smoothstep(0.68, 1.0, q);
+float smoothUnion(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
 }
 
-float tailShape(vec2 p, float sc) {
-  int n = int(uPathCount + 0.5);
-  if (n < 2) return 0.0;
-  float last = float(n - 1);
-  float w0 = max(uHeadR * sc * 0.86, 1.0);
-  float best = 0.0;
-  for (int i = 0; i < ${COMET_PATH_POINTS - 1}; i++) {
-    if (i >= n - 1) break;
-    vec2 a = uPath[i];
-    vec2 b = uPath[i + 1];
+float bodyDist(vec2 p, float sc) {
+  float k = 5.4 * sc;
+  float d = 1e5;
+  for (int i = 0; i < ${LIQUID_NODES - 1}; i++) {
+    vec2 a = uNode[i];
+    vec2 b = uNode[i + 1];
     vec2 ab = b - a;
-    float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-3), 0.0, 1.0);
-    vec2 c = a + ab * t;
-    vec2 e = p - c;
-    float u = (float(i) + t) / last;
-    float w = w0 * mix(1.0, 0.14, u);
-    float amp = pow(max(1.0 - u, 0.0), 1.15);
-    float q = length(e) / max(w, 0.6);
-    best = max(best, (1.0 - smoothstep(0.46, 1.0, q)) * amp);
+    float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-4), 0.0, 1.0);
+    float r = mix(uNodeR[i], uNodeR[i + 1], t);
+    float seg = length(p - (a + ab * t)) - r;
+    d = i == 0 ? seg : smoothUnion(d, seg, k);
   }
-  return best;
+  return d;
 }
 
-float cometShape(vec2 p, float sc) {
-  return max(nucleusShape(p, sc) * uCore, tailShape(p, sc) * uPresence * 0.86);
+float bodyMask(float d, float sc) {
+  return 1.0 - smoothstep(-1.4 * sc, 0.9 * sc, d);
 }
 
-float cometPotential(vec2 p, float sc) {
-  return cometShape(p, sc) * 0.52;
+float bodyPush(vec2 p, float sc) {
+  return (1.0 - smoothstep(-1.5 * sc, 5.0 * sc, bodyDist(p, sc))) * 0.52;
+}
+
+float headBulge(vec2 p, float sc) {
+  float r = max(uNodeR[0] * 1.12, 1.0);
+  return 1.0 - smoothstep(0.34, 1.0, length(p - uNode[0]) / r);
 }
 `;
 
@@ -63,7 +49,7 @@ in vec2 vUv;
 uniform sampler2D uField;
 uniform sampler2D uHeat;
 out vec4 outColor;
-${COMET_POTENTIAL}
+${COMET_BODY}
 float heatAt(vec2 p) {
   vec2 uv = vec2(p.x / uCssSize.x, 1.0 - p.y / uCssSize.y);
   return texture(uHeat, uv).r;
@@ -78,11 +64,11 @@ void main() {
   float hy = heatAt(p + vec2(0.0, e)) - heatAt(p - vec2(0.0, e));
   vec2 emberPush = vec2(hx, hy) * 0.8 / (2.0 * e) * 1250.0 * sc;
 
-  float cx = cometPotential(p + vec2(e, 0.0), sc) - cometPotential(p - vec2(e, 0.0), sc);
-  float cy = cometPotential(p + vec2(0.0, e), sc) - cometPotential(p - vec2(0.0, e), sc);
-  vec2 cometPush = vec2(cx, cy) / (2.0 * e) * 300.0 * sc;
+  float cx = bodyPush(p + vec2(e, 0.0), sc) - bodyPush(p - vec2(e, 0.0), sc);
+  float cy = bodyPush(p + vec2(0.0, e), sc) - bodyPush(p - vec2(0.0, e), sc);
+  vec2 cometPush = vec2(cx, cy) / (2.0 * e) * 340.0 * sc * uPresence;
   float cometMag = length(cometPush);
-  float cometMax = 10.0 * sc;
+  float cometMax = 12.0 * sc;
   if (cometMag > cometMax) cometPush *= cometMax / cometMag;
 
   vec2 push = emberPush + cometPush;
@@ -94,18 +80,17 @@ void main() {
   float base = texture(uField, uv).r;
 
   vec2 heat = texture(uHeat, vUv).rg;
-  float nuc = nucleusShape(p, sc) * uCore;
-  float tail = tailShape(p, sc) * uPresence;
-  float shape = max(nuc, tail * 0.86);
+  float dc = bodyDist(p, sc);
+  float body = bodyMask(dc, sc) * uPresence;
   float flick = 0.9 + 0.1 * sin(uTime * 11.3 + sin(uTime * 27.1) * 1.7);
-  float core = pow(nuc, 1.5) * flick;
+  float head = headBulge(p, sc) * uCore * uPresence * flick;
 
-  float rim = clamp(shape * (1.0 - shape) * 4.0, 0.0, 1.0);
+  float groove = (1.0 - smoothstep(0.5 * sc, 3.1 * sc, abs(dc))) * uPresence;
   float emberRim = clamp(heat.r * (1.0 - heat.r) * 4.0, 0.0, 1.0);
-  float dim = clamp(rim * 0.44 + emberRim * 0.34, 0.0, 0.72);
+  float dim = clamp(groove * 0.44 + emberRim * 0.34, 0.0, 0.72);
 
   float value = clamp(
-    base * (1.0 - dim) + core * 0.95 + pow(tail, 1.4) * 0.3 + min(heat.g, 1.0) * 0.88,
+    base * (1.0 - dim) + body * 0.3 + head * 0.66 + min(heat.g, 1.0) * 0.88,
     0.0,
     1.0
   );

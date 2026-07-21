@@ -197,11 +197,48 @@ export interface EdgeMaskConfig {
   power: number;
 }
 
-export type CursorTrailType = "default" | "wave";
+export type CursorTrailType = "default" | "wave" | "constellation";
+
+export const CURSOR_TRAIL_TYPES: readonly CursorTrailType[] = ["default", "wave", "constellation"];
+
+export interface ConstellationTrailConfig {
+  radiusScale: number;
+  starDensity: number;
+  starSizePx: number;
+  starSizeRandomness: number;
+  starGrowScale: number;
+  starPushPx: number;
+  twinkleAmount: number;
+  twinkleSpeed: number;
+  linkThicknessPx: number;
+  linkBrightness: number;
+  linkGrooveDepth: number;
+  linkShearPx: number;
+  linkMaxDistScale: number;
+  linkFormMs: number;
+  linkHoldMs: number;
+  linkDissolveMs: number;
+  maxLinks: number;
+  maxStars: number;
+  pulseEnabled: boolean;
+  pulseDurationMs: number;
+  pulseCoreLenPx: number;
+  pulseTailLenPx: number;
+  pulseBrightness: number;
+  pulseRelayHops: number;
+  pulseCooldownMs: number;
+  flareMs: number;
+  flareScale: number;
+  polygonFlashEnabled: boolean;
+  polygonFlashStrength: number;
+}
 
 export interface CursorTrailConfig {
   enabled: boolean;
-  /** "default" = particle splats; "wave" = GPU heightfield water simulation. */
+  /**
+   * "default" = particle splats; "wave" = GPU heightfield water simulation;
+   * "constellation" = cursor-linked star graph rendered into the field.
+   */
   type: CursorTrailType;
   particleRadius: number;
   particleAlpha: number;
@@ -223,6 +260,7 @@ export interface CursorTrailConfig {
   pushLagPx: number;
   pushWobblePx: number;
   pushLeadBlackAlpha: number;
+  constellation: ConstellationTrailConfig;
 }
 
 export interface ClickWaveConfig {

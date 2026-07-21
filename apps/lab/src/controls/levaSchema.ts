@@ -1795,7 +1795,7 @@ export function useEngineControls(
           cursorTrailEnabled: { value: d.cursorTrail.enabled, label: "Enabled" },
           cursorTrailType: {
             value: d.cursorTrail.type,
-            options: { Default: "default", Wave: "wave" } as const,
+            options: { Default: "default", Wave: "wave", Constellation: "constellation" } as const,
             label: "Type",
             render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
           },
@@ -1897,6 +1897,297 @@ export function useEngineControls(
             label: "Push wobble (px)",
             render: (get) =>
               get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+          },
+          constellationRadiusScale: {
+            value: d.cursorTrail.constellation.radiusScale,
+            min: 0.02,
+            max: 2,
+            step: 0.005,
+            label: "Cursor radius (scale)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarDensity: {
+            value: d.cursorTrail.constellation.starDensity,
+            min: 0.05,
+            max: 4,
+            step: 0.05,
+            label: "Star density",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarSizePx: {
+            value: d.cursorTrail.constellation.starSizePx,
+            min: 0.2,
+            max: 20,
+            step: 0.05,
+            label: "Star size (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarSizeRandomness: {
+            value: d.cursorTrail.constellation.starSizeRandomness,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Star size randomness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarGrowScale: {
+            value: d.cursorTrail.constellation.starGrowScale,
+            min: 0,
+            max: 6,
+            step: 0.05,
+            label: "Star grow scale",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationStarPushPx: {
+            value: d.cursorTrail.constellation.starPushPx,
+            min: 0,
+            max: 40,
+            step: 0.1,
+            label: "Star push (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationTwinkleAmount: {
+            value: d.cursorTrail.constellation.twinkleAmount,
+            min: 0,
+            max: 1,
+            step: 0.01,
+            label: "Twinkle amount",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationTwinkleSpeed: {
+            value: d.cursorTrail.constellation.twinkleSpeed,
+            min: 0,
+            max: 10,
+            step: 0.05,
+            label: "Twinkle speed",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkThicknessPx: {
+            value: d.cursorTrail.constellation.linkThicknessPx,
+            min: 0.2,
+            max: 20,
+            step: 0.05,
+            label: "Link thickness (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkBrightness: {
+            value: d.cursorTrail.constellation.linkBrightness,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Link brightness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkGrooveDepth: {
+            value: d.cursorTrail.constellation.linkGrooveDepth,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Link groove depth",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkShearPx: {
+            value: d.cursorTrail.constellation.linkShearPx,
+            min: 0,
+            max: 80,
+            step: 0.5,
+            label: "Link shear (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkMaxDistScale: {
+            value: d.cursorTrail.constellation.linkMaxDistScale,
+            min: 0.02,
+            max: 1,
+            step: 0.002,
+            label: "Link max distance (scale)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkFormMs: {
+            value: d.cursorTrail.constellation.linkFormMs,
+            min: 10,
+            max: 5000,
+            step: 10,
+            label: "Link form (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkHoldMs: {
+            value: d.cursorTrail.constellation.linkHoldMs,
+            min: 0,
+            max: 10000,
+            step: 10,
+            label: "Link hold (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationLinkDissolveMs: {
+            value: d.cursorTrail.constellation.linkDissolveMs,
+            min: 10,
+            max: 10000,
+            step: 10,
+            label: "Link dissolve (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationMaxLinks: {
+            value: d.cursorTrail.constellation.maxLinks,
+            min: 4,
+            max: 80,
+            step: 1,
+            label: "Max links",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationMaxStars: {
+            value: d.cursorTrail.constellation.maxStars,
+            min: 4,
+            max: 160,
+            step: 1,
+            label: "Max stars",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationPulseEnabled: {
+            value: d.cursorTrail.constellation.pulseEnabled,
+            label: "Pulses",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationPulseDurationMs: {
+            value: d.cursorTrail.constellation.pulseDurationMs,
+            min: 60,
+            max: 10000,
+            step: 10,
+            label: "Pulse duration (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseCoreLenPx: {
+            value: d.cursorTrail.constellation.pulseCoreLenPx,
+            min: 0.5,
+            max: 60,
+            step: 0.1,
+            label: "Pulse core length (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseTailLenPx: {
+            value: d.cursorTrail.constellation.pulseTailLenPx,
+            min: 0.5,
+            max: 240,
+            step: 0.5,
+            label: "Pulse tail length (px)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseBrightness: {
+            value: d.cursorTrail.constellation.pulseBrightness,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Pulse brightness",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseRelayHops: {
+            value: d.cursorTrail.constellation.pulseRelayHops,
+            min: 0,
+            max: 6,
+            step: 1,
+            label: "Pulse relay hops",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationPulseCooldownMs: {
+            value: d.cursorTrail.constellation.pulseCooldownMs,
+            min: 0,
+            max: 20000,
+            step: 10,
+            label: "Pulse cooldown (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPulseEnabled") === true,
+          },
+          constellationFlareMs: {
+            value: d.cursorTrail.constellation.flareMs,
+            min: 30,
+            max: 5000,
+            step: 10,
+            label: "Flare (ms)",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationFlareScale: {
+            value: d.cursorTrail.constellation.flareScale,
+            min: 0,
+            max: 6,
+            step: 0.05,
+            label: "Flare scale",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationPolygonFlashEnabled: {
+            value: d.cursorTrail.constellation.polygonFlashEnabled,
+            label: "Polygon flash",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation",
+          },
+          constellationPolygonFlashStrength: {
+            value: d.cursorTrail.constellation.polygonFlashStrength,
+            min: 0,
+            max: 4,
+            step: 0.05,
+            label: "Polygon flash strength",
+            render: (get) =>
+              get("Cursor Trail.cursorTrailEnabled") === true &&
+              get("Cursor Trail.cursorTrailType") === "constellation" &&
+              get("Cursor Trail.constellationPolygonFlashEnabled") === true,
           },
         }),
         "Click Wave": drawerFolder("Click Wave", {
@@ -2384,6 +2675,37 @@ export function useEngineControls(
       pushLagPx: d.cursorTrail.pushLagPx,
       pushWobblePx: values.pushWobblePx,
       pushLeadBlackAlpha: d.cursorTrail.pushLeadBlackAlpha,
+      constellation: {
+        radiusScale: values.constellationRadiusScale,
+        starDensity: values.constellationStarDensity,
+        starSizePx: values.constellationStarSizePx,
+        starSizeRandomness: values.constellationStarSizeRandomness,
+        starGrowScale: values.constellationStarGrowScale,
+        starPushPx: values.constellationStarPushPx,
+        twinkleAmount: values.constellationTwinkleAmount,
+        twinkleSpeed: values.constellationTwinkleSpeed,
+        linkThicknessPx: values.constellationLinkThicknessPx,
+        linkBrightness: values.constellationLinkBrightness,
+        linkGrooveDepth: values.constellationLinkGrooveDepth,
+        linkShearPx: values.constellationLinkShearPx,
+        linkMaxDistScale: values.constellationLinkMaxDistScale,
+        linkFormMs: values.constellationLinkFormMs,
+        linkHoldMs: values.constellationLinkHoldMs,
+        linkDissolveMs: values.constellationLinkDissolveMs,
+        maxLinks: values.constellationMaxLinks,
+        maxStars: values.constellationMaxStars,
+        pulseEnabled: values.constellationPulseEnabled,
+        pulseDurationMs: values.constellationPulseDurationMs,
+        pulseCoreLenPx: values.constellationPulseCoreLenPx,
+        pulseTailLenPx: values.constellationPulseTailLenPx,
+        pulseBrightness: values.constellationPulseBrightness,
+        pulseRelayHops: values.constellationPulseRelayHops,
+        pulseCooldownMs: values.constellationPulseCooldownMs,
+        flareMs: values.constellationFlareMs,
+        flareScale: values.constellationFlareScale,
+        polygonFlashEnabled: values.constellationPolygonFlashEnabled,
+        polygonFlashStrength: values.constellationPolygonFlashStrength,
+      },
     },
     clickWave: {
       enabled: values.clickWaveEnabled,

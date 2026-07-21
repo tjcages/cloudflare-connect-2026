@@ -16,68 +16,55 @@ import {
   REPLAY_DURATION_S,
   replayPoint,
 } from "./comet-embers.sim";
-import { COMET_PATH_POINTS, createCometPath } from "./comet-embers.path";
+import { createLiquidChain, LIQUID_NODES } from "./comet-embers.liquid";
 
 const HEAT_KEY = "comet-embers-heat";
 
 interface CometUniforms {
   cssW: number;
   cssH: number;
-  headX: number;
-  headY: number;
-  dirX: number;
-  dirY: number;
-  headR: number;
   presence: number;
   core: number;
   time: number;
-  pathCount: number;
-  path: Float32Array;
+  node: Float32Array;
+  nodeR: Float32Array;
 }
 
 interface CometLocations {
   cssSize: WebGLUniformLocation | null;
-  head: WebGLUniformLocation | null;
-  dir: WebGLUniformLocation | null;
-  headR: WebGLUniformLocation | null;
   presence: WebGLUniformLocation | null;
   core: WebGLUniformLocation | null;
   time: WebGLUniformLocation | null;
-  pathCount: WebGLUniformLocation | null;
-  path: WebGLUniformLocation | null;
+  node: WebGLUniformLocation | null;
+  nodeR: WebGLUniformLocation | null;
 }
 
 function cometLocations(gl: WebGL2RenderingContext, program: WebGLProgram): CometLocations {
   return {
     cssSize: gl.getUniformLocation(program, "uCssSize"),
-    head: gl.getUniformLocation(program, "uHead"),
-    dir: gl.getUniformLocation(program, "uDir"),
-    headR: gl.getUniformLocation(program, "uHeadR"),
     presence: gl.getUniformLocation(program, "uPresence"),
     core: gl.getUniformLocation(program, "uCore"),
     time: gl.getUniformLocation(program, "uTime"),
-    pathCount: gl.getUniformLocation(program, "uPathCount"),
-    path: gl.getUniformLocation(program, "uPath"),
+    node: gl.getUniformLocation(program, "uNode[0]"),
+    nodeR: gl.getUniformLocation(program, "uNodeR[0]"),
   };
 }
 
 function setCometUniforms(gl: WebGL2RenderingContext, loc: CometLocations, u: CometUniforms): void {
   gl.uniform2f(loc.cssSize, u.cssW, u.cssH);
-  gl.uniform2f(loc.head, u.headX, u.headY);
-  gl.uniform2f(loc.dir, u.dirX, u.dirY);
-  gl.uniform1f(loc.headR, u.headR);
   gl.uniform1f(loc.presence, u.presence);
   gl.uniform1f(loc.core, u.core);
   gl.uniform1f(loc.time, u.time);
-  gl.uniform1f(loc.pathCount, u.pathCount);
-  gl.uniform2fv(loc.path, u.path);
+  gl.uniform2fv(loc.node, u.node);
+  gl.uniform1fv(loc.nodeR, u.nodeR);
 }
 
 const definition: ExperimentDefinition = {
   id: "comet-embers",
   title: "Comet Embers",
   category: "trail",
-  blurb: "A comet head shoves the stripes aside, carving a wake and flinging embers that bend the geometry.",
+  blurb:
+    "A viscous liquid body lags after the cursor, stretching thin at speed and pooling at rest while shedding embers.",
   pointer: "custom",
   create: (ctx) => {
     const input = { x: 0, y: 0, active: false };
@@ -86,8 +73,6 @@ const definition: ExperimentDefinition = {
       y: 0,
       velX: 0,
       velY: 0,
-      dirX: 1,
-      dirY: 0,
       presence: 0,
       core: 0,
       lastNow: 0,
@@ -96,19 +81,14 @@ const definition: ExperimentDefinition = {
     const uniforms: CometUniforms = {
       cssW: 1,
       cssH: 1,
-      headX: 0,
-      headY: 0,
-      dirX: 1,
-      dirY: 0,
-      headR: 8,
       presence: 0,
       core: 0,
       time: 0,
-      pathCount: 0,
-      path: new Float32Array(COMET_PATH_POINTS * 2),
+      node: new Float32Array(LIQUID_NODES * 2),
+      nodeR: new Float32Array(LIQUID_NODES),
     };
     const sim = createEmberSim(0x9e3779);
-    const path = createCometPath();
+    const liquid = createLiquidChain();
 
     let replayRaf = 0;
     let replayStart = 0;
@@ -189,13 +169,14 @@ const definition: ExperimentDefinition = {
           motion.lastNow = frame.now;
           const dt = dtMs / 1000;
 
+          const sc = Math.min(2.5, Math.max(0.5, Math.min(frame.cssW, frame.cssH) / 300));
           const active = input.active;
           if (active && !motion.wasActive) {
             motion.x = input.x;
             motion.y = input.y;
             motion.velX = 0;
             motion.velY = 0;
-            path.reset(input.x, input.y, frame.now);
+            liquid.reset(input.x, input.y);
           }
           const prevX = motion.x;
           const prevY = motion.y;
@@ -210,43 +191,25 @@ const definition: ExperimentDefinition = {
           motion.velX += (instVX - motion.velX) * blend;
           motion.velY += (instVY - motion.velY) * blend;
           const smoothSpeed = Math.hypot(motion.velX, motion.velY);
-          const drive = Math.min(1, Math.max(0, (smoothSpeed - 18) / 150));
-          const target = active ? Math.pow(drive, 0.7) : 0;
-          const rate = target > motion.presence ? 15 : 3.4;
+          const drive = Math.min(1, Math.max(0, (smoothSpeed - 12) / 130));
+          const target = active ? Math.pow(drive, 0.6) : 0;
+          const rate = target > motion.presence ? 15 : 2.6;
           motion.presence += (target - motion.presence) * (1 - Math.exp(-dt * rate));
           const coreDrive = Math.min(1, Math.max(0, (smoothSpeed - 5) / 70));
           const coreTarget = active ? Math.pow(coreDrive, 0.6) : 0;
-          const coreRate = coreTarget > motion.core ? 19 : 4.2;
+          const coreRate = coreTarget > motion.core ? 19 : 3.2;
           motion.core += (coreTarget - motion.core) * (1 - Math.exp(-dt * coreRate));
-
-          if (smoothSpeed > 12) {
-            const nx = motion.velX / smoothSpeed;
-            const ny = motion.velY / smoothSpeed;
-            const turn = 1 - Math.exp(-dt * 16);
-            motion.dirX += (nx - motion.dirX) * turn;
-            motion.dirY += (ny - motion.dirY) * turn;
-            const len = Math.hypot(motion.dirX, motion.dirY) || 1;
-            motion.dirX /= len;
-            motion.dirY /= len;
-          }
 
           if (active && motion.wasActive) {
             sim.emit(prevX, prevY, motion.x, motion.y, instVX, instVY, instSpeed, dt);
           }
           motion.wasActive = active;
           sim.step(dtMs);
-          if (active) path.push(motion.x, motion.y, frame.now);
 
-          const sc = Math.min(2.5, Math.max(0.5, Math.min(frame.cssW, frame.cssH) / 300));
-          const tailLen = (22 + Math.min(1, smoothSpeed / 900) * 190) * sc;
-          uniforms.pathCount = path.sample(motion.x, motion.y, frame.now, tailLen, uniforms.path);
+          liquid.step(dt, motion.x, motion.y, sc);
+          liquid.pack(sc, uniforms.node, uniforms.nodeR);
           uniforms.cssW = frame.cssW;
           uniforms.cssH = frame.cssH;
-          uniforms.headX = motion.x;
-          uniforms.headY = motion.y;
-          uniforms.dirX = motion.dirX;
-          uniforms.dirY = motion.dirY;
-          uniforms.headR = 7.4 + 5.4 * Math.min(1, smoothSpeed / 620);
           uniforms.presence = motion.presence;
           uniforms.core = motion.core;
           uniforms.time = frame.now / 1000;

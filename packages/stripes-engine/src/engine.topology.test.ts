@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { normalizeEngineConfig } from "./config/normalize";
+import { constellationCaps } from "./cursorTrail/constellationSim";
 import type { EngineConfig } from "./config/types";
 
 function topologyKey(cfg: EngineConfig): string {
@@ -14,7 +15,14 @@ function topologyKey(cfg: EngineConfig): string {
           : cfg.reveal.type === "water"
             ? "water"
             : "warp";
-  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}`;
+  const caps =
+    cfg.cursorTrail.enabled && cfg.cursorTrail.type === "constellation"
+      ? constellationCaps(cfg.cursorTrail.constellation)
+      : null;
+  const trailKey = `${cfg.cursorTrail.enabled}:${cfg.cursorTrail.type}:${
+    caps ? `${caps.maxStars}|${caps.maxLinks}|${caps.maxPulses}` : "off"
+  }`;
+  return `${cfg.stripesEnabled}:${revealKind}:${cfg.flames.enabled}:${trailKey}`;
 }
 
 function needsRebuild(prev: EngineConfig, next: EngineConfig): boolean {
@@ -142,5 +150,26 @@ describe("setConfig topology gating", () => {
     const left = normalizeEngineConfig({ flames: { enabled: true, direction: "left" } });
     expect(needsRebuild(up, left)).toBe(false);
     expect(needsRebuild(left, up)).toBe(false);
+  });
+
+  it("switching cursorTrail.type to constellation triggers rebuild", () => {
+    const dflt = normalizeEngineConfig({ cursorTrail: { enabled: true, type: "default" } });
+    const web = normalizeEngineConfig({ cursorTrail: { enabled: true, type: "constellation" } });
+    expect(needsRebuild(dflt, web)).toBe(true);
+    expect(needsRebuild(web, dflt)).toBe(true);
+  });
+
+  it("constellation style params do not trigger rebuild, but caps do", () => {
+    const thin = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "constellation", constellation: { linkThicknessPx: 0.6 } },
+    });
+    const thick = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "constellation", constellation: { linkThicknessPx: 6 } },
+    });
+    const capped = normalizeEngineConfig({
+      cursorTrail: { enabled: true, type: "constellation", constellation: { maxLinks: 24 } },
+    });
+    expect(needsRebuild(thin, thick)).toBe(false);
+    expect(needsRebuild(thin, capped)).toBe(true);
   });
 });

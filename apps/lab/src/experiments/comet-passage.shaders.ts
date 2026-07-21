@@ -47,7 +47,7 @@ float tailShape(vec2 point, int comet, float width) {
     vec2 offset = point - (a + span * t);
     float u = (float(index) + t) / last;
     float w = width * mix(1.0, 0.24, u);
-    float amp = pow(max(1.0 - u, 0.0), 0.85);
+    float amp = pow(max(1.0 - u, 0.0), 0.6);
     best = max(best, exp(-dot(offset, offset) / max(w * w, 0.5)) * amp);
   }
   return best;
@@ -71,7 +71,7 @@ vec2 cometShape(vec2 point, float scale) {
 
 float cometPotential(vec2 point, float scale) {
   vec2 shape = cometShape(point, scale);
-  return max(shape.x, shape.y * 0.9) * 0.52;
+  return max(shape.x, shape.y * 0.9) * 0.42;
 }
 
 float starLight(vec2 point, float scale) {
@@ -101,25 +101,25 @@ void main() {
   vec2 point = vUv * uCssSize;
   float scale = clamp(min(uCssSize.x, uCssSize.y) / 300.0, 0.55, 2.4);
 
+  vec2 shape = cometShape(point, scale);
+  float bodyValue = max(shape.x, shape.y * 0.92);
+  float glow = smoothstep(0.22, 0.6, bodyValue);
+  float halo = smoothstep(0.015, 0.11, bodyValue) * (1.0 - smoothstep(0.11, 0.32, bodyValue));
+
   float epsilon = 2.0 * scale;
   float gradientX = cometPotential(point + vec2(epsilon, 0.0), scale) - cometPotential(point - vec2(epsilon, 0.0), scale);
   float gradientY = cometPotential(point + vec2(0.0, epsilon), scale) - cometPotential(point - vec2(0.0, epsilon), scale);
-  vec2 push = vec2(gradientX, gradientY) / (2.0 * epsilon) * 1260.0 * scale;
+  vec2 push = vec2(gradientX, gradientY) / (2.0 * epsilon) * 760.0 * scale;
   float magnitude = length(push);
-  float maxPush = 44.0 * scale;
+  float maxPush = 26.0 * scale;
   if (magnitude > maxPush) push *= maxPush / magnitude;
 
   vec2 uv = clamp(vUv + push / uCssSize, 0.0, 1.0);
   float base = texture(uField, uv).r;
 
-  vec2 shape = cometShape(point, scale);
-  float body = max(shape.x, shape.y);
-  float rim = clamp(body * (1.0 - body) * 4.0, 0.0, 1.0);
-  float dim = clamp(rim * 0.52, 0.0, 0.7);
-
-  float value = base * (1.0 - dim);
+  float value = base * (1.0 - halo * 0.58);
   value = max(value, starLight(point, scale) * 0.7);
-  value = clamp(value + pow(shape.x, 1.3) * 1.08 + pow(shape.y, 1.15) * 0.52, 0.0, 1.0);
+  value = clamp(mix(value, 1.0, glow), 0.0, 1.0);
   outColor = vec4(vec3(value), 1.0);
 }
 `;

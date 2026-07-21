@@ -30,6 +30,8 @@ import { createCursorSplatPass } from "./passes/cursorSplatPass";
 import { createCursorTearPass } from "./passes/cursorTearPass";
 import { createCursorWarpPass } from "./passes/cursorWarpPass";
 import { createClickSplatPass } from "./passes/clickSplatPass";
+import { createConstellationPass } from "./passes/constellationPass";
+import { constellationCaps } from "./cursorTrail/constellationSim";
 import {
   createCursorTrailState,
   setCursorTrailTarget,
@@ -304,6 +306,15 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let waterSim: WaterSim | null = null;
   let lastCursorTrailType = config.cursorTrail.type;
   let lastReportedActivity = 0;
+
+  const constellationTrailEnabled = (): boolean =>
+    config.cursorTrail.enabled && config.cursorTrail.type === "constellation";
+  const constellationCapSig = (): string => {
+    if (!constellationTrailEnabled()) return "off";
+    const caps = constellationCaps(config.cursorTrail.constellation);
+    return `${caps.maxStars}|${caps.maxLinks}|${caps.maxPulses}`;
+  };
+  let lastConstellationCapSig = constellationCapSig();
 
   function waveTrailEnabled(): boolean {
     return config.cursorTrail.enabled && config.cursorTrail.type === "wave";
@@ -923,7 +934,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     const cursorFieldPasses: Pass[] = [];
     // The "wave" type replaces the particle trail entirely; it couples into the
     // field pass instead of adding passes here.
-    const particleTrailEnabled = config.cursorTrail.enabled && config.cursorTrail.type !== "wave";
+    const particleTrailEnabled = config.cursorTrail.enabled && config.cursorTrail.type === "default";
     if (particleTrailEnabled || config.clickWave.enabled) {
       const trailEnabled = particleTrailEnabled;
       const clickEnabled = config.clickWave.enabled;
@@ -1015,6 +1026,29 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       if (colorsMode) activeColorRT = "cursorFieldColor";
     }
 
+    const constellationFieldPasses: Pass[] = [];
+    if (constellationTrailEnabled()) {
+      const constellationPass = createConstellationPass(gl, quad, constellationCaps(config.cursorTrail.constellation));
+      const srcRT = activeFieldRT;
+      constellationFieldPasses.push({
+        name: "constellationField",
+        render: () => {
+          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const outRT = pool.get("constellationField", fieldSize.width, fieldSize.height, { linear: true });
+          constellationPass.render(outRT, srcTex, {
+            config: config.cursorTrail.constellation,
+            cursor: cursorTrailState.target,
+            cssW,
+            cssH,
+            now: clock.now(),
+            timeSec: (clock.now() - createdMs) * 0.001,
+          });
+        },
+        dispose: () => constellationPass.dispose(),
+      });
+      activeFieldRT = "constellationField";
+    }
+
     const postHookPass = hooks?.postPass ? hooks.postPass({ gl, quad, pool }) : null;
     const postFrame = (): PostHookFrame => ({
       outputWidth: output.width,
@@ -1088,6 +1122,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...hookFieldPasses,
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
+        ...constellationFieldPasses,
         {
           name: "downsample",
           render: () => {
@@ -1200,6 +1235,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...hookFieldPasses,
         ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
+        ...constellationFieldPasses,
         {
           name: postHookPass ? "hookPost" : "present",
           render: () => {
@@ -1379,6 +1415,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.renderMode !== lastRenderMode ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
         config.cursorTrail.type !== lastCursorTrailType ||
+        constellationCapSig() !== lastConstellationCapSig ||
         config.clickWave.enabled !== lastClickWaveEnabled ||
         config.letters.enabled !== lastLettersEnabled ||
         config.colors.mode !== lastColorsMode ||
@@ -1403,6 +1440,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastRenderMode = config.renderMode;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
         lastCursorTrailType = config.cursorTrail.type;
+        lastConstellationCapSig = constellationCapSig();
         lastClickWaveEnabled = config.clickWave.enabled;
         lastLettersEnabled = config.letters.enabled;
         lastColorsMode = config.colors.mode;

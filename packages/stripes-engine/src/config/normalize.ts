@@ -11,6 +11,7 @@ import type {
   FlamesDirection,
   WavePosition,
   EdgeMaskConfig,
+  ConstellationTrailConfig,
   CursorTrailConfig,
   ClickWaveConfig,
   LettersConfig,
@@ -528,6 +529,75 @@ export function normalizeEdgeMask(i: PartialEdgeMask = {}): EdgeMaskConfig {
   };
 }
 
+export const DEFAULT_CONSTELLATION_TRAIL: ConstellationTrailConfig = {
+  radiusScale: 0.31,
+  starDensity: 1,
+  starSizePx: 2.2,
+  starSizeRandomness: 0.77,
+  starGrowScale: 1.35,
+  starPushPx: 1.9,
+  twinkleAmount: 0.18,
+  twinkleSpeed: 1,
+  linkThicknessPx: 2.9,
+  linkBrightness: 1,
+  linkGrooveDepth: 1,
+  linkShearPx: 13.5,
+  linkMaxDistScale: 0.2184,
+  linkFormMs: 210,
+  linkHoldMs: 0,
+  linkDissolveMs: 540,
+  maxLinks: 48,
+  maxStars: 64,
+  pulseEnabled: true,
+  pulseDurationMs: 700,
+  pulseCoreLenPx: 3.4,
+  pulseTailLenPx: 27,
+  pulseBrightness: 1,
+  pulseRelayHops: 2,
+  pulseCooldownMs: 900,
+  flareMs: 460,
+  flareScale: 0.85,
+  polygonFlashEnabled: true,
+  polygonFlashStrength: 1,
+};
+
+type PartialConstellationTrail = Partial<ConstellationTrailConfig>;
+
+export function normalizeConstellationTrail(i: PartialConstellationTrail = {}): ConstellationTrailConfig {
+  const d = DEFAULT_CONSTELLATION_TRAIL;
+  return {
+    radiusScale: clamp(num(i.radiusScale, d.radiusScale), 0.02, 2),
+    starDensity: clamp(num(i.starDensity, d.starDensity), 0.05, 4),
+    starSizePx: clamp(num(i.starSizePx, d.starSizePx), 0.2, 20),
+    starSizeRandomness: clamp(num(i.starSizeRandomness, d.starSizeRandomness), 0, 1),
+    starGrowScale: clamp(num(i.starGrowScale, d.starGrowScale), 0, 6),
+    starPushPx: clamp(num(i.starPushPx, d.starPushPx), 0, 40),
+    twinkleAmount: clamp(num(i.twinkleAmount, d.twinkleAmount), 0, 1),
+    twinkleSpeed: clamp(num(i.twinkleSpeed, d.twinkleSpeed), 0, 10),
+    linkThicknessPx: clamp(num(i.linkThicknessPx, d.linkThicknessPx), 0.2, 20),
+    linkBrightness: clamp(num(i.linkBrightness, d.linkBrightness), 0, 4),
+    linkGrooveDepth: clamp(num(i.linkGrooveDepth, d.linkGrooveDepth), 0, 4),
+    linkShearPx: clamp(num(i.linkShearPx, d.linkShearPx), 0, 80),
+    linkMaxDistScale: clamp(num(i.linkMaxDistScale, d.linkMaxDistScale), 0.02, 1),
+    linkFormMs: clamp(num(i.linkFormMs, d.linkFormMs), 10, 5000),
+    linkHoldMs: clamp(num(i.linkHoldMs, d.linkHoldMs), 0, 10_000),
+    linkDissolveMs: clamp(num(i.linkDissolveMs, d.linkDissolveMs), 10, 10_000),
+    maxLinks: clampInt(num(i.maxLinks, d.maxLinks), 4, 80),
+    maxStars: clampInt(num(i.maxStars, d.maxStars), 4, 160),
+    pulseEnabled: i.pulseEnabled !== undefined ? !!i.pulseEnabled : d.pulseEnabled,
+    pulseDurationMs: clamp(num(i.pulseDurationMs, d.pulseDurationMs), 60, 10_000),
+    pulseCoreLenPx: clamp(num(i.pulseCoreLenPx, d.pulseCoreLenPx), 0.5, 60),
+    pulseTailLenPx: clamp(num(i.pulseTailLenPx, d.pulseTailLenPx), 0.5, 240),
+    pulseBrightness: clamp(num(i.pulseBrightness, d.pulseBrightness), 0, 4),
+    pulseRelayHops: clampInt(num(i.pulseRelayHops, d.pulseRelayHops), 0, 6),
+    pulseCooldownMs: clamp(num(i.pulseCooldownMs, d.pulseCooldownMs), 0, 20_000),
+    flareMs: clamp(num(i.flareMs, d.flareMs), 30, 5000),
+    flareScale: clamp(num(i.flareScale, d.flareScale), 0, 6),
+    polygonFlashEnabled: i.polygonFlashEnabled !== undefined ? !!i.polygonFlashEnabled : d.polygonFlashEnabled,
+    polygonFlashStrength: clamp(num(i.polygonFlashStrength, d.polygonFlashStrength), 0, 4),
+  };
+}
+
 export const DEFAULT_CURSOR_TRAIL: CursorTrailConfig = {
   enabled: false,
   type: "default",
@@ -551,6 +621,7 @@ export const DEFAULT_CURSOR_TRAIL: CursorTrailConfig = {
   pushLagPx: 0,
   pushWobblePx: 8,
   pushLeadBlackAlpha: 0,
+  constellation: { ...DEFAULT_CONSTELLATION_TRAIL },
 };
 
 type PartialCursorTrail = Partial<CursorTrailConfig>;
@@ -564,7 +635,7 @@ export function normalizeCursorTrail(i: PartialCursorTrail = {}): CursorTrailCon
   const spreadMaxPx = Math.max(spreadMinPx, clamp(num(i.spreadMaxPx, DEFAULT_CURSOR_TRAIL.spreadMaxPx), 0, 120));
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_CURSOR_TRAIL.enabled,
-    type: i.type === "wave" ? "wave" : "default",
+    type: i.type === "wave" || i.type === "constellation" ? i.type : "default",
     particleRadius: clamp(num(i.particleRadius, DEFAULT_CURSOR_TRAIL.particleRadius), 0.5, 80),
     particleAlpha: clamp(num(i.particleAlpha, DEFAULT_CURSOR_TRAIL.particleAlpha), 0, 1),
     particleLifeMs: clamp(num(i.particleLifeMs, DEFAULT_CURSOR_TRAIL.particleLifeMs), 50, 10_000),
@@ -589,6 +660,7 @@ export function normalizeCursorTrail(i: PartialCursorTrail = {}): CursorTrailCon
     pushLagPx: clamp(num(i.pushLagPx, DEFAULT_CURSOR_TRAIL.pushLagPx), 0, 80),
     pushWobblePx: clamp(num(i.pushWobblePx, DEFAULT_CURSOR_TRAIL.pushWobblePx), 0, 80),
     pushLeadBlackAlpha: clamp(num(i.pushLeadBlackAlpha, DEFAULT_CURSOR_TRAIL.pushLeadBlackAlpha), 0, 1),
+    constellation: normalizeConstellationTrail(i.constellation),
   };
 }
 

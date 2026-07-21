@@ -79,6 +79,8 @@ Consumed by the lab as raw source (see §2). `src/` layout:
   splat driver, cover accumulation).
 - `cursorTrail/cursorTrailSim.ts` — CPU particle sim for the trail (emit/advance/expire samples).
 - `cursorTrail/clickWaveSim.ts` — CPU expanding-ring sim for clicks.
+- `cursorTrail/constellationSim.ts` — CPU star/link/pulse graph for the
+  `cursorTrail.type: "constellation"` trail (paired with `passes/constellationPass.ts`).
 - `cursorTrail/waterSim.ts` — GPU heightfield sim for the `cursorTrail.type: "wave"` trail
   (stepped outside the pass graph, sampled by the field pass).
 - `flames/flamesSim.ts` — CPU flame particle sim (spawn/advance per direction).
@@ -324,9 +326,11 @@ flames:           enabled false · direction "up"|"down"|"left"|"right"|"upDown"
                    be5c943 and do not exist; recover the old sim for reference via
                    `git show be5c943^:packages/stripes-engine/src/flames/flamesSim.ts`)
 edgeMask:         enabled false · start 0 [0..0.5] · end 0.1 [start+0.001..0.5] · power 1 [0.1..4]
-cursorTrail:      enabled false · type "default"|"wave" = "default"
+cursorTrail:      enabled false · type "default"|"wave"|"constellation" = "default"
                   ("default" = particle splats + push warp; "wave" = GPU water heightfield that
-                   the source-field pass refracts through — replaces the particle path entirely)
+                   the source-field pass refracts through — replaces the particle path entirely;
+                   "constellation" = cursor-linked star graph drawn INTO the field by
+                   passes/constellationPass.ts — also replaces the particle path)
                   particleRadius 40 [0.5..80] · particleAlpha 0.07 [0..1]
                   particleLifeMs 960 [50..10000] · particleLifeJitterMs 100
                   emitterVelocitySmoothing 0.7 [0..0.98] · particleVelocityScale 0.01 [0..2]
@@ -336,6 +340,21 @@ cursorTrail:      enabled false · type "default"|"wave" = "default"
                   densityRadiusMinScale 0.2 · densityRadiusLifeScale 1 [0..3]
                   pushRadiusScale 0.9 [0..8] · pushStrengthPx 48 [0..120]
                   pushLagPx 0 · pushWobblePx 8 [0..80] · pushLeadBlackAlpha 0 [0..1]
+                  constellation: { radiusScale 0.31 [0.02..2] · starDensity 1 [0.05..4]
+                    (× 44 base stars) · starSizePx 2.2 [0.2..20] · starSizeRandomness 0.77 [0..1]
+                    · starGrowScale 1.35 [0..6] · starPushPx 1.9 [0..40]
+                    · twinkleAmount 0.18 [0..1] · twinkleSpeed 1 [0..10]
+                    · linkThicknessPx 2.9 [0.2..20] · linkBrightness 1 [0..4]
+                    · linkGrooveDepth 1 [0..4] · linkShearPx 13.5 [0..80]
+                    · linkMaxDistScale 0.2184 [0.02..1] (graph topology — decoupled from
+                      radiusScale on purpose) · linkFormMs 210 · linkHoldMs 0 · linkDissolveMs 540
+                    · maxLinks 48 [4..80] · maxStars 64 [4..160] (caps bake the shader array
+                      sizes — changing either rebuilds the pass)
+                    · pulseEnabled true · pulseDurationMs 700 [60..10000]
+                    · pulseCoreLenPx 3.4 · pulseTailLenPx 27 · pulseBrightness 1 [0..4]
+                    · pulseRelayHops 2 [0..6] · pulseCooldownMs 900 [0..20000]
+                    · flareMs 460 · flareScale 0.85 [0..6]
+                    · polygonFlashEnabled true · polygonFlashStrength 1 [0..4] }
 clickWave:        enabled false · lifeMs 630 [80..10000] · startRadiusPx 6 [1..120]
                   maxRadiusPx 120 [4..600] · startStrokeWidthPx 24 [0.5..80]
                   endStrokeWidthPx 12 [0.25..40] · maxWaves 12 [1..32]

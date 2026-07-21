@@ -1,4 +1,4 @@
-import { normalizeEngineConfig } from "@necatikcl/stripes-engine";
+import { DEFAULT_ENGINE_CONFIG, normalizeEngineConfig } from "@necatikcl/stripes-engine";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 import factoryDefaults from "./factoryDefaults.json";
 
@@ -266,6 +266,7 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
     pushLagPx: 0,
     pushWobblePx: 8,
     pushLeadBlackAlpha: 0,
+    constellation: { ...DEFAULT_ENGINE_CONFIG.cursorTrail.constellation },
   },
   clickWave: {
     enabled: true,
