@@ -47,6 +47,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --color-builder-text: #ededed;
   --color-builder-muted: #9a9a9a;
   --color-builder-subtle: #5b5b5b;
@@ -105,6 +106,10 @@
   --leva-text-faint: #6f6f6f;
   --leva-accent: #a3a3a3;
   --leva-checkbox-border: #4a4a4a;
+  --leva-accent-soft: #5a5a5a;
+  --leva-accent-strong: #7f7f7f;
+  --leva-highlight-soft: #3f3f3f;
+  --leva-highlight-mid: #8a8a8a;
 }
 
 .ui-scroll-hidden {
@@ -127,6 +132,10 @@
   --leva-text-faint: #a3a3a3;
   --leva-accent: #8a8a8a;
   --leva-checkbox-border: #d4d4d4;
+  --leva-accent-soft: #bdbdbd;
+  --leva-accent-strong: #8f8f8f;
+  --leva-highlight-soft: #d6d6d6;
+  --leva-highlight-mid: #a8a8a8;
   --leva-radius: 4px;
   padding-top: 0;
   color: var(--leva-text-muted);
