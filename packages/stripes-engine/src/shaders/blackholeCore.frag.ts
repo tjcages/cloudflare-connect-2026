@@ -46,7 +46,7 @@ void main() {
   highp float grow = 1.0 + 2.70158 * s1 * s1 * s1 + 1.70158 * s1 * s1;
   highp float shrink = pow(1.0 - collapseT, 1.7);
   highp float paintT = clamp((p - uForm) / max(1.0 - uForm - uCollapse, 1e-4), 0.0, 1.0);
-  highp float decay = 1.0 - 0.92 * smoothstep(0.15, 0.62, paintT);
+  highp float decay = pow(1.0 - smoothstep(0.06, 1.0, paintT), 1.3);
   highp float R = max(uHorizon * grow * shrink * decay, 0.0);
 
   vec2 cid = floor(vUv * uGrid);

@@ -28,11 +28,17 @@ highp float frontierWobble(highp float r, highp float ang) {
     + 0.18 * sin(ang * 13.0 + r * 24.0 + 2.7);
 }
 
-/* Settling rotates ONWARD to the next whole turn (2pi multiple = identity), never backwards. */
+/* Settling rotates ONWARD to the next whole turn (2pi multiple = identity), never backwards.
+   The frontier trails the spiral arms, so calm spreads along the swirl instead of as a ring. */
 highp float windAngle(highp float r, highp float ang, highp float falloff, highp float maxR, highp float band, highp float pp, out highp float settle) {
-  highp float reach = maxR + band * 1.5;
-  highp float span = (band / reach) * 2.4;
-  highp float pArrive = mix(0.12, 1.0, clamp(r / reach, 0.0, 1.0)) + frontierWobble(r, ang) * 0.07;
+  highp float rn = clamp(r / max(maxR, 1e-4), 0.0, 1.0);
+  highp float span = 0.3;
+  highp float arms = 0.075 * sin(ang * 2.0 - rn * 10.0) + 0.045 * sin(ang * 3.0 - rn * 17.0 + 2.1);
+  highp float pArrive = clamp(
+    mix(0.36, 1.0 - span * 0.92, rn) + arms + frontierWobble(r, ang) * 0.035,
+    0.0,
+    1.0 - span * 0.9
+  );
   settle = smoothstep(pArrive, pArrive + span, pp);
   highp float spin = spinAngle(falloff, pp);
   highp float landed = ceil(spinAngle(falloff, pArrive + span) / 6.2831853) * 6.2831853;
