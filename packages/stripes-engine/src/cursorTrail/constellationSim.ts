@@ -6,7 +6,7 @@ export const CONSTELLATION_BASE_STAR_COUNT = 44;
 
 const STAR_SEED = 1861;
 const NEIGHBOR_LINKS = 3;
-const FLASH_MS = 700;
+const FLASH_MS = 620;
 const STAR_ACT_TAU_MS = 62;
 const STAR_ACT_DEGREE_BONUS = 0.28;
 const CURSOR_SMOOTH_TAU_MS = 70;
@@ -14,8 +14,13 @@ const CURSOR_FADE_IN_MS = 260;
 const CURSOR_FADE_OUT_MS = 380;
 const PULSE_TRIGGER_PHASE = 0.5;
 const RELAY_COOLDOWN_RATIO = 0.8;
-const FLASH_GLOBAL_GAP_MS = 1400;
-const FLASH_TRIANGLE_GAP_MS = 5000;
+const FLASH_GLOBAL_GAP_MS = 1500;
+const FLASH_POLYGON_GAP_MS = 2200;
+const FLASH_PHASE_MIN = 0.62;
+const FLASH_ENV_MIN = 0.18;
+const MAX_POLYGONS = 128;
+const MAX_POLYGON_SIDES = 5;
+const CLOSURE_EDGE_RATIO = 0.22;
 
 export type ConstellationCaps = {
   maxStars: number;
@@ -36,14 +41,14 @@ type EdgeState = {
   lastPulse: number;
 };
 
-type TriangleState = { e0: number; e1: number; e2: number; lastFlash: number; complete: boolean };
+type PolygonState = { edges: number[]; lastFlash: number; complete: boolean };
 
 type Graph = {
   sx: Float32Array;
   sy: Float32Array;
   edges: EdgeState[];
   incident: number[][];
-  triangles: TriangleState[];
+  polygons: PolygonState[];
 };
 
 type Pulse = { edge: number; from: number; start: number; duration: number; hops: number };
@@ -219,6 +224,33 @@ function buildGraph(state: ConstellationState, cssW: number, cssH: number, pairD
       keys.add(i < j ? i * 1024 + j : j * 1024 + i);
     }
   }
+  const neighborSets: Set<number>[] = Array.from({ length: n }, () => new Set());
+  for (const key of keys) {
+    const p = Math.floor(key / 1024);
+    const q = key % 1024;
+    neighborSets[p].add(q);
+    neighborSets[q].add(p);
+  }
+  const closures: { key: number; d: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (neighborSets[i].has(j)) continue;
+      const d = Math.hypot(sx[j] - sx[i], sy[j] - sy[i]);
+      if (d >= pairDist) continue;
+      let shares = false;
+      for (const k of neighborSets[i]) {
+        if (neighborSets[j].has(k)) {
+          shares = true;
+          break;
+        }
+      }
+      if (shares) closures.push({ key: i * 1024 + j, d });
+    }
+  }
+  closures.sort((p, q) => p.d - q.d);
+  const closureBudget = Math.ceil(keys.size * CLOSURE_EDGE_RATIO);
+  for (let i = 0; i < Math.min(closureBudget, closures.length); i++) keys.add(closures[i].key);
+
   const edges: EdgeState[] = [...keys]
     .sort((p, q) => p - q)
     .map((key) => ({
@@ -245,18 +277,47 @@ function buildGraph(state: ConstellationState, cssW: number, cssH: number, pairD
     adjacency[edge.a].add(edge.b);
     adjacency[edge.b].add(edge.a);
   }
-  const triangles: TriangleState[] = [];
-  for (const edge of edges) {
-    for (const c of adjacency[edge.a]) {
-      if (c <= edge.b || !adjacency[edge.b].has(c)) continue;
-      const e0 = edgeIndex.get(edge.a * 1024 + edge.b);
-      const e1 = edgeIndex.get(edge.a * 1024 + c);
-      const e2 = edgeIndex.get(edge.b * 1024 + c);
-      if (e0 === undefined || e1 === undefined || e2 === undefined) continue;
-      triangles.push({ e0, e1, e2, lastFlash: -1e9, complete: false });
+  const lookup = (p: number, q: number): number | undefined => edgeIndex.get(p < q ? p * 1024 + q : q * 1024 + p);
+  const polygons: PolygonState[] = [];
+  const seen = new Set<string>();
+  const addPolygon = (cycle: number[]): void => {
+    const ids: number[] = [];
+    for (let k = 0; k < cycle.length; k++) {
+      const idx = lookup(cycle[k], cycle[(k + 1) % cycle.length]);
+      if (idx === undefined) return;
+      ids.push(idx);
     }
+    const key = [...ids].sort((p, q) => p - q).join(",");
+    if (seen.has(key)) return;
+    seen.add(key);
+    polygons.push({ edges: ids, lastFlash: -1e9, complete: false });
+  };
+  const path: number[] = [];
+  const onPath = new Uint8Array(n);
+  const walk = (start: number, node: number): void => {
+    for (const next of adjacency[node]) {
+      if (polygons.length >= MAX_POLYGONS) return;
+      if (next === start) {
+        if (path.length >= 3) addPolygon([...path]);
+        continue;
+      }
+      if (next < start || onPath[next] || path.length >= MAX_POLYGON_SIDES) continue;
+      path.push(next);
+      onPath[next] = 1;
+      walk(start, next);
+      path.pop();
+      onPath[next] = 0;
+    }
+  };
+  for (let start = 0; start < n; start++) {
+    path.length = 0;
+    path.push(start);
+    onPath[start] = 1;
+    walk(start, start);
+    onPath[start] = 0;
+    if (polygons.length >= MAX_POLYGONS) break;
   }
-  return { sx, sy, edges, incident, triangles };
+  return { sx, sy, edges, incident, polygons };
 }
 
 function edgeLength(graph: Graph, edge: EdgeState): number {
@@ -450,9 +511,13 @@ export function stepConstellation(
   for (const edge of graph.edges) {
     let target = 0;
     if (cursor && state.hasSmooth) {
-      const da = Math.hypot(graph.sx[edge.a] - state.smoothX, graph.sy[edge.a] - state.smoothY);
-      const db = Math.hypot(graph.sx[edge.b] - state.smoothX, graph.sy[edge.b] - state.smoothY);
-      const m = Math.max(da, db) / radius;
+      const ax = graph.sx[edge.a];
+      const ay = graph.sy[edge.a];
+      const bax = graph.sx[edge.b] - ax;
+      const bay = graph.sy[edge.b] - ay;
+      const len2 = Math.max(bax * bax + bay * bay, 1e-4);
+      const h = Math.min(1, Math.max(0, ((state.smoothX - ax) * bax + (state.smoothY - ay) * bay) / len2));
+      const m = Math.hypot(ax + bax * h - state.smoothX, ay + bay * h - state.smoothY) / radius;
       if (m < 1) target = smooth01((1 - m) / 0.65);
     }
     edge.prevPhase = edge.phase;
@@ -479,25 +544,30 @@ export function stepConstellation(
   }
 
   if (config.polygonFlashEnabled) {
-    for (const tri of graph.triangles) {
-      const e0 = graph.edges[tri.e0];
-      const e1 = graph.edges[tri.e1];
-      const e2 = graph.edges[tri.e2];
-      const complete =
-        e0.phase >= 0.8 && e1.phase >= 0.8 && e2.phase >= 0.8 && Math.min(e0.env, e1.env, e2.env) >= 0.45;
+    for (const poly of graph.polygons) {
+      let complete = true;
+      for (const idx of poly.edges) {
+        const edge = graph.edges[idx];
+        if (edge.phase < FLASH_PHASE_MIN || edge.env < FLASH_ENV_MIN) {
+          complete = false;
+          break;
+        }
+      }
       if (
         complete &&
-        !tri.complete &&
         now - state.lastFlashGlobal > FLASH_GLOBAL_GAP_MS &&
-        now - tri.lastFlash > FLASH_TRIANGLE_GAP_MS
+        now - poly.lastFlash > FLASH_POLYGON_GAP_MS
       ) {
         state.lastFlashGlobal = now;
-        tri.lastFlash = now;
-        e0.flashStart = now;
-        e1.flashStart = now;
-        e2.flashStart = now;
+        poly.lastFlash = now;
+        for (const idx of poly.edges) {
+          const edge = graph.edges[idx];
+          edge.flashStart = now;
+          state.flareStart[edge.a] = now;
+          state.flareStart[edge.b] = now;
+        }
       }
-      tri.complete = complete;
+      poly.complete = complete;
     }
   }
 

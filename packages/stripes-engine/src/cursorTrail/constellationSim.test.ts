@@ -111,5 +111,50 @@ describe("stepConstellation", () => {
     const wide = run(normalizeConstellationTrail({ radiusScale: 1.5 }), 4);
     const narrow = run(normalizeConstellationTrail({ radiusScale: 0.05 }), 4);
     expect(wide.graph?.edges.length).toBe(narrow.graph?.edges.length);
+    expect(wide.graph?.edges.map((e) => `${e.a}-${e.b}`)).toEqual(narrow.graph?.edges.map((e) => `${e.a}-${e.b}`));
+  });
+
+  it("scales the lit cluster extent with the cursor radius", () => {
+    const cursor = { x: CSS_W / 2, y: CSS_H / 2 };
+    const reach = (radiusScale: number) => {
+      const state = run(normalizeConstellationTrail({ radiusScale }), 90, cursor);
+      let far = 0;
+      for (let i = 0; i < state.lineCount; i++) {
+        const ax = state.segData[i * 4] * CSS_W;
+        const ay = state.segData[i * 4 + 1] * CSS_H;
+        const bx = state.segData[i * 4 + 2] * CSS_W;
+        const by = state.segData[i * 4 + 3] * CSS_H;
+        far = Math.max(far, Math.hypot(ax - cursor.x, ay - cursor.y), Math.hypot(bx - cursor.x, by - cursor.y));
+      }
+      return { far, lines: state.lineCount };
+    };
+    const tight = reach(0.12);
+    const mid = reach(0.35);
+    const wide = reach(0.8);
+    expect(tight.lines).toBeGreaterThan(0);
+    expect(mid.lines).toBeGreaterThan(tight.lines);
+    expect(wide.lines).toBeGreaterThan(mid.lines);
+    expect(mid.far).toBeGreaterThan(tight.far * 1.5);
+    expect(wide.far).toBeGreaterThan(mid.far * 1.5);
+  });
+
+  it("flashes closed polygons while the cursor sits inside a loop", () => {
+    const flashPeak = (config = normalizeConstellationTrail({ radiusScale: 0.6 })) => {
+      const caps = constellationCaps(config);
+      const state = createConstellationState(caps);
+      let now = 1000;
+      let peak = 0;
+      for (let i = 0; i < 300; i++) {
+        stepConstellation(state, config, { x: CSS_W / 2, y: CSS_H / 2 }, CSS_W, CSS_H, now);
+        for (let k = 0; k < state.lineCount; k++) peak = Math.max(peak, state.fxData[k * 2 + 1]);
+        now += 16;
+      }
+      return { peak, polygons: state.graph?.polygons.length ?? 0 };
+    };
+    const on = flashPeak();
+    expect(on.polygons).toBeGreaterThan(8);
+    expect(on.peak).toBeGreaterThan(0.9);
+    const off = flashPeak(normalizeConstellationTrail({ radiusScale: 0.6, polygonFlashEnabled: false }));
+    expect(off.peak).toBe(0);
   });
 });

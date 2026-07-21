@@ -28,8 +28,12 @@ float bodyDist(vec2 p, float sc) {
   return d;
 }
 
-float bodyMask(float d, float sc) {
-  return 1.0 - smoothstep(-1.4 * sc, 0.9 * sc, d);
+float bodyCore(float d, float sc) {
+  return 1.0 - smoothstep(-1.15 * sc, 0.15 * sc, d);
+}
+
+float bodyRing(float d, float sc) {
+  return smoothstep(-0.25 * sc, 1.15 * sc, d) * (1.0 - smoothstep(0.35 * sc, 4.4 * sc, d));
 }
 
 float bodyPush(vec2 p, float sc) {
@@ -81,19 +85,17 @@ void main() {
 
   vec2 heat = texture(uHeat, vUv).rg;
   float dc = bodyDist(p, sc);
-  float body = bodyMask(dc, sc) * uPresence;
+  float core = bodyCore(dc, sc) * uPresence;
   float flick = 0.9 + 0.1 * sin(uTime * 11.3 + sin(uTime * 27.1) * 1.7);
-  float head = headBulge(p, sc) * uCore * uPresence * flick;
+  float head = clamp(headBulge(p, sc) * uCore * uPresence * flick, 0.0, 1.0);
 
-  float groove = (1.0 - smoothstep(0.5 * sc, 3.1 * sc, abs(dc))) * uPresence;
+  float aura = bodyRing(dc, sc) * uPresence;
   float emberRim = clamp(heat.r * (1.0 - heat.r) * 4.0, 0.0, 1.0);
-  float dim = clamp(groove * 0.44 + emberRim * 0.34, 0.0, 0.72);
+  float dim = clamp(aura * 0.74 + emberRim * 0.32, 0.0, 0.84);
 
-  float value = clamp(
-    base * (1.0 - dim) + body * 0.3 + head * 0.66 + min(heat.g, 1.0) * 0.88,
-    0.0,
-    1.0
-  );
+  float lit = base * (1.0 - dim);
+  float lum = mix(0.93, 1.0, head);
+  float value = clamp(mix(lit, lum, core) + min(heat.g, 1.0) * 0.88, 0.0, 1.0);
   outColor = vec4(vec3(value), 1.0);
 }
 `;

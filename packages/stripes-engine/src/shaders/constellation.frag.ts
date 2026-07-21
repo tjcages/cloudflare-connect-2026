@@ -49,7 +49,7 @@ void main() {
     vec2 off = pa - ba * h;
     float d = length(off);
     float flash = fx.y * uFlashStrength;
-    float lw = uLineStyle.x * (1.0 + 0.62 * flash) * sc;
+    float lw = uLineStyle.x * (1.0 + 1.15 * flash) * sc;
     float reach = lw * 6.4;
     if (d > reach) continue;
     float alpha = fx.x * smoothstep(0.0, 0.05, h) * smoothstep(1.0, 0.95, h);
@@ -59,14 +59,14 @@ void main() {
     float side = dot(off, nrm) >= 0.0 ? 1.0 : -1.0;
     float t = d / reach;
     float prof = exp(-t * t * 2.4);
-    float amp = uLineStyle.w * (1.0 + 0.74 * flash) * sc * alpha;
+    float amp = uLineStyle.w * (1.0 + 1.15 * flash) * sc * alpha;
     warp += (nrm * 1.05 + tng * 0.3) * side * amp * prof;
     float shimmer = 0.94 + 0.06 * sin(uTime * 1.7 + (a.x + b.y) * 0.045);
     float core = smoothstep(lw * 0.92, lw * 0.1, d);
     float halo = smoothstep(lw * 2.1, lw * 0.85, d) * (1.0 - core);
-    add += (core * (1.55 + 1.2 * flash) + halo * 0.4) * alpha * shimmer * uLineStyle.y;
+    add += (core * (1.55 + 2.7 * flash) + halo * (0.4 + 0.55 * flash)) * alpha * shimmer * uLineStyle.y;
     float groove = smoothstep(lw * 4.6, lw * 1.6, d) * (1.0 - core) * (1.0 - 0.45 * halo);
-    dim += groove * alpha * (1.05 + 0.35 * flash) * uLineStyle.z;
+    dim += groove * alpha * (1.05 + 0.8 * flash) * uLineStyle.z;
   }
 
   for (int i = 0; i < ${maxPulses}; i++) {
