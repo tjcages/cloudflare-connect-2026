@@ -10,6 +10,10 @@ uniform float uGlow;
 uniform float uAspect;
 out vec4 finalColor;
 
+const highp float ARMS = 4.0;
+const highp float WAVE_RATE = 34.0;
+const highp float TAU = 6.2831853;
+
 /* The swirl is a COVER, not the image: it spins forever and gets drained away, and the
    sharp field is simply underneath it. */
 highp float sampleSwirl(highp float r, highp float ang, highp float theta, highp float pull, vec2 asp) {
@@ -21,35 +25,13 @@ highp float sampleSwirl(highp float r, highp float ang, highp float theta, highp
 }
 
 highp float spinAngle(highp float falloff, highp float pp) {
-  return uTurns * 6.2831853 * falloff * (1.0 + 0.6 * pp);
+  return uTurns * TAU * falloff * (1.0 + 0.6 * pp);
 }
 
-/* Organic, non-circular drain edge so it never reads as a hard ring. */
-highp float drainWobble(highp float r, highp float ang) {
-  return 0.5 * sin(ang * 3.0 + r * 9.0) + 0.32 * sin(ang * 7.0 - r * 15.0 + 1.3)
-    + 0.18 * sin(ang * 13.0 + r * 24.0 + 2.7);
-}
-
-highp float cellHash(vec2 c) {
-  vec3 p3 = fract(vec3(c.xyx) * 0.1031);
-  p3 += dot(p3, p3.yzx + 33.33);
-  return fract((p3.x + p3.y) * p3.z);
-}
-
-/* Per-cell drain timing driven by the whirlpool's own spiral coordinate, so the hole eats
-   outward along the arms. Grain only textures the edge. */
-highp float cellOffset(vec2 uv, vec2 asp) {
-  vec2 c = floor(uv * vec2(150.0, 78.0));
-  vec2 cellUv = (c + 0.5) / vec2(150.0, 78.0);
-  vec2 cq = (cellUv - 0.5) * asp;
-  highp float cr = length(cq);
-  highp float cfall = uTightness / (cr + uTightness);
-  /* 4 arms: a single angular cycle makes one side of the frame systematically early (reads as
-     "the left reveals before the right"). EVEN arm counts cancel that bias exactly on both
-     axes; odd counts leave a residual. Integer multipliers stay continuous across the atan seam. */
-  highp float spiral = atan(cq.y, cq.x) * 4.0 + uTurns * 6.2831853 * cfall + cr * 5.0;
-  highp float wave = 0.5 - 0.5 * cos(spiral);
-  return (wave - 0.5) * 0.22 + (cellHash(c) - 0.5) * 0.05;
+/* Organic, non-circular envelope so the opening never reads as a hard ring. */
+highp float envelopeWobble(highp float r, highp float ang) {
+  return 0.5 * sin(ang * 4.0 + r * 9.0) + 0.32 * sin(ang * 8.0 - r * 15.0 + 1.3)
+    + 0.18 * sin(ang * 12.0 + r * 24.0 + 2.7);
 }
 
 void main() {
@@ -67,18 +49,20 @@ void main() {
   highp float rn = clamp(r / max(maxR, 1e-4), 0.0, 1.0);
   highp float falloff = uTightness / (r + uTightness);
 
-  highp float span = 0.13;
-  highp float pDrain = clamp(
-    mix(0.3, 0.7, rn) + cellOffset(vUv, asp) + drainWobble(r, ang) * 0.02,
-    0.0,
-    1.0 - span * 0.9
-  );
-  highp float drained = smoothstep(pDrain, pDrain + span, p);
+  /* Radial envelope = when this radius becomes eligible; the wave decides the exact moment. */
+  highp float eligible = mix(0.28, 0.68, rn) + envelopeWobble(r, ang) * 0.015;
 
-  /* Cover keeps spinning the entire time — it is never asked to land on the image. */
+  /* Spiral wave fronts, riding the same winding as the cover and sweeping with its rotation.
+     A point switches on when the next crest sweeps over it, so the waves carry the reveal. */
+  highp float wound = uTurns * TAU * falloff;
+  highp float phase = ang * ARMS + wound + WAVE_RATE * eligible;
+  highp float wait = mod(-phase, TAU) / WAVE_RATE;
+  highp float arrival = eligible + wait;
+  highp float drained = smoothstep(arrival, arrival + 0.05, p);
+
   highp float rim = drained * (1.0 - drained) * 4.0;
   highp float spinNow = spinAngle(falloff, p);
-  /* Right at the drain edge the cover accelerates and is sucked inward. */
+  /* Right at the wave front the cover accelerates and is sucked inward. */
   highp float theta = spinNow + rim * 0.7;
   highp float arc = (spinAngle(falloff, min(p + 0.016, 1.0)) - spinNow) * (0.5 + 3.5 * uStreak);
   highp float pull = falloff * (0.3 + 0.45 * rim);
