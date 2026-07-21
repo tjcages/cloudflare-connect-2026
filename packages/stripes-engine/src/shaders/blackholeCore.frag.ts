@@ -53,8 +53,8 @@ void main() {
   vec2 cq = (cellCenter - 0.5) * asp;
   highp float dn = length(cq) / cornerR;
   highp float cang = atan(cq.y, cq.x);
-  highp float armW = 0.5 + 0.5 * sin(cang * uArms - dn * (4.0 + 2.0 * uSwirl));
-  highp float o = clamp(dn * 0.72 + armW * 0.14 + (hashLane(cellIndex, 1u) - 0.5) * 0.18 + 0.07, 0.0, 1.0);
+  highp float armW = 0.5 + 0.5 * sin(cang * uArms - dn * (5.0 + 3.0 * uSwirl));
+  highp float o = clamp(dn * 0.66 + armW * 0.24 + (hashLane(cellIndex, 1u) - 0.5) * 0.1 + 0.05, 0.0, 1.0);
 
   highp float blockV = texture(uField, cellCenter).r;
   highp float accFrac = 0.0;

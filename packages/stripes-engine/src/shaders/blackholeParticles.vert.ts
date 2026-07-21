@@ -95,8 +95,8 @@ void main() {
   vec2 tq = (targetUv - 0.5) * asp;
   highp float dn = length(tq) / cornerR;
   highp float tang = atan(tq.y, tq.x);
-  highp float armW = 0.5 + 0.5 * sin(tang * uArms - dn * (4.0 + 2.0 * uSwirl));
-  highp float o = clamp(dn * 0.72 + armW * 0.14 + (hashLane(cellIndex, 1u) - 0.5) * 0.18 + 0.07, 0.0, 1.0);
+  highp float armW = 0.5 + 0.5 * sin(tang * uArms - dn * (5.0 + 3.0 * uSwirl));
+  highp float o = clamp(dn * 0.66 + armW * 0.24 + (hashLane(cellIndex, 1u) - 0.5) * 0.1 + 0.05, 0.0, 1.0);
   highp float ok = o + float(k) * 0.04 + hashLane(eid, 4u) * 0.02;
   highp float fl = max(mix(uFlightMin, uFlightMax, hashLane(eid, 6u)), 1e-4);
   highp float f = (p - uForm - uSpread * ok) / fl;
