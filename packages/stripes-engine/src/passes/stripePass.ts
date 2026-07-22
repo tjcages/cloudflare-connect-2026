@@ -16,6 +16,11 @@ export type StripeUniforms = {
   angleDeg: number;
   rotationMode: number;
   overlapAmount: number;
+  streamGapWaveEnabled: boolean;
+  streamGapWaveSqueeze: number;
+  streamGapWaveWavelengthCells: number;
+  streamGapWaveSpeed: number;
+  streamGapWavePhaseDeg: number;
   cellMin: number;
   cellMax: number;
   cols: number;
@@ -119,6 +124,11 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     angleDeg: config.grid.angleDeg,
     rotationMode: config.grid.rotationMode === "overlap" ? 2 : 0,
     overlapAmount: config.grid.overlapAmount,
+    streamGapWaveEnabled: config.grid.streamGapWave.enabled,
+    streamGapWaveSqueeze: config.grid.streamGapWave.squeeze,
+    streamGapWaveWavelengthCells: config.grid.streamGapWave.wavelengthCells,
+    streamGapWaveSpeed: config.grid.streamGapWave.speed,
+    streamGapWavePhaseDeg: config.grid.streamGapWave.phaseDeg,
     cellMin: 0,
     cellMax: 1,
     cols: i.cols,
@@ -200,6 +210,11 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     angleDeg: u("uAngleDeg"),
     rotationMode: u("uRotationMode"),
     overlapAmount: u("uOverlapAmount"),
+    streamGapWaveEnabled: u("uStreamGapWaveEnabled"),
+    streamGapWaveSqueeze: u("uStreamGapWaveSqueeze"),
+    streamGapWaveWavelengthCells: u("uStreamGapWaveWavelengthCells"),
+    streamGapWaveSpeed: u("uStreamGapWaveSpeed"),
+    streamGapWavePhaseDeg: u("uStreamGapWavePhaseDeg"),
     cellMin: u("uCellMin"),
     cellMax: u("uCellMax"),
     bg: u("uBg"),
@@ -298,6 +313,11 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.angleDeg, p.angleDeg);
       gl.uniform1f(L.rotationMode, p.rotationMode);
       gl.uniform1f(L.overlapAmount, p.overlapAmount);
+      gl.uniform1f(L.streamGapWaveEnabled, p.streamGapWaveEnabled ? 1 : 0);
+      gl.uniform1f(L.streamGapWaveSqueeze, p.streamGapWaveSqueeze);
+      gl.uniform1f(L.streamGapWaveWavelengthCells, p.streamGapWaveWavelengthCells);
+      gl.uniform1f(L.streamGapWaveSpeed, p.streamGapWaveSpeed);
+      gl.uniform1f(L.streamGapWavePhaseDeg, p.streamGapWavePhaseDeg);
       gl.uniform1f(L.cellMin, p.cellMin);
       gl.uniform1f(L.cellMax, p.cellMax);
       setColor(L.bg, p.background);

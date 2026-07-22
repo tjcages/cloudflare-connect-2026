@@ -12,6 +12,8 @@ import {
 import type { ConnectShaderParams } from "./connectShader";
 import { normalizeShaderViewState } from "./shaderView";
 import { clampPreviewZoom } from "./canvasFitPreviewZoom";
+import { normalizeTwizzlerSettings, type TwizzlerSettings } from "./twizzler";
+import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "./twizzlerMapSource";
 
 const MAP_KEY = "stripes-engine-lab-by-texture";
 const LAST_KEY = "stripes-engine-lab-last-config";
@@ -61,6 +63,9 @@ export type LabSettings = {
   shaderSourceCode: string;
   shaderSourceWidth: number;
   shaderSourceHeight: number;
+  twizzlerEnabled: boolean;
+  twizzler: TwizzlerSettings;
+  twizzlerMap: TwizzlerMapSettings;
   backgroundFillMode: LabBackgroundFillMode | null;
   backgroundSourceOpacity: number;
   stripePalette: string | null;
@@ -433,6 +438,9 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
     shaderSourceHeight: Math.round(
       Math.max(1, Math.min(8192, n(i.shaderSourceHeight, DEFAULT_LAB_SETTINGS.shaderSourceHeight))),
     ),
+    twizzlerEnabled: typeof i.twizzlerEnabled === "boolean" ? i.twizzlerEnabled : DEFAULT_LAB_SETTINGS.twizzlerEnabled,
+    twizzler: normalizeTwizzlerSettings(i.twizzler ?? DEFAULT_LAB_SETTINGS.twizzler),
+    twizzlerMap: normalizeTwizzlerMapSettings(i.twizzlerMap ?? DEFAULT_LAB_SETTINGS.twizzlerMap),
     backgroundFillMode: has("backgroundFillMode")
       ? normalizeBackgroundFillMode(i.backgroundFillMode)
       : DEFAULT_LAB_SETTINGS.backgroundFillMode,

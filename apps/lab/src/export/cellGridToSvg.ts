@@ -102,10 +102,18 @@ function isAxisAlignedAngle(angleDeg: number): boolean {
   return Math.abs(angleDeg - 0) < 0.001 || Math.abs(angleDeg - 90) < 0.001 || Math.abs(angleDeg - 180) < 0.001;
 }
 
-function rotatedStripePath(cx: number, cy: number, halfNormal: number, halfAxis: number, angleDeg: number): string {
+export function rotatedStripePath(
+  cx: number,
+  cy: number,
+  halfNormal: number,
+  halfAxis: number,
+  angleDeg: number,
+): string {
   const rad = (angleDeg * Math.PI) / 180;
-  const axis = { x: Math.sin(rad), y: Math.cos(rad) };
-  const normal = { x: Math.cos(rad), y: -Math.sin(rad) };
+  // The shader rotates in WebGL's Y-up coordinates. SVG's Y axis points down,
+  // so mirror both basis vectors vertically to preserve the visible angle.
+  const axis = { x: Math.sin(rad), y: -Math.cos(rad) };
+  const normal = { x: Math.cos(rad), y: Math.sin(rad) };
   const point = (normalSign: number, axisSign: number) => {
     const x = cx + normal.x * halfNormal * normalSign + axis.x * halfAxis * axisSign;
     const y = cy + normal.y * halfNormal * normalSign + axis.y * halfAxis * axisSign;
@@ -468,12 +476,22 @@ export function cellGridToSvg(
     angleDeg?: number;
     rotationMode?: GridRotationMode;
     overlapAmount?: number;
+    streamGapWave?: {
+      enabled: boolean;
+      squeeze: number;
+      wavelengthCells: number;
+      phaseDeg: number;
+    };
     backgroundHex?: string;
     letters?: LettersSvgOptions;
     gradient?: SvgGradientOptions;
     backgroundGradient?: SvgGradientOptions;
     /** Raster backdrop (e.g. Connect fill underlay) drawn behind stripes. */
     backgroundImageHref?: string;
+    /** Ordered raster underlays drawn behind stripes. Later entries appear above earlier entries. */
+    backgroundImageHrefs?: readonly string[];
+    /** Trusted vector markup drawn above raster underlays and behind stripes. */
+    backgroundSvgLayer?: string;
     blendMode?: SvgBlendMode;
     widthSparkle?: WidthSparkleSvgOptions;
     canvasWidthPx?: number;
@@ -489,11 +507,14 @@ export function cellGridToSvg(
     angleDeg,
     rotationMode = "cell",
     overlapAmount = 1,
+    streamGapWave,
     backgroundHex,
     letters,
     gradient,
     backgroundGradient,
     backgroundImageHref,
+    backgroundImageHrefs,
+    backgroundSvgLayer,
     blendMode,
     widthSparkle,
   } = opts;
@@ -535,14 +556,20 @@ export function cellGridToSvg(
     band < 1 ? 0 : sortedStripes.length <= 1 ? 1 : (band - 1) / (sortedStripes.length - 1);
 
   const pathsByBand = new Map<number, string[]>();
-  const cellColorPaths: string[] = [];
+  const cellColorPathGroups = new Map<string, { hex: string; opacity: number; style: string; segments: string[] }>();
+  const addCellColorPath = (hex: string, opacity: number, style: string, segment: string) => {
+    const key = `${hex}|${formatSvgNumber(opacity)}|${style}`;
+    const group = cellColorPathGroups.get(key) ?? { hex, opacity, style, segments: [] };
+    group.segments.push(segment);
+    cellColorPathGroups.set(key, group);
+  };
   const clippedStripeElements: Array<{ depth: number; opacity: number; element: string }> = [];
   const gradientRampPaths: string[] = [];
 
   if (arbitraryAngle) {
     const rad = (resolvedAngleDeg * Math.PI) / 180;
-    const axis = { x: Math.sin(rad), y: Math.cos(rad) };
-    const normal = { x: Math.cos(rad), y: -Math.sin(rad) };
+    const axis = { x: Math.sin(rad), y: -Math.cos(rad) };
+    const normal = { x: Math.cos(rad), y: Math.sin(rad) };
     const horizontalStacks = effectiveOrientation === "horizontal";
     const stackCellPx = horizontalStacks ? cellHeightPx : cellWidthPx;
     const axisCellPx = horizontalStacks ? cellWidthPx : cellHeightPx;
@@ -567,8 +594,15 @@ export function cellGridToSvg(
       const dy = corner.y - center.y;
       return dx * axis.x + dy * axis.y + axisSpanPx * 0.5;
     });
-    const minStack = Math.floor(Math.min(...stackCoords) / stackCellPx) - 2;
-    const maxStack = Math.ceil(Math.max(...stackCoords) / stackCellPx) + 2;
+    const gapWaveStep = (Math.PI * 2) / Math.max(2, streamGapWave?.wavelengthCells ?? 16);
+    const gapWaveAmplitude = streamGapWave?.enabled
+      ? (Math.max(0, Math.min(1, streamGapWave.squeeze)) * stackCellPx) /
+        Math.max(2 * Math.sin(gapWaveStep * 0.5), 0.001)
+      : 0;
+    const gapWavePhase = ((streamGapWave?.phaseDeg ?? 0) * Math.PI) / 180;
+    const gapWaveMargin = Math.ceil(gapWaveAmplitude / stackCellPx) + 2;
+    const minStack = Math.floor(Math.min(...stackCoords) / stackCellPx) - gapWaveMargin;
+    const maxStack = Math.ceil(Math.max(...stackCoords) / stackCellPx) + gapWaveMargin;
     const minAxis = Math.floor(Math.min(...axisCoords) / axisCellPx) - 2;
     const maxAxis = Math.ceil(Math.max(...axisCoords) / axisCellPx) + 2;
     const drawableStackPx = Math.max(0.0001, stackCellPx - Math.min(stackGapPx, stackCellPx));
@@ -582,7 +616,8 @@ export function cellGridToSvg(
     };
 
     for (let stackIndex = minStack; stackIndex <= maxStack; stackIndex++) {
-      const stackCenter = (stackIndex + 0.5) * stackCellPx;
+      const stackCenter =
+        (stackIndex + 0.5) * stackCellPx + Math.sin(stackIndex * gapWaveStep + gapWavePhase) * gapWaveAmplitude;
       for (let axisIndex = minAxis; axisIndex <= maxAxis; axisIndex++) {
         const axisCenter = (axisIndex + 0.5) * axisCellPx;
         const cx = center.x + normal.x * (stackCenter - stackSpanPx * 0.5) + axis.x * (axisCenter - axisSpanPx * 0.5);
@@ -652,9 +687,7 @@ export function cellGridToSvg(
             const hex = cellColorHex(colors, rbIndex);
             const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));
             const style = [`fill:${p3SvgColor(hex)}`, blendStyle].filter(Boolean).join(";");
-            cellColorPaths.push(
-              `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segment}" />`,
-            );
+            addCellColorPath(hex, opacity, style, segment);
           } else {
             clippedStripeElements.push({
               depth: (values[rbIndex] ?? 0) / 255,
@@ -719,9 +752,7 @@ export function cellGridToSvg(
           const hex = cellColorHex(colors, rbIndex);
           const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));
           const style = [`fill:${p3SvgColor(hex)}`, blendStyle].filter(Boolean).join(";");
-          cellColorPaths.push(
-            `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segment}" />`,
-          );
+          addCellColorPath(hex, opacity, style, segment);
           continue;
         }
         if (dynamicGradientRamp && gradient) {
@@ -747,10 +778,14 @@ export function cellGridToSvg(
     : backgroundHex
       ? `  <rect width="${width}" height="${height}" fill="${normalizeSvgHex(backgroundHex)}" style="fill:${p3SvgColor(backgroundHex)}" />`
       : "";
-  const backgroundImage =
-    typeof backgroundImageHref === "string" && backgroundImageHref.length > 0
-      ? `  <image href="${escapeXml(backgroundImageHref)}" width="${width}" height="${height}" preserveAspectRatio="none" />`
-      : "";
+  const backgroundImages = [
+    ...(typeof backgroundImageHref === "string" && backgroundImageHref.length > 0 ? [backgroundImageHref] : []),
+    ...(backgroundImageHrefs ?? []).filter((href) => typeof href === "string" && href.length > 0),
+  ]
+    .map(
+      (href) => `  <image href="${escapeXml(href)}" width="${width}" height="${height}" preserveAspectRatio="none" />`,
+    )
+    .join("\n");
   const letterLayer = buildTextLettersSvg(letters, {
     cols,
     rows,
@@ -767,12 +802,19 @@ export function cellGridToSvg(
 
   if (useCellColors && !arbitraryAngle) {
     const styleBlock = letterLayer.style ? ["<style>", letterLayer.style, "</style>"].join("\n") : "";
-    const cellColorLayer = [cellColorPaths.join("\n"), letterLayer.elements].filter(Boolean).join("\n");
+    const compactCellColorPaths = [...cellColorPathGroups.values()]
+      .map(
+        ({ hex, opacity, style, segments }) =>
+          `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segments.join(" ")}" />`,
+      )
+      .join("\n");
+    const cellColorLayer = [compactCellColorPaths, letterLayer.elements].filter(Boolean).join("\n");
     return [
       `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
       gradientDefs,
       backgroundRect,
-      backgroundImage,
+      backgroundImages,
+      backgroundSvgLayer,
       styleBlock,
       cellColorLayer,
       `</svg>`,
@@ -822,7 +864,8 @@ export function cellGridToSvg(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
     gradientDefs,
     backgroundRect,
-    backgroundImage,
+    backgroundImages,
+    backgroundSvgLayer,
     styleBlock,
     stripeLayer,
     `</svg>`,

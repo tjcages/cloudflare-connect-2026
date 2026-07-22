@@ -64,6 +64,11 @@ uniform sampler2D uCellColor;
 uniform float uImageColorLightness;
 uniform float uImageColorDensity;
 uniform float uOverlapAmount;
+uniform float uStreamGapWaveEnabled;
+uniform float uStreamGapWaveSqueeze;
+uniform float uStreamGapWaveWavelengthCells;
+uniform float uStreamGapWaveSpeed;
+uniform float uStreamGapWavePhaseDeg;
 uniform vec3 uLetterColor;
 uniform float uBlendMode;
 uniform float uGradientEnabled;
@@ -107,6 +112,16 @@ float cellSeed(float col, float row) {
 
 float altHash(float col, float row, float pulseIndex) {
   return sparkleHash(col + 53.0 + pulseIndex * 61.0, row + 71.0 + pulseIndex * 101.0);
+}
+
+float streamGapWaveOffset(float stackIndex, float stackCellPx) {
+  if (uStreamGapWaveEnabled <= 0.5 || uStreamGapWaveSqueeze <= 0.0) return 0.0;
+  float tau = 6.283185307179586;
+  float stepPhase = tau / max(uStreamGapWaveWavelengthCells, 2.0);
+  float denominator = max(2.0 * sin(stepPhase * 0.5), 0.001);
+  float amplitude = clamp(uStreamGapWaveSqueeze, 0.0, 1.0) * stackCellPx / denominator;
+  float timePhase = uTimeSec * uStreamGapWaveSpeed * tau + radians(uStreamGapWavePhaseDeg);
+  return sin(stackIndex * stepPhase + timePhase) * amplitude;
 }
 
 struct CellPulse {
@@ -508,16 +523,24 @@ void main() {
     float bestDepth = -1.0;
     vec4 overlapColor = bgColor;
 
-    for (int ss = -1; ss <= 1; ss++) {
+    float gapWaveStep = 6.283185307179586 / max(uStreamGapWaveWavelengthCells, 2.0);
+    float gapWaveAmplitude = uStreamGapWaveEnabled > 0.5
+      ? clamp(uStreamGapWaveSqueeze, 0.0, 1.0) * stackCellPx / max(2.0 * sin(gapWaveStep * 0.5), 0.001)
+      : 0.0;
+    float stackSearch = uStreamGapWaveEnabled > 0.5 ? ceil(gapWaveAmplitude / stackCellPx) + 2.0 : 1.0;
+    float axisSearch = 2.0;
+    for (int ss = -20; ss <= 20; ss++) {
+      if (abs(float(ss)) > stackSearch) continue;
       float stackIndex = baseStack + float(ss);
-      float stackCenter = (stackIndex + 0.5) * stackCellPx;
-      float normalDist = stackCoord - stackCenter;
-      if (abs(normalDist) > maxNormalReach) continue;
+      float stackCenter = (stackIndex + 0.5) * stackCellPx + streamGapWaveOffset(stackIndex, stackCellPx);
 
-      for (int aa = -2; aa <= 2; aa++) {
+      for (int aa = -20; aa <= 20; aa++) {
+        if (abs(float(aa)) > axisSearch) continue;
         float axisIndex = baseAxis + float(aa);
         float axisCenter = (axisIndex + 0.5) * axisCellPx;
+        float normalDist = stackCoord - stackCenter;
         float axisDist = axisCoord - axisCenter;
+        if (abs(normalDist) > maxNormalReach) continue;
         if (abs(axisDist) > maxAxisReach) continue;
 
         vec2 candidateCell = horizontalStacks ? vec2(axisIndex, stackIndex) : vec2(stackIndex, axisIndex);

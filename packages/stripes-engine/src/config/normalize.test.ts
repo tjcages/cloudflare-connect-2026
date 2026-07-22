@@ -118,6 +118,20 @@ describe("simple normalizers", () => {
     expect(normalizeGrid({ overlapAmount: -3 }).overlapAmount).toBe(0);
     expect(normalizeGrid({ overlapAmount: 2.5 }).overlapAmount).toBe(2.5);
   });
+  it("normalizes stream gap wave controls without changing the default grid", () => {
+    expect(normalizeGrid({}).streamGapWave).toEqual(DEFAULT_GRID.streamGapWave);
+    expect(
+      normalizeGrid({
+        streamGapWave: {
+          enabled: true,
+          squeeze: 2,
+          wavelengthCells: 1,
+          speed: -99,
+          phaseDeg: 999,
+        },
+      }).streamGapWave,
+    ).toEqual({ enabled: true, squeeze: 1, wavelengthCells: 2, speed: -10, phaseDeg: 180 });
+  });
 });
 describe("adjustments normalizer", () => {
   it("defaults to identity adjustments", () => {

@@ -32,6 +32,11 @@ export function removePreset(presets: ConfigPreset[], name: string): ConfigPrese
   return presets.filter((p) => p.name !== name);
 }
 
+export function findPresetByName(presets: readonly ConfigPreset[], name: string): ConfigPreset | undefined {
+  const normalized = name.trim().toLocaleLowerCase();
+  return presets.find((preset) => preset.name.trim().toLocaleLowerCase() === normalized);
+}
+
 export function loadPresets(): ConfigPreset[] {
   try {
     const raw = localStorage.getItem(PRESETS_KEY);
@@ -49,6 +54,10 @@ export function loadPresets(): ConfigPreset[] {
   } catch {
     return [];
   }
+}
+
+export function loadDefaultPreset(): ConfigPreset | undefined {
+  return findPresetByName(loadPresets(), "default");
 }
 
 export function savePresets(presets: ConfigPreset[]): void {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellGridToSvg } from "./cellGridToSvg";
+import { cellGridToSvg, rotatedStripePath } from "./cellGridToSvg";
 
 const STRIPES = [
   { hex: "#111111", startFrom: 0.0, width: 4 },
@@ -12,6 +12,10 @@ function v(...n: number[]): Uint8Array {
 }
 
 describe("cellGridToSvg", () => {
+  it("converts positive rotated grid angles from WebGL Y-up to SVG Y-down", () => {
+    expect(rotatedStripePath(5, 5, 1, 5, 45)).toBe("M0.7574 7.8284L2.1716 9.2426L9.2426 2.1716L7.8284 0.7574Z");
+  });
+
   it("emits an svg with band paths and the matching stripe hex", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: null };
     const svg = cellGridToSvg(readback, STRIPES, { cellWidthPx: 7, cellHeightPx: 7, useCellColors: false });
@@ -87,6 +91,41 @@ describe("cellGridToSvg", () => {
     expect(svg.indexOf("<image")).toBeLessThan(svg.indexOf("<path"));
   });
 
+  it("embeds ordered underlay layers behind stripe paths", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const connectHref = "data:image/png;base64,connect";
+    const twizzlerHref = "data:image/png;base64,twizzler";
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: false,
+      backgroundImageHrefs: [connectHref, twizzlerHref],
+      canvasWidthPx: 70,
+      canvasHeightPx: 40,
+    });
+
+    expect(svg).toContain(`<image href="${connectHref}" width="70" height="40" preserveAspectRatio="none" />`);
+    expect(svg).toContain(`<image href="${twizzlerHref}" width="70" height="40" preserveAspectRatio="none" />`);
+    expect(svg.indexOf(connectHref)).toBeLessThan(svg.indexOf(twizzlerHref));
+    expect(svg.indexOf(twizzlerHref)).toBeLessThan(svg.indexOf("<path"));
+  });
+
+  it("places a vector underlay above raster backgrounds and behind stripe paths", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const raster = "data:image/png;base64,background";
+    const vector = '<g data-layer="twizzler"><path d="M0 0 7 7" /></g>';
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: false,
+      backgroundImageHref: raster,
+      backgroundSvgLayer: vector,
+    });
+
+    expect(svg.indexOf(raster)).toBeLessThan(svg.indexOf('data-layer="twizzler"'));
+    expect(svg.indexOf('data-layer="twizzler"')).toBeLessThan(svg.indexOf("<style>"));
+  });
+
   it("includes the background color rect in image-colors SVG export too", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: v(0x33, 0x66, 0x99, 255) };
     const svg = cellGridToSvg(readback, STRIPES, {
@@ -98,6 +137,23 @@ describe("cellGridToSvg", () => {
 
     expect(svg).toContain('<rect width="7" height="7" fill="#111111" style="fill:color(display-p3');
     expect(svg.indexOf("<rect")).toBeLessThan(svg.indexOf("<path"));
+  });
+
+  it("combines repeated image-color cells into one compact path", () => {
+    const readback = {
+      cols: 2,
+      rows: 1,
+      values: v(255, 255),
+      colors: v(0x33, 0x66, 0x99, 255, 0x33, 0x66, 0x99, 255),
+    };
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: true,
+    });
+
+    expect(svg.match(/<path /g)).toHaveLength(1);
+    expect(svg.match(/M/g)).toHaveLength(2);
   });
 
   it("skips band-0 cells (no path)", () => {
@@ -257,5 +313,17 @@ describe("cellGridToSvg", () => {
     const sparkled = cellGridToSvg(readback, stripes, { ...base, widthSparkle: sparkle });
 
     expect(sparkled).not.toEqual(plain);
+  });
+
+  it("bakes the diagonal stream gap wave into SVG positions", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0, width: 4 }];
+    const readback = { cols: 8, rows: 8, values: v(...new Array(64).fill(255)), colors: null };
+    const base = { cellWidthPx: 10, cellHeightPx: 10, useCellColors: false, angleDeg: 28 } as const;
+    const disabled = { enabled: false, squeeze: 1, wavelengthCells: 8, phaseDeg: 0 };
+    const enabled = { ...disabled, enabled: true };
+
+    const plain = cellGridToSvg(readback, stripes, base);
+    expect(cellGridToSvg(readback, stripes, { ...base, streamGapWave: disabled })).toEqual(plain);
+    expect(cellGridToSvg(readback, stripes, { ...base, streamGapWave: enabled })).not.toEqual(plain);
   });
 });

@@ -48,10 +48,19 @@ import {
 import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, findTextureEntry, loadFileSource, loadTextureSource } from "./textures";
 import type { LabTextureKind, LoadedTextureSource } from "./textures";
 import { addUpload, loadManifest, removeUpload, saveManifest } from "./uploads";
-import { addPreset, createPreset, loadPresets, removePreset, savePresets, type ConfigPreset } from "./presets";
+import {
+  addPreset,
+  createPreset,
+  loadDefaultPreset,
+  loadPresets,
+  removePreset,
+  savePresets,
+  type ConfigPreset,
+} from "./presets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
+import { twizzlerToSvgLayer } from "./export/twizzlerToSvg";
 import { exportLabVideo } from "./export/videoExport";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
@@ -66,6 +75,7 @@ import {
   DEFAULT_SHADER_PRESET_ID,
   findShaderLibraryEntry,
   isSpiralShaderPreset,
+  isTwizzlerMapShaderPreset,
   NEBULA_SHADER_PRESET_ID,
   SHADER_LIBRARY,
 } from "./shaderLibrary";
@@ -79,6 +89,9 @@ import {
 import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./connectShader/underlayIntro";
 import { canvasStackBackgroundCss } from "./canvasStackBackground";
 import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } from "./canvasFitPreviewZoom";
+import { clearTwizzler, renderTwizzler } from "./twizzler";
+import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
+import { steppedTransportTime, TimeTransport, type TimeTransportController } from "./components/TimeTransport";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -718,7 +731,19 @@ function LabBottomBar({
 }
 
 function LabInner() {
+  const startupPreset = useMemo(() => loadDefaultPreset(), []);
+  const startupLabSettings = useMemo(
+    () => ({
+      ...loadLabSettings(),
+      ...(startupPreset?.lab ?? {}),
+      textureSourceMode: "shader" as const,
+      shaderPresetId: DEFAULT_SHADER_PRESET_ID,
+      shaderSourceCode: findShaderLibraryEntry(DEFAULT_SHADER_PRESET_ID)?.source ?? DEFAULT_SHADER_TEXTURE_SOURCE,
+    }),
+    [startupPreset],
+  );
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const twizzlerCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasAreaRef = useRef<HTMLDivElement>(null);
   const shaderPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const connectUnderlayHostRef = useRef<HTMLDivElement>(null);
@@ -742,7 +767,7 @@ function LabInner() {
   videoElRef.current = videoEl;
   const [sourcePreview, setSourcePreview] = useState<LoadedTextureSource | null>(null);
   const [labSettings, setLabSettings] = useState<LabSettings>(() => ({
-    ...loadLabSettings(),
+    ...startupLabSettings,
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
   }));
   const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(() => labSettings.textureSourceMode);
@@ -763,7 +788,7 @@ function LabInner() {
   const hasStoredPreviewZoomRef = useRef(labSettings.previewZoom != null);
   const previewZoomTouchedRef = useRef(false);
   const [presets, setPresets] = useState<ConfigPreset[]>(() => loadPresets());
-  const [selectedPreset, setSelectedPreset] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState(() => startupPreset?.name ?? "");
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
   const textureSourceModeRef = useRef(textureSourceMode);
@@ -772,11 +797,16 @@ function LabInner() {
   shaderSourceCodeRef.current = shaderSourceCode;
   const shaderRendererRef = useRef<ShaderTextureRenderer | null>(null);
   const connectRendererRef = useRef<ConnectTextureRenderer | null>(null);
+  const twizzlerMapRendererRef = useRef<TwizzlerMapRenderer | null>(null);
   const shaderPresetIdRef = useRef(shaderPresetId);
   shaderPresetIdRef.current = shaderPresetId;
   const shaderPlayingRef = useRef(shaderPlaying);
   shaderPlayingRef.current = shaderPlaying;
   const shaderTimeSecRef = useRef(0);
+  const [twizzlerPlaying, setTwizzlerPlaying] = useState(true);
+  const twizzlerPlayingRef = useRef(twizzlerPlaying);
+  twizzlerPlayingRef.current = twizzlerPlaying;
+  const twizzlerTimeSecRef = useRef(0);
   const shaderLastTickMsRef = useRef(performance.now());
   const shaderMouseRef = useRef({ x: 0, y: 0, down: false });
   const labSettingsRef = useRef(labSettings);
@@ -886,6 +916,49 @@ function LabInner() {
   const onExportVideo = useCallback(() => onExportVideoRef.current(), []);
   const exportingVideoRef = useRef(false);
   const videoExportAbortRef = useRef<AbortController | null>(null);
+  const shaderTransport = useMemo<TimeTransportController>(
+    () => ({
+      getTime: () => shaderTimeSecRef.current,
+      isPlaying: () => shaderPlayingRef.current,
+      toggle: () => {
+        const next = !shaderPlayingRef.current;
+        shaderPlayingRef.current = next;
+        shaderLastTickMsRef.current = performance.now();
+        setShaderPlaying(next);
+      },
+      step: (seconds) => {
+        shaderPlayingRef.current = false;
+        setShaderPlaying(false);
+        shaderTimeSecRef.current = steppedTransportTime(shaderTimeSecRef.current, seconds);
+        shaderLastTickMsRef.current = performance.now();
+      },
+      reset: () => {
+        shaderTimeSecRef.current = 0;
+        shaderLastTickMsRef.current = performance.now();
+      },
+    }),
+    [],
+  );
+  const twizzlerTransport = useMemo<TimeTransportController>(
+    () => ({
+      getTime: () => twizzlerTimeSecRef.current,
+      isPlaying: () => twizzlerPlayingRef.current,
+      toggle: () => {
+        const next = !twizzlerPlayingRef.current;
+        twizzlerPlayingRef.current = next;
+        setTwizzlerPlaying(next);
+      },
+      step: (seconds) => {
+        twizzlerPlayingRef.current = false;
+        setTwizzlerPlaying(false);
+        twizzlerTimeSecRef.current = steppedTransportTime(twizzlerTimeSecRef.current, seconds);
+      },
+      reset: () => {
+        twizzlerTimeSecRef.current = 0;
+      },
+    }),
+    [],
+  );
   const {
     config: controls,
     backgroundSourceOpacity,
@@ -899,14 +972,21 @@ function LabInner() {
     connectCamera,
     connectShaderParams,
     connectGradientUnderlay,
+    twizzler,
+    twizzlerMap,
     shaderView,
     initialThemed,
   } = useEngineControls(onReplay, {
-    showShaderCamera: textureSourceMode === "shader",
+    showShaderCamera: textureSourceMode === "shader" && !isTwizzlerMapShaderPreset(shaderPresetId),
     showConnectCamera: textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
+    twizzlerTransport,
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
+  const twizzlerRef = useRef(twizzler);
+  twizzlerRef.current = twizzler;
+  const twizzlerMapRef = useRef(twizzlerMap);
+  twizzlerMapRef.current = twizzlerMap;
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
   const textureIdRef = useRef(textureId);
@@ -1002,6 +1082,26 @@ function LabInner() {
         return;
       }
 
+      if (isTwizzlerMapShaderPreset(shaderPresetIdRef.current)) {
+        const renderer = twizzlerMapRendererRef.current;
+        if (!renderer) return;
+        renderer.render(
+          twizzlerTimeSecRef.current,
+          shaderTimeSecRef.current,
+          twizzlerRef.current,
+          twizzlerMapRef.current,
+        );
+        engine.setSource(renderer.canvas);
+        engine.updateSourceFrame(renderer.canvas);
+        const previewCanvas = shaderPreviewCanvasRef.current;
+        if (previewCanvas) {
+          if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
+          if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
+          previewCanvas.getContext("2d")?.drawImage(renderer.canvas, 0, 0);
+        }
+        return;
+      }
+
       const shaderRenderer = shaderRendererRef.current;
       if (!shaderRenderer) return;
       shaderRenderer.render(
@@ -1076,6 +1176,7 @@ function LabInner() {
 
       shaderRendererRef.current?.dispose();
       shaderRendererRef.current = null;
+      twizzlerMapRendererRef.current = null;
 
       let renderer = connectRendererRef.current;
       try {
@@ -1128,6 +1229,7 @@ function LabInner() {
 
       connectRendererRef.current?.dispose();
       connectRendererRef.current = null;
+      twizzlerMapRendererRef.current = null;
 
       let renderer = shaderRendererRef.current;
       try {
@@ -1164,13 +1266,57 @@ function LabInner() {
     [applyCanvasSize, shell],
   );
 
+  const applyTwizzlerMapTextureSource = useCallback(() => {
+    if (manualRef.current) return;
+    const engine = engineRef.current;
+    const canvas = canvasRef.current;
+    if (!engine) return;
+    if (prevVideoRef.current) {
+      prevVideoRef.current.pause();
+      prevVideoRef.current = null;
+    }
+    textureLoadSeqRef.current++;
+    const shaderBaseSize = shaderOriginalSize(labSettingsRef.current);
+    connectRendererRef.current?.dispose();
+    connectRendererRef.current = null;
+    shaderRendererRef.current?.dispose();
+    shaderRendererRef.current = null;
+
+    let renderer = twizzlerMapRendererRef.current;
+    if (!renderer) {
+      renderer = createTwizzlerMapRenderer(shaderBaseSize.w, shaderBaseSize.h);
+      twizzlerMapRendererRef.current = renderer;
+    } else {
+      renderer.resize(shaderBaseSize.w, shaderBaseSize.h);
+    }
+    renderer.render(twizzlerTimeSecRef.current, shaderTimeSecRef.current, twizzlerRef.current, twizzlerMapRef.current);
+    setShaderSourceError(null);
+    engine.setSource(renderer.canvas);
+    setVideoEl(null);
+    setSourcePreview({
+      source: renderer.canvas,
+      video: null,
+      objectUrl: null,
+      width: renderer.width,
+      height: renderer.height,
+    });
+    setSourceSize(shaderBaseSize);
+    if (canvas && shell) applyCanvasSize(engine, canvas, shaderBaseSize, labSettingsRef.current);
+    beginRevealRef.current(engine);
+    if (manualRef.current) engine.renderFrame();
+  }, [applyCanvasSize, shell]);
+
   const applyActiveShaderSource = useCallback(() => {
     if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
       applyConnectTextureSource(labSettingsRef.current.connectShapeType);
       return;
     }
+    if (isTwizzlerMapShaderPreset(shaderPresetIdRef.current)) {
+      applyTwizzlerMapTextureSource();
+      return;
+    }
     applyShaderTextureSource(shaderSourceCodeRef.current);
-  }, [applyConnectTextureSource, applyShaderTextureSource]);
+  }, [applyConnectTextureSource, applyShaderTextureSource, applyTwizzlerMapTextureSource]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1219,6 +1365,7 @@ function LabInner() {
       }));
       const lab = labSettingsRef.current;
       let connectUnderlayHref: string | undefined;
+      let twizzlerSvgLayer: string | undefined;
       // Connect gradient underlay always exports when active (independent of solid-bg toggle).
       if (
         lab.textureSourceMode === "shader" &&
@@ -1234,6 +1381,16 @@ function LabInner() {
             connectUnderlayHref = undefined;
           }
         }
+      }
+      if (lab.textureSourceMode === "shader" && twizzlerRef.current.enabled) {
+        twizzlerSvgLayer = twizzlerToSvgLayer(
+          canvas.width,
+          canvas.height,
+          canvasWidthPx,
+          canvasHeightPx,
+          twizzlerTimeSecRef.current,
+          twizzlerRef.current,
+        );
       }
       const exportBackground = resolveSvgExportBackground({
         includeSolidBackground: lab.exportSvgIncludeBackground,
@@ -1259,6 +1416,7 @@ function LabInner() {
         angleDeg: cfg.grid.angleDeg,
         rotationMode: cfg.grid.rotationMode,
         overlapAmount: cfg.grid.overlapAmount,
+        streamGapWave: cfg.grid.streamGapWave,
         backgroundHex: exportBackground.backgroundHex,
         letters: cfg.letters,
         blendMode: cfg.colors.stripeBlendMode,
@@ -1273,7 +1431,10 @@ function LabInner() {
             }
           : undefined,
         backgroundGradient: exportBackground.backgroundGradient,
-        backgroundImageHref: exportBackground.backgroundImageHref,
+        backgroundImageHrefs: [exportBackground.backgroundImageHref].filter(
+          (href): href is string => typeof href === "string" && href.length > 0,
+        ),
+        backgroundSvgLayer: twizzlerSvgLayer,
         canvasWidthPx,
         canvasHeightPx,
       });
@@ -1345,6 +1506,8 @@ function LabInner() {
       if (textureSourceModeRef.current === "shader") {
         if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
           applyConnectTextureSource(labSettingsRef.current.connectShapeType);
+        } else if (isTwizzlerMapShaderPreset(shaderPresetIdRef.current)) {
+          applyTwizzlerMapTextureSource();
         } else {
           applyShaderTextureSource(shaderSourceCode);
         }
@@ -1355,10 +1518,11 @@ function LabInner() {
       let lastShaderPreviewAt = 0;
       const tick = () => {
         const now = performance.now();
+        const deltaSec = Math.max(0, Math.min(0.1, (now - shaderLastTickMsRef.current) / 1000));
+        shaderLastTickMsRef.current = now;
         if (textureSourceModeRef.current === "shader") {
-          const deltaSec = Math.max(0, Math.min(0.1, (now - shaderLastTickMsRef.current) / 1000));
-          shaderLastTickMsRef.current = now;
           if (shaderPlayingRef.current) shaderTimeSecRef.current += deltaSec;
+          if (twizzlerPlayingRef.current) twizzlerTimeSecRef.current += deltaSec;
 
           if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
             const connectRenderer = connectRendererRef.current;
@@ -1374,6 +1538,26 @@ function LabInner() {
                 if (previewCanvas.width !== connectRenderer.width) previewCanvas.width = connectRenderer.width;
                 if (previewCanvas.height !== connectRenderer.height) previewCanvas.height = connectRenderer.height;
                 previewCanvas.getContext("2d")?.drawImage(connectRenderer.canvas, 0, 0);
+              }
+            }
+          } else if (isTwizzlerMapShaderPreset(shaderPresetIdRef.current)) {
+            const renderer = twizzlerMapRendererRef.current;
+            if (renderer) {
+              renderer.render(
+                twizzlerTimeSecRef.current,
+                shaderTimeSecRef.current,
+                twizzlerRef.current,
+                twizzlerMapRef.current,
+              );
+              engine.updateSourceFrame(renderer.canvas);
+              const previewCanvas = shaderPreviewCanvasRef.current;
+              const previewSizeChanged =
+                !!previewCanvas && (previewCanvas.width !== renderer.width || previewCanvas.height !== renderer.height);
+              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+                lastShaderPreviewAt = now;
+                if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
+                if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
+                previewCanvas.getContext("2d")?.drawImage(renderer.canvas, 0, 0);
               }
             }
           } else {
@@ -1396,6 +1580,17 @@ function LabInner() {
                 previewCanvas.getContext("2d")?.drawImage(shaderRenderer.canvas, 0, 0);
               }
             }
+          }
+        }
+        const twizzlerCanvas = twizzlerCanvasRef.current;
+        const outputCanvas = canvasRef.current;
+        if (twizzlerCanvas && outputCanvas) {
+          if (textureSourceModeRef.current === "shader" && twizzlerRef.current.enabled) {
+            renderTwizzler(twizzlerCanvas, outputCanvas.width, outputCanvas.height, twizzlerTimeSecRef.current, {
+              ...twizzlerRef.current,
+            });
+          } else {
+            clearTwizzler(twizzlerCanvas);
           }
         }
         if (now - lastSnapAt >= 500) {
@@ -1432,6 +1627,7 @@ function LabInner() {
       shaderRendererRef.current = null;
       connectRendererRef.current?.dispose();
       connectRendererRef.current = null;
+      twizzlerMapRendererRef.current = null;
       engine.dispose();
       engineRef.current = null;
       (window as unknown as { __lab?: unknown }).__lab = undefined;
@@ -1639,8 +1835,9 @@ function LabInner() {
       textureSourceModeRef.current === "shader" &&
       isSpiralShaderPreset(shaderPresetIdRef.current) &&
       labSettingsRef.current.connectGradientUnderlay;
+    const twizzlerActive = textureSourceModeRef.current === "shader" && twizzlerRef.current.enabled;
     const previewConfig =
-      backgroundSourceOpacity > 0.001 || connectUnderlayActive
+      backgroundSourceOpacity > 0.001 || connectUnderlayActive || twizzlerActive
         ? { ...controls, background: { ...controls.background, transparent: true } }
         : controls;
     const configToApply = manualRef.current
@@ -1648,7 +1845,14 @@ function LabInner() {
       : previewConfig;
     engine.setConfig(configToApply);
     if (manualRef.current) engine.renderFrame();
-  }, [controls, backgroundSourceOpacity, labSettings.connectGradientUnderlay, shaderPresetId, textureSourceMode]);
+  }, [
+    controls,
+    backgroundSourceOpacity,
+    labSettings.connectGradientUnderlay,
+    shaderPresetId,
+    textureSourceMode,
+    twizzler.enabled,
+  ]);
 
   useEffect(() => {
     setLabSettings((prev) => {
@@ -1786,6 +1990,21 @@ function LabInner() {
   }, [connectGradientUnderlay, updateLabSettings]);
 
   useEffect(() => {
+    const current = labSettingsRef.current;
+    const { enabled, ...settings } = twizzler;
+    if (current.twizzlerEnabled === enabled && JSON.stringify(current.twizzler) === JSON.stringify(settings)) return;
+    updateLabSettings({
+      twizzlerEnabled: enabled,
+      twizzler: settings,
+    });
+  }, [twizzler, updateLabSettings]);
+
+  useEffect(() => {
+    if (JSON.stringify(labSettingsRef.current.twizzlerMap) === JSON.stringify(twizzlerMap)) return;
+    updateLabSettings({ twizzlerMap });
+  }, [twizzlerMap, updateLabSettings]);
+
+  useEffect(() => {
     if (textureSourceModeRef.current !== "shader") return;
     if (!isSpiralShaderPreset(shaderPresetIdRef.current)) return;
     const renderer = connectRendererRef.current;
@@ -1881,12 +2100,16 @@ function LabInner() {
   function fullLabSettingsSnapshot(): Partial<LabSettings> {
     const current = controlsRef.current;
     const backgroundColor = current.background.transparent ? null : current.background.color;
+    const { enabled: twizzlerEnabled, ...twizzlerSettings } = twizzlerRef.current;
     return {
       ...labSettingsRef.current,
       ...getLabSettingsSnapshot(),
       textureSourceMode,
       shaderSourceCode,
       backgroundColor,
+      twizzlerEnabled,
+      twizzler: twizzlerSettings,
+      twizzlerMap: twizzlerMapRef.current,
     };
   }
 
@@ -2123,6 +2346,10 @@ function LabInner() {
       shaderPresetId: presetId,
       shaderSourceCode: entry.source,
     });
+    if (isTwizzlerMapShaderPreset(presetId)) {
+      applyTwizzlerMapTextureSource();
+      return;
+    }
     applyShaderTextureSource(entry.source);
   }
 
@@ -2130,34 +2357,12 @@ function LabInner() {
     updateLabSettings({ connectShapeType: shapeType });
   }
 
-  function handleResetShaderTime() {
-    shaderTimeSecRef.current = 0;
-    shaderLastTickMsRef.current = performance.now();
-    const engine = engineRef.current;
-    if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
-      const connectRenderer = connectRendererRef.current;
-      if (connectRenderer) {
-        connectRenderer.render(shaderTimeSecRef.current);
-        engine?.updateSourceFrame(connectRenderer.canvas);
-      }
-      return;
-    }
-    const shaderRenderer = shaderRendererRef.current;
-    if (shaderRenderer) {
-      shaderRenderer.render(
-        shaderTimeSecRef.current,
-        shaderMouseRef.current,
-        shaderViewFromSettings(labSettingsRef.current),
-      );
-      engine?.updateSourceFrame(shaderRenderer.canvas);
-    }
-  }
-
   if (!shell) {
     return <canvas ref={canvasRef} style={{ display: "block" }} />;
   }
 
   const spiralSelected = isSpiralShaderPreset(shaderPresetId);
+  const twizzlerMapSelected = isTwizzlerMapShaderPreset(shaderPresetId);
 
   const showSourceBackground = backgroundSourceOpacity > 0.001 && sourcePreview !== null;
   const showConnectGradientUnderlay =
@@ -2273,149 +2478,166 @@ function LabInner() {
                     <option value={CUSTOM_SHADER_PRESET_ID}>Custom</option>
                   ) : null}
                 </select>
-                {spiralSelected ? (
-                  <>
-                    <span className="wf-field-label">Shape</span>
-                    <select
-                      className="lab-btn"
-                      value={labSettings.connectShapeType}
-                      onChange={(event) => handleConnectShapeChange(event.target.value as ConnectShapeType)}
-                    >
-                      {CONNECT_SHAPE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                ) : (
-                  <>
-                    <span className="wf-field-label">Shader resolution</span>
-                    <div className="playground-canvas-dimension-controls">
-                      <input
-                        type="number"
-                        min={1}
-                        max={8192}
-                        step={1}
-                        value={labSettings.shaderSourceWidth}
-                        onChange={(event) => {
-                          const width = Math.max(1, Math.min(8192, Math.round(Number(event.currentTarget.value))));
-                          if (!Number.isFinite(width)) return;
-                          updateLabSettings({ shaderSourceWidth: width });
-                        }}
-                        aria-label="Shader source width"
-                      />
-                      <span className="wf-resolution-separator">×</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={8192}
-                        step={1}
-                        value={labSettings.shaderSourceHeight}
-                        onChange={(event) => {
-                          const height = Math.max(1, Math.min(8192, Math.round(Number(event.currentTarget.value))));
-                          if (!Number.isFinite(height)) return;
-                          updateLabSettings({ shaderSourceHeight: height });
-                        }}
-                        aria-label="Shader source height"
-                      />
+                <details className="wf-collapsible">
+                  <summary>Shader source</summary>
+                  <div className="wf-collapsible-content">
+                    {spiralSelected ? (
+                      <div className="wf-field">
+                        <span className="wf-field-label">Shape</span>
+                        <select
+                          className="lab-btn"
+                          value={labSettings.connectShapeType}
+                          onChange={(event) => handleConnectShapeChange(event.target.value as ConnectShapeType)}
+                        >
+                          {CONNECT_SHAPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="wf-field">
+                          <span className="wf-field-label">Shader resolution</span>
+                          <div className="playground-canvas-dimension-controls">
+                            <input
+                              type="number"
+                              min={1}
+                              max={8192}
+                              step={1}
+                              value={labSettings.shaderSourceWidth}
+                              onChange={(event) => {
+                                const width = Math.max(
+                                  1,
+                                  Math.min(8192, Math.round(Number(event.currentTarget.value))),
+                                );
+                                if (!Number.isFinite(width)) return;
+                                updateLabSettings({ shaderSourceWidth: width });
+                              }}
+                              aria-label="Shader source width"
+                            />
+                            <span className="wf-resolution-separator">×</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={8192}
+                              step={1}
+                              value={labSettings.shaderSourceHeight}
+                              onChange={(event) => {
+                                const height = Math.max(
+                                  1,
+                                  Math.min(8192, Math.round(Number(event.currentTarget.value))),
+                                );
+                                if (!Number.isFinite(height)) return;
+                                updateLabSettings({ shaderSourceHeight: height });
+                              }}
+                              aria-label="Shader source height"
+                            />
+                          </div>
+                        </div>
+                        {!twizzlerMapSelected ? (
+                          <div className="wf-field">
+                            <span className="wf-field-label">Shader source</span>
+                            <textarea
+                              className="lab-shader-source-input"
+                              spellCheck={false}
+                              value={shaderSourceCode}
+                              onChange={(event) => {
+                                const next = event.currentTarget.value;
+                                setShaderSourceCode(next);
+                                setShaderPresetId(CUSTOM_SHADER_PRESET_ID);
+                                saveLabSettings({
+                                  ...labSettingsRef.current,
+                                  textureSourceMode: "shader",
+                                  shaderSourceCode: next,
+                                  shaderPresetId: CUSTOM_SHADER_PRESET_ID,
+                                });
+                              }}
+                            />
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+                    <div className="wf-field">
+                      <span className="wf-field-label">Time</span>
+                      <TimeTransport controller={shaderTransport} />
                     </div>
-                    <span className="wf-field-label">Shader source</span>
-                    <textarea
-                      className="lab-shader-source-input"
-                      spellCheck={false}
-                      value={shaderSourceCode}
-                      onChange={(event) => {
-                        const next = event.currentTarget.value;
-                        setShaderSourceCode(next);
-                        setShaderPresetId(CUSTOM_SHADER_PRESET_ID);
-                        saveLabSettings({
-                          ...labSettingsRef.current,
-                          textureSourceMode: "shader",
-                          shaderSourceCode: next,
-                          shaderPresetId: CUSTOM_SHADER_PRESET_ID,
-                        });
-                      }}
-                    />
-                  </>
-                )}
-                <div className="wf-row">
-                  <button className="lab-btn" onClick={() => setShaderPlaying((playing) => !playing)}>
-                    {shaderPlaying ? "Pause shader" : "Play shader"}
-                  </button>
-                  <button className="lab-btn" onClick={handleResetShaderTime}>
-                    Reset time
-                  </button>
-                </div>
-                {!spiralSelected ? (
-                  <div className="wf-row">
-                    <button className="lab-btn" onClick={handleApplyShaderSource}>
-                      Apply shader
-                    </button>
-                    <button className="lab-btn" onClick={handleResetShaderSource}>
-                      Reset shader
-                    </button>
+                    {!spiralSelected && !twizzlerMapSelected ? (
+                      <div className="wf-row">
+                        <button className="lab-btn" onClick={handleApplyShaderSource}>
+                          Apply shader
+                        </button>
+                        <button className="lab-btn" onClick={handleResetShaderSource}>
+                          Reset shader
+                        </button>
+                      </div>
+                    ) : null}
+                    {shaderSourceError ? <div className="lab-shader-source-error">{shaderSourceError}</div> : null}
                   </div>
-                ) : null}
-                {shaderSourceError ? <div className="lab-shader-source-error">{shaderSourceError}</div> : null}
+                </details>
               </div>
             )}
             <hr className="wf-divider" />
-            <div className="wf-field wf-config">
-              <span className="wf-field-label">Config</span>
-              <div className="wf-row">
-                <button className="lab-btn" onClick={handleExport}>
-                  Copy config
-                </button>
-                <button className="lab-btn" onClick={handleImport}>
-                  Import config
-                </button>
+            <details className="wf-collapsible" open>
+              <summary>Presets</summary>
+              <div className="wf-collapsible-content">
+                <select className="lab-btn" value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
+                  <option value="">No preset selected</option>
+                  {presets.map((p) => (
+                    <option key={p.name} value={p.name}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="wf-row">
+                  <button className="lab-btn" onClick={handleApplyPreset} disabled={!selectedPreset}>
+                    Apply
+                  </button>
+                  <button className="lab-btn" onClick={handleSavePreset}>
+                    Save
+                  </button>
+                  <button className="lab-btn" onClick={handleDeletePreset} disabled={!selectedPreset}>
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div className="wf-row">
-                <button className="lab-btn" onClick={handleDownloadConfig}>
-                  Download JSON
-                </button>
-                <button className="lab-btn" onClick={() => configFileInputRef.current?.click()}>
-                  Upload JSON
-                </button>
-              </div>
-              <input
-                ref={configFileInputRef}
-                type="file"
-                accept="application/json,.json"
-                style={{ display: "none" }}
-                onChange={handleConfigFileChange}
-              />
-              <button className="lab-btn wf-reset" onClick={handleResetSettings}>
-                Reset settings
-              </button>
-              <button className="lab-btn wf-reset" onClick={handleFactoryResetSettings}>
-                Factory reset
-              </button>
-            </div>
+            </details>
             <hr className="wf-divider" />
-            <div className="wf-field">
-              <span className="wf-field-label">Presets</span>
-              <select className="lab-btn" value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
-                <option value="">No preset selected</option>
-                {presets.map((p) => (
-                  <option key={p.name} value={p.name}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="wf-row">
-              <button className="lab-btn" onClick={handleApplyPreset} disabled={!selectedPreset}>
-                Apply
-              </button>
-              <button className="lab-btn" onClick={handleSavePreset}>
-                Save
-              </button>
-              <button className="lab-btn" onClick={handleDeletePreset} disabled={!selectedPreset}>
-                Delete
-              </button>
-            </div>
+            <details className="wf-collapsible wf-config">
+              <summary>Config</summary>
+              <div className="wf-collapsible-content">
+                <div className="wf-row">
+                  <button className="lab-btn" onClick={handleExport}>
+                    Copy config
+                  </button>
+                  <button className="lab-btn" onClick={handleImport}>
+                    Import config
+                  </button>
+                </div>
+                <div className="wf-row">
+                  <button className="lab-btn" onClick={handleDownloadConfig}>
+                    Download JSON
+                  </button>
+                  <button className="lab-btn" onClick={() => configFileInputRef.current?.click()}>
+                    Upload JSON
+                  </button>
+                </div>
+                <input
+                  ref={configFileInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  style={{ display: "none" }}
+                  onChange={handleConfigFileChange}
+                />
+                <button className="lab-btn wf-reset" onClick={handleResetSettings}>
+                  Reset settings
+                </button>
+                <button className="lab-btn wf-reset" onClick={handleFactoryResetSettings}>
+                  Factory reset
+                </button>
+              </div>
+            </details>
             <hr className="wf-divider" />
             <div className="wf-field">
               <span className="wf-field-label">Export</span>
@@ -2514,7 +2736,15 @@ function LabInner() {
                   />
                 ) : null}
                 <canvas
+                  ref={twizzlerCanvasRef}
+                  className="lab-canvas-twizzler"
+                  aria-hidden="true"
+                  hidden={textureSourceMode !== "shader" || !twizzler.enabled}
+                  style={{ width: canvasCssSize.cssW, height: canvasCssSize.cssH }}
+                />
+                <canvas
                   ref={canvasRef}
+                  className="lab-canvas-output"
                   style={{
                     display: "block",
                     opacity: 1,

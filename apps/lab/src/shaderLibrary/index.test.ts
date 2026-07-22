@@ -6,15 +6,17 @@ import {
   findShaderLibraryEntry,
   findShaderPresetIdBySource,
   isSpiralShaderPreset,
+  isTwizzlerMapShaderPreset,
   NEBULA_SHADER_PRESET_ID,
   SHADER_LIBRARY,
   SPIRAL_SHADER_PRESET_ID,
+  TWIZZLER_MAP_SHADER_PRESET_ID,
 } from "./index";
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "../defaultShaderTextureSource";
 import { CONNECT_SHADER_TEXTURE_SOURCE } from "../connectShaderTextureSource";
 
 describe("shader library", () => {
-  it("puts the recursive-noise Connect shader first as the default preset", () => {
+  it("defaults to Connect and keeps it first in the library", () => {
     expect(DEFAULT_SHADER_PRESET_ID).toBe(CONNECT_SHADER_PRESET_ID);
     expect(SHADER_LIBRARY[0]?.id).toBe(CONNECT_SHADER_PRESET_ID);
     expect(SHADER_LIBRARY[0]?.label).toBe("Connect");
@@ -28,8 +30,13 @@ describe("shader library", () => {
   });
 
   it("keeps Nebula as a built-in preset", () => {
-    expect(SHADER_LIBRARY[2]?.id).toBe(NEBULA_SHADER_PRESET_ID);
-    expect(SHADER_LIBRARY[2]?.source).toBe(DEFAULT_SHADER_TEXTURE_SOURCE);
+    expect(findShaderLibraryEntry(NEBULA_SHADER_PRESET_ID)?.source).toBe(DEFAULT_SHADER_TEXTURE_SOURCE);
+  });
+
+  it("includes the procedural Twizzler Map shader", () => {
+    expect(SHADER_LIBRARY[2]).toMatchObject({ id: TWIZZLER_MAP_SHADER_PRESET_ID, label: "Twizzler Map" });
+    expect(isTwizzlerMapShaderPreset(TWIZZLER_MAP_SHADER_PRESET_ID)).toBe(true);
+    expect(isTwizzlerMapShaderPreset(CONNECT_SHADER_PRESET_ID)).toBe(false);
   });
 
   it("includes the copied saved shaders", () => {

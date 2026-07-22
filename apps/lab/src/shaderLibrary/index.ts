@@ -1,5 +1,6 @@
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "../defaultShaderTextureSource";
 import { CONNECT_SHADER_TEXTURE_SOURCE } from "../connectShaderTextureSource";
+import { TWIZZLER_MAP_SHADER_SOURCE } from "../twizzlerMapSource";
 
 export type ShaderLibraryEntry = {
   id: string;
@@ -17,6 +18,7 @@ type SavedShaderFile = {
 export const CONNECT_SHADER_PRESET_ID = "connect";
 export const SPIRAL_SHADER_PRESET_ID = "spiral";
 export const NEBULA_SHADER_PRESET_ID = "nebula";
+export const TWIZZLER_MAP_SHADER_PRESET_ID = "twizzler-map";
 export const DEFAULT_SHADER_PRESET_ID = CONNECT_SHADER_PRESET_ID;
 export const CUSTOM_SHADER_PRESET_ID = "custom";
 
@@ -56,10 +58,17 @@ export const NEBULA_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
   source: DEFAULT_SHADER_TEXTURE_SOURCE,
 };
 
+export const TWIZZLER_MAP_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
+  id: TWIZZLER_MAP_SHADER_PRESET_ID,
+  label: "Twizzler Map",
+  source: TWIZZLER_MAP_SHADER_SOURCE,
+};
+
 /** Connect first (default), then Spiral, Nebula, and saved library shaders. */
 export const SHADER_LIBRARY: readonly ShaderLibraryEntry[] = [
   CONNECT_SHADER_LIBRARY_ENTRY,
   SPIRAL_SHADER_LIBRARY_ENTRY,
+  TWIZZLER_MAP_SHADER_LIBRARY_ENTRY,
   NEBULA_SHADER_LIBRARY_ENTRY,
   ...savedEntries,
 ];
@@ -68,6 +77,10 @@ const ENTRY_BY_ID = new Map(SHADER_LIBRARY.map((entry) => [entry.id, entry]));
 
 export function isSpiralShaderPreset(id: string): boolean {
   return id === SPIRAL_SHADER_PRESET_ID;
+}
+
+export function isTwizzlerMapShaderPreset(id: string): boolean {
+  return id === TWIZZLER_MAP_SHADER_PRESET_ID;
 }
 
 export function findShaderLibraryEntry(id: string): ShaderLibraryEntry | undefined {

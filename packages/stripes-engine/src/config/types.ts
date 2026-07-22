@@ -197,6 +197,13 @@ export interface Grid {
   angleDeg: number;
   rotationMode: "cell" | "overlap";
   overlapAmount: number;
+  streamGapWave: {
+    enabled: boolean;
+    squeeze: number;
+    wavelengthCells: number;
+    speed: number;
+    phaseDeg: number;
+  };
 }
 
 export type MotionDirection = "leftToRight" | "rightToLeft" | "topToBottom" | "bottomToTop";

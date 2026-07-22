@@ -217,6 +217,13 @@ export const DEFAULT_GRID: Grid = {
   angleDeg: 0,
   rotationMode: "cell",
   overlapAmount: 1,
+  streamGapWave: {
+    enabled: false,
+    squeeze: 0,
+    wavelengthCells: 16,
+    speed: 0,
+    phaseDeg: 0,
+  },
 };
 export function normalizeGrid(i: Partial<Grid> = {}): Grid {
   const cellWidth = clamp(Math.round(num(i.cellWidth, 7)), 1, 64);
@@ -232,6 +239,13 @@ export function normalizeGrid(i: Partial<Grid> = {}): Grid {
     angleDeg: clamp(num(i.angleDeg, orientation === "horizontal" ? 90 : 0), -180, 180),
     rotationMode: i.rotationMode === "overlap" ? "overlap" : "cell",
     overlapAmount: clamp(num(i.overlapAmount, 1), 0, 4),
+    streamGapWave: {
+      enabled: Boolean(i.streamGapWave?.enabled),
+      squeeze: clamp(num(i.streamGapWave?.squeeze, 0), 0, 1),
+      wavelengthCells: clamp(num(i.streamGapWave?.wavelengthCells, 16), 2, 32),
+      speed: clamp(num(i.streamGapWave?.speed, 0), -10, 10),
+      phaseDeg: clamp(num(i.streamGapWave?.phaseDeg, 0), -180, 180),
+    },
   };
 }
 

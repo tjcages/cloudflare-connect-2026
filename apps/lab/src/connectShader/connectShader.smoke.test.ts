@@ -9,6 +9,7 @@ import {
   SPIRAL_SHADER_PRESET_ID,
   NEBULA_SHADER_PRESET_ID,
   SHADER_LIBRARY,
+  TWIZZLER_MAP_SHADER_PRESET_ID,
 } from "../shaderLibrary";
 
 describe("connect shader smoke", () => {
@@ -18,7 +19,8 @@ describe("connect shader smoke", () => {
     expect(isSpiralShaderPreset(SPIRAL_SHADER_PRESET_ID)).toBe(true);
     expect(SHADER_LIBRARY[0]?.id).toBe(CONNECT_SHADER_PRESET_ID);
     expect(SHADER_LIBRARY[1]?.id).toBe(SPIRAL_SHADER_PRESET_ID);
-    expect(SHADER_LIBRARY[2]?.id).toBe(NEBULA_SHADER_PRESET_ID);
+    expect(SHADER_LIBRARY[2]?.id).toBe(TWIZZLER_MAP_SHADER_PRESET_ID);
+    expect(SHADER_LIBRARY[3]?.id).toBe(NEBULA_SHADER_PRESET_ID);
     expect(CONNECT_SHAPE_OPTIONS).toHaveLength(10);
   });
 
