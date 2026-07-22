@@ -38,6 +38,12 @@ export type LabBackgroundRampSettings = {
   brightnessAdd: number;
   hueDriftDeg: number;
   saturationBoost: number;
+  maxLightnessUnder20: number;
+  maxLightness20To40: number;
+  maxLightness40To60: number;
+  maxLightness60To70: number;
+  maxLightness70To80: number;
+  maxLightnessOver80: number;
 };
 
 export type LabSettings = {
@@ -228,6 +234,12 @@ function normalizeBackgroundRampSettings(value: unknown): LabBackgroundRampSetti
     brightnessAdd: n("brightnessAdd", 0, 100),
     hueDriftDeg: n("hueDriftDeg", -180, 180),
     saturationBoost: n("saturationBoost", 0, 100),
+    maxLightnessUnder20: n("maxLightnessUnder20", 0, 100),
+    maxLightness20To40: n("maxLightness20To40", 0, 100),
+    maxLightness40To60: n("maxLightness40To60", 0, 100),
+    maxLightness60To70: n("maxLightness60To70", 0, 100),
+    maxLightness70To80: n("maxLightness70To80", 0, 100),
+    maxLightnessOver80: n("maxLightnessOver80", 0, 100),
   };
 }
 

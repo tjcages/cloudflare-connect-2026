@@ -65,7 +65,7 @@ import {
   CUSTOM_SHADER_PRESET_ID,
   DEFAULT_SHADER_PRESET_ID,
   findShaderLibraryEntry,
-  isConnectShaderPreset,
+  isSpiralShaderPreset,
   NEBULA_SHADER_PRESET_ID,
   SHADER_LIBRARY,
 } from "./shaderLibrary";
@@ -749,9 +749,10 @@ function LabInner() {
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>(() =>
     expectedSourceSize(labSettings, labSettings.textureSourceMode),
   );
-  const [shaderSourceCode, setShaderSourceCode] = useState(
-    () => labSettings.shaderSourceCode || DEFAULT_SHADER_TEXTURE_SOURCE,
-  );
+  const [shaderSourceCode, setShaderSourceCode] = useState(() => {
+    const presetSource = findShaderLibraryEntry(labSettings.shaderPresetId)?.source;
+    return presetSource || labSettings.shaderSourceCode || DEFAULT_SHADER_TEXTURE_SOURCE;
+  });
   const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
   const [shaderPresetId, setShaderPresetId] = useState(() => labSettings.shaderPresetId || DEFAULT_SHADER_PRESET_ID);
   const [shaderPlaying, setShaderPlaying] = useState(true);
@@ -902,7 +903,7 @@ function LabInner() {
     initialThemed,
   } = useEngineControls(onReplay, {
     showShaderCamera: textureSourceMode === "shader",
-    showConnectCamera: textureSourceMode === "shader" && isConnectShaderPreset(shaderPresetId),
+    showConnectCamera: textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -953,7 +954,7 @@ function LabInner() {
     const host = connectUnderlayHostRef.current;
     const show =
       textureSourceModeRef.current === "shader" &&
-      isConnectShaderPreset(shaderPresetIdRef.current) &&
+      isSpiralShaderPreset(shaderPresetIdRef.current) &&
       labSettingsRef.current.connectGradientUnderlay;
     if (!show || !host) {
       underlayIntroRef.current.hide(host);
@@ -986,7 +987,7 @@ function LabInner() {
       engine.resize(cssW, cssH);
       if (textureSourceModeRef.current !== "shader") return;
 
-      if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+      if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
         const connectRenderer = connectRendererRef.current;
         if (!connectRenderer) return;
         connectRenderer.render(shaderTimeSecRef.current);
@@ -1164,7 +1165,7 @@ function LabInner() {
   );
 
   const applyActiveShaderSource = useCallback(() => {
-    if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+    if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
       applyConnectTextureSource(labSettingsRef.current.connectShapeType);
       return;
     }
@@ -1221,7 +1222,7 @@ function LabInner() {
       // Connect gradient underlay always exports when active (independent of solid-bg toggle).
       if (
         lab.textureSourceMode === "shader" &&
-        isConnectShaderPreset(shaderPresetIdRef.current) &&
+        isSpiralShaderPreset(shaderPresetIdRef.current) &&
         lab.connectGradientUnderlay
       ) {
         const connectRenderer = connectRendererRef.current;
@@ -1342,7 +1343,7 @@ function LabInner() {
     if (!manual) {
       engine.start();
       if (textureSourceModeRef.current === "shader") {
-        if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+        if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
           applyConnectTextureSource(labSettingsRef.current.connectShapeType);
         } else {
           applyShaderTextureSource(shaderSourceCode);
@@ -1359,7 +1360,7 @@ function LabInner() {
           shaderLastTickMsRef.current = now;
           if (shaderPlayingRef.current) shaderTimeSecRef.current += deltaSec;
 
-          if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+          if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
             const connectRenderer = connectRendererRef.current;
             if (connectRenderer) {
               connectRenderer.render(shaderTimeSecRef.current);
@@ -1636,7 +1637,7 @@ function LabInner() {
     if (!engine) return;
     const connectUnderlayActive =
       textureSourceModeRef.current === "shader" &&
-      isConnectShaderPreset(shaderPresetIdRef.current) &&
+      isSpiralShaderPreset(shaderPresetIdRef.current) &&
       labSettingsRef.current.connectGradientUnderlay;
     const previewConfig =
       backgroundSourceOpacity > 0.001 || connectUnderlayActive
@@ -1710,7 +1711,7 @@ function LabInner() {
 
   useEffect(() => {
     if (textureSourceModeRef.current !== "shader") return;
-    if (!isConnectShaderPreset(shaderPresetIdRef.current)) return;
+    if (!isSpiralShaderPreset(shaderPresetIdRef.current)) return;
     if (!engineRef.current) return;
     applyConnectTextureSource(labSettings.connectShapeType);
   }, [labSettings.connectShapeType, applyConnectTextureSource]);
@@ -1786,7 +1787,7 @@ function LabInner() {
 
   useEffect(() => {
     if (textureSourceModeRef.current !== "shader") return;
-    if (!isConnectShaderPreset(shaderPresetIdRef.current)) return;
+    if (!isSpiralShaderPreset(shaderPresetIdRef.current)) return;
     const renderer = connectRendererRef.current;
     if (!renderer) return;
     renderer.setCamera(connectCameraFromSettings(labSettings));
@@ -1806,7 +1807,7 @@ function LabInner() {
     const host = connectUnderlayHostRef.current;
     if (!host) return;
     const show =
-      textureSourceMode === "shader" && isConnectShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
+      textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
     const underlay = connectRendererRef.current?.underlayCanvas ?? null;
     host.replaceChildren();
     if (!show || !underlay) {
@@ -2105,7 +2106,7 @@ function LabInner() {
     setShaderSourceError(null);
     setTextureSourceMode("shader");
 
-    if (isConnectShaderPreset(presetId)) {
+    if (isSpiralShaderPreset(presetId)) {
       saveLabSettings({
         ...labSettingsRef.current,
         textureSourceMode: "shader",
@@ -2133,7 +2134,7 @@ function LabInner() {
     shaderTimeSecRef.current = 0;
     shaderLastTickMsRef.current = performance.now();
     const engine = engineRef.current;
-    if (isConnectShaderPreset(shaderPresetIdRef.current)) {
+    if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
       const connectRenderer = connectRendererRef.current;
       if (connectRenderer) {
         connectRenderer.render(shaderTimeSecRef.current);
@@ -2156,11 +2157,11 @@ function LabInner() {
     return <canvas ref={canvasRef} style={{ display: "block" }} />;
   }
 
-  const connectSelected = isConnectShaderPreset(shaderPresetId);
+  const spiralSelected = isSpiralShaderPreset(shaderPresetId);
 
   const showSourceBackground = backgroundSourceOpacity > 0.001 && sourcePreview !== null;
   const showConnectGradientUnderlay =
-    textureSourceMode === "shader" && isConnectShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
+    textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
   // Engine bg is forced transparent when underlay/source preview is shown — keep the
   // chosen solid color on the stack so it still sits behind those layers.
   const canvasStackBackground = canvasStackBackgroundCss(controls.background);
@@ -2272,7 +2273,7 @@ function LabInner() {
                     <option value={CUSTOM_SHADER_PRESET_ID}>Custom</option>
                   ) : null}
                 </select>
-                {connectSelected ? (
+                {spiralSelected ? (
                   <>
                     <span className="wf-field-label">Shape</span>
                     <select
@@ -2346,7 +2347,7 @@ function LabInner() {
                     Reset time
                   </button>
                 </div>
-                {!connectSelected ? (
+                {!spiralSelected ? (
                   <div className="wf-row">
                     <button className="lab-btn" onClick={handleApplyShaderSource}>
                       Apply shader

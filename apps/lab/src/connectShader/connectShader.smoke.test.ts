@@ -5,17 +5,20 @@ import { CONNECT_CAMERA_DEFAULTS, normalizeConnectCameraState } from "./renderer
 import {
   CONNECT_SHADER_PRESET_ID,
   DEFAULT_SHADER_PRESET_ID,
-  isConnectShaderPreset,
+  isSpiralShaderPreset,
+  SPIRAL_SHADER_PRESET_ID,
   NEBULA_SHADER_PRESET_ID,
   SHADER_LIBRARY,
 } from "../shaderLibrary";
 
 describe("connect shader smoke", () => {
-  it("defaults to Connect with ten shapes", () => {
+  it("keeps the ten-shape renderer available as Spiral", () => {
     expect(DEFAULT_SHADER_PRESET_ID).toBe(CONNECT_SHADER_PRESET_ID);
-    expect(isConnectShaderPreset(DEFAULT_SHADER_PRESET_ID)).toBe(true);
+    expect(DEFAULT_SHADER_PRESET_ID).not.toBe(SPIRAL_SHADER_PRESET_ID);
+    expect(isSpiralShaderPreset(SPIRAL_SHADER_PRESET_ID)).toBe(true);
     expect(SHADER_LIBRARY[0]?.id).toBe(CONNECT_SHADER_PRESET_ID);
-    expect(SHADER_LIBRARY[1]?.id).toBe(NEBULA_SHADER_PRESET_ID);
+    expect(SHADER_LIBRARY[1]?.id).toBe(SPIRAL_SHADER_PRESET_ID);
+    expect(SHADER_LIBRARY[2]?.id).toBe(NEBULA_SHADER_PRESET_ID);
     expect(CONNECT_SHAPE_OPTIONS).toHaveLength(10);
   });
 
