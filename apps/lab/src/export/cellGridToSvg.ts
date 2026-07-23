@@ -1,4 +1,4 @@
-import { bandIndexForValue } from "@necatikcl/stripes-engine";
+import { bandIndexForValue, stripeDotBandEligibility } from "@necatikcl/stripes-engine";
 import { p3ColorForHex } from "../components/colorLibrary";
 
 const ROW_WIDTH_GAP = 1;
@@ -11,6 +11,12 @@ type WidthSparkleSvgOptions = {
   swingPx: number;
   swingPeriodMin: number;
   swingPeriodMax: number;
+};
+type StripeDotsSvgOptions = {
+  enabled: boolean;
+  density: number;
+  sizePx: number;
+  brightness: number;
 };
 type SvgGradientOptions = {
   direction: "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
@@ -224,6 +230,34 @@ function gradientRampTone(
   const hue = h + ((gradient.hueDriftDeg ?? 0) * t) / 360;
   const satLift = Math.max(0, Math.min(1, gradient.saturationBoost ?? 0)) * Math.sin(t * Math.PI * 0.85);
   return hslToRgb([hue, Math.max(0, Math.min(1, s * (1 + satLift))), l]);
+}
+
+function stripeDotHex(stripeHex: string, dots: StripeDotsSvgOptions): string {
+  if (dots.brightness <= 0) return normalizeSvgHex(stripeHex);
+  const [hue, saturation, stripeLightness] = rgbToHsl(hexToRgb(stripeHex));
+  const lightnessLift = Math.max(0, Math.min(1, dots.brightness));
+  return rgbToHex(hslToRgb([hue, saturation, Math.min(1, stripeLightness + lightnessLift)]));
+}
+
+function stripeDotElement(input: {
+  cx: number;
+  cy: number;
+  eligible: boolean;
+  stripeWidth: number;
+  stripeHex: string;
+  stripeOpacity: number;
+  dots: StripeDotsSvgOptions | undefined;
+  blendStyle: string;
+}): string {
+  const { dots } = input;
+  if (!dots?.enabled || !input.eligible || input.stripeWidth < 2 || input.stripeOpacity <= 0.001) {
+    return "";
+  }
+
+  const hex = stripeDotHex(input.stripeHex, dots);
+  const radius = Math.max(1, Math.min(2, dots.sizePx)) * 0.5;
+  const style = [`fill:${p3SvgColor(hex)}`, input.blendStyle].filter(Boolean).join(";");
+  return `  <circle class="stripe-dot" cx="${formatSvgNumber(input.cx)}" cy="${formatSvgNumber(input.cy)}" r="${formatSvgNumber(radius)}" fill="${hex}" fill-opacity="${formatSvgNumber(input.stripeOpacity)}" style="${style}" />`;
 }
 
 function gradientPositionAt(gradient: SvgGradientOptions, x: number, y: number, width: number, height: number): number {
@@ -494,6 +528,7 @@ export function cellGridToSvg(
     backgroundSvgLayer?: string;
     blendMode?: SvgBlendMode;
     widthSparkle?: WidthSparkleSvgOptions;
+    stripeDots?: StripeDotsSvgOptions;
     canvasWidthPx?: number;
     canvasHeightPx?: number;
   },
@@ -517,6 +552,7 @@ export function cellGridToSvg(
     backgroundSvgLayer,
     blendMode,
     widthSparkle,
+    stripeDots,
   } = opts;
   const gapX = Math.max(0, opts.gapX ?? 0);
   const gapY = Math.max(0, opts.gapY ?? 0);
@@ -540,6 +576,7 @@ export function cellGridToSvg(
     width: s.width,
     opacity: s.opacity ?? 1,
   }));
+  const dotEligibleBands = stripeDotBandEligibility(engineStripes, stripeDots?.density ?? 0);
 
   const bandAt = (svgRow: number, col: number): number => {
     // readPixels is bottom-up while SVG is top-down, so flip the row.
@@ -565,6 +602,7 @@ export function cellGridToSvg(
   };
   const clippedStripeElements: Array<{ depth: number; opacity: number; element: string }> = [];
   const gradientRampPaths: string[] = [];
+  const stripeDotElements: string[] = [];
 
   if (arbitraryAngle) {
     const rad = (resolvedAngleDeg * Math.PI) / 180;
@@ -622,7 +660,7 @@ export function cellGridToSvg(
         const axisCenter = (axisIndex + 0.5) * axisCellPx;
         const cx = center.x + normal.x * (stackCenter - stackSpanPx * 0.5) + axis.x * (axisCenter - axisSpanPx * 0.5);
         const cy = center.y + normal.y * (stackCenter - stackSpanPx * 0.5) + axis.y * (axisCenter - axisSpanPx * 0.5);
-        const { value } = valueAtPixel(cx, cy);
+        const { value, rbIndex } = valueAtPixel(cx, cy);
         const band = bandIndexForValue(value, engineStripes);
         const stripe = band >= 1 ? sortedStripes[band - 1] : undefined;
         if (band < 1 || !stripe) continue;
@@ -637,21 +675,43 @@ export function cellGridToSvg(
         const halfNormal = stripeWidth * 0.5;
         const halfAxis = drawableAxisPx * 0.5 + halfNormal * resolvedOverlapAmount;
         const segment = rotatedStripePath(cx, cy, halfNormal, halfAxis, resolvedAngleDeg);
+        const stripeHex =
+          useCellColors && colors
+            ? cellColorHex(colors, rbIndex)
+            : dynamicGradientRamp && gradient
+              ? gradientRampStripeHex(gradient, cx, cy, width, height, stripe.hex, rampTForBand(band))
+              : stripe.hex;
+        const dotElement = stripeDotElement({
+          cx,
+          cy,
+          eligible: dotEligibleBands[band - 1] === true,
+          stripeWidth,
+          stripeHex,
+          stripeOpacity: opacity,
+          dots: stripeDots,
+          blendStyle,
+        });
 
-        if (dynamicGradientRamp && gradient) {
-          const hex = gradientRampStripeHex(gradient, cx, cy, width, height, stripe.hex, rampTForBand(band));
-          const style = [`fill:${p3SvgColor(hex)}`, blendStyle].filter(Boolean).join(";");
+        if (useCellColors || dynamicGradientRamp) {
+          const style = [`fill:${p3SvgColor(stripeHex)}`, blendStyle].filter(Boolean).join(";");
           clippedStripeElements.push({
             depth: value,
             opacity,
-            element: `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segment}" />`,
+            element: [
+              `  <path fill="${stripeHex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segment}" />`,
+              dotElement,
+            ]
+              .filter(Boolean)
+              .join("\n"),
           });
         } else {
           pathsByBand.set(band, pathsByBand.get(band) ?? []);
           clippedStripeElements.push({
             depth: value,
             opacity,
-            element: `  <path class="${svgStripeClass(band)}" d="${segment}" />`,
+            element: [`  <path class="${svgStripeClass(band)}" d="${segment}" />`, dotElement]
+              .filter(Boolean)
+              .join("\n"),
           });
         }
       }
@@ -668,6 +728,7 @@ export function cellGridToSvg(
         let y: number;
         let rectW: number;
         let rectH: number;
+        let effectiveStripeWidth: number;
 
         if (arbitraryAngle) {
           const stripeWidth = Math.max(
@@ -712,16 +773,16 @@ export function cellGridToSvg(
             bandRightPx = cellWidthPx;
           }
 
-          const stripeWidth = Math.max(
+          effectiveStripeWidth = Math.max(
             MIN_STRIPE_WIDTH_PX,
             Math.min(sparkleWidthAt(col, rows - 1 - row, stripe.width), cellHeightPx),
           );
-          const halfH = stripeWidth * 0.5;
+          const halfH = effectiveStripeWidth * 0.5;
           const rowCenter = row * cellHeightPx + cellHeightPx * 0.5;
           x = col * cellWidthPx + bandLeftPx;
           y = rowCenter - halfH;
           rectW = bandRightPx - bandLeftPx;
-          rectH = stripeWidth;
+          rectH = effectiveStripeWidth;
         } else {
           const bandAbove = row > 0 ? bandAt(row - 1, col) : 0;
           const bandBelow = row < rows - 1 ? bandAt(row + 1, col) : 0;
@@ -735,19 +796,39 @@ export function cellGridToSvg(
             bandBottom = cellHeightPx;
           }
 
-          const stripeWidth = Math.max(
+          effectiveStripeWidth = Math.max(
             MIN_STRIPE_WIDTH_PX,
             Math.min(sparkleWidthAt(col, rows - 1 - row, stripe.width), cellWidthPx),
           );
-          const halfW = stripeWidth * 0.5;
+          const halfW = effectiveStripeWidth * 0.5;
           const columnCenter = col * cellWidthPx + cellWidthPx * 0.5;
           x = columnCenter - halfW;
           y = row * cellHeightPx + bandTop;
-          rectW = stripeWidth;
+          rectW = effectiveStripeWidth;
           rectH = bandBottom - bandTop;
         }
 
         const segment = `M${formatSvgNumber(x)} ${formatSvgNumber(y)}h${formatSvgNumber(rectW)}v${formatSvgNumber(rectH)}h-${formatSvgNumber(rectW)}Z`;
+        const dotCx = (col + 0.5) * cellWidthPx;
+        const dotCy = (row + 0.5) * cellHeightPx;
+        const dotStripeHex =
+          useCellColors && colors
+            ? cellColorHex(colors, rbIndex)
+            : dynamicGradientRamp && gradient
+              ? gradientRampStripeHex(gradient, dotCx, dotCy, width, height, stripe.hex, rampTForBand(band))
+              : stripe.hex;
+        const dotElement = stripeDotElement({
+          cx: dotCx,
+          cy: dotCy,
+          eligible: dotEligibleBands[band - 1] === true,
+          stripeWidth: effectiveStripeWidth,
+          stripeHex: dotStripeHex,
+          stripeOpacity: Math.max(0, Math.min(1, stripe.opacity ?? 1)),
+          dots: stripeDots,
+          blendStyle,
+        });
+        if (dotElement) stripeDotElements.push(dotElement);
+
         if (useCellColors && colors) {
           const hex = cellColorHex(colors, rbIndex);
           const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));
@@ -808,7 +889,9 @@ export function cellGridToSvg(
           `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segments.join(" ")}" />`,
       )
       .join("\n");
-    const cellColorLayer = [compactCellColorPaths, letterLayer.elements].filter(Boolean).join("\n");
+    const cellColorLayer = [compactCellColorPaths, stripeDotElements.join("\n"), letterLayer.elements]
+      .filter(Boolean)
+      .join("\n");
     return [
       `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
       gradientDefs,
@@ -856,7 +939,13 @@ export function cellGridToSvg(
     ? clippedStripeElements
     : clippedStripeElements.sort((a, b) => a.depth - b.depth || a.opacity - b.opacity);
   const clippedPathElements = orderedClippedStripeElements.map((item) => item.element).join("\n");
-  const stripeLayer = [pathElements, gradientRampPaths.join("\n"), clippedPathElements, letterLayer.elements]
+  const stripeLayer = [
+    pathElements,
+    gradientRampPaths.join("\n"),
+    clippedPathElements,
+    stripeDotElements.join("\n"),
+    letterLayer.elements,
+  ]
     .filter(Boolean)
     .join("\n");
 

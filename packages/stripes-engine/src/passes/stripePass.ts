@@ -3,7 +3,7 @@ import { bindRenderTarget, type RenderTarget } from "../gl/renderTarget";
 import { FULLSCREEN_VERT } from "../shaders/fullscreen.vert";
 import { STRIPE_FRAG } from "../shaders/stripe.frag";
 import { unpackRgb } from "../colors/colorMath";
-import { gradientDirectionIndex, motionDirectionIndex, STRIPE_BLEND_MODE_INDEX } from "../config/normalize";
+import { gradientDirectionIndex, STRIPE_BLEND_MODE_INDEX } from "../config/normalize";
 import type { EngineConfig } from "../config/types";
 
 export type StripeUniforms = {
@@ -55,6 +55,9 @@ export type StripeUniforms = {
   stripeSparkleMinWidthPx: number;
   stripeSparkleHueDriftDeg: number;
   stripeSparkleSaturationBoost: number;
+  stripeDotsEnabled: boolean;
+  stripeDotsSizePx: number;
+  stripeDotsBrightness: number;
   shuffleEnabled: boolean;
   shuffleCoverage: number;
   shufflePeriodMin: number;
@@ -65,7 +68,6 @@ export type StripeUniforms = {
   motionStaggerPx: number;
   motionMaxOffsetPx: number;
   motionSpeed: number;
-  motionDirection: number;
   lettersEnabled: boolean;
   glyphDataTex: WebGLTexture;
   atlasTex: WebGLTexture;
@@ -163,6 +165,9 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     stripeSparkleMinWidthPx: stripeSparkleMinWidthPx(),
     stripeSparkleHueDriftDeg: config.sparkle.stripe.hueDriftDeg,
     stripeSparkleSaturationBoost: config.sparkle.stripe.saturationBoost,
+    stripeDotsEnabled: config.stripeDots.enabled,
+    stripeDotsSizePx: config.stripeDots.sizePx,
+    stripeDotsBrightness: config.stripeDots.brightness,
     shuffleEnabled: config.sparkle.width.enabled,
     shuffleCoverage: config.sparkle.width.coverage,
     shufflePeriodMin: config.sparkle.width.swingPeriodMin,
@@ -173,7 +178,6 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     motionStaggerPx: config.sparkle.motion.staggerPx,
     motionMaxOffsetPx: config.sparkle.motion.maxOffsetPx,
     motionSpeed: config.sparkle.motion.speed,
-    motionDirection: motionDirectionIndex(config.sparkle.motion.direction),
     lettersEnabled: i.lettersEnabled,
     glyphDataTex: i.glyphDataTex,
     atlasTex: i.atlasTex,
@@ -247,6 +251,9 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     stripeSparkleMinWidthPx: u("uStripeSparkleMinWidthPx"),
     stripeSparkleHueDriftDeg: u("uStripeSparkleHueDriftDeg"),
     stripeSparkleSaturationBoost: u("uStripeSparkleSaturationBoost"),
+    stripeDotsEnabled: u("uStripeDotsEnabled"),
+    stripeDotsSizePx: u("uStripeDotsSizePx"),
+    stripeDotsBrightness: u("uStripeDotsBrightness"),
     shuffleEnabled: u("uShuffleEnabled"),
     shuffleCoverage: u("uShuffleCoverage"),
     shufflePeriodMin: u("uShufflePeriodMin"),
@@ -257,7 +264,6 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     motionStaggerPx: u("uMotionStaggerPx"),
     motionMaxOffsetPx: u("uMotionMaxOffsetPx"),
     motionSpeed: u("uMotionSpeed"),
-    motionDirection: u("uMotionDirection"),
     lettersEnabled: u("uLettersEnabled"),
     glyphData: u("uGlyphData"),
     atlas: u("uAtlas"),
@@ -350,6 +356,9 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.stripeSparkleMinWidthPx, p.stripeSparkleMinWidthPx);
       gl.uniform1f(L.stripeSparkleHueDriftDeg, p.stripeSparkleHueDriftDeg);
       gl.uniform1f(L.stripeSparkleSaturationBoost, p.stripeSparkleSaturationBoost);
+      gl.uniform1f(L.stripeDotsEnabled, p.stripeDotsEnabled ? 1 : 0);
+      gl.uniform1f(L.stripeDotsSizePx, p.stripeDotsSizePx);
+      gl.uniform1f(L.stripeDotsBrightness, p.stripeDotsBrightness);
       gl.uniform1f(L.shuffleEnabled, p.shuffleEnabled ? 1 : 0);
       gl.uniform1f(L.shuffleCoverage, p.shuffleCoverage);
       gl.uniform1f(L.shufflePeriodMin, p.shufflePeriodMin);
@@ -360,7 +369,6 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.motionStaggerPx, p.motionStaggerPx);
       gl.uniform1f(L.motionMaxOffsetPx, p.motionMaxOffsetPx);
       gl.uniform1f(L.motionSpeed, p.motionSpeed);
-      gl.uniform1f(L.motionDirection, p.motionDirection);
       gl.uniform1f(L.lettersEnabled, p.lettersEnabled ? 1 : 0);
       gl.activeTexture(gl.TEXTURE2);
       gl.bindTexture(gl.TEXTURE_2D, p.glyphDataTex);

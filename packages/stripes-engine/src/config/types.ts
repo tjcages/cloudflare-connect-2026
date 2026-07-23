@@ -230,6 +230,13 @@ export interface SparkleConfig {
   };
 }
 
+export interface StripeDotsConfig {
+  enabled: boolean;
+  density: number;
+  sizePx: number;
+  brightness: number;
+}
+
 export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight" | "vortexSingular";
 
 export interface VortexSingularConfig {
@@ -494,6 +501,7 @@ export interface EngineConfig {
   maxFps: number;
   reveal: RevealConfig;
   sparkle: SparkleConfig;
+  stripeDots: StripeDotsConfig;
   flames: FlamesConfig;
   edgeMask: EdgeMaskConfig;
   cursorTrail: CursorTrailConfig;

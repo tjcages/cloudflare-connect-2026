@@ -2,35 +2,19 @@ import { describe, expect, it } from "vitest";
 import { resolveSvgExportBackground } from "./svgExportBackground";
 
 describe("resolveSvgExportBackground", () => {
-  it("always includes Connect underlay when provided", () => {
+  it("omits background when the engine background is transparent", () => {
     expect(
       resolveSvgExportBackground({
-        includeSolidBackground: false,
-        backgroundTransparent: false,
-        backgroundGradientEnabled: false,
-        backgroundColorHex: "#ffffff",
-        connectUnderlayHref: "data:image/png;base64,abc",
-      }),
-    ).toEqual({
-      backgroundImageHref: "data:image/png;base64,abc",
-    });
-  });
-
-  it("omits solid background when includeSolidBackground is false", () => {
-    expect(
-      resolveSvgExportBackground({
-        includeSolidBackground: false,
-        backgroundTransparent: false,
+        backgroundTransparent: true,
         backgroundGradientEnabled: false,
         backgroundColorHex: "#ff0000",
       }),
     ).toEqual({});
   });
 
-  it("includes solid background when requested and no underlay", () => {
+  it("includes the active solid background", () => {
     expect(
       resolveSvgExportBackground({
-        includeSolidBackground: true,
         backgroundTransparent: false,
         backgroundGradientEnabled: false,
         backgroundColorHex: "#112233",
@@ -40,22 +24,7 @@ describe("resolveSvgExportBackground", () => {
     });
   });
 
-  it("keeps underlay on top of an optional solid background", () => {
-    expect(
-      resolveSvgExportBackground({
-        includeSolidBackground: true,
-        backgroundTransparent: false,
-        backgroundGradientEnabled: false,
-        backgroundColorHex: "#000000",
-        connectUnderlayHref: "data:image/png;base64,grad",
-      }),
-    ).toEqual({
-      backgroundHex: "#000000",
-      backgroundImageHref: "data:image/png;base64,grad",
-    });
-  });
-
-  it("prefers engine background gradient over solid when include is on", () => {
+  it("prefers the active engine background gradient over its solid fallback", () => {
     const gradient = {
       direction: "topToBottom" as const,
       stopCount: 2,
@@ -63,16 +32,13 @@ describe("resolveSvgExportBackground", () => {
     };
     expect(
       resolveSvgExportBackground({
-        includeSolidBackground: true,
         backgroundTransparent: false,
         backgroundGradientEnabled: true,
         backgroundColorHex: "#112233",
         backgroundGradient: gradient,
-        connectUnderlayHref: "data:image/png;base64,grad",
       }),
     ).toEqual({
       backgroundGradient: gradient,
-      backgroundImageHref: "data:image/png;base64,grad",
     });
   });
 });

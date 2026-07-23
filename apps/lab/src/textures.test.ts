@@ -11,6 +11,10 @@ const upload: UploadEntry = {
 };
 
 describe("texture entries", () => {
+  it("uses the first built-in texture as the default", () => {
+    expect(DEFAULT_LAB_TEXTURE_ID).toBe(LAB_TEXTURES[0]?.id);
+  });
+
   it("buildTextureEntries lists built-ins first, then uploads", () => {
     const entries = buildTextureEntries([upload]);
     expect(entries).toHaveLength(LAB_TEXTURES.length + 1);

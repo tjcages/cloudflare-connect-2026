@@ -52,14 +52,14 @@ describe("cellGridToSvg", () => {
 
   it("uses exact library display-p3 tokens when a stripe color comes from the color library", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: null };
-    const svg = cellGridToSvg(readback, [{ hex: "#ff6721", startFrom: 0, width: 4 }], {
+    const svg = cellGridToSvg(readback, [{ hex: "#f27235", startFrom: 0, width: 4 }], {
       cellWidthPx: 7,
       cellHeightPx: 7,
       useCellColors: false,
     });
 
-    expect(svg).toContain("#ff6721"); // fallback / packed P3 canvas color
-    expect(svg).toContain("color(display-p3 1.0000 0.4039 0.1294)"); // Orange 700 [Main] token
+    expect(svg).toContain("#f27235"); // fallback / packed P3 canvas color
+    expect(svg).toContain("color(display-p3 0.95 0.4488 0.2071)"); // Orange 700 token
   });
 
   it("includes an optional background color rect behind paths", () => {
@@ -204,6 +204,135 @@ describe("cellGridToSvg", () => {
     });
     expect(svg).toContain("h0.5");
     expect(svg).not.toContain("h1v");
+  });
+
+  it("exports centered Stripe Dots with dynamic brightness", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 4 }], {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      stripeDots: {
+        enabled: true,
+        density: 1,
+        sizePx: 2,
+        brightness: 0.25,
+      },
+    });
+
+    expect(svg).toContain('<circle class="stripe-dot" cx="5" cy="4" r="1" fill="#ff8080" fill-opacity="1"');
+    expect(svg.indexOf('class="fill-stripe-1"')).toBeLessThan(svg.indexOf('class="stripe-dot"'));
+  });
+
+  it("omits Stripe Dots below 2px stripe width or at zero density", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const stripeDots = {
+      enabled: true,
+      density: 1,
+      sizePx: 1.5,
+      brightness: 0.35,
+    };
+    const thin = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 1.5 }], {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: false,
+      stripeDots,
+    });
+    const empty = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 4 }], {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: false,
+      stripeDots: { ...stripeDots, density: 0 },
+    });
+
+    expect(thin).not.toContain('class="stripe-dot"');
+    expect(empty).not.toContain('class="stripe-dot"');
+  });
+
+  it("uses density to reveal source-brightness bands from highest to lowest", () => {
+    const rankedStripes = Array.from({ length: 10 }, (_, index) => ({
+      hex: index === 9 ? "#602000" : "#ffffff",
+      startFrom: index / 10,
+      width: 4,
+    }));
+    const readback = {
+      cols: 10,
+      rows: 1,
+      values: v(13, 38, 64, 89, 115, 140, 166, 191, 217, 242),
+      colors: null,
+    };
+    const svg = cellGridToSvg(readback, rankedStripes, {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: false,
+      stripeDots: {
+        enabled: true,
+        density: 0.1,
+        sizePx: 1,
+        brightness: 0,
+      },
+    });
+
+    expect(svg.match(/class="stripe-dot"/g)).toHaveLength(1);
+    expect(svg).toContain('class="stripe-dot" cx="95" cy="5"');
+  });
+
+  it("uses the resolved image color for exported Stripe Dots", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: v(0x20, 0x40, 0x60, 255) };
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: true,
+      stripeDots: {
+        enabled: true,
+        density: 1,
+        sizePx: 1,
+        brightness: 0,
+      },
+    });
+
+    expect(svg).toContain('class="stripe-dot"');
+    expect(svg).toContain('class="stripe-dot" cx="5" cy="5" r="0.5" fill="#204060"');
+  });
+
+  it("raises dot lightness while preserving the resolved stripe hue and saturation", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: v(0x20, 0x40, 0x60, 255) };
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: true,
+      stripeDots: {
+        enabled: true,
+        density: 1,
+        sizePx: 1,
+        brightness: 0.1,
+      },
+    });
+
+    expect(svg).toContain('class="stripe-dot" cx="5" cy="5" r="0.5" fill="#2d5986"');
+  });
+
+  it("adds the same lightness amount to dots on stripes with different lightness", () => {
+    const readback = {
+      cols: 2,
+      rows: 1,
+      values: v(255, 255),
+      colors: v(0x80, 0x80, 0x80, 255, 0x4d, 0x4d, 0x4d, 255),
+    };
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: true,
+      stripeDots: {
+        enabled: true,
+        density: 1,
+        sizePx: 1,
+        brightness: 0.14,
+      },
+    });
+
+    expect(svg).toContain('class="stripe-dot" cx="5" cy="5" r="0.5" fill="#a4a4a4"');
+    expect(svg).toContain('class="stripe-dot" cx="15" cy="5" r="0.5" fill="#717171"');
   });
 
   it("uses cellHeight for the vertical axis (non-square cells)", () => {

@@ -43,6 +43,9 @@ uniform float uStripeSparkleSpeed;
 uniform float uStripeSparkleMinWidthPx;
 uniform float uStripeSparkleHueDriftDeg;
 uniform float uStripeSparkleSaturationBoost;
+uniform float uStripeDotsEnabled;
+uniform float uStripeDotsSizePx;
+uniform float uStripeDotsBrightness;
 uniform float uShuffleEnabled;
 uniform float uShuffleCoverage;
 uniform float uShufflePeriodMin;
@@ -53,7 +56,6 @@ uniform float uMotionAmplitudePx;
 uniform float uMotionStaggerPx;
 uniform float uMotionMaxOffsetPx;
 uniform float uMotionSpeed;
-uniform float uMotionDirection;
 uniform float uLettersEnabled;
 uniform sampler2D uGlyphData;
 uniform sampler2D uAtlas;
@@ -171,18 +173,25 @@ float shuffledWidth(float col, float row, float defaultWidth) {
   return defaultWidth + (tw - defaultWidth) * envelope;
 }
 
-float staggerMotionOffset(float col, float row) {
+float randomColumnMotionTarget(float col, float cycleIndex) {
+  float patternSeed = uMotionStaggerPx * 0.61803398875;
+  return sparkleHash(col + patternSeed + 307.0, cycleIndex + patternSeed + 401.0) * 2.0 - 1.0;
+}
+
+float randomColumnMotionOffset(float col) {
   if (uMotionEnabled <= 0.5 || uMotionAmplitudePx <= 0.0 || uMotionMaxOffsetPx <= 0.0) return 0.0;
-  float phaseSource = col * uCellPx.x;
-  if (uMotionDirection > 0.5 && uMotionDirection < 1.5) {
-    phaseSource = -col * uCellPx.x;
-  } else if (uMotionDirection > 1.5 && uMotionDirection < 2.5) {
-    phaseSource = row * uCellPx.y;
-  } else if (uMotionDirection > 2.5) {
-    phaseSource = -row * uCellPx.y;
-  }
-  float phase = phaseSource / max(uMotionStaggerPx, 0.001);
-  float wave = sin(uTimeSec * max(uMotionSpeed, 0.05) * 6.283185307179586 - phase);
+  float patternSeed = uMotionStaggerPx * 0.61803398875;
+  float columnRate = mix(0.65, 1.35, sparkleHash(col + patternSeed + 89.0, patternSeed + 113.0));
+  float columnPhase = sparkleHash(col + patternSeed + 179.0, patternSeed + 233.0) * 7.0;
+  float randomTime = uTimeSec * max(uMotionSpeed, 0.05) * columnRate + columnPhase;
+  float cycleIndex = floor(randomTime);
+  float cycleT = fract(randomTime);
+  float easedT = cycleT * cycleT * (3.0 - 2.0 * cycleT);
+  float wave = mix(
+    randomColumnMotionTarget(col, cycleIndex),
+    randomColumnMotionTarget(col, cycleIndex + 1.0),
+    easedT
+  );
   float amplitude = min(max(uMotionAmplitudePx, 0.0), max(uMotionMaxOffsetPx, 0.0));
   return wave * amplitude;
 }
@@ -208,7 +217,7 @@ MotionCell resolveMotionCell(vec2 cellF) {
   for (int i = -40; i <= 40; i++) {
     float row = baseRow + float(i);
     if (row < 0.0 || row >= uGridCount.y || abs(float(i)) > maxSpan) continue;
-    float offset = staggerMotionOffset(result.cell.x, row);
+    float offset = randomColumnMotionOffset(result.cell.x);
     float localY = (yPx - (row * uCellPx.y + offset)) / uCellPx.y;
     float outside = max(max(-localY, localY - 1.0), 0.0);
     float centerDist = abs(localY - 0.5);
@@ -397,6 +406,20 @@ vec3 applyStripeSparkle(vec3 color, vec2 cell, float widthPx, float opacity) {
   return applyStripeSparkleTone(brightened, amount);
 }
 
+float stripeDotAlpha(vec2 centeredP, float eligible, float widthPx, float opacity, float aaWidth) {
+  if (uStripeDotsEnabled <= 0.5 || eligible < 0.5 || widthPx < 2.0 || opacity <= 0.001) return 0.0;
+  float radius = clamp(uStripeDotsSizePx, 1.0, 2.0) * 0.5;
+  return clamp(0.5 - (length(centeredP) - radius) / aaWidth, 0.0, 1.0);
+}
+
+vec3 stripeDotColor(vec3 stripeColor) {
+  float lightnessLift = clamp(uStripeDotsBrightness, 0.0, 1.0);
+  if (lightnessLift <= 0.0001) return stripeColor;
+  vec3 stripeHsl = rgbToHsl(stripeColor);
+  stripeHsl.z = clamp(stripeHsl.z + lightnessLift, 0.0, 1.0);
+  return hslToRgb(stripeHsl);
+}
+
 vec3 gradientAverageColor() {
   if (uGradientStopCount < 2.5) return (uGradientStop0 + uGradientStop1) * 0.5;
   if (uGradientStopCount < 3.5) return (uGradientStop0 + uGradientStop1 + uGradientStop2) / 3.0;
@@ -453,7 +476,7 @@ void main() {
   MotionCell motionCell = resolveMotionCell(cellF);
   vec2 cell = motionCell.cell;
   vec2 local = motionCell.local;
-  vec2 sourceCell = floor(vUv * uGridCount);
+  vec2 sourceCell = cell;
   sourceCell = clamp(sourceCell, vec2(0.0), max(vec2(0.0), uGridCount - 1.0));
   vec2 sourceUv = (sourceCell + 0.5) / uGridCount;
   float v = normalizedCellValue(sourceUv);
@@ -464,6 +487,7 @@ void main() {
   vec4 opacityMeta = texture(uOpacityLut, lutUv);
   float barOpacity = opacityMeta.r;
   float barRampT = opacityMeta.g;
+  float barDotEligible = opacityMeta.b;
 
   if (uUseCellColors > 0.5) {
     barColor = cellImageColor(sourceUv);
@@ -516,8 +540,16 @@ void main() {
     float drawableStackPx = max(0.0001, stackCellPx - min(stackGapPx, stackCellPx));
     float drawableAxisPx = max(0.0001, axisCellPx - min(axisGapPx, axisCellPx));
     float groupNoGapExtend = axisGapPx <= 0.0001 ? w : 0.0;
-    float maxNormalReach = drawableStackPx * 0.5 + w;
-    float maxAxisReach = drawableAxisPx * 0.5 + drawableStackPx * 0.5 * overlapAmount + groupNoGapExtend + w * 2.0;
+    float motionReach = uMotionEnabled > 0.5
+      ? min(max(uMotionAmplitudePx, 0.0), max(uMotionMaxOffsetPx, 0.0))
+      : 0.0;
+    float maxNormalReach = drawableStackPx * 0.5 + abs(normal.y) * motionReach + w;
+    float maxAxisReach =
+      drawableAxisPx * 0.5 +
+      drawableStackPx * 0.5 * overlapAmount +
+      abs(axis.y) * motionReach +
+      groupNoGapExtend +
+      w * 2.0;
     float bestAlpha = 0.0;
     vec3 bestColor = barColor;
     float bestDepth = -1.0;
@@ -527,8 +559,11 @@ void main() {
     float gapWaveAmplitude = uStreamGapWaveEnabled > 0.5
       ? clamp(uStreamGapWaveSqueeze, 0.0, 1.0) * stackCellPx / max(2.0 * sin(gapWaveStep * 0.5), 0.001)
       : 0.0;
-    float stackSearch = uStreamGapWaveEnabled > 0.5 ? ceil(gapWaveAmplitude / stackCellPx) + 2.0 : 1.0;
-    float axisSearch = 2.0;
+    float stackSearch = max(
+      uStreamGapWaveEnabled > 0.5 ? ceil(gapWaveAmplitude / stackCellPx) + 2.0 : 1.0,
+      ceil(abs(normal.y) * motionReach / stackCellPx) + 2.0
+    );
+    float axisSearch = ceil(abs(axis.y) * motionReach / axisCellPx) + 2.0;
     for (int ss = -20; ss <= 20; ss++) {
       if (abs(float(ss)) > stackSearch) continue;
       float stackIndex = baseStack + float(ss);
@@ -544,8 +579,11 @@ void main() {
         if (abs(axisDist) > maxAxisReach) continue;
 
         vec2 candidateCell = horizontalStacks ? vec2(axisIndex, stackIndex) : vec2(stackIndex, axisIndex);
-        vec2 samplePixel = displayCenter + normal * (stackCenter - stackSpanPx * 0.5) + axis * (axisCenter - axisSpanPx * 0.5);
-        vec2 candidateUv = clamp(samplePixel / displayPx, vec2(0.0), vec2(1.0));
+        vec2 candidateBaseCenterPixel =
+          displayCenter +
+          normal * (stackCenter - stackSpanPx * 0.5) +
+          axis * (axisCenter - axisSpanPx * 0.5);
+        vec2 candidateUv = clamp(candidateBaseCenterPixel / displayPx, vec2(0.0), vec2(1.0));
 
         float candidateValue = normalizedCellValue(candidateUv);
         vec2 candidateLutUv = vec2((candidateValue * 255.0 + 0.5) / 256.0, 0.5);
@@ -557,7 +595,10 @@ void main() {
         if (candidateWidthPx < 0.5) continue;
         if (uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(candidateCell.x, candidateCell.y)) continue;
 
-        vec2 candidateRotatedP = vec2(normalDist, axisDist);
+        vec2 candidateCenterPixel = candidateBaseCenterPixel;
+        candidateCenterPixel.y += randomColumnMotionOffset(candidateCell.x);
+        vec2 candidateDelta = pixel - candidateCenterPixel;
+        vec2 candidateRotatedP = vec2(dot(candidateDelta, normal), dot(candidateDelta, axis));
         float candidateHalfW = min(candidateWidthPx, drawableStackPx) * 0.5;
         float candidateHalfH = drawableAxisPx * 0.5 + groupNoGapExtend + candidateHalfW * overlapAmount + w;
         float candidateR = min(uCorner, min(candidateHalfW, candidateHalfH));
@@ -567,6 +608,7 @@ void main() {
         vec4 candidateOpacityMeta = texture(uOpacityLut, candidateLutUv);
         float candidateOpacity = candidateOpacityMeta.r;
         float candidateRampT = candidateOpacityMeta.g;
+        float candidateDotEligible = candidateOpacityMeta.b;
         float candidateAlpha = candidateGeometryAlpha * candidateOpacity;
         if (candidateAlpha > 0.001) {
           vec3 candidateColor = candidateLut.rgb;
@@ -577,6 +619,18 @@ void main() {
             candidateColor = gradientColorWithRampLightness(candidateUv, candidateColor, candidateRampT);
           }
           candidateColor = applyStripeSparkle(candidateColor, candidateCell, candidateWidthPx, candidateOpacity);
+          float candidateDotAlpha = stripeDotAlpha(
+            candidateRotatedP,
+            candidateDotEligible,
+            candidateWidthPx,
+            candidateOpacity,
+            w
+          );
+          candidateColor = mix(
+            candidateColor,
+            stripeDotColor(candidateColor),
+            candidateDotAlpha
+          );
 
           if (overlapRotation) {
             vec3 blendedCandidateColor = bgColor.a <= 0.0001 ? candidateColor : blendStripeColor(bgColor.rgb, candidateColor);
@@ -612,7 +666,9 @@ void main() {
   vec2 halfExt = vec2(halfW, halfH + noGapExtend + r);
   float alpha = stripeAlpha(rotatedP, halfExt, r, w);
   float effectiveAlpha = alpha * barOpacity;
-  vec3 blendedBarColor = bgColor.a <= 0.0001 ? barColor : blendStripeColor(bgColor.rgb, barColor);
+  float dotAlpha = stripeDotAlpha(rotatedP, barDotEligible, barWidthPx, barOpacity, w) * alpha;
+  vec3 dottedBarColor = mix(barColor, stripeDotColor(barColor), dotAlpha);
+  vec3 blendedBarColor = bgColor.a <= 0.0001 ? dottedBarColor : blendStripeColor(bgColor.rgb, dottedBarColor);
   finalColor = mix(bgColor, vec4(blendedBarColor, 1.0), effectiveAlpha);
   }
 
