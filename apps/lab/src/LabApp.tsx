@@ -813,6 +813,16 @@ function LabInner() {
   labSettingsRef.current = labSettings;
 
   useEffect(() => {
+    setLabSettings((prev) =>
+      prev.textureSourceMode === textureSourceMode &&
+      prev.shaderSourceCode === shaderSourceCode &&
+      prev.shaderPresetId === shaderPresetId
+        ? prev
+        : { ...prev, textureSourceMode, shaderSourceCode, shaderPresetId },
+    );
+  }, [textureSourceMode, shaderSourceCode, shaderPresetId]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     if (!window.matchMedia(`(min-width: ${WIDE_SCREEN_MIN_PX}px)`).matches) return;
     setLabSettings((prev) => {
