@@ -366,6 +366,10 @@ function paletteForBackgroundFillMode(mode: BackgroundFillMode): string {
   }
 }
 
+function usesColorRampSettings(palette: string | null | undefined): boolean {
+  return palette === BACKGROUND_RAMP_PALETTE_NAME;
+}
+
 function applyPaletteForBackgroundFillMode(
   stripes: readonly EditableStripe[],
   mode: BackgroundFillMode,
@@ -535,10 +539,8 @@ export function useEngineControls(
   const handleRampEasingChange = useCallback((easing: string) => {
     if (!isKnownEasing(easing, BACKGROUND_RAMP_EASING_OPTIONS)) return;
     const next = easing as BackgroundRampEasing;
-    const palette =
-      stripePaletteValueRef.current === WHITE_STRIPE_PALETTE_NAME
-        ? WHITE_STRIPE_PALETTE_NAME
-        : BACKGROUND_RAMP_PALETTE_NAME;
+    const selectedPalette = stripePaletteValueRef.current;
+    const palette = selectedPalette && selectedPalette !== "Custom" ? selectedPalette : BACKGROUND_RAMP_PALETTE_NAME;
     setBackgroundRampEasing(next);
     setActiveGeneratedPalette(palette);
     setPreShuffleStripes(null);
@@ -574,12 +576,6 @@ export function useEngineControls(
         ),
       );
       return;
-    }
-    const palette = stripePaletteValueRef.current;
-    if (palette && palette !== "Custom" && palette !== WHITE_STRIPE_PALETTE_NAME) {
-      setStripes((prev) =>
-        applyStripePalette(prev, palette, next, backgroundRampEasingRef.current, backgroundRampSettingsRef.current),
-      );
     }
   }, []);
 
@@ -664,7 +660,7 @@ export function useEngineControls(
   stripeColorsTableRuntime.rampEasingOptions = BACKGROUND_RAMP_EASING_OPTIONS;
   stripeColorsTableRuntime.rampEasingValue = backgroundRampEasing;
   stripeColorsTableRuntime.showRampEasing =
-    stripePaletteValue === BACKGROUND_RAMP_PALETTE_NAME || stripePaletteValue === WHITE_STRIPE_PALETTE_NAME;
+    usesColorRampSettings(stripePaletteValue) || stripePaletteValue === WHITE_STRIPE_PALETTE_NAME;
   stripeColorsTableRuntime.thresholdEasingOptions = THRESHOLD_DISTRIBUTION_EASING_OPTIONS;
   stripeColorsTableRuntime.thresholdEasingValue = thresholdDistributionEasing;
   stripeColorsTableRuntime.canUndoShuffle = preShuffleStripes !== null;
@@ -1228,6 +1224,7 @@ export function useEngineControls(
                 max: 100,
                 step: 1,
                 label: "+ Brightness",
+                disabled: !usesColorRampSettings(stripePaletteValue),
               },
               backgroundRampHueDriftDeg: {
                 value: backgroundRampSettings.hueDriftDeg,
@@ -1235,6 +1232,7 @@ export function useEngineControls(
                 max: 180,
                 step: 0.5,
                 label: "Hue drift",
+                disabled: !usesColorRampSettings(stripePaletteValue),
               },
               backgroundRampSaturationBoost: {
                 value: backgroundRampSettings.saturationBoost,
@@ -1242,6 +1240,7 @@ export function useEngineControls(
                 max: 100,
                 step: 1,
                 label: "Saturation boost",
+                disabled: !usesColorRampSettings(stripePaletteValue),
               },
             },
             {
@@ -1249,8 +1248,42 @@ export function useEngineControls(
                 "Detailed settings",
                 loadLabSettings().drawerOpen["Detailed settings"] ?? false,
               ),
-              render: (get) =>
-                get("Stripes.colorsMode") !== "colors" && stripePaletteValue === BACKGROUND_RAMP_PALETTE_NAME,
+              render: (get) => get("Stripes.colorsMode") !== "colors",
+            },
+          ),
+          "Stripe Dots": folder(
+            {
+              stripeDotsEnabled: {
+                value: d.stripeDots.enabled,
+                label: "Enabled",
+              },
+              stripeDotsDensity: {
+                value: d.stripeDots.density * 100,
+                min: 0,
+                max: 100,
+                step: 1,
+                label: "Density",
+                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+              },
+              stripeDotsSizePx: {
+                value: d.stripeDots.sizePx,
+                min: 1,
+                max: 2,
+                step: 0.5,
+                label: "Size",
+                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+              },
+              stripeDotsBrightness: {
+                value: d.stripeDots.brightness * 100,
+                min: 0,
+                max: 100,
+                step: 1,
+                label: "+ Brightness",
+                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+              },
+            },
+            {
+              collapsed: !loadControlDrawerOpen("Stripe Dots", loadLabSettings().drawerOpen["Stripe Dots"] ?? false),
             },
           ),
           imageColorWidthSource: {
@@ -1938,7 +1971,7 @@ export function useEngineControls(
             label: "Swing period max",
             render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
           },
-          sparkleMotionEnabled: { value: d.sparkle.motion.enabled, label: "Row motion enabled" },
+          sparkleMotionEnabled: { value: d.sparkle.motion.enabled, label: "Column motion enabled" },
           sparkleMotionAmplitudePx: {
             value: d.sparkle.motion.amplitudePx,
             min: 0,
@@ -1952,7 +1985,7 @@ export function useEngineControls(
             min: 1,
             max: 512,
             step: 1,
-            label: "Stagger distance",
+            label: "Random pattern",
             render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
           },
           sparkleMotionMaxOffsetPx: {
@@ -1980,7 +2013,7 @@ export function useEngineControls(
               "Bottom → Top": "bottomToTop",
             } as const,
             label: "Sweep direction",
-            render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+            render: () => false,
           },
         }),
         Letters: drawerFolder("Letters", {
@@ -3577,7 +3610,7 @@ export function useEngineControls(
   shaderControlSetterRef.current = setShaderControl;
 
   useEffect(() => {
-    // Nudge stores so Camera / Connect folder `render()` re-evaluates visibility.
+    // Nudge stores so Camera / Connect folder `render()` callbacks re-evaluate visibility.
     setTextureControl({});
     setShaderControl({});
   }, [showShaderCamera, showConnectCamera, setTextureControl, setShaderControl]);
@@ -3588,8 +3621,7 @@ export function useEngineControls(
   stripeColorsTableRuntime.paletteOptions = imageColorsMode ? [] : stripePaletteOptions;
   stripeColorsTableRuntime.showColorControls = !imageColorsMode;
   stripeColorsTableRuntime.showRampEasing =
-    !imageColorsMode &&
-    (stripePaletteValue === BACKGROUND_RAMP_PALETTE_NAME || stripePaletteValue === WHITE_STRIPE_PALETTE_NAME);
+    !imageColorsMode && (usesColorRampSettings(stripePaletteValue) || stripePaletteValue === WHITE_STRIPE_PALETTE_NAME);
   const currentBackgroundRampSettings = normalizeBackgroundRampSettings({
     brightnessAdd: values.backgroundRampBrightnessAdd,
     hueDriftDeg: values.backgroundRampHueDriftDeg,
@@ -3651,11 +3683,6 @@ export function useEngineControls(
       );
       return;
     }
-    if (palette && palette !== "Custom" && palette !== WHITE_STRIPE_PALETTE_NAME) {
-      setStripes((prev) =>
-        applyStripePalette(prev, palette, next, backgroundRampEasingRef.current, backgroundRampSettingsRef.current),
-      );
-    }
   }, [values.backgroundColor]);
 
   const baseStripes = fromEditable(stripes);
@@ -3688,21 +3715,21 @@ export function useEngineControls(
   backgroundRampBaseHexRef.current = backgroundRampBaseHex;
 
   useEffect(() => {
-    if (activeGeneratedPalette !== BACKGROUND_RAMP_PALETTE_NAME) return;
+    const palette = usesColorRampSettings(activeGeneratedPalette)
+      ? activeGeneratedPalette
+      : usesColorRampSettings(stripePaletteValue)
+        ? stripePaletteValue
+        : null;
+    if (!palette) return;
     setStripes((prev) =>
-      applyStripePalette(
-        prev,
-        BACKGROUND_RAMP_PALETTE_NAME,
-        backgroundRampBaseHex,
-        backgroundRampEasing,
-        currentBackgroundRampSettings,
-      ),
+      applyStripePalette(prev, palette, backgroundRampBaseHex, backgroundRampEasing, currentBackgroundRampSettings),
     );
   }, [
     activeGeneratedPalette,
     backgroundRampBaseHex,
     backgroundRampEasing,
     currentBackgroundRampSettingsKey,
+    stripePaletteValue,
     stripes.length,
   ]);
 
@@ -3865,6 +3892,12 @@ export function useEngineControls(
     renderColorB: d.renderColorB,
     fieldScale: values.textureDpr,
     stripes: baseStripes,
+    stripeDots: {
+      enabled: values.stripeDotsEnabled,
+      density: values.stripeDotsDensity / 100,
+      sizePx: values.stripeDotsSizePx,
+      brightness: values.stripeDotsBrightness / 100,
+    },
     reveal: {
       enabled: d.reveal.enabled,
       type: values.revealType,

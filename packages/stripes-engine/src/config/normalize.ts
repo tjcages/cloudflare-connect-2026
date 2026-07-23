@@ -7,6 +7,7 @@ import type {
   EngineConfig,
   RevealConfig,
   SparkleConfig,
+  StripeDotsConfig,
   FlamesConfig,
   FlamesDirection,
   VortexSingularConfig,
@@ -585,6 +586,22 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
         ? (m.direction as MotionDirection)
         : DEFAULT_SPARKLE.motion.direction,
     },
+  };
+}
+
+export const DEFAULT_STRIPE_DOTS: StripeDotsConfig = {
+  enabled: false,
+  density: 0.5,
+  sizePx: 1.5,
+  brightness: 0.35,
+};
+
+export function normalizeStripeDots(i: Partial<StripeDotsConfig> = {}): StripeDotsConfig {
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_STRIPE_DOTS.enabled,
+    density: clamp(num(i.density, DEFAULT_STRIPE_DOTS.density), 0, 1),
+    sizePx: clamp(num(i.sizePx, DEFAULT_STRIPE_DOTS.sizePx), 1, 2),
+    brightness: clamp(num(i.brightness, DEFAULT_STRIPE_DOTS.brightness), 0, 1),
   };
 }
 
@@ -1169,6 +1186,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     stripe: { ...DEFAULT_SPARKLE.stripe },
     motion: { ...DEFAULT_SPARKLE.motion },
   },
+  stripeDots: { ...DEFAULT_STRIPE_DOTS },
   flames: { ...DEFAULT_FLAMES },
   edgeMask: { ...DEFAULT_EDGE_MASK },
   cursorTrail: { ...DEFAULT_CURSOR_TRAIL },
@@ -1194,6 +1212,7 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     maxFps: Math.max(0, num(i.maxFps, 0)),
     reveal: normalizeReveal(i.reveal as PartialReveal | undefined),
     sparkle: normalizeSparkle(i.sparkle as PartialSparkle | undefined),
+    stripeDots: normalizeStripeDots(i.stripeDots),
     flames: normalizeFlames(i.flames as PartialFlames | undefined),
     edgeMask: normalizeEdgeMask(i.edgeMask),
     cursorTrail: normalizeCursorTrail(i.cursorTrail),

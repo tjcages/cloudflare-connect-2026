@@ -30,6 +30,8 @@ import {
   DEFAULT_LETTERS,
   normalizeColors,
   DEFAULT_COLORS,
+  normalizeStripeDots,
+  DEFAULT_STRIPE_DOTS,
 } from "./normalize";
 import { serializeEngineConfig, parseEngineConfig } from "./serialize";
 
@@ -175,6 +177,36 @@ describe("stripes normalizer", () => {
     expect(normalizeStripes([{ color: 0x010203, startFrom: 0.5, width: 3 }], DEFAULT_STRIPES)).toEqual([
       { color: 0x010203, startFrom: 0.5, width: 3, opacity: 1 },
     ]);
+  });
+});
+describe("stripe dots normalizer", () => {
+  it("uses stable defaults when omitted", () => {
+    expect(normalizeStripeDots()).toEqual(DEFAULT_STRIPE_DOTS);
+    expect(DEFAULT_STRIPE_DOTS).toEqual({
+      enabled: false,
+      density: 0.5,
+      sizePx: 1.5,
+      brightness: 0.35,
+    });
+  });
+  it("clamps density, size, and brightness", () => {
+    expect(
+      normalizeStripeDots({
+        enabled: true,
+        density: 2,
+        sizePx: 9,
+        brightness: -1,
+      }),
+    ).toEqual({
+      enabled: true,
+      density: 1,
+      sizePx: 2,
+      brightness: 0,
+    });
+    expect(normalizeStripeDots({ density: -1, sizePx: 0 })).toMatchObject({
+      density: 0,
+      sizePx: 1,
+    });
   });
 });
 describe("normalizeEngineConfig", () => {

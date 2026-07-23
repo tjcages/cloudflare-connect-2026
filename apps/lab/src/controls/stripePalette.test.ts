@@ -12,25 +12,34 @@ function color(groupName: string, label: string): string {
 }
 
 describe("stripe palette mapping", () => {
-  it("maps by row level across palette groups, including the first row", () => {
-    const stripes: EditableStripe[] = [
-      { id: "gray", hex: "#f3f3f3", startFrom: 0.08, width: 1, opacity: 1 },
-      { id: "900", hex: color("Orange", "900"), startFrom: 0.2, width: 1, opacity: 1 },
-      { id: "800", hex: color("Orange", "800"), startFrom: 0.32, width: 1, opacity: 1 },
-      { id: "700", hex: color("Orange", "700"), startFrom: 0.44, width: 2, opacity: 1 },
-      { id: "600", hex: color("Orange", "600"), startFrom: 0.56, width: 3, opacity: 1 },
-    ];
+  it("builds named palettes in fixed token order without using the Pair color", () => {
+    const stripes: EditableStripe[] = Array.from({ length: 9 }, (_, index) => ({
+      id: String(index),
+      hex: "#000000",
+      startFrom: index / 9,
+      width: index + 1,
+      opacity: 0.5,
+    }));
 
-    const mapped = applyStripePalette(stripes, "Purple");
+    const mapped = applyStripePalette(stripes, "Orange");
 
-    expect(mapped[0].hex).toBe(color("Purple", "1000"));
-    expect(mapped[1].hex).toBe(color("Purple", "900"));
-    expect(mapped[2].hex).toBe(color("Purple", "800"));
-    expect(mapped[3].hex).toBe(color("Purple", "700"));
-    expect(mapped[4].hex).toBe(color("Purple", "600"));
+    expect(mapped.map((stripe) => stripe.hex)).toEqual([
+      color("Neutral", "1"),
+      color("Orange", "100"),
+      color("Orange", "200"),
+      color("Orange", "300"),
+      color("Orange", "400"),
+      color("Orange", "500"),
+      color("Orange", "600"),
+      color("Orange", "700"),
+      color("Orange", "900"),
+    ]);
+    expect(mapped.map((stripe) => stripe.hex)).not.toContain(color("Orange", "800"));
+    expect(mapped.map((stripe) => stripe.opacity)).toEqual(Array(mapped.length).fill(1));
+    expect(detectStripePalette(mapped)).toBe("Orange");
   });
 
-  it("uses a white-background palette ramp from Neutral 1 into the selected group up to 800", () => {
+  it("starts at Neutral 1 and ends at 900 when the stripe count differs from the token count", () => {
     const stripes: EditableStripe[] = Array.from({ length: 10 }, (_, index) => ({
       id: String(index),
       hex: color("Orange", "1000"),
@@ -41,9 +50,10 @@ describe("stripe palette mapping", () => {
 
     const mapped = applyStripePalette(stripes, "Blue", "#ffffff");
 
-    expect(mapped.map((stripe) => stripe.hex)).toEqual([
+    expect(mapped[0].hex).toBe(color("Neutral", "1"));
+    expect(mapped[mapped.length - 1].hex).toBe(color("Blue", "900"));
+    expect(mapped.slice(0, 9).map((stripe) => stripe.hex)).toEqual([
       color("Neutral", "1"),
-      color("Blue", "0"),
       color("Blue", "100"),
       color("Blue", "200"),
       color("Blue", "300"),
@@ -51,11 +61,64 @@ describe("stripe palette mapping", () => {
       color("Blue", "500"),
       color("Blue", "600"),
       color("Blue", "700"),
-      color("Blue", "800"),
+      color("Blue", "900"),
     ]);
+    expect(mapped.map((stripe) => stripe.hex)).not.toContain(color("Blue", "800"));
     expect(mapped.map((stripe) => stripe.opacity)).toEqual(Array(10).fill(1));
     expect(mapped.map((stripe) => stripe.startFrom)).toEqual(stripes.map((stripe) => stripe.startFrom));
     expect(mapped.map((stripe) => stripe.width)).toEqual(stripes.map((stripe) => stripe.width));
+    expect(detectStripePalette(mapped, "#ffffff")).toBe("Blue");
+  });
+
+  it("does not apply background-ramp settings to named palettes", () => {
+    const stripes: EditableStripe[] = Array.from({ length: 6 }, (_, index) => ({
+      id: String(index),
+      hex: "#000000",
+      startFrom: index / 6,
+      width: index + 1,
+      opacity: 1,
+    }));
+    const baseline = applyStripePalette(stripes, "Orange", undefined, "linear", {
+      brightnessAdd: 30,
+      hueDriftDeg: 0,
+      saturationBoost: 0,
+    });
+    const adjusted = applyStripePalette(stripes, "Orange", undefined, "linear", {
+      brightnessAdd: 60,
+      hueDriftDeg: 45,
+      saturationBoost: 50,
+    });
+
+    expect(baseline[0].hex).toBe(color("Neutral", "1"));
+    expect(adjusted[0].hex).toBe(color("Neutral", "1"));
+    expect(baseline[baseline.length - 1].hex).toBe(color("Orange", "900"));
+    expect(adjusted[adjusted.length - 1].hex).toBe(color("Orange", "900"));
+    expect(adjusted.map((stripe) => stripe.hex)).toEqual(baseline.map((stripe) => stripe.hex));
+    expect(detectStripePalette(adjusted)).toBe("Orange");
+  });
+
+  it("maps Neutral from a light gray to black", () => {
+    const stripes: EditableStripe[] = Array.from({ length: 6 }, (_, index) => ({
+      id: String(index),
+      hex: "#ff0000",
+      startFrom: index / 6,
+      width: 1,
+      opacity: 1,
+    }));
+
+    const mapped = applyStripePalette(stripes, "Neutral");
+
+    expect(mapped[0].hex).toBe(color("Neutral", "1"));
+    expect(mapped[mapped.length - 1].hex).toBe("#000000");
+    expect(mapped.map((stripe) => stripe.hex)).toEqual([
+      "#fafafa",
+      "#f4f4f4",
+      "#ebebeb",
+      "#b8b8b8",
+      "#292929",
+      "#000000",
+    ]);
+    expect(detectStripePalette(mapped)).toBe("Neutral");
   });
 
   it("detects a palette from mapped stripe colors", () => {
@@ -80,11 +143,13 @@ describe("stripe palette mapping", () => {
 
     expect(shuffled[0].hex).toBe(color("Purple", "1000"));
     expect(shuffled[1].hex).toBe(color("Purple", "900"));
-    expect(shuffled[2].hex).toBe(color("Purple", "800"));
+    expect(shuffled[2].hex).toBe(color("Purple", "700"));
+    expect(shuffled.map((stripe) => stripe.hex)).not.toContain(color("Purple", "800"));
   });
 
   it("maps a single palette-token color to the same level in another group", () => {
     expect(mapPaletteColor(color("Orange", "900"), "Purple")).toBe(color("Purple", "900"));
+    expect(mapPaletteColor(color("Orange", "800"), "Purple")).toBe(color("Purple", "800"));
   });
 
   it("adds a white eased opacity palette without changing threshold or width", () => {

@@ -25,7 +25,7 @@ export const LAB_TEXTURES: LabTextureEntry[] = [
   },
 ];
 
-export const DEFAULT_LAB_TEXTURE_ID = "cf-base";
+export const DEFAULT_LAB_TEXTURE_ID = LAB_TEXTURES[0]?.id ?? "cf-base";
 
 export function buildTextureEntries(manifest: UploadEntry[]): LabTextureEntry[] {
   const uploads = manifest.map(
