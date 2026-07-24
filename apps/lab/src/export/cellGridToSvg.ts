@@ -17,6 +17,8 @@ type StripeDotsSvgOptions = {
   density: number;
   sizePx: number;
   brightness: number;
+  hueDriftDeg?: number;
+  saturationBoost?: number;
 };
 type StripeBorderSvgOptions = {
   enabled: boolean;
@@ -280,8 +282,14 @@ function gradientRampTone(
   return hslToRgb([hue, Math.max(0, Math.min(1, s * (1 + satLift))), l]);
 }
 
-function stripeDotHex(stripeHex: string, dots: StripeDotsSvgOptions): string {
-  return brightnessLiftHex(stripeHex, dots.brightness);
+function stripeDotHex(stripeHex: string, dots: StripeDotsSvgOptions, rampT: number): string {
+  const brightenedHex = brightnessLiftHex(stripeHex, dots.brightness);
+  const [hue, saturation, lightness] = rgbToHsl(hexToRgb(brightenedHex));
+  if (saturation <= 0.0001) return brightenedHex;
+  const t = Math.max(0, Math.min(1, rampT));
+  const shiftedHue = hue + ((dots.hueDriftDeg ?? 0) * t) / 360;
+  const saturationLift = Math.max(0, Math.min(1, dots.saturationBoost ?? 0)) * Math.sin(t * Math.PI * 0.85);
+  return rgbToHex(hslToRgb([shiftedHue, Math.max(0, Math.min(1, saturation * (1 + saturationLift))), lightness]));
 }
 
 function brightnessLiftHex(stripeHex: string, brightness: number): string {
@@ -298,6 +306,7 @@ function stripeDotElement(input: {
   stripeWidth: number;
   stripeHex: string;
   stripeOpacity: number;
+  rampT: number;
   dots: StripeDotsSvgOptions | undefined;
   blendStyle: string;
 }): string {
@@ -306,7 +315,7 @@ function stripeDotElement(input: {
     return "";
   }
 
-  const hex = stripeDotHex(input.stripeHex, dots);
+  const hex = stripeDotHex(input.stripeHex, dots, input.rampT);
   const radius = Math.max(1, Math.min(2, dots.sizePx)) * 0.5;
   const style = [`fill:${p3SvgColor(hex)}`, input.blendStyle].filter(Boolean).join(";");
   return `  <circle class="stripe-dot" cx="${formatSvgNumber(input.cx)}" cy="${formatSvgNumber(input.cy)}" r="${formatSvgNumber(radius)}" fill="${hex}" fill-opacity="${formatSvgNumber(input.stripeOpacity)}" style="${style}" />`;
@@ -752,6 +761,7 @@ export function cellGridToSvg(
           stripeWidth,
           stripeHex,
           stripeOpacity: opacity,
+          rampT: rampTForBand(band),
           dots: stripeDots,
           blendStyle,
         });
@@ -893,6 +903,7 @@ export function cellGridToSvg(
           stripeWidth: effectiveStripeWidth,
           stripeHex: dotStripeHex,
           stripeOpacity: Math.max(0, Math.min(1, stripe.opacity ?? 1)),
+          rampT: rampTForBand(band),
           dots: stripeDots,
           blendStyle,
         });
@@ -961,17 +972,70 @@ export function cellGridToSvg(
     return brightnessLiftHex(baseHex, gridLines?.brightness ?? 0);
   };
   if (gridLines?.enabled && gridLineDensity > 0.001 && rows > 0 && cols > 0) {
-    for (let row = 0; row < rows; row++) {
-      const shaderRow = rows - 1 - row;
-      for (let col = 0; col < cols; col++) {
-        const visible = gridLineDensity >= 0.999 || sparkleHash(col + 228, shaderRow + 338) <= gridLineDensity;
-        if (!visible) continue;
-        const x = col * cellWidthPx;
-        const y = row * cellHeightPx;
-        addGridLineSegment(
-          gridLineHexAt(row, col, x + cellWidthPx * 0.5, y + cellHeightPx * 0.5),
-          `M${x} ${y}h${cellWidthPx}v${cellHeightPx}h${-cellWidthPx}Z`,
-        );
+    if (arbitraryAngle) {
+      const rad = (resolvedAngleDeg * Math.PI) / 180;
+      const axis = { x: Math.sin(rad), y: -Math.cos(rad) };
+      const normal = { x: Math.cos(rad), y: Math.sin(rad) };
+      const horizontalStacks = effectiveOrientation === "horizontal";
+      const stackCellPx = horizontalStacks ? cellHeightPx : cellWidthPx;
+      const axisCellPx = horizontalStacks ? cellWidthPx : cellHeightPx;
+      const stackSpanPx = horizontalStacks ? height : width;
+      const axisSpanPx = horizontalStacks ? width : height;
+      const center = { x: width * 0.5, y: height * 0.5 };
+      const corners = [
+        { x: 0, y: 0 },
+        { x: width, y: 0 },
+        { x: width, y: height },
+        { x: 0, y: height },
+      ];
+      const stackCoords = corners.map((corner) => {
+        const dx = corner.x - center.x;
+        const dy = corner.y - center.y;
+        return dx * normal.x + dy * normal.y + stackSpanPx * 0.5;
+      });
+      const axisCoords = corners.map((corner) => {
+        const dx = corner.x - center.x;
+        const dy = corner.y - center.y;
+        return dx * axis.x + dy * axis.y + axisSpanPx * 0.5;
+      });
+      const minStack = Math.floor(Math.min(...stackCoords) / stackCellPx) - 1;
+      const maxStack = Math.ceil(Math.max(...stackCoords) / stackCellPx) + 1;
+      const minAxis = Math.floor(Math.min(...axisCoords) / axisCellPx) - 1;
+      const maxAxis = Math.ceil(Math.max(...axisCoords) / axisCellPx) + 1;
+
+      for (let stackIndex = minStack; stackIndex <= maxStack; stackIndex++) {
+        const stackCenter = (stackIndex + 0.5) * stackCellPx;
+        for (let axisIndex = minAxis; axisIndex <= maxAxis; axisIndex++) {
+          const col = horizontalStacks ? axisIndex : stackIndex;
+          const row = horizontalStacks ? stackIndex : axisIndex;
+          const visible = gridLineDensity >= 0.999 || sparkleHash(col + 228, row + 338) <= gridLineDensity;
+          if (!visible) continue;
+          const axisCenter = (axisIndex + 0.5) * axisCellPx;
+          const cx = center.x + normal.x * (stackCenter - stackSpanPx * 0.5) + axis.x * (axisCenter - axisSpanPx * 0.5);
+          const cy = center.y + normal.y * (stackCenter - stackSpanPx * 0.5) + axis.y * (axisCenter - axisSpanPx * 0.5);
+          const sourceCol = Math.floor(cx / Math.max(cellWidthPx, 0.0001));
+          const sourceRow = Math.floor(cy / Math.max(cellHeightPx, 0.0001));
+          const halfNormal = (horizontalStacks ? cellHeightPx : cellWidthPx) * 0.5;
+          const halfAxis = (horizontalStacks ? cellWidthPx : cellHeightPx) * 0.5;
+          addGridLineSegment(
+            gridLineHexAt(sourceRow, sourceCol, cx, cy),
+            rotatedStripePath(cx, cy, halfNormal, halfAxis, resolvedAngleDeg),
+          );
+        }
+      }
+    } else {
+      for (let row = 0; row < rows; row++) {
+        const shaderRow = rows - 1 - row;
+        for (let col = 0; col < cols; col++) {
+          const visible = gridLineDensity >= 0.999 || sparkleHash(col + 228, shaderRow + 338) <= gridLineDensity;
+          if (!visible) continue;
+          const x = col * cellWidthPx;
+          const y = row * cellHeightPx;
+          addGridLineSegment(
+            gridLineHexAt(row, col, x + cellWidthPx * 0.5, y + cellHeightPx * 0.5),
+            `M${x} ${y}h${cellWidthPx}v${cellHeightPx}h${-cellWidthPx}Z`,
+          );
+        }
       }
     }
   }

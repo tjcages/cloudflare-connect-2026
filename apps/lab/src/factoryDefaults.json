@@ -270,7 +270,9 @@
       "enabled": true,
       "density": 0.8,
       "sizePx": 1.5,
-      "brightness": 0.13
+      "brightness": 0.13,
+      "hueDriftDeg": 0,
+      "saturationBoost": 0
     },
     "stripeBorder": {
       "enabled": true,

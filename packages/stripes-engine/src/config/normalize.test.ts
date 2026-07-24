@@ -193,25 +193,33 @@ describe("stripe dots normalizer", () => {
       density: 0.5,
       sizePx: 1.5,
       brightness: 0.35,
+      hueDriftDeg: 0,
+      saturationBoost: 0,
     });
   });
-  it("clamps density, size, and brightness", () => {
+  it("clamps density, size, brightness, hue drift, and saturation boost", () => {
     expect(
       normalizeStripeDots({
         enabled: true,
         density: 2,
         sizePx: 9,
         brightness: -1,
+        hueDriftDeg: 999,
+        saturationBoost: 9,
       }),
     ).toEqual({
       enabled: true,
       density: 1,
       sizePx: 2,
       brightness: 0,
+      hueDriftDeg: 180,
+      saturationBoost: 1,
     });
-    expect(normalizeStripeDots({ density: -1, sizePx: 0 })).toMatchObject({
+    expect(normalizeStripeDots({ density: -1, sizePx: 0, hueDriftDeg: -999, saturationBoost: -1 })).toMatchObject({
       density: 0,
       sizePx: 1,
+      hueDriftDeg: -180,
+      saturationBoost: 0,
     });
   });
 });

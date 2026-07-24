@@ -22,12 +22,31 @@ export const STRIPE_PALETTE_LEVELS = [
 ] as const;
 
 export type StripePaletteLevel = (typeof STRIPE_PALETTE_LEVELS)[number];
+const GENERATED_STRIPE_PALETTE_LEVELS = STRIPE_PALETTE_LEVELS.filter((level) => level !== "800");
+const NEUTRAL_STRIPE_PALETTE_NAME = "Neutral";
+const NEUTRAL_STRIPE_PALETTE_LEVELS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"] as const;
 export const WHITE_STRIPE_PALETTE_NAME = "White";
 export const BACKGROUND_RAMP_PALETTE_NAME = "Background Ramp";
 const WHITE_STRIPE_HEX = "#ffffff";
 const WHITE_STRIPE_OPACITY_MAX = 0.7;
 const WHITE_BACKGROUND_FIRST_STRIPE_HEX = "#fafafa";
-const WHITE_BACKGROUND_STRIPE_LEVELS = ["0", "100", "200", "300", "400", "500", "600", "700", "800"] as const;
+const WHITE_BACKGROUND_STRIPE_LEVELS = [
+  "0",
+  "100",
+  "200",
+  "300",
+  "400",
+  "500",
+  "600",
+  "700",
+  "900",
+  "1000",
+  "1100",
+  "1200",
+  "1300",
+  "1400",
+  "1500",
+] as const;
 const BACKGROUND_RAMP_NEUTRAL_CHROMA_THRESHOLD = 0.006;
 export const BACKGROUND_RAMP_EASING_OPTIONS = EASING_OPTIONS;
 export type BackgroundRampEasing = EasingName;
@@ -213,6 +232,13 @@ export const STRIPE_PALETTE_NAMES = [
 
 const GROUP_BY_NAME = new Map(STRIPE_PALETTE_GROUPS.map((group) => [group.name, group]));
 const TOKEN_BY_HEX = new Map<string, { groupName: string; level: StripePaletteLevel }>();
+const NEUTRAL_STRIPE_HEXES = new Set(
+  NEUTRAL_STRIPE_PALETTE_LEVELS.map((level) =>
+    GROUP_BY_NAME.get(NEUTRAL_STRIPE_PALETTE_NAME)
+      ?.colors.find((color) => color.label.match(/^\d+/)?.[0] === level)
+      ?.hex.toLowerCase(),
+  ).filter((hex): hex is string => Boolean(hex)),
+);
 
 for (const group of STRIPE_PALETTE_GROUPS) {
   for (const color of group.colors) {
@@ -248,6 +274,9 @@ export function detectStripePalette(
       return BACKGROUND_RAMP_PALETTE_NAME;
     }
   }
+  if (stripes.length > 0 && stripes.every((stripe) => NEUTRAL_STRIPE_HEXES.has(stripe.hex.toLowerCase()))) {
+    return NEUTRAL_STRIPE_PALETTE_NAME;
+  }
   const tokens = stripes.map((stripe) => TOKEN_BY_HEX.get(stripe.hex.toLowerCase())).filter(Boolean);
   if (tokens.length === 0) return null;
   const first = tokens[0]?.groupName;
@@ -261,15 +290,24 @@ function paletteHex(groupName: string, level: StripePaletteLevel): string | null
   return color?.hex ?? null;
 }
 
+function neutralStripeHex(index: number): string | null {
+  const level =
+    NEUTRAL_STRIPE_PALETTE_LEVELS[index] ?? NEUTRAL_STRIPE_PALETTE_LEVELS[NEUTRAL_STRIPE_PALETTE_LEVELS.length - 1];
+  const color = GROUP_BY_NAME.get(NEUTRAL_STRIPE_PALETTE_NAME)?.colors.find(
+    (candidate) => candidate.label.match(/^\d+/)?.[0] === level,
+  );
+  return color?.hex ?? null;
+}
+
 function stripeLevel(_stripe: EditableStripe, index: number): StripePaletteLevel | undefined {
-  return STRIPE_PALETTE_LEVELS[index];
+  return GENERATED_STRIPE_PALETTE_LEVELS[index];
 }
 
 function dynamicStripeLevelsFromBackground(backgroundHex?: string | null): StripePaletteLevel[] {
   const token = backgroundHex ? TOKEN_BY_HEX.get(backgroundHex.toLowerCase()) : null;
-  if (!token) return STRIPE_PALETTE_LEVELS.slice();
+  if (!token) return GENERATED_STRIPE_PALETTE_LEVELS.slice();
   const startIndex = Math.min(STRIPE_PALETTE_LEVELS.length - 1, STRIPE_PALETTE_LEVELS.indexOf(token.level) + 1);
-  return STRIPE_PALETTE_LEVELS.slice(startIndex);
+  return STRIPE_PALETTE_LEVELS.slice(startIndex).filter((level) => level !== "800");
 }
 
 function isWhiteBackground(backgroundHex?: string | null): boolean {
@@ -307,6 +345,13 @@ export function applyStripePalette(
     return stripes.map((stripe, index) => ({
       ...stripe,
       hex: ramp[index] ?? stripe.hex,
+      opacity: 1,
+    }));
+  }
+  if (groupName === NEUTRAL_STRIPE_PALETTE_NAME) {
+    return stripes.map((stripe, index) => ({
+      ...stripe,
+      hex: neutralStripeHex(index) ?? stripe.hex,
       opacity: 1,
     }));
   }

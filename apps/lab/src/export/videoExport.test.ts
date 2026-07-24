@@ -187,6 +187,7 @@ describe("exportLabVideo", () => {
         getTracks: () => [{ stop: vi.fn() }],
       })),
     } as unknown as HTMLCanvasElement;
+    const overlayCanvas = { width: 2, height: 2 } as HTMLCanvasElement;
     const createCompositor = vi.fn(async () => ({
       canvas,
       compositeFrame: vi.fn(),
@@ -209,12 +210,16 @@ describe("exportLabVideo", () => {
       transcode,
       createCompositor,
       backgroundColor: 0xffffff,
+      overlayCanvases: [overlayCanvas],
       onPhase: (phase) => phases.push(phase),
       onTranscodeProgress: (percent) => transcodePercents.push(percent),
     });
 
     expect(blob.type).toBe("video/mp4");
-    expect(createCompositor).toHaveBeenCalledWith(canvas, { backgroundColor: 0xffffff });
+    expect(createCompositor).toHaveBeenCalledWith(canvas, {
+      backgroundColor: 0xffffff,
+      overlayCanvases: [overlayCanvas],
+    });
     expect(transcode).toHaveBeenCalledTimes(1);
     expect(phases).toEqual(["recording", "loading-encoder", "transcoding", "done"]);
     expect(transcodePercents).toEqual([25, 100]);

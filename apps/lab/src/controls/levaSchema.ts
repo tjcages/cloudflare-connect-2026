@@ -1307,6 +1307,22 @@ export function useEngineControls(
                 label: "+ Brightness",
                 render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
               },
+              stripeDotsHueDriftDeg: {
+                value: d.stripeDots.hueDriftDeg,
+                min: -180,
+                max: 180,
+                step: 0.5,
+                label: "Hue drift",
+                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+              },
+              stripeDotsSaturationBoost: {
+                value: d.stripeDots.saturationBoost * 100,
+                min: 0,
+                max: 100,
+                step: 1,
+                label: "Saturation boost",
+                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+              },
             },
             {
               collapsed: !loadControlDrawerOpen("Stripe Dots", loadLabSettings().drawerOpen["Stripe Dots"] ?? false),
@@ -4036,6 +4052,8 @@ export function useEngineControls(
       density: values.stripeDotsDensity / 100,
       sizePx: values.stripeDotsSizePx,
       brightness: values.stripeDotsBrightness / 100,
+      hueDriftDeg: values.stripeDotsHueDriftDeg,
+      saturationBoost: values.stripeDotsSaturationBoost / 100,
     },
     stripeBorder: {
       enabled: values.stripeBorderEnabled,

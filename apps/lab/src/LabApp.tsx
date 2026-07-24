@@ -1276,6 +1276,7 @@ function LabInner() {
 
   const applyTwizzlerMapTextureSource = useCallback(() => {
     if (manualRef.current) return;
+    if (textureSourceModeRef.current !== "shader") return;
     const engine = engineRef.current;
     const canvas = canvasRef.current;
     if (!engine) return;
@@ -1459,11 +1460,13 @@ function LabInner() {
       const controller = new AbortController();
       videoExportAbortRef.current = controller;
       exportingVideoRef.current = true;
+      const framesCanvas = controlsRef.current.frames.enabled ? framesCanvasRef.current : null;
       void exportLabVideo({
         canvas: targetCanvas,
         sourceKind: video ? "video" : "image",
         video: video ?? undefined,
         backgroundColor: controlsRef.current.background.transparent ? undefined : controlsRef.current.background.color,
+        overlayCanvases: framesCanvas ? [framesCanvas] : undefined,
         startTimeSec: exportStartSec,
         durationSec,
         signal: controller.signal,
@@ -1923,6 +1926,9 @@ function LabInner() {
     if (textureSourceMode === "shader") {
       applyActiveShaderSource();
     } else {
+      const twizzlerCanvas = twizzlerCanvasRef.current;
+      if (twizzlerCanvas) clearTwizzler(twizzlerCanvas);
+      twizzlerMapRendererRef.current = null;
       shaderRendererRef.current?.dispose();
       shaderRendererRef.current = null;
       connectRendererRef.current?.dispose();
@@ -2319,6 +2325,12 @@ function LabInner() {
   }
 
   function handleTextureSourceModeChange(next: LabTextureSourceMode) {
+    textureSourceModeRef.current = next;
+    if (next === "texture") {
+      const twizzlerCanvas = twizzlerCanvasRef.current;
+      if (twizzlerCanvas) clearTwizzler(twizzlerCanvas);
+      twizzlerMapRendererRef.current = null;
+    }
     setTextureSourceMode(next);
     saveLabSettings({
       ...labSettingsRef.current,

@@ -118,6 +118,8 @@ describe("config file import/export", () => {
       density: 0.8,
       sizePx: 1.5,
       brightness: 0.13,
+      hueDriftDeg: 0,
+      saturationBoost: 0,
     });
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripeBorder).toEqual({
       enabled: true,

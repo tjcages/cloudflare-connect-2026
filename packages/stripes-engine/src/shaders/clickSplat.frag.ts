@@ -49,7 +49,7 @@ float clickStrengthBreakup(float seed, float x, float y, float progress, float j
 }
 
 float clickDissolveProgress(float waveProgress) {
-  float t = clamp((waveProgress - 0.4) / 0.6, 0.0, 1.0);
+  float t = clamp((waveProgress - 0.8) / 0.2, 0.0, 1.0);
   return t * t * (3.0 - 2.0 * t);
 }
 

@@ -597,6 +597,8 @@ export const DEFAULT_STRIPE_DOTS: StripeDotsConfig = {
   density: 0.5,
   sizePx: 1.5,
   brightness: 0.35,
+  hueDriftDeg: 0,
+  saturationBoost: 0,
 };
 
 export function normalizeStripeDots(i: Partial<StripeDotsConfig> = {}): StripeDotsConfig {
@@ -605,6 +607,8 @@ export function normalizeStripeDots(i: Partial<StripeDotsConfig> = {}): StripeDo
     density: clamp(num(i.density, DEFAULT_STRIPE_DOTS.density), 0, 1),
     sizePx: clamp(num(i.sizePx, DEFAULT_STRIPE_DOTS.sizePx), 1, 2),
     brightness: clamp(num(i.brightness, DEFAULT_STRIPE_DOTS.brightness), 0, 1),
+    hueDriftDeg: clamp(num(i.hueDriftDeg, DEFAULT_STRIPE_DOTS.hueDriftDeg), -180, 180),
+    saturationBoost: clamp(num(i.saturationBoost, DEFAULT_STRIPE_DOTS.saturationBoost), 0, 1),
   };
 }
 
