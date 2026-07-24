@@ -58,6 +58,8 @@ export type StripeUniforms = {
   stripeDotsEnabled: boolean;
   stripeDotsSizePx: number;
   stripeDotsBrightness: number;
+  stripeDotsHueDriftDeg: number;
+  stripeDotsSaturationBoost: number;
   stripeBorderEnabled: boolean;
   stripeBorderMinWidthPx: number;
   stripeBorderDensity: number;
@@ -174,6 +176,8 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     stripeDotsEnabled: config.stripeDots.enabled,
     stripeDotsSizePx: config.stripeDots.sizePx,
     stripeDotsBrightness: config.stripeDots.brightness,
+    stripeDotsHueDriftDeg: config.stripeDots.hueDriftDeg,
+    stripeDotsSaturationBoost: config.stripeDots.saturationBoost,
     stripeBorderEnabled: config.stripeBorder.enabled,
     stripeBorderMinWidthPx: config.stripeBorder.minWidthPx,
     stripeBorderDensity: config.stripeBorder.density,
@@ -266,6 +270,8 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     stripeDotsEnabled: u("uStripeDotsEnabled"),
     stripeDotsSizePx: u("uStripeDotsSizePx"),
     stripeDotsBrightness: u("uStripeDotsBrightness"),
+    stripeDotsHueDriftDeg: u("uStripeDotsHueDriftDeg"),
+    stripeDotsSaturationBoost: u("uStripeDotsSaturationBoost"),
     stripeBorderEnabled: u("uStripeBorderEnabled"),
     stripeBorderMinWidthPx: u("uStripeBorderMinWidthPx"),
     stripeBorderDensity: u("uStripeBorderDensity"),
@@ -377,6 +383,8 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.stripeDotsEnabled, p.stripeDotsEnabled ? 1 : 0);
       gl.uniform1f(L.stripeDotsSizePx, p.stripeDotsSizePx);
       gl.uniform1f(L.stripeDotsBrightness, p.stripeDotsBrightness);
+      gl.uniform1f(L.stripeDotsHueDriftDeg, p.stripeDotsHueDriftDeg);
+      gl.uniform1f(L.stripeDotsSaturationBoost, p.stripeDotsSaturationBoost);
       gl.uniform1f(L.stripeBorderEnabled, p.stripeBorderEnabled ? 1 : 0);
       gl.uniform1f(L.stripeBorderMinWidthPx, p.stripeBorderMinWidthPx);
       gl.uniform1f(L.stripeBorderDensity, p.stripeBorderDensity);

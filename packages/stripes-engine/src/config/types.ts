@@ -235,6 +235,8 @@ export interface StripeDotsConfig {
   density: number;
   sizePx: number;
   brightness: number;
+  hueDriftDeg: number;
+  saturationBoost: number;
 }
 
 export interface StripeBorderConfig {

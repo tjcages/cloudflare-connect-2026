@@ -224,6 +224,34 @@ describe("cellGridToSvg", () => {
     expect(svg.indexOf('class="fill-stripe-1"')).toBeLessThan(svg.indexOf('class="stripe-dot"'));
   });
 
+  it("applies Stripe Dots hue drift and saturation boost with the ramp position", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const stripe = [{ hex: "#804040", startFrom: 0, width: 4 }];
+    const exportWithTone = (hueDriftDeg: number, saturationBoost: number) =>
+      cellGridToSvg(readback, stripe, {
+        cellWidthPx: 10,
+        cellHeightPx: 10,
+        useCellColors: false,
+        stripeDots: {
+          enabled: true,
+          density: 1,
+          sizePx: 1,
+          brightness: 0,
+          hueDriftDeg,
+          saturationBoost,
+        },
+      });
+    const dotFill = (svg: string) => svg.match(/<circle class="stripe-dot"[^>]* fill="(#[0-9a-f]{6})"/)?.[1];
+
+    const baseFill = dotFill(exportWithTone(0, 0));
+    const hueShiftedFill = dotFill(exportWithTone(120, 0));
+    const boostedFill = dotFill(exportWithTone(120, 1));
+
+    expect(baseFill).toBe("#804040");
+    expect(hueShiftedFill).not.toBe(baseFill);
+    expect(boostedFill).not.toBe(hueShiftedFill);
+  });
+
   it("omits Stripe Dots below 2px stripe width or at zero density", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: null };
     const stripeDots = {
@@ -304,6 +332,22 @@ describe("cellGridToSvg", () => {
     expect(segmentCount(sparse)).toBeLessThan(16);
     expect(segmentCount(full)).toBe(16);
     expect(hidden).not.toContain('class="grid-line"');
+  });
+
+  it("rotates exported Grid Lines with the grid orientation angle", () => {
+    const readback = { cols: 2, rows: 2, values: v(...Array(4).fill(255)), colors: null };
+    const svg = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 4 }], {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      angleDeg: 45,
+      gridLines: { enabled: true, brightness: 0, density: 1 },
+    });
+    const gridLine = svg.match(/<path class="grid-line"[^>]+>/)?.[0] ?? "";
+
+    expect(gridLine).toContain("L");
+    expect(gridLine).not.toContain("h10v8h-10Z");
+    expect((gridLine.match(/M/g) ?? []).length).toBeGreaterThan(4);
   });
 
   it("places the exported Frames layer above stripes", () => {

@@ -46,6 +46,8 @@ uniform float uStripeSparkleSaturationBoost;
 uniform float uStripeDotsEnabled;
 uniform float uStripeDotsSizePx;
 uniform float uStripeDotsBrightness;
+uniform float uStripeDotsHueDriftDeg;
+uniform float uStripeDotsSaturationBoost;
 uniform float uStripeBorderEnabled;
 uniform float uStripeBorderMinWidthPx;
 uniform float uStripeBorderDensity;
@@ -426,8 +428,15 @@ vec3 stripeBrightnessColor(vec3 stripeColor, float brightness) {
   return hslToRgb(stripeHsl);
 }
 
-vec3 stripeDotColor(vec3 stripeColor) {
-  return stripeBrightnessColor(stripeColor, uStripeDotsBrightness);
+vec3 stripeDotColor(vec3 stripeColor, float rampT) {
+  vec3 dotColor = stripeBrightnessColor(stripeColor, uStripeDotsBrightness);
+  vec3 hsl = rgbToHsl(dotColor);
+  if (hsl.y <= 0.0001) return dotColor;
+  float t = clamp(rampT, 0.0, 1.0);
+  hsl.x = fract(hsl.x + (uStripeDotsHueDriftDeg * t) / 360.0);
+  float satLift = clamp(uStripeDotsSaturationBoost, 0.0, 1.0) * sin(t * 3.141592653589793 * 0.85);
+  hsl.y = clamp(hsl.y * (1.0 + satLift), 0.0, 1.0);
+  return hslToRgb(hsl);
 }
 
 float stripeShapeAlpha(
@@ -455,12 +464,12 @@ float stripeShapeAlpha(
   return max(0.0, outerAlpha - innerAlpha);
 }
 
-bool gridLineCellVisible(vec2 cell, float density) {
-  if (any(lessThan(cell, vec2(0.0))) || any(greaterThanEqual(cell, uGridCount))) return false;
+bool gridLineCellVisible(vec2 cell, float density, bool allowOutsideGrid) {
+  if (!allowOutsideGrid && (any(lessThan(cell, vec2(0.0))) || any(greaterThanEqual(cell, uGridCount)))) return false;
   return density >= 0.999 || cellSeed(cell.x + 211.0, cell.y + 307.0) <= density;
 }
 
-float gridLineAlpha(vec2 rawCellF, float aaWidth) {
+float gridLineAlpha(vec2 rawCellF, float aaWidth, bool allowOutsideGrid) {
   if (uGridLinesEnabled <= 0.5) return 0.0;
   float density = clamp(uGridLinesDensity, 0.0, 1.0);
   if (density <= 0.001) return 0.0;
@@ -470,18 +479,18 @@ float gridLineAlpha(vec2 rawCellF, float aaWidth) {
   vec2 edgeDistancePx = min(rawLocal, 1.0 - rawLocal) * uCellPx;
   float verticalAlpha = clamp(0.5 - (edgeDistancePx.x - 0.5) / aaWidth, 0.0, 1.0);
   float horizontalAlpha = clamp(0.5 - (edgeDistancePx.y - 0.5) / aaWidth, 0.0, 1.0);
-  bool currentVisible = gridLineCellVisible(rawCell, density);
+  bool currentVisible = gridLineCellVisible(rawCell, density, allowOutsideGrid);
   float xSide = rawLocal.x < 0.5 ? -1.0 : 1.0;
   float ySide = rawLocal.y < 0.5 ? -1.0 : 1.0;
   vec2 verticalNeighbor = rawCell + vec2(xSide, 0.0);
   vec2 horizontalNeighbor = rawCell + vec2(0.0, ySide);
   vec2 diagonalNeighbor = rawCell + vec2(xSide, ySide);
-  bool verticalCellVisible = currentVisible || gridLineCellVisible(verticalNeighbor, density);
-  bool horizontalCellVisible = currentVisible || gridLineCellVisible(horizontalNeighbor, density);
+  bool verticalCellVisible = currentVisible || gridLineCellVisible(verticalNeighbor, density, allowOutsideGrid);
+  bool horizontalCellVisible = currentVisible || gridLineCellVisible(horizontalNeighbor, density, allowOutsideGrid);
   bool cornerCellVisible =
     verticalCellVisible ||
     horizontalCellVisible ||
-    gridLineCellVisible(diagonalNeighbor, density);
+    gridLineCellVisible(diagonalNeighbor, density, allowOutsideGrid);
   float verticalVisible = verticalCellVisible ? 1.0 : 0.0;
   float horizontalVisible = horizontalCellVisible ? 1.0 : 0.0;
   float squareCornerAlpha = cornerCellVisible ? min(verticalAlpha, horizontalAlpha) : 0.0;
@@ -593,6 +602,24 @@ void main() {
   float extendY = (uGridGapPx.y <= 0.0001) ? w : 0.0;
   float extendX = (uGridGapPx.x <= 0.0001) ? w : 0.0;
   float noGapExtend = max(extendX, extendY);
+  vec2 gridLineCellF = cellF;
+  if (arbitraryAngle) {
+    vec2 displayPx = max(vec2(1.0), uDisplayPx);
+    vec2 centeredPixel = vUv * displayPx - displayPx * 0.5;
+    float normalCoord = dot(centeredPixel, normal);
+    float axisCoord = dot(centeredPixel, axis);
+    if (uOrient > 0.5) {
+      gridLineCellF = vec2(
+        (axisCoord + displayPx.x * 0.5) / max(uCellPx.x, 0.0001),
+        (normalCoord + displayPx.y * 0.5) / max(uCellPx.y, 0.0001)
+      );
+    } else {
+      gridLineCellF = vec2(
+        (normalCoord + displayPx.x * 0.5) / max(uCellPx.x, 0.0001),
+        (axisCoord + displayPx.y * 0.5) / max(uCellPx.y, 0.0001)
+      );
+    }
+  }
 
   if (arbitraryAngle) {
     vec2 displayPx = max(vec2(1.0), uDisplayPx);
@@ -711,7 +738,7 @@ void main() {
           candidateColor = applyStripeSparkle(candidateColor, candidateCell, candidateWidthPx, candidateOpacity);
           candidateColor = mix(
             candidateColor,
-            stripeDotColor(candidateColor),
+            stripeDotColor(candidateColor, candidateRampT),
             candidateDotAlpha
           );
 
@@ -764,13 +791,13 @@ void main() {
       );
       float dotAlpha = stripeDotAlpha(rotatedP, barDotEligible, barWidthPx, barOpacity, w) * geometryAlpha;
       float effectiveAlpha = max(shapeAlpha, dotAlpha) * barOpacity;
-      vec3 dottedBarColor = mix(barColor, stripeDotColor(barColor), dotAlpha);
+      vec3 dottedBarColor = mix(barColor, stripeDotColor(barColor, barRampT), dotAlpha);
       vec3 blendedBarColor = bgColor.a <= 0.0001 ? dottedBarColor : blendStripeColor(bgColor.rgb, dottedBarColor);
       finalColor = mix(bgColor, vec4(blendedBarColor, 1.0), effectiveAlpha);
     }
   }
 
-  float lineAlpha = gridLineAlpha(cellF, w);
+  float lineAlpha = gridLineAlpha(gridLineCellF, w, arbitraryAngle);
   if (lineAlpha > 0.001) {
     vec3 lineColor = stripeBrightnessColor(barColor, uGridLinesBrightness);
     vec3 blendedLineColor = finalColor.a <= 0.0001 ? lineColor : blendStripeColor(finalColor.rgb, lineColor);
