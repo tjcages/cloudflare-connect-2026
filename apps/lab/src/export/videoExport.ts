@@ -1,5 +1,5 @@
 import type { TranscodeWebmToMp4Options } from "./ffmpeg";
-import { createLabExportCompositor, type LabVideoBackgroundOptions } from "./videoCompositor";
+import { createLabExportCompositor, type LabVideoCompositorOptions } from "./videoCompositor";
 
 export const LAB_IMAGE_EXPORT_DURATION_SEC = 5;
 export const LAB_VIDEO_EXPORT_MAX_DURATION_SEC = 120;
@@ -421,6 +421,7 @@ export type ExportLabVideoOptions = {
   sourceKind: LabExportSourceKind;
   video?: HTMLVideoElement;
   backgroundColor?: number;
+  overlayCanvases?: readonly HTMLCanvasElement[];
   startTimeSec?: number;
   durationSec?: number;
   signal?: AbortSignal;
@@ -432,7 +433,7 @@ export type ExportLabVideoOptions = {
   transcode?: (webmBlob: Blob, options: TranscodeWebmToMp4Options) => Promise<Blob>;
   createCompositor?: (
     canvas: HTMLCanvasElement,
-    background: LabVideoBackgroundOptions,
+    options: LabVideoCompositorOptions,
   ) => Promise<{ canvas: HTMLCanvasElement; compositeFrame: () => void }>;
 };
 
@@ -442,6 +443,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     sourceKind,
     video,
     backgroundColor,
+    overlayCanvases,
     startTimeSec: requestedStartTimeSec = 0,
     durationSec: requestedDurationSec,
     signal,
@@ -490,7 +492,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
 
   onPhase?.("recording");
 
-  const compositor = await createCompositor(canvas, { backgroundColor });
+  const compositor = await createCompositor(canvas, { backgroundColor, overlayCanvases });
   const recordCanvas = compositor.canvas;
   const compositeFrame = compositor.compositeFrame;
 

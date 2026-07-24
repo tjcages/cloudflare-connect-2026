@@ -6,6 +6,10 @@ export type LabVideoBackgroundOptions = {
   backgroundColor?: number;
 };
 
+export type LabVideoCompositorOptions = LabVideoBackgroundOptions & {
+  overlayCanvases?: readonly HTMLCanvasElement[];
+};
+
 export type LabExportCompositor = {
   canvas: HTMLCanvasElement;
   compositeFrame: () => void;
@@ -17,13 +21,12 @@ function backgroundColorToHex(color: number): string {
 
 export async function createLabExportCompositor(
   sourceCanvas: HTMLCanvasElement,
-  background: LabVideoBackgroundOptions = {},
+  options: LabVideoCompositorOptions = {},
 ): Promise<LabExportCompositor> {
   const width = sourceCanvas.width || 1;
   const height = sourceCanvas.height || 1;
-  const hasBackgroundColor =
-    typeof background.backgroundColor === "number" && Number.isFinite(background.backgroundColor);
-  const backgroundColor = hasBackgroundColor ? background.backgroundColor! : DEFAULT_LAB_BACKGROUND_COLOR;
+  const hasBackgroundColor = typeof options.backgroundColor === "number" && Number.isFinite(options.backgroundColor);
+  const backgroundColor = hasBackgroundColor ? options.backgroundColor! : DEFAULT_LAB_BACKGROUND_COLOR;
 
   const exportCanvas = document.createElement("canvas");
   exportCanvas.width = width;
@@ -46,6 +49,11 @@ export async function createLabExportCompositor(
       ctx.clearRect(0, 0, width, height);
     }
     ctx.drawImage(sourceCanvas, 0, 0, width, height);
+    for (const overlayCanvas of options.overlayCanvases ?? []) {
+      if (overlayCanvas.width > 0 && overlayCanvas.height > 0) {
+        ctx.drawImage(overlayCanvas, 0, 0, width, height);
+      }
+    }
   };
 
   return { canvas: exportCanvas, compositeFrame };
