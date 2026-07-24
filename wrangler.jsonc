@@ -1,0 +1,13 @@
+{
+  "name": "section-grid-generator",
+  "compatibility_date": "2026-05-14",
+  "account_id": "51e4976929d6ad6d85de3781e460148f",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+  },
+  "assets": {
+    "directory": "apps/lab/dist",
+    "not_found_handling": "single-page-application",
+  },
+}
