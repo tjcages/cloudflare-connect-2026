@@ -29,7 +29,7 @@
         "enabled": false,
         "direction": "topToBottom",
         "stopCount": 3,
-        "stops": [8331002, 15415273, 16757593, 9752907],
+        "stops": [8331002, 15349737, 16757594, 9752907],
         "hueDriftDeg": 0,
         "saturationBoost": 0
       },
@@ -89,69 +89,69 @@
       "overlapAmount": 1.2,
       "streamGapWave": {
         "enabled": false,
-        "squeeze": 0,
-        "wavelengthCells": 16,
-        "speed": 0,
-        "phaseDeg": 0
+        "squeeze": 0.23,
+        "wavelengthCells": 10,
+        "speed": -2.66,
+        "phaseDeg": -180
       }
     },
     "stripes": [
       {
-        "color": 16410153,
+        "color": 16541739,
         "startFrom": 0,
         "width": 0.5,
         "opacity": 1
       },
       {
-        "color": 16737809,
+        "color": 16738304,
         "startFrom": 0.0195,
         "width": 0.5,
         "opacity": 1
       },
       {
-        "color": 16738048,
+        "color": 16738816,
         "startFrom": 0.047,
         "width": 1,
         "opacity": 1
       },
       {
-        "color": 16739072,
+        "color": 16740352,
         "startFrom": 0.086,
         "width": 1.5,
         "opacity": 1
       },
       {
-        "color": 16740864,
+        "color": 16742912,
         "startFrom": 0.1408,
         "width": 1.5,
         "opacity": 1
       },
       {
-        "color": 16742912,
+        "color": 16746240,
         "startFrom": 0.2167,
         "width": 2,
         "opacity": 1
       },
       {
-        "color": 16745472,
+        "color": 16749824,
         "startFrom": 0.3191,
         "width": 2.5,
         "opacity": 1
       },
       {
-        "color": 16748032,
+        "color": 16753664,
         "startFrom": 0.4512,
         "width": 3,
         "opacity": 1
       },
       {
-        "color": 16750592,
+        "color": 16759829,
         "startFrom": 0.6129,
         "width": 3.5,
         "opacity": 1
       },
       {
-        "color": 16752923,
+        "color": 16764259,
         "startFrom": 0.8,
         "width": 4,
         "opacity": 1
@@ -254,8 +254,8 @@
         "maxBrightness": 0.1,
         "speed": 0.2,
         "thickestCount": 4,
-        "hueDriftDeg": 10.5,
-        "saturationBoost": 0.3
+        "hueDriftDeg": 20,
+        "saturationBoost": 0.4
       },
       "motion": {
         "enabled": false,
@@ -268,9 +268,28 @@
     },
     "stripeDots": {
       "enabled": true,
-      "density": 0.43,
+      "density": 0.8,
       "sizePx": 1.5,
       "brightness": 0.13
+    },
+    "stripeBorder": {
+      "enabled": true,
+      "minWidthPx": 4,
+      "density": 0.02
+    },
+    "gridLines": {
+      "enabled": false,
+      "brightness": 0,
+      "density": 0.01
+    },
+    "frames": {
+      "enabled": true,
+      "luminanceThreshold": 0.56,
+      "highlightedStripeCount": 7,
+      "groupDistanceCells": 7,
+      "color": 16760596,
+      "fontSizePx": 8,
+      "coordinateColor": 16777215
     },
     "flames": {
       "enabled": true,
@@ -468,13 +487,77 @@
     "renderIntensity": 1,
     "renderParams": [0.5, 0.5, 0.5, 0.5],
     "renderColorA": 2236962,
-    "renderColorB": 16777215
+    "renderColorB": 16777215,
+    "dark": {
+      "stripes": [
+        {
+          "color": 8008433,
+          "startFrom": 0,
+          "width": 0.5,
+          "opacity": 1
+        },
+        {
+          "color": 8661759,
+          "startFrom": 0.0195,
+          "width": 0.5,
+          "opacity": 1
+        },
+        {
+          "color": 9380607,
+          "startFrom": 0.047,
+          "width": 1,
+          "opacity": 1
+        },
+        {
+          "color": 10100479,
+          "startFrom": 0.086,
+          "width": 1.5,
+          "opacity": 1
+        },
+        {
+          "color": 10890239,
+          "startFrom": 0.1408,
+          "width": 1.5,
+          "opacity": 1
+        },
+        {
+          "color": 11549183,
+          "startFrom": 0.2167,
+          "width": 2,
+          "opacity": 1
+        },
+        {
+          "color": 12141311,
+          "startFrom": 0.3191,
+          "width": 2.5,
+          "opacity": 1
+        },
+        {
+          "color": 12667391,
+          "startFrom": 0.4512,
+          "width": 3,
+          "opacity": 1
+        },
+        {
+          "color": 12997631,
+          "startFrom": 0.6129,
+          "width": 3.5,
+          "opacity": 1
+        },
+        {
+          "color": 13131775,
+          "startFrom": 0.8,
+          "width": 4,
+          "opacity": 1
+        }
+      ]
+    }
   },
   "lab": {
     "canvasMode": "scale",
     "canvasScale": 1,
-    "canvasWidth": 480,
-    "canvasHeight": 600,
+    "canvasWidth": 1400,
+    "canvasHeight": 998,
     "canvasAspectLocked": true,
     "exportStartSec": 0,
     "exportDurationSec": 5,
@@ -534,9 +617,9 @@
     "stripePalette": "Background Ramp",
     "backgroundRampEasing": "custom:0.417,0.335,0.58,0.911",
     "backgroundRampSettings": {
-      "brightnessAdd": 20,
-      "hueDriftDeg": 10.5,
-      "saturationBoost": 30,
+      "brightnessAdd": 26,
+      "hueDriftDeg": 20,
+      "saturationBoost": 40,
       "maxLightnessUnder20": 100,
       "maxLightness20To40": 100,
       "maxLightness40To60": 100,
@@ -544,24 +627,21 @@
       "maxLightness70To80": 93,
       "maxLightnessOver80": 93
     },
-    "thresholdDistributionEasing": "custom:0.463,0.085,0.689,0.308",
+    "thresholdDistributionEasing": "custom:0.431,0.147,0.556,0.409",
     "autoStripeWidths": false,
     "drawerOpen": {
-      "Cursor Trail": false,
-      "General": true,
-      "Click Wave": false,
-      "Sparkle": true,
-      "Grid": false,
-      "Background Flames": false,
-      "Background Stars": false,
-      "Letters": false,
-      "Reveal": false,
-      "Edge Mask": false,
       "Stripes": true,
-      "Colors": false,
-      "Detailed settings": true,
       "Background": true,
-      "Background Meteors": false
+      "Colors": true,
+      "Detailed settings": true,
+      "Grid": true,
+      "Edge Mask": false,
+      "Sparkle": false,
+      "Background Stars": false,
+      "Background Meteors": false,
+      "Cursor Trail": false,
+      "Reveal": false,
+      "General": true
     },
     "previewZoom": 1,
     "textureSidebarOpen": true,

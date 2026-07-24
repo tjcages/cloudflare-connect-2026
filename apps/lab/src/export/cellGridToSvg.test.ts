@@ -45,21 +45,21 @@ describe("cellGridToSvg", () => {
   it("emits display-p3 band colors with an sRGB fallback (@supports)", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: null };
     const svg = cellGridToSvg(readback, STRIPES, { cellWidthPx: 7, cellHeightPx: 7, useCellColors: false });
-    expect(svg).toContain("#00cc88"); // sRGB fallback
-    expect(svg).toContain("@supports (fill: color(display-p3 1 1 1))");
-    expect(svg).toContain("color(display-p3 0.0000 0.8000 0.5333)"); // 0x00cc88 as p3 coords
+    expect(svg).toContain("#00cc88");
+    expect(svg).toContain("@supports");
+    expect(svg).toContain("color(display-p3 0.0000 0.8000 0.5333)");
   });
 
   it("uses exact library display-p3 tokens when a stripe color comes from the color library", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: null };
-    const svg = cellGridToSvg(readback, [{ hex: "#f27235", startFrom: 0, width: 4 }], {
+    const svg = cellGridToSvg(readback, [{ hex: "#f46021", startFrom: 0, width: 4 }], {
       cellWidthPx: 7,
       cellHeightPx: 7,
       useCellColors: false,
     });
 
-    expect(svg).toContain("#f27235"); // fallback / packed P3 canvas color
-    expect(svg).toContain("color(display-p3 0.95 0.4488 0.2071)"); // Orange 700 token
+    expect(svg).toContain("#f46021");
+    expect(svg).toContain("color(display-p3 0.956509 0.375662 0.127859)");
   });
 
   it("includes an optional background color rect behind paths", () => {
@@ -183,7 +183,7 @@ describe("cellGridToSvg", () => {
   it("uses per-cell colors in colors mode with sRGB fallback + display-p3 style", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: v(0x33, 0x66, 0x99, 255) };
     const svg = cellGridToSvg(readback, STRIPES, { cellWidthPx: 7, cellHeightPx: 7, useCellColors: true });
-    expect(svg).toContain('fill="#336699"'); // sRGB fallback attribute
+    expect(svg).toContain('fill="#336699"');
     expect(svg).toContain('style="fill:color(display-p3 0.2000 0.4000 0.6000)"');
     expect(svg).not.toContain("<style>");
   });
@@ -247,6 +247,77 @@ describe("cellGridToSvg", () => {
 
     expect(thin).not.toContain('class="stripe-dot"');
     expect(empty).not.toContain('class="stripe-dot"');
+  });
+
+  it("exports Stripe Border as a four-sided inner outline with density support", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const border = { enabled: true, minWidthPx: 2, density: 1 };
+    const outlined = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 4 }], {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      stripeBorder: border,
+    });
+    const filled = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 4 }], {
+      cellWidthPx: 10,
+      cellHeightPx: 8,
+      useCellColors: false,
+      stripeBorder: { ...border, density: 0 },
+    });
+
+    expect(outlined).toContain('class="fill-stripe-1 stripe-border" fill-rule="evenodd"');
+    expect(outlined).toContain('d="M3 0h4v8h-4ZM4 1h2v6h-2Z"');
+    expect(filled).not.toContain("stripe-border");
+    expect(filled).toContain('d="M3 0h4v8h-4Z"');
+  });
+
+  it("exports deterministic random-density Grid Lines as complete centered cell outlines", () => {
+    const readback = { cols: 4, rows: 4, values: v(...Array(16).fill(255)), colors: null };
+    const options = {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: false,
+      gridLines: { enabled: true, brightness: 0, density: 0.25 },
+    };
+    const sparse = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 4 }], options);
+    const repeated = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 4 }], options);
+    const full = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 4 }], {
+      ...options,
+      gridLines: { ...options.gridLines, density: 1 },
+    });
+    const hidden = cellGridToSvg(readback, [{ hex: "#ff0000", startFrom: 0, width: 4 }], {
+      ...options,
+      gridLines: { ...options.gridLines, density: 0 },
+    });
+    const segmentCount = (svg: string) =>
+      (svg.match(/<path class="grid-line"[^>]+>/g) ?? []).reduce(
+        (count, path) => count + (path.match(/M/g) ?? []).length,
+        0,
+      );
+
+    expect(sparse).toBe(repeated);
+    expect(sparse).toContain('class="grid-line"');
+    expect(sparse).toContain('stroke="#ff0000" stroke-width="1"');
+    expect(sparse).toContain('stroke-linecap="square" stroke-linejoin="miter"');
+    expect(segmentCount(sparse)).toBeGreaterThan(0);
+    expect(sparse).toContain("h10v10h-10Z");
+    expect(segmentCount(sparse)).toBeLessThan(16);
+    expect(segmentCount(full)).toBe(16);
+    expect(hidden).not.toContain('class="grid-line"');
+  });
+
+  it("places the exported Frames layer above stripes", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const frames = '<g data-layer="frames"><rect class="frame-outline" /></g>';
+    const svg = cellGridToSvg(readback, STRIPES, {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: false,
+      framesSvgLayer: frames,
+    });
+
+    expect(svg).toContain(frames);
+    expect(svg.indexOf('class="fill-stripe-3"')).toBeLessThan(svg.indexOf('data-layer="frames"'));
   });
 
   it("uses density to reveal source-brightness bands from highest to lowest", () => {

@@ -92,6 +92,13 @@ import { clearTwizzler, renderTwizzler } from "./twizzler";
 import { shouldShowTwizzlerOverlay } from "./twizzlerVisibility";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
 import { steppedTransportTime, TimeTransport, type TimeTransportController } from "./components/TimeTransport";
+import {
+  buildFrameGroups,
+  clearFramesOverlay,
+  framesOverlayToSvg,
+  renderFramesOverlay,
+  type FrameGroup,
+} from "./framesOverlay";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -733,6 +740,7 @@ function LabInner() {
   );
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const twizzlerCanvasRef = useRef<HTMLCanvasElement>(null);
+  const framesCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasAreaRef = useRef<HTMLDivElement>(null);
   const shaderPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const connectUnderlayHostRef = useRef<HTMLDivElement>(null);
@@ -968,6 +976,7 @@ function LabInner() {
   } = useEngineControls(onReplay, {
     showShaderCamera: textureSourceMode === "shader" && !isTwizzlerMapShaderPreset(shaderPresetId),
     showConnectCamera: textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
+    showShaderSourceControls: textureSourceMode === "shader",
     twizzlerTransport,
   });
   const controlsRef = useRef(controls);
@@ -1346,7 +1355,8 @@ function LabInner() {
       const readback = engine.readCellGrid();
       const canvasWidthPx = Math.round(Number.parseFloat(canvas.style.width) || canvas.clientWidth || canvas.width);
       const canvasHeightPx = Math.round(Number.parseFloat(canvas.style.height) || canvas.clientHeight || canvas.height);
-      const stripes = effectiveStripes(cfg).map((s) => ({
+      const resolvedStripes = effectiveStripes(cfg);
+      const stripes = resolvedStripes.map((s) => ({
         hex: "#" + s.color.toString(16).padStart(6, "0"),
         startFrom: s.startFrom,
         width: s.width,
@@ -1364,6 +1374,21 @@ function LabInner() {
             }
           : undefined,
       });
+      const framesSvgLayer = cfg.frames.enabled
+        ? framesOverlayToSvg(
+            buildFrameGroups(
+              readback,
+              cfg.frames.luminanceThreshold,
+              cfg.frames.groupDistanceCells,
+              resolvedStripes,
+              cfg.frames.highlightedStripeCount,
+            ),
+            cfg,
+            canvasWidthPx,
+            canvasHeightPx,
+            performance.now() / 1000,
+          )
+        : undefined;
       return cellGridToSvg(readback, stripes, {
         cellWidthPx: cfg.grid.cellWidth,
         cellHeightPx: cfg.grid.cellHeight,
@@ -1380,6 +1405,9 @@ function LabInner() {
         blendMode: cfg.colors.stripeBlendMode,
         widthSparkle: cfg.sparkle.width,
         stripeDots: cfg.stripeDots,
+        stripeBorder: cfg.stripeBorder,
+        gridLines: cfg.gridLines,
+        framesSvgLayer,
         gradient: cfg.colors.gradient.enabled
           ? {
               direction: cfg.colors.gradient.direction,
@@ -1471,6 +1499,8 @@ function LabInner() {
       }
       let lastSnapAt = 0;
       let lastShaderPreviewAt = 0;
+      let lastFramesReadbackAt = 0;
+      let frameGroups: FrameGroup[] = [];
       const tick = () => {
         const now = performance.now();
         const deltaSec = Math.max(0, Math.min(0.1, (now - shaderLastTickMsRef.current) / 1000));
@@ -1553,6 +1583,31 @@ function LabInner() {
             });
           } else {
             clearTwizzler(twizzlerCanvas);
+          }
+        }
+        const framesCanvas = framesCanvasRef.current;
+        if (framesCanvas && outputCanvas) {
+          const frameConfig = controlsRef.current.frames;
+          if (frameConfig.enabled) {
+            if (framesCanvas.width !== outputCanvas.width) framesCanvas.width = outputCanvas.width;
+            if (framesCanvas.height !== outputCanvas.height) framesCanvas.height = outputCanvas.height;
+            if (now - lastFramesReadbackAt >= 33) {
+              lastFramesReadbackAt = now;
+              frameGroups = buildFrameGroups(
+                engine.readCellGrid(),
+                frameConfig.luminanceThreshold,
+                frameConfig.groupDistanceCells,
+                effectiveStripes(controlsRef.current),
+                frameConfig.highlightedStripeCount,
+              );
+            }
+            const cssWidth =
+              Number.parseFloat(outputCanvas.style.width) || outputCanvas.clientWidth || outputCanvas.width;
+            const cssHeight =
+              Number.parseFloat(outputCanvas.style.height) || outputCanvas.clientHeight || outputCanvas.height;
+            renderFramesOverlay(framesCanvas, frameGroups, controlsRef.current, cssWidth, cssHeight, now / 1000);
+          } else {
+            clearFramesOverlay(framesCanvas);
           }
         }
         if (now - lastSnapAt >= 500) {
@@ -2724,6 +2779,12 @@ function LabInner() {
                     width: canvasCssSize.cssW,
                     height: canvasCssSize.cssH,
                   }}
+                />
+                <canvas
+                  ref={framesCanvasRef}
+                  className="lab-canvas-frames"
+                  aria-hidden="true"
+                  style={{ width: canvasCssSize.cssW, height: canvasCssSize.cssH }}
                 />
               </div>
             </div>

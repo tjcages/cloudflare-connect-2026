@@ -1,5 +1,5 @@
-import { DEFAULT_ENGINE_CONFIG, normalizeEngineConfig } from "@necatikcl/stripes-engine";
-import type { EngineConfig } from "@necatikcl/stripes-engine";
+import { DEFAULT_ENGINE_CONFIG, normalizeEngineConfig, sanitizeThemedConfig } from "@necatikcl/stripes-engine";
+import type { DeepPartial, EngineConfig } from "@necatikcl/stripes-engine";
 import factoryDefaults from "./factoryDefaults.json";
 
 type PlainRecord = Record<string, unknown>;
@@ -360,9 +360,15 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
   renderColorB: 16777215,
 };
 
-export const DEFAULT_LAB_ENGINE_CONFIG = normalizeEngineConfig(
-  deepMergeDefaults(HAND_WRITTEN_ENGINE_CONFIG, factoryDefaults.config),
+const { dark: FACTORY_DEFAULT_DARK, ...FACTORY_DEFAULT_LIGHT } = factoryDefaults.config;
+const NORMALIZED_FACTORY_DEFAULT_LIGHT = normalizeEngineConfig(
+  deepMergeDefaults(HAND_WRITTEN_ENGINE_CONFIG, FACTORY_DEFAULT_LIGHT),
 );
+
+export const DEFAULT_LAB_ENGINE_CONFIG = sanitizeThemedConfig({
+  ...NORMALIZED_FACTORY_DEFAULT_LIGHT,
+  ...(FACTORY_DEFAULT_DARK ? { dark: FACTORY_DEFAULT_DARK as DeepPartial<EngineConfig> } : {}),
+}) as EngineConfig & { dark?: DeepPartial<EngineConfig> };
 
 const HAND_WRITTEN_LAB_UI_SETTINGS = {
   canvasMode: "scale",
@@ -432,6 +438,12 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     brightnessAdd: 26,
     hueDriftDeg: 12.5,
     saturationBoost: 30,
+    maxLightnessUnder20: 100,
+    maxLightness20To40: 100,
+    maxLightness40To60: 100,
+    maxLightness60To70: 95,
+    maxLightness70To80: 93,
+    maxLightnessOver80: 93,
   },
   thresholdDistributionEasing: "easeOutSine",
   autoStripeWidths: false,

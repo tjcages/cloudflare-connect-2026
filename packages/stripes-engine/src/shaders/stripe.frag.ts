@@ -46,6 +46,12 @@ uniform float uStripeSparkleSaturationBoost;
 uniform float uStripeDotsEnabled;
 uniform float uStripeDotsSizePx;
 uniform float uStripeDotsBrightness;
+uniform float uStripeBorderEnabled;
+uniform float uStripeBorderMinWidthPx;
+uniform float uStripeBorderDensity;
+uniform float uGridLinesEnabled;
+uniform float uGridLinesBrightness;
+uniform float uGridLinesDensity;
 uniform float uShuffleEnabled;
 uniform float uShuffleCoverage;
 uniform float uShufflePeriodMin;
@@ -412,12 +418,76 @@ float stripeDotAlpha(vec2 centeredP, float eligible, float widthPx, float opacit
   return clamp(0.5 - (length(centeredP) - radius) / aaWidth, 0.0, 1.0);
 }
 
-vec3 stripeDotColor(vec3 stripeColor) {
-  float lightnessLift = clamp(uStripeDotsBrightness, 0.0, 1.0);
+vec3 stripeBrightnessColor(vec3 stripeColor, float brightness) {
+  float lightnessLift = clamp(brightness, 0.0, 1.0);
   if (lightnessLift <= 0.0001) return stripeColor;
   vec3 stripeHsl = rgbToHsl(stripeColor);
   stripeHsl.z = clamp(stripeHsl.z + lightnessLift, 0.0, 1.0);
   return hslToRgb(stripeHsl);
+}
+
+vec3 stripeDotColor(vec3 stripeColor) {
+  return stripeBrightnessColor(stripeColor, uStripeDotsBrightness);
+}
+
+float stripeShapeAlpha(
+  vec2 centeredP,
+  vec2 halfExt,
+  vec2 borderHalfExt,
+  float cornerRadius,
+  float geometryAlpha,
+  float widthPx,
+  float aaWidth,
+  vec2 stripeCell
+) {
+  if (uStripeBorderEnabled <= 0.5 || widthPx < uStripeBorderMinWidthPx) return geometryAlpha;
+  float density = clamp(uStripeBorderDensity, 0.0, 1.0);
+  if (density <= 0.001 || (density < 0.999 && cellSeed(stripeCell.x, stripeCell.y) > density)) {
+    return geometryAlpha;
+  }
+  float inset = 1.0;
+  vec2 outerHalfExt = min(halfExt, borderHalfExt);
+  float outerRadius = min(cornerRadius, min(outerHalfExt.x, outerHalfExt.y));
+  float outerAlpha = stripeAlpha(centeredP, outerHalfExt, outerRadius, aaWidth);
+  vec2 innerHalfExt = max(outerHalfExt - vec2(inset), vec2(0.0));
+  float innerRadius = max(0.0, outerRadius - inset);
+  float innerAlpha = stripeAlpha(centeredP, innerHalfExt, innerRadius, aaWidth);
+  return max(0.0, outerAlpha - innerAlpha);
+}
+
+bool gridLineCellVisible(vec2 cell, float density) {
+  if (any(lessThan(cell, vec2(0.0))) || any(greaterThanEqual(cell, uGridCount))) return false;
+  return density >= 0.999 || cellSeed(cell.x + 211.0, cell.y + 307.0) <= density;
+}
+
+float gridLineAlpha(vec2 rawCellF, float aaWidth) {
+  if (uGridLinesEnabled <= 0.5) return 0.0;
+  float density = clamp(uGridLinesDensity, 0.0, 1.0);
+  if (density <= 0.001) return 0.0;
+
+  vec2 rawCell = floor(rawCellF);
+  vec2 rawLocal = fract(rawCellF);
+  vec2 edgeDistancePx = min(rawLocal, 1.0 - rawLocal) * uCellPx;
+  float verticalAlpha = clamp(0.5 - (edgeDistancePx.x - 0.5) / aaWidth, 0.0, 1.0);
+  float horizontalAlpha = clamp(0.5 - (edgeDistancePx.y - 0.5) / aaWidth, 0.0, 1.0);
+  bool currentVisible = gridLineCellVisible(rawCell, density);
+  float xSide = rawLocal.x < 0.5 ? -1.0 : 1.0;
+  float ySide = rawLocal.y < 0.5 ? -1.0 : 1.0;
+  vec2 verticalNeighbor = rawCell + vec2(xSide, 0.0);
+  vec2 horizontalNeighbor = rawCell + vec2(0.0, ySide);
+  vec2 diagonalNeighbor = rawCell + vec2(xSide, ySide);
+  bool verticalCellVisible = currentVisible || gridLineCellVisible(verticalNeighbor, density);
+  bool horizontalCellVisible = currentVisible || gridLineCellVisible(horizontalNeighbor, density);
+  bool cornerCellVisible =
+    verticalCellVisible ||
+    horizontalCellVisible ||
+    gridLineCellVisible(diagonalNeighbor, density);
+  float verticalVisible = verticalCellVisible ? 1.0 : 0.0;
+  float horizontalVisible = horizontalCellVisible ? 1.0 : 0.0;
+  float squareCornerAlpha = cornerCellVisible ? min(verticalAlpha, horizontalAlpha) : 0.0;
+  verticalAlpha *= verticalVisible;
+  horizontalAlpha *= horizontalVisible;
+  return max(max(verticalAlpha, horizontalAlpha), squareCornerAlpha);
 }
 
 vec3 gradientAverageColor() {
@@ -501,11 +571,14 @@ void main() {
   float earlyAngleNorm = mod(abs(uAngleDeg), 180.0);
   bool willUseNeighborRotation = abs(earlyAngleNorm) > 0.001 && abs(earlyAngleNorm - 90.0) > 0.001;
 
-  if (!willUseNeighborRotation && barWidthPx < 0.5) { finalColor = bgColor; return; }
-
-  if (!willUseNeighborRotation && uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(cell.x, cell.y)) { finalColor = bgColor; return; }
-
-  if (!willUseNeighborRotation && uUseCellColors > 0.5 && !imageColorDensityVisible(sourceCell)) { finalColor = bgColor; return; }
+  bool baseStripeVisible = true;
+  if (!willUseNeighborRotation && barWidthPx < 0.5) baseStripeVisible = false;
+  if (!willUseNeighborRotation && uGapEnabled > 0.5 && uGapCoverage > 0.0 && isGapped(cell.x, cell.y)) {
+    baseStripeVisible = false;
+  }
+  if (!willUseNeighborRotation && uUseCellColors > 0.5 && !imageColorDensityVisible(sourceCell)) {
+    baseStripeVisible = false;
+  }
 
   vec2 drawablePx = max(vec2(0.0001), uCellPx - clamp(uGridGapPx, vec2(0.0), uCellPx));
   vec2 p = (local - 0.5) * uCellPx;
@@ -609,7 +682,24 @@ void main() {
         float candidateOpacity = candidateOpacityMeta.r;
         float candidateRampT = candidateOpacityMeta.g;
         float candidateDotEligible = candidateOpacityMeta.b;
-        float candidateAlpha = candidateGeometryAlpha * candidateOpacity;
+        float candidateShapeAlpha = stripeShapeAlpha(
+          candidateRotatedP,
+          vec2(candidateHalfW, candidateHalfH),
+          vec2(candidateHalfW, drawableAxisPx * 0.5),
+          candidateR,
+          candidateGeometryAlpha,
+          candidateWidthPx,
+          w,
+          candidateCell
+        );
+        float candidateDotAlpha = stripeDotAlpha(
+          candidateRotatedP,
+          candidateDotEligible,
+          candidateWidthPx,
+          candidateOpacity,
+          w
+        );
+        float candidateAlpha = max(candidateShapeAlpha, candidateDotAlpha) * candidateOpacity;
         if (candidateAlpha > 0.001) {
           vec3 candidateColor = candidateLut.rgb;
           if (uUseCellColors > 0.5) {
@@ -619,13 +709,6 @@ void main() {
             candidateColor = gradientColorWithRampLightness(candidateUv, candidateColor, candidateRampT);
           }
           candidateColor = applyStripeSparkle(candidateColor, candidateCell, candidateWidthPx, candidateOpacity);
-          float candidateDotAlpha = stripeDotAlpha(
-            candidateRotatedP,
-            candidateDotEligible,
-            candidateWidthPx,
-            candidateOpacity,
-            w
-          );
           candidateColor = mix(
             candidateColor,
             stripeDotColor(candidateColor),
@@ -659,17 +742,39 @@ void main() {
       finalColor = mix(bgColor, vec4(blendedBestColor, 1.0), bestAlpha);
     }
   } else {
-  vec2 rotatedP = vec2(dot(p, normal), dot(p, axis));
-  float halfW = min(barWidthPx, max(drawablePx.x, drawablePx.y)) * 0.5;
-  float halfH = length(drawablePx) * 0.5;
-  float r = min(uCorner, min(halfW, halfH));
-  vec2 halfExt = vec2(halfW, halfH + noGapExtend + r);
-  float alpha = stripeAlpha(rotatedP, halfExt, r, w);
-  float effectiveAlpha = alpha * barOpacity;
-  float dotAlpha = stripeDotAlpha(rotatedP, barDotEligible, barWidthPx, barOpacity, w) * alpha;
-  vec3 dottedBarColor = mix(barColor, stripeDotColor(barColor), dotAlpha);
-  vec3 blendedBarColor = bgColor.a <= 0.0001 ? dottedBarColor : blendStripeColor(bgColor.rgb, dottedBarColor);
-  finalColor = mix(bgColor, vec4(blendedBarColor, 1.0), effectiveAlpha);
+    if (!baseStripeVisible) {
+      finalColor = bgColor;
+    } else {
+      vec2 rotatedP = vec2(dot(p, normal), dot(p, axis));
+      float halfW = min(barWidthPx, max(drawablePx.x, drawablePx.y)) * 0.5;
+      float halfH = length(drawablePx) * 0.5;
+      float r = min(uCorner, min(halfW, halfH));
+      vec2 halfExt = vec2(halfW, halfH + noGapExtend + r);
+      float geometryAlpha = stripeAlpha(rotatedP, halfExt, r, w);
+      float borderHalfH = max(w, dot(abs(axis), drawablePx) * 0.5);
+      float shapeAlpha = stripeShapeAlpha(
+        rotatedP,
+        halfExt,
+        vec2(halfW, borderHalfH),
+        r,
+        geometryAlpha,
+        barWidthPx,
+        w,
+        sourceCell
+      );
+      float dotAlpha = stripeDotAlpha(rotatedP, barDotEligible, barWidthPx, barOpacity, w) * geometryAlpha;
+      float effectiveAlpha = max(shapeAlpha, dotAlpha) * barOpacity;
+      vec3 dottedBarColor = mix(barColor, stripeDotColor(barColor), dotAlpha);
+      vec3 blendedBarColor = bgColor.a <= 0.0001 ? dottedBarColor : blendStripeColor(bgColor.rgb, dottedBarColor);
+      finalColor = mix(bgColor, vec4(blendedBarColor, 1.0), effectiveAlpha);
+    }
+  }
+
+  float lineAlpha = gridLineAlpha(cellF, w);
+  if (lineAlpha > 0.001) {
+    vec3 lineColor = stripeBrightnessColor(barColor, uGridLinesBrightness);
+    vec3 blendedLineColor = finalColor.a <= 0.0001 ? lineColor : blendStripeColor(finalColor.rgb, lineColor);
+    finalColor = mix(finalColor, vec4(blendedLineColor, 1.0), lineAlpha);
   }
 
   if (uLettersEnabled > 0.5) {

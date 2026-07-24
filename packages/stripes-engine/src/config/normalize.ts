@@ -8,6 +8,9 @@ import type {
   RevealConfig,
   SparkleConfig,
   StripeDotsConfig,
+  StripeBorderConfig,
+  GridLinesConfig,
+  FramesConfig,
   FlamesConfig,
   FlamesDirection,
   VortexSingularConfig,
@@ -605,6 +608,58 @@ export function normalizeStripeDots(i: Partial<StripeDotsConfig> = {}): StripeDo
   };
 }
 
+export const DEFAULT_STRIPE_BORDER: StripeBorderConfig = {
+  enabled: false,
+  minWidthPx: 2,
+  density: 1,
+};
+
+export function normalizeStripeBorder(i: Partial<StripeBorderConfig> = {}): StripeBorderConfig {
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_STRIPE_BORDER.enabled,
+    minWidthPx: clamp(num(i.minWidthPx, DEFAULT_STRIPE_BORDER.minWidthPx), 2, 64),
+    density: clamp(num(i.density, DEFAULT_STRIPE_BORDER.density), 0, 1),
+  };
+}
+
+export const DEFAULT_GRID_LINES: GridLinesConfig = {
+  enabled: false,
+  brightness: 0.35,
+  density: 1,
+};
+
+export function normalizeGridLines(i: Partial<GridLinesConfig> = {}): GridLinesConfig {
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_GRID_LINES.enabled,
+    brightness: clamp(num(i.brightness, DEFAULT_GRID_LINES.brightness), 0, 1),
+    density: clamp(num(i.density, DEFAULT_GRID_LINES.density), 0, 1),
+  };
+}
+
+export const DEFAULT_FRAMES: FramesConfig = {
+  enabled: false,
+  luminanceThreshold: 0.7,
+  highlightedStripeCount: 3,
+  groupDistanceCells: 1,
+  color: 0xffffff,
+  fontSizePx: 10,
+  coordinateColor: 0xffffff,
+};
+
+export function normalizeFrames(i: Partial<FramesConfig> = {}): FramesConfig {
+  return {
+    enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_FRAMES.enabled,
+    luminanceThreshold: clamp(num(i.luminanceThreshold, DEFAULT_FRAMES.luminanceThreshold), 0, 1),
+    highlightedStripeCount: Math.round(
+      clamp(num(i.highlightedStripeCount, DEFAULT_FRAMES.highlightedStripeCount), 1, 16),
+    ),
+    groupDistanceCells: Math.round(clamp(num(i.groupDistanceCells, DEFAULT_FRAMES.groupDistanceCells), 0, 8)),
+    color: Math.round(clamp(num(i.color, DEFAULT_FRAMES.color), 0, 0xffffff)),
+    fontSizePx: Math.round(clamp(num(i.fontSizePx, DEFAULT_FRAMES.fontSizePx), 6, 48)),
+    coordinateColor: Math.round(clamp(num(i.coordinateColor, DEFAULT_FRAMES.coordinateColor), 0, 0xffffff)),
+  };
+}
+
 export const DEFAULT_VORTEX_SINGULAR: VortexSingularConfig = {
   segCount: 22,
   segSpacingPx: 10,
@@ -1187,6 +1242,9 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     motion: { ...DEFAULT_SPARKLE.motion },
   },
   stripeDots: { ...DEFAULT_STRIPE_DOTS },
+  stripeBorder: { ...DEFAULT_STRIPE_BORDER },
+  gridLines: { ...DEFAULT_GRID_LINES },
+  frames: { ...DEFAULT_FRAMES },
   flames: { ...DEFAULT_FLAMES },
   edgeMask: { ...DEFAULT_EDGE_MASK },
   cursorTrail: { ...DEFAULT_CURSOR_TRAIL },
@@ -1213,6 +1271,9 @@ export function normalizeEngineConfig(i: Partial<EngineConfig> = {}): EngineConf
     reveal: normalizeReveal(i.reveal as PartialReveal | undefined),
     sparkle: normalizeSparkle(i.sparkle as PartialSparkle | undefined),
     stripeDots: normalizeStripeDots(i.stripeDots),
+    stripeBorder: normalizeStripeBorder(i.stripeBorder),
+    gridLines: normalizeGridLines(i.gridLines),
+    frames: normalizeFrames(i.frames),
     flames: normalizeFlames(i.flames as PartialFlames | undefined),
     edgeMask: normalizeEdgeMask(i.edgeMask),
     cursorTrail: normalizeCursorTrail(i.cursorTrail),

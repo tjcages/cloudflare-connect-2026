@@ -44,10 +44,21 @@ export type {
   ConstellationTrailConfig,
   CometTrailConfig,
   StripeDotsConfig,
+  StripeBorderConfig,
+  GridLinesConfig,
+  FramesConfig,
 } from "./config/types";
 export { CURSOR_TRAIL_TYPES } from "./config/types";
 export { normalizeEngineConfig, DEFAULT_ENGINE_CONFIG } from "./config/normalize";
 export { DEFAULT_STRIPE_DOTS, normalizeStripeDots } from "./config/normalize";
+export {
+  DEFAULT_STRIPE_BORDER,
+  DEFAULT_GRID_LINES,
+  DEFAULT_FRAMES,
+  normalizeStripeBorder,
+  normalizeGridLines,
+  normalizeFrames,
+} from "./config/normalize";
 export { serializeEngineConfig, parseEngineConfig } from "./config/serialize";
 export { resolveThemedConfig, diffEngineConfig, sanitizeThemedConfig } from "./config/theme";
 export type { ThemeName, ThemedEngineConfig, DeepPartial } from "./config/theme";

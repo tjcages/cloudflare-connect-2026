@@ -32,6 +32,12 @@ import {
   DEFAULT_COLORS,
   normalizeStripeDots,
   DEFAULT_STRIPE_DOTS,
+  normalizeStripeBorder,
+  DEFAULT_STRIPE_BORDER,
+  normalizeGridLines,
+  DEFAULT_GRID_LINES,
+  normalizeFrames,
+  DEFAULT_FRAMES,
 } from "./normalize";
 import { serializeEngineConfig, parseEngineConfig } from "./serialize";
 
@@ -206,6 +212,42 @@ describe("stripe dots normalizer", () => {
     expect(normalizeStripeDots({ density: -1, sizePx: 0 })).toMatchObject({
       density: 0,
       sizePx: 1,
+    });
+  });
+});
+describe("stripe border, grid lines, and frames normalizers", () => {
+  it("uses disabled defaults and clamps the adjustable ranges", () => {
+    expect(normalizeStripeBorder()).toEqual(DEFAULT_STRIPE_BORDER);
+    expect(normalizeGridLines()).toEqual(DEFAULT_GRID_LINES);
+    expect(normalizeFrames()).toEqual(DEFAULT_FRAMES);
+    expect(normalizeStripeBorder({ enabled: true, minWidthPx: 1, density: 2 })).toEqual({
+      enabled: true,
+      minWidthPx: 2,
+      density: 1,
+    });
+    expect(normalizeGridLines({ enabled: true, brightness: 4, density: -1 })).toEqual({
+      enabled: true,
+      brightness: 1,
+      density: 0,
+    });
+    expect(
+      normalizeFrames({
+        enabled: true,
+        luminanceThreshold: -1,
+        highlightedStripeCount: 99,
+        groupDistanceCells: 99,
+        color: -1,
+        fontSizePx: 99,
+        coordinateColor: -1,
+      }),
+    ).toEqual({
+      enabled: true,
+      luminanceThreshold: 0,
+      highlightedStripeCount: 16,
+      groupDistanceCells: 8,
+      color: 0,
+      fontSizePx: 48,
+      coordinateColor: 0,
     });
   });
 });

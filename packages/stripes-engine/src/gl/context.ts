@@ -13,12 +13,12 @@ const GL_ATTRIBUTES: WebGLContextAttributes = {
   powerPreference: "high-performance",
 };
 
+export type EngineContext = { gl: WebGL2RenderingContext; isP3: boolean; maxTextureSize: number };
+
 function supportsDisplayP3(): boolean {
   if (typeof window === "undefined" || !("matchMedia" in window)) return false;
   return window.matchMedia("(color-gamut: p3)").matches;
 }
-
-export type EngineContext = { gl: WebGL2RenderingContext; isP3: boolean; maxTextureSize: number };
 
 export function createEngineContext(canvas: HTMLCanvasElement): EngineContext {
   const gl = canvas.getContext("webgl2", GL_ATTRIBUTES);

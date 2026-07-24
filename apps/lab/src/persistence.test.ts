@@ -112,6 +112,44 @@ describe("config file import/export", () => {
     expect(exportedLab.drawerOpen).toEqual({ Stripes: true, Grid: false });
   });
 
+  it("uses the complete exported cf-base settings as factory defaults", () => {
+    expect(DEFAULT_LAB_ENGINE_CONFIG.stripeDots).toEqual({
+      enabled: true,
+      density: 0.8,
+      sizePx: 1.5,
+      brightness: 0.13,
+    });
+    expect(DEFAULT_LAB_ENGINE_CONFIG.stripeBorder).toEqual({
+      enabled: true,
+      minWidthPx: 4,
+      density: 0.02,
+    });
+    expect(DEFAULT_LAB_ENGINE_CONFIG.gridLines).toEqual({
+      enabled: false,
+      brightness: 0,
+      density: 0.01,
+    });
+    expect(DEFAULT_LAB_ENGINE_CONFIG.frames).toEqual({
+      enabled: true,
+      luminanceThreshold: 0.56,
+      highlightedStripeCount: 7,
+      groupDistanceCells: 7,
+      color: 16760596,
+      fontSizePx: 8,
+      coordinateColor: 16777215,
+    });
+    expect(DEFAULT_LAB_ENGINE_CONFIG.dark?.stripes?.[0]?.color).toBe(8008433);
+    expect(DEFAULT_LAB_SETTINGS).toMatchObject({
+      canvasWidth: 1400,
+      canvasHeight: 998,
+      textureId: "cf-base",
+      textureSourceMode: "texture",
+      stripePalette: "Background Ramp",
+      backgroundRampEasing: "custom:0.417,0.335,0.58,0.911",
+      thresholdDistributionEasing: "custom:0.431,0.147,0.556,0.409",
+    });
+  });
+
   it("imports exported settings files", () => {
     const text = serializeConfigFile({
       ...DEFAULT_ENGINE_CONFIG,
@@ -358,7 +396,8 @@ describe("themed configs", () => {
   });
 
   it("legacy and light-only files import without a dark key", () => {
-    const file = serializeConfigFile(DEFAULT_LAB_ENGINE_CONFIG);
+    const { dark: _dark, ...lightOnly } = DEFAULT_LAB_ENGINE_CONFIG;
+    const file = serializeConfigFile(lightOnly);
     expect(importSettingsFile(file).config).not.toHaveProperty("dark");
   });
 
