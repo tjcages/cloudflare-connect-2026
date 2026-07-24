@@ -1,4 +1,4 @@
-import { bandIndexForValue } from "@necatikcl/stripes-engine";
+import { bandIndexForValue, stripeDotBandEligibility } from "@necatikcl/stripes-engine";
 import { p3ColorForHex } from "../components/colorLibrary";
 
 const ROW_WIDTH_GAP = 1;
@@ -11,6 +11,22 @@ type WidthSparkleSvgOptions = {
   swingPx: number;
   swingPeriodMin: number;
   swingPeriodMax: number;
+};
+type StripeDotsSvgOptions = {
+  enabled: boolean;
+  density: number;
+  sizePx: number;
+  brightness: number;
+};
+type StripeBorderSvgOptions = {
+  enabled: boolean;
+  minWidthPx: number;
+  density: number;
+};
+type GridLinesSvgOptions = {
+  enabled: boolean;
+  brightness: number;
+  density: number;
 };
 type SvgGradientOptions = {
   direction: "topToBottom" | "leftToRight" | "rightToLeft" | "bottomToTop";
@@ -122,6 +138,44 @@ export function rotatedStripePath(
   return `M${point(-1, -1)}L${point(1, -1)}L${point(1, 1)}L${point(-1, 1)}Z`;
 }
 
+function outlinedRotatedStripePath(
+  cx: number,
+  cy: number,
+  halfNormal: number,
+  halfAxis: number,
+  angleDeg: number,
+): string {
+  const outer = rotatedStripePath(cx, cy, halfNormal, halfAxis, angleDeg);
+  const innerHalfNormal = Math.max(0, halfNormal - 1);
+  const innerHalfAxis = Math.max(0, halfAxis - 1);
+  if (innerHalfNormal <= 0 || innerHalfAxis <= 0) return outer;
+  return `${outer}${rotatedStripePath(cx, cy, innerHalfNormal, innerHalfAxis, angleDeg)}`;
+}
+
+function rectanglePath(x: number, y: number, width: number, height: number): string {
+  return `M${formatSvgNumber(x)} ${formatSvgNumber(y)}h${formatSvgNumber(width)}v${formatSvgNumber(height)}h-${formatSvgNumber(width)}Z`;
+}
+
+function outlinedRectanglePath(x: number, y: number, width: number, height: number): string {
+  const outer = rectanglePath(x, y, width, height);
+  const innerWidth = Math.max(0, width - 2);
+  const innerHeight = Math.max(0, height - 2);
+  if (innerWidth <= 0 || innerHeight <= 0) return outer;
+  return `${outer}${rectanglePath(x + 1, y + 1, innerWidth, innerHeight)}`;
+}
+
+function stripeBorderApplies(
+  col: number,
+  row: number,
+  stripeWidth: number,
+  border: StripeBorderSvgOptions | undefined,
+): boolean {
+  if (!border?.enabled || stripeWidth < border.minWidthPx) return false;
+  const density = Math.max(0, Math.min(1, border.density));
+  if (density <= 0.001) return false;
+  return density >= 0.999 || sparkleHash(col + 17, row + 31) <= density;
+}
+
 function cellColorHex(colors: Uint8Array, cellIndex: number): string {
   const offset = cellIndex * 4;
   const r = colors[offset] ?? 0;
@@ -224,6 +278,38 @@ function gradientRampTone(
   const hue = h + ((gradient.hueDriftDeg ?? 0) * t) / 360;
   const satLift = Math.max(0, Math.min(1, gradient.saturationBoost ?? 0)) * Math.sin(t * Math.PI * 0.85);
   return hslToRgb([hue, Math.max(0, Math.min(1, s * (1 + satLift))), l]);
+}
+
+function stripeDotHex(stripeHex: string, dots: StripeDotsSvgOptions): string {
+  return brightnessLiftHex(stripeHex, dots.brightness);
+}
+
+function brightnessLiftHex(stripeHex: string, brightness: number): string {
+  if (brightness <= 0) return normalizeSvgHex(stripeHex);
+  const [hue, saturation, stripeLightness] = rgbToHsl(hexToRgb(stripeHex));
+  const lightnessLift = Math.max(0, Math.min(1, brightness));
+  return rgbToHex(hslToRgb([hue, saturation, Math.min(1, stripeLightness + lightnessLift)]));
+}
+
+function stripeDotElement(input: {
+  cx: number;
+  cy: number;
+  eligible: boolean;
+  stripeWidth: number;
+  stripeHex: string;
+  stripeOpacity: number;
+  dots: StripeDotsSvgOptions | undefined;
+  blendStyle: string;
+}): string {
+  const { dots } = input;
+  if (!dots?.enabled || !input.eligible || input.stripeWidth < 2 || input.stripeOpacity <= 0.001) {
+    return "";
+  }
+
+  const hex = stripeDotHex(input.stripeHex, dots);
+  const radius = Math.max(1, Math.min(2, dots.sizePx)) * 0.5;
+  const style = [`fill:${p3SvgColor(hex)}`, input.blendStyle].filter(Boolean).join(";");
+  return `  <circle class="stripe-dot" cx="${formatSvgNumber(input.cx)}" cy="${formatSvgNumber(input.cy)}" r="${formatSvgNumber(radius)}" fill="${hex}" fill-opacity="${formatSvgNumber(input.stripeOpacity)}" style="${style}" />`;
 }
 
 function gradientPositionAt(gradient: SvgGradientOptions, x: number, y: number, width: number, height: number): number {
@@ -494,6 +580,10 @@ export function cellGridToSvg(
     backgroundSvgLayer?: string;
     blendMode?: SvgBlendMode;
     widthSparkle?: WidthSparkleSvgOptions;
+    stripeDots?: StripeDotsSvgOptions;
+    stripeBorder?: StripeBorderSvgOptions;
+    gridLines?: GridLinesSvgOptions;
+    framesSvgLayer?: string;
     canvasWidthPx?: number;
     canvasHeightPx?: number;
   },
@@ -517,6 +607,10 @@ export function cellGridToSvg(
     backgroundSvgLayer,
     blendMode,
     widthSparkle,
+    stripeDots,
+    stripeBorder,
+    gridLines,
+    framesSvgLayer,
   } = opts;
   const gapX = Math.max(0, opts.gapX ?? 0);
   const gapY = Math.max(0, opts.gapY ?? 0);
@@ -540,6 +634,7 @@ export function cellGridToSvg(
     width: s.width,
     opacity: s.opacity ?? 1,
   }));
+  const dotEligibleBands = stripeDotBandEligibility(engineStripes, stripeDots?.density ?? 0);
 
   const bandAt = (svgRow: number, col: number): number => {
     // readPixels is bottom-up while SVG is top-down, so flip the row.
@@ -565,6 +660,9 @@ export function cellGridToSvg(
   };
   const clippedStripeElements: Array<{ depth: number; opacity: number; element: string }> = [];
   const gradientRampPaths: string[] = [];
+  const stripeBorderElements: string[] = [];
+  const stripeDotElements: string[] = [];
+  const gridLinePathGroups = new Map<string, string[]>();
 
   if (arbitraryAngle) {
     const rad = (resolvedAngleDeg * Math.PI) / 180;
@@ -622,7 +720,7 @@ export function cellGridToSvg(
         const axisCenter = (axisIndex + 0.5) * axisCellPx;
         const cx = center.x + normal.x * (stackCenter - stackSpanPx * 0.5) + axis.x * (axisCenter - axisSpanPx * 0.5);
         const cy = center.y + normal.y * (stackCenter - stackSpanPx * 0.5) + axis.y * (axisCenter - axisSpanPx * 0.5);
-        const { value } = valueAtPixel(cx, cy);
+        const { value, rbIndex } = valueAtPixel(cx, cy);
         const band = bandIndexForValue(value, engineStripes);
         const stripe = band >= 1 ? sortedStripes[band - 1] : undefined;
         if (band < 1 || !stripe) continue;
@@ -636,22 +734,51 @@ export function cellGridToSvg(
         );
         const halfNormal = stripeWidth * 0.5;
         const halfAxis = drawableAxisPx * 0.5 + halfNormal * resolvedOverlapAmount;
-        const segment = rotatedStripePath(cx, cy, halfNormal, halfAxis, resolvedAngleDeg);
+        const bordered = stripeBorderApplies(sparkleCol, sparkleRow, stripeWidth, stripeBorder);
+        const segment = bordered
+          ? outlinedRotatedStripePath(cx, cy, halfNormal, drawableAxisPx * 0.5, resolvedAngleDeg)
+          : rotatedStripePath(cx, cy, halfNormal, halfAxis, resolvedAngleDeg);
+        const borderAttributes = bordered ? ` class="stripe-border" fill-rule="evenodd"` : "";
+        const stripeHex =
+          useCellColors && colors
+            ? cellColorHex(colors, rbIndex)
+            : dynamicGradientRamp && gradient
+              ? gradientRampStripeHex(gradient, cx, cy, width, height, stripe.hex, rampTForBand(band))
+              : stripe.hex;
+        const dotElement = stripeDotElement({
+          cx,
+          cy,
+          eligible: dotEligibleBands[band - 1] === true,
+          stripeWidth,
+          stripeHex,
+          stripeOpacity: opacity,
+          dots: stripeDots,
+          blendStyle,
+        });
 
-        if (dynamicGradientRamp && gradient) {
-          const hex = gradientRampStripeHex(gradient, cx, cy, width, height, stripe.hex, rampTForBand(band));
-          const style = [`fill:${p3SvgColor(hex)}`, blendStyle].filter(Boolean).join(";");
+        if (useCellColors || dynamicGradientRamp) {
+          const style = [`fill:${p3SvgColor(stripeHex)}`, blendStyle].filter(Boolean).join(";");
           clippedStripeElements.push({
             depth: value,
             opacity,
-            element: `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segment}" />`,
+            element: [
+              `  <path${borderAttributes} fill="${stripeHex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segment}" />`,
+              dotElement,
+            ]
+              .filter(Boolean)
+              .join("\n"),
           });
         } else {
           pathsByBand.set(band, pathsByBand.get(band) ?? []);
           clippedStripeElements.push({
             depth: value,
             opacity,
-            element: `  <path class="${svgStripeClass(band)}" d="${segment}" />`,
+            element: [
+              `  <path class="${svgStripeClass(band)}${bordered ? " stripe-border" : ""}"${bordered ? ` fill-rule="evenodd"` : ""} d="${segment}" />`,
+              dotElement,
+            ]
+              .filter(Boolean)
+              .join("\n"),
           });
         }
       }
@@ -668,6 +795,7 @@ export function cellGridToSvg(
         let y: number;
         let rectW: number;
         let rectH: number;
+        let effectiveStripeWidth: number;
 
         if (arbitraryAngle) {
           const stripeWidth = Math.max(
@@ -712,16 +840,16 @@ export function cellGridToSvg(
             bandRightPx = cellWidthPx;
           }
 
-          const stripeWidth = Math.max(
+          effectiveStripeWidth = Math.max(
             MIN_STRIPE_WIDTH_PX,
             Math.min(sparkleWidthAt(col, rows - 1 - row, stripe.width), cellHeightPx),
           );
-          const halfH = stripeWidth * 0.5;
+          const halfH = effectiveStripeWidth * 0.5;
           const rowCenter = row * cellHeightPx + cellHeightPx * 0.5;
           x = col * cellWidthPx + bandLeftPx;
           y = rowCenter - halfH;
           rectW = bandRightPx - bandLeftPx;
-          rectH = stripeWidth;
+          rectH = effectiveStripeWidth;
         } else {
           const bandAbove = row > 0 ? bandAt(row - 1, col) : 0;
           const bandBelow = row < rows - 1 ? bandAt(row + 1, col) : 0;
@@ -735,19 +863,57 @@ export function cellGridToSvg(
             bandBottom = cellHeightPx;
           }
 
-          const stripeWidth = Math.max(
+          effectiveStripeWidth = Math.max(
             MIN_STRIPE_WIDTH_PX,
             Math.min(sparkleWidthAt(col, rows - 1 - row, stripe.width), cellWidthPx),
           );
-          const halfW = stripeWidth * 0.5;
+          const halfW = effectiveStripeWidth * 0.5;
           const columnCenter = col * cellWidthPx + cellWidthPx * 0.5;
           x = columnCenter - halfW;
           y = row * cellHeightPx + bandTop;
-          rectW = stripeWidth;
+          rectW = effectiveStripeWidth;
           rectH = bandBottom - bandTop;
         }
 
-        const segment = `M${formatSvgNumber(x)} ${formatSvgNumber(y)}h${formatSvgNumber(rectW)}v${formatSvgNumber(rectH)}h-${formatSvgNumber(rectW)}Z`;
+        const borderRow = rows - 1 - row;
+        const bordered = stripeBorderApplies(col, borderRow, effectiveStripeWidth, stripeBorder);
+        const segment = bordered ? outlinedRectanglePath(x, y, rectW, rectH) : rectanglePath(x, y, rectW, rectH);
+        const dotCx = (col + 0.5) * cellWidthPx;
+        const dotCy = (row + 0.5) * cellHeightPx;
+        const dotStripeHex =
+          useCellColors && colors
+            ? cellColorHex(colors, rbIndex)
+            : dynamicGradientRamp && gradient
+              ? gradientRampStripeHex(gradient, dotCx, dotCy, width, height, stripe.hex, rampTForBand(band))
+              : stripe.hex;
+        const dotElement = stripeDotElement({
+          cx: dotCx,
+          cy: dotCy,
+          eligible: dotEligibleBands[band - 1] === true,
+          stripeWidth: effectiveStripeWidth,
+          stripeHex: dotStripeHex,
+          stripeOpacity: Math.max(0, Math.min(1, stripe.opacity ?? 1)),
+          dots: stripeDots,
+          blendStyle,
+        });
+        if (dotElement) stripeDotElements.push(dotElement);
+
+        if (bordered) {
+          const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));
+          if (useCellColors || dynamicGradientRamp) {
+            const style = [`fill:${p3SvgColor(dotStripeHex)}`, blendStyle].filter(Boolean).join(";");
+            stripeBorderElements.push(
+              `  <path class="stripe-border" fill="${dotStripeHex}" fill-opacity="${formatSvgNumber(opacity)}" fill-rule="evenodd" style="${style}" d="${segment}" />`,
+            );
+          } else {
+            pathsByBand.set(band, pathsByBand.get(band) ?? []);
+            stripeBorderElements.push(
+              `  <path class="${svgStripeClass(band)} stripe-border" fill-rule="evenodd" d="${segment}" />`,
+            );
+          }
+          continue;
+        }
+
         if (useCellColors && colors) {
           const hex = cellColorHex(colors, rbIndex);
           const opacity = Math.max(0, Math.min(1, stripe.opacity ?? 1));
@@ -772,6 +938,49 @@ export function cellGridToSvg(
       }
     }
   }
+
+  const gridLineDensity = Math.max(0, Math.min(1, gridLines?.density ?? 1));
+  const addGridLineSegment = (hex: string, segment: string) => {
+    const normalized = normalizeSvgHex(hex);
+    const segments = gridLinePathGroups.get(normalized) ?? [];
+    segments.push(segment);
+    gridLinePathGroups.set(normalized, segments);
+  };
+  const gridLineHexAt = (row: number, col: number, x: number, y: number): string => {
+    const safeRow = Math.max(0, Math.min(rows - 1, row));
+    const safeCol = Math.max(0, Math.min(cols - 1, col));
+    const rbIndex = (rows - 1 - safeRow) * cols + safeCol;
+    const band = bandAt(safeRow, safeCol);
+    const stripe = band >= 1 ? sortedStripes[band - 1] : undefined;
+    const baseHex =
+      useCellColors && colors
+        ? cellColorHex(colors, rbIndex)
+        : dynamicGradientRamp && gradient && stripe
+          ? gradientRampStripeHex(gradient, x, y, width, height, stripe.hex, rampTForBand(band))
+          : (stripe?.hex ?? backgroundHex ?? sortedStripes[0]?.hex ?? "#000000");
+    return brightnessLiftHex(baseHex, gridLines?.brightness ?? 0);
+  };
+  if (gridLines?.enabled && gridLineDensity > 0.001 && rows > 0 && cols > 0) {
+    for (let row = 0; row < rows; row++) {
+      const shaderRow = rows - 1 - row;
+      for (let col = 0; col < cols; col++) {
+        const visible = gridLineDensity >= 0.999 || sparkleHash(col + 228, shaderRow + 338) <= gridLineDensity;
+        if (!visible) continue;
+        const x = col * cellWidthPx;
+        const y = row * cellHeightPx;
+        addGridLineSegment(
+          gridLineHexAt(row, col, x + cellWidthPx * 0.5, y + cellHeightPx * 0.5),
+          `M${x} ${y}h${cellWidthPx}v${cellHeightPx}h${-cellWidthPx}Z`,
+        );
+      }
+    }
+  }
+  const gridLineLayer = [...gridLinePathGroups.entries()]
+    .map(([hex, segments]) => {
+      const style = [`stroke:${p3SvgColor(hex)}`, blendStyle].filter(Boolean).join(";");
+      return `  <path class="grid-line" d="${segments.join(" ")}" fill="none" stroke="${hex}" stroke-width="1" stroke-linecap="square" stroke-linejoin="miter" style="${style}" />`;
+    })
+    .join("\n");
 
   const backgroundRect = backgroundGradient
     ? `  <rect width="${width}" height="${height}" fill="url(#backgroundGradient)" />`
@@ -808,7 +1017,15 @@ export function cellGridToSvg(
           `  <path fill="${hex}" fill-opacity="${formatSvgNumber(opacity)}" style="${style}" d="${segments.join(" ")}" />`,
       )
       .join("\n");
-    const cellColorLayer = [compactCellColorPaths, letterLayer.elements].filter(Boolean).join("\n");
+    const cellColorLayer = [
+      compactCellColorPaths,
+      stripeBorderElements.join("\n"),
+      stripeDotElements.join("\n"),
+      gridLineLayer,
+      letterLayer.elements,
+    ]
+      .filter(Boolean)
+      .join("\n");
     return [
       `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
       gradientDefs,
@@ -817,6 +1034,7 @@ export function cellGridToSvg(
       backgroundSvgLayer,
       styleBlock,
       cellColorLayer,
+      framesSvgLayer,
       `</svg>`,
     ]
       .filter(Boolean)
@@ -843,8 +1061,8 @@ export function cellGridToSvg(
       ? [
           "<style>",
           ...styleRules,
-          letterLayer.style,
           ...(p3Rules.length > 0 ? ["  @supports (fill: color(display-p3 1 1 1)) {", ...p3Rules, "  }"] : []),
+          letterLayer.style,
           "</style>",
         ].join("\n")
       : "";
@@ -856,7 +1074,15 @@ export function cellGridToSvg(
     ? clippedStripeElements
     : clippedStripeElements.sort((a, b) => a.depth - b.depth || a.opacity - b.opacity);
   const clippedPathElements = orderedClippedStripeElements.map((item) => item.element).join("\n");
-  const stripeLayer = [pathElements, gradientRampPaths.join("\n"), clippedPathElements, letterLayer.elements]
+  const stripeLayer = [
+    pathElements,
+    gradientRampPaths.join("\n"),
+    clippedPathElements,
+    stripeBorderElements.join("\n"),
+    stripeDotElements.join("\n"),
+    gridLineLayer,
+    letterLayer.elements,
+  ]
     .filter(Boolean)
     .join("\n");
 
@@ -868,6 +1094,7 @@ export function cellGridToSvg(
     backgroundSvgLayer,
     styleBlock,
     stripeLayer,
+    framesSvgLayer,
     `</svg>`,
   ]
     .filter(Boolean)

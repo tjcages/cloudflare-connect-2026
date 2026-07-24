@@ -3,6 +3,11 @@ import { EASING_OPTIONS, easeValue, type EasingName } from "./easing";
 import type { EditableStripe } from "./stripeAdapter";
 
 export const STRIPE_PALETTE_LEVELS = [
+  "1500",
+  "1400",
+  "1300",
+  "1200",
+  "1100",
   "1000",
   "900",
   "800",

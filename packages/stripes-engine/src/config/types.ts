@@ -230,6 +230,35 @@ export interface SparkleConfig {
   };
 }
 
+export interface StripeDotsConfig {
+  enabled: boolean;
+  density: number;
+  sizePx: number;
+  brightness: number;
+}
+
+export interface StripeBorderConfig {
+  enabled: boolean;
+  minWidthPx: number;
+  density: number;
+}
+
+export interface GridLinesConfig {
+  enabled: boolean;
+  brightness: number;
+  density: number;
+}
+
+export interface FramesConfig {
+  enabled: boolean;
+  luminanceThreshold: number;
+  highlightedStripeCount: number;
+  groupDistanceCells: number;
+  color: number;
+  fontSizePx: number;
+  coordinateColor: number;
+}
+
 export type FlamesDirection = "up" | "down" | "left" | "right" | "upDown" | "leftRight" | "vortexSingular";
 
 export interface VortexSingularConfig {
@@ -494,6 +523,10 @@ export interface EngineConfig {
   maxFps: number;
   reveal: RevealConfig;
   sparkle: SparkleConfig;
+  stripeDots: StripeDotsConfig;
+  stripeBorder: StripeBorderConfig;
+  gridLines: GridLinesConfig;
+  frames: FramesConfig;
   flames: FlamesConfig;
   edgeMask: EdgeMaskConfig;
   cursorTrail: CursorTrailConfig;

@@ -566,10 +566,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
 
   function ensureLut() {
     const stripes = effectiveStripes(config);
-    const sig = lutSignature(stripes);
+    const sig = `${lutSignature(stripes)}|stripeDotsDensity:${config.stripeDots.density}`;
     if (sig !== lutSig) {
       const bytes = buildStripeLut(stripes);
-      const opacityBytes = buildStripeOpacityLut(stripes);
+      const opacityBytes = buildStripeOpacityLut(stripes, config.stripeDots.density);
       if (stripeLutTex) {
         updateDataTexture(gl, stripeLutTex, bytes, 256, 1);
       } else {

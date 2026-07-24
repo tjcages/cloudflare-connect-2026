@@ -60,7 +60,6 @@ import {
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
-import { twizzlerToSvgLayer } from "./export/twizzlerToSvg";
 import { exportLabVideo } from "./export/videoExport";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
@@ -90,8 +89,16 @@ import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./co
 import { canvasStackBackgroundCss } from "./canvasStackBackground";
 import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } from "./canvasFitPreviewZoom";
 import { clearTwizzler, renderTwizzler } from "./twizzler";
+import { shouldShowTwizzlerOverlay } from "./twizzlerVisibility";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
 import { steppedTransportTime, TimeTransport, type TimeTransportController } from "./components/TimeTransport";
+import {
+  buildFrameGroups,
+  clearFramesOverlay,
+  framesOverlayToSvg,
+  renderFramesOverlay,
+  type FrameGroup,
+} from "./framesOverlay";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -618,14 +625,6 @@ function LabExportControls({
           onChange={(e) => setNumber("exportDurationSec", e.target.value)}
         />
       </div>
-      <label className="playground-canvas-size-inline playground-export-include-background">
-        <input
-          type="checkbox"
-          checked={settings.exportSvgIncludeBackground}
-          onChange={(e) => onSettings({ exportSvgIncludeBackground: e.target.checked })}
-        />
-        <span className="playground-canvas-scale-label">Include solid background in SVG</span>
-      </label>
     </div>
   );
 }
@@ -736,14 +735,12 @@ function LabInner() {
     () => ({
       ...loadLabSettings(),
       ...(startupPreset?.lab ?? {}),
-      textureSourceMode: "shader" as const,
-      shaderPresetId: DEFAULT_SHADER_PRESET_ID,
-      shaderSourceCode: findShaderLibraryEntry(DEFAULT_SHADER_PRESET_ID)?.source ?? DEFAULT_SHADER_TEXTURE_SOURCE,
     }),
     [startupPreset],
   );
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const twizzlerCanvasRef = useRef<HTMLCanvasElement>(null);
+  const framesCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasAreaRef = useRef<HTMLDivElement>(null);
   const shaderPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const connectUnderlayHostRef = useRef<HTMLDivElement>(null);
@@ -989,6 +986,7 @@ function LabInner() {
   } = useEngineControls(onReplay, {
     showShaderCamera: textureSourceMode === "shader" && !isTwizzlerMapShaderPreset(shaderPresetId),
     showConnectCamera: textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
+    showShaderSourceControls: textureSourceMode === "shader",
     twizzlerTransport,
   });
   const controlsRef = useRef(controls);
@@ -1367,43 +1365,14 @@ function LabInner() {
       const readback = engine.readCellGrid();
       const canvasWidthPx = Math.round(Number.parseFloat(canvas.style.width) || canvas.clientWidth || canvas.width);
       const canvasHeightPx = Math.round(Number.parseFloat(canvas.style.height) || canvas.clientHeight || canvas.height);
-      const stripes = effectiveStripes(cfg).map((s) => ({
+      const resolvedStripes = effectiveStripes(cfg);
+      const stripes = resolvedStripes.map((s) => ({
         hex: "#" + s.color.toString(16).padStart(6, "0"),
         startFrom: s.startFrom,
         width: s.width,
         opacity: s.opacity,
       }));
-      const lab = labSettingsRef.current;
-      let connectUnderlayHref: string | undefined;
-      let twizzlerSvgLayer: string | undefined;
-      // Connect gradient underlay always exports when active (independent of solid-bg toggle).
-      if (
-        lab.textureSourceMode === "shader" &&
-        isSpiralShaderPreset(shaderPresetIdRef.current) &&
-        lab.connectGradientUnderlay
-      ) {
-        const connectRenderer = connectRendererRef.current;
-        if (connectRenderer) {
-          connectRenderer.render(shaderTimeSecRef.current);
-          try {
-            connectUnderlayHref = connectRenderer.underlayCanvas.toDataURL("image/png");
-          } catch {
-            connectUnderlayHref = undefined;
-          }
-        }
-      }
-      if (lab.textureSourceMode === "shader" && twizzlerRef.current.enabled) {
-        twizzlerSvgLayer = twizzlerToSvgLayer(
-          canvas.width,
-          canvas.height,
-          canvasWidthPx,
-          canvasHeightPx,
-          twizzlerTimeSecRef.current,
-          twizzlerRef.current,
-        );
-      }
       const exportBackground = resolveSvgExportBackground({
-        includeSolidBackground: lab.exportSvgIncludeBackground,
         backgroundTransparent: cfg.background.transparent,
         backgroundGradientEnabled: cfg.background.gradient.enabled,
         backgroundColorHex: "#" + cfg.background.color.toString(16).padStart(6, "0"),
@@ -1414,8 +1383,22 @@ function LabInner() {
               stops: cfg.background.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
             }
           : undefined,
-        connectUnderlayHref,
       });
+      const framesSvgLayer = cfg.frames.enabled
+        ? framesOverlayToSvg(
+            buildFrameGroups(
+              readback,
+              cfg.frames.luminanceThreshold,
+              cfg.frames.groupDistanceCells,
+              resolvedStripes,
+              cfg.frames.highlightedStripeCount,
+            ),
+            cfg,
+            canvasWidthPx,
+            canvasHeightPx,
+            performance.now() / 1000,
+          )
+        : undefined;
       return cellGridToSvg(readback, stripes, {
         cellWidthPx: cfg.grid.cellWidth,
         cellHeightPx: cfg.grid.cellHeight,
@@ -1431,6 +1414,10 @@ function LabInner() {
         letters: cfg.letters,
         blendMode: cfg.colors.stripeBlendMode,
         widthSparkle: cfg.sparkle.width,
+        stripeDots: cfg.stripeDots,
+        stripeBorder: cfg.stripeBorder,
+        gridLines: cfg.gridLines,
+        framesSvgLayer,
         gradient: cfg.colors.gradient.enabled
           ? {
               direction: cfg.colors.gradient.direction,
@@ -1441,10 +1428,6 @@ function LabInner() {
             }
           : undefined,
         backgroundGradient: exportBackground.backgroundGradient,
-        backgroundImageHrefs: [exportBackground.backgroundImageHref].filter(
-          (href): href is string => typeof href === "string" && href.length > 0,
-        ),
-        backgroundSvgLayer: twizzlerSvgLayer,
         canvasWidthPx,
         canvasHeightPx,
       });
@@ -1526,6 +1509,8 @@ function LabInner() {
       }
       let lastSnapAt = 0;
       let lastShaderPreviewAt = 0;
+      let lastFramesReadbackAt = 0;
+      let frameGroups: FrameGroup[] = [];
       const tick = () => {
         const now = performance.now();
         const deltaSec = Math.max(0, Math.min(0.1, (now - shaderLastTickMsRef.current) / 1000));
@@ -1595,12 +1580,44 @@ function LabInner() {
         const twizzlerCanvas = twizzlerCanvasRef.current;
         const outputCanvas = canvasRef.current;
         if (twizzlerCanvas && outputCanvas) {
-          if (textureSourceModeRef.current === "shader" && twizzlerRef.current.enabled) {
+          if (
+            shouldShowTwizzlerOverlay(
+              textureSourceModeRef.current,
+              shaderPresetIdRef.current,
+              twizzlerRef.current.enabled,
+              stripesEnabledRef.current,
+            )
+          ) {
             renderTwizzler(twizzlerCanvas, outputCanvas.width, outputCanvas.height, twizzlerTimeSecRef.current, {
               ...twizzlerRef.current,
             });
           } else {
             clearTwizzler(twizzlerCanvas);
+          }
+        }
+        const framesCanvas = framesCanvasRef.current;
+        if (framesCanvas && outputCanvas) {
+          const frameConfig = controlsRef.current.frames;
+          if (frameConfig.enabled) {
+            if (framesCanvas.width !== outputCanvas.width) framesCanvas.width = outputCanvas.width;
+            if (framesCanvas.height !== outputCanvas.height) framesCanvas.height = outputCanvas.height;
+            if (now - lastFramesReadbackAt >= 33) {
+              lastFramesReadbackAt = now;
+              frameGroups = buildFrameGroups(
+                engine.readCellGrid(),
+                frameConfig.luminanceThreshold,
+                frameConfig.groupDistanceCells,
+                effectiveStripes(controlsRef.current),
+                frameConfig.highlightedStripeCount,
+              );
+            }
+            const cssWidth =
+              Number.parseFloat(outputCanvas.style.width) || outputCanvas.clientWidth || outputCanvas.width;
+            const cssHeight =
+              Number.parseFloat(outputCanvas.style.height) || outputCanvas.clientHeight || outputCanvas.height;
+            renderFramesOverlay(framesCanvas, frameGroups, controlsRef.current, cssWidth, cssHeight, now / 1000);
+          } else {
+            clearFramesOverlay(framesCanvas);
           }
         }
         if (now - lastSnapAt >= 500) {
@@ -1845,7 +1862,12 @@ function LabInner() {
       textureSourceModeRef.current === "shader" &&
       isSpiralShaderPreset(shaderPresetIdRef.current) &&
       labSettingsRef.current.connectGradientUnderlay;
-    const twizzlerActive = textureSourceModeRef.current === "shader" && twizzlerRef.current.enabled;
+    const twizzlerActive = shouldShowTwizzlerOverlay(
+      textureSourceModeRef.current,
+      shaderPresetIdRef.current,
+      twizzlerRef.current.enabled,
+      controls.stripesEnabled,
+    );
     const previewConfig =
       backgroundSourceOpacity > 0.001 || connectUnderlayActive || twizzlerActive
         ? { ...controls, background: { ...controls.background, transparent: true } }
@@ -2377,6 +2399,12 @@ function LabInner() {
   const showSourceBackground = backgroundSourceOpacity > 0.001 && sourcePreview !== null;
   const showConnectGradientUnderlay =
     textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
+  const showTwizzlerOverlay = shouldShowTwizzlerOverlay(
+    textureSourceMode,
+    shaderPresetId,
+    twizzler.enabled,
+    controls.stripesEnabled,
+  );
   // Engine bg is forced transparent when underlay/source preview is shown — keep the
   // chosen solid color on the stack so it still sits behind those layers.
   const canvasStackBackground = canvasStackBackgroundCss(controls.background);
@@ -2749,7 +2777,7 @@ function LabInner() {
                   ref={twizzlerCanvasRef}
                   className="lab-canvas-twizzler"
                   aria-hidden="true"
-                  hidden={textureSourceMode !== "shader" || !twizzler.enabled}
+                  hidden={!showTwizzlerOverlay}
                   style={{ width: canvasCssSize.cssW, height: canvasCssSize.cssH }}
                 />
                 <canvas
@@ -2761,6 +2789,12 @@ function LabInner() {
                     width: canvasCssSize.cssW,
                     height: canvasCssSize.cssH,
                   }}
+                />
+                <canvas
+                  ref={framesCanvasRef}
+                  className="lab-canvas-frames"
+                  aria-hidden="true"
+                  style={{ width: canvasCssSize.cssW, height: canvasCssSize.cssH }}
                 />
               </div>
             </div>

@@ -23,11 +23,11 @@ describe("stripe palette mapping", () => {
 
     const mapped = applyStripePalette(stripes, "Purple");
 
-    expect(mapped[0].hex).toBe(color("Purple", "1000"));
-    expect(mapped[1].hex).toBe(color("Purple", "900"));
-    expect(mapped[2].hex).toBe(color("Purple", "800"));
-    expect(mapped[3].hex).toBe(color("Purple", "700"));
-    expect(mapped[4].hex).toBe(color("Purple", "600"));
+    expect(mapped[0].hex).toBe(color("Purple", "1500"));
+    expect(mapped[1].hex).toBe(color("Purple", "1400"));
+    expect(mapped[2].hex).toBe(color("Purple", "1300"));
+    expect(mapped[3].hex).toBe(color("Purple", "1200"));
+    expect(mapped[4].hex).toBe(color("Purple", "1100"));
   });
 
   it("uses a white-background palette ramp from Neutral 1 into the selected group up to 800", () => {
@@ -78,9 +78,9 @@ describe("stripe palette mapping", () => {
 
     const shuffled = shuffleStripePalette(stripes, random);
 
-    expect(shuffled[0].hex).toBe(color("Purple", "1000"));
-    expect(shuffled[1].hex).toBe(color("Purple", "900"));
-    expect(shuffled[2].hex).toBe(color("Purple", "800"));
+    expect(shuffled[0].hex).toBe(color("Purple", "1500"));
+    expect(shuffled[1].hex).toBe(color("Purple", "1400"));
+    expect(shuffled[2].hex).toBe(color("Purple", "1300"));
   });
 
   it("maps a single palette-token color to the same level in another group", () => {

@@ -69,8 +69,7 @@ function stopClock(): void {
   tickInFlight = false;
 }
 
-// Present on a 2D display-p3 context: readbacks honor a P3-tagged ImageBitmap,
-// but the compositor paints bitmaprenderer canvases as sRGB (clipping P3).
+// Present frames on an sRGB canvas so HEX values keep the same appearance.
 function presentFrame(instance: RegisteredInstance, frame: ImageBitmap): void {
   const ctx = instance.displayCtx;
   if (!ctx) {
@@ -187,6 +186,8 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   const id: InstanceId = `shared-${nextId++}`;
   const { canvas, src, mediaKind } = opts;
 
+  // Present on a 2D display-p3 context: readbacks honor a P3-tagged ImageBitmap,
+  // but the compositor paints bitmaprenderer canvases as sRGB (clipping P3).
   const displayCtx = canvas.getContext("2d", { colorSpace: "display-p3" });
   const { cssWidth, cssHeight } = readSize(canvas);
   const dpr = readDpr(canvas);
