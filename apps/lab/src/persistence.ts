@@ -14,6 +14,7 @@ import { normalizeShaderViewState } from "./shaderView";
 import { clampPreviewZoom } from "./canvasFitPreviewZoom";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "./twizzler";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "./twizzlerMapSource";
+import { clearCustomStripePalettes } from "./controls/customStripePalettes";
 
 const MAP_KEY = "stripes-engine-lab-by-texture";
 const LAST_KEY = "stripes-engine-lab-last-config";
@@ -536,6 +537,7 @@ export function factoryResetSettings(): void {
     localStorage.removeItem(LAB_SETTINGS_KEY);
     localStorage.removeItem(TEXTURE_KEY);
     localStorage.removeItem(EDIT_THEME_KEY);
+    clearCustomStripePalettes();
     sessionStorage.removeItem(PENDING_CONFIG_KEY);
     clearUrlBackgroundColor();
     deleteCookie(LAST_BACKGROUND_COLOR_KEY);

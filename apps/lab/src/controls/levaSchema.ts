@@ -50,6 +50,14 @@ import {
 import { reverseStripeColors } from "./stripeColorOrder";
 import { EASING_OPTIONS, easeValue, parseCustomEasing, type EasingName } from "./easing";
 import { loadControlDrawerOpen, loadControlDrawerSnapshot } from "./drawerState";
+import {
+  customStripePaletteValue,
+  findCustomStripePalette,
+  loadCustomStripePalettes,
+  saveCustomStripePalettes,
+  upsertCustomStripePalette,
+  type CustomStripePalette,
+} from "./customStripePalettes";
 
 function drawerFolder<S extends Parameters<typeof folder>[0]>(
   id: string,
@@ -385,6 +393,18 @@ function applyPaletteForBackgroundFillMode(
   return applyStripePalette(stripes, palette, backgroundHex, backgroundRampEasing, backgroundRampSettings);
 }
 
+function applyCustomStripePalette(stripes: readonly EditableStripe[], colors: readonly string[]): EditableStripe[] {
+  if (colors.length === 0) return [...stripes];
+  return stripes.map((stripe, index) => ({
+    ...stripe,
+    hex: colors[index] ?? colors[colors.length - 1] ?? stripe.hex,
+  }));
+}
+
+function engineStripeHexes(config: Partial<EngineConfig>): string[] {
+  return normalizeEngineConfig(config).stripes.map((stripe) => intToHex(stripe.color));
+}
+
 function visibleStripeWidthLevelCount(stripes: readonly { width: number; opacity: number }[]): number {
   const levels = new Set<number>();
   for (const stripe of stripes) {
@@ -456,25 +476,41 @@ export function useEngineControls(
     () => buildTextureEntries(loadManifest()).map((t) => ({ id: t.id, label: t.label })),
     [],
   );
+  const initialCustomStripePalettes = useMemo(() => loadCustomStripePalettes(), []);
+  const [customStripePalettes, setCustomStripePalettes] = useState<CustomStripePalette[]>(initialCustomStripePalettes);
+  const initialCustomStripePalette = findCustomStripePalette(
+    initialCustomStripePalettes,
+    initialLabSettings.stripePalette,
+  );
+  const initialCustomStripeColors =
+    initialThemed.editTheme === "dark" ? initialCustomStripePalette?.dark : initialCustomStripePalette?.light;
 
-  const [stripes, setStripes] = useState<EditableStripe[]>(() =>
-    d.stripes.map((s, i) => ({
+  const [stripes, setStripes] = useState<EditableStripe[]>(() => {
+    const editable = d.stripes.map((s, i) => ({
       id: String(i),
       hex: "#" + s.color.toString(16).padStart(6, "0"),
       startFrom: s.startFrom,
       width: s.width,
       opacity: s.opacity,
-    })),
-  );
+    }));
+    return initialCustomStripeColors ? applyCustomStripePalette(editable, initialCustomStripeColors) : editable;
+  });
   const [autoStripeWidths, setAutoStripeWidths] = useState(
     () => initialLabSettings.autoStripeWidths ?? hasAutomaticStripeWidthDistribution(d.stripes),
   );
   const [preShuffleStripes, setPreShuffleStripes] = useState<EditableStripe[] | null>(null);
-  const [activeGeneratedPalette, setActiveGeneratedPalette] = useState<string | null>(() =>
-    initialLabSettings.stripePalette && initialLabSettings.stripePalette !== "Custom"
-      ? initialLabSettings.stripePalette
-      : null,
-  );
+  const [activeGeneratedPalette, setActiveGeneratedPalette] = useState<string | null>(() => {
+    const initialPalette = initialLabSettings.stripePalette;
+    if (!initialPalette) return null;
+    if (
+      initialPalette === "Custom" ||
+      STRIPE_PALETTE_NAMES.some((palette) => palette === initialPalette) ||
+      findCustomStripePalette(initialCustomStripePalettes, initialPalette)
+    ) {
+      return initialPalette;
+    }
+    return null;
+  });
   const [backgroundRampEasing, setBackgroundRampEasing] = useState<BackgroundRampEasing>(() =>
     isKnownEasing(initialLabSettings.backgroundRampEasing ?? "", BACKGROUND_RAMP_EASING_OPTIONS)
       ? (initialLabSettings.backgroundRampEasing as BackgroundRampEasing)
@@ -497,7 +533,16 @@ export function useEngineControls(
         : intToHex(d.background.color),
   );
 
-  const stripePaletteOptions = useMemo(() => ["Custom", ...STRIPE_PALETTE_NAMES], []);
+  const stripePaletteOptions = useMemo(
+    () =>
+      Object.fromEntries([
+        ["Custom", "Custom"],
+        ...customStripePalettes.map((palette) => [`${palette.name} (Saved)`, customStripePaletteValue(palette.id)]),
+        ...STRIPE_PALETTE_NAMES.map((palette) => [palette, palette]),
+      ]),
+    [customStripePalettes],
+  );
+  const stripePaletteOptionsKey = JSON.stringify(stripePaletteOptions);
   const stripePaletteValue =
     activeGeneratedPalette ??
     detectStripePalette(stripes, backgroundHex, backgroundRampEasing, backgroundRampSettings) ??
@@ -522,8 +567,19 @@ export function useEngineControls(
 
   const handlePaletteChange = useCallback(
     (palette: string) => {
-      if (palette === "Custom") return;
       setPreShuffleStripes(null);
+      if (palette === "Custom") {
+        setActiveGeneratedPalette("Custom");
+        return;
+      }
+      const savedPalette = findCustomStripePalette(customStripePalettes, palette);
+      if (savedPalette) {
+        setActiveGeneratedPalette(palette);
+        setStripes((prev) =>
+          applyCustomStripePalette(prev, initialThemed.editTheme === "dark" ? savedPalette.dark : savedPalette.light),
+        );
+        return;
+      }
       setActiveGeneratedPalette(palette);
       setStripes((prev) =>
         applyStripePalette(
@@ -541,7 +597,7 @@ export function useEngineControls(
         controlSetterRef.current?.({ backgroundColor: mappedBackground });
       }
     },
-    [backgroundRampEasing],
+    [backgroundRampEasing, customStripePalettes, initialThemed.editTheme],
   );
 
   const handleRampEasingChange = useCallback((easing: string) => {
@@ -567,37 +623,45 @@ export function useEngineControls(
     setStripes((prev) => withDefaultStripeThresholdDistribution(prev, next));
   }, []);
 
-  const handleBackgroundColorLiveChange = useCallback((hex: string | null) => {
-    const next = normalizeHexString(hex);
-    lastStickyBackgroundRef.current = next;
-    setBackgroundHex(next);
-    const shouldUpdateBackgroundRamp =
-      activeGeneratedPaletteRef.current === BACKGROUND_RAMP_PALETTE_NAME ||
-      stripePaletteValueRef.current === BACKGROUND_RAMP_PALETTE_NAME;
-    if (shouldUpdateBackgroundRamp) {
-      setActiveGeneratedPalette(BACKGROUND_RAMP_PALETTE_NAME);
-      setStripes((prev) =>
-        applyStripePalette(
-          prev,
-          BACKGROUND_RAMP_PALETTE_NAME,
-          next,
-          backgroundRampEasingRef.current,
-          backgroundRampSettingsRef.current,
-        ),
-      );
-      return;
-    }
-    const palette = stripePaletteValueRef.current;
-    if (palette && palette !== "Custom" && palette !== WHITE_STRIPE_PALETTE_NAME) {
-      setStripes((prev) =>
-        applyStripePalette(prev, palette, next, backgroundRampEasingRef.current, backgroundRampSettingsRef.current),
-      );
-    }
-  }, []);
+  const handleBackgroundColorLiveChange = useCallback(
+    (hex: string | null) => {
+      const next = normalizeHexString(hex);
+      lastStickyBackgroundRef.current = next;
+      setBackgroundHex(next);
+      const shouldUpdateBackgroundRamp =
+        activeGeneratedPaletteRef.current === BACKGROUND_RAMP_PALETTE_NAME ||
+        stripePaletteValueRef.current === BACKGROUND_RAMP_PALETTE_NAME;
+      if (shouldUpdateBackgroundRamp) {
+        setActiveGeneratedPalette(BACKGROUND_RAMP_PALETTE_NAME);
+        setStripes((prev) =>
+          applyStripePalette(
+            prev,
+            BACKGROUND_RAMP_PALETTE_NAME,
+            next,
+            backgroundRampEasingRef.current,
+            backgroundRampSettingsRef.current,
+          ),
+        );
+        return;
+      }
+      const palette = stripePaletteValueRef.current;
+      if (
+        palette &&
+        palette !== "Custom" &&
+        palette !== WHITE_STRIPE_PALETTE_NAME &&
+        !findCustomStripePalette(customStripePalettes, palette)
+      ) {
+        setStripes((prev) =>
+          applyStripePalette(prev, palette, next, backgroundRampEasingRef.current, backgroundRampSettingsRef.current),
+        );
+      }
+    },
+    [customStripePalettes],
+  );
 
   const handleColorChange = useCallback((id: string, hex: string) => {
     setPreShuffleStripes(null);
-    setActiveGeneratedPalette(null);
+    setActiveGeneratedPalette("Custom");
     setStripes((prev) => prev.map((s) => (s.id === id ? { ...s, hex } : s)));
   }, []);
 
@@ -614,13 +678,13 @@ export function useEngineControls(
 
   const handleOpacityChange = useCallback((id: string, value: number) => {
     setPreShuffleStripes(null);
-    setActiveGeneratedPalette(null);
+    setActiveGeneratedPalette("Custom");
     setStripes((prev) => prev.map((s) => (s.id === id ? { ...s, opacity: Math.min(1, Math.max(0, value)) } : s)));
   }, []);
 
   const handleColorReorder = useCallback((orderedIds: string[]) => {
     setPreShuffleStripes(null);
-    setActiveGeneratedPalette(null);
+    setActiveGeneratedPalette("Custom");
     setStripes((prev) => {
       const byId = new Map(prev.map((s) => [s.id, s]));
       return orderedIds.map((id) => byId.get(id)!).filter(Boolean);
@@ -629,6 +693,7 @@ export function useEngineControls(
 
   const handleAdd = useCallback(() => {
     setPreShuffleStripes(null);
+    setActiveGeneratedPalette("Custom");
     setStripes((prev) => {
       const next = [
         ...prev,
@@ -643,6 +708,7 @@ export function useEngineControls(
   const handleRemove = useCallback(
     (id: string) => {
       setPreShuffleStripes(null);
+      setActiveGeneratedPalette("Custom");
       setStripes((prev) => {
         const next = prev.filter((s) => s.id !== id);
         return autoStripeWidths ? withDefaultStripeWidths(next) : next;
@@ -652,7 +718,7 @@ export function useEngineControls(
   );
 
   const handleShufflePalette = useCallback(() => {
-    setActiveGeneratedPalette(null);
+    setActiveGeneratedPalette("Custom");
     setPreShuffleStripes(stripes);
     setStripes(shuffleStripePalette(stripes));
   }, [stripes]);
@@ -665,28 +731,58 @@ export function useEngineControls(
 
   const handleReverseColorOrder = useCallback(() => {
     setPreShuffleStripes(null);
-    setActiveGeneratedPalette(null);
+    setActiveGeneratedPalette("Custom");
     setStripes((prev) => reverseStripeColors(prev));
   }, []);
 
+  const handleSavePalette = useCallback(() => {
+    const name = window.prompt("Palette name:", `Palette ${customStripePalettes.length + 1}`);
+    if (!name?.trim()) return;
+
+    const currentColors = stripes.map((stripe) => stripe.hex);
+    const lightConfig = normalizeEngineConfig(initialThemed.lightBase);
+    const darkConfig = normalizeEngineConfig(
+      resolveThemedConfig(
+        Object.keys(initialThemed.darkDiff).length > 0 ? { ...lightConfig, dark: initialThemed.darkDiff } : lightConfig,
+        "dark",
+      ),
+    );
+    const darkHasStripeOverride = Array.isArray(initialThemed.darkDiff.stripes);
+    const lightColors = initialThemed.editTheme === "light" ? currentColors : engineStripeHexes(lightConfig);
+    const darkColors =
+      initialThemed.editTheme === "dark"
+        ? currentColors
+        : darkHasStripeOverride
+          ? engineStripeHexes(darkConfig)
+          : currentColors;
+    const saved = upsertCustomStripePalette(customStripePalettes, {
+      name,
+      light: lightColors,
+      dark: darkColors,
+    });
+    if (!saved) return;
+    saveCustomStripePalettes(saved.palettes);
+    setCustomStripePalettes(saved.palettes);
+    setActiveGeneratedPalette(customStripePaletteValue(saved.palette.id));
+  }, [customStripePalettes, initialThemed, stripes]);
+
   stripeColorsTableRuntime.stripes = stripes;
   stripeColorsTableRuntime.disabled = false;
-  stripeColorsTableRuntime.paletteOptions = stripePaletteOptions;
-  stripeColorsTableRuntime.paletteValue = stripePaletteValue;
   stripeColorsTableRuntime.rampEasingOptions = BACKGROUND_RAMP_EASING_OPTIONS;
   stripeColorsTableRuntime.rampEasingValue = backgroundRampEasing;
   stripeColorsTableRuntime.showRampEasing =
     stripePaletteValue === BACKGROUND_RAMP_PALETTE_NAME || stripePaletteValue === WHITE_STRIPE_PALETTE_NAME;
+  stripeColorsTableRuntime.showSavePalette = stripePaletteValue === "Custom";
   stripeColorsTableRuntime.thresholdEasingOptions = THRESHOLD_DISTRIBUTION_EASING_OPTIONS;
   stripeColorsTableRuntime.thresholdEasingValue = thresholdDistributionEasing;
   stripeColorsTableRuntime.canUndoShuffle = preShuffleStripes !== null;
   stripeColorsTableRuntime.handlers = {
-    onPaletteChange: handlePaletteChange,
     onRampEasingChange: handleRampEasingChange,
     onThresholdEasingChange: handleThresholdEasingChange,
     onShufflePalette: handleShufflePalette,
     onUndoShuffle: handleUndoShuffle,
     onReverseColorOrder: handleReverseColorOrder,
+    onSavePalette: handleSavePalette,
     onColorChange: handleColorChange,
     onOpacityChange: handleOpacityChange,
     onThresholdChange: handleThresholdChange,
@@ -1240,6 +1336,15 @@ export function useEngineControls(
               Exclusion: "exclusion",
             } as const,
             label: "Blend mode",
+          },
+          stripePalette: {
+            value: stripePaletteValue,
+            options: stripePaletteOptions,
+            label: "Palette",
+            onChange: (value: string, _path: string, context: { initial: boolean }) => {
+              if (!context.initial) handlePaletteChange(value);
+            },
+            render: (get) => get("Stripes.colorsMode") !== "colors",
           },
           stripeColorsTable: stripeColorsTablePlugin({
             value: stripeKey,
@@ -3751,7 +3856,7 @@ export function useEngineControls(
         }),
       }),
     { store: shaderStore },
-    [stripeKey, stripePaletteValue],
+    [stripeKey, stripePaletteOptionsKey, stripePaletteValue],
   );
   shaderControlSetterRef.current = setShaderControl;
 
@@ -3764,8 +3869,8 @@ export function useEngineControls(
   const values = { ...textureValues, ...shaderValues };
   const imageColorsMode = values.colorsMode === "colors";
   const stripeTableKey = `${stripeKey}|colorMode:${imageColorsMode ? "image-colors" : "luminance"}`;
-  stripeColorsTableRuntime.paletteOptions = imageColorsMode ? [] : stripePaletteOptions;
   stripeColorsTableRuntime.showColorControls = !imageColorsMode;
+  stripeColorsTableRuntime.showSavePalette = !imageColorsMode && stripePaletteValue === "Custom";
   stripeColorsTableRuntime.showRampEasing =
     !imageColorsMode &&
     (stripePaletteValue === BACKGROUND_RAMP_PALETTE_NAME || stripePaletteValue === WHITE_STRIPE_PALETTE_NAME);
@@ -3830,12 +3935,17 @@ export function useEngineControls(
       );
       return;
     }
-    if (palette && palette !== "Custom" && palette !== WHITE_STRIPE_PALETTE_NAME) {
+    if (
+      palette &&
+      palette !== "Custom" &&
+      palette !== WHITE_STRIPE_PALETTE_NAME &&
+      !findCustomStripePalette(customStripePalettes, palette)
+    ) {
       setStripes((prev) =>
         applyStripePalette(prev, palette, next, backgroundRampEasingRef.current, backgroundRampSettingsRef.current),
       );
     }
-  }, [values.backgroundColor]);
+  }, [customStripePalettes, values.backgroundColor]);
 
   const baseStripes = fromEditable(stripes);
   const backgroundFillMode =

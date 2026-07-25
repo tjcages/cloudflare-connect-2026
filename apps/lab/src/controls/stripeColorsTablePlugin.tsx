@@ -5,12 +5,12 @@ import type { EditableStripe } from "./stripeAdapter";
 const { Row } = Components;
 
 export type StripeColorsTableHandlers = {
-  onPaletteChange: (palette: string) => void;
   onRampEasingChange: (easing: string) => void;
   onThresholdEasingChange: (easing: string) => void;
   onShufflePalette: () => void;
   onUndoShuffle: () => void;
   onReverseColorOrder: () => void;
+  onSavePalette: () => void;
   onColorChange: (id: string, hex: string) => void;
   onOpacityChange: (id: string, opacity: number) => void;
   onThresholdChange: (id: string, value: number) => void;
@@ -23,12 +23,11 @@ export type StripeColorsTableHandlers = {
 export type StripeColorsTableRuntime = {
   stripes: readonly EditableStripe[];
   disabled: boolean;
-  paletteOptions: readonly string[];
-  paletteValue: string;
   rampEasingOptions: Readonly<Record<string, string>>;
   rampEasingValue: string;
   showRampEasing: boolean;
   showColorControls: boolean;
+  showSavePalette: boolean;
   thresholdEasingOptions: Readonly<Record<string, string>>;
   thresholdEasingValue: string;
   canUndoShuffle: boolean;
@@ -38,22 +37,21 @@ export type StripeColorsTableRuntime = {
 export const stripeColorsTableRuntime: StripeColorsTableRuntime = {
   stripes: [],
   disabled: false,
-  paletteOptions: [],
-  paletteValue: "",
   rampEasingOptions: {},
   rampEasingValue: "",
   showRampEasing: false,
   showColorControls: true,
+  showSavePalette: false,
   thresholdEasingOptions: {},
   thresholdEasingValue: "",
   canUndoShuffle: false,
   handlers: {
-    onPaletteChange: () => {},
     onRampEasingChange: () => {},
     onThresholdEasingChange: () => {},
     onShufflePalette: () => {},
     onUndoShuffle: () => {},
     onReverseColorOrder: () => {},
+    onSavePalette: () => {},
     onColorChange: () => {},
     onOpacityChange: () => {},
     onThresholdChange: () => {},
@@ -87,21 +85,20 @@ function StripeColorsTablePluginComponent() {
         <StripeColorsTable
           stripes={stripes}
           disabled={disabled}
-          paletteOptions={stripeColorsTableRuntime.paletteOptions}
-          paletteValue={stripeColorsTableRuntime.paletteValue}
           rampEasingOptions={stripeColorsTableRuntime.rampEasingOptions}
           rampEasingValue={stripeColorsTableRuntime.rampEasingValue}
           showRampEasing={stripeColorsTableRuntime.showRampEasing}
           showColorControls={stripeColorsTableRuntime.showColorControls}
+          showSavePalette={stripeColorsTableRuntime.showSavePalette}
           thresholdEasingOptions={stripeColorsTableRuntime.thresholdEasingOptions}
           thresholdEasingValue={stripeColorsTableRuntime.thresholdEasingValue}
           canUndoShuffle={stripeColorsTableRuntime.canUndoShuffle}
-          onPaletteChange={handlers.onPaletteChange}
           onRampEasingChange={handlers.onRampEasingChange}
           onThresholdEasingChange={handlers.onThresholdEasingChange}
           onShufflePalette={handlers.onShufflePalette}
           onUndoShuffle={handlers.onUndoShuffle}
           onReverseColorOrder={handlers.onReverseColorOrder}
+          onSavePalette={handlers.onSavePalette}
           onColorChange={handlers.onColorChange}
           onOpacityChange={handlers.onOpacityChange}
           onThresholdChange={handlers.onThresholdChange}

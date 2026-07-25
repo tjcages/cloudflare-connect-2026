@@ -42,13 +42,13 @@ describe("color library", () => {
     expect(token("900 [Accent]")).toEqual({
       label: "900 [Accent]",
       hex: "#f46021",
-      p3: "color(display-p3 0.956509 0.375662 0.127859)",
+      p3: "color(display-p3 0.956863 0.376471 0.129412)",
       oklch: undefined,
     });
     expect(token("800 [Pair]")).toMatchObject({
-      hex: "#ffb300",
-      p3: "color(display-p3 1 0.703439 0)",
+      hex: "#fea700",
+      p3: "color(display-p3 0.996078 0.654902 0)",
     });
-    expect(p3ColorForHex("#f46021")).toBe("color(display-p3 0.956509 0.375662 0.127859)");
+    expect(p3ColorForHex("#f46021")).toBe("color(display-p3 0.956863 0.376471 0.129412)");
   });
 });
