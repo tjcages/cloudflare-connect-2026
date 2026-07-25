@@ -1396,6 +1396,14 @@ export function useEngineControls(
                 label: "Density",
                 render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
               },
+              stripeDotsRandomVisibility: {
+                value: d.stripeDots.randomVisibility * 100,
+                min: 0,
+                max: 100,
+                step: 1,
+                label: "Random visibility",
+                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+              },
               stripeDotsSizePx: {
                 value: d.stripeDots.sizePx,
                 min: 1,
@@ -4160,6 +4168,7 @@ export function useEngineControls(
     stripeDots: {
       enabled: values.stripeDotsEnabled,
       density: values.stripeDotsDensity / 100,
+      randomVisibility: values.stripeDotsRandomVisibility / 100,
       sizePx: values.stripeDotsSizePx,
       brightness: values.stripeDotsBrightness / 100,
       hueDriftDeg: values.stripeDotsHueDriftDeg,

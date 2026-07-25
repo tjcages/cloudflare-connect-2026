@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addUpload, removeUpload, type UploadEntry } from "./uploads";
+import { addUpload, removeUpload, setDarkUpload, type UploadEntry } from "./uploads";
 
 const entry = (id: string): UploadEntry => ({
   id,
@@ -25,6 +25,20 @@ describe("upload manifest transforms", () => {
   it("removeUpload drops the matching id", () => {
     const next = removeUpload([entry("a"), entry("b")], "a");
     expect(next.map((e) => e.id)).toEqual(["b"]);
+  });
+
+  it("associates a dark texture with its base upload", () => {
+    const next = setDarkUpload([entry("a")], "a", {
+      id: "a-dark",
+      label: "a-dark.png",
+      kind: "image",
+    });
+
+    expect(next[0]?.dark).toEqual({
+      id: "a-dark",
+      label: "a-dark.png",
+      kind: "image",
+    });
   });
 
   it("transforms do not mutate the input array", () => {

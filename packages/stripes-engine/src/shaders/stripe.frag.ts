@@ -45,6 +45,7 @@ uniform float uStripeSparkleHueDriftDeg;
 uniform float uStripeSparkleSaturationBoost;
 uniform float uStripeDotsEnabled;
 uniform float uStripeDotsSizePx;
+uniform float uStripeDotsRandomVisibility;
 uniform float uStripeDotsBrightness;
 uniform float uStripeDotsHueDriftDeg;
 uniform float uStripeDotsSaturationBoost;
@@ -414,8 +415,17 @@ vec3 applyStripeSparkle(vec3 color, vec2 cell, float widthPx, float opacity) {
   return applyStripeSparkleTone(brightened, amount);
 }
 
-float stripeDotAlpha(vec2 centeredP, float eligible, float widthPx, float opacity, float aaWidth) {
+float stripeDotAlpha(
+  vec2 centeredP,
+  vec2 stripeCell,
+  float eligible,
+  float widthPx,
+  float opacity,
+  float aaWidth
+) {
   if (uStripeDotsEnabled <= 0.5 || eligible < 0.5 || widthPx < 2.0 || opacity <= 0.001) return 0.0;
+  float visibility = clamp(uStripeDotsRandomVisibility, 0.0, 1.0);
+  if (sparkleHash(stripeCell.x + 137.0, stripeCell.y + 174.0) >= visibility) return 0.0;
   float radius = clamp(uStripeDotsSizePx, 1.0, 2.0) * 0.5;
   return clamp(0.5 - (length(centeredP) - radius) / aaWidth, 0.0, 1.0);
 }
@@ -429,9 +439,11 @@ vec3 stripeBrightnessColor(vec3 stripeColor, float brightness) {
 }
 
 vec3 stripeDotColor(vec3 stripeColor, float rampT) {
-  vec3 dotColor = stripeBrightnessColor(stripeColor, uStripeDotsBrightness);
-  vec3 hsl = rgbToHsl(dotColor);
-  if (hsl.y <= 0.0001) return dotColor;
+  // Start from the fully resolved stripe color so palette, gradient, cell color,
+  // and stripe sparkle effects all remain the source of the dot tone.
+  vec3 hsl = rgbToHsl(stripeColor);
+  hsl.z = clamp(hsl.z + clamp(uStripeDotsBrightness, 0.0, 1.0), 0.0, 1.0);
+  if (hsl.y <= 0.0001) return vec3(hsl.z);
   float t = clamp(rampT, 0.0, 1.0);
   hsl.x = fract(hsl.x + (uStripeDotsHueDriftDeg * t) / 360.0);
   float satLift = clamp(uStripeDotsSaturationBoost, 0.0, 1.0) * sin(t * 3.141592653589793 * 0.85);
@@ -721,6 +733,7 @@ void main() {
         );
         float candidateDotAlpha = stripeDotAlpha(
           candidateRotatedP,
+          candidateCell,
           candidateDotEligible,
           candidateWidthPx,
           candidateOpacity,
@@ -789,7 +802,7 @@ void main() {
         w,
         sourceCell
       );
-      float dotAlpha = stripeDotAlpha(rotatedP, barDotEligible, barWidthPx, barOpacity, w) * geometryAlpha;
+      float dotAlpha = stripeDotAlpha(rotatedP, sourceCell, barDotEligible, barWidthPx, barOpacity, w) * geometryAlpha;
       float effectiveAlpha = max(shapeAlpha, dotAlpha) * barOpacity;
       vec3 dottedBarColor = mix(barColor, stripeDotColor(barColor, barRampT), dotAlpha);
       vec3 blendedBarColor = bgColor.a <= 0.0001 ? dottedBarColor : blendStripeColor(bgColor.rgb, dottedBarColor);

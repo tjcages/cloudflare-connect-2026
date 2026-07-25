@@ -47,7 +47,7 @@ import {
 } from "./persistence";
 import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, findTextureEntry, loadFileSource, loadTextureSource } from "./textures";
 import type { LabTextureKind, LoadedTextureSource } from "./textures";
-import { addUpload, loadManifest, removeUpload, saveManifest } from "./uploads";
+import { addUpload, loadManifest, removeUpload, saveManifest, setDarkUpload } from "./uploads";
 import {
   addPreset,
   createPreset,
@@ -1028,6 +1028,7 @@ function LabInner() {
     if (!entry || entry.origin !== "upload") return;
     saveManifest(removeUpload(manifest, entry.id));
     void deleteTextureBlob(entry.id);
+    if (entry.dark) void deleteTextureBlob(entry.dark.id);
     deleteConfig(entry.id);
     saveTextureId(DEFAULT_LAB_TEXTURE_ID);
     window.location.reload();
@@ -1140,7 +1141,7 @@ function LabInner() {
         prevVideoRef.current = null;
       }
       const entry = findTextureEntry(id, loadManifest()) ?? LAB_TEXTURES[0];
-      loadTextureSource(entry)
+      loadTextureSource(entry, editTheme)
         .then((loaded) => {
           if (seq !== textureLoadSeqRef.current) {
             if (loaded.video) loaded.video.pause();
@@ -1148,7 +1149,7 @@ function LabInner() {
             return;
           }
           try {
-            applyLoadedSource(loaded);
+            applyLoadedSource(loaded, entry.origin !== "upload");
             beginRevealRef.current(engine);
           } catch (error) {
             console.error("Failed to apply texture.", error);
@@ -1164,7 +1165,7 @@ function LabInner() {
           }
         });
     },
-    [setTextureId],
+    [editTheme, setTextureId],
   );
 
   const applyConnectTextureSource = useCallback(
@@ -2101,7 +2102,7 @@ function LabInner() {
     saveLabSettings({ ...labSettingsRef.current, ...getLabSettingsSnapshot(), textureId });
   }, [textureId, getLabSettingsSnapshot]);
 
-  function applyLoadedSource(loaded: LoadedTextureSource) {
+  function applyLoadedSource(loaded: LoadedTextureSource, detectLevels = true) {
     const engine = engineRef.current;
     const canvas = canvasRef.current;
     if (!engine) return;
@@ -2122,16 +2123,18 @@ function LabInner() {
         if (canvas) applyCanvasSize(engine, canvas, src, labSettingsRef.current);
       }
     }
-    const levelsSeq = textureLoadSeqRef.current;
-    void detectSourceLuminanceRange(loaded).then((luminanceRange) => {
-      if (levelsSeq !== textureLoadSeqRef.current || !luminanceRange) return;
-      try {
-        setControlRef.current(luminanceRange);
-        if (manualRef.current) engine.renderFrame();
-      } catch (error) {
-        console.warn("Couldn't apply detected texture levels.", error);
-      }
-    });
+    if (detectLevels) {
+      const levelsSeq = textureLoadSeqRef.current;
+      void detectSourceLuminanceRange(loaded).then((luminanceRange) => {
+        if (levelsSeq !== textureLoadSeqRef.current || !luminanceRange) return;
+        try {
+          setControlRef.current(luminanceRange);
+          if (manualRef.current) engine.renderFrame();
+        } catch (error) {
+          console.warn("Couldn't apply detected texture levels.", error);
+        }
+      });
+    }
     if (manualRef.current) engine.renderFrame();
   }
 
@@ -2310,7 +2313,8 @@ function LabInner() {
       loadFileSource(file)
         .then((loaded) => {
           if (engineRef.current) {
-            applyLoadedSource(loaded);
+            setControlRef.current({ whitePoint: 1 });
+            applyLoadedSource(loaded, false);
           } else if (loaded.objectUrl) {
             URL.revokeObjectURL(loaded.objectUrl);
           }
@@ -2319,8 +2323,48 @@ function LabInner() {
       return;
     }
     saveManifest(addUpload(loadManifest(), { id, label: file.name, kind, defaultScale: 1, createdAt: Date.now() }));
-    stagePendingConfig(composeThemedConfigRef.current());
+    const current = composeThemedConfigRef.current();
+    const normalizedLight = normalizeEngineConfig(current);
+    stagePendingConfig({
+      ...current,
+      adjustments: { ...normalizedLight.adjustments, whitePoint: 1 },
+      ...(current.dark
+        ? {
+            dark: {
+              ...current.dark,
+              adjustments: { ...current.dark.adjustments, whitePoint: 1 },
+            },
+          }
+        : {}),
+    });
     saveTextureId(id);
+    window.location.reload();
+  }
+
+  async function handleDarkTextureFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const manifest = loadManifest();
+    const entry = findTextureEntry(textureIdRef.current, manifest);
+    if (!entry || entry.origin !== "upload") return;
+    const kind: LabTextureKind = file.type.startsWith("video/") ? "video" : "image";
+    const id = entry.dark?.id ?? `${entry.id}-dark`;
+    try {
+      await putTextureBlob(id, file, file.type);
+    } catch {
+      window.alert("Couldn't save the dark mode texture (storage full).");
+      return;
+    }
+    saveManifest(
+      setDarkUpload(manifest, entry.id, {
+        id,
+        label: file.name,
+        kind,
+      }),
+    );
+    stagePendingConfig(composeThemedConfigRef.current());
+    saveTextureId(entry.id);
     window.location.reload();
   }
 
@@ -2510,6 +2554,21 @@ function LabInner() {
                     Delete texture
                   </button>
                 </div>
+                {canDeleteTexture ? (
+                  <div className="wf-field">
+                    <span className="wf-field-label">Dark mode texture</span>
+                    <label className="lab-btn wf-upload">
+                      {selectedEntry?.dark ? "Replace dark mode texture" : "Add dark mode texture"}
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        style={{ display: "none" }}
+                        onChange={handleDarkTextureFileChange}
+                      />
+                    </label>
+                    {selectedEntry?.dark ? <span className="wf-field-label">{selectedEntry.dark.label}</span> : null}
+                  </div>
+                ) : null}
               </>
             ) : (
               <div className="wf-field wf-shader-source">

@@ -233,6 +233,7 @@ export interface SparkleConfig {
 export interface StripeDotsConfig {
   enabled: boolean;
   density: number;
+  randomVisibility: number;
   sizePx: number;
   brightness: number;
   hueDriftDeg: number;
