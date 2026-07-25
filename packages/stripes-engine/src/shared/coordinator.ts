@@ -20,6 +20,8 @@ export type RegisterSharedShaderOptions = {
   autoPlay?: boolean;
   rootMargin?: string;
   preloadRootMargin?: string;
+  /** Called when the "wave" trail's 0..1 activity changes meaningfully. */
+  onWaterActivity?: (activity: number) => void;
 };
 
 type RegisteredInstance = {
@@ -38,6 +40,7 @@ type RegisteredInstance = {
   revealDelayMs: number;
   revealArmed: boolean;
   revealTimer: ReturnType<typeof setTimeout> | null;
+  onWaterActivity: ((activity: number) => void) | null;
 };
 
 const DEFAULT_ROOT_MARGIN = "200% 0px";
@@ -115,6 +118,10 @@ function ensureWorker(): Worker {
         instance.imageRequested = false;
         void loadImageFrameOnce(instance, instance.src);
       }
+    } else if (data.type === "waterActivity") {
+      const instance = instances.get(data.id);
+      if (!instance || instance.disposed) return;
+      instance.onWaterActivity?.(data.activity);
     }
   };
   next.addEventListener("message", workerMessageHandler);
@@ -224,6 +231,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     revealDelayMs: opts.revealDelayMs ?? 0,
     revealArmed: false,
     revealTimer: null,
+    onWaterActivity: opts.onWaterActivity ?? null,
     intersectionObserver: undefined as unknown as IntersectionObserver,
     preloadObserver: null,
     resizeObserver: undefined as unknown as ResizeObserver,

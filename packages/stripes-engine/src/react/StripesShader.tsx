@@ -25,8 +25,9 @@ export type StripesShaderProps = {
   /** Shared mode only: delay the first source load so the reveal plays visibly after mount. */
   revealDelayMs?: number;
   /**
-   * Standalone mode only: called when the "wave" cursor trail's 0..1 activity
-   * changes. Fires from the render loop, so keep the handler cheap.
+   * Called when the "wave" cursor trail's 0..1 activity changes. Fires from the
+   * render loop, so keep the handler cheap. In shared mode the value is deduped
+   * inside the worker and delivered over the shared-context protocol.
    */
   onWaterActivity?: (activity: number) => void;
 };
@@ -215,6 +216,7 @@ export function StripesShader(props: StripesShaderProps) {
         autoPlay,
         rootMargin,
         preloadRootMargin,
+        onWaterActivity: (activity) => waterActivityRef.current?.(activity),
       });
       sharedHandleRef.current = handle;
       if (configRef.current) handle.setConfig(configRef.current);

@@ -142,6 +142,9 @@ function handle(message: MainToWorkerMessage): void {
         height: message.cssHeight,
         dpr: message.dpr,
         seed: message.seed,
+        onWaterActivity: (activity) => {
+          scope.postMessage({ type: "waterActivity", id: message.id, activity });
+        },
       });
       if (message.config) engine.setConfig(message.config);
       instances.set(message.id, {

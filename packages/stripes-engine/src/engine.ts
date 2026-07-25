@@ -181,6 +181,8 @@ export type SharedEngineOptions = {
   clock?: Clock;
   seed?: number;
   fieldScale?: number;
+  /** Called when the "wave" trail's 0..1 activity changes meaningfully. */
+  onWaterActivity?: (activity: number) => void;
 };
 export type SharedStripesEngine = {
   resize(cssWidth: number, cssHeight: number): void;
@@ -223,6 +225,7 @@ export function createStripesEngineShared(opts: SharedEngineOptions): SharedStri
     clock: opts.clock,
     seed: opts.seed,
     fieldScale: opts.fieldScale,
+    onWaterActivity: opts.onWaterActivity,
     cssWidth: opts.width,
     cssHeight: opts.height,
   });

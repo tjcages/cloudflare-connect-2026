@@ -111,4 +111,16 @@ export type TockMessage = {
   type: "tock";
 };
 
-export type WorkerToMainMessage = ReadyMessage | ErrorMessage | NeedsSourceMessage | FrameMessage | TockMessage;
+export type WaterActivityMessage = {
+  type: "waterActivity";
+  id: InstanceId;
+  activity: number;
+};
+
+export type WorkerToMainMessage =
+  | ReadyMessage
+  | ErrorMessage
+  | NeedsSourceMessage
+  | FrameMessage
+  | TockMessage
+  | WaterActivityMessage;

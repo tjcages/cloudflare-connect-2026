@@ -101,6 +101,29 @@ describe("<StripesShader>", () => {
     );
   });
 
+  it("shared mode forwards onWaterActivity to registerSharedShader", async () => {
+    const onWaterActivity = vi.fn();
+    render(<StripesShader src="logo.png" sharedContext onWaterActivity={onWaterActivity} />);
+    await vi.waitFor(() => expect(registerSharedShader).toHaveBeenCalled());
+    const opts = registerSharedShader.mock.calls[0][0] as { onWaterActivity?: (activity: number) => void };
+    expect(opts.onWaterActivity).toBeTypeOf("function");
+    opts.onWaterActivity?.(0.42);
+    expect(onWaterActivity).toHaveBeenCalledWith(0.42);
+  });
+
+  it("shared mode reads onWaterActivity through a ref so a new handler identity is honored", async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = render(<StripesShader src="logo.png" sharedContext onWaterActivity={first} />);
+    await vi.waitFor(() => expect(registerSharedShader).toHaveBeenCalled());
+    const opts = registerSharedShader.mock.calls[0][0] as { onWaterActivity?: (activity: number) => void };
+    rerender(<StripesShader src="logo.png" sharedContext onWaterActivity={second} />);
+    opts.onWaterActivity?.(0.8);
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledWith(0.8);
+    expect(registerSharedShader).toHaveBeenCalledTimes(1);
+  });
+
   it("resolves the dark theme before calling setConfig", () => {
     const config = { stripesEnabled: false, renderColorA: 0x222222, dark: { renderColorA: 0x101010 } };
     render(<StripesShader src="logo.png" config={config} theme="dark" />);
