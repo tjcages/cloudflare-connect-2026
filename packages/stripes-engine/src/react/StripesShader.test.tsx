@@ -132,10 +132,11 @@ describe("<StripesShader>", () => {
     expect(engineStub.setSource).toHaveBeenCalledWith(images[0]);
   });
 
-  it("disposes the engine on unmount", () => {
+  it("disposes the engine and disconnects the render gate on unmount", () => {
     const { unmount } = render(<StripesShader src="logo.png" sharedContext={false} />);
     unmount();
     expect(engineStub.dispose).toHaveBeenCalled();
+    expect(observers[0].disconnected).toBe(true);
   });
 
   it("standalone observes the canvas with rootMargin, defaulting to the shared default", () => {

@@ -1,4 +1,5 @@
 import { type Clock, createRealClock } from "./core/clock";
+import { createEngineLifecycle } from "./core/engineLifecycle";
 import { createFrameCapState, shouldRenderFrame } from "./core/frameCap";
 import type { EngineContext } from "./gl/context";
 import { createCanvasSurface, createSharedSurface, type RenderSurface } from "./gl/renderSurface";
@@ -48,6 +49,7 @@ import {
   type CursorTrailState,
 } from "./cursorTrail/cursorTrailSim";
 import { createClickWaveState, addClickWave, updateClickWave, type ClickWaveState } from "./cursorTrail/clickWaveSim";
+import { createWaterActivityReporter } from "./cursorTrail/waterActivityReporter";
 import { createWaterSim, type WaterSim } from "./cursorTrail/waterSim";
 import {
   createFlamesState,
@@ -286,7 +288,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
 
   const letterResources = createLetterResources(gl);
 
-  let rafId = 0;
   let lastFrameStart = clock.now();
   const frameCap = createFrameCapState();
   let lost = false;
@@ -365,7 +366,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   // outside the pass graph and is stepped before the pipeline each frame.
   let waterSim: WaterSim | null = null;
   let lastCursorTrailType = config.cursorTrail.type;
-  let lastReportedActivity = 0;
+  const waterActivity = createWaterActivityReporter(opts.onWaterActivity);
 
   const constellationTrailEnabled = (): boolean =>
     config.cursorTrail.enabled && config.cursorTrail.type === "constellation";
@@ -416,36 +417,21 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       if (waterSim) {
         waterSim.dispose();
         waterSim = null;
-        if (lastReportedActivity !== 0) {
-          lastReportedActivity = 0;
-          opts.onWaterActivity?.(0);
-        }
+        waterActivity.settle();
       }
       return;
     }
     waterSim ??= createWaterSim(gl, quad);
     waterSim.tick(clock.now(), cursorTrailState.target, cssW, cssH);
-    const activity = waterSim.activity();
-    // Report only on visible change; hosts typically drive a CSS variable.
-    if (Math.abs(activity - lastReportedActivity) > 0.01) {
-      lastReportedActivity = activity;
-      opts.onWaterActivity?.(activity);
-    }
+    waterActivity.report(waterSim.activity());
   }
 
   function settleWaterActivity() {
+    // Zero the sim too: the frozen value would otherwise be re-reported on the
+    // first resumed frame, after the idle freeze already pulled the ripples out
+    // of the render.
     waterSim?.resetActivity();
-    if (lastReportedActivity !== 0) {
-      lastReportedActivity = 0;
-      opts.onWaterActivity?.(0);
-    }
-  }
-
-  function cancelLoop() {
-    if (rafId) {
-      cancelAnimationFrame(rafId);
-      rafId = 0;
-    }
+    waterActivity.settle();
   }
 
   function getDpr() {
@@ -1598,14 +1584,44 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     perf.recordPasses(gpuTimer.latest());
   }
 
-  function loop() {
-    // A reveal in flight overrides the frame cap: fluid sims and sweeps read as
-    // laggy at capped rates, and the override only lasts the reveal's duration.
-    // shouldRenderFrame still runs first so the cap's cadence stays advanced.
-    const capOk = shouldRenderFrame(frameCap, config.maxFps, clock.now());
-    if (capOk || revealAnimating()) renderFrame();
-    rafId = requestAnimationFrame(loop);
-  }
+  const lifecycle = createEngineLifecycle({
+    supportsRaf: surface.supportsRaf,
+    frame: () => {
+      // A reveal in flight overrides the frame cap: fluid sims and sweeps read as
+      // laggy at capped rates, and the override only lasts the reveal's duration.
+      // shouldRenderFrame still runs first so the cap's cadence stays advanced.
+      const capOk = shouldRenderFrame(frameCap, config.maxFps, clock.now());
+      if (capOk || revealAnimating()) renderFrame();
+    },
+    onStart: () => {
+      lastFrameStart = clock.now();
+    },
+    settle: settleWaterActivity,
+    teardown: () => {
+      surface.detachContextLossListeners();
+      for (const p of passes) p.dispose();
+      if (colorsMrt) {
+        colorsMrt.dispose();
+        colorsMrt = null;
+      }
+      colorDistPass?.dispose();
+      maxReducePass?.dispose();
+      waterSim?.dispose();
+      waterSim = null;
+      pool.dispose();
+      quad.dispose();
+      source?.dispose();
+      if (stripeLutTex) {
+        gl.deleteTexture(stripeLutTex);
+        stripeLutTex = null;
+      }
+      if (stripeOpacityLutTex) {
+        gl.deleteTexture(stripeOpacityLutTex);
+        stripeOpacityLutTex = null;
+      }
+      letterResources.dispose();
+    },
+  });
 
   return {
     get isP3() {
@@ -1740,20 +1756,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       revealStartMs = clock.now();
     },
     renderFrame,
-    start() {
-      if (!surface.supportsRaf) return;
-      if (!rafId) {
-        lastFrameStart = clock.now();
-        rafId = requestAnimationFrame(loop);
-      }
-    },
-    stop() {
-      cancelLoop();
-      settleWaterActivity();
-    },
-    settle() {
-      settleWaterActivity();
-    },
+    start: lifecycle.start,
+    stop: lifecycle.stop,
+    settle: lifecycle.settle,
     readOutputPixels() {
       const px = new Uint8Array(output.width * output.height * 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -1784,32 +1789,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     getWaterActivity() {
       return waterSim?.activity() ?? 0;
     },
-    dispose() {
-      // cancelLoop, not stop(): teardown must not call back into a host that is
-      // already unmounting.
-      cancelLoop();
-      surface.detachContextLossListeners();
-      for (const p of passes) p.dispose();
-      if (colorsMrt) {
-        colorsMrt.dispose();
-        colorsMrt = null;
-      }
-      colorDistPass?.dispose();
-      maxReducePass?.dispose();
-      waterSim?.dispose();
-      waterSim = null;
-      pool.dispose();
-      quad.dispose();
-      source?.dispose();
-      if (stripeLutTex) {
-        gl.deleteTexture(stripeLutTex);
-        stripeLutTex = null;
-      }
-      if (stripeOpacityLutTex) {
-        gl.deleteTexture(stripeOpacityLutTex);
-        stripeOpacityLutTex = null;
-      }
-      letterResources.dispose();
-    },
+    dispose: lifecycle.dispose,
   };
 }
