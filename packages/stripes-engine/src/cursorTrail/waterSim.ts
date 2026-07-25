@@ -39,6 +39,13 @@ export type WaterSim = {
   current(): WaterSimTexture | null;
   /** 0..1 eased measure of how much the surface is moving. */
   activity(): number;
+  /**
+   * Drop the host-facing activity value to 0 without touching the heightfield.
+   * Called when the engine pauses: the frozen value would otherwise be reported
+   * again on resume, after the idle freeze has already pulled the ripples out of
+   * the render.
+   */
+  resetActivity(): void;
   dispose(): void;
 };
 
@@ -193,6 +200,9 @@ export function createWaterSim(gl: WebGL2RenderingContext, quad: { draw(): void 
     current() {
       if (!texture || simWidth === 0 || simHeight === 0) return null;
       return { texture, gain: FIELD_GAIN, texelX: 1 / simWidth, texelY: 1 / simHeight };
+    },
+    resetActivity() {
+      activityValue = 0;
     },
     activity() {
       return activityValue;

@@ -15,6 +15,7 @@ const engineStub = {
   setCursor: vi.fn(),
   click: vi.fn(),
   triggerReveal: vi.fn(),
+  settle: vi.fn(),
   rebuild: vi.fn(),
   getPerf: vi.fn(),
   getWaterActivity: vi.fn(() => 0),
@@ -102,5 +103,28 @@ describe("shared worker water activity", () => {
     send({ type: "register", id: "shared-0", cssWidth: 100, cssHeight: 100, dpr: 1 });
     send({ type: "tick" });
     expect(posted.some((message) => message.type === "waterActivity")).toBe(false);
+  });
+
+  it("settles an instance when it goes invisible, and not when it comes back", () => {
+    send({ type: "register", id: "shared-0", cssWidth: 100, cssHeight: 100, dpr: 1 });
+    send({ type: "visibility", id: "shared-0", visible: true });
+    expect(engineStub.settle).not.toHaveBeenCalled();
+
+    send({ type: "visibility", id: "shared-0", visible: false });
+    expect(engineStub.settle).toHaveBeenCalledTimes(1);
+
+    send({ type: "visibility", id: "shared-0", visible: true });
+    expect(engineStub.settle).toHaveBeenCalledTimes(1);
+  });
+
+  it("resuming an invisible instance does not replay its reveal", () => {
+    send({ type: "register", id: "shared-0", cssWidth: 100, cssHeight: 100, dpr: 1 });
+    send({ type: "visibility", id: "shared-0", visible: true });
+    send({ type: "source", id: "shared-0", frame: {} as ImageBitmap, isStream: false });
+    expect(engineStub.triggerReveal).toHaveBeenCalledTimes(1);
+
+    send({ type: "visibility", id: "shared-0", visible: false });
+    send({ type: "visibility", id: "shared-0", visible: true });
+    expect(engineStub.triggerReveal).toHaveBeenCalledTimes(1);
   });
 });

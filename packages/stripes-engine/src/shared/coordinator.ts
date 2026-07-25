@@ -1,4 +1,5 @@
 import type { EngineConfig } from "../config/types";
+import { DEFAULT_ROOT_MARGIN } from "../core/visibility";
 import { createVideoFramePump, loadImageFrame, type VideoFramePump } from "./media";
 import type { InstanceId, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
 import SharedShaderWorker from "./sharedWorker?worker&inline";
@@ -43,7 +44,6 @@ type RegisteredInstance = {
   onWaterActivity: ((activity: number) => void) | null;
 };
 
-const DEFAULT_ROOT_MARGIN = "200% 0px";
 const FALLBACK_SIZE = 320;
 
 let worker: Worker | null = null;

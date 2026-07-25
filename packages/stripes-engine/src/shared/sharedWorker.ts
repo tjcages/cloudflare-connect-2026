@@ -177,6 +177,10 @@ function handle(message: MainToWorkerMessage): void {
       const instance = instances.get(message.id);
       if (!instance) return;
       instance.visible = message.visible;
+      // renderTick skips invisible instances, so nothing would drive the wave
+      // trail's activity back down — the host would hold the last value for as
+      // long as the instance stays offscreen.
+      if (!message.visible) instance.engine.settle();
       // A source that arrived while offscreen deferred its reveal so it plays in
       // view rather than two viewports away. Fire it now, once, on first sight.
       if (message.visible && instance.pendingReveal) {

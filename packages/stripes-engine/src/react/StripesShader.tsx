@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { createStripesEngine, type StripesEngine } from "../engine";
 import { resolveThemedConfig, type ThemedEngineConfig, type ThemeName } from "../config/theme";
+import { DEFAULT_ROOT_MARGIN } from "../core/visibility";
 import type { SharedShaderHandle } from "../shared/coordinator";
 
 export type StripesShaderProps = {
@@ -18,7 +19,24 @@ export type StripesShaderProps = {
   muted?: boolean;
   className?: string;
   style?: CSSProperties;
+  /**
+   * Render through one WebGL context shared by every instance on the page,
+   * driven from a worker. Defaults to `true`: one context and one program
+   * compile for the whole page, and it is the only mode that defers an
+   * offscreen instance's reveal until the canvas is actually in view.
+   *
+   * Pass `false` for a private per-instance context — needed for `EngineHooks`
+   * (custom field/post/reveal passes), which cannot cross the worker boundary,
+   * and for imperative access to the engine on the main thread. Both modes gate
+   * rendering on `rootMargin`.
+   */
   sharedContext?: boolean;
+  /**
+   * IntersectionObserver margin for the render gate, honored in both modes.
+   * Outside it the render loop pauses; the GL context, source, sim state and
+   * reveal timeline all survive, so a resumed instance continues rather than
+   * replaying its reveal. Defaults to `"200% 0px"`.
+   */
   rootMargin?: string;
   /** Shared mode only: rootMargin for the preload gate that starts image loading ahead of the render gate. */
   preloadRootMargin?: string;
@@ -45,7 +63,7 @@ export function StripesShader(props: StripesShaderProps) {
     muted = true,
     className,
     style,
-    sharedContext = false,
+    sharedContext = true,
     rootMargin,
     preloadRootMargin,
     revealDelayMs,
@@ -92,6 +110,30 @@ export function StripesShader(props: StripesShaderProps) {
       engine.dispose();
     };
   }, [sharedContext]);
+
+  // Render gate for the private-context path, mirroring what the shared
+  // coordinator does for shared instances. It pauses and resumes the rAF loop
+  // and never disposes: the context, the loaded source and the reveal timeline
+  // survive the pause, so scrolling away and back does not recompile programs
+  // or replay the reveal. Separate from the engine effect so a `rootMargin`
+  // change re-observes without tearing the context down.
+  useEffect(() => {
+    if (sharedContext) return;
+    const canvas = canvasRef.current;
+    if (!canvas || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          // start()/stop() are idempotent, so no visibility bookkeeping here.
+          if (entry.isIntersecting) engineRef.current?.start();
+          else engineRef.current?.stop();
+        }
+      },
+      { rootMargin: rootMargin ?? DEFAULT_ROOT_MARGIN },
+    );
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [sharedContext, rootMargin]);
 
   useEffect(() => {
     if (sharedContext) return;

@@ -384,15 +384,24 @@ starting point. Experiments comparing against the lab look should start from tha
 
 ### `<StripesShader>` (React) — `packages/stripes-engine/src/react/StripesShader.tsx`
 
-`<StripesShader src="/textures/cf-base.png" config={partial} />` renders a `<canvas>` and, in
-standalone mode, per instance: creates its own engine, `start()`s it, ResizeObserver-resizes,
-loads `src` (image or `mediaKind="video"`), and wires window-level pointer listeners
-(pointermove/pointerdown + scroll re-hit-test, lines 96-148). With `sharedContext` it instead
-registers with `shared/coordinator.ts`: ONE Worker owns one OffscreenCanvas WebGL context running
-N `createStripesEngineShared` engines; each page canvas is a plain 2D canvas receiving
-ImageBitmap frames; IntersectionObserver mounts/unmounts by visibility. This mode exists
-precisely to beat the browser context cap — but note it does NOT deliver pointer events to the
-engines (no cursor trail interactivity) and runs the fixed pipeline only.
+`<StripesShader src="/textures/cf-base.png" config={partial} />` renders a `<canvas>`.
+**`sharedContext` defaults to `true`**: the instance registers with `shared/coordinator.ts`, where
+ONE Worker owns one OffscreenCanvas WebGL context running N `createStripesEngineShared` engines;
+each page canvas is a plain 2D canvas receiving ImageBitmap frames. This beats the browser context
+cap, and it forwards cursor/click and `onWaterActivity` per instance; it runs the fixed pipeline
+only (no `EngineHooks`).
+
+`sharedContext={false}` takes the private-context path: its own engine, `start()`ed and
+ResizeObserver-resized, `src` loaded per instance, window-level pointer listeners
+(pointermove/pointerdown + scroll re-hit-test), and `EngineHooks` available.
+
+Both modes gate rendering on an IntersectionObserver honoring `rootMargin` (default `"200% 0px"`,
+`core/visibility.ts`). Outside the gate the instance PAUSES — standalone via `engine.stop()`,
+shared by being skipped in `renderTick`. Nothing is disposed: the context, the source and the
+reveal timeline survive, so scrolling away and back neither recompiles programs nor replays the
+reveal. Do NOT wrap the component in `{inView && …}` — that unmounts and destroys the context.
+A paused instance also `settle()`s (reports `onWaterActivity(0)`) so a hover value cannot freeze
+offscreen.
 
 ### The lab's "shader" texture source mode
 
@@ -648,8 +657,8 @@ either create them directly (`createRenderTarget`/`createPingPong`, dispose them
   logoFill/stylize image-space passes sit after it).
 - **Browser WebGL context cap (~8-16 live contexts per page; oldest silently lost)** — browser
   fact, not repo code. For a multi-canvas harness: mount an engine when its tile is visible and
-  `dispose()` when not (the roster mandates this), or use `<StripesShader sharedContext>` (one
-  worker context for all tiles, but no pointer interactivity and fixed pipeline). The engine
+  `dispose()` when not (the roster mandates this), or use `<StripesShader>` (shared context by
+  default: one worker context for all tiles, fixed pipeline). The engine
   survives context loss (`engine.ts:1146-1154` + `rebuildGpuResources` at `:1112`) but drops its
   source (`:1124`) — re-`setSource` after restore.
 - **Sticky background cookie: dead, but localStorage is the new sticky state** — the old
@@ -669,7 +678,7 @@ either create them directly (`createRenderTarget`/`createPingPong`, dispose them
   use `pointerToEnginePoint` (`LabApp.tsx:261-269`), which rescales client coords by
   `styleWidth / rect.width` so a CSS-scaled canvas still maps correctly. DPR is NOT your problem
   (engine handles it). `StripesShader` shows the window-level alternative including a scroll
-  re-hit-test (`react/StripesShader.tsx:96-148`).
+  re-hit-test (`react/StripesShader.tsx`, the `sharedContext === false` pointer effect).
 - **React StrictMode double-mount** — `apps/lab/src/main.tsx` wraps in `<StrictMode>`; dev
   effects run create→dispose→create. Engine creation in an effect with a proper dispose cleanup
   handles this; don't cache engines outside refs.

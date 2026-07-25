@@ -154,8 +154,20 @@ export type CellGridReadback = { cols: number; rows: number; values: Uint8Array;
 export type StripesEngine = {
   resize(cssWidth: number, cssHeight: number): void;
   renderFrame(): void;
+  /** Arm the rAF render loop. Idempotent, and never restarts an in-flight reveal. */
   start(): void;
+  /**
+   * Cancel the rAF render loop, keeping the GL context, source, sim state and
+   * reveal timeline intact — `start()` resumes where this left off. Also calls
+   * `settle()`, so a paused instance reports itself at rest.
+   */
   stop(): void;
+  /**
+   * Release transient host-facing state: report `onWaterActivity(0)` and clear
+   * the wave trail's activity value. For hosts that stop rendering an instance
+   * without calling `stop()` (the shared worker skips invisible instances).
+   */
+  settle(): void;
   setFieldScale(s: number): void;
   setSource(media: EngineSource | null): void;
   updateSourceFrame(frame: EngineSource): void;
@@ -197,6 +209,12 @@ export type SharedStripesEngine = {
   setCursor(x: number | null, y?: number): void;
   click(x: number, y?: number): void;
   triggerReveal(): void;
+  /**
+   * Release transient host-facing state: report `onWaterActivity(0)` and clear
+   * the wave trail's activity value. Call it when the host stops rendering an
+   * instance, so the frozen last value is not left standing offscreen.
+   */
+  settle(): void;
   rebuild(context: EngineContext): void;
   getPerf(): PerfSnapshot;
   /** 0..1 eased surface motion of the "wave" cursor trail; 0 for other types. */
@@ -412,6 +430,21 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     if (Math.abs(activity - lastReportedActivity) > 0.01) {
       lastReportedActivity = activity;
       opts.onWaterActivity?.(activity);
+    }
+  }
+
+  function settleWaterActivity() {
+    waterSim?.resetActivity();
+    if (lastReportedActivity !== 0) {
+      lastReportedActivity = 0;
+      opts.onWaterActivity?.(0);
+    }
+  }
+
+  function cancelLoop() {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
     }
   }
 
@@ -1715,10 +1748,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       }
     },
     stop() {
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = 0;
-      }
+      cancelLoop();
+      settleWaterActivity();
+    },
+    settle() {
+      settleWaterActivity();
     },
     readOutputPixels() {
       const px = new Uint8Array(output.width * output.height * 4);
@@ -1751,7 +1785,9 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       return waterSim?.activity() ?? 0;
     },
     dispose() {
-      this.stop();
+      // cancelLoop, not stop(): teardown must not call back into a host that is
+      // already unmounting.
+      cancelLoop();
       surface.detachContextLossListeners();
       for (const p of passes) p.dispose();
       if (colorsMrt) {
