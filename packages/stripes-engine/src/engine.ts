@@ -19,7 +19,8 @@ import { createBlackholePass } from "./passes/blackholePass";
 import { createWhirlpoolPass } from "./passes/whirlpoolPass";
 import { createWaterRevealPass } from "./passes/waterRevealPass";
 import { createBlurPass } from "./passes/blurPass";
-import { buildStripeRenderOpts, createStripePass } from "./passes/stripePass";
+import { buildStripeRenderOpts, createStripePass, type StripeRenderInputs } from "./passes/stripePass";
+import { createStripeCellPass } from "./passes/stripeCellPass";
 import { createStylizePass } from "./passes/stylizePass";
 import { createLogoFillPass } from "./passes/logoFillPass";
 import { createLetterDataPass } from "./passes/letterDataPass";
@@ -328,6 +329,12 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   const letterResources = createLetterResources(gl);
 
   let lastFrameStart = clock.now();
+  /**
+   * Frozen at the top of each frame so every pass in the pipeline animates from
+   * one timestamp — the cell precompute and the stripe pass that reads it back
+   * must agree on the sparkle, shuffle and motion phase to the last bit.
+   */
+  let frameTimeSec = clock.now() / 1000;
   const frameCap = createFrameCapState();
   let lost = false;
   let lastStripesEnabled = config.stripesEnabled;
@@ -375,6 +382,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
 
   let detectedBgColor = config.colors.backgroundColor;
   let colorsMrt: MrtTarget | null = null;
+  let cellDataMrt: MrtTarget | null = null;
   let flamesPalette: VibrantColor[] = createSyntheticVibrantPalette();
   let maxColorDist = Math.sqrt(3);
   let colorDistPass: ReturnType<typeof createColorDistPass> | null = null;
@@ -650,6 +658,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     if (colorsMrt) {
       colorsMrt.dispose();
       colorsMrt = null;
+    }
+    if (cellDataMrt) {
+      cellDataMrt.dispose();
+      cellDataMrt = null;
     }
     const colorsMode = config.colors.mode === "colors";
     let fieldPass: Pass;
@@ -1449,6 +1461,71 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             },
           ]
         : [];
+      const stripeRenderInputs = (
+        timeSec: number,
+        cellDataA: WebGLTexture | null,
+        cellDataB: WebGLTexture | null,
+      ): StripeRenderInputs => {
+        const { cols, rows } = cellGrid;
+        const glyphDataTex =
+          lettersEnabled && config.letters.mode === "text"
+            ? ensureTextGlyphMap(cols, rows)
+            : lettersEnabled
+              ? pool.get("glyphData", cols, rows).texture
+              : letterResources.dummyTex!;
+        return {
+          cols,
+          rows,
+          displayW: cssW,
+          displayH: cssH,
+          dpr: getDpr(),
+          timeSec,
+          lettersEnabled,
+          colorsMode: colorsModeActive,
+          glyphDataTex,
+          atlasTex: letterResources.atlasTex!,
+          atlasGrid: letterResources.atlasGrid,
+          cellColorTex: colorsModeActive ? pool.get("cellColor", cols, rows).texture : letterResources.dummyTex!,
+          opacityTex: stripeOpacityLutTex!,
+          cellDataA,
+          cellDataB,
+        };
+      };
+      /**
+       * Cells resolve once per grid texel instead of once per fragment. The
+       * targets are float, so without `EXT_color_buffer_float` the pass is
+       * skipped and the stripe shader resolves cells inline as before.
+       */
+      const cellDataSupported = !!gl.getExtension("EXT_color_buffer_float");
+      const stripeCellPass = cellDataSupported ? createStripeCellPass(gl, quad) : null;
+      if (stripeCellPass) cellDataMrt = createMrtTarget(gl);
+      const cellDataTargets = (): [RenderTarget, RenderTarget] => {
+        const { cols, rows } = cellGrid;
+        return [
+          pool.get("cellDataA", cols, rows, { float32: true }),
+          pool.get("cellDataB", cols, rows, { float32: true }),
+        ];
+      };
+      const stripeCellPasses: Pass[] = stripeCellPass
+        ? [
+            {
+              name: "stripeCell",
+              render: () => {
+                const { cols, rows } = cellGrid;
+                const [cellDataA, cellDataB] = cellDataTargets();
+                stripeCellPass.render(
+                  cellDataMrt!,
+                  cellDataA,
+                  cellDataB,
+                  pool.get("cell", cols, rows).texture,
+                  stripeLutTex!,
+                  buildStripeRenderOpts(config, stripeRenderInputs(frameTimeSec, null, null)),
+                );
+              },
+              dispose: () => stripeCellPass.dispose(),
+            },
+          ]
+        : [];
       passes = [
         fieldPass,
         ...starsFieldPasses,
@@ -1473,36 +1550,24 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         ...colorDownsamplePasses,
         ...letterDataPasses,
+        ...stripeCellPasses,
         {
           name: "stripe",
           render: () => {
             const { cols, rows } = cellGrid;
             const inputRT = pool.get("cell", cols, rows);
-            const timeSec = clock.now() / 1000;
-            const glyphDataTex =
-              lettersEnabled && config.letters.mode === "text"
-                ? ensureTextGlyphMap(cols, rows)
-                : lettersEnabled
-                  ? pool.get("glyphData", cols, rows).texture
-                  : letterResources.dummyTex!;
+            const cellData = stripeCellPass ? cellDataTargets() : null;
             stripePass.render(
               inputRT.texture,
               stripeLutTex!,
-              buildStripeRenderOpts(config, {
-                cols,
-                rows,
-                displayW: cssW,
-                displayH: cssH,
-                dpr: getDpr(),
-                timeSec,
-                lettersEnabled,
-                colorsMode: colorsModeActive,
-                glyphDataTex,
-                atlasTex: letterResources.atlasTex!,
-                atlasGrid: letterResources.atlasGrid,
-                cellColorTex: colorsModeActive ? pool.get("cellColor", cols, rows).texture : letterResources.dummyTex!,
-                opacityTex: stripeOpacityLutTex!,
-              }),
+              buildStripeRenderOpts(
+                config,
+                stripeRenderInputs(
+                  frameTimeSec,
+                  cellData ? cellData[0].texture : null,
+                  cellData ? cellData[1].texture : null,
+                ),
+              ),
               output.width,
               output.height,
               stylizePass || postHookPass ? pool.get("stripeOut", output.width, output.height, { linear: true }) : null,
@@ -1647,6 +1712,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     lutSig = "";
     letterResources.reset(gl);
     colorsMrt = null;
+    cellDataMrt = null;
     colorDistPass = createColorDistPass(gl, quad);
     maxReducePass = createMaxReducePass(gl, quad);
     flamesState = createFlamesState(mulberry32(flamesSeed));
@@ -1684,6 +1750,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   function renderFrame() {
     if (lost) return;
     const t0 = clock.now();
+    frameTimeSec = t0 / 1000;
     gpuTimer.poll();
     beginFillFrame();
     // The cursor wave's sub-stepped sim runs outside the pass list, so it is
@@ -1719,6 +1786,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       if (colorsMrt) {
         colorsMrt.dispose();
         colorsMrt = null;
+      }
+      if (cellDataMrt) {
+        cellDataMrt.dispose();
+        cellDataMrt = null;
       }
       colorDistPass?.dispose();
       maxReducePass?.dispose();

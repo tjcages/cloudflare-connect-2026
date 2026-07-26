@@ -6,10 +6,9 @@ import { STRIPE_FRAG } from "../shaders/stripe.frag";
 import { unpackRgb } from "../colors/colorMath";
 import { gradientDirectionIndex, STRIPE_BLEND_MODE_INDEX } from "../config/normalize";
 import type { EngineConfig } from "../config/types";
+import { bindStripeCellUniforms, stripeCellLocations, type StripeCellUniforms } from "./stripeCellUniforms";
 
-export type StripeUniforms = {
-  cellW: number;
-  cellH: number;
+export type StripeUniforms = StripeCellUniforms & {
   gapX: number;
   gapY: number;
   cornerRadius: number;
@@ -22,10 +21,6 @@ export type StripeUniforms = {
   streamGapWaveWavelengthCells: number;
   streamGapWaveSpeed: number;
   streamGapWavePhaseDeg: number;
-  cellMin: number;
-  cellMax: number;
-  cols: number;
-  rows: number;
   background: number;
   backgroundAlpha: number;
   transparent: boolean;
@@ -44,18 +39,6 @@ export type StripeUniforms = {
   displayW: number;
   displayH: number;
   dpr: number;
-  timeSec: number;
-  gapEnabled: boolean;
-  gapCoverage: number;
-  gapPeriodMin: number;
-  gapPeriodMax: number;
-  stripeSparkleEnabled: boolean;
-  stripeSparkleCoverage: number;
-  stripeSparkleMaxBrightness: number;
-  stripeSparkleSpeed: number;
-  stripeSparkleMinWidthPx: number;
-  stripeSparkleHueDriftDeg: number;
-  stripeSparkleSaturationBoost: number;
   stripeDotsEnabled: boolean;
   stripeDotsSizePx: number;
   stripeDotsBrightness: number;
@@ -67,34 +50,15 @@ export type StripeUniforms = {
   gridLinesEnabled: boolean;
   gridLinesBrightness: number;
   gridLinesDensity: number;
-  shuffleEnabled: boolean;
-  shuffleCoverage: number;
-  shufflePeriodMin: number;
-  shufflePeriodMax: number;
-  shuffleSwingPx: number;
-  motionEnabled: boolean;
-  motionAmplitudePx: number;
-  motionStaggerPx: number;
-  motionMaxOffsetPx: number;
-  motionSpeed: number;
   lettersEnabled: boolean;
   glyphDataTex: WebGLTexture;
   atlasTex: WebGLTexture;
   atlasGrid: [number, number];
   letterSizeScale: number;
   letterColor: number;
-  useCellColors: boolean;
-  cellColorTex: WebGLTexture;
-  imageColorLightness: number;
-  imageColorDensity: number;
-  opacityTex: WebGLTexture;
+  cellDataA: WebGLTexture | null;
+  cellDataB: WebGLTexture | null;
   blendMode: number;
-  gradientEnabled: boolean;
-  gradientDirection: number;
-  gradientStopCount: number;
-  gradientStops: number[];
-  gradientHueDriftDeg: number;
-  gradientSaturationBoost: number;
 };
 
 export type StripeRenderInputs = {
@@ -111,6 +75,8 @@ export type StripeRenderInputs = {
   atlasGrid: [number, number];
   cellColorTex: WebGLTexture;
   opacityTex: WebGLTexture;
+  cellDataA: WebGLTexture | null;
+  cellDataB: WebGLTexture | null;
 };
 
 export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInputs): StripeUniforms {
@@ -206,6 +172,8 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     imageColorLightness: config.colors.imageColorLightness,
     imageColorDensity: config.colors.imageColorDensity,
     opacityTex: i.opacityTex,
+    cellDataA: i.cellDataA,
+    cellDataB: i.cellDataB,
     blendMode: STRIPE_BLEND_MODE_INDEX[config.colors.stripeBlendMode],
     gradientEnabled: config.colors.gradient.enabled,
     gradientDirection: gradientDirectionIndex(config.colors.gradient.direction),
@@ -219,12 +187,11 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
 export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): void }) {
   const program = compileProgram(gl, FULLSCREEN_VERT, STRIPE_FRAG);
   const u = (n: string) => gl.getUniformLocation(program, n);
+  const shared = stripeCellLocations(gl, program);
   const L = {
-    cell: u("uCell"),
-    lut: u("uLut"),
-    opacityLut: u("uOpacityLut"),
-    grid: u("uGridCount"),
-    cellPx: u("uCellPx"),
+    cellDataA: u("uCellDataA"),
+    cellDataB: u("uCellDataB"),
+    useCellData: u("uUseCellData"),
     gridGap: u("uGridGapPx"),
     corner: u("uCorner"),
     orient: u("uOrient"),
@@ -236,8 +203,6 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     streamGapWaveWavelengthCells: u("uStreamGapWaveWavelengthCells"),
     streamGapWaveSpeed: u("uStreamGapWaveSpeed"),
     streamGapWavePhaseDeg: u("uStreamGapWavePhaseDeg"),
-    cellMin: u("uCellMin"),
-    cellMax: u("uCellMax"),
     bg: u("uBg"),
     bgAlpha: u("uBgAlpha"),
     transparent: u("uTransparent"),
@@ -256,18 +221,6 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     bgGridOpacity: u("uBgGridOpacity"),
     displayPx: u("uDisplayPx"),
     dpr: u("uDpr"),
-    timeSec: u("uTimeSec"),
-    gapEnabled: u("uGapEnabled"),
-    gapCoverage: u("uGapCoverage"),
-    gapPeriodMin: u("uGapPeriodMin"),
-    gapPeriodMax: u("uGapPeriodMax"),
-    stripeSparkleEnabled: u("uStripeSparkleEnabled"),
-    stripeSparkleCoverage: u("uStripeSparkleCoverage"),
-    stripeSparkleMaxBrightness: u("uStripeSparkleMaxBrightness"),
-    stripeSparkleSpeed: u("uStripeSparkleSpeed"),
-    stripeSparkleMinWidthPx: u("uStripeSparkleMinWidthPx"),
-    stripeSparkleHueDriftDeg: u("uStripeSparkleHueDriftDeg"),
-    stripeSparkleSaturationBoost: u("uStripeSparkleSaturationBoost"),
     stripeDotsEnabled: u("uStripeDotsEnabled"),
     stripeDotsSizePx: u("uStripeDotsSizePx"),
     stripeDotsBrightness: u("uStripeDotsBrightness"),
@@ -279,36 +232,13 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     gridLinesEnabled: u("uGridLinesEnabled"),
     gridLinesBrightness: u("uGridLinesBrightness"),
     gridLinesDensity: u("uGridLinesDensity"),
-    shuffleEnabled: u("uShuffleEnabled"),
-    shuffleCoverage: u("uShuffleCoverage"),
-    shufflePeriodMin: u("uShufflePeriodMin"),
-    shufflePeriodMax: u("uShufflePeriodMax"),
-    shuffleSwingPx: u("uShuffleSwingPx"),
-    motionEnabled: u("uMotionEnabled"),
-    motionAmplitudePx: u("uMotionAmplitudePx"),
-    motionStaggerPx: u("uMotionStaggerPx"),
-    motionMaxOffsetPx: u("uMotionMaxOffsetPx"),
-    motionSpeed: u("uMotionSpeed"),
     lettersEnabled: u("uLettersEnabled"),
     glyphData: u("uGlyphData"),
     atlas: u("uAtlas"),
     atlasGrid: u("uAtlasGrid"),
     letterSizeScale: u("uLetterSizeScale"),
     letterColor: u("uLetterColor"),
-    useCellColors: u("uUseCellColors"),
-    cellColor: u("uCellColor"),
-    imageColorLightness: u("uImageColorLightness"),
-    imageColorDensity: u("uImageColorDensity"),
     blendMode: u("uBlendMode"),
-    gradientEnabled: u("uGradientEnabled"),
-    gradientDirection: u("uGradientDirection"),
-    gradientStopCount: u("uGradientStopCount"),
-    gradientStop0: u("uGradientStop0"),
-    gradientStop1: u("uGradientStop1"),
-    gradientStop2: u("uGradientStop2"),
-    gradientStop3: u("uGradientStop3"),
-    gradientHueDriftDeg: u("uGradientHueDriftDeg"),
-    gradientSaturationBoost: u("uGradientSaturationBoost"),
   };
   const setColor = (loc: WebGLUniformLocation | null, color: number) => gl.uniform3f(loc, ...unpackRgb(color));
   return {
@@ -328,17 +258,17 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
         noteFillTarget(outWidth, outHeight);
       }
       gl.useProgram(program);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, cellTex);
-      gl.uniform1i(L.cell, 0);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, lutTex);
-      gl.uniform1i(L.lut, 1);
-      gl.activeTexture(gl.TEXTURE5);
-      gl.bindTexture(gl.TEXTURE_2D, p.opacityTex);
-      gl.uniform1i(L.opacityLut, 5);
-      gl.uniform2f(L.grid, p.cols, p.rows);
-      gl.uniform2f(L.cellPx, p.cellW, p.cellH);
+      bindStripeCellUniforms(gl, shared, p, cellTex, lutTex);
+      const cellDataReady = !!p.cellDataA && !!p.cellDataB;
+      gl.uniform1f(L.useCellData, cellDataReady ? 1 : 0);
+      if (cellDataReady) {
+        gl.activeTexture(gl.TEXTURE6);
+        gl.bindTexture(gl.TEXTURE_2D, p.cellDataA);
+        gl.uniform1i(L.cellDataA, 6);
+        gl.activeTexture(gl.TEXTURE7);
+        gl.bindTexture(gl.TEXTURE_2D, p.cellDataB);
+        gl.uniform1i(L.cellDataB, 7);
+      }
       gl.uniform2f(L.gridGap, p.gapX, p.gapY);
       gl.uniform1f(L.corner, p.cornerRadius);
       gl.uniform1f(L.orient, p.orientation);
@@ -350,8 +280,6 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.streamGapWaveWavelengthCells, p.streamGapWaveWavelengthCells);
       gl.uniform1f(L.streamGapWaveSpeed, p.streamGapWaveSpeed);
       gl.uniform1f(L.streamGapWavePhaseDeg, p.streamGapWavePhaseDeg);
-      gl.uniform1f(L.cellMin, p.cellMin);
-      gl.uniform1f(L.cellMax, p.cellMax);
       setColor(L.bg, p.background);
       gl.uniform1f(L.bgAlpha, p.backgroundAlpha);
       gl.uniform1f(L.transparent, p.transparent ? 1 : 0);
@@ -370,18 +298,6 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.bgGridOpacity, p.backgroundGridOpacity);
       gl.uniform2f(L.displayPx, p.displayW, p.displayH);
       gl.uniform1f(L.dpr, p.dpr);
-      gl.uniform1f(L.timeSec, p.timeSec);
-      gl.uniform1f(L.gapEnabled, p.gapEnabled ? 1 : 0);
-      gl.uniform1f(L.gapCoverage, p.gapCoverage);
-      gl.uniform1f(L.gapPeriodMin, p.gapPeriodMin);
-      gl.uniform1f(L.gapPeriodMax, p.gapPeriodMax);
-      gl.uniform1f(L.stripeSparkleEnabled, p.stripeSparkleEnabled ? 1 : 0);
-      gl.uniform1f(L.stripeSparkleCoverage, p.stripeSparkleCoverage);
-      gl.uniform1f(L.stripeSparkleMaxBrightness, p.stripeSparkleMaxBrightness);
-      gl.uniform1f(L.stripeSparkleSpeed, p.stripeSparkleSpeed);
-      gl.uniform1f(L.stripeSparkleMinWidthPx, p.stripeSparkleMinWidthPx);
-      gl.uniform1f(L.stripeSparkleHueDriftDeg, p.stripeSparkleHueDriftDeg);
-      gl.uniform1f(L.stripeSparkleSaturationBoost, p.stripeSparkleSaturationBoost);
       gl.uniform1f(L.stripeDotsEnabled, p.stripeDotsEnabled ? 1 : 0);
       gl.uniform1f(L.stripeDotsSizePx, p.stripeDotsSizePx);
       gl.uniform1f(L.stripeDotsBrightness, p.stripeDotsBrightness);
@@ -393,16 +309,6 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.gridLinesEnabled, p.gridLinesEnabled ? 1 : 0);
       gl.uniform1f(L.gridLinesBrightness, p.gridLinesBrightness);
       gl.uniform1f(L.gridLinesDensity, p.gridLinesDensity);
-      gl.uniform1f(L.shuffleEnabled, p.shuffleEnabled ? 1 : 0);
-      gl.uniform1f(L.shuffleCoverage, p.shuffleCoverage);
-      gl.uniform1f(L.shufflePeriodMin, p.shufflePeriodMin);
-      gl.uniform1f(L.shufflePeriodMax, p.shufflePeriodMax);
-      gl.uniform1f(L.shuffleSwingPx, p.shuffleSwingPx);
-      gl.uniform1f(L.motionEnabled, p.motionEnabled ? 1 : 0);
-      gl.uniform1f(L.motionAmplitudePx, p.motionAmplitudePx);
-      gl.uniform1f(L.motionStaggerPx, p.motionStaggerPx);
-      gl.uniform1f(L.motionMaxOffsetPx, p.motionMaxOffsetPx);
-      gl.uniform1f(L.motionSpeed, p.motionSpeed);
       gl.uniform1f(L.lettersEnabled, p.lettersEnabled ? 1 : 0);
       gl.activeTexture(gl.TEXTURE2);
       gl.bindTexture(gl.TEXTURE_2D, p.glyphDataTex);
@@ -413,22 +319,7 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform2f(L.atlasGrid, p.atlasGrid[0], p.atlasGrid[1]);
       gl.uniform1f(L.letterSizeScale, p.letterSizeScale);
       setColor(L.letterColor, p.letterColor);
-      gl.uniform1f(L.useCellColors, p.useCellColors ? 1 : 0);
-      gl.activeTexture(gl.TEXTURE4);
-      gl.bindTexture(gl.TEXTURE_2D, p.cellColorTex);
-      gl.uniform1i(L.cellColor, 4);
-      gl.uniform1f(L.imageColorLightness, p.imageColorLightness);
-      gl.uniform1f(L.imageColorDensity, p.imageColorDensity);
       gl.uniform1f(L.blendMode, p.blendMode);
-      gl.uniform1f(L.gradientEnabled, p.gradientEnabled ? 1 : 0);
-      gl.uniform1f(L.gradientDirection, p.gradientDirection);
-      gl.uniform1f(L.gradientStopCount, p.gradientStopCount);
-      setColor(L.gradientStop0, p.gradientStops[0]);
-      setColor(L.gradientStop1, p.gradientStops[1]);
-      setColor(L.gradientStop2, p.gradientStops[2]);
-      setColor(L.gradientStop3, p.gradientStops[3]);
-      gl.uniform1f(L.gradientHueDriftDeg, p.gradientHueDriftDeg);
-      gl.uniform1f(L.gradientSaturationBoost, p.gradientSaturationBoost);
       quad.draw();
     },
     dispose() {

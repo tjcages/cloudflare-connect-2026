@@ -1,7 +1,12 @@
 import { type RenderTarget, createRenderTarget, resizeRenderTarget, disposeRenderTarget } from "../gl/renderTarget";
 
 export type RtPool = {
-  get(key: string, width: number, height: number, opts?: { float?: boolean; linear?: boolean }): RenderTarget;
+  get(
+    key: string,
+    width: number,
+    height: number,
+    opts?: { float?: boolean; float32?: boolean; linear?: boolean },
+  ): RenderTarget;
   dispose(): void;
 };
 
