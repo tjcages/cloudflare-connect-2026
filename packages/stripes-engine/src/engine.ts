@@ -1057,6 +1057,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const fade = 1 - settleT * settleT * (3 - 2 * settleT);
           waterRevealReleased = false;
           waterRevealSim.tick({
+            elapsedMs: elapsed,
             sweepT,
             displayWidth: cssW,
             displayHeight: cssH,

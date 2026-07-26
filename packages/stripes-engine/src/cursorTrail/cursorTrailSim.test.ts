@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { createCursorTrailState, setCursorTrailTarget, updateCursorTrail, seededUnit } from "./cursorTrailSim";
+import {
+  createCursorTrailState,
+  setCursorTrailTarget,
+  updateCursorTrail,
+  seededUnit,
+  MAX_DT_MS,
+} from "./cursorTrailSim";
 import type { CursorTrailConfig } from "../config/types";
 
 const ENABLED_CONFIG: CursorTrailConfig = {
@@ -243,5 +249,158 @@ describe("updateCursorTrail — no pointer, no samples", () => {
     const { samples, changed } = updateCursorTrail(state, 16.67, ENABLED_CONFIG);
     expect(samples).toHaveLength(0);
     expect(changed).toBe(false);
+  });
+});
+
+const FPS_SWEEP = [30, 60, 90, 120, 144, 240];
+
+/** Reference-frame dt. Every per-frame constant in the trail is keyed to it. */
+const REFERENCE_DT_MS = 16.67;
+
+/**
+ * Frames 30..35 of a fixed cursor path stepped at the reference frame, captured
+ * from the frame-count-driven sim this replaced. Each row is the sample count
+ * followed by (x, y, alpha, radius) for its first three samples. Nothing about
+ * the 60fps look may move: this is the reference the whole fix preserves.
+ */
+const REFERENCE_FRAME_GOLDEN = [
+  [
+    75, 39.816889374, 117.064575619, 0.01780348, 24.638958055, 42.517091527, 112.822125005, 0.017974978, 23.724212709,
+    15.392552059, 133.556473712, 0.016189806, 38.082586874,
+  ],
+  [
+    77, 39.816889374, 117.064575619, 0.016692429, 24.079591091, 42.704877441, 112.863132007, 0.016827447, 23.172279131,
+    15.027025923, 133.444704801, 0.015045796, 37.114877221,
+  ],
+  [
+    79, 39.816889374, 117.064575619, 0.015617172, 23.520224127, 42.883914285, 112.908166297, 0.015717764, 22.620345553,
+    14.679962382, 133.324843341, 0.013943699, 36.147167567,
+  ],
+  [
+    82, 39.816889374, 117.064575619, 0.014577709, 22.960857163, 43.054427666, 112.956813898, 0.014645928, 22.068411975,
+    14.350909727, 133.197822558, 0.012883515, 35.179457914,
+  ],
+  [
+    84, 39.816889374, 117.064575619, 0.013574041, 22.401490199, 43.216646307, 113.008682786, 0.01361194, 21.516478397,
+    14.039402779, 133.064526705, 0.011865246, 34.211748261,
+  ],
+  [
+    87, 39.816889374, 117.064575619, 0.012606167, 21.842123235, 43.37080136, 113.063402202, 0.012615799, 20.964544819,
+    13.744964865, 132.925792213, 0.01088889, 33.244038608,
+  ],
+];
+
+/** Steps the golden path for `frames` frames of `dtMs`, digesting each frame the way the golden was captured. */
+function digestPath(dtMs: number, frames: number): number[][] {
+  const state = createCursorTrailState();
+  const out: number[][] = [];
+  for (let f = 0; f < frames; f++) {
+    const tMs = f * dtMs;
+    setCursorTrailTarget(state, { x: 40 + tMs * 0.22, y: 120 + Math.sin(tMs * 0.004) * 60 });
+    const { samples } = updateCursorTrail(state, dtMs, ENABLED_CONFIG);
+    out.push([samples.length, ...samples.slice(0, 3).flatMap((s) => [s.x, s.y, s.alpha, s.radius])]);
+  }
+  return out;
+}
+
+/** Emitted particles over one second of wall clock, cursor sweeping at 220px/s. */
+function emittedPerSecond(fps: number): number {
+  const state = createCursorTrailState();
+  let emitted = 0;
+  for (let f = 0; f < fps; f++) {
+    setCursorTrailTarget(state, { x: 40 + ((f * 1000) / fps) * 0.22, y: 120 });
+    const before = state.nextSeed;
+    updateCursorTrail(state, 1000 / fps, ENABLED_CONFIG);
+    emitted += state.nextSeed - before;
+  }
+  return emitted;
+}
+
+/**
+ * How far a single particle coasts in one second. Emission is switched off after
+ * the seed particle is placed, so the only thing under test is the damping.
+ */
+function coastDistancePx(fps: number, v0: number): number {
+  const state = createCursorTrailState();
+  setCursorTrailTarget(state, { x: 0, y: 0 });
+  updateCursorTrail(state, REFERENCE_DT_MS, ENABLED_CONFIG);
+  const drop = state.drops[0] as unknown as Record<string, number>;
+  drop.x = 0;
+  drop.y = 0;
+  drop.vx = v0;
+  drop.vy = 0;
+  drop.spin = 0;
+  drop.ageMs = 0;
+  drop.lifeMs = 1e9;
+  state.drops = [state.drops[0]];
+  setCursorTrailTarget(state, null);
+  state.target = null;
+  for (let f = 0; f < fps; f++) updateCursorTrail(state, 1000 / fps, ENABLED_CONFIG);
+  return (state.drops[0] as unknown as Record<string, number>).x;
+}
+
+/** Smoothed emitter velocity after 100ms at a constant 600px/s, in px per reference frame. */
+function emitterVelocityAfter100ms(fps: number): number {
+  const state = createCursorTrailState();
+  setCursorTrailTarget(state, { x: 0, y: 0 });
+  updateCursorTrail(state, 1000 / fps, ENABLED_CONFIG);
+  const frames = Math.round(fps * 0.1);
+  for (let f = 1; f <= frames; f++) {
+    setCursorTrailTarget(state, { x: (600 * f) / fps, y: 0 });
+    updateCursorTrail(state, 1000 / fps, ENABLED_CONFIG);
+  }
+  return state.velocity.x;
+}
+
+describe("updateCursorTrail — the reference frame is unchanged", () => {
+  it("reproduces the captured 60fps stream exactly", () => {
+    const run = digestPath(REFERENCE_DT_MS, 40).slice(30, 36);
+    expect(run).toHaveLength(REFERENCE_FRAME_GOLDEN.length);
+    for (let i = 0; i < REFERENCE_FRAME_GOLDEN.length; i++) {
+      expect(run[i]).toHaveLength(REFERENCE_FRAME_GOLDEN[i].length);
+      for (let j = 0; j < REFERENCE_FRAME_GOLDEN[i].length; j++) {
+        expect(run[i][j]).toBeCloseTo(REFERENCE_FRAME_GOLDEN[i][j], 6);
+      }
+    }
+  });
+});
+
+describe("updateCursorTrail — frame-rate independence", () => {
+  it("emits the same particles per second at every frame rate", () => {
+    const reference = emittedPerSecond(60);
+    for (const fps of FPS_SWEEP) {
+      expect(Math.abs(emittedPerSecond(fps) - reference) / reference).toBeLessThan(0.05);
+    }
+  });
+
+  it("coasts a particle the same distance per second at every frame rate", () => {
+    const v0 = 100;
+    const reference = coastDistancePx(60, v0);
+    for (const fps of FPS_SWEEP) {
+      // The residual is explicit-Euler error, bounded well under one reference
+      // frame of travel at the launch speed.
+      expect(Math.abs(coastDistancePx(fps, v0) - reference)).toBeLessThan(v0);
+    }
+  });
+
+  it("holds one emitter-velocity time constant at every frame rate", () => {
+    const reference = emitterVelocityAfter100ms(60);
+    for (const fps of FPS_SWEEP) {
+      expect(Math.abs(emitterVelocityAfter100ms(fps) - reference) / reference).toBeLessThan(0.02);
+    }
+  });
+
+  it("caps a stalled frame instead of teleporting the trail", () => {
+    const state = createCursorTrailState();
+    setCursorTrailTarget(state, { x: 0, y: 0 });
+    updateCursorTrail(state, REFERENCE_DT_MS, ENABLED_CONFIG);
+    setCursorTrailTarget(state, { x: 400, y: 0 });
+    const stalled = updateCursorTrail(state, 5000, ENABLED_CONFIG);
+    const capped = createCursorTrailState();
+    setCursorTrailTarget(capped, { x: 0, y: 0 });
+    updateCursorTrail(capped, REFERENCE_DT_MS, ENABLED_CONFIG);
+    setCursorTrailTarget(capped, { x: 400, y: 0 });
+    const clamped = updateCursorTrail(capped, MAX_DT_MS, ENABLED_CONFIG);
+    expect(stalled.samples.length).toBe(clamped.samples.length);
   });
 });

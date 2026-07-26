@@ -37,14 +37,20 @@ export type SubstepAccumulator = {
   take(dtSeconds: number): number;
 };
 
-export function createSubstepAccumulator(): SubstepAccumulator {
+/**
+ * `substepsPerSecond` defaults to the cursor wave's rate. The reveal sweep runs
+ * the same heightfield pass off its own reference frame rate, so it passes its
+ * own rate rather than reusing the wave's.
+ */
+export function createSubstepAccumulator(substepsPerSecond: number = SUBSTEPS_PER_SECOND): SubstepAccumulator {
+  const maxPerFrame = Math.round(MAX_STEP_SECONDS * substepsPerSecond);
   let carry = 0;
   return {
     take(dtSeconds) {
       if (!(dtSeconds > 0)) return 0;
-      carry += Math.min(dtSeconds, MAX_STEP_SECONDS) * SUBSTEPS_PER_SECOND;
+      carry += Math.min(dtSeconds, MAX_STEP_SECONDS) * substepsPerSecond;
       // A frame that lands one float ulp under a whole sub-step still owes it.
-      const steps = Math.min(Math.floor(carry + 1e-6), MAX_SUBSTEPS_PER_FRAME);
+      const steps = Math.min(Math.floor(carry + 1e-6), maxPerFrame);
       if (steps <= 0) return 0;
       carry = Math.max(0, carry - steps);
       return steps;

@@ -37,8 +37,22 @@ export type CursorTrailState = {
   nextSeed: number;
 };
 
+/**
+ * Frames the accumulator keeps redrawing after the last particle dies. This one
+ * is a count on purpose: it exists to give the ping-ponged cursor field enough
+ * *renders* to settle back to zero, so a duration would under-clear at low frame
+ * rates and waste draws at high ones.
+ */
 export const CLEAR_REBUILD_FRAMES = 10;
 export const MAX_DT_MS = 48;
+
+/**
+ * The frame the trail's per-frame constants are tuned against — damping,
+ * emitter smoothing and the one-particle emit floor are all "per 16.67ms".
+ * Feeding them `dtScale` powers instead reproduces this frame exactly while
+ * holding the trail to one wall-clock behaviour at any refresh rate.
+ */
+export const REFERENCE_FRAME_MS = 16.67;
 
 export function seededUnit(seed: number, salt: number): number {
   const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
@@ -117,9 +131,9 @@ export function updateCursorTrail(
   rawConfig: CursorTrailConfig = DEFAULT_CURSOR_TRAIL,
 ): { samples: CursorTrailSample[]; changed: boolean } {
   const config = normalizeCursorTrail(rawConfig);
-  const dt = Math.max(0, Math.min(MAX_DT_MS, dtMs || 16.67));
+  const dt = Math.max(0, Math.min(MAX_DT_MS, dtMs || REFERENCE_FRAME_MS));
   const hadDrops = state.drops.length > 0;
-  const dtScale = dt / 16.67;
+  const dtScale = dt / REFERENCE_FRAME_MS;
 
   if (!config.enabled) {
     state.drops = [];
@@ -141,18 +155,22 @@ export function updateCursorTrail(
       x: (state.current.x - previousCurrent.x) / dtScale,
       y: (state.current.y - previousCurrent.y) / dtScale,
     };
+    // Powered so the EMA keeps one time constant instead of one per-frame
+    // weight: a constant factor decays over 93ms at 30fps and 23ms at 120fps.
+    const smoothing = Math.pow(config.emitterVelocitySmoothing, dtScale);
     state.velocity = {
-      x: state.velocity.x * config.emitterVelocitySmoothing + rawVelocity.x * (1 - config.emitterVelocitySmoothing),
-      y: state.velocity.y * config.emitterVelocitySmoothing + rawVelocity.y * (1 - config.emitterVelocitySmoothing),
+      x: state.velocity.x * smoothing + rawVelocity.x * (1 - smoothing),
+      y: state.velocity.y * smoothing + rawVelocity.y * (1 - smoothing),
     };
     const speed = Math.hypot(state.velocity.x, state.velocity.y);
     const previous = state.lastEmit ?? state.current;
     const distance = Math.hypot(state.current.x - previous.x, state.current.y - previous.y);
-    const emitCount = Math.min(
-      config.maxEmitPerTick,
-      Math.floor(distance / config.particleSpacingPx + state.emitRemainder) + 1,
-    );
-    state.emitRemainder = (distance / config.particleSpacingPx + state.emitRemainder) % 1;
+    // The emit floor is one particle per *reference frame*, not per rendered
+    // frame, and the burst cap covers the same span — otherwise a 120Hz display
+    // lays down twice the particles per second that a 60Hz one does.
+    const want = distance / config.particleSpacingPx + dtScale + state.emitRemainder;
+    const emitCount = Math.min(Math.max(1, Math.round(config.maxEmitPerTick * dtScale)), Math.floor(want));
+    state.emitRemainder = want % 1;
 
     for (let i = 0; i < emitCount; i++) {
       const t = emitCount <= 1 ? 1 : i / (emitCount - 1);
@@ -165,6 +183,10 @@ export function updateCursorTrail(
     state.lastEmit = { ...state.current };
   }
 
+  // Damping is a per-reference-frame factor, so a frame worth `dtScale` of one
+  // applies it `dtScale` times. Applied once per rendered frame instead, a
+  // particle coasts ~4x further at 30fps than at 120fps.
+  const damping = Math.pow(config.particleDamping, dtScale);
   const samples: CursorTrailSample[] = [];
   const nextDrops: CursorTrailDrop[] = [];
   for (const drop of state.drops) {
@@ -175,8 +197,8 @@ export function updateCursorTrail(
 
     const life = 1 - ageMs / drop.lifeMs;
     const curl = Math.sin(drop.x * 0.017 + drop.y * 0.013 + drop.seed) * drop.spin * dtScale;
-    const nextVx = (drop.vx - drop.vy * curl) * config.particleDamping;
-    const nextVy = (drop.vy + drop.vx * curl) * config.particleDamping;
+    const nextVx = (drop.vx - drop.vy * curl) * damping;
+    const nextVy = (drop.vy + drop.vx * curl) * damping;
     const next = {
       ...drop,
       ageMs,

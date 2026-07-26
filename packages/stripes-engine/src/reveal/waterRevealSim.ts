@@ -1,4 +1,4 @@
-import { serpentinePoint } from "./revealMath";
+import { createWaterRevealStroke } from "./waterRevealStroke";
 import { createPingPong, type PingPong } from "../gl/pingPong";
 import { bindRenderTarget, type RenderTarget } from "../gl/renderTarget";
 import { createWaterSimPass } from "../passes/waterSimPass";
@@ -9,8 +9,6 @@ import { WATER_REVEAL_ACCUM_FRAG } from "../shaders/waterRevealAccum.frag";
 /** Sim runs at half display resolution, capped on the long edge (matches cursorTrail/waterSim.ts). */
 const RESOLUTION_DIVISOR = 2;
 const MAX_SIM_EDGE = 420;
-/** Sub-steps per frame. Wave speed is a function of this, not of frame time. */
-const SUBSTEPS = 15;
 const SPLAT_AMP_PER_STEP = 0.5;
 /** Half-alpha height for the water's compressive alpha curve crest/(crest+K).
  * Shared by the reveal pass and the cover accumulator so the reveal always
@@ -26,9 +24,10 @@ export const WATER_GLOW = 0.72;
  * is no end-of-animation fill — so this has to be generous enough that the
  * sweep plus the settle ring-down carry the whole image on their own. */
 const WATER_REVEAL_K = 0.3;
-/** Per-frame cover gained by water that keeps washing a pixel. This is what
- * finishes the image, so it must outlast the animation: sustained water
- * completes a pixel, a single faint ripple does not. */
+/** Cover gained per reference frame by water that keeps washing a pixel. This is
+ * what finishes the image, so it must outlast the animation: sustained water
+ * completes a pixel, a single faint ripple does not. Scaled by the frame's share
+ * of a reference frame, so the soak accrues per second, not per rendered frame. */
 const WATER_SOAK = 0.045;
 
 export type WaterRevealTextures = {
@@ -40,6 +39,8 @@ export type WaterRevealTextures = {
 
 export type WaterRevealSim = {
   tick(p: {
+    /** Reveal-clock elapsed time; the same clock `sweepT` is derived from. */
+    elapsedMs: number;
     sweepT: number;
     displayWidth: number;
     displayHeight: number;
@@ -72,10 +73,8 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
   let disabled = false;
   let hasTicked = false;
 
+  const stroke = createWaterRevealStroke();
   let lastSweepT = -Infinity;
-  let prevPointValid = false;
-  let prevSX = 0;
-  let prevSY = 0;
 
   function clearRT(rt: RenderTarget): void {
     bindRenderTarget(gl, rt);
@@ -103,7 +102,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     clearCover();
   }
 
-  function accumulate(softness: number): void {
+  function accumulate(softness: number, soakScale: number): void {
     if (!heightPingPong || !coverPingPong) return;
     const gamma = 0.8 - 0.45 * Math.min(1, Math.max(0, softness));
     bindRenderTarget(gl, coverPingPong.write());
@@ -116,7 +115,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
     gl.uniform1i(L.height, 1);
     gl.uniform1f(L.revealK, WATER_REVEAL_K);
     gl.uniform1f(L.gamma, gamma);
-    gl.uniform1f(L.soak, WATER_SOAK);
+    gl.uniform1f(L.soak, WATER_SOAK * soakScale);
     quad.draw();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     coverPingPong.swap();
@@ -128,7 +127,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
 
       if (p.sweepT < lastSweepT) {
         clearAll();
-        prevPointValid = false;
+        stroke.reset();
       }
       lastSweepT = p.sweepT;
 
@@ -158,43 +157,31 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
           clearHeight();
         }
 
-        let sx = prevSX;
-        let sy = prevSY;
-        let amp = 0;
-        if (p.sweepT < 1) {
-          const pt = serpentinePoint(p.sweepT, p.rows, p.wobble);
-          sx = pt.x * sw;
-          sy = (1 - pt.y) * sh;
-          amp = p.intensity * SPLAT_AMP_PER_STEP;
-        }
-
-        if (!prevPointValid) {
-          prevSX = sx;
-          prevSY = sy;
-          prevPointValid = true;
-        }
-
+        const plan = stroke.advance(p.elapsedMs, p.sweepT, p.rows, p.wobble, p.intensity);
+        const ax = plan.ax * sw;
+        const ay = plan.ay * sh;
+        const bx = plan.bx * sw;
+        const by = plan.by * sh;
+        const amp = plan.amp * SPLAT_AMP_PER_STEP;
         const radius = Math.max(3, sh / (Math.max(1, p.rows) * 2.6));
 
-        for (let i = 0; i < SUBSTEPS; i++) {
-          const t0 = i / SUBSTEPS;
-          const t1 = (i + 1) / SUBSTEPS;
+        for (let i = 0; i < plan.substeps; i++) {
+          const t0 = i / plan.substeps;
+          const t1 = (i + 1) / plan.substeps;
           heightPass.render(heightPingPong.write(), heightPingPong.read(), {
             texelX: 1 / sw,
             texelY: 1 / sh,
-            ax: prevSX + (sx - prevSX) * t0,
-            ay: prevSY + (sy - prevSY) * t0,
-            bx: prevSX + (sx - prevSX) * t1,
-            by: prevSY + (sy - prevSY) * t1,
+            ax: ax + (bx - ax) * t0,
+            ay: ay + (by - ay) * t0,
+            bx: ax + (bx - ax) * t1,
+            by: ay + (by - ay) * t1,
             amp,
             radius,
           });
           heightPingPong.swap();
         }
-        prevSX = sx;
-        prevSY = sy;
 
-        accumulate(p.softness);
+        accumulate(p.softness, plan.soakScale);
 
         hasTicked = true;
       } catch (error) {
@@ -220,9 +207,7 @@ export function createWaterRevealSim(gl: WebGL2RenderingContext, quad: { draw():
       simHeight = 0;
       hasTicked = false;
       lastSweepT = -Infinity;
-      prevPointValid = false;
-      prevSX = 0;
-      prevSY = 0;
+      stroke.reset();
     },
     dispose() {
       heightPass.dispose();
