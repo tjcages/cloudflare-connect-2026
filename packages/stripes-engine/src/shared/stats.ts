@@ -16,6 +16,19 @@ export type StripesInstanceStats = {
   outputHeight: number;
   /** `outputWidth * outputHeight`, in millions of pixels. */
   megapixels: number;
+  /** Internal field-chain resolution: `output * fieldScale`, floored. */
+  fieldWidth: number;
+  fieldHeight: number;
+  /** The `fieldScale` the engine actually applied, post-normalization. */
+  fieldScale: number;
+  /**
+   * Summed render-target area of every pass dispatched on the last frame, in
+   * millions of pixels. This is the fill-rate number; `megapixels` only counts
+   * the final blit.
+   */
+  shadedMegapixels: number;
+  /** Passes dispatched on the last rendered frame, in pipeline order. */
+  passes: StripesPassStats[];
   /** Configured frame cap; `0` means uncapped (renders on every tick). */
   maxFps: number;
   /** Blits per second actually observed over the last sampling window. */
@@ -38,11 +51,32 @@ export type StripesStats = {
   revealOpen: number;
   /** Summed megapixels of every rendering instance: the per-tick GPU load. */
   megapixelsPerFrame: number;
+  /**
+   * Summed shaded megapixels across every rendering instance — the real
+   * per-tick fill-rate load, which counts every dispatched pass rather than
+   * just the final blit.
+   */
+  shadedMegapixelsPerFrame: number;
   /** Blits per second summed across all instances — observed, not configured. */
   blitsPerSecond: number;
   /** Length of the window these rates were measured over. */
   sampleMs: number;
   instances: StripesInstanceStats[];
+};
+
+/** One dispatched pass and the render-target area it shaded. */
+export type StripesPassStats = {
+  name: string;
+  /** Render-target dimensions of the pass's last dispatch this frame. */
+  width: number;
+  height: number;
+  /** Target binds during the pass — sub-stepped sims bind once per step. */
+  dispatches: number;
+  /** Summed render-target area across those dispatches. */
+  pixels: number;
+  /** True when the pass renders at the instance's output resolution, so
+   * `fieldScale` cannot make it cheaper. */
+  atOutputResolution: boolean;
 };
 
 export type StripesStatsListener = (stats: StripesStats) => void;
@@ -74,6 +108,7 @@ function emptyStats(): StripesStats {
     paused: 0,
     revealOpen: 0,
     megapixelsPerFrame: 0,
+    shadedMegapixelsPerFrame: 0,
     blitsPerSecond: 0,
     sampleMs: intervalMs,
     instances: [],

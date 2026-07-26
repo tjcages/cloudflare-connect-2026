@@ -61,6 +61,7 @@ import {
 import { mulberry32 } from "./core/rng";
 import { createGpuTimer } from "./perf/gpuTimer";
 import { createPerfCollector, type PerfSnapshot } from "./perf/perfCollector";
+import { beginFillFrame, beginFillPass, endFillPass, readFillFrame, type PassFill } from "./perf/fillRecorder";
 import { createRtPool, type RtPool } from "./pipeline/rtPool";
 import { runPipeline, type Pass } from "./pipeline/pipeline";
 import { DEFAULT_REVEAL, normalizeEngineConfig } from "./config/normalize";
@@ -212,6 +213,16 @@ export type SharedStripesEngine = {
   setDpr(dpr: number): void;
   readonly outputWidth: number;
   readonly outputHeight: number;
+  /** Internal field-chain resolution: `output * fieldScale`, floored. */
+  readonly fieldWidth: number;
+  readonly fieldHeight: number;
+  /** The `fieldScale` the engine is really using, post-normalization. */
+  readonly fieldScale: number;
+  /**
+   * Passes that actually dispatched on the last rendered frame, with the
+   * render-target area each shaded. Empty unless {@link setFillRecording} is on.
+   */
+  readonly passFill: readonly PassFill[];
   renderFrame(): void;
   setFieldScale(s: number): void;
   setSource(media: EngineSource | null): void;
@@ -292,6 +303,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let output: Size = { width: 0, height: 0 };
   let fieldSize: Size = { width: 2, height: 2 };
   let cellGrid: CellGrid = { cols: 1, rows: 1 };
+  let lastPassFill: readonly PassFill[] = [];
 
   const gpuTimings = opts.gpuTimings !== false;
   let quad = createFullscreenQuad(gl);
@@ -1661,8 +1673,14 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     if (lost) return;
     const t0 = clock.now();
     gpuTimer.poll();
+    beginFillFrame();
+    // The cursor wave's sub-stepped sim runs outside the pass list, so it is
+    // segmented by hand — otherwise its per-frame fill is invisible.
+    beginFillPass("cursorWaveSim");
     stepWaterSim();
+    endFillPass();
     runPipeline(passes, gpuTimer);
+    lastPassFill = readFillFrame();
     gl.flush();
     const frameMs = clock.now() - lastFrameStart;
     lastFrameStart = t0;
@@ -1721,6 +1739,18 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     },
     get outputHeight() {
       return output.height;
+    },
+    get fieldWidth() {
+      return fieldSize.width;
+    },
+    get fieldHeight() {
+      return fieldSize.height;
+    },
+    get fieldScale() {
+      return config.fieldScale;
+    },
+    get passFill() {
+      return lastPassFill;
     },
     resize(w, h) {
       cssW = w;

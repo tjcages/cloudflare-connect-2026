@@ -1,6 +1,7 @@
 import { createStripesEngineShared, type SharedStripesEngine } from "../engine";
 import { createFrameCapState, type FrameCapState, shouldRenderFrame } from "../core/frameCap";
 import type { EngineContext } from "../gl/context";
+import { setFillRecording } from "../perf/fillRecorder";
 import type { EngineSource } from "../source/sourceTexture";
 import type {
   InstanceId,
@@ -36,6 +37,10 @@ const SHARED_GL_ATTRIBUTES: WebGLContextAttributes = {
   premultipliedAlpha: true,
   antialias: false,
 };
+
+/** Fill accounting lapses this long after the last stats request. */
+const FILL_RECORDING_LINGER_MS = 2000;
+let lastStatsRequestMs = -Infinity;
 
 let sharedCanvas: OffscreenCanvas | null = null;
 let sharedGl: WebGL2RenderingContext | null = null;
@@ -105,6 +110,7 @@ function renderTick(): void {
   // frame on the display canvas) while uncapped tiles on the same tick render
   // every frame. The shared tick loop itself is never slowed.
   const now = performance.now();
+  if (now - lastStatsRequestMs > FILL_RECORDING_LINGER_MS) setFillRecording(false);
   for (const [id, instance] of instances) {
     if (!instance.visible) continue;
     const { engine } = instance;
@@ -263,15 +269,25 @@ function handle(message: MainToWorkerMessage): void {
       return;
     }
     case "statsRequest": {
+      // Fill accounting only earns its per-bind bookkeeping while something is
+      // reading it. Requests arrive on the subscriber's interval, so recording
+      // latches on here and lapses again once they stop — see renderTick.
+      lastStatsRequestMs = performance.now();
+      setFillRecording(true);
       const samples: InstanceStatsSample[] = [];
       for (const [id, instance] of instances) {
+        const { engine } = instance;
         samples.push({
           id,
           visible: instance.visible,
           hasSource: instance.hasSource,
-          maxFps: instance.engine.maxFps,
-          outputWidth: instance.engine.outputWidth,
-          outputHeight: instance.engine.outputHeight,
+          maxFps: engine.maxFps,
+          outputWidth: engine.outputWidth,
+          outputHeight: engine.outputHeight,
+          fieldWidth: engine.fieldWidth,
+          fieldHeight: engine.fieldHeight,
+          fieldScale: engine.fieldScale,
+          passes: engine.passFill.map((pass) => ({ ...pass })),
         });
       }
       scope.postMessage({ type: "stats", instances: samples });

@@ -1,3 +1,5 @@
+import { noteFillTarget } from "../perf/fillRecorder";
+
 export type RenderTarget = {
   fbo: WebGLFramebuffer;
   texture: WebGLTexture;
@@ -55,7 +57,10 @@ export function disposeRenderTarget(gl: WebGL2RenderingContext, rt: RenderTarget
 
 export function bindRenderTarget(gl: WebGL2RenderingContext, rt: RenderTarget | null): void {
   gl.bindFramebuffer(gl.FRAMEBUFFER, rt ? rt.fbo : null);
-  if (rt) gl.viewport(0, 0, rt.width, rt.height);
+  if (rt) {
+    gl.viewport(0, 0, rt.width, rt.height);
+    noteFillTarget(rt.width, rt.height);
+  }
 }
 
 export type MrtTarget = {
@@ -86,4 +91,6 @@ export function bindMrtTarget(gl: WebGL2RenderingContext, mrt: MrtTarget, attach
   const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
   if (status !== gl.FRAMEBUFFER_COMPLETE) throw new Error(`MRT framebuffer incomplete: 0x${status.toString(16)}`);
   gl.viewport(0, 0, attachments[0].width, attachments[0].height);
+  // One dispatch shades every attachment, so each one's area counts.
+  for (const attachment of attachments) noteFillTarget(attachment.width, attachment.height);
 }

@@ -153,6 +153,22 @@ export type InstanceStatsSample = {
   maxFps: number;
   outputWidth: number;
   outputHeight: number;
+  /** Internal field-chain resolution the engine is really rendering at. */
+  fieldWidth: number;
+  fieldHeight: number;
+  /** The `fieldScale` the engine actually applied, post-normalization. */
+  fieldScale: number;
+  /** Passes dispatched on the instance's last rendered frame. */
+  passes: PassFillSample[];
+};
+
+/** One dispatched pass and the render-target area it shaded. */
+export type PassFillSample = {
+  name: string;
+  width: number;
+  height: number;
+  dispatches: number;
+  pixels: number;
 };
 
 export type StatsMessage = {

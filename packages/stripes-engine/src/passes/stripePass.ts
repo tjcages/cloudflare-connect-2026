@@ -1,4 +1,5 @@
 import { compileProgram } from "../gl/program";
+import { noteFillTarget } from "../perf/fillRecorder";
 import { bindRenderTarget, type RenderTarget } from "../gl/renderTarget";
 import { FULLSCREEN_VERT } from "../shaders/fullscreen.vert";
 import { STRIPE_FRAG } from "../shaders/stripe.frag";
@@ -324,6 +325,7 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       } else {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, outWidth, outHeight);
+        noteFillTarget(outWidth, outHeight);
       }
       gl.useProgram(program);
       gl.activeTexture(gl.TEXTURE0);

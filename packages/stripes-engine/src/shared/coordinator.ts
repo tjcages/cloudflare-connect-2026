@@ -11,7 +11,13 @@ import {
 import { createVideoFramePump, loadImageFrame, type VideoFramePump } from "./media";
 import type { InstanceId, InstanceStatsSample, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
 import SharedShaderWorker from "./sharedWorker?worker&inline";
-import { publishStats, setStatsCollector, statsEnabled, type StripesInstanceStats } from "./stats";
+import {
+  publishStats,
+  setStatsCollector,
+  statsEnabled,
+  type StripesInstanceStats,
+  type StripesPassStats,
+} from "./stats";
 
 export type SharedShaderHandle = {
   setConfig(config: Partial<EngineConfig>): void;
@@ -107,6 +113,7 @@ function emitStats(samples: InstanceStatsSample[]): void {
   let rendering = 0;
   let revealOpen = 0;
   let megapixelsPerFrame = 0;
+  let shadedMegapixelsPerFrame = 0;
   let blits = 0;
 
   for (const [id, instance] of instances) {
@@ -114,12 +121,20 @@ function emitStats(samples: InstanceStatsSample[]): void {
     const outputWidth = sample?.outputWidth ?? 0;
     const outputHeight = sample?.outputHeight ?? 0;
     const megapixels = (outputWidth * outputHeight) / 1e6;
+    // A pass counts as output-resolution when its target matches the blit
+    // size — those are the ones `fieldScale` provably cannot shrink.
+    const passes: StripesPassStats[] = (sample?.passes ?? []).map((pass) => ({
+      ...pass,
+      atOutputResolution: pass.width === outputWidth && pass.height === outputHeight,
+    }));
+    const shadedMegapixels = passes.reduce((sum, pass) => sum + pass.pixels, 0) / 1e6;
     const instanceBlits = instance.blits;
     instance.blits = 0;
     blits += instanceBlits;
     if (instance.visible) {
       rendering++;
       megapixelsPerFrame += megapixels;
+      shadedMegapixelsPerFrame += shadedMegapixels;
     }
     if (instance.revealGateOpen) revealOpen++;
     const size = readSize(instance.canvas);
@@ -133,6 +148,11 @@ function emitStats(samples: InstanceStatsSample[]): void {
       outputWidth,
       outputHeight,
       megapixels,
+      fieldWidth: sample?.fieldWidth ?? 0,
+      fieldHeight: sample?.fieldHeight ?? 0,
+      fieldScale: sample?.fieldScale ?? 0,
+      shadedMegapixels,
+      passes,
       maxFps: sample?.maxFps ?? 0,
       fps: (instanceBlits * 1000) / elapsed,
     });
@@ -144,6 +164,7 @@ function emitStats(samples: InstanceStatsSample[]): void {
     paused: instances.size - rendering,
     revealOpen,
     megapixelsPerFrame,
+    shadedMegapixelsPerFrame,
     blitsPerSecond: (blits * 1000) / elapsed,
     sampleMs: elapsed,
     instances: rows,

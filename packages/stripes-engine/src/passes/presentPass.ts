@@ -1,4 +1,5 @@
 import { compileProgram } from "../gl/program";
+import { noteFillTarget } from "../perf/fillRecorder";
 import { FULLSCREEN_VERT } from "../shaders/fullscreen.vert";
 import { PRESENT_FRAG } from "../shaders/present.frag";
 
@@ -9,6 +10,7 @@ export function createPresentPass(gl: WebGL2RenderingContext, quad: { draw(): vo
     render(fieldTex: WebGLTexture, outWidth: number, outHeight: number) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, outWidth, outHeight);
+      noteFillTarget(outWidth, outHeight);
       gl.useProgram(program);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, fieldTex);

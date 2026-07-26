@@ -1,4 +1,5 @@
 import { compileProgram } from "../gl/program";
+import { noteFillTarget } from "../perf/fillRecorder";
 import { bindRenderTarget, type RenderTarget } from "../gl/renderTarget";
 import { FULLSCREEN_VERT } from "../shaders/fullscreen.vert";
 import type { RenderMode } from "../config/types";
@@ -57,7 +58,10 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
     render(target: RenderTarget | null, srcTex: WebGLTexture, stripesTex: WebGLTexture, p: StylizeUniforms) {
       const mp = getProgram(p.mode);
       bindRenderTarget(gl, target);
-      if (!target) gl.viewport(0, 0, p.resolution[0], p.resolution[1]);
+      if (!target) {
+        gl.viewport(0, 0, p.resolution[0], p.resolution[1]);
+        noteFillTarget(p.resolution[0], p.resolution[1]);
+      }
       gl.useProgram(mp.program);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, srcTex);
