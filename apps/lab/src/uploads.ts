@@ -1,11 +1,18 @@
 import type { LabTextureKind } from "./textures";
 
+export interface UploadTextureVariant {
+  id: string;
+  label: string;
+  kind: LabTextureKind;
+}
+
 export interface UploadEntry {
   id: string;
   label: string;
   kind: LabTextureKind;
   defaultScale: number;
   createdAt: number;
+  dark?: UploadTextureVariant;
 }
 
 const MANIFEST_KEY = "stripes-engine-lab-uploads";
@@ -16,6 +23,10 @@ export function addUpload(manifest: UploadEntry[], entry: UploadEntry): UploadEn
 
 export function removeUpload(manifest: UploadEntry[], id: string): UploadEntry[] {
   return manifest.filter((e) => e.id !== id);
+}
+
+export function setDarkUpload(manifest: UploadEntry[], id: string, dark: UploadTextureVariant): UploadEntry[] {
+  return manifest.map((entry) => (entry.id === id ? { ...entry, dark } : entry));
 }
 
 export function loadManifest(): UploadEntry[] {

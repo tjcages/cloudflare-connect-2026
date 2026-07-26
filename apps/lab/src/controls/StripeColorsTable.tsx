@@ -65,21 +65,20 @@ function formatNumberDraft(value: number): string {
 export type StripeColorsTableProps = {
   stripes: readonly EditableStripe[];
   disabled?: boolean;
-  paletteOptions?: readonly string[];
-  paletteValue?: string;
   rampEasingOptions?: Readonly<Record<string, string>>;
   rampEasingValue?: string;
   showRampEasing?: boolean;
   showColorControls?: boolean;
+  showSavePalette?: boolean;
   thresholdEasingOptions?: Readonly<Record<string, string>>;
   thresholdEasingValue?: string;
   canUndoShuffle?: boolean;
-  onPaletteChange?: (palette: string) => void;
   onRampEasingChange?: (easing: string) => void;
   onThresholdEasingChange?: (easing: string) => void;
   onShufflePalette?: () => void;
   onUndoShuffle?: () => void;
   onReverseColorOrder?: () => void;
+  onSavePalette?: () => void;
   onColorChange: (id: string, hex: string) => void;
   onOpacityChange: (id: string, opacity: number) => void;
   onThresholdChange: (id: string, value: number) => void;
@@ -586,21 +585,20 @@ function StripeDetailRow({
 export function StripeColorsTable({
   stripes,
   disabled = false,
-  paletteOptions = [],
-  paletteValue,
   rampEasingOptions = {},
   rampEasingValue,
   showRampEasing = false,
   showColorControls = true,
+  showSavePalette = false,
   thresholdEasingOptions = {},
   thresholdEasingValue,
   canUndoShuffle = false,
-  onPaletteChange,
   onRampEasingChange,
   onThresholdEasingChange,
   onShufflePalette,
   onUndoShuffle,
   onReverseColorOrder,
+  onSavePalette,
   onColorChange,
   onOpacityChange,
   onThresholdChange,
@@ -620,21 +618,15 @@ export function StripeColorsTable({
   const hasEasingControls =
     (showRampEasing && !!onRampEasingChange) ||
     (Object.keys(thresholdEasingOptions).length > 0 && !!onThresholdEasingChange);
+  const hasPaletteActions = !!onShufflePalette || !!onUndoShuffle || !!onReverseColorOrder;
 
   return (
     <div className={cn("stripe-colors-table", disabled && "pointer-events-none opacity-45")}>
-      {(paletteOptions.length > 0 && onPaletteChange) || hasEasingControls ? (
+      {hasPaletteActions || hasEasingControls ? (
         <div className="stripe-colors-palette-wrap">
-          <span className="stripe-colors-palette-title">{paletteOptions.length > 0 ? "Palette" : "Distribution"}</span>
-          {paletteOptions.length > 0 && onPaletteChange ? (
+          <span className="stripe-colors-palette-title">Distribution</span>
+          {hasPaletteActions ? (
             <div className="stripe-colors-palette-toolbar">
-              <LevaSelectControl
-                value={paletteValue ?? ""}
-                disabled={disabled}
-                ariaLabel="Stripe color palette"
-                options={paletteOptions.map((palette) => ({ label: palette, value: palette }))}
-                onChange={onPaletteChange}
-              />
               {onShufflePalette ? (
                 <button
                   type="button"
@@ -737,6 +729,11 @@ export function StripeColorsTable({
             <Plus size={11} />
             Add stripe
           </button>
+          {showSavePalette && onSavePalette ? (
+            <button type="button" className="stripe-colors-save" disabled={disabled} onClick={onSavePalette}>
+              Save palette
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

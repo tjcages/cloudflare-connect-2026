@@ -116,6 +116,7 @@ describe("config file import/export", () => {
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripeDots).toEqual({
       enabled: true,
       density: 0.8,
+      randomVisibility: 1,
       sizePx: 1.5,
       brightness: 0.13,
       hueDriftDeg: 0,

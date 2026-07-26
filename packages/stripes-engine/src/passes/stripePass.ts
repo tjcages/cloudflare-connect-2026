@@ -41,6 +41,7 @@ export type StripeUniforms = StripeCellUniforms & {
   dpr: number;
   stripeDotsEnabled: boolean;
   stripeDotsSizePx: number;
+  stripeDotsRandomVisibility: number;
   stripeDotsBrightness: number;
   stripeDotsHueDriftDeg: number;
   stripeDotsSaturationBoost: number;
@@ -142,6 +143,7 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     stripeSparkleSaturationBoost: config.sparkle.stripe.saturationBoost,
     stripeDotsEnabled: config.stripeDots.enabled,
     stripeDotsSizePx: config.stripeDots.sizePx,
+    stripeDotsRandomVisibility: config.stripeDots.randomVisibility,
     stripeDotsBrightness: config.stripeDots.brightness,
     stripeDotsHueDriftDeg: config.stripeDots.hueDriftDeg,
     stripeDotsSaturationBoost: config.stripeDots.saturationBoost,
@@ -223,6 +225,7 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     dpr: u("uDpr"),
     stripeDotsEnabled: u("uStripeDotsEnabled"),
     stripeDotsSizePx: u("uStripeDotsSizePx"),
+    stripeDotsRandomVisibility: u("uStripeDotsRandomVisibility"),
     stripeDotsBrightness: u("uStripeDotsBrightness"),
     stripeDotsHueDriftDeg: u("uStripeDotsHueDriftDeg"),
     stripeDotsSaturationBoost: u("uStripeDotsSaturationBoost"),
@@ -302,6 +305,7 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.dpr, p.dpr);
       gl.uniform1f(L.stripeDotsEnabled, p.stripeDotsEnabled ? 1 : 0);
       gl.uniform1f(L.stripeDotsSizePx, p.stripeDotsSizePx);
+      gl.uniform1f(L.stripeDotsRandomVisibility, p.stripeDotsRandomVisibility);
       gl.uniform1f(L.stripeDotsBrightness, p.stripeDotsBrightness);
       gl.uniform1f(L.stripeDotsHueDriftDeg, p.stripeDotsHueDriftDeg);
       gl.uniform1f(L.stripeDotsSaturationBoost, p.stripeDotsSaturationBoost);

@@ -59,7 +59,7 @@ describe("cellGridToSvg", () => {
     });
 
     expect(svg).toContain("#f46021");
-    expect(svg).toContain("color(display-p3 0.956509 0.375662 0.127859)");
+    expect(svg).toContain("color(display-p3 0.956863 0.376471 0.129412)");
   });
 
   it("includes an optional background color rect behind paths", () => {
@@ -390,6 +390,31 @@ describe("cellGridToSvg", () => {
 
     expect(svg.match(/class="stripe-dot"/g)).toHaveLength(1);
     expect(svg).toContain('class="stripe-dot" cx="95" cy="5"');
+  });
+
+  it("uses random visibility to hide individual dots without changing eligible bands", () => {
+    const readback = {
+      cols: 10,
+      rows: 1,
+      values: v(255, 255, 255, 255, 255, 255, 255, 255, 255, 255),
+      colors: null,
+    };
+    const svg = cellGridToSvg(readback, [{ hex: "#602000", startFrom: 0, width: 4 }], {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: false,
+      stripeDots: {
+        enabled: true,
+        density: 1,
+        randomVisibility: 0.5,
+        sizePx: 1,
+        brightness: 0,
+      },
+    });
+
+    expect(svg.match(/class="stripe-dot"/g)).toHaveLength(5);
+    expect(svg).toContain('class="stripe-dot" cx="15" cy="5"');
+    expect(svg).not.toContain('class="stripe-dot" cx="5" cy="5"');
   });
 
   it("uses the resolved image color for exported Stripe Dots", () => {

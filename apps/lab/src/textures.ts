@@ -1,5 +1,5 @@
 import type { EngineSource } from "@necatikcl/stripes-engine";
-import type { UploadEntry } from "./uploads";
+import type { UploadEntry, UploadTextureVariant } from "./uploads";
 import { getTextureBlob } from "./textureStore";
 
 export type LabTextureKind = "image" | "video";
@@ -12,6 +12,7 @@ export interface LabTextureEntry {
   kind: LabTextureKind;
   defaultScale: number;
   origin: LabTextureOrigin;
+  dark?: UploadTextureVariant;
 }
 
 export const LAB_TEXTURES: LabTextureEntry[] = [
@@ -36,6 +37,7 @@ export function buildTextureEntries(manifest: UploadEntry[]): LabTextureEntry[] 
       kind: e.kind,
       defaultScale: e.defaultScale,
       origin: "upload",
+      ...(e.dark ? { dark: e.dark } : {}),
     }),
   );
   return [...LAB_TEXTURES, ...uploads];
@@ -53,8 +55,25 @@ export interface LoadedTextureSource {
   height: number;
 }
 
-export function loadTextureSource(entry: LabTextureEntry): Promise<LoadedTextureSource> {
-  if (entry.origin === "upload") return loadUploadSource(entry);
+export function resolveTextureVariant(
+  entry: LabTextureEntry,
+  theme: "light" | "dark",
+): { id: string; kind: LabTextureKind } {
+  const variant = entry.origin === "upload" && theme === "dark" ? entry.dark : undefined;
+  return {
+    id: variant?.id ?? entry.id,
+    kind: variant?.kind ?? entry.kind,
+  };
+}
+
+export function loadTextureSource(
+  entry: LabTextureEntry,
+  theme: "light" | "dark" = "light",
+): Promise<LoadedTextureSource> {
+  if (entry.origin === "upload") {
+    const variant = resolveTextureVariant(entry, theme);
+    return loadUploadSource(variant.id, variant.kind);
+  }
   if (entry.url === null) {
     return Promise.reject(new Error(`Missing texture URL: ${entry.id}`));
   }
@@ -67,11 +86,11 @@ export function loadFileSource(file: File): Promise<LoadedTextureSource> {
   return kind === "video" ? loadVideoFromUrl(objectUrl, objectUrl) : loadImageFromUrl(objectUrl, objectUrl);
 }
 
-async function loadUploadSource(entry: LabTextureEntry): Promise<LoadedTextureSource> {
-  const stored = await getTextureBlob(entry.id);
-  if (!stored) throw new Error(`Missing stored bytes for upload: ${entry.id}`);
+async function loadUploadSource(id: string, kind: LabTextureKind): Promise<LoadedTextureSource> {
+  const stored = await getTextureBlob(id);
+  if (!stored) throw new Error(`Missing stored bytes for upload: ${id}`);
   const objectUrl = URL.createObjectURL(stored.blob);
-  return entry.kind === "video" ? loadVideoFromUrl(objectUrl, objectUrl) : loadImageFromUrl(objectUrl, objectUrl);
+  return kind === "video" ? loadVideoFromUrl(objectUrl, objectUrl) : loadImageFromUrl(objectUrl, objectUrl);
 }
 
 function loadVideoFromUrl(url: string, objectUrl: string | null): Promise<LoadedTextureSource> {

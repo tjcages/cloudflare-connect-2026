@@ -15,6 +15,7 @@ type WidthSparkleSvgOptions = {
 type StripeDotsSvgOptions = {
   enabled: boolean;
   density: number;
+  randomVisibility?: number;
   sizePx: number;
   brightness: number;
   hueDriftDeg?: number;
@@ -283,9 +284,9 @@ function gradientRampTone(
 }
 
 function stripeDotHex(stripeHex: string, dots: StripeDotsSvgOptions, rampT: number): string {
-  const brightenedHex = brightnessLiftHex(stripeHex, dots.brightness);
-  const [hue, saturation, lightness] = rgbToHsl(hexToRgb(brightenedHex));
-  if (saturation <= 0.0001) return brightenedHex;
+  const [hue, saturation, stripeLightness] = rgbToHsl(hexToRgb(stripeHex));
+  const lightness = Math.min(1, stripeLightness + Math.max(0, Math.min(1, dots.brightness)));
+  if (saturation <= 0.0001) return rgbToHex([lightness, lightness, lightness]);
   const t = Math.max(0, Math.min(1, rampT));
   const shiftedHue = hue + ((dots.hueDriftDeg ?? 0) * t) / 360;
   const saturationLift = Math.max(0, Math.min(1, dots.saturationBoost ?? 0)) * Math.sin(t * Math.PI * 0.85);
@@ -307,6 +308,8 @@ function stripeDotElement(input: {
   stripeHex: string;
   stripeOpacity: number;
   rampT: number;
+  randomCol: number;
+  randomRow: number;
   dots: StripeDotsSvgOptions | undefined;
   blendStyle: string;
 }): string {
@@ -314,6 +317,8 @@ function stripeDotElement(input: {
   if (!dots?.enabled || !input.eligible || input.stripeWidth < 2 || input.stripeOpacity <= 0.001) {
     return "";
   }
+  const randomVisibility = Math.max(0, Math.min(1, dots.randomVisibility ?? 1));
+  if (sparkleHash(input.randomCol + 137, input.randomRow + 174) >= randomVisibility) return "";
 
   const hex = stripeDotHex(input.stripeHex, dots, input.rampT);
   const radius = Math.max(1, Math.min(2, dots.sizePx)) * 0.5;
@@ -762,6 +767,8 @@ export function cellGridToSvg(
           stripeHex,
           stripeOpacity: opacity,
           rampT: rampTForBand(band),
+          randomCol: sparkleCol,
+          randomRow: sparkleRow,
           dots: stripeDots,
           blendStyle,
         });
@@ -904,6 +911,8 @@ export function cellGridToSvg(
           stripeHex: dotStripeHex,
           stripeOpacity: Math.max(0, Math.min(1, stripe.opacity ?? 1)),
           rampT: rampTForBand(band),
+          randomCol: col,
+          randomRow: borderRow,
           dots: stripeDots,
           blendStyle,
         });

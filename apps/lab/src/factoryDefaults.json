@@ -269,6 +269,7 @@
     "stripeDots": {
       "enabled": true,
       "density": 0.8,
+      "randomVisibility": 1,
       "sizePx": 1.5,
       "brightness": 0.13,
       "hueDriftDeg": 0,

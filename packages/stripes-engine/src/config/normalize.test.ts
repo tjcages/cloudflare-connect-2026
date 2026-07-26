@@ -191,6 +191,7 @@ describe("stripe dots normalizer", () => {
     expect(DEFAULT_STRIPE_DOTS).toEqual({
       enabled: false,
       density: 0.5,
+      randomVisibility: 1,
       sizePx: 1.5,
       brightness: 0.35,
       hueDriftDeg: 0,
@@ -202,6 +203,7 @@ describe("stripe dots normalizer", () => {
       normalizeStripeDots({
         enabled: true,
         density: 2,
+        randomVisibility: 9,
         sizePx: 9,
         brightness: -1,
         hueDriftDeg: 999,
@@ -210,13 +212,23 @@ describe("stripe dots normalizer", () => {
     ).toEqual({
       enabled: true,
       density: 1,
+      randomVisibility: 1,
       sizePx: 2,
       brightness: 0,
       hueDriftDeg: 180,
       saturationBoost: 1,
     });
-    expect(normalizeStripeDots({ density: -1, sizePx: 0, hueDriftDeg: -999, saturationBoost: -1 })).toMatchObject({
+    expect(
+      normalizeStripeDots({
+        density: -1,
+        randomVisibility: -1,
+        sizePx: 0,
+        hueDriftDeg: -999,
+        saturationBoost: -1,
+      }),
+    ).toMatchObject({
       density: 0,
+      randomVisibility: 0,
       sizePx: 1,
       hueDriftDeg: -180,
       saturationBoost: 0,

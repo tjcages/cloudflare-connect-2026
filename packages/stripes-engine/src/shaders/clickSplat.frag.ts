@@ -38,23 +38,19 @@ float clickRadiusWobble(float seed, float angle, float progress, float amplitude
   );
 }
 
-float clickStrengthBreakup(float seed, float x, float y, float progress, float jitter) {
+float clickStrengthBreakup(float seed, float x, float y, float jitter) {
   if (jitter <= 0.0) {
     return 1.0;
   }
-  float n1 = clickSeededUnit(seed, x * 0.17 + y * 0.23 + progress * 48.0);
-  float n2 = clickSeededUnit(seed, x * 0.41 + y * 0.09 - progress * 29.0 + seed * 0.13);
+  float n1 = clickSeededUnit(seed, x * 0.17 + y * 0.23);
+  float n2 = clickSeededUnit(seed, x * 0.41 + y * 0.09 + seed * 0.13);
   float density = n1 * n2;
   return 1.0 - jitter * (1.0 - density);
 }
 
-float clickDissolveProgress(float waveProgress) {
+float clickFade(float waveProgress) {
   float t = clamp((waveProgress - 0.8) / 0.2, 0.0, 1.0);
-  return t * t * (3.0 - 2.0 * t);
-}
-
-bool clickCellDissolved(float seed, float cellIdx, float dissolve) {
-  return dissolve > 0.0 && clickSeededUnit(seed, cellIdx * 7.13 + 3.7) < dissolve;
+  return 1.0 - t * t * (3.0 - 2.0 * t);
 }
 
 const float CLICK_BREAKUP_JITTER = 0.25;
@@ -62,12 +58,7 @@ const float CLICK_INTERIOR_FILL = 0.5;
 
 void main() {
   vec2 cell = floor(gl_FragCoord.xy);
-  float cellIdx = cell.y * uGridSize.x + cell.x;
-
-  float dissolve = clickDissolveProgress(vProgress);
-  if (clickCellDissolved(vSeed, cellIdx, dissolve)) {
-    discard;
-  }
+  float waveFade = clickFade(vProgress);
 
   float dx = cell.x - vCenterCell.x;
   float dy = cell.y - vCenterCell.y;
@@ -77,7 +68,7 @@ void main() {
   float brighten = 0.0;
   if (vWhiteAmt > 0.0 && vRadiusCell > 0.0) {
     float frontRadius = vRadiusCell + clickRadiusWobble(vSeed, angle, vProgress, vWobbleAmplitude);
-    float breakup = clickStrengthBreakup(vSeed, cell.x, cell.y, vProgress, CLICK_BREAKUP_JITTER);
+    float breakup = clickStrengthBreakup(vSeed, cell.x, cell.y, CLICK_BREAKUP_JITTER);
     float fromFront = distance - frontRadius;
     float radial;
     if (fromFront > vHalfStrokeCell) {
@@ -88,7 +79,7 @@ void main() {
       float interiorT = clamp01(distance / max(0.0001, frontRadius));
       radial = CLICK_INTERIOR_FILL + (1.0 - CLICK_INTERIOR_FILL) * interiorT;
     }
-    brighten = clamp01(vWhiteAmt * breakup * radial);
+    brighten = clamp01(vWhiteAmt * waveFade * breakup * radial);
   }
 
   float pushX = 0.0;
@@ -104,7 +95,7 @@ void main() {
       } else {
         w = falloff(distance - frontRadius, vPushBandCell);
       }
-      float force = vPushPeak * w;
+      float force = vPushPeak * waveFade * w;
       if (force > 0.0) {
         pushX = (dx / distance) * force;
         pushY = (dy / distance) * force;

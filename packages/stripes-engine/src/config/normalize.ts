@@ -595,6 +595,7 @@ export function normalizeSparkle(i: PartialSparkle = {}): SparkleConfig {
 export const DEFAULT_STRIPE_DOTS: StripeDotsConfig = {
   enabled: false,
   density: 0.5,
+  randomVisibility: 1,
   sizePx: 1.5,
   brightness: 0.35,
   hueDriftDeg: 0,
@@ -605,6 +606,7 @@ export function normalizeStripeDots(i: Partial<StripeDotsConfig> = {}): StripeDo
   return {
     enabled: i.enabled !== undefined ? !!i.enabled : DEFAULT_STRIPE_DOTS.enabled,
     density: clamp(num(i.density, DEFAULT_STRIPE_DOTS.density), 0, 1),
+    randomVisibility: clamp(num(i.randomVisibility, DEFAULT_STRIPE_DOTS.randomVisibility), 0, 1),
     sizePx: clamp(num(i.sizePx, DEFAULT_STRIPE_DOTS.sizePx), 1, 2),
     brightness: clamp(num(i.brightness, DEFAULT_STRIPE_DOTS.brightness), 0, 1),
     hueDriftDeg: clamp(num(i.hueDriftDeg, DEFAULT_STRIPE_DOTS.hueDriftDeg), -180, 180),
