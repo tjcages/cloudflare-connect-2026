@@ -59,6 +59,13 @@ export type ClickMessage = {
   y?: number;
 };
 
+/** Whether the reveal animation's clock may advance for this instance. */
+export type RevealGateMessage = {
+  type: "revealGate";
+  id: InstanceId;
+  open: boolean;
+};
+
 export type RevealMessage = {
   type: "reveal";
   id: InstanceId;
@@ -83,6 +90,7 @@ export type MainToWorkerMessage =
   | CursorMessage
   | ClickMessage
   | RevealMessage
+  | RevealGateMessage
   | UnregisterMessage
   | TerminateMessage;
 

@@ -1,5 +1,13 @@
 import type { EngineConfig } from "../config/types";
-import { DEFAULT_ROOT_MARGIN } from "../core/visibility";
+import {
+  DEFAULT_PRELOAD_ROOT_MARGIN,
+  DEFAULT_RENDER_ROOT_MARGIN,
+  expandRevealViewport,
+  type GateRect,
+  isRevealGateOpen,
+  REVEAL_GATE_RATIO,
+  REVEAL_VIEWPORT_ROOT_MARGIN,
+} from "../core/visibility";
 import { createVideoFramePump, loadImageFrame, type VideoFramePump } from "./media";
 import type { InstanceId, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
 import SharedShaderWorker from "./sharedWorker?worker&inline";
@@ -31,11 +39,14 @@ type RegisteredInstance = {
   displayCtx: CanvasRenderingContext2D | null;
   src: string;
   mediaKind: "image" | "video";
-  intersectionObserver: IntersectionObserver;
+  renderObserver: IntersectionObserver;
+  revealObserver: IntersectionObserver;
+  revealViewportObserver: IntersectionObserver;
   preloadObserver: IntersectionObserver | null;
   resizeObserver: ResizeObserver;
   pump: VideoFramePump | null;
   visible: boolean;
+  revealGateOpen: boolean;
   disposed: boolean;
   imageRequested: boolean;
   revealDelayMs: number;
@@ -143,6 +154,12 @@ function readDpr(canvas: HTMLCanvasElement): number {
   return (window.devicePixelRatio || 1) * (canvas.currentCSSZoom ?? 1);
 }
 
+// Fallback root for the reveal gate when `rootBounds` is null (cross-origin iframe).
+function documentViewport(): GateRect {
+  const root = document.documentElement;
+  return { top: 0, left: 0, right: root.clientWidth, bottom: root.clientHeight };
+}
+
 function readSize(canvas: HTMLCanvasElement): { cssWidth: number; cssHeight: number } {
   const cssWidth = canvas.clientWidth || FALLBACK_SIZE;
   const cssHeight = canvas.clientHeight || FALLBACK_SIZE;
@@ -232,12 +249,18 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     revealArmed: false,
     revealTimer: null,
     onWaterActivity: opts.onWaterActivity ?? null,
-    intersectionObserver: undefined as unknown as IntersectionObserver,
+    revealGateOpen: false,
+    renderObserver: undefined as unknown as IntersectionObserver,
+    revealObserver: undefined as unknown as IntersectionObserver,
+    revealViewportObserver: undefined as unknown as IntersectionObserver,
     preloadObserver: null,
     resizeObserver: undefined as unknown as ResizeObserver,
   };
 
-  const intersectionObserver = new IntersectionObserver(
+  // RENDER GATE: any on-screen pixel renders, so a visible canvas is never
+  // frozen and nothing offscreen burns GPU. `rootMargin` stays a public prop for
+  // consumers that want to widen it; only the default is tight.
+  const renderObserver = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
         const visible = entry.isIntersecting;
@@ -248,7 +271,40 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
         else stopMedia(instance);
       }
     },
-    { rootMargin: opts.rootMargin ?? DEFAULT_ROOT_MARGIN },
+    { rootMargin: opts.rootMargin ?? DEFAULT_RENDER_ROOT_MARGIN },
+  );
+
+  // REVEAL GATE: the reveal is a one-shot animation and the viewer has to be
+  // able to see it, so its clock only advances once a meaningful slice of the
+  // element is on screen. Both observers below are only trigger sources — the
+  // decision itself is `isRevealGateOpen`, computed from the rects, so a fast
+  // scroll that skips threshold buckets still lands on the right answer.
+  //
+  // The first observer covers the element-relative clause (its 0.25 threshold
+  // fires exactly at that crossing). The second covers the viewport-relative
+  // clause: for an element taller than 1/ratio viewports, `intersectionRatio`
+  // is capped below 0.25 and could never fire, so a root shrunk by the same
+  // ratio provides that crossing instead.
+  const syncRevealGate = (element: GateRect, viewport: GateRect): void => {
+    const open = isRevealGateOpen(element, viewport);
+    if (open === instance.revealGateOpen) return;
+    instance.revealGateOpen = open;
+    post({ type: "revealGate", id, open });
+  };
+  const revealObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) syncRevealGate(entry.boundingClientRect, entry.rootBounds ?? documentViewport());
+    },
+    { rootMargin: DEFAULT_RENDER_ROOT_MARGIN, threshold: [0, REVEAL_GATE_RATIO] },
+  );
+  const revealViewportObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const viewport = entry.rootBounds ? expandRevealViewport(entry.rootBounds) : documentViewport();
+        syncRevealGate(entry.boundingClientRect, viewport);
+      }
+    },
+    { rootMargin: REVEAL_VIEWPORT_ROOT_MARGIN },
   );
 
   // Preload gate, separate from the render gate above. A tight render `rootMargin`
@@ -264,7 +320,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
         preloadObserver?.disconnect();
         startMedia(instance, src);
       },
-      { rootMargin: opts.preloadRootMargin ?? DEFAULT_ROOT_MARGIN },
+      { rootMargin: opts.preloadRootMargin ?? DEFAULT_PRELOAD_ROOT_MARGIN },
     );
   }
 
@@ -312,13 +368,17 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     post({ type: "click", id, x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
   };
 
-  instance.intersectionObserver = intersectionObserver;
+  instance.renderObserver = renderObserver;
+  instance.revealObserver = revealObserver;
+  instance.revealViewportObserver = revealViewportObserver;
   instance.preloadObserver = preloadObserver;
   instance.resizeObserver = resizeObserver;
   instances.set(id, instance);
   startClock();
 
-  intersectionObserver.observe(canvas);
+  renderObserver.observe(canvas);
+  revealObserver.observe(canvas);
+  revealViewportObserver.observe(canvas);
   preloadObserver?.observe(canvas);
   resizeObserver.observe(canvas);
   window.addEventListener("pointermove", onPointerMove);
@@ -340,7 +400,9 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
         clearTimeout(instance.revealTimer);
         instance.revealTimer = null;
       }
-      intersectionObserver.disconnect();
+      renderObserver.disconnect();
+      revealObserver.disconnect();
+      revealViewportObserver.disconnect();
       preloadObserver?.disconnect();
       resizeObserver.disconnect();
       window.removeEventListener("pointermove", onPointerMove);

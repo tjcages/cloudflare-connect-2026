@@ -18,13 +18,23 @@ export type StripesShaderProps = {
   className?: string;
   style?: CSSProperties;
   /**
-   * IntersectionObserver margin for the render gate. Outside it the render loop
-   * pauses; the GL context, source, sim state and reveal timeline all survive,
-   * so a resumed instance continues rather than replaying its reveal. Defaults
-   * to `"200% 0px"`.
+   * IntersectionObserver margin for the render gate — the gate that decides
+   * whether the instance renders (ambient blinks, drift, cursor trail) at all.
+   * Outside it the render loop pauses; the GL context, source, sim state and
+   * reveal timeline all survive, so a resumed instance continues rather than
+   * replaying its reveal. Defaults to `"0px"`: any on-screen pixel renders, so a
+   * visible canvas is never frozen and nothing offscreen burns GPU.
+   *
+   * The reveal gate is separate and not configurable — the reveal clock advances
+   * once a quarter of the element's own height, or a quarter of the viewport
+   * height, is on screen.
    */
   rootMargin?: string;
-  /** rootMargin for the preload gate that starts image loading ahead of the render gate. */
+  /**
+   * rootMargin for the preload gate that starts image loading ahead of the
+   * render gate. Stays wide (`"200% 0px"`) so the source is decoded before the
+   * render gate opens and the reveal never stalls on a fetch.
+   */
   preloadRootMargin?: string;
   /** Delay the first source load so the reveal plays visibly after mount. */
   revealDelayMs?: number;

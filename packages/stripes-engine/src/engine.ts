@@ -77,6 +77,7 @@ import { extractVibrantColors, createSyntheticVibrantPalette, type VibrantColor 
 import { createColorDistPass } from "./passes/colorDistPass";
 import { createMaxReducePass } from "./passes/maxReducePass";
 import { originForPosition, resolveRevealDurationMs, resolveBandRamp } from "./reveal/revealMath";
+import { createRevealClock } from "./reveal/revealClock";
 import { createWaterRevealSim, WATER_WHITE_K, WATER_GLOW } from "./reveal/waterRevealSim";
 
 const CURSOR_TRAIL_MAX_PUSH_CELLS = 2;
@@ -177,6 +178,14 @@ export type StripesEngine = {
   setCursor(x: number | null, y?: number): void;
   click(x: number, y?: number): void;
   triggerReveal(): void;
+  /**
+   * Open or close the reveal gate: the reveal animation's clock only advances
+   * while it is open. Closing banks the progress made so far and freezes it, so
+   * reopening continues the reveal instead of replaying it, and a reveal that
+   * already finished stays finished. Open by default; hosts that gate on
+   * visibility (the shared coordinator) drive it explicitly.
+   */
+  setRevealGate(open: boolean): void;
   readOutputPixels(): Uint8Array;
   readCellGrid(): CellGridReadback;
   getPerf(): PerfSnapshot;
@@ -211,6 +220,14 @@ export type SharedStripesEngine = {
   setCursor(x: number | null, y?: number): void;
   click(x: number, y?: number): void;
   triggerReveal(): void;
+  /**
+   * Open or close the reveal gate: the reveal animation's clock only advances
+   * while it is open. Closing banks the progress made so far and freezes it, so
+   * reopening continues the reveal instead of replaying it, and a reveal that
+   * already finished stays finished. Open by default; hosts that gate on
+   * visibility (the shared coordinator) drive it explicitly.
+   */
+  setRevealGate(open: boolean): void;
   /**
    * Release transient host-facing state: report `onWaterActivity(0)` and clear
    * the wave trail's activity value. Call it when the host stops rendering an
@@ -323,25 +340,15 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastLettersEnabled = config.letters.enabled;
   let lastColorsMode = config.colors.mode;
   let lastStarsEnabled = config.background.stars.enabled;
-  let revealStartMs = 0;
-  // Reveal progress is measured from the first frame rendered after a trigger,
-  // not from the trigger itself: frame-cap gating and first-frame source work
-  // can delay that frame, and a clock-based start would skip the reveal's head.
-  let revealAnchorMs = 0;
-  let revealAnchorStamp = -1;
+  const revealClock = createRevealClock(clock);
 
   function revealElapsedMs(): number {
-    if (revealAnchorStamp !== revealStartMs) {
-      revealAnchorStamp = revealStartMs;
-      revealAnchorMs = clock.now();
-    }
-    return clock.now() - revealAnchorMs;
+    return revealClock.elapsedMs();
   }
 
   function revealAnimating(): boolean {
     if (!config.reveal.enabled) return false;
-    if (revealAnchorStamp !== revealStartMs) return true;
-    return clock.now() - revealAnchorMs < resolveRevealDurationMs(config.reveal);
+    return revealClock.animating(resolveRevealDurationMs(config.reveal));
   }
 
   let detectedBgColor = config.colors.backgroundColor;
@@ -1658,7 +1665,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       const hadSource = source !== null;
       source?.dispose();
       source = media ? createSourceTexture(gl, media) : null;
-      if (source && !hadSource) revealStartMs = clock.now();
+      if (source && !hadSource) revealClock.trigger();
       detectedBgColor = media ? detectSourceBackground(media) : config.colors.backgroundColor;
       applySourcePalette(media);
       computeMaxColorDist();
@@ -1753,7 +1760,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       addClickWave(clickWaveState, { x, y: y ?? 0 }, config.clickWave.lifeMs);
     },
     triggerReveal() {
-      revealStartMs = clock.now();
+      revealClock.trigger();
+    },
+    setRevealGate(open) {
+      revealClock.setGate(open);
     },
     renderFrame,
     start: lifecycle.start,

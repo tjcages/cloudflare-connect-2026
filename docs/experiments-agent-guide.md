@@ -397,14 +397,21 @@ on the main thread — imperative control or `EngineHooks` — means calling `cr
 from the package root yourself. There is no automatic fallback: shared mode requires
 OffscreenCanvas + Worker (Safari 16.4+).
 
-Rendering is gated on an IntersectionObserver honoring `rootMargin` (default `"200% 0px"`,
-`core/visibility.ts`), plus a separate `preloadRootMargin` gate for the source fetch. Outside the
-render gate the instance PAUSES by being skipped in `renderTick`. Nothing is disposed: the
-context, the source and the
-reveal timeline survive, so scrolling away and back neither recompiles programs nor replays the
-reveal. Do NOT wrap the component in `{inView && …}` — that unmounts and destroys the context.
-A paused instance also `settle()`s (reports `onWaterActivity(0)`) so a hover value cannot freeze
-offscreen.
+Two gates, both on the main thread (`core/visibility.ts`, driven from `shared/coordinator.ts`).
+The RENDER gate is an IntersectionObserver honoring `rootMargin` (default `"0px"`) — any on-screen
+pixel renders, so ambient animation never freezes and offscreen instances cost nothing; a separate
+`preloadRootMargin` gate (still `"200% 0px"`) fetches the source ahead of it. The REVEAL gate
+(`isRevealGateOpen`) decides whether the reveal's clock advances: it opens at a quarter of the
+element's own height OR a quarter of the viewport height, the OR being what keeps an element taller
+than 4 viewports from deadlocking on a ratio it can never reach. It reaches the worker as a
+`revealGate` message and lands on `engine.setRevealGate`.
+
+Outside the render gate the instance PAUSES by being skipped in `renderTick`. Nothing is disposed:
+the context, the source and the reveal timeline survive. `reveal/revealClock.ts` banks reveal
+progress when the gate closes and re-anchors when it reopens, so scrolling away and back continues
+the reveal instead of replaying or restarting it, and a finished reveal stays finished. Do NOT wrap
+the component in `{inView && …}` — that unmounts and destroys the context. A paused instance also
+`settle()`s (reports `onWaterActivity(0)`) so a hover value cannot freeze offscreen.
 
 ### The lab's "shader" texture source mode
 

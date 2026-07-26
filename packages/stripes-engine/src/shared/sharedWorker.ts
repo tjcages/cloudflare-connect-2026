@@ -147,6 +147,9 @@ function handle(message: MainToWorkerMessage): void {
         },
       });
       if (message.config) engine.setConfig(message.config);
+      // Both gates live on the main thread: hold the reveal clock until the
+      // coordinator's reveal observers say the element is worth revealing.
+      engine.setRevealGate(false);
       instances.set(message.id, {
         engine,
         visible: false,
@@ -232,6 +235,12 @@ function handle(message: MainToWorkerMessage): void {
       const instance = instances.get(message.id);
       if (!instance) return;
       instance.engine.click(message.x, message.y);
+      return;
+    }
+    case "revealGate": {
+      const instance = instances.get(message.id);
+      if (!instance) return;
+      instance.engine.setRevealGate(message.open);
       return;
     }
     case "reveal": {

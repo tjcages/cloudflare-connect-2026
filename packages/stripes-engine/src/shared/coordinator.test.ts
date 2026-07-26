@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
+import { REVEAL_VIEWPORT_ROOT_MARGIN, type GateRect } from "../core/visibility";
 
 type Listener = (event: { data: WorkerToMainMessage }) => void;
 
@@ -26,6 +27,20 @@ vi.mock("./sharedWorker?worker&inline", () => ({
 
 import { registerSharedShader } from "./coordinator";
 
+type ObserverStub = {
+  options: IntersectionObserverInit | undefined;
+  observed: Element[];
+  disconnected: boolean;
+  emit(entries: Partial<IntersectionObserverEntry>[]): void;
+};
+
+let observers: ObserverStub[] = [];
+let handles: { unregister(): void }[] = [];
+
+const VIEWPORT_HEIGHT = 800;
+const VIEWPORT: GateRect = { top: 0, left: 0, right: 1200, bottom: VIEWPORT_HEIGHT };
+const SHRUNK_VIEWPORT: GateRect = { top: 200, left: 0, right: 1200, bottom: 600 };
+
 function emit(message: WorkerToMainMessage): void {
   for (const listener of [...workerListeners]) listener({ data: message });
 }
@@ -36,15 +51,68 @@ function registeredId(): string {
   return register.id;
 }
 
+/** The observers a single registration creates, in construction order. */
+function gates() {
+  const [render, reveal, revealViewport, preload] = observers;
+  return { render, reveal, revealViewport, preload };
+}
+
+function rect(top: number, height: number, left = 0, width = 400) {
+  return { top, bottom: top + height, left, right: left + width, width, height, x: left, y: top };
+}
+
+/** An entry as an observer rooted at `root` would report it. */
+function entryFor(element: ReturnType<typeof rect>, root: GateRect) {
+  const visibleHeight = Math.max(0, Math.min(element.bottom, root.bottom) - Math.max(element.top, root.top));
+  const visibleWidth = Math.max(0, Math.min(element.right, root.right) - Math.max(element.left, root.left));
+  return {
+    boundingClientRect: element as unknown as DOMRectReadOnly,
+    rootBounds: root as unknown as DOMRectReadOnly,
+    isIntersecting: visibleHeight > 0 && visibleWidth > 0,
+  } satisfies Partial<IntersectionObserverEntry>;
+}
+
+/** Scroll the element to `top` and let every gate observe it, as a real scroll would. */
+function scrollTo(top: number, height: number): void {
+  const element = rect(top, height);
+  gates().render.emit([entryFor(element, VIEWPORT)]);
+  gates().reveal.emit([entryFor(element, VIEWPORT)]);
+  gates().revealViewport.emit([entryFor(element, SHRUNK_VIEWPORT)]);
+}
+
+function gateMessages() {
+  return workerPosts.filter((message) => message.type === "revealGate");
+}
+
+function visibilityMessages() {
+  return workerPosts.filter((message) => message.type === "visibility");
+}
+
 beforeEach(() => {
   workerPosts.length = 0;
   workerListeners.length = 0;
+  observers = [];
+  handles = [];
   vi.stubGlobal(
     "IntersectionObserver",
     class {
-      observe() {}
+      stub: ObserverStub;
+      constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        this.stub = {
+          options,
+          observed: [],
+          disconnected: false,
+          emit: (entries) => callback(entries as IntersectionObserverEntry[], this as unknown as IntersectionObserver),
+        };
+        observers.push(this.stub);
+      }
+      observe(target: Element) {
+        this.stub.observed.push(target);
+      }
       unobserve() {}
-      disconnect() {}
+      disconnect() {
+        this.stub.disconnected = true;
+      }
     },
   );
   vi.stubGlobal(
@@ -58,18 +126,157 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const handle of handles) handle.unregister();
+  handles = [];
   vi.unstubAllGlobals();
+});
+
+function register(opts: Partial<Parameters<typeof registerSharedShader>[0]> = {}) {
+  const handle = registerSharedShader({
+    canvas: document.createElement("canvas"),
+    src: "logo.png",
+    mediaKind: "image",
+    ...opts,
+  });
+  handles.push(handle);
+  return handle;
+}
+
+describe("shared coordinator gate wiring", () => {
+  it("splits the render gate from the reveal gate, observing the canvas with both", () => {
+    const handle = register();
+    const canvas = gates().render.observed[0];
+
+    expect(gates().render.options?.rootMargin).toBe("0px");
+    expect(gates().reveal.options?.rootMargin).toBe("0px");
+    expect(gates().reveal.options?.threshold).toEqual([0, 0.25]);
+    expect(gates().revealViewport.options?.rootMargin).toBe(REVEAL_VIEWPORT_ROOT_MARGIN);
+    expect(gates().preload.options?.rootMargin).toBe("200% 0px");
+    for (const gate of Object.values(gates())) expect(gate.observed).toEqual([canvas]);
+
+    handle.unregister();
+  });
+
+  it("keeps rootMargin a public prop for the render gate without widening the reveal gate", () => {
+    const handle = register({ rootMargin: "300% 0px", preloadRootMargin: "50% 0px" });
+    expect(gates().render.options?.rootMargin).toBe("300% 0px");
+    expect(gates().reveal.options?.rootMargin).toBe("0px");
+    expect(gates().revealViewport.options?.rootMargin).toBe(REVEAL_VIEWPORT_ROOT_MARGIN);
+    expect(gates().preload.options?.rootMargin).toBe("50% 0px");
+    handle.unregister();
+  });
+
+  it("disconnects every gate on unregister", () => {
+    const handle = register();
+    handle.unregister();
+    for (const gate of Object.values(gates())) expect(gate.disconnected).toBe(true);
+  });
+});
+
+describe("render gate", () => {
+  it("renders ambient animation at one visible pixel while the reveal is still held", () => {
+    const handle = register();
+
+    scrollTo(VIEWPORT_HEIGHT - 1, 400);
+
+    expect(visibilityMessages()).toEqual([{ type: "visibility", id: registeredId(), visible: true }]);
+    expect(gateMessages()).toEqual([]);
+
+    handle.unregister();
+  });
+
+  it("stops rendering once nothing is on screen", () => {
+    const handle = register();
+    scrollTo(100, 400);
+    scrollTo(VIEWPORT_HEIGHT + 50, 400);
+    expect(visibilityMessages()).toEqual([
+      { type: "visibility", id: registeredId(), visible: true },
+      { type: "visibility", id: registeredId(), visible: false },
+    ]);
+    handle.unregister();
+  });
+});
+
+describe("reveal gate", () => {
+  it("opens once a quarter of a normal card is on screen, and closes again when it leaves", () => {
+    const handle = register();
+    const id = registeredId();
+
+    scrollTo(VIEWPORT_HEIGHT - 99, 400);
+    expect(gateMessages()).toEqual([]);
+
+    scrollTo(VIEWPORT_HEIGHT - 100, 400);
+    expect(gateMessages()).toEqual([{ type: "revealGate", id, open: true }]);
+
+    scrollTo(VIEWPORT_HEIGHT + 20, 400);
+    expect(gateMessages()).toEqual([
+      { type: "revealGate", id, open: true },
+      { type: "revealGate", id, open: false },
+    ]);
+
+    handle.unregister();
+  });
+
+  it("posts nothing while the gate state is unchanged, keeping scroll traffic low", () => {
+    const handle = register();
+    for (let top = VIEWPORT_HEIGHT - 100; top > 200; top -= 5) scrollTo(top, 400);
+    expect(gateMessages()).toHaveLength(1);
+    handle.unregister();
+  });
+
+  it("opens for an element five viewports tall, which no element-relative threshold could", () => {
+    const handle = register();
+    const id = registeredId();
+    const tall = VIEWPORT_HEIGHT * 5;
+    const element = rect(VIEWPORT_HEIGHT - 200, tall);
+
+    // The element-relative observer is capped at intersectionRatio =
+    // viewport/element = 0.2, so its `threshold: [0, 0.25]` delivers nothing
+    // between entry and exit: it fires once at entry and then goes quiet.
+    gates().reveal.emit([entryFor(rect(VIEWPORT_HEIGHT - 1, tall), VIEWPORT)]);
+    expect(gateMessages()).toEqual([]);
+
+    // Only the viewport-relative observer fires at the crossing, and that alone
+    // opens the gate — without it this element would hold its reveal forever.
+    gates().revealViewport.emit([entryFor(element, SHRUNK_VIEWPORT)]);
+    expect(gateMessages()).toEqual([{ type: "revealGate", id, open: true }]);
+
+    handle.unregister();
+  });
+
+  it("holds a five-viewport-tall element until a quarter of the viewport is covered", () => {
+    const handle = register();
+    const tall = VIEWPORT_HEIGHT * 5;
+    scrollTo(VIEWPORT_HEIGHT - 199, tall);
+    expect(gateMessages()).toEqual([]);
+    scrollTo(VIEWPORT_HEIGHT - 200, tall);
+    expect(gateMessages()).toEqual([{ type: "revealGate", id: registeredId(), open: true }]);
+    handle.unregister();
+  });
+
+  it("falls back to the document viewport when rootBounds is null", () => {
+    const root = document.documentElement;
+    const width = Object.getOwnPropertyDescriptor(root, "clientWidth");
+    const height = Object.getOwnPropertyDescriptor(root, "clientHeight");
+    Object.defineProperty(root, "clientWidth", { value: 1200, configurable: true });
+    Object.defineProperty(root, "clientHeight", { value: VIEWPORT_HEIGHT, configurable: true });
+
+    const handle = register();
+    gates().reveal.emit([
+      { boundingClientRect: rect(100, 400) as unknown as DOMRectReadOnly, rootBounds: null, isIntersecting: true },
+    ]);
+    expect(gateMessages()).toEqual([{ type: "revealGate", id: registeredId(), open: true }]);
+
+    handle.unregister();
+    if (width) Object.defineProperty(root, "clientWidth", width);
+    if (height) Object.defineProperty(root, "clientHeight", height);
+  });
 });
 
 describe("shared coordinator water activity", () => {
   it("routes a waterActivity message to the registering instance's callback", () => {
     const onWaterActivity = vi.fn();
-    const handle = registerSharedShader({
-      canvas: document.createElement("canvas"),
-      src: "logo.png",
-      mediaKind: "image",
-      onWaterActivity,
-    });
+    const handle = register({ onWaterActivity });
 
     emit({ type: "waterActivity", id: registeredId(), activity: 0.37 });
     expect(onWaterActivity).toHaveBeenCalledWith(0.37);
@@ -79,12 +286,7 @@ describe("shared coordinator water activity", () => {
 
   it("ignores water activity for unknown or unregistered instances", () => {
     const onWaterActivity = vi.fn();
-    const handle = registerSharedShader({
-      canvas: document.createElement("canvas"),
-      src: "logo.png",
-      mediaKind: "image",
-      onWaterActivity,
-    });
+    const handle = register({ onWaterActivity });
     const id = registeredId();
 
     emit({ type: "waterActivity", id: "shared-nope", activity: 0.5 });

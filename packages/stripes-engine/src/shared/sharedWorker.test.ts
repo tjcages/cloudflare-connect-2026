@@ -15,6 +15,7 @@ const engineStub = {
   setCursor: vi.fn(),
   click: vi.fn(),
   triggerReveal: vi.fn(),
+  setRevealGate: vi.fn(),
   settle: vi.fn(),
   rebuild: vi.fn(),
   getPerf: vi.fn(),
@@ -126,5 +127,44 @@ describe("shared worker water activity", () => {
     send({ type: "visibility", id: "shared-0", visible: false });
     send({ type: "visibility", id: "shared-0", visible: true });
     expect(engineStub.triggerReveal).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("shared worker reveal gate", () => {
+  it("holds the reveal clock at register, since the coordinator owns both gates", () => {
+    send({ type: "register", id: "shared-0", cssWidth: 100, cssHeight: 100, dpr: 1 });
+    expect(engineStub.setRevealGate).toHaveBeenCalledTimes(1);
+    expect(engineStub.setRevealGate).toHaveBeenCalledWith(false);
+  });
+
+  it("forwards the coordinator's gate changes to the engine", () => {
+    send({ type: "register", id: "shared-0", cssWidth: 100, cssHeight: 100, dpr: 1 });
+    engineStub.setRevealGate.mockClear();
+
+    send({ type: "revealGate", id: "shared-0", open: true });
+    send({ type: "revealGate", id: "shared-0", open: false });
+
+    expect(engineStub.setRevealGate.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("opening the gate never triggers a reveal — it only lets the clock run", () => {
+    send({ type: "register", id: "shared-0", cssWidth: 100, cssHeight: 100, dpr: 1 });
+    send({ type: "revealGate", id: "shared-0", open: true });
+    send({ type: "revealGate", id: "shared-0", open: false });
+    send({ type: "revealGate", id: "shared-0", open: true });
+    expect(engineStub.triggerReveal).not.toHaveBeenCalled();
+  });
+
+  it("renders an instance whose reveal is still held, so ambient animation never freezes", () => {
+    send({ type: "register", id: "shared-0", cssWidth: 100, cssHeight: 100, dpr: 1 });
+    send({ type: "visibility", id: "shared-0", visible: true });
+    send({ type: "tick" });
+    expect(engineStub.renderFrame).toHaveBeenCalled();
+  });
+
+  it("ignores a gate message for an unknown instance", () => {
+    send({ type: "revealGate", id: "shared-nope", open: true });
+    expect(engineStub.setRevealGate).not.toHaveBeenCalled();
+    expect(posted.some((message) => message.type === "error")).toBe(false);
   });
 });
