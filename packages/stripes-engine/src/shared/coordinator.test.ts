@@ -26,6 +26,7 @@ vi.mock("./sharedWorker?worker&inline", () => ({
 }));
 
 import { registerSharedShader } from "./coordinator";
+import { subscribeStripesStats, type StripesStats } from "./stats";
 
 type ObserverStub = {
   options: IntersectionObserverInit | undefined;
@@ -295,5 +296,100 @@ describe("shared coordinator water activity", () => {
     handle.unregister();
     emit({ type: "waterActivity", id, activity: 0.5 });
     expect(onWaterActivity).not.toHaveBeenCalled();
+  });
+});
+
+describe("shared coordinator stats", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date", "performance"],
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** presentFrame needs a real 2d context to count a blit; happy-dom has none. */
+  function canvasWith2d(): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    const ctx = { canvas, clearRect: () => {}, drawImage: () => {} };
+    canvas.getContext = (() => ctx) as unknown as HTMLCanvasElement["getContext"];
+    return canvas;
+  }
+
+  function fakeBitmap(): ImageBitmap {
+    return { width: 8, height: 8, close: () => {} } as unknown as ImageBitmap;
+  }
+
+  it("stays silent until a subscriber attaches", () => {
+    const handle = register();
+    vi.advanceTimersByTime(2000);
+    expect(workerPosts.some((message) => message.type === "statsRequest")).toBe(false);
+    handle.unregister();
+  });
+
+  it("reports gate state, size and observed blit rate per instance", () => {
+    const handle = register({ canvas: canvasWith2d(), label: "cta", config: { maxFps: 30 } });
+    const id = registeredId();
+    const seen: StripesStats[] = [];
+    const unsubscribe = subscribeStripesStats((stats) => seen.push(stats), { intervalMs: 1000 });
+
+    gates().render.emit([{ isIntersecting: true } as IntersectionObserverEntry]);
+    emit({ type: "frame", id, frame: fakeBitmap() });
+    emit({ type: "frame", id, frame: fakeBitmap() });
+
+    vi.advanceTimersByTime(1000);
+    expect(workerPosts.some((message) => message.type === "statsRequest")).toBe(true);
+    emit({
+      type: "stats",
+      instances: [{ id, visible: true, hasSource: true, maxFps: 30, outputWidth: 3360, outputHeight: 1440 }],
+    });
+
+    const stats = seen.at(-1)!;
+    expect(stats.total).toBe(1);
+    expect(stats.rendering).toBe(1);
+    expect(stats.paused).toBe(0);
+    expect(stats.megapixelsPerFrame).toBeCloseTo(4.8384, 3);
+    expect(stats.instances[0].label).toBe("cta");
+    expect(stats.instances[0].maxFps).toBe(30);
+    expect(stats.instances[0].fps).toBeCloseTo(2, 1);
+
+    unsubscribe();
+    handle.unregister();
+  });
+
+  it("counts a gated-off instance as paused and excludes it from the pixel budget", () => {
+    const handle = register();
+    const id = registeredId();
+    const seen: StripesStats[] = [];
+    const unsubscribe = subscribeStripesStats((stats) => seen.push(stats), { intervalMs: 1000 });
+
+    vi.advanceTimersByTime(1000);
+    emit({
+      type: "stats",
+      instances: [{ id, visible: false, hasSource: true, maxFps: 30, outputWidth: 1200, outputHeight: 800 }],
+    });
+
+    const stats = seen.at(-1)!;
+    expect(stats.rendering).toBe(0);
+    expect(stats.paused).toBe(1);
+    expect(stats.megapixelsPerFrame).toBe(0);
+
+    unsubscribe();
+    handle.unregister();
+  });
+
+  it("stops polling the worker once the last subscriber detaches", () => {
+    const handle = register();
+    const unsubscribe = subscribeStripesStats(() => {}, { intervalMs: 1000 });
+    vi.advanceTimersByTime(1000);
+    unsubscribe();
+
+    const before = workerPosts.filter((message) => message.type === "statsRequest").length;
+    vi.advanceTimersByTime(5000);
+    expect(workerPosts.filter((message) => message.type === "statsRequest").length).toBe(before);
+
+    handle.unregister();
   });
 });

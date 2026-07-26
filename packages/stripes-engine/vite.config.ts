@@ -9,6 +9,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, "src/index.ts"),
         "react/index": resolve(__dirname, "src/react/index.ts"),
+        stats: resolve(__dirname, "src/shared/stats.ts"),
       },
       formats: ["es"],
     },

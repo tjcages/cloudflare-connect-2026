@@ -84,7 +84,35 @@ unmounts it, which destroys the context and replays the reveal on every re-entry
 ```
 
 A paused instance also settles: it reports `onWaterActivity(0)` so a value captured mid-hover cannot
-freeze on the host while the canvas sits offscreen.
+freeze on the host while the canvas sits offscreen. For a `mediaKind="video"` instance it also pauses
+the `<video>` element, so an offscreen texture stops decoding instead of running its stream forever.
+While it renders, frames are grabbed on the instance's `maxFps` cadence rather than on every decoded
+frame — a 60fps source feeding a 30fps texture no longer throws half its work away.
+
+### Stats
+
+`subscribeStripesStats` reports what the shared renderer is actually doing: how many instances are
+registered, how many are past the render gate, how many pixels they cost per frame, and the blit rate
+they achieve. Nothing is collected until the first subscriber attaches and collection stops when the
+last one detaches, so it costs zero while unused. Import it from `@necatikcl/stripes-engine/stats` —
+a standalone chunk that does not pull in the engine or the worker.
+
+```ts
+import { subscribeStripesStats } from "@necatikcl/stripes-engine/stats";
+
+const stop = subscribeStripesStats(
+  (stats) => {
+    console.log(stats.rendering, "/", stats.total, "live", stats.megapixelsPerFrame, "Mpx/frame");
+    for (const row of stats.instances) {
+      console.log(row.label, `${row.outputWidth}x${row.outputHeight}`, row.rendering, row.fps, row.maxFps);
+    }
+  },
+  { intervalMs: 500 },
+);
+```
+
+Give an instance a name with the `label` prop (`<StripesShader label="cta" />`); it falls back to the
+source's basename.
 
 ## Vanilla core
 

@@ -44,6 +44,8 @@ export type StripesShaderProps = {
    * but it still fires from the render loop — keep the handler cheap.
    */
   onWaterActivity?: (activity: number) => void;
+  /** Name for this instance in the `subscribeStripesStats` debug readout. */
+  label?: string;
 };
 
 /**
@@ -76,6 +78,7 @@ export function StripesShader(props: StripesShaderProps) {
     preloadRootMargin,
     revealDelayMs,
     onWaterActivity,
+    label,
   } = props;
 
   const resolvedConfig = useMemo(() => (config ? resolveThemedConfig(config, theme) : undefined), [config, theme]);
@@ -112,6 +115,7 @@ export function StripesShader(props: StripesShaderProps) {
         autoPlay,
         rootMargin,
         preloadRootMargin,
+        label,
         onWaterActivity: (activity) => waterActivityRef.current?.(activity),
       });
       sharedHandleRef.current = handle;
@@ -122,7 +126,7 @@ export function StripesShader(props: StripesShaderProps) {
       handle?.unregister();
       sharedHandleRef.current = null;
     };
-  }, [src, mediaKind, autoPlay, loop, muted, rootMargin, preloadRootMargin, revealDelayMs]);
+  }, [src, mediaKind, autoPlay, loop, muted, rootMargin, preloadRootMargin, revealDelayMs, label]);
 
   useEffect(() => {
     const handle = sharedHandleRef.current;

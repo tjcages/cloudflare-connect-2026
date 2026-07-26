@@ -9,8 +9,9 @@ import {
   REVEAL_VIEWPORT_ROOT_MARGIN,
 } from "../core/visibility";
 import { createVideoFramePump, loadImageFrame, type VideoFramePump } from "./media";
-import type { InstanceId, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
+import type { InstanceId, InstanceStatsSample, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
 import SharedShaderWorker from "./sharedWorker?worker&inline";
+import { publishStats, setStatsCollector, statsEnabled, type StripesInstanceStats } from "./stats";
 
 export type SharedShaderHandle = {
   setConfig(config: Partial<EngineConfig>): void;
@@ -31,6 +32,8 @@ export type RegisterSharedShaderOptions = {
   preloadRootMargin?: string;
   /** Called when the "wave" trail's 0..1 activity changes meaningfully. */
   onWaterActivity?: (activity: number) => void;
+  /** Human-readable name for this instance in the debug stats readout. */
+  label?: string;
 };
 
 type RegisteredInstance = {
@@ -53,6 +56,10 @@ type RegisteredInstance = {
   revealArmed: boolean;
   revealTimer: ReturnType<typeof setTimeout> | null;
   onWaterActivity: ((activity: number) => void) | null;
+  label: string;
+  blits: number;
+  /** Latest known frame cap, mirrored from config so the pump can throttle. */
+  maxFps: number;
 };
 
 const FALLBACK_SIZE = 320;
@@ -63,6 +70,93 @@ const instances = new Map<InstanceId, RegisteredInstance>();
 let nextId = 0;
 let clockRafId = 0;
 let tickInFlight = false;
+
+const statsCollector = {
+  start(intervalMs: number): void {
+    statsSampledAt = performance.now();
+    for (const instance of instances.values()) instance.blits = 0;
+    if (statsTimer) clearInterval(statsTimer);
+    statsTimer = setInterval(sampleStats, intervalMs);
+  },
+  stop(): void {
+    if (statsTimer) clearInterval(statsTimer);
+    statsTimer = null;
+    statsPending = false;
+  },
+};
+
+let statsTimer: ReturnType<typeof setInterval> | null = null;
+let statsSampledAt = 0;
+let statsPending = false;
+
+function basename(src: string): string {
+  const path = src.split("?")[0] ?? src;
+  return path.slice(path.lastIndexOf("/") + 1) || src;
+}
+
+// Rates are per-window, so blit counters are drained here and the elapsed time
+// is measured rather than assumed — a throttled or backgrounded tab reports the
+// interval it actually got, not the one that was requested.
+function emitStats(samples: InstanceStatsSample[]): void {
+  const now = performance.now();
+  const elapsed = Math.max(1, now - statsSampledAt);
+  statsSampledAt = now;
+
+  const byId = new Map(samples.map((sample) => [sample.id, sample]));
+  const rows: StripesInstanceStats[] = [];
+  let rendering = 0;
+  let revealOpen = 0;
+  let megapixelsPerFrame = 0;
+  let blits = 0;
+
+  for (const [id, instance] of instances) {
+    const sample = byId.get(id);
+    const outputWidth = sample?.outputWidth ?? 0;
+    const outputHeight = sample?.outputHeight ?? 0;
+    const megapixels = (outputWidth * outputHeight) / 1e6;
+    const instanceBlits = instance.blits;
+    instance.blits = 0;
+    blits += instanceBlits;
+    if (instance.visible) {
+      rendering++;
+      megapixelsPerFrame += megapixels;
+    }
+    if (instance.revealGateOpen) revealOpen++;
+    const size = readSize(instance.canvas);
+    rows.push({
+      id,
+      label: instance.label,
+      rendering: instance.visible,
+      revealGateOpen: instance.revealGateOpen,
+      cssWidth: size.cssWidth,
+      cssHeight: size.cssHeight,
+      outputWidth,
+      outputHeight,
+      megapixels,
+      maxFps: sample?.maxFps ?? 0,
+      fps: (instanceBlits * 1000) / elapsed,
+    });
+  }
+
+  publishStats({
+    total: instances.size,
+    rendering,
+    paused: instances.size - rendering,
+    revealOpen,
+    megapixelsPerFrame,
+    blitsPerSecond: (blits * 1000) / elapsed,
+    sampleMs: elapsed,
+    instances: rows,
+  });
+}
+
+function sampleStats(): void {
+  if (statsPending) return;
+  statsPending = true;
+  post({ type: "statsRequest" });
+}
+
+setStatsCollector(statsCollector);
 
 // The worker renders one tick per main-thread rAF: worker rAF stalls without a
 // placeholder canvas, and the main clock pauses with the tab exactly like rAF.
@@ -98,6 +192,7 @@ function presentFrame(instance: RegisteredInstance, frame: ImageBitmap): void {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(frame, 0, 0);
   frame.close();
+  if (statsEnabled()) instance.blits++;
 }
 
 function post(message: MainToWorkerMessage, transfer?: Transferable[]): void {
@@ -133,6 +228,9 @@ function ensureWorker(): Worker {
       const instance = instances.get(data.id);
       if (!instance || instance.disposed) return;
       instance.onWaterActivity?.(data.activity);
+    } else if (data.type === "stats") {
+      statsPending = false;
+      if (statsEnabled()) emitStats(data.instances);
     }
   };
   next.addEventListener("message", workerMessageHandler);
@@ -232,6 +330,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
           loop: opts.loop ?? true,
           muted: opts.muted ?? true,
           autoPlay: opts.autoPlay ?? true,
+          getMaxFps: () => instance.maxFps,
         })
       : null;
 
@@ -249,6 +348,9 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
     revealArmed: false,
     revealTimer: null,
     onWaterActivity: opts.onWaterActivity ?? null,
+    label: opts.label ?? basename(src),
+    blits: 0,
+    maxFps: opts.config?.maxFps ?? 0,
     revealGateOpen: false,
     renderObserver: undefined as unknown as IntersectionObserver,
     revealObserver: undefined as unknown as IntersectionObserver,
@@ -388,6 +490,7 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
 
   return {
     setConfig(config: Partial<EngineConfig>) {
+      if (config.maxFps != null) instance.maxFps = config.maxFps;
       post({ type: "setConfig", id, config });
     },
     triggerReveal() {

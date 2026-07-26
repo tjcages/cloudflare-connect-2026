@@ -80,6 +80,15 @@ export type TerminateMessage = {
   type: "terminate";
 };
 
+/**
+ * Ask the worker for a snapshot of its authoritative per-instance state. Only
+ * posted while a stats subscriber is attached, so the protocol stays silent —
+ * and the worker does no extra work — when the debug readout is off.
+ */
+export type StatsRequestMessage = {
+  type: "statsRequest";
+};
+
 export type MainToWorkerMessage =
   | RegisterMessage
   | TickMessage
@@ -92,7 +101,8 @@ export type MainToWorkerMessage =
   | RevealMessage
   | RevealGateMessage
   | UnregisterMessage
-  | TerminateMessage;
+  | TerminateMessage
+  | StatsRequestMessage;
 
 export type ReadyMessage = {
   type: "ready";
@@ -125,10 +135,28 @@ export type WaterActivityMessage = {
   activity: number;
 };
 
+/** The worker's authoritative view of one instance, for the debug readout. */
+export type InstanceStatsSample = {
+  id: InstanceId;
+  /** Render gate: the worker only renders instances it believes are visible. */
+  visible: boolean;
+  hasSource: boolean;
+  /** Post-normalization frame cap; `0` means uncapped. */
+  maxFps: number;
+  outputWidth: number;
+  outputHeight: number;
+};
+
+export type StatsMessage = {
+  type: "stats";
+  instances: InstanceStatsSample[];
+};
+
 export type WorkerToMainMessage =
   | ReadyMessage
   | ErrorMessage
   | NeedsSourceMessage
   | FrameMessage
   | TockMessage
-  | WaterActivityMessage;
+  | WaterActivityMessage
+  | StatsMessage;

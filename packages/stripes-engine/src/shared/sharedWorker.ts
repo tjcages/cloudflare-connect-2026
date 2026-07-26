@@ -2,7 +2,13 @@ import { createStripesEngineShared, type SharedStripesEngine } from "../engine";
 import { createFrameCapState, type FrameCapState, shouldRenderFrame } from "../core/frameCap";
 import type { EngineContext } from "../gl/context";
 import type { EngineSource } from "../source/sourceTexture";
-import type { InstanceId, MainToWorkerMessage, SharedSourceFrame, WorkerToMainMessage } from "./protocol";
+import type {
+  InstanceId,
+  InstanceStatsSample,
+  MainToWorkerMessage,
+  SharedSourceFrame,
+  WorkerToMainMessage,
+} from "./protocol";
 
 type WorkerScope = {
   postMessage(message: WorkerToMainMessage, transfer?: Transferable[]): void;
@@ -254,6 +260,21 @@ function handle(message: MainToWorkerMessage): void {
       if (!instance) return;
       instance.engine.dispose();
       instances.delete(message.id);
+      return;
+    }
+    case "statsRequest": {
+      const samples: InstanceStatsSample[] = [];
+      for (const [id, instance] of instances) {
+        samples.push({
+          id,
+          visible: instance.visible,
+          hasSource: instance.hasSource,
+          maxFps: instance.engine.maxFps,
+          outputWidth: instance.engine.outputWidth,
+          outputHeight: instance.engine.outputHeight,
+        });
+      }
+      scope.postMessage({ type: "stats", instances: samples });
       return;
     }
     case "terminate": {

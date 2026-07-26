@@ -1,6 +1,6 @@
 {
   "name": "@necatikcl/stripes-engine",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "type": "module",
   "description": "GPU (WebGL2) renderer that turns an image or video into an animated duotone stripe-grid. Core + render-only <StripesShader> React canvas.",
   "license": "UNLICENSED",
@@ -15,7 +15,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./react": "./src/react/index.ts"
+    "./react": "./src/react/index.ts",
+    "./stats": "./src/shared/stats.ts"
   },
   "files": [
     "dist"
@@ -51,6 +52,10 @@
       "./react": {
         "types": "./dist/react/index.d.ts",
         "import": "./dist/react/index.js"
+      },
+      "./stats": {
+        "types": "./dist/shared/stats.d.ts",
+        "import": "./dist/stats.js"
       }
     }
   },

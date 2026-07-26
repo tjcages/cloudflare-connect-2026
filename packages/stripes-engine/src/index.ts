@@ -31,6 +31,8 @@ export { bandIndexForValue } from "./field/cellBand";
 export { stripeDotBandEligibility } from "./field/stripeLut";
 export { applyImageColorDensity, effectiveStripes } from "./field/imageColorDensity";
 export type { PerfSnapshot } from "./perf/perfCollector";
+export { subscribeStripesStats } from "./shared/stats";
+export type { StripesStats, StripesInstanceStats, StripesStatsListener } from "./shared/stats";
 export { createRealClock, createManualClock } from "./core/clock";
 export type { Clock, ManualClock } from "./core/clock";
 export { createSeededRng } from "./core/rng";
