@@ -43,7 +43,6 @@ function App() {
             {s.id} — {s.label}
           </h2>
           <StripesShader
-            sharedContext
             src={s.kind === "video" ? VIDEO_SRC : IMAGE_SRC}
             mediaKind={s.kind}
             rootMargin="0px"
