@@ -9,7 +9,7 @@ import {
   REVEAL_VIEWPORT_ROOT_MARGIN,
 } from "../core/visibility";
 import { createVideoFramePump, loadImageFrame, type VideoFramePump } from "./media";
-import type { InstanceId, InstanceStatsSample, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
+import type { FrameSlot, InstanceId, InstanceStatsSample, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
 import SharedShaderWorker from "./sharedWorker?worker&inline";
 import {
   publishStats,
@@ -207,27 +207,26 @@ function stopClock(): void {
 
 // Present frames on an sRGB canvas so HEX values keep the same appearance.
 //
-// `frame` is the whole shared backbuffer, so the rendered region is cropped out
-// here: GL's origin is bottom-left while ImageBitmap coordinates are top-left,
-// which puts it at y = frame.height - outHeight. Cropping with a source rect on
-// a blit that has to happen anyway is free, and it keeps the worker off
-// `createImageBitmap` — a synchronous GPU copy on every frame of every instance
-// whose size differs from the backbuffer's.
-function presentFrame(instance: RegisteredInstance, frame: ImageBitmap, outWidth: number, outHeight: number): void {
-  const ctx = instance.displayCtx;
-  if (!ctx) {
-    frame.close();
-    return;
+// One bitmap carries every instance that rendered on the tick, packed into
+// disjoint slots, so each is cropped out here with a source rect on the blit
+// that has to happen anyway — free, and it keeps the worker off
+// `createImageBitmap`, a synchronous GPU copy per instance per frame.
+function presentFrame(frame: ImageBitmap, slots: readonly FrameSlot[]): void {
+  for (const slot of slots) {
+    const instance = instances.get(slot.id);
+    if (!instance || instance.disposed) continue;
+    const ctx = instance.displayCtx;
+    if (!ctx) continue;
+    const canvas = ctx.canvas;
+    if (canvas.width !== slot.width || canvas.height !== slot.height) {
+      canvas.width = slot.width;
+      canvas.height = slot.height;
+    }
+    ctx.clearRect(0, 0, slot.width, slot.height);
+    ctx.drawImage(frame, slot.sx, slot.sy, slot.width, slot.height, 0, 0, slot.width, slot.height);
+    if (statsEnabled()) instance.blits++;
   }
-  const canvas = ctx.canvas;
-  if (canvas.width !== outWidth || canvas.height !== outHeight) {
-    canvas.width = outWidth;
-    canvas.height = outHeight;
-  }
-  ctx.clearRect(0, 0, outWidth, outHeight);
-  ctx.drawImage(frame, 0, frame.height - outHeight, outWidth, outHeight, 0, 0, outWidth, outHeight);
   frame.close();
-  if (statsEnabled()) instance.blits++;
 }
 
 function post(message: MainToWorkerMessage, transfer?: Transferable[]): void {
@@ -246,12 +245,7 @@ function ensureWorker(): Worker {
     } else if (data.type === "tock") {
       tickInFlight = false;
     } else if (data.type === "frame") {
-      const instance = instances.get(data.id);
-      if (!instance || instance.disposed) {
-        data.frame.close();
-        return;
-      }
-      presentFrame(instance, data.frame, data.outWidth, data.outHeight);
+      presentFrame(data.frame, data.slots);
     } else if (data.type === "needsSource") {
       const instance = instances.get(data.id);
       if (!instance || instance.disposed) return;

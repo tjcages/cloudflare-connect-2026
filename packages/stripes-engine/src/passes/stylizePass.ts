@@ -55,11 +55,18 @@ export function createStylizePass(gl: WebGL2RenderingContext, quad: { draw(): vo
   }
 
   return {
-    render(target: RenderTarget | null, srcTex: WebGLTexture, stripesTex: WebGLTexture, p: StylizeUniforms) {
+    render(
+      target: RenderTarget | null,
+      srcTex: WebGLTexture,
+      stripesTex: WebGLTexture,
+      p: StylizeUniforms,
+      originX = 0,
+      originY = 0,
+    ) {
       const mp = getProgram(p.mode);
       bindRenderTarget(gl, target);
       if (!target) {
-        gl.viewport(0, 0, p.resolution[0], p.resolution[1]);
+        gl.viewport(originX, originY, p.resolution[0], p.resolution[1]);
         noteFillTarget(p.resolution[0], p.resolution[1]);
       }
       gl.useProgram(mp.program);

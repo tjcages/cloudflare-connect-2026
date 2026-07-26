@@ -100,10 +100,67 @@ function sizeShared(width: number, height: number): void {
   if (height > sharedCanvas.height) sharedCanvas.height = height;
 }
 
+/**
+ * Ceiling on one batch's packed backbuffer. Handing the drawing buffer over
+ * costs the same whatever its size, so a batch only ever splits to keep the
+ * allocation bounded — never for speed.
+ */
+const MAX_BATCH_PIXELS = 8e6;
+
+type Slot = { id: InstanceId; instance: Instance; x: number; y: number; width: number; height: number };
+
+/**
+ * Stack this tick's renderers into a column of disjoint backbuffer slots.
+ *
+ * A column, not a shelf: every slot keeps `x = 0`, so the present pass's
+ * viewport is only ever translated vertically. Shifting it horizontally instead
+ * moves the fullscreen quad's varying interpolation off its original floating-
+ * point path and rounds a stripe edge differently — measured at one column of
+ * pixels, max delta 2/255 — while a vertical offset is bit-identical. Packing
+ * tighter would buy nothing anyway: the transfer costs the same at any size,
+ * and only the allocation would shrink.
+ *
+ * A batch closes when it would outgrow {@link MAX_BATCH_PIXELS} or the
+ * context's texture limit, and the caller flushes each batch with its own
+ * transfer.
+ */
+function packBatches(candidates: Slot[], maxTextureSize: number): Slot[][] {
+  const batches: Slot[][] = [];
+  let batch: Slot[] = [];
+  let width = 0;
+  let height = 0;
+  for (const slot of candidates) {
+    const nextWidth = Math.max(width, slot.width);
+    const nextHeight = height + slot.height;
+    const fits =
+      batch.length === 0 ||
+      (nextHeight <= maxTextureSize && nextWidth <= maxTextureSize && nextWidth * nextHeight <= MAX_BATCH_PIXELS);
+    if (!fits) {
+      batches.push(batch);
+      batch = [];
+      width = 0;
+      height = 0;
+    }
+    slot.y = height;
+    width = Math.max(width, slot.width);
+    height += slot.height;
+    batch.push(slot);
+  }
+  if (batch.length > 0) batches.push(batch);
+  return batches;
+}
+
 // Driven by "tick" messages from the main-thread clock: worker rAF only fires
 // while the worker owns a placeholder canvas, which this present path avoids.
-// Instances render strictly sequentially — they share one backbuffer, so each
-// bitmap must be produced before the next instance overwrites it.
+//
+// Instances render sequentially into one backbuffer, then the whole tick is
+// handed to the host in a single `transferToImageBitmap`. That transfer is the
+// expensive part of the present path — a fixed ~0.65 ms of worker time each,
+// independent of the buffer's size, because the drawing buffer has to be
+// reacquired afterwards — so instances are packed into disjoint slots to pay it
+// once per tick instead of once per instance. Nothing in the pipeline clears or
+// otherwise touches the default framebuffer except the final present pass, so
+// slots cannot disturb each other.
 function renderTick(): void {
   // One clock read per tick: instances gate against their own maxFps using
   // relative intervals, so a capped tile skips its render here (leaving its last
@@ -111,26 +168,45 @@ function renderTick(): void {
   // every frame. The shared tick loop itself is never slowed.
   const now = performance.now();
   if (now - lastStatsRequestMs > FILL_RECORDING_LINGER_MS) setFillRecording(false);
+
+  const candidates: Slot[] = [];
   for (const [id, instance] of instances) {
     if (!instance.visible) continue;
     const { engine } = instance;
     if (!shouldRenderFrame(instance.frameCap, engine.maxFps, now)) continue;
-    const outW = engine.outputWidth;
-    const outH = engine.outputHeight;
-    sizeShared(outW, outH);
-    engine.renderFrame();
-    if (!sharedCanvas) continue;
-    // The present pass renders with gl.viewport(0, 0, outW, outH), i.e. into the
-    // bottom-left corner of the (possibly larger) backbuffer. The host crops
-    // that corner back out — see `presentFrame` in the coordinator.
-    //
-    // Always the zero-copy transfer, never `createImageBitmap`: cropping here
-    // would mean a synchronous GPU copy plus an `await` that stalls every later
-    // instance on this tick. The backbuffer is grow-only, so instances smaller
-    // than it ship the whole buffer and the host crops during the blit it was
-    // going to do anyway — a source rect costs it nothing.
-    const frame = sharedCanvas.transferToImageBitmap();
-    scope.postMessage({ type: "frame", id, frame, outWidth: outW, outHeight: outH }, [frame]);
+    candidates.push({ id, instance, x: 0, y: 0, width: engine.outputWidth, height: engine.outputHeight });
+  }
+
+  if (candidates.length > 0 && sharedCanvas && context) {
+    for (const batch of packBatches(candidates, context.maxTextureSize)) {
+      let width = 0;
+      let height = 0;
+      for (const slot of batch) {
+        width = Math.max(width, slot.x + slot.width);
+        height = Math.max(height, slot.y + slot.height);
+      }
+      sizeShared(width, height);
+      for (const slot of batch) {
+        slot.instance.engine.setPresentOrigin(slot.x, slot.y);
+        slot.instance.engine.renderFrame();
+      }
+      // GL's origin is bottom-left and an ImageBitmap's is top-left, so a slot
+      // placed at GL y sits `bufferHeight - y - height` from the bitmap's top.
+      const bufferHeight = sharedCanvas.height;
+      const slots = batch.map((slot) => ({
+        id: slot.id,
+        sx: slot.x,
+        sy: bufferHeight - slot.y - slot.height,
+        width: slot.width,
+        height: slot.height,
+      }));
+      // Always the zero-copy transfer, never `createImageBitmap`: cropping here
+      // would mean a synchronous GPU copy plus an `await` that stalls the rest
+      // of the tick. The host crops during the blit it was going to do anyway,
+      // where a source rect costs it nothing.
+      const frame = sharedCanvas.transferToImageBitmap();
+      scope.postMessage({ type: "frame", frame, slots }, [frame]);
+    }
   }
   scope.postMessage({ type: "tock" });
 }

@@ -119,18 +119,30 @@ export type NeedsSourceMessage = {
   id: InstanceId;
 };
 
+/** Where one instance's output sits inside a {@link FrameMessage} bitmap. */
+export type FrameSlot = {
+  id: InstanceId;
+  /** Top-left of the slot in bitmap coordinates — GL's origin is bottom-left. */
+  sx: number;
+  sy: number;
+  width: number;
+  height: number;
+};
+
 /**
- * One instance's finished frame. `frame` is the whole shared backbuffer, which
- * is grow-only and therefore at least as large as this instance; the rendered
- * region is the bottom-left `outWidth × outHeight` corner (GL's origin), so the
- * host crops it out with a source rect while blitting.
+ * Every instance that rendered on one tick, in a single bitmap. `frame` is the
+ * whole shared backbuffer, which is grow-only and therefore at least as large
+ * as the packed slots; each instance's output is a disjoint rectangle the host
+ * crops out with a source rect on the blit it was going to do anyway.
+ *
+ * One message — and so one `transferToImageBitmap` — per tick rather than one
+ * per instance: handing the drawing buffer over costs a fixed ~0.65 ms of
+ * worker time no matter how large it is, so the transfer *count* is the cost.
  */
 export type FrameMessage = {
   type: "frame";
-  id: InstanceId;
   frame: ImageBitmap;
-  outWidth: number;
-  outHeight: number;
+  slots: FrameSlot[];
 };
 
 export type TockMessage = {

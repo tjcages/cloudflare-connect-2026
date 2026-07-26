@@ -7,9 +7,9 @@ export function createPresentPass(gl: WebGL2RenderingContext, quad: { draw(): vo
   const program = compileProgram(gl, FULLSCREEN_VERT, PRESENT_FRAG);
   const uField = gl.getUniformLocation(program, "uField");
   return {
-    render(fieldTex: WebGLTexture, outWidth: number, outHeight: number) {
+    render(fieldTex: WebGLTexture, outWidth: number, outHeight: number, originX = 0, originY = 0) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, outWidth, outHeight);
+      gl.viewport(originX, originY, outWidth, outHeight);
       noteFillTarget(outWidth, outHeight);
       gl.useProgram(program);
       gl.activeTexture(gl.TEXTURE0);

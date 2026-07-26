@@ -226,6 +226,15 @@ export type SharedStripesEngine = {
    */
   readonly passFill: readonly PassFill[];
   renderFrame(): void;
+  /**
+   * Bottom-left corner, in backbuffer pixels, that the next `renderFrame` blits
+   * its finished output to. Instances sharing one backbuffer are packed into
+   * disjoint slots so a whole tick can be handed over in a single
+   * `transferToImageBitmap`; only the final present pass reads it, and no pass
+   * ever clears the default framebuffer, so a slot cannot disturb its
+   * neighbours. Defaults to the origin.
+   */
+  setPresentOrigin(x: number, y: number): void;
   setFieldScale(s: number): void;
   setSource(media: EngineSource | null): void;
   updateSourceFrame(frame: EngineSource): void;
@@ -313,6 +322,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastPassFill: readonly PassFill[] = [];
 
   const gpuTimings = opts.gpuTimings !== false;
+  let presentOriginX = 0;
+  let presentOriginY = 0;
   let quad = createFullscreenQuad(gl);
   let pool: RtPool = createRtPool(gl);
   let passes: Pass[] = [];
@@ -1571,6 +1582,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
               output.width,
               output.height,
               stylizePass || postHookPass ? pool.get("stripeOut", output.width, output.height, { linear: true }) : null,
+              presentOriginX,
+              presentOriginY,
             );
           },
           dispose: () => stripePass.dispose(),
@@ -1599,16 +1612,23 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
                   const src = pool.get("solidOut", output.width, output.height, { linear: true });
                   const stripesRT = pool.get("stripeOut", output.width, output.height, { linear: true });
                   const dst = postHookPass ? pool.get("postSrc", output.width, output.height, { linear: true }) : null;
-                  stylizePass.render(dst, src.texture, stripesRT.texture, {
-                    mode: config.renderMode,
-                    time: clock.now() / 1000,
-                    intensity: config.renderIntensity,
-                    resolution: [output.width, output.height] as [number, number],
-                    dpr: getDpr(),
-                    params: config.renderParams as [number, number, number, number],
-                    colorA: config.renderColorA,
-                    colorB: config.renderColorB,
-                  });
+                  stylizePass.render(
+                    dst,
+                    src.texture,
+                    stripesRT.texture,
+                    {
+                      mode: config.renderMode,
+                      time: clock.now() / 1000,
+                      intensity: config.renderIntensity,
+                      resolution: [output.width, output.height] as [number, number],
+                      dpr: getDpr(),
+                      params: config.renderParams as [number, number, number, number],
+                      colorA: config.renderColorA,
+                      colorB: config.renderColorB,
+                    },
+                    presentOriginX,
+                    presentOriginY,
+                  );
                 },
                 dispose: () => stylizePass.dispose(),
               },
@@ -1650,7 +1670,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             if (postHookPass) {
               postHookPass.render(srcTex, null, postFrame());
             } else {
-              presentPass!.render(srcTex, output.width, output.height);
+              presentPass!.render(srcTex, output.width, output.height, presentOriginX, presentOriginY);
             }
           },
           dispose: () => {
@@ -1958,6 +1978,10 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       revealClock.setGate(open);
     },
     renderFrame,
+    setPresentOrigin(x: number, y: number) {
+      presentOriginX = x;
+      presentOriginY = y;
+    },
     start: lifecycle.start,
     stop: lifecycle.stop,
     settle: lifecycle.settle,

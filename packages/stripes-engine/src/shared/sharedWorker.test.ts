@@ -8,6 +8,7 @@ const engineStub = {
   outputWidth: 16,
   outputHeight: 16,
   renderFrame: vi.fn(),
+  setPresentOrigin: vi.fn(),
   setFieldScale: vi.fn(),
   setSource: vi.fn(),
   updateSourceFrame: vi.fn(),
@@ -160,6 +161,51 @@ describe("shared worker reveal gate", () => {
     send({ type: "visibility", id: "shared-0", visible: true });
     send({ type: "tick" });
     expect(engineStub.renderFrame).toHaveBeenCalled();
+  });
+
+  it("packs every instance of a tick into one bitmap, stacked and flipped to bitmap coordinates", () => {
+    send({ type: "register", id: "shared-0", cssWidth: 16, cssHeight: 16, dpr: 1 });
+    send({ type: "register", id: "shared-1", cssWidth: 16, cssHeight: 16, dpr: 1 });
+    send({ type: "visibility", id: "shared-0", visible: true });
+    send({ type: "visibility", id: "shared-1", visible: true });
+    posted.length = 0;
+    send({ type: "tick" });
+
+    const frames = posted.filter((message) => message.type === "frame");
+    expect(frames).toHaveLength(1);
+    expect(frames[0].slots).toEqual([
+      { id: "shared-0", sx: 0, sy: 16, width: 16, height: 16 },
+      { id: "shared-1", sx: 0, sy: 0, width: 16, height: 16 },
+    ]);
+    expect(engineStub.setPresentOrigin.mock.calls).toEqual([
+      [0, 0],
+      [0, 16],
+    ]);
+  });
+
+  it("splits a tick into several bitmaps rather than growing the backbuffer without bound", () => {
+    engineStub.outputWidth = 2048;
+    engineStub.outputHeight = 1900;
+    for (const id of ["shared-0", "shared-1", "shared-2", "shared-3"]) {
+      send({ type: "register", id, cssWidth: 2048, cssHeight: 1900, dpr: 1 });
+      send({ type: "visibility", id, visible: true });
+    }
+    posted.length = 0;
+    send({ type: "tick" });
+
+    // A third slot would put the column past both the pixel ceiling and the
+    // 4096 texture limit, so the tick flushes in pairs; every instance still
+    // gets exactly one slot.
+    const frames = posted.filter((message) => message.type === "frame");
+    expect(frames.map((frame) => frame.slots.length)).toEqual([2, 2]);
+    expect(frames.flatMap((frame) => frame.slots.map((slot) => slot.id))).toEqual([
+      "shared-0",
+      "shared-1",
+      "shared-2",
+      "shared-3",
+    ]);
+    engineStub.outputWidth = 16;
+    engineStub.outputHeight = 16;
   });
 
   it("ignores a gate message for an unknown instance", () => {

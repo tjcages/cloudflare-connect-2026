@@ -249,12 +249,14 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       outWidth: number,
       outHeight: number,
       target: RenderTarget | null = null,
+      originX = 0,
+      originY = 0,
     ) {
       if (target) {
         bindRenderTarget(gl, target);
       } else {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, outWidth, outHeight);
+        gl.viewport(originX, originY, outWidth, outHeight);
         noteFillTarget(outWidth, outHeight);
       }
       gl.useProgram(program);
