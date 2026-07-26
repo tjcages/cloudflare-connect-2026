@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
 import type { SharedEngineOptions } from "../engine";
+import { SHRINK_HOLD_TICKS } from "./surfaceSize";
 
 const engineStub = {
   resize: vi.fn(),
@@ -171,16 +172,42 @@ describe("shared worker reveal gate", () => {
     posted.length = 0;
     send({ type: "tick" });
 
+    // The backbuffer snaps up to the 64px size quantum, so the 32px column sits
+    // against the bottom of a 64px buffer and the flip counts down from there.
     const frames = posted.filter((message) => message.type === "frame");
     expect(frames).toHaveLength(1);
     expect(frames[0].slots).toEqual([
-      { id: "shared-0", sx: 0, sy: 16, width: 16, height: 16 },
-      { id: "shared-1", sx: 0, sy: 0, width: 16, height: 16 },
+      { id: "shared-0", sx: 0, sy: 48, width: 16, height: 16 },
+      { id: "shared-1", sx: 0, sy: 32, width: 16, height: 16 },
     ]);
     expect(engineStub.setPresentOrigin.mock.calls).toEqual([
       [0, 0],
       [0, 16],
     ]);
+  });
+
+  it("follows the backbuffer down once a smaller tick has settled", () => {
+    engineStub.maxFps = 0;
+    engineStub.outputWidth = 512;
+    engineStub.outputHeight = 512;
+    send({ type: "register", id: "shared-0", cssWidth: 512, cssHeight: 512, dpr: 1 });
+    send({ type: "visibility", id: "shared-0", visible: true });
+    send({ type: "tick" });
+    engineStub.outputWidth = 16;
+    engineStub.outputHeight = 16;
+    send({ type: "register", id: "shared-1", cssWidth: 16, cssHeight: 16, dpr: 1 });
+    send({ type: "visibility", id: "shared-1", visible: true });
+    send({ type: "visibility", id: "shared-0", visible: false });
+
+    posted.length = 0;
+    send({ type: "tick" });
+    const held = posted.filter((message) => message.type === "frame");
+    expect(held[0].slots[0]).toEqual({ id: "shared-1", sx: 0, sy: 496, width: 16, height: 16 });
+
+    for (let i = 0; i < SHRINK_HOLD_TICKS; i++) send({ type: "tick" });
+    const shrunk = posted.filter((message) => message.type === "frame");
+    expect(shrunk[shrunk.length - 1].slots[0]).toEqual({ id: "shared-1", sx: 0, sy: 48, width: 16, height: 16 });
+    engineStub.maxFps = 60;
   });
 
   it("splits a tick into several bitmaps rather than growing the backbuffer without bound", () => {

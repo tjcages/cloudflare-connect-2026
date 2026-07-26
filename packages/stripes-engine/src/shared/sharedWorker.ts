@@ -10,6 +10,7 @@ import type {
   SharedSourceFrame,
   WorkerToMainMessage,
 } from "./protocol";
+import { createSurfaceSizeState, nextSurfaceSize } from "./surfaceSize";
 
 type WorkerScope = {
   postMessage(message: WorkerToMainMessage, transfer?: Transferable[]): void;
@@ -45,6 +46,7 @@ let lastStatsRequestMs = -Infinity;
 let sharedCanvas: OffscreenCanvas | null = null;
 let sharedGl: WebGL2RenderingContext | null = null;
 let context: EngineContext | null = null;
+const surfaceSizeState = createSurfaceSizeState();
 
 const instances = new Map<InstanceId, Instance>();
 
@@ -90,20 +92,22 @@ function onContextRestored(): void {
   }
 }
 
-// Grow-only: consumer instances range from 160×160 tiles to ~3000×1700 surfaces
-// and all share this one backbuffer, so reallocating to each instance's exact
-// size churned the drawing buffer several times per frame. Only enlarge (never
-// shrink) so the buffer settles at the per-dimension max and stops thrashing.
+// Consumer instances range from 160×160 tiles to ~3000×1700 surfaces and all
+// share this one backbuffer, so it grows to whatever a tick needs at once but
+// only follows a smaller requirement down once that has settled — see
+// `nextSurfaceSize`. Reallocating to each instance's exact size every tick
+// churns the drawing buffer and costs as much as the waste it saves.
 function sizeShared(width: number, height: number): void {
   if (!sharedCanvas) return;
-  if (width > sharedCanvas.width) sharedCanvas.width = width;
-  if (height > sharedCanvas.height) sharedCanvas.height = height;
+  const next = nextSurfaceSize(surfaceSizeState, sharedCanvas, { width, height });
+  if (next.width !== sharedCanvas.width) sharedCanvas.width = next.width;
+  if (next.height !== sharedCanvas.height) sharedCanvas.height = next.height;
 }
 
 /**
- * Ceiling on one batch's packed backbuffer. Handing the drawing buffer over
- * costs the same whatever its size, so a batch only ever splits to keep the
- * allocation bounded — never for speed.
+ * Ceiling on one batch's packed backbuffer. Splitting trades a second transfer
+ * for a smaller buffer, and the buffer is cleared and reacquired every tick, so
+ * this bounds the per-tick fill as much as the allocation.
  */
 const MAX_BATCH_PIXELS = 8e6;
 
@@ -116,9 +120,9 @@ type Slot = { id: InstanceId; instance: Instance; x: number; y: number; width: n
  * viewport is only ever translated vertically. Shifting it horizontally instead
  * moves the fullscreen quad's varying interpolation off its original floating-
  * point path and rounds a stripe edge differently — measured at one column of
- * pixels, max delta 2/255 — while a vertical offset is bit-identical. Packing
- * tighter would buy nothing anyway: the transfer costs the same at any size,
- * and only the allocation would shrink.
+ * pixels, max delta 2/255 — while a vertical offset is bit-identical. The
+ * column's horizontal slack is instead recovered by sizing the backbuffer to
+ * the batch rather than to the widest instance ever seen.
  *
  * A batch closes when it would outgrow {@link MAX_BATCH_PIXELS} or the
  * context's texture limit, and the caller flushes each batch with its own
@@ -156,11 +160,13 @@ function packBatches(candidates: Slot[], maxTextureSize: number): Slot[][] {
 // Instances render sequentially into one backbuffer, then the whole tick is
 // handed to the host in a single `transferToImageBitmap`. That transfer is the
 // expensive part of the present path — a fixed ~0.65 ms of worker time each,
-// independent of the buffer's size, because the drawing buffer has to be
-// reacquired afterwards — so instances are packed into disjoint slots to pay it
-// once per tick instead of once per instance. Nothing in the pipeline clears or
-// otherwise touches the default framebuffer except the final present pass, so
-// slots cannot disturb each other.
+// because the drawing buffer has to be reacquired afterwards — so instances are
+// packed into disjoint slots to pay it once per tick instead of once per
+// instance. The reacquired buffer is also cleared, which is not size
+// independent: an oversized backbuffer measured ~30% slower through this path
+// at the same drawn-pixel count, so the buffer tracks the batch. Nothing in the
+// pipeline clears or otherwise touches the default framebuffer except the final
+// present pass, so slots cannot disturb each other.
 function renderTick(): void {
   // One clock read per tick: instances gate against their own maxFps using
   // relative intervals, so a capped tile skips its render here (leaving its last
@@ -178,21 +184,26 @@ function renderTick(): void {
   }
 
   if (candidates.length > 0 && sharedCanvas && context) {
-    for (const batch of packBatches(candidates, context.maxTextureSize)) {
-      let width = 0;
-      let height = 0;
+    const batches = packBatches(candidates, context.maxTextureSize);
+    // One size for the whole tick: every batch is transferred out of the same
+    // backbuffer, so sizing per batch would resize it mid-tick for nothing.
+    let requiredWidth = 0;
+    let requiredHeight = 0;
+    for (const batch of batches) {
       for (const slot of batch) {
-        width = Math.max(width, slot.x + slot.width);
-        height = Math.max(height, slot.y + slot.height);
+        requiredWidth = Math.max(requiredWidth, slot.x + slot.width);
+        requiredHeight = Math.max(requiredHeight, slot.y + slot.height);
       }
-      sizeShared(width, height);
+    }
+    sizeShared(requiredWidth, requiredHeight);
+    // GL's origin is bottom-left and an ImageBitmap's is top-left, so a slot
+    // placed at GL y sits `bufferHeight - y - height` from the bitmap's top.
+    const bufferHeight = sharedCanvas.height;
+    for (const batch of batches) {
       for (const slot of batch) {
         slot.instance.engine.setPresentOrigin(slot.x, slot.y);
         slot.instance.engine.renderFrame();
       }
-      // GL's origin is bottom-left and an ImageBitmap's is top-left, so a slot
-      // placed at GL y sits `bufferHeight - y - height` from the bitmap's top.
-      const bufferHeight = sharedCanvas.height;
       const slots = batch.map((slot) => ({
         id: slot.id,
         sx: slot.x,
