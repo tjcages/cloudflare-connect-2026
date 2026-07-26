@@ -60,15 +60,49 @@ export type StatsCollector = {
 const listeners = new Set<StripesStatsListener>();
 let collector: StatsCollector | null = null;
 let intervalMs = 500;
+let idleTimer: ReturnType<typeof setInterval> | null = null;
 
 /** True only while something is listening; every collection path checks this. */
 export function statsEnabled(): boolean {
   return listeners.size > 0;
 }
 
+function emptyStats(): StripesStats {
+  return {
+    total: 0,
+    rendering: 0,
+    paused: 0,
+    revealOpen: 0,
+    megapixelsPerFrame: 0,
+    blitsPerSecond: 0,
+    sampleMs: intervalMs,
+    instances: [],
+  };
+}
+
+/**
+ * The coordinator is loaded lazily by the first `<StripesShader>` to mount, so
+ * on a page where none has hydrated yet there is no collector to ask. Report
+ * zero on the same cadence instead of leaving the subscriber with no sample at
+ * all, and hand over the moment a real collector installs itself.
+ */
+function startIdleReporting(): void {
+  if (idleTimer) return;
+  idleTimer = setInterval(() => publishStats(emptyStats()), intervalMs);
+  publishStats(emptyStats());
+}
+
+function stopIdleReporting(): void {
+  if (idleTimer) clearInterval(idleTimer);
+  idleTimer = null;
+}
+
 export function setStatsCollector(next: StatsCollector | null): void {
   collector = next;
-  if (next && listeners.size > 0) next.start(intervalMs);
+  if (next && listeners.size > 0) {
+    stopIdleReporting();
+    next.start(intervalMs);
+  }
 }
 
 export function publishStats(stats: StripesStats): void {
@@ -89,9 +123,14 @@ export function subscribeStripesStats(listener: StripesStatsListener, options?: 
   if (options?.intervalMs) intervalMs = options.intervalMs;
   const first = listeners.size === 0;
   listeners.add(listener);
-  if (first) collector?.start(intervalMs);
+  if (first) {
+    if (collector) collector.start(intervalMs);
+    else startIdleReporting();
+  }
   return () => {
     listeners.delete(listener);
-    if (listeners.size === 0) collector?.stop();
+    if (listeners.size > 0) return;
+    collector?.stop();
+    stopIdleReporting();
   };
 }
