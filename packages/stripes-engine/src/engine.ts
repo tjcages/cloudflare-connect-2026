@@ -763,8 +763,30 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     }
 
     const revealEnabled = config.reveal.enabled;
-    let activeFieldRT = revealEnabled ? "revealedField" : "field";
-    let activeColorRT = "fieldColor";
+    // Field-chain links, in pipeline order. Each optional field pass reads
+    // whichever earlier link last wrote a target and is still contributing, so a
+    // pass that early-outs as a proven no-op routes its consumers back to the
+    // previous link instead of leaving them on a stale target.
+    type FieldChainLink = { field: string; color: string | null; active: () => boolean };
+    const fieldChain: FieldChainLink[] = [];
+    const chainFieldAt = (index: number): string => {
+      for (let i = index - 1; i >= 0; i--) {
+        const link = fieldChain[i];
+        if (link.active()) return link.field;
+      }
+      return "field";
+    };
+    const chainColorAt = (index: number): string => {
+      for (let i = index - 1; i >= 0; i--) {
+        const link = fieldChain[i];
+        if (link.color !== null && link.active()) return link.color;
+      }
+      return "fieldColor";
+    };
+    const chainEndField = (): string => chainFieldAt(fieldChain.length);
+    const chainEndColor = (): string => chainColorAt(fieldChain.length);
+    const alwaysActive = (): boolean => true;
+    let revealLinkActive: () => boolean = alwaysActive;
     const revealFieldPasses: Pass[] = [];
 
     if (revealEnabled && config.reveal.type === "vortex") {
@@ -961,11 +983,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       const waterRevealSim = createWaterRevealSim(gl, quad);
       const waterRevealPass = createWaterRevealPass(gl, quad);
       let waterRevealReleased = false;
+      let waterRevealWrote = false;
+      revealLinkActive = () => waterRevealWrote;
       revealFieldPasses.push({
         name: "waterRevealField",
         render: () => {
-          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
-          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const water = config.reveal.water;
           const durationMs = Math.max(1, water.durationMs);
           const settleMs = Math.max(0, water.settleMs);
@@ -974,28 +996,35 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           const settleT =
             settleMs <= 0 ? (sweepT >= 1 ? 1 : 0) : Math.min(1, Math.max(0, (elapsed - durationMs) / settleMs));
           const done = sweepT >= 1 && settleT >= 1;
-          // Residual crests fade with the settle instead of vanishing when the
-          // sim releases; cover blends to fully-revealed on the same ramp so
-          // the handoff to the plain field is seamless.
-          const fade = done ? 0 : 1 - settleT * settleT * (3 - 2 * settleT);
+          // Past the settle the pass is `finalColor = field.r` — an exact copy of
+          // a field the source pass already writes as vec4(vec3(luma), 1.0). So
+          // the draw is dropped and consumers read the field target directly.
           if (done) {
             if (!waterRevealReleased) {
               waterRevealSim.release();
               waterRevealReleased = true;
             }
-          } else {
-            waterRevealReleased = false;
-            waterRevealSim.tick({
-              sweepT,
-              displayWidth: cssW,
-              displayHeight: cssH,
-              rows: water.rows,
-              wobble: water.wobble,
-              intensity: water.intensity,
-              softness: water.softness,
-            });
+            waterRevealWrote = false;
+            return;
           }
-          waterRevealPass.render(revealedRT, fieldRT.texture, done ? null : waterRevealSim.current(), {
+          waterRevealWrote = true;
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
+          // Residual crests fade with the settle instead of vanishing when the
+          // sim releases; cover blends to fully-revealed on the same ramp so
+          // the handoff to the plain field is seamless.
+          const fade = 1 - settleT * settleT * (3 - 2 * settleT);
+          waterRevealReleased = false;
+          waterRevealSim.tick({
+            sweepT,
+            displayWidth: cssW,
+            displayHeight: cssH,
+            rows: water.rows,
+            wobble: water.wobble,
+            intensity: water.intensity,
+            softness: water.softness,
+          });
+          waterRevealPass.render(revealedRT, fieldRT.texture, waterRevealSim.current(), {
             refraction: water.refraction,
             whiteK: WATER_WHITE_K,
             glow: WATER_GLOW,
@@ -1030,14 +1059,28 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       });
     } else if (revealEnabled) {
       const revealPass = createRevealPass(gl, quad);
+      let waveRevealWrote = false;
+      revealLinkActive = () => waveRevealWrote;
       revealFieldPasses.push({
         name: "revealField",
         render: () => {
-          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
-          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const { cols, rows } = cellGrid;
           const durationMs = resolveRevealDurationMs(config.reveal);
           const progress = revealElapsedMs() / durationMs;
+          const bandRamp = resolveBandRamp(config.reveal.wave.durationMs);
+          // The shader's per-cell mask is smoothstep(d - s, d + s + ramp, progress + n)
+          // with normalized d <= 1 and noise n >= -waviness/2, so once progress clears
+          // that worst case every cell masks to exactly 1 and the pass is a straight
+          // copy of the field. Drop the draw and read the field target instead.
+          const softness = Math.max(0, config.reveal.wave.softness);
+          const settleAt = 1 + softness + bandRamp + config.reveal.wave.waviness * 0.5 + 1e-3;
+          if (progress >= settleAt) {
+            waveRevealWrote = false;
+            return;
+          }
+          waveRevealWrote = true;
+          const fieldRT = pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
+          const revealedRT = pool.get("revealedField", fieldSize.width, fieldSize.height, { linear: true });
           const [ox, oy] = originForPosition(config.reveal.wave.position);
           const maxDist = Math.max(
             Math.hypot(ox, oy),
@@ -1046,7 +1089,6 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             Math.hypot(1 - ox, 1 - oy),
             0.0001,
           );
-          const bandRamp = resolveBandRamp(config.reveal.wave.durationMs);
           revealPass.render(revealedRT, fieldRT.texture, cols, rows, {
             revealMode: 1,
             origin: [ox, oy],
@@ -1061,14 +1103,18 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       });
     }
 
+    if (revealFieldPasses.length > 0) {
+      fieldChain.push({ field: "revealedField", color: null, active: revealLinkActive });
+    }
+
     const hookFieldPasses: Pass[] = [];
     if (hooks?.fieldPass) {
       const fieldHookPass = hooks.fieldPass({ gl, quad, pool });
-      const srcRT = activeFieldRT;
+      const chainIndex = fieldChain.length;
       hookFieldPasses.push({
         name: "hookField",
         render: () => {
-          const inputRT = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true });
+          const inputRT = pool.get(chainFieldAt(chainIndex), fieldSize.width, fieldSize.height, { linear: true });
           const outputRT = pool.get("hookField", fieldSize.width, fieldSize.height, { linear: true });
           fieldHookPass.render({
             input: inputRT,
@@ -1083,17 +1129,19 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => fieldHookPass.dispose(),
       });
-      activeFieldRT = "hookField";
+      fieldChain.push({ field: "hookField", color: null, active: alwaysActive });
     }
 
     const edgeMaskFieldPasses: Pass[] = [];
     if (config.edgeMask.enabled) {
       const edgeMaskPass = createEdgeMaskPass(gl, quad);
-      const srcRT = activeFieldRT;
+      const chainIndex = fieldChain.length;
       edgeMaskFieldPasses.push({
         name: "edgeMaskField",
         render: () => {
-          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const srcTex = pool.get(chainFieldAt(chainIndex), fieldSize.width, fieldSize.height, {
+            linear: true,
+          }).texture;
           const maskedRT = pool.get("maskedField", fieldSize.width, fieldSize.height, { linear: true });
           edgeMaskPass.render(maskedRT, srcTex, {
             start: config.edgeMask.start,
@@ -1103,7 +1151,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => edgeMaskPass.dispose(),
       });
-      activeFieldRT = "maskedField";
+      fieldChain.push({ field: "maskedField", color: null, active: alwaysActive });
     }
 
     const cursorFieldPasses: Pass[] = [];
@@ -1118,13 +1166,25 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       const clickSplatPass = clickEnabled ? createClickSplatPass(gl) : null;
       const tearPass = createCursorTearPass(gl, quad);
       const warpPass = createCursorWarpPass(gl, quad);
-      const srcRT = activeFieldRT;
-      const srcColorRT = activeColorRT;
+      const chainIndex = fieldChain.length;
+      let cursorFieldWrote = false;
+      // With no particle trail, the only writer into the accumulator is the click
+      // ring. No live wave (and none clearing) means the accumulator is the zero
+      // it was just cleared to, so tear resolves to 0 and the warp degenerates to
+      // `texture(uField, vUv).r` — an exact copy. Drop the three draws and the
+      // clear, and route consumers back to this pass's own input.
+      const cursorFieldIdle = (): boolean =>
+        !trailEnabled && clickWaveState.waves.length === 0 && clickWaveState.clearFramesRemaining === 0;
       cursorFieldPasses.push({
         name: "cursorField",
         render: () => {
           const dt = clock.now() - lastCursorMs;
           lastCursorMs = clock.now();
+          if (cursorFieldIdle()) {
+            cursorFieldWrote = false;
+            return;
+          }
+          cursorFieldWrote = true;
           const { cols, rows } = cellGrid;
           const scale = cols / Math.max(1, cssW);
           const trailCap = trailEnabled
@@ -1179,12 +1239,16 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             pixelH: cssH,
             pushCap,
           };
-          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const srcTex = pool.get(chainFieldAt(chainIndex), fieldSize.width, fieldSize.height, {
+            linear: true,
+          }).texture;
           const warpedRT = pool.get("cursorField", fieldSize.width, fieldSize.height, { linear: true });
           warpPass.render(warpedRT, srcTex, accumRT.texture, tearRT.texture, warpParams);
 
           if (colorsMode) {
-            const srcColorTex = pool.get(srcColorRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+            const srcColorTex = pool.get(chainColorAt(chainIndex), fieldSize.width, fieldSize.height, {
+              linear: true,
+            }).texture;
             const warpedColorRT = pool.get("cursorFieldColor", fieldSize.width, fieldSize.height, { linear: true });
             const tc = flamesPalette[0];
             const trailColor: [number, number, number] = tc ? [tc.r / 255, tc.g / 255, tc.b / 255] : [1, 0.5, 0.2];
@@ -1198,18 +1262,23 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           warpPass.dispose();
         },
       });
-      activeFieldRT = "cursorField";
-      if (colorsMode) activeColorRT = "cursorFieldColor";
+      fieldChain.push({
+        field: "cursorField",
+        color: colorsMode ? "cursorFieldColor" : null,
+        active: () => cursorFieldWrote,
+      });
     }
 
     const constellationFieldPasses: Pass[] = [];
     if (constellationTrailEnabled()) {
       const constellationPass = createConstellationPass(gl, quad, constellationCaps(config.cursorTrail.constellation));
-      const srcRT = activeFieldRT;
+      const chainIndex = fieldChain.length;
       constellationFieldPasses.push({
         name: "constellationField",
         render: () => {
-          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const srcTex = pool.get(chainFieldAt(chainIndex), fieldSize.width, fieldSize.height, {
+            linear: true,
+          }).texture;
           const outRT = pool.get("constellationField", fieldSize.width, fieldSize.height, { linear: true });
           constellationPass.render(outRT, srcTex, {
             config: config.cursorTrail.constellation,
@@ -1222,17 +1291,19 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => constellationPass.dispose(),
       });
-      activeFieldRT = "constellationField";
+      fieldChain.push({ field: "constellationField", color: null, active: alwaysActive });
     }
 
     const cometFieldPasses: Pass[] = [];
     if (cometTrailEnabled()) {
       const cometPass = createCometPass(gl, quad, cometCaps(config.cursorTrail.comet));
-      const srcRT = activeFieldRT;
+      const chainIndex = fieldChain.length;
       cometFieldPasses.push({
         name: "cometField",
         render: () => {
-          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const srcTex = pool.get(chainFieldAt(chainIndex), fieldSize.width, fieldSize.height, {
+            linear: true,
+          }).texture;
           const outRT = pool.get("cometField", fieldSize.width, fieldSize.height, { linear: true });
           cometPass.render(outRT, srcTex, {
             config: config.cursorTrail.comet,
@@ -1245,17 +1316,19 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => cometPass.dispose(),
       });
-      activeFieldRT = "cometField";
+      fieldChain.push({ field: "cometField", color: null, active: alwaysActive });
     }
 
     const meteorsFieldPasses: Pass[] = [];
     if (config.background.meteors.enabled) {
       const meteorsPass = createMeteorsPass(gl, quad, meteorsCaps(config.background.meteors));
-      const srcRT = activeFieldRT;
+      const chainIndex = fieldChain.length;
       meteorsFieldPasses.push({
         name: "meteorsField",
         render: () => {
-          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const srcTex = pool.get(chainFieldAt(chainIndex), fieldSize.width, fieldSize.height, {
+            linear: true,
+          }).texture;
           const outRT = pool.get("meteorsField", fieldSize.width, fieldSize.height, { linear: true });
           meteorsPass.render(outRT, srcTex, {
             config: config.background.meteors,
@@ -1266,17 +1339,19 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => meteorsPass.dispose(),
       });
-      activeFieldRT = "meteorsField";
+      fieldChain.push({ field: "meteorsField", color: null, active: alwaysActive });
     }
 
     const detonationFieldPasses: Pass[] = [];
     if (detonationClickEnabled()) {
       const detonationPass = createDetonationPass(gl, quad, detonationCaps(config.clickWave.detonation));
-      const srcRT = activeFieldRT;
+      const chainIndex = fieldChain.length;
       detonationFieldPasses.push({
         name: "detonationField",
         render: () => {
-          const srcTex = pool.get(srcRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
+          const srcTex = pool.get(chainFieldAt(chainIndex), fieldSize.width, fieldSize.height, {
+            linear: true,
+          }).texture;
           const outRT = pool.get("detonationField", fieldSize.width, fieldSize.height, { linear: true });
           detonationPass.render(outRT, srcTex, {
             config: config.clickWave.detonation,
@@ -1288,7 +1363,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         },
         dispose: () => detonationPass.dispose(),
       });
-      activeFieldRT = "detonationField";
+      fieldChain.push({ field: "detonationField", color: null, active: alwaysActive });
     }
 
     const postHookPass = hooks?.postPass ? hooks.postPass({ gl, quad, pool }) : null;
@@ -1312,7 +1387,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
               name: "downsampleColor",
               render: () => {
                 const { cols, rows } = cellGrid;
-                const fieldColorRT = pool.get(activeColorRT, fieldSize.width, fieldSize.height, { linear: true });
+                const fieldColorRT = pool.get(chainEndColor(), fieldSize.width, fieldSize.height, { linear: true });
                 const cellColorRT = pool.get("cellColor", cols, rows);
                 downsampleColorPass.render(cellColorRT, fieldColorRT.texture, cols, rows);
               },
@@ -1372,7 +1447,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
           name: "downsample",
           render: () => {
             const { cols, rows } = cellGrid;
-            const fieldRT = pool.get(activeFieldRT, fieldSize.width, fieldSize.height, { linear: true });
+            const fieldRT = pool.get(chainEndField(), fieldSize.width, fieldSize.height, { linear: true });
             const cellRT = pool.get("cell", cols, rows);
             downsamplePass.render(cellRT, fieldRT.texture, cols, rows);
           },
@@ -1487,7 +1562,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         {
           name: postHookPass ? "hookPost" : "present",
           render: () => {
-            const presentRT = colorsMode ? activeColorRT : activeFieldRT;
+            const presentRT = colorsMode ? chainEndColor() : chainEndField();
             const srcTex = pool.get(presentRT, fieldSize.width, fieldSize.height, { linear: true }).texture;
             if (postHookPass) {
               postHookPass.render(srcTex, null, postFrame());
