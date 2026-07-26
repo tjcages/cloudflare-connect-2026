@@ -99,7 +99,7 @@ function sizeShared(width: number, height: number): void {
 // while the worker owns a placeholder canvas, which this present path avoids.
 // Instances render strictly sequentially — they share one backbuffer, so each
 // bitmap must be produced before the next instance overwrites it.
-async function renderTick(): Promise<void> {
+function renderTick(): void {
   // One clock read per tick: instances gate against their own maxFps using
   // relative intervals, so a capped tile skips its render here (leaving its last
   // frame on the display canvas) while uncapped tiles on the same tick render
@@ -115,17 +115,16 @@ async function renderTick(): Promise<void> {
     engine.renderFrame();
     if (!sharedCanvas) continue;
     // The present pass renders with gl.viewport(0, 0, outW, outH), i.e. into the
-    // bottom-left corner of the (possibly larger) backbuffer.
-    let frame: ImageBitmap;
-    if (sharedCanvas.width === outW && sharedCanvas.height === outH) {
-      // Backbuffer matches this instance exactly: zero-copy, pool-recycled.
-      frame = sharedCanvas.transferToImageBitmap();
-    } else {
-      // Backbuffer is larger: crop the rendered region. GL origin is bottom-left
-      // but ImageBitmap coordinates are top-left, so y = canvasHeight - outH.
-      frame = await createImageBitmap(sharedCanvas, 0, sharedCanvas.height - outH, outW, outH);
-    }
-    scope.postMessage({ type: "frame", id, frame }, [frame]);
+    // bottom-left corner of the (possibly larger) backbuffer. The host crops
+    // that corner back out — see `presentFrame` in the coordinator.
+    //
+    // Always the zero-copy transfer, never `createImageBitmap`: cropping here
+    // would mean a synchronous GPU copy plus an `await` that stalls every later
+    // instance on this tick. The backbuffer is grow-only, so instances smaller
+    // than it ship the whole buffer and the host crops during the blit it was
+    // going to do anyway — a source rect costs it nothing.
+    const frame = sharedCanvas.transferToImageBitmap();
+    scope.postMessage({ type: "frame", id, frame, outWidth: outW, outHeight: outH }, [frame]);
   }
   scope.postMessage({ type: "tock" });
 }
@@ -166,13 +165,14 @@ function handle(message: MainToWorkerMessage): void {
       return;
     }
     case "tick": {
-      // renderTick is async; its rejection must not escape unhandled. Post the
-      // error but still post "tock" — the main-thread clock deadlocks otherwise
-      // (tickInFlight would never clear).
-      void renderTick().catch((error) => {
+      // A throwing render must still post "tock" — the main-thread clock
+      // deadlocks otherwise, because `tickInFlight` would never clear.
+      try {
+        renderTick();
+      } catch (error) {
         scope.postMessage({ type: "error", message: error instanceof Error ? error.message : String(error) });
         scope.postMessage({ type: "tock" });
-      });
+      }
       return;
     }
     case "resize": {

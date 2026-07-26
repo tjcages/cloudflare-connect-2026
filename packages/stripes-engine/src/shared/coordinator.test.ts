@@ -336,8 +336,8 @@ describe("shared coordinator stats", () => {
     const unsubscribe = subscribeStripesStats((stats) => seen.push(stats), { intervalMs: 1000 });
 
     gates().render.emit([{ isIntersecting: true } as IntersectionObserverEntry]);
-    emit({ type: "frame", id, frame: fakeBitmap() });
-    emit({ type: "frame", id, frame: fakeBitmap() });
+    emit({ type: "frame", id, frame: fakeBitmap(), outWidth: 8, outHeight: 8 });
+    emit({ type: "frame", id, frame: fakeBitmap(), outWidth: 8, outHeight: 8 });
 
     vi.advanceTimersByTime(1000);
     expect(workerPosts.some((message) => message.type === "statsRequest")).toBe(true);
@@ -390,6 +390,31 @@ describe("shared coordinator stats", () => {
     expect(seen.at(-1)!.instances).toEqual([]);
 
     unsubscribe();
+  });
+
+  it("crops the rendered corner out of the shared backbuffer when blitting", () => {
+    const calls: unknown[][] = [];
+    const canvas = document.createElement("canvas");
+    const ctx = {
+      canvas,
+      clearRect: () => {},
+      drawImage: (...args: unknown[]) => calls.push(args),
+    };
+    canvas.getContext = (() => ctx) as unknown as HTMLCanvasElement["getContext"];
+
+    const handle = register({ canvas });
+    const id = registeredId();
+    const frame = { width: 900, height: 320, close: () => {} } as unknown as ImageBitmap;
+
+    emit({ type: "frame", id, frame, outWidth: 900, outHeight: 140 });
+
+    // GL renders into the bottom-left corner, so the region starts at
+    // frame.height - outHeight; the display canvas takes the instance's size.
+    expect(canvas.width).toBe(900);
+    expect(canvas.height).toBe(140);
+    expect(calls).toEqual([[frame, 0, 180, 900, 140, 0, 0, 900, 140]]);
+
+    handle.unregister();
   });
 
   it("stops polling the worker once the last subscriber detaches", () => {

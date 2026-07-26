@@ -9,8 +9,17 @@ export type GpuTimer = {
   latest(): Record<string, number>;
 };
 
-export function createGpuTimer(gl: WebGL2RenderingContext): GpuTimer {
-  const ext = gl.getExtension("EXT_disjoint_timer_query_webgl2") as TimerExt | null;
+/**
+ * Per-pass GPU timings via `EXT_disjoint_timer_query_webgl2`.
+ *
+ * Each pass costs a query object plus a synchronous `getQueryParameter`
+ * readback per poll, and every readback is a blocking round trip to the GPU
+ * process. Only the lab's perf HUD reads the results, so hosts that never call
+ * `getPerf()` — the shared worker, which renders every registered instance on
+ * one context — pass `enabled: false` and skip the readbacks entirely.
+ */
+export function createGpuTimer(gl: WebGL2RenderingContext, enabled = true): GpuTimer {
+  const ext = enabled ? (gl.getExtension("EXT_disjoint_timer_query_webgl2") as TimerExt | null) : null;
   if (!ext) {
     return { supported: false, begin() {}, end() {}, poll() {}, latest: () => ({}) };
   }

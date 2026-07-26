@@ -265,6 +265,7 @@ export function createStripesEngineShared(opts: SharedEngineOptions): SharedStri
     onWaterActivity: opts.onWaterActivity,
     cssWidth: opts.width,
     cssHeight: opts.height,
+    gpuTimings: false,
   });
 }
 
@@ -276,6 +277,8 @@ type EngineCoreOptions = {
   onWaterActivity?: (activity: number) => void;
   cssWidth: number;
   cssHeight: number;
+  /** Collect per-pass GPU timings for `getPerf()`. Off in the shared worker. */
+  gpuTimings?: boolean;
 };
 
 function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): StripesEngine & SharedStripesEngine {
@@ -290,10 +293,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let fieldSize: Size = { width: 2, height: 2 };
   let cellGrid: CellGrid = { cols: 1, rows: 1 };
 
+  const gpuTimings = opts.gpuTimings !== false;
   let quad = createFullscreenQuad(gl);
   let pool: RtPool = createRtPool(gl);
   let passes: Pass[] = [];
-  let gpuTimer = createGpuTimer(gl);
+  let gpuTimer = createGpuTimer(gl, gpuTimings);
   const perf = createPerfCollector();
 
   let source: SourceTexture | null = null;
@@ -1533,7 +1537,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     maxTextureSize = ctx.maxTextureSize;
     quad = createFullscreenQuad(gl);
     pool = createRtPool(gl);
-    gpuTimer = createGpuTimer(gl);
+    gpuTimer = createGpuTimer(gl, gpuTimings);
     // Source texture is bound to the old GL context; null it so the caller
     // can re-set it. The SourceTexture.dispose() call is intentionally skipped
     // here because the old context is already lost and the GPU objects are gone.

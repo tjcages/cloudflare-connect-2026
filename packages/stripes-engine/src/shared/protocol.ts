@@ -119,10 +119,18 @@ export type NeedsSourceMessage = {
   id: InstanceId;
 };
 
+/**
+ * One instance's finished frame. `frame` is the whole shared backbuffer, which
+ * is grow-only and therefore at least as large as this instance; the rendered
+ * region is the bottom-left `outWidth × outHeight` corner (GL's origin), so the
+ * host crops it out with a source rect while blitting.
+ */
 export type FrameMessage = {
   type: "frame";
   id: InstanceId;
   frame: ImageBitmap;
+  outWidth: number;
+  outHeight: number;
 };
 
 export type TockMessage = {

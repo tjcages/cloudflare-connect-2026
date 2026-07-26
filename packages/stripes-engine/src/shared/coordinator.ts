@@ -185,19 +185,26 @@ function stopClock(): void {
 }
 
 // Present frames on an sRGB canvas so HEX values keep the same appearance.
-function presentFrame(instance: RegisteredInstance, frame: ImageBitmap): void {
+//
+// `frame` is the whole shared backbuffer, so the rendered region is cropped out
+// here: GL's origin is bottom-left while ImageBitmap coordinates are top-left,
+// which puts it at y = frame.height - outHeight. Cropping with a source rect on
+// a blit that has to happen anyway is free, and it keeps the worker off
+// `createImageBitmap` — a synchronous GPU copy on every frame of every instance
+// whose size differs from the backbuffer's.
+function presentFrame(instance: RegisteredInstance, frame: ImageBitmap, outWidth: number, outHeight: number): void {
   const ctx = instance.displayCtx;
   if (!ctx) {
     frame.close();
     return;
   }
   const canvas = ctx.canvas;
-  if (canvas.width !== frame.width || canvas.height !== frame.height) {
-    canvas.width = frame.width;
-    canvas.height = frame.height;
+  if (canvas.width !== outWidth || canvas.height !== outHeight) {
+    canvas.width = outWidth;
+    canvas.height = outHeight;
   }
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(frame, 0, 0);
+  ctx.clearRect(0, 0, outWidth, outHeight);
+  ctx.drawImage(frame, 0, frame.height - outHeight, outWidth, outHeight, 0, 0, outWidth, outHeight);
   frame.close();
   if (statsEnabled()) instance.blits++;
 }
@@ -223,7 +230,7 @@ function ensureWorker(): Worker {
         data.frame.close();
         return;
       }
-      presentFrame(instance, data.frame);
+      presentFrame(instance, data.frame, data.outWidth, data.outHeight);
     } else if (data.type === "needsSource") {
       const instance = instances.get(data.id);
       if (!instance || instance.disposed) return;
