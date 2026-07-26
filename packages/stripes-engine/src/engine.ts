@@ -4,7 +4,8 @@ import { createFrameCapState, shouldRenderFrame } from "./core/frameCap";
 import type { EngineContext } from "./gl/context";
 import { createCanvasSurface, createSharedSurface, type RenderSurface } from "./gl/renderSurface";
 import { createFullscreenQuad, type FullscreenQuad } from "./gl/program";
-import { resolveOutputSize, resolveFieldSize, type Size } from "./gl/resolution";
+import { resolveOutputSize, resolveFieldSize, capFieldToTaps, type Size } from "./gl/resolution";
+import { DOWNSAMPLE_TAPS } from "./shaders/downsample.frag";
 import { createSourceFieldPass } from "./passes/sourceFieldPass";
 import { createSourceFieldColorPass } from "./passes/sourceFieldColorPass";
 import { createPresentPass } from "./passes/presentPass";
@@ -302,6 +303,11 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let { gl, isP3, maxTextureSize } = surface.acquireContext();
   let output: Size = { width: 0, height: 0 };
   let fieldSize: Size = { width: 2, height: 2 };
+  /**
+   * Field size before the tap cap. The color-distribution probe stays on it so
+   * capping the field cannot shift the extracted palette.
+   */
+  let probeSize: Size = { width: 2, height: 2 };
   let cellGrid: CellGrid = { cols: 1, rows: 1 };
   let lastPassFill: readonly PassFill[] = [];
 
@@ -552,8 +558,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       t.zoom,
       t.panX,
       t.panY,
-      fieldSize.width,
-      fieldSize.height,
+      probeSize.width,
+      probeSize.height,
       output.width,
       output.height,
     ].join("|");
@@ -576,7 +582,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       config.transform.panX,
       config.transform.panY,
     );
-    const distRT = pool.get("colorDistFull", fieldSize.width, fieldSize.height);
+    const distRT = pool.get("colorDistFull", probeSize.width, probeSize.height);
     colorDistPass.render(distRT, source.texture, {
       srcRect,
       adjustments: config.adjustments,
@@ -585,8 +591,8 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       sourceTexelW: 1 / source.width,
       sourceTexelH: 1 / source.height,
     });
-    let w = fieldSize.width;
-    let h = fieldSize.height;
+    let w = probeSize.width;
+    let h = probeSize.height;
     let srcTex = distRT.texture;
     let lastRT = distRT;
     let level = 0;
@@ -1595,9 +1601,15 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
     const dpr = getDpr();
     output = resolveOutputSize(cssW, cssH, dpr, maxTextureSize);
     surface.applyOutputSize(output.width, output.height);
-    fieldSize = resolveFieldSize(output, config.fieldScale);
-    pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
     cellGrid = resolveCellGrid(cssW, cssH, config.grid.cellWidth, config.grid.cellHeight);
+    probeSize = resolveFieldSize(output, config.fieldScale);
+    // A field hook is arbitrary user code that may depend on the field being at
+    // display resolution, so only the built-in chain gets the tap cap.
+    fieldSize =
+      config.stripesEnabled && !hooks?.fieldPass
+        ? capFieldToTaps(probeSize, cellGrid.cols, cellGrid.rows, DOWNSAMPLE_TAPS)
+        : probeSize;
+    pool.get("field", fieldSize.width, fieldSize.height, { linear: true });
     pool.get("cell", cellGrid.cols, cellGrid.rows);
     if (config.renderMode !== "sharp") {
       pool.get("stripeOut", output.width, output.height, { linear: true });

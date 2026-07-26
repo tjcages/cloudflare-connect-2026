@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clampToMaxTexture, resolveOutputSize, resolveFieldSize } from "./resolution";
+import { clampToMaxTexture, resolveOutputSize, resolveFieldSize, capFieldToTaps } from "./resolution";
 
 describe("resolution", () => {
   it("rounds css × dpr for output size", () => {
@@ -19,5 +19,16 @@ describe("resolution", () => {
   it("field size is fieldScale of output, min 1", () => {
     expect(resolveFieldSize({ width: 1600, height: 1200 }, 0.5)).toEqual({ width: 800, height: 600 });
     expect(resolveFieldSize({ width: 1, height: 1 }, 0.1)).toEqual({ width: 1, height: 1 });
+  });
+  it("caps the field to the tap grid the downsample can read", () => {
+    // 440x320 css at dpr 2 with 7px cells: 880x640 output, 63x46 grid.
+    expect(capFieldToTaps({ width: 880, height: 640 }, 63, 46, 4)).toEqual({ width: 252, height: 184 });
+  });
+  it("never upscales a field that is already at or below the cap", () => {
+    // The quote runs fieldScale 0.25 on a 1120x1120 output with an 80x80 grid.
+    expect(capFieldToTaps({ width: 280, height: 280 }, 80, 80, 4)).toEqual({ width: 280, height: 280 });
+  });
+  it("keeps at least one texel per axis", () => {
+    expect(capFieldToTaps({ width: 8, height: 8 }, 0, 0, 4)).toEqual({ width: 1, height: 1 });
   });
 });
