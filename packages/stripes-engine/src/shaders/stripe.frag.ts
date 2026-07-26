@@ -218,14 +218,15 @@ MotionCell resolveMotionCell(vec2 cellF) {
   float baseRow = floor(cellF.y);
   float yPx = cellF.y * uCellPx.y;
   float maxSpan = ceil(min(max(uMotionAmplitudePx, 0.0), max(uMotionMaxOffsetPx, 0.0)) / max(uCellPx.y, 1.0)) + 2.0;
+  int span = int(min(maxSpan, 40.0));
+  float offset = randomColumnMotionOffset(result.cell.x);
   float bestScore = 100000.0;
   vec2 bestCell = result.cell;
   vec2 bestLocal = result.local;
 
-  for (int i = -40; i <= 40; i++) {
+  for (int i = -span; i <= span; i++) {
     float row = baseRow + float(i);
-    if (row < 0.0 || row >= uGridCount.y || abs(float(i)) > maxSpan) continue;
-    float offset = randomColumnMotionOffset(result.cell.x);
+    if (row < 0.0 || row >= uGridCount.y) continue;
     float localY = (yPx - (row * uCellPx.y + offset)) / uCellPx.y;
     float outside = max(max(-localY, localY - 1.0), 0.0);
     float centerDist = abs(localY - 0.5);
@@ -408,6 +409,7 @@ float stripeSparkleAmount(float col, float row) {
 }
 
 vec3 applyStripeSparkle(vec3 color, vec2 cell, float widthPx, float opacity) {
+  if (uStripeSparkleEnabled <= 0.5) return color;
   if (widthPx < uStripeSparkleMinWidthPx || opacity <= 0.001) return color;
   float amount = stripeSparkleAmount(cell.x, cell.y);
   vec3 brightened = withLightness(color, colorLightness(color) + amount);
@@ -664,13 +666,13 @@ void main() {
       ceil(abs(normal.y) * motionReach / stackCellPx) + 2.0
     );
     float axisSearch = ceil(abs(axis.y) * motionReach / axisCellPx) + 2.0;
-    for (int ss = -20; ss <= 20; ss++) {
-      if (abs(float(ss)) > stackSearch) continue;
+    int stackSpan = int(min(stackSearch, 20.0));
+    int axisSpan = int(min(axisSearch, 20.0));
+    for (int ss = -stackSpan; ss <= stackSpan; ss++) {
       float stackIndex = baseStack + float(ss);
       float stackCenter = (stackIndex + 0.5) * stackCellPx + streamGapWaveOffset(stackIndex, stackCellPx);
 
-      for (int aa = -20; aa <= 20; aa++) {
-        if (abs(float(aa)) > axisSearch) continue;
+      for (int aa = -axisSpan; aa <= axisSpan; aa++) {
         float axisIndex = baseAxis + float(aa);
         float axisCenter = (axisIndex + 0.5) * axisCellPx;
         float normalDist = stackCoord - stackCenter;
