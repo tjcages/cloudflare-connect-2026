@@ -380,6 +380,18 @@ describe("shared coordinator stats", () => {
     handle.unregister();
   });
 
+  it("reports an empty snapshot on a page where nothing has registered", () => {
+    const seen: StripesStats[] = [];
+    const unsubscribe = subscribeStripesStats((stats) => seen.push(stats), { intervalMs: 1000 });
+
+    vi.advanceTimersByTime(1000);
+
+    expect(seen.at(-1)).toMatchObject({ total: 0, rendering: 0, paused: 0, megapixelsPerFrame: 0 });
+    expect(seen.at(-1)!.instances).toEqual([]);
+
+    unsubscribe();
+  });
+
   it("stops polling the worker once the last subscriber detaches", () => {
     const handle = register();
     const unsubscribe = subscribeStripesStats(() => {}, { intervalMs: 1000 });

@@ -152,6 +152,13 @@ function emitStats(samples: InstanceStatsSample[]): void {
 
 function sampleStats(): void {
   if (statsPending) return;
+  // Nothing has registered on this page yet, so there is no worker to answer.
+  // Report the empty snapshot directly rather than leaving the subscriber
+  // waiting forever on a reply that cannot arrive.
+  if (!worker) {
+    emitStats([]);
+    return;
+  }
   statsPending = true;
   post({ type: "statsRequest" });
 }
