@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties, type Ref } from "react";
 import { resolveThemedConfig, type ThemedEngineConfig, type ThemeName } from "../config/theme";
 import type { SharedShaderHandle } from "../shared/coordinator";
 
 export type StripesShaderProps = {
   src: string;
+  /** Inferred from `src` when omitted; pass only for extension-less srcs (e.g. `blob:`). */
   mediaKind?: "video" | "image";
   config?: ThemedEngineConfig;
+  /** The rendered `<canvas>` (always `aria-hidden` — the output is decorative). */
+  ref?: Ref<HTMLCanvasElement>;
   /** Which theme's config to render. Dark deep-merges `config.dark` over the base. */
   theme?: ThemeName;
   width?: number;
@@ -64,7 +67,7 @@ export type StripesShaderProps = {
 export function StripesShader(props: StripesShaderProps) {
   const {
     src,
-    mediaKind = "image",
+    mediaKind,
     config,
     theme = "light",
     width,
@@ -79,6 +82,7 @@ export function StripesShader(props: StripesShaderProps) {
     revealDelayMs,
     onWaterActivity,
     label,
+    ref,
   } = props;
 
   const resolvedConfig = useMemo(() => (config ? resolveThemedConfig(config, theme) : undefined), [config, theme]);
@@ -133,5 +137,16 @@ export function StripesShader(props: StripesShaderProps) {
     if (handle && resolvedConfig) handle.setConfig(resolvedConfig);
   }, [resolvedConfig]);
 
-  return <canvas ref={canvasRef} className={className} style={mergedStyle} />;
+  return (
+    <canvas
+      aria-hidden
+      ref={(node) => {
+        canvasRef.current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) ref.current = node;
+      }}
+      className={className}
+      style={mergedStyle}
+    />
+  );
 }

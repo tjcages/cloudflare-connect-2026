@@ -8,7 +8,7 @@ import {
   REVEAL_GATE_RATIO,
   REVEAL_VIEWPORT_ROOT_MARGIN,
 } from "../core/visibility";
-import { createVideoFramePump, loadImageFrame, type VideoFramePump } from "./media";
+import { createVideoFramePump, inferMediaKind, loadImageFrame, type VideoFramePump } from "./media";
 import type { FrameSlot, InstanceId, InstanceStatsSample, MainToWorkerMessage, WorkerToMainMessage } from "./protocol";
 import SharedShaderWorker from "./sharedWorker?worker&inline";
 import {
@@ -28,7 +28,8 @@ export type SharedShaderHandle = {
 export type RegisterSharedShaderOptions = {
   canvas: HTMLCanvasElement;
   src: string;
-  mediaKind: "image" | "video";
+  /** Inferred from `src` when omitted; pass only for extension-less srcs (e.g. `blob:`). */
+  mediaKind?: "image" | "video";
   config?: Partial<EngineConfig>;
   revealDelayMs?: number;
   loop?: boolean;
@@ -335,7 +336,8 @@ export function registerSharedShader(opts: RegisterSharedShaderOptions): SharedS
   ensureWorker();
 
   const id: InstanceId = `shared-${nextId++}`;
-  const { canvas, src, mediaKind } = opts;
+  const { canvas, src } = opts;
+  const mediaKind = opts.mediaKind ?? inferMediaKind(src);
 
   // Present on a 2D display-p3 context: readbacks honor a P3-tagged ImageBitmap,
   // but the compositor paints bitmaprenderer canvases as sRGB (clipping P3).

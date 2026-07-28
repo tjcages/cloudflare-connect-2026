@@ -1,17 +1,36 @@
-export function loadImageFrame(src: string): Promise<ImageBitmap> {
+const VIDEO_SRC = /\.(?:mp4|webm|mov|m4v|ogv)(?:$|[?#])/i;
+const SVG_SRC = /\.svg(?:$|[?#])/i;
+
+/** Kind of media a `src` points at, from its extension / data-URI MIME. */
+export function inferMediaKind(src: string): "image" | "video" {
+  return VIDEO_SRC.test(src) || src.startsWith("data:video/") ? "video" : "image";
+}
+
+function isSvgSource(src: string): boolean {
+  return SVG_SRC.test(src) || src.startsWith("data:image/svg");
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.addEventListener(
-      "load",
-      () => {
-        createImageBitmap(img, { colorSpaceConversion: "none", imageOrientation: "flipY" }).then(resolve, reject);
-      },
-      { once: true },
-    );
+    img.addEventListener("load", () => resolve(img), { once: true });
     img.addEventListener("error", () => reject(new Error(`Failed to load image: ${src}`)), { once: true });
     img.src = src;
   });
+}
+
+export async function loadImageFrame(src: string): Promise<ImageBitmap> {
+  const img = await loadImage(src);
+  // SVG sources rasterize synchronously when the bitmap is created — bake them
+  // to a raster canvas here, at (pre)load time, so the upload never re-pays
+  // vector rasterization on the reveal path.
+  if (isSvgSource(src) && img.naturalWidth > 0 && img.naturalHeight > 0) {
+    const canvas = new OffscreenCanvas(img.naturalWidth, img.naturalHeight);
+    canvas.getContext("2d")!.drawImage(img, 0, 0);
+    return createImageBitmap(canvas, { colorSpaceConversion: "none", imageOrientation: "flipY" });
+  }
+  return createImageBitmap(img, { colorSpaceConversion: "none", imageOrientation: "flipY" });
 }
 
 export type VideoFramePumpOptions = {
