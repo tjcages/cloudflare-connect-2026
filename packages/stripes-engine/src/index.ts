@@ -62,6 +62,8 @@ export {
   normalizeFrames,
 } from "./config/normalize";
 export { serializeEngineConfig, parseEngineConfig } from "./config/serialize";
+export { createProductionConfig, serializeProductionConfig } from "./config/production";
+export type { ProductionEngineConfig, ProductionThemedEngineConfig } from "./config/production";
 export { resolveThemedConfig, diffEngineConfig, sanitizeThemedConfig } from "./config/theme";
 export type { ThemeName, ThemedEngineConfig, DeepPartial } from "./config/theme";
 export type { EngineSource } from "./source/sourceTexture";

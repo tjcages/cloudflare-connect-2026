@@ -7,7 +7,7 @@ export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends (infer U)[] ? U[] : T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
 
-export type ThemedEngineConfig = Partial<EngineConfig> & { dark?: DeepPartial<EngineConfig> };
+export type ThemedEngineConfig = DeepPartial<EngineConfig> & { dark?: DeepPartial<EngineConfig> };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

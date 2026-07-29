@@ -17,6 +17,7 @@ import {
   resolveThemedConfig,
   diffEngineConfig,
   sanitizeThemedConfig,
+  serializeProductionConfig,
   type StripesEngine,
   type PerfSnapshot,
   type EngineConfig,
@@ -449,6 +450,11 @@ function downloadTextFile(text: string, filename: string, type = "application/js
 function settingsFilename(textureId: string): string {
   const safeId = textureId.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "texture";
   return `stripes-settings-${safeId}.json`;
+}
+
+function productionConfigFilename(textureId: string): string {
+  const safeId = textureId.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "texture";
+  return `stripes-production-${safeId}.json`;
 }
 
 function LabCanvasSizeControls({
@@ -2182,6 +2188,10 @@ function LabInner() {
     );
   }
 
+  function handleExportProductionConfig() {
+    downloadTextFile(serializeProductionConfig(composeThemedConfig()), productionConfigFilename(textureIdRef.current));
+  }
+
   function handleImport() {
     const text = window.prompt("Paste config JSON:");
     if (!text) return;
@@ -2324,7 +2334,7 @@ function LabInner() {
     }
     saveManifest(addUpload(loadManifest(), { id, label: file.name, kind, defaultScale: 1, createdAt: Date.now() }));
     const current = composeThemedConfigRef.current();
-    const normalizedLight = normalizeEngineConfig(current);
+    const normalizedLight = normalizeEngineConfig(resolveThemedConfig(current, "light"));
     stagePendingConfig({
       ...current,
       adjustments: { ...normalizedLight.adjustments, whitePoint: 1 },
@@ -2716,6 +2726,9 @@ function LabInner() {
             <details className="wf-collapsible wf-config">
               <summary>Config</summary>
               <div className="wf-collapsible-content">
+                <button className="lab-btn" onClick={handleExportProductionConfig}>
+                  Export production config
+                </button>
                 <div className="wf-row">
                   <button className="lab-btn" onClick={handleExport}>
                     Copy config
