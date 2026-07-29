@@ -17,6 +17,7 @@ type SavedShaderFile = {
 
 export const CONNECT_SHADER_PRESET_ID = "connect";
 export const SPIRAL_SHADER_PRESET_ID = "spiral";
+export const COMET_LOGO_SHADER_PRESET_ID = "comet-logo";
 export const NEBULA_SHADER_PRESET_ID = "nebula";
 export const TWIZZLER_MAP_SHADER_PRESET_ID = "twizzler-map";
 export const DEFAULT_SHADER_PRESET_ID = CONNECT_SHADER_PRESET_ID;
@@ -52,6 +53,12 @@ export const SPIRAL_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
   source: "",
 };
 
+export const COMET_LOGO_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
+  id: COMET_LOGO_SHADER_PRESET_ID,
+  label: "Comet Logo",
+  source: "",
+};
+
 export const NEBULA_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
   id: NEBULA_SHADER_PRESET_ID,
   label: "Nebula",
@@ -64,10 +71,10 @@ export const TWIZZLER_MAP_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
   source: TWIZZLER_MAP_SHADER_SOURCE,
 };
 
-/** Connect first (default), then Spiral, Nebula, and saved library shaders. */
 export const SHADER_LIBRARY: readonly ShaderLibraryEntry[] = [
   CONNECT_SHADER_LIBRARY_ENTRY,
   SPIRAL_SHADER_LIBRARY_ENTRY,
+  COMET_LOGO_SHADER_LIBRARY_ENTRY,
   TWIZZLER_MAP_SHADER_LIBRARY_ENTRY,
   NEBULA_SHADER_LIBRARY_ENTRY,
   ...savedEntries,
@@ -77,6 +84,10 @@ const ENTRY_BY_ID = new Map(SHADER_LIBRARY.map((entry) => [entry.id, entry]));
 
 export function isSpiralShaderPreset(id: string): boolean {
   return id === SPIRAL_SHADER_PRESET_ID;
+}
+
+export function isCometLogoShaderPreset(id: string): boolean {
+  return id === COMET_LOGO_SHADER_PRESET_ID;
 }
 
 export function isTwizzlerMapShaderPreset(id: string): boolean {
@@ -89,6 +100,7 @@ export function findShaderLibraryEntry(id: string): ShaderLibraryEntry | undefin
 
 export function findShaderPresetIdBySource(source: string, preferredPresetId?: string | null): string {
   if (preferredPresetId && isSpiralShaderPreset(preferredPresetId)) return SPIRAL_SHADER_PRESET_ID;
+  if (preferredPresetId && isCometLogoShaderPreset(preferredPresetId)) return COMET_LOGO_SHADER_PRESET_ID;
   const normalized = source.trim();
   if (!normalized) {
     return preferredPresetId === SPIRAL_SHADER_PRESET_ID ? SPIRAL_SHADER_PRESET_ID : CUSTOM_SHADER_PRESET_ID;

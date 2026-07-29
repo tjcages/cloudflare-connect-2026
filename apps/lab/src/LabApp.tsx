@@ -74,6 +74,7 @@ import {
   CUSTOM_SHADER_PRESET_ID,
   DEFAULT_SHADER_PRESET_ID,
   findShaderLibraryEntry,
+  isCometLogoShaderPreset,
   isSpiralShaderPreset,
   isTwizzlerMapShaderPreset,
   NEBULA_SHADER_PRESET_ID,
@@ -92,6 +93,7 @@ import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } f
 import { clearTwizzler, renderTwizzler } from "./twizzler";
 import { shouldShowTwizzlerOverlay } from "./twizzlerVisibility";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
+import { createCometLogoTextureRenderer, type CometLogoTextureRenderer } from "./cometLogo";
 import { steppedTransportTime, TimeTransport, type TimeTransportController } from "./components/TimeTransport";
 import {
   buildFrameGroups,
@@ -301,14 +303,25 @@ function pointerToShaderMouse(
   renderer: ShaderTextureRenderer,
   e: PointerEvent,
   down: boolean,
-): { x: number; y: number; down: boolean } {
+): { x: number; y: number; down: boolean; hovered: boolean } {
+  return pointerToTextureMouse(canvas, renderer.width, renderer.height, e, down);
+}
+
+function pointerToTextureMouse(
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+  e: PointerEvent,
+  down: boolean,
+): { x: number; y: number; down: boolean; hovered: boolean } {
   const point = pointerToEnginePoint(canvas, e);
   const engineW = Number.parseFloat(canvas.style.width) || canvas.clientWidth || 1;
   const engineH = Number.parseFloat(canvas.style.height) || canvas.clientHeight || 1;
   return {
-    x: (point.x / Math.max(1, engineW)) * renderer.width,
-    y: (1 - point.y / Math.max(1, engineH)) * renderer.height,
+    x: (point.x / Math.max(1, engineW)) * width,
+    y: (1 - point.y / Math.max(1, engineH)) * height,
     down,
+    hovered: true,
   };
 }
 
@@ -784,6 +797,9 @@ function LabInner() {
   const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
   const [shaderPresetId, setShaderPresetId] = useState(() => labSettings.shaderPresetId || DEFAULT_SHADER_PRESET_ID);
   const [shaderPlaying, setShaderPlaying] = useState(true);
+  const [rawSourceDebug, setRawSourceDebug] = useState(false);
+  const rawSourceDebugRef = useRef(rawSourceDebug);
+  rawSourceDebugRef.current = rawSourceDebug;
   const [previewZoom, setPreviewZoom] = useState(() => labSettings.previewZoom ?? initialFitPreviewZoom(labSettings));
   const [previewZoomReady, setPreviewZoomReady] = useState(false);
   const [mouseZoomEnabled, setMouseZoomEnabled] = useState(true);
@@ -801,6 +817,7 @@ function LabInner() {
   const shaderRendererRef = useRef<ShaderTextureRenderer | null>(null);
   const connectRendererRef = useRef<ConnectTextureRenderer | null>(null);
   const twizzlerMapRendererRef = useRef<TwizzlerMapRenderer | null>(null);
+  const cometLogoRendererRef = useRef<CometLogoTextureRenderer | null>(null);
   const shaderPresetIdRef = useRef(shaderPresetId);
   shaderPresetIdRef.current = shaderPresetId;
   const shaderPlayingRef = useRef(shaderPlaying);
@@ -811,7 +828,7 @@ function LabInner() {
   twizzlerPlayingRef.current = twizzlerPlaying;
   const twizzlerTimeSecRef = useRef(0);
   const shaderLastTickMsRef = useRef(performance.now());
-  const shaderMouseRef = useRef({ x: 0, y: 0, down: false });
+  const shaderMouseRef = useRef({ x: 0, y: 0, down: false, hovered: false });
   const labSettingsRef = useRef(labSettings);
   labSettingsRef.current = labSettings;
 
@@ -990,7 +1007,10 @@ function LabInner() {
     shaderView,
     initialThemed,
   } = useEngineControls(onReplay, {
-    showShaderCamera: textureSourceMode === "shader" && !isTwizzlerMapShaderPreset(shaderPresetId),
+    showShaderCamera:
+      textureSourceMode === "shader" &&
+      !isTwizzlerMapShaderPreset(shaderPresetId) &&
+      !isCometLogoShaderPreset(shaderPresetId),
     showConnectCamera: textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
     showShaderSourceControls: textureSourceMode === "shader",
     twizzlerTransport,
@@ -1117,6 +1137,21 @@ function LabInner() {
         return;
       }
 
+      if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
+        const renderer = cometLogoRendererRef.current;
+        if (!renderer) return;
+        renderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+        engine.setSource(renderer.canvas);
+        engine.updateSourceFrame(renderer.canvas);
+        const previewCanvas = shaderPreviewCanvasRef.current;
+        if (previewCanvas) {
+          if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
+          if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
+          previewCanvas.getContext("2d")?.drawImage(renderer.canvas, 0, 0);
+        }
+        return;
+      }
+
       const shaderRenderer = shaderRendererRef.current;
       if (!shaderRenderer) return;
       shaderRenderer.render(
@@ -1192,6 +1227,8 @@ function LabInner() {
       shaderRendererRef.current?.dispose();
       shaderRendererRef.current = null;
       twizzlerMapRendererRef.current = null;
+      cometLogoRendererRef.current?.dispose();
+      cometLogoRendererRef.current = null;
 
       let renderer = connectRendererRef.current;
       try {
@@ -1245,6 +1282,8 @@ function LabInner() {
       connectRendererRef.current?.dispose();
       connectRendererRef.current = null;
       twizzlerMapRendererRef.current = null;
+      cometLogoRendererRef.current?.dispose();
+      cometLogoRendererRef.current = null;
 
       let renderer = shaderRendererRef.current;
       try {
@@ -1297,6 +1336,8 @@ function LabInner() {
     connectRendererRef.current = null;
     shaderRendererRef.current?.dispose();
     shaderRendererRef.current = null;
+    cometLogoRendererRef.current?.dispose();
+    cometLogoRendererRef.current = null;
 
     let renderer = twizzlerMapRendererRef.current;
     if (!renderer) {
@@ -1322,9 +1363,63 @@ function LabInner() {
     if (manualRef.current) engine.renderFrame();
   }, [applyCanvasSize, shell]);
 
+  const applyCometLogoTextureSource = useCallback(() => {
+    if (manualRef.current) return;
+    if (textureSourceModeRef.current !== "shader") return;
+    const engine = engineRef.current;
+    const canvas = canvasRef.current;
+    if (!engine) return;
+    if (prevVideoRef.current) {
+      prevVideoRef.current.pause();
+      prevVideoRef.current = null;
+    }
+    textureLoadSeqRef.current++;
+    const shaderBaseSize = shaderOriginalSize(labSettingsRef.current);
+    connectRendererRef.current?.dispose();
+    connectRendererRef.current = null;
+    shaderRendererRef.current?.dispose();
+    shaderRendererRef.current = null;
+    twizzlerMapRendererRef.current = null;
+
+    let renderer = cometLogoRendererRef.current;
+    try {
+      if (!renderer) {
+        renderer = createCometLogoTextureRenderer(shaderBaseSize.w, shaderBaseSize.h);
+        cometLogoRendererRef.current = renderer;
+      } else {
+        renderer.resize(shaderBaseSize.w, shaderBaseSize.h);
+      }
+    } catch (error) {
+      setShaderSourceError(error instanceof Error ? error.message : String(error));
+      return;
+    }
+
+    const hovered = shaderMouseRef.current.hovered || canvas?.matches(":hover") === true;
+    shaderMouseRef.current = { ...shaderMouseRef.current, hovered };
+    renderer.render(shaderTimeSecRef.current, { ...shaderMouseRef.current, hovered });
+    setShaderSourceError(null);
+    engine.setSource(renderer.canvas);
+    setVideoEl(null);
+    setSourcePreview({
+      source: renderer.canvas,
+      video: null,
+      objectUrl: null,
+      width: renderer.width,
+      height: renderer.height,
+    });
+    setSourceSize(shaderBaseSize);
+    if (canvas && shell) applyCanvasSize(engine, canvas, shaderBaseSize, labSettingsRef.current);
+    beginRevealRef.current(engine);
+    if (manualRef.current) engine.renderFrame();
+  }, [applyCanvasSize, shell]);
+
   const applyActiveShaderSource = useCallback(() => {
     if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
       applyConnectTextureSource(labSettingsRef.current.connectShapeType);
+      return;
+    }
+    if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
+      applyCometLogoTextureSource();
       return;
     }
     if (isTwizzlerMapShaderPreset(shaderPresetIdRef.current)) {
@@ -1332,7 +1427,7 @@ function LabInner() {
       return;
     }
     applyShaderTextureSource(shaderSourceCodeRef.current);
-  }, [applyConnectTextureSource, applyShaderTextureSource, applyTwizzlerMapTextureSource]);
+  }, [applyCometLogoTextureSource, applyConnectTextureSource, applyShaderTextureSource, applyTwizzlerMapTextureSource]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1509,6 +1604,8 @@ function LabInner() {
       if (textureSourceModeRef.current === "shader") {
         if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
           applyConnectTextureSource(labSettingsRef.current.connectShapeType);
+        } else if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
+          applyCometLogoTextureSource();
         } else if (isTwizzlerMapShaderPreset(shaderPresetIdRef.current)) {
           applyTwizzlerMapTextureSource();
         } else {
@@ -1543,6 +1640,22 @@ function LabInner() {
                 if (previewCanvas.width !== connectRenderer.width) previewCanvas.width = connectRenderer.width;
                 if (previewCanvas.height !== connectRenderer.height) previewCanvas.height = connectRenderer.height;
                 previewCanvas.getContext("2d")?.drawImage(connectRenderer.canvas, 0, 0);
+              }
+            }
+          } else if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
+            const renderer = cometLogoRendererRef.current;
+            if (renderer) {
+              renderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+              engine.updateSourceFrame(renderer.canvas);
+              const previewCanvas = shaderPreviewCanvasRef.current;
+              const previewSizeChanged =
+                !!previewCanvas && (previewCanvas.width !== renderer.width || previewCanvas.height !== renderer.height);
+              const previewIntervalMs = rawSourceDebugRef.current ? 0 : 100;
+              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= previewIntervalMs)) {
+                lastShaderPreviewAt = now;
+                if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
+                if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
+                previewCanvas.getContext("2d")?.drawImage(renderer.canvas, 0, 0);
               }
             }
           } else if (isTwizzlerMapShaderPreset(shaderPresetIdRef.current)) {
@@ -1643,13 +1756,22 @@ function LabInner() {
     }
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (!e.shiftKey) return;
-      if (e.key !== "s" && e.key !== "S") return;
+      if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       const target = e.target as HTMLElement;
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable)
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target.isContentEditable
+      )
         return;
-      e.preventDefault();
-      setControlRef.current({ stripesEnabled: !stripesEnabledRef.current });
+      if (e.code === "KeyD") {
+        e.preventDefault();
+        setRawSourceDebug((current) => !current);
+      } else if (e.code === "KeyS") {
+        e.preventDefault();
+        setControlRef.current({ stripesEnabled: !stripesEnabledRef.current });
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
 
@@ -1665,6 +1787,8 @@ function LabInner() {
       connectRendererRef.current?.dispose();
       connectRendererRef.current = null;
       twizzlerMapRendererRef.current = null;
+      cometLogoRendererRef.current?.dispose();
+      cometLogoRendererRef.current = null;
       engine.dispose();
       engineRef.current = null;
       (window as unknown as { __lab?: unknown }).__lab = undefined;
@@ -1817,18 +1941,34 @@ function LabInner() {
       const point = pointerToEnginePoint(canvas, e);
       engine.setCursor(point.x, point.y);
       const shaderRenderer = shaderRendererRef.current;
-      // Orbit-style: only update shader mouse while dragging (click + move).
-      if (textureSourceModeRef.current === "shader" && shaderRenderer && shaderMouseRef.current.down) {
+      const cometRenderer = cometLogoRendererRef.current;
+      if (textureSourceModeRef.current === "shader" && cometRenderer) {
+        shaderMouseRef.current = pointerToTextureMouse(
+          canvas,
+          cometRenderer.width,
+          cometRenderer.height,
+          e,
+          shaderMouseRef.current.down,
+        );
+      } else if (textureSourceModeRef.current === "shader" && shaderRenderer && shaderMouseRef.current.down) {
         shaderMouseRef.current = pointerToShaderMouse(canvas, shaderRenderer, e, true);
+      } else {
+        shaderMouseRef.current = { ...shaderMouseRef.current, hovered: true };
+      }
+    };
+    const onEnter = (e: PointerEvent) => {
+      const cometRenderer = cometLogoRendererRef.current;
+      if (textureSourceModeRef.current === "shader" && cometRenderer) {
+        shaderMouseRef.current = pointerToTextureMouse(canvas, cometRenderer.width, cometRenderer.height, e, false);
+      } else {
+        shaderMouseRef.current = { ...shaderMouseRef.current, hovered: true };
       }
     };
     const onLeave = () => {
       const engine = engineRef.current;
       if (!engine) return;
       engine.setCursor(null);
-      if (shaderMouseRef.current.down) {
-        shaderMouseRef.current = { ...shaderMouseRef.current, down: false };
-      }
+      shaderMouseRef.current = { ...shaderMouseRef.current, down: false, hovered: false };
     };
     const onDown = (e: PointerEvent) => {
       const engine = engineRef.current;
@@ -1837,26 +1977,35 @@ function LabInner() {
       engine.click(point.x, point.y);
       canvas.setPointerCapture?.(e.pointerId);
       const shaderRenderer = shaderRendererRef.current;
-      if (textureSourceModeRef.current === "shader" && shaderRenderer) {
+      const cometRenderer = cometLogoRendererRef.current;
+      if (textureSourceModeRef.current === "shader" && cometRenderer) {
+        shaderMouseRef.current = pointerToTextureMouse(canvas, cometRenderer.width, cometRenderer.height, e, true);
+      } else if (textureSourceModeRef.current === "shader" && shaderRenderer) {
         shaderMouseRef.current = pointerToShaderMouse(canvas, shaderRenderer, e, true);
+      } else {
+        shaderMouseRef.current = { ...shaderMouseRef.current, down: true, hovered: true };
       }
     };
     const onUp = (e: PointerEvent) => {
       canvas.releasePointerCapture?.(e.pointerId);
       const shaderRenderer = shaderRendererRef.current;
-      if (textureSourceModeRef.current === "shader" && shaderRenderer && shaderMouseRef.current.down) {
-        // Keep last drag position (xy); clear only the down flag.
+      const cometRenderer = cometLogoRendererRef.current;
+      if (textureSourceModeRef.current === "shader" && cometRenderer && shaderMouseRef.current.down) {
+        shaderMouseRef.current = pointerToTextureMouse(canvas, cometRenderer.width, cometRenderer.height, e, false);
+      } else if (textureSourceModeRef.current === "shader" && shaderRenderer && shaderMouseRef.current.down) {
         shaderMouseRef.current = pointerToShaderMouse(canvas, shaderRenderer, e, false);
       } else {
         shaderMouseRef.current = { ...shaderMouseRef.current, down: false };
       }
     };
+    canvas.addEventListener("pointerenter", onEnter);
     canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("pointerleave", onLeave);
     canvas.addEventListener("pointerdown", onDown);
     canvas.addEventListener("pointerup", onUp);
     canvas.addEventListener("pointercancel", onUp);
     return () => {
+      canvas.removeEventListener("pointerenter", onEnter);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerleave", onLeave);
       canvas.removeEventListener("pointerdown", onDown);
@@ -1940,6 +2089,8 @@ function LabInner() {
       shaderRendererRef.current = null;
       connectRendererRef.current?.dispose();
       connectRendererRef.current = null;
+      cometLogoRendererRef.current?.dispose();
+      cometLogoRendererRef.current = null;
       loadTextureById(textureIdRef.current);
     }
   }, [textureSourceMode, applyActiveShaderSource, loadTextureById]);
@@ -2437,6 +2588,16 @@ function LabInner() {
       return;
     }
 
+    if (isCometLogoShaderPreset(presetId)) {
+      saveLabSettings({
+        ...labSettingsRef.current,
+        textureSourceMode: "shader",
+        shaderPresetId: presetId,
+      });
+      applyCometLogoTextureSource();
+      return;
+    }
+
     setShaderSourceCode(entry.source);
     saveLabSettings({
       ...labSettingsRef.current,
@@ -2460,9 +2621,11 @@ function LabInner() {
   }
 
   const spiralSelected = isSpiralShaderPreset(shaderPresetId);
+  const cometLogoSelected = isCometLogoShaderPreset(shaderPresetId);
   const twizzlerMapSelected = isTwizzlerMapShaderPreset(shaderPresetId);
 
-  const showSourceBackground = backgroundSourceOpacity > 0.001 && sourcePreview !== null;
+  const sourcePreviewOpacity = rawSourceDebug ? 1 : backgroundSourceOpacity;
+  const showSourceBackground = sourcePreviewOpacity > 0.001 && sourcePreview !== null;
   const showConnectGradientUnderlay =
     textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
   const showTwizzlerOverlay = shouldShowTwizzlerOverlay(
@@ -2486,7 +2649,7 @@ function LabInner() {
           width: "100%",
           height: "auto",
           transform: "translateY(-50%)",
-          opacity: backgroundSourceOpacity,
+          opacity: sourcePreviewOpacity,
         }
       : controls.transform.fit === "height"
         ? {
@@ -2495,9 +2658,9 @@ function LabInner() {
             width: "auto",
             height: "100%",
             transform: "translateX(-50%)",
-            opacity: backgroundSourceOpacity,
+            opacity: sourcePreviewOpacity,
           }
-        : { objectFit: sourceObjectFit, opacity: backgroundSourceOpacity };
+        : { objectFit: sourceObjectFit, opacity: sourcePreviewOpacity };
 
   return (
     <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}`}>
@@ -2655,7 +2818,11 @@ function LabInner() {
                             />
                           </div>
                         </div>
-                        {!twizzlerMapSelected ? (
+                        {cometLogoSelected ? (
+                          <div className="wf-field">
+                            <span className="wf-field-label">Hover the canvas to form the Cloudflare logo.</span>
+                          </div>
+                        ) : !twizzlerMapSelected ? (
                           <div className="wf-field">
                             <span className="wf-field-label">Shader source</span>
                             <textarea
@@ -2682,7 +2849,7 @@ function LabInner() {
                       <span className="wf-field-label">Time</span>
                       <TimeTransport controller={shaderTransport} />
                     </div>
-                    {!spiralSelected && !twizzlerMapSelected ? (
+                    {!spiralSelected && !cometLogoSelected && !twizzlerMapSelected ? (
                       <div className="wf-row">
                         <button className="lab-btn" onClick={handleApplyShaderSource}>
                           Apply shader
@@ -2828,8 +2995,8 @@ function LabInner() {
                 <div
                   ref={connectUnderlayHostRef}
                   className="lab-canvas-connect-underlay-host"
-                  hidden={!showConnectGradientUnderlay}
-                  aria-hidden={!showConnectGradientUnderlay}
+                  hidden={rawSourceDebug || !showConnectGradientUnderlay}
+                  aria-hidden={rawSourceDebug || !showConnectGradientUnderlay}
                 />
                 {showSourceBackground && sourcePreview.video ? (
                   <video
@@ -2861,7 +3028,7 @@ function LabInner() {
                   ref={twizzlerCanvasRef}
                   className="lab-canvas-twizzler"
                   aria-hidden="true"
-                  hidden={!showTwizzlerOverlay}
+                  hidden={rawSourceDebug || !showTwizzlerOverlay}
                   style={{ width: canvasCssSize.cssW, height: canvasCssSize.cssH }}
                 />
                 <canvas
@@ -2869,7 +3036,7 @@ function LabInner() {
                   className="lab-canvas-output"
                   style={{
                     display: "block",
-                    opacity: 1,
+                    opacity: rawSourceDebug ? 0 : 1,
                     width: canvasCssSize.cssW,
                     height: canvasCssSize.cssH,
                   }}
@@ -2878,11 +3045,16 @@ function LabInner() {
                   ref={framesCanvasRef}
                   className="lab-canvas-frames"
                   aria-hidden="true"
-                  style={{ width: canvasCssSize.cssW, height: canvasCssSize.cssH }}
+                  style={{
+                    opacity: rawSourceDebug ? 0 : 1,
+                    width: canvasCssSize.cssW,
+                    height: canvasCssSize.cssH,
+                  }}
                 />
               </div>
             </div>
           </div>
+          {rawSourceDebug ? <output className="lab-canvas-debug-indicator">Debug · Raw source · Shift+D</output> : null}
           <div className="lab-canvas-zoom-controls" aria-label="Canvas preview zoom controls">
             <button
               className="lab-btn"
