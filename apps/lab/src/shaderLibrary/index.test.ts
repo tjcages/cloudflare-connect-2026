@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMET_LOGO_SHADER_PRESET_ID,
   CONNECT_SHADER_PRESET_ID,
   CUSTOM_SHADER_PRESET_ID,
   DEFAULT_SHADER_PRESET_ID,
   findShaderLibraryEntry,
   findShaderPresetIdBySource,
+  isCometLogoShaderPreset,
   isSpiralShaderPreset,
   isTwizzlerMapShaderPreset,
   NEBULA_SHADER_PRESET_ID,
@@ -29,12 +31,22 @@ describe("shader library", () => {
     expect(isSpiralShaderPreset(SPIRAL_SHADER_PRESET_ID)).toBe(true);
   });
 
+  it("includes the dedicated comet logo renderer as a shader preset", () => {
+    expect(SHADER_LIBRARY[2]).toMatchObject({
+      id: COMET_LOGO_SHADER_PRESET_ID,
+      label: "Comet Logo",
+      source: "",
+    });
+    expect(isCometLogoShaderPreset(COMET_LOGO_SHADER_PRESET_ID)).toBe(true);
+    expect(findShaderPresetIdBySource("", COMET_LOGO_SHADER_PRESET_ID)).toBe(COMET_LOGO_SHADER_PRESET_ID);
+  });
+
   it("keeps Nebula as a built-in preset", () => {
     expect(findShaderLibraryEntry(NEBULA_SHADER_PRESET_ID)?.source).toBe(DEFAULT_SHADER_TEXTURE_SOURCE);
   });
 
   it("includes the procedural Twizzler Map shader", () => {
-    expect(SHADER_LIBRARY[2]).toMatchObject({ id: TWIZZLER_MAP_SHADER_PRESET_ID, label: "Twizzler Map" });
+    expect(SHADER_LIBRARY[3]).toMatchObject({ id: TWIZZLER_MAP_SHADER_PRESET_ID, label: "Twizzler Map" });
     expect(isTwizzlerMapShaderPreset(TWIZZLER_MAP_SHADER_PRESET_ID)).toBe(true);
     expect(isTwizzlerMapShaderPreset(CONNECT_SHADER_PRESET_ID)).toBe(false);
   });
