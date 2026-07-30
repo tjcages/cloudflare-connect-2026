@@ -51,6 +51,11 @@ export type StripeUniforms = StripeCellUniforms & {
   gridLinesEnabled: boolean;
   gridLinesBrightness: number;
   gridLinesDensity: number;
+  edgeMaskEnabled: boolean;
+  edgeMaskStart: number;
+  edgeMaskEnd: number;
+  edgeMaskPower: number;
+  edgeMaskSides: [number, number, number, number];
   lettersEnabled: boolean;
   glyphDataTex: WebGLTexture;
   atlasTex: WebGLTexture;
@@ -153,6 +158,17 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     gridLinesEnabled: config.gridLines.enabled,
     gridLinesBrightness: config.gridLines.brightness,
     gridLinesDensity: config.gridLines.density,
+    edgeMaskEnabled: config.edgeMask.enabled,
+    edgeMaskStart: config.edgeMask.start,
+    edgeMaskEnd: config.edgeMask.end,
+    edgeMaskPower: config.edgeMask.power,
+    // vUv.y is bottom-up, so sides pack (left, right, bottom, top).
+    edgeMaskSides: [
+      config.edgeMask.sides.left ? 1 : 0,
+      config.edgeMask.sides.right ? 1 : 0,
+      config.edgeMask.sides.bottom ? 1 : 0,
+      config.edgeMask.sides.top ? 1 : 0,
+    ],
     shuffleEnabled: config.sparkle.width.enabled,
     shuffleCoverage: config.sparkle.width.coverage,
     shufflePeriodMin: config.sparkle.width.swingPeriodMin,
@@ -235,6 +251,11 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
     gridLinesEnabled: u("uGridLinesEnabled"),
     gridLinesBrightness: u("uGridLinesBrightness"),
     gridLinesDensity: u("uGridLinesDensity"),
+    edgeMaskEnabled: u("uEdgeMaskEnabled"),
+    edgeMaskStart: u("uEdgeMaskStart"),
+    edgeMaskEnd: u("uEdgeMaskEnd"),
+    edgeMaskPower: u("uEdgeMaskPower"),
+    edgeMaskSides: u("uEdgeMaskSides"),
     lettersEnabled: u("uLettersEnabled"),
     glyphData: u("uGlyphData"),
     atlas: u("uAtlas"),
@@ -315,6 +336,11 @@ export function createStripePass(gl: WebGL2RenderingContext, quad: { draw(): voi
       gl.uniform1f(L.gridLinesEnabled, p.gridLinesEnabled ? 1 : 0);
       gl.uniform1f(L.gridLinesBrightness, p.gridLinesBrightness);
       gl.uniform1f(L.gridLinesDensity, p.gridLinesDensity);
+      gl.uniform1f(L.edgeMaskEnabled, p.edgeMaskEnabled ? 1 : 0);
+      gl.uniform1f(L.edgeMaskStart, p.edgeMaskStart);
+      gl.uniform1f(L.edgeMaskEnd, p.edgeMaskEnd);
+      gl.uniform1f(L.edgeMaskPower, p.edgeMaskPower);
+      gl.uniform4f(L.edgeMaskSides, ...p.edgeMaskSides);
       gl.uniform1f(L.lettersEnabled, p.lettersEnabled ? 1 : 0);
       gl.activeTexture(gl.TEXTURE2);
       gl.bindTexture(gl.TEXTURE_2D, p.glyphDataTex);

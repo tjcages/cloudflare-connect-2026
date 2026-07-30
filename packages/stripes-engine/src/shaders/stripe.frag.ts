@@ -1,9 +1,11 @@
 import { STRIPE_CELL_GLSL } from "./stripeCell.glsl";
+import { EDGE_MASK_GLSL } from "./edgeMask.glsl";
 
 export const STRIPE_FRAG = `#version 300 es
 precision highp float;
 in vec2 vUv;
 ${STRIPE_CELL_GLSL}
+${EDGE_MASK_GLSL}
 uniform sampler2D uCellDataA;
 uniform sampler2D uCellDataB;
 uniform float uUseCellData;
@@ -543,5 +545,10 @@ void main() {
       }
     }
   }
+
+  // Final alpha mask. The canvas is premultiplied (premultipliedAlpha: true),
+  // so scaling the whole vec4 is exactly a * mask — scaling only .a would leave
+  // the colour un-darkened and read as a halo.
+  finalColor *= edgeMaskAlpha(vUv);
 }
 `;
