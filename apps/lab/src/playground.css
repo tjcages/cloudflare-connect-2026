@@ -1600,13 +1600,6 @@
   pointer-events: none;
 }
 
-.lab-canvas-source-mask {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
 .lab-canvas-area canvas.lab-canvas-source-background {
   position: absolute;
   inset: 0;
@@ -1670,25 +1663,6 @@
 
 .lab-canvas-area canvas.lab-canvas-twizzler[hidden] {
   display: none;
-}
-
-.lab-canvas-debug-indicator {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  z-index: 3;
-  padding: 6px 10px;
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  border-radius: 999px;
-  background: rgba(245, 158, 11, 0.15);
-  color: rgb(253, 230, 138);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 10px;
-  line-height: 1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  pointer-events: none;
-  backdrop-filter: blur(10px);
 }
 
 .lab-canvas-zoom-controls {

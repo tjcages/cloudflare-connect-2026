@@ -91,7 +91,6 @@ import {
 import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./connectShader/underlayIntro";
 import { canvasStackBackgroundCss } from "./canvasStackBackground";
 import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } from "./canvasFitPreviewZoom";
-import { edgeMaskPreviewStyle } from "./edgeMaskPreviewStyle";
 import { clearTwizzler, renderTwizzler } from "./twizzler";
 import { shouldShowTwizzlerOverlay } from "./twizzlerVisibility";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
@@ -799,9 +798,6 @@ function LabInner() {
   const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
   const [shaderPresetId, setShaderPresetId] = useState(() => labSettings.shaderPresetId || DEFAULT_SHADER_PRESET_ID);
   const [shaderPlaying, setShaderPlaying] = useState(true);
-  const [rawSourceDebug, setRawSourceDebug] = useState(false);
-  const rawSourceDebugRef = useRef(rawSourceDebug);
-  rawSourceDebugRef.current = rawSourceDebug;
   const [previewZoom, setPreviewZoom] = useState(() => labSettings.previewZoom ?? initialFitPreviewZoom(labSettings));
   const [previewZoomReady, setPreviewZoomReady] = useState(false);
   const [mouseZoomEnabled, setMouseZoomEnabled] = useState(true);
@@ -1652,8 +1648,7 @@ function LabInner() {
               const previewCanvas = shaderPreviewCanvasRef.current;
               const previewSizeChanged =
                 !!previewCanvas && (previewCanvas.width !== renderer.width || previewCanvas.height !== renderer.height);
-              const previewIntervalMs = rawSourceDebugRef.current ? 0 : 100;
-              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= previewIntervalMs)) {
+              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
                 lastShaderPreviewAt = now;
                 if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
                 if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
@@ -1759,6 +1754,7 @@ function LabInner() {
 
     function handleKeyDown(e: KeyboardEvent) {
       if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      if (e.code !== "KeyS") return;
       const target = e.target as HTMLElement;
       if (
         target instanceof HTMLInputElement ||
@@ -1767,13 +1763,8 @@ function LabInner() {
         target.isContentEditable
       )
         return;
-      if (e.code === "KeyD") {
-        e.preventDefault();
-        setRawSourceDebug((current) => !current);
-      } else if (e.code === "KeyS") {
-        e.preventDefault();
-        setControlRef.current({ stripesEnabled: !stripesEnabledRef.current });
-      }
+      e.preventDefault();
+      setControlRef.current({ stripesEnabled: !stripesEnabledRef.current });
     }
     window.addEventListener("keydown", handleKeyDown);
 
@@ -2626,9 +2617,7 @@ function LabInner() {
   const cometLogoSelected = isCometLogoShaderPreset(shaderPresetId);
   const twizzlerMapSelected = isTwizzlerMapShaderPreset(shaderPresetId);
 
-  const sourcePreviewOpacity = rawSourceDebug ? 1 : backgroundSourceOpacity;
-  const showSourceBackground = sourcePreviewOpacity > 0.001 && sourcePreview !== null;
-  const sourceMaskStyle = rawSourceDebug ? edgeMaskPreviewStyle(controls.edgeMask) : undefined;
+  const showSourceBackground = backgroundSourceOpacity > 0.001 && sourcePreview !== null;
   const showConnectGradientUnderlay =
     textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
   const showTwizzlerOverlay = shouldShowTwizzlerOverlay(
@@ -2652,7 +2641,7 @@ function LabInner() {
           width: "100%",
           height: "auto",
           transform: "translateY(-50%)",
-          opacity: sourcePreviewOpacity,
+          opacity: backgroundSourceOpacity,
         }
       : controls.transform.fit === "height"
         ? {
@@ -2661,9 +2650,9 @@ function LabInner() {
             width: "auto",
             height: "100%",
             transform: "translateX(-50%)",
-            opacity: sourcePreviewOpacity,
+            opacity: backgroundSourceOpacity,
           }
-        : { objectFit: sourceObjectFit, opacity: sourcePreviewOpacity };
+        : { objectFit: sourceObjectFit, opacity: backgroundSourceOpacity };
 
   return (
     <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}`}>
@@ -2998,42 +2987,40 @@ function LabInner() {
                 <div
                   ref={connectUnderlayHostRef}
                   className="lab-canvas-connect-underlay-host"
-                  hidden={rawSourceDebug || !showConnectGradientUnderlay}
-                  aria-hidden={rawSourceDebug || !showConnectGradientUnderlay}
+                  hidden={!showConnectGradientUnderlay}
+                  aria-hidden={!showConnectGradientUnderlay}
                 />
-                <div className="lab-canvas-source-mask" style={sourceMaskStyle}>
-                  {showSourceBackground && sourcePreview.video ? (
-                    <video
-                      className="lab-canvas-source-background"
-                      src={sourcePreview.video.currentSrc || sourcePreview.video.src}
-                      muted
-                      loop
-                      autoPlay
-                      playsInline
-                      style={sourceBackgroundStyle}
-                    />
-                  ) : showSourceBackground && sourcePreview.source instanceof HTMLImageElement ? (
-                    <img
-                      className="lab-canvas-source-background"
-                      src={sourcePreview.source.currentSrc || sourcePreview.source.src}
-                      alt=""
-                      aria-hidden="true"
-                      style={sourceBackgroundStyle}
-                    />
-                  ) : showSourceBackground && sourcePreview.source instanceof HTMLCanvasElement ? (
-                    <canvas
-                      ref={shaderPreviewCanvasRef}
-                      className="lab-canvas-source-background"
-                      aria-hidden="true"
-                      style={sourceBackgroundStyle}
-                    />
-                  ) : null}
-                </div>
+                {showSourceBackground && sourcePreview.video ? (
+                  <video
+                    className="lab-canvas-source-background"
+                    src={sourcePreview.video.currentSrc || sourcePreview.video.src}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                    style={sourceBackgroundStyle}
+                  />
+                ) : showSourceBackground && sourcePreview.source instanceof HTMLImageElement ? (
+                  <img
+                    className="lab-canvas-source-background"
+                    src={sourcePreview.source.currentSrc || sourcePreview.source.src}
+                    alt=""
+                    aria-hidden="true"
+                    style={sourceBackgroundStyle}
+                  />
+                ) : showSourceBackground && sourcePreview.source instanceof HTMLCanvasElement ? (
+                  <canvas
+                    ref={shaderPreviewCanvasRef}
+                    className="lab-canvas-source-background"
+                    aria-hidden="true"
+                    style={sourceBackgroundStyle}
+                  />
+                ) : null}
                 <canvas
                   ref={twizzlerCanvasRef}
                   className="lab-canvas-twizzler"
                   aria-hidden="true"
-                  hidden={rawSourceDebug || !showTwizzlerOverlay}
+                  hidden={!showTwizzlerOverlay}
                   style={{ width: canvasCssSize.cssW, height: canvasCssSize.cssH }}
                 />
                 <canvas
@@ -3041,7 +3028,6 @@ function LabInner() {
                   className="lab-canvas-output"
                   style={{
                     display: "block",
-                    opacity: rawSourceDebug ? 0 : 1,
                     width: canvasCssSize.cssW,
                     height: canvasCssSize.cssH,
                   }}
@@ -3051,7 +3037,6 @@ function LabInner() {
                   className="lab-canvas-frames"
                   aria-hidden="true"
                   style={{
-                    opacity: rawSourceDebug ? 0 : 1,
                     width: canvasCssSize.cssW,
                     height: canvasCssSize.cssH,
                   }}
@@ -3059,7 +3044,6 @@ function LabInner() {
               </div>
             </div>
           </div>
-          {rawSourceDebug ? <output className="lab-canvas-debug-indicator">Debug · Raw source · Shift+D</output> : null}
           <div className="lab-canvas-zoom-controls" aria-label="Canvas preview zoom controls">
             <button
               className="lab-btn"
