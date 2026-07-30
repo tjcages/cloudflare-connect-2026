@@ -278,6 +278,7 @@ const HAND_WRITTEN_ENGINE_CONFIG: Partial<EngineConfig> = {
     start: 0.075,
     end: 0.5,
     power: 0.2,
+    sides: { top: true, right: true, bottom: true, left: true },
   },
   cursorTrail: {
     enabled: true,

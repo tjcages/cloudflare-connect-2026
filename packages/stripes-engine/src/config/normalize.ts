@@ -16,6 +16,7 @@ import type {
   VortexSingularConfig,
   WavePosition,
   EdgeMaskConfig,
+  EdgeMaskSides,
   ConstellationTrailConfig,
   CometTrailConfig,
   CursorTrailConfig,
@@ -766,9 +767,19 @@ export const DEFAULT_EDGE_MASK: EdgeMaskConfig = {
   start: 0,
   end: 0.1,
   power: 1,
+  sides: { top: true, right: true, bottom: true, left: true },
 };
 
-type PartialEdgeMask = Partial<EdgeMaskConfig>;
+type PartialEdgeMask = Partial<Omit<EdgeMaskConfig, "sides">> & { sides?: Partial<EdgeMaskSides> };
+
+function normalizeEdgeMaskSides(i: Partial<EdgeMaskSides> = {}): EdgeMaskSides {
+  return {
+    top: i.top !== undefined ? !!i.top : DEFAULT_EDGE_MASK.sides.top,
+    right: i.right !== undefined ? !!i.right : DEFAULT_EDGE_MASK.sides.right,
+    bottom: i.bottom !== undefined ? !!i.bottom : DEFAULT_EDGE_MASK.sides.bottom,
+    left: i.left !== undefined ? !!i.left : DEFAULT_EDGE_MASK.sides.left,
+  };
+}
 
 export function normalizeEdgeMask(i: PartialEdgeMask = {}): EdgeMaskConfig {
   const start = clamp(num(i.start, DEFAULT_EDGE_MASK.start), 0, 0.5);
@@ -778,6 +789,7 @@ export function normalizeEdgeMask(i: PartialEdgeMask = {}): EdgeMaskConfig {
     start,
     end,
     power: clamp(num(i.power, DEFAULT_EDGE_MASK.power), 0.1, 4),
+    sides: normalizeEdgeMaskSides(i.sides),
   };
 }
 

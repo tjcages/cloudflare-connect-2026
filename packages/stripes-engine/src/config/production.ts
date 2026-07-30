@@ -109,7 +109,7 @@ function productionShape(config: EngineConfig, includeDisabledSelectors: boolean
     output.flames = { enabled: false };
   }
 
-  if (config.edgeMask.enabled) output.edgeMask = { ...config.edgeMask };
+  if (config.edgeMask.enabled) output.edgeMask = { ...config.edgeMask, sides: { ...config.edgeMask.sides } };
   else if (includeDisabledSelectors) output.edgeMask = { enabled: false };
 
   if (config.cursorTrail.enabled) {

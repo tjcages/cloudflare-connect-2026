@@ -49,6 +49,8 @@ export type {
   StripeBorderConfig,
   GridLinesConfig,
   FramesConfig,
+  EdgeMaskConfig,
+  EdgeMaskSides,
 } from "./config/types";
 export { CURSOR_TRAIL_TYPES } from "./config/types";
 export { normalizeEngineConfig, DEFAULT_ENGINE_CONFIG } from "./config/normalize";

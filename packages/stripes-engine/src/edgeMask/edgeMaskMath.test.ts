@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import { edgeMaskAlpha } from "./edgeMaskMath";
 import type { EdgeMaskConfig } from "../config/types";
 
-const ENABLED: EdgeMaskConfig = { enabled: true, start: 0, end: 0.1, power: 1 };
-const DISABLED: EdgeMaskConfig = { enabled: false, start: 0, end: 0.1, power: 1 };
+const ALL_SIDES = { top: true, right: true, bottom: true, left: true };
+const ENABLED: EdgeMaskConfig = { enabled: true, start: 0, end: 0.1, power: 1, sides: ALL_SIDES };
+const DISABLED: EdgeMaskConfig = { enabled: false, start: 0, end: 0.1, power: 1, sides: ALL_SIDES };
 
 describe("edgeMaskAlpha — disabled", () => {
   it("returns 1 everywhere when disabled", () => {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useControls, useCreateStore, folder, button, buttonGroup } from "leva";
 import { normalizeEngineConfig, resolveThemedConfig } from "@necatikcl/stripes-engine";
-import type { DeepPartial, EngineConfig, Stripe } from "@necatikcl/stripes-engine";
+import type { DeepPartial, EdgeMaskSides, EngineConfig, Stripe } from "@necatikcl/stripes-engine";
 import {
   consumeImportedConfigPristine,
   loadEditTheme,
@@ -412,6 +412,35 @@ function visibleStripeWidthLevelCount(stripes: readonly { width: number; opacity
     levels.add(Math.round(stripe.width * 1000) / 1000);
   }
   return Math.max(1, levels.size);
+}
+
+const EDGE_MASK_SIDE_OPTIONS = {
+  All: "all",
+  Top: "top",
+  Bottom: "bottom",
+  Left: "left",
+  Right: "right",
+  Custom: "custom",
+} as const;
+
+type EdgeMaskSidePreset = (typeof EDGE_MASK_SIDE_OPTIONS)[keyof typeof EDGE_MASK_SIDE_OPTIONS];
+
+function edgeMaskSidePreset(sides: EdgeMaskSides): EdgeMaskSidePreset {
+  const on = (["top", "right", "bottom", "left"] as const).filter((side) => sides[side]);
+  if (on.length === 4) return "all";
+  if (on.length === 1) return on[0];
+  return "custom";
+}
+
+function edgeMaskSidesFromPreset(preset: EdgeMaskSidePreset, custom: EdgeMaskSides): EdgeMaskSides {
+  if (preset === "custom") return custom;
+  if (preset === "all") return { top: true, right: true, bottom: true, left: true };
+  return {
+    top: preset === "top",
+    right: preset === "right",
+    bottom: preset === "bottom",
+    left: preset === "left",
+  };
 }
 
 export function useEngineControls(
@@ -2896,6 +2925,32 @@ export function useEngineControls(
             label: "Power",
             render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
           },
+          edgeMaskSides: {
+            value: edgeMaskSidePreset(d.edgeMask.sides),
+            options: EDGE_MASK_SIDE_OPTIONS,
+            label: "Sides",
+            render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
+          },
+          edgeMaskSideTop: {
+            value: d.edgeMask.sides.top,
+            label: "Top",
+            render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
+          },
+          edgeMaskSideRight: {
+            value: d.edgeMask.sides.right,
+            label: "Right",
+            render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
+          },
+          edgeMaskSideBottom: {
+            value: d.edgeMask.sides.bottom,
+            label: "Bottom",
+            render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
+          },
+          edgeMaskSideLeft: {
+            value: d.edgeMask.sides.left,
+            label: "Left",
+            render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
+          },
         }),
         "Cursor Trail": drawerFolder("Cursor Trail", {
           cursorTrailEnabled: { value: d.cursorTrail.enabled, label: "Enabled" },
@@ -4347,6 +4402,12 @@ export function useEngineControls(
       start: values.edgeMaskStart,
       end: values.edgeMaskEnd,
       power: values.edgeMaskPower,
+      sides: edgeMaskSidesFromPreset(values.edgeMaskSides, {
+        top: values.edgeMaskSideTop,
+        right: values.edgeMaskSideRight,
+        bottom: values.edgeMaskSideBottom,
+        left: values.edgeMaskSideLeft,
+      }),
     },
     cursorTrail: {
       enabled: values.cursorTrailEnabled,

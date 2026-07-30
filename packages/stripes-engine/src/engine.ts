@@ -1189,6 +1189,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             start: config.edgeMask.start,
             end: config.edgeMask.end,
             power: config.edgeMask.power,
+            sides: config.edgeMask.sides,
           });
         },
         dispose: () => edgeMaskPass.dispose(),

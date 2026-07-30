@@ -296,11 +296,19 @@ export interface FlamesConfig {
   vortexSingular: VortexSingularConfig;
 }
 
+export interface EdgeMaskSides {
+  top: boolean;
+  right: boolean;
+  bottom: boolean;
+  left: boolean;
+}
+
 export interface EdgeMaskConfig {
   enabled: boolean;
   start: number;
   end: number;
   power: number;
+  sides: EdgeMaskSides;
 }
 
 export type CursorTrailType = "default" | "wave" | "constellation" | "comet";
