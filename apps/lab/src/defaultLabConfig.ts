@@ -1,6 +1,7 @@
 import { DEFAULT_ENGINE_CONFIG, normalizeEngineConfig, sanitizeThemedConfig } from "@necatikcl/stripes-engine";
 import type { DeepPartial, EngineConfig } from "@necatikcl/stripes-engine";
 import factoryDefaults from "./factoryDefaults.json";
+import { COMET_LOGO_DEFAULTS } from "./cometLogo/config";
 
 type PlainRecord = Record<string, unknown>;
 
@@ -431,6 +432,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     flowOpacity: 0.45,
     flowPhase: 0,
   },
+  cometLogo: COMET_LOGO_DEFAULTS,
   backgroundFillMode: "solid",
   backgroundSourceOpacity: 0,
   stripePalette: "Orange",

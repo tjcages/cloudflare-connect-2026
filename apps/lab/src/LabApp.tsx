@@ -1002,6 +1002,7 @@ function LabInner() {
     connectGradientUnderlay,
     twizzler,
     twizzlerMap,
+    cometLogo,
     shaderView,
     initialThemed,
   } = useEngineControls(onReplay, {
@@ -1019,6 +1020,8 @@ function LabInner() {
   twizzlerRef.current = twizzler;
   const twizzlerMapRef = useRef(twizzlerMap);
   twizzlerMapRef.current = twizzlerMap;
+  const cometLogoRef = useRef(cometLogo);
+  cometLogoRef.current = cometLogo;
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
   const textureIdRef = useRef(textureId);
@@ -1138,7 +1141,7 @@ function LabInner() {
       if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
         const renderer = cometLogoRendererRef.current;
         if (!renderer) return;
-        renderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+        renderer.render(shaderTimeSecRef.current, shaderMouseRef.current, cometLogoRef.current);
         engine.setSource(renderer.canvas);
         engine.updateSourceFrame(renderer.canvas);
         const previewCanvas = shaderPreviewCanvasRef.current;
@@ -1394,7 +1397,7 @@ function LabInner() {
 
     const hovered = shaderMouseRef.current.hovered || canvas?.matches(":hover") === true;
     shaderMouseRef.current = { ...shaderMouseRef.current, hovered };
-    renderer.render(shaderTimeSecRef.current, { ...shaderMouseRef.current, hovered });
+    renderer.render(shaderTimeSecRef.current, { ...shaderMouseRef.current, hovered }, cometLogoRef.current);
     setShaderSourceError(null);
     engine.setSource(renderer.canvas);
     setVideoEl(null);
@@ -1643,7 +1646,7 @@ function LabInner() {
           } else if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
             const renderer = cometLogoRendererRef.current;
             if (renderer) {
-              renderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+              renderer.render(shaderTimeSecRef.current, shaderMouseRef.current, cometLogoRef.current);
               engine.updateSourceFrame(renderer.canvas);
               const previewCanvas = shaderPreviewCanvasRef.current;
               const previewSizeChanged =
@@ -2301,6 +2304,7 @@ function LabInner() {
       twizzlerEnabled,
       twizzler: twizzlerSettings,
       twizzlerMap: twizzlerMapRef.current,
+      cometLogo: cometLogoRef.current,
     };
   }
 

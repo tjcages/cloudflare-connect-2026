@@ -13,4 +13,10 @@ export {
   COMET_LOGO_RENDER_POINT_COUNT,
   COMET_LOGO_TRAIL_SEGMENT_COUNT,
 } from "./points";
+export {
+  COMET_LOGO_CONFIG_VERSION,
+  COMET_LOGO_DEFAULTS,
+  normalizeCometLogoSettings,
+  type CometLogoSettings,
+} from "./config";
 export { createCometLogoTextureRenderer, type CometLogoPointer, type CometLogoTextureRenderer } from "./renderer";

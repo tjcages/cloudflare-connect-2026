@@ -22,6 +22,7 @@ import {
   stagePendingConfig,
 } from "./persistence";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
+import { COMET_LOGO_DEFAULTS } from "./cometLogo/config";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
 
 function stubLocalStorage() {
@@ -225,6 +226,43 @@ describe("config file import/export", () => {
       canvasHeight: 777,
       exportDurationSec: 12,
       backgroundColor: 0x112233,
+    });
+  });
+
+  it("keeps Comet Logo controls out of local storage", () => {
+    const customizedCometLogo = {
+      ...COMET_LOGO_DEFAULTS,
+      fireScale: 2.4,
+      formationDuration: 4,
+    };
+
+    saveLabSettings({ cometLogo: customizedCometLogo });
+
+    const stored = JSON.parse(localStorage.getItem("stripes-engine-lab-ui-settings") ?? "{}") as Record<
+      string,
+      unknown
+    >;
+    expect(stored).not.toHaveProperty("cometLogo");
+    expect(loadLabSettings().cometLogo).toEqual(COMET_LOGO_DEFAULTS);
+
+    localStorage.setItem("stripes-engine-lab-ui-settings", JSON.stringify({ cometLogo: customizedCometLogo }));
+    expect(loadLabSettings().cometLogo).toEqual(COMET_LOGO_DEFAULTS);
+  });
+
+  it("retains current-session Comet Logo controls in explicit exports", () => {
+    const customizedCometLogo = {
+      ...COMET_LOGO_DEFAULTS,
+      fireScale: 2.4,
+      formationDuration: 4,
+    };
+
+    const exported = JSON.parse(serializeConfigFile(DEFAULT_ENGINE_CONFIG, { cometLogo: customizedCometLogo })) as {
+      lab: { cometLogo: typeof customizedCometLogo };
+    };
+
+    expect(exported.lab.cometLogo).toMatchObject({
+      fireScale: 2.4,
+      formationDuration: 4,
     });
   });
 

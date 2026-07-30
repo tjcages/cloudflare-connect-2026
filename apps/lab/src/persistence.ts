@@ -14,6 +14,7 @@ import { normalizeShaderViewState } from "./shaderView";
 import { clampPreviewZoom } from "./canvasFitPreviewZoom";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "./twizzler";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "./twizzlerMapSource";
+import { COMET_LOGO_DEFAULTS, normalizeCometLogoSettings, type CometLogoSettings } from "./cometLogo/config";
 import { clearCustomStripePalettes } from "./controls/customStripePalettes";
 
 const MAP_KEY = "stripes-engine-lab-by-texture";
@@ -67,6 +68,7 @@ export type LabSettings = {
   twizzlerEnabled: boolean;
   twizzler: TwizzlerSettings;
   twizzlerMap: TwizzlerMapSettings;
+  cometLogo: CometLogoSettings;
   backgroundFillMode: LabBackgroundFillMode | null;
   backgroundSourceOpacity: number;
   stripePalette: string | null;
@@ -442,6 +444,7 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
     twizzlerEnabled: typeof i.twizzlerEnabled === "boolean" ? i.twizzlerEnabled : DEFAULT_LAB_SETTINGS.twizzlerEnabled,
     twizzler: normalizeTwizzlerSettings(i.twizzler ?? DEFAULT_LAB_SETTINGS.twizzler),
     twizzlerMap: normalizeTwizzlerMapSettings(i.twizzlerMap ?? DEFAULT_LAB_SETTINGS.twizzlerMap),
+    cometLogo: normalizeCometLogoSettings(i.cometLogo ?? DEFAULT_LAB_SETTINGS.cometLogo),
     backgroundFillMode: has("backgroundFillMode")
       ? normalizeBackgroundFillMode(i.backgroundFillMode)
       : DEFAULT_LAB_SETTINGS.backgroundFillMode,
@@ -513,17 +516,25 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
 export function loadLabSettings(): LabSettings {
   try {
     const raw = localStorage.getItem(LAB_SETTINGS_KEY);
-    return normalizeLabSettings(raw ? (JSON.parse(raw) as Partial<LabSettings>) : {});
+    return {
+      ...normalizeLabSettings(raw ? (JSON.parse(raw) as Partial<LabSettings>) : {}),
+      cometLogo: { ...COMET_LOGO_DEFAULTS },
+    };
   } catch {
     return DEFAULT_LAB_SETTINGS;
   }
+}
+
+function withoutSessionOnlyLabSettings(settings: LabSettings): Omit<LabSettings, "cometLogo"> {
+  const { cometLogo: _cometLogo, ...persisted } = settings;
+  return persisted;
 }
 
 export function saveLabSettings(settings: Partial<LabSettings>): void {
   if (!persistenceWritesEnabled) return;
   try {
     const next = normalizeLabSettings({ ...loadLabSettings(), ...settings });
-    localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(next));
+    localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(withoutSessionOnlyLabSettings(next)));
   } catch {
     /* ignore quota errors */
   }
@@ -542,7 +553,10 @@ export function factoryResetSettings(): void {
     clearUrlBackgroundColor();
     deleteCookie(LAST_BACKGROUND_COLOR_KEY);
     clearWindowNameState();
-    localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(normalizeLabSettings(DEFAULT_LAB_SETTINGS)));
+    localStorage.setItem(
+      LAB_SETTINGS_KEY,
+      JSON.stringify(withoutSessionOnlyLabSettings(normalizeLabSettings(DEFAULT_LAB_SETTINGS))),
+    );
   } catch {
     /* ignore */
   } finally {

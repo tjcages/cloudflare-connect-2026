@@ -1,4 +1,3 @@
-import { COMET_LOGO_FORMATION_DURATION_SEC } from "./animation";
 import {
   COMET_LOGO_EVENT_GROUP_COUNT,
   COMET_LOGO_EVENT_SPARK_POINT_COUNT,
@@ -29,6 +28,30 @@ uniform float uRejoinStartFormation;
 uniform float uRejoinDuration;
 uniform vec2 uFormationOrigin;
 uniform float uFormationStartFieldTime;
+uniform float uFieldSpeed;
+uniform float uFieldDepth;
+uniform float uFieldSpread;
+uniform float uFieldTrailLength;
+uniform float uFieldParticleSize;
+uniform float uLogoScale;
+uniform float uLogoParticleSize;
+uniform float uLogoTrailLength;
+uniform float uLogoMotion;
+uniform float uFormationDuration;
+uniform float uFormationStagger;
+uniform float uCenterPreference;
+uniform float uSparkFrequency;
+uniform float uSparkSize;
+uniform float uSparkTrailLength;
+uniform float uBurstProbability;
+uniform float uWaveProbability;
+uniform float uFireScale;
+uniform float uFireSpeed;
+uniform float uWeatherSpeed;
+uniform float uWeatherVariation;
+uniform float uEruptionFrequency;
+uniform float uEruptionScale;
+uniform float uEruptionCycleSpeed;
 
 out vec2 vLocalPx;
 flat out float vLengthPx;
@@ -45,11 +68,7 @@ flat out vec2 vEffectOutward;
 flat out float vEffectRadiusPx;
 flat out float vEffectSeed;
 
-const float DEPTH = 6.51;
-const float SPEED = 1.62;
-const float SPREAD = 2.18;
 const float SEED = 57383.0;
-const float LOGO_SCALE = 0.85;
 const float FIELD_TRAIL_SAMPLE_TIME = 0.14;
 const float LOGO_TRAIL_SAMPLE_TIME = 0.42;
 const float NEEDLE_TRAIL_SAMPLE_TIME = 0.16;
@@ -63,8 +82,6 @@ const float SPARK_KIND_BURST = 1.0;
 const float SPARK_KIND_WAVE = 2.0;
 const float EVENT_SPARK_START = ${COMET_LOGO_NEEDLE_SPARK_POINT_COUNT.toFixed(1)};
 const float EVENT_GROUP_SIZE = ${(COMET_LOGO_EVENT_SPARK_POINT_COUNT / COMET_LOGO_EVENT_GROUP_COUNT).toFixed(1)};
-const float FORMATION_DURATION = ${COMET_LOGO_FORMATION_DURATION_SEC.toFixed(1)};
-const float FORMATION_STAGGER = 0.52;
 const float FORMATION_STARTER_SHARE = 0.12;
 const float TAU = 6.28318530718;
 const int TRAIL_SEGMENT_COUNT = ${COMET_LOGO_TRAIL_SEGMENT_COUNT};
@@ -90,16 +107,45 @@ float hash11(float p) {
   return fract(p);
 }
 
+float temporalNoise(float seed, float time) {
+  float cell = floor(time);
+  float local = fract(time);
+  float blend = local * local * (3.0 - 2.0 * local);
+  return mix(
+    hash11(seed + cell * 17.17),
+    hash11(seed + (cell + 1.0) * 17.17),
+    blend
+  );
+}
+
 float formationEase(float t) {
-  t = clamp(t, 0.0, 1.0);
-  return t * t * (3.0 - 2.0 * t);
+  float progress = clamp(t, 0.0, 1.0);
+  float parameter = progress;
+  for (int iteration = 0; iteration < 6; iteration++) {
+    float inverse = 1.0 - parameter;
+    float x = 3.0 * inverse * inverse * parameter * 0.6
+      + 3.0 * inverse * parameter * parameter * 0.0
+      + parameter * parameter * parameter;
+    float derivative = 3.0 * inverse * inverse * 0.6
+      + 6.0 * inverse * parameter * (0.0 - 0.6)
+      + 3.0 * parameter * parameter * (1.0 - 0.0);
+    parameter = clamp(
+      parameter - (x - progress) / max(derivative, 0.0001),
+      0.0,
+      1.0
+    );
+  }
+  float inverse = 1.0 - parameter;
+  return 3.0 * inverse * inverse * parameter * 0.6
+    + 3.0 * inverse * parameter * parameter
+    + parameter * parameter * parameter;
 }
 
 float historicalFormation(float time, float maximumFormation) {
   float elapsed = time - uFormationStartFieldTime;
   return min(
     maximumFormation,
-    clamp(elapsed / max(FORMATION_DURATION, 0.001), 0.0, 1.0)
+    clamp(elapsed / max(uFormationDuration, 0.001), 0.0, 1.0)
   );
 }
 
@@ -124,16 +170,16 @@ void fieldPoint(
   out float radiusPx,
   out vec2 velocity
 ) {
-  float z = mod(hash11(id * 1.37) * DEPTH - time * SPEED, DEPTH) + 0.24;
+  float z = mod(hash11(id * 1.37) * uFieldDepth - time * uFieldSpeed, uFieldDepth) + 0.24;
   vec2 direction = vec2(hash11(id * 2.71), hash11(id * 4.93)) * 2.0 - 1.0;
-  direction *= mix(0.58, 1.35, hash11(id * 8.11)) * SPREAD;
+  direction *= mix(0.58, 1.35, hash11(id * 8.11)) * uFieldSpread;
   head = direction / z;
-  velocity = direction * SPEED / (z * z);
-  float perspective = mix(0.28, 1.42, 1.0 - z / (DEPTH + 0.24));
-  radiusPx = max(1.25, uResolution.y * 0.004 * perspective);
+  velocity = direction * uFieldSpeed / (z * z);
+  float perspective = mix(0.28, 1.42, 1.0 - z / (uFieldDepth + 0.24));
+  radiusPx = max(1.25, uResolution.y * 0.004 * perspective) * uFieldParticleSize;
 }
 
-float localFormation(float id, float formation) {
+float formationOrder(float id) {
   vec2 startHead;
   float startRadiusPx;
   vec2 startVelocity;
@@ -141,18 +187,21 @@ float localFormation(float id, float formation) {
   vec2 originWorld = (2.0 * uFormationOrigin - uResolution) / uResolution.y;
   float centerOrder = smoothstep(0.04, 1.62, length(startHead));
   float pointerOrder = smoothstep(0.04, 2.1, distance(startHead, originWorld));
-  float preferredOrder = mix(centerOrder, pointerOrder, 0.22);
+  float preferredOrder = mix(pointerOrder, centerOrder, uCenterPreference);
   float starterAdjustedOrder = max(
     0.0,
     (preferredOrder - FORMATION_STARTER_SHARE) / (1.0 - FORMATION_STARTER_SHARE)
   );
-  float order = clamp(
+  return clamp(
     starterAdjustedOrder * mix(0.92, 1.08, hash11(id * 19.31)),
     0.0,
     1.0
   );
-  float delay = order * FORMATION_STAGGER;
-  return clamp((formation - delay) / (1.0 - FORMATION_STAGGER), 0.0, 1.0);
+}
+
+float localFormation(float id, float formation) {
+  float delay = formationOrder(id) * uFormationStagger;
+  return clamp((formation - delay) / (1.0 - uFormationStagger), 0.0, 1.0);
 }
 
 vec2 logoContourTangent(int index) {
@@ -169,9 +218,9 @@ float sparkGroupSeed(float sparkId) {
 
 float sparkCycleDuration(float sparkId, float groupSeed) {
   if (sparkId < EVENT_SPARK_START) {
-    return mix(1.0, 1.8, hash11(groupSeed * 3.17));
+    return mix(1.0, 1.8, hash11(groupSeed * 3.17)) / uSparkFrequency;
   }
-  return mix(1.3, 2.2, hash11(groupSeed * 3.17));
+  return mix(1.3, 2.2, hash11(groupSeed * 3.17)) / uSparkFrequency;
 }
 
 float sparkCycleValue(float sparkId, float time) {
@@ -193,8 +242,13 @@ float sparkCycleRandom(float sparkId, float time, float salt) {
 float sparkKind(float sparkId, float time) {
   if (sparkId < EVENT_SPARK_START) return SPARK_KIND_NEEDLE;
   float choice = sparkCycleRandom(sparkId, time, 11.7);
-  if (choice < 0.1) return SPARK_KIND_NEEDLE;
-  if (choice < 0.72) return SPARK_KIND_BURST;
+  float eventProbability = min(1.0, uBurstProbability + uWaveProbability);
+  float needleProbability = 1.0 - eventProbability;
+  float normalizedBurstProbability = eventProbability
+    * uBurstProbability
+    / max(uBurstProbability + uWaveProbability, 0.0001);
+  if (choice < needleProbability) return SPARK_KIND_NEEDLE;
+  if (choice < needleProbability + normalizedBurstProbability) return SPARK_KIND_BURST;
   return SPARK_KIND_WAVE;
 }
 
@@ -211,7 +265,7 @@ float sparkEventVisibility(float sparkId, float time) {
 
 float sparkSizeScale(float sparkId, float time) {
   float randomSize = sparkCycleRandom(sparkId, time, 37.2);
-  return mix(0.68, 1.42, pow(randomSize, 1.25));
+  return mix(0.68, 1.42, pow(randomSize, 1.25)) * uSparkSize;
 }
 
 int sparkAnchorIndex(float sparkId, float time) {
@@ -226,7 +280,7 @@ vec2 sparkHead(float sparkId, float time, out float radiusPx) {
   float groupSeed = sparkGroupSeed(sparkId);
   float sizeScale = sparkSizeScale(sparkId, time);
   int anchorIndex = sparkAnchorIndex(sparkId, time);
-  vec2 origin = SPARK_ANCHOR_POINTS[anchorIndex] * LOGO_SCALE;
+  vec2 origin = SPARK_ANCHOR_POINTS[anchorIndex] * uLogoScale;
   vec2 outward = origin / max(length(origin), 0.00001);
   vec2 tangent = vec2(-outward.y, outward.x);
   float progress = clamp(sparkCyclePhase(sparkId, time) / sparkActiveShare(kind), 0.0, 1.0);
@@ -303,14 +357,14 @@ vec2 livingLogoOffset(int index, float id, float time) {
     + hash11(id * 47.3) * TAU;
   float crawl = sin(phase) + 0.42 * sin(phase * 1.91 + id);
   float squirm = sin(phase * 0.73 + id * 0.17) + 0.36 * cos(phase * 1.37);
-  return tangent * crawl * 0.015 + normal * squirm * 0.0095;
+  return (tangent * crawl * 0.015 + normal * squirm * 0.0095) * uLogoMotion;
 }
 
 vec2 steeredHead(int index, float id, float time, float formation, out float radiusPx) {
   vec2 freeHead;
   vec2 freeVelocity;
   fieldPoint(id, time, freeHead, radiusPx, freeVelocity);
-  vec2 target = LOGO_POINTS[index] * LOGO_SCALE;
+  vec2 target = LOGO_POINTS[index] * uLogoScale;
   vec2 tangent = freeVelocity / max(length(freeVelocity), 0.00001);
   float controlDistance = min(0.72, 0.12 + distance(freeHead, target) * 0.34);
   vec2 control = freeHead + tangent * controlDistance;
@@ -329,7 +383,7 @@ vec2 rejoinHead(int index, float id, float progress, out float radiusPx) {
     uRejoinStartFormation,
     startFieldRadiusPx
   );
-  float logoRadiusPx = max(LOGO_RADIUS_MIN_PX, uResolution.y * LOGO_RADIUS_SCALE);
+  float logoRadiusPx = max(LOGO_RADIUS_MIN_PX, uResolution.y * LOGO_RADIUS_SCALE) * uLogoParticleSize;
   float startRadiusPx = mix(
     startFieldRadiusPx,
     logoRadiusPx,
@@ -472,16 +526,16 @@ void main() {
     }
   }
   float trailTime = mix(
-    FIELD_TRAIL_SAMPLE_TIME,
-    LOGO_TRAIL_SAMPLE_TIME,
+    FIELD_TRAIL_SAMPLE_TIME * uFieldTrailLength,
+    LOGO_TRAIL_SAMPLE_TIME * uLogoTrailLength,
     logoTrailBlend
   );
   if (sparkParticle) {
-    trailTime = currentSparkKind < 0.5
+    trailTime = (currentSparkKind < 0.5
       ? NEEDLE_TRAIL_SAMPLE_TIME
       : currentSparkKind < 1.5
         ? BURST_TRAIL_SAMPLE_TIME
-        : WAVE_TRAIL_SAMPLE_TIME;
+        : WAVE_TRAIL_SAMPLE_TIME) * uSparkTrailLength;
   }
 
   int segmentIndex = gl_VertexID / 6;
@@ -520,7 +574,7 @@ void main() {
     tail = head;
   }
 
-  float logoRadiusPx = max(LOGO_RADIUS_MIN_PX, uResolution.y * LOGO_RADIUS_SCALE);
+  float logoRadiusPx = max(LOGO_RADIUS_MIN_PX, uResolution.y * LOGO_RADIUS_SCALE) * uLogoParticleSize;
   float radiusPx = !logoParticle || uRejoining > 0.5
     ? newerRadiusPx
     : mix(
@@ -559,16 +613,25 @@ void main() {
     && sparkId >= EVENT_SPARK_START
     && currentSparkKind > 0.5
     && eventMember < 0.5;
+  bool outerSolarContourPoint = (
+    index <= 20
+    || (index >= 36 && index <= 46)
+    || index >= 79
+  )
+    && index % 2 == 0;
+  bool centerSolarContourPoint = (
+    (index >= 21 && index <= 35)
+    || (index >= 47 && index <= 78)
+  )
+    && index % 3 == 0;
   bool solarContourPoint = logoParticle
     && (
-      index <= 20
-      || (index >= 36 && index <= 46)
-      || index >= 79
-    )
-    && index % 2 == 0;
+      outerSolarContourPoint
+      || centerSolarContourPoint
+    );
   bool solarSurface = solarContourPoint
     && segmentIndex == 0
-    && currentLocalFormation > 0.58
+    && currentLocalFormation > 0.16
     && (uRejoining < 0.5 || uRejoinProgress < 0.34);
 
   if (solarSurface) {
@@ -582,32 +645,49 @@ void main() {
       0.0,
       solarCenterRadiusPx
     );
-    vec2 solarOutward = solarCenter / max(length(solarCenter), 0.00001);
+    vec2 solarTarget = LOGO_POINTS[index] * uLogoScale;
+    vec2 solarOutward = solarTarget / max(length(solarTarget), 0.00001);
     float solarSeed = hash11(id * 11.73 + 4.9);
-    float eruptionDuration = mix(4.8, 8.6, hash11(id * 23.17 + 6.3));
-    float eruptionCycle = uFieldTime / eruptionDuration + solarSeed * 13.0;
+    float solarStartProgress = formationOrder(id) * uFormationStagger
+      + 0.16 * (1.0 - uFormationStagger);
+    float solarStartTime = uFormationStartFieldTime
+      + solarStartProgress * uFormationDuration;
+    float solarAge = max(0.0, uFieldTime - solarStartTime);
+    float eruptionDuration = mix(4.8, 8.6, hash11(id * 23.17 + 6.3)) / uEruptionCycleSpeed;
+    float eruptionDelay = mix(0.45, 3.6, solarSeed);
+    float eruptionCycle = max(0.0, solarAge - eruptionDelay) / eruptionDuration;
     float eruptionIndex = floor(eruptionCycle);
     float eruptionPhase = fract(eruptionCycle);
     float eruptionChance = step(
-      0.92,
+      1.0 - uEruptionFrequency,
       hash11(id * 31.71 + eruptionIndex * 17.13)
     );
     float eruptionEnvelope = smoothstep(0.0, 0.16, eruptionPhase)
       * (1.0 - smoothstep(0.42, 0.96, eruptionPhase))
-      * eruptionChance;
+      * eruptionChance
+      * smoothstep(0.82, 1.0, currentLocalFormation);
     float eruptionVariant = hash11(id * 43.11 + eruptionIndex * 29.7);
+    float weatherTime = solarAge
+      * uWeatherSpeed
+      / mix(3.8, 7.2, hash11(id * 37.13 + 9.7))
+      + solarSeed * 3.0;
+    float weatherScale = temporalNoise(id * 29.41 + 3.6, weatherTime);
+    float solarGrowth = smoothstep(0.16, 0.88, currentLocalFormation);
+    float solarGrowthScale = mix(0.08, 1.0, solarGrowth);
     float solarRadiusPx = uResolution.y
       * 0.108
-      * mix(0.72, 1.18, hash11(id * 17.31 + 8.2));
+      * uFireScale
+      * solarGrowthScale
+      * mix(1.0 - 0.26 * uWeatherVariation, 1.0 + 0.26 * uWeatherVariation, weatherScale);
     float solarPaddingPx = solarRadiusPx
-      * mix(1.45, 2.75, eruptionEnvelope)
+      * mix(1.45, 2.75 * uEruptionScale, eruptionEnvelope)
       + 4.0;
     vec2 corner = QUAD[cornerIndex];
     vec2 localPx = vec2(corner.x * 2.0 - 1.0, corner.y) * solarPaddingPx;
     vec2 solarCenterPx = solarCenter * (0.5 * uResolution.y) + 0.5 * uResolution;
     vec2 positionPx = solarCenterPx + localPx;
     vec2 clip = positionPx / uResolution * 2.0 - 1.0;
-    float solarVisibility = smoothstep(0.62, 0.92, currentLocalFormation);
+    float solarVisibility = smoothstep(0.16, 0.78, currentLocalFormation);
     if (uRejoining > 0.5) {
       solarVisibility *= 1.0 - smoothstep(0.0, 0.32, uRejoinProgress);
     }
@@ -623,7 +703,7 @@ void main() {
     vSparkKind = eruptionPhase;
     vSparkFlicker = eruptionEnvelope;
     vIsSurfaceEffect = 2.0;
-    vEffectProgress = uFieldTime * mix(0.38, 0.66, solarSeed)
+    vEffectProgress = solarAge * uFireSpeed * mix(0.38, 0.66, solarSeed)
       + solarSeed;
     vEffectOutward = solarOutward;
     vEffectRadiusPx = solarRadiusPx;
@@ -633,7 +713,7 @@ void main() {
 
   if (surfaceEffect) {
     int effectAnchorIndex = sparkAnchorIndex(sparkId, uFieldTime);
-    vec2 effectCenter = SPARK_ANCHOR_POINTS[effectAnchorIndex] * LOGO_SCALE;
+    vec2 effectCenter = SPARK_ANCHOR_POINTS[effectAnchorIndex] * uLogoScale;
     vec2 effectOutward = effectCenter / max(length(effectCenter), 0.00001);
     float effectProgress = clamp(
       sparkCyclePhase(sparkId, uFieldTime) / sparkActiveShare(currentSparkKind),
@@ -720,10 +800,37 @@ flat in vec2 vEffectOutward;
 flat in float vEffectRadiusPx;
 flat in float vEffectSeed;
 
+uniform float uSparkBrightness;
+uniform float uSurfaceEffects;
+uniform float uFireIntensity;
+uniform float uFireTurbulence;
+uniform float uFlameHeight;
+uniform float uCoronaMist;
+uniform float uCurlingWisps;
+uniform float uHotRim;
+uniform float uEruptionScale;
+uniform float uEruptionIntensity;
+uniform float uEruptionParticles;
+
 out vec4 outColor;
 
 float fragmentHash(float value) {
   return fract(sin(value * 127.1) * 43758.5453);
+}
+
+float fragmentNoise(vec2 point) {
+  vec2 cell = floor(point);
+  vec2 local = fract(point);
+  vec2 blend = local * local * (3.0 - 2.0 * local);
+  float lowerLeft = fragmentHash(dot(cell, vec2(127.1, 311.7)));
+  float lowerRight = fragmentHash(dot(cell + vec2(1.0, 0.0), vec2(127.1, 311.7)));
+  float upperLeft = fragmentHash(dot(cell + vec2(0.0, 1.0), vec2(127.1, 311.7)));
+  float upperRight = fragmentHash(dot(cell + vec2(1.0, 1.0), vec2(127.1, 311.7)));
+  return mix(
+    mix(lowerLeft, lowerRight, blend.x),
+    mix(upperLeft, upperRight, blend.x),
+    blend.y
+  );
 }
 
 void main() {
@@ -739,6 +846,24 @@ void main() {
       float sidewaysDistance = dot(vLocalPx, fireTangent) / fireRadius;
       float phase = vEffectProgress * 6.2831853 + vEffectSeed * 19.0;
       float eruption = vSparkFlicker;
+      float flowNoise = fragmentNoise(
+        vec2(
+          sidewaysDistance * 3.4 + vEffectSeed * 11.0,
+          outwardDistance * 2.2 - phase * 0.42
+        )
+      );
+      float detailNoise = fragmentNoise(
+        vec2(
+          sidewaysDistance * 7.7 - phase * 0.31 + vEffectSeed * 23.0,
+          outwardDistance * 5.4 - phase * 0.92
+        )
+      );
+      float turbulence = flowNoise * 0.64 + detailNoise * 0.36;
+      float turbulentSidewaysDistance = sidewaysDistance
+        + (turbulence - 0.5)
+          * 0.22
+          * uFireTurbulence
+          * smoothstep(-0.08, 0.9, outwardDistance);
       float slowGust = (
         sin(phase * 0.37 + vEffectSeed * 11.0)
         + 0.52 * sin(phase * 0.19 - vEffectSeed * 17.0)
@@ -748,6 +873,7 @@ void main() {
         + 0.11 * sin(phase * 1.73 + vEffectSeed * 7.0)
         + slowGust * 0.09
         + eruption * mix(0.28, 0.58, vSparkKind);
+      flameHeight *= uFlameHeight;
       float outwardProgress = clamp(
         (outwardDistance + 0.08) / max(flameHeight + 0.08, 0.001),
         0.0,
@@ -762,31 +888,18 @@ void main() {
       float mainFlame = 1.0 - smoothstep(
         flameWidth,
         flameWidth + 0.14,
-        abs(sidewaysDistance - sway)
+        abs(turbulentSidewaysDistance - sway)
       );
       float mainVertical = smoothstep(-0.2, -0.015, outwardDistance)
         * (1.0 - smoothstep(flameHeight * 0.58, flameHeight, outwardDistance));
-      float mainBreakup = mix(
-        0.28,
-        1.0,
-        smoothstep(
-          0.12,
-          0.88,
-          0.5
-            + 0.5
-              * sin(
-                sidewaysDistance * 17.0
-                + outwardProgress * 8.0
-                - phase * 2.1
-                + vEffectSeed * 23.0
-              )
-        )
-      );
+      float mainBreakup = mix(0.22, 1.0, smoothstep(0.16, 0.86, turbulence));
       mainFlame *= mainVertical * mainBreakup;
 
-      float secondaryOffset = mix(-0.36, 0.36, fract(vEffectSeed * 17.23));
+      float secondaryOffset = mix(-0.36, 0.36, fract(vEffectSeed * 17.23))
+        + sin(phase * 0.31 + vEffectSeed * 13.0) * 0.14;
       float secondaryHeight = 0.5
         + 0.2 * (0.5 + 0.5 * sin(phase * 1.47 + vEffectSeed * 31.0));
+      secondaryHeight *= uFlameHeight;
       float secondaryProgress = clamp(
         (outwardDistance + 0.04) / max(secondaryHeight + 0.04, 0.001),
         0.0,
@@ -798,14 +911,16 @@ void main() {
       float secondaryFlame = 1.0 - smoothstep(
         secondaryWidth,
         secondaryWidth + 0.1,
-        abs(sidewaysDistance - secondarySway)
+        abs(turbulentSidewaysDistance - secondarySway)
       );
       secondaryFlame *= smoothstep(-0.15, 0.0, outwardDistance)
         * (1.0 - smoothstep(secondaryHeight * 0.54, secondaryHeight, outwardDistance));
 
-      float tertiaryOffset = -secondaryOffset * 0.68;
+      float tertiaryOffset = -secondaryOffset * 0.68
+        + sin(phase * 0.23 - vEffectSeed * 19.0) * 0.09;
       float tertiaryHeight = 0.28
         + 0.22 * (0.5 + 0.5 * sin(phase * 2.13 - vEffectSeed * 27.0));
+      tertiaryHeight *= uFlameHeight;
       float tertiaryProgress = clamp(
         outwardDistance / max(tertiaryHeight, 0.001),
         0.0,
@@ -817,14 +932,14 @@ void main() {
       float tertiaryFlame = 1.0 - smoothstep(
         tertiaryWidth,
         tertiaryWidth + 0.09,
-        abs(sidewaysDistance - tertiarySway)
+        abs(turbulentSidewaysDistance - tertiarySway)
       );
       tertiaryFlame *= smoothstep(-0.12, 0.02, outwardDistance)
         * (1.0 - smoothstep(tertiaryHeight * 0.5, tertiaryHeight, outwardDistance));
 
       float eruptionPhase = vSparkKind;
       float eruptionVariant = vTrailProgressStart;
-      float plumeHeight = mix(1.45, 2.18, eruptionVariant);
+      float plumeHeight = mix(1.45, 2.18, eruptionVariant) * uEruptionScale;
       float plumeReach = plumeHeight * smoothstep(0.02, 0.34, eruptionPhase);
       float plumeProgress = clamp(
         (outwardDistance + 0.02) / max(plumeReach, 0.001),
@@ -846,12 +961,12 @@ void main() {
       float outerPlume = 1.0 - smoothstep(
         outerPlumeWidth,
         outerPlumeWidth + 0.15,
-        abs(sidewaysDistance - plumeSway)
+        abs(turbulentSidewaysDistance - plumeSway)
       );
       float corePlume = 1.0 - smoothstep(
         corePlumeWidth,
         corePlumeWidth + 0.075,
-        abs(sidewaysDistance - plumeSway)
+        abs(turbulentSidewaysDistance - plumeSway)
       );
       float plumeBreakup = mix(
         0.12,
@@ -887,7 +1002,7 @@ void main() {
       float plumeBranch = 1.0 - smoothstep(
         branchWidth,
         branchWidth + 0.1,
-        abs(sidewaysDistance - branchCenter)
+        abs(turbulentSidewaysDistance - branchCenter)
       );
       plumeBranch *= smoothstep(0.0, 0.18, branchProgress)
         * (1.0 - smoothstep(0.76, 1.0, branchProgress))
@@ -1004,14 +1119,18 @@ void main() {
           * mix(0.58, 1.0, emberAlong);
       }
 
-      float rollingHeat = 0.5
-        + 0.5
-          * sin(
-            sidewaysDistance * 9.0
-            - outwardDistance * 7.0
-            + phase * 3.4
-            + vEffectSeed * 29.0
-          );
+      float rollingHeat = mix(
+        turbulence,
+        0.5
+          + 0.5
+            * sin(
+              sidewaysDistance * 9.0
+              - outwardDistance * 7.0
+              + phase * 3.4
+              + vEffectSeed * 29.0
+            ),
+        0.34
+      );
       float baseCorona = (1.0 - smoothstep(0.16, 0.62, abs(sidewaysDistance)))
         * (1.0 - smoothstep(0.12, 0.4, abs(outwardDistance - 0.02)));
       float surfaceHeat = (
@@ -1022,19 +1141,60 @@ void main() {
             length(vec2(sidewaysDistance, outwardDistance * 1.25))
           )
       ) * mix(0.38, 1.0, rollingHeat);
+      float coronaEnvelope = smoothstep(-0.2, 0.02, outwardDistance)
+        * (1.0 - smoothstep(0.42, 1.22, outwardDistance))
+        * (1.0 - smoothstep(0.38, 1.02, abs(sidewaysDistance)));
+      float coronaMist = coronaEnvelope
+        * mix(0.14, 1.0, smoothstep(0.22, 0.82, turbulence));
+      vec2 curlCenter = vec2(
+        sin(phase * 0.29 + vEffectSeed * 31.0) * 0.28,
+        0.48 + sin(phase * 0.17 - vEffectSeed * 13.0) * 0.18
+      );
+      float curlRadius = 0.2
+        + 0.08 * (0.5 + 0.5 * sin(phase * 0.21 + vEffectSeed * 17.0));
+      vec2 curlLocal = vec2(
+        turbulentSidewaysDistance - curlCenter.x,
+        (outwardDistance - curlCenter.y) * 0.82
+      );
+      float curlDistance = abs(length(curlLocal) - curlRadius);
+      float curlActivation = smoothstep(
+        0.42,
+        0.82,
+        0.5 + 0.5 * sin(phase * 0.13 + vEffectSeed * 41.0)
+      );
+      float curlingWisp = (
+        1.0 - smoothstep(0.025, 0.11, curlDistance)
+      )
+        * curlActivation
+        * mix(0.24, 1.0, detailNoise)
+        * smoothstep(-0.08, 0.12, outwardDistance);
+      float hotRim = (
+        1.0 - smoothstep(0.055, 0.24, abs(outwardDistance + 0.01))
+      )
+        * (1.0 - smoothstep(0.42, 0.94, abs(sidewaysDistance)))
+        * mix(0.5, 1.0, turbulence);
       float fireFlicker = 0.76
         + 0.24 * (0.5 + 0.5 * sin(phase * 3.67 + vEffectSeed * 37.0));
-      float fireLight = (
+      float normalFire = (
         mainFlame * 0.21
         + secondaryFlame * 0.13
         + tertiaryFlame * 0.1
-        + outerPlume * 0.2
+        + baseCorona * 0.07
+        + surfaceHeat * 0.06
+        + coronaMist * 0.045 * uCoronaMist
+        + curlingWisp * 0.085 * uCurlingWisps
+        + hotRim * 0.055 * uHotRim
+      ) * uFireIntensity;
+      float eruptionFire = (
+        outerPlume * 0.2
         + corePlume * 0.32
         + plumeBranch * 0.17
         + eruptionCrown * 0.18
-        + eruptionParticles * 0.42
-        + baseCorona * 0.07
-        + surfaceHeat * 0.06
+      ) * uEruptionIntensity;
+      float fireLight = (
+        normalFire
+        + eruptionFire
+        + eruptionParticles * 0.42 * uEruptionParticles
       ) * fireFlicker * vOpacity;
 
       if (fireLight <= 0.001) discard;
@@ -1187,7 +1347,7 @@ void main() {
       ) * outwardMask;
     }
 
-    float effectStrength = 0.9;
+    float effectStrength = 0.9 * uSurfaceEffects;
     effectLight *= vOpacity * vSparkFlicker * effectStrength;
     if (effectLight <= 0.001) discard;
     outColor = vec4(vec3(effectLight), 1.0);
@@ -1250,7 +1410,7 @@ void main() {
   float light = mix(cometLight, sparkLight, vIsSpark);
   float sparkStrength = (needleMask * 1.05 + burstMask * 1.25 + waveMask * 0.92)
     * vSparkFlicker;
-  float outputStrength = mix(0.68, sparkStrength, vIsSpark);
+  float outputStrength = mix(0.68, sparkStrength * uSparkBrightness, vIsSpark);
 
   if (light <= 0.001 || vOpacity <= 0.001) discard;
   outColor = vec4(vec3(light * vOpacity * outputStrength), 1.0);

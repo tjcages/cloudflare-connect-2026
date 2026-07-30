@@ -1,5 +1,6 @@
-export const COMET_LOGO_FORMATION_DURATION_SEC = 1.8;
+export const COMET_LOGO_FORMATION_DURATION_SEC = 2.1;
 export const COMET_LOGO_REJOIN_DURATION_SEC = 1;
+const COMET_LOGO_FORMATION_CANCEL_THRESHOLD = 0.1;
 
 export type CometLogoAnimationMode = "field" | "forming" | "logo" | "rejoining";
 
@@ -35,6 +36,8 @@ export function advanceCometLogoAnimation(
   state: CometLogoAnimationState,
   timeSec: number,
   hovered: boolean,
+  formationDurationSec = COMET_LOGO_FORMATION_DURATION_SEC,
+  rejoinDurationSec = COMET_LOGO_REJOIN_DURATION_SEC,
 ): CometLogoAnimationState {
   if (state.lastTimeSec === null) {
     return {
@@ -78,16 +81,22 @@ export function advanceCometLogoAnimation(
   if (mode === "field" && hovered) mode = "forming";
 
   if (mode === "forming") {
-    if (!hovered && formation > 0) {
+    if (!hovered && formation <= COMET_LOGO_FORMATION_CANCEL_THRESHOLD) {
+      mode = "field";
+      formation = 0;
+      formationVelocity = 0;
+      rejoinProgress = 0;
+      rejoinStartFieldTimeSec = timeSec;
+      rejoinStartFormation = 0;
+      rejoinStartFormationVelocity = 0;
+    } else if (!hovered && formation > 0) {
       mode = "rejoining";
       rejoinProgress = 0;
       rejoinStartFieldTimeSec = timeSec;
       rejoinStartFormation = formation;
       rejoinStartFormationVelocity = state.formationVelocity;
-    } else if (!hovered) {
-      mode = "field";
     } else {
-      formation = Math.min(1, formation + deltaSec / COMET_LOGO_FORMATION_DURATION_SEC);
+      formation = Math.min(1, formation + deltaSec / Math.max(formationDurationSec, 0.001));
       if (formation > 1 - 0.000001) formation = 1;
       formationVelocity = deltaSec > 0 ? (formation - state.formation) / deltaSec : 0;
       if (formation === 1) mode = "logo";
@@ -99,7 +108,7 @@ export function advanceCometLogoAnimation(
     rejoinStartFormation = 1;
     rejoinStartFormationVelocity = 0;
   } else if (mode === "rejoining") {
-    rejoinProgress = Math.min(1, rejoinProgress + deltaSec / COMET_LOGO_REJOIN_DURATION_SEC);
+    rejoinProgress = Math.min(1, rejoinProgress + deltaSec / Math.max(rejoinDurationSec, 0.001));
     if (rejoinProgress > 1 - 0.000001) rejoinProgress = 1;
     if (rejoinProgress === 1) {
       formation = 0;

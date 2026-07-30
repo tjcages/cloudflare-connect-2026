@@ -1,9 +1,5 @@
-import {
-  COMET_LOGO_REJOIN_DURATION_SEC,
-  advanceCometLogoAnimation,
-  createCometLogoAnimationState,
-  type CometLogoAnimationState,
-} from "./animation";
+import { advanceCometLogoAnimation, createCometLogoAnimationState, type CometLogoAnimationState } from "./animation";
+import { normalizeCometLogoSettings, type CometLogoSettings } from "./config";
 import {
   COMET_LOGO_ACTIVE_RENDER_POINT_COUNT,
   COMET_LOGO_IDLE_RENDER_POINT_COUNT,
@@ -24,7 +20,7 @@ export type CometLogoTextureRenderer = {
   readonly width: number;
   readonly height: number;
   resize(width: number, height: number): void;
-  render(timeSec: number, pointer: CometLogoPointer): void;
+  render(timeSec: number, pointer: CometLogoPointer, settings?: Partial<CometLogoSettings>): void;
   getAnimationState(): Readonly<CometLogoAnimationState>;
   dispose(): void;
 };
@@ -90,6 +86,44 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
   const rejoinDurationLoc = gl.getUniformLocation(program, "uRejoinDuration");
   const formationOriginLoc = gl.getUniformLocation(program, "uFormationOrigin");
   const formationStartFieldTimeLoc = gl.getUniformLocation(program, "uFormationStartFieldTime");
+  const configUniforms = Object.fromEntries(
+    [
+      "FieldSpeed",
+      "FieldDepth",
+      "FieldSpread",
+      "FieldTrailLength",
+      "FieldParticleSize",
+      "LogoScale",
+      "LogoParticleSize",
+      "LogoTrailLength",
+      "LogoMotion",
+      "FormationDuration",
+      "FormationStagger",
+      "CenterPreference",
+      "SparkFrequency",
+      "SparkSize",
+      "SparkBrightness",
+      "SparkTrailLength",
+      "BurstProbability",
+      "WaveProbability",
+      "SurfaceEffects",
+      "FireScale",
+      "FireIntensity",
+      "FireSpeed",
+      "FireTurbulence",
+      "FlameHeight",
+      "WeatherSpeed",
+      "WeatherVariation",
+      "CoronaMist",
+      "CurlingWisps",
+      "HotRim",
+      "EruptionFrequency",
+      "EruptionScale",
+      "EruptionIntensity",
+      "EruptionParticles",
+      "EruptionCycleSpeed",
+    ].map((name) => [name, gl.getUniformLocation(program, `u${name}`)]),
+  );
   let animation = createCometLogoAnimationState();
   let formationOriginX = 0.5;
   let formationOriginY = 0.5;
@@ -113,10 +147,17 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       return canvas.height;
     },
     resize,
-    render(timeSec, pointer) {
+    render(timeSec, pointer, inputSettings) {
       if (disposed) return;
+      const settings = normalizeCometLogoSettings(inputSettings);
       const previousMode = animation.mode;
-      animation = advanceCometLogoAnimation(animation, timeSec, pointer.hovered);
+      animation = advanceCometLogoAnimation(
+        animation,
+        timeSec,
+        pointer.hovered,
+        settings.formationDuration,
+        settings.rejoinDuration,
+      );
       if (animation.mode === "forming" && previousMode !== "forming") {
         formationOriginX = Math.max(0, Math.min(1, pointer.x / Math.max(1, canvas.width)));
         formationOriginY = Math.max(0, Math.min(1, pointer.y / Math.max(1, canvas.height)));
@@ -134,9 +175,48 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       gl.uniform1f(rejoinProgressLoc, animation.rejoinProgress);
       gl.uniform1f(rejoinStartFieldTimeLoc, animation.rejoinStartFieldTimeSec);
       gl.uniform1f(rejoinStartFormationLoc, animation.rejoinStartFormation);
-      gl.uniform1f(rejoinDurationLoc, COMET_LOGO_REJOIN_DURATION_SEC);
+      gl.uniform1f(rejoinDurationLoc, settings.rejoinDuration);
       gl.uniform2f(formationOriginLoc, formationOriginX * canvas.width, formationOriginY * canvas.height);
       gl.uniform1f(formationStartFieldTimeLoc, formationStartFieldTimeSec);
+      const uniformValues: Record<string, number> = {
+        FieldSpeed: settings.fieldSpeed,
+        FieldDepth: settings.fieldDepth,
+        FieldSpread: settings.fieldSpread,
+        FieldTrailLength: settings.fieldTrailLength,
+        FieldParticleSize: settings.fieldParticleSize,
+        LogoScale: settings.logoScale,
+        LogoParticleSize: settings.logoParticleSize,
+        LogoTrailLength: settings.logoTrailLength,
+        LogoMotion: settings.logoMotion,
+        FormationDuration: settings.formationDuration,
+        FormationStagger: settings.formationStagger,
+        CenterPreference: settings.centerPreference,
+        SparkFrequency: settings.sparkFrequency,
+        SparkSize: settings.sparkSize,
+        SparkBrightness: settings.sparkBrightness,
+        SparkTrailLength: settings.sparkTrailLength,
+        BurstProbability: settings.burstProbability,
+        WaveProbability: settings.waveProbability,
+        SurfaceEffects: settings.surfaceEffects,
+        FireScale: settings.fireScale,
+        FireIntensity: settings.fireIntensity,
+        FireSpeed: settings.fireSpeed,
+        FireTurbulence: settings.fireTurbulence,
+        FlameHeight: settings.flameHeight,
+        WeatherSpeed: settings.weatherSpeed,
+        WeatherVariation: settings.weatherVariation,
+        CoronaMist: settings.coronaMist,
+        CurlingWisps: settings.curlingWisps,
+        HotRim: settings.hotRim,
+        EruptionFrequency: settings.eruptionFrequency,
+        EruptionScale: settings.eruptionScale,
+        EruptionIntensity: settings.eruptionIntensity,
+        EruptionParticles: settings.eruptionParticles,
+        EruptionCycleSpeed: settings.eruptionCycleSpeed,
+      };
+      for (const [name, value] of Object.entries(uniformValues)) {
+        gl.uniform1f(configUniforms[name] ?? null, value);
+      }
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
       const renderPointCount =

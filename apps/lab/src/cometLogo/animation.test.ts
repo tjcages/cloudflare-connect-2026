@@ -93,4 +93,19 @@ describe("comet logo animation", () => {
     expect(state.rejoinStartFormation).toBe(formation);
     expect(state.rejoinStartFormationVelocity).toBe(formationVelocity);
   });
+
+  it("cancels micro-hover formation without entering the rejoin path", () => {
+    let state = advanceCometLogoAnimation(createCometLogoAnimationState(), 0, false);
+    state = advanceCometLogoAnimation(state, 0.1, true);
+
+    expect(state.formation).toBeGreaterThan(0);
+    expect(state.formation).toBeLessThanOrEqual(0.1);
+
+    state = advanceCometLogoAnimation(state, 0.11, false);
+
+    expect(state.mode).toBe("field");
+    expect(state.formation).toBe(0);
+    expect(state.formationVelocity).toBe(0);
+    expect(state.rejoinProgress).toBe(0);
+  });
 });
