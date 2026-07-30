@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useControls, useCreateStore, folder, button, buttonGroup } from "leva";
 import { normalizeEngineConfig, resolveThemedConfig } from "@necatikcl/stripes-engine";
-import type { DeepPartial, EdgeMaskSides, EngineConfig, Stripe } from "@necatikcl/stripes-engine";
+import type { DeepPartial, EdgeMaskSides, EngineConfig, Stripe, ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import {
   consumeImportedConfigPristine,
   loadEditTheme,
@@ -450,8 +450,12 @@ export function useEngineControls(
     showConnectCamera?: boolean;
     showShaderSourceControls?: boolean;
     twizzlerTransport?: TimeTransportController;
+    initialConfig?: ThemedEngineConfig;
+    initialEditTheme?: LabEditTheme;
+    configScope?: "global" | "surface";
   } = {},
 ): EngineControlsResult {
+  const surfaceConfig = options.configScope === "surface";
   const showShaderCamera = options.showShaderCamera === true;
   const showConnectCamera = options.showConnectCamera === true;
   const showShaderSourceControls = options.showShaderSourceControls === true;
@@ -470,16 +474,18 @@ export function useEngineControls(
     const stored = loadTextureId() ?? initialLabSettings.textureId;
     return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;
   }, [initialLabSettings.textureId]);
+  const [providedInitialConfig] = useState(options.initialConfig);
+  const [providedInitialEditTheme] = useState(options.initialEditTheme);
   const initialThemed = useMemo(() => {
-    const themed = startupPreset?.config ?? loadInitialConfig(initialTextureId);
-    const editTheme = loadEditTheme();
+    const themed = providedInitialConfig ?? startupPreset?.config ?? loadInitialConfig(initialTextureId);
+    const editTheme = providedInitialEditTheme ?? loadEditTheme();
     return {
       editTheme,
       lightBase: resolveThemedConfig(themed, "light"),
       darkDiff: (themed.dark ?? {}) as DeepPartial<EngineConfig>,
       effective: resolveThemedConfig(themed, editTheme),
     };
-  }, [initialTextureId, startupPreset]);
+  }, [initialTextureId, providedInitialConfig, providedInitialEditTheme, startupPreset]);
   const d = useMemo(() => {
     const loaded = normalizeEngineConfig(initialThemed.effective);
     const importedPristine = consumeImportedConfigPristine();
@@ -511,8 +517,11 @@ export function useEngineControls(
     initialCustomStripePalettes,
     initialLabSettings.stripePalette,
   );
-  const initialCustomStripeColors =
-    initialThemed.editTheme === "dark" ? initialCustomStripePalette?.dark : initialCustomStripePalette?.light;
+  const initialCustomStripeColors = surfaceConfig
+    ? undefined
+    : initialThemed.editTheme === "dark"
+      ? initialCustomStripePalette?.dark
+      : initialCustomStripePalette?.light;
 
   const [stripes, setStripes] = useState<EditableStripe[]>(() => {
     const editable = d.stripes.map((s, i) => ({
@@ -525,10 +534,13 @@ export function useEngineControls(
     return initialCustomStripeColors ? applyCustomStripePalette(editable, initialCustomStripeColors) : editable;
   });
   const [autoStripeWidths, setAutoStripeWidths] = useState(
-    () => initialLabSettings.autoStripeWidths ?? hasAutomaticStripeWidthDistribution(d.stripes),
+    () =>
+      (surfaceConfig ? undefined : initialLabSettings.autoStripeWidths) ??
+      hasAutomaticStripeWidthDistribution(d.stripes),
   );
   const [preShuffleStripes, setPreShuffleStripes] = useState<EditableStripe[] | null>(null);
   const [activeGeneratedPalette, setActiveGeneratedPalette] = useState<string | null>(() => {
+    if (surfaceConfig) return null;
     const initialPalette = initialLabSettings.stripePalette;
     if (!initialPalette) return null;
     if (
@@ -541,19 +553,22 @@ export function useEngineControls(
     return null;
   });
   const [backgroundRampEasing, setBackgroundRampEasing] = useState<BackgroundRampEasing>(() =>
-    isKnownEasing(initialLabSettings.backgroundRampEasing ?? "", BACKGROUND_RAMP_EASING_OPTIONS)
+    !surfaceConfig && isKnownEasing(initialLabSettings.backgroundRampEasing ?? "", BACKGROUND_RAMP_EASING_OPTIONS)
       ? (initialLabSettings.backgroundRampEasing as BackgroundRampEasing)
       : "easeInOutQuad",
   );
   const [backgroundRampSettings, setBackgroundRampSettings] = useState<BackgroundRampSettings>(() =>
-    normalizeBackgroundRampSettings(initialLabSettings.backgroundRampSettings ?? DEFAULT_BACKGROUND_RAMP_SETTINGS),
+    normalizeBackgroundRampSettings(
+      surfaceConfig ? DEFAULT_BACKGROUND_RAMP_SETTINGS : initialLabSettings.backgroundRampSettings,
+    ),
   );
   const [thresholdDistributionEasing, setThresholdDistributionEasing] = useState<ThresholdDistributionEasing>(() =>
+    !surfaceConfig &&
     isKnownEasing(initialLabSettings.thresholdDistributionEasing ?? "", THRESHOLD_DISTRIBUTION_EASING_OPTIONS)
       ? (initialLabSettings.thresholdDistributionEasing as ThresholdDistributionEasing)
       : "linear",
   );
-  const initialStickyBackground = useMemo(() => loadStickyBackgroundColor(), []);
+  const initialStickyBackground = useMemo(() => (surfaceConfig ? null : loadStickyBackgroundColor()), [surfaceConfig]);
   const [backgroundHex, setBackgroundHex] = useState<string | null>(() =>
     initialStickyBackground !== null
       ? intToHex(initialStickyBackground)
@@ -622,11 +637,11 @@ export function useEngineControls(
       const mappedBackground = backgroundColorRef.current ? mapPaletteColor(backgroundColorRef.current, palette) : null;
       if (mappedBackground) {
         setBackgroundHex(mappedBackground);
-        saveStickyBackgroundColor(hexToInt(mappedBackground));
+        if (!surfaceConfig) saveStickyBackgroundColor(hexToInt(mappedBackground));
         controlSetterRef.current?.({ backgroundColor: mappedBackground });
       }
     },
-    [backgroundRampEasing, customStripePalettes, initialThemed.editTheme],
+    [backgroundRampEasing, customStripePalettes, initialThemed.editTheme, surfaceConfig],
   );
 
   const handleRampEasingChange = useCallback((easing: string) => {
@@ -997,11 +1012,12 @@ export function useEngineControls(
       }),
       "Texture Source": drawerFolder("Texture Source", {
         backgroundSourceOpacity: {
-          value: Math.round((initialLabSettings.backgroundSourceOpacity ?? 0) * 100),
+          value: surfaceConfig ? 0 : Math.round((initialLabSettings.backgroundSourceOpacity ?? 0) * 100),
           min: 0,
           max: 100,
           step: 1,
           label: "Preview opacity",
+          render: () => !surfaceConfig,
         },
         fit: {
           value: d.transform.fit,
@@ -1685,9 +1701,10 @@ export function useEngineControls(
         Background: drawerFolder("Background", {
           backgroundFillMode: {
             value:
-              initialLabSettings.backgroundFillMode === "transparent" ||
-              initialLabSettings.backgroundFillMode === "gradient" ||
-              initialLabSettings.backgroundFillMode === "solid"
+              !surfaceConfig &&
+              (initialLabSettings.backgroundFillMode === "transparent" ||
+                initialLabSettings.backgroundFillMode === "gradient" ||
+                initialLabSettings.backgroundFillMode === "solid")
                 ? initialLabSettings.backgroundFillMode
                 : d.background.transparent
                   ? "transparent"
@@ -1701,7 +1718,7 @@ export function useEngineControls(
             ...colorLibraryInputPlugin({
               value: backgroundHex,
               label: "Color",
-              persist: "backgroundColor",
+              persist: surfaceConfig ? undefined : "backgroundColor",
               onLiveChange: handleBackgroundColorLiveChange,
             }),
             render: (get) => get("Background.backgroundFillMode") === "solid",
@@ -3984,7 +4001,7 @@ export function useEngineControls(
     if (lastStickyBackgroundRef.current?.toLowerCase() === next.toLowerCase()) return;
     lastStickyBackgroundRef.current = next;
     setBackgroundHex(next);
-    saveStickyBackgroundColor(hexToInt(next));
+    if (!surfaceConfig) saveStickyBackgroundColor(hexToInt(next));
     const palette = activeGeneratedPaletteRef.current ?? stripePaletteValueRef.current;
     if (palette === BACKGROUND_RAMP_PALETTE_NAME) {
       setStripes((prev) =>
@@ -4008,7 +4025,7 @@ export function useEngineControls(
         applyStripePalette(prev, palette, next, backgroundRampEasingRef.current, backgroundRampSettingsRef.current),
       );
     }
-  }, [customStripePalettes, values.backgroundColor]);
+  }, [customStripePalettes, surfaceConfig, values.backgroundColor]);
 
   const baseStripes = fromEditable(stripes);
   const backgroundFillMode =
