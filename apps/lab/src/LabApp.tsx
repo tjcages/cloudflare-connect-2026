@@ -70,6 +70,7 @@ import {
   type ShaderTextureRenderer,
 } from "./shaderTextureSource";
 import { normalizeShaderViewState, type ShaderViewState } from "./shaderView";
+import { resolveShaderConfigKind } from "./shaderConfig";
 import {
   CUSTOM_SHADER_PRESET_ID,
   DEFAULT_SHADER_PRESET_ID,
@@ -1013,7 +1014,7 @@ function LabInner() {
       !isTwizzlerMapShaderPreset(shaderPresetId) &&
       !isCometLogoShaderPreset(shaderPresetId),
     showConnectCamera: textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
-    showShaderSourceControls: textureSourceMode === "shader",
+    activeShaderConfig: resolveShaderConfigKind(textureSourceMode, shaderPresetId),
     twizzlerTransport,
   });
   const controlsRef = useRef(controls);

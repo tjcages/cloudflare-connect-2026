@@ -31,6 +31,7 @@ import {
   type ConnectShaderParams,
 } from "../connectShader";
 import { SHADER_VIEW_DEFAULTS, type ShaderViewState } from "../shaderView";
+import type { ShaderConfigKind } from "../shaderConfig";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
 import {
@@ -62,24 +63,17 @@ import {
 function drawerFolder<S extends Parameters<typeof folder>[0]>(
   id: string,
   schema: S,
-  options: { render?: () => boolean } = {},
+  options: { defaultOpen?: boolean; render?: () => boolean } = {},
 ) {
+  const { defaultOpen = false, ...folderOptions } = options;
   return folder(schema, {
-    ...options,
-    collapsed: !loadControlDrawerOpen(id, loadLabSettings().drawerOpen[id] ?? false),
+    ...folderOptions,
+    collapsed: !loadControlDrawerOpen(id, loadLabSettings().drawerOpen[id] ?? defaultOpen),
   });
 }
 
 const SHADER_PANEL_ORDER = [
-  "Connect Wave",
-  "Connect Shape",
-  "Connect Fill",
-  "Connect Lines",
-  "Connect Hatch",
-  "Connect Particles",
-  "Connect Colors",
-  "Twizzler",
-  "Twizzler Map",
+  "Shader config",
   "Background",
   "Stripes",
   "Grid",
@@ -448,20 +442,22 @@ export function useEngineControls(
   options: {
     showShaderCamera?: boolean;
     showConnectCamera?: boolean;
-    showShaderSourceControls?: boolean;
+    activeShaderConfig?: ShaderConfigKind | null;
     twizzlerTransport?: TimeTransportController;
   } = {},
 ): EngineControlsResult {
   const showShaderCamera = options.showShaderCamera === true;
   const showConnectCamera = options.showConnectCamera === true;
-  const showShaderSourceControls = options.showShaderSourceControls === true;
+  const activeShaderConfig = options.activeShaderConfig ?? null;
   const showShaderToyCamera = showShaderCamera && !showConnectCamera;
   const showShaderCameraRef = useRef(showShaderCamera);
   showShaderCameraRef.current = showShaderCamera;
   const showConnectCameraRef = useRef(showConnectCamera);
   showConnectCameraRef.current = showConnectCamera;
-  const showShaderSourceControlsRef = useRef(showShaderSourceControls);
-  showShaderSourceControlsRef.current = showShaderSourceControls;
+  const activeShaderConfigRef = useRef(activeShaderConfig);
+  activeShaderConfigRef.current = activeShaderConfig;
+  const showSpiralShaderConfigRef = useRef(activeShaderConfig === "spiral");
+  showSpiralShaderConfigRef.current = activeShaderConfig === "spiral";
   const showShaderToyCameraRef = useRef(showShaderToyCamera);
   showShaderToyCameraRef.current = showShaderToyCamera;
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
@@ -1027,323 +1023,332 @@ export function useEngineControls(
   const [shaderValues, setShaderControl] = useControls(
     () =>
       orderShaderPanel({
-        ...buildConnectShaderLevaFolders(
-          normalizeConnectShaderParams(initialLabSettings.connectShaderParams),
-          showConnectCameraRef,
-        ),
-        Twizzler: drawerFolder(
-          "Twizzler",
+        "Shader config": drawerFolder(
+          "Shader config",
           {
-            twizzlerEnabled: {
-              value: initialLabSettings.twizzlerEnabled,
-              label: "Show",
-            },
-            twizzlerColor: {
-              ...colorLibraryInputPlugin({
-                value: initialLabSettings.twizzler.color,
-                label: "Color",
-              }),
-            },
-            ...(options.twizzlerTransport
-              ? {
-                  twizzlerTransport: timeTransportPlugin({
-                    label: "Time",
-                    controller: options.twizzlerTransport,
+            ...buildConnectShaderLevaFolders(
+              normalizeConnectShaderParams(initialLabSettings.connectShaderParams),
+              showSpiralShaderConfigRef,
+            ),
+            Twizzler: drawerFolder(
+              "Twizzler",
+              {
+                twizzlerEnabled: {
+                  value: initialLabSettings.twizzlerEnabled,
+                  label: "Show",
+                },
+                twizzlerColor: {
+                  ...colorLibraryInputPlugin({
+                    value: initialLabSettings.twizzler.color,
+                    label: "Color",
                   }),
-                }
-              : {}),
-            twizzlerOpacity: {
-              value: initialLabSettings.twizzler.opacity,
-              min: 0,
-              max: 1,
-              step: 0.01,
-              label: "Opacity",
-            },
-            twizzlerScale: {
-              value: initialLabSettings.twizzler.scale,
-              min: 0.1,
-              max: 3,
-              step: 0.05,
-              label: "Scale",
-            },
-            Shape: folder({
-              twizzlerCenterY: {
-                value: initialLabSettings.twizzler.centerY,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Center Y",
+                },
+                ...(options.twizzlerTransport
+                  ? {
+                      twizzlerTransport: timeTransportPlugin({
+                        label: "Time",
+                        controller: options.twizzlerTransport,
+                      }),
+                    }
+                  : {}),
+                twizzlerOpacity: {
+                  value: initialLabSettings.twizzler.opacity,
+                  min: 0,
+                  max: 1,
+                  step: 0.01,
+                  label: "Opacity",
+                },
+                twizzlerScale: {
+                  value: initialLabSettings.twizzler.scale,
+                  min: 0.1,
+                  max: 3,
+                  step: 0.05,
+                  label: "Scale",
+                },
+                Shape: folder({
+                  twizzlerCenterY: {
+                    value: initialLabSettings.twizzler.centerY,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Center Y",
+                  },
+                  twizzlerAmplitude: {
+                    value: initialLabSettings.twizzler.amplitude,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Amplitude",
+                  },
+                  twizzlerWrinkles: {
+                    value: initialLabSettings.twizzler.wrinkles,
+                    min: 0,
+                    max: 24,
+                    step: 0.25,
+                    label: "Wrinkles",
+                  },
+                  twizzlerWrinkleStrength: {
+                    value: initialLabSettings.twizzler.wrinkleStrength,
+                    min: 0,
+                    max: 0.5,
+                    step: 0.005,
+                    label: "Wrinkle strength",
+                  },
+                  twizzlerBendPosition: {
+                    value: initialLabSettings.twizzler.bendPosition,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Bend position",
+                  },
+                  twizzlerBendAmount: {
+                    value: initialLabSettings.twizzler.bendAmount,
+                    min: -1,
+                    max: 1,
+                    step: 0.01,
+                    label: "Bend amount",
+                  },
+                  twizzlerTwist: {
+                    value: initialLabSettings.twizzler.twist,
+                    min: 0,
+                    max: 4,
+                    step: 0.05,
+                    label: "Twist",
+                  },
+                }),
+                Edges: folder({
+                  twizzlerLeftHeight: {
+                    value: initialLabSettings.twizzler.leftHeight,
+                    min: -1,
+                    max: 2,
+                    step: 0.01,
+                    label: "Left height",
+                  },
+                  twizzlerRightHeight: {
+                    value: initialLabSettings.twizzler.rightHeight,
+                    min: -1,
+                    max: 2,
+                    step: 0.01,
+                    label: "Right height",
+                  },
+                  twizzlerEdgeFluctuation: {
+                    value: initialLabSettings.twizzler.edgeFluctuation,
+                    min: 0,
+                    max: 0.5,
+                    step: 0.005,
+                    label: "Fluctuation",
+                  },
+                  twizzlerEdgeSpeed: {
+                    value: initialLabSettings.twizzler.edgeSpeed,
+                    min: 0,
+                    max: 4,
+                    step: 0.05,
+                    label: "Fluctuation speed",
+                  },
+                  twizzlerEdgeTaper: {
+                    value: initialLabSettings.twizzler.edgeTaper,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Edge taper",
+                  },
+                }),
+                Lines: folder({
+                  twizzlerLineCount: {
+                    value: initialLabSettings.twizzler.lineCount,
+                    min: 1,
+                    max: 300,
+                    step: 1,
+                    label: "Line count",
+                  },
+                  twizzlerLineWidth: {
+                    value: initialLabSettings.twizzler.lineWidth,
+                    min: 0.25,
+                    max: 8,
+                    step: 0.25,
+                    label: "Line width",
+                  },
+                  twizzlerPointSpacing: {
+                    value: initialLabSettings.twizzler.pointSpacing,
+                    min: 2,
+                    max: 80,
+                    step: 1,
+                    label: "Point spacing",
+                  },
+                }),
+                Noise: folder({
+                  twizzlerNoiseScaleX: {
+                    value: initialLabSettings.twizzler.noiseScaleX,
+                    min: 0.0001,
+                    max: 0.02,
+                    step: 0.0001,
+                    label: "Horizontal scale",
+                  },
+                  twizzlerNoiseScaleY: {
+                    value: initialLabSettings.twizzler.noiseScaleY,
+                    min: 0.001,
+                    max: 0.1,
+                    step: 0.001,
+                    label: "Line separation",
+                  },
+                }),
+                Motion: folder({
+                  twizzlerSpeed: {
+                    value: initialLabSettings.twizzler.speed,
+                    min: 0,
+                    max: 3,
+                    step: 0.05,
+                    label: "Speed",
+                  },
+                  twizzlerDrift: {
+                    value: initialLabSettings.twizzler.drift,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Vertical drift",
+                  },
+                }),
               },
-              twizzlerAmplitude: {
-                value: initialLabSettings.twizzler.amplitude,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Amplitude",
+              {
+                render: () => activeShaderConfigRef.current === "twizzler-map",
               },
-              twizzlerWrinkles: {
-                value: initialLabSettings.twizzler.wrinkles,
-                min: 0,
-                max: 24,
-                step: 0.25,
-                label: "Wrinkles",
+            ),
+            "Twizzler Map": drawerFolder(
+              "Twizzler Map",
+              {
+                Field: folder({
+                  twizzlerMapBackgroundLevel: {
+                    value: initialLabSettings.twizzlerMap.backgroundLevel,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Background level",
+                  },
+                  twizzlerMapRibbonLevel: {
+                    value: initialLabSettings.twizzlerMap.ribbonLevel,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Ribbon level",
+                  },
+                  twizzlerMapShoulderLevel: {
+                    value: initialLabSettings.twizzlerMap.shoulderLevel,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Side level",
+                  },
+                  twizzlerMapShoulderWidth: {
+                    value: initialLabSettings.twizzlerMap.shoulderWidth,
+                    min: 0,
+                    max: 20,
+                    step: 0.25,
+                    label: "Side width",
+                  },
+                  twizzlerMapTopOffsetPx: {
+                    value: initialLabSettings.twizzlerMap.topOffsetPx,
+                    min: 0,
+                    max: 400,
+                    step: 1,
+                    label: "Top offset",
+                  },
+                  twizzlerMapBottomOffsetPx: {
+                    value: initialLabSettings.twizzlerMap.bottomOffsetPx,
+                    min: 0,
+                    max: 400,
+                    step: 1,
+                    label: "Bottom offset",
+                  },
+                  twizzlerMapTopSpread: {
+                    value: initialLabSettings.twizzlerMap.topSpread,
+                    min: 0,
+                    max: 4,
+                    step: 0.05,
+                    label: "Top spread",
+                  },
+                  twizzlerMapBottomSpread: {
+                    value: initialLabSettings.twizzlerMap.bottomSpread,
+                    min: 0,
+                    max: 4,
+                    step: 0.05,
+                    label: "Bottom spread",
+                  },
+                }),
+                Animation: folder({
+                  twizzlerMapFlowEnabled: { value: initialLabSettings.twizzlerMap.flowEnabled, label: "Animate" },
+                  twizzlerMapFlowDirection: {
+                    value: initialLabSettings.twizzlerMap.flowDirection,
+                    options: {
+                      "Top → bottom": "topToBottom",
+                      "Bottom → top": "bottomToTop",
+                      "Left → right": "leftToRight",
+                      "Right → left": "rightToLeft",
+                      "Top left → bottom right": "topLeftToBottomRight",
+                      "Top right → bottom left": "topRightToBottomLeft",
+                      "Bottom left → top right": "bottomLeftToTopRight",
+                      "Bottom right → top left": "bottomRightToTopLeft",
+                    } as const,
+                    label: "Direction",
+                  },
+                  twizzlerMapFlowAmplitude: {
+                    value: initialLabSettings.twizzlerMap.flowAmplitude,
+                    min: -1,
+                    max: 1,
+                    step: 0.01,
+                    label: "Amplitude",
+                  },
+                  twizzlerMapFlowSpeed: {
+                    value: initialLabSettings.twizzlerMap.flowSpeed,
+                    min: -3,
+                    max: 3,
+                    step: 0.05,
+                    label: "Speed",
+                  },
+                  twizzlerMapFlowSpacing: {
+                    value: initialLabSettings.twizzlerMap.flowSpacing,
+                    min: 0.02,
+                    max: 0.75,
+                    step: 0.005,
+                    label: "Spacing",
+                  },
+                  twizzlerMapFlowBandWidth: {
+                    value: initialLabSettings.twizzlerMap.flowBandWidth,
+                    min: 0.002,
+                    max: 0.3,
+                    step: 0.002,
+                    label: "Band width",
+                  },
+                  twizzlerMapFlowSoftness: {
+                    value: initialLabSettings.twizzlerMap.flowSoftness,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Softness",
+                  },
+                  twizzlerMapFlowOpacity: {
+                    value: initialLabSettings.twizzlerMap.flowOpacity,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Opacity",
+                  },
+                  twizzlerMapFlowPhase: {
+                    value: initialLabSettings.twizzlerMap.flowPhase,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    label: "Phase",
+                  },
+                }),
               },
-              twizzlerWrinkleStrength: {
-                value: initialLabSettings.twizzler.wrinkleStrength,
-                min: 0,
-                max: 0.5,
-                step: 0.005,
-                label: "Wrinkle strength",
+              {
+                render: () => activeShaderConfigRef.current === "twizzler-map",
               },
-              twizzlerBendPosition: {
-                value: initialLabSettings.twizzler.bendPosition,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Bend position",
-              },
-              twizzlerBendAmount: {
-                value: initialLabSettings.twizzler.bendAmount,
-                min: -1,
-                max: 1,
-                step: 0.01,
-                label: "Bend amount",
-              },
-              twizzlerTwist: {
-                value: initialLabSettings.twizzler.twist,
-                min: 0,
-                max: 4,
-                step: 0.05,
-                label: "Twist",
-              },
-            }),
-            Edges: folder({
-              twizzlerLeftHeight: {
-                value: initialLabSettings.twizzler.leftHeight,
-                min: -1,
-                max: 2,
-                step: 0.01,
-                label: "Left height",
-              },
-              twizzlerRightHeight: {
-                value: initialLabSettings.twizzler.rightHeight,
-                min: -1,
-                max: 2,
-                step: 0.01,
-                label: "Right height",
-              },
-              twizzlerEdgeFluctuation: {
-                value: initialLabSettings.twizzler.edgeFluctuation,
-                min: 0,
-                max: 0.5,
-                step: 0.005,
-                label: "Fluctuation",
-              },
-              twizzlerEdgeSpeed: {
-                value: initialLabSettings.twizzler.edgeSpeed,
-                min: 0,
-                max: 4,
-                step: 0.05,
-                label: "Fluctuation speed",
-              },
-              twizzlerEdgeTaper: {
-                value: initialLabSettings.twizzler.edgeTaper,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Edge taper",
-              },
-            }),
-            Lines: folder({
-              twizzlerLineCount: {
-                value: initialLabSettings.twizzler.lineCount,
-                min: 1,
-                max: 300,
-                step: 1,
-                label: "Line count",
-              },
-              twizzlerLineWidth: {
-                value: initialLabSettings.twizzler.lineWidth,
-                min: 0.25,
-                max: 8,
-                step: 0.25,
-                label: "Line width",
-              },
-              twizzlerPointSpacing: {
-                value: initialLabSettings.twizzler.pointSpacing,
-                min: 2,
-                max: 80,
-                step: 1,
-                label: "Point spacing",
-              },
-            }),
-            Noise: folder({
-              twizzlerNoiseScaleX: {
-                value: initialLabSettings.twizzler.noiseScaleX,
-                min: 0.0001,
-                max: 0.02,
-                step: 0.0001,
-                label: "Horizontal scale",
-              },
-              twizzlerNoiseScaleY: {
-                value: initialLabSettings.twizzler.noiseScaleY,
-                min: 0.001,
-                max: 0.1,
-                step: 0.001,
-                label: "Line separation",
-              },
-            }),
-            Motion: folder({
-              twizzlerSpeed: {
-                value: initialLabSettings.twizzler.speed,
-                min: 0,
-                max: 3,
-                step: 0.05,
-                label: "Speed",
-              },
-              twizzlerDrift: {
-                value: initialLabSettings.twizzler.drift,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Vertical drift",
-              },
-            }),
+            ),
           },
           {
-            render: () => showShaderSourceControlsRef.current,
-          },
-        ),
-        "Twizzler Map": drawerFolder(
-          "Twizzler Map",
-          {
-            Field: folder({
-              twizzlerMapBackgroundLevel: {
-                value: initialLabSettings.twizzlerMap.backgroundLevel,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Background level",
-              },
-              twizzlerMapRibbonLevel: {
-                value: initialLabSettings.twizzlerMap.ribbonLevel,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Ribbon level",
-              },
-              twizzlerMapShoulderLevel: {
-                value: initialLabSettings.twizzlerMap.shoulderLevel,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Side level",
-              },
-              twizzlerMapShoulderWidth: {
-                value: initialLabSettings.twizzlerMap.shoulderWidth,
-                min: 0,
-                max: 20,
-                step: 0.25,
-                label: "Side width",
-              },
-              twizzlerMapTopOffsetPx: {
-                value: initialLabSettings.twizzlerMap.topOffsetPx,
-                min: 0,
-                max: 400,
-                step: 1,
-                label: "Top offset",
-              },
-              twizzlerMapBottomOffsetPx: {
-                value: initialLabSettings.twizzlerMap.bottomOffsetPx,
-                min: 0,
-                max: 400,
-                step: 1,
-                label: "Bottom offset",
-              },
-              twizzlerMapTopSpread: {
-                value: initialLabSettings.twizzlerMap.topSpread,
-                min: 0,
-                max: 4,
-                step: 0.05,
-                label: "Top spread",
-              },
-              twizzlerMapBottomSpread: {
-                value: initialLabSettings.twizzlerMap.bottomSpread,
-                min: 0,
-                max: 4,
-                step: 0.05,
-                label: "Bottom spread",
-              },
-            }),
-            Animation: folder({
-              twizzlerMapFlowEnabled: { value: initialLabSettings.twizzlerMap.flowEnabled, label: "Animate" },
-              twizzlerMapFlowDirection: {
-                value: initialLabSettings.twizzlerMap.flowDirection,
-                options: {
-                  "Top → bottom": "topToBottom",
-                  "Bottom → top": "bottomToTop",
-                  "Left → right": "leftToRight",
-                  "Right → left": "rightToLeft",
-                  "Top left → bottom right": "topLeftToBottomRight",
-                  "Top right → bottom left": "topRightToBottomLeft",
-                  "Bottom left → top right": "bottomLeftToTopRight",
-                  "Bottom right → top left": "bottomRightToTopLeft",
-                } as const,
-                label: "Direction",
-              },
-              twizzlerMapFlowAmplitude: {
-                value: initialLabSettings.twizzlerMap.flowAmplitude,
-                min: -1,
-                max: 1,
-                step: 0.01,
-                label: "Amplitude",
-              },
-              twizzlerMapFlowSpeed: {
-                value: initialLabSettings.twizzlerMap.flowSpeed,
-                min: -3,
-                max: 3,
-                step: 0.05,
-                label: "Speed",
-              },
-              twizzlerMapFlowSpacing: {
-                value: initialLabSettings.twizzlerMap.flowSpacing,
-                min: 0.02,
-                max: 0.75,
-                step: 0.005,
-                label: "Spacing",
-              },
-              twizzlerMapFlowBandWidth: {
-                value: initialLabSettings.twizzlerMap.flowBandWidth,
-                min: 0.002,
-                max: 0.3,
-                step: 0.002,
-                label: "Band width",
-              },
-              twizzlerMapFlowSoftness: {
-                value: initialLabSettings.twizzlerMap.flowSoftness,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Softness",
-              },
-              twizzlerMapFlowOpacity: {
-                value: initialLabSettings.twizzlerMap.flowOpacity,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Opacity",
-              },
-              twizzlerMapFlowPhase: {
-                value: initialLabSettings.twizzlerMap.flowPhase,
-                min: 0,
-                max: 1,
-                step: 0.01,
-                label: "Phase",
-              },
-            }),
-          },
-          {
-            render: () => showShaderSourceControlsRef.current,
+            defaultOpen: true,
+            render: () => activeShaderConfigRef.current !== null,
           },
         ),
         Stripes: drawerFolder("Stripes", {
@@ -3924,10 +3929,9 @@ export function useEngineControls(
   shaderControlSetterRef.current = setShaderControl;
 
   useEffect(() => {
-    // Nudge stores so Camera / Connect folder `render()` callbacks re-evaluate visibility.
     setTextureControl({});
     setShaderControl({});
-  }, [showShaderCamera, showConnectCamera, showShaderSourceControls, setTextureControl, setShaderControl]);
+  }, [activeShaderConfig, showShaderCamera, showConnectCamera, setTextureControl, setShaderControl]);
 
   const values = { ...textureValues, ...shaderValues };
   const imageColorsMode = values.colorsMode === "colors";

@@ -4,6 +4,7 @@ export const CONTROL_DRAWER_IDS = [
   "Texture Levels",
   "Texture Source",
   "Camera",
+  "Shader config",
   "Connect Wave",
   "Connect Shape",
   "Connect Fill",
