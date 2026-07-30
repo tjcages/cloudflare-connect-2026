@@ -1140,7 +1140,7 @@ function LabInner() {
       if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
         const renderer = cometLogoRendererRef.current;
         if (!renderer) return;
-        renderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+        renderer.render(shaderTimeSecRef.current);
         engine.setSource(renderer.canvas);
         engine.updateSourceFrame(renderer.canvas);
         const previewCanvas = shaderPreviewCanvasRef.current;
@@ -1394,9 +1394,7 @@ function LabInner() {
       return;
     }
 
-    const hovered = shaderMouseRef.current.hovered || canvas?.matches(":hover") === true;
-    shaderMouseRef.current = { ...shaderMouseRef.current, hovered };
-    renderer.render(shaderTimeSecRef.current, { ...shaderMouseRef.current, hovered });
+    renderer.render(shaderTimeSecRef.current);
     setShaderSourceError(null);
     engine.setSource(renderer.canvas);
     setVideoEl(null);
@@ -1645,7 +1643,7 @@ function LabInner() {
           } else if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
             const renderer = cometLogoRendererRef.current;
             if (renderer) {
-              renderer.render(shaderTimeSecRef.current, shaderMouseRef.current);
+              renderer.render(shaderTimeSecRef.current);
               engine.updateSourceFrame(renderer.canvas);
               const previewCanvas = shaderPreviewCanvasRef.current;
               const previewSizeChanged =
@@ -2820,7 +2818,9 @@ function LabInner() {
                         </div>
                         {cometLogoSelected ? (
                           <div className="wf-field">
-                            <span className="wf-field-label">Hover the canvas to form the Cloudflare logo.</span>
+                            <span className="wf-field-label">
+                              Center particles reform the logo while surrounding generations expand outward.
+                            </span>
                           </div>
                         ) : !twizzlerMapSelected ? (
                           <div className="wf-field">

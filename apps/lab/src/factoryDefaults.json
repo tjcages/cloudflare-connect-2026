@@ -23,60 +23,12 @@
       "sharpenAmount": 0
     },
     "background": {
-      "color": 16015393,
-      "transparent": false,
-      "gradient": {
-        "enabled": false,
-        "direction": "topToBottom",
-        "stopCount": 3,
-        "stops": [8331002, 15349737, 16757594, 9752907],
-        "hueDriftDeg": 0,
-        "saturationBoost": 0
-      },
-      "grid": {
-        "enabled": false,
-        "cellWidth": 32,
-        "cellHeight": 32,
-        "gapX": 4,
-        "gapY": 4,
-        "cornerRadius": 0,
-        "color": 15987699,
-        "opacity": 1
-      },
-      "stars": {
-        "enabled": true,
-        "density": 2,
-        "sizePx": 12,
-        "sizeRandomness": 1,
-        "tiltAngleDeg": -15,
-        "twinkleSpeed": 1,
-        "twinkleAmount": 0.7,
-        "opacity": 1,
-        "color": 16777215
-      },
-      "meteors": {
-        "enabled": false,
-        "ratePerSec": 1.3199999999999998,
-        "maxActive": 16,
-        "radiantAngleDeg": -15,
-        "angleJitterDeg": 30,
-        "speedScale": 0.27,
-        "speedVariation": 1,
-        "tailLengthScale": 0.20999999999999996,
-        "tailLengthVariation": 0.62,
-        "thicknessScale": 0.44999999999999996,
-        "thicknessVariation": 0.64,
-        "lifetimeMinMs": 350,
-        "lifetimeMaxMs": 2630,
-        "brightness": 1,
-        "headGlow": 1,
-        "pushPx": 9.5,
-        "pushFalloffScale": 1,
-        "fadeInMs": 80,
-        "fadeOutMs": 580,
-        "seed": 1
-      }
+      "color": 16777215,
+      "transparent": false
     },
+    "stripesEnabled": true,
+    "fieldScale": 1,
+    "maxFps": 0,
     "grid": {
       "cellWidth": 7,
       "cellHeight": 7,
@@ -86,161 +38,71 @@
       "orientation": "vertical",
       "angleDeg": 0,
       "rotationMode": "cell",
-      "overlapAmount": 1.2,
-      "streamGapWave": {
-        "enabled": false,
-        "squeeze": 0.23,
-        "wavelengthCells": 10,
-        "speed": -2.66,
-        "phaseDeg": -180
-      }
+      "overlapAmount": 1.2
     },
     "stripes": [
       {
-        "color": 16541739,
-        "startFrom": 0,
+        "color": 16448250,
+        "startFrom": 0.01,
         "width": 0.5,
         "opacity": 1
       },
       {
-        "color": 16738304,
+        "color": 16775402,
         "startFrom": 0.0195,
         "width": 0.5,
         "opacity": 1
       },
       {
-        "color": 16738816,
+        "color": 16773076,
         "startFrom": 0.047,
         "width": 1,
         "opacity": 1
       },
       {
-        "color": 16740352,
+        "color": 16769979,
         "startFrom": 0.086,
         "width": 1.5,
         "opacity": 1
       },
       {
-        "color": 16742912,
+        "color": 16765854,
         "startFrom": 0.1408,
         "width": 1.5,
         "opacity": 1
       },
       {
-        "color": 16746240,
+        "color": 16759677,
         "startFrom": 0.2167,
         "width": 2,
         "opacity": 1
       },
       {
-        "color": 16749824,
+        "color": 16752731,
         "startFrom": 0.3191,
         "width": 2.5,
         "opacity": 1
       },
       {
-        "color": 16753664,
+        "color": 16746553,
         "startFrom": 0.4512,
         "width": 3,
         "opacity": 1
       },
       {
-        "color": 16759829,
+        "color": 16280064,
         "startFrom": 0.6129,
         "width": 3.5,
         "opacity": 1
       },
       {
-        "color": 16764259,
+        "color": 16015393,
         "startFrom": 0.8,
         "width": 4,
         "opacity": 1
       }
     ],
-    "stripesEnabled": true,
-    "fieldScale": 1,
-    "maxFps": 0,
-    "reveal": {
-      "enabled": true,
-      "type": "water",
-      "wave": {
-        "position": "center",
-        "durationMs": 500,
-        "softness": 0.68,
-        "waviness": 1
-      },
-      "assembly": {
-        "sliceSizePx": 40,
-        "speedMinMs": 300,
-        "speedMaxMs": 1600,
-        "staggerMs": 900,
-        "scatterPx": 50,
-        "angleJitterDeg": 22,
-        "blurPx": 17.5,
-        "blurStart": 0.45
-      },
-      "turbulence": {
-        "speedMinMs": 400,
-        "speedMaxMs": 2600,
-        "staggerMs": 1400,
-        "intensity": 1,
-        "detail": 0.5,
-        "glow": 0.6
-      },
-      "glitch": {
-        "speedMinMs": 200,
-        "speedMaxMs": 1400,
-        "staggerMs": 1200,
-        "intensity": 1,
-        "detail": 0.5,
-        "glow": 0.8
-      },
-      "vortex": {
-        "speedMinMs": 300,
-        "speedMaxMs": 1400,
-        "staggerMs": 2600,
-        "intensity": 1,
-        "detail": 0.5,
-        "glow": 0.7,
-        "swirl": 1
-      },
-      "blackhole": {
-        "speedMinMs": 260,
-        "speedMaxMs": 1050,
-        "staggerMs": 3600,
-        "intensity": 1,
-        "detail": 0.5,
-        "glow": 0.7,
-        "swirl": 1.2,
-        "formMs": 1150,
-        "collapseMs": 420,
-        "arms": 3,
-        "lensing": 1,
-        "horizon": 0.12
-      },
-      "whirlpool": {
-        "durationMs": 5600,
-        "turns": 4,
-        "tightness": 0.22,
-        "streak": 0.6,
-        "glow": 0.4
-      },
-      "water": {
-        "durationMs": 950,
-        "settleMs": 520,
-        "rows": 5,
-        "intensity": 1.5,
-        "wobble": 0.7,
-        "refraction": 1.3,
-        "softness": 0.35
-      }
-    },
     "sparkle": {
-      "gaps": {
-        "enabled": false,
-        "coverage": 0,
-        "speed": 1
-      },
       "width": {
         "enabled": true,
         "coverage": 0.5,
@@ -256,78 +118,29 @@
         "thickestCount": 4,
         "hueDriftDeg": 20,
         "saturationBoost": 0.4
-      },
-      "motion": {
-        "enabled": false,
-        "amplitudePx": 0.5,
-        "staggerPx": 1,
-        "maxOffsetPx": 36.5,
-        "speed": 0.55,
-        "direction": "rightToLeft"
       }
     },
     "stripeDots": {
       "enabled": true,
-      "density": 0.8,
-      "randomVisibility": 1,
+      "density": 0.24,
+      "randomVisibility": 0.24,
       "sizePx": 1.5,
       "brightness": 0.13,
       "hueDriftDeg": 0,
       "saturationBoost": 0
     },
-    "stripeBorder": {
+    "reveal": {
       "enabled": true,
-      "minWidthPx": 4,
-      "density": 0.02
-    },
-    "gridLines": {
-      "enabled": false,
-      "brightness": 0,
-      "density": 0.01
-    },
-    "frames": {
-      "enabled": true,
-      "luminanceThreshold": 0.56,
-      "highlightedStripeCount": 7,
-      "groupDistanceCells": 7,
-      "color": 16760596,
-      "fontSizePx": 8,
-      "coordinateColor": 16777215
-    },
-    "flames": {
-      "enabled": true,
-      "direction": "upDown",
-      "minWidthRatio": 0.005,
-      "maxWidthRatio": 0.02,
-      "minHeightRatio": 0.02,
-      "maxHeightRatio": 0.04,
-      "baseSpeedPxPerSec": 30,
-      "speedVariation": 1,
-      "spawnIntervalMs": 80,
-      "spawnJitterMs": 80,
-      "maxActive": 25,
-      "edgeSharpness": 1,
-      "opacityMin": 0.3,
-      "opacityMax": 0.8999999999999999,
-      "vortexSingular": {
-        "segCount": 22,
-        "segSpacingPx": 10,
-        "turnRate": 0.9,
-        "turnVariation": 0.8,
-        "visibleMinMs": 7000,
-        "visibleMaxMs": 13000,
-        "hiddenMinMs": 800,
-        "hiddenMaxMs": 2600,
-        "lifeMinMs": 12000,
-        "lifeMaxMs": 24000,
-        "edgeMarginRatio": 0.12
+      "type": "water",
+      "water": {
+        "durationMs": 950,
+        "settleMs": 520,
+        "rows": 5,
+        "intensity": 1.5,
+        "wobble": 0.7,
+        "refraction": 1.3,
+        "softness": 0.35
       }
-    },
-    "edgeMask": {
-      "enabled": true,
-      "start": 0,
-      "end": 0.09999999999999998,
-      "power": 0.6000000000000001
     },
     "cursorTrail": {
       "enabled": true,
@@ -351,67 +164,7 @@
       "pushStrengthPx": 48,
       "pushLagPx": 0,
       "pushWobblePx": 12,
-      "pushLeadBlackAlpha": 0,
-      "constellation": {
-        "radiusScale": 0.31,
-        "starDensity": 1,
-        "starSizePx": 2.2,
-        "starSizeRandomness": 0.77,
-        "starGrowScale": 1.35,
-        "starPushPx": 1.9,
-        "twinkleAmount": 0.18,
-        "twinkleSpeed": 1,
-        "linkThicknessPx": 2.9,
-        "linkBrightness": 1,
-        "linkGrooveDepth": 1,
-        "linkShearPx": 13.5,
-        "linkMaxDistScale": 0.2184,
-        "linkFormMs": 210,
-        "linkHoldMs": 0,
-        "linkDissolveMs": 540,
-        "maxLinks": 48,
-        "maxStars": 64,
-        "pulseEnabled": true,
-        "pulseDurationMs": 700,
-        "pulseCoreLenPx": 3.4,
-        "pulseTailLenPx": 27,
-        "pulseBrightness": 1,
-        "pulseRelayHops": 2,
-        "pulseCooldownMs": 900,
-        "flareMs": 460,
-        "flareScale": 0.85,
-        "polygonFlashEnabled": true,
-        "polygonFlashStrength": 1
-      },
-      "comet": {
-        "nodeCount": 13,
-        "headStiffness": 5200,
-        "headDamping": 104,
-        "chainStiffness": 4200,
-        "chainDamping": 80,
-        "maxLinkPx": 22,
-        "headRadiusPx": 10.6,
-        "tailRadiusPx": 3.2,
-        "stretchThinning": 0.62,
-        "smoothUnionPx": 5.4,
-        "bodyBrightness": 1,
-        "auraStrength": 1,
-        "bodyPushPx": 12,
-        "presenceRiseRate": 15,
-        "presenceFallRate": 2.6,
-        "embersEnabled": true,
-        "emberRatePerSec": 92,
-        "emberMaxCount": 210,
-        "emberSizePx": 2.9,
-        "emberSpeedMinPxPerSec": 26,
-        "emberSpeedMaxPxPerSec": 56,
-        "emberSpreadRad": 0.85,
-        "emberLifetimeMinMs": 560,
-        "emberLifetimeMaxMs": 1400,
-        "emberBrightness": 1,
-        "emberFadeInFraction": 0.12,
-        "seed": 10368889
-      }
+      "pushLeadBlackAlpha": 0
     },
     "clickWave": {
       "enabled": true,
@@ -424,131 +177,69 @@
       "maxWaves": 12,
       "pushStrengthPx": 38,
       "pushBandScale": 3.2,
-      "stripeWhiteAlpha": 0.5,
-      "detonation": {
-        "maxConcurrent": 4,
-        "ringReachPx": 168,
-        "ringDurationMs": 600,
-        "ringThicknessPx": 24,
-        "ringRefractionPx": 20,
-        "flashRadiusPx": 24,
-        "flashDurationMs": 80,
-        "flashBrightness": 1,
-        "debrisCount": 24,
-        "debrisSpeedPxPerSec": 315,
-        "debrisSpeedVariation": 0.317,
-        "debrisDrag": 1.55,
-        "debrisGravityPxPerSec2": 360,
-        "debrisLifetimeMs": 1060,
-        "debrisLifetimeVariation": 0.302,
-        "debrisSizePx": 2.6,
-        "debrisBrightness": 1,
-        "craterRadiusPx": 118,
-        "craterDepth": 1,
-        "craterRelaxFastMs": 260,
-        "craterRelaxSlowMs": 1450,
-        "craterLifeMs": 3400,
-        "craterRimStrength": 1,
-        "seed": 1
-      }
+      "stripeWhiteAlpha": 0.5
     },
-    "letters": {
-      "enabled": false,
-      "mode": "random",
-      "colorMode": "white",
-      "color": 16777215,
-      "coverage": 0.1,
-      "positionX": 0.5,
-      "positionY": 0.5,
-      "areaWidth": 1,
-      "areaHeight": 1,
-      "text": "CLOUDFLARE",
-      "textCopies": 16,
-      "fontFamily": "Geist Mono Medium",
-      "sizeScale": 0.9,
-      "shuffleSpeed": 1
-    },
-    "colors": {
-      "mode": "luminance",
-      "stripeBlendMode": "normal",
-      "imageColorLightness": 0,
-      "imageColorDensity": 1,
-      "imageColorRemoveThin": 0,
-      "imageColorBoostThick": 0,
-      "autoDetectBackground": false,
-      "backgroundColor": 0,
-      "gradient": {
-        "enabled": false,
-        "direction": "topToBottom",
-        "stopCount": 3,
-        "stops": [8331002, 15415273, 16757593, 9752907],
-        "hueDriftDeg": 20,
-        "saturationBoost": 0.35
-      }
-    },
-    "renderMode": "sharp",
-    "renderIntensity": 1,
-    "renderParams": [0.5, 0.5, 0.5, 0.5],
-    "renderColorA": 2236962,
-    "renderColorB": 16777215,
     "dark": {
+      "background": {
+        "color": 1315860
+      },
       "stripes": [
         {
-          "color": 8008433,
-          "startFrom": 0,
+          "color": 2494726,
+          "startFrom": 0.02,
           "width": 0.5,
           "opacity": 1
         },
         {
-          "color": 8661759,
-          "startFrom": 0.0195,
+          "color": 3347975,
+          "startFrom": 0.0889,
           "width": 0.5,
           "opacity": 1
         },
         {
-          "color": 9380607,
-          "startFrom": 0.047,
+          "color": 4464653,
+          "startFrom": 0.1778,
           "width": 1,
           "opacity": 1
         },
         {
-          "color": 10100479,
-          "startFrom": 0.086,
+          "color": 5973518,
+          "startFrom": 0.2667,
           "width": 1.5,
           "opacity": 1
         },
         {
-          "color": 10890239,
-          "startFrom": 0.1408,
+          "color": 9054977,
+          "startFrom": 0.3556,
           "width": 1.5,
           "opacity": 1
         },
         {
-          "color": 11549183,
-          "startFrom": 0.2167,
+          "color": 11745286,
+          "startFrom": 0.4444,
           "width": 2,
           "opacity": 1
         },
         {
-          "color": 12141311,
-          "startFrom": 0.3191,
+          "color": 16015393,
+          "startFrom": 0.5333,
           "width": 2.5,
           "opacity": 1
         },
         {
-          "color": 12667391,
-          "startFrom": 0.4512,
+          "color": 16280064,
+          "startFrom": 0.6222,
           "width": 3,
           "opacity": 1
         },
         {
-          "color": 12997631,
-          "startFrom": 0.6129,
+          "color": 16746553,
+          "startFrom": 0.7111,
           "width": 3.5,
           "opacity": 1
         },
         {
-          "color": 13131775,
+          "color": 16752731,
           "startFrom": 0.8,
           "width": 4,
           "opacity": 1
@@ -567,7 +258,7 @@
     "exportSvgIncludeBackground": false,
     "backgroundColor": 16015393,
     "textureId": "cf-base",
-    "textureSourceMode": "texture",
+    "textureSourceMode": "shader",
     "shaderSourceCode": "// \"recursive noise experiment\" by Samuel YAN\n// Inspired by ompuco: https://www.shadertoy.com/view/wllGzr\n\nfloat connectHash(float n) {\n  return fract(clamp(n, 0.0, 1.0) * 23758.5453);\n}\n\nfloat connectNoise(vec3 x) {\n  vec3 p = floor(x);\n  vec3 f = fract(x);\n\n  f = f * f * (5.0 - 5.0 * f);\n  float n = 0.0;\n\n  return mix(\n    mix(\n      mix(connectHash(n + 1.0), connectHash(n + 1.0), f.x),\n      mix(connectHash(n + 0.5), connectHash(n + 0.5), f.x),\n      f.y\n    ),\n    mix(\n      mix(connectHash(n + 0.75), connectHash(n + 1.0), f.x),\n      mix(connectHash(n + 1.0), connectHash(n + 1.0), f.x),\n      f.y\n    ),\n    f.z\n  ) - 0.55;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n  vec3 t = (iTime * vec3(1.0, 2.0, 3.0)) / 20.0;\n  vec2 uv = fragCoord / iResolution.xy;\n  uv /= 15.0;\n\n  vec3 col = vec3(0.25);\n\n  for (int i = 0; i < 20; i++) {\n    float iteration = float(i);\n    col.r += connectNoise(uv.xyy * (1.0 + iteration) + col.rgb + t * sin(cos(iteration / 0.1)));\n    col.g += connectNoise(uv.xyx * iteration + col.rgb + t * sin(cos(iteration)));\n    col.b += connectNoise(uv.yyx * iteration + col.rgb + t * sin(cos(iteration)));\n  }\n\n  col /= 0.1;\n  col = normalize(col);\n  fragColor = vec4(col, 1.0);\n}",
     "shaderSourceWidth": 1280,
     "shaderSourceHeight": 960,
@@ -652,7 +343,7 @@
     "textureSidebarWidth": 272,
     "shaderSidebarWidth": 372,
     "connectShapeType": "spiral",
-    "shaderPresetId": "connect",
+    "shaderPresetId": "comet-logo",
     "connectCameraDistance": 60,
     "connectCameraRotateX": -14.922460937499977,
     "connectCameraRotateY": -180,
