@@ -103,6 +103,21 @@ import {
   renderFramesOverlay,
   type FrameGroup,
 } from "./framesOverlay";
+import { SurfacePanel } from "./components/SurfacePanel";
+import { SurfaceCanvasOverlay } from "./components/SurfaceCanvasOverlay";
+import {
+  createSurfaceArea,
+  EMPTY_SURFACE_WORKSPACE,
+  findSurfaceAreaAtPoint,
+  loadSurfaceWorkspace,
+  normalizeSurfaceAreaPoints,
+  saveSurfaceWorkspace,
+  type SurfaceArea,
+  type SurfaceAreaKind,
+  type SurfaceMode,
+  type SurfacePoint,
+  type SurfaceWorkspace,
+} from "./surfaceWorkspace";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -749,7 +764,79 @@ function LabBottomBar({
   );
 }
 
-function LabInner() {
+type LabInnerProps = {
+  surfaceWorkspace: SurfaceWorkspace;
+  surfaceEditorRevision: number;
+  initialConfig?: ThemedEngineConfig;
+  onSurfaceModeChange: (mode: SurfaceMode, currentConfig: ThemedEngineConfig) => void;
+  onAddSurfaceArea: (kind: SurfaceAreaKind, points: SurfacePoint[], config: ThemedEngineConfig) => void;
+  onSelectSurfaceArea: (id: string | null) => void;
+  onPreviewSurfaceAreaPoints: (id: string, points: SurfacePoint[]) => void;
+  onUpdateSurfaceAreaPoints: (id: string, points: SurfacePoint[]) => void;
+  onUpdateSurfaceAreaConfig: (id: string, config: ThemedEngineConfig) => void;
+  onToggleSurfaceArea: (id: string) => void;
+  onDeleteSurfaceArea: (id: string) => void;
+  onResetSurfaceArea: (id: string) => void;
+};
+
+type SurfaceAreaConfigEditorProps = {
+  area: SurfaceArea;
+  onChange: (id: string, config: ThemedEngineConfig) => void;
+};
+
+function SurfaceAreaConfigEditor({ area, onChange }: SurfaceAreaConfigEditorProps) {
+  const replay = useCallback(() => {}, []);
+  const { config, initialThemed, textureStore, shaderStore } = useEngineControls(replay, {
+    initialConfig: area.config,
+    configScope: "surface",
+  });
+  const editTheme = initialThemed.editTheme;
+  const lightBaseRef = useRef<Partial<EngineConfig>>(initialThemed.lightBase);
+  const darkDiffRef = useRef<DeepPartial<EngineConfig>>(initialThemed.darkDiff);
+  const lastSentConfigRef = useRef(JSON.stringify(sanitizeThemedConfig(area.config)));
+
+  const composeAreaConfig = useCallback((): ThemedEngineConfig => {
+    if (editTheme === "dark") {
+      const base = normalizeEngineConfig(lightBaseRef.current);
+      const dark = diffEngineConfig(base, config);
+      darkDiffRef.current = dark;
+      return Object.keys(dark).length > 0 ? { ...base, dark } : { ...base };
+    }
+    lightBaseRef.current = config;
+    const dark = darkDiffRef.current;
+    return Object.keys(dark).length > 0 ? { ...config, dark } : { ...config };
+  }, [config, editTheme]);
+
+  useEffect(() => {
+    const next = sanitizeThemedConfig(composeAreaConfig());
+    const serialized = JSON.stringify(next);
+    if (serialized === lastSentConfigRef.current) return;
+    lastSentConfigRef.current = serialized;
+    onChange(area.id, next);
+  }, [area.id, composeAreaConfig, onChange]);
+
+  return (
+    <>
+      <LevaPanel store={textureStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+      <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+    </>
+  );
+}
+
+function LabInner({
+  surfaceWorkspace,
+  surfaceEditorRevision,
+  initialConfig,
+  onSurfaceModeChange,
+  onAddSurfaceArea,
+  onSelectSurfaceArea,
+  onPreviewSurfaceAreaPoints,
+  onUpdateSurfaceAreaPoints,
+  onUpdateSurfaceAreaConfig,
+  onToggleSurfaceArea,
+  onDeleteSurfaceArea,
+  onResetSurfaceArea,
+}: LabInnerProps) {
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
   const startupLabSettings = useMemo(
     () => ({
@@ -761,6 +848,7 @@ function LabInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const twizzlerCanvasRef = useRef<HTMLCanvasElement>(null);
   const framesCanvasRef = useRef<HTMLCanvasElement>(null);
+  const partialCompositeCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasAreaRef = useRef<HTMLDivElement>(null);
   const shaderPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const connectUnderlayHostRef = useRef<HTMLDivElement>(null);
@@ -829,6 +917,13 @@ function LabInner() {
   const shaderMouseRef = useRef({ x: 0, y: 0, down: false, hovered: false });
   const labSettingsRef = useRef(labSettings);
   labSettingsRef.current = labSettings;
+  const surfaceWorkspaceRef = useRef(surfaceWorkspace);
+  surfaceWorkspaceRef.current = surfaceWorkspace;
+  const [drawingSurfaceAreaKind, setDrawingSurfaceAreaKind] = useState<SurfaceAreaKind | null>(null);
+  const drawingSurfaceAreaKindRef = useRef(drawingSurfaceAreaKind);
+  drawingSurfaceAreaKindRef.current = drawingSurfaceAreaKind;
+  const onSelectSurfaceAreaRef = useRef(onSelectSurfaceArea);
+  onSelectSurfaceAreaRef.current = onSelectSurfaceArea;
 
   useEffect(() => {
     setLabSettings((prev) =>
@@ -1013,9 +1108,12 @@ function LabInner() {
     showConnectCamera: textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
     activeShaderConfig: resolveShaderConfigKind(textureSourceMode, shaderPresetId),
     twizzlerTransport,
+    initialConfig,
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
+  const backgroundSourceOpacityRef = useRef(backgroundSourceOpacity);
+  backgroundSourceOpacityRef.current = backgroundSourceOpacity;
   const twizzlerRef = useRef(twizzler);
   twizzlerRef.current = twizzler;
   const twizzlerMapRef = useRef(twizzlerMap);
@@ -1046,6 +1144,14 @@ function LabInner() {
   }, [editTheme]);
   const composeThemedConfigRef = useRef(composeThemedConfig);
   composeThemedConfigRef.current = composeThemedConfig;
+  const getActiveThemedConfig = useCallback((): ThemedEngineConfig => {
+    const workspace = surfaceWorkspaceRef.current;
+    if (workspace.mode === "partial" && workspace.selectedAreaId) {
+      const area = workspace.areas.find((item) => item.id === workspace.selectedAreaId);
+      if (area) return area.config;
+    }
+    return composeThemedConfig();
+  }, [composeThemedConfig]);
   const selectedEntry = useMemo(() => findTextureEntry(textureId, loadManifest()), [textureId]);
   const canDeleteTexture = selectedEntry?.origin === "upload";
 
@@ -1546,7 +1652,8 @@ function LabInner() {
     };
 
     onExportVideoRef.current = () => {
-      const targetCanvas = canvasRef.current;
+      const targetCanvas =
+        surfaceWorkspaceRef.current.mode === "partial" ? partialCompositeCanvasRef.current : canvasRef.current;
       if (!targetCanvas) return;
       if (exportingVideoRef.current) return;
       const video = videoElRef.current;
@@ -1599,9 +1706,72 @@ function LabInner() {
       triggerReveal: () => beginRevealRef.current(engine),
     };
 
+    const partialFramesCanvas = document.createElement("canvas");
+
+    const renderPartialSurfaces = (now: number) => {
+      const workspace = surfaceWorkspaceRef.current;
+      if (workspace.mode !== "partial") return;
+      const composite = partialCompositeCanvasRef.current;
+      if (!composite) return;
+      if (composite.width !== canvas.width) composite.width = canvas.width;
+      if (composite.height !== canvas.height) composite.height = canvas.height;
+      const context = composite.getContext("2d");
+      if (!context) return;
+      context.clearRect(0, 0, composite.width, composite.height);
+      const areas = workspace.areas.filter((area) => area.visible).reverse();
+      for (const area of areas) {
+        let config = normalizeEngineConfig(resolveThemedConfig(area.config, editTheme));
+        if (backgroundSourceOpacityRef.current > 0.001) {
+          config = { ...config, background: { ...config.background, transparent: true } };
+        }
+        engine.setConfig(config);
+        engine.renderFrame();
+        context.save();
+        context.beginPath();
+        area.points.forEach((point, index) => {
+          const x = point.x * composite.width;
+          const y = point.y * composite.height;
+          if (index === 0) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        });
+        context.closePath();
+        context.clip();
+        context.drawImage(canvas, 0, 0, composite.width, composite.height);
+        if (config.frames.enabled) {
+          const readback = engine.readCellGrid();
+          const groups = buildFrameGroups(
+            readback,
+            config.frames.luminanceThreshold,
+            config.frames.groupDistanceCells,
+            effectiveStripes(config),
+            config.frames.highlightedStripeCount,
+          );
+          renderFramesOverlay(partialFramesCanvas, groups, config, composite.width, composite.height, now / 1000);
+          context.drawImage(partialFramesCanvas, 0, 0, composite.width, composite.height);
+        }
+        context.restore();
+      }
+      const twizzlerCanvas = twizzlerCanvasRef.current;
+      if (twizzlerCanvas && !twizzlerCanvas.hidden && areas.length > 0) {
+        context.save();
+        context.beginPath();
+        for (const area of areas) {
+          area.points.forEach((point, index) => {
+            const x = point.x * composite.width;
+            const y = point.y * composite.height;
+            if (index === 0) context.moveTo(x, y);
+            else context.lineTo(x, y);
+          });
+          context.closePath();
+        }
+        context.clip();
+        context.drawImage(twizzlerCanvas, 0, 0, composite.width, composite.height);
+        context.restore();
+      }
+    };
+
     let raf = 0;
     if (!manual) {
-      engine.start();
       if (textureSourceModeRef.current === "shader") {
         if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
           applyConnectTextureSource(labSettingsRef.current.connectShapeType);
@@ -1747,11 +1917,13 @@ function LabInner() {
           lastSnapAt = now;
           setSnap(engine.getPerf());
         }
+        renderPartialSurfaces(now);
         raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
     } else {
       engine.renderFrame();
+      renderPartialSurfaces(performance.now());
       setSnap(engine.getPerf());
     }
 
@@ -1791,6 +1963,13 @@ function LabInner() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || manual) return;
+    if (surfaceWorkspace.mode === "full") engine.start();
+    else engine.stop();
+  }, [manual, surfaceWorkspace.mode]);
 
   useEffect(() => {
     if (!shell) return;
@@ -1969,6 +2148,16 @@ function LabInner() {
     const onDown = (e: PointerEvent) => {
       const engine = engineRef.current;
       if (!engine) return;
+      const workspace = surfaceWorkspaceRef.current;
+      if (workspace.mode === "partial" && drawingSurfaceAreaKindRef.current === null) {
+        const rect = canvas.getBoundingClientRect();
+        const area = findSurfaceAreaAtPoint(workspace.areas, {
+          x: rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0,
+          y: rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0,
+        });
+        const nextSelectedAreaId = area?.id ?? null;
+        if (nextSelectedAreaId !== workspace.selectedAreaId) onSelectSurfaceAreaRef.current(nextSelectedAreaId);
+      }
       const point = pointerToEnginePoint(canvas, e);
       engine.click(point.x, point.y);
       canvas.setPointerCapture?.(e.pointerId);
@@ -2054,8 +2243,9 @@ function LabInner() {
   }, [controls.background.color, controls.background.transparent, getLabSettingsSnapshot]);
 
   useEffect(() => {
-    const id = textureIdRef.current;
+    if (surfaceWorkspaceRef.current.mode === "partial") return;
     const themed = composeThemedConfig();
+    const id = textureIdRef.current;
     const key = `${id}:${JSON.stringify(themed)}`;
     if (lastSavedConfigJsonRef.current === key) return;
     lastSavedConfigJsonRef.current = key;
@@ -2316,7 +2506,12 @@ function LabInner() {
         ? importedTextureId
         : textureIdRef.current;
     const config = sanitizeThemedConfig(imported.config);
-    stagePendingConfig(config);
+    const selectedAreaId = surfaceWorkspaceRef.current.selectedAreaId;
+    if (surfaceWorkspaceRef.current.mode === "partial" && selectedAreaId) {
+      onUpdateSurfaceAreaConfig(selectedAreaId, config);
+    } else {
+      stagePendingConfig(config);
+    }
     markImportedConfigPristine();
     if (imported.lab) {
       saveLabSettings(imported.lab);
@@ -2326,18 +2521,21 @@ function LabInner() {
   }
 
   function handleExport() {
-    void navigator.clipboard.writeText(serializeConfigFile(composeThemedConfig(), fullLabSettingsSnapshot()));
+    void navigator.clipboard.writeText(serializeConfigFile(getActiveThemedConfig(), fullLabSettingsSnapshot()));
   }
 
   function handleDownloadConfig() {
     downloadTextFile(
-      serializeConfigFile(composeThemedConfig(), fullLabSettingsSnapshot()),
+      serializeConfigFile(getActiveThemedConfig(), fullLabSettingsSnapshot()),
       settingsFilename(textureIdRef.current),
     );
   }
 
   function handleExportProductionConfig() {
-    downloadTextFile(serializeProductionConfig(composeThemedConfig()), productionConfigFilename(textureIdRef.current));
+    downloadTextFile(
+      serializeProductionConfig(getActiveThemedConfig()),
+      productionConfigFilename(textureIdRef.current),
+    );
   }
 
   function handleImport() {
@@ -2365,6 +2563,13 @@ function LabInner() {
   }
 
   function handleResetSettings() {
+    const selectedAreaId = surfaceWorkspaceRef.current.selectedAreaId;
+    if (surfaceWorkspaceRef.current.mode === "partial" && selectedAreaId) {
+      const selectedArea = surfaceWorkspaceRef.current.areas.find((area) => area.id === selectedAreaId);
+      if (!window.confirm(`Reset config for "${selectedArea?.name ?? "selected area"}"?`)) return;
+      onResetSurfaceArea(selectedAreaId);
+      return;
+    }
     if (!window.confirm("Reset settings for this texture?")) return;
     deleteConfig(textureIdRef.current);
     stagePendingConfig(DEFAULT_LAB_ENGINE_CONFIG);
@@ -2375,14 +2580,30 @@ function LabInner() {
 
   function handleSelectTheme(next: LabEditTheme) {
     if (next === editTheme) return;
-    const themed = composeThemedConfig();
-    saveConfig(textureIdRef.current, themed);
+    const themed = getActiveThemedConfig();
+    const selectedAreaId = surfaceWorkspaceRef.current.selectedAreaId;
+    if (surfaceWorkspaceRef.current.mode === "partial" && selectedAreaId) {
+      onUpdateSurfaceAreaConfig(selectedAreaId, themed);
+    } else {
+      saveConfig(textureIdRef.current, themed);
+      stagePendingConfig(themed);
+    }
     saveEditTheme(next);
-    stagePendingConfig(themed);
     window.location.reload();
   }
 
   function handleResetTheme(target: LabEditTheme) {
+    const selectedAreaId = surfaceWorkspaceRef.current.selectedAreaId;
+    if (surfaceWorkspaceRef.current.mode === "partial" && selectedAreaId) {
+      const themed = getActiveThemedConfig();
+      const next =
+        target === "dark"
+          ? normalizeEngineConfig(resolveThemedConfig(themed, "light"))
+          : normalizeEngineConfig(resolveThemedConfig(themed, "dark"));
+      onUpdateSurfaceAreaConfig(selectedAreaId, next);
+      if (editTheme === target) window.location.reload();
+      return;
+    }
     const id = textureIdRef.current;
     if (target === "dark") {
       darkDiffRef.current = {};
@@ -2415,6 +2636,7 @@ function LabInner() {
     )
       return;
     factoryResetSettings();
+    saveSurfaceWorkspace(EMPTY_SURFACE_WORKSPACE);
     saveManifest([]);
     saveTextureId(DEFAULT_LAB_TEXTURE_ID);
     saveControlDrawerSnapshot(DEFAULT_LAB_SETTINGS.drawerOpen);
@@ -2430,7 +2652,7 @@ function LabInner() {
     const name = window.prompt("Preset name:")?.trim();
     if (!name) return;
     if (presets.some((p) => p.name === name) && !window.confirm(`Overwrite preset "${name}"?`)) return;
-    const next = addPreset(presets, createPreset(name, composeThemedConfig(), fullLabSettingsSnapshot()));
+    const next = addPreset(presets, createPreset(name, getActiveThemedConfig(), fullLabSettingsSnapshot()));
     savePresets(next);
     setPresets(next);
     setSelectedPreset(name);
@@ -2440,7 +2662,13 @@ function LabInner() {
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
     const targetTextureId = textureIdRef.current;
-    stagePendingConfig(sanitizeThemedConfig(preset.config));
+    const config = sanitizeThemedConfig(preset.config);
+    const selectedAreaId = surfaceWorkspaceRef.current.selectedAreaId;
+    if (surfaceWorkspaceRef.current.mode === "partial" && selectedAreaId) {
+      onUpdateSurfaceAreaConfig(selectedAreaId, config);
+    } else {
+      stagePendingConfig(config);
+    }
     if (preset.lab) {
       saveLabSettings({ ...preset.lab, textureId: targetTextureId });
       saveControlDrawerSnapshot(preset.lab.drawerOpen);
@@ -2613,6 +2841,27 @@ function LabInner() {
     updateLabSettings({ connectShapeType: shapeType });
   }
 
+  function handleSurfaceModeChange(next: SurfaceMode) {
+    if (next === surfaceWorkspace.mode) return;
+    setDrawingSurfaceAreaKind(null);
+    onSurfaceModeChange(next, composeThemedConfig());
+  }
+
+  function handleSelectSurfaceArea(id: string | null) {
+    onSelectSurfaceArea(id);
+  }
+
+  function handleCompleteSurfaceArea(kind: SurfaceAreaKind, points: SurfacePoint[]) {
+    setDrawingSurfaceAreaKind(null);
+    onAddSurfaceArea(kind, points, getActiveThemedConfig());
+  }
+
+  function handleDeleteSurfaceArea(id: string) {
+    const area = surfaceWorkspace.areas.find((item) => item.id === id);
+    if (!area || !window.confirm(`Delete "${area.name}"?`)) return;
+    onDeleteSurfaceArea(id);
+  }
+
   if (!shell) {
     return <canvas ref={canvasRef} style={{ display: "block" }} />;
   }
@@ -2620,8 +2869,10 @@ function LabInner() {
   const spiralSelected = isSpiralShaderPreset(shaderPresetId);
   const cometLogoSelected = isCometLogoShaderPreset(shaderPresetId);
   const twizzlerMapSelected = isTwizzlerMapShaderPreset(shaderPresetId);
+  const selectedArea = surfaceWorkspace.areas.find((area) => area.id === surfaceWorkspace.selectedAreaId) ?? null;
 
-  const showSourceBackground = backgroundSourceOpacity > 0.001 && sourcePreview !== null;
+  const sourcePreviewOpacity = surfaceWorkspace.mode === "partial" ? 1 : backgroundSourceOpacity;
+  const showSourceBackground = sourcePreviewOpacity > 0.001 && sourcePreview !== null;
   const showConnectGradientUnderlay =
     textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
   const showTwizzlerOverlay = shouldShowTwizzlerOverlay(
@@ -2645,7 +2896,7 @@ function LabInner() {
           width: "100%",
           height: "auto",
           transform: "translateY(-50%)",
-          opacity: backgroundSourceOpacity,
+          opacity: sourcePreviewOpacity,
         }
       : controls.transform.fit === "height"
         ? {
@@ -2654,9 +2905,9 @@ function LabInner() {
             width: "auto",
             height: "100%",
             transform: "translateX(-50%)",
-            opacity: backgroundSourceOpacity,
+            opacity: sourcePreviewOpacity,
           }
-        : { objectFit: sourceObjectFit, opacity: backgroundSourceOpacity };
+        : { objectFit: sourceObjectFit, opacity: sourcePreviewOpacity };
 
   return (
     <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}`}>
@@ -2890,7 +3141,7 @@ function LabInner() {
               <summary>Config</summary>
               <div className="wf-collapsible-content">
                 <button className="lab-btn" onClick={handleExportProductionConfig}>
-                  Export production config
+                  {surfaceWorkspace.mode === "partial" ? "Export selected config" : "Export production config"}
                 </button>
                 <div className="wf-row">
                   <button className="lab-btn" onClick={handleExport}>
@@ -2916,7 +3167,7 @@ function LabInner() {
                   onChange={handleConfigFileChange}
                 />
                 <button className="lab-btn wf-reset" onClick={handleResetSettings}>
-                  Reset settings
+                  {surfaceWorkspace.mode === "partial" ? "Reset layer config" : "Reset settings"}
                 </button>
                 <button className="lab-btn wf-reset" onClick={handleFactoryResetSettings}>
                   Factory reset
@@ -2943,7 +3194,9 @@ function LabInner() {
             settings={labSettings}
             onSettings={updateLabSettings}
           />
-          <LevaPanel store={textureStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+          {surfaceWorkspace.mode === "full" ? (
+            <LevaPanel store={textureStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+          ) : null}
         </div>
         <hr
           className="lab-sidebar-resize-handle"
@@ -3025,13 +3278,29 @@ function LabInner() {
                   className="lab-canvas-twizzler"
                   aria-hidden="true"
                   hidden={!showTwizzlerOverlay}
-                  style={{ width: canvasCssSize.cssW, height: canvasCssSize.cssH }}
+                  style={{
+                    width: canvasCssSize.cssW,
+                    height: canvasCssSize.cssH,
+                    opacity: surfaceWorkspace.mode === "partial" ? 0 : 1,
+                  }}
                 />
                 <canvas
                   ref={canvasRef}
                   className="lab-canvas-output"
                   style={{
                     display: "block",
+                    opacity: surfaceWorkspace.mode === "partial" ? 0 : 1,
+                    width: canvasCssSize.cssW,
+                    height: canvasCssSize.cssH,
+                  }}
+                />
+                <canvas
+                  ref={partialCompositeCanvasRef}
+                  className="lab-canvas-partial-composite"
+                  aria-hidden="true"
+                  hidden={surfaceWorkspace.mode !== "partial"}
+                  style={{
+                    opacity: 1,
                     width: canvasCssSize.cssW,
                     height: canvasCssSize.cssH,
                   }}
@@ -3041,10 +3310,23 @@ function LabInner() {
                   className="lab-canvas-frames"
                   aria-hidden="true"
                   style={{
+                    opacity: surfaceWorkspace.mode === "partial" ? 0 : 1,
                     width: canvasCssSize.cssW,
                     height: canvasCssSize.cssH,
                   }}
                 />
+                {surfaceWorkspace.mode === "partial" ? (
+                  <SurfaceCanvasOverlay
+                    drawingKind={drawingSurfaceAreaKind}
+                    areas={surfaceWorkspace.areas}
+                    selectedArea={selectedArea}
+                    onComplete={handleCompleteSurfaceArea}
+                    onSelectArea={handleSelectSurfaceArea}
+                    onPreviewPoints={onPreviewSurfaceAreaPoints}
+                    onChangePoints={onUpdateSurfaceAreaPoints}
+                    onCancel={() => setDrawingSurfaceAreaKind(null)}
+                  />
+                ) : null}
               </div>
             </div>
           </div>
@@ -3096,7 +3378,9 @@ function LabInner() {
           aria-label="Resize shader panel"
         />
         <div
-          className="lab-sidebar-scroll playground-leva-panel shader-config-panel ui-scroll-hidden"
+          className={`lab-sidebar-scroll playground-leva-panel shader-config-panel ui-scroll-hidden${
+            surfaceWorkspace.mode === "partial" ? " is-surface-panel" : ""
+          }`}
           style={{ width: labSettings.shaderSidebarWidth }}
         >
           <div className="lab-sidebar-header lab-sidebar-header-end">
@@ -3110,7 +3394,29 @@ function LabInner() {
               <PanelRightClose size={14} strokeWidth={1.75} />
             </button>
           </div>
-          <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+          <SurfacePanel
+            mode={surfaceWorkspace.mode}
+            areas={surfaceWorkspace.areas}
+            selectedAreaId={surfaceWorkspace.selectedAreaId}
+            drawingKind={drawingSurfaceAreaKind}
+            onModeChange={handleSurfaceModeChange}
+            onNewArea={setDrawingSurfaceAreaKind}
+            onSelectArea={handleSelectSurfaceArea}
+            onToggleArea={onToggleSurfaceArea}
+            onDeleteArea={handleDeleteSurfaceArea}
+          >
+            {surfaceWorkspace.mode === "partial" ? (
+              selectedArea ? (
+                <SurfaceAreaConfigEditor
+                  key={`${selectedArea.id}:${surfaceEditorRevision}`}
+                  area={selectedArea}
+                  onChange={onUpdateSurfaceAreaConfig}
+                />
+              ) : null
+            ) : (
+              <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+            )}
+          </SurfacePanel>
         </div>
       </aside>
       <PerfOverlay snap={snap} />
@@ -3119,5 +3425,154 @@ function LabInner() {
 }
 
 export function LabApp() {
-  return <LabInner />;
+  const [surfaceWorkspace, setSurfaceWorkspace] = useState(() => loadSurfaceWorkspace());
+  const [editorRevision, setEditorRevision] = useState(0);
+  const initialConfig = surfaceWorkspace.fullConfig ?? undefined;
+
+  const updateSurfaceWorkspace = useCallback((updater: (current: SurfaceWorkspace) => SurfaceWorkspace) => {
+    setSurfaceWorkspace((current) => {
+      const next = updater(current);
+      saveSurfaceWorkspace(next);
+      return next;
+    });
+  }, []);
+
+  const handleSurfaceModeChange = useCallback(
+    (mode: SurfaceMode, currentConfig: ThemedEngineConfig) => {
+      updateSurfaceWorkspace((current) => {
+        return {
+          ...current,
+          mode,
+          fullConfig: current.mode === "full" ? sanitizeThemedConfig(currentConfig) : current.fullConfig,
+          selectedAreaId: current.selectedAreaId ?? current.areas[0]?.id ?? null,
+        };
+      });
+    },
+    [updateSurfaceWorkspace],
+  );
+
+  const handleAddSurfaceArea = useCallback(
+    (kind: SurfaceAreaKind, points: SurfacePoint[], config: ThemedEngineConfig) => {
+      updateSurfaceWorkspace((current) => {
+        const area = createSurfaceArea(kind, points, config, current.areas);
+        if (!area) return current;
+        return {
+          ...current,
+          mode: "partial",
+          areas: [area, ...current.areas],
+          selectedAreaId: area.id,
+        };
+      });
+    },
+    [updateSurfaceWorkspace],
+  );
+
+  const handleSelectSurfaceArea = useCallback(
+    (id: string | null) => {
+      updateSurfaceWorkspace((current) =>
+        id === null || current.areas.some((area) => area.id === id) ? { ...current, selectedAreaId: id } : current,
+      );
+    },
+    [updateSurfaceWorkspace],
+  );
+
+  const handleUpdateSurfaceAreaPoints = useCallback(
+    (id: string, points: SurfacePoint[]) => {
+      updateSurfaceWorkspace((current) => {
+        const area = current.areas.find((item) => item.id === id);
+        if (!area) return current;
+        const nextPoints = normalizeSurfaceAreaPoints(area.kind, points);
+        if (!nextPoints || JSON.stringify(area.points) === JSON.stringify(nextPoints)) return current;
+        return {
+          ...current,
+          areas: current.areas.map((item) => (item.id === id ? { ...item, points: nextPoints } : item)),
+        };
+      });
+    },
+    [updateSurfaceWorkspace],
+  );
+
+  const handlePreviewSurfaceAreaPoints = useCallback((id: string, points: SurfacePoint[]) => {
+    setSurfaceWorkspace((current) => {
+      const area = current.areas.find((item) => item.id === id);
+      if (!area) return current;
+      const nextPoints = normalizeSurfaceAreaPoints(area.kind, points);
+      if (!nextPoints || JSON.stringify(area.points) === JSON.stringify(nextPoints)) return current;
+      return {
+        ...current,
+        areas: current.areas.map((item) => (item.id === id ? { ...item, points: nextPoints } : item)),
+      };
+    });
+  }, []);
+
+  const handleUpdateSurfaceAreaConfig = useCallback(
+    (id: string, config: ThemedEngineConfig) => {
+      updateSurfaceWorkspace((current) => {
+        const nextConfig = sanitizeThemedConfig(config);
+        const index = current.areas.findIndex((area) => area.id === id);
+        if (index < 0 || JSON.stringify(current.areas[index]!.config) === JSON.stringify(nextConfig)) return current;
+        return {
+          ...current,
+          areas: current.areas.map((area) => (area.id === id ? { ...area, config: nextConfig } : area)),
+        };
+      });
+    },
+    [updateSurfaceWorkspace],
+  );
+
+  const handleToggleSurfaceArea = useCallback(
+    (id: string) => {
+      updateSurfaceWorkspace((current) => ({
+        ...current,
+        areas: current.areas.map((area) => (area.id === id ? { ...area, visible: !area.visible } : area)),
+      }));
+    },
+    [updateSurfaceWorkspace],
+  );
+
+  const handleDeleteSurfaceArea = useCallback(
+    (id: string) => {
+      updateSurfaceWorkspace((current) => {
+        const index = current.areas.findIndex((area) => area.id === id);
+        if (index < 0) return current;
+        const areas = current.areas.filter((area) => area.id !== id);
+        const selectedAreaId =
+          current.selectedAreaId === id
+            ? (areas[Math.min(index, areas.length - 1)]?.id ?? null)
+            : current.selectedAreaId;
+        return { ...current, areas, selectedAreaId };
+      });
+    },
+    [updateSurfaceWorkspace],
+  );
+
+  const handleResetSurfaceArea = useCallback(
+    (id: string) => {
+      updateSurfaceWorkspace((current) => ({
+        ...current,
+        areas: current.areas.map((area) =>
+          area.id === id ? { ...area, config: sanitizeThemedConfig(DEFAULT_LAB_ENGINE_CONFIG) } : area,
+        ),
+      }));
+      setEditorRevision((value) => value + 1);
+    },
+    [updateSurfaceWorkspace],
+  );
+
+  return (
+    <LabInner
+      surfaceWorkspace={surfaceWorkspace}
+      surfaceEditorRevision={editorRevision}
+      initialConfig={initialConfig}
+      onSurfaceModeChange={handleSurfaceModeChange}
+      onAddSurfaceArea={handleAddSurfaceArea}
+      onSelectSurfaceArea={handleSelectSurfaceArea}
+      onPreviewSurfaceAreaPoints={handlePreviewSurfaceAreaPoints}
+      onUpdateSurfaceAreaPoints={handleUpdateSurfaceAreaPoints}
+      onUpdateSurfaceAreaConfig={handleUpdateSurfaceAreaConfig}
+      onToggleSurfaceArea={handleToggleSurfaceArea}
+      onDeleteSurfaceArea={handleDeleteSurfaceArea}
+      onResetSurfaceArea={handleResetSurfaceArea}
+    />
+  );
 }
