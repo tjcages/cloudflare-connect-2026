@@ -112,7 +112,7 @@ describe("config file import/export", () => {
     expect(exportedLab.drawerOpen).toEqual({ Stripes: true, Grid: false });
   });
 
-  it("uses the complete exported cf-base settings as factory defaults", () => {
+  it("uses the Cloudflare marketing palette and comet logo as factory defaults", () => {
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripeDots).toEqual({
       enabled: true,
       density: 0.8,
@@ -141,12 +141,18 @@ describe("config file import/export", () => {
       fontSizePx: 8,
       coordinateColor: 16777215,
     });
-    expect(DEFAULT_LAB_ENGINE_CONFIG.dark?.stripes?.[0]?.color).toBe(8008433);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.background.color).toBe(0xf46021);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.stripes.map(({ color }) => color)).toEqual([
+      0xf46021, 0xf86a00, 0xff8839, 0xffa05b, 0xffbb7d, 0xffd39e, 0xffe3bb, 0xffefd4, 0xfff8ea, 0xf5f5f5,
+    ]);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.dark?.background?.color).toBe(0x141414);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.dark?.stripes?.[0]?.color).toBe(0x261106);
     expect(DEFAULT_LAB_SETTINGS).toMatchObject({
       canvasWidth: 1400,
       canvasHeight: 998,
       textureId: "cf-base",
-      textureSourceMode: "texture",
+      textureSourceMode: "shader",
+      shaderPresetId: "comet-logo",
       stripePalette: "Background Ramp",
       backgroundRampEasing: "custom:0.417,0.335,0.58,0.911",
       thresholdDistributionEasing: "custom:0.431,0.147,0.556,0.409",
