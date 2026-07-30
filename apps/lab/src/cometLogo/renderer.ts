@@ -1,15 +1,30 @@
-import { advanceCometLogoAnimation, createCometLogoAnimationState, type CometLogoAnimationState } from "./animation";
-import { COMET_LOGO_RENDER_POINT_COUNT, COMET_LOGO_TRAIL_SEGMENT_COUNT } from "./points";
+import {
+  COMET_LOGO_REJOIN_DURATION_SEC,
+  advanceCometLogoAnimation,
+  createCometLogoAnimationState,
+  type CometLogoAnimationState,
+} from "./animation";
+import {
+  COMET_LOGO_IDLE_RENDER_POINT_COUNT,
+  COMET_LOGO_RENDER_POINT_COUNT,
+  COMET_LOGO_TRAIL_SEGMENT_COUNT,
+} from "./points";
 import { COMET_LOGO_FRAGMENT_SHADER, COMET_LOGO_VERTEX_SHADER } from "./shaders";
 
 export const COMET_LOGO_RENDER_SCALE = 0.5;
+
+export type CometLogoPointer = {
+  x: number;
+  y: number;
+  hovered: boolean;
+};
 
 export type CometLogoTextureRenderer = {
   canvas: HTMLCanvasElement;
   readonly width: number;
   readonly height: number;
   resize(width: number, height: number): void;
-  render(timeSec: number): void;
+  render(timeSec: number, pointer: CometLogoPointer): void;
   getAnimationState(): Readonly<CometLogoAnimationState>;
   dispose(): void;
 };
@@ -51,7 +66,7 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
     alpha: false,
     antialias: false,
     depth: false,
-    powerPreference: "high-performance",
+    powerPreference: "low-power",
     premultipliedAlpha: false,
     preserveDrawingBuffer: false,
     stencil: false,
@@ -66,8 +81,19 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
   }
 
   const resolutionLoc = gl.getUniformLocation(program, "uResolution");
-  const timeLoc = gl.getUniformLocation(program, "uTime");
+  const fieldTimeLoc = gl.getUniformLocation(program, "uFieldTime");
+  const formationLoc = gl.getUniformLocation(program, "uFormation");
+  const rejoiningLoc = gl.getUniformLocation(program, "uRejoining");
+  const rejoinProgressLoc = gl.getUniformLocation(program, "uRejoinProgress");
+  const rejoinStartFieldTimeLoc = gl.getUniformLocation(program, "uRejoinStartFieldTime");
+  const rejoinStartFormationLoc = gl.getUniformLocation(program, "uRejoinStartFormation");
+  const rejoinDurationLoc = gl.getUniformLocation(program, "uRejoinDuration");
+  const formationOriginLoc = gl.getUniformLocation(program, "uFormationOrigin");
+  const formationStartFieldTimeLoc = gl.getUniformLocation(program, "uFormationStartFieldTime");
   let animation = createCometLogoAnimationState();
+  let formationOriginX = 0.5;
+  let formationOriginY = 0.5;
+  let formationStartFieldTimeSec = 0;
   let disposed = false;
 
   const resize = (nextWidth: number, nextHeight: number) => {
@@ -87,19 +113,35 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       return canvas.height;
     },
     resize,
-    render(timeSec) {
+    render(timeSec, pointer) {
       if (disposed) return;
-      animation = advanceCometLogoAnimation(animation, timeSec);
+      const previousMode = animation.mode;
+      animation = advanceCometLogoAnimation(animation, timeSec, pointer.hovered);
+      if (animation.mode === "forming" && previousMode !== "forming") {
+        formationOriginX = Math.max(0, Math.min(1, pointer.x / Math.max(1, canvas.width)));
+        formationOriginY = Math.max(0, Math.min(1, pointer.y / Math.max(1, canvas.height)));
+        formationStartFieldTimeSec = animation.fieldTimeSec;
+      }
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.useProgram(program);
       gl.bindVertexArray(vao);
       gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
-      gl.uniform1f(timeLoc, animation.timeSec);
+      gl.uniform1f(fieldTimeLoc, animation.fieldTimeSec);
+      gl.uniform1f(formationLoc, animation.formation);
+      gl.uniform1f(rejoiningLoc, animation.mode === "rejoining" ? 1 : 0);
+      gl.uniform1f(rejoinProgressLoc, animation.rejoinProgress);
+      gl.uniform1f(rejoinStartFieldTimeLoc, animation.rejoinStartFieldTimeSec);
+      gl.uniform1f(rejoinStartFormationLoc, animation.rejoinStartFormation);
+      gl.uniform1f(rejoinDurationLoc, COMET_LOGO_REJOIN_DURATION_SEC);
+      gl.uniform2f(formationOriginLoc, formationOriginX * canvas.width, formationOriginY * canvas.height);
+      gl.uniform1f(formationStartFieldTimeLoc, formationStartFieldTimeSec);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
-      gl.drawArraysInstanced(gl.TRIANGLES, 0, COMET_LOGO_TRAIL_SEGMENT_COUNT * 6, COMET_LOGO_RENDER_POINT_COUNT);
+      const renderPointCount =
+        animation.mode === "field" ? COMET_LOGO_IDLE_RENDER_POINT_COUNT : COMET_LOGO_RENDER_POINT_COUNT;
+      gl.drawArraysInstanced(gl.TRIANGLES, 0, COMET_LOGO_TRAIL_SEGMENT_COUNT * 6, renderPointCount);
       gl.disable(gl.BLEND);
       gl.bindVertexArray(null);
     },

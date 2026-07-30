@@ -112,47 +112,41 @@ describe("config file import/export", () => {
     expect(exportedLab.drawerOpen).toEqual({ Stripes: true, Grid: false });
   });
 
-  it("uses the imported production settings and comet logo as factory defaults", () => {
+  it("uses the complete exported cf-base settings as factory defaults", () => {
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripeDots).toEqual({
       enabled: true,
-      density: 0.24,
-      randomVisibility: 0.24,
+      density: 0.8,
+      randomVisibility: 1,
       sizePx: 1.5,
       brightness: 0.13,
       hueDriftDeg: 0,
       saturationBoost: 0,
     });
-    expect(DEFAULT_LAB_ENGINE_CONFIG.adjustments).toMatchObject({
-      brightness: 0,
-      exposure: 0,
-      contrast: 1,
-      gamma: 1,
-    });
-    expect(DEFAULT_LAB_ENGINE_CONFIG.grid).toMatchObject({
-      angleDeg: 0,
-      rotationMode: "cell",
-      overlapAmount: 1.2,
-    });
-    expect(DEFAULT_LAB_ENGINE_CONFIG.reveal).toMatchObject({
+    expect(DEFAULT_LAB_ENGINE_CONFIG.stripeBorder).toEqual({
       enabled: true,
-      type: "water",
-      water: {
-        durationMs: 950,
-        settleMs: 520,
-        rows: 5,
-        intensity: 1.5,
-        wobble: 0.7,
-        refraction: 1.3,
-        softness: 0.35,
-      },
+      minWidthPx: 4,
+      density: 0.02,
     });
-    expect(DEFAULT_LAB_ENGINE_CONFIG.dark?.stripes?.[0]?.color).toBe(2494726);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.gridLines).toEqual({
+      enabled: false,
+      brightness: 0,
+      density: 0.01,
+    });
+    expect(DEFAULT_LAB_ENGINE_CONFIG.frames).toEqual({
+      enabled: true,
+      luminanceThreshold: 0.56,
+      highlightedStripeCount: 7,
+      groupDistanceCells: 7,
+      color: 16760596,
+      fontSizePx: 8,
+      coordinateColor: 16777215,
+    });
+    expect(DEFAULT_LAB_ENGINE_CONFIG.dark?.stripes?.[0]?.color).toBe(8008433);
     expect(DEFAULT_LAB_SETTINGS).toMatchObject({
       canvasWidth: 1400,
       canvasHeight: 998,
       textureId: "cf-base",
-      textureSourceMode: "shader",
-      shaderPresetId: "comet-logo",
+      textureSourceMode: "texture",
       stripePalette: "Background Ramp",
       backgroundRampEasing: "custom:0.417,0.335,0.58,0.911",
       thresholdDistributionEasing: "custom:0.431,0.147,0.556,0.409",
