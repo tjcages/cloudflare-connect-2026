@@ -5,8 +5,8 @@ import {
   type CometLogoAnimationState,
 } from "./animation";
 import {
+  COMET_LOGO_ACTIVE_RENDER_POINT_COUNT,
   COMET_LOGO_IDLE_RENDER_POINT_COUNT,
-  COMET_LOGO_RENDER_POINT_COUNT,
   COMET_LOGO_TRAIL_SEGMENT_COUNT,
 } from "./points";
 import { COMET_LOGO_FRAGMENT_SHADER, COMET_LOGO_VERTEX_SHADER } from "./shaders";
@@ -140,7 +140,7 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
       const renderPointCount =
-        animation.mode === "field" ? COMET_LOGO_IDLE_RENDER_POINT_COUNT : COMET_LOGO_RENDER_POINT_COUNT;
+        animation.mode === "field" ? COMET_LOGO_IDLE_RENDER_POINT_COUNT : COMET_LOGO_ACTIVE_RENDER_POINT_COUNT;
       gl.drawArraysInstanced(gl.TRIANGLES, 0, COMET_LOGO_TRAIL_SEGMENT_COUNT * 6, renderPointCount);
       gl.disable(gl.BLEND);
       gl.bindVertexArray(null);
