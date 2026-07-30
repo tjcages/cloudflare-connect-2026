@@ -18,6 +18,7 @@ export function createPresentPass(gl: WebGL2RenderingContext, quad: { draw(): vo
       outWidth: number,
       outHeight: number,
       edgeMask: EdgeMaskConfig,
+      applyEdgeMask: boolean,
       originX = 0,
       originY = 0,
     ) {
@@ -28,7 +29,7 @@ export function createPresentPass(gl: WebGL2RenderingContext, quad: { draw(): vo
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, fieldTex);
       gl.uniform1i(uField, 0);
-      gl.uniform1f(uEnabled, edgeMask.enabled ? 1 : 0);
+      gl.uniform1f(uEnabled, applyEdgeMask ? 1 : 0);
       gl.uniform1f(uStart, edgeMask.start);
       gl.uniform1f(uEnd, edgeMask.end);
       gl.uniform1f(uPower, edgeMask.power);

@@ -90,6 +90,7 @@ import {
 import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./connectShader/underlayIntro";
 import { canvasStackBackgroundCss } from "./canvasStackBackground";
 import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } from "./canvasFitPreviewZoom";
+import { edgeMaskPreviewStyle } from "./edgeMaskPreviewStyle";
 import { clearTwizzler, renderTwizzler } from "./twizzler";
 import { shouldShowTwizzlerOverlay } from "./twizzlerVisibility";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
@@ -2626,6 +2627,7 @@ function LabInner() {
 
   const sourcePreviewOpacity = rawSourceDebug ? 1 : backgroundSourceOpacity;
   const showSourceBackground = sourcePreviewOpacity > 0.001 && sourcePreview !== null;
+  const sourceMaskStyle = rawSourceDebug ? edgeMaskPreviewStyle(controls.edgeMask) : undefined;
   const showConnectGradientUnderlay =
     textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
   const showTwizzlerOverlay = shouldShowTwizzlerOverlay(
@@ -2998,32 +3000,34 @@ function LabInner() {
                   hidden={rawSourceDebug || !showConnectGradientUnderlay}
                   aria-hidden={rawSourceDebug || !showConnectGradientUnderlay}
                 />
-                {showSourceBackground && sourcePreview.video ? (
-                  <video
-                    className="lab-canvas-source-background"
-                    src={sourcePreview.video.currentSrc || sourcePreview.video.src}
-                    muted
-                    loop
-                    autoPlay
-                    playsInline
-                    style={sourceBackgroundStyle}
-                  />
-                ) : showSourceBackground && sourcePreview.source instanceof HTMLImageElement ? (
-                  <img
-                    className="lab-canvas-source-background"
-                    src={sourcePreview.source.currentSrc || sourcePreview.source.src}
-                    alt=""
-                    aria-hidden="true"
-                    style={sourceBackgroundStyle}
-                  />
-                ) : showSourceBackground && sourcePreview.source instanceof HTMLCanvasElement ? (
-                  <canvas
-                    ref={shaderPreviewCanvasRef}
-                    className="lab-canvas-source-background"
-                    aria-hidden="true"
-                    style={sourceBackgroundStyle}
-                  />
-                ) : null}
+                <div className="lab-canvas-source-mask" style={sourceMaskStyle}>
+                  {showSourceBackground && sourcePreview.video ? (
+                    <video
+                      className="lab-canvas-source-background"
+                      src={sourcePreview.video.currentSrc || sourcePreview.video.src}
+                      muted
+                      loop
+                      autoPlay
+                      playsInline
+                      style={sourceBackgroundStyle}
+                    />
+                  ) : showSourceBackground && sourcePreview.source instanceof HTMLImageElement ? (
+                    <img
+                      className="lab-canvas-source-background"
+                      src={sourcePreview.source.currentSrc || sourcePreview.source.src}
+                      alt=""
+                      aria-hidden="true"
+                      style={sourceBackgroundStyle}
+                    />
+                  ) : showSourceBackground && sourcePreview.source instanceof HTMLCanvasElement ? (
+                    <canvas
+                      ref={shaderPreviewCanvasRef}
+                      className="lab-canvas-source-background"
+                      aria-hidden="true"
+                      style={sourceBackgroundStyle}
+                    />
+                  ) : null}
+                </div>
                 <canvas
                   ref={twizzlerCanvasRef}
                   className="lab-canvas-twizzler"

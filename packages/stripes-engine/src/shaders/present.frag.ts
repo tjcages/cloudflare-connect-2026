@@ -7,8 +7,6 @@ uniform sampler2D uField;
 ${EDGE_MASK_GLSL}
 out vec4 finalColor;
 void main() {
-  // Stripes-off debug view. Without this the mask is invisible in exactly the
-  // view you would open to inspect it.
-  finalColor = vec4(texture(uField, vUv).rgb * edgeMaskAlpha(vUv), 1.0);
+  finalColor = vec4(texture(uField, vUv).rgb, 1.0) * edgeMaskAlpha(vUv);
 }
 `;

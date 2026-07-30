@@ -1600,6 +1600,13 @@
   pointer-events: none;
 }
 
+.lab-canvas-source-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .lab-canvas-area canvas.lab-canvas-source-background {
   position: absolute;
   inset: 0;

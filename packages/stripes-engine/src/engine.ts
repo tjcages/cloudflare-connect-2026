@@ -30,6 +30,8 @@ import { createFlamesPass } from "./passes/flamesPass";
 import { createStarsPass } from "./passes/starsPass";
 import { createParticleFieldPass } from "./passes/particleFieldPass";
 import { createStarsState, stepStars, type StarsState } from "./stars/starsSim";
+import { createEdgeMaskPass } from "./passes/edgeMaskPass";
+import { resolveEdgeMaskPlacement } from "./edgeMask/edgeMaskPlacement";
 import { createCursorSplatPass } from "./passes/cursorSplatPass";
 import { createCursorTearPass } from "./passes/cursorTearPass";
 import { createCursorWarpPass } from "./passes/cursorWarpPass";
@@ -371,6 +373,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
   let lastRevealKind = revealPassKind();
   let lastFlamesEnabled = config.flames.enabled;
   let lastFlamesDirection = config.flames.direction;
+  let lastFieldEdgeMaskEnabled = resolveEdgeMaskPlacement(config) === "field";
   let lastRenderMode = config.renderMode;
   let lastCursorTrailEnabled = config.cursorTrail.enabled;
   let lastClickWaveEnabled = config.clickWave.enabled;
@@ -1172,6 +1175,29 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
       fieldChain.push({ field: "hookField", color: null, active: alwaysActive });
     }
 
+    const edgeMaskFieldPasses: Pass[] = [];
+    if (resolveEdgeMaskPlacement(config) === "field") {
+      const edgeMaskPass = createEdgeMaskPass(gl, quad);
+      const chainIndex = fieldChain.length;
+      edgeMaskFieldPasses.push({
+        name: "edgeMaskField",
+        render: () => {
+          const srcTex = pool.get(chainFieldAt(chainIndex), fieldSize.width, fieldSize.height, {
+            linear: true,
+          }).texture;
+          const maskedRT = pool.get("maskedField", fieldSize.width, fieldSize.height, { linear: true });
+          edgeMaskPass.render(maskedRT, srcTex, {
+            start: config.edgeMask.start,
+            end: config.edgeMask.end,
+            power: config.edgeMask.power,
+            sides: config.edgeMask.sides,
+          });
+        },
+        dispose: () => edgeMaskPass.dispose(),
+      });
+      fieldChain.push({ field: "maskedField", color: null, active: alwaysActive });
+    }
+
     const cursorFieldPasses: Pass[] = [];
     // The "wave" type replaces the particle trail entirely; it couples into the
     // field pass instead of adding passes here.
@@ -1520,6 +1546,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...flamesFieldPasses,
         ...revealFieldPasses,
         ...hookFieldPasses,
+        ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         ...constellationFieldPasses,
         ...cometFieldPasses,
@@ -1632,6 +1659,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         ...flamesFieldPasses,
         ...revealFieldPasses,
         ...hookFieldPasses,
+        ...edgeMaskFieldPasses,
         ...cursorFieldPasses,
         ...constellationFieldPasses,
         ...cometFieldPasses,
@@ -1645,7 +1673,15 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
             if (postHookPass) {
               postHookPass.render(srcTex, null, postFrame());
             } else {
-              presentPass!.render(srcTex, output.width, output.height, config.edgeMask, presentOriginX, presentOriginY);
+              presentPass!.render(
+                srcTex,
+                output.width,
+                output.height,
+                config.edgeMask,
+                resolveEdgeMaskPlacement(config) === "output",
+                presentOriginX,
+                presentOriginY,
+              );
             }
           },
           dispose: () => {
@@ -1880,6 +1916,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         config.stripesEnabled !== lastStripesEnabled ||
         revealPassKind() !== lastRevealKind ||
         config.flames.enabled !== lastFlamesEnabled ||
+        (resolveEdgeMaskPlacement(config) === "field") !== lastFieldEdgeMaskEnabled ||
         config.renderMode !== lastRenderMode ||
         config.cursorTrail.enabled !== lastCursorTrailEnabled ||
         config.cursorTrail.type !== lastCursorTrailType ||
@@ -1910,6 +1947,7 @@ function createEngineCore(surface: RenderSurface, opts: EngineCoreOptions): Stri
         lastStripesEnabled = config.stripesEnabled;
         lastRevealKind = revealPassKind();
         lastFlamesEnabled = config.flames.enabled;
+        lastFieldEdgeMaskEnabled = resolveEdgeMaskPlacement(config) === "field";
         lastRenderMode = config.renderMode;
         lastCursorTrailEnabled = config.cursorTrail.enabled;
         lastCursorTrailType = config.cursorTrail.type;

@@ -6,6 +6,7 @@ import { STRIPE_FRAG } from "../shaders/stripe.frag";
 import { unpackRgb } from "../colors/colorMath";
 import { gradientDirectionIndex, STRIPE_BLEND_MODE_INDEX } from "../config/normalize";
 import type { EngineConfig } from "../config/types";
+import { resolveEdgeMaskPlacement } from "../edgeMask/edgeMaskPlacement";
 import { bindStripeCellUniforms, stripeCellLocations, type StripeCellUniforms } from "./stripeCellUniforms";
 
 export type StripeUniforms = StripeCellUniforms & {
@@ -158,7 +159,7 @@ export function buildStripeRenderOpts(config: EngineConfig, i: StripeRenderInput
     gridLinesEnabled: config.gridLines.enabled,
     gridLinesBrightness: config.gridLines.brightness,
     gridLinesDensity: config.gridLines.density,
-    edgeMaskEnabled: config.edgeMask.enabled,
+    edgeMaskEnabled: resolveEdgeMaskPlacement(config) === "output",
     edgeMaskStart: config.edgeMask.start,
     edgeMaskEnd: config.edgeMask.end,
     edgeMaskPower: config.edgeMask.power,
