@@ -22,7 +22,7 @@ import {
   stagePendingConfig,
 } from "./persistence";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
-import { COMET_LOGO_DEFAULTS } from "./cometLogo/config";
+import { COMET_LOGO_DEFAULTS } from "@necatikcl/stripes-engine";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
 
 function stubLocalStorage() {

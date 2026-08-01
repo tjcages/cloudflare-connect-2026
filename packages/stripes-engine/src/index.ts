@@ -79,3 +79,24 @@ export type { ClickWaveType, ClickWaveConfig, DetonationClickConfig } from "./co
 export { CLICK_WAVE_TYPES } from "./config/types";
 export { DEFAULT_CLICK_WAVE, DEFAULT_DETONATION_CLICK, normalizeDetonationClick } from "./config/normalize";
 export { detonationCaps } from "./detonation/detonationSim";
+export {
+  COMET_LOGO_FORMATION_DURATION_SEC,
+  COMET_LOGO_REJOIN_DURATION_SEC,
+  advanceCometLogoAnimation,
+  cometLogoRejoinWindowSec,
+  createCometLogoAnimationState,
+} from "./cometLogo/animation";
+export type { CometLogoAnimationMode, CometLogoAnimationState } from "./cometLogo/animation";
+export {
+  COMET_LOGO_BACKGROUND_POINT_COUNT,
+  COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT,
+  COMET_LOGO_IDLE_RENDER_POINT_COUNT,
+  COMET_LOGO_POINT_COUNT,
+  COMET_LOGO_POINTS,
+  COMET_LOGO_RENDER_POINT_COUNT,
+  COMET_LOGO_TRAIL_SEGMENT_COUNT,
+} from "./cometLogo/points";
+export { COMET_LOGO_CONFIG_VERSION, COMET_LOGO_DEFAULTS, normalizeCometLogoSettings } from "./cometLogo/config";
+export type { CometLogoSettings } from "./cometLogo/config";
+export { COMET_LOGO_RENDER_SCALE, createCometLogoTextureRenderer } from "./cometLogo/renderer";
+export type { CometLogoPointer, CometLogoTextureRenderer } from "./cometLogo/renderer";

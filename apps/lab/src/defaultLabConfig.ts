@@ -1,7 +1,7 @@
 import { DEFAULT_ENGINE_CONFIG, normalizeEngineConfig, sanitizeThemedConfig } from "@necatikcl/stripes-engine";
 import type { DeepPartial, EngineConfig } from "@necatikcl/stripes-engine";
 import factoryDefaults from "./factoryDefaults.json";
-import { COMET_LOGO_DEFAULTS } from "./cometLogo/config";
+import { COMET_LOGO_DEFAULTS } from "@necatikcl/stripes-engine";
 
 type PlainRecord = Record<string, unknown>;
 

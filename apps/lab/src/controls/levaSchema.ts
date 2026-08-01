@@ -34,7 +34,7 @@ import { SHADER_VIEW_DEFAULTS, type ShaderViewState } from "../shaderView";
 import type { ShaderConfigKind } from "../shaderConfig";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
-import { COMET_LOGO_DEFAULTS, normalizeCometLogoSettings, type CometLogoSettings } from "../cometLogo/config";
+import { COMET_LOGO_DEFAULTS, normalizeCometLogoSettings, type CometLogoSettings } from "@necatikcl/stripes-engine";
 import {
   applyStripePalette,
   BACKGROUND_RAMP_EASING_OPTIONS,

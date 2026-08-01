@@ -94,7 +94,7 @@ import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } f
 import { clearTwizzler, renderTwizzler } from "./twizzler";
 import { shouldShowTwizzlerOverlay } from "./twizzlerVisibility";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
-import { createCometLogoTextureRenderer, type CometLogoTextureRenderer } from "./cometLogo";
+import { createCometLogoTextureRenderer, type CometLogoTextureRenderer } from "@necatikcl/stripes-engine";
 import { steppedTransportTime, TimeTransport, type TimeTransportController } from "./components/TimeTransport";
 import {
   buildFrameGroups,

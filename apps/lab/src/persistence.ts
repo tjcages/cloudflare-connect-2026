@@ -14,7 +14,7 @@ import { normalizeShaderViewState } from "./shaderView";
 import { clampPreviewZoom } from "./canvasFitPreviewZoom";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "./twizzler";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "./twizzlerMapSource";
-import { COMET_LOGO_DEFAULTS, normalizeCometLogoSettings, type CometLogoSettings } from "./cometLogo/config";
+import { COMET_LOGO_DEFAULTS, normalizeCometLogoSettings, type CometLogoSettings } from "@necatikcl/stripes-engine";
 import { clearCustomStripePalettes } from "./controls/customStripePalettes";
 
 const MAP_KEY = "stripes-engine-lab-by-texture";
