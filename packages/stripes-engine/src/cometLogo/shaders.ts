@@ -167,9 +167,37 @@ float historicalFormation(float time, float maximumFormation) {
 vec2 trajectoryBow(float id, vec2 direction, float span, float ease) {
   vec2 normal = vec2(-direction.y, direction.x);
   float swing = hash11(id * 61.7) < 0.5 ? -1.0 : 1.0;
-  float amount = swing * mix(0.16, 0.34, hash11(id * 71.3)) * span;
+  float amount = swing * mix(0.18, 0.38, hash11(id * 71.3)) * span;
   float inverse = 1.0 - ease;
-  return normal * amount * 16.0 * ease * ease * inverse * inverse;
+  // Triple root at both ends: zero value, slope AND curvature there. The
+  // earlier 16e²(1-e)² was only a double root, so it handed the path a lateral
+  // acceleration kick right where it rejoins the field — read as a kink even
+  // though position and velocity matched exactly.
+  return normal * amount * 64.0 * ease * ease * ease * inverse * inverse * inverse;
+}
+
+// Matches position, velocity AND acceleration at both ends. Velocity alone
+// leaves a curvature discontinuity where the return path meets the field, which
+// reads as a kink even though the comet never jumps or changes speed.
+vec2 quinticHermite(
+  vec2 start,
+  vec2 startVelocity,
+  vec2 startAcceleration,
+  vec2 end,
+  vec2 endVelocity,
+  vec2 endAcceleration,
+  float t
+) {
+  float t2 = t * t;
+  float t3 = t2 * t;
+  float t4 = t3 * t;
+  float t5 = t4 * t;
+  return (1.0 - 10.0 * t3 + 15.0 * t4 - 6.0 * t5) * start
+    + (t - 6.0 * t3 + 8.0 * t4 - 3.0 * t5) * startVelocity
+    + (0.5 * t2 - 1.5 * t3 + 1.5 * t4 - 0.5 * t5) * startAcceleration
+    + (10.0 * t3 - 15.0 * t4 + 6.0 * t5) * end
+    + (-4.0 * t3 + 7.0 * t4 - 3.0 * t5) * endVelocity
+    + (0.5 * t3 - t4 + 0.5 * t5) * endAcceleration;
 }
 
 vec2 cubicHermite(vec2 start, vec2 startTangent, vec2 end, vec2 endTangent, float t) {
@@ -233,6 +261,14 @@ void fieldPoint(
   radiusPx = max(1.25, uResolution.y * 0.004 * perspective)
     * uFieldParticleSize
     * mix(FIELD_SPAWN_RADIUS_SCALE, 1.0, fieldSpawnGrowth(id, time));
+}
+
+// d²/dt² of the field path: z falls linearly, and head goes as 1/z, so this is
+// 2·direction·speed²/z³. Cheap and exact, which is what lets the return path
+// arrive with the field's curvature and not just its velocity.
+vec2 fieldAcceleration(float id, float time) {
+  float z = mod(hash11(id * 1.37) * uFieldDepth - time * uFieldSpeed, uFieldDepth) + 0.24;
+  return fieldDirection(id) * (2.0 * uFieldSpeed * uFieldSpeed / (z * z * z));
 }
 
 float fieldCycleIndex(float id, float time) {
@@ -531,9 +567,22 @@ vec2 rejoinHead(int index, float id, float elapsed, out float radiusPx, out bool
 
   vec2 endTangent = targetVelocity * rejoinDuration;
 
+  // rejoinTravelEase has e'(1)=1 and e''(1)=-2, so matching the field's
+  // acceleration through the chain rule needs a1 = aField*T² + 2*velocity*T.
+  vec2 endAcceleration =
+    fieldAcceleration(id, uRejoinStartFieldTime + rejoinDuration) * rejoinDuration * rejoinDuration
+    + targetVelocity * (2.0 * rejoinDuration);
+  // Field acceleration goes as 1/z³, so a comet returning to a near-plane slot
+  // would otherwise get an end curvature large enough to whip the path around.
+  float endAccelerationLimit = span * 8.0;
+  float endAccelerationLength = length(endAcceleration);
+  if (endAccelerationLength > endAccelerationLimit) {
+    endAcceleration *= endAccelerationLimit / max(endAccelerationLength, 0.00001);
+  }
+
   radiusPx = mix(startRadiusPx, targetRadiusPx, progress);
   float ease = rejoinTravelEase(progress);
-  return cubicHermite(start, startTangent, target, endTangent, ease)
+  return quinticHermite(start, startTangent, vec2(0.0), target, endTangent, endAcceleration, ease)
     + trajectoryBow(id, toTarget / span, span, ease);
 }
 
