@@ -104,6 +104,7 @@ export type LabSettings = {
 
 export const DEFAULT_LAB_SETTINGS: LabSettings = {
   ...DEFAULT_LAB_UI_SETTINGS,
+  cometLogo: { ...COMET_LOGO_DEFAULTS },
 };
 
 type ConfigFile = {

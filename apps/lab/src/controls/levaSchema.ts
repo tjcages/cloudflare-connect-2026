@@ -1081,6 +1081,13 @@ export function useEngineControls(
                   step: 0.01,
                   label: "Field spread",
                 },
+                cometLogoCenterClearRadius: {
+                  value: initialLabSettings.cometLogo.centerClearRadius,
+                  min: 0,
+                  max: 400,
+                  step: 1,
+                  label: "Center clearance",
+                },
                 cometLogoFieldTrailLength: {
                   value: initialLabSettings.cometLogo.fieldTrailLength,
                   min: 0,
@@ -4980,6 +4987,7 @@ export function useEngineControls(
       fieldSpeed: shaderValueRecord.cometLogoFieldSpeed,
       fieldDepth: shaderValueRecord.cometLogoFieldDepth,
       fieldSpread: shaderValueRecord.cometLogoFieldSpread,
+      centerClearRadius: shaderValueRecord.cometLogoCenterClearRadius,
       fieldTrailLength: shaderValueRecord.cometLogoFieldTrailLength,
       fieldParticleSize: shaderValueRecord.cometLogoFieldParticleSize,
       logoScale: shaderValueRecord.cometLogoLogoScale,

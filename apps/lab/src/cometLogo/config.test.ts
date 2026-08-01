@@ -25,7 +25,9 @@ describe("normalizeCometLogoSettings", () => {
   });
 
   it("upgrades the original formation duration once", () => {
-    expect(normalizeCometLogoSettings({ formationDuration: 1.8 }).formationDuration).toBe(2.1);
+    expect(normalizeCometLogoSettings({ formationDuration: 1.8 }).formationDuration).toBe(
+      COMET_LOGO_DEFAULTS.formationDuration,
+    );
     expect(
       normalizeCometLogoSettings({
         version: COMET_LOGO_CONFIG_VERSION,

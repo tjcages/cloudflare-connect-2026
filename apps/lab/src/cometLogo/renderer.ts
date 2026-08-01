@@ -81,6 +81,7 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
   const formationLoc = gl.getUniformLocation(program, "uFormation");
   const rejoiningLoc = gl.getUniformLocation(program, "uRejoining");
   const rejoinProgressLoc = gl.getUniformLocation(program, "uRejoinProgress");
+  const rejoinElapsedLoc = gl.getUniformLocation(program, "uRejoinElapsed");
   const rejoinStartFieldTimeLoc = gl.getUniformLocation(program, "uRejoinStartFieldTime");
   const rejoinStartFormationLoc = gl.getUniformLocation(program, "uRejoinStartFormation");
   const rejoinDurationLoc = gl.getUniformLocation(program, "uRejoinDuration");
@@ -91,6 +92,7 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       "FieldSpeed",
       "FieldDepth",
       "FieldSpread",
+      "CenterClearRadius",
       "FieldTrailLength",
       "FieldParticleSize",
       "LogoScale",
@@ -173,6 +175,7 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       gl.uniform1f(formationLoc, animation.formation);
       gl.uniform1f(rejoiningLoc, animation.mode === "rejoining" ? 1 : 0);
       gl.uniform1f(rejoinProgressLoc, animation.rejoinProgress);
+      gl.uniform1f(rejoinElapsedLoc, Math.max(0, animation.fieldTimeSec - animation.rejoinStartFieldTimeSec));
       gl.uniform1f(rejoinStartFieldTimeLoc, animation.rejoinStartFieldTimeSec);
       gl.uniform1f(rejoinStartFormationLoc, animation.rejoinStartFormation);
       gl.uniform1f(rejoinDurationLoc, settings.rejoinDuration);
@@ -182,6 +185,7 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
         FieldSpeed: settings.fieldSpeed,
         FieldDepth: settings.fieldDepth,
         FieldSpread: settings.fieldSpread,
+        CenterClearRadius: settings.centerClearRadius * COMET_LOGO_RENDER_SCALE,
         FieldTrailLength: settings.fieldTrailLength,
         FieldParticleSize: settings.fieldParticleSize,
         LogoScale: settings.logoScale,

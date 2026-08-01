@@ -3,6 +3,7 @@ export type CometLogoSettings = {
   fieldSpeed: number;
   fieldDepth: number;
   fieldSpread: number;
+  centerClearRadius: number;
   fieldTrailLength: number;
   fieldParticleSize: number;
   logoScale: number;
@@ -44,14 +45,15 @@ export const COMET_LOGO_DEFAULTS: CometLogoSettings = {
   fieldSpeed: 1.62,
   fieldDepth: 6.51,
   fieldSpread: 2.18,
+  centerClearRadius: 200,
   fieldTrailLength: 1,
   fieldParticleSize: 1,
   logoScale: 0.85,
   logoParticleSize: 1,
   logoTrailLength: 1,
   logoMotion: 1,
-  formationDuration: 2.1,
-  rejoinDuration: 1,
+  formationDuration: 1.1,
+  rejoinDuration: 1.1,
   formationStagger: 0.1,
   centerPreference: 0.78,
   sparkFrequency: 1,
@@ -93,6 +95,7 @@ export function normalizeCometLogoSettings(value: unknown): CometLogoSettings {
     fieldSpeed: clamp(input.fieldSpeed, COMET_LOGO_DEFAULTS.fieldSpeed, 0, 4),
     fieldDepth: clamp(input.fieldDepth, COMET_LOGO_DEFAULTS.fieldDepth, 2, 12),
     fieldSpread: clamp(input.fieldSpread, COMET_LOGO_DEFAULTS.fieldSpread, 0.5, 5),
+    centerClearRadius: clamp(input.centerClearRadius, COMET_LOGO_DEFAULTS.centerClearRadius, 0, 400),
     fieldTrailLength: clamp(input.fieldTrailLength, COMET_LOGO_DEFAULTS.fieldTrailLength, 0, 3),
     fieldParticleSize: clamp(input.fieldParticleSize, COMET_LOGO_DEFAULTS.fieldParticleSize, 0.25, 3),
     logoScale: clamp(input.logoScale, COMET_LOGO_DEFAULTS.logoScale, 0.35, 1.5),
