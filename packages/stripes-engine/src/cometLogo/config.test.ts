@@ -35,4 +35,17 @@ describe("normalizeCometLogoSettings", () => {
       }).formationDuration,
     ).toBe(1.8);
   });
+
+  it("defaults and clamps the ported settings", () => {
+    const d = normalizeCometLogoSettings({});
+    expect(d.fieldAlign).toBe(0);
+    expect(d.logoDensity).toBe(1);
+    expect(d.formationWiggle).toBe(0);
+    expect(d.formationInterrupt).toBe(0);
+
+    expect(normalizeCometLogoSettings({ logoDensity: 99 }).logoDensity).toBe(5);
+    expect(normalizeCometLogoSettings({ logoDensity: 2.25 }).logoDensity).toBe(2.25);
+    expect(normalizeCometLogoSettings({ centerClearAspect: 0 }).centerClearAspect).toBe(0.2);
+    expect(normalizeCometLogoSettings({ formationEase: 9 }).formationEase).toBe(4);
+  });
 });

@@ -4,14 +4,26 @@ export type CometLogoSettings = {
   fieldDepth: number;
   fieldSpread: number;
   centerClearRadius: number;
+  centerClearAspect: number;
+  centerClearSquareness: number;
+  centerClearLeak: number;
+  centerClearFalloff: number;
+  fieldAlign: number;
+  formationDirectness: number;
+  formationMaxTravel: number;
+  formationEase: number;
+  formationWiggle: number;
+  formationInterrupt: number;
   fieldTrailLength: number;
   fieldParticleSize: number;
   logoScale: number;
   logoParticleSize: number;
+  logoDensity: number;
   logoTrailLength: number;
   logoMotion: number;
   formationDuration: number;
   rejoinDuration: number;
+  formationRejoinScale: number;
   formationStagger: number;
   centerPreference: number;
   sparkFrequency: number;
@@ -38,7 +50,7 @@ export type CometLogoSettings = {
   eruptionCycleSpeed: number;
 };
 
-export const COMET_LOGO_CONFIG_VERSION = 2;
+export const COMET_LOGO_CONFIG_VERSION = 3;
 
 export const COMET_LOGO_DEFAULTS: CometLogoSettings = {
   version: COMET_LOGO_CONFIG_VERSION,
@@ -46,14 +58,26 @@ export const COMET_LOGO_DEFAULTS: CometLogoSettings = {
   fieldDepth: 6.51,
   fieldSpread: 2.18,
   centerClearRadius: 200,
+  centerClearAspect: 1,
+  centerClearSquareness: 2,
+  centerClearLeak: 0,
+  centerClearFalloff: 1,
+  fieldAlign: 0,
+  formationDirectness: 0,
+  formationMaxTravel: 0,
+  formationEase: 0,
+  formationWiggle: 0,
+  formationInterrupt: 0,
   fieldTrailLength: 1,
   fieldParticleSize: 1,
   logoScale: 0.85,
   logoParticleSize: 1,
+  logoDensity: 1,
   logoTrailLength: 1,
   logoMotion: 1,
   formationDuration: 1.1,
   rejoinDuration: 1.1,
+  formationRejoinScale: 1.18,
   formationStagger: 0.1,
   centerPreference: 0.78,
   sparkFrequency: 1,
@@ -96,14 +120,26 @@ export function normalizeCometLogoSettings(value: unknown): CometLogoSettings {
     fieldDepth: clamp(input.fieldDepth, COMET_LOGO_DEFAULTS.fieldDepth, 2, 12),
     fieldSpread: clamp(input.fieldSpread, COMET_LOGO_DEFAULTS.fieldSpread, 0.5, 5),
     centerClearRadius: clamp(input.centerClearRadius, COMET_LOGO_DEFAULTS.centerClearRadius, 0, 400),
+    centerClearAspect: clamp(input.centerClearAspect, COMET_LOGO_DEFAULTS.centerClearAspect, 0.2, 6),
+    centerClearSquareness: clamp(input.centerClearSquareness, COMET_LOGO_DEFAULTS.centerClearSquareness, 1, 8),
+    centerClearLeak: clamp(input.centerClearLeak, COMET_LOGO_DEFAULTS.centerClearLeak, 0, 1),
+    centerClearFalloff: clamp(input.centerClearFalloff, COMET_LOGO_DEFAULTS.centerClearFalloff, 0.2, 8),
+    fieldAlign: clamp(input.fieldAlign, COMET_LOGO_DEFAULTS.fieldAlign, 0, 1),
+    formationDirectness: clamp(input.formationDirectness, COMET_LOGO_DEFAULTS.formationDirectness, 0, 1),
+    formationMaxTravel: clamp(input.formationMaxTravel, COMET_LOGO_DEFAULTS.formationMaxTravel, 0, 4),
+    formationEase: clamp(input.formationEase, COMET_LOGO_DEFAULTS.formationEase, 0, 4),
+    formationWiggle: clamp(input.formationWiggle, COMET_LOGO_DEFAULTS.formationWiggle, 0, 3),
+    formationInterrupt: clamp(input.formationInterrupt, COMET_LOGO_DEFAULTS.formationInterrupt, 0, 2),
     fieldTrailLength: clamp(input.fieldTrailLength, COMET_LOGO_DEFAULTS.fieldTrailLength, 0, 3),
     fieldParticleSize: clamp(input.fieldParticleSize, COMET_LOGO_DEFAULTS.fieldParticleSize, 0.25, 3),
     logoScale: clamp(input.logoScale, COMET_LOGO_DEFAULTS.logoScale, 0.35, 1.5),
     logoParticleSize: clamp(input.logoParticleSize, COMET_LOGO_DEFAULTS.logoParticleSize, 0.25, 3),
+    logoDensity: clamp(input.logoDensity, COMET_LOGO_DEFAULTS.logoDensity, 1, 5),
     logoTrailLength: clamp(input.logoTrailLength, COMET_LOGO_DEFAULTS.logoTrailLength, 0, 3),
     logoMotion: clamp(input.logoMotion, COMET_LOGO_DEFAULTS.logoMotion, 0, 3),
     formationDuration: clamp(formationDuration, COMET_LOGO_DEFAULTS.formationDuration, 0.2, 6),
     rejoinDuration: clamp(input.rejoinDuration, COMET_LOGO_DEFAULTS.rejoinDuration, 0.2, 6),
+    formationRejoinScale: clamp(input.formationRejoinScale, COMET_LOGO_DEFAULTS.formationRejoinScale, 0.2, 2),
     formationStagger: clamp(input.formationStagger, COMET_LOGO_DEFAULTS.formationStagger, 0, 0.9),
     centerPreference: clamp(input.centerPreference, COMET_LOGO_DEFAULTS.centerPreference, 0, 1),
     sparkFrequency: clamp(input.sparkFrequency, COMET_LOGO_DEFAULTS.sparkFrequency, 0.1, 4),
