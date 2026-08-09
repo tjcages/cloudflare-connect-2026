@@ -1,7 +1,7 @@
 import {
+  COMET_LOGO_ACTIVE_RENDER_POINT_COUNT,
   COMET_LOGO_EVENT_GROUP_COUNT,
   COMET_LOGO_EVENT_SPARK_POINT_COUNT,
-  COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT,
   COMET_LOGO_NEEDLE_SPARK_POINT_COUNT,
   COMET_LOGO_POINTS,
   COMET_LOGO_RENDER_POINT_COUNT,
@@ -32,6 +32,16 @@ uniform float uFieldSpeed;
 uniform float uFieldDepth;
 uniform float uFieldSpread;
 uniform float uCenterClearRadius;
+uniform float uCenterClearAspect;
+uniform float uCenterClearSquareness;
+uniform float uCenterClearLeak;
+uniform float uCenterClearFalloff;
+uniform float uFieldAlign;
+uniform float uFormationDirectness;
+uniform float uFormationMaxTravel;
+uniform float uFormationEase;
+uniform float uFormationWiggle;
+uniform float uLogoDensity;
 uniform float uFieldTrailLength;
 uniform float uFieldParticleSize;
 uniform float uLogoScale;
@@ -91,6 +101,7 @@ const float REJOIN_CANDIDATES[REJOIN_CANDIDATE_COUNT] = float[REJOIN_CANDIDATE_C
   0.85, 1.0, 1.18
 );
 const float MAX_TRAIL_WORLD = 0.22;
+const float LOGO_MAX_TRAIL_WORLD = 0.2;
 const float TAU = 6.28318530718;
 const int TRAIL_SEGMENT_COUNT = ${COMET_LOGO_TRAIL_SEGMENT_COUNT};
 const vec2 LOGO_POINTS[${COMET_LOGO_POINTS.length}] = vec2[${COMET_LOGO_POINTS.length}](
@@ -141,16 +152,13 @@ float travelEase(float t, float startSlope, float endSlope) {
     + endSlope * (cubed - squared);
 }
 
-float formationStartSlope(float id) {
-  return mix(0.65, 0.95, hash11(id * 83.9));
-}
-
 float formationTravelEase(float t, float id) {
-  return travelEase(t, formationStartSlope(id), 0.0);
-}
-
-float rejoinTravelEase(float t) {
-  return travelEase(t, 0.0, 1.0);
+  int easeMode = int(uFormationEase + 0.5);
+  if (easeMode == 1) return travelEase(t, 0.0, 0.0);
+  if (easeMode == 2) return travelEase(t, 1.6, 0.0);
+  if (easeMode == 3) return clamp(t, 0.0, 1.0);
+  if (easeMode == 4) return travelEase(t, 0.0, 1.4);
+  return travelEase(t, 0.35, 0.0);
 }
 
 float historicalFormation(float time, float maximumFormation) {
@@ -161,43 +169,30 @@ float historicalFormation(float time, float maximumFormation) {
   );
 }
 
+vec2 formationSettleWiggle(float id, float local, vec2 direction, float span) {
+  if (uFormationWiggle <= 0.0) return vec2(0.0);
+  vec2 normal = vec2(-direction.y, direction.x);
+  float frequency = mix(2.1, 3.6, hash11(id * 53.71));
+  float phase = hash11(id * 17.93) * TAU;
+  float ring = sin(local * frequency * TAU + phase) * exp(-4.2 * local);
+  float onset = smoothstep(0.0, 0.22, local);
+  return normal * ring * onset * span * 0.05 * uFormationWiggle;
+}
+
 // Lateral swing added to a steered path. The 16e²(1-e)² shape is zero in both
 // value and slope at e=0 and e=1, so it bends the trajectory without disturbing
 // the velocity match at either end. Sign varies per comet so they swing both ways.
 vec2 trajectoryBow(float id, vec2 direction, float span, float ease) {
   vec2 normal = vec2(-direction.y, direction.x);
   float swing = hash11(id * 61.7) < 0.5 ? -1.0 : 1.0;
-  float amount = swing * mix(0.18, 0.38, hash11(id * 71.3)) * span;
+  float amount = swing * mix(0.18, 0.38, hash11(id * 71.3)) * span
+    * (1.0 - clamp(uFormationDirectness, 0.0, 1.0));
   float inverse = 1.0 - ease;
   // Triple root at both ends: zero value, slope AND curvature there. The
   // earlier 16e²(1-e)² was only a double root, so it handed the path a lateral
   // acceleration kick right where it rejoins the field — read as a kink even
   // though position and velocity matched exactly.
   return normal * amount * 64.0 * ease * ease * ease * inverse * inverse * inverse;
-}
-
-// Matches position, velocity AND acceleration at both ends. Velocity alone
-// leaves a curvature discontinuity where the return path meets the field, which
-// reads as a kink even though the comet never jumps or changes speed.
-vec2 quinticHermite(
-  vec2 start,
-  vec2 startVelocity,
-  vec2 startAcceleration,
-  vec2 end,
-  vec2 endVelocity,
-  vec2 endAcceleration,
-  float t
-) {
-  float t2 = t * t;
-  float t3 = t2 * t;
-  float t4 = t3 * t;
-  float t5 = t4 * t;
-  return (1.0 - 10.0 * t3 + 15.0 * t4 - 6.0 * t5) * start
-    + (t - 6.0 * t3 + 8.0 * t4 - 3.0 * t5) * startVelocity
-    + (0.5 * t2 - 1.5 * t3 + 1.5 * t4 - 0.5 * t5) * startAcceleration
-    + (10.0 * t3 - 15.0 * t4 + 6.0 * t5) * end
-    + (-4.0 * t3 + 7.0 * t4 - 3.0 * t5) * endVelocity
-    + (0.5 * t3 - t4 + 0.5 * t5) * endAcceleration;
 }
 
 vec2 cubicHermite(vec2 start, vec2 startTangent, vec2 end, vec2 endTangent, float t) {
@@ -211,13 +206,42 @@ vec2 cubicHermite(vec2 start, vec2 startTangent, vec2 end, vec2 endTangent, floa
 
 vec2 fieldDirection(float id) {
   vec2 direction = vec2(hash11(id * 2.71), hash11(id * 4.93)) * 2.0 - 1.0;
+  int alignIndex = int(floor(id - SEED * 17.173 + 0.5));
+  if (uFieldAlign > 0.0 && alignIndex >= 0 && alignIndex < ${COMET_LOGO_POINTS.length}) {
+    vec2 anchor = LOGO_POINTS[alignIndex];
+    float anchorLength = length(anchor);
+    float directionLength = length(direction);
+    if (anchorLength > 0.0001 && directionLength > 0.0001) {
+      vec2 mixed = mix(direction / directionLength, anchor / anchorLength, uFieldAlign);
+      float mixedLength = length(mixed);
+      direction = (mixedLength > 0.0001 ? mixed / mixedLength : anchor / anchorLength)
+        * directionLength;
+    }
+  }
   direction *= mix(0.58, 1.35, hash11(id * 8.11)) * uFieldSpread;
   float magnitude = length(direction);
   return direction / max(magnitude, 0.00001) * max(magnitude, 0.46 * uFieldSpread);
 }
 
-float centerClearWorld() {
-  return uCenterClearRadius / max(0.5 * uResolution.y, 1.0);
+float centerClearWorld(vec2 outward, float id) {
+  float base = uCenterClearRadius / max(0.5 * uResolution.y, 1.0);
+  float a = base * max(uCenterClearAspect, 0.0001);
+  float b = base;
+  float c = outward.x;
+  float s = outward.y;
+  float n = max(uCenterClearSquareness, 2.0);
+  float k = pow(pow(abs(c) / a, n) + pow(abs(s) / b, n), 1.0 / n);
+  float radius = 1.0 / max(k, 0.00001);
+  float leakSeed = hash11(id * 2.71);
+  float leaks = uCenterClearLeak > 0.0
+    ? step(hash11(leakSeed * 613.1 + 7.3), uCenterClearLeak)
+    : 0.0;
+  float inward = mix(
+    0.3,
+    1.0,
+    pow(hash11(leakSeed * 771.7 + 19.1), 1.0 / max(uCenterClearFalloff, 0.001))
+  );
+  return radius * mix(1.0, inward, leaks);
 }
 
 void fieldCycleBounds(float id, float time, out float age, out float remaining) {
@@ -255,20 +279,12 @@ void fieldPoint(
   float magnitude = length(direction);
   vec2 outward = direction / max(magnitude, 0.00001);
   float travelled = magnitude / z - magnitude / (uFieldDepth + 0.24);
-  head = outward * (centerClearWorld() + travelled);
+  head = outward * (centerClearWorld(outward, id) + travelled);
   velocity = direction * uFieldSpeed / (z * z);
   float perspective = mix(0.28, 1.42, 1.0 - z / (uFieldDepth + 0.24));
   radiusPx = max(1.25, uResolution.y * 0.004 * perspective)
     * uFieldParticleSize
     * mix(FIELD_SPAWN_RADIUS_SCALE, 1.0, fieldSpawnGrowth(id, time));
-}
-
-// d²/dt² of the field path: z falls linearly, and head goes as 1/z, so this is
-// 2·direction·speed²/z³. Cheap and exact, which is what lets the return path
-// arrive with the field's curvature and not just its velocity.
-vec2 fieldAcceleration(float id, float time) {
-  float z = mod(hash11(id * 1.37) * uFieldDepth - time * uFieldSpeed, uFieldDepth) + 0.24;
-  return fieldDirection(id) * (2.0 * uFieldSpeed * uFieldSpeed / (z * z * z));
 }
 
 float fieldCycleIndex(float id, float time) {
@@ -288,8 +304,10 @@ float formationOrder(float id) {
     0.0,
     (preferredOrder - FORMATION_STARTER_SHARE) / (1.0 - FORMATION_STARTER_SHARE)
   );
+  float evenOrder = mix(starterAdjustedOrder, hash11(id * 7.71), 0.4);
+  evenOrder = pow(clamp(evenOrder, 0.0, 1.0), 1.7);
   return clamp(
-    starterAdjustedOrder * mix(0.92, 1.08, hash11(id * 19.31)),
+    evenOrder + mix(-0.05, 0.05, hash11(id * 19.31)),
     0.0,
     1.0
   );
@@ -465,6 +483,16 @@ vec2 livingLogoOffset(int index, float id, float time) {
   return (tangent * crawl * 0.015 + normal * squirm * 0.0095) * uLogoMotion;
 }
 
+// Pool comets outnumber the logo points, so each one lands somewhere between
+// its own slot and the next along the contour instead of stacking on it.
+float gLogoBlend = 0.0;
+
+vec2 logoAnchor(int index) {
+  vec2 anchor = LOGO_POINTS[index];
+  if (gLogoBlend <= 0.0) return anchor;
+  return mix(anchor, LOGO_POINTS[(index + 1) % ${COMET_LOGO_POINTS.length}], gLogoBlend);
+}
+
 vec2 steeredHead(int index, float id, float time, float formation, out float radiusPx) {
   vec2 freeHead;
   vec2 freeVelocity;
@@ -478,7 +506,7 @@ vec2 steeredHead(int index, float id, float time, float formation, out float rad
   fieldPoint(id, formationDepartTime(id), departHead, departRadiusPx, departVelocity);
   radiusPx = departRadiusPx;
 
-  vec2 target = LOGO_POINTS[index] * uLogoScale;
+  vec2 target = logoAnchor(index) * uLogoScale;
   vec2 toTarget = target - departHead;
   float span = max(length(toTarget), 0.00001);
   float travel = formationTravelTime();
@@ -486,18 +514,21 @@ vec2 steeredHead(int index, float id, float time, float formation, out float rad
   float departSpeed = length(departVelocity);
   vec2 launchDirection = departVelocity / max(departSpeed, 0.00001);
   vec2 startTangent = launchDirection
-    * min(departSpeed * travel / formationStartSlope(id), span * 0.62);
+    * min(departSpeed * travel, span * mix(0.62, 0.03, clamp(uFormationDirectness, 0.0, 1.0)));
 
   vec2 approach = toTarget / span;
   vec2 approachNormal = vec2(-approach.y, approach.x);
   vec2 endTangent = normalize(
-    approach + approachNormal * mix(-0.62, 0.62, hash11(id * 27.53))
+    approach
+      + approachNormal * mix(-0.62, 0.62, hash11(id * 27.53))
+        * (1.0 - clamp(uFormationDirectness, 0.0, 1.0))
   ) * span * 0.58;
 
+  float livingBlend = smoothstep(0.08, 0.72, local);
   float ease = formationTravelEase(local, id);
   vec2 curved = cubicHermite(departHead, startTangent, target, endTangent, ease)
-    + trajectoryBow(id, approach, span, ease);
-  float livingBlend = smoothstep(0.08, 0.72, local);
+    + trajectoryBow(id, approach, span, ease)
+    + formationSettleWiggle(id, local, approach, span);
   return curved + livingLogoOffset(index, id, time) * livingBlend;
 }
 
@@ -521,6 +552,25 @@ float rejoinDurationFor(float id, vec2 start) {
     }
   }
   return bestDuration;
+}
+
+float rejoinStagger(float id, float progress) {
+  float delay = hash11(id * 91.37) * 0.14;
+  return clamp((progress - delay) / max(1.0 - delay, 0.001), 0.0, 1.0);
+}
+
+// Drag curve: initial velocity 3.2-9.5x the average and hashed per comet, which
+// is what reads as an explosion rather than a tween.
+float rejoinPopEase(float t, float id) {
+  float progress = clamp(t, 0.0, 1.0);
+  float decay = mix(3.2, 9.5, hash11(id * 27.91));
+  return (1.0 - exp(-decay * progress)) / (1.0 - exp(-decay));
+}
+
+// Opacity spans local 0 -> 0.5 while movement spans 0 -> 1, so the throw keeps
+// travelling after the comet is invisible.
+float rejoinCrossFade(int index, float id, float progress) {
+  return 1.0 - smoothstep(0.0, 0.5, rejoinStagger(id, progress));
 }
 
 vec2 rejoinHead(int index, float id, float elapsed, out float radiusPx, out bool freeField) {
@@ -554,36 +604,17 @@ vec2 rejoinHead(int index, float id, float elapsed, out float radiusPx, out bool
   vec2 targetVelocity;
   fieldPoint(id, uRejoinStartFieldTime + rejoinDuration, target, targetRadiusPx, targetVelocity);
 
-  vec2 toTarget = target - start;
-  float span = max(length(toTarget), 0.00001);
-
-  vec2 anchor = LOGO_POINTS[index] * uLogoScale;
-  vec2 outward = anchor / max(length(anchor), 0.00001);
-  vec2 sideways = vec2(-outward.y, outward.x);
-  vec2 launchDirection = normalize(
-    outward + sideways * mix(-0.92, 0.92, hash11(id * 33.17))
-  );
-  vec2 startTangent = launchDirection * span * mix(0.48, 0.86, hash11(id * 51.71));
-
-  vec2 endTangent = targetVelocity * rejoinDuration;
-
-  // rejoinTravelEase has e'(1)=1 and e''(1)=-2, so matching the field's
-  // acceleration through the chain rule needs a1 = aField*T² + 2*velocity*T.
-  vec2 endAcceleration =
-    fieldAcceleration(id, uRejoinStartFieldTime + rejoinDuration) * rejoinDuration * rejoinDuration
-    + targetVelocity * (2.0 * rejoinDuration);
-  // Field acceleration goes as 1/z³, so a comet returning to a near-plane slot
-  // would otherwise get an end curvature large enough to whip the path around.
-  float endAccelerationLimit = span * 8.0;
-  float endAccelerationLength = length(endAcceleration);
-  if (endAccelerationLength > endAccelerationLimit) {
-    endAcceleration *= endAccelerationLimit / max(endAccelerationLength, 0.00001);
-  }
-
   radiusPx = mix(startRadiusPx, targetRadiusPx, progress);
-  float ease = rejoinTravelEase(progress);
-  return quinticHermite(start, startTangent, vec2(0.0), target, endTangent, endAcceleration, ease)
-    + trajectoryBow(id, toTarget / span, span, ease);
+  vec2 outward = start / max(length(start), 0.00001);
+  vec2 scatter = vec2(
+    hash11(id * 12.91) * 2.0 - 1.0,
+    hash11(id * 27.13) * 2.0 - 1.0
+  );
+  vec2 throwDir = normalize(outward + scatter * 0.9);
+  float throwSpan = mix(1.0, 2.4, hash11(id * 41.37));
+  return start
+    + throwDir
+      * (rejoinPopEase(rejoinStagger(id, uRejoinProgress), id) * throwSpan);
 }
 
 vec2 sampleRejoinPath(int index, float id, float age, out float radiusPx, out bool freeField) {
@@ -635,74 +666,51 @@ vec2 sampleParticlePath(
 
 void main() {
   int index = gl_InstanceID;
-  bool logoParticle = index < ${COMET_LOGO_POINTS.length};
-  bool sparkParticle = index >= ${COMET_LOGO_RENDER_POINT_COUNT};
-  float id = float(index) + SEED * 17.173;
-  float sourceParticleOpacity = logoParticle ? 1.0 : sparkParticle ? 1.0 : 0.72;
-  bool pairedLogoCandidate = index < ${COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT}
-    || (
-      index >= ${COMET_LOGO_POINTS.length}
-      && index < ${COMET_LOGO_POINTS.length + COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT}
-    );
-  if (pairedLogoCandidate) {
-    int pairIndex = logoParticle
-      ? index
-      : index - ${COMET_LOGO_POINTS.length};
-    float logoSourceId = float(pairIndex) + SEED * 17.173;
-    float backgroundSourceId = float(pairIndex + ${COMET_LOGO_POINTS.length}) + SEED * 17.173;
-    vec2 logoSourceHead;
-    float logoSourceRadiusPx;
-    vec2 logoSourceVelocity;
-    fieldPoint(
-      logoSourceId,
-      uFormationStartFieldTime,
-      logoSourceHead,
-      logoSourceRadiusPx,
-      logoSourceVelocity
-    );
-    vec2 backgroundSourceHead;
-    float backgroundSourceRadiusPx;
-    vec2 backgroundSourceVelocity;
-    fieldPoint(
-      backgroundSourceId,
-      uFormationStartFieldTime,
-      backgroundSourceHead,
-      backgroundSourceRadiusPx,
-      backgroundSourceVelocity
-    );
-    float logoSourceScore = length(logoSourceHead)
-      + mix(-0.12, 0.12, hash11(logoSourceId * 13.71));
-    float backgroundSourceScore = length(backgroundSourceHead)
-      + mix(-0.12, 0.12, hash11(backgroundSourceId * 13.71));
-    bool preferBackgroundSource = backgroundSourceScore < logoSourceScore;
-    if (logoParticle) {
-      id = preferBackgroundSource ? backgroundSourceId : logoSourceId;
-      sourceParticleOpacity = preferBackgroundSource ? 0.72 : 1.0;
-    } else {
-      id = preferBackgroundSource ? logoSourceId : backgroundSourceId;
-      sourceParticleOpacity = preferBackgroundSource ? 1.0 : 0.72;
-    }
+  // Only the dedicated pool past the idle instances forms the logo; the idle
+  // field keeps flying underneath it untouched.
+  int extraLogoIndex = index - ${COMET_LOGO_ACTIVE_RENDER_POINT_COUNT};
+  bool extraLogo = extraLogoIndex >= 0;
+  if (extraLogo) {
+    index = extraLogoIndex % ${COMET_LOGO_POINTS.length};
+    gLogoBlend = hash11(float(gl_InstanceID) * 3.71 + 5.3);
   }
+  bool logoParticle = extraLogo;
+  bool sparkParticle = !extraLogo && index >= ${COMET_LOGO_RENDER_POINT_COUNT};
+  float id = float(gl_InstanceID) + SEED * 17.173;
+  float sourceParticleOpacity = logoParticle
+    || sparkParticle
+    || index < ${COMET_LOGO_POINTS.length}
+    ? 1.0
+    : 0.72;
   float sparkId = float(max(index - ${COMET_LOGO_RENDER_POINT_COUNT}, 0));
   float currentSparkKind = sparkKind(sparkId, uFieldTime);
   float currentLocalFormation = logoParticle
     ? localFormation(id, uFormation)
     : 0.0;
+  // Keyed off the GLOBAL formation, never per-comet local progress: on a
+  // re-hover the formation resumes mid-way and every comet's local value is
+  // already near 1, which would kill the trail.
   float logoTrailBlend = 0.0;
   if (logoParticle) {
-    if (uRejoining > 0.5) {
-      float rejoinStartLocal = localFormation(id, uRejoinStartFormation);
-      logoTrailBlend = smoothstep(0.72, 1.0, rejoinStartLocal)
-        * (1.0 - smoothstep(0.0, 0.14, uRejoinProgress));
-    } else {
-      logoTrailBlend = smoothstep(0.72, 1.0, currentLocalFormation);
-    }
+    logoTrailBlend = uRejoining > 0.5
+      ? 1.0
+      : 1.0 - smoothstep(0.92, 1.0, uFormation);
   }
   float trailTime = mix(
     FIELD_TRAIL_SAMPLE_TIME * uFieldTrailLength,
     LOGO_TRAIL_SAMPLE_TIME * uLogoTrailLength,
     logoTrailBlend
   );
+  // A pool comet's pre-departure history is a virtual field path it never flew,
+  // so the trail window can never reach back past its own departure.
+  if (logoParticle) {
+    trailTime = min(
+      trailTime,
+      uRejoining > 0.5
+        ? max(uRejoinElapsed, 0.0)
+        : max(uFieldTime - formationDepartTime(id), 0.0)
+    );
+  }
   if (sparkParticle) {
     trailTime = (currentSparkKind < 0.5
       ? NEEDLE_TRAIL_SAMPLE_TIME
@@ -726,10 +734,20 @@ void main() {
     bool probeRecycled = probeFreeNow
       && probeFreeThen
       && fieldCycleIndex(id, uFieldTime) != fieldCycleIndex(id, uFieldTime - trailTime);
-    float drawnTrailWorld = distance(probeNow, probeThen);
-    float maxTrailWorld = MAX_TRAIL_WORLD * uFieldTrailLength;
-    if (!probeRecycled && drawnTrailWorld > maxTrailWorld) {
-      trailTime *= maxTrailWorld / drawnTrailWorld;
+    // One linear correction badly undershoots because a drag path covers most
+    // of its distance early, so the cap converges instead.
+    float maxTrailWorld = logoParticle
+      ? LOGO_MAX_TRAIL_WORLD
+      : MAX_TRAIL_WORLD * uFieldTrailLength;
+    if (!probeRecycled) {
+      for (int pass = 0; pass < 5; pass++) {
+        float drawnTrailWorld = distance(probeNow, probeThen);
+        if (drawnTrailWorld <= maxTrailWorld) break;
+        trailTime *= 0.85 * maxTrailWorld / drawnTrailWorld;
+        probeThen = sampleParticlePath(
+          index, id, sparkId, logoParticle, sparkParticle, trailTime, probeRadiusThen, probeFreeThen
+        );
+      }
     }
   }
 
@@ -804,13 +822,13 @@ void main() {
         1.0,
         fieldLife(id, uFieldTime),
         smoothstep(0.55, 1.0, uRejoinProgress)
-      );
+      ) * rejoinCrossFade(index, id, uRejoinProgress);
     } else if (logoParticle && currentLocalFormation > 0.0) {
-      lifeFade = mix(
-        fieldLife(id, formationDepartTime(id)),
-        1.0,
-        smoothstep(0.0, 0.32, currentLocalFormation)
-      );
+      lifeFade = smoothstep(0.0, 0.32, currentLocalFormation);
+    } else if (logoParticle) {
+      // An un-engaged pool comet would otherwise render at its virtual field
+      // life: visible and stationary the instant the pool starts drawing.
+      lifeFade = 0.0;
     } else {
       lifeFade = fieldLife(id, uFieldTime);
     }
@@ -1583,9 +1601,10 @@ void main() {
   float headDistance = length(vec2(vLocalPx.x - vLengthPx, vLocalPx.y));
   float headCore = 1.0 - smoothstep(vRadiusPx, vRadiusPx + 1.0, headDistance);
   float headHalo = 1.0 - smoothstep(vRadiusPx, vRadiusPx * 4.0 + 1.0, headDistance);
+  float cometTaper = trailProgress * trailProgress;
   float cometLight = (headCore + headHalo * 0.36) * vIsHead
-    + trailCore * 0.68
-    + trailHalo * 0.12;
+    + trailCore * 0.68 * cometTaper
+    + trailHalo * 0.12 * cometTaper;
 
   float needleMask = 1.0 - step(0.5, vSparkKind);
   float burstMask = step(0.5, vSparkKind) * (1.0 - step(1.5, vSparkKind));
