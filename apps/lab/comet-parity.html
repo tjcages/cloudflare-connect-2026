@@ -1,0 +1,64 @@
+<!doctype html>
+<meta charset="utf-8" />
+<body>
+  <script type="module">
+    import { createCometLogoTextureRenderer as baseline } from "/comet-parity/comet-baseline.js";
+    import { createCometLogoTextureRenderer as candidate } from "@necatikcl/stripes-engine";
+
+    // MUST be a COMPLETE settings object, not a partial preset. Each build fills
+    // omissions from its own COMET_LOGO_DEFAULTS; any default that differs between
+    // the baseline bundle and the candidate would then diverge for reasons that have
+    // nothing to do with this port, and read as a false parity failure. Every setting
+    // both builds accept is listed explicitly below.
+    const CTA_PRESET = {
+      // explicitly pinned so neither build falls back to its own defaults
+      fieldSpread: 2.18, logoMotion: 1, centerPreference: 0.78, sparkFrequency: 1,
+      sparkSize: 1, sparkTrailLength: 1, waveProbability: 0.28, fireScale: 1,
+      fireSpeed: 1, fireTurbulence: 1, flameHeight: 1, weatherSpeed: 1,
+      weatherVariation: 1, curlingWisps: 1, eruptionScale: 1, eruptionParticles: 1,
+      eruptionCycleSpeed: 1,
+      // the CTA's own tuned values
+      fieldSpeed: 0.9, fieldDepth: 1.6, fieldAlign: 1, formationDirectness: 0.8,
+      formationMaxTravel: 0, fieldParticleSize: 0.55, fieldTrailLength: 0.12,
+      centerClearRadius: 175, centerClearAspect: 2.4, centerClearSquareness: 2,
+      centerClearLeak: 0.012, centerClearFalloff: 5, logoScale: 1.2,
+      logoParticleSize: 0.85, logoTrailLength: 0.24, logoDensity: 2.25,
+      formationEase: 0, formationWiggle: 1, formationDuration: 1.55,
+      rejoinDuration: 1.08, formationInterrupt: 2, formationStagger: 0.3,
+      burstProbability: 0.32, eruptionFrequency: 0.065, sparkBrightness: 0.46,
+      eruptionIntensity: 0.4, fireIntensity: 0.4, hotRim: 0.38,
+      surfaceEffects: 0.36, coronaMist: 0.46,
+    };
+
+    // Deterministic script: [fieldTimeSec, hovered]. Covers idle, the formation
+    // ramp, the formed hold, the deform burst, and the refill.
+    const SCRIPT = [];
+    for (let t = 0; t <= 1.0; t += 0.1) SCRIPT.push([t, false]);   // idle
+    for (let t = 1.1; t <= 3.0; t += 0.1) SCRIPT.push([t, true]);  // form + hold
+    for (let t = 3.1; t <= 5.0; t += 0.1) SCRIPT.push([t, false]); // deform + refill
+
+    function run(factory) {
+      const r = factory(1680, 720);
+      const gl = r.canvas.getContext("webgl2");
+      const frames = [];
+      for (const [t, hovered] of SCRIPT) {
+        r.render(t, { x: r.width / 2, y: r.height / 2, hovered }, CTA_PRESET);
+        const buf = new Uint8Array(r.width * r.height * 4);
+        gl.readPixels(0, 0, r.width, r.height, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+        frames.push(buf);
+      }
+      r.dispose();
+      return frames;
+    }
+
+    window.__parity = () => {
+      const a = run(baseline);
+      const b = run(candidate);
+      return a.map((frame, i) => {
+        let diff = 0;
+        for (let p = 0; p < frame.length; p++) if (frame[p] !== b[i][p]) diff++;
+        return { frame: i, time: SCRIPT[i][0], hovered: SCRIPT[i][1], diff };
+      });
+    };
+  </script>
+</body>
