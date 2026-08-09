@@ -1,11 +1,9 @@
 export const COMET_LOGO_FORMATION_DURATION_SEC = 1.1;
 export const COMET_LOGO_REJOIN_DURATION_SEC = 1.1;
 const COMET_LOGO_FORMATION_CANCEL_THRESHOLD = 0.1;
-const COMET_LOGO_REJOIN_MAX_SCALE = 1.18;
-const COMET_LOGO_REJOIN_TRAIL_MARGIN_SEC = 0.45;
 
-export function cometLogoRejoinWindowSec(rejoinDurationSec: number): number {
-  return rejoinDurationSec * COMET_LOGO_REJOIN_MAX_SCALE + COMET_LOGO_REJOIN_TRAIL_MARGIN_SEC;
+export function cometLogoRejoinWindowSec(rejoinDurationSec: number, rejoinScale = 1.18): number {
+  return rejoinDurationSec * rejoinScale;
 }
 
 export type CometLogoAnimationMode = "field" | "forming" | "logo" | "rejoining";
@@ -44,6 +42,8 @@ export function advanceCometLogoAnimation(
   hovered: boolean,
   formationDurationSec = COMET_LOGO_FORMATION_DURATION_SEC,
   rejoinDurationSec = COMET_LOGO_REJOIN_DURATION_SEC,
+  rejoinScale = 1.18,
+  interrupt = 2,
 ): CometLogoAnimationState {
   if (state.lastTimeSec === null) {
     return {
@@ -114,14 +114,33 @@ export function advanceCometLogoAnimation(
     rejoinStartFormation = 1;
     rejoinStartFormationVelocity = 0;
   } else if (mode === "rejoining") {
-    const window = cometLogoRejoinWindowSec(Math.max(rejoinDurationSec, 0.001));
-    rejoinProgress = Math.min(1, Math.max(0, timeSec - rejoinStartFieldTimeSec) / window);
-    if (rejoinProgress > 1 - 0.000001) rejoinProgress = 1;
-    if (rejoinProgress === 1) {
+    const window = cometLogoRejoinWindowSec(Math.max(rejoinDurationSec, 0.001), rejoinScale);
+    if (hovered && interrupt === 0) {
+      mode = "forming";
       formation = 0;
       formationVelocity = 0;
       rejoinProgress = 0;
-      mode = hovered ? "forming" : "field";
+    } else if (hovered && interrupt === 1) {
+      rejoinStartFieldTimeSec += 5 * deltaSec;
+      const elapsed = timeSec - rejoinStartFieldTimeSec;
+      if (elapsed <= 0) {
+        mode = "forming";
+        formation = Math.max(0, Math.min(1, rejoinStartFormation));
+        formationVelocity = 0;
+        rejoinProgress = 0;
+        rejoinStartFieldTimeSec = timeSec;
+      } else {
+        rejoinProgress = Math.min(1, elapsed / window);
+      }
+    } else {
+      rejoinProgress = Math.min(1, Math.max(0, timeSec - rejoinStartFieldTimeSec) / window);
+      if (rejoinProgress > 1 - 0.000001) rejoinProgress = 1;
+      if (rejoinProgress === 1) {
+        formation = 0;
+        formationVelocity = 0;
+        rejoinProgress = 0;
+        mode = hovered ? "forming" : "field";
+      }
     }
   }
 
