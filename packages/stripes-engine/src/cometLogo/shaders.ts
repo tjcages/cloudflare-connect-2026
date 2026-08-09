@@ -41,7 +41,6 @@ uniform float uFormationDirectness;
 uniform float uFormationMaxTravel;
 uniform float uFormationEase;
 uniform float uFormationWiggle;
-uniform float uLogoDensity;
 uniform float uFieldTrailLength;
 uniform float uFieldParticleSize;
 uniform float uLogoScale;
@@ -507,6 +506,20 @@ vec2 steeredHead(int index, float id, float time, float formation, out float rad
   radiusPx = departRadiusPx;
 
   vec2 target = logoAnchor(index) * uLogoScale;
+  // Cap the flight: a comet whose slot is further than uFormationMaxTravel is
+  // re-seated on its own entry ray, just inside the nearest viewport edge, so
+  // it enters from close by instead of crossing the whole canvas.
+  if (uFormationMaxTravel > 0.0
+    && length(target - departHead) > uFormationMaxTravel) {
+    vec2 entryDir = normalize(departHead - target);
+    float halfWidth = uResolution.x / max(uResolution.y, 1.0);
+    float edge = min(
+      halfWidth / max(abs(entryDir.x), 0.0001),
+      1.0 / max(abs(entryDir.y), 0.0001)
+    );
+    departHead = target + entryDir * (uFormationMaxTravel * min(edge, 1.0));
+    departVelocity = -entryDir * max(length(departVelocity), 0.25);
+  }
   vec2 toTarget = target - departHead;
   float span = max(length(toTarget), 0.00001);
   float travel = formationTravelTime();
