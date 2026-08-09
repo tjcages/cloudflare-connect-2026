@@ -48,17 +48,34 @@
         gl.readPixels(0, 0, r.width, r.height, gl.RGBA, gl.UNSIGNED_BYTE, buf);
         frames.push(buf);
       }
+      const width = r.width;
+      const height = r.height;
       r.dispose();
-      return frames;
+      return { frames, width, height };
     }
 
     window.__parity = () => {
       const a = run(baseline);
       const b = run(candidate);
-      return a.map((frame, i) => {
+      const pixelCount = a.width * a.height;
+      return a.frames.map((frame, i) => {
+        const other = b.frames[i];
         let diff = 0;
-        for (let p = 0; p < frame.length; p++) if (frame[p] !== b[i][p]) diff++;
-        return { frame: i, time: SCRIPT[i][0], hovered: SCRIPT[i][1], diff };
+        let maxDelta = 0;
+        let diffPixels = 0;
+        for (let p = 0; p < frame.length; p += 4) {
+          let pixelDiffers = false;
+          for (let c = 0; c < 4; c++) {
+            const delta = Math.abs(frame[p + c] - other[p + c]);
+            if (delta > 0) {
+              diff++;
+              pixelDiffers = true;
+              if (delta > maxDelta) maxDelta = delta;
+            }
+          }
+          if (pixelDiffers) diffPixels++;
+        }
+        return { frame: i, time: SCRIPT[i][0], hovered: SCRIPT[i][1], diff, maxDelta, diffPixels, pixelCount };
       });
     };
   </script>

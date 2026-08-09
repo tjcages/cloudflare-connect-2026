@@ -4,6 +4,7 @@ import {
   COMET_LOGO_ACTIVE_RENDER_POINT_COUNT,
   COMET_LOGO_IDLE_RENDER_POINT_COUNT,
   COMET_LOGO_TRAIL_SEGMENT_COUNT,
+  cometLogoPoolPointCount,
 } from "./points";
 import { COMET_LOGO_FRAGMENT_SHADER, COMET_LOGO_VERTEX_SHADER } from "./shaders";
 
@@ -124,6 +125,16 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       "EruptionIntensity",
       "EruptionParticles",
       "EruptionCycleSpeed",
+      "FieldAlign",
+      "FormationDirectness",
+      "FormationMaxTravel",
+      "CenterClearAspect",
+      "CenterClearSquareness",
+      "CenterClearLeak",
+      "CenterClearFalloff",
+      "LogoDensity",
+      "FormationEase",
+      "FormationWiggle",
     ].map((name) => [name, gl.getUniformLocation(program, `u${name}`)]),
   );
   let animation = createCometLogoAnimationState();
@@ -159,8 +170,15 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
         pointer.hovered,
         settings.formationDuration,
         settings.rejoinDuration,
+        settings.formationRejoinScale,
+        settings.formationInterrupt,
+        settings.formationRejoinMargin,
       );
-      if (animation.mode === "forming" && previousMode !== "forming") {
+      if (
+        animation.mode === "forming" &&
+        previousMode !== "forming" &&
+        (previousMode === "field" || animation.formation <= 0.001)
+      ) {
         formationOriginX = Math.max(0, Math.min(1, pointer.x / Math.max(1, canvas.width)));
         formationOriginY = Math.max(0, Math.min(1, pointer.y / Math.max(1, canvas.height)));
         formationStartFieldTimeSec = animation.fieldTimeSec;
@@ -217,6 +235,16 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
         EruptionIntensity: settings.eruptionIntensity,
         EruptionParticles: settings.eruptionParticles,
         EruptionCycleSpeed: settings.eruptionCycleSpeed,
+        FieldAlign: settings.fieldAlign,
+        FormationDirectness: settings.formationDirectness,
+        FormationMaxTravel: settings.formationMaxTravel,
+        CenterClearAspect: settings.centerClearAspect,
+        CenterClearSquareness: settings.centerClearSquareness,
+        CenterClearLeak: settings.centerClearLeak,
+        CenterClearFalloff: settings.centerClearFalloff,
+        LogoDensity: settings.logoDensity,
+        FormationEase: settings.formationEase,
+        FormationWiggle: settings.formationWiggle,
       };
       for (const [name, value] of Object.entries(uniformValues)) {
         gl.uniform1f(configUniforms[name] ?? null, value);
@@ -224,7 +252,9 @@ export function createCometLogoTextureRenderer(width: number, height: number): C
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
       const renderPointCount =
-        animation.mode === "field" ? COMET_LOGO_IDLE_RENDER_POINT_COUNT : COMET_LOGO_ACTIVE_RENDER_POINT_COUNT;
+        animation.mode === "field"
+          ? COMET_LOGO_IDLE_RENDER_POINT_COUNT
+          : COMET_LOGO_ACTIVE_RENDER_POINT_COUNT + cometLogoPoolPointCount(settings.logoDensity);
       gl.drawArraysInstanced(gl.TRIANGLES, 0, COMET_LOGO_TRAIL_SEGMENT_COUNT * 6, renderPointCount);
       gl.disable(gl.BLEND);
       gl.bindVertexArray(null);
