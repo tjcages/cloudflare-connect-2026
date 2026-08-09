@@ -24,6 +24,7 @@ export type CometLogoSettings = {
   formationDuration: number;
   rejoinDuration: number;
   formationRejoinScale: number;
+  formationRejoinMargin: number;
   formationStagger: number;
   centerPreference: number;
   sparkFrequency: number;
@@ -78,6 +79,7 @@ export const COMET_LOGO_DEFAULTS: CometLogoSettings = {
   formationDuration: 1.1,
   rejoinDuration: 1.1,
   formationRejoinScale: 1.18,
+  formationRejoinMargin: 0.45,
   formationStagger: 0.1,
   centerPreference: 0.78,
   sparkFrequency: 1,
@@ -140,6 +142,7 @@ export function normalizeCometLogoSettings(value: unknown): CometLogoSettings {
     formationDuration: clamp(formationDuration, COMET_LOGO_DEFAULTS.formationDuration, 0.2, 6),
     rejoinDuration: clamp(input.rejoinDuration, COMET_LOGO_DEFAULTS.rejoinDuration, 0.2, 6),
     formationRejoinScale: clamp(input.formationRejoinScale, COMET_LOGO_DEFAULTS.formationRejoinScale, 0.2, 2),
+    formationRejoinMargin: clamp(input.formationRejoinMargin, COMET_LOGO_DEFAULTS.formationRejoinMargin, 0, 2),
     formationStagger: clamp(input.formationStagger, COMET_LOGO_DEFAULTS.formationStagger, 0, 0.9),
     centerPreference: clamp(input.centerPreference, COMET_LOGO_DEFAULTS.centerPreference, 0, 1),
     sparkFrequency: clamp(input.sparkFrequency, COMET_LOGO_DEFAULTS.sparkFrequency, 0.1, 4),

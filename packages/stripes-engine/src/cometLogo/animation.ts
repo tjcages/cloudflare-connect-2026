@@ -2,8 +2,8 @@ export const COMET_LOGO_FORMATION_DURATION_SEC = 1.1;
 export const COMET_LOGO_REJOIN_DURATION_SEC = 1.1;
 const COMET_LOGO_FORMATION_CANCEL_THRESHOLD = 0.1;
 
-export function cometLogoRejoinWindowSec(rejoinDurationSec: number, rejoinScale = 1.18): number {
-  return rejoinDurationSec * rejoinScale;
+export function cometLogoRejoinWindowSec(rejoinDurationSec: number, rejoinScale = 1.18, rejoinMargin = 0.45): number {
+  return rejoinDurationSec * rejoinScale + rejoinMargin;
 }
 
 export type CometLogoAnimationMode = "field" | "forming" | "logo" | "rejoining";
@@ -44,6 +44,7 @@ export function advanceCometLogoAnimation(
   rejoinDurationSec = COMET_LOGO_REJOIN_DURATION_SEC,
   rejoinScale = 1.18,
   interrupt = 2,
+  rejoinMargin = 0.45,
 ): CometLogoAnimationState {
   if (state.lastTimeSec === null) {
     return {
@@ -114,7 +115,7 @@ export function advanceCometLogoAnimation(
     rejoinStartFormation = 1;
     rejoinStartFormationVelocity = 0;
   } else if (mode === "rejoining") {
-    const window = cometLogoRejoinWindowSec(Math.max(rejoinDurationSec, 0.001), rejoinScale);
+    const window = cometLogoRejoinWindowSec(Math.max(rejoinDurationSec, 0.001), rejoinScale, rejoinMargin);
     if (hovered && interrupt === 0) {
       mode = "forming";
       formation = 0;

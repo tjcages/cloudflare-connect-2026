@@ -116,32 +116,81 @@ describe("comet logo animation", () => {
     expect(state.rejoinProgress).toBe(0);
   });
 
-  it("scales the rejoin window without a trail margin", () => {
-    expect(cometLogoRejoinWindowSec(1.08, 0.85)).toBeCloseTo(0.918, 5);
+  it("keeps the default rejoin window bit-identical to before this task", () => {
+    expect(cometLogoRejoinWindowSec(COMET_LOGO_REJOIN_DURATION_SEC)).toBeCloseTo(1.748, 5);
+  });
+
+  it("computes the CTA's rejoin window with the margin zeroed out", () => {
+    expect(cometLogoRejoinWindowSec(1.08, 0.85, 0)).toBeCloseTo(0.918, 5);
   });
 
   it("lets the deform finish when interrupt is 2", () => {
     let s = createCometLogoAnimationState(0);
-    s = advanceCometLogoAnimation(s, 0, true, 1.55, 1.08, 0.85, 2);
-    for (let t = 0.1; t <= 2.0; t += 0.1) s = advanceCometLogoAnimation(s, t, true, 1.55, 1.08, 0.85, 2);
+    s = advanceCometLogoAnimation(s, 0, true, 1.55, 1.08, 0.85, 2, 0);
+    for (let t = 0.1; t <= 2.0; t += 0.1) s = advanceCometLogoAnimation(s, t, true, 1.55, 1.08, 0.85, 2, 0);
     expect(s.mode).toBe("logo");
 
-    s = advanceCometLogoAnimation(s, 2.1, false, 1.55, 1.08, 0.85, 2);
+    s = advanceCometLogoAnimation(s, 2.1, false, 1.55, 1.08, 0.85, 2, 0);
     expect(s.mode).toBe("rejoining");
     // re-hover immediately: the rejoin must continue rather than cut back
-    s = advanceCometLogoAnimation(s, 2.2, true, 1.55, 1.08, 0.85, 2);
+    s = advanceCometLogoAnimation(s, 2.2, true, 1.55, 1.08, 0.85, 2, 0);
     expect(s.mode).toBe("rejoining");
   });
 
   it("reports a formation that restarts from zero", () => {
     let s = createCometLogoAnimationState(0);
-    s = advanceCometLogoAnimation(s, 0, true, 1.55, 1.08, 0.85, 2);
-    for (let t = 0.1; t <= 2.0; t += 0.1) s = advanceCometLogoAnimation(s, t, true, 1.55, 1.08, 0.85, 2);
-    s = advanceCometLogoAnimation(s, 2.1, false, 1.55, 1.08, 0.85, 2);
+    s = advanceCometLogoAnimation(s, 0, true, 1.55, 1.08, 0.85, 2, 0);
+    for (let t = 0.1; t <= 2.0; t += 0.1) s = advanceCometLogoAnimation(s, t, true, 1.55, 1.08, 0.85, 2, 0);
+    s = advanceCometLogoAnimation(s, 2.1, false, 1.55, 1.08, 0.85, 2, 0);
     for (let t = 2.2; t <= 3.4 && s.mode !== "forming"; t += 0.1) {
-      s = advanceCometLogoAnimation(s, t, true, 1.55, 1.08, 0.85, 2);
+      s = advanceCometLogoAnimation(s, t, true, 1.55, 1.08, 0.85, 2, 0);
     }
     expect(s.mode).toBe("forming");
     expect(s.formation).toBeLessThanOrEqual(0.001);
+  });
+
+  it("cuts over immediately when interrupt is 0", () => {
+    let s = createCometLogoAnimationState(0);
+    s = advanceCometLogoAnimation(s, 0, true, 1.55, 1.08, 0.85, 2, 0);
+    for (let t = 0.1; t <= 2.0; t += 0.1) s = advanceCometLogoAnimation(s, t, true, 1.55, 1.08, 0.85, 2, 0);
+    expect(s.mode).toBe("logo");
+
+    s = advanceCometLogoAnimation(s, 2.1, false, 1.55, 1.08, 0.85, 2, 0);
+    s = advanceCometLogoAnimation(s, 2.2, false, 1.55, 1.08, 0.85, 2, 0);
+    expect(s.mode).toBe("rejoining");
+    expect(s.rejoinProgress).toBeCloseTo(0.10893246187363843, 5);
+
+    s = advanceCometLogoAnimation(s, 2.3, true, 1.55, 1.08, 0.85, 0, 0);
+    expect(s.mode).toBe("forming");
+    expect(s.formation).toBe(0);
+    expect(s.formationVelocity).toBe(0);
+    expect(s.rejoinProgress).toBe(0);
+  });
+
+  it("rewinds mid-rejoin when interrupt is 1", () => {
+    let s = createCometLogoAnimationState(0);
+    s = advanceCometLogoAnimation(s, 0, true, 1.55, 1.08, 0.85, 2, 0);
+    for (let t = 0.1; t <= 2.0; t += 0.1) s = advanceCometLogoAnimation(s, t, true, 1.55, 1.08, 0.85, 2, 0);
+    expect(s.mode).toBe("logo");
+
+    s = advanceCometLogoAnimation(s, 2.1, false, 1.55, 1.08, 0.85, 2, 0);
+    s = advanceCometLogoAnimation(s, 2.2, false, 1.55, 1.08, 0.85, 2, 0);
+    s = advanceCometLogoAnimation(s, 2.3, false, 1.55, 1.08, 0.85, 2, 0);
+    s = advanceCometLogoAnimation(s, 2.4, false, 1.55, 1.08, 0.85, 2, 0);
+    s = advanceCometLogoAnimation(s, 2.5, false, 1.55, 1.08, 0.85, 2, 0);
+    s = advanceCometLogoAnimation(s, 2.6, false, 1.55, 1.08, 0.85, 2, 0);
+    s = advanceCometLogoAnimation(s, 2.7, false, 1.55, 1.08, 0.85, 2, 0);
+    expect(s.mode).toBe("rejoining");
+    expect(s.rejoinProgress).toBeCloseTo(0.6535947712418302, 5);
+
+    s = advanceCometLogoAnimation(s, 2.8, true, 1.55, 1.08, 0.85, 1, 0);
+    expect(s.mode).toBe("rejoining");
+    expect(s.rejoinProgress).toBeCloseTo(0.2178649237472783, 5);
+    expect(s.rejoinStartFieldTimeSec).toBeCloseTo(2.6, 5);
+
+    s = advanceCometLogoAnimation(s, 2.9, true, 1.55, 1.08, 0.85, 1, 0);
+    expect(s.mode).toBe("forming");
+    expect(s.formation).toBe(1);
+    expect(s.rejoinProgress).toBe(0);
   });
 });
