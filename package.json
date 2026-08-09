@@ -28,10 +28,10 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,jsonc,css,md,yml,yaml}": [
-      "oxfmt --write"
+      "oxfmt --write --no-error-on-unmatched-pattern"
     ],
     "*.{js,jsx,ts,tsx}": [
-      "oxlint -c .oxlintrc.json"
+      "oxlint -c .oxlintrc.json --no-error-on-unmatched-pattern"
     ]
   },
   "devDependencies": {

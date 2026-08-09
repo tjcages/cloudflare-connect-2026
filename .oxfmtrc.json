@@ -3,5 +3,13 @@
   "printWidth": 120,
   "trailingComma": "all",
   "sortPackageJson": false,
-  "ignorePatterns": ["dist", "coverage", "node_modules", ".cursor/plans", ".worktrees", "pnpm-lock.yaml"]
+  "ignorePatterns": [
+    "dist",
+    "coverage",
+    "node_modules",
+    ".cursor/plans",
+    ".worktrees",
+    "pnpm-lock.yaml",
+    "apps/lab/comet-parity"
+  ]
 }
