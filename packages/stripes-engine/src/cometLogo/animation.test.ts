@@ -37,17 +37,17 @@ describe("comet logo animation", () => {
 
   it("keeps one comet for each existing logo point", () => {
     expect(COMET_LOGO_POINT_COUNT).toBe(128);
-    expect(COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT).toBe(64);
-    expect(COMET_LOGO_BACKGROUND_POINT_COUNT).toBe(64);
-    expect(COMET_LOGO_IDLE_RENDER_POINT_COUNT).toBe(192);
-    expect(COMET_LOGO_RENDER_POINT_COUNT).toBe(192);
+    expect(COMET_LOGO_IDLE_BACKGROUND_POINT_COUNT).toBe(160);
+    expect(COMET_LOGO_BACKGROUND_POINT_COUNT).toBe(160);
+    expect(COMET_LOGO_IDLE_RENDER_POINT_COUNT).toBe(288);
+    expect(COMET_LOGO_RENDER_POINT_COUNT).toBe(288);
     expect(COMET_LOGO_SPARK_ANCHOR_POINTS).toHaveLength(81);
     expect(COMET_LOGO_NEEDLE_SPARK_POINT_COUNT).toBe(48);
     expect(COMET_LOGO_EVENT_SPARK_POINT_COUNT).toBe(48);
     expect(COMET_LOGO_EVENT_GROUP_COUNT).toBe(8);
     expect(COMET_LOGO_SPARK_POINT_COUNT).toBe(96);
-    expect(COMET_LOGO_ACTIVE_RENDER_POINT_COUNT).toBe(288);
-    expect(COMET_LOGO_TRAIL_SEGMENT_COUNT).toBe(3);
+    expect(COMET_LOGO_ACTIVE_RENDER_POINT_COUNT).toBe(384);
+    expect(COMET_LOGO_TRAIL_SEGMENT_COUNT).toBe(8);
   });
 
   it("keeps field time moving while existing comets steer into the logo", () => {
