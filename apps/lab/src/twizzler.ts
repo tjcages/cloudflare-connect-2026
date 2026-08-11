@@ -16,6 +16,13 @@ export type TwizzlerSettings = {
   wrinkleStrength: number;
   bendPosition: number;
   bendAmount: number;
+  bend2Position: number;
+  bend2Amount: number;
+  bend3Position: number;
+  bend3Amount: number;
+  depthPosition: number;
+  depthAmount: number;
+  depthWidth: number;
   twist: number;
   noiseScaleX: number;
   noiseScaleY: number;
@@ -41,6 +48,13 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   wrinkleStrength: 0.09,
   bendPosition: 0.5,
   bendAmount: 0,
+  bend2Position: 0.3,
+  bend2Amount: 0,
+  bend3Position: 0.75,
+  bend3Amount: 0,
+  depthPosition: 0.65,
+  depthAmount: 0,
+  depthWidth: 0.25,
   twist: 1.35,
   noiseScaleX: 0.0015,
   noiseScaleY: 0.012,
@@ -108,6 +122,13 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     wrinkleStrength: clamp(input.wrinkleStrength, TWIZZLER_DEFAULTS.wrinkleStrength, 0, 0.5),
     bendPosition: clamp(input.bendPosition, TWIZZLER_DEFAULTS.bendPosition, 0, 1),
     bendAmount: clamp(input.bendAmount, TWIZZLER_DEFAULTS.bendAmount, -1, 1),
+    bend2Position: clamp(input.bend2Position, TWIZZLER_DEFAULTS.bend2Position, 0, 1),
+    bend2Amount: clamp(input.bend2Amount, TWIZZLER_DEFAULTS.bend2Amount, -1, 1),
+    bend3Position: clamp(input.bend3Position, TWIZZLER_DEFAULTS.bend3Position, 0, 1),
+    bend3Amount: clamp(input.bend3Amount, TWIZZLER_DEFAULTS.bend3Amount, -1, 1),
+    depthPosition: clamp(input.depthPosition, TWIZZLER_DEFAULTS.depthPosition, 0, 1),
+    depthAmount: clamp(input.depthAmount, TWIZZLER_DEFAULTS.depthAmount, 0, 2),
+    depthWidth: clamp(input.depthWidth, TWIZZLER_DEFAULTS.depthWidth, 0.05, 0.75),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 4),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.001, 0.1),
@@ -137,14 +158,40 @@ export function twizzlerAnimationTime(timeSec: number, speed: number): number {
   return timeSec * speed;
 }
 
-export function twizzlerBendOffset(xT: number, position: number, amount: number): number {
-  const distance = (xT - position) / 0.16;
+export function twizzlerBendOffset(xT: number, position: number, amount: number, width = 0.16): number {
+  const safeWidth = Math.max(0.01, width);
+  const distance = (xT - position) / safeWidth;
   return amount * Math.exp(-0.5 * distance * distance);
+}
+
+/** Multi-lobe path bend (up to three Gaussians). */
+export function twizzlerPathBend(
+  xT: number,
+  settings: Pick<
+    TwizzlerSettings,
+    "bendPosition" | "bendAmount" | "bend2Position" | "bend2Amount" | "bend3Position" | "bend3Amount"
+  >,
+): number {
+  return (
+    twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount) +
+    twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount) +
+    twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount)
+  );
+}
+
+/** 1 at far, up to 1+depthAmount at the near-camera peak. */
+export function twizzlerDepthScale(
+  xT: number,
+  settings: Pick<TwizzlerSettings, "depthPosition" | "depthAmount" | "depthWidth">,
+): number {
+  if (settings.depthAmount <= 0) return 1;
+  const lobe = twizzlerBendOffset(xT, settings.depthPosition, 1, settings.depthWidth);
+  return 1 + settings.depthAmount * lobe;
 }
 
 export type TwizzlerLine = {
   opacity: number;
-  points: Array<{ x: number; y: number }>;
+  points: Array<{ x: number; y: number; depth: number }>;
 };
 
 export function buildTwizzlerLines(
@@ -171,17 +218,18 @@ export function buildTwizzlerLines(
       const x = twizzlerPointX(point, segmentCount, pixelWidth);
       const edgeBaseline = edges.left + (edges.right - edges.left) * xT;
       const taper = 1 - settings.edgeTaper + settings.edgeTaper * Math.sin(Math.PI * xT);
+      const depth = twizzlerDepthScale(xT, settings);
       const flow = twizzlerNoise(
         x * settings.noiseScaleX + time * 0.1,
         range * settings.noiseScaleY + time * settings.drift * 0.1,
         0.37,
       );
       const wrinkle = Math.sin(xT * Math.PI * 2 * settings.wrinkles + phase + time * 0.85);
-      const bend = twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount);
-      const rawY =
-        edgeBaseline + (flow - 0.5) * settings.amplitude * taper + wrinkle * settings.wrinkleStrength * taper + bend;
-      const y = pixelHeight * (settings.centerY + (rawY - settings.centerY) * settings.scale);
-      points.push({ x, y });
+      const bend = twizzlerPathBend(xT, settings);
+      const localAmp = settings.amplitude * taper * depth;
+      const rawY = edgeBaseline + (flow - 0.5) * localAmp + wrinkle * settings.wrinkleStrength * taper * depth + bend;
+      const y = pixelHeight * (settings.centerY + (rawY - settings.centerY) * settings.scale * depth);
+      points.push({ x, y, depth });
     }
     lines.push({ opacity: settings.opacity * (0.1 + rangeT * 0.9), points });
   }
@@ -206,20 +254,23 @@ export function renderTwizzler(
   const { settings, lines } = buildTwizzlerLines(pixelWidth, pixelHeight, timeSec, input);
   context.clearRect(0, 0, pixelWidth, pixelHeight);
   context.save();
-  context.lineWidth = settings.lineWidth;
   context.lineJoin = "round";
   context.lineCap = "round";
   context.strokeStyle = settings.color;
 
   for (const line of lines) {
+    if (line.points.length < 2) continue;
     context.globalAlpha = line.opacity;
-    context.beginPath();
-    for (let point = 0; point < line.points.length; point += 1) {
-      const { x, y } = line.points[point];
-      if (point === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
+    for (let point = 1; point < line.points.length; point += 1) {
+      const prev = line.points[point - 1];
+      const curr = line.points[point];
+      const depth = (prev.depth + curr.depth) * 0.5;
+      context.lineWidth = settings.lineWidth * depth;
+      context.beginPath();
+      context.moveTo(prev.x, prev.y);
+      context.lineTo(curr.x, curr.y);
+      context.stroke();
     }
-    context.stroke();
   }
   context.restore();
 }

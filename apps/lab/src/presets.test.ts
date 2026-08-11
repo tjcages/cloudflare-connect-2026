@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { addPreset, createPreset, findPresetByName, removePreset, type ConfigPreset } from "./presets";
+import {
+  addPreset,
+  createPreset,
+  findPresetByName,
+  loadBuiltinPresets,
+  mergePresets,
+  removePreset,
+  type ConfigPreset,
+} from "./presets";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
 
 const cfg = (tag: string): EngineConfig => ({ tag }) as unknown as EngineConfig;
@@ -32,6 +40,13 @@ const presetWithLab = (name: string): ConfigPreset =>
       wrinkleStrength: 0.08,
       bendPosition: 0.65,
       bendAmount: -0.2,
+      bend2Position: 0.3,
+      bend2Amount: 0,
+      bend3Position: 0.75,
+      bend3Amount: 0,
+      depthPosition: 0.65,
+      depthAmount: 0,
+      depthWidth: 0.25,
       twist: 1.5,
       noiseScaleX: 0.002,
       noiseScaleY: 0.015,
@@ -93,6 +108,31 @@ describe("preset library transforms", () => {
   it("removePreset drops the matching name", () => {
     const next = removePreset([preset("a"), preset("b")], "a");
     expect(next.map((p) => p.name)).toEqual(["b"]);
+  });
+
+  it("removePreset keeps builtin presets", () => {
+    const builtin = createPreset("Banner 5:1", cfg("banner"), undefined, true);
+    const next = removePreset([builtin, preset("user")], "Banner 5:1");
+    expect(next.map((p) => p.name)).toEqual(["Banner 5:1", "user"]);
+  });
+
+  it("mergePresets lets builtin names win over stored copies", () => {
+    const builtin = createPreset("Banner 5:1", cfg("builtin"), undefined, true);
+    const stored = createPreset("Banner 5:1", cfg("stored"));
+    const merged = mergePresets([builtin], [stored, preset("user")]);
+    const banner = findPresetByName(merged, "Banner 5:1");
+    expect(banner?.builtin).toBe(true);
+    expect((banner?.config as unknown as { tag: string } | undefined)?.tag).toBe("builtin");
+  });
+
+  it("loads the Banner 5:1 builtin preset from disk", () => {
+    const builtins = loadBuiltinPresets();
+    const banner = findPresetByName(builtins, "Banner 5:1");
+    expect(banner?.builtin).toBe(true);
+    expect(banner?.lab?.canvasWidth).toBe(1600);
+    expect(banner?.lab?.canvasHeight).toBe(320);
+    expect(banner?.lab?.shaderPresetId).toBe("twizzler-map");
+    expect(banner?.lab?.twizzlerEnabled).toBe(true);
   });
 
   it("transforms do not mutate the input array", () => {

@@ -51,6 +51,7 @@ import type { LabTextureKind, LoadedTextureSource } from "./textures";
 import { addUpload, loadManifest, removeUpload, saveManifest, setDarkUpload } from "./uploads";
 import {
   addPreset,
+  consumeBootPresetName,
   createPreset,
   loadDefaultPreset,
   loadPresets,
@@ -894,7 +895,7 @@ function LabInner({
   const hasStoredPreviewZoomRef = useRef(labSettings.previewZoom != null);
   const previewZoomTouchedRef = useRef(false);
   const [presets, setPresets] = useState<ConfigPreset[]>(() => loadPresets());
-  const [selectedPreset, setSelectedPreset] = useState(() => startupPreset?.name ?? "");
+  const [selectedPreset, setSelectedPreset] = useState(() => consumeBootPresetName() ?? startupPreset?.name ?? "");
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
   const textureSourceModeRef = useRef(textureSourceMode);
@@ -2701,6 +2702,8 @@ function LabInner({
 
   function handleDeletePreset() {
     if (!selectedPreset) return;
+    const current = presets.find((p) => p.name === selectedPreset);
+    if (current?.builtin) return;
     const next = removePreset(presets, selectedPreset);
     savePresets(next);
     setPresets(next);
@@ -2900,7 +2903,10 @@ function LabInner({
   const showTwizzlerOverlay = shouldShowTwizzlerOverlay(textureSourceMode, twizzler.enabled);
   // Engine bg is forced transparent when underlay/source preview is shown — keep the
   // chosen solid color on the stack so it still sits behind those layers.
-  const canvasStackBackground = canvasStackBackgroundCss(controls.background);
+  // Twizzler hairlines need an opaque stack underlay (usually white) to read at all.
+  const canvasStackBackground = canvasStackBackgroundCss(
+    showTwizzlerOverlay ? { transparent: false, color: controls.background.color } : controls.background,
+  );
   const resolvedSourceSize =
     sourceSize.w > 0 && sourceSize.h > 0 ? sourceSize : expectedSourceSize(labSettings, textureSourceMode);
   const canvasCssSize = computeLabCanvasSize(resolvedSourceSize.w, resolvedSourceSize.h, labSettings);
@@ -3136,7 +3142,7 @@ function LabInner({
                   <option value="">No preset selected</option>
                   {presets.map((p) => (
                     <option key={p.name} value={p.name}>
-                      {p.name}
+                      {p.builtin ? `${p.name} (builtin)` : p.name}
                     </option>
                   ))}
                 </select>
@@ -3147,7 +3153,11 @@ function LabInner({
                   <button className="lab-btn" onClick={handleSavePreset}>
                     Save
                   </button>
-                  <button className="lab-btn" onClick={handleDeletePreset} disabled={!selectedPreset}>
+                  <button
+                    className="lab-btn"
+                    onClick={handleDeletePreset}
+                    disabled={!selectedPreset || presets.some((p) => p.name === selectedPreset && p.builtin)}
+                  >
                     Delete
                   </button>
                 </div>

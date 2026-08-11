@@ -8,22 +8,22 @@ describe("Twizzler Map shader", () => {
       {
         opacity: 1,
         points: [
-          { x: 0, y: 4 },
-          { x: 10, y: 8 },
+          { x: 0, y: 4, depth: 1 },
+          { x: 10, y: 8, depth: 1 },
         ],
       },
       {
         opacity: 1,
         points: [
-          { x: 0, y: 2 },
-          { x: 10, y: 12 },
+          { x: 0, y: 2, depth: 1 },
+          { x: 10, y: 12, depth: 1 },
         ],
       },
       {
         opacity: 1,
         points: [
-          { x: 0, y: 6 },
-          { x: 10, y: 10 },
+          { x: 0, y: 6, depth: 1 },
+          { x: 10, y: 10, depth: 1 },
         ],
       },
     ];

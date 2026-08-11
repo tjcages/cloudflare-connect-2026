@@ -4,8 +4,10 @@ import {
   normalizeTwizzlerSettings,
   twizzlerAnimationTime,
   twizzlerBendOffset,
+  twizzlerDepthScale,
   twizzlerEdgeHeights,
   twizzlerNoise,
+  twizzlerPathBend,
   twizzlerPointX,
 } from "./twizzler";
 
@@ -44,6 +46,26 @@ describe("Twizzler", () => {
     expect(twizzlerBendOffset(0.6, 0.6, 0.25)).toBe(0.25);
     expect(Math.abs(twizzlerBendOffset(0.1, 0.6, 0.25))).toBeLessThan(0.002);
     expect(twizzlerBendOffset(0.6, 0.6, -0.25)).toBe(-0.25);
+  });
+
+  it("sums multiple bend lobes for the path", () => {
+    const settings = {
+      bendPosition: 0.2,
+      bendAmount: 0.2,
+      bend2Position: 0.8,
+      bend2Amount: -0.15,
+      bend3Position: 0.5,
+      bend3Amount: 0,
+    };
+    expect(twizzlerPathBend(0.2, settings)).toBeCloseTo(0.2, 2);
+    expect(twizzlerPathBend(0.8, settings)).toBeCloseTo(-0.15, 2);
+  });
+
+  it("scales depth toward the camera peak", () => {
+    const settings = { depthPosition: 0.6, depthAmount: 1, depthWidth: 0.2 };
+    expect(twizzlerDepthScale(0.6, settings)).toBeCloseTo(2, 5);
+    expect(twizzlerDepthScale(0, settings)).toBeLessThan(1.05);
+    expect(twizzlerDepthScale(0.6, { ...settings, depthAmount: 0 })).toBe(1);
   });
 
   it("always spans from the exact left edge to the exact right edge", () => {

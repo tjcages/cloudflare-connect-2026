@@ -1,4 +1,5 @@
 {
+  "name": "Banner 5:1",
   "kind": "stripes-engine-lab-settings",
   "version": 2,
   "config": {
@@ -9,12 +10,12 @@
       "panY": 0
     },
     "adjustments": {
-      "brightness": -0.5,
-      "exposure": 1.5,
-      "contrast": 0.54,
+      "brightness": -0.25,
+      "exposure": 0.7,
+      "contrast": 0.85,
       "blackPoint": 0,
       "whitePoint": 1,
-      "gamma": 0.5499999999999998,
+      "gamma": 0.7,
       "invert": false,
       "posterizeLevels": 0,
       "thresholdBias": 0,
@@ -78,13 +79,13 @@
       }
     },
     "grid": {
-      "cellWidth": 7,
-      "cellHeight": 7,
-      "gapX": 0,
-      "gapY": 0,
+      "cellWidth": 4,
+      "cellHeight": 10,
+      "gapX": 2,
+      "gapY": 4,
       "cornerRadius": 0,
       "orientation": "vertical",
-      "angleDeg": 0,
+      "angleDeg": 48,
       "rotationMode": "cell",
       "overlapAmount": 1.2,
       "streamGapWave": {
@@ -97,68 +98,44 @@
     },
     "stripes": [
       {
-        "color": 16448250,
-        "startFrom": 0,
-        "width": 0.5,
-        "opacity": 1
-      },
-      {
-        "color": 16775400,
-        "startFrom": 0.1644,
-        "width": 1,
-        "opacity": 1
-      },
-      {
-        "color": 16707538,
-        "startFrom": 0.4418,
-        "width": 1.5,
-        "opacity": 1
-      },
-      {
-        "color": 16769973,
-        "startFrom": 0.6357,
-        "width": 2,
-        "opacity": 1
-      },
-      {
-        "color": 9451772,
-        "startFrom": 0.7104,
-        "width": 2.5,
-        "opacity": 1
-      },
-      {
-        "color": 2450430,
-        "startFrom": 0.7494,
-        "width": 3,
-        "opacity": 1
-      },
-      {
-        "color": 3054929,
-        "startFrom": 0.7724,
-        "width": 4.5,
-        "opacity": 1
-      },
-      {
-        "color": 16365371,
-        "startFrom": 0.7864,
-        "width": 4,
-        "opacity": 1
-      },
-      {
-        "color": 16365371,
-        "startFrom": 0.7946,
-        "width": 4.5,
-        "opacity": 1
+        "color": 16769217,
+        "startFrom": 0.32,
+        "width": 0.45,
+        "opacity": 0.4
       },
       {
         "color": 16015393,
-        "startFrom": 0.7988,
-        "width": 5,
+        "startFrom": 0.45,
+        "width": 0.7,
+        "opacity": 0.65
+      },
+      {
+        "color": 15958048,
+        "startFrom": 0.55,
+        "width": 0.9,
+        "opacity": 0.75
+      },
+      {
+        "color": 15499511,
+        "startFrom": 0.68,
+        "width": 0.5,
+        "opacity": 0.6
+      },
+      {
+        "color": 16015393,
+        "startFrom": 0.78,
+        "width": 1.3,
+        "opacity": 0.9
+      },
+      {
+        "color": 14240290,
+        "startFrom": 0.88,
+        "width": 1.8,
         "opacity": 1
       }
     ],
     "stripesEnabled": true,
-    "fieldScale": 0.25,
+    "fieldScale": 0.16,
     "maxFps": 0,
     "reveal": {
       "enabled": true,
@@ -237,13 +214,13 @@
     },
     "sparkle": {
       "gaps": {
-        "enabled": false,
-        "coverage": 0,
-        "speed": 1
+        "enabled": true,
+        "coverage": 0.62,
+        "speed": 0.25
       },
       "width": {
         "enabled": true,
-        "coverage": 0.5,
+        "coverage": 0.4,
         "swingPx": 2,
         "swingPeriodMin": 0.5,
         "swingPeriodMax": 1
@@ -560,10 +537,10 @@
     }
   },
   "lab": {
-    "canvasMode": "scale",
+    "canvasMode": "manual",
     "canvasScale": 1,
-    "canvasWidth": 1400,
-    "canvasHeight": 998,
+    "canvasWidth": 1600,
+    "canvasHeight": 320,
     "canvasAspectLocked": true,
     "exportStartSec": 0,
     "exportDurationSec": 5,
@@ -578,52 +555,52 @@
     "twizzler": {
       "color": "#f46021",
       "opacity": 0.62,
-      "scale": 0.57,
-      "centerY": 0.4600000000000001,
-      "amplitude": 0.46,
-      "lineCount": 137,
-      "lineWidth": 8,
+      "scale": 0.78,
+      "centerY": 0.62,
+      "amplitude": 0.38,
+      "lineCount": 220,
+      "lineWidth": 0.9,
       "pointSpacing": 2,
-      "leftHeight": 1.27,
-      "rightHeight": -0.77,
-      "edgeFluctuation": 0.255,
-      "edgeSpeed": 0,
-      "edgeTaper": 0,
-      "wrinkles": 0,
-      "wrinkleStrength": 0,
-      "bendPosition": 0.72,
-      "bendAmount": 0.43000000000000005,
-      "twist": 0.75,
-      "noiseScaleX": 0.0015,
-      "noiseScaleY": 0.060000000000000005,
-      "speed": 0.8,
-      "drift": 0.7000000000000001,
-      "bend2Position": 0.3,
-      "bend2Amount": 0,
-      "bend3Position": 0.75,
-      "bend3Amount": 0,
-      "depthPosition": 0.65,
-      "depthAmount": 0,
-      "depthWidth": 0.25
+      "leftHeight": 0.72,
+      "rightHeight": -0.55,
+      "edgeFluctuation": 0.08,
+      "edgeSpeed": 0.25,
+      "edgeTaper": 0.55,
+      "wrinkles": 1.5,
+      "wrinkleStrength": 0.03,
+      "bendPosition": 0.45,
+      "bendAmount": 0.28,
+      "bend2Position": 0.18,
+      "bend2Amount": 0.1,
+      "bend3Position": 0.72,
+      "bend3Amount": -0.48,
+      "depthPosition": 0.68,
+      "depthAmount": 1.1,
+      "depthWidth": 0.22,
+      "twist": 1.35,
+      "noiseScaleX": 0.0012,
+      "noiseScaleY": 0.035,
+      "speed": 0.4,
+      "drift": 0.25
     },
     "twizzlerMap": {
-      "backgroundLevel": 0.22000000000000003,
-      "ribbonLevel": 1,
-      "shoulderLevel": 1,
-      "shoulderWidth": 10.5,
-      "topOffsetPx": 226,
-      "bottomOffsetPx": 158,
-      "topSpread": 0.8,
-      "bottomSpread": 0.8,
+      "backgroundLevel": 0.015,
+      "ribbonLevel": 0.78,
+      "shoulderLevel": 0.08,
+      "shoulderWidth": 5.5,
+      "topOffsetPx": 0,
+      "bottomOffsetPx": 0,
+      "topSpread": 0.7,
+      "bottomSpread": 0.7,
       "flowEnabled": true,
-      "flowDirection": "bottomToTop",
-      "flowAmplitude": 1,
-      "flowSpeed": -3,
-      "flowSpacing": 0.75,
-      "flowBandWidth": 0.3,
-      "flowSoftness": 1,
-      "flowOpacity": 1,
-      "flowPhase": 1
+      "flowDirection": "topRightToBottomLeft",
+      "flowAmplitude": 0.22,
+      "flowSpeed": 0.4,
+      "flowSpacing": 0.14,
+      "flowBandWidth": 0.04,
+      "flowSoftness": 0.45,
+      "flowOpacity": 0.35,
+      "flowPhase": 0.15
     },
     "backgroundFillMode": "solid",
     "backgroundSourceOpacity": 0,
@@ -643,20 +620,10 @@
     "thresholdDistributionEasing": "custom:0.346,0.578,0,1",
     "autoStripeWidths": false,
     "drawerOpen": {
-      "Stripes": true,
-      "Background": true,
-      "Colors": true,
-      "Detailed settings": true,
-      "Grid": true,
-      "Edge Mask": false,
-      "Sparkle": false,
-      "Background Stars": false,
-      "Background Meteors": false,
-      "Cursor Trail": false,
-      "Reveal": false,
-      "General": true,
       "Twizzler": true,
-      "Twizzler General": true
+      "Twizzler General": true,
+      "Background": true,
+      "Stripes": true
     },
     "previewZoom": 1,
     "textureSidebarOpen": true,
@@ -664,7 +631,7 @@
     "textureSidebarWidth": 272,
     "shaderSidebarWidth": 372,
     "connectShapeType": "spiral",
-    "shaderPresetId": "connect",
+    "shaderPresetId": "twizzler-map",
     "connectCameraDistance": 7,
     "connectCameraRotateX": 42.07753906250002,
     "connectCameraRotateY": -112,

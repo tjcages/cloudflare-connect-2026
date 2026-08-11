@@ -1,5 +1,7 @@
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
+import { saveControlDrawerSnapshot } from "./controls/drawerState";
 import type { LabSettings } from "./persistence";
+import { saveLabSettings, stagePendingConfig } from "./persistence";
 
 const PRESET_KIND = "stripes-engine-lab-settings";
 const PRESET_VERSION = 2;
@@ -10,17 +12,36 @@ export interface ConfigPreset {
   version: number;
   config: ThemedEngineConfig;
   lab?: Partial<LabSettings>;
+  builtin?: boolean;
 }
 
 const PRESETS_KEY = "stripes-engine-lab-presets";
+const BOOT_PRESET_KEY = "stripes-engine-lab-boot-preset";
 
-export function createPreset(name: string, config: ThemedEngineConfig, lab?: Partial<LabSettings>): ConfigPreset {
+type BuiltinPresetFile = {
+  name?: unknown;
+  config?: unknown;
+  lab?: unknown;
+};
+
+const builtinModules = import.meta.glob("./presets/builtin/*.json", {
+  eager: true,
+  import: "default",
+}) as Record<string, BuiltinPresetFile>;
+
+export function createPreset(
+  name: string,
+  config: ThemedEngineConfig,
+  lab?: Partial<LabSettings>,
+  builtin = false,
+): ConfigPreset {
   return {
     name,
     kind: PRESET_KIND,
     version: PRESET_VERSION,
     config,
     ...(lab ? { lab } : {}),
+    ...(builtin ? { builtin: true } : {}),
   };
 }
 
@@ -29,7 +50,7 @@ export function addPreset(presets: ConfigPreset[], preset: ConfigPreset): Config
 }
 
 export function removePreset(presets: ConfigPreset[], name: string): ConfigPreset[] {
-  return presets.filter((p) => p.name !== name);
+  return presets.filter((p) => p.name !== name || p.builtin);
 }
 
 export function findPresetByName(presets: readonly ConfigPreset[], name: string): ConfigPreset | undefined {
@@ -37,23 +58,58 @@ export function findPresetByName(presets: readonly ConfigPreset[], name: string)
   return presets.find((preset) => preset.name.trim().toLocaleLowerCase() === normalized);
 }
 
-export function loadPresets(): ConfigPreset[] {
+function normalizeStoredPreset(item: unknown): ConfigPreset | null {
+  if (!item || typeof item !== "object") return null;
+  const record = item as Partial<ConfigPreset>;
+  if (typeof record.name !== "string" || !record.config) return null;
+  return createPreset(record.name, record.config as ThemedEngineConfig, record.lab, false);
+}
+
+export function loadBuiltinPresets(): ConfigPreset[] {
+  return Object.values(builtinModules)
+    .map((file) => {
+      if (!file || typeof file !== "object") return null;
+      if (typeof file.name !== "string" || !file.config) return null;
+      return createPreset(
+        file.name,
+        file.config as ThemedEngineConfig,
+        file.lab as Partial<LabSettings> | undefined,
+        true,
+      );
+    })
+    .filter((preset): preset is ConfigPreset => preset !== null)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function mergePresets(builtin: readonly ConfigPreset[], stored: readonly ConfigPreset[]): ConfigPreset[] {
+  const byName = new Map<string, ConfigPreset>();
+  for (const preset of stored) {
+    byName.set(preset.name.trim().toLocaleLowerCase(), preset);
+  }
+  // Builtin names win / stay restore-safe.
+  for (const preset of builtin) {
+    byName.set(preset.name.trim().toLocaleLowerCase(), preset);
+  }
+  return [...byName.values()].sort((a, b) => {
+    if (a.builtin !== b.builtin) return a.builtin ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function loadStoredPresets(): ConfigPreset[] {
   try {
     const raw = localStorage.getItem(PRESETS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item) => {
-        if (!item || typeof item !== "object") return null;
-        const record = item as Partial<ConfigPreset>;
-        if (typeof record.name !== "string" || !record.config) return null;
-        return createPreset(record.name, record.config, record.lab);
-      })
-      .filter((preset): preset is ConfigPreset => preset !== null);
+    return parsed.map(normalizeStoredPreset).filter((preset): preset is ConfigPreset => preset !== null);
   } catch {
     return [];
   }
+}
+
+export function loadPresets(): ConfigPreset[] {
+  return mergePresets(loadBuiltinPresets(), loadStoredPresets());
 }
 
 export function loadDefaultPreset(): ConfigPreset | undefined {
@@ -62,8 +118,40 @@ export function loadDefaultPreset(): ConfigPreset | undefined {
 
 export function savePresets(presets: ConfigPreset[]): void {
   try {
-    localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+    const storedOnly = presets.filter((preset) => !preset.builtin).map(({ builtin: _builtin, ...rest }) => rest);
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(storedOnly));
   } catch {
     /* ignore quota errors */
+  }
+}
+
+/** One-shot URL apply: `?preset=Banner%205:1` loads a builtin/stored preset then strips the param. */
+export function consumePresetQuery(): void {
+  try {
+    const url = new URL(window.location.href);
+    const name = url.searchParams.get("preset");
+    if (!name) return;
+    const preset = findPresetByName(loadPresets(), name);
+    if (!preset) return;
+    if (preset.config) stagePendingConfig(preset.config as ThemedEngineConfig);
+    if (preset.lab) {
+      saveLabSettings(preset.lab);
+      if (preset.lab.drawerOpen) saveControlDrawerSnapshot(preset.lab.drawerOpen);
+    }
+    sessionStorage.setItem(BOOT_PRESET_KEY, preset.name);
+    url.searchParams.delete("preset");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function consumeBootPresetName(): string | null {
+  try {
+    const name = sessionStorage.getItem(BOOT_PRESET_KEY);
+    sessionStorage.removeItem(BOOT_PRESET_KEY);
+    return name;
+  } catch {
+    return null;
   }
 }
