@@ -16,8 +16,7 @@ import {
   twizzlerGapWarpedAcross,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
-  twizzlerZyStackPolarity,
-  twizzlerZyStackY,
+  twizzlerZyOrder,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -180,19 +179,40 @@ describe("Twizzler", () => {
       expect(Math.abs(sample)).toBeLessThan(1.15);
     }
 
-    // Z→Y polarity flips along X so near→far is high→low in some places and reversed in others.
-    const xs = Array.from({ length: 21 }, (_, i) => i / 20);
-    const pols = xs.map((x) => twizzlerZyStackPolarity(x));
-    expect(Math.max(...pols)).toBeGreaterThan(0.35);
-    expect(Math.min(...pols)).toBeLessThan(-0.35);
-    const xHigh = xs.find((x) => twizzlerZyStackPolarity(x) > 0.45) ?? 0.2;
-    const xLow = xs.find((x) => twizzlerZyStackPolarity(x) < -0.45) ?? 0.7;
-    // +polarity: near (1) sits above far (0) → smaller canvas Y.
-    expect(twizzlerZyStackY(1, xHigh, 48, 1.5)).toBeLessThan(twizzlerZyStackY(0, xHigh, 48, 1.5));
-    // −polarity: ordering flips.
-    expect(twizzlerZyStackY(1, xLow, 48, 1.5)).toBeGreaterThan(twizzlerZyStackY(0, xLow, 48, 1.5));
-    // Per-fiber phase shifts flip sites so weave varies across Z as well as X.
-    expect(twizzlerZyStackPolarity(0.45, 1.7, -0.8)).not.toBeCloseTo(twizzlerZyStackPolarity(0.45, 1.7, 0.8), 2);
+    // Z→Y order field takes both signs across X/Y (near↑/far↓ and the reverse).
+    const orderSamples = [
+      ...Array.from({ length: 11 }, (_, i) => twizzlerZyOrder(i / 10, 0.35)),
+      ...Array.from({ length: 11 }, (_, i) => twizzlerZyOrder(0.4, i / 10)),
+    ];
+    expect(Math.max(...orderSamples)).toBeGreaterThan(0.35);
+    expect(Math.min(...orderSamples)).toBeLessThan(-0.35);
+
+    // Built pack: under +order, walk near→far must go visually high→low (smaller→larger canvas Y).
+    const packSettings = normalizeTwizzlerSettings({
+      lineCount: 24,
+      pointSpacing: 8,
+      speed: 0,
+      depthSpread: 1.18,
+      wrinkleStrength: 0.028,
+      wrinkles: 2.5,
+      depthLift: 0.75,
+      amplitude: 0.85,
+      centerY: 0.45,
+    });
+    const { lines } = buildTwizzlerLines(800, 240, 0, packSettings);
+    const midIdx = Math.floor((lines[0]?.points.length ?? 1) * 0.55);
+    const xT = lines[0]?.points[midIdx]?.along ?? 0.55;
+    // Order was evaluated on the centerline, not the final ink Y.
+    const pathYN = twizzlerMarketingCenterY(xT, packSettings, 0);
+    const order = twizzlerZyOrder(xT, pathYN);
+    const ranked = [...lines].sort((a, b) => b.nearness - a.nearness); // near → far
+    const nearY = ranked[0]?.points[midIdx]?.y ?? 0;
+    const farY = ranked[ranked.length - 1]?.points[midIdx]?.y ?? 0;
+    if (order > 0.25) {
+      expect(nearY).toBeLessThan(farY);
+    } else if (order < -0.25) {
+      expect(nearY).toBeGreaterThan(farY);
+    }
 
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,

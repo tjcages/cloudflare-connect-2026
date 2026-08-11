@@ -1,5 +1,5 @@
 /**
- * Capture C-lock Twizzler with Z→Y polarity that flips along X.
+ * Capture C-lock Twizzler with corrected Z→Y order (near↑/far↓, flips by region).
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -54,32 +54,28 @@ const cBase = {
 const variants = [
   {
     id: "A",
-    label: "A — C lock + ZY polarity flips (lock)",
-    tweaks: {
-      // Banner lock: option C denseness + near↔far Y order that flips along X.
-    },
+    label: "A — C lock + Z→Y near↑/far↓ with regional flips",
+    tweaks: {},
   },
   {
     id: "B",
-    label: "B — stronger ZY separation + flips",
+    label: "B — stronger Z stack separation",
     tweaks: {
-      depthSpread: 1.32,
-      depthLift: 0.95,
+      depthSpread: 1.3,
+      depthLift: 0.9,
       lineWidth: 0.7,
-      wrinkleStrength: 0.034,
       centerY: 0.36,
     },
   },
   {
     id: "C",
-    label: "C — long-sweep terrain + ZY flips",
+    label: "C — long-sweep terrain, same Z→Y order",
     tweaks: {
       depthTerrain: 2,
-      depthSpread: 1.22,
-      depthLift: 0.88,
+      depthSpread: 1.2,
+      depthLift: 0.85,
       lineWidth: 0.68,
       centerY: 0.4,
-      wrinkleStrength: 0.03,
     },
   },
 ];
@@ -133,7 +129,7 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r9-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r10-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -148,7 +144,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r9-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r10-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -169,7 +165,6 @@ writeFileSync(
       tweaks: {
         lineCount: settings.lineCount,
         lineWidth: settings.lineWidth,
-        wrinkleStrength: settings.wrinkleStrength,
         depthSpread: settings.depthSpread,
         depthTerrain: settings.depthTerrain,
         depthLift: settings.depthLift,
