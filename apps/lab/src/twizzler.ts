@@ -537,17 +537,19 @@ export function twizzlerUnevenAcross(lineCount: number, gapNoise = 0.55, seed = 
 
 /**
  * Local Z→Y stack order (−1..1) over the ribbon field.
- * +1: walk near→far = visually high→low (near smaller canvas Y).
- * −1: opposite. Varies across X and path Y so both orderings appear.
+ * +1 (default): walk near→far = visually high→low (near smaller canvas Y / saturated on top).
+ * −1: opposite. Slow X/Y rolls create regional flips so both orderings appear.
  */
 export function twizzlerZyOrder(xT: number, pathYN: number, seed = 2.4): number {
   const x = Math.max(0, Math.min(1, xT));
   const y = Math.max(0, Math.min(1, pathYN));
+  // Mild +bias (near↑/far↓ default); strong X/Y rolls still carve flipped regions.
   const field =
-    0.7 * Math.sin(x * Math.PI * 2.15 + 0.25) +
-    0.45 * Math.sin(y * Math.PI * 2.0 + 0.9) +
-    0.35 * (twizzlerNoise(x * 1.6 + seed, y * 1.3 + seed * 0.4, 0.55) * 2 - 1);
-  return Math.tanh(field * 1.6);
+    0.28 +
+    0.95 * Math.sin(x * Math.PI * 2.35 + 0.1) +
+    0.55 * Math.sin(y * Math.PI * 1.9 + 1.1) +
+    0.3 * (twizzlerNoise(x * 1.5 + seed, y * 1.2 + seed * 0.4, 0.55) * 2 - 1);
+  return Math.tanh(field * 1.45);
 }
 
 /**
