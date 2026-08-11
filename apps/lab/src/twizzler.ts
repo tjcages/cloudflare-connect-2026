@@ -300,59 +300,78 @@ function sampleKnots(x: number, knots: ReadonlyArray<readonly [number, number]>)
 
 /**
  * Marketing banner centerline in normalized Y (0=top, 1=bottom).
- * Multi-hill silhouette — not a flat single sweep. Amplitude + terrain diverge A/B/C.
+ * Each depthTerrain uses a different spine + wave recipe so A/B/C read differently.
  */
 export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
   const terrain = Math.round(Math.max(0, Math.min(2, settings.depthTerrain))) as 0 | 1 | 2;
-  // Base spine still trends mid → valley → rise, but with many hills.
-  const yKnot = sampleKnots(x, [
-    [0.0, 0.58],
-    [0.08, 0.72],
-    [0.18, 0.86],
-    [0.3, 0.78],
-    [0.4, 0.92],
-    [0.5, 0.7],
-    [0.62, 0.48],
-    [0.74, 0.28],
-    [0.86, 0.18],
-    [1.0, 0.34],
-  ]);
+  let yKnot = 0.55;
   const waveGain = 0.55 + settings.amplitude * 1.35;
   let waves = 0;
   switch (terrain) {
     case 0: {
-      // A — rolling multi-hills (A2 direction).
-      waves =
-        waveGain *
-        1.25 *
-        (-0.1 * Math.sin(x * Math.PI * 2.4 + 0.4) +
-          -0.085 * Math.sin(x * Math.PI * 3.6 + 1.1) +
-          -0.07 * Math.sin(x * Math.PI * 5.2 + 2.2) +
-          -0.05 * Math.sin(x * Math.PI * 7.1 + time * 0.3) +
-          -0.035 * Math.sin(x * Math.PI * 9.4 + 0.7) * Math.min(1, settings.wrinkles / 2));
-      break;
-    }
-    case 1: {
-      // B — sharper, higher-frequency silhouette.
+      // Rolling multi-hill spine (A2 family).
+      yKnot = sampleKnots(x, [
+        [0.0, 0.58],
+        [0.1, 0.74],
+        [0.22, 0.88],
+        [0.36, 0.7],
+        [0.48, 0.9],
+        [0.6, 0.52],
+        [0.72, 0.3],
+        [0.86, 0.2],
+        [1.0, 0.38],
+      ]);
       waves =
         waveGain *
         1.35 *
-        (-0.1 * Math.sin(x * Math.PI * 3.2 + 0.2) +
-          -0.09 * Math.sin(x * Math.PI * 5.8 + 1.4) +
-          -0.075 * Math.sin(x * Math.PI * 8.6 + 2.6) +
-          -0.055 * Math.sin(x * Math.PI * 11.2 + time * 0.2) +
-          -0.04 * Math.sin(x * Math.PI * 14.5 + 0.9));
+        (-0.11 * Math.sin(x * Math.PI * 2.2 + 0.3) +
+          -0.09 * Math.sin(x * Math.PI * 3.8 + 1.0) +
+          -0.07 * Math.sin(x * Math.PI * 5.6 + 2.1) +
+          -0.045 * Math.sin(x * Math.PI * 8.0 + time * 0.25));
+      break;
+    }
+    case 1: {
+      // Jagged high-energy spine — deep valley then sharp multi-peaks.
+      yKnot = sampleKnots(x, [
+        [0.0, 0.42],
+        [0.12, 0.68],
+        [0.24, 0.95],
+        [0.34, 0.55],
+        [0.42, 0.98],
+        [0.52, 0.35],
+        [0.62, 0.12],
+        [0.74, 0.45],
+        [0.86, 0.08],
+        [1.0, 0.4],
+      ]);
+      waves =
+        waveGain *
+        1.85 *
+        (-0.14 * Math.sin(x * Math.PI * 3.6 + 0.15) +
+          -0.12 * Math.sin(x * Math.PI * 6.4 + 1.3) +
+          -0.1 * Math.sin(x * Math.PI * 9.8 + 2.4) +
+          -0.07 * Math.sin(x * Math.PI * 13.5 + time * 0.2) +
+          -0.05 * Math.sin(x * Math.PI * 17.2 + 0.8));
       break;
     }
     case 2: {
-      // C — long slow sweep, fewer hills, deeper right rise then settle.
+      // Long sparse sweep — one big trough, one big rise, soft settle.
+      yKnot = sampleKnots(x, [
+        [0.0, 0.5],
+        [0.15, 0.62],
+        [0.35, 0.92],
+        [0.55, 0.78],
+        [0.72, 0.22],
+        [0.88, 0.35],
+        [1.0, 0.48],
+      ]);
       waves =
         waveGain *
-        1.1 *
-        (-0.12 * Math.sin(x * Math.PI * 1.35 + 0.3) +
-          -0.08 * Math.sin(x * Math.PI * 2.1 + 1.6) +
-          -0.045 * Math.sin(x * Math.PI * 3.4 + 0.8));
+        1.2 *
+        (-0.16 * Math.sin(x * Math.PI * 1.2 + 0.2) +
+          -0.09 * Math.sin(x * Math.PI * 2.0 + 1.4) +
+          -0.04 * Math.sin(x * Math.PI * 3.1 + 0.7));
       break;
     }
     default: {
@@ -363,9 +382,9 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
     }
   }
   const edges = twizzlerEdgeHeights(time, 0, settings);
-  const edgeBias = (edges.left - 0.58) * (1 - x) + (edges.right - 0.34) * x;
-  const bend = twizzlerPathBend(x, settings) * 0.85;
-  const yAbs = yKnot + waves + edgeBias * 0.25 + bend;
+  const edgeBias = (edges.left - 0.55) * (1 - x) + (edges.right - 0.4) * x;
+  const bend = twizzlerPathBend(x, settings) * 1.15;
+  const yAbs = yKnot + waves + edgeBias * 0.3 + bend;
   return settings.centerY + (yAbs - 0.55) * settings.scale;
 }
 
