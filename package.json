@@ -5,7 +5,12 @@
   "type": "module",
   "packageManager": "pnpm@10.6.3",
   "pnpm": {
-    "minimumReleaseAge": 10080
+    "minimumReleaseAge": 10080,
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "workerd"
+    ]
   },
   "scripts": {
     "dev": "pnpm --filter lab dev",
@@ -13,7 +18,8 @@
     "build:client": "pnpm --filter lab build",
     "typecheck": "pnpm --filter @necatikcl/stripes-engine typecheck && pnpm --filter lab typecheck",
     "preview:worker": "pnpm --filter lab preview:worker",
-    "deploy": "pnpm --filter lab deploy",
+    "deploy": "pnpm run build && pnpm exec wrangler deploy",
+    "postinstall": "node ./scripts/workers-ci-build.mjs",
     "test": "vitest run --config vitest.workspace.ts",
     "test:watch": "vitest --config vitest.workspace.ts",
     "test:e2e": "playwright test",
