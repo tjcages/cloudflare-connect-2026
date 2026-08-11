@@ -498,16 +498,18 @@ export function twizzlerGapWarpedAcross(
   const amount = Math.max(0, Math.min(2.5, gapNoise));
   // Pack fan scale along the ribbon — large L→R swings.
   const pack =
-    0.25 +
-    1.7 * twizzlerNoise(x * 2.15 + seed * 0.2, seed * 0.71, 0.33) +
-    0.85 * twizzlerNoise(x * 4.8 + 1.3, seed * 1.4, 0.88) +
-    0.4 * twizzlerNoise(x * 9.2 + 0.6, seed * 0.5, 1.6);
+    0.12 +
+    2.2 * twizzlerNoise(x * 1.7 + seed * 0.2, seed * 0.71, 0.33) +
+    1.15 * twizzlerNoise(x * 3.9 + 1.3, seed * 1.4, 0.88) +
+    0.7 * twizzlerNoise(x * 8.4 + 0.6, seed * 0.5, 1.6) +
+    0.45 * twizzlerNoise(x * 14.2 + 2.1, seed * 0.9, 2.2);
   // Neighbor gap jitter — each fiber drifts differently along X.
   const jitter =
-    (twizzlerNoise(x * 3.4 + fiberIndex * 0.67, fiberIndex * 1.19 + seed, 1.35) - 0.5) * (0.7 + amount) +
-    (twizzlerNoise(x * 7.6 + fiberIndex * 0.31, seed + 2.4, 0.55) - 0.5) * (0.35 + amount * 0.45);
-  const warped = across * (0.45 + amount * 0.55) * pack + jitter * amount * 0.85;
-  return Math.max(-1.5, Math.min(1.5, warped));
+    (twizzlerNoise(x * 2.8 + fiberIndex * 0.67, fiberIndex * 1.19 + seed, 1.35) - 0.5) * (1.1 + amount * 1.2) +
+    (twizzlerNoise(x * 6.4 + fiberIndex * 0.31, seed + 2.4, 0.55) - 0.5) * (0.55 + amount * 0.7) +
+    (twizzlerNoise(x * 11.5 + fiberIndex * 0.19, seed + 5.1, 1.1) - 0.5) * (0.35 + amount * 0.4);
+  const warped = across * (0.35 + amount * 0.75) * pack + jitter * amount;
+  return Math.max(-1.7, Math.min(1.7, warped));
 }
 
 /**
@@ -627,7 +629,7 @@ export function buildTwizzlerLines(
 
   // Gap irregularity + Z-wave amplitude ride on existing wrinkle/depthLift knobs.
   const gapNoise = 0.65 + settings.wrinkleStrength * 24;
-  const alongGapNoise = 0.85 + settings.wrinkleStrength * 28 + settings.depthSpread * 0.2;
+  const alongGapNoise = 1.15 + settings.wrinkleStrength * 32 + settings.depthSpread * 0.35;
   const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
   const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
   const rawSlots = twizzlerUnevenAcross(
