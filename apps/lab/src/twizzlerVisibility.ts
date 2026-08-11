@@ -1,10 +1,5 @@
-import { isTwizzlerMapShaderPreset } from "./shaderLibrary";
-
-export function shouldShowTwizzlerOverlay(
-  textureSourceMode: "texture" | "shader",
-  shaderPresetId: string,
-  enabled: boolean,
-  stripesEnabled: boolean,
-): boolean {
-  return textureSourceMode === "shader" && isTwizzlerMapShaderPreset(shaderPresetId) && enabled && !stripesEnabled;
+export function shouldShowTwizzlerOverlay(textureSourceMode: "texture" | "shader", enabled: boolean): boolean {
+  // Canvas ribbon underlay — available on any shader source when enabled
+  // (Connect / Spiral / Twizzler Map). Matches the e32386e boot experience.
+  return textureSourceMode === "shader" && enabled;
 }

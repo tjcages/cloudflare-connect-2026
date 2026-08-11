@@ -445,6 +445,7 @@ export function useEngineControls(
     showShaderCamera?: boolean;
     showConnectCamera?: boolean;
     activeShaderConfig?: ShaderConfigKind | null;
+    showTwizzlerRibbon?: boolean;
     twizzlerTransport?: TimeTransportController;
     initialConfig?: ThemedEngineConfig;
     initialEditTheme?: LabEditTheme;
@@ -455,6 +456,7 @@ export function useEngineControls(
   const showShaderCamera = options.showShaderCamera === true;
   const showConnectCamera = options.showConnectCamera === true;
   const activeShaderConfig = options.activeShaderConfig ?? null;
+  const showTwizzlerRibbon = options.showTwizzlerRibbon === true;
   const showShaderToyCamera = showShaderCamera && !showConnectCamera;
   const showShaderCameraRef = useRef(showShaderCamera);
   showShaderCameraRef.current = showShaderCamera;
@@ -462,8 +464,11 @@ export function useEngineControls(
   showConnectCameraRef.current = showConnectCamera;
   const activeShaderConfigRef = useRef(activeShaderConfig);
   activeShaderConfigRef.current = activeShaderConfig;
+  const showTwizzlerRibbonRef = useRef(showTwizzlerRibbon);
+  showTwizzlerRibbonRef.current = showTwizzlerRibbon;
   const showCometLogoShaderConfig = () => activeShaderConfigRef.current === "comet-logo";
   const showTwizzlerMapShaderConfig = () => activeShaderConfigRef.current === "twizzler-map";
+  const showTwizzlerRibbonConfig = () => showTwizzlerRibbonRef.current;
   const showSpiralShaderConfigRef = useRef(activeShaderConfig === "spiral");
   showSpiralShaderConfigRef.current = activeShaderConfig === "spiral";
   const showShaderToyCameraRef = useRef(showShaderToyCamera);
@@ -1375,7 +1380,7 @@ export function useEngineControls(
                   label: "Scale",
                 },
               },
-              { render: showTwizzlerMapShaderConfig },
+              { render: showTwizzlerRibbonConfig },
             ),
             Shape: drawerFolder(
               "Twizzler Shape",
@@ -1430,7 +1435,7 @@ export function useEngineControls(
                   label: "Twist",
                 },
               },
-              { render: showTwizzlerMapShaderConfig },
+              { render: showTwizzlerRibbonConfig },
             ),
             Edges: drawerFolder(
               "Twizzler Edges",
@@ -1471,7 +1476,7 @@ export function useEngineControls(
                   label: "Edge taper",
                 },
               },
-              { render: showTwizzlerMapShaderConfig },
+              { render: showTwizzlerRibbonConfig },
             ),
             Lines: drawerFolder(
               "Twizzler Lines",
@@ -1498,7 +1503,7 @@ export function useEngineControls(
                   label: "Point spacing",
                 },
               },
-              { render: showTwizzlerMapShaderConfig },
+              { render: showTwizzlerRibbonConfig },
             ),
             Noise: drawerFolder(
               "Twizzler Noise",
@@ -1518,7 +1523,7 @@ export function useEngineControls(
                   label: "Line separation",
                 },
               },
-              { render: showTwizzlerMapShaderConfig },
+              { render: showTwizzlerRibbonConfig },
             ),
             Motion: drawerFolder(
               "Twizzler Motion",
@@ -1538,7 +1543,7 @@ export function useEngineControls(
                   label: "Vertical drift",
                 },
               },
-              { render: showTwizzlerMapShaderConfig },
+              { render: showTwizzlerRibbonConfig },
             ),
             Field: drawerFolder(
               "Twizzler Map Field",
@@ -4259,7 +4264,14 @@ export function useEngineControls(
   useEffect(() => {
     setTextureControl({});
     setShaderControl({});
-  }, [activeShaderConfig, showShaderCamera, showConnectCamera, setTextureControl, setShaderControl]);
+  }, [
+    activeShaderConfig,
+    showShaderCamera,
+    showConnectCamera,
+    showTwizzlerRibbon,
+    setTextureControl,
+    setShaderControl,
+  ]);
 
   const values = { ...textureValues, ...shaderValues };
   const imageColorsMode = values.colorsMode === "colors";
