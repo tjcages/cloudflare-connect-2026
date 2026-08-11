@@ -303,8 +303,19 @@ describe("config file import/export", () => {
     saveLabSettings({ canvasMode: "manual", canvasWidth: 1111, backgroundColor: 0x334455 });
 
     factoryResetSettings();
+    resumePersistenceWritesForTests();
 
     expect(loadLabSettings()).toEqual(DEFAULT_LAB_SETTINGS);
+  });
+
+  it("invalidates stale localStorage when factory boot generation changes", () => {
+    saveLabSettings({ shaderPresetId: "comet-logo", canvasWidth: 999 });
+    localStorage.setItem("stripes-engine-lab-ui-generation", "stale-generation");
+    localStorage.setItem("stripes-engine-lab-last-config", JSON.stringify({ fieldScale: 0.12 }));
+
+    expect(loadLabSettings().shaderPresetId).toBe(DEFAULT_LAB_SETTINGS.shaderPresetId);
+    expect(loadLabSettings().canvasWidth).toBe(DEFAULT_LAB_SETTINGS.canvasWidth);
+    expect(localStorage.getItem("stripes-engine-lab-last-config")).toBeNull();
   });
 });
 

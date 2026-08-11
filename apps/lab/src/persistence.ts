@@ -21,6 +21,9 @@ const MAP_KEY = "stripes-engine-lab-by-texture";
 const LAST_KEY = "stripes-engine-lab-last-config";
 const LAST_BACKGROUND_COLOR_KEY = "stripes-engine-lab-last-background-color";
 const LAB_SETTINGS_KEY = "stripes-engine-lab-ui-settings";
+const LAB_SETTINGS_GENERATION_KEY = "stripes-engine-lab-ui-generation";
+/** Bump when factory boot experience intentionally changes (invalidates stale localStorage). */
+export const LAB_SETTINGS_GENERATION = "connect-rain-v1";
 const TEXTURE_KEY = "stripes-engine-lab-texture";
 const CONFIG_FILE_KIND = "stripes-engine-lab-settings";
 const CONFIG_FILE_VERSION = 2;
@@ -514,8 +517,30 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
   };
 }
 
+function writeFactoryLabSettings(): LabSettings {
+  const next = {
+    ...normalizeLabSettings(DEFAULT_LAB_SETTINGS),
+    cometLogo: { ...COMET_LOGO_DEFAULTS },
+  };
+  localStorage.setItem(LAB_SETTINGS_GENERATION_KEY, LAB_SETTINGS_GENERATION);
+  localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(withoutSessionOnlyLabSettings(next)));
+  return next;
+}
+
+function clearStaleEngineConfigCache(): void {
+  localStorage.removeItem(MAP_KEY);
+  localStorage.removeItem(LAST_KEY);
+  localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
+  localStorage.removeItem(TEXTURE_KEY);
+}
+
 export function loadLabSettings(): LabSettings {
   try {
+    const generation = localStorage.getItem(LAB_SETTINGS_GENERATION_KEY);
+    if (generation !== LAB_SETTINGS_GENERATION) {
+      clearStaleEngineConfigCache();
+      return writeFactoryLabSettings();
+    }
     const raw = localStorage.getItem(LAB_SETTINGS_KEY);
     return {
       ...normalizeLabSettings(raw ? (JSON.parse(raw) as Partial<LabSettings>) : {}),
@@ -523,6 +548,21 @@ export function loadLabSettings(): LabSettings {
     };
   } catch {
     return DEFAULT_LAB_SETTINGS;
+  }
+}
+
+/** One-shot URL reset: `?factory=1` clears saved lab state to current factory defaults. */
+export function consumeFactoryBootReset(): void {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("factory") !== "1") return;
+    factoryResetSettings();
+    persistenceWritesEnabled = true;
+    writeFactoryLabSettings();
+    url.searchParams.delete("factory");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -535,6 +575,7 @@ export function saveLabSettings(settings: Partial<LabSettings>): void {
   if (!persistenceWritesEnabled) return;
   try {
     const next = normalizeLabSettings({ ...loadLabSettings(), ...settings });
+    localStorage.setItem(LAB_SETTINGS_GENERATION_KEY, LAB_SETTINGS_GENERATION);
     localStorage.setItem(LAB_SETTINGS_KEY, JSON.stringify(withoutSessionOnlyLabSettings(next)));
   } catch {
     /* ignore quota errors */
@@ -547,6 +588,7 @@ export function factoryResetSettings(): void {
     localStorage.removeItem(LAST_KEY);
     localStorage.removeItem(LAST_BACKGROUND_COLOR_KEY);
     localStorage.removeItem(LAB_SETTINGS_KEY);
+    localStorage.removeItem(LAB_SETTINGS_GENERATION_KEY);
     localStorage.removeItem(TEXTURE_KEY);
     localStorage.removeItem(EDIT_THEME_KEY);
     clearCustomStripePalettes();
@@ -554,10 +596,7 @@ export function factoryResetSettings(): void {
     clearUrlBackgroundColor();
     deleteCookie(LAST_BACKGROUND_COLOR_KEY);
     clearWindowNameState();
-    localStorage.setItem(
-      LAB_SETTINGS_KEY,
-      JSON.stringify(withoutSessionOnlyLabSettings(normalizeLabSettings(DEFAULT_LAB_SETTINGS))),
-    );
+    writeFactoryLabSettings();
   } catch {
     /* ignore */
   } finally {
