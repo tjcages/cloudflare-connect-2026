@@ -47,32 +47,31 @@ const cBase = {
   scale: 1.15,
   depthLift: 0.85,
   wrinkles: 3.2,
-  wrinkleStrength: 0.07,
+  wrinkleStrength: 0.09,
 };
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — C pack + Y-amplitude noise (lock)",
+    label: "A — C pack + strong Y-amp noise (lock)",
     tweaks: {},
   },
   {
     id: "B",
-    label: "B — stronger Y noise amp",
+    label: "B — louder Y-amp noise",
     tweaks: {
-      wrinkleStrength: 0.1,
+      wrinkleStrength: 0.12,
       wrinkles: 3.6,
-      amplitude: 1.0,
       scale: 1.2,
       centerY: 0.36,
     },
   },
   {
     id: "C",
-    label: "C — max Y-amplitude noise",
+    label: "C — max Y-amp noise throughout",
     tweaks: {
-      wrinkleStrength: 0.13,
+      wrinkleStrength: 0.15,
       wrinkles: 4.0,
       scale: 1.25,
       depthLift: 0.9,
