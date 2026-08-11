@@ -686,13 +686,15 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
       );
-      // Y-AMPLITUDE noise: displace each ribbon up/down along X (not across/braid).
+      // Y-AMPLITUDE noise: each ribbon moves up/down independently along the whole path.
       const yNoise =
-        (twizzlerNoise(c.xT * 3.2 + across * 2.05, range * 0.17 + time * 0.12, 0.55) - 0.5) * 1.0 +
-        (twizzlerNoise(c.xT * 6.8 + across * 1.4, range * 0.31 + 1.7, 1.1) - 0.5) * 0.62 +
-        (twizzlerNoise(c.xT * 12.5 + across * 3.1, range * 0.09 + 2.8, 0.4) - 0.5) * 0.38 +
-        (twizzlerNoise(c.xT * 22.0 + across * 0.8, range * 0.53 + settings.wrinkles * 0.2, 1.6) - 0.5) * 0.22;
-      const ampNoiseY = yNoise * pixelHeight * (0.1 + settings.amplitude * 0.16 + settings.wrinkleStrength * 2.8);
+        (twizzlerNoise(c.xT * 2.8 + across * 3.1, range * 0.37 + time * 0.1, 0.55) - 0.5) * 0.85 +
+        (twizzlerNoise(c.xT * 5.5 + across * 2.4, range * 0.61 + 1.7, 1.1) - 0.5) * 0.7 +
+        (twizzlerNoise(c.xT * 11.0 + across * 4.2, range * 0.19 + 2.8, 0.4) - 0.5) * 0.55 +
+        (twizzlerNoise(c.xT * 20.0 + across * 1.6, range * 0.83 + 4.1, 1.6) - 0.5) * 0.4 +
+        (twizzlerNoise(c.xT * 34.0 + across * 5.0, range * 1.1 + 6.2, 0.9) - 0.5) * 0.28;
+      // Large vertical throw so Y noise reads throughout X (~±0.25–0.45 of height).
+      const ampNoiseY = yNoise * pixelHeight * (0.22 + settings.amplitude * 0.2 + settings.wrinkleStrength * 3.2);
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
       // Previous C pack: across stack, envelope-bound gaps.
       const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.45;
