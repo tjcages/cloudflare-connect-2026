@@ -501,7 +501,8 @@ export function buildTwizzlerLines(
     const baseColor = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
     const lit = edgeMix > 0.15 ? twizzlerLerpColor(baseColor, settings.colorEdge, edgeMix * 0.3) : baseColor;
     const fog = twizzlerFogAmount(midNear);
-    const color = twizzlerFogColor(lit, fog * 0.92);
+    // Keep mid/near fibers saturated; only far dissolves into white.
+    const color = twizzlerFogColor(lit, fog * 0.72);
 
     // Near/opaque; far dissolves into white via fog + alpha.
     const visibility = 0.35 + 0.65 * midNear;
@@ -556,12 +557,12 @@ export function renderTwizzler(
       const fog = twizzlerFogAmount(nearness);
       const colorT = twizzlerColorT(sample?.along ?? stop);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
-      gradient.addColorStop(stop, twizzlerFogColor(base, fog * 0.95));
+      gradient.addColorStop(stop, twizzlerFogColor(base, fog * 0.72));
     }
 
     context.strokeStyle = gradient;
-    context.globalAlpha = Math.min(0.9, line.opacity * (0.5 + 0.5 * maxNear));
-    context.lineWidth = Math.max(0.45, settings.lineWidth * (0.5 + 1.45 * maxNear));
+    context.globalAlpha = Math.min(0.92, line.opacity * (0.55 + 0.45 * maxNear));
+    context.lineWidth = Math.max(0.55, settings.lineWidth * (0.45 + 1.55 * maxNear));
     context.beginPath();
     context.moveTo(line.points[0].x, line.points[0].y);
     for (let index = 1; index < line.points.length; index += 1) {
