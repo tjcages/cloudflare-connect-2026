@@ -1,5 +1,5 @@
 /**
- * Capture structurally extreme A/B/C Twizzler experiments (fresh r2 filenames).
+ * Capture B-silhouette Twizzler with escalating vertical fiber spacing.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -17,99 +17,70 @@ const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/built
 const base = preset.lab?.twizzler;
 if (!base) throw new Error("missing lab.twizzler");
 
-const shared = {
+/** B silhouette DNA (rolling terrain) — spacing varies per variant. */
+const bBase = {
   ...base,
   color: "#e8481c",
   colorFar: "#ffd89a",
   colorNear: "#e8481c",
   colorEdge: "#ffc857",
-  opacity: 0.9,
+  opacity: 0.88,
   speed: 0,
   edgeFluctuation: 0,
   edgeSpeed: 0,
   stippleSize: 0,
+  depthTerrain: 0,
+  amplitude: 0.85,
+  wrinkles: 2.2,
+  wrinkleStrength: 0.025,
+  twist: 1.35,
+  scale: 1.05,
+  depthLift: 0.75,
+  depthAmount: 0.9,
+  bendPosition: 0.25,
+  bendAmount: -0.1,
+  bend2Position: 0.5,
+  bend2Amount: 0.12,
+  bend3Position: 0.8,
+  bend3Amount: -0.1,
+  leftHeight: 0.6,
+  rightHeight: 0.36,
   centerY: 0.55,
 };
 
-/**
- * Structurally different recipes — different spines (depthTerrain), density, and energy.
- * A keeps C-spread + B-bump DNA; B/C are intentionally opposite extremes.
- */
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — C sparse fan + B jagged bumps",
+    label: "A — B shape + medium vertical open",
     tweaks: {
-      depthTerrain: 1,
-      depthSpread: 2.2,
-      lineCount: 20,
-      lineWidth: 3.8,
-      twist: 0.7,
-      scale: 1.35,
-      amplitude: 1.0,
-      wrinkles: 6,
-      wrinkleStrength: 0.09,
-      depthLift: 1.0,
-      depthAmount: 1.6,
-      bendPosition: 0.2,
-      bendAmount: -0.35,
-      bend2Position: 0.4,
-      bend2Amount: 0.42,
-      bend3Position: 0.68,
-      bend3Amount: -0.4,
-      rightHeight: 0.22,
-      leftHeight: 0.55,
+      depthSpread: 1.35,
+      lineCount: 36,
+      lineWidth: 2.1,
+      scale: 1.0,
     },
   },
   {
     id: "B",
-    label: "B — dense rolling pack, low Z fan",
+    label: "B — B shape + WAY more vertical spacing (lock)",
     tweaks: {
-      depthTerrain: 0,
-      depthSpread: 0.55,
-      lineCount: 64,
-      lineWidth: 1.4,
-      twist: 1.6,
-      scale: 0.95,
-      amplitude: 0.7,
-      wrinkles: 2.0,
-      wrinkleStrength: 0.02,
-      depthLift: 0.45,
-      depthAmount: 0.7,
-      bendPosition: 0.25,
-      bendAmount: -0.08,
-      bend2Position: 0.5,
-      bend2Amount: 0.1,
-      bend3Position: 0.8,
-      bend3Amount: -0.08,
-      rightHeight: 0.4,
-      leftHeight: 0.62,
+      depthSpread: 2.35,
+      lineCount: 32,
+      lineWidth: 2.2,
+      scale: 1.05,
+      depthLift: 0.9,
     },
   },
   {
     id: "C",
-    label: "C — few thick fibers, long single sweep",
+    label: "C — B shape + extreme full-height fan",
     tweaks: {
-      depthTerrain: 2,
       depthSpread: 2.5,
-      lineCount: 10,
-      lineWidth: 5.2,
-      twist: 0.45,
-      scale: 1.55,
-      amplitude: 1.0,
-      wrinkles: 1.0,
-      wrinkleStrength: 0.01,
+      lineCount: 28,
+      lineWidth: 2.4,
+      scale: 1.1,
       depthLift: 1.0,
-      depthAmount: 1.2,
-      bendPosition: 0.35,
-      bendAmount: -0.15,
-      bend2Position: 0.6,
-      bend2Amount: 0.2,
-      bend3Position: 0.85,
-      bend3Amount: -0.45,
-      rightHeight: 0.5,
-      leftHeight: 0.48,
+      amplitude: 0.9,
     },
   },
 ];
@@ -140,41 +111,36 @@ await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#ff
 
 const paths = [];
 for (const variant of variants) {
-  const settings = { ...shared, ...variant.tweaks, speed: 0 };
+  const settings = { ...bBase, ...variant.tweaks, speed: 0 };
   await page.evaluate(
     ({ s, id, label }) => {
       const out = document.getElementById("c");
       const ctx = out.getContext("2d");
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, out.width, out.height);
-
       const ribbon = document.createElement("canvas");
       ribbon.width = 1600;
       ribbon.height = 320;
       // eslint-disable-next-line no-undef
       TwizzlerMod.renderTwizzler(ribbon, 1600, 320, 0, s);
       ctx.drawImage(ribbon, 0, 100);
-
-      // Bake huge letter into pixels so cache/confusion is impossible.
       ctx.fillStyle = "#111111";
       ctx.fillRect(0, 0, out.width, 96);
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 64px ui-sans-serif, system-ui, sans-serif";
       ctx.fillText(id, 28, 70);
-      ctx.font = "600 28px ui-sans-serif, system-ui, sans-serif";
+      ctx.font = "600 26px ui-sans-serif, system-ui, sans-serif";
       ctx.fillText(label, 120, 62);
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r2-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r3-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
-  // Also refresh legacy names so old links update.
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
-  paths.push({ ...variant, outPath, tweaks: variant.tweaks });
+  paths.push({ ...variant, outPath, tweaks: { ...bBase, ...variant.tweaks } });
 }
 
-// Stack of fresh r2 images
 await page.setViewportSize({ width: 1600, height: 1300 });
 const stackHtml = paths
   .map((p) => {
@@ -182,10 +148,8 @@ const stackHtml = paths
     return `<img src="data:image/png;base64,${b64}" style="display:block;width:1600px;margin:0 0 12px;background:#fff"/>`;
   })
   .join("");
-await page.setContent(
-  `<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`,
-);
-const stackPath = resolve(outDir, "twizzler-r2-ABC-stack.png");
+await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
+const stackPath = resolve(outDir, "twizzler-r3-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -199,7 +163,17 @@ try {
 writeFileSync(
   resolve(outDir, "twizzler-variants.json"),
   JSON.stringify(
-    paths.map(({ id, label, outPath, tweaks }) => ({ id, label, outPath, tweaks })),
+    paths.map(({ id, label, outPath, tweaks }) => ({
+      id,
+      label,
+      outPath,
+      tweaks: {
+        depthSpread: tweaks.depthSpread,
+        lineCount: tweaks.lineCount,
+        lineWidth: tweaks.lineWidth,
+        depthTerrain: tweaks.depthTerrain,
+      },
+    })),
     null,
     2,
   ),

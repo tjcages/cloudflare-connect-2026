@@ -395,21 +395,21 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
 export function twizzlerMarketingWidth(xT: number, settings: TwizzlerSettings): number {
   const x = Math.max(0, Math.min(1, xT));
   const half = sampleKnots(x, [
-    [0.0, 0.09],
-    [0.15, 0.11],
-    [0.3, 0.14],
-    [0.42, 0.055],
-    [0.55, 0.14],
-    [0.72, 0.34],
-    [0.88, 0.3],
-    [1.0, 0.28],
+    [0.0, 0.14],
+    [0.15, 0.17],
+    [0.3, 0.22],
+    [0.42, 0.1],
+    [0.55, 0.24],
+    [0.72, 0.4],
+    [0.88, 0.38],
+    [1.0, 0.36],
   ]);
-  const ampScale = 0.8 + settings.amplitude * 0.4;
-  // depthSpread opens the ribbon in screen space so the Z stack is not a thin condensed pack.
-  const spreadBoost = 1 + settings.depthSpread * 0.62 * Math.pow(smoothstep(0.32, 1, x), 0.85);
+  const ampScale = 0.85 + settings.amplitude * 0.45;
+  // depthSpread opens the pack vertically; capped so fibers stay mostly on-canvas.
+  const spreadBoost = 1 + settings.depthSpread * 0.7 * Math.pow(smoothstep(0.12, 1, x), 0.7);
   const depthBoost = 1 + (twizzlerDepthScale(x, settings) - 1) * 0.1;
-  const taper = 1 - settings.edgeTaper * 0.12 * (1 - Math.sin(Math.PI * x));
-  return Math.max(0.035, half * ampScale * spreadBoost * depthBoost * taper);
+  const taper = 1 - settings.edgeTaper * 0.08 * (1 - Math.sin(Math.PI * x));
+  return Math.min(0.3, Math.max(0.06, half * ampScale * spreadBoost * depthBoost * taper));
 }
 
 /**
@@ -644,9 +644,9 @@ export function buildTwizzlerLines(
       const organic =
         (twizzlerNoise(c.xT * 3.2 + across * 1.7, time * 0.2, 0.4) - 0.5) * settings.wrinkleStrength * 2.4;
       const braid = across + organic + 0.12 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
-      // Perspective: far fibers compress toward the spine; near fibers take the full fan (reads as Z depth).
-      const zPerspective = 0.22 + 0.78 * nearness;
-      const projected = braid * halfW * (0.16 + 0.84 * face) * zPerspective;
+      // Keep some face projection, but do NOT collapse far fibers into the spine.
+      const zPerspective = 0.7 + 0.3 * nearness;
+      const projected = braid * halfW * (0.2 + 0.8 * face) * zPerspective;
 
       const depth = twizzlerDepthScale(c.xT, settings);
       const depthY = twizzlerDepthYBias(
@@ -664,15 +664,17 @@ export function buildTwizzlerLines(
           0.35 * Math.sin(c.xT * Math.PI * 6.2 + across * 3.1 + time * 0.15)) *
         settings.wrinkleStrength *
         halfW *
-        2.8;
-      // Face-fan alone puts near (+across) downward; overpower it on the right so far drops lowest.
-      const rightEdge = Math.pow(smoothstep(0.4, 1, c.xT), 1.15);
-      const farDownStack = -across * halfW * rightEdge * (0.35 + settings.depthLift * 0.2) * (0.35 + far * 0.4);
-      const faceY = ny * projected * (1 - 0.35 * rightEdge);
-      // Extra Z path divergence: far fibers take a lower parallel route as depth opens.
-      const zLane = far * halfW * (0.04 + 0.1 * rightEdge) * (0.35 + settings.depthSpread * 0.2);
-      const x = c.x + nx * braid * halfW * 0.025 * Math.sin(fiberTheta);
-      const y = c.y + faceY + depthY + pathWobble + farDownStack + zLane;
+        2.2;
+      const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
+      // Explicit SCREEN-Y stack: fibers spaced vertically by depthSpread (this is the pack open).
+      const verticalOpen = 0.95 + settings.depthSpread * 0.55;
+      const stackY = across * halfW * verticalOpen;
+      // Far fibers still sit lower on the right.
+      const farDownStack = -across * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
+      const faceY = ny * projected * 0.35;
+      const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
+      const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
+      const y = c.y + faceY + stackY + depthY + pathWobble + farDownStack + zLane;
 
       points.push({ x, y, depth, along: c.xT, nearness });
     }
