@@ -9,12 +9,12 @@
       "panY": 0
     },
     "adjustments": {
-      "brightness": 0,
-      "exposure": 0,
-      "contrast": 1,
+      "brightness": -0.5,
+      "exposure": 1.5,
+      "contrast": 0.54,
       "blackPoint": 0,
       "whitePoint": 1,
-      "gamma": 1,
+      "gamma": 0.5499999999999998,
       "invert": false,
       "posterizeLevels": 0,
       "thresholdBias": 0,
@@ -23,7 +23,7 @@
       "sharpenAmount": 0
     },
     "background": {
-      "color": 16015393,
+      "color": 16777215,
       "transparent": false,
       "gradient": {
         "enabled": false,
@@ -44,9 +44,9 @@
         "opacity": 1
       },
       "stars": {
-        "enabled": true,
-        "density": 2,
-        "sizePx": 12,
+        "enabled": false,
+        "density": 10,
+        "sizePx": 4,
         "sizeRandomness": 1,
         "tiltAngleDeg": -15,
         "twinkleSpeed": 1,
@@ -97,68 +97,68 @@
     },
     "stripes": [
       {
-        "color": 16015393,
+        "color": 16448250,
         "startFrom": 0,
         "width": 0.5,
         "opacity": 1
       },
       {
-        "color": 16280064,
-        "startFrom": 0.0195,
-        "width": 0.5,
-        "opacity": 1
-      },
-      {
-        "color": 16746553,
-        "startFrom": 0.047,
+        "color": 16775400,
+        "startFrom": 0.1644,
         "width": 1,
         "opacity": 1
       },
       {
-        "color": 16752731,
-        "startFrom": 0.086,
+        "color": 16707538,
+        "startFrom": 0.4418,
         "width": 1.5,
         "opacity": 1
       },
       {
-        "color": 16759677,
-        "startFrom": 0.1408,
-        "width": 1.5,
-        "opacity": 1
-      },
-      {
-        "color": 16765854,
-        "startFrom": 0.2167,
+        "color": 16769973,
+        "startFrom": 0.6357,
         "width": 2,
         "opacity": 1
       },
       {
-        "color": 16769979,
-        "startFrom": 0.3191,
+        "color": 9451772,
+        "startFrom": 0.7104,
         "width": 2.5,
         "opacity": 1
       },
       {
-        "color": 16773076,
-        "startFrom": 0.4512,
+        "color": 2450430,
+        "startFrom": 0.7494,
         "width": 3,
         "opacity": 1
       },
       {
-        "color": 16775402,
-        "startFrom": 0.6129,
-        "width": 3.5,
+        "color": 3054929,
+        "startFrom": 0.7724,
+        "width": 4.5,
         "opacity": 1
       },
       {
-        "color": 16119285,
-        "startFrom": 0.8,
+        "color": 16365371,
+        "startFrom": 0.7864,
         "width": 4,
+        "opacity": 1
+      },
+      {
+        "color": 16365371,
+        "startFrom": 0.7946,
+        "width": 4.5,
+        "opacity": 1
+      },
+      {
+        "color": 16015393,
+        "startFrom": 0.7988,
+        "width": 5,
         "opacity": 1
       }
     ],
     "stripesEnabled": true,
-    "fieldScale": 1,
+    "fieldScale": 0.25,
     "maxFps": 0,
     "reveal": {
       "enabled": true,
@@ -267,7 +267,7 @@
       }
     },
     "stripeDots": {
-      "enabled": true,
+      "enabled": false,
       "density": 0.8,
       "randomVisibility": 1,
       "sizePx": 1.5,
@@ -276,7 +276,7 @@
       "saturationBoost": 0
     },
     "stripeBorder": {
-      "enabled": true,
+      "enabled": false,
       "minWidthPx": 4,
       "density": 0.02
     },
@@ -286,7 +286,7 @@
       "density": 0.01
     },
     "frames": {
-      "enabled": true,
+      "enabled": false,
       "luminanceThreshold": 0.56,
       "highlightedStripeCount": 7,
       "groupDistanceCells": 7,
@@ -295,7 +295,7 @@
       "coordinateColor": 16777215
     },
     "flames": {
-      "enabled": true,
+      "enabled": false,
       "direction": "upDown",
       "minWidthRatio": 0.005,
       "maxWidthRatio": 0.02,
@@ -324,7 +324,7 @@
       }
     },
     "edgeMask": {
-      "enabled": true,
+      "enabled": false,
       "start": 0,
       "end": 0.09999999999999998,
       "power": 0.6000000000000001
@@ -470,7 +470,7 @@
     },
     "colors": {
       "mode": "luminance",
-      "stripeBlendMode": "normal",
+      "stripeBlendMode": "multiply",
       "imageColorLightness": 0,
       "imageColorDensity": 1,
       "imageColorRemoveThin": 0,
@@ -568,7 +568,7 @@
     "exportStartSec": 0,
     "exportDurationSec": 5,
     "exportSvgIncludeBackground": false,
-    "backgroundColor": 16015393,
+    "backgroundColor": 16777215,
     "textureId": "cf-base",
     "textureSourceMode": "shader",
     "shaderSourceCode": "// \"recursive noise experiment\" by Samuel YAN\n// Inspired by ompuco: https://www.shadertoy.com/view/wllGzr\n\nfloat connectHash(float n) {\n  return fract(clamp(n, 0.0, 1.0) * 23758.5453);\n}\n\nfloat connectNoise(vec3 x) {\n  vec3 p = floor(x);\n  vec3 f = fract(x);\n\n  f = f * f * (5.0 - 5.0 * f);\n  float n = 0.0;\n\n  return mix(\n    mix(\n      mix(connectHash(n + 1.0), connectHash(n + 1.0), f.x),\n      mix(connectHash(n + 0.5), connectHash(n + 0.5), f.x),\n      f.y\n    ),\n    mix(\n      mix(connectHash(n + 0.75), connectHash(n + 1.0), f.x),\n      mix(connectHash(n + 1.0), connectHash(n + 1.0), f.x),\n      f.y\n    ),\n    f.z\n  ) - 0.55;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n  vec3 t = (iTime * vec3(1.0, 2.0, 3.0)) / 20.0;\n  vec2 uv = fragCoord / iResolution.xy;\n  uv /= 15.0;\n\n  vec3 col = vec3(0.25);\n\n  for (int i = 0; i < 20; i++) {\n    float iteration = float(i);\n    col.r += connectNoise(uv.xyy * (1.0 + iteration) + col.rgb + t * sin(cos(iteration / 0.1)));\n    col.g += connectNoise(uv.xyx * iteration + col.rgb + t * sin(cos(iteration)));\n    col.b += connectNoise(uv.yyx * iteration + col.rgb + t * sin(cos(iteration)));\n  }\n\n  col /= 0.1;\n  col = normalize(col);\n  fragColor = vec4(col, 1.0);\n}",
@@ -620,8 +620,8 @@
     },
     "backgroundFillMode": "solid",
     "backgroundSourceOpacity": 0,
-    "stripePalette": "Background Ramp",
-    "backgroundRampEasing": "custom:0.417,0.335,0.58,0.911",
+    "stripePalette": "Custom",
+    "backgroundRampEasing": "easeOut",
     "backgroundRampSettings": {
       "brightnessAdd": 26,
       "hueDriftDeg": 20,
@@ -633,7 +633,7 @@
       "maxLightness70To80": 93,
       "maxLightnessOver80": 93
     },
-    "thresholdDistributionEasing": "custom:0.431,0.147,0.556,0.409",
+    "thresholdDistributionEasing": "custom:0.346,0.578,0,1",
     "autoStripeWidths": false,
     "drawerOpen": {
       "Stripes": true,
@@ -647,7 +647,9 @@
       "Background Meteors": false,
       "Cursor Trail": false,
       "Reveal": false,
-      "General": true
+      "General": true,
+      "Twizzler": true,
+      "Twizzler General": true
     },
     "previewZoom": 1,
     "textureSidebarOpen": true,
