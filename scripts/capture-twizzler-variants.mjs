@@ -1,5 +1,5 @@
 /**
- * Capture three distinct Twizzler A/B/C experiments with exaggerated Z (depth) spread.
+ * Capture A/B/C around C-spread + B-amplitude merge.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
@@ -17,7 +17,8 @@ const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/built
 const base = preset.lab?.twizzler;
 if (!base) throw new Error("missing lab.twizzler");
 
-const aBase = {
+/** C spread + B bumps DNA (banner lock). */
+const merge = {
   ...base,
   color: "#e8481c",
   colorFar: "#ffd89a",
@@ -28,71 +29,57 @@ const aBase = {
   edgeFluctuation: 0,
   edgeSpeed: 0,
   stippleSize: 0,
+  // C spread
+  depthSpread: 2.1,
+  lineCount: 22,
+  lineWidth: 3.6,
+  twist: 0.75,
+  scale: 1.25,
+  // B amplitudes / bumps
+  depthTerrain: 1,
+  amplitude: 1.0,
+  wrinkles: 5.2,
+  wrinkleStrength: 0.07,
+  depthLift: 1.0,
+  depthAmount: 1.55,
+  bendPosition: 0.22,
+  bendAmount: -0.3,
+  bend2Position: 0.38,
+  bend2Amount: 0.34,
+  bend3Position: 0.7,
+  bend3Amount: -0.32,
+  rightHeight: 0.28,
 };
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — deep Z fan + rolling hills (A2)",
-    tweaks: {
-      depthTerrain: 0,
-      depthSpread: 1.85,
-      depthLift: 0.95,
-      amplitude: 0.95,
-      wrinkleStrength: 0.028,
-      wrinkles: 2.5,
-      scale: 1.08,
-      lineCount: 36,
-      lineWidth: 2.6,
-      twist: 1.05,
-      bendAmount: -0.14,
-      bend2Amount: 0.18,
-      bend3Amount: -0.16,
-      depthAmount: 1.35,
-      rightHeight: 0.28,
-    },
+    label: "A — C spread + B bumps (locked merge)",
+    tweaks: {},
   },
   {
     id: "B",
-    label: "B — extreme Z poles + jagged terrain",
+    label: "B — merge + extra bump energy",
     tweaks: {
-      depthTerrain: 1,
-      depthSpread: 2.35,
-      depthLift: 1.0,
+      wrinkles: 6.2,
+      wrinkleStrength: 0.09,
+      bendAmount: -0.36,
+      bend2Amount: 0.4,
+      bend3Amount: -0.38,
+      scale: 1.32,
       amplitude: 1.0,
-      wrinkleStrength: 0.07,
-      wrinkles: 5.2,
-      scale: 1.2,
-      lineCount: 48,
-      lineWidth: 2.0,
-      twist: 1.4,
-      bendAmount: -0.3,
-      bend2Amount: 0.34,
-      bend3Amount: -0.32,
-      depthAmount: 1.55,
-      rightHeight: 0.18,
     },
   },
   {
     id: "C",
-    label: "C — sparse near/far layers + long sweep",
+    label: "C — merge + wider sparse Z spread",
     tweaks: {
-      depthTerrain: 2,
-      depthSpread: 2.1,
-      depthLift: 1.0,
-      amplitude: 0.9,
-      wrinkleStrength: 0.016,
-      wrinkles: 1.5,
-      scale: 1.3,
-      lineCount: 22,
-      lineWidth: 3.6,
-      twist: 0.75,
-      bendAmount: -0.1,
-      bend2Amount: 0.12,
-      bend3Amount: -0.38,
-      depthAmount: 1.1,
-      rightHeight: 0.42,
+      depthSpread: 2.45,
+      lineCount: 18,
+      lineWidth: 4.0,
+      twist: 0.65,
+      scale: 1.28,
     },
   },
 ];
@@ -123,7 +110,7 @@ await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#ff
 
 const paths = [];
 for (const variant of variants) {
-  const settings = { ...aBase, ...variant.tweaks, speed: 0 };
+  const settings = { ...merge, ...variant.tweaks, speed: 0 };
   await page.evaluate((s) => {
     const ribbon = document.createElement("canvas");
     ribbon.width = 1600;
