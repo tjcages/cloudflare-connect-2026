@@ -113,7 +113,7 @@ describe("config file import/export", () => {
     expect(exportedLab.drawerOpen).toEqual({ Stripes: true, Grid: false });
   });
 
-  it("uses the Cloudflare marketing palette and comet logo as factory defaults", () => {
+  it("uses the Cloudflare marketing palette and Connect shader as factory defaults", () => {
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripeDots).toEqual({
       enabled: true,
       density: 0.8,
@@ -153,7 +153,7 @@ describe("config file import/export", () => {
       canvasHeight: 998,
       textureId: "cf-base",
       textureSourceMode: "shader",
-      shaderPresetId: "comet-logo",
+      shaderPresetId: "connect",
       stripePalette: "Background Ramp",
       backgroundRampEasing: "custom:0.417,0.335,0.58,0.911",
       thresholdDistributionEasing: "custom:0.431,0.147,0.556,0.409",
