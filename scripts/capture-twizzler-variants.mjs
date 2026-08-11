@@ -42,7 +42,7 @@ const midBase = {
   bend3Amount: -0.1,
   leftHeight: 0.6,
   rightHeight: 0.36,
-  centerY: 0.3,
+  centerY: 0.36,
   depthSpread: 1.25,
   lineWidth: 0.8,
   wrinkles: 2.5,
@@ -53,33 +53,34 @@ const midBase = {
 const variants = [
   {
     id: "A",
-    label: "A — mid amp + envelope gaps (lock)",
+    label: "A — mid amp, majority in viewport (lock)",
     tweaks: {
       lineCount: 100,
       wrinkleStrength: 0.032,
       depthSpread: 1.25,
+      centerY: 0.36,
     },
   },
   {
     id: "B",
-    label: "B — taller amp, still envelope-bound",
+    label: "B — taller amp, still mostly on-canvas",
     tweaks: {
       lineCount: 100,
-      wrinkleStrength: 0.038,
-      depthSpread: 1.35,
+      wrinkleStrength: 0.036,
+      depthSpread: 1.32,
       lineWidth: 0.78,
-      centerY: 0.28,
+      centerY: 0.34,
     },
   },
   {
     id: "C",
-    label: "C — denser 120, softer gap blend",
+    label: "C — 120 ribbons, tighter pack in viewport",
     tweaks: {
       lineCount: 120,
       wrinkleStrength: 0.028,
-      depthSpread: 1.2,
+      depthSpread: 1.18,
       lineWidth: 0.72,
-      centerY: 0.32,
+      centerY: 0.38,
     },
   },
 ];

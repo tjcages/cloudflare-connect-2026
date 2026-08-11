@@ -501,14 +501,14 @@ export function twizzlerGapWarpedAcross(
     0.46 * twizzlerNoise(x * 1.65 + seed * 0.2, seed * 0.71, 0.33) +
     0.34 * twizzlerNoise(x * 3.6 + 1.3, seed * 1.4, 0.88) +
     0.2 * twizzlerNoise(x * 7.8 + 0.6, seed * 0.5, 1.6);
-  const pack = 0.55 + packN * (0.75 + amount * 0.7);
+  const pack = 0.62 + packN * (0.55 + amount * 0.45);
   // Neighbor gap jitter — modest, then pulled back toward the nominal slot.
   const jitter =
-    (twizzlerNoise(x * 2.7 + fiberIndex * 0.67, fiberIndex * 1.19 + seed, 1.35) - 0.5) * (0.28 + amount * 0.32) +
-    (twizzlerNoise(x * 6.0 + fiberIndex * 0.31, seed + 2.4, 0.55) - 0.5) * (0.14 + amount * 0.2);
-  const warped = Math.tanh(across * pack + jitter * amount) * 1.22;
-  // Keep majority inside the pack envelope; noise only nudges relative spacing.
-  return across * 0.48 + warped * 0.52;
+    (twizzlerNoise(x * 2.7 + fiberIndex * 0.67, fiberIndex * 1.19 + seed, 1.35) - 0.5) * (0.2 + amount * 0.22) +
+    (twizzlerNoise(x * 6.0 + fiberIndex * 0.31, seed + 2.4, 0.55) - 0.5) * (0.1 + amount * 0.14);
+  const warped = Math.tanh(across * pack + jitter * amount) * 1.12;
+  // Majority stay in the pack/viewport envelope; noise only nudges relative spacing.
+  return across * 0.62 + warped * 0.38;
 }
 
 /**
@@ -522,9 +522,9 @@ export function twizzlerUnevenAcross(lineCount: number, gapNoise = 0.55, seed = 
   const weights: number[] = [];
   for (let i = 0; i < count; i += 1) {
     const n = twizzlerNoise(i * 0.41 + seed, seed * 1.7, 0.63);
-    // Occasional wider gaps + tighter clusters.
+    // Occasional wider gaps + tighter clusters (kept modest so most fibers stay in-pack).
     const burst = twizzlerNoise(i * 0.19, seed + 4.2, 1.1);
-    weights.push(Math.max(0.12, 0.35 + amount * (n * 1.8 - 0.4) + amount * 0.9 * (burst > 0.68 ? burst * 1.4 : 0)));
+    weights.push(Math.max(0.2, 0.48 + amount * (n * 1.15 - 0.28) + amount * 0.4 * (burst > 0.78 ? burst * 0.85 : 0)));
   }
   const sum = weights.reduce((acc, value) => acc + value, 0);
   let cursor = 0;
@@ -626,10 +626,9 @@ export function buildTwizzlerLines(
   const segmentCount = Math.max(1, Math.ceil(pixelWidth / Math.max(2, settings.pointSpacing)));
   const lines: TwizzlerLine[] = [];
 
-  // Gap irregularity + Z-wave amplitude ride on existing wrinkle/depthLift knobs.
-  // Mid: more life than the ultra-dense pass, less outlier spray than the extreme gap pass.
-  const gapNoise = 0.55 + settings.wrinkleStrength * 18;
-  const alongGapNoise = 0.7 + settings.wrinkleStrength * 18 + settings.depthSpread * 0.18;
+  // Mid: prior-ish amp/distance, quieter slot gaps so majority stay in-viewport.
+  const gapNoise = 0.42 + settings.wrinkleStrength * 12;
+  const alongGapNoise = 0.55 + settings.wrinkleStrength * 14 + settings.depthSpread * 0.12;
   const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
   const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
   const rawSlots = twizzlerUnevenAcross(
@@ -638,7 +637,7 @@ export function buildTwizzlerLines(
     2.1 + settings.wrinkles * 0.15 + settings.depthTerrain * 1.7,
   );
   // Stretch slots toward near/far poles — depthSpread fights mid-pack condensation.
-  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.45 + settings.depthSpread * 0.5));
+  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.42 + settings.depthSpread * 0.42));
 
   const center: Array<{ x: number; y: number; xT: number }> = [];
   for (let point = 0; point <= segmentCount; point += 1) {
@@ -696,8 +695,8 @@ export function buildTwizzlerLines(
         halfW *
         2.2;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Screen-Y stack: restore prior amplitude/distance (~1.5×), keep gaps envelope-bound.
-      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.5;
+      // Screen-Y stack: prior-ish amplitude/distance, gaps stay envelope-bound for viewport.
+      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.45;
       const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
       const stackY = acrossX * halfW * verticalOpen;
       // Far fibers still sit lower on the right.
