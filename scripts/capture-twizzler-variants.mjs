@@ -1,5 +1,5 @@
 /**
- * Capture C-lock Twizzler with corrected Z→Y order (near↑/far↓, flips by region).
+ * Capture previous-C denseness + higher ribbon noise amplitude.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -29,10 +29,7 @@ const cBase = {
   edgeSpeed: 0,
   stippleSize: 0,
   depthTerrain: 0,
-  amplitude: 0.85,
   twist: 1.35,
-  scale: 1.0,
-  depthLift: 0.75,
   depthAmount: 0.9,
   bendPosition: 0.25,
   bendAmount: -0.1,
@@ -46,36 +43,41 @@ const cBase = {
   depthSpread: 1.18,
   lineCount: 120,
   lineWidth: 0.72,
-  wrinkles: 2.5,
-  wrinkleStrength: 0.028,
+  amplitude: 1.0,
+  scale: 1.15,
+  depthLift: 0.85,
+  wrinkles: 3.4,
+  wrinkleStrength: 0.058,
 };
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — C lock + Z→Y near↑/far↓ with regional flips",
+    label: "A — prev C + higher ribbon noise (lock)",
     tweaks: {},
   },
   {
     id: "B",
-    label: "B — stronger Z stack separation",
+    label: "B — even louder path noise",
     tweaks: {
-      depthSpread: 1.3,
-      depthLift: 0.9,
-      lineWidth: 0.7,
+      wrinkleStrength: 0.078,
+      wrinkles: 3.8,
+      scale: 1.22,
       centerY: 0.36,
     },
   },
   {
     id: "C",
-    label: "C — long-sweep terrain, same Z→Y order",
+    label: "C — max noise amp + more hills",
     tweaks: {
-      depthTerrain: 2,
-      depthSpread: 1.2,
-      depthLift: 0.85,
+      wrinkleStrength: 0.095,
+      wrinkles: 4.2,
+      scale: 1.28,
+      depthLift: 0.95,
+      depthSpread: 1.22,
       lineWidth: 0.68,
-      centerY: 0.4,
+      centerY: 0.35,
     },
   },
 ];
@@ -129,7 +131,7 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r10-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r11-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -144,7 +146,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r10-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r11-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -164,10 +166,10 @@ writeFileSync(
       outPath,
       tweaks: {
         lineCount: settings.lineCount,
-        lineWidth: settings.lineWidth,
-        depthSpread: settings.depthSpread,
-        depthTerrain: settings.depthTerrain,
-        depthLift: settings.depthLift,
+        wrinkleStrength: settings.wrinkleStrength,
+        wrinkles: settings.wrinkles,
+        scale: settings.scale,
+        amplitude: settings.amplitude,
       },
     })),
     null,

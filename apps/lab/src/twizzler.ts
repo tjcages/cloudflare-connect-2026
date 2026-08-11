@@ -536,25 +536,8 @@ export function twizzlerUnevenAcross(lineCount: number, gapNoise = 0.55, seed = 
 }
 
 /**
- * Local Z→Y stack order (−1..1) over the ribbon field.
- * +1 (default): walk near→far = visually high→low (near smaller canvas Y / saturated on top).
- * −1: opposite. Slow X/Y rolls create regional flips so both orderings appear.
- */
-export function twizzlerZyOrder(xT: number, pathYN: number, seed = 2.4): number {
-  const x = Math.max(0, Math.min(1, xT));
-  const y = Math.max(0, Math.min(1, pathYN));
-  // Mild +bias (near↑/far↓ default); strong X/Y rolls still carve flipped regions.
-  const field =
-    0.28 +
-    0.95 * Math.sin(x * Math.PI * 2.35 + 0.1) +
-    0.55 * Math.sin(y * Math.PI * 1.9 + 1.1) +
-    0.3 * (twizzlerNoise(x * 1.5 + seed, y * 1.2 + seed * 0.4, 0.55) * 2 - 1);
-  return Math.tanh(field * 1.45);
-}
-
-/**
  * Screen-space Y bias from Z nearness + along-X terrain.
- * Right edge rule (before local order): furthest-from-camera fibers go lowest (largest +Y).
+ * Right edge rule: furthest-from-camera fibers go lowest (largest +Y).
  * `depthTerrain`: 0 rolling (A), 1 jagged (B), 2 long far-drop sweep (C).
  */
 export function twizzlerDepthYBias(
@@ -685,38 +668,46 @@ export function buildTwizzlerLines(
       const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
       const far = 1 - nearness;
 
-      // Mild smooth shear at pinch + low-freq organic drift (not vertical chatter).
+      // Higher-amplitude organic drift along each ribbon (noise throughout).
       const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
       const organic =
-        (twizzlerNoise(c.xT * 3.2 + across * 1.7, time * 0.2, 0.4) - 0.5) * settings.wrinkleStrength * 2.4;
+        (twizzlerNoise(c.xT * 3.2 + across * 1.7, time * 0.2, 0.4) - 0.5) * settings.wrinkleStrength * 4.5 +
+        (twizzlerNoise(c.xT * 7.5 + across * 2.9, time * 0.12, 1.1) - 0.5) * settings.wrinkleStrength * 2.8;
       const braid = across + organic + 0.12 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
       // Keep some face projection, but do NOT collapse far fibers into the spine.
       const zPerspective = 0.7 + 0.3 * nearness;
       const projected = braid * halfW * (0.2 + 0.8 * face) * zPerspective;
 
       const depth = twizzlerDepthScale(c.xT, settings);
-      const pathYN = c.y / pixelHeight;
-      const zyOrder = twizzlerZyOrder(c.xT, pathYN, 2.4 + settings.wrinkles * 0.1);
-      // Z→Y terrain follows the same local order (both directions across the field).
-      const depthY =
-        zyOrder * twizzlerDepthYBias(nearness, pixelHeight, settings.depthLift, c.xT, waveAmp, settings.depthTerrain);
-      // Soft multi-wave along-path wobble — more hills, still not chatter.
+      const depthY = twizzlerDepthYBias(
+        nearness,
+        pixelHeight,
+        settings.depthLift,
+        c.xT,
+        waveAmp,
+        settings.depthTerrain,
+      );
+      // Multi-octave path noise — higher amplitude throughout each ribbon.
+      const ribbonNoise =
+        (twizzlerNoise(c.xT * 4.2 + across * 2.2, time * 0.18, 0.6) - 0.5) * 0.7 +
+        (twizzlerNoise(c.xT * 8.5 + across * 1.4, across * 0.9, 1.25) - 0.5) * 0.45 +
+        (twizzlerNoise(c.xT * 15.0 + across * 3.3, 2.2 + settings.wrinkles * 0.1, 0.35) - 0.5) * 0.28;
       const pathWobble =
         (Math.sin(c.xT * Math.PI * (2.2 + settings.wrinkles * 0.35) + across * 2.1 + time * 0.25) +
-          0.55 * Math.sin(c.xT * Math.PI * (4.1 + settings.wrinkles * 0.2) + across * 1.3) +
-          0.35 * Math.sin(c.xT * Math.PI * 6.2 + across * 3.1 + time * 0.15)) *
+          0.65 * Math.sin(c.xT * Math.PI * (4.1 + settings.wrinkles * 0.25) + across * 1.3) +
+          0.45 * Math.sin(c.xT * Math.PI * (6.8 + settings.wrinkles * 0.15) + across * 3.1 + time * 0.15) +
+          ribbonNoise * 1.6) *
         settings.wrinkleStrength *
         halfW *
-        2.2;
+        4.2;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Keep C-style pack spacing; Z owns vertical order via zyOrder.
-      // Old stack was +across (near↓); invert so +order: near↑ / far↓. Order flips for both.
+      // Previous C pack: across stack, envelope-bound gaps.
       const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.45;
       const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
-      const stackY = zyOrder * -acrossX * halfW * verticalOpen;
-      const farDownStack = zyOrder * far * halfW * rightEdge * (0.25 + settings.depthLift * 0.2);
+      const stackY = acrossX * halfW * verticalOpen;
+      const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
       const faceY = ny * projected * 0.35;
-      const zLane = zyOrder * far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
+      const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
       const y = c.y + faceY + stackY + depthY + pathWobble + farDownStack + zLane;
 

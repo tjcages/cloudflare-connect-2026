@@ -16,7 +16,6 @@ import {
   twizzlerGapWarpedAcross,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
-  twizzlerZyOrder,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -179,40 +178,33 @@ describe("Twizzler", () => {
       expect(Math.abs(sample)).toBeLessThan(1.15);
     }
 
-    // Z→Y order field takes both signs across X/Y (near↑/far↓ and the reverse).
-    const orderSamples = [
-      ...Array.from({ length: 11 }, (_, i) => twizzlerZyOrder(i / 10, 0.35)),
-      ...Array.from({ length: 11 }, (_, i) => twizzlerZyOrder(0.4, i / 10)),
-    ];
-    expect(Math.max(...orderSamples)).toBeGreaterThan(0.35);
-    expect(Math.min(...orderSamples)).toBeLessThan(-0.35);
-
-    // Built pack: under +order, walk near→far must go visually high→low (smaller→larger canvas Y).
-    const packSettings = normalizeTwizzlerSettings({
-      lineCount: 24,
-      pointSpacing: 8,
+    // Higher wrinkleStrength should increase per-ribbon path deviation (noise amp).
+    const quiet = buildTwizzlerLines(800, 240, 0, {
+      lineCount: 16,
+      pointSpacing: 6,
       speed: 0,
-      depthSpread: 1.18,
-      wrinkleStrength: 0.028,
-      wrinkles: 2.5,
-      depthLift: 0.75,
-      amplitude: 0.85,
+      wrinkleStrength: 0.01,
+      wrinkles: 2,
+      depthSpread: 1.1,
       centerY: 0.45,
     });
-    const { lines } = buildTwizzlerLines(800, 240, 0, packSettings);
-    const midIdx = Math.floor((lines[0]?.points.length ?? 1) * 0.55);
-    const xT = lines[0]?.points[midIdx]?.along ?? 0.55;
-    // Order was evaluated on the centerline, not the final ink Y.
-    const pathYN = twizzlerMarketingCenterY(xT, packSettings, 0);
-    const order = twizzlerZyOrder(xT, pathYN);
-    const ranked = [...lines].sort((a, b) => b.nearness - a.nearness); // near → far
-    const nearY = ranked[0]?.points[midIdx]?.y ?? 0;
-    const farY = ranked[ranked.length - 1]?.points[midIdx]?.y ?? 0;
-    if (order > 0.25) {
-      expect(nearY).toBeLessThan(farY);
-    } else if (order < -0.25) {
-      expect(nearY).toBeGreaterThan(farY);
-    }
+    const loud = buildTwizzlerLines(800, 240, 0, {
+      lineCount: 16,
+      pointSpacing: 6,
+      speed: 0,
+      wrinkleStrength: 0.08,
+      wrinkles: 3.5,
+      depthSpread: 1.1,
+      centerY: 0.45,
+    });
+    const mid = Math.floor((quiet.lines[0]?.points.length ?? 1) * 0.5);
+    const quietSpread =
+      Math.max(...quiet.lines.map((l) => l.points[mid]?.y ?? 0)) -
+      Math.min(...quiet.lines.map((l) => l.points[mid]?.y ?? 0));
+    const loudSpread =
+      Math.max(...loud.lines.map((l) => l.points[mid]?.y ?? 0)) -
+      Math.min(...loud.lines.map((l) => l.points[mid]?.y ?? 0));
+    expect(loudSpread).toBeGreaterThan(quietSpread);
 
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,
