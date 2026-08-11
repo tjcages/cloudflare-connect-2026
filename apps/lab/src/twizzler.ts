@@ -405,7 +405,7 @@ export function twizzlerUnevenAcross(lineCount: number, gapNoise = 0.55, seed = 
     const n = twizzlerNoise(i * 0.41 + seed, seed * 1.7, 0.63);
     // Occasional wider gaps + tighter clusters.
     const burst = twizzlerNoise(i * 0.19, seed + 4.2, 1.1);
-    weights.push(Math.max(0.18, 0.45 + amount * (n * 1.35 - 0.35) + amount * 0.55 * (burst > 0.72 ? burst : 0)));
+    weights.push(Math.max(0.12, 0.35 + amount * (n * 1.8 - 0.4) + amount * 0.9 * (burst > 0.68 ? burst * 1.4 : 0)));
   }
   const sum = weights.reduce((acc, value) => acc + value, 0);
   let cursor = 0;
@@ -464,8 +464,8 @@ export function buildTwizzlerLines(
   const lines: TwizzlerLine[] = [];
 
   // Gap irregularity + Z-wave amplitude ride on existing wrinkle/depthLift knobs.
-  const gapNoise = 0.35 + settings.wrinkleStrength * 12;
-  const waveAmp = 0.55 + settings.depthLift * 0.9;
+  const gapNoise = 0.7 + settings.wrinkleStrength * 18;
+  const waveAmp = 0.75 + settings.depthLift * 1.15;
   const acrossSlots = twizzlerUnevenAcross(settings.lineCount, gapNoise, 2.1 + settings.wrinkles * 0.15);
 
   const center: Array<{ x: number; y: number; xT: number }> = [];
