@@ -12,6 +12,8 @@ import {
   twizzlerFiberNearness,
   twizzlerFogAmount,
   twizzlerFogColor,
+  twizzlerDepthYBias,
+  twizzlerStrokeWidthScale,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -140,6 +142,7 @@ describe("Twizzler", () => {
     expect(lines[0]?.color).toMatch(/^#[0-9a-f]{6}$/i);
     expect(lines[0]?.nearness).toBeGreaterThanOrEqual(0);
     expect(lines[0]?.nearness).toBeLessThanOrEqual(1);
+    expect(lines[0]?.strokeWidth).toBeGreaterThan(0);
   });
 
   it("fogs far fibers toward white and thickens nearness toward the right", () => {
@@ -147,12 +150,14 @@ describe("Twizzler", () => {
     expect(twizzlerFogColor("#e8481c", 1)).toBe("#ffffff");
     expect(twizzlerFogAmount(1)).toBe(0);
     expect(twizzlerFogAmount(0)).toBe(1);
+    expect(twizzlerStrokeWidthScale(1)).toBeGreaterThan(twizzlerStrokeWidthScale(0));
+    expect(twizzlerDepthYBias(1, 320, 0.8)).toBeGreaterThan(twizzlerDepthYBias(0, 320, 0.8));
 
     const settings = normalizeTwizzlerSettings({
-      depthAmount: 1,
-      depthPosition: 0.85,
-      depthWidth: 0.3,
-      twist: 1.2,
+      depthAmount: 1.15,
+      depthPosition: 0.86,
+      depthWidth: 0.36,
+      twist: 1.15,
     });
     const left = twizzlerFiberNearness(0, 0.1, settings, 0);
     const right = twizzlerFiberNearness(0, 0.95, settings, 0);

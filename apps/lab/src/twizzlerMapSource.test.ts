@@ -10,6 +10,7 @@ describe("Twizzler Map shader", () => {
         opacity: 1,
         color: "#e8481c",
         nearness: 0.5,
+        strokeWidth: 1.5,
         points: [
           { x: 0, y: 4, depth: 1, along: 0, nearness: 0.5 },
           { x: 10, y: 8, depth: 1, along: 1, nearness: 0.6 },
@@ -20,6 +21,7 @@ describe("Twizzler Map shader", () => {
         opacity: 1,
         color: "#e8481c",
         nearness: 0.3,
+        strokeWidth: 1,
         points: [
           { x: 0, y: 2, depth: 1, along: 0, nearness: 0.3 },
           { x: 10, y: 12, depth: 1, along: 1, nearness: 0.4 },
@@ -30,6 +32,7 @@ describe("Twizzler Map shader", () => {
         opacity: 1,
         color: "#e8481c",
         nearness: 0.7,
+        strokeWidth: 2,
         points: [
           { x: 0, y: 6, depth: 1, along: 0, nearness: 0.7 },
           { x: 10, y: 10, depth: 1, along: 1, nearness: 0.8 },

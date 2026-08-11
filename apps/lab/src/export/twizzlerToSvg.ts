@@ -1,4 +1,4 @@
-import { buildTwizzlerLines, type TwizzlerSettings } from "../twizzler";
+import { buildTwizzlerLines, twizzlerStrokeWidthScale, type TwizzlerSettings } from "../twizzler";
 
 function number(value: number): string {
   return Number(value.toFixed(2)).toString();
@@ -11,7 +11,7 @@ function pathData(points: ReadonlyArray<{ x: number; y: number }>): string {
 
 /**
  * Export Twizzler fibers as SVG vector `<path>` strokes (same geometry as canvas).
- * Groups by fogged color + opacity + width so near/far Z reads in the vector file.
+ * Near fibers are thicker + less fogged; far fibers blend toward white.
  */
 export function twizzlerToSvgLayer(
   sourceWidth: number,
@@ -27,7 +27,7 @@ export function twizzlerToSvgLayer(
   const pathsByStyle = new Map<string, string[]>();
   for (const line of lines) {
     const opacity = number(line.opacity);
-    const width = number(Math.max(0.35, settings.lineWidth * (0.55 + 1.35 * line.nearness)));
+    const width = number(line.strokeWidth || settings.lineWidth * twizzlerStrokeWidthScale(line.nearness));
     const key = `${line.color}|${opacity}|${width}`;
     const paths = pathsByStyle.get(key) ?? [];
     paths.push(pathData(line.points));
