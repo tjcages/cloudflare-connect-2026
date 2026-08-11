@@ -363,24 +363,23 @@ export function twizzlerColorT(xT: number): number {
 
 /**
  * Camera nearness 0..1 for a fiber at (across, xT).
- * Right edge pulls hard toward camera; twist maps across → Z.
+ * Across always encodes Z (fiber stack toward/away from camera).
+ * Right edge also pulls the whole ribbon forward.
  */
 export function twizzlerFiberNearness(across: number, xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
   const theta = twizzlerMarketingTwist(x, settings, time);
-  // Ribbon-face Z from twist (positive = toward camera).
-  const faceZ = across * Math.sin(theta);
-  // Strong along-path camera pull — right edge comes forward.
-  const alongNear = Math.pow(smoothstep(0.28, 1, x), 1.05);
+  const stackZ = across; // -1..1 always varies depth across the ribbon
+  const twistZ = across * Math.sin(theta);
+  const alongNear = Math.pow(smoothstep(0.22, 1, x), 1.0);
   const depthBoost = twizzlerNearness(twizzlerDepthScale(x, settings), settings);
-  const near = 0.12 + 0.28 * faceZ + 0.52 * alongNear + 0.22 * depthBoost;
+  const near = 0.18 + 0.32 * stackZ + 0.12 * twistZ + 0.48 * alongNear + 0.18 * depthBoost;
   return Math.max(0, Math.min(1, near));
 }
 
 /** Fog blend 0..1 toward background (white). Far fibers dissolve into the stage. */
 export function twizzlerFogAmount(nearness: number): number {
-  // Aggressive far fade; near stays clear.
-  return Math.pow(1 - nearness, 1.15);
+  return Math.pow(1 - nearness, 1.05);
 }
 
 /** Blend ribbon hex into white by fog amount (cheap distance fade). */
@@ -390,7 +389,7 @@ export function twizzlerFogColor(hex: string, fog: number, backgroundHex = "#fff
 
 /** Stroke width scale from nearness — thick toward camera. */
 export function twizzlerStrokeWidthScale(nearness: number): number {
-  return 0.35 + 1.9 * nearness;
+  return 0.3 + 2.4 * nearness;
 }
 
 /**
@@ -398,8 +397,7 @@ export function twizzlerStrokeWidthScale(nearness: number): number {
  * Near (camera) → lower on canvas (+Y); far → higher (−Y). Smooth, no chatter.
  */
 export function twizzlerDepthYBias(nearness: number, pixelHeight: number, depthLift: number): number {
-  // nearness 1 → +Y (down / lower); nearness 0 → -Y (up / higher)
-  return (nearness - 0.5) * pixelHeight * (0.16 + depthLift * 0.14);
+  return (nearness - 0.5) * pixelHeight * (0.22 + depthLift * 0.2);
 }
 
 export type TwizzlerLine = {
