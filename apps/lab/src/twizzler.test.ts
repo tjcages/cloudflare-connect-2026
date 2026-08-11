@@ -16,6 +16,8 @@ import {
   twizzlerGapWarpedAcross,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
+  twizzlerZyStackPolarity,
+  twizzlerZyStackY,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -177,6 +179,18 @@ describe("Twizzler", () => {
     for (const sample of gapSamples) {
       expect(Math.abs(sample)).toBeLessThan(1.15);
     }
+
+    // Z→Y polarity flips along X so near→far is high→low in some places and reversed in others.
+    const xs = Array.from({ length: 21 }, (_, i) => i / 20);
+    const pols = xs.map((x) => twizzlerZyStackPolarity(x));
+    expect(Math.max(...pols)).toBeGreaterThan(0.35);
+    expect(Math.min(...pols)).toBeLessThan(-0.35);
+    const xHigh = xs.find((x) => twizzlerZyStackPolarity(x) > 0.45) ?? 0.2;
+    const xLow = xs.find((x) => twizzlerZyStackPolarity(x) < -0.45) ?? 0.7;
+    // +polarity: near (1) sits above far (0) → smaller canvas Y.
+    expect(twizzlerZyStackY(1, xHigh, 48, 1.5)).toBeLessThan(twizzlerZyStackY(0, xHigh, 48, 1.5));
+    // −polarity: ordering flips.
+    expect(twizzlerZyStackY(1, xLow, 48, 1.5)).toBeGreaterThan(twizzlerZyStackY(0, xLow, 48, 1.5));
 
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,

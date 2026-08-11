@@ -1,5 +1,5 @@
 /**
- * Capture mid Twizzler: prior amplitude/distance + envelope-bound gaps (≥100 ribbons).
+ * Capture C-lock Twizzler with Z→Y polarity that flips along X.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -17,7 +17,7 @@ const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/built
 const base = preset.lab?.twizzler;
 if (!base) throw new Error("missing lab.twizzler");
 
-const midBase = {
+const cBase = {
   ...base,
   color: "#e8481c",
   colorFar: "#ffd89a",
@@ -42,45 +42,44 @@ const midBase = {
   bend3Amount: -0.1,
   leftHeight: 0.6,
   rightHeight: 0.36,
-  centerY: 0.36,
-  depthSpread: 1.25,
-  lineWidth: 0.8,
+  centerY: 0.38,
+  depthSpread: 1.18,
+  lineCount: 120,
+  lineWidth: 0.72,
   wrinkles: 2.5,
-  wrinkleStrength: 0.032,
+  wrinkleStrength: 0.028,
 };
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — mid amp, majority in viewport (lock)",
+    label: "A — C lock + ZY polarity flips (lock)",
     tweaks: {
-      lineCount: 100,
-      wrinkleStrength: 0.032,
-      depthSpread: 1.25,
-      centerY: 0.36,
+      // Banner lock: option C denseness + near↔far Y order that flips along X.
     },
   },
   {
     id: "B",
-    label: "B — taller amp, still mostly on-canvas",
+    label: "B — stronger ZY separation + flips",
     tweaks: {
-      lineCount: 100,
-      wrinkleStrength: 0.036,
       depthSpread: 1.32,
-      lineWidth: 0.78,
-      centerY: 0.34,
+      depthLift: 0.95,
+      lineWidth: 0.7,
+      wrinkleStrength: 0.034,
+      centerY: 0.36,
     },
   },
   {
     id: "C",
-    label: "C — 120 ribbons, tighter pack in viewport",
+    label: "C — long-sweep terrain + ZY flips",
     tweaks: {
-      lineCount: 120,
-      wrinkleStrength: 0.028,
-      depthSpread: 1.18,
-      lineWidth: 0.72,
-      centerY: 0.38,
+      depthTerrain: 2,
+      depthSpread: 1.22,
+      depthLift: 0.88,
+      lineWidth: 0.68,
+      centerY: 0.4,
+      wrinkleStrength: 0.03,
     },
   },
 ];
@@ -111,7 +110,7 @@ await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#ff
 
 const paths = [];
 for (const variant of variants) {
-  const settings = { ...midBase, ...variant.tweaks, speed: 0 };
+  const settings = { ...cBase, ...variant.tweaks, speed: 0 };
   await page.evaluate(
     ({ s, id, label }) => {
       const out = document.getElementById("c");
@@ -134,7 +133,7 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r8-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r9-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -149,7 +148,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r8-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r9-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -172,6 +171,8 @@ writeFileSync(
         lineWidth: settings.lineWidth,
         wrinkleStrength: settings.wrinkleStrength,
         depthSpread: settings.depthSpread,
+        depthTerrain: settings.depthTerrain,
+        depthLift: settings.depthLift,
       },
     })),
     null,
