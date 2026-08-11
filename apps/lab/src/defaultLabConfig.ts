@@ -391,6 +391,8 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
   twizzlerEnabled: true,
   twizzler: {
     color: "#ef2b2d",
+    colorFar: "#ffd2b5",
+    colorNear: "#ef2b2d",
     opacity: 0.8,
     scale: 0.72,
     centerY: 0.5,
@@ -414,6 +416,8 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     depthPosition: 0.65,
     depthAmount: 0,
     depthWidth: 0.25,
+    depthSpread: 0,
+    depthLift: 0,
     twist: 1.35,
     noiseScaleX: 0.0015,
     noiseScaleY: 0.012,

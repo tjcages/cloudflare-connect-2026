@@ -1,5 +1,9 @@
 export type TwizzlerSettings = {
   color: string;
+  /** Peach / far-from-camera stroke. */
+  colorFar: string;
+  /** Deep coral / near-camera stroke. Falls back to `color` when unset. */
+  colorNear: string;
   opacity: number;
   scale: number;
   centerY: number;
@@ -23,6 +27,10 @@ export type TwizzlerSettings = {
   depthPosition: number;
   depthAmount: number;
   depthWidth: number;
+  /** Extra Y spread between lines when near the camera (Z widen). */
+  depthSpread: number;
+  /** Extra path lift toward top of frame when near the camera. */
+  depthLift: number;
   twist: number;
   noiseScaleX: number;
   noiseScaleY: number;
@@ -32,6 +40,8 @@ export type TwizzlerSettings = {
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   color: "#ef2b2d",
+  colorFar: "#ffd2b5",
+  colorNear: "#ef2b2d",
   opacity: 0.8,
   scale: 0.72,
   centerY: 0.5,
@@ -55,6 +65,8 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   depthPosition: 0.65,
   depthAmount: 0,
   depthWidth: 0.25,
+  depthSpread: 0,
+  depthLift: 0,
   twist: 1.35,
   noiseScaleX: 0.0015,
   noiseScaleY: 0.012,
@@ -102,10 +114,40 @@ export function normalizeTwizzlerColor(value: unknown): string {
   return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : TWIZZLER_DEFAULTS.color;
 }
 
+function parseHexColor(hex: string): { r: number; g: number; b: number } {
+  const value = hex.replace("#", "");
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16),
+  };
+}
+
+/** Lerp two #rrggbb colors. `t` is clamped to 0–1. */
+export function twizzlerLerpColor(farHex: string, nearHex: string, t: number): string {
+  const amount = Math.max(0, Math.min(1, t));
+  const far = parseHexColor(farHex);
+  const near = parseHexColor(nearHex);
+  const channel = (a: number, b: number) => Math.round(a + (b - a) * amount);
+  const r = channel(far.r, near.r).toString(16).padStart(2, "0");
+  const g = channel(far.g, near.g).toString(16).padStart(2, "0");
+  const b = channel(far.b, near.b).toString(16).padStart(2, "0");
+  return `#${r}${g}${b}`;
+}
+
+/** 0 at far, 1 at the near-camera peak. */
+export function twizzlerNearness(depth: number, settings: Pick<TwizzlerSettings, "depthAmount">): number {
+  if (settings.depthAmount <= 0) return 0;
+  return Math.max(0, Math.min(1, (depth - 1) / settings.depthAmount));
+}
+
 export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
   const input = value && typeof value === "object" ? (value as Partial<TwizzlerSettings>) : {};
+  const color = normalizeTwizzlerColor(input.color);
   return {
-    color: normalizeTwizzlerColor(input.color),
+    color,
+    colorFar: normalizeTwizzlerColor(input.colorFar ?? TWIZZLER_DEFAULTS.colorFar),
+    colorNear: normalizeTwizzlerColor(input.colorNear ?? color),
     opacity: clamp(input.opacity, TWIZZLER_DEFAULTS.opacity, 0, 1),
     scale: clamp(input.scale, TWIZZLER_DEFAULTS.scale, 0.1, 3),
     centerY: clamp(input.centerY, TWIZZLER_DEFAULTS.centerY, 0, 1),
@@ -129,6 +171,8 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depthPosition: clamp(input.depthPosition, TWIZZLER_DEFAULTS.depthPosition, 0, 1),
     depthAmount: clamp(input.depthAmount, TWIZZLER_DEFAULTS.depthAmount, 0, 2),
     depthWidth: clamp(input.depthWidth, TWIZZLER_DEFAULTS.depthWidth, 0.05, 0.75),
+    depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 1.5),
+    depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 4),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.001, 0.1),
@@ -219,6 +263,7 @@ export function buildTwizzlerLines(
       const edgeBaseline = edges.left + (edges.right - edges.left) * xT;
       const taper = 1 - settings.edgeTaper + settings.edgeTaper * Math.sin(Math.PI * xT);
       const depth = twizzlerDepthScale(xT, settings);
+      const nearness = twizzlerNearness(depth, settings);
       const flow = twizzlerNoise(
         x * settings.noiseScaleX + time * 0.1,
         range * settings.noiseScaleY + time * settings.drift * 0.1,
@@ -226,17 +271,28 @@ export function buildTwizzlerLines(
       );
       const wrinkle = Math.sin(xT * Math.PI * 2 * settings.wrinkles + phase + time * 0.85);
       const bend = twizzlerPathBend(xT, settings);
-      // Depth thickens amplitude toward camera; do not scale path Y or the ribbon exits the frame.
+      // Near-camera: thicken local amp, widen line bundle, and lift Y with Z.
       const localAmp = settings.amplitude * taper * depth;
-      const rawY = edgeBaseline + (flow - 0.5) * localAmp + wrinkle * settings.wrinkleStrength * taper * depth + bend;
+      const zSpread = (rangeT - 0.5) * 2 * settings.depthSpread * nearness;
+      const zLift = -settings.depthLift * nearness;
+      const rawY =
+        edgeBaseline +
+        zSpread +
+        zLift +
+        (flow - 0.5) * localAmp +
+        wrinkle * settings.wrinkleStrength * taper * depth +
+        bend;
       const y = pixelHeight * (settings.centerY + (rawY - settings.centerY) * settings.scale);
       points.push({ x, y, depth });
     }
-    lines.push({ opacity: settings.opacity * (0.1 + rangeT * 0.9), points });
+    lines.push({ opacity: settings.opacity * (0.12 + rangeT * 0.88), points });
   }
 
   return { settings, lines };
 }
+
+const RENDER_CHUNK = 12;
+const SPECTRUM_ACCENTS = ["#ff2d97", "#9c5fff", "#3defff", "#ffd24a"] as const;
 
 export function renderTwizzler(
   canvas: HTMLCanvasElement,
@@ -257,19 +313,34 @@ export function renderTwizzler(
   context.save();
   context.lineJoin = "round";
   context.lineCap = "round";
-  context.strokeStyle = settings.color;
 
-  for (const line of lines) {
+  // Paint far (peach) first, near (coral) last so Z reads as peach→coral.
+  const ordered = lines
+    .map((line, lineIndex) => {
+      const mid = line.points[Math.floor(line.points.length * 0.64)] ?? line.points[0];
+      return { line, lineIndex, depth: mid?.depth ?? 1 };
+    })
+    .sort((a, b) => a.depth - b.depth);
+
+  for (const { line, lineIndex } of ordered) {
     if (line.points.length < 2) continue;
-    context.globalAlpha = line.opacity;
-    for (let point = 1; point < line.points.length; point += 1) {
-      const prev = line.points[point - 1];
-      const curr = line.points[point];
-      const depth = (prev.depth + curr.depth) * 0.5;
-      context.lineWidth = settings.lineWidth * depth;
+    for (let start = 0; start < line.points.length - 1; start += RENDER_CHUNK) {
+      const end = Math.min(line.points.length - 1, start + RENDER_CHUNK);
+      const mid = line.points[Math.floor((start + end) / 2)] ?? line.points[start];
+      const nearness = twizzlerNearness(mid.depth, settings);
+      const accentNoise = twizzlerNoise(mid.x * 0.01, lineIndex * 0.19, timeSec * 0.2 + start * 0.01);
+      const useAccent = accentNoise > 0.84;
+      context.globalAlpha = line.opacity * (useAccent ? 1 : 0.28 + nearness * 0.72);
+      context.strokeStyle = useAccent
+        ? SPECTRUM_ACCENTS[Math.floor(accentNoise * 47) % SPECTRUM_ACCENTS.length]
+        : twizzlerLerpColor(settings.colorFar, settings.colorNear, nearness * nearness);
+      context.lineWidth = Math.max(0.3, settings.lineWidth * (0.55 + mid.depth * 0.7));
       context.beginPath();
-      context.moveTo(prev.x, prev.y);
-      context.lineTo(curr.x, curr.y);
+      context.moveTo(line.points[start].x, line.points[start].y);
+      for (let index = start + 1; index <= end; index += 1) {
+        const point = line.points[index];
+        context.lineTo(point.x, point.y);
+      }
       context.stroke();
     }
   }

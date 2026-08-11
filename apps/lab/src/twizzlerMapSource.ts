@@ -200,7 +200,7 @@ export function createTwizzlerMapRenderer(width: number, height: number): Twizzl
       context.lineJoin = "round";
       context.lineCap = "round";
 
-      // Soft shoulders just outside the hairline envelope.
+      // Soft shoulders just outside the hairline envelope (rain halo around ribbon).
       const shoulder = gray(map.shoulderLevel);
       context.strokeStyle = `rgb(${shoulder}, ${shoulder}, ${shoulder})`;
       context.setLineDash([]);
@@ -219,14 +219,15 @@ export function createTwizzlerMapRenderer(width: number, height: number): Twizzl
         context.stroke();
       }
 
-      // Stroke live Twizzler hairlines so rain luminance hugs the ribbon (not a flat slab fill).
+      // Stroke a subset of live Twizzler hairlines so rain stays on the ribbon core.
       const ribbon = gray(map.ribbonLevel);
       context.strokeStyle = `rgb(${ribbon}, ${ribbon}, ${ribbon})`;
-      context.lineWidth = Math.max(1.5, geometry.settings.lineWidth * 2.2);
-      context.globalAlpha = 1;
-      for (const line of geometry.lines) {
-        if (line.points.length < 2) continue;
-        context.globalAlpha = 0.35 + line.opacity * 0.65;
+      context.lineWidth = Math.max(1.5, geometry.settings.lineWidth * 2.4);
+      const step = Math.max(1, Math.round(geometry.lines.length / 70));
+      for (let index = 0; index < geometry.lines.length; index += step) {
+        const line = geometry.lines[index];
+        if (!line || line.points.length < 2) continue;
+        context.globalAlpha = 0.45 + line.opacity * 0.55;
         context.beginPath();
         trace(context, line.points);
         context.stroke();

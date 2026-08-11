@@ -1364,7 +1364,13 @@ export function useEngineControls(
                 twizzlerColor: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.color,
-                    label: "Color",
+                    label: "Color near",
+                  }),
+                },
+                twizzlerColorFar: {
+                  ...colorLibraryInputPlugin({
+                    value: initialLabSettings.twizzler.colorFar,
+                    label: "Color far",
                   }),
                 },
                 ...(options.twizzlerTransport
@@ -1485,6 +1491,20 @@ export function useEngineControls(
                   max: 0.75,
                   step: 0.01,
                   label: "Depth width",
+                },
+                twizzlerDepthSpread: {
+                  value: initialLabSettings.twizzler.depthSpread,
+                  min: 0,
+                  max: 1.5,
+                  step: 0.01,
+                  label: "Depth widen",
+                },
+                twizzlerDepthLift: {
+                  value: initialLabSettings.twizzler.depthLift,
+                  min: 0,
+                  max: 1,
+                  step: 0.01,
+                  label: "Depth Y lift",
                 },
                 twizzlerTwist: {
                   value: initialLabSettings.twizzler.twist,
@@ -2621,6 +2641,22 @@ export function useEngineControls(
             max: 10,
             step: 0.05,
             label: "Sparkle speed",
+            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+          },
+          sparkleStripeHueDriftDeg: {
+            value: d.sparkle.stripe.hueDriftDeg,
+            min: -180,
+            max: 180,
+            step: 1,
+            label: "Spectrum hue °",
+            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+          },
+          sparkleStripeSaturationBoost: {
+            value: d.sparkle.stripe.saturationBoost * 100,
+            min: 0,
+            max: 100,
+            step: 1,
+            label: "Spectrum sat %",
             render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
           },
           sparkleWidthEnabled: { value: d.sparkle.width.enabled, label: "Width shuffle enabled" },
@@ -4736,8 +4772,8 @@ export function useEngineControls(
         thickestCount: values.sparkleStripeThickestCount,
         maxBrightness: values.sparkleStripeMaxBrightness / 100,
         speed: values.sparkleStripeSpeed,
-        hueDriftDeg: currentBackgroundRampSettings.hueDriftDeg,
-        saturationBoost: currentBackgroundRampSettings.saturationBoost / 100,
+        hueDriftDeg: values.sparkleStripeHueDriftDeg,
+        saturationBoost: values.sparkleStripeSaturationBoost / 100,
       },
       width: {
         enabled: values.sparkleWidthEnabled,
@@ -5011,6 +5047,8 @@ export function useEngineControls(
       enabled: Boolean(shaderValueRecord.twizzlerEnabled),
       ...normalizeTwizzlerSettings({
         color: shaderValueRecord.twizzlerColor,
+        colorNear: shaderValueRecord.twizzlerColor,
+        colorFar: shaderValueRecord.twizzlerColorFar,
         opacity: shaderValueRecord.twizzlerOpacity,
         scale: shaderValueRecord.twizzlerScale,
         centerY: shaderValueRecord.twizzlerCenterY,
@@ -5034,6 +5072,8 @@ export function useEngineControls(
         depthPosition: shaderValueRecord.twizzlerDepthPosition,
         depthAmount: shaderValueRecord.twizzlerDepthAmount,
         depthWidth: shaderValueRecord.twizzlerDepthWidth,
+        depthSpread: shaderValueRecord.twizzlerDepthSpread,
+        depthLift: shaderValueRecord.twizzlerDepthLift,
         twist: shaderValueRecord.twizzlerTwist,
         noiseScaleX: shaderValueRecord.twizzlerNoiseScaleX,
         noiseScaleY: shaderValueRecord.twizzlerNoiseScaleY,

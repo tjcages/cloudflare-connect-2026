@@ -10,12 +10,12 @@
       "panY": 0
     },
     "adjustments": {
-      "brightness": 0.05,
-      "exposure": 1.05,
-      "contrast": 0.92,
-      "blackPoint": 0,
+      "brightness": -0.05,
+      "exposure": 0.95,
+      "contrast": 1.05,
+      "blackPoint": 0.02,
       "whitePoint": 1,
-      "gamma": 0.85,
+      "gamma": 0.9,
       "invert": false,
       "posterizeLevels": 0,
       "thresholdBias": 0,
@@ -80,14 +80,14 @@
     },
     "grid": {
       "cellWidth": 3,
-      "cellHeight": 10,
-      "gapX": 2,
-      "gapY": 5,
+      "cellHeight": 11,
+      "gapX": 6,
+      "gapY": 9,
       "cornerRadius": 0,
       "orientation": "vertical",
-      "angleDeg": -52,
+      "angleDeg": -38,
       "rotationMode": "cell",
-      "overlapAmount": 1.35,
+      "overlapAmount": 0.4,
       "streamGapWave": {
         "enabled": false,
         "squeeze": 0.23,
@@ -98,45 +98,45 @@
     },
     "stripes": [
       {
-        "color": 16769217,
-        "startFrom": 0.12,
+        "color": 16015393,
+        "startFrom": 0.55,
         "width": 0.45,
         "opacity": 0.45
       },
       {
-        "color": 16015393,
-        "startFrom": 0.22,
-        "width": 0.7,
-        "opacity": 0.7
-      },
-      {
         "color": 15958048,
-        "startFrom": 0.34,
-        "width": 0.9,
-        "opacity": 0.85
+        "startFrom": 0.64,
+        "width": 0.55,
+        "opacity": 0.6
       },
       {
-        "color": 14826956,
-        "startFrom": 0.4,
-        "width": 0.5,
-        "opacity": 0.55
-      },
-      {
-        "color": 16015393,
-        "startFrom": 0.5,
-        "width": 1.2,
+        "color": 16723351,
+        "startFrom": 0.72,
+        "width": 0.4,
         "opacity": 0.95
       },
       {
+        "color": 10248191,
+        "startFrom": 0.76,
+        "width": 0.35,
+        "opacity": 0.9
+      },
+      {
+        "color": 4059135,
+        "startFrom": 0.8,
+        "width": 0.35,
+        "opacity": 0.85
+      },
+      {
         "color": 14240290,
-        "startFrom": 0.62,
-        "width": 1.6,
-        "opacity": 1
+        "startFrom": 0.86,
+        "width": 0.65,
+        "opacity": 0.8
       }
     ],
     "stripesEnabled": true,
-    "fieldScale": 0.55,
-    "maxFps": 0,
+    "fieldScale": 0.3,
+    "maxFps": 30,
     "reveal": {
       "enabled": false,
       "type": "water",
@@ -215,32 +215,32 @@
     "sparkle": {
       "gaps": {
         "enabled": true,
-        "coverage": 0.35,
-        "speed": 0.25
+        "coverage": 0.86,
+        "speed": 0.18
       },
       "width": {
         "enabled": true,
-        "coverage": 0.28,
-        "swingPx": 1.5,
-        "swingPeriodMin": 0.5,
-        "swingPeriodMax": 1
+        "coverage": 0.12,
+        "swingPx": 1,
+        "swingPeriodMin": 0.7,
+        "swingPeriodMax": 1.4
       },
       "stripe": {
         "enabled": true,
-        "coverage": 0.15,
-        "maxBrightness": 0.12,
-        "speed": 0.2,
-        "thickestCount": 3,
-        "hueDriftDeg": 25,
-        "saturationBoost": 0.5
+        "coverage": 0.55,
+        "maxBrightness": 0.7,
+        "speed": 0.15,
+        "thickestCount": 6,
+        "hueDriftDeg": 180,
+        "saturationBoost": 1
       },
       "motion": {
-        "enabled": false,
-        "amplitudePx": 0.5,
-        "staggerPx": 1,
-        "maxOffsetPx": 36.5,
-        "speed": 0.55,
-        "direction": "rightToLeft"
+        "enabled": true,
+        "amplitudePx": 1.2,
+        "staggerPx": 3,
+        "maxOffsetPx": 64,
+        "speed": 0.28,
+        "direction": "leftToRight"
       }
     },
     "stripeDots": {
@@ -307,7 +307,7 @@
       "power": 0.6000000000000001
     },
     "cursorTrail": {
-      "enabled": true,
+      "enabled": false,
       "type": "default",
       "particleRadius": 40,
       "particleAlpha": 0.08,
@@ -391,7 +391,7 @@
       }
     },
     "clickWave": {
-      "enabled": true,
+      "enabled": false,
       "type": "default",
       "lifeMs": 630,
       "startRadiusPx": 6,
@@ -553,45 +553,49 @@
     "shaderSourceHeight": 960,
     "twizzlerEnabled": true,
     "twizzler": {
-      "color": "#f46021",
-      "opacity": 0.52,
+      "color": "#d63a0f",
+      "colorFar": "#ffc4a0",
+      "colorNear": "#d63a0f",
+      "opacity": 0.55,
       "scale": 1.0,
-      "centerY": 0.5,
-      "amplitude": 0.48,
-      "lineCount": 280,
-      "lineWidth": 0.75,
-      "pointSpacing": 2,
-      "leftHeight": 0.92,
-      "rightHeight": 0.18,
-      "edgeFluctuation": 0.14,
-      "edgeSpeed": 0.18,
-      "edgeTaper": 0.55,
-      "wrinkles": 2.6,
-      "wrinkleStrength": 0.04,
+      "centerY": 0.52,
+      "amplitude": 0.26,
+      "lineCount": 150,
+      "lineWidth": 0.6,
+      "pointSpacing": 4,
+      "leftHeight": 0.86,
+      "rightHeight": 0.32,
+      "edgeFluctuation": 0.08,
+      "edgeSpeed": 0.16,
+      "edgeTaper": 0.58,
+      "wrinkles": 2.2,
+      "wrinkleStrength": 0.025,
       "bendPosition": 0.18,
       "bendAmount": 0.1,
       "bend2Position": 0.4,
-      "bend2Amount": -0.14,
-      "bend3Position": 0.72,
-      "bend3Amount": 0.1,
-      "depthPosition": 0.68,
-      "depthAmount": 1.35,
-      "depthWidth": 0.42,
-      "twist": 2.6,
+      "bend2Amount": -0.15,
+      "bend3Position": 0.68,
+      "bend3Amount": 0.18,
+      "depthPosition": 0.64,
+      "depthAmount": 1.5,
+      "depthWidth": 0.32,
+      "depthSpread": 0.4,
+      "depthLift": 0.26,
+      "twist": 1.85,
       "noiseScaleX": 0.001,
-      "noiseScaleY": 0.048,
-      "speed": 0.4,
-      "drift": 0.35
+      "noiseScaleY": 0.045,
+      "speed": 0.38,
+      "drift": 0.3
     },
     "twizzlerMap": {
-      "backgroundLevel": 0.015,
-      "ribbonLevel": 0.88,
-      "shoulderLevel": 0.28,
-      "shoulderWidth": 11,
-      "topOffsetPx": 2,
-      "bottomOffsetPx": 2,
-      "topSpread": 1.25,
-      "bottomSpread": 1.25,
+      "backgroundLevel": 0.01,
+      "ribbonLevel": 0.9,
+      "shoulderLevel": 0.16,
+      "shoulderWidth": 8,
+      "topOffsetPx": 3,
+      "bottomOffsetPx": 3,
+      "topSpread": 1.2,
+      "bottomSpread": 1.2,
       "flowEnabled": false,
       "flowDirection": "topRightToBottomLeft",
       "flowAmplitude": 0.1,
