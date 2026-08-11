@@ -11,7 +11,7 @@ function pathData(points: ReadonlyArray<{ x: number; y: number }>): string {
 
 /**
  * Export Twizzler fibers as SVG vector `<path>` strokes (same geometry as canvas).
- * Uses a horizontal peach→coral gradient + per-fiber opacity so the SVG stays editable.
+ * Groups by fogged color + opacity + width so near/far Z reads in the vector file.
  */
 export function twizzlerToSvgLayer(
   sourceWidth: number,
@@ -24,33 +24,23 @@ export function twizzlerToSvgLayer(
   const { settings, lines } = buildTwizzlerLines(sourceWidth, sourceHeight, timeSec, input);
   const scaleX = targetWidth / Math.max(1, sourceWidth);
   const scaleY = targetHeight / Math.max(1, sourceHeight);
-  const pathsByOpacity = new Map<string, string[]>();
+  const pathsByStyle = new Map<string, string[]>();
   for (const line of lines) {
     const opacity = number(line.opacity);
-    const paths = pathsByOpacity.get(opacity) ?? [];
+    const width = number(Math.max(0.35, settings.lineWidth * (0.55 + 1.35 * line.nearness)));
+    const key = `${line.color}|${opacity}|${width}`;
+    const paths = pathsByStyle.get(key) ?? [];
     paths.push(pathData(line.points));
-    pathsByOpacity.set(opacity, paths);
+    pathsByStyle.set(key, paths);
   }
-  const dash =
-    settings.stippleSize > 0.01
-      ? ` stroke-dasharray="${number(settings.stippleSize)} ${number(settings.stippleGap)}"`
-      : "";
-  const paths = [...pathsByOpacity]
-    .map(
-      ([opacity, pathDataValues]) =>
-        `    <path d="${pathDataValues.join(" ")}" stroke="url(#twizzlerStroke)" stroke-opacity="${opacity}"${dash} />`,
-    )
+  const paths = [...pathsByStyle]
+    .map(([key, pathDataValues]) => {
+      const [color, opacity, strokeWidth] = key.split("|");
+      return `    <path d="${pathDataValues.join(" ")}" stroke="${color}" stroke-opacity="${opacity}" stroke-width="${strokeWidth}" />`;
+    })
     .join("\n");
   return [
-    `  <g data-layer="twizzler" fill="none" stroke-width="${number(settings.lineWidth)}" stroke-linecap="round" stroke-linejoin="round" transform="scale(${number(scaleX)} ${number(scaleY)})">`,
-    `    <defs>`,
-    `      <linearGradient id="twizzlerStroke" x1="0" y1="0" x2="${number(sourceWidth)}" y2="0" gradientUnits="userSpaceOnUse">`,
-    `        <stop offset="0%" stop-color="${settings.colorFar}" />`,
-    `        <stop offset="28%" stop-color="${settings.colorEdge}" />`,
-    `        <stop offset="72%" stop-color="${settings.colorNear}" />`,
-    `        <stop offset="100%" stop-color="${settings.colorNear}" />`,
-    `      </linearGradient>`,
-    `    </defs>`,
+    `  <g data-layer="twizzler" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="scale(${number(scaleX)} ${number(scaleY)})">`,
     paths,
     "  </g>",
   ].join("\n");

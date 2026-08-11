@@ -9,6 +9,9 @@ import {
   twizzlerEdgeHeights,
   twizzlerLerpColor,
   twizzlerFaceAmount,
+  twizzlerFiberNearness,
+  twizzlerFogAmount,
+  twizzlerFogColor,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -135,5 +138,24 @@ describe("Twizzler", () => {
     expect(lines).toHaveLength(40);
     expect(lines[0]?.points.length).toBeGreaterThan(10);
     expect(lines[0]?.color).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(lines[0]?.nearness).toBeGreaterThanOrEqual(0);
+    expect(lines[0]?.nearness).toBeLessThanOrEqual(1);
+  });
+
+  it("fogs far fibers toward white and thickens nearness toward the right", () => {
+    expect(twizzlerFogColor("#e8481c", 0)).toBe("#e8481c");
+    expect(twizzlerFogColor("#e8481c", 1)).toBe("#ffffff");
+    expect(twizzlerFogAmount(1)).toBe(0);
+    expect(twizzlerFogAmount(0)).toBe(1);
+
+    const settings = normalizeTwizzlerSettings({
+      depthAmount: 1,
+      depthPosition: 0.85,
+      depthWidth: 0.3,
+      twist: 1.2,
+    });
+    const left = twizzlerFiberNearness(0, 0.1, settings, 0);
+    const right = twizzlerFiberNearness(0, 0.95, settings, 0);
+    expect(right).toBeGreaterThan(left);
   });
 });
