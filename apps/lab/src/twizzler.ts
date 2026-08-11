@@ -702,13 +702,15 @@ export function buildTwizzlerLines(
     });
   }
 
-  // Vertically center the pack so the average fiber sits mid-canvas.
+  // Vertically center on visible ink (ignore off-canvas outliers that bias the mean low).
   let ySum = 0;
   let yCount = 0;
   for (const line of lines) {
     for (const point of line.points) {
-      ySum += point.y;
-      yCount += 1;
+      if (point.y >= 0 && point.y <= pixelHeight) {
+        ySum += point.y;
+        yCount += 1;
+      }
     }
   }
   if (yCount > 0) {

@@ -115,9 +115,9 @@ for (const variant of variants) {
       ribbon.height = 320;
       // eslint-disable-next-line no-undef
       TwizzlerMod.renderTwizzler(ribbon, 1600, 320, 0, s);
-      ctx.drawImage(ribbon, 0, 100);
       ctx.fillStyle = "#111111";
       ctx.fillRect(0, 0, out.width, 96);
+      ctx.drawImage(ribbon, 0, 96);
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 64px ui-sans-serif, system-ui, sans-serif";
       ctx.fillText(id, 28, 70);
