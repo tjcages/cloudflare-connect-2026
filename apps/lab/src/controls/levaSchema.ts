@@ -1512,6 +1512,13 @@ export function useEngineControls(
                   step: 0.01,
                   label: "Depth Y lift",
                 },
+                twizzlerDepthTerrain: {
+                  value: initialLabSettings.twizzler.depthTerrain ?? 0,
+                  min: 0,
+                  max: 2,
+                  step: 1,
+                  label: "Z terrain (0A/1B/2C)",
+                },
                 twizzlerTwist: {
                   value: initialLabSettings.twizzler.twist,
                   min: 0,
@@ -5095,6 +5102,7 @@ export function useEngineControls(
         depthWidth: shaderValueRecord.twizzlerDepthWidth,
         depthSpread: shaderValueRecord.twizzlerDepthSpread,
         depthLift: shaderValueRecord.twizzlerDepthLift,
+        depthTerrain: shaderValueRecord.twizzlerDepthTerrain,
         twist: shaderValueRecord.twizzlerTwist,
         noiseScaleX: shaderValueRecord.twizzlerNoiseScaleX,
         noiseScaleY: shaderValueRecord.twizzlerNoiseScaleY,

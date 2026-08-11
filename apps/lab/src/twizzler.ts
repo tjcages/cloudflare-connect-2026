@@ -3,8 +3,8 @@
  *
  * Geometry: centerline C(x) + half-width W(x) + twist θ(x).
  * Fiber v ∈ [-1,1] projects as offset = v · W · cos(θ) along the path normal.
- * Z (into page / toward camera) drives: fog→white, stroke thickness, and Y bias
- * (near = lower on screen, far = higher). Paths stay smooth — no vertical chatter.
+ * Z (into page / toward camera) drives: fog→white, stroke thickness, and Y bias.
+ * Right edge: far fibers go lowest on screen (largest Y). Paths stay smooth.
  */
 
 export type TwizzlerSettings = {
@@ -45,6 +45,11 @@ export type TwizzlerSettings = {
   /** Extra fan width when the ribbon faces the camera. */
   depthSpread: number;
   depthLift: number;
+  /**
+   * Z→Y terrain recipe (experiment switch):
+   * 0 = rolling hills (A), 1 = jagged high-freq (B), 2 = long far-drop sweep (C).
+   */
+  depthTerrain: number;
   twist: number;
   noiseScaleX: number;
   noiseScaleY: number;
@@ -89,6 +94,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   depth2Width: 0.12,
   depthSpread: 1.05,
   depthLift: 0.85,
+  depthTerrain: 0,
   twist: 1.15,
   noiseScaleX: 0.0004,
   noiseScaleY: 0.01,
@@ -209,6 +215,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
     depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 1.5),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
+    depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.001, 0.1),
@@ -293,10 +300,11 @@ function sampleKnots(x: number, knots: ReadonlyArray<readonly [number, number]>)
 
 /**
  * Marketing banner centerline in normalized Y (0=top, 1=bottom).
- * Multi-hill silhouette — not a flat single sweep. Amplitude scales with settings.
+ * Multi-hill silhouette — not a flat single sweep. Amplitude + terrain diverge A/B/C.
  */
 export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
+  const terrain = Math.round(Math.max(0, Math.min(2, settings.depthTerrain))) as 0 | 1 | 2;
   // Base spine still trends mid → valley → rise, but with many hills.
   const yKnot = sampleKnots(x, [
     [0.0, 0.58],
@@ -310,15 +318,50 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
     [0.86, 0.18],
     [1.0, 0.34],
   ]);
-  // Extra waveform stack — count/amp grow with wrinkles + amplitude (A-direction).
   const waveGain = 0.55 + settings.amplitude * 1.35;
-  const waves =
-    waveGain *
-    (-0.085 * Math.sin(x * Math.PI * 2.4 + 0.4) +
-      -0.07 * Math.sin(x * Math.PI * 3.6 + 1.1) +
-      -0.055 * Math.sin(x * Math.PI * 5.2 + 2.2) +
-      -0.04 * Math.sin(x * Math.PI * 7.1 + time * 0.3) +
-      -0.028 * Math.sin(x * Math.PI * 9.4 + 0.7) * Math.min(1, settings.wrinkles / 2));
+  let waves = 0;
+  switch (terrain) {
+    case 0: {
+      // A — rolling multi-hills (A2 direction).
+      waves =
+        waveGain *
+        1.25 *
+        (-0.1 * Math.sin(x * Math.PI * 2.4 + 0.4) +
+          -0.085 * Math.sin(x * Math.PI * 3.6 + 1.1) +
+          -0.07 * Math.sin(x * Math.PI * 5.2 + 2.2) +
+          -0.05 * Math.sin(x * Math.PI * 7.1 + time * 0.3) +
+          -0.035 * Math.sin(x * Math.PI * 9.4 + 0.7) * Math.min(1, settings.wrinkles / 2));
+      break;
+    }
+    case 1: {
+      // B — sharper, higher-frequency silhouette.
+      waves =
+        waveGain *
+        1.35 *
+        (-0.1 * Math.sin(x * Math.PI * 3.2 + 0.2) +
+          -0.09 * Math.sin(x * Math.PI * 5.8 + 1.4) +
+          -0.075 * Math.sin(x * Math.PI * 8.6 + 2.6) +
+          -0.055 * Math.sin(x * Math.PI * 11.2 + time * 0.2) +
+          -0.04 * Math.sin(x * Math.PI * 14.5 + 0.9));
+      break;
+    }
+    case 2: {
+      // C — long slow sweep, fewer hills, deeper right rise then settle.
+      waves =
+        waveGain *
+        1.1 *
+        (-0.12 * Math.sin(x * Math.PI * 1.35 + 0.3) +
+          -0.08 * Math.sin(x * Math.PI * 2.1 + 1.6) +
+          -0.045 * Math.sin(x * Math.PI * 3.4 + 0.8));
+      break;
+    }
+    default: {
+      const _exhaustive: never = terrain;
+      void _exhaustive;
+      waves = 0;
+      break;
+    }
+  }
   const edges = twizzlerEdgeHeights(time, 0, settings);
   const edgeBias = (edges.left - 0.58) * (1 - x) + (edges.right - 0.34) * x;
   const bend = twizzlerPathBend(x, settings) * 0.85;
@@ -373,17 +416,17 @@ export function twizzlerColorT(xT: number): number {
 
 /**
  * Camera nearness 0..1 for a fiber at (across, xT).
- * Across always encodes Z (fiber stack toward/away from camera).
- * Right edge also pulls the whole ribbon forward.
+ * Across is the primary Z stack (preserve contrast L→R — do not wash out with along-X).
+ * Mild right-edge pull keeps the fan forward without collapsing far/near.
  */
 export function twizzlerFiberNearness(across: number, xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
   const theta = twizzlerMarketingTwist(x, settings, time);
-  const stackZ = across; // -1..1 always varies depth across the ribbon
-  const twistZ = across * Math.sin(theta);
-  const alongNear = Math.pow(smoothstep(0.22, 1, x), 1.0);
-  const depthBoost = twizzlerNearness(twizzlerDepthScale(x, settings), settings);
-  const near = 0.18 + 0.32 * stackZ + 0.12 * twistZ + 0.48 * alongNear + 0.18 * depthBoost;
+  const stackNear = (across + 1) * 0.5; // -1 far → 0, +1 near → 1
+  const twistZ = across * Math.sin(theta) * 0.08;
+  const alongPull = 0.12 * Math.pow(smoothstep(0.4, 1, x), 1.15);
+  const depthBoost = twizzlerNearness(twizzlerDepthScale(x, settings), settings) * 0.1;
+  const near = 0.04 + 0.78 * stackNear + twistZ + alongPull + depthBoost;
   return Math.max(0, Math.min(1, near));
 }
 
@@ -427,9 +470,9 @@ export function twizzlerUnevenAcross(lineCount: number, gapNoise = 0.55, seed = 
 }
 
 /**
- * Screen-space Y bias from Z nearness + along-X bump waveform.
- * Near fibers: dip mid-ribbon then rise toward the right (toward camera).
- * Far fibers: inverse hills so the stack reads as layered terrain — not flat.
+ * Screen-space Y bias from Z nearness + along-X terrain.
+ * Right edge rule: furthest-from-camera fibers go lowest (largest +Y).
+ * `depthTerrain`: 0 rolling (A), 1 jagged (B), 2 long far-drop sweep (C).
  */
 export function twizzlerDepthYBias(
   nearness: number,
@@ -437,17 +480,58 @@ export function twizzlerDepthYBias(
   depthLift: number,
   xT = 0.5,
   waveAmp = 1,
+  depthTerrain = 0,
 ): number {
-  const base = (nearness - 0.5) * pixelHeight * (0.2 + depthLift * 0.18);
-  // Multi-bump Z terrain along X (much stronger than a single soft profile).
-  const hill1 = -Math.cos((xT - 0.1) * Math.PI * 2.2);
-  const hill2 = -Math.cos((xT - 0.35) * Math.PI * 3.4);
-  const hill3 = -Math.cos((xT - 0.62) * Math.PI * 2.8);
-  const profile = 0.55 * hill1 + 0.35 * hill2 + 0.28 * hill3;
-  const nearWave = nearness * profile;
-  const farWave = (1 - nearness) * (-0.75 * profile + 0.25 * hill2);
-  const wave = (nearWave + farWave) * waveAmp * pixelHeight * (0.12 + depthLift * 0.12);
-  return base + wave;
+  const far = 1 - nearness;
+  // Budget ~±0.2 canvas height of Z→Y separation so fibers stay readable on-frame.
+  const amp = pixelHeight * (0.1 + depthLift * 0.12) * Math.min(1.6, 0.7 + waveAmp * 0.18);
+  const right = Math.pow(smoothstep(0.42, 1, xT), 1.25);
+  const mid = Math.sin(Math.PI * xT);
+
+  // Shared: far fibers plunge on the right edge (largest +Y).
+  const farRightDrop = far * right * amp * 0.95;
+  // Near fibers ride higher on the right (toward camera / upper stack).
+  const nearRightHold = -nearness * right * amp * 0.5;
+
+  const terrain = Math.round(Math.max(0, Math.min(2, depthTerrain))) as 0 | 1 | 2;
+  let hills = 0;
+  switch (terrain) {
+    case 0: {
+      // A — rolling multi-hills; mid near-dip, far inverse, then far right plunge.
+      const h1 = -Math.cos((xT - 0.12) * Math.PI * 2.4);
+      const h2 = -Math.cos((xT - 0.4) * Math.PI * 3.6);
+      const h3 = -Math.cos((xT - 0.68) * Math.PI * 2.9);
+      const profile = 0.5 * h1 + 0.35 * h2 + 0.3 * h3;
+      hills = (nearness * profile * 0.45 + far * (-0.55 * profile) * (1 - right * 0.65)) * amp * 0.32;
+      hills += nearness * mid * (1 - right) * amp * 0.1;
+      break;
+    }
+    case 1: {
+      // B — jagged high-freq Z terrain; strong separation L→R.
+      const j1 = Math.sin(xT * Math.PI * 5.2 + far * 1.7);
+      const j2 = Math.sin(xT * Math.PI * 8.4 + nearness * 2.4);
+      const j3 = Math.sin(xT * Math.PI * 3.1 + 0.9);
+      hills = (far * (0.55 * j1 + 0.4 * j2) + nearness * (-0.35 * j1 + 0.25 * j3)) * amp * 0.42;
+      hills += far * Math.pow(smoothstep(0.2, 0.85, xT), 1.1) * amp * 0.18;
+      break;
+    }
+    case 2: {
+      // C — long sweeping Z curve: far starts mid-high, plunges hardest at right.
+      const sweep = Math.pow(smoothstep(0.15, 1, xT), 1.6);
+      hills = far * (-0.35 + sweep * 1.25) * amp * 0.7;
+      hills += nearness * (0.22 - sweep * 0.55) * amp * 0.45;
+      hills += far * Math.sin(xT * Math.PI * 1.6) * amp * 0.08;
+      break;
+    }
+    default: {
+      const _exhaustive: never = terrain;
+      void _exhaustive;
+      hills = 0;
+      break;
+    }
+  }
+
+  return farRightDrop + nearRightHold + hills;
 }
 
 export type TwizzlerLine = {
@@ -477,9 +561,14 @@ export function buildTwizzlerLines(
   const lines: TwizzlerLine[] = [];
 
   // Gap irregularity + Z-wave amplitude ride on existing wrinkle/depthLift knobs.
-  const gapNoise = 0.7 + settings.wrinkleStrength * 18;
-  const waveAmp = 1.1 + settings.depthLift * 1.6;
-  const acrossSlots = twizzlerUnevenAcross(settings.lineCount, gapNoise, 2.1 + settings.wrinkles * 0.15);
+  const gapNoise = 0.55 + settings.wrinkleStrength * 22;
+  const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
+  const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
+  const acrossSlots = twizzlerUnevenAcross(
+    settings.lineCount,
+    gapNoise,
+    2.1 + settings.wrinkles * 0.15 + settings.depthTerrain * 1.7,
+  );
 
   const center: Array<{ x: number; y: number; xT: number }> = [];
   for (let point = 0; point <= segmentCount; point += 1) {
@@ -517,7 +606,14 @@ export function buildTwizzlerLines(
       const projected = braid * halfW * (0.16 + 0.84 * face);
 
       const depth = twizzlerDepthScale(c.xT, settings);
-      const depthY = twizzlerDepthYBias(nearness, pixelHeight, settings.depthLift, c.xT, waveAmp);
+      const depthY = twizzlerDepthYBias(
+        nearness,
+        pixelHeight,
+        settings.depthLift,
+        c.xT,
+        waveAmp,
+        settings.depthTerrain,
+      );
       // Soft multi-wave along-path wobble — more hills, still not chatter.
       const pathWobble =
         (Math.sin(c.xT * Math.PI * (2.2 + settings.wrinkles * 0.35) + across * 2.1 + time * 0.25) +
@@ -526,8 +622,12 @@ export function buildTwizzlerLines(
         settings.wrinkleStrength *
         halfW *
         2.8;
+      // Face-fan alone puts near (+across) downward; overpower it on the right so far drops lowest.
+      const rightEdge = Math.pow(smoothstep(0.4, 1, c.xT), 1.15);
+      const farDownStack = -across * halfW * rightEdge * (0.55 + settings.depthLift * 0.25);
+      const faceY = ny * projected * (1 - 0.4 * rightEdge);
       const x = c.x + nx * braid * halfW * 0.025 * Math.sin(fiberTheta);
-      const y = c.y + ny * projected + depthY + pathWobble;
+      const y = c.y + faceY + depthY + pathWobble + farDownStack;
 
       points.push({ x, y, depth, along: c.xT, nearness });
     }

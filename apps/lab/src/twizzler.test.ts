@@ -146,13 +146,20 @@ describe("Twizzler", () => {
     expect(lines[0]?.strokeWidth).toBeGreaterThan(0);
   });
 
-  it("fogs far fibers toward white and thickens nearness toward the right", () => {
+  it("fogs far fibers toward white and drops far fibers lowest on the right", () => {
     expect(twizzlerFogColor("#e8481c", 0)).toBe("#e8481c");
     expect(twizzlerFogColor("#e8481c", 1)).toBe("#ffffff");
     expect(twizzlerFogAmount(1)).toBe(0);
     expect(twizzlerFogAmount(0)).toBe(1);
     expect(twizzlerStrokeWidthScale(1)).toBeGreaterThan(twizzlerStrokeWidthScale(0));
-    expect(twizzlerDepthYBias(1, 320, 0.8, 0.7, 1)).toBeGreaterThan(twizzlerDepthYBias(0, 320, 0.8, 0.7, 1));
+    // Right edge: far (nearness 0) must sit lower on screen than near (nearness 1).
+    expect(twizzlerDepthYBias(0, 320, 0.85, 0.95, 1.5, 0)).toBeGreaterThan(
+      twizzlerDepthYBias(1, 320, 0.85, 0.95, 1.5, 0),
+    );
+    expect(twizzlerDepthYBias(0, 320, 0.9, 0.95, 1.8, 1)).toBeGreaterThan(
+      twizzlerDepthYBias(1, 320, 0.9, 0.95, 1.8, 1),
+    );
+    expect(twizzlerDepthYBias(0, 320, 1, 0.95, 2, 2)).toBeGreaterThan(twizzlerDepthYBias(1, 320, 1, 0.95, 2, 2));
 
     const slots = twizzlerUnevenAcross(12, 0.6);
     expect(slots).toHaveLength(12);
@@ -167,6 +174,10 @@ describe("Twizzler", () => {
       depthWidth: 0.36,
       twist: 1.15,
     });
+    // Across stack dominates nearness (do not wash out Z on the right).
+    const farRight = twizzlerFiberNearness(-1, 0.95, settings, 0);
+    const nearRight = twizzlerFiberNearness(1, 0.95, settings, 0);
+    expect(nearRight).toBeGreaterThan(farRight + 0.35);
     const left = twizzlerFiberNearness(0, 0.1, settings, 0);
     const right = twizzlerFiberNearness(0, 0.95, settings, 0);
     expect(right).toBeGreaterThan(left);
