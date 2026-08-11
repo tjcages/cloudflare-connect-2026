@@ -51,6 +51,7 @@ import type { LabTextureKind, LoadedTextureSource } from "./textures";
 import { addUpload, loadManifest, removeUpload, saveManifest, setDarkUpload } from "./uploads";
 import {
   addPreset,
+  applyPresetToStorage,
   consumeBootPresetName,
   createPreset,
   loadDefaultPreset,
@@ -2685,18 +2686,8 @@ function LabInner({
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
     const targetTextureId = textureIdRef.current;
-    const config = sanitizeThemedConfig(preset.config);
-    const selectedAreaId = surfaceWorkspaceRef.current.selectedAreaId;
-    if (surfaceWorkspaceRef.current.mode === "partial" && selectedAreaId) {
-      onUpdateSurfaceAreaConfig(selectedAreaId, config);
-    } else {
-      stagePendingConfig(config);
-    }
-    if (preset.lab) {
-      saveLabSettings({ ...preset.lab, textureId: targetTextureId });
-      saveControlDrawerSnapshot(preset.lab.drawerOpen);
-      saveTextureId(targetTextureId);
-    }
+    applyPresetToStorage(preset, targetTextureId);
+    saveTextureId(targetTextureId);
     window.location.reload();
   }
 

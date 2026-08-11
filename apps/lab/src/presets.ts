@@ -1,7 +1,7 @@
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import { saveControlDrawerSnapshot } from "./controls/drawerState";
 import type { LabSettings } from "./persistence";
-import { saveLabSettings, stagePendingConfig } from "./persistence";
+import { loadTextureId, saveConfig, saveLabSettings, stagePendingConfig } from "./persistence";
 
 const PRESET_KIND = "stripes-engine-lab-settings";
 const PRESET_VERSION = 2;
@@ -125,6 +125,38 @@ export function savePresets(presets: ConfigPreset[]): void {
   }
 }
 
+function preparePresetConfig(config: ThemedEngineConfig): ThemedEngineConfig {
+  // Stale sessions often leave Frames debug + orange fill on. Builtin banner
+  // presets must win those fields or the still looks nothing like the ref.
+  const next = structuredClone(config) as ThemedEngineConfig & {
+    background?: { color?: number; transparent?: boolean };
+    frames?: { enabled?: boolean };
+  };
+  if (next.frames) next.frames.enabled = false;
+  if (next.background) {
+    next.background.transparent = false;
+    if (typeof next.background.color !== "number") next.background.color = 0xffffff;
+  }
+  return next;
+}
+
+export function applyPresetToStorage(preset: ConfigPreset, textureId = loadTextureId() ?? "cf-base"): void {
+  if (preset.config) {
+    const config = preparePresetConfig(preset.config as ThemedEngineConfig);
+    stagePendingConfig(config);
+    saveConfig(textureId, config);
+  }
+  if (preset.lab) {
+    saveLabSettings({
+      ...preset.lab,
+      textureId,
+      backgroundColor: preset.lab.backgroundColor ?? 0xffffff,
+      backgroundFillMode: preset.lab.backgroundFillMode ?? "solid",
+    });
+    if (preset.lab.drawerOpen) saveControlDrawerSnapshot(preset.lab.drawerOpen);
+  }
+}
+
 /** One-shot URL apply: `?preset=Banner%205:1` loads a builtin/stored preset then strips the param. */
 export function consumePresetQuery(): void {
   try {
@@ -133,11 +165,7 @@ export function consumePresetQuery(): void {
     if (!name) return;
     const preset = findPresetByName(loadPresets(), name);
     if (!preset) return;
-    if (preset.config) stagePendingConfig(preset.config as ThemedEngineConfig);
-    if (preset.lab) {
-      saveLabSettings(preset.lab);
-      if (preset.lab.drawerOpen) saveControlDrawerSnapshot(preset.lab.drawerOpen);
-    }
+    applyPresetToStorage(preset);
     sessionStorage.setItem(BOOT_PRESET_KEY, preset.name);
     url.searchParams.delete("preset");
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
