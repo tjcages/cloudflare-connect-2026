@@ -12,7 +12,9 @@ describe("twizzlerToSvgLayer", () => {
 
     expect(svg).toContain('data-layer="twizzler"');
     expect(svg).toContain('transform="scale(0.5 0.5)"');
-    expect(svg.match(/<path /g)).toHaveLength(3);
+    expect(svg.match(/<path /g)?.length).toBeGreaterThanOrEqual(1);
+    expect(svg).toContain('stroke="url(#twizzlerStroke)"');
+    expect(svg).toContain("<linearGradient");
     expect(svg).not.toContain("data:image");
   });
 });

@@ -6,24 +6,30 @@ describe("Twizzler Map shader", () => {
   it("builds a ribbon envelope around every Twizzler line", () => {
     const lines: TwizzlerLine[] = [
       {
+        across: 0,
         opacity: 1,
+        color: "#e8481c",
         points: [
-          { x: 0, y: 4, depth: 1 },
-          { x: 10, y: 8, depth: 1 },
+          { x: 0, y: 4, depth: 1, along: 0 },
+          { x: 10, y: 8, depth: 1, along: 1 },
         ],
       },
       {
+        across: -1,
         opacity: 1,
+        color: "#e8481c",
         points: [
-          { x: 0, y: 2, depth: 1 },
-          { x: 10, y: 12, depth: 1 },
+          { x: 0, y: 2, depth: 1, along: 0 },
+          { x: 10, y: 12, depth: 1, along: 1 },
         ],
       },
       {
+        across: 1,
         opacity: 1,
+        color: "#e8481c",
         points: [
-          { x: 0, y: 6, depth: 1 },
-          { x: 10, y: 10, depth: 1 },
+          { x: 0, y: 6, depth: 1, along: 0 },
+          { x: 10, y: 10, depth: 1, along: 1 },
         ],
       },
     ];

@@ -134,5 +134,6 @@ describe("Twizzler", () => {
     const { lines } = buildTwizzlerLines(1600, 320, 0, { ...settings, lineCount: 40, pointSpacing: 4, speed: 0 });
     expect(lines).toHaveLength(40);
     expect(lines[0]?.points.length).toBeGreaterThan(10);
+    expect(lines[0]?.color).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });

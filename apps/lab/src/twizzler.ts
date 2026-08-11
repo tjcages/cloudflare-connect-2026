@@ -1,11 +1,10 @@
 /**
- * Connect Twizzler — twisted hairline ribbon.
+ * Connect Twizzler — parametric hairline ribbon (Canvas2D + SVG-exportable paths).
  *
- * Geometry: a centerline + half-width + twist angle θ(x).
- * Fibers live at across ∈ [-1,1] on the ribbon face. Screen offset is
- *   across * halfW * cos(θ)
- * so edge-on (θ≈π/2) pinches to a dense core and face-on (θ≈0) fans open.
- * Mild braid shear + micro-waves create the crossed hairline mesh.
+ * Geometry: centerline C(x) + half-width W(x) + twist θ(x).
+ * Fiber v ∈ [-1,1] projects as offset = v · W · cos(θ) along the path normal.
+ * Pinch = edge-on (θ→π/2); fan = face-on (θ→0). Mild braid shear crosses fibers.
+ * Color is stroked per fiber (no source-atop wash) so SVG export matches canvas.
  */
 
 export type TwizzlerSettings = {
@@ -58,45 +57,45 @@ export type TwizzlerSettings = {
 };
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
-  color: "#ef2b2d",
-  colorFar: "#ffd89a",
+  color: "#f04a1e",
+  colorFar: "#ffc8a8",
   colorNear: "#e8481c",
-  colorEdge: "#ffe08a",
-  opacity: 0.8,
-  scale: 0.72,
-  centerY: 0.5,
-  amplitude: 0.42,
-  lineCount: 100,
-  lineWidth: 2,
-  pointSpacing: 20,
-  leftHeight: 0.5,
-  rightHeight: 0.5,
-  edgeFluctuation: 0.12,
-  edgeSpeed: 0.65,
-  edgeTaper: 0.15,
-  wrinkles: 3,
-  wrinkleStrength: 0.09,
-  bendPosition: 0.5,
-  bendAmount: 0,
-  bend2Position: 0.3,
-  bend2Amount: 0,
-  bend3Position: 0.75,
-  bend3Amount: 0,
-  depthPosition: 0.65,
-  depthAmount: 0,
-  depthWidth: 0.25,
-  depth2Position: 0.35,
-  depth2Amount: 0,
-  depth2Width: 0.25,
-  depthSpread: 0,
-  depthLift: 0,
-  twist: 1.35,
-  noiseScaleX: 0.0015,
-  noiseScaleY: 0.012,
-  speed: 0.85,
-  drift: 0.31,
-  stippleSize: 1.4,
-  stippleGap: 2.2,
+  colorEdge: "#ffb347",
+  opacity: 0.78,
+  scale: 1,
+  centerY: 0.55,
+  amplitude: 0.62,
+  lineCount: 260,
+  lineWidth: 0.42,
+  pointSpacing: 2,
+  leftHeight: 0.58,
+  rightHeight: 0.28,
+  edgeFluctuation: 0.008,
+  edgeSpeed: 0.03,
+  edgeTaper: 0.1,
+  wrinkles: 3.8,
+  wrinkleStrength: 0.022,
+  bendPosition: 0.16,
+  bendAmount: -0.02,
+  bend2Position: 0.4,
+  bend2Amount: 0.05,
+  bend3Position: 0.74,
+  bend3Amount: -0.04,
+  depthPosition: 0.8,
+  depthAmount: 0.55,
+  depthWidth: 0.28,
+  depth2Position: 0.42,
+  depth2Amount: 0.3,
+  depth2Width: 0.1,
+  depthSpread: 1.2,
+  depthLift: 0.01,
+  twist: 1.2,
+  noiseScaleX: 0.0008,
+  noiseScaleY: 0.024,
+  speed: 0.15,
+  drift: 0.1,
+  stippleSize: 0,
+  stippleGap: 0.8,
 };
 
 function clamp(value: unknown, fallback: number, min: number, max: number): number {
@@ -151,6 +150,11 @@ function parseHexColor(hex: string): { r: number; g: number; b: number } {
     g: Number.parseInt(value.slice(2, 4), 16),
     b: Number.parseInt(value.slice(4, 6), 16),
   };
+}
+
+function rgba(hex: string, alpha: number): string {
+  const { r, g, b } = parseHexColor(hex);
+  return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, alpha))})`;
 }
 
 /** Lerp two #rrggbb colors. `t` is clamped to 0–1. */
@@ -280,47 +284,93 @@ export function twizzlerDepthScale(
 
 /**
  * Marketing banner centerline in normalized Y (0=top, 1=bottom).
- * Shape: mid-left entry → small hills → valley pinch → steep fan to top-right.
- * Kept low enough on the right that a wide fan stays on-canvas.
+ * Knots from TARGET-twizzler weighted p50 envelope.
  */
 export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
+  const knots: Array<[number, number]> = [
+    [0.0, 0.57],
+    [0.08, 0.75],
+    [0.17, 0.88],
+    [0.25, 0.95],
+    [0.33, 0.87],
+    [0.42, 0.9],
+    [0.5, 0.88],
+    [0.58, 0.74],
+    [0.67, 0.5],
+    [0.75, 0.5],
+    [0.83, 0.29],
+    [0.88, 0.16],
+    [0.96, 0.34],
+    [1.0, 0.4],
+  ];
+  let yKnot = knots[knots.length - 1][1];
+  for (let i = 0; i < knots.length - 1; i += 1) {
+    const [x0, y0] = knots[i];
+    const [x1, y1] = knots[i + 1];
+    if (x >= x0 && x <= x1) {
+      const t = smoothstep(x0, x1, x);
+      yKnot = y0 + (y1 - y0) * t;
+      break;
+    }
+  }
+
   const edges = twizzlerEdgeHeights(time, 0, settings);
-  const baseline = edges.left + (edges.right - edges.left) * x;
-  // Two soft hills on the left, then a deeper valley, then a rise that stays on-canvas.
-  const hills = -0.05 * Math.sin(x * Math.PI * 2.15 + 0.35) - 0.028 * Math.sin(x * Math.PI * 4.3 + 1.2);
-  const valley = 0.12 * Math.exp(-Math.pow((x - 0.42) / 0.095, 2));
-  const rise = -0.38 * Math.pow(smoothstep(0.46, 0.98, x), 1.12);
-  const bend = twizzlerPathBend(x, settings) * 0.5;
-  const y = baseline * 0.26 + 0.6 + hills + valley + rise + bend;
-  return settings.centerY + (y - 0.55) * settings.scale;
+  const edgeBias = (edges.left - 0.57) * (1 - x) + (edges.right - 0.4) * x;
+  const micro = 0.01 * Math.sin(x * Math.PI * 3.2 + time * 0.35) + 0.005 * Math.sin(x * Math.PI * 7.4 + 1.2);
+  const bend = twizzlerPathBend(x, settings) * 0.35;
+  const yAbs = yKnot + edgeBias * 0.3 + micro + bend;
+  return settings.centerY + (yAbs - 0.55) * settings.scale;
 }
 
 /**
  * Intrinsic ribbon half-height (before twist projection).
- * Grows left→right; pinch comes from twist, not from collapsing this value.
+ * Fitted to TARGET (p90-p10)/2 — tight pinch ~0.06, fan ~0.35.
  */
 export function twizzlerMarketingWidth(xT: number, settings: TwizzlerSettings): number {
   const x = Math.max(0, Math.min(1, xT));
-  const taper = 1 - settings.edgeTaper * 0.35 + settings.edgeTaper * 0.35 * Math.sin(Math.PI * x);
-  const base = 0.038 + settings.amplitude * 0.07;
-  const fan = (0.08 + settings.depthSpread * 0.2) * Math.pow(smoothstep(0.42, 1, x), 1.25);
-  const depthBoost = (twizzlerDepthScale(x, settings) - 1) * 0.035;
-  return Math.max(0.02, (base + fan + depthBoost) * taper);
+  const knots: Array<[number, number]> = [
+    [0.0, 0.08],
+    [0.08, 0.08],
+    [0.17, 0.13],
+    [0.25, 0.18],
+    [0.33, 0.14],
+    [0.42, 0.065],
+    [0.5, 0.12],
+    [0.58, 0.14],
+    [0.67, 0.35],
+    [0.75, 0.29],
+    [0.83, 0.18],
+    [0.92, 0.32],
+    [1.0, 0.3],
+  ];
+  let half = knots[knots.length - 1][1];
+  for (let i = 0; i < knots.length - 1; i += 1) {
+    const [x0, y0] = knots[i];
+    const [x1, y1] = knots[i + 1];
+    if (x >= x0 && x <= x1) {
+      const t = smoothstep(x0, x1, x);
+      half = y0 + (y1 - y0) * t;
+      break;
+    }
+  }
+  const ampScale = 0.75 + settings.amplitude * 0.45;
+  const spreadBoost = 1 + settings.depthSpread * 0.12 * Math.pow(smoothstep(0.5, 1, x), 1.1);
+  const depthBoost = 1 + (twizzlerDepthScale(x, settings) - 1) * 0.08;
+  const taper = 1 - settings.edgeTaper * 0.15 * (1 - Math.sin(Math.PI * x));
+  return Math.max(0.03, half * ampScale * spreadBoost * depthBoost * taper);
 }
 
 /**
- * Twist angle θ(x): soft pinch at the valley, open face on the right fan.
- * Keep |cos(θ)| from collapsing too hard — density alone was turning the left
- * into a solid orange slab and washing out the right.
+ * Twist angle θ(x): hard pinch at valley (~0.42), open face on the right fan.
  */
 export function twizzlerMarketingTwist(xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
-  const pinch = Math.exp(-Math.pow((x - 0.42) / 0.085, 2));
-  const open = Math.pow(smoothstep(0.52, 0.98, x), 1.05);
-  // Soft pinch only — left stays translucent gold; right opens for the fan.
-  const theta = 0.22 + settings.twist * (0.32 * pinch - 0.1 * open);
-  return Math.max(0.14, theta) + time * 0.05;
+  const pinch = Math.exp(-Math.pow((x - 0.42) / 0.07, 2));
+  const open = Math.pow(smoothstep(0.55, 0.95, x), 1.15);
+  // Stronger pinch so TARGET's tight node reads; floor keeps left translucent.
+  const theta = 0.35 + settings.twist * (0.78 * pinch - 0.32 * open);
+  return Math.max(0.22, Math.min(1.35, theta)) + time * 0.035;
 }
 
 /** Face-on amount 0..1 from twist (1 = full fan, 0 = edge-on). */
@@ -328,10 +378,19 @@ export function twizzlerFaceAmount(theta: number): number {
   return Math.abs(Math.cos(theta));
 }
 
+/** Horizontal color mix 0..1 along the marketing ribbon (pale → coral). */
+export function twizzlerColorT(xT: number): number {
+  const x = Math.max(0, Math.min(1, xT));
+  // Reach coral earlier so the fan stays readable (not washed pink dust).
+  return Math.pow(smoothstep(0.05, 0.78, x), 0.75);
+}
+
 export type TwizzlerLine = {
   /** -1..1 across ribbon width. */
   across: number;
   opacity: number;
+  /** Primary stroke color for this fiber (SVG + canvas). */
+  color: string;
   points: Array<{ x: number; y: number; depth: number; along: number }>;
 };
 
@@ -372,48 +431,60 @@ export function buildTwizzlerLines(
       const ny = tx / len;
 
       const theta = twizzlerMarketingTwist(c.xT, settings, time);
-      const face = twizzlerFaceAmount(theta);
+      // Per-fiber phase so parallel hairlines cross at the pinch (moiré twist).
+      const fiberTheta = theta + across * 0.38 + 0.12 * Math.sin(across * Math.PI * 1.7 + c.xT * 4.2);
+      const face = twizzlerFaceAmount(fiberTheta);
       const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight;
 
-      // Mild hollow when face-on — keep the core tinted, not white.
+      // Soft tube bias — keep core tinted (no white hollow).
       const hollowAcross =
-        Math.sign(across) * (Math.abs(across) * (1 - 0.14 * face) + Math.pow(Math.abs(across), 0.7) * 0.14 * face);
+        Math.sign(across) * (Math.abs(across) * (1 - 0.1 * face) + Math.pow(Math.abs(across), 0.72) * 0.1 * face);
 
-      // Soft braid shear so fibers cross instead of staying perfectly parallel.
+      // Soft braid shear so fibers cross at the pinch (moiré).
       const braid =
         hollowAcross +
-        0.2 * Math.sin(theta * 1.35 + across * 2.1 + c.xT * Math.PI * 1.4) * (1 - across * across * 0.85);
+        0.42 * Math.sin(fiberTheta * 1.7 + across * 2.8 + c.xT * Math.PI * 1.8) * (1 - across * across * 0.7);
 
       // Project ribbon face onto screen. Floor keeps a readable band when pinched.
-      const projected = braid * halfW * (0.2 + 0.8 * face);
+      const projected = braid * halfW * (0.12 + 0.88 * face);
 
       const micro =
         (twizzlerNoise(c.x * settings.noiseScaleX * 12 + time * settings.drift, range * 0.37, 0.21) - 0.5) *
         settings.wrinkleStrength *
         halfW *
-        (0.55 + face);
-      // Fan micro-waves grow with face-on amount (right-side vibration in the refs).
+        (0.5 + face);
       const wrinkle =
-        Math.sin(c.xT * Math.PI * 2 * settings.wrinkles + across * 2.8 + time * 0.7) *
+        Math.sin(c.xT * Math.PI * 2 * settings.wrinkles + across * 2.6 + time * 0.55) *
         settings.wrinkleStrength *
         halfW *
-        (0.2 + 0.9 * face);
+        (0.18 + 0.95 * face);
 
       const depth = twizzlerDepthScale(c.xT, settings);
-      // Slight along-normal X shear from twist → crossing mesh without collapsing Y.
       const x =
         c.x +
-        nx * braid * halfW * 0.045 * Math.sin(theta) +
-        (twizzlerNoise(range * 0.17, c.xT * 40, time * 0.15) - 0.5) * 0.25;
+        nx * braid * halfW * 0.055 * Math.sin(fiberTheta) +
+        (twizzlerNoise(range * 0.17, c.xT * 40, time * 0.12) - 0.5) * 0.35;
       const y = c.y + ny * projected + micro + wrinkle - settings.depthLift * (depth - 1) * pixelHeight * 0.02;
 
       points.push({ x, y, depth, along: c.xT });
     }
 
-    const edgeWeight = 0.35 + 0.65 * Math.abs(across);
+    const midAlong = points[Math.floor(points.length * 0.55)]?.along ?? 0.5;
+    const colorT = twizzlerColorT(midAlong);
+    const edgeMix = Math.pow(Math.max(0, Math.abs(across) - 0.82) / 0.18, 1.15);
+    const baseColor = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
+    const color = edgeMix > 0.15 ? twizzlerLerpColor(baseColor, settings.colorEdge, edgeMix * 0.35) : baseColor;
+
+    // Edge fibers slightly stronger so the fan reads as individual hairlines.
+    // Right side keeps higher alpha so sparse fan stays coral, not invisible mist.
+    const edgeWeight = 0.5 + 0.5 * Math.abs(across);
+    const alongBoost = 0.9 + 0.5 * colorT;
+    // Mid/pinch denser: fibers near core get a boost where twist collapses them.
+    const coreBoost = 1 + 0.25 * (1 - Math.abs(across));
     lines.push({
       across,
-      opacity: settings.opacity * (0.22 + edgeWeight * 0.78),
+      opacity: Math.min(0.95, settings.opacity * (0.42 + edgeWeight * 0.55) * alongBoost * coreBoost),
+      color,
       points,
     });
   }
@@ -441,26 +512,30 @@ export function renderTwizzler(
   context.lineJoin = "round";
   context.lineCap = "round";
 
+  // Draw core→edge so outer hairlines sit on top and stay readable when fanned.
   const ordered = [...lines].sort((a, b) => Math.abs(a.across) - Math.abs(b.across));
 
-  // Draw every fiber in saturated near/coral first — density alone would make the
-  // left too dark and the right too washed. A pale wash pass then restores the
-  // marketing gold→coral read.
   for (const line of ordered) {
     if (line.points.length < 2) continue;
     if (settings.stippleSize > 0.01) {
-      context.setLineDash([settings.stippleSize, settings.stippleGap + Math.abs(line.across) * 0.5]);
-      context.lineDashOffset = line.across * 4;
+      context.setLineDash([settings.stippleSize, settings.stippleGap + Math.abs(line.across) * 0.35]);
+      context.lineDashOffset = line.across * 3.5;
     } else {
       context.setLineDash([]);
     }
 
     const mid = line.points[Math.floor(line.points.length * 0.55)] ?? line.points[0];
-    const edgeMix = Math.pow(Math.max(0, Math.abs(line.across) - 0.78) / 0.22, 1.2);
-    context.strokeStyle =
-      edgeMix > 0.2 ? twizzlerLerpColor(settings.colorNear, settings.colorEdge, edgeMix * 0.45) : settings.colorNear;
-    context.globalAlpha = Math.min(0.95, line.opacity * (0.34 + Math.abs(line.across) * 0.22 + mid.along * 0.28));
-    context.lineWidth = Math.max(0.18, settings.lineWidth * (0.4 + mid.depth * 0.05));
+    // Stroke with a horizontal gradient: peach → gold → coral (matches TARGET).
+    const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
+    gradient.addColorStop(0, rgba(settings.colorFar, 1));
+    gradient.addColorStop(0.12, rgba(twizzlerLerpColor(settings.colorFar, settings.colorEdge, 0.75), 1));
+    gradient.addColorStop(0.28, rgba(settings.colorEdge, 1));
+    gradient.addColorStop(0.48, rgba(twizzlerLerpColor(settings.colorEdge, settings.colorNear, 0.45), 1));
+    gradient.addColorStop(0.72, rgba(settings.colorNear, 1));
+    gradient.addColorStop(1, rgba(settings.colorNear, 1));
+    context.strokeStyle = gradient;
+    context.globalAlpha = Math.min(0.95, line.opacity);
+    context.lineWidth = Math.max(0.28, settings.lineWidth * (0.58 + mid.depth * 0.06));
     context.beginPath();
     context.moveTo(line.points[0].x, line.points[0].y);
     for (let index = 1; index < line.points.length; index += 1) {
@@ -470,19 +545,26 @@ export function renderTwizzler(
     context.stroke();
   }
 
-  // Pale-gold tint on the left only (source-atop = ribbon pixels, not background).
+  // Soft density pass: gentle mid-tone build without a dark spine.
   context.setLineDash([]);
-  context.globalAlpha = 1;
-  context.globalCompositeOperation = "source-atop";
-  const far = parseHexColor(settings.colorFar);
-  const wash = context.createLinearGradient(0, 0, pixelWidth, 0);
-  wash.addColorStop(0, `rgba(${far.r},${far.g},${far.b},0.88)`);
-  wash.addColorStop(0.3, `rgba(${far.r},${far.g},${far.b},0.48)`);
-  wash.addColorStop(0.55, `rgba(${far.r},${far.g},${far.b},0.08)`);
-  wash.addColorStop(1, `rgba(${far.r},${far.g},${far.b},0)`);
-  context.fillStyle = wash;
-  context.fillRect(0, 0, pixelWidth, pixelHeight);
-  context.globalCompositeOperation = "source-over";
+  for (const line of ordered) {
+    if (Math.abs(line.across) > 0.55) continue;
+    if (line.points.length < 2) continue;
+    const along = line.points[Math.floor(line.points.length * 0.55)]!.along;
+    const densColor =
+      along < 0.4
+        ? twizzlerLerpColor(settings.colorFar, settings.colorEdge, 0.55)
+        : twizzlerLerpColor(settings.colorEdge, settings.colorNear, 0.55);
+    context.strokeStyle = rgba(densColor, 1);
+    context.globalAlpha = Math.min(0.14, line.opacity * 0.18 * (0.5 + along * 0.5));
+    context.lineWidth = Math.max(0.2, settings.lineWidth * 0.4);
+    context.beginPath();
+    context.moveTo(line.points[0].x, line.points[0].y);
+    for (let index = 1; index < line.points.length; index += 1) {
+      context.lineTo(line.points[index].x, line.points[index].y);
+    }
+    context.stroke();
+  }
 
   context.restore();
 }
