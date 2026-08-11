@@ -64,7 +64,14 @@ describe("Twizzler", () => {
   });
 
   it("scales depth toward the camera peak", () => {
-    const settings = { depthPosition: 0.6, depthAmount: 1, depthWidth: 0.2 };
+    const settings = {
+      depthPosition: 0.6,
+      depthAmount: 1,
+      depthWidth: 0.2,
+      depth2Position: 0.2,
+      depth2Amount: 0,
+      depth2Width: 0.2,
+    };
     expect(twizzlerDepthScale(0.6, settings)).toBeCloseTo(2, 5);
     expect(twizzlerDepthScale(0, settings)).toBeLessThan(1.05);
     expect(twizzlerDepthScale(0.6, { ...settings, depthAmount: 0 })).toBe(1);
@@ -73,8 +80,8 @@ describe("Twizzler", () => {
   it("lerps peach-to-coral by nearness", () => {
     expect(twizzlerLerpColor("#ffd2b5", "#e8481c", 0)).toBe("#ffd2b5");
     expect(twizzlerLerpColor("#ffd2b5", "#e8481c", 1)).toBe("#e8481c");
-    expect(twizzlerNearness(1, { depthAmount: 1 })).toBe(0);
-    expect(twizzlerNearness(2, { depthAmount: 1 })).toBe(1);
+    expect(twizzlerNearness(1, { depthAmount: 1, depth2Amount: 0 })).toBe(0);
+    expect(twizzlerNearness(2, { depthAmount: 1, depth2Amount: 0 })).toBe(1);
   });
 
   it("always spans from the exact left edge to the exact right edge", () => {

@@ -27,6 +27,9 @@ export type TwizzlerSettings = {
   depthPosition: number;
   depthAmount: number;
   depthWidth: number;
+  depth2Position: number;
+  depth2Amount: number;
+  depth2Width: number;
   /** Extra Y spread between lines when near the camera (Z widen). */
   depthSpread: number;
   /** Extra path lift toward top of frame when near the camera. */
@@ -65,6 +68,9 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   depthPosition: 0.65,
   depthAmount: 0,
   depthWidth: 0.25,
+  depth2Position: 0.35,
+  depth2Amount: 0,
+  depth2Width: 0.25,
   depthSpread: 0,
   depthLift: 0,
   twist: 1.35,
@@ -135,10 +141,14 @@ export function twizzlerLerpColor(farHex: string, nearHex: string, t: number): s
   return `#${r}${g}${b}`;
 }
 
-/** 0 at far, 1 at the near-camera peak. */
-export function twizzlerNearness(depth: number, settings: Pick<TwizzlerSettings, "depthAmount">): number {
-  if (settings.depthAmount <= 0) return 0;
-  return Math.max(0, Math.min(1, (depth - 1) / settings.depthAmount));
+/** 0 at far, 1 at the strongest near-camera peak. */
+export function twizzlerNearness(
+  depth: number,
+  settings: Pick<TwizzlerSettings, "depthAmount" | "depth2Amount">,
+): number {
+  const maxNear = Math.max(settings.depthAmount, 0) + Math.max(settings.depth2Amount, 0);
+  if (maxNear <= 0) return 0;
+  return Math.max(0, Math.min(1, (depth - 1) / maxNear));
 }
 
 export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
@@ -171,6 +181,9 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depthPosition: clamp(input.depthPosition, TWIZZLER_DEFAULTS.depthPosition, 0, 1),
     depthAmount: clamp(input.depthAmount, TWIZZLER_DEFAULTS.depthAmount, 0, 2),
     depthWidth: clamp(input.depthWidth, TWIZZLER_DEFAULTS.depthWidth, 0.05, 0.75),
+    depth2Position: clamp(input.depth2Position, TWIZZLER_DEFAULTS.depth2Position, 0, 1),
+    depth2Amount: clamp(input.depth2Amount, TWIZZLER_DEFAULTS.depth2Amount, 0, 2),
+    depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
     depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 1.5),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 4),
@@ -223,14 +236,22 @@ export function twizzlerPathBend(
   );
 }
 
-/** 1 at far, up to 1+depthAmount at the near-camera peak. */
+/** 1 at far, up to 1+depthAmount(+depth2) at near-camera peaks. */
 export function twizzlerDepthScale(
   xT: number,
-  settings: Pick<TwizzlerSettings, "depthPosition" | "depthAmount" | "depthWidth">,
+  settings: Pick<
+    TwizzlerSettings,
+    "depthPosition" | "depthAmount" | "depthWidth" | "depth2Position" | "depth2Amount" | "depth2Width"
+  >,
 ): number {
-  if (settings.depthAmount <= 0) return 1;
-  const lobe = twizzlerBendOffset(xT, settings.depthPosition, 1, settings.depthWidth);
-  return 1 + settings.depthAmount * lobe;
+  let near = 0;
+  if (settings.depthAmount > 0) {
+    near += settings.depthAmount * twizzlerBendOffset(xT, settings.depthPosition, 1, settings.depthWidth);
+  }
+  if (settings.depth2Amount > 0) {
+    near += settings.depth2Amount * twizzlerBendOffset(xT, settings.depth2Position, 1, settings.depth2Width);
+  }
+  return 1 + near;
 }
 
 export type TwizzlerLine = {
@@ -291,9 +312,6 @@ export function buildTwizzlerLines(
   return { settings, lines };
 }
 
-const RENDER_CHUNK = 12;
-const SPECTRUM_ACCENTS = ["#ff2d97", "#9c5fff", "#3defff", "#ffd24a"] as const;
-
 export function renderTwizzler(
   canvas: HTMLCanvasElement,
   width: number,
@@ -314,35 +332,33 @@ export function renderTwizzler(
   context.lineJoin = "round";
   context.lineCap = "round";
 
-  // Paint far (peach) first, near (coral) last so Z reads as peach→coral.
+  // Far (peach) first, near (coral) last. One stroke per hairline — no chunk banding.
   const ordered = lines
-    .map((line, lineIndex) => {
-      const mid = line.points[Math.floor(line.points.length * 0.64)] ?? line.points[0];
-      return { line, lineIndex, depth: mid?.depth ?? 1 };
+    .map((line) => {
+      let peak = 1;
+      let sum = 0;
+      for (const point of line.points) {
+        peak = Math.max(peak, point.depth);
+        sum += point.depth;
+      }
+      const avg = line.points.length > 0 ? sum / line.points.length : 1;
+      return { line, depth: peak, avg };
     })
     .sort((a, b) => a.depth - b.depth);
 
-  for (const { line, lineIndex } of ordered) {
+  for (const { line, avg } of ordered) {
     if (line.points.length < 2) continue;
-    for (let start = 0; start < line.points.length - 1; start += RENDER_CHUNK) {
-      const end = Math.min(line.points.length - 1, start + RENDER_CHUNK);
-      const mid = line.points[Math.floor((start + end) / 2)] ?? line.points[start];
-      const nearness = twizzlerNearness(mid.depth, settings);
-      const accentNoise = twizzlerNoise(mid.x * 0.01, lineIndex * 0.19, timeSec * 0.2 + start * 0.01);
-      const useAccent = accentNoise > 0.84;
-      context.globalAlpha = line.opacity * (useAccent ? 1 : 0.28 + nearness * 0.72);
-      context.strokeStyle = useAccent
-        ? SPECTRUM_ACCENTS[Math.floor(accentNoise * 47) % SPECTRUM_ACCENTS.length]
-        : twizzlerLerpColor(settings.colorFar, settings.colorNear, nearness * nearness);
-      context.lineWidth = Math.max(0.3, settings.lineWidth * (0.55 + mid.depth * 0.7));
-      context.beginPath();
-      context.moveTo(line.points[start].x, line.points[start].y);
-      for (let index = start + 1; index <= end; index += 1) {
-        const point = line.points[index];
-        context.lineTo(point.x, point.y);
-      }
-      context.stroke();
+    const nearness = twizzlerNearness(avg, settings);
+    context.globalAlpha = line.opacity * (0.18 + nearness * 0.82);
+    context.strokeStyle = twizzlerLerpColor(settings.colorFar, settings.colorNear, Math.pow(nearness, 1.25));
+    context.lineWidth = Math.max(0.25, settings.lineWidth * (0.4 + avg * 0.6));
+    context.beginPath();
+    context.moveTo(line.points[0].x, line.points[0].y);
+    for (let index = 1; index < line.points.length; index += 1) {
+      const point = line.points[index];
+      context.lineTo(point.x, point.y);
     }
+    context.stroke();
   }
   context.restore();
 }

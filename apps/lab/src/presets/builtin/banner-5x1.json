@@ -99,43 +99,13 @@
     "stripes": [
       {
         "color": 16015393,
-        "startFrom": 0.55,
-        "width": 0.45,
-        "opacity": 0.45
-      },
-      {
-        "color": 15958048,
-        "startFrom": 0.64,
-        "width": 0.55,
-        "opacity": 0.6
-      },
-      {
-        "color": 16723351,
-        "startFrom": 0.72,
-        "width": 0.4,
-        "opacity": 0.95
-      },
-      {
-        "color": 10248191,
-        "startFrom": 0.76,
-        "width": 0.35,
-        "opacity": 0.9
-      },
-      {
-        "color": 4059135,
-        "startFrom": 0.8,
-        "width": 0.35,
-        "opacity": 0.85
-      },
-      {
-        "color": 14240290,
-        "startFrom": 0.86,
-        "width": 0.65,
-        "opacity": 0.8
+        "startFrom": 0.995,
+        "width": 0.5,
+        "opacity": 0
       }
     ],
     "stripesEnabled": true,
-    "fieldScale": 0.3,
+    "fieldScale": 0.25,
     "maxFps": 30,
     "reveal": {
       "enabled": false,
@@ -215,18 +185,18 @@
     "sparkle": {
       "gaps": {
         "enabled": true,
-        "coverage": 0.86,
-        "speed": 0.18
+        "coverage": 1,
+        "speed": 0.1
       },
       "width": {
-        "enabled": true,
+        "enabled": false,
         "coverage": 0.12,
         "swingPx": 1,
         "swingPeriodMin": 0.7,
         "swingPeriodMax": 1.4
       },
       "stripe": {
-        "enabled": true,
+        "enabled": false,
         "coverage": 0.55,
         "maxBrightness": 0.7,
         "speed": 0.15,
@@ -235,7 +205,7 @@
         "saturationBoost": 1
       },
       "motion": {
-        "enabled": true,
+        "enabled": false,
         "amplitudePx": 1.2,
         "staggerPx": 3,
         "maxOffsetPx": 64,
@@ -553,39 +523,42 @@
     "shaderSourceHeight": 960,
     "twizzlerEnabled": true,
     "twizzler": {
-      "color": "#d63a0f",
-      "colorFar": "#ffc4a0",
-      "colorNear": "#d63a0f",
-      "opacity": 0.55,
-      "scale": 1.0,
-      "centerY": 0.52,
-      "amplitude": 0.26,
-      "lineCount": 150,
-      "lineWidth": 0.6,
-      "pointSpacing": 4,
-      "leftHeight": 0.86,
-      "rightHeight": 0.32,
-      "edgeFluctuation": 0.08,
-      "edgeSpeed": 0.16,
-      "edgeTaper": 0.58,
-      "wrinkles": 2.2,
-      "wrinkleStrength": 0.025,
-      "bendPosition": 0.18,
-      "bendAmount": 0.1,
-      "bend2Position": 0.4,
-      "bend2Amount": -0.15,
-      "bend3Position": 0.68,
-      "bend3Amount": 0.18,
-      "depthPosition": 0.64,
-      "depthAmount": 1.5,
-      "depthWidth": 0.32,
-      "depthSpread": 0.4,
-      "depthLift": 0.26,
-      "twist": 1.85,
-      "noiseScaleX": 0.001,
-      "noiseScaleY": 0.045,
-      "speed": 0.38,
-      "drift": 0.3
+      "color": "#f46021",
+      "colorFar": "#ffd4b8",
+      "colorNear": "#f46021",
+      "opacity": 0.62,
+      "scale": 1.05,
+      "centerY": 0.55,
+      "amplitude": 0.22,
+      "lineCount": 220,
+      "lineWidth": 0.45,
+      "pointSpacing": 3,
+      "leftHeight": 0.68,
+      "rightHeight": 0.55,
+      "edgeFluctuation": 0.05,
+      "edgeSpeed": 0.12,
+      "edgeTaper": 0.7,
+      "wrinkles": 1.6,
+      "wrinkleStrength": 0.018,
+      "bendPosition": 0.24,
+      "bendAmount": -0.2,
+      "bend2Position": 0.48,
+      "bend2Amount": 0.14,
+      "bend3Position": 0.74,
+      "bend3Amount": -0.18,
+      "depthPosition": 0.28,
+      "depthAmount": 1.15,
+      "depthWidth": 0.22,
+      "depth2Position": 0.72,
+      "depth2Amount": 0.85,
+      "depth2Width": 0.2,
+      "depthSpread": 0.36,
+      "depthLift": 0.14,
+      "twist": 2.7,
+      "noiseScaleX": 0.0009,
+      "noiseScaleY": 0.04,
+      "speed": 0.35,
+      "drift": 0.25
     },
     "twizzlerMap": {
       "backgroundLevel": 0.01,
