@@ -1373,6 +1373,12 @@ export function useEngineControls(
                     label: "Color far",
                   }),
                 },
+                twizzlerColorEdge: {
+                  ...colorLibraryInputPlugin({
+                    value: initialLabSettings.twizzler.colorEdge ?? "#ffe08a",
+                    label: "Color edge",
+                  }),
+                },
                 ...(options.twizzlerTransport
                   ? {
                       twizzlerTransport: timeTransportPlugin({
@@ -1563,15 +1569,15 @@ export function useEngineControls(
                 twizzlerLineCount: {
                   value: initialLabSettings.twizzler.lineCount,
                   min: 1,
-                  max: 300,
+                  max: 400,
                   step: 1,
                   label: "Line count",
                 },
                 twizzlerLineWidth: {
                   value: initialLabSettings.twizzler.lineWidth,
-                  min: 0.25,
+                  min: 0.15,
                   max: 8,
-                  step: 0.25,
+                  step: 0.05,
                   label: "Line width",
                 },
                 twizzlerPointSpacing: {
@@ -1580,6 +1586,20 @@ export function useEngineControls(
                   max: 80,
                   step: 1,
                   label: "Point spacing",
+                },
+                twizzlerStippleSize: {
+                  value: initialLabSettings.twizzler.stippleSize ?? 1.4,
+                  min: 0,
+                  max: 8,
+                  step: 0.1,
+                  label: "Stipple size",
+                },
+                twizzlerStippleGap: {
+                  value: initialLabSettings.twizzler.stippleGap ?? 2.2,
+                  min: 0,
+                  max: 12,
+                  step: 0.1,
+                  label: "Stipple gap",
                 },
               },
               { render: showTwizzlerRibbonConfig },
@@ -5049,6 +5069,7 @@ export function useEngineControls(
         color: shaderValueRecord.twizzlerColor,
         colorNear: shaderValueRecord.twizzlerColor,
         colorFar: shaderValueRecord.twizzlerColorFar,
+        colorEdge: shaderValueRecord.twizzlerColorEdge,
         opacity: shaderValueRecord.twizzlerOpacity,
         scale: shaderValueRecord.twizzlerScale,
         centerY: shaderValueRecord.twizzlerCenterY,
@@ -5079,6 +5100,8 @@ export function useEngineControls(
         noiseScaleY: shaderValueRecord.twizzlerNoiseScaleY,
         speed: shaderValueRecord.twizzlerSpeed,
         drift: shaderValueRecord.twizzlerDrift,
+        stippleSize: shaderValueRecord.twizzlerStippleSize,
+        stippleGap: shaderValueRecord.twizzlerStippleGap,
       }),
     },
     twizzlerMap: normalizeTwizzlerMapSettings({

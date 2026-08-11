@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildTwizzlerLines,
   normalizeTwizzlerColor,
   normalizeTwizzlerSettings,
   twizzlerAnimationTime,
@@ -7,6 +8,10 @@ import {
   twizzlerDepthScale,
   twizzlerEdgeHeights,
   twizzlerLerpColor,
+  twizzlerFaceAmount,
+  twizzlerMarketingCenterY,
+  twizzlerMarketingTwist,
+  twizzlerMarketingWidth,
   twizzlerNearness,
   twizzlerNoise,
   twizzlerPathBend,
@@ -101,5 +106,33 @@ describe("Twizzler", () => {
   it("freezes every animation source when master speed is zero", () => {
     expect(twizzlerAnimationTime(12.5, 0)).toBe(0);
     expect(twizzlerAnimationTime(12.5, 0.8)).toBe(10);
+  });
+
+  it("builds a marketing ribbon that pinches then fans toward the right", () => {
+    const settings = normalizeTwizzlerSettings({
+      amplitude: 0.55,
+      depthSpread: 0.85,
+      twist: 1.35,
+      leftHeight: 0.7,
+      rightHeight: 0.28,
+      scale: 1,
+      centerY: 0.52,
+    });
+    const leftW = twizzlerMarketingWidth(0.1, settings);
+    const fanW = twizzlerMarketingWidth(0.9, settings);
+    expect(fanW).toBeGreaterThan(leftW);
+
+    // Pinch comes from twist (edge-on), fan from face-on + width growth.
+    const valleyFace = twizzlerFaceAmount(twizzlerMarketingTwist(0.4, settings, 0));
+    const fanFace = twizzlerFaceAmount(twizzlerMarketingTwist(0.9, settings, 0));
+    expect(fanFace).toBeGreaterThan(valleyFace);
+
+    const leftY = twizzlerMarketingCenterY(0.05, settings, 0);
+    const rightY = twizzlerMarketingCenterY(0.95, settings, 0);
+    expect(rightY).toBeLessThan(leftY); // rises toward top of canvas
+
+    const { lines } = buildTwizzlerLines(1600, 320, 0, { ...settings, lineCount: 40, pointSpacing: 4, speed: 0 });
+    expect(lines).toHaveLength(40);
+    expect(lines[0]?.points.length).toBeGreaterThan(10);
   });
 });

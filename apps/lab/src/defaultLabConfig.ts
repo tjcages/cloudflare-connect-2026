@@ -391,8 +391,9 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
   twizzlerEnabled: true,
   twizzler: {
     color: "#ef2b2d",
-    colorFar: "#ffd2b5",
-    colorNear: "#ef2b2d",
+    colorFar: "#ffd89a",
+    colorNear: "#e8481c",
+    colorEdge: "#ffe08a",
     opacity: 0.8,
     scale: 0.72,
     centerY: 0.5,
@@ -426,6 +427,8 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     noiseScaleY: 0.012,
     speed: 0.85,
     drift: 0.31,
+    stippleSize: 1.4,
+    stippleGap: 2.2,
   },
   twizzlerMap: {
     backgroundLevel: 0.08,

@@ -59,6 +59,9 @@ const presetWithLab = (name: string): ConfigPreset =>
       drift: 0.2,
       colorFar: "#ffd2b5",
       colorNear: "#d71920",
+      colorEdge: "#ffe08a",
+      stippleSize: 1.4,
+      stippleGap: 2.2,
     },
     twizzlerMap: {
       backgroundLevel: 0.06,
