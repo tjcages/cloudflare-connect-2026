@@ -1,5 +1,5 @@
 /**
- * Capture A-lock Twizzler with along-X noisy gap variation between ribbons.
+ * Capture dense Twizzler (≥100 ribbons) with milder along-X gap noise.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -17,13 +17,13 @@ const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/built
 const base = preset.lab?.twizzler;
 if (!base) throw new Error("missing lab.twizzler");
 
-const aBase = {
+const denseBase = {
   ...base,
   color: "#e8481c",
   colorFar: "#ffd89a",
   colorNear: "#e8481c",
   colorEdge: "#ffc857",
-  opacity: 0.88,
+  opacity: 0.86,
   speed: 0,
   edgeFluctuation: 0,
   edgeSpeed: 0,
@@ -43,38 +43,41 @@ const aBase = {
   leftHeight: 0.6,
   rightHeight: 0.36,
   centerY: 0.3,
-  depthSpread: 1.35,
-  lineCount: 36,
-  lineWidth: 1.05,
+  depthSpread: 1.05,
+  lineWidth: 0.75,
+  wrinkles: 2.2,
+  wrinkleStrength: 0.022,
 };
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — noisy L→R gaps (lock)",
+    label: "A — 100 ribbons, mild gap noise (lock)",
     tweaks: {
-      wrinkleStrength: 0.045,
-      wrinkles: 2.8,
+      lineCount: 100,
+      wrinkleStrength: 0.022,
+      depthSpread: 1.05,
     },
   },
   {
     id: "B",
-    label: "B — stronger gap noise swings",
+    label: "B — 120 ribbons, slightly more gap noise",
     tweaks: {
-      wrinkleStrength: 0.08,
-      wrinkles: 3.6,
-      depthSpread: 1.45,
+      lineCount: 120,
+      wrinkleStrength: 0.03,
+      depthSpread: 1.12,
+      lineWidth: 0.7,
     },
   },
   {
     id: "C",
-    label: "C — extreme randomized gap warp",
+    label: "C — 140 ribbons, densest pack",
     tweaks: {
-      wrinkleStrength: 0.12,
-      wrinkles: 4.5,
-      depthSpread: 1.55,
-      lineCount: 34,
+      lineCount: 140,
+      wrinkleStrength: 0.018,
+      depthSpread: 0.95,
+      lineWidth: 0.65,
     },
   },
 ];
@@ -105,7 +108,7 @@ await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#ff
 
 const paths = [];
 for (const variant of variants) {
-  const settings = { ...aBase, ...variant.tweaks, speed: 0 };
+  const settings = { ...denseBase, ...variant.tweaks, speed: 0 };
   await page.evaluate(
     ({ s, id, label }) => {
       const out = document.getElementById("c");
@@ -128,7 +131,7 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r6-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r7-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -143,7 +146,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r6-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r7-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -162,8 +165,9 @@ writeFileSync(
       label,
       outPath,
       tweaks: {
+        lineCount: settings.lineCount,
+        lineWidth: settings.lineWidth,
         wrinkleStrength: settings.wrinkleStrength,
-        wrinkles: settings.wrinkles,
         depthSpread: settings.depthSpread,
       },
     })),

@@ -496,20 +496,19 @@ export function twizzlerGapWarpedAcross(
 ): number {
   const x = Math.max(0, Math.min(1, xT));
   const amount = Math.max(0, Math.min(2.5, gapNoise));
-  // 0..1 pack field along the ribbon — opens/closes gaps L→R.
+  // 0..1 pack field along the ribbon — opens/closes gaps L→R (kept mild).
   const packN =
-    0.42 * twizzlerNoise(x * 1.7 + seed * 0.2, seed * 0.71, 0.33) +
-    0.33 * twizzlerNoise(x * 3.9 + 1.3, seed * 1.4, 0.88) +
-    0.25 * twizzlerNoise(x * 8.4 + 0.6, seed * 0.5, 1.6);
-  const pack = 0.35 + packN * (1.1 + amount * 1.15);
-  // Neighbor gap jitter — each fiber drifts differently along X.
+    0.5 * twizzlerNoise(x * 1.6 + seed * 0.2, seed * 0.71, 0.33) +
+    0.32 * twizzlerNoise(x * 3.4 + 1.3, seed * 1.4, 0.88) +
+    0.18 * twizzlerNoise(x * 7.2 + 0.6, seed * 0.5, 1.6);
+  const pack = 0.7 + packN * (0.55 + amount * 0.45);
+  // Neighbor gap jitter — each fiber drifts a little differently along X.
   const jitter =
-    (twizzlerNoise(x * 2.8 + fiberIndex * 0.67, fiberIndex * 1.19 + seed, 1.35) - 0.5) * (0.45 + amount * 0.55) +
-    (twizzlerNoise(x * 6.4 + fiberIndex * 0.31, seed + 2.4, 0.55) - 0.5) * (0.25 + amount * 0.35) +
-    (twizzlerNoise(x * 11.5 + fiberIndex * 0.19, seed + 5.1, 1.1) - 0.5) * (0.15 + amount * 0.2);
+    (twizzlerNoise(x * 2.6 + fiberIndex * 0.67, fiberIndex * 1.19 + seed, 1.35) - 0.5) * (0.18 + amount * 0.22) +
+    (twizzlerNoise(x * 5.8 + fiberIndex * 0.31, seed + 2.4, 0.55) - 0.5) * (0.1 + amount * 0.14);
   const warped = across * pack + jitter * amount;
   // Soft bound so noise stays expressive instead of slamming a hard clamp.
-  return Math.tanh(warped) * 1.35;
+  return Math.tanh(warped) * 1.15;
 }
 
 /**
@@ -628,8 +627,8 @@ export function buildTwizzlerLines(
   const lines: TwizzlerLine[] = [];
 
   // Gap irregularity + Z-wave amplitude ride on existing wrinkle/depthLift knobs.
-  const gapNoise = 0.65 + settings.wrinkleStrength * 24;
-  const alongGapNoise = 1.15 + settings.wrinkleStrength * 32 + settings.depthSpread * 0.35;
+  const gapNoise = 0.45 + settings.wrinkleStrength * 14;
+  const alongGapNoise = 0.4 + settings.wrinkleStrength * 10 + settings.depthSpread * 0.08;
   const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
   const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
   const rawSlots = twizzlerUnevenAcross(
@@ -638,7 +637,7 @@ export function buildTwizzlerLines(
     2.1 + settings.wrinkles * 0.15 + settings.depthTerrain * 1.7,
   );
   // Stretch slots toward near/far poles — depthSpread fights mid-pack condensation.
-  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.55 + settings.depthSpread * 0.7));
+  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.35 + settings.depthSpread * 0.35));
 
   const center: Array<{ x: number; y: number; xT: number }> = [];
   for (let point = 0; point <= segmentCount; point += 1) {
@@ -696,8 +695,8 @@ export function buildTwizzlerLines(
         halfW *
         2.2;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Explicit SCREEN-Y stack with along-X noise so gaps vary a lot left → right.
-      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 2;
+      // Screen-Y stack: dense ribbon pack with mild along-X gap noise.
+      const verticalOpen = 0.85 + settings.depthSpread * 0.55;
       const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
       const stackY = acrossX * halfW * verticalOpen;
       // Far fibers still sit lower on the right.
