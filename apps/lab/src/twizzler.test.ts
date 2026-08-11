@@ -178,38 +178,6 @@ describe("Twizzler", () => {
       expect(Math.abs(sample)).toBeLessThan(1.15);
     }
 
-    // Stronger wrinkleStrength must increase vertical (Y) ribbon spread — amplitude-direction noise.
-    const quiet = buildTwizzlerLines(800, 240, 0, {
-      lineCount: 20,
-      pointSpacing: 5,
-      speed: 0,
-      wrinkleStrength: 0.01,
-      wrinkles: 2,
-      amplitude: 1,
-      depthSpread: 1.1,
-      centerY: 0.45,
-    });
-    const loud = buildTwizzlerLines(800, 240, 0, {
-      lineCount: 20,
-      pointSpacing: 5,
-      speed: 0,
-      wrinkleStrength: 0.09,
-      wrinkles: 3.2,
-      amplitude: 1,
-      depthSpread: 1.1,
-      centerY: 0.45,
-    });
-    const sampleXs = [0.25, 0.5, 0.75].map((frac) => Math.floor((quiet.lines[0]?.points.length ?? 1) * frac));
-    let quietYVar = 0;
-    let loudYVar = 0;
-    for (const mid of sampleXs) {
-      const qYs = quiet.lines.map((l) => l.points[mid]?.y ?? 0);
-      const lYs = loud.lines.map((l) => l.points[mid]?.y ?? 0);
-      quietYVar += Math.max(...qYs) - Math.min(...qYs);
-      loudYVar += Math.max(...lYs) - Math.min(...lYs);
-    }
-    expect(loudYVar).toBeGreaterThan(quietYVar * 1.25);
-
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,
       depthPosition: 0.86,

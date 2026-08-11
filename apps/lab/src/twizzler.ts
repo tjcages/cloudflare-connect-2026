@@ -328,12 +328,7 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
         (-0.11 * Math.sin(x * Math.PI * 2.2 + 0.3) +
           -0.09 * Math.sin(x * Math.PI * 3.8 + 1.0) +
           -0.07 * Math.sin(x * Math.PI * 5.6 + 2.1) +
-          -0.045 * Math.sin(x * Math.PI * 8.0 + time * 0.25) +
-          // Y-amplitude noise on the shared spine (scaled by wrinkleStrength).
-          (twizzlerNoise(x * 5.5 + time * 0.1, settings.wrinkles * 0.2, 0.7) - 0.5) *
-            (0.06 + settings.wrinkleStrength * 1.8) +
-          (twizzlerNoise(x * 11.0, 1.4 + settings.wrinkles * 0.1, 1.2) - 0.5) *
-            (0.035 + settings.wrinkleStrength * 1.1));
+          -0.045 * Math.sin(x * Math.PI * 8.0 + time * 0.25));
       break;
     }
     case 1: {
