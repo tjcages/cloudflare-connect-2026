@@ -213,7 +213,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depth2Position: clamp(input.depth2Position, TWIZZLER_DEFAULTS.depth2Position, 0, 1),
     depth2Amount: clamp(input.depth2Amount, TWIZZLER_DEFAULTS.depth2Amount, 0, 2),
     depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
-    depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 1.5),
+    depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 2.5),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
     depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
@@ -386,8 +386,9 @@ export function twizzlerMarketingWidth(xT: number, settings: TwizzlerSettings): 
     [1.0, 0.28],
   ]);
   const ampScale = 0.8 + settings.amplitude * 0.4;
-  const spreadBoost = 1 + settings.depthSpread * 0.14 * Math.pow(smoothstep(0.48, 1, x), 1.05);
-  const depthBoost = 1 + (twizzlerDepthScale(x, settings) - 1) * 0.06;
+  // depthSpread opens the ribbon in screen space so the Z stack is not a thin condensed pack.
+  const spreadBoost = 1 + settings.depthSpread * 0.62 * Math.pow(smoothstep(0.32, 1, x), 0.85);
+  const depthBoost = 1 + (twizzlerDepthScale(x, settings) - 1) * 0.1;
   const taper = 1 - settings.edgeTaper * 0.12 * (1 - Math.sin(Math.PI * x));
   return Math.max(0.035, half * ampScale * spreadBoost * depthBoost * taper);
 }
@@ -416,23 +417,28 @@ export function twizzlerColorT(xT: number): number {
 
 /**
  * Camera nearness 0..1 for a fiber at (across, xT).
- * Across is the primary Z stack (preserve contrast L→R — do not wash out with along-X).
- * Mild right-edge pull keeps the fan forward without collapsing far/near.
+ * Z = into the screen (away from camera = far / low nearness).
+ * Stretches mid-pack toward near/far poles so the depth stack is not condensed.
  */
 export function twizzlerFiberNearness(across: number, xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
   const theta = twizzlerMarketingTwist(x, settings, time);
   const stackNear = (across + 1) * 0.5; // -1 far → 0, +1 near → 1
-  const twistZ = across * Math.sin(theta) * 0.08;
-  const alongPull = 0.12 * Math.pow(smoothstep(0.4, 1, x), 1.15);
-  const depthBoost = twizzlerNearness(twizzlerDepthScale(x, settings), settings) * 0.1;
-  const near = 0.04 + 0.78 * stackNear + twistZ + alongPull + depthBoost;
+  // Nonlinear stretch: empty the middle of the Z pack.
+  const stretched =
+    stackNear < 0.5 ? 0.5 * Math.pow(stackNear * 2, 1.45) : 1 - 0.5 * Math.pow((1 - stackNear) * 2, 1.45);
+  const twistZ = across * Math.sin(theta) * 0.05;
+  const alongPull = 0.06 * Math.pow(smoothstep(0.55, 1, x), 1.25);
+  const volume = twizzlerNearness(twizzlerDepthScale(x, settings), settings);
+  // When the ribbon volume opens (right fan), push far further away and near closer.
+  const volumePull = (stretched - 0.5) * volume * 0.22;
+  const near = 0.02 + 0.9 * stretched + twistZ + alongPull + volumePull;
   return Math.max(0, Math.min(1, near));
 }
 
-/** Fog blend 0..1 toward background (white). Far fibers dissolve into the stage. */
+/** Fog blend 0..1 toward background (white). Far fibers dissolve hard into the stage. */
 export function twizzlerFogAmount(nearness: number): number {
-  return Math.pow(1 - nearness, 1.05);
+  return Math.pow(1 - nearness, 0.68);
 }
 
 /** Blend ribbon hex into white by fog amount (cheap distance fade). */
@@ -440,9 +446,22 @@ export function twizzlerFogColor(hex: string, fog: number, backgroundHex = "#fff
   return twizzlerLerpColor(hex, backgroundHex, Math.max(0, Math.min(1, fog)));
 }
 
-/** Stroke width scale from nearness — thick toward camera. */
+/** Stroke width scale from nearness — thick toward camera, hairline when far. */
 export function twizzlerStrokeWidthScale(nearness: number): number {
-  return 0.3 + 2.4 * nearness;
+  return 0.1 + 3.8 * Math.pow(nearness, 1.4);
+}
+
+/**
+ * Pull fiber slots toward near/far poles so Z depth is not a tight mid cluster.
+ * `expand` 0 = leave slots; higher = stronger pole stretch.
+ */
+export function twizzlerExpandAcross(across: number, expand: number): number {
+  const amount = Math.max(0, Math.min(2, expand));
+  if (amount <= 0.001) return Math.max(-1, Math.min(1, across));
+  const s = across < 0 ? -1 : 1;
+  const a = Math.abs(across);
+  const power = Math.max(0.28, 1 - amount * 0.42);
+  return s * Math.pow(a, power);
 }
 
 /**
@@ -483,15 +502,15 @@ export function twizzlerDepthYBias(
   depthTerrain = 0,
 ): number {
   const far = 1 - nearness;
-  // Budget ~±0.2 canvas height of Z→Y separation so fibers stay readable on-frame.
-  const amp = pixelHeight * (0.1 + depthLift * 0.12) * Math.min(1.6, 0.7 + waveAmp * 0.18);
-  const right = Math.pow(smoothstep(0.42, 1, xT), 1.25);
+  // Readable on-canvas Z→Y separation (~±0.22H) while still reading deep.
+  const amp = pixelHeight * (0.08 + depthLift * 0.1) * Math.min(1.4, 0.7 + waveAmp * 0.15);
+  const right = Math.pow(smoothstep(0.38, 1, xT), 1.15);
   const mid = Math.sin(Math.PI * xT);
 
   // Shared: far fibers plunge on the right edge (largest +Y).
-  const farRightDrop = far * right * amp * 0.95;
+  const farRightDrop = far * right * amp * 1.05;
   // Near fibers ride higher on the right (toward camera / upper stack).
-  const nearRightHold = -nearness * right * amp * 0.5;
+  const nearRightHold = -nearness * right * amp * 0.55;
 
   const terrain = Math.round(Math.max(0, Math.min(2, depthTerrain))) as 0 | 1 | 2;
   let hills = 0;
@@ -561,14 +580,16 @@ export function buildTwizzlerLines(
   const lines: TwizzlerLine[] = [];
 
   // Gap irregularity + Z-wave amplitude ride on existing wrinkle/depthLift knobs.
-  const gapNoise = 0.55 + settings.wrinkleStrength * 22;
+  const gapNoise = 0.65 + settings.wrinkleStrength * 24;
   const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
   const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
-  const acrossSlots = twizzlerUnevenAcross(
+  const rawSlots = twizzlerUnevenAcross(
     settings.lineCount,
     gapNoise,
     2.1 + settings.wrinkles * 0.15 + settings.depthTerrain * 1.7,
   );
+  // Stretch slots toward near/far poles — depthSpread fights mid-pack condensation.
+  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.55 + settings.depthSpread * 0.7));
 
   const center: Array<{ x: number; y: number; xT: number }> = [];
   for (let point = 0; point <= segmentCount; point += 1) {
@@ -597,13 +618,16 @@ export function buildTwizzlerLines(
       const face = twizzlerFaceAmount(fiberTheta);
       const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight;
       const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
+      const far = 1 - nearness;
 
       // Mild smooth shear at pinch + low-freq organic drift (not vertical chatter).
       const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
       const organic =
-        (twizzlerNoise(c.xT * 3.2 + across * 1.7, range * 0.2, 0.4) - 0.5) * settings.wrinkleStrength * 2.4;
+        (twizzlerNoise(c.xT * 3.2 + across * 1.7, time * 0.2, 0.4) - 0.5) * settings.wrinkleStrength * 2.4;
       const braid = across + organic + 0.12 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
-      const projected = braid * halfW * (0.16 + 0.84 * face);
+      // Perspective: far fibers compress toward the spine; near fibers take the full fan (reads as Z depth).
+      const zPerspective = 0.22 + 0.78 * nearness;
+      const projected = braid * halfW * (0.16 + 0.84 * face) * zPerspective;
 
       const depth = twizzlerDepthScale(c.xT, settings);
       const depthY = twizzlerDepthYBias(
@@ -624,10 +648,12 @@ export function buildTwizzlerLines(
         2.8;
       // Face-fan alone puts near (+across) downward; overpower it on the right so far drops lowest.
       const rightEdge = Math.pow(smoothstep(0.4, 1, c.xT), 1.15);
-      const farDownStack = -across * halfW * rightEdge * (0.55 + settings.depthLift * 0.25);
-      const faceY = ny * projected * (1 - 0.4 * rightEdge);
+      const farDownStack = -across * halfW * rightEdge * (0.35 + settings.depthLift * 0.2) * (0.35 + far * 0.4);
+      const faceY = ny * projected * (1 - 0.35 * rightEdge);
+      // Extra Z path divergence: far fibers take a lower parallel route as depth opens.
+      const zLane = far * halfW * (0.04 + 0.1 * rightEdge) * (0.35 + settings.depthSpread * 0.2);
       const x = c.x + nx * braid * halfW * 0.025 * Math.sin(fiberTheta);
-      const y = c.y + faceY + depthY + pathWobble + farDownStack;
+      const y = c.y + faceY + depthY + pathWobble + farDownStack + zLane;
 
       points.push({ x, y, depth, along: c.xT, nearness });
     }
@@ -643,13 +669,13 @@ export function buildTwizzlerLines(
     const fog = twizzlerFogAmount(midNear);
     const color = twizzlerFogColor(withEdge, fog);
 
-    const visibility = 0.22 + 0.78 * midNear;
+    const visibility = 0.12 + 0.88 * Math.pow(midNear, 0.85);
     lines.push({
       across,
-      opacity: Math.min(0.9, settings.opacity * visibility),
+      opacity: Math.min(0.92, settings.opacity * visibility),
       color,
       nearness: midNear,
-      strokeWidth: Math.max(0.5, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
+      strokeWidth: Math.max(0.35, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
       points,
     });
   }

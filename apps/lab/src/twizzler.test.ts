@@ -151,7 +151,8 @@ describe("Twizzler", () => {
     expect(twizzlerFogColor("#e8481c", 1)).toBe("#ffffff");
     expect(twizzlerFogAmount(1)).toBe(0);
     expect(twizzlerFogAmount(0)).toBe(1);
-    expect(twizzlerStrokeWidthScale(1)).toBeGreaterThan(twizzlerStrokeWidthScale(0));
+    expect(twizzlerFogAmount(0.2)).toBeGreaterThan(0.7);
+    expect(twizzlerStrokeWidthScale(1)).toBeGreaterThan(twizzlerStrokeWidthScale(0) * 5);
     // Right edge: far (nearness 0) must sit lower on screen than near (nearness 1).
     expect(twizzlerDepthYBias(0, 320, 0.85, 0.95, 1.5, 0)).toBeGreaterThan(
       twizzlerDepthYBias(1, 320, 0.85, 0.95, 1.5, 0),
