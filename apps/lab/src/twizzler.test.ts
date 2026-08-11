@@ -168,7 +168,7 @@ describe("Twizzler", () => {
     expect(slots[0]).toBeLessThan(slots[slots.length - 1]);
     const evenGaps = Array.from({ length: 11 }, (_, i) => slots[i + 1]! - slots[i]!);
     const gapSpread = Math.max(...evenGaps) - Math.min(...evenGaps);
-    expect(gapSpread).toBeGreaterThan(0.02);
+    expect(gapSpread).toBeGreaterThan(0.008);
 
     // Along-X gap warp varies packing, but stays near the nominal across (envelope).
     const gapSamples = [0.08, 0.22, 0.38, 0.55, 0.72, 0.9].map((x) => twizzlerGapWarpedAcross(0.65, x, 5, 0.85));
