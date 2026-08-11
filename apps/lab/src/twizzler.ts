@@ -484,6 +484,33 @@ export function twizzlerExpandAcross(across: number, expand: number): number {
 }
 
 /**
+ * Warp fiber across-position along X with noise so inter-ribbon gaps
+ * open/close irregularly from left → right (not a fixed parallel pack).
+ */
+export function twizzlerGapWarpedAcross(
+  across: number,
+  xT: number,
+  fiberIndex: number,
+  gapNoise = 0.9,
+  seed = 3.1,
+): number {
+  const x = Math.max(0, Math.min(1, xT));
+  const amount = Math.max(0, Math.min(2.5, gapNoise));
+  // Pack fan scale along the ribbon — large L→R swings.
+  const pack =
+    0.25 +
+    1.7 * twizzlerNoise(x * 2.15 + seed * 0.2, seed * 0.71, 0.33) +
+    0.85 * twizzlerNoise(x * 4.8 + 1.3, seed * 1.4, 0.88) +
+    0.4 * twizzlerNoise(x * 9.2 + 0.6, seed * 0.5, 1.6);
+  // Neighbor gap jitter — each fiber drifts differently along X.
+  const jitter =
+    (twizzlerNoise(x * 3.4 + fiberIndex * 0.67, fiberIndex * 1.19 + seed, 1.35) - 0.5) * (0.7 + amount) +
+    (twizzlerNoise(x * 7.6 + fiberIndex * 0.31, seed + 2.4, 0.55) - 0.5) * (0.35 + amount * 0.45);
+  const warped = across * (0.45 + amount * 0.55) * pack + jitter * amount * 0.85;
+  return Math.max(-1.5, Math.min(1.5, warped));
+}
+
+/**
  * Uneven fiber slots across [-1,1] — irregular gaps instead of even spacing.
  * `gapNoise` 0 = uniform; ~0.35–0.7 = organic cluster/spread.
  */
@@ -600,6 +627,7 @@ export function buildTwizzlerLines(
 
   // Gap irregularity + Z-wave amplitude ride on existing wrinkle/depthLift knobs.
   const gapNoise = 0.65 + settings.wrinkleStrength * 24;
+  const alongGapNoise = 0.85 + settings.wrinkleStrength * 28 + settings.depthSpread * 0.2;
   const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
   const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
   const rawSlots = twizzlerUnevenAcross(
@@ -666,12 +694,12 @@ export function buildTwizzlerLines(
         halfW *
         2.2;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Explicit SCREEN-Y stack: fibers spaced vertically by depthSpread (this is the pack open).
-      // 2x open vs prior A pack so individual ribbons read clearly separated.
+      // Explicit SCREEN-Y stack with along-X noise so gaps vary a lot left → right.
       const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 2;
-      const stackY = across * halfW * verticalOpen;
+      const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
+      const stackY = acrossX * halfW * verticalOpen;
       // Far fibers still sit lower on the right.
-      const farDownStack = -across * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
+      const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
       const faceY = ny * projected * 0.35;
       const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);

@@ -13,6 +13,7 @@ import {
   twizzlerFogAmount,
   twizzlerFogColor,
   twizzlerDepthYBias,
+  twizzlerGapWarpedAcross,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
   twizzlerMarketingCenterY,
@@ -168,6 +169,13 @@ describe("Twizzler", () => {
     const evenGaps = Array.from({ length: 11 }, (_, i) => slots[i + 1]! - slots[i]!);
     const gapSpread = Math.max(...evenGaps) - Math.min(...evenGaps);
     expect(gapSpread).toBeGreaterThan(0.02);
+
+    // Along-X gap warp must change packing a lot from left to right.
+    const leftGap = twizzlerGapWarpedAcross(0.6, 0.15, 4, 1.2);
+    const midGap = twizzlerGapWarpedAcross(0.6, 0.5, 4, 1.2);
+    const rightGap = twizzlerGapWarpedAcross(0.6, 0.88, 4, 1.2);
+    expect(Math.abs(leftGap - rightGap)).toBeGreaterThan(0.08);
+    expect(Math.abs(leftGap - midGap) + Math.abs(midGap - rightGap)).toBeGreaterThan(0.12);
 
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,
