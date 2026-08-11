@@ -332,7 +332,17 @@ export function renderTwizzler(
   context.lineJoin = "round";
   context.lineCap = "round";
 
-  // Far (peach) first, near (coral) last. One stroke per hairline — no chunk banding.
+  // Horizontal peach→coral gradient from depth along X (matches marketing warm ramp).
+  const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
+  const stops = 10;
+  for (let index = 0; index <= stops; index += 1) {
+    const xT = index / stops;
+    const depth = twizzlerDepthScale(xT, settings);
+    const nearness = twizzlerNearness(depth, settings);
+    gradient.addColorStop(xT, twizzlerLerpColor(settings.colorFar, settings.colorNear, Math.pow(nearness, 1.15)));
+  }
+
+  // Far (thin) lines first, near (thick) last for braid stacking.
   const ordered = lines
     .map((line) => {
       let peak = 1;
@@ -349,9 +359,9 @@ export function renderTwizzler(
   for (const { line, avg } of ordered) {
     if (line.points.length < 2) continue;
     const nearness = twizzlerNearness(avg, settings);
-    context.globalAlpha = line.opacity * (0.18 + nearness * 0.82);
-    context.strokeStyle = twizzlerLerpColor(settings.colorFar, settings.colorNear, Math.pow(nearness, 1.25));
-    context.lineWidth = Math.max(0.25, settings.lineWidth * (0.4 + avg * 0.6));
+    context.globalAlpha = line.opacity * (0.16 + nearness * 0.84);
+    context.strokeStyle = gradient;
+    context.lineWidth = Math.max(0.22, settings.lineWidth * (0.35 + avg * 0.65));
     context.beginPath();
     context.moveTo(line.points[0].x, line.points[0].y);
     for (let index = 1; index < line.points.length; index += 1) {
