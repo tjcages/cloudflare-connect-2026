@@ -73,8 +73,8 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   edgeFluctuation: 0,
   edgeSpeed: 0,
   edgeTaper: 0.08,
-  wrinkles: 0,
-  wrinkleStrength: 0,
+  wrinkles: 1.8,
+  wrinkleStrength: 0.032,
   bendPosition: 0.2,
   bendAmount: 0,
   bend2Position: 0.4,
@@ -393,11 +393,48 @@ export function twizzlerStrokeWidthScale(nearness: number): number {
 }
 
 /**
- * Screen-space Y bias from Z nearness.
- * Near (camera) → lower on canvas (+Y); far → higher (−Y). Smooth, no chatter.
+ * Uneven fiber slots across [-1,1] — irregular gaps instead of even spacing.
+ * `gapNoise` 0 = uniform; ~0.35–0.7 = organic cluster/spread.
  */
-export function twizzlerDepthYBias(nearness: number, pixelHeight: number, depthLift: number): number {
-  return (nearness - 0.5) * pixelHeight * (0.22 + depthLift * 0.2);
+export function twizzlerUnevenAcross(lineCount: number, gapNoise = 0.55, seed = 2.1): number[] {
+  const count = Math.max(1, Math.round(lineCount));
+  if (count === 1) return [0];
+  const amount = Math.max(0, Math.min(1.5, gapNoise));
+  const weights: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const n = twizzlerNoise(i * 0.41 + seed, seed * 1.7, 0.63);
+    // Occasional wider gaps + tighter clusters.
+    const burst = twizzlerNoise(i * 0.19, seed + 4.2, 1.1);
+    weights.push(Math.max(0.18, 0.45 + amount * (n * 1.35 - 0.35) + amount * 0.55 * (burst > 0.72 ? burst : 0)));
+  }
+  const sum = weights.reduce((acc, value) => acc + value, 0);
+  let cursor = 0;
+  return weights.map((weight) => {
+    const mid = cursor + weight * 0.5;
+    cursor += weight;
+    return (mid / sum) * 2 - 1;
+  });
+}
+
+/**
+ * Screen-space Y bias from Z nearness + along-X bump waveform.
+ * Near fibers: dip in the mid ribbon, then rise toward the right (toward camera).
+ * Far fibers: softer inverse bump so the stack reads as layered hills.
+ */
+export function twizzlerDepthYBias(
+  nearness: number,
+  pixelHeight: number,
+  depthLift: number,
+  xT = 0.5,
+  waveAmp = 1,
+): number {
+  const base = (nearness - 0.5) * pixelHeight * (0.18 + depthLift * 0.16);
+  // Smooth bump profile along X (no high-freq chatter).
+  const profile = -Math.cos((xT - 0.12) * Math.PI * 1.55); // mid low-ish, rises later
+  const nearWave = nearness * profile;
+  const farWave = (1 - nearness) * (-0.65 * profile);
+  const wave = (nearWave + farWave) * waveAmp * pixelHeight * (0.07 + depthLift * 0.07);
+  return base + wave;
 }
 
 export type TwizzlerLine = {
@@ -426,6 +463,11 @@ export function buildTwizzlerLines(
   const segmentCount = Math.max(1, Math.ceil(pixelWidth / Math.max(2, settings.pointSpacing)));
   const lines: TwizzlerLine[] = [];
 
+  // Gap irregularity + Z-wave amplitude ride on existing wrinkle/depthLift knobs.
+  const gapNoise = 0.35 + settings.wrinkleStrength * 12;
+  const waveAmp = 0.55 + settings.depthLift * 0.9;
+  const acrossSlots = twizzlerUnevenAcross(settings.lineCount, gapNoise, 2.1 + settings.wrinkles * 0.15);
+
   const center: Array<{ x: number; y: number; xT: number }> = [];
   for (let point = 0; point <= segmentCount; point += 1) {
     const xT = point / segmentCount;
@@ -435,8 +477,7 @@ export function buildTwizzlerLines(
   }
 
   for (let range = 0; range < settings.lineCount; range += 1) {
-    const rangeT = settings.lineCount <= 1 ? 0.5 : range / (settings.lineCount - 1);
-    const across = rangeT * 2 - 1; // -1..1
+    const across = acrossSlots[range] ?? (settings.lineCount <= 1 ? 0 : (range / (settings.lineCount - 1)) * 2 - 1);
     const points: TwizzlerLine["points"] = [];
 
     for (let point = 0; point <= segmentCount; point += 1) {
@@ -455,15 +496,23 @@ export function buildTwizzlerLines(
       const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight;
       const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
 
-      // Pure parallel offset + very mild smooth shear at pinch only (no vertical noise).
+      // Mild smooth shear at pinch + low-freq organic drift (not vertical chatter).
       const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
-      const braid = across + 0.1 * pinch * Math.sin(fiberTheta + across * 0.8) * (1 - across * across);
+      const organic =
+        (twizzlerNoise(c.xT * 3.2 + across * 1.7, range * 0.2, 0.4) - 0.5) * settings.wrinkleStrength * 2.4;
+      const braid = across + organic + 0.12 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
       const projected = braid * halfW * (0.16 + 0.84 * face);
 
       const depth = twizzlerDepthScale(c.xT, settings);
-      const depthY = twizzlerDepthYBias(nearness, pixelHeight, settings.depthLift);
-      const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
-      const y = c.y + ny * projected + depthY;
+      const depthY = twizzlerDepthYBias(nearness, pixelHeight, settings.depthLift, c.xT, waveAmp);
+      // Soft along-path wobble — low frequency only.
+      const pathWobble =
+        Math.sin(c.xT * Math.PI * (1.2 + settings.wrinkles * 0.15) + across * 2.1 + time * 0.25) *
+        settings.wrinkleStrength *
+        halfW *
+        0.9;
+      const x = c.x + nx * braid * halfW * 0.025 * Math.sin(fiberTheta);
+      const y = c.y + ny * projected + depthY + pathWobble;
 
       points.push({ x, y, depth, along: c.xT, nearness });
     }
@@ -479,7 +528,6 @@ export function buildTwizzlerLines(
     const fog = twizzlerFogAmount(midNear);
     const color = twizzlerFogColor(withEdge, fog);
 
-    // Far fibers: lower alpha + fog. Near: solid readable strokes.
     const visibility = 0.22 + 0.78 * midNear;
     lines.push({
       across,

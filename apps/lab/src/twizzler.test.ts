@@ -14,6 +14,7 @@ import {
   twizzlerFogColor,
   twizzlerDepthYBias,
   twizzlerStrokeWidthScale,
+  twizzlerUnevenAcross,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -151,7 +152,14 @@ describe("Twizzler", () => {
     expect(twizzlerFogAmount(1)).toBe(0);
     expect(twizzlerFogAmount(0)).toBe(1);
     expect(twizzlerStrokeWidthScale(1)).toBeGreaterThan(twizzlerStrokeWidthScale(0));
-    expect(twizzlerDepthYBias(1, 320, 0.8)).toBeGreaterThan(twizzlerDepthYBias(0, 320, 0.8));
+    expect(twizzlerDepthYBias(1, 320, 0.8, 0.7, 1)).toBeGreaterThan(twizzlerDepthYBias(0, 320, 0.8, 0.7, 1));
+
+    const slots = twizzlerUnevenAcross(12, 0.6);
+    expect(slots).toHaveLength(12);
+    expect(slots[0]).toBeLessThan(slots[slots.length - 1]);
+    const evenGaps = Array.from({ length: 11 }, (_, i) => slots[i + 1]! - slots[i]!);
+    const gapSpread = Math.max(...evenGaps) - Math.min(...evenGaps);
+    expect(gapSpread).toBeGreaterThan(0.02);
 
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,
