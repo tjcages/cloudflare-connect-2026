@@ -496,20 +496,20 @@ export function twizzlerGapWarpedAcross(
 ): number {
   const x = Math.max(0, Math.min(1, xT));
   const amount = Math.max(0, Math.min(2.5, gapNoise));
-  // Pack fan scale along the ribbon — large L→R swings.
-  const pack =
-    0.12 +
-    2.2 * twizzlerNoise(x * 1.7 + seed * 0.2, seed * 0.71, 0.33) +
-    1.15 * twizzlerNoise(x * 3.9 + 1.3, seed * 1.4, 0.88) +
-    0.7 * twizzlerNoise(x * 8.4 + 0.6, seed * 0.5, 1.6) +
-    0.45 * twizzlerNoise(x * 14.2 + 2.1, seed * 0.9, 2.2);
+  // 0..1 pack field along the ribbon — opens/closes gaps L→R.
+  const packN =
+    0.42 * twizzlerNoise(x * 1.7 + seed * 0.2, seed * 0.71, 0.33) +
+    0.33 * twizzlerNoise(x * 3.9 + 1.3, seed * 1.4, 0.88) +
+    0.25 * twizzlerNoise(x * 8.4 + 0.6, seed * 0.5, 1.6);
+  const pack = 0.35 + packN * (1.1 + amount * 1.15);
   // Neighbor gap jitter — each fiber drifts differently along X.
   const jitter =
-    (twizzlerNoise(x * 2.8 + fiberIndex * 0.67, fiberIndex * 1.19 + seed, 1.35) - 0.5) * (1.1 + amount * 1.2) +
-    (twizzlerNoise(x * 6.4 + fiberIndex * 0.31, seed + 2.4, 0.55) - 0.5) * (0.55 + amount * 0.7) +
-    (twizzlerNoise(x * 11.5 + fiberIndex * 0.19, seed + 5.1, 1.1) - 0.5) * (0.35 + amount * 0.4);
-  const warped = across * (0.35 + amount * 0.75) * pack + jitter * amount;
-  return Math.max(-1.7, Math.min(1.7, warped));
+    (twizzlerNoise(x * 2.8 + fiberIndex * 0.67, fiberIndex * 1.19 + seed, 1.35) - 0.5) * (0.45 + amount * 0.55) +
+    (twizzlerNoise(x * 6.4 + fiberIndex * 0.31, seed + 2.4, 0.55) - 0.5) * (0.25 + amount * 0.35) +
+    (twizzlerNoise(x * 11.5 + fiberIndex * 0.19, seed + 5.1, 1.1) - 0.5) * (0.15 + amount * 0.2);
+  const warped = across * pack + jitter * amount;
+  // Soft bound so noise stays expressive instead of slamming a hard clamp.
+  return Math.tanh(warped) * 1.35;
 }
 
 /**
