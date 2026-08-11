@@ -226,9 +226,10 @@ export function buildTwizzlerLines(
       );
       const wrinkle = Math.sin(xT * Math.PI * 2 * settings.wrinkles + phase + time * 0.85);
       const bend = twizzlerPathBend(xT, settings);
+      // Depth thickens amplitude toward camera; do not scale path Y or the ribbon exits the frame.
       const localAmp = settings.amplitude * taper * depth;
       const rawY = edgeBaseline + (flow - 0.5) * localAmp + wrinkle * settings.wrinkleStrength * taper * depth + bend;
-      const y = pixelHeight * (settings.centerY + (rawY - settings.centerY) * settings.scale * depth);
+      const y = pixelHeight * (settings.centerY + (rawY - settings.centerY) * settings.scale);
       points.push({ x, y, depth });
     }
     lines.push({ opacity: settings.opacity * (0.1 + rangeT * 0.9), points });

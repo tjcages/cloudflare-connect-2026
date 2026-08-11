@@ -200,7 +200,7 @@ export function createTwizzlerMapRenderer(width: number, height: number): Twizzl
       context.lineJoin = "round";
       context.lineCap = "round";
 
-      // Dark animated shoulders on both sides of the Twizzler ribbon.
+      // Soft shoulders just outside the hairline envelope.
       const shoulder = gray(map.shoulderLevel);
       context.strokeStyle = `rgb(${shoulder}, ${shoulder}, ${shoulder})`;
       context.setLineDash([]);
@@ -219,15 +219,19 @@ export function createTwizzlerMapRenderer(width: number, height: number): Twizzl
         context.stroke();
       }
 
-      // Muted-gray field across the complete moving Twizzler envelope.
-      context.setLineDash([]);
-      context.beginPath();
-      trace(context, envelope.top);
-      trace(context, [...envelope.bottom].reverse());
-      context.closePath();
+      // Stroke live Twizzler hairlines so rain luminance hugs the ribbon (not a flat slab fill).
       const ribbon = gray(map.ribbonLevel);
-      context.fillStyle = `rgb(${ribbon}, ${ribbon}, ${ribbon})`;
-      context.fill();
+      context.strokeStyle = `rgb(${ribbon}, ${ribbon}, ${ribbon})`;
+      context.lineWidth = Math.max(1.5, geometry.settings.lineWidth * 2.2);
+      context.globalAlpha = 1;
+      for (const line of geometry.lines) {
+        if (line.points.length < 2) continue;
+        context.globalAlpha = 0.35 + line.opacity * 0.65;
+        context.beginPath();
+        trace(context, line.points);
+        context.stroke();
+      }
+      context.globalAlpha = 1;
 
       if (map.flowEnabled && map.flowOpacity > 0 && Math.abs(map.flowAmplitude) > 0.001) {
         context.save();
