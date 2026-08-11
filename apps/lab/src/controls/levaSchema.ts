@@ -1680,7 +1680,8 @@ export function useEngineControls(
           },
           {
             defaultOpen: true,
-            render: () => activeShaderConfigRef.current !== null,
+            // Connect (2D noise) has null activeShaderConfig but still needs Twizzler ribbon controls.
+            render: () => activeShaderConfigRef.current !== null || showTwizzlerRibbonRef.current,
           },
         ),
         Stripes: drawerFolder("Stripes", {

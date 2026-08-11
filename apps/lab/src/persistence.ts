@@ -23,7 +23,7 @@ const LAST_BACKGROUND_COLOR_KEY = "stripes-engine-lab-last-background-color";
 const LAB_SETTINGS_KEY = "stripes-engine-lab-ui-settings";
 const LAB_SETTINGS_GENERATION_KEY = "stripes-engine-lab-ui-generation";
 /** Bump when factory boot experience intentionally changes (invalidates stale localStorage). */
-export const LAB_SETTINGS_GENERATION = "connect-rain-v2";
+export const LAB_SETTINGS_GENERATION = "connect-rain-v3";
 const TEXTURE_KEY = "stripes-engine-lab-texture";
 const CONFIG_FILE_KIND = "stripes-engine-lab-settings";
 const CONFIG_FILE_VERSION = 2;
