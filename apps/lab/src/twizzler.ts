@@ -686,18 +686,55 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
       );
-      // Y-AMPLITUDE noise: each ribbon moves up/down independently along the whole path.
-      const yNoise =
-        (twizzlerNoise(c.xT * 2.8 + across * 3.1, range * 0.37 + time * 0.1, 0.55) - 0.5) * 0.85 +
-        (twizzlerNoise(c.xT * 5.5 + across * 2.4, range * 0.61 + 1.7, 1.1) - 0.5) * 0.7 +
-        (twizzlerNoise(c.xT * 11.0 + across * 4.2, range * 0.19 + 2.8, 0.4) - 0.5) * 0.55 +
-        (twizzlerNoise(c.xT * 20.0 + across * 1.6, range * 0.83 + 4.1, 1.6) - 0.5) * 0.4 +
-        (twizzlerNoise(c.xT * 34.0 + across * 5.0, range * 1.1 + 6.2, 0.9) - 0.5) * 0.28;
-      // Large vertical throw so Y noise reads throughout X (~±0.25–0.45 of height).
-      const ampNoiseY = yNoise * pixelHeight * (0.22 + settings.amplitude * 0.2 + settings.wrinkleStrength * 3.2);
+      // Y-AMPLITUDE noise — recipe switches hard with depthTerrain (A/B/C survival options).
+      const terrain = Math.round(Math.max(0, Math.min(2, settings.depthTerrain))) as 0 | 1 | 2;
+      let yNoise = 0;
+      let yThrow = 0.2;
+      switch (terrain) {
+        case 0: {
+          // A — mid-freq braid noise, readable independent up/down throughout.
+          yNoise =
+            (twizzlerNoise(c.xT * 3.0 + across * 2.8, range * 0.41, 0.55) - 0.5) * 0.9 +
+            (twizzlerNoise(c.xT * 7.0 + across * 1.9, range * 0.73, 1.2) - 0.5) * 0.65 +
+            (twizzlerNoise(c.xT * 14.0 + across * 3.6, range * 0.22, 0.4) - 0.5) * 0.4 +
+            (twizzlerNoise(c.xT * 26.0 + across * 0.9, range * 0.95, 1.7) - 0.5) * 0.25;
+          yThrow = 0.2 + settings.amplitude * 0.18 + settings.wrinkleStrength * 2.6;
+          break;
+        }
+        case 1: {
+          // B — high-freq chaos: ribbons thrash independently, lots of crossings.
+          yNoise =
+            (twizzlerNoise(c.xT * 6.5 + across * 4.5, range * 1.3, 0.3) - 0.5) * 1.1 +
+            (twizzlerNoise(c.xT * 13.0 + across * 2.2, range * 2.1, 0.9) - 0.5) * 0.95 +
+            (twizzlerNoise(c.xT * 24.0 + across * 5.8, range * 0.7, 1.5) - 0.5) * 0.75 +
+            (twizzlerNoise(c.xT * 42.0 + across * 1.1, range * 3.4, 0.6) - 0.5) * 0.55 +
+            (twizzlerNoise(c.xT * 68.0 + across * 7.2, range * 1.9, 2.0) - 0.5) * 0.35;
+          yThrow = 0.32 + settings.amplitude * 0.28 + settings.wrinkleStrength * 4.0;
+          break;
+        }
+        case 2: {
+          // C — low-freq huge hills: each fiber gets its own slow massive Y silhouette.
+          yNoise =
+            (twizzlerNoise(c.xT * 1.2 + across * 5.5, range * 0.55, 0.2) - 0.5) * 1.35 +
+            (twizzlerNoise(c.xT * 2.4 + across * 3.0, range * 1.1, 0.8) - 0.5) * 1.0 +
+            (twizzlerNoise(c.xT * 4.0 + across * 1.4, range * 0.35, 1.4) - 0.5) * 0.55 +
+            Math.sin(c.xT * Math.PI * (1.6 + Math.abs(across) * 1.2) + across * 4.5 + range * 0.08) * 0.45;
+          yThrow = 0.38 + settings.amplitude * 0.35 + settings.wrinkleStrength * 3.5;
+          break;
+        }
+        default: {
+          const _exhaustive: never = terrain;
+          void _exhaustive;
+          yNoise = 0;
+          yThrow = 0.2;
+          break;
+        }
+      }
+      const ampNoiseY = yNoise * pixelHeight * yThrow;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Previous C pack: across stack, envelope-bound gaps.
-      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.45;
+      // Pack openness also diverges by terrain so A/B/C read as different species.
+      const packMul = terrain === 1 ? 1.85 : terrain === 2 ? 1.25 : 1.45;
+      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * packMul;
       const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
       const stackY = acrossX * halfW * verticalOpen;
       const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);

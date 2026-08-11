@@ -1,5 +1,5 @@
 /**
- * Capture prev-C denseness + Y-amplitude noise (vertical displacement).
+ * Survival-of-the-fittest Twizzler options — structurally different A/B/C.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -13,12 +13,7 @@ const root = resolve(__dirname, "..");
 const outDir = "/opt/cursor/artifacts";
 mkdirSync(outDir, { recursive: true });
 
-const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/builtin/banner-5x1.json"), "utf8"));
-const base = preset.lab?.twizzler;
-if (!base) throw new Error("missing lab.twizzler");
-
-const cBase = {
-  ...base,
+const shared = {
   color: "#e8481c",
   colorFar: "#ffd89a",
   colorNear: "#e8481c",
@@ -28,55 +23,103 @@ const cBase = {
   edgeFluctuation: 0,
   edgeSpeed: 0,
   stippleSize: 0,
-  depthTerrain: 0,
   twist: 1.35,
-  depthAmount: 0.9,
-  bendPosition: 0.25,
-  bendAmount: -0.1,
-  bend2Position: 0.5,
-  bend2Amount: 0.12,
-  bend3Position: 0.8,
-  bend3Amount: -0.1,
-  leftHeight: 0.6,
-  rightHeight: 0.36,
-  centerY: 0.38,
-  depthSpread: 1.18,
-  lineCount: 120,
-  lineWidth: 0.72,
-  amplitude: 1.0,
-  scale: 1.15,
-  depthLift: 0.85,
-  wrinkles: 3.2,
-  wrinkleStrength: 0.09,
+  pointSpacing: 3,
 };
 
-/** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
+/** @type {Array<{ id: string; label: string; settings: Record<string, number|string> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — C pack + strong Y-amp noise (lock)",
-    tweaks: {},
+    label: "A — rolling pack + mid-freq Y thrash",
+    settings: {
+      ...shared,
+      depthTerrain: 0,
+      lineCount: 120,
+      lineWidth: 0.72,
+      amplitude: 1.0,
+      scale: 1.15,
+      centerY: 0.38,
+      depthSpread: 1.18,
+      depthLift: 0.85,
+      wrinkles: 3.2,
+      wrinkleStrength: 0.1,
+      leftHeight: 0.6,
+      rightHeight: 0.36,
+      bendPosition: 0.25,
+      bendAmount: -0.1,
+      bend2Position: 0.5,
+      bend2Amount: 0.12,
+      bend3Position: 0.8,
+      bend3Amount: -0.1,
+      depthPosition: 0.86,
+      depthAmount: 0.9,
+      depthWidth: 0.36,
+      depth2Position: 0.42,
+      depth2Amount: 0.2,
+      depth2Width: 0.12,
+    },
   },
   {
     id: "B",
-    label: "B — louder Y-amp noise",
-    tweaks: {
-      wrinkleStrength: 0.12,
-      wrinkles: 3.6,
-      scale: 1.2,
-      centerY: 0.36,
+    label: "B — jagged spine + high-freq Y chaos",
+    settings: {
+      ...shared,
+      depthTerrain: 1,
+      lineCount: 110,
+      lineWidth: 0.55,
+      amplitude: 1.0,
+      scale: 1.45,
+      centerY: 0.42,
+      depthSpread: 1.75,
+      depthLift: 1.0,
+      wrinkles: 6.5,
+      wrinkleStrength: 0.18,
+      leftHeight: 0.35,
+      rightHeight: 0.55,
+      bendPosition: 0.18,
+      bendAmount: 0.22,
+      bend2Position: 0.45,
+      bend2Amount: -0.28,
+      bend3Position: 0.72,
+      bend3Amount: 0.2,
+      depthPosition: 0.7,
+      depthAmount: 1.3,
+      depthWidth: 0.28,
+      depth2Position: 0.35,
+      depth2Amount: 0.55,
+      depth2Width: 0.18,
     },
   },
   {
     id: "C",
-    label: "C — max Y-amp noise throughout",
-    tweaks: {
-      wrinkleStrength: 0.15,
-      wrinkles: 4.0,
-      scale: 1.25,
-      depthLift: 0.9,
-      centerY: 0.34,
-      lineWidth: 0.68,
+    label: "C — long sweep + huge low-freq Y hills",
+    settings: {
+      ...shared,
+      depthTerrain: 2,
+      lineCount: 140,
+      lineWidth: 0.85,
+      amplitude: 1.0,
+      scale: 1.55,
+      centerY: 0.48,
+      depthSpread: 0.85,
+      depthLift: 0.95,
+      wrinkles: 2.0,
+      wrinkleStrength: 0.14,
+      leftHeight: 0.75,
+      rightHeight: 0.22,
+      bendPosition: 0.4,
+      bendAmount: -0.25,
+      bend2Position: 0.65,
+      bend2Amount: 0.3,
+      bend3Position: 0.88,
+      bend3Amount: -0.15,
+      depthPosition: 0.92,
+      depthAmount: 1.1,
+      depthWidth: 0.45,
+      depth2Position: 0.55,
+      depth2Amount: 0.15,
+      depth2Width: 0.2,
     },
   },
 ];
@@ -107,7 +150,7 @@ await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#ff
 
 const paths = [];
 for (const variant of variants) {
-  const settings = { ...cBase, ...variant.tweaks, speed: 0 };
+  const settings = { ...variant.settings, speed: 0 };
   await page.evaluate(
     ({ s, id, label }) => {
       const out = document.getElementById("c");
@@ -125,12 +168,12 @@ for (const variant of variants) {
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 64px ui-sans-serif, system-ui, sans-serif";
       ctx.fillText(id, 28, 70);
-      ctx.font = "600 26px ui-sans-serif, system-ui, sans-serif";
+      ctx.font = "600 24px ui-sans-serif, system-ui, sans-serif";
       ctx.fillText(label, 120, 62);
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r12-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r13-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -145,7 +188,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r12-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r13-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -163,11 +206,12 @@ writeFileSync(
       id,
       label,
       outPath,
-      tweaks: {
-        wrinkleStrength: settings.wrinkleStrength,
-        wrinkles: settings.wrinkles,
-        amplitude: settings.amplitude,
+      structure: {
+        depthTerrain: settings.depthTerrain,
+        lineCount: settings.lineCount,
         scale: settings.scale,
+        depthSpread: settings.depthSpread,
+        wrinkleStrength: settings.wrinkleStrength,
       },
     })),
     null,
