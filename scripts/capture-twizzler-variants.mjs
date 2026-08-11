@@ -1,5 +1,5 @@
 /**
- * Capture B-silhouette Twizzler with escalating vertical fiber spacing.
+ * Capture A-lock Twizzler: 2x vertical spacing, half line width, vertically centered.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -17,8 +17,8 @@ const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/built
 const base = preset.lab?.twizzler;
 if (!base) throw new Error("missing lab.twizzler");
 
-/** B silhouette DNA (rolling terrain) — spacing varies per variant. */
-const bBase = {
+/** Prior A silhouette + requested edits (2x space, ½ width, centered). */
+const aLock = {
   ...base,
   color: "#e8481c",
   colorFar: "#ffd89a",
@@ -34,7 +34,7 @@ const bBase = {
   wrinkles: 2.2,
   wrinkleStrength: 0.025,
   twist: 1.35,
-  scale: 1.05,
+  scale: 1.0,
   depthLift: 0.75,
   depthAmount: 0.9,
   bendPosition: 0.25,
@@ -45,42 +45,34 @@ const bBase = {
   bend3Amount: -0.1,
   leftHeight: 0.6,
   rightHeight: 0.36,
-  centerY: 0.55,
+  centerY: 0.5,
+  depthSpread: 1.35,
+  lineCount: 36,
+  lineWidth: 1.05,
 };
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — B shape + medium vertical open",
-    tweaks: {
-      depthSpread: 1.35,
-      lineCount: 36,
-      lineWidth: 2.1,
-      scale: 1.0,
-    },
+    label: "A — 2x space, half width, centered (lock)",
+    tweaks: {},
   },
   {
     id: "B",
-    label: "B — B shape + WAY more vertical spacing (lock)",
+    label: "B — A + slightly more vertical open",
     tweaks: {
-      depthSpread: 2.35,
-      lineCount: 32,
-      lineWidth: 2.2,
-      scale: 1.05,
-      depthLift: 0.9,
+      depthSpread: 1.7,
+      lineCount: 34,
     },
   },
   {
     id: "C",
-    label: "C — B shape + extreme full-height fan",
+    label: "C — A + max vertical open",
     tweaks: {
-      depthSpread: 2.5,
-      lineCount: 28,
-      lineWidth: 2.4,
-      scale: 1.1,
-      depthLift: 1.0,
-      amplitude: 0.9,
+      depthSpread: 2.2,
+      lineCount: 30,
+      scale: 1.05,
     },
   },
 ];
@@ -111,7 +103,7 @@ await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#ff
 
 const paths = [];
 for (const variant of variants) {
-  const settings = { ...bBase, ...variant.tweaks, speed: 0 };
+  const settings = { ...aLock, ...variant.tweaks, speed: 0 };
   await page.evaluate(
     ({ s, id, label }) => {
       const out = document.getElementById("c");
@@ -134,11 +126,11 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r3-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r4-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
-  paths.push({ ...variant, outPath, tweaks: { ...bBase, ...variant.tweaks } });
+  paths.push({ ...variant, outPath, settings });
 }
 
 await page.setViewportSize({ width: 1600, height: 1300 });
@@ -149,7 +141,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r3-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r4-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -163,15 +155,15 @@ try {
 writeFileSync(
   resolve(outDir, "twizzler-variants.json"),
   JSON.stringify(
-    paths.map(({ id, label, outPath, tweaks }) => ({
+    paths.map(({ id, label, outPath, settings }) => ({
       id,
       label,
       outPath,
       tweaks: {
-        depthSpread: tweaks.depthSpread,
-        lineCount: tweaks.lineCount,
-        lineWidth: tweaks.lineWidth,
-        depthTerrain: tweaks.depthTerrain,
+        depthSpread: settings.depthSpread,
+        lineWidth: settings.lineWidth,
+        lineCount: settings.lineCount,
+        centerY: settings.centerY,
       },
     })),
     null,

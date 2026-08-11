@@ -213,7 +213,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depth2Position: clamp(input.depth2Position, TWIZZLER_DEFAULTS.depth2Position, 0, 1),
     depth2Amount: clamp(input.depth2Amount, TWIZZLER_DEFAULTS.depth2Amount, 0, 2),
     depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
-    depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 2.5),
+    depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 4),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
     depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
@@ -667,7 +667,8 @@ export function buildTwizzlerLines(
         2.2;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
       // Explicit SCREEN-Y stack: fibers spaced vertically by depthSpread (this is the pack open).
-      const verticalOpen = 0.95 + settings.depthSpread * 0.55;
+      // 2x open vs prior A pack so individual ribbons read clearly separated.
+      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 2;
       const stackY = across * halfW * verticalOpen;
       // Far fibers still sit lower on the right.
       const farDownStack = -across * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
@@ -696,9 +697,27 @@ export function buildTwizzlerLines(
       opacity: Math.min(0.92, settings.opacity * visibility),
       color,
       nearness: midNear,
-      strokeWidth: Math.max(0.35, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
+      strokeWidth: Math.max(0.2, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
       points,
     });
+  }
+
+  // Vertically center the pack so the average fiber sits mid-canvas.
+  let ySum = 0;
+  let yCount = 0;
+  for (const line of lines) {
+    for (const point of line.points) {
+      ySum += point.y;
+      yCount += 1;
+    }
+  }
+  if (yCount > 0) {
+    const shift = pixelHeight * 0.5 - ySum / yCount;
+    for (const line of lines) {
+      for (const point of line.points) {
+        point.y += shift;
+      }
+    }
   }
 
   return { settings, lines };
@@ -750,7 +769,7 @@ export function renderTwizzler(
 
     context.strokeStyle = gradient;
     context.globalAlpha = Math.min(0.9, line.opacity);
-    context.lineWidth = Math.max(0.55, settings.lineWidth * widthScale);
+    context.lineWidth = Math.max(0.25, settings.lineWidth * widthScale);
     context.beginPath();
     context.moveTo(line.points[0].x, line.points[0].y);
     for (let index = 1; index < line.points.length; index += 1) {

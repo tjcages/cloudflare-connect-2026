@@ -1501,7 +1501,7 @@ export function useEngineControls(
                 twizzlerDepthSpread: {
                   value: initialLabSettings.twizzler.depthSpread,
                   min: 0,
-                  max: 2.5,
+                  max: 4,
                   step: 0.01,
                   label: "Depth widen",
                 },
