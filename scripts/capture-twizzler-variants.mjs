@@ -1,5 +1,5 @@
 /**
- * Capture three Twizzler experiment variants (A/B/C) for CF-16 review.
+ * Capture three A-direction Twizzler wave-amplitude experiments.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
@@ -17,42 +17,65 @@ const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/built
 const base = preset.lab?.twizzler;
 if (!base) throw new Error("missing lab.twizzler");
 
+/** A-base + wave energy multipliers (2x / 3x / 4x). */
+const aBase = {
+  ...base,
+  wrinkleStrength: 0.022,
+  wrinkles: 2.2,
+  depthLift: 0.7,
+  lineCount: 42,
+  lineWidth: 2.45,
+  twist: 1.15,
+  speed: 0,
+  bendPosition: 0.18,
+  bendAmount: -0.12,
+  bend2Position: 0.46,
+  bend2Amount: 0.16,
+  bend3Position: 0.78,
+  bend3Amount: -0.14,
+};
+
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
-    id: "A",
-    label: "A — mild gaps + soft Z bumps",
+    id: "A2",
+    label: "A2 — ~2x wave amplitude / more hills",
     tweaks: {
-      wrinkleStrength: 0.018,
-      wrinkles: 1.2,
-      depthLift: 0.55,
-      amplitude: 0.55,
-      lineCount: 42,
-      lineWidth: 2.4,
-    },
-  },
-  {
-    id: "B",
-    label: "B — medium gaps + clearer Z hills",
-    tweaks: {
-      wrinkleStrength: 0.032,
-      wrinkles: 1.8,
+      amplitude: 0.95,
       depthLift: 0.85,
-      amplitude: 0.62,
-      lineCount: 40,
-      lineWidth: 2.6,
+      wrinkleStrength: 0.028,
+      wrinkles: 2.6,
+      scale: 1.05,
     },
   },
   {
-    id: "C",
-    label: "C — strong irregular gaps + bold Z waves",
+    id: "A3",
+    label: "A3 — ~3x wave amplitude / lively terrain",
     tweaks: {
-      wrinkleStrength: 0.048,
-      wrinkles: 2.4,
+      amplitude: 1.0,
       depthLift: 1.0,
-      amplitude: 0.7,
-      lineCount: 38,
-      lineWidth: 2.75,
+      wrinkleStrength: 0.038,
+      wrinkles: 3.4,
+      scale: 1.12,
+      bendAmount: -0.18,
+      bend2Amount: 0.22,
+      bend3Amount: -0.2,
+    },
+  },
+  {
+    id: "A4",
+    label: "A4 — ~4x wave amplitude / bold multi-hills",
+    tweaks: {
+      amplitude: 1.0,
+      depthLift: 1.0,
+      wrinkleStrength: 0.05,
+      wrinkles: 4.2,
+      scale: 1.22,
+      bendAmount: -0.24,
+      bend2Amount: 0.28,
+      bend3Amount: -0.26,
+      bend2Position: 0.42,
+      bend3Position: 0.72,
     },
   },
 ];
@@ -83,7 +106,7 @@ await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#ff
 
 const paths = [];
 for (const variant of variants) {
-  const settings = { ...base, ...variant.tweaks, speed: 0 };
+  const settings = { ...aBase, ...variant.tweaks, speed: 0 };
   await page.evaluate((s) => {
     const ribbon = document.createElement("canvas");
     ribbon.width = 1600;
@@ -98,7 +121,7 @@ for (const variant of variants) {
   }, settings);
   const outPath = resolve(outDir, `twizzler-variant-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
-  paths.push({ ...variant, outPath, settings });
+  paths.push({ ...variant, outPath, tweaks: variant.tweaks });
 }
 
 await browser.close();
@@ -108,7 +131,6 @@ try {
   /* ignore */
 }
 
-// Build labeled strip + individual labeled cards via a tiny HTML note file
 writeFileSync(
   resolve(outDir, "twizzler-variants.json"),
   JSON.stringify(
