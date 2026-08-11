@@ -702,7 +702,7 @@ export function buildTwizzlerLines(
     });
   }
 
-  // Vertically center on visible ink (ignore off-canvas outliers that bias the mean low).
+  // Align visible-ink average to settings.centerY (lower = entire pack higher on screen).
   let ySum = 0;
   let yCount = 0;
   for (const line of lines) {
@@ -714,7 +714,8 @@ export function buildTwizzlerLines(
     }
   }
   if (yCount > 0) {
-    const shift = pixelHeight * 0.5 - ySum / yCount;
+    const targetY = pixelHeight * settings.centerY;
+    const shift = targetY - ySum / yCount;
     for (const line of lines) {
       for (const point of line.points) {
         point.y += shift;

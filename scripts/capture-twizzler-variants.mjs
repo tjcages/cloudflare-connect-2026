@@ -1,5 +1,5 @@
 /**
- * Capture A-lock Twizzler: 2x vertical spacing, half line width, vertically centered.
+ * Capture Twizzler with entire pack shifted UP (lower centerY).
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -17,8 +17,8 @@ const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/built
 const base = preset.lab?.twizzler;
 if (!base) throw new Error("missing lab.twizzler");
 
-/** Prior A silhouette + requested edits (2x space, ½ width, centered). */
-const aLock = {
+/** Keep A spacing/width DNA; only Y placement changes. */
+const aBase = {
   ...base,
   color: "#e8481c",
   colorFar: "#ffd89a",
@@ -45,7 +45,6 @@ const aLock = {
   bend3Amount: -0.1,
   leftHeight: 0.6,
   rightHeight: 0.36,
-  centerY: 0.5,
   depthSpread: 1.35,
   lineCount: 36,
   lineWidth: 1.05,
@@ -55,25 +54,18 @@ const aLock = {
 const variants = [
   {
     id: "A",
-    label: "A — 2x space, half width, centered (lock)",
-    tweaks: {},
+    label: "A — pack shifted up (lock)",
+    tweaks: { centerY: 0.34 },
   },
   {
     id: "B",
-    label: "B — A + slightly more vertical open",
-    tweaks: {
-      depthSpread: 1.7,
-      lineCount: 34,
-    },
+    label: "B — pack higher",
+    tweaks: { centerY: 0.28 },
   },
   {
     id: "C",
-    label: "C — A + max vertical open",
-    tweaks: {
-      depthSpread: 2.2,
-      lineCount: 30,
-      scale: 1.05,
-    },
+    label: "C — pack highest",
+    tweaks: { centerY: 0.22 },
   },
 ];
 
@@ -95,15 +87,15 @@ execFileSync(
 const code = readFileSync(bundlePath, "utf8");
 
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 420 } });
+const page = await browser.newPage({ viewport: { width: 1600, height: 416 } });
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#fff">
-<canvas id="c" width="1600" height="420" style="display:block;width:1600px;height:420px;background:#fff"></canvas>
+<canvas id="c" width="1600" height="416" style="display:block;width:1600px;height:416px;background:#fff"></canvas>
 <script>${code}</script>
 </body></html>`);
 
 const paths = [];
 for (const variant of variants) {
-  const settings = { ...aLock, ...variant.tweaks, speed: 0 };
+  const settings = { ...aBase, ...variant.tweaks, speed: 0 };
   await page.evaluate(
     ({ s, id, label }) => {
       const out = document.getElementById("c");
@@ -126,7 +118,7 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r4-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r5-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -141,7 +133,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r4-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r5-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -159,12 +151,7 @@ writeFileSync(
       id,
       label,
       outPath,
-      tweaks: {
-        depthSpread: settings.depthSpread,
-        lineWidth: settings.lineWidth,
-        lineCount: settings.lineCount,
-        centerY: settings.centerY,
-      },
+      tweaks: { centerY: settings.centerY },
     })),
     null,
     2,
