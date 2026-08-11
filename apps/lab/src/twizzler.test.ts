@@ -191,6 +191,8 @@ describe("Twizzler", () => {
     expect(twizzlerZyStackY(1, xHigh, 48, 1.5)).toBeLessThan(twizzlerZyStackY(0, xHigh, 48, 1.5));
     // −polarity: ordering flips.
     expect(twizzlerZyStackY(1, xLow, 48, 1.5)).toBeGreaterThan(twizzlerZyStackY(0, xLow, 48, 1.5));
+    // Per-fiber phase shifts flip sites so weave varies across Z as well as X.
+    expect(twizzlerZyStackPolarity(0.45, 1.7, -0.8)).not.toBeCloseTo(twizzlerZyStackPolarity(0.45, 1.7, 0.8), 2);
 
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,

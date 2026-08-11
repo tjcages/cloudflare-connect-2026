@@ -536,24 +536,24 @@ export function twizzlerUnevenAcross(lineCount: number, gapNoise = 0.55, seed = 
 }
 
 /**
- * Z→Y stack polarity along X (−1..1).
+ * Z→Y stack polarity along X (−1..1), optionally phase-shifted by fiber Z.
  * +1: near higher on screen (smaller canvas Y), far lower (larger canvas Y).
  * −1: inverted — both orderings appear across the ribbon.
+ * `across` staggers flip sites so fibers weave instead of flipping as one slab.
  */
-export function twizzlerZyStackPolarity(xT: number, seed = 1.7): number {
-  const x = Math.max(0, Math.min(1, xT));
+export function twizzlerZyStackPolarity(xT: number, seed = 1.7, across = 0): number {
+  const x = Math.max(0, Math.min(1, xT + across * 0.07));
   const roll =
-    0.5 * Math.sin(x * Math.PI * 2.15 + 0.35) +
-    0.28 * Math.sin(x * Math.PI * 3.6 + 1.2) +
-    0.22 * (twizzlerNoise(x * 2.4 + seed, seed * 0.81, 0.44) * 2 - 1);
+    0.42 * Math.sin(x * Math.PI * 2.55 + 0.35 + across * 0.9) +
+    0.3 * Math.sin(x * Math.PI * 4.2 + 1.2 - across * 0.55) +
+    0.28 * (twizzlerNoise(x * 2.8 + seed + across * 0.4, seed * 0.81, 0.44) * 2 - 1);
   // Soft clip toward ±1 so mid-crossings are brief, not a dead zone.
-  return Math.tanh(roll * 2.2);
+  return Math.tanh(roll * 2.6);
 }
 
 /**
- * Screen-Y offset from camera Z, with polarity that flips along X.
- * Walk near→far under +polarity: Y decreases then increases? No —
- * near→far under +polarity: canvas Y goes low→high (visually high→low).
+ * Screen-Y offset from camera Z, with polarity that flips along X (and per fiber).
+ * Under +polarity, walk near→far: canvas Y goes low→high (visually high→low).
  */
 export function twizzlerZyStackY(
   nearness: number,
@@ -561,11 +561,12 @@ export function twizzlerZyStackY(
   halfW: number,
   verticalOpen: number,
   seed = 1.7,
+  across = 0,
 ): number {
-  const polarity = twizzlerZyStackPolarity(xT, seed);
+  const polarity = twizzlerZyStackPolarity(xT, seed, across);
   // near=1 → −1 (up when pol+); far=0 → +1 (down when pol+).
   const zDown = 1 - 2 * Math.max(0, Math.min(1, nearness));
-  const mag = 0.75 + 0.45 * twizzlerNoise(xT * 1.8 + seed * 0.3, seed + 2.1, 0.7);
+  const mag = 0.85 + 0.55 * twizzlerNoise(xT * 1.8 + seed * 0.3 + across * 0.25, seed + 2.1, 0.7);
   return polarity * zDown * halfW * verticalOpen * mag;
 }
 
@@ -582,9 +583,10 @@ export function twizzlerDepthYBias(
   waveAmp = 1,
   depthTerrain = 0,
   seed = 1.7,
+  across = 0,
 ): number {
   const far = 1 - nearness;
-  const polarity = twizzlerZyStackPolarity(xT, seed);
+  const polarity = twizzlerZyStackPolarity(xT, seed, across);
   // Readable on-canvas Z→Y separation (~±0.22H) while still reading deep.
   const amp = pixelHeight * (0.08 + depthLift * 0.1) * Math.min(1.4, 0.7 + waveAmp * 0.15);
   const right = Math.pow(smoothstep(0.38, 1, xT), 1.15);
@@ -737,8 +739,8 @@ export function buildTwizzlerLines(
       const gapAcross = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
       // Gap noise only nudges spacing; Z nearness owns the primary Y stack.
       const stackY =
-        twizzlerZyStackY(nearness, c.xT, halfW, verticalOpen, zySeed) + gapAcross * halfW * verticalOpen * 0.12;
-      const polarity = twizzlerZyStackPolarity(c.xT, zySeed);
+        twizzlerZyStackY(nearness, c.xT, halfW, verticalOpen, zySeed, across) + gapAcross * halfW * verticalOpen * 0.08;
+      const polarity = twizzlerZyStackPolarity(c.xT, zySeed, across);
       // Reinforce far/near lane under the local polarity (both orderings along X).
       const farDownStack = polarity * far * halfW * rightEdge * (0.28 + settings.depthLift * 0.22);
       const faceY = ny * projected * 0.35;
