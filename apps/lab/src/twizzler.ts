@@ -702,18 +702,23 @@ export function buildTwizzlerLines(
     });
   }
 
-  // Move the ENTIRE pack so geometric average lands at centerY (lower = higher on screen).
-  let ySum = 0;
-  let yCount = 0;
-  for (const line of lines) {
-    for (const point of line.points) {
-      ySum += point.y;
-      yCount += 1;
+  // Shift the whole pack until the VISIBLE ink average sits at centerY (lower = higher on screen).
+  // Iterate because a tall pack clips; one-shot all-points mean leaves on-screen mass too low.
+  const targetY = pixelHeight * settings.centerY;
+  for (let iter = 0; iter < 4; iter += 1) {
+    let ySum = 0;
+    let yCount = 0;
+    for (const line of lines) {
+      for (const point of line.points) {
+        if (point.y >= 0 && point.y <= pixelHeight) {
+          ySum += point.y;
+          yCount += 1;
+        }
+      }
     }
-  }
-  if (yCount > 0) {
-    const targetY = pixelHeight * settings.centerY;
+    if (yCount <= 0) break;
     const shift = targetY - ySum / yCount;
+    if (Math.abs(shift) < 0.25) break;
     for (const line of lines) {
       for (const point of line.points) {
         point.y += shift;

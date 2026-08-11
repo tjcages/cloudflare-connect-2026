@@ -55,17 +55,17 @@ const variants = [
   {
     id: "A",
     label: "A — entire pack up (lock)",
-    tweaks: { centerY: 0.32 },
+    tweaks: { centerY: 0.30 },
   },
   {
     id: "B",
     label: "B — pack higher",
-    tweaks: { centerY: 0.26 },
+    tweaks: { centerY: 0.24 },
   },
   {
     id: "C",
     label: "C — pack highest",
-    tweaks: { centerY: 0.20 },
+    tweaks: { centerY: 0.18 },
   },
 ];
 
