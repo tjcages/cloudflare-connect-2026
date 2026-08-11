@@ -54,18 +54,18 @@ const aBase = {
 const variants = [
   {
     id: "A",
-    label: "A — pack shifted up (lock)",
-    tweaks: { centerY: 0.34 },
+    label: "A — entire pack up (lock)",
+    tweaks: { centerY: 0.32 },
   },
   {
     id: "B",
     label: "B — pack higher",
-    tweaks: { centerY: 0.28 },
+    tweaks: { centerY: 0.26 },
   },
   {
     id: "C",
     label: "C — pack highest",
-    tweaks: { centerY: 0.22 },
+    tweaks: { centerY: 0.20 },
   },
 ];
 

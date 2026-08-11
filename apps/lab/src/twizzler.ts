@@ -702,15 +702,13 @@ export function buildTwizzlerLines(
     });
   }
 
-  // Align visible-ink average to settings.centerY (lower = entire pack higher on screen).
+  // Move the ENTIRE pack so geometric average lands at centerY (lower = higher on screen).
   let ySum = 0;
   let yCount = 0;
   for (const line of lines) {
     for (const point of line.points) {
-      if (point.y >= 0 && point.y <= pixelHeight) {
-        ySum += point.y;
-        yCount += 1;
-      }
+      ySum += point.y;
+      yCount += 1;
     }
   }
   if (yCount > 0) {
