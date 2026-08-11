@@ -1,5 +1,5 @@
 /**
- * Capture previous-C denseness + higher ribbon noise amplitude.
+ * Capture prev-C denseness + Y-amplitude noise (vertical displacement).
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -46,38 +46,38 @@ const cBase = {
   amplitude: 1.0,
   scale: 1.15,
   depthLift: 0.85,
-  wrinkles: 3.4,
-  wrinkleStrength: 0.058,
+  wrinkles: 3.2,
+  wrinkleStrength: 0.07,
 };
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — prev C + higher ribbon noise (lock)",
+    label: "A — C pack + Y-amplitude noise (lock)",
     tweaks: {},
   },
   {
     id: "B",
-    label: "B — even louder path noise",
+    label: "B — stronger Y noise amp",
     tweaks: {
-      wrinkleStrength: 0.078,
-      wrinkles: 3.8,
-      scale: 1.22,
+      wrinkleStrength: 0.1,
+      wrinkles: 3.6,
+      amplitude: 1.0,
+      scale: 1.2,
       centerY: 0.36,
     },
   },
   {
     id: "C",
-    label: "C — max noise amp + more hills",
+    label: "C — max Y-amplitude noise",
     tweaks: {
-      wrinkleStrength: 0.095,
-      wrinkles: 4.2,
-      scale: 1.28,
-      depthLift: 0.95,
-      depthSpread: 1.22,
+      wrinkleStrength: 0.13,
+      wrinkles: 4.0,
+      scale: 1.25,
+      depthLift: 0.9,
+      centerY: 0.34,
       lineWidth: 0.68,
-      centerY: 0.35,
     },
   },
 ];
@@ -131,7 +131,7 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r11-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r12-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -146,7 +146,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r11-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r12-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -165,11 +165,10 @@ writeFileSync(
       label,
       outPath,
       tweaks: {
-        lineCount: settings.lineCount,
         wrinkleStrength: settings.wrinkleStrength,
         wrinkles: settings.wrinkles,
-        scale: settings.scale,
         amplitude: settings.amplitude,
+        scale: settings.scale,
       },
     })),
     null,

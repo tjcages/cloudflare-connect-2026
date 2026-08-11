@@ -328,7 +328,12 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
         (-0.11 * Math.sin(x * Math.PI * 2.2 + 0.3) +
           -0.09 * Math.sin(x * Math.PI * 3.8 + 1.0) +
           -0.07 * Math.sin(x * Math.PI * 5.6 + 2.1) +
-          -0.045 * Math.sin(x * Math.PI * 8.0 + time * 0.25));
+          -0.045 * Math.sin(x * Math.PI * 8.0 + time * 0.25) +
+          // Y-amplitude noise on the shared spine (scaled by wrinkleStrength).
+          (twizzlerNoise(x * 5.5 + time * 0.1, settings.wrinkles * 0.2, 0.7) - 0.5) *
+            (0.06 + settings.wrinkleStrength * 1.8) +
+          (twizzlerNoise(x * 11.0, 1.4 + settings.wrinkles * 0.1, 1.2) - 0.5) *
+            (0.035 + settings.wrinkleStrength * 1.1));
       break;
     }
     case 1: {
@@ -668,11 +673,10 @@ export function buildTwizzlerLines(
       const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
       const far = 1 - nearness;
 
-      // Higher-amplitude organic drift along each ribbon (noise throughout).
+      // Keep braid quiet — noise goes into Y amplitude, not across-pack.
       const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
       const organic =
-        (twizzlerNoise(c.xT * 3.2 + across * 1.7, time * 0.2, 0.4) - 0.5) * settings.wrinkleStrength * 4.5 +
-        (twizzlerNoise(c.xT * 7.5 + across * 2.9, time * 0.12, 1.1) - 0.5) * settings.wrinkleStrength * 2.8;
+        (twizzlerNoise(c.xT * 3.2 + across * 1.7, time * 0.2, 0.4) - 0.5) * settings.wrinkleStrength * 2.2;
       const braid = across + organic + 0.12 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
       // Keep some face projection, but do NOT collapse far fibers into the spine.
       const zPerspective = 0.7 + 0.3 * nearness;
@@ -687,19 +691,13 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
       );
-      // Multi-octave path noise — higher amplitude throughout each ribbon.
-      const ribbonNoise =
-        (twizzlerNoise(c.xT * 4.2 + across * 2.2, time * 0.18, 0.6) - 0.5) * 0.7 +
-        (twizzlerNoise(c.xT * 8.5 + across * 1.4, across * 0.9, 1.25) - 0.5) * 0.45 +
-        (twizzlerNoise(c.xT * 15.0 + across * 3.3, 2.2 + settings.wrinkles * 0.1, 0.35) - 0.5) * 0.28;
-      const pathWobble =
-        (Math.sin(c.xT * Math.PI * (2.2 + settings.wrinkles * 0.35) + across * 2.1 + time * 0.25) +
-          0.65 * Math.sin(c.xT * Math.PI * (4.1 + settings.wrinkles * 0.25) + across * 1.3) +
-          0.45 * Math.sin(c.xT * Math.PI * (6.8 + settings.wrinkles * 0.15) + across * 3.1 + time * 0.15) +
-          ribbonNoise * 1.6) *
-        settings.wrinkleStrength *
-        halfW *
-        4.2;
+      // Y-AMPLITUDE noise: displace each ribbon up/down along X (not across/braid).
+      const yNoise =
+        (twizzlerNoise(c.xT * 3.2 + across * 2.05, range * 0.17 + time * 0.12, 0.55) - 0.5) * 1.0 +
+        (twizzlerNoise(c.xT * 6.8 + across * 1.4, range * 0.31 + 1.7, 1.1) - 0.5) * 0.62 +
+        (twizzlerNoise(c.xT * 12.5 + across * 3.1, range * 0.09 + 2.8, 0.4) - 0.5) * 0.38 +
+        (twizzlerNoise(c.xT * 22.0 + across * 0.8, range * 0.53 + settings.wrinkles * 0.2, 1.6) - 0.5) * 0.22;
+      const ampNoiseY = yNoise * pixelHeight * (0.1 + settings.amplitude * 0.16 + settings.wrinkleStrength * 2.8);
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
       // Previous C pack: across stack, envelope-bound gaps.
       const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.45;
@@ -709,7 +707,7 @@ export function buildTwizzlerLines(
       const faceY = ny * projected * 0.35;
       const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
-      const y = c.y + faceY + stackY + depthY + pathWobble + farDownStack + zLane;
+      const y = c.y + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
 
       points.push({ x, y, depth, along: c.xT, nearness });
     }
