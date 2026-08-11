@@ -171,11 +171,9 @@ describe("Twizzler", () => {
     expect(gapSpread).toBeGreaterThan(0.02);
 
     // Along-X gap warp must change packing a lot from left to right.
-    const leftGap = twizzlerGapWarpedAcross(0.6, 0.15, 4, 1.2);
-    const midGap = twizzlerGapWarpedAcross(0.6, 0.5, 4, 1.2);
-    const rightGap = twizzlerGapWarpedAcross(0.6, 0.88, 4, 1.2);
-    expect(Math.abs(leftGap - rightGap)).toBeGreaterThan(0.08);
-    expect(Math.abs(leftGap - midGap) + Math.abs(midGap - rightGap)).toBeGreaterThan(0.12);
+    const gapSamples = [0.08, 0.22, 0.38, 0.55, 0.72, 0.9].map((x) => twizzlerGapWarpedAcross(0.65, x, 5, 1.35));
+    const gapRange = Math.max(...gapSamples) - Math.min(...gapSamples);
+    expect(gapRange).toBeGreaterThan(0.2);
 
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,
