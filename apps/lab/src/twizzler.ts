@@ -724,6 +724,7 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
         zySeed,
+        across,
       );
       // Soft multi-wave along-path wobble — more hills, still not chatter.
       const pathWobble =
