@@ -110,4 +110,25 @@ describe("twizzlerToSvgLayer", () => {
     expect(grads.length).toBe(paths.length);
     expect(grads.length).toBeGreaterThan(0);
   });
+
+  it("culls baked segments that miss the artboard (CF-26)", () => {
+    const base = {
+      ...TWIZZLER_DEFAULTS,
+      lineCount: 24,
+      pointSpacing: 10,
+      ribbonColorMode: "baked" as const,
+      speed: 0,
+    };
+    const onCanvas = twizzlerToSvgLayer(400, 400, 400, 400, 0, base);
+    // Huge pan pushes fibers off the artboard; cull should drop those segments.
+    const pannedOff = twizzlerToSvgLayer(400, 400, 400, 400, 0, {
+      ...base,
+      panX: 800,
+      panY: 800,
+    });
+    const onPaths = (onCanvas.match(/<path /g) ?? []).length;
+    const offPaths = (pannedOff.match(/<path /g) ?? []).length;
+    expect(onPaths).toBeGreaterThan(50);
+    expect(offPaths).toBeLessThan(onPaths * 0.25);
+  });
 });

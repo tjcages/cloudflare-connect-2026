@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellGridToSvg, rotatedStripePath } from "./cellGridToSvg";
+import { cellGridToSvg, rotatedQuadIntersectsArtboard, rotatedStripePath } from "./cellGridToSvg";
 
 const STRIPES = [
   { hex: "#111111", startFrom: 0.0, width: 4 },
@@ -612,5 +612,56 @@ describe("cellGridToSvg", () => {
     const plain = cellGridToSvg(readback, stripes, base);
     expect(cellGridToSvg(readback, stripes, { ...base, streamGapWave: disabled })).toEqual(plain);
     expect(cellGridToSvg(readback, stripes, { ...base, streamGapWave: enabled })).not.toEqual(plain);
+  });
+
+  it("rotatedQuadIntersectsArtboard rejects quads fully outside the page", () => {
+    expect(rotatedQuadIntersectsArtboard(-80, -80, 4, 8, 35, 100, 80)).toBe(false);
+    expect(rotatedQuadIntersectsArtboard(50, 40, 4, 8, 35, 100, 80)).toBe(true);
+    // Corner clip still counts as intersecting
+    expect(rotatedQuadIntersectsArtboard(-2, -2, 4, 4, 0, 100, 80)).toBe(true);
+  });
+
+  it("culls off-artboard rotated stripe cells from SVG markup (CF-26)", () => {
+    const stripes = [{ hex: "#ff0000", startFrom: 0, width: 4 }];
+    const cols = 32;
+    const rows = 32;
+    const cell = 10;
+    const canvas = cols * cell;
+    const readback = { cols, rows, values: v(...new Array(cols * rows).fill(255)), colors: null };
+    const angleDeg = 35;
+    const rad = (angleDeg * Math.PI) / 180;
+    const axis = { x: Math.sin(rad), y: -Math.cos(rad) };
+    const normal = { x: Math.cos(rad), y: Math.sin(rad) };
+    const center = { x: canvas * 0.5, y: canvas * 0.5 };
+    const corners = [
+      { x: 0, y: 0 },
+      { x: canvas, y: 0 },
+      { x: canvas, y: canvas },
+      { x: 0, y: canvas },
+    ];
+    const stackCoords = corners.map((c) => (c.x - center.x) * normal.x + (c.y - center.y) * normal.y + canvas * 0.5);
+    const axisCoords = corners.map((c) => (c.x - center.x) * axis.x + (c.y - center.y) * axis.y + canvas * 0.5);
+    const minStack = Math.floor(Math.min(...stackCoords) / cell) - 1;
+    const maxStack = Math.ceil(Math.max(...stackCoords) / cell) + 1;
+    const minAxis = Math.floor(Math.min(...axisCoords) / cell) - 2;
+    const maxAxis = Math.ceil(Math.max(...axisCoords) / cell) + 2;
+    const latticeCells = (maxStack - minStack + 1) * (maxAxis - minAxis + 1);
+
+    const rotated = cellGridToSvg(readback, stripes, {
+      cellWidthPx: cell,
+      cellHeightPx: cell,
+      useCellColors: false,
+      angleDeg,
+      canvasWidthPx: canvas,
+      canvasHeightPx: canvas,
+    });
+    // Rotated rain emits one <path> per occupied lattice cell (not band-merged).
+    const rotatedPaths = (rotated.match(/<path /g) ?? []).length;
+
+    expect(latticeCells).toBeGreaterThan(cols * rows);
+    expect(rotatedPaths).toBeGreaterThan(cols * rows * 0.5);
+    // Without AABB cull, every lattice sample becomes a path (value is clamped on-grid).
+    expect(rotatedPaths).toBeLessThan(latticeCells * 0.85);
+    expect(rotatedPaths).toBeLessThan(latticeCells);
   });
 });
