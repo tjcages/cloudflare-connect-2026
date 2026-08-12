@@ -160,6 +160,16 @@ export function hasStoredEngineConfig(): boolean {
   }
 }
 
+/** True when UI/lab settings were saved this generation (Twizzler knobs etc.). */
+export function hasStoredLabSettings(): boolean {
+  try {
+    if (localStorage.getItem(LAB_SETTINGS_GENERATION_KEY) !== LAB_SETTINGS_GENERATION) return false;
+    return localStorage.getItem(LAB_SETTINGS_KEY) != null;
+  } catch {
+    return false;
+  }
+}
+
 function saveLastConfig(c: ThemedEngineConfig): void {
   try {
     localStorage.setItem(LAST_KEY, JSON.stringify(c));

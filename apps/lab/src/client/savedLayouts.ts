@@ -1,4 +1,4 @@
-import { hasStoredEngineConfig } from "../persistence";
+import { hasStoredEngineConfig, hasStoredLabSettings } from "../persistence";
 import { applyPresetToStorage, findPresetByName, loadBuiltinPresets, loadPresets, type ConfigPreset } from "../presets";
 
 const ACTIVE_CLIENT_LAYOUT_KEY = "stripes-engine-client-active-layout";
@@ -39,7 +39,7 @@ export function loadBannerLayout(): ConfigPreset | undefined {
  * Resolve a layout to force-apply on client boot:
  * 1. `?preset=` query (one-shot)
  * 2. Nothing — keep live localStorage config/lab (refresh persistence)
- * 3. Banner 5:1 only on first visit (no stored engine config yet)
+ * 3. Banner 5:1 only on first visit (no stored engine or lab settings yet)
  *
  * Named "active" layouts are NOT re-applied on refresh; that wiped unsaved knobs.
  */
@@ -59,7 +59,7 @@ export function resolveClientBootPreset(): ConfigPreset | undefined {
     /* ignore */
   }
 
-  if (hasStoredEngineConfig()) return undefined;
+  if (hasStoredEngineConfig() || hasStoredLabSettings()) return undefined;
 
   return loadBannerLayout();
 }

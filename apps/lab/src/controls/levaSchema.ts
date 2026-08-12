@@ -531,20 +531,24 @@ export function useEngineControls(
   showShaderToyCameraRef.current = showShaderToyCamera;
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
   const initialLabSettings = useMemo(() => {
-    const base = {
-      ...loadLabSettings(),
+    const stored = loadLabSettings();
+    if (clientApp) {
+      // Client boot already applied Banner / saved layout into storage — keep live values.
+      // Do not merge loadDefaultPreset().lab (would clobber Speed / Move / etc. on refresh).
+      return {
+        ...stored,
+        canvasMode: "manual" as const,
+        canvasAspectLocked: true,
+        twizzlerEnabled: stored.twizzlerEnabled ?? true,
+        textureSourceMode: "shader" as const,
+        shaderPresetId: stored.shaderPresetId || "twizzler-map",
+        cometLogo: { ...COMET_LOGO_DEFAULTS },
+      };
+    }
+    return {
+      ...stored,
       ...(startupPreset?.lab ?? {}),
       cometLogo: { ...COMET_LOGO_DEFAULTS },
-    };
-    if (!clientApp) return base;
-    // Client boot already applied Banner / saved layout into storage — keep those values.
-    return {
-      ...base,
-      canvasMode: "manual" as const,
-      canvasAspectLocked: true,
-      twizzlerEnabled: base.twizzlerEnabled ?? true,
-      textureSourceMode: "shader" as const,
-      shaderPresetId: base.shaderPresetId || "twizzler-map",
     };
   }, [clientApp, startupPreset]);
   const initialTextureId = useMemo(() => {

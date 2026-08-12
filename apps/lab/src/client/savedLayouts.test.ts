@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadLabSettings, resumePersistenceWritesForTests } from "../persistence";
+import { loadLabSettings, resumePersistenceWritesForTests, saveLabSettings } from "../persistence";
 import { createPreset } from "../presets";
 import { TWIZZLER_DEFAULTS } from "../twizzler";
 import {
@@ -76,14 +76,40 @@ describe("savedLayouts", () => {
     expect(boot?.builtin).toBe(true);
   });
 
-  it("keeps live storage on refresh (does not re-apply active layout)", () => {
-    saveActiveClientLayoutName("Agency A");
-    localStorage.setItem("stripes-engine-lab-last-config", JSON.stringify({ version: 1 }));
+  it("keeps live storage on refresh when only lab settings exist", () => {
+    localStorage.setItem("stripes-engine-lab-ui-generation", "twizzler-ribbon-visible-v1");
+    localStorage.setItem(
+      "stripes-engine-lab-ui-settings",
+      JSON.stringify({ twizzler: { ...TWIZZLER_DEFAULTS, speed: 7.5 } }),
+    );
     vi.stubGlobal("window", {
       location: { href: "http://localhost/client.html" },
       history: { replaceState: () => undefined },
     });
     expect(resolveClientBootPreset()).toBeUndefined();
+  });
+
+  it("round-trips live Twizzler speed across save + boot skip", () => {
+    localStorage.setItem("stripes-engine-lab-ui-generation", "twizzler-ribbon-visible-v1");
+    const banner = resolveClientBootPreset();
+    expect(banner?.name).toBe("Banner 5:1");
+    if (!banner) throw new Error("expected Banner");
+    applyClientLayout(banner, "cf-base");
+
+    const edited = loadLabSettings();
+    saveLabSettings({
+      ...edited,
+      twizzler: { ...edited.twizzler, speed: 7.5, panX: 120 },
+    });
+
+    vi.stubGlobal("window", {
+      location: { href: "http://localhost/client.html" },
+      history: { replaceState: () => undefined },
+    });
+    expect(resolveClientBootPreset()).toBeUndefined();
+    const restored = loadLabSettings();
+    expect(restored.twizzler.speed).toBe(7.5);
+    expect(restored.twizzler.panX).toBe(120);
   });
 
   it("prefers ?preset= even when live storage exists", () => {
