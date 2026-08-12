@@ -591,6 +591,7 @@ describe("Twizzler", () => {
       colorFar: "#f46021",
       colorNear: "#f46021",
       colorEdge: "#f46021",
+      ribbonColorMode: "baked",
       gradientXEnabled: false,
       gradientYEnabled: false,
       gradientZEnabled: true,
