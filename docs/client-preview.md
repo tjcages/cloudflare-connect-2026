@@ -12,8 +12,9 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 ## What clients see (Leva)
 
-Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** toggle + export buttons.
+Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** toggle, **Saved layouts**, and export buttons.
 
+- **Saved layouts** — Save / Apply / Delete named layouts (full shader + engine/lab config). Last applied layout restores on reload. Upload JSON also registers a layout.
 - **Default** — rich authoring for the orange-wave ribbon:
   - **Presets** — Size / Layout / Color
   - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
@@ -42,7 +43,10 @@ Current ribbon geometry is the **orange-wave** 3D projected vector from
 
 Client panel (and lab) expose:
 
-- **Download JSON** — full lab configuration
+- **Save layout** — named localStorage preset (full `config` + `lab`, including Twizzler / Color mode / rain)
+- **Apply / Delete** — restore or remove saved layouts (builtins stay read-only)
+- **Download JSON** — full lab configuration file
+- **Upload JSON** — import a config file as a saved layout and apply it
 - **Export Video** — MediaRecorder / ffmpeg pipeline
 - **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one pack X gradient), Fiber gradient (per-fiber X gradients), Baked (segmented X/Y/Z).
 
@@ -68,7 +72,8 @@ Colors in the HTML that are not exact library hexes get **snapped** to the neare
 
 ## Implementation
 
-- Boot: `apps/lab/src/client-main.tsx` → `<LabApp clientMode />` + Banner 5:1
+- Boot: `apps/lab/src/client-main.tsx` → restore last saved layout (or Banner 5:1) → `<LabApp clientMode />`
+- Saved layouts: `apps/lab/src/client/savedLayouts.ts` + shared `presets.ts` storage
 - Gating: `drawerFolder({ hideInClient, clientOnly })` + `showTwizzlerAuthoring` / `showFullLab` in `controls/levaSchema.ts`
 - Preset data: `apps/lab/src/client/clientPresets.ts`
 - Library: `apps/lab/src/components/colorLibrary.ts` (`LIBRARY_COLOR`, `HexColorPopover`)

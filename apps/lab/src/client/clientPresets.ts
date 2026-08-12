@@ -211,6 +211,12 @@ export function findClientSizePreset(id: ClientSizePresetId): ClientSizePreset {
   }
 }
 
+/** Map canvas dimensions back to the nearest Size catalog entry. */
+export function matchClientSizePresetId(width: number, height: number): ClientSizePresetId {
+  const exact = CLIENT_SIZE_PRESETS.find((preset) => preset.width === width && preset.height === height);
+  return exact?.id ?? DEFAULT_CLIENT_PREVIEW_STATE.sizeId;
+}
+
 export function findClientLayoutPreset(id: ClientLayoutPresetId): ClientLayoutPreset {
   switch (id) {
     case "classic":

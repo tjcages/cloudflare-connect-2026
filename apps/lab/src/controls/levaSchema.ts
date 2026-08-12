@@ -61,7 +61,6 @@ import {
   type CustomStripePalette,
 } from "./customStripePalettes";
 import {
-  buildClientPreviewBundle,
   CLIENT_COLOR_PRESETS,
   CLIENT_LAYOUT_PRESETS,
   CLIENT_SIZE_PRESETS,
@@ -69,6 +68,7 @@ import {
   findClientColorPreset,
   findClientLayoutPreset,
   findClientSizePreset,
+  matchClientSizePresetId,
   resetTweaksForPresets,
   type ClientColorPresetId,
   type ClientLayoutPresetId,
@@ -523,20 +523,14 @@ export function useEngineControls(
       cometLogo: { ...COMET_LOGO_DEFAULTS },
     };
     if (!clientMode) return base;
-    const bundle = buildClientPreviewBundle(DEFAULT_CLIENT_PREVIEW_STATE);
+    // Client boot already applied Banner / saved layout into storage — keep those values.
     return {
       ...base,
       canvasMode: "manual" as const,
-      canvasWidth: bundle.canvasWidth,
-      canvasHeight: bundle.canvasHeight,
       canvasAspectLocked: true,
-      twizzlerEnabled: true,
-      twizzler: bundle.twizzler,
-      twizzlerMap: bundle.twizzlerMap,
-      shaderSourceWidth: bundle.shaderSourceWidth,
-      shaderSourceHeight: bundle.shaderSourceHeight,
+      twizzlerEnabled: base.twizzlerEnabled ?? true,
       textureSourceMode: "shader" as const,
-      shaderPresetId: "twizzler-map",
+      shaderPresetId: base.shaderPresetId || "twizzler-map",
     };
   }, [clientMode, startupPreset]);
   const initialTextureId = useMemo(() => {
@@ -1148,7 +1142,10 @@ export function useEngineControls(
           "Presets",
           {
             clientSize: {
-              value: DEFAULT_CLIENT_PREVIEW_STATE.sizeId,
+              value: matchClientSizePresetId(
+                initialLabSettings.canvasWidth,
+                initialLabSettings.canvasHeight,
+              ),
               options: clientSizeOptions,
               label: "Size",
             },
@@ -4770,10 +4767,15 @@ export function useEngineControls(
   const clientSizeId = String(
     (shaderValues as unknown as Record<string, unknown>).clientSize ?? DEFAULT_CLIENT_PREVIEW_STATE.sizeId,
   ) as ClientSizePresetId;
-  const lastClientPresetKeyRef = useRef<string>("");
+  const lastClientPresetKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!clientMode) return;
     const key = `${clientLayoutId}|${clientColorId}`;
+    // Skip mount so restored saved-layout twizzler values are not clobbered.
+    if (lastClientPresetKeyRef.current === null) {
+      lastClientPresetKeyRef.current = key;
+      return;
+    }
     if (key === lastClientPresetKeyRef.current) return;
     lastClientPresetKeyRef.current = key;
     const tweaks = resetTweaksForPresets(clientLayoutId, clientColorId);
