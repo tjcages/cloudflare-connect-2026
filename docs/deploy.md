@@ -67,4 +67,4 @@ If every non-`main` commit stays **queued / 0 runs** forever, non-prod builds ar
 
 Optional fallback secret: repo `CLOUDFLARE_API_TOKEN` enables `pnpm run preview:upload` from GitHub Actions.
 
-Cloud-agent checkouts often lack `CLOUDFLARE_API_TOKEN`. Do not loop on `wrangler deploy`. Production updates when Workers Builds on `main` finishes — confirm https://connect-shader.off-brand.workers.dev/ rather than claiming a local promote. Visual match sign-off (CF-51) still gates calling production “accepted”; CF-9 stays open until that accept.
+Cloud-agent checkouts often lack `CLOUDFLARE_API_TOKEN`. Do not loop on `wrangler deploy`. Production updates when Workers Builds on `main` finishes — confirm https://connect-shader.off-brand.workers.dev/ rather than claiming a local promote. CF-9 stays open until Ty explicitly promotes production.
