@@ -172,6 +172,14 @@ describe("Twizzler", () => {
     expect(twizzlerGroupNearness(0.25, 300, 1.45)).toBe(0.25);
     expect(twizzlerGroupNearness(0.25, 360, 1.75)).toBeLessThan(0.25);
     expect(twizzlerGroupNearness(0.75, 360, 1.75)).toBeGreaterThan(0.75);
+    // fogStrength: default 1 is identity; <1 saturates far fibers, >1 dissolves harder (clamped to 1).
+    expect(twizzlerFogAmount(0.4, 1.18, 300, 0.5, 1)).toBe(twizzlerFogAmount(0.4));
+    expect(twizzlerFogAmount(0.4, 1.18, 300, 0.5, 0.7)).toBeLessThan(twizzlerFogAmount(0.4));
+    expect(twizzlerFogAmount(0.4, 1.18, 300, 0.5, 1.4)).toBeGreaterThan(twizzlerFogAmount(0.4));
+    expect(twizzlerFogAmount(0, 1.18, 300, 0.5, 1.5)).toBe(1);
+    expect(twizzlerFogAmount(0.5, 1.18, 300, 0.5, 0)).toBe(0);
+    expect(normalizeTwizzlerSettings({}).fogStrength).toBe(1);
+    expect(normalizeTwizzlerSettings({ fogStrength: 9 }).fogStrength).toBe(2);
     expect(twizzlerStrokeWidthScale(1)).toBeGreaterThan(twizzlerStrokeWidthScale(0) * 5);
     expect(twizzlerFogAmount(0.2, 1.92, 360, 0.95)).toBeGreaterThan(twizzlerFogAmount(0.2, 1.92, 360, 0.2));
     expect(twizzlerStrokeWidthScale(1, 360, 1.92) / twizzlerStrokeWidthScale(0.2, 360, 1.92)).toBeGreaterThan(

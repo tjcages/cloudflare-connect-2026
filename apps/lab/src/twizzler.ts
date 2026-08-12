@@ -59,6 +59,8 @@ export type TwizzlerSettings = {
   stippleSize: number;
   /** Stipple gap scale. */
   stippleGap: number;
+  /** Fog-to-background multiplier. 1 = current look; <1 keeps far fibers saturated, >1 dissolves them harder. */
+  fogStrength: number;
 };
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
@@ -102,6 +104,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   drift: 0.02,
   stippleSize: 0,
   stippleGap: 0.8,
+  fogStrength: 1,
 };
 
 function clamp(value: unknown, fallback: number, min: number, max: number): number {
@@ -223,6 +226,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     drift: clamp(input.drift, TWIZZLER_DEFAULTS.drift, 0, 1),
     stippleSize: clamp(input.stippleSize, TWIZZLER_DEFAULTS.stippleSize, 0, 8),
     stippleGap: clamp(input.stippleGap, TWIZZLER_DEFAULTS.stippleGap, 0, 12),
+    fogStrength: clamp(input.fogStrength, TWIZZLER_DEFAULTS.fogStrength, 0, 2),
   };
 }
 
@@ -477,12 +481,22 @@ export function twizzlerFiberNearness(across: number, xT: number, settings: Twiz
   return twizzlerGroupNearness(near, settings.lineCount, settings.depthSpread);
 }
 
-/** Fog blend 0..1 toward background (white). Far fibers dissolve hard into the stage. */
-export function twizzlerFogAmount(nearness: number, depthSpread = 1.18, lineCount = 300, along = 0.5): number {
+/**
+ * Fog blend 0..1 toward background (white). Far fibers dissolve hard into the stage.
+ * The exponent adapts to the pack: expanded 240-line packs keep distant fibers
+ * readable while dense/deep packs receive stronger grouping fog; the lock-B pair
+ * (1.18 spread, 240 lines) stays exactly 0.68.
+ * `fogStrength` then scales the dissolve directly: 1 = neutral (default),
+ * <1 = saturated far fibers, >1 = mistier pack (clamped to full white).
+ */
+export function twizzlerFogAmount(
+  nearness: number,
+  depthSpread = 1.18,
+  lineCount = 300,
+  along = 0.5,
+  fogStrength = 1,
+): number {
   const near = Math.max(0, Math.min(1, nearness));
-  // Lower exponent means more fog. Expanded 240-line packs retain distant
-  // fiber readability, while dense/deep packs receive stronger grouping fog.
-  // The lock-B pair (1.18 spread, 240 lines) remains exactly 0.68.
   const sparseRestraint = (1 - smoothstep(240, 300, lineCount)) * Math.max(0, depthSpread - 1.18) * 0.8;
   const denseGrouping = smoothstep(330, 380, lineCount) * smoothstep(1.5, 1.8, depthSpread) * 0.08;
   const exponent = Math.max(0.34, Math.min(1.1, 0.68 - (depthSpread - 1.18) * 0.38 + sparseRestraint - denseGrouping));
@@ -490,7 +504,7 @@ export function twizzlerFogAmount(nearness: number, depthSpread = 1.18, lineCoun
   // preserving the near-ranked coral strands that carry the pack energy.
   const rightBias = smoothstep(0.55, 1, along) * smoothstep(345, 365, lineCount) * smoothstep(1.8, 1.98, depthSpread);
   const asymmetricExponent = exponent * (1 - rightBias * (0.16 + (1 - near) * 0.18));
-  return Math.pow(1 - near, asymmetricExponent);
+  return Math.max(0, Math.min(1, fogStrength * Math.pow(1 - near, asymmetricExponent)));
 }
 
 /** Blend ribbon hex into white by fog amount (cheap distance fade). */
@@ -882,7 +896,7 @@ export function buildTwizzlerLines(
       Math.abs(across) > 0.85
         ? twizzlerLerpColor(baseColor, settings.colorEdge, ((Math.abs(across) - 0.85) / 0.15) * 0.35)
         : baseColor;
-    const fog = twizzlerFogAmount(midNear, settings.depthSpread, settings.lineCount, mid?.along);
+    const fog = twizzlerFogAmount(midNear, settings.depthSpread, settings.lineCount, mid?.along, settings.fogStrength);
     const color = twizzlerFogColor(withEdge, fog);
 
     const visibility = twizzlerLineVisibility(midNear, settings.lineCount, settings.depthSpread);
@@ -959,7 +973,13 @@ export function renderTwizzler(
     for (const stop of stops) {
       const sample = line.points[Math.min(line.points.length - 1, Math.round(stop * (line.points.length - 1)))];
       const nearness = sample?.nearness ?? line.nearness;
-      const fog = twizzlerFogAmount(nearness, settings.depthSpread, settings.lineCount, sample?.along ?? stop);
+      const fog = twizzlerFogAmount(
+        nearness,
+        settings.depthSpread,
+        settings.lineCount,
+        sample?.along ?? stop,
+        settings.fogStrength,
+      );
       const colorT = twizzlerColorT(sample?.along ?? stop);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
       gradient.addColorStop(stop, twizzlerFogColor(base, fog));
