@@ -1,4 +1,4 @@
-import { buildTwizzlerLines, type TwizzlerLine, type TwizzlerSettings } from "./twizzler";
+import { buildTwizzlerLines, twizzlerTraceCubic, type TwizzlerLine, type TwizzlerSettings } from "./twizzler";
 
 export const TWIZZLER_MAP_SHADER_SOURCE = `// Procedural Twizzler Map
 // This library shader is rendered from the live Twizzler geometry.`;
@@ -143,11 +143,7 @@ export function twizzlerEnvelope(lines: readonly TwizzlerLine[]): TwizzlerEnvelo
 }
 
 function trace(context: CanvasRenderingContext2D, points: readonly { x: number; y: number }[]): void {
-  for (let index = 0; index < points.length; index += 1) {
-    const point = points[index];
-    if (index === 0) context.moveTo(point.x, point.y);
-    else context.lineTo(point.x, point.y);
-  }
+  twizzlerTraceCubic(context, points);
 }
 
 export type TwizzlerMapRenderer = {

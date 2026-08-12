@@ -533,7 +533,7 @@
       "amplitude": 1.0,
       "lineCount": 240,
       "lineWidth": 0.72,
-      "pointSpacing": 1.5,
+      "pointSpacing": 1,
       "leftHeight": 0.6,
       "rightHeight": 0.36,
       "edgeFluctuation": 0,

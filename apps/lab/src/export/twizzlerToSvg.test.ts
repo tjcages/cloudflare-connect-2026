@@ -15,6 +15,7 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg.match(/<path /g)?.length).toBeGreaterThanOrEqual(1);
     expect(svg).toContain('stroke="#');
     expect(svg).toContain("stroke-width=");
+    expect(svg).toContain(" C");
     expect(svg).not.toContain("data:image");
   });
 });

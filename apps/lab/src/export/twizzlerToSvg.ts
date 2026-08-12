@@ -1,12 +1,7 @@
-import { buildTwizzlerLines, twizzlerStrokeWidthScale, type TwizzlerSettings } from "../twizzler";
+import { buildTwizzlerLines, twizzlerStrokeWidthScale, twizzlerSvgPathCubic, type TwizzlerSettings } from "../twizzler";
 
 function number(value: number): string {
   return Number(value.toFixed(2)).toString();
-}
-
-function pathData(points: ReadonlyArray<{ x: number; y: number }>): string {
-  if (points.length === 0) return "";
-  return `M${points.map(({ x, y }) => `${number(x)} ${number(y)}`).join(" ")}`;
 }
 
 /**
@@ -30,7 +25,7 @@ export function twizzlerToSvgLayer(
     const width = number(line.strokeWidth || settings.lineWidth * twizzlerStrokeWidthScale(line.nearness));
     const key = `${line.color}|${opacity}|${width}`;
     const paths = pathsByStyle.get(key) ?? [];
-    paths.push(pathData(line.points));
+    paths.push(twizzlerSvgPathCubic(line.points));
     pathsByStyle.set(key, paths);
   }
   const paths = [...pathsByStyle]

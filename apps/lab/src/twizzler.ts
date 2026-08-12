@@ -681,6 +681,31 @@ export type TwizzlerLine = {
   points: Array<{ x: number; y: number; depth: number; along: number; nearness: number }>;
 };
 
+/** Soften sharp corners along a fiber via short Gaussian Y blur (keeps macro shape). */
+export function twizzlerSoftenFiberCorners(
+  points: Array<{ x: number; y: number; depth: number; along: number; nearness: number }>,
+  radius = 6,
+): void {
+  if (points.length < 3 || radius <= 0) return;
+  const ys = points.map((pt) => pt.y);
+  const sigma = Math.max(0.75, radius * 0.45);
+  const out = new Array<number>(ys.length);
+  for (let i = 0; i < ys.length; i += 1) {
+    let sum = 0;
+    let wSum = 0;
+    for (let k = -radius; k <= radius; k += 1) {
+      const j = Math.min(ys.length - 1, Math.max(0, i + k));
+      const w = Math.exp((-k * k) / (2 * sigma * sigma));
+      sum += ys[j]! * w;
+      wSum += w;
+    }
+    out[i] = sum / Math.max(1e-6, wSum);
+  }
+  for (let i = 0; i < points.length; i += 1) {
+    points[i]!.y = out[i]!;
+  }
+}
+
 export function buildTwizzlerLines(
   width: number,
   height: number,
@@ -782,14 +807,8 @@ export function buildTwizzlerLines(
       points.push({ x, y, depth, along: c.xT, nearness });
     }
 
-    // Tiny corner soften only — rounds polyline kinks without reshaping the path.
-    if (points.length >= 3) {
-      const next = points.map((pt, i) => {
-        if (i === 0 || i === points.length - 1) return pt.y;
-        return points[i - 1]!.y * 0.1 + pt.y * 0.8 + points[i + 1]!.y * 0.1;
-      });
-      for (let i = 0; i < points.length; i += 1) points[i]!.y = next[i]!;
-    }
+    // Soften high-curvature tips along the fiber (kinks/V tips) without reshaping macro lobes.
+    twizzlerSoftenFiberCorners(points, 16);
 
     const mid = points[Math.floor(points.length * 0.62)] ?? points[0];
     const midNear = mid?.nearness ?? 0.5;
@@ -888,10 +907,7 @@ export function renderTwizzler(
     context.globalAlpha = Math.min(0.9, line.opacity);
     context.lineWidth = Math.max(0.25, settings.lineWidth * widthScale);
     context.beginPath();
-    context.moveTo(line.points[0].x, line.points[0].y);
-    for (let index = 1; index < line.points.length; index += 1) {
-      context.lineTo(line.points[index].x, line.points[index].y);
-    }
+    twizzlerTraceCubic(context, line.points);
     context.stroke();
   }
 
@@ -900,4 +916,66 @@ export function renderTwizzler(
 
 export function clearTwizzler(canvas: HTMLCanvasElement): void {
   canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+/** Catmull-Rom → cubic Bézier controls for segment p1 → p2 (passes through samples). */
+export function twizzlerCubicControls(
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  p3: { x: number; y: number },
+): { cp1x: number; cp1y: number; cp2x: number; cp2y: number } {
+  return {
+    cp1x: p1.x + (p2.x - p0.x) / 4,
+    cp1y: p1.y + (p2.y - p0.y) / 4,
+    cp2x: p2.x - (p3.x - p1.x) / 4,
+    cp2y: p2.y - (p3.y - p1.y) / 4,
+  };
+}
+
+/**
+ * Stroke a fiber as cubic Béziers (Catmull-Rom). Same samples, no polyline kinks.
+ */
+export function twizzlerTraceCubic(
+  context: CanvasRenderingContext2D,
+  points: ReadonlyArray<{ x: number; y: number }>,
+): void {
+  if (points.length < 2) return;
+  const first = points[0]!;
+  context.moveTo(first.x, first.y);
+  if (points.length === 2) {
+    const last = points[1]!;
+    context.lineTo(last.x, last.y);
+    return;
+  }
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[Math.max(0, i - 1)]!;
+    const p1 = points[i]!;
+    const p2 = points[i + 1]!;
+    const p3 = points[Math.min(points.length - 1, i + 2)]!;
+    const c = twizzlerCubicControls(p0, p1, p2, p3);
+    context.bezierCurveTo(c.cp1x, c.cp1y, c.cp2x, c.cp2y, p2.x, p2.y);
+  }
+}
+
+/** SVG path `d` using cubic Béziers through the same samples (matches canvas). */
+export function twizzlerSvgPathCubic(points: ReadonlyArray<{ x: number; y: number }>): string {
+  if (points.length === 0) return "";
+  const fmt = (value: number) => Number(value.toFixed(2)).toString();
+  const first = points[0]!;
+  if (points.length === 1) return `M${fmt(first.x)} ${fmt(first.y)}`;
+  if (points.length === 2) {
+    const last = points[1]!;
+    return `M${fmt(first.x)} ${fmt(first.y)} L${fmt(last.x)} ${fmt(last.y)}`;
+  }
+  let d = `M${fmt(first.x)} ${fmt(first.y)}`;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[Math.max(0, i - 1)]!;
+    const p1 = points[i]!;
+    const p2 = points[i + 1]!;
+    const p3 = points[Math.min(points.length - 1, i + 2)]!;
+    const c = twizzlerCubicControls(p0, p1, p2, p3);
+    d += ` C${fmt(c.cp1x)} ${fmt(c.cp1y)} ${fmt(c.cp2x)} ${fmt(c.cp2y)} ${fmt(p2.x)} ${fmt(p2.y)}`;
+  }
+  return d;
 }

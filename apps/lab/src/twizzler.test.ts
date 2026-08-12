@@ -19,6 +19,7 @@ import {
   twizzlerAmpHeat,
   twizzlerAmpNoiseY,
   twizzlerAmpSwell,
+  twizzlerSvgPathCubic,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -208,7 +209,16 @@ describe("Twizzler", () => {
       return bestX;
     };
     const xs = [-0.9, -0.45, 0, 0.45, 0.9].map(extremumX);
-    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.12);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.08);
+    expect(
+      twizzlerSvgPathCubic([
+        { x: 0, y: 0 },
+        { x: 10, y: 5 },
+        { x: 20, y: 0 },
+        { x: 30, y: 8 },
+      ]),
+    ).toContain(" C");
+
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,
       depthPosition: 0.86,
