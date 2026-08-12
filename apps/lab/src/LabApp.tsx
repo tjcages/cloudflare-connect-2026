@@ -68,6 +68,8 @@ import {
   loadBannerLayout,
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
+import { resolveClientGraphicMode } from "./client/clientPresets";
+import { CONNECT_SHADER_PRESET_ID } from "./shaderLibrary";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -1158,16 +1160,15 @@ function LabInner({
     shaderView,
     initialThemed,
     clientCanvasSize,
+    clientGraphicMode,
+    clientRainShaderPreset,
   } = useEngineControls(onReplay, {
     showShaderCamera:
       (!clientMode || clientPanelMode === "advanced") &&
       textureSourceMode === "shader" &&
       !isTwizzlerMapShaderPreset(shaderPresetId) &&
       !isCometLogoShaderPreset(shaderPresetId),
-    showConnectCamera:
-      (!clientMode || clientPanelMode === "advanced") &&
-      textureSourceMode === "shader" &&
-      isSpiralShaderPreset(shaderPresetId),
+    showConnectCamera: textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
     activeShaderConfig: resolveShaderConfigKind(textureSourceMode, shaderPresetId),
     showTwizzlerRibbon: textureSourceMode === "shader",
     twizzlerTransport: clientMode ? undefined : twizzlerTransport,
@@ -3169,6 +3170,28 @@ function LabInner({
     }
     applyShaderTextureSource(entry.source);
   }
+
+  useEffect(() => {
+    if (!clientMode) return;
+    const mode = clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
+    if (mode !== "rain" && mode !== "both") return;
+    const target = clientRainShaderPreset || CONNECT_SHADER_PRESET_ID;
+    if (shaderPresetId === target) return;
+    if (
+      isTwizzlerSineShaderPreset(shaderPresetId) ||
+      isTwizzlerMapShaderPreset(shaderPresetId) ||
+      clientRainShaderPreset
+    ) {
+      handleShaderPresetChange(target);
+    }
+  }, [
+    clientMode,
+    clientGraphicMode,
+    clientRainShaderPreset,
+    shaderPresetId,
+    twizzler.enabled,
+    controls.sparkle.gaps.enabled,
+  ]);
 
   function handleConnectShapeChange(shapeType: ConnectShapeType) {
     updateLabSettings({ connectShapeType: shapeType });
