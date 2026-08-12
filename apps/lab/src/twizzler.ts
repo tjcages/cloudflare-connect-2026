@@ -513,19 +513,19 @@ export function twizzlerGapWarpedAcross(
 
 /**
  * Top-down amplitude heat map over (x along ribbon, across = depth stack).
- * Smooth patches: neighboring ribbons share the same hot/cold region.
- * `patchScale` >1 = larger fewer blobs; <1 = smaller denser spots.
+ * Large fluid patches: many neighboring ribbons share the same hot/cold spot.
+ * `patchScale` >1 = larger fewer blobs; <1 = smaller denser spots (still coherent).
  */
 export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed = 2.4): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
-  const s = Math.max(0.35, Math.min(2.8, patchScale));
-  const n0 = twizzlerNoise(x * (1.05 / s) + seed, a * (0.65 / s), 0.22);
-  const n1 = twizzlerNoise(x * (1.9 / s) + seed * 1.25, a * (1.15 / s) + 0.35, 0.68);
-  const n2 = twizzlerNoise(x * (3.1 / s) + 0.55, a * (0.4 / s) + seed * 0.4, 1.25);
-  const raw = 0.5 * n0 + 0.35 * n1 + 0.15 * n2;
-  // Stronger contrast: clear hot spots vs calm regions (heat-map readable).
-  return Math.pow(smoothstep(0.22, 0.82, raw), 1.35);
+  const s = Math.max(0.45, Math.min(3.2, patchScale));
+  // Across freq kept low so heat reads as stack-wide spots, not per-ribbon.
+  const n0 = twizzlerNoise(x * (0.72 / s) + seed, a * (0.28 / s), 0.18);
+  const n1 = twizzlerNoise(x * (1.35 / s) + seed * 1.2, a * (0.48 / s) + 0.4, 0.55);
+  const raw = 0.68 * n0 + 0.32 * n1;
+  // Soft lobes: gradual heat falloff (fluid), still readable hot vs cold.
+  return Math.pow(smoothstep(0.28, 0.78, raw), 1.15);
 }
 
 /**
@@ -534,16 +534,17 @@ export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed
 export function twizzlerAmpSwell(xT: number, across: number, patchScale = 1, seed = 3.1): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
-  const s = Math.max(0.35, Math.min(2.8, patchScale));
+  const s = Math.max(0.45, Math.min(3.2, patchScale));
   const n =
-    0.62 * (twizzlerNoise(x * (1.15 / s) + seed, a * (0.5 / s), 0.38) - 0.5) +
-    0.38 * (twizzlerNoise(x * (2.05 / s) + 1.05, a * (0.85 / s) + seed * 0.45, 0.95) - 0.5);
-  return Math.tanh(n * 2.2);
+    0.72 * (twizzlerNoise(x * (0.85 / s) + seed, a * (0.22 / s), 0.3) - 0.5) +
+    0.28 * (twizzlerNoise(x * (1.55 / s) + 1.05, a * (0.4 / s) + seed * 0.4, 0.75) - 0.5);
+  return Math.tanh(n * 1.85);
 }
 
 /**
  * Y-amplitude displacement from spatial heat patches (pixel units).
  * Hot spots swell the pack vertically; cold regions stay calm.
+ * No per-ribbon unique noise — only shared (x, across) fields.
  */
 export function twizzlerAmpNoiseY(
   xT: number,
@@ -556,10 +557,8 @@ export function twizzlerAmpNoiseY(
 ): number {
   const heat = twizzlerAmpHeat(xT, across, patchScale, seed);
   const swell = twizzlerAmpSwell(xT, across, patchScale, seed + 1.7);
-  const yThrow = 0.2 + amplitude * 0.24 + wrinkleStrength * 3.2;
-  // Soft edge shimmer only inside hot patches — not unique per-ribbon noise.
-  const micro = (twizzlerNoise(xT * 5.2 + across * 0.2, seed + 5.2, 0.85) - 0.5) * 0.03 * heat;
-  return (heat * swell + micro) * pixelHeight * yThrow;
+  const yThrow = 0.22 + amplitude * 0.28 + wrinkleStrength * 3.6;
+  return heat * swell * pixelHeight * yThrow;
 }
 
 /**
@@ -719,11 +718,10 @@ export function buildTwizzlerLines(
       const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
       const far = 1 - nearness;
 
-      // Keep braid quiet — noise goes into Y amplitude, not across-pack.
+      // Keep braid quiet — amplitude variety comes from shared heat patches, not per-ribbon thrash.
       const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
-      const organic =
-        (twizzlerNoise(c.xT * 3.2 + across * 1.7, time * 0.2, 0.4) - 0.5) * settings.wrinkleStrength * 2.2;
-      const braid = across + organic + 0.12 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
+      const organic = (twizzlerNoise(c.xT * 1.4, time * 0.12, 0.35) - 0.5) * settings.wrinkleStrength * 0.9;
+      const braid = across + organic + 0.1 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
       // Keep some face projection, but do NOT collapse far fibers into the spine.
       const zPerspective = 0.7 + 0.3 * nearness;
       const projected = braid * halfW * (0.2 + 0.8 * face) * zPerspective;
@@ -737,9 +735,9 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
       );
-      // Y amplitude from spatial heat patches (shared across neighboring ribbons).
+      // Y amplitude from fluid heat patches (top-down spots shared by many ribbons).
       // Larger wrinkles → smaller denser spots; fewer wrinkles → bigger blobs.
-      const patchScale = Math.max(0.45, Math.min(2.2, 3.5 / Math.max(1.4, settings.wrinkles)));
+      const patchScale = Math.max(0.55, Math.min(2.6, 4.2 / Math.max(1.4, settings.wrinkles)));
       const ampNoiseY = twizzlerAmpNoiseY(
         c.xT,
         across,

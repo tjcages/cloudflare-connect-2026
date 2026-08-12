@@ -1,5 +1,5 @@
 /**
- * Capture fluid heat-map Y-amp patches (shared spatial noise, not per-ribbon thrash).
+ * Capture fluid top-down heat-map Y-amp patches (shared spots, not per-ribbon thrash).
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -54,30 +54,30 @@ const base = {
 const variants = [
   {
     id: "A",
-    label: "A — mid heat patches (lock)",
+    label: "A — mid fluid heat patches (lock)",
     tweaks: {
       depthTerrain: 0,
-      wrinkles: 3.0,
-      wrinkleStrength: 0.085,
+      wrinkles: 2.8,
+      wrinkleStrength: 0.09,
     },
   },
   {
     id: "B",
-    label: "B — large heat blobs",
+    label: "B — large smooth heat fields",
     tweaks: {
       depthTerrain: 0,
-      wrinkles: 1.6,
-      wrinkleStrength: 0.1,
+      wrinkles: 1.35,
+      wrinkleStrength: 0.11,
       centerY: 0.4,
     },
   },
   {
     id: "C",
-    label: "C — small dense heat spots",
+    label: "C — smaller coherent heat spots",
     tweaks: {
       depthTerrain: 0,
-      wrinkles: 5.2,
-      wrinkleStrength: 0.095,
+      wrinkles: 4.6,
+      wrinkleStrength: 0.1,
       centerY: 0.36,
       lineWidth: 0.7,
     },
@@ -133,7 +133,7 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r14-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r15-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -148,7 +148,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r14-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r15-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
