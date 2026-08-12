@@ -1531,7 +1531,14 @@ export function useEngineControls(
                   min: 1,
                   max: 16,
                   step: 0.5,
-                  label: "Pack gap / stroke",
+                  label: "Z gap / stroke",
+                },
+                twizzlerYPerspective: {
+                  value: initialLabSettings.twizzler.yPerspective ?? 1.35,
+                  min: 0,
+                  max: 4,
+                  step: 0.05,
+                  label: "Y foreshorten",
                 },
                 twizzlerDepthTerrain: {
                   value: initialLabSettings.twizzler.depthTerrain ?? 0,
@@ -5126,6 +5133,7 @@ export function useEngineControls(
         heatVariant: shaderValueRecord.twizzlerHeatVariant,
         hillRhythm: shaderValueRecord.twizzlerHillRhythm,
         packGapRatio: shaderValueRecord.twizzlerPackGapRatio,
+        yPerspective: shaderValueRecord.twizzlerYPerspective,
         depthTerrain: shaderValueRecord.twizzlerDepthTerrain,
         twist: shaderValueRecord.twizzlerTwist,
         noiseScaleX: shaderValueRecord.twizzlerNoiseScaleX,

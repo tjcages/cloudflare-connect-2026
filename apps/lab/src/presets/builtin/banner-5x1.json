@@ -565,7 +565,8 @@
       "stippleSize": 0,
       "stippleGap": 0.8,
       "hillRhythm": 0,
-      "packGapRatio": 4
+      "packGapRatio": 4,
+      "yPerspective": 1.35
     },
     "twizzlerMap": {
       "backgroundLevel": 0.01,

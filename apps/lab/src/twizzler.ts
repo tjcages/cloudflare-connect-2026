@@ -23,10 +23,16 @@ export type TwizzlerSettings = {
   lineCount: number;
   lineWidth: number;
   /**
-   * Clear gap between neighboring fibers as a multiple of stroke width.
-   * 4 = gap is 4× the line thickness (center pitch = 5× stroke).
+   * Clear gap between neighboring fibers in Z (into the page) as a multiple of stroke width.
+   * 4 = Z gap is 4× the line thickness. Does NOT force equal on-screen Y gaps.
    */
   packGapRatio: number;
+  /**
+   * Screen-Y foreshortening of the even-Z pack.
+   * 0 = linear Z→Y (equal Y gaps — flat look).
+   * Higher = near Y gaps open, far Y gaps compress (look into depth).
+   */
+  yPerspective: number;
   pointSpacing: number;
   leftHeight: number;
   rightHeight: number;
@@ -90,6 +96,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   lineCount: 48,
   lineWidth: 2.1,
   packGapRatio: 4,
+  yPerspective: 1.35,
   pointSpacing: 3,
   leftHeight: 0.58,
   rightHeight: 0.32,
@@ -214,6 +221,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     lineCount: Math.round(clamp(input.lineCount, TWIZZLER_DEFAULTS.lineCount, 1, 400)),
     lineWidth: clamp(input.lineWidth, TWIZZLER_DEFAULTS.lineWidth, 0.15, 8),
     packGapRatio: clamp(input.packGapRatio, TWIZZLER_DEFAULTS.packGapRatio, 1, 24),
+    yPerspective: clamp(input.yPerspective, TWIZZLER_DEFAULTS.yPerspective, 0, 4),
     pointSpacing: Math.round(clamp(input.pointSpacing, TWIZZLER_DEFAULTS.pointSpacing, 2, 80)),
     leftHeight: clamp(input.leftHeight, TWIZZLER_DEFAULTS.leftHeight, -1, 2),
     rightHeight: clamp(input.rightHeight, TWIZZLER_DEFAULTS.rightHeight, -1, 2),
@@ -799,6 +807,32 @@ export function twizzlerPackHalfHeightPx(
   const open = 1 + settings.depthSpread * 0.12;
   return (span * open) / 2;
 }
+
+/**
+ * Project even Z slots onto screen Y with perspective foreshortening.
+ * Equal ΔZ does NOT produce equal ΔY: near gaps open, far gaps compress.
+ * Far (across = -1) sits lower on screen (+Y); near (across = +1) sits higher (−Y).
+ *
+ * @param across -1 far .. +1 near
+ * @param packHalf half-span of the Z pack in px
+ * @param perspective 0 = linear (old flat look), higher = stronger Y foreshorten
+ */
+export function twizzlerPerspectiveStackY(across: number, packHalf: number, perspective: number): number {
+  const a = Math.max(-1, Math.min(1, across));
+  // u: 0 at near → 1 at far
+  const u = (1 - a) * 0.5;
+  const amount = Math.max(0, Math.min(4, perspective));
+  if (amount <= 0.001) {
+    // Linear Z→Y (equal Y gaps) — kept for A/B compare only.
+    return (u * 2 - 1) * packHalf;
+  }
+  // y ∝ u/(1+k·u): dy/du is largest near the camera and shrinks toward far.
+  const k = 0.35 + amount * 2.4;
+  const yPersp = u / (1 + k * u);
+  const yFar = 1 / (1 + k);
+  const t = yPersp / Math.max(1e-6, yFar); // 0 near → 1 far
+  return (t * 2 - 1) * packHalf;
+}
 export function twizzlerSoftenFiberCorners(
   points: Array<{ x: number; y: number; depth: number; along: number; nearness: number }>,
   radius = 6,
@@ -836,7 +870,7 @@ export function buildTwizzlerLines(
   const segmentCount = Math.max(1, Math.ceil(pixelWidth / Math.max(2, settings.pointSpacing)));
   const lines: TwizzlerLine[] = [];
 
-  // Even Z gaps: pack reads as a wiggling plane, not clustered/warped ribbons.
+  // Even Z gaps (into the page). Screen Y uses perspective — not equal Y pitch.
   // depthSpread still opens the total stack height via expand + verticalOpen.
   const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
   const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
@@ -908,14 +942,15 @@ export function buildTwizzlerLines(
       );
       const ampNoiseY = planeAmp * 0.88 + localAmp * 0.12;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Even Z pitch from packGapRatio (clear gap ≥ ratio × stroke) — not halfW crowding.
+      // Even Z pitch → perspective screen Y (near gaps open, far gaps compress).
       const packHalf = twizzlerPackHalfHeightPx(settings);
-      const stackY = -across * packHalf;
-      const farDownStack = far * packHalf * (0.08 + 0.22 * rightEdge) * (0.35 + settings.depthLift * 0.3);
+      const stackY = twizzlerPerspectiveStackY(across, packHalf, settings.yPerspective);
+      // Mild far→down nudge along X (does not re-linearize neighbor Y gaps).
+      const farDownStack = far * packHalf * (0.03 + 0.08 * rightEdge) * (0.25 + settings.depthLift * 0.2);
       const faceY = ny * projected * 0.2;
-      const zLane = far * packHalf * (0.04 + 0.1 * rightEdge) * (0.35 + settings.depthSpread * 0.2);
+      const zLane = far * packHalf * (0.015 + 0.04 * rightEdge) * (0.25 + settings.depthSpread * 0.15);
       const x = c.x + nx * braid * halfW * 0.012 * Math.sin(fiberTheta);
-      // Shared spine dominates — pack wiggles as one plane; Z is an even offset.
+      // Shared spine dominates — pack wiggles as one plane; Z→Y is perspective.
       const spineBase = pixelHeight * settings.centerY;
       const spineShare = 0.7;
       const y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;

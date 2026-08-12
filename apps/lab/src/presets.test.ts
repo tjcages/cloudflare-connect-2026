@@ -55,6 +55,7 @@ const presetWithLab = (name: string): ConfigPreset =>
       heatVariant: 1,
       hillRhythm: 1,
       packGapRatio: 4,
+      yPerspective: 1.35,
       depthTerrain: 0,
       twist: 1.5,
       noiseScaleX: 0.002,

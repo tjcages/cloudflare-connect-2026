@@ -20,6 +20,7 @@ import {
   twizzlerEvenAcross,
   twizzlerPackCenterPitch,
   twizzlerPackStrokeRef,
+  twizzlerPerspectiveStackY,
   twizzlerAmpHeat,
   twizzlerAmpNoiseY,
   twizzlerAmpSwell,
@@ -186,15 +187,27 @@ describe("Twizzler", () => {
     for (const delta of evenDeltas) {
       expect(delta).toBeCloseTo(evenDeltas[0]!, 8);
     }
-    // Clear gap must be ≥ packGapRatio × stroke (center pitch = stroke*(1+ratio)).
+    // Clear Z gap must be ≥ packGapRatio × stroke (center pitch = stroke*(1+ratio)).
     expect(twizzlerPackCenterPitch({ lineWidth: 0.55, packGapRatio: 4 })).toBeCloseTo(
       twizzlerPackStrokeRef({ lineWidth: 0.55 }) * 5 * 2.4,
       5,
     );
+    // Perspective: equal ΔZ must NOT produce equal ΔY (near opens, far compresses).
+    const packHalf = 100;
+    const yNearGap = twizzlerPerspectiveStackY(0.9, packHalf, 1.35) - twizzlerPerspectiveStackY(1.0, packHalf, 1.35);
+    const yFarGap = twizzlerPerspectiveStackY(-1.0, packHalf, 1.35) - twizzlerPerspectiveStackY(-0.9, packHalf, 1.35);
+    expect(Math.abs(yNearGap)).toBeGreaterThan(Math.abs(yFarGap) * 1.6);
+    expect(twizzlerPerspectiveStackY(-1, packHalf, 1.35)).toBeGreaterThan(twizzlerPerspectiveStackY(1, packHalf, 1.35));
+    // Linear mode keeps equal Y gaps (A/B only).
+    const linNear = twizzlerPerspectiveStackY(0.9, packHalf, 0) - twizzlerPerspectiveStackY(1.0, packHalf, 0);
+    const linFar = twizzlerPerspectiveStackY(-1.0, packHalf, 0) - twizzlerPerspectiveStackY(-0.9, packHalf, 0);
+    expect(Math.abs(linNear)).toBeCloseTo(Math.abs(linFar), 8);
+
     const spaced = buildTwizzlerLines(1600, 300, 0, {
       lineCount: 36,
       lineWidth: 0.7,
       packGapRatio: 4,
+      yPerspective: 1.35,
       heatVariant: 1,
       hillRhythm: 0,
       depthLift: 0.85,
@@ -205,17 +218,25 @@ describe("Twizzler", () => {
       opacity: 0.92,
     });
     const midIdx = Math.floor(spaced.lines[0]!.points.length * 0.5);
-    const ys = spaced.lines.map((l) => l.points[midIdx]!.y).sort((a, b) => a - b);
-    const centerGaps = Array.from({ length: ys.length - 1 }, (_, i) => ys[i + 1]! - ys[i]!);
-    const avgStroke = spaced.lines.reduce((a, l) => a + l.strokeWidth, 0) / spaced.lines.length;
-    const avgCenter = centerGaps.reduce((a, g) => a + g, 0) / centerGaps.length;
-    // Metric stroke understates AA; require generous center pitch vs measured stroke.
-    expect(avgCenter / avgStroke).toBeGreaterThanOrEqual(8);
-    // Far fiber mid-pack sits lower (+Y) than near fiber (even-gap plane, far→down).
+    // Sort by across (Z), not by Y — measure neighbor Y gaps along the Z pack.
+    const byZ = [...spaced.lines].sort((a, b) => a.across - b.across);
+    const yGaps = Array.from({ length: byZ.length - 1 }, (_, i) => {
+      const y0 = byZ[i]!.points[midIdx]!.y;
+      const y1 = byZ[i + 1]!.points[midIdx]!.y;
+      return Math.abs(y1 - y0);
+    });
+    const nearHalf = yGaps.slice(Math.floor(yGaps.length * 0.65));
+    const farHalf = yGaps.slice(0, Math.floor(yGaps.length * 0.35));
+    const avgNear = nearHalf.reduce((a, g) => a + g, 0) / nearHalf.length;
+    const avgFar = farHalf.reduce((a, g) => a + g, 0) / farHalf.length;
+    // On-screen Y: near pack opens vs far pack (foreshortening).
+    expect(avgNear).toBeGreaterThan(avgFar * 1.25);
+    // Far fiber mid-pack sits lower (+Y) than near fiber (even-Z pack, far→down).
     const built = buildTwizzlerLines(400, 200, 0, {
       lineCount: 24,
       lineWidth: 0.55,
       packGapRatio: 4,
+      yPerspective: 1.35,
       heatVariant: 1,
       hillRhythm: 0,
       depthLift: 0.85,
