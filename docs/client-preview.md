@@ -78,7 +78,7 @@ When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (
 | Wave amplitude / envelope    | Twizzler → Shape          | Amplitude + Center Y in Default                                                      |
 | Any new HTML sliders         | Twizzler Shape/Motion     | add settings + normalize + Leva                                                      |
 
-Colors in the HTML that are not exact library hexes get **snapped** to the nearest `COLOR_LIBRARY` token (prefer Accent / Pair levels). Do not invent a parallel palette.
+Colors in the HTML that are not exact library hexes get **snapped** to the nearest `COLOR_LIBRARY` token (prefer Accent / Pair levels). Do not invent a parallel palette. Color selectors show the library token name (e.g. `Orange / 900 [Accent]`) when the value matches; focus the field to edit hex.
 
 ## Implementation
 

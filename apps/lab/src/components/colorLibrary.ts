@@ -200,3 +200,29 @@ export function findLibraryColor(groupName: string, label: string): LibraryColor
   if (!group) return null;
   return group.colors.find((color) => color.label === label) ?? null;
 }
+
+export type LibraryColorMatch = {
+  group: string;
+  label: string;
+  hex: string;
+  /** Stable display token, e.g. `Orange / 900 [Accent]`. */
+  token: string;
+};
+
+/** Resolve a hex to a COLOR_LIBRARY token when it matches exactly. */
+export function findLibraryColorByHex(hex: string): LibraryColorMatch | null {
+  const normalized = normalizeHex(hex);
+  for (const group of COLOR_LIBRARY) {
+    for (const color of group.colors) {
+      if (color.hex.toLowerCase() === normalized) {
+        return {
+          group: group.name,
+          label: color.label,
+          hex: color.hex,
+          token: `${group.name} / ${color.label}`,
+        };
+      }
+    }
+  }
+  return null;
+}
