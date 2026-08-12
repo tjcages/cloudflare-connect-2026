@@ -331,21 +331,22 @@ export function twizzlerMarketingBend(xT: number, settings: TwizzlerSettings): n
     case 0: {
       const position = (settings.bendPosition + settings.bend2Position + settings.bend3Position) / 3;
       const amount = settings.bend2Amount + (settings.bendAmount + settings.bend3Amount) * 0.3;
-      return twizzlerBendOffset(xT, position, amount, 0.28);
+      return twizzlerBendOffset(xT, position, amount, 0.32);
     }
     case 1:
       return twizzlerPathBend(xT, settings);
     case 2: {
+      // Sharper macro hills, but keep interstitial bends soft (avoid jittery wiggles).
       const primary =
-        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount, 0.1) +
-        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount, 0.1) +
-        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount, 0.1);
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount, 0.12) +
+        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount, 0.12) +
+        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount, 0.12);
       const firstMid = (settings.bendPosition + settings.bend2Position) * 0.5;
       const secondMid = (settings.bend2Position + settings.bend3Position) * 0.5;
       const interstitial =
-        twizzlerBendOffset(xT, firstMid, (settings.bendAmount - settings.bend2Amount) * 0.32, 0.065) +
-        twizzlerBendOffset(xT, secondMid, (settings.bend2Amount - settings.bend3Amount) * 0.32, 0.065);
-      return primary * 1.15 + interstitial;
+        twizzlerBendOffset(xT, firstMid, (settings.bendAmount - settings.bend2Amount) * 0.18, 0.09) +
+        twizzlerBendOffset(xT, secondMid, (settings.bend2Amount - settings.bend3Amount) * 0.18, 0.09);
+      return primary * 1.05 + interstitial;
     }
     default: {
       const _exhaustive: never = rhythm;
@@ -366,7 +367,7 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
   let waves = 0;
   switch (rhythm) {
     case 0: {
-      // A: one broad low basin into the hero rise, with a quiet right settle.
+      // A: one broad low basin into the hero rise — low-frequency only (less jitter).
       yKnot = sampleKnots(x, [
         [0.0, 0.58],
         [0.24, 0.82],
@@ -376,11 +377,7 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
         [1.0, 0.38],
       ]);
       waves =
-        waveGain *
-        0.82 *
-        (-0.1 * Math.sin(x * Math.PI * 1.7 + 0.25) +
-          -0.055 * Math.sin(x * Math.PI * 3.1 + 1.05) +
-          -0.025 * Math.sin(x * Math.PI * 4.2 + time * 0.18));
+        waveGain * 0.7 * (-0.11 * Math.sin(x * Math.PI * 1.45 + 0.25) + -0.04 * Math.sin(x * Math.PI * 2.4 + 1.05));
       break;
     }
     case 1: {
@@ -406,30 +403,25 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
       break;
     }
     case 2: {
-      // C: alternating close hills and narrow valleys around the same hero rise.
+      // C: more hills / sharper valleys — cubic-smooth, no high-freq chatter.
       yKnot = sampleKnots(x, [
         [0.0, 0.58],
-        [0.08, 0.76],
-        [0.16, 0.59],
-        [0.25, 0.9],
-        [0.34, 0.64],
-        [0.43, 0.93],
-        [0.51, 0.61],
-        [0.6, 0.48],
-        [0.68, 0.19],
-        [0.75, 0.42],
-        [0.82, 0.13],
-        [0.9, 0.34],
-        [0.96, 0.18],
+        [0.1, 0.74],
+        [0.2, 0.62],
+        [0.32, 0.9],
+        [0.44, 0.58],
+        [0.55, 0.88],
+        [0.66, 0.42],
+        [0.78, 0.18],
+        [0.9, 0.32],
         [1.0, 0.38],
       ]);
       waves =
         waveGain *
-        1.18 *
-        (-0.075 * Math.sin(x * Math.PI * 4.6 + 0.2) +
-          -0.06 * Math.sin(x * Math.PI * 7.4 + 1.15) +
-          -0.045 * Math.sin(x * Math.PI * 10.8 + 2.25) +
-          -0.03 * Math.sin(x * Math.PI * 14.2 + time * 0.16));
+        1.05 *
+        (-0.08 * Math.sin(x * Math.PI * 3.2 + 0.2) +
+          -0.05 * Math.sin(x * Math.PI * 5.1 + 1.15) +
+          -0.025 * Math.sin(x * Math.PI * 6.8 + 2.1));
       break;
     }
     default: {

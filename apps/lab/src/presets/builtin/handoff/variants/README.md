@@ -1,19 +1,17 @@
 # CF-16 Twizzler — iterative exploration
 
-**Process:** farm a wide board → you pick codes you like → next round farms around those winners → repeat until you declare a single winner.
+**Process:** farm a wide board → you pick codes → next round farms around those winners → repeat until you declare a single winner.
 
 **CF-16 stays In Progress until you say a winner.**
 
-## Current board: Round 2
+## Current board: Round 3
 
-See `EXPLORE-R2.md`. Stills under `/opt/cursor/artifacts/r2-*.png`.
+From Round-2 likes **B2, B9, B13, X2, X4** (X2/X4 hills softened).
 
-- Anchors: **A0** = ZA×BB · **B0** = ZB×BB
-- Reply with any codes (e.g. `A7 B2 B9 X3`)
+See `EXPLORE-R3.md`. Stills: `/opt/cursor/artifacts/r3-*.png`.
 
-## How to farm locally
+Reply with codes (e.g. `R3 P3 T1 S2`).
 
-```bash
-node scripts/farm-twizzler-explore-r2.mjs
-# → /opt/cursor/artifacts/explore-r2/ + copies at /opt/cursor/artifacts/r2-*
-```
+## Prior
+
+- Round 2: `EXPLORE-R2.md` / `r2-*`
