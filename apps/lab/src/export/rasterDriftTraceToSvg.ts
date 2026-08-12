@@ -14,6 +14,7 @@ export type RasterDriftFidelityParameters = {
   minimumThresholdGap: number;
   opacityScale: number;
   opacityGamma: number;
+  bandOpacityScales?: number[];
   minimumOpacity: number;
   maximumOpacity: number;
   red: string;
@@ -36,6 +37,11 @@ export type RasterDriftCandidateScore = {
 
 export type RasterDriftCandidateSelection = RasterDriftCandidateScore & {
   classification: "improvement" | "diagnostic";
+};
+
+export type RasterDriftPass6Selection = RasterDriftCandidateScore & {
+  role: "A6" | "B6" | "C6";
+  classification: "improvement" | "pareto-diagnostic";
 };
 
 export const A3_FIDELITY_PARAMETERS: RasterDriftFidelityParameters = {
@@ -571,6 +577,7 @@ function renderFidelityBands(field: RasterDriftField, id: string, parameters: Ra
         const maximumThreshold = thresholds[index + 1];
         const representativeIntensity = (threshold + (maximumThreshold ?? 255)) * 0.5;
         const normalizedIntensity = representativeIntensity / 255;
+        const bandOpacityScale = parameters.bandOpacityScales?.[index] ?? 1;
         return {
           threshold,
           maximumThreshold,
@@ -579,7 +586,7 @@ function renderFidelityBands(field: RasterDriftField, id: string, parameters: Ra
             parameters.minimumOpacity,
             Math.min(
               parameters.maximumOpacity,
-              Math.pow(normalizedIntensity, parameters.opacityGamma) * parameters.opacityScale,
+              Math.pow(normalizedIntensity, parameters.opacityGamma) * parameters.opacityScale * bandOpacityScale,
             ),
           ),
           blockSize: 1,
@@ -689,6 +696,63 @@ export function selectRasterDriftFidelityCandidates(
       })),
     );
   }
+  return selected;
+}
+
+export function selectRasterDriftPass6Candidates(
+  candidates: ReadonlyArray<RasterDriftCandidateScore>,
+  targets: { rgbMae: number; inkIou: number },
+): RasterDriftPass6Selection[] {
+  const unique = [
+    ...new Map(candidates.map((candidate) => [fidelityParameterKey(candidate.parameters), candidate])).values(),
+  ];
+  const qualified = unique.filter(
+    (candidate) => candidate.rgbMae < targets.rgbMae && candidate.inkIou > targets.inkIou,
+  );
+  const selected: RasterDriftPass6Selection[] = [];
+  const selectedKeys = new Set<string>();
+  const take = (
+    role: RasterDriftPass6Selection["role"],
+    orderedQualified: ReadonlyArray<RasterDriftCandidateScore>,
+    orderedDiagnostics: ReadonlyArray<RasterDriftCandidateScore>,
+  ) => {
+    const improvement = orderedQualified.find(
+      (candidate) => !selectedKeys.has(fidelityParameterKey(candidate.parameters)),
+    );
+    const candidate =
+      improvement ??
+      orderedDiagnostics.find((diagnostic) => !selectedKeys.has(fidelityParameterKey(diagnostic.parameters)));
+    if (!candidate) return;
+    selectedKeys.add(fidelityParameterKey(candidate.parameters));
+    selected.push({
+      ...candidate,
+      role,
+      classification: improvement ? "improvement" : "pareto-diagnostic",
+    });
+  };
+  const bestRgb = [...qualified].sort((a, b) => a.rgbMae - b.rgbMae || b.inkIou - a.inkIou || a.id.localeCompare(b.id));
+  const bestIou = [...qualified].sort((a, b) => b.inkIou - a.inkIou || a.rgbMae - b.rgbMae || a.id.localeCompare(b.id));
+  const balance = (candidate: RasterDriftCandidateScore) =>
+    targets.rgbMae - candidate.rgbMae + (candidate.inkIou - targets.inkIou) * 100;
+  const bestBalanced = [...qualified].sort(
+    (a, b) => balance(b) - balance(a) || a.rgbMae - b.rgbMae || a.id.localeCompare(b.id),
+  );
+  const diagnosticRgb = [...unique].sort(
+    (a, b) =>
+      a.rgbMae +
+        Math.max(0, targets.inkIou - a.inkIou) * 100 -
+        (b.rgbMae + Math.max(0, targets.inkIou - b.inkIou) * 100) || a.id.localeCompare(b.id),
+  );
+  const diagnosticIou = [...unique].sort(
+    (a, b) =>
+      Math.max(0, a.rgbMae - targets.rgbMae) * 0.1 -
+        a.inkIou -
+        (Math.max(0, b.rgbMae - targets.rgbMae) * 0.1 - b.inkIou) || a.id.localeCompare(b.id),
+  );
+  const diagnosticBalanced = [...unique].sort((a, b) => balance(b) - balance(a) || a.id.localeCompare(b.id));
+  take("A6", bestRgb, diagnosticRgb);
+  take("B6", bestIou, diagnosticIou);
+  take("C6", bestBalanced, diagnosticBalanced);
   return selected;
 }
 

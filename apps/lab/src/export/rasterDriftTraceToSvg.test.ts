@@ -8,6 +8,7 @@ import {
   rasterDriftTracePass4StudiesToSvg,
   rasterDriftTraceStudiesToSvg,
   selectRasterDriftFidelityCandidates,
+  selectRasterDriftPass6Candidates,
   type RasterDriftCandidateScore,
   type RasterDriftField,
 } from "./rasterDriftTraceToSvg";
@@ -150,6 +151,60 @@ describe("rasterDriftTraceStudiesToSvg", () => {
 
     expect(rasterDriftFidelityToSvg(field, "search-001", A3_FIDELITY_PARAMETERS)).toBe(svg);
     expect(svg).toContain('data-layer="optimized-a3-fidelity-bands"');
+    expect(svg).not.toMatch(/<(?:image|canvas)\b|data\s*:/i);
+    expect(() => assertRasterDriftTraceSvg(svg)).not.toThrow();
+  });
+
+  it("selects deterministic distinct pass-six roles against hard targets", () => {
+    const parameters = (opacityScale: number) => ({
+      ...A3_FIDELITY_PARAMETERS,
+      quantiles: [0.04, 0.14, 0.27, 0.42, 0.58, 0.73, 0.88],
+      bandOpacityScales: [1, 1, 1, 1, 1, 1, opacityScale],
+      opacityScale,
+    });
+    const candidates: RasterDriftCandidateScore[] = [
+      { id: "rgb", parameters: parameters(0.96), rgbMae: 7.9, inkIou: 0.84, vectorCoverage: 0.57 },
+      { id: "iou", parameters: parameters(0.98), rgbMae: 8.2, inkIou: 0.87, vectorCoverage: 0.58 },
+      { id: "balanced", parameters: parameters(1), rgbMae: 8, inkIou: 0.86, vectorCoverage: 0.575 },
+      { id: "miss", parameters: parameters(1.02), rgbMae: 8.5, inkIou: 0.82, vectorCoverage: 0.59 },
+    ];
+    const targets = { rgbMae: 8.422, inkIou: 0.83356 };
+
+    const selected = selectRasterDriftPass6Candidates(candidates, targets);
+
+    expect(selectRasterDriftPass6Candidates(candidates, targets)).toEqual(selected);
+    expect(selected.map(({ role }) => role)).toEqual(["A6", "B6", "C6"]);
+    expect(selected.map(({ id }) => id)).toEqual(["rgb", "iou", "balanced"]);
+    expect(selected.every(({ classification }) => classification === "improvement")).toBe(true);
+    expect(new Set(selected.map(({ parameters }) => JSON.stringify(parameters))).size).toBe(3);
+  });
+
+  it("labels pass-six target misses as diagnostics", () => {
+    const diagnostic = {
+      id: "near-miss",
+      parameters: { ...A3_FIDELITY_PARAMETERS, quantiles: [...A3_FIDELITY_PARAMETERS.quantiles] },
+      rgbMae: 8.5,
+      inkIou: 0.83,
+      vectorCoverage: 0.57,
+    };
+
+    const selected = selectRasterDriftPass6Candidates([diagnostic], { rgbMae: 8.422, inkIou: 0.83356 });
+
+    expect(selected).toHaveLength(1);
+    expect(selected[0]?.classification).toBe("pareto-diagnostic");
+  });
+
+  it("keeps calibrated multi-band fidelity output vector-only", () => {
+    const field = syntheticCrossingField();
+    const svg = rasterDriftFidelityToSvg(field, "pass6-calibrated", {
+      ...A3_FIDELITY_PARAMETERS,
+      quantiles: [0.03, 0.1, 0.19, 0.3, 0.43, 0.57, 0.72, 0.87],
+      bandOpacityScales: [1.08, 1.06, 1.04, 1.02, 1, 0.98, 0.96, 0.94],
+      simplifyToleranceLow: 0.22,
+      simplifyToleranceHigh: 0.18,
+    });
+
+    expect(countRasterDriftSvgPaths(svg)).toBeGreaterThan(1);
     expect(svg).not.toMatch(/<(?:image|canvas)\b|data\s*:/i);
     expect(() => assertRasterDriftTraceSvg(svg)).not.toThrow();
   });
