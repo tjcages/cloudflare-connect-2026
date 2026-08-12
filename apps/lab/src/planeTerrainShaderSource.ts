@@ -46,7 +46,7 @@ float pocket(vec2 p, vec2 c, float r, float amp) {
 
 // Heightfield in plane UV [0,1]². Pockets scatter hills/valleys; fbm adds grain.
 float terrainHeight(vec2 p, float t) {
-  vec2 q = p + 0.04 * vec2(
+  vec2 q = p + 0.035 * vec2(
     fbm(p * 2.5 + vec2(t * 0.03, 0.0)),
     fbm(p * 2.5 + vec2(4.1, t * 0.03))
   );
@@ -63,8 +63,8 @@ float terrainHeight(vec2 p, float t) {
   h -= pocket(q, vec2(0.22, 0.72), 0.15, 0.75);
   h -= pocket(q, vec2(0.48, 0.12), 0.12, 0.50);
 
-  h += 0.35 * (fbm(q * vec2(3.2, 2.6) + t * 0.05) * 2.0 - 1.0);
-  h += 0.15 * (fbm(q * vec2(7.5, 6.0) - t * 0.04) * 2.0 - 1.0);
+  h += 0.28 * (fbm(q * vec2(3.2, 2.6) + t * 0.05) * 2.0 - 1.0);
+  h += 0.12 * (fbm(q * vec2(7.5, 6.0) - t * 0.04) * 2.0 - 1.0);
   return h;
 }
 
@@ -73,9 +73,11 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
   vec2 uv = fragCoord / iResolution.xy;
   float t = iTime;
 
-  const float LINE_COUNT = 110.0;
-  const float AMP = 0.085;
-  const float LINE_PX = 1.15;
+  // Dense sheet; amplitude kept modest so gaps stay visually even while fibers
+  // still ride the hills and valleys.
+  const float LINE_COUNT = 128.0;
+  const float AMP = 0.028;
+  const float LINE_PX = 1.35;
 
   float px = 1.0 / max(iResolution.y, 1.0);
   float row = floor(uv.y * LINE_COUNT);
@@ -83,8 +85,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
   float nearestH = 0.0;
   float nearestD = 1e5;
 
-  // Only the nearest few parametric rows matter — even gaps in plane space,
-  // then each fiber follows the heightfield along X.
   for (int k = -2; k <= 2; k++) {
     float i = row + float(k);
     if (i < 0.0 || i >= LINE_COUNT) continue;
@@ -101,26 +101,24 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     }
   }
 
-  // Cool light ground + Connect coral fibers (readable hills via soft wash).
-  vec3 bg = vec3(0.925, 0.933, 0.945);
-  vec3 valley = vec3(0.78, 0.82, 0.88);
+  // Cool light ground + Connect coral fibers.
+  vec3 bg = vec3(0.940, 0.945, 0.952);
+  vec3 valley = vec3(0.86, 0.88, 0.92);
   vec3 hill = vec3(0.97, 0.94, 0.90);
   float h01 = clamp(nearestH * 0.5 + 0.5, 0.0, 1.0);
   vec3 wash = mix(valley, hill, smoothstep(0.25, 0.75, h01));
-  vec3 base = mix(bg, wash, 0.35);
+  vec3 base = mix(bg, wash, 0.22);
 
   vec3 lineA = vec3(0.91, 0.29, 0.11); // #e8481c
   vec3 lineB = vec3(1.00, 0.48, 0.12); // #ff7a1f
   vec3 lineCol = mix(lineA, lineB, clamp(nearestH * 0.35 + 0.5, 0.0, 1.0));
 
-  // Soft vignette keeps the sheet feeling like one plane, not a UI panel.
-  float vig = smoothstep(1.15, 0.35, length((uv - 0.5) * vec2(1.05, 1.15)));
-  base *= mix(0.92, 1.0, vig);
+  float vig = smoothstep(1.2, 0.4, length((uv - 0.5) * vec2(1.05, 1.15)));
+  base *= mix(0.96, 1.0, vig);
 
   vec3 col = mix(base, lineCol, lineMask);
 
-  // Tiny animated grain so still frames don't look posterized.
-  float grain = (hash21(fragCoord.xy + t * 60.0) - 0.5) * 0.02;
+  float grain = (hash21(fragCoord.xy + t * 60.0) - 0.5) * 0.015;
   col += grain;
 
   fragColor = vec4(col, 1.0);
