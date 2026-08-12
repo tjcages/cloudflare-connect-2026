@@ -39,7 +39,7 @@ const variants = [
 ];
 
 execFileSync(
-  resolve(root, "node_modules/.bin/esbuild"),
+  resolve(root, "node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/bin/esbuild"),
   [
     resolve(root, "apps/lab/src/twizzler.ts"),
     "--bundle",

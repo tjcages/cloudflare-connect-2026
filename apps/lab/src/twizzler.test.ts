@@ -270,7 +270,8 @@ describe("Twizzler", () => {
     });
 
     expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([112, 240, 360]);
-    expect(a.lines[0]!.strokeWidth).toBeGreaterThan(c.lines[0]!.strokeWidth);
+    const widestStroke = (lines: typeof a.lines) => Math.max(...lines.map((line) => line.strokeWidth));
+    expect(widestStroke(a.lines)).toBeGreaterThan(widestStroke(c.lines));
 
     const nearnessRange = (settings: TwizzlerSettings) =>
       twizzlerFiberNearness(0.6, 0.86, settings, 0) - twizzlerFiberNearness(-0.6, 0.86, settings, 0);
