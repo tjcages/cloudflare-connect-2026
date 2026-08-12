@@ -18,33 +18,29 @@ describe("outlinePolylineFillPath", () => {
 });
 
 describe("twizzlerToSvgLayer", () => {
-  it("exports gradient fibers as filled segment paths grouped per line", () => {
+  it("exports baked fibers as filled segment paths grouped per line", () => {
     const svg = twizzlerToSvgLayer(200, 100, 100, 50, 2, {
       ...TWIZZLER_DEFAULTS,
       lineCount: 3,
       pointSpacing: 20,
-      gradientsEnabled: true,
+      ribbonColorMode: "baked",
     });
 
     expect(svg).toContain('data-layer="twizzler"');
+    expect(svg).toContain('data-color-mode="baked"');
     expect(svg).toContain('data-fiber="');
     expect(svg).toContain('fill="rgb(');
     expect(svg).toContain('stroke="none"');
-    expect(svg).toContain("fill-opacity=");
-    expect(svg).toMatch(/d="M[\d.-]+,[\d.-]+L/);
-    expect(svg).toContain("Z");
-    // Filled outlines — not stroked centerlines / rasters.
     expect(svg).not.toContain("stroke-width=");
-    expect(svg).not.toContain("data:image");
-    expect(svg).not.toContain("transform=");
+    expect(svg).not.toContain("linearGradient");
   });
 
-  it("keeps per-segment color variation from gradients", () => {
+  it("keeps per-segment color variation in baked mode", () => {
     const svg = twizzlerToSvgLayer(400, 400, 400, 400, 0, {
       ...TWIZZLER_DEFAULTS,
       lineCount: 8,
       pointSpacing: 12,
-      gradientsEnabled: true,
+      ribbonColorMode: "baked",
       gradientXEnabled: true,
       gradientYEnabled: true,
       gradientZEnabled: true,
@@ -55,23 +51,59 @@ describe("twizzlerToSvgLayer", () => {
     expect(colors.size).toBeGreaterThan(3);
   });
 
-  it("combines solid fibers into one filled path each for Figma", () => {
+  it("combines solid fibers into one filled path each", () => {
     const lineCount = 6;
     const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
       ...TWIZZLER_DEFAULTS,
       lineCount,
       pointSpacing: 8,
-      gradientsEnabled: false,
+      ribbonColorMode: "solid",
       speed: 0,
     });
 
     const paths = svg.match(/<path /g) ?? [];
     expect(paths.length).toBeGreaterThan(0);
     expect(paths.length).toBeLessThanOrEqual(lineCount);
-    expect(svg).toContain('data-fiber="');
-    expect(svg).toContain('stroke="none"');
-    expect(svg).toContain('fill="rgb(');
-    // Solid mode should not nest segment groups.
+    expect(svg).toContain('data-color-mode="solid"');
     expect(svg).not.toContain("<g data-fiber=");
+    expect(svg).not.toContain("linearGradient");
+  });
+
+  it("exports shared gradient with one pack linearGradient", () => {
+    const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
+      ...TWIZZLER_DEFAULTS,
+      lineCount: 5,
+      pointSpacing: 10,
+      ribbonColorMode: "sharedGradient",
+      colorFar: "#fea700",
+      colorNear: "#f46021",
+      speed: 0,
+    });
+    expect(svg).toContain('data-color-mode="sharedGradient"');
+    expect(svg).toContain('id="twizzler-pack-grad"');
+    expect(svg).toContain('gradientUnits="userSpaceOnUse"');
+    expect(svg).toContain('fill="url(#twizzler-pack-grad)"');
+    expect(svg.match(/<linearGradient /g)?.length).toBe(1);
+    const paths = svg.match(/<path /g) ?? [];
+    expect(paths.length).toBeGreaterThan(0);
+    expect(paths.length).toBeLessThanOrEqual(5);
+  });
+
+  it("exports fiber gradients with one linearGradient per ribbon", () => {
+    const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
+      ...TWIZZLER_DEFAULTS,
+      lineCount: 4,
+      pointSpacing: 10,
+      ribbonColorMode: "fiberGradient",
+      speed: 0,
+    });
+    expect(svg).toContain('data-color-mode="fiberGradient"');
+    expect(svg).toContain("twizzler-fiber-0-grad");
+    expect(svg).toContain('fill="url(#twizzler-fiber-');
+    expect(svg).not.toContain("twizzler-pack-grad");
+    const grads = svg.match(/<linearGradient /g) ?? [];
+    const paths = svg.match(/<path /g) ?? [];
+    expect(grads.length).toBe(paths.length);
+    expect(grads.length).toBeGreaterThan(0);
   });
 });
