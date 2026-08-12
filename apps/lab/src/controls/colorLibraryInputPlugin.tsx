@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { Components, createPlugin, useInputContext, type LevaInputProps } from "leva/plugin";
 import { HexColorPopover } from "../components/HexColorPopover";
-import { cssColorForHex } from "../components/colorLibrary";
+import { cssColorForHex, findLibraryColorByHex } from "../components/colorLibrary";
 import { clearStickyBackgroundColor, saveStickyBackgroundColor } from "../persistence";
 
 const { Label, Row } = Components;
@@ -28,14 +28,23 @@ function normalizeHex(value: unknown): string | null {
   return null;
 }
 
+function displayValueForHex(hex: string | null): string {
+  if (!hex) return "";
+  const match = findLibraryColorByHex(hex);
+  return match ? match.token : hex.toUpperCase();
+}
+
 function ColorLibraryInputComponent() {
   const { label, value, onUpdate, disabled, settings } = useInputContext<ColorLibraryInputProps>();
   const color = normalizeHex(value);
-  const [draft, setDraft] = useState(color ? color.toUpperCase() : "");
+  const libraryMatch = color ? findLibraryColorByHex(color) : null;
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState(() => displayValueForHex(color));
 
   useEffect(() => {
-    setDraft(color ? color.toUpperCase() : "");
-  }, [color]);
+    if (focused) return;
+    setDraft(displayValueForHex(color));
+  }, [color, focused]);
 
   const updateColor = (hex: string) => {
     const next = normalizeHex(hex);
@@ -50,10 +59,12 @@ function ColorLibraryInputComponent() {
     const next = normalizeHex(draft);
     if (next) {
       updateColor(next);
-      setDraft(next.toUpperCase());
+      setFocused(false);
+      setDraft(displayValueForHex(next));
       return;
     }
-    setDraft(color ? color.toUpperCase() : "");
+    setFocused(false);
+    setDraft(displayValueForHex(color));
   };
   const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     event.stopPropagation();
@@ -61,7 +72,7 @@ function ColorLibraryInputComponent() {
       event.currentTarget.blur();
     }
     if (event.key === "Escape") {
-      setDraft(color ? color.toUpperCase() : "");
+      setDraft(focused && color ? color.toUpperCase() : displayValueForHex(color));
       event.currentTarget.blur();
     }
   };
@@ -81,7 +92,7 @@ function ColorLibraryInputComponent() {
   return (
     <Row input>
       <Label>{label}</Label>
-      <div className="library-color-input">
+      <div className={`library-color-input${settings.persist === "backgroundColor" && color ? " has-clear" : ""}`}>
         <HexColorPopover
           color={swatchColor}
           onChange={updateColor}
@@ -92,21 +103,31 @@ function ColorLibraryInputComponent() {
           align="right"
         />
         <input
-          className="library-color-input-value"
+          className={`library-color-input-value${libraryMatch && !focused ? " is-token" : ""}`}
           value={draft}
           placeholder={settings.persist === "backgroundColor" ? "Transparent" : "#RRGGBB"}
           disabled={disabled}
           spellCheck={false}
           inputMode="text"
-          aria-label={`${label} hex value`}
+          title={color ? color.toUpperCase() : undefined}
+          aria-label={libraryMatch ? `${label} ${libraryMatch.token}` : `${label} hex value`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
+          onFocus={() => {
+            setFocused(true);
+            setDraft(color ? color.toUpperCase() : "");
+          }}
           onKeyDown={handleInputKeyDown}
           onChange={(event) => {
             const raw = event.target.value.trim();
+            // While editing, accept hex only (token names resolve on blur via hex from picker).
             const withoutHash = raw.replace(/^#/, "");
+            if (withoutHash.length === 0) {
+              setDraft("");
+              return;
+            }
             if (!/^[0-9a-fA-F]{0,6}$/.test(withoutHash)) return;
-            const nextDraft = withoutHash.length > 0 ? `#${withoutHash.toUpperCase()}` : "";
+            const nextDraft = `#${withoutHash.toUpperCase()}`;
             setDraft(nextDraft);
             if (withoutHash.length === 6) updateColor(nextDraft);
           }}

@@ -189,10 +189,12 @@
 }
 
 /* Buttons — filled gray chips, no extra outline.
-   Exclude panel-mode segmented control (CF-45): those need distinct selected chrome. */
-.playground-leva-panel button:not(.lab-panel-mode-btn),
-.playground-leva-panel button:not(.lab-panel-mode-btn):not(:disabled),
-.playground-leva-panel button:not(.lab-panel-mode-btn):disabled {
+   Exclude segmented control + color swatches (CF-45 / CF-48): those need their own chrome. */
+.playground-leva-panel button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch),
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(:disabled),
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):disabled {
   color: var(--leva-text) !important;
   background-color: var(--leva-surface) !important;
   border: 1px solid transparent !important;
@@ -200,17 +202,20 @@
   box-shadow: none !important;
 }
 
-.playground-leva-panel button:not(.lab-panel-mode-btn):not(:disabled) {
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(:disabled) {
   cursor: pointer;
 }
 
-.playground-leva-panel button:not(.lab-panel-mode-btn):not(:disabled):hover {
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(:disabled):hover {
   color: var(--leva-text) !important;
   background-color: var(--leva-surface-hover) !important;
   border-color: transparent !important;
 }
 
-.playground-leva-panel button:not(.lab-panel-mode-btn):disabled {
+.playground-leva-panel
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):disabled {
   cursor: not-allowed;
   color: var(--leva-text-faint) !important;
   background-color: var(--color-builder-disabled-surface) !important;
@@ -1307,6 +1312,10 @@
   height: 24px;
 }
 
+.playground-leva-panel .library-color-input.has-clear {
+  grid-template-columns: 24px minmax(0, 1fr) 22px;
+}
+
 .playground-leva-panel button.library-color-input-swatch {
   box-sizing: border-box;
   width: 24px !important;
@@ -1317,7 +1326,8 @@
   border: 1px solid var(--color-builder-input-border) !important;
   border-radius: var(--leva-radius) !important;
   box-shadow: none !important;
-  background-color: var(--library-color-input-color) !important;
+  /* Inline --library-color-input-color from the trigger (hex or display-p3). */
+  background-color: var(--library-color-input-color, #000000) !important;
   background-image: var(--library-color-input-image, none) !important;
   background-position:
     0 0,
@@ -1329,7 +1339,8 @@
 
 .playground-leva-panel button.library-color-input-swatch:not(:disabled):hover,
 .playground-leva-panel button.library-color-input-swatch:not(:disabled):focus-visible {
-  background-color: var(--library-color-input-color) !important;
+  background-color: var(--library-color-input-color, #000000) !important;
+  background-image: var(--library-color-input-image, none) !important;
   border-color: var(--color-builder-input-border) !important;
 }
 
@@ -1349,6 +1360,12 @@
   outline: none;
   box-sizing: border-box;
   text-transform: uppercase;
+}
+
+.playground-leva-panel .library-color-input-value.is-token {
+  text-transform: none;
+  font-family: inherit;
+  letter-spacing: 0.01em;
 }
 
 .playground-leva-panel .library-color-input-value::placeholder {

@@ -15,7 +15,7 @@ import {
   d as useTh,
 } from "leva/dist/vector-plugin-5e122f40.esm.js";
 import { HexColorPopover } from "../components/HexColorPopover";
-import { COLOR_LIBRARY, cssColorForHex } from "../components/colorLibrary";
+import { cssColorForHex, findLibraryColorByHex } from "../components/colorLibrary";
 import { cn } from "../lib/cn";
 import { loadControlDrawerOpen, saveControlDrawerOpen } from "./drawerState";
 import { DEFAULT_CUSTOM_EASING, easeValue, formatCustomEasing, parseCustomEasing } from "./easing";
@@ -41,15 +41,12 @@ function normalizeHexForDisplay(value: string): string {
 }
 
 function getStripeColorMeta(hex: string): { name: string; code: string } {
-  const normalized = normalizeHexForDisplay(hex).toLowerCase();
-  for (const group of COLOR_LIBRARY) {
-    const match = group.colors.find((color) => color.hex.toLowerCase() === normalized);
-    if (match) {
-      return {
-        name: `${group.name} ${match.label}`,
-        code: normalizeHexForDisplay(match.hex),
-      };
-    }
+  const match = findLibraryColorByHex(hex);
+  if (match) {
+    return {
+      name: match.token,
+      code: normalizeHexForDisplay(match.hex),
+    };
   }
   return { name: "Custom", code: normalizeHexForDisplay(hex) };
 }

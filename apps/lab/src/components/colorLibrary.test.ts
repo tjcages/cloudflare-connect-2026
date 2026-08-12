@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { COLOR_LIBRARY, findLibraryColor, LIBRARY_COLOR, p3ColorForHex } from "./colorLibrary";
+import {
+  COLOR_LIBRARY,
+  findLibraryColor,
+  findLibraryColorByHex,
+  LIBRARY_COLOR,
+  p3ColorForHex,
+} from "./colorLibrary";
 
 const CHROMATIC_GROUPS = ["Red", "Orange", "Green", "Blue", "Purple"];
 const EXPECTED_LABELS = [
@@ -70,5 +76,16 @@ describe("color library", () => {
     expect(findLibraryColor("Red", "900 [Accent]")?.hex).toBe(LIBRARY_COLOR.redAccent);
     expect(findLibraryColor("Neutral", "White")?.hex).toBe(LIBRARY_COLOR.white);
     expect(findLibraryColor("Neutral", "11")?.hex).toBe(LIBRARY_COLOR.graphite);
+  });
+
+  it("resolves hex values to variable token names", () => {
+    expect(findLibraryColorByHex("#f46021")).toEqual({
+      group: "Orange",
+      label: "900 [Accent]",
+      hex: "#f46021",
+      token: "Orange / 900 [Accent]",
+    });
+    expect(findLibraryColorByHex("#FFFFFF")?.token).toBe("Neutral / White");
+    expect(findLibraryColorByHex("#f86a00")).toBeNull();
   });
 });
