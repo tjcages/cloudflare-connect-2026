@@ -1,5 +1,6 @@
 import { migrateLegacyConfig, sanitizeThemedConfig } from "@necatikcl/stripes-engine";
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
+import type { ClientColorPresetId, ClientLayoutPresetId, ClientSizePresetId } from "./client/clientPresets";
 import { DEFAULT_LAB_ENGINE_CONFIG, DEFAULT_LAB_UI_SETTINGS } from "./defaultLabConfig";
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "./shaderTextureSource";
 import type { ConnectShapeType } from "./connectShader";
@@ -103,6 +104,10 @@ export type LabSettings = {
   shaderViewPanX: number;
   shaderViewPanY: number;
   shaderViewFov: number;
+  /** Client preview Size / Layout / Color catalog selections (saved layouts). */
+  clientSizeId: ClientSizePresetId;
+  clientLayoutId: ClientLayoutPresetId;
+  clientColorId: ClientColorPresetId;
 };
 
 export const DEFAULT_LAB_SETTINGS: LabSettings = {
@@ -173,6 +178,22 @@ function normalizeConnectShapeType(value: unknown): ConnectShapeType {
 
 function normalizeShaderPresetId(value: unknown): string {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : DEFAULT_LAB_SETTINGS.shaderPresetId;
+}
+
+const CLIENT_SIZE_IDS = new Set<string>(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
+const CLIENT_LAYOUT_IDS = new Set<string>(["classic", "low-ribbon", "high-fan", "compact"]);
+const CLIENT_COLOR_IDS = new Set<string>(["coral-classic", "soft-gold", "deep-ember", "graphite"]);
+
+function normalizeClientSizeId(value: unknown): ClientSizePresetId {
+  return typeof value === "string" && CLIENT_SIZE_IDS.has(value) ? (value as ClientSizePresetId) : "banner-5x1";
+}
+
+function normalizeClientLayoutId(value: unknown): ClientLayoutPresetId {
+  return typeof value === "string" && CLIENT_LAYOUT_IDS.has(value) ? (value as ClientLayoutPresetId) : "classic";
+}
+
+function normalizeClientColorId(value: unknown): ClientColorPresetId {
+  return typeof value === "string" && CLIENT_COLOR_IDS.has(value) ? (value as ClientColorPresetId) : "coral-classic";
 }
 
 function normalizeConnectCameraFromSettings(i: Partial<LabSettings> & Record<string, unknown>): {
@@ -514,6 +535,9 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
         shaderViewFov: view.fov,
       };
     })(),
+    clientSizeId: normalizeClientSizeId(i.clientSizeId),
+    clientLayoutId: normalizeClientLayoutId(i.clientLayoutId),
+    clientColorId: normalizeClientColorId(i.clientColorId),
   };
 }
 

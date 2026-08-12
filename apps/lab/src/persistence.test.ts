@@ -465,3 +465,25 @@ describe("themed configs", () => {
     expect(loadEditTheme()).toBe("dark");
   });
 });
+
+describe("client preset ids in lab settings", () => {
+  beforeEach(() => {
+    stubLocalStorage();
+    resumePersistenceWritesForTests();
+    localStorage.setItem("stripes-engine-lab-ui-generation", "twizzler-ribbon-visible-v1");
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+  it("persists clientSizeId/layoutId/colorId", () => {
+    saveLabSettings({
+      clientSizeId: "hero-16x9",
+      clientLayoutId: "high-fan",
+      clientColorId: "graphite",
+    });
+    const loaded = loadLabSettings();
+    expect(loaded.clientSizeId).toBe("hero-16x9");
+    expect(loaded.clientLayoutId).toBe("high-fan");
+    expect(loaded.clientColorId).toBe("graphite");
+  });
+});

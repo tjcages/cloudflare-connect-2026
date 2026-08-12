@@ -14,7 +14,7 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** toggle, **Saved layouts**, and export buttons.
 
-- **Saved layouts** — Save / Apply / Delete named layouts (full shader + engine/lab config). Last applied layout restores on reload. Upload JSON also registers a layout.
+- **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Color). Last applied layout restores on reload. Upload JSON also registers a layout.
 - **Default** — rich authoring for the orange-wave ribbon:
   - **Presets** — Size / Layout / Color
   - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
@@ -22,8 +22,8 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
   - **Twizzler → Gradients** — X/Y/Z gradient mixes
   - **Twizzler → Stroke** — width, layers, perspective
   - **Twizzler → Motion** — Speed
-  - **Background** — Fill (Solid / Transparent) + library Color
-- **Advanced** — legacy / experimental folders (View, Edges, Noise, wrinkles/bends/depth terrain, Background Gradient fill, camera, etc.)
+  - **Background** — Fill + library Color (Gradient stops stay Advanced)
+- **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, Gradient stops, etc.) without rebuilding Leva, so values are not wiped when toggling.
 
 ## Twizzler (orange-wave)
 
@@ -43,8 +43,8 @@ Current ribbon geometry is the **orange-wave** 3D projected vector from
 
 Client panel (and lab) expose:
 
-- **Save layout** — named localStorage preset (full `config` + `lab`, including Twizzler / Color mode / rain)
-- **Apply / Delete** — restore or remove saved layouts (builtins stay read-only)
+- **Save layout** — named localStorage preset with **complete** `config` + `lab` (Twizzler, Color mode, rain, Size/Layout/Color ids, background fill, etc.)
+- **Apply / Delete** — restore or remove saved layouts (builtins stay read-only; user layouts keep transparent/gradient fills)
 - **Download JSON** — full lab configuration file
 - **Upload JSON** — import a config file as a saved layout and apply it
 - **Export Video** — MediaRecorder / ffmpeg pipeline

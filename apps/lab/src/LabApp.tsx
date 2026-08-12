@@ -901,9 +901,8 @@ function LabInner({
     ...startupLabSettings,
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
   }));
-  /** Client preview only: Default = simplified Leva, Advanced = full authoring folders. */
+  /** Client preview only: Default = curated folders, Advanced = full authoring folders. */
   const [clientPanelMode, setClientPanelMode] = useState<"default" | "advanced">("default");
-  const simplifiedLeva = clientMode && clientPanelMode === "default";
   const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(() => labSettings.textureSourceMode);
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>(() =>
     expectedSourceSize(labSettings, labSettings.textureSourceMode),
@@ -923,11 +922,7 @@ function LabInner({
   const previewZoomTouchedRef = useRef(false);
   const [presets, setPresets] = useState<ConfigPreset[]>(() => loadPresets());
   const [selectedPreset, setSelectedPreset] = useState(
-    () =>
-      consumeBootPresetName() ??
-      (clientMode ? loadActiveClientLayoutName() : null) ??
-      startupPreset?.name ??
-      "",
+    () => consumeBootPresetName() ?? (clientMode ? loadActiveClientLayoutName() : null) ?? startupPreset?.name ?? "",
   );
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
@@ -1139,17 +1134,21 @@ function LabInner({
     clientCanvasSize,
   } = useEngineControls(onReplay, {
     showShaderCamera:
-      !simplifiedLeva &&
+      (!clientMode || clientPanelMode === "advanced") &&
       textureSourceMode === "shader" &&
       !isTwizzlerMapShaderPreset(shaderPresetId) &&
       !isCometLogoShaderPreset(shaderPresetId),
-    showConnectCamera: !simplifiedLeva && textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
+    showConnectCamera:
+      (!clientMode || clientPanelMode === "advanced") &&
+      textureSourceMode === "shader" &&
+      isSpiralShaderPreset(shaderPresetId),
     activeShaderConfig: resolveShaderConfigKind(textureSourceMode, shaderPresetId),
     showTwizzlerRibbon: textureSourceMode === "shader",
-    twizzlerTransport: simplifiedLeva ? undefined : twizzlerTransport,
+    twizzlerTransport: clientMode ? undefined : twizzlerTransport,
     // Client boot wrote the active layout into storage — let controls load it.
     initialConfig: clientMode ? undefined : initialConfig,
-    clientMode: simplifiedLeva,
+    clientMode,
+    clientPanelMode: clientMode ? clientPanelMode : undefined,
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -1168,7 +1167,7 @@ function LabInner({
   const lastSavedConfigJsonRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!simplifiedLeva || !clientCanvasSize) return;
+    if (!clientMode || !clientCanvasSize) return;
     const { width, height } = clientCanvasSize;
     setLabSettings((current) => {
       if (current.canvasMode === "manual" && current.canvasWidth === width && current.canvasHeight === height) {
@@ -1182,7 +1181,7 @@ function LabInner({
         canvasAspectLocked: true,
       };
     });
-  }, [clientCanvasSize, simplifiedLeva]);
+  }, [clientCanvasSize, clientMode]);
 
   const editTheme = initialThemed.editTheme;
   const lightBaseRef = useRef<Partial<EngineConfig>>(initialThemed.lightBase);
@@ -2642,16 +2641,29 @@ function LabInner({
     const current = controlsRef.current;
     const backgroundColor = current.background.transparent ? null : current.background.color;
     const { enabled: twizzlerEnabled, ...twizzlerSettings } = twizzlerRef.current;
+    // Snapshot every live Lab + Leva-backed field so saved layouts round-trip fully.
     return {
       ...labSettingsRef.current,
       ...getLabSettingsSnapshot(),
       textureSourceMode,
       shaderSourceCode,
+      shaderPresetId: labSettingsRef.current.shaderPresetId,
       backgroundColor,
       twizzlerEnabled,
       twizzler: twizzlerSettings,
       twizzlerMap: twizzlerMapRef.current,
       cometLogo: cometLogoRef.current,
+    };
+  }
+
+  function captureSavedLayoutPayload(): {
+    config: ReturnType<typeof getActiveThemedConfig>;
+    lab: Partial<LabSettings>;
+  } {
+    const lab = fullLabSettingsSnapshot();
+    return {
+      config: getActiveThemedConfig(),
+      lab,
     };
   }
 
@@ -2825,7 +2837,8 @@ function LabInner({
     const name = window.prompt(clientMode ? "Layout name:" : "Preset name:")?.trim();
     if (!name) return;
     if (presets.some((p) => p.name === name) && !window.confirm(`Overwrite "${name}"?`)) return;
-    const next = addPreset(presets, createPreset(name, getActiveThemedConfig(), fullLabSettingsSnapshot()));
+    const { config, lab } = captureSavedLayoutPayload();
+    const next = addPreset(presets, createPreset(name, config, lab));
     savePresets(next);
     setPresets(next);
     setSelectedPreset(name);
@@ -3630,12 +3643,7 @@ function LabInner({
                     <button className="lab-btn" type="button" onClick={handleSavePreset}>
                       Save layout
                     </button>
-                    <button
-                      className="lab-btn"
-                      type="button"
-                      onClick={handleApplyPreset}
-                      disabled={!selectedPreset}
-                    >
+                    <button className="lab-btn" type="button" onClick={handleApplyPreset} disabled={!selectedPreset}>
                       Apply
                     </button>
                     <button
@@ -3654,11 +3662,7 @@ function LabInner({
                     <button className="lab-btn" type="button" onClick={handleDownloadConfig}>
                       Download JSON
                     </button>
-                    <button
-                      className="lab-btn"
-                      type="button"
-                      onClick={() => configFileInputRef.current?.click()}
-                    >
+                    <button className="lab-btn" type="button" onClick={() => configFileInputRef.current?.click()}>
                       Upload JSON
                     </button>
                     <button className="lab-btn" type="button" onClick={onExportVideo}>
@@ -3677,7 +3681,7 @@ function LabInner({
                   />
                 </div>
               </div>
-              <LevaPanel key={clientPanelMode} store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+              <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
             </>
           ) : (
             <SurfacePanel

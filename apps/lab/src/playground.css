@@ -1835,68 +1835,83 @@ body.lab-sidebar-resizing .lab-sidebar {
   background: var(--color-builder-selected-row, #f4f4f4);
 }
 
-/* Client: compact tools row that scrolls with the Leva panel (not sticky). */
+/* Client: compact tools that scroll with the Leva panel (transparent, no card chrome). */
 .lab-shell.is-client-mode .lab-client-tools {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
-  padding: 6px 10px 8px;
-  border-bottom: 1px solid var(--color-builder-input-border, #e8e8e8);
+  padding: 4px 7px 8px;
+  border-bottom: 1px solid var(--leva-border-subtle, var(--color-builder-input-border, #e8e8e8));
+  background: transparent;
 }
 
 .lab-shell.is-client-mode .lab-panel-mode-toggle {
   align-self: flex-start;
-  border-radius: 4px;
+  border-radius: var(--leva-radius, 4px);
   box-shadow: none;
+  background: var(--leva-surface, var(--color-builder-surface, #eee));
+  border-color: var(--leva-border, var(--color-builder-input-border, #d6d6d6));
 }
 
-.lab-shell.is-client-mode .lab-client-layouts {
+.lab-shell.is-client-mode .lab-client-layouts,
+.lab-shell.is-client-mode .lab-client-exports {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .lab-shell.is-client-mode .lab-client-layouts-label {
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  opacity: 0.65;
+  color: var(--leva-text-faint, var(--color-builder-muted, #a3a3a3));
+  opacity: 1;
+}
+
+.lab-shell.is-client-mode .lab-client-layouts select.lab-btn,
+.lab-shell.is-client-mode .lab-client-layouts .lab-btn,
+.lab-shell.is-client-mode .lab-client-exports .lab-btn {
+  width: auto;
+  background: var(--leva-surface, var(--color-builder-chip-surface, #eee));
+  color: var(--leva-text-muted, var(--color-builder-chip-text, #737373));
+  border: 1px solid transparent;
+  border-radius: var(--leva-radius, 4px);
 }
 
 .lab-shell.is-client-mode .lab-client-layouts select.lab-btn {
   width: 100%;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%23858585' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
 }
 
-.lab-shell.is-client-mode .lab-client-layouts .wf-row {
+.lab-shell.is-client-mode .lab-client-layouts .wf-row,
+.lab-shell.is-client-mode .lab-client-exports .wf-row {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: transparent;
 }
 
-.lab-shell.is-client-mode .lab-client-layouts .wf-row .lab-btn {
+.lab-shell.is-client-mode .lab-client-layouts .wf-row .lab-btn,
+.lab-shell.is-client-mode .lab-client-exports .lab-btn {
   flex: 1;
   min-inline-size: 0;
   padding: 5px 8px;
   font-size: 11px;
 }
 
-.lab-shell.is-client-mode .lab-client-exports {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.lab-shell.is-client-mode .lab-client-exports .wf-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.lab-shell.is-client-mode .lab-client-exports .lab-btn {
-  flex: 1 1 auto;
-  min-inline-size: 0;
-  padding: 5px 8px;
-  font-size: 11px;
+.lab-shell.is-client-mode .lab-client-layouts .lab-btn:hover:not(:disabled),
+.lab-shell.is-client-mode .lab-client-exports .lab-btn:hover:not(:disabled) {
+  background: var(--leva-surface-hover, var(--color-builder-chip-surface-hover, #e6e6e6));
 }
 
 :root[data-theme="dark"] .lab-panel-mode-toggle {
