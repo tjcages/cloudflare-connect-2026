@@ -59,10 +59,10 @@ describe("client preview presets", () => {
     expect(CLIENT_GRAPHIC_MODES.map((m) => m.id)).toEqual(["twizzler", "rain", "both"]);
   });
 
-  it("builds from Banner 5:1 with solid white stage and rain off by default", () => {
+  it("builds Hero 16:9 with solid white stage and rain off by default", () => {
     const bundle = buildClientPreviewBundle(DEFAULT_CLIENT_PREVIEW_STATE);
-    expect(bundle.canvasWidth).toBe(1600);
-    expect(bundle.canvasHeight).toBe(320);
+    expect(bundle.canvasWidth).toBe(1280);
+    expect(bundle.canvasHeight).toBe(720);
     expect(bundle.engineConfig.background?.transparent).toBe(false);
     expect(bundle.engineConfig.background?.color).toBe(0xffffff);
     expect(bundle.engineConfig.sparkle?.gaps?.enabled).toBe(false);

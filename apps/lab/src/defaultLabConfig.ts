@@ -609,7 +609,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     shapeMeshQuality: 1,
     renderAntialias: true,
   },
-  clientSizeId: "banner-5x1",
+  clientSizeId: "hero-16x9",
   clientLayoutId: "classic",
   clientColorId: "coral-classic",
   clientAppearanceId: "light",

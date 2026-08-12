@@ -857,6 +857,8 @@ function LabInner({
   onResetSurfaceArea,
 }: LabInnerProps) {
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
+  const clientModeRef = useRef(clientMode);
+  clientModeRef.current = clientMode;
   const startupLabSettings = useMemo(() => {
     const stored = loadLabSettings();
     if (clientMode) {
@@ -2007,6 +2009,7 @@ function LabInner({
       let lastSnapAt = 0;
       let lastShaderPreviewAt = 0;
       let lastFramesReadbackAt = 0;
+      let lastTwizzlerAt = 0;
       let frameGroups: FrameGroup[] = [];
       const tick = () => {
         const now = performance.now();
@@ -2025,7 +2028,7 @@ function LabInner({
               const previewSizeChanged =
                 !!previewCanvas &&
                 (previewCanvas.width !== connectRenderer.width || previewCanvas.height !== connectRenderer.height);
-              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+              if (previewCanvas && !clientModeRef.current && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
                 lastShaderPreviewAt = now;
                 if (previewCanvas.width !== connectRenderer.width) previewCanvas.width = connectRenderer.width;
                 if (previewCanvas.height !== connectRenderer.height) previewCanvas.height = connectRenderer.height;
@@ -2040,7 +2043,7 @@ function LabInner({
               const previewCanvas = shaderPreviewCanvasRef.current;
               const previewSizeChanged =
                 !!previewCanvas && (previewCanvas.width !== renderer.width || previewCanvas.height !== renderer.height);
-              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+              if (previewCanvas && !clientModeRef.current && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
                 lastShaderPreviewAt = now;
                 if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
                 if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
@@ -2060,7 +2063,7 @@ function LabInner({
               const previewCanvas = shaderPreviewCanvasRef.current;
               const previewSizeChanged =
                 !!previewCanvas && (previewCanvas.width !== renderer.width || previewCanvas.height !== renderer.height);
-              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+              if (previewCanvas && !clientModeRef.current && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
                 lastShaderPreviewAt = now;
                 if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
                 if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
@@ -2096,7 +2099,7 @@ function LabInner({
               const previewSizeChanged =
                 !!previewCanvas &&
                 (previewCanvas.width !== shaderRenderer.width || previewCanvas.height !== shaderRenderer.height);
-              if (previewCanvas && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+              if (previewCanvas && !clientModeRef.current && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
                 lastShaderPreviewAt = now;
                 if (previewCanvas.width !== shaderRenderer.width) previewCanvas.width = shaderRenderer.width;
                 if (previewCanvas.height !== shaderRenderer.height) previewCanvas.height = shaderRenderer.height;
@@ -2109,59 +2112,64 @@ function LabInner({
         const outputCanvas = canvasRef.current;
         if (twizzlerCanvas && outputCanvas) {
           if (shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled)) {
-            const tw = twizzlerRef.current;
-            const bg = controlsRef.current.background;
-            const stageBackgroundHex = bg.transparent
-              ? (tw.backgroundColor ?? "#ffffff")
-              : "#" + bg.color.toString(16).padStart(6, "0");
-            const twWithBackground = { ...tw, backgroundColor: stageBackgroundHex };
-            if (shouldUseTwizzlerSineShader(tw)) {
-              let sine = twizzlerSineRendererRef.current;
-              if (!sine) {
-                sine = createShaderTextureRenderer(outputCanvas.width, outputCanvas.height);
-                const err = sine.setSource(TWIZZLER_SINE_SHADER_SOURCE);
-                if (err) {
-                  console.error("Twizzler sine shader compile failed:", err);
-                  renderTwizzler(
-                    twizzlerCanvas,
-                    outputCanvas.width,
-                    outputCanvas.height,
-                    twizzlerTimeSecRef.current,
-                    twWithBackground,
-                  );
-                } else {
-                  twizzlerSineRendererRef.current = sine;
+            // Both-mode soft-cap: Twizzler Canvas2D ~30fps when rain is also on (rain source stays full-rate).
+            const bothHeavy = clientModeRef.current && controlsRef.current.sparkle.gaps.enabled;
+            if (!(bothHeavy && now - lastTwizzlerAt < 33)) {
+              lastTwizzlerAt = now;
+              const tw = twizzlerRef.current;
+              const bg = controlsRef.current.background;
+              const stageBackgroundHex = bg.transparent
+                ? (tw.backgroundColor ?? "#ffffff")
+                : "#" + bg.color.toString(16).padStart(6, "0");
+              const twWithBackground = { ...tw, backgroundColor: stageBackgroundHex };
+              if (shouldUseTwizzlerSineShader(tw)) {
+                let sine = twizzlerSineRendererRef.current;
+                if (!sine) {
+                  sine = createShaderTextureRenderer(outputCanvas.width, outputCanvas.height);
+                  const err = sine.setSource(TWIZZLER_SINE_SHADER_SOURCE);
+                  if (err) {
+                    console.error("Twizzler sine shader compile failed:", err);
+                    renderTwizzler(
+                      twizzlerCanvas,
+                      outputCanvas.width,
+                      outputCanvas.height,
+                      twizzlerTimeSecRef.current,
+                      twWithBackground,
+                    );
+                  } else {
+                    twizzlerSineRendererRef.current = sine;
+                  }
                 }
-              }
-              sine = twizzlerSineRendererRef.current;
-              if (sine) {
-                sine.resize(outputCanvas.width, outputCanvas.height);
-                sine.setUniforms(
-                  twizzlerSineUniforms(tw, {
-                    rotateXDeg: tw.rotateX,
-                    rotateYDeg: tw.rotateY,
-                    rotateZDeg: tw.rotateZ,
-                    panX: tw.panX,
-                    panY: tw.panY,
-                    distance: tw.viewDistance,
-                  }),
+                sine = twizzlerSineRendererRef.current;
+                if (sine) {
+                  sine.resize(outputCanvas.width, outputCanvas.height);
+                  sine.setUniforms(
+                    twizzlerSineUniforms(tw, {
+                      rotateXDeg: tw.rotateX,
+                      rotateYDeg: tw.rotateY,
+                      rotateZDeg: tw.rotateZ,
+                      panX: tw.panX,
+                      panY: tw.panY,
+                      distance: tw.viewDistance,
+                    }),
+                  );
+                  // Identity wrapper view — XYZ is applied inside the exact shader (edge-locked X).
+                  sine.render(twizzlerTimeSecRef.current, undefined, null);
+                  if (twizzlerCanvas.width !== sine.width) twizzlerCanvas.width = sine.width;
+                  if (twizzlerCanvas.height !== sine.height) twizzlerCanvas.height = sine.height;
+                  const ctx = twizzlerCanvas.getContext("2d");
+                  ctx?.clearRect(0, 0, twizzlerCanvas.width, twizzlerCanvas.height);
+                  ctx?.drawImage(sine.canvas, 0, 0);
+                }
+              } else {
+                renderTwizzler(
+                  twizzlerCanvas,
+                  outputCanvas.width,
+                  outputCanvas.height,
+                  twizzlerTimeSecRef.current,
+                  twWithBackground,
                 );
-                // Identity wrapper view — XYZ is applied inside the exact shader (edge-locked X).
-                sine.render(twizzlerTimeSecRef.current, undefined, null);
-                if (twizzlerCanvas.width !== sine.width) twizzlerCanvas.width = sine.width;
-                if (twizzlerCanvas.height !== sine.height) twizzlerCanvas.height = sine.height;
-                const ctx = twizzlerCanvas.getContext("2d");
-                ctx?.clearRect(0, 0, twizzlerCanvas.width, twizzlerCanvas.height);
-                ctx?.drawImage(sine.canvas, 0, 0);
               }
-            } else {
-              renderTwizzler(
-                twizzlerCanvas,
-                outputCanvas.width,
-                outputCanvas.height,
-                twizzlerTimeSecRef.current,
-                twWithBackground,
-              );
             }
           } else {
             clearTwizzler(twizzlerCanvas);
@@ -2248,6 +2256,7 @@ function LabInner({
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || manual) return;
+    // Match production: keep the stripes engine running in full mode (Rain colors need a live source).
     if (surfaceWorkspace.mode === "full") engine.start();
     else engine.stop();
   }, [manual, surfaceWorkspace.mode]);

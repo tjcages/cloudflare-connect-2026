@@ -90,8 +90,10 @@ Colors in the HTML that are not exact library hexes get **snapped** to the neare
 
 ## Implementation
 
-- Boot: `apps/lab/src/client-main.tsx` → keep live localStorage on refresh; seed Banner 5:1 only on first visit (or `?preset=`) → `<LabApp clientMode />`
+- Boot: `apps/lab/src/client-main.tsx` → keep live localStorage on refresh; seed Banner 5:1 knobs on first visit at **Hero 16:9** canvas (or `?preset=`) → `<LabApp clientMode />`
 - Saved layouts: `apps/lab/src/client/savedLayouts.ts` + shared `presets.ts` storage; **Reset** reapplies Banner 5:1
+- Default Size catalog entry: **Hero 16:9** (`DEFAULT_CLIENT_PREVIEW_STATE`)
+- Both-mode perf: Shared Field ribbons draw in one pass; client Both soft-caps Twizzler ~30fps (rain source stays full-rate like production)
 - Gating: `drawerFolder({ hideInClient, clientOnly })` + `showTwizzlerAuthoring` / `showFullLab` in `controls/levaSchema.ts`
 - Preset data: `apps/lab/src/client/clientPresets.ts`
 - Section-grid Rain bootstrap: `apps/lab/src/client/sectionGridRainDefaults.ts` → `applyPresetToStorage(factoryDefaults)` (same as Factory reset)

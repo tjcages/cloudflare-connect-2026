@@ -1349,8 +1349,10 @@ export function ribbonGradientXYSpan(
 }
 
 type GradientFieldCache = { key: string; canvas: HTMLCanvasElement };
+type ScaledGradientFieldCache = { key: string; width: number; height: number; canvas: HTMLCanvasElement };
 
 let gradientFieldCache: GradientFieldCache | null = null;
+let scaledGradientFieldCache: ScaledGradientFieldCache | null = null;
 
 function getTwizzlerGradientFieldCanvas(stops: readonly TwizzlerGradientStop[]): HTMLCanvasElement | null {
   if (typeof document === "undefined") return null;
@@ -1366,6 +1368,35 @@ function getTwizzlerGradientFieldCanvas(stops: readonly TwizzlerGradientStop[]):
   image.data.set(pixels);
   context.putImageData(image, 0, 0);
   gradientFieldCache = { key, canvas };
+  scaledGradientFieldCache = null;
+  return canvas;
+}
+
+/** One scaled field bitmap per size — avoids N× bilinear upscales in sharedGradient. */
+function getTwizzlerGradientFieldCanvasScaled(
+  stops: readonly TwizzlerGradientStop[],
+  width: number,
+  height: number,
+): HTMLCanvasElement | null {
+  const source = getTwizzlerGradientFieldCanvas(stops);
+  if (!source || typeof document === "undefined") return null;
+  const key = serializeTwizzlerGradientStops(stops);
+  if (
+    scaledGradientFieldCache &&
+    scaledGradientFieldCache.key === key &&
+    scaledGradientFieldCache.width === width &&
+    scaledGradientFieldCache.height === height
+  ) {
+    return scaledGradientFieldCache.canvas;
+  }
+  const canvas = scaledGradientFieldCache?.canvas ?? document.createElement("canvas");
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== height) canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.clearRect(0, 0, width, height);
+  context.drawImage(source, 0, 0, width, height);
+  scaledGradientFieldCache = { key, width, height, canvas };
   return canvas;
 }
 
@@ -1413,6 +1444,24 @@ export function renderTwizzler(
   const fieldStops = settings.gradientStops;
   const fieldCanvas =
     colorMode === "sharedGradient" || colorMode === "fiberGradient" ? getTwizzlerGradientFieldCanvas(fieldStops) : null;
+
+  // Shared field: mask all ribbons once, then a single field drawImage (Both-mode win).
+  if (colorMode === "sharedGradient" && fieldCanvas) {
+    const scaledField = getTwizzlerGradientFieldCanvasScaled(fieldStops, pixelWidth, pixelHeight) ?? fieldCanvas;
+    for (const line of ordered) {
+      if (line.points.length < 2) continue;
+      const strokeWidth = Math.max(settings.minLineWidth, line.strokeWidth);
+      context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
+      context.fillStyle = "#ffffff";
+      fillOutlinedRibbon(context, line.points, strokeWidth);
+    }
+    context.globalAlpha = 1;
+    context.globalCompositeOperation = "source-in";
+    context.drawImage(scaledField, 0, 0, pixelWidth, pixelHeight);
+    context.globalCompositeOperation = "source-over";
+    context.restore();
+    return;
+  }
 
   for (const line of ordered) {
     if (line.points.length < 2) continue;

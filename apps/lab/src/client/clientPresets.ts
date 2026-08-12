@@ -216,7 +216,7 @@ export function clientGraphicFlags(mode: ClientGraphicMode): { twizzlerEnabled: 
 }
 
 export const DEFAULT_CLIENT_PREVIEW_STATE: ClientPreviewState = {
-  sizeId: "banner-5x1",
+  sizeId: "hero-16x9",
   layoutId: "classic",
   colorId: "coral-classic",
   appearanceId: "light",
