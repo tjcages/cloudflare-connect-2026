@@ -20,6 +20,7 @@ import {
   twizzlerAmpNoiseY,
   twizzlerAmpSwell,
   twizzlerSvgPathCubic,
+  twizzlerMarketingBend,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -48,6 +49,7 @@ describe("Twizzler", () => {
         bendAmount: -3,
         leftHeight: 4,
         rightHeight: -4,
+        hillRhythm: 9,
       }),
     ).toMatchObject({
       scale: 3,
@@ -57,6 +59,7 @@ describe("Twizzler", () => {
       bendAmount: -1,
       leftHeight: 2,
       rightHeight: -1,
+      hillRhythm: 2,
     });
   });
 
@@ -77,6 +80,48 @@ describe("Twizzler", () => {
     };
     expect(twizzlerPathBend(0.2, settings)).toBeCloseTo(0.2, 2);
     expect(twizzlerPathBend(0.8, settings)).toBeCloseTo(-0.15, 2);
+  });
+
+  it("provides structurally distinct macro-hill rhythms while preserving B", () => {
+    const settings = normalizeTwizzlerSettings({
+      amplitude: 1,
+      scale: 1.15,
+      centerY: 0.4,
+      leftHeight: 0.6,
+      rightHeight: 0.36,
+      bendPosition: 0.25,
+      bendAmount: -0.1,
+      bend2Position: 0.5,
+      bend2Amount: 0.12,
+      bend3Position: 0.8,
+      bend3Amount: -0.1,
+      speed: 0,
+    });
+
+    const countExtrema = (hillRhythm: number) => {
+      const ys = Array.from({ length: 401 }, (_, index) =>
+        twizzlerMarketingCenterY(index / 400, { ...settings, hillRhythm }, 0),
+      );
+      let extrema = 0;
+      for (let index = 1; index < ys.length - 1; index += 1) {
+        const before = ys[index]! - ys[index - 1]!;
+        const after = ys[index + 1]! - ys[index]!;
+        if (before * after < 0) extrema += 1;
+      }
+      return extrema;
+    };
+
+    expect(countExtrema(0)).toBeLessThan(countExtrema(1));
+    expect(countExtrema(1)).toBeLessThan(countExtrema(2));
+    expect(twizzlerMarketingBend(0.5, { ...settings, hillRhythm: 1 })).toBeCloseTo(
+      twizzlerPathBend(0.5, settings),
+      12,
+    );
+
+    const lockedB = [0, 0.2, 0.4, 0.6, 0.8, 1].map((x) =>
+      Number(twizzlerMarketingCenterY(x, { ...settings, hillRhythm: 1 }, 0).toFixed(8)),
+    );
+    expect(lockedB).toEqual([-0.0835824, 0.67569998, 0.8000937, 0.38576335, 0.27843326, -0.37906072]);
   });
 
   it("scales depth toward the camera peak", () => {

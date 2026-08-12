@@ -556,6 +556,7 @@
       "depthSpread": 1.18,
       "depthLift": 0.85,
       "depthTerrain": 0,
+      "hillRhythm": 1,
       "twist": 1.35,
       "noiseScaleX": 0.0004,
       "noiseScaleY": 0.01,
