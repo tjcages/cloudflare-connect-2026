@@ -47,7 +47,7 @@ export type TwizzlerSettings = {
   depthLift: number;
   /**
    * Z-scattered amplitude heat recipe:
-   * 0–2 = pass-one A/B/C; 3–5 = refinement A2/B2/C2.
+   * 0–2 = pass-one A/B/C; 3–5 = A2/B2/C2; 6–8 = A3/B3/C3.
    */
   heatVariant: TwizzlerHeatVariant;
   /**
@@ -66,7 +66,7 @@ export type TwizzlerSettings = {
   stippleGap: number;
 };
 
-export type TwizzlerHeatVariant = 0 | 1 | 2 | 3 | 4 | 5;
+export type TwizzlerHeatVariant = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   color: "#e8481c",
@@ -223,7 +223,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
     depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 4),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
-    heatVariant: Math.round(clamp(input.heatVariant, TWIZZLER_DEFAULTS.heatVariant, 0, 5)) as TwizzlerHeatVariant,
+    heatVariant: Math.round(clamp(input.heatVariant, TWIZZLER_DEFAULTS.heatVariant, 0, 8)) as TwizzlerHeatVariant,
     depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
@@ -537,6 +537,12 @@ export type TwizzlerHeatRecipe = {
   heatBias: number;
   driveGain: number;
   bands: readonly TwizzlerHeatBand[];
+  /** Optional broad Z envelope used to organize local bands into one field. */
+  envelope?: {
+    center: number;
+    width: number;
+    floor: number;
+  };
 };
 
 function uniformHeatBands(bandCount: number, bandWidth: number): TwizzlerHeatBand[] {
@@ -552,9 +558,28 @@ function uniformHeatBands(bandCount: number, bandWidth: number): TwizzlerHeatBan
   });
 }
 
+function poissonHeatBands(centers: readonly number[], minSeparation: number, seed: number): TwizzlerHeatBand[] {
+  const sorted = [...centers].sort((left, right) => left - right);
+  for (let index = 1; index < sorted.length; index += 1) {
+    if (sorted[index]! - sorted[index - 1]! < minSeparation) {
+      throw new Error("Poisson Z heat centers violate minimum separation");
+    }
+  }
+  return sorted.map((center, index) => {
+    const shape = twizzlerNoise(index * 1.73 + seed, seed * 0.61, 0.47);
+    return {
+      center,
+      width: 0.075 + shape * 0.055,
+      gain: 0.82 + twizzlerNoise(index * 2.11, seed, 0.83) * 0.62,
+      phase: twizzlerNoise(index * 1.37 + seed, seed * 1.23, 1.14),
+      temperature: 0.55 + twizzlerNoise(index * 0.91, seed * 0.73, 1.71) * 0.45,
+    };
+  });
+}
+
 /** Structurally distinct Z recipes; X frequencies remain shared and fluid. */
 export function twizzlerHeatRecipe(input: number): TwizzlerHeatRecipe {
-  const variant = Math.round(Math.max(0, Math.min(5, input))) as TwizzlerHeatVariant;
+  const variant = Math.round(Math.max(0, Math.min(8, input))) as TwizzlerHeatVariant;
   switch (variant) {
     case 0: {
       const bandWidth = 0.72;
@@ -642,11 +667,67 @@ export function twizzlerHeatRecipe(input: number): TwizzlerHeatRecipe {
           { center: 0.97, width: 0.08, gain: 1.42, phase: 1, temperature: 1 },
         ],
       };
+    case 6:
+      // A3 — one dominant hot mass plus two unrelated offset sheets.
+      return {
+        bandCount: 3,
+        bandWidth: 0.43,
+        zFrequency: 1.05,
+        heatBias: 0.14,
+        driveGain: 1.12,
+        bands: [
+          { center: -0.72, width: 0.27, gain: 0.62, phase: 0.08, temperature: 0.38 },
+          { center: 0.24, width: 0.82, gain: 1.38, phase: 0.57, temperature: 1 },
+          { center: 0.89, width: 0.18, gain: 0.54, phase: 0.94, temperature: 0.52 },
+        ],
+      };
+    case 7:
+      // B3 — broad parent regions carry narrower, hotter child islands.
+      return {
+        bandCount: 7,
+        bandWidth: 0.28,
+        zFrequency: 2.15,
+        heatBias: 0.15,
+        driveGain: 1.14,
+        bands: [
+          { center: -0.54, width: 0.56, gain: 0.58, phase: 0.16, temperature: 0.3 },
+          { center: -0.76, width: 0.1, gain: 1.46, phase: 0.04, temperature: 1 },
+          { center: -0.31, width: 0.13, gain: 1.22, phase: 0.37, temperature: 0.82 },
+          { center: 0.49, width: 0.47, gain: 0.64, phase: 0.73, temperature: 0.38 },
+          { center: 0.2, width: 0.09, gain: 1.54, phase: 0.51, temperature: 1 },
+          { center: 0.61, width: 0.12, gain: 1.36, phase: 0.81, temperature: 0.9 },
+          { center: 0.84, width: 0.075, gain: 1.18, phase: 0.97, temperature: 0.74 },
+        ],
+      };
+    case 8: {
+      // C3 — deterministic 1D Poisson sampling under a broad low-frequency envelope.
+      const bands = poissonHeatBands([-0.94, -0.77, -0.49, -0.31, -0.06, 0.13, 0.43, 0.61, 0.91], 0.16, 7.3);
+      return {
+        bandCount: bands.length,
+        bandWidth: 0.1,
+        zFrequency: 3.6,
+        heatBias: 0.16,
+        driveGain: 1.1,
+        bands,
+        envelope: {
+          center: 0.08,
+          width: 0.78,
+          floor: 0.36,
+        },
+      };
+    }
     default: {
       const _exhaustive: never = variant;
       return _exhaustive;
     }
   }
+}
+
+function twizzlerHeatEnvelope(across: number, recipe: TwizzlerHeatRecipe): number {
+  if (!recipe.envelope) return 1;
+  const distance = (across - recipe.envelope.center) / Math.max(0.05, recipe.envelope.width);
+  const shape = Math.exp(-(distance * distance));
+  return recipe.envelope.floor + (1 - recipe.envelope.floor) * shape;
 }
 
 /**
@@ -681,7 +762,8 @@ export function twizzlerAmpHeat(xT: number, across: number, heatVariant: Twizzle
 export function twizzlerAmpSwell(xT: number, across: number, heatVariant: TwizzlerHeatVariant = 1, seed = 3.1): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
-  const { bands } = twizzlerHeatRecipe(heatVariant);
+  const recipe = twizzlerHeatRecipe(heatVariant);
+  const { bands } = recipe;
   let sum = 0;
   let wSum = 0;
   for (const band of bands) {
@@ -699,7 +781,8 @@ export function twizzlerAmpSwell(xT: number, across: number, heatVariant: Twizzl
     wSum += w;
   }
   const lobe = wSum > 1e-6 ? sum / wSum : 0;
-  return Math.tanh(lobe * 1.85);
+  const envelope = twizzlerHeatEnvelope(a, recipe);
+  return Math.tanh(lobe * 1.85) * envelope;
 }
 
 /**

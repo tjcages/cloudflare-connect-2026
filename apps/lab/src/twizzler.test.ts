@@ -242,6 +242,35 @@ describe("Twizzler", () => {
     const c2Field = passTwoField(5);
     expect(meanDifference(a2Field, b2Field)).toBeGreaterThan(4);
     expect(meanDifference(b2Field, c2Field)).toBeGreaterThan(4);
+    // Pass three changes topology: dominant/subordinate, hierarchical, and Poisson/enveloped.
+    const dominantLobe = twizzlerHeatRecipe(6);
+    const multiscale = twizzlerHeatRecipe(7);
+    const poisson = twizzlerHeatRecipe(8);
+    const dominant = dominantLobe.bands.filter((band) => band.width > 0.7 && band.gain > 1.2);
+    const subordinate = dominantLobe.bands.filter((band) => band.width < 0.3 && band.gain < 0.7);
+    expect(dominant).toHaveLength(1);
+    expect(subordinate).toHaveLength(2);
+    const warmRegions = multiscale.bands.filter((band) => band.width > 0.4);
+    const hotIslands = multiscale.bands.filter((band) => band.width < 0.14 && band.gain > 1.1);
+    expect(warmRegions).toHaveLength(2);
+    expect(hotIslands).toHaveLength(5);
+    expect(
+      hotIslands.every((island) =>
+        warmRegions.some((region) => Math.abs(island.center - region.center) < region.width),
+      ),
+    ).toBe(true);
+    const poissonCenters = poisson.bands.map((band) => band.center).sort((left, right) => left - right);
+    const poissonGaps = poissonCenters.slice(1).map((center, index) => center - poissonCenters[index]!);
+    expect(Math.min(...poissonGaps)).toBeGreaterThanOrEqual(0.16);
+    expect(Math.max(...poissonGaps) - Math.min(...poissonGaps)).toBeGreaterThan(0.1);
+    expect(poisson.envelope).toEqual({ center: 0.08, width: 0.78, floor: 0.36 });
+    const passThreeField = (variant: 6 | 7 | 8) =>
+      Array.from({ length: 41 }, (_, i) => twizzlerAmpNoiseY(0.55, -1 + i / 20, 320, 1, 0.14, variant));
+    const a3Field = passThreeField(6);
+    const b3Field = passThreeField(7);
+    const c3Field = passThreeField(8);
+    expect(meanDifference(a3Field, b3Field)).toBeGreaterThan(4);
+    expect(meanDifference(b3Field, c3Field)).toBeGreaterThan(4);
     // Z-scattered amp relocates peaks: different across → different extremum X.
     const extremumX = (z: number) => {
       let bestX = 0;
