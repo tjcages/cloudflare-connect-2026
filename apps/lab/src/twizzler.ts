@@ -36,6 +36,17 @@ export type TwizzlerSettings = {
   bend2Amount: number;
   bend3Position: number;
   bend3Amount: number;
+  /** Optional 4th/5th spine knots for denser macro hill rhythms. Amount 0 = off. */
+  bend4Position?: number;
+  bend4Amount?: number;
+  bend5Position?: number;
+  bend5Amount?: number;
+  /** Gaussian width shared by all bend lobes (default 0.16; smaller = sharper hills). */
+  bendWidth?: number;
+  /** Multiplier on the built-in spine knot+wave rhythm (1 = lock behavior). */
+  spineGain?: number;
+  /** How strongly fibers couple to the shared spine (default 0.18). */
+  spineShare?: number;
   depthPosition: number;
   depthAmount: number;
   depthWidth: number;
@@ -92,6 +103,13 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   bend2Amount: 0,
   bend3Position: 0.75,
   bend3Amount: 0,
+  bend4Position: 0.6,
+  bend4Amount: 0,
+  bend5Position: 0.9,
+  bend5Amount: 0,
+  bendWidth: 0.16,
+  spineGain: 1,
+  spineShare: 0.18,
   depthPosition: 0.86,
   depthAmount: 1.15,
   depthWidth: 0.36,
@@ -214,6 +232,15 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     bend2Amount: clamp(input.bend2Amount, TWIZZLER_DEFAULTS.bend2Amount, -1, 1),
     bend3Position: clamp(input.bend3Position, TWIZZLER_DEFAULTS.bend3Position, 0, 1),
     bend3Amount: clamp(input.bend3Amount, TWIZZLER_DEFAULTS.bend3Amount, -1, 1),
+    // Optional spine knobs are emitted only when provided so legacy settings
+    // objects (deep-equality checks, saved presets) keep their exact shape.
+    ...(input.bend4Position !== undefined ? { bend4Position: clamp(input.bend4Position, 0.6, 0, 1) } : {}),
+    ...(input.bend4Amount !== undefined ? { bend4Amount: clamp(input.bend4Amount, 0, -1, 1) } : {}),
+    ...(input.bend5Position !== undefined ? { bend5Position: clamp(input.bend5Position, 0.9, 0, 1) } : {}),
+    ...(input.bend5Amount !== undefined ? { bend5Amount: clamp(input.bend5Amount, 0, -1, 1) } : {}),
+    ...(input.bendWidth !== undefined ? { bendWidth: clamp(input.bendWidth, 0.16, 0.03, 0.6) } : {}),
+    ...(input.spineGain !== undefined ? { spineGain: clamp(input.spineGain, 1, 0, 2.5) } : {}),
+    ...(input.spineShare !== undefined ? { spineShare: clamp(input.spineShare, 0.18, 0, 1) } : {}),
     depthPosition: clamp(input.depthPosition, TWIZZLER_DEFAULTS.depthPosition, 0, 1),
     depthAmount: clamp(input.depthAmount, TWIZZLER_DEFAULTS.depthAmount, 0, 2),
     depthWidth: clamp(input.depthWidth, TWIZZLER_DEFAULTS.depthWidth, 0.05, 0.75),
@@ -265,13 +292,26 @@ export function twizzlerPathBend(
   xT: number,
   settings: Pick<
     TwizzlerSettings,
-    "bendPosition" | "bendAmount" | "bend2Position" | "bend2Amount" | "bend3Position" | "bend3Amount"
+    | "bendPosition"
+    | "bendAmount"
+    | "bend2Position"
+    | "bend2Amount"
+    | "bend3Position"
+    | "bend3Amount"
+    | "bend4Position"
+    | "bend4Amount"
+    | "bend5Position"
+    | "bend5Amount"
+    | "bendWidth"
   >,
 ): number {
+  const width = settings.bendWidth ?? 0.16;
   return (
-    twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount) +
-    twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount) +
-    twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount)
+    twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount, width) +
+    twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount, width) +
+    twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount, width) +
+    twizzlerBendOffset(xT, settings.bend4Position ?? 0.6, settings.bend4Amount ?? 0, width) +
+    twizzlerBendOffset(xT, settings.bend5Position ?? 0.9, settings.bend5Amount ?? 0, width)
   );
 }
 
@@ -318,6 +358,15 @@ function twizzlerHillRhythm(settings: TwizzlerSettings): TwizzlerHillRhythm {
  * authored knot profile; no global sinusoid drives the macro spine.
  */
 export function twizzlerMarketingBend(xT: number, settings: TwizzlerSettings): number {
+  // Optional 4th/5th knots ride on top of every rhythm (amount 0 = off).
+  const extraWidth = settings.bendWidth ?? 0.16;
+  const extras =
+    twizzlerBendOffset(xT, settings.bend4Position ?? 0.6, settings.bend4Amount ?? 0, extraWidth) +
+    twizzlerBendOffset(xT, settings.bend5Position ?? 0.9, settings.bend5Amount ?? 0, extraWidth);
+  return extras + twizzlerMarketingBendBase(xT, settings);
+}
+
+function twizzlerMarketingBendBase(xT: number, settings: TwizzlerSettings): number {
   const rhythm = twizzlerHillRhythm(settings);
   switch (rhythm) {
     case 0:
@@ -439,7 +488,9 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
   const edges = twizzlerEdgeHeights(time, 0, settings);
   const edgeBias = (edges.left - 0.55) * (1 - x) + (edges.right - 0.4) * x;
   const bend = twizzlerMarketingBend(x, settings) * 1.15;
-  const yAbs = yKnot + edgeBias * 0.3 + bend;
+  // spineGain scales the built-in knot rhythm only; bends stay user-authored.
+  const spineGain = Math.max(0, Math.min(2.5, settings.spineGain ?? 1));
+  const yAbs = 0.55 + (yKnot - 0.55) * spineGain + edgeBias * 0.3 + bend;
   return settings.centerY + (yAbs - 0.55) * settings.scale;
 }
 
@@ -856,7 +907,7 @@ export function buildTwizzlerLines(
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
       // Soften shared spine lockstep — Z-scattered amp peaks must land at different X.
       const spineBase = pixelHeight * settings.centerY;
-      const spineShare = twizzlerMarketingSpineShare(settings);
+      const spineShare = settings.spineShare ?? twizzlerMarketingSpineShare(settings);
       const y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
 
       points.push({ x, y, depth, along: c.xT, nearness });
