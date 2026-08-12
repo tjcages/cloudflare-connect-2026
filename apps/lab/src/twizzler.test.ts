@@ -6,6 +6,7 @@ import {
   orangeWaveXRangeForCanvas,
   orangeWaveY,
   ribbonGradientXSpan,
+  ribbonGradientXYSpan,
   TWIZZLER_DEFAULTS,
   twizzlerAnimationTime,
   twizzlerBendOffset,
@@ -120,26 +121,26 @@ describe("Twizzler", () => {
     expect(fromLeva.colorNear).toBe("#112233");
     expect(fromLeva.ribbonColorMode).toBe("sharedGradient");
     expect(fromLeva.gradientStops).toEqual([
-      { id: "far", offset: 0, color: "#abcdef" },
-      { id: "near", offset: 1, color: "#112233" },
+      { id: "far", x: 0, y: 0.5, offset: 0, color: "#abcdef" },
+      { id: "near", x: 1, y: 0.5, offset: 1, color: "#112233" },
     ]);
   });
 
-  it("preserves custom shared-ramp stop offsets (CF-55)", () => {
+  it("preserves custom 2D hotspot positions (CF-58)", () => {
     const settings = normalizeTwizzlerSettings({
       colorFar: "#fea700",
       colorNear: "#f46021",
       ribbonColorMode: "sharedGradient",
       gradientStops: [
-        { id: "a", offset: 0.2, color: "#ff0000" },
-        { id: "b", offset: 0.55, color: "#00ff00" },
-        { id: "c", offset: 0.85, color: "#0000ff" },
+        { id: "a", x: 0.2, y: 0.1, color: "#ff0000" },
+        { id: "b", x: 0.55, y: 0.8, color: "#00ff00" },
+        { id: "c", x: 0.85, y: 0.4, color: "#0000ff" },
       ],
     });
-    expect(settings.gradientStops.map((s) => [s.offset, s.color])).toEqual([
-      [0.2, "#ff0000"],
-      [0.55, "#00ff00"],
-      [0.85, "#0000ff"],
+    expect(settings.gradientStops.map((s) => [s.x, s.y, s.offset, s.color])).toEqual([
+      [0.2, 0.1, 0.2, "#ff0000"],
+      [0.55, 0.8, 0.55, "#00ff00"],
+      [0.85, 0.4, 0.85, "#0000ff"],
     ]);
     expect(settings.colorFar).toBe("#ff0000");
     expect(settings.colorNear).toBe("#0000ff");
@@ -611,5 +612,16 @@ describe("Twizzler", () => {
       8,
     );
     expect(span).toEqual({ x1: 36, x2: 124 });
+  });
+
+  it("ribbonGradientXYSpan pads the fiber AABB by half stroke", () => {
+    const span = ribbonGradientXYSpan(
+      [
+        { x: 40, y: 10 },
+        { x: 120, y: 50 },
+      ],
+      8,
+    );
+    expect(span).toEqual({ x1: 36, y1: 6, x2: 124, y2: 54 });
   });
 });

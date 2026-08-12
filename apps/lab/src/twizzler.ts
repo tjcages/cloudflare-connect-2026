@@ -7,9 +7,12 @@
  */
 
 import {
-  applyTwizzlerGradientStops,
   defaultTwizzlerGradientStops,
   parseTwizzlerGradientStops,
+  rasterizeTwizzlerGradientField,
+  serializeTwizzlerGradientStops,
+  TWIZZLER_GRADIENT_FIELD_RASTER_HEIGHT,
+  TWIZZLER_GRADIENT_FIELD_RASTER_WIDTH,
   type TwizzlerGradientStop,
 } from "./twizzlerGradient";
 
@@ -32,8 +35,8 @@ export type TwizzlerSettings = {
   /** Peak Y accent (Red Accent). */
   colorEdge: string;
   /**
-   * Shared / Fiber X-ramp stops (offset 0–1 + color).
-   * Legacy configs without this list synthesize colorFar@0 → colorNear@1.
+   * Shared / Fiber 2D color hotspots (`x`/`y` UV + color).
+   * Legacy 1D ramps (`offset` only) migrate to `x = offset`, `y = 0.5`.
    */
   gradientStops: TwizzlerGradientStop[];
   opacity: number;
@@ -96,8 +99,8 @@ export type TwizzlerSettings = {
   /**
    * How ribbon color is previewed + exported:
    * - solid: one fill color per fiber
-   * - sharedGradient: one pack-wide X ramp (artboard left→right), ribbons sample `gradientStops`
-   * - fiberGradient: same stop list fitted to each ribbon’s own X extent
+   * - sharedGradient: one pack-wide 2D color field, ribbons sample `gradientStops`
+   * - fiberGradient: same field stretched into each ribbon’s AABB
    * - baked: segmented X/Y/Z fills (highest fidelity, heaviest)
    */
   ribbonColorMode: TwizzlerRibbonColorMode;
@@ -1321,6 +1324,68 @@ export function ribbonGradientXSpan(
   return { x1, x2 };
 }
 
+/** Axis-aligned box for a fiber-local 2D color field, padded by half stroke. */
+export function ribbonGradientXYSpan(
+  points: readonly { x: number; y: number }[],
+  strokeWidth: number,
+): { x1: number; y1: number; x2: number; y2: number } | null {
+  if (points.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of points) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  const pad = Math.max(0, strokeWidth) * 0.5;
+  const x1 = minX - pad;
+  const y1 = minY - pad;
+  const x2 = Math.max(maxX + pad, x1 + 1e-3);
+  const y2 = Math.max(maxY + pad, y1 + 1e-3);
+  return { x1, y1, x2, y2 };
+}
+
+type GradientFieldCache = { key: string; canvas: HTMLCanvasElement };
+
+let gradientFieldCache: GradientFieldCache | null = null;
+
+function getTwizzlerGradientFieldCanvas(stops: readonly TwizzlerGradientStop[]): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null;
+  const key = serializeTwizzlerGradientStops(stops);
+  if (gradientFieldCache && gradientFieldCache.key === key) return gradientFieldCache.canvas;
+  const canvas = gradientFieldCache?.canvas ?? document.createElement("canvas");
+  canvas.width = TWIZZLER_GRADIENT_FIELD_RASTER_WIDTH;
+  canvas.height = TWIZZLER_GRADIENT_FIELD_RASTER_HEIGHT;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  const pixels = rasterizeTwizzlerGradientField(stops, canvas.width, canvas.height);
+  const image = context.createImageData(canvas.width, canvas.height);
+  image.data.set(pixels);
+  context.putImageData(image, 0, 0);
+  gradientFieldCache = { key, canvas };
+  return canvas;
+}
+
+function clipOutlinedRibbon(
+  context: CanvasRenderingContext2D,
+  points: readonly { x: number; y: number }[],
+  strokeWidth: number,
+): boolean {
+  const poly = outlinePolylinePolygon(points, strokeWidth);
+  if (!poly || poly.length < 3) return false;
+  context.beginPath();
+  context.moveTo(poly[0]!.x, poly[0]!.y);
+  for (let i = 1; i < poly.length; i += 1) {
+    context.lineTo(poly[i]!.x, poly[i]!.y);
+  }
+  context.closePath();
+  context.clip();
+  return true;
+}
+
 export function renderTwizzler(
   canvas: HTMLCanvasElement,
   width: number,
@@ -1345,15 +1410,9 @@ export function renderTwizzler(
 
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
   const colorMode = resolveTwizzlerRibbonColorMode(settings);
-  const rampStops = settings.gradientStops;
-  const packGradient =
-    colorMode === "sharedGradient"
-      ? (() => {
-          const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
-          applyTwizzlerGradientStops(gradient, rampStops);
-          return gradient;
-        })()
-      : null;
+  const fieldStops = settings.gradientStops;
+  const fieldCanvas =
+    colorMode === "sharedGradient" || colorMode === "fiberGradient" ? getTwizzlerGradientFieldCanvas(fieldStops) : null;
 
   for (const line of ordered) {
     if (line.points.length < 2) continue;
@@ -1373,24 +1432,28 @@ export function renderTwizzler(
         break;
       }
       case "sharedGradient": {
-        // Pack-wide X ramp (matches SVG masked gradient plane).
-        context.fillStyle = packGradient ?? settings.colorNear;
+        context.save();
         context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
-        fillOutlinedRibbon(context, line.points, strokeWidth);
+        if (fieldCanvas && clipOutlinedRibbon(context, line.points, strokeWidth)) {
+          context.drawImage(fieldCanvas, 0, 0, pixelWidth, pixelHeight);
+        } else {
+          context.fillStyle = settings.colorNear;
+          fillOutlinedRibbon(context, line.points, strokeWidth);
+        }
+        context.restore();
         break;
       }
       case "fiberGradient": {
-        // Per-ribbon X ramp across the fiber’s own horizontal span.
-        const span = ribbonGradientXSpan(line.points, strokeWidth);
-        if (span) {
-          const gradient = context.createLinearGradient(span.x1, 0, span.x2, 0);
-          applyTwizzlerGradientStops(gradient, rampStops);
-          context.fillStyle = gradient;
+        const span = ribbonGradientXYSpan(line.points, strokeWidth);
+        context.save();
+        context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
+        if (fieldCanvas && span && clipOutlinedRibbon(context, line.points, strokeWidth)) {
+          context.drawImage(fieldCanvas, span.x1, span.y1, span.x2 - span.x1, span.y2 - span.y1);
         } else {
           context.fillStyle = settings.colorNear;
+          fillOutlinedRibbon(context, line.points, strokeWidth);
         }
-        context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
-        fillOutlinedRibbon(context, line.points, strokeWidth);
+        context.restore();
         break;
       }
       case "baked": {

@@ -69,8 +69,8 @@ describe("client preview presets", () => {
     expect(bundle.twizzler.color).toBe("#f46021");
     expect(bundle.twizzler.colorFar).toBe("#fea700");
     expect(bundle.twizzler.gradientStops).toEqual([
-      { id: "far", offset: 0, color: "#fea700" },
-      { id: "near", offset: 1, color: "#f46021" },
+      { id: "far", x: 0, y: 0.5, offset: 0, color: "#fea700" },
+      { id: "near", x: 1, y: 0.5, offset: 1, color: "#f46021" },
     ]);
     expect(bundle.twizzler.colorEdge).toBe("#e92e28");
     expect(bundle.twizzler.opacity).toBeCloseTo(1);

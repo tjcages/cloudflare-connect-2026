@@ -1,32 +1,31 @@
 import { describe, expect, it } from "vitest";
 import {
   addTwizzlerGradientStop,
-  applyTwizzlerGradientStops,
   defaultTwizzlerGradientStops,
   moveTwizzlerGradientStop,
   nearestTwizzlerGradientStopId,
   normalizeTwizzlerGradientStops,
-  offsetFromClientX,
   parseTwizzlerGradientStops,
+  rasterizeTwizzlerGradientField,
   removeTwizzlerGradientStop,
   recolorTwizzlerGradientStop,
   sampleTwizzlerGradientColor,
   serializeTwizzlerGradientStops,
-  twizzlerGradientCss,
-  twizzlerGradientSvgStops,
+  twizzlerGradientSvgPattern,
+  uvFromClient,
   withTwizzlerGradientEndpointColors,
   TWIZZLER_GRADIENT_STOP_MAX,
 } from "./twizzlerGradient";
 
 describe("twizzlerGradient", () => {
-  it("synthesizes colorFar@0 → colorNear@1 when stops are missing", () => {
+  it("synthesizes colorFar@(0,0.5) → colorNear@(1,0.5) when stops are missing", () => {
     expect(normalizeTwizzlerGradientStops(undefined, "#FEA700", "#F46021")).toEqual([
-      { id: "far", offset: 0, color: "#fea700" },
-      { id: "near", offset: 1, color: "#f46021" },
+      { id: "far", x: 0, y: 0.5, offset: 0, color: "#fea700" },
+      { id: "near", x: 1, y: 0.5, offset: 1, color: "#f46021" },
     ]);
   });
 
-  it("keeps custom offsets and middle colors", () => {
+  it("migrates 1D offset-only stops onto y = 0.5", () => {
     const stops = normalizeTwizzlerGradientStops(
       [
         { id: "a", offset: 0.15, color: "#ff0000" },
@@ -36,111 +35,143 @@ describe("twizzlerGradient", () => {
       "#fea700",
       "#f46021",
     );
-    expect(stops.map((s) => [s.offset, s.color])).toEqual([
-      [0.15, "#ff0000"],
-      [0.5, "#00ff00"],
-      [0.9, "#0000ff"],
+    expect(stops.map((s) => [s.x, s.y, s.offset, s.color])).toEqual([
+      [0.15, 0.5, 0.15, "#ff0000"],
+      [0.5, 0.5, 0.5, "#00ff00"],
+      [0.9, 0.5, 0.9, "#0000ff"],
     ]);
   });
 
-  it("round-trips serialize/parse", () => {
+  it("keeps explicit 2D hotspot positions", () => {
+    const stops = normalizeTwizzlerGradientStops(
+      [
+        { id: "a", x: 0.2, y: 0.1, color: "#ff0000" },
+        { id: "b", x: 0.8, y: 0.9, color: "#0000ff" },
+      ],
+      "#fea700",
+      "#f46021",
+    );
+    expect(stops.map((s) => [s.x, s.y, s.offset, s.color])).toEqual([
+      [0.2, 0.1, 0.2, "#ff0000"],
+      [0.8, 0.9, 0.8, "#0000ff"],
+    ]);
+  });
+
+  it("round-trips serialize/parse including y", () => {
     const original = [
-      { id: "a", offset: 0, color: "#111111" },
-      { id: "b", offset: 0.4, color: "#abcdef" },
-      { id: "c", offset: 1, color: "#ffffff" },
+      { id: "a", x: 0, y: 0.25, offset: 0, color: "#111111" },
+      { id: "b", x: 0.4, y: 0.8, offset: 0.4, color: "#abcdef" },
+      { id: "c", x: 1, y: 0.5, offset: 1, color: "#ffffff" },
     ];
     const parsed = parseTwizzlerGradientStops(serializeTwizzlerGradientStops(original), "#fea700", "#f46021");
     expect(parsed).toEqual(original);
   });
 
-  it("samples between stops and clamps outside the first/last offset", () => {
+  it("samples IDW in 2D and returns an exact hotspot color", () => {
     const stops = [
-      { id: "a", offset: 0.25, color: "#000000" },
-      { id: "b", offset: 0.75, color: "#ffffff" },
+      { id: "a", x: 0.5, y: 0, offset: 0.5, color: "#000000" },
+      { id: "b", x: 0.5, y: 1, offset: 0.5, color: "#ffffff" },
     ];
-    expect(sampleTwizzlerGradientColor(stops, 0)).toBe("#000000");
-    expect(sampleTwizzlerGradientColor(stops, 1)).toBe("#ffffff");
-    expect(sampleTwizzlerGradientColor(stops, 0.5)).toBe("#808080");
+    expect(sampleTwizzlerGradientColor(stops, 0.5, 0)).toBe("#000000");
+    expect(sampleTwizzlerGradientColor(stops, 0.5, 1)).toBe("#ffffff");
+    expect(sampleTwizzlerGradientColor(stops, 0.5, 0.5)).toBe("#808080");
   });
 
-  it("adds, moves, recolors, and refuses to drop below two stops", () => {
+  it("adds, moves, recolors, and refuses to drop the last hotspot", () => {
     const base = defaultTwizzlerGradientStops("#fea700", "#f46021");
-    const added = addTwizzlerGradientStop(base, 0.4);
+    const added = addTwizzlerGradientStop(base, 0.4, 0.7);
     expect(added).toHaveLength(3);
-    expect(added[1]?.offset).toBeCloseTo(0.4);
-    const moved = moveTwizzlerGradientStop(added, added[1]!.id, 0.62);
-    expect(moved.find((s) => s.id === added[1]!.id)?.offset).toBeCloseTo(0.62);
+    const created = added.find((s) => s.id !== "far" && s.id !== "near")!;
+    expect(created.x).toBeCloseTo(0.4);
+    expect(created.y).toBeCloseTo(0.7);
+    const moved = moveTwizzlerGradientStop(added, created.id, 0.62, 0.2);
+    const afterMove = moved.find((s) => s.id === created.id);
+    expect(afterMove?.x).toBeCloseTo(0.62);
+    expect(afterMove?.y).toBeCloseTo(0.2);
+    expect(afterMove?.offset).toBeCloseTo(0.62);
     const recolored = recolorTwizzlerGradientStop(moved, "far", "#112233");
-    expect(recolored[0]?.color).toBe("#112233");
-    expect(removeTwizzlerGradientStop(base, "far")).toHaveLength(2);
-    expect(removeTwizzlerGradientStop(added, added[1]!.id)).toHaveLength(2);
+    expect(recolored.find((s) => s.id === "far")?.color).toBe("#112233");
+    expect(removeTwizzlerGradientStop(base, "far")).toHaveLength(1);
+    expect(removeTwizzlerGradientStop(added, created.id)).toHaveLength(2);
+    const last = removeTwizzlerGradientStop(base, "far");
+    expect(removeTwizzlerGradientStop(last, last[0]!.id)).toHaveLength(1);
   });
 
-  it("caps at max stops", () => {
+  it("caps at max hotspots", () => {
     let stops = defaultTwizzlerGradientStops("#111111", "#eeeeee");
-    for (let i = 0; i < 12; i += 1) stops = addTwizzlerGradientStop(stops, (i + 1) / 20);
+    for (let i = 0; i < 20; i += 1) stops = addTwizzlerGradientStop(stops, (i + 1) / 20, 0.4);
     expect(stops.length).toBe(TWIZZLER_GRADIENT_STOP_MAX);
   });
 
-  it("patches endpoint colors without moving middle stops", () => {
+  it("patches leftmost/rightmost hotspot colors without moving the rest", () => {
     const patched = withTwizzlerGradientEndpointColors(
       [
-        { id: "a", offset: 0.1, color: "#111111" },
-        { id: "m", offset: 0.5, color: "#00ff00" },
-        { id: "b", offset: 0.9, color: "#222222" },
+        { id: "a", x: 0.1, y: 0.2, offset: 0.1, color: "#111111" },
+        { id: "m", x: 0.5, y: 0.9, offset: 0.5, color: "#00ff00" },
+        { id: "b", x: 0.9, y: 0.4, offset: 0.9, color: "#222222" },
       ],
       "#abcdef",
       "#fedcba",
     );
-    expect(patched.map((s) => [s.offset, s.color])).toEqual([
-      [0.1, "#abcdef"],
-      [0.5, "#00ff00"],
-      [0.9, "#fedcba"],
+    expect(patched.map((s) => [s.x, s.y, s.color])).toEqual([
+      [0.1, 0.2, "#abcdef"],
+      [0.5, 0.9, "#00ff00"],
+      [0.9, 0.4, "#fedcba"],
     ]);
   });
 
-  it("maps pointer X to 0–1 and finds the nearest handle", () => {
-    expect(offsetFromClientX(150, { left: 100, width: 200 })).toBeCloseTo(0.25);
+  it("maps pointer UV and finds the nearest hotspot in 2D", () => {
+    expect(uvFromClient(150, 140, { left: 100, top: 100, width: 200, height: 80 })).toEqual({
+      x: 0.25,
+      y: 0.5,
+    });
     const id = nearestTwizzlerGradientStopId(
       [
-        { id: "a", offset: 0, color: "#000000" },
-        { id: "b", offset: 1, color: "#ffffff" },
+        { id: "a", x: 0, y: 0.5, offset: 0, color: "#000000" },
+        { id: "b", x: 1, y: 0.5, offset: 1, color: "#ffffff" },
       ],
-      298,
-      { left: 100, width: 200 },
-      14,
+      0.97,
+      0.52,
+      0.08,
     );
     expect(id).toBe("b");
   });
 
-  it("emits CSS and SVG stops at custom offsets", () => {
+  it("rasterizes a 2D field that is not a 1D left-to-right ramp", () => {
     const stops = [
-      { id: "a", offset: 0.2, color: "#ff0000" },
-      { id: "b", offset: 0.8, color: "#0000ff" },
+      { id: "top", x: 0.5, y: 0, offset: 0.5, color: "#ff0000" },
+      { id: "bottom", x: 0.5, y: 1, offset: 0.5, color: "#0000ff" },
     ];
-    expect(twizzlerGradientCss(stops)).toContain("#ff0000 20.00%");
-    expect(twizzlerGradientCss(stops)).toContain("#0000ff 80.00%");
-    const svg = twizzlerGradientSvgStops(stops);
-    expect(svg).toContain('offset="0.2"');
-    expect(svg).toContain('offset="0.8"');
-    expect(svg).toContain("rgb(255,0,0)");
-    expect(svg).toContain("rgb(0,0,255)");
+    const pixels = rasterizeTwizzlerGradientField(stops, 4, 4);
+    const rgbAt = (col: number, row: number) => {
+      const i = (row * 4 + col) * 4;
+      return { r: pixels[i]!, g: pixels[i + 1]!, b: pixels[i + 2]! };
+    };
+    const top = rgbAt(2, 0);
+    const bottom = rgbAt(2, 3);
+    expect(top.r).toBeGreaterThan(top.b + 40);
+    expect(bottom.b).toBeGreaterThan(bottom.r + 40);
   });
 
-  it("applies every stop to a Canvas2D gradient", () => {
-    const added: Array<[number, string]> = [];
-    const gradient = {
-      addColorStop: (offset: number, color: string) => {
-        added.push([offset, color]);
-      },
-    } as CanvasGradient;
-    applyTwizzlerGradientStops(gradient, [
-      { id: "b", offset: 0.7, color: "#00ff00" },
-      { id: "a", offset: 0.1, color: "#ff0000" },
-    ]);
-    expect(added).toEqual([
-      [0.1, "#ff0000"],
-      [0.7, "#00ff00"],
-    ]);
+  it("emits an SVG pattern of field rects instead of 1D stop offsets", () => {
+    const stops = [
+      { id: "a", x: 0.2, y: 0.1, offset: 0.2, color: "#ff0000" },
+      { id: "b", x: 0.8, y: 0.9, offset: 0.8, color: "#0000ff" },
+    ];
+    const svg = twizzlerGradientSvgPattern("pack", 0, 0, 400, 200, stops, 4, 3);
+    expect(svg).toContain('id="pack"');
+    expect(svg).toContain('patternUnits="userSpaceOnUse"');
+    expect(svg).toContain('width="400"');
+    expect(svg).toContain('height="200"');
+    expect(svg).not.toContain("<stop ");
+    expect(svg).not.toContain("linearGradient");
+    expect((svg.match(/<rect /g) ?? []).length).toBe(12);
+    const rgbs = [...svg.matchAll(/fill="rgb\((\d+),(\d+),(\d+)\)"/g)].map((m) => ({
+      r: Number(m[1]),
+      g: Number(m[2]),
+      b: Number(m[3]),
+    }));
+    expect(rgbs.some((c) => c.r > 180 && c.b < 80)).toBe(true);
+    expect(rgbs.some((c) => c.b > 180 && c.r < 80)).toBe(true);
   });
 });

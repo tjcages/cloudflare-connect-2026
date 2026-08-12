@@ -911,8 +911,7 @@
 .twizzler-gradient-graph {
   position: relative;
   width: 100%;
-  height: 56px;
-  padding: 8px 8px 0;
+  height: 88px;
   box-sizing: border-box;
   border-radius: var(--leva-radius);
   background: color-mix(in srgb, var(--leva-surface) 68%, transparent);
@@ -925,57 +924,42 @@
   cursor: crosshair;
 }
 
-.twizzler-gradient-track {
+.twizzler-gradient-field {
+  position: absolute;
+  left: calc(10 / 168 * 100%);
+  top: calc(10 / 88 * 100%);
+  width: calc(148 / 168 * 100%);
+  height: calc(68 / 88 * 100%);
+  border-radius: 2px;
+  pointer-events: none;
+  image-rendering: auto;
+}
+
+.twizzler-gradient-plane {
   position: relative;
+  display: block;
   width: 100%;
-  height: 100%;
+  height: 88px;
+  overflow: visible;
   touch-action: none;
 }
 
-.twizzler-gradient-fill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 30px;
-  border-radius: 4px;
-  pointer-events: none;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--leva-text-muted) 22%, transparent);
+.twizzler-gradient-graph line {
+  stroke: color-mix(in srgb, var(--leva-text-muted) 28%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
-.twizzler-gradient-baseline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 10px;
-  height: 1px;
-  background: color-mix(in srgb, var(--leva-text-muted) 34%, transparent);
-  pointer-events: none;
-}
-
-.playground-leva-panel button.twizzler-gradient-handle {
-  position: absolute;
-  top: auto;
-  bottom: 4px;
-  width: 12px;
-  height: 12px;
-  margin: 0;
-  padding: 0;
-  border-radius: 999px !important;
-  border: 1px solid var(--leva-surface) !important;
-  background-color: var(--twizzler-gradient-handle-color, #888) !important;
-  background-image: none !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--leva-text-muted) 45%, transparent) !important;
-  transform: translateX(-50%);
+.twizzler-gradient-handle {
+  stroke: var(--leva-surface);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
   cursor: grab;
-  z-index: 1;
 }
 
-.playground-leva-panel button.twizzler-gradient-handle:not(:disabled):hover,
-.playground-leva-panel button.twizzler-gradient-handle.is-selected {
-  box-shadow:
-    0 0 0 1px var(--leva-accent-strong),
-    0 0 0 3px color-mix(in srgb, var(--leva-accent-strong) 28%, transparent) !important;
+.twizzler-gradient-handle.is-selected {
+  stroke: var(--leva-accent-strong);
+  stroke-width: 1.5;
 }
 
 .twizzler-gradient-selected {

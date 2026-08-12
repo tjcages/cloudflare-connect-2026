@@ -1939,7 +1939,7 @@ export function useEngineControls(
                 },
               },
               // Axis X/Y/Z mixes only drive Baked segments (Color mode).
-              // Shared/Fiber use the Ramp stop editor (twizzlerGradientStops).
+              // Shared/Fiber use the 2D hotspot field editor (twizzlerGradientStops).
               {
                 render: (get) =>
                   showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") === "baked",
@@ -5080,8 +5080,8 @@ export function useEngineControls(
     });
   }, [clientApp, clientColorId, setShaderControl]);
 
-  // Keep Color left/right knobs and the Ramp editor on the same endpoint colors
-  // so Shared ↔ Baked doesn't drop stop positions or endpoint ink (CF-55).
+  // Keep Color left/right knobs and the Field editor on the same endpoint colors
+  // so Shared ↔ Baked doesn't drop hotspot positions or endpoint ink (CF-55 / CF-58).
   const shaderTwizzlerRecord = shaderValues as unknown as Record<string, unknown>;
   const twizzlerRibbonColorModeValue = shaderTwizzlerRecord.twizzlerRibbonColorMode;
   const twizzlerGradientStopsValue = shaderTwizzlerRecord.twizzlerGradientStops;
@@ -5091,7 +5091,7 @@ export function useEngineControls(
     const colorFar = String(twizzlerColorFarValue ?? "");
     const colorNear = String(twizzlerColorValue ?? "");
     const parsed = parseTwizzlerGradientStops(twizzlerGradientStopsValue, colorFar, colorNear);
-    if (parsed.length < 2) return;
+    if (parsed.length === 0) return;
     if (twizzlerRibbonColorModeValue === "sharedGradient" || twizzlerRibbonColorModeValue === "fiberGradient") {
       const far = parsed[0]!.color;
       const near = parsed[parsed.length - 1]!.color;
