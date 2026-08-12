@@ -249,8 +249,14 @@ export function twizzlerNoise(x: number, y: number, z: number): number {
   return mix(zNear, zFar, tz);
 }
 
-export function normalizeTwizzlerColor(value: unknown): string {
-  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : TWIZZLER_DEFAULTS.color;
+/**
+ * Normalize a Twizzler hex color. Invalid/null values fall back to `fallback`
+ * (per-field defaults) so left/right/peaks never collapse to the same token.
+ */
+export function normalizeTwizzlerColor(value: unknown, fallback: string = TWIZZLER_DEFAULTS.color): string {
+  if (typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+  if (typeof fallback === "string" && /^#[0-9a-f]{6}$/i.test(fallback)) return fallback.toLowerCase();
+  return TWIZZLER_DEFAULTS.color;
 }
 
 function parseHexColor(hex: string): { r: number; g: number; b: number } {
@@ -309,13 +315,13 @@ export function twizzlerUsesLineGradients(settings: TwizzlerSettings): boolean {
 
 export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
   const input = value && typeof value === "object" ? (value as Partial<TwizzlerSettings>) : {};
-  const color = normalizeTwizzlerColor(input.color);
+  const color = normalizeTwizzlerColor(input.color, TWIZZLER_DEFAULTS.color);
   const ribbonColorMode = resolveTwizzlerRibbonColorMode(input);
   return {
     color,
-    colorFar: normalizeTwizzlerColor(input.colorFar ?? TWIZZLER_DEFAULTS.colorFar),
-    colorNear: normalizeTwizzlerColor(input.colorNear ?? color),
-    colorEdge: normalizeTwizzlerColor(input.colorEdge ?? TWIZZLER_DEFAULTS.colorEdge),
+    colorFar: normalizeTwizzlerColor(input.colorFar, TWIZZLER_DEFAULTS.colorFar),
+    colorNear: normalizeTwizzlerColor(input.colorNear ?? input.color, TWIZZLER_DEFAULTS.colorNear),
+    colorEdge: normalizeTwizzlerColor(input.colorEdge, TWIZZLER_DEFAULTS.colorEdge),
     opacity: clamp(input.opacity, TWIZZLER_DEFAULTS.opacity, 0, 1),
     scale: clamp(input.scale, TWIZZLER_DEFAULTS.scale, 0.01, 50),
     centerY: clamp(input.centerY, TWIZZLER_DEFAULTS.centerY, -2, 3),
@@ -367,7 +373,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     gradientZStrength: clamp(input.gradientZStrength, TWIZZLER_DEFAULTS.gradientZStrength, 0, 10),
     gradientZCenter: clamp(input.gradientZCenter, TWIZZLER_DEFAULTS.gradientZCenter, -10, 10),
     gradientZWidth: clamp(input.gradientZWidth, TWIZZLER_DEFAULTS.gradientZWidth, 0.01, 20),
-    backgroundColor: normalizeTwizzlerColor(input.backgroundColor ?? TWIZZLER_DEFAULTS.backgroundColor),
+    backgroundColor: normalizeTwizzlerColor(input.backgroundColor, TWIZZLER_DEFAULTS.backgroundColor),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.00001, 1),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.0001, 2),
     speed: clamp(input.speed, TWIZZLER_DEFAULTS.speed, 0, 40),

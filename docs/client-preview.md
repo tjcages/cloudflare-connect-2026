@@ -18,8 +18,11 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
 - **Default** — rich authoring for the orange-wave ribbon:
   - **Presets** — Size / Layout / Color
   - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
+    - Solid: Color right only
+    - Shared / Fiber: Color left + Color right (X pack/fiber ramp)
+    - Baked: Color left / right / peaks + **Gradients** folder (X/Y/Z mixes)
   - **Twizzler → Shape** — Center Y, Move X/Y/Z, Amplitude, Rotate X/Y/Z, FOV, Cam Z
-  - **Twizzler → Gradients** — X/Y/Z gradient mixes
+  - **Twizzler → Gradients** — X/Y/Z gradient mixes (**Baked** Color mode only)
   - **Twizzler → Stroke** — width, layers, perspective
   - **Twizzler → Motion** — Speed
   - **Background** — Fill + library Color (Gradient stops stay Advanced)
