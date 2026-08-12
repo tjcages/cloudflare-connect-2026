@@ -5138,7 +5138,7 @@ export function useEngineControls(
         phaseDeg: values.streamGapWavePhaseDeg,
       },
     },
-    stripesEnabled: clientMode
+    stripesEnabled: clientApp
       ? Boolean((shaderValues as unknown as Record<string, unknown>).rainEnabled)
       : values.stripesEnabled,
     renderMode: d.renderMode,
