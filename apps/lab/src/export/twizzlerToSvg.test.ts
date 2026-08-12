@@ -69,7 +69,7 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg).not.toContain("linearGradient");
   });
 
-  it("exports shared gradient with one pack linearGradient", () => {
+  it("exports shared gradient as one masked gradient plane", () => {
     const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
       ...TWIZZLER_DEFAULTS,
       lineCount: 5,
@@ -81,12 +81,16 @@ describe("twizzlerToSvgLayer", () => {
     });
     expect(svg).toContain('data-color-mode="sharedGradient"');
     expect(svg).toContain('id="twizzler-pack-grad"');
+    expect(svg).toContain('id="twizzler-pack-mask"');
     expect(svg).toContain('gradientUnits="userSpaceOnUse"');
+    expect(svg).toContain('data-pack-gradient="true"');
     expect(svg).toContain('fill="url(#twizzler-pack-grad)"');
+    expect(svg).toContain('mask="url(#twizzler-pack-mask)"');
     expect(svg.match(/<linearGradient /g)?.length).toBe(1);
-    const paths = svg.match(/<path /g) ?? [];
-    expect(paths.length).toBeGreaterThan(0);
-    expect(paths.length).toBeLessThanOrEqual(5);
+    // Visible paint is a single rect — ribbon silhouettes live only inside the mask.
+    expect(svg.match(/<rect [^>]*data-pack-gradient/g)?.length).toBe(1);
+    expect(svg).not.toMatch(/<path [^>]*fill="url\(#twizzler-pack-grad\)"/);
+    expect(svg).toContain('fill="white"');
   });
 
   it("exports fiber gradients with one linearGradient per ribbon", () => {

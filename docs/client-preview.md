@@ -48,7 +48,7 @@ Client panel (and lab) expose:
 - **Download JSON** — full lab configuration file
 - **Upload JSON** — import a config file as a saved layout and apply it
 - **Export Video** — MediaRecorder / ffmpeg pipeline
-- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one pack X gradient), Fiber gradient (per-fiber X gradients), Baked (segmented X/Y/Z).
+- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one X gradient rect masked by all ribbons), Fiber gradient (per-fiber X gradients), Baked (segmented X/Y/Z).
 
 ## Next HTML → Leva mapping (do this on the next drop)
 

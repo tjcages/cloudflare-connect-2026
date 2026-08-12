@@ -59,8 +59,8 @@ function linearGradientDef(id: string, width: number, colorFar: string, colorNea
  *
  * Modes (`ribbonColorMode`):
  * - solid: one filled path / fiber
- * - sharedGradient: one pack X linearGradient; all fibers `fill=url(#…)` (#3)
- * - fiberGradient: per-fiber X linearGradient defs (#1)
+ * - sharedGradient: one pack X gradient rect, masked by all ribbon silhouettes (#3)
+ * - fiberGradient: per-fiber X linearGradient fills (#1)
  * - baked: segmented X/Y/Z fills (highest fidelity)
  */
 export function twizzlerToSvgLayer(
@@ -144,14 +144,42 @@ export function twizzlerToSvgLayer(
     ].join("\n");
   }
 
-  // sharedGradient | fiberGradient — high-quality X ramp in userSpaceOnUse.
-  const defs: string[] = [];
-  const fiberBlocks: string[] = [];
-  const packGradId = "twizzler-pack-grad";
   if (colorMode === "sharedGradient") {
-    defs.push(linearGradientDef(packGradId, targetWidth, settings.colorFar, settings.colorNear));
+    // One gradient plane + ribbon mask (Figma-editable shared gradient, not per-line fills).
+    const packGradId = "twizzler-pack-grad";
+    const packMaskId = "twizzler-pack-mask";
+    const maskPaths: string[] = [];
+    for (let fiberIndex = 0; fiberIndex < ordered.length; fiberIndex += 1) {
+      const line = ordered[fiberIndex]!;
+      if (line.points.length < 2) continue;
+      const strokeWidth = Math.max(settings.minLineWidth, line.strokeWidth) * strokeScale;
+      const scaled = line.points.map((p) => ({ x: p.x * scaleX, y: p.y * scaleY }));
+      const d = outlinePolylineFillPath(scaled, strokeWidth);
+      if (!d) continue;
+      const opacity = Math.max(0.01, Math.min(1, line.opacity));
+      maskPaths.push(
+        `      <path data-fiber="${fiberIndex}" d="${d}" fill="white" fill-opacity="${number(opacity, 3)}" stroke="none" />`,
+      );
+    }
+    const w = number(targetWidth, 1);
+    const h = number(targetHeight, 1);
+    return [
+      `  <g data-layer="twizzler" data-color-mode="sharedGradient">`,
+      "    <defs>",
+      linearGradientDef(packGradId, targetWidth, settings.colorFar, settings.colorNear),
+      `    <mask id="${packMaskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}">`,
+      `      <rect x="0" y="0" width="${w}" height="${h}" fill="black" />`,
+      maskPaths.join("\n"),
+      "    </mask>",
+      "    </defs>",
+      `    <rect data-pack-gradient="true" x="0" y="0" width="${w}" height="${h}" fill="url(#${packGradId})" mask="url(#${packMaskId})" />`,
+      "  </g>",
+    ].join("\n");
   }
 
+  // fiberGradient — high-quality X ramp per ribbon (independently editable in Figma).
+  const defs: string[] = [];
+  const fiberBlocks: string[] = [];
   for (let fiberIndex = 0; fiberIndex < ordered.length; fiberIndex += 1) {
     const line = ordered[fiberIndex]!;
     if (line.points.length < 2) continue;
@@ -160,18 +188,15 @@ export function twizzlerToSvgLayer(
     const d = outlinePolylineFillPath(scaled, strokeWidth);
     if (!d) continue;
     const opacity = Math.max(0.01, Math.min(1, line.opacity));
-    const gradId =
-      colorMode === "sharedGradient" ? packGradId : `twizzler-fiber-${fiberIndex}-grad`;
-    if (colorMode === "fiberGradient") {
-      defs.push(linearGradientDef(gradId, targetWidth, settings.colorFar, settings.colorNear));
-    }
+    const gradId = `twizzler-fiber-${fiberIndex}-grad`;
+    defs.push(linearGradientDef(gradId, targetWidth, settings.colorFar, settings.colorNear));
     fiberBlocks.push(
       `    <path data-fiber="${fiberIndex}" d="${d}" fill="url(#${gradId})" fill-opacity="${number(opacity, 3)}" stroke="none" />`,
     );
   }
 
   return [
-    `  <g data-layer="twizzler" data-color-mode="${colorMode}" fill-rule="nonzero">`,
+    `  <g data-layer="twizzler" data-color-mode="fiberGradient" fill-rule="nonzero">`,
     defs.length > 0 ? `    <defs>\n${defs.join("\n")}\n    </defs>` : "",
     fiberBlocks.join("\n"),
     "  </g>",
