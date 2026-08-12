@@ -127,6 +127,50 @@ describe("Twizzler", () => {
     expect(zoomAspect / baseAspect).toBeLessThan(1.15);
   });
 
+  it("applies Move X/Y/Z translates on the orange-wave pack", () => {
+    const base = buildTwizzlerLines(800, 800, 0, {
+      lineCount: 16,
+      pointSpacing: 10,
+      speed: 0,
+      panX: 0,
+      panY: 0,
+      panZ: 0,
+    });
+    const moved = buildTwizzlerLines(800, 800, 0, {
+      lineCount: 16,
+      pointSpacing: 10,
+      speed: 0,
+      panX: 120,
+      panY: -80,
+      panZ: 0,
+    });
+    const mean = (lines: typeof base.lines, axis: "x" | "y") => {
+      const vals = lines.flatMap((line) => line.points.map((p) => p[axis]));
+      return vals.reduce((s, v) => s + v, 0) / Math.max(1, vals.length);
+    };
+    expect(mean(moved.lines, "x") - mean(base.lines, "x")).toBeCloseTo(120, 0);
+    expect(mean(moved.lines, "y") - mean(base.lines, "y")).toBeCloseTo(-80, 0);
+
+    const near = buildTwizzlerLines(800, 800, 0, {
+      lineCount: 16,
+      pointSpacing: 10,
+      speed: 0,
+      panZ: -1.5,
+    });
+    const far = buildTwizzlerLines(800, 800, 0, {
+      lineCount: 16,
+      pointSpacing: 10,
+      speed: 0,
+      panZ: 1.5,
+    });
+    const xSpan = (lines: typeof base.lines) => {
+      const xs = lines.flatMap((line) => line.points.map((p) => p.x));
+      return Math.max(...xs) - Math.min(...xs);
+    };
+    // Move Z > 0 = farther = smaller on screen (post-fit dolly).
+    expect(xSpan(near.lines)).toBeGreaterThan(xSpan(far.lines) * 1.2);
+  });
+
   it("places the full bend at the selected horizontal position", () => {
     expect(twizzlerBendOffset(0.6, 0.6, 0.25)).toBe(0.25);
     expect(Math.abs(twizzlerBendOffset(0.1, 0.6, 0.25))).toBeLessThan(0.002);

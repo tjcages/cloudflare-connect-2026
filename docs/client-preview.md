@@ -14,13 +14,15 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** toggle + export buttons.
 
-- **Default** — only the knobs a client needs:
+- **Default** — rich authoring for the orange-wave ribbon:
   - **Presets** — Size / Layout / Color
-  - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared gradient / Fiber gradient / Baked)
-  - **Twizzler → Shape** — Amplitude, Rotate X/Y/Z
+  - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
+  - **Twizzler → Shape** — Center Y, Move X/Y/Z, Amplitude, Rotate X/Y/Z, FOV, Cam Z
+  - **Twizzler → Gradients** — X/Y/Z gradient mixes
+  - **Twizzler → Stroke** — width, layers, perspective
   - **Twizzler → Motion** — Speed
   - **Background** — Fill (Solid / Transparent) + library Color
-- **Advanced** — full Leva folders (same authoring surface as the lab). Gradient background fill, Gradients / Stroke / View / Edges / Noise, per-axis Twizzler colors, Zoom / Opacity, and camera folders return here.
+- **Advanced** — legacy / experimental folders (View, Edges, Noise, wrinkles/bends/depth terrain, Background Gradient fill, camera, etc.)
 
 ## Twizzler (orange-wave)
 
@@ -30,7 +32,8 @@ Current ribbon geometry is the **orange-wave** 3D projected vector from
 - Stroke colors use **COLOR_LIBRARY** (X: Orange Pair→Accent, Y peaks: Red Accent; HTML #ffcc33/#ff6709/#ff2a2a snapped)
 - Background: Neutral White (`#ffffff`), solid — not the HTML demo black
 - Z fade: far / +Z lerps ink **toward stage background color** (not HTML opacity modulate)
-- Camera/stroke/gradient knobs from orange-wave v3 live in Advanced (Gradients + Stroke folders)
+- Move X/Y = pixel translate after projection; Move Z = post-fit dolly (closer/farther)
+- Zoom is unbounded (no L/R lock / vertical stretch)
 - ~56 layers, Rotate X/Y/Z (defaults 12° / −18° / 0°), `lineWidth` ~1.15, dense sampling (≥160 pts)
 - Rain (`sparkle.gaps`) unchanged from Banner — toggle with **Rain** next to Twizzler **Show**
 - Reference: `apps/lab/src/presets/references/orange-wave-vector.html`
@@ -54,10 +57,11 @@ When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (
 | Twizzler on/off              | Twizzler → Show           | existing `twizzlerEnabled`                                    |
 | Color mode                   | Twizzler → Color mode     | Solid / Shared gradient / Fiber gradient / Baked segments     |
 | Rain on/off                  | Twizzler → Rain           | existing `rainEnabled` → `sparkle.gaps`                       |
+| Zoom / Move X/Y/Z            | Twizzler → General/Shape  | Zoom + translate live in Default                              |
 | Rotate X/Y/Z                 | Twizzler → Shape          | already live in Default                                       |
-| Layer count / width / points | Twizzler → Stroke         | Advanced                                                      |
+| Layer count / width / points | Twizzler → Stroke         | Default                                                       |
 | Speed / pause                | Twizzler → Motion         | `speed` (0 = freeze)                                          |
-| Wave amplitude / envelope    | Twizzler → Shape          | Amplitude in Default; Center Y via Layout presets             |
+| Wave amplitude / envelope    | Twizzler → Shape          | Amplitude + Center Y in Default                               |
 | Any new HTML sliders         | Twizzler Shape/Motion     | add settings + normalize + Leva                               |
 
 Colors in the HTML that are not exact library hexes get **snapped** to the nearest `COLOR_LIBRARY` token (prefer Accent / Pair levels). Do not invent a parallel palette.

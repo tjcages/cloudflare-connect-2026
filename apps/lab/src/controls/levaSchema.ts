@@ -1491,22 +1491,21 @@ export function useEngineControls(
                     value: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
                     label: "Color right (X)",
                   }),
-                  // Default mode uses Presets → Color; fine pickers stay Advanced.
-                  render: showTwizzlerAuthoring,
+                  render: showTwizzlerRibbonConfig,
                 },
                 twizzlerColorFar: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorFar,
                     label: "Color left (X)",
                   }),
-                  render: showTwizzlerAuthoring,
+                  render: showTwizzlerRibbonConfig,
                 },
                 twizzlerColorEdge: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorEdge ?? "#e92e28",
                     label: "Color peaks (Y)",
                   }),
-                  render: showTwizzlerAuthoring,
+                  render: showTwizzlerRibbonConfig,
                 },
                 ...(options.twizzlerTransport && !clientMode
                   ? {
@@ -1522,7 +1521,6 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Opacity",
-                  render: showTwizzlerAuthoring,
                 },
                 twizzlerScale: {
                   value: initialLabSettings.twizzler.scale,
@@ -1530,7 +1528,6 @@ export function useEngineControls(
                   max: 20,
                   step: 0.05,
                   label: "Zoom",
-                  render: showTwizzlerAuthoring,
                 },
               },
               { render: showTwizzlerRibbonConfig, defaultOpen: true },
@@ -1544,8 +1541,27 @@ export function useEngineControls(
                   max: 2,
                   step: 0.01,
                   label: "Center Y",
-                  // Default framing comes from Presets → Layout.
-                  render: showTwizzlerAuthoring,
+                },
+                twizzlerPanX: {
+                  value: initialLabSettings.twizzler.panX ?? 0,
+                  min: -800,
+                  max: 800,
+                  step: 1,
+                  label: "Move X",
+                },
+                twizzlerPanY: {
+                  value: initialLabSettings.twizzler.panY ?? 0,
+                  min: -800,
+                  max: 800,
+                  step: 1,
+                  label: "Move Y",
+                },
+                twizzlerPanZ: {
+                  value: initialLabSettings.twizzler.panZ ?? 0,
+                  min: -10,
+                  max: 10,
+                  step: 0.05,
+                  label: "Move Z",
                 },
                 twizzlerAmplitude: {
                   value: initialLabSettings.twizzler.amplitude,
@@ -1581,7 +1597,6 @@ export function useEngineControls(
                   max: 12,
                   step: 0.02,
                   label: "FOV",
-                  render: showTwizzlerAuthoring,
                 },
                 twizzlerCamDist: {
                   value: initialLabSettings.twizzler.camDist ?? 10.5,
@@ -1589,7 +1604,6 @@ export function useEngineControls(
                   max: 120,
                   step: 0.1,
                   label: "Cam Z",
-                  render: showTwizzlerAuthoring,
                 },
                 twizzlerWrinkles: {
                   value: initialLabSettings.twizzler.wrinkles,
@@ -1768,7 +1782,7 @@ export function useEngineControls(
                 },
               },
               // Per-axis knobs stay Advanced; master Gradients toggle lives in General (Default).
-              { render: showTwizzlerAuthoring, defaultOpen: true },
+              { render: showTwizzlerRibbonConfig, defaultOpen: true },
             ),
             Stroke: drawerFolder(
               "Twizzler Stroke",
@@ -1830,8 +1844,8 @@ export function useEngineControls(
                   label: "Stipple gap",
                 },
               },
-              // Hairline / layer counts are Advanced; Banner defaults are already applied.
-              { render: showTwizzlerAuthoring },
+              // Stroke width / layers available in Default.
+              { render: showTwizzlerRibbonConfig },
             ),
             View: drawerFolder(
               "Twizzler View",
@@ -1864,22 +1878,9 @@ export function useEngineControls(
                   step: 1,
                   label: "Rotate Z °",
                 },
-                twizzlerPanX: {
-                  value: initialLabSettings.twizzler.panX ?? 0,
-                  min: -200,
-                  max: 200,
-                  step: 0.25,
-                  label: "Pan X",
-                },
-                twizzlerPanY: {
-                  value: initialLabSettings.twizzler.panY ?? 0,
-                  min: -200,
-                  max: 200,
-                  step: 0.25,
-                  label: "Pan Y",
-                },
               },
               // Legacy sine-map View knobs — unused by orange-wave Canvas2D path.
+              // Move X/Y/Z live under Shape for Default + orange-wave.
               { render: showTwizzlerAuthoring },
             ),
             Edges: drawerFolder(
@@ -5558,6 +5559,7 @@ export function useEngineControls(
         rotateZ: shaderValueRecord.twizzlerRotateZ,
         panX: shaderValueRecord.twizzlerPanX,
         panY: shaderValueRecord.twizzlerPanY,
+        panZ: shaderValueRecord.twizzlerPanZ,
         viewDistance: shaderValueRecord.twizzlerViewDistance,
       }),
     },

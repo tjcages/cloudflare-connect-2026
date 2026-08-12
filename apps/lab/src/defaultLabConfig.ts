@@ -454,6 +454,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     rotateZ: 0,
     panX: 0,
     panY: 0,
+    panZ: 0,
     viewDistance: 30,
   },
   twizzlerMap: {
