@@ -3638,20 +3638,22 @@ function LabInner({
           {clientMode ? (
             <>
               <div className="lab-client-tools">
-                <fieldset className="lab-panel-mode-toggle">
+                <fieldset className="lab-panel-mode-toggle" role="radiogroup" aria-label="Panel mode">
                   <legend>Panel mode</legend>
                   <button
                     type="button"
+                    role="radio"
                     className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}
-                    aria-pressed={clientPanelMode === "default"}
+                    aria-checked={clientPanelMode === "default"}
                     onClick={() => setClientPanelMode("default")}
                   >
                     Default
                   </button>
                   <button
                     type="button"
+                    role="radio"
                     className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}
-                    aria-pressed={clientPanelMode === "advanced"}
+                    aria-checked={clientPanelMode === "advanced"}
                     onClick={() => setClientPanelMode("advanced")}
                   >
                     Advanced
