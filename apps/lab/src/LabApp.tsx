@@ -64,6 +64,7 @@ import {
   applyClientLayout,
   listSavedLayouts,
   loadActiveClientLayoutName,
+  loadBannerLayout,
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
@@ -854,7 +855,7 @@ function LabInner({
   const startupLabSettings = useMemo(() => {
     const stored = loadLabSettings();
     if (clientMode) {
-      // client-main already applied Banner / saved layout into storage.
+      // Live localStorage already holds the session (or boot seeded Banner once).
       return {
         ...stored,
         canvasMode: "manual" as const,
@@ -1744,8 +1745,7 @@ function LabInner({
     };
     onExportSvgRef.current = () => {
       const cfg = controlsRef.current;
-      const twizzlerOn =
-        labSettingsRef.current.textureSourceMode === "shader" && twizzlerRef.current.enabled;
+      const twizzlerOn = labSettingsRef.current.textureSourceMode === "shader" && twizzlerRef.current.enabled;
       if (!cfg.sparkle.gaps.enabled && !twizzlerOn) {
         window.alert("Enable Rain or Twizzler before exporting an SVG.");
         return;
@@ -2876,6 +2876,20 @@ function LabInner({
     setSelectedPreset("");
   }
 
+  function handleClientResetToBanner() {
+    if (!window.confirm("Reset to Banner 5:1 defaults? This replaces your current knobs. Saved layouts are kept.")) {
+      return;
+    }
+    const banner = loadBannerLayout();
+    if (!banner) {
+      window.alert("Banner 5:1 builtin is missing.");
+      return;
+    }
+    applyClientLayout(banner, textureIdRef.current);
+    setSelectedPreset(banner.name);
+    window.location.reload();
+  }
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -3629,7 +3643,7 @@ function LabInner({
                 <div className="lab-client-layouts">
                   <div className="lab-client-layouts-label">Saved layouts</div>
                   <select
-                    className="lab-btn"
+                    className="lab-client-layouts-select"
                     value={selectedPreset}
                     onChange={(e) => setSelectedPreset(e.target.value)}
                     aria-label="Saved layout"
@@ -3648,20 +3662,22 @@ function LabInner({
                         </option>
                       ))}
                   </select>
-                  <div className="wf-row">
-                    <button className="lab-btn" type="button" onClick={handleSavePreset}>
-                      Save layout
+                  <div className="lab-client-layouts-actions">
+                    <button type="button" onClick={handleSavePreset}>
+                      Save
                     </button>
-                    <button className="lab-btn" type="button" onClick={handleApplyPreset} disabled={!selectedPreset}>
+                    <button type="button" onClick={handleApplyPreset} disabled={!selectedPreset}>
                       Apply
                     </button>
                     <button
-                      className="lab-btn"
                       type="button"
                       onClick={handleDeletePreset}
                       disabled={!selectedPreset || presets.some((p) => p.name === selectedPreset && p.builtin)}
                     >
                       Delete
+                    </button>
+                    <button type="button" className="is-reset" onClick={handleClientResetToBanner}>
+                      Reset
                     </button>
                   </div>
                 </div>
