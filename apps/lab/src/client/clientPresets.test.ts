@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LIBRARY_COLOR } from "../components/colorLibrary";
 import {
   buildClientPreviewBundle,
   CLIENT_APPEARANCE_PRESETS,
@@ -12,6 +13,9 @@ import {
   findClientColorPreset,
   findClientLayoutPreset,
   findClientSizePreset,
+  rainLevaFromAppearance,
+  rainLevaFromColor,
+  rainLevaFromLayout,
   resetTweaksForLayout,
   resolveClientGraphicMode,
 } from "./clientPresets";
@@ -167,5 +171,19 @@ describe("client preview presets", () => {
     expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-30);
     expect(bundle.twizzler.speed).toBeCloseTo(0.2);
     expect(bundle.twizzler.lineCount).toBe(56);
+  });
+
+  it("maps Layout / Color / Appearance presets onto Rain Leva keys", () => {
+    const layout = rainLevaFromLayout("high-fan");
+    expect(layout.connectCameraRotateY).toBeDefined();
+    expect(layout.connectCameraPanY).toBeDefined();
+
+    const color = rainLevaFromColor("coral-classic");
+    expect(color.connectFillColor).toBe(LIBRARY_COLOR.orangeAccent);
+    expect(color.connectFillColor2).toBe(LIBRARY_COLOR.orangePair);
+
+    const appearance = rainLevaFromAppearance("dark");
+    expect(appearance.backgroundColor).toBe("#f86a00");
+    expect(appearance.connectFillColor).toBeDefined();
   });
 });

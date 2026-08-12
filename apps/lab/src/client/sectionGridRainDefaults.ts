@@ -46,6 +46,9 @@ export function buildSectionGridRainPreset(
     textureSourceMode: "shader",
     shaderPresetId: DEFAULT_LAB_SETTINGS.shaderPresetId || "connect",
     twizzlerEnabled: flags.twizzlerEnabled,
+    // Client Rain authoring uses texture sidebar (Camera / Tone) + shader sidebar.
+    textureSidebarOpen: true,
+    shaderSidebarOpen: true,
   };
   return createPreset(mode === "both" ? "Section-grid Rain + Twizzler" : "Section-grid Rain", config, lab, true);
 }

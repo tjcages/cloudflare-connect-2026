@@ -80,6 +80,9 @@ import {
   findClientLayoutPreset,
   findClientSizePreset,
   matchClientSizePresetId,
+  rainLevaFromAppearance,
+  rainLevaFromColor,
+  rainLevaFromLayout,
   resetTweaksForLayout,
   resolveClientGraphicMode,
   type ClientAppearanceId,
@@ -551,9 +554,6 @@ export function useEngineControls(
   const clientDefaultPanel = clientApp && clientPanelMode === "default";
   clientDefaultPanelActive = clientDefaultPanel;
   clientAppActive = clientApp;
-  // Updated again after heroGraphicId resolves each render.
-  clientRainAuthoringActive = false;
-  clientTwizzlerAuthoringActive = !clientApp;
   const showShaderCamera = options.showShaderCamera === true && !clientDefaultPanel;
   const showConnectCamera = options.showConnectCamera === true;
   const activeShaderConfig = options.activeShaderConfig ?? null;
@@ -638,6 +638,17 @@ export function useEngineControls(
     if (importedPristine || !hasAutomaticStripeWidthDistribution(fitUpgraded.stripes)) return fitUpgraded;
     return { ...fitUpgraded, stripes: withDefaultStripeWidths(fitUpgraded.stripes) };
   }, [initialThemed]);
+  // Gate client folders from the stored Graphic *before* useControls registers
+  // render callbacks (module flags must be correct on first Leva paint).
+  {
+    const bootGraphic = resolveClientGraphicMode(
+      initialLabSettings.twizzlerEnabled ?? true,
+      d.sparkle?.gaps?.enabled ?? DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
+    );
+    clientRainAuthoringActive = !clientApp || bootGraphic === "rain" || bootGraphic === "both";
+    clientTwizzlerAuthoringActive = !clientApp || bootGraphic === "twizzler" || bootGraphic === "both";
+    showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && (!clientApp || clientRainAuthoringActive);
+  }
   // Pin the store across HMR. React Fast Refresh recomputes useMemo (and thus
   // useCreateStore's store) while preserving useState/useRef. leva's useControls
   // captures its store via useState, so it keeps writing to the original store;
@@ -1147,7 +1158,11 @@ export function useEngineControls(
         },
         {
           collapsed: !loadControlDrawerOpen("Camera", initialLabSettings.drawerOpen["Camera"] ?? false),
-          render: () => showShaderCameraRef.current && showFullLab(),
+          // Client Rain: show Connect camera even in Default (showShaderCamera is Advanced-only).
+          render: () =>
+            showConnectCameraRef.current || showShaderToyCameraRef.current
+              ? !clientAppRef.current || clientRainAuthoringActive || showFullLab()
+              : false,
         },
       ),
       General: drawerFolder(
@@ -1156,7 +1171,7 @@ export function useEngineControls(
           stripesEnabled: { value: d.stripesEnabled, label: "Stripes enabled" },
           textureDpr: { value: d.fieldScale, min: 0.25, max: 2, step: 0.25, label: "Texture DPR" },
         },
-        { hideInClient: true },
+        { hideInClient: true, rainInClient: true },
       ),
       "Texture Tone": drawerFolder(
         "Texture Tone",
@@ -1190,7 +1205,7 @@ export function useEngineControls(
           blurRadius: { value: d.adjustments.blurRadius, min: 0, max: 4, step: 1, label: "Blur" },
           sharpenAmount: { value: d.adjustments.sharpenAmount, min: 0, max: 4, step: 0.1, label: "Sharpen" },
         },
-        { hideInClient: true },
+        { hideInClient: true, rainInClient: true },
       ),
       "Texture Source": drawerFolder(
         "Texture Source",
@@ -1218,7 +1233,7 @@ export function useEngineControls(
           panX: { value: d.transform.panX, min: -1, max: 1, step: 0.01, label: "Pan X" },
           panY: { value: d.transform.panY, min: -1, max: 1, step: 0.01, label: "Pan Y" },
         },
-        { hideInClient: true },
+        { hideInClient: true, rainInClient: true },
       ),
     }),
     { store: textureStore },
@@ -2612,7 +2627,7 @@ export function useEngineControls(
               render: (get) => get("Frames.framesEnabled") === true,
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         Background: drawerFolder(
           "Background",
@@ -2764,7 +2779,7 @@ export function useEngineControls(
               render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         "Background Meteors": drawerFolder(
           "Background Meteors",
@@ -2923,7 +2938,7 @@ export function useEngineControls(
               render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         "Background Flames": drawerFolder(
           "Background Flames",
@@ -3150,7 +3165,7 @@ export function useEngineControls(
               render: (get) => get("Background Flames.flamesEnabled") === true,
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         Sparkle: drawerFolder(
           "Sparkle",
@@ -3404,7 +3419,7 @@ export function useEngineControls(
               render: (get) => get("Letters.lettersEnabled") === true,
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         Reveal: drawerFolder(
           "Reveal",
@@ -3899,7 +3914,7 @@ export function useEngineControls(
               });
             }),
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         "Edge Mask": drawerFolder(
           "Edge Mask",
@@ -3956,7 +3971,7 @@ export function useEngineControls(
               render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         "Cursor Trail": drawerFolder(
           "Cursor Trail",
@@ -4619,7 +4634,7 @@ export function useEngineControls(
                 get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         "Click Wave": drawerFolder(
           "Click Wave",
@@ -4929,7 +4944,7 @@ export function useEngineControls(
                 get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
       }),
     { store: shaderStore },
@@ -4998,8 +5013,13 @@ export function useEngineControls(
     shaderControlSetterRef.current?.(patch);
     onClientGraphicModeChangeRef.current?.(heroGraphicId);
     setShaderControl({});
+    try {
+      setTextureControl({});
+    } catch {
+      /* ignore */
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to graphic mode changes
-  }, [clientApp, heroGraphicId, setShaderControl]);
+  }, [clientApp, heroGraphicId, setShaderControl, setTextureControl]);
 
   /** Keep Hero → Graphic in sync when Show/Rain flags change (Apply layout / Reset). */
   const rainEnabledFlag = Boolean((shaderValues as unknown as Record<string, unknown>).rainEnabled);
@@ -5030,24 +5050,36 @@ export function useEngineControls(
     lastClientLayoutIdRef.current = clientLayoutId;
     const tweaks = resetTweaksForLayout(clientLayoutId);
     const layout = findClientLayoutPreset(clientLayoutId).twizzler;
-    shaderControlSetterRef.current?.({
-      twizzlerOpacity: tweaks.opacity,
-      twizzlerScale: tweaks.scale,
-      twizzlerTwist: tweaks.twist,
-      twizzlerRotateXDeg: tweaks.rotateXDeg,
-      twizzlerRotateYDeg: tweaks.rotateYDeg,
-      twizzlerRotateZDeg: tweaks.rotateZDeg,
-      twizzlerAmplitude: tweaks.amplitude,
-      twizzlerCenterY: tweaks.centerY,
-      twizzlerSpeed: tweaks.speed,
-      ...(layout.depthSpread !== undefined ? { twizzlerDepthSpread: layout.depthSpread } : {}),
-      ...(layout.depthLift !== undefined ? { twizzlerDepthLift: layout.depthLift } : {}),
-      ...(layout.rightHeight !== undefined ? { twizzlerRightHeight: layout.rightHeight } : {}),
-      ...(layout.leftHeight !== undefined ? { twizzlerLeftHeight: layout.leftHeight } : {}),
-    });
-  }, [clientApp, clientLayoutId, setShaderControl]);
+    const flags = clientGraphicFlags(heroGraphicId);
+    const patch: Record<string, unknown> = {};
+    if (flags.twizzlerEnabled) {
+      Object.assign(patch, {
+        twizzlerOpacity: tweaks.opacity,
+        twizzlerScale: tweaks.scale,
+        twizzlerTwist: tweaks.twist,
+        twizzlerRotateXDeg: tweaks.rotateXDeg,
+        twizzlerRotateYDeg: tweaks.rotateYDeg,
+        twizzlerRotateZDeg: tweaks.rotateZDeg,
+        twizzlerAmplitude: tweaks.amplitude,
+        twizzlerCenterY: tweaks.centerY,
+        twizzlerSpeed: tweaks.speed,
+        ...(layout.depthSpread !== undefined ? { twizzlerDepthSpread: layout.depthSpread } : {}),
+        ...(layout.depthLift !== undefined ? { twizzlerDepthLift: layout.depthLift } : {}),
+        ...(layout.rightHeight !== undefined ? { twizzlerRightHeight: layout.rightHeight } : {}),
+        ...(layout.leftHeight !== undefined ? { twizzlerLeftHeight: layout.leftHeight } : {}),
+      });
+    }
+    if (flags.rainEnabled) Object.assign(patch, rainLevaFromLayout(clientLayoutId));
+    if (Object.keys(patch).length === 0) return;
+    try {
+      textureControlSetterRef.current?.(patch);
+    } catch {
+      /* texture keys only */
+    }
+    shaderControlSetterRef.current?.(patch);
+  }, [clientApp, clientLayoutId, heroGraphicId, setShaderControl]);
 
-  /** Color preset — Twizzler palette only (Size / Layout must not re-apply these). */
+  /** Color preset — Twizzler palette and/or Rain Connect colors. */
   const lastClientColorIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!clientApp) return;
@@ -5058,15 +5090,27 @@ export function useEngineControls(
     if (lastClientColorIdRef.current === clientColorId) return;
     lastClientColorIdRef.current = clientColorId;
     const color = findClientColorPreset(clientColorId).twizzler;
-    shaderControlSetterRef.current?.({
-      twizzlerColor: color.colorNear ?? color.color,
-      twizzlerColorFar: color.colorFar,
-      twizzlerColorEdge: color.colorEdge,
-      twizzlerGradientStops: serializeTwizzlerGradientStops(
-        defaultTwizzlerGradientStops(color.colorFar, color.colorNear ?? color.color),
-      ),
-    });
-  }, [clientApp, clientColorId, setShaderControl]);
+    const flags = clientGraphicFlags(heroGraphicId);
+    const patch: Record<string, unknown> = {};
+    if (flags.twizzlerEnabled) {
+      Object.assign(patch, {
+        twizzlerColor: color.colorNear ?? color.color,
+        twizzlerColorFar: color.colorFar,
+        twizzlerColorEdge: color.colorEdge,
+        twizzlerGradientStops: serializeTwizzlerGradientStops(
+          defaultTwizzlerGradientStops(color.colorFar, color.colorNear ?? color.color),
+        ),
+      });
+    }
+    if (flags.rainEnabled) Object.assign(patch, rainLevaFromColor(clientColorId));
+    if (Object.keys(patch).length === 0) return;
+    try {
+      textureControlSetterRef.current?.(patch);
+    } catch {
+      /* ignore */
+    }
+    shaderControlSetterRef.current?.(patch);
+  }, [clientApp, clientColorId, heroGraphicId, setShaderControl]);
 
   // Keep Color left/right knobs and the Ramp editor on the same endpoint colors
   // so Shared ↔ Baked doesn't drop stop positions or endpoint ink (CF-55).
@@ -5158,18 +5202,25 @@ export function useEngineControls(
     levaSchemaSeedRef.current.backgroundHex = appearance.backgroundHex;
     lastStickyBackgroundRef.current = appearance.backgroundHex;
     setBackgroundHex(appearance.backgroundHex);
-    setControl({
+    const flags = clientGraphicFlags(heroGraphicId);
+    const patch: Record<string, unknown> = {
       backgroundFillMode: "solid",
       backgroundColor: appearance.backgroundHex,
-      twizzlerColor: appearance.twizzler.colorNear,
-      twizzlerColorFar: appearance.twizzler.colorFar,
-      twizzlerColorEdge: appearance.twizzler.colorEdge,
-      twizzlerRibbonColorMode: appearance.ribbonColorMode,
-      twizzlerGradientStops: serializeTwizzlerGradientStops(
-        defaultTwizzlerGradientStops(appearance.twizzler.colorFar, appearance.twizzler.colorNear),
-      ),
-    });
-  }, [clientApp, clientAppearanceId, setControl]);
+    };
+    if (flags.twizzlerEnabled) {
+      Object.assign(patch, {
+        twizzlerColor: appearance.twizzler.colorNear,
+        twizzlerColorFar: appearance.twizzler.colorFar,
+        twizzlerColorEdge: appearance.twizzler.colorEdge,
+        twizzlerRibbonColorMode: appearance.ribbonColorMode,
+        twizzlerGradientStops: serializeTwizzlerGradientStops(
+          defaultTwizzlerGradientStops(appearance.twizzler.colorFar, appearance.twizzler.colorNear),
+        ),
+      });
+    }
+    if (flags.rainEnabled) Object.assign(patch, rainLevaFromAppearance(clientAppearanceId));
+    setControl(patch);
+  }, [clientApp, clientAppearanceId, heroGraphicId, setControl]);
 
   useEffect(() => {
     setShaderControl({ stripeColorsTable: stripeTableKey });

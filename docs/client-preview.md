@@ -37,8 +37,9 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
   - **Background** — Fill + Color (solid) or Gradient direction + stops (when Fill = Gradient)
 - **Hero → Graphic**:
   - **Twizzler** — orange-wave ribbon only (Twizzler Leva folders; rain folders hidden)
-  - **Rain** — applies in-repo `factoryDefaults.json` / Factory-reset config (same path as Apply layout: stage + reload). That is the section-grid-generator look. Shader picker + Stripes / Grid / Sparkle; Twizzler folders hidden.
-  - **Both** — ribbon underlay + rain overlay; rain still applies factoryDefaults
+  - **Rain** — factoryDefaults rain look + **Shader** dropdown (Connect / Spiral / etc.). Twizzler folders hidden. Rain authoring shown in Default: Camera, General, Texture Tone/Levels/Source, Shader config (Connect), Stripes, Grid, Sparkle, Frames, Background FX, Letters, Reveal, Edge Mask, Cursor Trail, Click Wave, etc.
+  - **Both** — Twizzler + Rain authoring together; factoryDefaults rain still applied on enter
+- **Presets** (Size / Layout / Appearance / Color) stay the same catalog. When Graphic is Rain they map onto Rain/Connect knobs; when Twizzler onto ribbon knobs; when Both onto both stacks.
 - **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, etc.) without rebuilding Leva, so values are not wiped when toggling.
 
 ## Twizzler (orange-wave)

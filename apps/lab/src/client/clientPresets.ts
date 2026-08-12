@@ -342,6 +342,73 @@ export function findClientAppearancePreset(id: ClientAppearanceId): ClientAppear
   }
 }
 
+/**
+ * Map Size/Layout/Color/Appearance presets onto Rain (Connect + stripe grid) Leva keys.
+ * Same preset catalog as Twizzler — values target the rain shader when Graphic includes Rain.
+ */
+export function rainLevaFromLayout(layoutId: ClientLayoutPresetId): Record<string, unknown> {
+  const layout = findClientLayoutPreset(layoutId).twizzler;
+  const patch: Record<string, unknown> = {};
+  if (layout.rotateXDeg !== undefined) patch.connectCameraRotateX = layout.rotateXDeg + 30;
+  if (layout.rotateYDeg !== undefined) patch.connectCameraRotateY = layout.rotateYDeg - 90;
+  if (layout.rotateZDeg !== undefined) {
+    patch.connectCameraRotateZ = layout.rotateZDeg - 83;
+    patch.orientationAngleDeg = layout.rotateZDeg;
+  }
+  if (layout.centerY !== undefined) patch.connectCameraPanY = (0.5 - layout.centerY) * 40;
+  if (layout.scale !== undefined) {
+    patch.textureDpr = Math.max(0.25, Math.min(2, layout.scale * 0.25));
+    patch.zoom = layout.scale;
+  }
+  if (layout.amplitude !== undefined) {
+    patch.connectDisplacement = layout.amplitude * 2.5;
+    patch.connectShapeAmplitude = layout.amplitude * 20;
+  }
+  return patch;
+}
+
+export function rainLevaFromColor(colorId: ClientColorPresetId): Record<string, unknown> {
+  const color = findClientColorPreset(colorId).twizzler;
+  const near = color.colorNear ?? color.color;
+  const far = color.colorFar;
+  const edge = color.colorEdge;
+  return {
+    connectFillColor: near,
+    connectFillColor2: far,
+    connectOrangeColor: near,
+    connectAmberColor: far,
+    connectDeepColor: edge,
+    connectEmitOrangeColor: near,
+    connectEmitAmberColor: far,
+    connectEmitDeepColor: edge,
+    connectLineColor: edge,
+    connectPaleColor: far,
+    connectSalmonColor: near,
+  };
+}
+
+export function rainLevaFromAppearance(appearanceId: ClientAppearanceId): Record<string, unknown> {
+  const appearance = findClientAppearancePreset(appearanceId);
+  const near = appearance.twizzler.colorNear ?? appearance.twizzler.color;
+  const far = appearance.twizzler.colorFar;
+  const edge = appearance.twizzler.colorEdge;
+  return {
+    backgroundFillMode: "solid",
+    backgroundColor: appearance.backgroundHex,
+    connectFillColor: near,
+    connectFillColor2: far,
+    connectOrangeColor: near,
+    connectAmberColor: far,
+    connectDeepColor: edge,
+    connectEmitOrangeColor: near,
+    connectEmitAmberColor: far,
+    connectEmitDeepColor: edge,
+    connectLineColor: edge,
+    connectPaleColor: far,
+    connectSalmonColor: near,
+  };
+}
+
 export function tweaksFromTwizzler(settings: TwizzlerSettings): ClientTwizzlerTweaks {
   return {
     opacity: settings.opacity,

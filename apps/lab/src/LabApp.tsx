@@ -86,6 +86,7 @@ import {
 import { normalizeShaderViewState, type ShaderViewState } from "./shaderView";
 import { resolveShaderConfigKind } from "./shaderConfig";
 import {
+  CONNECT_SHADER_PRESET_ID,
   CUSTOM_SHADER_PRESET_ID,
   DEFAULT_SHADER_PRESET_ID,
   findShaderLibraryEntry,
@@ -860,11 +861,12 @@ function LabInner({
     const stored = loadLabSettings();
     if (clientMode) {
       // Live localStorage already holds the session (or boot seeded Banner once).
+      // Rain apply sets textureSidebarOpen so Camera / Tone stay reachable.
       return {
         ...stored,
         canvasMode: "manual" as const,
         canvasAspectLocked: true,
-        textureSidebarOpen: false,
+        textureSidebarOpen: stored.textureSidebarOpen ?? false,
         shaderSidebarOpen: true,
         textureSourceMode: "shader" as const,
         shaderPresetId: stored.shaderPresetId || "twizzler-map",
@@ -3175,6 +3177,11 @@ function LabInner({
   useEffect(() => {
     if (!clientMode) return;
     const mode = clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
+    const rainOn = mode === "rain" || mode === "both";
+    // Rain authoring lives on both sidebars (Camera / Tone on texture; Stripes/Grid/Connect on shader).
+    if (labSettingsRef.current.textureSidebarOpen !== rainOn) {
+      updateLabSettings({ textureSidebarOpen: rainOn });
+    }
     // Skip mount so a post-apply reload does not loop.
     if (lastClientRainBootstrapRef.current === null) {
       lastClientRainBootstrapRef.current = mode;
@@ -3184,7 +3191,7 @@ function LabInner({
     const prev = lastClientRainBootstrapRef.current;
     lastClientRainBootstrapRef.current = mode;
     const wasRain = prev === "rain" || prev === "both";
-    const enteringRain = (mode === "rain" || mode === "both") && !wasRain;
+    const enteringRain = rainOn && !wasRain;
     if (!enteringRain) return;
     // Exact factoryDefaults path (same as Factory reset / Apply layout).
     applySectionGridRainToStorage(mode, textureIdRef.current, {
@@ -3194,7 +3201,7 @@ function LabInner({
       backgroundColor: labSettingsRef.current.backgroundColor,
     });
     window.location.reload();
-  }, [clientMode, clientGraphicMode, twizzler.enabled, controls.sparkle.gaps.enabled]);
+  }, [clientMode, clientGraphicMode, twizzler.enabled, controls.sparkle.gaps.enabled, updateLabSettings]);
 
   useEffect(() => {
     if (!clientMode) return;
