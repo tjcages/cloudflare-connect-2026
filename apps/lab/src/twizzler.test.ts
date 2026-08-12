@@ -117,7 +117,7 @@ describe("Twizzler", () => {
     expect(center(2, 0.95)).toBeGreaterThan(center(2, 0.9));
 
     expect([0, 1, 2].map((hillRhythm) => twizzlerMarketingSpineShare({ ...settings, hillRhythm }))).toEqual([
-      0.3, 0.36, 0.42,
+      0.52, 0.65, 0.78,
     ]);
 
     for (const hillRhythm of [0, 1, 2]) {

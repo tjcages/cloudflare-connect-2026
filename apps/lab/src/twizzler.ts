@@ -351,11 +351,11 @@ export function twizzlerMarketingSpineShare(settings: TwizzlerSettings): number 
   const rhythm = twizzlerHillRhythm(settings);
   switch (rhythm) {
     case 0:
-      return 0.3;
+      return 0.52;
     case 1:
-      return 0.36;
+      return 0.65;
     case 2:
-      return 0.42;
+      return 0.78;
     default: {
       const _exhaustive: never = rhythm;
       return _exhaustive;
