@@ -596,7 +596,7 @@ export function twizzlerHeatRecipe(input: number): TwizzlerHeatRecipe {
         bandWidth: 0.6,
         zFrequency: 1.1,
         heatBias: 0.12,
-        driveGain: 1.2,
+        driveGain: 1.12,
         bands: [
           { center: -0.84, width: 0.78, gain: 0.62, phase: 0.04, temperature: 0.15 },
           { center: -0.18, width: 0.42, gain: 1.28, phase: 0.46, temperature: 0.72 },
@@ -610,7 +610,7 @@ export function twizzlerHeatRecipe(input: number): TwizzlerHeatRecipe {
         bandWidth: 0.23,
         zFrequency: 2.35,
         heatBias: 0.14,
-        driveGain: 1.24,
+        driveGain: 1.14,
         bands: [
           { center: -0.92, width: 0.15, gain: 1.3, phase: 0.02, temperature: 0.9 },
           { center: -0.64, width: 0.32, gain: 0.72, phase: 0.11, temperature: 0.25 },
@@ -627,7 +627,7 @@ export function twizzlerHeatRecipe(input: number): TwizzlerHeatRecipe {
         bandWidth: 0.13,
         zFrequency: 4.7,
         heatBias: 0.18,
-        driveGain: 1.18,
+        driveGain: 1.1,
         bands: [
           { center: -0.96, width: 0.1, gain: 1.28, phase: 0, temperature: 1 },
           { center: -0.78, width: 0.15, gain: 1.08, phase: 0.08, temperature: 0.78 },

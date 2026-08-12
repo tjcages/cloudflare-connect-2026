@@ -233,7 +233,7 @@ describe("Twizzler", () => {
     expect(temperatures.some((temperature) => temperature > 0.7)).toBe(true);
     expect(temperatures.some((temperature) => temperature < -0.7)).toBe(true);
     expect([sparseSheets.driveGain, clusteredIslands.driveGain, alternatingGroups.driveGain]).toEqual([
-      1.2, 1.24, 1.18,
+      1.12, 1.14, 1.1,
     ]);
     const passTwoField = (variant: 3 | 4 | 5) =>
       Array.from({ length: 41 }, (_, i) => twizzlerAmpNoiseY(0.55, -1 + i / 20, 320, 1, 0.14, variant));
