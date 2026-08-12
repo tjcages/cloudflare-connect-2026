@@ -478,7 +478,7 @@ export function twizzlerFiberNearness(across: number, xT: number, settings: Twiz
 }
 
 /** Fog blend 0..1 toward background (white). Far fibers dissolve hard into the stage. */
-export function twizzlerFogAmount(nearness: number, depthSpread = 1.18, lineCount = 300): number {
+export function twizzlerFogAmount(nearness: number, depthSpread = 1.18, lineCount = 300, along = 0.5): number {
   const near = Math.max(0, Math.min(1, nearness));
   // Lower exponent means more fog. Expanded 240-line packs retain distant
   // fiber readability, while dense/deep packs receive stronger grouping fog.
@@ -486,7 +486,11 @@ export function twizzlerFogAmount(nearness: number, depthSpread = 1.18, lineCoun
   const sparseRestraint = (1 - smoothstep(240, 300, lineCount)) * Math.max(0, depthSpread - 1.18) * 0.8;
   const denseGrouping = smoothstep(330, 380, lineCount) * smoothstep(1.5, 1.8, depthSpread) * 0.08;
   const exponent = Math.max(0.34, Math.min(1.1, 0.68 - (depthSpread - 1.18) * 0.38 + sparseRestraint - denseGrouping));
-  return Math.pow(1 - near, exponent);
+  // C4 regime: dissolve distant fibers faster toward the right edge while
+  // preserving the near-ranked coral strands that carry the pack energy.
+  const rightBias = smoothstep(0.55, 1, along) * smoothstep(345, 365, lineCount) * smoothstep(1.8, 1.98, depthSpread);
+  const asymmetricExponent = exponent * (1 - rightBias * (0.16 + (1 - near) * 0.18));
+  return Math.pow(1 - near, asymmetricExponent);
 }
 
 /** Blend ribbon hex into white by fog amount (cheap distance fade). */
@@ -495,8 +499,10 @@ export function twizzlerFogColor(hex: string, fog: number, backgroundHex = "#fff
 }
 
 /** Stroke width scale from nearness — thick toward camera, hairline when far. */
-export function twizzlerStrokeWidthScale(nearness: number): number {
-  return 0.1 + 3.8 * Math.pow(nearness, 1.4);
+export function twizzlerStrokeWidthScale(nearness: number, lineCount = 240, depthSpread = 1.18): number {
+  const near = Math.max(0, Math.min(1, nearness));
+  const selectiveNear = smoothstep(345, 365, lineCount) * smoothstep(1.8, 1.98, depthSpread);
+  return 0.1 + 3.8 * Math.pow(near, 1.4 + selectiveNear * 0.9) + selectiveNear * 0.65 * Math.pow(near, 5);
 }
 
 /**
@@ -510,6 +516,29 @@ export function twizzlerExpandAcross(across: number, expand: number): number {
   const a = Math.abs(across);
   const power = Math.max(0.28, 1 - amount * 0.42);
   return s * Math.pow(a, power);
+}
+
+/**
+ * Monotonic depth-slot warp for the B4 regime. Three smooth compression bands
+ * reveal warm interior layers without reordering fibers or changing paths.
+ */
+export function twizzlerClusterAcross(across: number, lineCount: number, depthSpread: number): number {
+  const slot = Math.max(-1, Math.min(1, across));
+  const countWindow = smoothstep(300, 315, lineCount) * (1 - smoothstep(330, 345, lineCount));
+  const amount = countWindow * smoothstep(1.5, 1.68, depthSpread);
+  const clustered = slot + Math.sin(slot * Math.PI * 3) * 0.085 * amount;
+  return Math.max(-1, Math.min(1, clustered));
+}
+
+/** Depth-ranked per-line visibility for the A4 and C4 hierarchy regimes. */
+export function twizzlerLineVisibility(nearness: number, lineCount: number, depthSpread: number): number {
+  const near = Math.max(0, Math.min(1, nearness));
+  const a4Rank =
+    smoothstep(250, 265, lineCount) * (1 - smoothstep(285, 300, lineCount)) * smoothstep(1.5, 1.7, depthSpread);
+  const c4Rank = smoothstep(345, 365, lineCount) * smoothstep(1.8, 1.98, depthSpread);
+  const exponent = 0.85 + a4Rank * 0.95 + c4Rank * 0.35;
+  const floor = 0.12 - c4Rank * 0.04;
+  return floor + (0.9 - floor) * Math.pow(near, exponent);
 }
 
 /**
@@ -759,7 +788,13 @@ export function buildTwizzlerLines(
     2.1 + settings.wrinkles * 0.15 + settings.depthTerrain * 1.7,
   );
   // Stretch slots toward near/far poles — depthSpread fights mid-pack condensation.
-  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.42 + settings.depthSpread * 0.42));
+  const acrossSlots = rawSlots.map((slot) =>
+    twizzlerClusterAcross(
+      twizzlerExpandAcross(slot, 0.42 + settings.depthSpread * 0.42),
+      settings.lineCount,
+      settings.depthSpread,
+    ),
+  );
 
   const center: Array<{ x: number; y: number; xT: number }> = [];
   for (let point = 0; point <= segmentCount; point += 1) {
@@ -847,16 +882,19 @@ export function buildTwizzlerLines(
       Math.abs(across) > 0.85
         ? twizzlerLerpColor(baseColor, settings.colorEdge, ((Math.abs(across) - 0.85) / 0.15) * 0.35)
         : baseColor;
-    const fog = twizzlerFogAmount(midNear, settings.depthSpread, settings.lineCount);
+    const fog = twizzlerFogAmount(midNear, settings.depthSpread, settings.lineCount, mid?.along);
     const color = twizzlerFogColor(withEdge, fog);
 
-    const visibility = 0.12 + 0.88 * Math.pow(midNear, 0.85);
+    const visibility = twizzlerLineVisibility(midNear, settings.lineCount, settings.depthSpread);
     lines.push({
       across,
       opacity: Math.min(0.92, settings.opacity * visibility),
       color,
       nearness: midNear,
-      strokeWidth: Math.max(0.2, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
+      strokeWidth: Math.max(
+        0.2,
+        settings.lineWidth * twizzlerStrokeWidthScale(midNear, settings.lineCount, settings.depthSpread),
+      ),
       points,
     });
   }
@@ -921,7 +959,7 @@ export function renderTwizzler(
     for (const stop of stops) {
       const sample = line.points[Math.min(line.points.length - 1, Math.round(stop * (line.points.length - 1)))];
       const nearness = sample?.nearness ?? line.nearness;
-      const fog = twizzlerFogAmount(nearness, settings.depthSpread, settings.lineCount);
+      const fog = twizzlerFogAmount(nearness, settings.depthSpread, settings.lineCount, sample?.along ?? stop);
       const colorT = twizzlerColorT(sample?.along ?? stop);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
       gradient.addColorStop(stop, twizzlerFogColor(base, fog));
@@ -930,7 +968,11 @@ export function renderTwizzler(
     // Width also grows along the path toward the camera (right).
     const leftNear = line.points[0]?.nearness ?? line.nearness;
     const rightNear = line.points[line.points.length - 1]?.nearness ?? line.nearness;
-    const widthScale = twizzlerStrokeWidthScale(0.35 * leftNear + 0.65 * rightNear);
+    const widthScale = twizzlerStrokeWidthScale(
+      0.35 * leftNear + 0.65 * rightNear,
+      settings.lineCount,
+      settings.depthSpread,
+    );
 
     context.strokeStyle = gradient;
     context.globalAlpha = Math.min(0.9, line.opacity);

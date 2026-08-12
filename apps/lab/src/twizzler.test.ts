@@ -13,8 +13,10 @@ import {
   twizzlerFogAmount,
   twizzlerFogColor,
   twizzlerDepthYBias,
+  twizzlerClusterAcross,
   twizzlerGapWarpedAcross,
   twizzlerGroupNearness,
+  twizzlerLineVisibility,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
   twizzlerAmpHeat,
@@ -171,6 +173,11 @@ describe("Twizzler", () => {
     expect(twizzlerGroupNearness(0.25, 360, 1.75)).toBeLessThan(0.25);
     expect(twizzlerGroupNearness(0.75, 360, 1.75)).toBeGreaterThan(0.75);
     expect(twizzlerStrokeWidthScale(1)).toBeGreaterThan(twizzlerStrokeWidthScale(0) * 5);
+    expect(twizzlerFogAmount(0.2, 1.92, 360, 0.95)).toBeGreaterThan(twizzlerFogAmount(0.2, 1.92, 360, 0.2));
+    expect(twizzlerStrokeWidthScale(1, 360, 1.92) / twizzlerStrokeWidthScale(0.2, 360, 1.92)).toBeGreaterThan(
+      twizzlerStrokeWidthScale(1) / twizzlerStrokeWidthScale(0.2),
+    );
+    expect(twizzlerLineVisibility(0.2, 270, 1.68)).toBeLessThan(twizzlerLineVisibility(0.2, 300, 1.45));
     // Right edge: far (nearness 0) must sit lower on screen than near (nearness 1).
     expect(twizzlerDepthYBias(0, 320, 0.85, 0.95, 1.5, 0)).toBeGreaterThan(
       twizzlerDepthYBias(1, 320, 0.85, 0.95, 1.5, 0),
@@ -194,6 +201,10 @@ describe("Twizzler", () => {
     for (const sample of gapSamples) {
       expect(Math.abs(sample)).toBeLessThan(1.15);
     }
+    const clustered = [-0.8, -0.4, 0, 0.4, 0.8].map((slot) => twizzlerClusterAcross(slot, 320, 1.62));
+    expect(clustered).toEqual([...clustered].sort((a, b) => a - b));
+    expect(Math.abs(twizzlerClusterAcross(0.2, 320, 1.62) - 0.2)).toBeGreaterThan(0.04);
+    expect(twizzlerClusterAcross(0.2, 320, 1.45)).toBe(0.2);
 
     // Heat patches scatter through Z: nearby across is similar, far across often differs.
     const h0 = twizzlerAmpHeat(0.4, -0.2, 1.0);
@@ -261,24 +272,24 @@ describe("Twizzler", () => {
     };
     const a = buildTwizzlerLines(400, 80, 0, {
       ...shared,
-      lineCount: 240,
-      lineWidth: 0.42,
-      depthSpread: 1.55,
+      lineCount: 270,
+      lineWidth: 0.4,
+      depthSpread: 1.68,
     });
     const b = buildTwizzlerLines(400, 80, 0, {
       ...shared,
-      lineCount: 300,
-      lineWidth: 0.48,
-      depthSpread: 1.45,
+      lineCount: 320,
+      lineWidth: 0.36,
+      depthSpread: 1.62,
     });
     const c = buildTwizzlerLines(400, 80, 0, {
       ...shared,
       lineCount: 360,
-      lineWidth: 0.34,
-      depthSpread: 1.75,
+      lineWidth: 0.22,
+      depthSpread: 1.92,
     });
 
-    expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([240, 300, 360]);
+    expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([270, 320, 360]);
     const widestStroke = (lines: typeof a.lines) => Math.max(...lines.map((line) => line.strokeWidth));
     expect(widestStroke(a.lines)).toBeGreaterThan(widestStroke(c.lines));
 

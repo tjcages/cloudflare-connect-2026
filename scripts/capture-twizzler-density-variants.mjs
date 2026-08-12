@@ -1,5 +1,5 @@
 /**
- * Capture the CF-16 pack-density/fog A3/B3/C3 refinement.
+ * Capture the CF-16 pack-density/fog A4/B4/C4 refinement.
  *
  * Usage: pir exec node scripts/capture-twizzler-density-variants.mjs
  */
@@ -37,7 +37,7 @@ const priorVariants = [
     settings: { ...lockedB, lineCount: 320, lineWidth: 0.5, depthSpread: 1.45 },
   },
 ];
-const variants = [
+const pass3Variants = [
   {
     id: "A3",
     label: "readable fibers · expanded spread · restrained fog",
@@ -52,6 +52,23 @@ const variants = [
     id: "C3",
     label: "dense grouping · 360 mixed-weight hairlines · deep fog",
     settings: { ...lockedB, lineCount: 360, lineWidth: 0.34, depthSpread: 1.75 },
+  },
+];
+const variants = [
+  {
+    id: "A4",
+    label: "depth-ranked · 270 hairlines · clean opacity hierarchy",
+    settings: { ...lockedB, lineCount: 270, lineWidth: 0.4, depthSpread: 1.68 },
+  },
+  {
+    id: "B4",
+    label: "clustered interior bands · 320 hairlines · open pack",
+    settings: { ...lockedB, lineCount: 320, lineWidth: 0.36, depthSpread: 1.62 },
+  },
+  {
+    id: "C4",
+    label: "asymmetric right fog · 360 fine fibers · near emphasis",
+    settings: { ...lockedB, lineCount: 360, lineWidth: 0.22, depthSpread: 1.92 },
   },
 ];
 
@@ -81,7 +98,7 @@ await page.setContent(`<!doctype html>
 </html>`);
 
 const capturedResults = [];
-for (const variant of [...priorVariants, ...variants]) {
+for (const variant of [...priorVariants, ...pass3Variants, ...variants]) {
   await page.evaluate(({ id, label, settings }) => {
     const output = document.getElementById("capture");
     const context = output.getContext("2d");
@@ -136,10 +153,15 @@ const captureStack = async (results, stackPath) => {
 };
 
 const priorResults = capturedResults.slice(0, priorVariants.length);
-const results = capturedResults.slice(priorVariants.length);
+const pass3Start = priorVariants.length;
+const pass4Start = pass3Start + pass3Variants.length;
+const pass3Results = capturedResults.slice(pass3Start, pass4Start);
+const results = capturedResults.slice(pass4Start);
 const priorStackPath = resolve(outDir, "twizzler-pack-density-ABC-stack.png");
-const stackPath = resolve(outDir, "twizzler-pack-density-A3B3C3-stack.png");
+const pass3StackPath = resolve(outDir, "twizzler-pack-density-A3B3C3-stack.png");
+const stackPath = resolve(outDir, "twizzler-pack-density-A4B4C4-stack.png");
 await captureStack(priorResults, priorStackPath);
+await captureStack(pass3Results, pass3StackPath);
 await captureStack(results, stackPath);
 
 await browser.close();
@@ -149,7 +171,7 @@ try {
   // Best-effort temporary cleanup.
 }
 
-const manifestPath = resolve(outDir, "twizzler-pack-density-A3B3C3.json");
+const manifestPath = resolve(outDir, "twizzler-pack-density-A4B4C4.json");
 writeFileSync(
   resolve(outDir, "twizzler-pack-density-ABC.json"),
   JSON.stringify(
@@ -158,6 +180,20 @@ writeFileSync(
       locked: "B Z-lobe geometry and cubic Catmull-Rom paths",
       variants: priorResults,
       stackPath: priorStackPath,
+      targetPath,
+    },
+    null,
+    2,
+  ),
+);
+writeFileSync(
+  resolve(outDir, "twizzler-pack-density-A3B3C3.json"),
+  JSON.stringify(
+    {
+      axis: "lineCount, lineWidth, depthSpread, fog/nearness",
+      locked: "B Z-lobe geometry and cubic Catmull-Rom paths",
+      variants: pass3Results,
+      stackPath: pass3StackPath,
       targetPath,
     },
     null,
