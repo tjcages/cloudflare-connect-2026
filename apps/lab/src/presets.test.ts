@@ -52,6 +52,7 @@ const presetWithLab = (name: string): ConfigPreset =>
       depth2Width: 0.25,
       depthSpread: 0,
       depthLift: 0,
+      depthTerrain: 0,
       twist: 1.5,
       noiseScaleX: 0.002,
       noiseScaleY: 0.015,

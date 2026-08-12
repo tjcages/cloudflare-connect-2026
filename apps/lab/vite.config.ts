@@ -23,6 +23,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: fileURLToPath(new URL("./index.html", import.meta.url)),
+        lab: fileURLToPath(new URL("./lab.html", import.meta.url)),
+        client: fileURLToPath(new URL("./client.html", import.meta.url)),
         experiments: fileURLToPath(new URL("./experiments.html", import.meta.url)),
       },
     },

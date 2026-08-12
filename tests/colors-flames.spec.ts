@@ -18,7 +18,7 @@ const flames = {
 };
 
 test("colors mode — colored flames", async ({ page }) => {
-  await page.goto("/?manual=1&seed=1&dpr=2&w=400&h=300&hud=0");
+  await page.goto("/lab.html?manual=1&seed=1&dpr=2&w=400&h=300&hud=0");
   await page.waitForFunction(() => (window as any).__lab !== undefined);
   await page.evaluate((flames) => {
     (window as any).__lab.setConfig({

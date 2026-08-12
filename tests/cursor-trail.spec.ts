@@ -35,7 +35,7 @@ async function runPath(page: any) {
 }
 
 test("cursor trail — field", async ({ page }) => {
-  await page.goto("/?manual=1&seed=1&dpr=2&w=400&h=300&hud=0");
+  await page.goto("/lab.html?manual=1&seed=1&dpr=2&w=400&h=300&hud=0");
   await page.waitForFunction(() => (window as any).__lab !== undefined);
   await page.evaluate(() => {
     (window as any).__lab.setConfig({ stripesEnabled: false });
@@ -45,7 +45,7 @@ test("cursor trail — field", async ({ page }) => {
 });
 
 test("cursor trail — stripes", async ({ page }) => {
-  await page.goto("/?manual=1&seed=1&dpr=2&w=400&h=300&hud=0");
+  await page.goto("/lab.html?manual=1&seed=1&dpr=2&w=400&h=300&hud=0");
   await page.waitForFunction(() => (window as any).__lab !== undefined);
   await page.evaluate(() => {
     (window as any).__lab.setConfig({ stripesEnabled: true });
