@@ -903,25 +903,27 @@ export function buildTwizzlerLines(
 
     const mid = points[Math.floor(points.length * 0.62)] ?? points[0];
     const midNear = mid?.nearness ?? 0.5;
-    const colorT = twizzlerColorT(mid?.along ?? 0.5);
+    // Shader pack: keep CF orange readable (no pale-left wash). Classic: full far→near.
+    const colorT =
+      shaderRecipe !== null ? 0.55 + 0.45 * twizzlerColorT(mid?.along ?? 0.5) : twizzlerColorT(mid?.along ?? 0.5);
     const baseColor = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
     const withEdge =
       shaderRecipe === null && Math.abs(across) > 0.85
         ? twizzlerLerpColor(baseColor, settings.colorEdge, ((Math.abs(across) - 0.85) / 0.15) * 0.35)
         : baseColor;
-    // Shader pack: keep fibers readable (light X fog only). Classic: depth fog.
-    const fog = shaderRecipe !== null ? 0.12 * (1 - midNear) : twizzlerFogAmount(midNear);
+    // Shader pack: no depth fog — isolines stay solid like the Shadertoy example.
+    const fog = shaderRecipe !== null ? 0 : twizzlerFogAmount(midNear);
     const color = twizzlerFogColor(withEdge, fog);
 
-    const visibility = shaderRecipe !== null ? 0.82 + 0.18 * midNear : 0.12 + 0.88 * Math.pow(midNear, 0.85);
+    const visibility = shaderRecipe !== null ? 1 : 0.12 + 0.88 * Math.pow(midNear, 0.85);
     lines.push({
       across: shaderRecipe !== null ? (range / Math.max(1, settings.lineCount - 1)) * 2 - 1 : across,
-      opacity: Math.min(0.95, settings.opacity * visibility),
+      opacity: Math.min(0.98, settings.opacity * visibility),
       color,
       nearness: midNear,
       strokeWidth:
         shaderRecipe !== null
-          ? Math.max(0.35, settings.lineWidth)
+          ? Math.max(0.5, settings.lineWidth)
           : Math.max(0.2, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
       points,
     });
@@ -990,8 +992,10 @@ export function renderTwizzler(
     for (const stop of stops) {
       const sample = line.points[Math.min(line.points.length - 1, Math.round(stop * (line.points.length - 1)))];
       const nearness = sample?.nearness ?? line.nearness;
-      const fog = shaderPack ? 0.1 * (1 - nearness) : twizzlerFogAmount(nearness);
-      const colorT = twizzlerColorT(sample?.along ?? stop);
+      const fog = shaderPack ? 0 : twizzlerFogAmount(nearness);
+      const colorT = shaderPack
+        ? 0.55 + 0.45 * twizzlerColorT(sample?.along ?? stop)
+        : twizzlerColorT(sample?.along ?? stop);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
       gradient.addColorStop(stop, twizzlerFogColor(base, fog));
     }
@@ -1002,8 +1006,8 @@ export function renderTwizzler(
     const widthScale = shaderPack ? 1 : twizzlerStrokeWidthScale(0.35 * leftNear + 0.65 * rightNear);
 
     context.strokeStyle = gradient;
-    context.globalAlpha = Math.min(0.95, line.opacity);
-    context.lineWidth = Math.max(0.35, settings.lineWidth * widthScale);
+    context.globalAlpha = Math.min(0.98, line.opacity);
+    context.lineWidth = Math.max(shaderPack ? 0.55 : 0.35, settings.lineWidth * widthScale);
     context.beginPath();
     twizzlerTraceCubic(context, line.points);
     context.stroke();

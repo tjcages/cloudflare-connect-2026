@@ -19,17 +19,17 @@ const variants = [
   {
     id: "A",
     label: "A — exact Shadertoy sin(t)+cos(t/2)",
-    tweaks: { depthTerrain: 3, wrinkles: 1.4, wrinkleStrength: 0.1, centerY: 0.5, lineCount: 40, lineWidth: 0.9, amplitude: 1.0, scale: 1, pointSpacing: 1 },
+    tweaks: { depthTerrain: 3, wrinkles: 1.4, wrinkleStrength: 0.1, centerY: 0.5, lineCount: 40, lineWidth: 1.15, amplitude: 1.0, scale: 1, pointSpacing: 1, opacity: 0.96, colorFar: "#ff8a3d", colorNear: "#e8481c" },
   },
   {
     id: "B",
     label: "B — Shadertoy m·t + cos(t/2)",
-    tweaks: { depthTerrain: 4, wrinkles: 2.8, wrinkleStrength: 0.1, centerY: 0.5, lineCount: 40, lineWidth: 0.9, amplitude: 1.0, scale: 1, pointSpacing: 1 },
+    tweaks: { depthTerrain: 4, wrinkles: 2.8, wrinkleStrength: 0.1, centerY: 0.5, lineCount: 40, lineWidth: 1.15, amplitude: 1.0, scale: 1, pointSpacing: 1, opacity: 0.96, colorFar: "#ff8a3d", colorNear: "#e8481c" },
   },
   {
     id: "C",
     label: "C — Shadertoy m·t + cos(t)",
-    tweaks: { depthTerrain: 5, wrinkles: 4.2, wrinkleStrength: 0.1, centerY: 0.5, lineCount: 40, lineWidth: 0.85, amplitude: 1.0, scale: 1, pointSpacing: 1 },
+    tweaks: { depthTerrain: 5, wrinkles: 4.2, wrinkleStrength: 0.1, centerY: 0.5, lineCount: 40, lineWidth: 1.1, amplitude: 1.0, scale: 1, pointSpacing: 1, opacity: 0.96, colorFar: "#ff8a3d", colorNear: "#e8481c" },
   },
 ];
 
