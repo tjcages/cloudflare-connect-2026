@@ -52,7 +52,7 @@ export type TwizzlerSettings = {
   depthTerrain: number;
   /**
    * TARGET-twizzler match experiment. 0 preserves the locked B rendering;
-   * 1–3 select the silhouette-, fan-, and depth-led candidates respectively.
+   * 1–3 are pass 3; 4–6 are pass 4 silhouette/color/terminal hybrids.
    */
   targetPolish: number;
   twist: number;
@@ -222,7 +222,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 4),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
     depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
-    targetPolish: Math.round(clamp(input.targetPolish, TWIZZLER_DEFAULTS.targetPolish, 0, 3)),
+    targetPolish: Math.round(clamp(input.targetPolish, TWIZZLER_DEFAULTS.targetPolish, 0, 6)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.001, 0.1),
@@ -311,9 +311,9 @@ function sampleKnots(x: number, knots: ReadonlyArray<readonly [number, number]>)
  */
 export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
-  const targetPolish = Math.round(Math.max(0, Math.min(3, settings.targetPolish))) as 0 | 1 | 2 | 3;
+  const targetPolish = Math.round(Math.max(0, Math.min(6, settings.targetPolish))) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
   if (targetPolish > 0) {
-    const targetStrategy = targetPolish as 1 | 2 | 3;
+    const targetStrategy = targetPolish as 1 | 2 | 3 | 4 | 5 | 6;
     let knots: ReadonlyArray<readonly [number, number]>;
     let waves: number;
     switch (targetStrategy) {
@@ -373,6 +373,60 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
         waves =
           -0.018 * Math.sin(x * Math.PI * 5.4 + 0.2) -
           0.025 * smoothstep(0.7, 1, x) * Math.sin(x * Math.PI * 11.2 + 1.1);
+        break;
+      case 4:
+        // A4 — preserve C3's strongest silhouette while color ordering changes independently.
+        knots = [
+          [0, 0.6],
+          [0.09, 0.7],
+          [0.23, 0.55],
+          [0.34, 0.72],
+          [0.47, 0.61],
+          [0.56, 0.9],
+          [0.66, 0.47],
+          [0.75, 0.16],
+          [0.84, 0.11],
+          [0.91, 0.25],
+          [0.96, 0.08],
+          [1, 0.34],
+        ];
+        waves =
+          -0.018 * Math.sin(x * Math.PI * 5.4 + 0.2) -
+          0.025 * smoothstep(0.7, 1, x) * Math.sin(x * Math.PI * 11.2 + 1.1);
+        break;
+      case 5:
+        // B4 — B3 fog/depth with a target-shaped low pinch and fuller vertical fan.
+        knots = [
+          [0, 0.58],
+          [0.09, 0.71],
+          [0.19, 0.57],
+          [0.3, 0.7],
+          [0.42, 0.64],
+          [0.53, 0.89],
+          [0.61, 0.73],
+          [0.7, 0.39],
+          [0.79, 0.12],
+          [0.89, 0.08],
+          [1, 0.38],
+        ];
+        waves = -0.014 * Math.sin(x * Math.PI * 4.6 + 0.55) - 0.009 * Math.sin(x * Math.PI * 7.4 + 1.4);
+        break;
+      case 6:
+        // C4 — C3 terminal bias with fewer, smoother marketing-scale hills.
+        knots = [
+          [0, 0.59],
+          [0.14, 0.68],
+          [0.3, 0.61],
+          [0.46, 0.7],
+          [0.57, 0.9],
+          [0.69, 0.42],
+          [0.82, 0.1],
+          [0.92, 0.14],
+          [1, 0.34],
+        ];
+        waves =
+          -0.011 * Math.sin(x * Math.PI * 3.8 + 0.3) -
+          0.012 * smoothstep(0.72, 1, x) * Math.sin(x * Math.PI * 6.4 + 1.1);
         break;
       default: {
         const _exhaustive: never = targetStrategy;
@@ -481,7 +535,7 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
  */
 export function twizzlerMarketingWidth(xT: number, settings: TwizzlerSettings): number {
   const x = Math.max(0, Math.min(1, xT));
-  const targetPolish = Math.round(Math.max(0, Math.min(3, settings.targetPolish)));
+  const targetPolish = Math.round(Math.max(0, Math.min(6, settings.targetPolish)));
   if (targetPolish > 0) {
     const widths: Record<number, ReadonlyArray<readonly [number, number]>> = {
       1: [
@@ -510,6 +564,33 @@ export function twizzlerMarketingWidth(xT: number, settings: TwizzlerSettings): 
         [0.69, 0.25],
         [0.84, 0.34],
         [1, 0.3],
+      ],
+      4: [
+        [0, 0.15],
+        [0.2, 0.19],
+        [0.42, 0.13],
+        [0.56, 0.09],
+        [0.69, 0.25],
+        [0.84, 0.34],
+        [1, 0.3],
+      ],
+      5: [
+        [0, 0.13],
+        [0.2, 0.17],
+        [0.43, 0.12],
+        [0.55, 0.07],
+        [0.68, 0.23],
+        [0.82, 0.4],
+        [1, 0.31],
+      ],
+      6: [
+        [0, 0.14],
+        [0.25, 0.17],
+        [0.48, 0.11],
+        [0.57, 0.08],
+        [0.72, 0.27],
+        [0.86, 0.35],
+        [1, 0.29],
       ],
     };
     const half = sampleKnots(x, widths[targetPolish] ?? widths[1]!);
@@ -540,15 +621,22 @@ export function twizzlerMarketingWidth(xT: number, settings: TwizzlerSettings): 
  */
 export function twizzlerMarketingTwist(xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
-  const targetPolish = Math.round(Math.max(0, Math.min(3, settings.targetPolish)));
+  const targetPolish = Math.round(Math.max(0, Math.min(6, settings.targetPolish)));
   if (targetPolish > 0) {
-    const pinchCenter = targetPolish === 2 ? 0.55 : 0.52;
-    const pinchWidth = targetPolish === 3 ? 0.12 : 0.075;
+    const fogFirst = targetPolish === 2 || targetPolish === 5;
+    const terminalFirst = targetPolish === 3 || targetPolish === 4 || targetPolish === 6;
+    const pinchCenter = fogFirst ? 0.55 : targetPolish === 6 ? 0.56 : 0.52;
+    const pinchWidth = terminalFirst ? (targetPolish === 6 ? 0.1 : 0.12) : 0.075;
     const pinch = Math.exp(-Math.pow((x - pinchCenter) / pinchWidth, 2));
     const fanOpen = smoothstep(0.58, 0.86, x);
-    const base = targetPolish === 2 ? 0.2 : 0.28;
+    const base = fogFirst ? 0.2 : targetPolish === 6 ? 0.26 : 0.28;
     const crossing = settings.twist * (0.88 * pinch - 0.18 * fanOpen);
-    const depthRoll = targetPolish === 3 ? 0.1 * Math.sin(x * Math.PI * 2.4) : 0;
+    const depthRoll =
+      targetPolish === 3 || targetPolish === 4
+        ? 0.1 * Math.sin(x * Math.PI * 2.4)
+        : targetPolish === 6
+          ? 0.045 * smoothstep(0.6, 1, x) * Math.sin(x * Math.PI * 1.8)
+          : 0;
     return Math.max(0.12, Math.min(1.4, base + crossing + depthRoll)) + time * 0.01;
   }
   const pinch = Math.exp(-Math.pow((x - 0.42) / 0.09, 2));
@@ -568,6 +656,9 @@ export function twizzlerColorT(xT: number, targetPolish = 0): number {
   if (targetPolish === 1) return Math.pow(smoothstep(0.16, 0.86, x), 0.95);
   if (targetPolish === 2) return Math.pow(smoothstep(0.1, 0.67, x), 0.72);
   if (targetPolish === 3) return Math.pow(smoothstep(0.22, 0.78, x), 1.1);
+  if (targetPolish === 4) return Math.pow(smoothstep(0.18, 0.78, x), 1.02);
+  if (targetPolish === 5) return Math.pow(smoothstep(0.11, 0.69, x), 0.76);
+  if (targetPolish === 6) return Math.pow(smoothstep(0.2, 0.82, x), 0.96);
   return Math.pow(smoothstep(0.06, 0.75, x), 0.8);
 }
 
@@ -602,6 +693,12 @@ export function twizzlerFogAmount(nearness: number, targetPolish = 0, xT = 0.5):
       const depthLayer = 0.04 * Math.sin(nearness * Math.PI * 5.5);
       return Math.min(0.66, Math.max(0, Math.pow(far, 0.92) * (0.58 - right * 0.16) + depthLayer));
     }
+    if (targetPolish === 4) return Math.min(0.66, Math.pow(far, 0.9) * (0.56 - right * 0.14));
+    if (targetPolish === 5) {
+      const depthLayer = 0.035 * Math.sin(nearness * Math.PI * 5.5);
+      return Math.min(0.64, Math.max(0, Math.pow(far, 0.95) * (0.56 - right * 0.17) + depthLayer));
+    }
+    if (targetPolish === 6) return Math.min(0.68, Math.pow(far, 0.84) * (0.6 - right * 0.11));
     return Math.min(0.72, Math.pow(far, 0.78) * (0.64 - right * 0.1));
   }
   return Math.pow(1 - nearness, 0.68);
@@ -863,7 +960,10 @@ export function buildTwizzlerLines(
   const pixelHeight = Math.max(1, Math.round(height));
   const settings = normalizeTwizzlerSettings(input);
   const time = twizzlerAnimationTime(timeSec, settings.speed);
-  const targetPolish = Math.round(Math.max(0, Math.min(3, settings.targetPolish)));
+  const targetPolish = Math.round(Math.max(0, Math.min(6, settings.targetPolish)));
+  const silhouetteFirst = targetPolish === 1 || targetPolish === 4;
+  const fogFirst = targetPolish === 2 || targetPolish === 5;
+  const terminalFirst = targetPolish === 3 || targetPolish === 4 || targetPolish === 6;
   const segmentCount = Math.max(1, Math.ceil(pixelWidth / Math.max(2, settings.pointSpacing)));
   const lines: TwizzlerLine[] = [];
 
@@ -929,8 +1029,13 @@ export function buildTwizzlerLines(
       // Y amp: multiple heat peaks/valleys scattered through Z (across), fluid along X.
       // Larger wrinkles → denser Z spots; fewer wrinkles → fewer larger Z blobs.
       const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
-      const baseHeatScale = targetPolish === 1 ? 0.24 : targetPolish === 2 ? 0.22 : targetPolish === 3 ? 0.22 : 1;
-      const terminalHeat = targetPolish === 3 ? 0.55 + 1.15 * smoothstep(0.68, 1, c.xT) : 1;
+      const baseHeatScale = silhouetteFirst ? 0.24 : fogFirst ? 0.22 : terminalFirst ? 0.22 : 1;
+      const terminalHeat =
+        targetPolish === 3 || targetPolish === 4
+          ? 0.55 + 1.15 * smoothstep(0.68, 1, c.xT)
+          : targetPolish === 6
+            ? 0.68 + 0.82 * smoothstep(0.72, 1, c.xT)
+            : 1;
       const heatScale = baseHeatScale * terminalHeat;
       const ampNoiseY =
         twizzlerAmpNoiseY(
@@ -944,37 +1049,67 @@ export function buildTwizzlerLines(
         ) * heatScale;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
       // Pack open enough for denseness, thin enough that Z-scattered peaks read (not parallel sheet).
-      const polishOpen = targetPolish === 1 ? 0.78 : targetPolish === 2 ? 0.94 : targetPolish === 3 ? 0.88 : 1.15;
+      const polishOpen =
+        targetPolish === 1
+          ? 0.78
+          : targetPolish === 2
+            ? 0.94
+            : targetPolish === 3 || targetPolish === 4
+              ? 0.88
+              : targetPolish === 5
+                ? 0.98
+                : targetPolish === 6
+                  ? 0.84
+                  : 1.15;
       const verticalOpen = (0.95 + settings.depthSpread * 0.55) * polishOpen;
       const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
-      const twistProgress =
-        targetPolish === 2
-          ? smoothstep(0.44, 0.62, c.xT)
-          : targetPolish === 3
-            ? smoothstep(0.4, 0.7, c.xT)
-            : smoothstep(0.42, 0.66, c.xT);
-      const depthPhase = targetPolish === 3 ? 0.12 * Math.sin(c.xT * Math.PI * 3.2 + across * 1.8) : 0;
+      const twistProgress = fogFirst
+        ? smoothstep(0.44, 0.62, c.xT)
+        : terminalFirst
+          ? smoothstep(targetPolish === 6 ? 0.44 : 0.4, targetPolish === 6 ? 0.68 : 0.7, c.xT)
+          : smoothstep(0.42, 0.66, c.xT);
+      const depthPhase =
+        targetPolish === 3 || targetPolish === 4
+          ? 0.12 * Math.sin(c.xT * Math.PI * 3.2 + across * 1.8)
+          : targetPolish === 6
+            ? 0.045 * Math.sin(c.xT * Math.PI * 2.2 + across * 1.2)
+            : 0;
       const targetOrientation = targetPolish > 0 ? Math.cos(Math.PI * (twistProgress + depthPhase)) : 1;
       const orientedAcross = acrossX * targetOrientation;
       const stackY = orientedAcross * halfW * verticalOpen;
       const farDownStack = -orientedAcross * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
       const faceY = ny * projected * 0.35;
       const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
-      const edgePhase = (c.xT - 0.6) * Math.PI * (targetPolish === 3 ? 3.4 : 2.1) + across * 2.4;
-      const energyGate = targetPolish === 3 ? Math.pow(smoothstep(0.66, 1, c.xT), 1.35) : rightEdge;
+      const edgeFrequency = targetPolish === 3 || targetPolish === 4 ? 3.4 : targetPolish === 6 ? 2.35 : 2.1;
+      const edgePhase = (c.xT - 0.6) * Math.PI * edgeFrequency + across * (targetPolish === 6 ? 1.7 : 2.4);
+      const energyGate = terminalFirst ? Math.pow(smoothstep(0.66, 1, c.xT), 1.35) : rightEdge;
+      const energyAmount = targetPolish === 1 ? 0.06 : fogFirst ? 0.12 : targetPolish === 6 ? 0.24 : 0.34;
       const rightEnergy =
-        targetPolish > 0
-          ? Math.sin(edgePhase) *
-            halfW *
-            energyGate *
-            (targetPolish === 1 ? 0.06 : targetPolish === 2 ? 0.12 : 0.34) *
-            (0.35 + Math.abs(acrossX))
-          : 0;
+        targetPolish > 0 ? Math.sin(edgePhase) * halfW * energyGate * energyAmount * (0.35 + Math.abs(acrossX)) : 0;
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
       // Soften shared spine lockstep — Z-scattered amp peaks must land at different X.
       const spineBase = pixelHeight * settings.centerY;
-      const spineShare = targetPolish === 1 ? 0.72 : targetPolish === 2 ? 0.84 : targetPolish === 3 ? 0.64 : 0.18;
-      const depthScale = targetPolish === 1 ? 0.24 : targetPolish === 2 ? 0.19 : targetPolish === 3 ? 0.3 : 1;
+      const spineShare =
+        targetPolish === 1
+          ? 0.72
+          : targetPolish === 2
+            ? 0.84
+            : targetPolish === 3 || targetPolish === 4
+              ? 0.64
+              : targetPolish === 5
+                ? 0.82
+                : targetPolish === 6
+                  ? 0.72
+                  : 0.18;
+      const depthScale = silhouetteFirst
+        ? 0.24
+        : fogFirst
+          ? 0.19
+          : terminalFirst
+            ? targetPolish === 6
+              ? 0.24
+              : 0.3
+            : 1;
       const y =
         spineBase +
         (c.y - spineBase) * spineShare +
@@ -1005,9 +1140,9 @@ export function buildTwizzlerLines(
 
     const visibility =
       targetPolish > 0
-        ? 0.45 + 0.55 * Math.pow(midNear, targetPolish === 3 ? 0.72 : 0.9)
+        ? 0.45 + 0.55 * Math.pow(midNear, terminalFirst ? 0.72 : 0.9)
         : 0.12 + 0.88 * Math.pow(midNear, 0.85);
-    const targetWidthScale = targetPolish > 0 ? (targetPolish === 2 ? 0.42 : 0.36) : 1;
+    const targetWidthScale = targetPolish > 0 ? (fogFirst ? 0.42 : targetPolish === 6 ? 0.34 : 0.36) : 1;
     lines.push({
       across,
       opacity: Math.min(0.92, settings.opacity * visibility),
@@ -1082,15 +1217,32 @@ export function renderTwizzler(
       const colorT = twizzlerColorT(sample?.along ?? stop, settings.targetPolish);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
       const depthWarmth =
-        settings.targetPolish === 2 ? 0.04 + 0.18 * Math.pow(nearness, 0.8) * (0.4 + 0.6 * Math.abs(line.across)) : 0;
-      const depthTint = depthWarmth > 0 ? twizzlerLerpColor(base, settings.colorEdge, depthWarmth) : base;
-      gradient.addColorStop(stop, twizzlerFogColor(depthTint, fog));
+        settings.targetPolish === 2 || settings.targetPolish === 5
+          ? 0.04 + 0.18 * Math.pow(nearness, 0.8) * (0.4 + 0.6 * Math.abs(line.across))
+          : 0;
+      const depthOrdered =
+        settings.targetPolish === 4
+          ? twizzlerLerpColor(
+              base,
+              nearness >= 0.5 ? settings.colorNear : settings.colorFar,
+              0.08 + 0.16 * Math.abs(nearness - 0.5) * 2,
+            )
+          : base;
+      const depthTint =
+        depthWarmth > 0 ? twizzlerLerpColor(depthOrdered, settings.colorEdge, depthWarmth) : depthOrdered;
+      const terminalTint =
+        settings.targetPolish === 6
+          ? twizzlerLerpColor(depthTint, settings.colorNear, 0.16 * smoothstep(0.7, 1, sample?.along ?? stop))
+          : depthTint;
+      gradient.addColorStop(stop, twizzlerFogColor(terminalTint, fog));
     }
 
     // Width also grows along the path toward the camera (right).
     const leftNear = line.points[0]?.nearness ?? line.nearness;
     const rightNear = line.points[line.points.length - 1]?.nearness ?? line.nearness;
-    const targetWidthScale = settings.targetPolish > 0 ? (settings.targetPolish === 2 ? 0.42 : 0.36) : 1;
+    const fogFirst = settings.targetPolish === 2 || settings.targetPolish === 5;
+    const targetWidthScale =
+      settings.targetPolish > 0 ? (fogFirst ? 0.42 : settings.targetPolish === 6 ? 0.34 : 0.36) : 1;
     const widthScale = twizzlerStrokeWidthScale(0.35 * leftNear + 0.65 * rightNear) * targetWidthScale;
 
     context.strokeStyle = gradient;

@@ -58,7 +58,7 @@ describe("Twizzler", () => {
       bendAmount: -1,
       leftHeight: 2,
       rightHeight: -1,
-      targetPolish: 3,
+      targetPolish: 6,
     });
   });
 
@@ -153,8 +153,8 @@ describe("Twizzler", () => {
     expect(lines[0]?.strokeWidth).toBeGreaterThan(0);
   });
 
-  it("keeps three distinct TARGET-polish strategies at the locked density", () => {
-    const signatures = [1, 2, 3].map((targetPolish) => {
+  it("keeps six distinct TARGET-polish strategies cubic and near the locked density", () => {
+    const signatures = [1, 2, 3, 4, 5, 6].map((targetPolish) => {
       const settings = normalizeTwizzlerSettings({
         targetPolish,
         lineCount: 240,
@@ -175,7 +175,7 @@ describe("Twizzler", () => {
       ].map((value) => Number(value.toFixed(3)));
     });
 
-    expect(new Set(signatures.map((signature) => signature.join(":"))).size).toBe(3);
+    expect(new Set(signatures.map((signature) => signature.join(":"))).size).toBe(6);
   });
 
   it("fogs far fibers toward white and drops far fibers lowest on the right", () => {
