@@ -1959,19 +1959,36 @@ body.lab-sidebar-resizing .lab-sidebar {
   box-shadow: none;
 }
 
+/* In-flow after Leva: expanding folders grow the panel scroll and push this block down. */
+.lab-shell.is-client-mode .lab-client-tools,
+.lab-shell.is-client-mode .lab-client-leva,
 .lab-shell.is-client-mode .lab-client-exports {
+  flex: 0 0 auto;
+}
+
+.lab-shell.is-client-mode .lab-client-exports {
+  position: relative;
+  z-index: 0;
   padding: 10px 10px 12px;
+  margin-top: 0;
   border-top: 1px solid var(--leva-border-subtle);
+  background: var(--leva-panel-bg) !important;
+  background-color: var(--leva-panel-bg) !important;
 }
 
 .lab-shell.is-client-mode .lab-client-leva {
-  flex: 0 0 auto;
   width: 100%;
 }
 
+/* fill={true} keeps Leva position:relative; never let it go fixed/overlay. */
 .lab-shell.is-client-mode .lab-client-leva > div:first-child {
-  width: 100%;
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  z-index: auto !important;
+  width: 100% !important;
   height: auto !important;
+  max-height: none !important;
 }
 
 /* Match Duration/Start labels to Saved layouts title sizing. */
