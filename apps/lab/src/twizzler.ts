@@ -556,9 +556,9 @@ export function twizzlerAmpNoiseY(
 ): number {
   const heat = twizzlerAmpHeat(xT, across, patchScale, seed);
   const swell = twizzlerAmpSwell(xT, across, patchScale, seed + 1.7);
-  const yThrow = 0.16 + amplitude * 0.2 + wrinkleStrength * 2.6;
+  const yThrow = 0.2 + amplitude * 0.24 + wrinkleStrength * 3.2;
   // Soft edge shimmer only inside hot patches — not unique per-ribbon noise.
-  const micro = (twizzlerNoise(xT * 6.5 + across * 0.25, seed + 5.2, 0.85) - 0.5) * 0.05 * heat;
+  const micro = (twizzlerNoise(xT * 5.2 + across * 0.2, seed + 5.2, 0.85) - 0.5) * 0.03 * heat;
   return (heat * swell + micro) * pixelHeight * yThrow;
 }
 
