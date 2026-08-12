@@ -73,21 +73,24 @@ export function sortTwizzlerGradientStops(stops: readonly TwizzlerGradientStop[]
   return [...stops].sort((a, b) => a.x - b.x || a.y - b.y || a.id.localeCompare(b.id));
 }
 
+function quantize01(value: number): number {
+  return Number(clamp01(value).toFixed(4));
+}
+
 function parseStop(value: unknown, index: number, fallbackColor: string): TwizzlerGradientStop | null {
   if (!value || typeof value !== "object") return null;
   const record = value as { id?: unknown; offset?: unknown; x?: unknown; y?: unknown; color?: unknown };
   const xRaw = isFiniteNumber(record.x) ? record.x : isFiniteNumber(record.offset) ? record.offset : null;
   if (xRaw === null) return null;
-  const x = clamp01(xRaw);
-  const y = isFiniteNumber(record.y) ? clamp01(record.y) : 0.5;
-  const id =
-    typeof record.id === "string" && record.id.trim() ? record.id.trim() : createTwizzlerGradientStopId(index + 10);
+  const x = quantize01(xRaw);
+  const y = isFiniteNumber(record.y) ? quantize01(record.y) : 0.5;
+  const id = typeof record.id === "string" && record.id.trim() ? record.id.trim() : `g${index}`;
   return { id, x, y, offset: x, color: normalizeHex(record.color, fallbackColor) };
 }
 
 function withPosition(stop: TwizzlerGradientStop, x: number, y: number): TwizzlerGradientStop {
-  const nextX = clamp01(x);
-  const nextY = clamp01(y);
+  const nextX = quantize01(x);
+  const nextY = quantize01(y);
   return { ...stop, x: nextX, y: nextY, offset: nextX };
 }
 
@@ -109,7 +112,7 @@ export function normalizeTwizzlerGradientStops(
     const stop = parseStop(raw[i], i, i === 0 ? far : near);
     if (!stop) continue;
     let id = stop.id;
-    if (seen.has(id)) id = createTwizzlerGradientStopId(i + 100 + parsed.length);
+    if (seen.has(id)) id = `${stop.id}-${parsed.length}`;
     seen.add(id);
     parsed.push({ ...stop, id });
     if (parsed.length >= TWIZZLER_GRADIENT_STOP_MAX) break;
@@ -140,9 +143,9 @@ export function serializeTwizzlerGradientStops(stops: readonly TwizzlerGradientS
   return JSON.stringify(
     sortTwizzlerGradientStops(stops).map((stop) => ({
       id: stop.id,
-      x: stop.x,
-      y: stop.y,
-      offset: stop.offset,
+      x: quantize01(stop.x),
+      y: quantize01(stop.y),
+      offset: quantize01(stop.offset),
       color: stop.color,
     })),
   );

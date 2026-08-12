@@ -70,6 +70,17 @@ describe("twizzlerGradient", () => {
     expect(parsed).toEqual(original);
   });
 
+  it("keeps serialize(parse(serialize(x))) stable so Leva sanitize cannot loop", () => {
+    const noisy = [
+      { id: "a", x: 0.123456789, y: 0.987654321, offset: 0.123456789, color: "#fea700" },
+      { id: "b", x: 0.5, y: 0.5, offset: 0.5, color: "#f46021" },
+    ];
+    const once = serializeTwizzlerGradientStops(noisy);
+    const twice = serializeTwizzlerGradientStops(parseTwizzlerGradientStops(once, "#fea700", "#f46021"));
+    expect(twice).toBe(once);
+    expect(once).toContain('"x":0.1235');
+  });
+
   it("samples IDW in 2D and returns an exact hotspot color", () => {
     const stops = [
       { id: "a", x: 0.5, y: 0, offset: 0.5, color: "#000000" },

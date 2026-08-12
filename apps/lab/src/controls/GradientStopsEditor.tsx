@@ -11,6 +11,7 @@ import {
   rasterizeTwizzlerGradientField,
   recolorTwizzlerGradientStop,
   removeTwizzlerGradientStop,
+  serializeTwizzlerGradientStops,
   TWIZZLER_GRADIENT_HANDLE_HIT_PX,
   TWIZZLER_GRADIENT_STOP_MAX,
   TWIZZLER_GRADIENT_STOP_MIN,
@@ -52,29 +53,66 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
   const graphRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLCanvasElement | null>(null);
   const dragId = useRef<string | null>(null);
+  const pendingStops = useRef<TwizzlerGradientStop[] | null>(null);
+  const rafId = useRef<number | null>(null);
+  const lastSent = useRef<string | null>(null);
+  const [draftStops, setDraftStops] = useState<TwizzlerGradientStop[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(stops[0]?.id ?? null);
+  const displayed = draftStops ?? stops;
+  const displayedIds = displayed.map((stop) => stop.id).join(",");
 
   useEffect(() => {
-    if (selectedId && stops.some((stop) => stop.id === selectedId)) return;
-    setSelectedId(stops[0]?.id ?? null);
-  }, [selectedId, stops]);
+    if (selectedId && displayed.some((stop) => stop.id === selectedId)) return;
+    setSelectedId(displayed[0]?.id ?? null);
+  }, [displayed, displayedIds, selectedId]);
 
   useEffect(() => {
     const canvas = fieldRef.current;
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return;
-    const pixels = rasterizeTwizzlerGradientField(stops, FIELD_PREVIEW_WIDTH, FIELD_PREVIEW_HEIGHT);
+    const pixels = rasterizeTwizzlerGradientField(displayed, FIELD_PREVIEW_WIDTH, FIELD_PREVIEW_HEIGHT);
     const image = context.createImageData(FIELD_PREVIEW_WIDTH, FIELD_PREVIEW_HEIGHT);
     image.data.set(pixels);
     context.putImageData(image, 0, 0);
-  }, [stops]);
+  }, [displayed, displayedIds]);
 
-  const selected = stops.find((stop) => stop.id === selectedId) ?? stops[0] ?? null;
-  const canAdd = !disabled && stops.length < TWIZZLER_GRADIENT_STOP_MAX;
-  const canRemove = !disabled && stops.length > TWIZZLER_GRADIENT_STOP_MIN && !!selected;
+  useEffect(
+    () => () => {
+      if (rafId.current != null) cancelAnimationFrame(rafId.current);
+    },
+    [],
+  );
 
-  const commit = (next: TwizzlerGradientStop[]) => {
+  const selected = displayed.find((stop) => stop.id === selectedId) ?? displayed[0] ?? null;
+  const canAdd = !disabled && displayed.length < TWIZZLER_GRADIENT_STOP_MAX;
+  const canRemove = !disabled && displayed.length > TWIZZLER_GRADIENT_STOP_MIN && !!selected;
+
+  const flushToLeva = (next: TwizzlerGradientStop[]) => {
+    const serialized = serializeTwizzlerGradientStops(next);
+    if (serialized === lastSent.current) return;
+    lastSent.current = serialized;
     onChange(next);
+  };
+
+  const scheduleFlush = (next: TwizzlerGradientStop[]) => {
+    pendingStops.current = next;
+    if (rafId.current != null) return;
+    rafId.current = requestAnimationFrame(() => {
+      rafId.current = null;
+      const pending = pendingStops.current;
+      pendingStops.current = null;
+      if (pending) flushToLeva(pending);
+    });
+  };
+
+  const commit = (next: TwizzlerGradientStop[], immediate = false) => {
+    if (dragId.current && !immediate) {
+      setDraftStops(next);
+      scheduleFlush(next);
+      return;
+    }
+    setDraftStops(null);
+    flushToLeva(next);
   };
 
   const pointerUv = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -87,7 +125,13 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     const bounds = graphRef.current?.getBoundingClientRect();
     if (!bounds) return null;
     const plane = gradientFieldClientPlane(bounds, GRAPH_WIDTH, GRAPH_HEIGHT, GRAPH_PAD);
-    return nearestTwizzlerGradientStopIdPx(stops, event.clientX, event.clientY, plane, TWIZZLER_GRADIENT_HANDLE_HIT_PX);
+    return nearestTwizzlerGradientStopIdPx(
+      displayed,
+      event.clientX,
+      event.clientY,
+      plane,
+      TWIZZLER_GRADIENT_HANDLE_HIT_PX,
+    );
   };
 
   const beginDrag = (event: ReactPointerEvent<HTMLDivElement>, id: string) => {
@@ -96,6 +140,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     event.stopPropagation();
     dragId.current = id;
     setSelectedId(id);
+    setDraftStops([...displayed]);
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
@@ -110,8 +155,8 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     if (!uv || !canAdd) return;
     event.preventDefault();
     event.stopPropagation();
-    const next = addTwizzlerGradientStop(stops, uv.x, uv.y);
-    const created = next.find((stop) => !stops.some((existing) => existing.id === stop.id));
+    const next = addTwizzlerGradientStop(displayed, uv.x, uv.y);
+    const created = next.find((stop) => !displayed.some((existing) => existing.id === stop.id));
     if (created) {
       setSelectedId(created.id);
       dragId.current = created.id;
@@ -126,7 +171,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     event.stopPropagation();
     const uv = pointerUv(event);
     if (!uv) return;
-    commit(moveTwizzlerGradientStop(stops, dragId.current, uv.x, uv.y));
+    commit(moveTwizzlerGradientStop(displayed, dragId.current, uv.x, uv.y));
   };
 
   const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -134,6 +179,13 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     event.preventDefault();
     event.stopPropagation();
     dragId.current = null;
+    if (rafId.current != null) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    }
+    const pending = pendingStops.current ?? draftStops;
+    pendingStops.current = null;
+    if (pending) commit(pending, true);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -161,10 +213,10 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
             aria-label="Add color hotspot"
             onClick={() => {
               if (!canAdd) return;
-              const next = addTwizzlerGradientStop(stops);
-              const created = next.find((stop) => !stops.some((existing) => existing.id === stop.id));
+              const next = addTwizzlerGradientStop(displayed);
+              const created = next.find((stop) => !displayed.some((existing) => existing.id === stop.id));
               if (created) setSelectedId(created.id);
-              commit(next);
+              commit(next, true);
             }}
           >
             <Plus size={11} />
@@ -177,7 +229,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
             aria-label="Remove selected color hotspot"
             onClick={() => {
               if (!selected || !canRemove) return;
-              commit(removeTwizzlerGradientStop(stops, selected.id));
+              commit(removeTwizzlerGradientStop(displayed, selected.id), true);
             }}
           >
             <X size={11} />
@@ -216,7 +268,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
           <line x1={GRAPH_PAD} y1={GRAPH_PAD} x2={GRAPH_PAD} y2={GRAPH_HEIGHT - GRAPH_PAD} />
         </svg>
         <div className="twizzler-gradient-handles">
-          {stops.map((stop) => {
+          {displayed.map((stop) => {
             const selectedStop = stop.id === selected?.id;
             return (
               <div
@@ -239,7 +291,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
         <div className="twizzler-gradient-selected">
           <HexColorPopover
             color={selected.color}
-            onChange={(hex) => commit(recolorTwizzlerGradientStop(stops, selected.id, hex))}
+            onChange={(hex) => commit(recolorTwizzlerGradientStop(displayed, selected.id, hex), true)}
             disabled={disabled}
             ariaLabel="Selected color hotspot"
             triggerClassName="library-color-input-swatch"
