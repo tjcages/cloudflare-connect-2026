@@ -188,10 +188,11 @@
   column-gap: 8px !important;
 }
 
-/* Buttons — filled gray chips, no extra outline. */
-.playground-leva-panel button,
-.playground-leva-panel button:not(:disabled),
-.playground-leva-panel button:disabled {
+/* Buttons — filled gray chips, no extra outline.
+   Exclude panel-mode segmented control (CF-45): those need distinct selected chrome. */
+.playground-leva-panel button:not(.lab-panel-mode-btn),
+.playground-leva-panel button:not(.lab-panel-mode-btn):not(:disabled),
+.playground-leva-panel button:not(.lab-panel-mode-btn):disabled {
   color: var(--leva-text) !important;
   background-color: var(--leva-surface) !important;
   border: 1px solid transparent !important;
@@ -199,17 +200,17 @@
   box-shadow: none !important;
 }
 
-.playground-leva-panel button:not(:disabled) {
+.playground-leva-panel button:not(.lab-panel-mode-btn):not(:disabled) {
   cursor: pointer;
 }
 
-.playground-leva-panel button:not(:disabled):hover {
+.playground-leva-panel button:not(.lab-panel-mode-btn):not(:disabled):hover {
   color: var(--leva-text) !important;
   background-color: var(--leva-surface-hover) !important;
   border-color: transparent !important;
 }
 
-.playground-leva-panel button:disabled {
+.playground-leva-panel button:not(.lab-panel-mode-btn):disabled {
   cursor: not-allowed;
   color: var(--leva-text-faint) !important;
   background-color: var(--color-builder-disabled-surface) !important;
@@ -1837,10 +1838,11 @@ body.lab-sidebar-resizing .lab-sidebar {
   background: color-mix(in srgb, var(--color-builder-surface, #fff) 55%, transparent);
 }
 
-.lab-panel-mode-btn.is-selected {
-  color: #ffffff;
-  background: var(--color-builder-text, #161616);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+.lab-panel-mode-btn.is-selected,
+.lab-panel-mode-btn[aria-checked="true"] {
+  color: #ffffff !important;
+  background-color: #161616 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18) !important;
 }
 
 /* Client sidebar shares Leva tokens so tools + panel read as one surface. */
@@ -1889,23 +1891,29 @@ body.lab-sidebar-resizing .lab-sidebar {
   border-radius: var(--leva-radius);
   box-shadow: none;
   background: var(--leva-surface);
-  border-color: var(--leva-border);
+  border: 1px solid var(--leva-border);
+  padding: 2px;
+  gap: 2px;
 }
 
 .lab-shell.is-client-mode .lab-panel-mode-btn {
   border-radius: calc(var(--leva-radius) - 1px);
-  color: var(--leva-text-muted);
+  color: var(--leva-text-muted) !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .lab-shell.is-client-mode .lab-panel-mode-btn:hover:not(.is-selected) {
-  color: var(--leva-text);
-  background: color-mix(in srgb, var(--leva-panel-bg) 70%, transparent);
+  color: var(--leva-text) !important;
+  background-color: color-mix(in srgb, var(--leva-panel-bg) 70%, transparent) !important;
 }
 
-.lab-shell.is-client-mode .lab-panel-mode-btn.is-selected {
-  color: #ffffff;
-  background: var(--color-builder-text, #161616);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+.lab-shell.is-client-mode .lab-panel-mode-btn.is-selected,
+.lab-shell.is-client-mode .lab-panel-mode-btn[aria-checked="true"] {
+  color: #ffffff !important;
+  background-color: #161616 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
 .lab-shell.is-client-mode .lab-client-layouts,
@@ -2036,10 +2044,11 @@ body.lab-sidebar-resizing .lab-sidebar {
   background: color-mix(in srgb, var(--color-builder-surface) 35%, transparent);
 }
 
-:root[data-theme="dark"] .lab-panel-mode-btn.is-selected {
-  color: #161616;
-  background: #f0f0f0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+:root[data-theme="dark"] .lab-panel-mode-btn.is-selected,
+:root[data-theme="dark"] .lab-panel-mode-btn[aria-checked="true"] {
+  color: #161616 !important;
+  background-color: #f0f0f0 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important;
 }
 
 :root[data-theme="dark"] .lab-shell.is-client-mode .lab-panel-mode-toggle {
@@ -2047,9 +2056,10 @@ body.lab-sidebar-resizing .lab-sidebar {
   border-color: var(--leva-border);
 }
 
-:root[data-theme="dark"] .lab-shell.is-client-mode .lab-panel-mode-btn.is-selected {
-  color: #161616;
-  background: #f0f0f0;
+:root[data-theme="dark"] .lab-shell.is-client-mode .lab-panel-mode-btn.is-selected,
+:root[data-theme="dark"] .lab-shell.is-client-mode .lab-panel-mode-btn[aria-checked="true"] {
+  color: #161616 !important;
+  background-color: #f0f0f0 !important;
 }
 
 .lab-sidebar-toggle {
