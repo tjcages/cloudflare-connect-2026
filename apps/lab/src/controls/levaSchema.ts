@@ -1463,9 +1463,9 @@ export function useEngineControls(
                 twizzlerColor: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.color,
-                    label: "Color near",
+                    label: "Color",
                   }),
-                  render: showTwizzlerAuthoring,
+                  render: showTwizzlerRibbonConfig,
                 },
                 twizzlerColorFar: {
                   ...colorLibraryInputPlugin({
@@ -2347,7 +2347,10 @@ export function useEngineControls(
                 Number(get("Background.backgroundGradientStopCount")) >= 4,
             },
           },
-          { hideInClient: true },
+          {
+            // Client Default needs background color; gradient extras stay available in Advanced.
+            defaultOpen: true,
+          },
         ),
         "Background Stars": drawerFolder(
           "Background Stars",

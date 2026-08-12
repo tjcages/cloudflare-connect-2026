@@ -25,7 +25,7 @@ describe("client preview presets", () => {
     expect(bundle.engineConfig.background?.transparent).toBe(true);
     expect(bundle.engineConfig.sparkle?.gaps?.enabled).toBe(false);
     expect(bundle.twizzler.lineCount).toBe(56);
-    expect(bundle.twizzler.color).toBe("#ff6709");
+    expect(bundle.twizzler.color).toBe("#f46021");
     expect(bundle.twizzler.opacity).toBeCloseTo(1);
     expect(bundle.twizzler.rotateXDeg).toBeCloseTo(12);
     expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-18);
@@ -50,7 +50,7 @@ describe("client preview presets", () => {
     });
     expect(bundle.canvasWidth).toBe(800);
     expect(bundle.canvasHeight).toBe(800);
-    expect(bundle.twizzler.color).toBe("#4a4a4a");
+    expect(bundle.twizzler.color).toBe("#5c5c5c");
     expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-28);
     expect(bundle.twizzler.centerY).toBeCloseTo(0.38);
   });

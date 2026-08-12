@@ -138,7 +138,7 @@ describe("Twizzler", () => {
       rotateXDeg: 12,
       rotateYDeg: -18,
       rotateZDeg: 0,
-      color: "#ff6709",
+      color: "#f46021",
     });
     const { lines } = buildTwizzlerLines(1600, 320, 0, {
       ...settings,
@@ -149,7 +149,7 @@ describe("Twizzler", () => {
     expect(lines.length).toBeGreaterThan(10);
     expect(lines.length).toBeLessThanOrEqual(40);
     expect(lines[0]?.points.length).toBeGreaterThan(10);
-    expect(lines[0]?.color).toBe("#ff6709");
+    expect(lines[0]?.color).toBe("#f46021");
     expect(lines[0]?.nearness).toBeGreaterThanOrEqual(0);
     expect(lines[0]?.nearness).toBeLessThanOrEqual(1);
     expect(lines[0]?.strokeWidth).toBeGreaterThan(0);

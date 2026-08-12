@@ -13,6 +13,12 @@ product (`apps/studio` + `packages/stripes-shader`) has been retired/deleted.
 Follow `docs/engine-architecture.md` and `docs/superpowers/specs/2026-06-22-gpu-engine-rewrite-design.md`.
 Do **not** follow `docs/legacy/` — those describe the retired Pixi/CPU engine.
 
+## Deploy
+
+**Always** deploy to Worker [`connect-shader`](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production)
+(`account_id` `944ca70087298faa2e84783db46162c5`). Details: `docs/deploy.md`.
+Live: https://connect-shader.off-brand.workers.dev/
+
 ## Package Manager
 
 Use `pi` (install) and `pir` (run scripts). Never `npm`, `pnpm`, `yarn`, or `npx` directly.

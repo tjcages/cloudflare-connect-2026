@@ -66,10 +66,11 @@ export type TwizzlerSettings = {
 };
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
-  color: "#ff6709",
-  colorFar: "#ff6709",
-  colorNear: "#ff6709",
-  colorEdge: "#ff6709",
+  // Orange / 900 [Accent] from COLOR_LIBRARY (not freeform HTML #ff6709).
+  color: "#f46021",
+  colorFar: "#f46021",
+  colorNear: "#f46021",
+  colorEdge: "#f46021",
   opacity: 1,
   scale: 1,
   centerY: 0.5,

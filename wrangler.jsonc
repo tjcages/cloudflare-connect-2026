@@ -1,4 +1,7 @@
 {
+  // Production Worker for ALL deploys (root + lab + Workers Builds).
+  // Dashboard: https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production
+  // Live: https://connect-shader.off-brand.workers.dev/
   "name": "connect-shader",
   "compatibility_date": "2026-05-14",
   "account_id": "944ca70087298faa2e84783db46162c5",

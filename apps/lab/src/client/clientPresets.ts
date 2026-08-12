@@ -1,4 +1,5 @@
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
+import { LIBRARY_COLOR } from "../components/colorLibrary";
 import { findPresetByName, loadBuiltinPresets } from "../presets";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
@@ -99,42 +100,42 @@ export const CLIENT_LAYOUT_PRESETS: readonly ClientLayoutPreset[] = [
 export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
   {
     id: "coral-classic",
-    label: "Orange wave",
+    label: "Orange accent",
     twizzler: {
-      color: "#ff6709",
-      colorFar: "#ff6709",
-      colorNear: "#ff6709",
-      colorEdge: "#ff6709",
+      color: LIBRARY_COLOR.orangeAccent,
+      colorFar: LIBRARY_COLOR.orangeAccent,
+      colorNear: LIBRARY_COLOR.orangeAccent,
+      colorEdge: LIBRARY_COLOR.orangeAccent,
     },
   },
   {
     id: "soft-gold",
-    label: "Soft gold",
+    label: "Orange pair",
     twizzler: {
-      color: "#f0a030",
-      colorFar: "#f0a030",
-      colorNear: "#f0a030",
-      colorEdge: "#f0a030",
+      color: LIBRARY_COLOR.orangePair,
+      colorFar: LIBRARY_COLOR.orangePair,
+      colorNear: LIBRARY_COLOR.orangePair,
+      colorEdge: LIBRARY_COLOR.orangePair,
     },
   },
   {
     id: "deep-ember",
-    label: "Deep ember",
+    label: "Orange deep",
     twizzler: {
-      color: "#c4320f",
-      colorFar: "#c4320f",
-      colorNear: "#c4320f",
-      colorEdge: "#c4320f",
+      color: LIBRARY_COLOR.orangeDeep,
+      colorFar: LIBRARY_COLOR.orangeDeep,
+      colorNear: LIBRARY_COLOR.orangeDeep,
+      colorEdge: LIBRARY_COLOR.orangeDeep,
     },
   },
   {
     id: "graphite",
     label: "Graphite",
     twizzler: {
-      color: "#4a4a4a",
-      colorFar: "#4a4a4a",
-      colorNear: "#4a4a4a",
-      colorEdge: "#4a4a4a",
+      color: LIBRARY_COLOR.graphite,
+      colorFar: LIBRARY_COLOR.graphite,
+      colorNear: LIBRARY_COLOR.graphite,
+      colorEdge: LIBRARY_COLOR.graphite,
     },
   },
 ];
