@@ -2128,7 +2128,7 @@ export function useEngineControls(
             ),
           },
           {
-            defaultOpen: true,
+            defaultOpen: false,
             render: () => showTwizzlerRibbonRef.current,
           },
         ),
