@@ -2036,6 +2036,17 @@ body.lab-sidebar-resizing .lab-sidebar {
   color: var(--leva-text);
 }
 
+.lab-shell.is-client-mode .lab-client-layouts-actions > button.is-exporting,
+.lab-shell.is-client-mode .lab-client-layouts-actions > button[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.85;
+}
+
+.lab-btn.is-exporting,
+.lab-btn[aria-busy="true"] {
+  cursor: progress;
+}
+
 .lab-shell.is-client-mode .lab-client-exports .wf-row {
   display: flex;
   flex-wrap: wrap;

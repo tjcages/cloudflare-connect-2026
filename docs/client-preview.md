@@ -57,7 +57,7 @@ Client panel (and lab) expose:
 - **Reset** — restore Banner 5:1 defaults (keeps named saved layouts)
 - **Copy JSON** — copy full lab configuration to the clipboard
 - **Upload JSON** — import a config file as a saved layout and apply it
-- **Video duration** / **Export Video** — high-quality MediaRecorder (60fps, high bitrate) + ffmpeg.wasm (libx264 veryslow / CRF 14)
+- **Video duration** / **Export Video** — high-quality MediaRecorder (60fps, high bitrate) + ffmpeg.wasm (libx264 veryslow / CRF 14). Button shows progress (Recording / Converting) and stays disabled until the export finishes.
 - **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide X ramp masked by all ribbons), Fiber gradient (per-ribbon X ramp fitted to each fiber’s span), Baked (segmented X/Y/Z). Twizzler exports whenever Show is on. **Rain** adds stripe-rect paths when on; with Rain off, export is Twizzler (+ background) only.
 
 ## Next HTML → Leva mapping (do this on the next drop)
