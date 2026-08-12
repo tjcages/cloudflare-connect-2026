@@ -980,9 +980,9 @@ export function buildTwizzlerLines(
   const settings = normalizeTwizzlerSettings(input);
   const time = twizzlerAnimationTime(timeSec, settings.speed);
   const layerCount = Math.max(1, settings.lineCount);
-  // Sample density follows the shorter axis so wide banners don't thin the ribbon.
-  const sampleAxis = Math.min(pixelWidth, pixelHeight);
-  const pointCount = Math.max(32, Math.min(512, Math.round(sampleAxis / Math.max(2, settings.pointSpacing))));
+  // Match orange-wave-vector.html POINTS=160 at reference sizes; scale with width so
+  // wide banners stay smooth (never use the short axis — that made 5:1 banners ~32 pts).
+  const pointCount = Math.max(160, Math.min(720, Math.round(pixelWidth / Math.max(2, settings.pointSpacing))));
   const rotX = (settings.rotateXDeg * Math.PI) / 180;
   const rotY = (settings.rotateYDeg * Math.PI) / 180;
   const rotZ = (settings.rotateZDeg * Math.PI) / 180;

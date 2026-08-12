@@ -61,6 +61,7 @@ import {
   type CustomStripePalette,
 } from "./customStripePalettes";
 import {
+  buildClientPreviewBundle,
   CLIENT_COLOR_PRESETS,
   CLIENT_LAYOUT_PRESETS,
   CLIENT_SIZE_PRESETS,
@@ -515,14 +516,29 @@ export function useEngineControls(
   const showShaderToyCameraRef = useRef(showShaderToyCamera);
   showShaderToyCameraRef.current = showShaderToyCamera;
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
-  const initialLabSettings = useMemo(
-    () => ({
+  const initialLabSettings = useMemo(() => {
+    const base = {
       ...loadLabSettings(),
       ...(startupPreset?.lab ?? {}),
       cometLogo: { ...COMET_LOGO_DEFAULTS },
-    }),
-    [startupPreset],
-  );
+    };
+    if (!clientMode) return base;
+    const bundle = buildClientPreviewBundle(DEFAULT_CLIENT_PREVIEW_STATE);
+    return {
+      ...base,
+      canvasMode: "manual" as const,
+      canvasWidth: bundle.canvasWidth,
+      canvasHeight: bundle.canvasHeight,
+      canvasAspectLocked: true,
+      twizzlerEnabled: true,
+      twizzler: bundle.twizzler,
+      twizzlerMap: bundle.twizzlerMap,
+      shaderSourceWidth: bundle.shaderSourceWidth,
+      shaderSourceHeight: bundle.shaderSourceHeight,
+      textureSourceMode: "shader" as const,
+      shaderPresetId: "twizzler-map",
+    };
+  }, [clientMode, startupPreset]);
   const initialTextureId = useMemo(() => {
     const stored = loadTextureId() ?? initialLabSettings.textureId;
     return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;

@@ -60,6 +60,7 @@ import {
   savePresets,
   type ConfigPreset,
 } from "./presets";
+import { buildClientPreviewBundle, DEFAULT_CLIENT_PREVIEW_STATE } from "./client/clientPresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -845,13 +846,34 @@ function LabInner({
   onResetSurfaceArea,
 }: LabInnerProps) {
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
-  const startupLabSettings = useMemo(
-    () => ({
+  const clientBootBundle = useMemo(
+    () => (clientMode ? buildClientPreviewBundle(DEFAULT_CLIENT_PREVIEW_STATE) : null),
+    [clientMode],
+  );
+  const startupLabSettings = useMemo(() => {
+    if (clientBootBundle) {
+      return {
+        ...loadLabSettings(),
+        canvasMode: "manual" as const,
+        canvasWidth: clientBootBundle.canvasWidth,
+        canvasHeight: clientBootBundle.canvasHeight,
+        canvasAspectLocked: true,
+        twizzlerEnabled: true,
+        twizzler: clientBootBundle.twizzler,
+        twizzlerMap: clientBootBundle.twizzlerMap,
+        shaderSourceWidth: clientBootBundle.shaderSourceWidth,
+        shaderSourceHeight: clientBootBundle.shaderSourceHeight,
+        textureSidebarOpen: false,
+        shaderSidebarOpen: true,
+        textureSourceMode: "shader" as const,
+        shaderPresetId: "twizzler-map",
+      };
+    }
+    return {
       ...loadLabSettings(),
       ...(startupPreset?.lab ?? {}),
-    }),
-    [startupPreset],
-  );
+    };
+  }, [clientBootBundle, startupPreset]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const twizzlerCanvasRef = useRef<HTMLCanvasElement>(null);
   const framesCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -881,14 +903,6 @@ function LabInner({
   const [labSettings, setLabSettings] = useState<LabSettings>(() => ({
     ...startupLabSettings,
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
-    ...(clientMode
-      ? {
-          textureSidebarOpen: false,
-          shaderSidebarOpen: true,
-          textureSourceMode: "shader" as const,
-          shaderPresetId: "twizzler-map",
-        }
-      : {}),
   }));
   /** Client preview only: Default = simplified Leva, Advanced = full authoring folders. */
   const [clientPanelMode, setClientPanelMode] = useState<"default" | "advanced">("default");
@@ -1130,7 +1144,7 @@ function LabInner({
     activeShaderConfig: resolveShaderConfigKind(textureSourceMode, shaderPresetId),
     showTwizzlerRibbon: textureSourceMode === "shader",
     twizzlerTransport: simplifiedLeva ? undefined : twizzlerTransport,
-    initialConfig,
+    initialConfig: clientBootBundle?.engineConfig ?? initialConfig,
     clientMode: simplifiedLeva,
   });
   const controlsRef = useRef(controls);
@@ -3526,42 +3540,59 @@ function LabInner({
           }`}
           style={{ width: labSettings.shaderSidebarWidth }}
         >
-          <div className="lab-sidebar-header lab-sidebar-header-end">
-            {clientMode ? (
-              <fieldset className="lab-panel-mode-toggle">
-                <legend>Panel mode</legend>
-                <button
-                  type="button"
-                  className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}
-                  aria-pressed={clientPanelMode === "default"}
-                  onClick={() => setClientPanelMode("default")}
-                >
-                  Default
-                </button>
-                <button
-                  type="button"
-                  className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}
-                  aria-pressed={clientPanelMode === "advanced"}
-                  onClick={() => setClientPanelMode("advanced")}
-                >
-                  Advanced
-                </button>
-              </fieldset>
-            ) : (
+          {!clientMode ? (
+            <div className="lab-sidebar-header lab-sidebar-header-end">
               <span />
-            )}
-            <button
-              className="lab-sidebar-toggle"
-              type="button"
-              onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
-              aria-label="Close shader panel"
-              title="Close shader panel"
-            >
-              <PanelRightClose size={14} strokeWidth={1.75} />
-            </button>
-          </div>
+              <button
+                className="lab-sidebar-toggle"
+                type="button"
+                onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
+                aria-label="Close shader panel"
+                title="Close shader panel"
+              >
+                <PanelRightClose size={14} strokeWidth={1.75} />
+              </button>
+            </div>
+          ) : null}
           {clientMode ? (
-            <LevaPanel key={clientPanelMode} store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+            <>
+              <div className="lab-client-tools">
+                <fieldset className="lab-panel-mode-toggle">
+                  <legend>Panel mode</legend>
+                  <button
+                    type="button"
+                    className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}
+                    aria-pressed={clientPanelMode === "default"}
+                    onClick={() => setClientPanelMode("default")}
+                  >
+                    Default
+                  </button>
+                  <button
+                    type="button"
+                    className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}
+                    aria-pressed={clientPanelMode === "advanced"}
+                    onClick={() => setClientPanelMode("advanced")}
+                  >
+                    Advanced
+                  </button>
+                </fieldset>
+                <div className="lab-client-exports">
+                  <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
+                  <div className="wf-row">
+                    <button className="lab-btn" type="button" onClick={handleDownloadConfig}>
+                      Download JSON
+                    </button>
+                    <button className="lab-btn" type="button" onClick={onExportVideo}>
+                      Export Video
+                    </button>
+                    <button className="lab-btn" type="button" onClick={onExportSvg}>
+                      Export SVG
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <LevaPanel key={clientPanelMode} store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+            </>
           ) : (
             <SurfacePanel
               mode={surfaceWorkspace.mode}
