@@ -663,7 +663,7 @@ function LabExportControls({
         </>
       ) : null}
       <div className="playground-canvas-size-inline">
-        <span className="playground-canvas-scale-label">Duration second</span>
+        <span className="playground-canvas-scale-label">Video duration</span>
         <input
           className="lab-input"
           type="number"
@@ -3752,20 +3752,14 @@ function LabInner({
                     </button>
                   </div>
                 </div>
-                <div className="lab-client-exports">
-                  <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
-                  <div className="wf-row">
-                    <button className="lab-btn" type="button" onClick={handleDownloadConfig}>
-                      Download JSON
+                <div className="lab-client-json">
+                  <div className="lab-client-layouts-label">JSON</div>
+                  <div className="lab-client-layouts-actions">
+                    <button type="button" onClick={handleExport}>
+                      Copy JSON
                     </button>
-                    <button className="lab-btn" type="button" onClick={() => configFileInputRef.current?.click()}>
+                    <button type="button" onClick={() => configFileInputRef.current?.click()}>
                       Upload JSON
-                    </button>
-                    <button className="lab-btn" type="button" onClick={onExportVideo}>
-                      Export Video
-                    </button>
-                    <button className="lab-btn" type="button" onClick={onExportSvg}>
-                      Export SVG
                     </button>
                   </div>
                   <input
@@ -3777,7 +3771,20 @@ function LabInner({
                   />
                 </div>
               </div>
-              <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+              <div className="lab-client-leva">
+                <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+              </div>
+              <div className="lab-client-exports">
+                <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
+                <div className="lab-client-layouts-actions">
+                  <button type="button" onClick={onExportVideo}>
+                    Export Video
+                  </button>
+                  <button type="button" onClick={onExportSvg}>
+                    Export SVG
+                  </button>
+                </div>
+              </div>
             </>
           ) : (
             <SurfacePanel

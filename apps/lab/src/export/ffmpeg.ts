@@ -94,10 +94,11 @@ export async function transcodeWebmToMp4(webmBlob: Blob, options: TranscodeWebmT
         "-an",
         "-c:v",
         "libx264",
+        // Highest practical quality: slow encode, near-lossless CRF, 4:2:0 for player compat.
         "-preset",
-        "ultrafast",
+        "veryslow",
         "-crf",
-        "23",
+        "14",
         "-pix_fmt",
         "yuv420p",
         "-movflags",
