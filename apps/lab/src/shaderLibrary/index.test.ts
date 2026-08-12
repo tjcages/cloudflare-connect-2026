@@ -6,6 +6,7 @@ import {
   DEFAULT_SHADER_PRESET_ID,
   findShaderLibraryEntry,
   findShaderPresetIdBySource,
+  FLOWING_LINES_SHADER_PRESET_ID,
   isCometLogoShaderPreset,
   isSpiralShaderPreset,
   isTwizzlerMapShaderPreset,
@@ -16,6 +17,7 @@ import {
 } from "./index";
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "../defaultShaderTextureSource";
 import { CONNECT_SHADER_TEXTURE_SOURCE } from "../connectShaderTextureSource";
+import { FLOWING_LINES_SHADER_SOURCE } from "../flowingLinesShaderSource";
 
 describe("shader library", () => {
   it("defaults to Connect and keeps it first in the library", () => {
@@ -51,6 +53,14 @@ describe("shader library", () => {
     expect(isTwizzlerMapShaderPreset(CONNECT_SHADER_PRESET_ID)).toBe(false);
   });
 
+  it("includes the reference-matched Flowing Lines shader", () => {
+    expect(SHADER_LIBRARY[4]).toMatchObject({
+      id: FLOWING_LINES_SHADER_PRESET_ID,
+      label: "Flowing Lines",
+      source: FLOWING_LINES_SHADER_SOURCE,
+    });
+  });
+
   it("includes the copied saved shaders", () => {
     expect(SHADER_LIBRARY.length).toBeGreaterThan(10);
     expect(findShaderLibraryEntry("061d653b-18f2-40b3-b92f-86a4459b6b5a")?.label).toBe("Planets");
@@ -59,6 +69,7 @@ describe("shader library", () => {
   it("detects presets by source", () => {
     expect(findShaderPresetIdBySource(DEFAULT_SHADER_TEXTURE_SOURCE)).toBe(NEBULA_SHADER_PRESET_ID);
     expect(findShaderPresetIdBySource(CONNECT_SHADER_TEXTURE_SOURCE)).toBe(CONNECT_SHADER_PRESET_ID);
+    expect(findShaderPresetIdBySource(FLOWING_LINES_SHADER_SOURCE)).toBe(FLOWING_LINES_SHADER_PRESET_ID);
     expect(findShaderPresetIdBySource("", SPIRAL_SHADER_PRESET_ID)).toBe(SPIRAL_SHADER_PRESET_ID);
     expect(findShaderPresetIdBySource("// custom equation\nvoid mainImage(out vec4 c, in vec2 f){c=vec4(1.);}")).toBe(
       CUSTOM_SHADER_PRESET_ID,

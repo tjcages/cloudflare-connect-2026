@@ -139,10 +139,12 @@ describe("preset library transforms", () => {
     const builtins = loadBuiltinPresets();
     const banner = findPresetByName(builtins, "Banner 5:1");
     expect(banner?.builtin).toBe(true);
-    expect(banner?.lab?.canvasWidth).toBe(1600);
-    expect(banner?.lab?.canvasHeight).toBe(320);
-    expect(banner?.lab?.shaderPresetId).toBe("twizzler-map");
-    expect(banner?.lab?.twizzlerEnabled).toBe(true);
+    expect(banner?.lab?.canvasWidth).toBe(1024);
+    expect(banner?.lab?.canvasHeight).toBe(205);
+    expect(banner?.lab?.shaderPresetId).toBe("flowing-lines");
+    expect(banner?.lab?.twizzlerEnabled).toBe(false);
+    expect(banner?.config.stripesEnabled).toBe(false);
+    expect(banner?.config.colors.mode).toBe("colors");
   });
 
   it("transforms do not mutate the input array", () => {

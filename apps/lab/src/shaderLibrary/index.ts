@@ -1,5 +1,6 @@
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "../defaultShaderTextureSource";
 import { CONNECT_SHADER_TEXTURE_SOURCE } from "../connectShaderTextureSource";
+import { FLOWING_LINES_SHADER_SOURCE } from "../flowingLinesShaderSource";
 import { TWIZZLER_MAP_SHADER_SOURCE } from "../twizzlerMapSource";
 
 export type ShaderLibraryEntry = {
@@ -20,6 +21,7 @@ export const SPIRAL_SHADER_PRESET_ID = "spiral";
 export const COMET_LOGO_SHADER_PRESET_ID = "comet-logo";
 export const NEBULA_SHADER_PRESET_ID = "nebula";
 export const TWIZZLER_MAP_SHADER_PRESET_ID = "twizzler-map";
+export const FLOWING_LINES_SHADER_PRESET_ID = "flowing-lines";
 export const DEFAULT_SHADER_PRESET_ID = CONNECT_SHADER_PRESET_ID;
 export const CUSTOM_SHADER_PRESET_ID = "custom";
 
@@ -71,11 +73,18 @@ export const TWIZZLER_MAP_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
   source: TWIZZLER_MAP_SHADER_SOURCE,
 };
 
+export const FLOWING_LINES_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
+  id: FLOWING_LINES_SHADER_PRESET_ID,
+  label: "Flowing Lines",
+  source: FLOWING_LINES_SHADER_SOURCE,
+};
+
 export const SHADER_LIBRARY: readonly ShaderLibraryEntry[] = [
   CONNECT_SHADER_LIBRARY_ENTRY,
   SPIRAL_SHADER_LIBRARY_ENTRY,
   COMET_LOGO_SHADER_LIBRARY_ENTRY,
   TWIZZLER_MAP_SHADER_LIBRARY_ENTRY,
+  FLOWING_LINES_SHADER_LIBRARY_ENTRY,
   NEBULA_SHADER_LIBRARY_ENTRY,
   ...savedEntries,
 ];
