@@ -14,9 +14,12 @@ import {
   twizzlerFogColor,
   twizzlerDepthYBias,
   twizzlerClusterAcross,
+  twizzlerDepthStyle,
   twizzlerGapWarpedAcross,
   twizzlerGroupNearness,
   twizzlerLineVisibility,
+  twizzlerOrganizeAcross,
+  twizzlerPackProfile,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
   twizzlerAmpHeat,
@@ -186,6 +189,28 @@ describe("Twizzler", () => {
       twizzlerStrokeWidthScale(1) / twizzlerStrokeWidthScale(0.2),
     );
     expect(twizzlerLineVisibility(0.2, 270, 1.68)).toBeLessThan(twizzlerLineVisibility(0.2, 300, 1.45));
+    expect(twizzlerPackProfile(280, 1.88)).toBe("stratified");
+    expect(twizzlerPackProfile(320, 1.78)).toBe("neighborhoods");
+    expect(twizzlerPackProfile(360, 2.12)).toBe("curtain");
+    expect(twizzlerPackProfile(320, 1.62)).toBe("continuous");
+
+    const foregroundStyles = [0.7, 0.8, 0.9].map((across) => twizzlerDepthStyle(across, 280, 1.88));
+    expect(foregroundStyles.some((style) => style.emphasized)).toBe(true);
+    expect(foregroundStyles.some((style) => !style.emphasized)).toBe(true);
+    expect(twizzlerDepthStyle(-0.7, 280, 1.88).opacityScale).toBeLessThan(
+      twizzlerDepthStyle(0, 280, 1.88).opacityScale,
+    );
+    expect(twizzlerDepthStyle(-0.4, 320, 1.78).opacityScale).toBeGreaterThan(
+      twizzlerDepthStyle(-0.8, 320, 1.78).opacityScale,
+    );
+
+    const emphasizedCurtainAcross = Array.from({ length: 80 }, (_, index) => 0.36 + index * 0.008).find(
+      (across) => twizzlerDepthStyle(across, 360, 2.12).emphasized,
+    );
+    expect(emphasizedCurtainAcross).toBeDefined();
+    expect(twizzlerFogAmount(0.7, 2.12, 360, 1, 1.1, emphasizedCurtainAcross)).toBeLessThan(
+      twizzlerFogAmount(0.7, 2.12, 360, 0.2, 1.1, emphasizedCurtainAcross),
+    );
     // Right edge: far (nearness 0) must sit lower on screen than near (nearness 1).
     expect(twizzlerDepthYBias(0, 320, 0.85, 0.95, 1.5, 0)).toBeGreaterThan(
       twizzlerDepthYBias(1, 320, 0.85, 0.95, 1.5, 0),
@@ -213,6 +238,13 @@ describe("Twizzler", () => {
     expect(clustered).toEqual([...clustered].sort((a, b) => a - b));
     expect(Math.abs(twizzlerClusterAcross(0.2, 320, 1.62) - 0.2)).toBeGreaterThan(0.04);
     expect(twizzlerClusterAcross(0.2, 320, 1.45)).toBe(0.2);
+    const stratifiedBoundaryGap = twizzlerOrganizeAcross(0.61, 280, 1.88) - twizzlerOrganizeAcross(0.59, 280, 1.88);
+    expect(stratifiedBoundaryGap).toBeGreaterThan(0.15);
+    const neighborhoodSlots = Array.from({ length: 101 }, (_, index) =>
+      twizzlerOrganizeAcross(index / 50 - 1, 320, 1.78),
+    );
+    const neighborhoodGaps = neighborhoodSlots.slice(1).map((slot, index) => slot - neighborhoodSlots[index]!);
+    expect(Math.max(...neighborhoodGaps)).toBeGreaterThan(0.12);
 
     // Heat patches scatter through Z: nearby across is similar, far across often differs.
     const h0 = twizzlerAmpHeat(0.4, -0.2, 1.0);
@@ -280,24 +312,27 @@ describe("Twizzler", () => {
     };
     const a = buildTwizzlerLines(400, 80, 0, {
       ...shared,
-      lineCount: 270,
-      lineWidth: 0.4,
-      depthSpread: 1.68,
+      lineCount: 280,
+      lineWidth: 0.32,
+      depthSpread: 1.88,
+      fogStrength: 0.82,
     });
     const b = buildTwizzlerLines(400, 80, 0, {
       ...shared,
       lineCount: 320,
-      lineWidth: 0.36,
-      depthSpread: 1.62,
+      lineWidth: 0.28,
+      depthSpread: 1.78,
+      fogStrength: 0.96,
     });
     const c = buildTwizzlerLines(400, 80, 0, {
       ...shared,
       lineCount: 360,
-      lineWidth: 0.22,
-      depthSpread: 1.92,
+      lineWidth: 0.18,
+      depthSpread: 2.12,
+      fogStrength: 1.12,
     });
 
-    expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([270, 320, 360]);
+    expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([280, 320, 360]);
     const widestStroke = (lines: typeof a.lines) => Math.max(...lines.map((line) => line.strokeWidth));
     expect(widestStroke(a.lines)).toBeGreaterThan(widestStroke(c.lines));
 

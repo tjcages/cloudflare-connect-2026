@@ -456,6 +456,90 @@ export function twizzlerGroupNearness(nearness: number, lineCount: number, depth
   return near + (grouped - near) * amount;
 }
 
+export type TwizzlerPackProfile = "continuous" | "stratified" | "neighborhoods" | "curtain";
+
+export type TwizzlerDepthStyle = {
+  widthScale: number;
+  opacityScale: number;
+  fogBias: number;
+  emphasized: boolean;
+};
+
+/** Select structural pack organization from the owned count/spread axis. */
+export function twizzlerPackProfile(lineCount: number, depthSpread: number): TwizzlerPackProfile {
+  if (lineCount >= 265 && lineCount <= 295 && depthSpread >= 1.82) return "stratified";
+  if (lineCount >= 310 && lineCount <= 335 && depthSpread >= 1.72) return "neighborhoods";
+  if (lineCount >= 345 && depthSpread >= 2.02) return "curtain";
+  return "continuous";
+}
+
+/**
+ * Organize nominal depth slots without changing any along-path geometry.
+ * Stratified packs use three unequal layers; neighborhoods use four compact
+ * bands with explicit breathing gaps.
+ */
+export function twizzlerOrganizeAcross(across: number, lineCount: number, depthSpread: number): number {
+  const slot = Math.max(-1, Math.min(1, across));
+  const profile = twizzlerPackProfile(lineCount, depthSpread);
+  const u = (slot + 1) * 0.5;
+  switch (profile) {
+    case "stratified":
+      if (u < 0.45) return -1 + (u / 0.45) * 0.68;
+      if (u < 0.8) return -0.18 + ((u - 0.45) / 0.35) * 0.66;
+      return 0.68 + ((u - 0.8) / 0.2) * 0.32;
+    case "neighborhoods": {
+      const band = Math.min(3, Math.floor(u * 4));
+      const local = (u - band * 0.25) / 0.25;
+      const groupedU = band * 0.25 + 0.04 + local * 0.17;
+      return groupedU * 2 - 1;
+    }
+    case "curtain":
+    case "continuous":
+      return slot;
+    default: {
+      const _exhaustive: never = profile;
+      return _exhaustive;
+    }
+  }
+}
+
+/** Deterministic line styling by structural depth group. */
+export function twizzlerDepthStyle(across: number, lineCount: number, depthSpread: number): TwizzlerDepthStyle {
+  const slot = Math.max(-1, Math.min(1, across));
+  const ordinal = Math.max(0, Math.round((slot + 1) * 0.5 * Math.max(0, lineCount - 1)));
+  const profile = twizzlerPackProfile(lineCount, depthSpread);
+  switch (profile) {
+    case "stratified":
+      if (slot < -0.32) return { widthScale: 0.42, opacityScale: 0.3, fogBias: 0.16, emphasized: false };
+      if (slot < 0.68) return { widthScale: 0.82, opacityScale: 0.72, fogBias: 0.04, emphasized: false };
+      return ordinal % 3 === 0
+        ? { widthScale: 1.65, opacityScale: 1.18, fogBias: -0.1, emphasized: true }
+        : { widthScale: 0.42, opacityScale: 0.2, fogBias: 0.08, emphasized: false };
+    case "neighborhoods": {
+      const band = Math.min(3, Math.floor((slot + 1) * 0.5 * 4));
+      const warm = band === 1 || band === 3;
+      return warm
+        ? { widthScale: 1.08, opacityScale: 0.92, fogBias: -0.025, emphasized: true }
+        : { widthScale: 0.72, opacityScale: 0.58, fogBias: 0.055, emphasized: false };
+    }
+    case "curtain": {
+      const near = slot > 0.35;
+      const selected = near && ordinal % 4 === 0;
+      if (selected) return { widthScale: 1.8, opacityScale: 1.2, fogBias: -0.12, emphasized: true };
+      if (near) return { widthScale: 0.55, opacityScale: 0.5, fogBias: 0.025, emphasized: false };
+      return slot < -0.25
+        ? { widthScale: 0.38, opacityScale: 0.28, fogBias: 0.17, emphasized: false }
+        : { widthScale: 0.66, opacityScale: 0.58, fogBias: 0.07, emphasized: false };
+    }
+    case "continuous":
+      return { widthScale: 1, opacityScale: 1, fogBias: 0, emphasized: false };
+    default: {
+      const _exhaustive: never = profile;
+      return _exhaustive;
+    }
+  }
+}
+
 /**
  * Camera nearness 0..1 for a fiber at (across, xT).
  * Z = into the screen (away from camera = far / low nearness).
@@ -495,6 +579,7 @@ export function twizzlerFogAmount(
   lineCount = 300,
   along = 0.5,
   fogStrength = 1,
+  across?: number,
 ): number {
   const near = Math.max(0, Math.min(1, nearness));
   const sparseRestraint = (1 - smoothstep(240, 300, lineCount)) * Math.max(0, depthSpread - 1.18) * 0.8;
@@ -504,7 +589,16 @@ export function twizzlerFogAmount(
   // preserving the near-ranked coral strands that carry the pack energy.
   const rightBias = smoothstep(0.55, 1, along) * smoothstep(345, 365, lineCount) * smoothstep(1.8, 1.98, depthSpread);
   const asymmetricExponent = exponent * (1 - rightBias * (0.16 + (1 - near) * 0.18));
-  return Math.max(0, Math.min(1, fogStrength * Math.pow(1 - near, asymmetricExponent)));
+  let fog = fogStrength * Math.pow(1 - near, asymmetricExponent);
+  if (typeof across === "number") {
+    const style = twizzlerDepthStyle(across, lineCount, depthSpread);
+    fog += style.fogBias;
+    if (twizzlerPackProfile(lineCount, depthSpread) === "curtain") {
+      const right = smoothstep(0.35, 1, along);
+      fog += style.emphasized ? -right * near * 0.16 : right * (1 - near) * 0.14;
+    }
+  }
+  return Math.max(0, Math.min(1, fog));
 }
 
 /** Blend ribbon hex into white by fog amount (cheap distance fade). */
@@ -803,8 +897,12 @@ export function buildTwizzlerLines(
   );
   // Stretch slots toward near/far poles — depthSpread fights mid-pack condensation.
   const acrossSlots = rawSlots.map((slot) =>
-    twizzlerClusterAcross(
-      twizzlerExpandAcross(slot, 0.42 + settings.depthSpread * 0.42),
+    twizzlerOrganizeAcross(
+      twizzlerClusterAcross(
+        twizzlerExpandAcross(slot, 0.42 + settings.depthSpread * 0.42),
+        settings.lineCount,
+        settings.depthSpread,
+      ),
       settings.lineCount,
       settings.depthSpread,
     ),
@@ -896,18 +994,28 @@ export function buildTwizzlerLines(
       Math.abs(across) > 0.85
         ? twizzlerLerpColor(baseColor, settings.colorEdge, ((Math.abs(across) - 0.85) / 0.15) * 0.35)
         : baseColor;
-    const fog = twizzlerFogAmount(midNear, settings.depthSpread, settings.lineCount, mid?.along, settings.fogStrength);
+    const depthStyle = twizzlerDepthStyle(across, settings.lineCount, settings.depthSpread);
+    const fog = twizzlerFogAmount(
+      midNear,
+      settings.depthSpread,
+      settings.lineCount,
+      mid?.along,
+      settings.fogStrength,
+      across,
+    );
     const color = twizzlerFogColor(withEdge, fog);
 
     const visibility = twizzlerLineVisibility(midNear, settings.lineCount, settings.depthSpread);
     lines.push({
       across,
-      opacity: Math.min(0.92, settings.opacity * visibility),
+      opacity: Math.min(0.92, settings.opacity * visibility * depthStyle.opacityScale),
       color,
       nearness: midNear,
       strokeWidth: Math.max(
         0.2,
-        settings.lineWidth * twizzlerStrokeWidthScale(midNear, settings.lineCount, settings.depthSpread),
+        settings.lineWidth *
+          twizzlerStrokeWidthScale(midNear, settings.lineCount, settings.depthSpread) *
+          depthStyle.widthScale,
       ),
       points,
     });
@@ -979,6 +1087,7 @@ export function renderTwizzler(
         settings.lineCount,
         sample?.along ?? stop,
         settings.fogStrength,
+        line.across,
       );
       const colorT = twizzlerColorT(sample?.along ?? stop);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
@@ -988,6 +1097,7 @@ export function renderTwizzler(
     // Width also grows along the path toward the camera (right).
     const leftNear = line.points[0]?.nearness ?? line.nearness;
     const rightNear = line.points[line.points.length - 1]?.nearness ?? line.nearness;
+    const depthStyle = twizzlerDepthStyle(line.across, settings.lineCount, settings.depthSpread);
     const widthScale = twizzlerStrokeWidthScale(
       0.35 * leftNear + 0.65 * rightNear,
       settings.lineCount,
@@ -996,7 +1106,7 @@ export function renderTwizzler(
 
     context.strokeStyle = gradient;
     context.globalAlpha = Math.min(0.9, line.opacity);
-    context.lineWidth = Math.max(0.25, settings.lineWidth * widthScale);
+    context.lineWidth = Math.max(0.25, settings.lineWidth * widthScale * depthStyle.widthScale);
     context.beginPath();
     twizzlerTraceCubic(context, line.points);
     context.stroke();
