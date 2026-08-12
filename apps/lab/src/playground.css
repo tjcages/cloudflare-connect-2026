@@ -1897,6 +1897,15 @@ body.lab-sidebar-resizing .lab-sidebar {
   box-shadow: none;
 }
 
+/* Match Duration/Start labels to Saved layouts title sizing. */
+.lab-shell.is-client-mode .lab-client-exports .playground-canvas-scale-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--leva-text);
+}
+
 .lab-shell.is-client-mode .lab-client-layouts-label {
   font-size: 11px;
   font-weight: 600;
