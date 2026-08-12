@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1167,6 +1168,8 @@ function LabInner({
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
+  const getLabSettingsSnapshotRef = useRef(getLabSettingsSnapshot);
+  getLabSettingsSnapshotRef.current = getLabSettingsSnapshot;
 
   useEffect(() => {
     if (!clientMode || !clientCanvasSize) return;
@@ -1203,6 +1206,39 @@ function LabInner({
   }, [editTheme]);
   const composeThemedConfigRef = useRef(composeThemedConfig);
   composeThemedConfigRef.current = composeThemedConfig;
+
+  /** Persist live Leva + lab knobs without clobbering Twizzler from a stale React state ref. */
+  const flushLiveLabPersistence = useCallback(() => {
+    const { enabled, ...twizzlerSettings } = twizzlerRef.current;
+    saveLabSettings({
+      ...labSettingsRef.current,
+      ...getLabSettingsSnapshotRef.current(),
+      textureId: textureIdRef.current,
+      textureSourceMode: textureSourceModeRef.current,
+      shaderSourceCode: shaderSourceCodeRef.current,
+      shaderPresetId: shaderPresetIdRef.current,
+      twizzlerEnabled: enabled,
+      twizzler: twizzlerSettings,
+      twizzlerMap: twizzlerMapRef.current,
+    });
+    if (surfaceWorkspaceRef.current.mode === "partial") return;
+    const themed = composeThemedConfigRef.current();
+    const id = textureIdRef.current;
+    const key = `${id}:${JSON.stringify(themed)}`;
+    lastSavedConfigJsonRef.current = key;
+    saveConfig(id, themed);
+  }, []);
+
+  useEffect(() => {
+    const onHide = () => flushLiveLabPersistence();
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("beforeunload", onHide);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("beforeunload", onHide);
+    };
+  }, [flushLiveLabPersistence]);
+
   const getActiveThemedConfig = useCallback((): ThemedEngineConfig => {
     const workspace = surfaceWorkspaceRef.current;
     if (workspace.mode === "partial" && workspace.selectedAreaId) {
@@ -2410,15 +2446,23 @@ function LabInner({
     setLabSettings((prev) => {
       const backgroundColor = controls.background.transparent ? null : controls.background.color;
       const uiSnapshot = getLabSettingsSnapshot();
-      const next = { ...prev, ...uiSnapshot, backgroundColor };
-      const unchanged = JSON.stringify({ ...prev, ...uiSnapshot, backgroundColor }) === JSON.stringify(prev);
+      const { enabled, ...twizzlerSettings } = twizzlerRef.current;
+      const next = {
+        ...prev,
+        ...uiSnapshot,
+        backgroundColor,
+        twizzlerEnabled: enabled,
+        twizzler: twizzlerSettings,
+        twizzlerMap: twizzlerMapRef.current,
+      };
+      const unchanged = JSON.stringify(next) === JSON.stringify(prev);
       if (unchanged) return prev;
       saveLabSettings(next);
       return loadLabSettings();
     });
   }, [controls.background.color, controls.background.transparent, getLabSettingsSnapshot]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (surfaceWorkspaceRef.current.mode === "partial") return;
     const themed = composeThemedConfig();
     const id = textureIdRef.current;
@@ -2434,11 +2478,16 @@ function LabInner({
   }, [textureId, loadTextureById]);
 
   useEffect(() => {
+    const { enabled, ...twizzlerSettings } = twizzlerRef.current;
     saveLabSettings({
       ...labSettingsRef.current,
+      ...getLabSettingsSnapshotRef.current(),
       textureSourceMode,
       shaderSourceCode,
       shaderPresetId,
+      twizzlerEnabled: enabled,
+      twizzler: twizzlerSettings,
+      twizzlerMap: twizzlerMapRef.current,
     });
     if (!engineRef.current) return;
     if (textureSourceMode === "shader") {
@@ -2549,7 +2598,7 @@ function LabInner({
     updateLabSettings({ connectGradientUnderlay });
   }, [connectGradientUnderlay, updateLabSettings]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const current = labSettingsRef.current;
     const { enabled, ...settings } = twizzler;
     if (current.twizzlerEnabled === enabled && JSON.stringify(current.twizzler) === JSON.stringify(settings)) return;
@@ -2559,7 +2608,7 @@ function LabInner({
     });
   }, [twizzler, updateLabSettings]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (JSON.stringify(labSettingsRef.current.twizzlerMap) === JSON.stringify(twizzlerMap)) return;
     updateLabSettings({ twizzlerMap });
   }, [twizzlerMap, updateLabSettings]);
@@ -2620,8 +2669,9 @@ function LabInner({
   }, []);
 
   useEffect(() => {
-    saveLabSettings({ ...labSettingsRef.current, ...getLabSettingsSnapshot(), textureId });
-  }, [textureId, getLabSettingsSnapshot]);
+    // Always merge live Twizzler from refs — a stale labSettingsRef must not clobber Speed/Move.
+    flushLiveLabPersistence();
+  }, [textureId, getLabSettingsSnapshot, flushLiveLabPersistence]);
 
   function applyLoadedSource(loaded: LoadedTextureSource, detectLevels = true) {
     const engine = engineRef.current;
@@ -3638,26 +3688,28 @@ function LabInner({
           {clientMode ? (
             <>
               <div className="lab-client-tools">
-                <fieldset className="lab-panel-mode-toggle" role="radiogroup" aria-label="Panel mode">
+                <fieldset className="lab-panel-mode-toggle" aria-label="Panel mode">
                   <legend>Panel mode</legend>
-                  <button
-                    type="button"
-                    role="radio"
-                    className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}
-                    aria-checked={clientPanelMode === "default"}
-                    onClick={() => setClientPanelMode("default")}
-                  >
+                  <label className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="lab-panel-mode"
+                      value="default"
+                      checked={clientPanelMode === "default"}
+                      onChange={() => setClientPanelMode("default")}
+                    />
                     Default
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}
-                    aria-checked={clientPanelMode === "advanced"}
-                    onClick={() => setClientPanelMode("advanced")}
-                  >
+                  </label>
+                  <label className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="lab-panel-mode"
+                      value="advanced"
+                      checked={clientPanelMode === "advanced"}
+                      onChange={() => setClientPanelMode("advanced")}
+                    />
                     Advanced
-                  </button>
+                  </label>
                 </fieldset>
                 <div className="lab-client-layouts">
                   <div className="lab-client-layouts-label">Saved layouts</div>

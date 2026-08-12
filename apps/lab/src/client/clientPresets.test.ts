@@ -17,12 +17,7 @@ describe("client preview presets", () => {
   it("ships size, layout, color, and appearance preset catalogs", () => {
     expect(CLIENT_SIZE_PRESETS.map((p) => p.id)).toEqual(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
     expect(CLIENT_LAYOUT_PRESETS).toHaveLength(4);
-    expect(CLIENT_COLOR_PRESETS.map((p) => p.id)).toEqual([
-      "coral-classic",
-      "soft-gold",
-      "deep-ember",
-      "light",
-    ]);
+    expect(CLIENT_COLOR_PRESETS.map((p) => p.id)).toEqual(["coral-classic", "soft-gold", "deep-ember", "light"]);
     expect(CLIENT_APPEARANCE_PRESETS.map((p) => p.id)).toEqual(["light", "dark"]);
   });
 

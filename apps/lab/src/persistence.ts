@@ -166,6 +166,16 @@ export function hasStoredEngineConfig(): boolean {
   }
 }
 
+/** True when UI/lab settings were saved this generation (Twizzler knobs etc.). */
+export function hasStoredLabSettings(): boolean {
+  try {
+    if (localStorage.getItem(LAB_SETTINGS_GENERATION_KEY) !== LAB_SETTINGS_GENERATION) return false;
+    return localStorage.getItem(LAB_SETTINGS_KEY) != null;
+  } catch {
+    return false;
+  }
+}
+
 function saveLastConfig(c: ThemedEngineConfig): void {
   try {
     localStorage.setItem(LAST_KEY, JSON.stringify(c));
@@ -219,9 +229,7 @@ function normalizeClientColorId(value: unknown): ClientColorPresetId {
 }
 
 function normalizeClientAppearanceId(value: unknown): ClientAppearanceId {
-  return typeof value === "string" && CLIENT_APPEARANCE_IDS.has(value)
-    ? (value as ClientAppearanceId)
-    : "light";
+  return typeof value === "string" && CLIENT_APPEARANCE_IDS.has(value) ? (value as ClientAppearanceId) : "light";
 }
 
 function normalizeConnectCameraFromSettings(i: Partial<LabSettings> & Record<string, unknown>): {

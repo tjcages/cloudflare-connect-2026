@@ -772,17 +772,7 @@ export function cellGridToSvg(
         );
         const halfNormal = stripeWidth * 0.5;
         const halfAxis = drawableAxisPx * 0.5 + halfNormal * resolvedOverlapAmount;
-        if (
-          !rotatedQuadIntersectsArtboard(
-            cx,
-            cy,
-            halfNormal,
-            halfAxis,
-            resolvedAngleDeg,
-            width,
-            height,
-          )
-        ) {
+        if (!rotatedQuadIntersectsArtboard(cx, cy, halfNormal, halfAxis, resolvedAngleDeg, width, height)) {
           continue;
         }
         const bordered = stripeBorderApplies(sparkleCol, sparkleRow, stripeWidth, stripeBorder);
@@ -1063,17 +1053,7 @@ export function cellGridToSvg(
           const sourceRow = Math.floor(cy / Math.max(cellHeightPx, 0.0001));
           const halfNormal = (horizontalStacks ? cellHeightPx : cellWidthPx) * 0.5;
           const halfAxis = (horizontalStacks ? cellWidthPx : cellHeightPx) * 0.5;
-          if (
-            !rotatedQuadIntersectsArtboard(
-              cx,
-              cy,
-              halfNormal,
-              halfAxis,
-              resolvedAngleDeg,
-              width,
-              height,
-            )
-          ) {
+          if (!rotatedQuadIntersectsArtboard(cx, cy, halfNormal, halfAxis, resolvedAngleDeg, width, height)) {
             continue;
           }
           addGridLineSegment(

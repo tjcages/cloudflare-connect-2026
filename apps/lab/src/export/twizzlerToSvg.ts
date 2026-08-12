@@ -92,13 +92,7 @@ function filledPathAttrs(rgb: { r: number; g: number; b: number }, opacity: numb
   return `fill="rgb(${rgb.r},${rgb.g},${rgb.b})" fill-opacity="${number(opacity, 3)}" stroke="none"`;
 }
 
-function linearGradientDef(
-  id: string,
-  x1: number,
-  x2: number,
-  colorFar: string,
-  colorNear: string,
-): string {
+function linearGradientDef(id: string, x1: number, x2: number, colorFar: string, colorNear: string): string {
   const far = parseRgb(colorFar);
   const near = parseRgb(colorNear);
   const left = number(x1, 1);
@@ -167,9 +161,7 @@ export function twizzlerToSvgLayer(
         segmentPaths.push(`      <path d="${d}" ${filledPathAttrs(rgb, opacity)} />`);
       }
       if (segmentPaths.length === 0) continue;
-      fiberBlocks.push(
-        [`    <g data-fiber="${fiberIndex}">`, segmentPaths.join("\n"), "    </g>"].join("\n"),
-      );
+      fiberBlocks.push([`    <g data-fiber="${fiberIndex}">`, segmentPaths.join("\n"), "    </g>"].join("\n"));
     }
     return [
       `  <g data-layer="twizzler" data-color-mode="baked" fill-rule="nonzero">`,
@@ -190,9 +182,7 @@ export function twizzlerToSvgLayer(
       if (!d) continue;
       const rgb = parseRgb(line.color);
       const opacity = Math.max(0.01, Math.min(1, line.opacity));
-      fiberBlocks.push(
-        `    <path data-fiber="${fiberIndex}" d="${d}" ${filledPathAttrs(rgb, opacity)} />`,
-      );
+      fiberBlocks.push(`    <path data-fiber="${fiberIndex}" d="${d}" ${filledPathAttrs(rgb, opacity)} />`);
     }
     return [
       `  <g data-layer="twizzler" data-color-mode="solid" fill-rule="nonzero">`,

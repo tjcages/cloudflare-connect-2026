@@ -5,6 +5,7 @@ import {
   consumeImportedConfigPristine,
   deleteConfig,
   hasStoredEngineConfig,
+  hasStoredLabSettings,
   importConfig,
   importSettingsFile,
   DEFAULT_LAB_SETTINGS,
@@ -501,5 +502,12 @@ describe("client preset ids in lab settings", () => {
     expect(hasStoredEngineConfig()).toBe(false);
     saveConfig("cf-base", DEFAULT_LAB_ENGINE_CONFIG);
     expect(hasStoredEngineConfig()).toBe(true);
+  });
+
+  it("reports hasStoredLabSettings after saveLabSettings", () => {
+    expect(hasStoredLabSettings()).toBe(false);
+    saveLabSettings({ twizzler: { ...DEFAULT_LAB_SETTINGS.twizzler, speed: 3.25 } });
+    expect(hasStoredLabSettings()).toBe(true);
+    expect(loadLabSettings().twizzler.speed).toBe(3.25);
   });
 });
