@@ -20,8 +20,6 @@ import {
 const GRAPH_WIDTH = 168;
 const GRAPH_HEIGHT = 120;
 const GRAPH_PAD = 12;
-const HANDLE_RADIUS = 11;
-const HANDLE_RADIUS_SELECTED = 12.5;
 const FIELD_PREVIEW_WIDTH = 144;
 const FIELD_PREVIEW_HEIGHT = 96;
 
@@ -34,29 +32,13 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-function innerWidth(): number {
-  return GRAPH_WIDTH - GRAPH_PAD * 2;
-}
-
-function innerHeight(): number {
-  return GRAPH_HEIGHT - GRAPH_PAD * 2;
-}
-
-function pointX(x: number): number {
-  return GRAPH_PAD + x * innerWidth();
-}
-
-function pointY(y: number): number {
-  return GRAPH_PAD + y * innerHeight();
-}
-
 function graphUvFromClient(clientX: number, clientY: number, bounds: DOMRect): { x: number; y: number } {
   if (bounds.width <= 0 || bounds.height <= 0) return { x: 0, y: 0 };
   const svgX = ((clientX - bounds.left) / bounds.width) * GRAPH_WIDTH;
   const svgY = ((clientY - bounds.top) / bounds.height) * GRAPH_HEIGHT;
   return {
-    x: clamp01((svgX - GRAPH_PAD) / innerWidth()),
-    y: clamp01((svgY - GRAPH_PAD) / innerHeight()),
+    x: clamp01((svgX - GRAPH_PAD) / (GRAPH_WIDTH - GRAPH_PAD * 2)),
+    y: clamp01((svgY - GRAPH_PAD) / (GRAPH_HEIGHT - GRAPH_PAD * 2)),
   };
 }
 
@@ -67,7 +49,7 @@ export type GradientStopsEditorProps = {
 };
 
 export function GradientStopsEditor({ stops, disabled = false, onChange }: GradientStopsEditorProps) {
-  const svgRef = useRef<SVGSVGElement | null>(null);
+  const graphRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLCanvasElement | null>(null);
   const dragId = useRef<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(stops[0]?.id ?? null);
@@ -95,20 +77,20 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     onChange(next);
   };
 
-  const pointerUv = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const bounds = svgRef.current?.getBoundingClientRect();
+  const pointerUv = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const bounds = graphRef.current?.getBoundingClientRect();
     if (!bounds) return null;
     return graphUvFromClient(event.clientX, event.clientY, bounds);
   };
 
-  const nearestHandleId = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const bounds = svgRef.current?.getBoundingClientRect();
+  const nearestHandleId = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const bounds = graphRef.current?.getBoundingClientRect();
     if (!bounds) return null;
     const plane = gradientFieldClientPlane(bounds, GRAPH_WIDTH, GRAPH_HEIGHT, GRAPH_PAD);
     return nearestTwizzlerGradientStopIdPx(stops, event.clientX, event.clientY, plane, TWIZZLER_GRADIENT_HANDLE_HIT_PX);
   };
 
-  const beginDrag = (event: ReactPointerEvent<SVGSVGElement>, id: string) => {
+  const beginDrag = (event: ReactPointerEvent<HTMLDivElement>, id: string) => {
     if (disabled) return;
     event.preventDefault();
     event.stopPropagation();
@@ -117,7 +99,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (disabled) return;
     const nearId = nearestHandleId(event);
     if (nearId) {
@@ -138,7 +120,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     commit(next);
   };
 
-  const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (disabled || !dragId.current) return;
     event.preventDefault();
     event.stopPropagation();
@@ -147,7 +129,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     commit(moveTwizzlerGradientStop(stops, dragId.current, uv.x, uv.y));
   };
 
-  const endDrag = (event: ReactPointerEvent<SVGSVGElement>) => {
+  const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragId.current) return;
     event.preventDefault();
     event.stopPropagation();
@@ -203,7 +185,15 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
           </button>
         </div>
       </div>
-      <div className={cn("twizzler-gradient-graph", !disabled && "is-editable")}>
+      <div
+        ref={graphRef}
+        className={cn("twizzler-gradient-graph", !disabled && "is-editable")}
+        aria-label="Gradient color hotspots"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
         <canvas
           ref={fieldRef}
           className="twizzler-gradient-field"
@@ -212,15 +202,10 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
           aria-hidden="true"
         />
         <svg
-          ref={svgRef}
           className="twizzler-gradient-plane"
           viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`}
           preserveAspectRatio="none"
-          aria-label="Gradient color hotspots"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
+          aria-hidden="true"
         >
           <line
             x1={GRAPH_PAD}
@@ -229,29 +214,26 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
             y2={GRAPH_HEIGHT - GRAPH_PAD}
           />
           <line x1={GRAPH_PAD} y1={GRAPH_PAD} x2={GRAPH_PAD} y2={GRAPH_HEIGHT - GRAPH_PAD} />
+        </svg>
+        <div className="twizzler-gradient-handles">
           {stops.map((stop) => {
             const selectedStop = stop.id === selected?.id;
-            const radius = selectedStop ? HANDLE_RADIUS_SELECTED : HANDLE_RADIUS;
             return (
-              <g key={stop.id}>
-                <circle
-                  className="twizzler-gradient-handle-hit"
-                  cx={pointX(stop.x)}
-                  cy={pointY(stop.y)}
-                  r={HANDLE_RADIUS_SELECTED + 6}
-                />
-                <circle
-                  className={cn("twizzler-gradient-handle", selectedStop && "is-selected")}
-                  cx={pointX(stop.x)}
-                  cy={pointY(stop.y)}
-                  r={radius}
-                  fill={stop.color}
-                  aria-label={`Color hotspot at ${Math.round(stop.x * 100)} percent, ${Math.round(stop.y * 100)} percent`}
-                />
-              </g>
+              <div
+                key={stop.id}
+                className={cn("twizzler-gradient-handle", selectedStop && "is-selected")}
+                style={
+                  {
+                    left: `${stop.x * 100}%`,
+                    top: `${stop.y * 100}%`,
+                    backgroundColor: stop.color,
+                  } as CSSProperties
+                }
+                aria-label={`Color hotspot at ${Math.round(stop.x * 100)} percent, ${Math.round(stop.y * 100)} percent`}
+              />
             );
           })}
-        </svg>
+        </div>
       </div>
       {selected ? (
         <div className="twizzler-gradient-selected">
