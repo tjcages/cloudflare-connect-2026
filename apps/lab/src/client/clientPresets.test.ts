@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildClientPreviewBundle,
+  CLIENT_APPEARANCE_PRESETS,
   CLIENT_COLOR_PRESETS,
   CLIENT_LAYOUT_PRESETS,
   CLIENT_SIZE_PRESETS,
   DEFAULT_CLIENT_PREVIEW_STATE,
+  findClientAppearancePreset,
   findClientColorPreset,
   findClientLayoutPreset,
   findClientSizePreset,
@@ -12,10 +14,21 @@ import {
 } from "./clientPresets";
 
 describe("client preview presets", () => {
-  it("ships size, layout, and color preset catalogs", () => {
+  it("ships size, layout, color, and appearance preset catalogs", () => {
     expect(CLIENT_SIZE_PRESETS.map((p) => p.id)).toEqual(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
     expect(CLIENT_LAYOUT_PRESETS).toHaveLength(4);
     expect(CLIENT_COLOR_PRESETS).toHaveLength(4);
+    expect(CLIENT_APPEARANCE_PRESETS.map((p) => p.id)).toEqual(["light", "dark"]);
+  });
+
+  it("dark appearance is white Twizzler on orange stage", () => {
+    const dark = findClientAppearancePreset("dark");
+    expect(dark.backgroundHex).toBe("#f46021");
+    expect(dark.twizzler.colorFar).toBe("#ffffff");
+    expect(dark.twizzler.colorNear.toLowerCase()).toBe("#f5f5f5");
+    const light = findClientAppearancePreset("light");
+    expect(light.backgroundHex).toBe("#ffffff");
+    expect(light.twizzler.colorNear).toBe("#f46021");
   });
 
   it("builds from Banner 5:1 with solid white stage and rain off by default", () => {
