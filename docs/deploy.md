@@ -38,3 +38,4 @@ Workers Builds (`WORKERS_CI=1`) runs `postinstall` → `pnpm run build`, then `w
 
 - Prefer the production Worker URL / dashboard versions for `connect-shader` for anything shared with the team or clients.
 - Session tunnels are agent-only smoke checks and are not a substitute for the Worker.
+- Dashboard deployments: https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production/deployments
