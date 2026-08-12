@@ -2,12 +2,12 @@ import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import { LIBRARY_COLOR } from "../components/colorLibrary";
 import { findPresetByName, loadBuiltinPresets } from "../presets";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
-import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
+import { normalizeTwizzlerSettings, type TwizzlerRibbonColorMode, type TwizzlerSettings } from "../twizzler";
 
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
 export type ClientColorPresetId = "coral-classic" | "soft-gold" | "deep-ember" | "graphite";
-/** Client stage look: light = orange Twizzler on white; dark = white Twizzler on orange. */
+/** Client stage look: light = orange Twizzler on white; dark = cream Twizzler on deep orange. */
 export type ClientAppearanceId = "light" | "dark";
 
 export type ClientSizePreset = {
@@ -33,9 +33,11 @@ export type ClientColorPreset = {
 export type ClientAppearancePreset = {
   id: ClientAppearanceId;
   label: string;
-  /** Solid stage background (library hex). */
+  /** Solid stage background hex. */
   backgroundHex: string;
   twizzler: Pick<TwizzlerSettings, "color" | "colorFar" | "colorNear" | "colorEdge">;
+  /** Ribbon color mode applied when Appearance is toggled. */
+  ribbonColorMode: TwizzlerRibbonColorMode;
 };
 
 /** Tunable knobs exposed in client preview (no camera). */
@@ -151,7 +153,7 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
   },
 ];
 
-/** Light = current marketing look; Dark = white ribbon on orange stage. */
+/** Light = marketing orange on white; Dark = stripes-settings-cf-base cream ribbon on deep orange. */
 export const CLIENT_APPEARANCE_PRESETS: readonly ClientAppearancePreset[] = [
   {
     id: "light",
@@ -163,17 +165,20 @@ export const CLIENT_APPEARANCE_PRESETS: readonly ClientAppearancePreset[] = [
       colorNear: LIBRARY_COLOR.orangeAccent,
       colorEdge: LIBRARY_COLOR.redAccent,
     },
+    ribbonColorMode: "baked",
   },
   {
     id: "dark",
     label: "Dark",
-    backgroundHex: LIBRARY_COLOR.orangeAccent,
+    // From stripes-settings-cf-base.json (stage #f86a00; Orange 300→100 cream ramp).
+    backgroundHex: "#f86a00",
     twizzler: {
-      color: LIBRARY_COLOR.white,
-      colorFar: LIBRARY_COLOR.white,
-      colorNear: "#f5f5f5",
+      color: "#ffefd4",
+      colorFar: "#ffd39e",
+      colorNear: "#ffefd4",
       colorEdge: "#f0f0f0",
     },
+    ribbonColorMode: "sharedGradient",
   },
 ];
 
