@@ -770,6 +770,7 @@ function LabBottomBar({
 }
 
 type LabInnerProps = {
+  clientMode?: boolean;
   surfaceWorkspace: SurfaceWorkspace;
   surfaceEditorRevision: number;
   initialConfig?: ThemedEngineConfig;
@@ -829,6 +830,7 @@ function SurfaceAreaConfigEditor({ area, onChange }: SurfaceAreaConfigEditorProp
 }
 
 function LabInner({
+  clientMode = false,
   surfaceWorkspace,
   surfaceEditorRevision,
   initialConfig,
@@ -879,7 +881,18 @@ function LabInner({
   const [labSettings, setLabSettings] = useState<LabSettings>(() => ({
     ...startupLabSettings,
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
+    ...(clientMode
+      ? {
+          textureSidebarOpen: false,
+          shaderSidebarOpen: true,
+          textureSourceMode: "shader" as const,
+          shaderPresetId: "twizzler-map",
+        }
+      : {}),
   }));
+  /** Client preview only: Default = simplified Leva, Advanced = full authoring folders. */
+  const [clientPanelMode, setClientPanelMode] = useState<"default" | "advanced">("default");
+  const simplifiedLeva = clientMode && clientPanelMode === "default";
   const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(() => labSettings.textureSourceMode);
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>(() =>
     expectedSourceSize(labSettings, labSettings.textureSourceMode),
@@ -1106,16 +1119,19 @@ function LabInner({
     cometLogo,
     shaderView,
     initialThemed,
+    clientCanvasSize,
   } = useEngineControls(onReplay, {
     showShaderCamera:
+      !simplifiedLeva &&
       textureSourceMode === "shader" &&
       !isTwizzlerMapShaderPreset(shaderPresetId) &&
       !isCometLogoShaderPreset(shaderPresetId),
-    showConnectCamera: textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
+    showConnectCamera: !simplifiedLeva && textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
     activeShaderConfig: resolveShaderConfigKind(textureSourceMode, shaderPresetId),
     showTwizzlerRibbon: textureSourceMode === "shader",
-    twizzlerTransport,
+    twizzlerTransport: simplifiedLeva ? undefined : twizzlerTransport,
     initialConfig,
+    clientMode: simplifiedLeva,
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -1132,6 +1148,23 @@ function LabInner({
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!simplifiedLeva || !clientCanvasSize) return;
+    const { width, height } = clientCanvasSize;
+    setLabSettings((current) => {
+      if (current.canvasMode === "manual" && current.canvasWidth === width && current.canvasHeight === height) {
+        return current;
+      }
+      return {
+        ...current,
+        canvasMode: "manual",
+        canvasWidth: width,
+        canvasHeight: height,
+        canvasAspectLocked: true,
+      };
+    });
+  }, [clientCanvasSize, simplifiedLeva]);
 
   const editTheme = initialThemed.editTheme;
   const lightBaseRef = useRef<Partial<EngineConfig>>(initialThemed.lightBase);
@@ -1610,13 +1643,19 @@ function LabInner({
         }
       }
       if (lab.textureSourceMode === "shader" && twizzlerRef.current.enabled) {
+        const stageBackgroundHex = cfg.background.transparent
+          ? (twizzlerRef.current.backgroundColor ?? "#ffffff")
+          : "#" + cfg.background.color.toString(16).padStart(6, "0");
         twizzlerSvgLayer = twizzlerToSvgLayer(
           canvas.width,
           canvas.height,
           canvasWidthPx,
           canvasHeightPx,
           twizzlerTimeSecRef.current,
-          twizzlerRef.current,
+          {
+            ...twizzlerRef.current,
+            backgroundColor: stageBackgroundHex,
+          },
         );
       }
       const exportBackground = resolveSvgExportBackground({
@@ -1932,6 +1971,11 @@ function LabInner({
         if (twizzlerCanvas && outputCanvas) {
           if (shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled)) {
             const tw = twizzlerRef.current;
+            const bg = controlsRef.current.background;
+            const stageBackgroundHex = bg.transparent
+              ? (tw.backgroundColor ?? "#ffffff")
+              : "#" + bg.color.toString(16).padStart(6, "0");
+            const twWithBackground = { ...tw, backgroundColor: stageBackgroundHex };
             if (shouldUseTwizzlerSineShader(tw)) {
               let sine = twizzlerSineRendererRef.current;
               if (!sine) {
@@ -1939,9 +1983,13 @@ function LabInner({
                 const err = sine.setSource(TWIZZLER_SINE_SHADER_SOURCE);
                 if (err) {
                   console.error("Twizzler sine shader compile failed:", err);
-                  renderTwizzler(twizzlerCanvas, outputCanvas.width, outputCanvas.height, twizzlerTimeSecRef.current, {
-                    ...tw,
-                  });
+                  renderTwizzler(
+                    twizzlerCanvas,
+                    outputCanvas.width,
+                    outputCanvas.height,
+                    twizzlerTimeSecRef.current,
+                    twWithBackground,
+                  );
                 } else {
                   twizzlerSineRendererRef.current = sine;
                 }
@@ -1968,9 +2016,13 @@ function LabInner({
                 ctx?.drawImage(sine.canvas, 0, 0);
               }
             } else {
-              renderTwizzler(twizzlerCanvas, outputCanvas.width, outputCanvas.height, twizzlerTimeSecRef.current, {
-                ...tw,
-              });
+              renderTwizzler(
+                twizzlerCanvas,
+                outputCanvas.width,
+                outputCanvas.height,
+                twizzlerTimeSecRef.current,
+                twWithBackground,
+              );
             }
           } else {
             clearTwizzler(twizzlerCanvas);
@@ -2987,307 +3039,313 @@ function LabInner({
         : { objectFit: sourceObjectFit, opacity: sourcePreviewOpacity };
 
   return (
-    <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}`}>
-      <aside
-        className={`lab-sidebar lab-sidebar-texture${labSettings.textureSidebarOpen ? "" : " is-closed"}`}
-        style={{ width: labSettings.textureSidebarOpen ? labSettings.textureSidebarWidth : 0 }}
-        aria-hidden={!labSettings.textureSidebarOpen}
-      >
-        <div
-          className="lab-sidebar-scroll playground-leva-panel texture-config-panel ui-scroll-hidden"
-          style={{ width: labSettings.textureSidebarWidth }}
+    <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}${clientMode ? " is-client-mode" : ""}`}>
+      {!clientMode ? (
+        <aside
+          className={`lab-sidebar lab-sidebar-texture${labSettings.textureSidebarOpen ? "" : " is-closed"}`}
+          style={{ width: labSettings.textureSidebarOpen ? labSettings.textureSidebarWidth : 0 }}
+          aria-hidden={!labSettings.textureSidebarOpen}
         >
-          <div className="lab-sidebar-header">
-            <img
-              className="lab-sidebar-logo"
-              src={editTheme === "dark" ? "/connect-logo-dark.svg" : "/connect-logo.svg"}
-              alt="Connect"
-            />
-            <button
-              className="lab-sidebar-toggle"
-              type="button"
-              onClick={() => updateLabSettings({ textureSidebarOpen: false })}
-              aria-label="Close texture panel"
-              title="Close texture panel"
-            >
-              <PanelLeftClose size={14} strokeWidth={1.75} />
-            </button>
-          </div>
-          <div className="playground-workflow-controls">
-            <div className="wf-field">
-              <span className="wf-field-label">Source</span>
-              <select
-                className="lab-btn"
-                value={textureSourceMode}
-                onChange={(e) => handleTextureSourceModeChange(e.target.value === "shader" ? "shader" : "texture")}
+          <div
+            className="lab-sidebar-scroll playground-leva-panel texture-config-panel ui-scroll-hidden"
+            style={{ width: labSettings.textureSidebarWidth }}
+          >
+            <div className="lab-sidebar-header">
+              <img
+                className="lab-sidebar-logo"
+                src={editTheme === "dark" ? "/connect-logo-dark.svg" : "/connect-logo.svg"}
+                alt="Connect"
+              />
+              <button
+                className="lab-sidebar-toggle"
+                type="button"
+                onClick={() => updateLabSettings({ textureSidebarOpen: false })}
+                aria-label="Close texture panel"
+                title="Close texture panel"
               >
-                <option value="texture">Texture</option>
-                <option value="shader">Shader</option>
-              </select>
+                <PanelLeftClose size={14} strokeWidth={1.75} />
+              </button>
             </div>
-            {textureSourceMode === "texture" ? (
-              <>
-                <div className="wf-field">
-                  <span className="wf-field-label">Texture</span>
-                  <select className="lab-btn" value={textureId} onChange={(e) => setTextureId(e.target.value)}>
-                    {textureOptions.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="wf-row">
-                  <label className="lab-btn wf-upload">
-                    Upload texture
-                    <input
-                      type="file"
-                      accept="image/*,video/*"
-                      style={{ display: "none" }}
-                      onChange={handleFileChange}
-                    />
-                  </label>
-                  <button className="lab-btn" onClick={handleDeleteTexture} disabled={!canDeleteTexture}>
-                    Delete texture
-                  </button>
-                </div>
-                {canDeleteTexture ? (
+            <div className="playground-workflow-controls">
+              <div className="wf-field">
+                <span className="wf-field-label">Source</span>
+                <select
+                  className="lab-btn"
+                  value={textureSourceMode}
+                  onChange={(e) => handleTextureSourceModeChange(e.target.value === "shader" ? "shader" : "texture")}
+                >
+                  <option value="texture">Texture</option>
+                  <option value="shader">Shader</option>
+                </select>
+              </div>
+              {textureSourceMode === "texture" ? (
+                <>
                   <div className="wf-field">
-                    <span className="wf-field-label">Dark mode texture</span>
+                    <span className="wf-field-label">Texture</span>
+                    <select className="lab-btn" value={textureId} onChange={(e) => setTextureId(e.target.value)}>
+                      {textureOptions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="wf-row">
                     <label className="lab-btn wf-upload">
-                      {selectedEntry?.dark ? "Replace dark mode texture" : "Add dark mode texture"}
+                      Upload texture
                       <input
                         type="file"
                         accept="image/*,video/*"
                         style={{ display: "none" }}
-                        onChange={handleDarkTextureFileChange}
+                        onChange={handleFileChange}
                       />
                     </label>
-                    {selectedEntry?.dark ? <span className="wf-field-label">{selectedEntry.dark.label}</span> : null}
+                    <button className="lab-btn" onClick={handleDeleteTexture} disabled={!canDeleteTexture}>
+                      Delete texture
+                    </button>
                   </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="wf-field wf-shader-source">
-                <span className="wf-field-label">Shader</span>
-                <select
-                  className="lab-btn"
-                  value={shaderPresetId}
-                  onChange={(event) => handleShaderPresetChange(event.target.value)}
-                >
-                  {SHADER_LIBRARY.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.id === DEFAULT_SHADER_PRESET_ID ? `${entry.label} (default)` : entry.label}
-                    </option>
-                  ))}
-                  {shaderPresetId === CUSTOM_SHADER_PRESET_ID ? (
-                    <option value={CUSTOM_SHADER_PRESET_ID}>Custom</option>
-                  ) : null}
-                </select>
-                <details className="wf-collapsible">
-                  <summary>Shader source</summary>
-                  <div className="wf-collapsible-content">
-                    {spiralSelected ? (
-                      <div className="wf-field">
-                        <span className="wf-field-label">Shape</span>
-                        <select
-                          className="lab-btn"
-                          value={labSettings.connectShapeType}
-                          onChange={(event) => handleConnectShapeChange(event.target.value as ConnectShapeType)}
-                        >
-                          {CONNECT_SHAPE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="wf-field">
-                          <span className="wf-field-label">Shader resolution</span>
-                          <div className="playground-canvas-dimension-controls">
-                            <input
-                              type="number"
-                              min={1}
-                              max={8192}
-                              step={1}
-                              value={labSettings.shaderSourceWidth}
-                              onChange={(event) => {
-                                const width = Math.max(
-                                  1,
-                                  Math.min(8192, Math.round(Number(event.currentTarget.value))),
-                                );
-                                if (!Number.isFinite(width)) return;
-                                updateLabSettings({ shaderSourceWidth: width });
-                              }}
-                              aria-label="Shader source width"
-                            />
-                            <span className="wf-resolution-separator">×</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={8192}
-                              step={1}
-                              value={labSettings.shaderSourceHeight}
-                              onChange={(event) => {
-                                const height = Math.max(
-                                  1,
-                                  Math.min(8192, Math.round(Number(event.currentTarget.value))),
-                                );
-                                if (!Number.isFinite(height)) return;
-                                updateLabSettings({ shaderSourceHeight: height });
-                              }}
-                              aria-label="Shader source height"
-                            />
-                          </div>
-                        </div>
-                        {cometLogoSelected ? (
-                          <div className="wf-field">
-                            <span className="wf-field-label">Hover the canvas to form the Cloudflare logo.</span>
-                          </div>
-                        ) : !twizzlerMapSelected ? (
-                          <div className="wf-field">
-                            <span className="wf-field-label">Shader source</span>
-                            <textarea
-                              className="lab-shader-source-input"
-                              spellCheck={false}
-                              value={shaderSourceCode}
-                              onChange={(event) => {
-                                const next = event.currentTarget.value;
-                                setShaderSourceCode(next);
-                                setShaderPresetId(CUSTOM_SHADER_PRESET_ID);
-                                saveLabSettings({
-                                  ...labSettingsRef.current,
-                                  textureSourceMode: "shader",
-                                  shaderSourceCode: next,
-                                  shaderPresetId: CUSTOM_SHADER_PRESET_ID,
-                                });
-                              }}
-                            />
-                          </div>
-                        ) : null}
-                      </>
-                    )}
+                  {canDeleteTexture ? (
                     <div className="wf-field">
-                      <span className="wf-field-label">Time</span>
-                      <TimeTransport controller={shaderTransport} />
+                      <span className="wf-field-label">Dark mode texture</span>
+                      <label className="lab-btn wf-upload">
+                        {selectedEntry?.dark ? "Replace dark mode texture" : "Add dark mode texture"}
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          style={{ display: "none" }}
+                          onChange={handleDarkTextureFileChange}
+                        />
+                      </label>
+                      {selectedEntry?.dark ? <span className="wf-field-label">{selectedEntry.dark.label}</span> : null}
                     </div>
-                    {!spiralSelected && !cometLogoSelected && !twizzlerMapSelected ? (
-                      <div className="wf-row">
-                        <button className="lab-btn" onClick={handleApplyShaderSource}>
-                          Apply shader
-                        </button>
-                        <button className="lab-btn" onClick={handleResetShaderSource}>
-                          Reset shader
-                        </button>
-                      </div>
-                    ) : null}
-                    {shaderSourceError ? <div className="lab-shader-source-error">{shaderSourceError}</div> : null}
-                  </div>
-                </details>
-              </div>
-            )}
-            <hr className="wf-divider" />
-            <details className="wf-collapsible" open>
-              <summary>Presets</summary>
-              <div className="wf-collapsible-content">
-                <select className="lab-btn" value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
-                  <option value="">No preset selected</option>
-                  {presets.map((p) => (
-                    <option key={p.name} value={p.name}>
-                      {p.builtin ? `${p.name} (builtin)` : p.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="wf-row">
-                  <button className="lab-btn" onClick={handleApplyPreset} disabled={!selectedPreset}>
-                    Apply
-                  </button>
-                  <button className="lab-btn" onClick={handleSavePreset}>
-                    Save
-                  </button>
-                  <button
+                  ) : null}
+                </>
+              ) : (
+                <div className="wf-field wf-shader-source">
+                  <span className="wf-field-label">Shader</span>
+                  <select
                     className="lab-btn"
-                    onClick={handleDeletePreset}
-                    disabled={!selectedPreset || presets.some((p) => p.name === selectedPreset && p.builtin)}
+                    value={shaderPresetId}
+                    onChange={(event) => handleShaderPresetChange(event.target.value)}
                   >
-                    Delete
+                    {SHADER_LIBRARY.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.id === DEFAULT_SHADER_PRESET_ID ? `${entry.label} (default)` : entry.label}
+                      </option>
+                    ))}
+                    {shaderPresetId === CUSTOM_SHADER_PRESET_ID ? (
+                      <option value={CUSTOM_SHADER_PRESET_ID}>Custom</option>
+                    ) : null}
+                  </select>
+                  <details className="wf-collapsible">
+                    <summary>Shader source</summary>
+                    <div className="wf-collapsible-content">
+                      {spiralSelected ? (
+                        <div className="wf-field">
+                          <span className="wf-field-label">Shape</span>
+                          <select
+                            className="lab-btn"
+                            value={labSettings.connectShapeType}
+                            onChange={(event) => handleConnectShapeChange(event.target.value as ConnectShapeType)}
+                          >
+                            {CONNECT_SHAPE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="wf-field">
+                            <span className="wf-field-label">Shader resolution</span>
+                            <div className="playground-canvas-dimension-controls">
+                              <input
+                                type="number"
+                                min={1}
+                                max={8192}
+                                step={1}
+                                value={labSettings.shaderSourceWidth}
+                                onChange={(event) => {
+                                  const width = Math.max(
+                                    1,
+                                    Math.min(8192, Math.round(Number(event.currentTarget.value))),
+                                  );
+                                  if (!Number.isFinite(width)) return;
+                                  updateLabSettings({ shaderSourceWidth: width });
+                                }}
+                                aria-label="Shader source width"
+                              />
+                              <span className="wf-resolution-separator">×</span>
+                              <input
+                                type="number"
+                                min={1}
+                                max={8192}
+                                step={1}
+                                value={labSettings.shaderSourceHeight}
+                                onChange={(event) => {
+                                  const height = Math.max(
+                                    1,
+                                    Math.min(8192, Math.round(Number(event.currentTarget.value))),
+                                  );
+                                  if (!Number.isFinite(height)) return;
+                                  updateLabSettings({ shaderSourceHeight: height });
+                                }}
+                                aria-label="Shader source height"
+                              />
+                            </div>
+                          </div>
+                          {cometLogoSelected ? (
+                            <div className="wf-field">
+                              <span className="wf-field-label">Hover the canvas to form the Cloudflare logo.</span>
+                            </div>
+                          ) : !twizzlerMapSelected ? (
+                            <div className="wf-field">
+                              <span className="wf-field-label">Shader source</span>
+                              <textarea
+                                className="lab-shader-source-input"
+                                spellCheck={false}
+                                value={shaderSourceCode}
+                                onChange={(event) => {
+                                  const next = event.currentTarget.value;
+                                  setShaderSourceCode(next);
+                                  setShaderPresetId(CUSTOM_SHADER_PRESET_ID);
+                                  saveLabSettings({
+                                    ...labSettingsRef.current,
+                                    textureSourceMode: "shader",
+                                    shaderSourceCode: next,
+                                    shaderPresetId: CUSTOM_SHADER_PRESET_ID,
+                                  });
+                                }}
+                              />
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                      <div className="wf-field">
+                        <span className="wf-field-label">Time</span>
+                        <TimeTransport controller={shaderTransport} />
+                      </div>
+                      {!spiralSelected && !cometLogoSelected && !twizzlerMapSelected ? (
+                        <div className="wf-row">
+                          <button className="lab-btn" onClick={handleApplyShaderSource}>
+                            Apply shader
+                          </button>
+                          <button className="lab-btn" onClick={handleResetShaderSource}>
+                            Reset shader
+                          </button>
+                        </div>
+                      ) : null}
+                      {shaderSourceError ? <div className="lab-shader-source-error">{shaderSourceError}</div> : null}
+                    </div>
+                  </details>
+                </div>
+              )}
+              <hr className="wf-divider" />
+              <details className="wf-collapsible" open>
+                <summary>Presets</summary>
+                <div className="wf-collapsible-content">
+                  <select
+                    className="lab-btn"
+                    value={selectedPreset}
+                    onChange={(e) => setSelectedPreset(e.target.value)}
+                  >
+                    <option value="">No preset selected</option>
+                    {presets.map((p) => (
+                      <option key={p.name} value={p.name}>
+                        {p.builtin ? `${p.name} (builtin)` : p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="wf-row">
+                    <button className="lab-btn" onClick={handleApplyPreset} disabled={!selectedPreset}>
+                      Apply
+                    </button>
+                    <button className="lab-btn" onClick={handleSavePreset}>
+                      Save
+                    </button>
+                    <button
+                      className="lab-btn"
+                      onClick={handleDeletePreset}
+                      disabled={!selectedPreset || presets.some((p) => p.name === selectedPreset && p.builtin)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </details>
+              <hr className="wf-divider" />
+              <details className="wf-collapsible wf-config">
+                <summary>Config</summary>
+                <div className="wf-collapsible-content">
+                  <button className="lab-btn" onClick={handleExportProductionConfig}>
+                    {surfaceWorkspace.mode === "partial" ? "Export selected config" : "Export production config"}
+                  </button>
+                  <div className="wf-row">
+                    <button className="lab-btn" onClick={handleExport}>
+                      Copy config
+                    </button>
+                    <button className="lab-btn" onClick={handleImport}>
+                      Import config
+                    </button>
+                  </div>
+                  <div className="wf-row">
+                    <button className="lab-btn" onClick={handleDownloadConfig}>
+                      Download JSON
+                    </button>
+                    <button className="lab-btn" onClick={() => configFileInputRef.current?.click()}>
+                      Upload JSON
+                    </button>
+                  </div>
+                  <input
+                    ref={configFileInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    style={{ display: "none" }}
+                    onChange={handleConfigFileChange}
+                  />
+                  <button className="lab-btn wf-reset" onClick={handleResetSettings}>
+                    {surfaceWorkspace.mode === "partial" ? "Reset layer config" : "Reset settings"}
+                  </button>
+                  <button className="lab-btn wf-reset" onClick={handleFactoryResetSettings}>
+                    Factory reset
                   </button>
                 </div>
-              </div>
-            </details>
-            <hr className="wf-divider" />
-            <details className="wf-collapsible wf-config">
-              <summary>Config</summary>
-              <div className="wf-collapsible-content">
-                <button className="lab-btn" onClick={handleExportProductionConfig}>
-                  {surfaceWorkspace.mode === "partial" ? "Export selected config" : "Export production config"}
-                </button>
+              </details>
+              <hr className="wf-divider" />
+              <div className="wf-field">
+                <span className="wf-field-label">Export</span>
+                <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
                 <div className="wf-row">
-                  <button className="lab-btn" onClick={handleExport}>
-                    Copy config
+                  <button className="lab-btn" onClick={onExportVideo}>
+                    Export Video
                   </button>
-                  <button className="lab-btn" onClick={handleImport}>
-                    Import config
-                  </button>
-                </div>
-                <div className="wf-row">
-                  <button className="lab-btn" onClick={handleDownloadConfig}>
-                    Download JSON
-                  </button>
-                  <button className="lab-btn" onClick={() => configFileInputRef.current?.click()}>
-                    Upload JSON
+                  <button className="lab-btn" onClick={onExportSvg}>
+                    Export SVG
                   </button>
                 </div>
-                <input
-                  ref={configFileInputRef}
-                  type="file"
-                  accept="application/json,.json"
-                  style={{ display: "none" }}
-                  onChange={handleConfigFileChange}
-                />
-                <button className="lab-btn wf-reset" onClick={handleResetSettings}>
-                  {surfaceWorkspace.mode === "partial" ? "Reset layer config" : "Reset settings"}
-                </button>
-                <button className="lab-btn wf-reset" onClick={handleFactoryResetSettings}>
-                  Factory reset
-                </button>
-              </div>
-            </details>
-            <hr className="wf-divider" />
-            <div className="wf-field">
-              <span className="wf-field-label">Export</span>
-              <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
-              <div className="wf-row">
-                <button className="lab-btn" onClick={onExportVideo}>
-                  Export Video
-                </button>
-                <button className="lab-btn" onClick={onExportSvg}>
-                  Export SVG
-                </button>
               </div>
             </div>
+            <LabCanvasSizeControls
+              sourceWidth={sourceSize.w}
+              sourceHeight={sourceSize.h}
+              settings={labSettings}
+              onSettings={updateLabSettings}
+            />
+            {surfaceWorkspace.mode === "full" ? (
+              <LevaPanel store={textureStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+            ) : null}
           </div>
-          <LabCanvasSizeControls
-            sourceWidth={sourceSize.w}
-            sourceHeight={sourceSize.h}
-            settings={labSettings}
-            onSettings={updateLabSettings}
+          <hr
+            className="lab-sidebar-resize-handle"
+            onPointerDown={(event) => startSidebarResize("texture", event)}
+            aria-orientation="vertical"
+            aria-label="Resize texture panel"
           />
-          {surfaceWorkspace.mode === "full" ? (
-            <LevaPanel store={textureStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
-          ) : null}
-        </div>
-        <hr
-          className="lab-sidebar-resize-handle"
-          onPointerDown={(event) => startSidebarResize("texture", event)}
-          aria-orientation="vertical"
-          aria-label="Resize texture panel"
-        />
-      </aside>
+        </aside>
+      ) : null}
       <div className="lab-main">
-        {!labSettings.textureSidebarOpen ? (
+        {!clientMode && !labSettings.textureSidebarOpen ? (
           <button
             className="lab-sidebar-reopen lab-sidebar-reopen-left"
             type="button"
@@ -3440,31 +3498,58 @@ function LabInner({
             <span className="lab-canvas-zoom-value">{Math.round(previewZoom * 100)}%</span>
           </div>
         </div>
-        <LabBottomBar
-          videoEl={videoEl}
-          editTheme={editTheme}
-          onSelectTheme={handleSelectTheme}
-          onResetTheme={handleResetTheme}
-        />
+        {!clientMode ? (
+          <LabBottomBar
+            videoEl={videoEl}
+            editTheme={editTheme}
+            onSelectTheme={handleSelectTheme}
+            onResetTheme={handleResetTheme}
+          />
+        ) : null}
       </div>
       <aside
         className={`lab-sidebar lab-sidebar-shader${labSettings.shaderSidebarOpen ? "" : " is-closed"}`}
         style={{ width: labSettings.shaderSidebarOpen ? labSettings.shaderSidebarWidth : 0 }}
         aria-hidden={!labSettings.shaderSidebarOpen}
       >
-        <hr
-          className="lab-sidebar-resize-handle"
-          onPointerDown={(event) => startSidebarResize("shader", event)}
-          aria-orientation="vertical"
-          aria-label="Resize shader panel"
-        />
+        {!clientMode ? (
+          <hr
+            className="lab-sidebar-resize-handle"
+            onPointerDown={(event) => startSidebarResize("shader", event)}
+            aria-orientation="vertical"
+            aria-label="Resize shader panel"
+          />
+        ) : null}
         <div
           className={`lab-sidebar-scroll playground-leva-panel shader-config-panel ui-scroll-hidden${
-            surfaceWorkspace.mode === "partial" ? " is-surface-panel" : ""
+            !clientMode && surfaceWorkspace.mode === "partial" ? " is-surface-panel" : ""
           }`}
           style={{ width: labSettings.shaderSidebarWidth }}
         >
           <div className="lab-sidebar-header lab-sidebar-header-end">
+            {clientMode ? (
+              <fieldset className="lab-panel-mode-toggle">
+                <legend>Panel mode</legend>
+                <button
+                  type="button"
+                  className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}
+                  aria-pressed={clientPanelMode === "default"}
+                  onClick={() => setClientPanelMode("default")}
+                >
+                  Default
+                </button>
+                <button
+                  type="button"
+                  className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}
+                  aria-pressed={clientPanelMode === "advanced"}
+                  onClick={() => setClientPanelMode("advanced")}
+                >
+                  Advanced
+                </button>
+              </fieldset>
+            ) : (
+              <span />
+            )}
             <button
               className="lab-sidebar-toggle"
               type="button"
@@ -3475,37 +3560,41 @@ function LabInner({
               <PanelRightClose size={14} strokeWidth={1.75} />
             </button>
           </div>
-          <SurfacePanel
-            mode={surfaceWorkspace.mode}
-            areas={surfaceWorkspace.areas}
-            selectedAreaId={surfaceWorkspace.selectedAreaId}
-            drawingKind={drawingSurfaceAreaKind}
-            onModeChange={handleSurfaceModeChange}
-            onNewArea={setDrawingSurfaceAreaKind}
-            onSelectArea={handleSelectSurfaceArea}
-            onToggleArea={onToggleSurfaceArea}
-            onDeleteArea={handleDeleteSurfaceArea}
-          >
-            {surfaceWorkspace.mode === "partial" ? (
-              selectedArea ? (
-                <SurfaceAreaConfigEditor
-                  key={`${selectedArea.id}:${surfaceEditorRevision}`}
-                  area={selectedArea}
-                  onChange={onUpdateSurfaceAreaConfig}
-                />
-              ) : null
-            ) : (
-              <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
-            )}
-          </SurfacePanel>
+          {clientMode ? (
+            <LevaPanel key={clientPanelMode} store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+          ) : (
+            <SurfacePanel
+              mode={surfaceWorkspace.mode}
+              areas={surfaceWorkspace.areas}
+              selectedAreaId={surfaceWorkspace.selectedAreaId}
+              drawingKind={drawingSurfaceAreaKind}
+              onModeChange={handleSurfaceModeChange}
+              onNewArea={setDrawingSurfaceAreaKind}
+              onSelectArea={handleSelectSurfaceArea}
+              onToggleArea={onToggleSurfaceArea}
+              onDeleteArea={handleDeleteSurfaceArea}
+            >
+              {surfaceWorkspace.mode === "partial" ? (
+                selectedArea ? (
+                  <SurfaceAreaConfigEditor
+                    key={`${selectedArea.id}:${surfaceEditorRevision}`}
+                    area={selectedArea}
+                    onChange={onUpdateSurfaceAreaConfig}
+                  />
+                ) : null
+              ) : (
+                <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+              )}
+            </SurfacePanel>
+          )}
         </div>
       </aside>
-      <PerfOverlay snap={snap} />
+      {!clientMode ? <PerfOverlay snap={snap} /> : null}
     </div>
   );
 }
 
-export function LabApp() {
+export function LabApp({ clientMode = false }: { clientMode?: boolean } = {}) {
   const [surfaceWorkspace, setSurfaceWorkspace] = useState(() => loadSurfaceWorkspace());
   const [editorRevision, setEditorRevision] = useState(0);
   const initialConfig = surfaceWorkspace.fullConfig ?? undefined;
@@ -3642,7 +3731,8 @@ export function LabApp() {
 
   return (
     <LabInner
-      surfaceWorkspace={surfaceWorkspace}
+      clientMode={clientMode}
+      surfaceWorkspace={clientMode ? { ...surfaceWorkspace, mode: "full" } : surfaceWorkspace}
       surfaceEditorRevision={editorRevision}
       initialConfig={initialConfig}
       onSurfaceModeChange={handleSurfaceModeChange}

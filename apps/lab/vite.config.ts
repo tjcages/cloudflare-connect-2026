@@ -12,6 +12,10 @@ export default defineConfig({
     port: 5174,
     watch: { ignored: ["**/packages/stripes-engine/dist/**", "**/node_modules/.vite/**"] },
   },
+  preview: {
+    // Quick tunnels / Workers preview hosts for client review links.
+    allowedHosts: true,
+  },
   resolve: {
     alias: {
       "@necatikcl/stripes-engine/react": enginePath("react/index.ts"),
@@ -23,6 +27,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: fileURLToPath(new URL("./index.html", import.meta.url)),
+        lab: fileURLToPath(new URL("./lab.html", import.meta.url)),
+        client: fileURLToPath(new URL("./client.html", import.meta.url)),
         experiments: fileURLToPath(new URL("./experiments.html", import.meta.url)),
       },
     },

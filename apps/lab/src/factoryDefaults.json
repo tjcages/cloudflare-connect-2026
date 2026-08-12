@@ -604,7 +604,8 @@
       "bend3Amount": 0,
       "depthPosition": 0.65,
       "depthAmount": 0,
-      "depthWidth": 0.25
+      "depthWidth": 0.25,
+      "depthTerrain": 0
     },
     "twizzlerMap": {
       "backgroundLevel": 0.22000000000000003,

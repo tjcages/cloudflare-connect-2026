@@ -1,26 +1,27 @@
 /**
- * Connect Twizzler — parametric hairline ribbon (Canvas2D + SVG-exportable paths).
+ * Connect Twizzler — orange-wave 3D projected ribbon (Canvas2D + SVG-exportable paths).
  *
- * Geometry: centerline C(x) + half-width W(x) + twist θ(x).
- * Fiber v ∈ [-1,1] projects as offset = v · W · cos(θ) along the path normal.
- * Z (into page / toward camera) drives: fog→white, stroke thickness, and Y bias.
- * Right edge: far fibers go lowest on screen (largest Y). Paths stay smooth.
+ * Geometry (orange-wave-vector): layered Z ribbons with multi-sine waveY(x,z,t),
+ * rotated in 3D, perspective-projected, stroked as solid orange hairlines.
+ * Legacy marketing helpers below are kept for tests / experiment tooling.
  */
 
 export type TwizzlerSettings = {
   color: string;
-  /** Pale gold / far / left. */
+  /** Left / far of X gradient (Orange Pair). */
   colorFar: string;
-  /** Deep coral / near / core. */
+  /** Right / near of X gradient (Orange Accent). */
   colorNear: string;
-  /** Bright yellow/gold on ribbon edges. */
+  /** Peak Y accent (Red Accent). */
   colorEdge: string;
   opacity: number;
+  /** Orange-wave camera zoom (HTML `zoom`). */
   scale: number;
   centerY: number;
-  /** Base ribbon half-height in normalized canvas units. */
+  /** Wave height multiplier (1 = orange-wave reference). */
   amplitude: number;
   lineCount: number;
+  /** Base stroke width (HTML `basew`). */
   lineWidth: number;
   pointSpacing: number;
   leftHeight: number;
@@ -47,10 +48,43 @@ export type TwizzlerSettings = {
   depthLift: number;
   /**
    * Z→Y terrain recipe (experiment switch):
-   * 0 = rolling hills (A), 1 = jagged high-freq (B), 2 = long far-drop sweep (C).
+   * 0–2 = classic marketing packs (A/B/C); 3–5 = exact Twizzler sine shader recipes.
    */
   depthTerrain: number;
+  /** Legacy twist (unused by orange-wave projection). */
   twist: number;
+  /** Orange-wave 3D rotation in degrees (defaults match the reference HTML). */
+  rotateXDeg: number;
+  rotateYDeg: number;
+  rotateZDeg: number;
+  /** Perspective FOV (HTML `fov`). */
+  fov: number;
+  /** Camera distance (HTML `camz`). */
+  camDist: number;
+  /** Perspective width exaggeration (HTML `perspw`). */
+  perspectiveWidth: number;
+  /** Stroke width clamp min/max (HTML `minw` / `maxw`). */
+  minLineWidth: number;
+  maxLineWidth: number;
+  /** X length color gradient (left colorFar → right colorNear). */
+  gradientXEnabled: boolean;
+  gradientXMix: number;
+  /** Y peak/trough accents (peaks colorEdge, troughs colorNear). */
+  gradientYEnabled: boolean;
+  gradientYMix: number;
+  /**
+   * Z depth fade: near-camera fibers keep foreground colors;
+   * farther / higher Z lerps toward `backgroundColor`.
+   */
+  gradientZEnabled: boolean;
+  gradientZStrength: number;
+  gradientZCenter: number;
+  gradientZWidth: number;
+  /**
+   * Stage / far color for Z fade (library Neutral White by default).
+   * Near-camera fibers keep foreground colors; far fibers lerp toward this.
+   */
+  backgroundColor: string;
   noiseScaleX: number;
   noiseScaleY: number;
   speed: number;
@@ -71,17 +105,18 @@ export type TwizzlerSettings = {
 };
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
-  color: "#e8481c",
-  colorFar: "#ffd89a",
-  colorNear: "#e8481c",
-  colorEdge: "#ffc857",
-  opacity: 0.72,
+  // Library tokens approximating HTML #ff6709 / #ffcc33 / #ff2a2a
+  color: "#f46021",
+  colorFar: "#fea700",
+  colorNear: "#f46021",
+  colorEdge: "#e92e28",
+  opacity: 1,
   scale: 1,
-  centerY: 0.55,
-  amplitude: 0.58,
-  lineCount: 48,
-  lineWidth: 2.1,
-  pointSpacing: 3,
+  centerY: 0.5,
+  amplitude: 1,
+  lineCount: 56,
+  lineWidth: 1.15,
+  pointSpacing: 10,
   leftHeight: 0.58,
   rightHeight: 0.32,
   edgeFluctuation: 0,
@@ -105,9 +140,26 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   depthLift: 0.85,
   depthTerrain: 0,
   twist: 1.15,
+  rotateXDeg: 12,
+  rotateYDeg: -18,
+  rotateZDeg: 0,
+  fov: 1.05,
+  camDist: 10.5,
+  perspectiveWidth: 1.8,
+  minLineWidth: 0.4,
+  maxLineWidth: 3.2,
+  gradientXEnabled: true,
+  gradientXMix: 1,
+  gradientYEnabled: true,
+  gradientYMix: 0.85,
+  gradientZEnabled: true,
+  gradientZStrength: 0.75,
+  gradientZCenter: 0,
+  gradientZWidth: 0.95,
+  backgroundColor: "#ffffff",
   noiseScaleX: 0.0004,
   noiseScaleY: 0.01,
-  speed: 0.12,
+  speed: 1,
   drift: 0.02,
   stippleSize: 0,
   stippleGap: 0.8,
@@ -129,6 +181,14 @@ function fade(value: number): number {
 
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - edge0) / Math.max(1e-6, edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+/** Matches orange-wave-vector.html (allows reverse edges when e1 < e0). */
+function orangeWaveSmoothstep(edge0: number, edge1: number, x: number): number {
+  const denom = edge1 - edge0;
+  if (Math.abs(denom) < 1e-12) return x < edge0 ? 0 : 1;
+  const t = Math.max(0, Math.min(1, (x - edge0) / denom));
   return t * t * (3 - 2 * t);
 }
 
@@ -205,7 +265,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     opacity: clamp(input.opacity, TWIZZLER_DEFAULTS.opacity, 0, 1),
     scale: clamp(input.scale, TWIZZLER_DEFAULTS.scale, 0.1, 3),
     centerY: clamp(input.centerY, TWIZZLER_DEFAULTS.centerY, 0, 1),
-    amplitude: clamp(input.amplitude, TWIZZLER_DEFAULTS.amplitude, 0, 1),
+    amplitude: clamp(input.amplitude, TWIZZLER_DEFAULTS.amplitude, 0, 2),
     lineCount: Math.round(clamp(input.lineCount, TWIZZLER_DEFAULTS.lineCount, 1, 400)),
     lineWidth: clamp(input.lineWidth, TWIZZLER_DEFAULTS.lineWidth, 0.15, 8),
     pointSpacing: Math.round(clamp(input.pointSpacing, TWIZZLER_DEFAULTS.pointSpacing, 2, 80)),
@@ -232,6 +292,26 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
     depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 5)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
+    rotateXDeg: clamp(input.rotateXDeg, TWIZZLER_DEFAULTS.rotateXDeg, -180, 180),
+    rotateYDeg: clamp(input.rotateYDeg, TWIZZLER_DEFAULTS.rotateYDeg, -180, 180),
+    rotateZDeg: clamp(input.rotateZDeg, TWIZZLER_DEFAULTS.rotateZDeg, -180, 180),
+    fov: clamp(input.fov, TWIZZLER_DEFAULTS.fov, 0.6, 1.8),
+    camDist: clamp(input.camDist, TWIZZLER_DEFAULTS.camDist, 5, 18),
+    perspectiveWidth: clamp(input.perspectiveWidth, TWIZZLER_DEFAULTS.perspectiveWidth, 0, 4),
+    minLineWidth: clamp(input.minLineWidth, TWIZZLER_DEFAULTS.minLineWidth, 0.15, 1.5),
+    maxLineWidth: clamp(input.maxLineWidth, TWIZZLER_DEFAULTS.maxLineWidth, 1, 6),
+    gradientXEnabled:
+      typeof input.gradientXEnabled === "boolean" ? input.gradientXEnabled : TWIZZLER_DEFAULTS.gradientXEnabled,
+    gradientXMix: clamp(input.gradientXMix, TWIZZLER_DEFAULTS.gradientXMix, 0, 1),
+    gradientYEnabled:
+      typeof input.gradientYEnabled === "boolean" ? input.gradientYEnabled : TWIZZLER_DEFAULTS.gradientYEnabled,
+    gradientYMix: clamp(input.gradientYMix, TWIZZLER_DEFAULTS.gradientYMix, 0, 1),
+    gradientZEnabled:
+      typeof input.gradientZEnabled === "boolean" ? input.gradientZEnabled : TWIZZLER_DEFAULTS.gradientZEnabled,
+    gradientZStrength: clamp(input.gradientZStrength, TWIZZLER_DEFAULTS.gradientZStrength, 0, 1.5),
+    gradientZCenter: clamp(input.gradientZCenter, TWIZZLER_DEFAULTS.gradientZCenter, -1, 1),
+    gradientZWidth: clamp(input.gradientZWidth, TWIZZLER_DEFAULTS.gradientZWidth, 0.15, 2),
+    backgroundColor: normalizeTwizzlerColor(input.backgroundColor ?? TWIZZLER_DEFAULTS.backgroundColor),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.001, 0.1),
     speed: clamp(input.speed, TWIZZLER_DEFAULTS.speed, 0, 3),
@@ -239,12 +319,99 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     stippleSize: clamp(input.stippleSize, TWIZZLER_DEFAULTS.stippleSize, 0, 8),
     stippleGap: clamp(input.stippleGap, TWIZZLER_DEFAULTS.stippleGap, 0, 12),
     rotateX: clamp(input.rotateX, TWIZZLER_DEFAULTS.rotateX, -89, 89),
-    rotateY: clamp(input.rotateY, TWIZZLER_DEFAULTS.rotateY, -180, 180),
+    rotateY: clamp(input.rotateY, TWIZZLER_DEFAULTS.rotateY, -89, 89),
     rotateZ: clamp(input.rotateZ, TWIZZLER_DEFAULTS.rotateZ, -180, 180),
     panX: clamp(input.panX, TWIZZLER_DEFAULTS.panX, -40, 40),
     panY: clamp(input.panY, TWIZZLER_DEFAULTS.panY, -40, 40),
     viewDistance: clamp(input.viewDistance, TWIZZLER_DEFAULTS.viewDistance, 0.5, 120),
   };
+}
+
+/** Orange-wave reference constants (from orange-wave-vector.html). */
+const ORANGE_WAVE_Z_MIN = -1.8;
+const ORANGE_WAVE_Z_MAX = 2.8;
+const ORANGE_WAVE_X_RANGE = 6.8;
+
+type Vec3 = { x: number; y: number; z: number };
+type WavePoint = Vec3 & { u: number; origX: number; origY: number; origZ: number; pitchZ: number };
+
+function parseRgb(hex: string): { r: number; g: number; b: number } {
+  const value = hex.replace("#", "");
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16),
+  };
+}
+
+function lerpChannel(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function lerpRgb(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+  t: number,
+): { r: number; g: number; b: number } {
+  return {
+    r: lerpChannel(a.r, b.r, t),
+    g: lerpChannel(a.g, b.g, t),
+    b: lerpChannel(a.b, b.b, t),
+  };
+}
+
+function rgbToHex(c: { r: number; g: number; b: number }): string {
+  const channel = (value: number) =>
+    Math.round(Math.max(0, Math.min(255, value)))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(c.r)}${channel(c.g)}${channel(c.b)}`;
+}
+
+/** Multi-sine ribbon height from the orange-wave reference. */
+export function orangeWaveY(x: number, z: number, t: number, amplitude = 1, xRange = ORANGE_WAVE_X_RANGE): number {
+  let y = 0;
+  y += 0.42 * Math.sin(x * 0.42 + z * 0.3 + t * 0.09);
+  y += 0.28 * Math.sin(x * 0.95 - z * 0.48 + t * 0.06 + 1.0);
+  y += 0.16 * Math.sin(x * 1.65 + z * 0.95 - t * 0.14 + 0.5);
+  y += 0.11 * Math.sin(x * 2.3 - z * 1.35 + t * 0.11 - 0.7);
+  y += 0.07 * Math.sin(x * 3.1 + z * 1.8 - t * 0.2 + 1.8);
+  y += 0.045 * Math.sin(x * 4.2 - z * 2.4 + t * 0.26 + 0.9);
+  y += 0.025 * Math.sin(x * 5.6 + z * 3.1 - t * 0.33);
+  y += 0.015 * Math.sin(x * 7.0 - z * 3.8 + t * 0.41);
+  y += 0.05 * Math.sin(z * 1.9 + t * 0.19) * Math.sin(x * 0.3 + 0.4);
+  y += 0.03 * Math.sin(z * 2.9 - t * 0.27) * Math.cos(x * 0.45);
+  // Soft longitudinal envelope scales with visible X range (wide canvases expand X).
+  const edgeOuter = xRange * (8.5 / ORANGE_WAVE_X_RANGE);
+  const edgeInner = xRange * (3.8 / ORANGE_WAVE_X_RANGE);
+  const env = Math.max(0, Math.min(1, (edgeOuter - Math.abs(x)) / Math.max(1e-6, edgeOuter - edgeInner)));
+  y *= env * env * (3 - 2 * env);
+  return y * amplitude;
+}
+
+/** World-space half-width so square framing stays stable; wide canvases see more left/right. */
+export function orangeWaveXRangeForCanvas(width: number, height: number): number {
+  const w = Math.max(1, width);
+  const h = Math.max(1, height);
+  return ORANGE_WAVE_X_RANGE * Math.max(1, w / h);
+}
+
+function orangeWaveRotX(p: Vec3, a: number): Vec3 {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return { x: p.x, y: p.y * c - p.z * s, z: p.y * s + p.z * c };
+}
+
+function orangeWaveRotY(p: Vec3, a: number): Vec3 {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return { x: p.x * c + p.z * s, y: p.y, z: -p.x * s + p.z * c };
+}
+
+function orangeWaveRotZ(p: Vec3, a: number): Vec3 {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return { x: p.x * c - p.y * s, y: p.x * s + p.y * c, z: p.z };
 }
 
 export function twizzlerEdgeHeights(
@@ -319,11 +486,7 @@ function sampleKnots(x: number, knots: ReadonlyArray<readonly [number, number]>)
   return knots[knots.length - 1][1];
 }
 
-/**
- * Exact Shadertoy sine-pack Y in **pixel** space (canvas Y down).
- * uv.x = (x - 0.5W) / H  — same as the fragment shader.
- * Line sits at uv.y = 0.25 * wave  (shader Y up) → canvasY = mid - uv.y * H.
- */
+/** Exact Shadertoy isoline Y in pixel space (for tests / Canvas2D fallbacks). */
 export function twizzlerShaderPackPixelY(
   pixelX: number,
   pixelWidth: number,
@@ -379,7 +542,7 @@ export function twizzlerShaderPackY(
   return twizzlerShaderPackPixelY(xT * W, W, H, fiberIndex, lineCount, time, settings, recipe) / H;
 }
 
-/** depthTerrain 3/4/5 → shader pack recipes 0/1/2. */
+/** depthTerrain 3/4/5 → exact sine-pack recipes 0/1/2 (Canvas2D orange-wave stays on 0–2). */
 export function twizzlerShaderPackRecipe(depthTerrain: number): 0 | 1 | 2 | null {
   const t = Math.round(depthTerrain);
   if (t === 3) return 0;
@@ -718,10 +881,6 @@ export function twizzlerDepthYBias(
   const nearRightHold = -nearness * right * amp * 0.55;
 
   const terrain = Math.round(Math.max(0, Math.min(2, depthTerrain))) as 0 | 1 | 2;
-  // Shader-pack terrains (3–5) skip classic Z→Y hills — the sine pack owns Y.
-  if (Math.round(depthTerrain) >= 3) {
-    return farRightDrop * 0.35 + nearRightHold * 0.35;
-  }
   let hills = 0;
   switch (terrain) {
     case 0: {
@@ -766,13 +925,23 @@ export type TwizzlerLine = {
   /** -1..1 across ribbon width. */
   across: number;
   opacity: number;
-  /** Primary stroke color for this fiber (SVG + canvas), fog already applied. */
+  /** Primary stroke color for this fiber (SVG + canvas). */
   color: string;
   /** Typical nearness 0..1 (toward camera). */
   nearness: number;
   /** Stroke width in px for this fiber. */
   strokeWidth: number;
-  points: Array<{ x: number; y: number; depth: number; along: number; nearness: number }>;
+  points: Array<{
+    x: number;
+    y: number;
+    depth: number;
+    along: number;
+    nearness: number;
+    /** Per-point opacity before settings.opacity (orange-wave). */
+    alpha?: number;
+    /** Per-point hex color (orange-wave gradients). */
+    color?: string;
+  }>;
 };
 
 /** Soften sharp corners along a fiber via short Gaussian Y blur (keeps macro shape). */
@@ -810,168 +979,188 @@ export function buildTwizzlerLines(
   const pixelHeight = Math.max(1, Math.round(height));
   const settings = normalizeTwizzlerSettings(input);
   const time = twizzlerAnimationTime(timeSec, settings.speed);
-  const segmentCount = Math.max(1, Math.ceil(pixelWidth / Math.max(2, settings.pointSpacing)));
-  const lines: TwizzlerLine[] = [];
+  const layerCount = Math.max(1, settings.lineCount);
+  // Sample density follows the shorter axis so wide banners don't thin the ribbon.
+  const sampleAxis = Math.min(pixelWidth, pixelHeight);
+  const pointCount = Math.max(32, Math.min(512, Math.round(sampleAxis / Math.max(2, settings.pointSpacing))));
+  const rotX = (settings.rotateXDeg * Math.PI) / 180;
+  const rotY = (settings.rotateYDeg * Math.PI) / 180;
+  const rotZ = (settings.rotateZDeg * Math.PI) / 180;
+  // Wide canvases expand world X (more L/R of the same shape); square keeps reference range.
+  const xRange = orangeWaveXRangeForCanvas(pixelWidth, pixelHeight);
+  const aspectExpand = xRange / ORANGE_WAVE_X_RANGE;
+  const camDist = settings.camDist;
+  const fov = settings.fov;
+  const zoom = settings.scale;
 
-  // Mid: prior-ish amp/distance, quieter slot gaps so majority stay in-viewport.
-  const gapNoise = 0.42 + settings.wrinkleStrength * 12;
-  const alongGapNoise = 0.55 + settings.wrinkleStrength * 14 + settings.depthSpread * 0.12;
-  const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
-  const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
-  const rawSlots = twizzlerUnevenAcross(
-    settings.lineCount,
-    gapNoise,
-    2.1 + settings.wrinkles * 0.15 + settings.depthTerrain * 1.7,
-  );
-  // Stretch slots toward near/far poles — depthSpread fights mid-pack condensation.
-  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.42 + settings.depthSpread * 0.42));
-
-  const shaderRecipe = twizzlerShaderPackRecipe(settings.depthTerrain);
-  const center: Array<{ x: number; y: number; xT: number }> = [];
-  for (let point = 0; point <= segmentCount; point += 1) {
-    const xT = point / segmentCount;
-    const x = twizzlerPointX(point, segmentCount, pixelWidth);
-    // Shader pack: flat reference spine (each fiber owns its own sine path).
-    const yN = shaderRecipe === null ? twizzlerMarketingCenterY(xT, settings, time) : settings.centerY;
-    center.push({ x, y: yN * pixelHeight, xT });
+  const rotated: WavePoint[][] = [];
+  for (let i = 0; i < layerCount; i += 1) {
+    const z =
+      layerCount <= 1
+        ? (ORANGE_WAVE_Z_MIN + ORANGE_WAVE_Z_MAX) * 0.5
+        : ORANGE_WAVE_Z_MIN + ((ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN) * i) / (layerCount - 1);
+    const layer: WavePoint[] = [];
+    for (let j = 0; j < pointCount; j += 1) {
+      const u = pointCount <= 1 ? 0 : (j / (pointCount - 1)) * 2 - 1;
+      const x = u * xRange;
+      const y = orangeWaveY(x, z, time, settings.amplitude, xRange);
+      let q: Vec3 = { x, y, z };
+      q = orangeWaveRotX(q, rotX);
+      const pitchZ = q.z;
+      q = orangeWaveRotY(q, rotY);
+      q = orangeWaveRotZ(q, rotZ);
+      layer.push({ ...q, u, origX: x, origY: y, origZ: z, pitchZ });
+    }
+    rotated.push(layer);
   }
 
-  for (let range = 0; range < settings.lineCount; range += 1) {
-    const across = acrossSlots[range] ?? (settings.lineCount <= 1 ? 0 : (range / (settings.lineCount - 1)) * 2 - 1);
+  let minPX = Infinity;
+  let maxPX = -Infinity;
+  const useParamX = aspectExpand > 1.001;
+  for (const layer of rotated) {
+    for (const p of layer) {
+      const inCore = Math.abs(p.origX) <= ORANGE_WAVE_X_RANGE;
+      const depth = useParamX && !inCore ? camDist + p.pitchZ : camDist + p.z;
+      if (depth < 0.4) continue;
+      const px = useParamX ? (p.origX / camDist) * fov : (p.x / depth) * fov;
+      if (px < minPX) minPX = px;
+      if (px > maxPX) maxPX = px;
+    }
+  }
+  const span = Math.max(0.001, maxPX - minPX);
+  // Wide: fit the square-core parameter span so shape scale matches square; wings extend L/R.
+  const fitSpan = useParamX ? span / aspectExpand : span;
+  const fitScale = Math.min(2.2, (1.88 * zoom) / Math.max(0.001, fitSpan));
+  const mid = (minPX + maxPX) * 0.5;
+  // Uniform pixel scale from height: square maps identically to the old path;
+  // banners keep the same world→pixel scale and reveal more L/R.
+  const screenScale = pixelHeight;
+
+  const colXA = parseRgb(settings.colorFar);
+  const colXB = parseRgb(settings.colorNear);
+  const colYA = parseRgb(settings.colorEdge);
+  const colYB = parseRgb(settings.colorNear);
+  const baseOrange = parseRgb(settings.color);
+  const backgroundRgb = parseRgb(settings.backgroundColor);
+
+  const lines: TwizzlerLine[] = [];
+  for (let i = 0; i < rotated.length; i += 1) {
+    const layer = rotated[i]!;
+    const across = layerCount <= 1 ? 0 : (i / (layerCount - 1)) * 2 - 1;
     const points: TwizzlerLine["points"] = [];
+    let sumA = 0;
+    let sumD = 0;
+    let sumR = 0;
+    let sumG = 0;
+    let sumB = 0;
+    let cnt = 0;
 
-    for (let point = 0; point <= segmentCount; point += 1) {
-      const c = center[point];
-      const prev = center[Math.max(0, point - 1)];
-      const next = center[Math.min(segmentCount, point + 1)];
-      const tx = next.x - prev.x;
-      const ty = next.y - prev.y;
-      const len = Math.hypot(tx, ty) || 1;
-      const nx = -ty / len;
-      const ny = tx / len;
+    for (let j = 0; j < layer.length; j += 1) {
+      const p = layer[j]!;
+      const inCore = Math.abs(p.origX) <= ORANGE_WAVE_X_RANGE;
+      // Core matches square perspective; wings use pitch depth so expanded X stays stable.
+      const depth = useParamX && !inCore ? camDist + p.pitchZ : camDist + p.z;
+      if (depth < 0.4) continue;
 
-      const theta = twizzlerMarketingTwist(c.xT, settings, time);
-      const fiberTheta = theta + across * 0.12;
-      const face = twizzlerFaceAmount(fiberTheta);
-      const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight;
-      const depth = twizzlerDepthScale(c.xT, settings);
+      let a = orangeWaveSmoothstep(3.2, 0.3, Math.abs(p.origZ + 0.15));
+      a *= orangeWaveSmoothstep(1.12, 0.58, Math.abs(p.u));
+      a *= orangeWaveSmoothstep(0.2, 1.0, depth / 14);
 
-      let x = c.x;
-      let y: number;
-      let nearness: number;
-
-      if (shaderRecipe !== null) {
-        // Exact Shadertoy isoline — even i/n phase, no pack stack / depth warp / soft crush.
-        nearness = 0.45 + 0.55 * c.xT;
-        y = twizzlerShaderPackPixelY(
-          c.x,
-          pixelWidth,
-          pixelHeight,
-          range,
-          settings.lineCount,
-          time,
-          settings,
-          shaderRecipe,
-        );
-        x = c.x;
-      } else {
-        nearness = twizzlerFiberNearness(across, c.xT, settings, time);
-        const far = 1 - nearness;
-        // Classic spine + heat-patch path.
-        const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
-        const organic = (twizzlerNoise(c.xT * 1.4, time * 0.12, 0.35) - 0.5) * settings.wrinkleStrength * 0.9;
-        const braid = across + organic + 0.1 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
-        const zPerspective = 0.7 + 0.3 * nearness;
-        const projected = braid * halfW * (0.2 + 0.8 * face) * zPerspective;
-        const depthY = twizzlerDepthYBias(
-          nearness,
-          pixelHeight,
-          settings.depthLift,
-          c.xT,
-          waveAmp,
-          settings.depthTerrain,
-        );
-        const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
-        const ampNoiseY = twizzlerAmpNoiseY(
-          c.xT,
-          across,
-          pixelHeight,
-          settings.amplitude,
-          settings.wrinkleStrength,
-          patchScale,
-          2.4 + settings.depthTerrain * 0.9,
-        );
-        const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-        const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.15;
-        const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
-        const stackY = acrossX * halfW * verticalOpen;
-        const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
-        const faceY = ny * projected * 0.35;
-        const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
-        x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
-        const spineBase = pixelHeight * settings.centerY;
-        const spineShare = 0.18;
-        y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
+      // Z factor: 1 near camera / low Z, 0 far / high Z (after center+width shaping).
+      let zNearFactor = 1;
+      if (settings.gradientZEnabled) {
+        let g = ((p.origZ - ORANGE_WAVE_Z_MIN) / (ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN)) * 2 - 1;
+        g = (g - settings.gradientZCenter) / Math.max(0.05, settings.gradientZWidth);
+        zNearFactor = Math.max(0, Math.min(1, orangeWaveSmoothstep(1.2, -0.2, g)));
       }
 
-      points.push({ x, y, depth, along: c.xT, nearness });
+      let col = { ...baseOrange };
+      if (settings.gradientXEnabled) {
+        const tx = (p.origX / xRange) * 0.5 + 0.5;
+        const cx = lerpRgb(colXA, colXB, Math.max(0, Math.min(1, tx)));
+        col = lerpRgb(col, cx, settings.gradientXMix);
+      }
+      if (settings.gradientYEnabled && settings.gradientYMix > 0) {
+        const yNorm = p.origY / (0.55 * settings.amplitude + 0.01);
+        const extreme = Math.min(1, Math.abs(yNorm));
+        const influence = orangeWaveSmoothstep(0.15, 0.7, extreme) * settings.gradientYMix;
+        if (influence > 0.001) {
+          const target = yNorm >= 0 ? colYA : colYB;
+          col = lerpRgb(col, target, influence);
+        }
+      }
+      // Default Z look: foreground → background as depth increases (near keeps ink).
+      if (settings.gradientZEnabled && settings.gradientZStrength > 0) {
+        const farMix = (1 - zNearFactor) * Math.min(1, settings.gradientZStrength);
+        col = lerpRgb(col, backgroundRgb, farMix);
+      }
+
+      if (a < 0.008) continue;
+
+      const px = useParamX ? (p.origX / camDist) * fov : (p.x / depth) * fov;
+      const ndcX = (px - mid) * fitScale;
+      // Y always uses the active depth (pitch-stable on wide) so shape scale matches square.
+      const ndcY = (p.y / depth) * fov * 1.25 * zoom;
+      const x = pixelWidth * 0.5 + ndcX * 0.5 * screenScale;
+      const y = pixelHeight * 0.5 - ndcY * 0.5 * screenScale;
+      const nearness = Math.max(0, Math.min(1, 1 - (depth - 8) / 6));
+      const hex = rgbToHex(col);
+      points.push({
+        x,
+        y,
+        depth,
+        along: (p.u + 1) * 0.5,
+        nearness,
+        alpha: a,
+        color: hex,
+      });
+      sumA += a;
+      sumD += depth;
+      sumR += col.r;
+      sumG += col.g;
+      sumB += col.b;
+      cnt += 1;
     }
 
-    // Soften tips on classic path only — shader pack is already C∞ isolines.
-    if (shaderRecipe === null) {
-      twizzlerSoftenFiberCorners(points, 16);
-    }
+    if (points.length < 2) continue;
+    const avgA = sumA / Math.max(1, cnt);
+    if (avgA < 0.01) continue;
+    const avgDepth = sumD / Math.max(1, cnt);
+    const depthRatio = camDist / Math.max(0.4, avgDepth);
+    const rawW = settings.lineWidth * (1 + (depthRatio - 1) * settings.perspectiveWidth);
+    const strokeWidth = Math.max(settings.minLineWidth, Math.min(settings.maxLineWidth, rawW));
+    const nearness = Math.max(0, Math.min(1, 1 - (avgDepth - 8) / 6));
+    const avgColor = rgbToHex({ r: sumR / cnt, g: sumG / cnt, b: sumB / cnt });
 
-    const mid = points[Math.floor(points.length * 0.62)] ?? points[0];
-    const midNear = mid?.nearness ?? 0.5;
-    // Shader pack: keep CF orange readable (no pale-left wash). Classic: full far→near.
-    const colorT =
-      shaderRecipe !== null ? 0.55 + 0.45 * twizzlerColorT(mid?.along ?? 0.5) : twizzlerColorT(mid?.along ?? 0.5);
-    const baseColor = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
-    const withEdge =
-      shaderRecipe === null && Math.abs(across) > 0.85
-        ? twizzlerLerpColor(baseColor, settings.colorEdge, ((Math.abs(across) - 0.85) / 0.15) * 0.35)
-        : baseColor;
-    // Shader pack: no depth fog — isolines stay solid like the Shadertoy example.
-    const fog = shaderRecipe !== null ? 0 : twizzlerFogAmount(midNear);
-    const color = twizzlerFogColor(withEdge, fog);
-
-    const visibility = shaderRecipe !== null ? 1 : 0.12 + 0.88 * Math.pow(midNear, 0.85);
     lines.push({
-      across: shaderRecipe !== null ? (range / Math.max(1, settings.lineCount - 1)) * 2 - 1 : across,
-      opacity: Math.min(0.98, settings.opacity * visibility),
-      color,
-      nearness: midNear,
-      strokeWidth:
-        shaderRecipe !== null
-          ? Math.max(0.5, settings.lineWidth)
-          : Math.max(0.2, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
+      across,
+      opacity: Math.min(1, avgA * 1.45) * settings.opacity,
+      color: avgColor,
+      nearness,
+      strokeWidth,
       points,
     });
   }
 
-  // Classic only: shift pack so visible ink sits on centerY.
-  // Shader pack already places isolines relative to centerY — do not crush the fan.
-  if (shaderRecipe === null) {
-    const targetY = pixelHeight * settings.centerY;
-    for (let iter = 0; iter < 4; iter += 1) {
-      let ySum = 0;
-      let yCount = 0;
-      for (const line of lines) {
-        for (const point of line.points) {
-          if (point.y >= 0 && point.y <= pixelHeight) {
-            ySum += point.y;
-            yCount += 1;
-          }
+  // Shift the pack so visible ink average sits on centerY.
+  const targetY = pixelHeight * settings.centerY;
+  for (let iter = 0; iter < 4; iter += 1) {
+    let ySum = 0;
+    let yCount = 0;
+    for (const line of lines) {
+      for (const point of line.points) {
+        if (point.y >= 0 && point.y <= pixelHeight) {
+          ySum += point.y;
+          yCount += 1;
         }
       }
-      if (yCount <= 0) break;
-      const shift = targetY - ySum / yCount;
-      if (Math.abs(shift) < 0.25) break;
-      for (const line of lines) {
-        for (const point of line.points) {
-          point.y += shift;
-        }
+    }
+    if (yCount <= 0) break;
+    const shift = targetY - ySum / yCount;
+    if (Math.abs(shift) < 0.25) break;
+    for (const line of lines) {
+      for (const point of line.points) {
+        point.y += shift;
       }
     }
   }
@@ -994,44 +1183,38 @@ export function renderTwizzler(
   if (!context) return;
 
   const { settings, lines } = buildTwizzlerLines(pixelWidth, pixelHeight, timeSec, input);
-  const shaderPack = twizzlerShaderPackRecipe(settings.depthTerrain) !== null;
   context.clearRect(0, 0, pixelWidth, pixelHeight);
   context.save();
+  // Butt caps avoid round-cap dots at every segment joint (orange-wave v3).
   context.lineJoin = "round";
-  context.lineCap = "round";
+  context.lineCap = "butt";
   context.setLineDash([]);
 
-  // Far → near so thicker near fibers sit on top.
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
 
   for (const line of ordered) {
     if (line.points.length < 2) continue;
+    context.lineWidth = Math.max(settings.minLineWidth, line.strokeWidth);
 
-    // Continuous smooth path. Fog + color evolve along X via gradient.
-    const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
-    const stops = [0, 0.18, 0.4, 0.62, 0.82, 1];
-    for (const stop of stops) {
-      const sample = line.points[Math.min(line.points.length - 1, Math.round(stop * (line.points.length - 1)))];
-      const nearness = sample?.nearness ?? line.nearness;
-      const fog = shaderPack ? 0 : twizzlerFogAmount(nearness);
-      const colorT = shaderPack
-        ? 0.55 + 0.45 * twizzlerColorT(sample?.along ?? stop)
-        : twizzlerColorT(sample?.along ?? stop);
-      const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
-      gradient.addColorStop(stop, twizzlerFogColor(base, fog));
+    for (let i = 1; i < line.points.length; i += 1) {
+      const a0 = line.points[i - 1]!;
+      const a1 = line.points[i]!;
+      const alpha0 = a0.alpha ?? line.opacity;
+      const alpha1 = a1.alpha ?? line.opacity;
+      if (alpha0 < 0.008 || alpha1 < 0.008) continue;
+      const opacity = Math.min(1, (alpha0 + alpha1) * 0.5 * 1.45 * settings.opacity);
+      if (opacity < 0.01) continue;
+
+      const c0 = parseRgb(a0.color ?? line.color);
+      const c1 = parseRgb(a1.color ?? line.color);
+      const mid = lerpRgb(c0, c1, 0.5);
+      context.strokeStyle = rgbToHex(mid);
+      context.globalAlpha = opacity;
+      context.beginPath();
+      context.moveTo(a0.x, a0.y);
+      context.lineTo(a1.x, a1.y);
+      context.stroke();
     }
-
-    // Width also grows along the path toward the camera (right).
-    const leftNear = line.points[0]?.nearness ?? line.nearness;
-    const rightNear = line.points[line.points.length - 1]?.nearness ?? line.nearness;
-    const widthScale = shaderPack ? 1 : twizzlerStrokeWidthScale(0.35 * leftNear + 0.65 * rightNear);
-
-    context.strokeStyle = gradient;
-    context.globalAlpha = Math.min(0.98, line.opacity);
-    context.lineWidth = Math.max(shaderPack ? 0.55 : 0.35, settings.lineWidth * widthScale);
-    context.beginPath();
-    twizzlerTraceCubic(context, line.points);
-    context.stroke();
   }
 
   context.restore();

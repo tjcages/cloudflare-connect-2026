@@ -14,7 +14,7 @@ async function clearLabStorage(page: Page) {
 }
 
 test("uploaded texture persists across reload and can be deleted", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/lab.html");
   await clearLabStorage(page);
   await page.reload();
 

@@ -7,14 +7,11 @@ Reference: [`banner-5x1.ref.png`](./banner-5x1.ref.png) (Cloudflare Connect 2026
 - Aspect ~**5.02:1** (ref 1024×204). Lab canvas: **1600×320**.
 - Solid white `#FFFFFF`. No logo/typography in the shader recreate.
 
-## Twizzler (hairline ribbon)
+## Twizzler (orange-wave ribbon)
 
-- Continuous fine parallel strokes (not solid fill).
-- Path: mid-left entry → multiple dips (~0.09, 0.22, 0.30, 0.48, 0.65, 0.87) → rise/fan top-right.
-- Envelope: thin at entry → thick mid/right → wispy exit.
-- Depth: denser/more opaque where ribbon comes toward camera; airier where it recedes.
-- Color: peach far (`colorFar`) → deep coral near (`colorNear`); sparse magenta/cyan/purple hairline accents.
-- Z controls: `depthSpread` widens the bundle near camera; `depthLift` raises Y with nearness.
+- Port of `presets/references/orange-wave-vector.html`: 3D multi-sine layers → rotate → perspective project.
+- Defaults: color Orange Accent `#f46021` (COLOR_LIBRARY), 56 layers, Rotate X/Y/Z = 12° / −18° / 0°, animated `speed: 1`.
+- Solid library-token hairlines with depth-based opacity/width (no peach→coral fog gradient).
 
 ## Rain (dash envelope)
 
@@ -22,3 +19,4 @@ Reference: [`banner-5x1.ref.png`](./banner-5x1.ref.png) (Cloudflare Connect 2026
 - Gated to Twizzler Map luminance (hairline strokes + thin shoulders) so dashes sit in/around the ribbon, not full-frame.
 - Full-spectrum accents: magenta / purple / cyan stripe layers + sparkle `hueDriftDeg` ~180.
 - Motion enabled so dashes drift along the field (not a static screen overlay).
+- **Unchanged** by the orange-wave Twizzler swap — keep Banner rain settings as-is.

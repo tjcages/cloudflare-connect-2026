@@ -9,6 +9,7 @@ import {
   type ConfigPreset,
 } from "./presets";
 import type { EngineConfig } from "@necatikcl/stripes-engine";
+import { TWIZZLER_DEFAULTS } from "./twizzler";
 
 const cfg = (tag: string): EngineConfig => ({ tag }) as unknown as EngineConfig;
 
@@ -23,6 +24,7 @@ const presetWithLab = (name: string): ConfigPreset =>
     drawerOpen: { Stripes: true },
     twizzlerEnabled: true,
     twizzler: {
+      ...TWIZZLER_DEFAULTS,
       color: "#d71920",
       opacity: 0.7,
       scale: 0.6,
@@ -52,6 +54,7 @@ const presetWithLab = (name: string): ConfigPreset =>
       depth2Width: 0.25,
       depthSpread: 0,
       depthLift: 0,
+      depthTerrain: 0,
       twist: 1.5,
       noiseScaleX: 0.002,
       noiseScaleY: 0.015,

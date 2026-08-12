@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COLOR_LIBRARY, p3ColorForHex } from "./colorLibrary";
+import { COLOR_LIBRARY, findLibraryColor, LIBRARY_COLOR, p3ColorForHex } from "./colorLibrary";
 
 const CHROMATIC_GROUPS = ["Red", "Orange", "Green", "Blue", "Purple"];
 const EXPECTED_LABELS = [
@@ -50,5 +50,14 @@ describe("color library", () => {
       p3: "color(display-p3 0.996078 0.654902 0)",
     });
     expect(p3ColorForHex("#f46021")).toBe("color(display-p3 0.956863 0.376471 0.129412)");
+  });
+
+  it("exposes Twizzler library aliases that resolve to real tokens", () => {
+    expect(findLibraryColor("Orange", "900 [Accent]")?.hex).toBe(LIBRARY_COLOR.orangeAccent);
+    expect(findLibraryColor("Orange", "800 [Pair]")?.hex).toBe(LIBRARY_COLOR.orangePair);
+    expect(findLibraryColor("Orange", "1000")?.hex).toBe(LIBRARY_COLOR.orangeDeep);
+    expect(findLibraryColor("Red", "900 [Accent]")?.hex).toBe(LIBRARY_COLOR.redAccent);
+    expect(findLibraryColor("Neutral", "White")?.hex).toBe(LIBRARY_COLOR.white);
+    expect(findLibraryColor("Neutral", "11")?.hex).toBe(LIBRARY_COLOR.graphite);
   });
 });

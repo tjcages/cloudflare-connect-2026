@@ -176,3 +176,25 @@ export function cssColorForHex(hex: string): string {
   const normalized = normalizeHex(hex);
   return supportsDisplayP3Color() ? p3ColorForHex(normalized) : normalized;
 }
+
+/** Named tokens used by Twizzler / client preview (must stay in COLOR_LIBRARY). */
+export const LIBRARY_COLOR = {
+  /** Orange / 900 [Accent] — HTML #ff6709 */
+  orangeAccent: "#f46021",
+  /** Orange / 800 [Pair] — HTML #ffcc33 gold */
+  orangePair: "#fea700",
+  /** Orange / 1000 */
+  orangeDeep: "#b33806",
+  /** Red / 900 [Accent] — HTML #ff2a2a peaks */
+  redAccent: "#e92e28",
+  /** Neutral / White */
+  white: "#ffffff",
+  /** Neutral / 11 */
+  graphite: "#5c5c5c",
+} as const;
+
+export function findLibraryColor(groupName: string, label: string): LibraryColor | null {
+  const group = COLOR_LIBRARY.find((entry) => entry.name === groupName);
+  if (!group) return null;
+  return group.colors.find((color) => color.label === label) ?? null;
+}
