@@ -1780,18 +1780,20 @@ body.lab-sidebar-resizing .lab-sidebar {
 }
 
 .lab-panel-mode-toggle {
-  display: inline-flex;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   flex-shrink: 0;
-  align-items: center;
-  gap: 0;
+  align-items: stretch;
+  gap: 2px;
   margin: 0;
-  padding: 0;
+  padding: 2px;
   border: 1px solid var(--color-builder-input-border, #d6d6d6);
   border-radius: 8px;
   overflow: hidden;
-  background: var(--color-builder-surface, #fff);
+  background: var(--color-builder-thumb-track, #d8d8d8);
   min-inline-size: 0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
 }
 
 .lab-panel-mode-toggle > legend {
@@ -1810,7 +1812,8 @@ body.lab-sidebar-resizing .lab-sidebar {
   appearance: none;
   margin: 0;
   border: 0;
-  padding: 4px 10px;
+  border-radius: 6px;
+  padding: 5px 12px;
   font: inherit;
   font-size: 11px;
   font-weight: 600;
@@ -1819,20 +1822,25 @@ body.lab-sidebar-resizing .lab-sidebar {
   color: var(--color-builder-muted, #747474);
   background: transparent;
   cursor: pointer;
+  transition:
+    color 120ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 120ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 120ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .lab-panel-mode-btn + .lab-panel-mode-btn {
-  border-left: 1px solid var(--color-builder-input-border, #d6d6d6);
+  border-left: 0;
 }
 
-.lab-panel-mode-btn:hover {
+.lab-panel-mode-btn:hover:not(.is-selected) {
   color: var(--color-builder-text, #161616);
-  background: var(--color-builder-hover-surface, #fafafa);
+  background: color-mix(in srgb, var(--color-builder-surface, #fff) 55%, transparent);
 }
 
 .lab-panel-mode-btn.is-selected {
-  color: var(--color-builder-text, #161616);
-  background: var(--color-builder-selected-row, #f4f4f4);
+  color: #ffffff;
+  background: var(--color-builder-text, #161616);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 /* Client sidebar shares Leva tokens so tools + panel read as one surface. */
@@ -1880,8 +1888,24 @@ body.lab-sidebar-resizing .lab-sidebar {
   align-self: flex-start;
   border-radius: var(--leva-radius);
   box-shadow: none;
-  background: transparent;
+  background: var(--leva-surface);
   border-color: var(--leva-border);
+}
+
+.lab-shell.is-client-mode .lab-panel-mode-btn {
+  border-radius: calc(var(--leva-radius) - 1px);
+  color: var(--leva-text-muted);
+}
+
+.lab-shell.is-client-mode .lab-panel-mode-btn:hover:not(.is-selected) {
+  color: var(--leva-text);
+  background: color-mix(in srgb, var(--leva-panel-bg) 70%, transparent);
+}
+
+.lab-shell.is-client-mode .lab-panel-mode-btn.is-selected {
+  color: #ffffff;
+  background: var(--color-builder-text, #161616);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
 }
 
 .lab-shell.is-client-mode .lab-client-layouts,
@@ -2000,21 +2024,32 @@ body.lab-sidebar-resizing .lab-sidebar {
 
 :root[data-theme="dark"] .lab-panel-mode-toggle {
   border-color: var(--color-builder-input-border);
-  background: var(--color-builder-surface);
+  background: var(--color-builder-active-surface, #2a2a2a);
 }
 
 :root[data-theme="dark"] .lab-panel-mode-btn {
   color: var(--color-builder-muted);
 }
 
-:root[data-theme="dark"] .lab-panel-mode-btn + .lab-panel-mode-btn {
-  border-left-color: var(--color-builder-input-border);
+:root[data-theme="dark"] .lab-panel-mode-btn:hover:not(.is-selected) {
+  color: var(--color-builder-text);
+  background: color-mix(in srgb, var(--color-builder-surface) 35%, transparent);
 }
 
-:root[data-theme="dark"] .lab-panel-mode-btn:hover,
 :root[data-theme="dark"] .lab-panel-mode-btn.is-selected {
-  color: var(--color-builder-text);
-  background: var(--color-builder-selected-row);
+  color: #161616;
+  background: #f0f0f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="dark"] .lab-shell.is-client-mode .lab-panel-mode-toggle {
+  background: var(--leva-surface);
+  border-color: var(--leva-border);
+}
+
+:root[data-theme="dark"] .lab-shell.is-client-mode .lab-panel-mode-btn.is-selected {
+  color: #161616;
+  background: #f0f0f0;
 }
 
 .lab-sidebar-toggle {
