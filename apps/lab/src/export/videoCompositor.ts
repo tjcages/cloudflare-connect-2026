@@ -7,6 +7,8 @@ export type LabVideoBackgroundOptions = {
 };
 
 export type LabVideoCompositorOptions = LabVideoBackgroundOptions & {
+  /** Drawn under the engine/source canvas (e.g. Twizzler ribbon). */
+  underlayCanvases?: readonly HTMLCanvasElement[];
   overlayCanvases?: readonly HTMLCanvasElement[];
 };
 
@@ -47,6 +49,11 @@ export async function createLabExportCompositor(
       ctx.fillRect(0, 0, width, height);
     } else {
       ctx.clearRect(0, 0, width, height);
+    }
+    for (const underlayCanvas of options.underlayCanvases ?? []) {
+      if (underlayCanvas.width > 0 && underlayCanvas.height > 0) {
+        ctx.drawImage(underlayCanvas, 0, 0, width, height);
+      }
     }
     ctx.drawImage(sourceCanvas, 0, 0, width, height);
     for (const overlayCanvas of options.overlayCanvases ?? []) {
