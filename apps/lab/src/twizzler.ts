@@ -260,11 +260,10 @@ export function twizzlerPathBend(
     "bendPosition" | "bendAmount" | "bend2Position" | "bend2Amount" | "bend3Position" | "bend3Amount"
   >,
 ): number {
-  // Wider gaussians → smoother spine bends (no hard corners).
   return (
-    twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount, 0.24) +
-    twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount, 0.26) +
-    twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount, 0.24)
+    twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount) +
+    twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount) +
+    twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount)
   );
 }
 
@@ -311,24 +310,25 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
   let waves = 0;
   switch (terrain) {
     case 0: {
-      // Rolling multi-hill spine — smooth knots only (no high-freq chatter).
+      // Rolling multi-hill spine (A2 family).
       yKnot = sampleKnots(x, [
-        [0.0, 0.56],
-        [0.12, 0.7],
-        [0.24, 0.82],
-        [0.38, 0.68],
-        [0.5, 0.78],
-        [0.62, 0.5],
-        [0.74, 0.34],
-        [0.88, 0.26],
-        [1.0, 0.4],
+        [0.0, 0.58],
+        [0.1, 0.74],
+        [0.22, 0.88],
+        [0.36, 0.7],
+        [0.48, 0.9],
+        [0.6, 0.52],
+        [0.72, 0.3],
+        [0.86, 0.2],
+        [1.0, 0.38],
       ]);
       waves =
         waveGain *
-        1.15 *
-        (-0.12 * Math.sin(x * Math.PI * 1.9 + 0.3) +
-          -0.08 * Math.sin(x * Math.PI * 2.8 + 1.0) +
-          -0.04 * Math.sin(x * Math.PI * 3.6 + 2.1));
+        1.35 *
+        (-0.11 * Math.sin(x * Math.PI * 2.2 + 0.3) +
+          -0.09 * Math.sin(x * Math.PI * 3.8 + 1.0) +
+          -0.07 * Math.sin(x * Math.PI * 5.6 + 2.1) +
+          -0.045 * Math.sin(x * Math.PI * 8.0 + time * 0.25));
       break;
     }
     case 1: {
@@ -520,46 +520,47 @@ export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
   const s = Math.max(0.45, Math.min(3.2, patchScale));
-  // Low-frequency only — heat patches stay fluid, no harsh lobe edges.
-  const xFreq = 1.6 / s;
-  const zFreq = 3.2 / s;
-  const n0 = twizzlerNoise(x * xFreq + seed, a * zFreq, 0.18);
-  const n1 = twizzlerNoise(x * (xFreq * 1.35) + seed * 1.3, a * (zFreq * 1.2) + 0.55, 0.55);
-  const raw = 0.65 * n0 + 0.35 * n1;
-  return Math.pow(smoothstep(0.22, 0.78, raw), 1.0);
+  const xFreq = 2.6 / s;
+  const zFreq = 4.6 / s;
+  const n0 = twizzlerNoise(x * xFreq + seed, a * zFreq, 0.2);
+  const n1 = twizzlerNoise(x * (xFreq * 1.6) + seed * 1.3, a * (zFreq * 1.4) + 0.55, 0.72);
+  const raw = 0.55 * n0 + 0.45 * n1;
+  return Math.pow(smoothstep(0.26, 0.7, raw), 1.05);
 }
 
 /**
- * Signed Y swell: wide Z-bands with smooth phase-shifted hills along X.
- * Curves stay C1-ish (low-freq sins only) — no harsh polyline kinks.
+ * Signed Y swell: narrow Z-bands with phase-shifted hills along X.
+ * Far / mid / near bands peak at different X — multiple peaks through the stack.
  */
 export function twizzlerAmpSwell(xT: number, across: number, patchScale = 1, seed = 3.1): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
   const s = Math.max(0.45, Math.min(3.2, patchScale));
+  // Narrow bands so neighboring Z regions keep distinct peak phases.
   const bandCount = 5;
-  const bandWidth = 0.28 * s;
+  const bandWidth = 0.2 * s;
   let sum = 0;
   let wSum = 0;
   for (let k = 0; k < bandCount; k += 1) {
     const zCenter = -0.9 + (k / (bandCount - 1)) * 1.8;
     const w = Math.exp(-Math.pow((a - zCenter) / bandWidth, 2));
     const phase = seed * 0.85 + k * 2.85;
-    // Smooth hills only (≤ ~2.4 cycles across width) — up/down without sharp corners.
+    // 2–4 hills along X per band, phase-shifted by Z index.
     const hills =
-      0.7 * Math.sin(x * Math.PI * (1.7 + k * 0.4) + phase) +
-      0.3 * Math.sin(x * Math.PI * (2.4 + k * 0.28) + phase * 1.25);
-    const gate = 0.55 + 0.45 * twizzlerNoise(x * (0.85 / s) + seed + k * 0.7, zCenter * 1.8, 0.35);
+      0.55 * Math.sin(x * Math.PI * (2.8 + k * 0.85) + phase) +
+      0.3 * Math.sin(x * Math.PI * (4.6 + k * 0.55) + phase * 1.55) +
+      0.15 * Math.sin(x * Math.PI * (1.6 + k * 0.3) + phase * 0.7);
+    const gate = 0.45 + 0.55 * twizzlerNoise(x * (1.1 / s) + seed + k * 0.7, zCenter * 2.4, 0.4);
     sum += w * hills * gate;
     wSum += w;
   }
   const lobe = wSum > 1e-6 ? sum / wSum : 0;
-  return Math.tanh(lobe * 1.15);
+  return Math.tanh(lobe * 1.85);
 }
 
 /**
  * Y-amplitude from Z-scattered heat patches (pixel units).
- * Smooth drive — ribbons move up/down without harsh bends.
+ * Strong enough to read as extra peaks/valleys inside the pack, still capped on-canvas.
  */
 export function twizzlerAmpNoiseY(
   xT: number,
@@ -572,28 +573,10 @@ export function twizzlerAmpNoiseY(
 ): number {
   const heat = twizzlerAmpHeat(xT, across, patchScale, seed);
   const swell = twizzlerAmpSwell(xT, across, patchScale, seed + 1.7);
+  // Heat spots boost amplitude; keep below clip so phase-shifted Z peaks stay curved.
   const drive = swell * (0.4 + 0.6 * heat);
-  const yThrow = 0.2 + amplitude * 0.18 + wrinkleStrength * 2.2;
+  const yThrow = 0.22 + amplitude * 0.2 + wrinkleStrength * 2.6;
   return drive * pixelHeight * yThrow;
-}
-
-/** 3-tap Y smooth along a fiber — kills residual polyline kinks, keeps up/down motion. */
-export function twizzlerSmoothFiberY(
-  points: Array<{ x: number; y: number; depth: number; along: number; nearness: number }>,
-  passes = 2,
-): void {
-  if (points.length < 3) return;
-  for (let pass = 0; pass < passes; pass += 1) {
-    const next = points.map((pt, i) => {
-      if (i === 0 || i === points.length - 1) return pt.y;
-      const prev = points[i - 1]!;
-      const nxt = points[i + 1]!;
-      return prev.y * 0.25 + pt.y * 0.5 + nxt.y * 0.25;
-    });
-    for (let i = 0; i < points.length; i += 1) {
-      points[i]!.y = next[i]!;
-    }
-  }
 }
 
 /**
@@ -648,13 +631,13 @@ export function twizzlerDepthYBias(
   let hills = 0;
   switch (terrain) {
     case 0: {
-      // Rolling multi-hills — keep frequencies low for smooth Z terrain.
-      const h1 = -Math.cos((xT - 0.14) * Math.PI * 1.9);
-      const h2 = -Math.cos((xT - 0.42) * Math.PI * 2.5);
-      const h3 = -Math.cos((xT - 0.7) * Math.PI * 2.1);
-      const profile = 0.5 * h1 + 0.32 * h2 + 0.28 * h3;
-      hills = (nearness * profile * 0.4 + far * (-0.5 * profile) * (1 - right * 0.65)) * amp * 0.28;
-      hills += nearness * mid * (1 - right) * amp * 0.08;
+      // A — rolling multi-hills; mid near-dip, far inverse, then far right plunge.
+      const h1 = -Math.cos((xT - 0.12) * Math.PI * 2.4);
+      const h2 = -Math.cos((xT - 0.4) * Math.PI * 3.6);
+      const h3 = -Math.cos((xT - 0.68) * Math.PI * 2.9);
+      const profile = 0.5 * h1 + 0.35 * h2 + 0.3 * h3;
+      hills = (nearness * profile * 0.45 + far * (-0.55 * profile) * (1 - right * 0.65)) * amp * 0.32;
+      hills += nearness * mid * (1 - right) * amp * 0.1;
       break;
     }
     case 1: {
@@ -793,14 +776,22 @@ export function buildTwizzlerLines(
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
       // Soften shared spine lockstep — Z-scattered amp peaks must land at different X.
       const spineBase = pixelHeight * settings.centerY;
-      const spineShare = 0.08;
+      const spineShare = 0.18;
       const y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
 
       points.push({ x, y, depth, along: c.xT, nearness });
     }
 
-    // Smooth along-fiber Y so up/down motion stays fluid (no harsh polyline bends).
-    twizzlerSmoothFiberY(points, 8);
+    // Light along-fiber Y smooth — kills polyline kinks only, keeps B shape.
+    if (points.length >= 3) {
+      for (let pass = 0; pass < 2; pass += 1) {
+        const next = points.map((pt, i) => {
+          if (i === 0 || i === points.length - 1) return pt.y;
+          return points[i - 1]!.y * 0.25 + pt.y * 0.5 + points[i + 1]!.y * 0.25;
+        });
+        for (let i = 0; i < points.length; i += 1) points[i]!.y = next[i]!;
+      }
+    }
 
     const mid = points[Math.floor(points.length * 0.62)] ?? points[0];
     const midNear = mid?.nearness ?? 0.5;

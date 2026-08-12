@@ -1,5 +1,5 @@
 /**
- * Capture locked B: smooth Z-scattered lobes, 240 lines.
+ * Capture locked B (r21 look) with 240 lines + light curve smooth only.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -14,34 +14,8 @@ const outDir = "/opt/cursor/artifacts";
 mkdirSync(outDir, { recursive: true });
 
 const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/builtin/banner-5x1.json"), "utf8"));
-const twizzler = preset.lab?.twizzler ?? preset.config?.twizzler;
-if (!twizzler) throw new Error("banner-5x1.json missing lab.twizzler");
-
-/** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
-const variants = [
-  {
-    id: "B",
-    label: "B lock — smooth Z lobes ×240",
-    tweaks: {},
-  },
-  {
-    id: "A",
-    label: "A — slightly denser Z lobes",
-    tweaks: {
-      wrinkles: 2.2,
-      centerY: 0.38,
-    },
-  },
-  {
-    id: "C",
-    label: "C — wider fewer Z lobes",
-    tweaks: {
-      wrinkles: 1.0,
-      wrinkleStrength: 0.15,
-      centerY: 0.42,
-    },
-  },
-];
+const twizzler = { ...(preset.lab?.twizzler ?? preset.config?.twizzler), speed: 0 };
+if (!twizzler.lineCount) throw new Error("banner-5x1.json missing lab.twizzler");
 
 const bundlePath = "/tmp/twizzler-bundle.js";
 const esbuildBin = resolve(root, "node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/bin/esbuild");
@@ -67,73 +41,38 @@ await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#ff
 <script>${code}</script>
 </body></html>`);
 
-const paths = [];
-for (const variant of variants) {
-  const settings = { ...twizzler, ...variant.tweaks, speed: 0 };
-  await page.evaluate(
-    ({ s, id, label }) => {
-      const out = document.getElementById("c");
-      const ctx = out.getContext("2d");
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, out.width, out.height);
-      const ribbon = document.createElement("canvas");
-      ribbon.width = 1600;
-      ribbon.height = 320;
-      // eslint-disable-next-line no-undef
-      TwizzlerMod.renderTwizzler(ribbon, 1600, 320, 0, s);
-      ctx.fillStyle = "#111111";
-      ctx.fillRect(0, 0, out.width, 96);
-      ctx.drawImage(ribbon, 0, 96);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 64px ui-sans-serif, system-ui, sans-serif";
-      ctx.fillText(id, 28, 70);
-      ctx.font = "600 26px ui-sans-serif, system-ui, sans-serif";
-      ctx.fillText(label, 120, 62);
-    },
-    { s: settings, id: variant.id, label: variant.label },
-  );
-  const outPath = resolve(outDir, `twizzler-r22-${variant.id}.png`);
-  await page.locator("#c").screenshot({ path: outPath, type: "png" });
-  copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
-  copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
-  paths.push({ ...variant, outPath, settings });
-}
+await page.evaluate((s) => {
+  const out = document.getElementById("c");
+  const ctx = out.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, out.width, out.height);
+  const ribbon = document.createElement("canvas");
+  ribbon.width = 1600;
+  ribbon.height = 320;
+  // eslint-disable-next-line no-undef
+  TwizzlerMod.renderTwizzler(ribbon, 1600, 320, 0, s);
+  ctx.fillStyle = "#111111";
+  ctx.fillRect(0, 0, out.width, 96);
+  ctx.drawImage(ribbon, 0, 96);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 64px ui-sans-serif, system-ui, sans-serif";
+  ctx.fillText("B", 28, 70);
+  ctx.font = "600 26px ui-sans-serif, system-ui, sans-serif";
+  ctx.fillText(`B lock restored — ${s.lineCount} lines, light smooth only`, 120, 62);
+}, twizzler);
 
-await page.setViewportSize({ width: 1600, height: 1300 });
-const stackHtml = paths
-  .map((p) => {
-    const b64 = readFileSync(p.outPath).toString("base64");
-    return `<img src="data:image/png;base64,${b64}" style="display:block;width:1600px;margin:0 0 12px;background:#fff"/>`;
-  })
-  .join("");
-await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r22-ABC-stack.png");
-await page.screenshot({ path: stackPath, type: "png", fullPage: true });
-copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
-
+const outPath = resolve(outDir, "twizzler-r23-B.png");
+await page.locator("#c").screenshot({ path: outPath, type: "png" });
+copyFileSync(outPath, resolve(outDir, "twizzler-variant-B.png"));
+copyFileSync(outPath, resolve(outDir, "twizzler-variant-B-labeled.png"));
 await browser.close();
 try {
   unlinkSync(bundlePath);
 } catch {
   /* ignore */
 }
-
 writeFileSync(
   resolve(outDir, "twizzler-variants.json"),
-  JSON.stringify(
-    paths.map(({ id, label, outPath, settings }) => ({
-      id,
-      label,
-      outPath,
-      tweaks: {
-        lineCount: settings.lineCount,
-        wrinkles: settings.wrinkles,
-        wrinkleStrength: settings.wrinkleStrength,
-        pointSpacing: settings.pointSpacing,
-      },
-    })),
-    null,
-    2,
-  ),
+  JSON.stringify({ id: "B", outPath, lineCount: twizzler.lineCount, wrinkles: twizzler.wrinkles }, null, 2),
 );
-console.log(JSON.stringify({ variants: paths.map((p) => ({ id: p.id, label: p.label, outPath: p.outPath })), stackPath }, null, 2));
+console.log(JSON.stringify({ outPath, lineCount: twizzler.lineCount }, null, 2));
