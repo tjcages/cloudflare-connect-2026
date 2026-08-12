@@ -782,15 +782,13 @@ export function buildTwizzlerLines(
       points.push({ x, y, depth, along: c.xT, nearness });
     }
 
-    // Light along-fiber Y smooth — kills polyline kinks only, keeps B shape.
+    // Tiny corner soften only — rounds polyline kinks without reshaping the path.
     if (points.length >= 3) {
-      for (let pass = 0; pass < 2; pass += 1) {
-        const next = points.map((pt, i) => {
-          if (i === 0 || i === points.length - 1) return pt.y;
-          return points[i - 1]!.y * 0.25 + pt.y * 0.5 + points[i + 1]!.y * 0.25;
-        });
-        for (let i = 0; i < points.length; i += 1) points[i]!.y = next[i]!;
-      }
+      const next = points.map((pt, i) => {
+        if (i === 0 || i === points.length - 1) return pt.y;
+        return points[i - 1]!.y * 0.1 + pt.y * 0.8 + points[i + 1]!.y * 0.1;
+      });
+      for (let i = 0; i < points.length; i += 1) points[i]!.y = next[i]!;
     }
 
     const mid = points[Math.floor(points.length * 0.62)] ?? points[0];
