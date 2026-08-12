@@ -1,5 +1,5 @@
 /**
- * Capture Z-scattered heat peaks/valleys (multiple spots through stack, not one L→R swell).
+ * Capture locked B: smooth Z-scattered lobes, 240 lines.
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -13,73 +13,32 @@ const root = resolve(__dirname, "..");
 const outDir = "/opt/cursor/artifacts";
 mkdirSync(outDir, { recursive: true });
 
-const base = {
-  color: "#e8481c",
-  colorFar: "#ffd89a",
-  colorNear: "#e8481c",
-  colorEdge: "#ffc857",
-  opacity: 0.88,
-  speed: 0,
-  edgeFluctuation: 0,
-  edgeSpeed: 0,
-  stippleSize: 0,
-  twist: 1.35,
-  pointSpacing: 3,
-  lineCount: 120,
-  lineWidth: 0.72,
-  amplitude: 1.0,
-  scale: 1.15,
-  centerY: 0.38,
-  depthSpread: 1.18,
-  depthLift: 0.85,
-  leftHeight: 0.6,
-  rightHeight: 0.36,
-  bendPosition: 0.25,
-  bendAmount: -0.1,
-  bend2Position: 0.5,
-  bend2Amount: 0.12,
-  bend3Position: 0.8,
-  bend3Amount: -0.1,
-  depthPosition: 0.86,
-  depthAmount: 0.9,
-  depthWidth: 0.36,
-  depth2Position: 0.42,
-  depth2Amount: 0.2,
-  depth2Width: 0.12,
-  wrinkles: 2.8,
-  wrinkleStrength: 0.14,
-};
+const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/builtin/banner-5x1.json"), "utf8"));
+const twizzler = preset.lab?.twizzler ?? preset.config?.twizzler;
+if (!twizzler) throw new Error("banner-5x1.json missing lab.twizzler");
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
-    id: "A",
-    label: "A — mid Z-lobe peaks (lock)",
-    tweaks: {
-      depthTerrain: 0,
-      wrinkles: 2.8,
-      wrinkleStrength: 0.14,
-    },
+    id: "B",
+    label: "B lock — smooth Z lobes ×240",
+    tweaks: {},
   },
   {
-    id: "B",
-    label: "B — fewer wide Z lobes",
+    id: "A",
+    label: "A — slightly denser Z lobes",
     tweaks: {
-      depthTerrain: 0,
-      wrinkles: 1.4,
-      wrinkleStrength: 0.14,
-      centerY: 0.4,
+      wrinkles: 2.2,
+      centerY: 0.38,
     },
   },
   {
     id: "C",
-    label: "C — dense Z-scattered lobes",
+    label: "C — wider fewer Z lobes",
     tweaks: {
-      depthTerrain: 0,
-      wrinkles: 5.0,
-      wrinkleStrength: 0.13,
-      centerY: 0.36,
-      lineWidth: 0.7,
+      wrinkles: 1.0,
+      wrinkleStrength: 0.15,
+      centerY: 0.42,
     },
   },
 ];
@@ -110,7 +69,7 @@ await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#ff
 
 const paths = [];
 for (const variant of variants) {
-  const settings = { ...base, ...variant.tweaks, speed: 0 };
+  const settings = { ...twizzler, ...variant.tweaks, speed: 0 };
   await page.evaluate(
     ({ s, id, label }) => {
       const out = document.getElementById("c");
@@ -133,7 +92,7 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r21-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r22-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -148,7 +107,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r21-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r22-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
@@ -167,9 +126,10 @@ writeFileSync(
       label,
       outPath,
       tweaks: {
-        depthTerrain: settings.depthTerrain,
-        wrinkleStrength: settings.wrinkleStrength,
+        lineCount: settings.lineCount,
         wrinkles: settings.wrinkles,
+        wrinkleStrength: settings.wrinkleStrength,
+        pointSpacing: settings.pointSpacing,
       },
     })),
     null,

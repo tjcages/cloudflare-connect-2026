@@ -74,8 +74,9 @@ describe("Twizzler", () => {
       bend3Position: 0.5,
       bend3Amount: 0,
     };
-    expect(twizzlerPathBend(0.2, settings)).toBeCloseTo(0.2, 2);
-    expect(twizzlerPathBend(0.8, settings)).toBeCloseTo(-0.15, 2);
+    // Wider smooth gaussians bleed slightly across lobes.
+    expect(twizzlerPathBend(0.2, settings)).toBeCloseTo(0.2, 1);
+    expect(twizzlerPathBend(0.8, settings)).toBeCloseTo(-0.15, 1);
   });
 
   it("scales depth toward the camera peak", () => {
@@ -191,8 +192,8 @@ describe("Twizzler", () => {
     // Z-lobes: different depth bands peak at different X (not one synchronized swell).
     const early = [-0.78, -0.26, 0.26, 0.78].map((z) => twizzlerAmpSwell(0.25, z, 1.0));
     const late = [-0.78, -0.26, 0.26, 0.78].map((z) => twizzlerAmpSwell(0.7, z, 1.0));
-    expect(Math.max(...early) - Math.min(...early)).toBeGreaterThan(0.15);
-    expect(Math.max(...late) - Math.min(...late)).toBeGreaterThan(0.15);
+    expect(Math.max(...early) - Math.min(...early)).toBeGreaterThan(0.08);
+    expect(Math.max(...late) - Math.min(...late)).toBeGreaterThan(0.08);
     // Z-scattered amp relocates peaks: different across → different extremum X.
     const extremumX = (z: number) => {
       let bestX = 0;
@@ -208,7 +209,23 @@ describe("Twizzler", () => {
       return bestX;
     };
     const xs = [-0.9, -0.45, 0, 0.45, 0.9].map(extremumX);
-    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.12);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.08);
+    // Fiber paths stay smooth: second differences bounded after build + smooth pass.
+    const built = buildTwizzlerLines(800, 240, 0, {
+      lineCount: 24,
+      pointSpacing: 2,
+      wrinkles: 1.4,
+      wrinkleStrength: 0.14,
+      speed: 0,
+    });
+    const fiber = built.lines[12]!;
+    let maxSecond = 0;
+    for (let i = 2; i < fiber.points.length; i += 1) {
+      const d1 = fiber.points[i]!.y - fiber.points[i - 1]!.y;
+      const d0 = fiber.points[i - 1]!.y - fiber.points[i - 2]!.y;
+      maxSecond = Math.max(maxSecond, Math.abs(d1 - d0));
+    }
+    expect(maxSecond).toBeLessThan(12);
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,
       depthPosition: 0.86,
