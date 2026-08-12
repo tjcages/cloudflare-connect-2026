@@ -25,6 +25,8 @@ describe("client preview presets", () => {
     expect(bundle.engineConfig.background?.transparent).toBe(false);
     expect(bundle.engineConfig.background?.color).toBe(0xffffff);
     expect(bundle.engineConfig.sparkle?.gaps?.enabled).toBe(false);
+    // Rain off must not disable the stripe engine — LabApp hides the rain canvas instead.
+    expect(bundle.engineConfig.stripesEnabled).toBe(true);
     expect(bundle.twizzler.lineCount).toBe(56);
     expect(bundle.twizzler.lineWidth).toBeCloseTo(1.15);
     expect(bundle.twizzler.color).toBe("#f46021");
@@ -42,7 +44,7 @@ describe("client preview presets", () => {
     expect(bundle.twizzler.depthTerrain).toBe(0);
   });
 
-  it("toggles rain via sparkle.gaps without exposing camera state", () => {
+  it("toggles rain via sparkle.gaps without disabling the stripe engine", () => {
     const withRain = buildClientPreviewBundle({ ...DEFAULT_CLIENT_PREVIEW_STATE, rainEnabled: true });
     expect(withRain.engineConfig.sparkle?.gaps?.enabled).toBe(true);
     expect(withRain.engineConfig.stripesEnabled).toBe(true);
@@ -50,7 +52,7 @@ describe("client preview presets", () => {
 
     const noRain = buildClientPreviewBundle({ ...DEFAULT_CLIENT_PREVIEW_STATE, rainEnabled: false });
     expect(noRain.engineConfig.sparkle?.gaps?.enabled).toBe(false);
-    expect(noRain.engineConfig.stripesEnabled).toBe(false);
+    expect(noRain.engineConfig.stripesEnabled).toBe(true);
   });
 
   it("applies size, layout, and color overlays", () => {
