@@ -5,6 +5,7 @@ import {
   normalizeTwizzlerSettings,
   orangeWaveXRangeForCanvas,
   orangeWaveY,
+  TWIZZLER_DEFAULTS,
   twizzlerAnimationTime,
   twizzlerBendOffset,
   twizzlerDepthScale,
