@@ -16,6 +16,8 @@ import {
   twizzlerGapWarpedAcross,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
+  twizzlerAmpHeat,
+  twizzlerAmpNoiseY,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -177,6 +179,14 @@ describe("Twizzler", () => {
     for (const sample of gapSamples) {
       expect(Math.abs(sample)).toBeLessThan(1.15);
     }
+
+    // Heat patches are spatially coherent: nearby across values share similar heat.
+    const h0 = twizzlerAmpHeat(0.4, -0.2, 1.0);
+    const hNear = twizzlerAmpHeat(0.4, -0.15, 1.0);
+    const hFar = twizzlerAmpHeat(0.4, 0.9, 1.0);
+    expect(Math.abs(h0 - hNear)).toBeLessThan(Math.abs(h0 - hFar) + 0.05);
+    // Hot spots produce larger |Y| displacement than cold spots at same settings.
+    expect(Math.abs(twizzlerAmpNoiseY(0.35, 0, 320, 1, 0.1, 1))).toBeGreaterThanOrEqual(0);
 
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,

@@ -512,6 +512,56 @@ export function twizzlerGapWarpedAcross(
 }
 
 /**
+ * Top-down amplitude heat map over (x along ribbon, across = depth stack).
+ * Smooth patches: neighboring ribbons share the same hot/cold region.
+ * `patchScale` >1 = larger fewer blobs; <1 = smaller denser spots.
+ */
+export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed = 2.4): number {
+  const x = Math.max(0, Math.min(1, xT));
+  const a = Math.max(-1, Math.min(1, across));
+  const s = Math.max(0.35, Math.min(2.8, patchScale));
+  const n0 = twizzlerNoise(x * (1.05 / s) + seed, a * (0.65 / s), 0.22);
+  const n1 = twizzlerNoise(x * (1.9 / s) + seed * 1.25, a * (1.15 / s) + 0.35, 0.68);
+  const n2 = twizzlerNoise(x * (3.1 / s) + 0.55, a * (0.4 / s) + seed * 0.4, 1.25);
+  const raw = 0.5 * n0 + 0.35 * n1 + 0.15 * n2;
+  return Math.pow(Math.max(0, Math.min(1, raw)), 1.2);
+}
+
+/**
+ * Smooth signed swell shared across a heat patch (fluid Y push, not unique thrash).
+ */
+export function twizzlerAmpSwell(xT: number, across: number, patchScale = 1, seed = 3.1): number {
+  const x = Math.max(0, Math.min(1, xT));
+  const a = Math.max(-1, Math.min(1, across));
+  const s = Math.max(0.35, Math.min(2.8, patchScale));
+  const n =
+    0.62 * (twizzlerNoise(x * (1.15 / s) + seed, a * (0.5 / s), 0.38) - 0.5) +
+    0.38 * (twizzlerNoise(x * (2.05 / s) + 1.05, a * (0.85 / s) + seed * 0.45, 0.95) - 0.5);
+  return Math.tanh(n * 2.2);
+}
+
+/**
+ * Y-amplitude displacement from spatial heat patches (pixel units).
+ * Hot spots swell the pack vertically; cold regions stay calm.
+ */
+export function twizzlerAmpNoiseY(
+  xT: number,
+  across: number,
+  pixelHeight: number,
+  amplitude: number,
+  wrinkleStrength: number,
+  patchScale = 1,
+  seed = 2.4,
+): number {
+  const heat = twizzlerAmpHeat(xT, across, patchScale, seed);
+  const swell = twizzlerAmpSwell(xT, across, patchScale, seed + 1.7);
+  const yThrow = 0.16 + amplitude * 0.2 + wrinkleStrength * 2.6;
+  // Soft edge shimmer only inside hot patches — not unique per-ribbon noise.
+  const micro = (twizzlerNoise(xT * 6.5 + across * 0.25, seed + 5.2, 0.85) - 0.5) * 0.05 * heat;
+  return (heat * swell + micro) * pixelHeight * yThrow;
+}
+
+/**
  * Uneven fiber slots across [-1,1] — irregular gaps instead of even spacing.
  * `gapNoise` 0 = uniform; ~0.35–0.7 = organic cluster/spread.
  */
@@ -686,55 +736,21 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
       );
-      // Y-AMPLITUDE noise — recipe switches hard with depthTerrain (A/B/C survival options).
-      const terrain = Math.round(Math.max(0, Math.min(2, settings.depthTerrain))) as 0 | 1 | 2;
-      let yNoise = 0;
-      let yThrow = 0.2;
-      switch (terrain) {
-        case 0: {
-          // A — mid-freq braid noise, readable independent up/down throughout.
-          yNoise =
-            (twizzlerNoise(c.xT * 3.0 + across * 2.8, range * 0.41, 0.55) - 0.5) * 0.9 +
-            (twizzlerNoise(c.xT * 7.0 + across * 1.9, range * 0.73, 1.2) - 0.5) * 0.65 +
-            (twizzlerNoise(c.xT * 14.0 + across * 3.6, range * 0.22, 0.4) - 0.5) * 0.4 +
-            (twizzlerNoise(c.xT * 26.0 + across * 0.9, range * 0.95, 1.7) - 0.5) * 0.25;
-          yThrow = 0.2 + settings.amplitude * 0.18 + settings.wrinkleStrength * 2.6;
-          break;
-        }
-        case 1: {
-          // B — high-freq chaos: ribbons thrash independently, lots of crossings.
-          yNoise =
-            (twizzlerNoise(c.xT * 6.5 + across * 4.5, range * 1.3, 0.3) - 0.5) * 1.1 +
-            (twizzlerNoise(c.xT * 13.0 + across * 2.2, range * 2.1, 0.9) - 0.5) * 0.95 +
-            (twizzlerNoise(c.xT * 24.0 + across * 5.8, range * 0.7, 1.5) - 0.5) * 0.75 +
-            (twizzlerNoise(c.xT * 42.0 + across * 1.1, range * 3.4, 0.6) - 0.5) * 0.55 +
-            (twizzlerNoise(c.xT * 68.0 + across * 7.2, range * 1.9, 2.0) - 0.5) * 0.35;
-          yThrow = 0.32 + settings.amplitude * 0.28 + settings.wrinkleStrength * 4.0;
-          break;
-        }
-        case 2: {
-          // C — low-freq huge hills: each fiber gets its own slow massive Y silhouette.
-          yNoise =
-            (twizzlerNoise(c.xT * 1.2 + across * 5.5, range * 0.55, 0.2) - 0.5) * 1.35 +
-            (twizzlerNoise(c.xT * 2.4 + across * 3.0, range * 1.1, 0.8) - 0.5) * 1.0 +
-            (twizzlerNoise(c.xT * 4.0 + across * 1.4, range * 0.35, 1.4) - 0.5) * 0.55 +
-            Math.sin(c.xT * Math.PI * (1.6 + Math.abs(across) * 1.2) + across * 4.5 + range * 0.08) * 0.45;
-          yThrow = 0.38 + settings.amplitude * 0.35 + settings.wrinkleStrength * 3.5;
-          break;
-        }
-        default: {
-          const _exhaustive: never = terrain;
-          void _exhaustive;
-          yNoise = 0;
-          yThrow = 0.2;
-          break;
-        }
-      }
-      const ampNoiseY = yNoise * pixelHeight * yThrow;
+      // Y amplitude from spatial heat patches (shared across neighboring ribbons).
+      // Larger wrinkles → smaller denser spots; fewer wrinkles → bigger blobs.
+      const patchScale = Math.max(0.45, Math.min(2.2, 3.5 / Math.max(1.4, settings.wrinkles)));
+      const ampNoiseY = twizzlerAmpNoiseY(
+        c.xT,
+        across,
+        pixelHeight,
+        settings.amplitude,
+        settings.wrinkleStrength,
+        patchScale,
+        2.4 + settings.depthTerrain * 0.9,
+      );
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Pack openness also diverges by terrain so A/B/C read as different species.
-      const packMul = terrain === 1 ? 1.85 : terrain === 2 ? 1.25 : 1.45;
-      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * packMul;
+      // Keep C denseness pack open — patches handle variety, not pack explosion.
+      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.45;
       const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
       const stackY = acrossX * halfW * verticalOpen;
       const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
