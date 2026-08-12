@@ -69,6 +69,19 @@ Branch: cursor/cf-16-target-polish-c78b
 ## Fast local farm (one agent / this machine)
 
 ```bash
+# Broad knob sweep
 node scripts/farm-twizzler-variants.mjs
 # stills → /opt/cursor/artifacts/farm/farm-*.png + farm-STACK.png
+
+# Four axes × A/B/C (knob-level; structural A/B/C live on axis branches)
+node scripts/farm-twizzler-axes.mjs
+# or: node scripts/farm-twizzler-axes.mjs --axis z-heat
+
+# Prefer each axis branch capture script for structural variants:
+#   scripts/capture-twizzler-z-heat.mjs
+#   scripts/capture-twizzler-macro-hills.mjs
+#   scripts/capture-twizzler-density-variants.mjs
+#   scripts/capture-twizzler-target-polish.mjs
 ```
+
+Pick board: `apps/lab/src/presets/builtin/handoff/variants/README.md`
