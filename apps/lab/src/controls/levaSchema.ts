@@ -1476,26 +1476,31 @@ export function useEngineControls(
                   label: "Rain",
                   render: showClientOnly,
                 },
+                twizzlerGradientsEnabled: {
+                  value: initialLabSettings.twizzler.gradientsEnabled ?? true,
+                  label: "Gradients",
+                },
                 twizzlerColor: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
                     label: "Color right (X)",
                   }),
-                  render: showTwizzlerRibbonConfig,
+                  // Default mode uses Presets → Color; fine pickers stay Advanced.
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerColorFar: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorFar,
                     label: "Color left (X)",
                   }),
-                  render: showTwizzlerRibbonConfig,
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerColorEdge: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorEdge ?? "#e92e28",
                     label: "Color peaks (Y)",
                   }),
-                  render: showTwizzlerRibbonConfig,
+                  render: showTwizzlerAuthoring,
                 },
                 ...(options.twizzlerTransport && !clientMode
                   ? {
@@ -1511,6 +1516,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Opacity",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerScale: {
                   value: initialLabSettings.twizzler.scale,
@@ -1518,6 +1524,7 @@ export function useEngineControls(
                   max: 20,
                   step: 0.05,
                   label: "Zoom",
+                  render: showTwizzlerAuthoring,
                 },
               },
               { render: showTwizzlerRibbonConfig, defaultOpen: true },
@@ -1531,6 +1538,8 @@ export function useEngineControls(
                   max: 2,
                   step: 0.01,
                   label: "Center Y",
+                  // Default framing comes from Presets → Layout.
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerAmplitude: {
                   value: initialLabSettings.twizzler.amplitude,
@@ -1697,7 +1706,7 @@ export function useEngineControls(
                   render: showTwizzlerAuthoring,
                 },
               },
-              { render: showTwizzlerRibbonConfig },
+              { render: showTwizzlerRibbonConfig, defaultOpen: true },
             ),
             Gradients: drawerFolder(
               "Twizzler Gradients",
@@ -1752,7 +1761,8 @@ export function useEngineControls(
                   render: showTwizzlerAuthoring,
                 },
               },
-              { render: showTwizzlerRibbonConfig, defaultOpen: true },
+              // Per-axis knobs stay Advanced; master Gradients toggle lives in General (Default).
+              { render: showTwizzlerAuthoring, defaultOpen: true },
             ),
             Stroke: drawerFolder(
               "Twizzler Stroke",
@@ -1777,7 +1787,6 @@ export function useEngineControls(
                   max: 20,
                   step: 0.05,
                   label: "Min width",
-                  render: showTwizzlerAuthoring,
                 },
                 twizzlerMaxLineWidth: {
                   value: initialLabSettings.twizzler.maxLineWidth ?? 3.2,
@@ -1785,7 +1794,6 @@ export function useEngineControls(
                   max: 80,
                   step: 0.1,
                   label: "Max width",
-                  render: showTwizzlerAuthoring,
                 },
                 twizzlerLineCount: {
                   value: initialLabSettings.twizzler.lineCount,
@@ -1800,7 +1808,6 @@ export function useEngineControls(
                   max: 200,
                   step: 1,
                   label: "Point spacing",
-                  render: showTwizzlerAuthoring,
                 },
                 twizzlerStippleSize: {
                   value: initialLabSettings.twizzler.stippleSize ?? 0,
@@ -1808,7 +1815,6 @@ export function useEngineControls(
                   max: 40,
                   step: 0.1,
                   label: "Stipple size",
-                  render: showTwizzlerAuthoring,
                 },
                 twizzlerStippleGap: {
                   value: initialLabSettings.twizzler.stippleGap ?? 0.8,
@@ -1816,10 +1822,10 @@ export function useEngineControls(
                   max: 40,
                   step: 0.1,
                   label: "Stipple gap",
-                  render: showTwizzlerAuthoring,
                 },
               },
-              { render: showTwizzlerRibbonConfig },
+              // Hairline / layer counts are Advanced; Banner defaults are already applied.
+              { render: showTwizzlerAuthoring },
             ),
             View: drawerFolder(
               "Twizzler View",
@@ -1867,7 +1873,8 @@ export function useEngineControls(
                   label: "Pan Y",
                 },
               },
-              { render: showTwizzlerRibbonConfig },
+              // Legacy sine-map View knobs — unused by orange-wave Canvas2D path.
+              { render: showTwizzlerAuthoring },
             ),
             Edges: drawerFolder(
               "Twizzler Edges",
@@ -1949,7 +1956,7 @@ export function useEngineControls(
                   render: showTwizzlerAuthoring,
                 },
               },
-              { render: showTwizzlerRibbonConfig },
+              { render: showTwizzlerRibbonConfig, defaultOpen: true },
             ),
             Field: drawerFolder(
               "Twizzler Map Field",
@@ -2441,18 +2448,25 @@ export function useEngineControls(
           "Background",
           {
             backgroundFillMode: {
-              value:
-                !surfaceConfig &&
-                (initialLabSettings.backgroundFillMode === "transparent" ||
-                  initialLabSettings.backgroundFillMode === "gradient" ||
-                  initialLabSettings.backgroundFillMode === "solid")
-                  ? initialLabSettings.backgroundFillMode
-                  : d.background.transparent
-                    ? "transparent"
-                    : d.background.gradient.enabled
-                      ? "gradient"
-                      : "solid",
-              options: { Transparent: "transparent", Solid: "solid", Gradient: "gradient" } as const,
+              value: (() => {
+                const fromSettings =
+                  !surfaceConfig &&
+                  (initialLabSettings.backgroundFillMode === "transparent" ||
+                    initialLabSettings.backgroundFillMode === "gradient" ||
+                    initialLabSettings.backgroundFillMode === "solid")
+                    ? initialLabSettings.backgroundFillMode
+                    : d.background.transparent
+                      ? "transparent"
+                      : d.background.gradient.enabled
+                        ? "gradient"
+                        : "solid";
+                // Default client mode: Solid / Transparent only (no Gradient).
+                if (clientMode && fromSettings === "gradient") return "solid";
+                return fromSettings;
+              })(),
+              options: clientMode
+                ? ({ Transparent: "transparent", Solid: "solid" } as const)
+                : ({ Transparent: "transparent", Solid: "solid", Gradient: "gradient" } as const),
               label: "Fill",
             },
             backgroundColor: {
@@ -2473,7 +2487,7 @@ export function useEngineControls(
                 "Bottom to top": "bottomToTop",
               } as const,
               label: "Gradient direction",
-              render: (get) => get("Background.backgroundFillMode") === "gradient",
+              render: (get) => showFullLab() && get("Background.backgroundFillMode") === "gradient",
             },
             backgroundGradientStopCount: {
               value: d.background.gradient.stopCount,
@@ -2481,22 +2495,23 @@ export function useEngineControls(
               max: 4,
               step: 1,
               label: "Gradient stops",
-              render: (get) => get("Background.backgroundFillMode") === "gradient",
+              render: (get) => showFullLab() && get("Background.backgroundFillMode") === "gradient",
             },
             backgroundGradientStop0: {
               ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[0]), label: "Stop 1" }),
               label: "Stop 1",
-              render: (get) => get("Background.backgroundFillMode") === "gradient",
+              render: (get) => showFullLab() && get("Background.backgroundFillMode") === "gradient",
             },
             backgroundGradientStop1: {
               ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[1]), label: "Stop 2" }),
               label: "Stop 2",
-              render: (get) => get("Background.backgroundFillMode") === "gradient",
+              render: (get) => showFullLab() && get("Background.backgroundFillMode") === "gradient",
             },
             backgroundGradientStop2: {
               ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[2]), label: "Stop 3" }),
               label: "Stop 3",
               render: (get) =>
+                showFullLab() &&
                 get("Background.backgroundFillMode") === "gradient" &&
                 Number(get("Background.backgroundGradientStopCount")) >= 3,
             },
@@ -2504,12 +2519,13 @@ export function useEngineControls(
               ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[3]), label: "Stop 4" }),
               label: "Stop 4",
               render: (get) =>
+                showFullLab() &&
                 get("Background.backgroundFillMode") === "gradient" &&
                 Number(get("Background.backgroundGradientStopCount")) >= 4,
             },
           },
           {
-            // Client Default needs background color; gradient extras stay available in Advanced.
+            // Client Default: Fill + library Color. Gradient fill is Advanced-only.
             defaultOpen: true,
           },
         ),
@@ -4734,7 +4750,7 @@ export function useEngineControls(
         ),
       }),
     { store: shaderStore },
-    [stripeKey, stripePaletteOptionsKey, stripePaletteValue],
+    [stripeKey, stripePaletteOptionsKey, stripePaletteValue, clientMode],
   );
   shaderControlSetterRef.current = setShaderControl;
 
@@ -4870,7 +4886,7 @@ export function useEngineControls(
   }, [customStripePalettes, surfaceConfig, values.backgroundColor]);
 
   const baseStripes = fromEditable(stripes);
-  const backgroundFillMode =
+  const backgroundFillModeRaw =
     values.backgroundFillMode === "gradient" ||
     values.backgroundFillMode === "solid" ||
     values.backgroundFillMode === "transparent"
@@ -4880,6 +4896,8 @@ export function useEngineControls(
         : d.background.gradient.enabled
           ? "gradient"
           : "solid";
+  // Client Default cannot select Gradient; coerce so Fill options stay Solid/Transparent.
+  const backgroundFillMode = clientMode && backgroundFillModeRaw === "gradient" ? "solid" : backgroundFillModeRaw;
   const sourcePreviewOpacity = Math.max(0, Math.min(1, Number(values.backgroundSourceOpacity ?? 0) / 100));
   const effectiveColorsMode = values.colorsMode === "colors" ? "colors" : "luminance";
   backgroundFillModeRef.current = backgroundFillMode;
@@ -4897,6 +4915,12 @@ export function useEngineControls(
         ) ?? normalizedBackgroundColor)
       : normalizedBackgroundColor;
   backgroundRampBaseHexRef.current = backgroundRampBaseHex;
+
+  useEffect(() => {
+    if (!clientMode) return;
+    if (values.backgroundFillMode !== "gradient") return;
+    setControl({ backgroundFillMode: "solid" });
+  }, [clientMode, setControl, values.backgroundFillMode]);
 
   useEffect(() => {
     if (activeGeneratedPalette !== BACKGROUND_RAMP_PALETTE_NAME) return;
@@ -5507,6 +5531,7 @@ export function useEngineControls(
         perspectiveWidth: shaderValueRecord.twizzlerPerspectiveWidth,
         minLineWidth: shaderValueRecord.twizzlerMinLineWidth,
         maxLineWidth: shaderValueRecord.twizzlerMaxLineWidth,
+        gradientsEnabled: shaderValueRecord.twizzlerGradientsEnabled,
         gradientXEnabled: shaderValueRecord.twizzlerGradientXEnabled,
         gradientXMix: shaderValueRecord.twizzlerGradientXMix,
         gradientYEnabled: shaderValueRecord.twizzlerGradientYEnabled,

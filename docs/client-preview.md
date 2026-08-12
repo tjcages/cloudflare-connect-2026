@@ -12,10 +12,15 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 ## What clients see (Leva)
 
-Top-right of the shader panel: **Default | Advanced** toggle.
+Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** toggle + export buttons.
 
-- **Default** — Presets + Twizzler (Show / Rain / library Color) + Shape rotation + Motion + **Background** (fill + library Color). Camera and heavy authoring folders hidden.
-- **Advanced** — full Leva folders (same authoring surface as the lab).
+- **Default** — only the knobs a client needs:
+  - **Presets** — Size / Layout / Color
+  - **Twizzler → General** — Show, Rain, Gradients (solid ↔ segmented color)
+  - **Twizzler → Shape** — Amplitude, Rotate X/Y/Z
+  - **Twizzler → Motion** — Speed
+  - **Background** — Fill (Solid / Transparent) + library Color
+- **Advanced** — full Leva folders (same authoring surface as the lab). Gradient background fill, Gradients / Stroke / View / Edges / Noise, per-axis Twizzler colors, Zoom / Opacity, and camera folders return here.
 
 ## Twizzler (orange-wave)
 
@@ -24,10 +29,19 @@ Current ribbon geometry is the **orange-wave** 3D projected vector from
 
 - Stroke colors use **COLOR_LIBRARY** (X: Orange Pair→Accent, Y peaks: Red Accent; HTML #ffcc33/#ff6709/#ff2a2a snapped)
 - Background: Neutral White (`#ffffff`), solid — not the HTML demo black
-- Camera/stroke/gradient knobs from orange-wave v3 live in Leva (Gradients + Stroke folders)
-- ~56 layers, Rotate X/Y/Z (defaults 12° / −18° / 0°)
+- Z fade: far / +Z lerps ink **toward stage background color** (not HTML opacity modulate)
+- Camera/stroke/gradient knobs from orange-wave v3 live in Advanced (Gradients + Stroke folders)
+- ~56 layers, Rotate X/Y/Z (defaults 12° / −18° / 0°), `lineWidth` ~1.15, dense sampling (≥160 pts)
 - Rain (`sparkle.gaps`) unchanged from Banner — toggle with **Rain** next to Twizzler **Show**
 - Reference: `apps/lab/src/presets/references/orange-wave-vector.html`
+
+## Exports
+
+Client panel (and lab) expose:
+
+- **Download JSON** — full lab configuration
+- **Export Video** — MediaRecorder / ffmpeg pipeline
+- **Export SVG** — filled ribbon paths (auto outline-stroke). Gradients on → segmented fills grouped per fiber; Gradients off → one solid filled path per fiber (Figma-light).
 
 ## Next HTML → Leva mapping (do this on the next drop)
 
@@ -35,14 +49,15 @@ When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (
 
 | HTML / design control        | Leva folder               | Notes                                                         |
 | ---------------------------- | ------------------------- | ------------------------------------------------------------- |
-| Stroke color                 | Twizzler → Color          | `colorLibraryInputPlugin` → `LIBRARY_COLOR.*` / Orange tokens |
-| Background                   | Background → Fill + Color | Library Neutral White / Neutral steps                         |
+| Stroke color                 | Presets → Color (Default) | `colorLibraryInputPlugin` → `LIBRARY_COLOR.*` / Orange tokens |
+| Background                   | Background → Fill + Color | Library Neutral White / Neutral steps; Gradient = Advanced    |
 | Twizzler on/off              | Twizzler → Show           | existing `twizzlerEnabled`                                    |
+| Gradients on/off             | Twizzler → Gradients      | master switch; off = solid color + combined SVG fills         |
 | Rain on/off                  | Twizzler → Rain           | existing `rainEnabled` → `sparkle.gaps`                       |
-| Rotate X/Y/Z                 | Twizzler → Shape          | already live                                                  |
-| Layer count / width / points | Twizzler → Lines          | already in Advanced                                           |
+| Rotate X/Y/Z                 | Twizzler → Shape          | already live in Default                                       |
+| Layer count / width / points | Twizzler → Stroke         | Advanced                                                      |
 | Speed / pause                | Twizzler → Motion         | `speed` (0 = freeze)                                          |
-| Wave amplitude / envelope    | Twizzler → Shape          | amplitude, scale, centerY                                     |
+| Wave amplitude / envelope    | Twizzler → Shape          | Amplitude in Default; Center Y via Layout presets             |
 | Any new HTML sliders         | Twizzler Shape/Motion     | add settings + normalize + Leva                               |
 
 Colors in the HTML that are not exact library hexes get **snapped** to the nearest `COLOR_LIBRARY` token (prefer Accent / Pair levels). Do not invent a parallel palette.
@@ -50,6 +65,6 @@ Colors in the HTML that are not exact library hexes get **snapped** to the neare
 ## Implementation
 
 - Boot: `apps/lab/src/client-main.tsx` → `<LabApp clientMode />` + Banner 5:1
-- Gating: `drawerFolder({ hideInClient, clientOnly })` in `controls/levaSchema.ts`
+- Gating: `drawerFolder({ hideInClient, clientOnly })` + `showTwizzlerAuthoring` / `showFullLab` in `controls/levaSchema.ts`
 - Preset data: `apps/lab/src/client/clientPresets.ts`
 - Library: `apps/lab/src/components/colorLibrary.ts` (`LIBRARY_COLOR`, `HexColorPopover`)

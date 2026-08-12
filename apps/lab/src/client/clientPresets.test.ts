@@ -26,12 +26,19 @@ describe("client preview presets", () => {
     expect(bundle.engineConfig.background?.color).toBe(0xffffff);
     expect(bundle.engineConfig.sparkle?.gaps?.enabled).toBe(false);
     expect(bundle.twizzler.lineCount).toBe(56);
+    expect(bundle.twizzler.lineWidth).toBeCloseTo(1.15);
     expect(bundle.twizzler.color).toBe("#f46021");
     expect(bundle.twizzler.colorFar).toBe("#fea700");
     expect(bundle.twizzler.colorEdge).toBe("#e92e28");
     expect(bundle.twizzler.opacity).toBeCloseTo(1);
     expect(bundle.twizzler.rotateXDeg).toBeCloseTo(12);
     expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-18);
+    expect(bundle.twizzler.rotateZDeg).toBeCloseTo(0);
+    expect(bundle.twizzler.gradientXEnabled).toBe(true);
+    expect(bundle.twizzler.gradientYEnabled).toBe(true);
+    expect(bundle.twizzler.gradientZEnabled).toBe(true);
+    expect(bundle.twizzler.gradientsEnabled).toBe(true);
+    expect(bundle.twizzler.depthTerrain).toBe(0);
   });
 
   it("toggles rain via sparkle.gaps without exposing camera state", () => {
