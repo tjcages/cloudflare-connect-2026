@@ -14,6 +14,7 @@ import {
   twizzlerFogColor,
   twizzlerDepthYBias,
   twizzlerGapWarpedAcross,
+  twizzlerGroupNearness,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
   twizzlerAmpHeat,
@@ -161,6 +162,14 @@ describe("Twizzler", () => {
     expect(twizzlerFogAmount(0.2, 0.72)).toBeLessThan(twizzlerFogAmount(0.2, 1.18));
     expect(twizzlerFogAmount(0.2, 1.72)).toBeGreaterThan(twizzlerFogAmount(0.2, 1.18));
     expect(twizzlerFogAmount(0.2, 1.18)).toBe(twizzlerFogAmount(0.2));
+    const a3Fog = twizzlerFogAmount(0.2, 1.55, 240);
+    const b3Fog = twizzlerFogAmount(0.2, 1.45, 300);
+    const c3Fog = twizzlerFogAmount(0.2, 1.75, 360);
+    expect(a3Fog).toBeLessThan(b3Fog);
+    expect(b3Fog).toBeLessThan(c3Fog);
+    expect(twizzlerGroupNearness(0.25, 300, 1.45)).toBe(0.25);
+    expect(twizzlerGroupNearness(0.25, 360, 1.75)).toBeLessThan(0.25);
+    expect(twizzlerGroupNearness(0.75, 360, 1.75)).toBeGreaterThan(0.75);
     expect(twizzlerStrokeWidthScale(1)).toBeGreaterThan(twizzlerStrokeWidthScale(0) * 5);
     // Right edge: far (nearness 0) must sit lower on screen than near (nearness 1).
     expect(twizzlerDepthYBias(0, 320, 0.85, 0.95, 1.5, 0)).toBeGreaterThan(
@@ -252,24 +261,24 @@ describe("Twizzler", () => {
     };
     const a = buildTwizzlerLines(400, 80, 0, {
       ...shared,
-      lineCount: 128,
-      lineWidth: 0.9,
-      depthSpread: 0.9,
+      lineCount: 240,
+      lineWidth: 0.42,
+      depthSpread: 1.55,
     });
     const b = buildTwizzlerLines(400, 80, 0, {
       ...shared,
-      lineCount: 240,
-      lineWidth: 0.45,
-      depthSpread: 1.18,
+      lineCount: 300,
+      lineWidth: 0.48,
+      depthSpread: 1.45,
     });
     const c = buildTwizzlerLines(400, 80, 0, {
       ...shared,
-      lineCount: 320,
-      lineWidth: 0.5,
-      depthSpread: 1.45,
+      lineCount: 360,
+      lineWidth: 0.34,
+      depthSpread: 1.75,
     });
 
-    expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([128, 240, 320]);
+    expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([240, 300, 360]);
     const widestStroke = (lines: typeof a.lines) => Math.max(...lines.map((line) => line.strokeWidth));
     expect(widestStroke(a.lines)).toBeGreaterThan(widestStroke(c.lines));
 

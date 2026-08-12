@@ -1,5 +1,5 @@
 /**
- * Capture the CF-16 pack-density/fog A/B/C study.
+ * Capture the CF-16 pack-density/fog A3/B3/C3 refinement.
  *
  * Usage: pir exec node scripts/capture-twizzler-density-variants.mjs
  */
@@ -22,19 +22,19 @@ const preset = JSON.parse(readFileSync(presetPath, "utf8"));
 const lockedB = { ...preset.lab.twizzler, speed: 0 };
 const variants = [
   {
-    id: "A",
-    label: "airier counterpoint · fewer, thicker · clearer far field",
-    settings: { ...lockedB, lineCount: 128, lineWidth: 0.9, depthSpread: 0.9 },
+    id: "A3",
+    label: "readable fibers · expanded spread · restrained fog",
+    settings: { ...lockedB, lineCount: 240, lineWidth: 0.42, depthSpread: 1.55 },
   },
   {
-    id: "B",
-    label: "D2 signal · 240 hairlines · lock-B depth",
-    settings: { ...lockedB, lineCount: 240, lineWidth: 0.45, depthSpread: 1.18 },
+    id: "B3",
+    label: "layered balance · 300 hairlines · P3 spread",
+    settings: { ...lockedB, lineCount: 300, lineWidth: 0.48, depthSpread: 1.45 },
   },
   {
-    id: "C",
-    label: "D3 + P3 signals · 320 hairlines · wider depth",
-    settings: { ...lockedB, lineCount: 320, lineWidth: 0.5, depthSpread: 1.45 },
+    id: "C3",
+    label: "dense grouping · 360 mixed-weight hairlines · deep fog",
+    settings: { ...lockedB, lineCount: 360, lineWidth: 0.34, depthSpread: 1.75 },
   },
 ];
 
@@ -114,7 +114,7 @@ await page.setContent(`<!doctype html>
     <img src="data:image/png;base64,${target}" style="display:block;width:1600px;background:#fff">
   </body>
 </html>`);
-const stackPath = resolve(outDir, "twizzler-pack-density-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-pack-density-A3B3C3-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 
 await browser.close();
@@ -124,7 +124,7 @@ try {
   // Best-effort temporary cleanup.
 }
 
-const manifestPath = resolve(outDir, "twizzler-pack-density-ABC.json");
+const manifestPath = resolve(outDir, "twizzler-pack-density-A3B3C3.json");
 writeFileSync(
   manifestPath,
   JSON.stringify(
