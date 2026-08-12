@@ -27,7 +27,7 @@ const variants = [
   { id: "C", label: "more hills · sharper smooth valleys", hillRhythm: 2 },
 ];
 
-const esbuildBin = resolve(root, "node_modules/.bin/esbuild");
+const esbuildBin = resolve(root, "node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/bin/esbuild");
 execFileSync(
   esbuildBin,
   [
