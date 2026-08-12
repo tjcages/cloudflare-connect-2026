@@ -313,9 +313,10 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
   const x = Math.max(0, Math.min(1, xT));
   const targetPolish = Math.round(Math.max(0, Math.min(3, settings.targetPolish))) as 0 | 1 | 2 | 3;
   if (targetPolish > 0) {
+    const targetStrategy = targetPolish as 1 | 2 | 3;
     let knots: ReadonlyArray<readonly [number, number]>;
     let waves: number;
-    switch (targetPolish) {
+    switch (targetStrategy) {
       case 1:
         // A — silhouette first: target's shallow left hills, low pinch, then high exit.
         knots = [
@@ -369,7 +370,7 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
         waves = -0.03 * Math.sin(x * Math.PI * 6.2 + 0.2) - 0.015 * Math.sin(x * Math.PI * 10.2 + 1.1);
         break;
       default: {
-        const _exhaustive: never = targetPolish;
+        const _exhaustive: never = targetStrategy;
         void _exhaustive;
         knots = [
           [0, 0.55],
