@@ -23,76 +23,6 @@ export function sectionGridRainEngineConfig() {
   return structuredClone(DEFAULT_LAB_ENGINE_CONFIG);
 }
 
-function connectShaderParamsToLeva(params: ConnectShaderParams): Record<string, unknown> {
-  return {
-    connectSpeed: params.speed,
-    connectWavesX: params.wavesX,
-    connectWavesY: params.wavesY,
-    connectDisplacement: params.displacementHeight,
-    connectSpeedX: params.speedX,
-    connectSpeedY: params.speedY,
-    connectShapeWidth: params.shapeWidth,
-    connectCylinderLength: params.cylinderLength,
-    connectTwistX: params.twistX,
-    connectTwistY: params.twistY,
-    connectShapeRadius: params.shapeRadius,
-    connectConeRadiusStart: params.shapeConeRadiusStart,
-    connectConeRadiusEnd: params.shapeConeRadiusEnd,
-    connectShapeTube: params.shapeTube,
-    connectShapeBend: params.shapeBend,
-    connectShapePitch: params.shapePitch,
-    connectShapeAmplitude: params.shapeAmplitude,
-    connectShapeTurns: params.shapeTurns,
-    connectShapeWaveFreq: params.shapeWaveFreq,
-    connectMeshQuality: params.shapeMeshQuality,
-    connectFillColor: params.fillColor,
-    connectFillColor2: params.fillColor2,
-    connectFillGradScale: params.fillGradScale,
-    connectFillRadius: params.fillRadius,
-    connectFillAlpha: params.fillAlpha,
-    connectFillLow: params.fillLow,
-    connectFillHigh: params.fillHigh,
-    connectLineColor: params.lineColor,
-    connectLineCount: params.lineCount,
-    connectLineWidth: params.lineWidth,
-    connectLineAlpha: params.lineAlpha,
-    connectLineFadeLow: params.lineFadeLow,
-    connectLineFadeHigh: params.lineFadeHigh,
-    connectHatchAngle: params.hatchAngle,
-    connectHatchLift: params.hatchLift,
-    connectHatchSpacing: params.hatchSpacing,
-    connectHatchCell: params.hatchCell,
-    connectHatchFill: params.hatchFill,
-    connectDashMin: params.dashMin,
-    connectDashMax: params.dashMax,
-    connectHatchDensity: params.hatchDensity,
-    connectDensityFloor: params.densityFloor,
-    connectHatchDrift: params.hatchDrift,
-    connectWaveGate: params.waveGate,
-    connectEnvCenter: params.envCenter,
-    connectEnvSlope: params.envSlope,
-    connectEnvWidth: params.envWidth,
-    connectEmitCount: params.emitCount,
-    connectEmitAmount: params.emitAmount,
-    connectEmitSpeed: params.emitSpeed,
-    connectEmitDist: params.emitDist,
-    connectEmitFall: params.emitFall,
-    connectEmitSize: params.emitSize,
-    connectEmitStretch: params.emitStretch,
-    connectEmitAlpha: params.emitAlpha,
-    connectEmitPaleColor: params.emitPaleColor,
-    connectEmitSalmonColor: params.emitSalmonColor,
-    connectEmitOrangeColor: params.emitOrangeColor,
-    connectEmitAmberColor: params.emitAmberColor,
-    connectEmitDeepColor: params.emitDeepColor,
-    connectPaleColor: params.paleColor,
-    connectSalmonColor: params.salmonColor,
-    connectOrangeColor: params.orangeColor,
-    connectAmberColor: params.amberColor,
-    connectDeepColor: params.deepColor,
-  };
-}
-
 /** Texture-panel Leva keys (Camera / Tone / Source / General). */
 export function sectionGridRainTextureLevaPatch(): Record<string, unknown> {
   const adj = RAIN.adjustments;
@@ -127,11 +57,10 @@ export function sectionGridRainTextureLevaPatch(): Record<string, unknown> {
   };
 }
 
-/** Shader-panel Leva keys (Grid / Sparkle / Connect material). */
+/** Shader-panel Leva keys (Grid / Sparkle only — Connect params via lab settings). */
 export function sectionGridRainShaderLevaPatch(): Record<string, unknown> {
   const grid = RAIN.grid;
   const sparkle = RAIN.sparkle;
-  const connectParams = LAB.connectShaderParams as ConnectShaderParams;
 
   return {
     cellWidth: grid.cellWidth,
@@ -169,8 +98,6 @@ export function sectionGridRainShaderLevaPatch(): Record<string, unknown> {
     sparkleMotionMaxOffsetPx: sparkle.motion.maxOffsetPx,
     sparkleMotionSpeed: sparkle.motion.speed,
     sparkleMotionDirection: sparkle.motion.direction,
-
-    ...connectShaderParamsToLeva(connectParams),
   };
 }
 
