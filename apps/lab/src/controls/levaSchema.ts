@@ -1476,6 +1476,10 @@ export function useEngineControls(
                   label: "Rain",
                   render: showClientOnly,
                 },
+                twizzlerGradientsEnabled: {
+                  value: initialLabSettings.twizzler.gradientsEnabled ?? true,
+                  label: "Gradients",
+                },
                 twizzlerColor: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
@@ -1757,7 +1761,7 @@ export function useEngineControls(
                   render: showTwizzlerAuthoring,
                 },
               },
-              // Gradients stay Advanced; Default Color comes from Presets.
+              // Per-axis knobs stay Advanced; master Gradients toggle lives in General (Default).
               { render: showTwizzlerAuthoring, defaultOpen: true },
             ),
             Stroke: drawerFolder(
@@ -5527,6 +5531,7 @@ export function useEngineControls(
         perspectiveWidth: shaderValueRecord.twizzlerPerspectiveWidth,
         minLineWidth: shaderValueRecord.twizzlerMinLineWidth,
         maxLineWidth: shaderValueRecord.twizzlerMaxLineWidth,
+        gradientsEnabled: shaderValueRecord.twizzlerGradientsEnabled,
         gradientXEnabled: shaderValueRecord.twizzlerGradientXEnabled,
         gradientXMix: shaderValueRecord.twizzlerGradientXMix,
         gradientYEnabled: shaderValueRecord.twizzlerGradientYEnabled,

@@ -66,6 +66,11 @@ export type TwizzlerSettings = {
   /** Stroke width clamp min/max (HTML `minw` / `maxw`). */
   minLineWidth: number;
   maxLineWidth: number;
+  /**
+   * Master switch for X/Y/Z line-segmentation gradients.
+   * When false, fibers render/export as one solid color (Figma-friendly combined fills).
+   */
+  gradientsEnabled: boolean;
   /** X length color gradient (left colorFar → right colorNear). */
   gradientXEnabled: boolean;
   gradientXMix: number;
@@ -148,6 +153,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   perspectiveWidth: 1.8,
   minLineWidth: 0.4,
   maxLineWidth: 3.2,
+  gradientsEnabled: true,
   gradientXEnabled: true,
   gradientXMix: 1,
   gradientYEnabled: true,
@@ -254,6 +260,16 @@ export function twizzlerNearness(
   return Math.max(0, Math.min(1, (depth - 1) / maxNear));
 }
 
+/** True when any axis gradient should drive per-point color (and SVG segmentation). */
+export function twizzlerUsesLineGradients(settings: TwizzlerSettings): boolean {
+  if (!settings.gradientsEnabled) return false;
+  return (
+    settings.gradientXEnabled ||
+    settings.gradientYEnabled ||
+    (settings.gradientZEnabled && settings.gradientZStrength > 0)
+  );
+}
+
 export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
   const input = value && typeof value === "object" ? (value as Partial<TwizzlerSettings>) : {};
   const color = normalizeTwizzlerColor(input.color);
@@ -300,6 +316,8 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     perspectiveWidth: clamp(input.perspectiveWidth, TWIZZLER_DEFAULTS.perspectiveWidth, 0, 4),
     minLineWidth: clamp(input.minLineWidth, TWIZZLER_DEFAULTS.minLineWidth, 0.15, 1.5),
     maxLineWidth: clamp(input.maxLineWidth, TWIZZLER_DEFAULTS.maxLineWidth, 1, 6),
+    gradientsEnabled:
+      typeof input.gradientsEnabled === "boolean" ? input.gradientsEnabled : TWIZZLER_DEFAULTS.gradientsEnabled,
     gradientXEnabled:
       typeof input.gradientXEnabled === "boolean" ? input.gradientXEnabled : TWIZZLER_DEFAULTS.gradientXEnabled,
     gradientXMix: clamp(input.gradientXMix, TWIZZLER_DEFAULTS.gradientXMix, 0, 1),
@@ -1067,20 +1085,21 @@ export function buildTwizzlerLines(
       a *= orangeWaveSmoothstep(0.2, 1.0, depth / 14);
 
       // Z factor: 1 near camera / low Z, 0 far / high Z (after center+width shaping).
+      const gradientsOn = settings.gradientsEnabled;
       let zNearFactor = 1;
-      if (settings.gradientZEnabled) {
+      if (gradientsOn && settings.gradientZEnabled) {
         let g = ((p.origZ - ORANGE_WAVE_Z_MIN) / (ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN)) * 2 - 1;
         g = (g - settings.gradientZCenter) / Math.max(0.05, settings.gradientZWidth);
         zNearFactor = Math.max(0, Math.min(1, orangeWaveSmoothstep(1.2, -0.2, g)));
       }
 
       let col = { ...baseOrange };
-      if (settings.gradientXEnabled) {
+      if (gradientsOn && settings.gradientXEnabled) {
         const tx = (p.origX / xRange) * 0.5 + 0.5;
         const cx = lerpRgb(colXA, colXB, Math.max(0, Math.min(1, tx)));
         col = lerpRgb(col, cx, settings.gradientXMix);
       }
-      if (settings.gradientYEnabled && settings.gradientYMix > 0) {
+      if (gradientsOn && settings.gradientYEnabled && settings.gradientYMix > 0) {
         const yNorm = p.origY / (0.55 * settings.amplitude + 0.01);
         const extreme = Math.min(1, Math.abs(yNorm));
         const influence = orangeWaveSmoothstep(0.15, 0.7, extreme) * settings.gradientYMix;
@@ -1090,7 +1109,7 @@ export function buildTwizzlerLines(
         }
       }
       // Default Z look: foreground → background as depth increases (near keeps ink).
-      if (settings.gradientZEnabled && settings.gradientZStrength > 0) {
+      if (gradientsOn && settings.gradientZEnabled && settings.gradientZStrength > 0) {
         const farMix = (1 - zNearFactor) * Math.min(1, settings.gradientZStrength);
         col = lerpRgb(col, backgroundRgb, farMix);
       }
@@ -1191,10 +1210,24 @@ export function renderTwizzler(
   context.setLineDash([]);
 
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
+  const useGradients = twizzlerUsesLineGradients(settings);
 
   for (const line of ordered) {
     if (line.points.length < 2) continue;
     context.lineWidth = Math.max(settings.minLineWidth, line.strokeWidth);
+
+    if (!useGradients) {
+      // Solid: one continuous stroke per fiber (cheaper + matches SVG combined fills).
+      context.strokeStyle = line.color;
+      context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
+      context.beginPath();
+      context.moveTo(line.points[0]!.x, line.points[0]!.y);
+      for (let i = 1; i < line.points.length; i += 1) {
+        context.lineTo(line.points[i]!.x, line.points[i]!.y);
+      }
+      context.stroke();
+      continue;
+    }
 
     for (let i = 1; i < line.points.length; i += 1) {
       const a0 = line.points[i - 1]!;

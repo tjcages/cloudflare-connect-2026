@@ -16,7 +16,7 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
 
 - **Default** — only the knobs a client needs:
   - **Presets** — Size / Layout / Color
-  - **Twizzler → General** — Show, Rain
+  - **Twizzler → General** — Show, Rain, Gradients (solid ↔ segmented color)
   - **Twizzler → Shape** — Amplitude, Rotate X/Y/Z
   - **Twizzler → Motion** — Speed
   - **Background** — Fill (Solid / Transparent) + library Color
@@ -41,7 +41,7 @@ Client panel (and lab) expose:
 
 - **Download JSON** — full lab configuration
 - **Export Video** — MediaRecorder / ffmpeg pipeline
-- **Export SVG** — true vectors (per-segment `<path>` strokes, not averaged cubics / rasters)
+- **Export SVG** — filled ribbon paths (auto outline-stroke). Gradients on → segmented fills grouped per fiber; Gradients off → one solid filled path per fiber (Figma-light).
 
 ## Next HTML → Leva mapping (do this on the next drop)
 
@@ -52,6 +52,7 @@ When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (
 | Stroke color                 | Presets → Color (Default) | `colorLibraryInputPlugin` → `LIBRARY_COLOR.*` / Orange tokens |
 | Background                   | Background → Fill + Color | Library Neutral White / Neutral steps; Gradient = Advanced    |
 | Twizzler on/off              | Twizzler → Show           | existing `twizzlerEnabled`                                    |
+| Gradients on/off             | Twizzler → Gradients      | master switch; off = solid color + combined SVG fills         |
 | Rain on/off                  | Twizzler → Rain           | existing `rainEnabled` → `sparkle.gaps`                       |
 | Rotate X/Y/Z                 | Twizzler → Shape          | already live in Default                                       |
 | Layer count / width / points | Twizzler → Stroke         | Advanced                                                      |

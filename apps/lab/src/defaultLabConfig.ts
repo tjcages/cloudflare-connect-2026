@@ -432,6 +432,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     perspectiveWidth: 1.8,
     minLineWidth: 0.4,
     maxLineWidth: 3.2,
+    gradientsEnabled: true,
     gradientXEnabled: true,
     gradientXMix: 1,
     gradientYEnabled: true,

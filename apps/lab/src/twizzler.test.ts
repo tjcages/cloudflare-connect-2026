@@ -361,6 +361,7 @@ describe("Twizzler", () => {
       gradientXEnabled: true,
       gradientYEnabled: true,
       gradientZEnabled: true,
+      gradientsEnabled: true,
       gradientZStrength: 0.75,
       depthTerrain: 0,
       backgroundColor: "#ffffff",
@@ -368,6 +369,27 @@ describe("Twizzler", () => {
     const settings = normalizeTwizzlerSettings({});
     expect(settings.lineWidth).toBeCloseTo(1.15);
     expect(settings.lineCount).toBe(56);
+  });
+
+  it("disables all axis gradients when gradientsEnabled is false", () => {
+    const { lines } = buildTwizzlerLines(400, 400, 0, {
+      lineCount: 12,
+      pointSpacing: 12,
+      speed: 0,
+      color: "#f46021",
+      colorFar: "#fea700",
+      colorNear: "#f46021",
+      colorEdge: "#e92e28",
+      gradientsEnabled: false,
+      gradientXEnabled: true,
+      gradientYEnabled: true,
+      gradientZEnabled: true,
+      backgroundColor: "#ffffff",
+    });
+    expect(lines.length).toBeGreaterThan(4);
+    const colors = new Set(lines.flatMap((line) => line.points.map((p) => p.color)));
+    expect(colors.size).toBe(1);
+    expect([...colors][0]).toBe("#f46021");
   });
 
   it("fades Z gradient from foreground toward background color", () => {
