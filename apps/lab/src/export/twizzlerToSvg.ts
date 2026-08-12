@@ -25,6 +25,54 @@ function parseRgb(hex: string): { r: number; g: number; b: number } {
 
 type Point2 = { x: number; y: number };
 
+function aabbIntersectsArtboard(
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  artboardWidth: number,
+  artboardHeight: number,
+  margin = 1,
+): boolean {
+  if (maxX < -margin || minX > artboardWidth + margin) return false;
+  if (maxY < -margin || minY > artboardHeight + margin) return false;
+  return true;
+}
+
+function pointsAabb(points: readonly Point2[]): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  if (points.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of points) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+function fiberIntersectsArtboard(
+  scaledPoints: readonly Point2[],
+  strokeWidth: number,
+  artboardWidth: number,
+  artboardHeight: number,
+): boolean {
+  const box = pointsAabb(scaledPoints);
+  if (!box) return false;
+  const pad = strokeWidth * 0.5;
+  return aabbIntersectsArtboard(
+    box.minX - pad,
+    box.minY - pad,
+    box.maxX + pad,
+    box.maxY + pad,
+    artboardWidth,
+    artboardHeight,
+  );
+}
+
 /**
  * Outline a centerline polyline into a closed fill path (Figma "Outline Stroke").
  */
@@ -93,6 +141,11 @@ export function twizzlerToSvgLayer(
         if (alpha0 < 0.008 || alpha1 < 0.008) continue;
         const opacity = Math.min(1, (alpha0 + alpha1) * 0.5 * 1.45 * settings.opacity);
         if (opacity < 0.01) continue;
+        const scaledSeg = [
+          { x: a0.x * scaleX, y: a0.y * scaleY },
+          { x: a1.x * scaleX, y: a1.y * scaleY },
+        ];
+        if (!fiberIntersectsArtboard(scaledSeg, strokeWidth, targetWidth, targetHeight)) continue;
         const c0 = parseRgb(a0.color ?? line.color);
         const c1 = parseRgb(a1.color ?? line.color);
         const rgb = {
@@ -100,13 +153,7 @@ export function twizzlerToSvgLayer(
           g: Math.round((c0.g + c1.g) * 0.5),
           b: Math.round((c0.b + c1.b) * 0.5),
         };
-        const d = outlinePolylineFillPath(
-          [
-            { x: a0.x * scaleX, y: a0.y * scaleY },
-            { x: a1.x * scaleX, y: a1.y * scaleY },
-          ],
-          strokeWidth,
-        );
+        const d = outlinePolylineFillPath(scaledSeg, strokeWidth);
         if (!d) continue;
         segmentPaths.push(`      <path d="${d}" ${filledPathAttrs(rgb, opacity)} />`);
       }
@@ -129,6 +176,7 @@ export function twizzlerToSvgLayer(
       if (line.points.length < 2) continue;
       const strokeWidth = Math.max(settings.minLineWidth, line.strokeWidth) * strokeScale;
       const scaled = line.points.map((p) => ({ x: p.x * scaleX, y: p.y * scaleY }));
+      if (!fiberIntersectsArtboard(scaled, strokeWidth, targetWidth, targetHeight)) continue;
       const d = outlinePolylineFillPath(scaled, strokeWidth);
       if (!d) continue;
       const rgb = parseRgb(line.color);
@@ -154,6 +202,7 @@ export function twizzlerToSvgLayer(
       if (line.points.length < 2) continue;
       const strokeWidth = Math.max(settings.minLineWidth, line.strokeWidth) * strokeScale;
       const scaled = line.points.map((p) => ({ x: p.x * scaleX, y: p.y * scaleY }));
+      if (!fiberIntersectsArtboard(scaled, strokeWidth, targetWidth, targetHeight)) continue;
       const d = outlinePolylineFillPath(scaled, strokeWidth);
       if (!d) continue;
       const opacity = Math.max(0.01, Math.min(1, line.opacity));
@@ -185,6 +234,7 @@ export function twizzlerToSvgLayer(
     if (line.points.length < 2) continue;
     const strokeWidth = Math.max(settings.minLineWidth, line.strokeWidth) * strokeScale;
     const scaled = line.points.map((p) => ({ x: p.x * scaleX, y: p.y * scaleY }));
+    if (!fiberIntersectsArtboard(scaled, strokeWidth, targetWidth, targetHeight)) continue;
     const d = outlinePolylineFillPath(scaled, strokeWidth);
     if (!d) continue;
     const opacity = Math.max(0.01, Math.min(1, line.opacity));
