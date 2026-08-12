@@ -75,10 +75,14 @@ function scoreSegments(options: TwizzlerDriftSvgOptions): ScoredSegment[] {
   const segmentPointCount = Math.max(3, Math.round(options.segmentPointCount ?? 17));
   const segments: ScoredSegment[] = [];
 
-  for (const line of lines) {
+  for (const [lineIndex, line] of lines.entries()) {
     const points = simplifyPoints(line.points, stride);
-    for (let start = 0; start < points.length - 1; start += segmentPointCount - 1) {
-      const segmentPoints = points.slice(start, Math.min(points.length, start + segmentPointCount));
+    const segmentStep = segmentPointCount - 1;
+    const firstSegmentPointCount = Math.max(3, segmentPointCount - (lineIndex % segmentStep));
+    let start = 0;
+    while (start < points.length - 1) {
+      const pointCount = start === 0 ? firstSegmentPointCount : segmentPointCount;
+      const segmentPoints = points.slice(start, Math.min(points.length, start + pointCount));
       if (segmentPoints.length < 2) continue;
       const samples = segmentPoints.map((point) => options.sample(point.x, point.y, point, line));
       const absolutes = samples.map((sample) => clamp01(sample.absolute));
@@ -102,6 +106,7 @@ function scoreSegments(options: TwizzlerDriftSvgOptions): ScoredSegment[] {
         along: mean(segmentPoints.map((point) => point.along)),
         slope: (last.y - first.y) / Math.max(1, last.x - first.x),
       });
+      start += segmentPoints.length - 1;
     }
   }
   return segments;
