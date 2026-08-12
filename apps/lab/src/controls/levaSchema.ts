@@ -35,7 +35,7 @@ import type { ShaderConfigKind } from "../shaderConfig";
 import { CONNECT_SHADER_PRESET_ID, SHADER_LIBRARY } from "../shaderLibrary";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
 import {
-  defaultTwizzlerGradientStops,
+  defaultTwizzlerGradientFieldStops,
   parseTwizzlerGradientStops,
   serializeTwizzlerGradientStops,
   withTwizzlerGradientEndpointColors,
@@ -1609,7 +1609,7 @@ export function useEngineControls(
                   render: () => false,
                 },
                 twizzlerRibbonColorMode: {
-                  value: initialLabSettings.twizzler.ribbonColorMode ?? "baked",
+                  value: initialLabSettings.twizzler.ribbonColorMode ?? "sharedGradient",
                   label: "Color mode",
                   options: {
                     Solid: "solid",
@@ -5075,7 +5075,7 @@ export function useEngineControls(
       twizzlerColorFar: color.colorFar,
       twizzlerColorEdge: color.colorEdge,
       twizzlerGradientStops: serializeTwizzlerGradientStops(
-        defaultTwizzlerGradientStops(color.colorFar, color.colorNear ?? color.color),
+        defaultTwizzlerGradientFieldStops(color.colorFar, color.colorNear ?? color.color, color.colorEdge),
       ),
     });
   }, [clientApp, clientColorId, setShaderControl]);
@@ -5178,7 +5178,11 @@ export function useEngineControls(
       twizzlerColorEdge: appearance.twizzler.colorEdge,
       twizzlerRibbonColorMode: appearance.ribbonColorMode,
       twizzlerGradientStops: serializeTwizzlerGradientStops(
-        defaultTwizzlerGradientStops(appearance.twizzler.colorFar, appearance.twizzler.colorNear),
+        defaultTwizzlerGradientFieldStops(
+          appearance.twizzler.colorFar,
+          appearance.twizzler.colorNear,
+          appearance.twizzler.colorEdge,
+        ),
       ),
     });
   }, [clientApp, clientAppearanceId, setControl]);

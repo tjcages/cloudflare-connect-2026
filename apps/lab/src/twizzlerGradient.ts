@@ -69,6 +69,19 @@ export function defaultTwizzlerGradientStops(colorFar: string, colorNear: string
   ];
 }
 
+/** Authored Shared/Fiber default: three off-axis hotspots so the field is visibly 2D. */
+export function defaultTwizzlerGradientFieldStops(
+  colorFar: string,
+  colorNear: string,
+  colorEdge: string,
+): TwizzlerGradientStop[] {
+  return [
+    { id: "far", x: 0.08, y: 0.78, offset: 0.08, color: normalizeHex(colorFar, "#fea700") },
+    { id: "peak", x: 0.5, y: 0.16, offset: 0.5, color: normalizeHex(colorEdge, "#e92e28") },
+    { id: "near", x: 0.92, y: 0.72, offset: 0.92, color: normalizeHex(colorNear, "#f46021") },
+  ];
+}
+
 export function sortTwizzlerGradientStops(stops: readonly TwizzlerGradientStop[]): TwizzlerGradientStop[] {
   return [...stops].sort((a, b) => a.x - b.x || a.y - b.y || a.id.localeCompare(b.id));
 }

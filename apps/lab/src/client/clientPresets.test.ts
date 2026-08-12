@@ -41,7 +41,7 @@ describe("client preview presets", () => {
     const light = findClientAppearancePreset("light");
     expect(light.backgroundHex).toBe("#ffffff");
     expect(light.twizzler.colorNear).toBe("#f46021");
-    expect(light.ribbonColorMode).toBe("baked");
+    expect(light.ribbonColorMode).toBe("sharedGradient");
   });
 
   it("maps Graphic modes to Twizzler / Rain layer flags", () => {
@@ -69,8 +69,9 @@ describe("client preview presets", () => {
     expect(bundle.twizzler.color).toBe("#f46021");
     expect(bundle.twizzler.colorFar).toBe("#fea700");
     expect(bundle.twizzler.gradientStops).toEqual([
-      { id: "far", x: 0, y: 0.5, offset: 0, color: "#fea700" },
-      { id: "near", x: 1, y: 0.5, offset: 1, color: "#f46021" },
+      { id: "far", x: 0.08, y: 0.78, offset: 0.08, color: "#fea700" },
+      { id: "peak", x: 0.5, y: 0.16, offset: 0.5, color: "#e92e28" },
+      { id: "near", x: 0.92, y: 0.72, offset: 0.92, color: "#f46021" },
     ]);
     expect(bundle.twizzler.colorEdge).toBe("#e92e28");
     expect(bundle.twizzler.opacity).toBeCloseTo(1);
@@ -81,7 +82,7 @@ describe("client preview presets", () => {
     expect(bundle.twizzler.gradientYEnabled).toBe(true);
     expect(bundle.twizzler.gradientZEnabled).toBe(true);
     expect(bundle.twizzler.gradientsEnabled).toBe(true);
-    expect(bundle.twizzler.ribbonColorMode).toBe("baked");
+    expect(bundle.twizzler.ribbonColorMode).toBe("sharedGradient");
     expect(bundle.twizzler.depthTerrain).toBe(0);
   });
 

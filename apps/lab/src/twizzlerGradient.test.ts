@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addTwizzlerGradientStop,
+  defaultTwizzlerGradientFieldStops,
   defaultTwizzlerGradientStops,
   gradientFieldClientPlane,
   moveTwizzlerGradientStop,
@@ -21,6 +22,14 @@ import {
 } from "./twizzlerGradient";
 
 describe("twizzlerGradient", () => {
+  it("authors a 2D field default with an off-axis peak (CF-62)", () => {
+    expect(defaultTwizzlerGradientFieldStops("#fea700", "#f46021", "#e92e28")).toEqual([
+      { id: "far", x: 0.08, y: 0.78, offset: 0.08, color: "#fea700" },
+      { id: "peak", x: 0.5, y: 0.16, offset: 0.5, color: "#e92e28" },
+      { id: "near", x: 0.92, y: 0.72, offset: 0.92, color: "#f46021" },
+    ]);
+  });
+
   it("synthesizes colorFar@(0,0.5) → colorNear@(1,0.5) when stops are missing", () => {
     expect(normalizeTwizzlerGradientStops(undefined, "#FEA700", "#F46021")).toEqual([
       { id: "far", x: 0, y: 0.5, offset: 0, color: "#fea700" },

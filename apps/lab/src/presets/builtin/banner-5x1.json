@@ -527,6 +527,11 @@
       "colorFar": "#fea700",
       "colorNear": "#f46021",
       "colorEdge": "#e92e28",
+      "gradientStops": [
+        { "id": "far", "x": 0.08, "y": 0.78, "offset": 0.08, "color": "#fea700" },
+        { "id": "peak", "x": 0.5, "y": 0.16, "offset": 0.5, "color": "#e92e28" },
+        { "id": "near", "x": 0.92, "y": 0.72, "offset": 0.92, "color": "#f46021" }
+      ],
       "opacity": 1,
       "scale": 1,
       "centerY": 0.5,
@@ -566,7 +571,7 @@
       "minLineWidth": 0.4,
       "maxLineWidth": 3.2,
       "gradientsEnabled": true,
-      "ribbonColorMode": "baked",
+      "ribbonColorMode": "sharedGradient",
       "gradientXEnabled": true,
       "gradientXMix": 1,
       "gradientYEnabled": true,

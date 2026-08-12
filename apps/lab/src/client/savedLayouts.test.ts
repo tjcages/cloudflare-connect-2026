@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadLabSettings, resumePersistenceWritesForTests, saveLabSettings } from "../persistence";
+import {
+  LAB_SETTINGS_GENERATION,
+  loadLabSettings,
+  resumePersistenceWritesForTests,
+  saveLabSettings,
+} from "../persistence";
 import { createPreset } from "../presets";
 import { TWIZZLER_DEFAULTS } from "../twizzler";
 import {
@@ -77,7 +82,7 @@ describe("savedLayouts", () => {
   });
 
   it("keeps live storage on refresh when only lab settings exist", () => {
-    localStorage.setItem("stripes-engine-lab-ui-generation", "twizzler-ribbon-visible-v1");
+    localStorage.setItem("stripes-engine-lab-ui-generation", LAB_SETTINGS_GENERATION);
     localStorage.setItem(
       "stripes-engine-lab-ui-settings",
       JSON.stringify({ twizzler: { ...TWIZZLER_DEFAULTS, speed: 7.5 } }),
@@ -90,7 +95,7 @@ describe("savedLayouts", () => {
   });
 
   it("round-trips live Twizzler speed across save + boot skip", () => {
-    localStorage.setItem("stripes-engine-lab-ui-generation", "twizzler-ribbon-visible-v1");
+    localStorage.setItem("stripes-engine-lab-ui-generation", LAB_SETTINGS_GENERATION);
     const banner = resolveClientBootPreset();
     expect(banner?.name).toBe("Banner 5:1");
     if (!banner) throw new Error("expected Banner");
@@ -171,7 +176,7 @@ describe("savedLayouts", () => {
   });
 
   it("round-trips client Size/Layout/Color ids inside saved layout lab payload", () => {
-    localStorage.setItem("stripes-engine-lab-ui-generation", "twizzler-ribbon-visible-v1");
+    localStorage.setItem("stripes-engine-lab-ui-generation", LAB_SETTINGS_GENERATION);
     const preset = createPreset(
       "Agency Full",
       {
