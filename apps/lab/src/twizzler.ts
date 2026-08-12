@@ -449,10 +449,9 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
       const fastPhase = Math.PI * (4.4 * x + 8.5 * x * x);
       waves =
         waveGain *
-        (0.34 * -0.05 * Math.sin(x * Math.PI * 2.15 + 0.25) +
+        (-0.017 * Math.sin(x * Math.PI * 2.15 + 0.25) +
           terminalGate *
-            (-0.035 * Math.sin(acceleratingPhase + 0.3) +
-              -0.022 * Math.sin(fastPhase + 1.25 + time * 0.12)));
+            (-0.035 * Math.sin(acceleratingPhase + 0.3) - 0.022 * Math.sin(fastPhase + 1.25 + time * 0.12)));
       break;
     }
     default: {
