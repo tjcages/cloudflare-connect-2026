@@ -44,7 +44,6 @@
   --color-builder-chip-surface: #eeeeee;
   --color-builder-chip-surface-hover: #e6e6e6;
   --color-builder-chip-text: #525252;
-  --color-builder-zoom-active-surface: #e5e5e5;
   --color-builder-glass: rgba(255, 255, 255, 0.74);
   --color-builder-glass-strong: rgba(255, 255, 255, 0.92);
 }
@@ -96,7 +95,6 @@
   --color-builder-chip-surface: #262626;
   --color-builder-chip-surface-hover: #2f2f2f;
   --color-builder-chip-text: #d4d4d4;
-  --color-builder-zoom-active-surface: #2a2a2a;
   --color-builder-glass: rgba(28, 28, 28, 0.74);
   --color-builder-glass-strong: rgba(28, 28, 28, 0.92);
 }
@@ -1695,7 +1693,7 @@
   justify-content: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 999px;
+  border-radius: 12px;
   background: var(--color-builder-glass);
   border: 1px solid var(--color-builder-hairline);
   backdrop-filter: blur(10px);
@@ -1707,11 +1705,6 @@
   height: 22px;
   min-width: 28px;
   padding: 0 8px;
-}
-
-.lab-canvas-zoom-controls .lab-btn[aria-pressed="true"] {
-  color: var(--color-builder-text);
-  background: var(--color-builder-zoom-active-surface);
 }
 
 .lab-canvas-zoom-value {

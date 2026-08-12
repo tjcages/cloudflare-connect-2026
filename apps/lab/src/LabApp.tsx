@@ -919,7 +919,6 @@ function LabInner({
   const [shaderPlaying, setShaderPlaying] = useState(true);
   const [previewZoom, setPreviewZoom] = useState(() => labSettings.previewZoom ?? initialFitPreviewZoom(labSettings));
   const [previewZoomReady, setPreviewZoomReady] = useState(false);
-  const [mouseZoomEnabled, setMouseZoomEnabled] = useState(true);
   const hasAutoFittedPreviewZoomRef = useRef(false);
   const hasStoredPreviewZoomRef = useRef(labSettings.previewZoom != null);
   const previewZoomTouchedRef = useRef(false);
@@ -1053,12 +1052,11 @@ function LabInner({
 
   const handlePreviewWheel = useCallback(
     (event: WheelEvent<HTMLDivElement>) => {
-      if (!mouseZoomEnabled) return;
       event.preventDefault();
       const factor = wheelZoomFactor(event.deltaY, event.deltaMode);
       updatePreviewZoom((current) => current * factor);
     },
-    [mouseZoomEnabled, updatePreviewZoom],
+    [updatePreviewZoom],
   );
 
   const hud = hudEnabled();
@@ -3699,14 +3697,6 @@ function LabInner({
               onClick={() => updatePreviewZoom((current) => current + CANVAS_PREVIEW_ZOOM_STEP)}
             >
               +
-            </button>
-            <button
-              className="lab-btn"
-              type="button"
-              onClick={() => setMouseZoomEnabled((enabled) => !enabled)}
-              aria-pressed={mouseZoomEnabled}
-            >
-              Mouse {mouseZoomEnabled ? "On" : "Off"}
             </button>
             <span className="lab-canvas-zoom-value">{Math.round(previewZoom * 100)}%</span>
           </div>
