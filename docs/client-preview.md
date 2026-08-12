@@ -19,7 +19,7 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
   - **Presets** — Size / Layout / **Appearance** (Light / Dark) / Color
     - **Size** — canvas dimensions only (does not touch Twizzler color, geometry, or other shader knobs)
     - **Layout** — ribbon geometry / motion only (does not reapply Color)
-    - **Appearance** — stage look: Light = orange Twizzler on white; Dark = cream Twizzler on `#f86a00`
+    - **Appearance** — stage look defaults: Light = orange Twizzler on white; Dark = cream Twizzler on `#f86a00`. **Background → Color** overrides the Appearance stage color until Appearance is toggled again.
     - **Color** — Twizzler ink only (Orange accent / pair / deep + **Light** cream = Dark Appearance colors)
     - ~~Graphite~~ removed (legacy `graphite` ids normalize to **Light**)
   - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
