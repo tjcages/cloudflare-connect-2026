@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertRasterDriftTraceSvg,
   countRasterDriftSvgPaths,
+  rasterDriftTracePass3StudiesToSvg,
   rasterDriftTraceStudiesToSvg,
   type RasterDriftField,
 } from "./rasterDriftTraceToSvg";
@@ -68,5 +69,25 @@ describe("rasterDriftTraceStudiesToSvg", () => {
         requireCubic: true,
       }),
     ).toThrow(/cubic/i);
+  });
+
+  it("creates vector-only adaptive contours and cubic pass-three reconstructions", () => {
+    const studies = rasterDriftTracePass3StudiesToSvg(syntheticCrossingField());
+
+    expect(studies.A3).toContain('data-layer="adaptive-disjoint-contours"');
+    expect(studies.A3).toContain("data-maximum-threshold=");
+    expect(studies.B3).toContain('data-layer="dense-direction-continuous-cubic-ridges"');
+    expect(studies.B3).toContain('data-crossing-order="independent"');
+    expect(studies.C3).toContain('data-layer="restrained-contour-underlay"');
+    expect(studies.C3).toContain('data-layer="dense-high-error-cubic-ridges"');
+
+    for (const [strategy, svg] of Object.entries(studies)) {
+      const requireCubic = strategy === "B3" || strategy === "C3";
+      expect(countRasterDriftSvgPaths(svg)).toBeGreaterThan(1);
+      expect(svg).not.toMatch(/<(?:image|canvas)\b/i);
+      expect(svg).not.toMatch(/data\s*:/i);
+      expect(() => assertRasterDriftTraceSvg(svg, { requireCubic })).not.toThrow();
+      if (requireCubic) expect(svg).toMatch(/\bd="[^"]*\bC/);
+    }
   });
 });

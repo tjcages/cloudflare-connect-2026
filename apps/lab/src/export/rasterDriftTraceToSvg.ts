@@ -7,7 +7,7 @@ export type RasterDriftField = {
   intensity: ArrayLike<number>;
 };
 
-export type RasterDriftTraceStrategy = "A2" | "B2" | "C2";
+export type RasterDriftTraceStrategy = "A2" | "B2" | "C2" | "A3" | "B3" | "C3";
 
 type Point = { x: number; y: number };
 type RidgePoint = Point & { intensity: number };
@@ -18,9 +18,22 @@ type Edge = { start: Point; end: Point; direction: number; used: boolean };
 type ContourOptions = {
   blockSize: number;
   threshold: number;
+  maximumThreshold?: number;
   minimumArea: number;
+  minimumComponentCells?: number;
   simplifyTolerance: number;
   sampleMode: "maximum" | "average";
+};
+
+type RidgeOptions = {
+  xStep: number;
+  threshold: number;
+  maximumTracks: number;
+  peakSpacing?: number;
+  smoothingRadius?: number;
+  minimumSpan?: number;
+  maximumMisses?: number;
+  maximumJump?: number;
 };
 
 const FORBIDDEN_RASTER_CONTENT = /<(?:image|canvas)\b|data\s*:/i;
@@ -131,12 +144,51 @@ function chooseNextEdge(edges: ReadonlyArray<Edge>, incomingDirection: number): 
   return edges.find((edge) => !edge.used);
 }
 
+function removeSmallMaskComponents(mask: Uint8Array, width: number, height: number, minimumCells: number): void {
+  if (minimumCells <= 1) return;
+  const visited = new Uint8Array(mask.length);
+  const neighbors = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const;
+  for (let start = 0; start < mask.length; start += 1) {
+    if (!mask[start] || visited[start]) continue;
+    const component: number[] = [];
+    const queue = [start];
+    visited[start] = 1;
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const index = queue[cursor]!;
+      component.push(index);
+      const x = index % width;
+      const y = Math.floor(index / width);
+      for (const [offsetX, offsetY] of neighbors) {
+        const nextX = x + offsetX;
+        const nextY = y + offsetY;
+        if (nextX < 0 || nextX >= width || nextY < 0 || nextY >= height) continue;
+        const next = nextY * width + nextX;
+        if (!mask[next] || visited[next]) continue;
+        visited[next] = 1;
+        queue.push(next);
+      }
+    }
+    if (component.length < minimumCells) {
+      for (const index of component) mask[index] = 0;
+    }
+  }
+}
+
 function traceContours(field: RasterDriftField, options: ContourOptions): Point[][] {
   const grid = blockValues(field, options.blockSize, options.sampleMode);
+  const mask = new Uint8Array(grid.values.length);
+  for (let index = 0; index < grid.values.length; index += 1) {
+    const value = grid.values[index] ?? 0;
+    mask[index] = value >= options.threshold && value < (options.maximumThreshold ?? 256) ? 1 : 0;
+  }
+  removeSmallMaskComponents(mask, grid.width, grid.height, options.minimumComponentCells ?? 1);
   const active = (x: number, y: number) =>
-    x >= 0 && x < grid.width && y >= 0 && y < grid.height
-      ? (grid.values[y * grid.width + x] ?? 0) >= options.threshold
-      : false;
+    x >= 0 && x < grid.width && y >= 0 && y < grid.height ? (mask[y * grid.width + x] ?? 0) === 1 : false;
   const edges: Edge[] = [];
   const addEdge = (start: Point, end: Point, direction: number) => {
     edges.push({ start, end, direction, used: false });
@@ -193,7 +245,7 @@ function loopsPath(loops: ReadonlyArray<ReadonlyArray<Point>>): string {
     .join("");
 }
 
-function detectColumnPeaks(field: RasterDriftField, x: number, threshold: number): RidgePoint[] {
+function detectColumnPeaks(field: RasterDriftField, x: number, threshold: number, peakSpacing: number): RidgePoint[] {
   const candidates: RidgePoint[] = [];
   for (let y = 1; y < field.height - 1; y += 1) {
     const value = fieldValue(field, x, y);
@@ -203,8 +255,8 @@ function detectColumnPeaks(field: RasterDriftField, x: number, threshold: number
   candidates.sort((a, b) => b.intensity - a.intensity || a.y - b.y);
   const selected: RidgePoint[] = [];
   for (const candidate of candidates) {
-    if (selected.every((point) => Math.abs(point.y - candidate.y) >= 3)) selected.push(candidate);
-    if (selected.length >= 112) break;
+    if (selected.every((point) => Math.abs(point.y - candidate.y) >= peakSpacing)) selected.push(candidate);
+    if (selected.length >= 160) break;
   }
   return selected.sort((a, b) => a.y - b.y);
 }
@@ -228,13 +280,13 @@ function predictedY(track: RidgeTrack, x: number): number {
   return last.y + ridgeSlope(track) * (x - last.x);
 }
 
-function smoothRidge(points: ReadonlyArray<RidgePoint>): Point[] {
+function smoothRidge(points: ReadonlyArray<RidgePoint>, radius: number): Point[] {
   return points.map((point, index) => {
     let weightedY = 0;
     let weight = 0;
-    for (let offset = -8; offset <= 8; offset += 1) {
+    for (let offset = -radius; offset <= radius; offset += 1) {
       const sample = points[Math.max(0, Math.min(points.length - 1, index + offset))]!;
-      const sampleWeight = 9 - Math.abs(offset);
+      const sampleWeight = radius + 1 - Math.abs(offset);
       weightedY += sample.y * sampleWeight;
       weight += sampleWeight;
     }
@@ -242,14 +294,16 @@ function smoothRidge(points: ReadonlyArray<RidgePoint>): Point[] {
   });
 }
 
-function reconstructRidges(
-  field: RasterDriftField,
-  options: { xStep: number; threshold: number; maximumTracks: number },
-): StyledRidge[] {
+function reconstructRidges(field: RasterDriftField, options: RidgeOptions): StyledRidge[] {
+  const peakSpacing = Math.max(1, Math.round(options.peakSpacing ?? 3));
+  const smoothingRadius = Math.max(1, Math.round(options.smoothingRadius ?? 8));
+  const maximumMisses = Math.max(0, Math.round(options.maximumMisses ?? 2));
+  const maximumJump = Math.max(1, options.maximumJump ?? 6);
+  const minimumSpan = options.minimumSpan ?? Math.max(60, field.width * 0.12);
   let active: RidgeTrack[] = [];
   const completed: RidgeTrack[] = [];
   for (let x = 0; x < field.width; x += options.xStep) {
-    const peaks = detectColumnPeaks(field, x, options.threshold);
+    const peaks = detectColumnPeaks(field, x, options.threshold, peakSpacing);
     const unmatched = new Set(peaks.map((_, index) => index));
     const orderedTracks = [...active].sort((a, b) => b.points.length - a.points.length);
     for (const track of orderedTracks) {
@@ -264,7 +318,7 @@ function reconstructRidges(
         const distance = Math.abs(peak.y - expectedY);
         const slopeChange = Math.abs((peak.y - last.y) / deltaX - slope);
         const cost = distance + slopeChange * 3.5 - peak.intensity * 1.4;
-        if (cost < bestCost && distance <= 6 + track.misses * 2.5) {
+        if (cost < bestCost && distance <= maximumJump + track.misses * 2.5) {
           bestCost = cost;
           bestIndex = peakIndex;
         }
@@ -279,7 +333,7 @@ function reconstructRidges(
     }
     const continuing: RidgeTrack[] = [];
     for (const track of active) {
-      if (track.misses <= 2) continuing.push(track);
+      if (track.misses <= maximumMisses) continuing.push(track);
       else completed.push(track);
     }
     for (const peakIndex of unmatched) continuing.push({ points: [peaks[peakIndex]!], misses: 0 });
@@ -294,15 +348,13 @@ function reconstructRidges(
       const meanIntensity = intensityValues.reduce((sum, value) => sum + value, 0) / intensityValues.length;
       const maxIntensity = Math.max(...intensityValues);
       const span = track.points.at(-1)!.x - track.points[0]!.x;
-      const smoothed = smoothRidge(track.points);
+      const smoothed = smoothRidge(track.points, smoothingRadius);
       const simplified = simplifyOpen(smoothed, 0.72);
       return { points: simplified, meanIntensity, maxIntensity, span };
     })
     .filter(
       (track) =>
-        track.points.length >= 3 &&
-        track.span >= Math.max(60, field.width * 0.12) &&
-        track.meanIntensity >= options.threshold / 310,
+        track.points.length >= 3 && track.span >= minimumSpan && track.meanIntensity >= options.threshold / 310,
     )
     .sort(
       (a, b) =>
@@ -320,10 +372,12 @@ function renderContourLevels(
   field: RasterDriftField,
   levels: ReadonlyArray<{
     threshold: number;
+    maximumThreshold?: number;
     color: string;
     opacity: number;
     blockSize: number;
     minimumArea: number;
+    minimumComponentCells?: number;
     tolerance: number;
     sampleMode: ContourOptions["sampleMode"];
   }>,
@@ -332,7 +386,9 @@ function renderContourLevels(
     const loops = traceContours(field, {
       blockSize: level.blockSize,
       threshold: level.threshold,
+      maximumThreshold: level.maximumThreshold,
       minimumArea: level.minimumArea,
+      minimumComponentCells: level.minimumComponentCells,
       simplifyTolerance: level.tolerance,
       sampleMode: level.sampleMode,
     });
@@ -341,11 +397,38 @@ function renderContourLevels(
       ? [
           svgPath(
             d,
-            `fill="${level.color}" fill-opacity="${number(level.opacity)}" fill-rule="evenodd" data-threshold="${level.threshold}" data-contours="${loops.length}"`,
+            `fill="${level.color}" fill-opacity="${number(level.opacity)}" fill-rule="evenodd" data-threshold="${level.threshold}"${level.maximumThreshold ? ` data-maximum-threshold="${level.maximumThreshold}"` : ""} data-contours="${loops.length}"`,
           ),
         ]
       : [];
   });
+}
+
+function adaptiveIntensityThresholds(field: RasterDriftField): number[] {
+  const histogram = new Uint32Array(256);
+  let sampleCount = 0;
+  for (let index = 0; index < field.width * field.height; index += 1) {
+    const value = Math.round(clampByte(Number(field.intensity[index] ?? 0)));
+    if (value < 4) continue;
+    histogram[value] = (histogram[value] ?? 0) + 1;
+    sampleCount += 1;
+  }
+  const quantiles = [0.08, 0.25, 0.44, 0.62, 0.78, 0.91];
+  const thresholds: number[] = [];
+  let cumulative = 0;
+  let quantileIndex = 0;
+  for (let value = 4; value < histogram.length && quantileIndex < quantiles.length; value += 1) {
+    cumulative += histogram[value] ?? 0;
+    while (quantileIndex < quantiles.length && cumulative >= sampleCount * quantiles[quantileIndex]!) {
+      const previous = thresholds.at(-1) ?? 0;
+      thresholds.push(Math.min(248, Math.max(value, previous + 5)));
+      quantileIndex += 1;
+    }
+  }
+  while (thresholds.length < quantiles.length) {
+    thresholds.push(Math.min(248, (thresholds.at(-1) ?? 4) + 5));
+  }
+  return thresholds;
 }
 
 function renderRidges(ridges: ReadonlyArray<StyledRidge>, limit = ridges.length): string[] {
@@ -367,6 +450,12 @@ function strategyDescription(strategy: RasterDriftTraceStrategy): string {
       return "Editable strand reconstruction strategy: line-like raster ridges are tracked across X, smoothed, simplified, and fitted as cubic Catmull-Rom paths.";
     case "C2":
       return "Hybrid strategy: low-frequency filled contour mass underlays selected cubic reconstructed high-error strands.";
+    case "A3":
+      return "Adaptive fidelity trace: cleaned, disjoint intensity bands preserve raster topology and white line channels without cumulative contour overfill.";
+    case "B3":
+      return "Dense editable reconstruction: direction-continuous ridge tracks preserve crossings independently and export as cubic Catmull-Rom strand paths.";
+    case "C3":
+      return "Disciplined hybrid: restrained high-threshold contour mass supports a denser layer of editable cubic high-error strands.";
     default: {
       const _exhaustive: never = strategy;
       return _exhaustive;
@@ -468,6 +557,92 @@ export function rasterDriftTraceToSvg(strategy: RasterDriftTraceStrategy, field:
       ];
       break;
     }
+    case "A3": {
+      const thresholds = adaptiveIntensityThresholds(field);
+      const colors = ["#ff8580", "#ff6865", "#ff4a4e", "#f72b37", "#e81125", "#bd0017"];
+      const opacities = [0.11, 0.17, 0.24, 0.34, 0.47, 0.68];
+      content = [
+        `  <g data-strategy="A3" data-layer="adaptive-disjoint-contours" data-thresholds="${thresholds.join(",")}">`,
+        ...renderContourLevels(
+          field,
+          thresholds.map((threshold, index) => ({
+            threshold,
+            maximumThreshold: thresholds[index + 1],
+            color: colors[index]!,
+            opacity: opacities[index]!,
+            blockSize: 1,
+            minimumArea: index < 2 ? 2 : 3,
+            minimumComponentCells: index < 2 ? 2 : 3,
+            tolerance: index < 2 ? 0.44 : 0.36,
+            sampleMode: "maximum" as const,
+          })),
+        ),
+        "  </g>",
+      ];
+      break;
+    }
+    case "B3": {
+      const ridges = reconstructRidges(field, {
+        xStep: 3,
+        threshold: 10,
+        maximumTracks: 260,
+        peakSpacing: 2,
+        smoothingRadius: 10,
+        minimumSpan: 36,
+        maximumMisses: 4,
+        maximumJump: 8,
+      });
+      content = [
+        '  <g data-strategy="B3" data-layer="dense-direction-continuous-cubic-ridges" data-crossing-order="independent">',
+        ...renderRidges(ridges),
+        "  </g>",
+      ];
+      break;
+    }
+    case "C3": {
+      const ridges = reconstructRidges(field, {
+        xStep: 3,
+        threshold: 15,
+        maximumTracks: 240,
+        peakSpacing: 2,
+        smoothingRadius: 9,
+        minimumSpan: 42,
+        maximumMisses: 4,
+        maximumJump: 8,
+      });
+      content = [
+        '  <g data-strategy="C3">',
+        '    <g data-layer="restrained-contour-underlay">',
+        ...renderContourLevels(field, [
+          {
+            threshold: 28,
+            color: "#ef2933",
+            opacity: 0.07,
+            blockSize: 2,
+            minimumArea: 26,
+            minimumComponentCells: 3,
+            tolerance: 0.8,
+            sampleMode: "average",
+          },
+          {
+            threshold: 78,
+            color: "#c9081b",
+            opacity: 0.12,
+            blockSize: 2,
+            minimumArea: 18,
+            minimumComponentCells: 2,
+            tolerance: 0.68,
+            sampleMode: "average",
+          },
+        ]),
+        "    </g>",
+        '    <g data-layer="dense-high-error-cubic-ridges">',
+        ...renderRidges(ridges, 220),
+        "    </g>",
+        "  </g>",
+      ];
+      break;
+    }
     default: {
       const _exhaustive: never = strategy;
       content = [_exhaustive];
@@ -484,15 +659,27 @@ export function rasterDriftTraceToSvg(strategy: RasterDriftTraceStrategy, field:
     ...content,
     "</svg>",
   ].join("\n");
-  assertRasterDriftTraceSvg(svg, { requireCubic: strategy !== "A2" });
+  assertRasterDriftTraceSvg(svg, { requireCubic: strategy.startsWith("B") || strategy.startsWith("C") });
   return svg;
 }
 
-export function rasterDriftTraceStudiesToSvg(field: RasterDriftField): Record<RasterDriftTraceStrategy, string> {
+export function rasterDriftTraceStudiesToSvg(
+  field: RasterDriftField,
+): Record<Extract<RasterDriftTraceStrategy, "A2" | "B2" | "C2">, string> {
   return {
     A2: rasterDriftTraceToSvg("A2", field),
     B2: rasterDriftTraceToSvg("B2", field),
     C2: rasterDriftTraceToSvg("C2", field),
+  };
+}
+
+export function rasterDriftTracePass3StudiesToSvg(
+  field: RasterDriftField,
+): Record<Extract<RasterDriftTraceStrategy, "A3" | "B3" | "C3">, string> {
+  return {
+    A3: rasterDriftTraceToSvg("A3", field),
+    B3: rasterDriftTraceToSvg("B3", field),
+    C3: rasterDriftTraceToSvg("C3", field),
   };
 }
 
