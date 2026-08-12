@@ -98,8 +98,7 @@ describe("Twizzler", () => {
       speed: 0,
     });
 
-    const center = (hillRhythm: number, x: number) =>
-      twizzlerMarketingCenterY(x, { ...settings, hillRhythm }, 0);
+    const center = (hillRhythm: number, x: number) => twizzlerMarketingCenterY(x, { ...settings, hillRhythm }, 0);
 
     expect(center(0, 0.09)).toBeGreaterThan(center(0, 0.16));
     expect(center(0, 0.24)).toBeGreaterThan(center(0, 0.16));
