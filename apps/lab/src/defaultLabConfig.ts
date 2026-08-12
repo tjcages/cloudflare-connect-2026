@@ -506,6 +506,8 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     General: true,
     Background: false,
     Stripes: false,
+    Rain: false,
+    Twizzler: false,
     "Cursor Trail": false,
     "Click Wave": false,
     Letters: false,

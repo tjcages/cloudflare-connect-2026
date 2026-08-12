@@ -6,6 +6,7 @@ export const CONTROL_DRAWER_IDS = [
   "Camera",
   "Shader config",
   "Twizzler",
+  "Rain",
   "Connect Wave",
   "Connect Shape",
   "Connect Fill",

@@ -698,7 +698,8 @@
       "Reveal": false,
       "General": true,
       "Twizzler": true,
-      "Twizzler General": true
+      "Twizzler General": true,
+      "Rain": false
     },
     "previewZoom": 1,
     "textureSidebarOpen": true,
