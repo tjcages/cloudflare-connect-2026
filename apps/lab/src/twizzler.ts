@@ -478,7 +478,7 @@ export function twizzlerFiberNearness(across: number, xT: number, settings: Twiz
 }
 
 /** Fog blend 0..1 toward background (white). Far fibers dissolve hard into the stage. */
-export function twizzlerFogAmount(nearness: number, depthSpread = 1.18, lineCount = 240): number {
+export function twizzlerFogAmount(nearness: number, depthSpread = 1.18, lineCount = 300): number {
   const near = Math.max(0, Math.min(1, nearness));
   // Lower exponent means more fog. Expanded 240-line packs retain distant
   // fiber readability, while dense/deep packs receive stronger grouping fog.
