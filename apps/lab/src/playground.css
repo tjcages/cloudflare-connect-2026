@@ -1787,10 +1787,11 @@ body.lab-sidebar-resizing .lab-sidebar {
   margin: 0;
   padding: 0;
   border: 1px solid var(--color-builder-input-border, #d6d6d6);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--color-builder-surface, #fff);
   min-inline-size: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .lab-panel-mode-toggle > legend {
@@ -1809,10 +1810,10 @@ body.lab-sidebar-resizing .lab-sidebar {
   appearance: none;
   margin: 0;
   border: 0;
-  padding: 4px 10px;
+  padding: 7px 14px;
   font: inherit;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 650;
   letter-spacing: 0.02em;
   color: var(--color-builder-muted, #747474);
   background: transparent;
@@ -1831,6 +1832,28 @@ body.lab-sidebar-resizing .lab-sidebar {
 .lab-panel-mode-btn.is-selected {
   color: var(--color-builder-text, #161616);
   background: var(--color-builder-selected-row, #f4f4f4);
+}
+
+/* Client mode: sticky mode switch at top of the right panel, hard to miss. */
+.lab-shell.is-client-mode .lab-sidebar-shader .lab-sidebar-header-end {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  gap: 10px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--color-builder-surface, #fff) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--color-builder-input-border, #e8e8e8);
+}
+
+.lab-shell.is-client-mode .lab-panel-mode-toggle {
+  flex: 1;
+}
+
+.lab-shell.is-client-mode .lab-panel-mode-btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
 }
 
 :root[data-theme="dark"] .lab-panel-mode-toggle {
