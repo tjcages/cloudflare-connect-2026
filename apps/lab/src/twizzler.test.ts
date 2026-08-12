@@ -172,6 +172,8 @@ describe("Twizzler", () => {
         twizzlerMarketingCenterY(0.56, settings, 0),
         twizzlerMarketingCenterY(0.82, settings, 0),
         twizzlerMarketingWidth(0.9, settings),
+        twizzlerFogAmount(0.3, targetPolish, 0.75),
+        twizzlerColorT(0.7, targetPolish),
       ].map((value) => Number(value.toFixed(3)));
     });
 
