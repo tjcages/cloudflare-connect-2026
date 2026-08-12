@@ -1515,9 +1515,9 @@ export function useEngineControls(
                 twizzlerHeatVariant: {
                   value: initialLabSettings.twizzler.heatVariant ?? 1,
                   min: 0,
-                  max: 2,
+                  max: 5,
                   step: 1,
-                  label: "Z heat (0A/1B/2C)",
+                  label: "Z heat (0–2 / A2–C2)",
                 },
                 twizzlerDepthTerrain: {
                   value: initialLabSettings.twizzler.depthTerrain ?? 0,

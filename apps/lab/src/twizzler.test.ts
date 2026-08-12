@@ -214,6 +214,34 @@ describe("Twizzler", () => {
       left.reduce((sum, value, i) => sum + Math.abs(value - right[i]!), 0) / left.length;
     expect(meanDifference(wideField, midField)).toBeGreaterThan(4);
     expect(meanDifference(midField, denseField)).toBeGreaterThan(4);
+    // Pass two uses authored depth structures rather than scalar tweaks to pass one.
+    const sparseSheets = twizzlerHeatRecipe(3);
+    const clusteredIslands = twizzlerHeatRecipe(4);
+    const alternatingGroups = twizzlerHeatRecipe(5);
+    expect([sparseSheets.bandCount, clusteredIslands.bandCount, alternatingGroups.bandCount]).toEqual([3, 6, 11]);
+    expect(
+      Math.max(...sparseSheets.bands.map((band) => band.gain)) -
+        Math.min(...sparseSheets.bands.map((band) => band.gain)),
+    ).toBeGreaterThan(1);
+    const islandWidths = clusteredIslands.bands.map((band) => band.width);
+    const islandGaps = clusteredIslands.bands
+      .slice(1)
+      .map((band, index) => band.center - clusteredIslands.bands[index]!.center);
+    expect(Math.max(...islandWidths) - Math.min(...islandWidths)).toBeGreaterThan(0.15);
+    expect(Math.max(...islandGaps) - Math.min(...islandGaps)).toBeGreaterThan(0.25);
+    const temperatures = alternatingGroups.bands.map((band) => band.temperature);
+    expect(temperatures.some((temperature) => temperature > 0.7)).toBe(true);
+    expect(temperatures.some((temperature) => temperature < -0.7)).toBe(true);
+    expect([sparseSheets.driveGain, clusteredIslands.driveGain, alternatingGroups.driveGain]).toEqual([
+      1.2, 1.24, 1.18,
+    ]);
+    const passTwoField = (variant: 3 | 4 | 5) =>
+      Array.from({ length: 41 }, (_, i) => twizzlerAmpNoiseY(0.55, -1 + i / 20, 320, 1, 0.14, variant));
+    const a2Field = passTwoField(3);
+    const b2Field = passTwoField(4);
+    const c2Field = passTwoField(5);
+    expect(meanDifference(a2Field, b2Field)).toBeGreaterThan(4);
+    expect(meanDifference(b2Field, c2Field)).toBeGreaterThan(4);
     // Z-scattered amp relocates peaks: different across → different extremum X.
     const extremumX = (z: number) => {
       let bestX = 0;

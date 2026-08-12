@@ -47,7 +47,7 @@ export type TwizzlerSettings = {
   depthLift: number;
   /**
    * Z-scattered amplitude heat recipe:
-   * 0 = fewer/wider lobes (A), 1 = mid-density wide lobes (B), 2 = dense spots (C).
+   * 0–2 = pass-one A/B/C; 3–5 = refinement A2/B2/C2.
    */
   heatVariant: TwizzlerHeatVariant;
   /**
@@ -66,7 +66,7 @@ export type TwizzlerSettings = {
   stippleGap: number;
 };
 
-export type TwizzlerHeatVariant = 0 | 1 | 2;
+export type TwizzlerHeatVariant = 0 | 1 | 2 | 3 | 4 | 5;
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   color: "#e8481c",
@@ -223,7 +223,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
     depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 4),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
-    heatVariant: Math.round(clamp(input.heatVariant, TWIZZLER_DEFAULTS.heatVariant, 0, 2)) as TwizzlerHeatVariant,
+    heatVariant: Math.round(clamp(input.heatVariant, TWIZZLER_DEFAULTS.heatVariant, 0, 5)) as TwizzlerHeatVariant,
     depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
@@ -520,22 +520,128 @@ export function twizzlerGapWarpedAcross(
   return across * 0.62 + warped * 0.38;
 }
 
+export type TwizzlerHeatBand = {
+  center: number;
+  width: number;
+  gain: number;
+  /** 0–1 phase placement across the shared fluid X cadence. */
+  phase: number;
+  /** -1 cool through +1 hot. */
+  temperature: number;
+};
+
 export type TwizzlerHeatRecipe = {
   bandCount: number;
   bandWidth: number;
   zFrequency: number;
+  heatBias: number;
+  driveGain: number;
+  bands: readonly TwizzlerHeatBand[];
 };
+
+function uniformHeatBands(bandCount: number, bandWidth: number): TwizzlerHeatBand[] {
+  return Array.from({ length: bandCount }, (_, index) => {
+    const phase = index / (bandCount - 1);
+    return {
+      center: -0.9 + phase * 1.8,
+      width: bandWidth,
+      gain: 1,
+      phase,
+      temperature: 0,
+    };
+  });
+}
 
 /** Structurally distinct Z recipes; X frequencies remain shared and fluid. */
 export function twizzlerHeatRecipe(input: number): TwizzlerHeatRecipe {
-  const variant = Math.round(Math.max(0, Math.min(2, input))) as TwizzlerHeatVariant;
+  const variant = Math.round(Math.max(0, Math.min(5, input))) as TwizzlerHeatVariant;
   switch (variant) {
-    case 0:
-      return { bandCount: 3, bandWidth: 0.72, zFrequency: 0.95 };
-    case 1:
-      return { bandCount: 5, bandWidth: 0.48, zFrequency: 4.6 / 2.4 };
-    case 2:
-      return { bandCount: 9, bandWidth: 0.2, zFrequency: 5.2 };
+    case 0: {
+      const bandWidth = 0.72;
+      return {
+        bandCount: 3,
+        bandWidth,
+        zFrequency: 0.95,
+        heatBias: 0,
+        driveGain: 1,
+        bands: uniformHeatBands(3, bandWidth),
+      };
+    }
+    case 1: {
+      const bandWidth = 0.48;
+      return {
+        bandCount: 5,
+        bandWidth,
+        zFrequency: 4.6 / 2.4,
+        heatBias: 0,
+        driveGain: 1,
+        bands: uniformHeatBands(5, bandWidth),
+      };
+    }
+    case 2: {
+      const bandWidth = 0.2;
+      return {
+        bandCount: 9,
+        bandWidth,
+        zFrequency: 5.2,
+        heatBias: 0,
+        driveGain: 1,
+        bands: uniformHeatBands(9, bandWidth),
+      };
+    }
+    case 3:
+      // A2 — sparse broad sheets, deliberately weighted toward the near side.
+      return {
+        bandCount: 3,
+        bandWidth: 0.6,
+        zFrequency: 1.1,
+        heatBias: 0.12,
+        driveGain: 1.2,
+        bands: [
+          { center: -0.84, width: 0.78, gain: 0.62, phase: 0.04, temperature: 0.15 },
+          { center: -0.18, width: 0.42, gain: 1.28, phase: 0.46, temperature: 0.72 },
+          { center: 0.68, width: 0.62, gain: 1.72, phase: 0.88, temperature: 1 },
+        ],
+      };
+    case 4:
+      // B2 — irregular clusters: close pairs, gaps, and intentionally unequal widths.
+      return {
+        bandCount: 6,
+        bandWidth: 0.23,
+        zFrequency: 2.35,
+        heatBias: 0.14,
+        driveGain: 1.24,
+        bands: [
+          { center: -0.92, width: 0.15, gain: 1.3, phase: 0.02, temperature: 0.9 },
+          { center: -0.64, width: 0.32, gain: 0.72, phase: 0.11, temperature: 0.25 },
+          { center: -0.2, width: 0.19, gain: 1.48, phase: 0.39, temperature: 0.82 },
+          { center: 0.02, width: 0.12, gain: 0.84, phase: 0.48, temperature: 0.1 },
+          { center: 0.57, width: 0.3, gain: 1.22, phase: 0.77, temperature: 0.68 },
+          { center: 0.9, width: 0.17, gain: 0.68, phase: 0.96, temperature: -0.08 },
+        ],
+      };
+    case 5:
+      // C2 — nonuniform spot groups alternate hot → cool → hot → cool → hot.
+      return {
+        bandCount: 11,
+        bandWidth: 0.13,
+        zFrequency: 4.7,
+        heatBias: 0.18,
+        driveGain: 1.18,
+        bands: [
+          { center: -0.96, width: 0.1, gain: 1.28, phase: 0, temperature: 1 },
+          { center: -0.78, width: 0.15, gain: 1.08, phase: 0.08, temperature: 0.78 },
+          { center: -0.54, width: 0.11, gain: 0.46, phase: 0.21, temperature: -0.9 },
+          { center: -0.39, width: 0.09, gain: 0.34, phase: 0.29, temperature: -1 },
+          { center: -0.16, width: 0.14, gain: 1.36, phase: 0.41, temperature: 0.92 },
+          { center: 0.03, width: 0.1, gain: 1.52, phase: 0.5, temperature: 1 },
+          { center: 0.2, width: 0.16, gain: 1.12, phase: 0.59, temperature: 0.68 },
+          { center: 0.43, width: 0.09, gain: 0.38, phase: 0.7, temperature: -1 },
+          { center: 0.58, width: 0.12, gain: 0.5, phase: 0.77, temperature: -0.75 },
+          { center: 0.8, width: 0.15, gain: 1.18, phase: 0.89, temperature: 0.82 },
+          { center: 0.97, width: 0.08, gain: 1.42, phase: 1, temperature: 1 },
+        ],
+      };
     default: {
       const _exhaustive: never = variant;
       return _exhaustive;
@@ -557,7 +663,15 @@ export function twizzlerAmpHeat(xT: number, across: number, heatVariant: Twizzle
   const n0 = twizzlerNoise(x * xFreq + seed, a * zFreq, 0.2);
   const n1 = twizzlerNoise(x * (xFreq * 1.6) + seed * 1.3, a * (zFreq * 1.4) + 0.55, 0.72);
   const raw = 0.55 * n0 + 0.45 * n1;
-  return Math.pow(smoothstep(0.26, 0.7, raw), 1.05);
+  let temperatureSum = 0;
+  let temperatureWeight = 0;
+  for (const band of recipe.bands) {
+    const weight = Math.exp(-Math.pow((a - band.center) / band.width, 2));
+    temperatureSum += weight * band.temperature;
+    temperatureWeight += weight;
+  }
+  const temperature = temperatureWeight > 1e-6 ? temperatureSum / temperatureWeight : 0;
+  return Math.pow(smoothstep(0.26, 0.7, raw + temperature * recipe.heatBias), 1.05);
 }
 
 /**
@@ -567,21 +681,21 @@ export function twizzlerAmpHeat(xT: number, across: number, heatVariant: Twizzle
 export function twizzlerAmpSwell(xT: number, across: number, heatVariant: TwizzlerHeatVariant = 1, seed = 3.1): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
-  const { bandCount, bandWidth } = twizzlerHeatRecipe(heatVariant);
+  const { bands } = twizzlerHeatRecipe(heatVariant);
   let sum = 0;
   let wSum = 0;
-  for (let k = 0; k < bandCount; k += 1) {
-    const zCenter = -0.9 + (k / (bandCount - 1)) * 1.8;
-    const w = Math.exp(-Math.pow((a - zCenter) / bandWidth, 2));
-    const bandT = k / (bandCount - 1);
+  for (const band of bands) {
+    const w = Math.exp(-Math.pow((a - band.center) / band.width, 2));
+    const bandT = band.phase;
     const phase = seed * 0.85 + bandT * 11.4;
     // Every recipe spans the same fluid X-frequency range; only its Z sampling changes.
     const hills =
       0.55 * Math.sin(x * Math.PI * (2.8 + bandT * 3.4) + phase) +
       0.3 * Math.sin(x * Math.PI * (4.6 + bandT * 2.2) + phase * 1.55) +
       0.15 * Math.sin(x * Math.PI * (1.6 + bandT * 1.2) + phase * 0.7);
-    const gate = 0.45 + 0.55 * twizzlerNoise(x * (1.1 / 2.4) + seed + bandT * 2.8, zCenter * 2.4, 0.4);
-    sum += w * hills * gate;
+    const gate = 0.45 + 0.55 * twizzlerNoise(x * (1.1 / 2.4) + seed + bandT * 2.8, band.center * 2.4, 0.4);
+    const thermalGain = Math.max(0.2, 1 + band.temperature * 0.28);
+    sum += w * hills * gate * band.gain * thermalGain;
     wSum += w;
   }
   const lobe = wSum > 1e-6 ? sum / wSum : 0;
@@ -603,8 +717,9 @@ export function twizzlerAmpNoiseY(
 ): number {
   const heat = twizzlerAmpHeat(xT, across, heatVariant, seed);
   const swell = twizzlerAmpSwell(xT, across, heatVariant, seed + 1.7);
+  const recipe = twizzlerHeatRecipe(heatVariant);
   // Heat spots boost amplitude; keep below clip so phase-shifted Z peaks stay curved.
-  const drive = swell * (0.4 + 0.6 * heat);
+  const drive = swell * (0.4 + 0.6 * heat) * recipe.driveGain;
   const yThrow = 0.22 + amplitude * 0.2 + wrinkleStrength * 2.6;
   return drive * pixelHeight * yThrow;
 }
