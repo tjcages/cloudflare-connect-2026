@@ -61,15 +61,18 @@ import {
   type CustomStripePalette,
 } from "./customStripePalettes";
 import {
+  CLIENT_APPEARANCE_PRESETS,
   CLIENT_COLOR_PRESETS,
   CLIENT_LAYOUT_PRESETS,
   CLIENT_SIZE_PRESETS,
   DEFAULT_CLIENT_PREVIEW_STATE,
+  findClientAppearancePreset,
   findClientColorPreset,
   findClientLayoutPreset,
   findClientSizePreset,
   matchClientSizePresetId,
   resetTweaksForPresets,
+  type ClientAppearanceId,
   type ClientColorPresetId,
   type ClientLayoutPresetId,
   type ClientSizePresetId,
@@ -1149,6 +1152,9 @@ export function useEngineControls(
   const clientColorOptions = Object.fromEntries(
     CLIENT_COLOR_PRESETS.map((preset) => [preset.label, preset.id]),
   ) as Record<string, ClientColorPresetId>;
+  const clientAppearanceOptions = Object.fromEntries(
+    CLIENT_APPEARANCE_PRESETS.map((preset) => [preset.label, preset.id]),
+  ) as Record<string, ClientAppearanceId>;
 
   const [shaderValues, setShaderControl] = useControls(
     () =>
@@ -1167,6 +1173,11 @@ export function useEngineControls(
               value: initialLabSettings.clientLayoutId ?? DEFAULT_CLIENT_PREVIEW_STATE.layoutId,
               options: clientLayoutOptions,
               label: "Layout",
+            },
+            clientAppearance: {
+              value: initialLabSettings.clientAppearanceId ?? DEFAULT_CLIENT_PREVIEW_STATE.appearanceId,
+              options: clientAppearanceOptions,
+              label: "Appearance",
             },
             clientColor: {
               value: initialLabSettings.clientColorId ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId,
@@ -1500,8 +1511,9 @@ export function useEngineControls(
                 twizzlerColor: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
-                    label: "Color right (X)",
+                    label: "Color",
                   }),
+                  // Solid: sole ink swatch. Shared/Fiber/Baked: near/right endpoint (paired with Color left).
                   render: showTwizzlerRibbonConfig,
                 },
                 twizzlerColorFar: {
@@ -2487,7 +2499,6 @@ export function useEngineControls(
                 return fromSettings;
               })(),
               // Always register Gradient so Default↔Advanced does not rebuild schema / wipe values.
-              // Gradient stop knobs stay Advanced-only via showFullLab().
               options: {
                 Transparent: "transparent",
                 Solid: "solid",
@@ -2513,7 +2524,7 @@ export function useEngineControls(
                 "Bottom to top": "bottomToTop",
               } as const,
               label: "Gradient direction",
-              render: (get) => showFullLab() && get("Background.backgroundFillMode") === "gradient",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
             },
             backgroundGradientStopCount: {
               value: d.background.gradient.stopCount,
@@ -2521,23 +2532,22 @@ export function useEngineControls(
               max: 4,
               step: 1,
               label: "Gradient stops",
-              render: (get) => showFullLab() && get("Background.backgroundFillMode") === "gradient",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
             },
             backgroundGradientStop0: {
               ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[0]), label: "Stop 1" }),
               label: "Stop 1",
-              render: (get) => showFullLab() && get("Background.backgroundFillMode") === "gradient",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
             },
             backgroundGradientStop1: {
               ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[1]), label: "Stop 2" }),
               label: "Stop 2",
-              render: (get) => showFullLab() && get("Background.backgroundFillMode") === "gradient",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
             },
             backgroundGradientStop2: {
               ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[2]), label: "Stop 3" }),
               label: "Stop 3",
               render: (get) =>
-                showFullLab() &&
                 get("Background.backgroundFillMode") === "gradient" &&
                 Number(get("Background.backgroundGradientStopCount")) >= 3,
             },
@@ -2545,13 +2555,12 @@ export function useEngineControls(
               ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[3]), label: "Stop 4" }),
               label: "Stop 4",
               render: (get) =>
-                showFullLab() &&
                 get("Background.backgroundFillMode") === "gradient" &&
                 Number(get("Background.backgroundGradientStopCount")) >= 4,
             },
           },
           {
-            // Client Default: Fill + library Color. Gradient fill is Advanced-only.
+            // Client Default: Fill + Color / Gradient direction + stops.
             defaultOpen: true,
           },
         ),
@@ -4797,6 +4806,11 @@ export function useEngineControls(
       initialLabSettings.clientSizeId ??
       DEFAULT_CLIENT_PREVIEW_STATE.sizeId,
   ) as ClientSizePresetId;
+  const clientAppearanceId = String(
+    (shaderValues as unknown as Record<string, unknown>).clientAppearance ??
+      initialLabSettings.clientAppearanceId ??
+      DEFAULT_CLIENT_PREVIEW_STATE.appearanceId,
+  ) as ClientAppearanceId;
   const lastClientPresetKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!clientApp) return;
@@ -4880,6 +4894,26 @@ export function useEngineControls(
     },
     [setTextureControl, setShaderControl],
   );
+
+  const lastClientAppearanceRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!clientApp) return;
+    // Skip mount so restored Dark layouts keep their ink/bg.
+    if (lastClientAppearanceRef.current === null) {
+      lastClientAppearanceRef.current = clientAppearanceId;
+      return;
+    }
+    if (lastClientAppearanceRef.current === clientAppearanceId) return;
+    lastClientAppearanceRef.current = clientAppearanceId;
+    const appearance = findClientAppearancePreset(clientAppearanceId);
+    setControl({
+      backgroundFillMode: "solid",
+      backgroundColor: appearance.backgroundHex,
+      twizzlerColor: appearance.twizzler.colorNear,
+      twizzlerColorFar: appearance.twizzler.colorFar,
+      twizzlerColorEdge: appearance.twizzler.colorEdge,
+    });
+  }, [clientApp, clientAppearanceId, setControl]);
 
   useEffect(() => {
     setShaderControl({ stripeColorsTable: stripeTableKey });
@@ -5027,6 +5061,7 @@ export function useEngineControls(
             clientSizeId,
             clientLayoutId,
             clientColorId,
+            clientAppearanceId,
           }
         : {}),
     }),
@@ -5035,6 +5070,7 @@ export function useEngineControls(
       backgroundFillMode,
       backgroundRampEasing,
       clientApp,
+      clientAppearanceId,
       clientColorId,
       clientLayoutId,
       clientSizeId,

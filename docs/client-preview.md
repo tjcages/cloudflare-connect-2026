@@ -14,19 +14,21 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** toggle, **Saved layouts**, and export buttons.
 
-- **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Color). **Refresh keeps your live knobs** (localStorage); named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
+- **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Appearance/Color). **Refresh keeps your live knobs** (localStorage); named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
 - **Default** — rich authoring for the orange-wave ribbon:
-  - **Presets** — Size / Layout / Color
+  - **Presets** — Size / Layout / **Appearance** (Light / Dark) / Color
+    - **Light** — orange Twizzler on white stage (current marketing look)
+    - **Dark** — white Twizzler gradient on orange stage
   - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
-    - Solid: Color right only
-    - Shared / Fiber: Color left + Color right (X pack/fiber ramp)
-    - Baked: Color left / right / peaks + **Gradients** folder (X/Y/Z mixes)
+    - Solid: Color only
+    - Shared / Fiber: Color + Color left (X pack/fiber ramp)
+    - Baked: Color / left / peaks + **Gradients** folder (X/Y/Z mixes)
   - **Twizzler → Shape** — Center Y, Move X/Y/Z, Amplitude, Rotate X/Y/Z, FOV, Cam Z
   - **Twizzler → Gradients** — X/Y/Z gradient mixes (**Baked** Color mode only)
   - **Twizzler → Stroke** — width, layers, perspective
   - **Twizzler → Motion** — Speed
-  - **Background** — Fill + library Color (Gradient stops stay Advanced)
-- **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, Gradient stops, etc.) without rebuilding Leva, so values are not wiped when toggling.
+  - **Background** — Fill + Color (solid) or Gradient direction + stops (when Fill = Gradient)
+- **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, etc.) without rebuilding Leva, so values are not wiped when toggling.
 
 ## Twizzler (orange-wave)
 

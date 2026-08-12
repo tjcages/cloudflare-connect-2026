@@ -476,16 +476,18 @@ describe("client preset ids in lab settings", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
-  it("persists clientSizeId/layoutId/colorId", () => {
+  it("persists clientSizeId/layoutId/colorId/appearanceId", () => {
     saveLabSettings({
       clientSizeId: "hero-16x9",
       clientLayoutId: "high-fan",
       clientColorId: "graphite",
+      clientAppearanceId: "dark",
     });
     const loaded = loadLabSettings();
     expect(loaded.clientSizeId).toBe("hero-16x9");
     expect(loaded.clientLayoutId).toBe("high-fan");
     expect(loaded.clientColorId).toBe("graphite");
+    expect(loaded.clientAppearanceId).toBe("dark");
   });
 
   it("reports hasStoredEngineConfig after saveConfig", () => {

@@ -7,6 +7,8 @@ import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
 export type ClientColorPresetId = "coral-classic" | "soft-gold" | "deep-ember" | "graphite";
+/** Client stage look: light = orange Twizzler on white; dark = white Twizzler on orange. */
+export type ClientAppearanceId = "light" | "dark";
 
 export type ClientSizePreset = {
   id: ClientSizePresetId;
@@ -28,6 +30,14 @@ export type ClientColorPreset = {
   twizzler: Pick<TwizzlerSettings, "color" | "colorFar" | "colorNear" | "colorEdge">;
 };
 
+export type ClientAppearancePreset = {
+  id: ClientAppearanceId;
+  label: string;
+  /** Solid stage background (library hex). */
+  backgroundHex: string;
+  twizzler: Pick<TwizzlerSettings, "color" | "colorFar" | "colorNear" | "colorEdge">;
+};
+
 /** Tunable knobs exposed in client preview (no camera). */
 export type ClientTwizzlerTweaks = {
   opacity: number;
@@ -45,6 +55,7 @@ export type ClientPreviewState = {
   sizeId: ClientSizePresetId;
   layoutId: ClientLayoutPresetId;
   colorId: ClientColorPresetId;
+  appearanceId: ClientAppearanceId;
   twizzlerEnabled: boolean;
   rainEnabled: boolean;
   tweaks: ClientTwizzlerTweaks;
@@ -140,10 +151,37 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
   },
 ];
 
+/** Light = current marketing look; Dark = white ribbon on orange stage. */
+export const CLIENT_APPEARANCE_PRESETS: readonly ClientAppearancePreset[] = [
+  {
+    id: "light",
+    label: "Light",
+    backgroundHex: LIBRARY_COLOR.white,
+    twizzler: {
+      color: LIBRARY_COLOR.orangeAccent,
+      colorFar: LIBRARY_COLOR.orangePair,
+      colorNear: LIBRARY_COLOR.orangeAccent,
+      colorEdge: LIBRARY_COLOR.redAccent,
+    },
+  },
+  {
+    id: "dark",
+    label: "Dark",
+    backgroundHex: LIBRARY_COLOR.orangeAccent,
+    twizzler: {
+      color: LIBRARY_COLOR.white,
+      colorFar: LIBRARY_COLOR.white,
+      colorNear: "#f5f5f5",
+      colorEdge: "#f0f0f0",
+    },
+  },
+];
+
 export const DEFAULT_CLIENT_PREVIEW_STATE: ClientPreviewState = {
   sizeId: "banner-5x1",
   layoutId: "classic",
   colorId: "coral-classic",
+  appearanceId: "light",
   twizzlerEnabled: true,
   // Rain stays off by default until the Twizzler match is accepted (CF-16).
   rainEnabled: false,
@@ -247,6 +285,21 @@ export function findClientColorPreset(id: ClientColorPresetId): ClientColorPrese
     default: {
       const _exhaustive: never = id;
       throw new Error(`Unknown client color preset: ${String(_exhaustive)}`);
+    }
+  }
+}
+
+export function findClientAppearancePreset(id: ClientAppearanceId): ClientAppearancePreset {
+  switch (id) {
+    case "light":
+    case "dark": {
+      const preset = CLIENT_APPEARANCE_PRESETS.find((entry) => entry.id === id);
+      if (!preset) throw new Error(`Missing client appearance preset: ${id}`);
+      return preset;
+    }
+    default: {
+      const _exhaustive: never = id;
+      throw new Error(`Unknown client appearance preset: ${String(_exhaustive)}`);
     }
   }
 }
