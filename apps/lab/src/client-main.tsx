@@ -6,7 +6,7 @@ import { consumeFactoryBootReset, loadEditTheme } from "./persistence";
 import "./index.css";
 import "./playground.css";
 
-/** Client / agency review: limited Leva panels; restore last saved layout when present. */
+/** Client / agency review: limited Leva panels; keep live storage on refresh. */
 function bootClientPreview(): void {
   consumeFactoryBootReset();
   const preset = resolveClientBootPreset();

@@ -147,6 +147,19 @@ function loadLastConfig(): ThemedEngineConfig | null {
   }
 }
 
+/** True when the lab already has a persisted engine config (refresh should keep it). */
+export function hasStoredEngineConfig(): boolean {
+  try {
+    if (localStorage.getItem(LAST_KEY)) return true;
+    const raw = localStorage.getItem(MAP_KEY);
+    if (!raw) return false;
+    const map = JSON.parse(raw) as Record<string, unknown>;
+    return Boolean(map && typeof map === "object" && Object.keys(map).length > 0);
+  } catch {
+    return false;
+  }
+}
+
 function saveLastConfig(c: ThemedEngineConfig): void {
   try {
     localStorage.setItem(LAST_KEY, JSON.stringify(c));

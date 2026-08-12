@@ -4,6 +4,7 @@ import {
   clearStickyBackgroundColor,
   consumeImportedConfigPristine,
   deleteConfig,
+  hasStoredEngineConfig,
   importConfig,
   importSettingsFile,
   DEFAULT_LAB_SETTINGS,
@@ -485,5 +486,11 @@ describe("client preset ids in lab settings", () => {
     expect(loaded.clientSizeId).toBe("hero-16x9");
     expect(loaded.clientLayoutId).toBe("high-fan");
     expect(loaded.clientColorId).toBe("graphite");
+  });
+
+  it("reports hasStoredEngineConfig after saveConfig", () => {
+    expect(hasStoredEngineConfig()).toBe(false);
+    saveConfig("cf-base", DEFAULT_LAB_ENGINE_CONFIG);
+    expect(hasStoredEngineConfig()).toBe(true);
   });
 });

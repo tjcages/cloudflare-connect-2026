@@ -76,7 +76,37 @@ describe("savedLayouts", () => {
     expect(boot?.builtin).toBe(true);
   });
 
-  it("prefers ?preset= over the active layout", () => {
+  it("keeps live storage on refresh (does not re-apply active layout)", () => {
+    saveActiveClientLayoutName("Agency A");
+    localStorage.setItem("stripes-engine-lab-last-config", JSON.stringify({ version: 1 }));
+    vi.stubGlobal("window", {
+      location: { href: "http://localhost/client.html" },
+      history: { replaceState: () => undefined },
+    });
+    expect(resolveClientBootPreset()).toBeUndefined();
+  });
+
+  it("prefers ?preset= even when live storage exists", () => {
+    localStorage.setItem("stripes-engine-lab-last-config", JSON.stringify({ version: 1 }));
+    let href = "http://localhost/client.html?preset=Banner%205:1";
+    vi.stubGlobal("window", {
+      location: {
+        get href() {
+          return href;
+        },
+      },
+      history: {
+        replaceState: (_state: unknown, _title: string, url: string) => {
+          href = `http://localhost${url}`;
+        },
+      },
+    });
+    const boot = resolveClientBootPreset();
+    expect(boot?.name).toBe("Banner 5:1");
+    expect(new URL(href).searchParams.get("preset")).toBeNull();
+  });
+
+  it("prefers ?preset= over the active layout name", () => {
     saveActiveClientLayoutName("Should Not Win");
     let href = "http://localhost/client.html?preset=Banner%205:1";
     vi.stubGlobal("window", {
