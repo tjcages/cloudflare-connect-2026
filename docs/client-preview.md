@@ -10,6 +10,8 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 | `/lab.html`           | Full authoring lab                |
 | `/experiments.html`   | Experiments gallery               |
 
+Canvas preview zoom (bottom-center overlay): **−** / **Reset** / **+** plus a percent readout. Chrome uses a **large radius** (`border-radius: 12px`), not a full pill. There is no Mouse On / Mouse Off control (CF-49). Pointer still drives the shader; that toggle was preview chrome only.
+
 ## What clients see (Leva)
 
 Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, and **JSON** (Copy / Upload). Leva starts with **Hero** (Graphic selector) then **Presets**. **Video duration**, **Export Video**, and **Export SVG** sit at the bottom of the panel.
