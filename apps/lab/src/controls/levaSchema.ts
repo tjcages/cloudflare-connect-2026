@@ -63,17 +63,21 @@ import {
 import {
   CLIENT_APPEARANCE_PRESETS,
   CLIENT_COLOR_PRESETS,
+  CLIENT_GRAPHIC_MODES,
   CLIENT_LAYOUT_PRESETS,
   CLIENT_SIZE_PRESETS,
   DEFAULT_CLIENT_PREVIEW_STATE,
+  clientGraphicFlags,
   findClientAppearancePreset,
   findClientColorPreset,
   findClientLayoutPreset,
   findClientSizePreset,
   matchClientSizePresetId,
   resetTweaksForLayout,
+  resolveClientGraphicMode,
   type ClientAppearanceId,
   type ClientColorPresetId,
+  type ClientGraphicMode,
   type ClientLayoutPresetId,
   type ClientSizePresetId,
 } from "../client/clientPresets";
@@ -109,6 +113,7 @@ function drawerFolder<S extends Parameters<typeof folder>[0]>(
 }
 
 const SHADER_PANEL_ORDER = [
+  "Hero",
   "Presets",
   "Twizzler",
   "Shader config",
@@ -675,6 +680,10 @@ export function useEngineControls(
     clientAppearanceId: (initialLabSettings.clientAppearanceId ??
       DEFAULT_CLIENT_PREVIEW_STATE.appearanceId) as ClientAppearanceId,
     clientColorId: (initialLabSettings.clientColorId ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId) as ClientColorPresetId,
+    clientHeroGraphic: resolveClientGraphicMode(
+      initialLabSettings.twizzlerEnabled,
+      d.sparkle?.gaps?.enabled ?? DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
+    ),
     backgroundHex,
   });
   levaSchemaSeedRef.current.backgroundHex = backgroundHex;
@@ -1177,10 +1186,25 @@ export function useEngineControls(
   const clientAppearanceOptions = Object.fromEntries(
     CLIENT_APPEARANCE_PRESETS.map((preset) => [preset.label, preset.id]),
   ) as Record<string, ClientAppearanceId>;
+  const clientGraphicOptions = Object.fromEntries(CLIENT_GRAPHIC_MODES.map((mode) => [mode.label, mode.id])) as Record<
+    string,
+    ClientGraphicMode
+  >;
 
   const [shaderValues, setShaderControl] = useControls(
     () =>
       orderShaderPanel({
+        Hero: drawerFolder(
+          "Hero",
+          {
+            heroGraphic: {
+              value: levaSchemaSeedRef.current.clientHeroGraphic,
+              options: clientGraphicOptions,
+              label: "Graphic",
+            },
+          },
+          { defaultOpen: true, clientOnly: true },
+        ),
         Presets: drawerFolder(
           "Presets",
           {
@@ -1512,13 +1536,13 @@ export function useEngineControls(
                 twizzlerEnabled: {
                   value: initialLabSettings.twizzlerEnabled,
                   label: "Show",
-                  // Client uses Graphic (Twizzler / Rain / Both) above Presets instead.
+                  // Client uses Hero → Graphic instead.
                   render: () => showTwizzlerRibbonConfig() && !clientAppRef.current,
                 },
                 rainEnabled: {
                   value: d.sparkle?.gaps?.enabled ?? DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
                   label: "Rain",
-                  // Kept in schema for setControl / persistence; UI is Graphic toggle.
+                  // Kept in schema for setControl / persistence; UI is Hero → Graphic.
                   render: () => false,
                 },
                 twizzlerRibbonColorMode: {
@@ -4834,10 +4858,45 @@ export function useEngineControls(
       initialLabSettings.clientAppearanceId ??
       DEFAULT_CLIENT_PREVIEW_STATE.appearanceId,
   ) as ClientAppearanceId;
+  const heroGraphicId = String(
+    (shaderValues as unknown as Record<string, unknown>).heroGraphic ?? levaSchemaSeedRef.current.clientHeroGraphic,
+  ) as ClientGraphicMode;
   levaSchemaSeedRef.current.clientLayoutId = clientLayoutId;
   levaSchemaSeedRef.current.clientColorId = clientColorId;
   levaSchemaSeedRef.current.clientSizeId = clientSizeId;
   levaSchemaSeedRef.current.clientAppearanceId = clientAppearanceId;
+  levaSchemaSeedRef.current.clientHeroGraphic = heroGraphicId;
+  /**
+   * Hero → Graphic drives Twizzler Show + Rain layer flags.
+   */
+  const lastHeroGraphicIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!clientApp) return;
+    if (lastHeroGraphicIdRef.current === null) {
+      lastHeroGraphicIdRef.current = heroGraphicId;
+      return;
+    }
+    if (lastHeroGraphicIdRef.current === heroGraphicId) return;
+    lastHeroGraphicIdRef.current = heroGraphicId;
+    const flags = clientGraphicFlags(heroGraphicId);
+    shaderControlSetterRef.current?.({
+      twizzlerEnabled: flags.twizzlerEnabled,
+      rainEnabled: flags.rainEnabled,
+    });
+  }, [clientApp, heroGraphicId, setShaderControl]);
+
+  /** Keep Hero → Graphic in sync when Show/Rain flags change (Apply layout / Reset). */
+  const rainEnabledFlag = Boolean((shaderValues as unknown as Record<string, unknown>).rainEnabled);
+  const twizzlerEnabledFlag = Boolean((shaderValues as unknown as Record<string, unknown>).twizzlerEnabled);
+  useEffect(() => {
+    if (!clientApp) return;
+    const derived = resolveClientGraphicMode(twizzlerEnabledFlag, rainEnabledFlag);
+    if (derived === heroGraphicId) return;
+    lastHeroGraphicIdRef.current = derived;
+    levaSchemaSeedRef.current.clientHeroGraphic = derived;
+    shaderControlSetterRef.current?.({ heroGraphic: derived });
+  }, [clientApp, twizzlerEnabledFlag, rainEnabledFlag, heroGraphicId, setShaderControl]);
+
   /**
    * Layout preset — ribbon geometry + motion only.
    * Never touches Twizzler colors (those belong to Color / Appearance).
