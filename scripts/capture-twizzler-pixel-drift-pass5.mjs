@@ -173,7 +173,11 @@ const generated = await generationPage.evaluate(
       ...base,
       quantiles: [...base.quantiles],
     });
-    const selectionBaseline = { rgbMae: 11.133, inkIou: 0.756 };
+    const selectionBaseline = {
+      rgbMae: 11.133,
+      inkIou: 0.756,
+      vectorCoverage: baseline.vectorCoverage,
+    };
     const quantileSets = [[...base.quantiles], [0.045, 0.2, 0.4, 0.59, 0.76, 0.9]];
     const opacityMappings = [
       { opacityScale: 0.98, opacityGamma: 1 },

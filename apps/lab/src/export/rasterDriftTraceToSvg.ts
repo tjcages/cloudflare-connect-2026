@@ -14,6 +14,8 @@ export type RasterDriftFidelityParameters = {
   minimumThresholdGap: number;
   opacityScale: number;
   opacityGamma: number;
+  minimumOpacity: number;
+  maximumOpacity: number;
   red: string;
   minimumComponentCellsLow: number;
   minimumComponentCellsHigh: number;
@@ -41,6 +43,8 @@ export const A3_FIDELITY_PARAMETERS: RasterDriftFidelityParameters = {
   minimumThresholdGap: 5,
   opacityScale: 1,
   opacityGamma: 1,
+  minimumOpacity: 0.03,
+  maximumOpacity: 0.97,
   red: "#ff0000",
   minimumComponentCellsLow: 2,
   minimumComponentCellsHigh: 3,
@@ -572,8 +576,11 @@ function renderFidelityBands(field: RasterDriftField, id: string, parameters: Ra
           maximumThreshold,
           color: parameters.red,
           opacity: Math.max(
-            0.01,
-            Math.min(0.99, Math.pow(normalizedIntensity, parameters.opacityGamma) * parameters.opacityScale),
+            parameters.minimumOpacity,
+            Math.min(
+              parameters.maximumOpacity,
+              Math.pow(normalizedIntensity, parameters.opacityGamma) * parameters.opacityScale,
+            ),
           ),
           blockSize: 1,
           minimumArea: index < lowBandCount ? parameters.minimumAreaLow : parameters.minimumAreaHigh,
@@ -619,7 +626,8 @@ export function rasterDriftFidelityToSvg(
 
 export function selectRasterDriftFidelityCandidates(
   candidates: ReadonlyArray<RasterDriftCandidateScore>,
-  baseline: Pick<RasterDriftCandidateScore, "rgbMae" | "inkIou">,
+  baseline: Pick<RasterDriftCandidateScore, "rgbMae" | "inkIou"> &
+    Partial<Pick<RasterDriftCandidateScore, "vectorCoverage">>,
   count = 3,
 ): RasterDriftCandidateSelection[] {
   const unique = [
@@ -633,9 +641,15 @@ export function selectRasterDriftFidelityCandidates(
   const improvements = ordered.filter(
     (candidate) => candidate.rgbMae < baseline.rgbMae && candidate.inkIou > baseline.inkIou,
   );
-  const pareto = improvements.filter(
+  const coverageImprovements =
+    baseline.vectorCoverage === undefined
+      ? []
+      : improvements.filter((candidate) => candidate.vectorCoverage > baseline.vectorCoverage!);
+  const coverageSet = new Set(coverageImprovements);
+  const metricOnlyImprovements = improvements.filter((candidate) => !coverageSet.has(candidate));
+  const pareto = metricOnlyImprovements.filter(
     (candidate) =>
-      !improvements.some(
+      !metricOnlyImprovements.some(
         (other) =>
           other !== candidate &&
           other.rgbMae <= candidate.rgbMae &&
@@ -643,7 +657,11 @@ export function selectRasterDriftFidelityCandidates(
           (other.rgbMae < candidate.rgbMae || other.inkIou > candidate.inkIou),
       ),
   );
-  const improvementOrder = [...pareto, ...improvements.filter((candidate) => !pareto.includes(candidate))];
+  const improvementOrder = [
+    ...coverageImprovements,
+    ...pareto,
+    ...metricOnlyImprovements.filter((candidate) => !pareto.includes(candidate)),
+  ];
   const selected: RasterDriftCandidateSelection[] = improvementOrder
     .slice(0, count)
     .map((candidate) => ({ ...candidate, classification: "improvement" }));
