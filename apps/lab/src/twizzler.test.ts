@@ -63,7 +63,7 @@ describe("Twizzler", () => {
       bendAmount: -1,
       leftHeight: 2,
       rightHeight: -1,
-      targetPolish: 6,
+      targetPolish: 9,
     });
   });
 
@@ -158,8 +158,8 @@ describe("Twizzler", () => {
     expect(lines[0]?.strokeWidth).toBeGreaterThan(0);
   });
 
-  it("keeps six distinct TARGET-polish strategies cubic and near the locked density", () => {
-    const signatures = [1, 2, 3, 4, 5, 6].map((targetPolish) => {
+  it("keeps nine distinct TARGET-polish strategies cubic and near the locked density", () => {
+    const signatures = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((targetPolish) => {
       const settings = normalizeTwizzlerSettings({
         targetPolish,
         lineCount: 240,
@@ -182,7 +182,7 @@ describe("Twizzler", () => {
       ].map((value) => Number(value.toFixed(3)));
     });
 
-    expect(new Set(signatures.map((signature) => signature.join(":"))).size).toBe(6);
+    expect(new Set(signatures.map((signature) => signature.join(":"))).size).toBe(9);
   });
 
   it("keeps the target-polish knobs as opt-in no-ops by default", () => {
