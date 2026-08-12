@@ -114,8 +114,9 @@ describe("config file import/export", () => {
   });
 
   it("uses the Cloudflare marketing palette and Connect shader as factory defaults", () => {
+    // Rain/dots overlay is intentionally OFF for the Twizzler banner (2530abb).
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripeDots).toEqual({
-      enabled: true,
+      enabled: false,
       density: 0.8,
       randomVisibility: 1,
       sizePx: 1.5,
@@ -124,7 +125,7 @@ describe("config file import/export", () => {
       saturationBoost: 0,
     });
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripeBorder).toEqual({
-      enabled: true,
+      enabled: false,
       minWidthPx: 4,
       density: 0.02,
     });
@@ -134,7 +135,7 @@ describe("config file import/export", () => {
       density: 0.01,
     });
     expect(DEFAULT_LAB_ENGINE_CONFIG.frames).toEqual({
-      enabled: true,
+      enabled: false,
       luminanceThreshold: 0.56,
       highlightedStripeCount: 7,
       groupDistanceCells: 7,
@@ -142,9 +143,10 @@ describe("config file import/export", () => {
       fontSizePx: 8,
       coordinateColor: 16777215,
     });
-    expect(DEFAULT_LAB_ENGINE_CONFIG.background.color).toBe(0xf46021);
+    // Twizzler banner factory default renders on a white stage.
+    expect(DEFAULT_LAB_ENGINE_CONFIG.background.color).toBe(0xffffff);
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripes.map(({ color }) => color)).toEqual([
-      0xf46021, 0xf86a00, 0xff8839, 0xffa05b, 0xffbb7d, 0xffd39e, 0xffe3bb, 0xffefd4, 0xfff8ea, 0xf5f5f5,
+      0xfafafa, 0xfff8e8, 0xfeefd2, 0xffe3b5, 0x9038fc, 0x2563fe, 0x2e9d51, 0xf9b73b, 0xf9b73b, 0xf46021,
     ]);
     expect(DEFAULT_LAB_ENGINE_CONFIG.dark?.background?.color).toBe(0x141414);
     expect(DEFAULT_LAB_ENGINE_CONFIG.dark?.stripes?.[0]?.color).toBe(0x261106);
@@ -154,9 +156,9 @@ describe("config file import/export", () => {
       textureId: "cf-base",
       textureSourceMode: "shader",
       shaderPresetId: "connect",
-      stripePalette: "Background Ramp",
-      backgroundRampEasing: "custom:0.417,0.335,0.58,0.911",
-      thresholdDistributionEasing: "custom:0.431,0.147,0.556,0.409",
+      stripePalette: "Custom",
+      backgroundRampEasing: "easeOut",
+      thresholdDistributionEasing: "custom:0.346,0.578,0,1",
     });
   });
 

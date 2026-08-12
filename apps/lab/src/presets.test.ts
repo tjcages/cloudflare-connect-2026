@@ -64,6 +64,9 @@ const presetWithLab = (name: string): ConfigPreset =>
       colorEdge: "#ffe08a",
       stippleSize: 1.4,
       stippleGap: 2.2,
+      silhouetteRemap: 0,
+      fogLift: 0,
+      rightFan: 0,
     },
     twizzlerMap: {
       backgroundLevel: 0.06,

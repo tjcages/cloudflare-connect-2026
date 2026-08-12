@@ -21,6 +21,10 @@ import {
   twizzlerAmpNoiseY,
   twizzlerAmpSwell,
   twizzlerSvgPathCubic,
+  twizzlerFogLift,
+  twizzlerRightFanY,
+  twizzlerSilhouetteWidthScale,
+  twizzlerSilhouetteYOffset,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -179,6 +183,45 @@ describe("Twizzler", () => {
     });
 
     expect(new Set(signatures.map((signature) => signature.join(":"))).size).toBe(6);
+  });
+
+  it("keeps the target-polish knobs as opt-in no-ops by default", () => {
+    const defaults = normalizeTwizzlerSettings({});
+    expect(defaults.silhouetteRemap).toBe(0);
+    expect(defaults.fogLift).toBe(0);
+    expect(defaults.rightFan).toBe(0);
+    expect(normalizeTwizzlerSettings({ silhouetteRemap: 5, fogLift: -2, rightFan: 1.7 })).toMatchObject({
+      silhouetteRemap: 1,
+      fogLift: 0,
+      rightFan: 1,
+    });
+    // Identity when off.
+    expect(twizzlerSilhouetteWidthScale(0.2, 0)).toBe(1);
+    expect(twizzlerSilhouetteYOffset(0.2, 300, 0)).toBe(0);
+    expect(twizzlerFogLift(0.4, 0.5, 0)).toBe(0.4);
+    expect(twizzlerRightFanY(0.8, 0.5, 300, 0)).toBe(0);
+  });
+
+  it("remaps the silhouette: thin low left, dominant right fan", () => {
+    expect(twizzlerSilhouetteWidthScale(0.05, 1)).toBeLessThan(0.5);
+    expect(twizzlerSilhouetteWidthScale(0.9, 1)).toBeGreaterThan(1);
+    // Left mass sinks (+Y), right fan lifts (-Y).
+    expect(twizzlerSilhouetteYOffset(0.05, 300, 1)).toBeGreaterThan(30);
+    expect(twizzlerSilhouetteYOffset(0.98, 300, 1)).toBeLessThan(0);
+  });
+
+  it("lifts fog on far fibers while preserving the saturated near core", () => {
+    expect(twizzlerFogLift(0.5, 0.2, 0.8)).toBeGreaterThan(0.5);
+    expect(twizzlerFogLift(0.1, 1, 0.8)).toBeCloseTo(0.1, 5);
+    expect(twizzlerFogLift(0.99, 0, 1)).toBeLessThanOrEqual(0.96);
+  });
+
+  it("adds right-edge fan energy that grows toward the right and opens vertically", () => {
+    expect(twizzlerRightFanY(0.1, 0.5, 300, 1)).toBe(0);
+    const spreadRight = twizzlerRightFanY(0.95, 1, 300, 1) - twizzlerRightFanY(0.95, -1, 300, 1);
+    expect(spreadRight).toBeGreaterThan(60);
+    const spreadMid = twizzlerRightFanY(0.5, 1, 300, 1) - twizzlerRightFanY(0.5, -1, 300, 1);
+    expect(Math.abs(spreadMid)).toBeLessThan(Math.abs(spreadRight) * 0.4);
   });
 
   it("fogs far fibers toward white and drops far fibers lowest on the right", () => {

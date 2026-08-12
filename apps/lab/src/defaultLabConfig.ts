@@ -431,6 +431,9 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     drift: 0.31,
     stippleSize: 1.4,
     stippleGap: 2.2,
+    silhouetteRemap: 0,
+    fogLift: 0,
+    rightFan: 0,
   },
   twizzlerMap: {
     backgroundLevel: 0.08,

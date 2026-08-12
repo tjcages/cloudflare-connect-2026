@@ -64,6 +64,12 @@ export type TwizzlerSettings = {
   stippleSize: number;
   /** Stipple gap scale. */
   stippleGap: number;
+  /** 0 = off. Target-polish A: thin low left third, dominant full-height right fan. */
+  silhouetteRemap: number;
+  /** 0 = off. Target-polish B: extra white fog on all but the nearest fibers (airy hairline ink). */
+  fogLift: number;
+  /** 0 = off. Target-polish C: right-edge combed S-waves + fine ripple + extra vertical opening. */
+  rightFan: number;
 };
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
@@ -108,6 +114,9 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   drift: 0.02,
   stippleSize: 0,
   stippleGap: 0.8,
+  silhouetteRemap: 0,
+  fogLift: 0,
+  rightFan: 0,
 };
 
 function clamp(value: unknown, fallback: number, min: number, max: number): number {
@@ -230,6 +239,9 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     drift: clamp(input.drift, TWIZZLER_DEFAULTS.drift, 0, 1),
     stippleSize: clamp(input.stippleSize, TWIZZLER_DEFAULTS.stippleSize, 0, 8),
     stippleGap: clamp(input.stippleGap, TWIZZLER_DEFAULTS.stippleGap, 0, 12),
+    silhouetteRemap: clamp(input.silhouetteRemap, TWIZZLER_DEFAULTS.silhouetteRemap, 0, 1),
+    fogLift: clamp(input.fogLift, TWIZZLER_DEFAULTS.fogLift, 0, 1),
+    rightFan: clamp(input.rightFan, TWIZZLER_DEFAULTS.rightFan, 0, 1),
   };
 }
 
@@ -709,6 +721,65 @@ export function twizzlerFogColor(hex: string, fog: number, backgroundHex = "#fff
   return twizzlerLerpColor(hex, backgroundHex, Math.max(0, Math.min(1, fog)));
 }
 
+/**
+ * Target-polish A — silhouette width remap: thin the left third, keep/boost the right fan.
+ * `remap` 0 = identity.
+ */
+export function twizzlerSilhouetteWidthScale(xT: number, remap: number): number {
+  const amount = Math.max(0, Math.min(1, remap));
+  if (amount <= 0) return 1;
+  const x = Math.max(0, Math.min(1, xT));
+  const thinLeft = 1 - amount * 0.66 * (1 - smoothstep(0.3, 0.72, x));
+  const boostRight = 1 + amount * 0.4 * smoothstep(0.55, 0.95, x);
+  return thinLeft * boostRight;
+}
+
+/**
+ * Target-polish A — silhouette Y offset in px: left mass rides low (lower half),
+ * the right fan lifts so it can fill the frame top-to-bottom. `remap` 0 = 0.
+ */
+export function twizzlerSilhouetteYOffset(xT: number, pixelHeight: number, remap: number): number {
+  const amount = Math.max(0, Math.min(1, remap));
+  if (amount <= 0) return 0;
+  const x = Math.max(0, Math.min(1, xT));
+  const sinkLeft = (1 - smoothstep(0.12, 0.58, x)) * 0.24;
+  const liftRight = smoothstep(0.58, 0.98, x) * 0.08;
+  return amount * pixelHeight * (sinkLeft - liftRight);
+}
+
+/**
+ * Target-polish B — push fog toward white for all but the nearest fibers.
+ * Keeps a narrow saturated near core; capped so far fibers stay faintly visible.
+ * `lift` 0 = returns `fog` unchanged.
+ */
+export function twizzlerFogLift(fog: number, nearness: number, lift: number): number {
+  const amount = Math.max(0, Math.min(1, lift));
+  if (amount <= 0) return Math.max(0, Math.min(1, fog));
+  const farness = Math.pow(1 - Math.max(0, Math.min(1, nearness)), 0.55);
+  const lifted = fog + (1 - fog) * amount * farness;
+  return Math.max(0, Math.min(0.96, lifted));
+}
+
+/**
+ * Target-polish C — right-edge energy in px: combed parallel S-waves + a fine
+ * high-frequency ripple + extra vertical opening, all growing toward the right.
+ * `fan` 0 = 0.
+ */
+export function twizzlerRightFanY(xT: number, across: number, pixelHeight: number, fan: number): number {
+  const amount = Math.max(0, Math.min(1, fan));
+  if (amount <= 0) return 0;
+  const x = Math.max(0, Math.min(1, xT));
+  const a = Math.max(-1, Math.min(1, across));
+  const grow = Math.pow(smoothstep(0.42, 0.9, x), 1.2);
+  // Nearly-parallel combed S-waves: shared phase, tiny across shift so the pack stays combed.
+  const comb = 0.62 * Math.sin(x * Math.PI * 5.6 + a * 0.4 + 0.5) + 0.38 * Math.sin(x * Math.PI * 9.4 + a * 0.25 + 1.8);
+  // Fine ripple riding on top of the fan (reads on far/top fibers).
+  const ripple = Math.sin(x * Math.PI * 24 + a * 0.9) * 0.1 * (0.5 - a * 0.5);
+  // Extra vertical opening so the right edge fills the frame.
+  const open = a * 0.38;
+  return amount * pixelHeight * grow * (comb * 0.16 + ripple + open);
+}
+
 /** Stroke width scale from nearness — thick toward camera, hairline when far. */
 export function twizzlerStrokeWidthScale(nearness: number): number {
   return 0.1 + 3.8 * Math.pow(nearness, 1.4);
@@ -1005,7 +1076,8 @@ export function buildTwizzlerLines(
       const theta = twizzlerMarketingTwist(c.xT, settings, time);
       const fiberTheta = theta + across * 0.12;
       const face = twizzlerFaceAmount(fiberTheta);
-      const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight;
+      const silhouetteW = twizzlerSilhouetteWidthScale(c.xT, settings.silhouetteRemap);
+      const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight * silhouetteW;
       const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
       const far = 1 - nearness;
 
@@ -1087,6 +1159,11 @@ export function buildTwizzlerLines(
       const rightEnergy =
         targetPolish > 0 ? Math.sin(edgePhase) * halfW * energyGate * energyAmount * (0.35 + Math.abs(acrossX)) : 0;
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
+      // Silhouette remap damps the heat-amp where the pack is thinned (quiet left third).
+      const ampDamp = 1 + (Math.min(1, silhouetteW) - 1) * settings.silhouetteRemap;
+      const polishY =
+        twizzlerSilhouetteYOffset(c.xT, pixelHeight, settings.silhouetteRemap) +
+        twizzlerRightFanY(c.xT, across, pixelHeight, settings.rightFan);
       // Soften shared spine lockstep — Z-scattered amp peaks must land at different X.
       const spineBase = pixelHeight * settings.centerY;
       const spineShare =
@@ -1116,10 +1193,11 @@ export function buildTwizzlerLines(
         faceY +
         stackY +
         depthY * depthScale +
-        ampNoiseY +
+        ampNoiseY * ampDamp +
         farDownStack +
         zLane +
-        rightEnergy;
+        rightEnergy +
+        polishY;
 
       points.push({ x, y, depth, along: c.xT, nearness });
     }
@@ -1135,7 +1213,7 @@ export function buildTwizzlerLines(
       Math.abs(across) > 0.85
         ? twizzlerLerpColor(baseColor, settings.colorEdge, ((Math.abs(across) - 0.85) / 0.15) * 0.35)
         : baseColor;
-    const fog = twizzlerFogAmount(midNear, targetPolish, mid?.along ?? 0.5);
+    const fog = twizzlerFogLift(twizzlerFogAmount(midNear, targetPolish, mid?.along ?? 0.5), midNear, settings.fogLift);
     const color = twizzlerFogColor(withEdge, fog);
 
     const visibility =
@@ -1213,7 +1291,11 @@ export function renderTwizzler(
     for (const stop of stops) {
       const sample = line.points[Math.min(line.points.length - 1, Math.round(stop * (line.points.length - 1)))];
       const nearness = sample?.nearness ?? line.nearness;
-      const fog = twizzlerFogAmount(nearness, settings.targetPolish, sample?.along ?? stop);
+      const fog = twizzlerFogLift(
+        twizzlerFogAmount(nearness, settings.targetPolish, sample?.along ?? stop),
+        nearness,
+        settings.fogLift,
+      );
       const colorT = twizzlerColorT(sample?.along ?? stop, settings.targetPolish);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
       const depthWarmth =
