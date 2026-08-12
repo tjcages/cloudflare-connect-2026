@@ -17,7 +17,7 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
 - **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Appearance/Color). **Refresh keeps your live knobs** (localStorage; flushed on `pagehide` so a quick refresh still keeps Speed/Move). Named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
 - **JSON** — **Copy JSON** (clipboard) and **Upload JSON** (import as a saved layout)
 - **Default** — rich authoring for the orange-wave ribbon:
-  - **Hero** — **Graphic** selector: Twizzler / Rain / Both (which asset stack is visible)
+- **Hero** — **Graphic** selector: Twizzler / Rain / Both (which asset stack is visible). **Shader** picker appears when Graphic includes Rain (Connect / Spiral / etc.).
   - **Presets** — Size / Layout / **Appearance** (Light / Dark) / Color
     - **Size** — canvas dimensions only (does not touch Twizzler color, geometry, or other shader knobs)
     - **Layout** — ribbon geometry / motion only (does not reapply Color)
@@ -34,9 +34,9 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
   - **Twizzler → Motion** — Speed
   - **Background** — Fill + Color (solid) or Gradient direction + stops (when Fill = Gradient)
 - **Hero → Graphic**:
-  - **Twizzler** — orange-wave ribbon only
-  - **Rain** — Connect / section-grid stripe rain only (`sparkle.gaps` rect overlay from `@necatikcl/stripes-engine`)
-  - **Both** — ribbon underlay + rain overlay
+  - **Twizzler** — orange-wave ribbon only (Twizzler Leva folders; rain folders hidden)
+  - **Rain** — Connect / section-grid stripe rain with Shader picker + Stripes / Grid / Sparkle (Twizzler folders hidden). Selecting Rain restores opaque factory-like stripes if the Banner still had invisible rain.
+  - **Both** — ribbon underlay + rain overlay (both authoring panels)
 - **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, etc.) without rebuilding Leva, so values are not wiped when toggling.
 
 ## Twizzler (orange-wave)

@@ -12,8 +12,7 @@ import {
   saveStickyBackgroundColor,
 } from "../persistence";
 import type { LabEditTheme, LabSettings } from "../persistence";
-import { fromEditable } from "./stripeAdapter";
-import type { EditableStripe } from "./stripeAdapter";
+import { fromEditable, toEditable, type EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
 import { timeTransportPlugin } from "./timeTransportPlugin";
@@ -32,6 +31,7 @@ import {
 } from "../connectShader";
 import { SHADER_VIEW_DEFAULTS, type ShaderViewState } from "../shaderView";
 import type { ShaderConfigKind } from "../shaderConfig";
+import { CONNECT_SHADER_PRESET_ID, SHADER_LIBRARY } from "../shaderLibrary";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
 import { COMET_LOGO_DEFAULTS, normalizeCometLogoSettings, type CometLogoSettings } from "@necatikcl/stripes-engine";
@@ -84,8 +84,12 @@ import {
 
 /** Set during `useEngineControls` so drawerFolder can gate Default vs Advanced. */
 let clientDefaultPanelActive = false;
-/** True for the whole client / agency review app (Default or Advanced). */
+/** True for the whole client / agency review app (Default + Advanced). */
 let clientAppActive = false;
+/** Client Hero → Graphic includes Rain (rain | both). */
+let clientRainAuthoringActive = false;
+/** Client Hero → Graphic includes Twizzler (twizzler | both). */
+let clientTwizzlerAuthoringActive = false;
 
 function drawerFolder<S extends Parameters<typeof folder>[0]>(
   id: string,
@@ -98,15 +102,40 @@ function drawerFolder<S extends Parameters<typeof folder>[0]>(
     hideInClient?: boolean;
     /** Only show this folder in the client app (Default + Advanced). */
     clientOnly?: boolean;
+    /**
+     * Rain authoring folder: in the client app, only visible when Graphic is Rain/Both.
+     * When rain is selected, also shows in Default (bypasses hideInClient).
+     */
+    rainInClient?: boolean;
+    /** Twizzler authoring folder: in the client app, only visible when Graphic is Twizzler/Both. */
+    twizzlerInClient?: boolean;
   } = {},
 ) {
-  const { defaultOpen = false, hideInClient = false, clientOnly = false, render, ...folderOptions } = options;
+  const {
+    defaultOpen = false,
+    hideInClient = false,
+    clientOnly = false,
+    rainInClient = false,
+    twizzlerInClient = false,
+    render,
+    ...folderOptions
+  } = options;
   return folder(schema, {
     ...folderOptions,
     collapsed: !loadControlDrawerOpen(id, loadLabSettings().drawerOpen[id] ?? defaultOpen),
     render: (get: (path: string) => unknown) => {
-      if (hideInClient && clientDefaultPanelActive) return false;
       if (clientOnly && !clientAppActive) return false;
+      if (clientAppActive) {
+        if (rainInClient && !clientRainAuthoringActive) return false;
+        if (twizzlerInClient && !clientTwizzlerAuthoringActive) return false;
+        if (rainInClient && clientRainAuthoringActive) {
+          return render ? render(get) : true;
+        }
+        if (twizzlerInClient && clientTwizzlerAuthoringActive) {
+          return render ? render(get) : true;
+        }
+      }
+      if (hideInClient && clientDefaultPanelActive) return false;
       return render ? render(get) : true;
     },
   });
@@ -409,6 +438,10 @@ export interface EngineControlsResult {
   cometLogo: CometLogoSettings;
   /** Present in client mode when a size preset is selected. */
   clientCanvasSize: { width: number; height: number } | null;
+  /** Client Hero → Graphic mode (twizzler / rain / both). */
+  clientGraphicMode: ClientGraphicMode | null;
+  /** Client rain shader preset id when Graphic includes Rain. */
+  clientRainShaderPreset: string | null;
 }
 
 function paletteForBackgroundFillMode(mode: BackgroundFillMode): string {
@@ -501,6 +534,8 @@ export function useEngineControls(
      * rebuilding the Leva schema (so knob values are not wiped on toggle).
      */
     clientPanelMode?: "default" | "advanced";
+    /** Notify LabApp when client Hero → Graphic changes (for shader bootstrap). */
+    onClientGraphicModeChange?: (mode: ClientGraphicMode) => void;
   } = {},
 ): EngineControlsResult {
   const surfaceConfig = options.configScope === "surface";
@@ -509,8 +544,11 @@ export function useEngineControls(
   const clientDefaultPanel = clientApp && clientPanelMode === "default";
   clientDefaultPanelActive = clientDefaultPanel;
   clientAppActive = clientApp;
+  // Updated again after heroGraphicId resolves each render.
+  clientRainAuthoringActive = false;
+  clientTwizzlerAuthoringActive = !clientApp;
   const showShaderCamera = options.showShaderCamera === true && !clientDefaultPanel;
-  const showConnectCamera = options.showConnectCamera === true && !clientDefaultPanel;
+  const showConnectCamera = options.showConnectCamera === true;
   const activeShaderConfig = options.activeShaderConfig ?? null;
   const showTwizzlerRibbon = options.showTwizzlerRibbon === true;
   const showShaderToyCamera = showShaderCamera && !showConnectCamera;
@@ -527,14 +565,21 @@ export function useEngineControls(
   const clientAppRef = useRef(clientApp);
   clientAppRef.current = clientApp;
   const showCometLogoShaderConfig = () =>
-    activeShaderConfigRef.current === "comet-logo" && !clientDefaultPanelRef.current;
+    activeShaderConfigRef.current === "comet-logo" &&
+    (!clientAppRef.current || clientRainAuthoringActive) &&
+    (!clientDefaultPanelRef.current || clientRainAuthoringActive);
   const showTwizzlerMapShaderConfig = () =>
-    activeShaderConfigRef.current === "twizzler-map" && !clientDefaultPanelRef.current;
+    activeShaderConfigRef.current === "twizzler-map" &&
+    (!clientAppRef.current || clientRainAuthoringActive) &&
+    (!clientDefaultPanelRef.current || clientRainAuthoringActive);
   const showTwizzlerRibbonConfig = () => showTwizzlerRibbonRef.current;
-  const showTwizzlerAuthoring = () => showTwizzlerRibbonRef.current && !clientDefaultPanelRef.current;
+  const showTwizzlerAuthoring = () =>
+    showTwizzlerRibbonRef.current &&
+    (!clientAppRef.current || clientTwizzlerAuthoringActive) &&
+    (!clientDefaultPanelRef.current || clientTwizzlerAuthoringActive);
   const showFullLab = () => !clientDefaultPanelRef.current;
   const showSpiralShaderConfigRef = useRef(activeShaderConfig === "spiral");
-  showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && !clientDefaultPanel;
+  showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && (!clientApp || clientRainAuthoringActive);
   const showShaderToyCameraRef = useRef(showShaderToyCamera);
   showShaderToyCameraRef.current = showShaderToyCamera;
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
@@ -1190,6 +1235,10 @@ export function useEngineControls(
     string,
     ClientGraphicMode
   >;
+  const rainShaderOptions = Object.fromEntries(SHADER_LIBRARY.map((entry) => [entry.label, entry.id])) as Record<
+    string,
+    string
+  >;
 
   const [shaderValues, setShaderControl] = useControls(
     () =>
@@ -1201,6 +1250,12 @@ export function useEngineControls(
               value: levaSchemaSeedRef.current.clientHeroGraphic,
               options: clientGraphicOptions,
               label: "Graphic",
+            },
+            rainShaderPreset: {
+              value: initialLabSettings.shaderPresetId || CONNECT_SHADER_PRESET_ID,
+              options: rainShaderOptions,
+              label: "Shader",
+              render: () => clientAppRef.current && clientRainAuthoringActive,
             },
           },
           { defaultOpen: true, clientOnly: true },
@@ -1524,7 +1579,8 @@ export function useEngineControls(
           {
             defaultOpen: true,
             hideInClient: true,
-            render: () => activeShaderConfigRef.current !== null,
+            rainInClient: true,
+            render: () => activeShaderConfigRef.current !== null || (clientAppRef.current && clientRainAuthoringActive),
           },
         ),
         Twizzler: drawerFolder(
@@ -2176,7 +2232,8 @@ export function useEngineControls(
           },
           {
             defaultOpen: false,
-            render: () => showTwizzlerRibbonRef.current,
+            twizzlerInClient: true,
+            render: () => showTwizzlerRibbonRef.current && (!clientAppRef.current || clientTwizzlerAuthoringActive),
           },
         ),
         Stripes: drawerFolder(
@@ -2374,7 +2431,7 @@ export function useEngineControls(
               render: (get) => get("Stripes.colorsMode") === "colors",
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         Grid: drawerFolder(
           "Grid",
@@ -2469,7 +2526,7 @@ export function useEngineControls(
               },
             }),
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         Frames: drawerFolder(
           "Frames",
@@ -3068,6 +3125,20 @@ export function useEngineControls(
         Sparkle: drawerFolder(
           "Sparkle",
           {
+            sparkleGapsCoverage: {
+              value: d.sparkle.gaps.coverage * 100,
+              min: 0,
+              max: 100,
+              step: 1,
+              label: "Rain gaps %",
+            },
+            sparkleGapsSpeed: {
+              value: d.sparkle.gaps.speed,
+              min: 0.05,
+              max: 5,
+              step: 0.05,
+              label: "Rain gaps speed",
+            },
             sparkleStripeEnabled: { value: d.sparkle.stripe.enabled, label: "Stripe sparkle enabled" },
             sparkleStripeCoverage: {
               value: d.sparkle.stripe.coverage * 100,
@@ -3195,7 +3266,7 @@ export function useEngineControls(
               render: () => false,
             },
           },
-          { hideInClient: true },
+          { hideInClient: true, rainInClient: true },
         ),
         Letters: drawerFolder(
           "Letters",
@@ -4866,23 +4937,50 @@ export function useEngineControls(
   levaSchemaSeedRef.current.clientSizeId = clientSizeId;
   levaSchemaSeedRef.current.clientAppearanceId = clientAppearanceId;
   levaSchemaSeedRef.current.clientHeroGraphic = heroGraphicId;
+  clientRainAuthoringActive = !clientApp || heroGraphicId === "rain" || heroGraphicId === "both";
+  clientTwizzlerAuthoringActive = !clientApp || heroGraphicId === "twizzler" || heroGraphicId === "both";
+  showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && (!clientApp || clientRainAuthoringActive);
   /**
-   * Hero → Graphic drives Twizzler Show + Rain layer flags.
+   * Hero → Graphic drives Twizzler Show + Rain layer flags and rain-capable defaults.
    */
   const lastHeroGraphicIdRef = useRef<string | null>(null);
+  const onClientGraphicModeChangeRef = useRef(options.onClientGraphicModeChange);
+  onClientGraphicModeChangeRef.current = options.onClientGraphicModeChange;
   useEffect(() => {
     if (!clientApp) return;
-    if (lastHeroGraphicIdRef.current === null) {
-      lastHeroGraphicIdRef.current = heroGraphicId;
-      return;
-    }
-    if (lastHeroGraphicIdRef.current === heroGraphicId) return;
+    const prev = lastHeroGraphicIdRef.current;
+    if (prev === heroGraphicId) return;
     lastHeroGraphicIdRef.current = heroGraphicId;
     const flags = clientGraphicFlags(heroGraphicId);
-    shaderControlSetterRef.current?.({
+    const wasRain = prev === "rain" || prev === "both";
+    const enteringRain = flags.rainEnabled && !wasRain;
+    const patch: Record<string, unknown> = {
       twizzlerEnabled: flags.twizzlerEnabled,
       rainEnabled: flags.rainEnabled,
-    });
+    };
+    if (enteringRain) {
+      // Banner marketing preset uses opacity-0 stripes + gaps.coverage=1 (invisible rain).
+      // Restore factory-like opaque orange rain when entering Rain/Both.
+      const currentStripes = stripes;
+      const needsRainStripes = currentStripes.every((s) => s.opacity <= 0.001) || currentStripes.length <= 1;
+      if (needsRainStripes) {
+        setStripes(toEditable(LAB_DEFAULT_STRIPES));
+        setActiveGeneratedPalette("Orange");
+        patch.stripePalette = "Orange";
+      }
+      const gapsCoverage = Number((shaderValues as unknown as Record<string, unknown>).sparkleGapsCoverage);
+      if (!Number.isFinite(gapsCoverage) || gapsCoverage >= 99) {
+        patch.sparkleGapsCoverage = 0;
+        patch.sparkleGapsSpeed = 1;
+      }
+      patch.rainShaderPreset =
+        String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || "").trim() ||
+        CONNECT_SHADER_PRESET_ID;
+    }
+    shaderControlSetterRef.current?.(patch);
+    onClientGraphicModeChangeRef.current?.(heroGraphicId);
+    setShaderControl({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to graphic mode changes
   }, [clientApp, heroGraphicId, setShaderControl]);
 
   /** Keep Hero → Graphic in sync when Show/Rain flags change (Apply layout / Reset). */
@@ -5406,8 +5504,19 @@ export function useEngineControls(
         enabled: clientApp
           ? Boolean((shaderValues as unknown as Record<string, unknown>).rainEnabled)
           : d.sparkle.gaps.enabled,
-        coverage: d.sparkle.gaps.coverage,
-        speed: d.sparkle.gaps.speed,
+        coverage: Math.max(
+          0,
+          Math.min(
+            1,
+            Number(
+              (shaderValues as unknown as Record<string, unknown>).sparkleGapsCoverage ?? d.sparkle.gaps.coverage * 100,
+            ) / 100,
+          ),
+        ),
+        speed: Math.max(
+          0.05,
+          Number((shaderValues as unknown as Record<string, unknown>).sparkleGapsSpeed ?? d.sparkle.gaps.speed),
+        ),
       },
       stripe: {
         enabled: values.sparkleStripeEnabled,
@@ -5817,6 +5926,10 @@ export function useEngineControls(
           width: findClientSizePreset(clientSizeId).width,
           height: findClientSizePreset(clientSizeId).height,
         }
+      : null,
+    clientGraphicMode: clientApp ? heroGraphicId : null,
+    clientRainShaderPreset: clientApp
+      ? String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || CONNECT_SHADER_PRESET_ID)
       : null,
   };
 }
