@@ -318,22 +318,24 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
     let waves: number;
     switch (targetStrategy) {
       case 1:
-        // A — silhouette first: target's shallow left hills, low pinch, then high exit.
+        // A3 — silhouette first: calmer opening, low pinch, then a lifted terminal wave.
         knots = [
-          [0, 0.57],
-          [0.08, 0.72],
-          [0.18, 0.56],
-          [0.29, 0.7],
-          [0.37, 0.63],
-          [0.45, 0.72],
-          [0.52, 0.64],
+          [0, 0.58],
+          [0.12, 0.68],
+          [0.24, 0.61],
+          [0.36, 0.69],
+          [0.48, 0.65],
           [0.58, 0.92],
-          [0.68, 0.45],
-          [0.78, 0.14],
-          [0.9, 0.08],
-          [1, 0.37],
+          [0.68, 0.43],
+          [0.79, 0.12],
+          [0.89, 0.08],
+          [0.96, 0.3],
+          [1, 0.26],
         ];
-        waves = -0.018 * Math.sin(x * Math.PI * 5.2 + 0.4) - 0.012 * Math.sin(x * Math.PI * 8.4 + time * 0.15);
+        waves =
+          -0.012 * Math.sin(x * Math.PI * 3.8 + 0.4) -
+          0.008 * Math.sin(x * Math.PI * 6.2 + time * 0.15) -
+          0.035 * smoothstep(0.88, 1, x);
         break;
       case 2:
         // B — fan first: a distinct deep crossing node and fast diagonal launch.
@@ -353,21 +355,24 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
         waves = -0.025 * Math.sin(x * Math.PI * 4.1 + 0.8) - 0.018 * Math.sin(x * Math.PI * 7.2 + 1.7);
         break;
       case 3:
-        // C — depth first: layered rolling entry and a lower, energetic right exit.
+        // C3 — right-edge first: asymmetric hill cadence and a concentrated terminal kick.
         knots = [
           [0, 0.6],
-          [0.1, 0.69],
-          [0.2, 0.54],
-          [0.31, 0.68],
-          [0.41, 0.6],
-          [0.5, 0.74],
-          [0.59, 0.88],
-          [0.68, 0.44],
-          [0.78, 0.19],
-          [0.88, 0.17],
-          [1, 0.42],
+          [0.09, 0.7],
+          [0.23, 0.55],
+          [0.34, 0.72],
+          [0.47, 0.61],
+          [0.56, 0.9],
+          [0.66, 0.47],
+          [0.75, 0.16],
+          [0.84, 0.11],
+          [0.91, 0.25],
+          [0.96, 0.08],
+          [1, 0.34],
         ];
-        waves = -0.03 * Math.sin(x * Math.PI * 6.2 + 0.2) - 0.015 * Math.sin(x * Math.PI * 10.2 + 1.1);
+        waves =
+          -0.018 * Math.sin(x * Math.PI * 5.4 + 0.2) -
+          0.025 * smoothstep(0.7, 1, x) * Math.sin(x * Math.PI * 11.2 + 1.1);
         break;
       default: {
         const _exhaustive: never = targetStrategy;
@@ -593,7 +598,10 @@ export function twizzlerFogAmount(nearness: number, targetPolish = 0, xT = 0.5):
     const far = 1 - Math.max(0, Math.min(1, nearness));
     const right = smoothstep(0.48, 1, xT);
     if (targetPolish === 1) return Math.min(0.64, Math.pow(far, 0.92) * (0.54 - right * 0.12));
-    if (targetPolish === 2) return Math.min(0.58, Math.pow(far, 1.05) * (0.5 - right * 0.18));
+    if (targetPolish === 2) {
+      const depthLayer = 0.04 * Math.sin(nearness * Math.PI * 5.5);
+      return Math.min(0.66, Math.max(0, Math.pow(far, 0.92) * (0.58 - right * 0.16) + depthLayer));
+    }
     return Math.min(0.72, Math.pow(far, 0.78) * (0.64 - right * 0.1));
   }
   return Math.pow(1 - nearness, 0.68);
@@ -921,7 +929,9 @@ export function buildTwizzlerLines(
       // Y amp: multiple heat peaks/valleys scattered through Z (across), fluid along X.
       // Larger wrinkles → denser Z spots; fewer wrinkles → fewer larger Z blobs.
       const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
-      const heatScale = targetPolish === 1 ? 0.28 : targetPolish === 2 ? 0.2 : targetPolish === 3 ? 0.36 : 1;
+      const baseHeatScale = targetPolish === 1 ? 0.24 : targetPolish === 2 ? 0.22 : targetPolish === 3 ? 0.22 : 1;
+      const terminalHeat = targetPolish === 3 ? 0.55 + 1.15 * smoothstep(0.68, 1, c.xT) : 1;
+      const heatScale = baseHeatScale * terminalHeat;
       const ampNoiseY =
         twizzlerAmpNoiseY(
           c.xT,
@@ -951,12 +961,13 @@ export function buildTwizzlerLines(
       const faceY = ny * projected * 0.35;
       const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
       const edgePhase = (c.xT - 0.6) * Math.PI * (targetPolish === 3 ? 3.4 : 2.1) + across * 2.4;
+      const energyGate = targetPolish === 3 ? Math.pow(smoothstep(0.66, 1, c.xT), 1.35) : rightEdge;
       const rightEnergy =
         targetPolish > 0
           ? Math.sin(edgePhase) *
             halfW *
-            rightEdge *
-            (targetPolish === 1 ? 0.08 : targetPolish === 2 ? 0.14 : 0.24) *
+            energyGate *
+            (targetPolish === 1 ? 0.06 : targetPolish === 2 ? 0.12 : 0.34) *
             (0.35 + Math.abs(acrossX))
           : 0;
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
@@ -1070,7 +1081,10 @@ export function renderTwizzler(
       const fog = twizzlerFogAmount(nearness, settings.targetPolish, sample?.along ?? stop);
       const colorT = twizzlerColorT(sample?.along ?? stop, settings.targetPolish);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
-      gradient.addColorStop(stop, twizzlerFogColor(base, fog));
+      const depthWarmth =
+        settings.targetPolish === 2 ? 0.04 + 0.18 * Math.pow(nearness, 0.8) * (0.4 + 0.6 * Math.abs(line.across)) : 0;
+      const depthTint = depthWarmth > 0 ? twizzlerLerpColor(base, settings.colorEdge, depthWarmth) : base;
+      gradient.addColorStop(stop, twizzlerFogColor(depthTint, fog));
     }
 
     // Width also grows along the path toward the camera (right).
