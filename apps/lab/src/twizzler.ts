@@ -524,7 +524,8 @@ export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed
   const n1 = twizzlerNoise(x * (1.9 / s) + seed * 1.25, a * (1.15 / s) + 0.35, 0.68);
   const n2 = twizzlerNoise(x * (3.1 / s) + 0.55, a * (0.4 / s) + seed * 0.4, 1.25);
   const raw = 0.5 * n0 + 0.35 * n1 + 0.15 * n2;
-  return Math.pow(Math.max(0, Math.min(1, raw)), 1.2);
+  // Stronger contrast: clear hot spots vs calm regions (heat-map readable).
+  return Math.pow(smoothstep(0.22, 0.82, raw), 1.35);
 }
 
 /**
