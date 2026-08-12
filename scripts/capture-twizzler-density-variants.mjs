@@ -65,36 +65,33 @@ await page.setContent(`<!doctype html>
 
 const results = [];
 for (const variant of variants) {
-  await page.evaluate(
-    ({ id, label, settings }) => {
-      const output = document.getElementById("capture");
-      const context = output.getContext("2d");
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, output.width, output.height);
+  await page.evaluate(({ id, label, settings }) => {
+    const output = document.getElementById("capture");
+    const context = output.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, output.width, output.height);
 
-      const ribbon = document.createElement("canvas");
-      ribbon.width = 1600;
-      ribbon.height = 320;
-      // eslint-disable-next-line no-undef
-      TwizzlerMod.renderTwizzler(ribbon, 1600, 320, 0, settings);
+    const ribbon = document.createElement("canvas");
+    ribbon.width = 1600;
+    ribbon.height = 320;
+    // eslint-disable-next-line no-undef
+    TwizzlerMod.renderTwizzler(ribbon, 1600, 320, 0, settings);
 
-      context.fillStyle = "#111111";
-      context.fillRect(0, 0, output.width, 96);
-      context.drawImage(ribbon, 0, 96);
-      context.fillStyle = "#ffffff";
-      context.font = "700 48px ui-sans-serif, system-ui, sans-serif";
-      context.fillText(id, 24, 66);
-      context.font = "600 23px ui-sans-serif, system-ui, sans-serif";
-      context.fillText(label, 112, 48);
-      context.font = "500 17px ui-monospace, monospace";
-      context.fillText(
-        `${settings.lineCount} lines  /  ${settings.lineWidth}px base  /  depth spread ${settings.depthSpread}`,
-        112,
-        75,
-      );
-    },
-    variant,
-  );
+    context.fillStyle = "#111111";
+    context.fillRect(0, 0, output.width, 96);
+    context.drawImage(ribbon, 0, 96);
+    context.fillStyle = "#ffffff";
+    context.font = "700 48px ui-sans-serif, system-ui, sans-serif";
+    context.fillText(id, 24, 66);
+    context.font = "600 23px ui-sans-serif, system-ui, sans-serif";
+    context.fillText(label, 112, 48);
+    context.font = "500 17px ui-monospace, monospace";
+    context.fillText(
+      `${settings.lineCount} lines  /  ${settings.lineWidth}px base  /  depth spread ${settings.depthSpread}`,
+      112,
+      75,
+    );
+  }, variant);
 
   const outPath = resolve(outDir, `twizzler-pack-density-${variant.id}-labeled.png`);
   await page.locator("#capture").screenshot({ path: outPath, type: "png" });
@@ -142,4 +139,6 @@ writeFileSync(
     2,
   ),
 );
-console.log(JSON.stringify({ variants: results.map(({ id, outPath }) => ({ id, outPath })), stackPath, manifestPath }, null, 2));
+console.log(
+  JSON.stringify({ variants: results.map(({ id, outPath }) => ({ id, outPath })), stackPath, manifestPath }, null, 2),
+);

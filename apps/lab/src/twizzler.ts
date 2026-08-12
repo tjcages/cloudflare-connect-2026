@@ -448,9 +448,7 @@ export function twizzlerFiberNearness(across: number, xT: number, settings: Twiz
   // The 1.18 lock-B preset resolves to the original 1.45 exponent.
   const polePower = Math.max(1.05, Math.min(2.1, 1.45 + (settings.depthSpread - 1.18) * 0.4));
   const stretched =
-    stackNear < 0.5
-      ? 0.5 * Math.pow(stackNear * 2, polePower)
-      : 1 - 0.5 * Math.pow((1 - stackNear) * 2, polePower);
+    stackNear < 0.5 ? 0.5 * Math.pow(stackNear * 2, polePower) : 1 - 0.5 * Math.pow((1 - stackNear) * 2, polePower);
   const twistZ = across * Math.sin(theta) * 0.05;
   const alongPull = 0.06 * Math.pow(smoothstep(0.55, 1, x), 1.25);
   const volume = twizzlerNearness(twizzlerDepthScale(x, settings), settings);
