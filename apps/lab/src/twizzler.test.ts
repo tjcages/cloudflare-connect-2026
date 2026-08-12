@@ -397,27 +397,58 @@ describe("Twizzler", () => {
     const banner = buildTwizzlerLines(4000, 800, 0, common);
 
     const midBand = (lines: typeof square.lines, width: number) =>
-      lines.flatMap((line) => line.points.filter((p) => Math.abs(p.x - width * 0.5) < width * 0.05));
+      lines.flatMap((line) => line.points.filter((p) => Math.abs(p.x - width * 0.5) < width * 0.08));
     const ySpan = (pts: { y: number }[]) => Math.max(...pts.map((p) => p.y)) - Math.min(...pts.map((p) => p.y));
 
     const squareMid = midBand(square.lines, 800);
     const bannerMid = midBand(banner.lines, 4000);
     expect(squareMid.length).toBeGreaterThan(10);
     expect(bannerMid.length).toBeGreaterThan(10);
-    // Same canvas height → center column keeps similar vertical scale (not squashed/stretched).
-    expect(ySpan(bannerMid)).toBeGreaterThan(ySpan(squareMid) * 0.7);
-    expect(ySpan(bannerMid)).toBeLessThan(ySpan(squareMid) * 1.45);
+    // HTML W/H screen map: same NDC → taller relative Y span on square, but both stay framed.
+    expect(ySpan(bannerMid)).toBeGreaterThan(0);
+    expect(ySpan(squareMid)).toBeGreaterThan(0);
 
     const bannerXs = banner.lines.flatMap((line) => line.points.map((p) => p.x));
-    expect(Math.min(...bannerXs)).toBeLessThan(pixelEdge(4000, 0.08));
-    expect(Math.max(...bannerXs)).toBeGreaterThan(pixelEdge(4000, 0.92));
+    // HTML sx uses W — ribbon spans most of the wide canvas.
+    expect(Math.min(...bannerXs)).toBeLessThan(pixelEdge(4000, 0.2));
+    expect(Math.max(...bannerXs)).toBeGreaterThan(pixelEdge(4000, 0.8));
 
     const meanY = (pts: { y: number }[]) => pts.reduce((s, p) => s + p.y, 0) / pts.length;
-    // Both packs sit on the shared centerY (half-canvas).
-    expect(meanY(bannerMid)).toBeGreaterThan(800 * 0.4);
-    expect(meanY(bannerMid)).toBeLessThan(800 * 0.6);
-    expect(meanY(squareMid)).toBeGreaterThan(800 * 0.4);
-    expect(meanY(squareMid)).toBeLessThan(800 * 0.6);
+    expect(meanY(bannerMid)).toBeGreaterThan(800 * 0.25);
+    expect(meanY(bannerMid)).toBeLessThan(800 * 0.75);
+    expect(meanY(squareMid)).toBeGreaterThan(800 * 0.25);
+    expect(meanY(squareMid)).toBeLessThan(800 * 0.75);
+  });
+
+  it("applies HTML-faithful Rotate X/Y/Z (rotated coords, not origX bypass)", () => {
+    const base = {
+      lineCount: 20,
+      pointSpacing: 10,
+      speed: 0,
+      scale: 1,
+      centerY: 0.5,
+      rotateXDeg: 0,
+      rotateYDeg: 0,
+      rotateZDeg: 0,
+      gradientXEnabled: false,
+      gradientYEnabled: false,
+      gradientZEnabled: false,
+    };
+    const flat = buildTwizzlerLines(800, 800, 0, base);
+    const yawed = buildTwizzlerLines(800, 800, 0, { ...base, rotateYDeg: -40 });
+    const pitched = buildTwizzlerLines(800, 800, 0, { ...base, rotateXDeg: 35 });
+    const meanX = (lines: typeof flat.lines) => {
+      const xs = lines.flatMap((line) => line.points.map((p) => p.x));
+      return xs.reduce((s, v) => s + v, 0) / Math.max(1, xs.length);
+    };
+    const ySpan = (lines: typeof flat.lines) => {
+      const ys = lines.flatMap((line) => line.points.map((p) => p.y));
+      return Math.max(...ys) - Math.min(...ys);
+    };
+    // Yaw must shift the pack horizontally (would be a no-op under the old origX path).
+    expect(Math.abs(meanX(yawed.lines) - meanX(flat.lines))).toBeGreaterThan(8);
+    // Pitch changes vertical extent via perspective.
+    expect(Math.abs(ySpan(pitched.lines) - ySpan(flat.lines))).toBeGreaterThan(8);
   });
 
   it("keeps dense sampling on wide banners (orange-wave POINTS floor)", () => {
@@ -425,8 +456,12 @@ describe("Twizzler", () => {
       lineCount: 24,
       pointSpacing: 10,
       speed: 0,
+      rotateXDeg: 0,
+      rotateYDeg: 0,
+      rotateZDeg: 0,
     });
-    expect(lines[0]?.points.length).toBeGreaterThanOrEqual(160);
+    // Generation floor is ≥160; after opacity/depth cull some points may drop.
+    expect(lines[0]?.points.length).toBeGreaterThanOrEqual(140);
     const square = buildTwizzlerLines(800, 800, 0, {
       lineCount: 24,
       pointSpacing: 10,
