@@ -12,7 +12,7 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 ## What clients see (Leva)
 
-Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, **JSON** (Copy / Upload), and **Graphic** (**Twizzler** | **Rain** | **Both**) above the Leva **Presets** folder. **Video duration**, **Export Video**, and **Export SVG** sit at the bottom of the panel.
+Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, **JSON** (Copy / Upload), and **Graphic** (**Twizzler** | **Rain** | **Both**) above the Leva **Presets** folder. **Video duration**, **Export Video**, and **Export SVG** follow the Leva folders in the same panel scroll (not a floating footer).
 
 - **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Appearance/Color). **Refresh keeps your live knobs** (localStorage; flushed on `pagehide` so a quick refresh still keeps Speed/Move). Named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
 - **JSON** — **Copy JSON** (clipboard) and **Upload JSON** (import as a saved layout)

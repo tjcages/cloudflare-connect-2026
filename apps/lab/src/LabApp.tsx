@@ -3865,23 +3865,23 @@ function LabInner({
                 </fieldset>
               </div>
               <div className="lab-client-leva">
-                <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
-              </div>
-              <div className="lab-client-exports">
-                <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
-                <div className="lab-client-layouts-actions">
-                  <button
-                    type="button"
-                    className={videoExportBusy ? "is-exporting" : undefined}
-                    onClick={onExportVideo}
-                    disabled={videoExportBusy}
-                    aria-busy={videoExportBusy}
-                  >
-                    {videoExportLabel}
-                  </button>
-                  <button type="button" onClick={onExportSvg}>
-                    Export SVG
-                  </button>
+                <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill={false} flat titleBar={false} />
+                <div className="lab-client-exports">
+                  <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
+                  <div className="lab-client-layouts-actions">
+                    <button
+                      type="button"
+                      className={videoExportBusy ? "is-exporting" : undefined}
+                      onClick={onExportVideo}
+                      disabled={videoExportBusy}
+                      aria-busy={videoExportBusy}
+                    >
+                      {videoExportLabel}
+                    </button>
+                    <button type="button" onClick={onExportSvg}>
+                      Export SVG
+                    </button>
+                  </div>
                 </div>
               </div>
             </>
