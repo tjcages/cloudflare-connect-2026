@@ -390,7 +390,7 @@ const ORANGE_WAVE_Z_MAX = 2.8;
 const ORANGE_WAVE_X_RANGE = 6.8;
 
 type Vec3 = { x: number; y: number; z: number };
-type WavePoint = Vec3 & { u: number; origX: number; origY: number; origZ: number; pitchZ: number };
+type WavePoint = Vec3 & { u: number; origX: number; origY: number; origZ: number };
 
 function parseRgb(hex: string): { r: number; g: number; b: number } {
   const value = hex.replace("#", "");
@@ -1043,9 +1043,9 @@ export function buildTwizzlerLines(
   const rotX = (settings.rotateXDeg * Math.PI) / 180;
   const rotY = (settings.rotateYDeg * Math.PI) / 180;
   const rotZ = (settings.rotateZDeg * Math.PI) / 180;
-  // Wide canvases expand world X (more L/R of the same shape); square keeps reference range.
-  const xRange = orangeWaveXRangeForCanvas(pixelWidth, pixelHeight);
-  const aspectExpand = xRange / ORANGE_WAVE_X_RANGE;
+  // Match orange-wave-vector.html: fixed world X range (not aspect-expanded).
+  // Wide canvases fill via HTML screen map (sx uses W, sy uses H).
+  const xRange = ORANGE_WAVE_X_RANGE;
   const camDist = settings.camDist;
   const fov = settings.fov;
   const zoom = settings.scale;
@@ -1061,39 +1061,31 @@ export function buildTwizzlerLines(
       const u = pointCount <= 1 ? 0 : (j / (pointCount - 1)) * 2 - 1;
       const x = u * xRange;
       const y = orangeWaveY(x, z, time, settings.amplitude, xRange);
+      // HTML orange-wave-vector: rotX → rotY → rotZ, then perspective on rotated coords.
       let q: Vec3 = { x, y, z };
       q = orangeWaveRotX(q, rotX);
-      const pitchZ = q.z;
       q = orangeWaveRotY(q, rotY);
       q = orangeWaveRotZ(q, rotZ);
-      layer.push({ ...q, u, origX: x, origY: y, origZ: z, pitchZ });
+      layer.push({ ...q, u, origX: x, origY: y, origZ: z });
     }
     rotated.push(layer);
   }
 
   let minPX = Infinity;
   let maxPX = -Infinity;
-  const useParamX = aspectExpand > 1.001;
   for (const layer of rotated) {
     for (const p of layer) {
-      const inCore = Math.abs(p.origX) <= ORANGE_WAVE_X_RANGE;
-      const depth = useParamX && !inCore ? camDist + p.pitchZ : camDist + p.z;
+      const depth = camDist + p.z;
       if (depth < 0.4) continue;
-      const px = useParamX ? (p.origX / camDist) * fov : (p.x / depth) * fov;
+      const px = (p.x / depth) * fov;
       if (px < minPX) minPX = px;
       if (px > maxPX) maxPX = px;
     }
   }
   const span = Math.max(0.001, maxPX - minPX);
-  // Wide: fit the square-core parameter span so shape scale matches square; wings extend L/R.
-  const fitSpan = useParamX ? span / aspectExpand : span;
-  // Unbounded zoom: do not cap fitScale (HTML used Math.min(2.2, …) which locked L/R
-  // edges while Y kept growing → vertical stretch past ~zoom 2).
-  const fitScale = (1.88 * zoom) / Math.max(0.001, fitSpan);
+  // Unbounded zoom: do not cap fitScale (HTML used Math.min(2.2, …) which locked L/R).
+  const fitScale = (1.88 * zoom) / Math.max(0.001, span);
   const mid = (minPX + maxPX) * 0.5;
-  // Uniform pixel scale from height: square maps identically to the old path;
-  // banners keep the same world→pixel scale and reveal more L/R.
-  const screenScale = pixelHeight;
 
   const colXA = parseRgb(settings.colorFar);
   const colXB = parseRgb(settings.colorNear);
@@ -1116,9 +1108,7 @@ export function buildTwizzlerLines(
 
     for (let j = 0; j < layer.length; j += 1) {
       const p = layer[j]!;
-      const inCore = Math.abs(p.origX) <= ORANGE_WAVE_X_RANGE;
-      // Core matches square perspective; wings use pitch depth so expanded X stays stable.
-      const depth = useParamX && !inCore ? camDist + p.pitchZ : camDist + p.z;
+      const depth = camDist + p.z;
       if (depth < 0.4) continue;
 
       let a = orangeWaveSmoothstep(3.2, 0.3, Math.abs(p.origZ + 0.15));
@@ -1157,12 +1147,11 @@ export function buildTwizzlerLines(
 
       if (a < 0.008) continue;
 
-      const px = useParamX ? (p.origX / camDist) * fov : (p.x / depth) * fov;
-      const ndcX = (px - mid) * fitScale;
-      // Y always uses the active depth (pitch-stable on wide) so shape scale matches square.
+      // HTML: sx = (ndcX*0.5+0.5)*W, sy = (0.5-ndcY*0.5)*H — use rotated p.x/p.y/p.z.
+      const ndcX = ((p.x / depth) * fov - mid) * fitScale;
       const ndcY = (p.y / depth) * fov * 1.25 * zoom;
-      const x = pixelWidth * 0.5 + ndcX * 0.5 * screenScale;
-      const y = pixelHeight * 0.5 - ndcY * 0.5 * screenScale;
+      const x = (ndcX * 0.5 + 0.5) * pixelWidth;
+      const y = (0.5 - ndcY * 0.5) * pixelHeight;
       const nearness = Math.max(0, Math.min(1, 1 - (depth - 8) / 6));
       const hex = rgbToHex(col);
       points.push({
