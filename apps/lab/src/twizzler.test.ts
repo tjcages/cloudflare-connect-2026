@@ -332,6 +332,21 @@ describe("Twizzler", () => {
     expect(meanY(squareMid)).toBeLessThan(800 * 0.6);
   });
 
+  it("keeps dense sampling on wide banners (orange-wave POINTS floor)", () => {
+    const { lines } = buildTwizzlerLines(1600, 320, 0, {
+      lineCount: 24,
+      pointSpacing: 10,
+      speed: 0,
+    });
+    expect(lines[0]?.points.length).toBeGreaterThanOrEqual(160);
+    const square = buildTwizzlerLines(800, 800, 0, {
+      lineCount: 24,
+      pointSpacing: 10,
+      speed: 0,
+    });
+    expect(square.lines[0]?.points.length).toBeGreaterThanOrEqual(160);
+  });
+
   it("fades Z gradient from foreground toward background color", () => {
     const { lines } = buildTwizzlerLines(600, 600, 0, {
       lineCount: 40,
