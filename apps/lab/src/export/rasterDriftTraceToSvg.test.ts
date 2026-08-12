@@ -3,6 +3,7 @@ import {
   assertRasterDriftTraceSvg,
   countRasterDriftSvgPaths,
   rasterDriftTracePass3StudiesToSvg,
+  rasterDriftTracePass4StudiesToSvg,
   rasterDriftTraceStudiesToSvg,
   type RasterDriftField,
 } from "./rasterDriftTraceToSvg";
@@ -88,6 +89,24 @@ describe("rasterDriftTraceStudiesToSvg", () => {
       expect(svg).not.toMatch(/data\s*:/i);
       expect(() => assertRasterDriftTraceSvg(svg, { requireCubic })).not.toThrow();
       if (requireCubic) expect(svg).toMatch(/\bd="[^"]*\bC/);
+    }
+  });
+
+  it("creates smoothed vector-only pass-four fidelity studies", () => {
+    const studies = rasterDriftTracePass4StudiesToSvg(syntheticCrossingField());
+
+    expect(studies.A4).toContain('data-layer="anti-aliased-fidelity-bands"');
+    expect(studies.A4).toContain('data-boundary="smoothed"');
+    expect(studies.A4).toMatch(/\bd="[^"]*\bQ/);
+    expect(studies.B4).toContain('data-channel-protection="high-band-erosion"');
+    expect(studies.C4).toContain('data-layer="color-calibrated-fidelity-bands"');
+
+    for (const [strategy, svg] of Object.entries(studies)) {
+      expect(countRasterDriftSvgPaths(svg)).toBeGreaterThan(1);
+      expect(svg).toContain(`data-strategy="${strategy}"`);
+      expect(svg).not.toMatch(/<(?:image|canvas)\b/i);
+      expect(svg).not.toMatch(/data\s*:/i);
+      expect(() => assertRasterDriftTraceSvg(svg)).not.toThrow();
     }
   });
 });
