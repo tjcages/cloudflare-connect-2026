@@ -20,6 +20,23 @@ mkdirSync(outDir, { recursive: true });
 
 const preset = JSON.parse(readFileSync(presetPath, "utf8"));
 const lockedB = { ...preset.lab.twizzler, speed: 0 };
+const priorVariants = [
+  {
+    id: "A",
+    label: "airier counterpoint · fewer, thicker · clearer far field",
+    settings: { ...lockedB, lineCount: 128, lineWidth: 0.9, depthSpread: 0.9 },
+  },
+  {
+    id: "B",
+    label: "D2 signal · 240 hairlines · lock-B depth",
+    settings: { ...lockedB, lineCount: 240, lineWidth: 0.45, depthSpread: 1.18 },
+  },
+  {
+    id: "C",
+    label: "D3 + P3 signals · 320 hairlines · wider depth",
+    settings: { ...lockedB, lineCount: 320, lineWidth: 0.5, depthSpread: 1.45 },
+  },
+];
 const variants = [
   {
     id: "A3",
@@ -63,8 +80,8 @@ await page.setContent(`<!doctype html>
   </body>
 </html>`);
 
-const results = [];
-for (const variant of variants) {
+const capturedResults = [];
+for (const variant of [...priorVariants, ...variants]) {
   await page.evaluate(({ id, label, settings }) => {
     const output = document.getElementById("capture");
     const context = output.getContext("2d");
@@ -95,18 +112,19 @@ for (const variant of variants) {
 
   const outPath = resolve(outDir, `twizzler-pack-density-${variant.id}-labeled.png`);
   await page.locator("#capture").screenshot({ path: outPath, type: "png" });
-  results.push({ id: variant.id, label: variant.label, outPath, settings: variant.settings });
+  capturedResults.push({ id: variant.id, label: variant.label, outPath, settings: variant.settings });
 }
 
-const panelHtml = results
-  .map(({ outPath }) => {
-    const image = readFileSync(outPath).toString("base64");
-    return `<img src="data:image/png;base64,${image}" style="display:block;width:1600px;margin-bottom:12px">`;
-  })
-  .join("");
 const target = readFileSync(targetPath).toString("base64");
-await page.setViewportSize({ width: 1600, height: 1800 });
-await page.setContent(`<!doctype html>
+const captureStack = async (results, stackPath) => {
+  const panelHtml = results
+    .map(({ outPath }) => {
+      const image = readFileSync(outPath).toString("base64");
+      return `<img src="data:image/png;base64,${image}" style="display:block;width:1600px;margin-bottom:12px">`;
+    })
+    .join("");
+  await page.setViewportSize({ width: 1600, height: 1800 });
+  await page.setContent(`<!doctype html>
 <html>
   <body style="margin:0;background:#0b0b0b">
     ${panelHtml}
@@ -114,8 +132,15 @@ await page.setContent(`<!doctype html>
     <img src="data:image/png;base64,${target}" style="display:block;width:1600px;background:#fff">
   </body>
 </html>`);
+  await page.screenshot({ path: stackPath, type: "png", fullPage: true });
+};
+
+const priorResults = capturedResults.slice(0, priorVariants.length);
+const results = capturedResults.slice(priorVariants.length);
+const priorStackPath = resolve(outDir, "twizzler-pack-density-ABC-stack.png");
 const stackPath = resolve(outDir, "twizzler-pack-density-A3B3C3-stack.png");
-await page.screenshot({ path: stackPath, type: "png", fullPage: true });
+await captureStack(priorResults, priorStackPath);
+await captureStack(results, stackPath);
 
 await browser.close();
 try {
@@ -125,6 +150,20 @@ try {
 }
 
 const manifestPath = resolve(outDir, "twizzler-pack-density-A3B3C3.json");
+writeFileSync(
+  resolve(outDir, "twizzler-pack-density-ABC.json"),
+  JSON.stringify(
+    {
+      axis: "lineCount, lineWidth, depthSpread, fog/nearness",
+      locked: "B Z-lobe geometry and cubic Catmull-Rom paths",
+      variants: priorResults,
+      stackPath: priorStackPath,
+      targetPath,
+    },
+    null,
+    2,
+  ),
+);
 writeFileSync(
   manifestPath,
   JSON.stringify(
