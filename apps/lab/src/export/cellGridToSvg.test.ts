@@ -126,6 +126,24 @@ describe("cellGridToSvg", () => {
     expect(svg.indexOf('data-layer="twizzler"')).toBeLessThan(svg.indexOf("<style>"));
   });
 
+  it("omits stripe paths when rain stripes are empty (Twizzler-only export)", () => {
+    const readback = { cols: 4, rows: 4, values: v(...new Array(16).fill(255)), colors: null };
+    const vector = '<g data-layer="twizzler"><path d="M0 0L40 20Z" fill="#f46021" /></g>';
+    const svg = cellGridToSvg(readback, [], {
+      cellWidthPx: 10,
+      cellHeightPx: 10,
+      useCellColors: false,
+      backgroundHex: "#ffffff",
+      backgroundSvgLayer: vector,
+      canvasWidthPx: 40,
+      canvasHeightPx: 40,
+    });
+    expect(svg).toContain('data-layer="twizzler"');
+    expect(svg).toContain('fill="#ffffff"');
+    expect(svg).not.toMatch(/class="stripe-/);
+    expect((svg.match(/<path /g) ?? []).length).toBe(1);
+  });
+
   it("includes the background color rect in image-colors SVG export too", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: v(0x33, 0x66, 0x99, 255) };
     const svg = cellGridToSvg(readback, STRIPES, {

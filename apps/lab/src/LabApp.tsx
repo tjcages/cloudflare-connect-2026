@@ -1632,10 +1632,11 @@ function LabInner({
 
     const buildExportSvg = (): string => {
       const cfg = controlsRef.current;
+      const includeRainStripes = cfg.stripesEnabled;
       const readback = engine.readCellGrid();
       const canvasWidthPx = Math.round(Number.parseFloat(canvas.style.width) || canvas.clientWidth || canvas.width);
       const canvasHeightPx = Math.round(Number.parseFloat(canvas.style.height) || canvas.clientHeight || canvas.height);
-      const resolvedStripes = effectiveStripes(cfg);
+      const resolvedStripes = includeRainStripes ? effectiveStripes(cfg) : [];
       const stripes = resolvedStripes.map((s) => ({
         hex: "#" + s.color.toString(16).padStart(6, "0"),
         startFrom: s.startFrom,
@@ -1708,29 +1709,30 @@ function LabInner({
         cellHeightPx: cfg.grid.cellHeight,
         gapX: cfg.grid.gapX,
         gapY: cfg.grid.gapY,
-        useCellColors: readback.colors !== null,
+        useCellColors: includeRainStripes && readback.colors !== null,
         orientation: cfg.grid.orientation,
         angleDeg: cfg.grid.angleDeg,
         rotationMode: cfg.grid.rotationMode,
         overlapAmount: cfg.grid.overlapAmount,
         streamGapWave: cfg.grid.streamGapWave,
         backgroundHex: exportBackground.backgroundHex,
-        letters: cfg.letters,
+        letters: includeRainStripes ? cfg.letters : { ...cfg.letters, enabled: false },
         blendMode: cfg.colors.stripeBlendMode,
-        widthSparkle: cfg.sparkle.width,
-        stripeDots: cfg.stripeDots,
-        stripeBorder: cfg.stripeBorder,
-        gridLines: cfg.gridLines,
-        framesSvgLayer,
-        gradient: cfg.colors.gradient.enabled
-          ? {
-              direction: cfg.colors.gradient.direction,
-              stopCount: cfg.colors.gradient.stopCount,
-              stops: cfg.colors.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
-              hueDriftDeg: cfg.colors.gradient.hueDriftDeg,
-              saturationBoost: cfg.colors.gradient.saturationBoost,
-            }
-          : undefined,
+        widthSparkle: includeRainStripes ? cfg.sparkle.width : undefined,
+        stripeDots: includeRainStripes ? cfg.stripeDots : undefined,
+        stripeBorder: includeRainStripes ? cfg.stripeBorder : undefined,
+        gridLines: includeRainStripes ? cfg.gridLines : undefined,
+        framesSvgLayer: includeRainStripes ? framesSvgLayer : undefined,
+        gradient:
+          includeRainStripes && cfg.colors.gradient.enabled
+            ? {
+                direction: cfg.colors.gradient.direction,
+                stopCount: cfg.colors.gradient.stopCount,
+                stops: cfg.colors.gradient.stops.map((color) => "#" + color.toString(16).padStart(6, "0")),
+                hueDriftDeg: cfg.colors.gradient.hueDriftDeg,
+                saturationBoost: cfg.colors.gradient.saturationBoost,
+              }
+            : undefined,
         backgroundGradient: exportBackground.backgroundGradient,
         backgroundImageHrefs: [connectUnderlayHref].filter(
           (href): href is string => typeof href === "string" && href.length > 0,
@@ -1742,8 +1744,10 @@ function LabInner({
     };
     onExportSvgRef.current = () => {
       const cfg = controlsRef.current;
-      if (!cfg.stripesEnabled) {
-        window.alert("Enable stripes before exporting an SVG.");
+      const twizzlerOn =
+        labSettingsRef.current.textureSourceMode === "shader" && twizzlerRef.current.enabled;
+      if (!cfg.stripesEnabled && !twizzlerOn) {
+        window.alert("Enable Rain or Twizzler before exporting an SVG.");
         return;
       }
       downloadSvg(buildExportSvg());
