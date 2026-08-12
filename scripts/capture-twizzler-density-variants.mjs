@@ -23,18 +23,18 @@ const lockedB = { ...preset.lab.twizzler, speed: 0 };
 const variants = [
   {
     id: "A",
-    label: "airier · fewer, thicker · clearer far field",
-    settings: { ...lockedB, lineCount: 112, lineWidth: 0.95, depthSpread: 0.72 },
+    label: "airier counterpoint · fewer, thicker · clearer far field",
+    settings: { ...lockedB, lineCount: 128, lineWidth: 0.9, depthSpread: 0.9 },
   },
   {
     id: "B",
-    label: "lock B · 240 lines · mid-density",
-    settings: { ...lockedB, lineCount: 240, lineWidth: 0.72, depthSpread: 1.18 },
+    label: "D2 signal · 240 hairlines · lock-B depth",
+    settings: { ...lockedB, lineCount: 240, lineWidth: 0.45, depthSpread: 1.18 },
   },
   {
     id: "C",
-    label: "deep pack · 360 hairlines · stronger distance fog",
-    settings: { ...lockedB, lineCount: 360, lineWidth: 0.18, depthSpread: 1.72 },
+    label: "D3 + P3 signals · 320 hairlines · wider depth",
+    settings: { ...lockedB, lineCount: 320, lineWidth: 0.5, depthSpread: 1.45 },
   },
 ];
 

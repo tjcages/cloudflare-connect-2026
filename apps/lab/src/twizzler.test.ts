@@ -252,24 +252,24 @@ describe("Twizzler", () => {
     };
     const a = buildTwizzlerLines(400, 80, 0, {
       ...shared,
-      lineCount: 112,
-      lineWidth: 0.95,
-      depthSpread: 0.72,
+      lineCount: 128,
+      lineWidth: 0.9,
+      depthSpread: 0.9,
     });
     const b = buildTwizzlerLines(400, 80, 0, {
       ...shared,
       lineCount: 240,
-      lineWidth: 0.72,
+      lineWidth: 0.45,
       depthSpread: 1.18,
     });
     const c = buildTwizzlerLines(400, 80, 0, {
       ...shared,
-      lineCount: 360,
-      lineWidth: 0.18,
-      depthSpread: 1.72,
+      lineCount: 320,
+      lineWidth: 0.5,
+      depthSpread: 1.45,
     });
 
-    expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([112, 240, 360]);
+    expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([128, 240, 320]);
     const widestStroke = (lines: typeof a.lines) => Math.max(...lines.map((line) => line.strokeWidth));
     expect(widestStroke(a.lines)).toBeGreaterThan(widestStroke(c.lines));
 
