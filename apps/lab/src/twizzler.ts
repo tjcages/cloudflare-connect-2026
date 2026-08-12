@@ -1,24 +1,23 @@
 /**
- * Connect Twizzler — parametric hairline ribbon (Canvas2D + SVG-exportable paths).
+ * Connect Twizzler — orange-wave 3D projected ribbon (Canvas2D + SVG-exportable paths).
  *
- * Geometry: centerline C(x) + half-width W(x) + twist θ(x).
- * Fiber v ∈ [-1,1] projects as offset = v · W · cos(θ) along the path normal.
- * Z (into page / toward camera) drives: fog→white, stroke thickness, and Y bias.
- * Right edge: far fibers go lowest on screen (largest Y). Paths stay smooth.
+ * Geometry (orange-wave-vector): layered Z ribbons with multi-sine waveY(x,z,t),
+ * rotated in 3D, perspective-projected, stroked as solid orange hairlines.
+ * Legacy marketing helpers below are kept for tests / experiment tooling.
  */
 
 export type TwizzlerSettings = {
   color: string;
-  /** Pale gold / far / left. */
+  /** Pale gold / far / left (legacy gradient; orange-wave uses `color`). */
   colorFar: string;
-  /** Deep coral / near / core. */
+  /** Deep coral / near / core (legacy gradient; orange-wave uses `color`). */
   colorNear: string;
-  /** Bright yellow/gold on ribbon edges. */
+  /** Bright yellow/gold on ribbon edges (legacy). */
   colorEdge: string;
   opacity: number;
   scale: number;
   centerY: number;
-  /** Base ribbon half-height in normalized canvas units. */
+  /** Wave height multiplier (1 = orange-wave reference). */
   amplitude: number;
   lineCount: number;
   lineWidth: number;
@@ -50,7 +49,12 @@ export type TwizzlerSettings = {
    * 0 = rolling hills (A), 1 = jagged high-freq (B), 2 = long far-drop sweep (C).
    */
   depthTerrain: number;
+  /** Legacy twist (unused by orange-wave projection). */
   twist: number;
+  /** Orange-wave 3D rotation in degrees (defaults match the reference HTML). */
+  rotateXDeg: number;
+  rotateYDeg: number;
+  rotateZDeg: number;
   noiseScaleX: number;
   noiseScaleY: number;
   speed: number;
@@ -62,17 +66,17 @@ export type TwizzlerSettings = {
 };
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
-  color: "#e8481c",
-  colorFar: "#ffd89a",
-  colorNear: "#e8481c",
-  colorEdge: "#ffc857",
-  opacity: 0.72,
+  color: "#ff6709",
+  colorFar: "#ff6709",
+  colorNear: "#ff6709",
+  colorEdge: "#ff6709",
+  opacity: 1,
   scale: 1,
-  centerY: 0.55,
-  amplitude: 0.58,
-  lineCount: 48,
-  lineWidth: 2.1,
-  pointSpacing: 3,
+  centerY: 0.5,
+  amplitude: 1,
+  lineCount: 56,
+  lineWidth: 1.15,
+  pointSpacing: 10,
   leftHeight: 0.58,
   rightHeight: 0.32,
   edgeFluctuation: 0,
@@ -96,9 +100,12 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   depthLift: 0.85,
   depthTerrain: 0,
   twist: 1.15,
+  rotateXDeg: 12,
+  rotateYDeg: -18,
+  rotateZDeg: 0,
   noiseScaleX: 0.0004,
   noiseScaleY: 0.01,
-  speed: 0.12,
+  speed: 1,
   drift: 0.02,
   stippleSize: 0,
   stippleGap: 0.8,
@@ -114,6 +121,14 @@ function fade(value: number): number {
 
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - edge0) / Math.max(1e-6, edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+/** Matches orange-wave-vector.html (allows reverse edges when e1 < e0). */
+function orangeWaveSmoothstep(edge0: number, edge1: number, x: number): number {
+  const denom = edge1 - edge0;
+  if (Math.abs(denom) < 1e-12) return x < edge0 ? 0 : 1;
+  const t = Math.max(0, Math.min(1, (x - edge0) / denom));
   return t * t * (3 - 2 * t);
 }
 
@@ -190,7 +205,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     opacity: clamp(input.opacity, TWIZZLER_DEFAULTS.opacity, 0, 1),
     scale: clamp(input.scale, TWIZZLER_DEFAULTS.scale, 0.1, 3),
     centerY: clamp(input.centerY, TWIZZLER_DEFAULTS.centerY, 0, 1),
-    amplitude: clamp(input.amplitude, TWIZZLER_DEFAULTS.amplitude, 0, 1),
+    amplitude: clamp(input.amplitude, TWIZZLER_DEFAULTS.amplitude, 0, 2),
     lineCount: Math.round(clamp(input.lineCount, TWIZZLER_DEFAULTS.lineCount, 1, 400)),
     lineWidth: clamp(input.lineWidth, TWIZZLER_DEFAULTS.lineWidth, 0.15, 8),
     pointSpacing: Math.round(clamp(input.pointSpacing, TWIZZLER_DEFAULTS.pointSpacing, 2, 80)),
@@ -217,6 +232,9 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
     depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
+    rotateXDeg: clamp(input.rotateXDeg, TWIZZLER_DEFAULTS.rotateXDeg, -180, 180),
+    rotateYDeg: clamp(input.rotateYDeg, TWIZZLER_DEFAULTS.rotateYDeg, -180, 180),
+    rotateZDeg: clamp(input.rotateZDeg, TWIZZLER_DEFAULTS.rotateZDeg, -180, 180),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.001, 0.1),
     speed: clamp(input.speed, TWIZZLER_DEFAULTS.speed, 0, 3),
@@ -224,6 +242,52 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     stippleSize: clamp(input.stippleSize, TWIZZLER_DEFAULTS.stippleSize, 0, 8),
     stippleGap: clamp(input.stippleGap, TWIZZLER_DEFAULTS.stippleGap, 0, 12),
   };
+}
+
+/** Orange-wave reference constants (from orange-wave-vector.html). */
+const ORANGE_WAVE_Z_MIN = -1.8;
+const ORANGE_WAVE_Z_MAX = 2.8;
+const ORANGE_WAVE_X_RANGE = 6.8;
+const ORANGE_WAVE_CAM_DIST = 10.5;
+const ORANGE_WAVE_FOV = 1.05;
+const ORANGE_WAVE_REF_DEPTH = 10.5;
+
+type Vec3 = { x: number; y: number; z: number };
+
+/** Multi-sine ribbon height from the orange-wave reference. */
+export function orangeWaveY(x: number, z: number, t: number, amplitude = 1): number {
+  let y = 0;
+  y += 0.42 * Math.sin(x * 0.42 + z * 0.3 + t * 0.09);
+  y += 0.28 * Math.sin(x * 0.95 - z * 0.48 + t * 0.06 + 1.0);
+  y += 0.16 * Math.sin(x * 1.65 + z * 0.95 - t * 0.14 + 0.5);
+  y += 0.11 * Math.sin(x * 2.3 - z * 1.35 + t * 0.11 - 0.7);
+  y += 0.07 * Math.sin(x * 3.1 + z * 1.8 - t * 0.2 + 1.8);
+  y += 0.045 * Math.sin(x * 4.2 - z * 2.4 + t * 0.26 + 0.9);
+  y += 0.025 * Math.sin(x * 5.6 + z * 3.1 - t * 0.33);
+  y += 0.015 * Math.sin(x * 7.0 - z * 3.8 + t * 0.41);
+  y += 0.05 * Math.sin(z * 1.9 + t * 0.19) * Math.sin(x * 0.3 + 0.4);
+  y += 0.03 * Math.sin(z * 2.9 - t * 0.27) * Math.cos(x * 0.45);
+  const env = Math.max(0, Math.min(1, (8.5 - Math.abs(x)) / (8.5 - 3.8)));
+  y *= env * env * (3 - 2 * env);
+  return y * amplitude;
+}
+
+function orangeWaveRotX(p: Vec3, a: number): Vec3 {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return { x: p.x, y: p.y * c - p.z * s, z: p.y * s + p.z * c };
+}
+
+function orangeWaveRotY(p: Vec3, a: number): Vec3 {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return { x: p.x * c + p.z * s, y: p.y, z: -p.x * s + p.z * c };
+}
+
+function orangeWaveRotZ(p: Vec3, a: number): Vec3 {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return { x: p.x * c - p.y * s, y: p.x * s + p.y * c, z: p.z };
 }
 
 export function twizzlerEdgeHeights(
@@ -716,124 +780,104 @@ export function buildTwizzlerLines(
   const pixelHeight = Math.max(1, Math.round(height));
   const settings = normalizeTwizzlerSettings(input);
   const time = twizzlerAnimationTime(timeSec, settings.speed);
-  const segmentCount = Math.max(1, Math.ceil(pixelWidth / Math.max(2, settings.pointSpacing)));
-  const lines: TwizzlerLine[] = [];
+  const layerCount = Math.max(1, settings.lineCount);
+  const pointCount = Math.max(32, Math.min(512, Math.round(pixelWidth / Math.max(2, settings.pointSpacing))));
+  const rotX = (settings.rotateXDeg * Math.PI) / 180;
+  const rotY = (settings.rotateYDeg * Math.PI) / 180;
+  const rotZ = (settings.rotateZDeg * Math.PI) / 180;
 
-  // Mid: prior-ish amp/distance, quieter slot gaps so majority stay in-viewport.
-  const gapNoise = 0.42 + settings.wrinkleStrength * 12;
-  const alongGapNoise = 0.55 + settings.wrinkleStrength * 14 + settings.depthSpread * 0.12;
-  const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
-  const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
-  const rawSlots = twizzlerUnevenAcross(
-    settings.lineCount,
-    gapNoise,
-    2.1 + settings.wrinkles * 0.15 + settings.depthTerrain * 1.7,
-  );
-  // Stretch slots toward near/far poles — depthSpread fights mid-pack condensation.
-  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.42 + settings.depthSpread * 0.42));
-
-  const center: Array<{ x: number; y: number; xT: number }> = [];
-  for (let point = 0; point <= segmentCount; point += 1) {
-    const xT = point / segmentCount;
-    const x = twizzlerPointX(point, segmentCount, pixelWidth);
-    const yN = twizzlerMarketingCenterY(xT, settings, time);
-    center.push({ x, y: yN * pixelHeight, xT });
+  const rotated: Vec3[][] = [];
+  for (let i = 0; i < layerCount; i += 1) {
+    const z =
+      layerCount <= 1
+        ? (ORANGE_WAVE_Z_MIN + ORANGE_WAVE_Z_MAX) * 0.5
+        : ORANGE_WAVE_Z_MIN + ((ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN) * i) / (layerCount - 1);
+    const layer: Vec3[] = [];
+    for (let j = 0; j < pointCount; j += 1) {
+      const u = pointCount <= 1 ? 0 : (j / (pointCount - 1)) * 2 - 1;
+      const x = u * ORANGE_WAVE_X_RANGE;
+      const y = orangeWaveY(x, z, time, settings.amplitude);
+      let q: Vec3 = { x, y, z };
+      q = orangeWaveRotX(q, rotX);
+      q = orangeWaveRotY(q, rotY);
+      q = orangeWaveRotZ(q, rotZ);
+      layer.push(q);
+    }
+    rotated.push(layer);
   }
 
-  for (let range = 0; range < settings.lineCount; range += 1) {
-    const across = acrossSlots[range] ?? (settings.lineCount <= 1 ? 0 : (range / (settings.lineCount - 1)) * 2 - 1);
+  let minPX = Infinity;
+  let maxPX = -Infinity;
+  for (const layer of rotated) {
+    for (const p of layer) {
+      const depth = ORANGE_WAVE_CAM_DIST + p.z;
+      if (depth < 0.4) continue;
+      const px = (p.x / depth) * ORANGE_WAVE_FOV;
+      if (px < minPX) minPX = px;
+      if (px > maxPX) maxPX = px;
+    }
+  }
+  const span = Math.max(0.001, maxPX - minPX);
+  const fitScale = Math.min(1.35, 1.88 / span);
+  const mid = (minPX + maxPX) * 0.5;
+  const cx = pixelWidth * 0.5;
+  const cy = pixelHeight * 0.5;
+
+  const lines: TwizzlerLine[] = [];
+  for (let i = 0; i < rotated.length; i += 1) {
+    const layer = rotated[i]!;
+    const z0 =
+      layerCount <= 1
+        ? (ORANGE_WAVE_Z_MIN + ORANGE_WAVE_Z_MAX) * 0.5
+        : ORANGE_WAVE_Z_MIN + ((ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN) * i) / (layerCount - 1);
+    const across = layerCount <= 1 ? 0 : (i / (layerCount - 1)) * 2 - 1;
     const points: TwizzlerLine["points"] = [];
+    let sumA = 0;
+    let sumD = 0;
+    let cnt = 0;
 
-    for (let point = 0; point <= segmentCount; point += 1) {
-      const c = center[point];
-      const prev = center[Math.max(0, point - 1)];
-      const next = center[Math.min(segmentCount, point + 1)];
-      const tx = next.x - prev.x;
-      const ty = next.y - prev.y;
-      const len = Math.hypot(tx, ty) || 1;
-      const nx = -ty / len;
-      const ny = tx / len;
+    for (let j = 0; j < layer.length; j += 1) {
+      const p = layer[j]!;
+      const depth = ORANGE_WAVE_CAM_DIST + p.z;
+      if (depth < 0.4) continue;
+      const u = pointCount <= 1 ? 0 : (j / (pointCount - 1)) * 2 - 1;
+      let a = orangeWaveSmoothstep(3.2, 0.3, Math.abs(z0 + 0.15));
+      a *= orangeWaveSmoothstep(1.12, 0.58, Math.abs(u));
+      a *= orangeWaveSmoothstep(0.2, 1.0, depth / 14);
+      if (a < 0.01) continue;
 
-      const theta = twizzlerMarketingTwist(c.xT, settings, time);
-      const fiberTheta = theta + across * 0.12;
-      const face = twizzlerFaceAmount(fiberTheta);
-      const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight;
-      const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
-      const far = 1 - nearness;
-
-      // Keep braid quiet — amplitude variety comes from shared heat patches, not per-ribbon thrash.
-      const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
-      const organic = (twizzlerNoise(c.xT * 1.4, time * 0.12, 0.35) - 0.5) * settings.wrinkleStrength * 0.9;
-      const braid = across + organic + 0.1 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
-      // Keep some face projection, but do NOT collapse far fibers into the spine.
-      const zPerspective = 0.7 + 0.3 * nearness;
-      const projected = braid * halfW * (0.2 + 0.8 * face) * zPerspective;
-
-      const depth = twizzlerDepthScale(c.xT, settings);
-      const depthY = twizzlerDepthYBias(
-        nearness,
-        pixelHeight,
-        settings.depthLift,
-        c.xT,
-        waveAmp,
-        settings.depthTerrain,
-      );
-      // Y amp: multiple heat peaks/valleys scattered through Z (across), fluid along X.
-      // Larger wrinkles → denser Z spots; fewer wrinkles → fewer larger Z blobs.
-      const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
-      const ampNoiseY = twizzlerAmpNoiseY(
-        c.xT,
-        across,
-        pixelHeight,
-        settings.amplitude,
-        settings.wrinkleStrength,
-        patchScale,
-        2.4 + settings.depthTerrain * 0.9,
-      );
-      const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Pack open enough for denseness, thin enough that Z-scattered peaks read (not parallel sheet).
-      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.15;
-      const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
-      const stackY = acrossX * halfW * verticalOpen;
-      const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
-      const faceY = ny * projected * 0.35;
-      const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
-      const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
-      // Soften shared spine lockstep — Z-scattered amp peaks must land at different X.
-      const spineBase = pixelHeight * settings.centerY;
-      const spineShare = 0.18;
-      const y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
-
-      points.push({ x, y, depth, along: c.xT, nearness });
+      const ndcX = ((p.x / depth) * ORANGE_WAVE_FOV - mid) * fitScale;
+      const ndcY = (p.y / depth) * ORANGE_WAVE_FOV * 1.25;
+      const sx = (ndcX * 0.5 + 0.5) * pixelWidth;
+      const sy = (0.5 - ndcY * 0.5) * pixelHeight;
+      const x = cx + (sx - cx) * settings.scale;
+      const y = cy + (sy - cy) * settings.scale;
+      const nearness = Math.max(0, Math.min(1, 1 - (depth - 8) / 6));
+      points.push({ x, y, depth, along: (u + 1) * 0.5, nearness });
+      sumA += a;
+      sumD += depth;
+      cnt += 1;
     }
 
-    // Soften high-curvature tips along the fiber (kinks/V tips) without reshaping macro lobes.
-    twizzlerSoftenFiberCorners(points, 16);
+    if (points.length < 2) continue;
+    const avgA = sumA / Math.max(1, cnt);
+    if (avgA < 0.012) continue;
+    const avgDepth = sumD / Math.max(1, cnt);
+    const depthRatio = ORANGE_WAVE_REF_DEPTH / Math.max(0.5, avgDepth);
+    const strokeWidth = Math.max(0.45, Math.min(2.8, settings.lineWidth * depthRatio));
+    const nearness = Math.max(0, Math.min(1, 1 - (avgDepth - 8) / 6));
 
-    const mid = points[Math.floor(points.length * 0.62)] ?? points[0];
-    const midNear = mid?.nearness ?? 0.5;
-    const colorT = twizzlerColorT(mid?.along ?? 0.5);
-    const baseColor = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
-    const withEdge =
-      Math.abs(across) > 0.85
-        ? twizzlerLerpColor(baseColor, settings.colorEdge, ((Math.abs(across) - 0.85) / 0.15) * 0.35)
-        : baseColor;
-    const fog = twizzlerFogAmount(midNear);
-    const color = twizzlerFogColor(withEdge, fog);
-
-    const visibility = 0.12 + 0.88 * Math.pow(midNear, 0.85);
     lines.push({
       across,
-      opacity: Math.min(0.92, settings.opacity * visibility),
-      color,
-      nearness: midNear,
-      strokeWidth: Math.max(0.2, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
+      opacity: Math.min(1, avgA * 1.4) * settings.opacity,
+      color: settings.color,
+      nearness,
+      strokeWidth,
       points,
     });
   }
 
-  // Shift the whole pack until the VISIBLE ink average sits at centerY (lower = higher on screen).
-  // Iterate because a tall pack clips; one-shot all-points mean leaves on-screen mass too low.
+  // Shift the pack so visible ink average sits on centerY.
   const targetY = pixelHeight * settings.centerY;
   for (let iter = 0; iter < 4; iter += 1) {
     let ySum = 0;
@@ -873,39 +917,21 @@ export function renderTwizzler(
   const context = canvas.getContext("2d");
   if (!context) return;
 
-  const { settings, lines } = buildTwizzlerLines(pixelWidth, pixelHeight, timeSec, input);
+  const { lines } = buildTwizzlerLines(pixelWidth, pixelHeight, timeSec, input);
   context.clearRect(0, 0, pixelWidth, pixelHeight);
   context.save();
   context.lineJoin = "round";
   context.lineCap = "round";
   context.setLineDash([]);
 
-  // Far → near so thicker near fibers sit on top.
+  // Far → near so thicker near fibers sit on top (matches orange-wave draw order).
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
 
   for (const line of ordered) {
-    if (line.points.length < 2) continue;
-
-    // Continuous smooth path. Fog + color evolve along X via gradient.
-    const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
-    const stops = [0, 0.18, 0.4, 0.62, 0.82, 1];
-    for (const stop of stops) {
-      const sample = line.points[Math.min(line.points.length - 1, Math.round(stop * (line.points.length - 1)))];
-      const nearness = sample?.nearness ?? line.nearness;
-      const fog = twizzlerFogAmount(nearness);
-      const colorT = twizzlerColorT(sample?.along ?? stop);
-      const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
-      gradient.addColorStop(stop, twizzlerFogColor(base, fog));
-    }
-
-    // Width also grows along the path toward the camera (right).
-    const leftNear = line.points[0]?.nearness ?? line.nearness;
-    const rightNear = line.points[line.points.length - 1]?.nearness ?? line.nearness;
-    const widthScale = twizzlerStrokeWidthScale(0.35 * leftNear + 0.65 * rightNear);
-
-    context.strokeStyle = gradient;
-    context.globalAlpha = Math.min(0.9, line.opacity);
-    context.lineWidth = Math.max(0.25, settings.lineWidth * widthScale);
+    if (line.points.length < 2 || line.opacity < 0.01) continue;
+    context.strokeStyle = line.color;
+    context.globalAlpha = Math.min(1, line.opacity);
+    context.lineWidth = Math.max(0.45, line.strokeWidth);
     context.beginPath();
     twizzlerTraceCubic(context, line.points);
     context.stroke();

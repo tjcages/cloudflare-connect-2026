@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orange Wave – 3D Vector</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #fff;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+    #ui {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 20;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 14px 16px;
+      min-width: 220px;
+    }
+    #ui h3 {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      opacity: 0.6;
+      margin-bottom: 2px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .row label { width: 18px; opacity: 0.85; }
+    .row input[type=range] {
+      flex: 1;
+      accent-color: #ff6709;
+    }
+    .row span {
+      width: 36px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.7;
+      font-size: 12px;
+    }
+    .btns {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    button {
+      flex: 1;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      padding: 7px 0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    button:hover { background: rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <h3>Rotation</h3>
+    <div class="row">
+      <label>X</label>
+      <input type="range" id="rx" min="-180" max="180" value="12" step="0.5">
+      <span id="rxv">12°</span>
+    </div>
+    <div class="row">
+      <label>Y</label>
+      <input type="range" id="ry" min="-180" max="180" value="-18" step="0.5">
+      <span id="ryv">-18°</span>
+    </div>
+    <div class="row">
+      <label>Z</label>
+      <input type="range" id="rz" min="-180" max="180" value="0" step="0.5">
+      <span id="rzv">0°</span>
+    </div>
+    <div class="btns">
+      <button id="reset">Reset</button>
+      <button id="toggleAnim">Pause</button>
+      <button id="exportSvg">SVG</button>
+    </div>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    let W, H, dpr;
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width  = Math.floor(W * dpr);
+      canvas.height = Math.floor(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ── wave function (same as before) ──────────────────────────────
+    function waveY(x, z, t) {
+      let y = 0;
+      y += 0.42 * Math.sin(x * 0.42 + z * 0.30 + t * 0.09);
+      y += 0.28 * Math.sin(x * 0.95 - z * 0.48 + t * 0.06 + 1.0);
+      y += 0.16 * Math.sin(x * 1.65 + z * 0.95 - t * 0.14 + 0.5);
+      y += 0.11 * Math.sin(x * 2.30 - z * 1.35 + t * 0.11 - 0.7);
+      y += 0.07 * Math.sin(x * 3.10 + z * 1.80 - t * 0.20 + 1.8);
+      y += 0.045* Math.sin(x * 4.20 - z * 2.40 + t * 0.26 + 0.9);
+      y += 0.025* Math.sin(x * 5.60 + z * 3.10 - t * 0.33);
+      y += 0.015* Math.sin(x * 7.00 - z * 3.80 + t * 0.41);
+      y += 0.05 * Math.sin(z * 1.90 + t * 0.19) * Math.sin(x * 0.30 + 0.4);
+      y += 0.03 * Math.sin(z * 2.90 - t * 0.27) * Math.cos(x * 0.45);
+      // soft longitudinal envelope
+      const env = Math.max(0, Math.min(1, (8.5 - Math.abs(x)) / (8.5 - 3.8)));
+      y *= env * env * (3 - 2 * env);
+      return y;
+    }
+
+    function smoothstep(e0, e1, x) {
+      const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+      return t * t * (3 - 2 * t);
+    }
+
+    // ── 3-D helpers ─────────────────────────────────────────────────
+    function rotX(p, a) {
+      const c = Math.cos(a), s = Math.sin(a);
+      return { x: p.x, y: p.y * c - p.z * s, z: p.y * s + p.z * c };
+    }
+    function rotY(p, a) {
+      const c = Math.cos(a), s = Math.sin(a);
+      return { x: p.x * c + p.z * s, y: p.y, z: -p.x * s + p.z * c };
+    }
+    function rotZ(p, a) {
+      const c = Math.cos(a), s = Math.sin(a);
+      return { x: p.x * c - p.y * s, y: p.x * s + p.y * c, z: p.z };
+    }
+
+    // ── parameters ──────────────────────────────────────────────────
+    const LAYERS = 56;
+    const POINTS = 160;
+    const Z_MIN = -1.8, Z_MAX = 2.8;
+    const X_RANGE = 6.8;          // world-space half-width of the ribbon
+
+    // milder default rotation so the classic wave shape is preserved
+    let rot = { x: 12 * Math.PI/180, y: -18 * Math.PI/180, z: 0 };
+    let paths = [];               // array of {pts:[{sx,sy,a,depth}], avgA, avgDepth}
+
+    function build(t) {
+      // 1. generate raw 3-D points (same layout as the good 2-D version)
+      const raw = [];
+      for (let i = 0; i < LAYERS; i++) {
+        const z = Z_MIN + (Z_MAX - Z_MIN) * (i / (LAYERS - 1));
+        const layer = [];
+        for (let j = 0; j < POINTS; j++) {
+          const u = (j / (POINTS - 1)) * 2 - 1;
+          const x = u * X_RANGE;
+          const y = waveY(x, z, t);
+          layer.push({ x, y, z });
+        }
+        raw.push(layer);
+      }
+
+      // 2. rotate
+      const rotated = raw.map(layer =>
+        layer.map(p => {
+          let q = rotX(p, rot.x);
+          q = rotY(q, rot.y);
+          q = rotZ(q, rot.z);
+          return q;
+        })
+      );
+
+      // 3. stable projection – mild auto-fit that keeps relative proportions
+      const camDist = 10.5;
+      const fov = 1.05;
+
+      let minPX = Infinity, maxPX = -Infinity;
+      for (const layer of rotated) {
+        for (const p of layer) {
+          const depth = camDist + p.z;
+          if (depth < 0.4) continue;
+          const px = (p.x / depth) * fov;
+          if (px < minPX) minPX = px;
+          if (px > maxPX) maxPX = px;
+        }
+      }
+      const span = Math.max(0.001, maxPX - minPX);
+      // only stretch enough to reach the edges; never squash the wave shape hard
+      const targetSpan = 1.88;
+      const scale = Math.min(1.35, targetSpan / span);   // cap the scale
+      const mid = (minPX + maxPX) * 0.5;
+
+      // 4. project
+      paths = [];
+      for (let i = 0; i < rotated.length; i++) {
+        const layer = rotated[i];
+        const z0 = Z_MIN + (Z_MAX - Z_MIN) * (i / (LAYERS - 1));
+        const pts = [];
+        let sumA = 0, sumD = 0, cnt = 0;
+
+        for (let j = 0; j < layer.length; j++) {
+          const p = layer[j];
+          const depth = camDist + p.z;
+          if (depth < 0.4) {
+            pts.push({ sx: 0, sy: 0, a: 0, depth: 99 });
+            continue;
+          }
+          const ndcX = ((p.x / depth) * fov - mid) * scale;
+          const ndcY = (p.y / depth) * fov * 1.25;
+
+          const sx = (ndcX * 0.5 + 0.5) * W;
+          const sy = (0.5 - ndcY * 0.5) * H;
+
+          const u = (j / (POINTS - 1)) * 2 - 1;
+          let a = smoothstep(3.2, 0.3, Math.abs(z0 + 0.15));
+          a *= smoothstep(1.12, 0.58, Math.abs(u));
+          a *= smoothstep(0.2, 1.0, depth / 14);
+
+          pts.push({ sx, sy, a, depth });
+          sumA += a;
+          sumD += depth;
+          cnt++;
+        }
+        paths.push({
+          pts,
+          avgA: sumA / Math.max(1, cnt),
+          avgDepth: sumD / Math.max(1, cnt)
+        });
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // reference depth for “normal” line width (when everything is roughly the same distance)
+      const refDepth = 10.5;
+
+      for (const { pts, avgA, avgDepth } of paths) {
+        if (avgA < 0.012) continue;
+
+        // perspective width: closer → thicker, farther → thinner
+        // only becomes noticeable when rotation creates real depth differences
+        const depthRatio = refDepth / Math.max(0.5, avgDepth);
+        const baseW = 1.15;
+        const lineW = Math.max(0.45, Math.min(2.8, baseW * depthRatio));
+
+        ctx.beginPath();
+        let started = false;
+        for (const p of pts) {
+          if (p.a < 0.01) { started = false; continue; }
+          if (!started) { ctx.moveTo(p.sx, p.sy); started = true; }
+          else ctx.lineTo(p.sx, p.sy);
+        }
+        ctx.strokeStyle = `rgba(255,103,9,${Math.min(1, avgA * 1.4)})`;
+        ctx.lineWidth = lineW;
+        ctx.stroke();
+      }
+    }
+
+    // ── animation ───────────────────────────────────────────────────
+    let t0 = performance.now();
+    let running = true;
+    let curT = 0;
+
+    function loop(now) {
+      if (running) {
+        curT = (now - t0) * 0.001;
+        build(curT);
+        draw();
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // ── UI wiring ───────────────────────────────────────────────────
+    function bindSlider(id, key) {
+      const el = document.getElementById(id);
+      const lab = document.getElementById(id + 'v');
+      el.addEventListener('input', () => {
+        const deg = parseFloat(el.value);
+        rot[key] = deg * Math.PI / 180;
+        lab.textContent = deg.toFixed(0) + '°';
+        if (!running) { build(curT); draw(); }
+      });
+    }
+    bindSlider('rx', 'x');
+    bindSlider('ry', 'y');
+    bindSlider('rz', 'z');
+
+    document.getElementById('reset').onclick = () => {
+      rot = { x: 12*Math.PI/180, y: -18*Math.PI/180, z: 0 };
+      document.getElementById('rx').value = 12;
+      document.getElementById('ry').value = -18;
+      document.getElementById('rz').value = 0;
+      document.getElementById('rxv').textContent = '12°';
+      document.getElementById('ryv').textContent = '-18°';
+      document.getElementById('rzv').textContent = '0°';
+      if (!running) { build(curT); draw(); }
+    };
+
+    document.getElementById('toggleAnim').onclick = (e) => {
+      running = !running;
+      e.target.textContent = running ? 'Pause' : 'Play';
+      if (running) t0 = performance.now() - curT * 1000;
+    };
+
+    // SVG export
+    document.getElementById('exportSvg').onclick = () => {
+      build(curT);
+      const refDepth = 10.5;
+      let svg = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      svg += `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">\n`;
+      svg += `<rect width="100%" height="100%" fill="#000"/>\n`;
+      for (const { pts, avgA, avgDepth } of paths) {
+        if (avgA < 0.015) continue;
+        let d = '';
+        let started = false;
+        for (const p of pts) {
+          if (p.a < 0.01) { started = false; continue; }
+          d += (started ? 'L' : 'M') + p.sx.toFixed(1) + ',' + p.sy.toFixed(1);
+          started = true;
+        }
+        if (!d) continue;
+        const op = Math.min(1, avgA * 1.4).toFixed(3);
+        const depthRatio = refDepth / Math.max(0.5, avgDepth);
+        const lineW = Math.max(0.45, Math.min(2.8, 1.15 * depthRatio)).toFixed(2);
+        svg += `<path d="${d}" fill="none" stroke="#ff6709" stroke-width="${lineW}" stroke-linecap="round" stroke-linejoin="round" opacity="${op}"/>\n`;
+      }
+      svg += `</svg>`;
+      const blob = new Blob([svg], { type: 'image/svg+xml' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `orange-wave-3d-${Date.now()}.svg`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+  </script>
+</body>
+</html>

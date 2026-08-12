@@ -32,6 +32,9 @@ export type ClientTwizzlerTweaks = {
   opacity: number;
   scale: number;
   twist: number;
+  rotateXDeg: number;
+  rotateYDeg: number;
+  rotateZDeg: number;
   amplitude: number;
   centerY: number;
   speed: number;
@@ -63,33 +66,32 @@ export const CLIENT_LAYOUT_PRESETS: readonly ClientLayoutPreset[] = [
     id: "low-ribbon",
     label: "Low ribbon",
     twizzler: {
-      centerY: 0.58,
-      amplitude: 0.85,
-      depthLift: 0.55,
-      depthSpread: 1.05,
+      centerY: 0.62,
+      amplitude: 0.9,
+      rotateXDeg: 18,
+      rotateYDeg: -12,
     },
   },
   {
     id: "high-fan",
     label: "High fan",
     twizzler: {
-      centerY: 0.32,
+      centerY: 0.38,
       amplitude: 1.15,
-      depthSpread: 1.35,
-      depthLift: 1.05,
-      twist: 1.55,
-      rightHeight: 0.42,
+      rotateXDeg: 8,
+      rotateYDeg: -28,
+      rotateZDeg: 6,
+      scale: 1.08,
     },
   },
   {
     id: "compact",
     label: "Compact",
     twizzler: {
-      scale: 0.92,
-      amplitude: 0.78,
-      depthSpread: 0.95,
-      leftHeight: 0.5,
-      rightHeight: 0.28,
+      scale: 0.82,
+      amplitude: 0.85,
+      rotateXDeg: 10,
+      rotateYDeg: -14,
     },
   },
 ];
@@ -97,12 +99,12 @@ export const CLIENT_LAYOUT_PRESETS: readonly ClientLayoutPreset[] = [
 export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
   {
     id: "coral-classic",
-    label: "Coral classic",
+    label: "Orange wave",
     twizzler: {
-      color: "#e8481c",
-      colorFar: "#ffd89a",
-      colorNear: "#e8481c",
-      colorEdge: "#ffc857",
+      color: "#ff6709",
+      colorFar: "#ff6709",
+      colorNear: "#ff6709",
+      colorEdge: "#ff6709",
     },
   },
   {
@@ -110,9 +112,9 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
     label: "Soft gold",
     twizzler: {
       color: "#f0a030",
-      colorFar: "#ffe9b8",
-      colorNear: "#e88820",
-      colorEdge: "#ffd76a",
+      colorFar: "#f0a030",
+      colorNear: "#f0a030",
+      colorEdge: "#f0a030",
     },
   },
   {
@@ -120,9 +122,9 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
     label: "Deep ember",
     twizzler: {
       color: "#c4320f",
-      colorFar: "#f0c080",
-      colorNear: "#a8280c",
-      colorEdge: "#f0a040",
+      colorFar: "#c4320f",
+      colorNear: "#c4320f",
+      colorEdge: "#c4320f",
     },
   },
   {
@@ -130,9 +132,9 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
     label: "Graphite",
     twizzler: {
       color: "#4a4a4a",
-      colorFar: "#c8c8c8",
-      colorNear: "#2e2e2e",
-      colorEdge: "#9a9a9a",
+      colorFar: "#4a4a4a",
+      colorNear: "#4a4a4a",
+      colorEdge: "#4a4a4a",
     },
   },
 ];
@@ -145,12 +147,15 @@ export const DEFAULT_CLIENT_PREVIEW_STATE: ClientPreviewState = {
   // Rain stays off by default until the Twizzler match is accepted (CF-16).
   rainEnabled: false,
   tweaks: {
-    opacity: 0.88,
-    scale: 1.15,
-    twist: 1.35,
+    opacity: 1,
+    scale: 1,
+    twist: 1.15,
+    rotateXDeg: 12,
+    rotateYDeg: -18,
+    rotateZDeg: 0,
     amplitude: 1,
-    centerY: 0.4,
-    speed: 0,
+    centerY: 0.5,
+    speed: 1,
   },
 };
 
@@ -244,6 +249,9 @@ export function tweaksFromTwizzler(settings: TwizzlerSettings): ClientTwizzlerTw
     opacity: settings.opacity,
     scale: settings.scale,
     twist: settings.twist,
+    rotateXDeg: settings.rotateXDeg,
+    rotateYDeg: settings.rotateYDeg,
+    rotateZDeg: settings.rotateZDeg,
     amplitude: settings.amplitude,
     centerY: settings.centerY,
     speed: settings.speed,
@@ -265,6 +273,9 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
     opacity: state.tweaks.opacity,
     scale: state.tweaks.scale,
     twist: state.tweaks.twist,
+    rotateXDeg: state.tweaks.rotateXDeg,
+    rotateYDeg: state.tweaks.rotateYDeg,
+    rotateZDeg: state.tweaks.rotateZDeg,
     amplitude: state.tweaks.amplitude,
     centerY: state.tweaks.centerY,
     speed: state.tweaks.speed,

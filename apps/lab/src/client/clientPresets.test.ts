@@ -24,8 +24,11 @@ describe("client preview presets", () => {
     expect(bundle.canvasHeight).toBe(320);
     expect(bundle.engineConfig.background?.transparent).toBe(true);
     expect(bundle.engineConfig.sparkle?.gaps?.enabled).toBe(false);
-    expect(bundle.twizzler.lineCount).toBe(240);
-    expect(bundle.twizzler.opacity).toBeCloseTo(0.88);
+    expect(bundle.twizzler.lineCount).toBe(56);
+    expect(bundle.twizzler.color).toBe("#ff6709");
+    expect(bundle.twizzler.opacity).toBeCloseTo(1);
+    expect(bundle.twizzler.rotateXDeg).toBeCloseTo(12);
+    expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-18);
   });
 
   it("toggles rain via sparkle.gaps without exposing camera state", () => {
@@ -48,7 +51,8 @@ describe("client preview presets", () => {
     expect(bundle.canvasWidth).toBe(800);
     expect(bundle.canvasHeight).toBe(800);
     expect(bundle.twizzler.color).toBe("#4a4a4a");
-    expect(bundle.twizzler.depthSpread).toBeGreaterThan(1.2);
+    expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-28);
+    expect(bundle.twizzler.centerY).toBeCloseTo(0.38);
   });
 
   it("lets tweaks override layout/color for standard knobs only", () => {
@@ -58,14 +62,18 @@ describe("client preview presets", () => {
         opacity: 0.5,
         scale: 0.9,
         twist: 2,
+        rotateXDeg: 20,
+        rotateYDeg: -30,
+        rotateZDeg: 5,
         amplitude: 0.7,
         centerY: 0.55,
         speed: 0.2,
       },
     });
     expect(bundle.twizzler.opacity).toBeCloseTo(0.5);
-    expect(bundle.twizzler.twist).toBeCloseTo(2);
+    expect(bundle.twizzler.rotateXDeg).toBeCloseTo(20);
+    expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-30);
     expect(bundle.twizzler.speed).toBeCloseTo(0.2);
-    expect(bundle.twizzler.lineCount).toBe(240);
+    expect(bundle.twizzler.lineCount).toBe(56);
   });
 });
