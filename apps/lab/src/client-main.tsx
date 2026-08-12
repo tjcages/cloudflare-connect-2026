@@ -12,12 +12,14 @@ function bootClientPreview(): void {
   const banner = findPresetByName(loadBuiltinPresets(), "Banner 5:1");
   if (banner) {
     const config = structuredClone(banner.config) as typeof banner.config & {
-      background?: { transparent?: boolean };
+      background?: { transparent?: boolean; color?: number };
       sparkle?: { gaps?: { enabled?: boolean } };
       frames?: { enabled?: boolean };
     };
     if (!config.background) config.background = {};
-    config.background.transparent = true;
+    // Library Neutral White stage (not HTML demo black).
+    config.background.transparent = false;
+    config.background.color = 0xffffff;
     if (!config.sparkle) config.sparkle = {};
     if (!config.sparkle.gaps) config.sparkle.gaps = { enabled: false };
     config.sparkle.gaps.enabled = false;

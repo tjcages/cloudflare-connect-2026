@@ -22,10 +22,12 @@ Top-right of the shader panel: **Default | Advanced** toggle.
 Current ribbon geometry is the **orange-wave** 3D projected vector from
 `apps/lab/src/presets/references/orange-wave-vector.html` (ported into `twizzler.ts`).
 
-- Stroke color uses **COLOR_LIBRARY** tokens via `colorLibraryInputPlugin` (default Orange / 900 Accent `#f46021`)
+- Stroke colors use **COLOR_LIBRARY** (X: Orange Pair→Accent, Y peaks: Red Accent; HTML #ffcc33/#ff6709/#ff2a2a snapped)
+- Background: Neutral White (`#ffffff`), solid — not the HTML demo black
+- Camera/stroke/gradient knobs from orange-wave v3 live in Leva (Gradients + Stroke folders)
 - ~56 layers, Rotate X/Y/Z (defaults 12° / −18° / 0°)
 - Rain (`sparkle.gaps`) unchanged from Banner — toggle with **Rain** next to Twizzler **Show**
-- Drop updated HTML into `presets/references/` when iterating
+- Reference: `apps/lab/src/presets/references/orange-wave-vector.html`
 
 ## Next HTML → Leva mapping (do this on the next drop)
 

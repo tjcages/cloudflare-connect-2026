@@ -103,9 +103,9 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
     label: "Orange accent",
     twizzler: {
       color: LIBRARY_COLOR.orangeAccent,
-      colorFar: LIBRARY_COLOR.orangeAccent,
+      colorFar: LIBRARY_COLOR.orangePair,
       colorNear: LIBRARY_COLOR.orangeAccent,
-      colorEdge: LIBRARY_COLOR.orangeAccent,
+      colorEdge: LIBRARY_COLOR.redAccent,
     },
   },
   {
@@ -115,7 +115,7 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
       color: LIBRARY_COLOR.orangePair,
       colorFar: LIBRARY_COLOR.orangePair,
       colorNear: LIBRARY_COLOR.orangePair,
-      colorEdge: LIBRARY_COLOR.orangePair,
+      colorEdge: LIBRARY_COLOR.orangeAccent,
     },
   },
   {
@@ -123,9 +123,9 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
     label: "Orange deep",
     twizzler: {
       color: LIBRARY_COLOR.orangeDeep,
-      colorFar: LIBRARY_COLOR.orangeDeep,
+      colorFar: LIBRARY_COLOR.orangePair,
       colorNear: LIBRARY_COLOR.orangeDeep,
-      colorEdge: LIBRARY_COLOR.orangeDeep,
+      colorEdge: LIBRARY_COLOR.redAccent,
     },
   },
   {
@@ -290,10 +290,10 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
     frames?: { enabled?: boolean };
   };
 
-  // Ribbon must show through WebGL clear — force transparent regardless of preset helpers.
+  // Solid library white stage behind Twizzler (Neutral / White).
   if (!engineConfig.background) engineConfig.background = {};
-  engineConfig.background.transparent = true;
-  if (typeof engineConfig.background.color !== "number") engineConfig.background.color = 0xffffff;
+  engineConfig.background.transparent = false;
+  engineConfig.background.color = 0xffffff;
   if (engineConfig.frames) engineConfig.frames.enabled = false;
 
   if (!engineConfig.sparkle) engineConfig.sparkle = {};

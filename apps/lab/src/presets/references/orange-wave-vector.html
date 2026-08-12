@@ -17,81 +17,119 @@
     canvas { display: block; width: 100%; height: 100%; }
     #ui {
       position: fixed;
-      top: 14px;
-      right: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      top: 10px;
+      right: 10px;
       z-index: 20;
-      background: rgba(0,0,0,0.55);
-      backdrop-filter: blur(12px);
+      background: rgba(0,0,0,0.68);
+      backdrop-filter: blur(14px);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 12px;
-      padding: 14px 16px;
-      min-width: 220px;
+      padding: 10px 12px;
+      width: 260px;
+      max-height: calc(100vh - 20px);
+      overflow-y: auto;
+      font-size: 11px;
     }
     #ui h3 {
-      font-size: 12px;
+      font-size: 10px;
       font-weight: 600;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      opacity: 0.6;
-      margin-bottom: 2px;
+      opacity: 0.5;
+      margin: 9px 0 5px;
     }
+    #ui h3:first-child { margin-top: 0; }
     .row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 13px;
+      gap: 6px;
+      margin-bottom: 4px;
     }
-    .row label { width: 18px; opacity: 0.85; }
-    .row input[type=range] {
-      flex: 1;
-      accent-color: #ff6709;
-    }
+    .row label { width: 48px; opacity: 0.8; flex-shrink: 0; }
+    .row input[type=range] { flex: 1; accent-color: #ff6709; min-width: 0; }
     .row span {
       width: 36px;
       text-align: right;
       font-variant-numeric: tabular-nums;
-      opacity: 0.7;
-      font-size: 12px;
+      opacity: 0.65;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .row input[type=color] {
+      width: 28px;
+      height: 18px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      padding: 0;
     }
     .btns {
       display: flex;
-      gap: 8px;
-      margin-top: 4px;
+      gap: 6px;
+      margin-top: 8px;
     }
     button {
       flex: 1;
       background: rgba(255,255,255,0.1);
       border: 1px solid rgba(255,255,255,0.2);
       color: #fff;
-      padding: 7px 0;
+      padding: 5px 0;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px;
     }
     button:hover { background: rgba(255,255,255,0.2); }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 3px;
+      opacity: 0.85;
+    }
+    .check input { accent-color: #ff6709; }
   </style>
 </head>
 <body>
   <div id="ui">
     <h3>Rotation</h3>
-    <div class="row">
-      <label>X</label>
-      <input type="range" id="rx" min="-180" max="180" value="12" step="0.5">
-      <span id="rxv">12°</span>
-    </div>
-    <div class="row">
-      <label>Y</label>
-      <input type="range" id="ry" min="-180" max="180" value="-18" step="0.5">
-      <span id="ryv">-18°</span>
-    </div>
-    <div class="row">
-      <label>Z</label>
-      <input type="range" id="rz" min="-180" max="180" value="0" step="0.5">
-      <span id="rzv">0°</span>
-    </div>
+    <div class="row"><label>X</label><input type="range" id="rx" min="-180" max="180" value="12" step="0.5"><span id="rxv">12°</span></div>
+    <div class="row"><label>Y</label><input type="range" id="ry" min="-180" max="180" value="-18" step="0.5"><span id="ryv">-18°</span></div>
+    <div class="row"><label>Z</label><input type="range" id="rz" min="-180" max="180" value="0" step="0.5"><span id="rzv">0°</span></div>
+
+    <h3>Camera</h3>
+    <div class="row"><label>Zoom</label><input type="range" id="zoom" min="0.4" max="2.5" value="1.0" step="0.02"><span id="zoomv">1.00</span></div>
+    <div class="row"><label>FOV</label><input type="range" id="fov" min="0.6" max="1.8" value="1.05" step="0.02"><span id="fovv">1.05</span></div>
+    <div class="row"><label>Cam Z</label><input type="range" id="camz" min="5" max="18" value="10.5" step="0.1"><span id="camzv">10.5</span></div>
+
+    <h3>Stroke</h3>
+    <div class="row"><label>Base W</label><input type="range" id="basew" min="0.3" max="3.5" value="1.15" step="0.05"><span id="basewv">1.15</span></div>
+    <div class="row"><label>Persp W</label><input type="range" id="perspw" min="0" max="4" value="1.8" step="0.05"><span id="perspwv">1.80</span></div>
+    <div class="row"><label>Min W</label><input type="range" id="minw" min="0.15" max="1.5" value="0.4" step="0.05"><span id="minwv">0.40</span></div>
+    <div class="row"><label>Max W</label><input type="range" id="maxw" min="1" max="6" value="3.2" step="0.1"><span id="maxwv">3.2</span></div>
+
+    <h3>Wave</h3>
+    <div class="row"><label>Amp</label><input type="range" id="amp" min="0.2" max="2.5" value="1.0" step="0.02"><span id="ampv">1.00</span></div>
+    <div class="row"><label>Layers</label><input type="range" id="layers" min="16" max="96" value="56" step="2"><span id="layersv">56</span></div>
+    <div class="row"><label>Speed</label><input type="range" id="speed" min="0" max="3" value="1.0" step="0.05"><span id="speedv">1.00</span></div>
+
+    <h3>Color Gradient X (length)</h3>
+    <div class="check"><input type="checkbox" id="gxOn" checked><label for="gxOn">Enable X color</label></div>
+    <div class="row"><label>Left</label><input type="color" id="gxA" value="#ffcc33"><span></span></div>
+    <div class="row"><label>Right</label><input type="color" id="gxB" value="#ff6709"><span></span></div>
+    <div class="row"><label>Mix</label><input type="range" id="gxMix" min="0" max="1" value="1" step="0.02"><span id="gxMixv">1.00</span></div>
+
+    <h3>Color Gradient Y (extremes only)</h3>
+    <div class="check"><input type="checkbox" id="gyOn" checked><label for="gyOn">Enable Y accents</label></div>
+    <div class="row"><label>Peaks</label><input type="color" id="gyA" value="#ff2a2a"><span></span></div>
+    <div class="row"><label>Troughs</label><input type="color" id="gyB" value="#ff6709"><span></span></div>
+    <div class="row"><label>Mix</label><input type="range" id="gyMix" min="0" max="1" value="0.85" step="0.02"><span id="gyMixv">0.85</span></div>
+
+    <h3>Opacity Gradient Z (depth)</h3>
+    <div class="check"><input type="checkbox" id="gzOn" checked><label for="gzOn">Enable Z fade</label></div>
+    <div class="row"><label>Str</label><input type="range" id="gzStr" min="0" max="1.5" value="0.75" step="0.02"><span id="gzStrv">0.75</span></div>
+    <div class="row"><label>Center</label><input type="range" id="gzCtr" min="-1" max="1" value="0" step="0.02"><span id="gzCtrv">0.00</span></div>
+    <div class="row"><label>Width</label><input type="range" id="gzWid" min="0.15" max="2" value="0.95" step="0.02"><span id="gzWidv">0.95</span></div>
+
     <div class="btns">
       <button id="reset">Reset</button>
       <button id="toggleAnim">Pause</button>
@@ -117,8 +155,7 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // ── wave function (same as before) ──────────────────────────────
-    function waveY(x, z, t) {
+    function waveY(x, z, t, amp) {
       let y = 0;
       y += 0.42 * Math.sin(x * 0.42 + z * 0.30 + t * 0.09);
       y += 0.28 * Math.sin(x * 0.95 - z * 0.48 + t * 0.06 + 1.0);
@@ -130,10 +167,9 @@
       y += 0.015* Math.sin(x * 7.00 - z * 3.80 + t * 0.41);
       y += 0.05 * Math.sin(z * 1.90 + t * 0.19) * Math.sin(x * 0.30 + 0.4);
       y += 0.03 * Math.sin(z * 2.90 - t * 0.27) * Math.cos(x * 0.45);
-      // soft longitudinal envelope
       const env = Math.max(0, Math.min(1, (8.5 - Math.abs(x)) / (8.5 - 3.8)));
       y *= env * env * (3 - 2 * env);
-      return y;
+      return y * amp;
     }
 
     function smoothstep(e0, e1, x) {
@@ -141,7 +177,6 @@
       return t * t * (3 - 2 * t);
     }
 
-    // ── 3-D helpers ─────────────────────────────────────────────────
     function rotX(p, a) {
       const c = Math.cos(a), s = Math.sin(a);
       return { x: p.x, y: p.y * c - p.z * s, z: p.y * s + p.z * c };
@@ -155,44 +190,73 @@
       return { x: p.x * c - p.y * s, y: p.x * s + p.y * c, z: p.z };
     }
 
-    // ── parameters ──────────────────────────────────────────────────
-    const LAYERS = 56;
-    const POINTS = 160;
-    const Z_MIN = -1.8, Z_MAX = 2.8;
-    const X_RANGE = 6.8;          // world-space half-width of the ribbon
+    function hexToRgb(hex) {
+      const n = parseInt(hex.slice(1), 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function lerpColor(c1, c2, t) {
+      return {
+        r: lerp(c1.r, c2.r, t),
+        g: lerp(c1.g, c2.g, t),
+        b: lerp(c1.b, c2.b, t)
+      };
+    }
+    function rgbStr(c, a) {
+      return `rgba(${c.r|0},${c.g|0},${c.b|0},${a})`;
+    }
 
-    // milder default rotation so the classic wave shape is preserved
-    let rot = { x: 12 * Math.PI/180, y: -18 * Math.PI/180, z: 0 };
-    let paths = [];               // array of {pts:[{sx,sy,a,depth}], avgA, avgDepth}
+    // ── state ───────────────────────────────────────────────────────
+    const S = {
+      rx: 12, ry: -18, rz: 0,
+      zoom: 1.0, fov: 1.05, camz: 10.5,
+      basew: 1.15, perspw: 1.8, minw: 0.4, maxw: 3.2,
+      amp: 1.0, layers: 56, speed: 1.0,
+      // X color gradient (left → right)
+      gxOn: true, gxA: '#ffcc33', gxB: '#ff6709', gxMix: 1.0,
+      // Y color gradient (high → low)
+      gyOn: true, gyA: '#ff2a2a', gyB: '#ff6709', gyMix: 0.85,
+      // Z opacity gradient
+      gzOn: true, gzStr: 0.75, gzCtr: 0, gzWid: 0.95
+    };
+
+    const POINTS = 160;
+    const X_RANGE = 6.8;
+    const Z_MIN = -1.8, Z_MAX = 2.8;
+
+    let paths = [];
 
     function build(t) {
-      // 1. generate raw 3-D points (same layout as the good 2-D version)
+      const nLayers = S.layers | 0;
       const raw = [];
-      for (let i = 0; i < LAYERS; i++) {
-        const z = Z_MIN + (Z_MAX - Z_MIN) * (i / (LAYERS - 1));
+      for (let i = 0; i < nLayers; i++) {
+        const z = Z_MIN + (Z_MAX - Z_MIN) * (i / Math.max(1, nLayers - 1));
         const layer = [];
         for (let j = 0; j < POINTS; j++) {
           const u = (j / (POINTS - 1)) * 2 - 1;
           const x = u * X_RANGE;
-          const y = waveY(x, z, t);
-          layer.push({ x, y, z });
+          const y = waveY(x, z, t * S.speed, S.amp);
+          layer.push({ x, y, z, u });
         }
         raw.push(layer);
       }
 
-      // 2. rotate
+      const rx = S.rx * Math.PI / 180;
+      const ry = S.ry * Math.PI / 180;
+      const rz = S.rz * Math.PI / 180;
+
       const rotated = raw.map(layer =>
         layer.map(p => {
-          let q = rotX(p, rot.x);
-          q = rotY(q, rot.y);
-          q = rotZ(q, rot.z);
+          let q = rotX(p, rx);
+          q = rotY(q, ry);
+          q = rotZ(q, rz);
+          q.u = p.u; q.origX = p.x; q.origY = p.y; q.origZ = p.z;
           return q;
         })
       );
 
-      // 3. stable projection – mild auto-fit that keeps relative proportions
-      const camDist = 10.5;
-      const fov = 1.05;
+      const camDist = S.camz;
+      const fov = S.fov;
 
       let minPX = Infinity, maxPX = -Infinity;
       for (const layer of rotated) {
@@ -205,41 +269,72 @@
         }
       }
       const span = Math.max(0.001, maxPX - minPX);
-      // only stretch enough to reach the edges; never squash the wave shape hard
-      const targetSpan = 1.88;
-      const scale = Math.min(1.35, targetSpan / span);   // cap the scale
+      const targetSpan = 1.88 * S.zoom;
+      const scale = Math.min(2.2, targetSpan / span);
       const mid = (minPX + maxPX) * 0.5;
 
-      // 4. project
+      const colXA = hexToRgb(S.gxA);
+      const colXB = hexToRgb(S.gxB);
+      const colYA = hexToRgb(S.gyA);
+      const colYB = hexToRgb(S.gyB);
+      const baseOrange = { r: 255, g: 103, b: 9 };
+
       paths = [];
       for (let i = 0; i < rotated.length; i++) {
         const layer = rotated[i];
-        const z0 = Z_MIN + (Z_MAX - Z_MIN) * (i / (LAYERS - 1));
         const pts = [];
         let sumA = 0, sumD = 0, cnt = 0;
+        let sumR = 0, sumG = 0, sumB = 0;
 
         for (let j = 0; j < layer.length; j++) {
           const p = layer[j];
           const depth = camDist + p.z;
           if (depth < 0.4) {
-            pts.push({ sx: 0, sy: 0, a: 0, depth: 99 });
+            pts.push({ sx: 0, sy: 0, a: 0, depth: 99, col: baseOrange });
             continue;
           }
           const ndcX = ((p.x / depth) * fov - mid) * scale;
-          const ndcY = (p.y / depth) * fov * 1.25;
-
+          const ndcY = (p.y / depth) * fov * 1.25 * S.zoom;
           const sx = (ndcX * 0.5 + 0.5) * W;
           const sy = (0.5 - ndcY * 0.5) * H;
 
-          const u = (j / (POINTS - 1)) * 2 - 1;
-          let a = smoothstep(3.2, 0.3, Math.abs(z0 + 0.15));
-          a *= smoothstep(1.12, 0.58, Math.abs(u));
+          // base opacity
+          let a = smoothstep(3.2, 0.3, Math.abs(p.origZ + 0.15));
+          a *= smoothstep(1.12, 0.58, Math.abs(p.u));
           a *= smoothstep(0.2, 1.0, depth / 14);
 
-          pts.push({ sx, sy, a, depth });
-          sumA += a;
-          sumD += depth;
-          cnt++;
+          // Z opacity gradient
+          if (S.gzOn) {
+            let g = (p.origZ - Z_MIN) / (Z_MAX - Z_MIN) * 2 - 1;
+            g = (g - S.gzCtr) / Math.max(0.05, S.gzWid);
+            const factor = smoothstep(1.2, -0.2, g);
+            a *= 1 - S.gzStr + S.gzStr * Math.max(0, Math.min(1, factor));
+          }
+
+          // ── combined color gradients ──
+          // 1. X is the base color everywhere (left → right)
+          let col = { ...baseOrange };
+          if (S.gxOn) {
+            const tx = (p.origX / X_RANGE) * 0.5 + 0.5; // 0…1
+            const cx = lerpColor(colXA, colXB, Math.max(0, Math.min(1, tx)));
+            col = lerpColor(col, cx, S.gxMix);
+          }
+
+          // 2. Y accents only at extremes (peaks / troughs)
+          //    Middle stays pure X. Influence ramps hard near the extremes.
+          if (S.gyOn && S.gyMix > 0) {
+            const yNorm = p.origY / (0.55 * S.amp + 0.01); // more sensitive
+            const extreme = Math.min(1, Math.abs(yNorm));
+            // start influencing earlier and reach full sooner
+            const influence = smoothstep(0.15, 0.70, extreme) * S.gyMix;
+            if (influence > 0.001) {
+              const target = yNorm >= 0 ? colYA : colYB;
+              col = lerpColor(col, target, influence);
+            }
+          }
+
+          pts.push({ sx, sy, a, depth, col });
+          sumA += a; sumD += depth; cnt++;
         }
         paths.push({
           pts,
@@ -252,31 +347,38 @@
     function draw() {
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
-      ctx.lineCap = 'round';
+      // butt caps avoid the "dots" that round caps create at every segment joint
+      ctx.lineCap = 'butt';
       ctx.lineJoin = 'round';
 
-      // reference depth for “normal” line width (when everything is roughly the same distance)
-      const refDepth = 10.5;
+      const refDepth = S.camz;
 
       for (const { pts, avgA, avgDepth } of paths) {
-        if (avgA < 0.012) continue;
+        if (avgA < 0.01) continue;
 
-        // perspective width: closer → thicker, farther → thinner
-        // only becomes noticeable when rotation creates real depth differences
-        const depthRatio = refDepth / Math.max(0.5, avgDepth);
-        const baseW = 1.15;
-        const lineW = Math.max(0.45, Math.min(2.8, baseW * depthRatio));
+        const depthRatio = refDepth / Math.max(0.4, avgDepth);
+        const w = S.basew * (1 + (depthRatio - 1) * S.perspw);
+        const lineW = Math.max(S.minw, Math.min(S.maxw, w));
 
-        ctx.beginPath();
-        let started = false;
-        for (const p of pts) {
-          if (p.a < 0.01) { started = false; continue; }
-          if (!started) { ctx.moveTo(p.sx, p.sy); started = true; }
-          else ctx.lineTo(p.sx, p.sy);
+        for (let i = 1; i < pts.length; i++) {
+          const a0 = pts[i - 1];
+          const a1 = pts[i];
+          if (a0.a < 0.008 || a1.a < 0.008) continue;
+
+          const midA = (a0.a + a1.a) * 0.5;
+          const midCol = {
+            r: (a0.col.r + a1.col.r) * 0.5,
+            g: (a0.col.g + a1.col.g) * 0.5,
+            b: (a0.col.b + a1.col.b) * 0.5
+          };
+
+          ctx.beginPath();
+          ctx.moveTo(a0.sx, a0.sy);
+          ctx.lineTo(a1.sx, a1.sy);
+          ctx.strokeStyle = rgbStr(midCol, Math.min(1, midA * 1.45));
+          ctx.lineWidth = lineW;
+          ctx.stroke();
         }
-        ctx.strokeStyle = `rgba(255,103,9,${Math.min(1, avgA * 1.4)})`;
-        ctx.lineWidth = lineW;
-        ctx.stroke();
       }
     }
 
@@ -295,29 +397,90 @@
     }
     requestAnimationFrame(loop);
 
-    // ── UI wiring ───────────────────────────────────────────────────
-    function bindSlider(id, key) {
+    // ── UI ──────────────────────────────────────────────────────────
+    function bind(id, key, fmt) {
       const el = document.getElementById(id);
       const lab = document.getElementById(id + 'v');
       el.addEventListener('input', () => {
-        const deg = parseFloat(el.value);
-        rot[key] = deg * Math.PI / 180;
-        lab.textContent = deg.toFixed(0) + '°';
+        const v = parseFloat(el.value);
+        S[key] = v;
+        if (lab) lab.textContent = fmt ? fmt(v) : v.toFixed(2);
         if (!running) { build(curT); draw(); }
       });
     }
-    bindSlider('rx', 'x');
-    bindSlider('ry', 'y');
-    bindSlider('rz', 'z');
+    bind('rx', 'rx', v => v.toFixed(0) + '°');
+    bind('ry', 'ry', v => v.toFixed(0) + '°');
+    bind('rz', 'rz', v => v.toFixed(0) + '°');
+    bind('zoom', 'zoom');
+    bind('fov', 'fov');
+    bind('camz', 'camz', v => v.toFixed(1));
+    bind('basew', 'basew');
+    bind('perspw', 'perspw');
+    bind('minw', 'minw');
+    bind('maxw', 'maxw', v => v.toFixed(1));
+    bind('amp', 'amp');
+    bind('layers', 'layers', v => v | 0);
+    bind('speed', 'speed');
+    bind('gxMix', 'gxMix');
+    bind('gyMix', 'gyMix');
+    bind('gzStr', 'gzStr');
+    bind('gzCtr', 'gzCtr');
+    bind('gzWid', 'gzWid');
+
+    function bindColor(id, key) {
+      document.getElementById(id).addEventListener('input', (e) => {
+        S[key] = e.target.value;
+        if (!running) { build(curT); draw(); }
+      });
+    }
+    bindColor('gxA', 'gxA');
+    bindColor('gxB', 'gxB');
+    bindColor('gyA', 'gyA');
+    bindColor('gyB', 'gyB');
+
+    function bindCheck(id, key) {
+      document.getElementById(id).addEventListener('change', (e) => {
+        S[key] = e.target.checked;
+        if (!running) { build(curT); draw(); }
+      });
+    }
+    bindCheck('gxOn', 'gxOn');
+    bindCheck('gyOn', 'gyOn');
+    bindCheck('gzOn', 'gzOn');
 
     document.getElementById('reset').onclick = () => {
-      rot = { x: 12*Math.PI/180, y: -18*Math.PI/180, z: 0 };
-      document.getElementById('rx').value = 12;
-      document.getElementById('ry').value = -18;
-      document.getElementById('rz').value = 0;
-      document.getElementById('rxv').textContent = '12°';
-      document.getElementById('ryv').textContent = '-18°';
-      document.getElementById('rzv').textContent = '0°';
+      S.rx = 12; S.ry = -18; S.rz = 0;
+      S.zoom = 1; S.fov = 1.05; S.camz = 10.5;
+      S.basew = 1.15; S.perspw = 1.8; S.minw = 0.4; S.maxw = 3.2;
+      S.amp = 1; S.layers = 56; S.speed = 1;
+      S.gxOn = true; S.gxA = '#ffcc33'; S.gxB = '#ff6709'; S.gxMix = 1;
+      S.gyOn = true; S.gyA = '#ff2a2a'; S.gyB = '#ff6709'; S.gyMix = 0.85;
+      S.gzOn = true; S.gzStr = 0.75; S.gzCtr = 0; S.gzWid = 0.95;
+
+      const map = {
+        rx:12, ry:-18, rz:0, zoom:1, fov:1.05, camz:10.5,
+        basew:1.15, perspw:1.8, minw:0.4, maxw:3.2,
+        amp:1, layers:56, speed:1,
+        gxMix:1, gyMix:0.85, gzStr:0.75, gzCtr:0, gzWid:0.95
+      };
+      for (const [id, val] of Object.entries(map)) {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+        const lab = document.getElementById(id + 'v');
+        if (lab) {
+          if (id === 'rx' || id === 'ry' || id === 'rz') lab.textContent = val + '°';
+          else if (id === 'layers') lab.textContent = val;
+          else if (id === 'camz' || id === 'maxw') lab.textContent = (+val).toFixed(1);
+          else lab.textContent = (+val).toFixed(2);
+        }
+      }
+      document.getElementById('gxA').value = '#ffcc33';
+      document.getElementById('gxB').value = '#ff6709';
+      document.getElementById('gyA').value = '#ff2a2a';
+      document.getElementById('gyB').value = '#ff6709';
+      document.getElementById('gxOn').checked = true;
+      document.getElementById('gyOn').checked = true;
+      document.getElementById('gzOn').checked = true;
       if (!running) { build(curT); draw(); }
     };
 
@@ -327,27 +490,30 @@
       if (running) t0 = performance.now() - curT * 1000;
     };
 
-    // SVG export
     document.getElementById('exportSvg').onclick = () => {
       build(curT);
-      const refDepth = 10.5;
+      const refDepth = S.camz;
       let svg = `<?xml version="1.0" encoding="UTF-8"?>\n`;
       svg += `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">\n`;
       svg += `<rect width="100%" height="100%" fill="#000"/>\n`;
       for (const { pts, avgA, avgDepth } of paths) {
-        if (avgA < 0.015) continue;
-        let d = '';
-        let started = false;
-        for (const p of pts) {
-          if (p.a < 0.01) { started = false; continue; }
-          d += (started ? 'L' : 'M') + p.sx.toFixed(1) + ',' + p.sy.toFixed(1);
-          started = true;
+        if (avgA < 0.012) continue;
+        const depthRatio = refDepth / Math.max(0.4, avgDepth);
+        const w = S.basew * (1 + (depthRatio - 1) * S.perspw);
+        const lineW = Math.max(S.minw, Math.min(S.maxw, w)).toFixed(2);
+
+        // export as colored segments so gradients survive
+        for (let i = 1; i < pts.length; i++) {
+          const a0 = pts[i - 1], a1 = pts[i];
+          if (a0.a < 0.008 || a1.a < 0.008) continue;
+          const midA = (a0.a + a1.a) * 0.5;
+          const cr = ((a0.col.r + a1.col.r) * 0.5) | 0;
+          const cg = ((a0.col.g + a1.col.g) * 0.5) | 0;
+          const cb = ((a0.col.b + a1.col.b) * 0.5) | 0;
+          const op = Math.min(1, midA * 1.45).toFixed(3);
+          const d = `M${a0.sx.toFixed(1)},${a0.sy.toFixed(1)}L${a1.sx.toFixed(1)},${a1.sy.toFixed(1)}`;
+          svg += `<path d="${d}" fill="none" stroke="rgb(${cr},${cg},${cb})" stroke-width="${lineW}" stroke-linecap="butt" opacity="${op}"/>\n`;
         }
-        if (!d) continue;
-        const op = Math.min(1, avgA * 1.4).toFixed(3);
-        const depthRatio = refDepth / Math.max(0.5, avgDepth);
-        const lineW = Math.max(0.45, Math.min(2.8, 1.15 * depthRatio)).toFixed(2);
-        svg += `<path d="${d}" fill="none" stroke="#ff6709" stroke-width="${lineW}" stroke-linecap="round" stroke-linejoin="round" opacity="${op}"/>\n`;
       }
       svg += `</svg>`;
       const blob = new Blob([svg], { type: 'image/svg+xml' });

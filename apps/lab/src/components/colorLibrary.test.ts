@@ -56,6 +56,7 @@ describe("color library", () => {
     expect(findLibraryColor("Orange", "900 [Accent]")?.hex).toBe(LIBRARY_COLOR.orangeAccent);
     expect(findLibraryColor("Orange", "800 [Pair]")?.hex).toBe(LIBRARY_COLOR.orangePair);
     expect(findLibraryColor("Orange", "1000")?.hex).toBe(LIBRARY_COLOR.orangeDeep);
+    expect(findLibraryColor("Red", "900 [Accent]")?.hex).toBe(LIBRARY_COLOR.redAccent);
     expect(findLibraryColor("Neutral", "White")?.hex).toBe(LIBRARY_COLOR.white);
     expect(findLibraryColor("Neutral", "11")?.hex).toBe(LIBRARY_COLOR.graphite);
   });

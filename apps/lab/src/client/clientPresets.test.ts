@@ -18,14 +18,17 @@ describe("client preview presets", () => {
     expect(CLIENT_COLOR_PRESETS).toHaveLength(4);
   });
 
-  it("builds from Banner 5:1 with transparent WebGL and rain off by default", () => {
+  it("builds from Banner 5:1 with solid white stage and rain off by default", () => {
     const bundle = buildClientPreviewBundle(DEFAULT_CLIENT_PREVIEW_STATE);
     expect(bundle.canvasWidth).toBe(1600);
     expect(bundle.canvasHeight).toBe(320);
-    expect(bundle.engineConfig.background?.transparent).toBe(true);
+    expect(bundle.engineConfig.background?.transparent).toBe(false);
+    expect(bundle.engineConfig.background?.color).toBe(0xffffff);
     expect(bundle.engineConfig.sparkle?.gaps?.enabled).toBe(false);
     expect(bundle.twizzler.lineCount).toBe(56);
     expect(bundle.twizzler.color).toBe("#f46021");
+    expect(bundle.twizzler.colorFar).toBe("#fea700");
+    expect(bundle.twizzler.colorEdge).toBe("#e92e28");
     expect(bundle.twizzler.opacity).toBeCloseTo(1);
     expect(bundle.twizzler.rotateXDeg).toBeCloseTo(12);
     expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-18);

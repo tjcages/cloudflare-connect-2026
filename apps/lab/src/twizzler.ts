@@ -8,18 +8,20 @@
 
 export type TwizzlerSettings = {
   color: string;
-  /** Pale gold / far / left (legacy gradient; orange-wave uses `color`). */
+  /** Left / far of X gradient (Orange Pair). */
   colorFar: string;
-  /** Deep coral / near / core (legacy gradient; orange-wave uses `color`). */
+  /** Right / near of X gradient (Orange Accent). */
   colorNear: string;
-  /** Bright yellow/gold on ribbon edges (legacy). */
+  /** Peak Y accent (Red Accent). */
   colorEdge: string;
   opacity: number;
+  /** Orange-wave camera zoom (HTML `zoom`). */
   scale: number;
   centerY: number;
   /** Wave height multiplier (1 = orange-wave reference). */
   amplitude: number;
   lineCount: number;
+  /** Base stroke width (HTML `basew`). */
   lineWidth: number;
   pointSpacing: number;
   leftHeight: number;
@@ -55,6 +57,26 @@ export type TwizzlerSettings = {
   rotateXDeg: number;
   rotateYDeg: number;
   rotateZDeg: number;
+  /** Perspective FOV (HTML `fov`). */
+  fov: number;
+  /** Camera distance (HTML `camz`). */
+  camDist: number;
+  /** Perspective width exaggeration (HTML `perspw`). */
+  perspectiveWidth: number;
+  /** Stroke width clamp min/max (HTML `minw` / `maxw`). */
+  minLineWidth: number;
+  maxLineWidth: number;
+  /** X length color gradient (left colorFar → right colorNear). */
+  gradientXEnabled: boolean;
+  gradientXMix: number;
+  /** Y peak/trough accents (peaks colorEdge, troughs colorNear). */
+  gradientYEnabled: boolean;
+  gradientYMix: number;
+  /** Z depth opacity falloff. */
+  gradientZEnabled: boolean;
+  gradientZStrength: number;
+  gradientZCenter: number;
+  gradientZWidth: number;
   noiseScaleX: number;
   noiseScaleY: number;
   speed: number;
@@ -66,11 +88,11 @@ export type TwizzlerSettings = {
 };
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
-  // Orange / 900 [Accent] from COLOR_LIBRARY (not freeform HTML #ff6709).
+  // Library tokens approximating HTML #ff6709 / #ffcc33 / #ff2a2a
   color: "#f46021",
-  colorFar: "#f46021",
+  colorFar: "#fea700",
   colorNear: "#f46021",
-  colorEdge: "#f46021",
+  colorEdge: "#e92e28",
   opacity: 1,
   scale: 1,
   centerY: 0.5,
@@ -104,6 +126,19 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   rotateXDeg: 12,
   rotateYDeg: -18,
   rotateZDeg: 0,
+  fov: 1.05,
+  camDist: 10.5,
+  perspectiveWidth: 1.8,
+  minLineWidth: 0.4,
+  maxLineWidth: 3.2,
+  gradientXEnabled: true,
+  gradientXMix: 1,
+  gradientYEnabled: true,
+  gradientYMix: 0.85,
+  gradientZEnabled: true,
+  gradientZStrength: 0.75,
+  gradientZCenter: 0,
+  gradientZWidth: 0.95,
   noiseScaleX: 0.0004,
   noiseScaleY: 0.01,
   speed: 1,
@@ -236,6 +271,22 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     rotateXDeg: clamp(input.rotateXDeg, TWIZZLER_DEFAULTS.rotateXDeg, -180, 180),
     rotateYDeg: clamp(input.rotateYDeg, TWIZZLER_DEFAULTS.rotateYDeg, -180, 180),
     rotateZDeg: clamp(input.rotateZDeg, TWIZZLER_DEFAULTS.rotateZDeg, -180, 180),
+    fov: clamp(input.fov, TWIZZLER_DEFAULTS.fov, 0.6, 1.8),
+    camDist: clamp(input.camDist, TWIZZLER_DEFAULTS.camDist, 5, 18),
+    perspectiveWidth: clamp(input.perspectiveWidth, TWIZZLER_DEFAULTS.perspectiveWidth, 0, 4),
+    minLineWidth: clamp(input.minLineWidth, TWIZZLER_DEFAULTS.minLineWidth, 0.15, 1.5),
+    maxLineWidth: clamp(input.maxLineWidth, TWIZZLER_DEFAULTS.maxLineWidth, 1, 6),
+    gradientXEnabled:
+      typeof input.gradientXEnabled === "boolean" ? input.gradientXEnabled : TWIZZLER_DEFAULTS.gradientXEnabled,
+    gradientXMix: clamp(input.gradientXMix, TWIZZLER_DEFAULTS.gradientXMix, 0, 1),
+    gradientYEnabled:
+      typeof input.gradientYEnabled === "boolean" ? input.gradientYEnabled : TWIZZLER_DEFAULTS.gradientYEnabled,
+    gradientYMix: clamp(input.gradientYMix, TWIZZLER_DEFAULTS.gradientYMix, 0, 1),
+    gradientZEnabled:
+      typeof input.gradientZEnabled === "boolean" ? input.gradientZEnabled : TWIZZLER_DEFAULTS.gradientZEnabled,
+    gradientZStrength: clamp(input.gradientZStrength, TWIZZLER_DEFAULTS.gradientZStrength, 0, 1.5),
+    gradientZCenter: clamp(input.gradientZCenter, TWIZZLER_DEFAULTS.gradientZCenter, -1, 1),
+    gradientZWidth: clamp(input.gradientZWidth, TWIZZLER_DEFAULTS.gradientZWidth, 0.15, 2),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.001, 0.1),
     speed: clamp(input.speed, TWIZZLER_DEFAULTS.speed, 0, 3),
@@ -249,11 +300,42 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
 const ORANGE_WAVE_Z_MIN = -1.8;
 const ORANGE_WAVE_Z_MAX = 2.8;
 const ORANGE_WAVE_X_RANGE = 6.8;
-const ORANGE_WAVE_CAM_DIST = 10.5;
-const ORANGE_WAVE_FOV = 1.05;
-const ORANGE_WAVE_REF_DEPTH = 10.5;
 
 type Vec3 = { x: number; y: number; z: number };
+type WavePoint = Vec3 & { u: number; origX: number; origY: number; origZ: number };
+
+function parseRgb(hex: string): { r: number; g: number; b: number } {
+  const value = hex.replace("#", "");
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16),
+  };
+}
+
+function lerpChannel(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function lerpRgb(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+  t: number,
+): { r: number; g: number; b: number } {
+  return {
+    r: lerpChannel(a.r, b.r, t),
+    g: lerpChannel(a.g, b.g, t),
+    b: lerpChannel(a.b, b.b, t),
+  };
+}
+
+function rgbToHex(c: { r: number; g: number; b: number }): string {
+  const channel = (value: number) =>
+    Math.round(Math.max(0, Math.min(255, value)))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(c.r)}${channel(c.g)}${channel(c.b)}`;
+}
 
 /** Multi-sine ribbon height from the orange-wave reference. */
 export function orangeWaveY(x: number, z: number, t: number, amplitude = 1): number {
@@ -737,13 +819,23 @@ export type TwizzlerLine = {
   /** -1..1 across ribbon width. */
   across: number;
   opacity: number;
-  /** Primary stroke color for this fiber (SVG + canvas), fog already applied. */
+  /** Primary stroke color for this fiber (SVG + canvas). */
   color: string;
   /** Typical nearness 0..1 (toward camera). */
   nearness: number;
   /** Stroke width in px for this fiber. */
   strokeWidth: number;
-  points: Array<{ x: number; y: number; depth: number; along: number; nearness: number }>;
+  points: Array<{
+    x: number;
+    y: number;
+    depth: number;
+    along: number;
+    nearness: number;
+    /** Per-point opacity before settings.opacity (orange-wave). */
+    alpha?: number;
+    /** Per-point hex color (orange-wave gradients). */
+    color?: string;
+  }>;
 };
 
 /** Soften sharp corners along a fiber via short Gaussian Y blur (keeps macro shape). */
@@ -786,14 +878,17 @@ export function buildTwizzlerLines(
   const rotX = (settings.rotateXDeg * Math.PI) / 180;
   const rotY = (settings.rotateYDeg * Math.PI) / 180;
   const rotZ = (settings.rotateZDeg * Math.PI) / 180;
+  const camDist = settings.camDist;
+  const fov = settings.fov;
+  const zoom = settings.scale;
 
-  const rotated: Vec3[][] = [];
+  const rotated: WavePoint[][] = [];
   for (let i = 0; i < layerCount; i += 1) {
     const z =
       layerCount <= 1
         ? (ORANGE_WAVE_Z_MIN + ORANGE_WAVE_Z_MAX) * 0.5
         : ORANGE_WAVE_Z_MIN + ((ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN) * i) / (layerCount - 1);
-    const layer: Vec3[] = [];
+    const layer: WavePoint[] = [];
     for (let j = 0; j < pointCount; j += 1) {
       const u = pointCount <= 1 ? 0 : (j / (pointCount - 1)) * 2 - 1;
       const x = u * ORANGE_WAVE_X_RANGE;
@@ -802,7 +897,7 @@ export function buildTwizzlerLines(
       q = orangeWaveRotX(q, rotX);
       q = orangeWaveRotY(q, rotY);
       q = orangeWaveRotZ(q, rotZ);
-      layer.push(q);
+      layer.push({ ...q, u, origX: x, origY: y, origZ: z });
     }
     rotated.push(layer);
   }
@@ -811,67 +906,106 @@ export function buildTwizzlerLines(
   let maxPX = -Infinity;
   for (const layer of rotated) {
     for (const p of layer) {
-      const depth = ORANGE_WAVE_CAM_DIST + p.z;
+      const depth = camDist + p.z;
       if (depth < 0.4) continue;
-      const px = (p.x / depth) * ORANGE_WAVE_FOV;
+      const px = (p.x / depth) * fov;
       if (px < minPX) minPX = px;
       if (px > maxPX) maxPX = px;
     }
   }
   const span = Math.max(0.001, maxPX - minPX);
-  const fitScale = Math.min(1.35, 1.88 / span);
+  const fitScale = Math.min(2.2, (1.88 * zoom) / span);
   const mid = (minPX + maxPX) * 0.5;
-  const cx = pixelWidth * 0.5;
-  const cy = pixelHeight * 0.5;
+
+  const colXA = parseRgb(settings.colorFar);
+  const colXB = parseRgb(settings.colorNear);
+  const colYA = parseRgb(settings.colorEdge);
+  const colYB = parseRgb(settings.colorNear);
+  const baseOrange = parseRgb(settings.color);
 
   const lines: TwizzlerLine[] = [];
   for (let i = 0; i < rotated.length; i += 1) {
     const layer = rotated[i]!;
-    const z0 =
-      layerCount <= 1
-        ? (ORANGE_WAVE_Z_MIN + ORANGE_WAVE_Z_MAX) * 0.5
-        : ORANGE_WAVE_Z_MIN + ((ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN) * i) / (layerCount - 1);
     const across = layerCount <= 1 ? 0 : (i / (layerCount - 1)) * 2 - 1;
     const points: TwizzlerLine["points"] = [];
     let sumA = 0;
     let sumD = 0;
+    let sumR = 0;
+    let sumG = 0;
+    let sumB = 0;
     let cnt = 0;
 
     for (let j = 0; j < layer.length; j += 1) {
       const p = layer[j]!;
-      const depth = ORANGE_WAVE_CAM_DIST + p.z;
+      const depth = camDist + p.z;
       if (depth < 0.4) continue;
-      const u = pointCount <= 1 ? 0 : (j / (pointCount - 1)) * 2 - 1;
-      let a = orangeWaveSmoothstep(3.2, 0.3, Math.abs(z0 + 0.15));
-      a *= orangeWaveSmoothstep(1.12, 0.58, Math.abs(u));
-      a *= orangeWaveSmoothstep(0.2, 1.0, depth / 14);
-      if (a < 0.01) continue;
 
-      const ndcX = ((p.x / depth) * ORANGE_WAVE_FOV - mid) * fitScale;
-      const ndcY = (p.y / depth) * ORANGE_WAVE_FOV * 1.25;
-      const sx = (ndcX * 0.5 + 0.5) * pixelWidth;
-      const sy = (0.5 - ndcY * 0.5) * pixelHeight;
-      const x = cx + (sx - cx) * settings.scale;
-      const y = cy + (sy - cy) * settings.scale;
+      let a = orangeWaveSmoothstep(3.2, 0.3, Math.abs(p.origZ + 0.15));
+      a *= orangeWaveSmoothstep(1.12, 0.58, Math.abs(p.u));
+      a *= orangeWaveSmoothstep(0.2, 1.0, depth / 14);
+
+      if (settings.gradientZEnabled) {
+        let g = ((p.origZ - ORANGE_WAVE_Z_MIN) / (ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN)) * 2 - 1;
+        g = (g - settings.gradientZCenter) / Math.max(0.05, settings.gradientZWidth);
+        const factor = orangeWaveSmoothstep(1.2, -0.2, g);
+        a *= 1 - settings.gradientZStrength + settings.gradientZStrength * Math.max(0, Math.min(1, factor));
+      }
+
+      let col = { ...baseOrange };
+      if (settings.gradientXEnabled) {
+        const tx = (p.origX / ORANGE_WAVE_X_RANGE) * 0.5 + 0.5;
+        const cx = lerpRgb(colXA, colXB, Math.max(0, Math.min(1, tx)));
+        col = lerpRgb(col, cx, settings.gradientXMix);
+      }
+      if (settings.gradientYEnabled && settings.gradientYMix > 0) {
+        const yNorm = p.origY / (0.55 * settings.amplitude + 0.01);
+        const extreme = Math.min(1, Math.abs(yNorm));
+        const influence = orangeWaveSmoothstep(0.15, 0.7, extreme) * settings.gradientYMix;
+        if (influence > 0.001) {
+          const target = yNorm >= 0 ? colYA : colYB;
+          col = lerpRgb(col, target, influence);
+        }
+      }
+
+      if (a < 0.008) continue;
+
+      const ndcX = ((p.x / depth) * fov - mid) * fitScale;
+      const ndcY = (p.y / depth) * fov * 1.25 * zoom;
+      const x = (ndcX * 0.5 + 0.5) * pixelWidth;
+      const y = (0.5 - ndcY * 0.5) * pixelHeight;
       const nearness = Math.max(0, Math.min(1, 1 - (depth - 8) / 6));
-      points.push({ x, y, depth, along: (u + 1) * 0.5, nearness });
+      const hex = rgbToHex(col);
+      points.push({
+        x,
+        y,
+        depth,
+        along: (p.u + 1) * 0.5,
+        nearness,
+        alpha: a,
+        color: hex,
+      });
       sumA += a;
       sumD += depth;
+      sumR += col.r;
+      sumG += col.g;
+      sumB += col.b;
       cnt += 1;
     }
 
     if (points.length < 2) continue;
     const avgA = sumA / Math.max(1, cnt);
-    if (avgA < 0.012) continue;
+    if (avgA < 0.01) continue;
     const avgDepth = sumD / Math.max(1, cnt);
-    const depthRatio = ORANGE_WAVE_REF_DEPTH / Math.max(0.5, avgDepth);
-    const strokeWidth = Math.max(0.45, Math.min(2.8, settings.lineWidth * depthRatio));
+    const depthRatio = camDist / Math.max(0.4, avgDepth);
+    const rawW = settings.lineWidth * (1 + (depthRatio - 1) * settings.perspectiveWidth);
+    const strokeWidth = Math.max(settings.minLineWidth, Math.min(settings.maxLineWidth, rawW));
     const nearness = Math.max(0, Math.min(1, 1 - (avgDepth - 8) / 6));
+    const avgColor = rgbToHex({ r: sumR / cnt, g: sumG / cnt, b: sumB / cnt });
 
     lines.push({
       across,
-      opacity: Math.min(1, avgA * 1.4) * settings.opacity,
-      color: settings.color,
+      opacity: Math.min(1, avgA * 1.45) * settings.opacity,
+      color: avgColor,
       nearness,
       strokeWidth,
       points,
@@ -918,24 +1052,39 @@ export function renderTwizzler(
   const context = canvas.getContext("2d");
   if (!context) return;
 
-  const { lines } = buildTwizzlerLines(pixelWidth, pixelHeight, timeSec, input);
+  const { settings, lines } = buildTwizzlerLines(pixelWidth, pixelHeight, timeSec, input);
   context.clearRect(0, 0, pixelWidth, pixelHeight);
   context.save();
+  // Butt caps avoid round-cap dots at every segment joint (orange-wave v3).
   context.lineJoin = "round";
-  context.lineCap = "round";
+  context.lineCap = "butt";
   context.setLineDash([]);
 
-  // Far → near so thicker near fibers sit on top (matches orange-wave draw order).
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
 
   for (const line of ordered) {
-    if (line.points.length < 2 || line.opacity < 0.01) continue;
-    context.strokeStyle = line.color;
-    context.globalAlpha = Math.min(1, line.opacity);
-    context.lineWidth = Math.max(0.45, line.strokeWidth);
-    context.beginPath();
-    twizzlerTraceCubic(context, line.points);
-    context.stroke();
+    if (line.points.length < 2) continue;
+    context.lineWidth = Math.max(settings.minLineWidth, line.strokeWidth);
+
+    for (let i = 1; i < line.points.length; i += 1) {
+      const a0 = line.points[i - 1]!;
+      const a1 = line.points[i]!;
+      const alpha0 = a0.alpha ?? line.opacity;
+      const alpha1 = a1.alpha ?? line.opacity;
+      if (alpha0 < 0.008 || alpha1 < 0.008) continue;
+      const opacity = Math.min(1, (alpha0 + alpha1) * 0.5 * 1.45 * settings.opacity);
+      if (opacity < 0.01) continue;
+
+      const c0 = parseRgb(a0.color ?? line.color);
+      const c1 = parseRgb(a1.color ?? line.color);
+      const mid = lerpRgb(c0, c1, 0.5);
+      context.strokeStyle = rgbToHex(mid);
+      context.globalAlpha = opacity;
+      context.beginPath();
+      context.moveTo(a0.x, a0.y);
+      context.lineTo(a1.x, a1.y);
+      context.stroke();
+    }
   }
 
   context.restore();
