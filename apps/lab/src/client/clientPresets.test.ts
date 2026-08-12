@@ -25,6 +25,7 @@ describe("client preview presets", () => {
     expect(bundle.engineConfig.background?.transparent).toBe(false);
     expect(bundle.engineConfig.background?.color).toBe(0xffffff);
     expect(bundle.engineConfig.sparkle?.gaps?.enabled).toBe(false);
+    expect(bundle.engineConfig.stripesEnabled).toBe(false);
     expect(bundle.twizzler.lineCount).toBe(56);
     expect(bundle.twizzler.lineWidth).toBeCloseTo(1.15);
     expect(bundle.twizzler.color).toBe("#f46021");
