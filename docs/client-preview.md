@@ -37,8 +37,9 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
   - **Background** — Fill + Color (solid) or Gradient direction + stops (when Fill = Gradient)
 - **Hero → Graphic**:
   - **Twizzler** — orange-wave ribbon only (Twizzler Leva folders; rain folders hidden)
-  - **Rain** — Connect / section-grid stripe rain with Shader picker + Stripes / Grid / Sparkle (Twizzler folders hidden). Selecting Rain restores opaque factory-like stripes if the Banner still had invisible rain.
-  - **Both** — ribbon underlay + rain overlay (both authoring panels)
+  - **Rain** — factoryDefaults rain look + **Shader** dropdown (Connect / Spiral / etc.). Twizzler folders hidden. Rain authoring shown in Default: Camera, General, Texture Tone/Levels/Source, Shader config (Connect), Stripes, Grid, Sparkle, Frames, Background FX, Letters, Reveal, Edge Mask, Cursor Trail, Click Wave, etc.
+  - **Both** — Twizzler + Rain authoring together; factoryDefaults rain still applied on enter
+- **Presets** (Size / Layout / Appearance / Color) stay the same catalog. When Graphic is Rain they map onto Rain/Connect knobs; when Twizzler onto ribbon knobs; when Both onto both stacks.
 - **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, etc.) without rebuilding Leva, so values are not wiped when toggling.
 
 ## Twizzler (orange-wave)
@@ -93,4 +94,5 @@ Colors in the HTML that are not exact library hexes get **snapped** to the neare
 - Saved layouts: `apps/lab/src/client/savedLayouts.ts` + shared `presets.ts` storage; **Reset** reapplies Banner 5:1
 - Gating: `drawerFolder({ hideInClient, clientOnly })` + `showTwizzlerAuthoring` / `showFullLab` in `controls/levaSchema.ts`
 - Preset data: `apps/lab/src/client/clientPresets.ts`
+- Section-grid Rain bootstrap: `apps/lab/src/client/sectionGridRainDefaults.ts` → `applyPresetToStorage(factoryDefaults)` (same as Factory reset)
 - Library: `apps/lab/src/components/colorLibrary.ts` (`LIBRARY_COLOR`, `HexColorPopover`)

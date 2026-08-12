@@ -2075,6 +2075,26 @@ body.lab-sidebar-resizing .lab-sidebar {
   box-shadow: none;
 }
 
+.lab-shell.is-client-mode .lab-client-tools-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lab-shell.is-client-mode .lab-client-panel-collapse {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--leva-text-muted);
+}
+
+.lab-shell.is-client-mode .lab-client-panel-collapse:hover {
+  background: var(--leva-surface);
+  color: var(--leva-text);
+}
+
 .lab-shell.is-client-mode .lab-panel-mode-toggle {
   align-self: flex-start;
   border-radius: var(--leva-radius);
@@ -2296,6 +2316,58 @@ body.lab-sidebar-resizing .lab-sidebar {
 :root[data-theme="dark"] .lab-shell.is-client-mode .lab-panel-mode-btn:has(input[type="radio"]:checked) {
   color: #161616 !important;
   background-color: #f0f0f0 !important;
+}
+
+/* Client mobile: keep canvas usable; panel overlays instead of crushing the stage. */
+@media (max-width: 720px) {
+  .lab-shell.is-client-mode {
+    position: relative;
+  }
+
+  .lab-shell.is-client-mode .lab-main {
+    width: 100%;
+  }
+
+  .lab-shell.is-client-mode .lab-canvas-area {
+    padding: 12px;
+  }
+
+  .lab-shell.is-client-mode .lab-sidebar-shader:not(.is-closed) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    max-width: min(100vw - 36px, 320px);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08);
+  }
+
+  .lab-shell.is-client-mode .lab-sidebar-shader .lab-sidebar-scroll {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .lab-shell.is-client-mode .lab-client-tools {
+    padding: 8px 8px 10px;
+    gap: 6px;
+  }
+
+  .lab-shell.is-client-mode .lab-client-exports {
+    padding: 8px;
+  }
+
+  .lab-shell.is-client-mode .lab-sidebar-reopen-right {
+    top: max(12px, env(safe-area-inset-top, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    width: 36px;
+    height: 36px;
+  }
+
+  .lab-shell.is-client-mode .lab-canvas-zoom-controls {
+    bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    padding: 5px 6px;
+    gap: 6px;
+  }
 }
 
 .lab-sidebar-toggle {

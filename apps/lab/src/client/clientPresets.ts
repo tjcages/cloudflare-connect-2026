@@ -4,6 +4,7 @@ import { findPresetByName, loadBuiltinPresets } from "../presets";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
 import { normalizeTwizzlerSettings, type TwizzlerRibbonColorMode, type TwizzlerSettings } from "../twizzler";
 import { defaultTwizzlerGradientFieldStops } from "../twizzlerGradient";
+import { sectionGridRainEngineConfig } from "./sectionGridRainDefaults";
 
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
@@ -341,6 +342,73 @@ export function findClientAppearancePreset(id: ClientAppearanceId): ClientAppear
   }
 }
 
+/**
+ * Map Size/Layout/Color/Appearance presets onto Rain (Connect + stripe grid) Leva keys.
+ * Same preset catalog as Twizzler — values target the rain shader when Graphic includes Rain.
+ */
+export function rainLevaFromLayout(layoutId: ClientLayoutPresetId): Record<string, unknown> {
+  const layout = findClientLayoutPreset(layoutId).twizzler;
+  const patch: Record<string, unknown> = {};
+  if (layout.rotateXDeg !== undefined) patch.connectCameraRotateX = layout.rotateXDeg + 30;
+  if (layout.rotateYDeg !== undefined) patch.connectCameraRotateY = layout.rotateYDeg - 90;
+  if (layout.rotateZDeg !== undefined) {
+    patch.connectCameraRotateZ = layout.rotateZDeg - 83;
+    patch.orientationAngleDeg = layout.rotateZDeg;
+  }
+  if (layout.centerY !== undefined) patch.connectCameraPanY = (0.5 - layout.centerY) * 40;
+  if (layout.scale !== undefined) {
+    patch.textureDpr = Math.max(0.25, Math.min(2, layout.scale * 0.25));
+    patch.zoom = layout.scale;
+  }
+  if (layout.amplitude !== undefined) {
+    patch.connectDisplacement = layout.amplitude * 2.5;
+    patch.connectShapeAmplitude = layout.amplitude * 20;
+  }
+  return patch;
+}
+
+export function rainLevaFromColor(colorId: ClientColorPresetId): Record<string, unknown> {
+  const color = findClientColorPreset(colorId).twizzler;
+  const near = color.colorNear ?? color.color;
+  const far = color.colorFar;
+  const edge = color.colorEdge;
+  return {
+    connectFillColor: near,
+    connectFillColor2: far,
+    connectOrangeColor: near,
+    connectAmberColor: far,
+    connectDeepColor: edge,
+    connectEmitOrangeColor: near,
+    connectEmitAmberColor: far,
+    connectEmitDeepColor: edge,
+    connectLineColor: edge,
+    connectPaleColor: far,
+    connectSalmonColor: near,
+  };
+}
+
+export function rainLevaFromAppearance(appearanceId: ClientAppearanceId): Record<string, unknown> {
+  const appearance = findClientAppearancePreset(appearanceId);
+  const near = appearance.twizzler.colorNear ?? appearance.twizzler.color;
+  const far = appearance.twizzler.colorFar;
+  const edge = appearance.twizzler.colorEdge;
+  return {
+    backgroundFillMode: "solid",
+    backgroundColor: appearance.backgroundHex,
+    connectFillColor: near,
+    connectFillColor2: far,
+    connectOrangeColor: near,
+    connectAmberColor: far,
+    connectDeepColor: edge,
+    connectEmitOrangeColor: near,
+    connectEmitAmberColor: far,
+    connectEmitDeepColor: edge,
+    connectLineColor: edge,
+    connectPaleColor: far,
+    connectSalmonColor: near,
+  };
+}
+
 export function tweaksFromTwizzler(settings: TwizzlerSettings): ClientTwizzlerTweaks {
   return {
     opacity: settings.opacity,
@@ -387,7 +455,11 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
 
   const twizzlerMap = normalizeTwizzlerMapSettings(banner.lab.twizzlerMap);
 
-  const engineConfig = structuredClone(banner.config) as ThemedEngineConfig & {
+  // Twizzler Graphic keeps Banner marketing config. Rain Graphic uses the
+  // section-grid-generator factory engine (opaque stripes, 7×7 / 0°, factory tone).
+  const engineConfig = (
+    state.rainEnabled ? sectionGridRainEngineConfig() : structuredClone(banner.config)
+  ) as ThemedEngineConfig & {
     background?: { transparent?: boolean; color?: number };
     sparkle?: { gaps?: { enabled?: boolean; coverage?: number; speed?: number } };
     frames?: { enabled?: boolean };
@@ -407,8 +479,9 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
   engineConfig.stripesEnabled = true;
   engineConfig.sparkle.gaps.enabled = state.rainEnabled;
   if (state.rainEnabled) {
-    engineConfig.sparkle.gaps.coverage = engineConfig.sparkle.gaps.coverage ?? 1;
-    engineConfig.sparkle.gaps.speed = engineConfig.sparkle.gaps.speed ?? 0.1;
+    // Factory coverage is 0 (continuous cells). Never inherit Banner's coverage=1 (blank).
+    engineConfig.sparkle.gaps.coverage = engineConfig.sparkle.gaps.coverage ?? 0;
+    engineConfig.sparkle.gaps.speed = engineConfig.sparkle.gaps.speed ?? 1;
   }
 
   const shaderSourceWidth = Math.max(1, Math.round(banner.lab.shaderSourceWidth ?? 1280));

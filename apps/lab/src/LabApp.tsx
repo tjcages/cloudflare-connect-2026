@@ -69,7 +69,7 @@ import {
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
 import { resolveClientGraphicMode } from "./client/clientPresets";
-import { CONNECT_SHADER_PRESET_ID } from "./shaderLibrary";
+import { applySectionGridRainToStorage } from "./client/sectionGridRainDefaults";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -86,6 +86,7 @@ import {
 import { normalizeShaderViewState, type ShaderViewState } from "./shaderView";
 import { resolveShaderConfigKind } from "./shaderConfig";
 import {
+  CONNECT_SHADER_PRESET_ID,
   CUSTOM_SHADER_PRESET_ID,
   DEFAULT_SHADER_PRESET_ID,
   findShaderLibraryEntry,
@@ -860,11 +861,12 @@ function LabInner({
     const stored = loadLabSettings();
     if (clientMode) {
       // Live localStorage already holds the session (or boot seeded Banner once).
+      // Rain apply sets textureSidebarOpen so Camera / Tone stay reachable.
       return {
         ...stored,
         canvasMode: "manual" as const,
         canvasAspectLocked: true,
-        textureSidebarOpen: false,
+        textureSidebarOpen: stored.textureSidebarOpen ?? false,
         shaderSidebarOpen: true,
         textureSourceMode: "shader" as const,
         shaderPresetId: stored.shaderPresetId || "twizzler-map",
@@ -3171,19 +3173,43 @@ function LabInner({
     applyShaderTextureSource(entry.source);
   }
 
+  const lastClientRainBootstrapRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!clientMode) return;
+    const mode = clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
+    const rainOn = mode === "rain" || mode === "both";
+    // Rain authoring lives on both sidebars (Camera / Tone on texture; Stripes/Grid/Connect on shader).
+    if (labSettingsRef.current.textureSidebarOpen !== rainOn) {
+      updateLabSettings({ textureSidebarOpen: rainOn });
+    }
+    // Skip mount so a post-apply reload does not loop.
+    if (lastClientRainBootstrapRef.current === null) {
+      lastClientRainBootstrapRef.current = mode;
+      return;
+    }
+    if (lastClientRainBootstrapRef.current === mode) return;
+    const prev = lastClientRainBootstrapRef.current;
+    lastClientRainBootstrapRef.current = mode;
+    const wasRain = prev === "rain" || prev === "both";
+    const enteringRain = rainOn && !wasRain;
+    if (!enteringRain) return;
+    // Exact factoryDefaults path (same as Factory reset / Apply layout).
+    applySectionGridRainToStorage(mode, textureIdRef.current, {
+      canvasWidth: labSettingsRef.current.canvasWidth,
+      canvasHeight: labSettingsRef.current.canvasHeight,
+      clientSizeId: labSettingsRef.current.clientSizeId,
+      backgroundColor: labSettingsRef.current.backgroundColor,
+    });
+    window.location.reload();
+  }, [clientMode, clientGraphicMode, twizzler.enabled, controls.sparkle.gaps.enabled, updateLabSettings]);
+
   useEffect(() => {
     if (!clientMode) return;
     const mode = clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
     if (mode !== "rain" && mode !== "both") return;
     const target = clientRainShaderPreset || CONNECT_SHADER_PRESET_ID;
     if (shaderPresetId === target) return;
-    if (
-      isTwizzlerSineShaderPreset(shaderPresetId) ||
-      isTwizzlerMapShaderPreset(shaderPresetId) ||
-      clientRainShaderPreset
-    ) {
-      handleShaderPresetChange(target);
-    }
+    handleShaderPresetChange(target);
   }, [
     clientMode,
     clientGraphicMode,
@@ -3769,29 +3795,40 @@ function LabInner({
           {clientMode ? (
             <>
               <div className="lab-client-tools">
-                <fieldset className="lab-panel-mode-toggle" aria-label="Panel mode">
-                  <legend>Panel mode</legend>
-                  <label className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="lab-panel-mode"
-                      value="default"
-                      checked={clientPanelMode === "default"}
-                      onChange={() => setClientPanelMode("default")}
-                    />
-                    Default
-                  </label>
-                  <label className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="lab-panel-mode"
-                      value="advanced"
-                      checked={clientPanelMode === "advanced"}
-                      onChange={() => setClientPanelMode("advanced")}
-                    />
-                    Advanced
-                  </label>
-                </fieldset>
+                <div className="lab-client-tools-top">
+                  <fieldset className="lab-panel-mode-toggle" aria-label="Panel mode">
+                    <legend>Panel mode</legend>
+                    <label className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="lab-panel-mode"
+                        value="default"
+                        checked={clientPanelMode === "default"}
+                        onChange={() => setClientPanelMode("default")}
+                      />
+                      Default
+                    </label>
+                    <label className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="lab-panel-mode"
+                        value="advanced"
+                        checked={clientPanelMode === "advanced"}
+                        onChange={() => setClientPanelMode("advanced")}
+                      />
+                      Advanced
+                    </label>
+                  </fieldset>
+                  <button
+                    className="lab-sidebar-toggle lab-client-panel-collapse"
+                    type="button"
+                    onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
+                    aria-label="Close panel"
+                    title="Close panel"
+                  >
+                    <PanelRightClose size={14} strokeWidth={1.75} />
+                  </button>
+                </div>
                 <div className="lab-client-layouts">
                   <div className="lab-client-layouts-label">Saved layouts</div>
                   <select

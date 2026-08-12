@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LIBRARY_COLOR } from "../components/colorLibrary";
 import {
   buildClientPreviewBundle,
   CLIENT_APPEARANCE_PRESETS,
@@ -12,6 +13,9 @@ import {
   findClientColorPreset,
   findClientLayoutPreset,
   findClientSizePreset,
+  rainLevaFromAppearance,
+  rainLevaFromColor,
+  rainLevaFromLayout,
   resetTweaksForLayout,
   resolveClientGraphicMode,
 } from "./clientPresets";
@@ -97,6 +101,20 @@ describe("client preview presets", () => {
     expect(noRain.engineConfig.stripesEnabled).toBe(true);
   });
 
+  it("uses section-grid factory rain engine when rainEnabled (not Banner blank rain)", () => {
+    const withRain = buildClientPreviewBundle({ ...DEFAULT_CLIENT_PREVIEW_STATE, rainEnabled: true });
+    expect(withRain.engineConfig.grid?.cellWidth).toBe(7);
+    expect(withRain.engineConfig.grid?.cellHeight).toBe(7);
+    expect(withRain.engineConfig.grid?.angleDeg).toBe(0);
+    expect(withRain.engineConfig.sparkle?.gaps?.coverage).toBe(0);
+    expect((withRain.engineConfig.stripes ?? []).length).toBeGreaterThan(1);
+    expect((withRain.engineConfig.stripes ?? []).every((s) => (s.opacity ?? 0) > 0)).toBe(true);
+
+    const noRain = buildClientPreviewBundle({ ...DEFAULT_CLIENT_PREVIEW_STATE, rainEnabled: false });
+    expect(noRain.engineConfig.grid?.cellWidth).toBe(3);
+    expect(noRain.engineConfig.grid?.angleDeg).toBe(-38);
+  });
+
   it("applies size, layout, and color overlays independently", () => {
     const size = findClientSizePreset("square");
     const layout = findClientLayoutPreset("high-fan");
@@ -154,5 +172,19 @@ describe("client preview presets", () => {
     expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-30);
     expect(bundle.twizzler.speed).toBeCloseTo(0.2);
     expect(bundle.twizzler.lineCount).toBe(56);
+  });
+
+  it("maps Layout / Color / Appearance presets onto Rain Leva keys", () => {
+    const layout = rainLevaFromLayout("high-fan");
+    expect(layout.connectCameraRotateY).toBeDefined();
+    expect(layout.connectCameraPanY).toBeDefined();
+
+    const color = rainLevaFromColor("coral-classic");
+    expect(color.connectFillColor).toBe(LIBRARY_COLOR.orangeAccent);
+    expect(color.connectFillColor2).toBe(LIBRARY_COLOR.orangePair);
+
+    const appearance = rainLevaFromAppearance("dark");
+    expect(appearance.backgroundColor).toBe("#f86a00");
+    expect(appearance.connectFillColor).toBeDefined();
   });
 });
