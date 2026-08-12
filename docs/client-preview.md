@@ -14,13 +14,15 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** toggle + export buttons.
 
-- **Default** — only the knobs a client needs:
+- **Default** — rich authoring for the orange-wave ribbon:
   - **Presets** — Size / Layout / Color
-  - **Twizzler → General** — Show, Rain, Gradients (solid ↔ segmented color)
-  - **Twizzler → Shape** — Amplitude, Rotate X/Y/Z
+  - **Twizzler → General** — Show, Rain, Gradients, colors, Opacity, Zoom
+  - **Twizzler → Shape** — Center Y, Move X/Y/Z, Amplitude, Rotate X/Y/Z, FOV, Cam Z
+  - **Twizzler → Gradients** — X/Y/Z gradient mixes
+  - **Twizzler → Stroke** — width, layers, perspective
   - **Twizzler → Motion** — Speed
   - **Background** — Fill (Solid / Transparent) + library Color
-- **Advanced** — full Leva folders (same authoring surface as the lab). Gradient background fill, Gradients / Stroke / View / Edges / Noise, per-axis Twizzler colors, Zoom / Opacity, and camera folders return here.
+- **Advanced** — legacy / experimental folders (View, Edges, Noise, wrinkles/bends/depth terrain, Background Gradient fill, camera, etc.)
 
 ## Twizzler (orange-wave)
 
@@ -30,7 +32,8 @@ Current ribbon geometry is the **orange-wave** 3D projected vector from
 - Stroke colors use **COLOR_LIBRARY** (X: Orange Pair→Accent, Y peaks: Red Accent; HTML #ffcc33/#ff6709/#ff2a2a snapped)
 - Background: Neutral White (`#ffffff`), solid — not the HTML demo black
 - Z fade: far / +Z lerps ink **toward stage background color** (not HTML opacity modulate)
-- Camera/stroke/gradient knobs from orange-wave v3 live in Advanced (Gradients + Stroke folders)
+- Move X/Y = pixel translate after projection; Move Z = world Z before projection
+- Zoom is unbounded (no L/R lock / vertical stretch)
 - ~56 layers, Rotate X/Y/Z (defaults 12° / −18° / 0°), `lineWidth` ~1.15, dense sampling (≥160 pts)
 - Rain (`sparkle.gaps`) unchanged from Banner — toggle with **Rain** next to Twizzler **Show**
 - Reference: `apps/lab/src/presets/references/orange-wave-vector.html`
@@ -41,26 +44,7 @@ Client panel (and lab) expose:
 
 - **Download JSON** — full lab configuration
 - **Export Video** — MediaRecorder / ffmpeg pipeline
-- **Export SVG** — filled ribbon paths (auto outline-stroke). Gradients on → segmented fills grouped per fiber; Gradients off → one solid filled path per fiber (Figma-light).
-
-## Next HTML → Leva mapping (do this on the next drop)
-
-When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (Default for client knobs, Advanced for fine ones). Keep the color library — no freeform-only hex fields.
-
-| HTML / design control        | Leva folder               | Notes                                                         |
-| ---------------------------- | ------------------------- | ------------------------------------------------------------- |
-| Stroke color                 | Presets → Color (Default) | `colorLibraryInputPlugin` → `LIBRARY_COLOR.*` / Orange tokens |
-| Background                   | Background → Fill + Color | Library Neutral White / Neutral steps; Gradient = Advanced    |
-| Twizzler on/off              | Twizzler → Show           | existing `twizzlerEnabled`                                    |
-| Gradients on/off             | Twizzler → Gradients      | master switch; off = solid color + combined SVG fills         |
-| Rain on/off                  | Twizzler → Rain           | existing `rainEnabled` → `sparkle.gaps`                       |
-| Rotate X/Y/Z                 | Twizzler → Shape          | already live in Default                                       |
-| Layer count / width / points | Twizzler → Stroke         | Advanced                                                      |
-| Speed / pause                | Twizzler → Motion         | `speed` (0 = freeze)                                          |
-| Wave amplitude / envelope    | Twizzler → Shape          | Amplitude in Default; Center Y via Layout presets             |
-| Any new HTML sliders         | Twizzler Shape/Motion     | add settings + normalize + Leva                               |
-
-Colors in the HTML that are not exact library hexes get **snapped** to the nearest `COLOR_LIBRARY` token (prefer Accent / Pair levels). Do not invent a parallel palette.
+- **Export SVG** — true vectors (per-segment `<path>` strokes when gradients on; combined per-fiber fills when solid)
 
 ## Implementation
 

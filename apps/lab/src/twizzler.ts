@@ -102,9 +102,12 @@ export type TwizzlerSettings = {
   rotateX: number;
   rotateY: number;
   rotateZ: number;
-  /** Exact-shader view pan (Leva units, ÷40 in shader). */
+  /** Orange-wave + exact-shader: translate X (pixels after projection). */
   panX: number;
+  /** Orange-wave + exact-shader: translate Y (pixels after projection). */
   panY: number;
+  /** Orange-wave: translate Z (world units before projection). */
+  panZ: number;
   /** Exact-shader camera distance (30 = identity zoom). */
   viewDistance: number;
 };
@@ -174,6 +177,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   rotateZ: 0,
   panX: 0,
   panY: 0,
+  panZ: 0,
   viewDistance: 30,
 };
 
@@ -341,6 +345,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     rotateZ: clamp(input.rotateZ, TWIZZLER_DEFAULTS.rotateZ, -720, 720),
     panX: clamp(input.panX, TWIZZLER_DEFAULTS.panX, -400, 400),
     panY: clamp(input.panY, TWIZZLER_DEFAULTS.panY, -400, 400),
+    panZ: clamp(input.panZ, TWIZZLER_DEFAULTS.panZ, -20, 20),
     viewDistance: clamp(input.viewDistance, TWIZZLER_DEFAULTS.viewDistance, 0.1, 1000),
   };
 }
@@ -1163,7 +1168,8 @@ export function buildTwizzlerLines(
     });
   }
 
-  // Shift the pack so visible ink average sits on centerY.
+  // Shift the pack so visible ink average sits on centerY, then Move X/Y/Z.
+  // Move Z is a post-fit dolly (auto-fit would cancel a pure world-Z shift).
   const targetY = pixelHeight * settings.centerY;
   for (let iter = 0; iter < 4; iter += 1) {
     let ySum = 0;
@@ -1182,6 +1188,18 @@ export function buildTwizzlerLines(
     for (const line of lines) {
       for (const point of line.points) {
         point.y += shift;
+      }
+    }
+  }
+
+  const dolly = Math.max(0.05, Math.min(20, Math.exp(-settings.panZ * 0.35)));
+  const originX = pixelWidth * 0.5;
+  const originY = pixelHeight * settings.centerY;
+  if (dolly !== 1 || settings.panX !== 0 || settings.panY !== 0) {
+    for (const line of lines) {
+      for (const point of line.points) {
+        point.x = originX + (point.x - originX) * dolly + settings.panX;
+        point.y = originY + (point.y - originY) * dolly + settings.panY;
       }
     }
   }
