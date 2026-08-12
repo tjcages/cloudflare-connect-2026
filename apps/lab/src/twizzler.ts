@@ -730,7 +730,7 @@ export function twizzlerSilhouetteWidthScale(xT: number, remap: number): number 
   if (amount <= 0) return 1;
   const x = Math.max(0, Math.min(1, xT));
   const thinLeft = 1 - amount * 0.66 * (1 - smoothstep(0.3, 0.72, x));
-  const boostRight = 1 + amount * 0.4 * smoothstep(0.55, 0.95, x);
+  const boostRight = 1 + amount * 1.15 * smoothstep(0.48, 0.88, x);
   return thinLeft * boostRight;
 }
 
@@ -743,7 +743,7 @@ export function twizzlerSilhouetteYOffset(xT: number, pixelHeight: number, remap
   if (amount <= 0) return 0;
   const x = Math.max(0, Math.min(1, xT));
   const sinkLeft = (1 - smoothstep(0.12, 0.58, x)) * 0.24;
-  const liftRight = smoothstep(0.58, 0.98, x) * 0.08;
+  const liftRight = smoothstep(0.45, 0.92, x) * 0.3;
   return amount * pixelHeight * (sinkLeft - liftRight);
 }
 
@@ -770,14 +770,14 @@ export function twizzlerRightFanY(xT: number, across: number, pixelHeight: numbe
   if (amount <= 0) return 0;
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
-  const grow = Math.pow(smoothstep(0.42, 0.9, x), 1.2);
+  const grow = Math.pow(smoothstep(0.4, 0.88, x), 1.2);
   // Nearly-parallel combed S-waves: shared phase, tiny across shift so the pack stays combed.
   const comb = 0.62 * Math.sin(x * Math.PI * 5.6 + a * 0.4 + 0.5) + 0.38 * Math.sin(x * Math.PI * 9.4 + a * 0.25 + 1.8);
   // Fine ripple riding on top of the fan (reads on far/top fibers).
   const ripple = Math.sin(x * Math.PI * 24 + a * 0.9) * 0.1 * (0.5 - a * 0.5);
-  // Extra vertical opening so the right edge fills the frame.
-  const open = a * 0.38;
-  return amount * pixelHeight * grow * (comb * 0.16 + ripple + open);
+  // Asymmetric vertical opening: far fibers ride up hard, near core stays on-canvas.
+  const open = (a - 0.5) * 0.46;
+  return amount * pixelHeight * grow * (comb * 0.19 + ripple + open);
 }
 
 /** Stroke width scale from nearness — thick toward camera, hairline when far. */
