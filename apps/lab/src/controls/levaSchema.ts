@@ -75,8 +75,10 @@ import {
   type ClientSizePresetId,
 } from "../client/clientPresets";
 
-/** Set for the duration of `useEngineControls` so drawerFolder can gate client mode. */
-let clientModeActive = false;
+/** Set during `useEngineControls` so drawerFolder can gate Default vs Advanced. */
+let clientDefaultPanelActive = false;
+/** True for the whole client / agency review app (Default or Advanced). */
+let clientAppActive = false;
 
 function drawerFolder<S extends Parameters<typeof folder>[0]>(
   id: string,
@@ -84,9 +86,9 @@ function drawerFolder<S extends Parameters<typeof folder>[0]>(
   options: {
     defaultOpen?: boolean;
     render?: () => boolean;
-    /** Hide this folder entirely in client / agency review mode. */
+    /** Hide this folder in client Default panel (still registered; shows in Advanced). */
     hideInClient?: boolean;
-    /** Only show this folder in client / agency review mode. */
+    /** Only show this folder in the client app (Default + Advanced). */
     clientOnly?: boolean;
   } = {},
 ) {
@@ -95,8 +97,8 @@ function drawerFolder<S extends Parameters<typeof folder>[0]>(
     ...folderOptions,
     collapsed: !loadControlDrawerOpen(id, loadLabSettings().drawerOpen[id] ?? defaultOpen),
     render: () => {
-      if (hideInClient && clientModeActive) return false;
-      if (clientOnly && !clientModeActive) return false;
+      if (hideInClient && clientDefaultPanelActive) return false;
+      if (clientOnly && !clientAppActive) return false;
       return render ? render() : true;
     },
   });
@@ -483,15 +485,23 @@ export function useEngineControls(
     initialConfig?: ThemedEngineConfig;
     initialEditTheme?: LabEditTheme;
     configScope?: "global" | "surface";
-    /** Agency / client review: hide authoring folders, keep Twizzler + presets + rain. */
+    /** Agency / client review: curated Twizzler + presets + rain (Default panel). */
     clientMode?: boolean;
+    /**
+     * Client Default vs Advanced. Advanced reveals hideInClient folders without
+     * rebuilding the Leva schema (so knob values are not wiped on toggle).
+     */
+    clientPanelMode?: "default" | "advanced";
   } = {},
 ): EngineControlsResult {
   const surfaceConfig = options.configScope === "surface";
-  const clientMode = options.clientMode === true;
-  clientModeActive = clientMode;
-  const showShaderCamera = options.showShaderCamera === true && !clientMode;
-  const showConnectCamera = options.showConnectCamera === true && !clientMode;
+  const clientApp = options.clientMode === true;
+  const clientPanelMode = options.clientPanelMode === "advanced" ? "advanced" : "default";
+  const clientDefaultPanel = clientApp && clientPanelMode === "default";
+  clientDefaultPanelActive = clientDefaultPanel;
+  clientAppActive = clientApp;
+  const showShaderCamera = options.showShaderCamera === true && !clientDefaultPanel;
+  const showConnectCamera = options.showConnectCamera === true && !clientDefaultPanel;
   const activeShaderConfig = options.activeShaderConfig ?? null;
   const showTwizzlerRibbon = options.showTwizzlerRibbon === true;
   const showShaderToyCamera = showShaderCamera && !showConnectCamera;
@@ -503,16 +513,20 @@ export function useEngineControls(
   activeShaderConfigRef.current = activeShaderConfig;
   const showTwizzlerRibbonRef = useRef(showTwizzlerRibbon);
   showTwizzlerRibbonRef.current = showTwizzlerRibbon;
-  const clientModeRef = useRef(clientMode);
-  clientModeRef.current = clientMode;
-  const showCometLogoShaderConfig = () => activeShaderConfigRef.current === "comet-logo" && !clientModeRef.current;
-  const showTwizzlerMapShaderConfig = () => activeShaderConfigRef.current === "twizzler-map" && !clientModeRef.current;
+  const clientDefaultPanelRef = useRef(clientDefaultPanel);
+  clientDefaultPanelRef.current = clientDefaultPanel;
+  const clientAppRef = useRef(clientApp);
+  clientAppRef.current = clientApp;
+  const showCometLogoShaderConfig = () =>
+    activeShaderConfigRef.current === "comet-logo" && !clientDefaultPanelRef.current;
+  const showTwizzlerMapShaderConfig = () =>
+    activeShaderConfigRef.current === "twizzler-map" && !clientDefaultPanelRef.current;
   const showTwizzlerRibbonConfig = () => showTwizzlerRibbonRef.current;
-  const showTwizzlerAuthoring = () => showTwizzlerRibbonRef.current && !clientModeRef.current;
-  const showFullLab = () => !clientModeRef.current;
-  const showClientOnly = () => clientModeRef.current;
+  const showTwizzlerAuthoring = () => showTwizzlerRibbonRef.current && !clientDefaultPanelRef.current;
+  const showFullLab = () => !clientDefaultPanelRef.current;
+  const showClientOnly = () => clientAppRef.current;
   const showSpiralShaderConfigRef = useRef(activeShaderConfig === "spiral");
-  showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && !clientMode;
+  showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && !clientDefaultPanel;
   const showShaderToyCameraRef = useRef(showShaderToyCamera);
   showShaderToyCameraRef.current = showShaderToyCamera;
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
@@ -522,7 +536,7 @@ export function useEngineControls(
       ...(startupPreset?.lab ?? {}),
       cometLogo: { ...COMET_LOGO_DEFAULTS },
     };
-    if (!clientMode) return base;
+    if (!clientApp) return base;
     // Client boot already applied Banner / saved layout into storage — keep those values.
     return {
       ...base,
@@ -532,7 +546,7 @@ export function useEngineControls(
       textureSourceMode: "shader" as const,
       shaderPresetId: base.shaderPresetId || "twizzler-map",
     };
-  }, [clientMode, startupPreset]);
+  }, [clientApp, startupPreset]);
   const initialTextureId = useMemo(() => {
     const stored = loadTextureId() ?? initialLabSettings.textureId;
     return stored && findTextureEntry(stored, loadManifest()) ? stored : DEFAULT_LAB_TEXTURE_ID;
@@ -1142,20 +1156,19 @@ export function useEngineControls(
           "Presets",
           {
             clientSize: {
-              value: matchClientSizePresetId(
-                initialLabSettings.canvasWidth,
-                initialLabSettings.canvasHeight,
-              ),
+              value:
+                initialLabSettings.clientSizeId ??
+                matchClientSizePresetId(initialLabSettings.canvasWidth, initialLabSettings.canvasHeight),
               options: clientSizeOptions,
               label: "Size",
             },
             clientLayout: {
-              value: DEFAULT_CLIENT_PREVIEW_STATE.layoutId,
+              value: initialLabSettings.clientLayoutId ?? DEFAULT_CLIENT_PREVIEW_STATE.layoutId,
               options: clientLayoutOptions,
               label: "Layout",
             },
             clientColor: {
-              value: DEFAULT_CLIENT_PREVIEW_STATE.colorId,
+              value: initialLabSettings.clientColorId ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId,
               options: clientColorOptions,
               label: "Color",
             },
@@ -1469,7 +1482,7 @@ export function useEngineControls(
                   label: "Show",
                 },
                 rainEnabled: {
-                  value: DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
+                  value: d.sparkle?.gaps?.enabled ?? DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
                   label: "Rain",
                   render: showClientOnly,
                 },
@@ -1504,7 +1517,7 @@ export function useEngineControls(
                   }),
                   render: showTwizzlerRibbonConfig,
                 },
-                ...(options.twizzlerTransport && !clientMode
+                ...(options.twizzlerTransport && !clientApp
                   ? {
                       twizzlerTransport: timeTransportPlugin({
                         label: "Time",
@@ -2464,13 +2477,15 @@ export function useEngineControls(
                       : d.background.gradient.enabled
                         ? "gradient"
                         : "solid";
-                // Default client mode: Solid / Transparent only (no Gradient).
-                if (clientMode && fromSettings === "gradient") return "solid";
                 return fromSettings;
               })(),
-              options: clientMode
-                ? ({ Transparent: "transparent", Solid: "solid" } as const)
-                : ({ Transparent: "transparent", Solid: "solid", Gradient: "gradient" } as const),
+              // Always register Gradient so Default↔Advanced does not rebuild schema / wipe values.
+              // Gradient stop knobs stay Advanced-only via showFullLab().
+              options: {
+                Transparent: "transparent",
+                Solid: "solid",
+                Gradient: "gradient",
+              } as const,
               label: "Fill",
             },
             backgroundColor: {
@@ -4754,22 +4769,30 @@ export function useEngineControls(
         ),
       }),
     { store: shaderStore },
-    [stripeKey, stripePaletteOptionsKey, stripePaletteValue, clientMode],
+    // Do NOT depend on client Default/Advanced — rebuilding the schema overrides
+    // live Leva values and breaks saved layouts / panel toggles.
+    [stripeKey, stripePaletteOptionsKey, stripePaletteValue],
   );
   shaderControlSetterRef.current = setShaderControl;
 
   const clientLayoutId = String(
-    (shaderValues as unknown as Record<string, unknown>).clientLayout ?? DEFAULT_CLIENT_PREVIEW_STATE.layoutId,
+    (shaderValues as unknown as Record<string, unknown>).clientLayout ??
+      initialLabSettings.clientLayoutId ??
+      DEFAULT_CLIENT_PREVIEW_STATE.layoutId,
   ) as ClientLayoutPresetId;
   const clientColorId = String(
-    (shaderValues as unknown as Record<string, unknown>).clientColor ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId,
+    (shaderValues as unknown as Record<string, unknown>).clientColor ??
+      initialLabSettings.clientColorId ??
+      DEFAULT_CLIENT_PREVIEW_STATE.colorId,
   ) as ClientColorPresetId;
   const clientSizeId = String(
-    (shaderValues as unknown as Record<string, unknown>).clientSize ?? DEFAULT_CLIENT_PREVIEW_STATE.sizeId,
+    (shaderValues as unknown as Record<string, unknown>).clientSize ??
+      initialLabSettings.clientSizeId ??
+      DEFAULT_CLIENT_PREVIEW_STATE.sizeId,
   ) as ClientSizePresetId;
   const lastClientPresetKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!clientMode) return;
+    if (!clientApp) return;
     const key = `${clientLayoutId}|${clientColorId}`;
     // Skip mount so restored saved-layout twizzler values are not clobbered.
     if (lastClientPresetKeyRef.current === null) {
@@ -4799,7 +4822,14 @@ export function useEngineControls(
       ...(layout.rightHeight !== undefined ? { twizzlerRightHeight: layout.rightHeight } : {}),
       ...(layout.leftHeight !== undefined ? { twizzlerLeftHeight: layout.leftHeight } : {}),
     });
-  }, [clientColorId, clientLayoutId, clientMode, setShaderControl]);
+  }, [clientApp, clientColorId, clientLayoutId, setShaderControl]);
+
+  // Nudge the store when Default↔Advanced flips so Leva recomputes visible paths
+  // (render gates read refs; without a store tick folders stay stale).
+  useEffect(() => {
+    if (!clientApp) return;
+    setShaderControl({});
+  }, [clientApp, clientPanelMode, setShaderControl]);
 
   useEffect(() => {
     setTextureControl({});
@@ -4905,8 +4935,7 @@ export function useEngineControls(
         : d.background.gradient.enabled
           ? "gradient"
           : "solid";
-  // Client Default cannot select Gradient; coerce so Fill options stay Solid/Transparent.
-  const backgroundFillMode = clientMode && backgroundFillModeRaw === "gradient" ? "solid" : backgroundFillModeRaw;
+  const backgroundFillMode = backgroundFillModeRaw;
   const sourcePreviewOpacity = Math.max(0, Math.min(1, Number(values.backgroundSourceOpacity ?? 0) / 100));
   const effectiveColorsMode = values.colorsMode === "colors" ? "colors" : "luminance";
   backgroundFillModeRef.current = backgroundFillMode;
@@ -4924,12 +4953,6 @@ export function useEngineControls(
         ) ?? normalizedBackgroundColor)
       : normalizedBackgroundColor;
   backgroundRampBaseHexRef.current = backgroundRampBaseHex;
-
-  useEffect(() => {
-    if (!clientMode) return;
-    if (values.backgroundFillMode !== "gradient") return;
-    setControl({ backgroundFillMode: "solid" });
-  }, [clientMode, setControl, values.backgroundFillMode]);
 
   useEffect(() => {
     if (activeGeneratedPalette !== BACKGROUND_RAMP_PALETTE_NAME) return;
@@ -4992,11 +5015,22 @@ export function useEngineControls(
       thresholdDistributionEasing,
       autoStripeWidths,
       drawerOpen: loadControlDrawerSnapshot(),
+      ...(clientApp
+        ? {
+            clientSizeId,
+            clientLayoutId,
+            clientColorId,
+          }
+        : {}),
     }),
     [
       autoStripeWidths,
       backgroundFillMode,
       backgroundRampEasing,
+      clientApp,
+      clientColorId,
+      clientLayoutId,
+      clientSizeId,
       currentBackgroundRampSettingsKey,
       sourcePreviewOpacity,
       stripePaletteValue,
@@ -5215,7 +5249,7 @@ export function useEngineControls(
     },
     sparkle: {
       gaps: {
-        enabled: clientMode
+        enabled: clientApp
           ? Boolean((shaderValues as unknown as Record<string, unknown>).rainEnabled)
           : d.sparkle.gaps.enabled,
         coverage: d.sparkle.gaps.coverage,
@@ -5623,7 +5657,7 @@ export function useEngineControls(
       eruptionParticles: shaderValueRecord.cometLogoEruptionParticles,
       eruptionCycleSpeed: shaderValueRecord.cometLogoEruptionCycleSpeed,
     }),
-    clientCanvasSize: clientMode
+    clientCanvasSize: clientApp
       ? {
           width: findClientSizePreset(clientSizeId).width,
           height: findClientSizePreset(clientSizeId).height,

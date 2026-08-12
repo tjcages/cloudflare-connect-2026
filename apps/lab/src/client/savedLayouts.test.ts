@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadLabSettings, resumePersistenceWritesForTests } from "../persistence";
 import { createPreset } from "../presets";
+import { TWIZZLER_DEFAULTS } from "../twizzler";
 import {
   applyClientLayout,
   listSavedLayouts,
@@ -40,6 +42,7 @@ function stubStorage() {
 describe("savedLayouts", () => {
   beforeEach(() => {
     stubStorage();
+    resumePersistenceWritesForTests();
   });
 
   afterEach(() => {
@@ -109,5 +112,39 @@ describe("savedLayouts", () => {
     applyClientLayout(preset, "cf-base");
     expect(loadActiveClientLayoutName()).toBe("Review v2");
     expect(sessionStorage.getItem("stripes-engine-lab-boot-preset")).toBe("Review v2");
+  });
+
+  it("round-trips client Size/Layout/Color ids inside saved layout lab payload", () => {
+    localStorage.setItem("stripes-engine-lab-ui-generation", "twizzler-ribbon-visible-v1");
+    const preset = createPreset(
+      "Agency Full",
+      {
+        version: 1,
+        background: { color: 0xff00ff, transparent: true },
+      } as never,
+      {
+        clientSizeId: "hero-16x9",
+        clientLayoutId: "high-fan",
+        clientColorId: "graphite",
+        backgroundFillMode: "transparent",
+        backgroundColor: null,
+        twizzler: {
+          ...TWIZZLER_DEFAULTS,
+          rotateXDeg: 33,
+          panX: 40,
+          scale: 1.7,
+          ribbonColorMode: "fiberGradient",
+        },
+      },
+    );
+    applyClientLayout(preset, "cf-base");
+    const loaded = loadLabSettings();
+    expect(loaded.clientSizeId).toBe("hero-16x9");
+    expect(loaded.clientLayoutId).toBe("high-fan");
+    expect(loaded.clientColorId).toBe("graphite");
+    expect(loaded.backgroundFillMode).toBe("transparent");
+    expect(loaded.twizzler.rotateXDeg).toBe(33);
+    expect(loaded.twizzler.panX).toBe(40);
+    expect(loaded.twizzler.ribbonColorMode).toBe("fiberGradient");
   });
 });

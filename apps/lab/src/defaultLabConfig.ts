@@ -607,6 +607,9 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     shapeMeshQuality: 1,
     renderAntialias: true,
   },
+  clientSizeId: "banner-5x1",
+  clientLayoutId: "classic",
+  clientColorId: "coral-classic",
 } as const;
 
 export const DEFAULT_LAB_UI_SETTINGS = deepMergeDefaults(HAND_WRITTEN_LAB_UI_SETTINGS, factoryDefaults.lab);

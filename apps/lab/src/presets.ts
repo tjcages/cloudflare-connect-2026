@@ -125,9 +125,10 @@ export function savePresets(presets: ConfigPreset[]): void {
   }
 }
 
-function preparePresetConfig(config: ThemedEngineConfig): ThemedEngineConfig {
-  // Stale sessions often leave Frames debug + orange fill on. Builtin banner
-  // presets must win those fields or the still looks nothing like the ref.
+function preparePresetConfig(config: ThemedEngineConfig, builtin = false): ThemedEngineConfig {
+  // Builtin banner presets must win Frames debug + opaque fill or the still
+  // looks nothing like the ref. User-authored layouts keep their saved values.
+  if (!builtin) return structuredClone(config) as ThemedEngineConfig;
   const next = structuredClone(config) as ThemedEngineConfig & {
     background?: { color?: number; transparent?: boolean };
     frames?: { enabled?: boolean };
@@ -142,7 +143,7 @@ function preparePresetConfig(config: ThemedEngineConfig): ThemedEngineConfig {
 
 export function applyPresetToStorage(preset: ConfigPreset, textureId = loadTextureId() ?? "cf-base"): void {
   if (preset.config) {
-    const config = preparePresetConfig(preset.config as ThemedEngineConfig);
+    const config = preparePresetConfig(preset.config as ThemedEngineConfig, preset.builtin === true);
     stagePendingConfig(config);
     saveConfig(textureId, config);
   }
@@ -150,8 +151,8 @@ export function applyPresetToStorage(preset: ConfigPreset, textureId = loadTextu
     saveLabSettings({
       ...preset.lab,
       textureId,
-      backgroundColor: preset.lab.backgroundColor ?? 0xffffff,
-      backgroundFillMode: preset.lab.backgroundFillMode ?? "solid",
+      ...(preset.lab.backgroundColor !== undefined ? { backgroundColor: preset.lab.backgroundColor } : {}),
+      ...(preset.lab.backgroundFillMode !== undefined ? { backgroundFillMode: preset.lab.backgroundFillMode } : {}),
     });
     if (preset.lab.drawerOpen) saveControlDrawerSnapshot(preset.lab.drawerOpen);
   }
