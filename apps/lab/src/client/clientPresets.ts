@@ -4,6 +4,7 @@ import { findPresetByName, loadBuiltinPresets } from "../presets";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
 import { normalizeTwizzlerSettings, type TwizzlerRibbonColorMode, type TwizzlerSettings } from "../twizzler";
 import { defaultTwizzlerGradientStops } from "../twizzlerGradient";
+import { sectionGridRainEngineConfig } from "./sectionGridRainDefaults";
 
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
@@ -381,7 +382,11 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
 
   const twizzlerMap = normalizeTwizzlerMapSettings(banner.lab.twizzlerMap);
 
-  const engineConfig = structuredClone(banner.config) as ThemedEngineConfig & {
+  // Twizzler Graphic keeps Banner marketing config. Rain Graphic uses the
+  // section-grid-generator factory engine (opaque stripes, 7×7 / 0°, factory tone).
+  const engineConfig = (
+    state.rainEnabled ? sectionGridRainEngineConfig() : structuredClone(banner.config)
+  ) as ThemedEngineConfig & {
     background?: { transparent?: boolean; color?: number };
     sparkle?: { gaps?: { enabled?: boolean; coverage?: number; speed?: number } };
     frames?: { enabled?: boolean };
@@ -401,8 +406,9 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
   engineConfig.stripesEnabled = true;
   engineConfig.sparkle.gaps.enabled = state.rainEnabled;
   if (state.rainEnabled) {
-    engineConfig.sparkle.gaps.coverage = engineConfig.sparkle.gaps.coverage ?? 1;
-    engineConfig.sparkle.gaps.speed = engineConfig.sparkle.gaps.speed ?? 0.1;
+    // Factory coverage is 0 (continuous cells). Never inherit Banner's coverage=1 (blank).
+    engineConfig.sparkle.gaps.coverage = engineConfig.sparkle.gaps.coverage ?? 0;
+    engineConfig.sparkle.gaps.speed = engineConfig.sparkle.gaps.speed ?? 1;
   }
 
   const shaderSourceWidth = Math.max(1, Math.round(banner.lab.shaderSourceWidth ?? 1280));

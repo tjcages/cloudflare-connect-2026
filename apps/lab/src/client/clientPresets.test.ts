@@ -96,6 +96,20 @@ describe("client preview presets", () => {
     expect(noRain.engineConfig.stripesEnabled).toBe(true);
   });
 
+  it("uses section-grid factory rain engine when rainEnabled (not Banner blank rain)", () => {
+    const withRain = buildClientPreviewBundle({ ...DEFAULT_CLIENT_PREVIEW_STATE, rainEnabled: true });
+    expect(withRain.engineConfig.grid?.cellWidth).toBe(7);
+    expect(withRain.engineConfig.grid?.cellHeight).toBe(7);
+    expect(withRain.engineConfig.grid?.angleDeg).toBe(0);
+    expect(withRain.engineConfig.sparkle?.gaps?.coverage).toBe(0);
+    expect((withRain.engineConfig.stripes ?? []).length).toBeGreaterThan(1);
+    expect((withRain.engineConfig.stripes ?? []).every((s) => (s.opacity ?? 0) > 0)).toBe(true);
+
+    const noRain = buildClientPreviewBundle({ ...DEFAULT_CLIENT_PREVIEW_STATE, rainEnabled: false });
+    expect(noRain.engineConfig.grid?.cellWidth).toBe(3);
+    expect(noRain.engineConfig.grid?.angleDeg).toBe(-38);
+  });
+
   it("applies size, layout, and color overlays independently", () => {
     const size = findClientSizePreset("square");
     const layout = findClientLayoutPreset("high-fan");

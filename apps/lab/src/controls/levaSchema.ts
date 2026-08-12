@@ -67,6 +67,7 @@ import {
   upsertCustomStripePalette,
   type CustomStripePalette,
 } from "./customStripePalettes";
+import { sectionGridRainLevaPatch, sectionGridRainStripes } from "../client/sectionGridRainDefaults";
 import {
   CLIENT_APPEARANCE_PRESETS,
   CLIENT_COLOR_PRESETS,
@@ -1171,7 +1172,7 @@ export function useEngineControls(
             render: (get) => get("Stripes.colorsMode") !== "colors",
           },
         },
-        { hideInClient: true },
+        { hideInClient: true, rainInClient: true },
       ),
       "Texture Levels": drawerFolder(
         "Texture Levels",
@@ -4989,24 +4990,18 @@ export function useEngineControls(
       rainEnabled: flags.rainEnabled,
     };
     if (enteringRain) {
-      // Banner marketing preset uses opacity-0 stripes + gaps.coverage=1 (invisible rain).
-      // Restore factory-like opaque orange rain when entering Rain/Both.
-      const currentStripes = stripes;
-      const needsRainStripes = currentStripes.every((s) => s.opacity <= 0.001) || currentStripes.length <= 1;
-      if (needsRainStripes) {
-        setStripes(toEditable(LAB_DEFAULT_STRIPES));
-        setActiveGeneratedPalette("Orange");
-        patch.stripePalette = "Orange";
-      }
-      const gapsCoverage = Number((shaderValues as unknown as Record<string, unknown>).sparkleGapsCoverage);
-      if (!Number.isFinite(gapsCoverage) || gapsCoverage >= 99) {
-        patch.sparkleGapsCoverage = 0;
-        patch.sparkleGapsSpeed = 1;
-      }
+      // Banner 5:1 is Twizzler-first (1× opacity-0 stripe, 3×11 / −38°, gaps=100%).
+      // Always bootstrap the section-grid-generator factory rain look on Rain/Both.
+      Object.assign(patch, sectionGridRainLevaPatch());
+      setStripes(toEditable(sectionGridRainStripes()));
+      setActiveGeneratedPalette("Custom");
+      patch.stripePalette = "Custom";
       patch.rainShaderPreset =
         String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || "").trim() ||
         CONNECT_SHADER_PRESET_ID;
     }
+    // Patch both panels: Connect camera / tone live on texture; rain flags on shader.
+    textureControlSetterRef.current?.(patch);
     shaderControlSetterRef.current?.(patch);
     onClientGraphicModeChangeRef.current?.(heroGraphicId);
     setShaderControl({});

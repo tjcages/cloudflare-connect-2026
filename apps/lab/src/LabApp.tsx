@@ -69,6 +69,7 @@ import {
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
 import { resolveClientGraphicMode } from "./client/clientPresets";
+import { sectionGridRainLabSettingsPatch } from "./client/sectionGridRainDefaults";
 import { CONNECT_SHADER_PRESET_ID } from "./shaderLibrary";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
@@ -3171,16 +3172,27 @@ function LabInner({
     applyShaderTextureSource(entry.source);
   }
 
+  const lastClientRainBootstrapRef = useRef<string | null>(null);
   useEffect(() => {
     if (!clientMode) return;
     const mode = clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
-    if (mode !== "rain" && mode !== "both") return;
+    if (mode !== "rain" && mode !== "both") {
+      lastClientRainBootstrapRef.current = mode;
+      return;
+    }
+    const enteringRain = lastClientRainBootstrapRef.current !== "rain" && lastClientRainBootstrapRef.current !== "both";
+    lastClientRainBootstrapRef.current = mode;
     const target = clientRainShaderPreset || CONNECT_SHADER_PRESET_ID;
+    if (enteringRain) {
+      // Align Connect camera / spiral params with section-grid-generator factoryDefaults.
+      updateLabSettings(sectionGridRainLabSettingsPatch());
+    }
     if (shaderPresetId === target) return;
     if (
       isTwizzlerSineShaderPreset(shaderPresetId) ||
       isTwizzlerMapShaderPreset(shaderPresetId) ||
-      clientRainShaderPreset
+      clientRainShaderPreset ||
+      enteringRain
     ) {
       handleShaderPresetChange(target);
     }
@@ -3191,6 +3203,7 @@ function LabInner({
     shaderPresetId,
     twizzler.enabled,
     controls.sparkle.gaps.enabled,
+    updateLabSettings,
   ]);
 
   function handleConnectShapeChange(shapeType: ConnectShapeType) {
