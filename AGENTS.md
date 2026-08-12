@@ -50,3 +50,11 @@ Use `pi` (install) and `pir` (run scripts). Never `npm`, `pnpm`, `yarn`, or `npx
 - Preserve user changes and avoid destructive git commands.
 - Do not edit `.cursor/plans` unless explicitly requested.
 - If repeated attempts fail, stop and explain observations plus options.
+
+## Cursor Cloud specific instructions
+
+- The `pi` / `pir` aliases do **not** exist in the Cloud VM. Run the equivalents directly: `pnpm install` (for `pi`) and `pnpm run <script>` / `pnpm --filter …` (for `pir`). Dependencies are refreshed automatically on startup by the environment update script (`pnpm install`).
+- Dev server: `pnpm run dev` serves Vite on `http://localhost:5174/`. The authoring app is `/lab.html`; the client preview is `/`. Other entries: `/experiments.html`, `/client.html`. Editing shader controls updates the WebGL2 canvas live.
+- Standard verification commands are in `## Verification` above (map `pir` → `pnpm run`). `pnpm run lint` currently exits non-zero because of a pre-existing unused-import error in `scripts/capture-twizzler.mjs` (plus `react-hooks` warnings) — unrelated to your changes.
+- E2E (`pnpm run test:e2e`) needs Playwright's Chromium: `pnpm exec playwright install chromium` (already baked into the snapshot). The webServer is auto-started by `playwright.config.ts`.
+- E2E visual goldens are committed for macOS (`*-darwin.png`) only. On Linux the first run **writes** `*-linux.png` baselines and reports failures ("A snapshot doesn't exist … writing actual"); `perf.spec.ts` soft-skips without a real GPU (SwiftShader fallback). A fully green `test:e2e` run is therefore not expected in the Cloud VM. Do **not** commit generated `*-linux.png` snapshots.
