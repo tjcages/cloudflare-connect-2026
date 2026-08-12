@@ -48,6 +48,7 @@ describe("Twizzler", () => {
         bendAmount: -3,
         leftHeight: 4,
         rightHeight: -4,
+        targetPolish: 9,
       }),
     ).toMatchObject({
       scale: 3,
@@ -57,6 +58,7 @@ describe("Twizzler", () => {
       bendAmount: -1,
       leftHeight: 2,
       rightHeight: -1,
+      targetPolish: 3,
     });
   });
 
@@ -149,6 +151,31 @@ describe("Twizzler", () => {
     expect(lines[0]?.nearness).toBeGreaterThanOrEqual(0);
     expect(lines[0]?.nearness).toBeLessThanOrEqual(1);
     expect(lines[0]?.strokeWidth).toBeGreaterThan(0);
+  });
+
+  it("keeps three distinct TARGET-polish strategies at the locked density", () => {
+    const signatures = [1, 2, 3].map((targetPolish) => {
+      const settings = normalizeTwizzlerSettings({
+        targetPolish,
+        lineCount: 240,
+        pointSpacing: 4,
+        speed: 0,
+        centerY: 0.52,
+        amplitude: 1,
+        depthSpread: 1.18,
+        wrinkleStrength: 0.14,
+      });
+      const { lines } = buildTwizzlerLines(1024, 204, 0, settings);
+      expect(lines).toHaveLength(240);
+      expect(twizzlerSvgPathCubic(lines[0]!.points)).toContain(" C");
+      return [
+        twizzlerMarketingCenterY(0.56, settings, 0),
+        twizzlerMarketingCenterY(0.82, settings, 0),
+        twizzlerMarketingWidth(0.9, settings),
+      ].map((value) => Number(value.toFixed(3)));
+    });
+
+    expect(new Set(signatures.map((signature) => signature.join(":"))).size).toBe(3);
   });
 
   it("fogs far fibers toward white and drops far fibers lowest on the right", () => {

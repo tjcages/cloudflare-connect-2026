@@ -422,6 +422,8 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     depth2Width: 0.25,
     depthSpread: 0,
     depthLift: 0,
+    depthTerrain: 0,
+    targetPolish: 0,
     twist: 1.35,
     noiseScaleX: 0.0015,
     noiseScaleY: 0.012,
