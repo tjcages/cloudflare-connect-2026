@@ -15,6 +15,7 @@ import {
   twizzlerDepthYBias,
   twizzlerGapWarpedAcross,
   twizzlerHeatRecipe,
+  twizzlerHeatXGate,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
   twizzlerAmpHeat,
@@ -271,6 +272,45 @@ describe("Twizzler", () => {
     const c3Field = passThreeField(8);
     expect(meanDifference(a3Field, b3Field)).toBeGreaterThan(4);
     expect(meanDifference(b3Field, c3Field)).toBeGreaterThan(4);
+    // Pass four gates and smoothly clamps heat so topology cannot become macro hill rhythm.
+    const compactHero = twizzlerHeatRecipe(9);
+    const targetIslands = twizzlerHeatRecipe(10);
+    const layeredFan = twizzlerHeatRecipe(11);
+    expect(compactHero.bands.filter((band) => band.width <= 0.2)).toHaveLength(3);
+    expect(compactHero.bands.filter((band) => band.width > 0.5 && band.center > 0.5)).toHaveLength(1);
+    expect(twizzlerHeatXGate(0.72, compactHero)).toBeGreaterThan(twizzlerHeatXGate(0, compactHero) * 10);
+    expect(twizzlerHeatXGate(0.72, compactHero)).toBeGreaterThan(twizzlerHeatXGate(1, compactHero) * 5);
+    const targetParents = targetIslands.bands.filter((band) => band.width > 0.4);
+    const targetChildren = targetIslands.bands.filter((band) => band.width < 0.14);
+    expect(targetParents).toHaveLength(2);
+    expect(targetChildren).toHaveLength(6);
+    expect(
+      targetChildren.every((island) =>
+        targetParents.some((region) => Math.abs(island.center - region.center) < region.width),
+      ),
+    ).toBe(true);
+    expect(layeredFan.bands.filter((band) => band.center < -0.4 && band.gain < 0.7)).toHaveLength(2);
+    expect(layeredFan.bands.filter((band) => band.center >= -0.1 && band.center < 0.7 && band.gain > 1)).toHaveLength(
+      4,
+    );
+    expect(layeredFan.bands.filter((band) => band.center > 0.85 && band.gain < 0.7)).toHaveLength(1);
+    const passFourField = (variant: 9 | 10 | 11) =>
+      Array.from({ length: 41 }, (_, i) => twizzlerAmpNoiseY(0.66, -1 + i / 20, 320, 1, 0.14, variant));
+    const a4Field = passFourField(9);
+    const b4Field = passFourField(10);
+    const c4Field = passFourField(11);
+    expect(meanDifference(a4Field, b4Field)).toBeGreaterThan(4);
+    expect(meanDifference(b4Field, c4Field)).toBeGreaterThan(4);
+    const yThrow = 0.22 + 1 * 0.2 + 0.14 * 2.6;
+    for (const variant of [9, 10, 11] as const) {
+      const recipe = twizzlerHeatRecipe(variant);
+      const maxY = recipe.xGate!.maxDrive * 320 * yThrow;
+      for (let xIndex = 0; xIndex <= 20; xIndex += 1) {
+        for (let zIndex = 0; zIndex <= 20; zIndex += 1) {
+          expect(Math.abs(twizzlerAmpNoiseY(xIndex / 20, -1 + zIndex / 10, 320, 1, 0.14, variant))).toBeLessThan(maxY);
+        }
+      }
+    }
     // Z-scattered amp relocates peaks: different across → different extremum X.
     const extremumX = (z: number) => {
       let bestX = 0;
