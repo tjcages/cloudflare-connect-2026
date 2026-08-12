@@ -269,12 +269,21 @@
 }
 
 .playground-leva-panel .playground-canvas-size-inline .lab-input {
-  flex: 0 0 64px;
-  width: 64px;
-  min-width: 64px;
+  flex: 0 0 155px;
+  width: 155px;
+  min-width: 155px;
+  height: 24px;
+  padding: 0 8px !important;
+  border: 0;
+  border-radius: var(--leva-radius);
   text-align: center;
+  font-size: 11px;
+  line-height: 24px;
   font-variant-numeric: tabular-nums;
-  background: var(--leva-surface);
+  color: var(--leva-text);
+  /* Beat later `input { background-color: transparent }` so this matches Leva selectors. */
+  background: var(--leva-surface) !important;
+  background-color: var(--leva-surface) !important;
 }
 
 .playground-export-controls {
