@@ -779,11 +779,13 @@ export function twizzlerPackStrokeRef(settings: Pick<TwizzlerSettings, "lineWidt
 
 /**
  * Center-to-center pitch so clear gap ≥ packGapRatio × stroke.
- * pitch = stroke * (1 + packGapRatio).
+ * pitch = stroke * (1 + packGapRatio) * aaPad.
+ * aaPad accounts for canvas AA making strokes read thicker than lineWidth.
  */
 export function twizzlerPackCenterPitch(settings: Pick<TwizzlerSettings, "lineWidth" | "packGapRatio">): number {
   const stroke = twizzlerPackStrokeRef(settings);
-  return stroke * (1 + Math.max(1, settings.packGapRatio));
+  const aaPad = 2.4;
+  return stroke * (1 + Math.max(1, settings.packGapRatio)) * aaPad;
 }
 
 /** Half-height of the even Z stack in pixels for the given line count. */

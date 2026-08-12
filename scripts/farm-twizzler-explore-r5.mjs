@@ -23,8 +23,8 @@ const lock = { ...preset.lab.twizzler, speed: 0 };
 const base = {
   heatVariant: 1,
   hillRhythm: 0,
-  lineCount: 56,
-  lineWidth: 0.7,
+  lineCount: 40,
+  lineWidth: 0.85,
   packGapRatio: 4,
   depthSpread: 1.18,
   wrinkles: 1.4,
@@ -41,7 +41,7 @@ const base = {
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
-  { id: "G0", label: "base · 72 lines · gap 4×", tweaks: { ...base } },
+  { id: "G0", label: "base · 40 lines · gap 4× (AA-padded)", tweaks: { ...base } },
 
   // —— gap ratio ladder ——
   { id: "G1", label: "gap 5× · 72", tweaks: { ...base, packGapRatio: 5 } },

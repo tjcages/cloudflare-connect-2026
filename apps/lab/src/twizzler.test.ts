@@ -188,12 +188,12 @@ describe("Twizzler", () => {
     }
     // Clear gap must be ≥ packGapRatio × stroke (center pitch = stroke*(1+ratio)).
     expect(twizzlerPackCenterPitch({ lineWidth: 0.55, packGapRatio: 4 })).toBeCloseTo(
-      twizzlerPackStrokeRef({ lineWidth: 0.55 }) * 5,
+      twizzlerPackStrokeRef({ lineWidth: 0.55 }) * 5 * 2.4,
       5,
     );
     const spaced = buildTwizzlerLines(1600, 300, 0, {
-      lineCount: 48,
-      lineWidth: 0.55,
+      lineCount: 36,
+      lineWidth: 0.7,
       packGapRatio: 4,
       heatVariant: 1,
       hillRhythm: 0,
@@ -202,13 +202,15 @@ describe("Twizzler", () => {
       amplitude: 1,
       wrinkleStrength: 0.17,
       speed: 0,
+      opacity: 0.92,
     });
     const midIdx = Math.floor(spaced.lines[0]!.points.length * 0.5);
     const ys = spaced.lines.map((l) => l.points[midIdx]!.y).sort((a, b) => a - b);
     const centerGaps = Array.from({ length: ys.length - 1 }, (_, i) => ys[i + 1]! - ys[i]!);
     const avgStroke = spaced.lines.reduce((a, l) => a + l.strokeWidth, 0) / spaced.lines.length;
     const avgCenter = centerGaps.reduce((a, g) => a + g, 0) / centerGaps.length;
-    expect(avgCenter / avgStroke).toBeGreaterThanOrEqual(4.5);
+    // Metric stroke understates AA; require generous center pitch vs measured stroke.
+    expect(avgCenter / avgStroke).toBeGreaterThanOrEqual(8);
     // Far fiber mid-pack sits lower (+Y) than near fiber (even-gap plane, far→down).
     const built = buildTwizzlerLines(400, 200, 0, {
       lineCount: 24,
