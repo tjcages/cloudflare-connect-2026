@@ -1476,9 +1476,15 @@ export function useEngineControls(
                   label: "Rain",
                   render: showClientOnly,
                 },
-                twizzlerGradientsEnabled: {
-                  value: initialLabSettings.twizzler.gradientsEnabled ?? true,
-                  label: "Gradients",
+                twizzlerRibbonColorMode: {
+                  value: initialLabSettings.twizzler.ribbonColorMode ?? "baked",
+                  label: "Color mode",
+                  options: {
+                    Solid: "solid",
+                    "Shared gradient": "sharedGradient",
+                    "Fiber gradient": "fiberGradient",
+                    "Baked segments": "baked",
+                  },
                 },
                 twizzlerColor: {
                   ...colorLibraryInputPlugin({
@@ -5531,7 +5537,7 @@ export function useEngineControls(
         perspectiveWidth: shaderValueRecord.twizzlerPerspectiveWidth,
         minLineWidth: shaderValueRecord.twizzlerMinLineWidth,
         maxLineWidth: shaderValueRecord.twizzlerMaxLineWidth,
-        gradientsEnabled: shaderValueRecord.twizzlerGradientsEnabled,
+        ribbonColorMode: shaderValueRecord.twizzlerRibbonColorMode,
         gradientXEnabled: shaderValueRecord.twizzlerGradientXEnabled,
         gradientXMix: shaderValueRecord.twizzlerGradientXMix,
         gradientYEnabled: shaderValueRecord.twizzlerGradientYEnabled,

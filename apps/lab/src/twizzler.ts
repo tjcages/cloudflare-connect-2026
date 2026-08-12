@@ -6,6 +6,16 @@
  * Legacy marketing helpers below are kept for tests / experiment tooling.
  */
 
+/** Ribbon color preview + SVG export strategy. */
+export type TwizzlerRibbonColorMode = "solid" | "sharedGradient" | "fiberGradient" | "baked";
+
+export const TWIZZLER_RIBBON_COLOR_MODES: readonly TwizzlerRibbonColorMode[] = [
+  "solid",
+  "sharedGradient",
+  "fiberGradient",
+  "baked",
+] as const;
+
 export type TwizzlerSettings = {
   color: string;
   /** Left / far of X gradient (Orange Pair). */
@@ -68,9 +78,17 @@ export type TwizzlerSettings = {
   maxLineWidth: number;
   /**
    * Master switch for X/Y/Z line-segmentation gradients.
-   * When false, fibers render/export as one solid color (Figma-friendly combined fills).
+   * Prefer `ribbonColorMode`; kept for older saved configs (synced on normalize).
    */
   gradientsEnabled: boolean;
+  /**
+   * How ribbon color is previewed + exported:
+   * - solid: one fill color per fiber
+   * - sharedGradient: one pack X linearGradient, all fibers reference it (Figma #3)
+   * - fiberGradient: per-fiber X linearGradient defs (Figma #1)
+   * - baked: segmented X/Y/Z fills (highest fidelity, heaviest)
+   */
+  ribbonColorMode: TwizzlerRibbonColorMode;
   /** X length color gradient (left colorFar → right colorNear). */
   gradientXEnabled: boolean;
   gradientXMix: number;
@@ -154,6 +172,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   minLineWidth: 0.4,
   maxLineWidth: 3.2,
   gradientsEnabled: true,
+  ribbonColorMode: "baked",
   gradientXEnabled: true,
   gradientXMix: 1,
   gradientYEnabled: true,
@@ -260,9 +279,23 @@ export function twizzlerNearness(
   return Math.max(0, Math.min(1, (depth - 1) / maxNear));
 }
 
-/** True when any axis gradient should drive per-point color (and SVG segmentation). */
+/** Resolve ribbon color mode, migrating legacy `gradientsEnabled` when needed. */
+export function resolveTwizzlerRibbonColorMode(
+  input: Partial<TwizzlerSettings> | TwizzlerSettings,
+): TwizzlerRibbonColorMode {
+  const raw = input.ribbonColorMode;
+  if (typeof raw === "string" && (TWIZZLER_RIBBON_COLOR_MODES as readonly string[]).includes(raw)) {
+    return raw as TwizzlerRibbonColorMode;
+  }
+  if (typeof input.gradientsEnabled === "boolean") {
+    return input.gradientsEnabled ? "baked" : "solid";
+  }
+  return TWIZZLER_DEFAULTS.ribbonColorMode;
+}
+
+/** True when axis X/Y/Z gradients drive per-point baked colors. */
 export function twizzlerUsesLineGradients(settings: TwizzlerSettings): boolean {
-  if (!settings.gradientsEnabled) return false;
+  if (resolveTwizzlerRibbonColorMode(settings) !== "baked") return false;
   return (
     settings.gradientXEnabled ||
     settings.gradientYEnabled ||
@@ -273,6 +306,7 @@ export function twizzlerUsesLineGradients(settings: TwizzlerSettings): boolean {
 export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
   const input = value && typeof value === "object" ? (value as Partial<TwizzlerSettings>) : {};
   const color = normalizeTwizzlerColor(input.color);
+  const ribbonColorMode = resolveTwizzlerRibbonColorMode(input);
   return {
     color,
     colorFar: normalizeTwizzlerColor(input.colorFar ?? TWIZZLER_DEFAULTS.colorFar),
@@ -316,8 +350,8 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     perspectiveWidth: clamp(input.perspectiveWidth, TWIZZLER_DEFAULTS.perspectiveWidth, 0, 4),
     minLineWidth: clamp(input.minLineWidth, TWIZZLER_DEFAULTS.minLineWidth, 0.15, 1.5),
     maxLineWidth: clamp(input.maxLineWidth, TWIZZLER_DEFAULTS.maxLineWidth, 1, 6),
-    gradientsEnabled:
-      typeof input.gradientsEnabled === "boolean" ? input.gradientsEnabled : TWIZZLER_DEFAULTS.gradientsEnabled,
+    ribbonColorMode,
+    gradientsEnabled: ribbonColorMode !== "solid",
     gradientXEnabled:
       typeof input.gradientXEnabled === "boolean" ? input.gradientXEnabled : TWIZZLER_DEFAULTS.gradientXEnabled,
     gradientXMix: clamp(input.gradientXMix, TWIZZLER_DEFAULTS.gradientXMix, 0, 1),
@@ -1085,7 +1119,7 @@ export function buildTwizzlerLines(
       a *= orangeWaveSmoothstep(0.2, 1.0, depth / 14);
 
       // Z factor: 1 near camera / low Z, 0 far / high Z (after center+width shaping).
-      const gradientsOn = settings.gradientsEnabled;
+      const gradientsOn = twizzlerUsesLineGradients(settings);
       let zNearFactor = 1;
       if (gradientsOn && settings.gradientZEnabled) {
         let g = ((p.origZ - ORANGE_WAVE_Z_MIN) / (ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN)) * 2 - 1;
@@ -1187,6 +1221,51 @@ export function buildTwizzlerLines(
   return { settings, lines };
 }
 
+/** Outline a centerline into left/right polygons for filled ribbons. */
+export function outlinePolylinePolygon(
+  points: readonly { x: number; y: number }[],
+  strokeWidth: number,
+): { x: number; y: number }[] | null {
+  if (points.length < 2 || strokeWidth <= 0) return null;
+  const half = strokeWidth * 0.5;
+  const left: { x: number; y: number }[] = [];
+  const right: { x: number; y: number }[] = [];
+  for (let i = 0; i < points.length; i += 1) {
+    const p = points[i]!;
+    const prev = points[Math.max(0, i - 1)]!;
+    const next = points[Math.min(points.length - 1, i + 1)]!;
+    let dx = next.x - prev.x;
+    let dy = next.y - prev.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-8) {
+      dx = 1;
+      dy = 0;
+    } else {
+      dx /= len;
+      dy /= len;
+    }
+    left.push({ x: p.x + -dy * half, y: p.y + dx * half });
+    right.push({ x: p.x - -dy * half, y: p.y - dx * half });
+  }
+  return [...left, ...right.reverse()];
+}
+
+function fillOutlinedRibbon(
+  context: CanvasRenderingContext2D,
+  points: readonly { x: number; y: number }[],
+  strokeWidth: number,
+): void {
+  const poly = outlinePolylinePolygon(points, strokeWidth);
+  if (!poly || poly.length < 3) return;
+  context.beginPath();
+  context.moveTo(poly[0]!.x, poly[0]!.y);
+  for (let i = 1; i < poly.length; i += 1) {
+    context.lineTo(poly[i]!.x, poly[i]!.y);
+  }
+  context.closePath();
+  context.fill();
+}
+
 export function renderTwizzler(
   canvas: HTMLCanvasElement,
   width: number,
@@ -1210,43 +1289,69 @@ export function renderTwizzler(
   context.setLineDash([]);
 
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
-  const useGradients = twizzlerUsesLineGradients(settings);
+  const colorMode = resolveTwizzlerRibbonColorMode(settings);
+  const packGradient =
+    colorMode === "sharedGradient" || colorMode === "fiberGradient"
+      ? (() => {
+          const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
+          gradient.addColorStop(0, settings.colorFar);
+          gradient.addColorStop(1, settings.colorNear);
+          return gradient;
+        })()
+      : null;
 
   for (const line of ordered) {
     if (line.points.length < 2) continue;
-    context.lineWidth = Math.max(settings.minLineWidth, line.strokeWidth);
+    const strokeWidth = Math.max(settings.minLineWidth, line.strokeWidth);
+    context.lineWidth = strokeWidth;
 
-    if (!useGradients) {
-      // Solid: one continuous stroke per fiber (cheaper + matches SVG combined fills).
-      context.strokeStyle = line.color;
-      context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
-      context.beginPath();
-      context.moveTo(line.points[0]!.x, line.points[0]!.y);
-      for (let i = 1; i < line.points.length; i += 1) {
-        context.lineTo(line.points[i]!.x, line.points[i]!.y);
+    switch (colorMode) {
+      case "solid": {
+        context.strokeStyle = line.color;
+        context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
+        context.beginPath();
+        context.moveTo(line.points[0]!.x, line.points[0]!.y);
+        for (let i = 1; i < line.points.length; i += 1) {
+          context.lineTo(line.points[i]!.x, line.points[i]!.y);
+        }
+        context.stroke();
+        break;
       }
-      context.stroke();
-      continue;
-    }
+      case "sharedGradient":
+      case "fiberGradient": {
+        // Same X user-space ramp as SVG (high-quality colorFar→colorNear).
+        context.fillStyle = packGradient ?? settings.colorNear;
+        context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
+        fillOutlinedRibbon(context, line.points, strokeWidth);
+        break;
+      }
+      case "baked": {
+        for (let i = 1; i < line.points.length; i += 1) {
+          const a0 = line.points[i - 1]!;
+          const a1 = line.points[i]!;
+          const alpha0 = a0.alpha ?? line.opacity;
+          const alpha1 = a1.alpha ?? line.opacity;
+          if (alpha0 < 0.008 || alpha1 < 0.008) continue;
+          const opacity = Math.min(1, (alpha0 + alpha1) * 0.5 * 1.45 * settings.opacity);
+          if (opacity < 0.01) continue;
 
-    for (let i = 1; i < line.points.length; i += 1) {
-      const a0 = line.points[i - 1]!;
-      const a1 = line.points[i]!;
-      const alpha0 = a0.alpha ?? line.opacity;
-      const alpha1 = a1.alpha ?? line.opacity;
-      if (alpha0 < 0.008 || alpha1 < 0.008) continue;
-      const opacity = Math.min(1, (alpha0 + alpha1) * 0.5 * 1.45 * settings.opacity);
-      if (opacity < 0.01) continue;
-
-      const c0 = parseRgb(a0.color ?? line.color);
-      const c1 = parseRgb(a1.color ?? line.color);
-      const mid = lerpRgb(c0, c1, 0.5);
-      context.strokeStyle = rgbToHex(mid);
-      context.globalAlpha = opacity;
-      context.beginPath();
-      context.moveTo(a0.x, a0.y);
-      context.lineTo(a1.x, a1.y);
-      context.stroke();
+          const c0 = parseRgb(a0.color ?? line.color);
+          const c1 = parseRgb(a1.color ?? line.color);
+          const mid = lerpRgb(c0, c1, 0.5);
+          context.strokeStyle = rgbToHex(mid);
+          context.globalAlpha = opacity;
+          context.beginPath();
+          context.moveTo(a0.x, a0.y);
+          context.lineTo(a1.x, a1.y);
+          context.stroke();
+        }
+        break;
+      }
+      default: {
+        const _exhaustive: never = colorMode;
+        void _exhaustive;
+        break;
+      }
     }
   }
 

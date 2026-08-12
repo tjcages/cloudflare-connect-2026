@@ -362,6 +362,7 @@ describe("Twizzler", () => {
       gradientYEnabled: true,
       gradientZEnabled: true,
       gradientsEnabled: true,
+      ribbonColorMode: "baked",
       gradientZStrength: 0.75,
       depthTerrain: 0,
       backgroundColor: "#ffffff",
@@ -371,7 +372,7 @@ describe("Twizzler", () => {
     expect(settings.lineCount).toBe(56);
   });
 
-  it("disables all axis gradients when gradientsEnabled is false", () => {
+  it("disables baked axis gradients when ribbonColorMode is solid", () => {
     const { lines } = buildTwizzlerLines(400, 400, 0, {
       lineCount: 12,
       pointSpacing: 12,
@@ -380,7 +381,7 @@ describe("Twizzler", () => {
       colorFar: "#fea700",
       colorNear: "#f46021",
       colorEdge: "#e92e28",
-      gradientsEnabled: false,
+      ribbonColorMode: "solid",
       gradientXEnabled: true,
       gradientYEnabled: true,
       gradientZEnabled: true,
@@ -390,6 +391,12 @@ describe("Twizzler", () => {
     const colors = new Set(lines.flatMap((line) => line.points.map((p) => p.color)));
     expect(colors.size).toBe(1);
     expect([...colors][0]).toBe("#f46021");
+  });
+
+  it("migrates legacy gradientsEnabled false to solid ribbonColorMode", () => {
+    const settings = normalizeTwizzlerSettings({ gradientsEnabled: false });
+    expect(settings.ribbonColorMode).toBe("solid");
+    expect(settings.gradientsEnabled).toBe(false);
   });
 
   it("fades Z gradient from foreground toward background color", () => {

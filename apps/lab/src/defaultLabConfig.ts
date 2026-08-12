@@ -433,6 +433,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     minLineWidth: 0.4,
     maxLineWidth: 3.2,
     gradientsEnabled: true,
+    ribbonColorMode: "baked",
     gradientXEnabled: true,
     gradientXMix: 1,
     gradientYEnabled: true,

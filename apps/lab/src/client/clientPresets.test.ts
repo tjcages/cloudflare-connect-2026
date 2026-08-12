@@ -38,6 +38,7 @@ describe("client preview presets", () => {
     expect(bundle.twizzler.gradientYEnabled).toBe(true);
     expect(bundle.twizzler.gradientZEnabled).toBe(true);
     expect(bundle.twizzler.gradientsEnabled).toBe(true);
+    expect(bundle.twizzler.ribbonColorMode).toBe("baked");
     expect(bundle.twizzler.depthTerrain).toBe(0);
   });
 
