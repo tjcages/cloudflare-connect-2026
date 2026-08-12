@@ -12,9 +12,10 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 ## What clients see (Leva)
 
-Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle (selected segment is filled), **Saved layouts**, and export buttons.
+Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, and **JSON** (Copy / Upload). **Video duration**, **Export Video**, and **Export SVG** sit at the bottom of the panel.
 
 - **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Appearance/Color). **Refresh keeps your live knobs** (localStorage; flushed on `pagehide` so a quick refresh still keeps Speed/Move). Named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
+- **JSON** — **Copy JSON** (clipboard) and **Upload JSON** (import as a saved layout)
 - **Default** — rich authoring for the orange-wave ribbon:
   - **Presets** — Size / Layout / **Appearance** (Light / Dark) / Color
     - **Size** — canvas dimensions only (does not touch Twizzler color, geometry, or other shader knobs)
@@ -54,9 +55,9 @@ Client panel (and lab) expose:
 - **Save** — named localStorage preset with **complete** `config` + `lab` (Twizzler, Color mode, rain, Size/Layout/Color ids, background fill, etc.)
 - **Apply / Delete** — restore or remove saved layouts (builtins stay read-only; user layouts keep transparent/gradient fills)
 - **Reset** — restore Banner 5:1 defaults (keeps named saved layouts)
-- **Download JSON** — full lab configuration file
+- **Copy JSON** — copy full lab configuration to the clipboard
 - **Upload JSON** — import a config file as a saved layout and apply it
-- **Export Video** — MediaRecorder / ffmpeg pipeline
+- **Video duration** / **Export Video** — high-quality MediaRecorder (60fps, high bitrate) + ffmpeg.wasm (libx264 veryslow / CRF 14)
 - **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide X ramp masked by all ribbons), Fiber gradient (per-ribbon X ramp fitted to each fiber’s span), Baked (segmented X/Y/Z). Twizzler exports whenever Show is on. **Rain** adds stripe-rect paths when on; with Rain off, export is Twizzler (+ background) only.
 
 ## Next HTML → Leva mapping (do this on the next drop)

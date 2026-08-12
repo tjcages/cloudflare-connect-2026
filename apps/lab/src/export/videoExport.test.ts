@@ -7,6 +7,7 @@ import {
   formatTranscodeEta,
   formatVideoExportStatusLabel,
   LAB_IMAGE_EXPORT_DURATION_SEC,
+  LAB_VIDEO_EXPORT_BITRATE,
   LAB_VIDEO_EXPORT_FPS,
   LAB_VIDEO_EXPORT_MAX_DURATION_SEC,
   pickMediaRecorderMimeType,
@@ -40,6 +41,13 @@ describe("resolveRequestedExportRange", () => {
 
   it("clamps custom video start and duration to source bounds", () => {
     expect(resolveRequestedExportRange("video", 10, 7, 8)).toEqual({ startTimeSec: 7, durationSec: 3 });
+  });
+});
+
+describe("export quality defaults", () => {
+  it("targets high frame rate and bitrate for graphic exports", () => {
+    expect(LAB_VIDEO_EXPORT_FPS).toBeGreaterThanOrEqual(60);
+    expect(LAB_VIDEO_EXPORT_BITRATE).toBeGreaterThanOrEqual(50_000_000);
   });
 });
 

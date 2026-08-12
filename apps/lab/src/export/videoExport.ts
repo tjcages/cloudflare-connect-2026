@@ -4,10 +4,13 @@ import { createLabExportCompositor, type LabVideoCompositorOptions } from "./vid
 export const LAB_IMAGE_EXPORT_DURATION_SEC = 5;
 export const LAB_VIDEO_EXPORT_MAX_DURATION_SEC = 120;
 export const LAB_VIDEO_EXPORT_CONFIRM_THRESHOLD_SEC = 60;
-/** 24fps keeps stripe motion smooth while cutting frame count vs 30fps. */
-export const LAB_VIDEO_EXPORT_FPS = 24;
-/** Caps encoder work and file size for 2x retina graphic output. */
-export const LAB_VIDEO_EXPORT_BITRATE = 6_000_000;
+/** 60fps for max motion fidelity on stripe / Twizzler exports. */
+export const LAB_VIDEO_EXPORT_FPS = 60;
+/**
+ * High MediaRecorder ceiling for retina graphic output.
+ * Browsers may clamp; still request the top of the practical range.
+ */
+export const LAB_VIDEO_EXPORT_BITRATE = 80_000_000;
 
 const MP4_MIME_CANDIDATES = ["video/mp4;codecs=avc1", "video/mp4"] as const;
 const WEBM_MIME_CANDIDATES = ["video/webm;codecs=vp8", "video/webm;codecs=vp9", "video/webm"] as const;
