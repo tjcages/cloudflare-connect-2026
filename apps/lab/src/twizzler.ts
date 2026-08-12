@@ -59,6 +59,15 @@ export type TwizzlerSettings = {
   stippleSize: number;
   /** Stipple gap scale. */
   stippleGap: number;
+  /** Exact-shader view: rotate the sampling plane in XYZ (degrees). */
+  rotateX: number;
+  rotateY: number;
+  rotateZ: number;
+  /** Exact-shader view pan (Leva units, ÷40 in shader). */
+  panX: number;
+  panY: number;
+  /** Exact-shader camera distance (30 = identity zoom). */
+  viewDistance: number;
 };
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
@@ -102,6 +111,12 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   drift: 0.02,
   stippleSize: 0,
   stippleGap: 0.8,
+  rotateX: 0,
+  rotateY: 0,
+  rotateZ: 0,
+  panX: 0,
+  panY: 0,
+  viewDistance: 30,
 };
 
 function clamp(value: unknown, fallback: number, min: number, max: number): number {
@@ -223,6 +238,12 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     drift: clamp(input.drift, TWIZZLER_DEFAULTS.drift, 0, 1),
     stippleSize: clamp(input.stippleSize, TWIZZLER_DEFAULTS.stippleSize, 0, 8),
     stippleGap: clamp(input.stippleGap, TWIZZLER_DEFAULTS.stippleGap, 0, 12),
+    rotateX: clamp(input.rotateX, TWIZZLER_DEFAULTS.rotateX, -89, 89),
+    rotateY: clamp(input.rotateY, TWIZZLER_DEFAULTS.rotateY, -180, 180),
+    rotateZ: clamp(input.rotateZ, TWIZZLER_DEFAULTS.rotateZ, -180, 180),
+    panX: clamp(input.panX, TWIZZLER_DEFAULTS.panX, -40, 40),
+    panY: clamp(input.panY, TWIZZLER_DEFAULTS.panY, -40, 40),
+    viewDistance: clamp(input.viewDistance, TWIZZLER_DEFAULTS.viewDistance, 0.5, 120),
   };
 }
 

@@ -1,6 +1,7 @@
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "../defaultShaderTextureSource";
 import { CONNECT_SHADER_TEXTURE_SOURCE } from "../connectShaderTextureSource";
 import { TWIZZLER_MAP_SHADER_SOURCE } from "../twizzlerMapSource";
+import { TWIZZLER_SINE_SHADER_PRESET_ID, TWIZZLER_SINE_SHADER_SOURCE } from "../twizzlerSineShader";
 
 export type ShaderLibraryEntry = {
   id: string;
@@ -20,6 +21,7 @@ export const SPIRAL_SHADER_PRESET_ID = "spiral";
 export const COMET_LOGO_SHADER_PRESET_ID = "comet-logo";
 export const NEBULA_SHADER_PRESET_ID = "nebula";
 export const TWIZZLER_MAP_SHADER_PRESET_ID = "twizzler-map";
+export { TWIZZLER_SINE_SHADER_PRESET_ID };
 export const DEFAULT_SHADER_PRESET_ID = CONNECT_SHADER_PRESET_ID;
 export const CUSTOM_SHADER_PRESET_ID = "custom";
 
@@ -71,10 +73,17 @@ export const TWIZZLER_MAP_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
   source: TWIZZLER_MAP_SHADER_SOURCE,
 };
 
+export const TWIZZLER_SINE_SHADER_LIBRARY_ENTRY: ShaderLibraryEntry = {
+  id: TWIZZLER_SINE_SHADER_PRESET_ID,
+  label: "Twizzler Sine",
+  source: TWIZZLER_SINE_SHADER_SOURCE,
+};
+
 export const SHADER_LIBRARY: readonly ShaderLibraryEntry[] = [
   CONNECT_SHADER_LIBRARY_ENTRY,
   SPIRAL_SHADER_LIBRARY_ENTRY,
   COMET_LOGO_SHADER_LIBRARY_ENTRY,
+  TWIZZLER_SINE_SHADER_LIBRARY_ENTRY,
   TWIZZLER_MAP_SHADER_LIBRARY_ENTRY,
   NEBULA_SHADER_LIBRARY_ENTRY,
   ...savedEntries,
@@ -92,6 +101,10 @@ export function isCometLogoShaderPreset(id: string): boolean {
 
 export function isTwizzlerMapShaderPreset(id: string): boolean {
   return id === TWIZZLER_MAP_SHADER_PRESET_ID;
+}
+
+export function isTwizzlerSineShaderPreset(id: string): boolean {
+  return id === TWIZZLER_SINE_SHADER_PRESET_ID;
 }
 
 export function findShaderLibraryEntry(id: string): ShaderLibraryEntry | undefined {

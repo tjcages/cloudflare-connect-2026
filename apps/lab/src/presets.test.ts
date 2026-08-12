@@ -141,7 +141,7 @@ describe("preset library transforms", () => {
     expect(banner?.builtin).toBe(true);
     expect(banner?.lab?.canvasWidth).toBe(1600);
     expect(banner?.lab?.canvasHeight).toBe(320);
-    expect(banner?.lab?.shaderPresetId).toBe("twizzler-map");
+    expect(banner?.lab?.shaderPresetId).toBe("twizzler-sine");
     expect(banner?.lab?.twizzlerEnabled).toBe(true);
   });
 

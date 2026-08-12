@@ -81,9 +81,11 @@ import {
   isCometLogoShaderPreset,
   isSpiralShaderPreset,
   isTwizzlerMapShaderPreset,
+  isTwizzlerSineShaderPreset,
   NEBULA_SHADER_PRESET_ID,
   SHADER_LIBRARY,
 } from "./shaderLibrary";
+import { TWIZZLER_SINE_SHADER_SOURCE, shouldUseTwizzlerSineShader, twizzlerSineUniforms } from "./twizzlerSineShader";
 import {
   CONNECT_SHAPE_OPTIONS,
   createConnectTextureRenderer,
@@ -904,6 +906,7 @@ function LabInner({
   const shaderSourceCodeRef = useRef(shaderSourceCode);
   shaderSourceCodeRef.current = shaderSourceCode;
   const shaderRendererRef = useRef<ShaderTextureRenderer | null>(null);
+  const twizzlerSineRendererRef = useRef<ShaderTextureRenderer | null>(null);
   const connectRendererRef = useRef<ConnectTextureRenderer | null>(null);
   const twizzlerMapRendererRef = useRef<TwizzlerMapRenderer | null>(null);
   const cometLogoRendererRef = useRef<CometLogoTextureRenderer | null>(null);
@@ -1337,6 +1340,8 @@ function LabInner({
 
       shaderRendererRef.current?.dispose();
       shaderRendererRef.current = null;
+      twizzlerSineRendererRef.current?.dispose();
+      twizzlerSineRendererRef.current = null;
       twizzlerMapRendererRef.current = null;
       cometLogoRendererRef.current?.dispose();
       cometLogoRendererRef.current = null;
@@ -1887,10 +1892,26 @@ function LabInner({
           } else {
             const shaderRenderer = shaderRendererRef.current;
             if (shaderRenderer) {
+              if (isTwizzlerSineShaderPreset(shaderPresetIdRef.current)) {
+                const tw = twizzlerRef.current;
+                shaderRenderer.setUniforms(
+                  twizzlerSineUniforms(tw, {
+                    rotateXDeg: tw.rotateX,
+                    rotateYDeg: tw.rotateY,
+                    rotateZDeg: tw.rotateZ,
+                    panX: tw.panX,
+                    panY: tw.panY,
+                    distance: tw.viewDistance,
+                  }),
+                );
+              }
               shaderRenderer.render(
                 shaderTimeSecRef.current,
                 shaderMouseRef.current,
-                shaderViewFromSettings(labSettingsRef.current),
+                // Twizzler Sine handles XYZ itself with edge-locked X — keep wrapper identity.
+                isTwizzlerSineShaderPreset(shaderPresetIdRef.current)
+                  ? null
+                  : shaderViewFromSettings(labSettingsRef.current),
               );
               engine.updateSourceFrame(shaderRenderer.canvas);
               const previewCanvas = shaderPreviewCanvasRef.current;
@@ -1910,9 +1931,47 @@ function LabInner({
         const outputCanvas = canvasRef.current;
         if (twizzlerCanvas && outputCanvas) {
           if (shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled)) {
-            renderTwizzler(twizzlerCanvas, outputCanvas.width, outputCanvas.height, twizzlerTimeSecRef.current, {
-              ...twizzlerRef.current,
-            });
+            const tw = twizzlerRef.current;
+            if (shouldUseTwizzlerSineShader(tw)) {
+              let sine = twizzlerSineRendererRef.current;
+              if (!sine) {
+                sine = createShaderTextureRenderer(outputCanvas.width, outputCanvas.height);
+                const err = sine.setSource(TWIZZLER_SINE_SHADER_SOURCE);
+                if (err) {
+                  console.error("Twizzler sine shader compile failed:", err);
+                  renderTwizzler(twizzlerCanvas, outputCanvas.width, outputCanvas.height, twizzlerTimeSecRef.current, {
+                    ...tw,
+                  });
+                } else {
+                  twizzlerSineRendererRef.current = sine;
+                }
+              }
+              sine = twizzlerSineRendererRef.current;
+              if (sine) {
+                sine.resize(outputCanvas.width, outputCanvas.height);
+                sine.setUniforms(
+                  twizzlerSineUniforms(tw, {
+                    rotateXDeg: tw.rotateX,
+                    rotateYDeg: tw.rotateY,
+                    rotateZDeg: tw.rotateZ,
+                    panX: tw.panX,
+                    panY: tw.panY,
+                    distance: tw.viewDistance,
+                  }),
+                );
+                // Identity wrapper view — XYZ is applied inside the exact shader (edge-locked X).
+                sine.render(twizzlerTimeSecRef.current, undefined, null);
+                if (twizzlerCanvas.width !== sine.width) twizzlerCanvas.width = sine.width;
+                if (twizzlerCanvas.height !== sine.height) twizzlerCanvas.height = sine.height;
+                const ctx = twizzlerCanvas.getContext("2d");
+                ctx?.clearRect(0, 0, twizzlerCanvas.width, twizzlerCanvas.height);
+                ctx?.drawImage(sine.canvas, 0, 0);
+              }
+            } else {
+              renderTwizzler(twizzlerCanvas, outputCanvas.width, outputCanvas.height, twizzlerTimeSecRef.current, {
+                ...tw,
+              });
+            }
           } else {
             clearTwizzler(twizzlerCanvas);
           }
@@ -1981,6 +2040,8 @@ function LabInner({
       textureLoadSeqRef.current++;
       shaderRendererRef.current?.dispose();
       shaderRendererRef.current = null;
+      twizzlerSineRendererRef.current?.dispose();
+      twizzlerSineRendererRef.current = null;
       connectRendererRef.current?.dispose();
       connectRendererRef.current = null;
       twizzlerMapRendererRef.current = null;
@@ -2297,6 +2358,8 @@ function LabInner({
       twizzlerMapRendererRef.current = null;
       shaderRendererRef.current?.dispose();
       shaderRendererRef.current = null;
+      twizzlerSineRendererRef.current?.dispose();
+      twizzlerSineRendererRef.current = null;
       connectRendererRef.current?.dispose();
       connectRendererRef.current = null;
       cometLogoRendererRef.current?.dispose();

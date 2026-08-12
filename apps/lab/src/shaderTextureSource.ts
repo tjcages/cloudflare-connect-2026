@@ -96,11 +96,19 @@ function createProgram(gl: WebGL2RenderingContext, userSource: string): WebGLPro
   return program;
 }
 
+export type ShaderUniformValue =
+  | number
+  | readonly [number, number]
+  | readonly [number, number, number]
+  | readonly [number, number, number, number];
+
 export type ShaderTextureRenderer = {
   canvas: HTMLCanvasElement;
   width: number;
   height: number;
   setSource(source: string): string | null;
+  /** Extra uniforms (floats / vec2–4) applied every render. Missing locs are ignored. */
+  setUniforms(values: Record<string, ShaderUniformValue>): void;
   resize(width: number, height: number): void;
   render(
     timeSec: number,
@@ -145,6 +153,8 @@ export function createShaderTextureRenderer(width = 1000, height = 1000): Shader
   let viewOrbitLoc: WebGLUniformLocation | null = null;
   let viewPanLoc: WebGLUniformLocation | null = null;
   let viewZoomLoc: WebGLUniformLocation | null = null;
+  let extraUniforms: Record<string, ShaderUniformValue> = {};
+  const extraUniformLocs = new Map<string, WebGLUniformLocation | null>();
 
   const channelTextures = Array.from({ length: 4 }, (_, index) => {
     const fallback = makeFallbackChannelPixels(index);
@@ -181,6 +191,10 @@ export function createShaderTextureRenderer(width = 1000, height = 1000): Shader
       viewOrbitLoc = gl.getUniformLocation(program, "iViewOrbit");
       viewPanLoc = gl.getUniformLocation(program, "iViewPan");
       viewZoomLoc = gl.getUniformLocation(program, "iViewZoom");
+      extraUniformLocs.clear();
+      for (const key of Object.keys(extraUniforms)) {
+        extraUniformLocs.set(key, gl.getUniformLocation(program, key));
+      }
       gl.useProgram(program);
       for (let index = 0; index < channelTextures.length; index += 1) {
         gl.uniform1i(gl.getUniformLocation(program, `iChannel${index}`), index);
@@ -205,6 +219,15 @@ export function createShaderTextureRenderer(width = 1000, height = 1000): Shader
     setSource(source: string) {
       return installProgram(source);
     },
+    setUniforms(values: Record<string, ShaderUniformValue>) {
+      extraUniforms = { ...values };
+      if (!program) return;
+      for (const key of Object.keys(extraUniforms)) {
+        if (!extraUniformLocs.has(key)) {
+          extraUniformLocs.set(key, gl.getUniformLocation(program, key));
+        }
+      }
+    },
     resize(nextWidth: number, nextHeight: number) {
       const w = Math.max(1, Math.round(nextWidth));
       const h = Math.max(1, Math.round(nextHeight));
@@ -224,6 +247,20 @@ export function createShaderTextureRenderer(width = 1000, height = 1000): Shader
       gl.uniform3f(viewOrbitLoc, uniforms.orbitRad[0], uniforms.orbitRad[1], uniforms.orbitRad[2]);
       gl.uniform2f(viewPanLoc, uniforms.pan[0], uniforms.pan[1]);
       gl.uniform1f(viewZoomLoc, uniforms.zoom);
+      for (const [key, value] of Object.entries(extraUniforms)) {
+        const loc = extraUniformLocs.get(key) ?? gl.getUniformLocation(program, key);
+        if (!extraUniformLocs.has(key)) extraUniformLocs.set(key, loc);
+        if (!loc) continue;
+        if (typeof value === "number") {
+          gl.uniform1f(loc, value);
+        } else if (value.length === 2) {
+          gl.uniform2f(loc, value[0], value[1]);
+        } else if (value.length === 3) {
+          gl.uniform3f(loc, value[0], value[1], value[2]);
+        } else if (value.length === 4) {
+          gl.uniform4f(loc, value[0], value[1], value[2], value[3]);
+        }
+      }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.flush();
     },
