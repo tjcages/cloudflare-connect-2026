@@ -54,6 +54,7 @@ const presetWithLab = (name: string): ConfigPreset =>
       depthLift: 0,
       heatVariant: 1,
       hillRhythm: 1,
+      packGapRatio: 4,
       depthTerrain: 0,
       twist: 1.5,
       noiseScaleX: 0.002,

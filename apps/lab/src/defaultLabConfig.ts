@@ -424,6 +424,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     depthLift: 0,
     heatVariant: 1,
     hillRhythm: 1,
+    packGapRatio: 4,
     depthTerrain: 0,
     twist: 1.35,
     noiseScaleX: 0.0015,

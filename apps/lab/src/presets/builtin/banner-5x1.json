@@ -531,8 +531,8 @@
       "scale": 1.22,
       "centerY": 0.4,
       "amplitude": 1.0,
-      "lineCount": 280,
-      "lineWidth": 0.38,
+      "lineCount": 72,
+      "lineWidth": 0.55,
       "pointSpacing": 1,
       "leftHeight": 0.6,
       "rightHeight": 0.26,
@@ -564,7 +564,8 @@
       "drift": 0.02,
       "stippleSize": 0,
       "stippleGap": 0.8,
-      "hillRhythm": 0
+      "hillRhythm": 0,
+      "packGapRatio": 4
     },
     "twizzlerMap": {
       "backgroundLevel": 0.01,

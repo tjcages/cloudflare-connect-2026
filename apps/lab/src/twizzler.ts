@@ -22,6 +22,11 @@ export type TwizzlerSettings = {
   amplitude: number;
   lineCount: number;
   lineWidth: number;
+  /**
+   * Clear gap between neighboring fibers as a multiple of stroke width.
+   * 4 = gap is 4× the line thickness (center pitch = 5× stroke).
+   */
+  packGapRatio: number;
   pointSpacing: number;
   leftHeight: number;
   rightHeight: number;
@@ -84,6 +89,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   amplitude: 0.58,
   lineCount: 48,
   lineWidth: 2.1,
+  packGapRatio: 4,
   pointSpacing: 3,
   leftHeight: 0.58,
   rightHeight: 0.32,
@@ -207,6 +213,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     amplitude: clamp(input.amplitude, TWIZZLER_DEFAULTS.amplitude, 0, 1),
     lineCount: Math.round(clamp(input.lineCount, TWIZZLER_DEFAULTS.lineCount, 1, 400)),
     lineWidth: clamp(input.lineWidth, TWIZZLER_DEFAULTS.lineWidth, 0.15, 8),
+    packGapRatio: clamp(input.packGapRatio, TWIZZLER_DEFAULTS.packGapRatio, 1, 24),
     pointSpacing: Math.round(clamp(input.pointSpacing, TWIZZLER_DEFAULTS.pointSpacing, 2, 80)),
     leftHeight: clamp(input.leftHeight, TWIZZLER_DEFAULTS.leftHeight, -1, 2),
     rightHeight: clamp(input.rightHeight, TWIZZLER_DEFAULTS.rightHeight, -1, 2),
@@ -765,7 +772,31 @@ export type TwizzlerLine = {
   points: Array<{ x: number; y: number; depth: number; along: number; nearness: number }>;
 };
 
-/** Soften sharp corners along a fiber via short Gaussian Y blur (keeps macro shape). */
+/** Reference mid-pack stroke width used for even gap sizing. */
+export function twizzlerPackStrokeRef(settings: Pick<TwizzlerSettings, "lineWidth">): number {
+  return Math.max(0.25, settings.lineWidth * twizzlerStrokeWidthScale(0.55));
+}
+
+/**
+ * Center-to-center pitch so clear gap ≥ packGapRatio × stroke.
+ * pitch = stroke * (1 + packGapRatio).
+ */
+export function twizzlerPackCenterPitch(settings: Pick<TwizzlerSettings, "lineWidth" | "packGapRatio">): number {
+  const stroke = twizzlerPackStrokeRef(settings);
+  return stroke * (1 + Math.max(1, settings.packGapRatio));
+}
+
+/** Half-height of the even Z stack in pixels for the given line count. */
+export function twizzlerPackHalfHeightPx(
+  settings: Pick<TwizzlerSettings, "lineWidth" | "packGapRatio" | "lineCount" | "depthSpread">,
+): number {
+  const pitch = twizzlerPackCenterPitch(settings);
+  const count = Math.max(1, Math.round(settings.lineCount));
+  const span = pitch * Math.max(0, count - 1);
+  // depthSpread gently opens the stack beyond the minimum gap pitch.
+  const open = 1 + settings.depthSpread * 0.12;
+  return (span * open) / 2;
+}
 export function twizzlerSoftenFiberCorners(
   points: Array<{ x: number; y: number; depth: number; along: number; nearness: number }>,
   radius = 6,
@@ -807,8 +838,8 @@ export function buildTwizzlerLines(
   // depthSpread still opens the total stack height via expand + verticalOpen.
   const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
   const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
-  const rawSlots = twizzlerEvenAcross(settings.lineCount);
-  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.28 + settings.depthSpread * 0.28));
+  // True even Z slots — no pole expand (that would crush mid gaps).
+  const acrossSlots = twizzlerEvenAcross(settings.lineCount);
 
   const center: Array<{ x: number; y: number; xT: number }> = [];
   for (let point = 0; point <= segmentCount; point += 1) {
@@ -875,12 +906,12 @@ export function buildTwizzlerLines(
       );
       const ampNoiseY = planeAmp * 0.88 + localAmp * 0.12;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 0.85;
-      // Even gaps: no along-X gap warp. Far (across=-1) sits lower (+Y).
-      const stackY = -across * halfW * verticalOpen;
-      const farDownStack = far * halfW * (0.1 + 0.28 * rightEdge) * (0.45 + settings.depthLift * 0.35);
+      // Even Z pitch from packGapRatio (clear gap ≥ ratio × stroke) — not halfW crowding.
+      const packHalf = twizzlerPackHalfHeightPx(settings);
+      const stackY = -across * packHalf;
+      const farDownStack = far * packHalf * (0.08 + 0.22 * rightEdge) * (0.35 + settings.depthLift * 0.3);
       const faceY = ny * projected * 0.2;
-      const zLane = far * halfW * (0.06 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
+      const zLane = far * packHalf * (0.04 + 0.1 * rightEdge) * (0.35 + settings.depthSpread * 0.2);
       const x = c.x + nx * braid * halfW * 0.012 * Math.sin(fiberTheta);
       // Shared spine dominates — pack wiggles as one plane; Z is an even offset.
       const spineBase = pixelHeight * settings.centerY;

@@ -1526,6 +1526,13 @@ export function useEngineControls(
                   step: 1,
                   label: "Hill rhythm (0A/1B/2C)",
                 },
+                twizzlerPackGapRatio: {
+                  value: initialLabSettings.twizzler.packGapRatio ?? 4,
+                  min: 1,
+                  max: 16,
+                  step: 0.5,
+                  label: "Pack gap / stroke",
+                },
                 twizzlerDepthTerrain: {
                   value: initialLabSettings.twizzler.depthTerrain ?? 0,
                   min: 0,
@@ -5118,6 +5125,7 @@ export function useEngineControls(
         depthLift: shaderValueRecord.twizzlerDepthLift,
         heatVariant: shaderValueRecord.twizzlerHeatVariant,
         hillRhythm: shaderValueRecord.twizzlerHillRhythm,
+        packGapRatio: shaderValueRecord.twizzlerPackGapRatio,
         depthTerrain: shaderValueRecord.twizzlerDepthTerrain,
         twist: shaderValueRecord.twizzlerTwist,
         noiseScaleX: shaderValueRecord.twizzlerNoiseScaleX,
