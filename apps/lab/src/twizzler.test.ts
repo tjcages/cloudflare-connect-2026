@@ -5,6 +5,7 @@ import {
   normalizeTwizzlerSettings,
   orangeWaveXRangeForCanvas,
   orangeWaveY,
+  ribbonGradientXSpan,
   TWIZZLER_DEFAULTS,
   twizzlerAnimationTime,
   twizzlerBendOffset,
@@ -545,5 +546,16 @@ describe("Twizzler", () => {
     const farLine = sorted[sorted.length - 1]!;
     expect(hexLuma(farLine.color)).toBeGreaterThan(hexLuma(nearLine.color) + 20);
     expect(hexLuma(nearLine.color)).toBeLessThan(200);
+  });
+
+  it("ribbonGradientXSpan pads the fiber horizontal extent by half stroke", () => {
+    const span = ribbonGradientXSpan(
+      [
+        { x: 40, y: 10 },
+        { x: 120, y: 12 },
+      ],
+      8,
+    );
+    expect(span).toEqual({ x1: 36, x2: 124 });
   });
 });

@@ -49,8 +49,7 @@ Client panel (and lab) expose:
 - **Download JSON** — full lab configuration file
 - **Upload JSON** — import a config file as a saved layout and apply it
 - **Export Video** — MediaRecorder / ffmpeg pipeline
-- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid / Shared / Fiber / Baked. Twizzler exports whenever Show is on. **Rain** adds stripe-rect paths when on; with Rain off, export is Twizzler (+ background) only.
-
+- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide X ramp masked by all ribbons), Fiber gradient (per-ribbon X ramp fitted to each fiber’s span), Baked (segmented X/Y/Z). Twizzler exports whenever Show is on. **Rain** adds stripe-rect paths when on; with Rain off, export is Twizzler (+ background) only.
 ## Next HTML → Leva mapping (do this on the next drop)
 
 When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (Default for client knobs, Advanced for fine ones). Keep the color library — no freeform-only hex fields.

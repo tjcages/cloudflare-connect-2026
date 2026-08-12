@@ -84,8 +84,8 @@ export type TwizzlerSettings = {
   /**
    * How ribbon color is previewed + exported:
    * - solid: one fill color per fiber
-   * - sharedGradient: one pack X linearGradient, all fibers reference it (Figma #3)
-   * - fiberGradient: per-fiber X linearGradient defs (Figma #1)
+   * - sharedGradient: one pack-wide X ramp (artboard left→right), ribbons sample it
+   * - fiberGradient: colorFar→colorNear fitted to each ribbon’s own X extent
    * - baked: segmented X/Y/Z fills (highest fidelity, heaviest)
    */
   ribbonColorMode: TwizzlerRibbonColorMode;
@@ -1275,6 +1275,27 @@ function fillOutlinedRibbon(
   context.fill();
 }
 
+/**
+ * Horizontal span for a fiber-local X gradient (colorFar at left → colorNear at right).
+ * Includes half stroke width so the ramp covers the outlined ribbon silhouette.
+ */
+export function ribbonGradientXSpan(
+  points: readonly { x: number; y: number }[],
+  strokeWidth: number,
+): { x1: number; x2: number } | null {
+  if (points.length === 0) return null;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (const p of points) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+  }
+  const pad = Math.max(0, strokeWidth) * 0.5;
+  const x1 = minX - pad;
+  const x2 = Math.max(maxX + pad, x1 + 1e-3);
+  return { x1, x2 };
+}
+
 export function renderTwizzler(
   canvas: HTMLCanvasElement,
   width: number,
@@ -1300,7 +1321,7 @@ export function renderTwizzler(
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
   const colorMode = resolveTwizzlerRibbonColorMode(settings);
   const packGradient =
-    colorMode === "sharedGradient" || colorMode === "fiberGradient"
+    colorMode === "sharedGradient"
       ? (() => {
           const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
           gradient.addColorStop(0, settings.colorFar);
@@ -1326,10 +1347,24 @@ export function renderTwizzler(
         context.stroke();
         break;
       }
-      case "sharedGradient":
-      case "fiberGradient": {
-        // Same X user-space ramp as SVG (high-quality colorFar→colorNear).
+      case "sharedGradient": {
+        // Pack-wide X ramp (matches SVG masked gradient plane).
         context.fillStyle = packGradient ?? settings.colorNear;
+        context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
+        fillOutlinedRibbon(context, line.points, strokeWidth);
+        break;
+      }
+      case "fiberGradient": {
+        // Per-ribbon X ramp across the fiber’s own horizontal span.
+        const span = ribbonGradientXSpan(line.points, strokeWidth);
+        if (span) {
+          const gradient = context.createLinearGradient(span.x1, 0, span.x2, 0);
+          gradient.addColorStop(0, settings.colorFar);
+          gradient.addColorStop(1, settings.colorNear);
+          context.fillStyle = gradient;
+        } else {
+          context.fillStyle = settings.colorNear;
+        }
         context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
         fillOutlinedRibbon(context, line.points, strokeWidth);
         break;
