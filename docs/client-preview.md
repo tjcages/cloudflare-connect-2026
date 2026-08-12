@@ -17,8 +17,11 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
 - **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Appearance/Color). **Refresh keeps your live knobs** (localStorage); named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
 - **Default** — rich authoring for the orange-wave ribbon:
   - **Presets** — Size / Layout / **Appearance** (Light / Dark) / Color
-    - **Light** — orange Twizzler on white stage (current marketing look)
-    - **Dark** — cream Orange 100→300 Twizzler (shared gradient) on deep orange `#f86a00` (`stripes-settings-cf-base`)
+    - **Size** — canvas dimensions only (does not touch Twizzler color, geometry, or other shader knobs)
+    - **Layout** — ribbon geometry / motion only (does not reapply Color)
+    - **Appearance** — stage look: Light = orange Twizzler on white; Dark = cream Twizzler on `#f86a00`
+    - **Color** — Twizzler ink only (Orange accent / pair / deep + **Light** cream = Dark Appearance colors)
+    - ~~Graphite~~ removed (legacy `graphite` ids normalize to **Light**)
   - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
     - Solid: Color only
     - Shared / Fiber: Color + Color left (X pack/fiber ramp)
