@@ -10,6 +10,7 @@ import {
   importSettingsFile,
   DEFAULT_LAB_SETTINGS,
   factoryResetSettings,
+  LAB_SETTINGS_GENERATION,
   loadEditTheme,
   loadInitialConfig,
   loadLabSettings,
@@ -472,7 +473,7 @@ describe("client preset ids in lab settings", () => {
   beforeEach(() => {
     stubLocalStorage();
     resumePersistenceWritesForTests();
-    localStorage.setItem("stripes-engine-lab-ui-generation", "twizzler-ribbon-visible-v1");
+    localStorage.setItem("stripes-engine-lab-ui-generation", LAB_SETTINGS_GENERATION);
   });
   afterEach(() => {
     vi.unstubAllGlobals();

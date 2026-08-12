@@ -911,8 +911,7 @@
 .twizzler-gradient-graph {
   position: relative;
   width: 100%;
-  height: 56px;
-  padding: 8px 8px 0;
+  height: 120px;
   box-sizing: border-box;
   border-radius: var(--leva-radius);
   background: color-mix(in srgb, var(--leva-surface) 68%, transparent);
@@ -925,57 +924,59 @@
   cursor: crosshair;
 }
 
-.twizzler-gradient-track {
-  position: relative;
+.twizzler-gradient-field {
+  position: absolute;
+  left: calc(12 / 168 * 100%);
+  top: calc(12 / 120 * 100%);
+  width: calc(144 / 168 * 100%);
+  height: calc(96 / 120 * 100%);
+  border-radius: 2px;
+  pointer-events: none;
+  image-rendering: auto;
+}
+
+.twizzler-gradient-plane {
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
-  touch-action: none;
-}
-
-.twizzler-gradient-fill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 30px;
-  border-radius: 4px;
-  pointer-events: none;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--leva-text-muted) 22%, transparent);
-}
-
-.twizzler-gradient-baseline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 10px;
-  height: 1px;
-  background: color-mix(in srgb, var(--leva-text-muted) 34%, transparent);
+  overflow: visible;
   pointer-events: none;
 }
 
-.playground-leva-panel button.twizzler-gradient-handle {
+.twizzler-gradient-graph line {
+  stroke: color-mix(in srgb, var(--leva-text-muted) 28%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.twizzler-gradient-handles {
   position: absolute;
-  top: auto;
-  bottom: 4px;
-  width: 12px;
-  height: 12px;
-  margin: 0;
-  padding: 0;
-  border-radius: 999px !important;
-  border: 1px solid var(--leva-surface) !important;
-  background-color: var(--twizzler-gradient-handle-color, #888) !important;
-  background-image: none !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--leva-text-muted) 45%, transparent) !important;
-  transform: translateX(-50%);
+  left: calc(12 / 168 * 100%);
+  top: calc(12 / 120 * 100%);
+  width: calc(144 / 168 * 100%);
+  height: calc(96 / 120 * 100%);
+  pointer-events: none;
+}
+
+.twizzler-gradient-handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 45%);
+  transform: translate(-50%, -50%);
   cursor: grab;
-  z-index: 1;
 }
 
-.playground-leva-panel button.twizzler-gradient-handle:not(:disabled):hover,
-.playground-leva-panel button.twizzler-gradient-handle.is-selected {
-  box-shadow:
-    0 0 0 1px var(--leva-accent-strong),
-    0 0 0 3px color-mix(in srgb, var(--leva-accent-strong) 28%, transparent) !important;
+.twizzler-gradient-handle.is-selected {
+  width: 20px;
+  height: 20px;
+  border-width: 4px;
+  border-color: #fff;
 }
 
 .twizzler-gradient-selected {
@@ -2074,6 +2075,26 @@ body.lab-sidebar-resizing .lab-sidebar {
   box-shadow: none;
 }
 
+.lab-shell.is-client-mode .lab-client-tools-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lab-shell.is-client-mode .lab-client-panel-collapse {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--leva-text-muted);
+}
+
+.lab-shell.is-client-mode .lab-client-panel-collapse:hover {
+  background: var(--leva-surface);
+  color: var(--leva-text);
+}
+
 .lab-shell.is-client-mode .lab-panel-mode-toggle {
   align-self: flex-start;
   border-radius: var(--leva-radius);
@@ -2295,6 +2316,58 @@ body.lab-sidebar-resizing .lab-sidebar {
 :root[data-theme="dark"] .lab-shell.is-client-mode .lab-panel-mode-btn:has(input[type="radio"]:checked) {
   color: #161616 !important;
   background-color: #f0f0f0 !important;
+}
+
+/* Client mobile: keep canvas usable; panel overlays instead of crushing the stage. */
+@media (max-width: 720px) {
+  .lab-shell.is-client-mode {
+    position: relative;
+  }
+
+  .lab-shell.is-client-mode .lab-main {
+    width: 100%;
+  }
+
+  .lab-shell.is-client-mode .lab-canvas-area {
+    padding: 12px;
+  }
+
+  .lab-shell.is-client-mode .lab-sidebar-shader:not(.is-closed) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    max-width: min(100vw - 36px, 320px);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08);
+  }
+
+  .lab-shell.is-client-mode .lab-sidebar-shader .lab-sidebar-scroll {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .lab-shell.is-client-mode .lab-client-tools {
+    padding: 8px 8px 10px;
+    gap: 6px;
+  }
+
+  .lab-shell.is-client-mode .lab-client-exports {
+    padding: 8px;
+  }
+
+  .lab-shell.is-client-mode .lab-sidebar-reopen-right {
+    top: max(12px, env(safe-area-inset-top, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    width: 36px;
+    height: 36px;
+  }
+
+  .lab-shell.is-client-mode .lab-canvas-zoom-controls {
+    bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    padding: 5px 6px;
+    gap: 6px;
+  }
 }
 
 .lab-sidebar-toggle {

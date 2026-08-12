@@ -1,18 +1,35 @@
-/** Shared X-ramp stops for Twizzler Shared / Fiber gradient rendering. */
+/** Shared 2D color-field hotspots for Twizzler Shared / Fiber rendering. */
+
+import { nextOrangeRedLibraryHex } from "./components/colorLibrary";
 
 export type TwizzlerGradientStop = {
   id: string;
+  /** Horizontal UV (0 = left, 1 = right). */
+  x: number;
+  /** Vertical UV (0 = top, 1 = bottom). */
+  y: number;
+  /** Alias of `x` so saved 1D ramps (`offset`) round-trip. */
   offset: number;
   color: string;
 };
 
-export const TWIZZLER_GRADIENT_STOP_MIN = 2;
-export const TWIZZLER_GRADIENT_STOP_MAX = 8;
-
+export const TWIZZLER_GRADIENT_STOP_MIN = 1;
+export const TWIZZLER_GRADIENT_STOP_MAX = 16;
+export const TWIZZLER_GRADIENT_FIELD_RASTER_WIDTH = 160;
+export const TWIZZLER_GRADIENT_FIELD_RASTER_HEIGHT = 100;
+export const TWIZZLER_GRADIENT_FIELD_SVG_COLS = 48;
+export const TWIZZLER_GRADIENT_FIELD_SVG_ROWS = 32;
+export const TWIZZLER_GRADIENT_HANDLE_HIT_PX = 26;
+const IDW_POWER = 2;
+const IDW_HIT_EPS2 = 1e-12;
 const HEX_RE = /^#[0-9a-f]{6}$/i;
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function normalizeHex(value: unknown, fallback: string): string {
@@ -21,7 +38,7 @@ function normalizeHex(value: unknown, fallback: string): string {
   return "#f46021";
 }
 
-function parseHexRgb(hex: string): { r: number; g: number; b: number } {
+export function parseHexRgb(hex: string): { r: number; g: number; b: number } {
   const value = normalizeHex(hex, "#f46021").slice(1);
   return {
     r: Number.parseInt(value.slice(0, 2), 16),
@@ -30,15 +47,12 @@ function parseHexRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
-function lerpHex(a: string, b: string, t: number): string {
-  const amount = clamp01(t);
-  const from = parseHexRgb(a);
-  const to = parseHexRgb(b);
-  const channel = (x: number, y: number) => Math.round(x + (y - x) * amount);
-  const r = channel(from.r, to.r).toString(16).padStart(2, "0");
-  const g = channel(from.g, to.g).toString(16).padStart(2, "0");
-  const bCh = channel(from.b, to.b).toString(16).padStart(2, "0");
-  return `#${r}${g}${bCh}`;
+function rgbToHex(rgb: { r: number; g: number; b: number }): string {
+  const channel = (value: number) =>
+    Math.round(Math.min(255, Math.max(0, value)))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(rgb.r)}${channel(rgb.g)}${channel(rgb.b)}`;
 }
 
 let stopSeq = 0;
@@ -50,28 +64,52 @@ export function createTwizzlerGradientStopId(seed = 0): string {
 
 export function defaultTwizzlerGradientStops(colorFar: string, colorNear: string): TwizzlerGradientStop[] {
   return [
-    { id: "far", offset: 0, color: normalizeHex(colorFar, "#fea700") },
-    { id: "near", offset: 1, color: normalizeHex(colorNear, "#f46021") },
+    { id: "far", x: 0, y: 0.5, offset: 0, color: normalizeHex(colorFar, "#fea700") },
+    { id: "near", x: 1, y: 0.5, offset: 1, color: normalizeHex(colorNear, "#f46021") },
+  ];
+}
+
+/** Authored Shared/Fiber default: three off-axis hotspots so the field is visibly 2D. */
+export function defaultTwizzlerGradientFieldStops(
+  colorFar: string,
+  colorNear: string,
+  colorEdge: string,
+): TwizzlerGradientStop[] {
+  return [
+    { id: "far", x: 0.08, y: 0.78, offset: 0.08, color: normalizeHex(colorFar, "#fea700") },
+    { id: "peak", x: 0.5, y: 0.16, offset: 0.5, color: normalizeHex(colorEdge, "#e92e28") },
+    { id: "near", x: 0.92, y: 0.72, offset: 0.92, color: normalizeHex(colorNear, "#f46021") },
   ];
 }
 
 export function sortTwizzlerGradientStops(stops: readonly TwizzlerGradientStop[]): TwizzlerGradientStop[] {
-  return [...stops].sort((a, b) => a.offset - b.offset || a.id.localeCompare(b.id));
+  return [...stops].sort((a, b) => a.x - b.x || a.y - b.y || a.id.localeCompare(b.id));
+}
+
+function quantize01(value: number): number {
+  return Number(clamp01(value).toFixed(4));
 }
 
 function parseStop(value: unknown, index: number, fallbackColor: string): TwizzlerGradientStop | null {
   if (!value || typeof value !== "object") return null;
-  const record = value as { id?: unknown; offset?: unknown; color?: unknown };
-  const offset = typeof record.offset === "number" && Number.isFinite(record.offset) ? clamp01(record.offset) : null;
-  if (offset === null) return null;
-  const id =
-    typeof record.id === "string" && record.id.trim() ? record.id.trim() : createTwizzlerGradientStopId(index + 10);
-  return { id, offset, color: normalizeHex(record.color, fallbackColor) };
+  const record = value as { id?: unknown; offset?: unknown; x?: unknown; y?: unknown; color?: unknown };
+  const xRaw = isFiniteNumber(record.x) ? record.x : isFiniteNumber(record.offset) ? record.offset : null;
+  if (xRaw === null) return null;
+  const x = quantize01(xRaw);
+  const y = isFiniteNumber(record.y) ? quantize01(record.y) : 0.5;
+  const id = typeof record.id === "string" && record.id.trim() ? record.id.trim() : `g${index}`;
+  return { id, x, y, offset: x, color: normalizeHex(record.color, fallbackColor) };
+}
+
+function withPosition(stop: TwizzlerGradientStop, x: number, y: number): TwizzlerGradientStop {
+  const nextX = quantize01(x);
+  const nextY = quantize01(y);
+  return { ...stop, x: nextX, y: nextY, offset: nextX };
 }
 
 /**
- * Canonicalize ramp stops. Invalid / missing lists fall back to colorFar@0 → colorNear@1.
- * Extra stops are kept (up to max); order is left→right by offset.
+ * Canonicalize hotspot lists. Invalid / missing lists fall back to colorFar@(0,0.5) → colorNear@(1,0.5).
+ * Saved 1D ramps (`offset` only) migrate to `x = offset`, `y = 0.5`.
  */
 export function normalizeTwizzlerGradientStops(
   value: unknown,
@@ -87,7 +125,7 @@ export function normalizeTwizzlerGradientStops(
     const stop = parseStop(raw[i], i, i === 0 ? far : near);
     if (!stop) continue;
     let id = stop.id;
-    if (seen.has(id)) id = createTwizzlerGradientStopId(i + 100 + parsed.length);
+    if (seen.has(id)) id = `${stop.id}-${parsed.length}`;
     seen.add(id);
     parsed.push({ ...stop, id });
     if (parsed.length >= TWIZZLER_GRADIENT_STOP_MAX) break;
@@ -96,7 +134,7 @@ export function normalizeTwizzlerGradientStops(
   return sortTwizzlerGradientStops(parsed);
 }
 
-/** Baked/Solid knobs drive endpoint colors; extra stop offsets stay put. */
+/** Baked/Solid knobs drive leftmost/rightmost hotspot colors; other points stay put. */
 export function withTwizzlerGradientEndpointColors(
   stops: readonly TwizzlerGradientStop[],
   colorFar: string,
@@ -106,6 +144,7 @@ export function withTwizzlerGradientEndpointColors(
   if (sorted.length < TWIZZLER_GRADIENT_STOP_MIN) return defaultTwizzlerGradientStops(colorFar, colorNear);
   const next = sorted.map((stop) => ({ ...stop }));
   next[0] = { ...next[0]!, color: normalizeHex(colorFar, next[0]!.color) };
+  if (next.length === 1) return next;
   next[next.length - 1] = {
     ...next[next.length - 1]!,
     color: normalizeHex(colorNear, next[next.length - 1]!.color),
@@ -115,7 +154,13 @@ export function withTwizzlerGradientEndpointColors(
 
 export function serializeTwizzlerGradientStops(stops: readonly TwizzlerGradientStop[]): string {
   return JSON.stringify(
-    sortTwizzlerGradientStops(stops).map((stop) => ({ id: stop.id, offset: stop.offset, color: stop.color })),
+    sortTwizzlerGradientStops(stops).map((stop) => ({
+      id: stop.id,
+      x: quantize01(stop.x),
+      y: quantize01(stop.y),
+      offset: quantize01(stop.offset),
+      color: stop.color,
+    })),
   );
 }
 
@@ -133,81 +178,161 @@ export function parseTwizzlerGradientStops(
   }
 }
 
-export function sampleTwizzlerGradientColor(stops: readonly TwizzlerGradientStop[], t: number): string {
-  const sorted = sortTwizzlerGradientStops(stops);
-  if (sorted.length === 0) return "#f46021";
-  const x = clamp01(t);
-  const first = sorted[0]!;
-  const last = sorted[sorted.length - 1]!;
-  if (x <= first.offset) return first.color;
-  if (x >= last.offset) return last.color;
-  for (let i = 1; i < sorted.length; i += 1) {
-    const a = sorted[i - 1]!;
-    const b = sorted[i]!;
-    if (x <= b.offset) {
-      const span = b.offset - a.offset;
-      const u = span < 1e-6 ? 1 : (x - a.offset) / span;
-      return lerpHex(a.color, b.color, u);
+function usableStops(stops: readonly TwizzlerGradientStop[]): TwizzlerGradientStop[] {
+  return stops.length > 0 ? [...stops] : defaultTwizzlerGradientStops("#fea700", "#f46021");
+}
+
+/** Inverse-distance weighting (power 2). An exact hotspot hit returns that color. */
+export function sampleTwizzlerGradientRgb(
+  stops: readonly TwizzlerGradientStop[],
+  x: number,
+  y: number,
+): { r: number; g: number; b: number } {
+  const points = usableStops(stops);
+  const u = clamp01(x);
+  const v = clamp01(y);
+  if (points.length === 1) return parseHexRgb(points[0]!.color);
+
+  let weightR = 0;
+  let weightG = 0;
+  let weightB = 0;
+  let weightSum = 0;
+  for (const stop of points) {
+    const dx = u - stop.x;
+    const dy = v - stop.y;
+    const dist2 = dx * dx + dy * dy;
+    if (dist2 <= IDW_HIT_EPS2) return parseHexRgb(stop.color);
+    const weight = 1 / dist2 ** (IDW_POWER / 2);
+    const rgb = parseHexRgb(stop.color);
+    weightR += weight * rgb.r;
+    weightG += weight * rgb.g;
+    weightB += weight * rgb.b;
+    weightSum += weight;
+  }
+  if (weightSum <= 0) return parseHexRgb(points[0]!.color);
+  return {
+    r: weightR / weightSum,
+    g: weightG / weightSum,
+    b: weightB / weightSum,
+  };
+}
+
+export function sampleTwizzlerGradientColor(stops: readonly TwizzlerGradientStop[], x: number, y = 0.5): string {
+  return rgbToHex(sampleTwizzlerGradientRgb(stops, x, y));
+}
+
+export function rasterizeTwizzlerGradientField(
+  stops: readonly TwizzlerGradientStop[],
+  width: number,
+  height: number,
+): Uint8ClampedArray {
+  const cols = Math.max(1, Math.round(width));
+  const rows = Math.max(1, Math.round(height));
+  const pixels = new Uint8ClampedArray(cols * rows * 4);
+  for (let row = 0; row < rows; row += 1) {
+    const v = (row + 0.5) / rows;
+    for (let col = 0; col < cols; col += 1) {
+      const rgb = sampleTwizzlerGradientRgb(stops, (col + 0.5) / cols, v);
+      const i = (row * cols + col) * 4;
+      pixels[i] = rgb.r;
+      pixels[i + 1] = rgb.g;
+      pixels[i + 2] = rgb.b;
+      pixels[i + 3] = 255;
     }
   }
-  return last.color;
+  return pixels;
 }
 
-export function twizzlerGradientCss(stops: readonly TwizzlerGradientStop[]): string {
-  const sorted = sortTwizzlerGradientStops(stops);
-  if (sorted.length === 0) return "linear-gradient(90deg, #fea700 0%, #f46021 100%)";
-  const parts = sorted.map((stop) => `${stop.color} ${(stop.offset * 100).toFixed(2)}%`);
-  return `linear-gradient(90deg, ${parts.join(", ")})`;
+function svgNumber(value: number, digits = 3): string {
+  return Number(value.toFixed(digits)).toString();
 }
 
-/** Apply canonical stops to a Canvas2D linear gradient (Shared + Fiber). */
-export function applyTwizzlerGradientStops(gradient: CanvasGradient, stops: readonly TwizzlerGradientStop[]): void {
-  const sorted = sortTwizzlerGradientStops(stops);
-  const usable =
-    sorted.length >= TWIZZLER_GRADIENT_STOP_MIN ? sorted : defaultTwizzlerGradientStops("#fea700", "#f46021");
-  for (const stop of usable) {
-    gradient.addColorStop(clamp01(stop.offset), stop.color);
+/** Node-safe SVG field: a grid of rects inside a `userSpaceOnUse` pattern. */
+export function twizzlerGradientSvgPattern(
+  id: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  stops: readonly TwizzlerGradientStop[],
+  cols = TWIZZLER_GRADIENT_FIELD_SVG_COLS,
+  rows = TWIZZLER_GRADIENT_FIELD_SVG_ROWS,
+): string {
+  const w = Math.max(width, 0.001);
+  const h = Math.max(height, 0.001);
+  const cellW = w / Math.max(1, cols);
+  const cellH = h / Math.max(1, rows);
+  const overlapX = cellW * 0.04;
+  const overlapY = cellH * 0.04;
+  const rects: string[] = [];
+  for (let row = 0; row < rows; row += 1) {
+    const v = (row + 0.5) / rows;
+    const ry = row * cellH - overlapY * 0.5;
+    for (let col = 0; col < cols; col += 1) {
+      const rgb = sampleTwizzlerGradientRgb(stops, (col + 0.5) / cols, v);
+      const rx = col * cellW - overlapX * 0.5;
+      rects.push(
+        `      <rect x="${svgNumber(rx)}" y="${svgNumber(ry)}" width="${svgNumber(cellW + overlapX)}" height="${svgNumber(cellH + overlapY)}" fill="rgb(${Math.round(rgb.r)},${Math.round(rgb.g)},${Math.round(rgb.b)})" />`,
+      );
+    }
   }
+  return [
+    `    <pattern id="${id}" patternUnits="userSpaceOnUse" x="${svgNumber(x, 1)}" y="${svgNumber(y, 1)}" width="${svgNumber(w, 1)}" height="${svgNumber(h, 1)}">`,
+    ...rects,
+    "    </pattern>",
+  ].join("\n");
 }
 
-export function twizzlerGradientSvgStops(stops: readonly TwizzlerGradientStop[]): string {
-  const sorted = sortTwizzlerGradientStops(stops);
-  const usable =
-    sorted.length >= TWIZZLER_GRADIENT_STOP_MIN ? sorted : defaultTwizzlerGradientStops("#fea700", "#f46021");
-  return usable
-    .map((stop) => {
-      const rgb = parseHexRgb(stop.color);
-      const offset = Number(stop.offset.toFixed(4)).toString();
-      return `      <stop offset="${offset}" stop-color="rgb(${rgb.r},${rgb.g},${rgb.b})" />`;
-    })
-    .join("\n");
+function vacantHotspotUv(stops: readonly TwizzlerGradientStop[]): { x: number; y: number } {
+  const candidates: Array<[number, number]> = [
+    [0.5, 0.5],
+    [0.35, 0.35],
+    [0.65, 0.65],
+    [0.5, 0.22],
+    [0.5, 0.78],
+    [0.22, 0.5],
+    [0.78, 0.5],
+    [0.28, 0.72],
+    [0.72, 0.28],
+  ];
+  for (const [x, y] of candidates) {
+    const occupied = stops.some((stop) => Math.hypot(stop.x - x, stop.y - y) < 0.08);
+    if (!occupied) return { x, y };
+  }
+  const n = stops.length;
+  return { x: clamp01(0.12 + ((n * 0.17) % 0.76)), y: clamp01(0.18 + ((n * 0.23) % 0.64)) };
 }
 
 export function addTwizzlerGradientStop(
   stops: readonly TwizzlerGradientStop[],
-  offset: number,
+  x?: number,
+  y?: number,
   color?: string,
 ): TwizzlerGradientStop[] {
-  if (stops.length >= TWIZZLER_GRADIENT_STOP_MAX) return sortTwizzlerGradientStops(stops);
-  const nextOffset = clamp01(offset);
-  const nextColor = color ?? sampleTwizzlerGradientColor(stops, nextOffset);
+  if (stops.length >= TWIZZLER_GRADIENT_STOP_MAX) return [...stops];
+  const uv = isFiniteNumber(x) && isFiniteNumber(y) ? { x: clamp01(x), y: clamp01(y) } : vacantHotspotUv(stops);
+  const nextColor = color ?? nextOrangeRedLibraryHex(stops.map((stop) => stop.color));
   const id = createTwizzlerGradientStopId();
-  return sortTwizzlerGradientStops([...stops, { id, offset: nextOffset, color: normalizeHex(nextColor, "#f46021") }]);
+  return [
+    ...stops,
+    withPosition({ id, x: uv.x, y: uv.y, offset: uv.x, color: normalizeHex(nextColor, "#f46021") }, uv.x, uv.y),
+  ];
 }
 
 export function removeTwizzlerGradientStop(stops: readonly TwizzlerGradientStop[], id: string): TwizzlerGradientStop[] {
-  if (stops.length <= TWIZZLER_GRADIENT_STOP_MIN) return sortTwizzlerGradientStops(stops);
+  if (stops.length <= TWIZZLER_GRADIENT_STOP_MIN) return [...stops];
   const next = stops.filter((stop) => stop.id !== id);
-  if (next.length < TWIZZLER_GRADIENT_STOP_MIN) return sortTwizzlerGradientStops(stops);
-  return sortTwizzlerGradientStops(next);
+  if (next.length < TWIZZLER_GRADIENT_STOP_MIN) return [...stops];
+  return next;
 }
 
 export function moveTwizzlerGradientStop(
   stops: readonly TwizzlerGradientStop[],
   id: string,
-  offset: number,
+  x: number,
+  y: number,
 ): TwizzlerGradientStop[] {
-  return sortTwizzlerGradientStops(stops.map((stop) => (stop.id === id ? { ...stop, offset: clamp01(offset) } : stop)));
+  return stops.map((stop) => (stop.id === id ? withPosition(stop, x, y) : stop));
 }
 
 export function recolorTwizzlerGradientStop(
@@ -218,23 +343,67 @@ export function recolorTwizzlerGradientStop(
   return stops.map((stop) => (stop.id === id ? { ...stop, color: normalizeHex(color, stop.color) } : stop));
 }
 
-export function offsetFromClientX(clientX: number, bounds: { left: number; width: number }): number {
-  if (bounds.width <= 0) return 0;
-  return clamp01((clientX - bounds.left) / bounds.width);
+export function uvFromClient(
+  clientX: number,
+  clientY: number,
+  bounds: { left: number; top: number; width: number; height: number },
+): { x: number; y: number } {
+  if (bounds.width <= 0 || bounds.height <= 0) return { x: 0, y: 0 };
+  return {
+    x: clamp01((clientX - bounds.left) / bounds.width),
+    y: clamp01((clientY - bounds.top) / bounds.height),
+  };
 }
 
 export function nearestTwizzlerGradientStopId(
   stops: readonly TwizzlerGradientStop[],
-  clientX: number,
-  bounds: { left: number; width: number },
-  thresholdPx = 14,
+  x: number,
+  y: number,
+  threshold = 0.08,
 ): string | null {
-  if (bounds.width <= 0 || stops.length === 0) return null;
+  if (stops.length === 0) return null;
+  let bestId: string | null = null;
+  let bestDist = threshold;
+  for (const stop of stops) {
+    const dist = Math.hypot(stop.x - x, stop.y - y);
+    if (dist <= bestDist) {
+      bestDist = dist;
+      bestId = stop.id;
+    }
+  }
+  return bestId;
+}
+
+/** Inner field rect in client pixels (viewBox pad mapped through the SVG box). */
+export function gradientFieldClientPlane(
+  bounds: { left: number; top: number; width: number; height: number },
+  viewWidth: number,
+  viewHeight: number,
+  pad: number,
+): { left: number; top: number; width: number; height: number } {
+  return {
+    left: bounds.left + (pad / viewWidth) * bounds.width,
+    top: bounds.top + (pad / viewHeight) * bounds.height,
+    width: ((viewWidth - pad * 2) / viewWidth) * bounds.width,
+    height: ((viewHeight - pad * 2) / viewHeight) * bounds.height,
+  };
+}
+
+/** Hit-test hotspots in screen pixels so a wide-short graph still has a round click target. */
+export function nearestTwizzlerGradientStopIdPx(
+  stops: readonly TwizzlerGradientStop[],
+  clientX: number,
+  clientY: number,
+  plane: { left: number; top: number; width: number; height: number },
+  thresholdPx = TWIZZLER_GRADIENT_HANDLE_HIT_PX,
+): string | null {
+  if (stops.length === 0 || plane.width <= 0 || plane.height <= 0) return null;
   let bestId: string | null = null;
   let bestDist = thresholdPx;
   for (const stop of stops) {
-    const x = bounds.left + stop.offset * bounds.width;
-    const dist = Math.abs(clientX - x);
+    const hx = plane.left + stop.x * plane.width;
+    const hy = plane.top + stop.y * plane.height;
+    const dist = Math.hypot(clientX - hx, clientY - hy);
     if (dist <= bestDist) {
       bestDist = dist;
       bestId = stop.id;

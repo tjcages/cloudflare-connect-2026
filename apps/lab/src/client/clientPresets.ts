@@ -3,7 +3,7 @@ import { LIBRARY_COLOR } from "../components/colorLibrary";
 import { findPresetByName, loadBuiltinPresets } from "../presets";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
 import { normalizeTwizzlerSettings, type TwizzlerRibbonColorMode, type TwizzlerSettings } from "../twizzler";
-import { defaultTwizzlerGradientStops } from "../twizzlerGradient";
+import { defaultTwizzlerGradientFieldStops } from "../twizzlerGradient";
 import { sectionGridRainEngineConfig } from "./sectionGridRainDefaults";
 
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
@@ -158,7 +158,7 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
   },
 ];
 
-/** Light = marketing orange on white; Dark = stripes-settings-cf-base cream ribbon on deep orange. */
+/** Light = marketing orange on white; Dark = cream ribbon on deep orange. Both boot Shared/Fiber Field. */
 export const CLIENT_APPEARANCE_PRESETS: readonly ClientAppearancePreset[] = [
   {
     id: "light",
@@ -170,7 +170,7 @@ export const CLIENT_APPEARANCE_PRESETS: readonly ClientAppearancePreset[] = [
       colorNear: LIBRARY_COLOR.orangeAccent,
       colorEdge: LIBRARY_COLOR.redAccent,
     },
-    ribbonColorMode: "baked",
+    ribbonColorMode: "sharedGradient",
   },
   {
     id: "dark",
@@ -429,13 +429,19 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
   const size = findClientSizePreset(state.sizeId);
   const layout = findClientLayoutPreset(state.layoutId);
   const color = findClientColorPreset(state.colorId);
+  const appearance = findClientAppearancePreset(state.appearanceId);
 
   const baseTwizzler = normalizeTwizzlerSettings(banner.lab.twizzler);
   const twizzler = normalizeTwizzlerSettings({
     ...baseTwizzler,
     ...layout.twizzler,
     ...color.twizzler,
-    gradientStops: defaultTwizzlerGradientStops(color.twizzler.colorFar, color.twizzler.colorNear),
+    ribbonColorMode: appearance.ribbonColorMode,
+    gradientStops: defaultTwizzlerGradientFieldStops(
+      color.twizzler.colorFar,
+      color.twizzler.colorNear,
+      color.twizzler.colorEdge,
+    ),
     opacity: state.tweaks.opacity,
     scale: state.tweaks.scale,
     twist: state.tweaks.twist,

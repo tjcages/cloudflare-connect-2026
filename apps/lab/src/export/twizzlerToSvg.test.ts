@@ -82,18 +82,20 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg).toContain('data-color-mode="sharedGradient"');
     expect(svg).toContain('id="twizzler-pack-grad"');
     expect(svg).toContain('id="twizzler-pack-mask"');
-    expect(svg).toContain('gradientUnits="userSpaceOnUse"');
+    expect(svg).toContain('patternUnits="userSpaceOnUse"');
     expect(svg).toContain('data-pack-gradient="true"');
     expect(svg).toContain('fill="url(#twizzler-pack-grad)"');
     expect(svg).toContain('mask="url(#twizzler-pack-mask)"');
-    expect(svg.match(/<linearGradient /g)?.length).toBe(1);
+    expect(svg.match(/<pattern /g)?.length).toBe(1);
+    expect(svg).not.toContain("linearGradient");
+    expect(svg).not.toContain("<stop ");
     // Visible paint is a single rect — ribbon silhouettes live only inside the mask.
     expect(svg.match(/<rect [^>]*data-pack-gradient/g)?.length).toBe(1);
     expect(svg).not.toMatch(/<path [^>]*fill="url\(#twizzler-pack-grad\)"/);
     expect(svg).toContain('fill="white"');
   });
 
-  it("exports fiber gradients with one linearGradient per ribbon", () => {
+  it("exports fiber gradients with one 2D field pattern per ribbon", () => {
     const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
       ...TWIZZLER_DEFAULTS,
       lineCount: 4,
@@ -105,7 +107,8 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg).toContain("twizzler-fiber-0-grad");
     expect(svg).toContain('fill="url(#twizzler-fiber-');
     expect(svg).not.toContain("twizzler-pack-grad");
-    const grads = svg.match(/<linearGradient /g) ?? [];
+    expect(svg).not.toContain("linearGradient");
+    const grads = svg.match(/<pattern /g) ?? [];
     const paths = svg.match(/<path /g) ?? [];
     expect(grads.length).toBe(paths.length);
     expect(grads.length).toBeGreaterThan(0);
@@ -132,7 +135,7 @@ describe("twizzlerToSvgLayer", () => {
     expect(offPaths).toBeLessThan(onPaths * 0.25);
   });
 
-  it("fits fiber gradients to each ribbon X span (not full artboard) (CF-28)", () => {
+  it("fits fiber fields to each ribbon AABB (not full artboard) (CF-28)", () => {
     const shared = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
       ...TWIZZLER_DEFAULTS,
       lineCount: 8,
@@ -152,40 +155,50 @@ describe("twizzlerToSvgLayer", () => {
       speed: 0,
     });
 
-    expect(shared).toMatch(/id="twizzler-pack-grad"[^>]*x1="0"[^>]*x2="400"/);
-    const fiberSpans = [...fiber.matchAll(/id="twizzler-fiber-\d+-grad"[^>]*x1="([^"]+)"[^>]*x2="([^"]+)"/g)].map(
-      (m) => ({ x1: Number(m[1]), x2: Number(m[2]) }),
-    );
-    expect(fiberSpans.length).toBeGreaterThan(2);
-    // At least one ribbon must be narrower than the full artboard ramp.
-    expect(fiberSpans.some((s) => s.x2 - s.x1 < 400 * 0.95)).toBe(true);
-    // Fiber spans should not all be identical (local per-ribbon extents).
-    const keys = new Set(fiberSpans.map((s) => `${s.x1}:${s.x2}`));
+    expect(shared).toMatch(/id="twizzler-pack-grad"[^>]*x="0"[^>]*y="0"[^>]*width="400"[^>]*height="200"/);
+    const fiberBoxes = [
+      ...fiber.matchAll(
+        /id="twizzler-fiber-\d+-grad"[^>]*x="([^"]+)"[^>]*y="([^"]+)"[^>]*width="([^"]+)"[^>]*height="([^"]+)"/g,
+      ),
+    ].map((m) => ({ x: Number(m[1]), y: Number(m[2]), width: Number(m[3]), height: Number(m[4]) }));
+    expect(fiberBoxes.length).toBeGreaterThan(2);
+    // At least one ribbon must be narrower than the full artboard field.
+    expect(fiberBoxes.some((s) => s.width < 400 * 0.95)).toBe(true);
+    // Fiber boxes should not all be identical (local per-ribbon extents).
+    const keys = new Set(fiberBoxes.map((s) => `${s.x}:${s.y}:${s.width}:${s.height}`));
     expect(keys.size).toBeGreaterThan(1);
-    // Shared stays a single pack-wide ramp; fiber uses many local ones.
-    expect(shared.match(/<linearGradient /g)?.length).toBe(1);
-    expect(fiber.match(/<linearGradient /g)?.length).toBe(fiberSpans.length);
+    // Shared stays a single pack-wide field; fiber uses many local ones.
+    expect(shared.match(/<pattern /g)?.length).toBe(1);
+    expect(fiber.match(/<pattern /g)?.length).toBe(fiberBoxes.length);
+    expect(shared).not.toContain("linearGradient");
+    expect(fiber).not.toContain("linearGradient");
   });
 
-  it("exports custom shared-ramp stop offsets (CF-55)", () => {
+  it("exports 2D hotspot colors in the shared field (CF-58)", () => {
     const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
       ...TWIZZLER_DEFAULTS,
       lineCount: 4,
       pointSpacing: 10,
       ribbonColorMode: "sharedGradient",
       gradientStops: [
-        { id: "a", offset: 0.15, color: "#ff0000" },
-        { id: "b", offset: 0.6, color: "#00ff00" },
-        { id: "c", offset: 0.9, color: "#0000ff" },
+        { id: "a", x: 0.15, y: 0.1, offset: 0.15, color: "#ff0000" },
+        { id: "b", x: 0.6, y: 0.8, offset: 0.6, color: "#00ff00" },
+        { id: "c", x: 0.9, y: 0.4, offset: 0.9, color: "#0000ff" },
       ],
       speed: 0,
     });
-    expect(svg).toContain('offset="0.15"');
-    expect(svg).toContain('offset="0.6"');
-    expect(svg).toContain('offset="0.9"');
-    expect(svg).toContain("rgb(255,0,0)");
-    expect(svg).toContain("rgb(0,255,0)");
-    expect(svg).toContain("rgb(0,0,255)");
-    expect(svg.match(/<stop /g)?.length).toBe(3);
+    expect(svg).toContain('data-pack-gradient="true"');
+    expect(svg).toContain('id="twizzler-pack-grad"');
+    expect(svg).not.toContain("<stop ");
+    expect(svg).not.toContain('offset="0.15"');
+    expect((svg.match(/<rect /g) ?? []).length).toBeGreaterThan(10);
+    const rgbs = [...svg.matchAll(/fill="rgb\((\d+),(\d+),(\d+)\)"/g)].map((m) => ({
+      r: Number(m[1]),
+      g: Number(m[2]),
+      b: Number(m[3]),
+    }));
+    expect(rgbs.some((c) => c.r > 180 && c.g < 90 && c.b < 90)).toBe(true);
+    expect(rgbs.some((c) => c.g > 180 && c.r < 90 && c.b < 90)).toBe(true);
+    expect(rgbs.some((c) => c.b > 180 && c.r < 90 && c.g < 90)).toBe(true);
   });
 });

@@ -3795,29 +3795,40 @@ function LabInner({
           {clientMode ? (
             <>
               <div className="lab-client-tools">
-                <fieldset className="lab-panel-mode-toggle" aria-label="Panel mode">
-                  <legend>Panel mode</legend>
-                  <label className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="lab-panel-mode"
-                      value="default"
-                      checked={clientPanelMode === "default"}
-                      onChange={() => setClientPanelMode("default")}
-                    />
-                    Default
-                  </label>
-                  <label className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="lab-panel-mode"
-                      value="advanced"
-                      checked={clientPanelMode === "advanced"}
-                      onChange={() => setClientPanelMode("advanced")}
-                    />
-                    Advanced
-                  </label>
-                </fieldset>
+                <div className="lab-client-tools-top">
+                  <fieldset className="lab-panel-mode-toggle" aria-label="Panel mode">
+                    <legend>Panel mode</legend>
+                    <label className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="lab-panel-mode"
+                        value="default"
+                        checked={clientPanelMode === "default"}
+                        onChange={() => setClientPanelMode("default")}
+                      />
+                      Default
+                    </label>
+                    <label className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="lab-panel-mode"
+                        value="advanced"
+                        checked={clientPanelMode === "advanced"}
+                        onChange={() => setClientPanelMode("advanced")}
+                      />
+                      Advanced
+                    </label>
+                  </fieldset>
+                  <button
+                    className="lab-sidebar-toggle lab-client-panel-collapse"
+                    type="button"
+                    onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
+                    aria-label="Close panel"
+                    title="Close panel"
+                  >
+                    <PanelRightClose size={14} strokeWidth={1.75} />
+                  </button>
+                </div>
                 <div className="lab-client-layouts">
                   <div className="lab-client-layouts-label">Saved layouts</div>
                   <select

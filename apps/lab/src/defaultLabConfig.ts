@@ -2,7 +2,7 @@ import { DEFAULT_ENGINE_CONFIG, normalizeEngineConfig, sanitizeThemedConfig } fr
 import type { DeepPartial, EngineConfig } from "@necatikcl/stripes-engine";
 import factoryDefaults from "./factoryDefaults.json";
 import { COMET_LOGO_DEFAULTS } from "@necatikcl/stripes-engine";
-import { defaultTwizzlerGradientStops } from "./twizzlerGradient";
+import { defaultTwizzlerGradientFieldStops } from "./twizzlerGradient";
 
 type PlainRecord = Record<string, unknown>;
 
@@ -395,7 +395,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     colorFar: "#fea700",
     colorNear: "#f46021",
     colorEdge: "#e92e28",
-    gradientStops: defaultTwizzlerGradientStops("#fea700", "#f46021"),
+    gradientStops: defaultTwizzlerGradientFieldStops("#fea700", "#f46021", "#e92e28"),
     opacity: 1,
     scale: 1,
     centerY: 0.5,
@@ -435,7 +435,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     minLineWidth: 0.4,
     maxLineWidth: 3.2,
     gradientsEnabled: true,
-    ribbonColorMode: "baked",
+    ribbonColorMode: "sharedGradient",
     gradientXEnabled: true,
     gradientXMix: 1,
     gradientYEnabled: true,

@@ -226,3 +226,41 @@ export function findLibraryColorByHex(hex: string): LibraryColorMatch | null {
   }
   return null;
 }
+
+/** Orange then Red, named tokens first — default hotspot ink (not IDW blends). */
+const ORANGE_RED_HOTSPOT_PICKS: ReadonlyArray<readonly [string, string]> = [
+  ["Orange", "800 [Pair]"],
+  ["Orange", "900 [Accent]"],
+  ["Orange", "700 [Brand]"],
+  ["Red", "900 [Accent]"],
+  ["Orange", "1000"],
+  ["Red", "700"],
+  ["Orange", "600"],
+  ["Red", "800 [Pair]"],
+  ["Orange", "500"],
+  ["Red", "1000"],
+  ["Orange", "400"],
+  ["Red", "600"],
+  ["Orange", "1100"],
+  ["Red", "500"],
+  ["Red", "400"],
+  ["Red", "1100"],
+];
+
+export function orangeRedHotspotLibraryHexes(): string[] {
+  const hexes: string[] = [];
+  for (const [group, label] of ORANGE_RED_HOTSPOT_PICKS) {
+    const color = findLibraryColor(group, label);
+    if (color) hexes.push(color.hex.toLowerCase());
+  }
+  return hexes;
+}
+
+/** Next unused Orange/Red library hex; wraps if every swatch is already on the field. */
+export function nextOrangeRedLibraryHex(usedHexes: readonly string[]): string {
+  const palette = orangeRedHotspotLibraryHexes();
+  const used = new Set(usedHexes.map((hex) => hex.toLowerCase()));
+  const unused = palette.find((hex) => !used.has(hex));
+  if (unused) return unused;
+  return palette[usedHexes.length % palette.length] ?? "#f46021";
+}

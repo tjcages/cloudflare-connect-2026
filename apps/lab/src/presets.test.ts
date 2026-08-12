@@ -146,6 +146,12 @@ describe("preset library transforms", () => {
     expect(banner?.lab?.canvasHeight).toBe(320);
     expect(banner?.lab?.shaderPresetId).toBe("twizzler-sine");
     expect(banner?.lab?.twizzlerEnabled).toBe(true);
+    expect(banner?.lab?.twizzler?.ribbonColorMode).toBe("sharedGradient");
+    expect(banner?.lab?.twizzler?.gradientStops).toEqual([
+      { id: "far", x: 0.08, y: 0.78, offset: 0.08, color: "#fea700" },
+      { id: "peak", x: 0.5, y: 0.16, offset: 0.5, color: "#e92e28" },
+      { id: "near", x: 0.92, y: 0.72, offset: 0.92, color: "#f46021" },
+    ]);
   });
 
   it("transforms do not mutate the input array", () => {
