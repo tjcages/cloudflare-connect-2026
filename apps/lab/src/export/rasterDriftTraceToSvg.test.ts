@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  A3_FIDELITY_PARAMETERS,
   assertRasterDriftTraceSvg,
   countRasterDriftSvgPaths,
+  rasterDriftFidelityToSvg,
   rasterDriftTracePass3StudiesToSvg,
   rasterDriftTracePass4StudiesToSvg,
   rasterDriftTraceStudiesToSvg,
+  selectRasterDriftFidelityCandidates,
+  type RasterDriftCandidateScore,
   type RasterDriftField,
 } from "./rasterDriftTraceToSvg";
 
@@ -75,7 +79,7 @@ describe("rasterDriftTraceStudiesToSvg", () => {
   it("creates vector-only adaptive contours and cubic pass-three reconstructions", () => {
     const studies = rasterDriftTracePass3StudiesToSvg(syntheticCrossingField());
 
-    expect(studies.A3).toContain('data-layer="adaptive-disjoint-contours"');
+    expect(studies.A3).toContain('data-layer="optimized-a3-fidelity-bands"');
     expect(studies.A3).toContain("data-maximum-threshold=");
     expect(studies.B3).toContain('data-layer="dense-direction-continuous-cubic-ridges"');
     expect(studies.B3).toContain('data-crossing-order="independent"');
@@ -108,5 +112,44 @@ describe("rasterDriftTraceStudiesToSvg", () => {
       expect(svg).not.toMatch(/data\s*:/i);
       expect(() => assertRasterDriftTraceSvg(svg)).not.toThrow();
     }
+  });
+
+  it("selects deterministic joint improvements before labeled diagnostics", () => {
+    const parameters = (opacityScale: number) => ({
+      ...A3_FIDELITY_PARAMETERS,
+      quantiles: [...A3_FIDELITY_PARAMETERS.quantiles],
+      opacityScale,
+    });
+    const candidates: RasterDriftCandidateScore[] = [
+      { id: "balanced", parameters: parameters(1.02), rgbMae: 10.7, inkIou: 0.77, vectorCoverage: 0.56 },
+      { id: "rgb", parameters: parameters(1.04), rgbMae: 10.2, inkIou: 0.758, vectorCoverage: 0.57 },
+      { id: "diagnostic", parameters: parameters(0.98), rgbMae: 11.2, inkIou: 0.755, vectorCoverage: 0.54 },
+    ];
+    const baseline = { rgbMae: 11.133, inkIou: 0.756 };
+
+    const first = selectRasterDriftFidelityCandidates(candidates, baseline);
+    const second = selectRasterDriftFidelityCandidates(candidates, baseline);
+
+    expect(second).toEqual(first);
+    expect(first).toHaveLength(3);
+    expect(first.filter(({ classification }) => classification === "improvement")).toHaveLength(2);
+    expect(first.at(-1)?.classification).toBe("diagnostic");
+    for (const candidate of first.filter(({ classification }) => classification === "improvement")) {
+      expect(candidate.rgbMae).toBeLessThan(baseline.rgbMae);
+      expect(candidate.inkIou).toBeGreaterThan(baseline.inkIou);
+    }
+  });
+
+  it("exports deterministic vector-only parameterized A3 topology", () => {
+    const field = syntheticCrossingField();
+    const svg = rasterDriftFidelityToSvg(field, "search-001", {
+      ...A3_FIDELITY_PARAMETERS,
+      quantiles: [...A3_FIDELITY_PARAMETERS.quantiles],
+    });
+
+    expect(rasterDriftFidelityToSvg(field, "search-001", A3_FIDELITY_PARAMETERS)).toBe(svg);
+    expect(svg).toContain('data-layer="optimized-a3-fidelity-bands"');
+    expect(svg).not.toMatch(/<(?:image|canvas)\b|data\s*:/i);
+    expect(() => assertRasterDriftTraceSvg(svg)).not.toThrow();
   });
 });

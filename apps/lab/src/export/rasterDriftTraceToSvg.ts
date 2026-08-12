@@ -9,6 +9,48 @@ export type RasterDriftField = {
 
 export type RasterDriftTraceStrategy = "A2" | "B2" | "C2" | "A3" | "B3" | "C3" | "A4" | "B4" | "C4";
 
+export type RasterDriftFidelityParameters = {
+  quantiles: number[];
+  minimumThresholdGap: number;
+  opacityScale: number;
+  opacityGamma: number;
+  red: string;
+  minimumComponentCellsLow: number;
+  minimumComponentCellsHigh: number;
+  minimumAreaLow: number;
+  minimumAreaHigh: number;
+  simplifyToleranceLow: number;
+  simplifyToleranceHigh: number;
+  morphologyRadius: -1 | 0 | 1;
+};
+
+export type RasterDriftCandidateScore = {
+  id: string;
+  parameters: RasterDriftFidelityParameters;
+  rgbMae: number;
+  inkIou: number;
+  vectorCoverage: number;
+};
+
+export type RasterDriftCandidateSelection = RasterDriftCandidateScore & {
+  classification: "improvement" | "diagnostic";
+};
+
+export const A3_FIDELITY_PARAMETERS: RasterDriftFidelityParameters = {
+  quantiles: [0.08, 0.25, 0.44, 0.62, 0.78, 0.91],
+  minimumThresholdGap: 5,
+  opacityScale: 1,
+  opacityGamma: 1,
+  red: "#ff0000",
+  minimumComponentCellsLow: 2,
+  minimumComponentCellsHigh: 3,
+  minimumAreaLow: 2,
+  minimumAreaHigh: 3,
+  simplifyToleranceLow: 0.44,
+  simplifyToleranceHigh: 0.36,
+  morphologyRadius: 0,
+};
+
 type Point = { x: number; y: number };
 type RidgePoint = Point & { intensity: number };
 type RidgeTrack = { points: RidgePoint[]; misses: number };
@@ -21,6 +63,7 @@ type ContourOptions = {
   maximumThreshold?: number;
   minimumArea: number;
   minimumComponentCells?: number;
+  dilationPasses?: number;
   erosionPasses?: number;
   simplifyTolerance: number;
   sampleMode: "maximum" | "average";
@@ -180,6 +223,32 @@ function removeSmallMaskComponents(mask: Uint8Array, width: number, height: numb
   }
 }
 
+function dilateMask(mask: Uint8Array, width: number, height: number, passes: number): void {
+  const neighbors = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const;
+  for (let pass = 0; pass < passes; pass += 1) {
+    const source = mask.slice();
+    for (let index = 0; index < source.length; index += 1) {
+      if (source[index]) continue;
+      const x = index % width;
+      const y = Math.floor(index / width);
+      if (
+        neighbors.some(([offsetX, offsetY]) => {
+          const nextX = x + offsetX;
+          const nextY = y + offsetY;
+          return nextX >= 0 && nextX < width && nextY >= 0 && nextY < height && source[nextY * width + nextX];
+        })
+      ) {
+        mask[index] = 1;
+      }
+    }
+  }
+}
+
 function erodeMask(mask: Uint8Array, width: number, height: number, passes: number): void {
   const neighbors = [
     [1, 0],
@@ -214,6 +283,7 @@ function traceContours(field: RasterDriftField, options: ContourOptions): Point[
     mask[index] = value >= options.threshold && value < (options.maximumThreshold ?? 256) ? 1 : 0;
   }
   removeSmallMaskComponents(mask, grid.width, grid.height, options.minimumComponentCells ?? 1);
+  dilateMask(mask, grid.width, grid.height, options.dilationPasses ?? 0);
   erodeMask(mask, grid.width, grid.height, options.erosionPasses ?? 0);
   const active = (x: number, y: number) =>
     x >= 0 && x < grid.width && y >= 0 && y < grid.height ? (mask[y * grid.width + x] ?? 0) === 1 : false;
@@ -421,6 +491,7 @@ function renderContourLevels(
     blockSize: number;
     minimumArea: number;
     minimumComponentCells?: number;
+    dilationPasses?: number;
     erosionPasses?: number;
     tolerance: number;
     smooth?: boolean;
@@ -434,6 +505,7 @@ function renderContourLevels(
       maximumThreshold: level.maximumThreshold,
       minimumArea: level.minimumArea,
       minimumComponentCells: level.minimumComponentCells,
+      dilationPasses: level.dilationPasses,
       erosionPasses: level.erosionPasses,
       simplifyTolerance: level.tolerance,
       sampleMode: level.sampleMode,
@@ -478,6 +550,120 @@ function adaptiveIntensityThresholds(
     thresholds.push(Math.min(252, (thresholds.at(-1) ?? 4) + minimumGap));
   }
   return thresholds;
+}
+
+function fidelityParameterKey(parameters: RasterDriftFidelityParameters): string {
+  return JSON.stringify(parameters);
+}
+
+function renderFidelityBands(field: RasterDriftField, id: string, parameters: RasterDriftFidelityParameters): string[] {
+  const thresholds = adaptiveIntensityThresholds(field, parameters.quantiles, parameters.minimumThresholdGap);
+  const lowBandCount = Math.ceil(thresholds.length / 3);
+  return [
+    `  <g data-strategy="${id}" data-layer="optimized-a3-fidelity-bands" data-thresholds="${thresholds.join(",")}" data-parameter-key="${fidelityParameterKey(parameters).replaceAll('"', "&quot;")}">`,
+    ...renderContourLevels(
+      field,
+      thresholds.map((threshold, index) => {
+        const maximumThreshold = thresholds[index + 1];
+        const representativeIntensity = (threshold + (maximumThreshold ?? 255)) * 0.5;
+        const normalizedIntensity = representativeIntensity / 255;
+        return {
+          threshold,
+          maximumThreshold,
+          color: parameters.red,
+          opacity: Math.max(
+            0.01,
+            Math.min(0.99, Math.pow(normalizedIntensity, parameters.opacityGamma) * parameters.opacityScale),
+          ),
+          blockSize: 1,
+          minimumArea: index < lowBandCount ? parameters.minimumAreaLow : parameters.minimumAreaHigh,
+          minimumComponentCells:
+            index < lowBandCount ? parameters.minimumComponentCellsLow : parameters.minimumComponentCellsHigh,
+          dilationPasses: parameters.morphologyRadius > 0 && index < lowBandCount ? parameters.morphologyRadius : 0,
+          erosionPasses: parameters.morphologyRadius < 0 && index >= lowBandCount ? -parameters.morphologyRadius : 0,
+          tolerance: index < lowBandCount ? parameters.simplifyToleranceLow : parameters.simplifyToleranceHigh,
+          sampleMode: "maximum" as const,
+        };
+      }),
+    ),
+    "  </g>",
+  ];
+}
+
+export function rasterDriftFidelityToSvg(
+  field: RasterDriftField,
+  id: string,
+  parameters: RasterDriftFidelityParameters,
+): string {
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error("Raster drift fidelity id must be alphanumeric.");
+  if (
+    field.width <= 0 ||
+    field.height <= 0 ||
+    field.intensity.length < field.width * field.height ||
+    parameters.quantiles.length < 2
+  ) {
+    throw new Error("Raster drift fidelity field and parameters must be complete.");
+  }
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${field.width}" height="${field.height}" viewBox="0 0 ${field.width} ${field.height}" role="img" aria-labelledby="title description">`,
+    `  <title id="title">CF-16 optimized raster drift fidelity ${id}</title>`,
+    '  <desc id="description">Automated A3-topology parameter search result rendered as disjoint filled contour paths.</desc>',
+    '  <metadata data-rain="off" data-source="optimized-raster-drift-trace">vector paths only; raster pixels are not embedded</metadata>',
+    `  <path d="M0 0H${field.width}V${field.height}H0Z" fill="#ffffff" />`,
+    ...renderFidelityBands(field, id, parameters),
+    "</svg>",
+  ].join("\n");
+  assertRasterDriftTraceSvg(svg);
+  return svg;
+}
+
+export function selectRasterDriftFidelityCandidates(
+  candidates: ReadonlyArray<RasterDriftCandidateScore>,
+  baseline: Pick<RasterDriftCandidateScore, "rgbMae" | "inkIou">,
+  count = 3,
+): RasterDriftCandidateSelection[] {
+  const unique = [
+    ...new Map(candidates.map((candidate) => [fidelityParameterKey(candidate.parameters), candidate])).values(),
+  ];
+  const quality = (candidate: RasterDriftCandidateScore) =>
+    baseline.rgbMae - candidate.rgbMae + (candidate.inkIou - baseline.inkIou) * 100;
+  const ordered = [...unique].sort(
+    (a, b) => quality(b) - quality(a) || a.rgbMae - b.rgbMae || a.id.localeCompare(b.id),
+  );
+  const improvements = ordered.filter(
+    (candidate) => candidate.rgbMae < baseline.rgbMae && candidate.inkIou > baseline.inkIou,
+  );
+  const pareto = improvements.filter(
+    (candidate) =>
+      !improvements.some(
+        (other) =>
+          other !== candidate &&
+          other.rgbMae <= candidate.rgbMae &&
+          other.inkIou >= candidate.inkIou &&
+          (other.rgbMae < candidate.rgbMae || other.inkIou > candidate.inkIou),
+      ),
+  );
+  const improvementOrder = [...pareto, ...improvements.filter((candidate) => !pareto.includes(candidate))];
+  const selected: RasterDriftCandidateSelection[] = improvementOrder
+    .slice(0, count)
+    .map((candidate) => ({ ...candidate, classification: "improvement" }));
+  if (selected.length < count) {
+    const selectedIds = new Set(selected.map((candidate) => candidate.id));
+    const diagnostics = ordered
+      .filter((candidate) => !selectedIds.has(candidate.id) && !improvements.includes(candidate))
+      .sort((a, b) => {
+        const penaltyA = Math.max(0, a.rgbMae - baseline.rgbMae) + Math.max(0, baseline.inkIou - a.inkIou) * 100;
+        const penaltyB = Math.max(0, b.rgbMae - baseline.rgbMae) + Math.max(0, baseline.inkIou - b.inkIou) * 100;
+        return penaltyA - penaltyB || a.id.localeCompare(b.id);
+      });
+    selected.push(
+      ...diagnostics.slice(0, count - selected.length).map((candidate) => ({
+        ...candidate,
+        classification: "diagnostic" as const,
+      })),
+    );
+  }
+  return selected;
 }
 
 function renderRidges(ridges: ReadonlyArray<StyledRidge>, limit = ridges.length): string[] {
@@ -613,29 +799,7 @@ export function rasterDriftTraceToSvg(strategy: RasterDriftTraceStrategy, field:
       break;
     }
     case "A3": {
-      const thresholds = adaptiveIntensityThresholds(field);
-      content = [
-        `  <g data-strategy="A3" data-layer="adaptive-disjoint-contours" data-thresholds="${thresholds.join(",")}">`,
-        ...renderContourLevels(
-          field,
-          thresholds.map((threshold, index) => {
-            const maximumThreshold = thresholds[index + 1];
-            const representativeIntensity = (threshold + (maximumThreshold ?? 255)) * 0.5;
-            return {
-              threshold,
-              maximumThreshold,
-              color: "#ff0000",
-              opacity: Math.max(0.03, Math.min(0.97, representativeIntensity / 255)),
-              blockSize: 1,
-              minimumArea: index < 2 ? 2 : 3,
-              minimumComponentCells: index < 2 ? 2 : 3,
-              tolerance: index < 2 ? 0.44 : 0.36,
-              sampleMode: "maximum" as const,
-            };
-          }),
-        ),
-        "  </g>",
-      ];
+      content = renderFidelityBands(field, "A3", A3_FIDELITY_PARAMETERS);
       break;
     }
     case "B3": {
