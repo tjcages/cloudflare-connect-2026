@@ -9,6 +9,8 @@ export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "comp
 export type ClientColorPresetId = "coral-classic" | "soft-gold" | "deep-ember" | "light";
 /** Client stage look: light = orange Twizzler on white; dark = cream Twizzler on deep orange. */
 export type ClientAppearanceId = "light" | "dark";
+/** Client stack: Twizzler ribbon, section-grid Rain stripes, or both. */
+export type ClientGraphicMode = "twizzler" | "rain" | "both";
 
 export type ClientSizePreset = {
   id: ClientSizePresetId;
@@ -183,13 +185,41 @@ export const CLIENT_APPEARANCE_PRESETS: readonly ClientAppearancePreset[] = [
   },
 ];
 
+export const CLIENT_GRAPHIC_MODES: readonly { id: ClientGraphicMode; label: string }[] = [
+  { id: "twizzler", label: "Twizzler" },
+  { id: "rain", label: "Rain" },
+  { id: "both", label: "Both" },
+];
+
+/** Map Show + Rain flags → Graphic mode (neither → Twizzler). */
+export function resolveClientGraphicMode(twizzlerEnabled: boolean, rainEnabled: boolean): ClientGraphicMode {
+  if (rainEnabled && twizzlerEnabled) return "both";
+  if (rainEnabled) return "rain";
+  return "twizzler";
+}
+
+export function clientGraphicFlags(mode: ClientGraphicMode): { twizzlerEnabled: boolean; rainEnabled: boolean } {
+  switch (mode) {
+    case "twizzler":
+      return { twizzlerEnabled: true, rainEnabled: false };
+    case "rain":
+      return { twizzlerEnabled: false, rainEnabled: true };
+    case "both":
+      return { twizzlerEnabled: true, rainEnabled: true };
+    default: {
+      const _exhaustive: never = mode;
+      throw new Error(`Unknown client graphic mode: ${String(_exhaustive)}`);
+    }
+  }
+}
+
 export const DEFAULT_CLIENT_PREVIEW_STATE: ClientPreviewState = {
   sizeId: "banner-5x1",
   layoutId: "classic",
   colorId: "coral-classic",
   appearanceId: "light",
   twizzlerEnabled: true,
-  // Rain stays off by default until the Twizzler match is accepted (CF-16).
+  // Graphic default = Twizzler (Rain off). Rain = section-grid stripe gaps overlay.
   rainEnabled: false,
   tweaks: {
     opacity: 1,

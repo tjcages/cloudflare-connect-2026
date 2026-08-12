@@ -3,14 +3,17 @@ import {
   buildClientPreviewBundle,
   CLIENT_APPEARANCE_PRESETS,
   CLIENT_COLOR_PRESETS,
+  CLIENT_GRAPHIC_MODES,
   CLIENT_LAYOUT_PRESETS,
   CLIENT_SIZE_PRESETS,
+  clientGraphicFlags,
   DEFAULT_CLIENT_PREVIEW_STATE,
   findClientAppearancePreset,
   findClientColorPreset,
   findClientLayoutPreset,
   findClientSizePreset,
   resetTweaksForLayout,
+  resolveClientGraphicMode,
 } from "./clientPresets";
 
 describe("client preview presets", () => {
@@ -39,6 +42,17 @@ describe("client preview presets", () => {
     expect(light.backgroundHex).toBe("#ffffff");
     expect(light.twizzler.colorNear).toBe("#f46021");
     expect(light.ribbonColorMode).toBe("baked");
+  });
+
+  it("maps Graphic modes to Twizzler / Rain layer flags", () => {
+    expect(resolveClientGraphicMode(true, false)).toBe("twizzler");
+    expect(resolveClientGraphicMode(false, true)).toBe("rain");
+    expect(resolveClientGraphicMode(true, true)).toBe("both");
+    expect(resolveClientGraphicMode(false, false)).toBe("twizzler");
+    expect(clientGraphicFlags("twizzler")).toEqual({ twizzlerEnabled: true, rainEnabled: false });
+    expect(clientGraphicFlags("rain")).toEqual({ twizzlerEnabled: false, rainEnabled: true });
+    expect(clientGraphicFlags("both")).toEqual({ twizzlerEnabled: true, rainEnabled: true });
+    expect(CLIENT_GRAPHIC_MODES.map((m) => m.id)).toEqual(["twizzler", "rain", "both"]);
   });
 
   it("builds from Banner 5:1 with solid white stage and rain off by default", () => {

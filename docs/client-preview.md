@@ -14,7 +14,7 @@ Canvas preview zoom (bottom-center overlay): **−** / **Reset** / **+** plus a 
 
 ## What clients see (Leva)
 
-Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, and **JSON** (Copy / Upload). **Video duration**, **Export Video**, and **Export SVG** sit at the bottom of the panel.
+Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, **JSON** (Copy / Upload), and **Graphic** (**Twizzler** | **Rain** | **Both**) above the Leva **Presets** folder. **Video duration**, **Export Video**, and **Export SVG** sit at the bottom of the panel.
 
 - **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Appearance/Color). **Refresh keeps your live knobs** (localStorage; flushed on `pagehide` so a quick refresh still keeps Speed/Move). Named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
 - **JSON** — **Copy JSON** (clipboard) and **Upload JSON** (import as a saved layout)
@@ -25,7 +25,7 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
     - **Appearance** — stage look defaults: Light = orange Twizzler on white; Dark = cream Twizzler on `#f86a00`. **Background → Color** overrides the Appearance stage color until Appearance is toggled again.
     - **Color** — Twizzler ink only (Orange accent / pair / deep + **Light** cream = Dark Appearance colors)
     - ~~Graphite~~ removed (legacy `graphite` ids normalize to **Light**)
-  - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
+  - **Twizzler → General** — Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
     - Solid: Color only
     - Shared / Fiber: Color + Color left (X pack/fiber ramp)
     - Baked: Color / left / peaks + **Gradients** folder (X/Y/Z mixes)
@@ -34,6 +34,10 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
   - **Twizzler → Stroke** — width, layers, perspective
   - **Twizzler → Motion** — Speed
   - **Background** — Fill + Color (solid) or Gradient direction + stops (when Fill = Gradient)
+- **Graphic** (above Presets) — which asset stack is visible:
+  - **Twizzler** — orange-wave ribbon only
+  - **Rain** — Connect / section-grid stripe rain only (`sparkle.gaps` rect overlay from `@necatikcl/stripes-engine`)
+  - **Both** — ribbon underlay + rain overlay
 - **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, etc.) without rebuilding Leva, so values are not wiped when toggling.
 
 ## Twizzler (orange-wave)
@@ -47,7 +51,7 @@ Current ribbon geometry is the **orange-wave** 3D projected vector from
 - Move X/Y = pixel translate after projection; Move Z = post-fit dolly (closer/farther)
 - Zoom is unbounded (no L/R lock / vertical stretch)
 - ~56 layers, Rotate X/Y/Z (defaults 12° / −18° / 0°), `lineWidth` ~1.15, dense sampling (≥160 pts)
-- Rain toggle (**Rain** next to Twizzler **Show**): optional stripe-rect overlay (`sparkle.gaps`). Off = Twizzler ribbon only (rain canvas hidden so it doesn’t cover the shader). On = individual rain rects on top. Export omits rain paths when Rain is off; Twizzler always exports when Show is on.
+- Rain is selected via **Graphic → Rain / Both** (not a Twizzler Show checkbox). Off (Twizzler mode) = ribbon only (rain canvas hidden so it doesn’t cover the shader). Rain / Both = individual rain rects from the section-grid stripe engine (`sparkle.gaps`). Export omits rain paths in Twizzler mode; Twizzler exports whenever Graphic includes Twizzler / Both.
 - Reference: `apps/lab/src/presets/references/orange-wave-vector.html`
 
 ## Exports
@@ -60,25 +64,25 @@ Client panel (and lab) expose:
 - **Copy JSON** — copy full lab configuration to the clipboard
 - **Upload JSON** — import a config file as a saved layout and apply it
 - **Video duration** / **Export Video** — high-quality MediaRecorder (60fps, high bitrate) + ffmpeg.wasm (libx264 veryslow / CRF 14). Button shows progress (Recording / Converting) and stays disabled until the export finishes.
-- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide X ramp masked by all ribbons), Fiber gradient (per-ribbon X ramp fitted to each fiber’s span), Baked (segmented X/Y/Z). Twizzler exports whenever Show is on. **Rain** adds stripe-rect paths when on; with Rain off, export is Twizzler (+ background) only.
+- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide X ramp masked by all ribbons), Fiber gradient (per-ribbon X ramp fitted to each fiber’s span), Baked (segmented X/Y/Z). Twizzler exports when Graphic is Twizzler or Both. **Rain** / **Both** add stripe-rect paths; Twizzler-only Graphic exports ribbon (+ background) without rain.
 
 ## Next HTML → Leva mapping (do this on the next drop)
 
 When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (Default for client knobs, Advanced for fine ones). Keep the color library — no freeform-only hex fields.
 
-| HTML / design control        | Leva folder               | Notes                                                                                |
-| ---------------------------- | ------------------------- | ------------------------------------------------------------------------------------ |
-| Stroke color                 | Presets → Color (Default) | `colorLibraryInputPlugin` → `LIBRARY_COLOR.*` / Orange tokens                        |
-| Background                   | Background → Fill + Color | Library Neutral White / Neutral steps; Gradient = Advanced                           |
-| Twizzler on/off              | Twizzler → Show           | existing `twizzlerEnabled`                                                           |
-| Color mode                   | Twizzler → Color mode     | Solid / Shared gradient / Fiber gradient / Baked segments                            |
-| Rain on/off                  | Twizzler → Rain           | `rainEnabled` → `sparkle.gaps` + show/hide rain canvas (Twizzler always independent) |
-| Zoom / Move X/Y/Z            | Twizzler → General/Shape  | Zoom + translate live in Default                                                     |
-| Rotate X/Y/Z                 | Twizzler → Shape          | already live in Default                                                              |
-| Layer count / width / points | Twizzler → Stroke         | Default                                                                              |
-| Speed / pause                | Twizzler → Motion         | `speed` (0 = freeze)                                                                 |
-| Wave amplitude / envelope    | Twizzler → Shape          | Amplitude + Center Y in Default                                                      |
-| Any new HTML sliders         | Twizzler Shape/Motion     | add settings + normalize + Leva                                                      |
+| HTML / design control        | Leva folder               | Notes                                                                         |
+| ---------------------------- | ------------------------- | ----------------------------------------------------------------------------- |
+| Stroke color                 | Presets → Color (Default) | `colorLibraryInputPlugin` → `LIBRARY_COLOR.*` / Orange tokens                 |
+| Background                   | Background → Fill + Color | Library Neutral White / Neutral steps; Gradient = Advanced                    |
+| Twizzler on/off              | Graphic → Twizzler / Both | drives `twizzlerEnabled`                                                      |
+| Color mode                   | Twizzler → Color mode     | Solid / Shared gradient / Fiber gradient / Baked segments                     |
+| Rain on/off                  | Graphic → Rain / Both     | `rainEnabled` → `sparkle.gaps` + show/hide rain canvas (section-grid lineage) |
+| Zoom / Move X/Y/Z            | Twizzler → General/Shape  | Zoom + translate live in Default                                              |
+| Rotate X/Y/Z                 | Twizzler → Shape          | already live in Default                                                       |
+| Layer count / width / points | Twizzler → Stroke         | Default                                                                       |
+| Speed / pause                | Twizzler → Motion         | `speed` (0 = freeze)                                                          |
+| Wave amplitude / envelope    | Twizzler → Shape          | Amplitude + Center Y in Default                                               |
+| Any new HTML sliders         | Twizzler Shape/Motion     | add settings + normalize + Leva                                               |
 
 Colors in the HTML that are not exact library hexes get **snapped** to the nearest `COLOR_LIBRARY` token (prefer Accent / Pair levels). Do not invent a parallel palette. Color selectors show the library token name (e.g. `Orange / 900 [Accent]`) when the value matches; focus the field to edit hex.
 
