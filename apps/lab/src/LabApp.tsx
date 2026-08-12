@@ -72,7 +72,7 @@ import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureS
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
 import { twizzlerToSvgLayer } from "./export/twizzlerToSvg";
-import { exportLabVideo } from "./export/videoExport";
+import { exportLabVideo, formatVideoExportStatusLabel, type LabVideoExportPhase } from "./export/videoExport";
 import { resolveLabVideoExportLayers } from "./export/resolveLabVideoExportLayers";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
@@ -1073,6 +1073,31 @@ function LabInner({
   const onExportVideo = useCallback(() => onExportVideoRef.current(), []);
   const exportingVideoRef = useRef(false);
   const videoExportAbortRef = useRef<AbortController | null>(null);
+  const videoExportGenerationRef = useRef(0);
+  const [videoExportPhase, setVideoExportPhase] = useState<LabVideoExportPhase>("idle");
+  const [videoExportRecording, setVideoExportRecording] = useState({ elapsedMs: 0, totalMs: 0 });
+  const [videoExportTranscodePercent, setVideoExportTranscodePercent] = useState<number | null>(null);
+  const [videoExportTranscodeElapsedMs, setVideoExportTranscodeElapsedMs] = useState(0);
+  const videoExportUiRef = useRef({
+    setPhase: setVideoExportPhase,
+    setRecording: setVideoExportRecording,
+    setTranscodePercent: setVideoExportTranscodePercent,
+    setTranscodeElapsed: setVideoExportTranscodeElapsedMs,
+  });
+  videoExportUiRef.current = {
+    setPhase: setVideoExportPhase,
+    setRecording: setVideoExportRecording,
+    setTranscodePercent: setVideoExportTranscodePercent,
+    setTranscodeElapsed: setVideoExportTranscodeElapsedMs,
+  };
+  // Disabled from first click through the brief done/failed flash, until idle again.
+  const videoExportBusy = videoExportPhase !== "idle";
+  const videoExportLabel = formatVideoExportStatusLabel(
+    videoExportPhase,
+    videoExportRecording,
+    videoExportTranscodePercent,
+    videoExportTranscodeElapsedMs,
+  );
   const shaderTransport = useMemo<TimeTransportController>(
     () => ({
       getTime: () => shaderTimeSecRef.current,
@@ -1808,6 +1833,13 @@ function LabInner({
       const controller = new AbortController();
       videoExportAbortRef.current = controller;
       exportingVideoRef.current = true;
+      const exportGeneration = ++videoExportGenerationRef.current;
+      const ui = videoExportUiRef.current;
+      let transcodeStartedAt = 0;
+      ui.setPhase("recording");
+      ui.setRecording({ elapsedMs: 0, totalMs: durationSec * 1000 });
+      ui.setTranscodePercent(null);
+      ui.setTranscodeElapsed(0);
       const framesEnabled = controlsRef.current.frames.enabled;
       const layers =
         surfaceWorkspaceRef.current.mode === "partial"
@@ -1835,11 +1867,42 @@ function LabInner({
         startTimeSec: exportStartSec,
         durationSec,
         signal: controller.signal,
+        onPhase: (phase) => {
+          if (videoExportGenerationRef.current !== exportGeneration) return;
+          ui.setPhase(phase);
+          if ((phase === "loading-encoder" || phase === "transcoding") && transcodeStartedAt === 0) {
+            transcodeStartedAt = performance.now();
+          }
+        },
+        onProgress: (elapsedMs, totalMs) => {
+          if (videoExportGenerationRef.current !== exportGeneration) return;
+          ui.setRecording({ elapsedMs, totalMs });
+        },
+        onTranscodeProgress: (percent) => {
+          if (videoExportGenerationRef.current !== exportGeneration) return;
+          ui.setTranscodePercent(percent);
+          if (transcodeStartedAt > 0) {
+            ui.setTranscodeElapsed(performance.now() - transcodeStartedAt);
+          }
+        },
       })
-        .catch(() => {})
+        .catch(() => {
+          if (videoExportGenerationRef.current === exportGeneration) {
+            ui.setPhase("failed");
+          }
+        })
         .finally(() => {
-          exportingVideoRef.current = false;
-          videoExportAbortRef.current = null;
+          if (videoExportGenerationRef.current === exportGeneration) {
+            videoExportAbortRef.current = null;
+          }
+          window.setTimeout(() => {
+            if (videoExportGenerationRef.current !== exportGeneration) return;
+            exportingVideoRef.current = false;
+            ui.setPhase("idle");
+            ui.setRecording({ elapsedMs: 0, totalMs: 0 });
+            ui.setTranscodePercent(null);
+            ui.setTranscodeElapsed(0);
+          }, 1200);
         });
     };
 
@@ -3461,8 +3524,13 @@ function LabInner({
                 <span className="wf-field-label">Export</span>
                 <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
                 <div className="wf-row">
-                  <button className="lab-btn" onClick={onExportVideo}>
-                    Export Video
+                  <button
+                    className={`lab-btn${videoExportBusy ? " is-exporting" : ""}`}
+                    onClick={onExportVideo}
+                    disabled={videoExportBusy}
+                    aria-busy={videoExportBusy}
+                  >
+                    {videoExportLabel}
                   </button>
                   <button className="lab-btn" onClick={onExportSvg}>
                     Export SVG
@@ -3777,8 +3845,14 @@ function LabInner({
               <div className="lab-client-exports">
                 <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
                 <div className="lab-client-layouts-actions">
-                  <button type="button" onClick={onExportVideo}>
-                    Export Video
+                  <button
+                    type="button"
+                    className={videoExportBusy ? "is-exporting" : undefined}
+                    onClick={onExportVideo}
+                    disabled={videoExportBusy}
+                    aria-busy={videoExportBusy}
+                  >
+                    {videoExportLabel}
                   </button>
                   <button type="button" onClick={onExportSvg}>
                     Export SVG
