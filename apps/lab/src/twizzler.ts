@@ -651,6 +651,16 @@ export function twizzlerAmpNoiseY(
 }
 
 /**
+ * Even fiber slots across [-1,1] — equal gaps (plane stack).
+ * Prefer this when the pack should read as a wiggling sheet, not clustered ribbons.
+ */
+export function twizzlerEvenAcross(lineCount: number): number[] {
+  const count = Math.max(1, Math.round(lineCount));
+  if (count === 1) return [0];
+  return Array.from({ length: count }, (_, i) => (i / (count - 1)) * 2 - 1);
+}
+
+/**
  * Uneven fiber slots across [-1,1] — irregular gaps instead of even spacing.
  * `gapNoise` 0 = uniform; ~0.35–0.7 = organic cluster/spread.
  */
@@ -658,6 +668,7 @@ export function twizzlerUnevenAcross(lineCount: number, gapNoise = 0.55, seed = 
   const count = Math.max(1, Math.round(lineCount));
   if (count === 1) return [0];
   const amount = Math.max(0, Math.min(1.5, gapNoise));
+  if (amount <= 0.001) return twizzlerEvenAcross(count);
   const weights: number[] = [];
   for (let i = 0; i < count; i += 1) {
     const n = twizzlerNoise(i * 0.41 + seed, seed * 1.7, 0.63);
@@ -694,9 +705,11 @@ export function twizzlerDepthYBias(
   const mid = Math.sin(Math.PI * xT);
 
   // Shared: far fibers plunge on the right edge (largest +Y).
-  const farRightDrop = far * right * amp * 1.05;
+  const farRightDrop = far * right * amp * 1.45;
   // Near fibers ride higher on the right (toward camera / upper stack).
-  const nearRightHold = -nearness * right * amp * 0.55;
+  const nearRightHold = -nearness * right * amp * 0.7;
+  // Continuous far→down bias along the whole ribbon (not only the right tip).
+  const farAlwaysDown = far * amp * 0.38;
 
   const terrain = Math.round(Math.max(0, Math.min(2, depthTerrain))) as 0 | 1 | 2;
   let hills = 0;
@@ -736,7 +749,7 @@ export function twizzlerDepthYBias(
     }
   }
 
-  return farRightDrop + nearRightHold + hills;
+  return farRightDrop + nearRightHold + farAlwaysDown + hills;
 }
 
 export type TwizzlerLine = {
@@ -790,18 +803,12 @@ export function buildTwizzlerLines(
   const segmentCount = Math.max(1, Math.ceil(pixelWidth / Math.max(2, settings.pointSpacing)));
   const lines: TwizzlerLine[] = [];
 
-  // Mid: prior-ish amp/distance, quieter slot gaps so majority stay in-viewport.
-  const gapNoise = 0.42 + settings.wrinkleStrength * 12;
-  const alongGapNoise = 0.55 + settings.wrinkleStrength * 14 + settings.depthSpread * 0.12;
+  // Even Z gaps: pack reads as a wiggling plane, not clustered/warped ribbons.
+  // depthSpread still opens the total stack height via expand + verticalOpen.
   const terrainBoost = settings.depthTerrain === 1 ? 1.35 : settings.depthTerrain === 2 ? 1.55 : 1;
   const waveAmp = (1.0 + settings.depthLift * 1.4) * terrainBoost;
-  const rawSlots = twizzlerUnevenAcross(
-    settings.lineCount,
-    gapNoise,
-    2.1 + settings.wrinkles * 0.15 + settings.depthTerrain * 1.7,
-  );
-  // Stretch slots toward near/far poles — depthSpread fights mid-pack condensation.
-  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.42 + settings.depthSpread * 0.42));
+  const rawSlots = twizzlerEvenAcross(settings.lineCount);
+  const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.28 + settings.depthSpread * 0.28));
 
   const center: Array<{ x: number; y: number; xT: number }> = [];
   for (let point = 0; point <= segmentCount; point += 1) {
@@ -826,18 +833,16 @@ export function buildTwizzlerLines(
       const ny = tx / len;
 
       const theta = twizzlerMarketingTwist(c.xT, settings, time);
-      const fiberTheta = theta + across * 0.12;
+      const fiberTheta = theta + across * 0.08;
       const face = twizzlerFaceAmount(fiberTheta);
       const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight;
       const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
       const far = 1 - nearness;
 
-      // Keep braid quiet — amplitude variety comes from shared heat patches, not per-ribbon thrash.
+      // Quiet braid — spacing stays even; motion comes from the shared plane.
       const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
-      const organic = (twizzlerNoise(c.xT * 1.4, time * 0.12, 0.35) - 0.5) * settings.wrinkleStrength * 0.9;
-      const braid = across + organic + 0.1 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
-      // Keep some face projection, but do NOT collapse far fibers into the spine.
-      const zPerspective = 0.7 + 0.3 * nearness;
+      const braid = across + 0.04 * pinch * Math.sin(fiberTheta + across * 0.6) * (1 - across * across);
+      const zPerspective = 0.75 + 0.25 * nearness;
       const projected = braid * halfW * (0.2 + 0.8 * face) * zPerspective;
 
       const depth = twizzlerDepthScale(c.xT, settings);
@@ -849,8 +854,17 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
       );
-      // Y amp: explicit A/B/C heat recipes change only lobe count/width through Z.
-      const ampNoiseY = twizzlerAmpNoiseY(
+      // Mostly shared plane amp (wiggling sheet) + light Z flavor so lobes still read.
+      const planeAmp = twizzlerAmpNoiseY(
+        c.xT,
+        0,
+        pixelHeight,
+        settings.amplitude,
+        settings.wrinkleStrength,
+        settings.heatVariant,
+        2.4,
+      );
+      const localAmp = twizzlerAmpNoiseY(
         c.xT,
         across,
         pixelHeight,
@@ -859,18 +873,18 @@ export function buildTwizzlerLines(
         settings.heatVariant,
         2.4,
       );
+      const ampNoiseY = planeAmp * 0.88 + localAmp * 0.12;
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Pack open enough for denseness, thin enough that Z-scattered peaks read (not parallel sheet).
-      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.15;
-      const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
-      const stackY = acrossX * halfW * verticalOpen;
-      const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
-      const faceY = ny * projected * 0.35;
-      const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
-      const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
-      // Soften shared spine lockstep — Z-scattered amp peaks must land at different X.
+      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 0.85;
+      // Even gaps: no along-X gap warp. Far (across=-1) sits lower (+Y).
+      const stackY = -across * halfW * verticalOpen;
+      const farDownStack = far * halfW * (0.1 + 0.28 * rightEdge) * (0.45 + settings.depthLift * 0.35);
+      const faceY = ny * projected * 0.2;
+      const zLane = far * halfW * (0.06 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
+      const x = c.x + nx * braid * halfW * 0.012 * Math.sin(fiberTheta);
+      // Shared spine dominates — pack wiggles as one plane; Z is an even offset.
       const spineBase = pixelHeight * settings.centerY;
-      const spineShare = 0.18;
+      const spineShare = 0.7;
       const y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
 
       points.push({ x, y, depth, along: c.xT, nearness });

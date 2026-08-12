@@ -17,6 +17,7 @@ import {
   twizzlerHeatRecipe,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
+  twizzlerEvenAcross,
   twizzlerAmpHeat,
   twizzlerAmpNoiseY,
   twizzlerAmpSwell,
@@ -175,7 +176,34 @@ describe("Twizzler", () => {
     const gapSpread = Math.max(...evenGaps) - Math.min(...evenGaps);
     expect(gapSpread).toBeGreaterThan(0.008);
 
-    // Along-X gap warp varies packing, but stays near the nominal across (envelope).
+    // Production pack uses even gaps (plane stack).
+    const evenSlots = twizzlerEvenAcross(12);
+    expect(evenSlots).toHaveLength(12);
+    const evenDeltas = Array.from({ length: 11 }, (_, i) => evenSlots[i + 1]! - evenSlots[i]!);
+    for (const delta of evenDeltas) {
+      expect(delta).toBeCloseTo(evenDeltas[0]!, 8);
+    }
+    // Far fiber mid-pack sits lower (+Y) than near fiber (even-gap plane, far→down).
+    const built = buildTwizzlerLines(400, 200, 0, {
+      lineCount: 24,
+      heatVariant: 1,
+      hillRhythm: 0,
+      depthLift: 0.85,
+      depthSpread: 1.18,
+      amplitude: 1,
+      wrinkleStrength: 0.17,
+      speed: 0,
+    });
+    const midX = 0.55;
+    const yAt = (line: (typeof built.lines)[number]) => {
+      const pt = line.points[Math.floor(line.points.length * midX)]!;
+      return pt.y;
+    };
+    const farLine = built.lines.reduce((a, b) => (a.nearness < b.nearness ? a : b));
+    const nearLine = built.lines.reduce((a, b) => (a.nearness > b.nearness ? a : b));
+    expect(yAt(farLine)).toBeGreaterThan(yAt(nearLine));
+
+    // Along-X gap warp helper still varies when called directly (legacy), but stays near envelope.
     const gapSamples = [0.08, 0.22, 0.38, 0.55, 0.72, 0.9].map((x) => twizzlerGapWarpedAcross(0.65, x, 5, 0.85));
     const gapRange = Math.max(...gapSamples) - Math.min(...gapSamples);
     expect(gapRange).toBeGreaterThan(0.03);

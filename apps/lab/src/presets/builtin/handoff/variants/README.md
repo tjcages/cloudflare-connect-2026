@@ -1,17 +1,18 @@
 # CF-16 Twizzler — iterative exploration
 
-**Process:** farm a wide board → you pick codes → next round farms around those winners → repeat until you declare a single winner.
+**Process:** farm → you pick codes → next round around winners → repeat until you declare a winner.
 
 **CF-16 stays In Progress until you say a winner.**
 
-## Current board: Round 3
+## Current board: Round 4
 
-From Round-2 likes **B2, B9, B13, X2, X4** (X2/X4 hills softened).
+Course-correct from your notes (T5 only + even gaps + far-Z down).
 
-See `EXPLORE-R3.md`. Stills: `/opt/cursor/artifacts/r3-*.png`.
+See `EXPLORE-R4.md`. Stills: `/opt/cursor/artifacts/r4-*.png`.
 
-Reply with codes (e.g. `R3 P3 T1 S2`).
+Reply with **D-codes** (e.g. `D0 D4 D12 D28`).
 
 ## Prior
 
+- Round 3: `EXPLORE-R3.md` / `r3-*` (T5 was the keeper)
 - Round 2: `EXPLORE-R2.md` / `r2-*`
