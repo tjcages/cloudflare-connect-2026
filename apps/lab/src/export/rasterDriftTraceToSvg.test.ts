@@ -125,7 +125,7 @@ describe("rasterDriftTraceStudiesToSvg", () => {
       { id: "rgb", parameters: parameters(1.04), rgbMae: 10.2, inkIou: 0.758, vectorCoverage: 0.57 },
       { id: "diagnostic", parameters: parameters(0.98), rgbMae: 11.2, inkIou: 0.755, vectorCoverage: 0.54 },
     ];
-    const baseline = { rgbMae: 11.133, inkIou: 0.756 };
+    const baseline = { rgbMae: 11.133, inkIou: 0.756, vectorCoverage: 0.54, sourceCoverage: 0.577 };
 
     const first = selectRasterDriftFidelityCandidates(candidates, baseline);
     const second = selectRasterDriftFidelityCandidates(candidates, baseline);
@@ -133,6 +133,7 @@ describe("rasterDriftTraceStudiesToSvg", () => {
     expect(second).toEqual(first);
     expect(first).toHaveLength(3);
     expect(first.filter(({ classification }) => classification === "improvement")).toHaveLength(2);
+    expect(first[0]?.id).toBe("rgb");
     expect(first.at(-1)?.classification).toBe("diagnostic");
     for (const candidate of first.filter(({ classification }) => classification === "improvement")) {
       expect(candidate.rgbMae).toBeLessThan(baseline.rgbMae);

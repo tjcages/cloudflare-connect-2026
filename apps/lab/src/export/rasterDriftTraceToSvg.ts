@@ -627,7 +627,7 @@ export function rasterDriftFidelityToSvg(
 export function selectRasterDriftFidelityCandidates(
   candidates: ReadonlyArray<RasterDriftCandidateScore>,
   baseline: Pick<RasterDriftCandidateScore, "rgbMae" | "inkIou"> &
-    Partial<Pick<RasterDriftCandidateScore, "vectorCoverage">>,
+    Partial<Pick<RasterDriftCandidateScore, "vectorCoverage">> & { sourceCoverage?: number },
   count = 3,
 ): RasterDriftCandidateSelection[] {
   const unique = [
@@ -645,6 +645,14 @@ export function selectRasterDriftFidelityCandidates(
     baseline.vectorCoverage === undefined
       ? []
       : improvements.filter((candidate) => candidate.vectorCoverage > baseline.vectorCoverage!);
+  coverageImprovements.sort((a, b) => {
+    if (baseline.sourceCoverage !== undefined) {
+      const coverageDistance =
+        Math.abs(a.vectorCoverage - baseline.sourceCoverage) - Math.abs(b.vectorCoverage - baseline.sourceCoverage);
+      if (coverageDistance !== 0) return coverageDistance;
+    }
+    return quality(b) - quality(a) || a.id.localeCompare(b.id);
+  });
   const coverageSet = new Set(coverageImprovements);
   const metricOnlyImprovements = improvements.filter((candidate) => !coverageSet.has(candidate));
   const pareto = metricOnlyImprovements.filter(
