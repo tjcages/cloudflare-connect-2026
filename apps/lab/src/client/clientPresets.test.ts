@@ -21,14 +21,17 @@ describe("client preview presets", () => {
     expect(CLIENT_APPEARANCE_PRESETS.map((p) => p.id)).toEqual(["light", "dark"]);
   });
 
-  it("dark appearance is white Twizzler on orange stage", () => {
+  it("dark appearance is cream Twizzler on deep orange (stripes-settings-cf-base)", () => {
     const dark = findClientAppearancePreset("dark");
-    expect(dark.backgroundHex).toBe("#f46021");
-    expect(dark.twizzler.colorFar).toBe("#ffffff");
-    expect(dark.twizzler.colorNear.toLowerCase()).toBe("#f5f5f5");
+    expect(dark.backgroundHex).toBe("#f86a00");
+    expect(dark.twizzler.colorFar).toBe("#ffd39e");
+    expect(dark.twizzler.colorNear).toBe("#ffefd4");
+    expect(dark.twizzler.colorEdge).toBe("#f0f0f0");
+    expect(dark.ribbonColorMode).toBe("sharedGradient");
     const light = findClientAppearancePreset("light");
     expect(light.backgroundHex).toBe("#ffffff");
     expect(light.twizzler.colorNear).toBe("#f46021");
+    expect(light.ribbonColorMode).toBe("baked");
   });
 
   it("builds from Banner 5:1 with solid white stage and rain off by default", () => {

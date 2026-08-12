@@ -4912,6 +4912,7 @@ export function useEngineControls(
       twizzlerColor: appearance.twizzler.colorNear,
       twizzlerColorFar: appearance.twizzler.colorFar,
       twizzlerColorEdge: appearance.twizzler.colorEdge,
+      twizzlerRibbonColorMode: appearance.ribbonColorMode,
     });
   }, [clientApp, clientAppearanceId, setControl]);
 

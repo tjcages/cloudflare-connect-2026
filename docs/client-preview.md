@@ -18,7 +18,7 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
 - **Default** — rich authoring for the orange-wave ribbon:
   - **Presets** — Size / Layout / **Appearance** (Light / Dark) / Color
     - **Light** — orange Twizzler on white stage (current marketing look)
-    - **Dark** — white Twizzler gradient on orange stage
+    - **Dark** — cream Orange 100→300 Twizzler (shared gradient) on deep orange `#f86a00` (`stripes-settings-cf-base`)
   - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
     - Solid: Color only
     - Shared / Fiber: Color + Color left (X pack/fiber ramp)
