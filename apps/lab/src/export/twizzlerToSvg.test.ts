@@ -51,9 +51,7 @@ describe("twizzlerToSvgLayer", () => {
       backgroundColor: "#ffffff",
       speed: 0,
     });
-    const colors = new Set(
-      [...svg.matchAll(/fill="rgb\((\d+),(\d+),(\d+)\)"/g)].map((m) => `${m[1]},${m[2]},${m[3]}`),
-    );
+    const colors = new Set([...svg.matchAll(/fill="rgb\((\d+),(\d+),(\d+)\)"/g)].map((m) => `${m[1]},${m[2]},${m[3]}`));
     expect(colors.size).toBeGreaterThan(3);
   });
 

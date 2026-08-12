@@ -74,14 +74,57 @@ describe("Twizzler", () => {
         rightHeight: -4,
       }),
     ).toMatchObject({
-      scale: 3,
+      scale: 8,
       lineCount: 1,
-      wrinkles: 24,
+      wrinkles: 99,
       bendPosition: 1,
-      bendAmount: -1,
-      leftHeight: 2,
-      rightHeight: -1,
+      bendAmount: -3,
+      leftHeight: 4,
+      rightHeight: -4,
     });
+    // Extreme creative values still clamp at the new open ceilings.
+    expect(normalizeTwizzlerSettings({ scale: 999, amplitude: 999, speed: 999 })).toMatchObject({
+      scale: 50,
+      amplitude: 20,
+      speed: 40,
+    });
+  });
+
+  it("zooms uniformly without locking L/R edges (no fitScale 2.2 cap)", () => {
+    const base = buildTwizzlerLines(800, 800, 0, {
+      lineCount: 24,
+      pointSpacing: 10,
+      speed: 0,
+      scale: 1,
+      centerY: 0.5,
+    });
+    const zoomed = buildTwizzlerLines(800, 800, 0, {
+      lineCount: 24,
+      pointSpacing: 10,
+      speed: 0,
+      scale: 10,
+      centerY: 0.5,
+    });
+    const xSpan = (lines: typeof base.lines) => {
+      const xs = lines.flatMap((line) => line.points.map((p) => p.x));
+      return Math.max(...xs) - Math.min(...xs);
+    };
+    const ySpan = (lines: typeof base.lines) => {
+      const ys = lines.flatMap((line) => line.points.map((p) => p.y));
+      return Math.max(...ys) - Math.min(...ys);
+    };
+    const baseX = xSpan(base.lines);
+    const baseY = ySpan(base.lines);
+    const zoomX = xSpan(zoomed.lines);
+    const zoomY = ySpan(zoomed.lines);
+    // Both axes grow with zoom (not X-locked / Y-only stretch).
+    expect(zoomX / baseX).toBeGreaterThan(6);
+    expect(zoomY / baseY).toBeGreaterThan(6);
+    // Aspect of the zoomed pack stays near the base pack (no vertical squash/stretch).
+    const baseAspect = baseX / Math.max(1e-6, baseY);
+    const zoomAspect = zoomX / Math.max(1e-6, zoomY);
+    expect(zoomAspect / baseAspect).toBeGreaterThan(0.85);
+    expect(zoomAspect / baseAspect).toBeLessThan(1.15);
   });
 
   it("places the full bend at the selected horizontal position", () => {

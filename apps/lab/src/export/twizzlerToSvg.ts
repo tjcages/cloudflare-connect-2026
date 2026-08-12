@@ -1,8 +1,4 @@
-import {
-  buildTwizzlerLines,
-  twizzlerUsesLineGradients,
-  type TwizzlerSettings,
-} from "../twizzler";
+import { buildTwizzlerLines, twizzlerUsesLineGradients, type TwizzlerSettings } from "../twizzler";
 
 function number(value: number, digits = 2): string {
   return Number(value.toFixed(digits)).toString();
@@ -104,9 +100,7 @@ export function twizzlerToSvgLayer(
       if (!d) continue;
       const rgb = parseRgb(line.color);
       const opacity = Math.max(0.01, Math.min(1, line.opacity));
-      fiberBlocks.push(
-        `    <path data-fiber="${fiberIndex}" d="${d}" ${filledPathAttrs(rgb, opacity)} />`,
-      );
+      fiberBlocks.push(`    <path data-fiber="${fiberIndex}" d="${d}" ${filledPathAttrs(rgb, opacity)} />`);
       continue;
     }
 
@@ -140,18 +134,8 @@ export function twizzlerToSvgLayer(
     }
 
     if (segmentPaths.length === 0) continue;
-    fiberBlocks.push(
-      [
-        `    <g data-fiber="${fiberIndex}">`,
-        segmentPaths.join("\n"),
-        "    </g>",
-      ].join("\n"),
-    );
+    fiberBlocks.push([`    <g data-fiber="${fiberIndex}">`, segmentPaths.join("\n"), "    </g>"].join("\n"));
   }
 
-  return [
-    `  <g data-layer="twizzler" fill-rule="nonzero">`,
-    fiberBlocks.join("\n"),
-    "  </g>",
-  ].join("\n");
+  return [`  <g data-layer="twizzler" fill-rule="nonzero">`, fiberBlocks.join("\n"), "  </g>"].join("\n");
 }
