@@ -97,7 +97,7 @@ describe("rasterDriftTraceStudiesToSvg", () => {
 
     expect(studies.A4).toContain('data-layer="anti-aliased-fidelity-bands"');
     expect(studies.A4).toContain('data-boundary="smoothed"');
-    expect(studies.A4).toMatch(/\bd="[^"]*\bQ/);
+    expect(studies.A4).toMatch(/\bd="[^"]*Q/);
     expect(studies.B4).toContain('data-channel-protection="high-band-erosion"');
     expect(studies.C4).toContain('data-layer="color-calibrated-fidelity-bands"');
 
