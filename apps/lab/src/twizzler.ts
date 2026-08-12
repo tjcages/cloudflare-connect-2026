@@ -512,39 +512,55 @@ export function twizzlerGapWarpedAcross(
 }
 
 /**
- * Top-down amplitude heat map over (x along ribbon, across = depth stack).
- * Large fluid patches: many neighboring ribbons share the same hot/cold spot.
- * `patchScale` >1 = larger fewer blobs; <1 = smaller denser spots (still coherent).
+ * Top-down amplitude heat map over (x along ribbon, across = Z / depth stack).
+ * Multiple scattered hot spots through Z×X — not one pack-wide L→R swell.
+ * `patchScale` >1 = fewer larger lobes; <1 = denser Z spots.
  */
 export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed = 2.4): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
   const s = Math.max(0.45, Math.min(3.2, patchScale));
-  // Across freq kept low so heat reads as stack-wide spots, not per-ribbon.
-  const n0 = twizzlerNoise(x * (0.72 / s) + seed, a * (0.28 / s), 0.18);
-  const n1 = twizzlerNoise(x * (1.35 / s) + seed * 1.2, a * (0.48 / s) + 0.4, 0.55);
-  const raw = 0.68 * n0 + 0.32 * n1;
-  // Soft lobes: gradual heat falloff (fluid), still readable hot vs cold.
-  return Math.pow(smoothstep(0.28, 0.78, raw), 1.15);
+  const xFreq = 2.6 / s;
+  const zFreq = 4.6 / s;
+  const n0 = twizzlerNoise(x * xFreq + seed, a * zFreq, 0.2);
+  const n1 = twizzlerNoise(x * (xFreq * 1.6) + seed * 1.3, a * (zFreq * 1.4) + 0.55, 0.72);
+  const raw = 0.55 * n0 + 0.45 * n1;
+  return Math.pow(smoothstep(0.26, 0.7, raw), 1.05);
 }
 
 /**
- * Smooth signed swell shared across a heat patch (fluid Y push, not unique thrash).
+ * Signed Y swell: narrow Z-bands with phase-shifted hills along X.
+ * Far / mid / near bands peak at different X — multiple peaks through the stack.
  */
 export function twizzlerAmpSwell(xT: number, across: number, patchScale = 1, seed = 3.1): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
   const s = Math.max(0.45, Math.min(3.2, patchScale));
-  const n =
-    0.72 * (twizzlerNoise(x * (0.85 / s) + seed, a * (0.22 / s), 0.3) - 0.5) +
-    0.28 * (twizzlerNoise(x * (1.55 / s) + 1.05, a * (0.4 / s) + seed * 0.4, 0.75) - 0.5);
-  return Math.tanh(n * 1.85);
+  // Narrow bands so neighboring Z regions keep distinct peak phases.
+  const bandCount = 5;
+  const bandWidth = 0.2 * s;
+  let sum = 0;
+  let wSum = 0;
+  for (let k = 0; k < bandCount; k += 1) {
+    const zCenter = -0.9 + (k / (bandCount - 1)) * 1.8;
+    const w = Math.exp(-Math.pow((a - zCenter) / bandWidth, 2));
+    const phase = seed * 0.85 + k * 2.85;
+    // 2–4 hills along X per band, phase-shifted by Z index.
+    const hills =
+      0.55 * Math.sin(x * Math.PI * (2.8 + k * 0.85) + phase) +
+      0.3 * Math.sin(x * Math.PI * (4.6 + k * 0.55) + phase * 1.55) +
+      0.15 * Math.sin(x * Math.PI * (1.6 + k * 0.3) + phase * 0.7);
+    const gate = 0.45 + 0.55 * twizzlerNoise(x * (1.1 / s) + seed + k * 0.7, zCenter * 2.4, 0.4);
+    sum += w * hills * gate;
+    wSum += w;
+  }
+  const lobe = wSum > 1e-6 ? sum / wSum : 0;
+  return Math.tanh(lobe * 1.85);
 }
 
 /**
- * Y-amplitude displacement from spatial heat patches (pixel units).
- * Hot spots swell the pack vertically; cold regions stay calm.
- * No per-ribbon unique noise — only shared (x, across) fields.
+ * Y-amplitude from Z-scattered heat patches (pixel units).
+ * Strong enough to read as extra peaks/valleys inside the pack, still capped on-canvas.
  */
 export function twizzlerAmpNoiseY(
   xT: number,
@@ -557,8 +573,10 @@ export function twizzlerAmpNoiseY(
 ): number {
   const heat = twizzlerAmpHeat(xT, across, patchScale, seed);
   const swell = twizzlerAmpSwell(xT, across, patchScale, seed + 1.7);
-  const yThrow = 0.22 + amplitude * 0.28 + wrinkleStrength * 3.6;
-  return heat * swell * pixelHeight * yThrow;
+  // Heat spots boost amplitude; keep below clip so phase-shifted Z peaks stay curved.
+  const drive = swell * (0.4 + 0.6 * heat);
+  const yThrow = 0.22 + amplitude * 0.2 + wrinkleStrength * 2.6;
+  return drive * pixelHeight * yThrow;
 }
 
 /**
@@ -735,9 +753,9 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
       );
-      // Y amplitude from fluid heat patches (top-down spots shared by many ribbons).
-      // Larger wrinkles → smaller denser spots; fewer wrinkles → bigger blobs.
-      const patchScale = Math.max(0.55, Math.min(2.6, 4.2 / Math.max(1.4, settings.wrinkles)));
+      // Y amp: multiple heat peaks/valleys scattered through Z (across), fluid along X.
+      // Larger wrinkles → denser Z spots; fewer wrinkles → fewer larger Z blobs.
+      const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
       const ampNoiseY = twizzlerAmpNoiseY(
         c.xT,
         across,
@@ -748,15 +766,18 @@ export function buildTwizzlerLines(
         2.4 + settings.depthTerrain * 0.9,
       );
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Keep C denseness pack open — patches handle variety, not pack explosion.
-      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.45;
+      // Pack open enough for denseness, thin enough that Z-scattered peaks read (not parallel sheet).
+      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.15;
       const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
       const stackY = acrossX * halfW * verticalOpen;
       const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
       const faceY = ny * projected * 0.35;
       const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
-      const y = c.y + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
+      // Soften shared spine lockstep — Z-scattered amp peaks must land at different X.
+      const spineBase = pixelHeight * settings.centerY;
+      const spineShare = 0.18;
+      const y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
 
       points.push({ x, y, depth, along: c.xT, nearness });
     }

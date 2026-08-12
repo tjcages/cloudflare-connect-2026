@@ -1,5 +1,5 @@
 /**
- * Capture fluid top-down heat-map Y-amp patches (shared spots, not per-ribbon thrash).
+ * Capture Z-scattered heat peaks/valleys (multiple spots through stack, not one L→R swell).
  * Usage: node scripts/capture-twizzler-variants.mjs
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
@@ -46,38 +46,38 @@ const base = {
   depth2Position: 0.42,
   depth2Amount: 0.2,
   depth2Width: 0.12,
-  wrinkles: 3.0,
-  wrinkleStrength: 0.085,
+  wrinkles: 2.8,
+  wrinkleStrength: 0.14,
 };
 
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   {
     id: "A",
-    label: "A — mid fluid heat patches (lock)",
+    label: "A — mid Z-lobe peaks (lock)",
     tweaks: {
       depthTerrain: 0,
       wrinkles: 2.8,
-      wrinkleStrength: 0.09,
+      wrinkleStrength: 0.14,
     },
   },
   {
     id: "B",
-    label: "B — large smooth heat fields",
+    label: "B — fewer wide Z lobes",
     tweaks: {
       depthTerrain: 0,
-      wrinkles: 1.35,
-      wrinkleStrength: 0.11,
+      wrinkles: 1.4,
+      wrinkleStrength: 0.14,
       centerY: 0.4,
     },
   },
   {
     id: "C",
-    label: "C — smaller coherent heat spots",
+    label: "C — dense Z-scattered lobes",
     tweaks: {
       depthTerrain: 0,
-      wrinkles: 4.6,
-      wrinkleStrength: 0.1,
+      wrinkles: 5.0,
+      wrinkleStrength: 0.13,
       centerY: 0.36,
       lineWidth: 0.7,
     },
@@ -133,7 +133,7 @@ for (const variant of variants) {
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r15-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-r21-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}-labeled.png`));
@@ -148,7 +148,7 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-r15-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-r21-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 

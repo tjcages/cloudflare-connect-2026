@@ -18,6 +18,7 @@ import {
   twizzlerUnevenAcross,
   twizzlerAmpHeat,
   twizzlerAmpNoiseY,
+  twizzlerAmpSwell,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
@@ -180,15 +181,34 @@ describe("Twizzler", () => {
       expect(Math.abs(sample)).toBeLessThan(1.15);
     }
 
-    // Heat patches are stack-coherent: nearby across values share nearly the same heat.
+    // Heat patches scatter through Z: nearby across is similar, far across often differs.
     const h0 = twizzlerAmpHeat(0.4, -0.2, 1.0);
-    const hNear = twizzlerAmpHeat(0.4, -0.05, 1.0);
-    const hFar = twizzlerAmpHeat(0.4, 0.9, 1.0);
-    expect(Math.abs(h0 - hNear)).toBeLessThan(0.08);
-    expect(Math.abs(h0 - hNear)).toBeLessThan(Math.abs(h0 - hFar) + 0.02);
-    // Shared field only — same (x, across) always yields the same |Y| displacement.
-    expect(twizzlerAmpNoiseY(0.35, 0.2, 320, 1, 0.1, 1.2)).toBe(twizzlerAmpNoiseY(0.35, 0.2, 320, 1, 0.1, 1.2));
-
+    const hNear = twizzlerAmpHeat(0.4, -0.15, 1.0);
+    expect(Math.abs(h0 - hNear)).toBeLessThan(0.2);
+    // Across the stack, heat must vary (not one pack-wide L→R field).
+    const zSamples = [-0.9, -0.45, 0, 0.45, 0.9].map((z) => twizzlerAmpHeat(0.55, z, 1.0));
+    expect(Math.max(...zSamples) - Math.min(...zSamples)).toBeGreaterThan(0.15);
+    // Z-lobes: different depth bands peak at different X (not one synchronized swell).
+    const early = [-0.78, -0.26, 0.26, 0.78].map((z) => twizzlerAmpSwell(0.25, z, 1.0));
+    const late = [-0.78, -0.26, 0.26, 0.78].map((z) => twizzlerAmpSwell(0.7, z, 1.0));
+    expect(Math.max(...early) - Math.min(...early)).toBeGreaterThan(0.15);
+    expect(Math.max(...late) - Math.min(...late)).toBeGreaterThan(0.15);
+    // Z-scattered amp relocates peaks: different across → different extremum X.
+    const extremumX = (z: number) => {
+      let bestX = 0;
+      let best = -1e9;
+      for (let i = 0; i <= 50; i += 1) {
+        const x = i / 50;
+        const y = twizzlerAmpNoiseY(x, z, 320, 1, 0.14, 1);
+        if (Math.abs(y) > best) {
+          best = Math.abs(y);
+          bestX = x;
+        }
+      }
+      return bestX;
+    };
+    const xs = [-0.9, -0.45, 0, 0.45, 0.9].map(extremumX);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.12);
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,
       depthPosition: 0.86,
