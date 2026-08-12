@@ -55,4 +55,18 @@ describe("resolveLabVideoExportLayers", () => {
       canvas: engine,
     });
   });
+
+  it("records the engine canvas for Rain-only (Twizzler off)", () => {
+    expect(
+      resolveLabVideoExportLayers({
+        engineCanvas: engine,
+        twizzlerCanvas: twizzler,
+        twizzlerVisible: false,
+        rainVisible: true,
+        framesEnabled: false,
+      }),
+    ).toEqual({
+      canvas: engine,
+    });
+  });
 });

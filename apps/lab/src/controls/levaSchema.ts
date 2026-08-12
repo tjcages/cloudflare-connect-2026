@@ -528,7 +528,6 @@ export function useEngineControls(
   const showTwizzlerRibbonConfig = () => showTwizzlerRibbonRef.current;
   const showTwizzlerAuthoring = () => showTwizzlerRibbonRef.current && !clientDefaultPanelRef.current;
   const showFullLab = () => !clientDefaultPanelRef.current;
-  const showClientOnly = () => clientAppRef.current;
   const showSpiralShaderConfigRef = useRef(activeShaderConfig === "spiral");
   showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && !clientDefaultPanel;
   const showShaderToyCameraRef = useRef(showShaderToyCamera);
@@ -1513,11 +1512,14 @@ export function useEngineControls(
                 twizzlerEnabled: {
                   value: initialLabSettings.twizzlerEnabled,
                   label: "Show",
+                  // Client Graphic toggle (Twizzler / Rain / Both) owns visibility (CF-50).
+                  render: () => !clientAppRef.current,
                 },
                 rainEnabled: {
                   value: d.sparkle?.gaps?.enabled ?? DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
                   label: "Rain",
-                  render: showClientOnly,
+                  // Keep registered for layouts/refresh; Graphic toggle is the client control.
+                  render: () => false,
                 },
                 twizzlerRibbonColorMode: {
                   value: initialLabSettings.twizzler.ribbonColorMode ?? "baked",

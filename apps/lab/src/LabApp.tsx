@@ -68,6 +68,7 @@ import {
   loadBannerLayout,
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
+import { flagsFromGraphicMode, graphicModeFromFlags, type ClientGraphicMode } from "./client/clientGraphicMode";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -3212,6 +3213,14 @@ function LabInner({
   // Client Rain = stripe rect overlay on top of Twizzler. Output canvas sits above Twizzler
   // (z-index), so hide it when Rain is off or it covers the ribbon with an opaque pass.
   const showRainRectOverlay = !clientMode || controls.sparkle.gaps.enabled;
+  const graphicMode = graphicModeFromFlags(twizzler.enabled, controls.sparkle.gaps.enabled);
+  const applyClientGraphicMode = (mode: ClientGraphicMode) => {
+    const flags = flagsFromGraphicMode(mode);
+    setControl({
+      twizzlerEnabled: flags.twizzlerEnabled,
+      rainEnabled: flags.rainEnabled,
+    });
+  };
   // Engine bg is forced transparent when underlay/source preview is shown — keep the
   // chosen solid color on the stack so it still sits behind those layers.
   // Twizzler hairlines need an opaque stack underlay (usually white) to read at all.
@@ -3830,6 +3839,30 @@ function LabInner({
                 </div>
               </div>
               <div className="lab-client-leva">
+                <div className="lab-client-graphic">
+                  <div className="lab-client-layouts-label">Graphic</div>
+                  <fieldset className="lab-panel-mode-toggle" aria-label="Graphic">
+                    <legend>Graphic</legend>
+                    {(
+                      [
+                        ["twizzler", "Twizzler"],
+                        ["rain", "Rain"],
+                        ["both", "Both"],
+                      ] as const satisfies ReadonlyArray<readonly [ClientGraphicMode, string]>
+                    ).map(([mode, label]) => (
+                      <label key={mode} className={`lab-panel-mode-btn${graphicMode === mode ? " is-selected" : ""}`}>
+                        <input
+                          type="radio"
+                          name="lab-graphic-mode"
+                          value={mode}
+                          checked={graphicMode === mode}
+                          onChange={() => applyClientGraphicMode(mode)}
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </fieldset>
+                </div>
                 <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
               </div>
               <div className="lab-client-exports">

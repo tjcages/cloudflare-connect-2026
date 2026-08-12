@@ -206,7 +206,9 @@
 }
 
 .playground-leva-panel
-  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(:disabled):hover {
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(
+    :disabled
+  ):hover {
   color: var(--leva-text) !important;
   background-color: var(--leva-surface-hover) !important;
   border-color: transparent !important;
@@ -1967,6 +1969,23 @@ body.lab-sidebar-resizing .lab-sidebar {
 .lab-shell.is-client-mode .lab-client-leva {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.lab-shell.is-client-mode .lab-client-graphic {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 10px 10px;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--leva-border-subtle);
+  background: transparent;
+}
+
+.lab-shell.is-client-mode .lab-client-graphic .lab-panel-mode-toggle {
+  align-self: stretch;
+  width: 100%;
 }
 
 /* Match Duration/Start labels to Saved layouts title sizing. */
