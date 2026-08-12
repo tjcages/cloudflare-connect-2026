@@ -59,10 +59,10 @@ Branch slug = git branch with `/` → `-`, lowercased (e.g. `cursor/cf-17-…` �
 3. **Build command:** `pnpm install` (postinstall builds assets when `WORKERS_CI=1`) or `pnpm run build`
 4. **Deploy command (`main`):** `npx wrangler deploy`
 5. **Version / non-prod command:** `npx wrangler versions upload`
-6. Push to a PR branch → GitHub check `cloudflare-workers-and-pages` must leave **queued** and show a real check run → Cloudflare comments both preview URLs on the PR
+6. Push to a PR branch → Cloudflare bot comments **Branch Preview URL** + **Commit Preview URL** on the PR (`*-connect-shader.off-brand.workers.dev`)
+
+**Status (CF-18):** Non-production Workers Builds are live — PRs receive Cloudflare bot comments with branch + commit preview links. The GitHub Actions workflow `.github/workflows/workers-preview.yml` is an optional fallback (`CLOUDFLARE_API_TOKEN`); without the secret it skips cleanly and does not fail the check.
 
 If every non-`main` commit stays **queued / 0 runs** forever, non-prod builds are not actually firing — re-toggle the Branch control checkbox, confirm no stuck build is holding the free-plan concurrent slot (limit 1), and check [Build history](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production).
 
-Fallback: repo secret `CLOUDFLARE_API_TOKEN` + `.github/workflows/workers-preview.yml` (`pnpm run preview:upload`).
-
-Dashboard deployments: https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production/deployments
+Optional fallback secret: repo `CLOUDFLARE_API_TOKEN` enables `pnpm run preview:upload` from GitHub Actions.
