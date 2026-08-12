@@ -1,23 +1,21 @@
-# Client preview mode (limited Twizzler editing)
+# Client preview mode (limited Leva)
 
-Shareable review surface for clients / agencies. **No camera controls.** Boots from the Banner 5:1 Twizzler + shader design.
+Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**, with most folders hidden.
 
-| URL                   | Role                                               |
-| --------------------- | -------------------------------------------------- |
-| `/` or `/client.html` | Limited client preview (default staging link)      |
-| `/lab.html`           | Full authoring lab (Leva drawers, camera, exports) |
-| `/experiments.html`   | Experiments gallery                                |
+| URL                   | Role                              |
+| --------------------- | --------------------------------- |
+| `/` or `/client.html` | Client mode — reduced Leva panels |
+| `/lab.html`           | Full authoring lab                |
+| `/experiments.html`   | Experiments gallery               |
 
-## Allowed controls
+## What clients see (Leva)
 
-- **Layers:** Twizzler on/off, rain on/off (`sparkle.gaps`)
-- **Size presets:** Banner 5:1, Wide 3:1, Hero 16:9, Square
-- **Layout presets:** Classic, Low ribbon, High fan, Compact
-- **Color presets:** Coral classic, Soft gold, Deep ember, Graphite
-- **Tweaks:** opacity, scale, twist/rotation, amplitude, vertical position, motion speed
+- **Presets** — size / layout / color
+- **Twizzler** — Show, Rain, Opacity, Scale, plus Shape (Center Y / Amplitude / Twist) and Motion (Speed)
+- Camera, texture drawers, stripes, sparkle authoring, surfaces, etc. are hidden
 
 ## Implementation
 
-- Presets + bundle builder: `apps/lab/src/client/clientPresets.ts`
-- UI: `apps/lab/src/client/ClientPreviewApp.tsx`
-- Entry: `apps/lab/src/client-main.tsx` → `index.html` / `client.html`
+- Boot: `apps/lab/src/client-main.tsx` → `<LabApp clientMode />` + Banner 5:1
+- Gating: `drawerFolder({ hideInClient, clientOnly })` in `controls/levaSchema.ts`
+- Preset data: `apps/lab/src/client/clientPresets.ts`

@@ -60,22 +60,51 @@ import {
   upsertCustomStripePalette,
   type CustomStripePalette,
 } from "./customStripePalettes";
+import {
+  CLIENT_COLOR_PRESETS,
+  CLIENT_LAYOUT_PRESETS,
+  CLIENT_SIZE_PRESETS,
+  DEFAULT_CLIENT_PREVIEW_STATE,
+  findClientColorPreset,
+  findClientLayoutPreset,
+  findClientSizePreset,
+  resetTweaksForPresets,
+  type ClientColorPresetId,
+  type ClientLayoutPresetId,
+  type ClientSizePresetId,
+} from "../client/clientPresets";
+
+/** Set for the duration of `useEngineControls` so drawerFolder can gate client mode. */
+let clientModeActive = false;
 
 function drawerFolder<S extends Parameters<typeof folder>[0]>(
   id: string,
   schema: S,
-  options: { defaultOpen?: boolean; render?: () => boolean } = {},
+  options: {
+    defaultOpen?: boolean;
+    render?: () => boolean;
+    /** Hide this folder entirely in client / agency review mode. */
+    hideInClient?: boolean;
+    /** Only show this folder in client / agency review mode. */
+    clientOnly?: boolean;
+  } = {},
 ) {
-  const { defaultOpen = false, ...folderOptions } = options;
+  const { defaultOpen = false, hideInClient = false, clientOnly = false, render, ...folderOptions } = options;
   return folder(schema, {
     ...folderOptions,
     collapsed: !loadControlDrawerOpen(id, loadLabSettings().drawerOpen[id] ?? defaultOpen),
+    render: () => {
+      if (hideInClient && clientModeActive) return false;
+      if (clientOnly && !clientModeActive) return false;
+      return render ? render() : true;
+    },
   });
 }
 
 const SHADER_PANEL_ORDER = [
-  "Shader config",
+  "Presets",
   "Twizzler",
+  "Shader config",
   "Background",
   "Stripes",
   "Grid",
@@ -366,6 +395,8 @@ export interface EngineControlsResult {
   twizzler: { enabled: boolean } & TwizzlerSettings;
   twizzlerMap: TwizzlerMapSettings;
   cometLogo: CometLogoSettings;
+  /** Present in client mode when a size preset is selected. */
+  clientCanvasSize: { width: number; height: number } | null;
 }
 
 function paletteForBackgroundFillMode(mode: BackgroundFillMode): string {
@@ -451,11 +482,15 @@ export function useEngineControls(
     initialConfig?: ThemedEngineConfig;
     initialEditTheme?: LabEditTheme;
     configScope?: "global" | "surface";
+    /** Agency / client review: hide authoring folders, keep Twizzler + presets + rain. */
+    clientMode?: boolean;
   } = {},
 ): EngineControlsResult {
   const surfaceConfig = options.configScope === "surface";
-  const showShaderCamera = options.showShaderCamera === true;
-  const showConnectCamera = options.showConnectCamera === true;
+  const clientMode = options.clientMode === true;
+  clientModeActive = clientMode;
+  const showShaderCamera = options.showShaderCamera === true && !clientMode;
+  const showConnectCamera = options.showConnectCamera === true && !clientMode;
   const activeShaderConfig = options.activeShaderConfig ?? null;
   const showTwizzlerRibbon = options.showTwizzlerRibbon === true;
   const showShaderToyCamera = showShaderCamera && !showConnectCamera;
@@ -467,11 +502,16 @@ export function useEngineControls(
   activeShaderConfigRef.current = activeShaderConfig;
   const showTwizzlerRibbonRef = useRef(showTwizzlerRibbon);
   showTwizzlerRibbonRef.current = showTwizzlerRibbon;
-  const showCometLogoShaderConfig = () => activeShaderConfigRef.current === "comet-logo";
-  const showTwizzlerMapShaderConfig = () => activeShaderConfigRef.current === "twizzler-map";
+  const clientModeRef = useRef(clientMode);
+  clientModeRef.current = clientMode;
+  const showCometLogoShaderConfig = () => activeShaderConfigRef.current === "comet-logo" && !clientModeRef.current;
+  const showTwizzlerMapShaderConfig = () => activeShaderConfigRef.current === "twizzler-map" && !clientModeRef.current;
   const showTwizzlerRibbonConfig = () => showTwizzlerRibbonRef.current;
+  const showTwizzlerAuthoring = () => showTwizzlerRibbonRef.current && !clientModeRef.current;
+  const showFullLab = () => !clientModeRef.current;
+  const showClientOnly = () => clientModeRef.current;
   const showSpiralShaderConfigRef = useRef(activeShaderConfig === "spiral");
-  showSpiralShaderConfigRef.current = activeShaderConfig === "spiral";
+  showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && !clientMode;
   const showShaderToyCameraRef = useRef(showShaderToyCamera);
   showShaderToyCameraRef.current = showShaderToyCamera;
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
@@ -996,66 +1036,119 @@ export function useEngineControls(
         },
         {
           collapsed: !loadControlDrawerOpen("Camera", initialLabSettings.drawerOpen["Camera"] ?? false),
-          render: () => showShaderCameraRef.current,
+          render: () => showShaderCameraRef.current && showFullLab(),
         },
       ),
-      General: drawerFolder("General", {
-        stripesEnabled: { value: d.stripesEnabled, label: "Stripes enabled" },
-        textureDpr: { value: d.fieldScale, min: 0.25, max: 2, step: 0.25, label: "Texture DPR" },
-      }),
-      "Texture Tone": drawerFolder("Texture Tone", {
-        exposure: { value: d.adjustments.exposure, min: -2, max: 2, step: 0.05, label: "Exposure" },
-        brightness: { value: d.adjustments.brightness, min: -0.5, max: 0.5, step: 0.01, label: "Brightness" },
-        contrast: { value: d.adjustments.contrast, min: 0, max: 2, step: 0.01, label: "Contrast" },
-        gamma: { value: d.adjustments.gamma, min: 0.05, max: 5, step: 0.05, label: "Gamma" },
-        invert: {
-          value: d.adjustments.invert,
-          label: "Invert luminance",
-          render: (get) => get("Stripes.colorsMode") !== "colors",
+      General: drawerFolder(
+        "General",
+        {
+          stripesEnabled: { value: d.stripesEnabled, label: "Stripes enabled" },
+          textureDpr: { value: d.fieldScale, min: 0.25, max: 2, step: 0.25, label: "Texture DPR" },
         },
-      }),
-      "Texture Levels": drawerFolder("Texture Levels", {
-        blackPoint: { value: d.adjustments.blackPoint, min: 0, max: 1, step: 0.01, label: "Black point" },
-        whitePoint: { value: d.adjustments.whitePoint, min: 0, max: 1, step: 0.01, label: "White point" },
-        thresholdBias: { value: d.adjustments.thresholdBias, min: -0.5, max: 0.5, step: 0.01, label: "Threshold bias" },
-        posterizeLevels: { value: d.adjustments.posterizeLevels, min: 0, max: 16, step: 1, label: "Posterize" },
-        noiseAmount: { value: d.adjustments.noiseAmount, min: 0, max: 0.5, step: 0.01, label: "Noise" },
-        blurRadius: { value: d.adjustments.blurRadius, min: 0, max: 4, step: 1, label: "Blur" },
-        sharpenAmount: { value: d.adjustments.sharpenAmount, min: 0, max: 4, step: 0.1, label: "Sharpen" },
-      }),
-      "Texture Source": drawerFolder("Texture Source", {
-        backgroundSourceOpacity: {
-          value: surfaceConfig ? 0 : Math.round((initialLabSettings.backgroundSourceOpacity ?? 0) * 100),
-          min: 0,
-          max: 100,
-          step: 1,
-          label: "Preview opacity",
-          render: () => !surfaceConfig,
+        { hideInClient: true },
+      ),
+      "Texture Tone": drawerFolder(
+        "Texture Tone",
+        {
+          exposure: { value: d.adjustments.exposure, min: -2, max: 2, step: 0.05, label: "Exposure" },
+          brightness: { value: d.adjustments.brightness, min: -0.5, max: 0.5, step: 0.01, label: "Brightness" },
+          contrast: { value: d.adjustments.contrast, min: 0, max: 2, step: 0.01, label: "Contrast" },
+          gamma: { value: d.adjustments.gamma, min: 0.05, max: 5, step: 0.05, label: "Gamma" },
+          invert: {
+            value: d.adjustments.invert,
+            label: "Invert luminance",
+            render: (get) => get("Stripes.colorsMode") !== "colors",
+          },
         },
-        fit: {
-          value: d.transform.fit,
-          options: {
-            "Fit width": "width",
-            "Fit height": "height",
-            Cover: "cover",
-            Contain: "contain",
-            Stretch: "stretch",
-          } as const,
-          label: "Fit",
+        { hideInClient: true },
+      ),
+      "Texture Levels": drawerFolder(
+        "Texture Levels",
+        {
+          blackPoint: { value: d.adjustments.blackPoint, min: 0, max: 1, step: 0.01, label: "Black point" },
+          whitePoint: { value: d.adjustments.whitePoint, min: 0, max: 1, step: 0.01, label: "White point" },
+          thresholdBias: {
+            value: d.adjustments.thresholdBias,
+            min: -0.5,
+            max: 0.5,
+            step: 0.01,
+            label: "Threshold bias",
+          },
+          posterizeLevels: { value: d.adjustments.posterizeLevels, min: 0, max: 16, step: 1, label: "Posterize" },
+          noiseAmount: { value: d.adjustments.noiseAmount, min: 0, max: 0.5, step: 0.01, label: "Noise" },
+          blurRadius: { value: d.adjustments.blurRadius, min: 0, max: 4, step: 1, label: "Blur" },
+          sharpenAmount: { value: d.adjustments.sharpenAmount, min: 0, max: 4, step: 0.1, label: "Sharpen" },
         },
-        zoom: { value: d.transform.zoom, min: 0.5, max: 4, step: 0.01, label: "Zoom" },
-        panX: { value: d.transform.panX, min: -1, max: 1, step: 0.01, label: "Pan X" },
-        panY: { value: d.transform.panY, min: -1, max: 1, step: 0.01, label: "Pan Y" },
-      }),
+        { hideInClient: true },
+      ),
+      "Texture Source": drawerFolder(
+        "Texture Source",
+        {
+          backgroundSourceOpacity: {
+            value: surfaceConfig ? 0 : Math.round((initialLabSettings.backgroundSourceOpacity ?? 0) * 100),
+            min: 0,
+            max: 100,
+            step: 1,
+            label: "Preview opacity",
+            render: () => !surfaceConfig,
+          },
+          fit: {
+            value: d.transform.fit,
+            options: {
+              "Fit width": "width",
+              "Fit height": "height",
+              Cover: "cover",
+              Contain: "contain",
+              Stretch: "stretch",
+            } as const,
+            label: "Fit",
+          },
+          zoom: { value: d.transform.zoom, min: 0.5, max: 4, step: 0.01, label: "Zoom" },
+          panX: { value: d.transform.panX, min: -1, max: 1, step: 0.01, label: "Pan X" },
+          panY: { value: d.transform.panY, min: -1, max: 1, step: 0.01, label: "Pan Y" },
+        },
+        { hideInClient: true },
+      ),
     }),
     { store: textureStore },
     [],
   );
   textureControlSetterRef.current = setTextureControl as (values: Record<string, unknown>) => void;
 
+  const clientSizeOptions = Object.fromEntries(
+    CLIENT_SIZE_PRESETS.map((preset) => [preset.label, preset.id]),
+  ) as Record<string, ClientSizePresetId>;
+  const clientLayoutOptions = Object.fromEntries(
+    CLIENT_LAYOUT_PRESETS.map((preset) => [preset.label, preset.id]),
+  ) as Record<string, ClientLayoutPresetId>;
+  const clientColorOptions = Object.fromEntries(
+    CLIENT_COLOR_PRESETS.map((preset) => [preset.label, preset.id]),
+  ) as Record<string, ClientColorPresetId>;
+
   const [shaderValues, setShaderControl] = useControls(
     () =>
       orderShaderPanel({
+        Presets: drawerFolder(
+          "Presets",
+          {
+            clientSize: {
+              value: DEFAULT_CLIENT_PREVIEW_STATE.sizeId,
+              options: clientSizeOptions,
+              label: "Size",
+            },
+            clientLayout: {
+              value: DEFAULT_CLIENT_PREVIEW_STATE.layoutId,
+              options: clientLayoutOptions,
+              label: "Layout",
+            },
+            clientColor: {
+              value: DEFAULT_CLIENT_PREVIEW_STATE.colorId,
+              options: clientColorOptions,
+              label: "Color",
+            },
+          },
+          { defaultOpen: true, clientOnly: true },
+        ),
         "Shader config": drawerFolder(
           "Shader config",
           {
@@ -1348,6 +1441,7 @@ export function useEngineControls(
           },
           {
             defaultOpen: true,
+            hideInClient: true,
             render: () => activeShaderConfigRef.current !== null,
           },
         ),
@@ -1361,25 +1455,33 @@ export function useEngineControls(
                   value: initialLabSettings.twizzlerEnabled,
                   label: "Show",
                 },
+                rainEnabled: {
+                  value: DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
+                  label: "Rain",
+                  render: showClientOnly,
+                },
                 twizzlerColor: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.color,
                     label: "Color near",
                   }),
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerColorFar: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorFar,
                     label: "Color far",
                   }),
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerColorEdge: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorEdge ?? "#ffe08a",
                     label: "Color edge",
                   }),
+                  render: showTwizzlerAuthoring,
                 },
-                ...(options.twizzlerTransport
+                ...(options.twizzlerTransport && !clientMode
                   ? {
                       twizzlerTransport: timeTransportPlugin({
                         label: "Time",
@@ -1402,7 +1504,7 @@ export function useEngineControls(
                   label: "Scale",
                 },
               },
-              { render: showTwizzlerRibbonConfig },
+              { render: showTwizzlerRibbonConfig, defaultOpen: true },
             ),
             Shape: drawerFolder(
               "Twizzler Shape",
@@ -1417,7 +1519,7 @@ export function useEngineControls(
                 twizzlerAmplitude: {
                   value: initialLabSettings.twizzler.amplitude,
                   min: 0,
-                  max: 1,
+                  max: 1.5,
                   step: 0.01,
                   label: "Amplitude",
                 },
@@ -1427,6 +1529,7 @@ export function useEngineControls(
                   max: 24,
                   step: 0.25,
                   label: "Wrinkles",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerWrinkleStrength: {
                   value: initialLabSettings.twizzler.wrinkleStrength,
@@ -1434,6 +1537,7 @@ export function useEngineControls(
                   max: 0.5,
                   step: 0.005,
                   label: "Wrinkle strength",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerBendPosition: {
                   value: initialLabSettings.twizzler.bendPosition,
@@ -1441,6 +1545,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Bend 1 position",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerBendAmount: {
                   value: initialLabSettings.twizzler.bendAmount,
@@ -1448,6 +1553,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Bend 1 amount",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerBend2Position: {
                   value: initialLabSettings.twizzler.bend2Position,
@@ -1455,6 +1561,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Bend 2 position",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerBend2Amount: {
                   value: initialLabSettings.twizzler.bend2Amount,
@@ -1462,6 +1569,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Bend 2 amount",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerBend3Position: {
                   value: initialLabSettings.twizzler.bend3Position,
@@ -1469,6 +1577,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Bend 3 position",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerBend3Amount: {
                   value: initialLabSettings.twizzler.bend3Amount,
@@ -1476,6 +1585,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Bend 3 amount",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerDepthPosition: {
                   value: initialLabSettings.twizzler.depthPosition,
@@ -1483,6 +1593,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Depth position",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerDepthAmount: {
                   value: initialLabSettings.twizzler.depthAmount,
@@ -1490,6 +1601,7 @@ export function useEngineControls(
                   max: 2,
                   step: 0.01,
                   label: "Depth amount",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerDepthWidth: {
                   value: initialLabSettings.twizzler.depthWidth,
@@ -1497,6 +1609,7 @@ export function useEngineControls(
                   max: 0.75,
                   step: 0.01,
                   label: "Depth width",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerDepthSpread: {
                   value: initialLabSettings.twizzler.depthSpread,
@@ -1504,6 +1617,7 @@ export function useEngineControls(
                   max: 4,
                   step: 0.01,
                   label: "Depth widen",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerDepthLift: {
                   value: initialLabSettings.twizzler.depthLift,
@@ -1511,6 +1625,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Depth Y lift",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerDepthTerrain: {
                   value: initialLabSettings.twizzler.depthTerrain ?? 0,
@@ -1518,6 +1633,7 @@ export function useEngineControls(
                   max: 2,
                   step: 1,
                   label: "Z terrain (0A/1B/2C)",
+                  render: showTwizzlerAuthoring,
                 },
                 twizzlerTwist: {
                   value: initialLabSettings.twizzler.twist,
@@ -1568,7 +1684,7 @@ export function useEngineControls(
                   label: "Edge taper",
                 },
               },
-              { render: showTwizzlerRibbonConfig },
+              { render: showTwizzlerAuthoring },
             ),
             Lines: drawerFolder(
               "Twizzler Lines",
@@ -1609,7 +1725,7 @@ export function useEngineControls(
                   label: "Stipple gap",
                 },
               },
-              { render: showTwizzlerRibbonConfig },
+              { render: showTwizzlerAuthoring },
             ),
             Noise: drawerFolder(
               "Twizzler Noise",
@@ -1629,7 +1745,7 @@ export function useEngineControls(
                   label: "Line separation",
                 },
               },
-              { render: showTwizzlerRibbonConfig },
+              { render: showTwizzlerAuthoring },
             ),
             Motion: drawerFolder(
               "Twizzler Motion",
@@ -1647,6 +1763,7 @@ export function useEngineControls(
                   max: 1,
                   step: 0.01,
                   label: "Vertical drift",
+                  render: showTwizzlerAuthoring,
                 },
               },
               { render: showTwizzlerRibbonConfig },
@@ -1789,2599 +1906,2686 @@ export function useEngineControls(
             render: () => showTwizzlerRibbonRef.current,
           },
         ),
-        Stripes: drawerFolder("Stripes", {
-          colorsMode: {
-            value: d.colors.mode === "colors" ? "colors" : "luminance",
-            options: { Luminance: "luminance", "Image colors": "colors" } as const,
-            label: "Color mode",
-          },
-          stripeBlendMode: {
-            value: d.colors.stripeBlendMode,
-            options: {
-              Normal: "normal",
-              Multiply: "multiply",
-              Screen: "screen",
-              Overlay: "overlay",
-              Darken: "darken",
-              Lighten: "lighten",
-              Difference: "difference",
-              Exclusion: "exclusion",
-            } as const,
-            label: "Blend mode",
-          },
-          stripePalette: {
-            value: stripePaletteValue,
-            options: stripePaletteOptions,
-            label: "Palette",
-            onChange: (value: string, _path: string, context: { initial: boolean }) => {
-              if (!context.initial) handlePaletteChange(value);
+        Stripes: drawerFolder(
+          "Stripes",
+          {
+            colorsMode: {
+              value: d.colors.mode === "colors" ? "colors" : "luminance",
+              options: { Luminance: "luminance", "Image colors": "colors" } as const,
+              label: "Color mode",
             },
-            render: (get) => get("Stripes.colorsMode") !== "colors",
-          },
-          stripeColorsTable: stripeColorsTablePlugin({
-            value: stripeKey,
-          }),
-          "Detailed settings": folder(
-            {
-              backgroundRampBrightnessAdd: {
-                value: backgroundRampSettings.brightnessAdd,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "+ Brightness",
-              },
-              backgroundRampHueDriftDeg: {
-                value: backgroundRampSettings.hueDriftDeg,
-                min: -180,
-                max: 180,
-                step: 0.5,
-                label: "Hue drift",
-              },
-              backgroundRampSaturationBoost: {
-                value: backgroundRampSettings.saturationBoost,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Saturation boost",
-              },
+            stripeBlendMode: {
+              value: d.colors.stripeBlendMode,
+              options: {
+                Normal: "normal",
+                Multiply: "multiply",
+                Screen: "screen",
+                Overlay: "overlay",
+                Darken: "darken",
+                Lighten: "lighten",
+                Difference: "difference",
+                Exclusion: "exclusion",
+              } as const,
+              label: "Blend mode",
             },
-            {
-              collapsed: !loadControlDrawerOpen(
-                "Detailed settings",
-                loadLabSettings().drawerOpen["Detailed settings"] ?? false,
-              ),
-              render: (get) =>
-                get("Stripes.colorsMode") !== "colors" && stripePaletteValue === BACKGROUND_RAMP_PALETTE_NAME,
+            stripePalette: {
+              value: stripePaletteValue,
+              options: stripePaletteOptions,
+              label: "Palette",
+              onChange: (value: string, _path: string, context: { initial: boolean }) => {
+                if (!context.initial) handlePaletteChange(value);
+              },
+              render: (get) => get("Stripes.colorsMode") !== "colors",
             },
-          ),
-          "Stripe Dots": folder(
-            {
-              stripeDotsEnabled: {
-                value: d.stripeDots.enabled,
-                label: "Enabled",
+            stripeColorsTable: stripeColorsTablePlugin({
+              value: stripeKey,
+            }),
+            "Detailed settings": folder(
+              {
+                backgroundRampBrightnessAdd: {
+                  value: backgroundRampSettings.brightnessAdd,
+                  min: 0,
+                  max: 100,
+                  step: 1,
+                  label: "+ Brightness",
+                },
+                backgroundRampHueDriftDeg: {
+                  value: backgroundRampSettings.hueDriftDeg,
+                  min: -180,
+                  max: 180,
+                  step: 0.5,
+                  label: "Hue drift",
+                },
+                backgroundRampSaturationBoost: {
+                  value: backgroundRampSettings.saturationBoost,
+                  min: 0,
+                  max: 100,
+                  step: 1,
+                  label: "Saturation boost",
+                },
               },
-              stripeDotsDensity: {
-                value: d.stripeDots.density * 100,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Density",
-                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+              {
+                collapsed: !loadControlDrawerOpen(
+                  "Detailed settings",
+                  loadLabSettings().drawerOpen["Detailed settings"] ?? false,
+                ),
+                render: (get) =>
+                  get("Stripes.colorsMode") !== "colors" && stripePaletteValue === BACKGROUND_RAMP_PALETTE_NAME,
               },
-              stripeDotsRandomVisibility: {
-                value: d.stripeDots.randomVisibility * 100,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Random visibility",
-                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+            ),
+            "Stripe Dots": folder(
+              {
+                stripeDotsEnabled: {
+                  value: d.stripeDots.enabled,
+                  label: "Enabled",
+                },
+                stripeDotsDensity: {
+                  value: d.stripeDots.density * 100,
+                  min: 0,
+                  max: 100,
+                  step: 1,
+                  label: "Density",
+                  render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+                },
+                stripeDotsRandomVisibility: {
+                  value: d.stripeDots.randomVisibility * 100,
+                  min: 0,
+                  max: 100,
+                  step: 1,
+                  label: "Random visibility",
+                  render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+                },
+                stripeDotsSizePx: {
+                  value: d.stripeDots.sizePx,
+                  min: 1,
+                  max: 2,
+                  step: 0.5,
+                  label: "Size",
+                  render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+                },
+                stripeDotsBrightness: {
+                  value: d.stripeDots.brightness * 100,
+                  min: 0,
+                  max: 100,
+                  step: 1,
+                  label: "+ Brightness",
+                  render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+                },
+                stripeDotsHueDriftDeg: {
+                  value: d.stripeDots.hueDriftDeg,
+                  min: -180,
+                  max: 180,
+                  step: 0.5,
+                  label: "Hue drift",
+                  render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+                },
+                stripeDotsSaturationBoost: {
+                  value: d.stripeDots.saturationBoost * 100,
+                  min: 0,
+                  max: 100,
+                  step: 1,
+                  label: "Saturation boost",
+                  render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+                },
               },
-              stripeDotsSizePx: {
-                value: d.stripeDots.sizePx,
-                min: 1,
-                max: 2,
-                step: 0.5,
-                label: "Size",
-                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+              {
+                collapsed: !loadControlDrawerOpen("Stripe Dots", loadLabSettings().drawerOpen["Stripe Dots"] ?? false),
               },
-              stripeDotsBrightness: {
-                value: d.stripeDots.brightness * 100,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "+ Brightness",
-                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+            ),
+            "Stripe Border": folder(
+              {
+                stripeBorderEnabled: {
+                  value: d.stripeBorder.enabled,
+                  label: "Enabled",
+                },
+                stripeBorderMinWidthPx: {
+                  value: d.stripeBorder.minWidthPx,
+                  min: 2,
+                  max: 64,
+                  step: 0.5,
+                  label: "Min stripe width",
+                  render: (get) => get("Stripes.Stripe Border.stripeBorderEnabled") === true,
+                },
+                stripeBorderDensity: {
+                  value: d.stripeBorder.density * 100,
+                  min: 0,
+                  max: 100,
+                  step: 1,
+                  label: "Density",
+                  render: (get) => get("Stripes.Stripe Border.stripeBorderEnabled") === true,
+                },
               },
-              stripeDotsHueDriftDeg: {
-                value: d.stripeDots.hueDriftDeg,
-                min: -180,
-                max: 180,
-                step: 0.5,
-                label: "Hue drift",
-                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
+              {
+                collapsed: !loadControlDrawerOpen(
+                  "Stripe Border",
+                  loadLabSettings().drawerOpen["Stripe Border"] ?? false,
+                ),
               },
-              stripeDotsSaturationBoost: {
-                value: d.stripeDots.saturationBoost * 100,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Saturation boost",
-                render: (get) => get("Stripes.Stripe Dots.stripeDotsEnabled") === true,
-              },
+            ),
+            imageColorWidthSource: {
+              value: initialImageColorWidthSource(d.colors),
+              options: { "Highest luminance": "bright", "Lowest luminance": "dark" } as const,
+              label: "Thickest",
+              render: (get) => get("Stripes.colorsMode") === "colors",
             },
-            {
-              collapsed: !loadControlDrawerOpen("Stripe Dots", loadLabSettings().drawerOpen["Stripe Dots"] ?? false),
-            },
-          ),
-          "Stripe Border": folder(
-            {
-              stripeBorderEnabled: {
-                value: d.stripeBorder.enabled,
-                label: "Enabled",
-              },
-              stripeBorderMinWidthPx: {
-                value: d.stripeBorder.minWidthPx,
-                min: 2,
-                max: 64,
-                step: 0.5,
-                label: "Min stripe width",
-                render: (get) => get("Stripes.Stripe Border.stripeBorderEnabled") === true,
-              },
-              stripeBorderDensity: {
-                value: d.stripeBorder.density * 100,
-                min: 0,
-                max: 100,
-                step: 1,
-                label: "Density",
-                render: (get) => get("Stripes.Stripe Border.stripeBorderEnabled") === true,
-              },
-            },
-            {
-              collapsed: !loadControlDrawerOpen(
-                "Stripe Border",
-                loadLabSettings().drawerOpen["Stripe Border"] ?? false,
-              ),
-            },
-          ),
-          imageColorWidthSource: {
-            value: initialImageColorWidthSource(d.colors),
-            options: { "Highest luminance": "bright", "Lowest luminance": "dark" } as const,
-            label: "Thickest",
-            render: (get) => get("Stripes.colorsMode") === "colors",
-          },
-          imageColorRemoveThin: {
-            value: d.colors.imageColorRemoveThin ?? 0,
-            min: 0,
-            max: 0.95,
-            step: 0.01,
-            label: "Remove thin",
-            render: (get) => get("Stripes.colorsMode") === "colors",
-          },
-          imageColorBoostThick: {
-            value: d.colors.imageColorBoostThick ?? 0,
-            min: 0,
-            max: 2,
-            step: 0.01,
-            label: "Boost thick",
-            render: (get) => get("Stripes.colorsMode") === "colors",
-          },
-          imageColorLightness: {
-            value: (d.colors.imageColorLightness ?? 0) * 100,
-            min: -100,
-            max: 100,
-            step: 1,
-            label: "Extra lightness",
-            render: (get) => get("Stripes.colorsMode") === "colors",
-          },
-          imageColorDensity: {
-            value: (d.colors.imageColorDensity ?? 1) * 100,
-            min: 0,
-            max: 100,
-            step: 1,
-            label: "Random density",
-            render: (get) => get("Stripes.colorsMode") === "colors",
-          },
-        }),
-        Grid: drawerFolder("Grid", {
-          cellWidth: { value: d.grid.cellWidth, min: 1, max: 24, step: 1, label: "Cell width" },
-          cellHeight: { value: d.grid.cellHeight, min: 1, max: 24, step: 1, label: "Cell height" },
-          gapX: { value: d.grid.gapX, min: 0, max: 24, step: 0.5, label: "Gap X" },
-          gapY: { value: d.grid.gapY, min: 0, max: 24, step: 0.5, label: "Gap Y" },
-          cornerRadius: { value: d.grid.cornerRadius, min: 0, max: 24, step: 0.5, label: "Corner radius" },
-          "Grid Lines": folder({
-            gridLinesEnabled: {
-              value: d.gridLines.enabled,
-              label: "Enabled",
-            },
-            gridLinesBrightness: {
-              value: d.gridLines.brightness * 100,
+            imageColorRemoveThin: {
+              value: d.colors.imageColorRemoveThin ?? 0,
               min: 0,
+              max: 0.95,
+              step: 0.01,
+              label: "Remove thin",
+              render: (get) => get("Stripes.colorsMode") === "colors",
+            },
+            imageColorBoostThick: {
+              value: d.colors.imageColorBoostThick ?? 0,
+              min: 0,
+              max: 2,
+              step: 0.01,
+              label: "Boost thick",
+              render: (get) => get("Stripes.colorsMode") === "colors",
+            },
+            imageColorLightness: {
+              value: (d.colors.imageColorLightness ?? 0) * 100,
+              min: -100,
               max: 100,
               step: 1,
-              label: "+ Brightness",
-              render: (get) => get("Grid.Grid Lines.gridLinesEnabled") === true,
+              label: "Extra lightness",
+              render: (get) => get("Stripes.colorsMode") === "colors",
             },
-            gridLinesDensity: {
-              value: d.gridLines.density * 100,
+            imageColorDensity: {
+              value: (d.colors.imageColorDensity ?? 1) * 100,
               min: 0,
               max: 100,
               step: 1,
               label: "Random density",
-              render: (get) => get("Grid.Grid Lines.gridLinesEnabled") === true,
+              render: (get) => get("Stripes.colorsMode") === "colors",
             },
-          }),
-          orientationStackMode: {
-            value: d.grid.orientation,
-            options: { Columns: "vertical", Rows: "horizontal" } as const,
-            label: "Rotate stacks",
           },
-          orientationAngleDeg: { value: d.grid.angleDeg, min: -180, max: 180, step: 1, label: "Orientation °" },
-          orientationRotationMode: {
-            value: d.grid.rotationMode === "overlap" ? "overlap" : "cell",
-            options: { Cell: "cell", Overlap: "overlap" } as const,
-            label: "Rotation mode",
-          },
-          orientationOverlapAmount: {
-            value: d.grid.overlapAmount,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Overlap amount",
-            render: (get) => get("Grid.orientationRotationMode") === "overlap",
-          },
-          streamGapWaveEnabled: { value: d.grid.streamGapWave.enabled, label: "Gap wave" },
-          streamGapWaveSqueeze: {
-            value: d.grid.streamGapWave.squeeze,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Gap squeeze",
-            render: (get) => get("Grid.streamGapWaveEnabled"),
-          },
-          streamGapWaveWavelengthCells: {
-            value: d.grid.streamGapWave.wavelengthCells,
-            min: 2,
-            max: 32,
-            step: 1,
-            label: "Wave length",
-            render: (get) => get("Grid.streamGapWaveEnabled"),
-          },
-          streamGapWaveSpeed: {
-            value: d.grid.streamGapWave.speed,
-            min: -4,
-            max: 4,
-            step: 0.01,
-            label: "Wave speed",
-            render: (get) => get("Grid.streamGapWaveEnabled"),
-          },
-          streamGapWavePhaseDeg: {
-            value: d.grid.streamGapWave.phaseDeg,
-            min: -180,
-            max: 180,
-            step: 1,
-            label: "Wave phase °",
-            render: (get) => get("Grid.streamGapWaveEnabled"),
-          },
-          orientationShortcuts: buttonGroup({
-            label: "Shortcuts",
-            opts: {
-              "0°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 0 }),
-              "45°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 45 }),
-              "90°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 90 }),
-              "135°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 135 }),
-              "180°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 180 }),
+          { hideInClient: true },
+        ),
+        Grid: drawerFolder(
+          "Grid",
+          {
+            cellWidth: { value: d.grid.cellWidth, min: 1, max: 24, step: 1, label: "Cell width" },
+            cellHeight: { value: d.grid.cellHeight, min: 1, max: 24, step: 1, label: "Cell height" },
+            gapX: { value: d.grid.gapX, min: 0, max: 24, step: 0.5, label: "Gap X" },
+            gapY: { value: d.grid.gapY, min: 0, max: 24, step: 0.5, label: "Gap Y" },
+            cornerRadius: { value: d.grid.cornerRadius, min: 0, max: 24, step: 0.5, label: "Corner radius" },
+            "Grid Lines": folder({
+              gridLinesEnabled: {
+                value: d.gridLines.enabled,
+                label: "Enabled",
+              },
+              gridLinesBrightness: {
+                value: d.gridLines.brightness * 100,
+                min: 0,
+                max: 100,
+                step: 1,
+                label: "+ Brightness",
+                render: (get) => get("Grid.Grid Lines.gridLinesEnabled") === true,
+              },
+              gridLinesDensity: {
+                value: d.gridLines.density * 100,
+                min: 0,
+                max: 100,
+                step: 1,
+                label: "Random density",
+                render: (get) => get("Grid.Grid Lines.gridLinesEnabled") === true,
+              },
+            }),
+            orientationStackMode: {
+              value: d.grid.orientation,
+              options: { Columns: "vertical", Rows: "horizontal" } as const,
+              label: "Rotate stacks",
             },
-          }),
-        }),
-        Frames: drawerFolder("Frames", {
-          framesEnabled: {
-            value: d.frames.enabled,
-            label: "Enabled",
-          },
-          framesLuminanceThreshold: {
-            value: d.frames.luminanceThreshold * 100,
-            min: 0,
-            max: 100,
-            step: 1,
-            label: "Min luminance",
-            render: (get) => get("Frames.framesEnabled") === true,
-          },
-          framesHighlightedStripeCount: {
-            value: d.frames.highlightedStripeCount,
-            min: 1,
-            max: 16,
-            step: 1,
-            label: "Highlighted stripes",
-            render: (get) => get("Frames.framesEnabled") === true,
-          },
-          framesGroupDistanceCells: {
-            value: d.frames.groupDistanceCells,
-            min: 0,
-            max: 8,
-            step: 1,
-            label: "Group distance",
-            render: (get) => get("Frames.framesEnabled") === true,
-          },
-          framesColor: {
-            ...colorLibraryInputPlugin({
-              value: intToHex(d.frames.color),
-              label: "Frame color",
+            orientationAngleDeg: { value: d.grid.angleDeg, min: -180, max: 180, step: 1, label: "Orientation °" },
+            orientationRotationMode: {
+              value: d.grid.rotationMode === "overlap" ? "overlap" : "cell",
+              options: { Cell: "cell", Overlap: "overlap" } as const,
+              label: "Rotation mode",
+            },
+            orientationOverlapAmount: {
+              value: d.grid.overlapAmount,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Overlap amount",
+              render: (get) => get("Grid.orientationRotationMode") === "overlap",
+            },
+            streamGapWaveEnabled: { value: d.grid.streamGapWave.enabled, label: "Gap wave" },
+            streamGapWaveSqueeze: {
+              value: d.grid.streamGapWave.squeeze,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Gap squeeze",
+              render: (get) => get("Grid.streamGapWaveEnabled"),
+            },
+            streamGapWaveWavelengthCells: {
+              value: d.grid.streamGapWave.wavelengthCells,
+              min: 2,
+              max: 32,
+              step: 1,
+              label: "Wave length",
+              render: (get) => get("Grid.streamGapWaveEnabled"),
+            },
+            streamGapWaveSpeed: {
+              value: d.grid.streamGapWave.speed,
+              min: -4,
+              max: 4,
+              step: 0.01,
+              label: "Wave speed",
+              render: (get) => get("Grid.streamGapWaveEnabled"),
+            },
+            streamGapWavePhaseDeg: {
+              value: d.grid.streamGapWave.phaseDeg,
+              min: -180,
+              max: 180,
+              step: 1,
+              label: "Wave phase °",
+              render: (get) => get("Grid.streamGapWaveEnabled"),
+            },
+            orientationShortcuts: buttonGroup({
+              label: "Shortcuts",
+              opts: {
+                "0°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 0 }),
+                "45°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 45 }),
+                "90°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 90 }),
+                "135°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 135 }),
+                "180°": () => shaderControlSetterRef.current?.({ orientationAngleDeg: 180 }),
+              },
             }),
-            render: (get) => get("Frames.framesEnabled") === true,
           },
-          framesFontSizePx: {
-            value: d.frames.fontSizePx,
-            min: 6,
-            max: 48,
-            step: 1,
-            label: "Font size",
-            render: (get) => get("Frames.framesEnabled") === true,
+          { hideInClient: true },
+        ),
+        Frames: drawerFolder(
+          "Frames",
+          {
+            framesEnabled: {
+              value: d.frames.enabled,
+              label: "Enabled",
+            },
+            framesLuminanceThreshold: {
+              value: d.frames.luminanceThreshold * 100,
+              min: 0,
+              max: 100,
+              step: 1,
+              label: "Min luminance",
+              render: (get) => get("Frames.framesEnabled") === true,
+            },
+            framesHighlightedStripeCount: {
+              value: d.frames.highlightedStripeCount,
+              min: 1,
+              max: 16,
+              step: 1,
+              label: "Highlighted stripes",
+              render: (get) => get("Frames.framesEnabled") === true,
+            },
+            framesGroupDistanceCells: {
+              value: d.frames.groupDistanceCells,
+              min: 0,
+              max: 8,
+              step: 1,
+              label: "Group distance",
+              render: (get) => get("Frames.framesEnabled") === true,
+            },
+            framesColor: {
+              ...colorLibraryInputPlugin({
+                value: intToHex(d.frames.color),
+                label: "Frame color",
+              }),
+              render: (get) => get("Frames.framesEnabled") === true,
+            },
+            framesFontSizePx: {
+              value: d.frames.fontSizePx,
+              min: 6,
+              max: 48,
+              step: 1,
+              label: "Font size",
+              render: (get) => get("Frames.framesEnabled") === true,
+            },
+            framesCoordinateColor: {
+              ...colorLibraryInputPlugin({
+                value: intToHex(d.frames.coordinateColor),
+                label: "Coordinate color",
+              }),
+              render: (get) => get("Frames.framesEnabled") === true,
+            },
           },
-          framesCoordinateColor: {
-            ...colorLibraryInputPlugin({
-              value: intToHex(d.frames.coordinateColor),
-              label: "Coordinate color",
-            }),
-            render: (get) => get("Frames.framesEnabled") === true,
+          { hideInClient: true },
+        ),
+        Background: drawerFolder(
+          "Background",
+          {
+            backgroundFillMode: {
+              value:
+                !surfaceConfig &&
+                (initialLabSettings.backgroundFillMode === "transparent" ||
+                  initialLabSettings.backgroundFillMode === "gradient" ||
+                  initialLabSettings.backgroundFillMode === "solid")
+                  ? initialLabSettings.backgroundFillMode
+                  : d.background.transparent
+                    ? "transparent"
+                    : d.background.gradient.enabled
+                      ? "gradient"
+                      : "solid",
+              options: { Transparent: "transparent", Solid: "solid", Gradient: "gradient" } as const,
+              label: "Fill",
+            },
+            backgroundColor: {
+              ...colorLibraryInputPlugin({
+                value: backgroundHex,
+                label: "Color",
+                persist: surfaceConfig ? undefined : "backgroundColor",
+                onLiveChange: handleBackgroundColorLiveChange,
+              }),
+              render: (get) => get("Background.backgroundFillMode") === "solid",
+            },
+            backgroundGradientDirection: {
+              value: d.background.gradient.direction,
+              options: {
+                "Top to bottom": "topToBottom",
+                "Left to right": "leftToRight",
+                "Right to left": "rightToLeft",
+                "Bottom to top": "bottomToTop",
+              } as const,
+              label: "Gradient direction",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
+            },
+            backgroundGradientStopCount: {
+              value: d.background.gradient.stopCount,
+              min: 2,
+              max: 4,
+              step: 1,
+              label: "Gradient stops",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
+            },
+            backgroundGradientStop0: {
+              ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[0]), label: "Stop 1" }),
+              label: "Stop 1",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
+            },
+            backgroundGradientStop1: {
+              ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[1]), label: "Stop 2" }),
+              label: "Stop 2",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
+            },
+            backgroundGradientStop2: {
+              ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[2]), label: "Stop 3" }),
+              label: "Stop 3",
+              render: (get) =>
+                get("Background.backgroundFillMode") === "gradient" &&
+                Number(get("Background.backgroundGradientStopCount")) >= 3,
+            },
+            backgroundGradientStop3: {
+              ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[3]), label: "Stop 4" }),
+              label: "Stop 4",
+              render: (get) =>
+                get("Background.backgroundFillMode") === "gradient" &&
+                Number(get("Background.backgroundGradientStopCount")) >= 4,
+            },
           },
-        }),
-        Background: drawerFolder("Background", {
-          backgroundFillMode: {
-            value:
-              !surfaceConfig &&
-              (initialLabSettings.backgroundFillMode === "transparent" ||
-                initialLabSettings.backgroundFillMode === "gradient" ||
-                initialLabSettings.backgroundFillMode === "solid")
-                ? initialLabSettings.backgroundFillMode
-                : d.background.transparent
-                  ? "transparent"
-                  : d.background.gradient.enabled
-                    ? "gradient"
-                    : "solid",
-            options: { Transparent: "transparent", Solid: "solid", Gradient: "gradient" } as const,
-            label: "Fill",
+          { hideInClient: true },
+        ),
+        "Background Stars": drawerFolder(
+          "Background Stars",
+          {
+            backgroundStarsEnabled: { value: d.background.stars.enabled, label: "Enabled" },
+            backgroundStarsDensity: {
+              value: d.background.stars.density,
+              min: 0,
+              max: 100,
+              step: 1,
+              label: "Sparkle %",
+              render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
+            },
+            backgroundStarsSizePx: {
+              value: d.background.stars.sizePx,
+              min: 0.25,
+              max: 64,
+              step: 0.25,
+              label: "Star size",
+              render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
+            },
+            backgroundStarsSizeRandomness: {
+              value: d.background.stars.sizeRandomness,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Random size",
+              render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
+            },
+            backgroundStarsTiltAngleDeg: {
+              value: d.background.stars.tiltAngleDeg,
+              min: -89,
+              max: 89,
+              step: 1,
+              label: "Tilt angle",
+              render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
+            },
+            backgroundStarsTwinkleSpeed: {
+              value: d.background.stars.twinkleSpeed,
+              min: 0,
+              max: 10,
+              step: 0.05,
+              label: "Twinkle speed",
+              render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
+            },
+            backgroundStarsTwinkleAmount: {
+              value: d.background.stars.twinkleAmount,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Twinkle amount",
+              render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
+            },
+            backgroundStarsOpacity: {
+              value: d.background.stars.opacity,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Star opacity",
+              render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
+            },
+            backgroundStarsColor: {
+              ...colorLibraryInputPlugin({ value: intToHex(d.background.stars.color), label: "Star color" }),
+              label: "Star color",
+              render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
+            },
           },
-          backgroundColor: {
-            ...colorLibraryInputPlugin({
-              value: backgroundHex,
+          { hideInClient: true },
+        ),
+        "Background Meteors": drawerFolder(
+          "Background Meteors",
+          {
+            backgroundMeteorsEnabled: { value: d.background.meteors.enabled, label: "Enabled" },
+            backgroundMeteorsRatePerSec: {
+              value: d.background.meteors.ratePerSec,
+              min: 0.02,
+              max: 40,
+              step: 0.02,
+              label: "Meteors / sec",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsMaxActive: {
+              value: d.background.meteors.maxActive,
+              min: 1,
+              max: 64,
+              step: 1,
+              label: "Max in flight",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsRadiantAngleDeg: {
+              value: d.background.meteors.radiantAngleDeg,
+              min: -180,
+              max: 180,
+              step: 1,
+              label: "Radiant angle",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsAngleJitterDeg: {
+              value: d.background.meteors.angleJitterDeg,
+              min: 0,
+              max: 90,
+              step: 1,
+              label: "Angle spread",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsSpeedScale: {
+              value: d.background.meteors.speedScale,
+              min: 0.05,
+              max: 4,
+              step: 0.01,
+              label: "Speed",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsSpeedVariation: {
+              value: d.background.meteors.speedVariation,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Speed variation",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsTailLengthScale: {
+              value: d.background.meteors.tailLengthScale,
+              min: 0.05,
+              max: 4,
+              step: 0.01,
+              label: "Tail length",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsTailLengthVariation: {
+              value: d.background.meteors.tailLengthVariation,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Tail variation",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsThicknessScale: {
+              value: d.background.meteors.thicknessScale,
+              min: 0.05,
+              max: 4,
+              step: 0.01,
+              label: "Thickness",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsThicknessVariation: {
+              value: d.background.meteors.thicknessVariation,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Thickness variation",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsLifetimeMinMs: {
+              value: d.background.meteors.lifetimeMinMs,
+              min: 60,
+              max: 10000,
+              step: 10,
+              label: "Life min (ms)",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsLifetimeMaxMs: {
+              value: d.background.meteors.lifetimeMaxMs,
+              min: 60,
+              max: 10000,
+              step: 10,
+              label: "Life max (ms)",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsBrightness: {
+              value: d.background.meteors.brightness,
+              min: 0,
+              max: 4,
+              step: 0.01,
+              label: "Streak brightness",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsHeadGlow: {
+              value: d.background.meteors.headGlow,
+              min: 0,
+              max: 4,
+              step: 0.01,
+              label: "Head glow",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsPushPx: {
+              value: d.background.meteors.pushPx,
+              min: 0,
+              max: 40,
+              step: 0.1,
+              label: "Stripe push (px)",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsPushFalloffScale: {
+              value: d.background.meteors.pushFalloffScale,
+              min: 0.05,
+              max: 4,
+              step: 0.01,
+              label: "Push falloff",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsFadeInMs: {
+              value: d.background.meteors.fadeInMs,
+              min: 0,
+              max: 3000,
+              step: 10,
+              label: "Fade in (ms)",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsFadeOutMs: {
+              value: d.background.meteors.fadeOutMs,
+              min: 0,
+              max: 3000,
+              step: 10,
+              label: "Fade out (ms)",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+            backgroundMeteorsSeed: {
+              value: d.background.meteors.seed,
+              min: 0,
+              max: 9999,
+              step: 1,
+              label: "Seed",
+              render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
+            },
+          },
+          { hideInClient: true },
+        ),
+        "Background Flames": drawerFolder(
+          "Background Flames",
+          {
+            flamesEnabled: { value: d.flames.enabled, label: "Enabled" },
+            flamesDirection: {
+              value: d.flames.direction,
+              options: {
+                Up: "up",
+                Down: "down",
+                Left: "left",
+                Right: "right",
+                "Up - Down": "upDown",
+                "Left - Right": "leftRight",
+                "Vortex Singular": "vortexSingular",
+              } as const,
+              label: "Direction",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesVsSegCount: {
+              value: d.flames.vortexSingular.segCount,
+              min: 2,
+              max: 80,
+              step: 1,
+              label: "VS Segments",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsSegSpacing: {
+              value: d.flames.vortexSingular.segSpacingPx,
+              min: 2,
+              max: 60,
+              step: 1,
+              label: "VS Spacing (px)",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsTurnRate: {
+              value: d.flames.vortexSingular.turnRate,
+              min: 0.05,
+              max: 6,
+              step: 0.05,
+              label: "VS Turn Rate",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsTurnVariation: {
+              value: d.flames.vortexSingular.turnVariation,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "VS Turn Variation",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsVisibleMinSec: {
+              value: d.flames.vortexSingular.visibleMinMs / 1000,
+              min: 0.5,
+              max: 60,
+              step: 0.5,
+              label: "VS Visible Min (s)",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsVisibleMaxSec: {
+              value: d.flames.vortexSingular.visibleMaxMs / 1000,
+              min: 0.5,
+              max: 120,
+              step: 0.5,
+              label: "VS Visible Max (s)",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsHiddenMinSec: {
+              value: d.flames.vortexSingular.hiddenMinMs / 1000,
+              min: 0,
+              max: 30,
+              step: 0.1,
+              label: "VS Hidden Min (s)",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsHiddenMaxSec: {
+              value: d.flames.vortexSingular.hiddenMaxMs / 1000,
+              min: 0,
+              max: 60,
+              step: 0.1,
+              label: "VS Hidden Max (s)",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsLifeMinSec: {
+              value: d.flames.vortexSingular.lifeMinMs / 1000,
+              min: 0.5,
+              max: 60,
+              step: 0.5,
+              label: "VS Life Min (s)",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsLifeMaxSec: {
+              value: d.flames.vortexSingular.lifeMaxMs / 1000,
+              min: 0.5,
+              max: 120,
+              step: 0.5,
+              label: "VS Life Max (s)",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesVsEdgeMargin: {
+              value: d.flames.vortexSingular.edgeMarginRatio,
+              min: 0,
+              max: 0.4,
+              step: 0.01,
+              label: "VS Edge Margin",
+              render: (get) =>
+                get("Background Flames.flamesEnabled") === true &&
+                get("Background Flames.flamesDirection") === "vortexSingular",
+            },
+            flamesMinWidthPct: {
+              value: d.flames.minWidthRatio * 100,
+              min: 0.1,
+              max: 50,
+              step: 0.1,
+              label: "Width min %",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesMaxWidthPct: {
+              value: d.flames.maxWidthRatio * 100,
+              min: 0.1,
+              max: 50,
+              step: 0.1,
+              label: "Width max %",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesMinHeightPct: {
+              value: d.flames.minHeightRatio * 100,
+              min: 0.1,
+              max: 50,
+              step: 0.1,
+              label: "Height min %",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesMaxHeightPct: {
+              value: d.flames.maxHeightRatio * 100,
+              min: 0.1,
+              max: 50,
+              step: 0.1,
+              label: "Height max %",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesBaseSpeed: {
+              value: d.flames.baseSpeedPxPerSec,
+              min: 1,
+              max: 500,
+              step: 1,
+              label: "Base speed (px/s)",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesSpeedVariation: {
+              value: d.flames.speedVariation,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Speed variation",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesSpawnInterval: {
+              value: d.flames.spawnIntervalMs,
+              min: 20,
+              max: 5000,
+              step: 10,
+              label: "Spawn interval (ms)",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesSpawnJitter: {
+              value: d.flames.spawnJitterMs,
+              min: 0,
+              max: 2000,
+              step: 10,
+              label: "Spawn jitter (ms)",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesMaxActive: {
+              value: d.flames.maxActive,
+              min: 1,
+              max: 200,
+              step: 1,
+              label: "Max active",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesEdgeSharpness: {
+              value: d.flames.edgeSharpness,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Edge sharpness",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesOpacityMin: {
+              value: d.flames.opacityMin,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Opacity min",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+            flamesOpacityMax: {
+              value: d.flames.opacityMax,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Opacity max",
+              render: (get) => get("Background Flames.flamesEnabled") === true,
+            },
+          },
+          { hideInClient: true },
+        ),
+        Sparkle: drawerFolder(
+          "Sparkle",
+          {
+            sparkleStripeEnabled: { value: d.sparkle.stripe.enabled, label: "Stripe sparkle enabled" },
+            sparkleStripeCoverage: {
+              value: d.sparkle.stripe.coverage * 100,
+              min: 0,
+              max: 100,
+              step: 1,
+              label: "Stripe sparkle %",
+              render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+            },
+            sparkleStripeThickestCount: {
+              value: Math.min(d.sparkle.stripe.thickestCount, visibleStripeWidthLevelCount(d.stripes)),
+              min: 1,
+              max: visibleStripeWidthLevelCount(d.stripes),
+              step: 1,
+              label: "Thickest levels",
+              render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+            },
+            sparkleStripeMaxBrightness: {
+              value: d.sparkle.stripe.maxBrightness * 100,
+              min: 0,
+              max: 100,
+              step: 1,
+              label: "+ Brightness",
+              render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+            },
+            sparkleStripeSpeed: {
+              value: d.sparkle.stripe.speed,
+              min: 0.05,
+              max: 10,
+              step: 0.05,
+              label: "Sparkle speed",
+              render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+            },
+            sparkleStripeHueDriftDeg: {
+              value: d.sparkle.stripe.hueDriftDeg,
+              min: -180,
+              max: 180,
+              step: 1,
+              label: "Spectrum hue °",
+              render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+            },
+            sparkleStripeSaturationBoost: {
+              value: d.sparkle.stripe.saturationBoost * 100,
+              min: 0,
+              max: 100,
+              step: 1,
+              label: "Spectrum sat %",
+              render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
+            },
+            sparkleWidthEnabled: { value: d.sparkle.width.enabled, label: "Width shuffle enabled" },
+            sparkleWidthCoverage: {
+              value: d.sparkle.width.coverage,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Width active %",
+              render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
+            },
+            sparkleWidthSwingPx: {
+              value: d.sparkle.width.swingPx,
+              min: 0,
+              max: 40,
+              step: 0.25,
+              label: "Width swing (px)",
+              render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
+            },
+            sparkleWidthSwingPeriodMin: {
+              value: d.sparkle.width.swingPeriodMin,
+              min: 0.02,
+              max: 5,
+              step: 0.01,
+              label: "Swing period min",
+              render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
+            },
+            sparkleWidthSwingPeriodMax: {
+              value: d.sparkle.width.swingPeriodMax,
+              min: 0.02,
+              max: 5,
+              step: 0.01,
+              label: "Swing period max",
+              render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
+            },
+            sparkleMotionEnabled: { value: d.sparkle.motion.enabled, label: "Column motion enabled" },
+            sparkleMotionAmplitudePx: {
+              value: d.sparkle.motion.amplitudePx,
+              min: 0,
+              max: 64,
+              step: 0.5,
+              label: "Move amount (px)",
+              render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+            },
+            sparkleMotionStaggerPx: {
+              value: d.sparkle.motion.staggerPx,
+              min: 1,
+              max: 512,
+              step: 1,
+              label: "Random pattern",
+              render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+            },
+            sparkleMotionMaxOffsetPx: {
+              value: d.sparkle.motion.maxOffsetPx,
+              min: 0,
+              max: 128,
+              step: 0.5,
+              label: "Max offset (px)",
+              render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+            },
+            sparkleMotionSpeed: {
+              value: d.sparkle.motion.speed,
+              min: 0.05,
+              max: 5,
+              step: 0.05,
+              label: "Motion speed",
+              render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
+            },
+            sparkleMotionDirection: {
+              value: d.sparkle.motion.direction,
+              options: {
+                "Left → Right": "leftToRight",
+                "Right → Left": "rightToLeft",
+                "Top → Bottom": "topToBottom",
+                "Bottom → Top": "bottomToTop",
+              } as const,
+              label: "Sweep direction",
+              render: () => false,
+            },
+          },
+          { hideInClient: true },
+        ),
+        Letters: drawerFolder(
+          "Letters",
+          {
+            lettersEnabled: { value: d.letters.enabled, label: "Enabled" },
+            lettersMode: {
+              value: d.letters.mode,
+              options: {
+                "Random letters": "random",
+                Text: "text",
+              } as const,
+              label: "Mode",
+              render: (get) => get("Letters.lettersEnabled") === true,
+            },
+            lettersColorMode: {
+              value: d.letters.colorMode,
+              options: {
+                White: "white",
+                Colorful: "colorful",
+              } as const,
               label: "Color",
-              persist: surfaceConfig ? undefined : "backgroundColor",
-              onLiveChange: handleBackgroundColorLiveChange,
+              render: (get) => get("Letters.lettersEnabled") === true,
+            },
+            lettersFontFamily: {
+              value: d.letters.fontFamily,
+              options: {
+                "Geist Mono Medium": "Geist Mono Medium",
+                Monospace: "monospace",
+                Sans: "Arial, sans-serif",
+                Serif: "Georgia, serif",
+                Courier: '"Courier New", monospace',
+                "Times New Roman": '"Times New Roman", serif',
+                Impact: "Impact, fantasy",
+              } as const,
+              label: "Font",
+              render: (get) => get("Letters.lettersEnabled") === true,
+            },
+            lettersText: {
+              value: d.letters.text,
+              label: "Text",
+              render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "text",
+            },
+            lettersTextCopies: {
+              value: d.letters.textCopies,
+              min: 1,
+              max: 100,
+              step: 1,
+              label: "Text copies",
+              render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "text",
+            },
+            coverage: {
+              value: d.letters.coverage,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Random density",
+              render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
+            },
+            lettersPositionX: {
+              value: d.letters.positionX,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Position X",
+              render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
+            },
+            lettersPositionY: {
+              value: d.letters.positionY,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Position Y",
+              render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
+            },
+            lettersAreaWidth: {
+              value: d.letters.areaWidth,
+              min: 0.01,
+              max: 1,
+              step: 0.01,
+              label: "Random area W",
+              render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
+            },
+            lettersAreaHeight: {
+              value: d.letters.areaHeight,
+              min: 0.01,
+              max: 1,
+              step: 0.01,
+              label: "Random area H",
+              render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
+            },
+            sizeScale: {
+              value: d.letters.sizeScale,
+              min: 0.1,
+              max: 1,
+              step: 0.05,
+              label: "Font size",
+              render: (get) => get("Letters.lettersEnabled") === true,
+            },
+            shuffleSpeed: {
+              value: d.letters.shuffleSpeed,
+              min: 0.05,
+              max: 3,
+              step: 0.05,
+              label: "Shuffle speed",
+              render: (get) => get("Letters.lettersEnabled") === true,
+            },
+          },
+          { hideInClient: true },
+        ),
+        Reveal: drawerFolder(
+          "Reveal",
+          {
+            revealType: {
+              value: d.reveal.type,
+              options: {
+                Wave: "wave",
+                Assembly: "assembly",
+                Turbulence: "turbulence",
+                Glitch: "glitch",
+                Vortex: "vortex",
+                Blackhole: "blackhole",
+                Whirlpool: "whirlpool",
+                Water: "water",
+              } as const,
+              label: "Type",
+            },
+            revealPosition: {
+              value: d.reveal.wave.position,
+              options: {
+                Center: "center",
+                "Left Top": "left top",
+                "Center Top": "center top",
+                "Right Top": "right top",
+                "Left Center": "left center",
+                "Right Center": "right center",
+                "Left Bottom": "left bottom",
+                "Center Bottom": "center bottom",
+                "Right Bottom": "right bottom",
+              } as const,
+              label: "Position",
+              render: (get) => get("Reveal.revealType") === "wave",
+            },
+            revealDurationMs: {
+              value: d.reveal.wave.durationMs,
+              min: 100,
+              max: 30000,
+              step: 50,
+              label: "Duration (ms)",
+              render: (get) => get("Reveal.revealType") === "wave",
+            },
+            revealSoftness: {
+              value: d.reveal.wave.softness,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Softness",
+              render: (get) => get("Reveal.revealType") === "wave",
+            },
+            revealWaviness: {
+              value: d.reveal.wave.waviness,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Waviness",
+              render: (get) => get("Reveal.revealType") === "wave",
+            },
+            revealSliceSizePx: {
+              value: d.reveal.assembly.sliceSizePx,
+              min: 8,
+              max: 200,
+              step: 1,
+              label: "Slice size (px)",
+              render: (get) => get("Reveal.revealType") === "assembly",
+            },
+            revealSpeedMinMs: {
+              value: d.reveal.assembly.speedMinMs,
+              min: 100,
+              max: 30000,
+              step: 50,
+              label: "Speed min (ms)",
+              render: (get) => get("Reveal.revealType") === "assembly",
+            },
+            revealSpeedMaxMs: {
+              value: d.reveal.assembly.speedMaxMs,
+              min: 100,
+              max: 30000,
+              step: 50,
+              label: "Speed max (ms)",
+              render: (get) => get("Reveal.revealType") === "assembly",
+            },
+            revealStaggerMs: {
+              value: d.reveal.assembly.staggerMs,
+              min: 0,
+              max: 30000,
+              step: 50,
+              label: "Stagger (ms)",
+              render: (get) => get("Reveal.revealType") === "assembly",
+            },
+            revealScatterPx: {
+              value: d.reveal.assembly.scatterPx,
+              min: 0,
+              max: 300,
+              step: 1,
+              label: "Scatter (px)",
+              render: (get) => get("Reveal.revealType") === "assembly",
+            },
+            revealAngleJitterDeg: {
+              value: d.reveal.assembly.angleJitterDeg,
+              min: 0,
+              max: 90,
+              step: 1,
+              label: "Angle jitter (°)",
+              render: (get) => get("Reveal.revealType") === "assembly",
+            },
+            revealTurbSpeedMinMs: {
+              value: d.reveal.turbulence.speedMinMs,
+              min: 50,
+              max: 30000,
+              step: 10,
+              label: "Speed min (ms)",
+              render: (get) => get("Reveal.revealType") === "turbulence",
+            },
+            revealTurbSpeedMaxMs: {
+              value: d.reveal.turbulence.speedMaxMs,
+              min: 50,
+              max: 30000,
+              step: 10,
+              label: "Speed max (ms)",
+              render: (get) => get("Reveal.revealType") === "turbulence",
+            },
+            revealTurbStaggerMs: {
+              value: d.reveal.turbulence.staggerMs,
+              min: 0,
+              max: 30000,
+              step: 10,
+              label: "Stagger (ms)",
+              render: (get) => get("Reveal.revealType") === "turbulence",
+            },
+            revealTurbIntensity: {
+              value: d.reveal.turbulence.intensity,
+              min: 0,
+              max: 2,
+              step: 0.05,
+              label: "Intensity",
+              render: (get) => get("Reveal.revealType") === "turbulence",
+            },
+            revealTurbDetail: {
+              value: d.reveal.turbulence.detail,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Detail",
+              render: (get) => get("Reveal.revealType") === "turbulence",
+            },
+            revealTurbGlow: {
+              value: d.reveal.turbulence.glow,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Glow",
+              render: (get) => get("Reveal.revealType") === "turbulence",
+            },
+            revealGlitchSpeedMinMs: {
+              value: d.reveal.glitch.speedMinMs,
+              min: 50,
+              max: 30000,
+              step: 10,
+              label: "Speed min (ms)",
+              render: (get) => get("Reveal.revealType") === "glitch",
+            },
+            revealGlitchSpeedMaxMs: {
+              value: d.reveal.glitch.speedMaxMs,
+              min: 50,
+              max: 30000,
+              step: 10,
+              label: "Speed max (ms)",
+              render: (get) => get("Reveal.revealType") === "glitch",
+            },
+            revealGlitchStaggerMs: {
+              value: d.reveal.glitch.staggerMs,
+              min: 0,
+              max: 30000,
+              step: 10,
+              label: "Stagger (ms)",
+              render: (get) => get("Reveal.revealType") === "glitch",
+            },
+            revealGlitchIntensity: {
+              value: d.reveal.glitch.intensity,
+              min: 0,
+              max: 2,
+              step: 0.05,
+              label: "Intensity",
+              render: (get) => get("Reveal.revealType") === "glitch",
+            },
+            revealGlitchDetail: {
+              value: d.reveal.glitch.detail,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Detail",
+              render: (get) => get("Reveal.revealType") === "glitch",
+            },
+            revealGlitchGlow: {
+              value: d.reveal.glitch.glow,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Glow",
+              render: (get) => get("Reveal.revealType") === "glitch",
+            },
+            revealVorSpeedMinMs: {
+              value: d.reveal.vortex.speedMinMs,
+              min: 50,
+              max: 30000,
+              step: 10,
+              label: "Speed min (ms)",
+              render: (get) => get("Reveal.revealType") === "vortex",
+            },
+            revealVorSpeedMaxMs: {
+              value: d.reveal.vortex.speedMaxMs,
+              min: 50,
+              max: 30000,
+              step: 10,
+              label: "Speed max (ms)",
+              render: (get) => get("Reveal.revealType") === "vortex",
+            },
+            revealVorStaggerMs: {
+              value: d.reveal.vortex.staggerMs,
+              min: 0,
+              max: 30000,
+              step: 10,
+              label: "Stagger (ms)",
+              render: (get) => get("Reveal.revealType") === "vortex",
+            },
+            revealVorIntensity: {
+              value: d.reveal.vortex.intensity,
+              min: 0,
+              max: 2,
+              step: 0.05,
+              label: "Intensity",
+              render: (get) => get("Reveal.revealType") === "vortex",
+            },
+            revealVorDetail: {
+              value: d.reveal.vortex.detail,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Detail",
+              render: (get) => get("Reveal.revealType") === "vortex",
+            },
+            revealVorSwirl: {
+              value: d.reveal.vortex.swirl,
+              min: 0,
+              max: 3,
+              step: 0.05,
+              label: "Swirl",
+              render: (get) => get("Reveal.revealType") === "vortex",
+            },
+            revealVorGlow: {
+              value: d.reveal.vortex.glow,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Glow",
+              render: (get) => get("Reveal.revealType") === "vortex",
+            },
+            revealWaterDurationMs: {
+              value: d.reveal.water.durationMs,
+              min: 400,
+              max: 8000,
+              step: 50,
+              label: "Sweep ms",
+              render: (get) => get("Reveal.revealType") === "water",
+            },
+            revealWaterSettleMs: {
+              value: d.reveal.water.settleMs,
+              min: 0,
+              max: 4000,
+              step: 50,
+              label: "Settle ms",
+              render: (get) => get("Reveal.revealType") === "water",
+            },
+            revealWaterRows: {
+              value: d.reveal.water.rows,
+              min: 1,
+              max: 12,
+              step: 1,
+              label: "Rows",
+              render: (get) => get("Reveal.revealType") === "water",
+            },
+            revealWaterIntensity: {
+              value: d.reveal.water.intensity,
+              min: 0,
+              max: 1.5,
+              step: 0.01,
+              label: "Intensity",
+              render: (get) => get("Reveal.revealType") === "water",
+            },
+            revealWaterWobble: {
+              value: d.reveal.water.wobble,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Wobble",
+              render: (get) => get("Reveal.revealType") === "water",
+            },
+            revealWaterRefraction: {
+              value: d.reveal.water.refraction,
+              min: 0,
+              max: 2,
+              step: 0.01,
+              label: "Refraction",
+              render: (get) => get("Reveal.revealType") === "water",
+            },
+            revealWaterSoftness: {
+              value: d.reveal.water.softness,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Softness",
+              render: (get) => get("Reveal.revealType") === "water",
+            },
+            revealBhFormMs: {
+              value: d.reveal.blackhole.formMs,
+              min: 0,
+              max: 10000,
+              step: 10,
+              label: "Form (ms)",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhSpeedMinMs: {
+              value: d.reveal.blackhole.speedMinMs,
+              min: 50,
+              max: 30000,
+              step: 10,
+              label: "Speed min (ms)",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhSpeedMaxMs: {
+              value: d.reveal.blackhole.speedMaxMs,
+              min: 50,
+              max: 30000,
+              step: 10,
+              label: "Speed max (ms)",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhStaggerMs: {
+              value: d.reveal.blackhole.staggerMs,
+              min: 0,
+              max: 30000,
+              step: 10,
+              label: "Stagger (ms)",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhCollapseMs: {
+              value: d.reveal.blackhole.collapseMs,
+              min: 0,
+              max: 10000,
+              step: 10,
+              label: "Collapse (ms)",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhHorizon: {
+              value: d.reveal.blackhole.horizon,
+              min: 0.02,
+              max: 0.3,
+              step: 0.005,
+              label: "Horizon",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhSwirl: {
+              value: d.reveal.blackhole.swirl,
+              min: 0,
+              max: 3,
+              step: 0.05,
+              label: "Swirl",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhArms: {
+              value: d.reveal.blackhole.arms,
+              min: 1,
+              max: 8,
+              step: 1,
+              label: "Arms",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhLensing: {
+              value: d.reveal.blackhole.lensing,
+              min: 0,
+              max: 2,
+              step: 0.05,
+              label: "Lensing",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhIntensity: {
+              value: d.reveal.blackhole.intensity,
+              min: 0,
+              max: 2,
+              step: 0.05,
+              label: "Intensity",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhDetail: {
+              value: d.reveal.blackhole.detail,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Detail",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealBhGlow: {
+              value: d.reveal.blackhole.glow,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Glow",
+              render: (get) => get("Reveal.revealType") === "blackhole",
+            },
+            revealWpDurationMs: {
+              value: d.reveal.whirlpool.durationMs,
+              min: 100,
+              max: 30000,
+              step: 50,
+              label: "Duration (ms)",
+              render: (get) => get("Reveal.revealType") === "whirlpool",
+            },
+            revealWpTurns: {
+              value: d.reveal.whirlpool.turns,
+              min: 0,
+              max: 6,
+              step: 0.1,
+              label: "Turns",
+              render: (get) => get("Reveal.revealType") === "whirlpool",
+            },
+            revealWpTightness: {
+              value: d.reveal.whirlpool.tightness,
+              min: 0.05,
+              max: 0.5,
+              step: 0.005,
+              label: "Tightness",
+              render: (get) => get("Reveal.revealType") === "whirlpool",
+            },
+            revealWpStreak: {
+              value: d.reveal.whirlpool.streak,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Streak",
+              render: (get) => get("Reveal.revealType") === "whirlpool",
+            },
+            revealWpGlow: {
+              value: d.reveal.whirlpool.glow,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              label: "Glow",
+              render: (get) => get("Reveal.revealType") === "whirlpool",
+            },
+            Replay: button(() => onReplay()),
+            Reset: button(() => {
+              const dr = DEFAULT_LAB_ENGINE_CONFIG.reveal;
+              shaderControlSetterRef.current?.({
+                revealType: dr.type,
+                revealPosition: dr.wave.position,
+                revealDurationMs: dr.wave.durationMs,
+                revealSoftness: dr.wave.softness,
+                revealWaviness: dr.wave.waviness,
+                revealSliceSizePx: dr.assembly.sliceSizePx,
+                revealSpeedMinMs: dr.assembly.speedMinMs,
+                revealSpeedMaxMs: dr.assembly.speedMaxMs,
+                revealStaggerMs: dr.assembly.staggerMs,
+                revealScatterPx: dr.assembly.scatterPx,
+                revealAngleJitterDeg: dr.assembly.angleJitterDeg,
+                revealTurbSpeedMinMs: dr.turbulence.speedMinMs,
+                revealTurbSpeedMaxMs: dr.turbulence.speedMaxMs,
+                revealTurbStaggerMs: dr.turbulence.staggerMs,
+                revealTurbIntensity: dr.turbulence.intensity,
+                revealTurbDetail: dr.turbulence.detail,
+                revealTurbGlow: dr.turbulence.glow,
+                revealGlitchSpeedMinMs: dr.glitch.speedMinMs,
+                revealGlitchSpeedMaxMs: dr.glitch.speedMaxMs,
+                revealGlitchStaggerMs: dr.glitch.staggerMs,
+                revealGlitchIntensity: dr.glitch.intensity,
+                revealGlitchDetail: dr.glitch.detail,
+                revealGlitchGlow: dr.glitch.glow,
+                revealVorSpeedMinMs: dr.vortex.speedMinMs,
+                revealVorSpeedMaxMs: dr.vortex.speedMaxMs,
+                revealVorStaggerMs: dr.vortex.staggerMs,
+                revealVorIntensity: dr.vortex.intensity,
+                revealVorDetail: dr.vortex.detail,
+                revealVorSwirl: dr.vortex.swirl,
+                revealVorGlow: dr.vortex.glow,
+                revealWaterDurationMs: dr.water.durationMs,
+                revealWaterSettleMs: dr.water.settleMs,
+                revealWaterRows: dr.water.rows,
+                revealWaterIntensity: dr.water.intensity,
+                revealWaterWobble: dr.water.wobble,
+                revealWaterRefraction: dr.water.refraction,
+                revealWaterSoftness: dr.water.softness,
+              });
             }),
-            render: (get) => get("Background.backgroundFillMode") === "solid",
           },
-          backgroundGradientDirection: {
-            value: d.background.gradient.direction,
-            options: {
-              "Top to bottom": "topToBottom",
-              "Left to right": "leftToRight",
-              "Right to left": "rightToLeft",
-              "Bottom to top": "bottomToTop",
-            } as const,
-            label: "Gradient direction",
-            render: (get) => get("Background.backgroundFillMode") === "gradient",
-          },
-          backgroundGradientStopCount: {
-            value: d.background.gradient.stopCount,
-            min: 2,
-            max: 4,
-            step: 1,
-            label: "Gradient stops",
-            render: (get) => get("Background.backgroundFillMode") === "gradient",
-          },
-          backgroundGradientStop0: {
-            ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[0]), label: "Stop 1" }),
-            label: "Stop 1",
-            render: (get) => get("Background.backgroundFillMode") === "gradient",
-          },
-          backgroundGradientStop1: {
-            ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[1]), label: "Stop 2" }),
-            label: "Stop 2",
-            render: (get) => get("Background.backgroundFillMode") === "gradient",
-          },
-          backgroundGradientStop2: {
-            ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[2]), label: "Stop 3" }),
-            label: "Stop 3",
-            render: (get) =>
-              get("Background.backgroundFillMode") === "gradient" &&
-              Number(get("Background.backgroundGradientStopCount")) >= 3,
-          },
-          backgroundGradientStop3: {
-            ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[3]), label: "Stop 4" }),
-            label: "Stop 4",
-            render: (get) =>
-              get("Background.backgroundFillMode") === "gradient" &&
-              Number(get("Background.backgroundGradientStopCount")) >= 4,
-          },
-        }),
-        "Background Stars": drawerFolder("Background Stars", {
-          backgroundStarsEnabled: { value: d.background.stars.enabled, label: "Enabled" },
-          backgroundStarsDensity: {
-            value: d.background.stars.density,
-            min: 0,
-            max: 100,
-            step: 1,
-            label: "Sparkle %",
-            render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
-          },
-          backgroundStarsSizePx: {
-            value: d.background.stars.sizePx,
-            min: 0.25,
-            max: 64,
-            step: 0.25,
-            label: "Star size",
-            render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
-          },
-          backgroundStarsSizeRandomness: {
-            value: d.background.stars.sizeRandomness,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Random size",
-            render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
-          },
-          backgroundStarsTiltAngleDeg: {
-            value: d.background.stars.tiltAngleDeg,
-            min: -89,
-            max: 89,
-            step: 1,
-            label: "Tilt angle",
-            render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
-          },
-          backgroundStarsTwinkleSpeed: {
-            value: d.background.stars.twinkleSpeed,
-            min: 0,
-            max: 10,
-            step: 0.05,
-            label: "Twinkle speed",
-            render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
-          },
-          backgroundStarsTwinkleAmount: {
-            value: d.background.stars.twinkleAmount,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Twinkle amount",
-            render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
-          },
-          backgroundStarsOpacity: {
-            value: d.background.stars.opacity,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Star opacity",
-            render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
-          },
-          backgroundStarsColor: {
-            ...colorLibraryInputPlugin({ value: intToHex(d.background.stars.color), label: "Star color" }),
-            label: "Star color",
-            render: (get) => !!get("Background Stars.backgroundStarsEnabled"),
-          },
-        }),
-        "Background Meteors": drawerFolder("Background Meteors", {
-          backgroundMeteorsEnabled: { value: d.background.meteors.enabled, label: "Enabled" },
-          backgroundMeteorsRatePerSec: {
-            value: d.background.meteors.ratePerSec,
-            min: 0.02,
-            max: 40,
-            step: 0.02,
-            label: "Meteors / sec",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsMaxActive: {
-            value: d.background.meteors.maxActive,
-            min: 1,
-            max: 64,
-            step: 1,
-            label: "Max in flight",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsRadiantAngleDeg: {
-            value: d.background.meteors.radiantAngleDeg,
-            min: -180,
-            max: 180,
-            step: 1,
-            label: "Radiant angle",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsAngleJitterDeg: {
-            value: d.background.meteors.angleJitterDeg,
-            min: 0,
-            max: 90,
-            step: 1,
-            label: "Angle spread",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsSpeedScale: {
-            value: d.background.meteors.speedScale,
-            min: 0.05,
-            max: 4,
-            step: 0.01,
-            label: "Speed",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsSpeedVariation: {
-            value: d.background.meteors.speedVariation,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Speed variation",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsTailLengthScale: {
-            value: d.background.meteors.tailLengthScale,
-            min: 0.05,
-            max: 4,
-            step: 0.01,
-            label: "Tail length",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsTailLengthVariation: {
-            value: d.background.meteors.tailLengthVariation,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Tail variation",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsThicknessScale: {
-            value: d.background.meteors.thicknessScale,
-            min: 0.05,
-            max: 4,
-            step: 0.01,
-            label: "Thickness",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsThicknessVariation: {
-            value: d.background.meteors.thicknessVariation,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Thickness variation",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsLifetimeMinMs: {
-            value: d.background.meteors.lifetimeMinMs,
-            min: 60,
-            max: 10000,
-            step: 10,
-            label: "Life min (ms)",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsLifetimeMaxMs: {
-            value: d.background.meteors.lifetimeMaxMs,
-            min: 60,
-            max: 10000,
-            step: 10,
-            label: "Life max (ms)",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsBrightness: {
-            value: d.background.meteors.brightness,
-            min: 0,
-            max: 4,
-            step: 0.01,
-            label: "Streak brightness",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsHeadGlow: {
-            value: d.background.meteors.headGlow,
-            min: 0,
-            max: 4,
-            step: 0.01,
-            label: "Head glow",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsPushPx: {
-            value: d.background.meteors.pushPx,
-            min: 0,
-            max: 40,
-            step: 0.1,
-            label: "Stripe push (px)",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsPushFalloffScale: {
-            value: d.background.meteors.pushFalloffScale,
-            min: 0.05,
-            max: 4,
-            step: 0.01,
-            label: "Push falloff",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsFadeInMs: {
-            value: d.background.meteors.fadeInMs,
-            min: 0,
-            max: 3000,
-            step: 10,
-            label: "Fade in (ms)",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsFadeOutMs: {
-            value: d.background.meteors.fadeOutMs,
-            min: 0,
-            max: 3000,
-            step: 10,
-            label: "Fade out (ms)",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-          backgroundMeteorsSeed: {
-            value: d.background.meteors.seed,
-            min: 0,
-            max: 9999,
-            step: 1,
-            label: "Seed",
-            render: (get) => !!get("Background Meteors.backgroundMeteorsEnabled"),
-          },
-        }),
-        "Background Flames": drawerFolder("Background Flames", {
-          flamesEnabled: { value: d.flames.enabled, label: "Enabled" },
-          flamesDirection: {
-            value: d.flames.direction,
-            options: {
-              Up: "up",
-              Down: "down",
-              Left: "left",
-              Right: "right",
-              "Up - Down": "upDown",
-              "Left - Right": "leftRight",
-              "Vortex Singular": "vortexSingular",
-            } as const,
-            label: "Direction",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesVsSegCount: {
-            value: d.flames.vortexSingular.segCount,
-            min: 2,
-            max: 80,
-            step: 1,
-            label: "VS Segments",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsSegSpacing: {
-            value: d.flames.vortexSingular.segSpacingPx,
-            min: 2,
-            max: 60,
-            step: 1,
-            label: "VS Spacing (px)",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsTurnRate: {
-            value: d.flames.vortexSingular.turnRate,
-            min: 0.05,
-            max: 6,
-            step: 0.05,
-            label: "VS Turn Rate",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsTurnVariation: {
-            value: d.flames.vortexSingular.turnVariation,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "VS Turn Variation",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsVisibleMinSec: {
-            value: d.flames.vortexSingular.visibleMinMs / 1000,
-            min: 0.5,
-            max: 60,
-            step: 0.5,
-            label: "VS Visible Min (s)",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsVisibleMaxSec: {
-            value: d.flames.vortexSingular.visibleMaxMs / 1000,
-            min: 0.5,
-            max: 120,
-            step: 0.5,
-            label: "VS Visible Max (s)",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsHiddenMinSec: {
-            value: d.flames.vortexSingular.hiddenMinMs / 1000,
-            min: 0,
-            max: 30,
-            step: 0.1,
-            label: "VS Hidden Min (s)",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsHiddenMaxSec: {
-            value: d.flames.vortexSingular.hiddenMaxMs / 1000,
-            min: 0,
-            max: 60,
-            step: 0.1,
-            label: "VS Hidden Max (s)",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsLifeMinSec: {
-            value: d.flames.vortexSingular.lifeMinMs / 1000,
-            min: 0.5,
-            max: 60,
-            step: 0.5,
-            label: "VS Life Min (s)",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsLifeMaxSec: {
-            value: d.flames.vortexSingular.lifeMaxMs / 1000,
-            min: 0.5,
-            max: 120,
-            step: 0.5,
-            label: "VS Life Max (s)",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesVsEdgeMargin: {
-            value: d.flames.vortexSingular.edgeMarginRatio,
-            min: 0,
-            max: 0.4,
-            step: 0.01,
-            label: "VS Edge Margin",
-            render: (get) =>
-              get("Background Flames.flamesEnabled") === true &&
-              get("Background Flames.flamesDirection") === "vortexSingular",
-          },
-          flamesMinWidthPct: {
-            value: d.flames.minWidthRatio * 100,
-            min: 0.1,
-            max: 50,
-            step: 0.1,
-            label: "Width min %",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesMaxWidthPct: {
-            value: d.flames.maxWidthRatio * 100,
-            min: 0.1,
-            max: 50,
-            step: 0.1,
-            label: "Width max %",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesMinHeightPct: {
-            value: d.flames.minHeightRatio * 100,
-            min: 0.1,
-            max: 50,
-            step: 0.1,
-            label: "Height min %",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesMaxHeightPct: {
-            value: d.flames.maxHeightRatio * 100,
-            min: 0.1,
-            max: 50,
-            step: 0.1,
-            label: "Height max %",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesBaseSpeed: {
-            value: d.flames.baseSpeedPxPerSec,
-            min: 1,
-            max: 500,
-            step: 1,
-            label: "Base speed (px/s)",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesSpeedVariation: {
-            value: d.flames.speedVariation,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Speed variation",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesSpawnInterval: {
-            value: d.flames.spawnIntervalMs,
-            min: 20,
-            max: 5000,
-            step: 10,
-            label: "Spawn interval (ms)",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesSpawnJitter: {
-            value: d.flames.spawnJitterMs,
-            min: 0,
-            max: 2000,
-            step: 10,
-            label: "Spawn jitter (ms)",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesMaxActive: {
-            value: d.flames.maxActive,
-            min: 1,
-            max: 200,
-            step: 1,
-            label: "Max active",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesEdgeSharpness: {
-            value: d.flames.edgeSharpness,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Edge sharpness",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesOpacityMin: {
-            value: d.flames.opacityMin,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Opacity min",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-          flamesOpacityMax: {
-            value: d.flames.opacityMax,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Opacity max",
-            render: (get) => get("Background Flames.flamesEnabled") === true,
-          },
-        }),
-        Sparkle: drawerFolder("Sparkle", {
-          sparkleStripeEnabled: { value: d.sparkle.stripe.enabled, label: "Stripe sparkle enabled" },
-          sparkleStripeCoverage: {
-            value: d.sparkle.stripe.coverage * 100,
-            min: 0,
-            max: 100,
-            step: 1,
-            label: "Stripe sparkle %",
-            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
-          },
-          sparkleStripeThickestCount: {
-            value: Math.min(d.sparkle.stripe.thickestCount, visibleStripeWidthLevelCount(d.stripes)),
-            min: 1,
-            max: visibleStripeWidthLevelCount(d.stripes),
-            step: 1,
-            label: "Thickest levels",
-            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
-          },
-          sparkleStripeMaxBrightness: {
-            value: d.sparkle.stripe.maxBrightness * 100,
-            min: 0,
-            max: 100,
-            step: 1,
-            label: "+ Brightness",
-            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
-          },
-          sparkleStripeSpeed: {
-            value: d.sparkle.stripe.speed,
-            min: 0.05,
-            max: 10,
-            step: 0.05,
-            label: "Sparkle speed",
-            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
-          },
-          sparkleStripeHueDriftDeg: {
-            value: d.sparkle.stripe.hueDriftDeg,
-            min: -180,
-            max: 180,
-            step: 1,
-            label: "Spectrum hue °",
-            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
-          },
-          sparkleStripeSaturationBoost: {
-            value: d.sparkle.stripe.saturationBoost * 100,
-            min: 0,
-            max: 100,
-            step: 1,
-            label: "Spectrum sat %",
-            render: (get) => get("Sparkle.sparkleStripeEnabled") === true,
-          },
-          sparkleWidthEnabled: { value: d.sparkle.width.enabled, label: "Width shuffle enabled" },
-          sparkleWidthCoverage: {
-            value: d.sparkle.width.coverage,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Width active %",
-            render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
-          },
-          sparkleWidthSwingPx: {
-            value: d.sparkle.width.swingPx,
-            min: 0,
-            max: 40,
-            step: 0.25,
-            label: "Width swing (px)",
-            render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
-          },
-          sparkleWidthSwingPeriodMin: {
-            value: d.sparkle.width.swingPeriodMin,
-            min: 0.02,
-            max: 5,
-            step: 0.01,
-            label: "Swing period min",
-            render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
-          },
-          sparkleWidthSwingPeriodMax: {
-            value: d.sparkle.width.swingPeriodMax,
-            min: 0.02,
-            max: 5,
-            step: 0.01,
-            label: "Swing period max",
-            render: (get) => get("Sparkle.sparkleWidthEnabled") === true,
-          },
-          sparkleMotionEnabled: { value: d.sparkle.motion.enabled, label: "Column motion enabled" },
-          sparkleMotionAmplitudePx: {
-            value: d.sparkle.motion.amplitudePx,
-            min: 0,
-            max: 64,
-            step: 0.5,
-            label: "Move amount (px)",
-            render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
-          },
-          sparkleMotionStaggerPx: {
-            value: d.sparkle.motion.staggerPx,
-            min: 1,
-            max: 512,
-            step: 1,
-            label: "Random pattern",
-            render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
-          },
-          sparkleMotionMaxOffsetPx: {
-            value: d.sparkle.motion.maxOffsetPx,
-            min: 0,
-            max: 128,
-            step: 0.5,
-            label: "Max offset (px)",
-            render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
-          },
-          sparkleMotionSpeed: {
-            value: d.sparkle.motion.speed,
-            min: 0.05,
-            max: 5,
-            step: 0.05,
-            label: "Motion speed",
-            render: (get) => get("Sparkle.sparkleMotionEnabled") === true,
-          },
-          sparkleMotionDirection: {
-            value: d.sparkle.motion.direction,
-            options: {
-              "Left → Right": "leftToRight",
-              "Right → Left": "rightToLeft",
-              "Top → Bottom": "topToBottom",
-              "Bottom → Top": "bottomToTop",
-            } as const,
-            label: "Sweep direction",
-            render: () => false,
-          },
-        }),
-        Letters: drawerFolder("Letters", {
-          lettersEnabled: { value: d.letters.enabled, label: "Enabled" },
-          lettersMode: {
-            value: d.letters.mode,
-            options: {
-              "Random letters": "random",
-              Text: "text",
-            } as const,
-            label: "Mode",
-            render: (get) => get("Letters.lettersEnabled") === true,
-          },
-          lettersColorMode: {
-            value: d.letters.colorMode,
-            options: {
-              White: "white",
-              Colorful: "colorful",
-            } as const,
-            label: "Color",
-            render: (get) => get("Letters.lettersEnabled") === true,
-          },
-          lettersFontFamily: {
-            value: d.letters.fontFamily,
-            options: {
-              "Geist Mono Medium": "Geist Mono Medium",
-              Monospace: "monospace",
-              Sans: "Arial, sans-serif",
-              Serif: "Georgia, serif",
-              Courier: '"Courier New", monospace',
-              "Times New Roman": '"Times New Roman", serif',
-              Impact: "Impact, fantasy",
-            } as const,
-            label: "Font",
-            render: (get) => get("Letters.lettersEnabled") === true,
-          },
-          lettersText: {
-            value: d.letters.text,
-            label: "Text",
-            render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "text",
-          },
-          lettersTextCopies: {
-            value: d.letters.textCopies,
-            min: 1,
-            max: 100,
-            step: 1,
-            label: "Text copies",
-            render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "text",
-          },
-          coverage: {
-            value: d.letters.coverage,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Random density",
-            render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
-          },
-          lettersPositionX: {
-            value: d.letters.positionX,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Position X",
-            render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
-          },
-          lettersPositionY: {
-            value: d.letters.positionY,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Position Y",
-            render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
-          },
-          lettersAreaWidth: {
-            value: d.letters.areaWidth,
-            min: 0.01,
-            max: 1,
-            step: 0.01,
-            label: "Random area W",
-            render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
-          },
-          lettersAreaHeight: {
-            value: d.letters.areaHeight,
-            min: 0.01,
-            max: 1,
-            step: 0.01,
-            label: "Random area H",
-            render: (get) => get("Letters.lettersEnabled") === true && get("Letters.lettersMode") === "random",
-          },
-          sizeScale: {
-            value: d.letters.sizeScale,
-            min: 0.1,
-            max: 1,
-            step: 0.05,
-            label: "Font size",
-            render: (get) => get("Letters.lettersEnabled") === true,
-          },
-          shuffleSpeed: {
-            value: d.letters.shuffleSpeed,
-            min: 0.05,
-            max: 3,
-            step: 0.05,
-            label: "Shuffle speed",
-            render: (get) => get("Letters.lettersEnabled") === true,
-          },
-        }),
-        Reveal: drawerFolder("Reveal", {
-          revealType: {
-            value: d.reveal.type,
-            options: {
-              Wave: "wave",
-              Assembly: "assembly",
-              Turbulence: "turbulence",
-              Glitch: "glitch",
-              Vortex: "vortex",
-              Blackhole: "blackhole",
-              Whirlpool: "whirlpool",
-              Water: "water",
-            } as const,
-            label: "Type",
-          },
-          revealPosition: {
-            value: d.reveal.wave.position,
-            options: {
-              Center: "center",
-              "Left Top": "left top",
-              "Center Top": "center top",
-              "Right Top": "right top",
-              "Left Center": "left center",
-              "Right Center": "right center",
-              "Left Bottom": "left bottom",
-              "Center Bottom": "center bottom",
-              "Right Bottom": "right bottom",
-            } as const,
-            label: "Position",
-            render: (get) => get("Reveal.revealType") === "wave",
-          },
-          revealDurationMs: {
-            value: d.reveal.wave.durationMs,
-            min: 100,
-            max: 30000,
-            step: 50,
-            label: "Duration (ms)",
-            render: (get) => get("Reveal.revealType") === "wave",
-          },
-          revealSoftness: {
-            value: d.reveal.wave.softness,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Softness",
-            render: (get) => get("Reveal.revealType") === "wave",
-          },
-          revealWaviness: {
-            value: d.reveal.wave.waviness,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Waviness",
-            render: (get) => get("Reveal.revealType") === "wave",
-          },
-          revealSliceSizePx: {
-            value: d.reveal.assembly.sliceSizePx,
-            min: 8,
-            max: 200,
-            step: 1,
-            label: "Slice size (px)",
-            render: (get) => get("Reveal.revealType") === "assembly",
-          },
-          revealSpeedMinMs: {
-            value: d.reveal.assembly.speedMinMs,
-            min: 100,
-            max: 30000,
-            step: 50,
-            label: "Speed min (ms)",
-            render: (get) => get("Reveal.revealType") === "assembly",
-          },
-          revealSpeedMaxMs: {
-            value: d.reveal.assembly.speedMaxMs,
-            min: 100,
-            max: 30000,
-            step: 50,
-            label: "Speed max (ms)",
-            render: (get) => get("Reveal.revealType") === "assembly",
-          },
-          revealStaggerMs: {
-            value: d.reveal.assembly.staggerMs,
-            min: 0,
-            max: 30000,
-            step: 50,
-            label: "Stagger (ms)",
-            render: (get) => get("Reveal.revealType") === "assembly",
-          },
-          revealScatterPx: {
-            value: d.reveal.assembly.scatterPx,
-            min: 0,
-            max: 300,
-            step: 1,
-            label: "Scatter (px)",
-            render: (get) => get("Reveal.revealType") === "assembly",
-          },
-          revealAngleJitterDeg: {
-            value: d.reveal.assembly.angleJitterDeg,
-            min: 0,
-            max: 90,
-            step: 1,
-            label: "Angle jitter (°)",
-            render: (get) => get("Reveal.revealType") === "assembly",
-          },
-          revealTurbSpeedMinMs: {
-            value: d.reveal.turbulence.speedMinMs,
-            min: 50,
-            max: 30000,
-            step: 10,
-            label: "Speed min (ms)",
-            render: (get) => get("Reveal.revealType") === "turbulence",
-          },
-          revealTurbSpeedMaxMs: {
-            value: d.reveal.turbulence.speedMaxMs,
-            min: 50,
-            max: 30000,
-            step: 10,
-            label: "Speed max (ms)",
-            render: (get) => get("Reveal.revealType") === "turbulence",
-          },
-          revealTurbStaggerMs: {
-            value: d.reveal.turbulence.staggerMs,
-            min: 0,
-            max: 30000,
-            step: 10,
-            label: "Stagger (ms)",
-            render: (get) => get("Reveal.revealType") === "turbulence",
-          },
-          revealTurbIntensity: {
-            value: d.reveal.turbulence.intensity,
-            min: 0,
-            max: 2,
-            step: 0.05,
-            label: "Intensity",
-            render: (get) => get("Reveal.revealType") === "turbulence",
-          },
-          revealTurbDetail: {
-            value: d.reveal.turbulence.detail,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Detail",
-            render: (get) => get("Reveal.revealType") === "turbulence",
-          },
-          revealTurbGlow: {
-            value: d.reveal.turbulence.glow,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Glow",
-            render: (get) => get("Reveal.revealType") === "turbulence",
-          },
-          revealGlitchSpeedMinMs: {
-            value: d.reveal.glitch.speedMinMs,
-            min: 50,
-            max: 30000,
-            step: 10,
-            label: "Speed min (ms)",
-            render: (get) => get("Reveal.revealType") === "glitch",
-          },
-          revealGlitchSpeedMaxMs: {
-            value: d.reveal.glitch.speedMaxMs,
-            min: 50,
-            max: 30000,
-            step: 10,
-            label: "Speed max (ms)",
-            render: (get) => get("Reveal.revealType") === "glitch",
-          },
-          revealGlitchStaggerMs: {
-            value: d.reveal.glitch.staggerMs,
-            min: 0,
-            max: 30000,
-            step: 10,
-            label: "Stagger (ms)",
-            render: (get) => get("Reveal.revealType") === "glitch",
-          },
-          revealGlitchIntensity: {
-            value: d.reveal.glitch.intensity,
-            min: 0,
-            max: 2,
-            step: 0.05,
-            label: "Intensity",
-            render: (get) => get("Reveal.revealType") === "glitch",
-          },
-          revealGlitchDetail: {
-            value: d.reveal.glitch.detail,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Detail",
-            render: (get) => get("Reveal.revealType") === "glitch",
-          },
-          revealGlitchGlow: {
-            value: d.reveal.glitch.glow,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Glow",
-            render: (get) => get("Reveal.revealType") === "glitch",
-          },
-          revealVorSpeedMinMs: {
-            value: d.reveal.vortex.speedMinMs,
-            min: 50,
-            max: 30000,
-            step: 10,
-            label: "Speed min (ms)",
-            render: (get) => get("Reveal.revealType") === "vortex",
-          },
-          revealVorSpeedMaxMs: {
-            value: d.reveal.vortex.speedMaxMs,
-            min: 50,
-            max: 30000,
-            step: 10,
-            label: "Speed max (ms)",
-            render: (get) => get("Reveal.revealType") === "vortex",
-          },
-          revealVorStaggerMs: {
-            value: d.reveal.vortex.staggerMs,
-            min: 0,
-            max: 30000,
-            step: 10,
-            label: "Stagger (ms)",
-            render: (get) => get("Reveal.revealType") === "vortex",
-          },
-          revealVorIntensity: {
-            value: d.reveal.vortex.intensity,
-            min: 0,
-            max: 2,
-            step: 0.05,
-            label: "Intensity",
-            render: (get) => get("Reveal.revealType") === "vortex",
-          },
-          revealVorDetail: {
-            value: d.reveal.vortex.detail,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Detail",
-            render: (get) => get("Reveal.revealType") === "vortex",
-          },
-          revealVorSwirl: {
-            value: d.reveal.vortex.swirl,
-            min: 0,
-            max: 3,
-            step: 0.05,
-            label: "Swirl",
-            render: (get) => get("Reveal.revealType") === "vortex",
-          },
-          revealVorGlow: {
-            value: d.reveal.vortex.glow,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Glow",
-            render: (get) => get("Reveal.revealType") === "vortex",
-          },
-          revealWaterDurationMs: {
-            value: d.reveal.water.durationMs,
-            min: 400,
-            max: 8000,
-            step: 50,
-            label: "Sweep ms",
-            render: (get) => get("Reveal.revealType") === "water",
-          },
-          revealWaterSettleMs: {
-            value: d.reveal.water.settleMs,
-            min: 0,
-            max: 4000,
-            step: 50,
-            label: "Settle ms",
-            render: (get) => get("Reveal.revealType") === "water",
-          },
-          revealWaterRows: {
-            value: d.reveal.water.rows,
-            min: 1,
-            max: 12,
-            step: 1,
-            label: "Rows",
-            render: (get) => get("Reveal.revealType") === "water",
-          },
-          revealWaterIntensity: {
-            value: d.reveal.water.intensity,
-            min: 0,
-            max: 1.5,
-            step: 0.01,
-            label: "Intensity",
-            render: (get) => get("Reveal.revealType") === "water",
-          },
-          revealWaterWobble: {
-            value: d.reveal.water.wobble,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Wobble",
-            render: (get) => get("Reveal.revealType") === "water",
-          },
-          revealWaterRefraction: {
-            value: d.reveal.water.refraction,
-            min: 0,
-            max: 2,
-            step: 0.01,
-            label: "Refraction",
-            render: (get) => get("Reveal.revealType") === "water",
-          },
-          revealWaterSoftness: {
-            value: d.reveal.water.softness,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Softness",
-            render: (get) => get("Reveal.revealType") === "water",
-          },
-          revealBhFormMs: {
-            value: d.reveal.blackhole.formMs,
-            min: 0,
-            max: 10000,
-            step: 10,
-            label: "Form (ms)",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhSpeedMinMs: {
-            value: d.reveal.blackhole.speedMinMs,
-            min: 50,
-            max: 30000,
-            step: 10,
-            label: "Speed min (ms)",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhSpeedMaxMs: {
-            value: d.reveal.blackhole.speedMaxMs,
-            min: 50,
-            max: 30000,
-            step: 10,
-            label: "Speed max (ms)",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhStaggerMs: {
-            value: d.reveal.blackhole.staggerMs,
-            min: 0,
-            max: 30000,
-            step: 10,
-            label: "Stagger (ms)",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhCollapseMs: {
-            value: d.reveal.blackhole.collapseMs,
-            min: 0,
-            max: 10000,
-            step: 10,
-            label: "Collapse (ms)",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhHorizon: {
-            value: d.reveal.blackhole.horizon,
-            min: 0.02,
-            max: 0.3,
-            step: 0.005,
-            label: "Horizon",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhSwirl: {
-            value: d.reveal.blackhole.swirl,
-            min: 0,
-            max: 3,
-            step: 0.05,
-            label: "Swirl",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhArms: {
-            value: d.reveal.blackhole.arms,
-            min: 1,
-            max: 8,
-            step: 1,
-            label: "Arms",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhLensing: {
-            value: d.reveal.blackhole.lensing,
-            min: 0,
-            max: 2,
-            step: 0.05,
-            label: "Lensing",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhIntensity: {
-            value: d.reveal.blackhole.intensity,
-            min: 0,
-            max: 2,
-            step: 0.05,
-            label: "Intensity",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhDetail: {
-            value: d.reveal.blackhole.detail,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Detail",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealBhGlow: {
-            value: d.reveal.blackhole.glow,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Glow",
-            render: (get) => get("Reveal.revealType") === "blackhole",
-          },
-          revealWpDurationMs: {
-            value: d.reveal.whirlpool.durationMs,
-            min: 100,
-            max: 30000,
-            step: 50,
-            label: "Duration (ms)",
-            render: (get) => get("Reveal.revealType") === "whirlpool",
-          },
-          revealWpTurns: {
-            value: d.reveal.whirlpool.turns,
-            min: 0,
-            max: 6,
-            step: 0.1,
-            label: "Turns",
-            render: (get) => get("Reveal.revealType") === "whirlpool",
-          },
-          revealWpTightness: {
-            value: d.reveal.whirlpool.tightness,
-            min: 0.05,
-            max: 0.5,
-            step: 0.005,
-            label: "Tightness",
-            render: (get) => get("Reveal.revealType") === "whirlpool",
-          },
-          revealWpStreak: {
-            value: d.reveal.whirlpool.streak,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Streak",
-            render: (get) => get("Reveal.revealType") === "whirlpool",
-          },
-          revealWpGlow: {
-            value: d.reveal.whirlpool.glow,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            label: "Glow",
-            render: (get) => get("Reveal.revealType") === "whirlpool",
-          },
-          Replay: button(() => onReplay()),
-          Reset: button(() => {
-            const dr = DEFAULT_LAB_ENGINE_CONFIG.reveal;
-            shaderControlSetterRef.current?.({
-              revealType: dr.type,
-              revealPosition: dr.wave.position,
-              revealDurationMs: dr.wave.durationMs,
-              revealSoftness: dr.wave.softness,
-              revealWaviness: dr.wave.waviness,
-              revealSliceSizePx: dr.assembly.sliceSizePx,
-              revealSpeedMinMs: dr.assembly.speedMinMs,
-              revealSpeedMaxMs: dr.assembly.speedMaxMs,
-              revealStaggerMs: dr.assembly.staggerMs,
-              revealScatterPx: dr.assembly.scatterPx,
-              revealAngleJitterDeg: dr.assembly.angleJitterDeg,
-              revealTurbSpeedMinMs: dr.turbulence.speedMinMs,
-              revealTurbSpeedMaxMs: dr.turbulence.speedMaxMs,
-              revealTurbStaggerMs: dr.turbulence.staggerMs,
-              revealTurbIntensity: dr.turbulence.intensity,
-              revealTurbDetail: dr.turbulence.detail,
-              revealTurbGlow: dr.turbulence.glow,
-              revealGlitchSpeedMinMs: dr.glitch.speedMinMs,
-              revealGlitchSpeedMaxMs: dr.glitch.speedMaxMs,
-              revealGlitchStaggerMs: dr.glitch.staggerMs,
-              revealGlitchIntensity: dr.glitch.intensity,
-              revealGlitchDetail: dr.glitch.detail,
-              revealGlitchGlow: dr.glitch.glow,
-              revealVorSpeedMinMs: dr.vortex.speedMinMs,
-              revealVorSpeedMaxMs: dr.vortex.speedMaxMs,
-              revealVorStaggerMs: dr.vortex.staggerMs,
-              revealVorIntensity: dr.vortex.intensity,
-              revealVorDetail: dr.vortex.detail,
-              revealVorSwirl: dr.vortex.swirl,
-              revealVorGlow: dr.vortex.glow,
-              revealWaterDurationMs: dr.water.durationMs,
-              revealWaterSettleMs: dr.water.settleMs,
-              revealWaterRows: dr.water.rows,
-              revealWaterIntensity: dr.water.intensity,
-              revealWaterWobble: dr.water.wobble,
-              revealWaterRefraction: dr.water.refraction,
-              revealWaterSoftness: dr.water.softness,
-            });
-          }),
-        }),
-        "Edge Mask": drawerFolder("Edge Mask", {
-          edgeMaskEnabled: { value: d.edgeMask.enabled, label: "Enabled" },
-          edgeMaskStart: {
-            value: d.edgeMask.start,
-            min: 0,
-            max: 0.5,
-            step: 0.005,
-            label: "Start inset",
-            render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
-          },
-          edgeMaskEnd: {
-            value: d.edgeMask.end,
-            min: 0,
-            max: 0.5,
-            step: 0.005,
-            label: "End inset",
-            render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
-          },
-          edgeMaskPower: {
-            value: d.edgeMask.power,
-            min: 0.1,
-            max: 4,
-            step: 0.05,
-            label: "Power",
-            render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
-          },
-          edgeMaskSides: {
-            value: edgeMaskSidePreset(d.edgeMask.sides),
-            options: EDGE_MASK_SIDE_OPTIONS,
-            label: "Sides",
-            render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
-          },
-          edgeMaskSideTop: {
-            value: d.edgeMask.sides.top,
-            label: "Top",
-            render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
-          },
-          edgeMaskSideRight: {
-            value: d.edgeMask.sides.right,
-            label: "Right",
-            render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
-          },
-          edgeMaskSideBottom: {
-            value: d.edgeMask.sides.bottom,
-            label: "Bottom",
-            render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
-          },
-          edgeMaskSideLeft: {
-            value: d.edgeMask.sides.left,
-            label: "Left",
-            render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
-          },
-        }),
-        "Cursor Trail": drawerFolder("Cursor Trail", {
-          cursorTrailEnabled: { value: d.cursorTrail.enabled, label: "Enabled" },
-          cursorTrailType: {
-            value: d.cursorTrail.type,
-            options: { Default: "default", Wave: "wave", Constellation: "constellation", Comet: "comet" } as const,
-            label: "Type",
-            render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
-          },
-          particleRadius: {
-            value: d.cursorTrail.particleRadius,
-            min: 0.5,
-            max: 80,
-            step: 0.5,
-            label: "Particle radius",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          particleAlpha: {
-            value: d.cursorTrail.particleAlpha,
-            min: 0,
-            max: 1,
-            step: 0.005,
-            label: "Particle alpha",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          particleLifeMs: {
-            value: d.cursorTrail.particleLifeMs,
-            min: 50,
-            max: 10000,
-            step: 10,
-            label: "Particle life (ms)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          particleSpacingPx: {
-            value: d.cursorTrail.particleSpacingPx,
-            min: 0.5,
-            max: 80,
-            step: 0.5,
-            label: "Particle spacing (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          maxEmitPerTick: {
-            value: d.cursorTrail.maxEmitPerTick,
-            min: 1,
-            max: 200,
-            step: 1,
-            label: "Max emit/tick",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          spreadMinPx: {
-            value: d.cursorTrail.spreadMinPx,
-            min: 0,
-            max: 80,
-            step: 0.5,
-            label: "Spread min (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          spreadMaxPx: {
-            value: d.cursorTrail.spreadMaxPx,
-            min: 0,
-            max: 120,
-            step: 0.5,
-            label: "Spread max (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          spinStrength: {
-            value: d.cursorTrail.spinStrength,
-            min: 0,
-            max: 0.2,
-            step: 0.001,
-            label: "Spin strength",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          pushStrengthPx: {
-            value: d.cursorTrail.pushStrengthPx,
-            min: 0,
-            max: 120,
-            step: 1,
-            label: "Push strength (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          pushRadiusScale: {
-            value: d.cursorTrail.pushRadiusScale,
-            min: 0,
-            max: 8,
-            step: 0.05,
-            label: "Push radius scale",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          pushWobblePx: {
-            value: d.cursorTrail.pushWobblePx,
-            min: 0,
-            max: 80,
-            step: 1,
-            label: "Push wobble (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
-          },
-          constellationRadiusScale: {
-            value: d.cursorTrail.constellation.radiusScale,
-            min: 0.02,
-            max: 2,
-            step: 0.005,
-            label: "Cursor radius (scale)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationStarDensity: {
-            value: d.cursorTrail.constellation.starDensity,
-            min: 0.05,
-            max: 4,
-            step: 0.05,
-            label: "Star density",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationStarSizePx: {
-            value: d.cursorTrail.constellation.starSizePx,
-            min: 0.2,
-            max: 20,
-            step: 0.05,
-            label: "Star size (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationStarSizeRandomness: {
-            value: d.cursorTrail.constellation.starSizeRandomness,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Star size randomness",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationStarGrowScale: {
-            value: d.cursorTrail.constellation.starGrowScale,
-            min: 0,
-            max: 6,
-            step: 0.05,
-            label: "Star grow scale",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationStarPushPx: {
-            value: d.cursorTrail.constellation.starPushPx,
-            min: 0,
-            max: 40,
-            step: 0.1,
-            label: "Star push (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationTwinkleAmount: {
-            value: d.cursorTrail.constellation.twinkleAmount,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Twinkle amount",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationTwinkleSpeed: {
-            value: d.cursorTrail.constellation.twinkleSpeed,
-            min: 0,
-            max: 10,
-            step: 0.05,
-            label: "Twinkle speed",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationLinkThicknessPx: {
-            value: d.cursorTrail.constellation.linkThicknessPx,
-            min: 0.2,
-            max: 20,
-            step: 0.05,
-            label: "Link thickness (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationLinkBrightness: {
-            value: d.cursorTrail.constellation.linkBrightness,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Link brightness",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationLinkGrooveDepth: {
-            value: d.cursorTrail.constellation.linkGrooveDepth,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Link groove depth",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationLinkShearPx: {
-            value: d.cursorTrail.constellation.linkShearPx,
-            min: 0,
-            max: 80,
-            step: 0.5,
-            label: "Link shear (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationLinkMaxDistScale: {
-            value: d.cursorTrail.constellation.linkMaxDistScale,
-            min: 0.02,
-            max: 1,
-            step: 0.002,
-            label: "Link max distance (scale)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationLinkFormMs: {
-            value: d.cursorTrail.constellation.linkFormMs,
-            min: 10,
-            max: 5000,
-            step: 10,
-            label: "Link form (ms)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationLinkHoldMs: {
-            value: d.cursorTrail.constellation.linkHoldMs,
-            min: 0,
-            max: 10000,
-            step: 10,
-            label: "Link hold (ms)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationLinkDissolveMs: {
-            value: d.cursorTrail.constellation.linkDissolveMs,
-            min: 10,
-            max: 10000,
-            step: 10,
-            label: "Link dissolve (ms)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationMaxLinks: {
-            value: d.cursorTrail.constellation.maxLinks,
-            min: 4,
-            max: 80,
-            step: 1,
-            label: "Max links",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationMaxStars: {
-            value: d.cursorTrail.constellation.maxStars,
-            min: 4,
-            max: 160,
-            step: 1,
-            label: "Max stars",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationPulseEnabled: {
-            value: d.cursorTrail.constellation.pulseEnabled,
-            label: "Pulses",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationPulseDurationMs: {
-            value: d.cursorTrail.constellation.pulseDurationMs,
-            min: 60,
-            max: 10000,
-            step: 10,
-            label: "Pulse duration (ms)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation" &&
-              get("Cursor Trail.constellationPulseEnabled") === true,
-          },
-          constellationPulseCoreLenPx: {
-            value: d.cursorTrail.constellation.pulseCoreLenPx,
-            min: 0.5,
-            max: 60,
-            step: 0.1,
-            label: "Pulse core length (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation" &&
-              get("Cursor Trail.constellationPulseEnabled") === true,
-          },
-          constellationPulseTailLenPx: {
-            value: d.cursorTrail.constellation.pulseTailLenPx,
-            min: 0.5,
-            max: 240,
-            step: 0.5,
-            label: "Pulse tail length (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation" &&
-              get("Cursor Trail.constellationPulseEnabled") === true,
-          },
-          constellationPulseBrightness: {
-            value: d.cursorTrail.constellation.pulseBrightness,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Pulse brightness",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation" &&
-              get("Cursor Trail.constellationPulseEnabled") === true,
-          },
-          constellationPulseRelayHops: {
-            value: d.cursorTrail.constellation.pulseRelayHops,
-            min: 0,
-            max: 6,
-            step: 1,
-            label: "Pulse relay hops",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation" &&
-              get("Cursor Trail.constellationPulseEnabled") === true,
-          },
-          constellationPulseCooldownMs: {
-            value: d.cursorTrail.constellation.pulseCooldownMs,
-            min: 0,
-            max: 20000,
-            step: 10,
-            label: "Pulse cooldown (ms)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation" &&
-              get("Cursor Trail.constellationPulseEnabled") === true,
-          },
-          constellationFlareMs: {
-            value: d.cursorTrail.constellation.flareMs,
-            min: 30,
-            max: 5000,
-            step: 10,
-            label: "Flare (ms)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationFlareScale: {
-            value: d.cursorTrail.constellation.flareScale,
-            min: 0,
-            max: 6,
-            step: 0.05,
-            label: "Flare scale",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationPolygonFlashEnabled: {
-            value: d.cursorTrail.constellation.polygonFlashEnabled,
-            label: "Polygon flash",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation",
-          },
-          constellationPolygonFlashStrength: {
-            value: d.cursorTrail.constellation.polygonFlashStrength,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Polygon flash strength",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "constellation" &&
-              get("Cursor Trail.constellationPolygonFlashEnabled") === true,
-          },
-          cometEmbersEnabled: {
-            value: d.cursorTrail.comet.embersEnabled,
-            label: "Embers",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometNodeCount: {
-            value: d.cursorTrail.comet.nodeCount,
-            min: 2,
-            max: 48,
-            step: 1,
-            label: "Body nodes",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometHeadStiffness: {
-            value: d.cursorTrail.comet.headStiffness,
-            min: 100,
-            max: 40000,
-            step: 50,
-            label: "Head stiffness",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometHeadDamping: {
-            value: d.cursorTrail.comet.headDamping,
-            min: 1,
-            max: 600,
-            step: 1,
-            label: "Head damping",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometChainStiffness: {
-            value: d.cursorTrail.comet.chainStiffness,
-            min: 100,
-            max: 40000,
-            step: 50,
-            label: "Chain stiffness",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometChainDamping: {
-            value: d.cursorTrail.comet.chainDamping,
-            min: 1,
-            max: 600,
-            step: 1,
-            label: "Chain damping",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometMaxLinkPx: {
-            value: d.cursorTrail.comet.maxLinkPx,
-            min: 2,
-            max: 200,
-            step: 1,
-            label: "Max link (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometHeadRadiusPx: {
-            value: d.cursorTrail.comet.headRadiusPx,
-            min: 0.5,
-            max: 60,
-            step: 0.1,
-            label: "Head radius (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometTailRadiusPx: {
-            value: d.cursorTrail.comet.tailRadiusPx,
-            min: 0,
-            max: 40,
-            step: 0.1,
-            label: "Tail radius (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometStretchThinning: {
-            value: d.cursorTrail.comet.stretchThinning,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Stretch thinning",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometSmoothUnionPx: {
-            value: d.cursorTrail.comet.smoothUnionPx,
-            min: 0.1,
-            max: 40,
-            step: 0.1,
-            label: "Smooth union (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometBodyBrightness: {
-            value: d.cursorTrail.comet.bodyBrightness,
-            min: 0,
-            max: 2,
-            step: 0.01,
-            label: "Body brightness",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometAuraStrength: {
-            value: d.cursorTrail.comet.auraStrength,
-            min: 0,
-            max: 3,
-            step: 0.01,
-            label: "Aura strength",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometBodyPushPx: {
-            value: d.cursorTrail.comet.bodyPushPx,
-            min: 0,
-            max: 60,
-            step: 0.5,
-            label: "Body push (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometPresenceRiseRate: {
-            value: d.cursorTrail.comet.presenceRiseRate,
-            min: 0.5,
-            max: 60,
-            step: 0.1,
-            label: "Presence rise rate",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometPresenceFallRate: {
-            value: d.cursorTrail.comet.presenceFallRate,
-            min: 0.2,
-            max: 60,
-            step: 0.1,
-            label: "Presence fall rate",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-          cometEmberRatePerSec: {
-            value: d.cursorTrail.comet.emberRatePerSec,
-            min: 0,
-            max: 400,
-            step: 1,
-            label: "Ember rate (/s)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometEmberMaxCount: {
-            value: d.cursorTrail.comet.emberMaxCount,
-            min: 1,
-            max: 512,
-            step: 1,
-            label: "Ember max count",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometEmberSizePx: {
-            value: d.cursorTrail.comet.emberSizePx,
-            min: 0.2,
-            max: 40,
-            step: 0.1,
-            label: "Ember size (px)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometEmberSpeedMinPxPerSec: {
-            value: d.cursorTrail.comet.emberSpeedMinPxPerSec,
-            min: 0,
-            max: 2000,
-            step: 1,
-            label: "Ember speed min (px/s)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometEmberSpeedMaxPxPerSec: {
-            value: d.cursorTrail.comet.emberSpeedMaxPxPerSec,
-            min: 0,
-            max: 2000,
-            step: 1,
-            label: "Ember speed max (px/s)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometEmberSpreadRad: {
-            value: d.cursorTrail.comet.emberSpreadRad,
-            min: 0,
-            max: 3.14159,
-            step: 0.01,
-            label: "Ember spread (rad)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometEmberLifetimeMinMs: {
-            value: d.cursorTrail.comet.emberLifetimeMinMs,
-            min: 60,
-            max: 20000,
-            step: 10,
-            label: "Ember lifetime min (ms)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometEmberLifetimeMaxMs: {
-            value: d.cursorTrail.comet.emberLifetimeMaxMs,
-            min: 60,
-            max: 20000,
-            step: 10,
-            label: "Ember lifetime max (ms)",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometEmberBrightness: {
-            value: d.cursorTrail.comet.emberBrightness,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Ember brightness",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometEmberFadeInFraction: {
-            value: d.cursorTrail.comet.emberFadeInFraction,
-            min: 0,
-            max: 0.9,
-            step: 0.01,
-            label: "Ember fade-in fraction",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true &&
-              get("Cursor Trail.cursorTrailType") === "comet" &&
-              get("Cursor Trail.cometEmbersEnabled") === true,
-          },
-          cometSeed: {
-            value: d.cursorTrail.comet.seed,
-            min: 0,
-            max: 100000000,
-            step: 1,
-            label: "Seed",
-            render: (get) =>
-              get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
-          },
-        }),
-        "Click Wave": drawerFolder("Click Wave", {
-          clickWaveEnabled: { value: d.clickWave.enabled, label: "Enabled" },
-          clickWaveType: {
-            value: d.clickWave.type,
-            options: { Default: "default", Detonation: "detonation" } as const,
-            label: "Type",
-            render: (get) => get("Click Wave.clickWaveEnabled") === true,
-          },
-          clickWaveLifeMs: {
-            value: d.clickWave.lifeMs,
-            min: 80,
-            max: 10000,
-            step: 10,
-            label: "Life (ms)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
-          },
-          clickWaveStartRadiusPx: {
-            value: d.clickWave.startRadiusPx,
-            min: 1,
-            max: 120,
-            step: 1,
-            label: "Start radius (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
-          },
-          clickWaveMaxRadiusPx: {
-            value: d.clickWave.maxRadiusPx,
-            min: 4,
-            max: 600,
-            step: 2,
-            label: "Max radius (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
-          },
-          clickWaveStartStrokeWidthPx: {
-            value: d.clickWave.startStrokeWidthPx,
-            min: 0.5,
-            max: 80,
-            step: 0.5,
-            label: "Start stroke (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
-          },
-          clickWaveEndStrokeWidthPx: {
-            value: d.clickWave.endStrokeWidthPx,
-            min: 0.25,
-            max: 40,
-            step: 0.25,
-            label: "End stroke (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
-          },
-          clickWaveMaxWaves: {
-            value: d.clickWave.maxWaves,
-            min: 1,
-            max: 32,
-            step: 1,
-            label: "Max waves",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
-          },
-          clickWavePushStrengthPx: {
-            value: d.clickWave.pushStrengthPx,
-            min: 0,
-            max: 200,
-            step: 1,
-            label: "Push strength (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
-          },
-          clickWavePushBandScale: {
-            value: d.clickWave.pushBandScale,
-            min: 1,
-            max: 8,
-            step: 0.1,
-            label: "Push band scale",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
-          },
-          clickWaveStripeWhiteAlpha: {
-            value: d.clickWave.stripeWhiteAlpha,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Stripe white alpha",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
-          },
-          detonationMaxConcurrent: {
-            value: d.clickWave.detonation.maxConcurrent,
-            min: 1,
-            max: 16,
-            step: 1,
-            label: "Max concurrent",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationRingReachPx: {
-            value: d.clickWave.detonation.ringReachPx,
-            min: 8,
-            max: 1200,
-            step: 2,
-            label: "Ring reach (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationRingDurationMs: {
-            value: d.clickWave.detonation.ringDurationMs,
-            min: 40,
-            max: 8000,
-            step: 10,
-            label: "Ring duration (ms)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationRingThicknessPx: {
-            value: d.clickWave.detonation.ringThicknessPx,
-            min: 1,
-            max: 200,
-            step: 0.5,
-            label: "Ring thickness (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationRingRefractionPx: {
-            value: d.clickWave.detonation.ringRefractionPx,
-            min: 0,
-            max: 160,
-            step: 0.5,
-            label: "Ring refraction (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationFlashRadiusPx: {
-            value: d.clickWave.detonation.flashRadiusPx,
-            min: 1,
-            max: 400,
-            step: 1,
-            label: "Flash radius (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationFlashDurationMs: {
-            value: d.clickWave.detonation.flashDurationMs,
-            min: 8,
-            max: 2000,
-            step: 2,
-            label: "Flash duration (ms)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationFlashBrightness: {
-            value: d.clickWave.detonation.flashBrightness,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Flash brightness",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationDebrisCount: {
-            value: d.clickWave.detonation.debrisCount,
-            min: 0,
-            max: 96,
-            step: 1,
-            label: "Debris count",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationDebrisSpeedPxPerSec: {
-            value: d.clickWave.detonation.debrisSpeedPxPerSec,
-            min: 10,
-            max: 4000,
-            step: 5,
-            label: "Debris speed (px/s)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationDebrisSpeedVariation: {
-            value: d.clickWave.detonation.debrisSpeedVariation,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Debris speed variation",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationDebrisDrag: {
-            value: d.clickWave.detonation.debrisDrag,
-            min: 0.05,
-            max: 12,
-            step: 0.05,
-            label: "Debris drag",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationDebrisGravityPxPerSec2: {
-            value: d.clickWave.detonation.debrisGravityPxPerSec2,
-            min: 0,
-            max: 4000,
-            step: 10,
-            label: "Debris gravity (px/s2)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationDebrisLifetimeMs: {
-            value: d.clickWave.detonation.debrisLifetimeMs,
-            min: 60,
-            max: 10000,
-            step: 10,
-            label: "Debris lifetime (ms)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationDebrisLifetimeVariation: {
-            value: d.clickWave.detonation.debrisLifetimeVariation,
-            min: 0,
-            max: 1,
-            step: 0.01,
-            label: "Debris lifetime variation",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationDebrisSizePx: {
-            value: d.clickWave.detonation.debrisSizePx,
-            min: 0.2,
-            max: 40,
-            step: 0.1,
-            label: "Debris size (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationDebrisBrightness: {
-            value: d.clickWave.detonation.debrisBrightness,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Debris brightness",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationCraterRadiusPx: {
-            value: d.clickWave.detonation.craterRadiusPx,
-            min: 4,
-            max: 1200,
-            step: 2,
-            label: "Crater radius (px)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationCraterDepth: {
-            value: d.clickWave.detonation.craterDepth,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Crater depth",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationCraterRelaxFastMs: {
-            value: d.clickWave.detonation.craterRelaxFastMs,
-            min: 20,
-            max: 10000,
-            step: 10,
-            label: "Crater relax fast (ms)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationCraterRelaxSlowMs: {
-            value: d.clickWave.detonation.craterRelaxSlowMs,
-            min: 20,
-            max: 20000,
-            step: 10,
-            label: "Crater relax slow (ms)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationCraterLifeMs: {
-            value: d.clickWave.detonation.craterLifeMs,
-            min: 100,
-            max: 20000,
-            step: 10,
-            label: "Crater life (ms)",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationCraterRimStrength: {
-            value: d.clickWave.detonation.craterRimStrength,
-            min: 0,
-            max: 4,
-            step: 0.05,
-            label: "Crater rim strength",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-          detonationSeed: {
-            value: d.clickWave.detonation.seed,
-            min: 0,
-            max: 1000000,
-            step: 1,
-            label: "Seed",
-            render: (get) =>
-              get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
-          },
-        }),
+          { hideInClient: true },
+        ),
+        "Edge Mask": drawerFolder(
+          "Edge Mask",
+          {
+            edgeMaskEnabled: { value: d.edgeMask.enabled, label: "Enabled" },
+            edgeMaskStart: {
+              value: d.edgeMask.start,
+              min: 0,
+              max: 0.5,
+              step: 0.005,
+              label: "Start inset",
+              render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
+            },
+            edgeMaskEnd: {
+              value: d.edgeMask.end,
+              min: 0,
+              max: 0.5,
+              step: 0.005,
+              label: "End inset",
+              render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
+            },
+            edgeMaskPower: {
+              value: d.edgeMask.power,
+              min: 0.1,
+              max: 4,
+              step: 0.05,
+              label: "Power",
+              render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
+            },
+            edgeMaskSides: {
+              value: edgeMaskSidePreset(d.edgeMask.sides),
+              options: EDGE_MASK_SIDE_OPTIONS,
+              label: "Sides",
+              render: (get) => get("Edge Mask.edgeMaskEnabled") === true,
+            },
+            edgeMaskSideTop: {
+              value: d.edgeMask.sides.top,
+              label: "Top",
+              render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
+            },
+            edgeMaskSideRight: {
+              value: d.edgeMask.sides.right,
+              label: "Right",
+              render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
+            },
+            edgeMaskSideBottom: {
+              value: d.edgeMask.sides.bottom,
+              label: "Bottom",
+              render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
+            },
+            edgeMaskSideLeft: {
+              value: d.edgeMask.sides.left,
+              label: "Left",
+              render: (get) => get("Edge Mask.edgeMaskEnabled") === true && get("Edge Mask.edgeMaskSides") === "custom",
+            },
+          },
+          { hideInClient: true },
+        ),
+        "Cursor Trail": drawerFolder(
+          "Cursor Trail",
+          {
+            cursorTrailEnabled: { value: d.cursorTrail.enabled, label: "Enabled" },
+            cursorTrailType: {
+              value: d.cursorTrail.type,
+              options: { Default: "default", Wave: "wave", Constellation: "constellation", Comet: "comet" } as const,
+              label: "Type",
+              render: (get) => get("Cursor Trail.cursorTrailEnabled") === true,
+            },
+            particleRadius: {
+              value: d.cursorTrail.particleRadius,
+              min: 0.5,
+              max: 80,
+              step: 0.5,
+              label: "Particle radius",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            particleAlpha: {
+              value: d.cursorTrail.particleAlpha,
+              min: 0,
+              max: 1,
+              step: 0.005,
+              label: "Particle alpha",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            particleLifeMs: {
+              value: d.cursorTrail.particleLifeMs,
+              min: 50,
+              max: 10000,
+              step: 10,
+              label: "Particle life (ms)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            particleSpacingPx: {
+              value: d.cursorTrail.particleSpacingPx,
+              min: 0.5,
+              max: 80,
+              step: 0.5,
+              label: "Particle spacing (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            maxEmitPerTick: {
+              value: d.cursorTrail.maxEmitPerTick,
+              min: 1,
+              max: 200,
+              step: 1,
+              label: "Max emit/tick",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            spreadMinPx: {
+              value: d.cursorTrail.spreadMinPx,
+              min: 0,
+              max: 80,
+              step: 0.5,
+              label: "Spread min (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            spreadMaxPx: {
+              value: d.cursorTrail.spreadMaxPx,
+              min: 0,
+              max: 120,
+              step: 0.5,
+              label: "Spread max (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            spinStrength: {
+              value: d.cursorTrail.spinStrength,
+              min: 0,
+              max: 0.2,
+              step: 0.001,
+              label: "Spin strength",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            pushStrengthPx: {
+              value: d.cursorTrail.pushStrengthPx,
+              min: 0,
+              max: 120,
+              step: 1,
+              label: "Push strength (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            pushRadiusScale: {
+              value: d.cursorTrail.pushRadiusScale,
+              min: 0,
+              max: 8,
+              step: 0.05,
+              label: "Push radius scale",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            pushWobblePx: {
+              value: d.cursorTrail.pushWobblePx,
+              min: 0,
+              max: 80,
+              step: 1,
+              label: "Push wobble (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "default",
+            },
+            constellationRadiusScale: {
+              value: d.cursorTrail.constellation.radiusScale,
+              min: 0.02,
+              max: 2,
+              step: 0.005,
+              label: "Cursor radius (scale)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationStarDensity: {
+              value: d.cursorTrail.constellation.starDensity,
+              min: 0.05,
+              max: 4,
+              step: 0.05,
+              label: "Star density",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationStarSizePx: {
+              value: d.cursorTrail.constellation.starSizePx,
+              min: 0.2,
+              max: 20,
+              step: 0.05,
+              label: "Star size (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationStarSizeRandomness: {
+              value: d.cursorTrail.constellation.starSizeRandomness,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Star size randomness",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationStarGrowScale: {
+              value: d.cursorTrail.constellation.starGrowScale,
+              min: 0,
+              max: 6,
+              step: 0.05,
+              label: "Star grow scale",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationStarPushPx: {
+              value: d.cursorTrail.constellation.starPushPx,
+              min: 0,
+              max: 40,
+              step: 0.1,
+              label: "Star push (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationTwinkleAmount: {
+              value: d.cursorTrail.constellation.twinkleAmount,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Twinkle amount",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationTwinkleSpeed: {
+              value: d.cursorTrail.constellation.twinkleSpeed,
+              min: 0,
+              max: 10,
+              step: 0.05,
+              label: "Twinkle speed",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationLinkThicknessPx: {
+              value: d.cursorTrail.constellation.linkThicknessPx,
+              min: 0.2,
+              max: 20,
+              step: 0.05,
+              label: "Link thickness (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationLinkBrightness: {
+              value: d.cursorTrail.constellation.linkBrightness,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Link brightness",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationLinkGrooveDepth: {
+              value: d.cursorTrail.constellation.linkGrooveDepth,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Link groove depth",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationLinkShearPx: {
+              value: d.cursorTrail.constellation.linkShearPx,
+              min: 0,
+              max: 80,
+              step: 0.5,
+              label: "Link shear (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationLinkMaxDistScale: {
+              value: d.cursorTrail.constellation.linkMaxDistScale,
+              min: 0.02,
+              max: 1,
+              step: 0.002,
+              label: "Link max distance (scale)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationLinkFormMs: {
+              value: d.cursorTrail.constellation.linkFormMs,
+              min: 10,
+              max: 5000,
+              step: 10,
+              label: "Link form (ms)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationLinkHoldMs: {
+              value: d.cursorTrail.constellation.linkHoldMs,
+              min: 0,
+              max: 10000,
+              step: 10,
+              label: "Link hold (ms)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationLinkDissolveMs: {
+              value: d.cursorTrail.constellation.linkDissolveMs,
+              min: 10,
+              max: 10000,
+              step: 10,
+              label: "Link dissolve (ms)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationMaxLinks: {
+              value: d.cursorTrail.constellation.maxLinks,
+              min: 4,
+              max: 80,
+              step: 1,
+              label: "Max links",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationMaxStars: {
+              value: d.cursorTrail.constellation.maxStars,
+              min: 4,
+              max: 160,
+              step: 1,
+              label: "Max stars",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationPulseEnabled: {
+              value: d.cursorTrail.constellation.pulseEnabled,
+              label: "Pulses",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationPulseDurationMs: {
+              value: d.cursorTrail.constellation.pulseDurationMs,
+              min: 60,
+              max: 10000,
+              step: 10,
+              label: "Pulse duration (ms)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation" &&
+                get("Cursor Trail.constellationPulseEnabled") === true,
+            },
+            constellationPulseCoreLenPx: {
+              value: d.cursorTrail.constellation.pulseCoreLenPx,
+              min: 0.5,
+              max: 60,
+              step: 0.1,
+              label: "Pulse core length (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation" &&
+                get("Cursor Trail.constellationPulseEnabled") === true,
+            },
+            constellationPulseTailLenPx: {
+              value: d.cursorTrail.constellation.pulseTailLenPx,
+              min: 0.5,
+              max: 240,
+              step: 0.5,
+              label: "Pulse tail length (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation" &&
+                get("Cursor Trail.constellationPulseEnabled") === true,
+            },
+            constellationPulseBrightness: {
+              value: d.cursorTrail.constellation.pulseBrightness,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Pulse brightness",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation" &&
+                get("Cursor Trail.constellationPulseEnabled") === true,
+            },
+            constellationPulseRelayHops: {
+              value: d.cursorTrail.constellation.pulseRelayHops,
+              min: 0,
+              max: 6,
+              step: 1,
+              label: "Pulse relay hops",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation" &&
+                get("Cursor Trail.constellationPulseEnabled") === true,
+            },
+            constellationPulseCooldownMs: {
+              value: d.cursorTrail.constellation.pulseCooldownMs,
+              min: 0,
+              max: 20000,
+              step: 10,
+              label: "Pulse cooldown (ms)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation" &&
+                get("Cursor Trail.constellationPulseEnabled") === true,
+            },
+            constellationFlareMs: {
+              value: d.cursorTrail.constellation.flareMs,
+              min: 30,
+              max: 5000,
+              step: 10,
+              label: "Flare (ms)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationFlareScale: {
+              value: d.cursorTrail.constellation.flareScale,
+              min: 0,
+              max: 6,
+              step: 0.05,
+              label: "Flare scale",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationPolygonFlashEnabled: {
+              value: d.cursorTrail.constellation.polygonFlashEnabled,
+              label: "Polygon flash",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation",
+            },
+            constellationPolygonFlashStrength: {
+              value: d.cursorTrail.constellation.polygonFlashStrength,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Polygon flash strength",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "constellation" &&
+                get("Cursor Trail.constellationPolygonFlashEnabled") === true,
+            },
+            cometEmbersEnabled: {
+              value: d.cursorTrail.comet.embersEnabled,
+              label: "Embers",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometNodeCount: {
+              value: d.cursorTrail.comet.nodeCount,
+              min: 2,
+              max: 48,
+              step: 1,
+              label: "Body nodes",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometHeadStiffness: {
+              value: d.cursorTrail.comet.headStiffness,
+              min: 100,
+              max: 40000,
+              step: 50,
+              label: "Head stiffness",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometHeadDamping: {
+              value: d.cursorTrail.comet.headDamping,
+              min: 1,
+              max: 600,
+              step: 1,
+              label: "Head damping",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometChainStiffness: {
+              value: d.cursorTrail.comet.chainStiffness,
+              min: 100,
+              max: 40000,
+              step: 50,
+              label: "Chain stiffness",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometChainDamping: {
+              value: d.cursorTrail.comet.chainDamping,
+              min: 1,
+              max: 600,
+              step: 1,
+              label: "Chain damping",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometMaxLinkPx: {
+              value: d.cursorTrail.comet.maxLinkPx,
+              min: 2,
+              max: 200,
+              step: 1,
+              label: "Max link (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometHeadRadiusPx: {
+              value: d.cursorTrail.comet.headRadiusPx,
+              min: 0.5,
+              max: 60,
+              step: 0.1,
+              label: "Head radius (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometTailRadiusPx: {
+              value: d.cursorTrail.comet.tailRadiusPx,
+              min: 0,
+              max: 40,
+              step: 0.1,
+              label: "Tail radius (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometStretchThinning: {
+              value: d.cursorTrail.comet.stretchThinning,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Stretch thinning",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometSmoothUnionPx: {
+              value: d.cursorTrail.comet.smoothUnionPx,
+              min: 0.1,
+              max: 40,
+              step: 0.1,
+              label: "Smooth union (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometBodyBrightness: {
+              value: d.cursorTrail.comet.bodyBrightness,
+              min: 0,
+              max: 2,
+              step: 0.01,
+              label: "Body brightness",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometAuraStrength: {
+              value: d.cursorTrail.comet.auraStrength,
+              min: 0,
+              max: 3,
+              step: 0.01,
+              label: "Aura strength",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometBodyPushPx: {
+              value: d.cursorTrail.comet.bodyPushPx,
+              min: 0,
+              max: 60,
+              step: 0.5,
+              label: "Body push (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometPresenceRiseRate: {
+              value: d.cursorTrail.comet.presenceRiseRate,
+              min: 0.5,
+              max: 60,
+              step: 0.1,
+              label: "Presence rise rate",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometPresenceFallRate: {
+              value: d.cursorTrail.comet.presenceFallRate,
+              min: 0.2,
+              max: 60,
+              step: 0.1,
+              label: "Presence fall rate",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+            cometEmberRatePerSec: {
+              value: d.cursorTrail.comet.emberRatePerSec,
+              min: 0,
+              max: 400,
+              step: 1,
+              label: "Ember rate (/s)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometEmberMaxCount: {
+              value: d.cursorTrail.comet.emberMaxCount,
+              min: 1,
+              max: 512,
+              step: 1,
+              label: "Ember max count",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometEmberSizePx: {
+              value: d.cursorTrail.comet.emberSizePx,
+              min: 0.2,
+              max: 40,
+              step: 0.1,
+              label: "Ember size (px)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometEmberSpeedMinPxPerSec: {
+              value: d.cursorTrail.comet.emberSpeedMinPxPerSec,
+              min: 0,
+              max: 2000,
+              step: 1,
+              label: "Ember speed min (px/s)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometEmberSpeedMaxPxPerSec: {
+              value: d.cursorTrail.comet.emberSpeedMaxPxPerSec,
+              min: 0,
+              max: 2000,
+              step: 1,
+              label: "Ember speed max (px/s)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometEmberSpreadRad: {
+              value: d.cursorTrail.comet.emberSpreadRad,
+              min: 0,
+              max: 3.14159,
+              step: 0.01,
+              label: "Ember spread (rad)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometEmberLifetimeMinMs: {
+              value: d.cursorTrail.comet.emberLifetimeMinMs,
+              min: 60,
+              max: 20000,
+              step: 10,
+              label: "Ember lifetime min (ms)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometEmberLifetimeMaxMs: {
+              value: d.cursorTrail.comet.emberLifetimeMaxMs,
+              min: 60,
+              max: 20000,
+              step: 10,
+              label: "Ember lifetime max (ms)",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometEmberBrightness: {
+              value: d.cursorTrail.comet.emberBrightness,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Ember brightness",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometEmberFadeInFraction: {
+              value: d.cursorTrail.comet.emberFadeInFraction,
+              min: 0,
+              max: 0.9,
+              step: 0.01,
+              label: "Ember fade-in fraction",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true &&
+                get("Cursor Trail.cursorTrailType") === "comet" &&
+                get("Cursor Trail.cometEmbersEnabled") === true,
+            },
+            cometSeed: {
+              value: d.cursorTrail.comet.seed,
+              min: 0,
+              max: 100000000,
+              step: 1,
+              label: "Seed",
+              render: (get) =>
+                get("Cursor Trail.cursorTrailEnabled") === true && get("Cursor Trail.cursorTrailType") === "comet",
+            },
+          },
+          { hideInClient: true },
+        ),
+        "Click Wave": drawerFolder(
+          "Click Wave",
+          {
+            clickWaveEnabled: { value: d.clickWave.enabled, label: "Enabled" },
+            clickWaveType: {
+              value: d.clickWave.type,
+              options: { Default: "default", Detonation: "detonation" } as const,
+              label: "Type",
+              render: (get) => get("Click Wave.clickWaveEnabled") === true,
+            },
+            clickWaveLifeMs: {
+              value: d.clickWave.lifeMs,
+              min: 80,
+              max: 10000,
+              step: 10,
+              label: "Life (ms)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+            },
+            clickWaveStartRadiusPx: {
+              value: d.clickWave.startRadiusPx,
+              min: 1,
+              max: 120,
+              step: 1,
+              label: "Start radius (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+            },
+            clickWaveMaxRadiusPx: {
+              value: d.clickWave.maxRadiusPx,
+              min: 4,
+              max: 600,
+              step: 2,
+              label: "Max radius (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+            },
+            clickWaveStartStrokeWidthPx: {
+              value: d.clickWave.startStrokeWidthPx,
+              min: 0.5,
+              max: 80,
+              step: 0.5,
+              label: "Start stroke (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+            },
+            clickWaveEndStrokeWidthPx: {
+              value: d.clickWave.endStrokeWidthPx,
+              min: 0.25,
+              max: 40,
+              step: 0.25,
+              label: "End stroke (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+            },
+            clickWaveMaxWaves: {
+              value: d.clickWave.maxWaves,
+              min: 1,
+              max: 32,
+              step: 1,
+              label: "Max waves",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+            },
+            clickWavePushStrengthPx: {
+              value: d.clickWave.pushStrengthPx,
+              min: 0,
+              max: 200,
+              step: 1,
+              label: "Push strength (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+            },
+            clickWavePushBandScale: {
+              value: d.clickWave.pushBandScale,
+              min: 1,
+              max: 8,
+              step: 0.1,
+              label: "Push band scale",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+            },
+            clickWaveStripeWhiteAlpha: {
+              value: d.clickWave.stripeWhiteAlpha,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Stripe white alpha",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "default",
+            },
+            detonationMaxConcurrent: {
+              value: d.clickWave.detonation.maxConcurrent,
+              min: 1,
+              max: 16,
+              step: 1,
+              label: "Max concurrent",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationRingReachPx: {
+              value: d.clickWave.detonation.ringReachPx,
+              min: 8,
+              max: 1200,
+              step: 2,
+              label: "Ring reach (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationRingDurationMs: {
+              value: d.clickWave.detonation.ringDurationMs,
+              min: 40,
+              max: 8000,
+              step: 10,
+              label: "Ring duration (ms)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationRingThicknessPx: {
+              value: d.clickWave.detonation.ringThicknessPx,
+              min: 1,
+              max: 200,
+              step: 0.5,
+              label: "Ring thickness (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationRingRefractionPx: {
+              value: d.clickWave.detonation.ringRefractionPx,
+              min: 0,
+              max: 160,
+              step: 0.5,
+              label: "Ring refraction (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationFlashRadiusPx: {
+              value: d.clickWave.detonation.flashRadiusPx,
+              min: 1,
+              max: 400,
+              step: 1,
+              label: "Flash radius (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationFlashDurationMs: {
+              value: d.clickWave.detonation.flashDurationMs,
+              min: 8,
+              max: 2000,
+              step: 2,
+              label: "Flash duration (ms)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationFlashBrightness: {
+              value: d.clickWave.detonation.flashBrightness,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Flash brightness",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationDebrisCount: {
+              value: d.clickWave.detonation.debrisCount,
+              min: 0,
+              max: 96,
+              step: 1,
+              label: "Debris count",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationDebrisSpeedPxPerSec: {
+              value: d.clickWave.detonation.debrisSpeedPxPerSec,
+              min: 10,
+              max: 4000,
+              step: 5,
+              label: "Debris speed (px/s)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationDebrisSpeedVariation: {
+              value: d.clickWave.detonation.debrisSpeedVariation,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Debris speed variation",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationDebrisDrag: {
+              value: d.clickWave.detonation.debrisDrag,
+              min: 0.05,
+              max: 12,
+              step: 0.05,
+              label: "Debris drag",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationDebrisGravityPxPerSec2: {
+              value: d.clickWave.detonation.debrisGravityPxPerSec2,
+              min: 0,
+              max: 4000,
+              step: 10,
+              label: "Debris gravity (px/s2)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationDebrisLifetimeMs: {
+              value: d.clickWave.detonation.debrisLifetimeMs,
+              min: 60,
+              max: 10000,
+              step: 10,
+              label: "Debris lifetime (ms)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationDebrisLifetimeVariation: {
+              value: d.clickWave.detonation.debrisLifetimeVariation,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Debris lifetime variation",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationDebrisSizePx: {
+              value: d.clickWave.detonation.debrisSizePx,
+              min: 0.2,
+              max: 40,
+              step: 0.1,
+              label: "Debris size (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationDebrisBrightness: {
+              value: d.clickWave.detonation.debrisBrightness,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Debris brightness",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationCraterRadiusPx: {
+              value: d.clickWave.detonation.craterRadiusPx,
+              min: 4,
+              max: 1200,
+              step: 2,
+              label: "Crater radius (px)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationCraterDepth: {
+              value: d.clickWave.detonation.craterDepth,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Crater depth",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationCraterRelaxFastMs: {
+              value: d.clickWave.detonation.craterRelaxFastMs,
+              min: 20,
+              max: 10000,
+              step: 10,
+              label: "Crater relax fast (ms)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationCraterRelaxSlowMs: {
+              value: d.clickWave.detonation.craterRelaxSlowMs,
+              min: 20,
+              max: 20000,
+              step: 10,
+              label: "Crater relax slow (ms)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationCraterLifeMs: {
+              value: d.clickWave.detonation.craterLifeMs,
+              min: 100,
+              max: 20000,
+              step: 10,
+              label: "Crater life (ms)",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationCraterRimStrength: {
+              value: d.clickWave.detonation.craterRimStrength,
+              min: 0,
+              max: 4,
+              step: 0.05,
+              label: "Crater rim strength",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+            detonationSeed: {
+              value: d.clickWave.detonation.seed,
+              min: 0,
+              max: 1000000,
+              step: 1,
+              label: "Seed",
+              render: (get) =>
+                get("Click Wave.clickWaveEnabled") === true && get("Click Wave.clickWaveType") === "detonation",
+            },
+          },
+          { hideInClient: true },
+        ),
       }),
     { store: shaderStore },
     [stripeKey, stripePaletteOptionsKey, stripePaletteValue],
   );
   shaderControlSetterRef.current = setShaderControl;
+
+  const clientLayoutId = String(
+    (shaderValues as unknown as Record<string, unknown>).clientLayout ?? DEFAULT_CLIENT_PREVIEW_STATE.layoutId,
+  ) as ClientLayoutPresetId;
+  const clientColorId = String(
+    (shaderValues as unknown as Record<string, unknown>).clientColor ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId,
+  ) as ClientColorPresetId;
+  const clientSizeId = String(
+    (shaderValues as unknown as Record<string, unknown>).clientSize ?? DEFAULT_CLIENT_PREVIEW_STATE.sizeId,
+  ) as ClientSizePresetId;
+  const lastClientPresetKeyRef = useRef<string>("");
+  useEffect(() => {
+    if (!clientMode) return;
+    const key = `${clientLayoutId}|${clientColorId}`;
+    if (key === lastClientPresetKeyRef.current) return;
+    lastClientPresetKeyRef.current = key;
+    const tweaks = resetTweaksForPresets(clientLayoutId, clientColorId);
+    const color = findClientColorPreset(clientColorId).twizzler;
+    const layout = findClientLayoutPreset(clientLayoutId).twizzler;
+    shaderControlSetterRef.current?.({
+      twizzlerOpacity: tweaks.opacity,
+      twizzlerScale: tweaks.scale,
+      twizzlerTwist: tweaks.twist,
+      twizzlerAmplitude: tweaks.amplitude,
+      twizzlerCenterY: tweaks.centerY,
+      twizzlerSpeed: tweaks.speed,
+      twizzlerColor: color.color,
+      twizzlerColorFar: color.colorFar,
+      twizzlerColorEdge: color.colorEdge,
+      ...(layout.depthSpread !== undefined ? { twizzlerDepthSpread: layout.depthSpread } : {}),
+      ...(layout.depthLift !== undefined ? { twizzlerDepthLift: layout.depthLift } : {}),
+      ...(layout.rightHeight !== undefined ? { twizzlerRightHeight: layout.rightHeight } : {}),
+      ...(layout.leftHeight !== undefined ? { twizzlerLeftHeight: layout.leftHeight } : {}),
+    });
+  }, [clientColorId, clientLayoutId, clientMode, setShaderControl]);
 
   useEffect(() => {
     setTextureControl({});
@@ -4789,7 +4993,9 @@ export function useEngineControls(
     },
     sparkle: {
       gaps: {
-        enabled: d.sparkle.gaps.enabled,
+        enabled: clientMode
+          ? Boolean((shaderValues as unknown as Record<string, unknown>).rainEnabled)
+          : d.sparkle.gaps.enabled,
         coverage: d.sparkle.gaps.coverage,
         speed: d.sparkle.gaps.speed,
       },
@@ -5170,5 +5376,11 @@ export function useEngineControls(
       eruptionParticles: shaderValueRecord.cometLogoEruptionParticles,
       eruptionCycleSpeed: shaderValueRecord.cometLogoEruptionCycleSpeed,
     }),
+    clientCanvasSize: clientMode
+      ? {
+          width: findClientSizePreset(clientSizeId).width,
+          height: findClientSizePreset(clientSizeId).height,
+        }
+      : null,
   };
 }
