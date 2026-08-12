@@ -10,9 +10,10 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 ## What clients see (Leva)
 
-- **Presets** — size / layout / color
-- **Twizzler** — Show, Rain, Opacity, Scale, plus Shape (Center Y / Amplitude / Twist) and Motion (Speed)
-- Camera, texture drawers, stripes, sparkle authoring, surfaces, etc. are hidden
+Top-right of the shader panel: **Default | Advanced** toggle.
+
+- **Default** — Presets (size / layout / color) + limited Twizzler (Show, Rain, Opacity, Scale, Shape, Motion). Camera and authoring folders hidden.
+- **Advanced** — full Leva folders (same authoring surface as the lab).
 
 ## Implementation
 

@@ -888,6 +888,9 @@ function LabInner({
         }
       : {}),
   }));
+  /** Client preview only: Default = simplified Leva, Advanced = full authoring folders. */
+  const [clientPanelMode, setClientPanelMode] = useState<"default" | "advanced">("default");
+  const simplifiedLeva = clientMode && clientPanelMode === "default";
   const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(() => labSettings.textureSourceMode);
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>(() =>
     expectedSourceSize(labSettings, labSettings.textureSourceMode),
@@ -1116,16 +1119,16 @@ function LabInner({
     clientCanvasSize,
   } = useEngineControls(onReplay, {
     showShaderCamera:
-      !clientMode &&
+      !simplifiedLeva &&
       textureSourceMode === "shader" &&
       !isTwizzlerMapShaderPreset(shaderPresetId) &&
       !isCometLogoShaderPreset(shaderPresetId),
-    showConnectCamera: !clientMode && textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
+    showConnectCamera: !simplifiedLeva && textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId),
     activeShaderConfig: resolveShaderConfigKind(textureSourceMode, shaderPresetId),
     showTwizzlerRibbon: textureSourceMode === "shader",
-    twizzlerTransport: clientMode ? undefined : twizzlerTransport,
+    twizzlerTransport: simplifiedLeva ? undefined : twizzlerTransport,
     initialConfig,
-    clientMode,
+    clientMode: simplifiedLeva,
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -1144,7 +1147,7 @@ function LabInner({
   const lastSavedConfigJsonRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!clientMode || !clientCanvasSize) return;
+    if (!simplifiedLeva || !clientCanvasSize) return;
     const { width, height } = clientCanvasSize;
     setLabSettings((current) => {
       if (current.canvasMode === "manual" && current.canvasWidth === width && current.canvasHeight === height) {
@@ -1158,7 +1161,7 @@ function LabInner({
         canvasAspectLocked: true,
       };
     });
-  }, [clientCanvasSize, clientMode]);
+  }, [clientCanvasSize, simplifiedLeva]);
 
   const editTheme = initialThemed.editTheme;
   const lightBaseRef = useRef<Partial<EngineConfig>>(initialThemed.lightBase);
@@ -3442,6 +3445,29 @@ function LabInner({
           style={{ width: labSettings.shaderSidebarWidth }}
         >
           <div className="lab-sidebar-header lab-sidebar-header-end">
+            {clientMode ? (
+              <fieldset className="lab-panel-mode-toggle">
+                <legend>Panel mode</legend>
+                <button
+                  type="button"
+                  className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}
+                  aria-pressed={clientPanelMode === "default"}
+                  onClick={() => setClientPanelMode("default")}
+                >
+                  Default
+                </button>
+                <button
+                  type="button"
+                  className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}
+                  aria-pressed={clientPanelMode === "advanced"}
+                  onClick={() => setClientPanelMode("advanced")}
+                >
+                  Advanced
+                </button>
+              </fieldset>
+            ) : (
+              <span />
+            )}
             <button
               className="lab-sidebar-toggle"
               type="button"
@@ -3453,7 +3479,7 @@ function LabInner({
             </button>
           </div>
           {clientMode ? (
-            <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
+            <LevaPanel key={clientPanelMode} store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
           ) : (
             <SurfacePanel
               mode={surfaceWorkspace.mode}
