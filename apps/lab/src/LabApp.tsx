@@ -72,6 +72,7 @@ import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
 import { twizzlerToSvgLayer } from "./export/twizzlerToSvg";
 import { exportLabVideo } from "./export/videoExport";
+import { resolveLabVideoExportLayers } from "./export/resolveLabVideoExportLayers";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
 import {
@@ -1754,9 +1755,8 @@ function LabInner({
     };
 
     onExportVideoRef.current = () => {
-      const targetCanvas =
-        surfaceWorkspaceRef.current.mode === "partial" ? partialCompositeCanvasRef.current : canvasRef.current;
-      if (!targetCanvas) return;
+      const engineCanvas = canvasRef.current;
+      if (!engineCanvas) return;
       if (exportingVideoRef.current) return;
       const video = videoElRef.current;
       const requestedStart = labSettingsRef.current.exportStartSec;
@@ -1772,13 +1772,30 @@ function LabInner({
       const controller = new AbortController();
       videoExportAbortRef.current = controller;
       exportingVideoRef.current = true;
-      const framesCanvas = controlsRef.current.frames.enabled ? framesCanvasRef.current : null;
+      const framesEnabled = controlsRef.current.frames.enabled;
+      const layers =
+        surfaceWorkspaceRef.current.mode === "partial"
+          ? {
+              canvas: partialCompositeCanvasRef.current ?? engineCanvas,
+              underlayCanvases: undefined as HTMLCanvasElement[] | undefined,
+              overlayCanvases: undefined as HTMLCanvasElement[] | undefined,
+            }
+          : resolveLabVideoExportLayers({
+              engineCanvas,
+              twizzlerCanvas: twizzlerCanvasRef.current,
+              framesCanvas: framesCanvasRef.current,
+              twizzlerVisible: shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled),
+              // Match showRainRectOverlay: client Rain off hides the opaque engine pass.
+              rainVisible: !clientMode || controlsRef.current.sparkle.gaps.enabled,
+              framesEnabled,
+            });
       void exportLabVideo({
-        canvas: targetCanvas,
+        canvas: layers.canvas,
         sourceKind: video ? "video" : "image",
         video: video ?? undefined,
         backgroundColor: controlsRef.current.background.transparent ? undefined : controlsRef.current.background.color,
-        overlayCanvases: framesCanvas ? [framesCanvas] : undefined,
+        underlayCanvases: layers.underlayCanvases,
+        overlayCanvases: layers.overlayCanvases,
         startTimeSec: exportStartSec,
         durationSec,
         signal: controller.signal,

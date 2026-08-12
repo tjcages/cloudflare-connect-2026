@@ -421,6 +421,7 @@ export type ExportLabVideoOptions = {
   sourceKind: LabExportSourceKind;
   video?: HTMLVideoElement;
   backgroundColor?: number;
+  underlayCanvases?: readonly HTMLCanvasElement[];
   overlayCanvases?: readonly HTMLCanvasElement[];
   startTimeSec?: number;
   durationSec?: number;
@@ -443,6 +444,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     sourceKind,
     video,
     backgroundColor,
+    underlayCanvases,
     overlayCanvases,
     startTimeSec: requestedStartTimeSec = 0,
     durationSec: requestedDurationSec,
@@ -492,7 +494,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
 
   onPhase?.("recording");
 
-  const compositor = await createCompositor(canvas, { backgroundColor, overlayCanvases });
+  const compositor = await createCompositor(canvas, { backgroundColor, underlayCanvases, overlayCanvases });
   const recordCanvas = compositor.canvas;
   const compositeFrame = compositor.compositeFrame;
 
