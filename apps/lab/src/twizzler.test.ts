@@ -27,6 +27,7 @@ import {
   twizzlerNoise,
   twizzlerPathBend,
   twizzlerPointX,
+  type TwizzlerSettings,
 } from "./twizzler";
 
 describe("Twizzler", () => {
@@ -157,6 +158,9 @@ describe("Twizzler", () => {
     expect(twizzlerFogAmount(1)).toBe(0);
     expect(twizzlerFogAmount(0)).toBe(1);
     expect(twizzlerFogAmount(0.2)).toBeGreaterThan(0.7);
+    expect(twizzlerFogAmount(0.2, 0.72)).toBeLessThan(twizzlerFogAmount(0.2, 1.18));
+    expect(twizzlerFogAmount(0.2, 1.72)).toBeGreaterThan(twizzlerFogAmount(0.2, 1.18));
+    expect(twizzlerFogAmount(0.2, 1.18)).toBe(twizzlerFogAmount(0.2));
     expect(twizzlerStrokeWidthScale(1)).toBeGreaterThan(twizzlerStrokeWidthScale(0) * 5);
     // Right edge: far (nearness 0) must sit lower on screen than near (nearness 1).
     expect(twizzlerDepthYBias(0, 320, 0.85, 0.95, 1.5, 0)).toBeGreaterThan(
@@ -232,5 +236,49 @@ describe("Twizzler", () => {
     const left = twizzlerFiberNearness(0, 0.1, settings, 0);
     const right = twizzlerFiberNearness(0, 0.95, settings, 0);
     expect(right).toBeGreaterThan(left);
+  });
+
+  it("makes pack-density variants structurally distinct without changing cubic paths", () => {
+    const shared = {
+      speed: 0,
+      wrinkles: 1.4,
+      wrinkleStrength: 0.14,
+      depthAmount: 0.9,
+      depthPosition: 0.86,
+      depthWidth: 0.36,
+      depth2Amount: 0.2,
+      depth2Position: 0.42,
+      depth2Width: 0.12,
+    };
+    const a = buildTwizzlerLines(400, 80, 0, {
+      ...shared,
+      lineCount: 112,
+      lineWidth: 0.95,
+      depthSpread: 0.72,
+    });
+    const b = buildTwizzlerLines(400, 80, 0, {
+      ...shared,
+      lineCount: 240,
+      lineWidth: 0.72,
+      depthSpread: 1.18,
+    });
+    const c = buildTwizzlerLines(400, 80, 0, {
+      ...shared,
+      lineCount: 360,
+      lineWidth: 0.18,
+      depthSpread: 1.72,
+    });
+
+    expect([a.lines.length, b.lines.length, c.lines.length]).toEqual([112, 240, 360]);
+    expect(a.lines[0]!.strokeWidth).toBeGreaterThan(c.lines[0]!.strokeWidth);
+
+    const nearnessRange = (settings: TwizzlerSettings) =>
+      twizzlerFiberNearness(0.6, 0.86, settings, 0) - twizzlerFiberNearness(-0.6, 0.86, settings, 0);
+    expect(nearnessRange(c.settings)).toBeGreaterThan(nearnessRange(a.settings));
+
+    for (const variant of [a, b, c]) {
+      const path = twizzlerSvgPathCubic(variant.lines[0]!.points);
+      expect(path).toContain(" C");
+    }
   });
 });

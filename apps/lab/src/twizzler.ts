@@ -443,21 +443,31 @@ export function twizzlerFiberNearness(across: number, xT: number, settings: Twiz
   const x = Math.max(0, Math.min(1, xT));
   const theta = twizzlerMarketingTwist(x, settings, time);
   const stackNear = (across + 1) * 0.5; // -1 far → 0, +1 near → 1
-  // Nonlinear stretch: empty the middle of the Z pack.
+  // depthSpread also opens the pack in Z: compact packs retain their middle,
+  // while deep packs pull fibers harder toward the near/far poles.
+  // The 1.18 lock-B preset resolves to the original 1.45 exponent.
+  const polePower = Math.max(1.05, Math.min(2.1, 1.45 + (settings.depthSpread - 1.18) * 0.4));
   const stretched =
-    stackNear < 0.5 ? 0.5 * Math.pow(stackNear * 2, 1.45) : 1 - 0.5 * Math.pow((1 - stackNear) * 2, 1.45);
+    stackNear < 0.5
+      ? 0.5 * Math.pow(stackNear * 2, polePower)
+      : 1 - 0.5 * Math.pow((1 - stackNear) * 2, polePower);
   const twistZ = across * Math.sin(theta) * 0.05;
   const alongPull = 0.06 * Math.pow(smoothstep(0.55, 1, x), 1.25);
   const volume = twizzlerNearness(twizzlerDepthScale(x, settings), settings);
   // When the ribbon volume opens (right fan), push far further away and near closer.
-  const volumePull = (stretched - 0.5) * volume * 0.22;
+  const spreadPull = Math.max(0.16, Math.min(0.3, 0.22 + (settings.depthSpread - 1.18) * 0.035));
+  const volumePull = (stretched - 0.5) * volume * spreadPull;
   const near = 0.02 + 0.9 * stretched + twistZ + alongPull + volumePull;
   return Math.max(0, Math.min(1, near));
 }
 
 /** Fog blend 0..1 toward background (white). Far fibers dissolve hard into the stage. */
-export function twizzlerFogAmount(nearness: number): number {
-  return Math.pow(1 - nearness, 0.68);
+export function twizzlerFogAmount(nearness: number, depthSpread = 1.18): number {
+  const near = Math.max(0, Math.min(1, nearness));
+  // Lower exponent means more fog. Keep 1.18 as the exact lock-B response,
+  // compact packs clearer, and deep packs more atmospheric.
+  const exponent = Math.max(0.34, Math.min(1.1, 0.68 - (depthSpread - 1.18) * 0.38));
+  return Math.pow(1 - near, exponent);
 }
 
 /** Blend ribbon hex into white by fog amount (cheap distance fade). */
@@ -818,7 +828,7 @@ export function buildTwizzlerLines(
       Math.abs(across) > 0.85
         ? twizzlerLerpColor(baseColor, settings.colorEdge, ((Math.abs(across) - 0.85) / 0.15) * 0.35)
         : baseColor;
-    const fog = twizzlerFogAmount(midNear);
+    const fog = twizzlerFogAmount(midNear, settings.depthSpread);
     const color = twizzlerFogColor(withEdge, fog);
 
     const visibility = 0.12 + 0.88 * Math.pow(midNear, 0.85);
@@ -892,7 +902,7 @@ export function renderTwizzler(
     for (const stop of stops) {
       const sample = line.points[Math.min(line.points.length - 1, Math.round(stop * (line.points.length - 1)))];
       const nearness = sample?.nearness ?? line.nearness;
-      const fog = twizzlerFogAmount(nearness);
+      const fog = twizzlerFogAmount(nearness, settings.depthSpread);
       const colorT = twizzlerColorT(sample?.along ?? stop);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
       gradient.addColorStop(stop, twizzlerFogColor(base, fog));
