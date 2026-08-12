@@ -1524,7 +1524,7 @@ export function useEngineControls(
                   min: 0,
                   max: 2,
                   step: 1,
-                  label: "Hill rhythm (0A2/1B2/2C2)",
+                  label: "Hill rhythm (0A3/1B3/2C3)",
                 },
                 twizzlerTwist: {
                   value: initialLabSettings.twizzler.twist,

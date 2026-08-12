@@ -1,0 +1,120 @@
+/**
+ * Capture target-aware CF-16 macro-hill pass 3 without touching prior artifacts.
+ *
+ * Usage:
+ *   node scripts/capture-twizzler-macro-hills-pass3.mjs
+ */
+import { execFileSync } from "node:child_process";
+import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "@playwright/test";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const outDir = "/opt/cursor/artifacts";
+const bundlePath = "/tmp/twizzler-macro-hills-pass3-bundle.js";
+mkdirSync(outDir, { recursive: true });
+
+const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/builtin/banner-5x1.json"), "utf8"));
+const base = { ...preset.lab.twizzler, speed: 0, depthTerrain: 0 };
+if (base.lineCount !== 240) {
+  throw new Error(`CF-16 macro-hill pass 3 requires the 240-line lock; received ${base.lineCount}`);
+}
+
+const variants = [
+  { id: "A3", label: "broad marketing hills → gentle hero lift", hillRhythm: 0 },
+  { id: "B3", label: "TARGET-spaced asymmetric valleys → hero sweep", hillRhythm: 1 },
+  { id: "C3", label: "controlled terminal compression → smooth edge energy", hillRhythm: 2 },
+];
+
+const esbuildBin = resolve(root, "node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/bin/esbuild");
+execFileSync(
+  esbuildBin,
+  [
+    resolve(root, "apps/lab/src/twizzler.ts"),
+    "--bundle",
+    "--format=iife",
+    "--global-name=TwizzlerMod",
+    "--platform=browser",
+    "--target=es2022",
+    `--outfile=${bundlePath}`,
+  ],
+  { stdio: "inherit" },
+);
+const code = readFileSync(bundlePath, "utf8");
+
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 1600, height: 416 } });
+await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#fff">
+<canvas id="capture" width="1600" height="416" style="display:block"></canvas>
+<script>${code}</script>
+</body></html>`);
+
+const stills = [];
+for (const variant of variants) {
+  const settings = { ...base, hillRhythm: variant.hillRhythm };
+  await page.evaluate(
+    ({ id, label, settings: input }) => {
+      const capture = document.getElementById("capture");
+      const context = capture.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, capture.width, capture.height);
+
+      const ribbon = document.createElement("canvas");
+      ribbon.width = 1600;
+      ribbon.height = 320;
+      // eslint-disable-next-line no-undef
+      TwizzlerMod.renderTwizzler(ribbon, ribbon.width, ribbon.height, 0, input);
+
+      context.fillStyle = "#111111";
+      context.fillRect(0, 0, capture.width, 96);
+      context.drawImage(ribbon, 0, 96);
+      context.fillStyle = "#ffffff";
+      context.font = "700 48px ui-sans-serif, system-ui, sans-serif";
+      context.fillText(id, 24, 66);
+      context.font = "600 24px ui-sans-serif, system-ui, sans-serif";
+      context.fillText(`${label} · 240 cubic fibers · B heat · rain off`, 120, 59);
+    },
+    { id: variant.id, label: variant.label, settings },
+  );
+
+  const path = resolve(outDir, `twizzler-macro-hills-pass3-${variant.id}.png`);
+  await page.locator("#capture").screenshot({ path, type: "png" });
+  stills.push({ ...variant, path });
+}
+
+const stackHtml = stills
+  .map(({ path }) => {
+    const image = readFileSync(path).toString("base64");
+    return `<img src="data:image/png;base64,${image}" style="display:block;width:1600px;margin-bottom:12px">`;
+  })
+  .join("");
+await page.setViewportSize({ width: 1600, height: 1284 });
+await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#111">${stackHtml}</body></html>`);
+const stackPath = resolve(outDir, "twizzler-macro-hills-pass3-STACK.png");
+await page.screenshot({ path: stackPath, type: "png", fullPage: true });
+
+await browser.close();
+try {
+  unlinkSync(bundlePath);
+} catch {
+  // The temporary bundle is best-effort cleanup.
+}
+
+const manifest = {
+  pass: 3,
+  target: "apps/lab/src/presets/builtin/handoff/TARGET-twizzler.png",
+  locked: {
+    lineCount: base.lineCount,
+    depthTerrain: base.depthTerrain,
+    wrinkles: base.wrinkles,
+    wrinkleStrength: base.wrinkleStrength,
+    speed: base.speed,
+    rain: false,
+    stroke: "Catmull-Rom cubic Bézier",
+  },
+  stills,
+  stackPath,
+};
+writeFileSync(resolve(outDir, "twizzler-macro-hills-pass3-manifest.json"), JSON.stringify(manifest, null, 2));
+console.log(JSON.stringify(manifest, null, 2));

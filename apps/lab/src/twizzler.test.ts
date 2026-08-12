@@ -82,7 +82,7 @@ describe("Twizzler", () => {
     expect(twizzlerPathBend(0.8, settings)).toBeCloseTo(-0.15, 2);
   });
 
-  it("provides structurally distinct smooth macro-hill pass-two rhythms", () => {
+  it("provides structurally distinct target-aware macro-hill pass-three rhythms", () => {
     const settings = normalizeTwizzlerSettings({
       amplitude: 1,
       scale: 1.15,
@@ -113,14 +113,17 @@ describe("Twizzler", () => {
 
     expect(countExtrema(0)).toBeLessThan(countExtrema(1));
     expect(countExtrema(1)).toBeLessThan(countExtrema(2));
-    expect(twizzlerMarketingCenterY(0.25, { ...settings, hillRhythm: 0 }, 0)).toBeGreaterThan(
-      twizzlerMarketingCenterY(0.9, { ...settings, hillRhythm: 0 }, 0),
+    expect(twizzlerMarketingCenterY(0.22, { ...settings, hillRhythm: 0 }, 0)).toBeGreaterThan(
+      twizzlerMarketingCenterY(0.82, { ...settings, hillRhythm: 0 }, 0),
     );
-    expect(twizzlerMarketingCenterY(0.56, { ...settings, hillRhythm: 1 }, 0)).toBeGreaterThan(
-      twizzlerMarketingCenterY(0.79, { ...settings, hillRhythm: 1 }, 0),
+    expect(twizzlerMarketingCenterY(0.22, { ...settings, hillRhythm: 1 }, 0)).toBeGreaterThan(
+      twizzlerMarketingCenterY(0.8, { ...settings, hillRhythm: 1 }, 0),
+    );
+    expect(twizzlerMarketingCenterY(0.957, { ...settings, hillRhythm: 2 }, 0)).toBeGreaterThan(
+      twizzlerMarketingCenterY(0.92, { ...settings, hillRhythm: 2 }, 0),
     );
     expect([0, 1, 2].map((hillRhythm) => twizzlerMarketingSpineShare({ ...settings, hillRhythm }))).toEqual([
-      0.23, 0.27, 0.32,
+      0.2, 0.24, 0.28,
     ]);
 
     for (const hillRhythm of [0, 1, 2]) {

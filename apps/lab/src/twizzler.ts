@@ -52,8 +52,8 @@ export type TwizzlerSettings = {
   depthTerrain: number;
   /**
    * Shared left-to-right macro-hill rhythm:
-   * 0 = calm terminal lift (A2), 1 = strong/soft lift (B2),
-   * 2 = asymmetric acceleration (C2).
+   * 0 = broad marketing hills (A3), 1 = target-spaced valleys (B3),
+   * 2 = controlled terminal compression (C3).
    */
   hillRhythm: number;
   twist: number;
@@ -314,38 +314,35 @@ function twizzlerHillRhythm(settings: TwizzlerSettings): TwizzlerHillRhythm {
 
 /**
  * Bend controls participate in the macro rhythm without changing their saved
- * values. Pass 2 translates the three liked farm anchors into distinct
- * structures: A2 overlaps gentle broad bends, B2 alternates strong/soft
- * emphasis, and C2 compresses bend spacing toward the right.
+ * values. Pass 3 restrains the left/middle like the target, then reserves the
+ * strongest lift and compressed cadence for the right side.
  */
 export function twizzlerMarketingBend(xT: number, settings: TwizzlerSettings): number {
   const rhythm = twizzlerHillRhythm(settings);
   switch (rhythm) {
     case 0:
       return (
-        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.55, 0.25) +
-        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.4, 0.28) +
-        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 0.65, 0.2)
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.38, 0.3) +
+        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.3, 0.32) +
+        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 0.52, 0.24)
       );
     case 1:
       return (
-        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 1.35, 0.13) +
-        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.72, 0.18) +
-        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 1.3, 0.14) +
-        twizzlerBendOffset(xT, 0.86, -0.055, 0.19)
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.82, 0.16) +
+        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.48, 0.14) +
+        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 0.95, 0.17) +
+        twizzlerBendOffset(xT, 0.72, -0.045, 0.18)
       );
     case 2: {
-      const primary =
-        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 1.2, 0.11) +
-        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.8, 0.095) +
-        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 1.5, 0.07);
-      const firstMid = (settings.bendPosition + settings.bend2Position) * 0.5;
-      const secondMid = (settings.bend2Position + settings.bend3Position) * 0.5;
-      const interstitial =
-        twizzlerBendOffset(xT, firstMid, (settings.bendAmount - settings.bend2Amount) * 0.28, 0.075) +
-        twizzlerBendOffset(xT, secondMid, (settings.bend2Amount - settings.bend3Amount) * 0.4, 0.055) +
-        twizzlerBendOffset(xT, 0.91, -settings.bend3Amount * 0.62, 0.045);
-      return primary + interstitial;
+      const targetBase =
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.68, 0.18) +
+        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.4, 0.15) +
+        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 0.9, 0.13);
+      const terminalCompression =
+        twizzlerBendOffset(xT, 0.86, -0.045, 0.065) +
+        twizzlerBendOffset(xT, 0.92, 0.042, 0.05) +
+        twizzlerBendOffset(xT, 0.968, -0.036, 0.042);
+      return targetBase + terminalCompression;
     }
     default: {
       const _exhaustive: never = rhythm;
@@ -359,11 +356,11 @@ export function twizzlerMarketingSpineShare(settings: TwizzlerSettings): number 
   const rhythm = twizzlerHillRhythm(settings);
   switch (rhythm) {
     case 0:
-      return 0.23;
+      return 0.2;
     case 1:
-      return 0.27;
+      return 0.24;
     case 2:
-      return 0.32;
+      return 0.28;
     default: {
       const _exhaustive: never = rhythm;
       return _exhaustive;
@@ -384,72 +381,78 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
   let waves = 0;
   switch (rhythm) {
     case 0: {
-      // A2: one long calm opening hill flowing into a lifted terminal wave.
+      // A3: broad marketing-scale hills; one restrained basin, one hero lift.
       yKnot = sampleKnots(x, [
-        [0.0, 0.56],
-        [0.18, 0.82],
-        [0.39, 0.84],
-        [0.58, 0.63],
-        [0.76, 0.25],
-        [0.9, 0.08],
-        [1.0, 0.3],
+        [0.0, 0.54],
+        [0.22, 0.76],
+        [0.43, 0.72],
+        [0.57, 0.66],
+        [0.72, 0.28],
+        [0.82, 0.1],
+        [0.93, 0.24],
+        [1.0, 0.31],
       ]);
       waves =
         waveGain *
-        0.6 *
-        (-0.08 * Math.sin(x * Math.PI * 1.35 + 0.3) +
-          -0.035 * Math.sin(x * Math.PI * 2.4 + 1.1) +
-          -0.018 * Math.sin(x * Math.PI * 3.2 + time * 0.14));
+        0.42 *
+        (-0.065 * Math.sin(x * Math.PI * 1.2 + 0.25) +
+          -0.026 * Math.sin(x * Math.PI * 2.15 + 1.05) +
+          -0.012 * Math.sin(x * Math.PI * 3.0 + time * 0.12));
       break;
     }
     case 1: {
-      // B2: alternating strong/soft cadence followed by a pronounced smooth lift.
+      // B3: target-like asymmetric valleys before the dominant rising sweep.
       yKnot = sampleKnots(x, [
-        [0.0, 0.56],
-        [0.11, 0.79],
-        [0.22, 0.64],
-        [0.34, 0.89],
-        [0.45, 0.69],
-        [0.56, 0.82],
-        [0.68, 0.43],
-        [0.79, 0.11],
-        [0.9, 0.29],
-        [1.0, 0.16],
+        [0.0, 0.53],
+        [0.1, 0.66],
+        [0.22, 0.8],
+        [0.32, 0.67],
+        [0.39, 0.75],
+        [0.48, 0.63],
+        [0.55, 0.7],
+        [0.63, 0.53],
+        [0.72, 0.25],
+        [0.8, 0.06],
+        [0.88, 0.27],
+        [0.94, 0.18],
+        [1.0, 0.32],
       ]);
       waves =
         waveGain *
-        0.94 *
-        (-0.085 * Math.sin(x * Math.PI * 2.8 + 0.2) +
-          -0.065 * Math.sin(x * Math.PI * 5.1 + 1.25) +
-          -0.04 * Math.sin(x * Math.PI * 7.6 + 2.2) +
-          -0.022 * Math.sin(x * Math.PI * 9.4 + time * 0.18));
+        0.52 *
+        (-0.055 * Math.sin(x * Math.PI * 2.5 + 0.15) +
+          -0.038 * Math.sin(x * Math.PI * 4.7 + 1.2) +
+          -0.022 * Math.sin(x * Math.PI * 6.8 + 2.15) +
+          -0.012 * Math.sin(x * Math.PI * 8.4 + time * 0.14));
       break;
     }
     case 2: {
-      // C2: asymmetric hills whose spacing contracts into right-edge acceleration.
+      // C3: broad target base with smooth, gated terminal compression.
       yKnot = sampleKnots(x, [
-        [0.0, 0.57],
-        [0.13, 0.81],
-        [0.25, 0.56],
-        [0.37, 0.91],
-        [0.48, 0.61],
-        [0.58, 0.84],
-        [0.67, 0.31],
-        [0.745, 0.47],
-        [0.81, 0.13],
-        [0.865, 0.4],
-        [0.91, 0.09],
-        [0.955, 0.33],
-        [1.0, 0.12],
+        [0.0, 0.54],
+        [0.12, 0.67],
+        [0.23, 0.81],
+        [0.36, 0.69],
+        [0.46, 0.75],
+        [0.57, 0.64],
+        [0.66, 0.49],
+        [0.75, 0.19],
+        [0.82, 0.08],
+        [0.875, 0.28],
+        [0.92, 0.14],
+        [0.957, 0.3],
+        [0.982, 0.18],
+        [1.0, 0.29],
       ]);
-      const acceleratingPhase = Math.PI * (3 * x + 5 * x * x);
-      const fastPhase = Math.PI * (5 * x + 9 * x * x);
+      const terminalGate = smoothstep(0.66, 0.94, x);
+      const acceleratingPhase = Math.PI * (2.2 * x + 4.8 * x * x);
+      const fastPhase = Math.PI * (4.4 * x + 8.5 * x * x);
       waves =
         waveGain *
-        0.88 *
-        (-0.065 * Math.sin(acceleratingPhase + 0.2) +
-          -0.048 * Math.sin(fastPhase + 1.35) +
-          -0.025 * Math.sin(Math.PI * (7 * x + 12 * x * x) + 2.1 + time * 0.14));
+        (0.34 * -0.05 * Math.sin(x * Math.PI * 2.15 + 0.25) +
+          terminalGate *
+            (-0.035 * Math.sin(acceleratingPhase + 0.3) +
+              -0.022 * Math.sin(fastPhase + 1.25 + time * 0.12)));
       break;
     }
     default: {
