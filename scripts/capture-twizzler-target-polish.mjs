@@ -34,10 +34,10 @@ const variants = [
       scale: 0.94,
       amplitude: 0.72,
       depthSpread: 0.96,
-      lineWidth: 0.58,
-      opacity: 0.58,
-      colorFar: "#ffdda6",
-      colorNear: "#f36a3d",
+      lineWidth: 0.64,
+      opacity: 0.7,
+      colorFar: "#ffd79d",
+      colorNear: "#f57347",
       colorEdge: "#ffb342",
     },
   },
@@ -51,10 +51,10 @@ const variants = [
       scale: 0.98,
       amplitude: 0.78,
       depthSpread: 1.12,
-      lineWidth: 0.62,
-      opacity: 0.62,
-      colorFar: "#ffd79a",
-      colorNear: "#ef572e",
+      lineWidth: 0.68,
+      opacity: 0.74,
+      colorFar: "#ffd08c",
+      colorNear: "#f45f36",
       colorEdge: "#ffad32",
     },
   },
@@ -68,10 +68,10 @@ const variants = [
       scale: 0.9,
       amplitude: 0.7,
       depthSpread: 1.02,
-      lineWidth: 0.56,
-      opacity: 0.54,
-      colorFar: "#ffe3b5",
-      colorNear: "#f4774d",
+      lineWidth: 0.62,
+      opacity: 0.66,
+      colorFar: "#ffddb0",
+      colorNear: "#f77d52",
       colorEdge: "#ffbd4a",
     },
   },
@@ -113,7 +113,7 @@ async function drawLabeled({ id, label, settings, target }) {
       context.font = "700 34px ui-sans-serif, system-ui, sans-serif";
       context.fillText(candidateId, 18, 45);
       context.font = "600 18px ui-sans-serif, system-ui, sans-serif";
-      context.fillText(candidateLabel, 92, 42);
+      context.fillText(candidateLabel, candidateId === "TARGET" ? 170 : 92, 42);
 
       if (targetSource) {
         const image = new Image();

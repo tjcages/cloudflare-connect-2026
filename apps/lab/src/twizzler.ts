@@ -327,7 +327,7 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
           [0.37, 0.63],
           [0.45, 0.72],
           [0.52, 0.64],
-          [0.58, 0.79],
+          [0.58, 0.92],
           [0.68, 0.45],
           [0.78, 0.14],
           [0.9, 0.08],
@@ -343,7 +343,7 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
           [0.24, 0.62],
           [0.36, 0.74],
           [0.48, 0.66],
-          [0.56, 0.86],
+          [0.56, 0.96],
           [0.63, 0.71],
           [0.72, 0.27],
           [0.82, 0.03],
@@ -361,7 +361,7 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
           [0.31, 0.68],
           [0.41, 0.6],
           [0.5, 0.74],
-          [0.59, 0.72],
+          [0.59, 0.88],
           [0.68, 0.44],
           [0.78, 0.19],
           [0.88, 0.17],
@@ -592,9 +592,9 @@ export function twizzlerFogAmount(nearness: number, targetPolish = 0, xT = 0.5):
   if (targetPolish > 0) {
     const far = 1 - Math.max(0, Math.min(1, nearness));
     const right = smoothstep(0.48, 1, xT);
-    if (targetPolish === 1) return Math.min(0.78, Math.pow(far, 0.92) * (0.68 - right * 0.16));
-    if (targetPolish === 2) return Math.min(0.72, Math.pow(far, 1.05) * (0.6 - right * 0.2));
-    return Math.min(0.84, Math.pow(far, 0.78) * (0.76 - right * 0.12));
+    if (targetPolish === 1) return Math.min(0.64, Math.pow(far, 0.92) * (0.54 - right * 0.12));
+    if (targetPolish === 2) return Math.min(0.58, Math.pow(far, 1.05) * (0.5 - right * 0.18));
+    return Math.min(0.72, Math.pow(far, 0.78) * (0.64 - right * 0.1));
   }
   return Math.pow(1 - nearness, 0.68);
 }
@@ -921,7 +921,7 @@ export function buildTwizzlerLines(
       // Y amp: multiple heat peaks/valleys scattered through Z (across), fluid along X.
       // Larger wrinkles → denser Z spots; fewer wrinkles → fewer larger Z blobs.
       const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
-      const heatScale = targetPolish === 1 ? 0.16 : targetPolish === 2 ? 0.11 : targetPolish === 3 ? 0.23 : 1;
+      const heatScale = targetPolish === 1 ? 0.28 : targetPolish === 2 ? 0.2 : targetPolish === 3 ? 0.36 : 1;
       const ampNoiseY =
         twizzlerAmpNoiseY(
           c.xT,
@@ -937,8 +937,17 @@ export function buildTwizzlerLines(
       const polishOpen = targetPolish === 1 ? 0.78 : targetPolish === 2 ? 0.94 : targetPolish === 3 ? 0.88 : 1.15;
       const verticalOpen = (0.95 + settings.depthSpread * 0.55) * polishOpen;
       const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
-      const stackY = acrossX * halfW * verticalOpen;
-      const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
+      const twistProgress =
+        targetPolish === 2
+          ? smoothstep(0.44, 0.62, c.xT)
+          : targetPolish === 3
+            ? smoothstep(0.4, 0.7, c.xT)
+            : smoothstep(0.42, 0.66, c.xT);
+      const depthPhase = targetPolish === 3 ? 0.12 * Math.sin(c.xT * Math.PI * 3.2 + across * 1.8) : 0;
+      const targetOrientation = targetPolish > 0 ? Math.cos(Math.PI * (twistProgress + depthPhase)) : 1;
+      const orientedAcross = acrossX * targetOrientation;
+      const stackY = orientedAcross * halfW * verticalOpen;
+      const farDownStack = -orientedAcross * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
       const faceY = ny * projected * 0.35;
       const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
       const edgePhase = (c.xT - 0.6) * Math.PI * (targetPolish === 3 ? 3.4 : 2.1) + across * 2.4;
@@ -985,7 +994,7 @@ export function buildTwizzlerLines(
 
     const visibility =
       targetPolish > 0
-        ? 0.3 + 0.7 * Math.pow(midNear, targetPolish === 3 ? 0.72 : 0.9)
+        ? 0.45 + 0.55 * Math.pow(midNear, targetPolish === 3 ? 0.72 : 0.9)
         : 0.12 + 0.88 * Math.pow(midNear, 0.85);
     const targetWidthScale = targetPolish > 0 ? (targetPolish === 2 ? 0.42 : 0.36) : 1;
     lines.push({
