@@ -304,6 +304,8 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
 
   if (!engineConfig.sparkle) engineConfig.sparkle = {};
   if (!engineConfig.sparkle.gaps) engineConfig.sparkle.gaps = { enabled: false, coverage: 1, speed: 0.1 };
+  // Rain checkbox gates the whole stripe/rain layer (not just gap patterning).
+  engineConfig.stripesEnabled = state.rainEnabled;
   engineConfig.sparkle.gaps.enabled = state.rainEnabled;
   if (state.rainEnabled) {
     engineConfig.sparkle.gaps.coverage = engineConfig.sparkle.gaps.coverage ?? 1;

@@ -45,7 +45,12 @@ describe("client preview presets", () => {
   it("toggles rain via sparkle.gaps without exposing camera state", () => {
     const withRain = buildClientPreviewBundle({ ...DEFAULT_CLIENT_PREVIEW_STATE, rainEnabled: true });
     expect(withRain.engineConfig.sparkle?.gaps?.enabled).toBe(true);
+    expect(withRain.engineConfig.stripesEnabled).toBe(true);
     expect(JSON.stringify(withRain.engineConfig)).not.toMatch(/rotateX|connectCamera|shaderView/i);
+
+    const noRain = buildClientPreviewBundle({ ...DEFAULT_CLIENT_PREVIEW_STATE, rainEnabled: false });
+    expect(noRain.engineConfig.sparkle?.gaps?.enabled).toBe(false);
+    expect(noRain.engineConfig.stripesEnabled).toBe(false);
   });
 
   it("applies size, layout, and color overlays", () => {
