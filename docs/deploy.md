@@ -13,9 +13,9 @@
 
 ## Important: what “live” means
 
-- **Production** (`connect-shader.off-brand.workers.dev`) only updates after Workers Builds / `wrangler deploy` runs against the branch Cloudflare has configured (usually `main`).
-- **PR / cloud-agent branches do not change production** until merged (or until someone with Wrangler auth deploys that branch).
-- If you open production and don’t see Default/Advanced or the orange-wave Twizzler, you’re on the previous ship — use the PR staging tunnel or wait for deploy.
+- **Production** (`https://connect-shader.off-brand.workers.dev/`) only updates after Workers Builds / `wrangler deploy` runs against `main`.
+- **PR / cloud-agent branches do not change production** until merged to `main`.
+- If you open production and don’t see Default/Advanced or the orange-wave Twizzler, wait for the latest Workers Build on `main` (dashboard deployments link above) — do not use session tunnels for handoff.
 
 ## Config
 
@@ -36,5 +36,5 @@ Workers Builds (`WORKERS_CI=1`) runs `postinstall` → `pnpm run build`, then `w
 
 ## Preview policy
 
-- Prefer Workers preview versions / dashboard for `connect-shader` for anything shared with the team or clients.
-- Session tunnels are OK for agent smoke checks only until production is updated.
+- Prefer the production Worker URL / dashboard versions for `connect-shader` for anything shared with the team or clients.
+- Session tunnels are agent-only smoke checks and are not a substitute for the Worker.
