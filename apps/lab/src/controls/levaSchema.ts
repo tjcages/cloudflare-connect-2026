@@ -85,7 +85,8 @@ function drawerFolder<S extends Parameters<typeof folder>[0]>(
   schema: S,
   options: {
     defaultOpen?: boolean;
-    render?: () => boolean;
+    /** Leva folder visibility. Receives `get` so gates can read sibling controls (e.g. Color mode). */
+    render?: (get: (path: string) => unknown) => boolean;
     /** Hide this folder in client Default panel (still registered; shows in Advanced). */
     hideInClient?: boolean;
     /** Only show this folder in the client app (Default + Advanced). */
@@ -96,10 +97,10 @@ function drawerFolder<S extends Parameters<typeof folder>[0]>(
   return folder(schema, {
     ...folderOptions,
     collapsed: !loadControlDrawerOpen(id, loadLabSettings().drawerOpen[id] ?? defaultOpen),
-    render: () => {
+    render: (get: (path: string) => unknown) => {
       if (hideInClient && clientDefaultPanelActive) return false;
       if (clientOnly && !clientAppActive) return false;
-      return render ? render() : true;
+      return render ? render(get) : true;
     },
   });
 }
@@ -1508,14 +1509,16 @@ export function useEngineControls(
                     value: initialLabSettings.twizzler.colorFar,
                     label: "Color left (X)",
                   }),
-                  render: showTwizzlerRibbonConfig,
+                  render: (get) =>
+                    showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") !== "solid",
                 },
                 twizzlerColorEdge: {
                   ...colorLibraryInputPlugin({
                     value: initialLabSettings.twizzler.colorEdge ?? "#e92e28",
                     label: "Color peaks (Y)",
                   }),
-                  render: showTwizzlerRibbonConfig,
+                  render: (get) =>
+                    showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") === "baked",
                 },
                 ...(options.twizzlerTransport && !clientApp
                   ? {
@@ -1791,8 +1794,12 @@ export function useEngineControls(
                   render: showTwizzlerAuthoring,
                 },
               },
-              // Per-axis knobs stay Advanced; master Gradients toggle lives in General (Default).
-              { render: showTwizzlerRibbonConfig, defaultOpen: true },
+              // Axis X/Y/Z mixes only drive Baked segments (Color mode). Shared/Fiber use Color left/right only.
+              {
+                render: (get) =>
+                  showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") === "baked",
+                defaultOpen: true,
+              },
             ),
             Stroke: drawerFolder(
               "Twizzler Stroke",
