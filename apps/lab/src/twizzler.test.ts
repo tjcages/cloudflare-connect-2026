@@ -113,10 +113,7 @@ describe("Twizzler", () => {
 
     expect(countExtrema(0)).toBeLessThan(countExtrema(1));
     expect(countExtrema(1)).toBeLessThan(countExtrema(2));
-    expect(twizzlerMarketingBend(0.5, { ...settings, hillRhythm: 1 })).toBeCloseTo(
-      twizzlerPathBend(0.5, settings),
-      12,
-    );
+    expect(twizzlerMarketingBend(0.5, { ...settings, hillRhythm: 1 })).toBeCloseTo(twizzlerPathBend(0.5, settings), 12);
 
     const lockedB = [0, 0.2, 0.4, 0.6, 0.8, 1].map((x) =>
       Number(twizzlerMarketingCenterY(x, { ...settings, hillRhythm: 1 }, 0).toFixed(8)),
