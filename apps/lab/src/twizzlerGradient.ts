@@ -1,5 +1,7 @@
 /** Shared 2D color-field hotspots for Twizzler Shared / Fiber rendering. */
 
+import { nextOrangeRedLibraryHex } from "./components/colorLibrary";
+
 export type TwizzlerGradientStop = {
   id: string;
   /** Horizontal UV (0 = left, 1 = right). */
@@ -17,6 +19,7 @@ export const TWIZZLER_GRADIENT_FIELD_RASTER_WIDTH = 160;
 export const TWIZZLER_GRADIENT_FIELD_RASTER_HEIGHT = 100;
 export const TWIZZLER_GRADIENT_FIELD_SVG_COLS = 48;
 export const TWIZZLER_GRADIENT_FIELD_SVG_ROWS = 32;
+export const TWIZZLER_GRADIENT_HANDLE_HIT_PX = 26;
 const IDW_POWER = 2;
 const IDW_HIT_EPS2 = 1e-12;
 const HEX_RE = /^#[0-9a-f]{6}$/i;
@@ -292,7 +295,7 @@ export function addTwizzlerGradientStop(
 ): TwizzlerGradientStop[] {
   if (stops.length >= TWIZZLER_GRADIENT_STOP_MAX) return [...stops];
   const uv = isFiniteNumber(x) && isFiniteNumber(y) ? { x: clamp01(x), y: clamp01(y) } : vacantHotspotUv(stops);
-  const nextColor = color ?? sampleTwizzlerGradientColor(stops, uv.x, uv.y);
+  const nextColor = color ?? nextOrangeRedLibraryHex(stops.map((stop) => stop.color));
   const id = createTwizzlerGradientStopId();
   return [
     ...stops,
@@ -347,6 +350,44 @@ export function nearestTwizzlerGradientStopId(
   let bestDist = threshold;
   for (const stop of stops) {
     const dist = Math.hypot(stop.x - x, stop.y - y);
+    if (dist <= bestDist) {
+      bestDist = dist;
+      bestId = stop.id;
+    }
+  }
+  return bestId;
+}
+
+/** Inner field rect in client pixels (viewBox pad mapped through the SVG box). */
+export function gradientFieldClientPlane(
+  bounds: { left: number; top: number; width: number; height: number },
+  viewWidth: number,
+  viewHeight: number,
+  pad: number,
+): { left: number; top: number; width: number; height: number } {
+  return {
+    left: bounds.left + (pad / viewWidth) * bounds.width,
+    top: bounds.top + (pad / viewHeight) * bounds.height,
+    width: ((viewWidth - pad * 2) / viewWidth) * bounds.width,
+    height: ((viewHeight - pad * 2) / viewHeight) * bounds.height,
+  };
+}
+
+/** Hit-test hotspots in screen pixels so a wide-short graph still has a round click target. */
+export function nearestTwizzlerGradientStopIdPx(
+  stops: readonly TwizzlerGradientStop[],
+  clientX: number,
+  clientY: number,
+  plane: { left: number; top: number; width: number; height: number },
+  thresholdPx = TWIZZLER_GRADIENT_HANDLE_HIT_PX,
+): string | null {
+  if (stops.length === 0 || plane.width <= 0 || plane.height <= 0) return null;
+  let bestId: string | null = null;
+  let bestDist = thresholdPx;
+  for (const stop of stops) {
+    const hx = plane.left + stop.x * plane.width;
+    const hy = plane.top + stop.y * plane.height;
+    const dist = Math.hypot(clientX - hx, clientY - hy);
     if (dist <= bestDist) {
       bestDist = dist;
       bestId = stop.id;

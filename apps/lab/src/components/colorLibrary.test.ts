@@ -4,6 +4,8 @@ import {
   findLibraryColor,
   findLibraryColorByHex,
   LIBRARY_COLOR,
+  nextOrangeRedLibraryHex,
+  orangeRedHotspotLibraryHexes,
   p3ColorForHex,
 } from "./colorLibrary";
 
@@ -87,5 +89,18 @@ describe("color library", () => {
     });
     expect(findLibraryColorByHex("#FFFFFF")?.token).toBe("Neutral / White");
     expect(findLibraryColorByHex("#f86a00")).toBeNull();
+  });
+
+  it("picks unused Orange/Red library hexes for new hotspots", () => {
+    expect(nextOrangeRedLibraryHex([])).toBe("#fea700");
+    expect(nextOrangeRedLibraryHex(["#fea700", "#f46021"])).toBe("#f77720");
+    expect(nextOrangeRedLibraryHex(["#fea700", "#f46021", "#f77720"])).toBe("#e92e28");
+    const palette = orangeRedHotspotLibraryHexes();
+    expect(
+      palette.every(
+        (hex) => findLibraryColorByHex(hex)?.group === "Orange" || findLibraryColorByHex(hex)?.group === "Red",
+      ),
+    ).toBe(true);
+    expect(nextOrangeRedLibraryHex(palette)).toBe(palette[0]);
   });
 });

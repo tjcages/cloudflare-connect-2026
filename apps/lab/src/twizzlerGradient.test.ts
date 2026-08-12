@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   addTwizzlerGradientStop,
   defaultTwizzlerGradientStops,
+  gradientFieldClientPlane,
   moveTwizzlerGradientStop,
   nearestTwizzlerGradientStopId,
+  nearestTwizzlerGradientStopIdPx,
   normalizeTwizzlerGradientStops,
   parseTwizzlerGradientStops,
   rasterizeTwizzlerGradientField,
@@ -14,6 +16,7 @@ import {
   twizzlerGradientSvgPattern,
   uvFromClient,
   withTwizzlerGradientEndpointColors,
+  TWIZZLER_GRADIENT_HANDLE_HIT_PX,
   TWIZZLER_GRADIENT_STOP_MAX,
 } from "./twizzlerGradient";
 
@@ -84,6 +87,7 @@ describe("twizzlerGradient", () => {
     const created = added.find((s) => s.id !== "far" && s.id !== "near")!;
     expect(created.x).toBeCloseTo(0.4);
     expect(created.y).toBeCloseTo(0.7);
+    expect(created.color).toBe("#f77720");
     const moved = moveTwizzlerGradientStop(added, created.id, 0.62, 0.2);
     const afterMove = moved.find((s) => s.id === created.id);
     expect(afterMove?.x).toBeCloseTo(0.62);
@@ -135,6 +139,28 @@ describe("twizzlerGradient", () => {
       0.08,
     );
     expect(id).toBe("b");
+  });
+
+  it("hits an existing hotspot in screen pixels even when the click is off-center", () => {
+    const bounds = { left: 0, top: 0, width: 336, height: 120 };
+    const plane = gradientFieldClientPlane(bounds, 168, 120, 12);
+    const stops = [
+      { id: "a", x: 0.5, y: 0.5, offset: 0.5, color: "#fea700" },
+      { id: "b", x: 0.9, y: 0.2, offset: 0.9, color: "#f46021" },
+    ];
+    const hx = plane.left + 0.5 * plane.width;
+    const hy = plane.top + 0.5 * plane.height;
+    expect(nearestTwizzlerGradientStopIdPx(stops, hx + 18, hy + 10, plane)).toBe("a");
+    expect(nearestTwizzlerGradientStopIdPx(stops, hx + TWIZZLER_GRADIENT_HANDLE_HIT_PX + 8, hy, plane)).toBeNull();
+  });
+
+  it("defaults new hotspots to unused Orange/Red library colors", () => {
+    const base = defaultTwizzlerGradientStops("#fea700", "#f46021");
+    const first = addTwizzlerGradientStop(base, 0.3, 0.3);
+    const second = addTwizzlerGradientStop(first, 0.7, 0.7);
+    const colors = second.map((s) => s.color);
+    expect(colors).toContain("#f77720");
+    expect(colors).toContain("#e92e28");
   });
 
   it("rasterizes a 2D field that is not a 1D left-to-right ramp", () => {

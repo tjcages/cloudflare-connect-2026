@@ -5,22 +5,25 @@ import { cssColorForHex, findLibraryColorByHex } from "../components/colorLibrar
 import { cn } from "../lib/cn";
 import {
   addTwizzlerGradientStop,
+  gradientFieldClientPlane,
   moveTwizzlerGradientStop,
-  nearestTwizzlerGradientStopId,
+  nearestTwizzlerGradientStopIdPx,
   rasterizeTwizzlerGradientField,
   recolorTwizzlerGradientStop,
   removeTwizzlerGradientStop,
+  TWIZZLER_GRADIENT_HANDLE_HIT_PX,
   TWIZZLER_GRADIENT_STOP_MAX,
   TWIZZLER_GRADIENT_STOP_MIN,
   type TwizzlerGradientStop,
 } from "../twizzlerGradient";
 
 const GRAPH_WIDTH = 168;
-const GRAPH_HEIGHT = 88;
-const GRAPH_PAD = 10;
-const HANDLE_HIT_UV = 0.09;
-const FIELD_PREVIEW_WIDTH = 148;
-const FIELD_PREVIEW_HEIGHT = 68;
+const GRAPH_HEIGHT = 120;
+const GRAPH_PAD = 12;
+const HANDLE_RADIUS = 11;
+const HANDLE_RADIUS_SELECTED = 12.5;
+const FIELD_PREVIEW_WIDTH = 144;
+const FIELD_PREVIEW_HEIGHT = 96;
 
 function normalizeHexDisplay(value: string): string {
   const raw = value.trim().replace(/^#/, "");
@@ -98,26 +101,31 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     return graphUvFromClient(event.clientX, event.clientY, bounds);
   };
 
-  const beginDrag = (event: ReactPointerEvent<SVGSVGElement>, id: string, uv: { x: number; y: number }) => {
+  const nearestHandleId = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const bounds = svgRef.current?.getBoundingClientRect();
+    if (!bounds) return null;
+    const plane = gradientFieldClientPlane(bounds, GRAPH_WIDTH, GRAPH_HEIGHT, GRAPH_PAD);
+    return nearestTwizzlerGradientStopIdPx(stops, event.clientX, event.clientY, plane, TWIZZLER_GRADIENT_HANDLE_HIT_PX);
+  };
+
+  const beginDrag = (event: ReactPointerEvent<SVGSVGElement>, id: string) => {
     if (disabled) return;
     event.preventDefault();
     event.stopPropagation();
     dragId.current = id;
     setSelectedId(id);
     event.currentTarget.setPointerCapture(event.pointerId);
-    commit(moveTwizzlerGradientStop(stops, id, uv.x, uv.y));
   };
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (disabled) return;
-    const uv = pointerUv(event);
-    if (!uv) return;
-    const nearId = nearestTwizzlerGradientStopId(stops, uv.x, uv.y, HANDLE_HIT_UV);
+    const nearId = nearestHandleId(event);
     if (nearId) {
-      beginDrag(event, nearId, uv);
+      beginDrag(event, nearId);
       return;
     }
-    if (!canAdd) return;
+    const uv = pointerUv(event);
+    if (!uv || !canAdd) return;
     event.preventDefault();
     event.stopPropagation();
     const next = addTwizzlerGradientStop(stops, uv.x, uv.y);
@@ -207,6 +215,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
           ref={svgRef}
           className="twizzler-gradient-plane"
           viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`}
+          preserveAspectRatio="none"
           aria-label="Gradient color hotspots"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -222,16 +231,24 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
           <line x1={GRAPH_PAD} y1={GRAPH_PAD} x2={GRAPH_PAD} y2={GRAPH_HEIGHT - GRAPH_PAD} />
           {stops.map((stop) => {
             const selectedStop = stop.id === selected?.id;
+            const radius = selectedStop ? HANDLE_RADIUS_SELECTED : HANDLE_RADIUS;
             return (
-              <circle
-                key={stop.id}
-                className={cn("twizzler-gradient-handle", selectedStop && "is-selected")}
-                cx={pointX(stop.x)}
-                cy={pointY(stop.y)}
-                r={selectedStop ? 5 : 4.2}
-                fill={stop.color}
-                aria-label={`Color hotspot at ${Math.round(stop.x * 100)} percent, ${Math.round(stop.y * 100)} percent`}
-              />
+              <g key={stop.id}>
+                <circle
+                  className="twizzler-gradient-handle-hit"
+                  cx={pointX(stop.x)}
+                  cy={pointY(stop.y)}
+                  r={HANDLE_RADIUS_SELECTED + 6}
+                />
+                <circle
+                  className={cn("twizzler-gradient-handle", selectedStop && "is-selected")}
+                  cx={pointX(stop.x)}
+                  cy={pointY(stop.y)}
+                  r={radius}
+                  fill={stop.color}
+                  aria-label={`Color hotspot at ${Math.round(stop.x * 100)} percent, ${Math.round(stop.y * 100)} percent`}
+                />
+              </g>
             );
           })}
         </svg>
