@@ -4746,7 +4746,7 @@ export function useEngineControls(
         ),
       }),
     { store: shaderStore },
-    [stripeKey, stripePaletteOptionsKey, stripePaletteValue],
+    [stripeKey, stripePaletteOptionsKey, stripePaletteValue, clientMode],
   );
   shaderControlSetterRef.current = setShaderControl;
 
