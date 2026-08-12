@@ -14,7 +14,7 @@ Canvas preview zoom (bottom-center overlay): **−** / **Reset** / **+** plus a 
 
 ## What clients see (Leva)
 
-Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, and **JSON** (Copy / Upload). Leva starts with **Hero** (Graphic selector) then **Presets**. **Video duration**, **Export Video**, and **Export SVG** sit at the bottom of the panel.
+Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, and **JSON** (Copy / Upload). Leva starts with **Hero** (Graphic selector) then **Presets**. **Video duration**, **Export Video**, and **Export SVG** follow the Leva folders in the same panel scroll (not a floating footer, and not overlaying expanded folders).
 
 - **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Appearance/Color). **Refresh keeps your live knobs** (localStorage; flushed on `pagehide` so a quick refresh still keeps Speed/Move). Named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
 - **JSON** — **Copy JSON** (clipboard) and **Upload JSON** (import as a saved layout)
