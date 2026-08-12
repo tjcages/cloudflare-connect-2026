@@ -69,8 +69,7 @@ import {
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
 import { resolveClientGraphicMode } from "./client/clientPresets";
-import { sectionGridRainLabSettingsPatch } from "./client/sectionGridRainDefaults";
-import { CONNECT_SHADER_PRESET_ID } from "./shaderLibrary";
+import { applySectionGridRainToStorage } from "./client/sectionGridRainDefaults";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -3176,26 +3175,34 @@ function LabInner({
   useEffect(() => {
     if (!clientMode) return;
     const mode = clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
-    if (mode !== "rain" && mode !== "both") {
+    // Skip mount so a post-apply reload does not loop.
+    if (lastClientRainBootstrapRef.current === null) {
       lastClientRainBootstrapRef.current = mode;
       return;
     }
-    const enteringRain = lastClientRainBootstrapRef.current !== "rain" && lastClientRainBootstrapRef.current !== "both";
+    if (lastClientRainBootstrapRef.current === mode) return;
+    const prev = lastClientRainBootstrapRef.current;
     lastClientRainBootstrapRef.current = mode;
+    const wasRain = prev === "rain" || prev === "both";
+    const enteringRain = (mode === "rain" || mode === "both") && !wasRain;
+    if (!enteringRain) return;
+    // Exact factoryDefaults path (same as Factory reset / Apply layout).
+    applySectionGridRainToStorage(mode, textureIdRef.current, {
+      canvasWidth: labSettingsRef.current.canvasWidth,
+      canvasHeight: labSettingsRef.current.canvasHeight,
+      clientSizeId: labSettingsRef.current.clientSizeId,
+      backgroundColor: labSettingsRef.current.backgroundColor,
+    });
+    window.location.reload();
+  }, [clientMode, clientGraphicMode, twizzler.enabled, controls.sparkle.gaps.enabled]);
+
+  useEffect(() => {
+    if (!clientMode) return;
+    const mode = clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
+    if (mode !== "rain" && mode !== "both") return;
     const target = clientRainShaderPreset || CONNECT_SHADER_PRESET_ID;
-    if (enteringRain) {
-      // Align Connect camera / spiral params with section-grid-generator factoryDefaults.
-      updateLabSettings(sectionGridRainLabSettingsPatch());
-    }
     if (shaderPresetId === target) return;
-    if (
-      isTwizzlerSineShaderPreset(shaderPresetId) ||
-      isTwizzlerMapShaderPreset(shaderPresetId) ||
-      clientRainShaderPreset ||
-      enteringRain
-    ) {
-      handleShaderPresetChange(target);
-    }
+    handleShaderPresetChange(target);
   }, [
     clientMode,
     clientGraphicMode,
@@ -3203,7 +3210,6 @@ function LabInner({
     shaderPresetId,
     twizzler.enabled,
     controls.sparkle.gaps.enabled,
-    updateLabSettings,
   ]);
 
   function handleConnectShapeChange(shapeType: ConnectShapeType) {

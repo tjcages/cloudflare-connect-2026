@@ -12,7 +12,7 @@ import {
   saveStickyBackgroundColor,
 } from "../persistence";
 import type { LabEditTheme, LabSettings } from "../persistence";
-import { fromEditable, toEditable, type EditableStripe } from "./stripeAdapter";
+import { fromEditable, type EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
 import { gradientStopsPlugin } from "./gradientStopsPlugin";
@@ -67,11 +67,6 @@ import {
   upsertCustomStripePalette,
   type CustomStripePalette,
 } from "./customStripePalettes";
-import {
-  sectionGridRainShaderLevaPatch,
-  sectionGridRainStripes,
-  sectionGridRainTextureLevaPatch,
-} from "../client/sectionGridRainDefaults";
 import {
   CLIENT_APPEARANCE_PRESETS,
   CLIENT_COLOR_PRESETS,
@@ -4994,18 +4989,8 @@ export function useEngineControls(
       rainEnabled: flags.rainEnabled,
     };
     if (enteringRain) {
-      // Banner 5:1 is Twizzler-first (1× opacity-0 stripe, 3×11 / −38°, gaps=100%).
-      // Always bootstrap the section-grid-generator factory rain look on Rain/Both.
-      // Split across Leva stores — setting foreign keys crashes with `.path` undefined.
-      try {
-        textureControlSetterRef.current?.(sectionGridRainTextureLevaPatch());
-      } catch {
-        // Texture panel may not expose every key in client Default.
-      }
-      Object.assign(patch, sectionGridRainShaderLevaPatch());
-      setStripes(toEditable(sectionGridRainStripes()));
-      setActiveGeneratedPalette("Custom");
-      patch.stripePalette = "Custom";
+      // Engine/lab bootstrap is LabApp → applySectionGridRainToStorage (factoryDefaults)
+      // + reload — same path as Factory reset / Apply layout. Do not hand-patch Leva keys.
       patch.rainShaderPreset =
         String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || "").trim() ||
         CONNECT_SHADER_PRESET_ID;

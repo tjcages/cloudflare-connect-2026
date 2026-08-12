@@ -1,52 +1,45 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "../defaultLabConfig";
+import { DEFAULT_LAB_SETTINGS } from "../persistence";
 import {
+  buildSectionGridRainPreset,
   sectionGridRainEngineConfig,
-  sectionGridRainLabSettingsPatch,
-  sectionGridRainLevaPatch,
-  sectionGridRainShaderLevaPatch,
   sectionGridRainStripes,
-  sectionGridRainTextureLevaPatch,
 } from "./sectionGridRainDefaults";
 
 describe("sectionGridRainDefaults", () => {
-  it("exports factory stripes (opaque, multi-band)", () => {
-    const stripes = sectionGridRainStripes();
-    expect(stripes.length).toBe(DEFAULT_LAB_ENGINE_CONFIG.stripes.length);
-    expect(stripes.every((s) => s.opacity > 0)).toBe(true);
-    expect(stripes).not.toBe(DEFAULT_LAB_ENGINE_CONFIG.stripes);
-  });
-
-  it("leva patch matches section-grid factory grid / gaps / tone", () => {
-    const patch = sectionGridRainLevaPatch();
-    expect(patch.cellWidth).toBe(7);
-    expect(patch.cellHeight).toBe(7);
-    expect(patch.orientationAngleDeg).toBe(0);
-    expect(patch.gapX).toBe(0);
-    expect(patch.gapY).toBe(0);
-    expect(patch.sparkleGapsCoverage).toBe(0);
-    expect(patch.textureDpr).toBe(DEFAULT_LAB_ENGINE_CONFIG.fieldScale);
-    expect(patch.brightness).toBe(DEFAULT_LAB_ENGINE_CONFIG.adjustments.brightness);
-    expect(patch.exposure).toBe(DEFAULT_LAB_ENGINE_CONFIG.adjustments.exposure);
-    expect(patch.connectCameraDistance).toBeDefined();
-    expect(sectionGridRainTextureLevaPatch().textureDpr).toBe(DEFAULT_LAB_ENGINE_CONFIG.fieldScale);
-    expect(sectionGridRainShaderLevaPatch().cellWidth).toBe(7);
-    expect(sectionGridRainShaderLevaPatch()).not.toHaveProperty("connectSpeed");
-  });
-
-  it("lab settings patch selects Connect spiral", () => {
-    const lab = sectionGridRainLabSettingsPatch();
-    expect(lab.shaderPresetId).toBe("connect");
-    expect(lab.textureSourceMode).toBe("shader");
-    expect(lab.connectShapeType).toBe("spiral");
-    expect(lab.connectShaderParams).toBeTruthy();
-  });
-
-  it("engine config clone matches factory rain", () => {
+  it("uses factoryDefaults engine verbatim (opaque multi-band, 7×7 / 0°)", () => {
     const config = sectionGridRainEngineConfig();
-    expect(config.grid.cellWidth).toBe(7);
-    expect(config.grid.angleDeg).toBe(0);
-    expect(config.sparkle.gaps.coverage).toBe(0);
+    expect(config.grid?.cellWidth).toBe(DEFAULT_LAB_ENGINE_CONFIG.grid.cellWidth);
+    expect(config.grid?.cellHeight).toBe(DEFAULT_LAB_ENGINE_CONFIG.grid.cellHeight);
+    expect(config.grid?.angleDeg).toBe(DEFAULT_LAB_ENGINE_CONFIG.grid.angleDeg);
+    expect(config.adjustments?.brightness).toBe(DEFAULT_LAB_ENGINE_CONFIG.adjustments.brightness);
+    expect(config.fieldScale).toBe(DEFAULT_LAB_ENGINE_CONFIG.fieldScale);
+    expect(config.stripes).toEqual(DEFAULT_LAB_ENGINE_CONFIG.stripes);
+    expect(config.sparkle?.gaps?.enabled).toBe(true);
+    expect(config.sparkle?.gaps?.coverage).toBe(DEFAULT_LAB_ENGINE_CONFIG.sparkle.gaps.coverage);
     expect(config).not.toBe(DEFAULT_LAB_ENGINE_CONFIG);
+  });
+
+  it("exports factory stripes", () => {
+    const stripes = sectionGridRainStripes();
+    expect(stripes).toEqual(DEFAULT_LAB_ENGINE_CONFIG.stripes);
+    expect(stripes.every((s) => s.opacity > 0)).toBe(true);
+  });
+
+  it("builds a Factory-reset-equivalent preset for Rain / Both", () => {
+    const rain = buildSectionGridRainPreset("rain");
+    expect(rain.kind).toBe("stripes-engine-lab-settings");
+    expect(rain.config.grid?.cellWidth).toBe(7);
+    expect(rain.config.sparkle?.gaps?.enabled).toBe(true);
+    expect(rain.lab?.shaderPresetId).toBe(DEFAULT_LAB_SETTINGS.shaderPresetId);
+    expect(rain.lab?.twizzlerEnabled).toBe(false);
+    expect(rain.lab?.connectShapeType).toBe(DEFAULT_LAB_SETTINGS.connectShapeType);
+    expect(rain.lab?.connectCameraDistance).toBe(DEFAULT_LAB_SETTINGS.connectCameraDistance);
+
+    const both = buildSectionGridRainPreset("both", { canvasWidth: 1600, canvasHeight: 320 });
+    expect(both.lab?.twizzlerEnabled).toBe(true);
+    expect(both.lab?.canvasWidth).toBe(1600);
+    expect(both.config.sparkle?.gaps?.enabled).toBe(true);
   });
 });
