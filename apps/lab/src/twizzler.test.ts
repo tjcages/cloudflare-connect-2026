@@ -347,6 +347,28 @@ describe("Twizzler", () => {
     expect(square.lines[0]?.points.length).toBeGreaterThanOrEqual(160);
   });
 
+  it("locks orange-wave hairline defaults (no factory lineWidth poison)", () => {
+    expect(TWIZZLER_DEFAULTS).toMatchObject({
+      lineCount: 56,
+      lineWidth: 1.15,
+      rotateXDeg: 12,
+      rotateYDeg: -18,
+      rotateZDeg: 0,
+      fov: 1.05,
+      camDist: 10.5,
+      perspectiveWidth: 1.8,
+      gradientXEnabled: true,
+      gradientYEnabled: true,
+      gradientZEnabled: true,
+      gradientZStrength: 0.75,
+      depthTerrain: 0,
+      backgroundColor: "#ffffff",
+    });
+    const settings = normalizeTwizzlerSettings({});
+    expect(settings.lineWidth).toBeCloseTo(1.15);
+    expect(settings.lineCount).toBe(56);
+  });
+
   it("fades Z gradient from foreground toward background color", () => {
     const { lines } = buildTwizzlerLines(600, 600, 0, {
       lineCount: 40,

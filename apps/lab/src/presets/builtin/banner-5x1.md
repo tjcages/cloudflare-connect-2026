@@ -10,8 +10,9 @@ Reference: [`banner-5x1.ref.png`](./banner-5x1.ref.png) (Cloudflare Connect 2026
 ## Twizzler (orange-wave ribbon)
 
 - Port of `presets/references/orange-wave-vector.html`: 3D multi-sine layers → rotate → perspective project.
-- Defaults: color Orange Accent `#f46021` (COLOR_LIBRARY), 56 layers, Rotate X/Y/Z = 12° / −18° / 0°, animated `speed: 1`.
-- Solid library-token hairlines with depth-based opacity/width (no peach→coral fog gradient).
+- Defaults: color Orange Accent `#f46021` (COLOR_LIBRARY), 56 layers, `lineWidth` ~1.15, Rotate X/Y/Z = 12° / −18° / 0°, animated `speed: 1`.
+- Library-token hairlines with X/Y color gradients (Pair→Accent along X, Red Accent on peaks) and Z fade toward stage white (far / +Z → background).
+- Dense sampling (≥160 pts; width-scaled on banners — never short-axis capped).
 
 ## Rain (dash envelope)
 
