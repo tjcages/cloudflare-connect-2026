@@ -559,23 +559,25 @@ export function rasterDriftTraceToSvg(strategy: RasterDriftTraceStrategy, field:
     }
     case "A3": {
       const thresholds = adaptiveIntensityThresholds(field);
-      const colors = ["#ff8580", "#ff6865", "#ff4a4e", "#f72b37", "#e81125", "#bd0017"];
-      const opacities = [0.11, 0.17, 0.24, 0.34, 0.47, 0.68];
       content = [
         `  <g data-strategy="A3" data-layer="adaptive-disjoint-contours" data-thresholds="${thresholds.join(",")}">`,
         ...renderContourLevels(
           field,
-          thresholds.map((threshold, index) => ({
-            threshold,
-            maximumThreshold: thresholds[index + 1],
-            color: colors[index]!,
-            opacity: opacities[index]!,
-            blockSize: 1,
-            minimumArea: index < 2 ? 2 : 3,
-            minimumComponentCells: index < 2 ? 2 : 3,
-            tolerance: index < 2 ? 0.44 : 0.36,
-            sampleMode: "maximum" as const,
-          })),
+          thresholds.map((threshold, index) => {
+            const maximumThreshold = thresholds[index + 1];
+            const representativeIntensity = (threshold + (maximumThreshold ?? 255)) * 0.5;
+            return {
+              threshold,
+              maximumThreshold,
+              color: "#ff0000",
+              opacity: Math.max(0.03, Math.min(0.97, representativeIntensity / 255)),
+              blockSize: 1,
+              minimumArea: index < 2 ? 2 : 3,
+              minimumComponentCells: index < 2 ? 2 : 3,
+              tolerance: index < 2 ? 0.44 : 0.36,
+              sampleMode: "maximum" as const,
+            };
+          }),
         ),
         "  </g>",
       ];
