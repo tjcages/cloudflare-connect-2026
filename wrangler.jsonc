@@ -5,6 +5,9 @@
   "name": "connect-shader",
   "compatibility_date": "2026-05-14",
   "account_id": "944ca70087298faa2e84783db46162c5",
+  // Preview hosts: <alias|version>-connect-shader.off-brand.workers.dev
+  // Requires Workers Builds → Branch control → "Builds for non-production branches"
+  // so PRs get automatic branch + commit preview URLs (see docs/deploy.md).
   "workers_dev": true,
   "preview_urls": true,
   "observability": {

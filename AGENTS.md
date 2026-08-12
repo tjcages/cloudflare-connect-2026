@@ -19,6 +19,10 @@ Do **not** follow `docs/legacy/` — those describe the retired Pixi/CPU engine.
 (`account_id` `944ca70087298faa2e84783db46162c5`). Details: `docs/deploy.md`.
 Live: https://connect-shader.off-brand.workers.dev/
 
+**PR handoff:** use the Cloudflare Workers **branch preview URL** posted on the PR
+(`https://<branch-slug>-connect-shader.off-brand.workers.dev/`). Never trycloudflare tunnels.
+If missing, enable Build → Branch control → **Builds for non-production branches** (see `docs/deploy.md`).
+
 ## Package Manager
 
 Use `pi` (install) and `pir` (run scripts). Never `npm`, `pnpm`, `yarn`, or `npx` directly.
