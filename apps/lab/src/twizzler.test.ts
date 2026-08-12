@@ -19,6 +19,8 @@ import {
   twizzlerAmpHeat,
   twizzlerAmpNoiseY,
   twizzlerAmpSwell,
+  twizzlerShaderPackY,
+  twizzlerShaderPackRecipe,
   twizzlerSvgPathCubic,
   twizzlerMarketingCenterY,
   twizzlerMarketingTwist,
@@ -218,6 +220,13 @@ describe("Twizzler", () => {
         { x: 30, y: 8 },
       ]),
     ).toContain(" C");
+    // Shader pack: different fiber phases peak at different X.
+    expect(twizzlerShaderPackRecipe(3)).toBe(0);
+    expect(twizzlerShaderPackRecipe(5)).toBe(2);
+    const packSettings = { wrinkles: 2, amplitude: 1, scale: 1.15, centerY: 0.4, depthLift: 0.85 };
+    const yA = twizzlerShaderPackY(0.35, 0.1, 0, packSettings, 0);
+    const yB = twizzlerShaderPackY(0.35, 0.7, 0, packSettings, 0);
+    expect(Math.abs(yA - yB)).toBeGreaterThan(0.01);
 
     const settings = normalizeTwizzlerSettings({
       depthAmount: 1.15,

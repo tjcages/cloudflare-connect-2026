@@ -215,7 +215,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
     depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 4),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
-    depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
+    depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 5)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.001, 0.1),
@@ -296,6 +296,60 @@ function sampleKnots(x: number, knots: ReadonlyArray<readonly [number, number]>)
     }
   }
   return knots[knots.length - 1][1];
+}
+
+/**
+ * Shadertoy-style sine pack (phase per fiber) → normalized canvas Y (0=top, 1=bottom).
+ * Recipes 0/1/2 match the three commented formulas; m from wrinkles (1..10).
+ */
+export function twizzlerShaderPackY(
+  xT: number,
+  fiberT: number,
+  time: number,
+  settings: Pick<TwizzlerSettings, "wrinkles" | "amplitude" | "scale" | "centerY" | "depthLift">,
+  recipe: 0 | 1 | 2 = 0,
+): number {
+  const x = Math.max(0, Math.min(1, xT));
+  // Banner is wide — stretch u like Shadertoy uv.x across aspect.
+  const u = (x - 0.5) * (1.6 + settings.scale * 0.55);
+  const t = time * 0.35 + Math.PI * 2 * fiberT;
+  const m = Math.max(1, Math.min(10, 1 + settings.wrinkles * 1.6));
+  let yWave = 0;
+  switch (recipe) {
+    case 0: {
+      // y = sin(t + 11x) - 4x cos(t/2)
+      yWave = Math.sin(t + 11 * u) - 4 * u * Math.cos(t * 0.5);
+      break;
+    }
+    case 1: {
+      // y = sin(m t + 11x) - 4x cos(t/2)
+      yWave = Math.sin(m * t + 11 * u) - 4 * u * Math.cos(t * 0.5);
+      break;
+    }
+    case 2: {
+      // y = sin(m t + 11x) - 4x cos(t)
+      yWave = Math.sin(m * t + 11 * u) - 4 * u * Math.cos(t);
+      break;
+    }
+    default: {
+      const _exhaustive: never = recipe;
+      void _exhaustive;
+      yWave = 0;
+      break;
+    }
+  }
+  // Shader used 0.25*y for the isoline; map into banner envelope.
+  const gain = 0.1 + settings.amplitude * 0.16 + settings.depthLift * 0.05;
+  return settings.centerY + yWave * 0.25 * gain;
+}
+
+/** depthTerrain 3/4/5 → shader pack recipes 0/1/2. */
+export function twizzlerShaderPackRecipe(depthTerrain: number): 0 | 1 | 2 | null {
+  const t = Math.round(depthTerrain);
+  if (t === 3) return 0;
+  if (t === 4) return 1;
+  if (t === 5) return 2;
+  return null;
 }
 
 /**
@@ -628,6 +682,10 @@ export function twizzlerDepthYBias(
   const nearRightHold = -nearness * right * amp * 0.55;
 
   const terrain = Math.round(Math.max(0, Math.min(2, depthTerrain))) as 0 | 1 | 2;
+  // Shader-pack terrains (3–5) skip classic Z→Y hills — the sine pack owns Y.
+  if (Math.round(depthTerrain) >= 3) {
+    return farRightDrop * 0.35 + nearRightHold * 0.35;
+  }
   let hills = 0;
   switch (terrain) {
     case 0: {
@@ -732,16 +790,19 @@ export function buildTwizzlerLines(
   // Stretch slots toward near/far poles — depthSpread fights mid-pack condensation.
   const acrossSlots = rawSlots.map((slot) => twizzlerExpandAcross(slot, 0.42 + settings.depthSpread * 0.42));
 
+  const shaderRecipe = twizzlerShaderPackRecipe(settings.depthTerrain);
   const center: Array<{ x: number; y: number; xT: number }> = [];
   for (let point = 0; point <= segmentCount; point += 1) {
     const xT = point / segmentCount;
     const x = twizzlerPointX(point, segmentCount, pixelWidth);
-    const yN = twizzlerMarketingCenterY(xT, settings, time);
+    // Shader pack: flat reference spine (each fiber owns its own sine path).
+    const yN = shaderRecipe === null ? twizzlerMarketingCenterY(xT, settings, time) : settings.centerY;
     center.push({ x, y: yN * pixelHeight, xT });
   }
 
   for (let range = 0; range < settings.lineCount; range += 1) {
     const across = acrossSlots[range] ?? (settings.lineCount <= 1 ? 0 : (range / (settings.lineCount - 1)) * 2 - 1);
+    const fiberT = (range + 0.5) / Math.max(1, settings.lineCount);
     const points: TwizzlerLine["points"] = [];
 
     for (let point = 0; point <= segmentCount; point += 1) {
@@ -760,55 +821,68 @@ export function buildTwizzlerLines(
       const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight;
       const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
       const far = 1 - nearness;
-
-      // Keep braid quiet — amplitude variety comes from shared heat patches, not per-ribbon thrash.
-      const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
-      const organic = (twizzlerNoise(c.xT * 1.4, time * 0.12, 0.35) - 0.5) * settings.wrinkleStrength * 0.9;
-      const braid = across + organic + 0.1 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
-      // Keep some face projection, but do NOT collapse far fibers into the spine.
-      const zPerspective = 0.7 + 0.3 * nearness;
-      const projected = braid * halfW * (0.2 + 0.8 * face) * zPerspective;
-
       const depth = twizzlerDepthScale(c.xT, settings);
-      const depthY = twizzlerDepthYBias(
-        nearness,
-        pixelHeight,
-        settings.depthLift,
-        c.xT,
-        waveAmp,
-        settings.depthTerrain,
-      );
-      // Y amp: multiple heat peaks/valleys scattered through Z (across), fluid along X.
-      // Larger wrinkles → denser Z spots; fewer wrinkles → fewer larger Z blobs.
-      const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
-      const ampNoiseY = twizzlerAmpNoiseY(
-        c.xT,
-        across,
-        pixelHeight,
-        settings.amplitude,
-        settings.wrinkleStrength,
-        patchScale,
-        2.4 + settings.depthTerrain * 0.9,
-      );
-      const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
-      // Pack open enough for denseness, thin enough that Z-scattered peaks read (not parallel sheet).
-      const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.15;
-      const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
-      const stackY = acrossX * halfW * verticalOpen;
-      const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
-      const faceY = ny * projected * 0.35;
-      const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
-      const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
-      // Soften shared spine lockstep — Z-scattered amp peaks must land at different X.
-      const spineBase = pixelHeight * settings.centerY;
-      const spineShare = 0.18;
-      const y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
+
+      let x = c.x;
+      let y: number;
+
+      if (shaderRecipe !== null) {
+        // Shadertoy sine-pack: phase per fiber → smooth curves + Z-scattered peaks.
+        const yN = twizzlerShaderPackY(c.xT, fiberT, time, settings, shaderRecipe);
+        const microStack = across * halfW * (0.12 + settings.depthSpread * 0.1);
+        const depthY = twizzlerDepthYBias(
+          nearness,
+          pixelHeight,
+          settings.depthLift,
+          c.xT,
+          waveAmp,
+          settings.depthTerrain,
+        );
+        y = yN * pixelHeight + microStack + depthY;
+        x = c.x + across * halfW * 0.01 * Math.sin(fiberTheta);
+      } else {
+        // Classic spine + heat-patch path.
+        const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
+        const organic = (twizzlerNoise(c.xT * 1.4, time * 0.12, 0.35) - 0.5) * settings.wrinkleStrength * 0.9;
+        const braid = across + organic + 0.1 * pinch * Math.sin(fiberTheta + across * 0.9) * (1 - across * across);
+        const zPerspective = 0.7 + 0.3 * nearness;
+        const projected = braid * halfW * (0.2 + 0.8 * face) * zPerspective;
+        const depthY = twizzlerDepthYBias(
+          nearness,
+          pixelHeight,
+          settings.depthLift,
+          c.xT,
+          waveAmp,
+          settings.depthTerrain,
+        );
+        const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
+        const ampNoiseY = twizzlerAmpNoiseY(
+          c.xT,
+          across,
+          pixelHeight,
+          settings.amplitude,
+          settings.wrinkleStrength,
+          patchScale,
+          2.4 + settings.depthTerrain * 0.9,
+        );
+        const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
+        const verticalOpen = (0.95 + settings.depthSpread * 0.55) * 1.15;
+        const acrossX = twizzlerGapWarpedAcross(across, c.xT, range, alongGapNoise, 2.7 + settings.wrinkles * 0.12);
+        const stackY = acrossX * halfW * verticalOpen;
+        const farDownStack = -acrossX * halfW * rightEdge * (0.25 + settings.depthLift * 0.2) * (0.3 + far * 0.5);
+        const faceY = ny * projected * 0.35;
+        const zLane = far * halfW * (0.05 + 0.12 * rightEdge) * (0.4 + settings.depthSpread * 0.25);
+        x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
+        const spineBase = pixelHeight * settings.centerY;
+        const spineShare = 0.18;
+        y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
+      }
 
       points.push({ x, y, depth, along: c.xT, nearness });
     }
 
-    // Soften high-curvature tips along the fiber (kinks/V tips) without reshaping macro lobes.
-    twizzlerSoftenFiberCorners(points, 16);
+    // Soften tips; shader pack is already C∞ — light pass only.
+    twizzlerSoftenFiberCorners(points, shaderRecipe !== null ? 4 : 16);
 
     const mid = points[Math.floor(points.length * 0.62)] ?? points[0];
     const midNear = mid?.nearness ?? 0.5;

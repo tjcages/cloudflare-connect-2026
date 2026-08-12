@@ -1515,9 +1515,9 @@ export function useEngineControls(
                 twizzlerDepthTerrain: {
                   value: initialLabSettings.twizzler.depthTerrain ?? 0,
                   min: 0,
-                  max: 2,
+                  max: 5,
                   step: 1,
-                  label: "Z terrain (0A/1B/2C)",
+                  label: "Z terrain (0-2 classic / 3-5 shader pack)",
                 },
                 twizzlerTwist: {
                   value: initialLabSettings.twizzler.twist,

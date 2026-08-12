@@ -1,6 +1,5 @@
 /**
- * Verify exact B silhouette: r21 baseline @120 vs lock @240 (denser samples only).
- * Usage: node scripts/capture-twizzler-variants.mjs
+ * Capture Shadertoy-style sine-pack Twizzler (depthTerrain 3/4/5) with CF colors.
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -13,55 +12,24 @@ const root = resolve(__dirname, "..");
 const outDir = "/opt/cursor/artifacts";
 mkdirSync(outDir, { recursive: true });
 
-/** Exact settings from the B the user picked (r21). */
-const bExact = {
-  color: "#e8481c",
-  colorFar: "#ffd89a",
-  colorNear: "#e8481c",
-  colorEdge: "#ffc857",
-  opacity: 0.88,
-  speed: 0,
-  edgeFluctuation: 0,
-  edgeSpeed: 0,
-  stippleSize: 0,
-  twist: 1.35,
-  pointSpacing: 3,
-  lineCount: 120,
-  lineWidth: 0.72,
-  amplitude: 1.0,
-  scale: 1.15,
-  centerY: 0.4,
-  depthSpread: 1.18,
-  depthLift: 0.85,
-  leftHeight: 0.6,
-  rightHeight: 0.36,
-  bendPosition: 0.25,
-  bendAmount: -0.1,
-  bend2Position: 0.5,
-  bend2Amount: 0.12,
-  bend3Position: 0.8,
-  bend3Amount: -0.1,
-  depthPosition: 0.86,
-  depthAmount: 0.9,
-  depthWidth: 0.36,
-  depth2Position: 0.42,
-  depth2Amount: 0.2,
-  depth2Width: 0.12,
-  wrinkles: 1.4,
-  wrinkleStrength: 0.14,
-  depthTerrain: 0,
-};
+const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/builtin/banner-5x1.json"), "utf8"));
+const base = { ...(preset.lab?.twizzler ?? preset.config?.twizzler), speed: 0 };
 
 const variants = [
   {
-    id: "B120",
-    label: "B exact r21 settings @120 (shape check)",
-    settings: { ...bExact },
+    id: "A",
+    label: "A — shader pack sin(t)+cos(t/2)",
+    tweaks: { depthTerrain: 3, wrinkles: 1.4, wrinkleStrength: 0.1, centerY: 0.42, lineCount: 240, lineWidth: 0.65, amplitude: 1.0, scale: 1.2 },
   },
   {
     id: "B",
-    label: "B lock — same shape, 240 lines, denser samples",
-    settings: { ...bExact, lineCount: 240, pointSpacing: 1.5 },
+    label: "B — shader pack m·t + cos(t/2)",
+    tweaks: { depthTerrain: 4, wrinkles: 2.8, wrinkleStrength: 0.1, centerY: 0.4, lineCount: 240, lineWidth: 0.65, amplitude: 1.0, scale: 1.15 },
+  },
+  {
+    id: "C",
+    label: "C — shader pack m·t + cos(t)",
+    tweaks: { depthTerrain: 5, wrinkles: 4.2, wrinkleStrength: 0.1, centerY: 0.38, lineCount: 240, lineWidth: 0.6, amplitude: 1.0, scale: 1.25 },
   },
 ];
 
@@ -85,12 +53,11 @@ const code = readFileSync(bundlePath, "utf8");
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 416 } });
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#fff">
-<canvas id="c" width="1600" height="416" style="display:block;width:1600px;height:416px;background:#fff"></canvas>
-<script>${code}</script>
-</body></html>`);
+<canvas id="c" width="1600" height="416"></canvas><script>${code}</script></body></html>`);
 
 const paths = [];
 for (const variant of variants) {
+  const settings = { ...base, ...variant.tweaks, speed: 0 };
   await page.evaluate(
     ({ s, id, label }) => {
       const out = document.getElementById("c");
@@ -106,43 +73,30 @@ for (const variant of variants) {
       ctx.fillRect(0, 0, out.width, 96);
       ctx.drawImage(ribbon, 0, 96);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 48px ui-sans-serif, system-ui, sans-serif";
-      ctx.fillText(id, 24, 68);
+      ctx.font = "bold 56px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText(id, 24, 66);
       ctx.font = "600 24px ui-sans-serif, system-ui, sans-serif";
-      ctx.fillText(label, 140, 60);
+      ctx.fillText(label, 110, 58);
     },
-    { s: variant.settings, id: variant.id, label: variant.label },
+    { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-r24-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-shaderpack-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
-  if (variant.id === "B") {
-    copyFileSync(outPath, resolve(outDir, "twizzler-variant-B.png"));
-    copyFileSync(outPath, resolve(outDir, "twizzler-variant-B-labeled.png"));
-  }
-  paths.push({ id: variant.id, label: variant.label, outPath });
+  copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
+  paths.push({ ...variant, outPath });
 }
 
-await page.setViewportSize({ width: 1600, height: 900 });
+await page.setViewportSize({ width: 1600, height: 1300 });
 const stackHtml = paths
   .map((p) => {
     const b64 = readFileSync(p.outPath).toString("base64");
-    return `<img src="data:image/png;base64,${b64}" style="display:block;width:1600px;margin:0 0 12px;background:#fff"/>`;
+    return `<img src="data:image/png;base64,${b64}" style="display:block;width:1600px;margin:0 0 12px"/>`;
   })
   .join("");
-// Also stack original r21-B for visual diff
-const r21 = resolve(outDir, "twizzler-r21-B.png");
-let extra = "";
-try {
-  const b64 = readFileSync(r21).toString("base64");
-  extra = `<img src="data:image/png;base64,${b64}" style="display:block;width:1600px;margin:0 0 12px;background:#fff"/>`;
-} catch {
-  /* missing */
-}
-await page.setContent(
-  `<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${extra}${stackHtml}</body></html>`,
-);
-const stackPath = resolve(outDir, "twizzler-r24-compare-stack.png");
+await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
+const stackPath = resolve(outDir, "twizzler-shaderpack-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
+copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
 await browser.close();
 try {
@@ -151,4 +105,4 @@ try {
   /* ignore */
 }
 writeFileSync(resolve(outDir, "twizzler-variants.json"), JSON.stringify({ paths, stackPath }, null, 2));
-console.log(JSON.stringify({ paths, stackPath }, null, 2));
+console.log(JSON.stringify({ paths: paths.map((p) => ({ id: p.id, label: p.label, outPath: p.outPath })), stackPath }, null, 2));
