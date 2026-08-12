@@ -5,6 +5,7 @@ import {
   normalizeTwizzlerSettings,
   twizzlerAnimationTime,
   twizzlerBendOffset,
+  twizzlerColorT,
   twizzlerDepthScale,
   twizzlerEdgeHeights,
   twizzlerLerpColor,
