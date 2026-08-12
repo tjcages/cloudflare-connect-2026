@@ -14,6 +14,7 @@ import {
   twizzlerFogColor,
   twizzlerDepthYBias,
   twizzlerGapWarpedAcross,
+  twizzlerHeatRecipe,
   twizzlerStrokeWidthScale,
   twizzlerUnevenAcross,
   twizzlerAmpHeat,
@@ -194,6 +195,43 @@ describe("Twizzler", () => {
     const late = [-0.78, -0.26, 0.26, 0.78].map((z) => twizzlerAmpSwell(0.7, z, 1.0));
     expect(Math.max(...early) - Math.min(...early)).toBeGreaterThan(0.15);
     expect(Math.max(...late) - Math.min(...late)).toBeGreaterThan(0.15);
+    // Heat variants are structural Z recipes, not small scalar nudges.
+    const wide = twizzlerHeatRecipe(0);
+    const mid = twizzlerHeatRecipe(1);
+    const dense = twizzlerHeatRecipe(2);
+    expect([wide.bandCount, mid.bandCount, dense.bandCount]).toEqual([3, 5, 9]);
+    expect(wide.bandWidth).toBeGreaterThan(mid.bandWidth);
+    expect(mid.bandWidth).toBeGreaterThan(dense.bandWidth);
+    expect(wide.zFrequency).toBeLessThan(mid.zFrequency);
+    expect(mid.zFrequency).toBeLessThan(dense.zFrequency);
+    // Hill rhythm B (BB) preserves the lock spine; A/C diverge.
+    const lockY = twizzlerMarketingCenterY(
+      0.48,
+      { ...normalizeTwizzlerSettings({}), hillRhythm: 1, centerY: 0.4, scale: 1.15, amplitude: 1 },
+      0,
+    );
+    const calmY = twizzlerMarketingCenterY(
+      0.48,
+      { ...normalizeTwizzlerSettings({}), hillRhythm: 0, centerY: 0.4, scale: 1.15, amplitude: 1 },
+      0,
+    );
+    const sharpY = twizzlerMarketingCenterY(
+      0.48,
+      { ...normalizeTwizzlerSettings({}), hillRhythm: 2, centerY: 0.4, scale: 1.15, amplitude: 1 },
+      0,
+    );
+    expect(Math.abs(lockY - calmY)).toBeGreaterThan(0.01);
+    expect(Math.abs(lockY - sharpY)).toBeGreaterThan(0.01);
+    // Each recipe changes the depth field substantially at the same X.
+    const field = (variant: 0 | 1 | 2) =>
+      Array.from({ length: 41 }, (_, i) => twizzlerAmpNoiseY(0.55, -1 + i / 20, 320, 1, 0.14, variant));
+    const wideField = field(0);
+    const midField = field(1);
+    const denseField = field(2);
+    const meanDifference = (left: number[], right: number[]) =>
+      left.reduce((sum, value, i) => sum + Math.abs(value - right[i]!), 0) / left.length;
+    expect(meanDifference(wideField, midField)).toBeGreaterThan(4);
+    expect(meanDifference(midField, denseField)).toBeGreaterThan(4);
     // Z-scattered amp relocates peaks: different across → different extremum X.
     const extremumX = (z: number) => {
       let bestX = 0;

@@ -532,7 +532,7 @@
       "centerY": 0.4,
       "amplitude": 1.0,
       "lineCount": 240,
-      "lineWidth": 0.72,
+      "lineWidth": 0.45,
       "pointSpacing": 1,
       "leftHeight": 0.6,
       "rightHeight": 0.36,
@@ -555,6 +555,7 @@
       "depth2Width": 0.12,
       "depthSpread": 1.18,
       "depthLift": 0.85,
+      "heatVariant": 0,
       "depthTerrain": 0,
       "twist": 1.35,
       "noiseScaleX": 0.0004,
@@ -562,7 +563,8 @@
       "speed": 0,
       "drift": 0.02,
       "stippleSize": 0,
-      "stippleGap": 0.8
+      "stippleGap": 0.8,
+      "hillRhythm": 1
     },
     "twizzlerMap": {
       "backgroundLevel": 0.01,

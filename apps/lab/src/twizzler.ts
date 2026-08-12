@@ -46,6 +46,16 @@ export type TwizzlerSettings = {
   depthSpread: number;
   depthLift: number;
   /**
+   * Z-scattered amplitude heat recipe:
+   * 0 = fewer/wider lobes (A), 1 = mid-density wide lobes (B), 2 = dense spots (C).
+   */
+  heatVariant: TwizzlerHeatVariant;
+  /**
+   * L→R macro hill rhythm:
+   * 0 = calmer fewer hills (A), 1 = lock-B energy (B), 2 = more hills / sharper valleys (C).
+   */
+  hillRhythm: number;
+  /**
    * Z→Y terrain recipe (experiment switch):
    * 0 = rolling hills (A), 1 = jagged high-freq (B), 2 = long far-drop sweep (C).
    */
@@ -60,6 +70,8 @@ export type TwizzlerSettings = {
   /** Stipple gap scale. */
   stippleGap: number;
 };
+
+export type TwizzlerHeatVariant = 0 | 1 | 2;
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   color: "#e8481c",
@@ -94,6 +106,8 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   depth2Width: 0.12,
   depthSpread: 1.05,
   depthLift: 0.85,
+  heatVariant: 1,
+  hillRhythm: 1,
   depthTerrain: 0,
   twist: 1.15,
   noiseScaleX: 0.0004,
@@ -215,6 +229,8 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
     depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 4),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
+    heatVariant: Math.round(clamp(input.heatVariant, TWIZZLER_DEFAULTS.heatVariant, 0, 2)) as TwizzlerHeatVariant,
+    hillRhythm: Math.round(clamp(input.hillRhythm, TWIZZLER_DEFAULTS.hillRhythm, 0, 2)),
     depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
@@ -298,19 +314,77 @@ function sampleKnots(x: number, knots: ReadonlyArray<readonly [number, number]>)
   return knots[knots.length - 1][1];
 }
 
+type TwizzlerHillRhythm = 0 | 1 | 2;
+
+function twizzlerHillRhythm(settings: TwizzlerSettings): TwizzlerHillRhythm {
+  return Math.round(Math.max(0, Math.min(2, settings.hillRhythm))) as TwizzlerHillRhythm;
+}
+
+/**
+ * Bend controls participate in the macro rhythm without changing their saved
+ * values: A merges them into one broad gesture, B preserves the lock, and C
+ * resolves all three plus alternating interstitial bends.
+ */
+export function twizzlerMarketingBend(xT: number, settings: TwizzlerSettings): number {
+  const rhythm = twizzlerHillRhythm(settings);
+  switch (rhythm) {
+    case 0: {
+      const position = (settings.bendPosition + settings.bend2Position + settings.bend3Position) / 3;
+      const amount = settings.bend2Amount + (settings.bendAmount + settings.bend3Amount) * 0.3;
+      return twizzlerBendOffset(xT, position, amount, 0.28);
+    }
+    case 1:
+      return twizzlerPathBend(xT, settings);
+    case 2: {
+      const primary =
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount, 0.1) +
+        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount, 0.1) +
+        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount, 0.1);
+      const firstMid = (settings.bendPosition + settings.bend2Position) * 0.5;
+      const secondMid = (settings.bend2Position + settings.bend3Position) * 0.5;
+      const interstitial =
+        twizzlerBendOffset(xT, firstMid, (settings.bendAmount - settings.bend2Amount) * 0.32, 0.065) +
+        twizzlerBendOffset(xT, secondMid, (settings.bend2Amount - settings.bend3Amount) * 0.32, 0.065);
+      return primary * 1.15 + interstitial;
+    }
+    default: {
+      const _exhaustive: never = rhythm;
+      return _exhaustive;
+    }
+  }
+}
+
 /**
  * Marketing banner centerline in normalized Y (0=top, 1=bottom).
- * Each depthTerrain uses a different spine + wave recipe so A/B/C read differently.
+ * Hill-rhythm variants only change shared X geometry; Z heat stays independent.
  */
 export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings, time: number): number {
   const x = Math.max(0, Math.min(1, xT));
-  const terrain = Math.round(Math.max(0, Math.min(2, settings.depthTerrain))) as 0 | 1 | 2;
+  const rhythm = twizzlerHillRhythm(settings);
   let yKnot = 0.55;
   const waveGain = 0.55 + settings.amplitude * 1.35;
   let waves = 0;
-  switch (terrain) {
+  switch (rhythm) {
     case 0: {
-      // Rolling multi-hill spine (A2 family).
+      // A: one broad low basin into the hero rise, with a quiet right settle.
+      yKnot = sampleKnots(x, [
+        [0.0, 0.58],
+        [0.24, 0.82],
+        [0.48, 0.76],
+        [0.72, 0.25],
+        [0.88, 0.2],
+        [1.0, 0.38],
+      ]);
+      waves =
+        waveGain *
+        0.82 *
+        (-0.1 * Math.sin(x * Math.PI * 1.7 + 0.25) +
+          -0.055 * Math.sin(x * Math.PI * 3.1 + 1.05) +
+          -0.025 * Math.sin(x * Math.PI * 4.2 + time * 0.18));
+      break;
+    }
+    case 1: {
+      // B: exact pre-variant lock — current rolling energy and silhouette.
       yKnot = sampleKnots(x, [
         [0.0, 0.58],
         [0.1, 0.74],
@@ -331,51 +405,35 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
           -0.045 * Math.sin(x * Math.PI * 8.0 + time * 0.25));
       break;
     }
-    case 1: {
-      // Jagged high-energy spine — deep valley then sharp multi-peaks.
-      yKnot = sampleKnots(x, [
-        [0.0, 0.42],
-        [0.12, 0.68],
-        [0.24, 0.95],
-        [0.34, 0.55],
-        [0.42, 0.98],
-        [0.52, 0.35],
-        [0.62, 0.12],
-        [0.74, 0.45],
-        [0.86, 0.08],
-        [1.0, 0.4],
-      ]);
-      waves =
-        waveGain *
-        1.85 *
-        (-0.14 * Math.sin(x * Math.PI * 3.6 + 0.15) +
-          -0.12 * Math.sin(x * Math.PI * 6.4 + 1.3) +
-          -0.1 * Math.sin(x * Math.PI * 9.8 + 2.4) +
-          -0.07 * Math.sin(x * Math.PI * 13.5 + time * 0.2) +
-          -0.05 * Math.sin(x * Math.PI * 17.2 + 0.8));
-      break;
-    }
     case 2: {
-      // Long sparse sweep — one big trough, one big rise, soft settle.
+      // C: alternating close hills and narrow valleys around the same hero rise.
       yKnot = sampleKnots(x, [
-        [0.0, 0.5],
-        [0.15, 0.62],
-        [0.35, 0.92],
-        [0.55, 0.78],
-        [0.72, 0.22],
-        [0.88, 0.35],
-        [1.0, 0.48],
+        [0.0, 0.58],
+        [0.08, 0.76],
+        [0.16, 0.59],
+        [0.25, 0.9],
+        [0.34, 0.64],
+        [0.43, 0.93],
+        [0.51, 0.61],
+        [0.6, 0.48],
+        [0.68, 0.19],
+        [0.75, 0.42],
+        [0.82, 0.13],
+        [0.9, 0.34],
+        [0.96, 0.18],
+        [1.0, 0.38],
       ]);
       waves =
         waveGain *
-        1.2 *
-        (-0.16 * Math.sin(x * Math.PI * 1.2 + 0.2) +
-          -0.09 * Math.sin(x * Math.PI * 2.0 + 1.4) +
-          -0.04 * Math.sin(x * Math.PI * 3.1 + 0.7));
+        1.18 *
+        (-0.075 * Math.sin(x * Math.PI * 4.6 + 0.2) +
+          -0.06 * Math.sin(x * Math.PI * 7.4 + 1.15) +
+          -0.045 * Math.sin(x * Math.PI * 10.8 + 2.25) +
+          -0.03 * Math.sin(x * Math.PI * 14.2 + time * 0.16));
       break;
     }
     default: {
-      const _exhaustive: never = terrain;
+      const _exhaustive: never = rhythm;
       void _exhaustive;
       waves = 0;
       break;
@@ -383,7 +441,7 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
   }
   const edges = twizzlerEdgeHeights(time, 0, settings);
   const edgeBias = (edges.left - 0.55) * (1 - x) + (edges.right - 0.4) * x;
-  const bend = twizzlerPathBend(x, settings) * 1.15;
+  const bend = twizzlerMarketingBend(x, settings) * 1.15;
   const yAbs = yKnot + waves + edgeBias * 0.3 + bend;
   return settings.centerY + (yAbs - 0.55) * settings.scale;
 }
@@ -511,17 +569,40 @@ export function twizzlerGapWarpedAcross(
   return across * 0.62 + warped * 0.38;
 }
 
+export type TwizzlerHeatRecipe = {
+  bandCount: number;
+  bandWidth: number;
+  zFrequency: number;
+};
+
+/** Structurally distinct Z recipes; X frequencies remain shared and fluid. */
+export function twizzlerHeatRecipe(input: number): TwizzlerHeatRecipe {
+  const variant = Math.round(Math.max(0, Math.min(2, input))) as TwizzlerHeatVariant;
+  switch (variant) {
+    case 0:
+      return { bandCount: 3, bandWidth: 0.72, zFrequency: 0.95 };
+    case 1:
+      return { bandCount: 5, bandWidth: 0.48, zFrequency: 4.6 / 2.4 };
+    case 2:
+      return { bandCount: 9, bandWidth: 0.2, zFrequency: 5.2 };
+    default: {
+      const _exhaustive: never = variant;
+      return _exhaustive;
+    }
+  }
+}
+
 /**
  * Top-down amplitude heat map over (x along ribbon, across = Z / depth stack).
  * Multiple scattered hot spots through Z×X — not one pack-wide L→R swell.
- * `patchScale` >1 = fewer larger lobes; <1 = denser Z spots.
  */
-export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed = 2.4): number {
+export function twizzlerAmpHeat(xT: number, across: number, heatVariant: TwizzlerHeatVariant = 1, seed = 2.4): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
-  const s = Math.max(0.45, Math.min(3.2, patchScale));
-  const xFreq = 2.6 / s;
-  const zFreq = 4.6 / s;
+  const recipe = twizzlerHeatRecipe(heatVariant);
+  // Match the locked B's broad X cadence for every recipe; only Z density changes.
+  const xFreq = 2.6 / 2.4;
+  const zFreq = recipe.zFrequency;
   const n0 = twizzlerNoise(x * xFreq + seed, a * zFreq, 0.2);
   const n1 = twizzlerNoise(x * (xFreq * 1.6) + seed * 1.3, a * (zFreq * 1.4) + 0.55, 0.72);
   const raw = 0.55 * n0 + 0.45 * n1;
@@ -532,25 +613,23 @@ export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed
  * Signed Y swell: narrow Z-bands with phase-shifted hills along X.
  * Far / mid / near bands peak at different X — multiple peaks through the stack.
  */
-export function twizzlerAmpSwell(xT: number, across: number, patchScale = 1, seed = 3.1): number {
+export function twizzlerAmpSwell(xT: number, across: number, heatVariant: TwizzlerHeatVariant = 1, seed = 3.1): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
-  const s = Math.max(0.45, Math.min(3.2, patchScale));
-  // Narrow bands so neighboring Z regions keep distinct peak phases.
-  const bandCount = 5;
-  const bandWidth = 0.2 * s;
+  const { bandCount, bandWidth } = twizzlerHeatRecipe(heatVariant);
   let sum = 0;
   let wSum = 0;
   for (let k = 0; k < bandCount; k += 1) {
     const zCenter = -0.9 + (k / (bandCount - 1)) * 1.8;
     const w = Math.exp(-Math.pow((a - zCenter) / bandWidth, 2));
-    const phase = seed * 0.85 + k * 2.85;
-    // 2–4 hills along X per band, phase-shifted by Z index.
+    const bandT = k / (bandCount - 1);
+    const phase = seed * 0.85 + bandT * 11.4;
+    // Every recipe spans the same fluid X-frequency range; only its Z sampling changes.
     const hills =
-      0.55 * Math.sin(x * Math.PI * (2.8 + k * 0.85) + phase) +
-      0.3 * Math.sin(x * Math.PI * (4.6 + k * 0.55) + phase * 1.55) +
-      0.15 * Math.sin(x * Math.PI * (1.6 + k * 0.3) + phase * 0.7);
-    const gate = 0.45 + 0.55 * twizzlerNoise(x * (1.1 / s) + seed + k * 0.7, zCenter * 2.4, 0.4);
+      0.55 * Math.sin(x * Math.PI * (2.8 + bandT * 3.4) + phase) +
+      0.3 * Math.sin(x * Math.PI * (4.6 + bandT * 2.2) + phase * 1.55) +
+      0.15 * Math.sin(x * Math.PI * (1.6 + bandT * 1.2) + phase * 0.7);
+    const gate = 0.45 + 0.55 * twizzlerNoise(x * (1.1 / 2.4) + seed + bandT * 2.8, zCenter * 2.4, 0.4);
     sum += w * hills * gate;
     wSum += w;
   }
@@ -568,11 +647,11 @@ export function twizzlerAmpNoiseY(
   pixelHeight: number,
   amplitude: number,
   wrinkleStrength: number,
-  patchScale = 1,
+  heatVariant: TwizzlerHeatVariant = 1,
   seed = 2.4,
 ): number {
-  const heat = twizzlerAmpHeat(xT, across, patchScale, seed);
-  const swell = twizzlerAmpSwell(xT, across, patchScale, seed + 1.7);
+  const heat = twizzlerAmpHeat(xT, across, heatVariant, seed);
+  const swell = twizzlerAmpSwell(xT, across, heatVariant, seed + 1.7);
   // Heat spots boost amplitude; keep below clip so phase-shifted Z peaks stay curved.
   const drive = swell * (0.4 + 0.6 * heat);
   const yThrow = 0.22 + amplitude * 0.2 + wrinkleStrength * 2.6;
@@ -778,17 +857,15 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
       );
-      // Y amp: multiple heat peaks/valleys scattered through Z (across), fluid along X.
-      // Larger wrinkles → denser Z spots; fewer wrinkles → fewer larger Z blobs.
-      const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
+      // Y amp: explicit A/B/C heat recipes change only lobe count/width through Z.
       const ampNoiseY = twizzlerAmpNoiseY(
         c.xT,
         across,
         pixelHeight,
         settings.amplitude,
         settings.wrinkleStrength,
-        patchScale,
-        2.4 + settings.depthTerrain * 0.9,
+        settings.heatVariant,
+        2.4,
       );
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
       // Pack open enough for denseness, thin enough that Z-scattered peaks read (not parallel sheet).
