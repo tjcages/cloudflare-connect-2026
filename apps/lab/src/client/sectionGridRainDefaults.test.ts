@@ -4,7 +4,9 @@ import {
   sectionGridRainEngineConfig,
   sectionGridRainLabSettingsPatch,
   sectionGridRainLevaPatch,
+  sectionGridRainShaderLevaPatch,
   sectionGridRainStripes,
+  sectionGridRainTextureLevaPatch,
 } from "./sectionGridRainDefaults";
 
 describe("sectionGridRainDefaults", () => {
@@ -28,6 +30,8 @@ describe("sectionGridRainDefaults", () => {
     expect(patch.exposure).toBe(DEFAULT_LAB_ENGINE_CONFIG.adjustments.exposure);
     expect(patch.connectCameraDistance).toBeDefined();
     expect(patch.connectSpeed).toBeDefined();
+    expect(sectionGridRainTextureLevaPatch().textureDpr).toBe(DEFAULT_LAB_ENGINE_CONFIG.fieldScale);
+    expect(sectionGridRainShaderLevaPatch().cellWidth).toBe(7);
   });
 
   it("lab settings patch selects Connect spiral", () => {

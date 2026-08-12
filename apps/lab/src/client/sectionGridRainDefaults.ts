@@ -93,19 +93,47 @@ function connectShaderParamsToLeva(params: ConnectShaderParams): Record<string, 
   };
 }
 
-/**
- * Leva control patch for section-grid rain (grid, sparkle, tone, Connect view).
- * Keys match `levaSchema` / Connect folder control ids.
- */
-export function sectionGridRainLevaPatch(): Record<string, unknown> {
-  const grid = RAIN.grid;
-  const sparkle = RAIN.sparkle;
+/** Texture-panel Leva keys (Camera / Tone / Source / General). */
+export function sectionGridRainTextureLevaPatch(): Record<string, unknown> {
   const adj = RAIN.adjustments;
   const transform = RAIN.transform;
+  return {
+    stripesEnabled: RAIN.stripesEnabled,
+    textureDpr: RAIN.fieldScale,
+    exposure: adj.exposure,
+    brightness: adj.brightness,
+    contrast: adj.contrast,
+    gamma: adj.gamma,
+    invert: adj.invert,
+    blackPoint: adj.blackPoint,
+    whitePoint: adj.whitePoint,
+    thresholdBias: adj.thresholdBias,
+    posterizeLevels: adj.posterizeLevels,
+    noiseAmount: adj.noiseAmount,
+    blurRadius: adj.blurRadius,
+    sharpenAmount: adj.sharpenAmount,
+    fit: transform.fit,
+    zoom: transform.zoom,
+    panX: transform.panX,
+    panY: transform.panY,
+    connectCameraDistance: LAB.connectCameraDistance,
+    connectCameraRotateX: LAB.connectCameraRotateX,
+    connectCameraRotateY: LAB.connectCameraRotateY,
+    connectCameraRotateZ: LAB.connectCameraRotateZ,
+    connectCameraPanX: LAB.connectCameraPanX,
+    connectCameraPanY: LAB.connectCameraPanY,
+    connectCameraFov: LAB.connectCameraFov,
+    connectGradientUnderlay: LAB.connectGradientUnderlay,
+  };
+}
+
+/** Shader-panel Leva keys (Grid / Sparkle / Connect material). */
+export function sectionGridRainShaderLevaPatch(): Record<string, unknown> {
+  const grid = RAIN.grid;
+  const sparkle = RAIN.sparkle;
   const connectParams = LAB.connectShaderParams as ConnectShaderParams;
 
   return {
-    // Grid — factory is 7×7 cells, 0° (not Banner 3×11 / −38°)
     cellWidth: grid.cellWidth,
     cellHeight: grid.cellHeight,
     gapX: grid.gapX,
@@ -121,7 +149,6 @@ export function sectionGridRainLevaPatch(): Record<string, unknown> {
     streamGapWaveSpeed: grid.streamGapWave.speed,
     streamGapWavePhaseDeg: grid.streamGapWave.phaseDeg,
 
-    // Sparkle / rain gaps — coverage is Leva % (0–100)
     sparkleGapsCoverage: sparkle.gaps.coverage * 100,
     sparkleGapsSpeed: sparkle.gaps.speed,
     sparkleStripeEnabled: sparkle.stripe.enabled,
@@ -143,36 +170,15 @@ export function sectionGridRainLevaPatch(): Record<string, unknown> {
     sparkleMotionSpeed: sparkle.motion.speed,
     sparkleMotionDirection: sparkle.motion.direction,
 
-    // Tone + scale (Banner uses milder tone; factory is punchier)
-    stripesEnabled: RAIN.stripesEnabled,
-    textureDpr: RAIN.fieldScale,
-    exposure: adj.exposure,
-    brightness: adj.brightness,
-    contrast: adj.contrast,
-    gamma: adj.gamma,
-    invert: adj.invert,
-    blackPoint: adj.blackPoint,
-    whitePoint: adj.whitePoint,
-    thresholdBias: adj.thresholdBias,
-    posterizeLevels: adj.posterizeLevels,
-    noiseAmount: adj.noiseAmount,
-    blurRadius: adj.blurRadius,
-    sharpenAmount: adj.sharpenAmount,
-    fit: transform.fit,
-    zoom: transform.zoom,
-    panX: transform.panX,
-    panY: transform.panY,
-
-    // Connect spiral view from factoryDefaults.lab
-    connectCameraDistance: LAB.connectCameraDistance,
-    connectCameraRotateX: LAB.connectCameraRotateX,
-    connectCameraRotateY: LAB.connectCameraRotateY,
-    connectCameraRotateZ: LAB.connectCameraRotateZ,
-    connectCameraPanX: LAB.connectCameraPanX,
-    connectCameraPanY: LAB.connectCameraPanY,
-    connectCameraFov: LAB.connectCameraFov,
-    connectGradientUnderlay: LAB.connectGradientUnderlay,
     ...connectShaderParamsToLeva(connectParams),
+  };
+}
+
+/** Combined patch (tests / callers that merge both stores carefully). */
+export function sectionGridRainLevaPatch(): Record<string, unknown> {
+  return {
+    ...sectionGridRainTextureLevaPatch(),
+    ...sectionGridRainShaderLevaPatch(),
   };
 }
 
