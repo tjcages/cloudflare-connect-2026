@@ -203,27 +203,38 @@ function detectColumnPeaks(field: RasterDriftField, x: number, threshold: number
   candidates.sort((a, b) => b.intensity - a.intensity || a.y - b.y);
   const selected: RidgePoint[] = [];
   for (const candidate of candidates) {
-    if (selected.every((point) => Math.abs(point.y - candidate.y) >= 2)) selected.push(candidate);
+    if (selected.every((point) => Math.abs(point.y - candidate.y) >= 3)) selected.push(candidate);
     if (selected.length >= 112) break;
   }
   return selected.sort((a, b) => a.y - b.y);
 }
 
-function predictedY(track: RidgeTrack): number {
-  const points = track.points;
-  const last = points.at(-1)!;
-  if (points.length < 2) return last.y;
-  const previous = points.at(-2)!;
-  return last.y + Math.max(-7, Math.min(7, last.y - previous.y));
+function ridgeSlope(track: RidgeTrack): number {
+  const points = track.points.slice(-8);
+  if (points.length < 2) return 0;
+  const meanX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+  const meanY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+  let covariance = 0;
+  let variance = 0;
+  for (const point of points) {
+    covariance += (point.x - meanX) * (point.y - meanY);
+    variance += (point.x - meanX) ** 2;
+  }
+  return Math.max(-1.6, Math.min(1.6, covariance / Math.max(1, variance)));
+}
+
+function predictedY(track: RidgeTrack, x: number): number {
+  const last = track.points.at(-1)!;
+  return last.y + ridgeSlope(track) * (x - last.x);
 }
 
 function smoothRidge(points: ReadonlyArray<RidgePoint>): Point[] {
   return points.map((point, index) => {
     let weightedY = 0;
     let weight = 0;
-    for (let offset = -2; offset <= 2; offset += 1) {
+    for (let offset = -8; offset <= 8; offset += 1) {
       const sample = points[Math.max(0, Math.min(points.length - 1, index + offset))]!;
-      const sampleWeight = 3 - Math.abs(offset);
+      const sampleWeight = 9 - Math.abs(offset);
       weightedY += sample.y * sampleWeight;
       weight += sampleWeight;
     }
@@ -242,14 +253,19 @@ function reconstructRidges(
     const unmatched = new Set(peaks.map((_, index) => index));
     const orderedTracks = [...active].sort((a, b) => b.points.length - a.points.length);
     for (const track of orderedTracks) {
-      const expectedY = predictedY(track);
+      const expectedY = predictedY(track, x);
+      const slope = ridgeSlope(track);
+      const last = track.points.at(-1)!;
+      const deltaX = Math.max(1, x - last.x);
       let bestIndex = -1;
-      let bestDistance = Number.POSITIVE_INFINITY;
+      let bestCost = Number.POSITIVE_INFINITY;
       for (const peakIndex of unmatched) {
         const peak = peaks[peakIndex]!;
-        const distance = Math.abs(peak.y - expectedY) - peak.intensity * 1.5;
-        if (distance < bestDistance && Math.abs(peak.y - expectedY) <= 7 + track.misses * 3) {
-          bestDistance = distance;
+        const distance = Math.abs(peak.y - expectedY);
+        const slopeChange = Math.abs((peak.y - last.y) / deltaX - slope);
+        const cost = distance + slopeChange * 3.5 - peak.intensity * 1.4;
+        if (cost < bestCost && distance <= 6 + track.misses * 2.5) {
+          bestCost = cost;
           bestIndex = peakIndex;
         }
       }
@@ -279,10 +295,15 @@ function reconstructRidges(
       const maxIntensity = Math.max(...intensityValues);
       const span = track.points.at(-1)!.x - track.points[0]!.x;
       const smoothed = smoothRidge(track.points);
-      const simplified = simplifyOpen(smoothed, 0.48);
+      const simplified = simplifyOpen(smoothed, 0.72);
       return { points: simplified, meanIntensity, maxIntensity, span };
     })
-    .filter((track) => track.points.length >= 3 && track.span >= 33 && track.meanIntensity >= options.threshold / 310)
+    .filter(
+      (track) =>
+        track.points.length >= 3 &&
+        track.span >= Math.max(60, field.width * 0.12) &&
+        track.meanIntensity >= options.threshold / 310,
+    )
     .sort(
       (a, b) =>
         b.span * Math.sqrt(b.meanIntensity * 0.65 + b.maxIntensity * 0.35) -
@@ -333,7 +354,7 @@ function renderRidges(ridges: ReadonlyArray<StyledRidge>, limit = ridges.length)
     const color = energy > 0.62 ? "#d40718" : energy > 0.35 ? "#ef2430" : "#ff5d61";
     return svgPath(
       twizzlerSvgPathCubic(ridge.points),
-      `fill="none" stroke="${color}" stroke-opacity="${number(0.18 + energy * 0.76)}" stroke-width="${number(0.32 + energy * 1.18)}" stroke-linecap="round" data-ridge="${index}" data-energy="${number(energy)}"`,
+      `fill="none" stroke="${color}" stroke-opacity="${number(0.1 + energy * 0.78)}" stroke-width="${number(0.24 + energy * 1.08)}" stroke-linecap="round" stroke-linejoin="round" data-ridge="${index}" data-energy="${number(energy)}"`,
     );
   });
 }
@@ -410,12 +431,12 @@ export function rasterDriftTraceToSvg(strategy: RasterDriftTraceStrategy, field:
       ];
       break;
     case "B2": {
-      const ridges = reconstructRidges(field, { xStep: 3, threshold: 18, maximumTracks: 360 });
+      const ridges = reconstructRidges(field, { xStep: 4, threshold: 16, maximumTracks: 320 });
       content = ['  <g data-strategy="B2" data-layer="editable-cubic-ridges">', ...renderRidges(ridges), "  </g>"];
       break;
     }
     case "C2": {
-      const ridges = reconstructRidges(field, { xStep: 3, threshold: 28, maximumTracks: 210 });
+      const ridges = reconstructRidges(field, { xStep: 4, threshold: 24, maximumTracks: 210 });
       content = [
         '  <g data-strategy="C2">',
         '    <g data-layer="low-frequency-contours">',
@@ -424,18 +445,18 @@ export function rasterDriftTraceToSvg(strategy: RasterDriftTraceStrategy, field:
             threshold: 9,
             color: "#ff665d",
             opacity: 0.16,
-            blockSize: 4,
-            minimumArea: 28,
-            tolerance: 1.2,
+            blockSize: 2,
+            minimumArea: 18,
+            tolerance: 0.75,
             sampleMode: "average",
           },
           {
             threshold: 31,
             color: "#ee2830",
             opacity: 0.28,
-            blockSize: 4,
-            minimumArea: 20,
-            tolerance: 1,
+            blockSize: 2,
+            minimumArea: 14,
+            tolerance: 0.65,
             sampleMode: "average",
           },
         ]),
