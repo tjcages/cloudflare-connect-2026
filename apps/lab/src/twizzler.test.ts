@@ -82,7 +82,7 @@ describe("Twizzler", () => {
     expect(twizzlerPathBend(0.8, settings)).toBeCloseTo(-0.15, 2);
   });
 
-  it("provides structurally distinct target-aware macro-hill pass-three rhythms", () => {
+  it("provides structurally distinct authored macro-hill pass-four rhythms", () => {
     const settings = normalizeTwizzlerSettings({
       amplitude: 1,
       scale: 1.15,
@@ -98,32 +98,27 @@ describe("Twizzler", () => {
       speed: 0,
     });
 
-    const countExtrema = (hillRhythm: number) => {
-      const ys = Array.from({ length: 401 }, (_, index) =>
-        twizzlerMarketingCenterY(index / 400, { ...settings, hillRhythm }, 0),
-      );
-      let extrema = 0;
-      for (let index = 1; index < ys.length - 1; index += 1) {
-        const before = ys[index]! - ys[index - 1]!;
-        const after = ys[index + 1]! - ys[index]!;
-        if (before * after < 0) extrema += 1;
-      }
-      return extrema;
-    };
+    const center = (hillRhythm: number, x: number) =>
+      twizzlerMarketingCenterY(x, { ...settings, hillRhythm }, 0);
 
-    expect(countExtrema(0)).toBeLessThan(countExtrema(1));
-    expect(countExtrema(1)).toBeLessThan(countExtrema(2));
-    expect(twizzlerMarketingCenterY(0.22, { ...settings, hillRhythm: 0 }, 0)).toBeGreaterThan(
-      twizzlerMarketingCenterY(0.82, { ...settings, hillRhythm: 0 }, 0),
-    );
-    expect(twizzlerMarketingCenterY(0.22, { ...settings, hillRhythm: 1 }, 0)).toBeGreaterThan(
-      twizzlerMarketingCenterY(0.8, { ...settings, hillRhythm: 1 }, 0),
-    );
-    expect(twizzlerMarketingCenterY(0.957, { ...settings, hillRhythm: 2 }, 0)).toBeGreaterThan(
-      twizzlerMarketingCenterY(0.92, { ...settings, hillRhythm: 2 }, 0),
-    );
+    expect(center(0, 0.09)).toBeGreaterThan(center(0, 0.16));
+    expect(center(0, 0.24)).toBeGreaterThan(center(0, 0.16));
+    expect(center(0, 0.455)).toBeGreaterThan(center(0, 0.77));
+    expect(center(0, 0.96)).toBeGreaterThan(center(0, 0.91));
+
+    expect(Math.abs(center(1, 0) - center(1, 0.33))).toBeLessThan(0.12);
+    expect(center(1, 0.51)).toBeGreaterThan(center(1, 0.33));
+    expect(center(1, 0.82)).toBeLessThan(center(1, 0.51));
+    expect(center(1, 0.96)).toBeGreaterThan(center(1, 0.9));
+
+    expect(center(2, 0.07)).toBeGreaterThan(center(2, 0.14));
+    expect(center(2, 0.21)).toBeGreaterThan(center(2, 0.28));
+    expect(center(2, 0.43)).toBeGreaterThan(center(2, 0.76));
+    expect(center(2, 0.84)).toBeGreaterThan(center(2, 0.9));
+    expect(center(2, 0.95)).toBeGreaterThan(center(2, 0.9));
+
     expect([0, 1, 2].map((hillRhythm) => twizzlerMarketingSpineShare({ ...settings, hillRhythm }))).toEqual([
-      0.2, 0.24, 0.28,
+      0.3, 0.36, 0.42,
     ]);
 
     for (const hillRhythm of [0, 1, 2]) {

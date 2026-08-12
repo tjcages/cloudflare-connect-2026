@@ -52,8 +52,8 @@ export type TwizzlerSettings = {
   depthTerrain: number;
   /**
    * Shared left-to-right macro-hill rhythm:
-   * 0 = broad marketing hills (A3), 1 = target-spaced valleys (B3),
-   * 2 = controlled terminal compression (C3).
+   * 0 = target silhouette study (A4), 1 = asymmetric marketing rhythm (B4),
+   * 2 = fan-transition study (C4).
    */
   hillRhythm: number;
   twist: number;
@@ -314,36 +314,31 @@ function twizzlerHillRhythm(settings: TwizzlerSettings): TwizzlerHillRhythm {
 
 /**
  * Bend controls participate in the macro rhythm without changing their saved
- * values. Pass 3 restrains the left/middle like the target, then reserves the
- * strongest lift and compressed cadence for the right side.
+ * values. Pass 4 uses bends only as broad structural reinforcement around each
+ * authored knot profile; no global sinusoid drives the macro spine.
  */
 export function twizzlerMarketingBend(xT: number, settings: TwizzlerSettings): number {
   const rhythm = twizzlerHillRhythm(settings);
   switch (rhythm) {
     case 0:
       return (
-        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.38, 0.3) +
-        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.3, 0.32) +
-        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 0.52, 0.24)
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.25, 0.22) +
+        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.35, 0.13) +
+        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 0.55, 0.22)
       );
     case 1:
       return (
-        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.82, 0.16) +
-        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.48, 0.14) +
-        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 0.95, 0.17) +
-        twizzlerBendOffset(xT, 0.72, -0.045, 0.18)
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.18, 0.3) +
+        twizzlerBendOffset(xT, 0.52, settings.bend2Amount * 0.72, 0.09) +
+        twizzlerBendOffset(xT, 0.81, settings.bend3Amount * 0.8, 0.2) +
+        twizzlerBendOffset(xT, 0.95, 0.045, 0.08)
       );
-    case 2: {
-      const targetBase =
-        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.68, 0.18) +
-        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.4, 0.15) +
-        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 0.9, 0.13);
-      const terminalCompression =
-        twizzlerBendOffset(xT, 0.86, -0.045, 0.065) +
-        twizzlerBendOffset(xT, 0.92, 0.042, 0.05) +
-        twizzlerBendOffset(xT, 0.968, -0.036, 0.042);
-      return targetBase + terminalCompression;
-    }
+    case 2:
+      return (
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.32, 0.17) +
+        twizzlerBendOffset(xT, 0.45, settings.bend2Amount * 0.62, 0.085) +
+        twizzlerBendOffset(xT, 0.73, settings.bend3Amount * 0.7, 0.24)
+      );
     default: {
       const _exhaustive: never = rhythm;
       return _exhaustive;
@@ -356,11 +351,11 @@ export function twizzlerMarketingSpineShare(settings: TwizzlerSettings): number 
   const rhythm = twizzlerHillRhythm(settings);
   switch (rhythm) {
     case 0:
-      return 0.2;
+      return 0.3;
     case 1:
-      return 0.24;
+      return 0.36;
     case 2:
-      return 0.28;
+      return 0.42;
     default: {
       const _exhaustive: never = rhythm;
       return _exhaustive;
@@ -377,94 +372,74 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
   const x = Math.max(0, Math.min(1, xT));
   const rhythm = twizzlerHillRhythm(settings);
   let yKnot = 0.55;
-  const waveGain = 0.55 + settings.amplitude * 1.35;
-  let waves = 0;
   switch (rhythm) {
     case 0: {
-      // A3: broad marketing-scale hills; one restrained basin, one hero lift.
+      // A4: target study — two quiet hills, compressed trough, hero rise, shallow ripples.
       yKnot = sampleKnots(x, [
-        [0.0, 0.54],
-        [0.22, 0.76],
-        [0.43, 0.72],
-        [0.57, 0.66],
-        [0.72, 0.28],
-        [0.82, 0.1],
-        [0.93, 0.24],
-        [1.0, 0.31],
+        [0.0, 0.55],
+        [0.09, 0.62],
+        [0.16, 0.54],
+        [0.24, 0.65],
+        [0.31, 0.57],
+        [0.39, 0.63],
+        [0.455, 0.84],
+        [0.52, 0.73],
+        [0.59, 0.61],
+        [0.68, 0.31],
+        [0.77, 0.05],
+        [0.85, 0.17],
+        [0.91, 0.1],
+        [0.96, 0.19],
+        [1.0, 0.13],
       ]);
-      waves =
-        waveGain *
-        0.42 *
-        (-0.065 * Math.sin(x * Math.PI * 1.2 + 0.25) +
-          -0.026 * Math.sin(x * Math.PI * 2.15 + 1.05) +
-          -0.012 * Math.sin(x * Math.PI * 3.0 + time * 0.12));
       break;
     }
     case 1: {
-      // B3: target-like asymmetric valleys before the dominant rising sweep.
+      // B4: long flat lead, offset pinch, delayed crest, one terminal dip.
       yKnot = sampleKnots(x, [
-        [0.0, 0.53],
-        [0.1, 0.66],
-        [0.22, 0.8],
-        [0.32, 0.67],
-        [0.39, 0.75],
-        [0.48, 0.63],
-        [0.55, 0.7],
-        [0.63, 0.53],
-        [0.72, 0.25],
-        [0.8, 0.06],
-        [0.88, 0.27],
-        [0.94, 0.18],
-        [1.0, 0.32],
+        [0.0, 0.56],
+        [0.16, 0.57],
+        [0.33, 0.59],
+        [0.43, 0.62],
+        [0.51, 0.86],
+        [0.57, 0.7],
+        [0.68, 0.43],
+        [0.82, 0.04],
+        [0.9, 0.11],
+        [0.96, 0.29],
+        [1.0, 0.2],
       ]);
-      waves =
-        waveGain *
-        0.52 *
-        (-0.055 * Math.sin(x * Math.PI * 2.5 + 0.15) +
-          -0.038 * Math.sin(x * Math.PI * 4.7 + 1.2) +
-          -0.022 * Math.sin(x * Math.PI * 6.8 + 2.15) +
-          -0.012 * Math.sin(x * Math.PI * 8.4 + time * 0.14));
       break;
     }
     case 2: {
-      // C3: broad target base with smooth, gated terminal compression.
+      // C4: left pulses converge at a narrow waist, then one long fan rise and two waves.
       yKnot = sampleKnots(x, [
-        [0.0, 0.54],
-        [0.12, 0.67],
-        [0.23, 0.81],
-        [0.36, 0.69],
-        [0.46, 0.75],
-        [0.57, 0.64],
-        [0.66, 0.49],
-        [0.75, 0.19],
-        [0.82, 0.08],
-        [0.875, 0.28],
-        [0.92, 0.14],
-        [0.957, 0.3],
-        [0.982, 0.18],
-        [1.0, 0.29],
+        [0.0, 0.55],
+        [0.07, 0.62],
+        [0.14, 0.54],
+        [0.21, 0.65],
+        [0.28, 0.56],
+        [0.35, 0.64],
+        [0.43, 0.83],
+        [0.49, 0.74],
+        [0.56, 0.62],
+        [0.76, 0.04],
+        [0.84, 0.16],
+        [0.9, 0.09],
+        [0.95, 0.18],
+        [1.0, 0.11],
       ]);
-      const terminalGate = smoothstep(0.66, 0.94, x);
-      const acceleratingPhase = Math.PI * (2.2 * x + 4.8 * x * x);
-      const fastPhase = Math.PI * (4.4 * x + 8.5 * x * x);
-      waves =
-        waveGain *
-        (-0.017 * Math.sin(x * Math.PI * 2.15 + 0.25) +
-          terminalGate *
-            (-0.035 * Math.sin(acceleratingPhase + 0.3) - 0.022 * Math.sin(fastPhase + 1.25 + time * 0.12)));
       break;
     }
     default: {
       const _exhaustive: never = rhythm;
-      void _exhaustive;
-      waves = 0;
-      break;
+      return _exhaustive;
     }
   }
   const edges = twizzlerEdgeHeights(time, 0, settings);
   const edgeBias = (edges.left - 0.55) * (1 - x) + (edges.right - 0.4) * x;
   const bend = twizzlerMarketingBend(x, settings) * 1.15;
-  const yAbs = yKnot + waves + edgeBias * 0.3 + bend;
+  const yAbs = yKnot + edgeBias * 0.3 + bend;
   return settings.centerY + (yAbs - 0.55) * settings.scale;
 }
 
