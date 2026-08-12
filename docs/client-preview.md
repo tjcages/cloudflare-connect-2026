@@ -36,7 +36,7 @@ Current ribbon geometry is the **orange-wave** 3D projected vector from
 - Move X/Y = pixel translate after projection; Move Z = post-fit dolly (closer/farther)
 - Zoom is unbounded (no L/R lock / vertical stretch)
 - ~56 layers, Rotate X/Y/Z (defaults 12° / −18° / 0°), `lineWidth` ~1.15, dense sampling (≥160 pts)
-- Rain toggle (**Rain** next to Twizzler **Show**): gates the stripe/rain layer (`stripesEnabled` + `sparkle.gaps`). Off = Twizzler-only on canvas and in SVG export.
+- Rain toggle (**Rain** next to Twizzler **Show**): optional stripe-rect overlay (`sparkle.gaps`). Off = Twizzler ribbon only (rain canvas hidden so it doesn’t cover the shader). On = individual rain rects on top. Export omits rain paths when Rain is off; Twizzler always exports when Show is on.
 - Reference: `apps/lab/src/presets/references/orange-wave-vector.html`
 
 ## Exports
@@ -48,7 +48,7 @@ Client panel (and lab) expose:
 - **Download JSON** — full lab configuration file
 - **Upload JSON** — import a config file as a saved layout and apply it
 - **Export Video** — MediaRecorder / ffmpeg pipeline
-- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid / Shared / Fiber / Baked. **Rain** must be on to include stripe/rain paths; with Rain off, export is Twizzler (+ background) only.
+- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid / Shared / Fiber / Baked. Twizzler exports whenever Show is on. **Rain** adds stripe-rect paths when on; with Rain off, export is Twizzler (+ background) only.
 
 ## Next HTML → Leva mapping (do this on the next drop)
 
@@ -60,7 +60,7 @@ When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (
 | Background                   | Background → Fill + Color | Library Neutral White / Neutral steps; Gradient = Advanced    |
 | Twizzler on/off              | Twizzler → Show           | existing `twizzlerEnabled`                                    |
 | Color mode                   | Twizzler → Color mode     | Solid / Shared gradient / Fiber gradient / Baked segments     |
-| Rain on/off                  | Twizzler → Rain           | `rainEnabled` → `stripesEnabled` + `sparkle.gaps` (off = no rain layer / SVG) |
+| Rain on/off                  | Twizzler → Rain           | `rainEnabled` → `sparkle.gaps` + show/hide rain canvas (Twizzler always independent) |
 | Zoom / Move X/Y/Z            | Twizzler → General/Shape  | Zoom + translate live in Default                              |
 | Rotate X/Y/Z                 | Twizzler → Shape          | already live in Default                                       |
 | Layer count / width / points | Twizzler → Stroke         | Default                                                       |

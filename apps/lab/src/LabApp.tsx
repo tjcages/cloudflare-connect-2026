@@ -1631,7 +1631,8 @@ function LabInner({
 
     const buildExportSvg = (): string => {
       const cfg = controlsRef.current;
-      const includeRainStripes = cfg.stripesEnabled;
+      // Rain checkbox → sparkle.gaps. Twizzler exports regardless; rain rects only when Rain is on.
+      const includeRainStripes = cfg.sparkle.gaps.enabled;
       const readback = engine.readCellGrid();
       const canvasWidthPx = Math.round(Number.parseFloat(canvas.style.width) || canvas.clientWidth || canvas.width);
       const canvasHeightPx = Math.round(Number.parseFloat(canvas.style.height) || canvas.clientHeight || canvas.height);
@@ -1745,7 +1746,7 @@ function LabInner({
       const cfg = controlsRef.current;
       const twizzlerOn =
         labSettingsRef.current.textureSourceMode === "shader" && twizzlerRef.current.enabled;
-      if (!cfg.stripesEnabled && !twizzlerOn) {
+      if (!cfg.sparkle.gaps.enabled && !twizzlerOn) {
         window.alert("Enable Rain or Twizzler before exporting an SVG.");
         return;
       }
@@ -3066,6 +3067,9 @@ function LabInner({
   const showConnectGradientUnderlay =
     textureSourceMode === "shader" && isSpiralShaderPreset(shaderPresetId) && labSettings.connectGradientUnderlay;
   const showTwizzlerOverlay = shouldShowTwizzlerOverlay(textureSourceMode, twizzler.enabled);
+  // Client Rain = stripe rect overlay on top of Twizzler. Output canvas sits above Twizzler
+  // (z-index), so hide it when Rain is off or it covers the ribbon with an opaque pass.
+  const showRainRectOverlay = !clientMode || controls.sparkle.gaps.enabled;
   // Engine bg is forced transparent when underlay/source preview is shown — keep the
   // chosen solid color on the stack so it still sits behind those layers.
   // Twizzler hairlines need an opaque stack underlay (usually white) to read at all.
@@ -3487,7 +3491,8 @@ function LabInner({
                   className="lab-canvas-output"
                   style={{
                     display: "block",
-                    opacity: surfaceWorkspace.mode === "partial" ? 0 : 1,
+                    opacity: surfaceWorkspace.mode === "partial" || !showRainRectOverlay ? 0 : 1,
+                    pointerEvents: surfaceWorkspace.mode === "partial" || !showRainRectOverlay ? "none" : "auto",
                     width: canvasCssSize.cssW,
                     height: canvasCssSize.cssH,
                   }}

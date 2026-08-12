@@ -304,8 +304,10 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
 
   if (!engineConfig.sparkle) engineConfig.sparkle = {};
   if (!engineConfig.sparkle.gaps) engineConfig.sparkle.gaps = { enabled: false, coverage: 1, speed: 0.1 };
-  // Rain checkbox gates the whole stripe/rain layer (not just gap patterning).
-  engineConfig.stripesEnabled = state.rainEnabled;
+  // Rain = individual stripe rects overlay (gaps). Twizzler ribbon stays independent.
+  // Keep stripesEnabled on so the engine output can composite; LabApp hides the rain
+  // canvas when Rain is off so Twizzler is not covered by an opaque empty pass.
+  engineConfig.stripesEnabled = true;
   engineConfig.sparkle.gaps.enabled = state.rainEnabled;
   if (state.rainEnabled) {
     engineConfig.sparkle.gaps.coverage = engineConfig.sparkle.gaps.coverage ?? 1;
