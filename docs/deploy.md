@@ -55,10 +55,14 @@ Branch slug = git branch with `/` → `-`, lowercased (e.g. `cursor/cf-17-…` �
 ### Dashboard checklist (one-time)
 
 1. [connect-shader → Settings → Domains & Routes](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production) → **Preview URLs = Enable**
-2. Settings → **Build** → Branch control → check **Builds for non-production branches**
-3. Non-production deploy command: `npx wrangler versions upload` (default)
-4. Push to the PR branch → wait for the Cloudflare PR comment with both URLs
+2. Settings → **Build** → Branch control → check **Builds for non-production branches** (must be an explicit checkbox — configuring “Version command” alone is not enough)
+3. **Build command:** `pnpm install` (postinstall builds assets when `WORKERS_CI=1`) or `pnpm run build`
+4. **Deploy command (`main`):** `npx wrangler deploy`
+5. **Version / non-prod command:** `npx wrangler versions upload`
+6. Push to a PR branch → GitHub check `cloudflare-workers-and-pages` must leave **queued** and show a real check run → Cloudflare comments both preview URLs on the PR
 
-If the GitHub check `cloudflare-workers-and-pages` stays **queued** with **0 runs**, non-production branch builds are off — flip step 2.
+If every non-`main` commit stays **queued / 0 runs** forever, non-prod builds are not actually firing — re-toggle the Branch control checkbox, confirm no stuck build is holding the free-plan concurrent slot (limit 1), and check [Build history](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production).
+
+Fallback: repo secret `CLOUDFLARE_API_TOKEN` + `.github/workflows/workers-preview.yml` (`pnpm run preview:upload`).
 
 Dashboard deployments: https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production/deployments

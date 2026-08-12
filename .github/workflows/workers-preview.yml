@@ -1,22 +1,21 @@
-# Cloudflare Workers PR preview (versions upload)
-
-# Posts a branch-aliased preview URL without promoting production.
-# Requires repo secret CLOUDFLARE_API_TOKEN (Workers Edit permission).
-# Prefer native Workers Builds non-production branch builds when available —
-# this workflow is a fallback when the CF GitHub check stays queued with 0 runs.
+# Fallback PR preview via wrangler versions upload (does not touch production).
+# Needs repo secret: CLOUDFLARE_API_TOKEN
+# Prefer Cloudflare Workers Builds non-prod branch builds when they actually run.
 
 name: Workers PR preview
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 concurrency:
-  group: workers-preview-${{ github.event.pull_request.number }}
+  group: workers-preview-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   preview:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,21 +36,27 @@ jobs:
       - name: Derive preview alias
         id: alias
         run: |
-          BRANCH="${{ github.head_ref }}"
+          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           ALIAS=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/^(.{48}).*/\1/')
           echo "alias=$ALIAS" >> "$GITHUB_OUTPUT"
           echo "url=https://${ALIAS}-connect-shader.off-brand.workers.dev/" >> "$GITHUB_OUTPUT"
+          echo "Branch preview: https://${ALIAS}-connect-shader.off-brand.workers.dev/"
 
       - name: Upload Worker version (preview alias)
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 944ca70087298faa2e84783db46162c5
           PREVIEW_ALIAS: ${{ steps.alias.outputs.alias }}
-        run: pnpm run preview:upload
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
+            echo "::error::Missing CLOUDFLARE_API_TOKEN secret. Native Workers Builds also not uploading (check Branch control → Builds for non-production branches)."
+            echo "Expected URL: ${{ steps.alias.outputs.url }}"
+            exit 1
+          fi
+          pnpm run preview:upload
 
       - name: Comment preview URL on PR
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -86,10 +91,3 @@ jobs:
                 body,
               });
             }
-
-      - name: Missing CLOUDFLARE_API_TOKEN
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' }}
-        run: |
-          echo "::warning::Add repo secret CLOUDFLARE_API_TOKEN, or enable Workers Builds → Branch control → Builds for non-production branches."
-          echo "Expected branch preview: ${{ steps.alias.outputs.url }}"
-          exit 1
