@@ -206,7 +206,9 @@
 }
 
 .playground-leva-panel
-  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(:disabled):hover {
+  button:not(.lab-panel-mode-btn):not(.library-color-input-swatch):not(.stripe-colors-leva-swatch):not(
+    :disabled
+  ):hover {
   color: var(--leva-text) !important;
   background-color: var(--leva-surface-hover) !important;
   border-color: transparent !important;
@@ -731,6 +733,15 @@
   display: none !important;
 }
 
+.playground-leva-panel div:has(> .twizzler-gradient-leva-row) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+}
+
+.playground-leva-panel div:has(> .twizzler-gradient-leva-row) > *:not(.twizzler-gradient-leva-row) {
+  display: none !important;
+}
+
 /* Stripe colors table — column-split grid: draggable color column + static threshold/width ladder. */
 .playground-leva-panel .stripe-colors-table {
   --sc-row-h: 32px;
@@ -844,6 +855,148 @@
   stroke: var(--leva-surface);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+
+.twizzler-gradient-editor {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0 6px;
+  font-size: 11px;
+}
+
+.twizzler-gradient-editor.is-disabled {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.twizzler-gradient-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.twizzler-gradient-editor-title {
+  color: var(--leva-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.twizzler-gradient-editor-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.playground-leva-panel button.twizzler-gradient-editor-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 7px;
+  font-size: 10px;
+}
+
+.twizzler-gradient-graph {
+  position: relative;
+  width: 100%;
+  height: 56px;
+  padding: 8px 8px 0;
+  box-sizing: border-box;
+  border-radius: var(--leva-radius);
+  background: color-mix(in srgb, var(--leva-surface) 68%, transparent);
+  touch-action: none;
+  user-select: none;
+  overflow: visible;
+}
+
+.twizzler-gradient-graph.is-editable {
+  cursor: crosshair;
+}
+
+.twizzler-gradient-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.twizzler-gradient-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 30px;
+  border-radius: 4px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--leva-text-muted) 22%, transparent);
+}
+
+.twizzler-gradient-baseline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  height: 1px;
+  background: color-mix(in srgb, var(--leva-text-muted) 34%, transparent);
+  pointer-events: none;
+}
+
+.playground-leva-panel button.twizzler-gradient-handle {
+  position: absolute;
+  top: auto;
+  bottom: 4px;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px !important;
+  border: 1px solid var(--leva-surface) !important;
+  background-color: var(--twizzler-gradient-handle-color, #888) !important;
+  background-image: none !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--leva-text-muted) 45%, transparent) !important;
+  transform: translateX(-50%);
+  cursor: grab;
+  z-index: 1;
+}
+
+.playground-leva-panel button.twizzler-gradient-handle:not(:disabled):hover,
+.playground-leva-panel button.twizzler-gradient-handle.is-selected {
+  box-shadow:
+    0 0 0 1px var(--leva-accent-strong),
+    0 0 0 3px color-mix(in srgb, var(--leva-accent-strong) 28%, transparent) !important;
+}
+
+.twizzler-gradient-selected {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.twizzler-gradient-selected-meta {
+  display: grid;
+  min-width: 0;
+}
+
+.twizzler-gradient-selected-name,
+.twizzler-gradient-selected-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.twizzler-gradient-selected-name {
+  color: var(--leva-text);
+}
+
+.twizzler-gradient-selected-code,
+.twizzler-gradient-selected-offset {
+  color: var(--leva-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .playground-leva-panel .stripe-colors-table .stripe-colors-drawer-toggle {

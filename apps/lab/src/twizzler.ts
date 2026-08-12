@@ -6,6 +6,13 @@
  * Legacy marketing helpers below are kept for tests / experiment tooling.
  */
 
+import {
+  applyTwizzlerGradientStops,
+  defaultTwizzlerGradientStops,
+  parseTwizzlerGradientStops,
+  type TwizzlerGradientStop,
+} from "./twizzlerGradient";
+
 /** Ribbon color preview + SVG export strategy. */
 export type TwizzlerRibbonColorMode = "solid" | "sharedGradient" | "fiberGradient" | "baked";
 
@@ -24,6 +31,11 @@ export type TwizzlerSettings = {
   colorNear: string;
   /** Peak Y accent (Red Accent). */
   colorEdge: string;
+  /**
+   * Shared / Fiber X-ramp stops (offset 0–1 + color).
+   * Legacy configs without this list synthesize colorFar@0 → colorNear@1.
+   */
+  gradientStops: TwizzlerGradientStop[];
   opacity: number;
   /** Orange-wave camera zoom (HTML `zoom`). */
   scale: number;
@@ -84,8 +96,8 @@ export type TwizzlerSettings = {
   /**
    * How ribbon color is previewed + exported:
    * - solid: one fill color per fiber
-   * - sharedGradient: one pack-wide X ramp (artboard left→right), ribbons sample it
-   * - fiberGradient: colorFar→colorNear fitted to each ribbon’s own X extent
+   * - sharedGradient: one pack-wide X ramp (artboard left→right), ribbons sample `gradientStops`
+   * - fiberGradient: same stop list fitted to each ribbon’s own X extent
    * - baked: segmented X/Y/Z fills (highest fidelity, heaviest)
    */
   ribbonColorMode: TwizzlerRibbonColorMode;
@@ -136,6 +148,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   colorFar: "#fea700",
   colorNear: "#f46021",
   colorEdge: "#e92e28",
+  gradientStops: defaultTwizzlerGradientStops("#fea700", "#f46021"),
   opacity: 1,
   scale: 1,
   centerY: 0.5,
@@ -317,11 +330,17 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
   const input = value && typeof value === "object" ? (value as Partial<TwizzlerSettings>) : {};
   const color = normalizeTwizzlerColor(input.color, TWIZZLER_DEFAULTS.color);
   const ribbonColorMode = resolveTwizzlerRibbonColorMode(input);
+  const colorFarInput = normalizeTwizzlerColor(input.colorFar, TWIZZLER_DEFAULTS.colorFar);
+  const colorNearInput = normalizeTwizzlerColor(input.colorNear ?? input.color, TWIZZLER_DEFAULTS.colorNear);
+  const gradientStops = parseTwizzlerGradientStops(input.gradientStops, colorFarInput, colorNearInput);
+  const colorFar = gradientStops[0]?.color ?? colorFarInput;
+  const colorNear = gradientStops[gradientStops.length - 1]?.color ?? colorNearInput;
   return {
-    color,
-    colorFar: normalizeTwizzlerColor(input.colorFar, TWIZZLER_DEFAULTS.colorFar),
-    colorNear: normalizeTwizzlerColor(input.colorNear ?? input.color, TWIZZLER_DEFAULTS.colorNear),
+    color: ribbonColorMode === "solid" ? colorNearInput : color,
+    colorFar,
+    colorNear,
     colorEdge: normalizeTwizzlerColor(input.colorEdge, TWIZZLER_DEFAULTS.colorEdge),
+    gradientStops,
     opacity: clamp(input.opacity, TWIZZLER_DEFAULTS.opacity, 0, 1),
     scale: clamp(input.scale, TWIZZLER_DEFAULTS.scale, 0.01, 50),
     centerY: clamp(input.centerY, TWIZZLER_DEFAULTS.centerY, -2, 3),
@@ -1326,12 +1345,12 @@ export function renderTwizzler(
 
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
   const colorMode = resolveTwizzlerRibbonColorMode(settings);
+  const rampStops = settings.gradientStops;
   const packGradient =
     colorMode === "sharedGradient"
       ? (() => {
           const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
-          gradient.addColorStop(0, settings.colorFar);
-          gradient.addColorStop(1, settings.colorNear);
+          applyTwizzlerGradientStops(gradient, rampStops);
           return gradient;
         })()
       : null;
@@ -1365,8 +1384,7 @@ export function renderTwizzler(
         const span = ribbonGradientXSpan(line.points, strokeWidth);
         if (span) {
           const gradient = context.createLinearGradient(span.x1, 0, span.x2, 0);
-          gradient.addColorStop(0, settings.colorFar);
-          gradient.addColorStop(1, settings.colorNear);
+          applyTwizzlerGradientStops(gradient, rampStops);
           context.fillStyle = gradient;
         } else {
           context.fillStyle = settings.colorNear;

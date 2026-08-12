@@ -166,4 +166,26 @@ describe("twizzlerToSvgLayer", () => {
     expect(shared.match(/<linearGradient /g)?.length).toBe(1);
     expect(fiber.match(/<linearGradient /g)?.length).toBe(fiberSpans.length);
   });
+
+  it("exports custom shared-ramp stop offsets (CF-55)", () => {
+    const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
+      ...TWIZZLER_DEFAULTS,
+      lineCount: 4,
+      pointSpacing: 10,
+      ribbonColorMode: "sharedGradient",
+      gradientStops: [
+        { id: "a", offset: 0.15, color: "#ff0000" },
+        { id: "b", offset: 0.6, color: "#00ff00" },
+        { id: "c", offset: 0.9, color: "#0000ff" },
+      ],
+      speed: 0,
+    });
+    expect(svg).toContain('offset="0.15"');
+    expect(svg).toContain('offset="0.6"');
+    expect(svg).toContain('offset="0.9"');
+    expect(svg).toContain("rgb(255,0,0)");
+    expect(svg).toContain("rgb(0,255,0)");
+    expect(svg).toContain("rgb(0,0,255)");
+    expect(svg.match(/<stop /g)?.length).toBe(3);
+  });
 });
