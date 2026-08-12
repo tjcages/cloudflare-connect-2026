@@ -60,7 +60,12 @@ import {
   savePresets,
   type ConfigPreset,
 } from "./presets";
-import { buildClientPreviewBundle, DEFAULT_CLIENT_PREVIEW_STATE } from "./client/clientPresets";
+import {
+  applyClientLayout,
+  listSavedLayouts,
+  loadActiveClientLayoutName,
+  saveActiveClientLayoutName,
+} from "./client/savedLayouts";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -846,34 +851,26 @@ function LabInner({
   onResetSurfaceArea,
 }: LabInnerProps) {
   const startupPreset = useMemo(() => loadDefaultPreset(), []);
-  const clientBootBundle = useMemo(
-    () => (clientMode ? buildClientPreviewBundle(DEFAULT_CLIENT_PREVIEW_STATE) : null),
-    [clientMode],
-  );
   const startupLabSettings = useMemo(() => {
-    if (clientBootBundle) {
+    const stored = loadLabSettings();
+    if (clientMode) {
+      // client-main already applied Banner / saved layout into storage.
       return {
-        ...loadLabSettings(),
+        ...stored,
         canvasMode: "manual" as const,
-        canvasWidth: clientBootBundle.canvasWidth,
-        canvasHeight: clientBootBundle.canvasHeight,
         canvasAspectLocked: true,
-        twizzlerEnabled: true,
-        twizzler: clientBootBundle.twizzler,
-        twizzlerMap: clientBootBundle.twizzlerMap,
-        shaderSourceWidth: clientBootBundle.shaderSourceWidth,
-        shaderSourceHeight: clientBootBundle.shaderSourceHeight,
         textureSidebarOpen: false,
         shaderSidebarOpen: true,
         textureSourceMode: "shader" as const,
-        shaderPresetId: "twizzler-map",
+        shaderPresetId: stored.shaderPresetId || "twizzler-map",
+        twizzlerEnabled: stored.twizzlerEnabled ?? true,
       };
     }
     return {
-      ...loadLabSettings(),
+      ...stored,
       ...(startupPreset?.lab ?? {}),
     };
-  }, [clientBootBundle, startupPreset]);
+  }, [clientMode, startupPreset]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const twizzlerCanvasRef = useRef<HTMLCanvasElement>(null);
   const framesCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -925,7 +922,13 @@ function LabInner({
   const hasStoredPreviewZoomRef = useRef(labSettings.previewZoom != null);
   const previewZoomTouchedRef = useRef(false);
   const [presets, setPresets] = useState<ConfigPreset[]>(() => loadPresets());
-  const [selectedPreset, setSelectedPreset] = useState(() => consumeBootPresetName() ?? startupPreset?.name ?? "");
+  const [selectedPreset, setSelectedPreset] = useState(
+    () =>
+      consumeBootPresetName() ??
+      (clientMode ? loadActiveClientLayoutName() : null) ??
+      startupPreset?.name ??
+      "",
+  );
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
   const textureSourceModeRef = useRef(textureSourceMode);
@@ -1144,7 +1147,8 @@ function LabInner({
     activeShaderConfig: resolveShaderConfigKind(textureSourceMode, shaderPresetId),
     showTwizzlerRibbon: textureSourceMode === "shader",
     twizzlerTransport: simplifiedLeva ? undefined : twizzlerTransport,
-    initialConfig: clientBootBundle?.engineConfig ?? initialConfig,
+    // Client boot wrote the active layout into storage — let controls load it.
+    initialConfig: clientMode ? undefined : initialConfig,
     clientMode: simplifiedLeva,
   });
   const controlsRef = useRef(controls);
@@ -2708,7 +2712,23 @@ function LabInner({
     if (!file) return;
     try {
       const text = await file.text();
+      const imported = importSettingsFile(text);
       applyImportedSettings(text);
+      if (clientMode) {
+        const layoutName = file.name.replace(/\.json$/i, "").trim() || "Uploaded layout";
+        const registered = addPreset(
+          presets,
+          createPreset(layoutName, sanitizeThemedConfig(imported.config), imported.lab ?? undefined),
+        );
+        savePresets(registered);
+        setPresets(registered);
+        saveActiveClientLayoutName(layoutName);
+        try {
+          sessionStorage.setItem("stripes-engine-lab-boot-preset", layoutName);
+        } catch {
+          /* ignore */
+        }
+      }
       window.location.reload();
     } catch {
       window.alert("Invalid config JSON.");
@@ -2802,20 +2822,25 @@ function LabInner({
   }
 
   function handleSavePreset() {
-    const name = window.prompt("Preset name:")?.trim();
+    const name = window.prompt(clientMode ? "Layout name:" : "Preset name:")?.trim();
     if (!name) return;
-    if (presets.some((p) => p.name === name) && !window.confirm(`Overwrite preset "${name}"?`)) return;
+    if (presets.some((p) => p.name === name) && !window.confirm(`Overwrite "${name}"?`)) return;
     const next = addPreset(presets, createPreset(name, getActiveThemedConfig(), fullLabSettingsSnapshot()));
     savePresets(next);
     setPresets(next);
     setSelectedPreset(name);
+    if (clientMode) saveActiveClientLayoutName(name);
   }
 
   function handleApplyPreset() {
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
     const targetTextureId = textureIdRef.current;
-    applyPresetToStorage(preset, targetTextureId);
+    if (clientMode) {
+      applyClientLayout(preset, targetTextureId);
+    } else {
+      applyPresetToStorage(preset, targetTextureId);
+    }
     saveTextureId(targetTextureId);
     window.location.reload();
   }
@@ -2827,6 +2852,9 @@ function LabInner({
     const next = removePreset(presets, selectedPreset);
     savePresets(next);
     setPresets(next);
+    if (clientMode && loadActiveClientLayoutName() === selectedPreset) {
+      saveActiveClientLayoutName(null);
+    }
     setSelectedPreset("");
   }
 
@@ -3576,11 +3604,62 @@ function LabInner({
                     Advanced
                   </button>
                 </fieldset>
+                <div className="lab-client-layouts">
+                  <div className="lab-client-layouts-label">Saved layouts</div>
+                  <select
+                    className="lab-btn"
+                    value={selectedPreset}
+                    onChange={(e) => setSelectedPreset(e.target.value)}
+                    aria-label="Saved layout"
+                  >
+                    <option value="">Select a layout…</option>
+                    {listSavedLayouts(presets).map((p) => (
+                      <option key={p.name} value={p.name}>
+                        {p.name}
+                      </option>
+                    ))}
+                    {presets
+                      .filter((p) => p.builtin)
+                      .map((p) => (
+                        <option key={p.name} value={p.name}>
+                          {p.name} (builtin)
+                        </option>
+                      ))}
+                  </select>
+                  <div className="wf-row">
+                    <button className="lab-btn" type="button" onClick={handleSavePreset}>
+                      Save layout
+                    </button>
+                    <button
+                      className="lab-btn"
+                      type="button"
+                      onClick={handleApplyPreset}
+                      disabled={!selectedPreset}
+                    >
+                      Apply
+                    </button>
+                    <button
+                      className="lab-btn"
+                      type="button"
+                      onClick={handleDeletePreset}
+                      disabled={!selectedPreset || presets.some((p) => p.name === selectedPreset && p.builtin)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
                 <div className="lab-client-exports">
                   <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
                   <div className="wf-row">
                     <button className="lab-btn" type="button" onClick={handleDownloadConfig}>
                       Download JSON
+                    </button>
+                    <button
+                      className="lab-btn"
+                      type="button"
+                      onClick={() => configFileInputRef.current?.click()}
+                    >
+                      Upload JSON
                     </button>
                     <button className="lab-btn" type="button" onClick={onExportVideo}>
                       Export Video
@@ -3589,6 +3668,13 @@ function LabInner({
                       Export SVG
                     </button>
                   </div>
+                  <input
+                    ref={configFileInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    style={{ display: "none" }}
+                    onChange={handleConfigFileChange}
+                  />
                 </div>
               </div>
               <LevaPanel key={clientPanelMode} store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
