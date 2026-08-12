@@ -650,13 +650,30 @@ export function useEngineControls(
       : "linear",
   );
   const initialStickyBackground = useMemo(() => (surfaceConfig ? null : loadStickyBackgroundColor()), [surfaceConfig]);
-  const [backgroundHex, setBackgroundHex] = useState<string | null>(() =>
-    initialStickyBackground !== null
-      ? intToHex(initialStickyBackground)
-      : d.background.transparent
-        ? null
-        : intToHex(d.background.color),
-  );
+  const [backgroundHex, setBackgroundHex] = useState<string | null>(() => {
+    if (initialStickyBackground !== null) return intToHex(initialStickyBackground);
+    // Prefer last user/lab background over engine/Appearance defaults (CF-44).
+    if (!surfaceConfig && typeof initialLabSettings.backgroundColor === "number") {
+      return intToHex(initialLabSettings.backgroundColor);
+    }
+    if (d.background.transparent) return null;
+    return intToHex(d.background.color);
+  });
+  /**
+   * Schema rebuilds (stripeKey etc.) re-seed Leva from `value:` fields. Keep these
+   * refs current so rebuilds do not snap Appearance/Background back to mount defaults
+   * and re-apply Appearance stage colors over a user Background Color (CF-44).
+   */
+  const levaSchemaSeedRef = useRef({
+    clientSizeId: (initialLabSettings.clientSizeId ??
+      matchClientSizePresetId(initialLabSettings.canvasWidth, initialLabSettings.canvasHeight)) as ClientSizePresetId,
+    clientLayoutId: (initialLabSettings.clientLayoutId ?? DEFAULT_CLIENT_PREVIEW_STATE.layoutId) as ClientLayoutPresetId,
+    clientAppearanceId: (initialLabSettings.clientAppearanceId ??
+      DEFAULT_CLIENT_PREVIEW_STATE.appearanceId) as ClientAppearanceId,
+    clientColorId: (initialLabSettings.clientColorId ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId) as ClientColorPresetId,
+    backgroundHex,
+  });
+  levaSchemaSeedRef.current.backgroundHex = backgroundHex;
 
   const stripePaletteOptions = useMemo(
     () =>
@@ -752,6 +769,7 @@ export function useEngineControls(
     (hex: string | null) => {
       const next = normalizeHexString(hex);
       lastStickyBackgroundRef.current = next;
+      levaSchemaSeedRef.current.backgroundHex = next;
       setBackgroundHex(next);
       const shouldUpdateBackgroundRamp =
         activeGeneratedPaletteRef.current === BACKGROUND_RAMP_PALETTE_NAME ||
@@ -1163,24 +1181,22 @@ export function useEngineControls(
           "Presets",
           {
             clientSize: {
-              value:
-                initialLabSettings.clientSizeId ??
-                matchClientSizePresetId(initialLabSettings.canvasWidth, initialLabSettings.canvasHeight),
+              value: levaSchemaSeedRef.current.clientSizeId,
               options: clientSizeOptions,
               label: "Size",
             },
             clientLayout: {
-              value: initialLabSettings.clientLayoutId ?? DEFAULT_CLIENT_PREVIEW_STATE.layoutId,
+              value: levaSchemaSeedRef.current.clientLayoutId,
               options: clientLayoutOptions,
               label: "Layout",
             },
             clientAppearance: {
-              value: initialLabSettings.clientAppearanceId ?? DEFAULT_CLIENT_PREVIEW_STATE.appearanceId,
+              value: levaSchemaSeedRef.current.clientAppearanceId,
               options: clientAppearanceOptions,
               label: "Appearance",
             },
             clientColor: {
-              value: initialLabSettings.clientColorId ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId,
+              value: levaSchemaSeedRef.current.clientColorId,
               options: clientColorOptions,
               label: "Color",
             },
@@ -2508,7 +2524,7 @@ export function useEngineControls(
             },
             backgroundColor: {
               ...colorLibraryInputPlugin({
-                value: backgroundHex,
+                value: levaSchemaSeedRef.current.backgroundHex,
                 label: "Color",
                 persist: surfaceConfig ? undefined : "backgroundColor",
                 onLiveChange: handleBackgroundColorLiveChange,
@@ -4811,6 +4827,10 @@ export function useEngineControls(
       initialLabSettings.clientAppearanceId ??
       DEFAULT_CLIENT_PREVIEW_STATE.appearanceId,
   ) as ClientAppearanceId;
+  levaSchemaSeedRef.current.clientLayoutId = clientLayoutId;
+  levaSchemaSeedRef.current.clientColorId = clientColorId;
+  levaSchemaSeedRef.current.clientSizeId = clientSizeId;
+  levaSchemaSeedRef.current.clientAppearanceId = clientAppearanceId;
   /**
    * Layout preset — ribbon geometry + motion only.
    * Never touches Twizzler colors (those belong to Color / Appearance).
@@ -4924,6 +4944,10 @@ export function useEngineControls(
     if (lastClientAppearanceRef.current === clientAppearanceId) return;
     lastClientAppearanceRef.current = clientAppearanceId;
     const appearance = findClientAppearancePreset(clientAppearanceId);
+    levaSchemaSeedRef.current.clientAppearanceId = appearance.id;
+    levaSchemaSeedRef.current.backgroundHex = appearance.backgroundHex;
+    lastStickyBackgroundRef.current = appearance.backgroundHex;
+    setBackgroundHex(appearance.backgroundHex);
     setControl({
       backgroundFillMode: "solid",
       backgroundColor: appearance.backgroundHex,
@@ -4952,11 +4976,13 @@ export function useEngineControls(
     if (next === null) {
       if (lastStickyBackgroundRef.current === null) return;
       lastStickyBackgroundRef.current = null;
+      levaSchemaSeedRef.current.backgroundHex = null;
       setBackgroundHex(null);
       return;
     }
     if (lastStickyBackgroundRef.current?.toLowerCase() === next.toLowerCase()) return;
     lastStickyBackgroundRef.current = next;
+    levaSchemaSeedRef.current.backgroundHex = next;
     setBackgroundHex(next);
     if (!surfaceConfig) saveStickyBackgroundColor(hexToInt(next));
     const palette = activeGeneratedPaletteRef.current ?? stripePaletteValueRef.current;
@@ -5645,7 +5671,8 @@ export function useEngineControls(
         gradientZStrength: shaderValueRecord.twizzlerGradientZStrength,
         gradientZCenter: shaderValueRecord.twizzlerGradientZCenter,
         gradientZWidth: shaderValueRecord.twizzlerGradientZWidth,
-        backgroundColor: initialLabSettings.twizzler.backgroundColor,
+        // Live stage color — Appearance defaults only until Background Color overrides (CF-44).
+        backgroundColor: normalizedBackgroundColor ?? initialLabSettings.twizzler.backgroundColor,
         noiseScaleX: shaderValueRecord.twizzlerNoiseScaleX,
         noiseScaleY: shaderValueRecord.twizzlerNoiseScaleY,
         speed: shaderValueRecord.twizzlerSpeed,
