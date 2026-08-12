@@ -1,5 +1,5 @@
 /**
- * Capture Shadertoy-style sine-pack Twizzler (depthTerrain 3/4/5) with CF colors.
+ * Capture exact Twizzler Sine GLSL (edge-locked + XYZ) stills.
  */
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -13,39 +13,42 @@ const outDir = "/opt/cursor/artifacts";
 mkdirSync(outDir, { recursive: true });
 
 const preset = JSON.parse(readFileSync(resolve(root, "apps/lab/src/presets/builtin/banner-5x1.json"), "utf8"));
-const base = { ...(preset.lab?.twizzler ?? preset.config?.twizzler), speed: 0 };
+const base = { ...(preset.lab?.twizzler ?? {}), speed: 0 };
 
 const variants = [
   {
     id: "A",
-    label: "A — exact Shadertoy sin(t)+cos(t/2)",
-    tweaks: { depthTerrain: 3, wrinkles: 1.4, wrinkleStrength: 0.1, centerY: 0.5, lineCount: 40, lineWidth: 1.15, amplitude: 1.0, scale: 1, pointSpacing: 1, opacity: 0.96, colorFar: "#ff8a3d", colorNear: "#e8481c" },
+    label: "A — exact GLSL + edge lock (rot 0)",
+    tweaks: { depthTerrain: 3, rotateX: 0, rotateY: 0, rotateZ: 0 },
   },
   {
     id: "B",
-    label: "B — Shadertoy m·t + cos(t/2)",
-    tweaks: { depthTerrain: 4, wrinkles: 2.8, wrinkleStrength: 0.1, centerY: 0.5, lineCount: 40, lineWidth: 1.15, amplitude: 1.0, scale: 1, pointSpacing: 1, opacity: 0.96, colorFar: "#ff8a3d", colorNear: "#e8481c" },
+    label: "B — Rotate X 28° / Y -18°",
+    tweaks: { depthTerrain: 3, rotateX: 28, rotateY: -18, rotateZ: 0, wrinkles: 2.8 },
   },
   {
     id: "C",
-    label: "C — Shadertoy m·t + cos(t)",
-    tweaks: { depthTerrain: 5, wrinkles: 4.2, wrinkleStrength: 0.1, centerY: 0.5, lineCount: 40, lineWidth: 1.1, amplitude: 1.0, scale: 1, pointSpacing: 1, opacity: 0.96, colorFar: "#ff8a3d", colorNear: "#e8481c" },
+    label: "C — recipe 2 + Rotate Z 12°",
+    tweaks: { depthTerrain: 5, rotateX: 12, rotateY: 8, rotateZ: 12, wrinkles: 4.2 },
   },
 ];
 
-const bundlePath = "/tmp/twizzler-bundle.js";
+const entryPath = "/tmp/twizzler-sine-entry.ts";
+writeFileSync(
+  entryPath,
+  `
+import { createShaderTextureRenderer } from ${JSON.stringify(resolve(root, "apps/lab/src/shaderTextureSource.ts"))};
+import { TWIZZLER_SINE_SHADER_SOURCE, twizzlerSineUniforms } from ${JSON.stringify(resolve(root, "apps/lab/src/twizzlerSineShader.ts"))};
+import { normalizeTwizzlerSettings } from ${JSON.stringify(resolve(root, "apps/lab/src/twizzler.ts"))};
+(globalThis as any).TwizzlerSine = { createShaderTextureRenderer, TWIZZLER_SINE_SHADER_SOURCE, twizzlerSineUniforms, normalizeTwizzlerSettings };
+`,
+);
+
+const bundlePath = "/tmp/twizzler-sine-bundle.js";
 const esbuildBin = resolve(root, "node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/bin/esbuild");
 execFileSync(
   esbuildBin,
-  [
-    resolve(root, "apps/lab/src/twizzler.ts"),
-    "--bundle",
-    "--format=iife",
-    "--global-name=TwizzlerMod",
-    "--platform=browser",
-    "--target=es2022",
-    `--outfile=${bundlePath}`,
-  ],
+  [entryPath, "--bundle", "--format=iife", "--platform=browser", "--target=es2022", `--outfile=${bundlePath}`],
   { stdio: "inherit" },
 );
 const code = readFileSync(bundlePath, "utf8");
@@ -64,23 +67,36 @@ for (const variant of variants) {
       const ctx = out.getContext("2d");
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, out.width, out.height);
-      const ribbon = document.createElement("canvas");
-      ribbon.width = 1600;
-      ribbon.height = 320;
       // eslint-disable-next-line no-undef
-      TwizzlerMod.renderTwizzler(ribbon, 1600, 320, 0, s);
+      const api = TwizzlerSine;
+      const renderer = api.createShaderTextureRenderer(1600, 320);
+      const err = renderer.setSource(api.TWIZZLER_SINE_SHADER_SOURCE);
+      if (err) throw new Error(err);
+      const tw = api.normalizeTwizzlerSettings(s);
+      renderer.setUniforms(
+        api.twizzlerSineUniforms(tw, {
+          rotateXDeg: tw.rotateX,
+          rotateYDeg: tw.rotateY,
+          rotateZDeg: tw.rotateZ,
+          panX: tw.panX,
+          panY: tw.panY,
+          distance: tw.viewDistance,
+        }),
+      );
+      renderer.render(0, undefined, null);
       ctx.fillStyle = "#111111";
       ctx.fillRect(0, 0, out.width, 96);
-      ctx.drawImage(ribbon, 0, 96);
+      ctx.drawImage(renderer.canvas, 0, 96);
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 56px ui-sans-serif, system-ui, sans-serif";
       ctx.fillText(id, 24, 66);
       ctx.font = "600 24px ui-sans-serif, system-ui, sans-serif";
       ctx.fillText(label, 110, 58);
+      renderer.dispose();
     },
     { s: settings, id: variant.id, label: variant.label },
   );
-  const outPath = resolve(outDir, `twizzler-shaderpack-${variant.id}.png`);
+  const outPath = resolve(outDir, `twizzler-sine-glsl-${variant.id}.png`);
   await page.locator("#c").screenshot({ path: outPath, type: "png" });
   copyFileSync(outPath, resolve(outDir, `twizzler-variant-${variant.id}.png`));
   paths.push({ ...variant, outPath });
@@ -94,15 +110,16 @@ const stackHtml = paths
   })
   .join("");
 await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#0b0b0b">${stackHtml}</body></html>`);
-const stackPath = resolve(outDir, "twizzler-shaderpack-ABC-stack.png");
+const stackPath = resolve(outDir, "twizzler-sine-glsl-ABC-stack.png");
 await page.screenshot({ path: stackPath, type: "png", fullPage: true });
 copyFileSync(stackPath, resolve(outDir, "twizzler-ABC-stack.png"));
 
 await browser.close();
 try {
   unlinkSync(bundlePath);
+  unlinkSync(entryPath);
 } catch {
   /* ignore */
 }
 writeFileSync(resolve(outDir, "twizzler-variants.json"), JSON.stringify({ paths, stackPath }, null, 2));
-console.log(JSON.stringify({ paths: paths.map((p) => ({ id: p.id, label: p.label, outPath: p.outPath })), stackPath }, null, 2));
+console.log(JSON.stringify({ paths: paths.map((p) => ({ id: p.id, outPath: p.outPath })), stackPath }, null, 2));

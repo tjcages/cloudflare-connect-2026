@@ -48,7 +48,7 @@ export type TwizzlerSettings = {
   depthLift: number;
   /**
    * Z→Y terrain recipe (experiment switch):
-   * 0 = rolling hills (A), 1 = jagged high-freq (B), 2 = long far-drop sweep (C).
+   * 0–2 = classic marketing packs (A/B/C); 3–5 = exact Twizzler sine shader recipes.
    */
   depthTerrain: number;
   /** Legacy twist (unused by orange-wave projection). */
@@ -93,6 +93,15 @@ export type TwizzlerSettings = {
   stippleSize: number;
   /** Stipple gap scale. */
   stippleGap: number;
+  /** Exact-shader view: rotate the sampling plane in XYZ (degrees). */
+  rotateX: number;
+  rotateY: number;
+  rotateZ: number;
+  /** Exact-shader view pan (Leva units, ÷40 in shader). */
+  panX: number;
+  panY: number;
+  /** Exact-shader camera distance (30 = identity zoom). */
+  viewDistance: number;
 };
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
@@ -154,6 +163,12 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   drift: 0.02,
   stippleSize: 0,
   stippleGap: 0.8,
+  rotateX: 0,
+  rotateY: 0,
+  rotateZ: 0,
+  panX: 0,
+  panY: 0,
+  viewDistance: 30,
 };
 
 function clamp(value: unknown, fallback: number, min: number, max: number): number {
@@ -275,7 +290,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
     depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 4),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
-    depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
+    depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 5)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
     rotateXDeg: clamp(input.rotateXDeg, TWIZZLER_DEFAULTS.rotateXDeg, -180, 180),
     rotateYDeg: clamp(input.rotateYDeg, TWIZZLER_DEFAULTS.rotateYDeg, -180, 180),
@@ -303,6 +318,12 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     drift: clamp(input.drift, TWIZZLER_DEFAULTS.drift, 0, 1),
     stippleSize: clamp(input.stippleSize, TWIZZLER_DEFAULTS.stippleSize, 0, 8),
     stippleGap: clamp(input.stippleGap, TWIZZLER_DEFAULTS.stippleGap, 0, 12),
+    rotateX: clamp(input.rotateX, TWIZZLER_DEFAULTS.rotateX, -89, 89),
+    rotateY: clamp(input.rotateY, TWIZZLER_DEFAULTS.rotateY, -89, 89),
+    rotateZ: clamp(input.rotateZ, TWIZZLER_DEFAULTS.rotateZ, -180, 180),
+    panX: clamp(input.panX, TWIZZLER_DEFAULTS.panX, -40, 40),
+    panY: clamp(input.panY, TWIZZLER_DEFAULTS.panY, -40, 40),
+    viewDistance: clamp(input.viewDistance, TWIZZLER_DEFAULTS.viewDistance, 0.5, 120),
   };
 }
 
@@ -463,6 +484,71 @@ function sampleKnots(x: number, knots: ReadonlyArray<readonly [number, number]>)
     }
   }
   return knots[knots.length - 1][1];
+}
+
+/** Exact Shadertoy isoline Y in pixel space (for tests / Canvas2D fallbacks). */
+export function twizzlerShaderPackPixelY(
+  pixelX: number,
+  pixelWidth: number,
+  pixelHeight: number,
+  fiberIndex: number,
+  lineCount: number,
+  time: number,
+  settings: Pick<TwizzlerSettings, "wrinkles" | "centerY">,
+  recipe: 0 | 1 | 2 = 0,
+): number {
+  const uvx = (pixelX - 0.5 * pixelWidth) / Math.max(1, pixelHeight);
+  // Match shader: t = 0.2*iTime + 2π i/n
+  const t = 0.2 * time + (Math.PI * 2 * fiberIndex) / Math.max(1, lineCount);
+  const m = Math.max(1, Math.min(10, 1 + settings.wrinkles * 1.6));
+  let wave = 0;
+  switch (recipe) {
+    case 0: {
+      wave = Math.sin(t + 11 * uvx) - 4 * uvx * Math.cos(t * 0.5);
+      break;
+    }
+    case 1: {
+      wave = Math.sin(m * t + 11 * uvx) - 4 * uvx * Math.cos(t * 0.5);
+      break;
+    }
+    case 2: {
+      wave = Math.sin(m * t + 11 * uvx) - 4 * uvx * Math.cos(t);
+      break;
+    }
+    default: {
+      const _exhaustive: never = recipe;
+      void _exhaustive;
+      wave = 0;
+      break;
+    }
+  }
+  const uvy = 0.25 * wave;
+  const mid = pixelHeight * settings.centerY;
+  return mid - uvy * pixelHeight;
+}
+
+/** Normalized-Y wrapper for tests (assumes 5:1 banner). Prefer twizzlerShaderPackPixelY. */
+export function twizzlerShaderPackY(
+  xT: number,
+  fiberT: number,
+  time: number,
+  settings: Pick<TwizzlerSettings, "wrinkles" | "centerY">,
+  recipe: 0 | 1 | 2 = 0,
+  lineCount = 40,
+): number {
+  const W = 1600;
+  const H = 320;
+  const fiberIndex = fiberT * Math.max(1, lineCount);
+  return twizzlerShaderPackPixelY(xT * W, W, H, fiberIndex, lineCount, time, settings, recipe) / H;
+}
+
+/** depthTerrain 3/4/5 → exact sine-pack recipes 0/1/2 (Canvas2D orange-wave stays on 0–2). */
+export function twizzlerShaderPackRecipe(depthTerrain: number): 0 | 1 | 2 | null {
+  const t = Math.round(depthTerrain);
+  if (t === 3) return 0;
+  if (t === 4) return 1;
+  if (t === 5) return 2;
+  return null;
 }
 
 /**

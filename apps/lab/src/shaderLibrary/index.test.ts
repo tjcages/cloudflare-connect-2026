@@ -45,8 +45,9 @@ describe("shader library", () => {
     expect(findShaderLibraryEntry(NEBULA_SHADER_PRESET_ID)?.source).toBe(DEFAULT_SHADER_TEXTURE_SOURCE);
   });
 
-  it("includes the procedural Twizzler Map shader", () => {
-    expect(SHADER_LIBRARY[3]).toMatchObject({ id: TWIZZLER_MAP_SHADER_PRESET_ID, label: "Twizzler Map" });
+  it("includes Twizzler Sine then Twizzler Map as built-in presets", () => {
+    expect(SHADER_LIBRARY[3]).toMatchObject({ id: "twizzler-sine", label: "Twizzler Sine" });
+    expect(SHADER_LIBRARY[4]).toMatchObject({ id: TWIZZLER_MAP_SHADER_PRESET_ID, label: "Twizzler Map" });
     expect(isTwizzlerMapShaderPreset(TWIZZLER_MAP_SHADER_PRESET_ID)).toBe(true);
     expect(isTwizzlerMapShaderPreset(CONNECT_SHADER_PRESET_ID)).toBe(false);
   });

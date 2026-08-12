@@ -447,6 +447,12 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     drift: 0.31,
     stippleSize: 0,
     stippleGap: 0.8,
+    rotateX: 0,
+    rotateY: 0,
+    rotateZ: 0,
+    panX: 0,
+    panY: 0,
+    viewDistance: 30,
   },
   twizzlerMap: {
     backgroundLevel: 0.08,
