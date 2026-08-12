@@ -160,7 +160,7 @@ export function parseTwizzlerGradientStops(
 }
 
 function usableStops(stops: readonly TwizzlerGradientStop[]): TwizzlerGradientStop[] {
-  return stops.length > 0 ? stops : defaultTwizzlerGradientStops("#fea700", "#f46021");
+  return stops.length > 0 ? [...stops] : defaultTwizzlerGradientStops("#fea700", "#f46021");
 }
 
 /** Inverse-distance weighting (power 2). An exact hotspot hit returns that color. */

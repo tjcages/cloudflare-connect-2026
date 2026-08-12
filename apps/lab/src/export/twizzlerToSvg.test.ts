@@ -181,9 +181,9 @@ describe("twizzlerToSvgLayer", () => {
       pointSpacing: 10,
       ribbonColorMode: "sharedGradient",
       gradientStops: [
-        { id: "a", x: 0.15, y: 0.1, color: "#ff0000" },
-        { id: "b", x: 0.6, y: 0.8, color: "#00ff00" },
-        { id: "c", x: 0.9, y: 0.4, color: "#0000ff" },
+        { id: "a", x: 0.15, y: 0.1, offset: 0.15, color: "#ff0000" },
+        { id: "b", x: 0.6, y: 0.8, offset: 0.6, color: "#00ff00" },
+        { id: "c", x: 0.9, y: 0.4, offset: 0.9, color: "#0000ff" },
       ],
       speed: 0,
     });
