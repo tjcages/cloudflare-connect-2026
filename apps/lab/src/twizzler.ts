@@ -52,7 +52,8 @@ export type TwizzlerSettings = {
   depthTerrain: number;
   /**
    * Shared left-to-right macro-hill rhythm:
-   * 0 = calm/few (A), 1 = locked current energy (B), 2 = dense/sharp (C).
+   * 0 = calm terminal lift (A2), 1 = strong/soft lift (B2),
+   * 2 = asymmetric acceleration (C2).
    */
   hillRhythm: number;
   twist: number;
@@ -313,31 +314,56 @@ function twizzlerHillRhythm(settings: TwizzlerSettings): TwizzlerHillRhythm {
 
 /**
  * Bend controls participate in the macro rhythm without changing their saved
- * values: A merges them into one broad gesture, B preserves the lock, and C
- * resolves all three plus alternating interstitial bends.
+ * values. Pass 2 translates the three liked farm anchors into distinct
+ * structures: A2 overlaps gentle broad bends, B2 alternates strong/soft
+ * emphasis, and C2 compresses bend spacing toward the right.
  */
 export function twizzlerMarketingBend(xT: number, settings: TwizzlerSettings): number {
   const rhythm = twizzlerHillRhythm(settings);
   switch (rhythm) {
-    case 0: {
-      const position = (settings.bendPosition + settings.bend2Position + settings.bend3Position) / 3;
-      const amount = settings.bend2Amount + (settings.bendAmount + settings.bend3Amount) * 0.3;
-      return twizzlerBendOffset(xT, position, amount, 0.28);
-    }
+    case 0:
+      return (
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 0.55, 0.25) +
+        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.4, 0.28) +
+        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 0.65, 0.2)
+      );
     case 1:
-      return twizzlerPathBend(xT, settings);
+      return (
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 1.35, 0.13) +
+        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.72, 0.18) +
+        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 1.3, 0.14) +
+        twizzlerBendOffset(xT, 0.86, -0.055, 0.19)
+      );
     case 2: {
       const primary =
-        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount, 0.1) +
-        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount, 0.1) +
-        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount, 0.1);
+        twizzlerBendOffset(xT, settings.bendPosition, settings.bendAmount * 1.2, 0.11) +
+        twizzlerBendOffset(xT, settings.bend2Position, settings.bend2Amount * 0.8, 0.095) +
+        twizzlerBendOffset(xT, settings.bend3Position, settings.bend3Amount * 1.5, 0.07);
       const firstMid = (settings.bendPosition + settings.bend2Position) * 0.5;
       const secondMid = (settings.bend2Position + settings.bend3Position) * 0.5;
       const interstitial =
-        twizzlerBendOffset(xT, firstMid, (settings.bendAmount - settings.bend2Amount) * 0.32, 0.065) +
-        twizzlerBendOffset(xT, secondMid, (settings.bend2Amount - settings.bend3Amount) * 0.32, 0.065);
-      return primary * 1.15 + interstitial;
+        twizzlerBendOffset(xT, firstMid, (settings.bendAmount - settings.bend2Amount) * 0.28, 0.075) +
+        twizzlerBendOffset(xT, secondMid, (settings.bend2Amount - settings.bend3Amount) * 0.4, 0.055) +
+        twizzlerBendOffset(xT, 0.91, -settings.bend3Amount * 0.62, 0.045);
+      return primary + interstitial;
     }
+    default: {
+      const _exhaustive: never = rhythm;
+      return _exhaustive;
+    }
+  }
+}
+
+/** Increase shared-spine legibility while leaving Z heat and pack projection locked. */
+export function twizzlerMarketingSpineShare(settings: TwizzlerSettings): number {
+  const rhythm = twizzlerHillRhythm(settings);
+  switch (rhythm) {
+    case 0:
+      return 0.23;
+    case 1:
+      return 0.27;
+    case 2:
+      return 0.32;
     default: {
       const _exhaustive: never = rhythm;
       return _exhaustive;
@@ -358,70 +384,72 @@ export function twizzlerMarketingCenterY(xT: number, settings: TwizzlerSettings,
   let waves = 0;
   switch (rhythm) {
     case 0: {
-      // A: one broad low basin into the hero rise, with a quiet right settle.
+      // A2: one long calm opening hill flowing into a lifted terminal wave.
       yKnot = sampleKnots(x, [
-        [0.0, 0.58],
-        [0.24, 0.82],
-        [0.48, 0.76],
-        [0.72, 0.25],
-        [0.88, 0.2],
-        [1.0, 0.38],
+        [0.0, 0.56],
+        [0.18, 0.82],
+        [0.39, 0.84],
+        [0.58, 0.63],
+        [0.76, 0.25],
+        [0.9, 0.08],
+        [1.0, 0.3],
       ]);
       waves =
         waveGain *
-        0.82 *
-        (-0.1 * Math.sin(x * Math.PI * 1.7 + 0.25) +
-          -0.055 * Math.sin(x * Math.PI * 3.1 + 1.05) +
-          -0.025 * Math.sin(x * Math.PI * 4.2 + time * 0.18));
+        0.6 *
+        (-0.08 * Math.sin(x * Math.PI * 1.35 + 0.3) +
+          -0.035 * Math.sin(x * Math.PI * 2.4 + 1.1) +
+          -0.018 * Math.sin(x * Math.PI * 3.2 + time * 0.14));
       break;
     }
     case 1: {
-      // B: exact pre-variant lock — current rolling energy and silhouette.
+      // B2: alternating strong/soft cadence followed by a pronounced smooth lift.
       yKnot = sampleKnots(x, [
-        [0.0, 0.58],
-        [0.1, 0.74],
-        [0.22, 0.88],
-        [0.36, 0.7],
-        [0.48, 0.9],
-        [0.6, 0.52],
-        [0.72, 0.3],
-        [0.86, 0.2],
-        [1.0, 0.38],
+        [0.0, 0.56],
+        [0.11, 0.79],
+        [0.22, 0.64],
+        [0.34, 0.89],
+        [0.45, 0.69],
+        [0.56, 0.82],
+        [0.68, 0.43],
+        [0.79, 0.11],
+        [0.9, 0.29],
+        [1.0, 0.16],
       ]);
       waves =
         waveGain *
-        1.35 *
-        (-0.11 * Math.sin(x * Math.PI * 2.2 + 0.3) +
-          -0.09 * Math.sin(x * Math.PI * 3.8 + 1.0) +
-          -0.07 * Math.sin(x * Math.PI * 5.6 + 2.1) +
-          -0.045 * Math.sin(x * Math.PI * 8.0 + time * 0.25));
+        0.94 *
+        (-0.085 * Math.sin(x * Math.PI * 2.8 + 0.2) +
+          -0.065 * Math.sin(x * Math.PI * 5.1 + 1.25) +
+          -0.04 * Math.sin(x * Math.PI * 7.6 + 2.2) +
+          -0.022 * Math.sin(x * Math.PI * 9.4 + time * 0.18));
       break;
     }
     case 2: {
-      // C: alternating close hills and narrow valleys around the same hero rise.
+      // C2: asymmetric hills whose spacing contracts into right-edge acceleration.
       yKnot = sampleKnots(x, [
-        [0.0, 0.58],
-        [0.08, 0.76],
-        [0.16, 0.59],
-        [0.25, 0.9],
-        [0.34, 0.64],
-        [0.43, 0.93],
-        [0.51, 0.61],
-        [0.6, 0.48],
-        [0.68, 0.19],
-        [0.75, 0.42],
-        [0.82, 0.13],
-        [0.9, 0.34],
-        [0.96, 0.18],
-        [1.0, 0.38],
+        [0.0, 0.57],
+        [0.13, 0.81],
+        [0.25, 0.56],
+        [0.37, 0.91],
+        [0.48, 0.61],
+        [0.58, 0.84],
+        [0.67, 0.31],
+        [0.745, 0.47],
+        [0.81, 0.13],
+        [0.865, 0.4],
+        [0.91, 0.09],
+        [0.955, 0.33],
+        [1.0, 0.12],
       ]);
+      const acceleratingPhase = Math.PI * (3 * x + 5 * x * x);
+      const fastPhase = Math.PI * (5 * x + 9 * x * x);
       waves =
         waveGain *
-        1.18 *
-        (-0.075 * Math.sin(x * Math.PI * 4.6 + 0.2) +
-          -0.06 * Math.sin(x * Math.PI * 7.4 + 1.15) +
-          -0.045 * Math.sin(x * Math.PI * 10.8 + 2.25) +
-          -0.03 * Math.sin(x * Math.PI * 14.2 + time * 0.16));
+        0.88 *
+        (-0.065 * Math.sin(acceleratingPhase + 0.2) +
+          -0.048 * Math.sin(fastPhase + 1.35) +
+          -0.025 * Math.sin(Math.PI * (7 * x + 12 * x * x) + 2.1 + time * 0.14));
       break;
     }
     default: {
@@ -851,7 +879,7 @@ export function buildTwizzlerLines(
       const x = c.x + nx * braid * halfW * 0.02 * Math.sin(fiberTheta);
       // Soften shared spine lockstep — Z-scattered amp peaks must land at different X.
       const spineBase = pixelHeight * settings.centerY;
-      const spineShare = 0.18;
+      const spineShare = twizzlerMarketingSpineShare(settings);
       const y = spineBase + (c.y - spineBase) * spineShare + faceY + stackY + depthY + ampNoiseY + farDownStack + zLane;
 
       points.push({ x, y, depth, along: c.xT, nearness });

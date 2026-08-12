@@ -20,8 +20,8 @@ import {
   twizzlerAmpNoiseY,
   twizzlerAmpSwell,
   twizzlerSvgPathCubic,
-  twizzlerMarketingBend,
   twizzlerMarketingCenterY,
+  twizzlerMarketingSpineShare,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
   twizzlerNearness,
@@ -82,7 +82,7 @@ describe("Twizzler", () => {
     expect(twizzlerPathBend(0.8, settings)).toBeCloseTo(-0.15, 2);
   });
 
-  it("provides structurally distinct macro-hill rhythms while preserving B", () => {
+  it("provides structurally distinct smooth macro-hill pass-two rhythms", () => {
     const settings = normalizeTwizzlerSettings({
       amplitude: 1,
       scale: 1.15,
@@ -113,12 +113,27 @@ describe("Twizzler", () => {
 
     expect(countExtrema(0)).toBeLessThan(countExtrema(1));
     expect(countExtrema(1)).toBeLessThan(countExtrema(2));
-    expect(twizzlerMarketingBend(0.5, { ...settings, hillRhythm: 1 })).toBeCloseTo(twizzlerPathBend(0.5, settings), 12);
-
-    const lockedB = [0, 0.2, 0.4, 0.6, 0.8, 1].map((x) =>
-      Number(twizzlerMarketingCenterY(x, { ...settings, hillRhythm: 1 }, 0).toFixed(8)),
+    expect(twizzlerMarketingCenterY(0.25, { ...settings, hillRhythm: 0 }, 0)).toBeGreaterThan(
+      twizzlerMarketingCenterY(0.9, { ...settings, hillRhythm: 0 }, 0),
     );
-    expect(lockedB).toEqual([-0.0835824, 0.67569998, 0.8000937, 0.38576335, 0.27843326, -0.37906072]);
+    expect(twizzlerMarketingCenterY(0.56, { ...settings, hillRhythm: 1 }, 0)).toBeGreaterThan(
+      twizzlerMarketingCenterY(0.79, { ...settings, hillRhythm: 1 }, 0),
+    );
+    expect([0, 1, 2].map((hillRhythm) => twizzlerMarketingSpineShare({ ...settings, hillRhythm }))).toEqual([
+      0.23, 0.27, 0.32,
+    ]);
+
+    for (const hillRhythm of [0, 1, 2]) {
+      const { lines } = buildTwizzlerLines(320, 80, 0, {
+        ...settings,
+        hillRhythm,
+        lineCount: 1,
+        pointSpacing: 8,
+      });
+      const path = twizzlerSvgPathCubic(lines[0]!.points);
+      expect(path).toContain(" C");
+      expect(path).not.toContain(" L");
+    }
   });
 
   it("scales depth toward the camera peak", () => {
