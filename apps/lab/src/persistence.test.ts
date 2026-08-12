@@ -480,14 +480,21 @@ describe("client preset ids in lab settings", () => {
     saveLabSettings({
       clientSizeId: "hero-16x9",
       clientLayoutId: "high-fan",
-      clientColorId: "graphite",
+      clientColorId: "light",
       clientAppearanceId: "dark",
     });
     const loaded = loadLabSettings();
     expect(loaded.clientSizeId).toBe("hero-16x9");
     expect(loaded.clientLayoutId).toBe("high-fan");
-    expect(loaded.clientColorId).toBe("graphite");
+    expect(loaded.clientColorId).toBe("light");
     expect(loaded.clientAppearanceId).toBe("dark");
+  });
+
+  it("maps legacy graphite color id to light", () => {
+    saveLabSettings({
+      clientColorId: "graphite" as never,
+    });
+    expect(loadLabSettings().clientColorId).toBe("light");
   });
 
   it("reports hasStoredEngineConfig after saveConfig", () => {

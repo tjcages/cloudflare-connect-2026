@@ -155,7 +155,7 @@ describe("savedLayouts", () => {
       {
         clientSizeId: "hero-16x9",
         clientLayoutId: "high-fan",
-        clientColorId: "graphite",
+        clientColorId: "light",
         backgroundFillMode: "transparent",
         backgroundColor: null,
         twizzler: {
@@ -171,7 +171,7 @@ describe("savedLayouts", () => {
     const loaded = loadLabSettings();
     expect(loaded.clientSizeId).toBe("hero-16x9");
     expect(loaded.clientLayoutId).toBe("high-fan");
-    expect(loaded.clientColorId).toBe("graphite");
+    expect(loaded.clientColorId).toBe("light");
     expect(loaded.backgroundFillMode).toBe("transparent");
     expect(loaded.twizzler.rotateXDeg).toBe(33);
     expect(loaded.twizzler.panX).toBe(40);

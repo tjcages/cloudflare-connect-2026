@@ -201,7 +201,7 @@ function normalizeShaderPresetId(value: unknown): string {
 
 const CLIENT_SIZE_IDS = new Set<string>(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
 const CLIENT_LAYOUT_IDS = new Set<string>(["classic", "low-ribbon", "high-fan", "compact"]);
-const CLIENT_COLOR_IDS = new Set<string>(["coral-classic", "soft-gold", "deep-ember", "graphite"]);
+const CLIENT_COLOR_IDS = new Set<string>(["coral-classic", "soft-gold", "deep-ember", "light"]);
 const CLIENT_APPEARANCE_IDS = new Set<string>(["light", "dark"]);
 
 function normalizeClientSizeId(value: unknown): ClientSizePresetId {
@@ -213,6 +213,8 @@ function normalizeClientLayoutId(value: unknown): ClientLayoutPresetId {
 }
 
 function normalizeClientColorId(value: unknown): ClientColorPresetId {
+  // Graphite was removed (CF-42); map legacy saves to Light (cream / dark-Appearance ink).
+  if (value === "graphite") return "light";
   return typeof value === "string" && CLIENT_COLOR_IDS.has(value) ? (value as ClientColorPresetId) : "coral-classic";
 }
 

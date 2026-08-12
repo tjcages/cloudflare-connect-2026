@@ -71,7 +71,7 @@ import {
   findClientLayoutPreset,
   findClientSizePreset,
   matchClientSizePresetId,
-  resetTweaksForPresets,
+  resetTweaksForLayout,
   type ClientAppearanceId,
   type ClientColorPresetId,
   type ClientLayoutPresetId,
@@ -4811,19 +4811,22 @@ export function useEngineControls(
       initialLabSettings.clientAppearanceId ??
       DEFAULT_CLIENT_PREVIEW_STATE.appearanceId,
   ) as ClientAppearanceId;
-  const lastClientPresetKeyRef = useRef<string | null>(null);
+  /**
+   * Layout preset — ribbon geometry + motion only.
+   * Never touches Twizzler colors (those belong to Color / Appearance).
+   * Size is handled separately via `clientCanvasSize` (canvas W/H only).
+   */
+  const lastClientLayoutIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!clientApp) return;
-    const key = `${clientLayoutId}|${clientColorId}`;
     // Skip mount so restored saved-layout twizzler values are not clobbered.
-    if (lastClientPresetKeyRef.current === null) {
-      lastClientPresetKeyRef.current = key;
+    if (lastClientLayoutIdRef.current === null) {
+      lastClientLayoutIdRef.current = clientLayoutId;
       return;
     }
-    if (key === lastClientPresetKeyRef.current) return;
-    lastClientPresetKeyRef.current = key;
-    const tweaks = resetTweaksForPresets(clientLayoutId, clientColorId);
-    const color = findClientColorPreset(clientColorId).twizzler;
+    if (lastClientLayoutIdRef.current === clientLayoutId) return;
+    lastClientLayoutIdRef.current = clientLayoutId;
+    const tweaks = resetTweaksForLayout(clientLayoutId);
     const layout = findClientLayoutPreset(clientLayoutId).twizzler;
     shaderControlSetterRef.current?.({
       twizzlerOpacity: tweaks.opacity,
@@ -4835,15 +4838,30 @@ export function useEngineControls(
       twizzlerAmplitude: tweaks.amplitude,
       twizzlerCenterY: tweaks.centerY,
       twizzlerSpeed: tweaks.speed,
-      twizzlerColor: color.color,
-      twizzlerColorFar: color.colorFar,
-      twizzlerColorEdge: color.colorEdge,
       ...(layout.depthSpread !== undefined ? { twizzlerDepthSpread: layout.depthSpread } : {}),
       ...(layout.depthLift !== undefined ? { twizzlerDepthLift: layout.depthLift } : {}),
       ...(layout.rightHeight !== undefined ? { twizzlerRightHeight: layout.rightHeight } : {}),
       ...(layout.leftHeight !== undefined ? { twizzlerLeftHeight: layout.leftHeight } : {}),
     });
-  }, [clientApp, clientColorId, clientLayoutId, setShaderControl]);
+  }, [clientApp, clientLayoutId, setShaderControl]);
+
+  /** Color preset — Twizzler palette only (Size / Layout must not re-apply these). */
+  const lastClientColorIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!clientApp) return;
+    if (lastClientColorIdRef.current === null) {
+      lastClientColorIdRef.current = clientColorId;
+      return;
+    }
+    if (lastClientColorIdRef.current === clientColorId) return;
+    lastClientColorIdRef.current = clientColorId;
+    const color = findClientColorPreset(clientColorId).twizzler;
+    shaderControlSetterRef.current?.({
+      twizzlerColor: color.colorNear ?? color.color,
+      twizzlerColorFar: color.colorFar,
+      twizzlerColorEdge: color.colorEdge,
+    });
+  }, [clientApp, clientColorId, setShaderControl]);
 
   // Nudge the store when Default↔Advanced flips so Leva recomputes visible paths
   // (render gates read refs; without a store tick folders stay stale).
