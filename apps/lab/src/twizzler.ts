@@ -46,6 +46,11 @@ export type TwizzlerSettings = {
   depthSpread: number;
   depthLift: number;
   /**
+   * Z-scattered amplitude heat recipe:
+   * 0 = fewer/wider lobes (A), 1 = mid-density wide lobes (B), 2 = dense spots (C).
+   */
+  heatVariant: TwizzlerHeatVariant;
+  /**
    * Z→Y terrain recipe (experiment switch):
    * 0 = rolling hills (A), 1 = jagged high-freq (B), 2 = long far-drop sweep (C).
    */
@@ -60,6 +65,8 @@ export type TwizzlerSettings = {
   /** Stipple gap scale. */
   stippleGap: number;
 };
+
+export type TwizzlerHeatVariant = 0 | 1 | 2;
 
 export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   color: "#e8481c",
@@ -94,6 +101,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   depth2Width: 0.12,
   depthSpread: 1.05,
   depthLift: 0.85,
+  heatVariant: 1,
   depthTerrain: 0,
   twist: 1.15,
   noiseScaleX: 0.0004,
@@ -215,6 +223,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     depth2Width: clamp(input.depth2Width, TWIZZLER_DEFAULTS.depth2Width, 0.05, 0.75),
     depthSpread: clamp(input.depthSpread, TWIZZLER_DEFAULTS.depthSpread, 0, 4),
     depthLift: clamp(input.depthLift, TWIZZLER_DEFAULTS.depthLift, 0, 1),
+    heatVariant: Math.round(clamp(input.heatVariant, TWIZZLER_DEFAULTS.heatVariant, 0, 2)) as TwizzlerHeatVariant,
     depthTerrain: Math.round(clamp(input.depthTerrain, TWIZZLER_DEFAULTS.depthTerrain, 0, 2)),
     twist: clamp(input.twist, TWIZZLER_DEFAULTS.twist, 0, 6),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
@@ -511,17 +520,40 @@ export function twizzlerGapWarpedAcross(
   return across * 0.62 + warped * 0.38;
 }
 
+export type TwizzlerHeatRecipe = {
+  bandCount: number;
+  bandWidth: number;
+  zFrequency: number;
+};
+
+/** Structurally distinct Z recipes; X frequencies remain shared and fluid. */
+export function twizzlerHeatRecipe(input: number): TwizzlerHeatRecipe {
+  const variant = Math.round(Math.max(0, Math.min(2, input))) as TwizzlerHeatVariant;
+  switch (variant) {
+    case 0:
+      return { bandCount: 3, bandWidth: 0.72, zFrequency: 0.95 };
+    case 1:
+      return { bandCount: 5, bandWidth: 0.48, zFrequency: 4.6 / 2.4 };
+    case 2:
+      return { bandCount: 9, bandWidth: 0.2, zFrequency: 5.2 };
+    default: {
+      const _exhaustive: never = variant;
+      return _exhaustive;
+    }
+  }
+}
+
 /**
  * Top-down amplitude heat map over (x along ribbon, across = Z / depth stack).
  * Multiple scattered hot spots through Z×X — not one pack-wide L→R swell.
- * `patchScale` >1 = fewer larger lobes; <1 = denser Z spots.
  */
-export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed = 2.4): number {
+export function twizzlerAmpHeat(xT: number, across: number, heatVariant: TwizzlerHeatVariant = 1, seed = 2.4): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
-  const s = Math.max(0.45, Math.min(3.2, patchScale));
-  const xFreq = 2.6 / s;
-  const zFreq = 4.6 / s;
+  const recipe = twizzlerHeatRecipe(heatVariant);
+  // Match the locked B's broad X cadence for every recipe; only Z density changes.
+  const xFreq = 2.6 / 2.4;
+  const zFreq = recipe.zFrequency;
   const n0 = twizzlerNoise(x * xFreq + seed, a * zFreq, 0.2);
   const n1 = twizzlerNoise(x * (xFreq * 1.6) + seed * 1.3, a * (zFreq * 1.4) + 0.55, 0.72);
   const raw = 0.55 * n0 + 0.45 * n1;
@@ -532,25 +564,28 @@ export function twizzlerAmpHeat(xT: number, across: number, patchScale = 1, seed
  * Signed Y swell: narrow Z-bands with phase-shifted hills along X.
  * Far / mid / near bands peak at different X — multiple peaks through the stack.
  */
-export function twizzlerAmpSwell(xT: number, across: number, patchScale = 1, seed = 3.1): number {
+export function twizzlerAmpSwell(
+  xT: number,
+  across: number,
+  heatVariant: TwizzlerHeatVariant = 1,
+  seed = 3.1,
+): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
-  const s = Math.max(0.45, Math.min(3.2, patchScale));
-  // Narrow bands so neighboring Z regions keep distinct peak phases.
-  const bandCount = 5;
-  const bandWidth = 0.2 * s;
+  const { bandCount, bandWidth } = twizzlerHeatRecipe(heatVariant);
   let sum = 0;
   let wSum = 0;
   for (let k = 0; k < bandCount; k += 1) {
     const zCenter = -0.9 + (k / (bandCount - 1)) * 1.8;
     const w = Math.exp(-Math.pow((a - zCenter) / bandWidth, 2));
-    const phase = seed * 0.85 + k * 2.85;
-    // 2–4 hills along X per band, phase-shifted by Z index.
+    const bandT = k / (bandCount - 1);
+    const phase = seed * 0.85 + bandT * 11.4;
+    // Every recipe spans the same fluid X-frequency range; only its Z sampling changes.
     const hills =
-      0.55 * Math.sin(x * Math.PI * (2.8 + k * 0.85) + phase) +
-      0.3 * Math.sin(x * Math.PI * (4.6 + k * 0.55) + phase * 1.55) +
-      0.15 * Math.sin(x * Math.PI * (1.6 + k * 0.3) + phase * 0.7);
-    const gate = 0.45 + 0.55 * twizzlerNoise(x * (1.1 / s) + seed + k * 0.7, zCenter * 2.4, 0.4);
+      0.55 * Math.sin(x * Math.PI * (2.8 + bandT * 3.4) + phase) +
+      0.3 * Math.sin(x * Math.PI * (4.6 + bandT * 2.2) + phase * 1.55) +
+      0.15 * Math.sin(x * Math.PI * (1.6 + bandT * 1.2) + phase * 0.7);
+    const gate = 0.45 + 0.55 * twizzlerNoise(x * (1.1 / 2.4) + seed + bandT * 2.8, zCenter * 2.4, 0.4);
     sum += w * hills * gate;
     wSum += w;
   }
@@ -568,11 +603,11 @@ export function twizzlerAmpNoiseY(
   pixelHeight: number,
   amplitude: number,
   wrinkleStrength: number,
-  patchScale = 1,
+  heatVariant: TwizzlerHeatVariant = 1,
   seed = 2.4,
 ): number {
-  const heat = twizzlerAmpHeat(xT, across, patchScale, seed);
-  const swell = twizzlerAmpSwell(xT, across, patchScale, seed + 1.7);
+  const heat = twizzlerAmpHeat(xT, across, heatVariant, seed);
+  const swell = twizzlerAmpSwell(xT, across, heatVariant, seed + 1.7);
   // Heat spots boost amplitude; keep below clip so phase-shifted Z peaks stay curved.
   const drive = swell * (0.4 + 0.6 * heat);
   const yThrow = 0.22 + amplitude * 0.2 + wrinkleStrength * 2.6;
@@ -778,17 +813,15 @@ export function buildTwizzlerLines(
         waveAmp,
         settings.depthTerrain,
       );
-      // Y amp: multiple heat peaks/valleys scattered through Z (across), fluid along X.
-      // Larger wrinkles → denser Z spots; fewer wrinkles → fewer larger Z blobs.
-      const patchScale = Math.max(0.5, Math.min(2.4, 3.6 / Math.max(1.4, settings.wrinkles)));
+      // Y amp: explicit A/B/C heat recipes change only lobe count/width through Z.
       const ampNoiseY = twizzlerAmpNoiseY(
         c.xT,
         across,
         pixelHeight,
         settings.amplitude,
         settings.wrinkleStrength,
-        patchScale,
-        2.4 + settings.depthTerrain * 0.9,
+        settings.heatVariant,
+        2.4,
       );
       const rightEdge = Math.pow(smoothstep(0.35, 1, c.xT), 1.1);
       // Pack open enough for denseness, thin enough that Z-scattered peaks read (not parallel sheet).

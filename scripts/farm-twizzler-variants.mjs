@@ -29,10 +29,10 @@ if (!base?.lineCount) throw new Error("banner-5x1.json missing lab.twizzler");
 /** @type {Array<{ id: string; label: string; tweaks: Record<string, number> }>} */
 const variants = [
   { id: "B0", label: "lock B (baseline)", tweaks: {} },
-  // Z-lobe scale (wrinkles drives patchScale)
-  { id: "Z1", label: "wider Z lobes", tweaks: { wrinkles: 1.0, centerY: 0.42 } },
-  { id: "Z2", label: "mid Z lobes", tweaks: { wrinkles: 1.8 } },
-  { id: "Z3", label: "denser Z lobes", tweaks: { wrinkles: 2.6, centerY: 0.38 } },
+  // Z-lobe structure (dedicated heat recipe; no spine or placement changes)
+  { id: "Z1", label: "fewer, wider Z lobes", tweaks: { heatVariant: 0 } },
+  { id: "Z2", label: "mid-density wide Z lobes", tweaks: { heatVariant: 1 } },
+  { id: "Z3", label: "denser Z spots", tweaks: { heatVariant: 2 } },
   // Amp energy
   { id: "E1", label: "quieter amp", tweaks: { wrinkleStrength: 0.09, amplitude: 0.85 } },
   { id: "E2", label: "hotter amp", tweaks: { wrinkleStrength: 0.18, amplitude: 1.0 } },
@@ -128,6 +128,7 @@ const manifest = {
     lineWidth: base.lineWidth,
     wrinkles: base.wrinkles,
     wrinkleStrength: base.wrinkleStrength,
+    heatVariant: base.heatVariant,
     centerY: base.centerY,
   },
   stackPath,

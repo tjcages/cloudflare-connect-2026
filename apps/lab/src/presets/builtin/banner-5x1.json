@@ -555,6 +555,7 @@
       "depth2Width": 0.12,
       "depthSpread": 1.18,
       "depthLift": 0.85,
+      "heatVariant": 1,
       "depthTerrain": 0,
       "twist": 1.35,
       "noiseScaleX": 0.0004,

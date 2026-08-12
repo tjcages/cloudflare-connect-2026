@@ -1512,6 +1512,13 @@ export function useEngineControls(
                   step: 0.01,
                   label: "Depth Y lift",
                 },
+                twizzlerHeatVariant: {
+                  value: initialLabSettings.twizzler.heatVariant ?? 1,
+                  min: 0,
+                  max: 2,
+                  step: 1,
+                  label: "Z heat (0A/1B/2C)",
+                },
                 twizzlerDepthTerrain: {
                   value: initialLabSettings.twizzler.depthTerrain ?? 0,
                   min: 0,
@@ -5102,6 +5109,7 @@ export function useEngineControls(
         depthWidth: shaderValueRecord.twizzlerDepthWidth,
         depthSpread: shaderValueRecord.twizzlerDepthSpread,
         depthLift: shaderValueRecord.twizzlerDepthLift,
+        heatVariant: shaderValueRecord.twizzlerHeatVariant,
         depthTerrain: shaderValueRecord.twizzlerDepthTerrain,
         twist: shaderValueRecord.twizzlerTwist,
         noiseScaleX: shaderValueRecord.twizzlerNoiseScaleX,
