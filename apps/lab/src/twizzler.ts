@@ -512,9 +512,9 @@ export function twizzlerFiberNearness(across: number, xT: number, settings: Twiz
   return Math.max(0, Math.min(1, near));
 }
 
-/** Fog blend 0..1 toward background (white). Far fibers dissolve hard into the stage. */
+/** Fog blend 0..1 toward background (white). Keep far fibers readable so pack gaps show. */
 export function twizzlerFogAmount(nearness: number): number {
-  return Math.pow(1 - nearness, 0.68);
+  return Math.pow(1 - nearness, 1.1) * 0.52;
 }
 
 /** Blend ribbon hex into white by fog amount (cheap distance fade). */
@@ -522,9 +522,9 @@ export function twizzlerFogColor(hex: string, fog: number, backgroundHex = "#fff
   return twizzlerLerpColor(hex, backgroundHex, Math.max(0, Math.min(1, fog)));
 }
 
-/** Stroke width scale from nearness — thick toward camera, hairline when far. */
+/** Stroke width scale from nearness — mild near/far bias so gaps stay readable. */
 export function twizzlerStrokeWidthScale(nearness: number): number {
-  return 0.1 + 3.8 * Math.pow(nearness, 1.4);
+  return 0.65 + 1.15 * Math.pow(nearness, 1.05);
 }
 
 /**
@@ -935,10 +935,10 @@ export function buildTwizzlerLines(
     const fog = twizzlerFogAmount(midNear);
     const color = twizzlerFogColor(withEdge, fog);
 
-    const visibility = 0.12 + 0.88 * Math.pow(midNear, 0.85);
+    const visibility = 0.5 + 0.5 * Math.pow(midNear, 0.65);
     lines.push({
       across,
-      opacity: Math.min(0.92, settings.opacity * visibility),
+      opacity: Math.min(0.95, settings.opacity * visibility),
       color,
       nearness: midNear,
       strokeWidth: Math.max(0.2, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),

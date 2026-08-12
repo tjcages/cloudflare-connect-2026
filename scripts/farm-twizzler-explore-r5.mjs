@@ -23,8 +23,8 @@ const lock = { ...preset.lab.twizzler, speed: 0 };
 const base = {
   heatVariant: 1,
   hillRhythm: 0,
-  lineCount: 72,
-  lineWidth: 0.55,
+  lineCount: 56,
+  lineWidth: 0.7,
   packGapRatio: 4,
   depthSpread: 1.18,
   wrinkles: 1.4,
