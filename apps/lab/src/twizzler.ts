@@ -564,12 +564,7 @@ export function twizzlerAmpHeat(xT: number, across: number, heatVariant: Twizzle
  * Signed Y swell: narrow Z-bands with phase-shifted hills along X.
  * Far / mid / near bands peak at different X — multiple peaks through the stack.
  */
-export function twizzlerAmpSwell(
-  xT: number,
-  across: number,
-  heatVariant: TwizzlerHeatVariant = 1,
-  seed = 3.1,
-): number {
+export function twizzlerAmpSwell(xT: number, across: number, heatVariant: TwizzlerHeatVariant = 1, seed = 3.1): number {
   const x = Math.max(0, Math.min(1, xT));
   const a = Math.max(-1, Math.min(1, across));
   const { bandCount, bandWidth } = twizzlerHeatRecipe(heatVariant);
