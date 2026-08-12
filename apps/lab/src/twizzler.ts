@@ -299,48 +299,63 @@ function sampleKnots(x: number, knots: ReadonlyArray<readonly [number, number]>)
 }
 
 /**
- * Shadertoy-style sine pack (phase per fiber) → normalized canvas Y (0=top, 1=bottom).
- * Recipes 0/1/2 match the three commented formulas; m from wrinkles (1..10).
+ * Exact Shadertoy sine-pack Y in **pixel** space (canvas Y down).
+ * uv.x = (x - 0.5W) / H  — same as the fragment shader.
+ * Line sits at uv.y = 0.25 * wave  (shader Y up) → canvasY = mid - uv.y * H.
  */
-export function twizzlerShaderPackY(
-  xT: number,
-  fiberT: number,
+export function twizzlerShaderPackPixelY(
+  pixelX: number,
+  pixelWidth: number,
+  pixelHeight: number,
+  fiberIndex: number,
+  lineCount: number,
   time: number,
-  settings: Pick<TwizzlerSettings, "wrinkles" | "amplitude" | "scale" | "centerY" | "depthLift">,
+  settings: Pick<TwizzlerSettings, "wrinkles" | "centerY">,
   recipe: 0 | 1 | 2 = 0,
 ): number {
-  const x = Math.max(0, Math.min(1, xT));
-  // Banner is wide — stretch u like Shadertoy uv.x across aspect.
-  const u = (x - 0.5) * (1.6 + settings.scale * 0.55);
-  const t = time * 0.35 + Math.PI * 2 * fiberT;
+  const uvx = (pixelX - 0.5 * pixelWidth) / Math.max(1, pixelHeight);
+  // Match shader: t = 0.2*iTime + 2π i/n
+  const t = 0.2 * time + (Math.PI * 2 * fiberIndex) / Math.max(1, lineCount);
   const m = Math.max(1, Math.min(10, 1 + settings.wrinkles * 1.6));
-  let yWave = 0;
+  let wave = 0;
   switch (recipe) {
     case 0: {
-      // y = sin(t + 11x) - 4x cos(t/2)
-      yWave = Math.sin(t + 11 * u) - 4 * u * Math.cos(t * 0.5);
+      wave = Math.sin(t + 11 * uvx) - 4 * uvx * Math.cos(t * 0.5);
       break;
     }
     case 1: {
-      // y = sin(m t + 11x) - 4x cos(t/2)
-      yWave = Math.sin(m * t + 11 * u) - 4 * u * Math.cos(t * 0.5);
+      wave = Math.sin(m * t + 11 * uvx) - 4 * uvx * Math.cos(t * 0.5);
       break;
     }
     case 2: {
-      // y = sin(m t + 11x) - 4x cos(t)
-      yWave = Math.sin(m * t + 11 * u) - 4 * u * Math.cos(t);
+      wave = Math.sin(m * t + 11 * uvx) - 4 * uvx * Math.cos(t);
       break;
     }
     default: {
       const _exhaustive: never = recipe;
       void _exhaustive;
-      yWave = 0;
+      wave = 0;
       break;
     }
   }
-  // Shader used 0.25*y for the isoline; map into banner envelope.
-  const gain = 0.1 + settings.amplitude * 0.16 + settings.depthLift * 0.05;
-  return settings.centerY + yWave * 0.25 * gain;
+  const uvy = 0.25 * wave;
+  const mid = pixelHeight * settings.centerY;
+  return mid - uvy * pixelHeight;
+}
+
+/** Normalized-Y wrapper for tests (assumes 5:1 banner). Prefer twizzlerShaderPackPixelY. */
+export function twizzlerShaderPackY(
+  xT: number,
+  fiberT: number,
+  time: number,
+  settings: Pick<TwizzlerSettings, "wrinkles" | "centerY">,
+  recipe: 0 | 1 | 2 = 0,
+  lineCount = 40,
+): number {
+  const W = 1600;
+  const H = 320;
+  const fiberIndex = fiberT * Math.max(1, lineCount);
+  return twizzlerShaderPackPixelY(xT * W, W, H, fiberIndex, lineCount, time, settings, recipe) / H;
 }
 
 /** depthTerrain 3/4/5 → shader pack recipes 0/1/2. */
@@ -802,7 +817,6 @@ export function buildTwizzlerLines(
 
   for (let range = 0; range < settings.lineCount; range += 1) {
     const across = acrossSlots[range] ?? (settings.lineCount <= 1 ? 0 : (range / (settings.lineCount - 1)) * 2 - 1);
-    const fiberT = (range + 0.5) / Math.max(1, settings.lineCount);
     const points: TwizzlerLine["points"] = [];
 
     for (let point = 0; point <= segmentCount; point += 1) {
@@ -819,28 +833,29 @@ export function buildTwizzlerLines(
       const fiberTheta = theta + across * 0.12;
       const face = twizzlerFaceAmount(fiberTheta);
       const halfW = twizzlerMarketingWidth(c.xT, settings) * pixelHeight;
-      const nearness = twizzlerFiberNearness(across, c.xT, settings, time);
-      const far = 1 - nearness;
       const depth = twizzlerDepthScale(c.xT, settings);
 
       let x = c.x;
       let y: number;
+      let nearness: number;
 
       if (shaderRecipe !== null) {
-        // Shadertoy sine-pack: phase per fiber → smooth curves + Z-scattered peaks.
-        const yN = twizzlerShaderPackY(c.xT, fiberT, time, settings, shaderRecipe);
-        const microStack = across * halfW * (0.12 + settings.depthSpread * 0.1);
-        const depthY = twizzlerDepthYBias(
-          nearness,
+        // Exact Shadertoy isoline — even i/n phase, no pack stack / depth warp / soft crush.
+        nearness = 0.45 + 0.55 * c.xT;
+        y = twizzlerShaderPackPixelY(
+          c.x,
+          pixelWidth,
           pixelHeight,
-          settings.depthLift,
-          c.xT,
-          waveAmp,
-          settings.depthTerrain,
+          range,
+          settings.lineCount,
+          time,
+          settings,
+          shaderRecipe,
         );
-        y = yN * pixelHeight + microStack + depthY;
-        x = c.x + across * halfW * 0.01 * Math.sin(fiberTheta);
+        x = c.x;
       } else {
+        nearness = twizzlerFiberNearness(across, c.xT, settings, time);
+        const far = 1 - nearness;
         // Classic spine + heat-patch path.
         const pinch = Math.exp(-Math.pow((c.xT - 0.42) / 0.1, 2));
         const organic = (twizzlerNoise(c.xT * 1.4, time * 0.12, 0.35) - 0.5) * settings.wrinkleStrength * 0.9;
@@ -881,51 +896,59 @@ export function buildTwizzlerLines(
       points.push({ x, y, depth, along: c.xT, nearness });
     }
 
-    // Soften tips; shader pack is already C∞ — light pass only.
-    twizzlerSoftenFiberCorners(points, shaderRecipe !== null ? 4 : 16);
+    // Soften tips on classic path only — shader pack is already C∞ isolines.
+    if (shaderRecipe === null) {
+      twizzlerSoftenFiberCorners(points, 16);
+    }
 
     const mid = points[Math.floor(points.length * 0.62)] ?? points[0];
     const midNear = mid?.nearness ?? 0.5;
     const colorT = twizzlerColorT(mid?.along ?? 0.5);
     const baseColor = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
     const withEdge =
-      Math.abs(across) > 0.85
+      shaderRecipe === null && Math.abs(across) > 0.85
         ? twizzlerLerpColor(baseColor, settings.colorEdge, ((Math.abs(across) - 0.85) / 0.15) * 0.35)
         : baseColor;
-    const fog = twizzlerFogAmount(midNear);
+    // Shader pack: keep fibers readable (light X fog only). Classic: depth fog.
+    const fog = shaderRecipe !== null ? 0.12 * (1 - midNear) : twizzlerFogAmount(midNear);
     const color = twizzlerFogColor(withEdge, fog);
 
-    const visibility = 0.12 + 0.88 * Math.pow(midNear, 0.85);
+    const visibility = shaderRecipe !== null ? 0.82 + 0.18 * midNear : 0.12 + 0.88 * Math.pow(midNear, 0.85);
     lines.push({
-      across,
-      opacity: Math.min(0.92, settings.opacity * visibility),
+      across: shaderRecipe !== null ? (range / Math.max(1, settings.lineCount - 1)) * 2 - 1 : across,
+      opacity: Math.min(0.95, settings.opacity * visibility),
       color,
       nearness: midNear,
-      strokeWidth: Math.max(0.2, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
+      strokeWidth:
+        shaderRecipe !== null
+          ? Math.max(0.35, settings.lineWidth)
+          : Math.max(0.2, settings.lineWidth * twizzlerStrokeWidthScale(midNear)),
       points,
     });
   }
 
-  // Shift the whole pack until the VISIBLE ink average sits at centerY (lower = higher on screen).
-  // Iterate because a tall pack clips; one-shot all-points mean leaves on-screen mass too low.
-  const targetY = pixelHeight * settings.centerY;
-  for (let iter = 0; iter < 4; iter += 1) {
-    let ySum = 0;
-    let yCount = 0;
-    for (const line of lines) {
-      for (const point of line.points) {
-        if (point.y >= 0 && point.y <= pixelHeight) {
-          ySum += point.y;
-          yCount += 1;
+  // Classic only: shift pack so visible ink sits on centerY.
+  // Shader pack already places isolines relative to centerY — do not crush the fan.
+  if (shaderRecipe === null) {
+    const targetY = pixelHeight * settings.centerY;
+    for (let iter = 0; iter < 4; iter += 1) {
+      let ySum = 0;
+      let yCount = 0;
+      for (const line of lines) {
+        for (const point of line.points) {
+          if (point.y >= 0 && point.y <= pixelHeight) {
+            ySum += point.y;
+            yCount += 1;
+          }
         }
       }
-    }
-    if (yCount <= 0) break;
-    const shift = targetY - ySum / yCount;
-    if (Math.abs(shift) < 0.25) break;
-    for (const line of lines) {
-      for (const point of line.points) {
-        point.y += shift;
+      if (yCount <= 0) break;
+      const shift = targetY - ySum / yCount;
+      if (Math.abs(shift) < 0.25) break;
+      for (const line of lines) {
+        for (const point of line.points) {
+          point.y += shift;
+        }
       }
     }
   }
@@ -948,6 +971,7 @@ export function renderTwizzler(
   if (!context) return;
 
   const { settings, lines } = buildTwizzlerLines(pixelWidth, pixelHeight, timeSec, input);
+  const shaderPack = twizzlerShaderPackRecipe(settings.depthTerrain) !== null;
   context.clearRect(0, 0, pixelWidth, pixelHeight);
   context.save();
   context.lineJoin = "round";
@@ -966,7 +990,7 @@ export function renderTwizzler(
     for (const stop of stops) {
       const sample = line.points[Math.min(line.points.length - 1, Math.round(stop * (line.points.length - 1)))];
       const nearness = sample?.nearness ?? line.nearness;
-      const fog = twizzlerFogAmount(nearness);
+      const fog = shaderPack ? 0.1 * (1 - nearness) : twizzlerFogAmount(nearness);
       const colorT = twizzlerColorT(sample?.along ?? stop);
       const base = twizzlerLerpColor(settings.colorFar, settings.colorNear, colorT);
       gradient.addColorStop(stop, twizzlerFogColor(base, fog));
@@ -975,11 +999,11 @@ export function renderTwizzler(
     // Width also grows along the path toward the camera (right).
     const leftNear = line.points[0]?.nearness ?? line.nearness;
     const rightNear = line.points[line.points.length - 1]?.nearness ?? line.nearness;
-    const widthScale = twizzlerStrokeWidthScale(0.35 * leftNear + 0.65 * rightNear);
+    const widthScale = shaderPack ? 1 : twizzlerStrokeWidthScale(0.35 * leftNear + 0.65 * rightNear);
 
     context.strokeStyle = gradient;
-    context.globalAlpha = Math.min(0.9, line.opacity);
-    context.lineWidth = Math.max(0.25, settings.lineWidth * widthScale);
+    context.globalAlpha = Math.min(0.95, line.opacity);
+    context.lineWidth = Math.max(0.35, settings.lineWidth * widthScale);
     context.beginPath();
     twizzlerTraceCubic(context, line.points);
     context.stroke();
