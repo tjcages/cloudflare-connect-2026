@@ -68,12 +68,6 @@ import {
   loadBannerLayout,
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
-import {
-  CLIENT_GRAPHIC_MODES,
-  clientGraphicFlags,
-  resolveClientGraphicMode,
-  type ClientGraphicMode,
-} from "./client/clientPresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -1194,16 +1188,6 @@ function LabInner({
   cometLogoRef.current = cometLogo;
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
-  const setClientGraphicMode = useCallback(
-    (mode: ClientGraphicMode) => {
-      const flags = clientGraphicFlags(mode);
-      setControl({
-        twizzlerEnabled: flags.twizzlerEnabled,
-        rainEnabled: flags.rainEnabled,
-      });
-    },
-    [setControl],
-  );
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
@@ -3228,7 +3212,6 @@ function LabInner({
   // Client Rain = stripe rect overlay on top of Twizzler. Output canvas sits above Twizzler
   // (z-index), so hide it when Rain is off or it covers the ribbon with an opaque pass.
   const showRainRectOverlay = !clientMode || controls.sparkle.gaps.enabled;
-  const clientGraphicMode = resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
   // Engine bg is forced transparent when underlay/source preview is shown — keep the
   // chosen solid color on the stack so it still sits behind those layers.
   // Twizzler hairlines need an opaque stack underlay (usually white) to read at all.
@@ -3845,24 +3828,6 @@ function LabInner({
                     onChange={handleConfigFileChange}
                   />
                 </div>
-                <fieldset className="lab-panel-mode-toggle" aria-label="Graphic">
-                  <legend>Graphic</legend>
-                  {CLIENT_GRAPHIC_MODES.map((mode) => (
-                    <label
-                      key={mode.id}
-                      className={`lab-panel-mode-btn${clientGraphicMode === mode.id ? " is-selected" : ""}`}
-                    >
-                      <input
-                        type="radio"
-                        name="lab-client-graphic"
-                        value={mode.id}
-                        checked={clientGraphicMode === mode.id}
-                        onChange={() => setClientGraphicMode(mode.id)}
-                      />
-                      {mode.label}
-                    </label>
-                  ))}
-                </fieldset>
               </div>
               <div className="lab-client-leva">
                 <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
