@@ -9,6 +9,7 @@ import {
   isSpiralShaderPreset,
   SPIRAL_SHADER_PRESET_ID,
   NEBULA_SHADER_PRESET_ID,
+  PLANE_TERRAIN_SHADER_PRESET_ID,
   SHADER_LIBRARY,
   TWIZZLER_MAP_SHADER_PRESET_ID,
 } from "../shaderLibrary";
@@ -22,7 +23,8 @@ describe("connect shader smoke", () => {
     expect(SHADER_LIBRARY[1]?.id).toBe(SPIRAL_SHADER_PRESET_ID);
     expect(SHADER_LIBRARY[2]?.id).toBe(COMET_LOGO_SHADER_PRESET_ID);
     expect(SHADER_LIBRARY[3]?.id).toBe(TWIZZLER_MAP_SHADER_PRESET_ID);
-    expect(SHADER_LIBRARY[4]?.id).toBe(NEBULA_SHADER_PRESET_ID);
+    expect(SHADER_LIBRARY[4]?.id).toBe(PLANE_TERRAIN_SHADER_PRESET_ID);
+    expect(SHADER_LIBRARY[5]?.id).toBe(NEBULA_SHADER_PRESET_ID);
     expect(CONNECT_SHAPE_OPTIONS).toHaveLength(10);
   });
 

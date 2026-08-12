@@ -52,6 +52,7 @@ const presetWithLab = (name: string): ConfigPreset =>
       depth2Width: 0.25,
       depthSpread: 0,
       depthLift: 0,
+      depthTerrain: 0,
       twist: 1.5,
       noiseScaleX: 0.002,
       noiseScaleY: 0.015,
@@ -143,6 +144,14 @@ describe("preset library transforms", () => {
     expect(banner?.lab?.canvasHeight).toBe(320);
     expect(banner?.lab?.shaderPresetId).toBe("twizzler-map");
     expect(banner?.lab?.twizzlerEnabled).toBe(true);
+  });
+
+  it("loads the Plane Terrain builtin preset from disk", () => {
+    const builtins = loadBuiltinPresets();
+    const planeTerrain = findPresetByName(builtins, "Plane Terrain");
+    expect(planeTerrain?.builtin).toBe(true);
+    expect(planeTerrain?.lab?.shaderPresetId).toBe("plane-terrain");
+    expect(planeTerrain?.config?.stripesEnabled).toBe(false);
   });
 
   it("transforms do not mutate the input array", () => {
