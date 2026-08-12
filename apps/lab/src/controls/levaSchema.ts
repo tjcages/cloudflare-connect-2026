@@ -15,6 +15,7 @@ import type { LabEditTheme, LabSettings } from "../persistence";
 import { fromEditable, toEditable, type EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
+import { gradientStopsPlugin } from "./gradientStopsPlugin";
 import { timeTransportPlugin } from "./timeTransportPlugin";
 import type { TimeTransportController } from "../components/TimeTransport";
 import { DEFAULT_LAB_TEXTURE_ID, buildTextureEntries, findTextureEntry } from "../textures";
@@ -33,6 +34,12 @@ import { SHADER_VIEW_DEFAULTS, type ShaderViewState } from "../shaderView";
 import type { ShaderConfigKind } from "../shaderConfig";
 import { CONNECT_SHADER_PRESET_ID, SHADER_LIBRARY } from "../shaderLibrary";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
+import {
+  defaultTwizzlerGradientStops,
+  parseTwizzlerGradientStops,
+  serializeTwizzlerGradientStops,
+  withTwizzlerGradientEndpointColors,
+} from "../twizzlerGradient";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
 import { COMET_LOGO_DEFAULTS, normalizeCometLogoSettings, type CometLogoSettings } from "@necatikcl/stripes-engine";
 import {
@@ -1616,8 +1623,12 @@ export function useEngineControls(
                     value: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
                     label: "Color",
                   }),
-                  // Solid: sole ink swatch. Shared/Fiber/Baked: near/right endpoint (paired with Color left).
-                  render: showTwizzlerRibbonConfig,
+                  // Solid: sole ink swatch. Baked: near/right endpoint (paired with Color left).
+                  render: (get) => {
+                    if (!showTwizzlerRibbonConfig()) return false;
+                    const mode = get("Twizzler.General.twizzlerRibbonColorMode");
+                    return mode === "solid" || mode === "baked";
+                  },
                 },
                 twizzlerColorFar: {
                   ...colorLibraryInputPlugin({
@@ -1625,7 +1636,25 @@ export function useEngineControls(
                     label: "Color left (X)",
                   }),
                   render: (get) =>
-                    showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") !== "solid",
+                    showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") === "baked",
+                },
+                twizzlerGradientStops: {
+                  ...gradientStopsPlugin({
+                    value: serializeTwizzlerGradientStops(
+                      parseTwizzlerGradientStops(
+                        initialLabSettings.twizzler.gradientStops,
+                        initialLabSettings.twizzler.colorFar,
+                        initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
+                      ),
+                    ),
+                    colorFar: initialLabSettings.twizzler.colorFar,
+                    colorNear: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
+                  }),
+                  render: (get) => {
+                    if (!showTwizzlerRibbonConfig()) return false;
+                    const mode = get("Twizzler.General.twizzlerRibbonColorMode");
+                    return mode === "sharedGradient" || mode === "fiberGradient";
+                  },
                 },
                 twizzlerColorEdge: {
                   ...colorLibraryInputPlugin({
@@ -1909,7 +1938,8 @@ export function useEngineControls(
                   render: showTwizzlerAuthoring,
                 },
               },
-              // Axis X/Y/Z mixes only drive Baked segments (Color mode). Shared/Fiber use Color left/right only.
+              // Axis X/Y/Z mixes only drive Baked segments (Color mode).
+              // Shared/Fiber use the Ramp stop editor (twizzlerGradientStops).
               {
                 render: (get) =>
                   showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") === "baked",
@@ -5044,8 +5074,36 @@ export function useEngineControls(
       twizzlerColor: color.colorNear ?? color.color,
       twizzlerColorFar: color.colorFar,
       twizzlerColorEdge: color.colorEdge,
+      twizzlerGradientStops: serializeTwizzlerGradientStops(
+        defaultTwizzlerGradientStops(color.colorFar, color.colorNear ?? color.color),
+      ),
     });
   }, [clientApp, clientColorId, setShaderControl]);
+
+  // Keep Color left/right knobs and the Ramp editor on the same endpoint colors
+  // so Shared ↔ Baked doesn't drop stop positions or endpoint ink (CF-55).
+  const shaderTwizzlerRecord = shaderValues as unknown as Record<string, unknown>;
+  const twizzlerRibbonColorModeValue = shaderTwizzlerRecord.twizzlerRibbonColorMode;
+  const twizzlerGradientStopsValue = shaderTwizzlerRecord.twizzlerGradientStops;
+  const twizzlerColorValue = shaderTwizzlerRecord.twizzlerColor;
+  const twizzlerColorFarValue = shaderTwizzlerRecord.twizzlerColorFar;
+  useEffect(() => {
+    const colorFar = String(twizzlerColorFarValue ?? "");
+    const colorNear = String(twizzlerColorValue ?? "");
+    const parsed = parseTwizzlerGradientStops(twizzlerGradientStopsValue, colorFar, colorNear);
+    if (parsed.length < 2) return;
+    if (twizzlerRibbonColorModeValue === "sharedGradient" || twizzlerRibbonColorModeValue === "fiberGradient") {
+      const far = parsed[0]!.color;
+      const near = parsed[parsed.length - 1]!.color;
+      if (far === colorFar.toLowerCase() && near === colorNear.toLowerCase()) return;
+      shaderControlSetterRef.current?.({ twizzlerColorFar: far, twizzlerColor: near });
+      return;
+    }
+    const patched = withTwizzlerGradientEndpointColors(parsed, colorFar, colorNear);
+    const serialized = serializeTwizzlerGradientStops(patched);
+    if (serialized === twizzlerGradientStopsValue) return;
+    shaderControlSetterRef.current?.({ twizzlerGradientStops: serialized });
+  }, [twizzlerRibbonColorModeValue, twizzlerGradientStopsValue, twizzlerColorValue, twizzlerColorFarValue]);
 
   // Nudge the store when Default↔Advanced flips so Leva recomputes visible paths
   // (render gates read refs; without a store tick folders stay stale).
@@ -5119,6 +5177,9 @@ export function useEngineControls(
       twizzlerColorFar: appearance.twizzler.colorFar,
       twizzlerColorEdge: appearance.twizzler.colorEdge,
       twizzlerRibbonColorMode: appearance.ribbonColorMode,
+      twizzlerGradientStops: serializeTwizzlerGradientStops(
+        defaultTwizzlerGradientStops(appearance.twizzler.colorFar, appearance.twizzler.colorNear),
+      ),
     });
   }, [clientApp, clientAppearanceId, setControl]);
 
@@ -5802,6 +5863,14 @@ export function useEngineControls(
         colorNear: shaderValueRecord.twizzlerColor,
         colorFar: shaderValueRecord.twizzlerColorFar,
         colorEdge: shaderValueRecord.twizzlerColorEdge,
+        gradientStops: (() => {
+          const colorFar = String(shaderValueRecord.twizzlerColorFar ?? "");
+          const colorNear = String(shaderValueRecord.twizzlerColor ?? "");
+          const parsed = parseTwizzlerGradientStops(shaderValueRecord.twizzlerGradientStops, colorFar, colorNear);
+          const mode = shaderValueRecord.twizzlerRibbonColorMode;
+          if (mode === "sharedGradient" || mode === "fiberGradient") return parsed;
+          return withTwizzlerGradientEndpointColors(parsed, colorFar, colorNear);
+        })(),
         opacity: shaderValueRecord.twizzlerOpacity,
         scale: shaderValueRecord.twizzlerScale,
         centerY: shaderValueRecord.twizzlerCenterY,

@@ -3,6 +3,7 @@ import { LIBRARY_COLOR } from "../components/colorLibrary";
 import { findPresetByName, loadBuiltinPresets } from "../presets";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
 import { normalizeTwizzlerSettings, type TwizzlerRibbonColorMode, type TwizzlerSettings } from "../twizzler";
+import { defaultTwizzlerGradientStops } from "../twizzlerGradient";
 
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
@@ -366,6 +367,7 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
     ...baseTwizzler,
     ...layout.twizzler,
     ...color.twizzler,
+    gradientStops: defaultTwizzlerGradientStops(color.twizzler.colorFar, color.twizzler.colorNear),
     opacity: state.tweaks.opacity,
     scale: state.tweaks.scale,
     twist: state.tweaks.twist,

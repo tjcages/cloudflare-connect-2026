@@ -5,6 +5,7 @@ import {
   ribbonGradientXSpan,
   type TwizzlerSettings,
 } from "../twizzler";
+import { twizzlerGradientSvgStops, type TwizzlerGradientStop } from "../twizzlerGradient";
 
 function number(value: number, digits = 2): string {
   return Number(value.toFixed(digits)).toString();
@@ -92,15 +93,12 @@ function filledPathAttrs(rgb: { r: number; g: number; b: number }, opacity: numb
   return `fill="rgb(${rgb.r},${rgb.g},${rgb.b})" fill-opacity="${number(opacity, 3)}" stroke="none"`;
 }
 
-function linearGradientDef(id: string, x1: number, x2: number, colorFar: string, colorNear: string): string {
-  const far = parseRgb(colorFar);
-  const near = parseRgb(colorNear);
+function linearGradientDef(id: string, x1: number, x2: number, stops: readonly TwizzlerGradientStop[]): string {
   const left = number(x1, 1);
   const right = number(Math.max(x2, x1 + 0.001), 1);
   return [
     `    <linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${left}" y1="0" x2="${right}" y2="0">`,
-    `      <stop offset="0" stop-color="rgb(${far.r},${far.g},${far.b})" />`,
-    `      <stop offset="1" stop-color="rgb(${near.r},${near.g},${near.b})" />`,
+    twizzlerGradientSvgStops(stops),
     "    </linearGradient>",
   ].join("\n");
 }
@@ -214,7 +212,7 @@ export function twizzlerToSvgLayer(
     return [
       `  <g data-layer="twizzler" data-color-mode="sharedGradient">`,
       "    <defs>",
-      linearGradientDef(packGradId, 0, targetWidth, settings.colorFar, settings.colorNear),
+      linearGradientDef(packGradId, 0, targetWidth, settings.gradientStops),
       `    <mask id="${packMaskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}">`,
       `      <rect x="0" y="0" width="${w}" height="${h}" fill="black" />`,
       maskPaths.join("\n"),
@@ -239,7 +237,7 @@ export function twizzlerToSvgLayer(
     const opacity = Math.max(0.01, Math.min(1, line.opacity));
     const span = ribbonGradientXSpan(scaled, strokeWidth) ?? { x1: 0, x2: targetWidth };
     const gradId = `twizzler-fiber-${fiberIndex}-grad`;
-    defs.push(linearGradientDef(gradId, span.x1, span.x2, settings.colorFar, settings.colorNear));
+    defs.push(linearGradientDef(gradId, span.x1, span.x2, settings.gradientStops));
     fiberBlocks.push(
       `    <path data-fiber="${fiberIndex}" d="${d}" fill="url(#${gradId})" fill-opacity="${number(opacity, 3)}" stroke="none" />`,
     );

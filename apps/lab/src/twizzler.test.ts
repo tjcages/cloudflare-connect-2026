@@ -119,6 +119,30 @@ describe("Twizzler", () => {
     expect(fromLeva.colorFar).toBe("#abcdef");
     expect(fromLeva.colorNear).toBe("#112233");
     expect(fromLeva.ribbonColorMode).toBe("sharedGradient");
+    expect(fromLeva.gradientStops).toEqual([
+      { id: "far", offset: 0, color: "#abcdef" },
+      { id: "near", offset: 1, color: "#112233" },
+    ]);
+  });
+
+  it("preserves custom shared-ramp stop offsets (CF-55)", () => {
+    const settings = normalizeTwizzlerSettings({
+      colorFar: "#fea700",
+      colorNear: "#f46021",
+      ribbonColorMode: "sharedGradient",
+      gradientStops: [
+        { id: "a", offset: 0.2, color: "#ff0000" },
+        { id: "b", offset: 0.55, color: "#00ff00" },
+        { id: "c", offset: 0.85, color: "#0000ff" },
+      ],
+    });
+    expect(settings.gradientStops.map((s) => [s.offset, s.color])).toEqual([
+      [0.2, "#ff0000"],
+      [0.55, "#00ff00"],
+      [0.85, "#0000ff"],
+    ]);
+    expect(settings.colorFar).toBe("#ff0000");
+    expect(settings.colorNear).toBe("#0000ff");
   });
 
   it("zooms uniformly without locking L/R edges (no fitScale 2.2 cap)", () => {
