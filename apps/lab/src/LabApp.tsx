@@ -2010,138 +2010,111 @@ function LabInner({
       let lastShaderPreviewAt = 0;
       let lastFramesReadbackAt = 0;
       let lastTwizzlerAt = 0;
-      let lastSourceAt = 0;
       let frameGroups: FrameGroup[] = [];
       const tick = () => {
         const now = performance.now();
         const deltaSec = Math.max(0, Math.min(0.1, (now - shaderLastTickMsRef.current) / 1000));
         shaderLastTickMsRef.current = now;
-        const rainVisible = !clientModeRef.current || controlsRef.current.sparkle.gaps.enabled;
-        const twizzlerVisible = shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled);
-        // Both = rain + twizzler: throttle each heavy pass (~30fps) so they share the frame budget.
-        const bothHeavy = clientModeRef.current && rainVisible && twizzlerVisible;
-        const sourceIntervalMs = bothHeavy ? 33 : 0;
-        const twizzlerIntervalMs = bothHeavy ? 33 : 0;
-        if (textureSourceModeRef.current === "shader" && rainVisible) {
+        if (textureSourceModeRef.current === "shader") {
           if (shaderPlayingRef.current) shaderTimeSecRef.current += deltaSec;
-          const runSource = !sourceIntervalMs || now - lastSourceAt >= sourceIntervalMs;
-          if (runSource) {
-            lastSourceAt = now;
-            if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
-              const connectRenderer = connectRendererRef.current;
-              if (connectRenderer) {
-                connectRenderer.render(shaderTimeSecRef.current);
-                engine.updateSourceFrame(connectRenderer.canvas);
-                const previewCanvas = shaderPreviewCanvasRef.current;
-                const previewSizeChanged =
-                  !!previewCanvas &&
-                  (previewCanvas.width !== connectRenderer.width || previewCanvas.height !== connectRenderer.height);
-                if (
-                  previewCanvas &&
-                  !clientModeRef.current &&
-                  (previewSizeChanged || now - lastShaderPreviewAt >= 100)
-                ) {
-                  lastShaderPreviewAt = now;
-                  if (previewCanvas.width !== connectRenderer.width) previewCanvas.width = connectRenderer.width;
-                  if (previewCanvas.height !== connectRenderer.height) previewCanvas.height = connectRenderer.height;
-                  previewCanvas.getContext("2d")?.drawImage(connectRenderer.canvas, 0, 0);
-                }
+          if (twizzlerPlayingRef.current) twizzlerTimeSecRef.current += deltaSec;
+
+          if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
+            const connectRenderer = connectRendererRef.current;
+            if (connectRenderer) {
+              connectRenderer.render(shaderTimeSecRef.current);
+              engine.updateSourceFrame(connectRenderer.canvas);
+              const previewCanvas = shaderPreviewCanvasRef.current;
+              const previewSizeChanged =
+                !!previewCanvas &&
+                (previewCanvas.width !== connectRenderer.width || previewCanvas.height !== connectRenderer.height);
+              if (previewCanvas && !clientModeRef.current && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+                lastShaderPreviewAt = now;
+                if (previewCanvas.width !== connectRenderer.width) previewCanvas.width = connectRenderer.width;
+                if (previewCanvas.height !== connectRenderer.height) previewCanvas.height = connectRenderer.height;
+                previewCanvas.getContext("2d")?.drawImage(connectRenderer.canvas, 0, 0);
               }
-            } else if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
-              const renderer = cometLogoRendererRef.current;
-              if (renderer) {
-                renderer.render(shaderTimeSecRef.current, shaderMouseRef.current, cometLogoRef.current);
-                engine.updateSourceFrame(renderer.canvas);
-                const previewCanvas = shaderPreviewCanvasRef.current;
-                const previewSizeChanged =
-                  !!previewCanvas &&
-                  (previewCanvas.width !== renderer.width || previewCanvas.height !== renderer.height);
-                if (
-                  previewCanvas &&
-                  !clientModeRef.current &&
-                  (previewSizeChanged || now - lastShaderPreviewAt >= 100)
-                ) {
-                  lastShaderPreviewAt = now;
-                  if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
-                  if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
-                  previewCanvas.getContext("2d")?.drawImage(renderer.canvas, 0, 0);
-                }
+            }
+          } else if (isCometLogoShaderPreset(shaderPresetIdRef.current)) {
+            const renderer = cometLogoRendererRef.current;
+            if (renderer) {
+              renderer.render(shaderTimeSecRef.current, shaderMouseRef.current, cometLogoRef.current);
+              engine.updateSourceFrame(renderer.canvas);
+              const previewCanvas = shaderPreviewCanvasRef.current;
+              const previewSizeChanged =
+                !!previewCanvas && (previewCanvas.width !== renderer.width || previewCanvas.height !== renderer.height);
+              if (previewCanvas && !clientModeRef.current && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+                lastShaderPreviewAt = now;
+                if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
+                if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
+                previewCanvas.getContext("2d")?.drawImage(renderer.canvas, 0, 0);
               }
-            } else if (isTwizzlerMapShaderPreset(shaderPresetIdRef.current)) {
-              const renderer = twizzlerMapRendererRef.current;
-              if (renderer) {
-                renderer.render(
-                  twizzlerTimeSecRef.current,
-                  shaderTimeSecRef.current,
-                  twizzlerRef.current,
-                  twizzlerMapRef.current,
+            }
+          } else if (isTwizzlerMapShaderPreset(shaderPresetIdRef.current)) {
+            const renderer = twizzlerMapRendererRef.current;
+            if (renderer) {
+              renderer.render(
+                twizzlerTimeSecRef.current,
+                shaderTimeSecRef.current,
+                twizzlerRef.current,
+                twizzlerMapRef.current,
+              );
+              engine.updateSourceFrame(renderer.canvas);
+              const previewCanvas = shaderPreviewCanvasRef.current;
+              const previewSizeChanged =
+                !!previewCanvas && (previewCanvas.width !== renderer.width || previewCanvas.height !== renderer.height);
+              if (previewCanvas && !clientModeRef.current && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+                lastShaderPreviewAt = now;
+                if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
+                if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
+                previewCanvas.getContext("2d")?.drawImage(renderer.canvas, 0, 0);
+              }
+            }
+          } else {
+            const shaderRenderer = shaderRendererRef.current;
+            if (shaderRenderer) {
+              if (isTwizzlerSineShaderPreset(shaderPresetIdRef.current)) {
+                const tw = twizzlerRef.current;
+                shaderRenderer.setUniforms(
+                  twizzlerSineUniforms(tw, {
+                    rotateXDeg: tw.rotateX,
+                    rotateYDeg: tw.rotateY,
+                    rotateZDeg: tw.rotateZ,
+                    panX: tw.panX,
+                    panY: tw.panY,
+                    distance: tw.viewDistance,
+                  }),
                 );
-                engine.updateSourceFrame(renderer.canvas);
-                const previewCanvas = shaderPreviewCanvasRef.current;
-                const previewSizeChanged =
-                  !!previewCanvas &&
-                  (previewCanvas.width !== renderer.width || previewCanvas.height !== renderer.height);
-                if (
-                  previewCanvas &&
-                  !clientModeRef.current &&
-                  (previewSizeChanged || now - lastShaderPreviewAt >= 100)
-                ) {
-                  lastShaderPreviewAt = now;
-                  if (previewCanvas.width !== renderer.width) previewCanvas.width = renderer.width;
-                  if (previewCanvas.height !== renderer.height) previewCanvas.height = renderer.height;
-                  previewCanvas.getContext("2d")?.drawImage(renderer.canvas, 0, 0);
-                }
               }
-            } else {
-              const shaderRenderer = shaderRendererRef.current;
-              if (shaderRenderer) {
-                if (isTwizzlerSineShaderPreset(shaderPresetIdRef.current)) {
-                  const tw = twizzlerRef.current;
-                  shaderRenderer.setUniforms(
-                    twizzlerSineUniforms(tw, {
-                      rotateXDeg: tw.rotateX,
-                      rotateYDeg: tw.rotateY,
-                      rotateZDeg: tw.rotateZ,
-                      panX: tw.panX,
-                      panY: tw.panY,
-                      distance: tw.viewDistance,
-                    }),
-                  );
-                }
-                shaderRenderer.render(
-                  shaderTimeSecRef.current,
-                  shaderMouseRef.current,
-                  // Twizzler Sine handles XYZ itself with edge-locked X — keep wrapper identity.
-                  isTwizzlerSineShaderPreset(shaderPresetIdRef.current)
-                    ? null
-                    : shaderViewFromSettings(labSettingsRef.current),
-                );
-                engine.updateSourceFrame(shaderRenderer.canvas);
-                const previewCanvas = shaderPreviewCanvasRef.current;
-                const previewSizeChanged =
-                  !!previewCanvas &&
-                  (previewCanvas.width !== shaderRenderer.width || previewCanvas.height !== shaderRenderer.height);
-                if (
-                  previewCanvas &&
-                  !clientModeRef.current &&
-                  (previewSizeChanged || now - lastShaderPreviewAt >= 100)
-                ) {
-                  lastShaderPreviewAt = now;
-                  if (previewCanvas.width !== shaderRenderer.width) previewCanvas.width = shaderRenderer.width;
-                  if (previewCanvas.height !== shaderRenderer.height) previewCanvas.height = shaderRenderer.height;
-                  previewCanvas.getContext("2d")?.drawImage(shaderRenderer.canvas, 0, 0);
-                }
+              shaderRenderer.render(
+                shaderTimeSecRef.current,
+                shaderMouseRef.current,
+                // Twizzler Sine handles XYZ itself with edge-locked X — keep wrapper identity.
+                isTwizzlerSineShaderPreset(shaderPresetIdRef.current)
+                  ? null
+                  : shaderViewFromSettings(labSettingsRef.current),
+              );
+              engine.updateSourceFrame(shaderRenderer.canvas);
+              const previewCanvas = shaderPreviewCanvasRef.current;
+              const previewSizeChanged =
+                !!previewCanvas &&
+                (previewCanvas.width !== shaderRenderer.width || previewCanvas.height !== shaderRenderer.height);
+              if (previewCanvas && !clientModeRef.current && (previewSizeChanged || now - lastShaderPreviewAt >= 100)) {
+                lastShaderPreviewAt = now;
+                if (previewCanvas.width !== shaderRenderer.width) previewCanvas.width = shaderRenderer.width;
+                if (previewCanvas.height !== shaderRenderer.height) previewCanvas.height = shaderRenderer.height;
+                previewCanvas.getContext("2d")?.drawImage(shaderRenderer.canvas, 0, 0);
               }
             }
           }
         }
-        if (twizzlerPlayingRef.current && twizzlerVisible) twizzlerTimeSecRef.current += deltaSec;
         const twizzlerCanvas = twizzlerCanvasRef.current;
         const outputCanvas = canvasRef.current;
         if (twizzlerCanvas && outputCanvas) {
-          if (twizzlerVisible) {
-            const runTwizzler = !twizzlerIntervalMs || now - lastTwizzlerAt >= twizzlerIntervalMs;
-            if (runTwizzler) {
+          if (shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled)) {
+            // Both-mode soft-cap: Twizzler Canvas2D ~30fps when rain is also on (rain source stays full-rate).
+            const bothHeavy = clientModeRef.current && controlsRef.current.sparkle.gaps.enabled;
+            if (!(bothHeavy && now - lastTwizzlerAt < 33)) {
               lastTwizzlerAt = now;
               const tw = twizzlerRef.current;
               const bg = controlsRef.current.background;
@@ -2283,17 +2256,10 @@ function LabInner({
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || manual) return;
-    if (surfaceWorkspace.mode !== "full") {
-      engine.stop();
-      return;
-    }
-    // Client Twizzler-only: rain canvas is hidden — stop the stripes engine so Both isn't paying for idle rain.
-    if (clientMode && !controls.sparkle.gaps.enabled) {
-      engine.stop();
-      return;
-    }
-    engine.start();
-  }, [manual, surfaceWorkspace.mode, clientMode, controls.sparkle.gaps.enabled]);
+    // Match production: keep the stripes engine running in full mode (Rain colors need a live source).
+    if (surfaceWorkspace.mode === "full") engine.start();
+    else engine.stop();
+  }, [manual, surfaceWorkspace.mode]);
 
   useEffect(() => {
     if (!shell) return;
