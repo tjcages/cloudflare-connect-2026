@@ -66,3 +66,5 @@ Branch slug = git branch with `/` → `-`, lowercased (e.g. `cursor/cf-17-…` �
 If every non-`main` commit stays **queued / 0 runs** forever, non-prod builds are not actually firing — re-toggle the Branch control checkbox, confirm no stuck build is holding the free-plan concurrent slot (limit 1), and check [Build history](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production).
 
 Optional fallback secret: repo `CLOUDFLARE_API_TOKEN` enables `pnpm run preview:upload` from GitHub Actions.
+
+Cloud-agent checkouts often lack `CLOUDFLARE_API_TOKEN`. Do not loop on `wrangler deploy`. Production updates when Workers Builds on `main` finishes — confirm https://connect-shader.off-brand.workers.dev/ rather than claiming a local promote. Visual match sign-off (CF-51) still gates calling production “accepted”; CF-9 stays open until that accept.
