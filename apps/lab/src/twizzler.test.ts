@@ -3,6 +3,7 @@ import {
   buildTwizzlerLines,
   normalizeTwizzlerColor,
   normalizeTwizzlerSettings,
+  orangeWaveXRangeForCanvas,
   orangeWaveY,
   twizzlerAnimationTime,
   twizzlerBendOffset,
@@ -31,6 +32,14 @@ import {
 
 function pixelEdge(width: number, t: number): number {
   return width * t;
+}
+
+function hexLuma(hex: string): number {
+  const n = Number.parseInt(hex.replace("#", ""), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return (r * 299 + g * 587 + b * 114) / 1000;
 }
 
 describe("Twizzler", () => {
@@ -262,5 +271,76 @@ describe("Twizzler", () => {
     const left = twizzlerFiberNearness(0, 0.1, settings, 0);
     const right = twizzlerFiberNearness(0, 0.95, settings, 0);
     expect(right).toBeGreaterThan(left);
+  });
+
+  it("expands world X for wide canvases without stretching the square shape", () => {
+    expect(orangeWaveXRangeForCanvas(800, 800)).toBeCloseTo(6.8, 5);
+    expect(orangeWaveXRangeForCanvas(4000, 800)).toBeCloseTo(6.8 * 5, 5);
+
+    const common = {
+      lineCount: 24,
+      pointSpacing: 8,
+      speed: 0,
+      amplitude: 1,
+      scale: 1,
+      centerY: 0.5,
+      rotateXDeg: 12,
+      rotateYDeg: -18,
+      rotateZDeg: 0,
+      gradientXEnabled: false,
+      gradientYEnabled: false,
+      gradientZEnabled: false,
+    };
+    const square = buildTwizzlerLines(800, 800, 0, common);
+    const banner = buildTwizzlerLines(4000, 800, 0, common);
+
+    const midBand = (lines: typeof square.lines, width: number) =>
+      lines.flatMap((line) => line.points.filter((p) => Math.abs(p.x - width * 0.5) < width * 0.05));
+    const ySpan = (pts: { y: number }[]) => Math.max(...pts.map((p) => p.y)) - Math.min(...pts.map((p) => p.y));
+
+    const squareMid = midBand(square.lines, 800);
+    const bannerMid = midBand(banner.lines, 4000);
+    expect(squareMid.length).toBeGreaterThan(10);
+    expect(bannerMid.length).toBeGreaterThan(10);
+    // Same canvas height → center column keeps similar vertical scale (not squashed/stretched).
+    expect(ySpan(bannerMid)).toBeGreaterThan(ySpan(squareMid) * 0.7);
+    expect(ySpan(bannerMid)).toBeLessThan(ySpan(squareMid) * 1.45);
+
+    const bannerXs = banner.lines.flatMap((line) => line.points.map((p) => p.x));
+    expect(Math.min(...bannerXs)).toBeLessThan(pixelEdge(4000, 0.08));
+    expect(Math.max(...bannerXs)).toBeGreaterThan(pixelEdge(4000, 0.92));
+
+    const meanY = (pts: { y: number }[]) => pts.reduce((s, p) => s + p.y, 0) / pts.length;
+    // Both packs sit on the shared centerY (half-canvas).
+    expect(meanY(bannerMid)).toBeGreaterThan(800 * 0.4);
+    expect(meanY(bannerMid)).toBeLessThan(800 * 0.6);
+    expect(meanY(squareMid)).toBeGreaterThan(800 * 0.4);
+    expect(meanY(squareMid)).toBeLessThan(800 * 0.6);
+  });
+
+  it("fades Z gradient from foreground toward background color", () => {
+    const { lines } = buildTwizzlerLines(600, 600, 0, {
+      lineCount: 40,
+      pointSpacing: 10,
+      speed: 0,
+      color: "#f46021",
+      colorFar: "#f46021",
+      colorNear: "#f46021",
+      colorEdge: "#f46021",
+      gradientXEnabled: false,
+      gradientYEnabled: false,
+      gradientZEnabled: true,
+      gradientZStrength: 1,
+      gradientZCenter: 0,
+      gradientZWidth: 0.95,
+      backgroundColor: "#ffffff",
+    });
+    expect(lines.length).toBeGreaterThan(10);
+    const sorted = [...lines].sort((a, b) => a.across - b.across);
+    // Low across = Z_MIN (closer) keeps foreground; high across = Z_MAX fades to background.
+    const nearLine = sorted[0]!;
+    const farLine = sorted[sorted.length - 1]!;
+    expect(hexLuma(farLine.color)).toBeGreaterThan(hexLuma(nearLine.color) + 20);
+    expect(hexLuma(nearLine.color)).toBeLessThan(200);
   });
 });

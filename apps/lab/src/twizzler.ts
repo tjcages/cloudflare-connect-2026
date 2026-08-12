@@ -72,11 +72,19 @@ export type TwizzlerSettings = {
   /** Y peak/trough accents (peaks colorEdge, troughs colorNear). */
   gradientYEnabled: boolean;
   gradientYMix: number;
-  /** Z depth opacity falloff. */
+  /**
+   * Z depth fade: near-camera fibers keep foreground colors;
+   * farther / higher Z lerps toward `backgroundColor`.
+   */
   gradientZEnabled: boolean;
   gradientZStrength: number;
   gradientZCenter: number;
   gradientZWidth: number;
+  /**
+   * Stage / far color for Z fade (library Neutral White by default).
+   * Near-camera fibers keep foreground colors; far fibers lerp toward this.
+   */
+  backgroundColor: string;
   noiseScaleX: number;
   noiseScaleY: number;
   speed: number;
@@ -139,6 +147,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   gradientZStrength: 0.75,
   gradientZCenter: 0,
   gradientZWidth: 0.95,
+  backgroundColor: "#ffffff",
   noiseScaleX: 0.0004,
   noiseScaleY: 0.01,
   speed: 1,
@@ -287,6 +296,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     gradientZStrength: clamp(input.gradientZStrength, TWIZZLER_DEFAULTS.gradientZStrength, 0, 1.5),
     gradientZCenter: clamp(input.gradientZCenter, TWIZZLER_DEFAULTS.gradientZCenter, -1, 1),
     gradientZWidth: clamp(input.gradientZWidth, TWIZZLER_DEFAULTS.gradientZWidth, 0.15, 2),
+    backgroundColor: normalizeTwizzlerColor(input.backgroundColor ?? TWIZZLER_DEFAULTS.backgroundColor),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.0001, 0.02),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.001, 0.1),
     speed: clamp(input.speed, TWIZZLER_DEFAULTS.speed, 0, 3),
@@ -302,7 +312,7 @@ const ORANGE_WAVE_Z_MAX = 2.8;
 const ORANGE_WAVE_X_RANGE = 6.8;
 
 type Vec3 = { x: number; y: number; z: number };
-type WavePoint = Vec3 & { u: number; origX: number; origY: number; origZ: number };
+type WavePoint = Vec3 & { u: number; origX: number; origY: number; origZ: number; pitchZ: number };
 
 function parseRgb(hex: string): { r: number; g: number; b: number } {
   const value = hex.replace("#", "");
@@ -338,7 +348,7 @@ function rgbToHex(c: { r: number; g: number; b: number }): string {
 }
 
 /** Multi-sine ribbon height from the orange-wave reference. */
-export function orangeWaveY(x: number, z: number, t: number, amplitude = 1): number {
+export function orangeWaveY(x: number, z: number, t: number, amplitude = 1, xRange = ORANGE_WAVE_X_RANGE): number {
   let y = 0;
   y += 0.42 * Math.sin(x * 0.42 + z * 0.3 + t * 0.09);
   y += 0.28 * Math.sin(x * 0.95 - z * 0.48 + t * 0.06 + 1.0);
@@ -350,9 +360,19 @@ export function orangeWaveY(x: number, z: number, t: number, amplitude = 1): num
   y += 0.015 * Math.sin(x * 7.0 - z * 3.8 + t * 0.41);
   y += 0.05 * Math.sin(z * 1.9 + t * 0.19) * Math.sin(x * 0.3 + 0.4);
   y += 0.03 * Math.sin(z * 2.9 - t * 0.27) * Math.cos(x * 0.45);
-  const env = Math.max(0, Math.min(1, (8.5 - Math.abs(x)) / (8.5 - 3.8)));
+  // Soft longitudinal envelope scales with visible X range (wide canvases expand X).
+  const edgeOuter = xRange * (8.5 / ORANGE_WAVE_X_RANGE);
+  const edgeInner = xRange * (3.8 / ORANGE_WAVE_X_RANGE);
+  const env = Math.max(0, Math.min(1, (edgeOuter - Math.abs(x)) / Math.max(1e-6, edgeOuter - edgeInner)));
   y *= env * env * (3 - 2 * env);
   return y * amplitude;
+}
+
+/** World-space half-width so square framing stays stable; wide canvases see more left/right. */
+export function orangeWaveXRangeForCanvas(width: number, height: number): number {
+  const w = Math.max(1, width);
+  const h = Math.max(1, height);
+  return ORANGE_WAVE_X_RANGE * Math.max(1, w / h);
 }
 
 function orangeWaveRotX(p: Vec3, a: number): Vec3 {
@@ -874,10 +894,15 @@ export function buildTwizzlerLines(
   const settings = normalizeTwizzlerSettings(input);
   const time = twizzlerAnimationTime(timeSec, settings.speed);
   const layerCount = Math.max(1, settings.lineCount);
-  const pointCount = Math.max(32, Math.min(512, Math.round(pixelWidth / Math.max(2, settings.pointSpacing))));
+  // Sample density follows the shorter axis so wide banners don't thin the ribbon.
+  const sampleAxis = Math.min(pixelWidth, pixelHeight);
+  const pointCount = Math.max(32, Math.min(512, Math.round(sampleAxis / Math.max(2, settings.pointSpacing))));
   const rotX = (settings.rotateXDeg * Math.PI) / 180;
   const rotY = (settings.rotateYDeg * Math.PI) / 180;
   const rotZ = (settings.rotateZDeg * Math.PI) / 180;
+  // Wide canvases expand world X (more L/R of the same shape); square keeps reference range.
+  const xRange = orangeWaveXRangeForCanvas(pixelWidth, pixelHeight);
+  const aspectExpand = xRange / ORANGE_WAVE_X_RANGE;
   const camDist = settings.camDist;
   const fov = settings.fov;
   const zoom = settings.scale;
@@ -891,37 +916,46 @@ export function buildTwizzlerLines(
     const layer: WavePoint[] = [];
     for (let j = 0; j < pointCount; j += 1) {
       const u = pointCount <= 1 ? 0 : (j / (pointCount - 1)) * 2 - 1;
-      const x = u * ORANGE_WAVE_X_RANGE;
-      const y = orangeWaveY(x, z, time, settings.amplitude);
+      const x = u * xRange;
+      const y = orangeWaveY(x, z, time, settings.amplitude, xRange);
       let q: Vec3 = { x, y, z };
       q = orangeWaveRotX(q, rotX);
+      const pitchZ = q.z;
       q = orangeWaveRotY(q, rotY);
       q = orangeWaveRotZ(q, rotZ);
-      layer.push({ ...q, u, origX: x, origY: y, origZ: z });
+      layer.push({ ...q, u, origX: x, origY: y, origZ: z, pitchZ });
     }
     rotated.push(layer);
   }
 
   let minPX = Infinity;
   let maxPX = -Infinity;
+  const useParamX = aspectExpand > 1.001;
   for (const layer of rotated) {
     for (const p of layer) {
-      const depth = camDist + p.z;
+      const inCore = Math.abs(p.origX) <= ORANGE_WAVE_X_RANGE;
+      const depth = useParamX && !inCore ? camDist + p.pitchZ : camDist + p.z;
       if (depth < 0.4) continue;
-      const px = (p.x / depth) * fov;
+      const px = useParamX ? (p.origX / camDist) * fov : (p.x / depth) * fov;
       if (px < minPX) minPX = px;
       if (px > maxPX) maxPX = px;
     }
   }
   const span = Math.max(0.001, maxPX - minPX);
-  const fitScale = Math.min(2.2, (1.88 * zoom) / span);
+  // Wide: fit the square-core parameter span so shape scale matches square; wings extend L/R.
+  const fitSpan = useParamX ? span / aspectExpand : span;
+  const fitScale = Math.min(2.2, (1.88 * zoom) / Math.max(0.001, fitSpan));
   const mid = (minPX + maxPX) * 0.5;
+  // Uniform pixel scale from height: square maps identically to the old path;
+  // banners keep the same world→pixel scale and reveal more L/R.
+  const screenScale = pixelHeight;
 
   const colXA = parseRgb(settings.colorFar);
   const colXB = parseRgb(settings.colorNear);
   const colYA = parseRgb(settings.colorEdge);
   const colYB = parseRgb(settings.colorNear);
   const baseOrange = parseRgb(settings.color);
+  const backgroundRgb = parseRgb(settings.backgroundColor);
 
   const lines: TwizzlerLine[] = [];
   for (let i = 0; i < rotated.length; i += 1) {
@@ -937,23 +971,26 @@ export function buildTwizzlerLines(
 
     for (let j = 0; j < layer.length; j += 1) {
       const p = layer[j]!;
-      const depth = camDist + p.z;
+      const inCore = Math.abs(p.origX) <= ORANGE_WAVE_X_RANGE;
+      // Core matches square perspective; wings use pitch depth so expanded X stays stable.
+      const depth = useParamX && !inCore ? camDist + p.pitchZ : camDist + p.z;
       if (depth < 0.4) continue;
 
       let a = orangeWaveSmoothstep(3.2, 0.3, Math.abs(p.origZ + 0.15));
       a *= orangeWaveSmoothstep(1.12, 0.58, Math.abs(p.u));
       a *= orangeWaveSmoothstep(0.2, 1.0, depth / 14);
 
+      // Z factor: 1 near camera / low Z, 0 far / high Z (after center+width shaping).
+      let zNearFactor = 1;
       if (settings.gradientZEnabled) {
         let g = ((p.origZ - ORANGE_WAVE_Z_MIN) / (ORANGE_WAVE_Z_MAX - ORANGE_WAVE_Z_MIN)) * 2 - 1;
         g = (g - settings.gradientZCenter) / Math.max(0.05, settings.gradientZWidth);
-        const factor = orangeWaveSmoothstep(1.2, -0.2, g);
-        a *= 1 - settings.gradientZStrength + settings.gradientZStrength * Math.max(0, Math.min(1, factor));
+        zNearFactor = Math.max(0, Math.min(1, orangeWaveSmoothstep(1.2, -0.2, g)));
       }
 
       let col = { ...baseOrange };
       if (settings.gradientXEnabled) {
-        const tx = (p.origX / ORANGE_WAVE_X_RANGE) * 0.5 + 0.5;
+        const tx = (p.origX / xRange) * 0.5 + 0.5;
         const cx = lerpRgb(colXA, colXB, Math.max(0, Math.min(1, tx)));
         col = lerpRgb(col, cx, settings.gradientXMix);
       }
@@ -966,13 +1003,20 @@ export function buildTwizzlerLines(
           col = lerpRgb(col, target, influence);
         }
       }
+      // Default Z look: foreground → background as depth increases (near keeps ink).
+      if (settings.gradientZEnabled && settings.gradientZStrength > 0) {
+        const farMix = (1 - zNearFactor) * Math.min(1, settings.gradientZStrength);
+        col = lerpRgb(col, backgroundRgb, farMix);
+      }
 
       if (a < 0.008) continue;
 
-      const ndcX = ((p.x / depth) * fov - mid) * fitScale;
+      const px = useParamX ? (p.origX / camDist) * fov : (p.x / depth) * fov;
+      const ndcX = (px - mid) * fitScale;
+      // Y always uses the active depth (pitch-stable on wide) so shape scale matches square.
       const ndcY = (p.y / depth) * fov * 1.25 * zoom;
-      const x = (ndcX * 0.5 + 0.5) * pixelWidth;
-      const y = (0.5 - ndcY * 0.5) * pixelHeight;
+      const x = pixelWidth * 0.5 + ndcX * 0.5 * screenScale;
+      const y = pixelHeight * 0.5 - ndcY * 0.5 * screenScale;
       const nearness = Math.max(0, Math.min(1, 1 - (depth - 8) / 6));
       const hex = rgbToHex(col);
       points.push({

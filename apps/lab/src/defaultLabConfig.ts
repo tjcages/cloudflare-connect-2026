@@ -440,6 +440,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     gradientZStrength: 0.75,
     gradientZCenter: 0,
     gradientZWidth: 0.95,
+    backgroundColor: "#ffffff",
     noiseScaleX: 0.0015,
     noiseScaleY: 0.012,
     speed: 1,

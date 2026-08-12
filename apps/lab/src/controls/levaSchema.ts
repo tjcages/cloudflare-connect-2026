@@ -1710,14 +1710,14 @@ export function useEngineControls(
                 },
                 twizzlerGradientZEnabled: {
                   value: initialLabSettings.twizzler.gradientZEnabled ?? true,
-                  label: "Z fade",
+                  label: "Z → background",
                 },
                 twizzlerGradientZStrength: {
                   value: initialLabSettings.twizzler.gradientZStrength ?? 0.75,
                   min: 0,
                   max: 1.5,
                   step: 0.02,
-                  label: "Z strength",
+                  label: "Z fade strength",
                 },
                 twizzlerGradientZCenter: {
                   value: initialLabSettings.twizzler.gradientZCenter ?? 0,
@@ -5451,6 +5451,7 @@ export function useEngineControls(
         gradientZStrength: shaderValueRecord.twizzlerGradientZStrength,
         gradientZCenter: shaderValueRecord.twizzlerGradientZCenter,
         gradientZWidth: shaderValueRecord.twizzlerGradientZWidth,
+        backgroundColor: initialLabSettings.twizzler.backgroundColor,
         noiseScaleX: shaderValueRecord.twizzlerNoiseScaleX,
         noiseScaleY: shaderValueRecord.twizzlerNoiseScaleY,
         speed: shaderValueRecord.twizzlerSpeed,

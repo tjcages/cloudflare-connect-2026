@@ -1638,13 +1638,19 @@ function LabInner({
         }
       }
       if (lab.textureSourceMode === "shader" && twizzlerRef.current.enabled) {
+        const stageBackgroundHex = cfg.background.transparent
+          ? (twizzlerRef.current.backgroundColor ?? "#ffffff")
+          : "#" + cfg.background.color.toString(16).padStart(6, "0");
         twizzlerSvgLayer = twizzlerToSvgLayer(
           canvas.width,
           canvas.height,
           canvasWidthPx,
           canvasHeightPx,
           twizzlerTimeSecRef.current,
-          twizzlerRef.current,
+          {
+            ...twizzlerRef.current,
+            backgroundColor: stageBackgroundHex,
+          },
         );
       }
       const exportBackground = resolveSvgExportBackground({
@@ -1943,8 +1949,13 @@ function LabInner({
         const outputCanvas = canvasRef.current;
         if (twizzlerCanvas && outputCanvas) {
           if (shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled)) {
+            const bg = controlsRef.current.background;
+            const stageBackgroundHex = bg.transparent
+              ? (twizzlerRef.current.backgroundColor ?? "#ffffff")
+              : "#" + bg.color.toString(16).padStart(6, "0");
             renderTwizzler(twizzlerCanvas, outputCanvas.width, outputCanvas.height, twizzlerTimeSecRef.current, {
               ...twizzlerRef.current,
+              backgroundColor: stageBackgroundHex,
             });
           } else {
             clearTwizzler(twizzlerCanvas);
