@@ -641,24 +641,24 @@ function LabExportControls({
 
   return (
     <div className="playground-export-controls">
-      <div className="playground-canvas-size-row-header">
-        <span className="playground-canvas-scale-meta">
-          {videoEl ? `Source ${formatTime(videoDuration)}` : "Image loop"}
-        </span>
-      </div>
       {videoEl ? (
-        <div className="playground-canvas-size-inline">
-          <span className="playground-canvas-scale-label">Start second</span>
-          <input
-            className="lab-input"
-            type="number"
-            min={0}
-            max={Math.max(0, videoDuration)}
-            step={0.1}
-            value={settings.exportStartSec}
-            onChange={(e) => setNumber("exportStartSec", e.target.value)}
-          />
-        </div>
+        <>
+          <div className="playground-canvas-size-row-header">
+            <span className="playground-canvas-scale-meta">Source {formatTime(videoDuration)}</span>
+          </div>
+          <div className="playground-canvas-size-inline">
+            <span className="playground-canvas-scale-label">Start second</span>
+            <input
+              className="lab-input"
+              type="number"
+              min={0}
+              max={Math.max(0, videoDuration)}
+              step={0.1}
+              value={settings.exportStartSec}
+              onChange={(e) => setNumber("exportStartSec", e.target.value)}
+            />
+          </div>
+        </>
       ) : null}
       <div className="playground-canvas-size-inline">
         <span className="playground-canvas-scale-label">Duration second</span>
