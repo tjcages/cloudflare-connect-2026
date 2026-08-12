@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { LabApp } from "./LabApp";
+import { findClientSizePreset } from "./client/clientPresets";
 import { resolveClientBootPreset, applyClientLayout } from "./client/savedLayouts";
 import { consumeFactoryBootReset, loadEditTheme } from "./persistence";
 import "./index.css";
@@ -23,7 +24,18 @@ function bootClientPreview(): void {
       if (typeof config.background.color !== "number") config.background.color = 0xffffff;
     }
     if (config.frames) config.frames.enabled = false;
-    applyClientLayout({ ...preset, config });
+    // Fresh client boots use Hero 16:9 (Banner 5:1 stays available via Size / Reset).
+    const hero = findClientSizePreset("hero-16x9");
+    applyClientLayout({
+      ...preset,
+      config,
+      lab: {
+        ...preset.lab,
+        canvasWidth: hero.width,
+        canvasHeight: hero.height,
+        clientSizeId: hero.id,
+      },
+    });
   }
   const url = new URL(window.location.href);
   if (url.searchParams.get("mode") !== "client") {

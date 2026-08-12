@@ -215,7 +215,7 @@ const CLIENT_COLOR_IDS = new Set<string>(["coral-classic", "soft-gold", "deep-em
 const CLIENT_APPEARANCE_IDS = new Set<string>(["light", "dark"]);
 
 function normalizeClientSizeId(value: unknown): ClientSizePresetId {
-  return typeof value === "string" && CLIENT_SIZE_IDS.has(value) ? (value as ClientSizePresetId) : "banner-5x1";
+  return typeof value === "string" && CLIENT_SIZE_IDS.has(value) ? (value as ClientSizePresetId) : "hero-16x9";
 }
 
 function normalizeClientLayoutId(value: unknown): ClientLayoutPresetId {
