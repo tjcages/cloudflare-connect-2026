@@ -2,11 +2,13 @@ import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import { LIBRARY_COLOR } from "../components/colorLibrary";
 import { findPresetByName, loadBuiltinPresets } from "../presets";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
-import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
+import { normalizeTwizzlerSettings, type TwizzlerRibbonColorMode, type TwizzlerSettings } from "../twizzler";
 
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
-export type ClientColorPresetId = "coral-classic" | "soft-gold" | "deep-ember" | "graphite";
+export type ClientColorPresetId = "coral-classic" | "soft-gold" | "deep-ember" | "light";
+/** Client stage look: light = orange Twizzler on white; dark = cream Twizzler on deep orange. */
+export type ClientAppearanceId = "light" | "dark";
 
 export type ClientSizePreset = {
   id: ClientSizePresetId;
@@ -28,6 +30,16 @@ export type ClientColorPreset = {
   twizzler: Pick<TwizzlerSettings, "color" | "colorFar" | "colorNear" | "colorEdge">;
 };
 
+export type ClientAppearancePreset = {
+  id: ClientAppearanceId;
+  label: string;
+  /** Solid stage background hex. */
+  backgroundHex: string;
+  twizzler: Pick<TwizzlerSettings, "color" | "colorFar" | "colorNear" | "colorEdge">;
+  /** Ribbon color mode applied when Appearance is toggled. */
+  ribbonColorMode: TwizzlerRibbonColorMode;
+};
+
 /** Tunable knobs exposed in client preview (no camera). */
 export type ClientTwizzlerTweaks = {
   opacity: number;
@@ -45,6 +57,7 @@ export type ClientPreviewState = {
   sizeId: ClientSizePresetId;
   layoutId: ClientLayoutPresetId;
   colorId: ClientColorPresetId;
+  appearanceId: ClientAppearanceId;
   twizzlerEnabled: boolean;
   rainEnabled: boolean;
   tweaks: ClientTwizzlerTweaks;
@@ -129,14 +142,44 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
     },
   },
   {
-    id: "graphite",
-    label: "Graphite",
+    // Same cream ramp as Dark Appearance (stripes-settings-cf-base).
+    id: "light",
+    label: "Light",
     twizzler: {
-      color: LIBRARY_COLOR.graphite,
-      colorFar: LIBRARY_COLOR.graphite,
-      colorNear: LIBRARY_COLOR.graphite,
-      colorEdge: LIBRARY_COLOR.graphite,
+      color: "#ffefd4",
+      colorFar: "#ffd39e",
+      colorNear: "#ffefd4",
+      colorEdge: "#f0f0f0",
     },
+  },
+];
+
+/** Light = marketing orange on white; Dark = stripes-settings-cf-base cream ribbon on deep orange. */
+export const CLIENT_APPEARANCE_PRESETS: readonly ClientAppearancePreset[] = [
+  {
+    id: "light",
+    label: "Light",
+    backgroundHex: LIBRARY_COLOR.white,
+    twizzler: {
+      color: LIBRARY_COLOR.orangeAccent,
+      colorFar: LIBRARY_COLOR.orangePair,
+      colorNear: LIBRARY_COLOR.orangeAccent,
+      colorEdge: LIBRARY_COLOR.redAccent,
+    },
+    ribbonColorMode: "baked",
+  },
+  {
+    id: "dark",
+    label: "Dark",
+    // From stripes-settings-cf-base.json (stage #f86a00; Orange 300→100 cream ramp).
+    backgroundHex: "#f86a00",
+    twizzler: {
+      color: "#ffefd4",
+      colorFar: "#ffd39e",
+      colorNear: "#ffefd4",
+      colorEdge: "#f0f0f0",
+    },
+    ribbonColorMode: "sharedGradient",
   },
 ];
 
@@ -144,6 +187,7 @@ export const DEFAULT_CLIENT_PREVIEW_STATE: ClientPreviewState = {
   sizeId: "banner-5x1",
   layoutId: "classic",
   colorId: "coral-classic",
+  appearanceId: "light",
   twizzlerEnabled: true,
   // Rain stays off by default until the Twizzler match is accepted (CF-16).
   rainEnabled: false,
@@ -239,7 +283,7 @@ export function findClientColorPreset(id: ClientColorPresetId): ClientColorPrese
     case "coral-classic":
     case "soft-gold":
     case "deep-ember":
-    case "graphite": {
+    case "light": {
       const preset = CLIENT_COLOR_PRESETS.find((entry) => entry.id === id);
       if (!preset) throw new Error(`Missing client color preset: ${id}`);
       return preset;
@@ -247,6 +291,21 @@ export function findClientColorPreset(id: ClientColorPresetId): ClientColorPrese
     default: {
       const _exhaustive: never = id;
       throw new Error(`Unknown client color preset: ${String(_exhaustive)}`);
+    }
+  }
+}
+
+export function findClientAppearancePreset(id: ClientAppearanceId): ClientAppearancePreset {
+  switch (id) {
+    case "light":
+    case "dark": {
+      const preset = CLIENT_APPEARANCE_PRESETS.find((entry) => entry.id === id);
+      if (!preset) throw new Error(`Missing client appearance preset: ${id}`);
+      return preset;
+    }
+    default: {
+      const _exhaustive: never = id;
+      throw new Error(`Unknown client appearance preset: ${String(_exhaustive)}`);
     }
   }
 }
@@ -328,17 +387,20 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
   };
 }
 
-export function resetTweaksForPresets(
-  layoutId: ClientLayoutPresetId,
-  colorId: ClientColorPresetId,
-): ClientTwizzlerTweaks {
+export function resetTweaksForLayout(layoutId: ClientLayoutPresetId): ClientTwizzlerTweaks {
   const banner = requireBannerPreset();
   const layout = findClientLayoutPreset(layoutId);
-  const color = findClientColorPreset(colorId);
   const merged = normalizeTwizzlerSettings({
     ...normalizeTwizzlerSettings(banner.lab.twizzler),
     ...layout.twizzler,
-    ...color.twizzler,
   });
   return tweaksFromTwizzler(merged);
+}
+
+/** @deprecated Prefer resetTweaksForLayout — color presets do not affect tweaks. */
+export function resetTweaksForPresets(
+  layoutId: ClientLayoutPresetId,
+  _colorId: ClientColorPresetId,
+): ClientTwizzlerTweaks {
+  return resetTweaksForLayout(layoutId);
 }

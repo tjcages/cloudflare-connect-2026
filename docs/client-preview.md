@@ -12,18 +12,26 @@ Shareable review surface for clients / agencies. Uses the **same Lab + Leva UI**
 
 ## What clients see (Leva)
 
-Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** toggle, **Saved layouts**, and export buttons.
+Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle (selected segment is filled), **Saved layouts**, and export buttons.
 
-- **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Color). **Refresh keeps your live knobs** (localStorage; flushed on `pagehide` so a quick refresh still keeps Speed/Move). Named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
+- **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Appearance/Color). **Refresh keeps your live knobs** (localStorage; flushed on `pagehide` so a quick refresh still keeps Speed/Move). Named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
 - **Default** — rich authoring for the orange-wave ribbon:
-  - **Presets** — Size / Layout / Color
+  - **Presets** — Size / Layout / **Appearance** (Light / Dark) / Color
+    - **Size** — canvas dimensions only (does not touch Twizzler color, geometry, or other shader knobs)
+    - **Layout** — ribbon geometry / motion only (does not reapply Color)
+    - **Appearance** — stage look defaults: Light = orange Twizzler on white; Dark = cream Twizzler on `#f86a00`. **Background → Color** overrides the Appearance stage color until Appearance is toggled again.
+    - **Color** — Twizzler ink only (Orange accent / pair / deep + **Light** cream = Dark Appearance colors)
+    - ~~Graphite~~ removed (legacy `graphite` ids normalize to **Light**)
   - **Twizzler → General** — Show, Rain, Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
+    - Solid: Color only
+    - Shared / Fiber: Color + Color left (X pack/fiber ramp)
+    - Baked: Color / left / peaks + **Gradients** folder (X/Y/Z mixes)
   - **Twizzler → Shape** — Center Y, Move X/Y/Z, Amplitude, Rotate X/Y/Z, FOV, Cam Z
-  - **Twizzler → Gradients** — X/Y/Z gradient mixes
+  - **Twizzler → Gradients** — X/Y/Z gradient mixes (**Baked** Color mode only)
   - **Twizzler → Stroke** — width, layers, perspective
   - **Twizzler → Motion** — Speed
-  - **Background** — Fill + library Color (Gradient stops stay Advanced)
-- **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, Gradient stops, etc.) without rebuilding Leva, so values are not wiped when toggling.
+  - **Background** — Fill + Color (solid) or Gradient direction + stops (when Fill = Gradient)
+- **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, etc.) without rebuilding Leva, so values are not wiped when toggling.
 
 ## Twizzler (orange-wave)
 
@@ -49,7 +57,7 @@ Client panel (and lab) expose:
 - **Download JSON** — full lab configuration file
 - **Upload JSON** — import a config file as a saved layout and apply it
 - **Export Video** — MediaRecorder / ffmpeg pipeline
-- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid / Shared / Fiber / Baked. Twizzler exports whenever Show is on. **Rain** adds stripe-rect paths when on; with Rain off, export is Twizzler (+ background) only.
+- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide X ramp masked by all ribbons), Fiber gradient (per-ribbon X ramp fitted to each fiber’s span), Baked (segmented X/Y/Z). Twizzler exports whenever Show is on. **Rain** adds stripe-rect paths when on; with Rain off, export is Twizzler (+ background) only.
 
 ## Next HTML → Leva mapping (do this on the next drop)
 

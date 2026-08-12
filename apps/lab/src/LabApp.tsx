@@ -3688,24 +3688,28 @@ function LabInner({
           {clientMode ? (
             <>
               <div className="lab-client-tools">
-                <fieldset className="lab-panel-mode-toggle">
+                <fieldset className="lab-panel-mode-toggle" aria-label="Panel mode">
                   <legend>Panel mode</legend>
-                  <button
-                    type="button"
-                    className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}
-                    aria-pressed={clientPanelMode === "default"}
-                    onClick={() => setClientPanelMode("default")}
-                  >
+                  <label className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="lab-panel-mode"
+                      value="default"
+                      checked={clientPanelMode === "default"}
+                      onChange={() => setClientPanelMode("default")}
+                    />
                     Default
-                  </button>
-                  <button
-                    type="button"
-                    className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}
-                    aria-pressed={clientPanelMode === "advanced"}
-                    onClick={() => setClientPanelMode("advanced")}
-                  >
+                  </label>
+                  <label className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="lab-panel-mode"
+                      value="advanced"
+                      checked={clientPanelMode === "advanced"}
+                      onChange={() => setClientPanelMode("advanced")}
+                    />
                     Advanced
-                  </button>
+                  </label>
                 </fieldset>
                 <div className="lab-client-layouts">
                   <div className="lab-client-layouts-label">Saved layouts</div>

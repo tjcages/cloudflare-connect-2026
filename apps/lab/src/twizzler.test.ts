@@ -5,6 +5,7 @@ import {
   normalizeTwizzlerSettings,
   orangeWaveXRangeForCanvas,
   orangeWaveY,
+  ribbonGradientXSpan,
   TWIZZLER_DEFAULTS,
   twizzlerAnimationTime,
   twizzlerBendOffset,
@@ -63,6 +64,8 @@ describe("Twizzler", () => {
 
   it("normalizes its expanded user controls", () => {
     expect(normalizeTwizzlerColor("#FF0000")).toBe("#ff0000");
+    expect(normalizeTwizzlerColor(null, "#fea700")).toBe("#fea700");
+    expect(normalizeTwizzlerColor("nope", "#e92e28")).toBe("#e92e28");
     expect(
       normalizeTwizzlerSettings({
         scale: 8,
@@ -88,6 +91,34 @@ describe("Twizzler", () => {
       amplitude: 20,
       speed: 40,
     });
+  });
+
+  it("preserves distinct far/near/edge when Leva-like colors are null or invalid", () => {
+    const settings = normalizeTwizzlerSettings({
+      color: null as unknown as string,
+      colorFar: null as unknown as string,
+      colorNear: undefined,
+      colorEdge: "not-a-color",
+      ribbonColorMode: "sharedGradient",
+    });
+    expect(settings.colorFar).toBe("#fea700");
+    expect(settings.colorNear).toBe("#f46021");
+    expect(settings.colorEdge).toBe("#e92e28");
+    expect(settings.ribbonColorMode).toBe("sharedGradient");
+  });
+
+  it("maps Leva twizzlerColor* fields into sharedGradient endpoints", () => {
+    // Mirrors levaSchema → normalizeTwizzlerSettings wiring.
+    const fromLeva = normalizeTwizzlerSettings({
+      color: "#112233",
+      colorNear: "#112233",
+      colorFar: "#abcdef",
+      colorEdge: "#e92e28",
+      ribbonColorMode: "sharedGradient",
+    });
+    expect(fromLeva.colorFar).toBe("#abcdef");
+    expect(fromLeva.colorNear).toBe("#112233");
+    expect(fromLeva.ribbonColorMode).toBe("sharedGradient");
   });
 
   it("zooms uniformly without locking L/R edges (no fitScale 2.2 cap)", () => {
@@ -545,5 +576,16 @@ describe("Twizzler", () => {
     const farLine = sorted[sorted.length - 1]!;
     expect(hexLuma(farLine.color)).toBeGreaterThan(hexLuma(nearLine.color) + 20);
     expect(hexLuma(nearLine.color)).toBeLessThan(200);
+  });
+
+  it("ribbonGradientXSpan pads the fiber horizontal extent by half stroke", () => {
+    const span = ribbonGradientXSpan(
+      [
+        { x: 40, y: 10 },
+        { x: 120, y: 12 },
+      ],
+      8,
+    );
+    expect(span).toEqual({ x1: 36, x2: 124 });
   });
 });

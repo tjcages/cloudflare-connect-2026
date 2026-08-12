@@ -81,7 +81,7 @@ export const COLOR_LIBRARY: LibraryGroup[] = [
     ["400", "#ffbb7d", "color(display-p3 1 0.733333 0.490196)"],
     ["500", "#ffa05b", "color(display-p3 1 0.627451 0.356863)"],
     ["600", "#ff8839", "color(display-p3 1 0.533333 0.223529)"],
-    ["700", "#f86a00", "color(display-p3 0.972549 0.415686 0)"],
+    ["700 [Brand]", "#f77720", "color(display-p3 0.968627 0.466667 0.12549)"],
     ["800 [Pair]", "#fea700", "color(display-p3 0.996078 0.654902 0)"],
     ["900 [Accent]", "#f46021", "color(display-p3 0.956863 0.376471 0.129412)"],
     ["1000", "#b33806", "color(display-p3 0.701961 0.219608 0.023529)"],
@@ -183,6 +183,8 @@ export const LIBRARY_COLOR = {
   orangeAccent: "#f46021",
   /** Orange / 800 [Pair] — HTML #ffcc33 gold */
   orangePair: "#fea700",
+  /** Orange / 700 [Brand] */
+  orangeBrand: "#f77720",
   /** Orange / 1000 */
   orangeDeep: "#b33806",
   /** Red / 900 [Accent] — HTML #ff2a2a peaks */

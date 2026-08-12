@@ -1,21 +1,44 @@
 import { describe, expect, it } from "vitest";
 import {
   buildClientPreviewBundle,
+  CLIENT_APPEARANCE_PRESETS,
   CLIENT_COLOR_PRESETS,
   CLIENT_LAYOUT_PRESETS,
   CLIENT_SIZE_PRESETS,
   DEFAULT_CLIENT_PREVIEW_STATE,
+  findClientAppearancePreset,
   findClientColorPreset,
   findClientLayoutPreset,
   findClientSizePreset,
-  resetTweaksForPresets,
+  resetTweaksForLayout,
 } from "./clientPresets";
 
 describe("client preview presets", () => {
-  it("ships size, layout, and color preset catalogs", () => {
+  it("ships size, layout, color, and appearance preset catalogs", () => {
     expect(CLIENT_SIZE_PRESETS.map((p) => p.id)).toEqual(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
     expect(CLIENT_LAYOUT_PRESETS).toHaveLength(4);
-    expect(CLIENT_COLOR_PRESETS).toHaveLength(4);
+    expect(CLIENT_COLOR_PRESETS.map((p) => p.id)).toEqual(["coral-classic", "soft-gold", "deep-ember", "light"]);
+    expect(CLIENT_APPEARANCE_PRESETS.map((p) => p.id)).toEqual(["light", "dark"]);
+  });
+
+  it("Light color preset matches Dark Appearance cream ink", () => {
+    const color = findClientColorPreset("light");
+    const dark = findClientAppearancePreset("dark");
+    expect(color.label).toBe("Light");
+    expect(color.twizzler).toEqual(dark.twizzler);
+  });
+
+  it("dark appearance is cream Twizzler on deep orange (stripes-settings-cf-base)", () => {
+    const dark = findClientAppearancePreset("dark");
+    expect(dark.backgroundHex).toBe("#f86a00");
+    expect(dark.twizzler.colorFar).toBe("#ffd39e");
+    expect(dark.twizzler.colorNear).toBe("#ffefd4");
+    expect(dark.twizzler.colorEdge).toBe("#f0f0f0");
+    expect(dark.ribbonColorMode).toBe("sharedGradient");
+    const light = findClientAppearancePreset("light");
+    expect(light.backgroundHex).toBe("#ffffff");
+    expect(light.twizzler.colorNear).toBe("#f46021");
+    expect(light.ribbonColorMode).toBe("baked");
   });
 
   it("builds from Banner 5:1 with solid white stage and rain off by default", () => {
@@ -55,22 +78,41 @@ describe("client preview presets", () => {
     expect(noRain.engineConfig.stripesEnabled).toBe(true);
   });
 
-  it("applies size, layout, and color overlays", () => {
+  it("applies size, layout, and color overlays independently", () => {
     const size = findClientSizePreset("square");
     const layout = findClientLayoutPreset("high-fan");
-    const color = findClientColorPreset("graphite");
+    const color = findClientColorPreset("light");
     const bundle = buildClientPreviewBundle({
       ...DEFAULT_CLIENT_PREVIEW_STATE,
       sizeId: size.id,
       layoutId: layout.id,
       colorId: color.id,
-      tweaks: resetTweaksForPresets(layout.id, color.id),
+      tweaks: resetTweaksForLayout(layout.id),
     });
     expect(bundle.canvasWidth).toBe(800);
     expect(bundle.canvasHeight).toBe(800);
-    expect(bundle.twizzler.color).toBe("#5c5c5c");
+    expect(bundle.twizzler.color).toBe("#ffefd4");
+    expect(bundle.twizzler.colorFar).toBe("#ffd39e");
+    expect(bundle.twizzler.colorEdge).toBe("#f0f0f0");
     expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-28);
     expect(bundle.twizzler.centerY).toBeCloseTo(0.38);
+  });
+
+  it("layout presets never carry color fields", () => {
+    for (const layout of CLIENT_LAYOUT_PRESETS) {
+      expect(layout.twizzler).not.toHaveProperty("color");
+      expect(layout.twizzler).not.toHaveProperty("colorFar");
+      expect(layout.twizzler).not.toHaveProperty("colorNear");
+      expect(layout.twizzler).not.toHaveProperty("colorEdge");
+    }
+  });
+
+  it("size presets only define canvas dimensions", () => {
+    for (const size of CLIENT_SIZE_PRESETS) {
+      expect(Object.keys(size).sort()).toEqual(["height", "id", "label", "width"]);
+      expect(size.width).toBeGreaterThan(0);
+      expect(size.height).toBeGreaterThan(0);
+    }
   });
 
   it("lets tweaks override layout/color for standard knobs only", () => {

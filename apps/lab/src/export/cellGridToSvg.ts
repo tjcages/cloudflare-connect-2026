@@ -141,6 +141,30 @@ export function rotatedStripePath(
   return `M${point(-1, -1)}L${point(1, -1)}L${point(1, 1)}L${point(-1, 1)}Z`;
 }
 
+/**
+ * True if a rotated stripe quad around (cx, cy) intersects the artboard AABB.
+ * Used to drop off-canvas lattice cells that would otherwise bloat Figma SVGs.
+ */
+export function rotatedQuadIntersectsArtboard(
+  cx: number,
+  cy: number,
+  halfNormal: number,
+  halfAxis: number,
+  angleDeg: number,
+  artboardWidth: number,
+  artboardHeight: number,
+  margin = 1,
+): boolean {
+  const rad = (angleDeg * Math.PI) / 180;
+  const axis = { x: Math.sin(rad), y: -Math.cos(rad) };
+  const normal = { x: Math.cos(rad), y: Math.sin(rad) };
+  const hx = Math.abs(normal.x) * halfNormal + Math.abs(axis.x) * halfAxis;
+  const hy = Math.abs(normal.y) * halfNormal + Math.abs(axis.y) * halfAxis;
+  if (cx + hx < -margin || cx - hx > artboardWidth + margin) return false;
+  if (cy + hy < -margin || cy - hy > artboardHeight + margin) return false;
+  return true;
+}
+
 function outlinedRotatedStripePath(
   cx: number,
   cy: number,
@@ -748,6 +772,9 @@ export function cellGridToSvg(
         );
         const halfNormal = stripeWidth * 0.5;
         const halfAxis = drawableAxisPx * 0.5 + halfNormal * resolvedOverlapAmount;
+        if (!rotatedQuadIntersectsArtboard(cx, cy, halfNormal, halfAxis, resolvedAngleDeg, width, height)) {
+          continue;
+        }
         const bordered = stripeBorderApplies(sparkleCol, sparkleRow, stripeWidth, stripeBorder);
         const segment = bordered
           ? outlinedRotatedStripePath(cx, cy, halfNormal, drawableAxisPx * 0.5, resolvedAngleDeg)
@@ -1026,6 +1053,9 @@ export function cellGridToSvg(
           const sourceRow = Math.floor(cy / Math.max(cellHeightPx, 0.0001));
           const halfNormal = (horizontalStacks ? cellHeightPx : cellWidthPx) * 0.5;
           const halfAxis = (horizontalStacks ? cellWidthPx : cellHeightPx) * 0.5;
+          if (!rotatedQuadIntersectsArtboard(cx, cy, halfNormal, halfAxis, resolvedAngleDeg, width, height)) {
+            continue;
+          }
           addGridLineSegment(
             gridLineHexAt(sourceRow, sourceCol, cx, cy),
             rotatedStripePath(cx, cy, halfNormal, halfAxis, resolvedAngleDeg),

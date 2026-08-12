@@ -84,8 +84,8 @@ export type TwizzlerSettings = {
   /**
    * How ribbon color is previewed + exported:
    * - solid: one fill color per fiber
-   * - sharedGradient: one pack X linearGradient, all fibers reference it (Figma #3)
-   * - fiberGradient: per-fiber X linearGradient defs (Figma #1)
+   * - sharedGradient: one pack-wide X ramp (artboard left→right), ribbons sample it
+   * - fiberGradient: colorFar→colorNear fitted to each ribbon’s own X extent
    * - baked: segmented X/Y/Z fills (highest fidelity, heaviest)
    */
   ribbonColorMode: TwizzlerRibbonColorMode;
@@ -249,8 +249,14 @@ export function twizzlerNoise(x: number, y: number, z: number): number {
   return mix(zNear, zFar, tz);
 }
 
-export function normalizeTwizzlerColor(value: unknown): string {
-  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : TWIZZLER_DEFAULTS.color;
+/**
+ * Normalize a Twizzler hex color. Invalid/null values fall back to `fallback`
+ * (per-field defaults) so left/right/peaks never collapse to the same token.
+ */
+export function normalizeTwizzlerColor(value: unknown, fallback: string = TWIZZLER_DEFAULTS.color): string {
+  if (typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+  if (typeof fallback === "string" && /^#[0-9a-f]{6}$/i.test(fallback)) return fallback.toLowerCase();
+  return TWIZZLER_DEFAULTS.color;
 }
 
 function parseHexColor(hex: string): { r: number; g: number; b: number } {
@@ -309,13 +315,13 @@ export function twizzlerUsesLineGradients(settings: TwizzlerSettings): boolean {
 
 export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
   const input = value && typeof value === "object" ? (value as Partial<TwizzlerSettings>) : {};
-  const color = normalizeTwizzlerColor(input.color);
+  const color = normalizeTwizzlerColor(input.color, TWIZZLER_DEFAULTS.color);
   const ribbonColorMode = resolveTwizzlerRibbonColorMode(input);
   return {
     color,
-    colorFar: normalizeTwizzlerColor(input.colorFar ?? TWIZZLER_DEFAULTS.colorFar),
-    colorNear: normalizeTwizzlerColor(input.colorNear ?? color),
-    colorEdge: normalizeTwizzlerColor(input.colorEdge ?? TWIZZLER_DEFAULTS.colorEdge),
+    colorFar: normalizeTwizzlerColor(input.colorFar, TWIZZLER_DEFAULTS.colorFar),
+    colorNear: normalizeTwizzlerColor(input.colorNear ?? input.color, TWIZZLER_DEFAULTS.colorNear),
+    colorEdge: normalizeTwizzlerColor(input.colorEdge, TWIZZLER_DEFAULTS.colorEdge),
     opacity: clamp(input.opacity, TWIZZLER_DEFAULTS.opacity, 0, 1),
     scale: clamp(input.scale, TWIZZLER_DEFAULTS.scale, 0.01, 50),
     centerY: clamp(input.centerY, TWIZZLER_DEFAULTS.centerY, -2, 3),
@@ -367,7 +373,7 @@ export function normalizeTwizzlerSettings(value: unknown): TwizzlerSettings {
     gradientZStrength: clamp(input.gradientZStrength, TWIZZLER_DEFAULTS.gradientZStrength, 0, 10),
     gradientZCenter: clamp(input.gradientZCenter, TWIZZLER_DEFAULTS.gradientZCenter, -10, 10),
     gradientZWidth: clamp(input.gradientZWidth, TWIZZLER_DEFAULTS.gradientZWidth, 0.01, 20),
-    backgroundColor: normalizeTwizzlerColor(input.backgroundColor ?? TWIZZLER_DEFAULTS.backgroundColor),
+    backgroundColor: normalizeTwizzlerColor(input.backgroundColor, TWIZZLER_DEFAULTS.backgroundColor),
     noiseScaleX: clamp(input.noiseScaleX, TWIZZLER_DEFAULTS.noiseScaleX, 0.00001, 1),
     noiseScaleY: clamp(input.noiseScaleY, TWIZZLER_DEFAULTS.noiseScaleY, 0.0001, 2),
     speed: clamp(input.speed, TWIZZLER_DEFAULTS.speed, 0, 40),
@@ -1275,6 +1281,27 @@ function fillOutlinedRibbon(
   context.fill();
 }
 
+/**
+ * Horizontal span for a fiber-local X gradient (colorFar at left → colorNear at right).
+ * Includes half stroke width so the ramp covers the outlined ribbon silhouette.
+ */
+export function ribbonGradientXSpan(
+  points: readonly { x: number; y: number }[],
+  strokeWidth: number,
+): { x1: number; x2: number } | null {
+  if (points.length === 0) return null;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (const p of points) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+  }
+  const pad = Math.max(0, strokeWidth) * 0.5;
+  const x1 = minX - pad;
+  const x2 = Math.max(maxX + pad, x1 + 1e-3);
+  return { x1, x2 };
+}
+
 export function renderTwizzler(
   canvas: HTMLCanvasElement,
   width: number,
@@ -1300,7 +1327,7 @@ export function renderTwizzler(
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
   const colorMode = resolveTwizzlerRibbonColorMode(settings);
   const packGradient =
-    colorMode === "sharedGradient" || colorMode === "fiberGradient"
+    colorMode === "sharedGradient"
       ? (() => {
           const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
           gradient.addColorStop(0, settings.colorFar);
@@ -1326,10 +1353,24 @@ export function renderTwizzler(
         context.stroke();
         break;
       }
-      case "sharedGradient":
-      case "fiberGradient": {
-        // Same X user-space ramp as SVG (high-quality colorFar→colorNear).
+      case "sharedGradient": {
+        // Pack-wide X ramp (matches SVG masked gradient plane).
         context.fillStyle = packGradient ?? settings.colorNear;
+        context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
+        fillOutlinedRibbon(context, line.points, strokeWidth);
+        break;
+      }
+      case "fiberGradient": {
+        // Per-ribbon X ramp across the fiber’s own horizontal span.
+        const span = ribbonGradientXSpan(line.points, strokeWidth);
+        if (span) {
+          const gradient = context.createLinearGradient(span.x1, 0, span.x2, 0);
+          gradient.addColorStop(0, settings.colorFar);
+          gradient.addColorStop(1, settings.colorNear);
+          context.fillStyle = gradient;
+        } else {
+          context.fillStyle = settings.colorNear;
+        }
         context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
         fillOutlinedRibbon(context, line.points, strokeWidth);
         break;

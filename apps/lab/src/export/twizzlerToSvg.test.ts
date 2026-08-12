@@ -110,4 +110,60 @@ describe("twizzlerToSvgLayer", () => {
     expect(grads.length).toBe(paths.length);
     expect(grads.length).toBeGreaterThan(0);
   });
+
+  it("culls baked segments that miss the artboard (CF-26)", () => {
+    const base = {
+      ...TWIZZLER_DEFAULTS,
+      lineCount: 24,
+      pointSpacing: 10,
+      ribbonColorMode: "baked" as const,
+      speed: 0,
+    };
+    const onCanvas = twizzlerToSvgLayer(400, 400, 400, 400, 0, base);
+    // Huge pan pushes fibers off the artboard; cull should drop those segments.
+    const pannedOff = twizzlerToSvgLayer(400, 400, 400, 400, 0, {
+      ...base,
+      panX: 800,
+      panY: 800,
+    });
+    const onPaths = (onCanvas.match(/<path /g) ?? []).length;
+    const offPaths = (pannedOff.match(/<path /g) ?? []).length;
+    expect(onPaths).toBeGreaterThan(50);
+    expect(offPaths).toBeLessThan(onPaths * 0.25);
+  });
+
+  it("fits fiber gradients to each ribbon X span (not full artboard) (CF-28)", () => {
+    const shared = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
+      ...TWIZZLER_DEFAULTS,
+      lineCount: 8,
+      pointSpacing: 10,
+      ribbonColorMode: "sharedGradient",
+      colorFar: "#fea700",
+      colorNear: "#f46021",
+      speed: 0,
+    });
+    const fiber = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
+      ...TWIZZLER_DEFAULTS,
+      lineCount: 8,
+      pointSpacing: 10,
+      ribbonColorMode: "fiberGradient",
+      colorFar: "#fea700",
+      colorNear: "#f46021",
+      speed: 0,
+    });
+
+    expect(shared).toMatch(/id="twizzler-pack-grad"[^>]*x1="0"[^>]*x2="400"/);
+    const fiberSpans = [...fiber.matchAll(/id="twizzler-fiber-\d+-grad"[^>]*x1="([^"]+)"[^>]*x2="([^"]+)"/g)].map(
+      (m) => ({ x1: Number(m[1]), x2: Number(m[2]) }),
+    );
+    expect(fiberSpans.length).toBeGreaterThan(2);
+    // At least one ribbon must be narrower than the full artboard ramp.
+    expect(fiberSpans.some((s) => s.x2 - s.x1 < 400 * 0.95)).toBe(true);
+    // Fiber spans should not all be identical (local per-ribbon extents).
+    const keys = new Set(fiberSpans.map((s) => `${s.x1}:${s.x2}`));
+    expect(keys.size).toBeGreaterThan(1);
+    // Shared stays a single pack-wide ramp; fiber uses many local ones.
+    expect(shared.match(/<linearGradient /g)?.length).toBe(1);
+    expect(fiber.match(/<linearGradient /g)?.length).toBe(fiberSpans.length);
+  });
 });

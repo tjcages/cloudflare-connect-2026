@@ -25,7 +25,11 @@ describe("color library", () => {
   it("matches the Figma Accent Light palette order and P3 metadata", () => {
     for (const groupName of CHROMATIC_GROUPS) {
       const group = COLOR_LIBRARY.find((candidate) => candidate.name === groupName);
-      expect(group?.colors.map((color) => color.label)).toEqual(EXPECTED_LABELS);
+      const expectedLabels =
+        groupName === "Orange"
+          ? EXPECTED_LABELS.map((label) => (label === "700" ? "700 [Brand]" : label))
+          : EXPECTED_LABELS;
+      expect(group?.colors.map((color) => color.label)).toEqual(expectedLabels);
       expect(group?.colors).toHaveLength(16);
 
       for (const color of group?.colors ?? []) {
@@ -49,12 +53,19 @@ describe("color library", () => {
       hex: "#fea700",
       p3: "color(display-p3 0.996078 0.654902 0)",
     });
+    expect(token("700 [Brand]")).toEqual({
+      label: "700 [Brand]",
+      hex: "#f77720",
+      p3: "color(display-p3 0.968627 0.466667 0.12549)",
+      oklch: undefined,
+    });
     expect(p3ColorForHex("#f46021")).toBe("color(display-p3 0.956863 0.376471 0.129412)");
   });
 
   it("exposes Twizzler library aliases that resolve to real tokens", () => {
     expect(findLibraryColor("Orange", "900 [Accent]")?.hex).toBe(LIBRARY_COLOR.orangeAccent);
     expect(findLibraryColor("Orange", "800 [Pair]")?.hex).toBe(LIBRARY_COLOR.orangePair);
+    expect(findLibraryColor("Orange", "700 [Brand]")?.hex).toBe(LIBRARY_COLOR.orangeBrand);
     expect(findLibraryColor("Orange", "1000")?.hex).toBe(LIBRARY_COLOR.orangeDeep);
     expect(findLibraryColor("Red", "900 [Accent]")?.hex).toBe(LIBRARY_COLOR.redAccent);
     expect(findLibraryColor("Neutral", "White")?.hex).toBe(LIBRARY_COLOR.white);
