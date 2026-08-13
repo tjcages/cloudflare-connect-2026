@@ -92,7 +92,7 @@ import {
   type ClientLayoutPresetId,
   type ClientSizePresetId,
 } from "../client/clientPresets";
-import { sectionGridRainEnterLevaPatch, sectionGridRainStripes } from "../client/sectionGridRainDefaults";
+import { sectionGridRainEnterLevaPatch } from "../client/sectionGridRainDefaults";
 
 /** Set during `useEngineControls` so drawerFolder can gate Default vs Advanced. */
 let clientDefaultPanelActive = false;
@@ -5084,25 +5084,21 @@ export function useEngineControls(
       rainEnabled: flags.rainEnabled,
     };
     if (enteringRain) {
-      // Keep a rain-capable shader selected; seed visible section-grid rain live (no reload).
+      // Keep a rain-capable shader selected. Do NOT re-seed factory stripes/grid/tone —
+      // that wiped authored rain edits every Twizzler→Rain switch (CF-69).
       patch.rainShaderPreset =
         String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || "").trim() ||
         CONNECT_SHADER_PRESET_ID;
-      const rainEnter = sectionGridRainEnterLevaPatch();
-      Object.assign(patch, rainEnter.shader);
-      setStripes(
-        sectionGridRainStripes().map((s, i) => ({
-          id: String(i),
-          hex: "#" + s.color.toString(16).padStart(6, "0"),
-          startFrom: s.startFrom,
-          width: s.width,
-          opacity: s.opacity,
-        })),
+      // Banner 5:1 ships gaps.coverage=1 (blank). Only un-blank; leave everything else alone.
+      const coveragePct = Number(
+        (shaderValues as unknown as Record<string, unknown>).sparkleGapsCoverage ?? Number.NaN,
       );
-      try {
-        textureControlSetterRef.current?.(rainEnter.texture);
-      } catch {
-        /* ignore */
+      if (Number.isFinite(coveragePct) && coveragePct >= 99) {
+        const rainEnter = sectionGridRainEnterLevaPatch();
+        patch.sparkleGapsCoverage = rainEnter.shader.sparkleGapsCoverage;
+        if ((shaderValues as unknown as Record<string, unknown>).sparkleGapsSpeed == null) {
+          patch.sparkleGapsSpeed = rainEnter.shader.sparkleGapsSpeed;
+        }
       }
     }
     shaderControlSetterRef.current?.(patch);
@@ -5180,22 +5176,16 @@ export function useEngineControls(
     shaderControlSetterRef.current?.(patch);
   }, [clientApp, clientLayoutId, heroGraphicId, setShaderControl]);
 
-  /** Color preset — Twizzler family ink and/or original rain stripe palettes. */
+  /** Color preset — only when Color changes. Never reapply on Graphic toggle (wipes edits). */
   const lastClientColorIdRef = useRef<string | null>(null);
-  const lastHeroGraphicForColorRef = useRef<string | null>(null);
   useEffect(() => {
     if (!clientApp) return;
-    const colorChanged = lastClientColorIdRef.current !== null && lastClientColorIdRef.current !== clientColorId;
-    const graphicChanged =
-      lastHeroGraphicForColorRef.current !== null && lastHeroGraphicForColorRef.current !== heroGraphicId;
     if (lastClientColorIdRef.current === null) {
       lastClientColorIdRef.current = clientColorId;
-      lastHeroGraphicForColorRef.current = heroGraphicId;
       return;
     }
+    if (lastClientColorIdRef.current === clientColorId) return;
     lastClientColorIdRef.current = clientColorId;
-    lastHeroGraphicForColorRef.current = heroGraphicId;
-    if (!colorChanged && !graphicChanged) return;
     const color = findClientColorPreset(clientColorId).twizzler;
     const flags = clientGraphicFlags(heroGraphicId);
     const patch: Record<string, unknown> = {};
