@@ -27,6 +27,40 @@ importers:
         specifier: ^4.1.5
         version: 4.1.8(@types/node@25.9.1)(happy-dom@20.10.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
 
+  apps/figma-plugin:
+    dependencies:
+      '@necatikcl/stripes-engine':
+        specifier: workspace:*
+        version: link:../../packages/stripes-engine
+      react:
+        specifier: ^19.0.5
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.0.5
+        version: 19.2.7(react@19.2.7)
+    devDependencies:
+      '@figma/plugin-typings':
+        specifier: 1.131.0
+        version: 1.131.0
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.16
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.16)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.2
+        version: 6.0.2(vite@8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.16
+        version: 8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@types/node@25.9.1)(happy-dom@20.10.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
+
   apps/lab:
     dependencies:
       '@ffmpeg/core':
@@ -450,6 +484,9 @@ packages:
   '@ffmpeg/util@0.12.2':
     resolution: {integrity: sha512-ouyoW+4JB7WxjeZ2y6KpRvB+dLp7Cp4ro8z0HIVpZVCM7AwFlHa0c4R8Y/a4M3wMqATpYKhC7lSFHQ0T11MEDw==}
     engines: {node: '>=18.x'}
+
+  '@figma/plugin-typings@1.131.0':
+    resolution: {integrity: sha512-XBTPNGc65myupitMaeemyiF/ir1jn/EXXTdoGUCEVCfVB6KPQUy+gbfHbnC+QQiHxdw/Naikdx+9v/u4d49gfA==}
 
   '@floating-ui/core@1.7.5':
     resolution: {integrity: sha512-1Ih4WTWyw0+lKyFMcBHGbb5U5FtuHJuujoyyr5zTaWS5EYMeT6Jb2AuDeftsCsEuchO+mM2ij5+q9crhydzLhQ==}
@@ -2596,6 +2633,8 @@ snapshots:
   '@ffmpeg/types@0.12.4': {}
 
   '@ffmpeg/util@0.12.2': {}
+
+  '@figma/plugin-typings@1.131.0': {}
 
   '@floating-ui/core@1.7.5':
     dependencies:

@@ -30,6 +30,7 @@ export default defineConfig({
         lab: fileURLToPath(new URL("./lab.html", import.meta.url)),
         client: fileURLToPath(new URL("./client.html", import.meta.url)),
         experiments: fileURLToPath(new URL("./experiments.html", import.meta.url)),
+        figmaPlugin: fileURLToPath(new URL("./figma-plugin.html", import.meta.url)),
       },
     },
   },
