@@ -326,6 +326,63 @@
   height: 24px;
 }
 
+.playground-canvas-size-select {
+  color: var(--leva-text);
+  background: var(--leva-surface);
+  border: 0;
+  border-radius: 3px;
+  padding: 0 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.playground-canvas-size-select:focus-visible {
+  outline: 1px solid var(--leva-accent);
+  outline-offset: 1px;
+}
+
+.playground-canvas-custom-row {
+  padding-top: 2px;
+}
+
+.playground-canvas-dimension-controls label {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.playground-canvas-dimension-controls label > span[aria-hidden="true"] {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  color: var(--leva-text-faint);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.playground-canvas-dimension-controls label input {
+  padding-right: 24px;
+}
+
+.playground-canvas-dimension-controls .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.playground-canvas-size-help {
+  margin: 0;
+  color: var(--leva-text-faint);
+  font-size: 10px;
+  line-height: 14px;
+}
+
 .playground-canvas-size-row input:not([type="range"]):not([type="checkbox"]),
 .playground-canvas-scale-controls input:not([type="range"]):not([type="checkbox"]) {
   width: 100%;
