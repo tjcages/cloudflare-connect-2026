@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -47,6 +46,7 @@ import {
   type LabTextureSourceMode,
   type LabEditTheme,
 } from "./persistence";
+import { nextLabSettings } from "./labSettingsUpdate";
 import { DEFAULT_LAB_TEXTURE_ID, LAB_TEXTURES, findTextureEntry, loadFileSource, loadTextureSource } from "./textures";
 import type { LabTextureKind, LoadedTextureSource } from "./textures";
 import { addUpload, loadManifest, removeUpload, saveManifest, setDarkUpload } from "./uploads";
@@ -1007,9 +1007,10 @@ function LabInner({
 
   const updateLabSettings = useCallback((next: Partial<LabSettings>) => {
     setLabSettings((prev) => {
-      const merged = { ...prev, ...next };
+      const merged = nextLabSettings(prev, next);
+      if (!merged) return prev;
       saveLabSettings(merged);
-      return loadLabSettings();
+      return merged;
     });
   }, []);
 
@@ -1210,6 +1211,8 @@ function LabInner({
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
   const lastEngineConfigJsonRef = useRef<string | null>(null);
+  const lastTwizzlerPersistKeyRef = useRef("");
+  const lastTwizzlerMapPersistKeyRef = useRef("");
   const getLabSettingsSnapshotRef = useRef(getLabSettingsSnapshot);
   getLabSettingsSnapshotRef.current = getLabSettingsSnapshot;
 
@@ -2589,8 +2592,10 @@ function LabInner({
       };
       const unchanged = JSON.stringify(next) === JSON.stringify(prev);
       if (unchanged) return prev;
-      saveLabSettings(next);
-      return loadLabSettings();
+      const merged = nextLabSettings(prev, next);
+      if (!merged) return prev;
+      saveLabSettings(merged);
+      return merged;
     });
   }, [controls.background.color, controls.background.transparent, getLabSettingsSnapshot]);
 
@@ -2734,18 +2739,23 @@ function LabInner({
     updateLabSettings({ connectGradientUnderlay });
   }, [connectGradientUnderlay, updateLabSettings]);
 
-  useLayoutEffect(() => {
-    const current = labSettingsRef.current;
+  useEffect(() => {
     const { enabled, ...settings } = twizzler;
-    if (current.twizzlerEnabled === enabled && JSON.stringify(current.twizzler) === JSON.stringify(settings)) return;
+    const key = JSON.stringify({ enabled, settings });
+    // Compare live snapshot to last live snapshot — not to JSON-reparsed
+    // localStorage — so slider IEEE values cannot nest setState (CF-73).
+    if (lastTwizzlerPersistKeyRef.current === key) return;
+    lastTwizzlerPersistKeyRef.current = key;
     updateLabSettings({
       twizzlerEnabled: enabled,
       twizzler: settings,
     });
   }, [twizzler, updateLabSettings]);
 
-  useLayoutEffect(() => {
-    if (JSON.stringify(labSettingsRef.current.twizzlerMap) === JSON.stringify(twizzlerMap)) return;
+  useEffect(() => {
+    const key = JSON.stringify(twizzlerMap);
+    if (lastTwizzlerMapPersistKeyRef.current === key) return;
+    lastTwizzlerMapPersistKeyRef.current = key;
     updateLabSettings({ twizzlerMap });
   }, [twizzlerMap, updateLabSettings]);
 
