@@ -77,6 +77,7 @@ import {
 } from "./client/clientPresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
+import { downloadEps, svgToEps } from "./export/svgToEps";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
 import { twizzlerToSvgLayer } from "./export/twizzlerToSvg";
 import { exportLabVideo, formatVideoExportStatusLabel, type LabVideoExportPhase } from "./export/videoExport";
@@ -1080,6 +1081,8 @@ function LabInner({
   const onReplay = useCallback(() => onReplayRef.current(), []);
   const onExportSvgRef = useRef<() => void>(() => {});
   const onExportSvg = useCallback(() => onExportSvgRef.current(), []);
+  const onExportEpsRef = useRef<() => void>(() => {});
+  const onExportEps = useCallback(() => onExportEpsRef.current(), []);
   const onExportVideoRef = useRef<() => void>(() => {});
   const onExportVideo = useCallback(() => onExportVideoRef.current(), []);
   const exportingVideoRef = useRef(false);
@@ -1852,20 +1855,26 @@ function LabInner({
         canvasHeightPx,
       });
     };
-    onExportSvgRef.current = () => {
+    const exportVectorOrAlert = (kind: "SVG" | "EPS", save: (markup: string) => void) => {
       const cfg = controlsRef.current;
       const graphicMode =
         clientGraphicModeRef.current ?? resolveClientGraphicMode(twizzlerRef.current.enabled, cfg.sparkle.gaps.enabled);
       const layers = resolveClientSvgExportLayers(graphicMode);
       if (!layers.includeRain && !layers.includeTwizzler) {
-        window.alert("Enable Rain or Twizzler before exporting an SVG.");
+        window.alert(`Enable Rain or Twizzler before exporting an ${kind}.`);
         return;
       }
       try {
-        downloadSvg(buildExportSvg());
+        save(buildExportSvg());
       } catch (error) {
-        window.alert(`SVG export failed: ${error instanceof Error ? error.message : String(error)}`);
+        window.alert(`${kind} export failed: ${error instanceof Error ? error.message : String(error)}`);
       }
+    };
+    onExportSvgRef.current = () => {
+      exportVectorOrAlert("SVG", downloadSvg);
+    };
+    onExportEpsRef.current = () => {
+      exportVectorOrAlert("EPS", (svg) => downloadEps(svgToEps(svg)));
     };
 
     onExportVideoRef.current = () => {
@@ -1964,6 +1973,7 @@ function LabInner({
       engine,
       clock,
       exportSvg: () => buildExportSvg(),
+      exportEps: () => svgToEps(buildExportSvg()),
       renderAt: (ms: number) => {
         if (manual && "set" in clock) (clock as { set(n: number): void }).set(ms);
         engine.renderFrame();
@@ -3643,8 +3653,13 @@ function LabInner({
                   >
                     {videoExportLabel}
                   </button>
+                </div>
+                <div className="wf-row">
                   <button className="lab-btn" onClick={onExportSvg}>
                     Export SVG
+                  </button>
+                  <button className="lab-btn" onClick={onExportEps}>
+                    Export EPS
                   </button>
                 </div>
               </div>
@@ -3968,8 +3983,13 @@ function LabInner({
                   >
                     {videoExportLabel}
                   </button>
+                </div>
+                <div className="lab-client-layouts-actions">
                   <button type="button" onClick={onExportSvg}>
                     Export SVG
+                  </button>
+                  <button type="button" onClick={onExportEps}>
+                    Export EPS
                   </button>
                 </div>
               </div>

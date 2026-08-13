@@ -24,7 +24,7 @@ pnpm monorepo (`pnpm-workspace.yaml`: `apps/*`, `packages/*`). Two workspaces on
     `LabApp.tsx:1127`, inside a `useEffect` (`:1120-1384`), disposed on unmount.
   - Canvas pointer wiring at `:1521-1577` (see §6).
   - Debug handle `window.__lab` at `:1268-1284` (`setConfig`, `cursorTo`, `clickAt`,
-    `triggerReveal`, `renderAt`, `exportSvg`) — the e2e tests drive this.
+    `triggerReveal`, `renderAt`, `exportSvg`, `exportEps`) — the e2e tests drive this.
 - `apps/lab/src/controls/levaSchema.ts` — the leva control panel schema (`useEngineControls`);
   maps panel values → `Partial<EngineConfig>`. Other `controls/*` files: palette table, drawer
   state, easing pickers.
@@ -36,7 +36,7 @@ pnpm monorepo (`pnpm-workspace.yaml`: `apps/*`, `packages/*`). Two workspaces on
   engine as its source. `defaultShaderTextureSource.ts` holds the default GLSL.
 - `apps/lab/src/connectShader/` — a three.js "Connect" renderer (same feed-a-canvas pattern).
 - `apps/lab/src/persistence.ts` — localStorage/sessionStorage persistence (see §6).
-- `apps/lab/src/export/` — SVG + video (ffmpeg.wasm) export.
+- `apps/lab/src/export/` — SVG + EPS + video (ffmpeg.wasm) export.
 - `apps/lab/src/shaderLibrary/` — saved shader presets (JSON).
 - `apps/lab/shared-demo/` + `vite.shared-demo.config.ts` — separate Vite root demoing
   `<StripesShader>` (many canvases, one worker GL context).
