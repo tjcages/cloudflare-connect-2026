@@ -115,12 +115,6 @@ import {
 import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./connectShader/underlayIntro";
 import { canvasStackBackgroundCss } from "./canvasStackBackground";
 import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } from "./canvasFitPreviewZoom";
-import {
-  CANVAS_SCALE_PRESETS,
-  canvasScaleLabel,
-  canvasSizeOptionFor,
-  parseCanvasSizeOption,
-} from "./canvasSizeOptions";
 import { clearTwizzler, renderTwizzler } from "./twizzler";
 import { shouldShowTwizzlerOverlay } from "./twizzlerVisibility";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
@@ -529,8 +523,10 @@ function LabCanvasSizeControls({
 }) {
   const { cssW, cssH } = computeLabCanvasSize(sourceWidth, sourceHeight, settings);
   const disabled = sourceWidth <= 0 || sourceHeight <= 0;
-  const selectedOption = canvasSizeOptionFor(settings.canvasMode, settings.canvasScale);
-  const isCustom = selectedOption === "custom";
+  const scaleOptions = [0.25, 0.5, 1, 2, 3];
+  const activeScale = Number.isFinite(settings.canvasScale) ? settings.canvasScale : 1;
+  const isOriginal = settings.canvasMode === "original";
+  const isCustom = settings.canvasMode === "manual";
   const aspect = Math.max(1, cssW) / Math.max(1, cssH);
   const applyOriginal = () => {
     const base = computeCanvasSize(sourceWidth, sourceHeight);
@@ -566,89 +562,75 @@ function LabCanvasSizeControls({
       canvasHeight: Math.max(1, Math.round(base.cssH * scale)),
     });
   };
-  const selectSize = (value: string) => {
-    const option = parseCanvasSizeOption(value);
-    if (option.kind === "original") applyOriginal();
-    else if (option.kind === "scale") applyScale(option.scale);
-    else applyCustom();
-  };
 
   return (
     <section className="playground-canvas-size-controls">
       <div className="playground-canvas-size-row">
-        <label className="playground-canvas-scale-label" htmlFor="canvas-size-preset">
-          Canvas size
-        </label>
-        <select
-          id="canvas-size-preset"
-          className="playground-canvas-size-select"
-          disabled={disabled}
-          value={selectedOption}
-          onChange={(event) => selectSize(event.currentTarget.value)}
-        >
-          <option value="original">
-            Original ({sourceWidth} × {sourceHeight} px)
-          </option>
-          {CANVAS_SCALE_PRESETS.map((scale) => (
-            <option key={scale} value={`scale:${scale}`}>
-              {canvasScaleLabel(scale)} ({Math.max(1, Math.round(sourceWidth * scale))} ×{" "}
-              {Math.max(1, Math.round(sourceHeight * scale))} px)
-            </option>
-          ))}
-          <option value="custom">Custom…</option>
-        </select>
-      </div>
-      {isCustom ? (
-        <div className="playground-canvas-size-row playground-canvas-custom-row">
-          <div className="playground-canvas-size-row-header">
-            <span className="playground-canvas-scale-label">Custom dimensions</span>
-            <span className="playground-canvas-scale-meta">Pixels</span>
-          </div>
-          <div className="playground-canvas-dimension-controls">
-            <label>
-              <span className="sr-only">Canvas width in pixels</span>
-              <input
-                type="number"
-                min={1}
-                max={8192}
-                step={1}
-                disabled={disabled}
-                value={disabled ? "" : cssW}
-                onChange={(event) => setCanvasWidth(event.currentTarget.value)}
-                aria-label="Canvas width in pixels"
-              />
-              <span aria-hidden="true">px</span>
-            </label>
-            <button
-              type="button"
-              className={settings.canvasAspectLocked ? "is-active" : ""}
-              disabled={disabled}
-              onClick={() => onSettings({ canvasAspectLocked: !settings.canvasAspectLocked })}
-              aria-label={settings.canvasAspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
-              title={settings.canvasAspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
-            >
-              {settings.canvasAspectLocked ? "🔒" : "🔓"}
+        <span className="playground-canvas-scale-label">Canvas size</span>
+        <div className="playground-canvas-scale-controls">
+          <div className="playground-canvas-scale-buttons">
+            <button type="button" className={isOriginal ? "is-active" : ""} disabled={disabled} onClick={applyOriginal}>
+              Original
             </button>
-            <label>
-              <span className="sr-only">Canvas height in pixels</span>
-              <input
-                type="number"
-                min={1}
-                max={8192}
-                step={1}
-                disabled={disabled}
-                value={disabled ? "" : cssH}
-                onChange={(event) => setCanvasHeight(event.currentTarget.value)}
-                aria-label="Canvas height in pixels"
-              />
-              <span aria-hidden="true">px</span>
-            </label>
+            <button type="button" className={isCustom ? "is-active" : ""} disabled={disabled} onClick={applyCustom}>
+              Custom
+            </button>
           </div>
-          <p className="playground-canvas-size-help">
-            {settings.canvasAspectLocked ? "Proportions are locked." : "Width and height can change independently."}
-          </p>
         </div>
-      ) : null}
+      </div>
+      <div className="playground-canvas-size-row">
+        <span className="playground-canvas-scale-label">Canvas scale</span>
+        <div className="playground-canvas-scale-controls">
+          <div className="playground-canvas-scale-buttons">
+            {scaleOptions.map((scale) => (
+              <button
+                key={scale}
+                type="button"
+                className={settings.canvasMode === "scale" && Math.abs(activeScale - scale) < 0.001 ? "is-active" : ""}
+                disabled={disabled}
+                onClick={() => applyScale(scale)}
+              >
+                {scale}x
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="playground-canvas-size-row">
+        <span className="playground-canvas-scale-label">Custom size</span>
+        <div className="playground-canvas-dimension-controls">
+          <input
+            type="number"
+            min={1}
+            max={8192}
+            step={1}
+            disabled={disabled || !isCustom}
+            value={disabled ? "" : cssW}
+            onChange={(event) => setCanvasWidth(event.currentTarget.value)}
+            aria-label="Canvas width"
+          />
+          <button
+            type="button"
+            className={settings.canvasAspectLocked ? "is-active" : ""}
+            disabled={disabled || !isCustom}
+            onClick={() => onSettings({ canvasAspectLocked: !settings.canvasAspectLocked })}
+            aria-label={settings.canvasAspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+            title={settings.canvasAspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+          >
+            {settings.canvasAspectLocked ? "🔒" : "🔓"}
+          </button>
+          <input
+            type="number"
+            min={1}
+            max={8192}
+            step={1}
+            disabled={disabled || !isCustom}
+            value={disabled ? "" : cssH}
+            onChange={(event) => setCanvasHeight(event.currentTarget.value)}
+            aria-label="Canvas height"
+          />
+        </div>
+      </div>
     </section>
   );
 }
