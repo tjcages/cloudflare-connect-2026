@@ -68,7 +68,12 @@ import {
   loadBannerLayout,
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
-import { resolveClientGraphicMode, clientGraphicFlags, type ClientGraphicMode } from "./client/clientPresets";
+import {
+  resolveClientGraphicMode,
+  clientGraphicFlags,
+  withClientRainFxVisibility,
+  type ClientGraphicMode,
+} from "./client/clientPresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -1800,21 +1805,22 @@ function LabInner({
             }
           : undefined,
       });
-      const framesSvgLayer = cfg.frames.enabled
-        ? framesOverlayToSvg(
-            buildFrameGroups(
-              readback,
-              cfg.frames.luminanceThreshold,
-              cfg.frames.groupDistanceCells,
-              resolvedStripes,
-              cfg.frames.highlightedStripeCount,
-            ),
-            cfg,
-            canvasWidthPx,
-            canvasHeightPx,
-            performance.now() / 1000,
-          )
-        : undefined;
+      const framesSvgLayer =
+        includeRainStripes && cfg.frames.enabled
+          ? framesOverlayToSvg(
+              buildFrameGroups(
+                readback,
+                cfg.frames.luminanceThreshold,
+                cfg.frames.groupDistanceCells,
+                resolvedStripes,
+                cfg.frames.highlightedStripeCount,
+              ),
+              cfg,
+              canvasWidthPx,
+              canvasHeightPx,
+              performance.now() / 1000,
+            )
+          : undefined;
       return cellGridToSvg(readback, stripes, {
         cellWidthPx: cfg.grid.cellWidth,
         cellHeightPx: cfg.grid.cellHeight,
@@ -1888,7 +1894,8 @@ function LabInner({
       ui.setRecording({ elapsedMs: 0, totalMs: durationSec * 1000 });
       ui.setTranscodePercent(null);
       ui.setTranscodeElapsed(0);
-      const framesEnabled = controlsRef.current.frames.enabled;
+      const framesEnabled =
+        controlsRef.current.frames.enabled && (!clientMode || controlsRef.current.sparkle.gaps.enabled);
       const layers =
         surfaceWorkspaceRef.current.mode === "partial"
           ? {
@@ -2222,8 +2229,9 @@ function LabInner({
         }
         const framesCanvas = framesCanvasRef.current;
         if (framesCanvas && outputCanvas) {
+          const rainOn = !clientModeRef.current || controlsRef.current.sparkle.gaps.enabled;
           const frameConfig = controlsRef.current.frames;
-          if (frameConfig.enabled) {
+          if (frameConfig.enabled && rainOn) {
             if (framesCanvas.width !== outputCanvas.width) framesCanvas.width = outputCanvas.width;
             if (framesCanvas.height !== outputCanvas.height) framesCanvas.height = outputCanvas.height;
             if (now - lastFramesReadbackAt >= 33) {
@@ -2542,10 +2550,12 @@ function LabInner({
       isSpiralShaderPreset(shaderPresetIdRef.current) &&
       labSettingsRef.current.connectGradientUnderlay;
     const twizzlerActive = shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled);
+    const rainOn = !clientModeRef.current || controls.sparkle.gaps.enabled;
+    const rainGated = clientModeRef.current ? withClientRainFxVisibility(controls, rainOn) : controls;
     const previewConfig =
       backgroundSourceOpacity > 0.001 || connectUnderlayActive || twizzlerActive
-        ? { ...controls, background: { ...controls.background, transparent: true } }
-        : controls;
+        ? { ...rainGated, background: { ...rainGated.background, transparent: true } }
+        : rainGated;
     const configToApply = manualRef.current
       ? { ...previewConfig, reveal: { ...previewConfig.reveal, enabled: false } }
       : previewConfig;
@@ -2558,6 +2568,7 @@ function LabInner({
     shaderPresetId,
     textureSourceMode,
     twizzler.enabled,
+    clientMode,
   ]);
 
   useEffect(() => {
@@ -3744,7 +3755,7 @@ function LabInner({
                   className="lab-canvas-frames"
                   aria-hidden="true"
                   style={{
-                    opacity: surfaceWorkspace.mode === "partial" ? 0 : 1,
+                    opacity: surfaceWorkspace.mode === "partial" || !showRainRectOverlay ? 0 : 1,
                     width: canvasCssSize.cssW,
                     height: canvasCssSize.cssH,
                   }}

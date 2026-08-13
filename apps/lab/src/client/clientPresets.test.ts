@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import { LIBRARY_COLOR } from "../components/colorLibrary";
 import {
   buildClientPreviewBundle,
@@ -19,6 +20,7 @@ import {
   resetTweaksForLayout,
   resolveClientGraphicMode,
   shouldSyncHeroGraphicFromFlags,
+  withClientRainFxVisibility,
 } from "./clientPresets";
 
 describe("client preview presets", () => {
@@ -110,6 +112,54 @@ describe("client preview presets", () => {
     });
     expect(layoutApplied.sync).toBe(true);
     expect(layoutApplied.derived).toBe("rain");
+  });
+
+  it("gates rain FX off for Twizzler-only without mutating source knobs (CF-69)", () => {
+    const source = buildClientPreviewBundle({
+      ...DEFAULT_CLIENT_PREVIEW_STATE,
+      rainEnabled: true,
+    }).engineConfig as ThemedEngineConfig & {
+      frames: { enabled: boolean };
+      letters: { enabled: boolean };
+      flames: { enabled: boolean };
+      background: {
+        stars: { enabled: boolean };
+        meteors: { enabled: boolean };
+      };
+      sparkle: {
+        gaps: { enabled: boolean };
+        stripe: { enabled: boolean };
+        width: { enabled: boolean };
+        motion: { enabled: boolean };
+      };
+    };
+    source.frames.enabled = true;
+    source.letters.enabled = true;
+    source.flames.enabled = true;
+    source.background.stars.enabled = true;
+    source.background.meteors.enabled = true;
+    source.sparkle.stripe.enabled = true;
+    source.sparkle.width.enabled = true;
+    source.sparkle.motion.enabled = true;
+
+    const gated = withClientRainFxVisibility(source, false) as typeof source;
+    expect(gated.frames.enabled).toBe(false);
+    expect(gated.letters.enabled).toBe(false);
+    expect(gated.flames.enabled).toBe(false);
+    expect(gated.background.stars.enabled).toBe(false);
+    expect(gated.background.meteors.enabled).toBe(false);
+    expect(gated.sparkle.gaps.enabled).toBe(false);
+    expect(gated.sparkle.stripe.enabled).toBe(false);
+    expect(gated.sparkle.width.enabled).toBe(false);
+    expect(gated.sparkle.motion.enabled).toBe(false);
+    // Source knobs unchanged (Graphic toggle must not wipe authored rain FX).
+    expect(source.frames.enabled).toBe(true);
+    expect(source.letters.enabled).toBe(true);
+    expect(source.background.stars.enabled).toBe(true);
+
+    const rainOn = withClientRainFxVisibility(source, true) as typeof source;
+    expect(rainOn).toBe(source);
+    expect(rainOn.frames.enabled).toBe(true);
   });
 
   it("builds Hero 16:9 with solid white stage and rain off by default", () => {

@@ -297,6 +297,42 @@ export function clientGraphicFlags(mode: ClientGraphicMode): { twizzlerEnabled: 
   }
 }
 
+/**
+ * Twizzler-only Graphic: hide rain FX for render without mutating Leva / stored knobs.
+ * Rain + Both keep the live enabled flags as authored.
+ */
+export function withClientRainFxVisibility<T extends ThemedEngineConfig>(config: T, rainEnabled: boolean): T {
+  if (rainEnabled) return config;
+  const background = config.background;
+  const sparkle = config.sparkle;
+  return {
+    ...config,
+    ...(config.frames ? { frames: { ...config.frames, enabled: false } } : {}),
+    ...(config.letters ? { letters: { ...config.letters, enabled: false } } : {}),
+    ...(config.flames ? { flames: { ...config.flames, enabled: false } } : {}),
+    ...(background
+      ? {
+          background: {
+            ...background,
+            ...(background.stars ? { stars: { ...background.stars, enabled: false } } : {}),
+            ...(background.meteors ? { meteors: { ...background.meteors, enabled: false } } : {}),
+          },
+        }
+      : {}),
+    ...(sparkle
+      ? {
+          sparkle: {
+            ...sparkle,
+            ...(sparkle.gaps ? { gaps: { ...sparkle.gaps, enabled: false } } : {}),
+            ...(sparkle.stripe ? { stripe: { ...sparkle.stripe, enabled: false } } : {}),
+            ...(sparkle.width ? { width: { ...sparkle.width, enabled: false } } : {}),
+            ...(sparkle.motion ? { motion: { ...sparkle.motion, enabled: false } } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
 export const DEFAULT_CLIENT_PREVIEW_STATE: ClientPreviewState = {
   sizeId: "hero-16x9",
   layoutId: "classic",
