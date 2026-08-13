@@ -200,6 +200,36 @@ export function resolveClientGraphicMode(twizzlerEnabled: boolean, rainEnabled: 
   return "twizzler";
 }
 
+/**
+ * Sync Hero → Graphic from Show/Rain flags only when those flags actually change
+ * (Apply layout / Reset). Do not sync when Graphic changed first and flags are
+ * still catching up — that race snaps Rain back to Twizzler (CF-67).
+ */
+export function shouldSyncHeroGraphicFromFlags(args: {
+  prevFlags: { twizzlerEnabled: boolean; rainEnabled: boolean } | null;
+  twizzlerEnabled: boolean;
+  rainEnabled: boolean;
+  heroGraphic: ClientGraphicMode;
+}): {
+  nextFlags: { twizzlerEnabled: boolean; rainEnabled: boolean };
+  derived: ClientGraphicMode;
+  sync: boolean;
+} {
+  const nextFlags = { twizzlerEnabled: args.twizzlerEnabled, rainEnabled: args.rainEnabled };
+  const derived = resolveClientGraphicMode(args.twizzlerEnabled, args.rainEnabled);
+  if (args.prevFlags === null) {
+    return { nextFlags, derived, sync: false };
+  }
+  const flagsChanged =
+    args.prevFlags.twizzlerEnabled !== nextFlags.twizzlerEnabled ||
+    args.prevFlags.rainEnabled !== nextFlags.rainEnabled;
+  return {
+    nextFlags,
+    derived,
+    sync: flagsChanged && derived !== args.heroGraphic,
+  };
+}
+
 export function clientGraphicFlags(mode: ClientGraphicMode): { twizzlerEnabled: boolean; rainEnabled: boolean } {
   switch (mode) {
     case "twizzler":
