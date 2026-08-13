@@ -9,6 +9,8 @@ reveal, cursor trail, click wave), a colors mode, and SVG/video export.
 This is a pnpm-workspace monorepo:
 
 - `apps/lab/` — the authoring app and the **live Cloudflare Worker** [`connect-shader`](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production) (served at `/`).
+- `apps/figma-plugin/` — a local Figma Design development plugin that imports editable SVG or
+  rendered PNG output from the engine. Its browser preview is served at `/figma-plugin.html`.
 - `packages/stripes-engine/` — the WebGL2 render core (`createStripesEngine`) plus the render-only
   `<StripesShader>` React canvas at `@necatikcl/stripes-engine/react`. See its README for usage.
 
@@ -25,8 +27,9 @@ Run scripts from the repo root (they delegate to the lab): `pir dev`, `pir build
 - `pir format` / `pir format:check` run `oxfmt`.
 - `pir test` runs the Vitest suite.
 - `pir build` builds the lab app (the deployable client → `apps/lab/dist`).
+- `pir build:figma` builds the Figma plugin (`apps/figma-plugin/dist`).
 - `pir deploy` builds the lab and runs `wrangler deploy` → **`connect-shader`** production.
-- `pir verify` runs tests, then typecheck, then the lab build (lint/format are intentionally excluded for speed).
+- `pir verify` runs tests, engine/lab/plugin typechecks, and lab/plugin builds (lint/format are intentionally excluded for speed).
 - Tip — quicker loops while editing: `pir typecheck`, targeted `pir test <pattern>`, then finish with full `pir verify` (Vitest uses `pool: "threads"` + happy-dom here).
 
 Install dependencies with `pi`.
