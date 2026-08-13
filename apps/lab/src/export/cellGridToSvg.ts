@@ -463,9 +463,7 @@ function rainArtboardClipDef(width: number, height: number): string {
 function wrapRainLayer(inner: string, extraDefs: string): string {
   if (!inner.trim() && !extraDefs.trim()) return "";
   const defs = extraDefs.trim() ? ["    <defs>", extraDefs, "    </defs>"].join("\n") : "";
-  return [`  <g data-layer="rain" clip-path="url(#rain-artboard)">`, defs, inner, "  </g>"]
-    .filter(Boolean)
-    .join("\n");
+  return [`  <g data-layer="rain" clip-path="url(#rain-artboard)">`, defs, inner, "  </g>"].filter(Boolean).join("\n");
 }
 
 function buildMaskedRainBandLayer(
@@ -885,10 +883,7 @@ export function cellGridToSvg(
         if (!rotatedQuadIntersectsArtboard(cx, cy, halfNormal, halfAxis, resolvedAngleDeg, width, height)) {
           continue;
         }
-        const stripeHex =
-          useCellColors && colors
-            ? cellColorHex(colors, rbIndex)
-            : stripe.hex;
+        const stripeHex = useCellColors && colors ? cellColorHex(colors, rbIndex) : stripe.hex;
         const dotElement = stripeDotElement({
           cx,
           cy,
@@ -942,10 +937,8 @@ export function cellGridToSvg(
         const firstAxisCenter = (start.axisIndex + 0.5) * axisCellPx;
         const lastAxisCenter = (end.axisIndex + 0.5) * axisCellPx;
         const axisCenter = (firstAxisCenter + lastAxisCenter) * 0.5;
-        const cx =
-          center.x + normal.x * (stackCenter - stackSpanPx * 0.5) + axis.x * (axisCenter - axisSpanPx * 0.5);
-        const cy =
-          center.y + normal.y * (stackCenter - stackSpanPx * 0.5) + axis.y * (axisCenter - axisSpanPx * 0.5);
+        const cx = center.x + normal.x * (stackCenter - stackSpanPx * 0.5) + axis.x * (axisCenter - axisSpanPx * 0.5);
+        const cy = center.y + normal.y * (stackCenter - stackSpanPx * 0.5) + axis.y * (axisCenter - axisSpanPx * 0.5);
         const halfNormal = start.stripeWidth * 0.5;
         const halfAxis = start.bordered
           ? (lastAxisCenter - firstAxisCenter) * 0.5 + drawableAxisPx * 0.5
@@ -1214,15 +1207,22 @@ export function cellGridToSvg(
     stripeDotElements.length > 0 ||
     gridLineLayer.length > 0 ||
     letterLayer.elements.length > 0;
-  const rainClipDefs = hasRainGeometry
-    ? ["  <defs>", rainArtboardClipDef(width, height), "  </defs>"].join("\n")
-    : "";
+  const rainClipDefs = hasRainGeometry ? ["  <defs>", rainArtboardClipDef(width, height), "  </defs>"].join("\n") : "";
   const gradientDefs = [backgroundGradient ? buildSvgGradientDef(backgroundGradient, "backgroundGradient") : ""]
     .filter(Boolean)
     .join("\n");
   const maskedGradient =
     dynamicGradientRamp && gradient
-      ? buildMaskedRainBandLayer(usedBands, pathsByBand, sortedStripes, gradient, width, height, blendStyle, rampTForBand)
+      ? buildMaskedRainBandLayer(
+          usedBands,
+          pathsByBand,
+          sortedStripes,
+          gradient,
+          width,
+          height,
+          blendStyle,
+          rampTForBand,
+        )
       : { defs: "", elements: "" };
 
   if (useCellColors) {
@@ -1286,13 +1286,7 @@ export function cellGridToSvg(
         .filter((path) => !path.includes('d=""'))
         .join("\n");
   const stripeLayer = wrapRainLayer(
-    [
-      pathElements,
-      stripeBorderElements.join("\n"),
-      stripeDotElements.join("\n"),
-      gridLineLayer,
-      letterLayer.elements,
-    ]
+    [pathElements, stripeBorderElements.join("\n"), stripeDotElements.join("\n"), gridLineLayer, letterLayer.elements]
       .filter(Boolean)
       .join("\n"),
     maskedGradient.defs,
