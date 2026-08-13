@@ -6,9 +6,11 @@ import {
   type TwizzlerSettings,
 } from "../twizzler";
 import {
+  TWIZZLER_GRADIENT_FIELD_RASTER_HEIGHT,
+  TWIZZLER_GRADIENT_FIELD_RASTER_WIDTH,
   TWIZZLER_GRADIENT_FIELD_SVG_COLS,
   TWIZZLER_GRADIENT_FIELD_SVG_ROWS,
-  twizzlerGradientSvgPattern,
+  twizzlerGradientSvgImage,
   twizzlerGradientSvgStops,
   type TwizzlerGradientStop,
 } from "../twizzlerGradient";
@@ -115,7 +117,7 @@ function linearGradientDef(id: string, x1: number, x2: number, stops: readonly T
  * Modes (`ribbonColorMode`):
  * - solid: one filled path / fiber
  * - sharedLinear: one pack 1D X ramp, masked by all ribbon silhouettes (Figma-editable)
- * - sharedGradient: one pack 2D color-field PNG, masked by all ribbon silhouettes
+ * - sharedGradient: one pack 2D color-field PNG sized to the SVG frame, masked by ribbons
  * - fiberGradient: per-fiber 2D field fitted to each ribbon’s AABB
  * - baked: segmented X/Y/Z fills (highest fidelity)
  */
@@ -219,22 +221,39 @@ export function twizzlerToSvgLayer(
     const packFill =
       colorMode === "sharedLinear"
         ? linearGradientDef(packGradId, 0, targetWidth, settings.gradientStops)
-        : twizzlerGradientSvgPattern(packGradId, 0, 0, targetWidth, targetHeight, settings.gradientStops);
-    return [
-      `  <g data-layer="twizzler" data-color-mode="${colorMode}">`,
-      "    <defs>",
+        : null;
+    const packPaint =
+      colorMode === "sharedLinear"
+        ? `    <rect data-pack-gradient="true" x="0" y="0" width="${w}" height="${h}" fill="url(#${packGradId})" mask="url(#${packMaskId})" />`
+        : twizzlerGradientSvgImage(
+            packGradId,
+            0,
+            0,
+            targetWidth,
+            targetHeight,
+            settings.gradientStops,
+            TWIZZLER_GRADIENT_FIELD_RASTER_WIDTH,
+            TWIZZLER_GRADIENT_FIELD_RASTER_HEIGHT,
+            `data-pack-gradient="true" mask="url(#${packMaskId})"`,
+          );
+    const defLines = [
       packFill,
       `    <mask id="${packMaskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}">`,
       `      <rect x="0" y="0" width="${w}" height="${h}" fill="black" />`,
       maskPaths.join("\n"),
       "    </mask>",
+    ].filter((line): line is string => line !== null);
+    return [
+      `  <g data-layer="twizzler" data-color-mode="${colorMode}">`,
+      "    <defs>",
+      ...defLines,
       "    </defs>",
-      `    <rect data-pack-gradient="true" x="0" y="0" width="${w}" height="${h}" fill="url(#${packGradId})" mask="url(#${packMaskId})" />`,
+      packPaint,
       "  </g>",
     ].join("\n");
   }
 
-  // fiberGradient — 2D field stretched into each ribbon’s AABB.
+  // fiberGradient — 2D field stretched into each ribbon’s AABB (one image, not a tiling pattern).
   const defs: string[] = [];
   const fiberBlocks: string[] = [];
   for (let fiberIndex = 0; fiberIndex < ordered.length; fiberIndex += 1) {
@@ -247,21 +266,31 @@ export function twizzlerToSvgLayer(
     if (!d) continue;
     const opacity = Math.max(0.01, Math.min(1, line.opacity));
     const span = ribbonGradientXYSpan(scaled, strokeWidth) ?? { x1: 0, y1: 0, x2: targetWidth, y2: targetHeight };
+    const boxX = span.x1;
+    const boxY = span.y1;
+    const boxW = Math.max(span.x2 - span.x1, 0.001);
+    const boxH = Math.max(span.y2 - span.y1, 0.001);
     const gradId = `twizzler-fiber-${fiberIndex}-grad`;
+    const maskId = `twizzler-fiber-${fiberIndex}-mask`;
     defs.push(
-      twizzlerGradientSvgPattern(
+      [
+        `    <mask id="${maskId}" maskUnits="userSpaceOnUse" x="${number(boxX, 1)}" y="${number(boxY, 1)}" width="${number(boxW, 1)}" height="${number(boxH, 1)}">`,
+        `      <path data-fiber="${fiberIndex}" d="${d}" fill="white" fill-opacity="${number(opacity, 3)}" stroke="none" />`,
+        "    </mask>",
+      ].join("\n"),
+    );
+    fiberBlocks.push(
+      twizzlerGradientSvgImage(
         gradId,
-        span.x1,
-        span.y1,
-        span.x2 - span.x1,
-        span.y2 - span.y1,
+        boxX,
+        boxY,
+        boxW,
+        boxH,
         settings.gradientStops,
         TWIZZLER_GRADIENT_FIELD_SVG_COLS,
         TWIZZLER_GRADIENT_FIELD_SVG_ROWS,
+        `data-fiber="${fiberIndex}" mask="url(#${maskId})"`,
       ),
-    );
-    fiberBlocks.push(
-      `    <path data-fiber="${fiberIndex}" d="${d}" fill="url(#${gradId})" fill-opacity="${number(opacity, 3)}" stroke="none" />`,
     );
   }
 

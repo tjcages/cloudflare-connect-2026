@@ -82,17 +82,17 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg).toContain('data-color-mode="sharedGradient"');
     expect(svg).toContain('id="twizzler-pack-grad"');
     expect(svg).toContain('id="twizzler-pack-mask"');
-    expect(svg).toContain('patternUnits="userSpaceOnUse"');
     expect(svg).toContain('data-pack-gradient="true"');
-    expect(svg).toContain('fill="url(#twizzler-pack-grad)"');
+    expect(svg).toMatch(/<image [^>]*id="twizzler-pack-grad"[^>]*width="400"[^>]*height="200"/);
     expect(svg).toContain('mask="url(#twizzler-pack-mask)"');
-    expect(svg.match(/<pattern /g)?.length).toBe(1);
+    expect(svg).not.toContain("<pattern");
+    expect(svg).not.toContain("patternUnits");
+    expect(svg.match(/<pattern /g)?.length ?? 0).toBe(0);
     expect((svg.match(/<image /g) ?? []).length).toBe(1);
     expect(svg).toContain("data:image/png;base64,");
     expect(svg).not.toContain("linearGradient");
     expect(svg).not.toContain("<stop ");
-    // Visible paint is a single rect — ribbon silhouettes live only inside the mask.
-    expect(svg.match(/<rect [^>]*data-pack-gradient/g)?.length).toBe(1);
+    expect(svg).not.toMatch(/<rect [^>]*data-pack-gradient/);
     expect(svg).not.toMatch(/<path [^>]*fill="url\(#twizzler-pack-grad\)"/);
     expect(svg).toContain('fill="white"');
   });
@@ -122,7 +122,7 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg).toContain('fill="url(#twizzler-pack-grad)"');
   });
 
-  it("exports fiber gradients with one 2D field pattern per ribbon", () => {
+  it("exports fiber fields as one masked image per ribbon (CF-79)", () => {
     const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
       ...TWIZZLER_DEFAULTS,
       lineCount: 4,
@@ -132,14 +132,15 @@ describe("twizzlerToSvgLayer", () => {
     });
     expect(svg).toContain('data-color-mode="fiberGradient"');
     expect(svg).toContain("twizzler-fiber-0-grad");
-    expect(svg).toContain('fill="url(#twizzler-fiber-');
+    expect(svg).toContain("twizzler-fiber-0-mask");
+    expect(svg).toContain('mask="url(#twizzler-fiber-');
     expect(svg).not.toContain("twizzler-pack-grad");
     expect(svg).not.toContain("linearGradient");
-    const grads = svg.match(/<pattern /g) ?? [];
+    expect(svg).not.toContain("<pattern");
+    const images = svg.match(/<image /g) ?? [];
     const paths = svg.match(/<path /g) ?? [];
-    expect(grads.length).toBe(paths.length);
-    expect(grads.length).toBeGreaterThan(0);
-    expect((svg.match(/<image /g) ?? []).length).toBe(grads.length);
+    expect(images.length).toBe(paths.length);
+    expect(images.length).toBeGreaterThan(0);
     expect((svg.match(/<rect /g) ?? []).length).toBe(0);
   });
 
@@ -196,9 +197,11 @@ describe("twizzlerToSvgLayer", () => {
     // Fiber boxes should not all be identical (local per-ribbon extents).
     const keys = new Set(fiberBoxes.map((s) => `${s.x}:${s.y}:${s.width}:${s.height}`));
     expect(keys.size).toBeGreaterThan(1);
-    // Shared stays a single pack-wide field; fiber uses many local ones.
-    expect(shared.match(/<pattern /g)?.length).toBe(1);
-    expect(fiber.match(/<pattern /g)?.length).toBe(fiberBoxes.length);
+    // Shared stays a single pack-wide field; fiber uses many local ones. Neither tiles.
+    expect(shared.match(/<image /g)?.length).toBe(1);
+    expect(fiber.match(/<image /g)?.length).toBe(fiberBoxes.length);
+    expect(shared).not.toContain("<pattern");
+    expect(fiber).not.toContain("<pattern");
     expect(shared).not.toContain("linearGradient");
     expect(fiber).not.toContain("linearGradient");
   });
@@ -222,7 +225,21 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg).not.toContain('offset="0.15"');
     expect(svg).toContain("data:image/png;base64,");
     expect((svg.match(/<image /g) ?? []).length).toBe(1);
-    // Mask rect + pack rect only — not a 48×32 field lattice (Figma rejects those).
-    expect((svg.match(/<rect /g) ?? []).length).toBe(2);
+    expect(svg).not.toContain("<pattern");
+    // Mask backdrop rect only — field is one frame-sized image, not a lattice or tiled pattern.
+    expect((svg.match(/<rect /g) ?? []).length).toBe(1);
+  });
+
+  it("sizes the shared field image to the export SVG frame (CF-79)", () => {
+    const svg = twizzlerToSvgLayer(320, 80, 800, 200, 0, {
+      ...TWIZZLER_DEFAULTS,
+      lineCount: 3,
+      pointSpacing: 12,
+      ribbonColorMode: "sharedGradient",
+      speed: 0,
+    });
+    expect(svg).toMatch(/<image [^>]*id="twizzler-pack-grad"[^>]*x="0"[^>]*y="0"[^>]*width="800"[^>]*height="200"/);
+    expect(svg).not.toContain("<pattern");
+    expect((svg.match(/<image /g) ?? []).length).toBe(1);
   });
 });
