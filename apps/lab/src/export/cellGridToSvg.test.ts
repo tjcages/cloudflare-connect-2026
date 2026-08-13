@@ -153,6 +153,16 @@ describe("cellGridToSvg", () => {
     expect(svg.indexOf('data-layer="rain"')).toBeLessThan(svg.indexOf("<path"));
   });
 
+  it("keeps rain Figma-visible with inline fills and no clip-path (CF-75)", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, STRIPES, { cellWidthPx: 7, cellHeightPx: 7, useCellColors: false });
+    expect(svg).toContain('data-layer="rain"');
+    expect(svg).not.toContain("clip-path");
+    expect(svg).not.toContain('id="rain-artboard"');
+    expect(svg).toMatch(/<path class="fill-stripe-3"[^>]* fill="#00cc88"/);
+    expect(svg).toContain('fill-opacity="1"');
+  });
+
   it("includes the background color rect in image-colors SVG export too", () => {
     const readback = { cols: 1, rows: 1, values: v(255), colors: v(0x33, 0x66, 0x99, 255) };
     const svg = cellGridToSvg(readback, STRIPES, {
@@ -320,7 +330,9 @@ describe("cellGridToSvg", () => {
       stripeBorder: { ...border, density: 0 },
     });
 
-    expect(outlined).toContain('class="fill-stripe-1 stripe-border" fill-rule="evenodd"');
+    expect(outlined).toContain('class="fill-stripe-1 stripe-border"');
+    expect(outlined).toContain('fill="#ff0000"');
+    expect(outlined).toContain('fill-rule="evenodd"');
     expect(outlined).toContain('d="M3 0h4v8h-4ZM4 1h2v6h-2Z"');
     expect(filled).not.toContain("stripe-border");
     expect(filled).toContain('d="M3 0h4v8h-4Z"');
@@ -704,7 +716,11 @@ describe("cellGridToSvg", () => {
     const latticeCells = cols * rows;
 
     expect(svg).toContain('data-layer="rain"');
-    expect(svg).toContain('id="rain-artboard"');
+    expect(svg).not.toContain("clip-path");
+    expect(svg).not.toContain("rain-artboard");
+    expect(svg).toContain('fill="#ff6721"');
+    expect(svg).toContain('fill="#fe9c4c"');
+    expect(svg).toContain('fill="#fff8e8"');
     expect(bandPaths).toBe(3);
     expect(streamCount).toBeLessThan(latticeCells * 0.35);
     expect(svg.length).toBeLessThan(latticeCells * 80);

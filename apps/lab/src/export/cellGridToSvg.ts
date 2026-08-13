@@ -228,6 +228,13 @@ function p3SvgColor(value: string): string {
   return p3ColorForHex(normalizeSvgHex(value));
 }
 
+/** Figma ignores CSS class fills; keep sRGB on the path plus a display-p3 style. */
+function rainInlineFillAttrs(hex: string, opacity: number, blendStyle: string): string {
+  const normalized = normalizeSvgHex(hex);
+  const style = [`fill:${p3SvgColor(normalized)}`, blendStyle].filter(Boolean).join(";");
+  return `fill="${normalized}" fill-opacity="${formatSvgNumber(opacity)}"${style ? ` style="${style}"` : ""}`;
+}
+
 function hexToRgb(value: string): [number, number, number] {
   const raw = normalizeSvgHex(value).replace(/^#/, "");
   return [
@@ -450,20 +457,10 @@ function stripeGradientStopsForBand(gradient: SvgGradientOptions, stripeHex: str
   });
 }
 
-function rainArtboardClipDef(width: number, height: number): string {
-  const w = formatSvgNumber(width);
-  const h = formatSvgNumber(height);
-  return [
-    `    <clipPath id="rain-artboard" clipPathUnits="userSpaceOnUse">`,
-    `      <rect x="0" y="0" width="${w}" height="${h}" />`,
-    "    </clipPath>",
-  ].join("\n");
-}
-
 function wrapRainLayer(inner: string, extraDefs: string): string {
   if (!inner.trim() && !extraDefs.trim()) return "";
   const defs = extraDefs.trim() ? ["    <defs>", extraDefs, "    </defs>"].join("\n") : "";
-  return [`  <g data-layer="rain" clip-path="url(#rain-artboard)">`, defs, inner, "  </g>"].filter(Boolean).join("\n");
+  return [`  <g data-layer="rain">`, defs, inner, "  </g>"].filter(Boolean).join("\n");
 }
 
 function buildMaskedRainBandLayer(
@@ -832,7 +829,7 @@ export function cellGridToSvg(
         } else {
           pathsByBand.set(input.band, pathsByBand.get(input.band) ?? []);
           stripeBorderElements.push(
-            `  <path class="${svgStripeClass(input.band)} stripe-border" fill-rule="evenodd" d="${input.segment}" />`,
+            `  <path class="${svgStripeClass(input.band)} stripe-border" ${rainInlineFillAttrs(input.hex, input.opacity, blendStyle)} fill-rule="evenodd" d="${input.segment}" />`,
           );
         }
         return;
@@ -1054,7 +1051,7 @@ export function cellGridToSvg(
           } else {
             pathsByBand.set(band, pathsByBand.get(band) ?? []);
             stripeBorderElements.push(
-              `  <path class="${svgStripeClass(band)} stripe-border" fill-rule="evenodd" d="${segment}" />`,
+              `  <path class="${svgStripeClass(band)} stripe-border" ${rainInlineFillAttrs(stripe.hex, opacity, blendStyle)} fill-rule="evenodd" d="${segment}" />`,
             );
           }
           continue;
@@ -1200,14 +1197,6 @@ export function cellGridToSvg(
     orientation: effectiveOrientation,
   });
   const usedBands = [...pathsByBand.keys()].sort((a, b) => a - b);
-  const hasRainGeometry =
-    cellColorPathGroups.size > 0 ||
-    usedBands.length > 0 ||
-    stripeBorderElements.length > 0 ||
-    stripeDotElements.length > 0 ||
-    gridLineLayer.length > 0 ||
-    letterLayer.elements.length > 0;
-  const rainClipDefs = hasRainGeometry ? ["  <defs>", rainArtboardClipDef(width, height), "  </defs>"].join("\n") : "";
   const gradientDefs = [backgroundGradient ? buildSvgGradientDef(backgroundGradient, "backgroundGradient") : ""]
     .filter(Boolean)
     .join("\n");
@@ -1247,7 +1236,6 @@ export function cellGridToSvg(
     );
     return [
       `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
-      rainClipDefs,
       gradientDefs,
       backgroundRect,
       backgroundImages,
@@ -1282,8 +1270,14 @@ export function cellGridToSvg(
   const pathElements = dynamicGradientRamp
     ? maskedGradient.elements
     : usedBands
-        .map((band) => `    <path class="${svgStripeClass(band)}" d="${(pathsByBand.get(band) ?? []).join(" ")}" />`)
-        .filter((path) => !path.includes('d=""'))
+        .map((band) => {
+          const stripe = sortedStripes[band - 1];
+          const d = (pathsByBand.get(band) ?? []).join(" ");
+          if (!d) return "";
+          const opacity = Math.max(0, Math.min(1, stripe?.opacity ?? 1));
+          return `    <path class="${svgStripeClass(band)}" ${rainInlineFillAttrs(stripe?.hex ?? "#000000", opacity, blendStyle)} d="${d}" />`;
+        })
+        .filter(Boolean)
         .join("\n");
   const stripeLayer = wrapRainLayer(
     [pathElements, stripeBorderElements.join("\n"), stripeDotElements.join("\n"), gridLineLayer, letterLayer.elements]
@@ -1294,7 +1288,6 @@ export function cellGridToSvg(
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
-    rainClipDefs,
     gradientDefs,
     backgroundRect,
     backgroundImages,
