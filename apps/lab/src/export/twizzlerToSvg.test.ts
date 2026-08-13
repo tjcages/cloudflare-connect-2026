@@ -87,6 +87,8 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg).toContain('fill="url(#twizzler-pack-grad)"');
     expect(svg).toContain('mask="url(#twizzler-pack-mask)"');
     expect(svg.match(/<pattern /g)?.length).toBe(1);
+    expect((svg.match(/<image /g) ?? []).length).toBe(1);
+    expect(svg).toContain("data:image/png;base64,");
     expect(svg).not.toContain("linearGradient");
     expect(svg).not.toContain("<stop ");
     // Visible paint is a single rect — ribbon silhouettes live only inside the mask.
@@ -112,6 +114,8 @@ describe("twizzlerToSvgLayer", () => {
     const paths = svg.match(/<path /g) ?? [];
     expect(grads.length).toBe(paths.length);
     expect(grads.length).toBeGreaterThan(0);
+    expect((svg.match(/<image /g) ?? []).length).toBe(grads.length);
+    expect((svg.match(/<rect /g) ?? []).length).toBe(0);
   });
 
   it("culls baked segments that miss the artboard (CF-26)", () => {
@@ -191,14 +195,9 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg).toContain('id="twizzler-pack-grad"');
     expect(svg).not.toContain("<stop ");
     expect(svg).not.toContain('offset="0.15"');
-    expect((svg.match(/<rect /g) ?? []).length).toBeGreaterThan(10);
-    const rgbs = [...svg.matchAll(/fill="rgb\((\d+),(\d+),(\d+)\)"/g)].map((m) => ({
-      r: Number(m[1]),
-      g: Number(m[2]),
-      b: Number(m[3]),
-    }));
-    expect(rgbs.some((c) => c.r > 180 && c.g < 90 && c.b < 90)).toBe(true);
-    expect(rgbs.some((c) => c.g > 180 && c.r < 90 && c.b < 90)).toBe(true);
-    expect(rgbs.some((c) => c.b > 180 && c.r < 90 && c.g < 90)).toBe(true);
+    expect(svg).toContain("data:image/png;base64,");
+    expect((svg.match(/<image /g) ?? []).length).toBe(1);
+    // Mask rect + pack rect only — not a 48×32 field lattice (Figma rejects those).
+    expect((svg.match(/<rect /g) ?? []).length).toBe(2);
   });
 });

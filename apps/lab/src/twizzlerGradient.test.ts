@@ -199,7 +199,7 @@ describe("twizzlerGradient", () => {
     expect(bottom.b).toBeGreaterThan(bottom.r + 40);
   });
 
-  it("emits an SVG pattern of field rects instead of 1D stop offsets", () => {
+  it("emits an SVG pattern with one PNG image instead of a rect lattice (CF-70)", () => {
     const stops = [
       { id: "a", x: 0.2, y: 0.1, offset: 0.2, color: "#ff0000" },
       { id: "b", x: 0.8, y: 0.9, offset: 0.8, color: "#0000ff" },
@@ -211,13 +211,18 @@ describe("twizzlerGradient", () => {
     expect(svg).toContain('height="200"');
     expect(svg).not.toContain("<stop ");
     expect(svg).not.toContain("linearGradient");
-    expect((svg.match(/<rect /g) ?? []).length).toBe(12);
-    const rgbs = [...svg.matchAll(/fill="rgb\((\d+),(\d+),(\d+)\)"/g)].map((m) => ({
-      r: Number(m[1]),
-      g: Number(m[2]),
-      b: Number(m[3]),
-    }));
-    expect(rgbs.some((c) => c.r > 180 && c.b < 80)).toBe(true);
-    expect(rgbs.some((c) => c.b > 180 && c.r < 80)).toBe(true);
+    expect(svg).not.toContain("<rect ");
+    expect((svg.match(/<image /g) ?? []).length).toBe(1);
+    expect(svg).toContain("data:image/png;base64,");
+    const href = svg.match(/href="(data:image\/png;base64,[^"]+)"/)?.[1];
+    expect(href).toBeTruthy();
+    const binary = atob(href!.slice("data:image/png;base64,".length));
+    const png = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) png[i] = binary.charCodeAt(i);
+    expect([...png.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    const width = (png[16]! << 24) | (png[17]! << 16) | (png[18]! << 8) | png[19]!;
+    const height = (png[20]! << 24) | (png[21]! << 16) | (png[22]! << 8) | png[23]!;
+    expect(width).toBe(4);
+    expect(height).toBe(3);
   });
 });

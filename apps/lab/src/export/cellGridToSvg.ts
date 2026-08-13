@@ -1130,13 +1130,13 @@ export function cellGridToSvg(
       .filter(Boolean)
       .join("\n");
     return [
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
+      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
       gradientDefs,
       backgroundRect,
       backgroundImages,
       backgroundSvgLayer,
       styleBlock,
-      cellColorLayer,
+      cellColorLayer ? `  <g data-layer="rain">\n${cellColorLayer}\n  </g>` : "",
       framesSvgLayer,
       `</svg>`,
     ]
@@ -1177,7 +1177,7 @@ export function cellGridToSvg(
     ? clippedStripeElements
     : clippedStripeElements.sort((a, b) => a.depth - b.depth || a.opacity - b.opacity);
   const clippedPathElements = orderedClippedStripeElements.map((item) => item.element).join("\n");
-  const stripeLayer = [
+  const stripeLayerInner = [
     pathElements,
     gradientRampPaths.join("\n"),
     clippedPathElements,
@@ -1188,9 +1188,10 @@ export function cellGridToSvg(
   ]
     .filter(Boolean)
     .join("\n");
+  const stripeLayer = stripeLayerInner ? `  <g data-layer="rain">\n${stripeLayerInner}\n  </g>` : "";
 
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden">`,
     gradientDefs,
     backgroundRect,
     backgroundImages,
