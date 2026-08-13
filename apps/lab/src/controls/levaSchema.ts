@@ -14,7 +14,7 @@ import {
 import type { LabEditTheme, LabSettings } from "../persistence";
 import { fromEditable, type EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
-import { createLevaPatchWriter } from "./levaStoreWrite";
+import { createLevaPatchWriter, levaValuesEqual } from "./levaStoreWrite";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
 import { gradientStopsPlugin } from "./gradientStopsPlugin";
 import { timeTransportPlugin } from "./timeTransportPlugin";
@@ -5262,13 +5262,13 @@ export function useEngineControls(
     if (twizzlerRibbonColorModeValue === "sharedGradient" || twizzlerRibbonColorModeValue === "fiberGradient") {
       const far = parsed[0]!.color;
       const near = parsed[parsed.length - 1]!.color;
-      if (far === colorFar.toLowerCase() && near === colorNear.toLowerCase()) return;
+      if (levaValuesEqual(far, colorFar) && levaValuesEqual(near, colorNear)) return;
       shaderPatchWriter.write({ twizzlerColorFar: far, twizzlerColor: near });
       return;
     }
     const patched = withTwizzlerGradientEndpointColors(parsed, colorFar, colorNear);
     const serialized = serializeTwizzlerGradientStops(patched);
-    if (serialized === twizzlerGradientStopsValue) return;
+    if (levaValuesEqual(serialized, twizzlerGradientStopsValue)) return;
     shaderPatchWriter.write({ twizzlerGradientStops: serialized });
   }, [
     shaderPatchWriter,
