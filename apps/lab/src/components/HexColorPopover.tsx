@@ -291,15 +291,40 @@ export const HexColorPopover = ({
   const [hexDraft, setHexDraft] = useState(normalizedColor.toUpperCase());
   const displayColor = open ? draftColor : normalizedColor;
 
-  const updateColor = useCallback(
-    (hex: string) => {
-      const next = normalizeHex(hex);
-      setDraftColor(next);
-      setHexDraft(next.toUpperCase());
-      onChange(next);
+  const pendingColor = useRef<string | null>(null);
+  const colorRaf = useRef<number | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const lastSentColor = useRef(normalizedColor);
+
+  useEffect(
+    () => () => {
+      if (colorRaf.current != null) cancelAnimationFrame(colorRaf.current);
+      const pending = pendingColor.current;
+      pendingColor.current = null;
+      if (pending && pending !== lastSentColor.current) {
+        lastSentColor.current = pending;
+        onChangeRef.current(pending);
+      }
     },
-    [onChange],
+    [],
   );
+
+  const updateColor = useCallback((hex: string) => {
+    const next = normalizeHex(hex);
+    setDraftColor(next);
+    setHexDraft(next.toUpperCase());
+    pendingColor.current = next;
+    if (colorRaf.current != null) return;
+    colorRaf.current = requestAnimationFrame(() => {
+      colorRaf.current = null;
+      const pending = pendingColor.current;
+      pendingColor.current = null;
+      if (!pending || pending === lastSentColor.current) return;
+      lastSentColor.current = pending;
+      onChangeRef.current(pending);
+    });
+  }, []);
 
   const commitHexDraft = useCallback(() => {
     const raw = hexDraft.trim().replace(/^#/, "");
@@ -350,6 +375,8 @@ export const HexColorPopover = ({
   const { getReferenceProps, getFloatingProps } = useInteractions([click, dismiss, role]);
 
   useEffect(() => {
+    if (pendingColor.current) return;
+    lastSentColor.current = normalizedColor;
     setDraftColor(normalizedColor);
     setHexDraft(normalizedColor.toUpperCase());
   }, [normalizedColor]);
