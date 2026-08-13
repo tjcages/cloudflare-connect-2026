@@ -140,8 +140,17 @@ describe("cellGridToSvg", () => {
     });
     expect(svg).toContain('data-layer="twizzler"');
     expect(svg).toContain('fill="#ffffff"');
+    expect(svg).not.toContain('data-layer="rain"');
     expect(svg).not.toMatch(/class="stripe-/);
     expect((svg.match(/<path /g) ?? []).length).toBe(1);
+  });
+
+  it("wraps rain stripes in a rain layer group (CF-70)", () => {
+    const readback = { cols: 1, rows: 1, values: v(255), colors: null };
+    const svg = cellGridToSvg(readback, STRIPES, { cellWidthPx: 7, cellHeightPx: 7, useCellColors: false });
+    expect(svg).toContain('xmlns:xlink="http://www.w3.org/1999/xlink"');
+    expect(svg).toContain('data-layer="rain"');
+    expect(svg.indexOf('data-layer="rain"')).toBeLessThan(svg.indexOf("<path"));
   });
 
   it("includes the background color rect in image-colors SVG export too", () => {

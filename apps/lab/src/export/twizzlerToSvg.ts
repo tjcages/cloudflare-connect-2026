@@ -5,7 +5,11 @@ import {
   ribbonGradientXYSpan,
   type TwizzlerSettings,
 } from "../twizzler";
-import { twizzlerGradientSvgPattern } from "../twizzlerGradient";
+import {
+  TWIZZLER_GRADIENT_FIELD_SVG_COLS,
+  TWIZZLER_GRADIENT_FIELD_SVG_ROWS,
+  twizzlerGradientSvgPattern,
+} from "../twizzlerGradient";
 
 function number(value: number, digits = 2): string {
   return Number(value.toFixed(digits)).toString();
@@ -235,6 +239,8 @@ export function twizzlerToSvgLayer(
         span.x2 - span.x1,
         span.y2 - span.y1,
         settings.gradientStops,
+        TWIZZLER_GRADIENT_FIELD_SVG_COLS,
+        TWIZZLER_GRADIENT_FIELD_SVG_ROWS,
       ),
     );
     fiberBlocks.push(

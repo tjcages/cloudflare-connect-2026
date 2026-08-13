@@ -1,6 +1,7 @@
 /** Shared 2D color-field hotspots for Twizzler Shared / Fiber rendering. */
 
 import { nextOrangeRedLibraryHex } from "./components/colorLibrary";
+import { rgbaPngDataUri } from "./export/pngRgba";
 
 export type TwizzlerGradientStop = {
   id: string;
@@ -17,6 +18,7 @@ export const TWIZZLER_GRADIENT_STOP_MIN = 1;
 export const TWIZZLER_GRADIENT_STOP_MAX = 16;
 export const TWIZZLER_GRADIENT_FIELD_RASTER_WIDTH = 160;
 export const TWIZZLER_GRADIENT_FIELD_RASTER_HEIGHT = 100;
+/** Per-ribbon PNG size for Fiber SVG patterns (shared pack uses the larger raster). */
 export const TWIZZLER_GRADIENT_FIELD_SVG_COLS = 48;
 export const TWIZZLER_GRADIENT_FIELD_SVG_ROWS = 32;
 export const TWIZZLER_GRADIENT_HANDLE_HIT_PX = 26;
@@ -247,7 +249,10 @@ function svgNumber(value: number, digits = 3): string {
   return Number(value.toFixed(digits)).toString();
 }
 
-/** Node-safe SVG field: a grid of rects inside a `userSpaceOnUse` pattern. */
+/**
+ * Figma-safe 2D field fill: one PNG inside a pattern (not a 48×32 SVG rect lattice).
+ * Figma rejects Shared/Fiber SVGs that explode into thousands of pattern rects.
+ */
 export function twizzlerGradientSvgPattern(
   id: string,
   x: number,
@@ -255,30 +260,16 @@ export function twizzlerGradientSvgPattern(
   width: number,
   height: number,
   stops: readonly TwizzlerGradientStop[],
-  cols = TWIZZLER_GRADIENT_FIELD_SVG_COLS,
-  rows = TWIZZLER_GRADIENT_FIELD_SVG_ROWS,
+  cols = TWIZZLER_GRADIENT_FIELD_RASTER_WIDTH,
+  rows = TWIZZLER_GRADIENT_FIELD_RASTER_HEIGHT,
 ): string {
   const w = Math.max(width, 0.001);
   const h = Math.max(height, 0.001);
-  const cellW = w / Math.max(1, cols);
-  const cellH = h / Math.max(1, rows);
-  const overlapX = cellW * 0.04;
-  const overlapY = cellH * 0.04;
-  const rects: string[] = [];
-  for (let row = 0; row < rows; row += 1) {
-    const v = (row + 0.5) / rows;
-    const ry = row * cellH - overlapY * 0.5;
-    for (let col = 0; col < cols; col += 1) {
-      const rgb = sampleTwizzlerGradientRgb(stops, (col + 0.5) / cols, v);
-      const rx = col * cellW - overlapX * 0.5;
-      rects.push(
-        `      <rect x="${svgNumber(rx)}" y="${svgNumber(ry)}" width="${svgNumber(cellW + overlapX)}" height="${svgNumber(cellH + overlapY)}" fill="rgb(${Math.round(rgb.r)},${Math.round(rgb.g)},${Math.round(rgb.b)})" />`,
-      );
-    }
-  }
+  const pixels = rasterizeTwizzlerGradientField(stops, cols, rows);
+  const href = rgbaPngDataUri(pixels, cols, rows);
   return [
     `    <pattern id="${id}" patternUnits="userSpaceOnUse" x="${svgNumber(x, 1)}" y="${svgNumber(y, 1)}" width="${svgNumber(w, 1)}" height="${svgNumber(h, 1)}">`,
-    ...rects,
+    `      <image href="${href}" xlink:href="${href}" x="0" y="0" width="${svgNumber(w, 1)}" height="${svgNumber(h, 1)}" preserveAspectRatio="none" />`,
     "    </pattern>",
   ].join("\n");
 }

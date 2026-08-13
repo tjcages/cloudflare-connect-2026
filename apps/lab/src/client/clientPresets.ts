@@ -297,6 +297,15 @@ export function clientGraphicFlags(mode: ClientGraphicMode): { twizzlerEnabled: 
   }
 }
 
+/** Which SVG groups to emit for the live Graphic selector. */
+export function resolveClientSvgExportLayers(mode: ClientGraphicMode): {
+  includeTwizzler: boolean;
+  includeRain: boolean;
+} {
+  const flags = clientGraphicFlags(mode);
+  return { includeTwizzler: flags.twizzlerEnabled, includeRain: flags.rainEnabled };
+}
+
 /**
  * Twizzler-only Graphic: hide rain FX for render without mutating Leva / stored knobs.
  * Rain + Both keep the live enabled flags as authored.

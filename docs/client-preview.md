@@ -34,9 +34,10 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
   - **Twizzler → Gradients** — X/Y/Z gradient mixes (**Baked** Color mode only)
   - **Twizzler → Stroke** — width, layers, perspective
   - **Twizzler → Motion** — Speed
-  - **Rain** — parent folder (collapsed by default) with Shader config, Stripes, Grid, Background, Sparkle, etc. when Graphic includes Rain
+  - **Background** — Fill (Transparent / Solid / Gradient), Color, Gradient direction + stops. Stage chrome for every Graphic (Twizzler sits on it); not nested under Rain.
+  - **Rain** — parent folder (collapsed by default) with Shader config, Stripes, Grid, Background Stars/Meteors/Flames, Sparkle, etc. when Graphic includes Rain
 - **Hero → Graphic** (no page reload; toggles layers live; **never wipes** Twizzler or Rain knobs):
-  - **Twizzler** — orange-wave ribbon only (**Twizzler** parent folders; **Rain** parent hidden). Rain FX (frames, stars, meteors, flames, sparkle, letters) are not drawn.
+  - **Twizzler** — orange-wave ribbon only (**Twizzler** parent folders; **Rain** parent hidden). **Background** Fill/Color/Gradient stay visible. Rain FX (frames, stars, meteors, flames, sparkle, letters) are not drawn.
   - **Rain** — rain/Connect stack under a **Rain** parent (**Twizzler** parent hidden). **Shader** dropdown in Hero (Connect / Spiral / etc.). Texture sidebar (Camera / Tone) when Rain is on. Graphic selection persists across refresh.
   - **Both** — **Twizzler** and **Rain** parents both visible so each stack can be collapsed independently. Rain FX draw when authored on.- **Presets** (Size / Layout / Appearance / Color) stay the same catalog. When Graphic is Rain they map onto Rain/Connect knobs; when Twizzler onto ribbon knobs; when Both onto both stacks.
 - **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, etc.) without rebuilding Leva, so values are not wiped when toggling.
@@ -71,19 +72,19 @@ Client panel (and lab) expose:
 
 When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (Default for client knobs, Advanced for fine ones). Keep the color library — no freeform-only hex fields.
 
-| HTML / design control        | Leva folder                      | Notes                                                               |
-| ---------------------------- | -------------------------------- | ------------------------------------------------------------------- |
-| Stroke color                 | Presets → Color (Default)        | `colorLibraryInputPlugin` → `LIBRARY_COLOR.*` / Orange tokens       |
-| Background                   | Rain → Background → Fill + Color | Library Neutral White / Neutral steps; Gradient = Advanced          |
-| Twizzler on/off              | Hero → Graphic                   | Twizzler / Both drives `twizzlerEnabled`                            |
-| Color mode                   | Twizzler → Color mode            | Solid / Shared gradient / Fiber gradient / Baked segments           |
-| Rain on/off                  | Hero → Graphic                   | Rain / Both → `rainEnabled` → `sparkle.gaps` (section-grid lineage) |
-| Zoom / Move X/Y/Z            | Twizzler → General/Shape         | Zoom + translate live in Default                                    |
-| Rotate X/Y/Z                 | Twizzler → Shape                 | already live in Default                                             |
-| Layer count / width / points | Twizzler → Stroke                | Default                                                             |
-| Speed / pause                | Twizzler → Motion                | `speed` (0 = freeze)                                                |
-| Wave amplitude / envelope    | Twizzler → Shape                 | Amplitude + Center Y in Default                                     |
-| Any new HTML sliders         | Twizzler Shape/Motion            | add settings + normalize + Leva                                     |
+| HTML / design control        | Leva folder               | Notes                                                               |
+| ---------------------------- | ------------------------- | ------------------------------------------------------------------- |
+| Stroke color                 | Presets → Color (Default) | `colorLibraryInputPlugin` → `LIBRARY_COLOR.*` / Orange tokens       |
+| Background                   | Background → Fill + Color | Library Neutral White / Neutral steps; visible for every Graphic    |
+| Twizzler on/off              | Hero → Graphic            | Twizzler / Both drives `twizzlerEnabled`                            |
+| Color mode                   | Twizzler → Color mode     | Solid / Shared gradient / Fiber gradient / Baked segments           |
+| Rain on/off                  | Hero → Graphic            | Rain / Both → `rainEnabled` → `sparkle.gaps` (section-grid lineage) |
+| Zoom / Move X/Y/Z            | Twizzler → General/Shape  | Zoom + translate live in Default                                    |
+| Rotate X/Y/Z                 | Twizzler → Shape          | already live in Default                                             |
+| Layer count / width / points | Twizzler → Stroke         | Default                                                             |
+| Speed / pause                | Twizzler → Motion         | `speed` (0 = freeze)                                                |
+| Wave amplitude / envelope    | Twizzler → Shape          | Amplitude + Center Y in Default                                     |
+| Any new HTML sliders         | Twizzler Shape/Motion     | add settings + normalize + Leva                                     |
 
 Colors in the HTML that are not exact library hexes get **snapped** to the nearest `COLOR_LIBRARY` token (prefer Accent / Pair levels). Do not invent a parallel palette. Color selectors show the library token name (e.g. `Orange / 900 [Accent]`) when the value matches; focus the field to edit hex.
 
