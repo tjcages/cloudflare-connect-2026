@@ -24,6 +24,8 @@ export const TWIZZLER_MAP_SHADER_PRESET_ID = "twizzler-map";
 export { TWIZZLER_SINE_SHADER_PRESET_ID };
 export const DEFAULT_SHADER_PRESET_ID = CONNECT_SHADER_PRESET_ID;
 export const CUSTOM_SHADER_PRESET_ID = "custom";
+/** Graphic Rain default: saved "Wave to Full Screen" (Corridor by @XorDev). */
+export const GRAPHIC_RAIN_SHADER_PRESET_ID = "a1f684cd-6845-4f12-8978-e8315cfb4820";
 
 const savedModules = import.meta.glob("./saved/*.json", {
   eager: true,
@@ -108,8 +110,8 @@ export function isTwizzlerSineShaderPreset(id: string): boolean {
 }
 
 /**
- * Graphic Rain must use the Connect 3D spiral renderer, not the Samuel YAN
- * `connect` noise toy or a Twizzler ribbon shader.
+ * Graphic Rain defaults to Wave to Full Screen. Leftover `connect` noise /
+ * Twizzler ribbon ids are remapped; an explicit Spiral (or other) pick is kept.
  */
 export function resolveGraphicRainShaderPreset(id: string | null | undefined): string {
   const trimmed = typeof id === "string" ? id.trim() : "";
@@ -119,7 +121,7 @@ export function resolveGraphicRainShaderPreset(id: string | null | undefined): s
     trimmed === TWIZZLER_SINE_SHADER_PRESET_ID ||
     trimmed === TWIZZLER_MAP_SHADER_PRESET_ID
   ) {
-    return SPIRAL_SHADER_PRESET_ID;
+    return GRAPHIC_RAIN_SHADER_PRESET_ID;
   }
   return trimmed;
 }

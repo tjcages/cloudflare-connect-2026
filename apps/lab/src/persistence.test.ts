@@ -116,7 +116,7 @@ describe("config file import/export", () => {
     expect(exportedLab.drawerOpen).toEqual({ Stripes: true, Grid: false });
   });
 
-  it("uses the Cloudflare marketing palette and Connect shader as factory defaults", () => {
+  it("uses the factory rain palette and Wave to Full Screen shader as defaults", () => {
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripeDots).toEqual({
       enabled: false,
       density: 0.8,
@@ -145,7 +145,19 @@ describe("config file import/export", () => {
       fontSizePx: 8,
       coordinateColor: 16777215,
     });
-    expect(DEFAULT_LAB_ENGINE_CONFIG.background.color).toBe(0xffffff);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.background.stars.enabled).toBe(true);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.background.meteors.enabled).toBe(true);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.flames.enabled).toBe(true);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.reveal.enabled).toBe(false);
+    expect(DEFAULT_LAB_ENGINE_CONFIG.grid).toMatchObject({
+      cellWidth: 17,
+      cellHeight: 1,
+      gapX: 12,
+      gapY: 0,
+      angleDeg: 45,
+      rotationMode: "cell",
+      overlapAmount: 1.2,
+    });
     expect(DEFAULT_LAB_ENGINE_CONFIG.stripes.map(({ color }) => color)).toEqual([
       0xfafafa, 0xfff8e8, 0xfeefd2, 0xffe3b5, 0x9038fc, 0x2563fe, 0x2e9d51, 0xf9b73b, 0xf9b73b, 0xf46021,
     ]);
@@ -156,8 +168,8 @@ describe("config file import/export", () => {
       canvasHeight: 998,
       textureId: "cf-base",
       textureSourceMode: "shader",
-      shaderPresetId: "spiral",
-      stripePalette: "Custom",
+      shaderPresetId: "a1f684cd-6845-4f12-8978-e8315cfb4820",
+      stripePalette: "Default",
       backgroundRampEasing: "easeOut",
       thresholdDistributionEasing: "custom:0.346,0.578,0,1",
     });

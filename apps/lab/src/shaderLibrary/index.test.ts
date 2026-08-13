@@ -10,6 +10,7 @@ import {
   isSpiralShaderPreset,
   isTwizzlerMapShaderPreset,
   NEBULA_SHADER_PRESET_ID,
+  GRAPHIC_RAIN_SHADER_PRESET_ID,
   resolveGraphicRainShaderPreset,
   SHADER_LIBRARY,
   SPIRAL_SHADER_PRESET_ID,
@@ -58,14 +59,16 @@ describe("shader library", () => {
     expect(findShaderLibraryEntry("061d653b-18f2-40b3-b92f-86a4459b6b5a")?.label).toBe("Planets");
   });
 
-  it("routes Graphic Rain off the connect noise toy and Twizzler shaders (CF-76)", () => {
-    expect(resolveGraphicRainShaderPreset(undefined)).toBe(SPIRAL_SHADER_PRESET_ID);
-    expect(resolveGraphicRainShaderPreset("")).toBe(SPIRAL_SHADER_PRESET_ID);
-    expect(resolveGraphicRainShaderPreset(CONNECT_SHADER_PRESET_ID)).toBe(SPIRAL_SHADER_PRESET_ID);
-    expect(resolveGraphicRainShaderPreset("twizzler-sine")).toBe(SPIRAL_SHADER_PRESET_ID);
-    expect(resolveGraphicRainShaderPreset(TWIZZLER_MAP_SHADER_PRESET_ID)).toBe(SPIRAL_SHADER_PRESET_ID);
+  it("routes Graphic Rain to Wave to Full Screen unless another rain shader is picked (CF-77)", () => {
+    expect(resolveGraphicRainShaderPreset(undefined)).toBe(GRAPHIC_RAIN_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset("")).toBe(GRAPHIC_RAIN_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset(CONNECT_SHADER_PRESET_ID)).toBe(GRAPHIC_RAIN_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset("twizzler-sine")).toBe(GRAPHIC_RAIN_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset(TWIZZLER_MAP_SHADER_PRESET_ID)).toBe(GRAPHIC_RAIN_SHADER_PRESET_ID);
     expect(resolveGraphicRainShaderPreset(NEBULA_SHADER_PRESET_ID)).toBe(NEBULA_SHADER_PRESET_ID);
     expect(resolveGraphicRainShaderPreset(SPIRAL_SHADER_PRESET_ID)).toBe(SPIRAL_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset(GRAPHIC_RAIN_SHADER_PRESET_ID)).toBe(GRAPHIC_RAIN_SHADER_PRESET_ID);
+    expect(findShaderLibraryEntry(GRAPHIC_RAIN_SHADER_PRESET_ID)?.label).toBe("Wave to Full Screen");
   });
 
   it("detects presets by source", () => {
