@@ -6,7 +6,12 @@ import { normalizeTwizzlerSettings, type TwizzlerRibbonColorMode, type TwizzlerS
 import { defaultTwizzlerGradientFieldStops } from "../twizzlerGradient";
 import { sectionGridRainEngineConfig } from "./sectionGridRainDefaults";
 
+const DEFAULT_LAB_CANVAS_WIDTH = 1280;
+const DEFAULT_LAB_CANVAS_HEIGHT = 720;
+
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
+export const CUSTOM_CLIENT_SIZE_ID = "custom" as const;
+export type ClientSizeId = ClientSizePresetId | typeof CUSTOM_CLIENT_SIZE_ID;
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
 export type ClientColorPresetId =
   | "coral-classic"
@@ -418,6 +423,25 @@ export function findClientSizePreset(id: ClientSizePresetId): ClientSizePreset {
 export function matchClientSizePresetId(width: number, height: number): ClientSizePresetId {
   const exact = CLIENT_SIZE_PRESETS.find((preset) => preset.width === width && preset.height === height);
   return exact?.id ?? DEFAULT_CLIENT_PREVIEW_STATE.sizeId;
+}
+
+function normalizeClientCanvasDimension(value: number, fallback: number): number {
+  return Math.round(Math.max(1, Math.min(8192, Number.isFinite(value) ? value : fallback)));
+}
+
+export function resolveClientCanvasSize(
+  id: ClientSizeId,
+  customWidth: number,
+  customHeight: number,
+): { width: number; height: number } {
+  if (id === CUSTOM_CLIENT_SIZE_ID) {
+    return {
+      width: normalizeClientCanvasDimension(customWidth, DEFAULT_LAB_CANVAS_WIDTH),
+      height: normalizeClientCanvasDimension(customHeight, DEFAULT_LAB_CANVAS_HEIGHT),
+    };
+  }
+  const preset = findClientSizePreset(id);
+  return { width: preset.width, height: preset.height };
 }
 
 export function findClientLayoutPreset(id: ClientLayoutPresetId): ClientLayoutPreset {

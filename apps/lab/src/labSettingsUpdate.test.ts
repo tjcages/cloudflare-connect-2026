@@ -32,4 +32,12 @@ describe("nextLabSettings", () => {
     });
     expect(normalizeTwizzlerSettings(once)).toEqual(once);
   });
+
+  it("preserves custom client canvas dimensions", () => {
+    expect(normalizeLabSettings({ clientSizeId: "custom", canvasWidth: 1920, canvasHeight: 1080 })).toMatchObject({
+      clientSizeId: "custom",
+      canvasWidth: 1920,
+      canvasHeight: 1080,
+    });
+  });
 });

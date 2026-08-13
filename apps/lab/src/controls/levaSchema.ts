@@ -75,12 +75,13 @@ import {
   CLIENT_GRAPHIC_MODES,
   CLIENT_LAYOUT_PRESETS,
   CLIENT_SIZE_PRESETS,
+  CUSTOM_CLIENT_SIZE_ID,
   DEFAULT_CLIENT_PREVIEW_STATE,
   clientGraphicFlags,
   findClientAppearancePreset,
   findClientColorPreset,
-  findClientSizePreset,
   matchClientSizePresetId,
+  resolveClientCanvasSize,
   rainLevaFromAppearance,
   rainLevaFromColor,
   rainLevaFromLayout,
@@ -91,7 +92,7 @@ import {
   type ClientColorPresetId,
   type ClientGraphicMode,
   type ClientLayoutPresetId,
-  type ClientSizePresetId,
+  type ClientSizeId,
 } from "../client/clientPresets";
 import {
   rainEngineNeedsFactorySeed,
@@ -723,7 +724,9 @@ export function useEngineControls(
    */
   const levaSchemaSeedRef = useRef({
     clientSizeId: (initialLabSettings.clientSizeId ??
-      matchClientSizePresetId(initialLabSettings.canvasWidth, initialLabSettings.canvasHeight)) as ClientSizePresetId,
+      matchClientSizePresetId(initialLabSettings.canvasWidth, initialLabSettings.canvasHeight)) as ClientSizeId,
+    clientCanvasWidth: initialLabSettings.canvasWidth,
+    clientCanvasHeight: initialLabSettings.canvasHeight,
     clientLayoutId: (initialLabSettings.clientLayoutId ??
       DEFAULT_CLIENT_PREVIEW_STATE.layoutId) as ClientLayoutPresetId,
     clientAppearanceId: (initialLabSettings.clientAppearanceId ??
@@ -1256,9 +1259,10 @@ export function useEngineControls(
   textureSetterRawRef.current = setTextureControl as (values: Record<string, unknown>) => void;
   textureControlSetterRef.current = (values) => texturePatchWriter.writeNow(values);
 
-  const clientSizeOptions = Object.fromEntries(
-    CLIENT_SIZE_PRESETS.map((preset) => [preset.label, preset.id]),
-  ) as Record<string, ClientSizePresetId>;
+  const clientSizeOptions = Object.fromEntries([
+    ...CLIENT_SIZE_PRESETS.map((preset) => [preset.label, preset.id]),
+    ["Custom…", CUSTOM_CLIENT_SIZE_ID],
+  ]) as Record<string, ClientSizeId>;
   const clientLayoutOptions = Object.fromEntries(
     CLIENT_LAYOUT_PRESETS.map((preset) => [preset.label, preset.id]),
   ) as Record<string, ClientLayoutPresetId>;
@@ -1304,6 +1308,22 @@ export function useEngineControls(
               value: levaSchemaSeedRef.current.clientSizeId,
               options: clientSizeOptions,
               label: "Size",
+            },
+            clientCanvasWidth: {
+              value: levaSchemaSeedRef.current.clientCanvasWidth,
+              min: 1,
+              max: 8192,
+              step: 1,
+              label: "Width (px)",
+              render: (get) => get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID,
+            },
+            clientCanvasHeight: {
+              value: levaSchemaSeedRef.current.clientCanvasHeight,
+              min: 1,
+              max: 8192,
+              step: 1,
+              label: "Height (px)",
+              render: (get) => get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID,
             },
             clientLayout: {
               value: levaSchemaSeedRef.current.clientLayoutId,
@@ -4836,7 +4856,14 @@ export function useEngineControls(
     (shaderValues as unknown as Record<string, unknown>).clientSize ??
       initialLabSettings.clientSizeId ??
       DEFAULT_CLIENT_PREVIEW_STATE.sizeId,
-  ) as ClientSizePresetId;
+  ) as ClientSizeId;
+  const clientCanvasWidth = Number(
+    (shaderValues as unknown as Record<string, unknown>).clientCanvasWidth ?? initialLabSettings.canvasWidth,
+  );
+  const clientCanvasHeight = Number(
+    (shaderValues as unknown as Record<string, unknown>).clientCanvasHeight ?? initialLabSettings.canvasHeight,
+  );
+  const resolvedClientCanvasSize = resolveClientCanvasSize(clientSizeId, clientCanvasWidth, clientCanvasHeight);
   const clientAppearanceId = String(
     (shaderValues as unknown as Record<string, unknown>).clientAppearance ??
       initialLabSettings.clientAppearanceId ??
@@ -4848,6 +4875,8 @@ export function useEngineControls(
   levaSchemaSeedRef.current.clientLayoutId = clientLayoutId;
   levaSchemaSeedRef.current.clientColorId = clientColorId;
   levaSchemaSeedRef.current.clientSizeId = clientSizeId;
+  levaSchemaSeedRef.current.clientCanvasWidth = resolvedClientCanvasSize.width;
+  levaSchemaSeedRef.current.clientCanvasHeight = resolvedClientCanvasSize.height;
   levaSchemaSeedRef.current.clientAppearanceId = clientAppearanceId;
   levaSchemaSeedRef.current.clientHeroGraphic = heroGraphicId;
   clientRainAuthoringActive = !clientApp || heroGraphicId === "rain" || heroGraphicId === "both";
@@ -5262,6 +5291,9 @@ export function useEngineControls(
       ...(clientApp
         ? {
             clientSizeId,
+            canvasMode: "manual",
+            canvasWidth: resolvedClientCanvasSize.width,
+            canvasHeight: resolvedClientCanvasSize.height,
             clientLayoutId,
             clientColorId,
             clientAppearanceId,
@@ -5277,6 +5309,8 @@ export function useEngineControls(
       clientColorId,
       clientLayoutId,
       clientSizeId,
+      resolvedClientCanvasSize.height,
+      resolvedClientCanvasSize.width,
       currentBackgroundRampSettingsKey,
       sourcePreviewOpacity,
       stripePaletteValue,
@@ -5924,12 +5958,7 @@ export function useEngineControls(
       eruptionParticles: shaderValueRecord.cometLogoEruptionParticles,
       eruptionCycleSpeed: shaderValueRecord.cometLogoEruptionCycleSpeed,
     }),
-    clientCanvasSize: clientApp
-      ? {
-          width: findClientSizePreset(clientSizeId).width,
-          height: findClientSizePreset(clientSizeId).height,
-        }
-      : null,
+    clientCanvasSize: clientApp ? resolvedClientCanvasSize : null,
     clientGraphicMode: clientApp ? heroGraphicId : null,
     clientRainShaderPreset: clientApp
       ? resolveGraphicRainShaderPreset(

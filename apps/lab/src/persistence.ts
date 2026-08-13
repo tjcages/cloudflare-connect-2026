@@ -4,7 +4,7 @@ import type {
   ClientAppearanceId,
   ClientColorPresetId,
   ClientLayoutPresetId,
-  ClientSizePresetId,
+  ClientSizeId,
 } from "./client/clientPresets";
 import { DEFAULT_LAB_ENGINE_CONFIG, DEFAULT_LAB_UI_SETTINGS } from "./defaultLabConfig";
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "./shaderTextureSource";
@@ -110,7 +110,7 @@ export type LabSettings = {
   shaderViewPanY: number;
   shaderViewFov: number;
   /** Client preview Size / Layout / Color / Appearance catalog selections (saved layouts). */
-  clientSizeId: ClientSizePresetId;
+  clientSizeId: ClientSizeId;
   clientLayoutId: ClientLayoutPresetId;
   clientColorId: ClientColorPresetId;
   clientAppearanceId: ClientAppearanceId;
@@ -209,7 +209,7 @@ function normalizeShaderPresetId(value: unknown): string {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : DEFAULT_LAB_SETTINGS.shaderPresetId;
 }
 
-const CLIENT_SIZE_IDS = new Set<string>(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
+const CLIENT_SIZE_IDS = new Set<string>(["banner-5x1", "wide-3x1", "hero-16x9", "square", "custom"]);
 const CLIENT_LAYOUT_IDS = new Set<string>(["classic", "low-ribbon", "high-fan", "compact"]);
 const CLIENT_COLOR_IDS = new Set<string>([
   "coral-classic",
@@ -223,8 +223,8 @@ const CLIENT_COLOR_IDS = new Set<string>([
 ]);
 const CLIENT_APPEARANCE_IDS = new Set<string>(["light", "dark"]);
 
-function normalizeClientSizeId(value: unknown): ClientSizePresetId {
-  return typeof value === "string" && CLIENT_SIZE_IDS.has(value) ? (value as ClientSizePresetId) : "hero-16x9";
+function normalizeClientSizeId(value: unknown): ClientSizeId {
+  return typeof value === "string" && CLIENT_SIZE_IDS.has(value) ? (value as ClientSizeId) : "hero-16x9";
 }
 
 function normalizeClientLayoutId(value: unknown): ClientLayoutPresetId {
