@@ -2543,6 +2543,584 @@ body.lab-sidebar-resizing canvas {
   padding: 10px 14px;
 }
 
+/* ── Keyframe timeline ─────────────────────────────────────────────── */
+.timeline-editor {
+  position: relative;
+  z-index: 8;
+  flex: 0 0 auto;
+  height: 30px;
+  border-top: 1px solid var(--leva-border);
+  background: var(--leva-panel-bg);
+  font-size: 10px;
+  user-select: none;
+}
+
+.timeline-editor.is-open {
+  height: 330px;
+}
+
+.timeline-tab {
+  display: inline-flex;
+  height: 29px;
+  min-width: 112px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  border-right: 1px solid var(--leva-border);
+  background: var(--leva-panel-bg);
+  color: var(--leva-text);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.timeline-tab:hover {
+  background: var(--leva-surface);
+}
+
+.timeline-tab-chevron {
+  color: var(--leva-text-faint);
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.timeline-editor.is-open .timeline-tab-chevron {
+  transform: rotate(90deg);
+}
+
+.timeline-tab small,
+.timeline-track-list-heading small {
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--leva-surface);
+  color: var(--leva-text-muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-panel {
+  position: absolute;
+  inset: 29px 0 0;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  border-top: 1px solid var(--leva-border);
+  background: var(--leva-panel-bg);
+}
+
+.timeline-toolbar {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  height: 40px;
+  flex: 0 0 40px;
+  grid-template-columns: 220px minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--leva-border);
+}
+
+.timeline-transport,
+.timeline-sequence-settings {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeline-editor button {
+  box-sizing: border-box;
+  border: 0;
+  color: var(--leva-text-muted);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.timeline-editor button:hover,
+.timeline-editor button:focus-visible {
+  color: var(--leva-text);
+  background: var(--leva-surface-hover);
+  outline: none;
+}
+
+.timeline-transport > button,
+.timeline-sequence-settings > button {
+  display: inline-flex;
+  height: 24px;
+  min-width: 24px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-radius: var(--leva-radius);
+  background: var(--leva-surface);
+}
+
+.timeline-transport .timeline-play {
+  color: var(--leva-text);
+}
+
+.timeline-transport output {
+  min-width: 58px;
+  margin-left: 5px;
+  color: var(--leva-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-sequence-settings {
+  justify-self: end;
+}
+
+.timeline-sequence-settings label {
+  display: flex;
+  height: 24px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border-radius: var(--leva-radius);
+  background: var(--leva-surface);
+  color: var(--leva-text-muted);
+}
+
+.timeline-sequence-settings label input {
+  width: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--leva-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.timeline-sequence-settings button.is-active {
+  color: var(--leva-text);
+  box-shadow: inset 0 0 0 1px var(--leva-accent-soft);
+}
+
+.timeline-property-picker {
+  position: relative;
+  justify-self: start;
+}
+
+.timeline-add-property {
+  display: inline-flex;
+  height: 24px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border-radius: var(--leva-radius);
+  background: var(--leva-surface) !important;
+}
+
+.timeline-property-menu {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  width: 280px;
+  overflow: hidden;
+  border: 1px solid var(--leva-border);
+  border-radius: 5px;
+  background: var(--leva-panel-bg);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+}
+
+.timeline-property-search {
+  display: grid;
+  height: 34px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  padding: 0 9px;
+  border-bottom: 1px solid var(--leva-border);
+  color: var(--leva-text-faint);
+}
+
+.timeline-property-search input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--leva-text);
+  font: inherit;
+  outline: none;
+}
+
+.timeline-property-search input::placeholder {
+  color: var(--leva-text-faint);
+}
+
+.timeline-property-results {
+  max-height: 230px;
+  overflow: auto;
+  padding: 5px;
+}
+
+.timeline-property-results section h4 {
+  margin: 8px 6px 3px;
+  color: var(--leva-text-faint);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.timeline-property-results section button {
+  display: grid;
+  width: 100%;
+  height: 25px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 7px;
+  border-radius: 3px;
+  text-align: left;
+}
+
+.timeline-property-results section button span {
+  overflow: hidden;
+  color: var(--leva-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-property-results section button small {
+  max-width: 82px;
+  overflow: hidden;
+  color: var(--leva-text-faint);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-property-results > p {
+  margin: 20px 8px;
+  color: var(--leva-text-faint);
+  text-align: center;
+}
+
+.timeline-workspace {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: 220px minmax(320px, 1fr) 178px;
+  overflow: hidden;
+}
+
+.timeline-track-list {
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--leva-border);
+}
+
+.timeline-track-list-heading {
+  display: flex;
+  height: 27px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9px;
+  border-bottom: 1px solid var(--leva-border);
+  color: var(--leva-text-faint);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.timeline-track-label {
+  display: grid;
+  height: 34px;
+  grid-template-columns: 6px minmax(0, 1fr) auto 24px 24px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 0 9px;
+  border-bottom: 1px solid var(--leva-border-subtle);
+  color: var(--leva-text-muted);
+  cursor: default;
+}
+
+.timeline-track-label.is-selected {
+  background: color-mix(in srgb, var(--leva-highlight-soft) 32%, transparent);
+  color: var(--leva-text);
+}
+
+.timeline-track-label .timeline-track-name {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: transparent !important;
+  color: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-track-label > small {
+  max-width: 48px;
+  overflow: hidden;
+  color: var(--leva-text-faint);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-track-label button:not(.timeline-track-name) {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  opacity: 0;
+}
+
+.timeline-track-label:hover button:not(.timeline-track-name),
+.timeline-track-label.is-selected button:not(.timeline-track-name) {
+  opacity: 1;
+}
+
+.timeline-track-type {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--leva-accent-soft);
+}
+
+.timeline-track-type.is-color {
+  background: conic-gradient(#f36, #fc3, #3c9, #39f, #f36);
+}
+
+.timeline-track-type.is-discrete {
+  border-radius: 1px;
+  background: var(--leva-text-faint);
+}
+
+.timeline-empty-copy {
+  display: grid;
+  place-items: center;
+  gap: 7px;
+  padding: 54px 32px;
+  color: var(--leva-text-faint);
+  text-align: center;
+}
+
+.timeline-empty-copy p {
+  max-width: 135px;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.timeline-canvas-shell {
+  min-width: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--leva-panel-bg) 96%, var(--leva-text));
+}
+
+.timeline-ruler {
+  position: relative;
+  height: 27px;
+  border-bottom: 1px solid var(--leva-border);
+  cursor: ew-resize;
+}
+
+.timeline-ruler span {
+  position: absolute;
+  bottom: 5px;
+  color: var(--leva-text-faint);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(4px);
+}
+
+.timeline-canvas {
+  position: relative;
+  height: calc(100% - 27px);
+  overflow: hidden auto;
+  cursor: ew-resize;
+}
+
+.timeline-grid-lines,
+.timeline-grid-lines i {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.timeline-grid-lines i {
+  right: auto;
+  width: 1px;
+  background: var(--leva-border-subtle);
+}
+
+.timeline-track-row {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 34px;
+  border-bottom: 1px solid var(--leva-border-subtle);
+}
+
+.timeline-track-row.is-selected {
+  background: color-mix(in srgb, var(--leva-highlight-soft) 18%, transparent);
+}
+
+.timeline-key-segment {
+  position: absolute;
+  top: 16px;
+  height: 2px;
+  background: var(--leva-accent-soft);
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.timeline-key-segment.is-hold {
+  background-image: repeating-linear-gradient(90deg, var(--leva-accent-soft) 0 3px, transparent 3px 6px);
+  background-color: transparent;
+}
+
+.timeline-key-segment.is-spring {
+  height: 3px;
+  background: linear-gradient(90deg, var(--leva-accent-soft), var(--leva-text-faint), var(--leva-accent-soft));
+}
+
+.timeline-key {
+  position: absolute;
+  top: 10px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  background: transparent !important;
+  transform: translateX(-7px);
+  cursor: grab !important;
+}
+
+.timeline-key:active {
+  cursor: grabbing !important;
+}
+
+.timeline-key > span {
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: 3px;
+  border: 1px solid var(--leva-accent-strong);
+  background: var(--leva-panel-bg);
+  transform: rotate(45deg);
+}
+
+.timeline-key:hover > span,
+.timeline-key.is-selected > span {
+  background: var(--leva-accent-strong);
+}
+
+.timeline-playhead {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--leva-text-muted);
+  pointer-events: none;
+}
+
+.timeline-playhead span {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 7px;
+  height: 5px;
+  border-radius: 1px 1px 3px 3px;
+  background: var(--leva-text-muted);
+}
+
+.timeline-inspector {
+  min-width: 0;
+  padding: 10px;
+  overflow: auto;
+  border-left: 1px solid var(--leva-border);
+  color: var(--leva-text-faint);
+}
+
+.timeline-inspector > p {
+  margin: 34px 8px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.timeline-inspector-title {
+  display: flex;
+  height: 22px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: var(--leva-text);
+  font-weight: 600;
+}
+
+.timeline-inspector-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-inspector-title button {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+
+.timeline-inspector > label {
+  display: grid;
+  min-height: 28px;
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  color: var(--leva-text-muted);
+}
+
+.timeline-inspector input:not([type="checkbox"]),
+.timeline-inspector select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 23px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--leva-radius);
+  background: var(--leva-surface);
+  color: var(--leva-text);
+  font: inherit;
+  outline: none;
+}
+
+.timeline-inspector input[type="color"] {
+  padding: 2px;
+}
+
+@media (max-width: 900px) {
+  .timeline-workspace {
+    grid-template-columns: 180px minmax(260px, 1fr);
+  }
+
+  .timeline-inspector {
+    display: none;
+  }
+
+  .timeline-toolbar {
+    grid-template-columns: auto 1fr auto;
+  }
+}
+
 .lab-bottom-grid {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
