@@ -19,6 +19,7 @@ import {
   rainLevaFromLayout,
   resetTweaksForLayout,
   resolveClientGraphicMode,
+  resolveClientSvgExportLayers,
   shouldSyncHeroGraphicFromFlags,
   withClientRainFxVisibility,
 } from "./clientPresets";
@@ -84,6 +85,9 @@ describe("client preview presets", () => {
     expect(clientGraphicFlags("twizzler")).toEqual({ twizzlerEnabled: true, rainEnabled: false });
     expect(clientGraphicFlags("rain")).toEqual({ twizzlerEnabled: false, rainEnabled: true });
     expect(clientGraphicFlags("both")).toEqual({ twizzlerEnabled: true, rainEnabled: true });
+    expect(resolveClientSvgExportLayers("twizzler")).toEqual({ includeTwizzler: true, includeRain: false });
+    expect(resolveClientSvgExportLayers("rain")).toEqual({ includeTwizzler: false, includeRain: true });
+    expect(resolveClientSvgExportLayers("both")).toEqual({ includeTwizzler: true, includeRain: true });
     expect(CLIENT_GRAPHIC_MODES.map((m) => m.id)).toEqual(["twizzler", "rain", "both"]);
   });
 

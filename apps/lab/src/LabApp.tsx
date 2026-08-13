@@ -71,6 +71,7 @@ import {
 import {
   resolveClientGraphicMode,
   clientGraphicFlags,
+  resolveClientSvgExportLayers,
   withClientRainFxVisibility,
   type ClientGraphicMode,
 } from "./client/clientPresets";
@@ -1197,6 +1198,8 @@ function LabInner({
   backgroundSourceOpacityRef.current = backgroundSourceOpacity;
   const twizzlerRef = useRef(twizzler);
   twizzlerRef.current = twizzler;
+  const clientGraphicModeRef = useRef(clientGraphicMode);
+  clientGraphicModeRef.current = clientGraphicMode;
   const twizzlerMapRef = useRef(twizzlerMap);
   twizzlerMapRef.current = twizzlerMap;
   const cometLogoRef = useRef(cometLogo);
@@ -1747,12 +1750,14 @@ function LabInner({
 
     const buildExportSvg = (): string => {
       const cfg = controlsRef.current;
-      // Rain checkbox → sparkle.gaps. Twizzler exports regardless; rain rects only when Rain is on.
-      const includeRainStripes = cfg.sparkle.gaps.enabled;
-      const readback = engine.readCellGrid();
+      const graphicMode =
+        clientGraphicModeRef.current ?? resolveClientGraphicMode(twizzlerRef.current.enabled, cfg.sparkle.gaps.enabled);
+      const { includeTwizzler, includeRain } = resolveClientSvgExportLayers(graphicMode);
+      const emptyReadback = { cols: 1, rows: 1, values: new Uint8Array([0]), colors: null };
+      const readback = includeRain ? engine.readCellGrid() : emptyReadback;
       const canvasWidthPx = Math.round(Number.parseFloat(canvas.style.width) || canvas.clientWidth || canvas.width);
       const canvasHeightPx = Math.round(Number.parseFloat(canvas.style.height) || canvas.clientHeight || canvas.height);
-      const resolvedStripes = includeRainStripes ? effectiveStripes(cfg) : [];
+      const resolvedStripes = includeRain ? effectiveStripes(cfg) : [];
       const stripes = resolvedStripes.map((s) => ({
         hex: "#" + s.color.toString(16).padStart(6, "0"),
         startFrom: s.startFrom,
@@ -1760,24 +1765,8 @@ function LabInner({
         opacity: s.opacity,
       }));
       const lab = labSettingsRef.current;
-      let connectUnderlayHref: string | undefined;
       let twizzlerSvgLayer: string | undefined;
-      if (
-        lab.textureSourceMode === "shader" &&
-        isSpiralShaderPreset(shaderPresetIdRef.current) &&
-        lab.connectGradientUnderlay
-      ) {
-        const connectRenderer = connectRendererRef.current;
-        if (connectRenderer) {
-          connectRenderer.render(shaderTimeSecRef.current);
-          try {
-            connectUnderlayHref = connectRenderer.underlayCanvas.toDataURL("image/png");
-          } catch {
-            connectUnderlayHref = undefined;
-          }
-        }
-      }
-      if (lab.textureSourceMode === "shader" && twizzlerRef.current.enabled) {
+      if (includeTwizzler && lab.textureSourceMode === "shader") {
         const stageBackgroundHex = cfg.background.transparent
           ? (twizzlerRef.current.backgroundColor ?? "#ffffff")
           : "#" + cfg.background.color.toString(16).padStart(6, "0");
@@ -1806,7 +1795,7 @@ function LabInner({
           : undefined,
       });
       const framesSvgLayer =
-        includeRainStripes && cfg.frames.enabled
+        includeRain && cfg.frames.enabled
           ? framesOverlayToSvg(
               buildFrameGroups(
                 readback,
@@ -1826,22 +1815,22 @@ function LabInner({
         cellHeightPx: cfg.grid.cellHeight,
         gapX: cfg.grid.gapX,
         gapY: cfg.grid.gapY,
-        useCellColors: includeRainStripes && readback.colors !== null,
+        useCellColors: includeRain && readback.colors !== null,
         orientation: cfg.grid.orientation,
         angleDeg: cfg.grid.angleDeg,
         rotationMode: cfg.grid.rotationMode,
         overlapAmount: cfg.grid.overlapAmount,
         streamGapWave: cfg.grid.streamGapWave,
         backgroundHex: exportBackground.backgroundHex,
-        letters: includeRainStripes ? cfg.letters : { ...cfg.letters, enabled: false },
+        letters: includeRain ? cfg.letters : { ...cfg.letters, enabled: false },
         blendMode: cfg.colors.stripeBlendMode,
-        widthSparkle: includeRainStripes ? cfg.sparkle.width : undefined,
-        stripeDots: includeRainStripes ? cfg.stripeDots : undefined,
-        stripeBorder: includeRainStripes ? cfg.stripeBorder : undefined,
-        gridLines: includeRainStripes ? cfg.gridLines : undefined,
-        framesSvgLayer: includeRainStripes ? framesSvgLayer : undefined,
+        widthSparkle: includeRain ? cfg.sparkle.width : undefined,
+        stripeDots: includeRain ? cfg.stripeDots : undefined,
+        stripeBorder: includeRain ? cfg.stripeBorder : undefined,
+        gridLines: includeRain ? cfg.gridLines : undefined,
+        framesSvgLayer: includeRain ? framesSvgLayer : undefined,
         gradient:
-          includeRainStripes && cfg.colors.gradient.enabled
+          includeRain && cfg.colors.gradient.enabled
             ? {
                 direction: cfg.colors.gradient.direction,
                 stopCount: cfg.colors.gradient.stopCount,
@@ -1851,9 +1840,8 @@ function LabInner({
               }
             : undefined,
         backgroundGradient: exportBackground.backgroundGradient,
-        backgroundImageHrefs: [connectUnderlayHref].filter(
-          (href): href is string => typeof href === "string" && href.length > 0,
-        ),
+        // Shader rasters (Connect underlay) are excluded — they blow past Figma's SVG importer.
+        backgroundImageHrefs: [],
         backgroundSvgLayer: twizzlerSvgLayer,
         canvasWidthPx,
         canvasHeightPx,
@@ -1861,12 +1849,18 @@ function LabInner({
     };
     onExportSvgRef.current = () => {
       const cfg = controlsRef.current;
-      const twizzlerOn = labSettingsRef.current.textureSourceMode === "shader" && twizzlerRef.current.enabled;
-      if (!cfg.sparkle.gaps.enabled && !twizzlerOn) {
+      const graphicMode =
+        clientGraphicModeRef.current ?? resolveClientGraphicMode(twizzlerRef.current.enabled, cfg.sparkle.gaps.enabled);
+      const layers = resolveClientSvgExportLayers(graphicMode);
+      if (!layers.includeRain && !layers.includeTwizzler) {
         window.alert("Enable Rain or Twizzler before exporting an SVG.");
         return;
       }
-      downloadSvg(buildExportSvg());
+      try {
+        downloadSvg(buildExportSvg());
+      } catch (error) {
+        window.alert(`SVG export failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
     };
 
     onExportVideoRef.current = () => {
