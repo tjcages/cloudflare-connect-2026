@@ -381,8 +381,10 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
     >
       <button type="button" className="timeline-tab" aria-expanded={open} onClick={() => onOpenChange(!open)}>
         <ChevronRight size={12} className="timeline-tab-chevron" />
+        <Diamond size={10} className="timeline-tab-diamond" fill="currentColor" />
         <span>Timeline</span>
         {sequence.tracks.length > 0 ? <small>{sequence.tracks.length}</small> : null}
+        <span className="timeline-tab-action">{open ? "Close timeline" : "Open timeline"}</span>
       </button>
       {open ? (
         <div className="timeline-panel">

@@ -3855,15 +3855,15 @@ function LabInner({
             <span className="lab-canvas-zoom-value">{Math.round(previewZoom * 100)}%</span>
           </div>
         </div>
+        <TimelineEditor
+          open={timelineOpen}
+          stores={timelineStores}
+          onOpenChange={setTimelineOpen}
+          onApplyValues={applyTimelineValues}
+          onTimeChange={syncTimelineTime}
+        />
         {!clientMode ? (
           <>
-            <TimelineEditor
-              open={timelineOpen}
-              stores={timelineStores}
-              onOpenChange={setTimelineOpen}
-              onApplyValues={applyTimelineValues}
-              onTimeChange={syncTimelineTime}
-            />
             <LabBottomBar
               videoEl={videoEl}
               editTheme={editTheme}
