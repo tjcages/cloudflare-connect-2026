@@ -1,0 +1,91 @@
+name: Workers PR preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: workers-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Upload preview
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Derive preview URL
+        id: preview
+        shell: bash
+        run: |
+          alias=$(printf '%s' "${{ github.head_ref }}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/^(.{48}).*/\1/')
+          if [[ ! "$alias" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "Invalid preview alias: $alias" >&2
+            exit 1
+          fi
+          echo "alias=$alias" >> "$GITHUB_OUTPUT"
+          echo "url=https://${alias}-connect-shader.off-brand.workers.dev/" >> "$GITHUB_OUTPUT"
+
+      - name: Build lab
+        run: pnpm --filter lab build
+
+      - name: Upload non-production Worker version
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 944ca70087298faa2e84783db46162c5
+          PREVIEW_ALIAS: ${{ steps.preview.outputs.alias }}
+        working-directory: apps/lab
+        run: pnpm exec wrangler versions upload --preview-alias "$PREVIEW_ALIAS"
+
+      - name: Update PR preview comment
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- workers-pr-preview -->';
+            const body = [
+              marker,
+              '## Cloudflare preview',
+              '',
+              `**Preview:** ${process.env.PREVIEW_URL}`,
+              '',
+              'This is an isolated Worker version; production traffic is unchanged.',
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((comment) => comment.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
