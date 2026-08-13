@@ -69,7 +69,6 @@ import {
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
 import { resolveClientGraphicMode } from "./client/clientPresets";
-import { applySectionGridRainToStorage } from "./client/sectionGridRainDefaults";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -3182,34 +3181,15 @@ function LabInner({
     applyShaderTextureSource(entry.source);
   }
 
-  const lastClientRainBootstrapRef = useRef<string | null>(null);
   useEffect(() => {
     if (!clientMode) return;
     const mode = clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
     const rainOn = mode === "rain" || mode === "both";
     // Rain authoring lives on both sidebars (Camera / Tone on texture; Stripes/Grid/Connect on shader).
+    // Graphic toggles only layer visibility — never rewrite storage or reload the page.
     if (labSettingsRef.current.textureSidebarOpen !== rainOn) {
       updateLabSettings({ textureSidebarOpen: rainOn });
     }
-    // Skip mount so a post-apply reload does not loop.
-    if (lastClientRainBootstrapRef.current === null) {
-      lastClientRainBootstrapRef.current = mode;
-      return;
-    }
-    if (lastClientRainBootstrapRef.current === mode) return;
-    const prev = lastClientRainBootstrapRef.current;
-    lastClientRainBootstrapRef.current = mode;
-    const wasRain = prev === "rain" || prev === "both";
-    const enteringRain = rainOn && !wasRain;
-    if (!enteringRain) return;
-    // Exact factoryDefaults path (same as Factory reset / Apply layout).
-    applySectionGridRainToStorage(mode, textureIdRef.current, {
-      canvasWidth: labSettingsRef.current.canvasWidth,
-      canvasHeight: labSettingsRef.current.canvasHeight,
-      clientSizeId: labSettingsRef.current.clientSizeId,
-      backgroundColor: labSettingsRef.current.backgroundColor,
-    });
-    window.location.reload();
   }, [clientMode, clientGraphicMode, twizzler.enabled, controls.sparkle.gaps.enabled, updateLabSettings]);
 
   useEffect(() => {
