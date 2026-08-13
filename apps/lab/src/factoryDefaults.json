@@ -12,9 +12,9 @@
       "brightness": -0.5,
       "exposure": 1.5,
       "contrast": 0.54,
-      "blackPoint": 0,
+      "blackPoint": 0.02,
       "whitePoint": 1,
-      "gamma": 0.5499999999999998,
+      "gamma": 0.55,
       "invert": false,
       "posterizeLevels": 0,
       "thresholdBias": 0,
@@ -44,7 +44,7 @@
         "opacity": 1
       },
       "stars": {
-        "enabled": false,
+        "enabled": true,
         "density": 10,
         "sizePx": 4,
         "sizeRandomness": 1,
@@ -55,7 +55,7 @@
         "color": 16777215
       },
       "meteors": {
-        "enabled": false,
+        "enabled": true,
         "ratePerSec": 1.3199999999999998,
         "maxActive": 16,
         "radiantAngleDeg": -15,
@@ -78,20 +78,20 @@
       }
     },
     "grid": {
-      "cellWidth": 7,
-      "cellHeight": 7,
-      "gapX": 0,
+      "cellWidth": 17,
+      "cellHeight": 1,
+      "gapX": 12,
       "gapY": 0,
       "cornerRadius": 0,
       "orientation": "vertical",
-      "angleDeg": 0,
+      "angleDeg": 45,
       "rotationMode": "cell",
       "overlapAmount": 1.2,
       "streamGapWave": {
         "enabled": false,
-        "squeeze": 0.23,
-        "wavelengthCells": 10,
-        "speed": -2.66,
+        "squeeze": 0.14,
+        "wavelengthCells": 9,
+        "speed": -4,
         "phaseDeg": -180
       }
     },
@@ -161,7 +161,7 @@
     "fieldScale": 0.25,
     "maxFps": 0,
     "reveal": {
-      "enabled": true,
+      "enabled": false,
       "type": "water",
       "wave": {
         "position": "center",
@@ -242,28 +242,28 @@
         "speed": 1
       },
       "width": {
-        "enabled": true,
-        "coverage": 0.5,
-        "swingPx": 2,
-        "swingPeriodMin": 0.5,
-        "swingPeriodMax": 1
+        "enabled": false,
+        "coverage": 0.12,
+        "swingPx": 1,
+        "swingPeriodMin": 0.7,
+        "swingPeriodMax": 1.4
       },
       "stripe": {
-        "enabled": true,
-        "coverage": 0.2,
-        "maxBrightness": 0.1,
-        "speed": 0.2,
-        "thickestCount": 4,
-        "hueDriftDeg": 20,
-        "saturationBoost": 0.4
+        "enabled": false,
+        "coverage": 0.55,
+        "maxBrightness": 0.7,
+        "speed": 0.15,
+        "thickestCount": 1,
+        "hueDriftDeg": 180,
+        "saturationBoost": 1
       },
       "motion": {
         "enabled": false,
-        "amplitudePx": 0.5,
-        "staggerPx": 1,
-        "maxOffsetPx": 36.5,
-        "speed": 0.55,
-        "direction": "rightToLeft"
+        "amplitudePx": 1.2,
+        "staggerPx": 3,
+        "maxOffsetPx": 64,
+        "speed": 0.28,
+        "direction": "leftToRight"
       }
     },
     "stripeDots": {
@@ -295,7 +295,7 @@
       "coordinateColor": 16777215
     },
     "flames": {
-      "enabled": false,
+      "enabled": true,
       "direction": "upDown",
       "minWidthRatio": 0.005,
       "maxWidthRatio": 0.02,
@@ -330,7 +330,7 @@
       "power": 0.6000000000000001
     },
     "cursorTrail": {
-      "enabled": true,
+      "enabled": false,
       "type": "default",
       "particleRadius": 40,
       "particleAlpha": 0.08,
@@ -414,7 +414,7 @@
       }
     },
     "clickWave": {
-      "enabled": true,
+      "enabled": false,
       "type": "default",
       "lifeMs": 630,
       "startRadiusPx": 6,
@@ -571,7 +571,7 @@
     "backgroundColor": 16777215,
     "textureId": "cf-base",
     "textureSourceMode": "shader",
-    "shaderSourceCode": "// \"recursive noise experiment\" by Samuel YAN\n// Inspired by ompuco: https://www.shadertoy.com/view/wllGzr\n\nfloat connectHash(float n) {\n  return fract(clamp(n, 0.0, 1.0) * 23758.5453);\n}\n\nfloat connectNoise(vec3 x) {\n  vec3 p = floor(x);\n  vec3 f = fract(x);\n\n  f = f * f * (5.0 - 5.0 * f);\n  float n = 0.0;\n\n  return mix(\n    mix(\n      mix(connectHash(n + 1.0), connectHash(n + 1.0), f.x),\n      mix(connectHash(n + 0.5), connectHash(n + 0.5), f.x),\n      f.y\n    ),\n    mix(\n      mix(connectHash(n + 0.75), connectHash(n + 1.0), f.x),\n      mix(connectHash(n + 1.0), connectHash(n + 1.0), f.x),\n      f.y\n    ),\n    f.z\n  ) - 0.55;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n  vec3 t = (iTime * vec3(1.0, 2.0, 3.0)) / 20.0;\n  vec2 uv = fragCoord / iResolution.xy;\n  uv /= 15.0;\n\n  vec3 col = vec3(0.25);\n\n  for (int i = 0; i < 20; i++) {\n    float iteration = float(i);\n    col.r += connectNoise(uv.xyy * (1.0 + iteration) + col.rgb + t * sin(cos(iteration / 0.1)));\n    col.g += connectNoise(uv.xyx * iteration + col.rgb + t * sin(cos(iteration)));\n    col.b += connectNoise(uv.yyx * iteration + col.rgb + t * sin(cos(iteration)));\n  }\n\n  col /= 0.1;\n  col = normalize(col);\n  fragColor = vec4(col, 1.0);\n}",
+    "shaderSourceCode": "/*\n    \"Corridor\" by @XorDev\n    \n    https://x.com/XorDev/status/1923882930834751520\n*/\nvoid mainImage(out vec4 O, vec2 I)\n{\n    //Time for scrolling\n    float t = iTime,\n    //Raymarch iterator\n    i,\n    //Raymarch step distance\n    d,\n    //Raymarch depth\n    z;\n    //Clear fragColor and raymarch 30 steps\n    for(O *= i; i++<3e1;)\n    {\n        //Compute ray direction \n        vec3 r = normalize(vec3(I+I,0)-iResolution.xyy),\n        //Raymarch sample position\n        p = z*r,\n        //Raytraced wall coordinates\n        w = abs(r);\n        //Compute distance to walls\n        w /= max(w.x,w.y);\n        //Scroll forward\n        w.z += t;\n        p.z -= t;\n        \n        //Shift camera\n        r = ++p;\n        //Step forward\n        z += d = length(\n        //Reflected coordinates\n            (p.xy=abs(mod(p.xy-2.,4.)-2.))-1.\n            //Line position\n            +cos(p.z/vec2(3.1,2))) +\n            //Reflection fall off\n            .1 * length(p-r) *\n            //Reflectivity blocks\n            exp(dot(cos(ceil(w/=.3)),sin(w/.6).yzx));\n        \n        //Add coloring\n        O.rgb += (cos(p)+1.4) / d / z;\n    }\n    //Tanh tonemapping\n    O = tanh(O/4e1);\n}",
     "shaderSourceWidth": 1280,
     "shaderSourceHeight": 960,
     "twizzlerEnabled": true,
@@ -669,7 +669,7 @@
     },
     "backgroundFillMode": "solid",
     "backgroundSourceOpacity": 0,
-    "stripePalette": "Custom",
+    "stripePalette": "Default",
     "backgroundRampEasing": "easeOut",
     "backgroundRampSettings": {
       "brightnessAdd": 26,
@@ -707,7 +707,7 @@
     "textureSidebarWidth": 272,
     "shaderSidebarWidth": 372,
     "connectShapeType": "spiral",
-    "shaderPresetId": "spiral",
+    "shaderPresetId": "a1f684cd-6845-4f12-8978-e8315cfb4820",
     "connectCameraDistance": 7,
     "connectCameraRotateX": 42.07753906250002,
     "connectCameraRotateY": -112,

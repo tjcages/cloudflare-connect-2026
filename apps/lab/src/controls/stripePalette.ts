@@ -27,6 +27,20 @@ const NEUTRAL_STRIPE_PALETTE_NAME = "Neutral";
 const NEUTRAL_STRIPE_PALETTE_LEVELS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"] as const;
 export const WHITE_STRIPE_PALETTE_NAME = "White";
 export const BACKGROUND_RAMP_PALETTE_NAME = "Background Ramp";
+/** Factory rain mix (cream → purple → blue → green → orange). Color preset Default. */
+export const DEFAULT_STRIPE_PALETTE_NAME = "Default";
+export const DEFAULT_STRIPE_PALETTE_HEXES = [
+  "#fafafa",
+  "#fff8e8",
+  "#feefd2",
+  "#ffe3b5",
+  "#9038fc",
+  "#2563fe",
+  "#2e9d51",
+  "#f9b73b",
+  "#f9b73b",
+  "#f46021",
+] as const;
 const WHITE_STRIPE_HEX = "#ffffff";
 const WHITE_STRIPE_OPACITY_MAX = 0.7;
 const WHITE_BACKGROUND_FIRST_STRIPE_HEX = "#fafafa";
@@ -225,6 +239,7 @@ export const STRIPE_PALETTE_GROUPS = COLOR_LIBRARY.filter((group) =>
   group.colors.some((color) => stripePaletteLevelFromLabel(color.label) !== null),
 );
 export const STRIPE_PALETTE_NAMES = [
+  DEFAULT_STRIPE_PALETTE_NAME,
   ...STRIPE_PALETTE_GROUPS.map((group) => group.name),
   WHITE_STRIPE_PALETTE_NAME,
   BACKGROUND_RAMP_PALETTE_NAME,
@@ -252,12 +267,23 @@ export function stripePaletteOptions(): Record<string, string> {
   return Object.fromEntries(STRIPE_PALETTE_NAMES.map((name) => [name, name]));
 }
 
+function defaultStripeHex(index: number): string {
+  return (
+    DEFAULT_STRIPE_PALETTE_HEXES[index] ??
+    DEFAULT_STRIPE_PALETTE_HEXES[DEFAULT_STRIPE_PALETTE_HEXES.length - 1] ??
+    WHITE_STRIPE_HEX
+  );
+}
+
 export function detectStripePalette(
   stripes: readonly EditableStripe[],
   backgroundHex?: string | null,
   backgroundRampEasing: BackgroundRampEasing = "easeInOutQuad",
   backgroundRampSettings: BackgroundRampSettings = DEFAULT_BACKGROUND_RAMP_SETTINGS,
 ): string | null {
+  if (stripes.length > 0 && stripes.every((stripe, index) => stripe.hex.toLowerCase() === defaultStripeHex(index))) {
+    return DEFAULT_STRIPE_PALETTE_NAME;
+  }
   if (
     stripes.length > 0 &&
     stripes.every(
@@ -333,6 +359,13 @@ export function applyStripePalette(
   backgroundRampEasing: BackgroundRampEasing = "easeInOutQuad",
   backgroundRampSettings: BackgroundRampSettings = DEFAULT_BACKGROUND_RAMP_SETTINGS,
 ): EditableStripe[] {
+  if (groupName === DEFAULT_STRIPE_PALETTE_NAME) {
+    return stripes.map((stripe, index) => ({
+      ...stripe,
+      hex: defaultStripeHex(index),
+      opacity: 1,
+    }));
+  }
   if (groupName === WHITE_STRIPE_PALETTE_NAME) {
     return stripes.map((stripe, index) => ({
       ...stripe,

@@ -194,6 +194,32 @@ describe("stripe palette mapping", () => {
     expect(detectStripePalette(mapped, "#000000", "linear")).toBe("Background Ramp");
   });
 
+  it("paints and detects the factory Default rain palette (CF-77)", () => {
+    const stripes: EditableStripe[] = Array.from({ length: 10 }, (_, index) => ({
+      id: String(index),
+      hex: color("Orange", "700"),
+      startFrom: 0.1 + index * 0.05,
+      width: 0.5 + index * 0.5,
+      opacity: 0.4,
+    }));
+
+    const mapped = applyStripePalette(stripes, "Default", "#ffffff");
+    expect(mapped.map((stripe) => stripe.hex)).toEqual([
+      "#fafafa",
+      "#fff8e8",
+      "#feefd2",
+      "#ffe3b5",
+      "#9038fc",
+      "#2563fe",
+      "#2e9d51",
+      "#f9b73b",
+      "#f9b73b",
+      "#f46021",
+    ]);
+    expect(mapped.every((stripe) => stripe.opacity === 1)).toBe(true);
+    expect(detectStripePalette(mapped, "#ffffff")).toBe("Default");
+  });
+
   it("leaves non-palette single colors unmapped", () => {
     expect(mapPaletteColor("#f3f3f3", "Purple")).toBeNull();
   });

@@ -8,9 +8,11 @@
  * applyPresetToStorage + reload (Factory reset / Apply layout).
  */
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
+import { DEFAULT_STRIPE_PALETTE_NAME } from "../controls/stripePalette";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "../defaultLabConfig";
 import { DEFAULT_LAB_SETTINGS, type LabSettings } from "../persistence";
 import { applyPresetToStorage, createPreset, type ConfigPreset } from "../presets";
+import { GRAPHIC_RAIN_SHADER_PRESET_ID } from "../shaderLibrary";
 import { clientGraphicFlags, type ClientGraphicMode } from "./clientPresets";
 
 export type SectionGridRainGraphicMode = Extract<ClientGraphicMode, "rain" | "both">;
@@ -69,10 +71,18 @@ export function sectionGridRainEnterLevaPatch(): {
   const config = sectionGridRainEngineConfig();
   const grid = config.grid ?? DEFAULT_LAB_ENGINE_CONFIG.grid;
   const adjustments = config.adjustments ?? DEFAULT_LAB_ENGINE_CONFIG.adjustments;
+  const stars = config.background?.stars ?? DEFAULT_LAB_ENGINE_CONFIG.background.stars;
+  const meteors = config.background?.meteors ?? DEFAULT_LAB_ENGINE_CONFIG.background.meteors;
+  const flames = config.flames ?? DEFAULT_LAB_ENGINE_CONFIG.flames;
+  const sparkle = config.sparkle ?? DEFAULT_LAB_ENGINE_CONFIG.sparkle;
+  const wave = grid.streamGapWave ?? DEFAULT_LAB_ENGINE_CONFIG.grid.streamGapWave;
   return {
     shader: {
-      sparkleGapsCoverage: (config.sparkle?.gaps?.coverage ?? 0) * 100,
-      sparkleGapsSpeed: config.sparkle?.gaps?.speed ?? 1,
+      sparkleGapsCoverage: (sparkle.gaps?.coverage ?? 0) * 100,
+      sparkleGapsSpeed: sparkle.gaps?.speed ?? 1,
+      sparkleWidthEnabled: sparkle.width?.enabled ?? false,
+      sparkleStripeEnabled: sparkle.stripe?.enabled ?? false,
+      sparkleMotionEnabled: sparkle.motion?.enabled ?? false,
       cellWidth: grid.cellWidth,
       cellHeight: grid.cellHeight,
       gapX: grid.gapX,
@@ -81,8 +91,19 @@ export function sectionGridRainEnterLevaPatch(): {
       orientationStackMode: grid.orientation,
       orientationRotationMode: grid.rotationMode,
       orientationOverlapAmount: grid.overlapAmount,
+      streamGapWaveEnabled: wave.enabled,
+      streamGapWaveSqueeze: wave.squeeze,
+      streamGapWaveWavelengthCells: wave.wavelengthCells,
+      streamGapWaveSpeed: wave.speed,
+      streamGapWavePhaseDeg: wave.phaseDeg,
       colorsMode: config.colors?.mode ?? "luminance",
       stripeBlendMode: config.colors?.stripeBlendMode ?? "multiply",
+      stripePalette: DEFAULT_STRIPE_PALETTE_NAME,
+      backgroundStarsEnabled: stars.enabled,
+      backgroundMeteorsEnabled: meteors.enabled,
+      flamesEnabled: flames.enabled,
+      cursorTrailEnabled: config.cursorTrail?.enabled ?? false,
+      clickWaveEnabled: config.clickWave?.enabled ?? false,
     },
     texture: {
       textureDpr: config.fieldScale ?? DEFAULT_LAB_ENGINE_CONFIG.fieldScale,
@@ -90,6 +111,7 @@ export function sectionGridRainEnterLevaPatch(): {
       brightness: adjustments.brightness,
       contrast: adjustments.contrast,
       gamma: adjustments.gamma,
+      blackPoint: adjustments.blackPoint,
     },
   };
 }
@@ -108,7 +130,7 @@ export function buildSectionGridRainPreset(
     ...DEFAULT_LAB_SETTINGS,
     ...keep,
     textureSourceMode: "shader",
-    shaderPresetId: DEFAULT_LAB_SETTINGS.shaderPresetId || "spiral",
+    shaderPresetId: DEFAULT_LAB_SETTINGS.shaderPresetId || GRAPHIC_RAIN_SHADER_PRESET_ID,
     twizzlerEnabled: flags.twizzlerEnabled,
     // Client Rain authoring uses texture sidebar (Camera / Tone) + shader sidebar.
     textureSidebarOpen: true,

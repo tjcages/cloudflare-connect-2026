@@ -41,10 +41,10 @@ describe("client preview presets", () => {
     expect(CLIENT_APPEARANCE_PRESETS.map((p) => p.id)).toEqual(["light", "dark"]);
   });
 
-  it("Default Color is the Orange factory rain palette", () => {
+  it("Default Color is the factory rain palette", () => {
     const preset = findClientColorPreset("coral-classic");
     expect(preset.label).toBe("Default");
-    expect(preset.stripePalette).toBe("Orange");
+    expect(preset.stripePalette).toBe("Default");
     expect(preset.twizzler.colorNear).toBe(LIBRARY_COLOR.orangeAccent);
   });
 
@@ -210,9 +210,9 @@ describe("client preview presets", () => {
 
   it("uses section-grid factory rain engine when rainEnabled (not Banner blank rain)", () => {
     const withRain = buildClientPreviewBundle({ ...DEFAULT_CLIENT_PREVIEW_STATE, rainEnabled: true });
-    expect(withRain.engineConfig.grid?.cellWidth).toBe(7);
-    expect(withRain.engineConfig.grid?.cellHeight).toBe(7);
-    expect(withRain.engineConfig.grid?.angleDeg).toBe(0);
+    expect(withRain.engineConfig.grid?.cellWidth).toBe(17);
+    expect(withRain.engineConfig.grid?.cellHeight).toBe(1);
+    expect(withRain.engineConfig.grid?.angleDeg).toBe(45);
     expect(withRain.engineConfig.sparkle?.gaps?.coverage).toBe(0);
     expect((withRain.engineConfig.stripes ?? []).length).toBeGreaterThan(1);
     expect((withRain.engineConfig.stripes ?? []).every((s) => (s.opacity ?? 0) > 0)).toBe(true);
@@ -287,7 +287,7 @@ describe("client preview presets", () => {
     expect(layout.connectCameraPanY).toBeDefined();
 
     const color = rainLevaFromColor("coral-classic");
-    expect(color.stripePalette).toBe("Orange");
+    expect(color.stripePalette).toBe("Default");
     expect(color.connectFillColor).toBe(LIBRARY_COLOR.orangeAccent);
     expect(color.connectFillColor2).toBe(LIBRARY_COLOR.orangePair);
 

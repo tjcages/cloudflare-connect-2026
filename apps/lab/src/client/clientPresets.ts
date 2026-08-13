@@ -36,7 +36,7 @@ export type ClientLayoutPreset = {
   twizzler: Partial<TwizzlerSettings>;
 };
 
-export type ClientStripePaletteName = "Orange" | "Red" | "Green" | "Blue" | "Purple" | "Neutral" | "White";
+export type ClientStripePaletteName = "Default" | "Orange" | "Red" | "Green" | "Blue" | "Purple" | "Neutral" | "White";
 
 export type ClientColorPreset = {
   id: ClientColorPresetId;
@@ -142,7 +142,7 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
   {
     id: "coral-classic",
     label: "Default",
-    stripePalette: "Orange",
+    stripePalette: "Default",
     twizzler: {
       color: LIBRARY_COLOR.orangeAccent,
       colorFar: LIBRARY_COLOR.orangePair,
@@ -589,7 +589,7 @@ export function buildClientPreviewBundle(state: ClientPreviewState): ClientPrevi
   const twizzlerMap = normalizeTwizzlerMapSettings(banner.lab.twizzlerMap);
 
   // Twizzler Graphic keeps Banner marketing config. Rain Graphic uses the
-  // section-grid-generator factory engine (opaque stripes, 7×7 / 0°, factory tone).
+  // section-grid factory engine (opaque stripes, 17×1 / 45°, factory tone).
   const engineConfig = (
     state.rainEnabled ? sectionGridRainEngineConfig() : structuredClone(banner.config)
   ) as ThemedEngineConfig & {

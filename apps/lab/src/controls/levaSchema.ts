@@ -33,7 +33,7 @@ import {
 } from "../connectShader";
 import { SHADER_VIEW_DEFAULTS, type ShaderViewState } from "../shaderView";
 import type { ShaderConfigKind } from "../shaderConfig";
-import { resolveGraphicRainShaderPreset, SHADER_LIBRARY, SPIRAL_SHADER_PRESET_ID } from "../shaderLibrary";
+import { GRAPHIC_RAIN_SHADER_PRESET_ID, resolveGraphicRainShaderPreset, SHADER_LIBRARY } from "../shaderLibrary";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
 import {
   defaultTwizzlerGradientFieldStops,
@@ -1294,7 +1294,7 @@ export function useEngineControls(
               label: "Graphic",
             },
             rainShaderPreset: {
-              value: resolveGraphicRainShaderPreset(initialLabSettings.shaderPresetId || SPIRAL_SHADER_PRESET_ID),
+              value: resolveGraphicRainShaderPreset(initialLabSettings.shaderPresetId || GRAPHIC_RAIN_SHADER_PRESET_ID),
               options: rainShaderOptions,
               label: "Shader",
               render: () => clientAppRef.current && clientRainAuthoringActive,
@@ -6184,7 +6184,9 @@ export function useEngineControls(
     clientGraphicMode: clientApp ? heroGraphicId : null,
     clientRainShaderPreset: clientApp
       ? resolveGraphicRainShaderPreset(
-          String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || SPIRAL_SHADER_PRESET_ID),
+          String(
+            (shaderValues as unknown as Record<string, unknown>).rainShaderPreset || GRAPHIC_RAIN_SHADER_PRESET_ID,
+          ),
         )
       : null,
   };

@@ -11,7 +11,7 @@ import {
 } from "./sectionGridRainDefaults";
 
 describe("sectionGridRainDefaults", () => {
-  it("uses factoryDefaults engine verbatim (opaque multi-band, 7×7 / 0°)", () => {
+  it("uses factoryDefaults engine verbatim (opaque multi-band, 17×1 / 45°)", () => {
     const config = sectionGridRainEngineConfig();
     expect(config.grid?.cellWidth).toBe(DEFAULT_LAB_ENGINE_CONFIG.grid.cellWidth);
     expect(config.grid?.cellHeight).toBe(DEFAULT_LAB_ENGINE_CONFIG.grid.cellHeight);
@@ -37,6 +37,15 @@ describe("sectionGridRainDefaults", () => {
     expect(patch.shader.cellWidth).toBe(DEFAULT_LAB_ENGINE_CONFIG.grid.cellWidth);
     expect(patch.shader.orientationRotationMode).toBe(DEFAULT_LAB_ENGINE_CONFIG.grid.rotationMode);
     expect(patch.shader.stripeBlendMode).toBe(DEFAULT_LAB_ENGINE_CONFIG.colors.stripeBlendMode);
+    expect(patch.shader.orientationAngleDeg).toBe(45);
+    expect(patch.shader.cellHeight).toBe(1);
+    expect(patch.shader.gapX).toBe(12);
+    expect(patch.shader.stripePalette).toBe("Default");
+    expect(patch.shader.backgroundStarsEnabled).toBe(true);
+    expect(patch.shader.backgroundMeteorsEnabled).toBe(true);
+    expect(patch.shader.flamesEnabled).toBe(true);
+    expect(patch.shader.sparkleWidthEnabled).toBe(false);
+    expect(patch.texture.blackPoint).toBe(0.02);
     expect(patch.texture.textureDpr).toBe(DEFAULT_LAB_ENGINE_CONFIG.fieldScale);
   });
 
@@ -60,9 +69,9 @@ describe("sectionGridRainDefaults", () => {
   it("builds a Factory-reset-equivalent preset for Rain / Both", () => {
     const rain = buildSectionGridRainPreset("rain");
     expect(rain.kind).toBe("stripes-engine-lab-settings");
-    expect(rain.config.grid?.cellWidth).toBe(7);
+    expect(rain.config.grid?.cellWidth).toBe(17);
     expect(rain.config.sparkle?.gaps?.enabled).toBe(true);
-    expect(rain.lab?.shaderPresetId).toBe("spiral");
+    expect(rain.lab?.shaderPresetId).toBe("a1f684cd-6845-4f12-8978-e8315cfb4820");
     expect(rain.lab?.shaderPresetId).toBe(DEFAULT_LAB_SETTINGS.shaderPresetId);
     expect(rain.lab?.twizzlerEnabled).toBe(false);
     expect(rain.lab?.connectShapeType).toBe(DEFAULT_LAB_SETTINGS.connectShapeType);

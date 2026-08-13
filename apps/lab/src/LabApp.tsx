@@ -99,9 +99,9 @@ import {
   isTwizzlerMapShaderPreset,
   isTwizzlerSineShaderPreset,
   NEBULA_SHADER_PRESET_ID,
+  GRAPHIC_RAIN_SHADER_PRESET_ID,
   resolveGraphicRainShaderPreset,
   SHADER_LIBRARY,
-  SPIRAL_SHADER_PRESET_ID,
 } from "./shaderLibrary";
 import { TWIZZLER_SINE_SHADER_SOURCE, shouldUseTwizzlerSineShader, twizzlerSineUniforms } from "./twizzlerSineShader";
 import {
@@ -3271,7 +3271,7 @@ function LabInner({
     if (!clientMode) return;
     const mode = clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled);
     if (mode !== "rain" && mode !== "both") return;
-    const target = resolveGraphicRainShaderPreset(clientRainShaderPreset || SPIRAL_SHADER_PRESET_ID);
+    const target = resolveGraphicRainShaderPreset(clientRainShaderPreset || GRAPHIC_RAIN_SHADER_PRESET_ID);
     if (shaderPresetId === target) return;
     handleShaderPresetChange(target);
   }, [

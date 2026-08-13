@@ -481,7 +481,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
   cometLogo: COMET_LOGO_DEFAULTS,
   backgroundFillMode: "solid",
   backgroundSourceOpacity: 0,
-  stripePalette: "Orange",
+  stripePalette: "Default",
   backgroundRampEasing: "easeOut",
   backgroundRampSettings: {
     brightnessAdd: 26,
@@ -526,7 +526,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
   textureSidebarWidth: 272,
   shaderSidebarWidth: 272,
   connectShapeType: "spiral",
-  shaderPresetId: "spiral",
+  shaderPresetId: "a1f684cd-6845-4f12-8978-e8315cfb4820",
   connectCameraDistance: 60,
   connectCameraRotateX: -14.922460937499977,
   connectCameraRotateY: -180,
