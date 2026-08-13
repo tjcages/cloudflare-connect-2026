@@ -24,7 +24,7 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
     - **Size** — canvas dimensions only (does not touch Twizzler color, geometry, or other shader knobs)
     - **Layout** — ribbon geometry / motion only (does not reapply Color)
     - **Appearance** — stage look defaults: Light = orange Twizzler on white; Dark = cream Twizzler on `#f86a00`. **Background → Color** overrides the Appearance stage color until Appearance is toggled again.
-    - **Color** — Twizzler ink only (Orange accent / pair / deep + **Light** cream = Dark Appearance colors)
+    - **Color** — original stripe palettes for Rain (**Default** = Orange factory, plus Red / Green / Blue / Purple). Twizzler Graphic uses the same catalog for ribbon ink. Orange pair / deep / Light stay as extra ribbon looks.
     - ~~Graphite~~ removed (legacy `graphite` ids normalize to **Light**)
   - **Twizzler → General** — Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
     - Solid: Color only
