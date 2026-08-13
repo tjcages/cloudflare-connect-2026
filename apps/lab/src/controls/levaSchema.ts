@@ -60,6 +60,7 @@ import {
 import { reverseStripeColors } from "./stripeColorOrder";
 import { EASING_OPTIONS, easeValue, parseCustomEasing, type EasingName } from "./easing";
 import { loadControlDrawerOpen, loadControlDrawerSnapshot } from "./drawerState";
+import { SHADER_PANEL_ORDER } from "./shaderPanelOrder";
 import {
   customStripePaletteValue,
   findCustomStripePalette,
@@ -153,8 +154,6 @@ function drawerFolder<S extends Parameters<typeof folder>[0]>(
     },
   });
 }
-
-const SHADER_PANEL_ORDER = ["Hero", "Presets", "Twizzler", "Rain"] as const;
 
 function orderShaderPanel<T extends Record<string, unknown>>(schema: T): T {
   const ordered: Record<string, unknown> = {};
@@ -1324,6 +1323,90 @@ export function useEngineControls(
             },
           },
           { defaultOpen: true, clientOnly: true },
+        ),
+        Background: drawerFolder(
+          "Background",
+          {
+            backgroundFillMode: {
+              value: (() => {
+                const fromSettings =
+                  !surfaceConfig &&
+                  (initialLabSettings.backgroundFillMode === "transparent" ||
+                    initialLabSettings.backgroundFillMode === "gradient" ||
+                    initialLabSettings.backgroundFillMode === "solid")
+                    ? initialLabSettings.backgroundFillMode
+                    : d.background.transparent
+                      ? "transparent"
+                      : d.background.gradient.enabled
+                        ? "gradient"
+                        : "solid";
+                return fromSettings;
+              })(),
+              // Always register Gradient so Default↔Advanced does not rebuild schema / wipe values.
+              options: {
+                Transparent: "transparent",
+                Solid: "solid",
+                Gradient: "gradient",
+              } as const,
+              label: "Fill",
+            },
+            backgroundColor: {
+              ...colorLibraryInputPlugin({
+                value: levaSchemaSeedRef.current.backgroundHex,
+                label: "Color",
+                persist: surfaceConfig ? undefined : "backgroundColor",
+                onLiveChange: handleBackgroundColorLiveChange,
+              }),
+              render: (get) => get("Background.backgroundFillMode") === "solid",
+            },
+            backgroundGradientDirection: {
+              value: d.background.gradient.direction,
+              options: {
+                "Top to bottom": "topToBottom",
+                "Left to right": "leftToRight",
+                "Right to left": "rightToLeft",
+                "Bottom to top": "bottomToTop",
+              } as const,
+              label: "Gradient direction",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
+            },
+            backgroundGradientStopCount: {
+              value: d.background.gradient.stopCount,
+              min: 2,
+              max: 4,
+              step: 1,
+              label: "Gradient stops",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
+            },
+            backgroundGradientStop0: {
+              ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[0]), label: "Stop 1" }),
+              label: "Stop 1",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
+            },
+            backgroundGradientStop1: {
+              ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[1]), label: "Stop 2" }),
+              label: "Stop 2",
+              render: (get) => get("Background.backgroundFillMode") === "gradient",
+            },
+            backgroundGradientStop2: {
+              ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[2]), label: "Stop 3" }),
+              label: "Stop 3",
+              render: (get) =>
+                get("Background.backgroundFillMode") === "gradient" &&
+                Number(get("Background.backgroundGradientStopCount")) >= 3,
+            },
+            backgroundGradientStop3: {
+              ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[3]), label: "Stop 4" }),
+              label: "Stop 4",
+              render: (get) =>
+                get("Background.backgroundFillMode") === "gradient" &&
+                Number(get("Background.backgroundGradientStopCount")) >= 4,
+            },
+          },
+          {
+            // Stage chrome for every Graphic (Twizzler sits on it). Not rain-gated (CF-71).
+            defaultOpen: true,
+          },
         ),
         Twizzler: drawerFolder(
           "Twizzler",
@@ -2653,90 +2736,6 @@ export function useEngineControls(
                 },
               },
               { hideInClient: true, rainInClient: true },
-            ),
-            Background: drawerFolder(
-              "Background",
-              {
-                backgroundFillMode: {
-                  value: (() => {
-                    const fromSettings =
-                      !surfaceConfig &&
-                      (initialLabSettings.backgroundFillMode === "transparent" ||
-                        initialLabSettings.backgroundFillMode === "gradient" ||
-                        initialLabSettings.backgroundFillMode === "solid")
-                        ? initialLabSettings.backgroundFillMode
-                        : d.background.transparent
-                          ? "transparent"
-                          : d.background.gradient.enabled
-                            ? "gradient"
-                            : "solid";
-                    return fromSettings;
-                  })(),
-                  // Always register Gradient so Default↔Advanced does not rebuild schema / wipe values.
-                  options: {
-                    Transparent: "transparent",
-                    Solid: "solid",
-                    Gradient: "gradient",
-                  } as const,
-                  label: "Fill",
-                },
-                backgroundColor: {
-                  ...colorLibraryInputPlugin({
-                    value: levaSchemaSeedRef.current.backgroundHex,
-                    label: "Color",
-                    persist: surfaceConfig ? undefined : "backgroundColor",
-                    onLiveChange: handleBackgroundColorLiveChange,
-                  }),
-                  render: (get) => get("Rain.Background.backgroundFillMode") === "solid",
-                },
-                backgroundGradientDirection: {
-                  value: d.background.gradient.direction,
-                  options: {
-                    "Top to bottom": "topToBottom",
-                    "Left to right": "leftToRight",
-                    "Right to left": "rightToLeft",
-                    "Bottom to top": "bottomToTop",
-                  } as const,
-                  label: "Gradient direction",
-                  render: (get) => get("Rain.Background.backgroundFillMode") === "gradient",
-                },
-                backgroundGradientStopCount: {
-                  value: d.background.gradient.stopCount,
-                  min: 2,
-                  max: 4,
-                  step: 1,
-                  label: "Gradient stops",
-                  render: (get) => get("Rain.Background.backgroundFillMode") === "gradient",
-                },
-                backgroundGradientStop0: {
-                  ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[0]), label: "Stop 1" }),
-                  label: "Stop 1",
-                  render: (get) => get("Rain.Background.backgroundFillMode") === "gradient",
-                },
-                backgroundGradientStop1: {
-                  ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[1]), label: "Stop 2" }),
-                  label: "Stop 2",
-                  render: (get) => get("Rain.Background.backgroundFillMode") === "gradient",
-                },
-                backgroundGradientStop2: {
-                  ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[2]), label: "Stop 3" }),
-                  label: "Stop 3",
-                  render: (get) =>
-                    get("Rain.Background.backgroundFillMode") === "gradient" &&
-                    Number(get("Rain.Background.backgroundGradientStopCount")) >= 3,
-                },
-                backgroundGradientStop3: {
-                  ...colorLibraryInputPlugin({ value: intToHex(d.background.gradient.stops[3]), label: "Stop 4" }),
-                  label: "Stop 4",
-                  render: (get) =>
-                    get("Rain.Background.backgroundFillMode") === "gradient" &&
-                    Number(get("Rain.Background.backgroundGradientStopCount")) >= 4,
-                },
-              },
-              {
-                // Client Default: Fill + Color / Gradient direction + stops.
-                defaultOpen: true,
-              },
             ),
             "Background Stars": drawerFolder(
               "Background Stars",
