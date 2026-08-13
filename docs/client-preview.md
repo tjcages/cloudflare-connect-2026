@@ -37,8 +37,8 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
   - **Rain** — parent folder (collapsed by default) with Shader config, Stripes, Grid, Background, Sparkle, etc. when Graphic includes Rain
 - **Hero → Graphic** (no page reload; toggles layers live):
   - **Twizzler** — orange-wave ribbon only (**Twizzler** parent folders; **Rain** parent hidden)
-  - **Rain** — rain/Connect stack under a **Rain** parent (**Twizzler** parent hidden). **Shader** dropdown in Hero (Connect / Spiral / etc.). Texture sidebar (Camera / Tone) when Rain is on.
-  - **Both** — **Twizzler** and **Rain** parents both visible so each stack can be collapsed independently
+  - **Rain** — rain/Connect stack under a **Rain** parent (**Twizzler** parent hidden). **Shader** dropdown in Hero (Connect / Spiral / etc.). Texture sidebar (Camera / Tone) when Rain is on. Graphic selection persists across refresh.
+  - **Both** — **Twizzler** and **Rain** parents both visible so each stack can be collapsed independently. First enable of Rain seeds section-grid factory gaps/stripes live (no page reload).
 - **Presets** (Size / Layout / Appearance / Color) stay the same catalog. When Graphic is Rain they map onto Rain/Connect knobs; when Twizzler onto ribbon knobs; when Both onto both stacks.
 - **Advanced** — reveals the same registered knobs (View, Edges, Noise, wrinkles/bends/depth, etc.) without rebuilding Leva, so values are not wiped when toggling.
 

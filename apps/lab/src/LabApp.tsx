@@ -68,7 +68,7 @@ import {
   loadBannerLayout,
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
-import { resolveClientGraphicMode } from "./client/clientPresets";
+import { resolveClientGraphicMode, clientGraphicFlags, type ClientGraphicMode } from "./client/clientPresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
@@ -1144,6 +1144,7 @@ function LabInner({
     }),
     [],
   );
+  const onClientGraphicPersistRef = useRef<(mode: ClientGraphicMode) => void>(() => {});
   const {
     config: controls,
     backgroundSourceOpacity,
@@ -1179,6 +1180,11 @@ function LabInner({
     initialConfig: clientMode ? undefined : initialConfig,
     clientMode,
     clientPanelMode: clientMode ? clientPanelMode : undefined,
+    onClientGraphicModeChange: clientMode
+      ? (mode) => {
+          onClientGraphicPersistRef.current(mode);
+        }
+      : undefined,
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -1265,6 +1271,46 @@ function LabInner({
       window.removeEventListener("beforeunload", onHide);
     };
   }, [flushLiveLabPersistence]);
+
+  // Persist Graphic immediately (not only on pagehide) so Rain survives refresh (CF-67).
+  onClientGraphicPersistRef.current = (mode) => {
+    const flags = clientGraphicFlags(mode);
+    const { enabled: _ignored, ...twizzlerSettings } = twizzlerRef.current;
+    saveLabSettings({
+      ...labSettingsRef.current,
+      ...getLabSettingsSnapshotRef.current(),
+      textureId: textureIdRef.current,
+      textureSourceMode: textureSourceModeRef.current,
+      shaderSourceCode: shaderSourceCodeRef.current,
+      shaderPresetId: shaderPresetIdRef.current,
+      twizzlerEnabled: flags.twizzlerEnabled,
+      twizzler: twizzlerSettings,
+      twizzlerMap: twizzlerMapRef.current,
+    });
+    const persistConfig = () => {
+      const themed = composeThemedConfigRef.current();
+      const gaps = themed.sparkle?.gaps ?? { enabled: false, coverage: 0, speed: 1 };
+      const nextGaps = {
+        ...gaps,
+        enabled: flags.rainEnabled,
+        coverage: flags.rainEnabled && (gaps.coverage ?? 1) >= 0.999 ? 0 : gaps.coverage,
+      };
+      const next = {
+        ...themed,
+        sparkle: {
+          ...themed.sparkle,
+          gaps: nextGaps,
+        },
+      };
+      const id = textureIdRef.current;
+      lastSavedConfigJsonRef.current = `${id}:${JSON.stringify(next)}`;
+      saveConfig(id, next);
+    };
+    // Wait for Leva rainEnabled → controls.sparkle.gaps to land, then force-write flags.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(persistConfig);
+    });
+  };
 
   const getActiveThemedConfig = useCallback((): ThemedEngineConfig => {
     const workspace = surfaceWorkspaceRef.current;

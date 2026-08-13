@@ -18,6 +18,7 @@ import {
   rainLevaFromLayout,
   resetTweaksForLayout,
   resolveClientGraphicMode,
+  shouldSyncHeroGraphicFromFlags,
 } from "./clientPresets";
 
 describe("client preview presets", () => {
@@ -82,6 +83,33 @@ describe("client preview presets", () => {
     expect(clientGraphicFlags("rain")).toEqual({ twizzlerEnabled: false, rainEnabled: true });
     expect(clientGraphicFlags("both")).toEqual({ twizzlerEnabled: true, rainEnabled: true });
     expect(CLIENT_GRAPHIC_MODES.map((m) => m.id)).toEqual(["twizzler", "rain", "both"]);
+  });
+
+  it("does not snap Graphic back to Twizzler while Rain flags are catching up (CF-67)", () => {
+    const midSwitch = shouldSyncHeroGraphicFromFlags({
+      prevFlags: { twizzlerEnabled: true, rainEnabled: false },
+      twizzlerEnabled: true,
+      rainEnabled: false,
+      heroGraphic: "rain",
+    });
+    expect(midSwitch.sync).toBe(false);
+
+    const afterFlags = shouldSyncHeroGraphicFromFlags({
+      prevFlags: { twizzlerEnabled: false, rainEnabled: true },
+      twizzlerEnabled: false,
+      rainEnabled: true,
+      heroGraphic: "rain",
+    });
+    expect(afterFlags.sync).toBe(false);
+
+    const layoutApplied = shouldSyncHeroGraphicFromFlags({
+      prevFlags: { twizzlerEnabled: true, rainEnabled: false },
+      twizzlerEnabled: false,
+      rainEnabled: true,
+      heroGraphic: "twizzler",
+    });
+    expect(layoutApplied.sync).toBe(true);
+    expect(layoutApplied.derived).toBe("rain");
   });
 
   it("builds Hero 16:9 with solid white stage and rain off by default", () => {

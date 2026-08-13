@@ -4,6 +4,7 @@ import { DEFAULT_LAB_SETTINGS } from "../persistence";
 import {
   buildSectionGridRainPreset,
   sectionGridRainEngineConfig,
+  sectionGridRainEnterLevaPatch,
   sectionGridRainStripes,
 } from "./sectionGridRainDefaults";
 
@@ -25,6 +26,14 @@ describe("sectionGridRainDefaults", () => {
     const stripes = sectionGridRainStripes();
     expect(stripes).toEqual(DEFAULT_LAB_ENGINE_CONFIG.stripes);
     expect(stripes.every((s) => s.opacity > 0)).toBe(true);
+  });
+
+  it("enter-Rain Leva patch uses continuous gaps (not Banner blank coverage)", () => {
+    const patch = sectionGridRainEnterLevaPatch();
+    expect(patch.shader.sparkleGapsCoverage).toBe(DEFAULT_LAB_ENGINE_CONFIG.sparkle.gaps.coverage * 100);
+    expect(patch.shader.sparkleGapsCoverage).toBe(0);
+    expect(patch.shader.cellWidth).toBe(DEFAULT_LAB_ENGINE_CONFIG.grid.cellWidth);
+    expect(patch.texture.textureDpr).toBe(DEFAULT_LAB_ENGINE_CONFIG.fieldScale);
   });
 
   it("builds a Factory-reset-equivalent preset for Rain / Both", () => {

@@ -85,12 +85,14 @@ import {
   rainLevaFromLayout,
   resetTweaksForLayout,
   resolveClientGraphicMode,
+  shouldSyncHeroGraphicFromFlags,
   type ClientAppearanceId,
   type ClientColorPresetId,
   type ClientGraphicMode,
   type ClientLayoutPresetId,
   type ClientSizePresetId,
 } from "../client/clientPresets";
+import { sectionGridRainEnterLevaPatch, sectionGridRainStripes } from "../client/sectionGridRainDefaults";
 
 /** Set during `useEngineControls` so drawerFolder can gate Default vs Advanced. */
 let clientDefaultPanelActive = false;
@@ -5063,6 +5065,7 @@ export function useEngineControls(
    * Hero → Graphic drives Twizzler Show + Rain layer flags and rain-capable defaults.
    */
   const lastHeroGraphicIdRef = useRef<string | null>(null);
+  const lastGraphicFlagsRef = useRef<{ twizzlerEnabled: boolean; rainEnabled: boolean } | null>(null);
   const onClientGraphicModeChangeRef = useRef(options.onClientGraphicModeChange);
   onClientGraphicModeChangeRef.current = options.onClientGraphicModeChange;
   useEffect(() => {
@@ -5071,17 +5074,36 @@ export function useEngineControls(
     if (prev === heroGraphicId) return;
     lastHeroGraphicIdRef.current = heroGraphicId;
     const flags = clientGraphicFlags(heroGraphicId);
+    // Mark intended flags before Leva catches up so the sync effect does not snap Graphic back.
+    lastGraphicFlagsRef.current = flags;
     const wasRain = prev === "rain" || prev === "both";
-    const enteringRain = flags.rainEnabled && !wasRain;
+    // prev === null is mount/restore — do not re-seed factory rain over persisted knobs.
+    const enteringRain = prev !== null && flags.rainEnabled && !wasRain;
     const patch: Record<string, unknown> = {
       twizzlerEnabled: flags.twizzlerEnabled,
       rainEnabled: flags.rainEnabled,
     };
     if (enteringRain) {
-      // Keep a rain-capable shader selected; do not factory-reset or reload on Graphic change.
+      // Keep a rain-capable shader selected; seed visible section-grid rain live (no reload).
       patch.rainShaderPreset =
         String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || "").trim() ||
         CONNECT_SHADER_PRESET_ID;
+      const rainEnter = sectionGridRainEnterLevaPatch();
+      Object.assign(patch, rainEnter.shader);
+      setStripes(
+        sectionGridRainStripes().map((s, i) => ({
+          id: String(i),
+          hex: "#" + s.color.toString(16).padStart(6, "0"),
+          startFrom: s.startFrom,
+          width: s.width,
+          opacity: s.opacity,
+        })),
+      );
+      try {
+        textureControlSetterRef.current?.(rainEnter.texture);
+      } catch {
+        /* ignore */
+      }
     }
     shaderControlSetterRef.current?.(patch);
     onClientGraphicModeChangeRef.current?.(heroGraphicId);
@@ -5099,11 +5121,17 @@ export function useEngineControls(
   const twizzlerEnabledFlag = Boolean((shaderValues as unknown as Record<string, unknown>).twizzlerEnabled);
   useEffect(() => {
     if (!clientApp) return;
-    const derived = resolveClientGraphicMode(twizzlerEnabledFlag, rainEnabledFlag);
-    if (derived === heroGraphicId) return;
-    lastHeroGraphicIdRef.current = derived;
-    levaSchemaSeedRef.current.clientHeroGraphic = derived;
-    shaderControlSetterRef.current?.({ heroGraphic: derived });
+    const decision = shouldSyncHeroGraphicFromFlags({
+      prevFlags: lastGraphicFlagsRef.current,
+      twizzlerEnabled: twizzlerEnabledFlag,
+      rainEnabled: rainEnabledFlag,
+      heroGraphic: heroGraphicId,
+    });
+    lastGraphicFlagsRef.current = decision.nextFlags;
+    if (!decision.sync) return;
+    lastHeroGraphicIdRef.current = decision.derived;
+    levaSchemaSeedRef.current.clientHeroGraphic = decision.derived;
+    shaderControlSetterRef.current?.({ heroGraphic: decision.derived });
   }, [clientApp, twizzlerEnabledFlag, rainEnabledFlag, heroGraphicId, setShaderControl]);
 
   /**

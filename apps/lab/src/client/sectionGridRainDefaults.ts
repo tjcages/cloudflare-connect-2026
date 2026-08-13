@@ -3,8 +3,9 @@
  * `DEFAULT_LAB_SETTINGS`). Same blob Factory reset / lab boot use — the
  * section-grid-generator lineage already in-tree.
  *
- * Do not hand-roll Leva key patches. Apply the factory config the same way
- * presets do: stagePendingConfig + saveLabSettings (+ reload).
+ * Do not hand-roll Leva key patches for full reset. Prefer factory config via
+ * `sectionGridRainEnterLevaPatch` (live Graphic enter) or
+ * applyPresetToStorage + reload (Factory reset / Apply layout).
  */
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "../defaultLabConfig";
@@ -28,6 +29,38 @@ export function sectionGridRainEngineConfig(): ThemedEngineConfig {
 
 export function sectionGridRainStripes() {
   return structuredClone(DEFAULT_LAB_ENGINE_CONFIG.stripes);
+}
+
+/**
+ * Live Leva patches when Graphic first enables Rain (no page reload).
+ * Banner 5:1 ships gaps.coverage=1 (blank); factory is continuous cells (0).
+ */
+export function sectionGridRainEnterLevaPatch(): {
+  shader: Record<string, unknown>;
+  texture: Record<string, unknown>;
+} {
+  const config = sectionGridRainEngineConfig();
+  const grid = config.grid ?? DEFAULT_LAB_ENGINE_CONFIG.grid;
+  const adjustments = config.adjustments ?? DEFAULT_LAB_ENGINE_CONFIG.adjustments;
+  return {
+    shader: {
+      sparkleGapsCoverage: (config.sparkle?.gaps?.coverage ?? 0) * 100,
+      sparkleGapsSpeed: config.sparkle?.gaps?.speed ?? 1,
+      cellWidth: grid.cellWidth,
+      cellHeight: grid.cellHeight,
+      gapX: grid.gapX,
+      gapY: grid.gapY,
+      orientationAngleDeg: grid.angleDeg,
+      orientationStackMode: grid.orientation,
+    },
+    texture: {
+      textureDpr: config.fieldScale ?? DEFAULT_LAB_ENGINE_CONFIG.fieldScale,
+      exposure: adjustments.exposure,
+      brightness: adjustments.brightness,
+      contrast: adjustments.contrast,
+      gamma: adjustments.gamma,
+    },
+  };
 }
 
 /**
