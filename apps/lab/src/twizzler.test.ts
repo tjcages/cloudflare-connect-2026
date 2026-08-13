@@ -238,6 +238,48 @@ describe("Twizzler", () => {
     expect(xSpan(near.lines)).toBeGreaterThan(xSpan(far.lines) * 1.2);
   });
 
+  it("ignores leftover sine/parametric knobs in orange-wave geometry (CF-80)", () => {
+    const common = {
+      lineCount: 12,
+      pointSpacing: 16,
+      speed: 0,
+      amplitude: 1,
+      rotateXDeg: 12,
+      rotateYDeg: -18,
+    };
+    const base = buildTwizzlerLines(400, 200, 0, common);
+    const mutated = buildTwizzlerLines(400, 200, 0, {
+      ...common,
+      wrinkles: 80,
+      wrinkleStrength: 4,
+      bendAmount: 8,
+      bend2Amount: -6,
+      bend3Amount: 5,
+      twist: 40,
+      leftHeight: 5,
+      rightHeight: -5,
+      edgeFluctuation: 3,
+      edgeSpeed: 12,
+      edgeTaper: 1,
+      noiseScaleX: 0.4,
+      noiseScaleY: 1,
+      drift: 9,
+      stippleSize: 12,
+      stippleGap: 20,
+      rotateX: 45,
+      rotateY: -30,
+      rotateZ: 90,
+      viewDistance: 4,
+      depthTerrain: 2,
+      depthAmount: 20,
+      depthLift: 10,
+      depthSpread: 12,
+    });
+    const pack = (lines: typeof base.lines) =>
+      lines.map((line) => line.points.map((p) => [Number(p.x.toFixed(3)), Number(p.y.toFixed(3))]));
+    expect(pack(mutated.lines)).toEqual(pack(base.lines));
+  });
+
   it("places the full bend at the selected horizontal position", () => {
     expect(twizzlerBendOffset(0.6, 0.6, 0.25)).toBe(0.25);
     expect(Math.abs(twizzlerBendOffset(0.1, 0.6, 0.25))).toBeLessThan(0.002);
