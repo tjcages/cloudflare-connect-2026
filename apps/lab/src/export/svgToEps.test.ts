@@ -90,7 +90,7 @@ describe("svgToEps", () => {
     expect(eps).not.toContain("shfill");
   });
 
-  it("embeds Shared field PNG patterns as colorimage", () => {
+  it("embeds Shared field PNG images as colorimage", () => {
     const layer = twizzlerToSvgLayer(200, 100, 200, 100, 0, {
       ...TWIZZLER_DEFAULTS,
       lineCount: 3,

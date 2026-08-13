@@ -318,10 +318,11 @@ function svgNumber(value: number, digits = 3): string {
 }
 
 /**
- * Figma-safe 2D field fill: one PNG inside a pattern (not a 48×32 SVG rect lattice).
- * Figma rejects Shared/Fiber SVGs that explode into thousands of pattern rects.
+ * Figma-safe 2D field fill: one PNG `<image>` stretched to the placement box.
+ * Do not wrap this in `<pattern>` — Figma tiles patterns at the PNG's intrinsic
+ * pixel size, so a 160×100 field repeats across the export frame.
  */
-export function twizzlerGradientSvgPattern(
+export function twizzlerGradientSvgImage(
   id: string,
   x: number,
   y: number,
@@ -330,16 +331,14 @@ export function twizzlerGradientSvgPattern(
   stops: readonly TwizzlerGradientStop[],
   cols = TWIZZLER_GRADIENT_FIELD_RASTER_WIDTH,
   rows = TWIZZLER_GRADIENT_FIELD_RASTER_HEIGHT,
+  extraAttrs = "",
 ): string {
   const w = Math.max(width, 0.001);
   const h = Math.max(height, 0.001);
   const pixels = rasterizeTwizzlerGradientField(stops, cols, rows);
   const href = rgbaPngDataUri(pixels, cols, rows);
-  return [
-    `    <pattern id="${id}" patternUnits="userSpaceOnUse" x="${svgNumber(x, 1)}" y="${svgNumber(y, 1)}" width="${svgNumber(w, 1)}" height="${svgNumber(h, 1)}">`,
-    `      <image href="${href}" xlink:href="${href}" x="0" y="0" width="${svgNumber(w, 1)}" height="${svgNumber(h, 1)}" preserveAspectRatio="none" />`,
-    "    </pattern>",
-  ].join("\n");
+  const extra = extraAttrs.trim() ? ` ${extraAttrs.trim()}` : "";
+  return `    <image id="${id}" href="${href}" xlink:href="${href}" x="${svgNumber(x, 1)}" y="${svgNumber(y, 1)}" width="${svgNumber(w, 1)}" height="${svgNumber(h, 1)}" preserveAspectRatio="none"${extra} />`;
 }
 
 function vacantHotspotUv(stops: readonly TwizzlerGradientStop[]): { x: number; y: number } {

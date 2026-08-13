@@ -16,7 +16,7 @@ import {
   sampleTwizzlerGradientRampColor,
   serializeTwizzlerGradientStops,
   twizzlerGradientCss,
-  twizzlerGradientSvgPattern,
+  twizzlerGradientSvgImage,
   twizzlerGradientSvgStops,
   offsetFromClientX,
   moveTwizzlerGradientStopOffset,
@@ -204,16 +204,17 @@ describe("twizzlerGradient", () => {
     expect(bottom.b).toBeGreaterThan(bottom.r + 40);
   });
 
-  it("emits an SVG pattern with one PNG image instead of a rect lattice (CF-70)", () => {
+  it("emits a frame-sized PNG image (not a tiling pattern) (CF-79)", () => {
     const stops = [
       { id: "a", x: 0.2, y: 0.1, offset: 0.2, color: "#ff0000" },
       { id: "b", x: 0.8, y: 0.9, offset: 0.8, color: "#0000ff" },
     ];
-    const svg = twizzlerGradientSvgPattern("pack", 0, 0, 400, 200, stops, 4, 3);
+    const svg = twizzlerGradientSvgImage("pack", 0, 0, 400, 200, stops, 4, 3);
     expect(svg).toContain('id="pack"');
-    expect(svg).toContain('patternUnits="userSpaceOnUse"');
-    expect(svg).toContain('width="400"');
-    expect(svg).toContain('height="200"');
+    expect(svg).toMatch(/<image [^>]*x="0"[^>]*y="0"[^>]*width="400"[^>]*height="200"/);
+    expect(svg).toContain('preserveAspectRatio="none"');
+    expect(svg).not.toContain("<pattern");
+    expect(svg).not.toContain("patternUnits");
     expect(svg).not.toContain("<stop ");
     expect(svg).not.toContain("linearGradient");
     expect(svg).not.toContain("<rect ");

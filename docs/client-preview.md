@@ -67,8 +67,8 @@ Client panel (and lab) expose:
 - **Copy JSON** — copy full lab configuration to the clipboard
 - **Upload JSON** — import a config file as a saved layout and apply it
 - **Video duration** / **Export Video** — high-quality MediaRecorder (60fps, high bitrate) + ffmpeg.wasm (libx264 veryslow / CRF 14). Button shows progress (Recording / Converting) and stays disabled until the export finishes.
-- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide 1D `linearGradient` masked by all ribbons — Figma can edit stops), Shared field (2D hotspot PNG in a pattern), Fiber gradient (per-ribbon 2D field PNG), Baked (segmented X/Y/Z). Twizzler exports when Graphic is Twizzler or Both. **Rain** / **Both** add stripe-rect paths; Twizzler-only Graphic exports ribbon (+ background) without rain.
-- **Export EPS** — same vector layers as SVG, converted to EPSF-3.0 for Illustrator / print. 1D gradients become axial shadings; Shared field / Fiber PNG patterns embed as images.
+- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide 1D `linearGradient` masked by all ribbons — Figma can edit stops), Shared field (one 2D hotspot PNG sized to the SVG frame, masked by ribbons), Fiber gradient (per-ribbon 2D field PNG sized to that ribbon’s box), Baked (segmented X/Y/Z). Twizzler exports when Graphic is Twizzler or Both. **Rain** / **Both** add stripe-rect paths; Twizzler-only Graphic exports ribbon (+ background) without rain.
+- **Export EPS** — same vector layers as SVG, converted to EPSF-3.0 for Illustrator / print. 1D gradients become axial shadings; Shared field / Fiber PNGs embed as images.
 
 ## Next HTML → Leva mapping (do this on the next drop)
 
