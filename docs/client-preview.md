@@ -14,7 +14,7 @@ Canvas preview zoom (bottom-center overlay): **−** / **Reset** / **+** plus a 
 
 ## What clients see (Leva)
 
-Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, and **JSON** (Copy / Upload). Leva starts with **Hero** (Graphic selector) then **Presets**. **Video duration**, **Export Video**, and **Export SVG** follow the Leva folders in the same panel scroll (not a floating footer, and not overlaying expanded folders).
+Top of the shader panel (scrolls with the panel — not sticky): **Default | Advanced** segmented toggle, **Saved layouts**, and **JSON** (Copy / Upload). Leva starts with **Hero** (Graphic selector) then **Presets**. **Video duration**, **Export Video**, **Export SVG**, and **Export EPS** follow the Leva folders in the same panel scroll (not a floating footer, and not overlaying expanded folders).
 
 - **Saved layouts** — Save / Apply / Delete named layouts. Saves **all** live Leva values (engine config + lab/Twizzler + Size/Layout/Appearance/Color). **Refresh keeps your live knobs** (localStorage; flushed on `pagehide` so a quick refresh still keeps Speed/Move). Named layouts are only reapplied when you click Apply (or `?preset=`). **Reset** restores Banner 5:1 defaults. Upload JSON also registers a layout.
 - **JSON** — **Copy JSON** (clipboard) and **Upload JSON** (import as a saved layout)
@@ -68,6 +68,7 @@ Client panel (and lab) expose:
 - **Upload JSON** — import a config file as a saved layout and apply it
 - **Video duration** / **Export Video** — high-quality MediaRecorder (60fps, high bitrate) + ffmpeg.wasm (libx264 veryslow / CRF 14). Button shows progress (Recording / Converting) and stays disabled until the export finishes.
 - **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide 1D `linearGradient` masked by all ribbons — Figma can edit stops), Shared field (2D hotspot PNG in a pattern), Fiber gradient (per-ribbon 2D field PNG), Baked (segmented X/Y/Z). Twizzler exports when Graphic is Twizzler or Both. **Rain** / **Both** add stripe-rect paths; Twizzler-only Graphic exports ribbon (+ background) without rain.
+- **Export EPS** — same vector layers as SVG, converted to EPSF-3.0 for Illustrator / print. 1D gradients become axial shadings; Shared field / Fiber PNG patterns embed as images.
 
 ## Next HTML → Leva mapping (do this on the next drop)
 
