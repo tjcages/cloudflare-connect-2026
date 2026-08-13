@@ -1,5 +1,6 @@
 import { Components, createPlugin, useInputContext, type LevaInputProps } from "leva/plugin";
-import { GradientStopsEditor } from "./GradientStopsEditor";
+import { useSyncExternalStore } from "react";
+import { GradientStopsEditor, type GradientStopsEditorLayout } from "./GradientStopsEditor";
 import {
   parseTwizzlerGradientStops,
   serializeTwizzlerGradientStops,
@@ -22,14 +23,36 @@ type GradientStopsInput = {
 
 type GradientStopsPluginProps = LevaInputProps<string, GradientStopsSettings>;
 
+let editorLayout: GradientStopsEditorLayout = "field";
+const layoutListeners = new Set<() => void>();
+
+export function setTwizzlerGradientEditorLayout(layout: GradientStopsEditorLayout): void {
+  if (layout === editorLayout) return;
+  editorLayout = layout;
+  for (const listener of layoutListeners) listener();
+}
+
+function subscribeTwizzlerGradientEditorLayout(listener: () => void): () => void {
+  layoutListeners.add(listener);
+  return () => {
+    layoutListeners.delete(listener);
+  };
+}
+
 function GradientStopsPluginComponent() {
   const { value, onUpdate, disabled, settings } = useInputContext<GradientStopsPluginProps>();
+  const layout = useSyncExternalStore(
+    subscribeTwizzlerGradientEditorLayout,
+    () => editorLayout,
+    () => editorLayout,
+  );
   const stops = parseTwizzlerGradientStops(value, settings.colorFar, settings.colorNear);
 
   return (
     <Row>
       <div className="twizzler-gradient-leva-row w-full min-w-0">
         <GradientStopsEditor
+          layout={layout}
           stops={stops}
           disabled={disabled}
           onChange={(next: TwizzlerGradientStop[]) => onUpdate(serializeTwizzlerGradientStops(next))}

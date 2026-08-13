@@ -210,7 +210,7 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
   },
 ];
 
-/** Light = marketing orange on white; Dark = cream ribbon on deep orange. Both boot Shared/Fiber Field. */
+/** Light = marketing orange on white; Dark = cream ribbon on deep orange. Both boot Shared field. */
 export const CLIENT_APPEARANCE_PRESETS: readonly ClientAppearancePreset[] = [
   {
     id: "light",

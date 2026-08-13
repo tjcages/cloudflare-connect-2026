@@ -7,11 +7,14 @@ import {
   addTwizzlerGradientStop,
   gradientFieldClientPlane,
   moveTwizzlerGradientStop,
+  moveTwizzlerGradientStopOffset,
   nearestTwizzlerGradientStopIdPx,
+  offsetFromClientX,
   rasterizeTwizzlerGradientField,
   recolorTwizzlerGradientStop,
   removeTwizzlerGradientStop,
   serializeTwizzlerGradientStops,
+  twizzlerGradientCss,
   TWIZZLER_GRADIENT_HANDLE_HIT_PX,
   TWIZZLER_GRADIENT_STOP_MAX,
   TWIZZLER_GRADIENT_STOP_MIN,
@@ -43,13 +46,16 @@ function graphUvFromClient(clientX: number, clientY: number, bounds: DOMRect): {
   };
 }
 
+export type GradientStopsEditorLayout = "field" | "ramp";
+
 export type GradientStopsEditorProps = {
   stops: readonly TwizzlerGradientStop[];
   disabled?: boolean;
+  layout?: GradientStopsEditorLayout;
   onChange: (stops: TwizzlerGradientStop[]) => void;
 };
 
-export function GradientStopsEditor({ stops, disabled = false, onChange }: GradientStopsEditorProps) {
+export function GradientStopsEditor({ stops, disabled = false, layout = "field", onChange }: GradientStopsEditorProps) {
   const graphRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLCanvasElement | null>(null);
   const dragId = useRef<string | null>(null);
@@ -67,6 +73,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
   }, [displayed, displayedIds, selectedId]);
 
   useEffect(() => {
+    if (layout !== "field") return;
     const canvas = fieldRef.current;
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return;
@@ -74,7 +81,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     const image = context.createImageData(FIELD_PREVIEW_WIDTH, FIELD_PREVIEW_HEIGHT);
     image.data.set(pixels);
     context.putImageData(image, 0, 0);
-  }, [displayed, displayedIds]);
+  }, [displayed, displayedIds, layout]);
 
   useEffect(
     () => () => {
@@ -124,6 +131,19 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
   const nearestHandleId = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = graphRef.current?.getBoundingClientRect();
     if (!bounds) return null;
+    if (layout === "ramp") {
+      let bestId: string | null = null;
+      let bestDist = 14;
+      for (const stop of displayed) {
+        const x = bounds.left + stop.offset * bounds.width;
+        const dist = Math.abs(event.clientX - x);
+        if (dist <= bestDist) {
+          bestDist = dist;
+          bestId = stop.id;
+        }
+      }
+      return bestId;
+    }
     const plane = gradientFieldClientPlane(bounds, GRAPH_WIDTH, GRAPH_HEIGHT, GRAPH_PAD);
     return nearestTwizzlerGradientStopIdPx(
       displayed,
@@ -151,11 +171,18 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
       beginDrag(event, nearId);
       return;
     }
-    const uv = pointerUv(event);
-    if (!uv || !canAdd) return;
+    if (!canAdd) return;
     event.preventDefault();
     event.stopPropagation();
-    const next = addTwizzlerGradientStop(displayed, uv.x, uv.y);
+    const bounds = graphRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const next =
+      layout === "ramp"
+        ? addTwizzlerGradientStop(displayed, offsetFromClientX(event.clientX, bounds), 0.5)
+        : (() => {
+            const uv = graphUvFromClient(event.clientX, event.clientY, bounds);
+            return addTwizzlerGradientStop(displayed, uv.x, uv.y);
+          })();
     const created = next.find((stop) => !displayed.some((existing) => existing.id === stop.id));
     if (created) {
       setSelectedId(created.id);
@@ -171,6 +198,12 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
     event.stopPropagation();
     const uv = pointerUv(event);
     if (!uv) return;
+    if (layout === "ramp") {
+      const bounds = graphRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      commit(moveTwizzlerGradientStopOffset(displayed, dragId.current, offsetFromClientX(event.clientX, bounds)));
+      return;
+    }
     commit(moveTwizzlerGradientStop(displayed, dragId.current, uv.x, uv.y));
   };
 
@@ -204,16 +237,17 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
   return (
     <div className={cn("twizzler-gradient-editor", disabled && "is-disabled")}>
       <div className="twizzler-gradient-editor-header">
-        <span className="twizzler-gradient-editor-title">Field</span>
+        <span className="twizzler-gradient-editor-title">{layout === "ramp" ? "Ramp" : "Field"}</span>
         <div className="twizzler-gradient-editor-actions">
           <button
             type="button"
             className="twizzler-gradient-editor-action"
             disabled={!canAdd}
-            aria-label="Add color hotspot"
+            aria-label={layout === "ramp" ? "Add gradient stop" : "Add color hotspot"}
             onClick={() => {
               if (!canAdd) return;
-              const next = addTwizzlerGradientStop(displayed);
+              const next =
+                layout === "ramp" ? addTwizzlerGradientStop(displayed, 0.5, 0.5) : addTwizzlerGradientStop(displayed);
               const created = next.find((stop) => !displayed.some((existing) => existing.id === stop.id));
               if (created) setSelectedId(created.id);
               commit(next, true);
@@ -226,7 +260,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
             type="button"
             className="twizzler-gradient-editor-action"
             disabled={!canRemove}
-            aria-label="Remove selected color hotspot"
+            aria-label={layout === "ramp" ? "Remove selected gradient stop" : "Remove selected color hotspot"}
             onClick={() => {
               if (!selected || !canRemove) return;
               commit(removeTwizzlerGradientStop(displayed, selected.id), true);
@@ -239,53 +273,75 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
       </div>
       <div
         ref={graphRef}
-        className={cn("twizzler-gradient-graph", !disabled && "is-editable")}
-        aria-label="Gradient color hotspots"
+        className={cn("twizzler-gradient-graph", layout === "ramp" && "is-ramp", !disabled && "is-editable")}
+        aria-label={layout === "ramp" ? "Gradient color stops" : "Gradient color hotspots"}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       >
-        <canvas
-          ref={fieldRef}
-          className="twizzler-gradient-field"
-          width={FIELD_PREVIEW_WIDTH}
-          height={FIELD_PREVIEW_HEIGHT}
-          aria-hidden="true"
-        />
-        <svg
-          className="twizzler-gradient-plane"
-          viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`}
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <line
-            x1={GRAPH_PAD}
-            y1={GRAPH_HEIGHT - GRAPH_PAD}
-            x2={GRAPH_WIDTH - GRAPH_PAD}
-            y2={GRAPH_HEIGHT - GRAPH_PAD}
-          />
-          <line x1={GRAPH_PAD} y1={GRAPH_PAD} x2={GRAPH_PAD} y2={GRAPH_HEIGHT - GRAPH_PAD} />
-        </svg>
-        <div className="twizzler-gradient-handles">
-          {displayed.map((stop) => {
-            const selectedStop = stop.id === selected?.id;
-            return (
+        {layout === "ramp" ? (
+          <div className="twizzler-gradient-track">
+            <div className="twizzler-gradient-fill" style={{ background: twizzlerGradientCss(displayed) }} />
+            <div className="twizzler-gradient-baseline" />
+            {displayed.map((stop) => (
               <div
                 key={stop.id}
-                className={cn("twizzler-gradient-handle", selectedStop && "is-selected")}
+                className={cn("twizzler-gradient-handle is-ramp", stop.id === selected?.id && "is-selected")}
                 style={
                   {
-                    left: `${stop.x * 100}%`,
-                    top: `${stop.y * 100}%`,
+                    left: `${stop.offset * 100}%`,
                     backgroundColor: stop.color,
                   } as CSSProperties
                 }
-                aria-label={`Color hotspot at ${Math.round(stop.x * 100)} percent, ${Math.round(stop.y * 100)} percent`}
+                aria-label={`Gradient stop at ${Math.round(stop.offset * 100)} percent`}
               />
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <canvas
+              ref={fieldRef}
+              className="twizzler-gradient-field"
+              width={FIELD_PREVIEW_WIDTH}
+              height={FIELD_PREVIEW_HEIGHT}
+              aria-hidden="true"
+            />
+            <svg
+              className="twizzler-gradient-plane"
+              viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <line
+                x1={GRAPH_PAD}
+                y1={GRAPH_HEIGHT - GRAPH_PAD}
+                x2={GRAPH_WIDTH - GRAPH_PAD}
+                y2={GRAPH_HEIGHT - GRAPH_PAD}
+              />
+              <line x1={GRAPH_PAD} y1={GRAPH_PAD} x2={GRAPH_PAD} y2={GRAPH_HEIGHT - GRAPH_PAD} />
+            </svg>
+            <div className="twizzler-gradient-handles">
+              {displayed.map((stop) => {
+                const selectedStop = stop.id === selected?.id;
+                return (
+                  <div
+                    key={stop.id}
+                    className={cn("twizzler-gradient-handle", selectedStop && "is-selected")}
+                    style={
+                      {
+                        left: `${stop.x * 100}%`,
+                        top: `${stop.y * 100}%`,
+                        backgroundColor: stop.color,
+                      } as CSSProperties
+                    }
+                    aria-label={`Color hotspot at ${Math.round(stop.x * 100)} percent, ${Math.round(stop.y * 100)} percent`}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
       {selected ? (
         <div className="twizzler-gradient-selected">
@@ -293,7 +349,7 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
             color={selected.color}
             onChange={(hex) => commit(recolorTwizzlerGradientStop(displayed, selected.id, hex), true)}
             disabled={disabled}
-            ariaLabel="Selected color hotspot"
+            ariaLabel={layout === "ramp" ? "Selected gradient stop color" : "Selected color hotspot"}
             triggerClassName="library-color-input-swatch"
             triggerStyle={{ "--library-color-input-color": cssColorForHex(selected.color) } as CSSProperties}
             align="right"
@@ -303,7 +359,9 @@ export function GradientStopsEditor({ stops, disabled = false, onChange }: Gradi
             <span className="twizzler-gradient-selected-code">[{colorMeta.code}]</span>
           </div>
           <span className="twizzler-gradient-selected-offset">
-            {Math.round(selected.x * 100)}% · {Math.round(selected.y * 100)}%
+            {layout === "ramp"
+              ? `${Math.round(selected.offset * 100)}%`
+              : `${Math.round(selected.x * 100)}% · ${Math.round(selected.y * 100)}%`}
           </span>
         </div>
       ) : null}

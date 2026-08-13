@@ -13,8 +13,13 @@ import {
   removeTwizzlerGradientStop,
   recolorTwizzlerGradientStop,
   sampleTwizzlerGradientColor,
+  sampleTwizzlerGradientRampColor,
   serializeTwizzlerGradientStops,
+  twizzlerGradientCss,
   twizzlerGradientSvgPattern,
+  twizzlerGradientSvgStops,
+  offsetFromClientX,
+  moveTwizzlerGradientStopOffset,
   uvFromClient,
   withTwizzlerGradientEndpointColors,
   TWIZZLER_GRADIENT_HANDLE_HIT_PX,
@@ -224,5 +229,21 @@ describe("twizzlerGradient", () => {
     const height = (png[20]! << 24) | (png[21]! << 16) | (png[22]! << 8) | png[23]!;
     expect(width).toBe(4);
     expect(height).toBe(3);
+  });
+
+  it("emits a 1D CSS/SVG ramp from stop offsets (CF-74)", () => {
+    const stops = [
+      { id: "a", x: 0, y: 0.2, offset: 0, color: "#ff0000" },
+      { id: "b", x: 0.5, y: 0.9, offset: 0.5, color: "#00ff00" },
+      { id: "c", x: 1, y: 0.4, offset: 1, color: "#0000ff" },
+    ];
+    expect(twizzlerGradientCss(stops)).toContain("linear-gradient(90deg");
+    expect(twizzlerGradientCss(stops)).toContain("#00ff00 50.00%");
+    expect(twizzlerGradientSvgStops(stops)).toContain('<stop offset="0.5" stop-color="rgb(0,255,0)" />');
+    expect(sampleTwizzlerGradientRampColor(stops, 0)).toBe("#ff0000");
+    expect(sampleTwizzlerGradientRampColor(stops, 1)).toBe("#0000ff");
+    expect(offsetFromClientX(150, { left: 100, width: 200 })).toBe(0.25);
+    const slid = moveTwizzlerGradientStopOffset(stops, "b", 0.35);
+    expect(slid.find((s) => s.id === "b")).toMatchObject({ offset: 0.35, x: 0.35, y: 0.9 });
   });
 });

@@ -26,9 +26,10 @@ Top of the shader panel (scrolls with the panel — not sticky): **Default | Adv
     - **Appearance** — stage look defaults: Light = orange Twizzler on white; Dark = cream Twizzler on `#f86a00`. **Background → Color** overrides the Appearance stage color until Appearance is toggled again.
     - **Color** — original stripe palettes for Rain (**Default** = Orange factory, plus Red / Green / Blue / Purple). Twizzler Graphic uses the same catalog for ribbon ink. Orange pair / deep / Light stay as extra ribbon looks.
     - ~~Graphite~~ removed (legacy `graphite` ids normalize to **Light**)
-  - **Twizzler → General** — Color mode (Solid / Shared / Fiber / Baked), colors, Opacity, Zoom
+  - **Twizzler → General** — Color mode (Solid / Shared gradient / Shared field / Fiber / Baked), colors, Opacity, Zoom
     - Solid: Color only
-    - Shared / Fiber: Color + Color left (X pack/fiber ramp)
+    - Shared gradient: 1D ramp (Figma-editable SVG `linearGradient`)
+    - Shared field / Fiber: 2D hotspot field (SVG exports as a PNG fill)
     - Baked: Color / left / peaks + **Gradients** folder (X/Y/Z mixes)
   - **Twizzler → Shape** — Center Y, Move X/Y/Z, Amplitude, Rotate X/Y/Z, FOV, Cam Z
   - **Twizzler → Gradients** — X/Y/Z gradient mixes (**Baked** Color mode only)
@@ -66,7 +67,7 @@ Client panel (and lab) expose:
 - **Copy JSON** — copy full lab configuration to the clipboard
 - **Upload JSON** — import a config file as a saved layout and apply it
 - **Video duration** / **Export Video** — high-quality MediaRecorder (60fps, high bitrate) + ffmpeg.wasm (libx264 veryslow / CRF 14). Button shows progress (Recording / Converting) and stays disabled until the export finishes.
-- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide X ramp masked by all ribbons), Fiber gradient (per-ribbon X ramp fitted to each fiber’s span), Baked (segmented X/Y/Z). Twizzler exports when Graphic is Twizzler or Both. **Rain** / **Both** add stripe-rect paths; Twizzler-only Graphic exports ribbon (+ background) without rain.
+- **Export SVG** — filled ribbon paths (auto outline-stroke). Mode from **Color mode**: Solid (one fill/fiber), Shared gradient (one artboard-wide 1D `linearGradient` masked by all ribbons — Figma can edit stops), Shared field (2D hotspot PNG in a pattern), Fiber gradient (per-ribbon 2D field PNG), Baked (segmented X/Y/Z). Twizzler exports when Graphic is Twizzler or Both. **Rain** / **Both** add stripe-rect paths; Twizzler-only Graphic exports ribbon (+ background) without rain.
 
 ## Next HTML → Leva mapping (do this on the next drop)
 
@@ -77,7 +78,7 @@ When the nicer orange-wave HTML arrives, wire **every** HTML control into Leva (
 | Stroke color                 | Presets → Color (Default) | `colorLibraryInputPlugin` → `LIBRARY_COLOR.*` / Orange tokens       |
 | Background                   | Background → Fill + Color | Library Neutral White / Neutral steps; visible for every Graphic    |
 | Twizzler on/off              | Hero → Graphic            | Twizzler / Both drives `twizzlerEnabled`                            |
-| Color mode                   | Twizzler → Color mode     | Solid / Shared gradient / Fiber gradient / Baked segments           |
+| Color mode                   | Twizzler → Color mode     | Solid / Shared gradient / Shared field / Fiber gradient / Baked     |
 | Rain on/off                  | Hero → Graphic            | Rain / Both → `rainEnabled` → `sparkle.gaps` (section-grid lineage) |
 | Zoom / Move X/Y/Z            | Twizzler → General/Shape  | Zoom + translate live in Default                                    |
 | Rotate X/Y/Z                 | Twizzler → Shape          | already live in Default                                             |
