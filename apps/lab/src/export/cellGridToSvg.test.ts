@@ -655,13 +655,107 @@ describe("cellGridToSvg", () => {
       canvasWidthPx: canvas,
       canvasHeightPx: canvas,
     });
-    // Rotated rain emits one <path> per occupied lattice cell (not band-merged).
-    const rotatedPaths = (rotated.match(/<path /g) ?? []).length;
+    const rotatedPaths = (rotated.match(/<path class="fill-stripe-1"/g) ?? []).length;
+    const streamCount = (rotated.match(/M/g) ?? []).length;
 
     expect(latticeCells).toBeGreaterThan(cols * rows);
-    expect(rotatedPaths).toBeGreaterThan(cols * rows * 0.5);
-    // Without AABB cull, every lattice sample becomes a path (value is clamped on-grid).
-    expect(rotatedPaths).toBeLessThan(latticeCells * 0.85);
-    expect(rotatedPaths).toBeLessThan(latticeCells);
+    // One compound path per band; stream-merge + AABB cull keep subpaths far below the lattice.
+    expect(rotatedPaths).toBe(1);
+    expect(streamCount).toBeGreaterThan(0);
+    expect(streamCount).toBeLessThan(latticeCells * 0.5);
+    expect(streamCount).toBeLessThan(cols * rows);
+  });
+
+  it("merges factory-style overlapping rain into one path per band (CF-72)", () => {
+    const stripes = [
+      { hex: "#ff6721", startFrom: 0, width: 1 },
+      { hex: "#fe9c4c", startFrom: 0.4, width: 2 },
+      { hex: "#fff8e8", startFrom: 0.75, width: 4 },
+    ];
+    const cols = 48;
+    const rows = 28;
+    const values = v(
+      ...Array.from({ length: cols * rows }, (_, i) => {
+        const col = i % cols;
+        return col < 16 ? 20 : col < 32 ? 128 : 240;
+      }),
+    );
+    const svg = cellGridToSvg({ cols, rows, values, colors: null }, stripes, {
+      cellWidthPx: 7,
+      cellHeightPx: 7,
+      useCellColors: false,
+      angleDeg: 36,
+      rotationMode: "overlap",
+      overlapAmount: 4,
+      canvasWidthPx: cols * 7,
+      canvasHeightPx: rows * 7,
+    });
+    const bandPaths = (svg.match(/<path class="fill-stripe-\d+"/g) ?? []).length;
+    const streamCount = (svg.match(/M/g) ?? []).length;
+    const latticeCells = cols * rows;
+
+    expect(svg).toContain('data-layer="rain"');
+    expect(svg).toContain('id="rain-artboard"');
+    expect(bandPaths).toBe(3);
+    expect(streamCount).toBeLessThan(latticeCells * 0.35);
+    expect(svg.length).toBeLessThan(latticeCells * 80);
+  });
+
+  it("exports rain gradient as masked planes instead of per-cell fills (CF-72)", () => {
+    const stripes = [
+      { hex: "#ff6721", startFrom: 0, width: 2 },
+      { hex: "#feefd2", startFrom: 0.5, width: 4 },
+    ];
+    const cols = 16;
+    const rows = 16;
+    const svg = cellGridToSvg(
+      { cols, rows, values: v(...Array.from({ length: cols * rows }, (_, i) => (i < 128 ? 40 : 220))), colors: null },
+      stripes,
+      {
+        cellWidthPx: 10,
+        cellHeightPx: 10,
+        useCellColors: false,
+        angleDeg: 36,
+        rotationMode: "overlap",
+        overlapAmount: 4,
+        canvasWidthPx: 160,
+        canvasHeightPx: 160,
+        gradient: {
+          direction: "leftToRight",
+          stopCount: 2,
+          stops: ["#fea700", "#f46021"],
+        },
+      },
+    );
+
+    expect(svg).toContain('id="rain-band-1-grad"');
+    expect(svg).toContain('id="rain-band-2-mask"');
+    expect(svg).toContain('data-rain-band="1"');
+    expect(svg).toContain('fill="url(#rain-band-1-grad)"');
+    expect(svg).toContain('mask="url(#rain-band-1-mask)"');
+    expect((svg.match(/data-rain-band="/g) ?? []).length).toBe(2);
+    expect(svg.match(/<path fill="#[0-9a-f]{6}"/g) ?? []).toHaveLength(0);
+  });
+
+  it("compacts rotated image-color cells that share a fill (CF-72)", () => {
+    const colors = new Uint8Array(4 * 4 * 4);
+    for (let i = 0; i < 16; i++) {
+      const hex = i < 8 ? [0x33, 0x66, 0x99] : [0xaa, 0x00, 0xaa];
+      colors.set([...hex, 255], i * 4);
+    }
+    const svg = cellGridToSvg(
+      { cols: 4, rows: 4, values: v(...new Array(16).fill(255)), colors },
+      [{ hex: "#ffffff", startFrom: 0, width: 4 }],
+      {
+        cellWidthPx: 10,
+        cellHeightPx: 10,
+        useCellColors: true,
+        angleDeg: 30,
+        canvasWidthPx: 40,
+        canvasHeightPx: 40,
+      },
+    );
+    expect(svg.match(/<path fill="/g)).toHaveLength(2);
+    expect(svg).toContain('data-layer="rain"');
   });
 });
