@@ -24,8 +24,33 @@ describe("client preview presets", () => {
   it("ships size, layout, color, and appearance preset catalogs", () => {
     expect(CLIENT_SIZE_PRESETS.map((p) => p.id)).toEqual(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
     expect(CLIENT_LAYOUT_PRESETS).toHaveLength(4);
-    expect(CLIENT_COLOR_PRESETS.map((p) => p.id)).toEqual(["coral-classic", "soft-gold", "deep-ember", "light"]);
+    expect(CLIENT_COLOR_PRESETS.map((p) => p.id)).toEqual([
+      "coral-classic",
+      "red",
+      "green",
+      "blue",
+      "purple",
+      "soft-gold",
+      "deep-ember",
+      "light",
+    ]);
     expect(CLIENT_APPEARANCE_PRESETS.map((p) => p.id)).toEqual(["light", "dark"]);
+  });
+
+  it("Default Color is the Orange factory rain palette", () => {
+    const preset = findClientColorPreset("coral-classic");
+    expect(preset.label).toBe("Default");
+    expect(preset.stripePalette).toBe("Orange");
+    expect(preset.twizzler.colorNear).toBe(LIBRARY_COLOR.orangeAccent);
+  });
+
+  it("Rain hue Color presets reuse COLOR_LIBRARY Pair/Accent/Deep", () => {
+    const blue = findClientColorPreset("blue");
+    expect(blue.label).toBe("Blue");
+    expect(blue.stripePalette).toBe("Blue");
+    expect(blue.twizzler.colorFar).toBe("#38c5f6");
+    expect(blue.twizzler.colorNear).toBe("#1f72ff");
+    expect(blue.twizzler.colorEdge).toBe("#1c50d9");
   });
 
   it("Light color preset matches Dark Appearance cream ink", () => {
@@ -180,8 +205,14 @@ describe("client preview presets", () => {
     expect(layout.connectCameraPanY).toBeDefined();
 
     const color = rainLevaFromColor("coral-classic");
+    expect(color.stripePalette).toBe("Orange");
     expect(color.connectFillColor).toBe(LIBRARY_COLOR.orangeAccent);
     expect(color.connectFillColor2).toBe(LIBRARY_COLOR.orangePair);
+
+    expect(rainLevaFromColor("blue").stripePalette).toBe("Blue");
+    expect(rainLevaFromColor("green").stripePalette).toBe("Green");
+    expect(rainLevaFromColor("red").stripePalette).toBe("Red");
+    expect(rainLevaFromColor("purple").stripePalette).toBe("Purple");
 
     const appearance = rainLevaFromAppearance("dark");
     expect(appearance.backgroundColor).toBe("#f86a00");

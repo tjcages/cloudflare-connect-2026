@@ -1,5 +1,5 @@
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
-import { LIBRARY_COLOR } from "../components/colorLibrary";
+import { findLibraryColor, LIBRARY_COLOR } from "../components/colorLibrary";
 import { findPresetByName, loadBuiltinPresets } from "../presets";
 import { normalizeTwizzlerMapSettings, type TwizzlerMapSettings } from "../twizzlerMapSource";
 import { normalizeTwizzlerSettings, type TwizzlerRibbonColorMode, type TwizzlerSettings } from "../twizzler";
@@ -8,7 +8,15 @@ import { sectionGridRainEngineConfig } from "./sectionGridRainDefaults";
 
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
-export type ClientColorPresetId = "coral-classic" | "soft-gold" | "deep-ember" | "light";
+export type ClientColorPresetId =
+  | "coral-classic"
+  | "red"
+  | "green"
+  | "blue"
+  | "purple"
+  | "soft-gold"
+  | "deep-ember"
+  | "light";
 /** Client stage look: light = orange Twizzler on white; dark = cream Twizzler on deep orange. */
 export type ClientAppearanceId = "light" | "dark";
 /** Client stack: Twizzler ribbon, section-grid Rain stripes, or both. */
@@ -28,11 +36,27 @@ export type ClientLayoutPreset = {
   twizzler: Partial<TwizzlerSettings>;
 };
 
+export type ClientStripePaletteName = "Orange" | "Red" | "Green" | "Blue" | "Purple" | "Neutral" | "White";
+
 export type ClientColorPreset = {
   id: ClientColorPresetId;
   label: string;
+  /** Original stripes-shader hue profile applied to rain bands. */
+  stripePalette: ClientStripePaletteName;
   twizzler: Pick<TwizzlerSettings, "color" | "colorFar" | "colorNear" | "colorEdge">;
 };
+
+function hueFamilyInk(
+  group: "Red" | "Orange" | "Green" | "Blue" | "Purple",
+): Pick<TwizzlerSettings, "color" | "colorFar" | "colorNear" | "colorEdge"> {
+  const pair = findLibraryColor(group, "800 [Pair]")?.hex;
+  const accent = findLibraryColor(group, "900 [Accent]")?.hex;
+  const deep = findLibraryColor(group, "1000")?.hex;
+  if (!pair || !accent || !deep) {
+    throw new Error(`Missing ${group} library Pair/Accent/Deep tokens`);
+  }
+  return { color: accent, colorFar: pair, colorNear: accent, colorEdge: deep };
+}
 
 export type ClientAppearancePreset = {
   id: ClientAppearanceId;
@@ -117,7 +141,8 @@ export const CLIENT_LAYOUT_PRESETS: readonly ClientLayoutPreset[] = [
 export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
   {
     id: "coral-classic",
-    label: "Orange accent",
+    label: "Default",
+    stripePalette: "Orange",
     twizzler: {
       color: LIBRARY_COLOR.orangeAccent,
       colorFar: LIBRARY_COLOR.orangePair,
@@ -126,8 +151,33 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
     },
   },
   {
+    id: "red",
+    label: "Red",
+    stripePalette: "Red",
+    twizzler: hueFamilyInk("Red"),
+  },
+  {
+    id: "green",
+    label: "Green",
+    stripePalette: "Green",
+    twizzler: hueFamilyInk("Green"),
+  },
+  {
+    id: "blue",
+    label: "Blue",
+    stripePalette: "Blue",
+    twizzler: hueFamilyInk("Blue"),
+  },
+  {
+    id: "purple",
+    label: "Purple",
+    stripePalette: "Purple",
+    twizzler: hueFamilyInk("Purple"),
+  },
+  {
     id: "soft-gold",
     label: "Orange pair",
+    stripePalette: "Orange",
     twizzler: {
       color: LIBRARY_COLOR.orangePair,
       colorFar: LIBRARY_COLOR.orangePair,
@@ -138,6 +188,7 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
   {
     id: "deep-ember",
     label: "Orange deep",
+    stripePalette: "Orange",
     twizzler: {
       color: LIBRARY_COLOR.orangeDeep,
       colorFar: LIBRARY_COLOR.orangePair,
@@ -149,6 +200,7 @@ export const CLIENT_COLOR_PRESETS: readonly ClientColorPreset[] = [
     // Same cream ramp as Dark Appearance (stripes-settings-cf-base).
     id: "light",
     label: "Light",
+    stripePalette: "Neutral",
     twizzler: {
       color: "#ffefd4",
       colorFar: "#ffd39e",
@@ -313,6 +365,10 @@ export function findClientLayoutPreset(id: ClientLayoutPresetId): ClientLayoutPr
 export function findClientColorPreset(id: ClientColorPresetId): ClientColorPreset {
   switch (id) {
     case "coral-classic":
+    case "red":
+    case "green":
+    case "blue":
+    case "purple":
     case "soft-gold":
     case "deep-ember":
     case "light": {
@@ -368,11 +424,13 @@ export function rainLevaFromLayout(layoutId: ClientLayoutPresetId): Record<strin
 }
 
 export function rainLevaFromColor(colorId: ClientColorPresetId): Record<string, unknown> {
-  const color = findClientColorPreset(colorId).twizzler;
+  const preset = findClientColorPreset(colorId);
+  const color = preset.twizzler;
   const near = color.colorNear ?? color.color;
   const far = color.colorFar;
   const edge = color.colorEdge;
   return {
+    stripePalette: preset.stripePalette,
     connectFillColor: near,
     connectFillColor2: far,
     connectOrangeColor: near,

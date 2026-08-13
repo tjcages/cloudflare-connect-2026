@@ -5152,16 +5152,22 @@ export function useEngineControls(
     shaderControlSetterRef.current?.(patch);
   }, [clientApp, clientLayoutId, heroGraphicId, setShaderControl]);
 
-  /** Color preset — Twizzler palette and/or Rain Connect colors. */
+  /** Color preset — Twizzler family ink and/or original rain stripe palettes. */
   const lastClientColorIdRef = useRef<string | null>(null);
+  const lastHeroGraphicForColorRef = useRef<string | null>(null);
   useEffect(() => {
     if (!clientApp) return;
+    const colorChanged = lastClientColorIdRef.current !== null && lastClientColorIdRef.current !== clientColorId;
+    const graphicChanged =
+      lastHeroGraphicForColorRef.current !== null && lastHeroGraphicForColorRef.current !== heroGraphicId;
     if (lastClientColorIdRef.current === null) {
       lastClientColorIdRef.current = clientColorId;
+      lastHeroGraphicForColorRef.current = heroGraphicId;
       return;
     }
-    if (lastClientColorIdRef.current === clientColorId) return;
     lastClientColorIdRef.current = clientColorId;
+    lastHeroGraphicForColorRef.current = heroGraphicId;
+    if (!colorChanged && !graphicChanged) return;
     const color = findClientColorPreset(clientColorId).twizzler;
     const flags = clientGraphicFlags(heroGraphicId);
     const patch: Record<string, unknown> = {};
@@ -5175,7 +5181,12 @@ export function useEngineControls(
         ),
       });
     }
-    if (flags.rainEnabled) Object.assign(patch, rainLevaFromColor(clientColorId));
+    if (flags.rainEnabled) {
+      const rain = rainLevaFromColor(clientColorId);
+      Object.assign(patch, rain);
+      const palette = rain.stripePalette;
+      if (typeof palette === "string") handlePaletteChange(palette);
+    }
     if (Object.keys(patch).length === 0) return;
     try {
       textureControlSetterRef.current?.(patch);
@@ -5183,7 +5194,7 @@ export function useEngineControls(
       /* ignore */
     }
     shaderControlSetterRef.current?.(patch);
-  }, [clientApp, clientColorId, heroGraphicId, setShaderControl]);
+  }, [clientApp, clientColorId, handlePaletteChange, heroGraphicId, setShaderControl]);
 
   // Keep Color left/right knobs and the Field editor on the same endpoint colors
   // so Shared ↔ Baked doesn't drop hotspot positions or endpoint ink (CF-55 / CF-58).
