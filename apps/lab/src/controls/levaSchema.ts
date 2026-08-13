@@ -16,7 +16,7 @@ import { fromEditable, type EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import { createLevaPatchWriter, levaValuesEqual } from "./levaStoreWrite";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
-import { gradientStopsPlugin } from "./gradientStopsPlugin";
+import { gradientStopsPlugin, setTwizzlerGradientEditorLayout } from "./gradientStopsPlugin";
 import { timeTransportPlugin } from "./timeTransportPlugin";
 import type { TimeTransportController } from "../components/TimeTransport";
 import { DEFAULT_LAB_TEXTURE_ID, buildTextureEntries, findTextureEntry } from "../textures";
@@ -1431,7 +1431,8 @@ export function useEngineControls(
                   label: "Color mode",
                   options: {
                     Solid: "solid",
-                    "Shared gradient": "sharedGradient",
+                    "Shared gradient": "sharedLinear",
+                    "Shared field": "sharedGradient",
                     "Fiber gradient": "fiberGradient",
                     "Baked segments": "baked",
                   },
@@ -1471,7 +1472,7 @@ export function useEngineControls(
                   render: (get) => {
                     if (!showTwizzlerRibbonConfig()) return false;
                     const mode = get("Twizzler.General.twizzlerRibbonColorMode");
-                    return mode === "sharedGradient" || mode === "fiberGradient";
+                    return mode === "sharedLinear" || mode === "sharedGradient" || mode === "fiberGradient";
                   },
                 },
                 twizzlerColorEdge: {
@@ -1757,7 +1758,7 @@ export function useEngineControls(
                 },
               },
               // Axis X/Y/Z mixes only drive Baked segments (Color mode).
-              // Shared/Fiber use the 2D hotspot field editor (twizzlerGradientStops).
+              // Shared gradient uses the 1D ramp; Shared field / Fiber use the 2D hotspot editor.
               {
                 render: (get) =>
                   showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") === "baked",
@@ -5254,12 +5255,21 @@ export function useEngineControls(
   const twizzlerGradientStopsValue = shaderTwizzlerRecord.twizzlerGradientStops;
   const twizzlerColorValue = shaderTwizzlerRecord.twizzlerColor;
   const twizzlerColorFarValue = shaderTwizzlerRecord.twizzlerColorFar;
+  const ribbonColorMode =
+    typeof twizzlerRibbonColorModeValue === "string" ? twizzlerRibbonColorModeValue : "sharedGradient";
+  useEffect(() => {
+    setTwizzlerGradientEditorLayout(ribbonColorMode === "sharedLinear" ? "ramp" : "field");
+  }, [ribbonColorMode]);
   useEffect(() => {
     const colorFar = String(twizzlerColorFarValue ?? "");
     const colorNear = String(twizzlerColorValue ?? "");
     const parsed = parseTwizzlerGradientStops(twizzlerGradientStopsValue, colorFar, colorNear);
     if (parsed.length === 0) return;
-    if (twizzlerRibbonColorModeValue === "sharedGradient" || twizzlerRibbonColorModeValue === "fiberGradient") {
+    if (
+      ribbonColorMode === "sharedLinear" ||
+      ribbonColorMode === "sharedGradient" ||
+      ribbonColorMode === "fiberGradient"
+    ) {
       const far = parsed[0]!.color;
       const near = parsed[parsed.length - 1]!.color;
       if (levaValuesEqual(far, colorFar) && levaValuesEqual(near, colorNear)) return;
@@ -5270,13 +5280,7 @@ export function useEngineControls(
     const serialized = serializeTwizzlerGradientStops(patched);
     if (levaValuesEqual(serialized, twizzlerGradientStopsValue)) return;
     shaderPatchWriter.write({ twizzlerGradientStops: serialized });
-  }, [
-    shaderPatchWriter,
-    twizzlerRibbonColorModeValue,
-    twizzlerGradientStopsValue,
-    twizzlerColorValue,
-    twizzlerColorFarValue,
-  ]);
+  }, [shaderPatchWriter, ribbonColorMode, twizzlerGradientStopsValue, twizzlerColorValue, twizzlerColorFarValue]);
 
   // Nudge the store when Default↔Advanced flips so Leva recomputes visible paths
   // (render gates read refs; without a store tick folders stay stale).
@@ -6037,7 +6041,7 @@ export function useEngineControls(
           const colorNear = String(shaderValueRecord.twizzlerColor ?? "");
           const parsed = parseTwizzlerGradientStops(shaderValueRecord.twizzlerGradientStops, colorFar, colorNear);
           const mode = shaderValueRecord.twizzlerRibbonColorMode;
-          if (mode === "sharedGradient" || mode === "fiberGradient") return parsed;
+          if (mode === "sharedLinear" || mode === "sharedGradient" || mode === "fiberGradient") return parsed;
           return withTwizzlerGradientEndpointColors(parsed, colorFar, colorNear);
         })(),
         opacity: shaderValueRecord.twizzlerOpacity,

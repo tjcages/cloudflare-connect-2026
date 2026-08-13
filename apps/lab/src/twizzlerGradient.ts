@@ -223,6 +223,74 @@ export function sampleTwizzlerGradientColor(stops: readonly TwizzlerGradientStop
   return rgbToHex(sampleTwizzlerGradientRgb(stops, x, y));
 }
 
+/** 1D lerp along stop `offset` / `x` (Shared gradient — not the 2D IDW field). */
+export function sampleTwizzlerGradientRampColor(stops: readonly TwizzlerGradientStop[], t: number): string {
+  const sorted = sortTwizzlerGradientStops(usableStops(stops));
+  const x = clamp01(t);
+  const first = sorted[0]!;
+  const last = sorted[sorted.length - 1]!;
+  if (x <= first.offset) return first.color;
+  if (x >= last.offset) return last.color;
+  for (let i = 1; i < sorted.length; i += 1) {
+    const a = sorted[i - 1]!;
+    const b = sorted[i]!;
+    if (x <= b.offset) {
+      const span = b.offset - a.offset;
+      const u = span < 1e-6 ? 1 : (x - a.offset) / span;
+      return rgbToHex(lerpRgb(parseHexRgb(a.color), parseHexRgb(b.color), u));
+    }
+  }
+  return last.color;
+}
+
+function lerpRgb(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+  t: number,
+): { r: number; g: number; b: number } {
+  return {
+    r: a.r + (b.r - a.r) * t,
+    g: a.g + (b.g - a.g) * t,
+    b: a.b + (b.b - a.b) * t,
+  };
+}
+
+export function twizzlerGradientCss(stops: readonly TwizzlerGradientStop[]): string {
+  const sorted = sortTwizzlerGradientStops(usableStops(stops));
+  const parts = sorted.map((stop) => `${stop.color} ${(stop.offset * 100).toFixed(2)}%`);
+  return `linear-gradient(90deg, ${parts.join(", ")})`;
+}
+
+function uniqueRampStops(stops: readonly TwizzlerGradientStop[]): TwizzlerGradientStop[] {
+  const sorted = sortTwizzlerGradientStops(usableStops(stops));
+  const unique: TwizzlerGradientStop[] = [];
+  let lastOffset = -1;
+  for (const stop of sorted) {
+    let offset = clamp01(stop.offset);
+    if (offset <= lastOffset) offset = Math.min(1, lastOffset + 0.0001);
+    unique.push({ ...stop, offset, x: offset });
+    lastOffset = offset;
+  }
+  return unique;
+}
+
+/** Apply canonical 1D stops to a Canvas2D linear gradient. */
+export function applyTwizzlerGradientStops(gradient: CanvasGradient, stops: readonly TwizzlerGradientStop[]): void {
+  for (const stop of uniqueRampStops(stops)) {
+    gradient.addColorStop(clamp01(stop.offset), stop.color);
+  }
+}
+
+export function twizzlerGradientSvgStops(stops: readonly TwizzlerGradientStop[]): string {
+  return uniqueRampStops(stops)
+    .map((stop) => {
+      const rgb = parseHexRgb(stop.color);
+      const offset = Number(stop.offset.toFixed(4)).toString();
+      return `      <stop offset="${offset}" stop-color="rgb(${rgb.r},${rgb.g},${rgb.b})" />`;
+    })
+    .join("\n");
+}
+
 export function rasterizeTwizzlerGradientField(
   stops: readonly TwizzlerGradientStop[],
   width: number,
@@ -326,6 +394,15 @@ export function moveTwizzlerGradientStop(
   return stops.map((stop) => (stop.id === id ? withPosition(stop, x, y) : stop));
 }
 
+/** Slide a ramp stop on X only so Field Y positions survive Shared gradient ↔ Shared field. */
+export function moveTwizzlerGradientStopOffset(
+  stops: readonly TwizzlerGradientStop[],
+  id: string,
+  offset: number,
+): TwizzlerGradientStop[] {
+  return stops.map((stop) => (stop.id === id ? withPosition(stop, offset, stop.y) : stop));
+}
+
 export function recolorTwizzlerGradientStop(
   stops: readonly TwizzlerGradientStop[],
   id: string,
@@ -344,6 +421,11 @@ export function uvFromClient(
     x: clamp01((clientX - bounds.left) / bounds.width),
     y: clamp01((clientY - bounds.top) / bounds.height),
   };
+}
+
+export function offsetFromClientX(clientX: number, bounds: { left: number; width: number }): number {
+  if (bounds.width <= 0) return 0;
+  return clamp01((clientX - bounds.left) / bounds.width);
 }
 
 export function nearestTwizzlerGradientStopId(

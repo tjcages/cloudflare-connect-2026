@@ -9,6 +9,8 @@ import {
   TWIZZLER_GRADIENT_FIELD_SVG_COLS,
   TWIZZLER_GRADIENT_FIELD_SVG_ROWS,
   twizzlerGradientSvgPattern,
+  twizzlerGradientSvgStops,
+  type TwizzlerGradientStop,
 } from "../twizzlerGradient";
 
 function number(value: number, digits = 2): string {
@@ -97,12 +99,23 @@ function filledPathAttrs(rgb: { r: number; g: number; b: number }, opacity: numb
   return `fill="rgb(${rgb.r},${rgb.g},${rgb.b})" fill-opacity="${number(opacity, 3)}" stroke="none"`;
 }
 
+function linearGradientDef(id: string, x1: number, x2: number, stops: readonly TwizzlerGradientStop[]): string {
+  const left = number(x1, 1);
+  const right = number(Math.max(x2, x1 + 0.001), 1);
+  return [
+    `    <linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${left}" y1="0" x2="${right}" y2="0">`,
+    twizzlerGradientSvgStops(stops),
+    "    </linearGradient>",
+  ].join("\n");
+}
+
 /**
  * Export Twizzler fibers as filled SVG ribbons (auto outline-stroke).
  *
  * Modes (`ribbonColorMode`):
  * - solid: one filled path / fiber
- * - sharedGradient: one pack 2D color-field rect, masked by all ribbon silhouettes
+ * - sharedLinear: one pack 1D X ramp, masked by all ribbon silhouettes (Figma-editable)
+ * - sharedGradient: one pack 2D color-field PNG, masked by all ribbon silhouettes
  * - fiberGradient: per-fiber 2D field fitted to each ribbon’s AABB
  * - baked: segmented X/Y/Z fills (highest fidelity)
  */
@@ -183,8 +196,8 @@ export function twizzlerToSvgLayer(
     ].join("\n");
   }
 
-  if (colorMode === "sharedGradient") {
-    // One gradient plane + ribbon mask (Figma-editable shared gradient, not per-line fills).
+  if (colorMode === "sharedLinear" || colorMode === "sharedGradient") {
+    // One gradient plane + ribbon mask (Figma-editable 1D ramp, or 2D field PNG).
     const packGradId = "twizzler-pack-grad";
     const packMaskId = "twizzler-pack-mask";
     const maskPaths: string[] = [];
@@ -203,10 +216,14 @@ export function twizzlerToSvgLayer(
     }
     const w = number(targetWidth, 1);
     const h = number(targetHeight, 1);
+    const packFill =
+      colorMode === "sharedLinear"
+        ? linearGradientDef(packGradId, 0, targetWidth, settings.gradientStops)
+        : twizzlerGradientSvgPattern(packGradId, 0, 0, targetWidth, targetHeight, settings.gradientStops);
     return [
-      `  <g data-layer="twizzler" data-color-mode="sharedGradient">`,
+      `  <g data-layer="twizzler" data-color-mode="${colorMode}">`,
       "    <defs>",
-      twizzlerGradientSvgPattern(packGradId, 0, 0, targetWidth, targetHeight, settings.gradientStops),
+      packFill,
       `    <mask id="${packMaskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}">`,
       `      <rect x="0" y="0" width="${w}" height="${h}" fill="black" />`,
       maskPaths.join("\n"),

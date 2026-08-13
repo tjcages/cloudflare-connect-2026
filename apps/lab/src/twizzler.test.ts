@@ -28,6 +28,8 @@ import {
   twizzlerShaderPackPixelY,
   twizzlerShaderPackRecipe,
   twizzlerSvgPathCubic,
+  twizzlerUsesFieldGradient,
+  twizzlerUsesLinearRamp,
   twizzlerMarketingTwist,
   twizzlerMarketingWidth,
   twizzlerNearness,
@@ -106,6 +108,15 @@ describe("Twizzler", () => {
     expect(settings.colorNear).toBe("#f46021");
     expect(settings.colorEdge).toBe("#e92e28");
     expect(settings.ribbonColorMode).toBe("sharedGradient");
+  });
+
+  it("keeps Shared field vs Shared gradient as distinct color modes (CF-74)", () => {
+    expect(twizzlerUsesFieldGradient("sharedGradient")).toBe(true);
+    expect(twizzlerUsesFieldGradient("fiberGradient")).toBe(true);
+    expect(twizzlerUsesFieldGradient("sharedLinear")).toBe(false);
+    expect(twizzlerUsesLinearRamp("sharedLinear")).toBe(true);
+    expect(twizzlerUsesLinearRamp("sharedGradient")).toBe(false);
+    expect(normalizeTwizzlerSettings({ ribbonColorMode: "sharedLinear" }).ribbonColorMode).toBe("sharedLinear");
   });
 
   it("maps Leva twizzlerColor* fields into sharedGradient endpoints", () => {

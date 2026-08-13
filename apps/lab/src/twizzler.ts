@@ -7,6 +7,7 @@
  */
 
 import {
+  applyTwizzlerGradientStops,
   defaultTwizzlerGradientFieldStops,
   parseTwizzlerGradientStops,
   rasterizeTwizzlerGradientField,
@@ -17,14 +18,37 @@ import {
 } from "./twizzlerGradient";
 
 /** Ribbon color preview + SVG export strategy. */
-export type TwizzlerRibbonColorMode = "solid" | "sharedGradient" | "fiberGradient" | "baked";
+export type TwizzlerRibbonColorMode = "solid" | "sharedLinear" | "sharedGradient" | "fiberGradient" | "baked";
 
 export const TWIZZLER_RIBBON_COLOR_MODES: readonly TwizzlerRibbonColorMode[] = [
   "solid",
+  "sharedLinear",
   "sharedGradient",
   "fiberGradient",
   "baked",
 ] as const;
+
+/** 2D hotspot field (SVG exports as a PNG). Saved `sharedGradient` id is this field. */
+export function twizzlerUsesFieldGradient(mode: TwizzlerRibbonColorMode): boolean {
+  switch (mode) {
+    case "sharedGradient":
+    case "fiberGradient":
+      return true;
+    case "solid":
+    case "sharedLinear":
+    case "baked":
+      return false;
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
+  }
+}
+
+/** 1D left→right ramp (Figma-editable SVG `linearGradient`). */
+export function twizzlerUsesLinearRamp(mode: TwizzlerRibbonColorMode): boolean {
+  return mode === "sharedLinear";
+}
 
 export type TwizzlerSettings = {
   color: string;
@@ -99,8 +123,9 @@ export type TwizzlerSettings = {
   /**
    * How ribbon color is previewed + exported:
    * - solid: one fill color per fiber
-   * - sharedGradient: one pack-wide 2D color field, ribbons sample `gradientStops`
-   * - fiberGradient: same field stretched into each ribbon’s AABB
+   * - sharedLinear: one pack-wide 1D X ramp (Figma-editable SVG linearGradient)
+   * - sharedGradient: one pack-wide 2D color field (SVG PNG) — id kept for saved layouts
+   * - fiberGradient: same 2D field stretched into each ribbon’s AABB
    * - baked: segmented X/Y/Z fills (highest fidelity, heaviest)
    */
   ribbonColorMode: TwizzlerRibbonColorMode;
@@ -1442,8 +1467,15 @@ export function renderTwizzler(
   const ordered = [...lines].sort((a, b) => a.nearness - b.nearness);
   const colorMode = resolveTwizzlerRibbonColorMode(settings);
   const fieldStops = settings.gradientStops;
-  const fieldCanvas =
-    colorMode === "sharedGradient" || colorMode === "fiberGradient" ? getTwizzlerGradientFieldCanvas(fieldStops) : null;
+  const fieldCanvas = twizzlerUsesFieldGradient(colorMode) ? getTwizzlerGradientFieldCanvas(fieldStops) : null;
+  const packLinear =
+    colorMode === "sharedLinear"
+      ? (() => {
+          const gradient = context.createLinearGradient(0, 0, pixelWidth, 0);
+          applyTwizzlerGradientStops(gradient, fieldStops);
+          return gradient;
+        })()
+      : null;
 
   // Shared field: mask all ribbons once, then a single field drawImage (Both-mode win).
   if (colorMode === "sharedGradient" && fieldCanvas) {
@@ -1478,6 +1510,12 @@ export function renderTwizzler(
           context.lineTo(line.points[i]!.x, line.points[i]!.y);
         }
         context.stroke();
+        break;
+      }
+      case "sharedLinear": {
+        context.fillStyle = packLinear ?? settings.colorNear;
+        context.globalAlpha = Math.max(0.01, Math.min(1, line.opacity));
+        fillOutlinedRibbon(context, line.points, strokeWidth);
         break;
       }
       case "sharedGradient": {

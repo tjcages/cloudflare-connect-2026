@@ -97,6 +97,31 @@ describe("twizzlerToSvgLayer", () => {
     expect(svg).toContain('fill="white"');
   });
 
+  it("exports sharedLinear as a Figma-editable 1D linearGradient (CF-74)", () => {
+    const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
+      ...TWIZZLER_DEFAULTS,
+      lineCount: 5,
+      pointSpacing: 10,
+      ribbonColorMode: "sharedLinear",
+      gradientStops: [
+        { id: "a", x: 0, y: 0.5, offset: 0, color: "#ff0000" },
+        { id: "b", x: 0.4, y: 0.5, offset: 0.4, color: "#00ff00" },
+        { id: "c", x: 1, y: 0.5, offset: 1, color: "#0000ff" },
+      ],
+      speed: 0,
+    });
+    expect(svg).toContain('data-color-mode="sharedLinear"');
+    expect(svg).toContain("<linearGradient ");
+    expect(svg).toContain('gradientUnits="userSpaceOnUse"');
+    expect(svg).toContain("<stop ");
+    expect(svg).toContain('offset="0.4"');
+    expect(svg).toContain('stop-color="rgb(0,255,0)"');
+    expect(svg).not.toContain("<pattern ");
+    expect(svg).not.toContain("data:image/png;base64,");
+    expect(svg).toContain('data-pack-gradient="true"');
+    expect(svg).toContain('fill="url(#twizzler-pack-grad)"');
+  });
+
   it("exports fiber gradients with one 2D field pattern per ribbon", () => {
     const svg = twizzlerToSvgLayer(400, 200, 400, 200, 0, {
       ...TWIZZLER_DEFAULTS,
