@@ -156,7 +156,7 @@ describe("config file import/export", () => {
       canvasHeight: 998,
       textureId: "cf-base",
       textureSourceMode: "shader",
-      shaderPresetId: "connect",
+      shaderPresetId: "spiral",
       stripePalette: "Custom",
       backgroundRampEasing: "easeOut",
       thresholdDistributionEasing: "custom:0.346,0.578,0,1",

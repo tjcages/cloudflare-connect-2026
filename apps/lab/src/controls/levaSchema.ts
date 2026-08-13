@@ -33,7 +33,7 @@ import {
 } from "../connectShader";
 import { SHADER_VIEW_DEFAULTS, type ShaderViewState } from "../shaderView";
 import type { ShaderConfigKind } from "../shaderConfig";
-import { CONNECT_SHADER_PRESET_ID, SHADER_LIBRARY } from "../shaderLibrary";
+import { resolveGraphicRainShaderPreset, SHADER_LIBRARY, SPIRAL_SHADER_PRESET_ID } from "../shaderLibrary";
 import { normalizeTwizzlerSettings, type TwizzlerSettings } from "../twizzler";
 import {
   defaultTwizzlerGradientFieldStops,
@@ -94,7 +94,11 @@ import {
   type ClientLayoutPresetId,
   type ClientSizePresetId,
 } from "../client/clientPresets";
-import { sectionGridRainEnterLevaPatch } from "../client/sectionGridRainDefaults";
+import {
+  rainEngineNeedsFactorySeed,
+  sectionGridRainEditableStripes,
+  sectionGridRainEnterLevaPatch,
+} from "../client/sectionGridRainDefaults";
 
 /** Set during `useEngineControls` so drawerFolder can gate Default vs Advanced. */
 let clientDefaultPanelActive = false;
@@ -1290,7 +1294,7 @@ export function useEngineControls(
               label: "Graphic",
             },
             rainShaderPreset: {
-              value: initialLabSettings.shaderPresetId || CONNECT_SHADER_PRESET_ID,
+              value: resolveGraphicRainShaderPreset(initialLabSettings.shaderPresetId || SPIRAL_SHADER_PRESET_ID),
               options: rainShaderOptions,
               label: "Shader",
               render: () => clientAppRef.current && clientRainAuthoringActive,
@@ -5111,23 +5115,31 @@ export function useEngineControls(
     // Mark intended flags before Leva catches up so the sync effect does not snap Graphic back.
     lastGraphicFlagsRef.current = flags;
     const wasRain = prev === "rain" || prev === "both";
-    // prev === null is mount/restore — do not re-seed factory rain over persisted knobs.
     const enteringRain = prev !== null && flags.rainEnabled && !wasRain;
+    const restoringRain = prev === null && flags.rainEnabled;
     const patch: Record<string, unknown> = {
       twizzlerEnabled: flags.twizzlerEnabled,
       rainEnabled: flags.rainEnabled,
     };
-    if (enteringRain) {
-      // Keep a rain-capable shader selected. Do NOT re-seed factory stripes/grid/tone —
-      // that wiped authored rain edits every Twizzler→Rain switch (CF-69).
-      patch.rainShaderPreset =
-        String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || "").trim() ||
-        CONNECT_SHADER_PRESET_ID;
-      // Banner 5:1 ships gaps.coverage=1 (blank). Only un-blank; leave everything else alone.
+    if (flags.rainEnabled) {
+      patch.rainShaderPreset = resolveGraphicRainShaderPreset(
+        String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || ""),
+      );
       const coveragePct = Number(
         (shaderValues as unknown as Record<string, unknown>).sparkleGapsCoverage ?? Number.NaN,
       );
-      if (Number.isFinite(coveragePct) && coveragePct >= 99) {
+      const coverage = Number.isFinite(coveragePct) ? coveragePct / 100 : 0;
+      if (rainEngineNeedsFactorySeed({ stripes, coverage }) && (enteringRain || restoringRain)) {
+        // Banner-blank (opacity-0 / coverage 1) is not authored rain — seed factory (CF-76).
+        const rainEnter = sectionGridRainEnterLevaPatch();
+        Object.assign(patch, rainEnter.shader);
+        setStripes(sectionGridRainEditableStripes());
+        try {
+          textureSetterRawRef.current?.(rainEnter.texture);
+        } catch {
+          /* ignore */
+        }
+      } else if (enteringRain && Number.isFinite(coveragePct) && coveragePct >= 99) {
         const rainEnter = sectionGridRainEnterLevaPatch();
         patch.sparkleGapsCoverage = rainEnter.shader.sparkleGapsCoverage;
         if ((shaderValues as unknown as Record<string, unknown>).sparkleGapsSpeed == null) {
@@ -6171,7 +6183,9 @@ export function useEngineControls(
       : null,
     clientGraphicMode: clientApp ? heroGraphicId : null,
     clientRainShaderPreset: clientApp
-      ? String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || CONNECT_SHADER_PRESET_ID)
+      ? resolveGraphicRainShaderPreset(
+          String((shaderValues as unknown as Record<string, unknown>).rainShaderPreset || SPIRAL_SHADER_PRESET_ID),
+        )
       : null,
   };
 }

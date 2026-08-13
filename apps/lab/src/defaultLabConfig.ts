@@ -526,7 +526,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
   textureSidebarWidth: 272,
   shaderSidebarWidth: 272,
   connectShapeType: "spiral",
-  shaderPresetId: "connect",
+  shaderPresetId: "spiral",
   connectCameraDistance: 60,
   connectCameraRotateX: -14.922460937499977,
   connectCameraRotateY: -180,

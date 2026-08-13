@@ -10,6 +10,7 @@ import {
   isSpiralShaderPreset,
   isTwizzlerMapShaderPreset,
   NEBULA_SHADER_PRESET_ID,
+  resolveGraphicRainShaderPreset,
   SHADER_LIBRARY,
   SPIRAL_SHADER_PRESET_ID,
   TWIZZLER_MAP_SHADER_PRESET_ID,
@@ -55,6 +56,16 @@ describe("shader library", () => {
   it("includes the copied saved shaders", () => {
     expect(SHADER_LIBRARY.length).toBeGreaterThan(10);
     expect(findShaderLibraryEntry("061d653b-18f2-40b3-b92f-86a4459b6b5a")?.label).toBe("Planets");
+  });
+
+  it("routes Graphic Rain off the connect noise toy and Twizzler shaders (CF-76)", () => {
+    expect(resolveGraphicRainShaderPreset(undefined)).toBe(SPIRAL_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset("")).toBe(SPIRAL_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset(CONNECT_SHADER_PRESET_ID)).toBe(SPIRAL_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset("twizzler-sine")).toBe(SPIRAL_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset(TWIZZLER_MAP_SHADER_PRESET_ID)).toBe(SPIRAL_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset(NEBULA_SHADER_PRESET_ID)).toBe(NEBULA_SHADER_PRESET_ID);
+    expect(resolveGraphicRainShaderPreset(SPIRAL_SHADER_PRESET_ID)).toBe(SPIRAL_SHADER_PRESET_ID);
   });
 
   it("detects presets by source", () => {

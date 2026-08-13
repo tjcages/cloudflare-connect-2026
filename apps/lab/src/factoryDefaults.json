@@ -707,7 +707,7 @@
     "textureSidebarWidth": 272,
     "shaderSidebarWidth": 372,
     "connectShapeType": "spiral",
-    "shaderPresetId": "connect",
+    "shaderPresetId": "spiral",
     "connectCameraDistance": 7,
     "connectCameraRotateX": 42.07753906250002,
     "connectCameraRotateY": -112,

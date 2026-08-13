@@ -107,6 +107,23 @@ export function isTwizzlerSineShaderPreset(id: string): boolean {
   return id === TWIZZLER_SINE_SHADER_PRESET_ID;
 }
 
+/**
+ * Graphic Rain must use the Connect 3D spiral renderer, not the Samuel YAN
+ * `connect` noise toy or a Twizzler ribbon shader.
+ */
+export function resolveGraphicRainShaderPreset(id: string | null | undefined): string {
+  const trimmed = typeof id === "string" ? id.trim() : "";
+  if (
+    !trimmed ||
+    trimmed === CONNECT_SHADER_PRESET_ID ||
+    trimmed === TWIZZLER_SINE_SHADER_PRESET_ID ||
+    trimmed === TWIZZLER_MAP_SHADER_PRESET_ID
+  ) {
+    return SPIRAL_SHADER_PRESET_ID;
+  }
+  return trimmed;
+}
+
 export function findShaderLibraryEntry(id: string): ShaderLibraryEntry | undefined {
   return ENTRY_BY_ID.get(id);
 }

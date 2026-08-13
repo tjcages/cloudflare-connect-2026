@@ -31,6 +31,33 @@ export function sectionGridRainStripes() {
   return structuredClone(DEFAULT_LAB_ENGINE_CONFIG.stripes);
 }
 
+export type RainSeedStripe = { opacity?: number };
+
+/** Banner 5:1 rain is one opacity-0 stripe + coverage=1. That is not authored rain. */
+export function rainEngineNeedsFactorySeed(input: { stripes?: readonly RainSeedStripe[]; coverage?: number }): boolean {
+  const stripes = input.stripes ?? [];
+  const visible = stripes.filter((stripe) => (stripe.opacity ?? 1) > 0.01);
+  if (visible.length < 2) return true;
+  if ((input.coverage ?? 0) >= 0.999) return true;
+  return false;
+}
+
+export function sectionGridRainEditableStripes(): Array<{
+  id: string;
+  hex: string;
+  startFrom: number;
+  width: number;
+  opacity: number;
+}> {
+  return sectionGridRainStripes().map((stripe, index) => ({
+    id: String(index),
+    hex: `#${stripe.color.toString(16).padStart(6, "0")}`,
+    startFrom: stripe.startFrom,
+    width: stripe.width,
+    opacity: stripe.opacity,
+  }));
+}
+
 /**
  * Live Leva patches when Graphic first enables Rain (no page reload).
  * Banner 5:1 ships gaps.coverage=1 (blank); factory is continuous cells (0).
@@ -52,6 +79,10 @@ export function sectionGridRainEnterLevaPatch(): {
       gapY: grid.gapY,
       orientationAngleDeg: grid.angleDeg,
       orientationStackMode: grid.orientation,
+      orientationRotationMode: grid.rotationMode,
+      orientationOverlapAmount: grid.overlapAmount,
+      colorsMode: config.colors?.mode ?? "luminance",
+      stripeBlendMode: config.colors?.stripeBlendMode ?? "multiply",
     },
     texture: {
       textureDpr: config.fieldScale ?? DEFAULT_LAB_ENGINE_CONFIG.fieldScale,
@@ -77,7 +108,7 @@ export function buildSectionGridRainPreset(
     ...DEFAULT_LAB_SETTINGS,
     ...keep,
     textureSourceMode: "shader",
-    shaderPresetId: DEFAULT_LAB_SETTINGS.shaderPresetId || "connect",
+    shaderPresetId: DEFAULT_LAB_SETTINGS.shaderPresetId || "spiral",
     twizzlerEnabled: flags.twizzlerEnabled,
     // Client Rain authoring uses texture sidebar (Camera / Tone) + shader sidebar.
     textureSidebarOpen: true,
