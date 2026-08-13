@@ -1,0 +1,190 @@
+export const TIMELINE_STORAGE_KEY = "stripes-engine-lab-timeline-v1";
+
+export type TimelineValue = number | string | boolean;
+
+export type TimelineEasing = "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring" | "hold";
+
+export type TimelineKeyframe = {
+  id: string;
+  time: number;
+  value: TimelineValue;
+  easing: TimelineEasing;
+};
+
+export type TimelineTrack = {
+  id: string;
+  propertyKey: string;
+  propertyPath: string;
+  label: string;
+  valueType: "number" | "color" | "discrete";
+  keyframes: TimelineKeyframe[];
+};
+
+export type TimelineSequence = {
+  duration: number;
+  loop: boolean;
+  tracks: TimelineTrack[];
+};
+
+export type TimelineProperty = {
+  key: string;
+  path: string;
+  group: string;
+  label: string;
+  value: TimelineValue;
+  valueType: TimelineTrack["valueType"];
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
+export const DEFAULT_TIMELINE_SEQUENCE: TimelineSequence = {
+  duration: 6,
+  loop: true,
+  tracks: [],
+};
+
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+export function createTimelineId(prefix: string): string {
+  const random = Math.random().toString(36).slice(2, 8);
+  return `${prefix}-${Date.now().toString(36)}-${random}`;
+}
+
+export function clampTimelineTime(time: number, duration: number): number {
+  return Math.min(Math.max(0, duration), Math.max(0, Number.isFinite(time) ? time : 0));
+}
+
+export function sortKeyframes(keyframes: readonly TimelineKeyframe[]): TimelineKeyframe[] {
+  return [...keyframes].sort((a, b) => a.time - b.time || a.id.localeCompare(b.id));
+}
+
+export function applyTimelineEasing(progress: number, easing: TimelineEasing): number {
+  const t = Math.min(1, Math.max(0, progress));
+  switch (easing) {
+    case "easeIn":
+      return t * t * t;
+    case "easeOut":
+      return 1 - (1 - t) ** 3;
+    case "easeInOut":
+      return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+    case "spring": {
+      if (t === 0 || t === 1) return t;
+      return 1 - Math.cos(t * Math.PI * 4.5) * Math.exp(-t * 6);
+    }
+    case "hold":
+      return 0;
+    default:
+      return t;
+  }
+}
+
+function interpolateHex(from: string, to: string, progress: number): string {
+  const a = Number.parseInt(from.slice(1), 16);
+  const b = Number.parseInt(to.slice(1), 16);
+  const channel = (shift: number) =>
+    Math.round(((a >> shift) & 255) + (((b >> shift) & 255) - ((a >> shift) & 255)) * progress);
+  return `#${[channel(16), channel(8), channel(0)].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+}
+
+export function interpolateTimelineValue(
+  from: TimelineValue,
+  to: TimelineValue,
+  progress: number,
+  valueType: TimelineTrack["valueType"],
+): TimelineValue {
+  if (valueType === "number" && typeof from === "number" && typeof to === "number") {
+    return from + (to - from) * progress;
+  }
+  if (
+    valueType === "color" &&
+    typeof from === "string" &&
+    typeof to === "string" &&
+    HEX_COLOR.test(from) &&
+    HEX_COLOR.test(to)
+  ) {
+    return interpolateHex(from, to, progress);
+  }
+  return progress < 1 ? from : to;
+}
+
+export function evaluateTrack(track: TimelineTrack, time: number): TimelineValue | undefined {
+  const frames = sortKeyframes(track.keyframes);
+  if (frames.length === 0) return undefined;
+  if (time <= frames[0].time) return frames[0].value;
+  const last = frames[frames.length - 1];
+  if (time >= last.time) return last.value;
+
+  for (let index = 0; index < frames.length - 1; index += 1) {
+    const from = frames[index];
+    const to = frames[index + 1];
+    if (time > to.time) continue;
+    const span = Math.max(0.000001, to.time - from.time);
+    const eased = applyTimelineEasing((time - from.time) / span, from.easing);
+    return interpolateTimelineValue(from.value, to.value, eased, track.valueType);
+  }
+  return last.value;
+}
+
+export function evaluateSequence(sequence: TimelineSequence, time: number): Record<string, TimelineValue> {
+  const values: Record<string, TimelineValue> = {};
+  for (const track of sequence.tracks) {
+    const value = evaluateTrack(track, time);
+    if (value !== undefined) values[track.propertyKey] = value;
+  }
+  return values;
+}
+
+export function upsertKeyframe(
+  track: TimelineTrack,
+  time: number,
+  value: TimelineValue,
+  easing: TimelineEasing = "easeInOut",
+): TimelineTrack {
+  const existing = track.keyframes.find((frame) => Math.abs(frame.time - time) < 0.001);
+  const keyframes = existing
+    ? track.keyframes.map((frame) => (frame.id === existing.id ? { ...frame, value } : frame))
+    : [...track.keyframes, { id: createTimelineId("key"), time, value, easing }];
+  return { ...track, keyframes: sortKeyframes(keyframes) };
+}
+
+export function normalizeTimelineSequence(value: unknown): TimelineSequence {
+  if (!value || typeof value !== "object") return DEFAULT_TIMELINE_SEQUENCE;
+  const raw = value as Partial<TimelineSequence>;
+  const duration =
+    typeof raw.duration === "number" && Number.isFinite(raw.duration)
+      ? Math.min(3600, Math.max(0.1, raw.duration))
+      : DEFAULT_TIMELINE_SEQUENCE.duration;
+  const tracks = Array.isArray(raw.tracks)
+    ? raw.tracks.filter((track): track is TimelineTrack => {
+        if (!track || typeof track !== "object") return false;
+        const candidate = track as TimelineTrack;
+        return (
+          typeof candidate.id === "string" &&
+          typeof candidate.propertyKey === "string" &&
+          typeof candidate.propertyPath === "string" &&
+          Array.isArray(candidate.keyframes)
+        );
+      })
+    : [];
+  return { duration, loop: raw.loop !== false, tracks };
+}
+
+export function loadTimelineSequence(): TimelineSequence {
+  if (typeof localStorage === "undefined") return DEFAULT_TIMELINE_SEQUENCE;
+  try {
+    const raw = localStorage.getItem(TIMELINE_STORAGE_KEY);
+    return raw ? normalizeTimelineSequence(JSON.parse(raw)) : DEFAULT_TIMELINE_SEQUENCE;
+  } catch {
+    return DEFAULT_TIMELINE_SEQUENCE;
+  }
+}
+
+export function saveTimelineSequence(sequence: TimelineSequence): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(sequence));
+  } catch {
+    // Timeline editing remains usable when storage is unavailable.
+  }
+}

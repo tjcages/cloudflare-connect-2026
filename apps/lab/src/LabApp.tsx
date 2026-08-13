@@ -98,6 +98,8 @@ import {
 import { clearTwizzler, renderTwizzler } from "./twizzler";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
 import { steppedTransportTime, TimeTransport, type TimeTransportController } from "./components/TimeTransport";
+import { TimelineEditor, type TimelineLevaStore } from "./components/TimelineEditor";
+import type { TimelineValue } from "./animation/timelineModel";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -799,6 +801,7 @@ function LabInner() {
   const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
   const [shaderPresetId, setShaderPresetId] = useState(() => labSettings.shaderPresetId || DEFAULT_SHADER_PRESET_ID);
   const [shaderPlaying, setShaderPlaying] = useState(true);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [previewZoom, setPreviewZoom] = useState(() => labSettings.previewZoom ?? initialFitPreviewZoom(labSettings));
   const [previewZoomReady, setPreviewZoomReady] = useState(false);
   const [mouseZoomEnabled, setMouseZoomEnabled] = useState(true);
@@ -1007,6 +1010,29 @@ function LabInner() {
   twizzlerMapRef.current = twizzlerMap;
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
+  const timelineStores = useMemo(
+    () => [textureStore as TimelineLevaStore, shaderStore as TimelineLevaStore],
+    [shaderStore, textureStore],
+  );
+  const applyTimelineValues = useCallback(
+    (values: Record<string, TimelineValue>) => {
+      for (const store of timelineStores) {
+        const data = store.getData();
+        const updates: Record<string, TimelineValue> = {};
+        for (const [key, value] of Object.entries(values)) {
+          const path = Object.keys(data).find((candidate) => (candidate.split(".").at(-1) ?? candidate) === key);
+          if (path) updates[path] = value;
+        }
+        if (Object.keys(updates).length > 0) store.set(updates, false);
+      }
+    },
+    [timelineStores],
+  );
+  const syncTimelineTime = useCallback((seconds: number) => {
+    shaderTimeSecRef.current = seconds;
+    twizzlerTimeSecRef.current = seconds;
+    shaderLastTickMsRef.current = performance.now();
+  }, []);
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
@@ -2802,6 +2828,13 @@ function LabInner() {
             <span className="lab-canvas-zoom-value">{Math.round(previewZoom * 100)}%</span>
           </div>
         </div>
+        <TimelineEditor
+          open={timelineOpen}
+          stores={timelineStores}
+          onOpenChange={setTimelineOpen}
+          onApplyValues={applyTimelineValues}
+          onTimeChange={syncTimelineTime}
+        />
         <LabBottomBar
           videoEl={videoEl}
           editTheme={editTheme}
