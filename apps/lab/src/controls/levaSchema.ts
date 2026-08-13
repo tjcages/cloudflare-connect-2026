@@ -14,6 +14,7 @@ import {
 import type { LabEditTheme, LabSettings } from "../persistence";
 import { fromEditable, type EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
+import { createLevaPatchWriter } from "./levaStoreWrite";
 import { colorLibraryInputPlugin } from "./colorLibraryInputPlugin";
 import { gradientStopsPlugin } from "./gradientStopsPlugin";
 import { timeTransportPlugin } from "./timeTransportPlugin";
@@ -714,9 +715,11 @@ export function useEngineControls(
     return intToHex(d.background.color);
   });
   /**
-   * Schema rebuilds (stripeKey etc.) re-seed Leva from `value:` fields. Keep these
-   * refs current so rebuilds do not snap Appearance/Background back to mount defaults
-   * and re-apply Appearance stage colors over a user Background Color (CF-44).
+   * Schema rebuilds (palette options / selected palette) re-seed Leva from `value:`
+   * fields. Keep these refs current so rebuilds do not snap Appearance/Background
+   * back to mount defaults and re-apply Appearance stage colors over a user
+   * Background Color (CF-44). Do not include stripeKey — width/opacity drags would
+   * rebuild the whole shader schema and crash under fast input (CF-68).
    */
   const levaSchemaSeedRef = useRef({
     clientSizeId: (initialLabSettings.clientSizeId ??
@@ -760,6 +763,33 @@ export function useEngineControls(
   const lastStickyBackgroundRef = useRef(backgroundHex);
   const shaderControlSetterRef = useRef<((values: Record<string, unknown>) => void) | null>(null);
   const textureControlSetterRef = useRef<((values: Record<string, unknown>) => void) | null>(null);
+  const shaderSetterRawRef = useRef<((values: Record<string, unknown>) => void) | null>(null);
+  const textureSetterRawRef = useRef<((values: Record<string, unknown>) => void) | null>(null);
+  const shaderValuesRecordRef = useRef<Record<string, unknown>>({});
+  const textureValuesRecordRef = useRef<Record<string, unknown>>({});
+  const shaderPatchWriter = useMemo(
+    () =>
+      createLevaPatchWriter({
+        getSetter: () => shaderSetterRawRef.current,
+        getCurrent: () => shaderValuesRecordRef.current,
+      }),
+    [],
+  );
+  const texturePatchWriter = useMemo(
+    () =>
+      createLevaPatchWriter({
+        getSetter: () => textureSetterRawRef.current,
+        getCurrent: () => textureValuesRecordRef.current,
+      }),
+    [],
+  );
+  useEffect(
+    () => () => {
+      shaderPatchWriter.dispose();
+      texturePatchWriter.dispose();
+    },
+    [shaderPatchWriter, texturePatchWriter],
+  );
 
   stripePaletteValueRef.current = stripePaletteValue;
   activeGeneratedPaletteRef.current = activeGeneratedPalette;
@@ -1222,7 +1252,9 @@ export function useEngineControls(
     { store: textureStore },
     [],
   );
-  textureControlSetterRef.current = setTextureControl as (values: Record<string, unknown>) => void;
+  textureValuesRecordRef.current = textureValues as unknown as Record<string, unknown>;
+  textureSetterRawRef.current = setTextureControl as (values: Record<string, unknown>) => void;
+  textureControlSetterRef.current = (values) => texturePatchWriter.writeNow(values);
 
   const clientSizeOptions = Object.fromEntries(
     CLIENT_SIZE_PRESETS.map((preset) => [preset.label, preset.id]),
@@ -5022,11 +5054,13 @@ export function useEngineControls(
         ),
       }),
     { store: shaderStore },
-    // Do NOT depend on client Default/Advanced — rebuilding the schema overrides
-    // live Leva values and breaks saved layouts / panel toggles.
-    [stripeKey, stripePaletteOptionsKey, stripePaletteValue],
+    // Do NOT depend on client Default/Advanced or stripeKey — rebuilding the
+    // schema overrides live Leva values (CF-27 layouts, CF-68 fast slider crash).
+    [stripePaletteOptionsKey, stripePaletteValue],
   );
-  shaderControlSetterRef.current = setShaderControl;
+  shaderValuesRecordRef.current = shaderValues as unknown as Record<string, unknown>;
+  shaderSetterRawRef.current = setShaderControl as (values: Record<string, unknown>) => void;
+  shaderControlSetterRef.current = (values) => shaderPatchWriter.writeNow(values);
 
   const clientLayoutId = String(
     (shaderValues as unknown as Record<string, unknown>).clientLayout ??
@@ -5085,14 +5119,14 @@ export function useEngineControls(
     }
     shaderControlSetterRef.current?.(patch);
     onClientGraphicModeChangeRef.current?.(heroGraphicId);
-    setShaderControl({});
+    shaderSetterRawRef.current?.({});
     try {
-      setTextureControl({});
+      textureSetterRawRef.current?.({});
     } catch {
       /* ignore */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to graphic mode changes
-  }, [clientApp, heroGraphicId, setShaderControl, setTextureControl]);
+  }, [clientApp, heroGraphicId]);
 
   /** Keep Hero → Graphic in sync when Show/Rain flags change (Apply layout / Reset). */
   const rainEnabledFlag = Boolean((shaderValues as unknown as Record<string, unknown>).rainEnabled);
@@ -5104,7 +5138,7 @@ export function useEngineControls(
     lastHeroGraphicIdRef.current = derived;
     levaSchemaSeedRef.current.clientHeroGraphic = derived;
     shaderControlSetterRef.current?.({ heroGraphic: derived });
-  }, [clientApp, twizzlerEnabledFlag, rainEnabledFlag, heroGraphicId, setShaderControl]);
+  }, [clientApp, twizzlerEnabledFlag, rainEnabledFlag, heroGraphicId]);
 
   /**
    * Layout preset — ribbon geometry + motion only.
@@ -5150,7 +5184,7 @@ export function useEngineControls(
       /* texture keys only */
     }
     shaderControlSetterRef.current?.(patch);
-  }, [clientApp, clientLayoutId, heroGraphicId, setShaderControl]);
+  }, [clientApp, clientLayoutId, heroGraphicId]);
 
   /** Color preset — Twizzler family ink and/or original rain stripe palettes. */
   const lastClientColorIdRef = useRef<string | null>(null);
@@ -5194,7 +5228,7 @@ export function useEngineControls(
       /* ignore */
     }
     shaderControlSetterRef.current?.(patch);
-  }, [clientApp, clientColorId, handlePaletteChange, heroGraphicId, setShaderControl]);
+  }, [clientApp, clientColorId, handlePaletteChange, heroGraphicId]);
 
   // Keep Color left/right knobs and the Field editor on the same endpoint colors
   // so Shared ↔ Baked doesn't drop hotspot positions or endpoint ink (CF-55 / CF-58).
@@ -5212,33 +5246,32 @@ export function useEngineControls(
       const far = parsed[0]!.color;
       const near = parsed[parsed.length - 1]!.color;
       if (far === colorFar.toLowerCase() && near === colorNear.toLowerCase()) return;
-      shaderControlSetterRef.current?.({ twizzlerColorFar: far, twizzlerColor: near });
+      shaderPatchWriter.write({ twizzlerColorFar: far, twizzlerColor: near });
       return;
     }
     const patched = withTwizzlerGradientEndpointColors(parsed, colorFar, colorNear);
     const serialized = serializeTwizzlerGradientStops(patched);
     if (serialized === twizzlerGradientStopsValue) return;
-    shaderControlSetterRef.current?.({ twizzlerGradientStops: serialized });
-  }, [twizzlerRibbonColorModeValue, twizzlerGradientStopsValue, twizzlerColorValue, twizzlerColorFarValue]);
+    shaderPatchWriter.write({ twizzlerGradientStops: serialized });
+  }, [
+    shaderPatchWriter,
+    twizzlerRibbonColorModeValue,
+    twizzlerGradientStopsValue,
+    twizzlerColorValue,
+    twizzlerColorFarValue,
+  ]);
 
   // Nudge the store when Default↔Advanced flips so Leva recomputes visible paths
   // (render gates read refs; without a store tick folders stay stale).
   useEffect(() => {
     if (!clientApp) return;
-    setShaderControl({});
-  }, [clientApp, clientPanelMode, setShaderControl]);
+    shaderSetterRawRef.current?.({});
+  }, [clientApp, clientPanelMode]);
 
   useEffect(() => {
-    setTextureControl({});
-    setShaderControl({});
-  }, [
-    activeShaderConfig,
-    showShaderCamera,
-    showConnectCamera,
-    showTwizzlerRibbon,
-    setTextureControl,
-    setShaderControl,
-  ]);
+    textureSetterRawRef.current?.({});
+    shaderSetterRawRef.current?.({});
+  }, [activeShaderConfig, showShaderCamera, showConnectCamera, showTwizzlerRibbon]);
 
   const values = { ...textureValues, ...shaderValues };
   const imageColorsMode = values.colorsMode === "colors";
@@ -5257,18 +5290,10 @@ export function useEngineControls(
   backgroundRampSettingsRef.current = currentBackgroundRampSettings;
   const setControl = useCallback(
     (next: Record<string, unknown>) => {
-      try {
-        setTextureControl(next);
-      } catch {
-        // Some programmatic updates target only the shader panel.
-      }
-      try {
-        setShaderControl(next);
-      } catch {
-        // Some programmatic updates target only the texture panel.
-      }
+      texturePatchWriter.writeNow(next);
+      shaderPatchWriter.writeNow(next);
     },
-    [setTextureControl, setShaderControl],
+    [shaderPatchWriter, texturePatchWriter],
   );
 
   const lastClientAppearanceRef = useRef<string | null>(null);
@@ -5311,8 +5336,8 @@ export function useEngineControls(
   }, [clientApp, clientAppearanceId, heroGraphicId, setControl]);
 
   useEffect(() => {
-    setShaderControl({ stripeColorsTable: stripeTableKey });
-  }, [setShaderControl, stripeTableKey]);
+    shaderPatchWriter.write({ stripeColorsTable: stripeTableKey });
+  }, [shaderPatchWriter, stripeTableKey]);
 
   useEffect(() => {
     setBackgroundRampSettings((prev) =>
@@ -5320,7 +5345,7 @@ export function useEngineControls(
     );
   }, [currentBackgroundRampSettings, currentBackgroundRampSettingsKey]);
 
-  controlSetterRef.current = setShaderControl as (next: { backgroundColor?: string | null }) => void;
+  controlSetterRef.current = (next) => shaderPatchWriter.writeNow(next);
   backgroundColorRef.current = normalizeHexString(values.backgroundColor, backgroundHex) ?? backgroundHex;
 
   useEffect(() => {

@@ -1195,6 +1195,7 @@ function LabInner({
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
+  const lastEngineConfigJsonRef = useRef<string | null>(null);
   const getLabSettingsSnapshotRef = useRef(getLabSettingsSnapshot);
   getLabSettingsSnapshotRef.current = getLabSettingsSnapshot;
 
@@ -2491,20 +2492,28 @@ function LabInner({
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    const connectUnderlayActive =
-      textureSourceModeRef.current === "shader" &&
-      isSpiralShaderPreset(shaderPresetIdRef.current) &&
-      labSettingsRef.current.connectGradientUnderlay;
-    const twizzlerActive = shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled);
-    const previewConfig =
-      backgroundSourceOpacity > 0.001 || connectUnderlayActive || twizzlerActive
-        ? { ...controls, background: { ...controls.background, transparent: true } }
-        : controls;
-    const configToApply = manualRef.current
-      ? { ...previewConfig, reveal: { ...previewConfig.reveal, enabled: false } }
-      : previewConfig;
-    engine.setConfig(configToApply);
-    if (manualRef.current) engine.renderFrame();
+    const frame = window.requestAnimationFrame(() => {
+      const liveEngine = engineRef.current;
+      if (!liveEngine) return;
+      const connectUnderlayActive =
+        textureSourceModeRef.current === "shader" &&
+        isSpiralShaderPreset(shaderPresetIdRef.current) &&
+        labSettingsRef.current.connectGradientUnderlay;
+      const twizzlerActive = shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled);
+      const previewConfig =
+        backgroundSourceOpacity > 0.001 || connectUnderlayActive || twizzlerActive
+          ? { ...controls, background: { ...controls.background, transparent: true } }
+          : controls;
+      const configToApply = manualRef.current
+        ? { ...previewConfig, reveal: { ...previewConfig.reveal, enabled: false } }
+        : previewConfig;
+      const key = JSON.stringify(configToApply);
+      if (lastEngineConfigJsonRef.current === key) return;
+      lastEngineConfigJsonRef.current = key;
+      liveEngine.setConfig(configToApply);
+      if (manualRef.current) liveEngine.renderFrame();
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [
     controls,
     backgroundSourceOpacity,
@@ -2534,15 +2543,19 @@ function LabInner({
     });
   }, [controls.background.color, controls.background.transparent, getLabSettingsSnapshot]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (surfaceWorkspaceRef.current.mode === "partial") return;
-    const themed = composeThemedConfig();
-    const id = textureIdRef.current;
-    const key = `${id}:${JSON.stringify(themed)}`;
-    if (lastSavedConfigJsonRef.current === key) return;
-    lastSavedConfigJsonRef.current = key;
-    saveConfig(id, themed);
-  }, [controls, composeThemedConfig]);
+    const frame = window.requestAnimationFrame(() => {
+      if (surfaceWorkspaceRef.current.mode === "partial") return;
+      const themed = composeThemedConfigRef.current();
+      const id = textureIdRef.current;
+      const key = `${id}:${JSON.stringify(themed)}`;
+      if (lastSavedConfigJsonRef.current === key) return;
+      lastSavedConfigJsonRef.current = key;
+      saveConfig(id, themed);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [controls]);
 
   useEffect(() => {
     saveTextureId(textureId);
