@@ -652,7 +652,7 @@ export function TimelineEditor({
     let frame = 0;
     const flush = () => {
       frame = 0;
-      updateTime(timeFromPointer(pendingClientX), false, false);
+      updateTime(timeFromPointer(pendingClientX));
     };
     const move = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== pointerId) return;
