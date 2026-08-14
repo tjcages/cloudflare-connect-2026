@@ -899,60 +899,67 @@ export function TimelineEditor({
                   }
                 }}
               >
-                {sequence.tracks.length === 0 ? (
-                  <div className="timeline-empty-copy">
-                    <Diamond size={14} />
-                    <p>Add a control, then place keys to animate it.</p>
-                  </div>
-                ) : (
-                  sequence.tracks.map((track) => (
-                    <div
-                      key={track.id}
-                      className={`timeline-track-label${selectedTrackId === track.id ? " is-selected" : ""}`}
-                    >
-                      <span className={`timeline-track-type is-${track.valueType}`} />
-                      <button
-                        type="button"
-                        className="timeline-track-name"
-                        title={track.propertyPath}
-                        onClick={() => {
-                          setSelectedTrackId(track.id);
-                          setSelectedKeyId(null);
-                        }}
-                      >
-                        {track.label}
-                      </button>
-                      <small>{displayValue(evaluateSequence(sequence, currentTime)[track.propertyPath] ?? "—")}</small>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          addKey(track);
-                        }}
-                        title="Add key here"
-                      >
-                        <Diamond size={11} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSequence((current) => ({
-                            ...current,
-                            tracks: current.tracks.filter((candidate) => candidate.id !== track.id),
-                          }));
-                          if (selectedTrackId === track.id) {
-                            setSelectedTrackId(null);
-                            setSelectedKeyId(null);
-                          }
-                        }}
-                        title="Remove property"
-                      >
-                        <Trash2 size={11} />
-                      </button>
+                <div
+                  className="timeline-track-list-content"
+                  style={{ height: `max(100%, ${timelineScrollContentHeight(sequence.tracks.length)}px)` }}
+                >
+                  {sequence.tracks.length === 0 ? (
+                    <div className="timeline-empty-copy">
+                      <Diamond size={14} />
+                      <p>Add a control, then place keys to animate it.</p>
                     </div>
-                  ))
-                )}
+                  ) : (
+                    sequence.tracks.map((track) => (
+                      <div
+                        key={track.id}
+                        className={`timeline-track-label${selectedTrackId === track.id ? " is-selected" : ""}`}
+                      >
+                        <span className={`timeline-track-type is-${track.valueType}`} />
+                        <button
+                          type="button"
+                          className="timeline-track-name"
+                          title={track.propertyPath}
+                          onClick={() => {
+                            setSelectedTrackId(track.id);
+                            setSelectedKeyId(null);
+                          }}
+                        >
+                          {track.label}
+                        </button>
+                        <small>
+                          {displayValue(evaluateSequence(sequence, currentTime)[track.propertyPath] ?? "—")}
+                        </small>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            addKey(track);
+                          }}
+                          title="Add key here"
+                        >
+                          <Diamond size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSequence((current) => ({
+                              ...current,
+                              tracks: current.tracks.filter((candidate) => candidate.id !== track.id),
+                            }));
+                            if (selectedTrackId === track.id) {
+                              setSelectedTrackId(null);
+                              setSelectedKeyId(null);
+                            }
+                          }}
+                          title="Remove property"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
             <div className="timeline-canvas-shell">

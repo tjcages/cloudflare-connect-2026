@@ -3039,12 +3039,16 @@ body.lab-sidebar-resizing canvas {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 34px;
+  overscroll-behavior: contain;
   scrollbar-width: none;
 }
 
 .timeline-track-list-scroll::-webkit-scrollbar {
   display: none;
+}
+
+.timeline-track-list-content {
+  min-height: 100%;
 }
 
 .timeline-track-list-heading {
@@ -3194,6 +3198,7 @@ body.lab-sidebar-resizing canvas {
   min-height: 0;
   flex: 1;
   overflow: hidden auto;
+  overscroll-behavior: contain;
   scrollbar-width: none;
   cursor: ew-resize;
 }
