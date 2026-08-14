@@ -11,6 +11,7 @@ import {
 import { ChevronDown, ChevronRight, Diamond, Keyboard, Plus, Repeat2, Search, Trash2, X } from "lucide-react";
 import {
   advanceTimelinePlayback,
+  animationFrameDeltaSeconds,
   clampTimelineKeyframeDelta,
   clampTimelineTime,
   createTimelineId,
@@ -511,7 +512,7 @@ export function TimelineEditor({
     let frame = 0;
     let previous = performance.now();
     const tick = (now: number) => {
-      const elapsed = Math.min(0.1, (now - previous) / 1000);
+      const elapsed = animationFrameDeltaSeconds(previous, now);
       previous = now;
       const playback = advanceTimelinePlayback(
         timeRef.current,

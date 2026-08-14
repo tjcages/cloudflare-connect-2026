@@ -14,8 +14,10 @@ import {
   pickMediaRecorderProfile,
   resolveExportDuration,
   resolveExportFrameCount,
+  resolveRealtimeVideoExportProfile,
   resolveRequestedExportRange,
   shouldConfirmLongExport,
+  shouldCompositeVideoFrame,
 } from "./videoExport";
 
 describe("resolveExportDuration", () => {
@@ -48,6 +50,23 @@ describe("export quality defaults", () => {
   it("targets high frame rate and bitrate for graphic exports", () => {
     expect(LAB_VIDEO_EXPORT_FPS).toBeGreaterThanOrEqual(60);
     expect(LAB_VIDEO_EXPORT_BITRATE).toBeGreaterThanOrEqual(50_000_000);
+  });
+
+  it("adapts real-time recording load to the canvas resolution", () => {
+    expect(resolveRealtimeVideoExportProfile(1920, 1080)).toEqual({
+      fps: 60,
+      videoBitsPerSecond: 19_906_560,
+    });
+    expect(resolveRealtimeVideoExportProfile(3840, 2160)).toEqual({
+      fps: 30,
+      videoBitsPerSecond: 39_813_120,
+    });
+  });
+
+  it("only composites when the recorder needs another frame", () => {
+    expect(shouldCompositeVideoFrame(16, 0, 30)).toBe(false);
+    expect(shouldCompositeVideoFrame(34, 0, 30)).toBe(true);
+    expect(shouldCompositeVideoFrame(17, 0, 60)).toBe(true);
   });
 });
 
@@ -257,6 +276,7 @@ describe("exportLabVideo", () => {
     });
     vi.stubGlobal("cancelAnimationFrame", (id: number) => cancelled.add(id));
 
+    let recorderOptions: { mimeType: string; videoBitsPerSecond?: number } | undefined;
     class MockMediaRecorder {
       static isTypeSupported(mimeType: string) {
         return mimeType === "video/mp4";
@@ -264,6 +284,10 @@ describe("exportLabVideo", () => {
 
       state: "inactive" | "recording" = "inactive";
       private listeners = new Map<string, Array<() => void>>();
+
+      constructor(_stream: MediaStream, options: { mimeType: string; videoBitsPerSecond?: number }) {
+        recorderOptions = options;
+      }
 
       addEventListener(type: string, listener: () => void) {
         const bucket = this.listeners.get(type) ?? [];
@@ -296,6 +320,8 @@ describe("exportLabVideo", () => {
       canvas,
       sourceKind: "image",
       stopSignal: stopController.signal,
+      fps: 30,
+      videoBitsPerSecond: 24_000_000,
       download: false,
       createCompositor,
       onPhase: (phase) => phases.push(phase),
@@ -306,6 +332,8 @@ describe("exportLabVideo", () => {
     });
 
     expect(blob.type).toBe("video/mp4");
+    expect(canvas.captureStream).toHaveBeenCalledWith(30);
+    expect(recorderOptions?.videoBitsPerSecond).toBe(24_000_000);
     expect(progress.at(-1)?.[1]).toBe(0);
     expect(phases).toEqual(["recording", "done"]);
   });

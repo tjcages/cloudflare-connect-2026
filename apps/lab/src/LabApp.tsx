@@ -81,8 +81,13 @@ import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { downloadEps, svgToEps } from "./export/svgToEps";
 import { resolveSvgExportBackground } from "./export/svgExportBackground";
 import { twizzlerToSvgLayer } from "./export/twizzlerToSvg";
-import { exportLabVideo, formatVideoExportStatusLabel, type LabVideoExportPhase } from "./export/videoExport";
-import { resolveLabVideoExportLayers } from "./export/resolveLabVideoExportLayers";
+import {
+  exportLabVideo,
+  formatVideoExportStatusLabel,
+  resolveRealtimeVideoExportProfile,
+  type LabVideoExportPhase,
+} from "./export/videoExport";
+import type { LabVideoLayer } from "./export/videoCompositor";
 import { CONTROL_DRAWER_IDS, saveControlDrawerOpen, saveControlDrawerSnapshot } from "./controls/drawerState";
 import { DEFAULT_LAB_ENGINE_CONFIG } from "./defaultLabConfig";
 import {
@@ -145,7 +150,7 @@ import {
 } from "./surfaceWorkspace";
 import { TimelineEditor, type TimelineLevaStore } from "./components/TimelineEditor";
 import { buildTimelineStoreUpdates } from "./animation/timelineStoreValues";
-import type { TimelineValue } from "./animation/timelineModel";
+import { animationFrameDeltaSeconds, type TimelineValue } from "./animation/timelineModel";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -903,6 +908,8 @@ function LabInner({
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   videoElRef.current = videoEl;
   const [sourcePreview, setSourcePreview] = useState<LoadedTextureSource | null>(null);
+  const sourcePreviewRef = useRef(sourcePreview);
+  sourcePreviewRef.current = sourcePreview;
   const [labSettings, setLabSettings] = useState<LabSettings>(() => ({
     ...startupLabSettings,
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
@@ -1088,6 +1095,7 @@ function LabInner({
   const onExportVideoRef = useRef<() => void>(() => {});
   const onExportVideo = useCallback(() => onExportVideoRef.current(), []);
   const exportingVideoRef = useRef(false);
+  const videoExportCaptureActiveRef = useRef(false);
   const videoExportStopRef = useRef<AbortController | null>(null);
   const videoExportGenerationRef = useRef(0);
   const [videoExportPhase, setVideoExportPhase] = useState<LabVideoExportPhase>("idle");
@@ -1217,13 +1225,15 @@ function LabInner({
   );
   const applyTimelineValues = useCallback(
     (values: Record<string, TimelineValue>) => {
-      startTransition(() => {
+      const applyValues = () => {
         for (const store of timelineStores) {
           const data = store.getData();
           const updates = buildTimelineStoreUpdates(values, data);
           if (Object.keys(updates).length > 0) store.set(updates, false);
         }
-      });
+      };
+      if (videoExportCaptureActiveRef.current) applyValues();
+      else startTransition(applyValues);
     },
     [timelineStores],
   );
@@ -1909,6 +1919,7 @@ function LabInner({
       if (exportingVideoRef.current) {
         const stopController = videoExportStopRef.current;
         if (stopController && !stopController.signal.aborted) {
+          videoExportCaptureActiveRef.current = false;
           videoExportUiRef.current.setPhase("finishing");
           stopController.abort();
         }
@@ -1923,6 +1934,7 @@ function LabInner({
       const stopController = new AbortController();
       videoExportStopRef.current = stopController;
       exportingVideoRef.current = true;
+      videoExportCaptureActiveRef.current = true;
       const exportGeneration = ++videoExportGenerationRef.current;
       const ui = videoExportUiRef.current;
       let transcodeStartedAt = 0;
@@ -1930,36 +1942,58 @@ function LabInner({
       ui.setRecording({ elapsedMs: 0, totalMs: 0 });
       ui.setTranscodePercent(null);
       ui.setTranscodeElapsed(0);
-      const framesEnabled =
-        controlsRef.current.frames.enabled && (!clientMode || controlsRef.current.sparkle.gaps.enabled);
-      const layers =
-        surfaceWorkspaceRef.current.mode === "partial"
-          ? {
-              canvas: partialCompositeCanvasRef.current ?? engineCanvas,
-              underlayCanvases: undefined as HTMLCanvasElement[] | undefined,
-              overlayCanvases: undefined as HTMLCanvasElement[] | undefined,
-            }
-          : resolveLabVideoExportLayers({
-              engineCanvas,
-              twizzlerCanvas: twizzlerCanvasRef.current,
-              framesCanvas: framesCanvasRef.current,
-              twizzlerVisible: shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled),
-              // Match showRainRectOverlay: client Rain off hides the opaque engine pass.
-              rainVisible: !clientMode || controlsRef.current.sparkle.gaps.enabled,
-              framesEnabled,
-            });
+      const partialMode = surfaceWorkspaceRef.current.mode === "partial";
+      const exportCanvas = partialMode ? (partialCompositeCanvasRef.current ?? engineCanvas) : engineCanvas;
+      const rainVisible = () => !clientMode || controlsRef.current.sparkle.gaps.enabled;
+      const underlayLayers: LabVideoLayer[] | undefined = partialMode
+        ? undefined
+        : [
+            {
+              source: () => connectUnderlayHostRef.current?.querySelector("canvas") ?? null,
+              isVisible: () =>
+                textureSourceModeRef.current === "shader" &&
+                isSpiralShaderPreset(shaderPresetIdRef.current) &&
+                labSettingsRef.current.connectGradientUnderlay,
+            },
+            {
+              source: () => sourcePreviewRef.current?.source ?? null,
+              isVisible: () => backgroundSourceOpacityRef.current > 0.001,
+              opacity: () => backgroundSourceOpacityRef.current,
+              fit: () => {
+                const fit = controlsRef.current.transform.fit;
+                return fit === "contain" || fit === "width" || fit === "height" ? fit : "cover";
+              },
+            },
+            {
+              source: () => twizzlerCanvasRef.current,
+              isVisible: () => shouldShowTwizzlerOverlay(textureSourceModeRef.current, twizzlerRef.current.enabled),
+            },
+          ];
+      const overlayLayers: LabVideoLayer[] | undefined = partialMode
+        ? undefined
+        : [
+            {
+              source: () => framesCanvasRef.current,
+              isVisible: () => rainVisible() && controlsRef.current.frames.enabled,
+            },
+          ];
+      const realtimeProfile = resolveRealtimeVideoExportProfile(exportCanvas.width, exportCanvas.height);
       void exportLabVideo({
-        canvas: layers.canvas,
+        canvas: exportCanvas,
         sourceKind: video ? "video" : "image",
         video: video ?? undefined,
-        backgroundColor: controlsRef.current.background.transparent ? undefined : controlsRef.current.background.color,
-        underlayCanvases: layers.underlayCanvases,
-        overlayCanvases: layers.overlayCanvases,
+        getBackground: () => controlsRef.current.background,
+        isSourceVisible: partialMode ? undefined : rainVisible,
+        underlayLayers,
+        overlayLayers,
+        fps: realtimeProfile.fps,
+        videoBitsPerSecond: realtimeProfile.videoBitsPerSecond,
         startTimeSec: exportStartSec,
         stopSignal: stopController.signal,
         onPhase: (phase) => {
           if (videoExportGenerationRef.current !== exportGeneration) return;
           ui.setPhase(phase);
+          videoExportCaptureActiveRef.current = phase === "recording";
           if ((phase === "loading-encoder" || phase === "transcoding") && transcodeStartedAt === 0) {
             transcodeStartedAt = performance.now();
           }
@@ -1984,6 +2018,7 @@ function LabInner({
         .finally(() => {
           if (videoExportGenerationRef.current === exportGeneration) {
             videoExportStopRef.current = null;
+            videoExportCaptureActiveRef.current = false;
           }
           window.setTimeout(() => {
             if (videoExportGenerationRef.current !== exportGeneration) return;
@@ -2101,7 +2136,7 @@ function LabInner({
       let frameGroups: FrameGroup[] = [];
       const tick = () => {
         const now = performance.now();
-        const deltaSec = Math.max(0, Math.min(0.1, (now - shaderLastTickMsRef.current) / 1000));
+        const deltaSec = animationFrameDeltaSeconds(shaderLastTickMsRef.current, now);
         shaderLastTickMsRef.current = now;
         if (textureSourceModeRef.current === "shader") {
           if (shaderPlayingRef.current) shaderTimeSecRef.current += deltaSec;

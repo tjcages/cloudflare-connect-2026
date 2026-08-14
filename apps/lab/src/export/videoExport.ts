@@ -1,5 +1,10 @@
 import type { TranscodeWebmToMp4Options } from "./ffmpeg";
-import { createLabExportCompositor, type LabVideoCompositorOptions } from "./videoCompositor";
+import {
+  createLabExportCompositor,
+  type LabVideoBackgroundFrame,
+  type LabVideoCompositorOptions,
+  type LabVideoLayer,
+} from "./videoCompositor";
 
 export const LAB_IMAGE_EXPORT_DURATION_SEC = 5;
 export const LAB_VIDEO_EXPORT_MAX_DURATION_SEC = 120;
@@ -11,6 +16,8 @@ export const LAB_VIDEO_EXPORT_FPS = 60;
  * Browsers may clamp; still request the top of the practical range.
  */
 export const LAB_VIDEO_EXPORT_BITRATE = 80_000_000;
+export const LAB_REALTIME_VIDEO_EXPORT_MAX_BITRATE = 50_000_000;
+export const LAB_REALTIME_VIDEO_EXPORT_HIGH_RESOLUTION_PIXELS = 2_500_000;
 
 const MP4_MIME_CANDIDATES = ["video/mp4;codecs=avc1", "video/mp4"] as const;
 const WEBM_MIME_CANDIDATES = ["video/webm;codecs=vp8", "video/webm;codecs=vp9", "video/webm"] as const;
@@ -31,6 +38,24 @@ export type MediaRecorderProfile = {
   skipTranscode: boolean;
   extension: "mp4" | "webm";
 };
+
+export type RealtimeVideoExportProfile = { fps: 30 | 60; videoBitsPerSecond: number };
+
+/** Keep smaller canvases at 60fps; favor stable 30fps once retina output exceeds ~1440p. */
+export function resolveRealtimeVideoExportProfile(width: number, height: number): RealtimeVideoExportProfile {
+  const pixels = Math.max(1, Math.round(width)) * Math.max(1, Math.round(height));
+  const fps = pixels > LAB_REALTIME_VIDEO_EXPORT_HIGH_RESOLUTION_PIXELS ? 30 : 60;
+  return {
+    fps,
+    videoBitsPerSecond: Math.round(
+      Math.min(LAB_REALTIME_VIDEO_EXPORT_MAX_BITRATE, Math.max(12_000_000, pixels * fps * 0.16)),
+    ),
+  };
+}
+
+export function shouldCompositeVideoFrame(nowMs: number, lastFrameMs: number, fps: number): boolean {
+  return nowMs - lastFrameMs >= 1000 / Math.max(1, fps) - 0.5;
+}
 
 type CanvasCaptureTrack = MediaStreamTrack & { requestFrame?: () => void };
 
@@ -294,8 +319,12 @@ export async function recordCanvasToWebm(canvas: HTMLCanvasElement, options: Rec
   });
 
   let compositorRaf = 0;
-  const runCompositor = () => {
-    options.compositeFrame?.();
+  let lastCompositeAt = performance.now();
+  const runCompositor = (now: number) => {
+    if (shouldCompositeVideoFrame(now, lastCompositeAt, options.fps)) {
+      options.compositeFrame?.();
+      lastCompositeAt = now;
+    }
     compositorRaf = requestAnimationFrame(runCompositor);
   };
   if (options.compositeFrame) {
@@ -440,8 +469,14 @@ export type ExportLabVideoOptions = {
   sourceKind: LabExportSourceKind;
   video?: HTMLVideoElement;
   backgroundColor?: number;
+  getBackground?: () => LabVideoBackgroundFrame;
+  isSourceVisible?: () => boolean;
+  underlayLayers?: readonly LabVideoLayer[];
   underlayCanvases?: readonly HTMLCanvasElement[];
+  overlayLayers?: readonly LabVideoLayer[];
   overlayCanvases?: readonly HTMLCanvasElement[];
+  fps?: number;
+  videoBitsPerSecond?: number;
   startTimeSec?: number;
   durationSec?: number;
   signal?: AbortSignal;
@@ -465,8 +500,14 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     sourceKind,
     video,
     backgroundColor,
+    getBackground,
+    isSourceVisible,
+    underlayLayers,
     underlayCanvases,
+    overlayLayers,
     overlayCanvases,
+    fps = LAB_VIDEO_EXPORT_FPS,
+    videoBitsPerSecond = LAB_VIDEO_EXPORT_BITRATE,
     startTimeSec: requestedStartTimeSec = 0,
     durationSec: requestedDurationSec,
     signal,
@@ -517,17 +558,25 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
 
   onPhase?.("recording");
 
-  const compositor = await createCompositor(canvas, { backgroundColor, underlayCanvases, overlayCanvases });
+  const compositor = await createCompositor(canvas, {
+    backgroundColor,
+    getBackground,
+    isSourceVisible,
+    underlayLayers,
+    underlayCanvases,
+    overlayLayers,
+    overlayCanvases,
+  });
   const recordCanvas = compositor.canvas;
   const compositeFrame = compositor.compositeFrame;
 
   let recordedBlob: Blob;
   try {
     const recorderOptions = {
-      fps: LAB_VIDEO_EXPORT_FPS,
+      fps,
       durationMs: recordsUntilStopped ? undefined : durationMs,
       mimeType: profile.mimeType,
-      videoBitsPerSecond: LAB_VIDEO_EXPORT_BITRATE,
+      videoBitsPerSecond,
       signal,
       stopSignal,
       onProgress,

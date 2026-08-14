@@ -60,6 +60,11 @@ export function clampTimelineTime(time: number, duration: number): number {
   return Math.min(Math.max(0, duration), Math.max(0, Number.isFinite(time) ? time : 0));
 }
 
+/** Preserve wall-clock pacing through slow frames while still bounding tab-resume jumps. */
+export function animationFrameDeltaSeconds(previousMs: number, nowMs: number, maxSeconds = 0.5): number {
+  return Math.max(0, Math.min(maxSeconds, (nowMs - previousMs) / 1000));
+}
+
 export function advanceTimelinePlayback(
   time: number,
   elapsed: number,

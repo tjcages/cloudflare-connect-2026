@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceTimelinePlayback,
+  animationFrameDeltaSeconds,
   applyTimelineEasing,
   clampTimelineKeyframeDelta,
   evaluateSequence,
@@ -29,6 +30,11 @@ const track: TimelineTrack = {
 };
 
 describe("timeline model", () => {
+  it("preserves wall-clock pacing through a slow rendered frame", () => {
+    expect(animationFrameDeltaSeconds(1000, 1250)).toBe(0.25);
+    expect(animationFrameDeltaSeconds(1000, 3000)).toBe(0.5);
+  });
+
   it("only loops playback when Loop is enabled", () => {
     expect(advanceTimelinePlayback(5.9, 0.2, 6, false)).toEqual({ time: 6, playing: false, wrapped: false });
     expect(advanceTimelinePlayback(5.9, 0.2, 6, true)).toEqual({
