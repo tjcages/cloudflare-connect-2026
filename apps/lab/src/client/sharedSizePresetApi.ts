@@ -25,3 +25,10 @@ export async function createSharedSizePreset(input: SharedSizePresetInput): Prom
   const body = await apiJson<{ preset: SharedSizePreset }>(response);
   return body.preset;
 }
+
+export async function deleteSharedSizePreset(id: string): Promise<void> {
+  const response = await fetch(`${SIZE_PRESETS_ENDPOINT}/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (response.ok) return;
+  const body = (await response.json()) as { error?: unknown };
+  throw new Error(typeof body.error === "string" ? body.error : "The shared size could not be deleted.");
+}

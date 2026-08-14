@@ -16,6 +16,12 @@ function memoryStore(initial: SharedSizePreset[] = []): SharedSizePresetStore {
       presets.push(preset);
       return preset;
     },
+    async delete(id) {
+      const index = presets.findIndex((preset) => preset.id === id);
+      if (index === -1) return false;
+      presets.splice(index, 1);
+      return true;
+    },
   };
 }
 
@@ -83,5 +89,36 @@ describe("shared size preset API", () => {
       memoryStore(),
     );
     expect(response.status).toBe(413);
+  });
+
+  it("deletes an existing shared size", async () => {
+    const preset = {
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Lobby wall",
+      unit: "inches" as const,
+      width: 20,
+      height: 10,
+      ppi: 300,
+      createdAt: "2026-08-13T00:00:00.000Z",
+      updatedAt: "2026-08-13T00:00:00.000Z",
+    };
+    const store = memoryStore([preset]);
+    const response = await handleSharedSizePresetApi(
+      new Request(`https://example.com/api/size-presets/${preset.id}`, { method: "DELETE" }),
+      store,
+      preset.id,
+    );
+    expect(response.status).toBe(204);
+    expect(await store.list()).toEqual([]);
+  });
+
+  it("returns not found when deleting a missing shared size", async () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const response = await handleSharedSizePresetApi(
+      new Request(`https://example.com/api/size-presets/${id}`, { method: "DELETE" }),
+      memoryStore(),
+      id,
+    );
+    expect(response.status).toBe(404);
   });
 });

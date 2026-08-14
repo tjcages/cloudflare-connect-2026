@@ -49,4 +49,9 @@ export class D1SharedSizePresetStore implements SharedSizePresetStore {
     if (!row) throw new Error("D1 did not return the created size preset.");
     return fromRow(row);
   }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await this.database.prepare("DELETE FROM shared_size_presets WHERE id = ?1").bind(id).run();
+    return result.meta.changes > 0;
+  }
 }

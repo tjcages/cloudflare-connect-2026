@@ -11,10 +11,19 @@ function apiError(message: string, status: number): Response {
 export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === "/api/size-presets") {
+    const presetPathMatch = url.pathname.match(/^\/api\/size-presets\/([^/]+)$/);
+    if (url.pathname === "/api/size-presets" || presetPathMatch) {
+      let presetId: string | null = null;
+      if (presetPathMatch) {
+        try {
+          presetId = decodeURIComponent(presetPathMatch[1]);
+        } catch {
+          return apiError("Invalid shared size ID.", 400);
+        }
+      }
       const database = url.hostname === env.PRODUCTION_HOST ? env.DB : env.PREVIEW_DB;
       try {
-        return await handleSharedSizePresetApi(request, new D1SharedSizePresetStore(database));
+        return await handleSharedSizePresetApi(request, new D1SharedSizePresetStore(database), presetId);
       } catch (error) {
         console.error(
           JSON.stringify({

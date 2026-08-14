@@ -7,6 +7,7 @@ import {
 export interface SharedSizePresetStore {
   list(): Promise<SharedSizePreset[]>;
   create(id: string, input: SharedSizePresetInput): Promise<SharedSizePreset>;
+  delete(id: string): Promise<boolean>;
 }
 
 const JSON_HEADERS = {
@@ -46,7 +47,20 @@ async function readJsonBody(request: Request): Promise<unknown> {
   return JSON.parse(new TextDecoder().decode(body));
 }
 
-export async function handleSharedSizePresetApi(request: Request, store: SharedSizePresetStore): Promise<Response> {
+export async function handleSharedSizePresetApi(
+  request: Request,
+  store: SharedSizePresetStore,
+  presetId: string | null = null,
+): Promise<Response> {
+  if (presetId !== null) {
+    if (request.method !== "DELETE") return json({ error: "Method not allowed." }, 405);
+    if (!/^[0-9a-f-]{36}$/i.test(presetId)) return json({ error: "Invalid shared size ID." }, 400);
+    const deleted = await store.delete(presetId);
+    return deleted
+      ? new Response(null, { status: 204, headers: { "cache-control": "no-store" } })
+      : json({ error: "Shared size not found." }, 404);
+  }
+
   if (request.method === "GET") {
     return json({ presets: await store.list() });
   }

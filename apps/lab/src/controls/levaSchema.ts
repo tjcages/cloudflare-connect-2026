@@ -544,6 +544,10 @@ export function useEngineControls(
     onClientGraphicModeChange?: (mode: ClientGraphicMode) => void;
     /** Shared D1-backed sizes shown before the final Custom… option. */
     sharedSizePresets?: readonly SharedSizePreset[];
+    /** Save a named custom size to the shared database. */
+    onSaveSharedSize?: (name: string) => void;
+    /** Delete the currently selected shared size from the database. */
+    onDeleteSharedSize?: (preset: SharedSizePreset) => void;
   } = {},
 ): EngineControlsResult {
   const surfaceConfig = options.configScope === "surface";
@@ -570,6 +574,10 @@ export function useEngineControls(
   clientDefaultPanelRef.current = clientDefaultPanel;
   const clientAppRef = useRef(clientApp);
   clientAppRef.current = clientApp;
+  const onSaveSharedSizeRef = useRef(options.onSaveSharedSize);
+  onSaveSharedSizeRef.current = options.onSaveSharedSize;
+  const onDeleteSharedSizeRef = useRef(options.onDeleteSharedSize);
+  onDeleteSharedSizeRef.current = options.onDeleteSharedSize;
   const showCometLogoShaderConfig = () =>
     activeShaderConfigRef.current === "comet-logo" &&
     (!clientAppRef.current || clientRainAuthoringActive) &&
@@ -1418,6 +1426,38 @@ export function useEngineControls(
               render: (get) =>
                 get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSizeUnit") === "inches",
             },
+            clientSharedSizeName: {
+              value: "",
+              label: "Name",
+              placeholder: "Size name",
+              render: (get) => get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID,
+            },
+            clientSharedSizeActions: buttonGroup({
+              label: "Team size",
+              opts: {
+                Save: (get) => {
+                  if (get("Presets.clientSize") !== CUSTOM_CLIENT_SIZE_ID) {
+                    window.alert("Choose Custom… before saving a shared size.");
+                    return;
+                  }
+                  const name = String(get("Presets.clientSharedSizeName") ?? "").trim();
+                  if (!name) {
+                    window.alert("Enter a name before saving this size.");
+                    return;
+                  }
+                  onSaveSharedSizeRef.current?.(name);
+                },
+                Delete: (get) => {
+                  const selectedId = String(get("Presets.clientSize") ?? "");
+                  const preset = sharedSizePresets.find((entry) => sharedSizePresetId(entry.id) === selectedId);
+                  if (!preset) {
+                    window.alert("Choose a shared team size before deleting.");
+                    return;
+                  }
+                  onDeleteSharedSizeRef.current?.(preset);
+                },
+              },
+            }),
             clientLayout: {
               value: levaSchemaSeedRef.current.clientLayoutId,
               options: clientLayoutOptions,

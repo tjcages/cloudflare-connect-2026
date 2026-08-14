@@ -76,7 +76,7 @@ import {
   withClientRainFxVisibility,
   type ClientGraphicMode,
 } from "./client/clientPresets";
-import { createSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
+import { createSharedSizePreset, deleteSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
 import { sharedSizePresetId, type SharedSizePreset } from "./sharedSizePresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
@@ -943,12 +943,9 @@ function LabInner({
     () => consumeBootPresetName() ?? (clientMode ? loadActiveClientLayoutName() : null) ?? startupPreset?.name ?? "",
   );
   const [sharedSizePresets, setSharedSizePresets] = useState<SharedSizePreset[]>([]);
-  const [sharedSizeStatus, setSharedSizeStatus] = useState<"loading" | "ready" | "saving" | "error">(
+  const [sharedSizeStatus, setSharedSizeStatus] = useState<"loading" | "ready" | "saving" | "deleting" | "error">(
     clientMode ? "loading" : "ready",
   );
-  const [sharedSizeError, setSharedSizeError] = useState<string | null>(null);
-  const [sharedSizeName, setSharedSizeName] = useState("");
-  const [isNamingSharedSize, setIsNamingSharedSize] = useState(false);
   useEffect(() => {
     if (!clientMode) return;
     const controller = new AbortController();
@@ -956,12 +953,11 @@ function LabInner({
     loadSharedSizePresets(controller.signal)
       .then((loaded) => {
         setSharedSizePresets(loaded);
-        setSharedSizeError(null);
         setSharedSizeStatus("ready");
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
-        setSharedSizeError(error instanceof Error ? error.message : "Shared sizes are unavailable.");
+        console.warn("Shared sizes are unavailable.", error);
         setSharedSizeStatus("error");
       });
     return () => controller.abort();
@@ -990,6 +986,7 @@ function LabInner({
   const shaderMouseRef = useRef({ x: 0, y: 0, down: false, hovered: false });
   const labSettingsRef = useRef(labSettings);
   labSettingsRef.current = labSettings;
+  const skipPersistenceDuringReloadRef = useRef(false);
   const surfaceWorkspaceRef = useRef(surfaceWorkspace);
   surfaceWorkspaceRef.current = surfaceWorkspace;
   const [drawingSurfaceAreaKind, setDrawingSurfaceAreaKind] = useState<SurfaceAreaKind | null>(null);
@@ -1202,7 +1199,6 @@ function LabInner({
     shaderView,
     initialThemed,
     clientCanvasSize,
-    clientSizeId,
     clientGraphicMode,
     clientRainShaderPreset,
   } = useEngineControls(onReplay, {
@@ -1225,6 +1221,8 @@ function LabInner({
         }
       : undefined,
     sharedSizePresets,
+    onSaveSharedSize: (name) => void handleSaveSharedSize(name),
+    onDeleteSharedSize: (preset) => void handleDeleteSharedSize(preset),
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -1313,7 +1311,10 @@ function LabInner({
   }, []);
 
   useEffect(() => {
-    const onHide = () => flushLiveLabPersistence();
+    const onHide = () => {
+      if (skipPersistenceDuringReloadRef.current) return;
+      flushLiveLabPersistence();
+    };
     window.addEventListener("pagehide", onHide);
     window.addEventListener("beforeunload", onHide);
     return () => {
@@ -3118,16 +3119,14 @@ function LabInner({
     if (clientMode) saveActiveClientLayoutName(name);
   }
 
-  async function handleSaveSharedSize() {
+  async function handleSaveSharedSize(name: string) {
+    if (sharedSizeStatus === "saving" || sharedSizeStatus === "deleting") return;
     const lab = fullLabSettingsSnapshot();
     if (lab.clientSizeId !== CUSTOM_CLIENT_SIZE_ID) {
       window.alert("Choose Custom… before saving a shared size.");
       return;
     }
-    const name = sharedSizeName.trim();
-    if (!name) return;
     setSharedSizeStatus("saving");
-    setSharedSizeError(null);
     try {
       const preset = await createSharedSizePreset({
         name,
@@ -3147,12 +3146,34 @@ function LabInner({
         clientSizeHeight: preset.height,
         clientSizePpi: preset.ppi,
       });
-      setIsNamingSharedSize(false);
-      setSharedSizeName("");
+      skipPersistenceDuringReloadRef.current = true;
       window.location.reload();
     } catch (error) {
       const message = error instanceof Error ? error.message : "The shared size could not be saved.";
-      setSharedSizeError(message);
+      setSharedSizeStatus("error");
+      window.alert(message);
+    }
+  }
+
+  async function handleDeleteSharedSize(preset: SharedSizePreset) {
+    if (sharedSizeStatus === "saving" || sharedSizeStatus === "deleting") return;
+    if (!window.confirm(`Delete “${preset.name}” for everyone?`)) return;
+    setSharedSizeStatus("deleting");
+    try {
+      await deleteSharedSizePreset(preset.id);
+      const lab = fullLabSettingsSnapshot();
+      saveLabSettings({
+        ...lab,
+        clientSizeId: CUSTOM_CLIENT_SIZE_ID,
+        clientSizeUnit: preset.unit,
+        clientSizeWidth: preset.width,
+        clientSizeHeight: preset.height,
+        clientSizePpi: preset.ppi,
+      });
+      skipPersistenceDuringReloadRef.current = true;
+      window.location.reload();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The shared size could not be deleted.";
       setSharedSizeStatus("error");
       window.alert(message);
     }
@@ -4040,67 +4061,6 @@ function LabInner({
                     <button type="button" className="is-reset" onClick={handleClientResetToBanner}>
                       Reset
                     </button>
-                  </div>
-                </div>
-                <div className="lab-client-shared-size">
-                  <div className="lab-client-layouts-label">Custom size</div>
-                  {isNamingSharedSize ? (
-                    <form
-                      className="lab-client-shared-size-form"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void handleSaveSharedSize();
-                      }}
-                    >
-                      <input
-                        type="text"
-                        value={sharedSizeName}
-                        onChange={(event) => setSharedSizeName(event.target.value)}
-                        placeholder="Size name"
-                        aria-label="Shared size name"
-                        maxLength={80}
-                      />
-                      <div className="lab-client-layouts-actions">
-                        <button
-                          type="submit"
-                          disabled={!sharedSizeName.trim() || sharedSizeStatus === "saving"}
-                          aria-busy={sharedSizeStatus === "saving"}
-                        >
-                          {sharedSizeStatus === "saving" ? "Saving…" : "Save"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsNamingSharedSize(false);
-                            setSharedSizeName("");
-                            setSharedSizeError(null);
-                          }}
-                          disabled={sharedSizeStatus === "saving"}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="lab-client-layouts-actions">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSharedSizeError(null);
-                          setIsNamingSharedSize(true);
-                        }}
-                        disabled={clientSizeId !== CUSTOM_CLIENT_SIZE_ID || sharedSizeStatus === "saving"}
-                      >
-                        Save size…
-                      </button>
-                    </div>
-                  )}
-                  <div className={`lab-client-shared-size-status${sharedSizeError ? " is-error" : ""}`}>
-                    {sharedSizeStatus === "loading"
-                      ? "Loading team sizes…"
-                      : sharedSizeError
-                        ? sharedSizeError
-                        : "Saved sizes appear in the Size selector for everyone."}
                   </div>
                 </div>
                 <div className="lab-client-json">
