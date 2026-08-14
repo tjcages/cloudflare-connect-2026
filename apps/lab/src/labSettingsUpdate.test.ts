@@ -33,11 +33,21 @@ describe("nextLabSettings", () => {
     expect(normalizeTwizzlerSettings(once)).toEqual(once);
   });
 
-  it("preserves custom client canvas dimensions", () => {
-    expect(normalizeLabSettings({ clientSizeId: "custom", canvasWidth: 1920, canvasHeight: 1080 })).toMatchObject({
+  it("preserves custom client canvas dimensions and print units", () => {
+    expect(
+      normalizeLabSettings({
+        clientSizeId: "custom",
+        clientSizeUnit: "inches",
+        clientSizePpi: 300,
+        canvasWidth: 6000,
+        canvasHeight: 3000,
+      }),
+    ).toMatchObject({
       clientSizeId: "custom",
-      canvasWidth: 1920,
-      canvasHeight: 1080,
+      clientSizeUnit: "inches",
+      clientSizePpi: 300,
+      canvasWidth: 6000,
+      canvasHeight: 3000,
     });
   });
 });

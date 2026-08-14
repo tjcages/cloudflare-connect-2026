@@ -264,6 +264,14 @@ describe("client preview presets", () => {
   it("resolves custom client canvas dimensions and clamps them to supported pixels", () => {
     expect(resolveClientCanvasSize(CUSTOM_CLIENT_SIZE_ID, 1920, 1080)).toEqual({ width: 1920, height: 1080 });
     expect(resolveClientCanvasSize(CUSTOM_CLIENT_SIZE_ID, 0, 9000)).toEqual({ width: 1, height: 8192 });
+    expect(resolveClientCanvasSize(CUSTOM_CLIENT_SIZE_ID, 20, 10, "inches", 300)).toEqual({
+      width: 6000,
+      height: 3000,
+    });
+    expect(resolveClientCanvasSize(CUSTOM_CLIENT_SIZE_ID, 36, 24, "inches", 300)).toEqual({
+      width: 8192,
+      height: 7200,
+    });
     expect(resolveClientCanvasSize("square", 1920, 1080)).toEqual({ width: 800, height: 800 });
   });
 

@@ -612,6 +612,8 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     renderAntialias: true,
   },
   clientSizeId: "hero-16x9",
+  clientSizeUnit: "pixels",
+  clientSizePpi: 300,
   clientLayoutId: "classic",
   clientColorId: "coral-classic",
   clientAppearanceId: "light",

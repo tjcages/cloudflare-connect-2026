@@ -12,6 +12,11 @@ const DEFAULT_LAB_CANVAS_HEIGHT = 720;
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
 export const CUSTOM_CLIENT_SIZE_ID = "custom" as const;
 export type ClientSizeId = ClientSizePresetId | typeof CUSTOM_CLIENT_SIZE_ID;
+export type ClientSizeUnit = "pixels" | "inches";
+export const DEFAULT_CLIENT_PRINT_PPI = 300;
+export const MIN_CLIENT_PRINT_PPI = 1;
+export const MAX_CLIENT_PRINT_PPI = 1200;
+export const MAX_CLIENT_CANVAS_DIMENSION_PX = 8192;
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
 export type ClientColorPresetId =
   | "coral-classic"
@@ -426,18 +431,30 @@ export function matchClientSizePresetId(width: number, height: number): ClientSi
 }
 
 function normalizeClientCanvasDimension(value: number, fallback: number): number {
-  return Math.round(Math.max(1, Math.min(8192, Number.isFinite(value) ? value : fallback)));
+  return Math.round(Math.max(1, Math.min(MAX_CLIENT_CANVAS_DIMENSION_PX, Number.isFinite(value) ? value : fallback)));
+}
+
+export function normalizeClientPrintPpi(value: number): number {
+  return Math.round(
+    Math.max(
+      MIN_CLIENT_PRINT_PPI,
+      Math.min(MAX_CLIENT_PRINT_PPI, Number.isFinite(value) ? value : DEFAULT_CLIENT_PRINT_PPI),
+    ),
+  );
 }
 
 export function resolveClientCanvasSize(
   id: ClientSizeId,
   customWidth: number,
   customHeight: number,
+  unit: ClientSizeUnit = "pixels",
+  ppi = DEFAULT_CLIENT_PRINT_PPI,
 ): { width: number; height: number } {
   if (id === CUSTOM_CLIENT_SIZE_ID) {
+    const pixelsPerUnit = unit === "inches" ? normalizeClientPrintPpi(ppi) : 1;
     return {
-      width: normalizeClientCanvasDimension(customWidth, DEFAULT_LAB_CANVAS_WIDTH),
-      height: normalizeClientCanvasDimension(customHeight, DEFAULT_LAB_CANVAS_HEIGHT),
+      width: normalizeClientCanvasDimension(customWidth * pixelsPerUnit, DEFAULT_LAB_CANVAS_WIDTH),
+      height: normalizeClientCanvasDimension(customHeight * pixelsPerUnit, DEFAULT_LAB_CANVAS_HEIGHT),
     };
   }
   const preset = findClientSizePreset(id);

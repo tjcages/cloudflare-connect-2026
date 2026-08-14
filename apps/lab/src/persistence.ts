@@ -5,6 +5,12 @@ import type {
   ClientColorPresetId,
   ClientLayoutPresetId,
   ClientSizeId,
+  ClientSizeUnit,
+} from "./client/clientPresets";
+import {
+  DEFAULT_CLIENT_PRINT_PPI,
+  MAX_CLIENT_CANVAS_DIMENSION_PX,
+  normalizeClientPrintPpi,
 } from "./client/clientPresets";
 import { DEFAULT_LAB_ENGINE_CONFIG, DEFAULT_LAB_UI_SETTINGS } from "./defaultLabConfig";
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "./shaderTextureSource";
@@ -111,6 +117,8 @@ export type LabSettings = {
   shaderViewFov: number;
   /** Client preview Size / Layout / Color / Appearance catalog selections (saved layouts). */
   clientSizeId: ClientSizeId;
+  clientSizeUnit: ClientSizeUnit;
+  clientSizePpi: number;
   clientLayoutId: ClientLayoutPresetId;
   clientColorId: ClientColorPresetId;
   clientAppearanceId: ClientAppearanceId;
@@ -488,8 +496,12 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
   return {
     canvasMode,
     canvasScale: Math.max(0.1, Math.min(8, n(i.canvasScale, DEFAULT_LAB_SETTINGS.canvasScale))),
-    canvasWidth: Math.round(Math.max(1, Math.min(8192, n(i.canvasWidth, DEFAULT_LAB_SETTINGS.canvasWidth)))),
-    canvasHeight: Math.round(Math.max(1, Math.min(8192, n(i.canvasHeight, DEFAULT_LAB_SETTINGS.canvasHeight)))),
+    canvasWidth: Math.round(
+      Math.max(1, Math.min(MAX_CLIENT_CANVAS_DIMENSION_PX, n(i.canvasWidth, DEFAULT_LAB_SETTINGS.canvasWidth))),
+    ),
+    canvasHeight: Math.round(
+      Math.max(1, Math.min(MAX_CLIENT_CANVAS_DIMENSION_PX, n(i.canvasHeight, DEFAULT_LAB_SETTINGS.canvasHeight))),
+    ),
     canvasAspectLocked:
       typeof i.canvasAspectLocked === "boolean" ? i.canvasAspectLocked : DEFAULT_LAB_SETTINGS.canvasAspectLocked,
     exportStartSec: Math.max(0, Math.min(24 * 60 * 60, n(i.exportStartSec, DEFAULT_LAB_SETTINGS.exportStartSec))),
@@ -581,6 +593,8 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
       };
     })(),
     clientSizeId: normalizeClientSizeId(i.clientSizeId),
+    clientSizeUnit: i.clientSizeUnit === "inches" ? "inches" : "pixels",
+    clientSizePpi: normalizeClientPrintPpi(n(i.clientSizePpi, DEFAULT_CLIENT_PRINT_PPI)),
     clientLayoutId: normalizeClientLayoutId(i.clientLayoutId),
     clientColorId: normalizeClientColorId(i.clientColorId),
     clientAppearanceId: normalizeClientAppearanceId(i.clientAppearanceId),
