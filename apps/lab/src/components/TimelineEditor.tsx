@@ -291,6 +291,7 @@ export function TimelineEditor({
   const onTimeChangeRef = useRef(onTimeChange);
   const onPlayingChangeRef = useRef(onPlayingChange);
   const deferSequenceApplyRef = useRef(false);
+  const applyingTimelineValuesRef = useRef(false);
   const properties = collectTimelineProperties(stores, graphicMode);
   sequenceRef.current = sequence;
   timeRef.current = currentTime;
@@ -305,13 +306,25 @@ export function TimelineEditor({
     onPlayingChangeRef.current?.(next);
   }, []);
 
-  const updateTime = useCallback((time: number, syncMotion = true, applyValues = true) => {
-    const next = clampTimelineTime(time, sequenceRef.current.duration);
-    timeRef.current = next;
-    setCurrentTime(next);
-    if (applyValues) onApplyValuesRef.current(evaluateSequence(sequenceRef.current, next));
-    if (syncMotion) onTimeChangeRef.current?.(next);
+  const applyEvaluatedValues = useCallback((nextSequence: TimelineSequence, time: number) => {
+    applyingTimelineValuesRef.current = true;
+    try {
+      onApplyValuesRef.current(evaluateSequence(nextSequence, time));
+    } finally {
+      applyingTimelineValuesRef.current = false;
+    }
   }, []);
+
+  const updateTime = useCallback(
+    (time: number, syncMotion = true, applyValues = true) => {
+      const next = clampTimelineTime(time, sequenceRef.current.duration);
+      timeRef.current = next;
+      setCurrentTime(next);
+      if (applyValues) applyEvaluatedValues(sequenceRef.current, next);
+      if (syncMotion) onTimeChangeRef.current?.(next);
+    },
+    [applyEvaluatedValues],
+  );
 
   const snapKeyTime = useCallback((time: number, disabled = false) => {
     const width = timelineRef.current?.getBoundingClientRect().width ?? 0;
@@ -349,8 +362,8 @@ export function TimelineEditor({
 
   useEffect(() => {
     if (deferSequenceApplyRef.current) return;
-    onApplyValuesRef.current(evaluateSequence(sequence, timeRef.current));
-  }, [sequence]);
+    applyEvaluatedValues(sequence, timeRef.current);
+  }, [applyEvaluatedValues, sequence]);
 
   useEffect(() => saveTimelineLayout(layout), [layout]);
 
@@ -501,6 +514,7 @@ export function TimelineEditor({
     const store = stores.find((candidate) => selectedTrack.propertyPath in candidate.getData());
     if (!store) return;
     return store.subscribeToEditEnd(selectedTrack.propertyPath, (value) => {
+      if (applyingTimelineValuesRef.current) return;
       const current = sequenceRef.current;
       const track = current.tracks.find((candidate) => candidate.id === selectedTrack.id);
       if (!track) return;
