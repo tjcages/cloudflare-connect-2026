@@ -50,7 +50,9 @@ describe("shared size presets", () => {
 
   it("only shows shared size actions for a ready custom selection", () => {
     expect(showSharedSizeActions("custom", "ready", "custom")).toBe(true);
+    expect(showSharedSizeActions("custom", "error", "custom")).toBe(true);
     expect(showSharedSizeActions("custom", "loading", "custom")).toBe(false);
+    expect(showSharedSizeActions("custom", "saving", "custom")).toBe(false);
     expect(showSharedSizeActions(sharedSizePresetId(teamSize.id), "ready", "custom")).toBe(false);
   });
 });

@@ -40,7 +40,7 @@ export function resolveSharedSizeSelectorValue(
 }
 
 export function showSharedSizeActions(value: string, status: SharedSizePresetStatus, customValue: string): boolean {
-  return status !== "loading" && value === customValue;
+  return (status === "ready" || status === "error") && value === customValue;
 }
 
 export function validateSharedSizePresetInput(input: unknown): SharedSizePresetValidation {

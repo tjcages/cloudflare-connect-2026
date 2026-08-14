@@ -76,7 +76,7 @@ import {
   withClientRainFxVisibility,
   type ClientGraphicMode,
 } from "./client/clientPresets";
-import { createSharedSizePreset, deleteSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
+import { createSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
 import { sharedSizePresetId, type SharedSizePreset, type SharedSizePresetStatus } from "./sharedSizePresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
@@ -1244,7 +1244,6 @@ function LabInner({
     sharedSizePresets,
     sharedSizeStatus,
     onSaveSharedSize: (name) => void handleSaveSharedSize(name),
-    onDeleteSharedSize: (preset) => void handleDeleteSharedSize(preset),
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -3189,35 +3188,6 @@ function LabInner({
       setSharedSizeNotice(`Saved “${preset.name}” for everyone.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "The shared size could not be saved.";
-      setSharedSizeStatus("error");
-      window.alert(message);
-    }
-  }
-
-  async function handleDeleteSharedSize(preset: SharedSizePreset) {
-    if (sharedSizeStatus === "saving" || sharedSizeStatus === "deleting") return;
-    if (!window.confirm(`Delete “${preset.name}” for everyone?`)) return;
-    setSharedSizeStatus("deleting");
-    try {
-      await deleteSharedSizePreset(preset.id);
-      const lab = fullLabSettingsSnapshot();
-      setSharedSizePresets((current) => current.filter((entry) => entry.id !== preset.id));
-      setControlRef.current({
-        clientSize: CUSTOM_CLIENT_SIZE_ID,
-        ...sharedSizeControlValues(preset),
-      });
-      saveLabSettings({
-        ...lab,
-        clientSizeId: CUSTOM_CLIENT_SIZE_ID,
-        clientSizeUnit: preset.unit,
-        clientSizeWidth: preset.width,
-        clientSizeHeight: preset.height,
-        clientSizePpi: preset.ppi,
-      });
-      setSharedSizeStatus("ready");
-      setSharedSizeNotice(`Deleted “${preset.name}”.`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "The shared size could not be deleted.";
       setSharedSizeStatus("error");
       window.alert(message);
     }

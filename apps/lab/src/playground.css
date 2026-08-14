@@ -2229,6 +2229,11 @@ body.lab-sidebar-resizing .lab-sidebar {
   padding: 5px 12px;
 }
 
+.lab-shell.is-client-mode .lab-client-leva label[title="Team size"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* fill={true} keeps Leva position:relative; never let it go fixed/overlay. */
 .lab-shell.is-client-mode .lab-client-leva > div:first-child {
   position: relative !important;

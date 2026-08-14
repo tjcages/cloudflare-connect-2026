@@ -554,8 +554,6 @@ export function useEngineControls(
     sharedSizeStatus?: SharedSizePresetStatus;
     /** Save a named custom size to the shared database. */
     onSaveSharedSize?: (name: string) => void;
-    /** Delete the currently selected shared size from the database. */
-    onDeleteSharedSize?: (preset: SharedSizePreset) => void;
   } = {},
 ): EngineControlsResult {
   const surfaceConfig = options.configScope === "surface";
@@ -586,8 +584,6 @@ export function useEngineControls(
   clientAppRef.current = clientApp;
   const onSaveSharedSizeRef = useRef(options.onSaveSharedSize);
   onSaveSharedSizeRef.current = options.onSaveSharedSize;
-  const onDeleteSharedSizeRef = useRef(options.onDeleteSharedSize);
-  onDeleteSharedSizeRef.current = options.onDeleteSharedSize;
   const showCometLogoShaderConfig = () =>
     activeShaderConfigRef.current === "comet-logo" &&
     (!clientAppRef.current || clientRainAuthoringActive) &&
@@ -1443,7 +1439,28 @@ export function useEngineControls(
               value: "",
               label: "Name",
               placeholder: "Size name",
-              render: (get) => get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID,
+              render: (get) =>
+                get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSharedSizeNaming") === true,
+            },
+            clientSharedSizeNaming: {
+              value: false,
+              render: () => false,
+            },
+            clientSharedSizeStart: {
+              ...buttonGroup({
+                label: "Team size",
+                opts: {
+                  Save: () => {
+                    shaderControlSetterRef.current?.({ clientSharedSizeNaming: true });
+                  },
+                },
+              }),
+              render: (get: (path: string) => unknown) =>
+                showSharedSizeActions(
+                  String(get("Presets.clientSize") ?? ""),
+                  sharedSizeStatus,
+                  CUSTOM_CLIENT_SIZE_ID,
+                ) && get("Presets.clientSharedSizeNaming") !== true,
             },
             clientSharedSizeActions: {
               ...buttonGroup({
@@ -1457,25 +1474,14 @@ export function useEngineControls(
                     }
                     onSaveSharedSizeRef.current?.(name);
                   },
-                  Delete: (get) => {
-                    const name = String(get("Presets.clientSharedSizeName") ?? "").trim();
-                    if (!name) {
-                      window.alert("Enter the saved size name you want to delete.");
-                      return;
-                    }
-                    const preset = sharedSizePresets.find(
-                      (entry) => entry.name.localeCompare(name, undefined, { sensitivity: "base" }) === 0,
-                    );
-                    if (!preset) {
-                      window.alert(`No shared size named “${name}” was found.`);
-                      return;
-                    }
-                    onDeleteSharedSizeRef.current?.(preset);
-                  },
                 },
               }),
               render: (get: (path: string) => unknown) =>
-                showSharedSizeActions(String(get("Presets.clientSize") ?? ""), sharedSizeStatus, CUSTOM_CLIENT_SIZE_ID),
+                showSharedSizeActions(
+                  String(get("Presets.clientSize") ?? ""),
+                  sharedSizeStatus,
+                  CUSTOM_CLIENT_SIZE_ID,
+                ) && get("Presets.clientSharedSizeNaming") === true,
             },
             clientLayout: {
               value: levaSchemaSeedRef.current.clientLayoutId,
@@ -5014,6 +5020,7 @@ export function useEngineControls(
       ? (initialLabSettings.clientSizeId ?? DEFAULT_CLIENT_PREVIEW_STATE.sizeId)
       : rawClientSizeId
   ) as ClientSizeId;
+  const clientSharedSizeNaming = (shaderValues as unknown as Record<string, unknown>).clientSharedSizeNaming === true;
   const clientCanvasWidth = Number(
     (shaderValues as unknown as Record<string, unknown>).clientCanvasWidth ?? initialLabSettings.canvasWidth,
   );
@@ -5088,6 +5095,13 @@ export function useEngineControls(
   showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && (!clientApp || clientRainAuthoringActive);
   const previousClientSizeUnitRef = useRef(clientSizeUnit);
   const previousClientOutputSizeRef = useRef(resolvedClientOutputSize);
+  useEffect(() => {
+    if (!clientApp || clientSizeId === CUSTOM_CLIENT_SIZE_ID || !clientSharedSizeNaming) return;
+    setShaderControl({
+      clientSharedSizeName: "",
+      clientSharedSizeNaming: false,
+    });
+  }, [clientApp, clientSharedSizeNaming, clientSizeId, setShaderControl]);
   useEffect(() => {
     const previousUnit = previousClientSizeUnitRef.current;
     if (previousUnit === clientSizeUnit) return;
