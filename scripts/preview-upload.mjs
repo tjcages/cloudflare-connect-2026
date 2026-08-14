@@ -35,7 +35,7 @@ console.log(`Alias:   ${alias}`);
 console.log(`Preview: https://${previewHost}/`);
 
 execSync("pnpm run build", { stdio: "inherit" });
-execSync(`pnpm exec wrangler versions upload --preview-alias ${alias}`, {
+execSync(`pnpm --filter lab exec wrangler versions upload --preview-alias ${alias}`, {
   stdio: "inherit",
   env: process.env,
 });
