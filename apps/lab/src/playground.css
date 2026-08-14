@@ -2556,7 +2556,72 @@ body.lab-sidebar-resizing canvas {
 }
 
 .timeline-editor.is-open {
-  height: 330px;
+  height: var(--timeline-editor-height, 330px);
+}
+
+.timeline-resize-handle {
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  touch-action: none;
+  outline: none;
+}
+
+.timeline-editor.playground-leva-panel button.timeline-resize-handle.timeline-height-resize-handle:not(:disabled),
+.timeline-editor.playground-leva-panel button.timeline-resize-handle.timeline-inspector-resize-handle:not(:disabled),
+.timeline-editor.playground-leva-panel button.timeline-resize-handle.timeline-height-resize-handle:not(:disabled):hover,
+.timeline-editor.playground-leva-panel
+  button.timeline-resize-handle.timeline-inspector-resize-handle:not(:disabled):hover,
+.timeline-editor.playground-leva-panel
+  button.timeline-resize-handle.timeline-height-resize-handle:not(:disabled):focus-visible,
+.timeline-editor.playground-leva-panel
+  button.timeline-resize-handle.timeline-inspector-resize-handle:not(:disabled):focus-visible {
+  border: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.timeline-height-resize-handle {
+  position: absolute;
+  z-index: 12;
+  top: -5px;
+  left: 50%;
+  width: 120px;
+  height: 11px;
+  translate: -50% 0;
+  cursor: ns-resize !important;
+}
+
+.timeline-height-resize-handle::after {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 34px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--leva-text-faint);
+  content: "";
+  opacity: 0;
+  translate: -50% 0;
+  transition:
+    opacity 120ms ease,
+    width 120ms ease;
+}
+
+.timeline-height-resize-handle:hover::after,
+.timeline-height-resize-handle:focus-visible::after,
+.is-resizing-timeline-height .timeline-height-resize-handle::after {
+  width: 44px;
+  opacity: 0.75;
+}
+
+.is-resizing-timeline-height,
+.is-resizing-timeline-height * {
+  cursor: ns-resize !important;
+  user-select: none !important;
 }
 
 .timeline-header {
@@ -2588,6 +2653,18 @@ body.lab-sidebar-resizing canvas {
 
 .timeline-tab:hover {
   background: var(--leva-surface);
+}
+
+.timeline-editor.playground-leva-panel > .timeline-header > button.timeline-tab:not(:disabled) {
+  border-color: transparent !important;
+  border-right-color: var(--leva-border) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.timeline-editor.playground-leva-panel > .timeline-header > button.timeline-tab:not(:disabled):hover {
+  background: var(--leva-surface-hover) !important;
+  background-color: var(--leva-surface-hover) !important;
 }
 
 .timeline-open-action {
@@ -3085,7 +3162,7 @@ body.lab-sidebar-resizing canvas {
   height: 27px;
   flex: 0 0 27px;
   border-bottom: 1px solid var(--leva-border);
-  cursor: ew-resize;
+  cursor: ew-resize !important;
 }
 
 .timeline-ruler span {
@@ -3251,7 +3328,7 @@ body.lab-sidebar-resizing canvas {
   right: 0;
   bottom: 0;
   box-sizing: border-box;
-  width: 260px;
+  width: var(--timeline-inspector-width, 260px);
   min-width: 0;
   padding: 10px;
   overflow: auto;
@@ -3259,6 +3336,46 @@ body.lab-sidebar-resizing canvas {
   background: var(--leva-panel-bg);
   box-shadow: -8px 0 18px color-mix(in srgb, #000 12%, transparent);
   color: var(--leva-text-faint);
+}
+
+.timeline-inspector-resize-handle {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  width: 12px;
+  cursor: ew-resize !important;
+}
+
+.timeline-inspector-resize-handle::after {
+  position: absolute;
+  top: 50%;
+  bottom: auto;
+  left: 5px;
+  width: 2px;
+  height: 34px;
+  border-radius: 2px;
+  background: var(--leva-text-faint);
+  content: "";
+  opacity: 0;
+  translate: 0 -50%;
+  transition:
+    height 120ms ease,
+    opacity 120ms ease;
+}
+
+.timeline-inspector-resize-handle:hover::after,
+.timeline-inspector-resize-handle:focus-visible::after,
+.is-resizing-timeline-inspector .timeline-inspector-resize-handle::after {
+  height: 44px;
+  opacity: 0.75;
+}
+
+.is-resizing-timeline-inspector,
+.is-resizing-timeline-inspector * {
+  cursor: ew-resize !important;
+  user-select: none !important;
 }
 
 .timeline-inspector > p {
@@ -3290,6 +3407,17 @@ body.lab-sidebar-resizing canvas {
   align-items: center;
   justify-content: center;
   border-radius: 3px;
+}
+
+.timeline-editor.playground-leva-panel .timeline-inspector > .timeline-inspector-title > button:not(:disabled) {
+  border-color: transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.timeline-editor.playground-leva-panel .timeline-inspector > .timeline-inspector-title > button:not(:disabled):hover {
+  background: var(--leva-surface-hover) !important;
+  background-color: var(--leva-surface-hover) !important;
 }
 
 .timeline-inspector > label {

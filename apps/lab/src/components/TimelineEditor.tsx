@@ -26,6 +26,12 @@ import {
   type TimelineTrack,
   type TimelineValue,
 } from "../animation/timelineModel";
+import {
+  clampTimelineHeight,
+  clampTimelineInspectorWidth,
+  loadTimelineLayout,
+  saveTimelineLayout,
+} from "../animation/timelineLayout";
 import { HexColorPopover } from "./HexColorPopover";
 import { cssColorForHex, findLibraryColorByHex } from "./colorLibrary";
 import { TimelineEasingEditor } from "./TimelineEasingEditor";
@@ -263,7 +269,9 @@ export function TimelineEditor({
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
   const [selectedNumberDraft, setSelectedNumberDraft] = useState<string | null>(null);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
+  const [layout, setLayout] = useState(loadTimelineLayout);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const addPropertyButtonRef = useRef<HTMLButtonElement>(null);
   const shortcutsRef = useRef<HTMLDetailsElement>(null);
   const sequenceRef = useRef(sequence);
@@ -318,7 +326,10 @@ export function TimelineEditor({
     if (!selectedKeyId) return;
     const clearSelectedKey = (event: PointerEvent) => {
       const target = event.target;
-      if (target instanceof Element && target.closest(".timeline-key, .timeline-inspector, [data-hex-color-popover]"))
+      if (
+        target instanceof Element &&
+        target.closest(".timeline-key, .timeline-inspector, .timeline-resize-handle, [data-hex-color-popover]")
+      )
         return;
       setSelectedKeyId(null);
     };
@@ -330,6 +341,19 @@ export function TimelineEditor({
     if (deferSequenceApplyRef.current) return;
     onApplyValuesRef.current(evaluateSequence(sequence, timeRef.current));
   }, [sequence]);
+
+  useEffect(() => saveTimelineLayout(layout), [layout]);
+
+  useEffect(() => {
+    const fitToViewport = () =>
+      setLayout((current) => ({
+        ...current,
+        height: clampTimelineHeight(current.height, window.innerHeight),
+      }));
+    fitToViewport();
+    window.addEventListener("resize", fitToViewport);
+    return () => window.removeEventListener("resize", fitToViewport);
+  }, []);
 
   useEffect(() => {
     if (!playing) return;
@@ -618,6 +642,63 @@ export function TimelineEditor({
     window.addEventListener("pointercancel", end);
   };
 
+  const resizeTimeline = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const pointerId = event.pointerId;
+    const startY = event.clientY;
+    const startHeight = layout.height;
+    document.body.classList.add("is-resizing-timeline-height");
+    const move = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      moveEvent.preventDefault();
+      setLayout((current) => ({
+        ...current,
+        height: clampTimelineHeight(startHeight + startY - moveEvent.clientY, window.innerHeight),
+      }));
+    };
+    const end = (endEvent: PointerEvent) => {
+      if (endEvent.pointerId !== pointerId) return;
+      document.body.classList.remove("is-resizing-timeline-height");
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  };
+
+  const resizeInspector = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const pointerId = event.pointerId;
+    const startX = event.clientX;
+    const startWidth = layout.inspectorWidth;
+    const workspaceWidth = workspaceRef.current?.getBoundingClientRect().width ?? window.innerWidth;
+    document.body.classList.add("is-resizing-timeline-inspector");
+    const move = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      moveEvent.preventDefault();
+      setLayout((current) => ({
+        ...current,
+        inspectorWidth: clampTimelineInspectorWidth(startWidth + startX - moveEvent.clientX, workspaceWidth),
+      }));
+    };
+    const end = (endEvent: PointerEvent) => {
+      if (endEvent.pointerId !== pointerId) return;
+      document.body.classList.remove("is-resizing-timeline-inspector");
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  };
+
   const updateSelectedKey = (patch: Partial<TimelineKeyframe>) => {
     if (!selectedTrack || !selectedKey) return;
     setSequence((current) => ({
@@ -641,7 +722,31 @@ export function TimelineEditor({
     <section
       className={`timeline-editor playground-leva-panel${open ? " is-open" : ""}`}
       aria-label="Animation timeline"
+      style={
+        {
+          "--timeline-editor-height": `${layout.height}px`,
+          "--timeline-inspector-width": `${layout.inspectorWidth}px`,
+        } as CSSProperties
+      }
     >
+      {open ? (
+        <button
+          type="button"
+          className="timeline-resize-handle timeline-height-resize-handle"
+          aria-label="Resize timeline"
+          title={`Resize timeline · ${Math.round(layout.height)}px`}
+          onPointerDown={resizeTimeline}
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+            event.preventDefault();
+            const direction = event.key === "ArrowUp" ? 1 : -1;
+            setLayout((current) => ({
+              ...current,
+              height: clampTimelineHeight(current.height + direction * 10, window.innerHeight),
+            }));
+          }}
+        />
+      ) : null}
       <header className="timeline-header">
         <button type="button" className="timeline-tab" aria-expanded={open} onClick={() => onOpenChange(!open)}>
           <ChevronRight size={12} className="timeline-tab-chevron" />
@@ -747,7 +852,7 @@ export function TimelineEditor({
       </header>
       {open ? (
         <div className="timeline-panel">
-          <div className={`timeline-workspace${selectedKey ? " has-inspector" : ""}`}>
+          <div ref={workspaceRef} className={`timeline-workspace${selectedKey ? " has-inspector" : ""}`}>
             <div
               className="timeline-track-list"
               onDoubleClick={(event) => {
@@ -891,6 +996,26 @@ export function TimelineEditor({
             </div>
             {selectedTrack && selectedKey ? (
               <aside className="timeline-inspector is-active">
+                <button
+                  type="button"
+                  className="timeline-resize-handle timeline-inspector-resize-handle"
+                  aria-label="Resize keyframe details"
+                  title={`Resize keyframe details · ${Math.round(layout.inspectorWidth)}px`}
+                  onPointerDown={resizeInspector}
+                  onKeyDown={(event) => {
+                    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                    event.preventDefault();
+                    const direction = event.key === "ArrowLeft" ? 1 : -1;
+                    const workspaceWidth = workspaceRef.current?.getBoundingClientRect().width ?? window.innerWidth;
+                    setLayout((current) => ({
+                      ...current,
+                      inspectorWidth: clampTimelineInspectorWidth(
+                        current.inspectorWidth + direction * 10,
+                        workspaceWidth,
+                      ),
+                    }));
+                  }}
+                />
                 <div className="timeline-inspector-title">
                   <span>{selectedTrack.label}</span>
                   <button
