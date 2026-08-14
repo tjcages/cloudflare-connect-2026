@@ -13,9 +13,9 @@ import {
 } from "../persistence";
 import type { LabEditTheme, LabSettings } from "../persistence";
 import {
+  parseSharedSizePresetId,
   resolveSharedSizeSelectorValue,
   sharedSizePresetId,
-  showSharedSizeActions,
   type SharedSizePreset,
   type SharedSizePresetStatus,
 } from "../sharedSizePresets";
@@ -97,7 +97,6 @@ import {
   rainLevaFromColor,
   rainLevaFromLayout,
   resetTweaksForLayout,
-  resolveClientGraphicMode,
   shouldSyncHeroGraphicFromFlags,
   type ClientAppearanceId,
   type ClientColorPresetId,
@@ -554,6 +553,8 @@ export function useEngineControls(
     sharedSizeStatus?: SharedSizePresetStatus;
     /** Save a named custom size to the shared database. */
     onSaveSharedSize?: (name: string) => void;
+    /** Remove a selected shared size from the team catalog. */
+    onDeleteSharedSize?: (id: string) => void;
   } = {},
 ): EngineControlsResult {
   const surfaceConfig = options.configScope === "surface";
@@ -584,6 +585,8 @@ export function useEngineControls(
   clientAppRef.current = clientApp;
   const onSaveSharedSizeRef = useRef(options.onSaveSharedSize);
   onSaveSharedSizeRef.current = options.onSaveSharedSize;
+  const onDeleteSharedSizeRef = useRef(options.onDeleteSharedSize);
+  onDeleteSharedSizeRef.current = options.onDeleteSharedSize;
   const showCometLogoShaderConfig = () =>
     activeShaderConfigRef.current === "comet-logo" &&
     (!clientAppRef.current || clientRainAuthoringActive) &&
@@ -1367,20 +1370,20 @@ export function useEngineControls(
           },
           { defaultOpen: true, clientOnly: true },
         ),
-        Presets: drawerFolder(
-          "Presets",
+        Size: drawerFolder(
+          "Size",
           {
             clientSize: {
               value: clientSizeControlValue,
               options: clientSizeOptions,
-              label: "Size",
+              label: "Preset",
               disabled: sharedSizesLoading,
             },
             clientSizeUnit: {
               value: levaSchemaSeedRef.current.clientSizeUnit,
               options: clientSizeUnitOptions,
               label: "Units",
-              render: (get) => get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID,
+              render: (get) => get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID,
             },
             clientCanvasWidth: {
               value: levaSchemaSeedRef.current.clientCanvasWidth,
@@ -1389,7 +1392,7 @@ export function useEngineControls(
               step: 1,
               label: "Width (px)",
               render: (get) =>
-                get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSizeUnit") === "pixels",
+                get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Size.clientSizeUnit") === "pixels",
             },
             clientCanvasHeight: {
               value: levaSchemaSeedRef.current.clientCanvasHeight,
@@ -1398,7 +1401,7 @@ export function useEngineControls(
               step: 1,
               label: "Height (px)",
               render: (get) =>
-                get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSizeUnit") === "pixels",
+                get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Size.clientSizeUnit") === "pixels",
             },
             clientCanvasWidthInches: {
               value: levaSchemaSeedRef.current.clientCanvasWidthInches,
@@ -1407,7 +1410,7 @@ export function useEngineControls(
               step: 0.01,
               label: "Width (in)",
               render: (get) =>
-                get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSizeUnit") === "inches",
+                get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Size.clientSizeUnit") === "inches",
             },
             clientCanvasHeightInches: {
               value: levaSchemaSeedRef.current.clientCanvasHeightInches,
@@ -1416,7 +1419,7 @@ export function useEngineControls(
               step: 0.01,
               label: "Height (in)",
               render: (get) =>
-                get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSizeUnit") === "inches",
+                get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Size.clientSizeUnit") === "inches",
             },
             clientSizePpi: {
               value: levaSchemaSeedRef.current.clientSizePpi,
@@ -1426,21 +1429,21 @@ export function useEngineControls(
               label: "PPI",
               hint: `Physical sizes are converted to pixels (up to ${MAX_CLIENT_CANVAS_DIMENSION_PX.toLocaleString()} px per side).`,
               render: (get) =>
-                get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSizeUnit") === "inches",
+                get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Size.clientSizeUnit") === "inches",
             },
             clientPixelOutput: {
               value: levaSchemaSeedRef.current.clientPixelOutput,
               label: "Pixel output",
               editable: false,
               render: (get) =>
-                get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSizeUnit") === "inches",
+                get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Size.clientSizeUnit") === "inches",
             },
             clientSharedSizeName: {
               value: "",
               label: "Name",
               placeholder: "Size name",
               render: (get) =>
-                get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSharedSizeNaming") === true,
+                get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Size.clientSharedSizeNaming") === true,
             },
             clientSharedSizeNaming: {
               value: false,
@@ -1450,24 +1453,22 @@ export function useEngineControls(
               ...buttonGroup({
                 label: "Team size",
                 opts: {
-                  Save: () => {
+                  Add: () => {
                     shaderControlSetterRef.current?.({ clientSharedSizeNaming: true });
                   },
                 },
               }),
               render: (get: (path: string) => unknown) =>
-                showSharedSizeActions(
-                  String(get("Presets.clientSize") ?? ""),
-                  sharedSizeStatus,
-                  CUSTOM_CLIENT_SIZE_ID,
-                ) && get("Presets.clientSharedSizeNaming") !== true,
+                (sharedSizeStatus === "ready" || sharedSizeStatus === "error") &&
+                get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID &&
+                get("Size.clientSharedSizeNaming") !== true,
             },
             clientSharedSizeActions: {
               ...buttonGroup({
                 label: "Team size",
                 opts: {
-                  Save: (get) => {
-                    const name = String(get("Presets.clientSharedSizeName") ?? "").trim();
+                  Add: (get) => {
+                    const name = String(get("Size.clientSharedSizeName") ?? "").trim();
                     if (!name) {
                       window.alert("Enter a name before saving this size.");
                       return;
@@ -1477,29 +1478,154 @@ export function useEngineControls(
                 },
               }),
               render: (get: (path: string) => unknown) =>
-                showSharedSizeActions(
-                  String(get("Presets.clientSize") ?? ""),
-                  sharedSizeStatus,
-                  CUSTOM_CLIENT_SIZE_ID,
-                ) && get("Presets.clientSharedSizeNaming") === true,
+                (sharedSizeStatus === "ready" || sharedSizeStatus === "error") &&
+                get("Size.clientSize") === CUSTOM_CLIENT_SIZE_ID &&
+                get("Size.clientSharedSizeNaming") === true,
             },
+            clientSharedSizeRemove: {
+              ...buttonGroup({
+                label: "Team size",
+                opts: {
+                  Remove: (get) => {
+                    const id = parseSharedSizePresetId(String(get("Size.clientSize") ?? ""));
+                    if (id) onDeleteSharedSizeRef.current?.(id);
+                  },
+                },
+              }),
+              render: (get: (path: string) => unknown) =>
+                sharedSizeStatus === "ready" && parseSharedSizePresetId(String(get("Size.clientSize") ?? "")) !== null,
+            },
+          },
+          { defaultOpen: true, clientOnly: true },
+        ),
+        Style: drawerFolder(
+          "Style",
+          {
             clientLayout: {
               value: levaSchemaSeedRef.current.clientLayoutId,
               options: clientLayoutOptions,
-              label: "Layout",
+              label: "Preset",
+            },
+          },
+          { defaultOpen: true, clientOnly: true },
+        ),
+        Appearance: drawerFolder(
+          "Appearance",
+          {
+            clientColor: {
+              value: levaSchemaSeedRef.current.clientColorId,
+              options: clientColorOptions,
+              label: "Preset",
+              render: () => clientAppRef.current,
             },
             clientAppearance: {
               value: levaSchemaSeedRef.current.clientAppearanceId,
               options: clientAppearanceOptions,
-              label: "Appearance",
+              label: "Mode",
+              render: () => clientAppRef.current,
             },
-            clientColor: {
-              value: levaSchemaSeedRef.current.clientColorId,
-              options: clientColorOptions,
-              label: "Color",
+            twizzlerEnabled: {
+              value: initialLabSettings.twizzlerEnabled,
+              label: "Show",
+              // Client uses Hero → Graphic instead.
+              render: () => showTwizzlerRibbonConfig() && !clientAppRef.current,
+            },
+            rainEnabled: {
+              value: d.sparkle?.gaps?.enabled ?? DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
+              label: "Rain",
+              // Kept in schema for setControl / persistence; UI is Hero → Graphic.
+              render: () => false,
+            },
+            twizzlerRibbonColorMode: {
+              value: initialLabSettings.twizzler.ribbonColorMode ?? "sharedGradient",
+              label: "Color mode",
+              options: {
+                Solid: "solid",
+                "Shared gradient": "sharedLinear",
+                "Shared field": "sharedGradient",
+                "Fiber gradient": "fiberGradient",
+                "Baked segments": "baked",
+              },
+              render: () => showTwizzlerRibbonConfig() && (!clientAppRef.current || clientTwizzlerAuthoringActive),
+            },
+            twizzlerColor: {
+              ...colorLibraryInputPlugin({
+                value: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
+                label: "Color",
+              }),
+              // Solid: sole ink swatch. Baked: near/right endpoint (paired with Color left).
+              render: (get) => {
+                if (!showTwizzlerRibbonConfig() || (clientAppRef.current && !clientTwizzlerAuthoringActive))
+                  return false;
+                const mode = get("Appearance.twizzlerRibbonColorMode");
+                return mode === "solid" || mode === "baked";
+              },
+            },
+            twizzlerColorFar: {
+              ...colorLibraryInputPlugin({
+                value: initialLabSettings.twizzler.colorFar,
+                label: "Color left (X)",
+              }),
+              render: (get) =>
+                showTwizzlerRibbonConfig() &&
+                (!clientAppRef.current || clientTwizzlerAuthoringActive) &&
+                get("Appearance.twizzlerRibbonColorMode") === "baked",
+            },
+            twizzlerGradientStops: {
+              ...gradientStopsPlugin({
+                value: serializeTwizzlerGradientStops(
+                  parseTwizzlerGradientStops(
+                    initialLabSettings.twizzler.gradientStops,
+                    initialLabSettings.twizzler.colorFar,
+                    initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
+                  ),
+                ),
+                colorFar: initialLabSettings.twizzler.colorFar,
+                colorNear: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
+              }),
+              render: (get) => {
+                if (!showTwizzlerRibbonConfig() || (clientAppRef.current && !clientTwizzlerAuthoringActive))
+                  return false;
+                const mode = get("Appearance.twizzlerRibbonColorMode");
+                return mode === "sharedLinear" || mode === "sharedGradient" || mode === "fiberGradient";
+              },
+            },
+            twizzlerColorEdge: {
+              ...colorLibraryInputPlugin({
+                value: initialLabSettings.twizzler.colorEdge ?? "#e92e28",
+                label: "Color peaks (Y)",
+              }),
+              render: (get) =>
+                showTwizzlerRibbonConfig() &&
+                (!clientAppRef.current || clientTwizzlerAuthoringActive) &&
+                get("Appearance.twizzlerRibbonColorMode") === "baked",
+            },
+            ...(options.twizzlerTransport && !clientApp
+              ? {
+                  twizzlerTransport: timeTransportPlugin({
+                    label: "Time",
+                    controller: options.twizzlerTransport,
+                  }),
+                }
+              : {}),
+            twizzlerOpacity: {
+              value: initialLabSettings.twizzler.opacity,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              label: "Opacity",
+              render: () => showTwizzlerRibbonConfig() && (!clientAppRef.current || clientTwizzlerAuthoringActive),
+            },
+            twizzlerScale: {
+              value: initialLabSettings.twizzler.scale,
+              min: 0.05,
+              max: 20,
+              step: 0.05,
+              label: "Zoom",
+              render: () => showTwizzlerRibbonConfig() && (!clientAppRef.current || clientTwizzlerAuthoringActive),
             },
           },
-          { defaultOpen: true, clientOnly: true },
+          { defaultOpen: true },
         ),
         Background: drawerFolder(
           "Background",
@@ -1588,103 +1714,6 @@ export function useEngineControls(
         Twizzler: drawerFolder(
           "Twizzler",
           {
-            General: drawerFolder(
-              "Twizzler General",
-              {
-                twizzlerEnabled: {
-                  value: initialLabSettings.twizzlerEnabled,
-                  label: "Show",
-                  // Client uses Hero → Graphic instead.
-                  render: () => showTwizzlerRibbonConfig() && !clientAppRef.current,
-                },
-                rainEnabled: {
-                  value: d.sparkle?.gaps?.enabled ?? DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
-                  label: "Rain",
-                  // Kept in schema for setControl / persistence; UI is Hero → Graphic.
-                  render: () => false,
-                },
-                twizzlerRibbonColorMode: {
-                  value: initialLabSettings.twizzler.ribbonColorMode ?? "sharedGradient",
-                  label: "Color mode",
-                  options: {
-                    Solid: "solid",
-                    "Shared gradient": "sharedLinear",
-                    "Shared field": "sharedGradient",
-                    "Fiber gradient": "fiberGradient",
-                    "Baked segments": "baked",
-                  },
-                },
-                twizzlerColor: {
-                  ...colorLibraryInputPlugin({
-                    value: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
-                    label: "Color",
-                  }),
-                  // Solid: sole ink swatch. Baked: near/right endpoint (paired with Color left).
-                  render: (get) => {
-                    if (!showTwizzlerRibbonConfig()) return false;
-                    const mode = get("Twizzler.General.twizzlerRibbonColorMode");
-                    return mode === "solid" || mode === "baked";
-                  },
-                },
-                twizzlerColorFar: {
-                  ...colorLibraryInputPlugin({
-                    value: initialLabSettings.twizzler.colorFar,
-                    label: "Color left (X)",
-                  }),
-                  render: (get) =>
-                    showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") === "baked",
-                },
-                twizzlerGradientStops: {
-                  ...gradientStopsPlugin({
-                    value: serializeTwizzlerGradientStops(
-                      parseTwizzlerGradientStops(
-                        initialLabSettings.twizzler.gradientStops,
-                        initialLabSettings.twizzler.colorFar,
-                        initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
-                      ),
-                    ),
-                    colorFar: initialLabSettings.twizzler.colorFar,
-                    colorNear: initialLabSettings.twizzler.colorNear ?? initialLabSettings.twizzler.color,
-                  }),
-                  render: (get) => {
-                    if (!showTwizzlerRibbonConfig()) return false;
-                    const mode = get("Twizzler.General.twizzlerRibbonColorMode");
-                    return mode === "sharedLinear" || mode === "sharedGradient" || mode === "fiberGradient";
-                  },
-                },
-                twizzlerColorEdge: {
-                  ...colorLibraryInputPlugin({
-                    value: initialLabSettings.twizzler.colorEdge ?? "#e92e28",
-                    label: "Color peaks (Y)",
-                  }),
-                  render: (get) =>
-                    showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") === "baked",
-                },
-                ...(options.twizzlerTransport && !clientApp
-                  ? {
-                      twizzlerTransport: timeTransportPlugin({
-                        label: "Time",
-                        controller: options.twizzlerTransport,
-                      }),
-                    }
-                  : {}),
-                twizzlerOpacity: {
-                  value: initialLabSettings.twizzler.opacity,
-                  min: 0,
-                  max: 1,
-                  step: 0.01,
-                  label: "Opacity",
-                },
-                twizzlerScale: {
-                  value: initialLabSettings.twizzler.scale,
-                  min: 0.05,
-                  max: 20,
-                  step: 0.05,
-                  label: "Zoom",
-                },
-              },
-              { render: showTwizzlerRibbonConfig, defaultOpen: true },
-            ),
             Shape: drawerFolder(
               "Twizzler Shape",
               {
@@ -1815,8 +1844,7 @@ export function useEngineControls(
               // Axis X/Y/Z mixes only drive Baked segments (Color mode).
               // Shared gradient uses the 1D ramp; Shared field / Fiber use the 2D hotspot editor.
               {
-                render: (get) =>
-                  showTwizzlerRibbonConfig() && get("Twizzler.General.twizzlerRibbonColorMode") === "baked",
+                render: (get) => showTwizzlerRibbonConfig() && get("Appearance.twizzlerRibbonColorMode") === "baked",
                 defaultOpen: true,
               },
             ),

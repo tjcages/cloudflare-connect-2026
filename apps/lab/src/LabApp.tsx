@@ -76,7 +76,7 @@ import {
   withClientRainFxVisibility,
   type ClientGraphicMode,
 } from "./client/clientPresets";
-import { createSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
+import { createSharedSizePreset, deleteSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
 import { createSharedPreset, loadSharedPresets } from "./client/sharedPresetApi";
 import {
   SHARED_PRESET_SCHEMA_VERSIONS,
@@ -1431,6 +1431,7 @@ function LabInner({
     sharedSizePresets,
     sharedSizeStatus,
     onSaveSharedSize: (name) => void handleSaveSharedSize(name),
+    onDeleteSharedSize: (id) => void handleDeleteSharedSize(id),
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -3511,6 +3512,27 @@ function LabInner({
       const message = error instanceof Error ? error.message : "The shared size could not be saved.";
       setSharedSizeStatus("error");
       window.alert(message);
+    }
+  }
+
+  async function handleDeleteSharedSize(id: string) {
+    if (sharedSizeStatus !== "ready") return;
+    const preset = sharedSizePresets.find((entry) => entry.id === id);
+    if (!preset) return;
+    if (!window.confirm(`Remove “${preset.name}” for everyone?`)) return;
+    setSharedSizeStatus("deleting");
+    try {
+      await deleteSharedSizePreset(id);
+      setSharedSizePresets((current) => current.filter((entry) => entry.id !== id));
+      setControlRef.current({
+        clientSize: CUSTOM_CLIENT_SIZE_ID,
+        ...sharedSizeControlValues(preset),
+      });
+      setSharedSizeStatus("ready");
+      setSharedSizeNotice(`Removed “${preset.name}”.`);
+    } catch (error) {
+      setSharedSizeStatus("error");
+      window.alert(error instanceof Error ? error.message : "The shared size could not be removed.");
     }
   }
 
