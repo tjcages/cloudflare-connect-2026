@@ -31,7 +31,7 @@ export type SharedLayoutPresetPayload = {
 /** A reusable visual snapshot that deliberately does not include local UI state. */
 export type SharedStylePresetPayload = {
   config: ThemedEngineConfig;
-  lab?: Partial<Omit<LabSettings, "drawerOpen" | "previewZoom" | "textureSidebarOpen" | "shaderSidebarOpen">>;
+  lab?: Partial<LabSettings>;
 };
 
 export type SharedColorPresetPayload = {
@@ -43,7 +43,81 @@ export type SharedColorPresetPayload = {
     colorEdge: string;
   };
   backgroundColor?: number | null;
+  stripeColors?: number[];
+  darkStripeColors?: number[];
+  darkBackgroundColor?: number | null;
 };
+
+export const LOCAL_WORKSPACE_LAB_KEYS = [
+  "drawerOpen",
+  "previewZoom",
+  "textureSidebarOpen",
+  "shaderSidebarOpen",
+  "textureSidebarWidth",
+  "shaderSidebarWidth",
+  "exportStartSec",
+  "exportDurationSec",
+  "exportSvgIncludeBackground",
+] as const satisfies readonly (keyof LabSettings)[];
+
+export const STYLE_EXCLUDED_LAB_KEYS = [
+  ...LOCAL_WORKSPACE_LAB_KEYS,
+  "canvasMode",
+  "canvasScale",
+  "canvasWidth",
+  "canvasHeight",
+  "canvasAspectLocked",
+  "clientSizeId",
+  "clientSizeUnit",
+  "clientSizePpi",
+  "clientSizeWidth",
+  "clientSizeHeight",
+] as const satisfies readonly (keyof LabSettings)[];
+
+function omitLabKeys(
+  lab: Partial<LabSettings> | undefined,
+  keys: readonly (keyof LabSettings)[],
+): Partial<LabSettings> | undefined {
+  if (!lab) return undefined;
+  const copy = structuredClone(lab) as Record<string, unknown>;
+  for (const key of keys) delete copy[key];
+  return copy as Partial<LabSettings>;
+}
+
+function preserveLabKeys(
+  incoming: Partial<LabSettings> | undefined,
+  current: Partial<LabSettings>,
+  keys: readonly (keyof LabSettings)[],
+): Partial<LabSettings> {
+  const merged = { ...(incoming ? structuredClone(incoming) : {}) } as Record<string, unknown>;
+  const local = current as unknown as Record<string, unknown>;
+  for (const key of keys) {
+    if (key in local) merged[key] = structuredClone(local[key]);
+  }
+  return merged as Partial<LabSettings>;
+}
+
+export function sharedLayoutLabFromSnapshot(lab: Partial<LabSettings>): Partial<LabSettings> {
+  return omitLabKeys(lab, LOCAL_WORKSPACE_LAB_KEYS) ?? {};
+}
+
+export function mergeSharedLayoutLab(
+  lab: Partial<LabSettings> | undefined,
+  current: Partial<LabSettings>,
+): Partial<LabSettings> {
+  return preserveLabKeys(lab, current, LOCAL_WORKSPACE_LAB_KEYS);
+}
+
+export function sharedStyleLabFromSnapshot(lab: Partial<LabSettings>): Partial<LabSettings> {
+  return omitLabKeys(lab, STYLE_EXCLUDED_LAB_KEYS) ?? {};
+}
+
+export function mergeSharedStyleLab(
+  lab: Partial<LabSettings> | undefined,
+  current: Partial<LabSettings>,
+): Partial<LabSettings> {
+  return preserveLabKeys(lab, current, STYLE_EXCLUDED_LAB_KEYS);
+}
 
 export type SharedPresetPayloadMap = {
   size: SharedSizePresetPayload;
@@ -142,14 +216,25 @@ function validateConfigPayload(value: unknown, allowLocalUiState: boolean): bool
   if (value.lab !== undefined && !isRecord(value.lab)) return false;
   const lab = value.lab;
   if (!allowLocalUiState && isRecord(lab)) {
-    const localOnlyKeys = ["drawerOpen", "previewZoom", "textureSidebarOpen", "shaderSidebarOpen"];
+    const localOnlyKeys = STYLE_EXCLUDED_LAB_KEYS;
     if (localOnlyKeys.some((key) => key in lab)) return false;
   }
   return true;
 }
 
 function validateColorPayload(value: unknown): value is SharedColorPresetPayload {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["stripePalette", "twizzler", "backgroundColor"])) return false;
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      "stripePalette",
+      "twizzler",
+      "backgroundColor",
+      "stripeColors",
+      "darkStripeColors",
+      "darkBackgroundColor",
+    ])
+  )
+    return false;
   if (value.stripePalette !== null && typeof value.stripePalette !== "string") return false;
   if (!isRecord(value.twizzler)) return false;
   const twizzler = value.twizzler;
@@ -157,10 +242,18 @@ function validateColorPayload(value: unknown): value is SharedColorPresetPayload
   if (!["color", "colorFar", "colorNear", "colorEdge"].every((key) => isHexColor(twizzler[key]))) {
     return false;
   }
+  const validRgb = (color: unknown) =>
+    color === undefined ||
+    color === null ||
+    (Number.isInteger(color) && (color as number) >= 0 && (color as number) <= 0xffffff);
+  const validStripeColors = (colors: unknown) =>
+    colors === undefined ||
+    (Array.isArray(colors) && colors.length <= 64 && colors.every((color) => validRgb(color) && color !== null));
   return (
-    value.backgroundColor === undefined ||
-    value.backgroundColor === null ||
-    (Number.isInteger(value.backgroundColor) && (value.backgroundColor as number) >= 0 && (value.backgroundColor as number) <= 0xffffff)
+    validRgb(value.backgroundColor) &&
+    validRgb(value.darkBackgroundColor) &&
+    validStripeColors(value.stripeColors) &&
+    validStripeColors(value.darkStripeColors)
   );
 }
 

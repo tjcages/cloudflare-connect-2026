@@ -6,8 +6,12 @@ import {
   SHARED_PRESET_SCHEMA_VERSIONS,
   configPresetFromSharedLayout,
   legacySizeFromSharedPreset,
+  mergeSharedLayoutLab,
+  mergeSharedStyleLab,
   sharedLayoutInputFromConfigPreset,
+  sharedLayoutLabFromSnapshot,
   sharedPresetInputFromLegacySize,
+  sharedStyleLabFromSnapshot,
   validateSharedPreset,
   validateSharedPresetInput,
   type SharedPreset,
@@ -116,6 +120,59 @@ describe("shared preset domain", () => {
     expect(validateSharedPresetInput({ ...style, kind: "layout", schemaVersion: 2 }, "layout").ok).toBe(true);
   });
 
+  it("keeps workspace chrome local when a shared layout is saved and applied", () => {
+    const snapshot = {
+      ...DEFAULT_LAB_SETTINGS,
+      canvasWidth: 2400,
+      previewZoom: 0.4,
+      shaderSidebarWidth: 420,
+      drawerOpen: { Presets: false },
+    };
+    const shared = sharedLayoutLabFromSnapshot(snapshot);
+    expect(shared.canvasWidth).toBe(2400);
+    expect(shared.previewZoom).toBeUndefined();
+    expect(shared.shaderSidebarWidth).toBeUndefined();
+    expect(shared.drawerOpen).toBeUndefined();
+
+    const applied = mergeSharedLayoutLab(shared, {
+      previewZoom: 0.72,
+      shaderSidebarWidth: 310,
+      drawerOpen: { Presets: true },
+    });
+    expect(applied.canvasWidth).toBe(2400);
+    expect(applied.previewZoom).toBe(0.72);
+    expect(applied.shaderSidebarWidth).toBe(310);
+    expect(applied.drawerOpen).toEqual({ Presets: true });
+  });
+
+  it("keeps size, export, and workspace settings local when a shared style is applied", () => {
+    const shared = sharedStyleLabFromSnapshot({
+      ...DEFAULT_LAB_SETTINGS,
+      canvasWidth: 2400,
+      clientSizeWidth: 20,
+      exportDurationSec: 12,
+      twizzlerEnabled: false,
+      stripePalette: "Purple",
+    });
+    expect(shared.canvasWidth).toBeUndefined();
+    expect(shared.clientSizeWidth).toBeUndefined();
+    expect(shared.exportDurationSec).toBeUndefined();
+    expect(shared.twizzlerEnabled).toBe(false);
+    expect(shared.stripePalette).toBe("Purple");
+
+    const applied = mergeSharedStyleLab(shared, {
+      canvasWidth: 800,
+      clientSizeWidth: 800,
+      exportDurationSec: 4,
+      previewZoom: 0.5,
+    });
+    expect(applied.canvasWidth).toBe(800);
+    expect(applied.clientSizeWidth).toBe(800);
+    expect(applied.exportDurationSec).toBe(4);
+    expect(applied.previewZoom).toBe(0.5);
+    expect(applied.twizzlerEnabled).toBe(false);
+  });
+
   it("enforces the 256 KiB payload limit using serialized UTF-8 bytes", () => {
     const withinLimit = {
       kind: "layout",
@@ -148,5 +205,24 @@ describe("shared preset domain", () => {
     expect(validateSharedPresetInput(input(0xffffff), "color").ok).toBe(true);
     expect(validateSharedPresetInput(input(0x1000000), "color").ok).toBe(false);
     expect(validateSharedPresetInput(input(1.5), "color").ok).toBe(false);
+  });
+
+  it("accepts bounded light and dark stripe color arrays", () => {
+    const input = {
+      kind: "color" as const,
+      name: "Brand",
+      payload: {
+        stripePalette: "Custom",
+        twizzler: { color: "#f46021", colorFar: "#fea700", colorNear: "#f46021", colorEdge: "#e92e28" },
+        stripeColors: [0, 0xffffff],
+        darkStripeColors: [0x101010, 0xeeeeee],
+        darkBackgroundColor: 0x111111,
+      },
+      schemaVersion: 1 as const,
+    };
+    expect(validateSharedPresetInput(input, "color").ok).toBe(true);
+    expect(
+      validateSharedPresetInput({ ...input, payload: { ...input.payload, stripeColors: [0x1000000] } }, "color").ok,
+    ).toBe(false);
   });
 });

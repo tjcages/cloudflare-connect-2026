@@ -162,7 +162,27 @@ function validateConfigPayload(payload: Record<string, unknown>, kind: "layout" 
   const lab = payload.lab;
   if (Object.hasOwn(payload, "lab") && !isRecord(lab)) return "Preset lab settings must be an object.";
   if (kind === "style" && isRecord(lab)) {
-    const localUiKeys = ["drawerOpen", "previewZoom", "textureSidebarOpen", "shaderSidebarOpen"];
+    const localUiKeys = [
+      "drawerOpen",
+      "previewZoom",
+      "textureSidebarOpen",
+      "shaderSidebarOpen",
+      "textureSidebarWidth",
+      "shaderSidebarWidth",
+      "exportStartSec",
+      "exportDurationSec",
+      "exportSvgIncludeBackground",
+      "canvasMode",
+      "canvasScale",
+      "canvasWidth",
+      "canvasHeight",
+      "canvasAspectLocked",
+      "clientSizeId",
+      "clientSizeUnit",
+      "clientSizePpi",
+      "clientSizeWidth",
+      "clientSizeHeight",
+    ];
     if (localUiKeys.some((key) => Object.hasOwn(lab, key))) {
       return "Style payload cannot contain local interface settings.";
     }
@@ -171,7 +191,16 @@ function validateConfigPayload(payload: Record<string, unknown>, kind: "layout" 
 }
 
 function validateColorPayload(payload: Record<string, unknown>): string | null {
-  if (!hasOnlyKeys(payload, ["stripePalette", "twizzler", "backgroundColor"])) {
+  if (
+    !hasOnlyKeys(payload, [
+      "stripePalette",
+      "twizzler",
+      "backgroundColor",
+      "stripeColors",
+      "darkStripeColors",
+      "darkBackgroundColor",
+    ])
+  ) {
     return "Color payload contains unsupported fields.";
   }
   if (payload.stripePalette !== null && typeof payload.stripePalette !== "string") {
@@ -199,6 +228,26 @@ function validateColorPayload(payload: Record<string, unknown>): string | null {
       Number(payload.backgroundColor) > 0xffffff)
   ) {
     return "Background color must be an RGB integer from 0 to 16777215 or null.";
+  }
+  for (const key of ["stripeColors", "darkStripeColors"] as const) {
+    const colors = payload[key];
+    if (
+      colors !== undefined &&
+      (!Array.isArray(colors) ||
+        colors.length > 64 ||
+        !colors.every((color) => Number.isInteger(color) && Number(color) >= 0 && Number(color) <= 0xffffff))
+    ) {
+      return "Stripe colors must be RGB integers from 0 to 16777215.";
+    }
+  }
+  if (
+    Object.hasOwn(payload, "darkBackgroundColor") &&
+    payload.darkBackgroundColor !== null &&
+    (!Number.isInteger(payload.darkBackgroundColor) ||
+      Number(payload.darkBackgroundColor) < 0 ||
+      Number(payload.darkBackgroundColor) > 0xffffff)
+  ) {
+    return "Dark background color must be an RGB integer from 0 to 16777215 or null.";
   }
   return null;
 }

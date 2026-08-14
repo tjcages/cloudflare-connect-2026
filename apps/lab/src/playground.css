@@ -2195,6 +2195,7 @@ body.lab-sidebar-resizing .lab-sidebar {
 }
 
 .lab-shell.is-client-mode .lab-client-layouts,
+.lab-shell.is-client-mode .lab-client-shared-looks,
 .lab-shell.is-client-mode .lab-client-json,
 .lab-shell.is-client-mode .lab-client-exports {
   display: flex;
@@ -2206,6 +2207,29 @@ body.lab-sidebar-resizing .lab-sidebar {
   background-color: transparent !important;
   border: 0;
   box-shadow: none;
+}
+
+.lab-shell.is-client-mode .lab-client-shared-looks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.lab-shell.is-client-mode .lab-client-shared-look-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 5px 8px;
+  align-items: center;
+}
+
+.lab-shell.is-client-mode .lab-client-shared-look-row > label {
+  color: var(--leva-text-muted);
+  font-size: 10px;
+}
+
+.lab-shell.is-client-mode .lab-client-shared-look-row .lab-client-layouts-actions {
+  grid-column: 2;
 }
 
 /* In-flow after Leva: expanding folders grow the panel scroll and push this block down. */
