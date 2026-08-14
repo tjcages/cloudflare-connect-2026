@@ -143,6 +143,7 @@ import {
   type SurfaceWorkspace,
 } from "./surfaceWorkspace";
 import { TimelineEditor, type TimelineLevaStore } from "./components/TimelineEditor";
+import { buildTimelineStoreUpdates } from "./animation/timelineStoreValues";
 import type { TimelineValue } from "./animation/timelineModel";
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
@@ -1230,11 +1231,7 @@ function LabInner({
     (values: Record<string, TimelineValue>) => {
       for (const store of timelineStores) {
         const data = store.getData();
-        const updates: Record<string, TimelineValue> = {};
-        for (const [key, value] of Object.entries(values)) {
-          const path = Object.keys(data).find((candidate) => (candidate.split(".").at(-1) ?? candidate) === key);
-          if (path && data[path]?.value !== value) updates[path] = value;
-        }
+        const updates = buildTimelineStoreUpdates(values, data);
         if (Object.keys(updates).length > 0) store.set(updates, false);
       }
     },

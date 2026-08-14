@@ -60,8 +60,27 @@ describe("timeline model", () => {
     expect(normalizeTimelineEasing("not-real")).toBe("easeInOutExpo");
   });
 
-  it("evaluates all tracks into Leva control keys", () => {
-    expect(evaluateSequence({ duration: 2, loop: true, tracks: [track] }, 1)).toEqual({ brightness: 5 });
+  it("evaluates all tracks into exact Leva control paths", () => {
+    expect(evaluateSequence({ duration: 2, loop: true, tracks: [track] }, 1)).toEqual({
+      "Adjustments.brightness": 5,
+    });
+  });
+
+  it("keeps controls with the same final key independently animatable", () => {
+    const duplicateKeyTrack: TimelineTrack = {
+      ...track,
+      id: "other-brightness",
+      propertyPath: "Shader.brightness",
+      keyframes: [
+        { id: "c", time: 0, value: 20, easing: "linear" },
+        { id: "d", time: 2, value: 40, easing: "linear" },
+      ],
+    };
+
+    expect(evaluateSequence({ duration: 2, loop: true, tracks: [track, duplicateKeyTrack] }, 1)).toEqual({
+      "Adjustments.brightness": 5,
+      "Shader.brightness": 30,
+    });
   });
 
   it("updates an existing key at the same time instead of duplicating it", () => {

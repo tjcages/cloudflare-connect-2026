@@ -91,6 +91,9 @@ function timelinePropertyFromInput(path: string, input: LevaDataInput): Timeline
   const value = input.value;
   if (["BUTTON", "BUTTON_GROUP", "MONITOR", "STRING"].includes(input.type)) return null;
   if (typeof value !== "number" && typeof value !== "string" && typeof value !== "boolean") return null;
+  // Custom editors can store structured state as serialized strings. Those are
+  // not meaningful scalar tracks; their individual aliases are exposed instead.
+  if (typeof value === "string" && (value.trim().startsWith("[") || value.trim().startsWith("{"))) return null;
   const parts = path.split(".");
   const key = parts.at(-1) ?? path;
   const group = parts.length > 1 ? parts.slice(0, -1).join(" / ") : "General";
@@ -121,7 +124,7 @@ export function collectTimelineProperties(
       if (path.startsWith("Rain.") && graphicMode === "twizzler") continue;
       if (path.startsWith("Twizzler.") && graphicMode === "rain") continue;
       const property = timelinePropertyFromInput(path, input);
-      if (property && !properties.has(property.key)) properties.set(property.key, property);
+      if (property && !properties.has(property.path)) properties.set(property.path, property);
     }
   }
   return [...properties.values()].sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
@@ -184,10 +187,10 @@ function PropertyPicker({
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const tracked = useMemo(() => new Set(tracks.map((track) => track.propertyKey)), [tracks]);
+  const tracked = useMemo(() => new Set(tracks.map((track) => track.propertyPath)), [tracks]);
   const filtered = properties.filter(
     (property) =>
-      !tracked.has(property.key) &&
+      !tracked.has(property.path) &&
       `${property.group} ${property.label}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
   const groups = filtered.reduce<Record<string, TimelineProperty[]>>((result, property) => {
@@ -482,12 +485,12 @@ export function TimelineEditor({
   }, [selectedKeyId, selectedTrackId, updatePlaying, updateTime]);
 
   const currentProperties = useMemo(
-    () => new Map(properties.map((property) => [property.key, property])),
+    () => new Map(properties.map((property) => [property.path, property])),
     [properties],
   );
   const selectedTrack = sequence.tracks.find((track) => track.id === selectedTrackId) ?? null;
   const selectedKey = selectedTrack?.keyframes.find((keyframe) => keyframe.id === selectedKeyId) ?? null;
-  const selectedProperty = selectedTrack ? currentProperties.get(selectedTrack.propertyKey) : null;
+  const selectedProperty = selectedTrack ? currentProperties.get(selectedTrack.propertyPath) : null;
   const ticks = useMemo(() => {
     const step = rulerStep(sequence.duration);
     return Array.from({ length: Math.floor(sequence.duration / step) + 1 }, (_, index) => index * step);
@@ -545,8 +548,8 @@ export function TimelineEditor({
   };
 
   const addKey = (track: TimelineTrack, time = currentTime) => {
-    const property = currentProperties.get(track.propertyKey);
-    const storeValue = property?.value ?? evaluateSequence(sequence, currentTime)[track.propertyKey];
+    const property = currentProperties.get(track.propertyPath);
+    const storeValue = property?.value ?? evaluateSequence(sequence, currentTime)[track.propertyPath];
     if (storeValue === undefined) return;
     const keyTime = snapKeyTime(time).time;
     const next = upsertKeyframe(track, keyTime, storeValue);
@@ -905,7 +908,7 @@ export function TimelineEditor({
                       >
                         {track.label}
                       </button>
-                      <small>{displayValue(evaluateSequence(sequence, currentTime)[track.propertyKey] ?? "—")}</small>
+                      <small>{displayValue(evaluateSequence(sequence, currentTime)[track.propertyPath] ?? "—")}</small>
                       <button
                         type="button"
                         onClick={(event) => {

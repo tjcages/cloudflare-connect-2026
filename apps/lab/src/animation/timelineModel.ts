@@ -154,7 +154,7 @@ export function evaluateSequence(sequence: TimelineSequence, time: number): Reco
   const values: Record<string, TimelineValue> = {};
   for (const track of sequence.tracks) {
     const value = evaluateTrack(track, time);
-    if (value !== undefined) values[track.propertyKey] = value;
+    if (value !== undefined) values[track.propertyPath] = value;
   }
   return values;
 }

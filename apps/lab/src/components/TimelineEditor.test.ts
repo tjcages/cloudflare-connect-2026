@@ -63,6 +63,7 @@ describe("timeline property collection", () => {
         "General.action": { type: "BUTTON", value: "run", label: "Run" },
         "General.disabled": { type: "NUMBER", value: 1, label: "Disabled", disabled: true },
         "General.vector": { type: "VECTOR2D", value: { x: 0, y: 0 }, label: "Vector" },
+        "General.serialized": { type: "CUSTOM", value: '[{"id":"one"}]', label: "Structured editor" },
       }),
     ]);
 
@@ -89,5 +90,16 @@ describe("timeline property collection", () => {
       "Rain.Grid.gap",
       "Twizzler.Motion.speed",
     ]);
+  });
+
+  it("keeps controls with duplicate final keys when their full paths differ", () => {
+    const properties = collectTimelineProperties([
+      storeWith({
+        "Background.color": { type: "COLOR", value: "#ffffff", label: "Color" },
+        "Twizzler.General.color": { type: "COLOR", value: "#ff0000", label: "Color" },
+      }),
+    ]);
+
+    expect(properties.map((property) => property.path)).toEqual(["Background.color", "Twizzler.General.color"]);
   });
 });
