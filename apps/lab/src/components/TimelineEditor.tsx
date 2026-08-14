@@ -66,6 +66,7 @@ type TimelineEditorProps = {
 };
 
 const TIMELINE_TRACK_HEIGHT = 34;
+const TIMELINE_AXIS_INSET = 18;
 
 type TimelineMarquee = { left: number; top: number; width: number; height: number };
 type TimelineRect = { left: number; top: number; right: number; bottom: number };
@@ -375,7 +376,7 @@ export function TimelineEditor({
   }, [updatePlaying, updateTime]);
 
   const snapKeyTime = useCallback((time: number, disabled = false) => {
-    const width = timelineRef.current?.getBoundingClientRect().width ?? 0;
+    const width = Math.max(0, (timelineRef.current?.getBoundingClientRect().width ?? 0) - TIMELINE_AXIS_INSET);
     return disabled
       ? { time: clampTimelineTime(time, sequenceRef.current.duration), snapped: false }
       : snapTimelineTimeToWholeSecond(time, sequenceRef.current.duration, width);
@@ -634,8 +635,9 @@ export function TimelineEditor({
   const timeFromPointer = (clientX: number): number => {
     const rect = timelineRef.current?.getBoundingClientRect();
     if (!rect) return 0;
+    const axisWidth = Math.max(1, rect.width - TIMELINE_AXIS_INSET);
     return clampTimelineTime(
-      ((clientX - rect.left) / rect.width) * sequenceRef.current.duration,
+      ((clientX - rect.left - TIMELINE_AXIS_INSET) / axisWidth) * sequenceRef.current.duration,
       sequenceRef.current.duration,
     );
   };
@@ -765,7 +767,8 @@ export function TimelineEditor({
     const setKeyDelta = (clientX: number, disableSnap: boolean, applyValues: boolean) => {
       const rect = timelineRef.current?.getBoundingClientRect();
       if (!rect || rect.width <= 0) return;
-      const rawDelta = ((clientX - startX) / rect.width) * startSequence.duration;
+      const axisWidth = Math.max(1, rect.width - TIMELINE_AXIS_INSET);
+      const rawDelta = ((clientX - startX) / axisWidth) * startSequence.duration;
       const anchorTime = clickedKey.time + rawDelta;
       const snapped = snapKeyTime(anchorTime, disableSnap);
       const delta = clampTimelineKeyframeDelta(startSequence, dragSelection, snapped.time - clickedKey.time);
@@ -878,6 +881,7 @@ export function TimelineEditor({
         {
           "--timeline-editor-height": `${layout.height}px`,
           "--timeline-inspector-width": `${layout.inspectorWidth}px`,
+          "--timeline-axis-inset": `${TIMELINE_AXIS_INSET}px`,
         } as CSSProperties
       }
     >
@@ -1100,11 +1104,13 @@ export function TimelineEditor({
             </div>
             <div className="timeline-canvas-shell">
               <div className="timeline-ruler" onPointerDown={scrub}>
-                {ticks.map((tick) => (
-                  <span key={tick} style={{ left: `${(tick / sequence.duration) * 100}%` }}>
-                    {tick}s
-                  </span>
-                ))}
+                <div className="timeline-ruler-axis">
+                  {ticks.map((tick) => (
+                    <span key={tick} style={{ left: `${(tick / sequence.duration) * 100}%` }}>
+                      {tick}s
+                    </span>
+                  ))}
+                </div>
               </div>
               <div
                 className="timeline-canvas"
@@ -1125,18 +1131,6 @@ export function TimelineEditor({
                   className="timeline-canvas-content"
                   style={{ height: `max(100%, ${timelineScrollContentHeight(sequence.tracks.length)}px)` }}
                 >
-                  <div className="timeline-grid-lines" aria-hidden>
-                    {ticks.map((tick) => (
-                      <i key={tick} style={{ left: `${(tick / sequence.duration) * 100}%` }} />
-                    ))}
-                  </div>
-                  {snapGuideTime !== null ? (
-                    <div
-                      className="timeline-snap-guide"
-                      style={{ left: `${(snapGuideTime / sequence.duration) * 100}%` }}
-                      aria-hidden
-                    />
-                  ) : null}
                   {marquee ? (
                     <div
                       className="timeline-selection-marquee"
@@ -1144,54 +1138,68 @@ export function TimelineEditor({
                       aria-hidden
                     />
                   ) : null}
-                  <div className="timeline-playhead" style={{ left: `${(currentTime / sequence.duration) * 100}%` }}>
-                    <span />
-                  </div>
-                  {sequence.tracks.map((track, rowIndex) => (
-                    <div
-                      className={`timeline-track-row${selectedTrackId === track.id ? " is-selected" : ""}`}
-                      key={track.id}
-                      style={{ top: rowIndex * TIMELINE_TRACK_HEIGHT }}
-                      onPointerDown={(event) => {
-                        if (event.metaKey || event.shiftKey) return;
-                        setSelectedTrackId(track.id);
-                        clearKeySelection();
-                      }}
-                      onDoubleClick={(event) => addKey(track, timeFromPointer(event.clientX))}
-                    >
-                      {sortKeyframes(track.keyframes)
-                        .slice(0, -1)
-                        .map((keyframe, index) => {
-                          const next = sortKeyframes(track.keyframes)[index + 1];
-                          return (
-                            <span
-                              key={`${keyframe.id}-segment`}
-                              className={`timeline-key-segment${keyframe.easing === "hold" ? " is-hold" : ""}${keyframe.easing === "spring" ? " is-spring" : ""}`}
-                              style={{
-                                left: `${(keyframe.time / sequence.duration) * 100}%`,
-                                width: `${((next.time - keyframe.time) / sequence.duration) * 100}%`,
-                              }}
-                            />
-                          );
-                        })}
-                      {track.keyframes.map((keyframe) => (
-                        <button
-                          type="button"
-                          key={keyframe.id}
-                          className={`timeline-key${selectedKeyIdSet.has(keyframe.id) ? " is-selected" : ""}`}
-                          style={{ left: `${(keyframe.time / sequence.duration) * 100}%` }}
-                          data-key-id={keyframe.id}
-                          aria-pressed={selectedKeyIdSet.has(keyframe.id)}
-                          onPointerDown={(event) => dragKey(event, track.id, keyframe.id)}
-                          onClick={(event) => event.stopPropagation()}
-                          aria-label={`${track.label} key at ${formatSeconds(keyframe.time)}`}
-                          title={`${displayValue(keyframe.value)} · ${formatSeconds(keyframe.time)}`}
-                        >
-                          <span />
-                        </button>
+                  <div className="timeline-canvas-axis">
+                    <div className="timeline-grid-lines" aria-hidden>
+                      {ticks.map((tick) => (
+                        <i key={tick} style={{ left: `${(tick / sequence.duration) * 100}%` }} />
                       ))}
                     </div>
-                  ))}
+                    {snapGuideTime !== null ? (
+                      <div
+                        className="timeline-snap-guide"
+                        style={{ left: `${(snapGuideTime / sequence.duration) * 100}%` }}
+                        aria-hidden
+                      />
+                    ) : null}
+                    <div className="timeline-playhead" style={{ left: `${(currentTime / sequence.duration) * 100}%` }}>
+                      <span />
+                    </div>
+                    {sequence.tracks.map((track, rowIndex) => (
+                      <div
+                        className={`timeline-track-row${selectedTrackId === track.id ? " is-selected" : ""}`}
+                        key={track.id}
+                        style={{ top: rowIndex * TIMELINE_TRACK_HEIGHT }}
+                        onPointerDown={(event) => {
+                          if (event.metaKey || event.shiftKey) return;
+                          setSelectedTrackId(track.id);
+                          clearKeySelection();
+                        }}
+                        onDoubleClick={(event) => addKey(track, timeFromPointer(event.clientX))}
+                      >
+                        {sortKeyframes(track.keyframes)
+                          .slice(0, -1)
+                          .map((keyframe, index) => {
+                            const next = sortKeyframes(track.keyframes)[index + 1];
+                            return (
+                              <span
+                                key={`${keyframe.id}-segment`}
+                                className={`timeline-key-segment${keyframe.easing === "hold" ? " is-hold" : ""}${keyframe.easing === "spring" ? " is-spring" : ""}`}
+                                style={{
+                                  left: `${(keyframe.time / sequence.duration) * 100}%`,
+                                  width: `${((next.time - keyframe.time) / sequence.duration) * 100}%`,
+                                }}
+                              />
+                            );
+                          })}
+                        {track.keyframes.map((keyframe) => (
+                          <button
+                            type="button"
+                            key={keyframe.id}
+                            className={`timeline-key${selectedKeyIdSet.has(keyframe.id) ? " is-selected" : ""}`}
+                            style={{ left: `${(keyframe.time / sequence.duration) * 100}%` }}
+                            data-key-id={keyframe.id}
+                            aria-pressed={selectedKeyIdSet.has(keyframe.id)}
+                            onPointerDown={(event) => dragKey(event, track.id, keyframe.id)}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={`${track.label} key at ${formatSeconds(keyframe.time)}`}
+                            title={`${displayValue(keyframe.value)} · ${formatSeconds(keyframe.time)}`}
+                          >
+                            <span />
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

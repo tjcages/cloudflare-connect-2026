@@ -3183,6 +3183,11 @@ body.lab-sidebar-resizing canvas {
   cursor: ew-resize !important;
 }
 
+.timeline-ruler-axis {
+  position: absolute;
+  inset: 0 0 0 var(--timeline-axis-inset, 18px);
+}
+
 .timeline-ruler span {
   position: absolute;
   bottom: 5px;
@@ -3210,6 +3215,11 @@ body.lab-sidebar-resizing canvas {
 .timeline-canvas-content {
   position: relative;
   min-width: 100%;
+}
+
+.timeline-canvas-axis {
+  position: absolute;
+  inset: 0 0 0 var(--timeline-axis-inset, 18px);
 }
 
 .timeline-grid-lines,
