@@ -3237,6 +3237,17 @@ body.lab-sidebar-resizing canvas {
   pointer-events: none;
 }
 
+.timeline-selection-marquee {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  border: 1px solid rgb(59 130 246 / 88%);
+  border-radius: 2px;
+  background: rgb(59 130 246 / 14%);
+  box-shadow: 0 0 0 1px rgb(59 130 246 / 8%);
+  pointer-events: none;
+}
+
 .timeline-track-row {
   position: absolute;
   right: 0;
@@ -3322,6 +3333,18 @@ body.lab-sidebar-resizing canvas {
     0 0 0 2px var(--leva-panel-bg),
     0 0 0 3px var(--leva-accent-strong);
   scale: 1.08;
+}
+
+.timeline-key.is-selected > span {
+  border-color: #3b82f6;
+  background: #3b82f6;
+  box-shadow:
+    0 0 0 2px var(--leva-panel-bg),
+    0 0 0 3px #3b82f6;
+}
+
+.timeline-key.is-selected::before {
+  background: rgb(59 130 246 / 20%);
 }
 
 .timeline-key:hover::before,

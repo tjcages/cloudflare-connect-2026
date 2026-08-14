@@ -10,11 +10,14 @@ import {
 } from "react";
 import { ChevronDown, ChevronRight, Diamond, Keyboard, Plus, Repeat2, Search, Trash2, X } from "lucide-react";
 import {
+  advanceTimelinePlayback,
+  clampTimelineKeyframeDelta,
   clampTimelineTime,
   createTimelineId,
   DEFAULT_TIMELINE_EASING,
   evaluateSequence,
   loadTimelineSequence,
+  offsetTimelineKeyframes,
   saveTimelineSequence,
   snapTimelineTimeToWholeSecond,
   sortKeyframes,
@@ -63,6 +66,13 @@ type TimelineEditorProps = {
 };
 
 const TIMELINE_TRACK_HEIGHT = 34;
+
+type TimelineMarquee = { left: number; top: number; width: number; height: number };
+type TimelineRect = { left: number; top: number; right: number; bottom: number };
+
+export function timelineRectsIntersect(a: TimelineRect, b: TimelineRect): boolean {
+  return a.right >= b.left && a.left <= b.right && a.bottom >= b.top && a.top <= b.bottom;
+}
 
 export function timelineScrollContentHeight(trackCount: number): number {
   return (Math.max(0, Math.floor(trackCount)) + 1) * TIMELINE_TRACK_HEIGHT;
@@ -276,8 +286,10 @@ export function TimelineEditor({
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
+  const [selectedKeyIds, setSelectedKeyIds] = useState<string[]>([]);
   const [selectedNumberDraft, setSelectedNumberDraft] = useState<string | null>(null);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
+  const [marquee, setMarquee] = useState<TimelineMarquee | null>(null);
   const [layout, setLayout] = useState(loadTimelineLayout);
   const timelineRef = useRef<HTMLDivElement>(null);
   const trackListScrollRef = useRef<HTMLDivElement>(null);
@@ -300,6 +312,19 @@ export function TimelineEditor({
   onTimeChangeRef.current = onTimeChange;
   onPlayingChangeRef.current = onPlayingChange;
 
+  const selectedKeyIdSet = useMemo(() => new Set(selectedKeyIds), [selectedKeyIds]);
+
+  const selectKeys = useCallback((keyIds: Iterable<string>) => {
+    const unique = [...new Set(keyIds)];
+    setSelectedKeyIds(unique);
+    setSelectedKeyId(unique.length === 1 ? unique[0]! : null);
+  }, []);
+
+  const clearKeySelection = useCallback(() => {
+    setSelectedKeyIds([]);
+    setSelectedKeyId(null);
+  }, []);
+
   const updatePlaying = useCallback((next: boolean) => {
     if (playingRef.current === next) return;
     playingRef.current = next;
@@ -307,9 +332,10 @@ export function TimelineEditor({
   }, []);
 
   const applyEvaluatedValues = useCallback((nextSequence: TimelineSequence, time: number) => {
+    const values = evaluateSequence(nextSequence, time);
     applyingTimelineValuesRef.current = true;
     try {
-      onApplyValuesRef.current(evaluateSequence(nextSequence, time));
+      onApplyValuesRef.current(values);
     } finally {
       applyingTimelineValuesRef.current = false;
     }
@@ -325,6 +351,28 @@ export function TimelineEditor({
     },
     [applyEvaluatedValues],
   );
+
+  const moveSelectedKeys = useCallback(
+    (requestedDelta: number) => {
+      if (selectedKeyIds.length === 0) return;
+      const selected = new Set(selectedKeyIds);
+      const current = sequenceRef.current;
+      const delta = clampTimelineKeyframeDelta(current, selected, requestedDelta);
+      if (delta === 0) return;
+      const anchor = current.tracks.flatMap((track) => track.keyframes).find((keyframe) => selected.has(keyframe.id));
+      const next = offsetTimelineKeyframes(current, selected, delta);
+      sequenceRef.current = next;
+      setSequence(next);
+      if (anchor) updateTime(anchor.time + delta, false);
+    },
+    [selectedKeyIds, updateTime],
+  );
+
+  const togglePlayback = useCallback(() => {
+    const next = !playingRef.current;
+    if (next && timeRef.current >= sequenceRef.current.duration - 0.000001) updateTime(0);
+    updatePlaying(next);
+  }, [updatePlaying, updateTime]);
 
   const snapKeyTime = useCallback((time: number, disabled = false) => {
     const width = timelineRef.current?.getBoundingClientRect().width ?? 0;
@@ -346,19 +394,20 @@ export function TimelineEditor({
   }, []);
 
   useEffect(() => {
-    if (!selectedKeyId) return;
+    if (selectedKeyIds.length === 0) return;
     const clearSelectedKey = (event: PointerEvent) => {
       const target = event.target;
       if (
         target instanceof Element &&
-        target.closest(".timeline-key, .timeline-inspector, .timeline-resize-handle, [data-hex-color-popover]")
+        (target.closest(".timeline-key, .timeline-inspector, .timeline-resize-handle, [data-hex-color-popover]") ||
+          ((event.metaKey || event.shiftKey) && target.closest(".timeline-canvas")))
       )
         return;
-      setSelectedKeyId(null);
+      clearKeySelection();
     };
     window.addEventListener("pointerdown", clearSelectedKey, true);
     return () => window.removeEventListener("pointerdown", clearSelectedKey, true);
-  }, [selectedKeyId]);
+  }, [clearKeySelection, selectedKeyIds.length]);
 
   useEffect(() => {
     if (deferSequenceApplyRef.current) return;
@@ -385,19 +434,17 @@ export function TimelineEditor({
     const tick = (now: number) => {
       const elapsed = Math.min(0.1, (now - previous) / 1000);
       previous = now;
-      let next = timeRef.current + elapsed;
-      const shouldLoop = sequenceRef.current.loop || sequenceRef.current.tracks.length === 0;
-      if (next >= sequenceRef.current.duration) {
-        if (shouldLoop) next %= sequenceRef.current.duration;
-        else {
-          next = sequenceRef.current.duration;
-          updatePlaying(false);
-        }
-      }
+      const playback = advanceTimelinePlayback(
+        timeRef.current,
+        elapsed,
+        sequenceRef.current.duration,
+        sequenceRef.current.loop,
+      );
+      if (!playback.playing) updatePlaying(false);
       // The shader's natural clock keeps advancing independently while the
       // keyframed property clock loops. Scrubbing still synchronizes both.
-      updateTime(next, false);
-      if (next < sequenceRef.current.duration || shouldLoop) frame = requestAnimationFrame(tick);
+      updateTime(playback.time, false);
+      if (playback.playing) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
@@ -420,7 +467,7 @@ export function TimelineEditor({
         if (isTextEntry) return;
         event.preventDefault();
         event.stopPropagation();
-        updatePlaying(!playingRef.current);
+        togglePlayback();
         return;
       }
 
@@ -444,6 +491,13 @@ export function TimelineEditor({
         event.preventDefault();
         updatePlaying(false);
         updateTime(sequenceRef.current.duration);
+        return;
+      }
+
+      if (selectedKeyIds.length > 0 && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+        event.preventDefault();
+        updatePlaying(false);
+        moveSelectedKeys(event.key === "ArrowLeft" ? -0.1 : 0.1);
         return;
       }
 
@@ -479,23 +533,24 @@ export function TimelineEditor({
         return;
       }
 
-      if ((event.key === "Delete" || event.key === "Backspace") && selectedKeyId) {
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedKeyIds.length > 0) {
         event.preventDefault();
+        const selected = new Set(selectedKeyIds);
         setSequence((current) => ({
           ...current,
           tracks: current.tracks.map((track) => ({
             ...track,
-            keyframes: track.keyframes.filter((keyframe) => keyframe.id !== selectedKeyId),
+            keyframes: track.keyframes.filter((keyframe) => !selected.has(keyframe.id)),
           })),
         }));
-        setSelectedKeyId(null);
+        clearKeySelection();
       }
     };
     // Capture lets the transport shortcut win even when Leva controls stop
     // keyboard events before they bubble to the window.
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [selectedKeyId, selectedTrackId, updatePlaying, updateTime]);
+  }, [clearKeySelection, moveSelectedKeys, selectedKeyIds, selectedTrackId, togglePlayback, updatePlaying, updateTime]);
 
   const currentProperties = useMemo(
     () => new Map(properties.map((property) => [property.path, property])),
@@ -540,9 +595,9 @@ export function TimelineEditor({
       };
       sequenceRef.current = nextSequence;
       setSequence(nextSequence);
-      setSelectedKeyId(nextKey?.id ?? null);
+      selectKeys(nextKey ? [nextKey.id] : []);
     });
-  }, [selectedKeyId, selectedTrack, snapKeyTime, stores]);
+  }, [selectKeys, selectedKeyId, selectedTrack, snapKeyTime, stores]);
 
   const addTrack = (property: TimelineProperty) => {
     const keyTime = snapKeyTime(currentTime).time;
@@ -558,7 +613,7 @@ export function TimelineEditor({
     };
     setSequence((current) => ({ ...current, tracks: [...current.tracks, track] }));
     setSelectedTrackId(track.id);
-    setSelectedKeyId(track.keyframes[0].id);
+    selectKeys([track.keyframes[0].id]);
   };
 
   const addKey = (track: TimelineTrack, time = currentTime) => {
@@ -573,7 +628,7 @@ export function TimelineEditor({
     }));
     const key = next.keyframes.find((frame) => Math.abs(frame.time - keyTime) < 0.001) ?? next.keyframes.at(-1);
     setSelectedTrackId(track.id);
-    setSelectedKeyId(key?.id ?? null);
+    selectKeys(key ? [key.id] : []);
   };
 
   const timeFromPointer = (clientX: number): number => {
@@ -616,52 +671,125 @@ export function TimelineEditor({
     window.addEventListener("pointercancel", end);
   };
 
-  const dragKey = (event: ReactPointerEvent<HTMLButtonElement>, trackId: string, keyId: string) => {
-    if (event.button !== 0) return;
+  const beginMarquee = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || (!event.metaKey && !event.shiftKey)) return false;
+    const canvas = timelineRef.current;
+    if (!canvas) return false;
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
     updatePlaying(false);
-    deferSequenceApplyRef.current = true;
-    setSnapGuideTime(null);
-    const setKeyTime = (time: number) => {
-      setSequence((current) => {
-        const next = {
-          ...current,
-          tracks: current.tracks.map((track) =>
-            track.id === trackId
-              ? {
-                  ...track,
-                  keyframes: sortKeyframes(
-                    track.keyframes.map((keyframe) => (keyframe.id === keyId ? { ...keyframe, time } : keyframe)),
-                  ),
-                }
-              : track,
-          ),
-        };
-        sequenceRef.current = next;
-        return next;
+    const pointerId = event.pointerId;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const initialSelection = new Set(selectedKeyIds);
+    const toggleSelection = event.metaKey;
+
+    const updateMarquee = (clientX: number, clientY: number) => {
+      const canvasRect = canvas.getBoundingClientRect();
+      const clientLeft = Math.min(startX, clientX);
+      const clientTop = Math.min(startY, clientY);
+      const clientRight = Math.max(startX, clientX);
+      const clientBottom = Math.max(startY, clientY);
+      setMarquee({
+        left: clientLeft - canvasRect.left,
+        top: clientTop - canvasRect.top + canvas.scrollTop,
+        width: clientRight - clientLeft,
+        height: clientBottom - clientTop,
       });
-      updateTime(time, false, false);
+
+      const hits = new Set<string>();
+      for (const keyElement of canvas.querySelectorAll<HTMLElement>(".timeline-key[data-key-id]")) {
+        const keyRect = keyElement.getBoundingClientRect();
+        if (
+          timelineRectsIntersect(keyRect, {
+            left: clientLeft,
+            top: clientTop,
+            right: clientRight,
+            bottom: clientBottom,
+          })
+        ) {
+          const keyId = keyElement.dataset.keyId;
+          if (keyId) hits.add(keyId);
+        }
+      }
+
+      const nextSelection = new Set(initialSelection);
+      for (const keyId of hits) {
+        if (toggleSelection && initialSelection.has(keyId)) nextSelection.delete(keyId);
+        else nextSelection.add(keyId);
+      }
+      selectKeys(nextSelection);
     };
+
+    updateMarquee(startX, startY);
     const move = (moveEvent: PointerEvent) => {
-      const snapped = snapKeyTime(timeFromPointer(moveEvent.clientX), moveEvent.altKey);
-      setSnapGuideTime(snapped.snapped ? snapped.time : null);
-      setKeyTime(snapped.time);
+      if (moveEvent.pointerId !== pointerId) return;
+      moveEvent.preventDefault();
+      updateMarquee(moveEvent.clientX, moveEvent.clientY);
     };
     const end = (endEvent: PointerEvent) => {
-      const snapped = snapKeyTime(timeFromPointer(endEvent.clientX), endEvent.altKey);
-      deferSequenceApplyRef.current = false;
-      setSnapGuideTime(null);
-      setSelectedTrackId(trackId);
-      setSelectedKeyId(keyId);
-      setKeyTime(snapped.time);
-      updateTime(snapped.time);
+      if (endEvent.pointerId !== pointerId) return;
+      updateMarquee(endEvent.clientX, endEvent.clientY);
+      setMarquee(null);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
       window.removeEventListener("pointercancel", end);
     };
-    window.addEventListener("pointermove", move);
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    return true;
+  };
+
+  const dragKey = (event: ReactPointerEvent<HTMLButtonElement>, trackId: string, keyId: string) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    updatePlaying(false);
+    setSnapGuideTime(null);
+    const startSequence = sequenceRef.current;
+    const startX = event.clientX;
+    const clickedKey = startSequence.tracks
+      .flatMap((track) => track.keyframes)
+      .find((keyframe) => keyframe.id === keyId);
+    if (!clickedKey) return;
+    deferSequenceApplyRef.current = true;
+    const dragSelection = new Set(selectedKeyIds);
+    if (!dragSelection.has(keyId)) {
+      if (!event.metaKey && !event.shiftKey) dragSelection.clear();
+      dragSelection.add(keyId);
+    }
+    selectKeys(dragSelection);
+    setSelectedTrackId(trackId);
+
+    const setKeyDelta = (clientX: number, disableSnap: boolean, applyValues: boolean) => {
+      const rect = timelineRef.current?.getBoundingClientRect();
+      if (!rect || rect.width <= 0) return;
+      const rawDelta = ((clientX - startX) / rect.width) * startSequence.duration;
+      const anchorTime = clickedKey.time + rawDelta;
+      const snapped = snapKeyTime(anchorTime, disableSnap);
+      const delta = clampTimelineKeyframeDelta(startSequence, dragSelection, snapped.time - clickedKey.time);
+      const next = offsetTimelineKeyframes(startSequence, dragSelection, delta);
+      sequenceRef.current = next;
+      setSequence(next);
+      setSnapGuideTime(snapped.snapped ? clickedKey.time + delta : null);
+      updateTime(clickedKey.time + delta, false, applyValues);
+    };
+    const move = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== event.pointerId) return;
+      moveEvent.preventDefault();
+      setKeyDelta(moveEvent.clientX, moveEvent.altKey, false);
+    };
+    const end = (endEvent: PointerEvent) => {
+      if (endEvent.pointerId !== event.pointerId) return;
+      deferSequenceApplyRef.current = false;
+      setKeyDelta(endEvent.clientX, endEvent.altKey, true);
+      setSnapGuideTime(null);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+    window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end);
   };
@@ -785,7 +913,7 @@ export function TimelineEditor({
           <button
             type="button"
             className="timeline-play"
-            onClick={() => updatePlaying(!playingRef.current)}
+            onClick={togglePlayback}
             aria-label={playing ? "Pause animation" : "Play animation"}
             title="Play / pause (Space)"
           >
@@ -853,11 +981,19 @@ export function TimelineEditor({
                       <dd>Shift + ← / →</dd>
                     </div>
                     <div>
+                      <dt>Select keyframes</dt>
+                      <dd>⌘ / Shift + drag</dd>
+                    </div>
+                    <div>
+                      <dt>Move selected 0.1s</dt>
+                      <dd>← / →</dd>
+                    </div>
+                    <div>
                       <dt>Start / end</dt>
                       <dd>Home / End</dd>
                     </div>
                     <div>
-                      <dt>Delete selected key</dt>
+                      <dt>Delete selected keys</dt>
                       <dd>Delete</dd>
                     </div>
                   </dl>
@@ -921,7 +1057,7 @@ export function TimelineEditor({
                           title={track.propertyPath}
                           onClick={() => {
                             setSelectedTrackId(track.id);
-                            setSelectedKeyId(null);
+                            clearKeySelection();
                           }}
                         >
                           {track.label}
@@ -949,7 +1085,7 @@ export function TimelineEditor({
                             }));
                             if (selectedTrackId === track.id) {
                               setSelectedTrackId(null);
-                              setSelectedKeyId(null);
+                              clearKeySelection();
                             }
                           }}
                           title="Remove property"
@@ -973,7 +1109,9 @@ export function TimelineEditor({
               <div
                 className="timeline-canvas"
                 ref={timelineRef}
-                onPointerDown={scrub}
+                onPointerDown={(event) => {
+                  if (!beginMarquee(event)) scrub(event);
+                }}
                 onScroll={(event) => {
                   if (
                     trackListScrollRef.current &&
@@ -999,6 +1137,13 @@ export function TimelineEditor({
                       aria-hidden
                     />
                   ) : null}
+                  {marquee ? (
+                    <div
+                      className="timeline-selection-marquee"
+                      style={{ left: marquee.left, top: marquee.top, width: marquee.width, height: marquee.height }}
+                      aria-hidden
+                    />
+                  ) : null}
                   <div className="timeline-playhead" style={{ left: `${(currentTime / sequence.duration) * 100}%` }}>
                     <span />
                   </div>
@@ -1007,9 +1152,10 @@ export function TimelineEditor({
                       className={`timeline-track-row${selectedTrackId === track.id ? " is-selected" : ""}`}
                       key={track.id}
                       style={{ top: rowIndex * TIMELINE_TRACK_HEIGHT }}
-                      onPointerDown={() => {
+                      onPointerDown={(event) => {
+                        if (event.metaKey || event.shiftKey) return;
                         setSelectedTrackId(track.id);
-                        setSelectedKeyId(null);
+                        clearKeySelection();
                       }}
                       onDoubleClick={(event) => addKey(track, timeFromPointer(event.clientX))}
                     >
@@ -1032,15 +1178,12 @@ export function TimelineEditor({
                         <button
                           type="button"
                           key={keyframe.id}
-                          className={`timeline-key${selectedKeyId === keyframe.id ? " is-selected" : ""}`}
+                          className={`timeline-key${selectedKeyIdSet.has(keyframe.id) ? " is-selected" : ""}`}
                           style={{ left: `${(keyframe.time / sequence.duration) * 100}%` }}
+                          data-key-id={keyframe.id}
+                          aria-pressed={selectedKeyIdSet.has(keyframe.id)}
                           onPointerDown={(event) => dragKey(event, track.id, keyframe.id)}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedTrackId(track.id);
-                            setSelectedKeyId(keyframe.id);
-                            updateTime(keyframe.time);
-                          }}
+                          onClick={(event) => event.stopPropagation()}
                           aria-label={`${track.label} key at ${formatSeconds(keyframe.time)}`}
                           title={`${displayValue(keyframe.value)} · ${formatSeconds(keyframe.time)}`}
                         >
@@ -1090,7 +1233,7 @@ export function TimelineEditor({
                             : track,
                         ),
                       }));
-                      setSelectedKeyId(null);
+                      clearKeySelection();
                     }}
                     aria-label="Delete keyframe"
                   >

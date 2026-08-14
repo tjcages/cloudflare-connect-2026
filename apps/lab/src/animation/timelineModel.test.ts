@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  advanceTimelinePlayback,
   applyTimelineEasing,
+  clampTimelineKeyframeDelta,
   evaluateSequence,
   evaluateTrack,
   interpolateTimelineValue,
   normalizeTimelineSequence,
   normalizeTimelineEasing,
+  offsetTimelineKeyframes,
   snapTimelineTimeToWholeSecond,
   updateKeyframeValueById,
   upsertKeyframe,
@@ -25,6 +28,15 @@ const track: TimelineTrack = {
 };
 
 describe("timeline model", () => {
+  it("only loops playback when Loop is enabled", () => {
+    expect(advanceTimelinePlayback(5.9, 0.2, 6, false)).toEqual({ time: 6, playing: false, wrapped: false });
+    expect(advanceTimelinePlayback(5.9, 0.2, 6, true)).toEqual({
+      time: expect.closeTo(0.1),
+      playing: true,
+      wrapped: true,
+    });
+  });
+
   it("interpolates numeric tracks and clamps outside their keys", () => {
     expect(evaluateTrack(track, -1)).toBe(0);
     expect(evaluateTrack(track, 1)).toBe(5);
@@ -93,6 +105,32 @@ describe("timeline model", () => {
     const updated = updateKeyframeValueById(track, "a", 7);
     expect(updated.keyframes).toEqual([{ ...track.keyframes[0], value: 7 }, track.keyframes[1]]);
     expect(updateKeyframeValueById(track, "missing", 7)).toBe(track);
+  });
+
+  it("moves selected keyframes across tracks by one shared delta", () => {
+    const secondTrack: TimelineTrack = {
+      ...track,
+      id: "contrast",
+      propertyKey: "contrast",
+      propertyPath: "Adjustments.contrast",
+      keyframes: [
+        { id: "c", time: 0.5, value: 2, easing: "linear" },
+        { id: "d", time: 1.5, value: 4, easing: "linear" },
+      ],
+    };
+    const sequence = { duration: 2, loop: true, tracks: [track, secondTrack] };
+    const moved = offsetTimelineKeyframes(sequence, new Set(["a", "c"]), 0.1);
+
+    expect(moved.tracks[0].keyframes.find((keyframe) => keyframe.id === "a")?.time).toBe(0.1);
+    expect(moved.tracks[1].keyframes.find((keyframe) => keyframe.id === "c")?.time).toBe(0.6);
+    expect(clampTimelineKeyframeDelta(sequence, new Set(["b", "c"]), 0.1)).toBe(0);
+  });
+
+  it("clamps grouped movement at the timeline bounds without changing spacing", () => {
+    const sequence = { duration: 2, loop: true, tracks: [track] };
+    expect(clampTimelineKeyframeDelta(sequence, new Set(["a", "b"]), -0.4)).toBe(0);
+    const moved = offsetTimelineKeyframes(sequence, new Set(["a", "b"]), -0.4);
+    expect(moved.tracks[0].keyframes.map((keyframe) => keyframe.time)).toEqual([0, 2]);
   });
 
   it("defaults new keys to expo easing", () => {

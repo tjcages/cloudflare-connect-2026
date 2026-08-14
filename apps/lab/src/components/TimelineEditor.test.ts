@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   collectTimelineProperties,
   displayTimelineColorValue,
+  timelineRectsIntersect,
   timelineScrollContentHeight,
   type TimelineLevaStore,
 } from "./TimelineEditor";
@@ -19,6 +20,21 @@ describe("timeline property collection", () => {
   it("reserves one property row of scroll space after the final track", () => {
     expect(timelineScrollContentHeight(0)).toBe(34);
     expect(timelineScrollContentHeight(8)).toBe(306);
+  });
+
+  it("selects keyframes that touch the marquee boundary", () => {
+    expect(
+      timelineRectsIntersect(
+        { left: 20, top: 20, right: 30, bottom: 30 },
+        { left: 30, top: 10, right: 40, bottom: 20 },
+      ),
+    ).toBe(true);
+    expect(
+      timelineRectsIntersect(
+        { left: 20, top: 20, right: 29.9, bottom: 30 },
+        { left: 30, top: 10, right: 40, bottom: 19.9 },
+      ),
+    ).toBe(false);
   });
 
   it("shows library variable names for color keyframes", () => {

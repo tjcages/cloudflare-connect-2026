@@ -60,6 +60,19 @@ export function clampTimelineTime(time: number, duration: number): number {
   return Math.min(Math.max(0, duration), Math.max(0, Number.isFinite(time) ? time : 0));
 }
 
+export function advanceTimelinePlayback(
+  time: number,
+  elapsed: number,
+  duration: number,
+  loop: boolean,
+): { time: number; playing: boolean; wrapped: boolean } {
+  const safeDuration = Math.max(0.000001, duration);
+  const next = Math.max(0, time) + Math.max(0, elapsed);
+  if (next < safeDuration) return { time: next, playing: true, wrapped: false };
+  if (!loop) return { time: safeDuration, playing: false, wrapped: false };
+  return { time: next % safeDuration, playing: true, wrapped: true };
+}
+
 export function snapTimelineTimeToWholeSecond(
   time: number,
   duration: number,
@@ -78,6 +91,43 @@ export function snapTimelineTimeToWholeSecond(
 
 export function sortKeyframes(keyframes: readonly TimelineKeyframe[]): TimelineKeyframe[] {
   return [...keyframes].sort((a, b) => a.time - b.time || a.id.localeCompare(b.id));
+}
+
+export function clampTimelineKeyframeDelta(
+  sequence: TimelineSequence,
+  selectedKeyIds: ReadonlySet<string>,
+  requestedDelta: number,
+): number {
+  const times = sequence.tracks.flatMap((track) =>
+    track.keyframes.filter((keyframe) => selectedKeyIds.has(keyframe.id)).map((keyframe) => keyframe.time),
+  );
+  if (times.length === 0 || !Number.isFinite(requestedDelta)) return 0;
+  const minTime = Math.min(...times);
+  const maxTime = Math.max(...times);
+  const delta = Math.max(-minTime, Math.min(sequence.duration - maxTime, requestedDelta));
+  return Math.abs(delta) < 0.000001 ? 0 : delta;
+}
+
+export function offsetTimelineKeyframes(
+  sequence: TimelineSequence,
+  selectedKeyIds: ReadonlySet<string>,
+  requestedDelta: number,
+): TimelineSequence {
+  const delta = clampTimelineKeyframeDelta(sequence, selectedKeyIds, requestedDelta);
+  if (Math.abs(delta) < 0.000001) return sequence;
+  return {
+    ...sequence,
+    tracks: sequence.tracks.map((track) => ({
+      ...track,
+      keyframes: sortKeyframes(
+        track.keyframes.map((keyframe) =>
+          selectedKeyIds.has(keyframe.id)
+            ? { ...keyframe, time: Number((keyframe.time + delta).toFixed(6)) }
+            : keyframe,
+        ),
+      ),
+    })),
+  };
 }
 
 export function applyTimelineEasing(progress: number, easing: TimelineEasing): number {
