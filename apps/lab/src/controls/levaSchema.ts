@@ -98,10 +98,10 @@ import {
   rainLevaFromAppearance,
   rainLevaFromColor,
   rainLevaFromLayout,
-  resetTweaksForLayout,
   sharedClientColorId,
   sharedClientStyleId,
   shouldSyncHeroGraphicFromFlags,
+  twizzlerLevaFromLayout,
   type ClientAppearanceId,
   type ClientColorId,
   type ClientColorPresetId,
@@ -1834,6 +1834,13 @@ export function useEngineControls(
                   max: 10,
                   step: 0.05,
                   label: "Amplitude",
+                },
+                twizzlerTwist: {
+                  value: initialLabSettings.twizzler.twist,
+                  min: 0,
+                  max: 6,
+                  step: 0.05,
+                  label: "Twist",
                 },
                 twizzlerRotateXDeg: {
                   value: initialLabSettings.twizzler.rotateXDeg ?? 12,
@@ -5347,20 +5354,10 @@ export function useEngineControls(
       return;
     }
     const builtinLayoutId = clientLayoutId as ClientLayoutPresetId;
-    const tweaks = resetTweaksForLayout(builtinLayoutId);
     const flags = clientGraphicFlags(heroGraphicId);
     const patch: Record<string, unknown> = {};
     if (flags.twizzlerEnabled) {
-      Object.assign(patch, {
-        twizzlerOpacity: tweaks.opacity,
-        twizzlerScale: tweaks.scale,
-        twizzlerRotateXDeg: tweaks.rotateXDeg,
-        twizzlerRotateYDeg: tweaks.rotateYDeg,
-        twizzlerRotateZDeg: tweaks.rotateZDeg,
-        twizzlerAmplitude: tweaks.amplitude,
-        twizzlerCenterY: tweaks.centerY,
-        twizzlerSpeed: tweaks.speed,
-      });
+      Object.assign(patch, twizzlerLevaFromLayout(builtinLayoutId));
     }
     if (flags.rainEnabled) Object.assign(patch, rainLevaFromLayout(builtinLayoutId));
     if (Object.keys(patch).length === 0) return;
@@ -6253,7 +6250,7 @@ export function useEngineControls(
         depthSpread: initialLabSettings.twizzler.depthSpread,
         depthLift: initialLabSettings.twizzler.depthLift,
         depthTerrain: initialLabSettings.twizzler.depthTerrain,
-        twist: initialLabSettings.twizzler.twist,
+        twist: shaderValueRecord.twizzlerTwist,
         rotateXDeg: shaderValueRecord.twizzlerRotateXDeg,
         rotateYDeg: shaderValueRecord.twizzlerRotateYDeg,
         rotateZDeg: shaderValueRecord.twizzlerRotateZDeg,

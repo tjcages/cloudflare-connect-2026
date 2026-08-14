@@ -4256,6 +4256,17 @@ function LabInner({
             aria-label="Resize shader panel"
           />
         ) : null}
+        {clientMode ? (
+          <button
+            className="lab-sidebar-toggle lab-client-panel-collapse"
+            type="button"
+            onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
+            aria-label="Close panel"
+            title="Close panel"
+          >
+            <PanelRightClose size={14} strokeWidth={1.75} />
+          </button>
+        ) : null}
         <div
           className={`lab-sidebar-scroll playground-leva-panel shader-config-panel ui-scroll-hidden${
             !clientMode && surfaceWorkspace.mode === "partial" ? " is-surface-panel" : ""

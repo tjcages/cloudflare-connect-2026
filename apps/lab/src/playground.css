@@ -2048,6 +2048,24 @@ body.lab-sidebar-resizing .lab-sidebar {
   background: color-mix(in srgb, var(--leva-panel-bg) 92%, #c43131);
 }
 
+.lab-shell.is-client-mode .lab-client-panel-collapse {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  z-index: 8;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--leva-radius);
+  background: color-mix(in srgb, var(--leva-panel-bg) 88%, transparent);
+  color: var(--leva-text-muted);
+  backdrop-filter: blur(6px);
+}
+
+.lab-shell.is-client-mode .lab-client-panel-collapse:hover {
+  background: var(--leva-surface);
+  color: var(--leva-text);
+}
+
 .lab-shell.is-client-mode .lab-client-exports {
   display: flex;
   flex-direction: column;
