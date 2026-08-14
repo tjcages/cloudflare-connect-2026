@@ -2816,7 +2816,8 @@ body.lab-sidebar-resizing canvas {
 }
 
 .timeline-sequence-settings button.is-active {
-  color: var(--leva-text);
+  color: var(--leva-accent);
+  background: var(--leva-surface-hover);
   box-shadow: inset 0 0 0 1px var(--leva-accent-soft);
 }
 

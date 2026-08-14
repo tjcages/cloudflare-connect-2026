@@ -9,6 +9,7 @@ import {
   normalizeTimelineSequence,
   normalizeTimelineEasing,
   offsetTimelineKeyframes,
+  shouldSynchronizeTimelineMotion,
   snapTimelineTimeToWholeSecond,
   updateKeyframeValueById,
   upsertKeyframe,
@@ -35,6 +36,12 @@ describe("timeline model", () => {
       playing: true,
       wrapped: true,
     });
+  });
+
+  it("synchronizes canvas motion only at playback boundaries", () => {
+    expect(shouldSynchronizeTimelineMotion({ playing: true, wrapped: false })).toBe(false);
+    expect(shouldSynchronizeTimelineMotion({ playing: true, wrapped: true })).toBe(true);
+    expect(shouldSynchronizeTimelineMotion({ playing: false, wrapped: false })).toBe(true);
   });
 
   it("interpolates numeric tracks and clamps outside their keys", () => {

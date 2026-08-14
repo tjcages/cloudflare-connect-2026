@@ -73,6 +73,10 @@ export function advanceTimelinePlayback(
   return { time: next % safeDuration, playing: true, wrapped: true };
 }
 
+export function shouldSynchronizeTimelineMotion(playback: { playing: boolean; wrapped: boolean }): boolean {
+  return playback.wrapped || !playback.playing;
+}
+
 export function snapTimelineTimeToWholeSecond(
   time: number,
   duration: number,

@@ -19,6 +19,7 @@ import {
   loadTimelineSequence,
   offsetTimelineKeyframes,
   saveTimelineSequence,
+  shouldSynchronizeTimelineMotion,
   snapTimelineTimeToWholeSecond,
   sortKeyframes,
   updateKeyframeValueById,
@@ -399,6 +400,13 @@ export function TimelineEditor({
     updatePlaying(next);
   }, [updatePlaying, updateTime]);
 
+  const toggleLoop = useCallback(() => {
+    const current = sequenceRef.current;
+    const next = { ...current, loop: !current.loop };
+    sequenceRef.current = next;
+    setSequence(next);
+  }, []);
+
   const snapKeyTime = useCallback((time: number, disabled = false) => {
     const width = Math.max(0, (timelineRef.current?.scrollWidth ?? 0) - TIMELINE_AXIS_INSET);
     return disabled
@@ -504,9 +512,9 @@ export function TimelineEditor({
         sequenceRef.current.loop,
       );
       if (!playback.playing) updatePlaying(false);
-      // The shader's natural clock keeps advancing independently while the
-      // keyframed property clock loops. Scrubbing still synchronizes both.
-      updateTime(playback.time, false);
+      // Keep natural motion moving forward between frames, but synchronize it
+      // at the two transport boundaries: a loop wrap and a non-looping stop.
+      updateTime(playback.time, shouldSynchronizeTimelineMotion(playback));
       if (playback.playing) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -1042,9 +1050,10 @@ export function TimelineEditor({
               <button
                 type="button"
                 className={sequence.loop ? "is-active" : ""}
-                onClick={() => setSequence((current) => ({ ...current, loop: !current.loop }))}
+                onClick={toggleLoop}
                 aria-pressed={sequence.loop}
-                title="Loop keyframed properties"
+                aria-label={sequence.loop ? "Disable loop" : "Enable loop"}
+                title={sequence.loop ? "Loop enabled — click to disable" : "Loop disabled — click to enable"}
               >
                 <Repeat2 size={13} /> Loop
               </button>
