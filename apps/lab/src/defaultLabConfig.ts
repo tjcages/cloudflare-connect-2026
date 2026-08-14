@@ -401,7 +401,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     centerY: 0.5,
     amplitude: 1,
     lineCount: 56,
-    lineWidth: 4.45,
+    lineWidth: 2.3,
     pointSpacing: 10,
     leftHeight: 0.5,
     rightHeight: 0.5,

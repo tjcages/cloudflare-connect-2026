@@ -582,7 +582,7 @@ describe("Twizzler", () => {
   it("locks the approved Twizzler stroke defaults", () => {
     expect(TWIZZLER_DEFAULTS).toMatchObject({
       lineCount: 56,
-      lineWidth: 4.45,
+      lineWidth: 2.3,
       pointSpacing: 10,
       rotateXDeg: 12,
       rotateYDeg: -18,
@@ -607,7 +607,7 @@ describe("Twizzler", () => {
       backgroundColor: "#ffffff",
     });
     const settings = normalizeTwizzlerSettings({});
-    expect(settings.lineWidth).toBeCloseTo(4.45);
+    expect(settings.lineWidth).toBeCloseTo(2.3);
     expect(settings.lineCount).toBe(56);
   });
 

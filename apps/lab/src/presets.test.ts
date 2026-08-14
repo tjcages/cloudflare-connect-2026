@@ -148,7 +148,7 @@ describe("preset library transforms", () => {
     expect(banner?.lab?.twizzlerEnabled).toBe(true);
     expect(banner?.lab?.twizzler).toMatchObject({
       lineCount: 56,
-      lineWidth: 4.45,
+      lineWidth: 2.3,
       pointSpacing: 10,
       perspectiveWidth: 6.2,
       minLineWidth: 3.5,

@@ -176,7 +176,7 @@ describe("client preview presets", () => {
     // Rain off must not disable the stripe engine — LabApp hides the rain canvas instead.
     expect(bundle.engineConfig.stripesEnabled).toBe(true);
     expect(bundle.twizzler.lineCount).toBe(56);
-    expect(bundle.twizzler.lineWidth).toBeCloseTo(4.45);
+    expect(bundle.twizzler.lineWidth).toBeCloseTo(2.3);
     expect(bundle.twizzler.pointSpacing).toBe(10);
     expect(bundle.twizzler.perspectiveWidth).toBeCloseTo(6.2);
     expect(bundle.twizzler.minLineWidth).toBeCloseTo(3.5);
