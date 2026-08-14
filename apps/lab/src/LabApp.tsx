@@ -4036,7 +4036,7 @@ function LabInner({
               <div className="lab-client-leva">
                 <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
               </div>
-              <div className="lab-client-exports">
+              <footer className="lab-client-exports" aria-label="Export controls">
                 <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
                 <div className="lab-client-layouts-actions">
                   <button
@@ -4057,7 +4057,7 @@ function LabInner({
                     Export EPS
                   </button>
                 </div>
-              </div>
+              </footer>
             </>
           ) : (
             <SurfacePanel
