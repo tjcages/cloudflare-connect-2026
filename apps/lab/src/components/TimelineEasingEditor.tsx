@@ -41,6 +41,7 @@ export function TimelineEasingEditor({
   );
   const selectedPreset = presets.find((preset) => preset.id === selectedPresetId);
   const selectValue = selectedPreset ? `saved:${selectedPreset.id}` : value.startsWith("custom:") ? "__custom" : value;
+  const canNameEasing = value.startsWith("custom:") && !selectedPreset;
 
   useEffect(() => {
     setSelectedPresetId(null);
@@ -116,27 +117,29 @@ export function TimelineEasingEditor({
           onChange(next as TimelineEasing);
         }}
       />
-      <div className="timeline-easing-save-row">
-        <input
-          aria-label="Saved easing name"
-          maxLength={40}
-          placeholder="Name this easing…"
-          value={presetName}
-          onChange={(event) => {
-            setPresetName(event.currentTarget.value);
-            setSaved(false);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              savePreset();
-            }
-          }}
-        />
-        <button type="button" disabled={!presetName.trim()} onClick={savePreset}>
-          {saved ? "Saved" : "Save"}
-        </button>
-      </div>
+      {canNameEasing ? (
+        <div className="timeline-easing-save-row">
+          <input
+            aria-label="Saved easing name"
+            maxLength={40}
+            placeholder="Name the easing…"
+            value={presetName}
+            onChange={(event) => {
+              setPresetName(event.currentTarget.value);
+              setSaved(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                savePreset();
+              }
+            }}
+          />
+          <button type="button" disabled={!presetName.trim()} onClick={savePreset}>
+            {saved ? "Saved" : "Save"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -172,6 +172,14 @@ export function upsertKeyframe(
   return { ...track, keyframes: sortKeyframes(keyframes) };
 }
 
+export function updateKeyframeValueById(track: TimelineTrack, keyframeId: string, value: TimelineValue): TimelineTrack {
+  if (!track.keyframes.some((keyframe) => keyframe.id === keyframeId)) return track;
+  return {
+    ...track,
+    keyframes: track.keyframes.map((keyframe) => (keyframe.id === keyframeId ? { ...keyframe, value } : keyframe)),
+  };
+}
+
 export function normalizeTimelineSequence(value: unknown): TimelineSequence {
   if (!value || typeof value !== "object") return DEFAULT_TIMELINE_SEQUENCE;
   const raw = value as Partial<TimelineSequence>;

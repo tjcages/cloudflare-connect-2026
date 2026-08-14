@@ -7,6 +7,7 @@ import {
   normalizeTimelineSequence,
   normalizeTimelineEasing,
   snapTimelineTimeToWholeSecond,
+  updateKeyframeValueById,
   upsertKeyframe,
   type TimelineTrack,
 } from "./timelineModel";
@@ -67,6 +68,12 @@ describe("timeline model", () => {
     const updated = upsertKeyframe(track, 2, 12);
     expect(updated.keyframes).toHaveLength(2);
     expect(updated.keyframes[1].value).toBe(12);
+  });
+
+  it("updates only the selected keyframe when its value changes", () => {
+    const updated = updateKeyframeValueById(track, "a", 7);
+    expect(updated.keyframes).toEqual([{ ...track.keyframes[0], value: 7 }, track.keyframes[1]]);
+    expect(updateKeyframeValueById(track, "missing", 7)).toBe(track);
   });
 
   it("defaults new keys to expo easing", () => {

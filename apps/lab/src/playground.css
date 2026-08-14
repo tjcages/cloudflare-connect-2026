@@ -2941,16 +2941,13 @@ body.lab-sidebar-resizing canvas {
 }
 
 .timeline-workspace {
+  position: relative;
   display: grid;
   height: 100%;
   min-height: 0;
   flex: 1;
   grid-template-columns: 220px minmax(320px, 1fr);
   overflow: hidden;
-}
-
-.timeline-workspace.has-inspector {
-  grid-template-columns: 220px minmax(320px, 1fr) 260px;
 }
 
 .timeline-track-list {
@@ -3231,10 +3228,19 @@ body.lab-sidebar-resizing canvas {
 }
 
 .timeline-inspector {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  width: 260px;
   min-width: 0;
   padding: 10px;
   overflow: auto;
   border-left: 1px solid var(--leva-border);
+  background: var(--leva-panel-bg);
+  box-shadow: -8px 0 18px color-mix(in srgb, #000 12%, transparent);
   color: var(--leva-text-faint);
 }
 
@@ -3347,10 +3353,6 @@ body.lab-sidebar-resizing canvas {
 
 @media (max-width: 900px) {
   .timeline-workspace {
-    grid-template-columns: 180px minmax(260px, 1fr);
-  }
-
-  .timeline-workspace.has-inspector {
     grid-template-columns: 180px minmax(260px, 1fr);
   }
 

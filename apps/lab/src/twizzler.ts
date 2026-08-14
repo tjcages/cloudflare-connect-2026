@@ -545,6 +545,17 @@ export function twizzlerAnimationTime(timeSec: number, speed: number): number {
   return timeSec * speed;
 }
 
+/**
+ * Advances an already speed-adjusted animation clock. Integrating speed over
+ * each frame keeps the phase monotonic when an animated speed value decreases.
+ */
+export function advanceTwizzlerAnimationTime(currentTime: number, deltaSec: number, speed: number): number {
+  const safeCurrent = Number.isFinite(currentTime) ? currentTime : 0;
+  const safeDelta = Number.isFinite(deltaSec) ? Math.max(0, deltaSec) : 0;
+  const safeSpeed = Number.isFinite(speed) ? Math.max(0, speed) : 0;
+  return safeCurrent + safeDelta * safeSpeed;
+}
+
 export function twizzlerBendOffset(xT: number, position: number, amount: number, width = 0.16): number {
   const safeWidth = Math.max(0.01, width);
   const distance = (xT - position) / safeWidth;

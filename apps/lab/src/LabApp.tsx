@@ -115,7 +115,7 @@ import {
 import { createUnderlayIntroController, resolveUnderlayIntroDelayMs } from "./connectShader/underlayIntro";
 import { canvasStackBackgroundCss } from "./canvasStackBackground";
 import { clampPreviewZoom, computeFitPreviewZoom, estimateCanvasViewportSize } from "./canvasFitPreviewZoom";
-import { clearTwizzler, renderTwizzler } from "./twizzler";
+import { advanceTwizzlerAnimationTime, clearTwizzler, renderTwizzler } from "./twizzler";
 import { shouldShowTwizzlerOverlay } from "./twizzlerVisibility";
 import { createTwizzlerMapRenderer, type TwizzlerMapRenderer } from "./twizzlerMapSource";
 import { createCometLogoTextureRenderer, type CometLogoTextureRenderer } from "@necatikcl/stripes-engine";
@@ -963,6 +963,7 @@ function LabInner({
   const twizzlerPlayingRef = useRef(twizzlerPlaying);
   twizzlerPlayingRef.current = twizzlerPlaying;
   const twizzlerTimeSecRef = useRef(0);
+  const twizzlerAnimationTimeSecRef = useRef(0);
   const shaderLastTickMsRef = useRef(performance.now());
   const shaderMouseRef = useRef({ x: 0, y: 0, down: false, hovered: false });
   const labSettingsRef = useRef(labSettings);
@@ -1156,9 +1157,11 @@ function LabInner({
       step: (seconds) => {
         setTimelinePlayback(false);
         twizzlerTimeSecRef.current = steppedTransportTime(twizzlerTimeSecRef.current, seconds);
+        twizzlerAnimationTimeSecRef.current = twizzlerTimeSecRef.current * Math.max(0, twizzlerRef.current.speed);
       },
       reset: () => {
         twizzlerTimeSecRef.current = 0;
+        twizzlerAnimationTimeSecRef.current = 0;
       },
     }),
     [setTimelinePlayback],
@@ -1240,6 +1243,7 @@ function LabInner({
   const syncTimelineTime = useCallback((seconds: number) => {
     shaderTimeSecRef.current = seconds;
     twizzlerTimeSecRef.current = seconds;
+    twizzlerAnimationTimeSecRef.current = seconds * Math.max(0, twizzlerRef.current.speed);
     shaderLastTickMsRef.current = performance.now();
   }, []);
   const textureIdRef = useRef(textureId);
@@ -1443,9 +1447,9 @@ function LabInner({
         const renderer = twizzlerMapRendererRef.current;
         if (!renderer) return;
         renderer.render(
-          twizzlerTimeSecRef.current,
+          twizzlerAnimationTimeSecRef.current,
           shaderTimeSecRef.current,
-          twizzlerRef.current,
+          { ...twizzlerRef.current, speed: 1 },
           twizzlerMapRef.current,
         );
         engine.setSource(renderer.canvas);
@@ -1670,7 +1674,12 @@ function LabInner({
     } else {
       renderer.resize(shaderBaseSize.w, shaderBaseSize.h);
     }
-    renderer.render(twizzlerTimeSecRef.current, shaderTimeSecRef.current, twizzlerRef.current, twizzlerMapRef.current);
+    renderer.render(
+      twizzlerAnimationTimeSecRef.current,
+      shaderTimeSecRef.current,
+      { ...twizzlerRef.current, speed: 1 },
+      twizzlerMapRef.current,
+    );
     setShaderSourceError(null);
     engine.setSource(renderer.canvas);
     setVideoEl(null);
@@ -1814,9 +1823,10 @@ function LabInner({
           canvas.height,
           canvasWidthPx,
           canvasHeightPx,
-          twizzlerTimeSecRef.current,
+          twizzlerAnimationTimeSecRef.current,
           {
             ...twizzlerRef.current,
+            speed: 1,
             backgroundColor: stageBackgroundHex,
           },
         );
@@ -2109,7 +2119,14 @@ function LabInner({
         shaderLastTickMsRef.current = now;
         if (textureSourceModeRef.current === "shader") {
           if (shaderPlayingRef.current) shaderTimeSecRef.current += deltaSec;
-          if (twizzlerPlayingRef.current) twizzlerTimeSecRef.current += deltaSec;
+          if (twizzlerPlayingRef.current) {
+            twizzlerTimeSecRef.current += deltaSec;
+            twizzlerAnimationTimeSecRef.current = advanceTwizzlerAnimationTime(
+              twizzlerAnimationTimeSecRef.current,
+              deltaSec,
+              twizzlerRef.current.speed,
+            );
+          }
 
           if (isSpiralShaderPreset(shaderPresetIdRef.current)) {
             const connectRenderer = connectRendererRef.current;
@@ -2146,9 +2163,9 @@ function LabInner({
             const renderer = twizzlerMapRendererRef.current;
             if (renderer) {
               renderer.render(
-                twizzlerTimeSecRef.current,
+                twizzlerAnimationTimeSecRef.current,
                 shaderTimeSecRef.current,
-                twizzlerRef.current,
+                { ...twizzlerRef.current, speed: 1 },
                 twizzlerMapRef.current,
               );
               engine.updateSourceFrame(renderer.canvas);
@@ -2165,26 +2182,28 @@ function LabInner({
           } else {
             const shaderRenderer = shaderRendererRef.current;
             if (shaderRenderer) {
-              if (isTwizzlerSineShaderPreset(shaderPresetIdRef.current)) {
+              const twizzlerSinePreset = isTwizzlerSineShaderPreset(shaderPresetIdRef.current);
+              if (twizzlerSinePreset) {
                 const tw = twizzlerRef.current;
                 shaderRenderer.setUniforms(
-                  twizzlerSineUniforms(tw, {
-                    rotateXDeg: tw.rotateX,
-                    rotateYDeg: tw.rotateY,
-                    rotateZDeg: tw.rotateZ,
-                    panX: tw.panX,
-                    panY: tw.panY,
-                    distance: tw.viewDistance,
-                  }),
+                  twizzlerSineUniforms(
+                    { ...tw, speed: 1 },
+                    {
+                      rotateXDeg: tw.rotateX,
+                      rotateYDeg: tw.rotateY,
+                      rotateZDeg: tw.rotateZ,
+                      panX: tw.panX,
+                      panY: tw.panY,
+                      distance: tw.viewDistance,
+                    },
+                  ),
                 );
               }
               shaderRenderer.render(
-                shaderTimeSecRef.current,
+                twizzlerSinePreset ? twizzlerAnimationTimeSecRef.current : shaderTimeSecRef.current,
                 shaderMouseRef.current,
                 // Twizzler Sine handles XYZ itself with edge-locked X — keep wrapper identity.
-                isTwizzlerSineShaderPreset(shaderPresetIdRef.current)
-                  ? null
-                  : shaderViewFromSettings(labSettingsRef.current),
+                twizzlerSinePreset ? null : shaderViewFromSettings(labSettingsRef.current),
               );
               engine.updateSourceFrame(shaderRenderer.canvas);
               const previewCanvas = shaderPreviewCanvasRef.current;
@@ -2225,8 +2244,8 @@ function LabInner({
                       twizzlerCanvas,
                       outputCanvas.width,
                       outputCanvas.height,
-                      twizzlerTimeSecRef.current,
-                      twWithBackground,
+                      twizzlerAnimationTimeSecRef.current,
+                      { ...twWithBackground, speed: 1 },
                     );
                   } else {
                     twizzlerSineRendererRef.current = sine;
@@ -2236,17 +2255,20 @@ function LabInner({
                 if (sine) {
                   sine.resize(outputCanvas.width, outputCanvas.height);
                   sine.setUniforms(
-                    twizzlerSineUniforms(tw, {
-                      rotateXDeg: tw.rotateX,
-                      rotateYDeg: tw.rotateY,
-                      rotateZDeg: tw.rotateZ,
-                      panX: tw.panX,
-                      panY: tw.panY,
-                      distance: tw.viewDistance,
-                    }),
+                    twizzlerSineUniforms(
+                      { ...tw, speed: 1 },
+                      {
+                        rotateXDeg: tw.rotateX,
+                        rotateYDeg: tw.rotateY,
+                        rotateZDeg: tw.rotateZ,
+                        panX: tw.panX,
+                        panY: tw.panY,
+                        distance: tw.viewDistance,
+                      },
+                    ),
                   );
                   // Identity wrapper view — XYZ is applied inside the exact shader (edge-locked X).
-                  sine.render(twizzlerTimeSecRef.current, undefined, null);
+                  sine.render(twizzlerAnimationTimeSecRef.current, undefined, null);
                   if (twizzlerCanvas.width !== sine.width) twizzlerCanvas.width = sine.width;
                   if (twizzlerCanvas.height !== sine.height) twizzlerCanvas.height = sine.height;
                   const ctx = twizzlerCanvas.getContext("2d");
@@ -2258,8 +2280,8 @@ function LabInner({
                   twizzlerCanvas,
                   outputCanvas.width,
                   outputCanvas.height,
-                  twizzlerTimeSecRef.current,
-                  twWithBackground,
+                  twizzlerAnimationTimeSecRef.current,
+                  { ...twWithBackground, speed: 1 },
                 );
               }
             }

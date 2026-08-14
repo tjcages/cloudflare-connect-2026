@@ -9,6 +9,7 @@ import {
   saveTimelineSequence,
   snapTimelineTimeToWholeSecond,
   sortKeyframes,
+  updateKeyframeValueById,
   upsertKeyframe,
   type TimelineKeyframe,
   type TimelineProperty,
@@ -255,6 +256,17 @@ export function TimelineEditor({
   }, []);
 
   useEffect(() => {
+    if (!selectedKeyId) return;
+    const clearSelectedKey = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".timeline-key, .timeline-inspector")) return;
+      setSelectedKeyId(null);
+    };
+    window.addEventListener("pointerdown", clearSelectedKey, true);
+    return () => window.removeEventListener("pointerdown", clearSelectedKey, true);
+  }, [selectedKeyId]);
+
+  useEffect(() => {
     if (deferSequenceApplyRef.current) return;
     onApplyValuesRef.current(evaluateSequence(sequence, timeRef.current));
   }, [sequence]);
@@ -398,6 +410,19 @@ export function TimelineEditor({
       const current = sequenceRef.current;
       const track = current.tracks.find((candidate) => candidate.id === selectedTrack.id);
       if (!track) return;
+      const selectedFrame = selectedKeyId
+        ? track.keyframes.find((keyframe) => keyframe.id === selectedKeyId)
+        : undefined;
+      if (selectedFrame) {
+        const nextTrack = updateKeyframeValueById(track, selectedFrame.id, value);
+        const nextSequence = {
+          ...current,
+          tracks: current.tracks.map((candidate) => (candidate.id === track.id ? nextTrack : candidate)),
+        };
+        sequenceRef.current = nextSequence;
+        setSequence(nextSequence);
+        return;
+      }
       const keyTime = snapKeyTime(timeRef.current).time;
       const nextTrack = upsertKeyframe(track, keyTime, value);
       const nextKey = nextTrack.keyframes.find((keyframe) => Math.abs(keyframe.time - keyTime) < 0.001);
@@ -409,7 +434,7 @@ export function TimelineEditor({
       setSequence(nextSequence);
       setSelectedKeyId(nextKey?.id ?? null);
     });
-  }, [selectedTrack, snapKeyTime, stores]);
+  }, [selectedKeyId, selectedTrack, snapKeyTime, stores]);
 
   const addTrack = (property: TimelineProperty) => {
     const keyTime = snapKeyTime(currentTime).time;
