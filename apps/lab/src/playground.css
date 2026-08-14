@@ -2634,10 +2634,14 @@ body.lab-sidebar-resizing canvas {
   font-variant-numeric: tabular-nums;
 }
 
-.timeline-panel {
-  position: absolute;
-  inset: 33px 0 0;
+.timeline-editor.playground-leva-panel > .timeline-panel:last-child {
+  /* Override the generic Leva-panel last-child rule: this custom panel must
+     fill the editor below its header instead of sizing to its contents. */
+  position: absolute !important;
+  inset: 33px 0 0 !important;
   display: flex;
+  width: auto !important;
+  height: auto !important;
   min-height: 0;
   flex-direction: column;
   border-top: 1px solid var(--leva-border);
