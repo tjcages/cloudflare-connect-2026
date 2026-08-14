@@ -277,19 +277,25 @@ export function TimelineEditor({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      if (
-        target instanceof HTMLInputElement ||
+      const isLevaNumberInput =
+        target instanceof HTMLInputElement &&
+        [...target.classList].some((className) => className.includes("levaType-number"));
+      const isTextEntry =
         target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement ||
-        target.isContentEditable
-      )
-        return;
+        target.isContentEditable ||
+        (target instanceof HTMLInputElement &&
+          !isLevaNumberInput &&
+          ["text", "search", "email", "url", "tel", "password"].includes(target.type));
 
       if (event.code === "Space" && !event.metaKey && !event.ctrlKey && !event.altKey && !event.repeat) {
+        if (isTextEntry) return;
         event.preventDefault();
+        event.stopPropagation();
         updatePlaying(!playingRef.current);
         return;
       }
+
+      if (isTextEntry || target instanceof HTMLInputElement || target instanceof HTMLSelectElement) return;
 
       if (event.metaKey || event.ctrlKey || event.altKey) return;
 
@@ -356,8 +362,10 @@ export function TimelineEditor({
         setSelectedKeyId(null);
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    // Capture lets the transport shortcut win even when Leva controls stop
+    // keyboard events before they bubble to the window.
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [selectedKeyId, selectedTrackId, updatePlaying, updateTime]);
 
   const currentProperties = useMemo(
