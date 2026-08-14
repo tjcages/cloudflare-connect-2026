@@ -61,7 +61,7 @@ Branch slug = git branch with `/` → `-`, lowercased (e.g. `cursor/cf-17-…` �
 5. **Version / non-prod command:** `npx wrangler versions upload`
 6. Push to a PR branch → Cloudflare bot comments **Branch Preview URL** + **Commit Preview URL** on the PR (`*-connect-shader.off-brand.workers.dev`)
 
-**Status (CF-18):** Non-production Workers Builds are live — PRs receive Cloudflare bot comments with branch + commit preview links. The GitHub Actions workflow `.github/workflows/workers-preview.yml` is an optional fallback (`CLOUDFLARE_API_TOKEN`); without the secret it skips cleanly and does not fail the check.
+**Status (CF-18):** Non-production Workers Builds are live — PRs receive Cloudflare bot comments with branch + commit preview links. The GitHub Actions workflow `.github/workflows/workers-preview.yml` provides a stable `pr-<number>` fallback URL. It requires the repository secret `CLOUDFLARE_API_TOKEN` and fails visibly when the secret is missing so a green check always means a preview was uploaded.
 
 If every non-`main` commit stays **queued / 0 runs** forever, non-prod builds are not actually firing — re-toggle the Branch control checkbox, confirm no stuck build is holding the free-plan concurrent slot (limit 1), and check [Build history](https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production).
 

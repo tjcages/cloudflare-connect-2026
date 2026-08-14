@@ -32,4 +32,32 @@ describe("nextLabSettings", () => {
     });
     expect(normalizeTwizzlerSettings(once)).toEqual(once);
   });
+
+  it("preserves custom client canvas dimensions and print units", () => {
+    expect(
+      normalizeLabSettings({
+        clientSizeId: "custom",
+        clientSizeUnit: "inches",
+        clientSizePpi: 300,
+        clientSizeWidth: 20,
+        clientSizeHeight: 10,
+        canvasWidth: 1600,
+        canvasHeight: 800,
+      }),
+    ).toMatchObject({
+      clientSizeId: "custom",
+      clientSizeUnit: "inches",
+      clientSizePpi: 300,
+      clientSizeWidth: 20,
+      clientSizeHeight: 10,
+      canvasWidth: 1600,
+      canvasHeight: 800,
+    });
+  });
+
+  it("preserves a shared size selector id", () => {
+    expect(normalizeLabSettings({ clientSizeId: "shared:abc-123" })).toMatchObject({
+      clientSizeId: "shared:abc-123",
+    });
+  });
 });

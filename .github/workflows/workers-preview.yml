@@ -36,11 +36,15 @@ jobs:
       - name: Derive preview alias
         id: alias
         run: |
-          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          ALIAS=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/^(.{48}).*/\1/')
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ALIAS="pr-${{ github.event.pull_request.number }}"
+          else
+            BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+            ALIAS=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/^(.{48}).*/\1/')
+          fi
           echo "alias=$ALIAS" >> "$GITHUB_OUTPUT"
           echo "url=https://${ALIAS}-connect-shader.off-brand.workers.dev/" >> "$GITHUB_OUTPUT"
-          echo "Branch preview: https://${ALIAS}-connect-shader.off-brand.workers.dev/"
+          echo "PR preview: https://${ALIAS}-connect-shader.off-brand.workers.dev/"
 
       - name: Upload Worker version (preview alias)
         id: upload
@@ -50,17 +54,13 @@ jobs:
           PREVIEW_ALIAS: ${{ steps.alias.outputs.alias }}
         run: |
           if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "::notice::No CLOUDFLARE_API_TOKEN — skipping GitHub Actions preview upload."
-            echo "Prefer Cloudflare Workers Builds (Branch control → Builds for non-production branches)."
-            echo "Expected branch preview: ${{ steps.alias.outputs.url }}"
-            echo "skipped=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::CLOUDFLARE_API_TOKEN is missing; no PR preview was uploaded."
+            exit 1
           fi
           pnpm run preview:upload
-          echo "skipped=false" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview URL on PR
-        if: github.event_name == 'pull_request' && steps.upload.outputs.skipped != 'true'
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -69,7 +69,7 @@ jobs:
             const body = [
               '## Workers preview URL',
               '',
-              `**Branch preview:** ${url}`,
+              `**PR preview:** ${url}`,
               `**Client:** ${url}client.html`,
               '',
               `Alias \`${alias}-connect-shader\` (not production).`,

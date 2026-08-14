@@ -2,9 +2,16 @@ import { migrateLegacyConfig, sanitizeThemedConfig } from "@necatikcl/stripes-en
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import type {
   ClientAppearanceId,
-  ClientColorPresetId,
-  ClientLayoutPresetId,
-  ClientSizePresetId,
+  ClientColorId,
+  ClientGraphicMode,
+  ClientStyleId,
+  ClientSizeId,
+  ClientSizeUnit,
+} from "./client/clientPresets";
+import {
+  DEFAULT_CLIENT_PRINT_PPI,
+  MAX_CLIENT_CANVAS_DIMENSION_PX,
+  normalizeClientPrintPpi,
 } from "./client/clientPresets";
 import { DEFAULT_LAB_ENGINE_CONFIG, DEFAULT_LAB_UI_SETTINGS } from "./defaultLabConfig";
 import { DEFAULT_SHADER_TEXTURE_SOURCE } from "./shaderTextureSource";
@@ -110,10 +117,17 @@ export type LabSettings = {
   shaderViewPanY: number;
   shaderViewFov: number;
   /** Client preview Size / Layout / Color / Appearance catalog selections (saved layouts). */
-  clientSizeId: ClientSizePresetId;
-  clientLayoutId: ClientLayoutPresetId;
-  clientColorId: ClientColorPresetId;
+  clientSizeId: ClientSizeId;
+  clientSizeUnit: ClientSizeUnit;
+  clientSizePpi: number;
+  /** Custom dimensions in the selected unit; independent from live preview pixels. */
+  clientSizeWidth: number;
+  clientSizeHeight: number;
+  clientLayoutId: ClientStyleId;
+  clientColorId: ClientColorId;
   clientAppearanceId: ClientAppearanceId;
+  /** Explicit Hero Graphic selection; avoids reconstructing it from separately persisted layer flags. */
+  clientGraphicMode: ClientGraphicMode;
 };
 
 export const DEFAULT_LAB_SETTINGS: LabSettings = {
@@ -209,7 +223,7 @@ function normalizeShaderPresetId(value: unknown): string {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : DEFAULT_LAB_SETTINGS.shaderPresetId;
 }
 
-const CLIENT_SIZE_IDS = new Set<string>(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
+const CLIENT_SIZE_IDS = new Set<string>(["banner-5x1", "wide-3x1", "hero-16x9", "square", "custom"]);
 const CLIENT_LAYOUT_IDS = new Set<string>(["classic", "low-ribbon", "high-fan", "compact"]);
 const CLIENT_COLOR_IDS = new Set<string>([
   "coral-classic",
@@ -222,23 +236,34 @@ const CLIENT_COLOR_IDS = new Set<string>([
   "light",
 ]);
 const CLIENT_APPEARANCE_IDS = new Set<string>(["light", "dark"]);
+const CLIENT_GRAPHIC_MODES = new Set<string>(["twizzler", "rain", "both"]);
 
-function normalizeClientSizeId(value: unknown): ClientSizePresetId {
-  return typeof value === "string" && CLIENT_SIZE_IDS.has(value) ? (value as ClientSizePresetId) : "hero-16x9";
+function normalizeClientSizeId(value: unknown): ClientSizeId {
+  return typeof value === "string" && (CLIENT_SIZE_IDS.has(value) || /^shared:[A-Za-z0-9-]+$/.test(value))
+    ? (value as ClientSizeId)
+    : "hero-16x9";
 }
 
-function normalizeClientLayoutId(value: unknown): ClientLayoutPresetId {
-  return typeof value === "string" && CLIENT_LAYOUT_IDS.has(value) ? (value as ClientLayoutPresetId) : "classic";
+function normalizeClientLayoutId(value: unknown): ClientStyleId {
+  return typeof value === "string" && (CLIENT_LAYOUT_IDS.has(value) || /^shared-style:[A-Za-z0-9-]+$/.test(value))
+    ? (value as ClientStyleId)
+    : "classic";
 }
 
-function normalizeClientColorId(value: unknown): ClientColorPresetId {
+function normalizeClientColorId(value: unknown): ClientColorId {
   // Graphite was removed (CF-42); map legacy saves to Light (cream / dark-Appearance ink).
   if (value === "graphite") return "light";
-  return typeof value === "string" && CLIENT_COLOR_IDS.has(value) ? (value as ClientColorPresetId) : "coral-classic";
+  return typeof value === "string" && (CLIENT_COLOR_IDS.has(value) || /^shared-color:[A-Za-z0-9-]+$/.test(value))
+    ? (value as ClientColorId)
+    : "coral-classic";
 }
 
 function normalizeClientAppearanceId(value: unknown): ClientAppearanceId {
   return typeof value === "string" && CLIENT_APPEARANCE_IDS.has(value) ? (value as ClientAppearanceId) : "light";
+}
+
+function normalizeClientGraphicMode(value: unknown): ClientGraphicMode {
+  return typeof value === "string" && CLIENT_GRAPHIC_MODES.has(value) ? (value as ClientGraphicMode) : "twizzler";
 }
 
 function normalizeConnectCameraFromSettings(i: Partial<LabSettings> & Record<string, unknown>): {
@@ -485,11 +510,24 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
     rawShaderSource && !rawShaderSource.includes("float rings = 0.5 + 0.5 * cos(18.0 * r")
       ? rawShaderSource
       : DEFAULT_LAB_SETTINGS.shaderSourceCode || DEFAULT_SHADER_TEXTURE_SOURCE;
+  const clientSizePpi = normalizeClientPrintPpi(n(i.clientSizePpi, DEFAULT_CLIENT_PRINT_PPI));
+  const fallbackClientSizeWidth =
+    i.clientSizeUnit === "inches"
+      ? n(i.canvasWidth, DEFAULT_LAB_SETTINGS.canvasWidth) / clientSizePpi
+      : n(i.canvasWidth, DEFAULT_LAB_SETTINGS.canvasWidth);
+  const fallbackClientSizeHeight =
+    i.clientSizeUnit === "inches"
+      ? n(i.canvasHeight, DEFAULT_LAB_SETTINGS.canvasHeight) / clientSizePpi
+      : n(i.canvasHeight, DEFAULT_LAB_SETTINGS.canvasHeight);
   return {
     canvasMode,
     canvasScale: Math.max(0.1, Math.min(8, n(i.canvasScale, DEFAULT_LAB_SETTINGS.canvasScale))),
-    canvasWidth: Math.round(Math.max(1, Math.min(8192, n(i.canvasWidth, DEFAULT_LAB_SETTINGS.canvasWidth)))),
-    canvasHeight: Math.round(Math.max(1, Math.min(8192, n(i.canvasHeight, DEFAULT_LAB_SETTINGS.canvasHeight)))),
+    canvasWidth: Math.round(
+      Math.max(1, Math.min(MAX_CLIENT_CANVAS_DIMENSION_PX, n(i.canvasWidth, DEFAULT_LAB_SETTINGS.canvasWidth))),
+    ),
+    canvasHeight: Math.round(
+      Math.max(1, Math.min(MAX_CLIENT_CANVAS_DIMENSION_PX, n(i.canvasHeight, DEFAULT_LAB_SETTINGS.canvasHeight))),
+    ),
     canvasAspectLocked:
       typeof i.canvasAspectLocked === "boolean" ? i.canvasAspectLocked : DEFAULT_LAB_SETTINGS.canvasAspectLocked,
     exportStartSec: Math.max(0, Math.min(24 * 60 * 60, n(i.exportStartSec, DEFAULT_LAB_SETTINGS.exportStartSec))),
@@ -581,9 +619,14 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
       };
     })(),
     clientSizeId: normalizeClientSizeId(i.clientSizeId),
+    clientSizeUnit: i.clientSizeUnit === "inches" ? "inches" : "pixels",
+    clientSizePpi,
+    clientSizeWidth: Math.max(0.01, Math.min(8192, n(i.clientSizeWidth, fallbackClientSizeWidth))),
+    clientSizeHeight: Math.max(0.01, Math.min(8192, n(i.clientSizeHeight, fallbackClientSizeHeight))),
     clientLayoutId: normalizeClientLayoutId(i.clientLayoutId),
     clientColorId: normalizeClientColorId(i.clientColorId),
     clientAppearanceId: normalizeClientAppearanceId(i.clientAppearanceId),
+    clientGraphicMode: normalizeClientGraphicMode(i.clientGraphicMode),
   };
 }
 

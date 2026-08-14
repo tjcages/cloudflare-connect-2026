@@ -582,7 +582,7 @@ describe("Twizzler", () => {
   it("locks orange-wave hairline defaults (no factory lineWidth poison)", () => {
     expect(TWIZZLER_DEFAULTS).toMatchObject({
       lineCount: 56,
-      lineWidth: 1.15,
+      lineWidth: 2.3,
       rotateXDeg: 12,
       rotateYDeg: -18,
       rotateZDeg: 0,
@@ -604,7 +604,7 @@ describe("Twizzler", () => {
       backgroundColor: "#ffffff",
     });
     const settings = normalizeTwizzlerSettings({});
-    expect(settings.lineWidth).toBeCloseTo(1.15);
+    expect(settings.lineWidth).toBeCloseTo(2.3);
     expect(settings.lineCount).toBe(56);
   });
 
