@@ -40,14 +40,17 @@ export type TimelineLevaStore = {
   getData: () => Record<string, LevaDataInput>;
   getVisiblePaths: () => string[];
   set: (values: Record<string, TimelineValue>, fromPanel: boolean) => void;
+  subscribeToEditEnd: (path: string, listener: (value: TimelineValue) => void) => () => void;
 };
 
 type TimelineEditorProps = {
   open: boolean;
+  playing: boolean;
   stores: readonly TimelineLevaStore[];
   onOpenChange: (open: boolean) => void;
   onApplyValues: (values: Record<string, TimelineValue>) => void;
   onTimeChange?: (seconds: number) => void;
+  onPlayingChange?: (playing: boolean) => void;
 };
 
 const EASING_OPTIONS: Array<{ value: TimelineEasing; label: string }> = [
@@ -192,35 +195,55 @@ function PropertyPicker({
   );
 }
 
-export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTimeChange }: TimelineEditorProps) {
+export function TimelineEditor({
+  open,
+  playing,
+  stores,
+  onOpenChange,
+  onApplyValues,
+  onTimeChange,
+  onPlayingChange,
+}: TimelineEditorProps) {
   const [sequence, setSequence] = useState<TimelineSequence>(loadTimelineSequence);
   const [currentTime, setCurrentTime] = useState(0);
-  const [playing, setPlaying] = useState(false);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const sequenceRef = useRef(sequence);
   const timeRef = useRef(currentTime);
+  const playingRef = useRef(playing);
+  const onApplyValuesRef = useRef(onApplyValues);
+  const onTimeChangeRef = useRef(onTimeChange);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  const deferSequenceApplyRef = useRef(false);
   const properties = collectTimelineProperties(stores);
   sequenceRef.current = sequence;
   timeRef.current = currentTime;
+  playingRef.current = playing;
+  onApplyValuesRef.current = onApplyValues;
+  onTimeChangeRef.current = onTimeChange;
+  onPlayingChangeRef.current = onPlayingChange;
 
-  const updateTime = useCallback(
-    (time: number) => {
-      const next = clampTimelineTime(time, sequenceRef.current.duration);
-      timeRef.current = next;
-      setCurrentTime(next);
-      onApplyValues(evaluateSequence(sequenceRef.current, next));
-      onTimeChange?.(next);
-    },
-    [onApplyValues, onTimeChange],
-  );
+  const updatePlaying = useCallback((next: boolean) => {
+    if (playingRef.current === next) return;
+    playingRef.current = next;
+    onPlayingChangeRef.current?.(next);
+  }, []);
+
+  const updateTime = useCallback((time: number, syncMotion = true, applyValues = true) => {
+    const next = clampTimelineTime(time, sequenceRef.current.duration);
+    timeRef.current = next;
+    setCurrentTime(next);
+    if (applyValues) onApplyValuesRef.current(evaluateSequence(sequenceRef.current, next));
+    if (syncMotion) onTimeChangeRef.current?.(next);
+  }, []);
 
   useEffect(() => saveTimelineSequence(sequence), [sequence]);
 
   useEffect(() => {
-    onApplyValues(evaluateSequence(sequence, timeRef.current));
-  }, [onApplyValues, sequence]);
+    if (deferSequenceApplyRef.current) return;
+    onApplyValuesRef.current(evaluateSequence(sequence, timeRef.current));
+  }, [sequence]);
 
   useEffect(() => {
     if (!playing) return;
@@ -230,19 +253,22 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
       const elapsed = Math.min(0.1, (now - previous) / 1000);
       previous = now;
       let next = timeRef.current + elapsed;
+      const shouldLoop = sequenceRef.current.loop || sequenceRef.current.tracks.length === 0;
       if (next >= sequenceRef.current.duration) {
-        if (sequenceRef.current.loop) next %= sequenceRef.current.duration;
+        if (shouldLoop) next %= sequenceRef.current.duration;
         else {
           next = sequenceRef.current.duration;
-          setPlaying(false);
+          updatePlaying(false);
         }
       }
-      updateTime(next);
-      if (next < sequenceRef.current.duration || sequenceRef.current.loop) frame = requestAnimationFrame(tick);
+      // The shader's natural clock keeps advancing independently while the
+      // keyframed property clock loops. Scrubbing still synchronizes both.
+      updateTime(next, false);
+      if (next < sequenceRef.current.duration || shouldLoop) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playing, updateTime]);
+  }, [playing, updatePlaying, updateTime]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -250,7 +276,7 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
       if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target.isContentEditable) return;
       if (event.code === "Space" && open) {
         event.preventDefault();
-        setPlaying((value) => !value);
+        updatePlaying(!playingRef.current);
       }
       if ((event.key === "Delete" || event.key === "Backspace") && selectedKeyId) {
         event.preventDefault();
@@ -266,7 +292,7 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, selectedKeyId]);
+  }, [open, selectedKeyId, updatePlaying]);
 
   const currentProperties = useMemo(
     () => new Map(properties.map((property) => [property.key, property])),
@@ -279,6 +305,26 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
     const step = rulerStep(sequence.duration);
     return Array.from({ length: Math.floor(sequence.duration / step) + 1 }, (_, index) => index * step);
   }, [sequence.duration]);
+
+  useEffect(() => {
+    if (!selectedTrack) return;
+    const store = stores.find((candidate) => selectedTrack.propertyPath in candidate.getData());
+    if (!store) return;
+    return store.subscribeToEditEnd(selectedTrack.propertyPath, (value) => {
+      const current = sequenceRef.current;
+      const track = current.tracks.find((candidate) => candidate.id === selectedTrack.id);
+      if (!track) return;
+      const nextTrack = upsertKeyframe(track, timeRef.current, value);
+      const nextKey = nextTrack.keyframes.find((keyframe) => Math.abs(keyframe.time - timeRef.current) < 0.001);
+      const nextSequence = {
+        ...current,
+        tracks: current.tracks.map((candidate) => (candidate.id === track.id ? nextTrack : candidate)),
+      };
+      sequenceRef.current = nextSequence;
+      setSequence(nextSequence);
+      setSelectedKeyId(nextKey?.id ?? null);
+    });
+  }, [selectedTrack, stores]);
 
   const addTrack = (property: TimelineProperty) => {
     const track: TimelineTrack = {
@@ -319,40 +365,75 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
 
   const scrub = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setPlaying(false);
+    event.preventDefault();
+    updatePlaying(false);
     updateTime(timeFromPointer(event.clientX));
+    const pointerId = event.pointerId;
+    let pendingClientX = event.clientX;
+    let frame = 0;
+    const flush = () => {
+      frame = 0;
+      updateTime(timeFromPointer(pendingClientX), false, false);
+    };
+    const move = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      moveEvent.preventDefault();
+      pendingClientX = moveEvent.clientX;
+      if (!frame) frame = requestAnimationFrame(flush);
+    };
+    const end = (endEvent: PointerEvent) => {
+      if (endEvent.pointerId !== pointerId) return;
+      if (frame) cancelAnimationFrame(frame);
+      updateTime(timeFromPointer(endEvent.clientX));
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
   };
 
   const dragKey = (event: ReactPointerEvent<HTMLButtonElement>, trackId: string, keyId: string) => {
     if (event.button !== 0) return;
+    event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
+    updatePlaying(false);
+    deferSequenceApplyRef.current = true;
     setSelectedTrackId(trackId);
     setSelectedKeyId(keyId);
     const move = (moveEvent: PointerEvent) => {
       const time = timeFromPointer(moveEvent.clientX);
-      setSequence((current) => ({
-        ...current,
-        tracks: current.tracks.map((track) =>
-          track.id === trackId
-            ? {
-                ...track,
-                keyframes: sortKeyframes(
-                  track.keyframes.map((keyframe) => (keyframe.id === keyId ? { ...keyframe, time } : keyframe)),
-                ),
-              }
-            : track,
-        ),
-      }));
-      updateTime(time);
+      setSequence((current) => {
+        const next = {
+          ...current,
+          tracks: current.tracks.map((track) =>
+            track.id === trackId
+              ? {
+                  ...track,
+                  keyframes: sortKeyframes(
+                    track.keyframes.map((keyframe) => (keyframe.id === keyId ? { ...keyframe, time } : keyframe)),
+                  ),
+                }
+              : track,
+          ),
+        };
+        sequenceRef.current = next;
+        return next;
+      });
+      updateTime(time, false, false);
     };
-    const end = () => {
+    const end = (endEvent: PointerEvent) => {
+      deferSequenceApplyRef.current = false;
+      updateTime(timeFromPointer(endEvent.clientX));
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
   };
 
   const updateSelectedKey = (patch: Partial<TimelineKeyframe>) => {
@@ -379,31 +460,32 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
       className={`timeline-editor playground-leva-panel${open ? " is-open" : ""}`}
       aria-label="Animation timeline"
     >
-      <button type="button" className="timeline-tab" aria-expanded={open} onClick={() => onOpenChange(!open)}>
-        <ChevronRight size={12} className="timeline-tab-chevron" />
-        <Diamond size={10} className="timeline-tab-diamond" fill="currentColor" />
-        <span>Timeline</span>
-        {sequence.tracks.length > 0 ? <small>{sequence.tracks.length}</small> : null}
-        <span className="timeline-tab-action">{open ? "Close timeline" : "Open timeline"}</span>
-      </button>
-      {open ? (
-        <div className="timeline-panel">
-          <header className="timeline-toolbar">
-            <div className="timeline-transport">
-              <button type="button" onClick={() => updateTime(0)} aria-label="Go to start" title="Go to start">
-                <SkipBack size={13} />
-              </button>
-              <button
-                type="button"
-                className="timeline-play"
-                onClick={() => setPlaying((value) => !value)}
-                aria-label={playing ? "Pause animation" : "Play animation"}
-                title="Play / pause (Space)"
-              >
-                {playing ? <Pause size={13} /> : <Play size={13} />}
-              </button>
-              <output>{formatSeconds(currentTime)}</output>
-            </div>
+      <header className="timeline-header">
+        <button type="button" className="timeline-tab" aria-expanded={open} onClick={() => onOpenChange(!open)}>
+          <ChevronRight size={12} className="timeline-tab-chevron" />
+          <Diamond size={10} className="timeline-tab-diamond" fill="currentColor" />
+          <span>Timeline</span>
+          {sequence.tracks.length > 0 ? <small>{sequence.tracks.length}</small> : null}
+        </button>
+        <div className="timeline-transport">
+          <button type="button" onClick={() => updateTime(0)} aria-label="Go to start" title="Go to start">
+            <SkipBack size={13} />
+          </button>
+          <button
+            type="button"
+            className="timeline-play"
+            onClick={() => updatePlaying(!playingRef.current)}
+            aria-label={playing ? "Pause animation" : "Play animation"}
+            title="Play / pause (Space)"
+          >
+            {playing ? <Pause size={13} /> : <Play size={13} />}
+          </button>
+          <output>
+            {formatSeconds(currentTime)} <span>/ {formatSeconds(sequence.duration)}</span>
+          </output>
+        </div>
+        {open ? (
+          <>
             <PropertyPicker properties={properties} tracks={sequence.tracks} onAdd={addTrack} />
             <div className="timeline-sequence-settings">
               <label>
@@ -427,7 +509,7 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
                 className={sequence.loop ? "is-active" : ""}
                 onClick={() => setSequence((current) => ({ ...current, loop: !current.loop }))}
                 aria-pressed={sequence.loop}
-                title="Loop playback"
+                title="Loop keyframed properties"
               >
                 <Repeat2 size={13} /> Loop
               </button>
@@ -435,8 +517,16 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
                 <X size={13} />
               </button>
             </div>
-          </header>
-          <div className="timeline-workspace">
+          </>
+        ) : (
+          <button type="button" className="timeline-open-action" onClick={() => onOpenChange(true)}>
+            Open timeline
+          </button>
+        )}
+      </header>
+      {open ? (
+        <div className="timeline-panel">
+          <div className={`timeline-workspace${selectedKey ? " has-inspector" : ""}`}>
             <div className="timeline-track-list">
               <div className="timeline-track-list-heading">
                 <span>Properties</span>
@@ -519,6 +609,10 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
                     className={`timeline-track-row${selectedTrackId === track.id ? " is-selected" : ""}`}
                     key={track.id}
                     style={{ top: rowIndex * 34 }}
+                    onPointerDown={() => {
+                      setSelectedTrackId(track.id);
+                      setSelectedKeyId(null);
+                    }}
                     onDoubleClick={(event) => addKey(track, timeFromPointer(event.clientX))}
                   >
                     {sortKeyframes(track.keyframes)
@@ -559,95 +653,91 @@ export function TimelineEditor({ open, stores, onOpenChange, onApplyValues, onTi
                 ))}
               </div>
             </div>
-            <aside className={`timeline-inspector${selectedKey ? " is-active" : ""}`}>
-              {selectedTrack && selectedKey ? (
-                <>
-                  <div className="timeline-inspector-title">
-                    <span>{selectedTrack.label}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSequence((current) => ({
-                          ...current,
-                          tracks: current.tracks.map((track) =>
-                            track.id === selectedTrack.id
-                              ? {
-                                  ...track,
-                                  keyframes: track.keyframes.filter((keyframe) => keyframe.id !== selectedKey.id),
-                                }
-                              : track,
-                          ),
-                        }));
-                        setSelectedKeyId(null);
-                      }}
-                      aria-label="Delete keyframe"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  </div>
-                  <label>
-                    Time
+            {selectedTrack && selectedKey ? (
+              <aside className="timeline-inspector is-active">
+                <div className="timeline-inspector-title">
+                  <span>{selectedTrack.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSequence((current) => ({
+                        ...current,
+                        tracks: current.tracks.map((track) =>
+                          track.id === selectedTrack.id
+                            ? {
+                                ...track,
+                                keyframes: track.keyframes.filter((keyframe) => keyframe.id !== selectedKey.id),
+                              }
+                            : track,
+                        ),
+                      }));
+                      setSelectedKeyId(null);
+                    }}
+                    aria-label="Delete keyframe"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+                <label>
+                  Time
+                  <input
+                    type="number"
+                    min={0}
+                    max={sequence.duration}
+                    step={0.01}
+                    value={Number(selectedKey.time.toFixed(3))}
+                    onChange={(event) => {
+                      const time = clampTimelineTime(Number(event.currentTarget.value), sequence.duration);
+                      updateSelectedKey({ time });
+                      updateTime(time);
+                    }}
+                  />
+                </label>
+                <label>
+                  Value
+                  {selectedTrack.valueType === "color" ? (
+                    <input
+                      type="color"
+                      value={String(selectedKey.value)}
+                      onChange={(event) => updateSelectedKey({ value: event.currentTarget.value })}
+                    />
+                  ) : typeof selectedKey.value === "boolean" ? (
+                    <input
+                      type="checkbox"
+                      checked={selectedKey.value}
+                      onChange={(event) => updateSelectedKey({ value: event.currentTarget.checked })}
+                    />
+                  ) : selectedTrack.valueType === "number" ? (
                     <input
                       type="number"
-                      min={0}
-                      max={sequence.duration}
-                      step={0.01}
-                      value={Number(selectedKey.time.toFixed(3))}
-                      onChange={(event) => {
-                        const time = clampTimelineTime(Number(event.currentTarget.value), sequence.duration);
-                        updateSelectedKey({ time });
-                        updateTime(time);
-                      }}
+                      min={selectedProperty?.min}
+                      max={selectedProperty?.max}
+                      step={selectedProperty?.step ?? 0.01}
+                      value={selectedKey.value as number}
+                      onChange={(event) => updateSelectedKey({ value: Number(event.currentTarget.value) })}
                     />
-                  </label>
-                  <label>
-                    Value
-                    {selectedTrack.valueType === "color" ? (
-                      <input
-                        type="color"
-                        value={String(selectedKey.value)}
-                        onChange={(event) => updateSelectedKey({ value: event.currentTarget.value })}
-                      />
-                    ) : typeof selectedKey.value === "boolean" ? (
-                      <input
-                        type="checkbox"
-                        checked={selectedKey.value}
-                        onChange={(event) => updateSelectedKey({ value: event.currentTarget.checked })}
-                      />
-                    ) : selectedTrack.valueType === "number" ? (
-                      <input
-                        type="number"
-                        min={selectedProperty?.min}
-                        max={selectedProperty?.max}
-                        step={selectedProperty?.step ?? 0.01}
-                        value={selectedKey.value as number}
-                        onChange={(event) => updateSelectedKey({ value: Number(event.currentTarget.value) })}
-                      />
-                    ) : (
-                      <input
-                        value={String(selectedKey.value)}
-                        onChange={(event) => updateSelectedKey({ value: event.currentTarget.value })}
-                      />
-                    )}
-                  </label>
-                  <label>
-                    To next key
-                    <select
-                      value={selectedKey.easing}
-                      onChange={(event) => updateSelectedKey({ easing: event.currentTarget.value as TimelineEasing })}
-                    >
-                      {EASING_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </>
-              ) : (
-                <p>Select a key to edit its exact value and easing.</p>
-              )}
-            </aside>
+                  ) : (
+                    <input
+                      value={String(selectedKey.value)}
+                      onChange={(event) => updateSelectedKey({ value: event.currentTarget.value })}
+                    />
+                  )}
+                </label>
+                <label>
+                  To next key
+                  <select
+                    value={selectedKey.easing}
+                    onChange={(event) => updateSelectedKey({ easing: event.currentTarget.value as TimelineEasing })}
+                  >
+                    {EASING_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </aside>
+            ) : null}
           </div>
         </div>
       ) : null}

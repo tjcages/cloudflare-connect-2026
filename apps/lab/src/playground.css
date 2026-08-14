@@ -2559,10 +2559,20 @@ body.lab-sidebar-resizing canvas {
   height: 330px;
 }
 
+.timeline-header {
+  position: relative;
+  z-index: 9;
+  display: flex;
+  height: 33px;
+  align-items: center;
+  gap: 8px;
+  padding-right: 8px;
+}
+
 .timeline-tab {
   display: inline-flex;
   height: 33px;
-  min-width: 196px;
+  min-width: 124px;
   align-items: center;
   gap: 6px;
   padding: 0 12px;
@@ -2580,6 +2590,18 @@ body.lab-sidebar-resizing canvas {
   background: var(--leva-surface);
 }
 
+.timeline-open-action {
+  margin-left: auto;
+  padding: 0 8px;
+  color: var(--leva-text-faint) !important;
+  font-size: 9px !important;
+}
+
+.timeline-open-action:hover,
+.timeline-open-action:focus-visible {
+  color: var(--leva-text) !important;
+}
+
 .timeline-tab:focus-visible {
   outline: 1px solid var(--leva-accent);
   outline-offset: -2px;
@@ -2592,13 +2614,6 @@ body.lab-sidebar-resizing canvas {
 
 .timeline-tab-diamond {
   color: var(--leva-accent);
-}
-
-.timeline-tab-action {
-  margin-left: 6px;
-  color: var(--leva-text-faint);
-  font-size: 9px;
-  font-weight: 500;
 }
 
 .timeline-editor.is-open .timeline-tab-chevron {
@@ -2627,19 +2642,6 @@ body.lab-sidebar-resizing canvas {
   flex-direction: column;
   border-top: 1px solid var(--leva-border);
   background: var(--leva-panel-bg);
-}
-
-.timeline-toolbar {
-  position: relative;
-  z-index: 5;
-  display: grid;
-  height: 40px;
-  flex: 0 0 40px;
-  grid-template-columns: 220px minmax(160px, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--leva-border);
 }
 
 .timeline-transport,
@@ -2683,7 +2685,7 @@ body.lab-sidebar-resizing canvas {
 }
 
 .timeline-transport output {
-  min-width: 58px;
+  min-width: 92px;
   margin-left: 5px;
   color: var(--leva-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -2691,8 +2693,12 @@ body.lab-sidebar-resizing canvas {
   font-variant-numeric: tabular-nums;
 }
 
+.timeline-transport output span {
+  color: var(--leva-text-faint);
+}
+
 .timeline-sequence-settings {
-  justify-self: end;
+  margin-left: auto;
 }
 
 .timeline-sequence-settings label {
@@ -2723,7 +2729,6 @@ body.lab-sidebar-resizing canvas {
 
 .timeline-property-picker {
   position: relative;
-  justify-self: start;
 }
 
 .timeline-add-property {
@@ -2738,7 +2743,7 @@ body.lab-sidebar-resizing canvas {
 
 .timeline-property-menu {
   position: absolute;
-  bottom: 30px;
+  top: 29px;
   left: 0;
   width: 280px;
   overflow: hidden;
@@ -2787,7 +2792,10 @@ body.lab-sidebar-resizing canvas {
   text-transform: uppercase;
 }
 
-.timeline-property-results section button {
+.timeline-editor.playground-leva-panel
+  .timeline-property-results
+  section
+  button:not(:disabled):not(.timeline-property-result-disabled) {
   display: grid;
   width: 100%;
   height: 25px;
@@ -2796,7 +2804,22 @@ body.lab-sidebar-resizing canvas {
   gap: 8px;
   padding: 0 7px;
   border-radius: 3px;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
   text-align: left;
+}
+
+.timeline-editor.playground-leva-panel
+  .timeline-property-results
+  section
+  button:not(:disabled):not(.timeline-property-result-disabled):hover,
+.timeline-editor.playground-leva-panel
+  .timeline-property-results
+  section
+  button:not(:disabled):not(.timeline-property-result-disabled):focus-visible {
+  background: var(--leva-surface-hover) !important;
+  background-color: var(--leva-surface-hover) !important;
 }
 
 .timeline-property-results section button span {
@@ -2823,10 +2846,15 @@ body.lab-sidebar-resizing canvas {
 
 .timeline-workspace {
   display: grid;
+  height: 100%;
   min-height: 0;
   flex: 1;
-  grid-template-columns: 220px minmax(320px, 1fr) 178px;
+  grid-template-columns: 220px minmax(320px, 1fr);
   overflow: hidden;
+}
+
+.timeline-workspace.has-inspector {
+  grid-template-columns: 220px minmax(320px, 1fr) 190px;
 }
 
 .timeline-track-list {
@@ -2934,7 +2962,10 @@ body.lab-sidebar-resizing canvas {
 }
 
 .timeline-canvas-shell {
+  display: flex;
   min-width: 0;
+  min-height: 0;
+  flex-direction: column;
   overflow: hidden;
   background: color-mix(in srgb, var(--leva-panel-bg) 96%, var(--leva-text));
 }
@@ -2942,6 +2973,7 @@ body.lab-sidebar-resizing canvas {
 .timeline-ruler {
   position: relative;
   height: 27px;
+  flex: 0 0 27px;
   border-bottom: 1px solid var(--leva-border);
   cursor: ew-resize;
 }
@@ -2957,7 +2989,9 @@ body.lab-sidebar-resizing canvas {
 
 .timeline-canvas {
   position: relative;
-  height: calc(100% - 27px);
+  height: auto;
+  min-height: 0;
+  flex: 1;
   overflow: hidden auto;
   cursor: ew-resize;
 }
@@ -3008,12 +3042,13 @@ body.lab-sidebar-resizing canvas {
 
 .timeline-key {
   position: absolute;
-  top: 10px;
-  width: 14px;
-  height: 14px;
+  z-index: 2;
+  top: 0;
+  width: 32px;
+  height: 34px;
   padding: 0;
   background: transparent !important;
-  transform: translateX(-7px);
+  transform: translateX(-16px);
   cursor: grab !important;
 }
 
@@ -3022,18 +3057,49 @@ body.lab-sidebar-resizing canvas {
 }
 
 .timeline-key > span {
+  position: absolute;
+  top: 12px;
+  left: 11px;
   display: block;
-  width: 8px;
-  height: 8px;
-  margin: 3px;
+  width: 10px;
+  height: 10px;
   border: 1px solid var(--leva-accent-strong);
   background: var(--leva-panel-bg);
   transform: rotate(45deg);
+  transition-property: background-color, box-shadow, scale;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.timeline-key::before {
+  position: absolute;
+  top: 7px;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--leva-accent-soft) 22%, transparent);
+  content: "";
+  opacity: 0;
+  scale: 0.75;
+  transition-property: opacity, scale;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 .timeline-key:hover > span,
 .timeline-key.is-selected > span {
   background: var(--leva-accent-strong);
+  box-shadow:
+    0 0 0 2px var(--leva-panel-bg),
+    0 0 0 3px var(--leva-accent-strong);
+  scale: 1.08;
+}
+
+.timeline-key:hover::before,
+.timeline-key.is-selected::before {
+  opacity: 1;
+  scale: 1;
 }
 
 .timeline-playhead {
@@ -3128,12 +3194,16 @@ body.lab-sidebar-resizing canvas {
     grid-template-columns: 180px minmax(260px, 1fr);
   }
 
+  .timeline-workspace.has-inspector {
+    grid-template-columns: 180px minmax(260px, 1fr);
+  }
+
   .timeline-inspector {
     display: none;
   }
 
-  .timeline-toolbar {
-    grid-template-columns: auto 1fr auto;
+  .timeline-sequence-settings label {
+    display: none;
   }
 }
 

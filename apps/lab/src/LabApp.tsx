@@ -931,8 +931,9 @@ function LabInner({
   });
   const [shaderSourceError, setShaderSourceError] = useState<string | null>(null);
   const [shaderPresetId, setShaderPresetId] = useState(() => labSettings.shaderPresetId || DEFAULT_SHADER_PRESET_ID);
-  const [shaderPlaying, setShaderPlaying] = useState(true);
+  const [shaderPlaying, setShaderPlaying] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [previewZoom, setPreviewZoom] = useState(() => labSettings.previewZoom ?? initialFitPreviewZoom(labSettings));
   const [previewZoomReady, setPreviewZoomReady] = useState(false);
   const hasAutoFittedPreviewZoomRef = useRef(false);
@@ -958,7 +959,7 @@ function LabInner({
   const shaderPlayingRef = useRef(shaderPlaying);
   shaderPlayingRef.current = shaderPlaying;
   const shaderTimeSecRef = useRef(0);
-  const [twizzlerPlaying, setTwizzlerPlaying] = useState(true);
+  const [twizzlerPlaying, setTwizzlerPlaying] = useState(false);
   const twizzlerPlayingRef = useRef(twizzlerPlaying);
   twizzlerPlayingRef.current = twizzlerPlaying;
   const twizzlerTimeSecRef = useRef(0);
@@ -1080,6 +1081,15 @@ function LabInner({
   const manual = useMemo(() => new URLSearchParams(window.location.search).get("manual") === "1", []);
   const shell = hud && !manual;
 
+  const setTimelinePlayback = useCallback((next: boolean) => {
+    shaderPlayingRef.current = next;
+    twizzlerPlayingRef.current = next;
+    shaderLastTickMsRef.current = performance.now();
+    setShaderPlaying(next);
+    setTwizzlerPlaying(next);
+    setTimelinePlaying(next);
+  }, []);
+
   const onReplayRef = useRef<() => void>(() => {});
   const onReplay = useCallback(() => onReplayRef.current(), []);
   const onExportSvgRef = useRef<() => void>(() => {});
@@ -1121,13 +1131,10 @@ function LabInner({
       isPlaying: () => shaderPlayingRef.current,
       toggle: () => {
         const next = !shaderPlayingRef.current;
-        shaderPlayingRef.current = next;
-        shaderLastTickMsRef.current = performance.now();
-        setShaderPlaying(next);
+        setTimelinePlayback(next);
       },
       step: (seconds) => {
-        shaderPlayingRef.current = false;
-        setShaderPlaying(false);
+        setTimelinePlayback(false);
         shaderTimeSecRef.current = steppedTransportTime(shaderTimeSecRef.current, seconds);
         shaderLastTickMsRef.current = performance.now();
       },
@@ -1136,7 +1143,7 @@ function LabInner({
         shaderLastTickMsRef.current = performance.now();
       },
     }),
-    [],
+    [setTimelinePlayback],
   );
   const twizzlerTransport = useMemo<TimeTransportController>(
     () => ({
@@ -1144,19 +1151,17 @@ function LabInner({
       isPlaying: () => twizzlerPlayingRef.current,
       toggle: () => {
         const next = !twizzlerPlayingRef.current;
-        twizzlerPlayingRef.current = next;
-        setTwizzlerPlaying(next);
+        setTimelinePlayback(next);
       },
       step: (seconds) => {
-        twizzlerPlayingRef.current = false;
-        setTwizzlerPlaying(false);
+        setTimelinePlayback(false);
         twizzlerTimeSecRef.current = steppedTransportTime(twizzlerTimeSecRef.current, seconds);
       },
       reset: () => {
         twizzlerTimeSecRef.current = 0;
       },
     }),
-    [],
+    [setTimelinePlayback],
   );
   const onClientGraphicPersistRef = useRef<(mode: ClientGraphicMode) => void>(() => {});
   const {
@@ -1225,7 +1230,7 @@ function LabInner({
         const updates: Record<string, TimelineValue> = {};
         for (const [key, value] of Object.entries(values)) {
           const path = Object.keys(data).find((candidate) => (candidate.split(".").at(-1) ?? candidate) === key);
-          if (path) updates[path] = value;
+          if (path && data[path]?.value !== value) updates[path] = value;
         }
         if (Object.keys(updates).length > 0) store.set(updates, false);
       }
@@ -3857,10 +3862,12 @@ function LabInner({
         </div>
         <TimelineEditor
           open={timelineOpen}
+          playing={timelinePlaying}
           stores={timelineStores}
           onOpenChange={setTimelineOpen}
           onApplyValues={applyTimelineValues}
           onTimeChange={syncTimelineTime}
+          onPlayingChange={setTimelinePlayback}
         />
         {!clientMode ? (
           <>
