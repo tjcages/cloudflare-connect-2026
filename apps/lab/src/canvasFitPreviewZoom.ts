@@ -1,4 +1,4 @@
-const PREVIEW_ZOOM_MIN = 0.25;
+const PREVIEW_ZOOM_MIN = 0.001;
 const PREVIEW_ZOOM_MAX = 4;
 
 export function clampPreviewZoom(value: number): number {

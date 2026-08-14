@@ -19,9 +19,7 @@ function branchSlug(branch) {
     .slice(0, 48);
 }
 
-const branch =
-  process.env.PREVIEW_BRANCH ||
-  execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
+const branch = process.env.PREVIEW_BRANCH || execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
 const alias = process.env.PREVIEW_ALIAS || branchSlug(branch);
 
 if (!alias || !/^[a-z][a-z0-9-]*$/.test(alias)) {
@@ -35,7 +33,7 @@ console.log(`Alias:   ${alias}`);
 console.log(`Preview: https://${previewHost}/`);
 
 execSync("pnpm run build", { stdio: "inherit" });
-execSync(`pnpm --filter lab exec wrangler versions upload --preview-alias ${alias}`, {
+execSync(`pnpm --filter lab exec wrangler versions upload --name connect-shader --preview-alias ${alias}`, {
   stdio: "inherit",
   env: process.env,
 });

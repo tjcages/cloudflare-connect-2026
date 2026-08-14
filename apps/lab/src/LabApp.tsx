@@ -62,20 +62,27 @@ import {
   savePresets,
   type ConfigPreset,
 } from "./presets";
+import { loadActiveClientLayoutName, saveActiveClientLayoutName } from "./client/savedLayouts";
 import {
-  applyClientLayout,
-  listSavedLayouts,
-  loadActiveClientLayoutName,
-  loadBannerLayout,
-  saveActiveClientLayoutName,
-} from "./client/savedLayouts";
-import {
+  CUSTOM_CLIENT_SIZE_ID,
   resolveClientGraphicMode,
   clientGraphicFlags,
   resolveClientSvgExportLayers,
+  sharedClientColorId,
+  sharedClientStyleId,
   withClientRainFxVisibility,
   type ClientGraphicMode,
 } from "./client/clientPresets";
+import { createSharedSizePreset, deleteSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
+import { createSharedPreset, deleteSharedPreset, loadSharedPresets } from "./client/sharedPresetApi";
+import {
+  SHARED_PRESET_SCHEMA_VERSIONS,
+  mergeSharedStyleLab,
+  sharedStyleLabFromSnapshot,
+  type SharedColorPresetPayload,
+  type SharedPreset,
+} from "./sharedPresets";
+import { sharedSizePresetId, type SharedSizePreset, type SharedSizePresetStatus } from "./sharedSizePresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { downloadEps, svgToEps } from "./export/svgToEps";
@@ -151,6 +158,41 @@ import {
 import { TimelineEditor, type TimelineLevaStore } from "./components/TimelineEditor";
 import { buildTimelineStoreUpdates } from "./animation/timelineStoreValues";
 import { animationFrameDeltaSeconds, type TimelineValue } from "./animation/timelineModel";
+
+type SharedStylePresetRecord = SharedPreset<"style">;
+type SharedColorPresetRecord = SharedPreset<"color">;
+type SharedCatalogStatus = "loading" | "ready" | "saving" | "deleting" | "error";
+
+function withSharedColors(themed: ThemedEngineConfig, payload: SharedColorPresetPayload): ThemedEngineConfig {
+  const light = normalizeEngineConfig(resolveThemedConfig(themed, "light"));
+  const dark = normalizeEngineConfig(resolveThemedConfig(themed, "dark"));
+  const recolor = (
+    config: EngineConfig,
+    stripeColors: readonly number[] | undefined,
+    backgroundColor: number | null | undefined,
+  ): EngineConfig => ({
+    ...config,
+    stripes: config.stripes.map((stripe, index) => ({
+      ...stripe,
+      color: stripeColors?.[index] ?? stripe.color,
+    })),
+    background:
+      backgroundColor === undefined
+        ? config.background
+        : {
+            ...config.background,
+            transparent: backgroundColor === null,
+            ...(backgroundColor === null ? {} : { color: backgroundColor }),
+          },
+  });
+  const nextLight = recolor(light, payload.stripeColors, payload.backgroundColor);
+  const nextDark = recolor(
+    dark,
+    payload.darkStripeColors ?? payload.stripeColors,
+    payload.darkBackgroundColor === undefined ? payload.backgroundColor : payload.darkBackgroundColor,
+  );
+  return { ...nextLight, dark: diffEngineConfig(nextLight, nextDark) };
+}
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -799,6 +841,21 @@ type LabInnerProps = {
   onResetSurfaceArea: (id: string) => void;
 };
 
+function sharedSizeControlValues(preset: SharedSizePreset): Record<string, unknown> {
+  const widthPx = preset.unit === "pixels" ? preset.width : Math.round(preset.width * preset.ppi);
+  const heightPx = preset.unit === "pixels" ? preset.height : Math.round(preset.height * preset.ppi);
+  const widthInches = preset.unit === "inches" ? preset.width : preset.width / preset.ppi;
+  const heightInches = preset.unit === "inches" ? preset.height : preset.height / preset.ppi;
+  return {
+    clientSizeUnit: preset.unit,
+    clientCanvasWidth: widthPx,
+    clientCanvasHeight: heightPx,
+    clientCanvasWidthInches: widthInches,
+    clientCanvasHeightInches: heightInches,
+    clientSizePpi: preset.ppi,
+  };
+}
+
 type SurfaceAreaConfigEditorProps = {
   area: SurfaceArea;
   onChange: (id: string, config: ThemedEngineConfig) => void;
@@ -914,8 +971,6 @@ function LabInner({
     ...startupLabSettings,
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
   }));
-  /** Client preview only: Default = curated folders, Advanced = full authoring folders. */
-  const [clientPanelMode, setClientPanelMode] = useState<"default" | "advanced">("default");
   const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(() => labSettings.textureSourceMode);
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>(() =>
     expectedSourceSize(labSettings, labSettings.textureSourceMode),
@@ -938,6 +993,80 @@ function LabInner({
   const [selectedPreset, setSelectedPreset] = useState(
     () => consumeBootPresetName() ?? (clientMode ? loadActiveClientLayoutName() : null) ?? startupPreset?.name ?? "",
   );
+  const [sharedPresetNotice, setSharedPresetNotice] = useState<{
+    message: string;
+    tone: "success" | "error";
+  } | null>(null);
+  const [sharedStylePresets, setSharedStylePresets] = useState<SharedStylePresetRecord[]>([]);
+  const [sharedStyleStatus, setSharedStyleStatus] = useState<SharedCatalogStatus>(clientMode ? "loading" : "ready");
+  const [sharedColorPresets, setSharedColorPresets] = useState<SharedColorPresetRecord[]>([]);
+  const [sharedColorStatus, setSharedColorStatus] = useState<SharedCatalogStatus>(clientMode ? "loading" : "ready");
+  const [sharedSizePresets, setSharedSizePresets] = useState<SharedSizePreset[]>([]);
+  const [sharedSizeStatus, setSharedSizeStatus] = useState<SharedSizePresetStatus>(clientMode ? "loading" : "ready");
+  const [sharedSizeNotice, setSharedSizeNotice] = useState<string | null>(null);
+  const pendingSharedSizeSelectionRef = useRef<SharedSizePreset | null>(null);
+  const pendingSharedStyleSelectionRef = useRef<SharedStylePresetRecord | null>(null);
+  const pendingSharedColorSelectionRef = useRef<SharedColorPresetRecord | null>(null);
+  const skipSharedStyleApplyRef = useRef<string | null>(null);
+  const skipSharedColorApplyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!clientMode) return;
+    const controller = new AbortController();
+    setSharedStyleStatus("loading");
+    loadSharedPresets("style", controller.signal)
+      .then((loaded) => {
+        setSharedStylePresets(loaded);
+        setSharedStyleStatus("ready");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.warn("Shared styles are unavailable.", error);
+        setSharedStyleStatus("error");
+      });
+    return () => controller.abort();
+  }, [clientMode]);
+  useEffect(() => {
+    if (!clientMode) return;
+    const controller = new AbortController();
+    setSharedColorStatus("loading");
+    loadSharedPresets("color", controller.signal)
+      .then((loaded) => {
+        setSharedColorPresets(loaded);
+        setSharedColorStatus("ready");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.warn("Shared colors are unavailable.", error);
+        setSharedColorStatus("error");
+      });
+    return () => controller.abort();
+  }, [clientMode]);
+  useEffect(() => {
+    if (!clientMode) return;
+    const controller = new AbortController();
+    setSharedSizeStatus("loading");
+    loadSharedSizePresets(controller.signal)
+      .then((loaded) => {
+        setSharedSizePresets(loaded);
+        setSharedSizeStatus("ready");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.warn("Shared sizes are unavailable.", error);
+        setSharedSizeStatus("error");
+      });
+    return () => controller.abort();
+  }, [clientMode]);
+  useEffect(() => {
+    if (!sharedPresetNotice) return;
+    const timeout = window.setTimeout(() => setSharedPresetNotice(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [sharedPresetNotice]);
+  useEffect(() => {
+    if (!sharedSizeNotice) return;
+    const timeout = window.setTimeout(() => setSharedSizeNotice(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [sharedSizeNotice]);
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
   const textureSourceModeRef = useRef(textureSourceMode);
@@ -963,6 +1092,7 @@ function LabInner({
   const shaderMouseRef = useRef({ x: 0, y: 0, down: false, hovered: false });
   const labSettingsRef = useRef(labSettings);
   labSettingsRef.current = labSettings;
+  const skipPersistenceDuringReloadRef = useRef(false);
   const surfaceWorkspaceRef = useRef(surfaceWorkspace);
   surfaceWorkspaceRef.current = surfaceWorkspace;
   const [drawingSurfaceAreaKind, setDrawingSurfaceAreaKind] = useState<SurfaceAreaKind | null>(null);
@@ -1183,11 +1313,12 @@ function LabInner({
     shaderView,
     initialThemed,
     clientCanvasSize,
+    clientSizeId,
     clientGraphicMode,
     clientRainShaderPreset,
   } = useEngineControls(onReplay, {
     showShaderCamera:
-      (!clientMode || clientPanelMode === "advanced") &&
+      !clientMode &&
       textureSourceMode === "shader" &&
       !isTwizzlerMapShaderPreset(shaderPresetId) &&
       !isCometLogoShaderPreset(shaderPresetId),
@@ -1198,12 +1329,25 @@ function LabInner({
     // Client boot wrote the active layout into storage — let controls load it.
     initialConfig: clientMode ? undefined : initialConfig,
     clientMode,
-    clientPanelMode: clientMode ? clientPanelMode : undefined,
     onClientGraphicModeChange: clientMode
       ? (mode) => {
           onClientGraphicPersistRef.current(mode);
         }
       : undefined,
+    sharedSizePresets,
+    sharedSizeStatus,
+    onSaveSharedSize: (name) => void handleSaveSharedSize(name),
+    onDeleteSharedSize: (id) => void handleDeleteSharedSize(id),
+    sharedStylePresets,
+    sharedStyleStatus,
+    onSaveSharedStyle: () => void handleSaveSharedStyle(),
+    onApplySharedStyle: (id) => handleApplySharedStyle(id),
+    onDeleteSharedStyle: (id) => void handleDeleteSharedStyle(id),
+    sharedColorPresets,
+    sharedColorStatus,
+    onSaveSharedColor: () => void handleSaveSharedColor(),
+    onApplySharedColor: (id) => handleApplySharedColor(id),
+    onDeleteSharedColor: (id) => void handleDeleteSharedColor(id),
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -1243,6 +1387,31 @@ function LabInner({
     twizzlerAnimationTimeSecRef.current = seconds * Math.max(0, twizzlerRef.current.speed);
     shaderLastTickMsRef.current = performance.now();
   }, []);
+  useEffect(() => {
+    const stylePreset = pendingSharedStyleSelectionRef.current;
+    if (stylePreset && sharedStylePresets.some((entry) => entry.id === stylePreset.id)) {
+      setControlRef.current({ clientLayout: sharedClientStyleId(stylePreset.id) });
+      pendingSharedStyleSelectionRef.current = null;
+    }
+    const colorPreset = pendingSharedColorSelectionRef.current;
+    if (colorPreset && sharedColorPresets.some((entry) => entry.id === colorPreset.id)) {
+      setControlRef.current({ clientColor: sharedClientColorId(colorPreset.id) });
+      pendingSharedColorSelectionRef.current = null;
+    }
+    const preset = pendingSharedSizeSelectionRef.current;
+    if (preset && sharedSizePresets.some((entry) => entry.id === preset.id)) {
+      setControlRef.current({
+        clientSize: sharedSizePresetId(preset.id),
+        ...sharedSizeControlValues(preset),
+      });
+      pendingSharedSizeSelectionRef.current = null;
+      return;
+    }
+    if (!clientMode || sharedSizeStatus === "loading" || !clientSizeId) return;
+    // Leva keeps a select's previous display label when options are replaced.
+    // Reapply the resolved value after loading so the visible label matches the native selection.
+    setControlRef.current({ clientSize: clientSizeId });
+  }, [clientMode, clientSizeId, sharedColorPresets, sharedSizePresets, sharedSizeStatus, sharedStylePresets]);
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
@@ -1252,22 +1421,27 @@ function LabInner({
   const getLabSettingsSnapshotRef = useRef(getLabSettingsSnapshot);
   getLabSettingsSnapshotRef.current = getLabSettingsSnapshot;
 
+  const clientCanvasSizeWidth = clientCanvasSize?.width ?? null;
+  const clientCanvasSizeHeight = clientCanvasSize?.height ?? null;
   useEffect(() => {
-    if (!clientMode || !clientCanvasSize) return;
-    const { width, height } = clientCanvasSize;
+    if (!clientMode || clientCanvasSizeWidth === null || clientCanvasSizeHeight === null) return;
     setLabSettings((current) => {
-      if (current.canvasMode === "manual" && current.canvasWidth === width && current.canvasHeight === height) {
+      if (
+        current.canvasMode === "manual" &&
+        current.canvasWidth === clientCanvasSizeWidth &&
+        current.canvasHeight === clientCanvasSizeHeight
+      ) {
         return current;
       }
       return {
         ...current,
         canvasMode: "manual",
-        canvasWidth: width,
-        canvasHeight: height,
+        canvasWidth: clientCanvasSizeWidth,
+        canvasHeight: clientCanvasSizeHeight,
         canvasAspectLocked: true,
       };
     });
-  }, [clientCanvasSize, clientMode]);
+  }, [clientCanvasSizeHeight, clientCanvasSizeWidth, clientMode]);
 
   const editTheme = initialThemed.editTheme;
   const lightBaseRef = useRef<Partial<EngineConfig>>(initialThemed.lightBase);
@@ -1311,7 +1485,10 @@ function LabInner({
   }, []);
 
   useEffect(() => {
-    const onHide = () => flushLiveLabPersistence();
+    const onHide = () => {
+      if (skipPersistenceDuringReloadRef.current) return;
+      flushLiveLabPersistence();
+    };
     window.addEventListener("pagehide", onHide);
     window.addEventListener("beforeunload", onHide);
     return () => {
@@ -1331,6 +1508,7 @@ function LabInner({
       textureSourceMode: textureSourceModeRef.current,
       shaderSourceCode: shaderSourceCodeRef.current,
       shaderPresetId: shaderPresetIdRef.current,
+      clientGraphicMode: mode,
       twizzlerEnabled: flags.twizzlerEnabled,
       twizzler: twizzlerSettings,
       twizzlerMap: twizzlerMapRef.current,
@@ -2451,6 +2629,16 @@ function LabInner({
   }, []);
 
   useEffect(() => {
+    if (!clientMode || clientCanvasSizeWidth === null || clientCanvasSizeHeight === null) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (!fitPreviewZoomToViewport()) return;
+      centerCanvasViewport();
+      setPreviewZoomReady(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [centerCanvasViewport, clientCanvasSizeHeight, clientCanvasSizeWidth, clientMode, fitPreviewZoomToViewport]);
+
+  useEffect(() => {
     if (!shell || hasAutoFittedPreviewZoomRef.current) return;
     const area = canvasAreaRef.current;
     if (!area) return;
@@ -3148,15 +3336,228 @@ function LabInner({
     if (clientMode) saveActiveClientLayoutName(name);
   }
 
+  async function handleSaveSharedStyle() {
+    if (sharedStyleStatus === "saving" || sharedStyleStatus === "deleting") return;
+    const name = window.prompt("Style name:")?.trim();
+    if (!name) return;
+    const { config, lab } = captureSavedLayoutPayload();
+    setSharedStyleStatus("saving");
+    try {
+      const preset = await createSharedPreset({
+        kind: "style",
+        name,
+        payload: { config, lab: sharedStyleLabFromSnapshot(lab) },
+        schemaVersion: SHARED_PRESET_SCHEMA_VERSIONS.style,
+      });
+      setSharedStylePresets((current) =>
+        [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      pendingSharedStyleSelectionRef.current = preset;
+      skipSharedStyleApplyRef.current = preset.id;
+      setSharedStyleStatus("ready");
+      setSharedPresetNotice({ message: `Saved style “${preset.name}” for everyone.`, tone: "success" });
+    } catch (error) {
+      setSharedStyleStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared style could not be saved.",
+        tone: "error",
+      });
+    }
+  }
+
+  async function handleSaveSharedColor() {
+    if (sharedColorStatus === "saving" || sharedColorStatus === "deleting") return;
+    const name = window.prompt("Color preset name:")?.trim();
+    if (!name) return;
+    const { config, lab } = captureSavedLayoutPayload();
+    const light = normalizeEngineConfig(resolveThemedConfig(config, "light"));
+    const dark = normalizeEngineConfig(resolveThemedConfig(config, "dark"));
+    const twizzler = lab.twizzler ?? labSettingsRef.current.twizzler;
+    setSharedColorStatus("saving");
+    try {
+      const preset = await createSharedPreset({
+        kind: "color",
+        name,
+        payload: {
+          stripePalette: lab.stripePalette ?? null,
+          stripeColors: light.stripes.map((stripe) => stripe.color),
+          darkStripeColors: dark.stripes.map((stripe) => stripe.color),
+          backgroundColor: light.background.transparent ? null : light.background.color,
+          darkBackgroundColor: dark.background.transparent ? null : dark.background.color,
+          twizzler: {
+            color: twizzler.color,
+            colorFar: twizzler.colorFar,
+            colorNear: twizzler.colorNear,
+            colorEdge: twizzler.colorEdge,
+          },
+        },
+        schemaVersion: SHARED_PRESET_SCHEMA_VERSIONS.color,
+      });
+      setSharedColorPresets((current) =>
+        [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      pendingSharedColorSelectionRef.current = preset;
+      skipSharedColorApplyRef.current = preset.id;
+      setSharedColorStatus("ready");
+      setSharedPresetNotice({ message: `Saved color “${preset.name}” for everyone.`, tone: "success" });
+    } catch (error) {
+      setSharedColorStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared color could not be saved.",
+        tone: "error",
+      });
+    }
+  }
+
+  function handleApplySharedStyle(id: string) {
+    if (skipSharedStyleApplyRef.current === id) {
+      skipSharedStyleApplyRef.current = null;
+      return;
+    }
+    const preset = sharedStylePresets.find((entry) => entry.id === id);
+    if (!preset) return;
+    const currentLab = fullLabSettingsSnapshot();
+    applyPresetToStorage(
+      createPreset(preset.name, preset.payload.config, {
+        ...mergeSharedStyleLab(preset.payload.lab, currentLab),
+        clientLayoutId: sharedClientStyleId(id),
+      }),
+      textureIdRef.current,
+    );
+    window.location.reload();
+  }
+
+  function handleApplySharedColor(id: string) {
+    if (skipSharedColorApplyRef.current === id) {
+      skipSharedColorApplyRef.current = null;
+      return;
+    }
+    const preset = sharedColorPresets.find((entry) => entry.id === id);
+    if (!preset) return;
+    const currentLab = fullLabSettingsSnapshot();
+    const currentTwizzler = currentLab.twizzler ?? labSettingsRef.current.twizzler;
+    const currentTheme = getActiveThemedConfig();
+    applyPresetToStorage(
+      createPreset(preset.name, withSharedColors(currentTheme, preset.payload), {
+        ...currentLab,
+        clientColorId: sharedClientColorId(id),
+        stripePalette: preset.payload.stripePalette,
+        backgroundColor:
+          editTheme === "dark"
+            ? preset.payload.darkBackgroundColor === undefined
+              ? (preset.payload.backgroundColor ?? null)
+              : preset.payload.darkBackgroundColor
+            : (preset.payload.backgroundColor ?? null),
+        twizzler: { ...currentTwizzler, ...preset.payload.twizzler },
+      }),
+      textureIdRef.current,
+    );
+    window.location.reload();
+  }
+
+  async function handleDeleteSharedStyle(id: string) {
+    if (sharedStyleStatus !== "ready") return;
+    const preset = sharedStylePresets.find((entry) => entry.id === id);
+    if (!preset || !window.confirm(`Remove “${preset.name}” for everyone?`)) return;
+    setSharedStyleStatus("deleting");
+    try {
+      await deleteSharedPreset(id, preset.revision);
+      setSharedStylePresets((current) => current.filter((entry) => entry.id !== id));
+      setControlRef.current({ clientLayout: "classic" });
+      setSharedStyleStatus("ready");
+      setSharedPresetNotice({ message: `Removed style “${preset.name}”.`, tone: "success" });
+    } catch (error) {
+      setSharedStyleStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared style could not be removed.",
+        tone: "error",
+      });
+    }
+  }
+
+  async function handleDeleteSharedColor(id: string) {
+    if (sharedColorStatus !== "ready") return;
+    const preset = sharedColorPresets.find((entry) => entry.id === id);
+    if (!preset || !window.confirm(`Remove “${preset.name}” for everyone?`)) return;
+    setSharedColorStatus("deleting");
+    try {
+      await deleteSharedPreset(id, preset.revision);
+      setSharedColorPresets((current) => current.filter((entry) => entry.id !== id));
+      setControlRef.current({ clientColor: "coral-classic" });
+      setSharedColorStatus("ready");
+      setSharedPresetNotice({ message: `Removed color “${preset.name}”.`, tone: "success" });
+    } catch (error) {
+      setSharedColorStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared color could not be removed.",
+        tone: "error",
+      });
+    }
+  }
+
+  async function handleSaveSharedSize(name: string) {
+    if (sharedSizeStatus === "saving" || sharedSizeStatus === "deleting") return;
+    const lab = fullLabSettingsSnapshot();
+    if (lab.clientSizeId !== CUSTOM_CLIENT_SIZE_ID) {
+      window.alert("Choose Custom… before saving a shared size.");
+      return;
+    }
+    setSharedSizeStatus("saving");
+    try {
+      const preset = await createSharedSizePreset({
+        name,
+        unit: lab.clientSizeUnit ?? "pixels",
+        width: lab.clientSizeWidth ?? lab.canvasWidth ?? DEFAULT_LAB_SETTINGS.canvasWidth,
+        height: lab.clientSizeHeight ?? lab.canvasHeight ?? DEFAULT_LAB_SETTINGS.canvasHeight,
+        ppi: lab.clientSizePpi ?? 300,
+      });
+      setSharedSizePresets((current) =>
+        [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      pendingSharedSizeSelectionRef.current = preset;
+      saveLabSettings({
+        ...lab,
+        clientSizeId: sharedSizePresetId(preset.id),
+        clientSizeUnit: preset.unit,
+        clientSizeWidth: preset.width,
+        clientSizeHeight: preset.height,
+        clientSizePpi: preset.ppi,
+      });
+      setSharedSizeStatus("ready");
+      setSharedSizeNotice(`Saved “${preset.name}” for everyone.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The shared size could not be saved.";
+      setSharedSizeStatus("error");
+      window.alert(message);
+    }
+  }
+
+  async function handleDeleteSharedSize(id: string) {
+    if (sharedSizeStatus !== "ready") return;
+    const preset = sharedSizePresets.find((entry) => entry.id === id);
+    if (!preset) return;
+    if (!window.confirm(`Remove “${preset.name}” for everyone?`)) return;
+    setSharedSizeStatus("deleting");
+    try {
+      await deleteSharedSizePreset(id);
+      setSharedSizePresets((current) => current.filter((entry) => entry.id !== id));
+      setControlRef.current({
+        clientSize: CUSTOM_CLIENT_SIZE_ID,
+        ...sharedSizeControlValues(preset),
+      });
+      setSharedSizeStatus("ready");
+      setSharedSizeNotice(`Removed “${preset.name}”.`);
+    } catch (error) {
+      setSharedSizeStatus("error");
+      window.alert(error instanceof Error ? error.message : "The shared size could not be removed.");
+    }
+  }
+
   function handleApplyPreset() {
+    const targetTextureId = textureIdRef.current;
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
-    const targetTextureId = textureIdRef.current;
-    if (clientMode) {
-      applyClientLayout(preset, targetTextureId);
-    } else {
-      applyPresetToStorage(preset, targetTextureId);
-    }
+    applyPresetToStorage(preset, targetTextureId);
     saveTextureId(targetTextureId);
     window.location.reload();
   }
@@ -3172,20 +3573,6 @@ function LabInner({
       saveActiveClientLayoutName(null);
     }
     setSelectedPreset("");
-  }
-
-  function handleClientResetToBanner() {
-    if (!window.confirm("Reset to Banner 5:1 defaults? This replaces your current knobs. Saved layouts are kept.")) {
-      return;
-    }
-    const banner = loadBannerLayout();
-    if (!banner) {
-      window.alert("Banner 5:1 builtin is missing.");
-      return;
-    }
-    applyClientLayout(banner, textureIdRef.current);
-    setSelectedPreset(banner.name);
-    window.location.reload();
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -3442,6 +3829,15 @@ function LabInner({
 
   return (
     <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}${clientMode ? " is-client-mode" : ""}`}>
+      {clientMode && (sharedPresetNotice || sharedSizeNotice) ? (
+        <div
+          className={`lab-client-notice${sharedPresetNotice?.tone === "error" ? " is-error" : ""}`}
+          role={sharedPresetNotice?.tone === "error" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {sharedPresetNotice?.message ?? sharedSizeNotice}
+        </div>
+      ) : null}
       {!clientMode ? (
         <aside
           className={`lab-sidebar lab-sidebar-texture${labSettings.textureSidebarOpen ? "" : " is-closed"}`}
@@ -3891,8 +4287,15 @@ function LabInner({
             >
               −
             </button>
-            <button className="lab-btn" type="button" onClick={() => updatePreviewZoom(1)}>
-              Reset
+            <button
+              className="lab-btn"
+              type="button"
+              onClick={() => {
+                fitPreviewZoomToViewport();
+                centerCanvasViewport();
+              }}
+            >
+              Fit
             </button>
             <button
               className="lab-btn"
@@ -3901,7 +4304,9 @@ function LabInner({
             >
               +
             </button>
-            <span className="lab-canvas-zoom-value">{Math.round(previewZoom * 100)}%</span>
+            <span className="lab-canvas-zoom-value">
+              {previewZoom < 0.1 ? (previewZoom * 100).toFixed(1) : Math.round(previewZoom * 100)}%
+            </span>
           </div>
         </div>
         <TimelineEditor
@@ -3960,100 +4365,16 @@ function LabInner({
           ) : null}
           {clientMode ? (
             <>
-              <div className="lab-client-tools">
-                <div className="lab-client-tools-top">
-                  <fieldset className="lab-panel-mode-toggle" aria-label="Panel mode">
-                    <legend>Panel mode</legend>
-                    <label className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}>
-                      <input
-                        type="radio"
-                        name="lab-panel-mode"
-                        value="default"
-                        checked={clientPanelMode === "default"}
-                        onChange={() => setClientPanelMode("default")}
-                      />
-                      Default
-                    </label>
-                    <label className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}>
-                      <input
-                        type="radio"
-                        name="lab-panel-mode"
-                        value="advanced"
-                        checked={clientPanelMode === "advanced"}
-                        onChange={() => setClientPanelMode("advanced")}
-                      />
-                      Advanced
-                    </label>
-                  </fieldset>
-                  <button
-                    className="lab-sidebar-toggle lab-client-panel-collapse"
-                    type="button"
-                    onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
-                    aria-label="Close panel"
-                    title="Close panel"
-                  >
-                    <PanelRightClose size={14} strokeWidth={1.75} />
-                  </button>
-                </div>
-                <div className="lab-client-layouts">
-                  <div className="lab-client-layouts-label">Saved layouts</div>
-                  <select
-                    className="lab-client-layouts-select"
-                    value={selectedPreset}
-                    onChange={(e) => setSelectedPreset(e.target.value)}
-                    aria-label="Saved layout"
-                  >
-                    <option value="">Select a layout…</option>
-                    {listSavedLayouts(presets).map((p) => (
-                      <option key={p.name} value={p.name}>
-                        {p.name}
-                      </option>
-                    ))}
-                    {presets
-                      .filter((p) => p.builtin)
-                      .map((p) => (
-                        <option key={p.name} value={p.name}>
-                          {p.name} (builtin)
-                        </option>
-                      ))}
-                  </select>
-                  <div className="lab-client-layouts-actions">
-                    <button type="button" onClick={handleSavePreset}>
-                      Save
-                    </button>
-                    <button type="button" onClick={handleApplyPreset} disabled={!selectedPreset}>
-                      Apply
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDeletePreset}
-                      disabled={!selectedPreset || presets.some((p) => p.name === selectedPreset && p.builtin)}
-                    >
-                      Delete
-                    </button>
-                    <button type="button" className="is-reset" onClick={handleClientResetToBanner}>
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                <div className="lab-client-json">
-                  <div className="lab-client-layouts-label">JSON</div>
-                  <div className="lab-client-layouts-actions">
-                    <button type="button" onClick={handleExport}>
-                      Copy JSON
-                    </button>
-                    <button type="button" onClick={() => configFileInputRef.current?.click()}>
-                      Upload JSON
-                    </button>
-                  </div>
-                  <input
-                    ref={configFileInputRef}
-                    type="file"
-                    accept="application/json,.json"
-                    style={{ display: "none" }}
-                    onChange={handleConfigFileChange}
-                  />
-                </div>
+              <div className="lab-client-panel-header">
+                <button
+                  className="lab-sidebar-toggle lab-client-panel-collapse"
+                  type="button"
+                  onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
+                  aria-label="Close panel"
+                  title="Close panel"
+                >
+                  <PanelRightClose size={14} strokeWidth={1.75} />
+                </button>
               </div>
               <div className="lab-client-leva">
                 <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
