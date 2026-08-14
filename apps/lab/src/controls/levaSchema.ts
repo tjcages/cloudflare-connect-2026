@@ -12,6 +12,7 @@ import {
   saveStickyBackgroundColor,
 } from "../persistence";
 import type { LabEditTheme, LabSettings } from "../persistence";
+import { sharedSizePresetId, type SharedSizePreset } from "../sharedSizePresets";
 import { fromEditable, type EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import { createLevaPatchWriter, levaValuesEqual } from "./levaStoreWrite";
@@ -442,6 +443,7 @@ export interface EngineControlsResult {
   cometLogo: CometLogoSettings;
   /** Present in client mode when a size preset is selected. */
   clientCanvasSize: { width: number; height: number } | null;
+  clientSizeId: ClientSizeId | null;
   /** Client Hero → Graphic mode (twizzler / rain / both). */
   clientGraphicMode: ClientGraphicMode | null;
   /** Client rain shader preset id when Graphic includes Rain. */
@@ -540,10 +542,13 @@ export function useEngineControls(
     clientPanelMode?: "default" | "advanced";
     /** Notify LabApp when client Hero → Graphic changes (for shader bootstrap). */
     onClientGraphicModeChange?: (mode: ClientGraphicMode) => void;
+    /** Shared D1-backed sizes shown before the final Custom… option. */
+    sharedSizePresets?: readonly SharedSizePreset[];
   } = {},
 ): EngineControlsResult {
   const surfaceConfig = options.configScope === "surface";
   const clientApp = options.clientMode === true;
+  const sharedSizePresets = options.sharedSizePresets ?? [];
   const clientPanelMode = options.clientPanelMode === "advanced" ? "advanced" : "default";
   const clientDefaultPanel = clientApp && clientPanelMode === "default";
   clientDefaultPanelActive = clientDefaultPanel;
@@ -1297,8 +1302,16 @@ export function useEngineControls(
 
   const clientSizeOptions = Object.fromEntries([
     ...CLIENT_SIZE_PRESETS.map((preset) => [preset.label, preset.id]),
+    ...sharedSizePresets.map((preset) => [preset.name, sharedSizePresetId(preset.id)]),
+    ...(initialLabSettings.clientSizeId.startsWith("shared:") &&
+    !sharedSizePresets.some((preset) => sharedSizePresetId(preset.id) === initialLabSettings.clientSizeId)
+      ? [["Loading shared size…", initialLabSettings.clientSizeId] as const]
+      : []),
     ["Custom…", CUSTOM_CLIENT_SIZE_ID],
   ]) as Record<string, ClientSizeId>;
+  const sharedSizeOptionsKey = sharedSizePresets
+    .map((preset) => `${preset.id}:${preset.name}:${preset.unit}:${preset.width}:${preset.height}:${preset.ppi}`)
+    .join("|");
   const clientSizeUnitOptions = { Pixels: "pixels", Inches: "inches" } as const;
   const clientLayoutOptions = Object.fromEntries(
     CLIENT_LAYOUT_PRESETS.map((preset) => [preset.label, preset.id]),
@@ -4916,7 +4929,7 @@ export function useEngineControls(
     { store: shaderStore },
     // Do NOT depend on client Default/Advanced or stripeKey — rebuilding the
     // schema overrides live Leva values (CF-27 layouts, CF-68 fast slider crash).
-    [stripePaletteOptionsKey, stripePaletteValue],
+    [sharedSizeOptionsKey, stripePaletteOptionsKey, stripePaletteValue],
   );
   shaderValuesRecordRef.current = shaderValues as unknown as Record<string, unknown>;
   shaderSetterRawRef.current = setShaderControl as (values: Record<string, unknown>) => void;
@@ -4963,18 +4976,28 @@ export function useEngineControls(
     (shaderValues as unknown as Record<string, unknown>).clientCanvasHeightInches ??
       initialLabSettings.canvasHeight / clientSizePpi,
   );
+  const selectedSharedSizePreset = clientSizeId.startsWith("shared:")
+    ? sharedSizePresets.find((preset) => sharedSizePresetId(preset.id) === clientSizeId)
+    : undefined;
+  const effectiveClientSizeUnit = selectedSharedSizePreset?.unit ?? clientSizeUnit;
+  const effectiveClientSizePpi = selectedSharedSizePreset?.ppi ?? clientSizePpi;
+  const effectiveClientSizeWidth =
+    selectedSharedSizePreset?.width ?? (clientSizeUnit === "inches" ? clientCanvasWidthInches : clientCanvasWidth);
+  const effectiveClientSizeHeight =
+    selectedSharedSizePreset?.height ?? (clientSizeUnit === "inches" ? clientCanvasHeightInches : clientCanvasHeight);
   const resolvedClientOutputSize = resolveClientCanvasSize(
     clientSizeId,
-    clientSizeUnit === "inches" ? clientCanvasWidthInches : clientCanvasWidth,
-    clientSizeUnit === "inches" ? clientCanvasHeightInches : clientCanvasHeight,
-    clientSizeUnit,
-    clientSizePpi,
+    effectiveClientSizeWidth,
+    effectiveClientSizeHeight,
+    effectiveClientSizeUnit,
+    effectiveClientSizePpi,
+    sharedSizePresets,
   );
   const resolvedClientCanvasSize = resolveClientPreviewCanvasSize(
     clientSizeId,
     resolvedClientOutputSize.width,
     resolvedClientOutputSize.height,
-    clientSizeUnit,
+    effectiveClientSizeUnit,
   );
   const clientAppearanceId = String(
     (shaderValues as unknown as Record<string, unknown>).clientAppearance ??
@@ -4989,8 +5012,8 @@ export function useEngineControls(
   levaSchemaSeedRef.current.clientSizeId = clientSizeId;
   levaSchemaSeedRef.current.clientCanvasWidth = clientCanvasWidth;
   levaSchemaSeedRef.current.clientCanvasHeight = clientCanvasHeight;
-  levaSchemaSeedRef.current.clientSizeUnit = clientSizeUnit;
-  levaSchemaSeedRef.current.clientSizePpi = clientSizePpi;
+  levaSchemaSeedRef.current.clientSizeUnit = effectiveClientSizeUnit;
+  levaSchemaSeedRef.current.clientSizePpi = effectiveClientSizePpi;
   levaSchemaSeedRef.current.clientCanvasWidthInches = clientCanvasWidthInches;
   levaSchemaSeedRef.current.clientCanvasHeightInches = clientCanvasHeightInches;
   levaSchemaSeedRef.current.clientPixelOutput = `${resolvedClientOutputSize.width.toLocaleString()} × ${resolvedClientOutputSize.height.toLocaleString()} px`;
@@ -5437,10 +5460,10 @@ export function useEngineControls(
       ...(clientApp
         ? {
             clientSizeId,
-            clientSizeUnit,
-            clientSizePpi,
-            clientSizeWidth: clientSizeUnit === "inches" ? clientCanvasWidthInches : clientCanvasWidth,
-            clientSizeHeight: clientSizeUnit === "inches" ? clientCanvasHeightInches : clientCanvasHeight,
+            clientSizeUnit: effectiveClientSizeUnit,
+            clientSizePpi: effectiveClientSizePpi,
+            clientSizeWidth: effectiveClientSizeWidth,
+            clientSizeHeight: effectiveClientSizeHeight,
             canvasMode: "manual",
             canvasWidth: resolvedClientCanvasSize.width,
             canvasHeight: resolvedClientCanvasSize.height,
@@ -5459,6 +5482,10 @@ export function useEngineControls(
       clientColorId,
       clientLayoutId,
       clientSizeId,
+      effectiveClientSizeHeight,
+      effectiveClientSizePpi,
+      effectiveClientSizeUnit,
+      effectiveClientSizeWidth,
       clientSizePpi,
       clientSizeUnit,
       clientCanvasHeight,
@@ -6115,6 +6142,7 @@ export function useEngineControls(
       eruptionCycleSpeed: shaderValueRecord.cometLogoEruptionCycleSpeed,
     }),
     clientCanvasSize: clientApp ? resolvedClientCanvasSize : null,
+    clientSizeId: clientApp ? clientSizeId : null,
     clientGraphicMode: clientApp ? heroGraphicId : null,
     clientRainShaderPreset: clientApp
       ? resolveGraphicRainShaderPreset(

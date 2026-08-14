@@ -11,7 +11,8 @@ const DEFAULT_LAB_CANVAS_HEIGHT = 720;
 
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
 export const CUSTOM_CLIENT_SIZE_ID = "custom" as const;
-export type ClientSizeId = ClientSizePresetId | typeof CUSTOM_CLIENT_SIZE_ID;
+export type SharedClientSizeId = `shared:${string}`;
+export type ClientSizeId = ClientSizePresetId | typeof CUSTOM_CLIENT_SIZE_ID | SharedClientSizeId;
 export type ClientSizeUnit = "pixels" | "inches";
 export const DEFAULT_CLIENT_PRINT_PPI = 300;
 export const MIN_CLIENT_PRINT_PPI = 1;
@@ -38,6 +39,15 @@ export type ClientSizePreset = {
   label: string;
   width: number;
   height: number;
+};
+
+export type SharedClientSizePreset = {
+  id: string;
+  name: string;
+  unit: ClientSizeUnit;
+  width: number;
+  height: number;
+  ppi: number;
 };
 
 export type ClientLayoutPreset = {
@@ -450,7 +460,15 @@ export function resolveClientCanvasSize(
   customHeight: number,
   unit: ClientSizeUnit = "pixels",
   ppi = DEFAULT_CLIENT_PRINT_PPI,
+  sharedPresets: readonly SharedClientSizePreset[] = [],
 ): { width: number; height: number } {
+  if (id.startsWith("shared:")) {
+    const shared = sharedPresets.find((preset) => preset.id === id.slice("shared:".length));
+    if (shared) {
+      return resolveClientCanvasSize(CUSTOM_CLIENT_SIZE_ID, shared.width, shared.height, shared.unit, shared.ppi);
+    }
+    return resolveClientCanvasSize(CUSTOM_CLIENT_SIZE_ID, customWidth, customHeight, unit, ppi);
+  }
   if (id === CUSTOM_CLIENT_SIZE_ID) {
     const pixelsPerUnit = unit === "inches" ? normalizeClientPrintPpi(ppi) : 1;
     return {
@@ -458,7 +476,7 @@ export function resolveClientCanvasSize(
       height: normalizeClientCanvasDimension(customHeight * pixelsPerUnit, DEFAULT_LAB_CANVAS_HEIGHT),
     };
   }
-  const preset = findClientSizePreset(id);
+  const preset = findClientSizePreset(id as ClientSizePresetId);
   return { width: preset.width, height: preset.height };
 }
 
@@ -473,7 +491,7 @@ export function resolveClientPreviewCanvasSize(
   outputHeight: number,
   unit: ClientSizeUnit,
 ): { width: number; height: number } {
-  if (id !== CUSTOM_CLIENT_SIZE_ID || unit !== "inches") {
+  if ((!id.startsWith("shared:") && id !== CUSTOM_CLIENT_SIZE_ID) || unit !== "inches") {
     return { width: outputWidth, height: outputHeight };
   }
   const longestSide = Math.max(outputWidth, outputHeight);

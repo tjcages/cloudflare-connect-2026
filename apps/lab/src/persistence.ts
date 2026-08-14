@@ -235,7 +235,9 @@ const CLIENT_COLOR_IDS = new Set<string>([
 const CLIENT_APPEARANCE_IDS = new Set<string>(["light", "dark"]);
 
 function normalizeClientSizeId(value: unknown): ClientSizeId {
-  return typeof value === "string" && CLIENT_SIZE_IDS.has(value) ? (value as ClientSizeId) : "hero-16x9";
+  return typeof value === "string" && (CLIENT_SIZE_IDS.has(value) || /^shared:[A-Za-z0-9-]+$/.test(value))
+    ? (value as ClientSizeId)
+    : "hero-16x9";
 }
 
 function normalizeClientLayoutId(value: unknown): ClientLayoutPresetId {

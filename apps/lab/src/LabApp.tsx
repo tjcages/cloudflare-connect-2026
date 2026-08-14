@@ -69,12 +69,15 @@ import {
   saveActiveClientLayoutName,
 } from "./client/savedLayouts";
 import {
+  CUSTOM_CLIENT_SIZE_ID,
   resolveClientGraphicMode,
   clientGraphicFlags,
   resolveClientSvgExportLayers,
   withClientRainFxVisibility,
   type ClientGraphicMode,
 } from "./client/clientPresets";
+import { createSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
+import { sharedSizePresetId, type SharedSizePreset } from "./sharedSizePresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { downloadEps, svgToEps } from "./export/svgToEps";
@@ -939,6 +942,30 @@ function LabInner({
   const [selectedPreset, setSelectedPreset] = useState(
     () => consumeBootPresetName() ?? (clientMode ? loadActiveClientLayoutName() : null) ?? startupPreset?.name ?? "",
   );
+  const [sharedSizePresets, setSharedSizePresets] = useState<SharedSizePreset[]>([]);
+  const [sharedSizeStatus, setSharedSizeStatus] = useState<"loading" | "ready" | "saving" | "error">(
+    clientMode ? "loading" : "ready",
+  );
+  const [sharedSizeError, setSharedSizeError] = useState<string | null>(null);
+  const [sharedSizeName, setSharedSizeName] = useState("");
+  const [isNamingSharedSize, setIsNamingSharedSize] = useState(false);
+  useEffect(() => {
+    if (!clientMode) return;
+    const controller = new AbortController();
+    setSharedSizeStatus("loading");
+    loadSharedSizePresets(controller.signal)
+      .then((loaded) => {
+        setSharedSizePresets(loaded);
+        setSharedSizeError(null);
+        setSharedSizeStatus("ready");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setSharedSizeError(error instanceof Error ? error.message : "Shared sizes are unavailable.");
+        setSharedSizeStatus("error");
+      });
+    return () => controller.abort();
+  }, [clientMode]);
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
   const textureSourceModeRef = useRef(textureSourceMode);
@@ -1175,6 +1202,7 @@ function LabInner({
     shaderView,
     initialThemed,
     clientCanvasSize,
+    clientSizeId,
     clientGraphicMode,
     clientRainShaderPreset,
   } = useEngineControls(onReplay, {
@@ -1196,6 +1224,7 @@ function LabInner({
           onClientGraphicPersistRef.current(mode);
         }
       : undefined,
+    sharedSizePresets,
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -3089,6 +3118,46 @@ function LabInner({
     if (clientMode) saveActiveClientLayoutName(name);
   }
 
+  async function handleSaveSharedSize() {
+    const lab = fullLabSettingsSnapshot();
+    if (lab.clientSizeId !== CUSTOM_CLIENT_SIZE_ID) {
+      window.alert("Choose Custom… before saving a shared size.");
+      return;
+    }
+    const name = sharedSizeName.trim();
+    if (!name) return;
+    setSharedSizeStatus("saving");
+    setSharedSizeError(null);
+    try {
+      const preset = await createSharedSizePreset({
+        name,
+        unit: lab.clientSizeUnit ?? "pixels",
+        width: lab.clientSizeWidth ?? lab.canvasWidth ?? DEFAULT_LAB_SETTINGS.canvasWidth,
+        height: lab.clientSizeHeight ?? lab.canvasHeight ?? DEFAULT_LAB_SETTINGS.canvasHeight,
+        ppi: lab.clientSizePpi ?? 300,
+      });
+      setSharedSizePresets((current) =>
+        [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      saveLabSettings({
+        ...lab,
+        clientSizeId: sharedSizePresetId(preset.id),
+        clientSizeUnit: preset.unit,
+        clientSizeWidth: preset.width,
+        clientSizeHeight: preset.height,
+        clientSizePpi: preset.ppi,
+      });
+      setIsNamingSharedSize(false);
+      setSharedSizeName("");
+      window.location.reload();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The shared size could not be saved.";
+      setSharedSizeError(message);
+      setSharedSizeStatus("error");
+      window.alert(message);
+    }
+  }
+
   function handleApplyPreset() {
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
@@ -3971,6 +4040,67 @@ function LabInner({
                     <button type="button" className="is-reset" onClick={handleClientResetToBanner}>
                       Reset
                     </button>
+                  </div>
+                </div>
+                <div className="lab-client-shared-size">
+                  <div className="lab-client-layouts-label">Custom size</div>
+                  {isNamingSharedSize ? (
+                    <form
+                      className="lab-client-shared-size-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void handleSaveSharedSize();
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={sharedSizeName}
+                        onChange={(event) => setSharedSizeName(event.target.value)}
+                        placeholder="Size name"
+                        aria-label="Shared size name"
+                        maxLength={80}
+                      />
+                      <div className="lab-client-layouts-actions">
+                        <button
+                          type="submit"
+                          disabled={!sharedSizeName.trim() || sharedSizeStatus === "saving"}
+                          aria-busy={sharedSizeStatus === "saving"}
+                        >
+                          {sharedSizeStatus === "saving" ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsNamingSharedSize(false);
+                            setSharedSizeName("");
+                            setSharedSizeError(null);
+                          }}
+                          disabled={sharedSizeStatus === "saving"}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="lab-client-layouts-actions">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSharedSizeError(null);
+                          setIsNamingSharedSize(true);
+                        }}
+                        disabled={clientSizeId !== CUSTOM_CLIENT_SIZE_ID || sharedSizeStatus === "saving"}
+                      >
+                        Save size…
+                      </button>
+                    </div>
+                  )}
+                  <div className={`lab-client-shared-size-status${sharedSizeError ? " is-error" : ""}`}>
+                    {sharedSizeStatus === "loading"
+                      ? "Loading team sizes…"
+                      : sharedSizeError
+                        ? sharedSizeError
+                        : "Saved sizes appear in the Size selector for everyone."}
                   </div>
                 </div>
                 <div className="lab-client-json">

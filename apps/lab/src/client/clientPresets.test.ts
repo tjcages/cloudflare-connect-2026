@@ -291,6 +291,18 @@ describe("client preview presets", () => {
     });
   });
 
+  it("resolves shared print sizes from the database catalog", () => {
+    const shared = [{ id: "lobby", name: "Lobby wall", unit: "inches" as const, width: 20, height: 10, ppi: 300 }];
+    expect(resolveClientCanvasSize("shared:lobby", 1280, 720, "pixels", 300, shared)).toEqual({
+      width: 6000,
+      height: 3000,
+    });
+    expect(resolveClientPreviewCanvasSize("shared:lobby", 6000, 3000, "inches")).toEqual({
+      width: 1600,
+      height: 800,
+    });
+  });
+
   it("lets tweaks override layout/color for standard knobs only", () => {
     const bundle = buildClientPreviewBundle({
       ...DEFAULT_CLIENT_PREVIEW_STATE,
