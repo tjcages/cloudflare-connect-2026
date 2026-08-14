@@ -614,6 +614,8 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
   clientSizeId: "hero-16x9",
   clientSizeUnit: "pixels",
   clientSizePpi: 300,
+  clientSizeWidth: 1280,
+  clientSizeHeight: 720,
   clientLayoutId: "classic",
   clientColorId: "coral-classic",
   clientAppearanceId: "light",

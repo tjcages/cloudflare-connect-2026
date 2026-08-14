@@ -20,6 +20,7 @@ import {
   rainLevaFromLayout,
   resetTweaksForLayout,
   resolveClientCanvasSize,
+  resolveClientPreviewCanvasSize,
   resolveClientGraphicMode,
   resolveClientSvgExportLayers,
   shouldSyncHeroGraphicFromFlags,
@@ -273,6 +274,21 @@ describe("client preview presets", () => {
       height: 7200,
     });
     expect(resolveClientCanvasSize("square", 1920, 1080)).toEqual({ width: 800, height: 800 });
+  });
+
+  it("uses a bounded relative canvas for high-resolution print previews", () => {
+    expect(resolveClientPreviewCanvasSize(CUSTOM_CLIENT_SIZE_ID, 6000, 3000, "inches")).toEqual({
+      width: 1600,
+      height: 800,
+    });
+    expect(resolveClientPreviewCanvasSize(CUSTOM_CLIENT_SIZE_ID, 3000, 6000, "inches")).toEqual({
+      width: 800,
+      height: 1600,
+    });
+    expect(resolveClientPreviewCanvasSize(CUSTOM_CLIENT_SIZE_ID, 1920, 1080, "pixels")).toEqual({
+      width: 1920,
+      height: 1080,
+    });
   });
 
   it("lets tweaks override layout/color for standard knobs only", () => {

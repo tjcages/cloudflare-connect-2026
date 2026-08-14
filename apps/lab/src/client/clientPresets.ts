@@ -17,6 +17,7 @@ export const DEFAULT_CLIENT_PRINT_PPI = 300;
 export const MIN_CLIENT_PRINT_PPI = 1;
 export const MAX_CLIENT_PRINT_PPI = 1200;
 export const MAX_CLIENT_CANVAS_DIMENSION_PX = 8192;
+export const MAX_CLIENT_PRINT_PREVIEW_DIMENSION_PX = 1600;
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
 export type ClientColorPresetId =
   | "coral-classic"
@@ -459,6 +460,31 @@ export function resolveClientCanvasSize(
   }
   const preset = findClientSizePreset(id);
   return { width: preset.width, height: preset.height };
+}
+
+/**
+ * Physical print dimensions describe the final output, not the amount of live
+ * DOM/WebGL work. Keep inch-based previews responsive while preserving their
+ * exact aspect ratio; export tooling can consume the full pixel output.
+ */
+export function resolveClientPreviewCanvasSize(
+  id: ClientSizeId,
+  outputWidth: number,
+  outputHeight: number,
+  unit: ClientSizeUnit,
+): { width: number; height: number } {
+  if (id !== CUSTOM_CLIENT_SIZE_ID || unit !== "inches") {
+    return { width: outputWidth, height: outputHeight };
+  }
+  const longestSide = Math.max(outputWidth, outputHeight);
+  if (longestSide <= MAX_CLIENT_PRINT_PREVIEW_DIMENSION_PX) {
+    return { width: outputWidth, height: outputHeight };
+  }
+  const scale = MAX_CLIENT_PRINT_PREVIEW_DIMENSION_PX / longestSide;
+  return {
+    width: Math.max(1, Math.round(outputWidth * scale)),
+    height: Math.max(1, Math.round(outputHeight * scale)),
+  };
 }
 
 export function findClientLayoutPreset(id: ClientLayoutPresetId): ClientLayoutPreset {

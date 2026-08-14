@@ -39,15 +39,19 @@ describe("nextLabSettings", () => {
         clientSizeId: "custom",
         clientSizeUnit: "inches",
         clientSizePpi: 300,
-        canvasWidth: 6000,
-        canvasHeight: 3000,
+        clientSizeWidth: 20,
+        clientSizeHeight: 10,
+        canvasWidth: 1600,
+        canvasHeight: 800,
       }),
     ).toMatchObject({
       clientSizeId: "custom",
       clientSizeUnit: "inches",
       clientSizePpi: 300,
-      canvasWidth: 6000,
-      canvasHeight: 3000,
+      clientSizeWidth: 20,
+      clientSizeHeight: 10,
+      canvasWidth: 1600,
+      canvasHeight: 800,
     });
   });
 });

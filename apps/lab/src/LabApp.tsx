@@ -1220,22 +1220,27 @@ function LabInner({
   const getLabSettingsSnapshotRef = useRef(getLabSettingsSnapshot);
   getLabSettingsSnapshotRef.current = getLabSettingsSnapshot;
 
+  const clientCanvasSizeWidth = clientCanvasSize?.width ?? null;
+  const clientCanvasSizeHeight = clientCanvasSize?.height ?? null;
   useEffect(() => {
-    if (!clientMode || !clientCanvasSize) return;
-    const { width, height } = clientCanvasSize;
+    if (!clientMode || clientCanvasSizeWidth === null || clientCanvasSizeHeight === null) return;
     setLabSettings((current) => {
-      if (current.canvasMode === "manual" && current.canvasWidth === width && current.canvasHeight === height) {
+      if (
+        current.canvasMode === "manual" &&
+        current.canvasWidth === clientCanvasSizeWidth &&
+        current.canvasHeight === clientCanvasSizeHeight
+      ) {
         return current;
       }
       return {
         ...current,
         canvasMode: "manual",
-        canvasWidth: width,
-        canvasHeight: height,
+        canvasWidth: clientCanvasSizeWidth,
+        canvasHeight: clientCanvasSizeHeight,
         canvasAspectLocked: true,
       };
     });
-  }, [clientCanvasSize, clientMode]);
+  }, [clientCanvasSizeHeight, clientCanvasSizeWidth, clientMode]);
 
   const editTheme = initialThemed.editTheme;
   const lightBaseRef = useRef<Partial<EngineConfig>>(initialThemed.lightBase);
@@ -2375,6 +2380,16 @@ function LabInner({
     setPreviewZoom((current) => (Math.abs(current - next) < 0.001 ? current : next));
     return true;
   }, []);
+
+  useEffect(() => {
+    if (!clientMode || clientCanvasSizeWidth === null || clientCanvasSizeHeight === null) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (!fitPreviewZoomToViewport()) return;
+      centerCanvasViewport();
+      setPreviewZoomReady(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [centerCanvasViewport, clientCanvasSizeHeight, clientCanvasSizeWidth, clientMode, fitPreviewZoomToViewport]);
 
   useEffect(() => {
     if (!shell || hasAutoFittedPreviewZoomRef.current) return;
@@ -3816,8 +3831,15 @@ function LabInner({
             >
               −
             </button>
-            <button className="lab-btn" type="button" onClick={() => updatePreviewZoom(1)}>
-              Reset
+            <button
+              className="lab-btn"
+              type="button"
+              onClick={() => {
+                fitPreviewZoomToViewport();
+                centerCanvasViewport();
+              }}
+            >
+              Fit
             </button>
             <button
               className="lab-btn"
@@ -3826,7 +3848,9 @@ function LabInner({
             >
               +
             </button>
-            <span className="lab-canvas-zoom-value">{Math.round(previewZoom * 100)}%</span>
+            <span className="lab-canvas-zoom-value">
+              {previewZoom < 0.1 ? (previewZoom * 100).toFixed(1) : Math.round(previewZoom * 100)}%
+            </span>
           </div>
         </div>
         {!clientMode ? (

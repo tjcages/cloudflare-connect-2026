@@ -85,6 +85,7 @@ import {
   matchClientSizePresetId,
   normalizeClientPrintPpi,
   resolveClientCanvasSize,
+  resolveClientPreviewCanvasSize,
   rainLevaFromAppearance,
   rainLevaFromColor,
   rainLevaFromLayout,
@@ -729,17 +730,39 @@ export function useEngineControls(
   const levaSchemaSeedRef = useRef({
     clientSizeId: (initialLabSettings.clientSizeId ??
       matchClientSizePresetId(initialLabSettings.canvasWidth, initialLabSettings.canvasHeight)) as ClientSizeId,
-    clientCanvasWidth: initialLabSettings.canvasWidth,
-    clientCanvasHeight: initialLabSettings.canvasHeight,
+    clientCanvasWidth:
+      initialLabSettings.clientSizeUnit === "pixels"
+        ? initialLabSettings.clientSizeWidth
+        : initialLabSettings.canvasWidth,
+    clientCanvasHeight:
+      initialLabSettings.clientSizeUnit === "pixels"
+        ? initialLabSettings.clientSizeHeight
+        : initialLabSettings.canvasHeight,
     clientSizeUnit: (initialLabSettings.clientSizeUnit ?? "pixels") as ClientSizeUnit,
     clientSizePpi: normalizeClientPrintPpi(initialLabSettings.clientSizePpi ?? DEFAULT_CLIENT_PRINT_PPI),
     clientCanvasWidthInches:
-      initialLabSettings.canvasWidth /
-      normalizeClientPrintPpi(initialLabSettings.clientSizePpi ?? DEFAULT_CLIENT_PRINT_PPI),
+      initialLabSettings.clientSizeUnit === "inches"
+        ? initialLabSettings.clientSizeWidth
+        : initialLabSettings.canvasWidth /
+          normalizeClientPrintPpi(initialLabSettings.clientSizePpi ?? DEFAULT_CLIENT_PRINT_PPI),
     clientCanvasHeightInches:
-      initialLabSettings.canvasHeight /
-      normalizeClientPrintPpi(initialLabSettings.clientSizePpi ?? DEFAULT_CLIENT_PRINT_PPI),
-    clientPixelOutput: `${initialLabSettings.canvasWidth.toLocaleString()} × ${initialLabSettings.canvasHeight.toLocaleString()} px`,
+      initialLabSettings.clientSizeUnit === "inches"
+        ? initialLabSettings.clientSizeHeight
+        : initialLabSettings.canvasHeight /
+          normalizeClientPrintPpi(initialLabSettings.clientSizePpi ?? DEFAULT_CLIENT_PRINT_PPI),
+    clientPixelOutput: `${resolveClientCanvasSize(
+      initialLabSettings.clientSizeId,
+      initialLabSettings.clientSizeWidth,
+      initialLabSettings.clientSizeHeight,
+      initialLabSettings.clientSizeUnit,
+      initialLabSettings.clientSizePpi,
+    ).width.toLocaleString()} × ${resolveClientCanvasSize(
+      initialLabSettings.clientSizeId,
+      initialLabSettings.clientSizeWidth,
+      initialLabSettings.clientSizeHeight,
+      initialLabSettings.clientSizeUnit,
+      initialLabSettings.clientSizePpi,
+    ).height.toLocaleString()} px`,
     clientLayoutId: (initialLabSettings.clientLayoutId ??
       DEFAULT_CLIENT_PREVIEW_STATE.layoutId) as ClientLayoutPresetId,
     clientAppearanceId: (initialLabSettings.clientAppearanceId ??
@@ -4940,12 +4963,18 @@ export function useEngineControls(
     (shaderValues as unknown as Record<string, unknown>).clientCanvasHeightInches ??
       initialLabSettings.canvasHeight / clientSizePpi,
   );
-  const resolvedClientCanvasSize = resolveClientCanvasSize(
+  const resolvedClientOutputSize = resolveClientCanvasSize(
     clientSizeId,
     clientSizeUnit === "inches" ? clientCanvasWidthInches : clientCanvasWidth,
     clientSizeUnit === "inches" ? clientCanvasHeightInches : clientCanvasHeight,
     clientSizeUnit,
     clientSizePpi,
+  );
+  const resolvedClientCanvasSize = resolveClientPreviewCanvasSize(
+    clientSizeId,
+    resolvedClientOutputSize.width,
+    resolvedClientOutputSize.height,
+    clientSizeUnit,
   );
   const clientAppearanceId = String(
     (shaderValues as unknown as Record<string, unknown>).clientAppearance ??
@@ -4958,25 +4987,25 @@ export function useEngineControls(
   levaSchemaSeedRef.current.clientLayoutId = clientLayoutId;
   levaSchemaSeedRef.current.clientColorId = clientColorId;
   levaSchemaSeedRef.current.clientSizeId = clientSizeId;
-  levaSchemaSeedRef.current.clientCanvasWidth = resolvedClientCanvasSize.width;
-  levaSchemaSeedRef.current.clientCanvasHeight = resolvedClientCanvasSize.height;
+  levaSchemaSeedRef.current.clientCanvasWidth = clientCanvasWidth;
+  levaSchemaSeedRef.current.clientCanvasHeight = clientCanvasHeight;
   levaSchemaSeedRef.current.clientSizeUnit = clientSizeUnit;
   levaSchemaSeedRef.current.clientSizePpi = clientSizePpi;
   levaSchemaSeedRef.current.clientCanvasWidthInches = clientCanvasWidthInches;
   levaSchemaSeedRef.current.clientCanvasHeightInches = clientCanvasHeightInches;
-  levaSchemaSeedRef.current.clientPixelOutput = `${resolvedClientCanvasSize.width.toLocaleString()} × ${resolvedClientCanvasSize.height.toLocaleString()} px`;
+  levaSchemaSeedRef.current.clientPixelOutput = `${resolvedClientOutputSize.width.toLocaleString()} × ${resolvedClientOutputSize.height.toLocaleString()} px`;
   levaSchemaSeedRef.current.clientAppearanceId = clientAppearanceId;
   levaSchemaSeedRef.current.clientHeroGraphic = heroGraphicId;
   clientRainAuthoringActive = !clientApp || heroGraphicId === "rain" || heroGraphicId === "both";
   clientTwizzlerAuthoringActive = !clientApp || heroGraphicId === "twizzler" || heroGraphicId === "both";
   showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && (!clientApp || clientRainAuthoringActive);
   const previousClientSizeUnitRef = useRef(clientSizeUnit);
-  const previousClientCanvasSizeRef = useRef(resolvedClientCanvasSize);
+  const previousClientOutputSizeRef = useRef(resolvedClientOutputSize);
   useEffect(() => {
     const previousUnit = previousClientSizeUnitRef.current;
     if (previousUnit === clientSizeUnit) return;
 
-    const previousPixels = previousClientCanvasSizeRef.current;
+    const previousPixels = previousClientOutputSizeRef.current;
     if (clientSizeUnit === "inches") {
       setShaderControl({
         clientCanvasWidthInches: Number((previousPixels.width / clientSizePpi).toFixed(3)),
@@ -4991,14 +5020,14 @@ export function useEngineControls(
     previousClientSizeUnitRef.current = clientSizeUnit;
   }, [clientSizePpi, clientSizeUnit, setShaderControl]);
   useEffect(() => {
-    previousClientCanvasSizeRef.current = {
-      width: resolvedClientCanvasSize.width,
-      height: resolvedClientCanvasSize.height,
+    previousClientOutputSizeRef.current = {
+      width: resolvedClientOutputSize.width,
+      height: resolvedClientOutputSize.height,
     };
     setShaderControl({
-      clientPixelOutput: `${resolvedClientCanvasSize.width.toLocaleString()} × ${resolvedClientCanvasSize.height.toLocaleString()} px`,
+      clientPixelOutput: `${resolvedClientOutputSize.width.toLocaleString()} × ${resolvedClientOutputSize.height.toLocaleString()} px`,
     });
-  }, [resolvedClientCanvasSize.height, resolvedClientCanvasSize.width, setShaderControl]);
+  }, [resolvedClientOutputSize.height, resolvedClientOutputSize.width, setShaderControl]);
   /**
    * Hero → Graphic drives Twizzler Show + Rain layer flags and rain-capable defaults.
    */
@@ -5410,6 +5439,8 @@ export function useEngineControls(
             clientSizeId,
             clientSizeUnit,
             clientSizePpi,
+            clientSizeWidth: clientSizeUnit === "inches" ? clientCanvasWidthInches : clientCanvasWidth,
+            clientSizeHeight: clientSizeUnit === "inches" ? clientCanvasHeightInches : clientCanvasHeight,
             canvasMode: "manual",
             canvasWidth: resolvedClientCanvasSize.width,
             canvasHeight: resolvedClientCanvasSize.height,
@@ -5430,6 +5461,10 @@ export function useEngineControls(
       clientSizeId,
       clientSizePpi,
       clientSizeUnit,
+      clientCanvasHeight,
+      clientCanvasHeightInches,
+      clientCanvasWidth,
+      clientCanvasWidthInches,
       resolvedClientCanvasSize.height,
       resolvedClientCanvasSize.width,
       currentBackgroundRampSettingsKey,

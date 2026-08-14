@@ -119,6 +119,9 @@ export type LabSettings = {
   clientSizeId: ClientSizeId;
   clientSizeUnit: ClientSizeUnit;
   clientSizePpi: number;
+  /** Custom dimensions in the selected unit; independent from live preview pixels. */
+  clientSizeWidth: number;
+  clientSizeHeight: number;
   clientLayoutId: ClientLayoutPresetId;
   clientColorId: ClientColorPresetId;
   clientAppearanceId: ClientAppearanceId;
@@ -493,6 +496,15 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
     rawShaderSource && !rawShaderSource.includes("float rings = 0.5 + 0.5 * cos(18.0 * r")
       ? rawShaderSource
       : DEFAULT_LAB_SETTINGS.shaderSourceCode || DEFAULT_SHADER_TEXTURE_SOURCE;
+  const clientSizePpi = normalizeClientPrintPpi(n(i.clientSizePpi, DEFAULT_CLIENT_PRINT_PPI));
+  const fallbackClientSizeWidth =
+    i.clientSizeUnit === "inches"
+      ? n(i.canvasWidth, DEFAULT_LAB_SETTINGS.canvasWidth) / clientSizePpi
+      : n(i.canvasWidth, DEFAULT_LAB_SETTINGS.canvasWidth);
+  const fallbackClientSizeHeight =
+    i.clientSizeUnit === "inches"
+      ? n(i.canvasHeight, DEFAULT_LAB_SETTINGS.canvasHeight) / clientSizePpi
+      : n(i.canvasHeight, DEFAULT_LAB_SETTINGS.canvasHeight);
   return {
     canvasMode,
     canvasScale: Math.max(0.1, Math.min(8, n(i.canvasScale, DEFAULT_LAB_SETTINGS.canvasScale))),
@@ -594,7 +606,9 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
     })(),
     clientSizeId: normalizeClientSizeId(i.clientSizeId),
     clientSizeUnit: i.clientSizeUnit === "inches" ? "inches" : "pixels",
-    clientSizePpi: normalizeClientPrintPpi(n(i.clientSizePpi, DEFAULT_CLIENT_PRINT_PPI)),
+    clientSizePpi,
+    clientSizeWidth: Math.max(0.01, Math.min(8192, n(i.clientSizeWidth, fallbackClientSizeWidth))),
+    clientSizeHeight: Math.max(0.01, Math.min(8192, n(i.clientSizeHeight, fallbackClientSizeHeight))),
     clientLayoutId: normalizeClientLayoutId(i.clientLayoutId),
     clientColorId: normalizeClientColorId(i.clientColorId),
     clientAppearanceId: normalizeClientAppearanceId(i.clientAppearanceId),

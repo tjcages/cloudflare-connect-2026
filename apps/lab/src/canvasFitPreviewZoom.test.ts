@@ -36,7 +36,7 @@ describe("computeFitPreviewZoom", () => {
   });
 
   it("clamps to the preview zoom range", () => {
-    expect(clampPreviewZoom(0.1)).toBe(0.25);
+    expect(clampPreviewZoom(0.0001)).toBe(0.001);
     expect(clampPreviewZoom(10)).toBe(4);
     expect(
       computeFitPreviewZoom({
@@ -46,6 +46,17 @@ describe("computeFitPreviewZoom", () => {
         viewportHeight: 2000,
       }),
     ).toBe(4);
+  });
+
+  it("can fit the largest supported canvas without cropping", () => {
+    expect(
+      computeFitPreviewZoom({
+        canvasWidth: 8192,
+        canvasHeight: 8192,
+        viewportWidth: 512,
+        viewportHeight: 512,
+      }),
+    ).toBe(0.063);
   });
 });
 
