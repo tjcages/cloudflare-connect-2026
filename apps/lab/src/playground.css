@@ -2998,6 +2998,23 @@ body.lab-sidebar-resizing canvas {
   white-space: nowrap;
 }
 
+.timeline-editor.playground-leva-panel
+  .timeline-track-list
+  .timeline-track-label
+  button.timeline-track-name:not(:disabled),
+.timeline-editor.playground-leva-panel
+  .timeline-track-list
+  .timeline-track-label
+  button.timeline-track-name:not(:disabled):hover,
+.timeline-editor.playground-leva-panel
+  .timeline-track-list
+  .timeline-track-label
+  button.timeline-track-name:not(:disabled):focus-visible {
+  border-color: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
 .timeline-track-label > small {
   max-width: 48px;
   overflow: hidden;

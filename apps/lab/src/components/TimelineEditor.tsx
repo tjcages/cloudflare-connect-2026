@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from "react";
 import { ChevronDown, ChevronRight, Diamond, Keyboard, Plus, Repeat2, Search, Trash2, X } from "lucide-react";
 import {
   clampTimelineTime,
@@ -38,6 +46,7 @@ type TimelineEditorProps = {
   open: boolean;
   playing: boolean;
   stores: readonly TimelineLevaStore[];
+  graphicMode: "twizzler" | "rain" | "both";
   onOpenChange: (open: boolean) => void;
   onApplyValues: (values: Record<string, TimelineValue>) => void;
   onTimeChange?: (seconds: number) => void;
@@ -84,13 +93,18 @@ function timelinePropertyFromInput(path: string, input: LevaDataInput): Timeline
   };
 }
 
-export function collectTimelineProperties(stores: readonly TimelineLevaStore[]): TimelineProperty[] {
+export function collectTimelineProperties(
+  stores: readonly TimelineLevaStore[],
+  graphicMode: TimelineEditorProps["graphicMode"] = "both",
+): TimelineProperty[] {
   const properties = new Map<string, TimelineProperty>();
   for (const store of stores) {
     const data = store.getData();
     // Hidden Leva folders still contain animation-safe controls (including
     // Transform / Zoom), so the timeline uses the complete store as its source.
     for (const [path, input] of Object.entries(data)) {
+      if (path.startsWith("Rain.") && graphicMode === "twizzler") continue;
+      if (path.startsWith("Twizzler.") && graphicMode === "rain") continue;
       const property = timelinePropertyFromInput(path, input);
       if (property && !properties.has(property.key)) properties.set(property.key, property);
     }
@@ -121,15 +135,18 @@ function rulerStep(duration: number): number {
 function PropertyPicker({
   properties,
   tracks,
+  buttonRef,
   onAdd,
 }: {
   properties: TimelineProperty[];
   tracks: TimelineTrack[];
+  buttonRef: RefObject<HTMLButtonElement | null>;
   onAdd: (property: TimelineProperty) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const tracked = useMemo(() => new Set(tracks.map((track) => track.propertyKey)), [tracks]);
   const filtered = properties.filter(
     (property) =>
@@ -150,9 +167,20 @@ function PropertyPicker({
     return () => window.removeEventListener("pointerdown", close);
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !window.matchMedia("(min-width: 901px)").matches) return;
+    const frame = requestAnimationFrame(() => searchRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+
   return (
     <div className="timeline-property-picker" ref={containerRef}>
-      <button type="button" className="timeline-add-property" onClick={() => setOpen((value) => !value)}>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="timeline-add-property"
+        onClick={() => setOpen((value) => !value)}
+      >
         <Plus size={12} /> Add property <ChevronDown size={11} />
       </button>
       {open ? (
@@ -160,6 +188,7 @@ function PropertyPicker({
           <label className="timeline-property-search">
             <Search size={12} />
             <input
+              ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}
               placeholder="Search every control…"
@@ -197,6 +226,7 @@ export function TimelineEditor({
   open,
   playing,
   stores,
+  graphicMode,
   onOpenChange,
   onApplyValues,
   onTimeChange,
@@ -206,8 +236,10 @@ export function TimelineEditor({
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
+  const [selectedNumberDraft, setSelectedNumberDraft] = useState<string | null>(null);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const addPropertyButtonRef = useRef<HTMLButtonElement>(null);
   const shortcutsRef = useRef<HTMLDetailsElement>(null);
   const sequenceRef = useRef(sequence);
   const timeRef = useRef(currentTime);
@@ -216,7 +248,7 @@ export function TimelineEditor({
   const onTimeChangeRef = useRef(onTimeChange);
   const onPlayingChangeRef = useRef(onPlayingChange);
   const deferSequenceApplyRef = useRef(false);
-  const properties = collectTimelineProperties(stores);
+  const properties = collectTimelineProperties(stores, graphicMode);
   sequenceRef.current = sequence;
   timeRef.current = currentTime;
   playingRef.current = playing;
@@ -246,6 +278,8 @@ export function TimelineEditor({
   }, []);
 
   useEffect(() => saveTimelineSequence(sequence), [sequence]);
+
+  useEffect(() => setSelectedNumberDraft(null), [selectedKeyId]);
 
   useEffect(() => {
     const closeShortcuts = (event: PointerEvent) => {
@@ -608,7 +642,12 @@ export function TimelineEditor({
         </div>
         {open ? (
           <>
-            <PropertyPicker properties={properties} tracks={sequence.tracks} onAdd={addTrack} />
+            <PropertyPicker
+              properties={properties}
+              tracks={sequence.tracks}
+              buttonRef={addPropertyButtonRef}
+              onAdd={addTrack}
+            />
             <div className="timeline-sequence-settings">
               <label>
                 Duration
@@ -683,7 +722,15 @@ export function TimelineEditor({
       {open ? (
         <div className="timeline-panel">
           <div className={`timeline-workspace${selectedKey ? " has-inspector" : ""}`}>
-            <div className="timeline-track-list">
+            <div
+              className="timeline-track-list"
+              onDoubleClick={(event) => {
+                const target = event.target;
+                if (target instanceof Element && target.closest(".timeline-track-label, .timeline-track-list-heading"))
+                  return;
+                addPropertyButtonRef.current?.click();
+              }}
+            >
               <div className="timeline-track-list-heading">
                 <span>Properties</span>
                 <small>{sequence.tracks.length}</small>
@@ -876,8 +923,16 @@ export function TimelineEditor({
                       min={selectedProperty?.min}
                       max={selectedProperty?.max}
                       step={selectedProperty?.step ?? 0.01}
-                      value={selectedKey.value as number}
-                      onChange={(event) => updateSelectedKey({ value: Number(event.currentTarget.value) })}
+                      value={selectedNumberDraft ?? String(selectedKey.value)}
+                      onFocus={() => setSelectedNumberDraft(String(selectedKey.value))}
+                      onChange={(event) => {
+                        const draft = event.currentTarget.value;
+                        setSelectedNumberDraft(draft);
+                        if (draft.trim() === "") return;
+                        const value = Number(draft);
+                        if (Number.isFinite(value)) updateSelectedKey({ value });
+                      }}
+                      onBlur={() => setSelectedNumberDraft(null)}
                     />
                   ) : (
                     <input

@@ -53,4 +53,26 @@ describe("timeline property collection", () => {
 
     expect(properties).toEqual([]);
   });
+
+  it("only includes properties for the active graphic layers", () => {
+    const store = storeWith({
+      "Rain.Grid.gap": { type: "NUMBER", value: 12, label: "Gap" },
+      "Twizzler.Motion.speed": { type: "NUMBER", value: 1, label: "Speed" },
+      "Background.color": { type: "COLOR", value: "#ffffff", label: "Color" },
+    });
+
+    expect(collectTimelineProperties([store], "twizzler").map((property) => property.path)).toEqual([
+      "Background.color",
+      "Twizzler.Motion.speed",
+    ]);
+    expect(collectTimelineProperties([store], "rain").map((property) => property.path)).toEqual([
+      "Background.color",
+      "Rain.Grid.gap",
+    ]);
+    expect(collectTimelineProperties([store], "both").map((property) => property.path)).toEqual([
+      "Background.color",
+      "Rain.Grid.gap",
+      "Twizzler.Motion.speed",
+    ]);
+  });
 });

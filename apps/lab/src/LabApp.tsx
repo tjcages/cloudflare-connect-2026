@@ -3886,6 +3886,7 @@ function LabInner({
           open={timelineOpen}
           playing={timelinePlaying}
           stores={timelineStores}
+          graphicMode={clientGraphicMode ?? resolveClientGraphicMode(twizzler.enabled, controls.sparkle.gaps.enabled)}
           onOpenChange={setTimelineOpen}
           onApplyValues={applyTimelineValues}
           onTimeChange={syncTimelineTime}
