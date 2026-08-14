@@ -77,6 +77,8 @@ import {
   type ClientGraphicMode,
 } from "./client/clientPresets";
 import { createSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
+import { createSharedPreset, loadSharedPresets } from "./client/sharedPresetApi";
+import { configPresetFromSharedLayout, sharedLayoutInputFromConfigPreset, type SharedPreset } from "./sharedPresets";
 import { sharedSizePresetId, type SharedSizePreset, type SharedSizePresetStatus } from "./sharedSizePresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
@@ -145,6 +147,37 @@ import {
   type SurfacePoint,
   type SurfaceWorkspace,
 } from "./surfaceWorkspace";
+
+type SharedPresetRecord = SharedPreset<"layout">;
+type SharedLayoutStatus = "loading" | "ready" | "saving" | "error";
+
+const SHARED_LAYOUT_SELECTION_PREFIX = "shared-layout:";
+const LOCAL_LAYOUT_SELECTION_PREFIX = "local-layout:";
+const BUILTIN_LAYOUT_SELECTION_PREFIX = "builtin-layout:";
+
+function sharedLayoutSelection(id: string): string {
+  return `${SHARED_LAYOUT_SELECTION_PREFIX}${id}`;
+}
+
+function builtinLayoutSelection(name: string): string {
+  return `${BUILTIN_LAYOUT_SELECTION_PREFIX}${name}`;
+}
+
+function localLayoutSelection(name: string): string {
+  return `${LOCAL_LAYOUT_SELECTION_PREFIX}${name}`;
+}
+
+function selectedSharedLayoutId(value: string): string | null {
+  return value.startsWith(SHARED_LAYOUT_SELECTION_PREFIX) ? value.slice(SHARED_LAYOUT_SELECTION_PREFIX.length) : null;
+}
+
+function selectedBuiltinLayoutName(value: string): string | null {
+  return value.startsWith(BUILTIN_LAYOUT_SELECTION_PREFIX) ? value.slice(BUILTIN_LAYOUT_SELECTION_PREFIX.length) : null;
+}
+
+function selectedLocalLayoutName(value: string): string | null {
+  return value.startsWith(LOCAL_LAYOUT_SELECTION_PREFIX) ? value.slice(LOCAL_LAYOUT_SELECTION_PREFIX.length) : null;
+}
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
   const v = params.get(key);
@@ -957,10 +990,49 @@ function LabInner({
   const [selectedPreset, setSelectedPreset] = useState(
     () => consumeBootPresetName() ?? (clientMode ? loadActiveClientLayoutName() : null) ?? startupPreset?.name ?? "",
   );
+  const [selectedClientLayout, setSelectedClientLayout] = useState("");
+  const [sharedLayoutPresets, setSharedLayoutPresets] = useState<SharedPresetRecord[]>([]);
+  const [sharedLayoutStatus, setSharedLayoutStatus] = useState<SharedLayoutStatus>(clientMode ? "loading" : "ready");
+  const [sharedLayoutNotice, setSharedLayoutNotice] = useState<{
+    message: string;
+    tone: "success" | "error";
+  } | null>(null);
+  const [sharedLayoutLoadAttempt, setSharedLayoutLoadAttempt] = useState(0);
   const [sharedSizePresets, setSharedSizePresets] = useState<SharedSizePreset[]>([]);
   const [sharedSizeStatus, setSharedSizeStatus] = useState<SharedSizePresetStatus>(clientMode ? "loading" : "ready");
   const [sharedSizeNotice, setSharedSizeNotice] = useState<string | null>(null);
   const pendingSharedSizeSelectionRef = useRef<SharedSizePreset | null>(null);
+  useEffect(() => {
+    if (!clientMode) return;
+    const controller = new AbortController();
+    setSharedLayoutStatus("loading");
+    loadSharedPresets("layout", controller.signal)
+      .then((loaded) => {
+        setSharedLayoutPresets(loaded);
+        setSharedLayoutStatus("ready");
+        const activeName = loadActiveClientLayoutName();
+        const activeShared = activeName ? loaded.find((preset) => preset.name === activeName) : undefined;
+        const activeLocal = activeName
+          ? presets.find((preset) => !preset.builtin && preset.name === activeName)
+          : undefined;
+        const activeBuiltin = activeName
+          ? presets.find((preset) => preset.builtin && preset.name === activeName)
+          : undefined;
+        if (activeShared) {
+          setSelectedClientLayout(sharedLayoutSelection(activeShared.id));
+        } else if (activeLocal) {
+          setSelectedClientLayout(localLayoutSelection(activeLocal.name));
+        } else if (activeBuiltin) {
+          setSelectedClientLayout(builtinLayoutSelection(activeBuiltin.name));
+        }
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.warn("Shared layouts are unavailable.", error);
+        setSharedLayoutStatus("error");
+      });
+    return () => controller.abort();
+  }, [clientMode, presets, sharedLayoutLoadAttempt]);
   useEffect(() => {
     if (!clientMode) return;
     const controller = new AbortController();
@@ -977,6 +1049,11 @@ function LabInner({
       });
     return () => controller.abort();
   }, [clientMode]);
+  useEffect(() => {
+    if (!sharedLayoutNotice) return;
+    const timeout = window.setTimeout(() => setSharedLayoutNotice(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [sharedLayoutNotice]);
   useEffect(() => {
     if (!sharedSizeNotice) return;
     const timeout = window.setTimeout(() => setSharedSizeNotice(null), 4000);
@@ -3156,6 +3233,29 @@ function LabInner({
     if (clientMode) saveActiveClientLayoutName(name);
   }
 
+  async function handleSaveSharedLayout() {
+    if (sharedLayoutStatus === "saving") return;
+    const name = window.prompt("Layout name:")?.trim();
+    if (!name) return;
+    const { config, lab } = captureSavedLayoutPayload();
+    setSharedLayoutStatus("saving");
+    try {
+      const preset = await createSharedPreset(sharedLayoutInputFromConfigPreset(createPreset(name, config, lab)));
+      setSharedLayoutPresets((current) =>
+        [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      setSelectedClientLayout(sharedLayoutSelection(preset.id));
+      setSelectedPreset(preset.name);
+      saveActiveClientLayoutName(preset.name);
+      setSharedLayoutStatus("ready");
+      setSharedLayoutNotice({ message: `Saved “${preset.name}” for everyone.`, tone: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The shared layout could not be saved.";
+      setSharedLayoutStatus("ready");
+      setSharedLayoutNotice({ message, tone: "error" });
+    }
+  }
+
   async function handleSaveSharedSize(name: string) {
     if (sharedSizeStatus === "saving" || sharedSizeStatus === "deleting") return;
     const lab = fullLabSettingsSnapshot();
@@ -3194,14 +3294,34 @@ function LabInner({
   }
 
   function handleApplyPreset() {
-    const preset = presets.find((p) => p.name === selectedPreset);
-    if (!preset) return;
     const targetTextureId = textureIdRef.current;
     if (clientMode) {
+      const sharedId = selectedSharedLayoutId(selectedClientLayout);
+      const localName = selectedLocalLayoutName(selectedClientLayout);
+      const builtinName = selectedBuiltinLayoutName(selectedClientLayout);
+      const shared = sharedId ? sharedLayoutPresets.find((preset) => preset.id === sharedId) : undefined;
+      const preset = shared
+        ? configPresetFromSharedLayout(shared)
+        : localName
+          ? presets.find((entry) => !entry.builtin && entry.name === localName)
+          : builtinName
+            ? presets.find((entry) => entry.builtin && entry.name === builtinName)
+            : undefined;
+      if (!preset) {
+        setSharedLayoutNotice({
+          message: "That layout is no longer available. Reload the list and try again.",
+          tone: "error",
+        });
+        return;
+      }
       applyClientLayout(preset, targetTextureId);
-    } else {
-      applyPresetToStorage(preset, targetTextureId);
+      saveTextureId(targetTextureId);
+      window.location.reload();
+      return;
     }
+    const preset = presets.find((p) => p.name === selectedPreset);
+    if (!preset) return;
+    applyPresetToStorage(preset, targetTextureId);
     saveTextureId(targetTextureId);
     window.location.reload();
   }
@@ -3230,6 +3350,7 @@ function LabInner({
     }
     applyClientLayout(banner, textureIdRef.current);
     setSelectedPreset(banner.name);
+    setSelectedClientLayout(builtinLayoutSelection(banner.name));
     window.location.reload();
   }
 
@@ -3487,9 +3608,13 @@ function LabInner({
 
   return (
     <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}${clientMode ? " is-client-mode" : ""}`}>
-      {clientMode && sharedSizeNotice ? (
-        <div className="lab-client-notice" role="status" aria-live="polite">
-          {sharedSizeNotice}
+      {clientMode && (sharedLayoutNotice || sharedSizeNotice) ? (
+        <div
+          className={`lab-client-notice${sharedLayoutNotice?.tone === "error" ? " is-error" : ""}`}
+          role={sharedLayoutNotice?.tone === "error" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {sharedLayoutNotice?.message ?? sharedSizeNotice}
         </div>
       ) : null}
       {!clientMode ? (
@@ -4042,41 +4167,75 @@ function LabInner({
                   </button>
                 </div>
                 <div className="lab-client-layouts">
-                  <div className="lab-client-layouts-label">Saved layouts</div>
+                  <div className="lab-client-layouts-heading">
+                    <div className="lab-client-layouts-label">Layouts</div>
+                    <span>Team presets are shared</span>
+                  </div>
                   <select
                     className="lab-client-layouts-select"
-                    value={selectedPreset}
-                    onChange={(e) => setSelectedPreset(e.target.value)}
-                    aria-label="Saved layout"
+                    value={selectedClientLayout}
+                    onChange={(event) => setSelectedClientLayout(event.target.value)}
+                    aria-label="Layout"
+                    disabled={sharedLayoutStatus === "loading" || sharedLayoutStatus === "saving"}
                   >
-                    <option value="">Select a layout…</option>
-                    {listSavedLayouts(presets).map((p) => (
-                      <option key={p.name} value={p.name}>
-                        {p.name}
-                      </option>
-                    ))}
-                    {presets
-                      .filter((p) => p.builtin)
-                      .map((p) => (
-                        <option key={p.name} value={p.name}>
-                          {p.name} (builtin)
-                        </option>
-                      ))}
+                    <option value="">
+                      {sharedLayoutStatus === "loading"
+                        ? "Loading shared layouts…"
+                        : sharedLayoutStatus === "error"
+                          ? "Shared layouts unavailable"
+                          : "Select a layout…"}
+                    </option>
+                    {sharedLayoutPresets.length > 0 ? (
+                      <optgroup label="Team layouts">
+                        {sharedLayoutPresets.map((preset) => (
+                          <option key={preset.id} value={sharedLayoutSelection(preset.id)}>
+                            {preset.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
+                    {listSavedLayouts(presets).length > 0 ? (
+                      <optgroup label="This browser">
+                        {listSavedLayouts(presets).map((preset) => (
+                          <option key={preset.name} value={localLayoutSelection(preset.name)}>
+                            {preset.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
+                    <optgroup label="Built-in">
+                      {presets
+                        .filter((preset) => preset.builtin)
+                        .map((preset) => (
+                          <option key={preset.name} value={builtinLayoutSelection(preset.name)}>
+                            {preset.name}
+                          </option>
+                        ))}
+                    </optgroup>
                   </select>
                   <div className="lab-client-layouts-actions">
-                    <button type="button" onClick={handleSavePreset}>
-                      Save
-                    </button>
-                    <button type="button" onClick={handleApplyPreset} disabled={!selectedPreset}>
-                      Apply
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveSharedLayout()}
+                      disabled={sharedLayoutStatus !== "ready"}
+                      aria-busy={sharedLayoutStatus === "saving"}
+                    >
+                      {sharedLayoutStatus === "saving" ? "Saving…" : "Save"}
                     </button>
                     <button
                       type="button"
-                      onClick={handleDeletePreset}
-                      disabled={!selectedPreset || presets.some((p) => p.name === selectedPreset && p.builtin)}
+                      onClick={handleApplyPreset}
+                      disabled={
+                        !selectedClientLayout || sharedLayoutStatus === "loading" || sharedLayoutStatus === "saving"
+                      }
                     >
-                      Delete
+                      Apply
                     </button>
+                    {sharedLayoutStatus === "error" ? (
+                      <button type="button" onClick={() => setSharedLayoutLoadAttempt((attempt) => attempt + 1)}>
+                        Retry
+                      </button>
+                    ) : null}
                     <button type="button" className="is-reset" onClick={handleClientResetToBanner}>
                       Reset
                     </button>
