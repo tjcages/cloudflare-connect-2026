@@ -2138,6 +2138,11 @@ body.lab-sidebar-resizing .lab-sidebar {
   line-height: 1.35;
 }
 
+.lab-shell.is-client-mode .lab-client-notice.is-error {
+  border-color: color-mix(in srgb, var(--leva-border) 60%, #c43131);
+  background: color-mix(in srgb, var(--leva-panel-bg) 92%, #c43131);
+}
+
 .lab-shell.is-client-mode .lab-client-tools-top {
   display: flex;
   align-items: center;
@@ -2263,6 +2268,20 @@ body.lab-sidebar-resizing .lab-sidebar {
   opacity: 1;
 }
 
+.lab-shell.is-client-mode .lab-client-layouts-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lab-shell.is-client-mode .lab-client-layouts-heading > span {
+  color: var(--leva-text-faint);
+  font-size: 10px;
+  line-height: 1.2;
+  text-wrap: pretty;
+}
+
 .lab-shell.is-client-mode .lab-client-layouts-select {
   width: 100%;
   height: 24px;
@@ -2281,6 +2300,17 @@ body.lab-sidebar-resizing .lab-sidebar {
   font-size: 11px;
   line-height: 24px;
   cursor: pointer;
+}
+
+.lab-shell.is-client-mode .lab-client-layouts-select:disabled {
+  cursor: progress;
+  opacity: 0.62;
+}
+
+.lab-shell.is-client-mode .lab-client-layouts-select:focus-visible,
+.lab-shell.is-client-mode .lab-client-layouts-actions > button:focus-visible {
+  outline: 2px solid var(--leva-accent);
+  outline-offset: 1px;
 }
 
 .lab-shell.is-client-mode .lab-client-layouts-actions {
@@ -2305,11 +2335,18 @@ body.lab-sidebar-resizing .lab-sidebar {
   font-weight: 500;
   line-height: 1;
   cursor: pointer;
+  transition-property: background-color, color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
 }
 
 .lab-shell.is-client-mode .lab-client-layouts-actions > button:hover:not(:disabled) {
   background: var(--leva-surface-hover);
   color: var(--leva-text);
+}
+
+.lab-shell.is-client-mode .lab-client-layouts-actions > button:active:not(:disabled) {
+  scale: 0.96;
 }
 
 .lab-shell.is-client-mode .lab-client-layouts-actions > button:disabled {
