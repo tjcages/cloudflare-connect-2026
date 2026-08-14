@@ -401,7 +401,7 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     centerY: 0.5,
     amplitude: 1,
     lineCount: 56,
-    lineWidth: 1.15,
+    lineWidth: 2.3,
     pointSpacing: 10,
     leftHeight: 0.5,
     rightHeight: 0.5,
@@ -612,9 +612,14 @@ const HAND_WRITTEN_LAB_UI_SETTINGS = {
     renderAntialias: true,
   },
   clientSizeId: "hero-16x9",
+  clientSizeUnit: "pixels",
+  clientSizePpi: 300,
+  clientSizeWidth: 1280,
+  clientSizeHeight: 720,
   clientLayoutId: "classic",
   clientColorId: "coral-classic",
   clientAppearanceId: "light",
+  clientGraphicMode: "twizzler",
 } as const;
 
 export const DEFAULT_LAB_UI_SETTINGS = deepMergeDefaults(HAND_WRITTEN_LAB_UI_SETTINGS, factoryDefaults.lab);

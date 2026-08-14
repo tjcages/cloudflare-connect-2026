@@ -6,8 +6,23 @@ import { normalizeTwizzlerSettings, type TwizzlerRibbonColorMode, type TwizzlerS
 import { defaultTwizzlerGradientFieldStops } from "../twizzlerGradient";
 import { sectionGridRainEngineConfig } from "./sectionGridRainDefaults";
 
+const DEFAULT_LAB_CANVAS_WIDTH = 1280;
+const DEFAULT_LAB_CANVAS_HEIGHT = 720;
+
 export type ClientSizePresetId = "banner-5x1" | "wide-3x1" | "hero-16x9" | "square";
+export const CUSTOM_CLIENT_SIZE_ID = "custom" as const;
+export type SharedClientSizeId = `shared:${string}`;
+export type ClientSizeId = ClientSizePresetId | typeof CUSTOM_CLIENT_SIZE_ID | SharedClientSizeId;
+export type ClientSizeUnit = "pixels" | "inches";
+export const DEFAULT_CLIENT_PRINT_PPI = 300;
+export const MIN_CLIENT_PRINT_PPI = 1;
+export const MAX_CLIENT_PRINT_PPI = 1200;
+export const MAX_CLIENT_CANVAS_DIMENSION_PX = 8192;
+export const MAX_CLIENT_PRINT_PREVIEW_DIMENSION_PX = 1600;
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
+export const SHARED_CLIENT_STYLE_PREFIX = "shared-style:" as const;
+export type SharedClientStyleId = `${typeof SHARED_CLIENT_STYLE_PREFIX}${string}`;
+export type ClientStyleId = ClientLayoutPresetId | SharedClientStyleId;
 export type ClientColorPresetId =
   | "coral-classic"
   | "red"
@@ -17,6 +32,9 @@ export type ClientColorPresetId =
   | "soft-gold"
   | "deep-ember"
   | "light";
+export const SHARED_CLIENT_COLOR_PREFIX = "shared-color:" as const;
+export type SharedClientColorId = `${typeof SHARED_CLIENT_COLOR_PREFIX}${string}`;
+export type ClientColorId = ClientColorPresetId | SharedClientColorId;
 /** Client stage look: light = orange Twizzler on white; dark = cream Twizzler on deep orange. */
 export type ClientAppearanceId = "light" | "dark";
 /** Client stack: Twizzler ribbon, section-grid Rain stripes, or both. */
@@ -27,6 +45,15 @@ export type ClientSizePreset = {
   label: string;
   width: number;
   height: number;
+};
+
+export type SharedClientSizePreset = {
+  id: string;
+  name: string;
+  unit: ClientSizeUnit;
+  width: number;
+  height: number;
+  ppi: number;
 };
 
 export type ClientLayoutPreset = {
@@ -98,6 +125,26 @@ export const CLIENT_SIZE_PRESETS: readonly ClientSizePreset[] = [
   { id: "square", label: "Square", width: 800, height: 800 },
 ];
 
+export function sharedClientStyleId(id: string): SharedClientStyleId {
+  return `${SHARED_CLIENT_STYLE_PREFIX}${id}`;
+}
+
+export function parseSharedClientStyleId(value: string): string | null {
+  if (!value.startsWith(SHARED_CLIENT_STYLE_PREFIX)) return null;
+  const id = value.slice(SHARED_CLIENT_STYLE_PREFIX.length).trim();
+  return id || null;
+}
+
+export function sharedClientColorId(id: string): SharedClientColorId {
+  return `${SHARED_CLIENT_COLOR_PREFIX}${id}`;
+}
+
+export function parseSharedClientColorId(value: string): string | null {
+  if (!value.startsWith(SHARED_CLIENT_COLOR_PREFIX)) return null;
+  const id = value.slice(SHARED_CLIENT_COLOR_PREFIX.length).trim();
+  return id || null;
+}
+
 export const CLIENT_LAYOUT_PRESETS: readonly ClientLayoutPreset[] = [
   {
     id: "classic",
@@ -108,32 +155,69 @@ export const CLIENT_LAYOUT_PRESETS: readonly ClientLayoutPreset[] = [
     id: "low-ribbon",
     label: "Low ribbon",
     twizzler: {
-      centerY: 0.62,
-      amplitude: 0.9,
-      rotateXDeg: 18,
-      rotateYDeg: -12,
+      opacity: 0.82,
+      scale: 1.12,
+      twist: 0.72,
+      centerY: 0.68,
+      amplitude: 0.55,
+      rotateXDeg: 26,
+      rotateYDeg: -6,
+      rotateZDeg: -6,
+      fov: 0.88,
+      camDist: 12.5,
+      lineCount: 38,
+      lineWidth: 1.7,
+      perspectiveWidth: 1.05,
+      minLineWidth: 0.3,
+      maxLineWidth: 2.5,
+      pointSpacing: 13,
+      speed: 0.65,
     },
   },
   {
     id: "high-fan",
     label: "High fan",
     twizzler: {
-      centerY: 0.38,
-      amplitude: 1.15,
-      rotateXDeg: 8,
-      rotateYDeg: -28,
-      rotateZDeg: 6,
-      scale: 1.08,
+      opacity: 1,
+      scale: 1.28,
+      twist: 2.1,
+      centerY: 0.28,
+      amplitude: 1.9,
+      rotateXDeg: -8,
+      rotateYDeg: -48,
+      rotateZDeg: 14,
+      fov: 1.28,
+      camDist: 8.4,
+      lineCount: 84,
+      lineWidth: 2.75,
+      perspectiveWidth: 3.4,
+      minLineWidth: 0.35,
+      maxLineWidth: 6.2,
+      pointSpacing: 7,
+      speed: 1.35,
     },
   },
   {
     id: "compact",
     label: "Compact",
     twizzler: {
-      scale: 0.82,
-      amplitude: 0.85,
-      rotateXDeg: 10,
-      rotateYDeg: -14,
+      opacity: 0.95,
+      scale: 0.66,
+      twist: 1.6,
+      centerY: 0.52,
+      amplitude: 0.42,
+      rotateXDeg: 4,
+      rotateYDeg: -4,
+      rotateZDeg: 0,
+      fov: 0.74,
+      camDist: 14,
+      lineCount: 26,
+      lineWidth: 3.1,
+      perspectiveWidth: 0.75,
+      minLineWidth: 0.8,
+      maxLineWidth: 3.6,
+      pointSpacing: 16,
+      speed: 0.8,
     },
   },
 ];
@@ -420,6 +504,70 @@ export function matchClientSizePresetId(width: number, height: number): ClientSi
   return exact?.id ?? DEFAULT_CLIENT_PREVIEW_STATE.sizeId;
 }
 
+function normalizeClientCanvasDimension(value: number, fallback: number): number {
+  return Math.round(Math.max(1, Math.min(MAX_CLIENT_CANVAS_DIMENSION_PX, Number.isFinite(value) ? value : fallback)));
+}
+
+export function normalizeClientPrintPpi(value: number): number {
+  return Math.round(
+    Math.max(
+      MIN_CLIENT_PRINT_PPI,
+      Math.min(MAX_CLIENT_PRINT_PPI, Number.isFinite(value) ? value : DEFAULT_CLIENT_PRINT_PPI),
+    ),
+  );
+}
+
+export function resolveClientCanvasSize(
+  id: ClientSizeId,
+  customWidth: number,
+  customHeight: number,
+  unit: ClientSizeUnit = "pixels",
+  ppi = DEFAULT_CLIENT_PRINT_PPI,
+  sharedPresets: readonly SharedClientSizePreset[] = [],
+): { width: number; height: number } {
+  if (id.startsWith("shared:")) {
+    const shared = sharedPresets.find((preset) => preset.id === id.slice("shared:".length));
+    if (shared) {
+      return resolveClientCanvasSize(CUSTOM_CLIENT_SIZE_ID, shared.width, shared.height, shared.unit, shared.ppi);
+    }
+    return resolveClientCanvasSize(CUSTOM_CLIENT_SIZE_ID, customWidth, customHeight, unit, ppi);
+  }
+  if (id === CUSTOM_CLIENT_SIZE_ID) {
+    const pixelsPerUnit = unit === "inches" ? normalizeClientPrintPpi(ppi) : 1;
+    return {
+      width: normalizeClientCanvasDimension(customWidth * pixelsPerUnit, DEFAULT_LAB_CANVAS_WIDTH),
+      height: normalizeClientCanvasDimension(customHeight * pixelsPerUnit, DEFAULT_LAB_CANVAS_HEIGHT),
+    };
+  }
+  const preset = findClientSizePreset(id as ClientSizePresetId);
+  return { width: preset.width, height: preset.height };
+}
+
+/**
+ * Physical print dimensions describe the final output, not the amount of live
+ * DOM/WebGL work. Keep inch-based previews responsive while preserving their
+ * exact aspect ratio; export tooling can consume the full pixel output.
+ */
+export function resolveClientPreviewCanvasSize(
+  id: ClientSizeId,
+  outputWidth: number,
+  outputHeight: number,
+  unit: ClientSizeUnit,
+): { width: number; height: number } {
+  if ((!id.startsWith("shared:") && id !== CUSTOM_CLIENT_SIZE_ID) || unit !== "inches") {
+    return { width: outputWidth, height: outputHeight };
+  }
+  const longestSide = Math.max(outputWidth, outputHeight);
+  if (longestSide <= MAX_CLIENT_PRINT_PREVIEW_DIMENSION_PX) {
+    return { width: outputWidth, height: outputHeight };
+  }
+  const scale = MAX_CLIENT_PRINT_PREVIEW_DIMENSION_PX / longestSide;
+  return {
+    width: Math.max(1, Math.round(outputWidth * scale)),
+    height: Math.max(1, Math.round(outputHeight * scale)),
+  };
+}
+
 export function findClientLayoutPreset(id: ClientLayoutPresetId): ClientLayoutPreset {
   switch (id) {
     case "classic":
@@ -639,6 +787,38 @@ export function resetTweaksForLayout(layoutId: ClientLayoutPresetId): ClientTwiz
     ...layout.twizzler,
   });
   return tweaksFromTwizzler(merged);
+}
+
+/** Full Leva patch for a style change, including the high-impact silhouette controls. */
+export function twizzlerLevaFromLayout(layoutId: ClientLayoutPresetId): Record<string, unknown> {
+  const banner = requireBannerPreset();
+  const layout = findClientLayoutPreset(layoutId);
+  const settings = normalizeTwizzlerSettings({
+    ...normalizeTwizzlerSettings(banner.lab.twizzler),
+    ...layout.twizzler,
+  });
+  return {
+    twizzlerOpacity: settings.opacity,
+    twizzlerScale: settings.scale,
+    twizzlerTwist: settings.twist,
+    twizzlerCenterY: settings.centerY,
+    twizzlerPanX: settings.panX,
+    twizzlerPanY: settings.panY,
+    twizzlerPanZ: settings.panZ,
+    twizzlerAmplitude: settings.amplitude,
+    twizzlerRotateXDeg: settings.rotateXDeg,
+    twizzlerRotateYDeg: settings.rotateYDeg,
+    twizzlerRotateZDeg: settings.rotateZDeg,
+    twizzlerFov: settings.fov,
+    twizzlerCamDist: settings.camDist,
+    twizzlerLineWidth: settings.lineWidth,
+    twizzlerPerspectiveWidth: settings.perspectiveWidth,
+    twizzlerMinLineWidth: settings.minLineWidth,
+    twizzlerMaxLineWidth: settings.maxLineWidth,
+    twizzlerLineCount: settings.lineCount,
+    twizzlerPointSpacing: settings.pointSpacing,
+    twizzlerSpeed: settings.speed,
+  };
 }
 
 /** @deprecated Prefer resetTweaksForLayout — color presets do not affect tweaks. */

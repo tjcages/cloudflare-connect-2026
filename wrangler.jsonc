@@ -1,9 +1,11 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   // Production Worker for ALL deploys (root + lab + Workers Builds).
   // Dashboard: https://dash.cloudflare.com/944ca70087298faa2e84783db46162c5/workers/services/view/connect-shader/production
   // Live: https://connect-shader.off-brand.workers.dev/
   "name": "connect-shader",
-  "compatibility_date": "2026-05-14",
+  "main": "apps/lab/worker/index.ts",
+  "compatibility_date": "2026-06-10",
   "account_id": "944ca70087298faa2e84783db46162c5",
   // Preview hosts: <alias|version>-connect-shader.off-brand.workers.dev
   // Requires Workers Builds → Branch control → "Builds for non-production branches"
@@ -13,8 +15,27 @@
   "observability": {
     "enabled": true,
   },
+  "vars": {
+    "PRODUCTION_HOST": "connect-shader.off-brand.workers.dev",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "connect-shader-presets",
+      "database_id": "1ce11267-4140-4338-9e78-3fad409fa161",
+      "migrations_dir": "apps/lab/migrations",
+    },
+    {
+      "binding": "PREVIEW_DB",
+      "database_name": "connect-shader-presets-preview",
+      "database_id": "aff5c9b6-02ff-4452-b662-ee72a7cacee7",
+      "migrations_dir": "apps/lab/migrations",
+    },
+  ],
   "assets": {
     "directory": "apps/lab/dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
     "not_found_handling": "single-page-application",
   },
 }
