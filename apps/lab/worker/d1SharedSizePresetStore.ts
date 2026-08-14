@@ -1,57 +1,55 @@
 import type { SharedSizePreset, SharedSizePresetInput } from "../src/sharedSizePresets";
+import { D1SharedPresetStore } from "./d1SharedPresetStore";
+import type { SharedPreset } from "./sharedPresetApi";
 import type { SharedSizePresetStore } from "./sharedSizePresetApi";
 
-type SharedSizePresetRow = {
-  id: string;
-  name: string;
-  unit: SharedSizePreset["unit"];
-  width: number;
-  height: number;
-  ppi: number;
-  created_at: string;
-  updated_at: string;
-};
-
-const COLUMNS = "id, name, unit, width, height, ppi, created_at, updated_at";
-
-function fromRow(row: SharedSizePresetRow): SharedSizePreset {
+function fromSharedPreset(preset: SharedPreset): SharedSizePreset {
+  if (preset.kind !== "size") throw new Error("Expected a shared size preset.");
+  const { unit, width, height, ppi } = preset.payload;
+  if (
+    (unit !== "pixels" && unit !== "inches") ||
+    typeof width !== "number" ||
+    typeof height !== "number" ||
+    typeof ppi !== "number"
+  ) {
+    throw new Error("Shared size preset has an invalid payload.");
+  }
   return {
-    id: row.id,
-    name: row.name,
-    unit: row.unit,
-    width: row.width,
-    height: row.height,
-    ppi: row.ppi,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id: preset.id,
+    name: preset.name,
+    unit,
+    width,
+    height,
+    ppi,
+    createdAt: preset.createdAt,
+    updatedAt: preset.updatedAt,
   };
 }
 
 export class D1SharedSizePresetStore implements SharedSizePresetStore {
-  constructor(private readonly database: D1Database) {}
+  private readonly presets: D1SharedPresetStore;
+
+  constructor(database: D1Database) {
+    this.presets = new D1SharedPresetStore(database);
+  }
 
   async list(): Promise<SharedSizePreset[]> {
-    const result = await this.database
-      .prepare(`SELECT ${COLUMNS} FROM shared_size_presets ORDER BY name COLLATE NOCASE ASC`)
-      .run<SharedSizePresetRow>();
-    return result.results.map(fromRow);
+    return (await this.presets.list("size")).map(fromSharedPreset);
   }
 
   async create(id: string, input: SharedSizePresetInput): Promise<SharedSizePreset> {
-    const row = await this.database
-      .prepare(
-        `INSERT INTO shared_size_presets (id, name, unit, width, height, ppi)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-         RETURNING ${COLUMNS}`,
-      )
-      .bind(id, input.name, input.unit, input.width, input.height, input.ppi)
-      .first<SharedSizePresetRow>();
-    if (!row) throw new Error("D1 did not return the created size preset.");
-    return fromRow(row);
+    const preset = await this.presets.create(id, {
+      kind: "size",
+      name: input.name,
+      payload: { unit: input.unit, width: input.width, height: input.height, ppi: input.ppi },
+      schemaVersion: 1,
+    });
+    return fromSharedPreset(preset);
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await this.database.prepare("DELETE FROM shared_size_presets WHERE id = ?1").bind(id).run();
-    return result.meta.changes > 0;
+    const preset = await this.presets.get(id);
+    if (!preset || preset.kind !== "size") return false;
+    return (await this.presets.delete(id, preset.revision)) === "deleted";
   }
 }
