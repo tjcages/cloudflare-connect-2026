@@ -1378,7 +1378,7 @@ export function useEngineControls(
             clientPixelOutput: {
               value: levaSchemaSeedRef.current.clientPixelOutput,
               label: "Pixel output",
-              disabled: true,
+              editable: false,
               render: (get) =>
                 get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID && get("Presets.clientSizeUnit") === "inches",
             },
