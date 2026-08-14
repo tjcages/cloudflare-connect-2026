@@ -3027,9 +3027,24 @@ body.lab-sidebar-resizing canvas {
 }
 
 .timeline-track-list {
+  display: flex;
   min-width: 0;
+  min-height: 0;
+  flex-direction: column;
   overflow: hidden;
   border-right: 1px solid var(--leva-border);
+}
+
+.timeline-track-list-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 34px;
+  scrollbar-width: none;
+}
+
+.timeline-track-list-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .timeline-track-list-heading {
@@ -3185,6 +3200,11 @@ body.lab-sidebar-resizing canvas {
 
 .timeline-canvas::-webkit-scrollbar {
   display: none;
+}
+
+.timeline-canvas-content {
+  position: relative;
+  min-width: 100%;
 }
 
 .timeline-grid-lines,

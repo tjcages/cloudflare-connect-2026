@@ -62,6 +62,12 @@ type TimelineEditorProps = {
   onPlayingChange?: (playing: boolean) => void;
 };
 
+const TIMELINE_TRACK_HEIGHT = 34;
+
+export function timelineScrollContentHeight(trackCount: number): number {
+  return (Math.max(0, Math.floor(trackCount)) + 1) * TIMELINE_TRACK_HEIGHT;
+}
+
 function TransportGlyph({ type }: { type: "rewind" | "play" | "pause" }) {
   return (
     <svg className={`timeline-transport-glyph is-${type}`} viewBox="0 0 10 10" aria-hidden="true" focusable="false">
@@ -271,6 +277,7 @@ export function TimelineEditor({
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
   const [layout, setLayout] = useState(loadTimelineLayout);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const trackListScrollRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const addPropertyButtonRef = useRef<HTMLButtonElement>(null);
   const shortcutsRef = useRef<HTMLDetailsElement>(null);
@@ -866,60 +873,70 @@ export function TimelineEditor({
                 <span>Properties</span>
                 <small>{sequence.tracks.length}</small>
               </div>
-              {sequence.tracks.length === 0 ? (
-                <div className="timeline-empty-copy">
-                  <Diamond size={14} />
-                  <p>Add a control, then place keys to animate it.</p>
-                </div>
-              ) : (
-                sequence.tracks.map((track) => (
-                  <div
-                    key={track.id}
-                    className={`timeline-track-label${selectedTrackId === track.id ? " is-selected" : ""}`}
-                  >
-                    <span className={`timeline-track-type is-${track.valueType}`} />
-                    <button
-                      type="button"
-                      className="timeline-track-name"
-                      title={track.propertyPath}
-                      onClick={() => {
-                        setSelectedTrackId(track.id);
-                        setSelectedKeyId(null);
-                      }}
-                    >
-                      {track.label}
-                    </button>
-                    <small>{displayValue(evaluateSequence(sequence, currentTime)[track.propertyKey] ?? "—")}</small>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        addKey(track);
-                      }}
-                      title="Add key here"
-                    >
-                      <Diamond size={11} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSequence((current) => ({
-                          ...current,
-                          tracks: current.tracks.filter((candidate) => candidate.id !== track.id),
-                        }));
-                        if (selectedTrackId === track.id) {
-                          setSelectedTrackId(null);
-                          setSelectedKeyId(null);
-                        }
-                      }}
-                      title="Remove property"
-                    >
-                      <Trash2 size={11} />
-                    </button>
+              <div
+                className="timeline-track-list-scroll"
+                ref={trackListScrollRef}
+                onScroll={(event) => {
+                  if (timelineRef.current && timelineRef.current.scrollTop !== event.currentTarget.scrollTop) {
+                    timelineRef.current.scrollTop = event.currentTarget.scrollTop;
+                  }
+                }}
+              >
+                {sequence.tracks.length === 0 ? (
+                  <div className="timeline-empty-copy">
+                    <Diamond size={14} />
+                    <p>Add a control, then place keys to animate it.</p>
                   </div>
-                ))
-              )}
+                ) : (
+                  sequence.tracks.map((track) => (
+                    <div
+                      key={track.id}
+                      className={`timeline-track-label${selectedTrackId === track.id ? " is-selected" : ""}`}
+                    >
+                      <span className={`timeline-track-type is-${track.valueType}`} />
+                      <button
+                        type="button"
+                        className="timeline-track-name"
+                        title={track.propertyPath}
+                        onClick={() => {
+                          setSelectedTrackId(track.id);
+                          setSelectedKeyId(null);
+                        }}
+                      >
+                        {track.label}
+                      </button>
+                      <small>{displayValue(evaluateSequence(sequence, currentTime)[track.propertyKey] ?? "—")}</small>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          addKey(track);
+                        }}
+                        title="Add key here"
+                      >
+                        <Diamond size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSequence((current) => ({
+                            ...current,
+                            tracks: current.tracks.filter((candidate) => candidate.id !== track.id),
+                          }));
+                          if (selectedTrackId === track.id) {
+                            setSelectedTrackId(null);
+                            setSelectedKeyId(null);
+                          }
+                        }}
+                        title="Remove property"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
             <div className="timeline-canvas-shell">
               <div className="timeline-ruler" onPointerDown={scrub}>
@@ -929,69 +946,86 @@ export function TimelineEditor({
                   </span>
                 ))}
               </div>
-              <div className="timeline-canvas" ref={timelineRef} onPointerDown={scrub}>
-                <div className="timeline-grid-lines" aria-hidden>
-                  {ticks.map((tick) => (
-                    <i key={tick} style={{ left: `${(tick / sequence.duration) * 100}%` }} />
-                  ))}
-                </div>
-                {snapGuideTime !== null ? (
-                  <div
-                    className="timeline-snap-guide"
-                    style={{ left: `${(snapGuideTime / sequence.duration) * 100}%` }}
-                    aria-hidden
-                  />
-                ) : null}
-                <div className="timeline-playhead" style={{ left: `${(currentTime / sequence.duration) * 100}%` }}>
-                  <span />
-                </div>
-                {sequence.tracks.map((track, rowIndex) => (
-                  <div
-                    className={`timeline-track-row${selectedTrackId === track.id ? " is-selected" : ""}`}
-                    key={track.id}
-                    style={{ top: rowIndex * 34 }}
-                    onPointerDown={() => {
-                      setSelectedTrackId(track.id);
-                      setSelectedKeyId(null);
-                    }}
-                    onDoubleClick={(event) => addKey(track, timeFromPointer(event.clientX))}
-                  >
-                    {sortKeyframes(track.keyframes)
-                      .slice(0, -1)
-                      .map((keyframe, index) => {
-                        const next = sortKeyframes(track.keyframes)[index + 1];
-                        return (
-                          <span
-                            key={`${keyframe.id}-segment`}
-                            className={`timeline-key-segment${keyframe.easing === "hold" ? " is-hold" : ""}${keyframe.easing === "spring" ? " is-spring" : ""}`}
-                            style={{
-                              left: `${(keyframe.time / sequence.duration) * 100}%`,
-                              width: `${((next.time - keyframe.time) / sequence.duration) * 100}%`,
-                            }}
-                          />
-                        );
-                      })}
-                    {track.keyframes.map((keyframe) => (
-                      <button
-                        type="button"
-                        key={keyframe.id}
-                        className={`timeline-key${selectedKeyId === keyframe.id ? " is-selected" : ""}`}
-                        style={{ left: `${(keyframe.time / sequence.duration) * 100}%` }}
-                        onPointerDown={(event) => dragKey(event, track.id, keyframe.id)}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedTrackId(track.id);
-                          setSelectedKeyId(keyframe.id);
-                          updateTime(keyframe.time);
-                        }}
-                        aria-label={`${track.label} key at ${formatSeconds(keyframe.time)}`}
-                        title={`${displayValue(keyframe.value)} · ${formatSeconds(keyframe.time)}`}
-                      >
-                        <span />
-                      </button>
+              <div
+                className="timeline-canvas"
+                ref={timelineRef}
+                onPointerDown={scrub}
+                onScroll={(event) => {
+                  if (
+                    trackListScrollRef.current &&
+                    trackListScrollRef.current.scrollTop !== event.currentTarget.scrollTop
+                  ) {
+                    trackListScrollRef.current.scrollTop = event.currentTarget.scrollTop;
+                  }
+                }}
+              >
+                <div
+                  className="timeline-canvas-content"
+                  style={{ height: `max(100%, ${timelineScrollContentHeight(sequence.tracks.length)}px)` }}
+                >
+                  <div className="timeline-grid-lines" aria-hidden>
+                    {ticks.map((tick) => (
+                      <i key={tick} style={{ left: `${(tick / sequence.duration) * 100}%` }} />
                     ))}
                   </div>
-                ))}
+                  {snapGuideTime !== null ? (
+                    <div
+                      className="timeline-snap-guide"
+                      style={{ left: `${(snapGuideTime / sequence.duration) * 100}%` }}
+                      aria-hidden
+                    />
+                  ) : null}
+                  <div className="timeline-playhead" style={{ left: `${(currentTime / sequence.duration) * 100}%` }}>
+                    <span />
+                  </div>
+                  {sequence.tracks.map((track, rowIndex) => (
+                    <div
+                      className={`timeline-track-row${selectedTrackId === track.id ? " is-selected" : ""}`}
+                      key={track.id}
+                      style={{ top: rowIndex * TIMELINE_TRACK_HEIGHT }}
+                      onPointerDown={() => {
+                        setSelectedTrackId(track.id);
+                        setSelectedKeyId(null);
+                      }}
+                      onDoubleClick={(event) => addKey(track, timeFromPointer(event.clientX))}
+                    >
+                      {sortKeyframes(track.keyframes)
+                        .slice(0, -1)
+                        .map((keyframe, index) => {
+                          const next = sortKeyframes(track.keyframes)[index + 1];
+                          return (
+                            <span
+                              key={`${keyframe.id}-segment`}
+                              className={`timeline-key-segment${keyframe.easing === "hold" ? " is-hold" : ""}${keyframe.easing === "spring" ? " is-spring" : ""}`}
+                              style={{
+                                left: `${(keyframe.time / sequence.duration) * 100}%`,
+                                width: `${((next.time - keyframe.time) / sequence.duration) * 100}%`,
+                              }}
+                            />
+                          );
+                        })}
+                      {track.keyframes.map((keyframe) => (
+                        <button
+                          type="button"
+                          key={keyframe.id}
+                          className={`timeline-key${selectedKeyId === keyframe.id ? " is-selected" : ""}`}
+                          style={{ left: `${(keyframe.time / sequence.duration) * 100}%` }}
+                          onPointerDown={(event) => dragKey(event, track.id, keyframe.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedTrackId(track.id);
+                            setSelectedKeyId(keyframe.id);
+                            updateTime(keyframe.time);
+                          }}
+                          aria-label={`${track.label} key at ${formatSeconds(keyframe.time)}`}
+                          title={`${displayValue(keyframe.value)} · ${formatSeconds(keyframe.time)}`}
+                        >
+                          <span />
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
             {selectedTrack && selectedKey ? (

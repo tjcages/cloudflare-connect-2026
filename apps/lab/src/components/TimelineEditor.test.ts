@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { collectTimelineProperties, displayTimelineColorValue, type TimelineLevaStore } from "./TimelineEditor";
+import {
+  collectTimelineProperties,
+  displayTimelineColorValue,
+  timelineScrollContentHeight,
+  type TimelineLevaStore,
+} from "./TimelineEditor";
 
 function storeWith(data: ReturnType<TimelineLevaStore["getData"]>): TimelineLevaStore {
   return {
@@ -11,6 +16,11 @@ function storeWith(data: ReturnType<TimelineLevaStore["getData"]>): TimelineLeva
 }
 
 describe("timeline property collection", () => {
+  it("reserves one property row of scroll space after the final track", () => {
+    expect(timelineScrollContentHeight(0)).toBe(34);
+    expect(timelineScrollContentHeight(8)).toBe(306);
+  });
+
   it("shows library variable names for color keyframes", () => {
     expect(displayTimelineColorValue("#ffffff")).toBe("Neutral / White");
     expect(displayTimelineColorValue("#123456")).toBe("#123456");
