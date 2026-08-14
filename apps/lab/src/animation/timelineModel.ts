@@ -60,6 +60,22 @@ export function clampTimelineTime(time: number, duration: number): number {
   return Math.min(Math.max(0, duration), Math.max(0, Number.isFinite(time) ? time : 0));
 }
 
+export function snapTimelineTimeToWholeSecond(
+  time: number,
+  duration: number,
+  canvasWidth: number,
+  pixelThreshold = 6,
+): { time: number; snapped: boolean } {
+  const clamped = clampTimelineTime(time, duration);
+  if (canvasWidth <= 0 || pixelThreshold <= 0) return { time: clamped, snapped: false };
+  const nearestSecond = Math.round(clamped);
+  if (nearestSecond < 0 || nearestSecond > duration) return { time: clamped, snapped: false };
+  const thresholdSeconds = Math.min(0.12, (duration * pixelThreshold) / canvasWidth);
+  return Math.abs(clamped - nearestSecond) <= thresholdSeconds
+    ? { time: nearestSecond, snapped: true }
+    : { time: clamped, snapped: false };
+}
+
 export function sortKeyframes(keyframes: readonly TimelineKeyframe[]): TimelineKeyframe[] {
   return [...keyframes].sort((a, b) => a.time - b.time || a.id.localeCompare(b.id));
 }

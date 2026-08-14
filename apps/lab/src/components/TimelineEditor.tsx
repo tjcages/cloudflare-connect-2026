@@ -1,18 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  Diamond,
-  Keyboard,
-  Pause,
-  Play,
-  Plus,
-  Repeat2,
-  Search,
-  SkipBack,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Diamond, Keyboard, Plus, Repeat2, Search, Trash2, X } from "lucide-react";
 import {
   clampTimelineTime,
   createTimelineId,
@@ -20,6 +7,7 @@ import {
   evaluateSequence,
   loadTimelineSequence,
   saveTimelineSequence,
+  snapTimelineTimeToWholeSecond,
   sortKeyframes,
   upsertKeyframe,
   type TimelineKeyframe,
@@ -54,6 +42,20 @@ type TimelineEditorProps = {
   onTimeChange?: (seconds: number) => void;
   onPlayingChange?: (playing: boolean) => void;
 };
+
+function TransportGlyph({ type }: { type: "rewind" | "play" | "pause" }) {
+  return (
+    <svg className={`timeline-transport-glyph is-${type}`} viewBox="0 0 10 10" aria-hidden="true" focusable="false">
+      {type === "rewind" ? (
+        <path d="M1 1h1.35v8H1V1Zm7.6.25v7.5L3.15 5 8.6 1.25Z" />
+      ) : type === "play" ? (
+        <path d="M2 1.1 8.65 5 2 8.9V1.1Z" />
+      ) : (
+        <path d="M2 1.25h2.1v7.5H2v-7.5Zm3.9 0H8v7.5H5.9v-7.5Z" />
+      )}
+    </svg>
+  );
+}
 
 function inputLabel(input: LevaDataInput, key: string): string {
   return typeof input.label === "string" && input.label.trim() ? input.label : key.replace(/([A-Z])/g, " $1").trim();
@@ -203,6 +205,7 @@ export function TimelineEditor({
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
+  const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const shortcutsRef = useRef<HTMLDetailsElement>(null);
   const sequenceRef = useRef(sequence);
@@ -232,6 +235,13 @@ export function TimelineEditor({
     setCurrentTime(next);
     if (applyValues) onApplyValuesRef.current(evaluateSequence(sequenceRef.current, next));
     if (syncMotion) onTimeChangeRef.current?.(next);
+  }, []);
+
+  const snapKeyTime = useCallback((time: number, disabled = false) => {
+    const width = timelineRef.current?.getBoundingClientRect().width ?? 0;
+    return disabled
+      ? { time: clampTimelineTime(time, sequenceRef.current.duration), snapped: false }
+      : snapTimelineTimeToWholeSecond(time, sequenceRef.current.duration, width);
   }, []);
 
   useEffect(() => saveTimelineSequence(sequence), [sequence]);
@@ -388,8 +398,9 @@ export function TimelineEditor({
       const current = sequenceRef.current;
       const track = current.tracks.find((candidate) => candidate.id === selectedTrack.id);
       if (!track) return;
-      const nextTrack = upsertKeyframe(track, timeRef.current, value);
-      const nextKey = nextTrack.keyframes.find((keyframe) => Math.abs(keyframe.time - timeRef.current) < 0.001);
+      const keyTime = snapKeyTime(timeRef.current).time;
+      const nextTrack = upsertKeyframe(track, keyTime, value);
+      const nextKey = nextTrack.keyframes.find((keyframe) => Math.abs(keyframe.time - keyTime) < 0.001);
       const nextSequence = {
         ...current,
         tracks: current.tracks.map((candidate) => (candidate.id === track.id ? nextTrack : candidate)),
@@ -398,9 +409,10 @@ export function TimelineEditor({
       setSequence(nextSequence);
       setSelectedKeyId(nextKey?.id ?? null);
     });
-  }, [selectedTrack, stores]);
+  }, [selectedTrack, snapKeyTime, stores]);
 
   const addTrack = (property: TimelineProperty) => {
+    const keyTime = snapKeyTime(currentTime).time;
     const track: TimelineTrack = {
       id: createTimelineId("track"),
       propertyKey: property.key,
@@ -408,7 +420,7 @@ export function TimelineEditor({
       label: property.label,
       valueType: property.valueType,
       keyframes: [
-        { id: createTimelineId("key"), time: currentTime, value: property.value, easing: DEFAULT_TIMELINE_EASING },
+        { id: createTimelineId("key"), time: keyTime, value: property.value, easing: DEFAULT_TIMELINE_EASING },
       ],
     };
     setSequence((current) => ({ ...current, tracks: [...current.tracks, track] }));
@@ -420,12 +432,13 @@ export function TimelineEditor({
     const property = currentProperties.get(track.propertyKey);
     const storeValue = property?.value ?? evaluateSequence(sequence, currentTime)[track.propertyKey];
     if (storeValue === undefined) return;
-    const next = upsertKeyframe(track, clampTimelineTime(time, sequence.duration), storeValue);
+    const keyTime = snapKeyTime(time).time;
+    const next = upsertKeyframe(track, keyTime, storeValue);
     setSequence((current) => ({
       ...current,
       tracks: current.tracks.map((candidate) => (candidate.id === track.id ? next : candidate)),
     }));
-    const key = next.keyframes.find((frame) => Math.abs(frame.time - time) < 0.001) ?? next.keyframes.at(-1);
+    const key = next.keyframes.find((frame) => Math.abs(frame.time - keyTime) < 0.001) ?? next.keyframes.at(-1);
     setSelectedTrackId(track.id);
     setSelectedKeyId(key?.id ?? null);
   };
@@ -477,10 +490,8 @@ export function TimelineEditor({
     event.currentTarget.setPointerCapture(event.pointerId);
     updatePlaying(false);
     deferSequenceApplyRef.current = true;
-    setSelectedTrackId(trackId);
-    setSelectedKeyId(keyId);
-    const move = (moveEvent: PointerEvent) => {
-      const time = timeFromPointer(moveEvent.clientX);
+    setSnapGuideTime(null);
+    const setKeyTime = (time: number) => {
       setSequence((current) => {
         const next = {
           ...current,
@@ -500,9 +511,19 @@ export function TimelineEditor({
       });
       updateTime(time, false, false);
     };
+    const move = (moveEvent: PointerEvent) => {
+      const snapped = snapKeyTime(timeFromPointer(moveEvent.clientX), moveEvent.altKey);
+      setSnapGuideTime(snapped.snapped ? snapped.time : null);
+      setKeyTime(snapped.time);
+    };
     const end = (endEvent: PointerEvent) => {
+      const snapped = snapKeyTime(timeFromPointer(endEvent.clientX), endEvent.altKey);
       deferSequenceApplyRef.current = false;
-      updateTime(timeFromPointer(endEvent.clientX));
+      setSnapGuideTime(null);
+      setSelectedTrackId(trackId);
+      setSelectedKeyId(keyId);
+      setKeyTime(snapped.time);
+      updateTime(snapped.time);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
       window.removeEventListener("pointercancel", end);
@@ -545,7 +566,7 @@ export function TimelineEditor({
         </button>
         <div className="timeline-transport">
           <button type="button" onClick={() => updateTime(0)} aria-label="Go to start" title="Go to start (Home)">
-            <SkipBack size={13} />
+            <TransportGlyph type="rewind" />
           </button>
           <button
             type="button"
@@ -554,7 +575,7 @@ export function TimelineEditor({
             aria-label={playing ? "Pause animation" : "Play animation"}
             title="Play / pause (Space)"
           >
-            {playing ? <Pause size={13} /> : <Play size={13} />}
+            <TransportGlyph type={playing ? "pause" : "play"} />
           </button>
           <output>
             {formatSeconds(currentTime)} <span>/ {formatSeconds(sequence.duration)}</span>
@@ -711,6 +732,13 @@ export function TimelineEditor({
                     <i key={tick} style={{ left: `${(tick / sequence.duration) * 100}%` }} />
                   ))}
                 </div>
+                {snapGuideTime !== null ? (
+                  <div
+                    className="timeline-snap-guide"
+                    style={{ left: `${(snapGuideTime / sequence.duration) * 100}%` }}
+                    aria-hidden
+                  />
+                ) : null}
                 <div className="timeline-playhead" style={{ left: `${(currentTime / sequence.duration) * 100}%` }}>
                   <span />
                 </div>

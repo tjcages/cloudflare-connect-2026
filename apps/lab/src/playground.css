@@ -2688,6 +2688,18 @@ body.lab-sidebar-resizing canvas {
   color: var(--leva-text);
 }
 
+.timeline-transport-glyph {
+  display: block;
+  width: 9px;
+  height: 9px;
+  fill: currentColor;
+  shape-rendering: geometricPrecision;
+}
+
+.timeline-transport-glyph.is-play {
+  translate: 0.35px 0;
+}
+
 .timeline-transport output {
   min-width: 92px;
   margin-left: 5px;
@@ -3091,6 +3103,18 @@ body.lab-sidebar-resizing canvas {
   right: auto;
   width: 1px;
   background: var(--leva-border-subtle);
+}
+
+.timeline-snap-guide {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--leva-accent-strong);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--leva-accent-soft) 20%, transparent);
+  opacity: 0.52;
+  pointer-events: none;
 }
 
 .timeline-track-row {

@@ -6,6 +6,7 @@ import {
   interpolateTimelineValue,
   normalizeTimelineSequence,
   normalizeTimelineEasing,
+  snapTimelineTimeToWholeSecond,
   upsertKeyframe,
   type TimelineTrack,
 } from "./timelineModel";
@@ -71,6 +72,12 @@ describe("timeline model", () => {
   it("defaults new keys to expo easing", () => {
     const updated = upsertKeyframe(track, 1, 5);
     expect(updated.keyframes.find((keyframe) => keyframe.time === 1)?.easing).toBe("easeInOutExpo");
+  });
+
+  it("subtly snaps key times to whole seconds using a pixel threshold", () => {
+    expect(snapTimelineTimeToWholeSecond(1.03, 6, 900)).toEqual({ time: 1, snapped: true });
+    expect(snapTimelineTimeToWholeSecond(1.08, 6, 900)).toEqual({ time: 1.08, snapped: false });
+    expect(snapTimelineTimeToWholeSecond(5.98, 6, 900, 0)).toEqual({ time: 5.98, snapped: false });
   });
 
   it("normalizes corrupt persisted settings", () => {
