@@ -5,6 +5,7 @@ import {
   evaluateTrack,
   interpolateTimelineValue,
   normalizeTimelineSequence,
+  normalizeTimelineEasing,
   upsertKeyframe,
   type TimelineTrack,
 } from "./timelineModel";
@@ -38,9 +39,23 @@ describe("timeline model", () => {
   });
 
   it("uses the outgoing keyframe easing", () => {
-    const eased = { ...track, keyframes: [{ ...track.keyframes[0], easing: "easeIn" as const }, track.keyframes[1]] };
-    expect(evaluateTrack(eased, 1)).toBe(1.25);
-    expect(applyTimelineEasing(0.5, "easeOut")).toBeCloseTo(0.875);
+    const eased = {
+      ...track,
+      keyframes: [{ ...track.keyframes[0], easing: "easeInExpo" as const }, track.keyframes[1]],
+    };
+    expect(evaluateTrack(eased, 1)).toBeCloseTo(0.3125);
+    expect(applyTimelineEasing(0.5, "easeOutExpo")).toBeCloseTo(0.96875);
+  });
+
+  it("supports custom cubic bezier easing", () => {
+    expect(applyTimelineEasing(0.5, "custom:0.42,0,0.58,1")).toBeCloseTo(0.5);
+  });
+
+  it("migrates legacy easing names to expo and defaults unknown values", () => {
+    expect(normalizeTimelineEasing("easeIn")).toBe("easeInExpo");
+    expect(normalizeTimelineEasing("easeOut")).toBe("easeOutExpo");
+    expect(normalizeTimelineEasing("easeInOut")).toBe("easeInOutExpo");
+    expect(normalizeTimelineEasing("not-real")).toBe("easeInOutExpo");
   });
 
   it("evaluates all tracks into Leva control keys", () => {
@@ -51,6 +66,11 @@ describe("timeline model", () => {
     const updated = upsertKeyframe(track, 2, 12);
     expect(updated.keyframes).toHaveLength(2);
     expect(updated.keyframes[1].value).toBe(12);
+  });
+
+  it("defaults new keys to expo easing", () => {
+    const updated = upsertKeyframe(track, 1, 5);
+    expect(updated.keyframes.find((keyframe) => keyframe.time === 1)?.easing).toBe("easeInOutExpo");
   });
 
   it("normalizes corrupt persisted settings", () => {

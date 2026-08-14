@@ -1,8 +1,12 @@
+import { EASING_OPTIONS, easeValue, parseCustomEasing, type EasingName } from "../controls/easing";
+
 export const TIMELINE_STORAGE_KEY = "stripes-engine-lab-timeline-v1";
 
 export type TimelineValue = number | string | boolean;
 
-export type TimelineEasing = "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring" | "hold";
+export type TimelineEasing = EasingName | "spring" | "hold";
+
+export const DEFAULT_TIMELINE_EASING: TimelineEasing = "easeInOutExpo";
 
 export type TimelineKeyframe = {
   id: string;
@@ -45,6 +49,7 @@ export const DEFAULT_TIMELINE_SEQUENCE: TimelineSequence = {
 };
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const PRESET_TIMELINE_EASINGS = new Set<string>(Object.values(EASING_OPTIONS));
 
 export function createTimelineId(prefix: string): string {
   const random = Math.random().toString(36).slice(2, 8);
@@ -62,12 +67,6 @@ export function sortKeyframes(keyframes: readonly TimelineKeyframe[]): TimelineK
 export function applyTimelineEasing(progress: number, easing: TimelineEasing): number {
   const t = Math.min(1, Math.max(0, progress));
   switch (easing) {
-    case "easeIn":
-      return t * t * t;
-    case "easeOut":
-      return 1 - (1 - t) ** 3;
-    case "easeInOut":
-      return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
     case "spring": {
       if (t === 0 || t === 1) return t;
       return 1 - Math.cos(t * Math.PI * 4.5) * Math.exp(-t * 6);
@@ -75,8 +74,17 @@ export function applyTimelineEasing(progress: number, easing: TimelineEasing): n
     case "hold":
       return 0;
     default:
-      return t;
+      return easeValue(t, easing);
   }
+}
+
+export function normalizeTimelineEasing(value: unknown): TimelineEasing {
+  if (typeof value !== "string") return DEFAULT_TIMELINE_EASING;
+  if (value === "easeIn") return "easeInExpo";
+  if (value === "easeOut") return "easeOutExpo";
+  if (value === "easeInOut") return "easeInOutExpo";
+  if (value === "spring" || value === "hold" || parseCustomEasing(value)) return value as TimelineEasing;
+  return PRESET_TIMELINE_EASINGS.has(value) ? (value as TimelineEasing) : DEFAULT_TIMELINE_EASING;
 }
 
 function interpolateHex(from: string, to: string, progress: number): string {
@@ -139,7 +147,7 @@ export function upsertKeyframe(
   track: TimelineTrack,
   time: number,
   value: TimelineValue,
-  easing: TimelineEasing = "easeInOut",
+  easing: TimelineEasing = DEFAULT_TIMELINE_EASING,
 ): TimelineTrack {
   const existing = track.keyframes.find((frame) => Math.abs(frame.time - time) < 0.001);
   const keyframes = existing
@@ -156,16 +164,24 @@ export function normalizeTimelineSequence(value: unknown): TimelineSequence {
       ? Math.min(3600, Math.max(0.1, raw.duration))
       : DEFAULT_TIMELINE_SEQUENCE.duration;
   const tracks = Array.isArray(raw.tracks)
-    ? raw.tracks.filter((track): track is TimelineTrack => {
-        if (!track || typeof track !== "object") return false;
-        const candidate = track as TimelineTrack;
-        return (
-          typeof candidate.id === "string" &&
-          typeof candidate.propertyKey === "string" &&
-          typeof candidate.propertyPath === "string" &&
-          Array.isArray(candidate.keyframes)
-        );
-      })
+    ? raw.tracks
+        .filter((track): track is TimelineTrack => {
+          if (!track || typeof track !== "object") return false;
+          const candidate = track as TimelineTrack;
+          return (
+            typeof candidate.id === "string" &&
+            typeof candidate.propertyKey === "string" &&
+            typeof candidate.propertyPath === "string" &&
+            Array.isArray(candidate.keyframes)
+          );
+        })
+        .map((track) => ({
+          ...track,
+          keyframes: track.keyframes.map((keyframe) => ({
+            ...keyframe,
+            easing: normalizeTimelineEasing(keyframe.easing),
+          })),
+        }))
     : [];
   return { duration, loop: raw.loop !== false, tracks };
 }

@@ -16,18 +16,19 @@ import {
 import {
   clampTimelineTime,
   createTimelineId,
+  DEFAULT_TIMELINE_EASING,
   evaluateSequence,
   loadTimelineSequence,
   saveTimelineSequence,
   sortKeyframes,
   upsertKeyframe,
-  type TimelineEasing,
   type TimelineKeyframe,
   type TimelineProperty,
   type TimelineSequence,
   type TimelineTrack,
   type TimelineValue,
 } from "../animation/timelineModel";
+import { TimelineEasingEditor } from "./TimelineEasingEditor";
 
 type LevaDataInput = {
   type: string;
@@ -53,15 +54,6 @@ type TimelineEditorProps = {
   onTimeChange?: (seconds: number) => void;
   onPlayingChange?: (playing: boolean) => void;
 };
-
-const EASING_OPTIONS: Array<{ value: TimelineEasing; label: string }> = [
-  { value: "linear", label: "Linear" },
-  { value: "easeIn", label: "Ease in" },
-  { value: "easeOut", label: "Ease out" },
-  { value: "easeInOut", label: "Ease in + out" },
-  { value: "spring", label: "Spring" },
-  { value: "hold", label: "Hold" },
-];
 
 function inputLabel(input: LevaDataInput, key: string): string {
   return typeof input.label === "string" && input.label.trim() ? input.label : key.replace(/([A-Z])/g, " $1").trim();
@@ -407,7 +399,9 @@ export function TimelineEditor({
       propertyPath: property.path,
       label: property.label,
       valueType: property.valueType,
-      keyframes: [{ id: createTimelineId("key"), time: currentTime, value: property.value, easing: "easeInOut" }],
+      keyframes: [
+        { id: createTimelineId("key"), time: currentTime, value: property.value, easing: DEFAULT_TIMELINE_EASING },
+      ],
     };
     setSequence((current) => ({ ...current, tracks: [...current.tracks, track] }));
     setSelectedTrackId(track.id);
@@ -730,7 +724,7 @@ export function TimelineEditor({
                         return (
                           <span
                             key={`${keyframe.id}-segment`}
-                            className={`timeline-key-segment is-${keyframe.easing}`}
+                            className={`timeline-key-segment${keyframe.easing === "hold" ? " is-hold" : ""}${keyframe.easing === "spring" ? " is-spring" : ""}`}
                             style={{
                               left: `${(keyframe.time / sequence.duration) * 100}%`,
                               width: `${((next.time - keyframe.time) / sequence.duration) * 100}%`,
@@ -831,19 +825,11 @@ export function TimelineEditor({
                     />
                   )}
                 </label>
-                <label>
-                  To next key
-                  <select
-                    value={selectedKey.easing}
-                    onChange={(event) => updateSelectedKey({ easing: event.currentTarget.value as TimelineEasing })}
-                  >
-                    {EASING_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <TimelineEasingEditor
+                  keyframeId={selectedKey.id}
+                  value={selectedKey.easing}
+                  onChange={(easing) => updateSelectedKey({ easing })}
+                />
               </aside>
             ) : null}
           </div>
