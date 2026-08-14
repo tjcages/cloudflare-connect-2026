@@ -2588,10 +2588,9 @@ body.lab-sidebar-resizing canvas {
   position: absolute;
   z-index: 12;
   top: -5px;
-  left: 50%;
-  width: 120px;
+  right: 0;
+  left: 0;
   height: 11px;
-  translate: -50% 0;
   cursor: ns-resize !important;
 }
 
@@ -3180,7 +3179,12 @@ body.lab-sidebar-resizing canvas {
   min-height: 0;
   flex: 1;
   overflow: hidden auto;
+  scrollbar-width: none;
   cursor: ew-resize;
+}
+
+.timeline-canvas::-webkit-scrollbar {
+  display: none;
 }
 
 .timeline-grid-lines,
