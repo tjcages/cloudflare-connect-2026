@@ -54,4 +54,10 @@ describe("nextLabSettings", () => {
       canvasHeight: 800,
     });
   });
+
+  it("preserves a shared size selector id", () => {
+    expect(normalizeLabSettings({ clientSizeId: "shared:abc-123" })).toMatchObject({
+      clientSizeId: "shared:abc-123",
+    });
+  });
 });

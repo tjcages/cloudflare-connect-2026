@@ -23,11 +23,23 @@ import {
   resolveClientPreviewCanvasSize,
   resolveClientGraphicMode,
   resolveClientSvgExportLayers,
+  parseSharedClientColorId,
+  parseSharedClientStyleId,
+  sharedClientColorId,
+  sharedClientStyleId,
   shouldSyncHeroGraphicFromFlags,
+  twizzlerLevaFromLayout,
   withClientRainFxVisibility,
 } from "./clientPresets";
 
 describe("client preview presets", () => {
+  it("round-trips shared style and color selector ids", () => {
+    expect(parseSharedClientStyleId(sharedClientStyleId("style-123"))).toBe("style-123");
+    expect(parseSharedClientColorId(sharedClientColorId("color-456"))).toBe("color-456");
+    expect(parseSharedClientStyleId("classic")).toBeNull();
+    expect(parseSharedClientColorId("coral-classic")).toBeNull();
+  });
+
   it("ships size, layout, color, and appearance preset catalogs", () => {
     expect(CLIENT_SIZE_PRESETS.map((p) => p.id)).toEqual(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
     expect(CLIENT_LAYOUT_PRESETS).toHaveLength(4);
@@ -179,7 +191,7 @@ describe("client preview presets", () => {
     // Rain off must not disable the stripe engine — LabApp hides the rain canvas instead.
     expect(bundle.engineConfig.stripesEnabled).toBe(true);
     expect(bundle.twizzler.lineCount).toBe(56);
-    expect(bundle.twizzler.lineWidth).toBeCloseTo(1.15);
+    expect(bundle.twizzler.lineWidth).toBeCloseTo(2.3);
     expect(bundle.twizzler.color).toBe("#f46021");
     expect(bundle.twizzler.colorFar).toBe("#fea700");
     expect(bundle.twizzler.gradientStops).toEqual([
@@ -241,8 +253,8 @@ describe("client preview presets", () => {
     expect(bundle.twizzler.color).toBe("#ffefd4");
     expect(bundle.twizzler.colorFar).toBe("#ffd39e");
     expect(bundle.twizzler.colorEdge).toBe("#f0f0f0");
-    expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-28);
-    expect(bundle.twizzler.centerY).toBeCloseTo(0.38);
+    expect(bundle.twizzler.rotateYDeg).toBeCloseTo(-48);
+    expect(bundle.twizzler.centerY).toBeCloseTo(0.28);
   });
 
   it("layout presets never carry color fields", () => {
@@ -252,6 +264,43 @@ describe("client preview presets", () => {
       expect(layout.twizzler).not.toHaveProperty("colorNear");
       expect(layout.twizzler).not.toHaveProperty("colorEdge");
     }
+  });
+
+  it("gives every built-in style a clearly distinct silhouette", () => {
+    const signatures = CLIENT_LAYOUT_PRESETS.map((layout) => ({
+      id: layout.id,
+      values: Object.values(resetTweaksForLayout(layout.id)),
+    }));
+
+    for (let left = 0; left < signatures.length; left += 1) {
+      for (let right = left + 1; right < signatures.length; right += 1) {
+        const changed = signatures[left]!.values.filter(
+          (value, index) => Math.abs(value - signatures[right]!.values[index]!) > 0.001,
+        ).length;
+        expect(changed, `${signatures[left]!.id} vs ${signatures[right]!.id}`).toBeGreaterThanOrEqual(6);
+      }
+    }
+  });
+
+  it("applies stroke, density, depth, and twist when a style changes", () => {
+    const highFan = twizzlerLevaFromLayout("high-fan");
+    expect(highFan).toMatchObject({
+      twizzlerScale: 1.28,
+      twizzlerTwist: 2.1,
+      twizzlerAmplitude: 1.9,
+      twizzlerLineCount: 84,
+      twizzlerLineWidth: 2.75,
+      twizzlerPerspectiveWidth: 3.4,
+      twizzlerPointSpacing: 7,
+      twizzlerCamDist: 8.4,
+    });
+
+    expect(twizzlerLevaFromLayout("compact")).toMatchObject({
+      twizzlerScale: 0.66,
+      twizzlerLineCount: 26,
+      twizzlerPointSpacing: 16,
+      twizzlerCamDist: 14,
+    });
   });
 
   it("size presets only define canvas dimensions", () => {
@@ -288,6 +337,18 @@ describe("client preview presets", () => {
     expect(resolveClientPreviewCanvasSize(CUSTOM_CLIENT_SIZE_ID, 1920, 1080, "pixels")).toEqual({
       width: 1920,
       height: 1080,
+    });
+  });
+
+  it("resolves shared print sizes from the database catalog", () => {
+    const shared = [{ id: "lobby", name: "Lobby wall", unit: "inches" as const, width: 20, height: 10, ppi: 300 }];
+    expect(resolveClientCanvasSize("shared:lobby", 1280, 720, "pixels", 300, shared)).toEqual({
+      width: 6000,
+      height: 3000,
+    });
+    expect(resolveClientPreviewCanvasSize("shared:lobby", 6000, 3000, "inches")).toEqual({
+      width: 1600,
+      height: 800,
     });
   });
 

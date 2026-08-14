@@ -2,8 +2,9 @@ import { migrateLegacyConfig, sanitizeThemedConfig } from "@necatikcl/stripes-en
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import type {
   ClientAppearanceId,
-  ClientColorPresetId,
-  ClientLayoutPresetId,
+  ClientColorId,
+  ClientGraphicMode,
+  ClientStyleId,
   ClientSizeId,
   ClientSizeUnit,
 } from "./client/clientPresets";
@@ -122,9 +123,11 @@ export type LabSettings = {
   /** Custom dimensions in the selected unit; independent from live preview pixels. */
   clientSizeWidth: number;
   clientSizeHeight: number;
-  clientLayoutId: ClientLayoutPresetId;
-  clientColorId: ClientColorPresetId;
+  clientLayoutId: ClientStyleId;
+  clientColorId: ClientColorId;
   clientAppearanceId: ClientAppearanceId;
+  /** Explicit Hero Graphic selection; avoids reconstructing it from separately persisted layer flags. */
+  clientGraphicMode: ClientGraphicMode;
 };
 
 export const DEFAULT_LAB_SETTINGS: LabSettings = {
@@ -233,23 +236,34 @@ const CLIENT_COLOR_IDS = new Set<string>([
   "light",
 ]);
 const CLIENT_APPEARANCE_IDS = new Set<string>(["light", "dark"]);
+const CLIENT_GRAPHIC_MODES = new Set<string>(["twizzler", "rain", "both"]);
 
 function normalizeClientSizeId(value: unknown): ClientSizeId {
-  return typeof value === "string" && CLIENT_SIZE_IDS.has(value) ? (value as ClientSizeId) : "hero-16x9";
+  return typeof value === "string" && (CLIENT_SIZE_IDS.has(value) || /^shared:[A-Za-z0-9-]+$/.test(value))
+    ? (value as ClientSizeId)
+    : "hero-16x9";
 }
 
-function normalizeClientLayoutId(value: unknown): ClientLayoutPresetId {
-  return typeof value === "string" && CLIENT_LAYOUT_IDS.has(value) ? (value as ClientLayoutPresetId) : "classic";
+function normalizeClientLayoutId(value: unknown): ClientStyleId {
+  return typeof value === "string" && (CLIENT_LAYOUT_IDS.has(value) || /^shared-style:[A-Za-z0-9-]+$/.test(value))
+    ? (value as ClientStyleId)
+    : "classic";
 }
 
-function normalizeClientColorId(value: unknown): ClientColorPresetId {
+function normalizeClientColorId(value: unknown): ClientColorId {
   // Graphite was removed (CF-42); map legacy saves to Light (cream / dark-Appearance ink).
   if (value === "graphite") return "light";
-  return typeof value === "string" && CLIENT_COLOR_IDS.has(value) ? (value as ClientColorPresetId) : "coral-classic";
+  return typeof value === "string" && (CLIENT_COLOR_IDS.has(value) || /^shared-color:[A-Za-z0-9-]+$/.test(value))
+    ? (value as ClientColorId)
+    : "coral-classic";
 }
 
 function normalizeClientAppearanceId(value: unknown): ClientAppearanceId {
   return typeof value === "string" && CLIENT_APPEARANCE_IDS.has(value) ? (value as ClientAppearanceId) : "light";
+}
+
+function normalizeClientGraphicMode(value: unknown): ClientGraphicMode {
+  return typeof value === "string" && CLIENT_GRAPHIC_MODES.has(value) ? (value as ClientGraphicMode) : "twizzler";
 }
 
 function normalizeConnectCameraFromSettings(i: Partial<LabSettings> & Record<string, unknown>): {
@@ -612,6 +626,7 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
     clientLayoutId: normalizeClientLayoutId(i.clientLayoutId),
     clientColorId: normalizeClientColorId(i.clientColorId),
     clientAppearanceId: normalizeClientAppearanceId(i.clientAppearanceId),
+    clientGraphicMode: normalizeClientGraphicMode(i.clientGraphicMode),
   };
 }
 
