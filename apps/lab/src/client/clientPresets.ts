@@ -20,6 +20,9 @@ export const MAX_CLIENT_PRINT_PPI = 1200;
 export const MAX_CLIENT_CANVAS_DIMENSION_PX = 8192;
 export const MAX_CLIENT_PRINT_PREVIEW_DIMENSION_PX = 1600;
 export type ClientLayoutPresetId = "classic" | "low-ribbon" | "high-fan" | "compact";
+export const SHARED_CLIENT_STYLE_PREFIX = "shared-style:" as const;
+export type SharedClientStyleId = `${typeof SHARED_CLIENT_STYLE_PREFIX}${string}`;
+export type ClientStyleId = ClientLayoutPresetId | SharedClientStyleId;
 export type ClientColorPresetId =
   | "coral-classic"
   | "red"
@@ -29,6 +32,9 @@ export type ClientColorPresetId =
   | "soft-gold"
   | "deep-ember"
   | "light";
+export const SHARED_CLIENT_COLOR_PREFIX = "shared-color:" as const;
+export type SharedClientColorId = `${typeof SHARED_CLIENT_COLOR_PREFIX}${string}`;
+export type ClientColorId = ClientColorPresetId | SharedClientColorId;
 /** Client stage look: light = orange Twizzler on white; dark = cream Twizzler on deep orange. */
 export type ClientAppearanceId = "light" | "dark";
 /** Client stack: Twizzler ribbon, section-grid Rain stripes, or both. */
@@ -118,6 +124,26 @@ export const CLIENT_SIZE_PRESETS: readonly ClientSizePreset[] = [
   { id: "hero-16x9", label: "Hero 16:9", width: 1280, height: 720 },
   { id: "square", label: "Square", width: 800, height: 800 },
 ];
+
+export function sharedClientStyleId(id: string): SharedClientStyleId {
+  return `${SHARED_CLIENT_STYLE_PREFIX}${id}`;
+}
+
+export function parseSharedClientStyleId(value: string): string | null {
+  if (!value.startsWith(SHARED_CLIENT_STYLE_PREFIX)) return null;
+  const id = value.slice(SHARED_CLIENT_STYLE_PREFIX.length).trim();
+  return id || null;
+}
+
+export function sharedClientColorId(id: string): SharedClientColorId {
+  return `${SHARED_CLIENT_COLOR_PREFIX}${id}`;
+}
+
+export function parseSharedClientColorId(value: string): string | null {
+  if (!value.startsWith(SHARED_CLIENT_COLOR_PREFIX)) return null;
+  const id = value.slice(SHARED_CLIENT_COLOR_PREFIX.length).trim();
+  return id || null;
+}
 
 export const CLIENT_LAYOUT_PRESETS: readonly ClientLayoutPreset[] = [
   {

@@ -2,9 +2,9 @@ import { migrateLegacyConfig, sanitizeThemedConfig } from "@necatikcl/stripes-en
 import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import type {
   ClientAppearanceId,
-  ClientColorPresetId,
+  ClientColorId,
   ClientGraphicMode,
-  ClientLayoutPresetId,
+  ClientStyleId,
   ClientSizeId,
   ClientSizeUnit,
 } from "./client/clientPresets";
@@ -123,8 +123,8 @@ export type LabSettings = {
   /** Custom dimensions in the selected unit; independent from live preview pixels. */
   clientSizeWidth: number;
   clientSizeHeight: number;
-  clientLayoutId: ClientLayoutPresetId;
-  clientColorId: ClientColorPresetId;
+  clientLayoutId: ClientStyleId;
+  clientColorId: ClientColorId;
   clientAppearanceId: ClientAppearanceId;
   /** Explicit Hero Graphic selection; avoids reconstructing it from separately persisted layer flags. */
   clientGraphicMode: ClientGraphicMode;
@@ -244,14 +244,18 @@ function normalizeClientSizeId(value: unknown): ClientSizeId {
     : "hero-16x9";
 }
 
-function normalizeClientLayoutId(value: unknown): ClientLayoutPresetId {
-  return typeof value === "string" && CLIENT_LAYOUT_IDS.has(value) ? (value as ClientLayoutPresetId) : "classic";
+function normalizeClientLayoutId(value: unknown): ClientStyleId {
+  return typeof value === "string" && (CLIENT_LAYOUT_IDS.has(value) || /^shared-style:[A-Za-z0-9-]+$/.test(value))
+    ? (value as ClientStyleId)
+    : "classic";
 }
 
-function normalizeClientColorId(value: unknown): ClientColorPresetId {
+function normalizeClientColorId(value: unknown): ClientColorId {
   // Graphite was removed (CF-42); map legacy saves to Light (cream / dark-Appearance ink).
   if (value === "graphite") return "light";
-  return typeof value === "string" && CLIENT_COLOR_IDS.has(value) ? (value as ClientColorPresetId) : "coral-classic";
+  return typeof value === "string" && (CLIENT_COLOR_IDS.has(value) || /^shared-color:[A-Za-z0-9-]+$/.test(value))
+    ? (value as ClientColorId)
+    : "coral-classic";
 }
 
 function normalizeClientAppearanceId(value: unknown): ClientAppearanceId {

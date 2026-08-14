@@ -91,17 +91,23 @@ import {
   findClientColorPreset,
   matchClientSizePresetId,
   normalizeClientPrintPpi,
+  parseSharedClientColorId,
+  parseSharedClientStyleId,
   resolveClientCanvasSize,
   resolveClientPreviewCanvasSize,
   rainLevaFromAppearance,
   rainLevaFromColor,
   rainLevaFromLayout,
   resetTweaksForLayout,
+  sharedClientColorId,
+  sharedClientStyleId,
   shouldSyncHeroGraphicFromFlags,
   type ClientAppearanceId,
+  type ClientColorId,
   type ClientColorPresetId,
   type ClientGraphicMode,
   type ClientLayoutPresetId,
+  type ClientStyleId,
   type ClientSizeId,
   type ClientSizeUnit,
 } from "../client/clientPresets";
@@ -421,6 +427,9 @@ export interface TextureOption {
   label: string;
 }
 
+export type SharedVisualPresetOption = { id: string; name: string };
+export type SharedVisualPresetStatus = "loading" | "ready" | "saving" | "deleting" | "error";
+
 type BackgroundFillMode = "transparent" | "solid" | "gradient";
 
 export interface EngineControlsResult {
@@ -538,13 +547,8 @@ export function useEngineControls(
     initialConfig?: ThemedEngineConfig;
     initialEditTheme?: LabEditTheme;
     configScope?: "global" | "surface";
-    /** Agency / client review: curated Twizzler + presets + rain (Default panel). */
+    /** Agency / client review: curated Twizzler + presets + rain. */
     clientMode?: boolean;
-    /**
-     * Client Default vs Advanced. Advanced reveals hideInClient folders without
-     * rebuilding the Leva schema (so knob values are not wiped on toggle).
-     */
-    clientPanelMode?: "default" | "advanced";
     /** Notify LabApp when client Hero → Graphic changes (for shader bootstrap). */
     onClientGraphicModeChange?: (mode: ClientGraphicMode) => void;
     /** Shared D1-backed sizes shown before the final Custom… option. */
@@ -555,6 +559,16 @@ export function useEngineControls(
     onSaveSharedSize?: (name: string) => void;
     /** Remove a selected shared size from the team catalog. */
     onDeleteSharedSize?: (id: string) => void;
+    sharedStylePresets?: readonly SharedVisualPresetOption[];
+    sharedStyleStatus?: SharedVisualPresetStatus;
+    onSaveSharedStyle?: () => void;
+    onApplySharedStyle?: (id: string) => void;
+    onDeleteSharedStyle?: (id: string) => void;
+    sharedColorPresets?: readonly SharedVisualPresetOption[];
+    sharedColorStatus?: SharedVisualPresetStatus;
+    onSaveSharedColor?: () => void;
+    onApplySharedColor?: (id: string) => void;
+    onDeleteSharedColor?: (id: string) => void;
   } = {},
 ): EngineControlsResult {
   const surfaceConfig = options.configScope === "surface";
@@ -562,8 +576,11 @@ export function useEngineControls(
   const sharedSizePresets = options.sharedSizePresets ?? [];
   const sharedSizeStatus = options.sharedSizeStatus ?? "ready";
   const sharedSizesLoading = sharedSizeStatus === "loading";
-  const clientPanelMode = options.clientPanelMode === "advanced" ? "advanced" : "default";
-  const clientDefaultPanel = clientApp && clientPanelMode === "default";
+  const sharedStylePresets = options.sharedStylePresets ?? [];
+  const sharedStyleStatus = options.sharedStyleStatus ?? "ready";
+  const sharedColorPresets = options.sharedColorPresets ?? [];
+  const sharedColorStatus = options.sharedColorStatus ?? "ready";
+  const clientDefaultPanel = clientApp;
   clientDefaultPanelActive = clientDefaultPanel;
   clientAppActive = clientApp;
   const showShaderCamera = options.showShaderCamera === true && !clientDefaultPanel;
@@ -587,6 +604,18 @@ export function useEngineControls(
   onSaveSharedSizeRef.current = options.onSaveSharedSize;
   const onDeleteSharedSizeRef = useRef(options.onDeleteSharedSize);
   onDeleteSharedSizeRef.current = options.onDeleteSharedSize;
+  const onSaveSharedStyleRef = useRef(options.onSaveSharedStyle);
+  onSaveSharedStyleRef.current = options.onSaveSharedStyle;
+  const onApplySharedStyleRef = useRef(options.onApplySharedStyle);
+  onApplySharedStyleRef.current = options.onApplySharedStyle;
+  const onDeleteSharedStyleRef = useRef(options.onDeleteSharedStyle);
+  onDeleteSharedStyleRef.current = options.onDeleteSharedStyle;
+  const onSaveSharedColorRef = useRef(options.onSaveSharedColor);
+  onSaveSharedColorRef.current = options.onSaveSharedColor;
+  const onApplySharedColorRef = useRef(options.onApplySharedColor);
+  onApplySharedColorRef.current = options.onApplySharedColor;
+  const onDeleteSharedColorRef = useRef(options.onDeleteSharedColor);
+  onDeleteSharedColorRef.current = options.onDeleteSharedColor;
   const showCometLogoShaderConfig = () =>
     activeShaderConfigRef.current === "comet-logo" &&
     (!clientAppRef.current || clientRainAuthoringActive) &&
@@ -782,11 +811,10 @@ export function useEngineControls(
       initialLabSettings.clientSizeUnit,
       initialLabSettings.clientSizePpi,
     ).height.toLocaleString()} px`,
-    clientLayoutId: (initialLabSettings.clientLayoutId ??
-      DEFAULT_CLIENT_PREVIEW_STATE.layoutId) as ClientLayoutPresetId,
+    clientLayoutId: (initialLabSettings.clientLayoutId ?? DEFAULT_CLIENT_PREVIEW_STATE.layoutId) as ClientStyleId,
     clientAppearanceId: (initialLabSettings.clientAppearanceId ??
       DEFAULT_CLIENT_PREVIEW_STATE.appearanceId) as ClientAppearanceId,
-    clientColorId: (initialLabSettings.clientColorId ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId) as ClientColorPresetId,
+    clientColorId: (initialLabSettings.clientColorId ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId) as ClientColorId,
     clientHeroGraphic: initialLabSettings.clientGraphicMode,
     backgroundHex,
   });
@@ -1332,12 +1360,24 @@ export function useEngineControls(
     .map((preset) => `${preset.id}:${preset.name}:${preset.unit}:${preset.width}:${preset.height}:${preset.ppi}`)
     .join("|");
   const clientSizeUnitOptions = { Pixels: "pixels", Inches: "inches" } as const;
-  const clientLayoutOptions = Object.fromEntries(
-    CLIENT_LAYOUT_PRESETS.map((preset) => [preset.label, preset.id]),
-  ) as Record<string, ClientLayoutPresetId>;
-  const clientColorOptions = Object.fromEntries(
-    CLIENT_COLOR_PRESETS.map((preset) => [preset.label, preset.id]),
-  ) as Record<string, ClientColorPresetId>;
+  const builtinStyleLabels = new Set(CLIENT_LAYOUT_PRESETS.map((preset) => preset.label));
+  const builtinColorLabels = new Set(CLIENT_COLOR_PRESETS.map((preset) => preset.label));
+  const clientLayoutOptions = Object.fromEntries([
+    ...CLIENT_LAYOUT_PRESETS.map((preset) => [preset.label, preset.id]),
+    ...sharedStylePresets.map((preset) => [
+      builtinStyleLabels.has(preset.name) ? `${preset.name} (Shared)` : preset.name,
+      sharedClientStyleId(preset.id),
+    ]),
+  ]) as Record<string, ClientStyleId>;
+  const clientColorOptions = Object.fromEntries([
+    ...CLIENT_COLOR_PRESETS.map((preset) => [preset.label, preset.id]),
+    ...sharedColorPresets.map((preset) => [
+      builtinColorLabels.has(preset.name) ? `${preset.name} (Shared)` : preset.name,
+      sharedClientColorId(preset.id),
+    ]),
+  ]) as Record<string, ClientColorId>;
+  const sharedStyleOptionsKey = sharedStylePresets.map((preset) => `${preset.id}:${preset.name}`).join("|");
+  const sharedColorOptionsKey = sharedColorPresets.map((preset) => `${preset.id}:${preset.name}`).join("|");
   const clientAppearanceOptions = Object.fromEntries(
     CLIENT_APPEARANCE_PRESETS.map((preset) => [preset.label, preset.id]),
   ) as Record<string, ClientAppearanceId>;
@@ -1451,7 +1491,7 @@ export function useEngineControls(
             },
             clientSharedSizeStart: {
               ...buttonGroup({
-                label: "Team size",
+                label: "Shared preset",
                 opts: {
                   Add: () => {
                     shaderControlSetterRef.current?.({ clientSharedSizeNaming: true });
@@ -1465,7 +1505,7 @@ export function useEngineControls(
             },
             clientSharedSizeActions: {
               ...buttonGroup({
-                label: "Team size",
+                label: "Shared preset",
                 opts: {
                   Add: (get) => {
                     const name = String(get("Size.clientSharedSizeName") ?? "").trim();
@@ -1484,7 +1524,7 @@ export function useEngineControls(
             },
             clientSharedSizeRemove: {
               ...buttonGroup({
-                label: "Team size",
+                label: "Shared preset",
                 opts: {
                   Remove: (get) => {
                     const id = parseSharedSizePresetId(String(get("Size.clientSize") ?? ""));
@@ -1506,6 +1546,27 @@ export function useEngineControls(
               options: clientLayoutOptions,
               label: "Preset",
             },
+            clientSharedStyleAdd: {
+              ...buttonGroup({
+                label: "Shared preset",
+                opts: { Add: () => onSaveSharedStyleRef.current?.() },
+              }),
+              render: () => sharedStyleStatus === "ready" || sharedStyleStatus === "error",
+            },
+            clientSharedStyleRemove: {
+              ...buttonGroup({
+                label: "Shared preset",
+                opts: {
+                  Remove: (get) => {
+                    const id = parseSharedClientStyleId(String(get("Style.clientLayout") ?? ""));
+                    if (id) onDeleteSharedStyleRef.current?.(id);
+                  },
+                },
+              }),
+              render: (get: (path: string) => unknown) =>
+                sharedStyleStatus === "ready" &&
+                parseSharedClientStyleId(String(get("Style.clientLayout") ?? "")) !== null,
+            },
           },
           { defaultOpen: true, clientOnly: true },
         ),
@@ -1517,6 +1578,28 @@ export function useEngineControls(
               options: clientColorOptions,
               label: "Preset",
               render: () => clientAppRef.current,
+            },
+            clientSharedColorAdd: {
+              ...buttonGroup({
+                label: "Shared preset",
+                opts: { Add: () => onSaveSharedColorRef.current?.() },
+              }),
+              render: () => clientAppRef.current && (sharedColorStatus === "ready" || sharedColorStatus === "error"),
+            },
+            clientSharedColorRemove: {
+              ...buttonGroup({
+                label: "Shared preset",
+                opts: {
+                  Remove: (get) => {
+                    const id = parseSharedClientColorId(String(get("Appearance.clientColor") ?? ""));
+                    if (id) onDeleteSharedColorRef.current?.(id);
+                  },
+                },
+              }),
+              render: (get: (path: string) => unknown) =>
+                clientAppRef.current &&
+                sharedColorStatus === "ready" &&
+                parseSharedClientColorId(String(get("Appearance.clientColor") ?? "")) !== null,
             },
             clientAppearance: {
               value: levaSchemaSeedRef.current.clientAppearanceId,
@@ -5020,9 +5103,18 @@ export function useEngineControls(
         ),
       }),
     { store: shaderStore },
-    // Do NOT depend on client Default/Advanced or stripeKey — rebuilding the
-    // schema overrides live Leva values (CF-27 layouts, CF-68 fast slider crash).
-    [sharedSizeOptionsKey, sharedSizeStatus, stripePaletteOptionsKey, stripePaletteValue],
+    // Do not depend on stripeKey — rebuilding the schema overrides live Leva
+    // values (CF-27 layouts, CF-68 fast slider crash).
+    [
+      sharedColorOptionsKey,
+      sharedColorStatus,
+      sharedSizeOptionsKey,
+      sharedSizeStatus,
+      sharedStyleOptionsKey,
+      sharedStyleStatus,
+      stripePaletteOptionsKey,
+      stripePaletteValue,
+    ],
   );
   shaderValuesRecordRef.current = shaderValues as unknown as Record<string, unknown>;
   shaderSetterRawRef.current = setShaderControl as (values: Record<string, unknown>) => void;
@@ -5032,12 +5124,12 @@ export function useEngineControls(
     (shaderValues as unknown as Record<string, unknown>).clientLayout ??
       initialLabSettings.clientLayoutId ??
       DEFAULT_CLIENT_PREVIEW_STATE.layoutId,
-  ) as ClientLayoutPresetId;
+  ) as ClientStyleId;
   const clientColorId = String(
     (shaderValues as unknown as Record<string, unknown>).clientColor ??
       initialLabSettings.clientColorId ??
       DEFAULT_CLIENT_PREVIEW_STATE.colorId,
-  ) as ClientColorPresetId;
+  ) as ClientColorId;
   const rawClientSizeId = String(
     (shaderValues as unknown as Record<string, unknown>).clientSize ??
       initialLabSettings.clientSizeId ??
@@ -5249,7 +5341,13 @@ export function useEngineControls(
     }
     if (lastClientLayoutIdRef.current === clientLayoutId) return;
     lastClientLayoutIdRef.current = clientLayoutId;
-    const tweaks = resetTweaksForLayout(clientLayoutId);
+    const sharedStyleId = parseSharedClientStyleId(clientLayoutId);
+    if (sharedStyleId) {
+      onApplySharedStyleRef.current?.(sharedStyleId);
+      return;
+    }
+    const builtinLayoutId = clientLayoutId as ClientLayoutPresetId;
+    const tweaks = resetTweaksForLayout(builtinLayoutId);
     const flags = clientGraphicFlags(heroGraphicId);
     const patch: Record<string, unknown> = {};
     if (flags.twizzlerEnabled) {
@@ -5264,7 +5362,7 @@ export function useEngineControls(
         twizzlerSpeed: tweaks.speed,
       });
     }
-    if (flags.rainEnabled) Object.assign(patch, rainLevaFromLayout(clientLayoutId));
+    if (flags.rainEnabled) Object.assign(patch, rainLevaFromLayout(builtinLayoutId));
     if (Object.keys(patch).length === 0) return;
     try {
       textureControlSetterRef.current?.(patch);
@@ -5284,7 +5382,13 @@ export function useEngineControls(
     }
     if (lastClientColorIdRef.current === clientColorId) return;
     lastClientColorIdRef.current = clientColorId;
-    const color = findClientColorPreset(clientColorId).twizzler;
+    const sharedColorId = parseSharedClientColorId(clientColorId);
+    if (sharedColorId) {
+      onApplySharedColorRef.current?.(sharedColorId);
+      return;
+    }
+    const builtinColorId = clientColorId as ClientColorPresetId;
+    const color = findClientColorPreset(builtinColorId).twizzler;
     const flags = clientGraphicFlags(heroGraphicId);
     const patch: Record<string, unknown> = {};
     if (flags.twizzlerEnabled) {
@@ -5298,7 +5402,7 @@ export function useEngineControls(
       });
     }
     if (flags.rainEnabled) {
-      const rain = rainLevaFromColor(clientColorId);
+      const rain = rainLevaFromColor(builtinColorId);
       Object.assign(patch, rain);
       const palette = rain.stripePalette;
       if (typeof palette === "string") handlePaletteChange(palette);
@@ -5345,13 +5449,6 @@ export function useEngineControls(
     if (levaValuesEqual(serialized, twizzlerGradientStopsValue)) return;
     shaderPatchWriter.write({ twizzlerGradientStops: serialized });
   }, [shaderPatchWriter, ribbonColorMode, twizzlerGradientStopsValue, twizzlerColorValue, twizzlerColorFarValue]);
-
-  // Nudge the store when Default↔Advanced flips so Leva recomputes visible paths
-  // (render gates read refs; without a store tick folders stay stale).
-  useEffect(() => {
-    if (!clientApp) return;
-    shaderSetterRawRef.current?.({});
-  }, [clientApp, clientPanelMode]);
 
   useEffect(() => {
     textureSetterRawRef.current?.({});

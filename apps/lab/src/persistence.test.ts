@@ -506,6 +506,16 @@ describe("client preset ids in lab settings", () => {
     expect(loaded.clientGraphicMode).toBe("rain");
   });
 
+  it("persists shared style and color catalog selections", () => {
+    saveLabSettings({
+      clientLayoutId: "shared-style:style-123",
+      clientColorId: "shared-color:color-456",
+    });
+    const loaded = loadLabSettings();
+    expect(loaded.clientLayoutId).toBe("shared-style:style-123");
+    expect(loaded.clientColorId).toBe("shared-color:color-456");
+  });
+
   it("defaults the client Graphic selection to Twizzler", () => {
     expect(loadLabSettings().clientGraphicMode).toBe("twizzler");
   });

@@ -61,30 +61,22 @@ import {
   savePresets,
   type ConfigPreset,
 } from "./presets";
-import {
-  applyClientLayout,
-  listSavedLayouts,
-  loadActiveClientLayoutName,
-  loadBannerLayout,
-  saveActiveClientLayoutName,
-} from "./client/savedLayouts";
+import { loadActiveClientLayoutName, saveActiveClientLayoutName } from "./client/savedLayouts";
 import {
   CUSTOM_CLIENT_SIZE_ID,
   resolveClientGraphicMode,
   clientGraphicFlags,
   resolveClientSvgExportLayers,
+  sharedClientColorId,
+  sharedClientStyleId,
   withClientRainFxVisibility,
   type ClientGraphicMode,
 } from "./client/clientPresets";
 import { createSharedSizePreset, deleteSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
-import { createSharedPreset, loadSharedPresets } from "./client/sharedPresetApi";
+import { createSharedPreset, deleteSharedPreset, loadSharedPresets } from "./client/sharedPresetApi";
 import {
   SHARED_PRESET_SCHEMA_VERSIONS,
-  configPresetFromSharedLayout,
-  mergeSharedLayoutLab,
   mergeSharedStyleLab,
-  sharedLayoutInputFromConfigPreset,
-  sharedLayoutLabFromSnapshot,
   sharedStyleLabFromSnapshot,
   type SharedColorPresetPayload,
   type SharedPreset,
@@ -158,33 +150,9 @@ import {
   type SurfaceWorkspace,
 } from "./surfaceWorkspace";
 
-type SharedLayoutPresetRecord = SharedPreset<"layout">;
 type SharedStylePresetRecord = SharedPreset<"style">;
 type SharedColorPresetRecord = SharedPreset<"color">;
-type SharedLayoutStatus = "loading" | "ready" | "saving" | "error";
-
-const SHARED_LAYOUT_SELECTION_PREFIX = "shared-layout:";
-const LOCAL_LAYOUT_SELECTION_PREFIX = "local-layout:";
-const BUILTIN_LAYOUT_SELECTION_PREFIX = "builtin-layout:";
-const SHARED_STYLE_SELECTION_KEY = "stripes-engine-client-active-shared-style";
-const SHARED_COLOR_SELECTION_KEY = "stripes-engine-client-active-shared-color";
-
-function loadSharedSelection(key: string): string {
-  try {
-    return localStorage.getItem(key) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function saveSharedSelection(key: string, id: string): void {
-  try {
-    if (id) localStorage.setItem(key, id);
-    else localStorage.removeItem(key);
-  } catch {
-    /* ignore unavailable storage */
-  }
-}
+type SharedCatalogStatus = "loading" | "ready" | "saving" | "deleting" | "error";
 
 function withSharedColors(themed: ThemedEngineConfig, payload: SharedColorPresetPayload): ThemedEngineConfig {
   const light = normalizeEngineConfig(resolveThemedConfig(themed, "light"));
@@ -215,30 +183,6 @@ function withSharedColors(themed: ThemedEngineConfig, payload: SharedColorPreset
     payload.darkBackgroundColor === undefined ? payload.backgroundColor : payload.darkBackgroundColor,
   );
   return { ...nextLight, dark: diffEngineConfig(nextLight, nextDark) };
-}
-
-function sharedLayoutSelection(id: string): string {
-  return `${SHARED_LAYOUT_SELECTION_PREFIX}${id}`;
-}
-
-function builtinLayoutSelection(name: string): string {
-  return `${BUILTIN_LAYOUT_SELECTION_PREFIX}${name}`;
-}
-
-function localLayoutSelection(name: string): string {
-  return `${LOCAL_LAYOUT_SELECTION_PREFIX}${name}`;
-}
-
-function selectedSharedLayoutId(value: string): string | null {
-  return value.startsWith(SHARED_LAYOUT_SELECTION_PREFIX) ? value.slice(SHARED_LAYOUT_SELECTION_PREFIX.length) : null;
-}
-
-function selectedBuiltinLayoutName(value: string): string | null {
-  return value.startsWith(BUILTIN_LAYOUT_SELECTION_PREFIX) ? value.slice(BUILTIN_LAYOUT_SELECTION_PREFIX.length) : null;
-}
-
-function selectedLocalLayoutName(value: string): string | null {
-  return value.startsWith(LOCAL_LAYOUT_SELECTION_PREFIX) ? value.slice(LOCAL_LAYOUT_SELECTION_PREFIX.length) : null;
 }
 
 function num(params: URLSearchParams, key: string, dflt: number): number {
@@ -1030,8 +974,6 @@ function LabInner({
     ...startupLabSettings,
     canvasScale: DEFAULT_LAB_SETTINGS.canvasScale,
   }));
-  /** Client preview only: Default = curated folders, Advanced = full authoring folders. */
-  const [clientPanelMode, setClientPanelMode] = useState<"default" | "advanced">("default");
   const [textureSourceMode, setTextureSourceMode] = useState<LabTextureSourceMode>(() => labSettings.textureSourceMode);
   const [sourceSize, setSourceSize] = useState<{ w: number; h: number }>(() =>
     expectedSourceSize(labSettings, labSettings.textureSourceMode),
@@ -1052,55 +994,22 @@ function LabInner({
   const [selectedPreset, setSelectedPreset] = useState(
     () => consumeBootPresetName() ?? (clientMode ? loadActiveClientLayoutName() : null) ?? startupPreset?.name ?? "",
   );
-  const [selectedClientLayout, setSelectedClientLayout] = useState("");
-  const [sharedLayoutPresets, setSharedLayoutPresets] = useState<SharedLayoutPresetRecord[]>([]);
-  const [sharedLayoutStatus, setSharedLayoutStatus] = useState<SharedLayoutStatus>(clientMode ? "loading" : "ready");
-  const [sharedLayoutNotice, setSharedLayoutNotice] = useState<{
+  const [sharedPresetNotice, setSharedPresetNotice] = useState<{
     message: string;
     tone: "success" | "error";
   } | null>(null);
-  const [sharedLayoutLoadAttempt, setSharedLayoutLoadAttempt] = useState(0);
   const [sharedStylePresets, setSharedStylePresets] = useState<SharedStylePresetRecord[]>([]);
-  const [sharedStyleStatus, setSharedStyleStatus] = useState<SharedLayoutStatus>(clientMode ? "loading" : "ready");
-  const [selectedSharedStyle, setSelectedSharedStyle] = useState(() => loadSharedSelection(SHARED_STYLE_SELECTION_KEY));
+  const [sharedStyleStatus, setSharedStyleStatus] = useState<SharedCatalogStatus>(clientMode ? "loading" : "ready");
   const [sharedColorPresets, setSharedColorPresets] = useState<SharedColorPresetRecord[]>([]);
-  const [sharedColorStatus, setSharedColorStatus] = useState<SharedLayoutStatus>(clientMode ? "loading" : "ready");
-  const [selectedSharedColor, setSelectedSharedColor] = useState(() => loadSharedSelection(SHARED_COLOR_SELECTION_KEY));
+  const [sharedColorStatus, setSharedColorStatus] = useState<SharedCatalogStatus>(clientMode ? "loading" : "ready");
   const [sharedSizePresets, setSharedSizePresets] = useState<SharedSizePreset[]>([]);
   const [sharedSizeStatus, setSharedSizeStatus] = useState<SharedSizePresetStatus>(clientMode ? "loading" : "ready");
   const [sharedSizeNotice, setSharedSizeNotice] = useState<string | null>(null);
   const pendingSharedSizeSelectionRef = useRef<SharedSizePreset | null>(null);
-  useEffect(() => {
-    if (!clientMode) return;
-    const controller = new AbortController();
-    setSharedLayoutStatus("loading");
-    loadSharedPresets("layout", controller.signal)
-      .then((loaded) => {
-        setSharedLayoutPresets(loaded);
-        setSharedLayoutStatus("ready");
-        const activeName = loadActiveClientLayoutName();
-        const activeShared = activeName ? loaded.find((preset) => preset.name === activeName) : undefined;
-        const activeLocal = activeName
-          ? presets.find((preset) => !preset.builtin && preset.name === activeName)
-          : undefined;
-        const activeBuiltin = activeName
-          ? presets.find((preset) => preset.builtin && preset.name === activeName)
-          : undefined;
-        if (activeShared) {
-          setSelectedClientLayout(sharedLayoutSelection(activeShared.id));
-        } else if (activeLocal) {
-          setSelectedClientLayout(localLayoutSelection(activeLocal.name));
-        } else if (activeBuiltin) {
-          setSelectedClientLayout(builtinLayoutSelection(activeBuiltin.name));
-        }
-      })
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        console.warn("Shared layouts are unavailable.", error);
-        setSharedLayoutStatus("error");
-      });
-    return () => controller.abort();
-  }, [clientMode, presets, sharedLayoutLoadAttempt]);
+  const pendingSharedStyleSelectionRef = useRef<SharedStylePresetRecord | null>(null);
+  const pendingSharedColorSelectionRef = useRef<SharedColorPresetRecord | null>(null);
+  const skipSharedStyleApplyRef = useRef<string | null>(null);
+  const skipSharedColorApplyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!clientMode) return;
     const controller = new AbortController();
@@ -1109,11 +1018,6 @@ function LabInner({
       .then((loaded) => {
         setSharedStylePresets(loaded);
         setSharedStyleStatus("ready");
-        setSelectedSharedStyle((current) => {
-          if (!current || loaded.some((preset) => preset.id === current)) return current;
-          saveSharedSelection(SHARED_STYLE_SELECTION_KEY, "");
-          return "";
-        });
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
@@ -1121,7 +1025,7 @@ function LabInner({
         setSharedStyleStatus("error");
       });
     return () => controller.abort();
-  }, [clientMode, sharedLayoutLoadAttempt]);
+  }, [clientMode]);
   useEffect(() => {
     if (!clientMode) return;
     const controller = new AbortController();
@@ -1130,11 +1034,6 @@ function LabInner({
       .then((loaded) => {
         setSharedColorPresets(loaded);
         setSharedColorStatus("ready");
-        setSelectedSharedColor((current) => {
-          if (!current || loaded.some((preset) => preset.id === current)) return current;
-          saveSharedSelection(SHARED_COLOR_SELECTION_KEY, "");
-          return "";
-        });
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
@@ -1142,7 +1041,7 @@ function LabInner({
         setSharedColorStatus("error");
       });
     return () => controller.abort();
-  }, [clientMode, sharedLayoutLoadAttempt]);
+  }, [clientMode]);
   useEffect(() => {
     if (!clientMode) return;
     const controller = new AbortController();
@@ -1160,10 +1059,10 @@ function LabInner({
     return () => controller.abort();
   }, [clientMode]);
   useEffect(() => {
-    if (!sharedLayoutNotice) return;
-    const timeout = window.setTimeout(() => setSharedLayoutNotice(null), 4000);
+    if (!sharedPresetNotice) return;
+    const timeout = window.setTimeout(() => setSharedPresetNotice(null), 4000);
     return () => window.clearTimeout(timeout);
-  }, [sharedLayoutNotice]);
+  }, [sharedPresetNotice]);
   useEffect(() => {
     if (!sharedSizeNotice) return;
     const timeout = window.setTimeout(() => setSharedSizeNotice(null), 4000);
@@ -1411,7 +1310,7 @@ function LabInner({
     clientRainShaderPreset,
   } = useEngineControls(onReplay, {
     showShaderCamera:
-      (!clientMode || clientPanelMode === "advanced") &&
+      !clientMode &&
       textureSourceMode === "shader" &&
       !isTwizzlerMapShaderPreset(shaderPresetId) &&
       !isCometLogoShaderPreset(shaderPresetId),
@@ -1422,7 +1321,6 @@ function LabInner({
     // Client boot wrote the active layout into storage — let controls load it.
     initialConfig: clientMode ? undefined : initialConfig,
     clientMode,
-    clientPanelMode: clientMode ? clientPanelMode : undefined,
     onClientGraphicModeChange: clientMode
       ? (mode) => {
           onClientGraphicPersistRef.current(mode);
@@ -1432,6 +1330,16 @@ function LabInner({
     sharedSizeStatus,
     onSaveSharedSize: (name) => void handleSaveSharedSize(name),
     onDeleteSharedSize: (id) => void handleDeleteSharedSize(id),
+    sharedStylePresets,
+    sharedStyleStatus,
+    onSaveSharedStyle: () => void handleSaveSharedStyle(),
+    onApplySharedStyle: (id) => handleApplySharedStyle(id),
+    onDeleteSharedStyle: (id) => void handleDeleteSharedStyle(id),
+    sharedColorPresets,
+    sharedColorStatus,
+    onSaveSharedColor: () => void handleSaveSharedColor(),
+    onApplySharedColor: (id) => handleApplySharedColor(id),
+    onDeleteSharedColor: (id) => void handleDeleteSharedColor(id),
   });
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
@@ -1448,6 +1356,16 @@ function LabInner({
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
   useEffect(() => {
+    const stylePreset = pendingSharedStyleSelectionRef.current;
+    if (stylePreset && sharedStylePresets.some((entry) => entry.id === stylePreset.id)) {
+      setControlRef.current({ clientLayout: sharedClientStyleId(stylePreset.id) });
+      pendingSharedStyleSelectionRef.current = null;
+    }
+    const colorPreset = pendingSharedColorSelectionRef.current;
+    if (colorPreset && sharedColorPresets.some((entry) => entry.id === colorPreset.id)) {
+      setControlRef.current({ clientColor: sharedClientColorId(colorPreset.id) });
+      pendingSharedColorSelectionRef.current = null;
+    }
     const preset = pendingSharedSizeSelectionRef.current;
     if (preset && sharedSizePresets.some((entry) => entry.id === preset.id)) {
       setControlRef.current({
@@ -1461,7 +1379,7 @@ function LabInner({
     // Leva keeps a select's previous display label when options are replaced.
     // Reapply the resolved value after loading so the visible label matches the native selection.
     setControlRef.current({ clientSize: clientSizeId });
-  }, [clientMode, clientSizeId, sharedSizePresets, sharedSizeStatus]);
+  }, [clientMode, clientSizeId, sharedColorPresets, sharedSizePresets, sharedSizeStatus, sharedStylePresets]);
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
@@ -3344,33 +3262,8 @@ function LabInner({
     if (clientMode) saveActiveClientLayoutName(name);
   }
 
-  async function handleSaveSharedLayout() {
-    if (sharedLayoutStatus === "saving") return;
-    const name = window.prompt("Layout name:")?.trim();
-    if (!name) return;
-    const { config, lab } = captureSavedLayoutPayload();
-    setSharedLayoutStatus("saving");
-    try {
-      const preset = await createSharedPreset(
-        sharedLayoutInputFromConfigPreset(createPreset(name, config, sharedLayoutLabFromSnapshot(lab))),
-      );
-      setSharedLayoutPresets((current) =>
-        [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
-      );
-      setSelectedClientLayout(sharedLayoutSelection(preset.id));
-      setSelectedPreset(preset.name);
-      saveActiveClientLayoutName(preset.name);
-      setSharedLayoutStatus("ready");
-      setSharedLayoutNotice({ message: `Saved “${preset.name}” for everyone.`, tone: "success" });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "The shared layout could not be saved.";
-      setSharedLayoutStatus("ready");
-      setSharedLayoutNotice({ message, tone: "error" });
-    }
-  }
-
   async function handleSaveSharedStyle() {
-    if (sharedStyleStatus === "saving") return;
+    if (sharedStyleStatus === "saving" || sharedStyleStatus === "deleting") return;
     const name = window.prompt("Style name:")?.trim();
     if (!name) return;
     const { config, lab } = captureSavedLayoutPayload();
@@ -3385,13 +3278,13 @@ function LabInner({
       setSharedStylePresets((current) =>
         [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
       );
-      setSelectedSharedStyle(preset.id);
-      saveSharedSelection(SHARED_STYLE_SELECTION_KEY, preset.id);
+      pendingSharedStyleSelectionRef.current = preset;
+      skipSharedStyleApplyRef.current = preset.id;
       setSharedStyleStatus("ready");
-      setSharedLayoutNotice({ message: `Saved style “${preset.name}” for everyone.`, tone: "success" });
+      setSharedPresetNotice({ message: `Saved style “${preset.name}” for everyone.`, tone: "success" });
     } catch (error) {
-      setSharedStyleStatus("ready");
-      setSharedLayoutNotice({
+      setSharedStyleStatus("error");
+      setSharedPresetNotice({
         message: error instanceof Error ? error.message : "The shared style could not be saved.",
         tone: "error",
       });
@@ -3399,7 +3292,7 @@ function LabInner({
   }
 
   async function handleSaveSharedColor() {
-    if (sharedColorStatus === "saving") return;
+    if (sharedColorStatus === "saving" || sharedColorStatus === "deleting") return;
     const name = window.prompt("Color preset name:")?.trim();
     if (!name) return;
     const { config, lab } = captureSavedLayoutPayload();
@@ -3429,33 +3322,43 @@ function LabInner({
       setSharedColorPresets((current) =>
         [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
       );
-      setSelectedSharedColor(preset.id);
-      saveSharedSelection(SHARED_COLOR_SELECTION_KEY, preset.id);
+      pendingSharedColorSelectionRef.current = preset;
+      skipSharedColorApplyRef.current = preset.id;
       setSharedColorStatus("ready");
-      setSharedLayoutNotice({ message: `Saved color “${preset.name}” for everyone.`, tone: "success" });
+      setSharedPresetNotice({ message: `Saved color “${preset.name}” for everyone.`, tone: "success" });
     } catch (error) {
-      setSharedColorStatus("ready");
-      setSharedLayoutNotice({
+      setSharedColorStatus("error");
+      setSharedPresetNotice({
         message: error instanceof Error ? error.message : "The shared color could not be saved.",
         tone: "error",
       });
     }
   }
 
-  function handleApplySharedStyle() {
-    const preset = sharedStylePresets.find((entry) => entry.id === selectedSharedStyle);
+  function handleApplySharedStyle(id: string) {
+    if (skipSharedStyleApplyRef.current === id) {
+      skipSharedStyleApplyRef.current = null;
+      return;
+    }
+    const preset = sharedStylePresets.find((entry) => entry.id === id);
     if (!preset) return;
     const currentLab = fullLabSettingsSnapshot();
     applyPresetToStorage(
-      createPreset(preset.name, preset.payload.config, mergeSharedStyleLab(preset.payload.lab, currentLab)),
+      createPreset(preset.name, preset.payload.config, {
+        ...mergeSharedStyleLab(preset.payload.lab, currentLab),
+        clientLayoutId: sharedClientStyleId(id),
+      }),
       textureIdRef.current,
     );
-    saveSharedSelection(SHARED_STYLE_SELECTION_KEY, preset.id);
     window.location.reload();
   }
 
-  function handleApplySharedColor() {
-    const preset = sharedColorPresets.find((entry) => entry.id === selectedSharedColor);
+  function handleApplySharedColor(id: string) {
+    if (skipSharedColorApplyRef.current === id) {
+      skipSharedColorApplyRef.current = null;
+      return;
+    }
+    const preset = sharedColorPresets.find((entry) => entry.id === id);
     if (!preset) return;
     const currentLab = fullLabSettingsSnapshot();
     const currentTwizzler = currentLab.twizzler ?? labSettingsRef.current.twizzler;
@@ -3463,6 +3366,7 @@ function LabInner({
     applyPresetToStorage(
       createPreset(preset.name, withSharedColors(currentTheme, preset.payload), {
         ...currentLab,
+        clientColorId: sharedClientColorId(id),
         stripePalette: preset.payload.stripePalette,
         backgroundColor:
           editTheme === "dark"
@@ -3474,8 +3378,47 @@ function LabInner({
       }),
       textureIdRef.current,
     );
-    saveSharedSelection(SHARED_COLOR_SELECTION_KEY, preset.id);
     window.location.reload();
+  }
+
+  async function handleDeleteSharedStyle(id: string) {
+    if (sharedStyleStatus !== "ready") return;
+    const preset = sharedStylePresets.find((entry) => entry.id === id);
+    if (!preset || !window.confirm(`Remove “${preset.name}” for everyone?`)) return;
+    setSharedStyleStatus("deleting");
+    try {
+      await deleteSharedPreset(id, preset.revision);
+      setSharedStylePresets((current) => current.filter((entry) => entry.id !== id));
+      setControlRef.current({ clientLayout: "classic" });
+      setSharedStyleStatus("ready");
+      setSharedPresetNotice({ message: `Removed style “${preset.name}”.`, tone: "success" });
+    } catch (error) {
+      setSharedStyleStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared style could not be removed.",
+        tone: "error",
+      });
+    }
+  }
+
+  async function handleDeleteSharedColor(id: string) {
+    if (sharedColorStatus !== "ready") return;
+    const preset = sharedColorPresets.find((entry) => entry.id === id);
+    if (!preset || !window.confirm(`Remove “${preset.name}” for everyone?`)) return;
+    setSharedColorStatus("deleting");
+    try {
+      await deleteSharedPreset(id, preset.revision);
+      setSharedColorPresets((current) => current.filter((entry) => entry.id !== id));
+      setControlRef.current({ clientColor: "coral-classic" });
+      setSharedColorStatus("ready");
+      setSharedPresetNotice({ message: `Removed color “${preset.name}”.`, tone: "success" });
+    } catch (error) {
+      setSharedColorStatus("error");
+      setSharedPresetNotice({
+        message: error instanceof Error ? error.message : "The shared color could not be removed.",
+        tone: "error",
+      });
+    }
   }
 
   async function handleSaveSharedSize(name: string) {
@@ -3538,37 +3481,6 @@ function LabInner({
 
   function handleApplyPreset() {
     const targetTextureId = textureIdRef.current;
-    if (clientMode) {
-      const sharedId = selectedSharedLayoutId(selectedClientLayout);
-      const localName = selectedLocalLayoutName(selectedClientLayout);
-      const builtinName = selectedBuiltinLayoutName(selectedClientLayout);
-      const shared = sharedId ? sharedLayoutPresets.find((preset) => preset.id === sharedId) : undefined;
-      const preset = shared
-        ? (() => {
-            const incoming = configPresetFromSharedLayout(shared);
-            return createPreset(
-              incoming.name,
-              incoming.config,
-              mergeSharedLayoutLab(incoming.lab, fullLabSettingsSnapshot()),
-            );
-          })()
-        : localName
-          ? presets.find((entry) => !entry.builtin && entry.name === localName)
-          : builtinName
-            ? presets.find((entry) => entry.builtin && entry.name === builtinName)
-            : undefined;
-      if (!preset) {
-        setSharedLayoutNotice({
-          message: "That layout is no longer available. Reload the list and try again.",
-          tone: "error",
-        });
-        return;
-      }
-      applyClientLayout(preset, targetTextureId);
-      saveTextureId(targetTextureId);
-      window.location.reload();
-      return;
-    }
     const preset = presets.find((p) => p.name === selectedPreset);
     if (!preset) return;
     applyPresetToStorage(preset, targetTextureId);
@@ -3587,21 +3499,6 @@ function LabInner({
       saveActiveClientLayoutName(null);
     }
     setSelectedPreset("");
-  }
-
-  function handleClientResetToBanner() {
-    if (!window.confirm("Reset to Banner 5:1 defaults? This replaces your current knobs. Saved layouts are kept.")) {
-      return;
-    }
-    const banner = loadBannerLayout();
-    if (!banner) {
-      window.alert("Banner 5:1 builtin is missing.");
-      return;
-    }
-    applyClientLayout(banner, textureIdRef.current);
-    setSelectedPreset(banner.name);
-    setSelectedClientLayout(builtinLayoutSelection(banner.name));
-    window.location.reload();
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -3858,13 +3755,13 @@ function LabInner({
 
   return (
     <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}${clientMode ? " is-client-mode" : ""}`}>
-      {clientMode && (sharedLayoutNotice || sharedSizeNotice) ? (
+      {clientMode && (sharedPresetNotice || sharedSizeNotice) ? (
         <div
-          className={`lab-client-notice${sharedLayoutNotice?.tone === "error" ? " is-error" : ""}`}
-          role={sharedLayoutNotice?.tone === "error" ? "alert" : "status"}
+          className={`lab-client-notice${sharedPresetNotice?.tone === "error" ? " is-error" : ""}`}
+          role={sharedPresetNotice?.tone === "error" ? "alert" : "status"}
           aria-live="polite"
         >
-          {sharedLayoutNotice?.message ?? sharedSizeNotice}
+          {sharedPresetNotice?.message ?? sharedSizeNotice}
         </div>
       ) : null}
       {!clientMode ? (
@@ -4381,224 +4278,6 @@ function LabInner({
           ) : null}
           {clientMode ? (
             <>
-              <div className="lab-client-tools">
-                <div className="lab-client-tools-top">
-                  <fieldset className="lab-panel-mode-toggle" aria-label="Panel mode">
-                    <legend>Panel mode</legend>
-                    <label className={`lab-panel-mode-btn${clientPanelMode === "default" ? " is-selected" : ""}`}>
-                      <input
-                        type="radio"
-                        name="lab-panel-mode"
-                        value="default"
-                        checked={clientPanelMode === "default"}
-                        onChange={() => setClientPanelMode("default")}
-                      />
-                      Default
-                    </label>
-                    <label className={`lab-panel-mode-btn${clientPanelMode === "advanced" ? " is-selected" : ""}`}>
-                      <input
-                        type="radio"
-                        name="lab-panel-mode"
-                        value="advanced"
-                        checked={clientPanelMode === "advanced"}
-                        onChange={() => setClientPanelMode("advanced")}
-                      />
-                      Advanced
-                    </label>
-                  </fieldset>
-                  <button
-                    className="lab-sidebar-toggle lab-client-panel-collapse"
-                    type="button"
-                    onClick={() => updateLabSettings({ shaderSidebarOpen: false })}
-                    aria-label="Close panel"
-                    title="Close panel"
-                  >
-                    <PanelRightClose size={14} strokeWidth={1.75} />
-                  </button>
-                </div>
-                <div className="lab-client-layouts">
-                  <div className="lab-client-layouts-heading">
-                    <div className="lab-client-layouts-label">Layouts</div>
-                    <span>Team presets are shared</span>
-                  </div>
-                  <select
-                    className="lab-client-layouts-select"
-                    value={selectedClientLayout}
-                    onChange={(event) => setSelectedClientLayout(event.target.value)}
-                    aria-label="Layout"
-                    disabled={sharedLayoutStatus === "loading" || sharedLayoutStatus === "saving"}
-                  >
-                    <option value="">
-                      {sharedLayoutStatus === "loading"
-                        ? "Loading shared layouts…"
-                        : sharedLayoutStatus === "error"
-                          ? "Shared layouts unavailable"
-                          : "Select a layout…"}
-                    </option>
-                    {sharedLayoutPresets.length > 0 ? (
-                      <optgroup label="Team layouts">
-                        {sharedLayoutPresets.map((preset) => (
-                          <option key={preset.id} value={sharedLayoutSelection(preset.id)}>
-                            {preset.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : null}
-                    {listSavedLayouts(presets).length > 0 ? (
-                      <optgroup label="This browser">
-                        {listSavedLayouts(presets).map((preset) => (
-                          <option key={preset.name} value={localLayoutSelection(preset.name)}>
-                            {preset.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : null}
-                    <optgroup label="Built-in">
-                      {presets
-                        .filter((preset) => preset.builtin)
-                        .map((preset) => (
-                          <option key={preset.name} value={builtinLayoutSelection(preset.name)}>
-                            {preset.name}
-                          </option>
-                        ))}
-                    </optgroup>
-                  </select>
-                  <div className="lab-client-layouts-actions">
-                    <button
-                      type="button"
-                      onClick={() => void handleSaveSharedLayout()}
-                      disabled={sharedLayoutStatus !== "ready"}
-                      aria-busy={sharedLayoutStatus === "saving"}
-                    >
-                      {sharedLayoutStatus === "saving" ? "Saving…" : "Save"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApplyPreset}
-                      disabled={
-                        !selectedClientLayout || sharedLayoutStatus === "loading" || sharedLayoutStatus === "saving"
-                      }
-                    >
-                      Apply
-                    </button>
-                    {sharedLayoutStatus === "error" ? (
-                      <button type="button" onClick={() => setSharedLayoutLoadAttempt((attempt) => attempt + 1)}>
-                        Retry
-                      </button>
-                    ) : null}
-                    <button type="button" className="is-reset" onClick={handleClientResetToBanner}>
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                <div className="lab-client-shared-looks">
-                  <div className="lab-client-layouts-heading">
-                    <div className="lab-client-layouts-label">Team presets</div>
-                    <span>Shared with everyone</span>
-                  </div>
-                  <div className="lab-client-shared-look-row">
-                    <label htmlFor="shared-style-preset">Style</label>
-                    <select
-                      id="shared-style-preset"
-                      className="lab-client-layouts-select"
-                      value={selectedSharedStyle}
-                      onChange={(event) => {
-                        setSelectedSharedStyle(event.target.value);
-                        saveSharedSelection(SHARED_STYLE_SELECTION_KEY, event.target.value);
-                      }}
-                      disabled={sharedStyleStatus === "loading" || sharedStyleStatus === "saving"}
-                    >
-                      <option value="">
-                        {sharedStyleStatus === "loading"
-                          ? "Loading styles…"
-                          : sharedStyleStatus === "error"
-                            ? "Styles unavailable"
-                            : "Select a team style…"}
-                      </option>
-                      {sharedStylePresets.map((preset) => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="lab-client-layouts-actions">
-                      <button
-                        type="button"
-                        onClick={() => void handleSaveSharedStyle()}
-                        disabled={sharedStyleStatus !== "ready"}
-                      >
-                        {sharedStyleStatus === "saving" ? "Saving…" : "Save current"}
-                      </button>
-                      <button type="button" onClick={handleApplySharedStyle} disabled={!selectedSharedStyle}>
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                  <div className="lab-client-shared-look-row">
-                    <label htmlFor="shared-color-preset">Color</label>
-                    <select
-                      id="shared-color-preset"
-                      className="lab-client-layouts-select"
-                      value={selectedSharedColor}
-                      onChange={(event) => {
-                        setSelectedSharedColor(event.target.value);
-                        saveSharedSelection(SHARED_COLOR_SELECTION_KEY, event.target.value);
-                      }}
-                      disabled={sharedColorStatus === "loading" || sharedColorStatus === "saving"}
-                    >
-                      <option value="">
-                        {sharedColorStatus === "loading"
-                          ? "Loading colors…"
-                          : sharedColorStatus === "error"
-                            ? "Colors unavailable"
-                            : "Select team colors…"}
-                      </option>
-                      {sharedColorPresets.map((preset) => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="lab-client-layouts-actions">
-                      <button
-                        type="button"
-                        onClick={() => void handleSaveSharedColor()}
-                        disabled={sharedColorStatus !== "ready"}
-                      >
-                        {sharedColorStatus === "saving" ? "Saving…" : "Save current"}
-                      </button>
-                      <button type="button" onClick={handleApplySharedColor} disabled={!selectedSharedColor}>
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                  {sharedStyleStatus === "error" || sharedColorStatus === "error" ? (
-                    <div className="lab-client-layouts-actions">
-                      <button type="button" onClick={() => setSharedLayoutLoadAttempt((attempt) => attempt + 1)}>
-                        Retry team presets
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="lab-client-json">
-                  <div className="lab-client-layouts-label">JSON</div>
-                  <div className="lab-client-layouts-actions">
-                    <button type="button" onClick={handleExport}>
-                      Copy JSON
-                    </button>
-                    <button type="button" onClick={() => configFileInputRef.current?.click()}>
-                      Upload JSON
-                    </button>
-                  </div>
-                  <input
-                    ref={configFileInputRef}
-                    type="file"
-                    accept="application/json,.json"
-                    style={{ display: "none" }}
-                    onChange={handleConfigFileChange}
-                  />
-                </div>
-              </div>
               <div className="lab-client-leva">
                 <LevaPanel store={shaderStore} theme={LAB_LEVA_THEME} fill flat titleBar={false} />
               </div>

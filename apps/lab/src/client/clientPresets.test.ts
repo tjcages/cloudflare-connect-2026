@@ -23,11 +23,22 @@ import {
   resolveClientPreviewCanvasSize,
   resolveClientGraphicMode,
   resolveClientSvgExportLayers,
+  parseSharedClientColorId,
+  parseSharedClientStyleId,
+  sharedClientColorId,
+  sharedClientStyleId,
   shouldSyncHeroGraphicFromFlags,
   withClientRainFxVisibility,
 } from "./clientPresets";
 
 describe("client preview presets", () => {
+  it("round-trips shared style and color selector ids", () => {
+    expect(parseSharedClientStyleId(sharedClientStyleId("style-123"))).toBe("style-123");
+    expect(parseSharedClientColorId(sharedClientColorId("color-456"))).toBe("color-456");
+    expect(parseSharedClientStyleId("classic")).toBeNull();
+    expect(parseSharedClientColorId("coral-classic")).toBeNull();
+  });
+
   it("ships size, layout, color, and appearance preset catalogs", () => {
     expect(CLIENT_SIZE_PRESETS.map((p) => p.id)).toEqual(["banner-5x1", "wide-3x1", "hero-16x9", "square"]);
     expect(CLIENT_LAYOUT_PRESETS).toHaveLength(4);
