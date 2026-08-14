@@ -3,6 +3,7 @@ import type { ThemedEngineConfig } from "@necatikcl/stripes-engine";
 import type {
   ClientAppearanceId,
   ClientColorPresetId,
+  ClientGraphicMode,
   ClientLayoutPresetId,
   ClientSizeId,
   ClientSizeUnit,
@@ -125,6 +126,8 @@ export type LabSettings = {
   clientLayoutId: ClientLayoutPresetId;
   clientColorId: ClientColorPresetId;
   clientAppearanceId: ClientAppearanceId;
+  /** Explicit Hero Graphic selection; avoids reconstructing it from separately persisted layer flags. */
+  clientGraphicMode: ClientGraphicMode;
 };
 
 export const DEFAULT_LAB_SETTINGS: LabSettings = {
@@ -233,6 +236,7 @@ const CLIENT_COLOR_IDS = new Set<string>([
   "light",
 ]);
 const CLIENT_APPEARANCE_IDS = new Set<string>(["light", "dark"]);
+const CLIENT_GRAPHIC_MODES = new Set<string>(["twizzler", "rain", "both"]);
 
 function normalizeClientSizeId(value: unknown): ClientSizeId {
   return typeof value === "string" && (CLIENT_SIZE_IDS.has(value) || /^shared:[A-Za-z0-9-]+$/.test(value))
@@ -252,6 +256,10 @@ function normalizeClientColorId(value: unknown): ClientColorPresetId {
 
 function normalizeClientAppearanceId(value: unknown): ClientAppearanceId {
   return typeof value === "string" && CLIENT_APPEARANCE_IDS.has(value) ? (value as ClientAppearanceId) : "light";
+}
+
+function normalizeClientGraphicMode(value: unknown): ClientGraphicMode {
+  return typeof value === "string" && CLIENT_GRAPHIC_MODES.has(value) ? (value as ClientGraphicMode) : "twizzler";
 }
 
 function normalizeConnectCameraFromSettings(i: Partial<LabSettings> & Record<string, unknown>): {
@@ -614,6 +622,7 @@ export function normalizeLabSettings(i: Partial<LabSettings> = {}): LabSettings 
     clientLayoutId: normalizeClientLayoutId(i.clientLayoutId),
     clientColorId: normalizeClientColorId(i.clientColorId),
     clientAppearanceId: normalizeClientAppearanceId(i.clientAppearanceId),
+    clientGraphicMode: normalizeClientGraphicMode(i.clientGraphicMode),
   };
 }
 

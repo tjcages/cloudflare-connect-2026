@@ -654,10 +654,7 @@ export function useEngineControls(
   // Gate client folders from the stored Graphic *before* useControls registers
   // render callbacks (module flags must be correct on first Leva paint).
   {
-    const bootGraphic = resolveClientGraphicMode(
-      initialLabSettings.twizzlerEnabled ?? true,
-      d.sparkle?.gaps?.enabled ?? DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
-    );
+    const bootGraphic = initialLabSettings.clientGraphicMode;
     clientRainAuthoringActive = !clientApp || bootGraphic === "rain" || bootGraphic === "both";
     clientTwizzlerAuthoringActive = !clientApp || bootGraphic === "twizzler" || bootGraphic === "both";
     showSpiralShaderConfigRef.current = activeShaderConfig === "spiral" && (!clientApp || clientRainAuthoringActive);
@@ -791,10 +788,7 @@ export function useEngineControls(
     clientAppearanceId: (initialLabSettings.clientAppearanceId ??
       DEFAULT_CLIENT_PREVIEW_STATE.appearanceId) as ClientAppearanceId,
     clientColorId: (initialLabSettings.clientColorId ?? DEFAULT_CLIENT_PREVIEW_STATE.colorId) as ClientColorPresetId,
-    clientHeroGraphic: resolveClientGraphicMode(
-      initialLabSettings.twizzlerEnabled,
-      d.sparkle?.gaps?.enabled ?? DEFAULT_CLIENT_PREVIEW_STATE.rainEnabled,
-    ),
+    clientHeroGraphic: initialLabSettings.clientGraphicMode,
     backgroundHex,
   });
   levaSchemaSeedRef.current.backgroundHex = backgroundHex;
@@ -5540,6 +5534,7 @@ export function useEngineControls(
             clientLayoutId,
             clientColorId,
             clientAppearanceId,
+            clientGraphicMode: heroGraphicId,
           }
         : {}),
     }),
@@ -5550,6 +5545,7 @@ export function useEngineControls(
       clientApp,
       clientAppearanceId,
       clientColorId,
+      heroGraphicId,
       clientLayoutId,
       clientSizeId,
       effectiveClientSizeHeight,

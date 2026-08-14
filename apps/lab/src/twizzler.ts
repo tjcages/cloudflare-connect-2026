@@ -182,7 +182,7 @@ export const TWIZZLER_DEFAULTS: TwizzlerSettings = {
   centerY: 0.5,
   amplitude: 1,
   lineCount: 56,
-  lineWidth: 1.15,
+  lineWidth: 2.3,
   pointSpacing: 10,
   leftHeight: 0.58,
   rightHeight: 0.32,

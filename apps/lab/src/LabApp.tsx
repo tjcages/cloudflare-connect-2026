@@ -77,11 +77,7 @@ import {
   type ClientGraphicMode,
 } from "./client/clientPresets";
 import { createSharedSizePreset, deleteSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
-import {
-  sharedSizePresetId,
-  type SharedSizePreset,
-  type SharedSizePresetStatus,
-} from "./sharedSizePresets";
+import { sharedSizePresetId, type SharedSizePreset, type SharedSizePresetStatus } from "./sharedSizePresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { downloadEps, svgToEps } from "./export/svgToEps";
@@ -1375,6 +1371,7 @@ function LabInner({
       textureSourceMode: textureSourceModeRef.current,
       shaderSourceCode: shaderSourceCodeRef.current,
       shaderPresetId: shaderPresetIdRef.current,
+      clientGraphicMode: mode,
       twizzlerEnabled: flags.twizzlerEnabled,
       twizzler: twizzlerSettings,
       twizzlerMap: twizzlerMapRef.current,
