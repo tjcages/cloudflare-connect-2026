@@ -648,8 +648,10 @@ function LabExportControls({
   settings: LabSettings;
   onSettings: (next: Partial<LabSettings>) => void;
 }) {
+  if (!videoEl) return null;
+
   const videoDuration = videoEl?.duration && Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
-  const setNumber = (key: keyof Pick<LabSettings, "exportStartSec" | "exportDurationSec">, value: string) => {
+  const setNumber = (key: "exportStartSec", value: string) => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return;
     onSettings({ [key]: parsed } as Partial<LabSettings>);
@@ -657,35 +659,19 @@ function LabExportControls({
 
   return (
     <div className="playground-export-controls">
-      {videoEl ? (
-        <>
-          <div className="playground-canvas-size-row-header">
-            <span className="playground-canvas-scale-meta">Source {formatTime(videoDuration)}</span>
-          </div>
-          <div className="playground-canvas-size-inline">
-            <span className="playground-canvas-scale-label">Start second</span>
-            <input
-              className="lab-input"
-              type="number"
-              min={0}
-              max={Math.max(0, videoDuration)}
-              step={0.1}
-              value={settings.exportStartSec}
-              onChange={(e) => setNumber("exportStartSec", e.target.value)}
-            />
-          </div>
-        </>
-      ) : null}
+      <div className="playground-canvas-size-row-header">
+        <span className="playground-canvas-scale-meta">Source {formatTime(videoDuration)}</span>
+      </div>
       <div className="playground-canvas-size-inline">
-        <span className="playground-canvas-scale-label">Video duration</span>
+        <span className="playground-canvas-scale-label">Start second</span>
         <input
           className="lab-input"
           type="number"
-          min={0.1}
-          max={videoEl ? Math.max(0.1, videoDuration) : 3600}
+          min={0}
+          max={Math.max(0, videoDuration)}
           step={0.1}
-          value={settings.exportDurationSec}
-          onChange={(e) => setNumber("exportDurationSec", e.target.value)}
+          value={settings.exportStartSec}
+          onChange={(e) => setNumber("exportStartSec", e.target.value)}
         />
       </div>
     </div>
@@ -1102,7 +1088,7 @@ function LabInner({
   const onExportVideoRef = useRef<() => void>(() => {});
   const onExportVideo = useCallback(() => onExportVideoRef.current(), []);
   const exportingVideoRef = useRef(false);
-  const videoExportAbortRef = useRef<AbortController | null>(null);
+  const videoExportStopRef = useRef<AbortController | null>(null);
   const videoExportGenerationRef = useRef(0);
   const [videoExportPhase, setVideoExportPhase] = useState<LabVideoExportPhase>("idle");
   const [videoExportRecording, setVideoExportRecording] = useState({ elapsedMs: 0, totalMs: 0 });
@@ -1120,8 +1106,9 @@ function LabInner({
     setTranscodePercent: setVideoExportTranscodePercent,
     setTranscodeElapsed: setVideoExportTranscodeElapsedMs,
   };
-  // Disabled from first click through the brief done/failed flash, until idle again.
   const videoExportBusy = videoExportPhase !== "idle";
+  const videoExportRecordingActive = videoExportPhase === "recording";
+  const videoExportButtonDisabled = videoExportBusy && !videoExportRecordingActive;
   const videoExportLabel = formatVideoExportStatusLabel(
     videoExportPhase,
     videoExportRecording,
@@ -1919,28 +1906,28 @@ function LabInner({
     };
 
     onExportVideoRef.current = () => {
-      const engineCanvas = canvasRef.current;
-      if (!engineCanvas) return;
-      if (exportingVideoRef.current) return;
-      const video = videoElRef.current;
-      const requestedStart = labSettingsRef.current.exportStartSec;
-      const requestedDuration = labSettingsRef.current.exportDurationSec;
-      const videoDuration = video?.duration && Number.isFinite(video.duration) ? video.duration : 0;
-      const exportStartSec = video ? Math.min(requestedStart, Math.max(0, videoDuration - 0.1)) : 0;
-      const durationSec = video
-        ? Math.max(0.1, Math.min(requestedDuration, Math.max(0.1, videoDuration - exportStartSec)))
-        : requestedDuration;
-      if (durationSec > 60 && !window.confirm(`Export ~${Math.round(durationSec)}s of video? This may take a while.`)) {
+      if (exportingVideoRef.current) {
+        const stopController = videoExportStopRef.current;
+        if (stopController && !stopController.signal.aborted) {
+          videoExportUiRef.current.setPhase("finishing");
+          stopController.abort();
+        }
         return;
       }
-      const controller = new AbortController();
-      videoExportAbortRef.current = controller;
+      const engineCanvas = canvasRef.current;
+      if (!engineCanvas) return;
+      const video = videoElRef.current;
+      const requestedStart = labSettingsRef.current.exportStartSec;
+      const videoDuration = video?.duration && Number.isFinite(video.duration) ? video.duration : 0;
+      const exportStartSec = video ? Math.min(requestedStart, Math.max(0, videoDuration - 0.1)) : 0;
+      const stopController = new AbortController();
+      videoExportStopRef.current = stopController;
       exportingVideoRef.current = true;
       const exportGeneration = ++videoExportGenerationRef.current;
       const ui = videoExportUiRef.current;
       let transcodeStartedAt = 0;
       ui.setPhase("recording");
-      ui.setRecording({ elapsedMs: 0, totalMs: durationSec * 1000 });
+      ui.setRecording({ elapsedMs: 0, totalMs: 0 });
       ui.setTranscodePercent(null);
       ui.setTranscodeElapsed(0);
       const framesEnabled =
@@ -1969,8 +1956,7 @@ function LabInner({
         underlayCanvases: layers.underlayCanvases,
         overlayCanvases: layers.overlayCanvases,
         startTimeSec: exportStartSec,
-        durationSec,
-        signal: controller.signal,
+        stopSignal: stopController.signal,
         onPhase: (phase) => {
           if (videoExportGenerationRef.current !== exportGeneration) return;
           ui.setPhase(phase);
@@ -1997,7 +1983,7 @@ function LabInner({
         })
         .finally(() => {
           if (videoExportGenerationRef.current === exportGeneration) {
-            videoExportAbortRef.current = null;
+            videoExportStopRef.current = null;
           }
           window.setTimeout(() => {
             if (videoExportGenerationRef.current !== exportGeneration) return;
@@ -3699,10 +3685,11 @@ function LabInner({
                 <LabExportControls videoEl={videoEl} settings={labSettings} onSettings={updateLabSettings} />
                 <div className="wf-row">
                   <button
-                    className={`lab-btn${videoExportBusy ? " is-exporting" : ""}`}
+                    className={`lab-btn${videoExportRecordingActive ? " is-recording" : videoExportBusy ? " is-exporting" : ""}`}
                     onClick={onExportVideo}
-                    disabled={videoExportBusy}
-                    aria-busy={videoExportBusy}
+                    disabled={videoExportButtonDisabled}
+                    aria-busy={videoExportBusy && !videoExportRecordingActive}
+                    aria-pressed={videoExportRecordingActive}
                   >
                     {videoExportLabel}
                   </button>
@@ -4041,10 +4028,13 @@ function LabInner({
                 <div className="lab-client-layouts-actions">
                   <button
                     type="button"
-                    className={videoExportBusy ? "is-exporting" : undefined}
+                    className={
+                      videoExportRecordingActive ? "is-recording" : videoExportBusy ? "is-exporting" : undefined
+                    }
                     onClick={onExportVideo}
-                    disabled={videoExportBusy}
-                    aria-busy={videoExportBusy}
+                    disabled={videoExportButtonDisabled}
+                    aria-busy={videoExportBusy && !videoExportRecordingActive}
+                    aria-pressed={videoExportRecordingActive}
                   >
                     {videoExportLabel}
                   </button>

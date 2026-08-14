@@ -17,7 +17,14 @@ const WEBM_MIME_CANDIDATES = ["video/webm;codecs=vp8", "video/webm;codecs=vp9", 
 
 export type LabExportSourceKind = "video" | "image";
 
-export type LabVideoExportPhase = "idle" | "recording" | "loading-encoder" | "transcoding" | "done" | "failed";
+export type LabVideoExportPhase =
+  | "idle"
+  | "recording"
+  | "finishing"
+  | "loading-encoder"
+  | "transcoding"
+  | "done"
+  | "failed";
 
 export type MediaRecorderProfile = {
   mimeType: string;
@@ -53,8 +60,14 @@ export function formatVideoExportStatusLabel(
 ): string {
   if (phase === "recording") {
     const elapsedSec = recording.elapsedMs / 1000;
+    if (recording.totalMs <= 0) {
+      return `Stop Recording · ${formatExportTime(elapsedSec)}`;
+    }
     const totalSec = recording.totalMs / 1000;
     return `Recording ${formatExportTime(elapsedSec)} / ${formatExportTime(totalSec)}`;
+  }
+  if (phase === "finishing") {
+    return "Finishing recording…";
   }
   if (phase === "loading-encoder") {
     return "Loading encoder…";
@@ -202,10 +215,11 @@ function waitVideoSeek(video: HTMLVideoElement, timeSec: number): Promise<void> 
 
 type RecordCanvasOptions = {
   fps: number;
-  durationMs: number;
+  durationMs?: number;
   mimeType: string;
   videoBitsPerSecond?: number;
   signal?: AbortSignal;
+  stopSignal?: AbortSignal;
   video?: HTMLVideoElement;
   startTimeSec?: number;
   onProgress?: (elapsedMs: number, totalMs: number) => void;
@@ -214,7 +228,7 @@ type RecordCanvasOptions = {
 };
 
 async function waitForRecordingEnd(options: RecordCanvasOptions): Promise<void> {
-  const { durationMs, signal, video, onProgress } = options;
+  const { durationMs, signal, stopSignal, video, onProgress } = options;
   const start = performance.now();
 
   await new Promise<void>((resolve) => {
@@ -226,19 +240,21 @@ async function waitForRecordingEnd(options: RecordCanvasOptions): Promise<void> 
       settled = true;
       video?.removeEventListener("ended", finish);
       signal?.removeEventListener("abort", finish);
+      stopSignal?.removeEventListener("abort", finish);
       resolve();
     };
 
     video?.addEventListener("ended", finish);
     signal?.addEventListener("abort", finish);
+    stopSignal?.addEventListener("abort", finish);
 
     const tick = () => {
       if (settled) {
         return;
       }
       const elapsed = performance.now() - start;
-      onProgress?.(elapsed, durationMs);
-      if (elapsed >= durationMs || signal?.aborted) {
+      onProgress?.(elapsed, durationMs ?? 0);
+      if ((durationMs !== undefined && elapsed >= durationMs) || signal?.aborted || stopSignal?.aborted) {
         finish();
         return;
       }
@@ -429,6 +445,8 @@ export type ExportLabVideoOptions = {
   startTimeSec?: number;
   durationSec?: number;
   signal?: AbortSignal;
+  /** Ends recording and continues through conversion/download. Unlike `signal`, this is not a cancellation. */
+  stopSignal?: AbortSignal;
   onPhase?: (phase: LabVideoExportPhase) => void;
   onProgress?: (elapsedMs: number, totalMs: number) => void;
   onTranscodeProgress?: (percent: number) => void;
@@ -452,6 +470,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     startTimeSec: requestedStartTimeSec = 0,
     durationSec: requestedDurationSec,
     signal,
+    stopSignal,
     onPhase,
     onProgress,
     onTranscodeProgress,
@@ -465,6 +484,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     throw new DOMException("Export aborted.", "AbortError");
   }
 
+  const recordsUntilStopped = stopSignal !== undefined && requestedDurationSec === undefined;
   const range = resolveRequestedExportRange(
     sourceKind,
     video?.duration ?? 0,
@@ -472,7 +492,7 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     requestedDurationSec,
   );
   const { startTimeSec, durationSec } = range;
-  if (durationSec <= 0) {
+  if (!recordsUntilStopped && durationSec <= 0) {
     throw new Error("Invalid export duration.");
   }
 
@@ -481,15 +501,15 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     throw new Error("Video recording is not supported in this browser.");
   }
 
-  const durationMs = durationSec * 1000;
+  let durationMs = recordsUntilStopped ? 0 : durationSec * 1000;
   const frameCount = resolveExportFrameCount(durationSec);
   const outputFilename = filename ?? `stripes-video.${profile.extension}`;
-  const useFastPath = canUseFastVideoExport(canvas, sourceKind) && video !== undefined;
+  const useFastPath = !recordsUntilStopped && canUseFastVideoExport(canvas, sourceKind) && video !== undefined;
 
   let savedVideoState: SavedVideoState | null = null;
   if (video) {
     savedVideoState = saveVideoState(video);
-    video.loop = false;
+    video.loop = recordsUntilStopped;
     video.currentTime = startTimeSec;
     video.pause();
     await waitVideoSeek(video, startTimeSec);
@@ -505,10 +525,11 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
   try {
     const recorderOptions = {
       fps: LAB_VIDEO_EXPORT_FPS,
-      durationMs,
+      durationMs: recordsUntilStopped ? undefined : durationMs,
       mimeType: profile.mimeType,
       videoBitsPerSecond: LAB_VIDEO_EXPORT_BITRATE,
       signal,
+      stopSignal,
       onProgress,
       compositeFrame,
     };
@@ -516,11 +537,13 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
     if (useFastPath && video) {
       recordedBlob = await recordCanvasFast(recordCanvas, {
         ...recorderOptions,
+        durationMs,
         frameCount,
         video,
         startTimeSec,
       });
     } else {
+      const recordingStartedAt = performance.now();
       recordedBlob = await recordCanvasToWebm(recordCanvas, {
         ...recorderOptions,
         video,
@@ -532,6 +555,9 @@ export async function exportLabVideo(options: ExportLabVideoOptions): Promise<Bl
           }
         },
       });
+      if (recordsUntilStopped) {
+        durationMs = Math.max(1, performance.now() - recordingStartedAt);
+      }
     }
   } finally {
     if (video && savedVideoState) {

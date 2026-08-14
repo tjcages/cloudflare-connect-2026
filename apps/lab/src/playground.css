@@ -2315,6 +2315,28 @@ body.lab-sidebar-resizing .lab-sidebar {
   opacity: 0.85;
 }
 
+.lab-shell.is-client-mode .lab-client-layouts-actions > button.is-recording,
+.lab-shell.is-client-mode .lab-client-layouts-actions > button.is-recording:hover:not(:disabled),
+.lab-btn.is-recording,
+.lab-btn.is-recording:hover:not(:disabled) {
+  background: #d84a4a !important;
+  background-color: #d84a4a !important;
+  color: #fff !important;
+  cursor: pointer;
+}
+
+.lab-shell.is-client-mode .lab-client-layouts-actions > button.is-recording::before,
+.lab-btn.is-recording::before {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+  vertical-align: 1px;
+}
+
 .lab-btn.is-exporting,
 .lab-btn[aria-busy="true"] {
   cursor: progress;
