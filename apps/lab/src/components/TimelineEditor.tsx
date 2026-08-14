@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   Diamond,
+  Keyboard,
   Pause,
   Play,
   Plus,
@@ -69,8 +70,8 @@ function inputLabel(input: LevaDataInput, key: string): string {
 function timelinePropertyFromInput(path: string, input: LevaDataInput): TimelineProperty | null {
   if (input.disabled) return null;
   const value = input.value;
+  if (["BUTTON", "BUTTON_GROUP", "MONITOR", "STRING"].includes(input.type)) return null;
   if (typeof value !== "number" && typeof value !== "string" && typeof value !== "boolean") return null;
-  if (["BUTTON", "BUTTON_GROUP", "MONITOR", "STRING"].includes(input.type) && typeof value === "string") return null;
   const parts = path.split(".");
   const key = parts.at(-1) ?? path;
   const group = parts.length > 1 ? parts.slice(0, -1).join(" / ") : "General";
@@ -92,8 +93,10 @@ export function collectTimelineProperties(stores: readonly TimelineLevaStore[]):
   const properties = new Map<string, TimelineProperty>();
   for (const store of stores) {
     const data = store.getData();
-    for (const path of store.getVisiblePaths()) {
-      const property = data[path] ? timelinePropertyFromInput(path, data[path]) : null;
+    // Hidden Leva folders still contain animation-safe controls (including
+    // Transform / Zoom), so the timeline uses the complete store as its source.
+    for (const [path, input] of Object.entries(data)) {
+      const property = timelinePropertyFromInput(path, input);
       if (property && !properties.has(property.key)) properties.set(property.key, property);
     }
   }
@@ -209,6 +212,7 @@ export function TimelineEditor({
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const shortcutsRef = useRef<HTMLDetailsElement>(null);
   const sequenceRef = useRef(sequence);
   const timeRef = useRef(currentTime);
   const playingRef = useRef(playing);
@@ -239,6 +243,14 @@ export function TimelineEditor({
   }, []);
 
   useEffect(() => saveTimelineSequence(sequence), [sequence]);
+
+  useEffect(() => {
+    const closeShortcuts = (event: PointerEvent) => {
+      if (!shortcutsRef.current?.contains(event.target as Node)) shortcutsRef.current?.removeAttribute("open");
+    };
+    window.addEventListener("pointerdown", closeShortcuts);
+    return () => window.removeEventListener("pointerdown", closeShortcuts);
+  }, []);
 
   useEffect(() => {
     if (deferSequenceApplyRef.current) return;
@@ -273,11 +285,73 @@ export function TimelineEditor({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target.isContentEditable) return;
-      if (event.code === "Space" && open) {
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target.isContentEditable
+      )
+        return;
+
+      if (event.code === "Space" && !event.metaKey && !event.ctrlKey && !event.altKey && !event.repeat) {
         event.preventDefault();
         updatePlaying(!playingRef.current);
+        return;
       }
+
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      if (event.key === "Escape") {
+        shortcutsRef.current?.removeAttribute("open");
+        return;
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault();
+        updatePlaying(false);
+        updateTime(0);
+        return;
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+        updatePlaying(false);
+        updateTime(sequenceRef.current.duration);
+        return;
+      }
+
+      const frameDirection =
+        event.key === "ArrowLeft" || event.key === "PageUp"
+          ? -1
+          : event.key === "ArrowRight" || event.key === "PageDown"
+            ? 1
+            : 0;
+      if (frameDirection !== 0) {
+        event.preventDefault();
+        updatePlaying(false);
+        updateTime(timeRef.current + (frameDirection * (event.shiftKey ? 10 : 1)) / 30);
+        return;
+      }
+
+      if (event.code === "KeyJ" || event.code === "KeyK") {
+        const tracks = selectedTrackId
+          ? sequenceRef.current.tracks.filter((track) => track.id === selectedTrackId)
+          : sequenceRef.current.tracks;
+        const keyTimes = [...new Set(tracks.flatMap((track) => track.keyframes.map((keyframe) => keyframe.time)))].sort(
+          (a, b) => a - b,
+        );
+        const nextTime =
+          event.code === "KeyJ"
+            ? keyTimes.filter((time) => time < timeRef.current - 0.0001).at(-1)
+            : keyTimes.find((time) => time > timeRef.current + 0.0001);
+        if (nextTime !== undefined) {
+          event.preventDefault();
+          updatePlaying(false);
+          updateTime(nextTime);
+        }
+        return;
+      }
+
       if ((event.key === "Delete" || event.key === "Backspace") && selectedKeyId) {
         event.preventDefault();
         setSequence((current) => ({
@@ -292,7 +366,7 @@ export function TimelineEditor({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, selectedKeyId, updatePlaying]);
+  }, [selectedKeyId, selectedTrackId, updatePlaying, updateTime]);
 
   const currentProperties = useMemo(
     () => new Map(properties.map((property) => [property.key, property])),
@@ -468,7 +542,7 @@ export function TimelineEditor({
           {sequence.tracks.length > 0 ? <small>{sequence.tracks.length}</small> : null}
         </button>
         <div className="timeline-transport">
-          <button type="button" onClick={() => updateTime(0)} aria-label="Go to start" title="Go to start">
+          <button type="button" onClick={() => updateTime(0)} aria-label="Go to start" title="Go to start (Home)">
             <SkipBack size={13} />
           </button>
           <button
@@ -513,6 +587,40 @@ export function TimelineEditor({
               >
                 <Repeat2 size={13} /> Loop
               </button>
+              <details className="timeline-shortcuts" ref={shortcutsRef}>
+                <summary aria-label="Timeline keyboard shortcuts" title="Keyboard shortcuts">
+                  <Keyboard size={13} />
+                </summary>
+                <div className="timeline-shortcuts-menu">
+                  <strong>Keyboard shortcuts</strong>
+                  <dl>
+                    <div>
+                      <dt>Play / pause</dt>
+                      <dd>Space</dd>
+                    </div>
+                    <div>
+                      <dt>Previous / next key</dt>
+                      <dd>J / K</dd>
+                    </div>
+                    <div>
+                      <dt>Step 1 frame</dt>
+                      <dd>← / →</dd>
+                    </div>
+                    <div>
+                      <dt>Step 10 frames</dt>
+                      <dd>Shift + ← / →</dd>
+                    </div>
+                    <div>
+                      <dt>Start / end</dt>
+                      <dd>Home / End</dd>
+                    </div>
+                    <div>
+                      <dt>Delete selected key</dt>
+                      <dd>Delete</dd>
+                    </div>
+                  </dl>
+                </div>
+              </details>
               <button type="button" onClick={() => onOpenChange(false)} aria-label="Close timeline">
                 <X size={13} />
               </button>
