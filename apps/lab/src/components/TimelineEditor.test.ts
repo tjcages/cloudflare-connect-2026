@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  clampTimelineVisibleDuration,
   collectTimelineProperties,
   displayTimelineColorValue,
+  timelineContentScale,
   timelineRectsIntersect,
   timelineScrollContentHeight,
   type TimelineLevaStore,
@@ -20,6 +22,14 @@ describe("timeline property collection", () => {
   it("reserves one property row of scroll space after the final track", () => {
     expect(timelineScrollContentHeight(0)).toBe(34);
     expect(timelineScrollContentHeight(8)).toBe(306);
+  });
+
+  it("shows at most ten seconds and scales longer timelines horizontally", () => {
+    expect(clampTimelineVisibleDuration(30, 60)).toBe(10);
+    expect(clampTimelineVisibleDuration(0.1, 60)).toBe(1);
+    expect(clampTimelineVisibleDuration(10, 0.5)).toBe(0.5);
+    expect(timelineContentScale(60, 10)).toBe(6);
+    expect(timelineContentScale(6, 10)).toBe(1);
   });
 
   it("selects keyframes that touch the marquee boundary", () => {

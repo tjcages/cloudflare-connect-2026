@@ -67,6 +67,8 @@ type TimelineEditorProps = {
 
 const TIMELINE_TRACK_HEIGHT = 34;
 const TIMELINE_AXIS_INSET = 18;
+const TIMELINE_MAX_VISIBLE_DURATION = 10;
+const TIMELINE_MIN_VISIBLE_DURATION = 1;
 
 type TimelineMarquee = { left: number; top: number; width: number; height: number };
 type TimelineRect = { left: number; top: number; right: number; bottom: number };
@@ -77,6 +79,19 @@ export function timelineRectsIntersect(a: TimelineRect, b: TimelineRect): boolea
 
 export function timelineScrollContentHeight(trackCount: number): number {
   return (Math.max(0, Math.floor(trackCount)) + 1) * TIMELINE_TRACK_HEIGHT;
+}
+
+export function clampTimelineVisibleDuration(visibleDuration: number, duration: number): number {
+  const safeDuration = Math.max(0.1, Number.isFinite(duration) ? duration : 0.1);
+  const maximum = Math.min(TIMELINE_MAX_VISIBLE_DURATION, safeDuration);
+  const minimum = Math.min(TIMELINE_MIN_VISIBLE_DURATION, maximum);
+  const safeVisible = Number.isFinite(visibleDuration) ? visibleDuration : maximum;
+  return Math.min(maximum, Math.max(minimum, safeVisible));
+}
+
+export function timelineContentScale(duration: number, visibleDuration: number): number {
+  const safeDuration = Math.max(0.1, Number.isFinite(duration) ? duration : 0.1);
+  return Math.max(1, safeDuration / clampTimelineVisibleDuration(visibleDuration, safeDuration));
 }
 
 function TransportGlyph({ type }: { type: "rewind" | "play" | "pause" }) {
@@ -291,7 +306,11 @@ export function TimelineEditor({
   const [selectedNumberDraft, setSelectedNumberDraft] = useState<string | null>(null);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
   const [marquee, setMarquee] = useState<TimelineMarquee | null>(null);
+  const [timelineVisibleDuration, setTimelineVisibleDuration] = useState(TIMELINE_MAX_VISIBLE_DURATION);
+  const [timelineScrollLeft, setTimelineScrollLeft] = useState(0);
   const [layout, setLayout] = useState(loadTimelineLayout);
+  const editorRef = useRef<HTMLElement>(null);
+  const rulerRef = useRef<HTMLButtonElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const trackListScrollRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -306,7 +325,12 @@ export function TimelineEditor({
   const deferSequenceApplyRef = useRef(false);
   const applyingTimelineValuesRef = useRef(false);
   const properties = collectTimelineProperties(stores, graphicMode);
+  const visibleDuration = clampTimelineVisibleDuration(timelineVisibleDuration, sequence.duration);
+  const contentScale = timelineContentScale(sequence.duration, visibleDuration);
+  const contentWidth = `${contentScale * 100}%`;
+  const visibleDurationRef = useRef(visibleDuration);
   sequenceRef.current = sequence;
+  visibleDurationRef.current = visibleDuration;
   timeRef.current = currentTime;
   playingRef.current = playing;
   onApplyValuesRef.current = onApplyValues;
@@ -376,11 +400,49 @@ export function TimelineEditor({
   }, [updatePlaying, updateTime]);
 
   const snapKeyTime = useCallback((time: number, disabled = false) => {
-    const width = Math.max(0, (timelineRef.current?.getBoundingClientRect().width ?? 0) - TIMELINE_AXIS_INSET);
+    const width = Math.max(0, (timelineRef.current?.scrollWidth ?? 0) - TIMELINE_AXIS_INSET);
     return disabled
       ? { time: clampTimelineTime(time, sequenceRef.current.duration), snapped: false }
       : snapTimelineTimeToWholeSecond(time, sequenceRef.current.duration, width);
   }, []);
+
+  const zoomTimeline = useCallback((factor: number, clientX?: number) => {
+    const timeline = timelineRef.current;
+    if (!timeline || !Number.isFinite(factor) || factor <= 0) return;
+    const duration = sequenceRef.current.duration;
+    const rect = timeline.getBoundingClientRect();
+    const pointerX = Math.min(rect.width, Math.max(0, (clientX ?? rect.left + rect.width / 2) - rect.left));
+    const currentAxisWidth = Math.max(1, timeline.scrollWidth - TIMELINE_AXIS_INSET);
+    const anchorTime = clampTimelineTime(
+      ((timeline.scrollLeft + pointerX - TIMELINE_AXIS_INSET) / currentAxisWidth) * duration,
+      duration,
+    );
+    const nextVisibleDuration = clampTimelineVisibleDuration(visibleDurationRef.current * factor, duration);
+    if (Math.abs(nextVisibleDuration - visibleDurationRef.current) < 0.0001) return;
+    visibleDurationRef.current = nextVisibleDuration;
+    setTimelineVisibleDuration(nextVisibleDuration);
+    requestAnimationFrame(() => {
+      const nextTimeline = timelineRef.current;
+      if (!nextTimeline) return;
+      const nextAxisWidth = Math.max(1, nextTimeline.scrollWidth - TIMELINE_AXIS_INSET);
+      nextTimeline.scrollLeft = TIMELINE_AXIS_INSET + (anchorTime / duration) * nextAxisWidth - pointerX;
+      setTimelineScrollLeft(nextTimeline.scrollLeft);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePinchZoom = (nativeEvent: Event) => {
+      const event = nativeEvent as WheelEvent;
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      zoomTimeline(Math.exp(event.deltaY * 0.003), event.clientX);
+    };
+    const surfaces = [rulerRef.current, timelineRef.current].filter((surface) => surface !== null);
+    surfaces.forEach((surface) => surface.addEventListener("wheel", handlePinchZoom, { passive: false }));
+    return () => surfaces.forEach((surface) => surface.removeEventListener("wheel", handlePinchZoom));
+  }, [open, zoomTimeline]);
 
   useEffect(() => saveTimelineSequence(sequence), [sequence]);
 
@@ -463,6 +525,19 @@ export function TimelineEditor({
         (target instanceof HTMLInputElement &&
           !isLevaNumberInput &&
           ["text", "search", "email", "url", "tel", "password"].includes(target.type));
+
+      const zoomDirection =
+        event.code === "Equal" || event.code === "NumpadAdd"
+          ? -1
+          : event.code === "Minus" || event.code === "NumpadSubtract"
+            ? 1
+            : 0;
+      if (open && zoomDirection !== 0 && (event.metaKey || event.ctrlKey) && editorRef.current?.contains(target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        zoomTimeline(zoomDirection < 0 ? 0.8 : 1.25);
+        return;
+      }
 
       if (event.code === "Space" && !event.metaKey && !event.ctrlKey && !event.altKey && !event.repeat) {
         if (isTextEntry) return;
@@ -551,7 +626,17 @@ export function TimelineEditor({
     // keyboard events before they bubble to the window.
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [clearKeySelection, moveSelectedKeys, selectedKeyIds, selectedTrackId, togglePlayback, updatePlaying, updateTime]);
+  }, [
+    clearKeySelection,
+    moveSelectedKeys,
+    open,
+    selectedKeyIds,
+    selectedTrackId,
+    togglePlayback,
+    updatePlaying,
+    updateTime,
+    zoomTimeline,
+  ]);
 
   const currentProperties = useMemo(
     () => new Map(properties.map((property) => [property.path, property])),
@@ -561,9 +646,9 @@ export function TimelineEditor({
   const selectedKey = selectedTrack?.keyframes.find((keyframe) => keyframe.id === selectedKeyId) ?? null;
   const selectedProperty = selectedTrack ? currentProperties.get(selectedTrack.propertyPath) : null;
   const ticks = useMemo(() => {
-    const step = rulerStep(sequence.duration);
+    const step = rulerStep(visibleDuration);
     return Array.from({ length: Math.floor(sequence.duration / step) + 1 }, (_, index) => index * step);
-  }, [sequence.duration]);
+  }, [sequence.duration, visibleDuration]);
 
   useEffect(() => {
     if (!selectedTrack) return;
@@ -633,16 +718,17 @@ export function TimelineEditor({
   };
 
   const timeFromPointer = (clientX: number): number => {
-    const rect = timelineRef.current?.getBoundingClientRect();
-    if (!rect) return 0;
-    const axisWidth = Math.max(1, rect.width - TIMELINE_AXIS_INSET);
+    const timeline = timelineRef.current;
+    const rect = timeline?.getBoundingClientRect();
+    if (!timeline || !rect) return 0;
+    const axisWidth = Math.max(1, timeline.scrollWidth - TIMELINE_AXIS_INSET);
     return clampTimelineTime(
-      ((clientX - rect.left - TIMELINE_AXIS_INSET) / axisWidth) * sequenceRef.current.duration,
+      ((timeline.scrollLeft + clientX - rect.left - TIMELINE_AXIS_INSET) / axisWidth) * sequenceRef.current.duration,
       sequenceRef.current.duration,
     );
   };
 
-  const scrub = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const scrub = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
     updatePlaying(false);
@@ -693,7 +779,7 @@ export function TimelineEditor({
       const clientRight = Math.max(startX, clientX);
       const clientBottom = Math.max(startY, clientY);
       setMarquee({
-        left: clientLeft - canvasRect.left,
+        left: clientLeft - canvasRect.left + canvas.scrollLeft,
         top: clientTop - canvasRect.top + canvas.scrollTop,
         width: clientRight - clientLeft,
         height: clientBottom - clientTop,
@@ -767,7 +853,7 @@ export function TimelineEditor({
     const setKeyDelta = (clientX: number, disableSnap: boolean, applyValues: boolean) => {
       const rect = timelineRef.current?.getBoundingClientRect();
       if (!rect || rect.width <= 0) return;
-      const axisWidth = Math.max(1, rect.width - TIMELINE_AXIS_INSET);
+      const axisWidth = Math.max(1, (timelineRef.current?.scrollWidth ?? rect.width) - TIMELINE_AXIS_INSET);
       const rawDelta = ((clientX - startX) / axisWidth) * startSequence.duration;
       const anchorTime = clickedKey.time + rawDelta;
       const snapped = snapKeyTime(anchorTime, disableSnap);
@@ -875,6 +961,7 @@ export function TimelineEditor({
 
   return (
     <section
+      ref={editorRef}
       className={`timeline-editor playground-leva-panel${open ? " is-open" : ""}`}
       aria-label="Animation timeline"
       style={
@@ -993,6 +1080,10 @@ export function TimelineEditor({
                       <dd>← / →</dd>
                     </div>
                     <div>
+                      <dt>Zoom timeline</dt>
+                      <dd>⌘ + / −</dd>
+                    </div>
+                    <div>
                       <dt>Start / end</dt>
                       <dd>Home / End</dd>
                     </div>
@@ -1103,22 +1194,43 @@ export function TimelineEditor({
               </div>
             </div>
             <div className="timeline-canvas-shell">
-              <div className="timeline-ruler" onPointerDown={scrub}>
-                <div className="timeline-ruler-axis">
-                  {ticks.map((tick) => (
-                    <span key={tick} style={{ left: `${(tick / sequence.duration) * 100}%` }}>
-                      {tick}s
-                    </span>
-                  ))}
+              <button
+                type="button"
+                ref={rulerRef}
+                className="timeline-ruler"
+                onPointerDown={scrub}
+                aria-label="Timeline ruler"
+              >
+                <div
+                  className="timeline-ruler-content"
+                  style={{ width: contentWidth, transform: `translateX(${-timelineScrollLeft}px)` }}
+                >
+                  <div className="timeline-ruler-axis">
+                    {ticks.map((tick) => (
+                      <span key={tick} style={{ left: `${(tick / sequence.duration) * 100}%` }}>
+                        {tick}s
+                      </span>
+                    ))}
+                    <i
+                      className="timeline-playhead-cap"
+                      style={{ left: `${(currentTime / sequence.duration) * 100}%` }}
+                      aria-hidden
+                    />
+                  </div>
                 </div>
-              </div>
+              </button>
               <div
                 className="timeline-canvas"
                 ref={timelineRef}
+                aria-label="Timeline tracks"
                 onPointerDown={(event) => {
+                  rulerRef.current?.focus({ preventScroll: true });
                   if (!beginMarquee(event)) scrub(event);
                 }}
                 onScroll={(event) => {
+                  if (timelineScrollLeft !== event.currentTarget.scrollLeft) {
+                    setTimelineScrollLeft(event.currentTarget.scrollLeft);
+                  }
                   if (
                     trackListScrollRef.current &&
                     trackListScrollRef.current.scrollTop !== event.currentTarget.scrollTop
@@ -1129,7 +1241,10 @@ export function TimelineEditor({
               >
                 <div
                   className="timeline-canvas-content"
-                  style={{ height: `max(100%, ${timelineScrollContentHeight(sequence.tracks.length)}px)` }}
+                  style={{
+                    width: contentWidth,
+                    height: `max(100%, ${timelineScrollContentHeight(sequence.tracks.length)}px)`,
+                  }}
                 >
                   {marquee ? (
                     <div
@@ -1151,9 +1266,10 @@ export function TimelineEditor({
                         aria-hidden
                       />
                     ) : null}
-                    <div className="timeline-playhead" style={{ left: `${(currentTime / sequence.duration) * 100}%` }}>
-                      <span />
-                    </div>
+                    <div
+                      className="timeline-playhead"
+                      style={{ left: `${(currentTime / sequence.duration) * 100}%` }}
+                    ></div>
                     {sequence.tracks.map((track, rowIndex) => (
                       <div
                         className={`timeline-track-row${selectedTrackId === track.id ? " is-selected" : ""}`}
