@@ -579,16 +579,19 @@ describe("Twizzler", () => {
     expect(square.lines[0]?.points.length).toBeGreaterThanOrEqual(160);
   });
 
-  it("locks orange-wave hairline defaults (no factory lineWidth poison)", () => {
+  it("locks the approved Twizzler stroke defaults", () => {
     expect(TWIZZLER_DEFAULTS).toMatchObject({
       lineCount: 56,
-      lineWidth: 1.15,
+      lineWidth: 4.45,
+      pointSpacing: 10,
       rotateXDeg: 12,
       rotateYDeg: -18,
       rotateZDeg: 0,
       fov: 1.05,
       camDist: 10.5,
-      perspectiveWidth: 1.8,
+      perspectiveWidth: 6.2,
+      minLineWidth: 3.5,
+      maxLineWidth: 24.1,
       gradientXEnabled: true,
       gradientYEnabled: true,
       gradientZEnabled: true,
@@ -604,7 +607,7 @@ describe("Twizzler", () => {
       backgroundColor: "#ffffff",
     });
     const settings = normalizeTwizzlerSettings({});
-    expect(settings.lineWidth).toBeCloseTo(1.15);
+    expect(settings.lineWidth).toBeCloseTo(4.45);
     expect(settings.lineCount).toBe(56);
   });
 
