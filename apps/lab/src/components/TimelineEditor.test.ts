@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { collectTimelineProperties, type TimelineLevaStore } from "./TimelineEditor";
+import { collectTimelineProperties, displayTimelineColorValue, type TimelineLevaStore } from "./TimelineEditor";
 
 function storeWith(data: ReturnType<TimelineLevaStore["getData"]>): TimelineLevaStore {
   return {
@@ -11,6 +11,11 @@ function storeWith(data: ReturnType<TimelineLevaStore["getData"]>): TimelineLeva
 }
 
 describe("timeline property collection", () => {
+  it("shows library variable names for color keyframes", () => {
+    expect(displayTimelineColorValue("#ffffff")).toBe("Neutral / White");
+    expect(displayTimelineColorValue("#123456")).toBe("#123456");
+  });
+
   it("includes animation-safe controls even when their Leva paths are hidden", () => {
     const properties = collectTimelineProperties([
       storeWith({

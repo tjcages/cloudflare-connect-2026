@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
@@ -25,6 +26,8 @@ import {
   type TimelineTrack,
   type TimelineValue,
 } from "../animation/timelineModel";
+import { HexColorPopover } from "./HexColorPopover";
+import { cssColorForHex, findLibraryColorByHex } from "./colorLibrary";
 import { TimelineEasingEditor } from "./TimelineEasingEditor";
 
 type LevaDataInput = {
@@ -122,6 +125,28 @@ function displayValue(value: TimelineValue): string {
   if (typeof value === "number") return Number(value.toFixed(3)).toString();
   if (typeof value === "boolean") return value ? "On" : "Off";
   return value;
+}
+
+export function displayTimelineColorValue(value: string): string {
+  return findLibraryColorByHex(value)?.token ?? value.toUpperCase();
+}
+
+function TimelineColorValue({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="timeline-color-value">
+      <HexColorPopover
+        color={value}
+        onChange={onChange}
+        ariaLabel="Keyframe color variable"
+        triggerClassName="library-color-input-swatch"
+        triggerStyle={{ "--library-color-input-color": cssColorForHex(value) } as CSSProperties}
+        align="right"
+      />
+      <span className="timeline-color-value-name" title={value.toUpperCase()}>
+        {displayTimelineColorValue(value)}
+      </span>
+    </div>
+  );
 }
 
 function rulerStep(duration: number): number {
@@ -293,7 +318,8 @@ export function TimelineEditor({
     if (!selectedKeyId) return;
     const clearSelectedKey = (event: PointerEvent) => {
       const target = event.target;
-      if (target instanceof Element && target.closest(".timeline-key, .timeline-inspector")) return;
+      if (target instanceof Element && target.closest(".timeline-key, .timeline-inspector, [data-hex-color-popover]"))
+        return;
       setSelectedKeyId(null);
     };
     window.addEventListener("pointerdown", clearSelectedKey, true);
@@ -906,10 +932,9 @@ export function TimelineEditor({
                 <label>
                   Value
                   {selectedTrack.valueType === "color" ? (
-                    <input
-                      type="color"
+                    <TimelineColorValue
                       value={String(selectedKey.value)}
-                      onChange={(event) => updateSelectedKey({ value: event.currentTarget.value })}
+                      onChange={(value) => updateSelectedKey({ value })}
                     />
                   ) : typeof selectedKey.value === "boolean" ? (
                     <input

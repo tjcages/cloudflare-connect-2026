@@ -3320,6 +3320,29 @@ body.lab-sidebar-resizing canvas {
   padding: 2px;
 }
 
+.timeline-color-value {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.timeline-color-value-name {
+  box-sizing: border-box;
+  height: 23px;
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  border-radius: var(--leva-radius);
+  background: var(--leva-surface);
+  color: var(--leva-text);
+  font-size: 9px;
+  line-height: 23px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .timeline-easing-editor {
   display: grid;
   gap: 6px;

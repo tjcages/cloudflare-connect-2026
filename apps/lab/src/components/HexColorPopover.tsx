@@ -418,6 +418,7 @@ export const HexColorPopover = ({
         <FloatingPortal>
           <div
             ref={refs.setFloating}
+            data-hex-color-popover
             className="z-[2147483647] flex w-56 flex-col gap-2 overflow-hidden rounded-md border border-neutral-300 bg-white p-2 shadow-lg"
             style={floatingStyles}
             {...getFloatingProps()}
