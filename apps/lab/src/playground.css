@@ -2048,11 +2048,14 @@ body.lab-sidebar-resizing .lab-sidebar {
   background: color-mix(in srgb, var(--leva-panel-bg) 92%, #c43131);
 }
 
+.lab-shell.is-client-mode .lab-client-panel-header {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  padding: 7px 8px 4px;
+}
+
 .lab-shell.is-client-mode .lab-client-panel-collapse {
-  position: absolute;
-  top: 7px;
-  right: 8px;
-  z-index: 8;
   width: 28px;
   height: 28px;
   border-radius: var(--leva-radius);
