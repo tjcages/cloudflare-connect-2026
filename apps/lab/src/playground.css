@@ -2790,6 +2790,10 @@ body.lab-sidebar-resizing canvas {
   color: var(--leva-text-faint);
 }
 
+.timeline-transport output .timeline-current-time {
+  color: var(--leva-text);
+}
+
 .timeline-sequence-settings {
   margin-left: auto;
 }

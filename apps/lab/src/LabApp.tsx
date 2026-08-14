@@ -1,4 +1,5 @@
 import {
+  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -1229,11 +1230,13 @@ function LabInner({
   );
   const applyTimelineValues = useCallback(
     (values: Record<string, TimelineValue>) => {
-      for (const store of timelineStores) {
-        const data = store.getData();
-        const updates = buildTimelineStoreUpdates(values, data);
-        if (Object.keys(updates).length > 0) store.set(updates, false);
-      }
+      startTransition(() => {
+        for (const store of timelineStores) {
+          const data = store.getData();
+          const updates = buildTimelineStoreUpdates(values, data);
+          if (Object.keys(updates).length > 0) store.set(updates, false);
+        }
+      });
     },
     [timelineStores],
   );

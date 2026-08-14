@@ -70,6 +70,7 @@ const TIMELINE_TRACK_HEIGHT = 34;
 const TIMELINE_AXIS_INSET = 18;
 const TIMELINE_MAX_VISIBLE_DURATION = 10;
 const TIMELINE_MIN_VISIBLE_DURATION = 1;
+const TIMELINE_VALUE_FRAME_MS = 1000 / 30;
 
 type TimelineMarquee = { left: number; top: number; width: number; height: number };
 type TimelineRect = { left: number; top: number; right: number; bottom: number };
@@ -317,9 +318,11 @@ export function TimelineEditor({
   const workspaceRef = useRef<HTMLDivElement>(null);
   const addPropertyButtonRef = useRef<HTMLButtonElement>(null);
   const shortcutsRef = useRef<HTMLDetailsElement>(null);
+  const currentTimeOutputRef = useRef<HTMLSpanElement>(null);
   const sequenceRef = useRef(sequence);
   const timeRef = useRef(currentTime);
   const playingRef = useRef(playing);
+  const lastValueFrameMsRef = useRef(0);
   const onApplyValuesRef = useRef(onApplyValues);
   const onTimeChangeRef = useRef(onTimeChange);
   const onPlayingChangeRef = useRef(onPlayingChange);
@@ -332,7 +335,6 @@ export function TimelineEditor({
   const visibleDurationRef = useRef(visibleDuration);
   sequenceRef.current = sequence;
   visibleDurationRef.current = visibleDuration;
-  timeRef.current = currentTime;
   playingRef.current = playing;
   onApplyValuesRef.current = onApplyValues;
   onTimeChangeRef.current = onTimeChange;
@@ -368,10 +370,15 @@ export function TimelineEditor({
   }, []);
 
   const updateTime = useCallback(
-    (time: number, syncMotion = true, applyValues = true) => {
+    (time: number, syncMotion = true, applyValues = true, renderDisplay = true) => {
       const next = clampTimelineTime(time, sequenceRef.current.duration);
       timeRef.current = next;
-      setCurrentTime(next);
+      editorRef.current?.style.setProperty(
+        "--timeline-playhead-position",
+        `${(next / sequenceRef.current.duration) * 100}%`,
+      );
+      if (currentTimeOutputRef.current) currentTimeOutputRef.current.textContent = formatSeconds(next);
+      if (renderDisplay) setCurrentTime(next);
       if (applyValues) applyEvaluatedValues(sequenceRef.current, next);
       if (syncMotion) onTimeChangeRef.current?.(next);
     },
@@ -397,6 +404,7 @@ export function TimelineEditor({
   const togglePlayback = useCallback(() => {
     const next = !playingRef.current;
     if (next && timeRef.current >= sequenceRef.current.duration - 0.000001) updateTime(0);
+    if (!next) setCurrentTime(timeRef.current);
     updatePlaying(next);
   }, [updatePlaying, updateTime]);
 
@@ -514,7 +522,10 @@ export function TimelineEditor({
       if (!playback.playing) updatePlaying(false);
       // Keep natural motion moving forward between frames, but synchronize it
       // at the two transport boundaries: a loop wrap and a non-looping stop.
-      updateTime(playback.time, shouldSynchronizeTimelineMotion(playback));
+      const synchronizeMotion = shouldSynchronizeTimelineMotion(playback);
+      const applyValues = synchronizeMotion || now - lastValueFrameMsRef.current >= TIMELINE_VALUE_FRAME_MS;
+      if (applyValues) lastValueFrameMsRef.current = now;
+      updateTime(playback.time, synchronizeMotion, applyValues, !playback.playing);
       if (playback.playing) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -694,7 +705,7 @@ export function TimelineEditor({
   }, [selectKeys, selectedKeyId, selectedTrack, snapKeyTime, stores]);
 
   const addTrack = (property: TimelineProperty) => {
-    const keyTime = snapKeyTime(currentTime).time;
+    const keyTime = snapKeyTime(timeRef.current).time;
     const track: TimelineTrack = {
       id: createTimelineId("track"),
       propertyKey: property.key,
@@ -710,9 +721,9 @@ export function TimelineEditor({
     selectKeys([track.keyframes[0].id]);
   };
 
-  const addKey = (track: TimelineTrack, time = currentTime) => {
+  const addKey = (track: TimelineTrack, time = timeRef.current) => {
     const property = currentProperties.get(track.propertyPath);
-    const storeValue = property?.value ?? evaluateSequence(sequence, currentTime)[track.propertyPath];
+    const storeValue = property?.value ?? evaluateSequence(sequence, timeRef.current)[track.propertyPath];
     if (storeValue === undefined) return;
     const keyTime = snapKeyTime(time).time;
     const next = upsertKeyframe(track, keyTime, storeValue);
@@ -977,6 +988,7 @@ export function TimelineEditor({
           "--timeline-editor-height": `${layout.height}px`,
           "--timeline-inspector-width": `${layout.inspectorWidth}px`,
           "--timeline-axis-inset": `${TIMELINE_AXIS_INSET}px`,
+          "--timeline-playhead-position": `${(currentTime / sequence.duration) * 100}%`,
         } as CSSProperties
       }
     >
@@ -1019,7 +1031,10 @@ export function TimelineEditor({
             <TransportGlyph type={playing ? "pause" : "play"} />
           </button>
           <output>
-            {formatSeconds(currentTime)} <span>/ {formatSeconds(sequence.duration)}</span>
+            <span ref={currentTimeOutputRef} className="timeline-current-time">
+              {formatSeconds(currentTime)}
+            </span>{" "}
+            <span>/ {formatSeconds(sequence.duration)}</span>
           </output>
         </div>
         {open ? (
@@ -1042,7 +1057,7 @@ export function TimelineEditor({
                   onChange={(event) => {
                     const duration = Math.min(3600, Math.max(0.1, Number(event.currentTarget.value) || 0.1));
                     setSequence((current) => ({ ...current, duration }));
-                    updateTime(Math.min(currentTime, duration));
+                    updateTime(Math.min(timeRef.current, duration));
                   }}
                 />
                 <span>s</span>
@@ -1167,7 +1182,11 @@ export function TimelineEditor({
                           {track.label}
                         </button>
                         <small>
-                          {displayValue(evaluateSequence(sequence, currentTime)[track.propertyPath] ?? "—")}
+                          {displayValue(
+                            currentProperties.get(track.propertyPath)?.value ??
+                              evaluateSequence(sequence, timeRef.current)[track.propertyPath] ??
+                              "—",
+                          )}
                         </small>
                         <button
                           type="button"
@@ -1222,7 +1241,7 @@ export function TimelineEditor({
                     ))}
                     <i
                       className="timeline-playhead-cap"
-                      style={{ left: `${(currentTime / sequence.duration) * 100}%` }}
+                      style={{ left: "var(--timeline-playhead-position)" }}
                       aria-hidden
                     />
                   </div>
@@ -1275,10 +1294,7 @@ export function TimelineEditor({
                         aria-hidden
                       />
                     ) : null}
-                    <div
-                      className="timeline-playhead"
-                      style={{ left: `${(currentTime / sequence.duration) * 100}%` }}
-                    ></div>
+                    <div className="timeline-playhead" style={{ left: "var(--timeline-playhead-position)" }}></div>
                     {sequence.tracks.map((track, rowIndex) => (
                       <div
                         className={`timeline-track-row${selectedTrackId === track.id ? " is-selected" : ""}`}
