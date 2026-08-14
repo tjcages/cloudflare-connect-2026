@@ -292,13 +292,15 @@ function StripeControlRow({ label, children }: { label: string; children: ReactN
   );
 }
 
-function EasingGraph({
+export function EasingGraph({
   value,
   disabled = false,
+  editableDefault = DEFAULT_CUSTOM_EASING,
   onChange,
 }: {
   value: string | undefined;
   disabled?: boolean;
+  editableDefault?: typeof DEFAULT_CUSTOM_EASING;
   onChange?: (value: string) => void;
 }) {
   const width = 168;
@@ -311,7 +313,7 @@ function EasingGraph({
   const pointY = (y: number) => height - pad - y * (height - pad * 2);
   const graphX = (x: number) => clampRangeValue((x - pad) / (width - pad * 2), 0, 1);
   const graphY = (y: number) => clampRangeValue((height - pad - y) / (height - pad * 2), 0, 1);
-  const editablePoints = custom ?? DEFAULT_CUSTOM_EASING;
+  const editablePoints = custom ?? editableDefault;
 
   function updateHandle(handle: "p1" | "p2", clientX: number, clientY: number) {
     if (!onChange || disabled) return;

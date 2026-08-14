@@ -25,7 +25,8 @@ function errorMessage(body: unknown, fallback: string): string {
 async function apiJson(response: Response, fallback: string): Promise<Record<string, unknown>> {
   const body = await readJson(response);
   if (!response.ok) throw new Error(errorMessage(body, fallback));
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("The server returned an invalid response.");
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    throw new Error("The server returned an invalid response.");
   return body as Record<string, unknown>;
 }
 

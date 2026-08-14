@@ -14,8 +14,10 @@ import {
   pickMediaRecorderProfile,
   resolveExportDuration,
   resolveExportFrameCount,
+  resolveRealtimeVideoExportProfile,
   resolveRequestedExportRange,
   shouldConfirmLongExport,
+  shouldCompositeVideoFrame,
 } from "./videoExport";
 
 describe("resolveExportDuration", () => {
@@ -48,6 +50,23 @@ describe("export quality defaults", () => {
   it("targets high frame rate and bitrate for graphic exports", () => {
     expect(LAB_VIDEO_EXPORT_FPS).toBeGreaterThanOrEqual(60);
     expect(LAB_VIDEO_EXPORT_BITRATE).toBeGreaterThanOrEqual(50_000_000);
+  });
+
+  it("adapts real-time recording load to the canvas resolution", () => {
+    expect(resolveRealtimeVideoExportProfile(1920, 1080)).toEqual({
+      fps: 60,
+      videoBitsPerSecond: 19_906_560,
+    });
+    expect(resolveRealtimeVideoExportProfile(3840, 2160)).toEqual({
+      fps: 30,
+      videoBitsPerSecond: 39_813_120,
+    });
+  });
+
+  it("only composites when the recorder needs another frame", () => {
+    expect(shouldCompositeVideoFrame(16, 0, 30)).toBe(false);
+    expect(shouldCompositeVideoFrame(34, 0, 30)).toBe(true);
+    expect(shouldCompositeVideoFrame(17, 0, 60)).toBe(true);
   });
 });
 
@@ -82,6 +101,15 @@ describe("formatVideoExportStatusLabel", () => {
     );
     expect(formatVideoExportStatusLabel("loading-encoder", { elapsedMs: 0, totalMs: 0 }, null)).toBe(
       "Loading encoder…",
+    );
+  });
+
+  it("shows an open-ended recording as a stop action with elapsed time", () => {
+    expect(formatVideoExportStatusLabel("recording", { elapsedMs: 65_000, totalMs: 0 }, null)).toBe(
+      "Stop Recording · 1:05",
+    );
+    expect(formatVideoExportStatusLabel("finishing", { elapsedMs: 65_000, totalMs: 0 }, null)).toBe(
+      "Finishing recording…",
     );
   });
 });
@@ -231,6 +259,83 @@ describe("exportLabVideo", () => {
     expect(transcode).toHaveBeenCalledTimes(1);
     expect(phases).toEqual(["recording", "loading-encoder", "transcoding", "done"]);
     expect(transcodePercents).toEqual([25, 100]);
+  });
+
+  it("records until the stop signal and then completes the export", async () => {
+    let mockNow = 0;
+    let nextRafId = 0;
+    const cancelled = new Set<number>();
+    vi.spyOn(performance, "now").mockImplementation(() => mockNow);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      mockNow += 1000;
+      const id = ++nextRafId;
+      queueMicrotask(() => {
+        if (!cancelled.has(id)) callback(mockNow);
+      });
+      return id;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => cancelled.add(id));
+
+    let recorderOptions: { mimeType: string; videoBitsPerSecond?: number } | undefined;
+    class MockMediaRecorder {
+      static isTypeSupported(mimeType: string) {
+        return mimeType === "video/mp4";
+      }
+
+      state: "inactive" | "recording" = "inactive";
+      private listeners = new Map<string, Array<() => void>>();
+
+      constructor(_stream: MediaStream, options: { mimeType: string; videoBitsPerSecond?: number }) {
+        recorderOptions = options;
+      }
+
+      addEventListener(type: string, listener: () => void) {
+        const bucket = this.listeners.get(type) ?? [];
+        bucket.push(listener);
+        this.listeners.set(type, bucket);
+      }
+
+      start() {
+        this.state = "recording";
+      }
+
+      stop() {
+        this.state = "inactive";
+        for (const listener of this.listeners.get("stop") ?? []) listener();
+      }
+    }
+
+    vi.stubGlobal("MediaRecorder", MockMediaRecorder);
+    const canvas = {
+      width: 2,
+      height: 2,
+      captureStream: vi.fn(() => ({ getTracks: () => [{ stop: vi.fn() }] })),
+    } as unknown as HTMLCanvasElement;
+    const createCompositor = vi.fn(async () => ({ canvas, compositeFrame: vi.fn() }));
+    const stopController = new AbortController();
+    const progress: Array<[number, number]> = [];
+    const phases: string[] = [];
+
+    const blob = await exportLabVideo({
+      canvas,
+      sourceKind: "image",
+      stopSignal: stopController.signal,
+      fps: 30,
+      videoBitsPerSecond: 24_000_000,
+      download: false,
+      createCompositor,
+      onPhase: (phase) => phases.push(phase),
+      onProgress: (elapsed, total) => {
+        progress.push([elapsed, total]);
+        if (elapsed >= 2000) stopController.abort();
+      },
+    });
+
+    expect(blob.type).toBe("video/mp4");
+    expect(canvas.captureStream).toHaveBeenCalledWith(30);
+    expect(recorderOptions?.videoBitsPerSecond).toBe(24_000_000);
+    expect(progress.at(-1)?.[1]).toBe(0);
+    expect(phases).toEqual(["recording", "done"]);
   });
 
   it("throws when webm recording is unsupported", async () => {

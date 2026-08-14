@@ -32,10 +32,16 @@ describe("shared preset API client", () => {
     savePresets([localLayout]);
     getItem.mockClear();
     setItem.mockClear();
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ presets: [layout] })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ presets: [layout] })),
+    );
 
     await expect(loadSharedPresets("layout")).resolves.toEqual([layout]);
-    expect(fetch).toHaveBeenCalledWith("/api/presets?kind=layout", expect.objectContaining({ headers: { accept: "application/json" } }));
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/presets?kind=layout",
+      expect.objectContaining({ headers: { accept: "application/json" } }),
+    );
     expect(getItem).not.toHaveBeenCalled();
     expect(setItem).not.toHaveBeenCalled();
     expect(loadStoredPresets()).toEqual([localLayout]);
