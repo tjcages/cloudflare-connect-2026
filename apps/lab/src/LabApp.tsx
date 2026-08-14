@@ -77,7 +77,11 @@ import {
   type ClientGraphicMode,
 } from "./client/clientPresets";
 import { createSharedSizePreset, deleteSharedSizePreset, loadSharedSizePresets } from "./client/sharedSizePresetApi";
-import { sharedSizePresetId, type SharedSizePreset } from "./sharedSizePresets";
+import {
+  sharedSizePresetId,
+  type SharedSizePreset,
+  type SharedSizePresetStatus,
+} from "./sharedSizePresets";
 import { putTextureBlob, deleteTextureBlob, clearTextureBlobs } from "./textureStore";
 import { cellGridToSvg, downloadSvg } from "./export/cellGridToSvg";
 import { downloadEps, svgToEps } from "./export/svgToEps";
@@ -807,6 +811,21 @@ type LabInnerProps = {
   onResetSurfaceArea: (id: string) => void;
 };
 
+function sharedSizeControlValues(preset: SharedSizePreset): Record<string, unknown> {
+  const widthPx = preset.unit === "pixels" ? preset.width : Math.round(preset.width * preset.ppi);
+  const heightPx = preset.unit === "pixels" ? preset.height : Math.round(preset.height * preset.ppi);
+  const widthInches = preset.unit === "inches" ? preset.width : preset.width / preset.ppi;
+  const heightInches = preset.unit === "inches" ? preset.height : preset.height / preset.ppi;
+  return {
+    clientSizeUnit: preset.unit,
+    clientCanvasWidth: widthPx,
+    clientCanvasHeight: heightPx,
+    clientCanvasWidthInches: widthInches,
+    clientCanvasHeightInches: heightInches,
+    clientSizePpi: preset.ppi,
+  };
+}
+
 type SurfaceAreaConfigEditorProps = {
   area: SurfaceArea;
   onChange: (id: string, config: ThemedEngineConfig) => void;
@@ -943,9 +962,9 @@ function LabInner({
     () => consumeBootPresetName() ?? (clientMode ? loadActiveClientLayoutName() : null) ?? startupPreset?.name ?? "",
   );
   const [sharedSizePresets, setSharedSizePresets] = useState<SharedSizePreset[]>([]);
-  const [sharedSizeStatus, setSharedSizeStatus] = useState<"loading" | "ready" | "saving" | "deleting" | "error">(
-    clientMode ? "loading" : "ready",
-  );
+  const [sharedSizeStatus, setSharedSizeStatus] = useState<SharedSizePresetStatus>(clientMode ? "loading" : "ready");
+  const [sharedSizeNotice, setSharedSizeNotice] = useState<string | null>(null);
+  const pendingSharedSizeSelectionRef = useRef<SharedSizePreset | null>(null);
   useEffect(() => {
     if (!clientMode) return;
     const controller = new AbortController();
@@ -962,6 +981,11 @@ function LabInner({
       });
     return () => controller.abort();
   }, [clientMode]);
+  useEffect(() => {
+    if (!sharedSizeNotice) return;
+    const timeout = window.setTimeout(() => setSharedSizeNotice(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [sharedSizeNotice]);
   const sourceSizeRef = useRef(sourceSize);
   sourceSizeRef.current = sourceSize;
   const textureSourceModeRef = useRef(textureSourceMode);
@@ -1199,6 +1223,7 @@ function LabInner({
     shaderView,
     initialThemed,
     clientCanvasSize,
+    clientSizeId,
     clientGraphicMode,
     clientRainShaderPreset,
   } = useEngineControls(onReplay, {
@@ -1221,6 +1246,7 @@ function LabInner({
         }
       : undefined,
     sharedSizePresets,
+    sharedSizeStatus,
     onSaveSharedSize: (name) => void handleSaveSharedSize(name),
     onDeleteSharedSize: (preset) => void handleDeleteSharedSize(preset),
   });
@@ -1238,6 +1264,21 @@ function LabInner({
   cometLogoRef.current = cometLogo;
   const setControlRef = useRef(setControl);
   setControlRef.current = setControl;
+  useEffect(() => {
+    const preset = pendingSharedSizeSelectionRef.current;
+    if (preset && sharedSizePresets.some((entry) => entry.id === preset.id)) {
+      setControlRef.current({
+        clientSize: sharedSizePresetId(preset.id),
+        ...sharedSizeControlValues(preset),
+      });
+      pendingSharedSizeSelectionRef.current = null;
+      return;
+    }
+    if (!clientMode || sharedSizeStatus === "loading" || !clientSizeId) return;
+    // Leva keeps a select's previous display label when options are replaced.
+    // Reapply the resolved value after loading so the visible label matches the native selection.
+    setControlRef.current({ clientSize: clientSizeId });
+  }, [clientMode, clientSizeId, sharedSizePresets, sharedSizeStatus]);
   const textureIdRef = useRef(textureId);
   textureIdRef.current = textureId;
   const lastSavedConfigJsonRef = useRef<string | null>(null);
@@ -3138,6 +3179,7 @@ function LabInner({
       setSharedSizePresets((current) =>
         [...current.filter((entry) => entry.id !== preset.id), preset].sort((a, b) => a.name.localeCompare(b.name)),
       );
+      pendingSharedSizeSelectionRef.current = preset;
       saveLabSettings({
         ...lab,
         clientSizeId: sharedSizePresetId(preset.id),
@@ -3146,8 +3188,8 @@ function LabInner({
         clientSizeHeight: preset.height,
         clientSizePpi: preset.ppi,
       });
-      skipPersistenceDuringReloadRef.current = true;
-      window.location.reload();
+      setSharedSizeStatus("ready");
+      setSharedSizeNotice(`Saved “${preset.name}” for everyone.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "The shared size could not be saved.";
       setSharedSizeStatus("error");
@@ -3162,6 +3204,11 @@ function LabInner({
     try {
       await deleteSharedSizePreset(preset.id);
       const lab = fullLabSettingsSnapshot();
+      setSharedSizePresets((current) => current.filter((entry) => entry.id !== preset.id));
+      setControlRef.current({
+        clientSize: CUSTOM_CLIENT_SIZE_ID,
+        ...sharedSizeControlValues(preset),
+      });
       saveLabSettings({
         ...lab,
         clientSizeId: CUSTOM_CLIENT_SIZE_ID,
@@ -3170,8 +3217,8 @@ function LabInner({
         clientSizeHeight: preset.height,
         clientSizePpi: preset.ppi,
       });
-      skipPersistenceDuringReloadRef.current = true;
-      window.location.reload();
+      setSharedSizeStatus("ready");
+      setSharedSizeNotice(`Deleted “${preset.name}”.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "The shared size could not be deleted.";
       setSharedSizeStatus("error");
@@ -3473,6 +3520,11 @@ function LabInner({
 
   return (
     <div className={`lab-shell${sidebarResizing ? " is-resizing" : ""}${clientMode ? " is-client-mode" : ""}`}>
+      {clientMode && sharedSizeNotice ? (
+        <div className="lab-client-notice" role="status" aria-live="polite">
+          {sharedSizeNotice}
+        </div>
+      ) : null}
       {!clientMode ? (
         <aside
           className={`lab-sidebar lab-sidebar-texture${labSettings.textureSidebarOpen ? "" : " is-closed"}`}

@@ -15,6 +15,8 @@ export type SharedSizePreset = {
 
 export type SharedSizePresetInput = Pick<SharedSizePreset, "name" | "unit" | "width" | "height" | "ppi">;
 
+export type SharedSizePresetStatus = "loading" | "ready" | "saving" | "deleting" | "error";
+
 export type SharedSizePresetValidation = { ok: true; value: SharedSizePresetInput } | { ok: false; message: string };
 
 export function sharedSizePresetId(id: string): `${typeof SHARED_SIZE_PRESET_PREFIX}${string}` {
@@ -25,6 +27,20 @@ export function parseSharedSizePresetId(value: string): string | null {
   if (!value.startsWith(SHARED_SIZE_PRESET_PREFIX)) return null;
   const id = value.slice(SHARED_SIZE_PRESET_PREFIX.length).trim();
   return id || null;
+}
+
+export function resolveSharedSizeSelectorValue(
+  value: string,
+  presets: readonly SharedSizePreset[],
+  status: SharedSizePresetStatus,
+  customValue: string,
+): string {
+  if (status === "loading" || !value.startsWith(SHARED_SIZE_PRESET_PREFIX)) return value;
+  return presets.some((preset) => sharedSizePresetId(preset.id) === value) ? value : customValue;
+}
+
+export function showSharedSizeActions(value: string, status: SharedSizePresetStatus, customValue: string): boolean {
+  return status !== "loading" && value === customValue;
 }
 
 export function validateSharedSizePresetInput(input: unknown): SharedSizePresetValidation {

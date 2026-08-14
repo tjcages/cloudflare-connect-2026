@@ -12,7 +12,13 @@ import {
   saveStickyBackgroundColor,
 } from "../persistence";
 import type { LabEditTheme, LabSettings } from "../persistence";
-import { sharedSizePresetId, type SharedSizePreset } from "../sharedSizePresets";
+import {
+  resolveSharedSizeSelectorValue,
+  sharedSizePresetId,
+  showSharedSizeActions,
+  type SharedSizePreset,
+  type SharedSizePresetStatus,
+} from "../sharedSizePresets";
 import { fromEditable, type EditableStripe } from "./stripeAdapter";
 import { stripeColorsTablePlugin, stripeColorsTableRuntime, stripeSyncKey } from "./stripeColorsTablePlugin";
 import { createLevaPatchWriter, levaValuesEqual } from "./levaStoreWrite";
@@ -544,6 +550,8 @@ export function useEngineControls(
     onClientGraphicModeChange?: (mode: ClientGraphicMode) => void;
     /** Shared D1-backed sizes shown before the final Custom… option. */
     sharedSizePresets?: readonly SharedSizePreset[];
+    /** Current shared-size request state, used for honest loading and disabled controls. */
+    sharedSizeStatus?: SharedSizePresetStatus;
     /** Save a named custom size to the shared database. */
     onSaveSharedSize?: (name: string) => void;
     /** Delete the currently selected shared size from the database. */
@@ -553,6 +561,8 @@ export function useEngineControls(
   const surfaceConfig = options.configScope === "surface";
   const clientApp = options.clientMode === true;
   const sharedSizePresets = options.sharedSizePresets ?? [];
+  const sharedSizeStatus = options.sharedSizeStatus ?? "ready";
+  const sharedSizesLoading = sharedSizeStatus === "loading";
   const clientPanelMode = options.clientPanelMode === "advanced" ? "advanced" : "default";
   const clientDefaultPanel = clientApp && clientPanelMode === "default";
   clientDefaultPanelActive = clientDefaultPanel;
@@ -1308,15 +1318,23 @@ export function useEngineControls(
   textureSetterRawRef.current = setTextureControl as (values: Record<string, unknown>) => void;
   textureControlSetterRef.current = (values) => texturePatchWriter.writeNow(values);
 
-  const clientSizeOptions = Object.fromEntries([
-    ...CLIENT_SIZE_PRESETS.map((preset) => [preset.label, preset.id]),
-    ...sharedSizePresets.map((preset) => [preset.name, sharedSizePresetId(preset.id)]),
-    ...(initialLabSettings.clientSizeId.startsWith("shared:") &&
-    !sharedSizePresets.some((preset) => sharedSizePresetId(preset.id) === initialLabSettings.clientSizeId)
-      ? [["Loading shared size…", initialLabSettings.clientSizeId] as const]
-      : []),
-    ["Custom…", CUSTOM_CLIENT_SIZE_ID],
-  ]) as Record<string, ClientSizeId>;
+  const selectedClientSizeId = resolveSharedSizeSelectorValue(
+    levaSchemaSeedRef.current.clientSizeId,
+    sharedSizePresets,
+    sharedSizeStatus,
+    CUSTOM_CLIENT_SIZE_ID,
+  ) as ClientSizeId;
+  const loadingClientSizeId = "__loading_shared_size__" as ClientSizeId;
+  const clientSizeControlValue = sharedSizesLoading ? loadingClientSizeId : selectedClientSizeId;
+  const clientSizeOptions = Object.fromEntries(
+    sharedSizesLoading
+      ? [["Loading…", loadingClientSizeId]]
+      : [
+          ...CLIENT_SIZE_PRESETS.map((preset) => [preset.label, preset.id]),
+          ...sharedSizePresets.map((preset) => [preset.name, sharedSizePresetId(preset.id)]),
+          ["Custom…", CUSTOM_CLIENT_SIZE_ID],
+        ],
+  ) as Record<string, ClientSizeId>;
   const sharedSizeOptionsKey = sharedSizePresets
     .map((preset) => `${preset.id}:${preset.name}:${preset.unit}:${preset.width}:${preset.height}:${preset.ppi}`)
     .join("|");
@@ -1363,9 +1381,10 @@ export function useEngineControls(
           "Presets",
           {
             clientSize: {
-              value: levaSchemaSeedRef.current.clientSizeId,
+              value: clientSizeControlValue,
               options: clientSizeOptions,
               label: "Size",
+              disabled: sharedSizesLoading,
             },
             clientSizeUnit: {
               value: levaSchemaSeedRef.current.clientSizeUnit,
@@ -1432,32 +1451,38 @@ export function useEngineControls(
               placeholder: "Size name",
               render: (get) => get("Presets.clientSize") === CUSTOM_CLIENT_SIZE_ID,
             },
-            clientSharedSizeActions: buttonGroup({
-              label: "Team size",
-              opts: {
-                Save: (get) => {
-                  if (get("Presets.clientSize") !== CUSTOM_CLIENT_SIZE_ID) {
-                    window.alert("Choose Custom… before saving a shared size.");
-                    return;
-                  }
-                  const name = String(get("Presets.clientSharedSizeName") ?? "").trim();
-                  if (!name) {
-                    window.alert("Enter a name before saving this size.");
-                    return;
-                  }
-                  onSaveSharedSizeRef.current?.(name);
+            clientSharedSizeActions: {
+              ...buttonGroup({
+                label: "Team size",
+                opts: {
+                  Save: (get) => {
+                    const name = String(get("Presets.clientSharedSizeName") ?? "").trim();
+                    if (!name) {
+                      window.alert("Enter a name before saving this size.");
+                      return;
+                    }
+                    onSaveSharedSizeRef.current?.(name);
+                  },
+                  Delete: (get) => {
+                    const name = String(get("Presets.clientSharedSizeName") ?? "").trim();
+                    if (!name) {
+                      window.alert("Enter the saved size name you want to delete.");
+                      return;
+                    }
+                    const preset = sharedSizePresets.find(
+                      (entry) => entry.name.localeCompare(name, undefined, { sensitivity: "base" }) === 0,
+                    );
+                    if (!preset) {
+                      window.alert(`No shared size named “${name}” was found.`);
+                      return;
+                    }
+                    onDeleteSharedSizeRef.current?.(preset);
+                  },
                 },
-                Delete: (get) => {
-                  const selectedId = String(get("Presets.clientSize") ?? "");
-                  const preset = sharedSizePresets.find((entry) => sharedSizePresetId(entry.id) === selectedId);
-                  if (!preset) {
-                    window.alert("Choose a shared team size before deleting.");
-                    return;
-                  }
-                  onDeleteSharedSizeRef.current?.(preset);
-                },
-              },
-            }),
+              }),
+              render: (get: (path: string) => unknown) =>
+                showSharedSizeActions(String(get("Presets.clientSize") ?? ""), sharedSizeStatus, CUSTOM_CLIENT_SIZE_ID),
+            },
             clientLayout: {
               value: levaSchemaSeedRef.current.clientLayoutId,
               options: clientLayoutOptions,
@@ -4969,7 +4994,7 @@ export function useEngineControls(
     { store: shaderStore },
     // Do NOT depend on client Default/Advanced or stripeKey — rebuilding the
     // schema overrides live Leva values (CF-27 layouts, CF-68 fast slider crash).
-    [sharedSizeOptionsKey, stripePaletteOptionsKey, stripePaletteValue],
+    [sharedSizeOptionsKey, sharedSizeStatus, stripePaletteOptionsKey, stripePaletteValue],
   );
   shaderValuesRecordRef.current = shaderValues as unknown as Record<string, unknown>;
   shaderSetterRawRef.current = setShaderControl as (values: Record<string, unknown>) => void;
@@ -4985,10 +5010,15 @@ export function useEngineControls(
       initialLabSettings.clientColorId ??
       DEFAULT_CLIENT_PREVIEW_STATE.colorId,
   ) as ClientColorPresetId;
-  const clientSizeId = String(
+  const rawClientSizeId = String(
     (shaderValues as unknown as Record<string, unknown>).clientSize ??
       initialLabSettings.clientSizeId ??
       DEFAULT_CLIENT_PREVIEW_STATE.sizeId,
+  ) as ClientSizeId;
+  const clientSizeId = (
+    rawClientSizeId === loadingClientSizeId
+      ? (initialLabSettings.clientSizeId ?? DEFAULT_CLIENT_PREVIEW_STATE.sizeId)
+      : rawClientSizeId
   ) as ClientSizeId;
   const clientCanvasWidth = Number(
     (shaderValues as unknown as Record<string, unknown>).clientCanvasWidth ?? initialLabSettings.canvasWidth,
