@@ -436,6 +436,7 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
         position: relative;
         display: inline-flex;
         min-width: 0;
+        margin-left: -16px;
         align-items: center;
       }
 
@@ -450,7 +451,7 @@ export default function ConnectTwizzlerControls({ onSettingsChange }: Props) {
         color: inherit;
         font: inherit;
         font-weight: 600;
-        padding: 5px 21px 5px 5px;
+        padding: 5px 21px 5px 8px;
         text-align: left;
       }
 
