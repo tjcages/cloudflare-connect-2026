@@ -119,24 +119,85 @@ export const connectTickets = [
   },
 ];
 
+export const connectTicketIncludes = [
+  "Meals",
+  "Exclusive event swag",
+  "Evening party",
+];
+
 export const connectTicketNote =
   "$100 off for government, military, nonprofit, and education (.gov / .mil / .org / .edu).";
 
-export const connectAgenda = [
+/** Dot tint for an agenda slot — resolved to a class in Agenda.astro. */
+export type AgendaSlotAccent = "info" | "orange" | "success";
+
+export const connectAgenda: {
+  day: string;
+  date: string;
+  slots: { label: string; accent: AgendaSlotAccent; items: string[] }[];
+}[] = [
   {
     day: "Day 1",
     date: "Mon Oct 19",
-    body: "All day: Cloudflare University · Global Partner Summit. Evening: Welcome Reception.",
+    slots: [
+      {
+        label: "All day",
+        accent: "success",
+        items: ["Cloudflare University", "Global Partner Summit"],
+      },
+      {
+        label: "Evening",
+        accent: "orange",
+        items: ["Welcome Reception"],
+      },
+    ],
   },
   {
     day: "Day 2",
     date: "Tue Oct 20",
-    body: "Morning: Opening General Session. All day: Breakouts · The Hub · Knowledge Bar · Innovations Theatre.",
+    slots: [
+      {
+        label: "Morning",
+        accent: "info",
+        items: ["Opening General Session"],
+      },
+      {
+        label: "All day",
+        accent: "success",
+        items: [
+          "Breakout Sessions",
+          "The Hub",
+          "Knowledge Bar",
+          "Innovations Theatre",
+        ],
+      },
+    ],
   },
   {
     day: "Day 3",
     date: "Wed Oct 21",
-    body: "Morning: Innovation General Session. All day: Breakouts · Hub · Knowledge Bar · Innovations Theatre. Evening: func(tion).",
+    slots: [
+      {
+        label: "Morning",
+        accent: "info",
+        items: ["Innovation General Session"],
+      },
+      {
+        label: "All day",
+        accent: "success",
+        items: [
+          "Breakout Sessions",
+          "The Hub",
+          "Knowledge Bar",
+          "Innovations Theatre",
+        ],
+      },
+      {
+        label: "Evening",
+        accent: "orange",
+        items: ["func(tion)"],
+      },
+    ],
   },
 ];
 
