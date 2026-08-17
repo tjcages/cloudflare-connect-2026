@@ -4,52 +4,62 @@ import {
 } from "@tjcages/connect-twizzler";
 import { CONNECT_HERO_TWIZZLER_DEFAULTS } from "./twizzler-defaults";
 
+// Exactly the Twizzler surface the lab's Leva panel exposes — Appearance
+// (colors, ribbon color mode, hotspot editor, opacity, zoom) plus the Twizzler
+// Shape / Gradients / Stroke / Motion folders. Everything else in
+// `TwizzlerSettings` stays at the approved base.
+export const TWIZZLER_CONTROL_KEYS = [
+  "color",
+  "colorFar",
+  "colorNear",
+  "colorEdge",
+  "ribbonColorMode",
+  "gradientStops",
+  "opacity",
+  "scale",
+  "centerY",
+  "panX",
+  "panY",
+  "panZ",
+  "amplitude",
+  "twist",
+  "rotateXDeg",
+  "rotateYDeg",
+  "rotateZDeg",
+  "fov",
+  "camDist",
+  "perspectiveWidth",
+  "lineWidth",
+  "minLineWidth",
+  "maxLineWidth",
+  "lineCount",
+  "pointSpacing",
+  "gradientXEnabled",
+  "gradientXMix",
+  "gradientYEnabled",
+  "gradientYMix",
+  "gradientZEnabled",
+  "gradientZStrength",
+  "gradientZCenter",
+  "gradientZWidth",
+  "speed",
+] as const;
+
 export type TwizzlerControlSettings = Pick<
   TwizzlerSettings,
-  | "gradientStops"
-  | "opacity"
-  | "scale"
-  | "centerY"
-  | "amplitude"
-  | "lineCount"
-  | "lineWidth"
-  | "minLineWidth"
-  | "maxLineWidth"
-  | "pointSpacing"
-  | "rotateXDeg"
-  | "rotateYDeg"
-  | "rotateZDeg"
-  | "fov"
-  | "camDist"
-  | "perspectiveWidth"
-  | "panX"
-  | "panY"
-  | "panZ"
-  | "speed"
+  (typeof TWIZZLER_CONTROL_KEYS)[number]
 >;
 
-export const CONNECT_TWIZZLER_CONTROL_DEFAULTS: TwizzlerControlSettings = {
-  gradientStops: CONNECT_HERO_TWIZZLER_DEFAULTS.gradientStops,
-  opacity: CONNECT_HERO_TWIZZLER_DEFAULTS.opacity,
-  scale: CONNECT_HERO_TWIZZLER_DEFAULTS.scale,
-  centerY: CONNECT_HERO_TWIZZLER_DEFAULTS.centerY,
-  amplitude: CONNECT_HERO_TWIZZLER_DEFAULTS.amplitude,
-  lineCount: CONNECT_HERO_TWIZZLER_DEFAULTS.lineCount,
-  lineWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.lineWidth,
-  minLineWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.minLineWidth,
-  maxLineWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.maxLineWidth,
-  pointSpacing: CONNECT_HERO_TWIZZLER_DEFAULTS.pointSpacing,
-  rotateXDeg: CONNECT_HERO_TWIZZLER_DEFAULTS.rotateXDeg,
-  rotateYDeg: CONNECT_HERO_TWIZZLER_DEFAULTS.rotateYDeg,
-  rotateZDeg: CONNECT_HERO_TWIZZLER_DEFAULTS.rotateZDeg,
-  fov: CONNECT_HERO_TWIZZLER_DEFAULTS.fov,
-  camDist: CONNECT_HERO_TWIZZLER_DEFAULTS.camDist,
-  perspectiveWidth: CONNECT_HERO_TWIZZLER_DEFAULTS.perspectiveWidth,
-  panX: CONNECT_HERO_TWIZZLER_DEFAULTS.panX,
-  panY: CONNECT_HERO_TWIZZLER_DEFAULTS.panY,
-  panZ: CONNECT_HERO_TWIZZLER_DEFAULTS.panZ,
-  speed: CONNECT_HERO_TWIZZLER_DEFAULTS.speed,
+const projectControlSettings = (
+  source: TwizzlerSettings
+): TwizzlerControlSettings => {
+  const projected = {} as Record<string, unknown>;
+  for (const key of TWIZZLER_CONTROL_KEYS) projected[key] = source[key];
+  return projected as TwizzlerControlSettings;
 };
+
+export const CONNECT_TWIZZLER_CONTROL_DEFAULTS: TwizzlerControlSettings =
+  projectControlSettings(CONNECT_HERO_TWIZZLER_DEFAULTS);
 
 export const cloneTwizzlerControlSettings = (
   settings: TwizzlerControlSettings = CONNECT_TWIZZLER_CONTROL_DEFAULTS
